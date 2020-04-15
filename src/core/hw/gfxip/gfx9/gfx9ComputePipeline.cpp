@@ -358,7 +358,7 @@ void ComputePipeline::UpdateRingSizes(
 
     if (scratchMemorySize != 0)
     {
-        if (IsGfx10(m_pDevice->Parent()->ChipProperties().gfxLevel) && (IsWave32() == false))
+        if (IsGfx10(m_pDevice->Parent()->ChipProperties().gfxLevel))
         {
             // We allocate scratch memory based on the minimum wave size for the chip, which for Gfx10+ ASICs will
             // be Wave32. In order to appropriately size the scratch memory (reported in the ELF as per-thread) for

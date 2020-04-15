@@ -515,6 +515,38 @@ namespace DevDriver
 
     DD_CHECK_SIZE(MessageBuffer, sizeof(MessageHeader) + kMaxPayloadSizeInBytes);
 
+    // Helper function used to validate message buffers that arrive from an external source
+    // Returns Success if the message buffer is valid and Error otherwise.
+    inline Result ValidateMessageBuffer(const void* pMsgBuffer, size_t msgBufferSize)
+    {
+        Result result = Result::Error;
+
+        // Ensure that we've been passed valid parameters
+        if ((pMsgBuffer != nullptr) && (msgBufferSize > 0))
+        {
+            // A valid message buffer must be no larger than the full size message buffer structure
+            // and it must also be large enough to contain a valid header.
+            if ((msgBufferSize <= sizeof(MessageBuffer)) && (msgBufferSize >= sizeof(MessageHeader)))
+            {
+                // Calculate the total size of the message from the data encoded in the buffer.
+                const MessageHeader* pHeader = reinterpret_cast<const MessageHeader*>(pMsgBuffer);
+                const size_t encodedMessageSize = (sizeof(MessageHeader) + pHeader->payloadSize);
+
+                // The encoded message size should match our expected size exactly
+                if (encodedMessageSize == msgBufferSize)
+                {
+                    result = Result::Success;
+                }
+            }
+        }
+        else
+        {
+            result = Result::InvalidParameter;
+        }
+
+        return result;
+    }
+
     // tripwire - this intentionally will break if the message version changes. Since these are breaking changes already, we need to address
     // this problem when it happens.
     static_assert(kMessageVersion == 1011, "ClientInfoStruct needs to be updated so that clientName is long enough to support a full path");

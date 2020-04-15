@@ -491,7 +491,12 @@ void EventProvider::LogEvent(
                 PAL_ASSERT(sizeof(GpuMemorySnapshotData) == eventDataSize);
                 const GpuMemorySnapshotData* pData = reinterpret_cast<const GpuMemorySnapshotData*>(pEventData);
 
-                WriteUserdataStringToken(delta, pData->pSnapshotName, true);
+                RMT_MSG_USERDATA_EMBEDDED_STRING eventToken(
+                    delta,
+                    RMT_USERDATA_EVENT_TYPE_SNAPSHOT,
+                    pData->pSnapshotName);
+
+                WriteTokenData(eventToken);
                 break;
             }
             case PalEvent::DebugName:
@@ -499,7 +504,12 @@ void EventProvider::LogEvent(
                 PAL_ASSERT(sizeof(DebugNameData) == eventDataSize);
                 const DebugNameData* pData = reinterpret_cast<const DebugNameData*>(pEventData);
 
-                WriteUserdataStringToken(delta, pData->pDebugName, false);
+                RMT_MSG_USERDATA_DEBUG_NAME eventToken(
+                    delta,
+                    pData->pDebugName,
+                    static_cast<uint32>(pData->handle));
+
+                WriteTokenData(eventToken);
                 break;
             }
             case PalEvent::GpuMemoryResourceBind:
@@ -897,24 +907,6 @@ void EventProvider::LogResourceCreateEvent(
         PAL_ASSERT_ALWAYS();
         break;
     }
-}
-
-// =====================================================================================================================
-void EventProvider::WriteUserdataStringToken(
-    uint8       delta,
-    const char* pSnapshotName,
-    bool        isSnapshot)
-{
-    const RMT_USERDATA_EVENT_TYPE type = (isSnapshot
-        ? RMT_USERDATA_EVENT_TYPE_SNAPSHOT
-        : RMT_USERDATA_EVENT_TYPE_NAME);
-
-    RMT_MSG_USERDATA_EMBEDDED_STRING eventToken(
-        delta,
-        type,
-        pSnapshotName);
-
-    WriteTokenData(eventToken);
 }
 
 } // Pal

@@ -164,6 +164,8 @@ public:
     void CpuUploadEq(void*  pCpuMem) const;
     void UploadEq(CmdBuffer*  pCmdBuffer) const;
     bool HasEqGpuAccess() const { return m_eqGpuAccess.offset != 0; }
+    virtual uint32 PipeAligned() const { return 1; }
+    virtual gpusize  SliceOffset(uint32  arraySlice) const;
     static bool SupportFastColorClear(
         const Pal::Device& device,
         const Image&       image,
@@ -182,8 +184,6 @@ public:
         uint32*  pYinc,
         uint32*  pZinc) const;
 
-    static bool IsRbAligned(const Image*  pImage);
-    static bool IsPipeAligned(const Image*  pImage);
     bool IsMetaEquationValid() const { return m_metaEquationValid; }
 
     virtual uint32 GetMetaBlockSize(Gfx9MaskRamBlockSize* pExtent) const;
@@ -219,6 +219,8 @@ protected:
     uint32 GetPipeRotateAmount() const;
     void   GetPixelBlockSize(Gfx9MaskRamBlockSize* pBlockSize) const;
     uint32 GetPipeBlockSize() const;
+
+    ADDR2_META_FLAGS GetMetaFlags() const;
 
     virtual uint32 GetMetaCachelineSize() const = 0;
 
@@ -395,11 +397,11 @@ struct MipDccStateMetaData
 class Gfx9Dcc : public Gfx9MaskRam
 {
 public:
-    Gfx9Dcc(const Image&  image);
+    Gfx9Dcc(const Image& image, bool displayDcc);
     // Destructor has nothing to do.
     virtual ~Gfx9Dcc() {}
 
-    Result Init(gpusize*  pSize, bool  hasEqGpuAccess);
+    Result Init(const SubresId& subResId, gpusize*  pSize, bool  hasEqGpuAccess);
     static bool UseDccForImage(const Image& image, bool metaDataTexFetchSupported);
 
     // Returns the value of the DCC control register for this DCC surface
@@ -423,6 +425,10 @@ public:
         uint32*  pYinc,
         uint32*  pZinc) const override;
 
+    virtual uint32 PipeAligned() const override;
+
+    virtual gpusize  SliceOffset(uint32  arraySlice) const override;
+
 protected:
     virtual uint32  GetNumSamplesLog2() const override;
     virtual uint32  GetMetaCachelineSize() const override { return 6; }
@@ -430,8 +436,12 @@ private:
     ADDR2_COMPUTE_DCCINFO_OUTPUT  m_addrOutput;
     regCB_COLOR0_DCC_CONTROL      m_dccControl;
 
-    Result ComputeDccInfo();
-    void   SetControlReg();
+    // Display Dcc: from UMDKMDIF_GET_PRIMARYSURF_INFO_OUTPUT::KeyPipeAligned, so far 0 for Gfx10.
+    // Normal Dcc : 1.
+    const bool m_displayDcc;
+
+    Result ComputeDccInfo(const SubresId&  subResId);
+    void   SetControlReg(const SubresId&  subResId);
     uint32 GetMinCompressedBlockSize() const;
 
     // The surface associated with a DCC surface is guaranteed to be a color image

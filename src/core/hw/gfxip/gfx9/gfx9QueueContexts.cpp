@@ -402,6 +402,11 @@ Result ComputeQueueContext::UpdateRingSet(
         SamplePatternPalette samplePatternPalette;
         m_pDevice->GetSamplePatternPalette(&samplePatternPalette);
 
+        if (m_pDevice->Settings().debugForceQueueNotWaitForIdle == false)
+        {
+            m_pParentQueue->WaitIdle();
+        }
+
         // The queues are idle, so it is safe to validate the rest of the RingSet.
         if (result == Result::Success)
         {
@@ -1135,7 +1140,6 @@ uint32* UniversalQueueContext::WriteUniversalPreamble(
                                                 pixelPipeStatControl.u32All,
                                                 pCmdSpace);
 
-
     // The register spec suggests these values are optimal settings for Gfx9 hardware, when VS half-pack mode is
     // disabled. If half-pack mode is active, we need to use the legacy defaults which are safer (but less optimal).
     regVGT_OUT_DEALLOC_CNTL vgtOutDeallocCntl = { };
@@ -1183,7 +1187,6 @@ uint32* UniversalQueueContext::WriteUniversalPreamble(
         // CB).  The GL2C_CM_CTRL1 register controls DCC compression occurring through shader writes.  I'd write
         // it here, but it's privileged, and I can't.  GACK.  By default, both compToReg and compToSingle are
         // enabled for shader write operations.
-
 
         cbDccControl.bits.OVERWRITE_COMBINER_WATERMARK = 6;
     }
@@ -1368,6 +1371,11 @@ Result UniversalQueueContext::UpdateRingSet(
 
         SamplePatternPalette samplePatternPalette;
         m_pDevice->GetSamplePatternPalette(&samplePatternPalette);
+
+        if (m_pDevice->Settings().debugForceQueueNotWaitForIdle == false)
+        {
+            m_pParentQueue->WaitIdle();
+        }
 
         // The queues are idle, so it is safe to validate the rest of the RingSet.
         if (result == Result::Success)

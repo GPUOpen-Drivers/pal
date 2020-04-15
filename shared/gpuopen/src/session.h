@@ -114,7 +114,7 @@ namespace DevDriver
         ///
 
         Result Send(uint32 payloadSizeInBytes, const void* pPayload, uint32 timeoutInMs) override final;
-        Result Receive(uint32 payloadSizeInBytes, void* pPayload, uint32* pBytesReceived, uint32 timeoutInMs) override final;
+        Result Receive(uint32 payloadBufferSizeInBytes, void* pPayloadBuffer, uint32* pBytesReceived, uint32 timeoutInMs) override final;
 
         Result WaitForConnection(uint32 timeoutInMs) override final
         {

@@ -196,6 +196,7 @@ enum class AsicRevision : uint32
     Vega20      = 0x1A,
     Raven       = 0x1B,
     Raven2      = 0x1C,
+    Renoir      = 0x1D,
 
     Navi10      = 0x1F,
     Navi14      = 0x23,
@@ -583,10 +584,21 @@ struct PalPublicSettings
     bool disableSkipFceOptimization;
     /// Sets the minimum BPP of surfaces which will have DCC enabled
     uint32 dccBitsPerPixelThreshold;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 584
+    /// See largePageSizeInBytes in DeviceProperties. This limit defines how large an allocation must be to have
+    /// PAL automatically pad allocation starting virtual address alignments to enable this optimization. By
+    /// default, PAL will use the KMD-reported limit.
+    gpusize largePageMinSizeForVaAlignmentInBytes;
+    /// See largePageSizeInBytes in DeviceProperties. This limit defines how large an allocation must be to have
+    /// PAL automatically pad allocation sizes to fill an integral number of large pages. By default, PAL will
+    /// use the KMD-reported limit.
+    gpusize largePageMinSizeForSizeAlignmentInBytes;
+#else
     /// See largePageSizeInBytes in DeviceProperties.  This limit defines how large an allocation must be to have
     /// PAL automatically pad allocation sizes and alignments to enable this optimization.  By default, PAL will use
     /// the KMD-reported limit.
     gpusize largePageMinSizeForAlignmentInBytes;
+#endif
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 500
     /// The acquire/release-based barrier interface is enabled.
     bool useAcqRelInterface;

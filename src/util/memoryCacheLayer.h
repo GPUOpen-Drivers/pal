@@ -95,7 +95,7 @@ private:
         using List = IntrusiveList<Entry>;
         using Node = IntrusiveListNode<Entry>;
         using Iter = IntrusiveListIterator<Entry>;
-        using Map  = HashMap<Hash128, Entry*, ForwardAllocator>;
+        using Map  = HashMap<Hash128, Entry*, ForwardAllocator, JenkinsHashFunc>;
 
         static Entry* Create(
             ForwardAllocator* pAllocator,

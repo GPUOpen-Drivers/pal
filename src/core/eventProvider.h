@@ -109,8 +109,8 @@ public:
     static constexpr DevDriver::EventProtocol::EventProviderId kProviderId = 0x50616C45; // 'PalE'
     DevDriver::EventProtocol::EventProviderId GetId() const override { return kProviderId; }
 
-    const void* GetEventDescriptionData()     const;
-    uint32      GetEventDescriptionDataSize() const;
+    const void* GetEventDescriptionData()     const override;
+    uint32      GetEventDescriptionDataSize() const override;
 
     // End of BaseEventProvider overrides
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -123,8 +123,6 @@ private:
 
     // Hepler method for LogEvent
     void LogResourceCreateEvent(uint8 delta, const void* pEventData, size_t eventDataSize);
-    // Helper method for LogEvent
-    void WriteUserdataStringToken(uint8 delta, const char* pSnapshotName, bool isSnapshot);
 
     // Write an RMT token to both the service and event protocol
     void WriteTokenData(const DevDriver::RMT_TOKEN_DATA& token)

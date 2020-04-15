@@ -166,7 +166,8 @@ void RmtWriter::WriteAdapterInfo(RmtFileChunkAdapterInfo adapterInfo)
 
 //=====================================================================================================================
 void RmtWriter::WriteSnapshot(
-    const char* pSnapshotName)
+    const char* pSnapshotName,
+    uint64      snapshotTimestamp)
 {
     DD_ASSERT(pSnapshotName != nullptr);
 
@@ -183,7 +184,7 @@ void RmtWriter::WriteSnapshot(
     snapshotData.header.padding                    = 0;
 
     // Fill out the chunk fields
-    snapshotData.snapshotPoint = Platform::QueryTimestamp();
+    snapshotData.snapshotPoint = (snapshotTimestamp == 0) ? Platform::QueryTimestamp() : snapshotTimestamp;
     snapshotData.nameLength    = snapshotNameLength;
 
     // Write the chunk data

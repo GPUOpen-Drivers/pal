@@ -347,10 +347,15 @@ void DebugPrint(LogLevel lvl, const char* format, ...);
 
 /* platform functions for performing atomic operations */
 
-int32 AtomicIncrement(Atomic *variable);
-int32 AtomicDecrement(Atomic *variable);
-int32 AtomicAdd(Atomic *variable, int32 num);
-int32 AtomicSubtract(Atomic *variable, int32 num);
+int32 AtomicIncrement(Atomic* pVariable);
+int32 AtomicDecrement(Atomic* pVariable);
+int32 AtomicAdd(Atomic* pVariable, int32 num);
+int32 AtomicSubtract(Atomic* pVariable, int32 num);
+
+int64 AtomicIncrement(Atomic64* pVariable);
+int64 AtomicDecrement(Atomic64* pVariable);
+int64 AtomicAdd(Atomic64* pVariable, int64 num);
+int64 AtomicSubtract(Atomic64* pVariable, int64 num);
 
 // A generic AllocCb that defers allocation to Platform::AllocateMemory()
 // Suitable for memory allocation if you don't care about it.
@@ -525,6 +530,14 @@ private:
     DD_DISALLOW_COPY_AND_ASSIGN(Library);
 };
 
+// Create a directory with default permissions
+//      On Windows, this uses NULL for LPSECURITY_ATTRIBUTES
+//      On Unix, this uses 0777 for the mode.
+// Returns:
+//      - Result::Success,     if the directory already exists or was created
+//      - Result::FileIoError, if the directory failed to be created
+Result Mkdir(const char* pDir);
+
 ProcessId GetProcessId();
 
 uint64 GetCurrentTimeInMs();
@@ -566,6 +579,15 @@ struct OsInfo
     char name[32];         /// A human-readable string to identify the version of the OS running
     char description[256]; /// A human-readable string to identify the detailed version of the OS running
     char hostname[128];    /// The hostname for the machine
+
+    struct UserInfo {
+        char name[32];     /// Username for the current user
+        char homeDir[128]; /// Path to the current user's home directory
+                           //< This is typically stored in $HOME or %HOMEPATH% and looks like one of:
+                           //<     C:\Users\BobMarley
+                           //<     /home/bob_ross
+                           //<     /Users/BobTheBuilder
+    } user;
 
     uint64 physMemory; /// Total amount of memory available on host in bytes
     uint64 swapMemory; /// Total amount of swap memory available on host in bytes

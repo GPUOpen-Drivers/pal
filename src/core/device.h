@@ -2387,6 +2387,10 @@ PAL_INLINE bool IsRaven2(const Device& device)
 {
     return AMDGPU_IS_RAVEN2(device.ChipProperties().familyId, device.ChipProperties().eRevId);
 }
+PAL_INLINE bool IsRenoir(const Device& device)
+{
+    return AMDGPU_IS_RENOIR(device.ChipProperties().familyId, device.ChipProperties().eRevId);
+}
 
 static bool IsNavi(const Device& device)
 {
@@ -2410,6 +2414,7 @@ static bool IsGfx091xPlus(const Device& device)
     return (IsVega12(device)
             || IsVega20(device)
             || IsRaven2(device)
+            || IsRenoir(device)
             || IsGfx10(device)
            );
 }

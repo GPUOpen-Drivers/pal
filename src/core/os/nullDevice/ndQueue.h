@@ -67,20 +67,20 @@ public:
 
     virtual EngineType GetEngineType() const override { return EngineType::EngineTypeCount; }
 
-    virtual void Destroy() {}
+    virtual void Destroy() override {}
 
-    virtual Result LateInit() { return Result::Success; }
+    virtual Result LateInit() override { return Result::Success; }
 
-    virtual uint32 EngineId() const { return 0; }
-    virtual QueuePriority Priority() const { return QueuePriority::Realtime; }
+    virtual uint32 EngineId() const override { return 0; }
+    virtual QueuePriority Priority() const override { return QueuePriority::Realtime; }
 
-    virtual bool UsesDispatchTunneling() const { return false; }
-    virtual bool IsWindowedPriorBlit()   const { return false; }
+    virtual bool UsesDispatchTunneling() const override { return false; }
+    virtual bool IsWindowedPriorBlit()   const override { return false; }
 
-    virtual uint32 PersistentCeRamOffset() const { return 0; }
-    virtual uint32 PersistentCeRamSize()   const { return 0; }
+    virtual uint32 PersistentCeRamOffset() const override { return 0; }
+    virtual uint32 PersistentCeRamSize()   const override { return 0; }
 
-    virtual bool IsPresentModeSupported(PresentMode presentMode) const { return false; };
+    virtual bool IsPresentModeSupported(PresentMode presentMode) const override { return false; };
 
     virtual Result OsSubmit(
         const MultiSubmitInfo&    submitInfo,

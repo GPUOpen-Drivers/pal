@@ -702,9 +702,13 @@ Result GetExecutableName(
     // Convert to wide char
     if (count >= 0)
     {
+#if defined(PAL_SHORT_WCHAR)
+        Mbstowcs(pWcBuffer, buffer, count);
+#else
         // According to MSDN, if mbstowcs encounters an invalid multibyte character, it returns -1
         int success = (int)mbstowcs(pWcBuffer, static_cast<char *>(buffer), count);
         PAL_ASSERT(success > 0);
+#endif
 
         // readlink() doesn't append a null terminator, so we must do this ourselves!
         pWcBuffer[count] = L'\0';
@@ -718,7 +722,7 @@ Result GetExecutableName(
         result = Result::ErrorInvalidMemorySize;
     }
 
-    wchar_t*const pLastSlash = wcsrchr(pWcBuffer, L'/');
+    wchar_t*const pLastSlash = Wcsrchr(pWcBuffer, L'/');
     (*ppWcFilename) = (pLastSlash == nullptr) ? pWcBuffer : (pLastSlash + 1);
 
     return result;
@@ -908,6 +912,153 @@ Result ListDir(
                 fileIndex++;
             }
         }
+        closedir(pDir);
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
+// Remove files of a directory at the specified path when file time < threshold.
+static Result RmDir(
+    const char* pDirParentPath,
+    uint64      threshold)
+{
+    Result result = Result::Success;
+
+    DIR* pDir = opendir(pDirParentPath);
+    if (pDir ==  nullptr)
+    {
+        result = Result::ErrorUnknown;
+    }
+
+    if (result == Result::Success)
+    {
+        struct dirent* pEntry   = nullptr;
+        struct stat st          = {};
+
+        while ((pEntry = readdir(pDir)) != nullptr)
+        {
+            if ((strcmp(pEntry->d_name, ".") == 0) || (strcmp(pEntry->d_name, "..") == 0))
+            {
+                continue;
+            }
+
+            char subPath[PATH_MAX];
+
+            Strncpy(subPath, pDirParentPath, PATH_MAX);
+            Strncat(subPath, PATH_MAX, "/");
+            Strncat(subPath, PATH_MAX, pEntry->d_name);
+            if (lstat(subPath, &st) != 0)
+            {
+                continue;
+            }
+            if (S_ISDIR(st.st_mode))
+            {
+                result = RmDir(subPath, threshold);
+                if (result != Result::Success)
+                {
+                    break;
+                }
+                rmdir(subPath);
+            }
+            else if (S_ISREG(st.st_mode))
+            {
+                uint64 fileTime = Max(st.st_atime, st.st_mtime);
+                if (fileTime < threshold)
+                {
+                    unlink(subPath);
+                }
+            }
+            else
+            {
+                continue;
+            }
+        }
+        closedir(pDir);
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
+// Remove all files below threshold of a directory at the specified path.
+Result RemoveFilesOfDir(
+    const char* pPathName,
+    uint64      threshold)
+{
+    struct stat st = {};
+    Result result  = Result::Success;
+
+    if (lstat(pPathName, &st) != 0)
+    {
+        result = Result::ErrorInvalidValue;
+    }
+
+    if ((result == Result::Success) && S_ISDIR(st.st_mode))
+    {
+        if ((strcmp(pPathName, ".") == 0) || (strcmp(pPathName, "..") == 0))
+        {
+            result = Result::ErrorInvalidValue;
+        }
+        else
+        {
+            result = RmDir(pPathName, threshold);
+        }
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
+// Get status of a directory at the specified path.
+Result GetStatusOfDir(
+    const char* pPathName,
+    uint64*     pTotalSize,
+    uint64*     pOldestTime)
+{
+    DIR* pDir               = nullptr;
+    struct dirent* pEntry   = nullptr;
+    struct stat statBuf     = {};
+    Result result           = Result::Success;
+
+    if ((pDir = opendir(pPathName)) == nullptr)
+    {
+        result = Result::ErrorUnknown;
+    }
+
+    if (result == Result::Success)
+    {
+        while ((pEntry = readdir(pDir)) != nullptr)
+        {
+            char subPath[PATH_MAX];
+
+            Strncpy(subPath, pPathName, PATH_MAX);
+            Strncat(subPath, PATH_MAX, "/");
+            Strncat(subPath, PATH_MAX, pEntry->d_name);
+            lstat(subPath, &statBuf);
+            if (S_ISDIR(statBuf.st_mode))
+            {
+                if ((strcmp(".", pEntry->d_name) == 0) || (strcmp("..", pEntry->d_name) == 0))
+                {
+                    continue;
+                }
+
+                *pTotalSize += statBuf.st_size;
+                result = GetStatusOfDir(subPath, pTotalSize, pOldestTime);
+                if (result != Result::Success)
+                {
+                    break;
+                }
+            }
+            else
+            {
+                *pTotalSize += statBuf.st_size;
+                uint64 fileTime = Max(statBuf.st_atime, statBuf.st_mtime);
+                *pOldestTime = *pOldestTime == 0 ? fileTime : Min(*pOldestTime, fileTime);
+            }
+        }
+
         closedir(pDir);
     }
 

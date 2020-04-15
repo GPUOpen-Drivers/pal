@@ -104,6 +104,10 @@ Pal::Result CreateTextWriterComputePipelines(
         pTable = textWriterComputeBinaryTableRaven2;
         break;
 
+    case Pal::AsicRevision::Renoir:
+        pTable = textWriterComputeBinaryTableRenoir;
+        break;
+
     case Pal::AsicRevision::Navi10:
         pTable = textWriterComputeBinaryTableNavi10;
         break;

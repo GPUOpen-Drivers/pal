@@ -25,8 +25,6 @@
 
 #pragma once
 
-
-
 //
 constexpr unsigned int HEADER_AGENT_DISPATCH                    = 4;
 constexpr unsigned int HEADER_BARRIER                           = 5;

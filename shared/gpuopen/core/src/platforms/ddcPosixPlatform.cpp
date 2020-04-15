@@ -104,26 +104,48 @@ namespace DevDriver
             };
             os_log_with_type(logObject, kLogLevelTable[static_cast<int>(lvl)], "%s", buffer);
 #endif
+
+            printf("[DevDriver] %s", buffer);
         }
 
-        int32 AtomicIncrement(Atomic *variable)
+        int32 AtomicIncrement(Atomic* pVariable)
         {
-            return __sync_add_and_fetch(variable, 1);
+            return __sync_add_and_fetch(pVariable, 1);
         }
 
-        int32 AtomicDecrement(Atomic *variable)
+        int32 AtomicDecrement(Atomic* pVariable)
         {
-            return __sync_sub_and_fetch(variable, 1);
+            return __sync_sub_and_fetch(pVariable, 1);
         }
 
-        int32 AtomicAdd(Atomic *variable, int32 num)
+        int32 AtomicAdd(Atomic* pVariable, int32 num)
         {
-            return __sync_add_and_fetch(variable, num);
+            return __sync_add_and_fetch(pVariable, num);
         }
 
-        int32 AtomicSubtract(Atomic *variable, int32 num)
+        int32 AtomicSubtract(Atomic* pVariable, int32 num)
         {
-            return __sync_sub_and_fetch(variable, num);
+            return __sync_sub_and_fetch(pVariable, num);
+        }
+
+        int64 AtomicIncrement(Atomic64* pVariable)
+        {
+            return __sync_add_and_fetch(pVariable, 1);
+        }
+
+        int64 AtomicDecrement(Atomic64* pVariable)
+        {
+            return __sync_sub_and_fetch(pVariable, 1);
+        }
+
+        int64 AtomicAdd(Atomic64* pVariable, int64 num)
+        {
+            return __sync_add_and_fetch(pVariable, num);
+        }
+
+        int64 AtomicSubtract(Atomic64* pVariable, int64 num)
+        {
+            return __sync_sub_and_fetch(pVariable, num);
         }
 
         /////////////////////////////////////////////////////
@@ -506,6 +528,36 @@ namespace DevDriver
             m_prevState = static_cast<uint64>(timeValue.tv_sec * 1000000000 + timeValue.tv_nsec);
         }
 
+        Result Mkdir(const char* pDir)
+        {
+            Result result = Result::InvalidParameter;
+
+            if (pDir != nullptr)
+            {
+                errno = 0;
+
+                const int ret = mkdir(pDir, 0777);
+                if (ret == 0)
+                {
+                    result = Result::Success;
+                }
+                else
+                {
+                    if (errno == EEXIST)
+                    {
+                        // The directory already exists
+                        result = Result::Success;
+                    }
+                    else
+                    {
+                        result = Result::FileIoError;
+                    }
+                }
+            }
+
+            return result;
+        }
+
         ProcessId GetProcessId()
         {
             return static_cast<ProcessId>(getpid());
@@ -675,11 +727,6 @@ namespace DevDriver
                          "%s %s %s     %s",
                          info.sysname, info.release, info.machine, info.version);
             }
-
-            // Query memory
-            {
-                // TODO: Query available physical memory and swap space
-            }
 #elif defined(DD_PLATFORM_DARWIN_UM)
             // Query OS name
             {
@@ -708,15 +755,30 @@ namespace DevDriver
                          model,
                          version);
             }
+#else
+            static_assert(false, "Building on an unknown platform: " DD_PLATFORM_STRING ". Add an implementation to QueryOsInfo().");
+#endif
+            /// Query information about the current user
+            {
+                const char* pUser = getenv("USER");
+                DD_WARN(pUser != nullptr);
+                if (pUser != nullptr)
+                {
+                    Platform::Strncpy(pInfo->user.name, pUser);
+                }
+
+                const char* pHomeDir = getenv("HOME");
+                DD_WARN(pHomeDir != nullptr);
+                if (pHomeDir != nullptr)
+                {
+                    Platform::Strncpy(pInfo->user.homeDir, pHomeDir);
+                }
+            }
 
             // Query memory
             {
                 // TODO: Query available physical memory and swap space
-                // (This may be able to be folded into the Linux impl)
             }
-#else
-            static_assert(false, "Building on an unknown platform: " DD_PLATFORM_STRING ". Add an implementation to QueryOsInfo().");
-#endif
 
             if (result == Result::Success)
             {

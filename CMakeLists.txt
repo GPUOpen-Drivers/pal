@@ -23,26 +23,28 @@
  #
  #######################################################################################################################
 
-cmake_minimum_required(VERSION 3.5)
-project(PAL LANGUAGES C CXX)
+cmake_minimum_required(VERSION 3.5...3.16)
+project(PAL
+    # If you are wondering why C is also specified. It's because otherwise you get an obscure error during configuration with Ninja.
+    # TODO: Investigate and fix this!
+    LANGUAGES CXX C
+)
 
 ### CMake Includes #####################################################################################################
 list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake/Modules)
 include(CMakeDependentOption)
 include(AmdCmakeHelper)
-include(PalVersionHelper NO_POLICY_SCOPE)
+include(PalVersionHelper)
 
 ### Cached Project Options #############################################################################################
-# CMAKE-TODO: To support multiple configurations for Visual Studio we can't use CMAKE_BUILD_TYPE
-# We would have to override the options using cmake generator expressions and possibly include an
-# option to disable overrides such as PAL_DISABLE_INTERNAL_OPTION_OVERRIDES
 
 option(PAL_BUILD_GPUOPEN "Build GPUOpen developer driver support?" OFF)
 
 option(PAL_DBG_COMMAND_COMMENTS "Command with comments" OFF)
 
-option(PAL_ENABLE_PRINTS_ASSERTS "Enable print assertions?" ${CMAKE_BUILD_TYPE_DEBUG})
-cmake_dependent_option(PAL_MEMTRACK "Enable PAL memory tracker?" ${CMAKE_BUILD_TYPE_DEBUG} "PAL_ENABLE_PRINTS_ASSERTS" OFF)
+option(PAL_ENABLE_PRINTS_ASSERTS "Enable print assertions?" OFF)
+
+option(PAL_MEMTRACK "Enable PAL memory tracker?" OFF)
 
 option(PAL_BUILD_CORE "Build PAL Core?" ON)
 option(PAL_BUILD_GPUUTIL "Build PAL GPU Util?" ON)
@@ -51,6 +53,27 @@ cmake_dependent_option(PAL_BUILD_LAYERS "Build PAL Layers?" ON "PAL_BUILD_GPUUTI
 option(PAL_BUILD_DBG_OVERLAY "Build PAL Debug Overlay?" ON)
 
 option(PAL_BUILD_GPU_PROFILER "Build PAL GPU Profiler?" ON)
+
+#if PAL_DEVELOPER_BUILD
+
+option(PAL_DEVELOPER_BUILD "Enable developer build" OFF)
+
+# If the client turns on PAL developer build they expect these ALL these features to be turned on
+if (${PAL_DEVELOPER_BUILD})
+    # Notice how these aren't cache variables.
+    # Because if they were cache variables either they/we would have to use the FORCE keyword
+    # Either way it would be a bad interface for the client
+    set(PAL_BUILD_CMD_BUFFER_LOGGER ON)
+    set(PAL_BUILD_INTERFACE_LOGGER  ON)
+    set(PAL_BUILD_PM4_INSTRUMENTOR  ON)
+# Otherwise give them the ability to turn them on individually
+else()
+    option(PAL_BUILD_CMD_BUFFER_LOGGER "Build PAL Command Buffer Logger?" OFF)
+    option(PAL_BUILD_INTERFACE_LOGGER  "Build PAL Interface Logger?"      OFF)
+    option(PAL_BUILD_PM4_INSTRUMENTOR  "Build PAL PM4 Instrumentor?"      OFF)
+endif()
+
+#endif
 
 option(PAL_BUILD_GFX  "Build PAL with Graphics support?" ON)
 cmake_dependent_option(PAL_BUILD_GFX6 "Build PAL with GFX6 support?" ON "PAL_BUILD_GFX" OFF)
@@ -135,6 +158,9 @@ if(PAL_BUILD_GFX9)
     else()
         set(ADDR_RAVEN2_BUILD OFF CACHE BOOL "PAL override to build ADDRLIB with Vega20 support." FORCE)
 	set(CHIP_HDR_RAVEN2 OFF CACHE BOOL "PAL override to build chip register header with Raven2 support." FORCE)
+    endif()
+    if(PAL_BUILD_RENOIR)
+        set(ADDR_RENOIR_BUILD ON CACHE BOOL "PAL override to build ADDRLIB with RENOIR support." FORCE)
     endif()
     set(ADDR_GFX10_BUILD ON CACHE BOOL "PAL override to build ADDRLIB with GFX10 support." FORCE)
     if(PAL_BUILD_NAVI14)

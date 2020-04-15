@@ -1311,6 +1311,11 @@ ChipFamily Gfx9Lib::HwlConvertChipFamily(
                 m_settings.applyAliasFix = 1;
             }
 
+            if (ASICREV_IS_RENOIR(uChipRevision))
+            {
+                m_settings.isRaven = 1;
+            }
+
             m_settings.isDcn1 = m_settings.isRaven;
 
             m_settings.metaBaseAlignFix = 1;

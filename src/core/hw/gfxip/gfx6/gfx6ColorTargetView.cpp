@@ -96,7 +96,8 @@ ColorTargetView::ColorTargetView(
         m_flags.hasFmask              = m_pImage->HasFmaskData();
         m_flags.hasDcc                = m_pImage->HasDccData();
         m_flags.hasDccStateMetaData   = m_pImage->HasDccStateMetaData();
-        m_flags.fastClearSupported    = (m_pImage->HasFastClearMetaData() && !internalInfo.flags.depthStencilCopy);
+        m_flags.fastClearSupported    = (m_pImage->HasFastClearMetaData(m_subresource.aspect) &&
+                                         (internalInfo.flags.depthStencilCopy == false));
         m_flags.dccCompressionEnabled = (m_flags.hasDcc && m_pImage->GetDcc(m_subresource)->IsCompressionEnabled());
         m_flags.isDccDecompress       = internalInfo.flags.dccDecompress;
 
@@ -418,7 +419,7 @@ void ColorTargetView::UpdateImageVa(
 
         if (m_flags.fastClearSupported)
         {
-            pRegs->fastClearMetadataGpuVa = m_pImage->FastClearMetaDataAddr(MipLevel());
+            pRegs->fastClearMetadataGpuVa = m_pImage->FastClearMetaDataAddr(m_subresource);
             PAL_ASSERT((pRegs->fastClearMetadataGpuVa & 0x3) == 0);
         }
 

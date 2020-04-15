@@ -475,11 +475,20 @@ namespace DevDriver
                     {
                         const ClientInfoStruct* pClientInfo = nullptr;
 
-                        // Older versions of the ping packet didn't include the client info structure so
-                        // it may not always be available.
-                        if (messageBuffer.header.payloadSize != 0)
+                        if (messageBuffer.header.payloadSize == 0)
                         {
+                            // Older versions of the ping packet didn't include the client info structure so
+                            // it may not always be available.
+                        }
+                        else if (messageBuffer.header.payloadSize == sizeof(ClientInfoStruct))
+                        {
+                            // Valid, but this new version includes client info to aid discovery.
+                            // Grab a pointer to it, only if the sizes match exactly.
                             pClientInfo = reinterpret_cast<const ClientInfoStruct*>(messageBuffer.payload);
+                        }
+                        else
+                        {
+                            DD_ASSERT_REASON("Ping packet with wrong size");
                         }
 
                         BusEventPongRequest pongRequest = {};
@@ -602,22 +611,32 @@ namespace DevDriver
     template <class MsgTransport>
     Result MessageChannel<MsgTransport>::Send(ClientId dstClientId, Protocol protocol, MessageCode message, const ClientMetadata &metadata, uint32 payloadSizeInBytes, const void* pPayload)
     {
-        MessageBuffer messageBuffer = {};
-        messageBuffer.header.dstClientId = dstClientId;
-        messageBuffer.header.srcClientId = m_clientId;
-        messageBuffer.header.protocolId = protocol;
-        messageBuffer.header.messageId = message;
-        messageBuffer.header.payloadSize = payloadSizeInBytes;
-        // Non-session messages don't have a sequence number.  Instead we alias the sequence field to send the ClientMetadata.
-        // If the size of ClientMetadata changes to grow beyond the size of the sequence field, we should fail the build.
-        static_assert(sizeof(ClientMetadata) <= sizeof(Sequence), "ClientMetada size changed, can't alias Sequence as ClientMetadata");
-        memcpy(&messageBuffer.header.sequence, &metadata, sizeof(Sequence));
+        Result result = Result::InsufficientMemory;
 
-        if ((pPayload != nullptr) & (payloadSizeInBytes != 0))
+        // Make sure the payload will actually fit into the message buffer structure
+        if (payloadSizeInBytes <= kMaxPayloadSizeInBytes)
         {
-            memcpy(messageBuffer.payload, pPayload, Platform::Min(payloadSizeInBytes, static_cast<uint32>(sizeof(messageBuffer.payload))));
+            MessageBuffer messageBuffer = {};
+            messageBuffer.header.dstClientId = dstClientId;
+            messageBuffer.header.srcClientId = m_clientId;
+            messageBuffer.header.protocolId = protocol;
+            messageBuffer.header.messageId = message;
+            messageBuffer.header.payloadSize = payloadSizeInBytes;
+
+            // Non-session messages don't have a sequence number.  Instead we alias the sequence field to send the ClientMetadata.
+            // If the size of ClientMetadata changes to grow beyond the size of the sequence field, we should fail the build.
+            static_assert(sizeof(ClientMetadata) <= sizeof(Sequence), "ClientMetada size changed, can't alias Sequence as ClientMetadata");
+            memcpy(&messageBuffer.header.sequence, &metadata, sizeof(Sequence));
+
+            if ((pPayload != nullptr) & (payloadSizeInBytes != 0))
+            {
+                memcpy(messageBuffer.payload, pPayload, payloadSizeInBytes);
+            }
+
+            result = Forward(messageBuffer);
         }
-        return Forward(messageBuffer);
+
+        return result;
     }
 
     template <class MsgTransport>

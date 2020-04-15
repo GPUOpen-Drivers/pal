@@ -40,6 +40,8 @@ libxcb.so.1         @proc xcb_visualtype_iterator_t xcb_depth_visuals_iterator (
 libxcb.so.1         @proc const xcb_setup_t* xcb_get_setup (xcb_connection_t* pConnection)
 libxcb.so.1         @proc const xcb_setup_t* xcb_flush (xcb_connection_t* pConnection)
 libxcb.so.1         @proc void xcb_discard_reply (xcb_connection_t* pConnection, uint32 sequence)
+libxcb.so.1         @proc xcb_void_cookie_t xcb_change_property_checked (xcb_connection_t* pConnection, uint8_t mode, xcb_window_t window, xcb_atom_t property, xcb_atom_t type, uint8_t format, uint32_t data_len, const void *pData)
+libxcb.so.1         @proc xcb_void_cookie_t xcb_delete_property_checked (xcb_connection_t* pConnection, xcb_window_t window, xcb_atom_t property)
 libxshmfence.so.1   @proc int32 xshmfence_unmap_shm (struct xshmfence* pFence)
 libxshmfence.so.1   @proc struct xshmfence* xshmfence_map_shm (int32 fence)
 libxshmfence.so.1   @proc int32 xshmfence_query (struct xshmfence* pFence)

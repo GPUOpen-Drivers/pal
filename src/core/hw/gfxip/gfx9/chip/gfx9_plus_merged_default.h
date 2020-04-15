@@ -25,8 +25,6 @@
 
 #pragma once
 
-
-
 namespace Pal
 {
 namespace Gfx9
@@ -2991,6 +2989,110 @@ namespace Raven
     constexpr unsigned int mmSPI_PS_MAX_WAVE_ID_DEFAULT                       = 0x20000FF;
     constexpr unsigned int mmVGT_STRMOUT_DELAY_DEFAULT                        = 0x92410;
 } // namespace Raven
+
+namespace Rn
+{
+    constexpr unsigned int mmDF_PIE_AON_PerfMonCtlHi0_DEFAULT                 = 0x0000;
+    constexpr unsigned int mmDF_PIE_AON_PerfMonCtlHi1_DEFAULT                 = 0x0000;
+    constexpr unsigned int mmDF_PIE_AON_PerfMonCtlHi2_DEFAULT                 = 0x0000;
+    constexpr unsigned int mmDF_PIE_AON_PerfMonCtlHi3_DEFAULT                 = 0x0000;
+    constexpr unsigned int mmDF_PIE_AON_PerfMonCtlHi4_DEFAULT                 = 0x0000;
+    constexpr unsigned int mmDF_PIE_AON_PerfMonCtlHi5_DEFAULT                 = 0x0000;
+    constexpr unsigned int mmDF_PIE_AON_PerfMonCtlHi6_DEFAULT                 = 0x0000;
+    constexpr unsigned int mmDF_PIE_AON_PerfMonCtlHi7_DEFAULT                 = 0x0000;
+    constexpr unsigned int mmDF_PIE_AON_PerfMonCtlLo0_DEFAULT                 = 0x0000;
+    constexpr unsigned int mmDF_PIE_AON_PerfMonCtlLo1_DEFAULT                 = 0x0000;
+    constexpr unsigned int mmDF_PIE_AON_PerfMonCtlLo2_DEFAULT                 = 0x0000;
+    constexpr unsigned int mmDF_PIE_AON_PerfMonCtlLo3_DEFAULT                 = 0x0000;
+    constexpr unsigned int mmDF_PIE_AON_PerfMonCtlLo4_DEFAULT                 = 0x0000;
+    constexpr unsigned int mmDF_PIE_AON_PerfMonCtlLo5_DEFAULT                 = 0x0000;
+    constexpr unsigned int mmDF_PIE_AON_PerfMonCtlLo6_DEFAULT                 = 0x0000;
+    constexpr unsigned int mmDF_PIE_AON_PerfMonCtlLo7_DEFAULT                 = 0x0000;
+    constexpr unsigned int mmDF_PIE_AON_PerfMonCtrHi0_DEFAULT                 = 0x0000;
+    constexpr unsigned int mmDF_PIE_AON_PerfMonCtrHi1_DEFAULT                 = 0x0000;
+    constexpr unsigned int mmDF_PIE_AON_PerfMonCtrHi2_DEFAULT                 = 0x0000;
+    constexpr unsigned int mmDF_PIE_AON_PerfMonCtrHi3_DEFAULT                 = 0x0000;
+    constexpr unsigned int mmDF_PIE_AON_PerfMonCtrHi4_DEFAULT                 = 0x0000;
+    constexpr unsigned int mmDF_PIE_AON_PerfMonCtrHi5_DEFAULT                 = 0x0000;
+    constexpr unsigned int mmDF_PIE_AON_PerfMonCtrHi6_DEFAULT                 = 0x0000;
+    constexpr unsigned int mmDF_PIE_AON_PerfMonCtrHi7_DEFAULT                 = 0x0000;
+    constexpr unsigned int mmDF_PIE_AON_PerfMonCtrLo0_DEFAULT                 = 0x0000;
+    constexpr unsigned int mmDF_PIE_AON_PerfMonCtrLo1_DEFAULT                 = 0x0000;
+    constexpr unsigned int mmDF_PIE_AON_PerfMonCtrLo2_DEFAULT                 = 0x0000;
+    constexpr unsigned int mmDF_PIE_AON_PerfMonCtrLo3_DEFAULT                 = 0x0000;
+    constexpr unsigned int mmDF_PIE_AON_PerfMonCtrLo4_DEFAULT                 = 0x0000;
+    constexpr unsigned int mmDF_PIE_AON_PerfMonCtrLo5_DEFAULT                 = 0x0000;
+    constexpr unsigned int mmDF_PIE_AON_PerfMonCtrLo6_DEFAULT                 = 0x0000;
+    constexpr unsigned int mmDF_PIE_AON_PerfMonCtrLo7_DEFAULT                 = 0x0000;
+    constexpr unsigned int mmGB_ADDR_CONFIG_DEFAULT                           = 0x26010011;
+    constexpr unsigned int mmGB_ADDR_CONFIG_READ_DEFAULT                      = 0x26010011;
+    constexpr unsigned int mmPA_SC_ENHANCE_2_DEFAULT                          = 0x0020;
+    constexpr unsigned int mmPerfMonCtl1_DEFAULT                              = 0x0000;
+    constexpr unsigned int mmPerfMonCtl2_DEFAULT                              = 0x0000;
+    constexpr unsigned int mmPerfMonCtl3_DEFAULT                              = 0x0000;
+    constexpr unsigned int mmPerfMonCtl4_DEFAULT                              = 0x0000;
+    constexpr unsigned int mmPerfMonCtl5_DEFAULT                              = 0x0000;
+    constexpr unsigned int mmPerfMonCtlClk_DEFAULT                            = 0x0000;
+    constexpr unsigned int mmPerfMonCtr1_Hi_DEFAULT                           = 0x0000;
+    constexpr unsigned int mmPerfMonCtr1_Lo_DEFAULT                           = 0x0000;
+    constexpr unsigned int mmPerfMonCtr2_Hi_DEFAULT                           = 0x0000;
+    constexpr unsigned int mmPerfMonCtr2_Lo_DEFAULT                           = 0x0000;
+    constexpr unsigned int mmPerfMonCtr3_Hi_DEFAULT                           = 0x0000;
+    constexpr unsigned int mmPerfMonCtr3_Lo_DEFAULT                           = 0x0000;
+    constexpr unsigned int mmPerfMonCtr4_Hi_DEFAULT                           = 0x0000;
+    constexpr unsigned int mmPerfMonCtr4_Lo_DEFAULT                           = 0x0000;
+    constexpr unsigned int mmPerfMonCtr5_Hi_DEFAULT                           = 0x0000;
+    constexpr unsigned int mmPerfMonCtr5_Lo_DEFAULT                           = 0x0000;
+    constexpr unsigned int mmPerfMonCtrClk_Hi_DEFAULT                         = 0x0000;
+    constexpr unsigned int mmPerfMonCtrClk_Lo_DEFAULT                         = 0x0000;
+    constexpr unsigned int mmRLC_SPM_ACCUM_DATARAM_WRCOUNT_DEFAULT            = 0xCDC80000;
+    constexpr unsigned int mmRLC_SPM_ACCUM_MODE_DEFAULT                       = 0xCDCDCDC0;
+    constexpr unsigned int mmRLC_SPM_ACCUM_SAMPLES_REQUESTED_DEFAULT          = 0xCDCDCD00;
+    constexpr unsigned int mmRLC_SPM_ACCUM_THRESHOLD_DEFAULT                  = 0xCDCD0000;
+    constexpr unsigned int mmRMI_PERF_COUNTER_CNTL_DEFAULT                    = 0x80240;
+    constexpr unsigned int mmSPI_CONFIG_CNTL_1_DEFAULT                        = 0x1000104;
+    constexpr unsigned int mmSPI_START_PHASE_DEFAULT                          = 0x0001;
+    constexpr unsigned int mmSPI_SX_EXPORT_BUFFER_SIZES_DEFAULT               = 0x8000800;
+    constexpr unsigned int mmSPI_SX_SCOREBOARD_BUFFER_SIZES_DEFAULT           = 0x200080;
+    constexpr unsigned int mmUMCCH0_PerfMonCtl1_DEFAULT                       = 0x0000;
+    constexpr unsigned int mmUMCCH0_PerfMonCtl2_DEFAULT                       = 0x0000;
+    constexpr unsigned int mmUMCCH0_PerfMonCtl3_DEFAULT                       = 0x0000;
+    constexpr unsigned int mmUMCCH0_PerfMonCtl4_DEFAULT                       = 0x0000;
+    constexpr unsigned int mmUMCCH0_PerfMonCtl5_DEFAULT                       = 0x0000;
+    constexpr unsigned int mmUMCCH0_PerfMonCtlClk_DEFAULT                     = 0x0000;
+    constexpr unsigned int mmUMCCH0_PerfMonCtr1_Hi_DEFAULT                    = 0x0000;
+    constexpr unsigned int mmUMCCH0_PerfMonCtr1_Lo_DEFAULT                    = 0x0000;
+    constexpr unsigned int mmUMCCH0_PerfMonCtr2_Hi_DEFAULT                    = 0x0000;
+    constexpr unsigned int mmUMCCH0_PerfMonCtr2_Lo_DEFAULT                    = 0x0000;
+    constexpr unsigned int mmUMCCH0_PerfMonCtr3_Hi_DEFAULT                    = 0x0000;
+    constexpr unsigned int mmUMCCH0_PerfMonCtr3_Lo_DEFAULT                    = 0x0000;
+    constexpr unsigned int mmUMCCH0_PerfMonCtr4_Hi_DEFAULT                    = 0x0000;
+    constexpr unsigned int mmUMCCH0_PerfMonCtr4_Lo_DEFAULT                    = 0x0000;
+    constexpr unsigned int mmUMCCH0_PerfMonCtr5_Hi_DEFAULT                    = 0x0000;
+    constexpr unsigned int mmUMCCH0_PerfMonCtr5_Lo_DEFAULT                    = 0x0000;
+    constexpr unsigned int mmUMCCH0_PerfMonCtrClk_Hi_DEFAULT                  = 0x0000;
+    constexpr unsigned int mmUMCCH0_PerfMonCtrClk_Lo_DEFAULT                  = 0x0000;
+    constexpr unsigned int mmUMCCH1_PerfMonCtl1_DEFAULT                       = 0x0000;
+    constexpr unsigned int mmUMCCH1_PerfMonCtl2_DEFAULT                       = 0x0000;
+    constexpr unsigned int mmUMCCH1_PerfMonCtl3_DEFAULT                       = 0x0000;
+    constexpr unsigned int mmUMCCH1_PerfMonCtl4_DEFAULT                       = 0x0000;
+    constexpr unsigned int mmUMCCH1_PerfMonCtl5_DEFAULT                       = 0x0000;
+    constexpr unsigned int mmUMCCH1_PerfMonCtlClk_DEFAULT                     = 0x0000;
+    constexpr unsigned int mmUMCCH1_PerfMonCtr1_Hi_DEFAULT                    = 0x0000;
+    constexpr unsigned int mmUMCCH1_PerfMonCtr1_Lo_DEFAULT                    = 0x0000;
+    constexpr unsigned int mmUMCCH1_PerfMonCtr2_Hi_DEFAULT                    = 0x0000;
+    constexpr unsigned int mmUMCCH1_PerfMonCtr2_Lo_DEFAULT                    = 0x0000;
+    constexpr unsigned int mmUMCCH1_PerfMonCtr3_Hi_DEFAULT                    = 0x0000;
+    constexpr unsigned int mmUMCCH1_PerfMonCtr3_Lo_DEFAULT                    = 0x0000;
+    constexpr unsigned int mmUMCCH1_PerfMonCtr4_Hi_DEFAULT                    = 0x0000;
+    constexpr unsigned int mmUMCCH1_PerfMonCtr4_Lo_DEFAULT                    = 0x0000;
+    constexpr unsigned int mmUMCCH1_PerfMonCtr5_Hi_DEFAULT                    = 0x0000;
+    constexpr unsigned int mmUMCCH1_PerfMonCtr5_Lo_DEFAULT                    = 0x0000;
+    constexpr unsigned int mmUMCCH1_PerfMonCtrClk_Hi_DEFAULT                  = 0x0000;
+    constexpr unsigned int mmUMCCH1_PerfMonCtrClk_Lo_DEFAULT                  = 0x0000;
+    constexpr unsigned int mmVGT_GS_MAX_WAVE_ID_DEFAULT                       = 0x00FF;
+    constexpr unsigned int mmVGT_VS_MAX_WAVE_ID_DEFAULT                       = 0x007F;
+} // namespace Rn
 
 namespace Rv1x
 {

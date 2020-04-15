@@ -34,7 +34,6 @@
  */
 #define SQTT_FILE_MAGIC_NUMBER            0x50303042
 
-
 /// The major version number of the RGP file format specification that this header corresponds to.
 #define RGP_FILE_FORMAT_SPEC_MAJOR_VER 1
 

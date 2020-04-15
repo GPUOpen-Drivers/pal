@@ -139,10 +139,12 @@ public:
     // would return true if we promised that CopyDst would be compressed but tried to use a compute copy path.
     virtual bool ShaderWriteIncompatibleWithLayout(const SubresId& subresId, ImageLayout layout) const = 0;
 
-    bool HasFastClearMetaData() const { return m_fastClearMetaDataOffset != 0; }
-    gpusize FastClearMetaDataAddr(uint32 mipLevel) const;
-    gpusize FastClearMetaDataOffset(uint32 mipLevel) const;
-    gpusize FastClearMetaDataSize(uint32 numMips) const;
+    bool HasFastClearMetaData(ImageAspect  aspect) const
+        { return m_fastClearMetaDataOffset[GetFastClearIndex(aspect)] != 0; }
+
+    gpusize FastClearMetaDataAddr(const SubresId&  subResId) const;
+    gpusize FastClearMetaDataOffset(const SubresId&  subResId) const;
+    gpusize FastClearMetaDataSize(ImageAspect  aspect, uint32 numMips) const;
 
     bool HasHiSPretestsMetaData() const { return m_hiSPretestsMetaDataOffset != 0; }
     gpusize HiSPretestsMetaDataAddr(uint32 mipLevel) const;
@@ -219,6 +221,8 @@ public:
     void    IncrementFceRefCount();
 
 protected:
+    static constexpr uint32 MaxNumPlanes = 3;
+
     GfxImage(
         Image*        pParentImage,
         ImageInfo*    pImageInfo,
@@ -238,7 +242,8 @@ protected:
         ImageMemoryLayout* pGpuMemLayout,
         gpusize*           pGpuMemSize,
         size_t             sizePerMipLevel,
-        gpusize            alignment);
+        gpusize            alignment,
+        uint32             planeIndex = 0);
 
     void InitHiSPretestsMetaData(
         ImageMemoryLayout* pGpuMemLayout,
@@ -252,6 +257,8 @@ protected:
         uint32           mipLevel,
         ClearMethod      method);
 
+    uint32 GetFastClearIndex(ImageAspect  aspect) const;
+
     void Destroy();
 
     Image*const            m_pParent;
@@ -259,8 +266,8 @@ protected:
     const ImageCreateInfo& m_createInfo;
     ImageInfo*const        m_pImageInfo;
 
-    gpusize  m_fastClearMetaDataOffset;      // Offset to beginning of fast-clear metadata.
-    gpusize  m_fastClearMetaDataSizePerMip;  // Size of fast-clear metadata per mip level.
+    gpusize  m_fastClearMetaDataOffset[MaxNumPlanes];      // Offset to beginning of fast-clear metadata.
+    gpusize  m_fastClearMetaDataSizePerMip[MaxNumPlanes];  // Size of fast-clear metadata per mip level.
 
     gpusize m_hiSPretestsMetaDataOffset;     // Offset to beginning of HiSPretest metadata
     gpusize m_hiSPretestsMetaDataSizePerMip; // Size of HiSPretest metadata per mip level.

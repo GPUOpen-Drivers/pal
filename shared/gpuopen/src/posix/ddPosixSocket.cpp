@@ -451,6 +451,8 @@ namespace DevDriver
 
     Result Socket::Send(const uint8* pData, size_t dataSize, size_t* pBytesSent)
     {
+        DD_ASSERT(pBytesSent != nullptr);
+
         Result result = Result::Error;
 
         const int retVal = Platform::RetryTemporaryFailure(send,
@@ -479,8 +481,9 @@ namespace DevDriver
         return result;
     }
 
-    Result Socket::SendTo(const void *pSockAddr, size_t addrSize, const uint8 *pData, size_t dataSize)
+    Result Socket::SendTo(const void *pSockAddr, size_t addrSize, const uint8 *pData, size_t dataSize, size_t* pBytesSent)
     {
+        DD_ASSERT(pBytesSent != nullptr);
         DD_ASSERT((m_socketType == SocketType::Udp) || (m_socketType == SocketType::Local));
 
         Result result = Result::Error;
@@ -495,15 +498,20 @@ namespace DevDriver
 
         if (static_cast<size_t>(retVal) == dataSize)
         {
+            *pBytesSent = retVal;
             result = Result::Success;
-        }
-        else if (retVal == 0)
-        {
-            result = Result::Unavailable;
         }
         else
         {
-            result = GetDataError(m_isNonBlocking);
+            *pBytesSent = 0;
+            if (retVal == 0)
+            {
+                result = Result::Unavailable;
+            }
+            else
+            {
+                result = GetDataError(m_isNonBlocking);
+            }
         }
 
         return result;
@@ -511,6 +519,8 @@ namespace DevDriver
 
     Result Socket::Receive(uint8* pBuffer, size_t bufferSize, size_t* pBytesReceived)
     {
+        DD_ASSERT(pBytesReceived != nullptr);
+
         Result result = Result::Error;
 
         const int retVal = Platform::RetryTemporaryFailure(recv,
@@ -525,6 +535,7 @@ namespace DevDriver
         }
         else
         {
+            *pBytesReceived = 0;
             if (retVal == 0)
             {
                 result = Result::Unavailable;
@@ -538,8 +549,9 @@ namespace DevDriver
         return result;
     }
 
-    Result Socket::ReceiveFrom(void *pSockAddr, size_t *addrSize, uint8 *pBuffer, size_t bufferSize)
+    Result Socket::ReceiveFrom(void *pSockAddr, size_t *addrSize, uint8 *pBuffer, size_t bufferSize, size_t* pBytesReceived)
     {
+        DD_ASSERT(pBytesReceived != nullptr);
         DD_ASSERT((m_socketType == SocketType::Udp) || (m_socketType == SocketType::Local));
         DD_ASSERT(*addrSize >= sizeof(sockaddr));
 
@@ -555,15 +567,20 @@ namespace DevDriver
 
         if (retVal > 0)
         {
+            *pBytesReceived = retVal;
             result = Result::Success;
-        }
-        else if (retVal == 0)
-        {
-            result = Result::Unavailable;
         }
         else
         {
-            result = GetDataError(m_isNonBlocking);
+            *pBytesReceived = 0;
+            if (retVal == 0)
+            {
+                result = Result::Unavailable;
+            }
+            else
+            {
+                result = GetDataError(m_isNonBlocking);
+            }
         }
 
         return result;

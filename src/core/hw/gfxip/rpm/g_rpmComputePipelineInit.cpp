@@ -126,6 +126,10 @@ Result CreateRpmComputePipelines(
         pTable = rpmComputeBinaryTableRaven2;
         break;
 
+    case AsicRevision::Renoir:
+        pTable = rpmComputeBinaryTableRenoir;
+        break;
+
     case AsicRevision::Navi10:
         pTable = rpmComputeBinaryTableNavi10;
         break;

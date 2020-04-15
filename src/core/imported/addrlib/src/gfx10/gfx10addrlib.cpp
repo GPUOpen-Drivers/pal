@@ -170,7 +170,7 @@ ADDR_E_RETURNCODE Gfx10Lib::HwlComputeHtileInfo(
     }
     else
     {
-        Dim3d         metaBlk     = {0};
+        Dim3d         metaBlk     = {};
         const UINT_32 metaBlkSize = GetMetaBlkSize(Gfx10DataDepthStencil,
                                                    ADDR_RSRC_TEX_2D,
                                                    pIn->swizzleMode,
@@ -281,7 +281,7 @@ ADDR_E_RETURNCODE Gfx10Lib::HwlComputeCmaskInfo(
     }
     else
     {
-        Dim3d         metaBlk     = {0};
+        Dim3d         metaBlk     = {};
         const UINT_32 metaBlkSize = GetMetaBlkSize(Gfx10DataFmask,
                                                    ADDR_RSRC_TEX_2D,
                                                    pIn->swizzleMode,
@@ -394,96 +394,103 @@ ADDR_E_RETURNCODE Gfx10Lib::HwlComputeDccInfo(
     }
     else
     {
-        // only SW_*_R_X surfaces may be DCC compressed when attached to the CB
-        ADDR_ASSERT(IsRtOptSwizzle(pIn->swizzleMode));
+        const UINT_32 elemLog2 = Log2(pIn->bpp >> 3);
 
-        Dim3d         metaBlk     = {0};
-        const UINT_32 elemLog2    = Log2(pIn->bpp >> 3);
-        const UINT_32 numFragLog2 = Log2(pIn->numFrags);
-        const UINT_32 metaBlkSize = GetMetaBlkSize(Gfx10DataColor,
-                                                   pIn->resourceType,
-                                                   pIn->swizzleMode,
-                                                   elemLog2,
-                                                   numFragLog2,
-                                                   pIn->dccKeyFlags.pipeAligned,
-                                                   &metaBlk);
-        const BOOL_32 isThick     = IsThick(pIn->resourceType, pIn->swizzleMode);
-
-        pOut->compressBlkWidth  = isThick ? Block256_3d[elemLog2].w : Block256_2d[elemLog2].w;
-        pOut->compressBlkHeight = isThick ? Block256_3d[elemLog2].h : Block256_2d[elemLog2].h;
-        pOut->compressBlkDepth  = isThick ? Block256_3d[elemLog2].d : 1;
-
-        pOut->dccRamBaseAlign   = metaBlkSize;
-        pOut->metaBlkWidth      = metaBlk.w;
-        pOut->metaBlkHeight     = metaBlk.h;
-        pOut->metaBlkDepth      = metaBlk.d;
-
-        pOut->pitch             = PowTwoAlign(pIn->unalignedWidth,  metaBlk.w);
-        pOut->height            = PowTwoAlign(pIn->unalignedHeight, metaBlk.h);
-        pOut->depth             = PowTwoAlign(pIn->numSlices,       metaBlk.d);
-
-        if (pIn->numMipLevels > 1)
         {
-            ADDR_ASSERT(pIn->firstMipIdInTail <= pIn->numMipLevels);
+            // only SW_*_R_X surfaces may be DCC compressed when attached to the CB
+            ADDR_ASSERT(IsRtOptSwizzle(pIn->swizzleMode));
 
-            UINT_32 offset = (pIn->firstMipIdInTail == pIn->numMipLevels) ? 0 : metaBlkSize;
+            const BOOL_32 isThick = IsThick(pIn->resourceType, pIn->swizzleMode);
 
-            for (INT_32 i = static_cast<INT_32>(pIn->firstMipIdInTail) - 1; i >= 0; i--)
+            pOut->compressBlkWidth  = isThick ? Block256_3d[elemLog2].w : Block256_2d[elemLog2].w;
+            pOut->compressBlkHeight = isThick ? Block256_3d[elemLog2].h : Block256_2d[elemLog2].h;
+            pOut->compressBlkDepth  = isThick ? Block256_3d[elemLog2].d : 1;
+        }
+
+        if (ret == ADDR_OK)
+        {
+            Dim3d         metaBlk     = {};
+            const UINT_32 numFragLog2 = Log2(Max(pIn->numFrags, 1u));
+            const UINT_32 metaBlkSize = GetMetaBlkSize(Gfx10DataColor,
+                                                       pIn->resourceType,
+                                                       pIn->swizzleMode,
+                                                       elemLog2,
+                                                       numFragLog2,
+                                                       pIn->dccKeyFlags.pipeAligned,
+                                                       &metaBlk);
+
+            pOut->dccRamBaseAlign   = metaBlkSize;
+            pOut->metaBlkWidth      = metaBlk.w;
+            pOut->metaBlkHeight     = metaBlk.h;
+            pOut->metaBlkDepth      = metaBlk.d;
+
+            pOut->pitch             = PowTwoAlign(pIn->unalignedWidth,     metaBlk.w);
+            pOut->height            = PowTwoAlign(pIn->unalignedHeight,    metaBlk.h);
+            pOut->depth             = PowTwoAlign(Max(pIn->numSlices, 1u), metaBlk.d);
+
+            if (pIn->numMipLevels > 1)
             {
-                UINT_32 mipWidth, mipHeight;
+                ADDR_ASSERT(pIn->firstMipIdInTail <= pIn->numMipLevels);
 
-                GetMipSize(pIn->unalignedWidth, pIn->unalignedHeight, 1, i, &mipWidth, &mipHeight);
+                UINT_32 offset = (pIn->firstMipIdInTail == pIn->numMipLevels) ? 0 : metaBlkSize;
 
-                mipWidth  = PowTwoAlign(mipWidth,  metaBlk.w);
-                mipHeight = PowTwoAlign(mipHeight, metaBlk.h);
+                for (INT_32 i = static_cast<INT_32>(pIn->firstMipIdInTail) - 1; i >= 0; i--)
+                {
+                    UINT_32 mipWidth, mipHeight;
 
-                const UINT_32 pitchInM     = mipWidth  / metaBlk.w;
-                const UINT_32 heightInM    = mipHeight / metaBlk.h;
-                const UINT_32 mipSliceSize = pitchInM * heightInM * metaBlkSize;
+                    GetMipSize(pIn->unalignedWidth, pIn->unalignedHeight, 1, i, &mipWidth, &mipHeight);
+
+                    mipWidth  = PowTwoAlign(mipWidth,  metaBlk.w);
+                    mipHeight = PowTwoAlign(mipHeight, metaBlk.h);
+
+                    const UINT_32 pitchInM     = mipWidth  / metaBlk.w;
+                    const UINT_32 heightInM    = mipHeight / metaBlk.h;
+                    const UINT_32 mipSliceSize = pitchInM * heightInM * metaBlkSize;
+
+                    if (pOut->pMipInfo != NULL)
+                    {
+                        pOut->pMipInfo[i].inMiptail = FALSE;
+                        pOut->pMipInfo[i].offset    = offset;
+                        pOut->pMipInfo[i].sliceSize = mipSliceSize;
+                    }
+
+                    offset += mipSliceSize;
+                }
+
+                pOut->dccRamSliceSize    = offset;
+                pOut->metaBlkNumPerSlice = offset / metaBlkSize;
+                pOut->dccRamSize         = pOut->dccRamSliceSize * (pOut->depth  / metaBlk.d);
 
                 if (pOut->pMipInfo != NULL)
                 {
-                    pOut->pMipInfo[i].inMiptail = FALSE;
-                    pOut->pMipInfo[i].offset    = offset;
-                    pOut->pMipInfo[i].sliceSize = mipSliceSize;
-                }
+                    for (UINT_32 i = pIn->firstMipIdInTail; i < pIn->numMipLevels; i++)
+                    {
+                        pOut->pMipInfo[i].inMiptail = TRUE;
+                        pOut->pMipInfo[i].offset    = 0;
+                        pOut->pMipInfo[i].sliceSize = 0;
+                    }
 
-                offset += mipSliceSize;
-            }
-
-            pOut->dccRamSliceSize    = offset;
-            pOut->metaBlkNumPerSlice = offset / metaBlkSize;
-            pOut->dccRamSize         = pOut->dccRamSliceSize * (pOut->depth  / metaBlk.d);
-
-            if (pOut->pMipInfo != NULL)
-            {
-                for (UINT_32 i = pIn->firstMipIdInTail; i < pIn->numMipLevels; i++)
-                {
-                    pOut->pMipInfo[i].inMiptail = TRUE;
-                    pOut->pMipInfo[i].offset    = 0;
-                    pOut->pMipInfo[i].sliceSize = 0;
-                }
-
-                if (pIn->firstMipIdInTail != pIn->numMipLevels)
-                {
-                    pOut->pMipInfo[pIn->firstMipIdInTail].sliceSize = metaBlkSize;
+                    if (pIn->firstMipIdInTail != pIn->numMipLevels)
+                    {
+                        pOut->pMipInfo[pIn->firstMipIdInTail].sliceSize = metaBlkSize;
+                    }
                 }
             }
-        }
-        else
-        {
-            const UINT_32 pitchInM  = pOut->pitch  / metaBlk.w;
-            const UINT_32 heightInM = pOut->height / metaBlk.h;
-
-            pOut->metaBlkNumPerSlice = pitchInM * heightInM;
-            pOut->dccRamSliceSize    = pOut->metaBlkNumPerSlice * metaBlkSize;
-            pOut->dccRamSize         = pOut->dccRamSliceSize * (pOut->depth  / metaBlk.d);
-
-            if (pOut->pMipInfo != NULL)
+            else
             {
-                pOut->pMipInfo[0].inMiptail = FALSE;
-                pOut->pMipInfo[0].offset    = 0;
-                pOut->pMipInfo[0].sliceSize = pOut->dccRamSliceSize;
+                const UINT_32 pitchInM  = pOut->pitch  / metaBlk.w;
+                const UINT_32 heightInM = pOut->height / metaBlk.h;
+
+                pOut->metaBlkNumPerSlice = pitchInM * heightInM;
+                pOut->dccRamSliceSize    = pOut->metaBlkNumPerSlice * metaBlkSize;
+                pOut->dccRamSize         = pOut->dccRamSliceSize * (pOut->depth  / metaBlk.d);
+
+                if (pOut->pMipInfo != NULL)
+                {
+                    pOut->pMipInfo[0].inMiptail = FALSE;
+                    pOut->pMipInfo[0].offset    = 0;
+                    pOut->pMipInfo[0].sliceSize = pOut->dccRamSliceSize;
+                }
             }
         }
     }
@@ -579,7 +586,7 @@ ADDR_E_RETURNCODE Gfx10Lib::HwlComputeHtileAddrFromCoord(
     }
     else
     {
-        ADDR2_COMPUTE_HTILE_INFO_INPUT input = {0};
+        ADDR2_COMPUTE_HTILE_INFO_INPUT input = {};
         input.size            = sizeof(input);
         input.hTileFlags      = pIn->hTileFlags;
         input.depthFlags      = pIn->depthflags;
@@ -589,7 +596,7 @@ ADDR_E_RETURNCODE Gfx10Lib::HwlComputeHtileAddrFromCoord(
         input.numSlices       = Max(pIn->numSlices,       1u);
         input.numMipLevels    = 1;
 
-        ADDR2_COMPUTE_HTILE_INFO_OUTPUT output = {0};
+        ADDR2_COMPUTE_HTILE_INFO_OUTPUT output = {};
         output.size = sizeof(output);
 
         returnCode = ComputeHtileInfo(&input, &output);
@@ -672,7 +679,7 @@ ADDR_E_RETURNCODE Gfx10Lib::HwlComputeDccAddrFromCoord(
     }
     else
     {
-        ADDR2_COMPUTE_DCCINFO_INPUT input = {0};
+        ADDR2_COMPUTE_DCCINFO_INPUT input = {};
         input.size            = sizeof(input);
         input.dccKeyFlags     = pIn->dccKeyFlags;
         input.colorFlags      = pIn->colorFlags;
@@ -685,7 +692,7 @@ ADDR_E_RETURNCODE Gfx10Lib::HwlComputeDccAddrFromCoord(
         input.numFrags        = Max(pIn->numFrags,        1u);
         input.numMipLevels    = Max(pIn->numMipLevels,    1u);
 
-        ADDR2_COMPUTE_DCCINFO_OUTPUT output = {0};
+        ADDR2_COMPUTE_DCCINFO_OUTPUT output = {};
         output.size = sizeof(output);
 
         returnCode = ComputeDccInfo(&input, &output);
@@ -1167,123 +1174,126 @@ UINT_32 Gfx10Lib::GetMetaBlkSize(
     Dim3d*           pBlock             ///< [out] block size
     ) const
 {
-    INT_32       metablkSizeLog2;
-    const INT_32 metaElemSizeLog2   = GetMetaElementSizeLog2(dataType);
-    const INT_32 metaCacheSizeLog2  = GetMetaCacheSizeLog2(dataType);
-    const INT_32 compBlkSizeLog2    = (dataType == Gfx10DataColor) ? 8 : 6 + numSamplesLog2 + elemLog2;
-    const INT_32 metaBlkSamplesLog2 = (dataType == Gfx10DataDepthStencil) ?
-                                      numSamplesLog2 : Min(numSamplesLog2, m_maxCompFragLog2);
-    const INT_32 dataBlkSizeLog2    = GetBlockSizeLog2(swizzleMode);
-    INT_32       numPipesLog2       = m_pipesLog2;
+    INT_32 metablkSizeLog2;
 
-    if (IsThin(resourceType, swizzleMode))
     {
-        if ((pipeAlign == FALSE) ||
-            (IsStandardSwizzle(resourceType, swizzleMode) == TRUE) ||
-            (IsDisplaySwizzle(resourceType, swizzleMode)  == TRUE))
+        const INT_32 metaElemSizeLog2   = GetMetaElementSizeLog2(dataType);
+        const INT_32 metaCacheSizeLog2  = GetMetaCacheSizeLog2(dataType);
+        const INT_32 compBlkSizeLog2    = (dataType == Gfx10DataColor) ? 8 : 6 + numSamplesLog2 + elemLog2;
+        const INT_32 metaBlkSamplesLog2 = (dataType == Gfx10DataDepthStencil) ?
+                                          numSamplesLog2 : Min(numSamplesLog2, m_maxCompFragLog2);
+        const INT_32 dataBlkSizeLog2    = GetBlockSizeLog2(swizzleMode);
+        INT_32       numPipesLog2       = m_pipesLog2;
+
+        if (IsThin(resourceType, swizzleMode))
         {
-            if (pipeAlign)
+            if ((pipeAlign == FALSE) ||
+                (IsStandardSwizzle(resourceType, swizzleMode) == TRUE) ||
+                (IsDisplaySwizzle(resourceType, swizzleMode)  == TRUE))
             {
-                metablkSizeLog2 = Max(static_cast<INT_32>(m_pipeInterleaveLog2) + numPipesLog2, 12);
-                metablkSizeLog2 = Min(metablkSizeLog2, dataBlkSizeLog2);
+                if (pipeAlign)
+                {
+                    metablkSizeLog2 = Max(static_cast<INT_32>(m_pipeInterleaveLog2) + numPipesLog2, 12);
+                    metablkSizeLog2 = Min(metablkSizeLog2, dataBlkSizeLog2);
+                }
+                else
+                {
+                    metablkSizeLog2 = Min(dataBlkSizeLog2, 12);
+                }
             }
             else
             {
-                metablkSizeLog2 = Min(dataBlkSizeLog2, 12);
+                if (m_settings.supportRbPlus && (m_pipesLog2 == m_numSaLog2 + 1) && (m_pipesLog2 > 1))
+                {
+                    numPipesLog2++;
+                }
+
+                INT_32 pipeRotateLog2 = GetPipeRotateAmount(resourceType, swizzleMode);
+
+                if (numPipesLog2 >= 4)
+                {
+                    INT_32 overlapLog2 = GetMetaOverlapLog2(dataType, resourceType, swizzleMode, elemLog2, numSamplesLog2);
+
+                    // In 16Bpe 8xaa, we have an extra overlap bit
+                    if ((pipeRotateLog2 > 0)  &&
+                        (elemLog2 == 4)       &&
+                        (numSamplesLog2 == 3) &&
+                        (IsZOrderSwizzle(swizzleMode) || (GetEffectiveNumPipes() > 3)))
+                    {
+                        overlapLog2++;
+                    }
+
+                    metablkSizeLog2 = metaCacheSizeLog2 + overlapLog2 + numPipesLog2;
+                    metablkSizeLog2 = Max(metablkSizeLog2, static_cast<INT_32>(m_pipeInterleaveLog2) + numPipesLog2);
+
+                    if (m_settings.supportRbPlus    &&
+                        IsRtOptSwizzle(swizzleMode) &&
+                        (numPipesLog2 == 6)         &&
+                        (numSamplesLog2 == 3)       &&
+                        (m_maxCompFragLog2 == 3)    &&
+                        (metablkSizeLog2 < 15))
+                    {
+                        metablkSizeLog2 = 15;
+                    }
+                }
+                else
+                {
+                    metablkSizeLog2 = Max(static_cast<INT_32>(m_pipeInterleaveLog2) + numPipesLog2, 12);
+                }
+
+                if (dataType == Gfx10DataDepthStencil)
+                {
+                    // For htile surfaces, pad meta block size to 2K * num_pipes
+                    metablkSizeLog2 = Max(metablkSizeLog2, 11 + numPipesLog2);
+                }
+
+                const INT_32 compFragLog2 = Min(m_maxCompFragLog2, numSamplesLog2);
+
+                if  (IsRtOptSwizzle(swizzleMode) && (compFragLog2 > 1) && (pipeRotateLog2 >= 1))
+                {
+                    const INT_32 tmp = 8 + m_pipesLog2 + Max(pipeRotateLog2, compFragLog2 - 1);
+
+                    metablkSizeLog2 = Max(metablkSizeLog2, tmp);
+                }
             }
+
+            const INT_32 metablkBitsLog2 =
+                metablkSizeLog2 + compBlkSizeLog2 - elemLog2 - metaBlkSamplesLog2 - metaElemSizeLog2;
+            pBlock->w = 1 << ((metablkBitsLog2 >> 1) + (metablkBitsLog2 & 1));
+            pBlock->h = 1 << (metablkBitsLog2 >> 1);
+            pBlock->d = 1;
         }
         else
         {
-            if (m_settings.supportRbPlus && (m_pipesLog2 == m_numSaLog2 + 1) && (m_pipesLog2 > 1))
+            ADDR_ASSERT(IsThick(resourceType, swizzleMode));
+
+            if (pipeAlign)
             {
-                numPipesLog2++;
-            }
-
-            INT_32 pipeRotateLog2 = GetPipeRotateAmount(resourceType, swizzleMode);
-
-            if (numPipesLog2 >= 4)
-            {
-                INT_32 overlapLog2 = GetMetaOverlapLog2(dataType, resourceType, swizzleMode, elemLog2, numSamplesLog2);
-
-                // In 16Bpe 8xaa, we have an extra overlap bit
-                if ((pipeRotateLog2 > 0)  &&
-                    (elemLog2 == 4)       &&
-                    (numSamplesLog2 == 3) &&
-                    (IsZOrderSwizzle(swizzleMode) || (GetEffectiveNumPipes() > 3)))
+                if (m_settings.supportRbPlus         &&
+                    (m_pipesLog2 == m_numSaLog2 + 1) &&
+                    (m_pipesLog2 > 1)                &&
+                    IsRbAligned(resourceType, swizzleMode))
                 {
-                    overlapLog2++;
+                    numPipesLog2++;
                 }
+
+                const INT_32 overlapLog2 = Get3DMetaOverlapLog2(resourceType, swizzleMode, elemLog2);
 
                 metablkSizeLog2 = metaCacheSizeLog2 + overlapLog2 + numPipesLog2;
                 metablkSizeLog2 = Max(metablkSizeLog2, static_cast<INT_32>(m_pipeInterleaveLog2) + numPipesLog2);
-
-                if (m_settings.supportRbPlus    &&
-                    IsRtOptSwizzle(swizzleMode) &&
-                    (numPipesLog2 == 6)         &&
-                    (numSamplesLog2 == 3)       &&
-                    (m_maxCompFragLog2 == 3)    &&
-                    (metablkSizeLog2 < 15))
-                {
-                    metablkSizeLog2 = 15;
-                }
+                metablkSizeLog2 = Max(metablkSizeLog2, 12);
             }
             else
             {
-                metablkSizeLog2 = Max(static_cast<INT_32>(m_pipeInterleaveLog2) + numPipesLog2, 12);
+                metablkSizeLog2 = 12;
             }
 
-            if (dataType == Gfx10DataDepthStencil)
-            {
-                // For htile surfaces, pad meta block size to 2K * num_pipes
-                metablkSizeLog2 = Max(metablkSizeLog2, 11 + numPipesLog2);
-            }
-
-            const INT_32 compFragLog2 = Min(m_maxCompFragLog2, numSamplesLog2);
-
-            if  (IsRtOptSwizzle(swizzleMode) && (compFragLog2 > 1) && (pipeRotateLog2 >= 1))
-            {
-                const INT_32 tmp = 8 + m_pipesLog2 + Max(pipeRotateLog2, compFragLog2 - 1);
-
-                metablkSizeLog2 = Max(metablkSizeLog2, tmp);
-            }
+            const INT_32 metablkBitsLog2 =
+                metablkSizeLog2 + compBlkSizeLog2 - elemLog2 - metaBlkSamplesLog2 - metaElemSizeLog2;
+            pBlock->w = 1 << ((metablkBitsLog2 / 3) + (((metablkBitsLog2 % 3) > 0) ? 1 : 0));
+            pBlock->h = 1 << ((metablkBitsLog2 / 3) + (((metablkBitsLog2 % 3) > 1) ? 1 : 0));
+            pBlock->d = 1 << (metablkBitsLog2 / 3);
         }
-
-        const INT_32 metablkBitsLog2 =
-            metablkSizeLog2 + compBlkSizeLog2 - elemLog2 - metaBlkSamplesLog2 - metaElemSizeLog2;
-        pBlock->w = 1 << ((metablkBitsLog2 >> 1) + (metablkBitsLog2 & 1));
-        pBlock->h = 1 << (metablkBitsLog2 >> 1);
-        pBlock->d = 1;
-    }
-    else
-    {
-        ADDR_ASSERT(IsThick(resourceType, swizzleMode));
-
-        if (pipeAlign)
-        {
-            if (m_settings.supportRbPlus         &&
-                (m_pipesLog2 == m_numSaLog2 + 1) &&
-                (m_pipesLog2 > 1)                &&
-                IsRbAligned(resourceType, swizzleMode))
-            {
-                numPipesLog2++;
-            }
-
-            const INT_32 overlapLog2 = Get3DMetaOverlapLog2(resourceType, swizzleMode, elemLog2);
-
-            metablkSizeLog2 = metaCacheSizeLog2 + overlapLog2 + numPipesLog2;
-            metablkSizeLog2 = Max(metablkSizeLog2, static_cast<INT_32>(m_pipeInterleaveLog2) + numPipesLog2);
-            metablkSizeLog2 = Max(metablkSizeLog2, 12);
-        }
-        else
-        {
-            metablkSizeLog2 = 12;
-        }
-
-        const INT_32 metablkBitsLog2 =
-            metablkSizeLog2 + compBlkSizeLog2 - elemLog2 - metaBlkSamplesLog2 - metaElemSizeLog2;
-        pBlock->w = 1 << ((metablkBitsLog2 / 3) + (((metablkBitsLog2 % 3) > 0) ? 1 : 0));
-        pBlock->h = 1 << ((metablkBitsLog2 / 3) + (((metablkBitsLog2 % 3) > 1) ? 1 : 0));
-        pBlock->d = 1 << (metablkBitsLog2 / 3);
     }
 
     return (1 << static_cast<UINT_32>(metablkSizeLog2));
@@ -2224,10 +2234,17 @@ BOOL_32 Gfx10Lib::ValidateSwModeParams(
 {
     BOOL_32 valid = TRUE;
 
-    if ((pIn->swizzleMode >= ADDR_SW_MAX_TYPE) || (IsValidSwMode(pIn->swizzleMode) == FALSE))
+    if (pIn->swizzleMode >= ADDR_SW_MAX_TYPE)
     {
         ADDR_ASSERT_ALWAYS();
         valid = FALSE;
+    }
+    else if (IsValidSwMode(pIn->swizzleMode) == FALSE)
+    {
+        {
+            ADDR_ASSERT_ALWAYS();
+            valid = FALSE;
+        }
     }
 
     const ADDR2_SURFACE_FLAGS flags       = pIn->flags;
@@ -2282,9 +2299,15 @@ BOOL_32 Gfx10Lib::ValidateSwModeParams(
     }
     else if (tex2d)
     {
-        if (((swizzleMask & Gfx10Rsrc2dSwModeMask) == 0) ||
-            (prt && ((swizzleMask & Gfx10Rsrc2dPrtSwModeMask) == 0)) ||
-            (fmask && ((swizzleMask & Gfx10ZSwModeMask) == 0)))
+        if ((swizzleMask & Gfx10Rsrc2dSwModeMask) == 0)
+        {
+            {
+                ADDR_ASSERT_ALWAYS();
+                valid = FALSE;
+            }
+        }
+        else if ((prt && ((swizzleMask & Gfx10Rsrc2dPrtSwModeMask) == 0)) ||
+                 (fmask && ((swizzleMask & Gfx10ZSwModeMask) == 0)))
         {
             ADDR_ASSERT_ALWAYS();
             valid = FALSE;
@@ -2348,8 +2371,10 @@ BOOL_32 Gfx10Lib::ValidateSwModeParams(
     }
     else
     {
-        ADDR_ASSERT_ALWAYS();
-        valid = FALSE;
+        {
+            ADDR_ASSERT_ALWAYS();
+            valid = FALSE;
+        }
     }
 
     // Block type check
@@ -2447,9 +2472,9 @@ ADDR_E_RETURNCODE Gfx10Lib::HwlGetPreferredSurfaceSetting(
                 const UINT_64 sizeAlignInElement      = Max(NextPow2(pIn->minSizeAlign) / (fmaskBpp >> 3), 1u);
 
                 AddrSwizzleMode swMode[maxFmaskSwizzleModeType]  = {ADDR_SW_64KB_Z_X, ADDR_SW_VAR_Z_X};
-                Dim3d           blkDim[maxFmaskSwizzleModeType]  = {{0}, {0}};
-                Dim3d           padDim[maxFmaskSwizzleModeType]  = {{0}, {0}};
-                UINT_64         padSize[maxFmaskSwizzleModeType] = {0};
+                Dim3d           blkDim[maxFmaskSwizzleModeType]  = {{}, {}};
+                Dim3d           padDim[maxFmaskSwizzleModeType]  = {{}, {}};
+                UINT_64         padSize[maxFmaskSwizzleModeType] = {};
 
                 for (UINT_8 i = 0; i < maxFmaskSwizzleModeType; i++)
                 {
@@ -2748,9 +2773,9 @@ ADDR_E_RETURNCODE Gfx10Lib::HwlGetPreferredSurfaceSetting(
                             swMode[AddrBlockThin64KB] = ADDR_SW_64KB_S;
                         }
 
-                        Dim3d   blkDim[AddrBlockMaxTiledType]  = {{0}, {0}, {0}, {0}, {0}, {0}};
-                        Dim3d   padDim[AddrBlockMaxTiledType]  = {{0}, {0}, {0}, {0}, {0}, {0}};
-                        UINT_64 padSize[AddrBlockMaxTiledType] = {0};
+                        Dim3d   blkDim[AddrBlockMaxTiledType]  = {{}, {}, {}, {}, {}, {}};
+                        Dim3d   padDim[AddrBlockMaxTiledType]  = {{}, {}, {}, {}, {}, {}};
+                        UINT_64 padSize[AddrBlockMaxTiledType] = {};
 
                         const UINT_32 ratioLow           = pIn->flags.minimizeAlign ? 1 : (pIn->flags.opt4space ? 3 : 2);
                         const UINT_32 ratioHi            = pIn->flags.minimizeAlign ? 1 : (pIn->flags.opt4space ? 2 : 1);
@@ -3050,6 +3075,16 @@ ADDR_E_RETURNCODE Gfx10Lib::HwlComputeSurfaceInfoTiled(
 {
     ADDR_E_RETURNCODE ret;
 
+    // Mip chain dimesion and epitch has no meaning in GFX10, set to default value
+    pOut->mipChainPitch    = 0;
+    pOut->mipChainHeight   = 0;
+    pOut->mipChainSlice    = 0;
+    pOut->epitchIsHeight   = FALSE;
+
+    // Following information will be provided in ComputeSurfaceInfoMacroTiled() if necessary
+    pOut->mipChainInTail   = FALSE;
+    pOut->firstMipIdInTail = pIn->numMipLevels;
+
     if (IsBlock256b(pIn->swizzleMode))
     {
         ret = ComputeSurfaceInfoMicroTiled(pIn, pOut);
@@ -3088,13 +3123,6 @@ ADDR_E_RETURNCODE Gfx10Lib::ComputeSurfaceInfoMicroTiled(
 
     if (ret == ADDR_OK)
     {
-        pOut->mipChainPitch    = 0;
-        pOut->mipChainHeight   = 0;
-        pOut->mipChainSlice    = 0;
-        pOut->epitchIsHeight   = FALSE;
-        pOut->mipChainInTail   = FALSE;
-        pOut->firstMipIdInTail = pIn->numMipLevels;
-
         const UINT_32 blockSize = GetBlockSize(pIn->swizzleMode);
 
         pOut->pitch     = PowTwoAlign(pIn->width,  pOut->blockWidth);
@@ -3199,14 +3227,6 @@ ADDR_E_RETURNCODE Gfx10Lib::ComputeSurfaceInfoMacroTiled(
 
         if (returnCode == ADDR_OK)
         {
-            // Mip chain dimesion and epitch has no meaning in GFX10, set to default value
-            pOut->mipChainPitch    = 0;
-            pOut->mipChainHeight   = 0;
-            pOut->mipChainSlice    = 0;
-            pOut->epitchIsHeight   = FALSE;
-            pOut->mipChainInTail   = FALSE;
-            pOut->firstMipIdInTail = pIn->numMipLevels;
-
             const UINT_32 blockSizeLog2 = GetBlockSizeLog2(pIn->swizzleMode);
             const UINT_32 blockSize     = 1 << blockSizeLog2;
 
@@ -3876,8 +3896,8 @@ ADDR_E_RETURNCODE Gfx10Lib::ComputeSurfaceAddrFromCoordMicroTiled(
      ADDR2_COMPUTE_SURFACE_ADDRFROMCOORD_OUTPUT*      pOut    ///< [out] output structure
      ) const
 {
-    ADDR2_COMPUTE_SURFACE_INFO_INPUT  localIn  = {0};
-    ADDR2_COMPUTE_SURFACE_INFO_OUTPUT localOut = {0};
+    ADDR2_COMPUTE_SURFACE_INFO_INPUT  localIn  = {};
+    ADDR2_COMPUTE_SURFACE_INFO_OUTPUT localOut = {};
     ADDR2_MIP_INFO                    mipInfo[MaxMipLevels];
 
     localIn.swizzleMode  = pIn->swizzleMode;
@@ -3942,8 +3962,8 @@ ADDR_E_RETURNCODE Gfx10Lib::ComputeSurfaceAddrFromCoordMacroTiled(
      ADDR2_COMPUTE_SURFACE_ADDRFROMCOORD_OUTPUT*      pOut    ///< [out] output structure
      ) const
 {
-    ADDR2_COMPUTE_SURFACE_INFO_INPUT  localIn  = {0};
-    ADDR2_COMPUTE_SURFACE_INFO_OUTPUT localOut = {0};
+    ADDR2_COMPUTE_SURFACE_INFO_INPUT  localIn  = {};
+    ADDR2_COMPUTE_SURFACE_INFO_OUTPUT localOut = {};
     ADDR2_MIP_INFO                    mipInfo[MaxMipLevels];
 
     localIn.swizzleMode  = pIn->swizzleMode;

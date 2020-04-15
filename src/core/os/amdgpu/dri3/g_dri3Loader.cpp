@@ -543,6 +543,73 @@ void Dri3LoaderFuncsProxy::pfnXcbDiscardReply(
 }
 
 // =====================================================================================================================
+xcb_void_cookie_t Dri3LoaderFuncsProxy::pfnXcbChangePropertyChecked(
+    xcb_connection_t*  pConnection,
+    uint8_t            mode,
+    xcb_window_t       window,
+    xcb_atom_t         property,
+    xcb_atom_t         type,
+    uint8_t            format,
+    uint32_t           data_len,
+    const void         *pData
+    ) const
+{
+    const int64 begin = Util::GetPerfCpuTime();
+    xcb_void_cookie_t ret = m_pFuncs->pfnXcbChangePropertyChecked(pConnection,
+                                                                  mode,
+                                                                  window,
+                                                                  property,
+                                                                  type,
+                                                                  format,
+                                                                  data_len,
+                                                                  *pData);
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
+    m_timeLogger.Printf("XcbChangePropertyChecked,%ld,%ld,%ld\n", begin, end, elapse);
+    m_timeLogger.Flush();
+
+    m_paramLogger.Printf(
+        "XcbChangePropertyChecked(%p, %x, %x, %x, %x, %x, %x, %x)\n",
+        pConnection,
+        mode,
+        window,
+        property,
+        type,
+        format,
+        data_len,
+        *pData);
+    m_paramLogger.Flush();
+
+    return ret;
+}
+
+// =====================================================================================================================
+xcb_void_cookie_t Dri3LoaderFuncsProxy::pfnXcbDeletePropertyChecked(
+    xcb_connection_t*  pConnection,
+    xcb_window_t       window,
+    xcb_atom_t         property
+    ) const
+{
+    const int64 begin = Util::GetPerfCpuTime();
+    xcb_void_cookie_t ret = m_pFuncs->pfnXcbDeletePropertyChecked(pConnection,
+                                                                  window,
+                                                                  property);
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
+    m_timeLogger.Printf("XcbDeletePropertyChecked,%ld,%ld,%ld\n", begin, end, elapse);
+    m_timeLogger.Flush();
+
+    m_paramLogger.Printf(
+        "XcbDeletePropertyChecked(%p, %x, %x)\n",
+        pConnection,
+        window,
+        property);
+    m_paramLogger.Flush();
+
+    return ret;
+}
+
+// =====================================================================================================================
 int32 Dri3LoaderFuncsProxy::pfnXshmfenceUnmapShm(
     struct xshmfence*  pFence
     ) const
@@ -1904,8 +1971,8 @@ Dri3Loader::~Dri3Loader()
 Result Dri3Loader::Init(
     Platform* pPlatform)
 {
-    Result result                   = Result::Success;
-    constexpr uint32_t LibNameSize  = 64;
+    Result           result      = Result::Success;
+    constexpr uint32 LibNameSize = 64;
     char LibNames[Dri3LoaderLibrariesCount][LibNameSize] = {
         "libX11-xcb.so.1",
         "libxcb.so.1",
@@ -1952,6 +2019,8 @@ Result Dri3Loader::Init(
             m_library[LibXcb].GetFunction("xcb_get_setup", &m_funcs.pfnXcbGetSetup);
             m_library[LibXcb].GetFunction("xcb_flush", &m_funcs.pfnXcbFlush);
             m_library[LibXcb].GetFunction("xcb_discard_reply", &m_funcs.pfnXcbDiscardReply);
+            m_library[LibXcb].GetFunction("xcb_change_property_checked", &m_funcs.pfnXcbChangePropertyChecked);
+            m_library[LibXcb].GetFunction("xcb_delete_property_checked", &m_funcs.pfnXcbDeletePropertyChecked);
         }
 
         // resolve symbols from libxshmfence.so.1

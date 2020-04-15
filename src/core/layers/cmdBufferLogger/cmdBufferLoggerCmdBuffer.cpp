@@ -4627,6 +4627,20 @@ void CmdBuffer::CmdSetPredication(
 }
 
 // =====================================================================================================================
+void CmdBuffer::CmdSuspendPredication(
+    bool suspend)
+{
+    if (m_annotations.logCmdSets)
+    {
+        GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdSuspendPredication));
+
+        // TODO: Add comment string.
+    }
+
+    GetNextLayer()->CmdSuspendPredication(suspend);
+}
+
+// =====================================================================================================================
 void CmdBuffer::CmdWriteTimestamp(
     HwPipePoint       pipePoint,
     const IGpuMemory& dstGpuMemory,

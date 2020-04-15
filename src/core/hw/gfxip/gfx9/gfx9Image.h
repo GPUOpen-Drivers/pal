@@ -259,11 +259,10 @@ public:
         Pm4Predicate        predicate,
         uint32*             pCmdSpace) const;
     uint32* UpdateColorClearMetaData(
-        uint32       startMip,
-        uint32       numMips,
-        const uint32 packedColor[4],
-        Pm4Predicate predicate,
-        uint32*      pCmdSpace) const;
+        const SubresRange& clearRange,
+        const uint32       packedColor[4],
+        Pm4Predicate       predicate,
+        uint32*            pCmdSpace) const;
     void UpdateDccStateMetaData(
         Pal::CmdStream*     pCmdStream,
         const SubresRange&  range,
@@ -282,44 +281,57 @@ public:
         Pm4Predicate         predicate,
         uint32*              pCmdSpace) const;
 
-    gpusize GetFastClearEliminateMetaDataAddr(uint32 mipLevel) const;
-    gpusize GetFastClearEliminateMetaDataOffset(uint32 mipLevel) const;
+    gpusize GetFastClearEliminateMetaDataAddr(const SubresId&  subResId) const;
+    gpusize GetFastClearEliminateMetaDataOffset(const SubresId&  subResId) const;
 
     gpusize GetWaTcCompatZRangeMetaDataAddr(uint32 mipLevel) const;
 
     bool HasWaTcCompatZRangeMetaData() const { return m_waTcCompatZRangeMetaDataOffset != 0; }
 
-    uint32 GetDcc256BAddr()   const { return GetMaskRam256BAddr(GetDcc(), ImageAspect::Color); }
-    uint32 GetCmask256BAddr() const { return GetMaskRam256BAddr(GetCmask(), ImageAspect::Color); }
+    uint32 GetDcc256BAddr(
+        const SubresId&  subResId) const
+        { return GetMaskRam256BAddr(GetDcc(subResId.aspect), subResId); }
+
+    uint32 GetCmask256BAddr() const;
     uint32 GetFmask256BAddr() const;
 
-    bool HasDccStateMetaData() const { return m_dccStateMetaDataOffset != 0; }
+    bool HasDccStateMetaData(ImageAspect  aspect) const
+        { return (m_dccStateMetaDataOffset[GetAspectIndex(aspect)] != 0); }
 
-    bool HasFastClearEliminateMetaData() const { return m_fastClearEliminateMetaDataOffset != 0; }
+    bool HasFastClearEliminateMetaData(ImageAspect  aspect) const
+        { return m_fastClearEliminateMetaDataOffset[GetAspectIndex(aspect)] != 0; }
 
-    gpusize GetDccStateMetaDataAddr(uint32 mipLevel, uint32 slice) const;
-    gpusize GetDccStateMetaDataOffset(uint32 mipLevel, uint32 slice) const;
+    gpusize GetDccStateMetaDataAddr(const SubresId&  subResId) const;
+    gpusize GetDccStateMetaDataOffset(const SubresId&  subResId) const;
 
     // Returns true if this Image has associated mask-ram data.
     bool HasColorMetaData() const { return HasFmaskData() || HasDccData(); }
 
     // Returns true if this Image has associated DCC data.
-    bool HasDccData() const { return (m_pDcc != nullptr); }
+    bool HasDccData() const { return (m_numDccPlanes != 0); }
     virtual bool HasFmaskData() const override;
 
     bool HasHtileLookupTable() const
         { return (HasHtileData() && (m_metaDataLookupTableOffsets[0] != 0u)); }
 
     // Returns a pointer to the Gfx9Dcc object associated with a particular sub-Resource.
-    const  Gfx9Dcc*   GetDcc()   const { return m_pDcc; }
-    const  Gfx9Cmask* GetCmask() const { return m_pCmask; }
-    const  Gfx9Fmask* GetFmask() const { return m_pFmask; }
-    gpusize GetMaskRamBaseAddr(const MaskRam*  pMaskRam) const;
+    const  Gfx9Dcc*     GetDcc(ImageAspect  aspect) const { return m_pDcc[GetAspectIndex(aspect)]; }
+    const  Gfx9Cmask*   GetCmask() const { return m_pCmask; }
+    const  Gfx9Fmask*   GetFmask() const { return m_pFmask; }
+    const Gfx9MaskRam*  GetColorMaskRam(ImageAspect  aspect) const
+    {
+        return ((HasDccData())
+            ? static_cast<const Gfx9MaskRam*>(GetDcc(aspect))
+            : static_cast<const Gfx9MaskRam*>(GetCmask()));
+    }
+    const Gfx9MaskRam*  GetPrimaryMaskRam(ImageAspect  aspect) const
+    {
+        return (HasDccData()
+                ? static_cast<const Gfx9MaskRam*>(GetDcc(aspect))
+                : static_cast<const Gfx9MaskRam*>(GetHtile()));
+    }
 
-    bool IsRbAligned() const
-        { return (HasColorMetaData() || HasHtileData()) ? Gfx9MaskRam::IsRbAligned(this) : false; }
-    bool IsPipeAligned() const
-        { return (HasColorMetaData() || HasHtileData()) ? Gfx9MaskRam::IsPipeAligned(this) : false; }
+    gpusize GetMaskRamBaseAddr(const MaskRam*   pMaskRam, const SubresId&  subResId) const;
 
     const ColorLayoutToState& LayoutToColorCompressionState() const { return m_layoutToState.color; }
     const DepthStencilLayoutToState& LayoutToDepthCompressionState(const SubresId& subresId) const;
@@ -384,7 +396,7 @@ public:
 
     void BuildMetadataLookupTableBufferView(BufferViewInfo* pViewInfo, uint32 mipLevel) const;
 
-    bool IsInMetadataMipTail(uint32 mip) const;
+    bool IsInMetadataMipTail(const SubresId&  subResId) const;
     bool CanMipSupportMetaData(uint32 mip) const override;
 
     uint32 GetIterate256(const SubResourceInfo*  pSubResInfo) const;
@@ -404,7 +416,6 @@ public:
 
 private:
     // Address dimensions are calculated on a per-plane (aspect) basis
-    static const uint32                      MaxNumPlanes = 3;
     ADDR2_COMPUTE_SURFACE_INFO_OUTPUT        m_addrSurfOutput[MaxNumPlanes];
     ADDR2_MIP_INFO                           m_addrMipOutput[MaxNumPlanes][MaxImageMipLevels];
     ADDR2_GET_PREFERRED_SURF_SETTING_OUTPUT  m_addrSurfSetting[MaxNumPlanes];
@@ -418,17 +429,18 @@ private:
 
     const Device&  m_gfxDevice;
     Gfx9Htile*     m_pHtile;
-    Gfx9Dcc*       m_pDcc;
+    Gfx9Dcc*       m_pDcc[MaxNumPlanes];
+    uint32         m_numDccPlanes;
     Gfx9Cmask*     m_pCmask;
     Gfx9Fmask*     m_pFmask;
 
     MetaDataClearConst  m_metaDataClearConst[MetaDataNumTypes];
 
-    gpusize  m_dccStateMetaDataOffset; // Offset to beginning of DCC state metadata
-    gpusize  m_dccStateMetaDataSize;   // Size of the DCC state metadata
+    gpusize  m_dccStateMetaDataOffset[MaxNumPlanes]; // Offset to beginning of DCC state metadata
+    gpusize  m_dccStateMetaDataSize[MaxNumPlanes];   // Size of the DCC state metadata
 
-    gpusize  m_fastClearEliminateMetaDataOffset; // Offset to start of FCE metadata
-    gpusize  m_fastClearEliminateMetaDataSize;   // Size of the FCE metadata
+    gpusize  m_fastClearEliminateMetaDataOffset[MaxNumPlanes]; // Offset to start of FCE metadata
+    gpusize  m_fastClearEliminateMetaDataSize[MaxNumPlanes];   // Size of the FCE metadata
 
     gpusize m_waTcCompatZRangeMetaDataOffset;       // Offset to start of waTcCompatZRange MetaData
     gpusize m_waTcCompatZRangeMetaDataSizePerMip;   // Size of the waTcCompatZRange MetaData per mip level
@@ -463,9 +475,11 @@ private:
     uint32 GetAspectIndex(ImageAspect  aspect) const;
 
     void InitDccStateMetaData(
+        uint32             planeIdx,
         ImageMemoryLayout* pGpuMemLayout,
         gpusize*           pGpuMemSize);
     void InitFastClearEliminateMetaData(
+        ImageAspect        aspect,
         ImageMemoryLayout* pGpuMemLayout,
         gpusize*           pGpuMemSize);
     void InitWaTcCompatZRangeMetaData(
@@ -490,6 +504,14 @@ private:
 
     void CheckCompToSingle();
 
+    ImageAspect GetAspectFromPlane(uint32  planeIdx) const;
+
+    Result CreateDccObject(
+        SubResourceInfo*   pSubResInfoList,
+        ImageMemoryLayout* pGpuMemLayout,
+        gpusize*           pGpuMemSize,
+        gpusize*           pGpuMemAlignment);
+
     void Addr2InitSubResInfoGfx10(
         const SubResIterator&  subResIt,
         SubResourceInfo*       pSubResInfoList,
@@ -511,7 +533,9 @@ private:
         const ImageCreateInfo& createInfo,
         const SubResourceInfo& baseSubRes) const;
 
-    uint32  GetMaskRam256BAddr(const Gfx9MaskRam*  pMaskRam, ImageAspect  aspect) const;
+    uint32  GetMaskRam256BAddr(
+        const Gfx9MaskRam*  pMaskRam,
+        const SubresId&     subResId) const;
 
     bool SupportsMetaDataTextureFetch(AddrSwizzleMode tileMode, ChNumFormat format, const SubresId& subResource) const;
     bool ColorImageSupportsMetaDataTextureFetch() const;

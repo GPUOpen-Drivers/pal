@@ -237,6 +237,11 @@ void ShaderLibrary::GetFunctionGpuVirtAddrs(
         if (abiProcessor.HasGenericSymbolEntry(pFuncInfoList[i].pSymbolName, &symbol))
         {
             pFuncInfoList[i].gpuVirtAddr = (codeGpuVirtAddr + symbol.value);
+            PAL_ASSERT(pFuncInfoList[i].gpuVirtAddr != 0);
+        }
+        else
+        {
+            PAL_ASSERT_ALWAYS();
         }
     }
 }

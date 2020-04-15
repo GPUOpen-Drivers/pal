@@ -83,7 +83,7 @@ constexpr  NullIdLookup  NullIdLookupTable[] =
     { FAMILY_AI,  AI_VEGA12_P_A0,       PRID_AI_VEGA12_00,            GfxEngineGfx9,  DEVICE_ID_AI_VEGA12_P_69A0      },
     { FAMILY_AI,  AI_VEGA20_P_A0,       PRID_AI_VEGA20_00,            GfxEngineGfx9,  DEVICE_ID_AI_VEGA20_P_66A0      },
     { FAMILY_RV,  RAVEN2_A0,            PRID_RV_E2,                   GfxEngineGfx9,  DEVICE_ID_RV2_15D8              },
-    { PAL_UNDEFINED_NULL_DEVICE                                                                                       },
+    { FAMILY_RV,  RENOIR_A0,            PRID_RENOIR_01,               GfxEngineGfx9,  DEVICE_ID_RENOIR_1636           },
     { FAMILY_NV,  NV_NAVI10_P_A2,       PRID_NV_NAVI10_00,            GfxEngineGfx9,  DEVICE_ID_NV_NAVI10_P_7310      },
     { PAL_UNDEFINED_NULL_DEVICE                                                                                       },
     { PAL_UNDEFINED_NULL_DEVICE                                                                                       },
@@ -133,7 +133,7 @@ const char* pNullGpuNames[static_cast<uint32>(Pal::NullGpuId::Max)] =
     "VEGA12:gfx904",
     "VEGA20:gfx906",
     "RAVEN2:gfx909",
-    nullptr,
+    "RENOIR:gfx909",
     "NAVI10:gfx1010",
     nullptr,
     nullptr,
@@ -915,6 +915,21 @@ void Device::InitGfx9ChipProperties()
         pChipInfo->numPhysicalVgprsPerSimd =  256; // GPU__GC__NUM_GPRS;
         pChipInfo->numCuPerSh              =    3; // GPU__GC__NUM_CU_PER_SH;
         pChipInfo->numTccBlocks            =    2; // GPU__TC__NUM_TCCS;
+        pChipInfo->gsVgtTableDepth         =   32; // GPU__VGT__GS_TABLE_DEPTH;
+        pChipInfo->gsPrimBufferDepth       = 1792; // GPU__GC__GSPRIM_BUFF_DEPTH;
+        pChipInfo->maxGsWavesPerVgt        =   32; // GPU__GC__NUM_MAX_GS_THDS;
+    }
+    else if (AMDGPU_IS_RENOIR(m_nullIdLookup.familyId, m_nullIdLookup.eRevId))
+    {
+        pChipInfo->doubleOffchipLdsBuffers = 1;
+        pChipInfo->gbAddrConfig            = 0x26010001; // GB_ADDR_CONFIG_DEFAULT;
+        pChipInfo->numShaderEngines        =    1; // GPU__GC__NUM_SE;
+        pChipInfo->numShaderArrays         =    1; // GPU__GC__NUM_SH_PER_SE;
+        pChipInfo->maxNumRbPerSe           =    2; // GPU__GC__NUM_RB_PER_SE;
+        pChipInfo->nativeWavefrontSize     =   64; // GPU__GC__WAVE_SIZE;
+        pChipInfo->numPhysicalVgprsPerSimd =  256; // GPU__GC__NUM_GPRS;
+        pChipInfo->numCuPerSh              =    8; // GPU__GC__NUM_CU_PER_SH;
+        pChipInfo->numTccBlocks            =    4; // GPU__TC__NUM_TCCS;
         pChipInfo->gsVgtTableDepth         =   32; // GPU__VGT__GS_TABLE_DEPTH;
         pChipInfo->gsPrimBufferDepth       = 1792; // GPU__GC__GSPRIM_BUFF_DEPTH;
         pChipInfo->maxGsWavesPerVgt        =   32; // GPU__GC__NUM_MAX_GS_THDS;

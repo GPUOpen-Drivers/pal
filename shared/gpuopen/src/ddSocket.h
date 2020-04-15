@@ -85,11 +85,11 @@ namespace DevDriver
 
         Result Send(const uint8* pData, size_t dataSize, size_t* pBytesSent);
 
-        Result SendTo(const void* pSockAddr, size_t addrSize, const uint8* pData, size_t dataSize);
+        Result SendTo(const void* pSockAddr, size_t addrSize, const uint8* pData, size_t dataSize, size_t* pBytesSent);
 
         Result Receive(uint8* pBuffer, size_t bufferSize, size_t* pBytesReceived);
 
-        Result ReceiveFrom(void *pSockAddr, size_t *addrSize, uint8* pBuffer, size_t bufferSize);
+        Result ReceiveFrom(void *pSockAddr, size_t *addrSize, uint8* pBuffer, size_t bufferSize, size_t* pBytesReceived);
 
         Result Close();
 

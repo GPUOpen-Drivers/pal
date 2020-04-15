@@ -180,6 +180,11 @@ public:
     virtual Result Finalize() override;
     virtual Result Cleanup() override;
 
+    //            rbAligned must be true for ASICs with > 1 RBs, otherwise there would be access violation
+    //            between different RBs
+    virtual bool IsRbAligned() const
+        { return ((GetNumRbsPerSeLog2() + GetNumShaderEnginesLog2()) != 0); }
+
     virtual void HwlValidateSettings(PalSettings* pSettings) override
     {
         static_cast<Pal::Gfx9::SettingsLoader*>(m_pSettingsLoader)->ValidateSettings(pSettings);
@@ -588,7 +593,7 @@ public:
         RegisterRangeType  rangeType,
         uint32*            pRangeEntries) const;
 
-    PM4PFP_CONTEXT_CONTROL GetContextControl() const;
+    PM4_PFP_CONTEXT_CONTROL GetContextControl() const;
 
     virtual Result P2pBltWaModifyRegionListMemory(
         const IGpuMemory&            dstGpuMemory,

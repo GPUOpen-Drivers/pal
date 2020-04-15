@@ -143,27 +143,47 @@ namespace DevDriver
             Platform::Snprintf(buffer, "%s\n", buffer);
 
             OutputDebugString(buffer);
-            printf("%s", buffer);
+            printf("[DevDriver] %s", buffer);
         }
 
-        int32 AtomicIncrement(Atomic *variable)
+        int32 AtomicIncrement(Atomic* pVariable)
         {
-            return static_cast<int32>(InterlockedIncrementAcquire(variable));
+            return static_cast<int32>(InterlockedIncrement(pVariable));
         }
 
-        int32 AtomicAdd(Atomic *variable, int32 num)
+        int32 AtomicAdd(Atomic* pVariable, int32 num)
         {
-            return static_cast<int32>(InterlockedAddAcquire(variable, static_cast<long>(num)));
+            return static_cast<int32>(InterlockedAdd(pVariable, static_cast<long>(num)));
         }
 
-        int32 AtomicDecrement(Atomic *variable)
+        int32 AtomicDecrement(Atomic* pVariable)
         {
-            return static_cast<int32>(InterlockedDecrementAcquire(variable));
+            return static_cast<int32>(InterlockedDecrement(pVariable));
         }
 
-        int32 AtomicSubtract(Atomic *variable, int32 num)
+        int32 AtomicSubtract(Atomic* pVariable, int32 num)
         {
-            return static_cast<int32>(InterlockedAddAcquire(variable, -static_cast<long>(num)));
+            return static_cast<int32>(InterlockedAdd(pVariable, -static_cast<long>(num)));
+        }
+
+        int64 AtomicIncrement(Atomic64* pVariable)
+        {
+            return static_cast<int64>(InterlockedIncrement64(pVariable));
+        }
+
+        int64 AtomicAdd(Atomic64* pVariable, int64 num)
+        {
+            return static_cast<int64>(InterlockedAdd64(pVariable, static_cast<LONG64>(num)));
+        }
+
+        int64 AtomicDecrement(Atomic64* pVariable)
+        {
+            return static_cast<int64>(InterlockedDecrement64(pVariable));
+        }
+
+        int64 AtomicSubtract(Atomic64* pVariable, int64 num)
+        {
+            return static_cast<int64>(InterlockedAdd64(pVariable, -static_cast<LONG64>(num)));
         }
 
         /////////////////////////////////////////////////////
@@ -453,6 +473,35 @@ namespace DevDriver
             m_prevState = seed.QuadPart;
         }
 
+        Result Mkdir(const char* pDir)
+        {
+            Result result = Result::InvalidParameter;
+
+            if (pDir != nullptr)
+            {
+                const BOOL ret = CreateDirectory(pDir, NULL);
+                if (ret != 0)
+                {
+                    result = Result::Success;
+                }
+                else
+                {
+                    const int err = GetLastError();
+                    if (err == ERROR_ALREADY_EXISTS)
+                    {
+                        // The directory already exists, which is fine.
+                        result = Result::Success;
+                    }
+                    else
+                    {
+                        result = Result::FileIoError;
+                    }
+                }
+            }
+
+            return result;
+        }
+
         ProcessId GetProcessId()
         {
             return static_cast<ProcessId>(GetCurrentProcessId());
@@ -656,6 +705,23 @@ namespace DevDriver
                 DWORD nSize = ArraySize<DWORD>(pInfo->hostname);
                 GetComputerNameEx(ComputerNameDnsFullyQualified, pInfo->hostname, &nSize);
                 DD_WARN(nSize > 0);
+            }
+
+            /// Query information about the current user
+            {
+                const char* pUser = getenv("USERNAME");
+                DD_WARN(pUser != nullptr);
+                if (pUser != nullptr)
+                {
+                    Platform::Strncpy(pInfo->user.name, pUser);
+                }
+
+                const char* pHomeDir = getenv("HOMEPATH");
+                DD_WARN(pHomeDir != nullptr);
+                if (pHomeDir != nullptr)
+                {
+                    Platform::Strncpy(pInfo->user.homeDir, pHomeDir);
+                }
             }
 
             /// Query available memory

@@ -574,6 +574,7 @@ void DmaCmdBuffer::WriteCopyImageTiledToLinearCmd(
 void DmaCmdBuffer::WriteCopyImageTiledToTiledCmd(
     const DmaImageCopyInfo& imageCopyInfo)
 {
+    const auto* pAddrMgr   = static_cast<const AddrMgr2::AddrMgr2*>(m_pDevice->GetAddrMgr());
     const auto& src        = imageCopyInfo.src;
     const auto& dst        = imageCopyInfo.dst;
     const auto  srcSwizzle = GetSwizzleMode(src);
@@ -611,7 +612,7 @@ void DmaCmdBuffer::WriteCopyImageTiledToTiledCmd(
     // Setup the tile mode of the destination surface.
     packet.DW_6_UNION.DW_6_DATA         = 0;
     packet.DW_6_UNION.src_element_size  = Log2(src.bytesPerPixel);
-    packet.DW_6_UNION.src_swizzle_mode  = AddrMgr2::GetHwSwizzleMode(srcSwizzle);
+    packet.DW_6_UNION.src_swizzle_mode  = pAddrMgr->GetHwSwizzleMode(srcSwizzle);
     packet.DW_6_UNION.src_dimension     = GetHwDimension(src);
     packet.DW_6_UNION.src_epitch        = GetEpitch(src);
 
@@ -634,7 +635,7 @@ void DmaCmdBuffer::WriteCopyImageTiledToTiledCmd(
     // Setup the tile mode of the destination surface.
     packet.DW_12_UNION.DW_12_DATA       = 0;
     packet.DW_12_UNION.dst_element_size = Log2(dst.bytesPerPixel);
-    packet.DW_12_UNION.dst_swizzle_mode = AddrMgr2::GetHwSwizzleMode(dstSwizzle);
+    packet.DW_12_UNION.dst_swizzle_mode = pAddrMgr->GetHwSwizzleMode(dstSwizzle);
     packet.DW_12_UNION.dst_dimension    = GetHwDimension(dst);
     packet.DW_12_UNION.dst_epitch       = GetEpitch(dst);
 
@@ -1039,6 +1040,7 @@ uint32* DmaCmdBuffer::CopyImageLinearTiledTransform(
     uint32*                 pCmdSpace
     ) const
 {
+    const auto*  pAddrMgr     = static_cast<const AddrMgr2::AddrMgr2*>(m_pDevice->GetAddrMgr());
     const size_t packetDwords = Util::NumBytesToNumDwords(sizeof(SDMA_PKT_COPY_TILED_SUBWIN));
     auto*const   pPacket      = reinterpret_cast<SDMA_PKT_COPY_TILED_SUBWIN*>(pCmdSpace);
 
@@ -1071,7 +1073,7 @@ uint32* DmaCmdBuffer::CopyImageLinearTiledTransform(
 
     packet.DW_6_UNION.DW_6_DATA    = 0;
     packet.DW_6_UNION.element_size = Log2(tiledImg.bytesPerPixel);
-    packet.DW_6_UNION.swizzle_mode = AddrMgr2::GetHwSwizzleMode(GetSwizzleMode(tiledImg));
+    packet.DW_6_UNION.swizzle_mode = pAddrMgr->GetHwSwizzleMode(GetSwizzleMode(tiledImg));
     packet.DW_6_UNION.dimension    = GetHwDimension(tiledImg);
     packet.DW_6_UNION.epitch       = GetEpitch(tiledImg);
 
@@ -1114,6 +1116,7 @@ uint32* DmaCmdBuffer::CopyImageMemTiledTransform(
     uint32*                      pCmdSpace
     ) const
 {
+    const auto*  pAddrMgr     = static_cast<const AddrMgr2::AddrMgr2*>(m_pDevice->GetAddrMgr());
     const size_t packetDwords = Util::NumBytesToNumDwords(sizeof(SDMA_PKT_COPY_TILED_SUBWIN));
     auto*const   pPacket      = reinterpret_cast<SDMA_PKT_COPY_TILED_SUBWIN*>(pCmdSpace);
 
@@ -1146,7 +1149,7 @@ uint32* DmaCmdBuffer::CopyImageMemTiledTransform(
 
     packet.DW_6_UNION.DW_6_DATA    = 0;
     packet.DW_6_UNION.element_size = Log2(image.bytesPerPixel);
-    packet.DW_6_UNION.swizzle_mode = AddrMgr2::GetHwSwizzleMode(GetSwizzleMode(image));
+    packet.DW_6_UNION.swizzle_mode = pAddrMgr->GetHwSwizzleMode(GetSwizzleMode(image));
     packet.DW_6_UNION.dimension    = GetHwDimension(image);
     packet.DW_6_UNION.epitch       = GetEpitch(image);
 

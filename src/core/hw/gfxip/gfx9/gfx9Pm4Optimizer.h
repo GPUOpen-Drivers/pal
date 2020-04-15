@@ -95,7 +95,7 @@ public:
         uint32*                 pCmdSpace);
 
     uint32* WriteOptimizedSetShShRegOffset(
-        const PM4PFP_SET_SH_REG_OFFSET& setShRegOffset,
+        const PM4_PFP_SET_SH_REG_OFFSET& setShRegOffset,
         size_t                          packetSize,
         uint32*                         pCmdSpace);
 
@@ -105,7 +105,7 @@ public:
         { HandlePm4LoadReg(loadData, &m_shRegs); }
     void HandleLoadContextRegs(const PM4_PFP_LOAD_CONTEXT_REG& loadData)
         { HandlePm4LoadReg(loadData, &m_cntxRegs); }
-    void HandleLoadContextRegsIndex(const PM4PFP_LOAD_CONTEXT_REG_INDEX& loadData);
+    void HandleLoadContextRegsIndex(const PM4_PFP_LOAD_CONTEXT_REG_INDEX& loadData);
 
 #if PAL_BUILD_PM4_INSTRUMENTOR
     void IssueHotRegisterReport(GfxCmdBuffer* pCmdBuf) const;
@@ -125,7 +125,7 @@ private:
     template <typename LoadDataIndexPacket, size_t RegisterCount>
     void HandlePm4LoadRegIndex(const LoadDataIndexPacket& loadDataIndex, RegGroupState<RegisterCount>* pRegState);
 
-    void HandlePm4SetShRegOffset(const PM4PFP_SET_SH_REG_OFFSET& setShRegOffset);
+    void HandlePm4SetShRegOffset(const PM4_PFP_SET_SH_REG_OFFSET& setShRegOffset);
     void HandlePm4SetContextRegIndirect(const PM4_PFP_SET_CONTEXT_REG& setData);
 
     uint32 GetPm4PacketSize(PM4_PFP_TYPE_3_HEADER pm4Header) const;

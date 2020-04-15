@@ -114,7 +114,15 @@ void SettingsLoader::ValidateSettings(
     // Compute the number of offchip LDS buffers for the whole chip.
     uint32 maxOffchipLdsBuffers = (gfx9Props.numShaderEngines * maxOffchipLdsBuffersPerSe);
 
-    auto pPalSettings = m_pDevice->GetPublicSettings();
+    auto* pPalSettings = m_pDevice->GetPublicSettings();
+
+    if (IsGfx9(*m_pDevice))
+    {
+        // YUV planar surfaces require the ability to modify the base address to point to individual slices.  Due
+        // to DCC addressing that interleaves slices on GFX9 platforms, we can't accurately point to the start
+        // of a slice in DCC, which makes supporting DCC for YUV planar surfaces impossible.
+        m_settings.useDcc &= ~Gfx10UseDccYuvPlanar;
+    }
 
     if (m_settings.binningMaxAllocCountLegacy == 0)
     {
@@ -464,6 +472,9 @@ void SettingsLoader::OverrideDefaults(
 {
     const Pal::Device& device = *m_pDevice;
 
+    uint16 minBatchBinSizeWidth  = 128;
+    uint16 minBatchBinSizeHeight = 64;
+
     // Enable workarounds which are common to all Gfx9 hardware.
     if (IsGfx9(device))
     {
@@ -512,6 +523,7 @@ void SettingsLoader::OverrideDefaults(
 
         if (IsVega10(device) || IsRaven(device)
             || IsRaven2(device)
+            || IsRenoir(device)
             )
         {
             m_settings.waMetaAliasingFixEnabled = false;
@@ -543,8 +555,22 @@ void SettingsLoader::OverrideDefaults(
             m_settings.binningPersistentStatesPerBin = 8;
             m_settings.allowNggOnAllCusWgps = true;
             m_settings.nggLateAllocGs = 0;
+            m_settings.ignoreDepthForBinSizeIfColorBound = true;
+
+            minBatchBinSizeWidth  = 64;
+            minBatchBinSizeHeight = 64;
         }
 
+    }
+
+    // If minimum sizes are 0, then use default size.
+    if (m_settings.minBatchBinSize.width == 0)
+    {
+        m_settings.minBatchBinSize.width = minBatchBinSizeWidth;
+    }
+    if (m_settings.minBatchBinSize.height == 0)
+    {
+        m_settings.minBatchBinSize.height = minBatchBinSizeHeight;
     }
 
     m_state = SettingsLoaderState::LateInit;

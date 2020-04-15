@@ -367,6 +367,9 @@ protected:
     const ComputePipeline* GetComputeMaskRamExpandPipeline(
         const Image& image) const;
 
+    void BindCommonGraphicsState(
+        GfxCmdBuffer* pCmdBuffer) const;
+
     ColorBlendState*    m_pBlendDisableState;               // Blend state object with all blending disabled.
     ColorBlendState*    m_pColorBlendState;                 // Blend state object with rt0 blending enabled.
     DepthStencilState*  m_pDepthDisableState;               // DS state object with all depth disabled.
@@ -469,6 +472,12 @@ private:
         const ImageResolveRegion* pRegions,
         uint32                    regionCount,
         bool                      computeResolve) const = 0;
+
+    virtual void HwlImageToImageMissingPixelCopy(
+        GfxCmdBuffer*          pCmdBuffer,
+        const Pal::Image&      srcImage,
+        const Pal::Image&      dstImage,
+        const ImageCopyRegion& region) const = 0;
 
     void CopyColorImageGraphics(
         GfxCmdBuffer*          pCmdBuffer,

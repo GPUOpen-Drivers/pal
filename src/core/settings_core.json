@@ -313,6 +313,46 @@
       "Name": "UnboundDescriptorAddress"
     },
     {
+      "Name": "IsLocalHeapPreferred",
+      "Tags": [
+        "General",
+        "Debug",
+        "SafeSetting"
+      ],
+      "Defaults": {
+        "Default": false
+      },
+      "DependsOn": {
+        "OS": [
+          "Linux"
+        ]
+      },
+      "Scope": "PrivatePalKey",
+      "Type": "bool",
+      "VariableName": "isLocalHeapPreferred",
+      "Description": "Remove GTT from the preferred heap and only keep VRAM domain"
+    },
+    {
+      "Name": "EnableNullCpuAccessFlag",
+      "Tags": [
+        "General",
+        "Debug",
+        "SafeSetting"
+      ],
+      "Defaults": {
+        "Default": false
+      },
+      "DependsOn": {
+        "OS": [
+          "Linux"
+        ]
+      },
+      "Scope": "PrivatePalKey",
+      "Type": "bool",
+      "VariableName": "enableNullCpuAccessFlag",
+      "Description": "Do not specify the CPU access flag and ask kernel to determine it dynamically when real map happens"
+    },
+    {
       "Name": "ClearAllocatedLfb",
       "Tags": [
         "General",
@@ -331,6 +371,24 @@
       "Type": "bool",
       "VariableName": "clearAllocatedLfb",
       "Description": "Clears local frame buffer to zero. The allocated local frame buffer is not cleared to zero on Linux.  Applications sometimes assume that the driver will clear the framebuffer on Linux (which would match Windows behavior)."
+    },
+    {
+      "Name": "EnableAdaptiveSync",
+      "Tags": [
+        "General"
+      ],
+      "Defaults": {
+        "Default": false
+      },
+      "DependsOn": {
+        "OS": [
+          "Linux"
+        ]
+      },
+      "Scope": "PrivatePalKey",
+      "Type": "bool",
+      "VariableName": "enableAdaptiveSync",
+      "Description": "Enable adaptive sync (variable refresh rate) for a window of Xserver"
     },
     {
       "ValidValues": {
@@ -466,6 +524,28 @@
       "Type": "enum",
       "VariableName": "preferredPipelineUploadHeap",
       "Description": "Pipelines are uploaded for GPU access to the heap type preferred."
+    },
+    {
+      "Name": "InsertGuardPageBetweenWddm2VAs",
+      "Tags": [
+        "General",
+        "Debug"
+      ],
+      "Defaults": {
+        "Default": false
+      },
+      "DependsOn": {
+        "OS": [
+          "Win10"
+        ],
+        "BuildType": [
+          "dev"
+        ]
+      },
+      "Scope": "PrivatePalKey",
+      "Type": "bool",
+      "VariableName": "insertGuardPageBetweenWddm2VAs",
+      "Description": "If set we will attempt to insert empty va space in between every allocation mapping in order to force page faults when writing outside of allocations. This helps debug random corruptions when we write past one allocation into another. Must build with PAL_DEVELOPER_BUILD flag for this to work."
     },
     {
       "Name": "ForceHeapPerfToFixedValues",

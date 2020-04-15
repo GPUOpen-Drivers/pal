@@ -948,7 +948,6 @@ void GraphicsPipeline::SetupCommonRegisters(
             (createInfo.rsState.pointCoordOrigin != PointOrigin::UpperLeft);
     }
 
-
     // Default to nothing enabled
     m_regs.context.vgtDrawPayloadCntl.u32All = 0;
 
@@ -1604,7 +1603,7 @@ uint32 GraphicsPipeline::ComputeScratchMemorySize(
 
             uint32 stageScratchMemorySize = stageMetadata.scratchMemorySize;
 
-            if (isWave32Tbl[i] == false)
+            if (IsGfx10(m_pDevice->Parent()->ChipProperties().gfxLevel))
             {
                 // We allocate scratch memory based on the minimum wave size for the chip, which for Gfx10+ ASICs will
                 // be Wave32. In order to appropriately size the scratch memory (reported in the ELF as per-thread) for

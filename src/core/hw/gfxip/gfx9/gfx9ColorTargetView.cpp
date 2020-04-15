@@ -102,7 +102,7 @@ ColorTargetView::ColorTargetView(
 
         if (settings.waitOnMetadataMipTail)
         {
-            m_flags.waitOnMetadataMipTail = m_pImage->IsInMetadataMipTail(MipLevel());
+            m_flags.waitOnMetadataMipTail = m_pImage->IsInMetadataMipTail(m_subresource);
         }
 
         m_layoutToState = m_pImage->LayoutToColorCompressionState();
@@ -118,8 +118,13 @@ ColorTargetView::ColorTargetView(
             (imageCreateInfo.imageType == ImageType::Tex2d)             &&
             (createInfo.imageInfo.arraySize == 1))
         {
-            PAL_ASSERT(m_flags.hasDcc == 0);
+            // YUV planar surfaces can have DCC on GFX10 as the slices are individually addressable
+            // on that platform.
+            PAL_ASSERT(IsGfx10(*(pDevice->Parent())) || (m_flags.hasDcc == 0));
+
+            // There's no reason to ever have MSAA YUV, so there won't ever be cMask or fMask surfaces.
             PAL_ASSERT(m_flags.hasCmaskFmask == 0);
+
             m_flags.useSubresBaseAddr = 1;
         }
 
@@ -289,9 +294,10 @@ void ColorTargetView::InitCommonImageView(
 
     if (m_flags.hasDcc != 0)
     {
-        regCB_COLOR0_DCC_CONTROL dccControl = m_pImage->GetDcc()->GetControlReg();
+        regCB_COLOR0_DCC_CONTROL dccControl = m_pImage->GetDcc(m_subresource.aspect)->GetControlReg();
         const SubResourceInfo*const pSubResInfo = m_pImage->Parent()->SubresourceInfo(m_subresource);
-        if ((internalInfo.flags.fastClearElim || pSubResInfo->flags.supportMetaDataTexFetch) && IsGfx091xPlus(*device.Parent()))
+        if (IsGfx091xPlus(*device.Parent()) &&
+            (internalInfo.flags.fastClearElim || pSubResInfo->flags.supportMetaDataTexFetch))
         {
             // Without this, the CB will not expand the compress-to-register (0x20) keys.
             dccControl.gfx09_1xPlus.DISABLE_CONSTANT_ENCODE_REG = 1;
@@ -352,9 +358,26 @@ void ColorTargetView::UpdateImageVa(
 
             pRegs->cbColorBase.bits.BASE_256B = Get256BAddrLo(addrWithXor);
             PAL_ASSERT(Get256BAddrHi(addrWithXor) == 0);
+
+            // On GFX9, only DCC can be used for fast clears.  The load-meta-data packet updates the cb color regs to
+            // indicate what the clear color is.  (See Gfx9FastColorClearMetaData in gfx9MaskRam.h).
+            if (m_flags.hasDcc)
+            {
+                PAL_ASSERT(IsGfx10(*(m_pImage->Parent()->GetDevice())));
+
+                // Invariant: On Gfx9, if we have DCC we also have fast clear metadata.
+                PAL_ASSERT(m_pImage->HasFastClearMetaData(m_subresource.aspect));
+
+                pRegs->fastClearMetadataGpuVa = m_pImage->FastClearMetaDataAddr(m_subresource);
+                PAL_ASSERT((pRegs->fastClearMetadataGpuVa & 0x3) == 0);
+
+                // We want the DCC address of the exact mip level and slice that we're looking at.
+                pRegs->cbColorDccBase.bits.BASE_256B = m_pImage->GetDcc256BAddr(m_subresource);
+            }
         }
         else
         {
+            // The GetSubresource256BAddrSwizzled* functions only care about the aspect.
             pRegs->cbColorBase.bits.BASE_256B = m_pImage->GetSubresource256BAddrSwizzled(m_subresource);
             PAL_ASSERT(m_pImage->GetSubresource256BAddrSwizzledHi(m_subresource) == 0);
 
@@ -363,12 +386,17 @@ void ColorTargetView::UpdateImageVa(
             if (m_flags.hasDcc)
             {
                 // Invariant: On Gfx9, if we have DCC we also have fast clear metadata.
-                PAL_ASSERT(m_pImage->HasFastClearMetaData());
+                PAL_ASSERT(m_pImage->HasFastClearMetaData(m_subresource.aspect));
 
-                pRegs->fastClearMetadataGpuVa = m_pImage->FastClearMetaDataAddr(MipLevel());
+                pRegs->fastClearMetadataGpuVa = m_pImage->FastClearMetaDataAddr(m_subresource);
                 PAL_ASSERT((pRegs->fastClearMetadataGpuVa & 0x3) == 0);
 
-                pRegs->cbColorDccBase.bits.BASE_256B = m_pImage->GetDcc256BAddr();
+                // The m_subresource variable includes the mip level and slice that we're viewing.  However, because
+                // the CB registers are programmed with that info already, we want the address of mip 0 / slice 0 so
+                // the HW can find the proper subresource on its own.
+                const SubresId  baseSubResId = { m_subresource.aspect, 0, 0 };
+
+                pRegs->cbColorDccBase.bits.BASE_256B = m_pImage->GetDcc256BAddr(baseSubResId);
             }
 
             if (m_flags.hasCmaskFmask)
@@ -480,7 +508,10 @@ void Gfx9ColorTargetView::InitRegisters(
     else
     {
         const auto*const            pImage          = m_pImage->Parent();
+        const auto*                 pPalDevice      = pImage->GetDevice();
+        const auto*                 pAddrMgr        = static_cast<const AddrMgr2::AddrMgr2*>(pPalDevice->GetAddrMgr());
         const SubresId              baseSubRes      = { m_subresource.aspect, 0, 0 };
+        const Gfx9MaskRam*          pMaskRam        = m_pImage->GetColorMaskRam(m_subresource.aspect);
         const SubResourceInfo*const pBaseSubResInfo = pImage->SubresourceInfo(baseSubRes);
         const SubResourceInfo*const pSubResInfo     = pImage->SubresourceInfo(m_subresource);
         const auto&                 surfSetting     = m_pImage->GetAddrSettings(pSubResInfo);
@@ -559,15 +590,15 @@ void Gfx9ColorTargetView::InitRegisters(
         m_regs.cbColorAttrib.core.FORCE_DST_ALPHA_1 = Formats::HasUnusedAlpha(m_swizzledFormat);
         m_regs.cbColorAttrib.gfx09.MIP0_DEPTH    =
             ((imageType == ImageType::Tex3d) ? imageCreateInfo.extent.depth : imageCreateInfo.arraySize) - 1;
-        m_regs.cbColorAttrib.gfx09.COLOR_SW_MODE = AddrMgr2::GetHwSwizzleMode(surfSetting.swizzleMode);
+        m_regs.cbColorAttrib.gfx09.COLOR_SW_MODE = pAddrMgr->GetHwSwizzleMode(surfSetting.swizzleMode);
         m_regs.cbColorAttrib.gfx09.RESOURCE_TYPE = static_cast<uint32>(imageType); // no HW enums
-        m_regs.cbColorAttrib.gfx09.RB_ALIGNED    = m_pImage->IsRbAligned();
-        m_regs.cbColorAttrib.gfx09.PIPE_ALIGNED  = m_pImage->IsPipeAligned();
+        m_regs.cbColorAttrib.gfx09.RB_ALIGNED    = device.IsRbAligned();
+        m_regs.cbColorAttrib.gfx09.PIPE_ALIGNED  = ((pMaskRam != nullptr) ? pMaskRam->PipeAligned() : 0);
         m_regs.cbColorAttrib.gfx09.META_LINEAR   = 0;
 
         const AddrSwizzleMode fMaskSwizzleMode =
             (m_pImage->HasFmaskData() ? m_pImage->GetFmask()->GetSwizzleMode() : ADDR_SW_LINEAR /* ignored */);
-        m_regs.cbColorAttrib.gfx09.FMASK_SW_MODE = AddrMgr2::GetHwSwizzleMode(fMaskSwizzleMode);
+        m_regs.cbColorAttrib.gfx09.FMASK_SW_MODE = pAddrMgr->GetHwSwizzleMode(fMaskSwizzleMode);
 
         if (modifiedYuvExtent)
         {
@@ -698,7 +729,11 @@ void Gfx10ColorTargetView::InitRegisters(
     else
     {
         const auto*const            pImage          = m_pImage->Parent();
+        const auto*                 pPalDevice      = pImage->GetDevice();
+        const auto*                 pAddrMgr        = static_cast<const AddrMgr2::AddrMgr2*>(pPalDevice->GetAddrMgr());
         const SubresId              baseSubRes      = { m_subresource.aspect, 0, 0 };
+        const Gfx9Dcc*              pDcc            = m_pImage->GetDcc(m_subresource.aspect);
+        const Gfx9Cmask*            pCmask          = m_pImage->GetCmask();
         const SubResourceInfo*const pBaseSubResInfo = pImage->SubresourceInfo(baseSubRes);
         const SubResourceInfo*const pSubResInfo     = pImage->SubresourceInfo(m_subresource);
         const auto*                 pAddrOutput     = m_pImage->GetAddrOutput(pSubResInfo);
@@ -794,16 +829,16 @@ void Gfx10ColorTargetView::InitRegisters(
 
         m_regs.cbColorAttrib3.bits.MIP0_DEPTH    =
             ((imageType == ImageType::Tex3d) ? imageCreateInfo.extent.depth : imageCreateInfo.arraySize) - 1;
-        m_regs.cbColorAttrib3.bits.COLOR_SW_MODE = AddrMgr2::GetHwSwizzleMode(surfSetting.swizzleMode);
+        m_regs.cbColorAttrib3.bits.COLOR_SW_MODE = pAddrMgr->GetHwSwizzleMode(surfSetting.swizzleMode);
         m_regs.cbColorAttrib3.bits.RESOURCE_TYPE = static_cast<uint32>(imageType); // no HW enums
         m_regs.cbColorAttrib3.bits.META_LINEAR   = m_pImage->IsSubResourceLinear(createInfo.imageInfo.baseSubRes);
 
-        m_regs.cbColorAttrib3.bits.CMASK_PIPE_ALIGNED = m_pImage->IsPipeAligned();
-        m_regs.cbColorAttrib3.bits.DCC_PIPE_ALIGNED   = m_pImage->IsPipeAligned();
+        m_regs.cbColorAttrib3.bits.CMASK_PIPE_ALIGNED = ((pCmask != nullptr) ? pCmask->PipeAligned() : 0);
+        m_regs.cbColorAttrib3.bits.DCC_PIPE_ALIGNED   = ((pDcc   != nullptr) ? pDcc->PipeAligned()   : 0);
 
         const AddrSwizzleMode fMaskSwizzleMode =
             (hasFmask ? m_pImage->GetFmask()->GetSwizzleMode() : ADDR_SW_LINEAR /* ignored */);
-        m_regs.cbColorAttrib3.bits.FMASK_SW_MODE = AddrMgr2::GetHwSwizzleMode(fMaskSwizzleMode);
+        m_regs.cbColorAttrib3.bits.FMASK_SW_MODE = pAddrMgr->GetHwSwizzleMode(fMaskSwizzleMode);
 
         // From the reg-spec:
         //  this bit or the CONFIG equivalent must be set if parts of FMask surface may be unmapped (such as in PRT`s).

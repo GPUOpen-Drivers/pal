@@ -399,14 +399,18 @@ union InheritedStateFlags
     {
         /// Color and depth target views are inherited from the root-level command buffer. The nested command buffer
         /// should not modify this state.
-        uint32 targetViewState : 1;
+        uint32 targetViewState :  1;
 
         /// Occlusion query is inherited from the root-level command buffer. The nested command buffer
         /// should not modify this state.
-        uint32 occlusionQuery : 1;
+        uint32 occlusionQuery  :  1;
+
+        /// Predication is inherited from the root-level command buffer. The nested command buffer should not modify
+        /// this state.
+        uint32  predication    :  1;
 
         /// Reserved for future usage.
-        uint32 reserved : 30;
+        uint32 reserved        : 29;
     };
 
     /// Flags packed as 32-bit uint.
@@ -934,6 +938,9 @@ struct MemoryImageCopyRegion
     gpusize  gpuMemoryOffset;     ///< Offset in bytes to the start of the copy region in the GPU memory allocation.
     gpusize  gpuMemoryRowPitch;   ///< Offset in bytes between the same X position on two consecutive lines.
     gpusize  gpuMemoryDepthPitch; ///< Offset in bytes between the same X,Y position of two consecutive slices.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 583
+    SwizzledFormat swizzledFormat;///< If not Undefined, reinterpret both subresources using this format and swizzle.
+#endif
 };
 
 /// Specifies parameters for a copy between a PRT and a GPU memory allocation.  The same structure is used regardless
@@ -3064,6 +3071,17 @@ public:
         bool                predPolarity,
         bool                waitResults,
         bool                accumulateData) = 0;
+
+    /// Suspend/resume any active predication for this command buffer
+    ///
+    /// @param [in] suspend     Controls if predication should be paused
+    ///                             true  = suspend active predication
+    ///                             false = resume active predication
+    ///
+    /// Any suspended predication must be resumed prior to disabling predication using CmdSetPredication with pQueryPool
+    /// and gpuVirtAddr with nullptr/0. This is only valid on universal and compute command buffers.
+    virtual void CmdSuspendPredication(
+        bool suspend) = 0;
 
     /// Begins a conditional block in the current command buffer. All commands between this and the corresponding
     /// CmdEndIf() (or CmdElse() if it is present) command are executed if the specified condition is true.

@@ -631,6 +631,7 @@ bool DmaCmdBuffer::ImageHasMetaData(
 void DmaCmdBuffer::WriteCopyImageTiledToTiledCmd(
     const DmaImageCopyInfo& imageCopyInfo)
 {
+    const auto* pAddrMgr   = static_cast<const AddrMgr2::AddrMgr2*>(m_pDevice->GetAddrMgr());
     const auto& src        = imageCopyInfo.src;
     const auto& dst        = imageCopyInfo.dst;
     const auto  srcSwizzle = GetSwizzleMode(src);
@@ -664,7 +665,7 @@ void DmaCmdBuffer::WriteCopyImageTiledToTiledCmd(
     // Setup the tile mode of the destination surface.
     packet.DW_6_UNION.DW_6_DATA         = 0;
     packet.DW_6_UNION.src_element_size  = Log2(src.bytesPerPixel);
-    packet.DW_6_UNION.src_swizzle_mode  = AddrMgr2::GetHwSwizzleMode(srcSwizzle);
+    packet.DW_6_UNION.src_swizzle_mode  = pAddrMgr->GetHwSwizzleMode(srcSwizzle);
     packet.DW_6_UNION.src_dimension     = GetHwDimension(src);
 
     // Setup the start, offset, and dimenions of the destination surface.
@@ -686,7 +687,7 @@ void DmaCmdBuffer::WriteCopyImageTiledToTiledCmd(
     // Setup the tile mode of the destination surface.
     packet.DW_12_UNION.DW_12_DATA       = 0;
     packet.DW_12_UNION.dst_element_size = Log2(dst.bytesPerPixel);
-    packet.DW_12_UNION.dst_swizzle_mode = AddrMgr2::GetHwSwizzleMode(dstSwizzle);
+    packet.DW_12_UNION.dst_swizzle_mode = pAddrMgr->GetHwSwizzleMode(dstSwizzle);
     packet.DW_12_UNION.dst_dimension    = GetHwDimension(dst);
 
     // Setup the size of the copy region.
@@ -1148,13 +1149,14 @@ void DmaCmdBuffer::SetupMetaData(
     if ((settings.waSdmaPreventCompressedSurfUse == false)
        )
     {
-        const auto&       createInfo = pPalImage->GetImageCreateInfo();
-        const Image*      pGfxImage  = static_cast<const Image*>(pPalImage->GetGfxImage());
-        const GfxIpLevel  gfxLevel   = pPalDevice->ChipProperties().gfxLevel;
-        const auto*const  pFmtInfo   =
+        const auto&        createInfo   = pPalImage->GetImageCreateInfo();
+        const Image*       pGfxImage    = static_cast<const Image*>(pPalImage->GetGfxImage());
+        const GfxIpLevel   gfxLevel     = pPalDevice->ChipProperties().gfxLevel;
+        const auto*const   pFmtInfo     =
             Pal::Formats::Gfx9::MergedChannelFlatFmtInfoTbl(gfxLevel, &pPalDevice->GetPlatform()->PlatformSettings());
-        const MaskRam*    pMaskRam   = nullptr;
-        const bool        colorMeta  = pGfxImage->HasDccData();
+        const Gfx9MaskRam* pMaskRam     = pGfxImage->GetPrimaryMaskRam(image.pSubresInfo->subresId.aspect);
+        const SubresId     baseSubResId = { image.pSubresInfo->subresId.aspect, 0, 0 };
+        const bool         colorMeta    = pGfxImage->HasDccData();
 
         if (colorMeta)
         {
@@ -1164,10 +1166,9 @@ void DmaCmdBuffer::SetupMetaData(
             if (colorCompressState != ColorDecompressed)
             {
                 const ChNumFormat                format     = createInfo.swizzledFormat.format;
-                const regCB_COLOR0_DCC_CONTROL&  dccControl = pGfxImage->GetDcc()->GetControlReg();
+                const Gfx9Dcc*                   pDcc       = pGfxImage->GetDcc(image.pSubresInfo->subresId.aspect);
+                const regCB_COLOR0_DCC_CONTROL&  dccControl = pDcc->GetControlReg();
                 const SurfaceSwap                surfSwap   = Formats::Gfx9::ColorCompSwap(createInfo.swizzledFormat);
-
-                pMaskRam = pGfxImage->GetDcc();
 
                 pPacket->META_CONFIG_UNION.max_comp_block_size   = dccControl.bits.MAX_COMPRESSED_BLOCK_SIZE;
                 pPacket->META_CONFIG_UNION.max_uncomp_block_size = dccControl.bits.MAX_UNCOMPRESSED_BLOCK_SIZE;
@@ -1186,7 +1187,6 @@ void DmaCmdBuffer::SetupMetaData(
         }
         else if (pGfxImage->HasDsMetadata())
         {
-            const SubresId    baseSubResId    = { image.pSubresInfo->subresId.aspect, 0, 0 };
             const auto*       pBaseSubResInfo = pPalImage->SubresourceInfo(baseSubResId);
             const ChNumFormat fmt             = pBaseSubResInfo->format.format;
             const auto dsLayoutToState        = pGfxImage->LayoutToDepthCompressionState(baseSubResId);
@@ -1194,8 +1194,6 @@ void DmaCmdBuffer::SetupMetaData(
                                                                                    image.imageLayout);
             if (dsCompressState == DepthStencilCompressed)
             {
-                pMaskRam = pGfxImage->GetHtile();
-
                 // For depth/stencil image, using HwColorFmt() is correct because:
                 // 1. This field is documented by SDMA spec as "the same as the color_format used by the CB".
                 // 2. IMG_DATA_FORMAT enum texture engine uses is identical as ColorFormat enum CB uses.
@@ -1210,7 +1208,9 @@ void DmaCmdBuffer::SetupMetaData(
         // If this image doesn't have meta data, then there's nothing to do...
         if (pMaskRam != nullptr)
         {
-            const gpusize maskRam256Addr = colorMeta ? pGfxImage->GetDcc256BAddr() : pGfxImage->GetHtile256BAddr();
+            const gpusize maskRam256Addr = colorMeta
+                                           ? pGfxImage->GetDcc256BAddr(baseSubResId)
+                                           : pGfxImage->GetHtile256BAddr();
 
             // Despite the name of this field, it apparently means that all of the other meta-data related fields
             // are meaningful and should therefore be set for any meta-data type, not just DCC.
@@ -1223,7 +1223,7 @@ void DmaCmdBuffer::SetupMetaData(
             pPacket->META_CONFIG_UNION.surface_type = static_cast<uint32>(image.pSubresInfo->subresId.aspect);
 
             pPacket->META_CONFIG_UNION.write_compress_enable = (imageIsDst ? 1 : 0);
-            pPacket->META_CONFIG_UNION.pipe_aligned          = pGfxImage->IsPipeAligned();
+            pPacket->META_CONFIG_UNION.pipe_aligned          = pMaskRam->PipeAligned();
         }
     } // end check for emulation
 }
@@ -1250,8 +1250,7 @@ uint32* DmaCmdBuffer::UpdateImageMetaData(
         // Need to update the DCC compression bit for this mip level so that the next time a DCC decompress
         // operation occurs, we know it has something to do again.
         const SubresId&  subResId         = image.pSubresInfo->subresId;
-        const gpusize    dccStateMetaAddr = pGfxImage->GetDccStateMetaDataAddr(subResId.mipLevel,
-                                                                               subResId.arraySlice);
+        const gpusize    dccStateMetaAddr = pGfxImage->GetDccStateMetaDataAddr(subResId);
 
         pCmdSpace = BuildUpdateMemoryPacket(dccStateMetaAddr,
                                             Util::NumBytesToNumDwords(sizeof(metaData)),
@@ -1274,6 +1273,7 @@ uint32* DmaCmdBuffer::CopyImageLinearTiledTransform(
     uint32*                 pCmdSpace
     ) const
 {
+    const auto*  pAddrMgr     = static_cast<const AddrMgr2::AddrMgr2*>(m_pDevice->GetAddrMgr());
     const size_t PacketDwords = Util::NumBytesToNumDwords(sizeof(SDMA_PKT_COPY_TILED_SUBWIN));
 
     SDMA_PKT_COPY_TILED_SUBWIN packet = {};
@@ -1303,7 +1303,7 @@ uint32* DmaCmdBuffer::CopyImageLinearTiledTransform(
 
     packet.DW_6_UNION.DW_6_DATA    = 0;
     packet.DW_6_UNION.element_size = Log2(tiledImg.bytesPerPixel);
-    packet.DW_6_UNION.swizzle_mode = AddrMgr2::GetHwSwizzleMode(GetSwizzleMode(tiledImg));
+    packet.DW_6_UNION.swizzle_mode = pAddrMgr->GetHwSwizzleMode(GetSwizzleMode(tiledImg));
     packet.DW_6_UNION.dimension    = GetHwDimension(tiledImg);
     packet.DW_6_UNION.mip_max      = GetMaxMip(tiledImg);
     packet.DW_6_UNION.mip_id       = tiledImg.pSubresInfo->subresId.mipLevel;
@@ -1356,6 +1356,7 @@ uint32* DmaCmdBuffer::CopyImageMemTiledTransform(
     uint32*                      pCmdSpace
     ) const
 {
+    const auto*  pAddrMgr     = static_cast<const AddrMgr2::AddrMgr2*>(m_pDevice->GetAddrMgr());
     const size_t PacketDwords = Util::NumBytesToNumDwords(sizeof(SDMA_PKT_COPY_TILED_SUBWIN));
 
     SDMA_PKT_COPY_TILED_SUBWIN packet = {};
@@ -1385,7 +1386,7 @@ uint32* DmaCmdBuffer::CopyImageMemTiledTransform(
 
     packet.DW_6_UNION.DW_6_DATA    = 0;
     packet.DW_6_UNION.element_size = Log2(image.bytesPerPixel);
-    packet.DW_6_UNION.swizzle_mode = AddrMgr2::GetHwSwizzleMode(GetSwizzleMode(image));
+    packet.DW_6_UNION.swizzle_mode = pAddrMgr->GetHwSwizzleMode(GetSwizzleMode(image));
     packet.DW_6_UNION.dimension    = GetHwDimension(image);
     packet.DW_6_UNION.mip_max      = GetMaxMip(image);
     packet.DW_6_UNION.mip_id       = image.pSubresInfo->subresId.mipLevel;

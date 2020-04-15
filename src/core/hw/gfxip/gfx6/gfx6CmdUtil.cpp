@@ -2375,7 +2375,6 @@ size_t CmdUtil::BuildNop(
         // Gfx8 adds a new type-3 packet that is a single DWORD long.
         PAL_ASSERT (m_chipFamily >= GfxIpLevel::GfxIp8);
 
-
         // PM4 type 3 NOP will use special size (i.e., 0x3FFF, the max possible size field) to represent one DWORD NOP.
         // Add two here since the macro will replace with "count -2".
         constexpr uint32  MaxCountField = ((1 << PM4_COUNT_SHIFT) - 1);

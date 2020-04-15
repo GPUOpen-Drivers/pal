@@ -897,12 +897,12 @@ bool RsrcProcMgr::InitMaskRam(
 
     // If any of following conditions is met, that means we are going to use PFP engine to update the metadata
     // (e.g. UpdateColorClearMetaData(); UpdateDccStateMetaData() etc.)
-    if (pCmdBuffer->IsGraphicsSupported() &&
-        (dstImage.HasDccStateMetaData()         ||
-         dstImage.HasFastClearMetaData()        ||
-         dstImage.HasHiSPretestsMetaData()      ||
-         dstImage.HasWaTcCompatZRangeMetaData() ||
-         dstImage.HasFastClearEliminateMetaData()))
+    if (pCmdBuffer->IsGraphicsSupported()                        &&
+        (dstImage.HasDccStateMetaData(range.startSubres.aspect)  ||
+         dstImage.HasFastClearMetaData(range.startSubres.aspect) ||
+         dstImage.HasHiSPretestsMetaData()                       ||
+         dstImage.HasWaTcCompatZRangeMetaData()                  ||
+         dstImage.HasFastClearEliminateMetaData(range.startSubres.aspect)))
     {
         uint32* pCmdSpace = pCmdStream->ReserveCommands();
 
@@ -937,7 +937,9 @@ bool RsrcProcMgr::InitMaskRam(
             (TestAnyFlagSet(fullRangeInitMask,
                             Gfx9InitMetaDataFill::Gfx9InitMetaDataFillDcc) == false))
         {
-            dstImage.GetDcc()->UploadEq(pCmdBuffer);
+            const Gfx9Dcc* pDcc = dstImage.GetDcc(range.startSubres.aspect);
+
+            pDcc->UploadEq(pCmdBuffer);
 
             const bool dccClearUsedCompute = ClearDcc(pCmdBuffer,
                                                       pCmdStream,
@@ -969,7 +971,7 @@ bool RsrcProcMgr::InitMaskRam(
         }
     }
 
-    if (dstImage.HasFastClearMetaData() && (fullRangeInitMask == 0))
+    if (dstImage.HasFastClearMetaData(range.startSubres.aspect) && (fullRangeInitMask == 0))
     {
         if (dstImage.HasDsMetadata())
         {
@@ -1387,7 +1389,7 @@ void RsrcProcMgr::HwlFastColorClear(
 
     uint32* pCmdSpace = pCmdStream->ReserveCommands();
 
-    if (gfx9Image.GetFastClearEliminateMetaDataAddr(0) != 0)
+    if (gfx9Image.GetFastClearEliminateMetaDataAddr(clearRange.startSubres) != 0)
     {
         const Pm4Predicate packetPredicate =
             static_cast<Pm4Predicate>(pCmdBuffer->GetGfxCmdBufState().flags.packetPredicate);
@@ -1411,8 +1413,7 @@ void RsrcProcMgr::HwlFastColorClear(
         pCmdBuffer->GetGfxCmdBufState().flags.packetPredicate);
 
     // Stash the clear color with the image so that it can be restored later.
-    pCmdSpace = gfx9Image.UpdateColorClearMetaData(clearRange.startSubres.mipLevel,
-                                                   clearRange.numMips,
+    pCmdSpace = gfx9Image.UpdateColorClearMetaData(clearRange,
                                                    packedColor,
                                                    packetPredicate,
                                                    pCmdSpace);
@@ -2359,8 +2360,7 @@ void RsrcProcMgr::InitColorClearMetaData(
         static_cast<Pm4Predicate>(pCmdBuffer->GetGfxCmdBufState().flags.packetPredicate);
 
     uint32* pCmdSpace = pCmdStream->ReserveCommands();
-    pCmdSpace = dstImage.UpdateColorClearMetaData(range.startSubres.mipLevel,
-                                                  range.numMips,
+    pCmdSpace = dstImage.UpdateColorClearMetaData(range,
                                                   packedColor,
                                                   packetPredicate,
                                                   pCmdSpace);
@@ -2395,19 +2395,8 @@ void RsrcProcMgr::DepthStencilClearGraphics(
     const bool clearStencil = TestAnyFlagSet(clearMask, HtileAspectStencil);
     PAL_ASSERT(clearDepth || clearStencil); // How did we get here if there's nothing to clear!?
 
-    const InputAssemblyStateParams   inputAssemblyState   = { PrimitiveTopology::RectList };
-    const DepthBiasParams            depthBias            = { 0.0f, 0.0f, 0.0f };
-    const PointLineRasterStateParams pointLineRasterState = { 1.0f, 1.0f };
     const StencilRefMaskParams       stencilRefMasks      =
         { stencil, 0xFF, 0xFF, 0x01, stencil, 0xFF, 0xFF, 0x01, 0xFF };
-    const TriangleRasterStateParams  triangleRasterState  =
-    {
-        FillMode::Solid,        // frontface fillMode
-        FillMode::Solid,        // backface fillMode
-        CullMode::None,         // cullMode
-        FaceOrientation::Cw,    // frontFace
-        ProvokingVertex::First  // provokingVertex
-    };
 
     ViewportParams viewportInfo = { };
     viewportInfo.count                 = 1;
@@ -2456,12 +2445,9 @@ void RsrcProcMgr::DepthStencilClearGraphics(
 #endif
     pCmdBuffer->CmdBindMsaaState(GetMsaaState(dstImage.Parent()->GetImageCreateInfo().samples,
                                               dstImage.Parent()->GetImageCreateInfo().fragments));
-    pCmdBuffer->CmdSetDepthBiasState(depthBias);
-    pCmdBuffer->CmdSetInputAssemblyState(inputAssemblyState);
-    pCmdBuffer->CmdSetPointLineRasterState(pointLineRasterState);
+    BindCommonGraphicsState(pCmdBuffer);
     pCmdBuffer->CmdSetStencilRefMasks(stencilRefMasks);
-    pCmdBuffer->CmdSetTriangleRasterState(triangleRasterState);
-    pCmdBuffer->CmdSetClipRects(DefaultClipRectsRule, 0, nullptr);
+
     if (clearDepth && ((depth >= 0.0f) && (depth <= 1.0f)))
     {
         // Enable viewport clamping if depth values are in the [0, 1] range. This avoids writing expanded depth
@@ -2765,6 +2751,9 @@ void RsrcProcMgr::DccDecompressOnCompute(
         } // end loop through all the slices
     }
 
+    // We have to mark this mip level as actually being DCC decompressed
+    image.UpdateDccStateMetaData(pCmdStream, range, false, engineType, PredDisable);
+
     // Make sure that the decompressed image data has been written before we start fixing up DCC memory.
     pComputeCmdSpace  = pComputeCmdStream->ReserveCommands();
     pComputeCmdSpace += m_cmdUtil.BuildWaitCsIdle(engineType, pCmdBuffer->TimestampGpuVirtAddr(), pComputeCmdSpace);
@@ -2806,8 +2795,11 @@ void RsrcProcMgr::DccDecompress(
     {
         const bool  supportsComputePath = image.SupportsComputeDecompress(range.startSubres);
         const auto& settings            = m_pDevice->Settings();
+        const auto* pSubResInfo         = image.Parent()->SubresourceInfo(range.startSubres);
+        const auto& addrSettings        = image.GetAddrSettings(pSubResInfo);
 
-        if ((pCmdBuffer->GetEngineType() == EngineTypeCompute) ||
+        if ((pCmdBuffer->GetEngineType() == EngineTypeCompute)           ||
+            AddrMgr2::IsSwizzleModeComputeOnly(addrSettings.swizzleMode) ||
             (supportsComputePath && (TestAnyFlagSet(Image::UseComputeExpand, UseComputeExpandAlways))))
         {
             // We should have already done a fast-clear-eliminate on the graphics engine when we transitioned to
@@ -2822,13 +2814,14 @@ void RsrcProcMgr::DccDecompress(
             // level.
             const bool multiRange = (range.numSlices > 1) || (range.numMips > 1);
 
-            const GpuMemory* pGpuMem = nullptr;
-            gpusize metaDataOffset = (alwaysDecompress || multiRange) ? 0 :
-                    image.GetDccStateMetaDataOffset(range.startSubres.mipLevel, range.startSubres.arraySlice);
+            const GpuMemory* pGpuMem        = nullptr;
+            gpusize          metaDataOffset = (alwaysDecompress || multiRange)
+                                               ? 0
+                                               : image.GetDccStateMetaDataOffset(range.startSubres);
 
             if (metaDataOffset)
             {
-                pGpuMem         = image.Parent()->GetBoundGpuMemory().Memory();
+                pGpuMem = image.Parent()->GetBoundGpuMemory().Memory();
                 metaDataOffset += image.Parent()->GetBoundGpuMemory().Offset();
             }
 
@@ -2849,7 +2842,7 @@ void RsrcProcMgr::DccDecompress(
         // Clear the FCE meta data over the given range because a DCC decompress implies a FCE. Note that it doesn't
         // matter that we're using the truncated range here because we mips that don't use DCC shouldn't need a FCE
         // because they must be slow cleared.
-        if (image.GetFastClearEliminateMetaDataAddr(0) != 0)
+        if (image.GetFastClearEliminateMetaDataAddr(range.startSubres) != 0)
         {
             const Pm4Predicate packetPredicate =
                 static_cast<Pm4Predicate>(pCmdBuffer->GetGfxCmdBufState().flags.packetPredicate);
@@ -2874,7 +2867,7 @@ bool RsrcProcMgr::FastClearEliminate(
     const bool    alwaysFce    = TestAnyFlagSet(m_pDevice->Settings().alwaysDecompress, DecompressFastClear);
 
     const GpuMemory* pGpuMem = nullptr;
-    gpusize metaDataOffset = alwaysFce ? 0 : image.GetFastClearEliminateMetaDataOffset(range.startSubres.mipLevel);
+    gpusize metaDataOffset = alwaysFce ? 0 : image.GetFastClearEliminateMetaDataOffset(range.startSubres);
     if (metaDataOffset)
     {
         pGpuMem = image.Parent()->GetBoundGpuMemory().Memory();
@@ -2885,7 +2878,7 @@ bool RsrcProcMgr::FastClearEliminate(
     GenericColorBlit(pCmdBuffer, *image.Parent(), range, *pMsaaState,
                      pQuadSamplePattern, RpmGfxPipeline::FastClearElim, pGpuMem, metaDataOffset);
     // Clear the FCE meta data over the given range because those mips must now be FCEd.
-    if (image.GetFastClearEliminateMetaDataAddr(0) != 0)
+    if (image.GetFastClearEliminateMetaDataAddr(range.startSubres) != 0)
     {
         uint32* pCmdSpace = pCmdStream->ReserveCommands();
 
@@ -3117,7 +3110,7 @@ void RsrcProcMgr::FmaskDecompress(
                      pQuadSamplePattern, RpmGfxPipeline::FmaskDecompress, nullptr, 0);
 
     // Clear the FCE meta data over the given range because an FMask decompress implies a FCE.
-    if (image.GetFastClearEliminateMetaDataAddr(0) != 0)
+    if (image.GetFastClearEliminateMetaDataAddr(range.startSubres) != 0)
     {
         uint32* pCmdSpace = pCmdStream->ReserveCommands();
 
@@ -3302,6 +3295,52 @@ Extent3d RsrcProcMgr::GetCopyViaSrdCopyDims(
 }
 
 // ====================================================================================================================
+// Helper function to generate ADDR2_COMPUTE_SURFACE_ADDRFROMCOORD_INPUT structure
+static void FillAddr2ComputeSurfaceAddrFromCoord(
+    ADDR2_COMPUTE_SURFACE_ADDRFROMCOORD_INPUT* pInput,
+    const Pal::Image&                          image,
+    SubresId                                   subresId)
+{
+    const auto&     createInfo       = image.GetImageCreateInfo();
+    const bool      i3dImage         = (createInfo.imageType == ImageType::Tex3d);
+    const auto*     pSubResInfo      = image.SubresourceInfo(subresId);
+    const auto*     pGfxImage        = static_cast<const Image*>(image.GetGfxImage());
+    const auto&     surfSetting      = pGfxImage->GetAddrSettings(pSubResInfo);
+    const auto*     pTileInfo        = Pal::AddrMgr2::GetTileInfo(&image, pSubResInfo->subresId);
+    const SubresId  baseMipSubResId  = { subresId.aspect, 0, subresId.arraySlice };
+    const auto*     pBaseSubResInfo  = image.SubresourceInfo(baseMipSubResId);
+
+    pInput->size            = sizeof(ADDR2_COMPUTE_SURFACE_ADDRFROMCOORD_INPUT);
+    pInput->sample          = 0;
+    pInput->mipId           = subresId.mipLevel;
+    pInput->unalignedWidth  = pBaseSubResInfo->extentElements.width;
+    pInput->unalignedHeight = pBaseSubResInfo->extentElements.height;
+    pInput->numSlices       = i3dImage ? createInfo.extent.depth : createInfo.arraySize;
+    pInput->numMipLevels    = createInfo.mipLevels;
+    pInput->numSamples      = createInfo.samples;
+    pInput->numFrags        = createInfo.fragments;
+    pInput->swizzleMode     = surfSetting.swizzleMode;
+    pInput->resourceType    = surfSetting.resourceType;
+    pInput->pipeBankXor     = pTileInfo->pipeBankXor;
+    pInput->bpp             = Formats::BitsPerPixel(createInfo.swizzledFormat.format);
+}
+
+// ====================================================================================================================
+// Implement a horribly inefficient copy on a pixel-by-pixel basis of the pixels that were missed by the standard
+// copy algorithm.
+void RsrcProcMgr::HwlImageToImageMissingPixelCopy(
+    GfxCmdBuffer*          pCmdBuffer,
+    const Pal::Image&      srcImage,
+    const Pal::Image&      dstImage,
+    const ImageCopyRegion& region) const
+{
+    if (UsePixelCopyForCmdCopyImage(srcImage, dstImage, region))
+    {
+        CmdCopyImageToImageViaPixels(pCmdBuffer, srcImage, dstImage, region);
+    }
+}
+
+// ====================================================================================================================
 // Implement a horribly inefficient copy on a pixel-by-pixel basis of the pixels that were missed by the standard
 // copy algorithm.
 void RsrcProcMgr::CmdCopyMemoryFromToImageViaPixels(
@@ -3315,12 +3354,6 @@ void RsrcProcMgr::CmdCopyMemoryFromToImageViaPixels(
 {
     const auto&     createInfo       = image.GetImageCreateInfo();
     const auto*     pPalDevice       = m_pDevice->Parent();
-    const auto*     pSubResInfo      = image.SubresourceInfo(region.imageSubres);
-    const auto*     pGfxImage        = static_cast<const Image*>(image.GetGfxImage());
-    const auto&     surfSetting      = pGfxImage->GetAddrSettings(pSubResInfo);
-    const auto*     pTileInfo        = Pal::AddrMgr2::GetTileInfo(&image, pSubResInfo->subresId);
-    const SubresId  baseMipSubResId  = { region.imageSubres.aspect, 0, region.imageSubres.arraySlice };
-    const auto*     pBaseSubResInfo  = image.SubresourceInfo(baseMipSubResId);
     const auto*     pSrcMem          = ((imageIsSrc) ? image.GetBoundGpuMemory().Memory() : &memory);
     const auto*     pDstMem          = ((imageIsSrc) ? &memory : image.GetBoundGpuMemory().Memory());
     const Extent3d  hwCopyDims       = GetCopyViaSrdCopyDims(image, region.imageSubres, includePadding);
@@ -3329,20 +3362,9 @@ void RsrcProcMgr::CmdCopyMemoryFromToImageViaPixels(
     const uint32    sliceDepth       = (is3dImage ? region.imageExtent.depth : region.numSlices);
     ADDR_HANDLE     hAddrLib         = pPalDevice->AddrLibHandle();
 
-    ADDR2_COMPUTE_SURFACE_ADDRFROMCOORD_INPUT  input = {};
-    input.size            = sizeof(ADDR2_COMPUTE_SURFACE_ADDRFROMCOORD_INPUT);
-    input.sample          = 0;
-    input.mipId           = region.imageSubres.mipLevel;
-    input.unalignedWidth  = pBaseSubResInfo->extentElements.width;
-    input.unalignedHeight = pBaseSubResInfo->extentElements.height;
-    input.numSlices       = is3dImage ? createInfo.extent.depth : createInfo.arraySize;
-    input.numMipLevels    = createInfo.mipLevels;
-    input.numSamples      = createInfo.samples;
-    input.numFrags        = createInfo.fragments;
-    input.swizzleMode     = surfSetting.swizzleMode;
-    input.resourceType    = surfSetting.resourceType;
-    input.pipeBankXor     = pTileInfo->pipeBankXor;
-    input.bpp             = Formats::BitsPerPixel(createInfo.swizzledFormat.format);
+    ADDR2_COMPUTE_SURFACE_ADDRFROMCOORD_INPUT input = {};
+
+    FillAddr2ComputeSurfaceAddrFromCoord(&input, image, region.imageSubres);
 
     for (uint32  sliceIdx = 0; sliceIdx < sliceDepth; sliceIdx++)
     {
@@ -3424,6 +3446,134 @@ bool RsrcProcMgr::UsePixelCopy(
                                 (hwCopyDims.depth  < (region.imageOffset.z + region.imageExtent.depth)));
 
     return usePixelCopy;
+}
+
+// ====================================================================================================================
+// Implement a horribly inefficient copy on a pixel-by-pixel basis of the pixels that were missed by the standard
+// copy algorithm.
+void RsrcProcMgr::CmdCopyImageToImageViaPixels(
+    GfxCmdBuffer*          pCmdBuffer,
+    const Pal::Image&      srcImage,
+    const Pal::Image&      dstImage,
+    const ImageCopyRegion& region) const
+{
+    const auto*     pPalDevice       = m_pDevice->Parent();
+    const auto&     srcCreateInfo    = srcImage.GetImageCreateInfo();
+    const auto&     dstCreateInfo    = dstImage.GetImageCreateInfo();
+    const auto*     pSrcMem          = srcImage.GetBoundGpuMemory().Memory();
+    const auto*     pDstMem          = dstImage.GetBoundGpuMemory().Memory();
+
+    PAL_ASSERT(srcCreateInfo.imageType == dstCreateInfo.imageType);
+
+    const bool      is3dImage        = (srcCreateInfo.imageType == ImageType::Tex3d);
+    const uint32    srcSliceOffset   = (is3dImage ? region.srcOffset.z : region.srcSubres.arraySlice);
+    const uint32    dstSliceOffset   = (is3dImage ? region.dstOffset.z : region.dstSubres.arraySlice);
+    const uint32    sliceDepth       = (is3dImage ? region.extent.depth : region.numSlices);
+    const Extent3d  hwSrcCopyDims    = GetCopyViaSrdCopyDims(srcImage, region.srcSubres, true);
+    const Extent3d  hwDstCopyDims    = GetCopyViaSrdCopyDims(dstImage, region.dstSubres, true);
+    ADDR_HANDLE     hAddrLib         = pPalDevice->AddrLibHandle();
+
+    ADDR2_COMPUTE_SURFACE_ADDRFROMCOORD_INPUT srcInput = {};
+    ADDR2_COMPUTE_SURFACE_ADDRFROMCOORD_INPUT dstInput = {};
+
+    FillAddr2ComputeSurfaceAddrFromCoord(&srcInput, srcImage, region.srcSubres);
+    FillAddr2ComputeSurfaceAddrFromCoord(&dstInput, dstImage, region.dstSubres);
+
+    constexpr uint32 TotalNewRegions = 32;
+    MemoryCopyRegion newRegions[TotalNewRegions];
+    uint32 newRegionsIdx = 0;
+
+    for (uint32 sliceIdx = 0; sliceIdx < sliceDepth; sliceIdx++)
+    {
+        // the slice input is used for both 2D arrays and 3D slices.
+        srcInput.slice = srcSliceOffset + sliceIdx;
+        dstInput.slice = dstSliceOffset + sliceIdx;
+
+        for (uint32  yIdx = 0; yIdx < region.extent.height; yIdx++)
+        {
+            srcInput.y = yIdx + region.srcOffset.y;
+            dstInput.y = yIdx + region.dstOffset.y;
+
+            for (uint32 xIdx = 0; xIdx < region.extent.width; xIdx++)
+            {
+                srcInput.x = xIdx + region.srcOffset.x;
+                dstInput.x = xIdx + region.dstOffset.x;
+
+                const bool srcPixelMissing = ((hwSrcCopyDims.width  <= srcInput.x) ||
+                                              (hwSrcCopyDims.height <= srcInput.y));
+                const bool dstPixelMissing = ((hwDstCopyDims.width  <= dstInput.x) ||
+                                              (hwDstCopyDims.height <= dstInput.y));
+
+                if (srcPixelMissing || dstPixelMissing)
+                {
+                    ADDR2_COMPUTE_SURFACE_ADDRFROMCOORD_OUTPUT srcOutput = {};
+                    srcOutput.size = sizeof(ADDR2_COMPUTE_SURFACE_ADDRFROMCOORD_OUTPUT);
+
+                    ADDR2_COMPUTE_SURFACE_ADDRFROMCOORD_OUTPUT dstOutput = {};
+                    dstOutput.size = sizeof(ADDR2_COMPUTE_SURFACE_ADDRFROMCOORD_OUTPUT);
+
+                    const ADDR_E_RETURNCODE retSrcCode = Addr2ComputeSurfaceAddrFromCoord(
+                                                        hAddrLib,
+                                                        &srcInput,
+                                                        &srcOutput);
+
+                    const ADDR_E_RETURNCODE retDstCode = Addr2ComputeSurfaceAddrFromCoord(
+                                                        hAddrLib,
+                                                        &dstInput,
+                                                        &dstOutput);
+
+                    if ((retSrcCode == ADDR_OK) && (retDstCode == ADDR_OK))
+                    {
+                        PAL_ASSERT(srcInput.bpp == dstInput.bpp);
+
+                        newRegions[newRegionsIdx].srcOffset = srcImage.GetBoundGpuMemory().Offset() + srcOutput.addr;
+                        newRegions[newRegionsIdx].dstOffset = dstImage.GetBoundGpuMemory().Offset() + dstOutput.addr;
+                        newRegions[newRegionsIdx].copySize  = srcInput.bpp >> 3;
+
+                        newRegionsIdx++;
+
+                        if (newRegionsIdx >= TotalNewRegions)
+                        {
+                            CmdCopyMemory(pCmdBuffer, *pSrcMem, *pDstMem, newRegionsIdx, &newRegions[0]);
+                            newRegionsIdx = 0;
+                        }
+                    }
+                    else
+                    {
+                        // Incorrect offset.
+                        PAL_ASSERT_ALWAYS();
+                    }
+                }
+            }
+        }
+    }
+
+    if (newRegionsIdx > 0)
+    {
+        CmdCopyMemory(pCmdBuffer, *pSrcMem, *pDstMem, newRegionsIdx, &newRegions[0]);
+    }
+}
+
+// ====================================================================================================================
+// Returns true if the CmdCopyImageToImageViaPixels function needs to be used
+bool RsrcProcMgr::UsePixelCopyForCmdCopyImage(
+    const Pal::Image&      srcImage,
+    const Pal::Image&      dstImage,
+    const ImageCopyRegion& region)
+{
+    const Extent3d hwSrcCopyDims = GetCopyViaSrdCopyDims(srcImage, region.srcSubres, true);
+    const Extent3d hwDstCopyDims = GetCopyViaSrdCopyDims(dstImage, region.dstSubres, true);
+
+    // Check If the default implementation copy dimensions did not cover the region
+    const bool srcPixelOutOfDims = ((hwSrcCopyDims.width  < (region.srcOffset.x + region.extent.width))  ||
+                                    (hwSrcCopyDims.height < (region.srcOffset.y + region.extent.height)) ||
+                                    (hwSrcCopyDims.depth  < (region.srcOffset.z + region.extent.depth)));
+
+    const bool dstPixelOutOfDims = ((hwDstCopyDims.width  < (region.dstOffset.x + region.extent.width))  ||
+                                    (hwDstCopyDims.height < (region.dstOffset.y + region.extent.height)) ||
+                                    (hwDstCopyDims.depth  < (region.dstOffset.z + region.extent.depth)));
+
+    return (srcPixelOutOfDims || dstPixelOutOfDims);
 }
 
 // =====================================================================================================================
@@ -3580,7 +3730,7 @@ void Gfx9RsrcProcMgr::ClearDccCompute(
     const Pal::Device*     pDevice                 = pPalImage->GetDevice();
     const Gfx9PalSettings& settings                = GetGfx9Settings(*pDevice);
     const auto&            createInfo              = pPalImage->GetImageCreateInfo();
-    const auto*            pDcc                    = dstImage.GetDcc();
+    const auto*            pDcc                    = dstImage.GetDcc(clearRange.startSubres.aspect);
     const auto&            dccMipInfo              = pDcc->GetAddrMipInfo(clearRange.startSubres.mipLevel);
     // Allow optimized fast clears for either single-sample images, or MSAA images with CMask and FMaskData
     const bool             allowOptimizedFastClear = (createInfo.fragments == 1) || (dstImage.HasFmaskData());
@@ -4094,7 +4244,7 @@ void Gfx9RsrcProcMgr::DoFastClear(
     const Pal::Device*     pDevice       = pPalImage->GetDevice();
     const Gfx9PalSettings& settings      = GetGfx9Settings(*pDevice);
     const auto&            createInfo    = pPalImage->GetImageCreateInfo();
-    const auto*            pDcc          = dstImage.GetDcc();
+    const auto*            pDcc          = dstImage.GetDcc(clearRange.startSubres.aspect);
     const auto&            dccAddrOutput = pDcc->GetAddrOutput();
     const auto*            pGfxDevice    = static_cast<const Device*>(pDevice->GetGfxDevice());
     const bool             is3dImage     = (createInfo.imageType == ImageType::Tex3d);
@@ -4145,7 +4295,7 @@ void Gfx9RsrcProcMgr::DoFastClear(
     const uint32 lastMip = clearRange.startSubres.mipLevel + clearRange.numMips - 1;
     for (uint32 mipLevel = clearRange.startSubres.mipLevel; mipLevel <= lastMip; ++mipLevel)
     {
-        const SubresId  subResId       = { ImageAspect::Color, mipLevel, 0 };
+        const SubresId  subResId       = { clearRange.startSubres.aspect, mipLevel, 0 };
         const auto*     pSubResInfo    = pPalImage->SubresourceInfo(subResId);
         const auto&     dccMipInfo     = pDcc->GetAddrMipInfo(mipLevel);
         const uint32    mipLevelHeight = pSubResInfo->extentTexels.height;
@@ -4407,7 +4557,7 @@ void Gfx9RsrcProcMgr::DoOptimizedFastClear(
     const Pal::Device*     pDevice       = pPalImage->GetDevice();
     const Gfx9PalSettings& settings      = GetGfx9Settings(*pDevice);
     const auto&            createInfo    = pPalImage->GetImageCreateInfo();
-    const auto*            pDcc          = dstImage.GetDcc();
+    const auto*            pDcc          = dstImage.GetDcc(clearRange.startSubres.aspect);
     const auto&            dccAddrOutput = pDcc->GetAddrOutput();
     const bool             is3dImage     = (createInfo.imageType == ImageType::Tex3d);
 
@@ -5402,7 +5552,8 @@ void Gfx10RsrcProcMgr::ClearDccCompute(
     const Pal::Image*    pPalImage     = dstImage.Parent();
     const Pal::Device*   pDevice       = pPalImage->GetDevice();
     const auto&          createInfo    = pPalImage->GetImageCreateInfo();
-    const auto*          pDcc          = dstImage.GetDcc();
+    const auto*          pDcc          = dstImage.GetDcc(clearRange.startSubres.aspect);
+    const SubresId       baseSubResId  = { clearRange.startSubres.aspect, 0 , 0 };
     const auto&          dccAddrOutput = pDcc->GetAddrOutput();
     const auto*          pBoundMemory  = pPalImage->GetBoundGpuMemory().Memory();
     const uint32         startSlice    = ((createInfo.imageType == ImageType::Tex3d)
@@ -5436,9 +5587,11 @@ void Gfx10RsrcProcMgr::ClearDccCompute(
 
             for (uint32  sliceIdx = 0; sliceIdx < numSlicesToClear; sliceIdx++)
             {
+                // GetMaskRamBaseAddr doesn't compute the base address of a mip level (only a slice offset), so
+                // we have to do the math here ourselves.
                 const uint32    absSlice      = startSlice + sliceIdx;
-                const gpusize   clearBaseAddr = dstImage.GetMaskRamBaseAddr(pDcc)        +
-                                                absSlice * dccAddrOutput.dccRamSliceSize +
+                const gpusize   clearBaseAddr = dstImage.GetMaskRamBaseAddr(pDcc, baseSubResId) +
+                                                absSlice * dccAddrOutput.dccRamSliceSize        +
                                                 dccMipInfo.offset;
                 const gpusize   clearOffset   = clearBaseAddr - pBoundMemory->Desc().gpuVirtAddr;
 
@@ -5461,6 +5614,7 @@ void Gfx10RsrcProcMgr::ClearDccCompute(
 
                 ClearDccComputeSetFirstPixelOfBlock(pCmdBuffer,
                                                     dstImage,
+                                                    clearRange.startSubres.aspect,
                                                     absMipLevel,
                                                     startSlice,
                                                     numSlices,
@@ -5489,6 +5643,7 @@ void Gfx10RsrcProcMgr::ClearDccCompute(
 void Gfx10RsrcProcMgr::ClearDccComputeSetFirstPixelOfBlock(
     GfxCmdBuffer*      pCmdBuffer,
     const Image&       dstImage,
+    ImageAspect        aspect,
     uint32             absMipLevel,
     uint32             startSlice,  // 0 for 3d or start array slice for 2d array.
     uint32             numSlices,   // depth for 3d or number of array slices for 2d array.
@@ -5499,7 +5654,7 @@ void Gfx10RsrcProcMgr::ClearDccComputeSetFirstPixelOfBlock(
     PAL_ASSERT(pPackedClearColor != nullptr);
     const Pal::Image*        pPalImage  = dstImage.Parent();
     const auto&              createInfo = pPalImage->GetImageCreateInfo();
-    const auto*              pDcc       = dstImage.GetDcc();
+    const auto*              pDcc       = dstImage.GetDcc(aspect);
     const RpmComputePipeline pipeline   = ((createInfo.samples == 1)
                                             ? RpmComputePipeline::Gfx10ClearDccComputeSetFirstPixel
                                             : RpmComputePipeline::Gfx10ClearDccComputeSetFirstPixelMsaa);
@@ -5693,7 +5848,7 @@ void Gfx10RsrcProcMgr::InitHtileData(
     const Pal::Image*  pPalImage     = dstImage.Parent();
     const auto*        pHtile        = dstImage.GetHtile();
     const auto&        hTileAddrOut  = pHtile->GetAddrOutput();
-    const gpusize      hTileBaseAddr = dstImage.GetMaskRamBaseAddr(pHtile);
+    const gpusize      hTileBaseAddr = dstImage.GetMaskRamBaseAddr(pHtile, range.startSubres);
     const auto&        settings      = m_pDevice->Parent()->Settings();
 
     PAL_ASSERT(pCmdBuffer->IsComputeSupported());
@@ -5788,7 +5943,7 @@ void Gfx10RsrcProcMgr::WriteHtileData(
     const Pal::Image*  pPalImage     = dstImage.Parent();
     const auto*        pHtile        = dstImage.GetHtile();
     const auto&        hTileAddrOut  = pHtile->GetAddrOutput();
-    const gpusize      hTileBaseAddr = dstImage.GetMaskRamBaseAddr(pHtile);
+    const gpusize      hTileBaseAddr = dstImage.GetMaskRamBaseAddr(pHtile, range.startSubres);
     const auto&        settings      = m_pDevice->Parent()->Settings();
 
     PAL_ASSERT(pCmdBuffer->IsComputeSupported());

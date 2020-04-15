@@ -61,13 +61,9 @@ Image::Image(
     m_totalAspectSize(0),
     m_gfxDevice(static_cast<const Device&>(*device.GetGfxDevice())),
     m_pHtile(nullptr),
-    m_pDcc(nullptr),
+    m_numDccPlanes(0),
     m_pCmask(nullptr),
     m_pFmask(nullptr),
-    m_dccStateMetaDataOffset(0),
-    m_dccStateMetaDataSize(0),
-    m_fastClearEliminateMetaDataOffset(0),
-    m_fastClearEliminateMetaDataSize(0),
     m_waTcCompatZRangeMetaDataOffset(0),
     m_waTcCompatZRangeMetaDataSizePerMip(0),
     m_useCompToSingleForFastClears(false)
@@ -81,6 +77,11 @@ Image::Image(
     memset(m_metaDataLookupTableOffsets, 0, sizeof(m_metaDataLookupTableOffsets));
     memset(m_metaDataLookupTableSizes,   0, sizeof(m_metaDataLookupTableSizes));
     memset(m_aspectOffset,               0, sizeof(m_aspectOffset));
+    memset(m_pDcc,                       0, sizeof(m_pDcc));
+    memset(m_dccStateMetaDataOffset,     0, sizeof(m_dccStateMetaDataOffset));
+    memset(m_dccStateMetaDataSize,       0, sizeof(m_dccStateMetaDataSize));
+    memset(m_fastClearEliminateMetaDataOffset, 0, sizeof(m_fastClearEliminateMetaDataOffset));
+    memset(m_fastClearEliminateMetaDataSize,   0, sizeof(m_fastClearEliminateMetaDataSize));
 
     for (uint32  planeIdx = 0; planeIdx < MaxNumPlanes; planeIdx++)
     {
@@ -99,9 +100,13 @@ Image::~Image()
     Pal::GfxImage::Destroy();
 
     PAL_SAFE_DELETE(m_pHtile, m_device.GetPlatform());
-    PAL_SAFE_DELETE(m_pDcc,   m_device.GetPlatform());
     PAL_SAFE_DELETE(m_pFmask, m_device.GetPlatform());
     PAL_SAFE_DELETE(m_pCmask, m_device.GetPlatform());
+
+    for (uint32  idx = 0; idx < MaxNumPlanes; idx++)
+    {
+        PAL_SAFE_DELETE(m_pDcc[idx], m_device.GetPlatform());
+    }
 }
 
 // =====================================================================================================================
@@ -165,7 +170,9 @@ void Image::GetMetaEquationConstParam(
     MetaEquationParam clearPara;
 
     // check if optimized fast clear is on.
-    if (optimizedFastClearDepth || optimizedFastClearDcc || optimizedFastClearCmask)
+    if ((optimizedFastClearDepth || optimizedFastClearDcc || optimizedFastClearCmask) &&
+        // Also, optimized fast clears don't work with YUV images
+        (Formats::IsYuv(Parent()->GetImageCreateInfo().swizzledFormat.format) == false))
     {
         if (m_createInfo.usageFlags.colorTarget == 1)
         {
@@ -181,7 +188,7 @@ void Image::GetMetaEquationConstParam(
             }
             else
             {
-                const Gfx9Dcc*const pDcc = GetDcc();
+                const Gfx9Dcc*const pDcc = GetDcc(ImageAspect::Color);
                 // we must have a valid MaskRam surface
                 PAL_ASSERT(pDcc != nullptr);
                 clearPara = pDcc->GetMetaEquationParam();
@@ -349,9 +356,6 @@ void Image::CheckCompToSingle()
         // comp-to-single is out.
         (m_gfxDevice.GetMaxFragsLog2() >= Log2(createInfo.fragments)))
     {
-        // Setting the first pixel of each DCC block assumes that DCC memory is present...
-        PAL_ASSERT(HasDccData());
-
         const Gfx9PalSettings& settings             = GetGfx9Settings(m_device);
         const SubResourceInfo*const pBaseSubResInfo = Parent()->SubresourceInfo(0);
         if (pBaseSubResInfo->bitsPerTexel <= 16)
@@ -560,86 +564,25 @@ Result Image::Finalize(
             m_pParent->SetPreferGraphicsScaledCopy(true);
         }
 
-        // There is nothing mip-level specific about DCC on Gfx9, so we just have one DCC objct that represents the
-        // entire DCC allocation.
-        m_pDcc = PAL_NEW(Gfx9Dcc, m_device.GetPlatform(), SystemAllocType::AllocObject)(*this);
-        if (m_pDcc != nullptr)
+        result = CreateDccObject(pSubResInfoList, pGpuMemLayout, pGpuMemSize, pGpuMemAlignment);
+
+        if (result == Result::Success)
         {
+            // Set up the size & GPU offset for the fast-clear metadata. Only need to do this once for all mip
+            // levels. The HW will only use this data if fast-clears have been used, but the fast-clear meta data
+            // is used by the driver if DCC memory is present for any reason, so we always need to do this.
+            // SEE: Gfx9ColorTargetView::WriteCommands for details.
+            needsFastColorClearMetaData = true;
+
             if (useSharedMetadata)
             {
-                gpusize forcedOffset = sharedMetadata.dccOffset;
-                result = m_pDcc->Init(&forcedOffset, sharedMetadata.flags.hasEqGpuAccess);
-                *pGpuMemSize = Max(forcedOffset, *pGpuMemSize);
+                needsDccStateMetaData = (sharedMetadata.dccStateMetaDataOffset != 0);
             }
             else
             {
-                // Determine whether or not we need to set the first pixel of each block that corresponds to each
-                // byte of DCC memory.  This result is used during DCC initialization.
-                CheckCompToSingle();
-
-                result = m_pDcc->Init(pGpuMemSize, true);
+                // We also need the DCC state metadata when DCC is enabled.
+                needsDccStateMetaData = true;
             }
-
-            if (result == Result::Success)
-            {
-                if ((useSharedMetadata == false) || (sharedMetadata.flags.hasEqGpuAccess == true))
-                {
-                    PAL_ASSERT(pBaseSubResInfo->subresId.aspect == ImageAspect::Color);
-                    const auto& surfSettings = GetAddrSettings(pBaseSubResInfo);
-
-                    if (Gfx9MaskRam::SupportFastColorClear(m_device, *this, surfSettings.swizzleMode))
-                    {
-                        for (uint32 mip = 0; mip < m_createInfo.mipLevels; ++mip)
-                        {
-                            // Enable fast Clear support for RTV/SRV or if we have a mip chain in which some mips aren't
-                            // going to be used as UAV but some can be then we enable dcc fast clear on those who aren't
-                            // going to be used as UAV and disable dcc fast clear on other mips.
-                            if ((m_createInfo.usageFlags.shaderWrite == 0) ||
-                                IsGfx10(m_device)                          ||
-                                (mip < m_createInfo.usageFlags.firstShaderWritableMip))
-                            {
-                                if (CanMipSupportMetaData(mip))
-                                {
-                                    UpdateClearMethod(pSubResInfoList, ImageAspect::Color, mip, ClearMethod::Fast);
-                                }
-                            }
-                        } // end loop through all the mip levels
-                    } // end check for this image supporting fast clears at all
-                }
-
-                // Set up the size & GPU offset for the fast-clear metadata. Only need to do this once for all mip
-                // levels. The HW will only use this data if fast-clears have been used, but the fast-clear meta data
-                // is used by the driver if DCC memory is present for any reason, so we always need to do this.
-                // SEE: Gfx9ColorTargetView::WriteCommands for details.
-                needsFastColorClearMetaData = true;
-
-                if (useSharedMetadata)
-                {
-                    needsDccStateMetaData = (sharedMetadata.dccStateMetaDataOffset != 0);
-                }
-                else
-                {
-                    // We also need the DCC state metadata when DCC is enabled.
-                    needsDccStateMetaData = true;
-                }
-
-                // It's possible for the metadata allocation to require more alignment than the base allocation. Bump
-                // up the required alignment of the app-provided allocation if necessary.
-                *pGpuMemAlignment = Max(*pGpuMemAlignment, m_pDcc->Alignment());
-
-                // Update the layout information against mip 0's DCC offset and alignment requirements.
-                UpdateMetaDataLayout(pGpuMemLayout, m_pDcc->MemoryOffset(), m_pDcc->Alignment());
-
-                const auto&  addrOutput           = m_pDcc->GetAddrOutput();
-                const uint32 metaBlkFastClearSize = addrOutput.fastClearSizePerSlice / addrOutput.metaBlkNumPerSlice;
-
-                // Get the constant data for clears based on DCC meta equation
-                GetMetaEquationConstParam(&m_metaDataClearConst[MetaDataDcc], metaBlkFastClearSize);
-            }
-        }
-        else
-        {
-            result = Result::ErrorOutOfMemory;
         }
     } // End check for (useDcc != false)
 
@@ -739,7 +682,14 @@ Result Image::Finalize(
             }
             else
             {
-                InitFastClearMetaData(pGpuMemLayout, pGpuMemSize, sizeof(Gfx9FastColorClearMetaData), sizeof(uint32));
+                for (uint32  dccPlane = 0; dccPlane < m_numDccPlanes; dccPlane++)
+                {
+                    InitFastClearMetaData(pGpuMemLayout,
+                                          pGpuMemSize,
+                                          sizeof(Gfx9FastColorClearMetaData),
+                                          sizeof(uint32),
+                                          dccPlane);
+                }
             }
         }
         else if (needsFastDepthClearMetaData)
@@ -784,12 +734,15 @@ Result Image::Finalize(
             if (useSharedMetadata)
             {
                 gpusize forcedOffset = sharedMetadata.dccStateMetaDataOffset;
-                InitDccStateMetaData(pGpuMemLayout, &forcedOffset);
+                InitDccStateMetaData(0, pGpuMemLayout, &forcedOffset);
                 *pGpuMemSize = Max(forcedOffset, *pGpuMemSize);
             }
             else
             {
-                InitDccStateMetaData(pGpuMemLayout, pGpuMemSize);
+                for (uint32  dccPlaneIdx = 0; dccPlaneIdx < m_numDccPlanes; dccPlaneIdx++)
+                {
+                    InitDccStateMetaData(dccPlaneIdx, pGpuMemLayout, pGpuMemSize);
+                }
             }
         }
 
@@ -815,13 +768,16 @@ Result Image::Finalize(
                 if (sharedMetadata.fastClearEliminateMetaDataOffset)
                 {
                     gpusize forcedOffset = sharedMetadata.fastClearEliminateMetaDataOffset;
-                    InitFastClearEliminateMetaData(pGpuMemLayout, &forcedOffset);
+                    InitFastClearEliminateMetaData(pBaseSubResInfo->subresId.aspect, pGpuMemLayout, &forcedOffset);
                     *pGpuMemSize = Max(forcedOffset, *pGpuMemSize);
                 }
             }
             else
             {
-                InitFastClearEliminateMetaData(pGpuMemLayout, pGpuMemSize);
+                for (uint32  dccIdx = 0; dccIdx < this->m_numDccPlanes; dccIdx++)
+                {
+                    InitFastClearEliminateMetaData(GetAspectFromPlane(dccIdx), pGpuMemLayout, pGpuMemSize);
+                }
             }
         }
 
@@ -861,6 +817,112 @@ Result Image::Finalize(
         if (m_createInfo.flags.prt != 0)
         {
             m_device.GetAddrMgr()->ComputePackedMipInfo(*Parent(), pGpuMemLayout);
+        }
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
+ImageAspect Image::GetAspectFromPlane(
+    uint32  planeIdx
+    ) const
+{
+    SwizzledFormat  planeFormat = Parent()->GetImageCreateInfo().swizzledFormat;
+    ImageAspect     planeAspect = ImageAspect::Color;
+
+    Parent()->DetermineFormatAndAspectForPlane(&planeFormat, &planeAspect, planeIdx);
+
+    return planeAspect;
+}
+
+// =====================================================================================================================
+// "Finalizes" this Image object: this includes determining what metadata surfaces need to be used for this Image, and
+// initializing the data structures for them.
+Result Image::CreateDccObject(
+    SubResourceInfo*   pSubResInfoList,
+    ImageMemoryLayout* pGpuMemLayout,
+    gpusize*           pGpuMemSize,
+    gpusize*           pGpuMemAlignment)
+{
+    const bool                  useSharedMetadata = m_pImageInfo->internalCreateInfo.flags.useSharedMetadata;
+    const SharedMetadataInfo&   sharedMetadata    = m_pImageInfo->internalCreateInfo.sharedMetadata;
+
+    Result  result = Result::Success;
+
+    for (uint32  planeIdx = 0; ((result == Result::Success) && (planeIdx < m_pImageInfo->numPlanes)); planeIdx++)
+    {
+        const ImageAspect       planeAspect           = GetAspectFromPlane(planeIdx);
+        const SubresId          aspectBaseSubResId    = { planeAspect, 0, 0 };
+        const SubResourceInfo*  pAspectBaseSubResInfo = Parent()->SubresourceInfo(aspectBaseSubResId);
+
+        // There is nothing mip-level specific about DCC on Gfx9+, so we just have one DCC objct that represents the
+        // entire DCC allocation.
+        Gfx9Dcc*  pDcc = PAL_NEW(Gfx9Dcc, m_device.GetPlatform(), SystemAllocType::AllocObject)(*this, false);
+        if (pDcc != nullptr)
+        {
+            if (useSharedMetadata)
+            {
+                gpusize forcedOffset = sharedMetadata.dccOffset;
+                result = pDcc->Init(aspectBaseSubResId, &forcedOffset, sharedMetadata.flags.hasEqGpuAccess);
+                *pGpuMemSize = Max(forcedOffset, *pGpuMemSize);
+            }
+            else
+            {
+                // Determine whether or not we need to set the first pixel of each block that corresponds to each
+                // byte of DCC memory.  This result is used during DCC initialization.
+                CheckCompToSingle();
+
+                result = pDcc->Init(aspectBaseSubResId, pGpuMemSize, true);
+            }
+
+            if (result == Result::Success)
+            {
+                if ((useSharedMetadata == false) || (sharedMetadata.flags.hasEqGpuAccess == true))
+                {
+                    const auto& surfSettings = GetAddrSettings(pAspectBaseSubResInfo);
+
+                    if (Gfx9MaskRam::SupportFastColorClear(m_device, *this, surfSettings.swizzleMode))
+                    {
+                        for (uint32 mip = 0; mip < m_createInfo.mipLevels; ++mip)
+                        {
+                            // Enable fast Clear support for RTV/SRV or if we have a mip chain in which some mips aren't
+                            // going to be used as UAV but some can be then we enable dcc fast clear on those who aren't
+                            // going to be used as UAV and disable dcc fast clear on other mips.
+                            if ((m_createInfo.usageFlags.shaderWrite == 0) ||
+                                IsGfx10(m_device)                          ||
+                                (mip < m_createInfo.usageFlags.firstShaderWritableMip))
+                            {
+                                if (CanMipSupportMetaData(mip))
+                                {
+                                    UpdateClearMethod(pSubResInfoList, planeAspect, mip, ClearMethod::Fast);
+                                }
+                            }
+                        } // end loop through all the mip levels
+                    } // end check for this image supporting fast clears at all
+                }
+
+                // It's possible for the metadata allocation to require more alignment than the base allocation. Bump
+                // up the required alignment of the app-provided allocation if necessary.
+                *pGpuMemAlignment = Max(*pGpuMemAlignment, pDcc->Alignment());
+
+                // Update the layout information against mip 0's DCC offset and alignment requirements.
+                UpdateMetaDataLayout(pGpuMemLayout, pDcc->MemoryOffset(), pDcc->Alignment());
+
+                const auto&  addrOutput           = pDcc->GetAddrOutput();
+                const uint32 metaBlkFastClearSize = addrOutput.fastClearSizePerSlice / addrOutput.metaBlkNumPerSlice;
+
+                // The GetMetaEquationConstParam function needs the DCC object we just created.
+                m_pDcc[planeIdx] = pDcc;
+                m_numDccPlanes++;
+
+                // Get the constant data for clears based on DCC meta equation
+                GetMetaEquationConstParam(&m_metaDataClearConst[MetaDataDcc], metaBlkFastClearSize);
+            }
+        }
+        else
+        {
+            result = Result::ErrorOutOfMemory;
         }
     }
 
@@ -1189,13 +1251,13 @@ void Image::InitLayoutStateMasks()
                 {
                     compressedLayouts.engines |= LayoutComputeEngine;
                 }
-            }
 
-            if (IsGfx10(m_device))
-            {
-                // GFX10 supports compressed writes to HTILE, so it should be safe to add ShaderWrite to the
-                // compressed usages (LayoutCopyDst was already added as above).
-                compressedLayouts.usages |= LayoutShaderWrite;
+                if (IsGfx10(m_device))
+                {
+                    // GFX10 supports compressed writes to HTILE, so it should be safe to add ShaderWrite to the
+                    // compressed usages (LayoutCopyDst was already added as above).
+                    compressedLayouts.usages |= LayoutShaderWrite;
+                }
             }
         }
 
@@ -1252,10 +1314,20 @@ void Image::InitLayoutStateMasks()
 // =====================================================================================================================
 // Gets the raw base address for the specified mask-ram.
 gpusize Image::GetMaskRamBaseAddr(
-    const MaskRam*  pMaskRam
+    const MaskRam*   pMaskRam,
+    const SubresId&  subResId
     ) const
 {
-    const  gpusize  maskRamMemOffset = pMaskRam->MemoryOffset();
+    PAL_ASSERT(subResId.mipLevel == 0);
+
+    gpusize  maskRamMemOffset = pMaskRam->MemoryOffset();
+
+    if (subResId.arraySlice != 0)
+    {
+        const  auto*  pGfx9MaskRam  = static_cast<const Gfx9MaskRam*>(pMaskRam);
+
+        maskRamMemOffset += pGfx9MaskRam->SliceOffset(subResId.arraySlice);
+    }
 
     // Verify that the mask ram isn't thought to be in the same place as the image itself.  That would be "bad".
     {
@@ -1276,10 +1348,10 @@ gpusize Image::GetMaskRamBaseAddr(
 // value associated with the specified aspect.
 uint32 Image::GetMaskRam256BAddr(
     const Gfx9MaskRam*  pMaskRam,
-    ImageAspect         aspect
+    const SubresId&     subResId
     ) const
 {
-    return Get256BAddrSwizzled(GetMaskRamBaseAddr(pMaskRam), pMaskRam->GetPipeBankXor(aspect));
+    return Get256BAddrSwizzled(GetMaskRamBaseAddr(pMaskRam, subResId), pMaskRam->GetPipeBankXor(subResId.aspect));
 }
 
 // =====================================================================================================================
@@ -1289,17 +1361,27 @@ uint32 Image::GetHtile256BAddr() const
     // address of the requeusted mip-level / slice based on the information provided to the SRD.
     const SubresId  baseSubres = Parent()->GetBaseSubResource();
 
-    return GetMaskRam256BAddr(GetHtile(), baseSubres.aspect);
+    return GetMaskRam256BAddr(GetHtile(), baseSubres);
+}
+
+// =====================================================================================================================
+uint32 Image::GetCmask256BAddr() const
+{
+    // cMask is associated with the fMask aspect, not the color image itself.
+    const SubresId  subResId = { ImageAspect::Fmask, 0, 0 };
+
+    return GetMaskRam256BAddr(GetCmask(), subResId);
 }
 
 // =====================================================================================================================
 // Calculates the shifted base address for fMask, including the pipe/bank xor
 uint32 Image::GetFmask256BAddr() const
 {
-    const Gfx9Fmask*const pFmask = GetFmask();
+    const Gfx9Fmask*const pFmask   = GetFmask();
+    const SubresId        subResId = { ImageAspect::Color, 0, 0 };
 
     // fMask surfaces have a pipe/bank xor value which is independent of the main image's pipe/bank xor value
-    return Get256BAddrSwizzled(GetMaskRamBaseAddr(pFmask), pFmask->GetPipeBankXor());
+    return Get256BAddrSwizzled(GetMaskRamBaseAddr(pFmask, subResId), pFmask->GetPipeBankXor());
 }
 
 // =====================================================================================================================
@@ -1968,54 +2050,57 @@ uint32 Image::GetSubresource256BAddrSwizzledHi(
 // Determines the GPU virtual address of the DCC state meta-data. Returns the GPU address of the meta-data, zero if this
 // image doesn't have the DCC state meta-data.
 gpusize Image::GetDccStateMetaDataAddr(
-    uint32 mipLevel,
-    uint32 slice
+    const SubresId&  subResId
     ) const
 {
-    PAL_ASSERT(mipLevel < m_createInfo.mipLevels);
+    PAL_ASSERT(subResId.mipLevel < m_createInfo.mipLevels);
 
     // All the metadata for slices of a single mipmap level are contiguous region in memory.
     // So we can use one WRITE_DATA packet to update multiple array slices' metadata.
-    const uint32 metaDataIndex = m_createInfo.arraySize * mipLevel + slice;
+    const uint32   metaDataIndex  = m_createInfo.arraySize * subResId.mipLevel + subResId.arraySlice;
+    const uint32   planeIndex     = GetAspectIndex(subResId.aspect);
+    const gpusize  metaDataOffset = m_dccStateMetaDataOffset[planeIndex];
 
-    return (m_dccStateMetaDataOffset == 0)
-        ? 0
-        : m_pParent->GetBoundGpuMemory().GpuVirtAddr() + m_dccStateMetaDataOffset +
-          (metaDataIndex * sizeof(MipDccStateMetaData));
+    return (metaDataOffset == 0)
+            ? 0
+            : m_pParent->GetBoundGpuMemory().GpuVirtAddr() + metaDataOffset +
+              (metaDataIndex * sizeof(MipDccStateMetaData));
 }
 
 // =====================================================================================================================
 // Determines the offset of the DCC state meta-data. Returns the offset of the meta-data, zero if this
 // image doesn't have the DCC state meta-data.
 gpusize Image::GetDccStateMetaDataOffset(
-    uint32 mipLevel,
-    uint32 slice
+    const SubresId&  subResId
     ) const
 {
-    PAL_ASSERT(mipLevel < m_createInfo.mipLevels);
+    PAL_ASSERT(subResId.mipLevel < m_createInfo.mipLevels);
 
     // All the metadata for slices of a single mipmap level are contiguous region in memory.
     // So we can use one WRITE_DATA packet to update multiple array slices' metadata.
-    const uint32 metaDataIndex = m_createInfo.arraySize * mipLevel + slice;
+    const uint32   metaDataIndex  = m_createInfo.arraySize * subResId.mipLevel + subResId.arraySlice;
+    const uint32   planeIndex     = GetAspectIndex(subResId.aspect);
+    const gpusize  metaDataOffset = m_dccStateMetaDataOffset[planeIndex];
 
-    return (m_dccStateMetaDataOffset == 0)
-        ? 0
-        : m_dccStateMetaDataOffset + (metaDataIndex * sizeof(MipDccStateMetaData));
+    return (metaDataOffset == 0)
+            ? 0
+            : metaDataOffset + (metaDataIndex * sizeof(MipDccStateMetaData));
 }
 
 // =====================================================================================================================
 // Initializes the GPU offset for this Image's DCC state metadata. It must include an array of Gfx9DccMipMetaData with
 // one item for each mip level.
 void Image::InitDccStateMetaData(
+    uint32             planeIdx,
     ImageMemoryLayout* pGpuMemLayout,
     gpusize*           pGpuMemSize)
 {
-    m_dccStateMetaDataOffset = Pow2Align(*pGpuMemSize, PredicationAlign);
-    m_dccStateMetaDataSize   = (m_createInfo.mipLevels * m_createInfo.arraySize * sizeof(MipDccStateMetaData));
-    *pGpuMemSize             = (m_dccStateMetaDataOffset + m_dccStateMetaDataSize);
+    m_dccStateMetaDataOffset[planeIdx] = Pow2Align(*pGpuMemSize, PredicationAlign);
+    m_dccStateMetaDataSize[planeIdx]   = m_createInfo.mipLevels * m_createInfo.arraySize * sizeof(MipDccStateMetaData);
+    *pGpuMemSize                       = (m_dccStateMetaDataOffset[planeIdx] + m_dccStateMetaDataSize[planeIdx]);
 
     // Update the layout information against the DCC state metadata.
-    UpdateMetaDataHeaderLayout(pGpuMemLayout, m_dccStateMetaDataOffset, PredicationAlign);
+    UpdateMetaDataHeaderLayout(pGpuMemLayout, m_dccStateMetaDataOffset[planeIdx], PredicationAlign);
 }
 
 // =====================================================================================================================
@@ -2038,15 +2123,19 @@ void Image::InitWaTcCompatZRangeMetaData(
 // level of the image; if the corresponding DWORD for a miplevel is zero, then a fast-clear-eliminate operation will not
 // be required.
 void Image::InitFastClearEliminateMetaData(
+    ImageAspect        aspect,
     ImageMemoryLayout* pGpuMemLayout,
     gpusize*           pGpuMemSize)
 {
-    m_fastClearEliminateMetaDataOffset = Pow2Align(*pGpuMemSize, PredicationAlign);
-    m_fastClearEliminateMetaDataSize   = (m_createInfo.mipLevels * sizeof(MipFceStateMetaData));
-    *pGpuMemSize                       = (m_fastClearEliminateMetaDataOffset + m_fastClearEliminateMetaDataSize);
+    const uint32  planeIdx = GetAspectIndex(aspect);
+
+    m_fastClearEliminateMetaDataOffset[planeIdx] = Pow2Align(*pGpuMemSize, PredicationAlign);
+    m_fastClearEliminateMetaDataSize[planeIdx]   = (m_createInfo.mipLevels * sizeof(MipFceStateMetaData));
+    *pGpuMemSize                                 = m_fastClearEliminateMetaDataOffset[planeIdx] +
+                                                   m_fastClearEliminateMetaDataSize[planeIdx];
 
     // Update the layout information against the fast-clear eliminate metadata.
-    UpdateMetaDataHeaderLayout(pGpuMemLayout, m_fastClearEliminateMetaDataOffset, PredicationAlign);
+    UpdateMetaDataHeaderLayout(pGpuMemLayout, m_fastClearEliminateMetaDataOffset[planeIdx], PredicationAlign);
 
     // Initialize data structure for fast clear eliminate optimization. The GPU predicates fast clear eliminates
     // when the clear color is TC compatible. So here, we try to not perform fast clear eliminate and save the
@@ -2107,11 +2196,10 @@ void Image::InitHtileLookupTable(
 // Builds PM4 commands into the command buffer which will update this Image's fast-clear metadata to reflect the most
 // recent clear color. Returns the next unused DWORD in pCmdSpace.
 uint32* Image::UpdateColorClearMetaData(
-    uint32       startMip,
-    uint32       numMips,
-    const uint32 packedColor[4],
-    Pm4Predicate predicate,
-    uint32*      pCmdSpace
+    const SubresRange&  clearRange,
+    const uint32        packedColor[4],
+    Pm4Predicate        predicate,
+    uint32*             pCmdSpace
     ) const
 {
     // Verify that we have DCC data that's requierd for handling fast-clears on gfx9
@@ -2123,14 +2211,18 @@ uint32* Image::UpdateColorClearMetaData(
     // Issue a WRITE_DATA command to update the fast-clear metadata.
     WriteDataInfo writeData = {};
     writeData.engineType = EngineTypeUniversal;
-    writeData.dstAddr    = FastClearMetaDataAddr(startMip);
+    writeData.dstAddr    = FastClearMetaDataAddr(clearRange.startSubres);
     writeData.engineSel  = engine_sel__pfp_write_data__prefetch_parser;
     writeData.dstSel     = dst_sel__pfp_write_data__memory;
     writeData.predicate  = predicate;
 
     PAL_ASSERT(writeData.dstAddr != 0);
 
-    return pCmdSpace + CmdUtil::BuildWriteDataPeriodic(writeData, MetaDataDwords, numMips, packedColor, pCmdSpace);
+    return pCmdSpace + CmdUtil::BuildWriteDataPeriodic(writeData,
+                                                       MetaDataDwords,
+                                                       clearRange.numMips,
+                                                       packedColor,
+                                                       pCmdSpace);
 }
 
 // =====================================================================================================================
@@ -2144,7 +2236,7 @@ void Image::UpdateDccStateMetaData(
     Pm4Predicate         predicate
     ) const
 {
-    if (HasDccStateMetaData())
+    if (HasDccStateMetaData(range.startSubres.aspect))
     {
         PAL_ASSERT(HasDccData());
 
@@ -2175,7 +2267,7 @@ void Image::UpdateDccStateMetaData(
                 uint32 periodsToWrite = (sliceIdx + maxSlicesPerPacket <= sliceEnd) ? maxSlicesPerPacket :
                                                                                       sliceEnd - sliceIdx;
 
-                writeData.dstAddr = GetDccStateMetaDataAddr(mipLevelIdx, sliceIdx);
+                writeData.dstAddr = GetDccStateMetaDataAddr(range.startSubres);
                 PAL_ASSERT(writeData.dstAddr != 0);
 
                 uint32* pCmdSpace = pCmdStream->ReserveCommands();
@@ -2209,7 +2301,7 @@ uint32* Image::UpdateFastClearEliminateMetaData(
 
     WriteDataInfo writeData = {};
     writeData.engineType = pCmdBuffer->GetEngineType();
-    writeData.dstAddr    = GetFastClearEliminateMetaDataAddr(range.startSubres.mipLevel);
+    writeData.dstAddr    = GetFastClearEliminateMetaDataAddr(range.startSubres);
     writeData.engineSel  = engine_sel__pfp_write_data__prefetch_parser;
     writeData.dstSel     = dst_sel__pfp_write_data__memory;
     writeData.predicate  = predicate;
@@ -2257,15 +2349,17 @@ uint32* Image::UpdateWaTcCompatZRangeMetaData(
 // conditional-execute packet around the fast-clear-eliminate packets. Returns the GPU address of the
 // fast-clear-eliminiate packet, zero if this image does not have the FCE meta-data.
 gpusize Image::GetFastClearEliminateMetaDataAddr(
-    uint32  mipLevel
+    const SubresId&  subResId
     ) const
 {
-    PAL_ASSERT(mipLevel < m_createInfo.mipLevels);
+    const uint32  planeIdx = GetAspectIndex(subResId.aspect);
 
-    return (m_fastClearEliminateMetaDataOffset == 0)
-        ? 0
-        : m_pParent->GetBoundGpuMemory().GpuVirtAddr() + m_fastClearEliminateMetaDataOffset +
-          (mipLevel * sizeof(MipFceStateMetaData));
+    PAL_ASSERT(subResId.mipLevel < m_createInfo.mipLevels);
+
+    return (m_fastClearEliminateMetaDataOffset[planeIdx] == 0)
+            ? 0
+            : m_pParent->GetBoundGpuMemory().GpuVirtAddr() + m_fastClearEliminateMetaDataOffset[planeIdx] +
+              (subResId.mipLevel * sizeof(MipFceStateMetaData));
 }
 
 // =====================================================================================================================
@@ -2273,14 +2367,16 @@ gpusize Image::GetFastClearEliminateMetaDataAddr(
 // conditional-execute packet around the fast-clear-eliminate packets. Returns the offset of the
 // fast-clear-eliminiate packet, zero if this image does not have the FCE meta-data.
 gpusize Image::GetFastClearEliminateMetaDataOffset(
-    uint32  mipLevel
+    const SubresId&  subResId
     ) const
 {
-    PAL_ASSERT(mipLevel < m_createInfo.mipLevels);
+    const uint32  planeIdx = GetAspectIndex(subResId.aspect);
 
-    return (m_fastClearEliminateMetaDataOffset == 0)
-        ? 0
-        : m_fastClearEliminateMetaDataOffset + (mipLevel * sizeof(MipFceStateMetaData));
+    PAL_ASSERT(subResId.mipLevel < m_createInfo.mipLevels);
+
+    return (m_fastClearEliminateMetaDataOffset[planeIdx] == 0)
+            ? 0
+            : m_fastClearEliminateMetaDataOffset[planeIdx] + (subResId.mipLevel * sizeof(MipFceStateMetaData));
 }
 
 //=====================================================================================================================
@@ -2368,7 +2464,7 @@ uint32* Image::UpdateDepthClearMetaData(
     clearData.dbDepthClear.f32All       = depthValue;
 
     // Base GPU virtual address of the Image's fast-clear metadata.
-    gpusize       gpuVirtAddr  = FastClearMetaDataAddr(range.startSubres.mipLevel);
+    gpusize       gpuVirtAddr  = FastClearMetaDataAddr(range.startSubres);
     const uint32* pSrcData     = nullptr;
     size_t        dwordsToCopy = 0;
 
@@ -2876,7 +2972,7 @@ void Image::CpuProcessDccEq(
     DccClearPurpose     clearPurpose
     ) const
 {
-    const auto*  pDcc          = GetDcc();
+    const auto*  pDcc          = GetDcc(clearRange.startSubres.aspect);
     const auto&  dccAddrOutput = pDcc->GetAddrOutput();
 
     CpuProcessEq<uint8, ADDR2_COMPUTE_DCCINFO_OUTPUT>(this,
@@ -2945,9 +3041,15 @@ void Image::InitMetadataFill(
                                              static_cast<uint32>(Gfx9Dcc::InitialValue <<  8) |
                                              static_cast<uint32>(Gfx9Dcc::InitialValue <<  0));
 
-            pCmdBuffer->CmdFillMemory(gpuMemObj, m_pDcc->MemoryOffset(), m_pDcc->TotalSize(), DccInitValue);
+            for (uint32  planeIdx = 0; planeIdx < Parent()->GetImageInfo().numPlanes; planeIdx++)
+            {
+                const ImageAspect  aspect = GetAspectFromPlane(planeIdx);
+                const Gfx9Dcc*     pDcc   = GetDcc(aspect);
 
-            m_pDcc->UploadEq(pCmdBuffer);
+                pCmdBuffer->CmdFillMemory(gpuMemObj, pDcc->MemoryOffset(), pDcc->TotalSize(), DccInitValue);
+
+                pDcc->UploadEq(pCmdBuffer);
+            }
         }
 
         // If we have fMask then we also have cMask.
@@ -2968,15 +3070,15 @@ void Image::InitMetadataFill(
         }
     }
 
-    if (HasFastClearMetaData())
+    if (HasFastClearMetaData(range.startSubres.aspect))
     {
         // The DB Tile Summarizer requires a TC compatible clear value of stencil,
         // because TC isn't aware of DB_STENCIL_CLEAR register.
         // Please note the clear value of color or depth is also initialized together,
         // although it might be unnecessary.
         pCmdBuffer->CmdFillMemory(gpuMemObj,
-                                  FastClearMetaDataOffset(range.startSubres.mipLevel),
-                                  FastClearMetaDataSize(range.numMips),
+                                  FastClearMetaDataOffset(range.startSubres),
+                                  FastClearMetaDataSize(range.startSubres.aspect, range.numMips),
                                   0);
     }
 
@@ -3107,19 +3209,21 @@ void Image::BuildMetadataLookupTableBufferView(
 // =====================================================================================================================
 // Returns true if specified mip level is in the MetaData tail region.
 bool Image::IsInMetadataMipTail(
-    uint32 mipLevel
+    const SubresId&  subResId
     ) const
 {
     bool inMipTail = false;
     if (m_createInfo.mipLevels > 1)
     {
-        if (m_pDcc != nullptr)
+        const Gfx9Dcc*  pDcc = GetDcc(subResId.aspect);
+
+        if (pDcc != nullptr)
         {
-            inMipTail = (m_pDcc->GetAddrMipInfo(mipLevel).inMiptail != 0);
+            inMipTail = (pDcc->GetAddrMipInfo(subResId.mipLevel).inMiptail != 0);
         }
         else if (m_pHtile != nullptr)
         {
-            inMipTail = (m_pHtile->GetAddrMipInfo(mipLevel).inMiptail != 0);
+            inMipTail = (m_pHtile->GetAddrMipInfo(subResId.mipLevel).inMiptail != 0);
         }
     }
     return inMipTail;
@@ -3344,10 +3448,10 @@ void Image::GetSharedMetadataInfo(
     memset(pMetadataInfo, 0, sizeof(SharedMetadataInfo));
 
     const SubresId baseSubResId = Parent()->GetBaseSubResource();
-    if (m_pDcc != nullptr)
+    if (m_numDccPlanes != 0)
     {
-        pMetadataInfo->dccOffset            = m_pDcc->MemoryOffset();
-        pMetadataInfo->flags.hasEqGpuAccess = m_pDcc->HasEqGpuAccess();
+        pMetadataInfo->dccOffset            = m_pDcc[0]->MemoryOffset();
+        pMetadataInfo->flags.hasEqGpuAccess = m_pDcc[0]->HasEqGpuAccess();
     }
     if (m_pCmask != nullptr)
     {
@@ -3370,10 +3474,10 @@ void Image::GetSharedMetadataInfo(
     pMetadataInfo->flags.shaderFetchable            =
         Parent()->SubresourceInfo(baseSubResId)->flags.supportMetaDataTexFetch;
 
-    pMetadataInfo->dccStateMetaDataOffset           = m_dccStateMetaDataOffset;
-    pMetadataInfo->fastClearMetaDataOffset          = m_fastClearMetaDataOffset;
+    pMetadataInfo->dccStateMetaDataOffset           = m_dccStateMetaDataOffset[0];
+    pMetadataInfo->fastClearMetaDataOffset          = m_fastClearMetaDataOffset[0];
     pMetadataInfo->hisPretestMetaDataOffset         = m_hiSPretestsMetaDataOffset;
-    pMetadataInfo->fastClearEliminateMetaDataOffset = m_fastClearEliminateMetaDataOffset;
+    pMetadataInfo->fastClearEliminateMetaDataOffset = m_fastClearEliminateMetaDataOffset[0];
     pMetadataInfo->htileLookupTableOffset           = m_metaDataLookupTableOffsets[0];
 }
 
@@ -3507,7 +3611,9 @@ uint32 Image::GetPipeMisalignedMetadataFirstMip(
         uint32 firstMipInMetadataMipTail = UINT_MAX;
         for (uint32 mip = 0; mip < m_pParent->GetImageCreateInfo().mipLevels; ++mip)
         {
-            if (IsInMetadataMipTail(mip))
+            const SubresId  mipBaseSubResId = { baseSubRes.subresId.aspect, mip, 0 };
+
+            if (IsInMetadataMipTail(mipBaseSubResId))
             {
                 firstMipInMetadataMipTail = mip;
                 break;

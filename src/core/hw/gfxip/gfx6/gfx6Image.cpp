@@ -1507,7 +1507,7 @@ uint32* Image::UpdateDepthClearMetaData(
     clearData.dbDepthClear.f32All       = depthValue;
 
     // Base GPU virtual address of the Image's fast-clear metadata.
-    gpusize       gpuVirtAddr  = FastClearMetaDataAddr(range.startSubres.mipLevel);
+    gpusize       gpuVirtAddr  = FastClearMetaDataAddr(range.startSubres);
     const uint32* pSrcData     = nullptr;
     size_t        dwordsToCopy = 0;
 
@@ -1618,11 +1618,10 @@ uint32* Image::UpdateWaTcCompatZRangeMetaData(
 // Builds PM4 commands into the command buffer which will update this Image's fast-clear metadata to reflect the most
 // recent clear color. Returns the next unused DWORD in pCmdSpace.
 uint32* Image::UpdateColorClearMetaData(
-    uint32       startMip,
-    uint32       numMips,
-    const uint32 packedColor[4],
-    PM4Predicate predicate,
-    uint32*      pCmdSpace
+    const SubresRange&  clearRange,
+    const uint32        packedColor[4],
+    PM4Predicate        predicate,
+    uint32*             pCmdSpace
     ) const
 {
     // Verify that we have some sort of meta-data here that's capable of handling fast clears.
@@ -1634,7 +1633,7 @@ uint32* Image::UpdateColorClearMetaData(
     constexpr size_t MetaDataDwords = sizeof(Gfx6FastColorClearMetaData) / sizeof(uint32);
 
     WriteDataInfo writeData = {};
-    writeData.dstAddr   = FastClearMetaDataAddr(startMip);
+    writeData.dstAddr   = FastClearMetaDataAddr(clearRange.startSubres);
     writeData.engineSel = WRITE_DATA_ENGINE_PFP;
     writeData.dstSel    = WRITE_DATA_DST_SEL_MEMORY_ASYNC;
     writeData.predicate = predicate;
@@ -1642,7 +1641,11 @@ uint32* Image::UpdateColorClearMetaData(
     PAL_ASSERT(writeData.dstAddr != 0);
 
     // Issue a WRITE_DATA command to update the fast-clear metadata.
-    return pCmdSpace + cmdUtil.BuildWriteDataPeriodic(writeData, MetaDataDwords, numMips, packedColor, pCmdSpace);
+    return pCmdSpace + cmdUtil.BuildWriteDataPeriodic(writeData,
+                                                      MetaDataDwords,
+                                                      clearRange.numMips,
+                                                      packedColor,
+                                                      pCmdSpace);
 }
 
 // =====================================================================================================================
@@ -3029,15 +3032,15 @@ void Image::InitMetadataFill(
         }
     }
 
-    if (HasFastClearMetaData())
+    if (HasFastClearMetaData(range.startSubres.aspect))
     {
         // The DB Tile Summarizer requires a TC compatible clear value of stencil,
         // because TC isn't aware of DB_STENCIL_CLEAR register.
         // Please note the clear value of color or depth is also initialized together,
         // although it might be unnecessary.
         pCmdBuffer->CmdFillMemory(*boundMem.Memory(),
-                                  FastClearMetaDataOffset(range.startSubres.mipLevel),
-                                  FastClearMetaDataSize(range.numMips),
+                                  FastClearMetaDataOffset(range.startSubres),
+                                  FastClearMetaDataSize(range.startSubres.aspect, range.numMips),
                                   0);
     }
 
@@ -3098,7 +3101,7 @@ void Image::GetSharedMetadataInfo(
     pMetadataInfo->flags.shaderFetchable = Parent()->SubresourceInfo(0)->flags.supportMetaDataTexFetch;
 
     pMetadataInfo->dccStateMetaDataOffset           = m_dccStateMetaDataOffset;
-    pMetadataInfo->fastClearMetaDataOffset          = m_fastClearMetaDataOffset;
+    pMetadataInfo->fastClearMetaDataOffset          = m_fastClearMetaDataOffset[0];
     pMetadataInfo->hisPretestMetaDataOffset         = m_hiSPretestsMetaDataOffset;
     pMetadataInfo->fastClearEliminateMetaDataOffset = m_fastClearEliminateMetaDataOffset;
 }

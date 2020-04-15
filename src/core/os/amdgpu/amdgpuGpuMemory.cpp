@@ -282,6 +282,21 @@ Result GpuMemory::AllocateOrPinMemory(
                     }
                 }
 
+                if (pDevice->Settings().isLocalHeapPreferred &&
+                    (allocRequest.preferred_heap & AMDGPU_GEM_DOMAIN_VRAM))
+                {
+                    allocRequest.flags          &= ~AMDGPU_GEM_CREATE_CPU_GTT_USWC;
+                    allocRequest.preferred_heap &= ~AMDGPU_GEM_DOMAIN_GTT;
+
+                }
+
+                if (pDevice->Settings().enableNullCpuAccessFlag &&
+                    (allocRequest.preferred_heap & AMDGPU_GEM_DOMAIN_VRAM))
+                {
+                    allocRequest.flags &= ~AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED;
+                    allocRequest.flags &= ~AMDGPU_GEM_CREATE_NO_CPU_ACCESS;
+                }
+
                 if (pDevice->Settings().clearAllocatedLfb &&
                     (allocRequest.preferred_heap & AMDGPU_GEM_DOMAIN_VRAM))
                 {

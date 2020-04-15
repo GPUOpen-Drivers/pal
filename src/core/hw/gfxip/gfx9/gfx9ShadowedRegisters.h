@@ -578,7 +578,10 @@ const RegisterRange Gfx91NonShadowedRanges[] =
     },
     {
         Vega::mmRPB_PERFCOUNTER_LO,
-        Vega::mmRPB_PERFCOUNTER_RSLT_CNTL - Vega::mmRPB_PERFCOUNTER_LO + 1
+        // Renoir moved these up one slot. We don't have a Renoir-specific table so don't shadow the union of both
+        // RPB perfcounter ranges. We don't use the registers immediately before and after the perfcounters so it's
+        // safe that we're including one extra register.
+        Rn::mmRPB_PERFCOUNTER_RSLT_CNTL - Vega::mmRPB_PERFCOUNTER_LO + 1
     },
     {
         Gfx09::mmSDMA0_PERFMON_CNTL,

@@ -539,13 +539,13 @@ static constexpr SectionHeaderInfo SectionHeaderInfoTable[] =
     {
         // Append <name> to have .rel<name> where <name> is the section.
         SectionHeaderType::Rel,
-        ShfAlloc // [A]?
+        0
     },
     // SectionType::Rela
     {
         // Append <name> to have .rela<name> where <name> is the section.
         SectionHeaderType::Rela,
-        ShfAlloc // [A]?
+        0
     },
     // SectionType::ShStrTab
     {
@@ -560,7 +560,7 @@ static constexpr SectionHeaderInfo SectionHeaderInfoTable[] =
     // SectionType::SymTab
     {
         SectionHeaderType::SymTab,
-        ShfAlloc // [A]?
+        0
     },
 };
 

@@ -58,8 +58,6 @@ public:
     bool IsEventEnabled(uint32 eventId) const { return m_eventState[eventId]; }
     bool IsProviderRegistered() const { return (m_pServer != nullptr); }
 
-    void Flush();
-
     virtual EventProviderId GetId() const = 0;
 
     virtual const void* GetEventDescriptionData() const     = 0;
@@ -95,7 +93,13 @@ private:
     void EnableEvent(uint32 eventId) { m_eventState.SetBit(eventId); }
     void DisableEvent(uint32 eventId) { m_eventState.ResetBit(eventId); }
 
-    void Update(uint64 currentTime);
+    void Update();
+
+    // This function must only be called while the chunk mutex is held!
+    void UpdateFlushTimer();
+
+    // This function must only be called while the chunk mutex is held!
+    void Flush();
 
     void Enable()
     {
@@ -111,7 +115,10 @@ private:
         if (m_isEnabled)
         {
             // We want to flush any remaining queued events when disabling the provider.
+            m_chunkMutex.Lock();
             Flush();
+            m_chunkMutex.Unlock();
+
             m_isEnabled = false;
             OnDisable();
         }
@@ -141,6 +148,7 @@ private:
     bool                 m_isEnabled = false;
     EventTimer           m_eventTimer;
     uint32               m_flushFrequencyInMs;
+    uint32               m_eventDataIndex;
     Platform::AtomicLock m_chunkMutex;
     uint64               m_nextFlushTime;
     Vector<EventChunk*>  m_eventChunks;

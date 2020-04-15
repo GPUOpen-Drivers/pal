@@ -55,8 +55,8 @@ union LibraryCreateFlags
 /// structure to IDevice::CreateShaderLibrary().
 struct ShaderLibraryFunctionInfo
 {
-    char*     pSymbolName; ///< ELF Symbol name for the associated function.  Must not be null.
-    gpusize   gpuVirtAddr; ///< [out] GPU virtual address of the function.  This is computed by PAL during
+    const char*   pSymbolName; ///< ELF Symbol name for the associated function.  Must not be null.
+    gpusize       gpuVirtAddr; ///< [out] GPU virtual address of the function.  This is computed by PAL during
                               ///  library creation.
 };
 

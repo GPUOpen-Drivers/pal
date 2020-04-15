@@ -959,9 +959,9 @@ void Device::InitGfx6ChipProperties()
     pChipInfo->paScRasterCfg1     = m_gpuInfo.pa_sc_raster_cfg1[0];
 
     uint32 spiConfigCntl = 0;
-    ReadRegisters(mmSPI_CONFIG_CNTL, 1, 0xffffffff, 0, &spiConfigCntl);
-    pChipInfo->sqgEventsEnabled = ((spiConfigCntl & SPI_CONFIG_CNTL__ENABLE_SQG_TOP_EVENTS_MASK) &&
-                                   (spiConfigCntl & SPI_CONFIG_CNTL__ENABLE_SQG_BOP_EVENTS_MASK));
+    ReadRegisters(Gfx6::mmSPI_CONFIG_CNTL, 1, 0xffffffff, 0, &spiConfigCntl);
+    pChipInfo->sqgEventsEnabled = ((spiConfigCntl & Gfx6::SPI_CONFIG_CNTL__ENABLE_SQG_TOP_EVENTS_MASK) &&
+                                   (spiConfigCntl & Gfx6::SPI_CONFIG_CNTL__ENABLE_SQG_BOP_EVENTS_MASK));
 
     pChipInfo->gbAddrConfig             = m_gpuInfo.gb_addr_cfg;
     pChipInfo->mcArbRamcfg              = m_gpuInfo.mc_arb_ramcfg;
@@ -973,11 +973,11 @@ void Device::InitGfx6ChipProperties()
     {
     case GfxIpLevel::GfxIp6:
     case GfxIpLevel::GfxIp7:
-        ReadRegisters(mmSQ_THREAD_TRACE_MASK__SI__CI, 1,  0xffffffff, 0, &pChipInfo->sqThreadTraceMask);
+        ReadRegisters(Gfx6::mmSQ_THREAD_TRACE_MASK__SI__CI, 1,  0xffffffff, 0, &pChipInfo->sqThreadTraceMask);
         break;
     case GfxIpLevel::GfxIp8:
     case GfxIpLevel::GfxIp8_1:
-        ReadRegisters(mmSQ_THREAD_TRACE_MASK__VI, 1, 0xffffffff, 0, &pChipInfo->sqThreadTraceMask);
+        ReadRegisters(Gfx6::mmSQ_THREAD_TRACE_MASK__VI, 1, 0xffffffff, 0, &pChipInfo->sqThreadTraceMask);
         break;
     default:
         PAL_ASSERT_ALWAYS();

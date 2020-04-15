@@ -248,6 +248,12 @@ protected:
         bool                      computeResolve
         ) const override;
 
+    virtual void HwlImageToImageMissingPixelCopy(
+        GfxCmdBuffer*          pCmdBuffer,
+        const Pal::Image&      srcImage,
+        const Pal::Image&      dstImage,
+        const ImageCopyRegion& region) const override;
+
     static void MetaDataDispatch(
         GfxCmdBuffer*       pCmdBuffer,
         const Gfx9MaskRam*  pMaskRam,
@@ -272,6 +278,12 @@ private:
         bool                          includePadding,
         bool                          imageIsSrc) const;
 
+    void CmdCopyImageToImageViaPixels(
+        GfxCmdBuffer*          pCmdBuffer,
+        const Pal::Image&      srcImage,
+        const Pal::Image&      dstImage,
+        const ImageCopyRegion& region) const;
+
     static Extent3d GetCopyViaSrdCopyDims(
         const Pal::Image&  image,
         const SubresId&    subResId,
@@ -280,6 +292,11 @@ private:
     static bool UsePixelCopy(
         const Pal::Image&             image,
         const MemoryImageCopyRegion&  region);
+
+    static bool UsePixelCopyForCmdCopyImage(
+        const Pal::Image&      srcImage,
+        const Pal::Image&      dstImage,
+        const ImageCopyRegion& region);
 
     virtual void HwlFastColorClear(
         GfxCmdBuffer*      pCmdBuffer,
@@ -640,6 +657,7 @@ private:
     void ClearDccComputeSetFirstPixelOfBlock(
         GfxCmdBuffer*      pCmdBuffer,
         const Image&       dstImage,
+        Pal::ImageAspect   aspect,
         uint32             absMipLevel,
         uint32             startSlice,
         uint32             numSlices,

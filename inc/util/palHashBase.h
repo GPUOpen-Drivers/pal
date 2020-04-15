@@ -74,6 +74,7 @@ struct DefaultHashFunc
     void Init(uint32 minNumBits) const
     {
         PAL_ASSERT((Min(sizeof(Key), sizeof(uint32)) * 8) >= (minNumBits + ShiftNum));
+        PAL_ALERT_MSG(sizeof(Key) > sizeof(void*), "Usage of DefaultHashFunc for non-pointer types!");
     }
 };
 

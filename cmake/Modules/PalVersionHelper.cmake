@@ -23,28 +23,18 @@
  #
  #######################################################################################################################
 
-cmake_minimum_required(VERSION 3.5)
+if( (${CMAKE_VERSION} VERSION_GREATER "3.10") OR
+    (${CMAKE_VERSION} VERSION_EQUAL   "3.10") )
 
-# In cmake 3.10 you can use an actual include_guard.
-if (DEFINED PalHelperFunctions)
-    return()
-endif()
-set(PalHelperFunctions 1)
+    include_guard()
 
-# https://cmake.org/cmake/help/latest/policy/CMP0069.html
-# Don't use the old limited definition that only applies to the Intel Compiler for Linux
-# Use the new policy
-if(POLICY CMP0069)
-    cmake_policy(SET CMP0069 NEW)
-endif()
+else()
 
-# CMake 3.13+: option() honors normal variables.
-# Using the new policy forces option() to honor normal variables.
-# For example, a project that embeds another project as a subdirectory
-# may want to hard-code options of the subproject to build the way it needs.
-# Sadly this doesn't cover cache variables created by the set() call
-if(POLICY CMP0077)
-  cmake_policy(SET CMP0077 NEW)
+    if (DEFINED PalHelperFunctions)
+        return()
+    endif()
+    set(PalHelperFunctions 1)
+
 endif()
 
 function(set_ipo_compile_options)

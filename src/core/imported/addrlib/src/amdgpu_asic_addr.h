@@ -105,6 +105,7 @@
 #define AMDGPU_RAVEN_RANGE      0x01, 0x81
 #endif
 #define AMDGPU_RAVEN2_RANGE     0x81, 0x90
+#define AMDGPU_RENOIR_RANGE     0x91, 0xFF
 
 #define AMDGPU_NAVI10_RANGE     0x01, 0x0A
 
@@ -154,6 +155,7 @@
 #define ASICREV_IS_RAVEN(r)            ASICREV_IS(r, RAVEN)
 #endif
 #define ASICREV_IS_RAVEN2(r)           ASICREV_IS(r, RAVEN2)
+#define ASICREV_IS_RENOIR(r)           ASICREV_IS(r, RENOIR)
 
 #define ASICREV_IS_NAVI10_P(r)         ASICREV_IS(r, NAVI10)
 

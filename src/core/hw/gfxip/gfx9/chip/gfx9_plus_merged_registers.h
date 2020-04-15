@@ -25,8 +25,6 @@
 
 #pragma once
 
-
-
 //
 // Make sure the necessary endian defines are there.
 //
@@ -13937,6 +13935,17 @@ union PA_SC_ENHANCE_2 {
         unsigned int RESERVED_3                                                   :  1;
         unsigned int RESERVED_4                                                   :  1;
         unsigned int RESERVED_5                                                   :  1;
+        unsigned int                                                              :  5;
+        unsigned int PBB_TIMEOUT_THRESHOLD_MODE                                   :  1;
+        unsigned int RSVD                                                         : 20;
+    } rn;
+    struct {
+        unsigned int RESERVED_0                                                   :  1;
+        unsigned int RESERVED_1                                                   :  1;
+        unsigned int RESERVED_2                                                   :  1;
+        unsigned int RESERVED_3                                                   :  1;
+        unsigned int RESERVED_4                                                   :  1;
+        unsigned int RESERVED_5                                                   :  1;
         unsigned int                                                              :  2;
         unsigned int RSVD                                                         : 24;
     } vg12;
@@ -16198,6 +16207,17 @@ union PerfMonCtl1 {
         unsigned int VCSel                                                        :  5;
         unsigned int SubChanMask                                                  :  2;
         unsigned int Enable                                                       :  1;
+    } rn;
+    struct {
+        unsigned int EventSelect                                                  :  8;
+        unsigned int RdWrMask                                                     :  2;
+        unsigned int PriorityMask                                                 :  4;
+        unsigned int ReqSizeMask                                                  :  2;
+        unsigned int ChipSelMask                                                  :  4;
+        unsigned int ChipIDSel                                                    :  4;
+        unsigned int VCSel                                                        :  5;
+        unsigned int SubChanMask                                                  :  2;
+        unsigned int Enable                                                       :  1;
     } vg12;
 
     unsigned int u32All;
@@ -16217,6 +16237,17 @@ union PerfMonCtl2 {
         unsigned int SubChanMask                                                  :  2;
         unsigned int Enable                                                       :  1;
     } nv10;
+    struct {
+        unsigned int EventSelect                                                  :  8;
+        unsigned int RdWrMask                                                     :  2;
+        unsigned int PriorityMask                                                 :  4;
+        unsigned int ReqSizeMask                                                  :  2;
+        unsigned int ChipSelMask                                                  :  4;
+        unsigned int ChipIDSel                                                    :  4;
+        unsigned int VCSel                                                        :  5;
+        unsigned int SubChanMask                                                  :  2;
+        unsigned int Enable                                                       :  1;
+    } rn;
     struct {
         unsigned int EventSelect                                                  :  8;
         unsigned int RdWrMask                                                     :  2;
@@ -16256,6 +16287,17 @@ union PerfMonCtl3 {
         unsigned int VCSel                                                        :  5;
         unsigned int SubChanMask                                                  :  2;
         unsigned int Enable                                                       :  1;
+    } rn;
+    struct {
+        unsigned int EventSelect                                                  :  8;
+        unsigned int RdWrMask                                                     :  2;
+        unsigned int PriorityMask                                                 :  4;
+        unsigned int ReqSizeMask                                                  :  2;
+        unsigned int ChipSelMask                                                  :  4;
+        unsigned int ChipIDSel                                                    :  4;
+        unsigned int VCSel                                                        :  5;
+        unsigned int SubChanMask                                                  :  2;
+        unsigned int Enable                                                       :  1;
     } vg12;
 
     unsigned int u32All;
@@ -16285,6 +16327,17 @@ union PerfMonCtl4 {
         unsigned int VCSel                                                        :  5;
         unsigned int SubChanMask                                                  :  2;
         unsigned int Enable                                                       :  1;
+    } rn;
+    struct {
+        unsigned int EventSelect                                                  :  8;
+        unsigned int RdWrMask                                                     :  2;
+        unsigned int PriorityMask                                                 :  4;
+        unsigned int ReqSizeMask                                                  :  2;
+        unsigned int ChipSelMask                                                  :  4;
+        unsigned int ChipIDSel                                                    :  4;
+        unsigned int VCSel                                                        :  5;
+        unsigned int SubChanMask                                                  :  2;
+        unsigned int Enable                                                       :  1;
     } vg12;
 
     unsigned int u32All;
@@ -16304,6 +16357,17 @@ union PerfMonCtl5 {
         unsigned int SubChanMask                                                  :  2;
         unsigned int Enable                                                       :  1;
     } nv10;
+    struct {
+        unsigned int EventSelect                                                  :  8;
+        unsigned int RdWrMask                                                     :  2;
+        unsigned int PriorityMask                                                 :  4;
+        unsigned int ReqSizeMask                                                  :  2;
+        unsigned int ChipSelMask                                                  :  4;
+        unsigned int ChipIDSel                                                    :  4;
+        unsigned int VCSel                                                        :  5;
+        unsigned int SubChanMask                                                  :  2;
+        unsigned int Enable                                                       :  1;
+    } rn;
     struct {
         unsigned int EventSelect                                                  :  8;
         unsigned int RdWrMask                                                     :  2;
@@ -16576,6 +16640,14 @@ union RLC_SPM_ACCUM_CTRL {
         unsigned int StrobeResetAccum                                             :  1;
         unsigned int StrobeStartSpm                                               :  4;
         unsigned int RESERVED                                                     : 22;
+    } rn;
+    struct {
+        unsigned int                                                              :  3;
+        unsigned int StrobeSpmDoneInt                                             :  1;
+        unsigned int StrobeAccumDoneInt                                           :  1;
+        unsigned int StrobeResetAccum                                             :  1;
+        unsigned int StrobeStartSpm                                               :  4;
+        unsigned int RESERVED                                                     : 22;
     } rv2x;
 
     unsigned int u32All;
@@ -16588,6 +16660,10 @@ union RLC_SPM_ACCUM_CTRLRAM_ADDR {
         unsigned int addr                                                         :  9;
         unsigned int RESERVED                                                     : 23;
     } gfx101;
+    struct {
+        unsigned int addr                                                         :  8;
+        unsigned int RESERVED                                                     : 24;
+    } rn;
     struct {
         unsigned int addr                                                         :  8;
         unsigned int RESERVED                                                     : 24;
@@ -16664,6 +16740,15 @@ union RLC_SPM_ACCUM_MODE {
         unsigned int SE0_LoadOverride                                             :  1;
         unsigned int AutoResetPerfmonDisable                                      :  1;
         unsigned int RESERVED                                                     : 26;
+    } rn;
+    struct {
+        unsigned int                                                              :  1;
+        unsigned int AutoAccumEn                                                  :  1;
+        unsigned int AutoSpmEn                                                    :  1;
+        unsigned int Globals_LoadOverride                                         :  1;
+        unsigned int SE0_LoadOverride                                             :  1;
+        unsigned int AutoResetPerfmonDisable                                      :  1;
+        unsigned int RESERVED                                                     : 26;
     } rv2x;
 
     unsigned int u32All;
@@ -16680,6 +16765,10 @@ union RLC_SPM_ACCUM_SAMPLES_REQUESTED {
         unsigned int                                                              :  8;
         unsigned int RESERVED                                                     : 24;
     } gfx101;
+    struct {
+        unsigned int                                                              :  8;
+        unsigned int RESERVED                                                     : 24;
+    } rn;
     struct {
         unsigned int                                                              :  8;
         unsigned int RESERVED                                                     : 24;
@@ -16710,6 +16799,10 @@ union RLC_SPM_ACCUM_STATUS {
     struct {
         unsigned int                                                              : 16;
         unsigned int RESERVED                                                     : 16;
+    } rn;
+    struct {
+        unsigned int                                                              : 16;
+        unsigned int RESERVED                                                     : 16;
     } rv2x;
 
     unsigned int u32All;
@@ -16726,6 +16819,10 @@ union RLC_SPM_ACCUM_THRESHOLD {
         unsigned int                                                              : 16;
         unsigned int RESERVED                                                     : 16;
     } gfx101;
+    struct {
+        unsigned int                                                              : 16;
+        unsigned int RESERVED                                                     : 16;
+    } rn;
     struct {
         unsigned int                                                              : 16;
         unsigned int RESERVED                                                     : 16;
@@ -24883,6 +24980,11 @@ union SQ_CONFIG {
         unsigned int REPLAY_SLEEP_CNT                                             :  7;
         unsigned int                                                              :  4;
     } gfx101;
+    struct {
+        unsigned int DISABLE_BARRIER_WAITCNT                                      :  1;
+        unsigned int UNUSED                                                       :  6;
+        unsigned int                                                              : 25;
+    } rn;
     struct {
         unsigned int UNUSED                                                       :  7;
         unsigned int                                                              : 25;

@@ -177,8 +177,8 @@ struct LoadDataIndexPm4Img
     // PM4 load context regs packet to load the register data from memory
     union
     {
-        PM4PFP_LOAD_CONTEXT_REG       loadData;
-        PM4PFP_LOAD_CONTEXT_REG_INDEX loadDataIndex;
+        PM4_PFP_LOAD_CONTEXT_REG       loadData;
+        PM4_PFP_LOAD_CONTEXT_REG_INDEX loadDataIndex;
     };
 
     // Command space needed, in DWORDs. This field must always be last in the structure to not
@@ -1076,7 +1076,8 @@ private:
             uint64 waUtcL0InconsistentBigPage :  1;
             uint64 waClampGeCntlVertGrpSize   :  1;
             uint64 reserved4                  :  1;
-            uint64 reserved                   : 30;
+            uint64 ignoreDepthForBinSize      :  1; // Ignore depth when calculating Bin Size (unless no color bound)
+            uint64 reserved                   : 29;
         };
         uint64 u64All;
     } m_cachedSettings;

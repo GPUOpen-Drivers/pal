@@ -230,7 +230,7 @@ uint32* Pm4Optimizer::WriteOptimizedSetSeqContextRegs(
 // Writes an optimized version of the given SET_SH_REG_OFFSET packet into pCmdSpace
 // Returns a pointer to the next unused DWORD in pCmdSpace.
 uint32* Pm4Optimizer::WriteOptimizedSetShShRegOffset(
-    const PM4PFP_SET_SH_REG_OFFSET& setShRegOffset,
+    const PM4_PFP_SET_SH_REG_OFFSET& setShRegOffset,
     size_t                          packetSize,
     uint32*                         pCmdSpace)
 {
@@ -412,16 +412,16 @@ void Pm4Optimizer::HandlePm4LoadRegIndex(
 // =====================================================================================================================
 // This function must be defined in the cpp file because it calls a template function that is defined in this file.
 void Pm4Optimizer::HandleLoadContextRegsIndex(
-     const PM4PFP_LOAD_CONTEXT_REG_INDEX& loadData)
+     const PM4_PFP_LOAD_CONTEXT_REG_INDEX& loadData)
 {
-    HandlePm4LoadRegIndex<PM4PFP_LOAD_CONTEXT_REG_INDEX>(loadData, &m_cntxRegs);
+    HandlePm4LoadRegIndex<PM4_PFP_LOAD_CONTEXT_REG_INDEX>(loadData, &m_cntxRegs);
 }
 
 // =====================================================================================================================
 // Handle an occurrence of a PM4 SET SH REG OFFSET packet: there's no optimization we can do on these, but we need to
 // invalidate the state of the affected register(s) because this packet will set them to unknowable values.
 void Pm4Optimizer::HandlePm4SetShRegOffset(
-    const PM4PFP_SET_SH_REG_OFFSET& setShRegOffset)
+    const PM4_PFP_SET_SH_REG_OFFSET& setShRegOffset)
 {
     // Invalidate the register the packet is operating on.
     m_shRegs.state[setShRegOffset.bitfields2.reg_offset].flags.valid = 0;

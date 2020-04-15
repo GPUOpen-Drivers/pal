@@ -170,6 +170,8 @@ private:
 
     Result HandlePresentEvent(xcb_present_generic_event_t* pPresentEvent);
 
+    void SetAdaptiveSyncProperty(bool enable);
+
     static Result GetRootWindowFromOutput(
         OsDisplayHandle hDisplay,
         Device*         pDevice,

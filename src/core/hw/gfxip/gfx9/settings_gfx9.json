@@ -638,6 +638,11 @@
             "Name": "Gfx9UseDccMipMappedArrays",
             "Value": 4096,
             "Description": "Surfaces which have Arrays and MipMaps"
+          },
+          {
+            "Name": "Gfx10UseDccYuvPlanar",
+            "Value": 8192,
+            "Description": "YUV planar surfaces"
           }
         ],
         "Name": "Gfx9UseDcc"
@@ -1996,7 +2001,8 @@
       "VariableName": "minBatchBinSize",
       "Name": "MinBatchBinSize",
       "Flags": {
-        "IsHex": true
+        "IsHex": true,
+        "RereadSetting": true
       },
       "Type": "struct",
       "Structure": [
@@ -2019,6 +2025,23 @@
           }
         }
       ]
+    },
+    {
+      "Description": "If true, ignore Depth when calculating bin size if Color is bound.",
+      "Tags": [
+        "PBB and DFSM",
+        "Gfx9"
+      ],
+      "Defaults": {
+        "Default": false
+      },
+      "Flags": {
+        "RereadSetting": true
+      },
+      "Scope": "PrivatePalGfx9Key",
+      "Type": "bool",
+      "VariableName": "ignoreDepthForBinSizeIfColorBound",
+      "Name": "IgnoreDepthForBinSizeIfColorBound"
     },
     {
       "Description": "If true, binning is disabled when the PS has a discard instruction or can be trivially rejected.",
@@ -2977,6 +3000,20 @@
       "Type": "bool",
       "VariableName": "disableAceCsPartialFlush",
       "Name": "DisableAceCsPartialFlush"
+    },
+    {
+      "Description": "Force queue not to wait for idle before resize ringSet. This is a debug setting and strange behavior might occur in some applications.",
+      "Tags": [
+        "General",
+        "Gfx9"
+      ],
+      "Defaults": {
+        "Default": false
+      },
+      "Scope": "PrivatePalGfx9Key",
+      "Type": "bool",
+      "VariableName": "debugForceQueueNotWaitForIdle",
+      "Name": "DebugForceQueueNotWaitForIdle"
     }
   ]
 }

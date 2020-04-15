@@ -584,24 +584,26 @@ Result GpuMemory::Init(
                 (createInfo.flags.sdiExternal == 0))
             {
 #if !defined(PAL_BUILD_BRANCH) || (PAL_BUILD_BRANCH >= 1740)
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 516
-                // Check requested size so that we avoid padding out twice!
-                if (createInfo.size >= m_pDevice->GetPublicSettings()->largePageMinSizeForAlignmentInBytes)
+                const gpusize largePageSize = m_pDevice->MemoryProperties().largePageSupport.largePageSizeInBytes;
+
+                if (m_pDevice->MemoryProperties().largePageSupport.gpuVaAlignmentNeeded &&
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 584
+                    (createInfo.size >= m_pDevice->GetPublicSettings()->largePageMinSizeForVaAlignmentInBytes))
 #else
-                if (m_desc.size >= m_pDevice->GetPublicSettings()->largePageMinSizeForAlignmentInBytes)
+                    (createInfo.size >= m_pDevice->GetPublicSettings()->largePageMinSizeForAlignmentInBytes))
 #endif
                 {
-                    const gpusize largePageSize = m_pDevice->MemoryProperties().largePageSupport.largePageSizeInBytes;
+                    m_desc.alignment = Pow2Align(m_desc.alignment, largePageSize);
+                }
 
-                    if (m_pDevice->MemoryProperties().largePageSupport.sizeAlignmentNeeded)
-                    {
-                        m_desc.size = Pow2Align(m_desc.size, largePageSize);
-                    }
-
-                    if (m_pDevice->MemoryProperties().largePageSupport.gpuVaAlignmentNeeded)
-                    {
-                        m_desc.alignment = Pow2Align(m_desc.alignment, largePageSize);
-                    }
+                if (m_pDevice->MemoryProperties().largePageSupport.sizeAlignmentNeeded &&
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 584
+                    (createInfo.size >= m_pDevice->GetPublicSettings()->largePageMinSizeForSizeAlignmentInBytes))
+#else
+                    (createInfo.size >= m_pDevice->GetPublicSettings()->largePageMinSizeForAlignmentInBytes))
+#endif
+                {
+                    m_desc.size = Pow2Align(m_desc.size, largePageSize);
                 }
 #endif
             }
@@ -1109,7 +1111,11 @@ gpusize GpuMemory::GetPhysicalAddressAlignment() const
                 const gpusize fragmentSize = memProps.fragmentSize;
 
                 if (memProps.largePageSupport.sizeAlignmentNeeded &&
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 584
+                    (m_desc.size >= m_pDevice->GetPublicSettings()->largePageMinSizeForSizeAlignmentInBytes))
+#else
                     (m_desc.size >= m_pDevice->GetPublicSettings()->largePageMinSizeForAlignmentInBytes))
+#endif
                 {
                     clamp = memProps.largePageSupport.largePageSizeInBytes;
                 }

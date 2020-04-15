@@ -2273,6 +2273,28 @@ void CmdBuffer::CmdSetPredication(
 }
 
 // =====================================================================================================================
+void CmdBuffer::CmdSuspendPredication(
+    bool suspend)
+{
+    BeginFuncInfo funcInfo;
+    funcInfo.funcId       = InterfaceFunc::CmdBufferCmdSuspendPredication;
+    funcInfo.objectId     = m_objectId;
+    funcInfo.preCallTime  = m_pPlatform->GetTime();
+    m_pNextLayer->CmdSuspendPredication(suspend);
+    funcInfo.postCallTime = m_pPlatform->GetTime();
+
+    LogContext* pLogContext = nullptr;
+    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    {
+        pLogContext->BeginInput();
+        pLogContext->KeyAndValue("suspend", suspend);
+        pLogContext->EndInput();
+
+        m_pPlatform->LogEndFunc(pLogContext);
+    }
+}
+
+// =====================================================================================================================
 void CmdBuffer::CmdIf(
     const IGpuMemory& gpuMemory,
     gpusize           offset,

@@ -344,6 +344,8 @@ public:
         bool                predPolarity,
         bool                waitResults,
         bool                accumulateData) override;
+    virtual void CmdSuspendPredication(
+        bool suspend) override;
     virtual void CmdWriteTimestamp(
         HwPipePoint       pipePoint,
         const IGpuMemory& dstGpuMemory,
@@ -690,6 +692,7 @@ private:
     void ReplayCmdEndQuery(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdResolveQuery(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdSetPredication(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
+    void ReplayCmdSuspendPredication(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdWriteTimestamp(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdWriteImmediate(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdLoadBufferFilledSizes(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);

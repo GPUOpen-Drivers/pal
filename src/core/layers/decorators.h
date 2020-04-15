@@ -1818,6 +1818,12 @@ public:
                                         predPolarity, waitResults, accumulateData);
     }
 
+    virtual void CmdSuspendPredication(
+        bool suspend) override
+    {
+        m_pNextLayer->CmdSuspendPredication(suspend);
+    }
+
     virtual void CmdIf(
         const IGpuMemory& gpuMemory,
         gpusize           offset,
@@ -2769,12 +2775,12 @@ public:
         return m_pNextLayer->GetShaderFunctionStats(pShaderExportName, pShaderStats);
     }
 
-    virtual const ShaderLibraryFunctionInfo* GetShaderLibFunctionList() const
+    virtual const ShaderLibraryFunctionInfo* GetShaderLibFunctionList() const override
     {
         return m_pNextLayer->GetShaderLibFunctionList();
     }
 
-    virtual uint32 GetShaderLibFunctionCount() const
+    virtual uint32 GetShaderLibFunctionCount() const override
     {
         return m_pNextLayer->GetShaderLibFunctionCount();
     }

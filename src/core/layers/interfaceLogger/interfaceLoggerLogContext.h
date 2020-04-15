@@ -153,6 +153,7 @@ enum class InterfaceFunc : uint32
     CmdBufferCmdSetBufferFilledSize,
     CmdBufferCmdBindBorderColorPalette,
     CmdBufferCmdSetPredication,
+    CmdBufferCmdSuspendPredication,
     CmdBufferCmdIf,
     CmdBufferCmdElse,
     CmdBufferCmdEndIf,

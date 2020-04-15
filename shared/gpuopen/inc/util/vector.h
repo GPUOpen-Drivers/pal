@@ -123,6 +123,47 @@ namespace DevDriver
             return result;
         }
 
+        // Insert elements from another Vector to the back of the Vector
+        bool Append(const Vector<T>& other)
+        {
+            return Append(other.Data(), other.Size());
+        }
+
+        template <size_t Len>
+        bool Append(const T (&buffer)[Len])
+        {
+            return Append(buffer, Len);
+        }
+
+        // This is un-used by default, but may be overloaded for some Ts
+        bool Append(const T* pTs);
+
+        // Insert elements from a buffer to the back of the Vector
+        bool Append(const T* pTs, size_t countOfTs)
+        {
+            DD_ASSERT(pTs != nullptr);
+
+            // Pre-allocate all the new elements, since we know how many there are.
+            const size_t oldSize = Grow(countOfTs);
+
+            // Some types can be bulk-transferred with a memcpy.
+            // Instead of letting the compiler guess, we dictate when dealing with Pods.
+            if (Platform::IsPod<T>::Value)
+            {
+                memcpy(&m_pData[oldSize], pTs, (sizeof(T) * countOfTs));
+            }
+            else
+            {
+                for (size_t i = 0; i < countOfTs; ++i)
+                {
+                    m_pData[oldSize + i] = pTs[i];
+                }
+            }
+
+            // Pretend Grow() cannot fail, since we cannot check allocation failure with it right now.
+            return true;
+        }
+
         // Pop elements out of the Vector
         bool PopBack(T* pData)
         {
@@ -476,6 +517,21 @@ namespace DevDriver
             return *this;
         }
 
+        // Addition operator to add to the iterator
+        Iterator& operator+(size_t value)
+        {
+            if (m_pContainer != nullptr)
+            {
+                m_index += value;
+                if (m_index >= m_pContainer->m_size)
+                {
+                    m_index = 0;
+                    m_pContainer = nullptr;
+                }
+            }
+            return *this;
+        }
+
         // Indirection operator
         T& operator*() const
         {
@@ -517,6 +573,20 @@ namespace DevDriver
     inline constexpr typename Vector<T, defaultCapacity>::Iterator end(const Vector<T, defaultCapacity>& rhs)
     {
         return rhs.End();
+    }
+
+    // Specialized functions for using Vector<> like a String
+    template <>
+    inline bool Vector<char>::Append(const char* pStr)
+    {
+        return Append(pStr, strlen(pStr));
+    }
+
+    template <>
+    template <size_t Len>
+    inline bool Vector<char>::Append(const char (&str)[Len])
+    {
+        return Append(str, strlen(str));
     }
 
 } // DevDriver

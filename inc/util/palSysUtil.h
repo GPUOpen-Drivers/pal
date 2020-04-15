@@ -343,6 +343,33 @@ extern Result ListDir(
     size_t*      pBufferSize,
     const void*  pBuffer);
 
+/// Remove all files below threshold of a directory at the specified path.
+///
+/// @param [in] pPathName String specifying the absolute path to remove.
+/// @param [in] threshold The file time(from 1970/01/01 00:00:00) older(smaller) than threshold will be removed.
+///
+/// @returns Result::Success if all files are successfully removed. Otherwise, the
+///          following result codes may be returned:
+///          + Result::ErrorUnknown if the specified directory is failed to open/remove.
+///          + Result::ErrorInvalidValue if the parent directory does not exist.
+Result RemoveFilesOfDir(
+    const char* pPathName,
+    uint64      threshold);
+
+/// Get status of a directory at the specified path.
+///
+/// @param [in] pPathName String specifying the absolute path.
+/// @param [out] pTotalSize Size(byte) of all files
+/// @param [out] pOldestTime The oldest time(seconds from 1970/01/01 00:00:00) of all files
+///
+/// @returns Result::Success if all files are successfully removed. Otherwise, the
+///          following result codes may be returned:
+///          + Result::ErrorUnknown if the specified directory is failed to open.
+Result GetStatusOfDir(
+    const char* pPathName,
+    uint64*     pTotalSize,
+    uint64*     pOldestTime);
+
 /// Get the Process ID of the current process
 ///
 /// @returns The Process ID of the current process

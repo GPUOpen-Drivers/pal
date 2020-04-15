@@ -405,7 +405,7 @@ bool Device::AcqRelInitMaskRam(
 
     const bool usedCompute = RsrcProcMgr().InitMaskRam(pCmdBuf, pCmdStream, gfx9Image, subresRange);
 
-    if (gfx9Image.HasDccStateMetaData())
+    if (gfx9Image.HasDccStateMetaData(subresRange.startSubres.aspect))
     {
         // We need to initialize the Image's DCC state metadata to indicate that the Image will
         // become DCC compressed (or not) in upcoming operations.

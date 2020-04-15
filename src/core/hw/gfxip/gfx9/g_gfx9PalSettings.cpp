@@ -150,6 +150,7 @@ void SettingsLoader::SetupDefaults()
     m_settings.customBatchBinSize = 0x800080;
     m_settings.minBatchBinSize.width = 0;
     m_settings.minBatchBinSize.height = 0;
+    m_settings.ignoreDepthForBinSizeIfColorBound = false;
     m_settings.disableBinningPsKill = true;
     m_settings.disableBinningNoDb = false;
     m_settings.disableBinningBlendingOff = false;
@@ -158,10 +159,12 @@ void SettingsLoader::SetupDefaults()
     m_settings.binningMaxPrimPerBatch = 1024;
     m_settings.binningContextStatesPerBin = 1;
     m_settings.binningPersistentStatesPerBin = 1;
+
     m_settings.binningFpovsPerBatch = 63;
     m_settings.binningOptimalBinSelection = true;
     m_settings.disableBinningAppendConsume = true;
     m_settings.disableDfsm = true;
+
     m_settings.disableDfsmPsUav = true;
     m_settings.shaderPrefetchMethod = PrefetchCpDma;
     m_settings.prefetchCommandBuffers = Gfx9PrefetchCommandsBuildInfo;
@@ -213,6 +216,7 @@ void SettingsLoader::SetupDefaults()
     m_settings.depthStencilFastClearComputeThresholdSingleSampled = 2097152;
     m_settings.depthStencilFastClearComputeThresholdMultiSampled = 4194304;
     m_settings.disableAceCsPartialFlush = true;
+    m_settings.debugForceQueueNotWaitForIdle = false;
     m_settings.numSettings = g_gfx9PalNumSettings;
 }
 
@@ -676,6 +680,11 @@ void SettingsLoader::ReadSettings()
                            &m_settings.minBatchBinSize.height,
                            InternalSettingScope::PrivatePalGfx9Key);
 
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pIgnoreDepthForBinSizeIfColorBoundStr,
+                           Util::ValueType::Boolean,
+                           &m_settings.ignoreDepthForBinSizeIfColorBound,
+                           InternalSettingScope::PrivatePalGfx9Key);
+
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pDisableBinningPsKillStr,
                            Util::ValueType::Boolean,
                            &m_settings.disableBinningPsKill,
@@ -976,6 +985,11 @@ void SettingsLoader::ReadSettings()
                            &m_settings.disableAceCsPartialFlush,
                            InternalSettingScope::PrivatePalGfx9Key);
 
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pDebugForceQueueNotWaitForIdleStr,
+                           Util::ValueType::Boolean,
+                           &m_settings.debugForceQueueNotWaitForIdle,
+                           InternalSettingScope::PrivatePalGfx9Key);
+
 }
 
 // =====================================================================================================================
@@ -1018,6 +1032,11 @@ void SettingsLoader::RereadSettings()
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pNggLateAllocGsStr,
                            Util::ValueType::Uint,
                            &m_settings.nggLateAllocGs,
+                           InternalSettingScope::PrivatePalGfx9Key);
+
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pIgnoreDepthForBinSizeIfColorBoundStr,
+                           Util::ValueType::Boolean,
+                           &m_settings.ignoreDepthForBinSizeIfColorBound,
                            InternalSettingScope::PrivatePalGfx9Key);
 
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pDisableBinningPsKillStr,
@@ -1679,6 +1698,11 @@ void SettingsLoader::InitSettingsInfo()
     m_settingsInfoMap.Insert(286301360, info);
 
     info.type      = SettingType::Boolean;
+    info.pValuePtr = &m_settings.ignoreDepthForBinSizeIfColorBound;
+    info.valueSize = sizeof(m_settings.ignoreDepthForBinSizeIfColorBound);
+    m_settingsInfoMap.Insert(3483607475, info);
+
+    info.type      = SettingType::Boolean;
     info.pValuePtr = &m_settings.disableBinningPsKill;
     info.valueSize = sizeof(m_settings.disableBinningPsKill);
     m_settingsInfoMap.Insert(1197165395, info);
@@ -1978,6 +2002,11 @@ void SettingsLoader::InitSettingsInfo()
     info.valueSize = sizeof(m_settings.disableAceCsPartialFlush);
     m_settingsInfoMap.Insert(4181362005, info);
 
+    info.type      = SettingType::Boolean;
+    info.pValuePtr = &m_settings.debugForceQueueNotWaitForIdle;
+    info.valueSize = sizeof(m_settings.debugForceQueueNotWaitForIdle);
+    m_settingsInfoMap.Insert(1444246659, info);
+
 }
 
 // =====================================================================================================================
@@ -1999,7 +2028,7 @@ void SettingsLoader::DevDriverRegister()
             component.pfnSetValue = ISettingsLoader::SetValue;
             component.pSettingsData = &g_gfx9PalJsonData[0];
             component.settingsDataSize = sizeof(g_gfx9PalJsonData);
-            component.settingsDataHash = 841052370;
+            component.settingsDataHash = 1407408162;
             component.settingsDataHeader.isEncoded = true;
             component.settingsDataHeader.magicBufferId = 402778310;
             component.settingsDataHeader.magicBufferOffset = 0;

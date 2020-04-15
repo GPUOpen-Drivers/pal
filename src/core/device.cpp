@@ -540,8 +540,15 @@ Result Device::SetupPublicSettingDefaults()
     m_publicSettings.disableCommandBufferPreemption = false;
     m_publicSettings.disableSkipFceOptimization = false;
     m_publicSettings.dccBitsPerPixelThreshold = UINT_MAX;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 584
+    m_publicSettings.largePageMinSizeForVaAlignmentInBytes =
+        m_memoryProperties.largePageSupport.minSurfaceSizeForAlignmentInBytes;
+    m_publicSettings.largePageMinSizeForSizeAlignmentInBytes =
+        m_memoryProperties.largePageSupport.minSurfaceSizeForAlignmentInBytes;
+#else
     m_publicSettings.largePageMinSizeForAlignmentInBytes =
         m_memoryProperties.largePageSupport.minSurfaceSizeForAlignmentInBytes;
+#endif
     m_publicSettings.miscellaneousDebugString[0] = '\0';
     m_publicSettings.renderedByString[0] = '\0';
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 500

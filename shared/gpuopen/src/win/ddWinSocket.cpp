@@ -340,9 +340,11 @@ namespace DevDriver
 
     Result Socket::Send(const uint8* pData, size_t dataSize, size_t* pBytesSent)
     {
+        DD_ASSERT(pBytesSent != nullptr);
+
         Result result = Result::Error;
 
-        int retVal = send(m_osSocket, reinterpret_cast<const char*>(pData), static_cast<int>(dataSize), 0);
+        const int retVal = send(m_osSocket, reinterpret_cast<const char*>(pData), static_cast<int>(dataSize), 0);
         if (retVal > 0)
         {
             *pBytesSent = retVal;
@@ -364,14 +366,14 @@ namespace DevDriver
         return result;
     }
 
-    Result Socket::SendTo(const void *pSockAddr, size_t addrSize, const uint8 *pData, size_t dataSize)
+    Result Socket::SendTo(const void *pSockAddr, size_t addrSize, const uint8 *pData, size_t dataSize, size_t* pBytesSent)
     {
+        DD_ASSERT(pBytesSent != nullptr);
         DD_ASSERT(m_socketType == SocketType::Udp);
-        // DD_ASSERT(addrSize >= sizeof(sockaddr));
 
         Result result = Result::Error;
 
-        int retVal = sendto(m_osSocket,
+        const int retVal = sendto(m_osSocket,
             reinterpret_cast<const char*>(pData),
             static_cast<int>(dataSize),
             0,
@@ -380,11 +382,12 @@ namespace DevDriver
 
         if (retVal > 0)
         {
-            DD_ASSERT(static_cast<size_t>(retVal) == dataSize);
+            *pBytesSent = retVal;
             result = Result::Success;
         }
         else
         {
+            *pBytesSent = 0;
             if (retVal == 0)
             {
                 result = Result::Unavailable;
@@ -400,11 +403,11 @@ namespace DevDriver
 
     Result Socket::Receive(uint8* pBuffer, size_t bufferSize, size_t* pBytesReceived)
     {
-        //DD_ASSERT(m_socketType == SocketType::Tcp);
+        DD_ASSERT(pBytesReceived != nullptr);
 
         Result result = Result::Error;
 
-        int retVal = recv(m_osSocket, reinterpret_cast<char*>(pBuffer), static_cast<int>(bufferSize), 0);
+        const int retVal = recv(m_osSocket, reinterpret_cast<char*>(pBuffer), static_cast<int>(bufferSize), 0);
         if (retVal > 0)
         {
             *pBytesReceived = retVal;
@@ -425,14 +428,15 @@ namespace DevDriver
         return result;
     }
 
-    Result Socket::ReceiveFrom(void *pSockAddr, size_t *addrSize, uint8 *pBuffer, size_t bufferSize)
+    Result Socket::ReceiveFrom(void *pSockAddr, size_t *addrSize, uint8 *pBuffer, size_t bufferSize, size_t* pBytesReceived)
     {
         DD_ASSERT(m_socketType == SocketType::Udp);
         DD_ASSERT(*addrSize >= sizeof(sockaddr));
+        DD_ASSERT(pBytesReceived != nullptr);
 
         Result result = Result::Error;
 
-        int retVal = recvfrom(m_osSocket,
+        const int retVal = recvfrom(m_osSocket,
             reinterpret_cast<char*>(pBuffer),
             static_cast<int>(bufferSize),
             0,
@@ -441,10 +445,12 @@ namespace DevDriver
 
         if (retVal > 0)
         {
+            *pBytesReceived = retVal;
             result = Result::Success;
         }
         else
         {
+            *pBytesReceived = 0;
             if (retVal == 0)
             {
                 result = Result::Unavailable;

@@ -72,7 +72,7 @@ public:
     void WriteAdapterInfo(RmtFileChunkAdapterInfo adapterInfo);
 
     // Writes a snapshot chunk to the Rmt file.
-    void WriteSnapshot(const char* pSnapshotName);
+    void WriteSnapshot(const char* pSnapshotName, uint64 snapshotTimestamp = 0);
 
     // These functions are used to create and add token data to an RMT data chunk.
     void BeginDataChunk(uint64 processId, uint64 threadId);

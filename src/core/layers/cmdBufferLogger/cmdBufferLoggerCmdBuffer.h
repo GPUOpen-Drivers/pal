@@ -376,6 +376,8 @@ public:
         bool              predPolarity,
         bool              waitResults,
         bool              accumulateData) override;
+    virtual void CmdSuspendPredication(
+        bool suspend) override;
     virtual void CmdWriteTimestamp(
         HwPipePoint       pipePoint,
         const IGpuMemory& dstGpuMemory,

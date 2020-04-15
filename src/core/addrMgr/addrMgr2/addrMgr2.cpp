@@ -403,6 +403,8 @@ void AddrMgr2::InitTilingCaps(
     }
     else
     {
+
+        // We have to allow linear as linear format is required for some format types (1D-color and 32-32-32 for
         // some examples).  Address library should guarantee that we don't actually get a linear surface unless
         // it's the only option.
         pBlockSettings->linear        = 0;
@@ -427,6 +429,20 @@ void AddrMgr2::InitTilingCaps(
         {
             pBlockSettings->macroThin4KB  = 1;
             pBlockSettings->macroThick4KB = 1;
+        }
+    }
+
+    // GFX10 has addressing changes that allow YUV+DCC to be a possibility.  The need to address slices
+    // individually makes YUV+DCC an impossibility on GFX9 platforms; without any possibility for
+    // compression, there isn't any benefit to enabling tiling on YUV surfaces either.
+    if (IsGfx10(*m_pDevice)                         &&
+        (createInfo.tiling == ImageTiling::Optimal) &&
+        Formats::IsYuvPlanar(createInfo.swizzledFormat.format))
+    {
+        {
+            // Do allow some of the macro modes so that this surfac will potentially get compression.
+            pBlockSettings->macroThin64KB  = 0;
+            pBlockSettings->macroThick64KB = 0;
         }
     }
 }
@@ -454,14 +470,22 @@ ADDR2_SURFACE_FLAGS AddrMgr2::DetermineSurfaceFlags(
         flags.depth = 1;
         break;
     case ImageAspect::Color:
+        // We should always set the color flag for non-Depth/Stencil resources. Color block has more strict surface
+        // alignments and a texture may be the destination of an image copy.
+        flags.color = 1;
+        break;
+
     case ImageAspect::YCbCr:
     case ImageAspect::Y:
     case ImageAspect::CbCr:
     case ImageAspect::Cb:
     case ImageAspect::Cr:
-        // We should always set the color flag for non-Depth/Stencil resources. Color block has more strict surface
-        // alignments and a texture may be the destination of an image copy.
-        flags.color = 1;
+        if ((image.GetImageCreateInfo().usageFlags.colorTarget != 0)
+            )
+        {
+            // We should always set the color flag for YUV resources.
+            flags.color = 1;
+        }
         break;
     default:
         PAL_NEVER_CALLED();
@@ -1098,6 +1122,62 @@ uint32 AddrMgr2::GetBlockSize(
     PAL_ASSERT(blockSize != 0);
 
     return blockSize;
+}
+
+// =====================================================================================================================
+// Returns the HW tiling / swizzle mode that corresponds to the specified subresource.
+Pal::Gfx9::SWIZZLE_MODE_ENUM AddrMgr2::GetHwSwizzleMode(
+    AddrSwizzleMode  swizzleMode
+    ) const
+{
+    using namespace Pal::Gfx9;
+
+    SWIZZLE_MODE_ENUM  retSwizzle = SW_LINEAR;
+
+    {
+        static constexpr SWIZZLE_MODE_ENUM  hwSwizzleMode[]=
+        {
+            SW_LINEAR,        // ADDR_SW_LINEAR
+            SW_256B_S,        // ADDR_SW_256B_S
+            SW_256B_D,        // ADDR_SW_256B_D
+            SW_256B_R,        // ADDR_SW_256B_R
+            SW_4KB_Z,         // ADDR_SW_4KB_Z
+            SW_4KB_S,         // ADDR_SW_4KB_S
+            SW_4KB_D,         // ADDR_SW_4KB_D
+            SW_4KB_R,         // ADDR_SW_4KB_R
+            SW_64KB_Z,        // ADDR_SW_64KB_Z
+            SW_64KB_S,        // ADDR_SW_64KB_S
+            SW_64KB_D,        // ADDR_SW_64KB_D
+            SW_64KB_R,        // ADDR_SW_64KB_R
+            SW_VAR_Z__CORE,   // ADDR_SW_RESERVED0
+            SW_VAR_S__CORE,   // ADDR_SW_RESERVED1
+            SW_VAR_D__CORE,   // ADDR_SW_RESERVED2
+            SW_VAR_R__CORE,   // ADDR_SW_RESERVED3
+            SW_64KB_Z_T,      // ADDR_SW_64KB_Z_T
+            SW_64KB_S_T,      // ADDR_SW_64KB_S_T
+            SW_64KB_D_T,      // ADDR_SW_64KB_D_T
+            SW_64KB_R_T,      // ADDR_SW_64KB_R_T
+            SW_4KB_Z_X,       // ADDR_SW_4KB_Z_X
+            SW_4KB_S_X,       // ADDR_SW_4KB_S_X
+            SW_4KB_D_X,       // ADDR_SW_4KB_D_X
+            SW_4KB_R_X,       // ADDR_SW_4KB_R_X
+            SW_64KB_Z_X,      // ADDR_SW_64KB_Z_X
+            SW_64KB_S_X,      // ADDR_SW_64KB_S_X
+            SW_64KB_D_X,      // ADDR_SW_64KB_D_X
+            SW_64KB_R_X,      // ADDR_SW_64KB_R_X
+            SW_VAR_Z_X,       // ADDR_SW_VAR_Z_X
+            SW_VAR_S_X__CORE, // ADDR_SW_RESERVED4
+            SW_VAR_D_X__CORE, // ADDR_SW_RESERVED5
+            SW_VAR_R_X,       // ADDR_SW_VAR_R_X
+            SW_LINEAR,        // ADDR_SW_LINEAR_GENERAL
+        };
+
+        PAL_ASSERT (swizzleMode < Util::ArrayLen(hwSwizzleMode));
+
+        retSwizzle = hwSwizzleMode[swizzleMode];
+    }
+
+    return retSwizzle;
 }
 
 } // AddrMgr2

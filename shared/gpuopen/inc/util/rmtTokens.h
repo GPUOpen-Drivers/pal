@@ -80,6 +80,11 @@ enum RMT_PROCESS_EVENT_TYPE
 //      long debug resource names
 #define RMT_MAX_USERDATA_STRING_SIZE 1024u
 
+// For debug name event types, we need to reserve an extra five bytes at the end of the buffer in order to
+// encode the resource id into the data. 1 byte for a NULL to maintain string compatibility, and another 4
+// bytes for the resource id value.
+#define RMT_ENCODED_RESOURCE_ID_SIZE (static_cast<uint32>(sizeof(uint32) + 1))
+
 // Enumeration of Userdata event types
 enum RMT_USERDATA_EVENT_TYPE
 {
@@ -267,7 +272,7 @@ struct RMT_MSG_USERDATA : RMT_TOKEN_DATA
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// RMT_MSG_USERDATA with an embedded NULL-terminated string value
+// RMT_MSG_USERDATA with an embedded non-NULL-terminated string value
 struct RMT_MSG_USERDATA_EMBEDDED_STRING : RMT_TOKEN_DATA
 {
     uint8 bytes[RMT_MSG_USERDATA_TOKEN_BYTES_SIZE + RMT_MAX_USERDATA_STRING_SIZE];
@@ -275,8 +280,8 @@ struct RMT_MSG_USERDATA_EMBEDDED_STRING : RMT_TOKEN_DATA
     // Initializes the token fields
     RMT_MSG_USERDATA_EMBEDDED_STRING(uint8 delta, RMT_USERDATA_EVENT_TYPE type, const char* pString)
     {
-        // Store the string and a NULL byte
-        uint32 payloadSize = static_cast<uint32>(strlen(pString) + 1);
+        // Store the string
+        uint32 payloadSize = static_cast<uint32>(strlen(pString));
 
         // Truncate long payloads so that they fit
         DD_WARN(payloadSize <= RMT_MAX_USERDATA_STRING_SIZE);
@@ -297,6 +302,53 @@ struct RMT_MSG_USERDATA_EMBEDDED_STRING : RMT_TOKEN_DATA
         SetBits(payloadSize, 31, 12);
 
         memcpy(&bytes[RMT_MSG_USERDATA_TOKEN_BYTES_SIZE], pString, payloadSize);
+    }
+};
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// RMT_MSG_USERDATA variant for debug names
+struct RMT_MSG_USERDATA_DEBUG_NAME : RMT_TOKEN_DATA
+{
+    uint8 bytes[RMT_MSG_USERDATA_TOKEN_BYTES_SIZE + RMT_MAX_USERDATA_STRING_SIZE + RMT_ENCODED_RESOURCE_ID_SIZE];
+
+    // Initializes the token fields
+    RMT_MSG_USERDATA_DEBUG_NAME(uint8 delta, const char* pDebugName, uint32 resourceId)
+    {
+        // Make sure the true encoded size always matches our define
+        static_assert((sizeof(resourceId) + 1) == RMT_ENCODED_RESOURCE_ID_SIZE,
+                      "Encoded resource id size is incorrect!");
+
+        // Calcualte the string storage size
+        uint32 stringSize = static_cast<uint32>(strlen(pDebugName));
+
+        // Truncate long strings so that they fit
+        DD_WARN(stringSize <= RMT_MAX_USERDATA_STRING_SIZE);
+        stringSize = Platform::Min(stringSize, RMT_MAX_USERDATA_STRING_SIZE);
+
+        const uint32 payloadSize = stringSize + RMT_ENCODED_RESOURCE_ID_SIZE;
+
+        sizeInBytes = RMT_MSG_USERDATA_TOKEN_BYTES_SIZE + payloadSize;
+        pByteData   = &bytes[0];
+
+        // RMT_TOKEN_TYPE [3:0] Token type (see Table 2). Encoded to RMT_TOKEN_TYPE_ALLOCATE.
+        // DELTA      [7:4] The delta from the last token. In increments of 32-time units.
+        RMT_TOKEN_HEADER header(RMT_TOKEN_USERDATA, delta);
+        SetBits(header.byteVal, 7, 0);
+
+        // TYPE[11:8] The type of the user data being emitted encoded as RMT_USERDATAYPE.
+        SetBits(RMT_USERDATA_EVENT_TYPE_NAME, 11, 8);
+
+        // PAYLOAD_SIZE[31:12] The size of the payload that immediately follows this token, expressed in bytes.
+        SetBits(payloadSize, 31, 12);
+
+        // Copy the debug name into the payload first
+        memcpy(&bytes[RMT_MSG_USERDATA_TOKEN_BYTES_SIZE], pDebugName, stringSize);
+
+        // Append a NULL byte to the end of the string to maintain compatibility
+        bytes[RMT_MSG_USERDATA_TOKEN_BYTES_SIZE + stringSize] = '\0';
+
+        // Insert the resource id into the payload after the NULL
+        memcpy(&bytes[RMT_MSG_USERDATA_TOKEN_BYTES_SIZE + stringSize + 1], &resourceId, sizeof(resourceId));
     }
 };
 

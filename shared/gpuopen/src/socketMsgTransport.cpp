@@ -108,7 +108,7 @@ namespace DevDriver
     Result SocketMsgTransport::ReadMessage(MessageBuffer &messageBuffer, uint32 timeoutInMs)
     {
         bool canRead = m_connected;
-        bool exceptState = false;
+        bool exceptState = true;
         Result result = Result::Success;
 
         if (canRead & (timeoutInMs > 0))
@@ -122,6 +122,11 @@ namespace DevDriver
             {
                 size_t bytesReceived;
                 result = m_clientSocket.Receive(reinterpret_cast<uint8*>(&messageBuffer), sizeof(MessageBuffer), &bytesReceived);
+
+                if (result == Result::Success)
+                {
+                    result = ValidateMessageBuffer(&messageBuffer, bytesReceived);
+                }
             }
             else if (exceptState)
             {
@@ -137,10 +142,25 @@ namespace DevDriver
 
     Result SocketMsgTransport::WriteMessage(const MessageBuffer &messageBuffer)
     {
-        DD_ASSERT(m_connected);
-        const size_t totalMsgSize = (sizeof(MessageHeader) + messageBuffer.header.payloadSize);
-        size_t bytesSent = 0;
-        return m_clientSocket.Send(reinterpret_cast<const uint8*>(&messageBuffer), totalMsgSize, &bytesSent);
+        Result result = Result::Error;
+
+        if (m_connected)
+        {
+            if (messageBuffer.header.payloadSize <= kMaxPayloadSizeInBytes)
+            {
+                const size_t totalMsgSize = (sizeof(MessageHeader) + messageBuffer.header.payloadSize);
+
+                size_t bytesSent = 0;
+                result = m_clientSocket.Send(reinterpret_cast<const uint8*>(&messageBuffer), totalMsgSize, &bytesSent);
+
+                if (result == Result::Success)
+                {
+                    result = (bytesSent == totalMsgSize) ? Result::Success : Result::Error;
+                }
+            }
+        }
+
+        return result;
     }
 
     // ================================================================================================================

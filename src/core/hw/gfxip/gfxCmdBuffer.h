@@ -350,6 +350,9 @@ public:
         const IImage&   dstImage,
         const Offset3d& dstOffset);
 
+    virtual void CmdSuspendPredication(bool suspend)
+        { m_gfxCmdBufState.flags.packetPredicate = suspend ? 0 : 1; }
+
     virtual void CmdSaveComputeState(uint32 stateFlags) override;
     virtual void CmdRestoreComputeState(uint32 stateFlags) override;
 

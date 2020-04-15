@@ -55,6 +55,7 @@ size_t CalculateWorstCaseSize(size_t eventDataSize)
 BaseEventProvider::BaseEventProvider(const AllocCb& allocCb, uint32 numEvents, uint32 flushFrequencyInMs)
     : m_eventState(allocCb)
     , m_flushFrequencyInMs(flushFrequencyInMs)
+    , m_eventDataIndex(0)
     , m_nextFlushTime(0)
     , m_eventChunks(allocCb)
 {
@@ -63,18 +64,6 @@ BaseEventProvider::BaseEventProvider(const AllocCb& allocCb, uint32 numEvents, u
 
 BaseEventProvider::~BaseEventProvider()
 {
-}
-
-void BaseEventProvider::Flush()
-{
-    Platform::LockGuard<Platform::AtomicLock> chunkLock(m_chunkMutex);
-
-    if (m_eventChunks.IsEmpty() == false)
-    {
-        // Flush all chunks in our current stream into the event server's queue
-        m_pServer->EnqueueEventChunks(m_eventChunks.Size(), m_eventChunks.Data());
-        m_eventChunks.Reset();
-    }
 }
 
 Result BaseEventProvider::QueryEventWriteStatus(uint32 eventId) const
@@ -97,34 +86,50 @@ Result BaseEventProvider::WriteEvent(uint32 eventId, const void* pEventData, siz
 
     if (result == Result::Success)
     {
+        m_chunkMutex.Lock();
+
+        // @TODO: Support large event payloads by linking together multiple chunks
+        //        For now, we just fail to log events that are too large for a single chunk.
         const size_t requiredSize = CalculateWorstCaseSize(eventDataSize);
         if (requiredSize <= kEventChunkMaxDataSize)
         {
-            Platform::LockGuard<Platform::AtomicLock> chunkLock(m_chunkMutex);
-
             // Attempt to allocate a chunk from the server and write the data into it
             EventChunk* pChunk = nullptr;
             result = AcquireEventChunk(requiredSize, &pChunk);
+
+            uint8 smallDelta = 0;
             if (result == Result::Success)
             {
-                uint8 smallDelta = 0;
                 result = GenerateEventTimestamp(pChunk, &smallDelta);
+            }
 
-                if (result == Result::Success)
-                {
-                    result = pChunk->WriteEventDataToken(
-                        smallDelta,
-                        eventId,
-                        pEventData,
-                        eventDataSize);
-                }
+            if (result == Result::Success)
+            {
+                result = pChunk->WriteEventDataToken(
+                    smallDelta,
+                    eventId,
+                    m_eventDataIndex,
+                    pEventData,
+                    eventDataSize);
+            }
+
+            // Update the flush timer after each event write call to make sure events still get flushed
+            // under heavy event writing pressure.
+            if (result == Result::Success)
+            {
+                UpdateFlushTimer();
             }
         }
         else
         {
-            // @TODO: Support large event payloads by linking together multiple chunks
             result = Result::InsufficientMemory;
         }
+
+        // Increment the event data index value every time we attempt to write a new event.
+        // This value should be incremented even if we fail to write the event data to a chunk.
+        ++m_eventDataIndex;
+
+        m_chunkMutex.Unlock();
 
         if (result != Result::Success)
         {
@@ -148,8 +153,18 @@ ProviderDescriptionHeader BaseEventProvider::GetHeader() const
                                      m_isEnabled);
 }
 
-void BaseEventProvider::Update(uint64 currentTime)
+void BaseEventProvider::Update()
 {
+    Platform::LockGuard<Platform::AtomicLock> chunkLock(m_chunkMutex);
+
+    UpdateFlushTimer();
+}
+
+// This function must only be called while the chunk mutex is held!
+void BaseEventProvider::UpdateFlushTimer()
+{
+    const uint64 currentTime = Platform::GetCurrentTimeInMs();
+
     if (m_flushFrequencyInMs > 0)
     {
         if (currentTime >= m_nextFlushTime)
@@ -158,6 +173,17 @@ void BaseEventProvider::Update(uint64 currentTime)
 
             Flush();
         }
+    }
+}
+
+// This function must only be called while the chunk mutex is held!
+void BaseEventProvider::Flush()
+{
+    if (m_eventChunks.IsEmpty() == false)
+    {
+        // Flush all chunks in our current stream into the event server's queue
+        m_pServer->EnqueueEventChunks(m_eventChunks.Size(), m_eventChunks.Data());
+        m_eventChunks.Reset();
     }
 }
 
@@ -171,15 +197,10 @@ Result BaseEventProvider::AcquireEventChunk(size_t numBytesRequired, EventChunk*
     // We may have to start a new stream if we have none in our internal buffer.
     if (m_eventChunks.IsEmpty() == false)
     {
+        // We have existing chunks, attempt to acquire the most recently used chunk.
         pChunk = m_eventChunks[m_eventChunks.Size() - 1];
-    }
-    else
-    {
-        result = BeginEventStream(&pChunk);
-    }
 
-    if (result == Result::Success)
-    {
+        // If the most recently used chunk doesn't have enough space, then we need to allocate a new chunk.
         const size_t bytesRemaining = (sizeof(pChunk->data) - pChunk->dataSize);
         if (bytesRemaining < numBytesRequired)
         {
@@ -187,9 +208,13 @@ Result BaseEventProvider::AcquireEventChunk(size_t numBytesRequired, EventChunk*
             // This should already be handled by the calling code, but we assert here again just in case.
             DD_ASSERT(numBytesRequired <= sizeof(pChunk->data));
 
-            // Allocate a new chunk if this one can't hold all of our data.
             result = AllocateEventChunk(&pChunk);
         }
+    }
+    else
+    {
+        // We have no existing chunks, begin a new stream
+        result = BeginEventStream(&pChunk);
     }
 
     if (result == Result::Success)

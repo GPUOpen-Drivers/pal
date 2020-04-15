@@ -91,6 +91,7 @@
 
 #define AMDGPU_RAVEN_RANGE      0x01, 0x81
 #define AMDGPU_RAVEN2_RANGE     0x81, 0x90
+#define AMDGPU_RENOIR_RANGE     0x91, 0xFF
 
 #define AMDGPU_NAVI10_RANGE        0x01, 0x0A
 #define AMDGPU_NAVI14_RANGE        0x14, 0x28
@@ -135,6 +136,7 @@
 
 #define ASICREV_IS_RAVEN(r)            ASICREV_IS(r, RAVEN)
 #define ASICREV_IS_RAVEN2(r)           ASICREV_IS(r, RAVEN2)
+#define ASICREV_IS_RENOIR(r)           ASICREV_IS(r, RENOIR)
 
 #define ASICREV_IS_NAVI10(r)           ASICREV_IS(r, NAVI10)
 #define ASICREV_IS_NAVI14(r)           ASICREV_IS(r, NAVI14)
@@ -173,6 +175,7 @@
 
 #define AMDGPU_IS_RAVEN(f, r)      AMDGPU_IS(f, r, RV, RAVEN)
 #define AMDGPU_IS_RAVEN2(f, r)     AMDGPU_IS(f, r, RV, RAVEN2)
+#define AMDGPU_IS_RENOIR(f, r)     AMDGPU_IS(f, r, RV, RENOIR)
 
 #define AMDGPU_IS_NAVI(f, r)          FAMILY_IS_NV(f)
 #define AMDGPU_IS_NAVI10(f, r)        AMDGPU_IS(f, r, NV, NAVI10)
@@ -213,6 +216,8 @@
 #define DEVICE_ID_AI_VEGA20_P_66A0      0x66A0
 #define DEVICE_ID_RV2_15D8              0x15D8
 
+#define DEVICE_ID_RENOIR_1636           0x1636
+
 #define DEVICE_ID_NV_NAVI10_P_7310      0x7310
 #define DEVICE_ID_NV_NAVI14_M_7340      0x7340
 
@@ -245,6 +250,7 @@
 #define AI_VEGA12_P_A0              20
 #define AI_VEGA20_P_A0              40
 #define RAVEN2_A0                  0x81
+#define RENOIR_A0                  0x91
 
 #define NV_NAVI10_P_A2               3
 #define NV_NAVI14_M_A0              20
@@ -279,6 +285,7 @@
 #define PRID_AI_VEGA12_00           0x00
 #define PRID_AI_VEGA20_00           0x00
 #define PRID_RV_E2                  0xE2
+#define PRID_RENOIR_01              0x01
 
 #define PRID_NV_NAVI10_00           0x00
 #define PRID_NV_NAVI14_00           0x00

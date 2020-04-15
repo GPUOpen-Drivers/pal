@@ -1037,8 +1037,7 @@ void RsrcProcMgr::HwlFastColorClear(
     // Finally, tell the Image to issue commands which update its fast-clear meta-data.
     uint32* pCmdSpace = pStream->ReserveCommands();
 
-    pCmdSpace = gfx6Image.UpdateColorClearMetaData(clearRange.startSubres.mipLevel,
-                                                   clearRange.numMips,
+    pCmdSpace = gfx6Image.UpdateColorClearMetaData(clearRange,
                                                    packedColor,
                                                    packetPredicate,
                                                    pCmdSpace);
@@ -2430,19 +2429,8 @@ void RsrcProcMgr::DepthStencilClearGraphics(
     const bool  clearStencil = TestAnyFlagSet(clearMask, HtileAspectStencil);
     PAL_ASSERT(clearDepth || clearStencil); // How did we get here if there's nothing to clear!?
 
-    const InputAssemblyStateParams   inputAssemblyState   = { PrimitiveTopology::RectList };
-    const DepthBiasParams            depthBias            = { 0.0f, 0.0f, 0.0f };
-    const PointLineRasterStateParams pointLineRasterState = { 1.0f, 1.0f };
     const StencilRefMaskParams       stencilRefMasks      =
         { stencil, 0xFF, 0xFF, 0x01, stencil, 0xFF, 0xFF, 0x01, 0xFF };
-    const TriangleRasterStateParams  triangleRasterState  =
-    {
-        FillMode::Solid,        // frontface fillMode
-        FillMode::Solid,        // backface fillMode
-        CullMode::None,         // cullMode
-        FaceOrientation::Cw,    // frontFace
-        ProvokingVertex::First  // provokingVertex
-    };
 
     ViewportParams viewportInfo = { };
     viewportInfo.count                 = 1;
@@ -2492,12 +2480,9 @@ void RsrcProcMgr::DepthStencilClearGraphics(
 #endif
     pCmdBuffer->CmdBindMsaaState(GetMsaaState(dstImage.Parent()->GetImageCreateInfo().samples,
                                               dstImage.Parent()->GetImageCreateInfo().fragments));
-    pCmdBuffer->CmdSetDepthBiasState(depthBias);
-    pCmdBuffer->CmdSetInputAssemblyState(inputAssemblyState);
-    pCmdBuffer->CmdSetPointLineRasterState(pointLineRasterState);
+
+    BindCommonGraphicsState(pCmdBuffer);
     pCmdBuffer->CmdSetStencilRefMasks(stencilRefMasks);
-    pCmdBuffer->CmdSetTriangleRasterState(triangleRasterState);
-    pCmdBuffer->CmdSetClipRects(DefaultClipRectsRule, 0, nullptr);
 
     if (clearDepth && ((depth >= 0.0f) && (depth <= 1.0f)))
     {
@@ -2647,11 +2632,11 @@ void RsrcProcMgr::InitMaskRam(
 
     // If any of following conditions is met, that means we are going to use PFP engine to update the metadata
     // (e.g. UpdateColorClearMetaData(); UpdateDccStateMetaData() etc.)
-    if (pCmdBuffer->IsGraphicsSupported() &&
-        (dstImage.HasDccStateMetaData()         ||
-         dstImage.HasFastClearMetaData()        ||
-         dstImage.HasHiSPretestsMetaData()      ||
-         dstImage.HasWaTcCompatZRangeMetaData() ||
+    if (pCmdBuffer->IsGraphicsSupported()                        &&
+        (dstImage.HasDccStateMetaData()                          ||
+         dstImage.HasFastClearMetaData(range.startSubres.aspect) ||
+         dstImage.HasHiSPretestsMetaData()                       ||
+         dstImage.HasWaTcCompatZRangeMetaData()                  ||
          dstImage.HasFastClearEliminateMetaData()))
     {
         uint32* pCmdSpace = pCmdStream->ReserveCommands();
@@ -2701,7 +2686,7 @@ void RsrcProcMgr::InitMaskRam(
         }
     }
 
-    if (dstImage.HasFastClearMetaData())
+    if (dstImage.HasFastClearMetaData(range.startSubres.aspect))
     {
         if (dstImage.HasHtileData())
         {
@@ -2992,8 +2977,7 @@ void RsrcProcMgr::InitColorClearMetaData(
         static_cast<PM4Predicate>(pCmdBuffer->GetGfxCmdBufState().flags.packetPredicate);
 
     uint32* pCmdSpace = pCmdStream->ReserveCommands();
-    pCmdSpace = dstImage.UpdateColorClearMetaData(range.startSubres.mipLevel,
-                                                  range.numMips,
+    pCmdSpace = dstImage.UpdateColorClearMetaData(range,
                                                   packedColor,
                                                   packetPredicate,
                                                   pCmdSpace);

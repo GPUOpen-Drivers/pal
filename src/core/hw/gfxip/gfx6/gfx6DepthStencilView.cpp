@@ -316,7 +316,7 @@ void DepthStencilView::UpdateImageVa(
     {
         if (m_flags.hTile)
         {
-            pRegs->fastClearMetadataGpuVa = m_pImage->FastClearMetaDataAddr(MipLevel());
+            pRegs->fastClearMetadataGpuVa = m_pImage->FastClearMetaDataAddr(m_depthSubresource);
             PAL_ASSERT((pRegs->fastClearMetadataGpuVa & 0x3) == 0);
 
             pRegs->dbHtileDataBase.bits.BASE_256B = m_pImage->GetHtile256BAddr(m_depthSubresource);
@@ -652,9 +652,9 @@ uint32* DepthStencilView::UpdateZRangePrecision(
             const gpusize     metaDataVirtAddr  = GetImage()->GetWaTcCompatZRangeMetaDataAddr(MipLevel());
             const Pal::uint32 setContextRegSize = cmdUtil.GetSetDataHeaderSize() + 1;
 
-            // Build a COND_EXEC to check the workaround metadata. If the last clear value was 0.0f, the metadata will be
-            // non-zero and the register will be re-written, otherwise the metadata will be 0 and the register write will
-            // be skipped.
+            // Build a COND_EXEC to check the workaround metadata. If the last clear value was 0.0f, the metadata will
+            // be non-zero and the register will be re-written, otherwise the metadata will be 0 and the register
+            // write will be skipped.
             pCmdSpace += cmdUtil.BuildCondExec(metaDataVirtAddr, setContextRegSize, pCmdSpace);
         }
 

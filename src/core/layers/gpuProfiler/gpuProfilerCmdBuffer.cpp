@@ -2619,6 +2619,24 @@ void CmdBuffer::ReplayCmdSetPredication(
 }
 
 // =====================================================================================================================
+void CmdBuffer::CmdSuspendPredication(
+    bool suspend)
+{
+    InsertToken(CmdBufCallId::CmdSuspendPredication);
+    InsertToken(suspend);
+}
+
+// =====================================================================================================================
+void CmdBuffer::ReplayCmdSuspendPredication(
+    Queue*           pQueue,
+    TargetCmdBuffer* pTgtCmdBuffer)
+{
+    auto suspend = ReadTokenVal<bool>();
+
+    pTgtCmdBuffer->CmdSuspendPredication(suspend);
+}
+
+// =====================================================================================================================
 void CmdBuffer::CmdWriteTimestamp(
     HwPipePoint       pipePoint,
     const IGpuMemory& dstGpuMemory,
@@ -3602,6 +3620,7 @@ Result CmdBuffer::Replay(
         &CmdBuffer::ReplayCmdEndQuery,
         &CmdBuffer::ReplayCmdResolveQuery,
         &CmdBuffer::ReplayCmdSetPredication,
+        &CmdBuffer::ReplayCmdSuspendPredication,
         &CmdBuffer::ReplayCmdWriteTimestamp,
         &CmdBuffer::ReplayCmdWriteImmediate,
         &CmdBuffer::ReplayCmdLoadBufferFilledSizes,

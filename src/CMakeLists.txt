@@ -23,43 +23,46 @@
  #
  #######################################################################################################################
 
-include(PalVersionHelper NO_POLICY_SCOPE)
+include(PalVersionHelper)
+include(PalCompilerOptions)
 
 ### Create PAL Library #################################################################################################
-add_library(pal STATIC "")
-install(TARGETS pal DESTINATION ${CMAKE_SOURCE_DIR}/lib/${CMAKE_BUILD_TYPE}${TARGET_ARCHITECTURE_BITS})
+add_library(pal STATIC)
+install(TARGETS pal DESTINATION ${CMAKE_SOURCE_DIR}/lib/$<CONFIG>${TARGET_ARCHITECTURE_BITS})
 
 ### Compiler Options ###################################################################################################
-if(UNIX)
-    if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
-        # SEE: https://gcc.gnu.org/onlinedocs/gcc-6.2.0/gcc/Option-Summary.html#Option-Summary
-        # for a list of all options and documentation.
-        target_compile_options(pal PRIVATE $<$<COMPILE_LANGUAGE:CXX>:-pthread -fPIC -fcheck-new -fno-rtti -fno-math-errno>)
-        target_compile_options(pal PRIVATE $<$<COMPILE_LANGUAGE:CXX>:-Wno-unused -Wno-unused-parameter -Wno-ignored-qualifiers -Wno-missing-field-initializers>)
-        target_compile_options(pal PRIVATE $<$<COMPILE_LANGUAGE:CXX>:-fno-exceptions -std=c++0x -Wno-error=comment -Wno-comment -Wno-error=pointer-arith -Wno-pointer-arith -mpreferred-stack-boundary=6 -fno-threadsafe-statics -fmerge-all-constants -fms-extensions>)
+pal_compiler_options()
 
-        pal_setup_gcc_ipo()
-
-        message(STATUS "Configured ${PROJECT_NAME} compiler options for GCC.")
-    elseif("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang")
-        message(WARNING "Clang is untested.")
-    else()
-        message(FATAL_ERROR "Using unknown compiler.")
-    endif()
-
-    set(PAL_USE_PTHREAD TRUE)
-endif()
-
-# CMAKE-TODO: Where is this used?
-#target_compile_definitions(pal PRIVATE $<$<CONFIG:Debug>:DEBUG>)
+### Add Cmake files
+target_sources(pal PRIVATE
+    ${PROJECT_SOURCE_DIR}/CMakeLists.txt
+    ${PROJECT_SOURCE_DIR}/cmake/Modules/AmdCmakeHelper.cmake
+    ${PROJECT_SOURCE_DIR}/cmake/Modules/FindDRM.cmake
+    ${PROJECT_SOURCE_DIR}/cmake/Modules/FindWayland.cmake
+    ${PROJECT_SOURCE_DIR}/cmake/Modules/FindXCB.cmake
+    ${PROJECT_SOURCE_DIR}/cmake/Modules/PalCompilerOptions.cmake
+    ${PROJECT_SOURCE_DIR}/cmake/Modules/PalCompilerWarnings.cmake
+    ${PROJECT_SOURCE_DIR}/cmake/Modules/PalVersionHelper.cmake
+    ${PROJECT_SOURCE_DIR}/cmake/Modules/SetupAmdGlobalRoots.cmake
+)
 
 ### Build Definitions ##################################################################################################
-target_compile_definitions(pal PUBLIC PAL_CLIENT_INTERFACE_MAJOR_VERSION=${PAL_CLIENT_INTERFACE_MAJOR_VERSION})
-target_compile_definitions(pal PUBLIC PAL_CLIENT_INTERFACE_MINOR_VERSION=${PAL_CLIENT_INTERFACE_MINOR_VERSION})
+target_compile_definitions(pal PUBLIC
+    PAL_CLIENT_INTERFACE_MAJOR_VERSION=${PAL_CLIENT_INTERFACE_MAJOR_VERSION}
+    PAL_CLIENT_INTERFACE_MINOR_VERSION=${PAL_CLIENT_INTERFACE_MINOR_VERSION}
 
-target_compile_definitions(pal PRIVATE PAL_COMPILE_TYPE=${TARGET_ARCHITECTURE_BITS})
+    # Both of these macros are used to describe debug builds
+    $<$<CONFIG:Debug>:
+        PAL_DEBUG_BUILD
+        DEBUG
+    >
 
-target_compile_definitions(pal PRIVATE ${TARGET_ARCHITECTURE_ENDIANESS}ENDIAN_CPU)
+)
+
+target_compile_definitions(pal PRIVATE
+    PAL_COMPILE_TYPE=${TARGET_ARCHITECTURE_BITS}
+    ${TARGET_ARCHITECTURE_ENDIANESS}ENDIAN_CPU
+)
 
 if(PAL_BUILD_GPUOPEN)
     # Public because it is used in the interface.
@@ -70,18 +73,23 @@ if(PAL_ENABLE_DEVDRIVER_USAGE)
     target_compile_definitions(pal PRIVATE PAL_ENABLE_DEVDRIVER_USAGE=1)
 endif()
 
-target_compile_definitions(pal PUBLIC $<$<CONFIG:DEBUG>:PAL_DEBUG_BUILD>)
+target_compile_definitions(pal PUBLIC
+    # Turn on PRINT ASSERTS in Debug builds or when the users asks for it
+    PAL_ENABLE_PRINTS_ASSERTS=$<OR:$<CONFIG:Debug>,$<BOOL:${PAL_ENABLE_PRINTS_ASSERTS}>>
+)
 
-# CMAKE-TODO: Where are PAL_ENABLE_DEBUG_PRINTS and PAL_ENABLE_ASSERTS used?
-# Public because it is used in the interface.
-target_compile_definitions(pal PUBLIC PAL_ENABLE_PRINTS_ASSERTS=$<OR:$<CONFIG:DEBUG>,$<BOOL:${PAL_ENABLE_PRINTS_ASSERTS}>>)
+#if PAL_DEVELOPER_BUILD
+if(PAL_DEVELOPER_BUILD)
+    target_compile_definitions(pal PUBLIC PAL_DEVELOPER_BUILD)
+endif()
+#endif
 
 if(PAL_DBG_COMMAND_COMMENTS)
     target_compile_definitions(pal PRIVATE PAL_DBG_COMMAND_COMMENTS)
 endif()
 
 # Public because it is used in the interface.
-target_compile_definitions(pal PUBLIC PAL_MEMTRACK=$<OR:$<CONFIG:DEBUG>,$<BOOL:${PAL_MEMTRACK}>>)
+target_compile_definitions(pal PUBLIC PAL_MEMTRACK=$<OR:$<CONFIG:Debug>,$<BOOL:${PAL_MEMTRACK}>>)
 
 set(PAL_CLIENT_${PAL_CLIENT} 1)
 if(PAL_CLIENT_VULKAN)
@@ -92,9 +100,8 @@ else()
 endif()
 
 if(UNIX)
-        set(PAL_AMDGPU_BUILD ON)
-        # Public because it is used in the interface.
-        target_compile_definitions(pal PUBLIC PAL_AMDGPU_BUILD)
+    set(PAL_AMDGPU_BUILD ON)
+    target_compile_definitions(pal PUBLIC PAL_AMDGPU_BUILD)
 endif()
 
 target_compile_definitions(pal PRIVATE PAL_BUILD_CORE)
@@ -157,6 +164,15 @@ endif()
 
 # Other Includes
 target_include_directories(pal PRIVATE ${GLOBAL_ROOT_SRC_DIR}/drivers/inc/shared)
+
+if(IncludeInternalHeaders)
+    target_sources(pal PRIVATE
+        ${GLOBAL_ROOT_SRC_DIR}/drivers/inc/asic_reg/cwddeci.h
+        ${GLOBAL_ROOT_SRC_DIR}/drivers/inc/asic_reg/cwddedi.h
+        ${GLOBAL_ROOT_SRC_DIR}/drivers/inc/asic_reg/cwddepm.h
+        ${GLOBAL_ROOT_SRC_DIR}/drivers/inc/asic_reg/cwddeva.h
+    )
+endif()
 
 ### PAL Subprojects ####################################################################################################
 ### ADDRLIB ####################################################################
@@ -411,6 +427,10 @@ if(PAL_BUILD_CORE)
                 target_compile_definitions(pal PUBLIC PAL_BUILD_RAVEN2)
                 target_compile_definitions(pal PRIVATE CHIP_HDR_RAVEN2)
             endif()
+            if(PAL_BUILD_RENOIR)
+                target_compile_definitions(pal PUBLIC PAL_BUILD_RENOIR)
+                target_compile_definitions(pal PRIVATE CHIP_HDR_RENOIR)
+            endif()
             target_compile_definitions(pal PUBLIC PAL_BUILD_GFX10)
             target_compile_definitions(pal PRIVATE CHIP_HDR_GFX10)
             target_compile_definitions(pal PRIVATE CHIP_HDR__GFX10)
@@ -545,32 +565,38 @@ if(PAL_BUILD_CORE)
             )
         endif()
 
-        if(PAL_BUILD_CMD_BUFFER_LOGGER)
-            # CMAKE-TODO: To support multiple configurations for Visual Studio we can't use CMAKE_BUILD_TYPE
-            #target_compile_definitions(pal PRIVATE
-            #    PAL_BUILD_CMD_BUFFER_LOGGER=$<OR:?$<CONFIG:Debug$<BOOL:${PAL_BUILD_CMD_BUFFER_LOGGER}>>
-            #)
-            target_compile_definitions(pal PRIVATE PAL_BUILD_CMD_BUFFER_LOGGER)
+        # Save the generator expression so it is properly re-used
+        set(PAL_BUILD_CMD_BUFFER_LOGGER_OR_DEBUG $<OR:$<CONFIG:Debug>,$<BOOL:${PAL_BUILD_CMD_BUFFER_LOGGER}>>)
 
-            # Add the CmdBuffer Logger files here, only if the client wants CmdBuffer Logger support.
-            target_sources(pal PRIVATE
+        target_compile_definitions(pal PRIVATE
+            $<${PAL_BUILD_CMD_BUFFER_LOGGER_OR_DEBUG}:
+                PAL_BUILD_CMD_BUFFER_LOGGER
+            >
+        )
+
+        # Add the CmdBuffer Logger files here, only if the client wants CmdBuffer Logger support.
+        target_sources(pal PRIVATE
+            $<${PAL_BUILD_CMD_BUFFER_LOGGER_OR_DEBUG}:
                 core/layers/cmdBufferLogger/cmdBufferLoggerCmdBuffer.cpp
                 core/layers/cmdBufferLogger/cmdBufferLoggerDevice.cpp
                 core/layers/cmdBufferLogger/cmdBufferLoggerImage.cpp
                 core/layers/cmdBufferLogger/cmdBufferLoggerPlatform.cpp
                 core/layers/cmdBufferLogger/cmdBufferLoggerQueue.cpp
-            )
-        endif()
+            >
+        )
 
-        if(PAL_BUILD_INTERFACE_LOGGER)
-            # CMAKE-TODO: To support multiple configurations for Visual Studio we can't use CMAKE_BUILD_TYPE
-            #target_compile_definitions(pal PRIVATE
-            #    PAL_BUILD_INTERFACE_LOGGER=$<OR:?$<CONFIG:Debug$<BOOL:${PAL_BUILD_INTERFACE_LOGGER}>>
-            #)
-            target_compile_definitions(pal PRIVATE PAL_BUILD_INTERFACE_LOGGER)
+        # Save the generator expression so it is properly re-used
+        set(PAL_BUILD_INTERFACE_LOGGER_OR_DEBUG $<OR:$<CONFIG:Debug>,$<BOOL:${PAL_BUILD_INTERFACE_LOGGER}>>)
 
-            # Add the log layer files here, only if the client wants interface logging support.
-            target_sources(pal PRIVATE
+        target_compile_definitions(pal PRIVATE
+            $<${PAL_BUILD_INTERFACE_LOGGER_OR_DEBUG}:
+                PAL_BUILD_INTERFACE_LOGGER
+            >
+        )
+
+        # Add the log layer files here, only if the client wants interface logging support.
+        target_sources(pal PRIVATE
+            $<${PAL_BUILD_INTERFACE_LOGGER_OR_DEBUG}:
                 core/layers/interfaceLogger/interfaceLoggerBorderColorPalette.cpp
                 core/layers/interfaceLogger/interfaceLoggerCmdAllocator.cpp
                 core/layers/interfaceLogger/interfaceLoggerCmdBuffer.cpp
@@ -594,27 +620,31 @@ if(PAL_BUILD_CORE)
                 core/layers/interfaceLogger/interfaceLoggerQueueSemaphore.cpp
                 core/layers/interfaceLogger/interfaceLoggerScreen.cpp
                 core/layers/interfaceLogger/interfaceLoggerSwapChain.cpp
-            )
+            >
+        )
 
-        endif()
+        # Save the generator expression so it is properly re-used
+        set(PAL_BUILD_PM4_INSTRUMENTOR_OR_DEBUG $<OR:$<CONFIG:Debug>,$<BOOL:${PAL_BUILD_PM4_INSTRUMENTOR}>>)
 
-        if(PAL_BUILD_PM4_INSTRUMENTOR)
-            # CMAKE-TODO: To support multiple configurations for Visual Studio we can't use CMAKE_BUILD_TYPE
-            #target_compile_definitions(pal PRIVATE
-            #    PAL_BUILD_PM4_INSTRUMENTOR=$<OR:?$<CONFIG:Debug$<BOOL:${PAL_BUILD_PM4_INSTRUMENTOR}>>
-            #)
-            target_compile_definitions(pal PRIVATE PAL_BUILD_PM4_INSTRUMENTOR)
+        target_compile_definitions(pal PRIVATE
+            $<${PAL_BUILD_PM4_INSTRUMENTOR_OR_DEBUG}:
+                PAL_BUILD_PM4_INSTRUMENTOR
+            >
+        )
 
-            # Add the PM4 Instrumentor files here, only if the client wants Instrumentor support.
-            target_sources(pal PRIVATE
+        # Add the PM4 Instrumentor files here, only if the client wants Instrumentor support.
+        target_sources(pal PRIVATE
+            $<${PAL_BUILD_PM4_INSTRUMENTOR_OR_DEBUG}:
                 core/layers/pm4Instrumentor/pm4InstrumentorCmdBuffer.cpp
                 core/layers/pm4Instrumentor/pm4InstrumentorDevice.cpp
                 core/layers/pm4Instrumentor/pm4InstrumentorPlatform.cpp
                 core/layers/pm4Instrumentor/pm4InstrumentorQueue.cpp
-            )
-        endif()
-    endif()
-endif()
+            >
+        )
+
+    endif() # PAL_BUILD_LAYERS
+
+endif() # PAL_BUILD_CORE
 
 ### PAL gpuUtil ################################################################
 if(PAL_BUILD_GPUUTIL)
@@ -638,6 +668,7 @@ target_sources(pal PRIVATE
     util/md5.cpp
     util/memMapFile.cpp
     util/memoryCacheLayer.cpp
+    util/stringUtil.cpp
     util/sysMemory.cpp
     util/sysUtil.cpp
     util/trackingCacheLayer.cpp
@@ -665,17 +696,23 @@ if(UNIX)
 endif()
 
 ### Link Libraries #####################################################################################################
-if(PAL_USE_PTHREAD)
-    target_link_libraries(pal INTERFACE pthread)
-endif()
-
 if(UNIX)
     target_link_libraries(pal PRIVATE dl)
+
+        target_link_libraries(pal INTERFACE pthread)
+
 endif()
 
 ### Find headers and build source groups ###############################################################################
 target_find_headers(pal)
 target_source_groups(pal)
+
+if(IncludeInternalHeaders)
+    # This should be up in the "Other Includes" section but doing so breaks the generated MSVC project because it
+    # includes gigabytes of extra headers due to the target_find_headers macro. Technically speaking, we shouldn't
+    # use that macro and should instead manually specify the headers we use one-by-one.
+    target_include_directories(pal PRIVATE ${GLOBAL_ROOT_SRC_DIR}/drivers/inc/asic_reg)
+endif()
 
 ### Other ##############################################################################################################
 # CMAKE-TODO: The AMD Make builds have sub projects inherit compiler options / definitions.

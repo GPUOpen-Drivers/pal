@@ -101,6 +101,10 @@ Pal::Result CreateTimeGraphComputePipelines(
         pTable = timeGraphComputeBinaryTableRaven2;
         break;
 
+    case Pal::AsicRevision::Renoir:
+        pTable = timeGraphComputeBinaryTableRenoir;
+        break;
+
     case Pal::AsicRevision::Navi10:
         pTable = timeGraphComputeBinaryTableNavi10;
         break;

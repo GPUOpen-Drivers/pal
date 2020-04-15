@@ -256,6 +256,9 @@ static const MaxEventIds& GetEventLimits(
     case Pal::AsicRevision::Raven2:
         pOut = &Rv2xMaxPerfEventIds;
         break;
+    case Pal::AsicRevision::Renoir:
+        pOut = &RnMaxPerfEventIds;
+        break;
     case Pal::AsicRevision::Navi14:
     case Pal::AsicRevision::Navi10:
         pOut = &Nv10MaxPerfEventIds;
@@ -273,6 +276,16 @@ static void Gfx9UpdateRpbBlockInfo(
     const Pal::Device&    device,
     PerfCounterBlockInfo* pInfo)
 {
+    if (IsRenoir(device))
+    {
+        pInfo->regAddr = { Rn::mmRPB_PERFCOUNTER_RSLT_CNTL, {
+            { Rn::mmRPB_PERFCOUNTER0_CFG, 0, Rn::mmRPB_PERFCOUNTER_LO, Rn::mmRPB_PERFCOUNTER_HI },
+            { Rn::mmRPB_PERFCOUNTER1_CFG, 0, Rn::mmRPB_PERFCOUNTER_LO, Rn::mmRPB_PERFCOUNTER_HI },
+            { Rn::mmRPB_PERFCOUNTER2_CFG, 0, Rn::mmRPB_PERFCOUNTER_LO, Rn::mmRPB_PERFCOUNTER_HI },
+            { Rn::mmRPB_PERFCOUNTER3_CFG, 0, Rn::mmRPB_PERFCOUNTER_LO, Rn::mmRPB_PERFCOUNTER_HI },
+        }};
+    }
+    else
     {
         static_assert(Rv1x::mmRPB_PERFCOUNTER0_CFG == Vega::mmRPB_PERFCOUNTER0_CFG, "Must fix RPB registers!");
         static_assert(Rv2x::mmRPB_PERFCOUNTER0_CFG == Vega::mmRPB_PERFCOUNTER0_CFG, "Must fix RPB registers!");

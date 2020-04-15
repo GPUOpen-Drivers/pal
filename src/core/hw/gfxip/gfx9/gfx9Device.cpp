@@ -390,7 +390,6 @@ Result Device::Finalize()
 {
     Result result = GfxDevice::Finalize();
 
-
     if (result == Result::Success)
     {
         result = m_pRsrcProcMgr->LateInit();
@@ -1909,8 +1908,10 @@ void PAL_STDCALL Device::Gfx9CreateTypedBufferViewSrds(
         const SQ_SEL_XYZW01 SqSelW = Formats::Gfx9::HwSwizzle(pBufferViewInfo->swizzledFormat.swizzle.a);
 
         // Get the HW format enumeration corresponding to the view-specified format.
-        const BUF_DATA_FORMAT hwBufDataFmt = Formats::Gfx9::HwBufDataFmt(pFmtInfo, pBufferViewInfo->swizzledFormat.format);
-        const BUF_NUM_FORMAT  hwBufNumFmt  = Formats::Gfx9::HwBufNumFmt(pFmtInfo, pBufferViewInfo->swizzledFormat.format);
+        const BUF_DATA_FORMAT hwBufDataFmt = Formats::Gfx9::HwBufDataFmt(pFmtInfo,
+                                                                         pBufferViewInfo->swizzledFormat.format);
+        const BUF_NUM_FORMAT  hwBufNumFmt  = Formats::Gfx9::HwBufNumFmt(pFmtInfo,
+                                                                        pBufferViewInfo->swizzledFormat.format);
 
         // If we get an invalid format in the buffer SRD, then the memory operation involving this SRD will be dropped
         PAL_ASSERT(hwBufDataFmt != BUF_DATA_FORMAT_INVALID);
@@ -2303,8 +2304,10 @@ void PAL_STDCALL Device::Gfx9CreateImageViewSrds(
     void*                pOut)
 {
     PAL_ASSERT((pDevice != nullptr) && (pOut != nullptr) && (pImgViewInfo != nullptr) && (count > 0));
-    const auto*const pGfxDevice = static_cast<const Device*>(static_cast<const Pal::Device*>(pDevice)->GetGfxDevice());
-    const auto&      chipProp   = pGfxDevice->Parent()->ChipProperties();
+    const auto*const pPalDevice = static_cast<const Pal::Device*>(pDevice);
+    const auto*const pGfxDevice = static_cast<const Device*>(pPalDevice->GetGfxDevice());
+    const auto&      chipProp   = pPalDevice->ChipProperties();
+    const auto*      pAddrMgr   = static_cast<const AddrMgr2::AddrMgr2*>(pPalDevice->GetAddrMgr());
     const auto*const pFmtInfo   = MergedChannelFmtInfoTbl(chipProp.gfxLevel,
                                                           &pGfxDevice->GetPlatform()->PlatformSettings());
 
@@ -2314,6 +2317,7 @@ void PAL_STDCALL Device::Gfx9CreateImageViewSrds(
     {
         const ImageViewInfo&   viewInfo        = pImgViewInfo[i];
         const Image&           image           = *GetGfx9Image(viewInfo.pImage);
+        const Gfx9MaskRam*     pMaskRam        = image.GetPrimaryMaskRam(viewInfo.subresRange.startSubres.aspect);
         const auto*const       pParent         = static_cast<const Pal::Image*>(viewInfo.pImage);
         const ImageInfo&       imageInfo       = pParent->GetImageInfo();
         const ImageCreateInfo& imageCreateInfo = pParent->GetImageCreateInfo();
@@ -2665,12 +2669,12 @@ void PAL_STDCALL Device::Gfx9CreateImageViewSrds(
             const AddrSwizzleMode view3dAs2dReadSwizzleMode = static_cast<AddrSwizzleMode>(surfSetting.swizzleMode - 1);
             PAL_ASSERT(AddrMgr2::IsStandardSwzzle(view3dAs2dReadSwizzleMode));
 
-            srd.word3.bits.SW_MODE = AddrMgr2::GetHwSwizzleMode(view3dAs2dReadSwizzleMode);
+            srd.word3.bits.SW_MODE = pAddrMgr->GetHwSwizzleMode(view3dAs2dReadSwizzleMode);
         }
         else
 #endif
         {
-            srd.word3.bits.SW_MODE = AddrMgr2::GetHwSwizzleMode(surfSetting.swizzleMode);
+            srd.word3.bits.SW_MODE = pAddrMgr->GetHwSwizzleMode(surfSetting.swizzleMode);
         }
 
         const bool isMultiSampled = (imageCreateInfo.samples > 1);
@@ -2750,8 +2754,11 @@ void PAL_STDCALL Device::Gfx9CreateImageViewSrds(
 #endif
 
         srd.word5.bits.BASE_ARRAY        = baseArraySlice;
-        srd.word5.bits.META_PIPE_ALIGNED = Gfx9MaskRam::IsPipeAligned(&image);
-        srd.word5.bits.META_RB_ALIGNED   = Gfx9MaskRam::IsRbAligned(&image);
+        if (pMaskRam != nullptr)
+        {
+            srd.word5.bits.META_PIPE_ALIGNED = pMaskRam->PipeAligned();
+            srd.word5.bits.META_RB_ALIGNED   = pGfxDevice->IsRbAligned();
+        }
 
         // Depth images obviously don't have an alpha component, so don't bother...
         if ((pParent->IsDepthStencil() == false) && pBaseSubResInfo->flags.supportMetaDataTexFetch)
@@ -2830,7 +2837,7 @@ void PAL_STDCALL Device::Gfx9CreateImageViewSrds(
                         // The color image's meta-data always points at the DCC surface.  Any existing cMask or fMask
                         // meta-data is only required for compressed texture fetches of MSAA surfaces, and that feature
                         // requires enabling an extension and use of an fMask image view.
-                        srd.word7.bits.META_DATA_ADDRESS = image.GetDcc256BAddr();
+                        srd.word7.bits.META_DATA_ADDRESS = image.GetDcc256BAddr(baseSubResId);
                     }
                 }
             } // end check for image supporting meta-data tex fetches
@@ -2863,6 +2870,7 @@ void PAL_STDCALL Device::Gfx10CreateImageViewSrds(
 {
     PAL_ASSERT((pDevice != nullptr) && (pOut != nullptr) && (pImgViewInfo != nullptr) && (count > 0));
     const auto*const pPalDevice = static_cast<const Pal::Device*>(pDevice);
+    const auto*      pAddrMgr   = static_cast<const AddrMgr2::AddrMgr2*>(pPalDevice->GetAddrMgr());
     const auto&      chipProps  = pPalDevice->ChipProperties();
     const auto*const pFmtInfo   = MergedChannelFlatFmtInfoTbl(chipProps.gfxLevel,
                                                               &pPalDevice->GetPlatform()->PlatformSettings());
@@ -2876,6 +2884,7 @@ void PAL_STDCALL Device::Gfx10CreateImageViewSrds(
 
         const auto*const       pParent         = static_cast<const Pal::Image*>(viewInfo.pImage);
         const Image&           image           = static_cast<const Image&>(*(pParent->GetGfxImage()));
+        const Gfx9MaskRam*     pMaskRam        = image.GetPrimaryMaskRam(viewInfo.subresRange.startSubres.aspect);
         const ImageInfo&       imageInfo       = pParent->GetImageInfo();
         const ImageCreateInfo& imageCreateInfo = pParent->GetImageCreateInfo();
         const bool             imgIsBc         = Formats::IsBlockCompressed(imageCreateInfo.swizzledFormat.format);
@@ -3152,7 +3161,7 @@ void PAL_STDCALL Device::Gfx10CreateImageViewSrds(
         srd.dst_sel_y = Formats::Gfx9::HwSwizzle(viewInfo.swizzledFormat.swizzle.g);
         srd.dst_sel_z = Formats::Gfx9::HwSwizzle(viewInfo.swizzledFormat.swizzle.b);
         srd.dst_sel_w = Formats::Gfx9::HwSwizzle(viewInfo.swizzledFormat.swizzle.a);
-        srd.sw_mode   = AddrMgr2::GetHwSwizzleMode(surfSetting.swizzleMode);
+        srd.sw_mode   = pAddrMgr->GetHwSwizzleMode(surfSetting.swizzleMode);
 
         const bool isMultiSampled = (imageCreateInfo.samples > 1);
 
@@ -3229,7 +3238,7 @@ void PAL_STDCALL Device::Gfx10CreateImageViewSrds(
 #endif
 
         srd.base_array        = baseArraySlice;
-        srd.meta_pipe_aligned = Gfx9MaskRam::IsPipeAligned(&image);
+        srd.meta_pipe_aligned = ((pMaskRam != nullptr) ? pMaskRam->PipeAligned() : 0);
         srd.iterate_256       = image.GetIterate256(pSubResInfo);
         srd.corner_samples    = imageCreateInfo.usageFlags.cornerSampling;
 
@@ -3269,14 +3278,17 @@ void PAL_STDCALL Device::Gfx10CreateImageViewSrds(
             // baseSubResId.
             if ((imgIsYuvPlanar && (viewInfo.subresRange.numSlices == 1)) || overrideBaseResource)
             {
-                gpusize gpuVirtAddress = pParent->GetSubresourceBaseAddr(baseSubResId);
+                const gpusize gpuVirtAddress = pParent->GetSubresourceBaseAddr(baseSubResId);
+                const auto*   pTileInfo      = AddrMgr2::GetTileInfo(pParent, baseSubResId);
+                const gpusize pipeBankXor    = pTileInfo->pipeBankXor;
+                gpusize addrWithXor          = gpuVirtAddress | (pipeBankXor << 8);
 
                 if (overrideZRangeOffset)
                 {
-                    gpuVirtAddress += viewInfo.zRange.offset * pBaseSubResInfo->depthPitch;
+                    addrWithXor += viewInfo.zRange.offset * pBaseSubResInfo->depthPitch;
                 }
 
-                srd.base_address = gpuVirtAddress >> 8;
+                srd.base_address = addrWithXor >> 8;
             }
             else
             {
@@ -3293,12 +3305,12 @@ void PAL_STDCALL Device::Gfx10CreateImageViewSrds(
                 }
                 else
                 {
-                    const auto& dccControl = image.GetDcc()->GetControlReg();
+                    const auto& dccControl = image.GetDcc(viewInfo.subresRange.startSubres.aspect)->GetControlReg();
 
                     // The color image's meta-data always points at the DCC surface.  Any existing cMask or fMask
                     // meta-data is only required for compressed texture fetches of MSAA surfaces, and that feature
                     // requires enabling an extension and use of an fMask image view.
-                    srd.meta_data_address = image.GetDcc256BAddr();
+                    srd.meta_data_address = image.GetDcc256BAddr(baseSubResId);
 
                     srd.max_compressed_block_size   = dccControl.bits.MAX_COMPRESSED_BLOCK_SIZE;
 
@@ -3373,11 +3385,15 @@ void Device::Gfx9CreateFmaskViewSrdsInternal(
     const Image&           image           = *GetGfx9Image(viewInfo.pImage);
     const Gfx9Fmask*const  pFmask          = image.GetFmask();
     const auto*const       pParent         = static_cast<const Pal::Image*>(viewInfo.pImage);
+    const auto*            pPalDevice      = pParent->GetDevice();
+    const Device*          pGfxDevice      = static_cast<const Device*>(pPalDevice->GetGfxDevice());
+    const auto*            pAddrMgr        = static_cast<const AddrMgr2::AddrMgr2*>(pPalDevice->GetAddrMgr());
     const ImageCreateInfo& createInfo      = pParent->GetImageCreateInfo();
     const bool             isUav           = (hasInternalInfo && (pFmaskViewInternalInfo->flags.fmaskAsUav == 1));
     const SubResourceInfo& subresInfo      = *pParent->SubresourceInfo(slice0Id);
     const auto*            pAddrOutput     = image.GetAddrOutput(&subresInfo);
     const Gfx9Fmask&       fmask           = *image.GetFmask();
+    const Gfx9Cmask*       pCmask          = image.GetCmask();
     const auto&            fMaskAddrOut    = fmask.GetAddrOutput();
 
     PAL_ASSERT(createInfo.extent.depth == 1);
@@ -3400,7 +3416,7 @@ void Device::Gfx9CreateFmaskViewSrdsInternal(
     pSrd->word3.bits.TYPE         = ((createInfo.arraySize > 1) ? SQ_RSRC_IMG_2D_ARRAY : SQ_RSRC_IMG_2D);
     pSrd->word3.bits.BASE_LEVEL   = 0;
     pSrd->word3.bits.LAST_LEVEL   = 0;
-    pSrd->word3.bits.SW_MODE      = AddrMgr2::GetHwSwizzleMode(pFmask->GetSwizzleMode());
+    pSrd->word3.bits.SW_MODE      = pAddrMgr->GetHwSwizzleMode(pFmask->GetSwizzleMode());
 
     // On GFX9, "depth" replaces the deprecated "last_array" from pre-GFX9 ASICs.
     pSrd->word4.bits.DEPTH = (viewInfo.baseArraySlice + viewInfo.arraySize - 1);
@@ -3409,8 +3425,8 @@ void Device::Gfx9CreateFmaskViewSrdsInternal(
     pSrd->word5.bits.BASE_ARRAY        = viewInfo.baseArraySlice;
     pSrd->word5.bits.ARRAY_PITCH       = 0; // msaa surfaces don't support texture quilting
     pSrd->word5.bits.META_LINEAR       = 0; // linear meta-surfaces aren't supported in gfx9
-    pSrd->word5.bits.META_PIPE_ALIGNED = Gfx9MaskRam::IsPipeAligned(&image);
-    pSrd->word5.bits.META_RB_ALIGNED   = Gfx9MaskRam::IsRbAligned(&image);
+    pSrd->word5.bits.META_PIPE_ALIGNED = pCmask->PipeAligned();
+    pSrd->word5.bits.META_RB_ALIGNED   = pGfxDevice->IsRbAligned();
     pSrd->word5.bits.MAX_MIP           = 0;
 
     if (image.Parent()->GetBoundGpuMemory().IsBound())
@@ -3449,7 +3465,10 @@ void Device::Gfx10CreateFmaskViewSrdsInternal(
     const SubresId         slice0Id        = { ImageAspect::Fmask, 0, 0 };
     const Image&           image           = *GetGfx9Image(viewInfo.pImage);
     const Gfx9Fmask*const  pFmask          = image.GetFmask();
+    const Gfx9Cmask*       pCmask          = image.GetCmask();
     const auto*const       pParent         = static_cast<const Pal::Image*>(viewInfo.pImage);
+    const auto*            pPalDevice      = pParent->GetDevice();
+    const auto*            pAddrMgr        = static_cast<const AddrMgr2::AddrMgr2*>(pPalDevice->GetAddrMgr());
     const ImageCreateInfo& createInfo      = pParent->GetImageCreateInfo();
     const bool             isUav           = (hasInternalInfo && (pFmaskViewInternalInfo->flags.fmaskAsUav == 1));
     const SubResourceInfo& subresInfo      = *pParent->SubresourceInfo(slice0Id);
@@ -3486,13 +3505,13 @@ void Device::Gfx10CreateFmaskViewSrdsInternal(
     pSrd->type         = ((createInfo.arraySize > 1) ? SQ_RSRC_IMG_2D_ARRAY : SQ_RSRC_IMG_2D);
     pSrd->base_level   = 0;
     pSrd->last_level   = 0;
-    pSrd->sw_mode      = AddrMgr2::GetHwSwizzleMode(pFmask->GetSwizzleMode());
+    pSrd->sw_mode      = pAddrMgr->GetHwSwizzleMode(pFmask->GetSwizzleMode());
 
     // On GFX10, "depth" replaces the deprecated "last_array" from pre-GFX9 ASICs.
     pSrd->depth = (viewInfo.baseArraySlice + viewInfo.arraySize - 1);
 
     pSrd->base_array        = viewInfo.baseArraySlice;
-    pSrd->meta_pipe_aligned = Gfx9MaskRam::IsPipeAligned(&image);
+    pSrd->meta_pipe_aligned = pCmask->PipeAligned();
 
     if (image.Parent()->GetBoundGpuMemory().IsBound())
     {
@@ -4170,6 +4189,16 @@ void InitializeGpuChipProperties(
             pInfo->gfx9.numTccBlocks         = 2;
             pInfo->gfx9.maxNumCuPerSh        = 3;
             pInfo->gfx9.maxNumRbPerSe        = 1;
+            pInfo->gfx9.supportSpp           = 1;
+            pInfo->gfx9.timestampResetOnIdle = 1;
+        }
+        else if (ASICREV_IS_RENOIR(pInfo->eRevId))
+        {
+            pInfo->revision                  = AsicRevision::Renoir;
+            pInfo->gfxStepping               = Abi::GfxIpSteppingRenoir;
+            pInfo->gfx9.numTccBlocks         = 4;
+            pInfo->gfx9.maxNumCuPerSh        = 8;
+            pInfo->gfx9.maxNumRbPerSe        = 2;
             pInfo->gfx9.supportSpp           = 1;
             pInfo->gfx9.timestampResetOnIdle = 1;
         }
@@ -4989,12 +5018,22 @@ const RegisterRange* Device::GetRegisterRange(
                 pRange         = Gfx9ShShadowRangeRaven2;
                 *pRangeEntries = Gfx9NumShShadowRangesRaven2;
             }
+            if (IsRenoir(*Parent()))
+            {
+                pRange         = Gfx9ShShadowRangeRaven2;
+                *pRangeEntries = Gfx9NumShShadowRangesRaven2;
+            }
             break;
 
         case RegRangeCsSh:
             pRange         = Gfx9CsShShadowRange;
             *pRangeEntries = Gfx9NumCsShShadowRanges;
             if (IsRaven2(*Parent()))
+            {
+                pRange         = Gfx9CsShShadowRangeRaven2;
+                *pRangeEntries = Gfx9NumCsShShadowRangesRaven2;
+            }
+            if (IsRenoir(*Parent()))
             {
                 pRange         = Gfx9CsShShadowRangeRaven2;
                 *pRangeEntries = Gfx9NumCsShShadowRangesRaven2;
@@ -5083,9 +5122,9 @@ const RegisterRange* Device::GetRegisterRange(
 // whether preemption is enabled or not.  This exists as a helper function since there are cases where the command
 // buffer may want to temporarily override the default value written by the queue context, and it needs to be able
 // to restore it to the proper original value.
-PM4PFP_CONTEXT_CONTROL Device::GetContextControl() const
+PM4_PFP_CONTEXT_CONTROL Device::GetContextControl() const
 {
-    PM4PFP_CONTEXT_CONTROL contextControl = { };
+    PM4_PFP_CONTEXT_CONTROL contextControl = { };
 
     // Since PAL doesn't preserve GPU state across command buffer boundaries, we don't need to enable state shadowing
     // unless mid command buffer preemption is enabled, but we always need to enable loading context and SH registers.

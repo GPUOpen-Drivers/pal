@@ -37,7 +37,7 @@
 // We'd use DD_WARN, but we want the parent function's location....
 #define ResetInternalErrorState() ResetInternalErrorStateImpl(__FILE__, __LINE__, __FUNCTION__)
 
-#define RAPIDJSON_PARSE_DEFAULT_FLAGS (kParseTrailingCommasFlag | kParseNanAndInfFlag)
+#define RAPIDJSON_PARSE_DEFAULT_FLAGS (kParseStopWhenDoneFlag | kParseCommentsFlag | kParseTrailingCommasFlag | kParseNanAndInfFlag)
 #define RAPIDJSON_ASSERT(x) DD_ASSERT(x)
 #if defined(__clang__)
     #pragma clang diagnostic ignored "-Wunknown-warning-option"

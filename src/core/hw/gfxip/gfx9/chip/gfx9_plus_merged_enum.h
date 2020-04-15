@@ -25,8 +25,6 @@
 
 #pragma once
 
-
-
 namespace Pal
 {
 namespace Gfx9
@@ -739,6 +737,15 @@ typedef enum CBPerfSel {
     CB_PERF_SEL_CC_CACHE_256BS_SAVED_DUE_TO_QSB__GFX10CORE = 0x000001c2,
     CB_PERF_SEL_FC_CACHE_FMASK_NO_FETCH__GFX10CORE     = 0x000001c3,
     CB_PERF_SEL_CC_CACHE_SECTOR_HIT__GFX10CORE         = 0x000001c4,
+    CB_PERF_SEL_FC_DCC_CACHE_SECTORS_FLUSHED__RN       = 0x000000fd,
+    CB_PERF_SEL_FC_DCC_CACHE_DIRTY_SECTORS_FLUSHED__RN = 0x000000fe,
+    CB_PERF_SEL_FC_DCC_CACHE_TAGS_FLUSHED__RN          = 0x000000ff,
+    CB_PERF_SEL_CC_DCC_KEY_VALUE__CONST_CLEAR_REG__RN  = 0x000001b6,
+    CB_PERF_SEL_CC_DCC_KEY_VALUE__CONST_CLEAR_SINGLE__RN = 0x000001b7,
+    CB_PERF_SEL_CC_DCC_KEY_VALUE__CONST_CLEAR_AC00__RN = 0x000001b8,
+    CB_PERF_SEL_CC_DCC_KEY_VALUE__CONST_CLEAR_AC01__RN = 0x000001b9,
+    CB_PERF_SEL_CC_DCC_KEY_VALUE__CONST_CLEAR_AC10__RN = 0x000001ba,
+    CB_PERF_SEL_CC_DCC_KEY_VALUE__CONST_CLEAR_AC11__RN = 0x000001bb,
     CB_PERF_SEL_FC_DCC_CACHE_TAGS_FLUSHED__RV1X        = 0x000000fd,
     CB_PERF_SEL_FC_DCC_CACHE_SECTORS_FLUSHED__RV1X     = 0x000000fe,
     CB_PERF_SEL_FC_DCC_CACHE_DIRTY_SECTORS_FLUSHED__RV1X = 0x000000ff,
@@ -753,6 +760,7 @@ typedef enum CBPerfSel {
 constexpr unsigned int MaxCBPerfSelVega                = CB_PERF_SEL_CC_BB_BLEND_PIXEL_VLD;
 constexpr unsigned int MaxCBPerfSelRv2x                = CB_PERF_SEL_CC_BB_BLEND_PIXEL_VLD;
 constexpr unsigned int MaxCBPerfSelRv1x                = CB_PERF_SEL_CC_BB_BLEND_PIXEL_VLD;
+constexpr unsigned int MaxCBPerfSelRn                  = CB_PERF_SEL_CC_DCC_KEY_VALUE__CONST_CLEAR_AC11__RN;
 constexpr unsigned int MaxCBPerfSelGfx10Core           = CB_PERF_SEL_CC_CACHE_SECTOR_HIT__GFX10CORE;
 
 typedef enum CHA_PERF_SEL {
@@ -1333,6 +1341,51 @@ typedef enum CPG_PERFCOUNT_SEL {
     CPG_PERF_SEL_DMA_STARVED__GFX10CORE                = 0x0000004f,
     CPG_PERF_SEL_DMA_STALLED__GFX10CORE                = 0x00000050,
     CPG_PERF_SEL_DMA_FETCHER_STALLED_ON_ROQ_FULL__GFX10CORE = 0x00000051,
+    CPG_PERF_SEL_GFX9_GAP__RN                          = 0x0000000f,
+    CPG_PERF_SEL_SSU_STALLED_ON_CLEAN_SIGNALS__RN      = 0x00000010,
+    CPG_PERF_SEL_QU_STALLED_ON_EOP_DONE_PULSE__RN      = 0x00000011,
+    CPG_PERF_SEL_QU_STALLED_ON_EOP_DONE_WR_CONFIRM__RN = 0x00000012,
+    CPG_PERF_SEL_PFP_STALLED_ON_CSF_READY__RN          = 0x00000013,
+    CPG_PERF_SEL_PFP_STALLED_ON_MEQ_READY__RN          = 0x00000014,
+    CPG_PERF_SEL_PFP_STALLED_ON_RCIU_READY__RN         = 0x00000015,
+    CPG_PERF_SEL_PFP_STALLED_FOR_DATA_FROM_ROQ__RN     = 0x00000016,
+    CPG_PERF_SEL_ME_STALLED_FOR_DATA_FROM_PFP__RN      = 0x00000017,
+    CPG_PERF_SEL_ME_STALLED_FOR_DATA_FROM_STQ__RN      = 0x00000018,
+    CPG_PERF_SEL_ME_STALLED_ON_NO_AVAIL_GFX_CNTX__RN   = 0x00000019,
+    CPG_PERF_SEL_ME_STALLED_WRITING_TO_RCIU__RN        = 0x0000001a,
+    CPG_PERF_SEL_ME_STALLED_WRITING_CONSTANTS__RN      = 0x0000001b,
+    CPG_PERF_SEL_ME_STALLED_ON_PARTIAL_FLUSH__RN       = 0x0000001c,
+    CPG_PERF_SEL_ME_WAIT_ON_CE_COUNTER__RN             = 0x0000001d,
+    CPG_PERF_SEL_ME_WAIT_ON_AVAIL_BUFFER__RN           = 0x0000001e,
+    CPG_PERF_SEL_SEMAPHORE_BUSY_POLLING_FOR_PASS__RN   = 0x0000001f,
+    CPG_PERF_SEL_LOAD_STALLED_ON_SET_COHERENCY__RN     = 0x00000020,
+    CPG_PERF_SEL_DYNAMIC_CLK_VALID__RN                 = 0x00000021,
+    CPG_PERF_SEL_REGISTER_CLK_VALID__RN                = 0x00000022,
+    CPG_PERF_SEL_MIU_WRITE_REQUEST_SENT__RN            = 0x00000023,
+    CPG_PERF_SEL_MIU_READ_REQUEST_SENT__RN             = 0x00000024,
+    CPG_PERF_SEL_CE_STALL_RAM_DUMP__RN                 = 0x00000025,
+    CPG_PERF_SEL_CE_STALL_RAM_WRITE__RN                = 0x00000026,
+    CPG_PERF_SEL_CE_STALL_ON_INC_FIFO__RN              = 0x00000027,
+    CPG_PERF_SEL_CE_STALL_ON_WR_RAM_FIFO__RN           = 0x00000028,
+    CPG_PERF_SEL_CE_STALL_ON_DATA_FROM_MIU__RN         = 0x00000029,
+    CPG_PERF_SEL_CE_STALL_ON_DATA_FROM_ROQ__RN         = 0x0000002a,
+    CPG_PERF_SEL_CE_STALL_ON_CE_BUFFER_FLAG__RN        = 0x0000002b,
+    CPG_PERF_SEL_CE_STALL_ON_DE_COUNTER__RN            = 0x0000002c,
+    CPG_PERF_SEL_TCIU_STALL_WAIT_ON_FREE__RN           = 0x0000002d,
+    CPG_PERF_SEL_TCIU_STALL_WAIT_ON_TAGS__RN           = 0x0000002e,
+    CPG_PERF_SEL_UTCL2IU_STALL_WAIT_ON_FREE__RN        = 0x0000002f,
+    CPG_PERF_SEL_UTCL2IU_STALL_WAIT_ON_TAGS__RN        = 0x00000030,
+    CPG_PERF_SEL_UTCL1_STALL_ON_TRANSLATION__RN        = 0x00000031,
+    CPG_PERF_SEL_TCIU_WRITE_REQUEST_SENT__RN           = 0x00000032,
+    CPG_PERF_SEL_CPG_STAT_BUSY__RN                     = 0x00000033,
+    CPG_PERF_SEL_CPG_STAT_IDLE__RN                     = 0x00000034,
+    CPG_PERF_SEL_CPG_STAT_STALL__RN                    = 0x00000035,
+    CPG_PERF_SEL_CPG_TCIU_BUSY__RN                     = 0x00000036,
+    CPG_PERF_SEL_CPG_TCIU_IDLE__RN                     = 0x00000037,
+    CPF_PERF_SEL_CPG_TCIU_STALL__RN                    = 0x00000038,
+    CPG_PERF_SEL_CPG_UTCL2IU_BUSY__RN                  = 0x00000039,
+    CPG_PERF_SEL_CPG_UTCL2IU_IDLE__RN                  = 0x0000003a,
+    CPG_PERF_SEL_CPG_UTCL2IU_STALL__RN                 = 0x0000003b,
     CPG_PERF_SEL_SSU_STALLED_ON_CLEAN_SIGNALS__RV1X    = 0x0000000f,
     CPG_PERF_SEL_QU_STALLED_ON_EOP_DONE_PULSE__RV1X    = 0x00000010,
     CPG_PERF_SEL_QU_STALLED_ON_EOP_DONE_WR_CONFIRM__RV1X = 0x00000011,
@@ -1469,6 +1522,7 @@ typedef enum CPG_PERFCOUNT_SEL {
 } CPG_PERFCOUNT_SEL;
 
 constexpr unsigned int MaxCpgPerfcountSelVega          = CPG_PERF_SEL_CPG_UTCL2IU_STALL__VEGA;
+constexpr unsigned int MaxCpgPerfcountSelRn            = CPG_PERF_SEL_CPG_UTCL2IU_STALL__RN;
 constexpr unsigned int MaxCpgPerfcountSelRv2x          = CPG_PERF_SEL_CPG_UTCL2IU_STALL__RV2X;
 constexpr unsigned int MaxCpgPerfcountSelRv1x          = CPG_PERF_SEL_CPG_UTCL2IU_STALL__RV1X;
 constexpr unsigned int MaxCpgPerfcountSelGfx10Core     = CPG_PERF_SEL_DMA_FETCHER_STALLED_ON_ROQ_FULL__GFX10CORE;
@@ -3965,6 +4019,8 @@ constexpr unsigned int MaxPerfcounterValsNv10          = DB_PERF_SEL_FG_LOB_FWDR
 typedef enum PERFMON_CNTOFF_AND_OR {
     PERFMON_CNTOFF_OR__NV10                            = 0x00000000,
     PERFMON_CNTOFF_AND__NV10                           = 0x00000001,
+    PERFMON_CNTOFF_OR__RN                              = 0x00000000,
+    PERFMON_CNTOFF_AND__RN                             = 0x00000001,
     PERFMON_CNTOFF_OR__VG12                            = 0x00000000,
     PERFMON_CNTOFF_AND__VG12                           = 0x00000001,
 } PERFMON_CNTOFF_AND_OR;
@@ -3972,6 +4028,8 @@ typedef enum PERFMON_CNTOFF_AND_OR {
 typedef enum PERFMON_CNTOFF_INT_EN {
     PERFMON_CNTOFF_INT_DISABLE__NV10                   = 0x00000000,
     PERFMON_CNTOFF_INT_ENABLE__NV10                    = 0x00000001,
+    PERFMON_CNTOFF_INT_DISABLE__RN                     = 0x00000000,
+    PERFMON_CNTOFF_INT_ENABLE__RN                      = 0x00000001,
     PERFMON_CNTOFF_INT_DISABLE__VG12                   = 0x00000000,
     PERFMON_CNTOFF_INT_ENABLE__VG12                    = 0x00000001,
 } PERFMON_CNTOFF_INT_EN;
@@ -3979,6 +4037,8 @@ typedef enum PERFMON_CNTOFF_INT_EN {
 typedef enum PERFMON_CNTOFF_INT_TYPE {
     PERFMON_CNTOFF_INT_TYPE_LEVEL__NV10                = 0x00000000,
     PERFMON_CNTOFF_INT_TYPE_PULSE__NV10                = 0x00000001,
+    PERFMON_CNTOFF_INT_TYPE_LEVEL__RN                  = 0x00000000,
+    PERFMON_CNTOFF_INT_TYPE_PULSE__RN                  = 0x00000001,
     PERFMON_CNTOFF_INT_TYPE_LEVEL__VG12                = 0x00000000,
     PERFMON_CNTOFF_INT_TYPE_PULSE__VG12                = 0x00000001,
 } PERFMON_CNTOFF_INT_TYPE;
@@ -4016,6 +4076,10 @@ typedef enum PERFMON_STATE {
     PERFMON_STATE_START__NV10                          = 0x00000001,
     PERFMON_STATE_FREEZE__NV10                         = 0x00000002,
     PERFMON_STATE_HW__NV10                             = 0x00000003,
+    PERFMON_STATE_RESET__RN                            = 0x00000000,
+    PERFMON_STATE_START__RN                            = 0x00000001,
+    PERFMON_STATE_FREEZE__RN                           = 0x00000002,
+    PERFMON_STATE_HW__RN                               = 0x00000003,
     PERFMON_STATE_RESET__VG12                          = 0x00000000,
     PERFMON_STATE_START__VG12                          = 0x00000001,
     PERFMON_STATE_FREEZE__VG12                         = 0x00000002,
@@ -5925,12 +5989,14 @@ typedef enum SC_PERFCNT_SEL {
     SC_SC_SPI_FPOV_2__NV10                             = 0x00000154,
     SC_SC_SPI_FPOV_3__NV10                             = 0x00000155,
     SC_SC_SPI_EVENT__NV10                              = 0x00000156,
+    SC_BACKEND_PRIM_FIFO_FULL__RN                      = 0x000001eb,
     SC_BACKEND_PRIM_FIFO_FULL__VG12                    = 0x000001eb,
     SC_BACKEND_PRIM_FIFO_FULL__VG20                    = 0x000001eb,
 } SC_PERFCNT_SEL;
 
 constexpr unsigned int MaxScPerfcntSelGfx09_0          = SC_DB1_TILE_INTERFACE_CREDIT_AT_MAX_WITH_NO_PENDING_SEND__CORE;
 constexpr unsigned int MaxScPerfcntSelRv2x             = SC_DB1_TILE_INTERFACE_CREDIT_AT_MAX_WITH_NO_PENDING_SEND__CORE;
+constexpr unsigned int MaxScPerfcntSelRn               = SC_BACKEND_PRIM_FIFO_FULL__RN;
 constexpr unsigned int MaxScPerfcntSelVg20             = SC_BACKEND_PRIM_FIFO_FULL__VG20;
 constexpr unsigned int MaxScPerfcntSelVg12             = SC_BACKEND_PRIM_FIFO_FULL__VG12;
 constexpr unsigned int MaxScPerfcntSelGfx101           = SC_PK_PM_MAX_REZ_CNT_FORCE_EOV_WAVE_BRK_1H__GFX10CORE;
@@ -9286,6 +9352,30 @@ typedef enum TCC_PERF_SEL {
     TCC_PERF_SEL_MDC_TAG_WAITING_FOR_INVALIDATE_COMPLETION_STALL__RAVEN = 0x00000073,
     TCC_PERF_SEL_PROBE_FILTER_DISABLE_TRANSITION__RAVEN = 0x00000074,
     TCC_PERF_SEL_PROBE_FILTER_DISABLED__RAVEN          = 0x00000075,
+    TCC_PERF_SEL_EA0_WRREQ__RN                         = 0x0000001d,
+    TCC_PERF_SEL_EA0_WRREQ_64B__RN                     = 0x0000001e,
+    TCC_PERF_SEL_EA0_WRREQ_PROBE_COMMAND__RN           = 0x0000001f,
+    TCC_PERF_SEL_EA0_WR_UNCACHED_32B__RN               = 0x00000020,
+    TCC_PERF_SEL_EA0_WRREQ_STALL__RN                   = 0x00000021,
+    TCC_PERF_SEL_EA0_WRREQ_IO_CREDIT_STALL__RN         = 0x00000022,
+    TCC_PERF_SEL_EA0_WRREQ_GMI_CREDIT_STALL__RN        = 0x00000023,
+    TCC_PERF_SEL_EA0_WRREQ_DRAM_CREDIT_STALL__RN       = 0x00000024,
+    TCC_PERF_SEL_EA0_WRREQ_LEVEL__RN                   = 0x00000026,
+    TCC_PERF_SEL_EA0_ATOMIC__RN                        = 0x00000027,
+    TCC_PERF_SEL_EA0_ATOMIC_LEVEL__RN                  = 0x00000028,
+    TCC_PERF_SEL_EA0_RDREQ__RN                         = 0x00000029,
+    TCC_PERF_SEL_EA0_RDREQ_32B__RN                     = 0x0000002a,
+    TCC_PERF_SEL_EA0_RD_UNCACHED_32B__RN               = 0x0000002b,
+    TCC_PERF_SEL_EA0_RD_MDC_32B__RN                    = 0x0000002c,
+    TCC_PERF_SEL_EA0_RD_COMPRESSED_32B__RN             = 0x0000002d,
+    TCC_PERF_SEL_EA0_RDREQ_IO_CREDIT_STALL__RN         = 0x0000002e,
+    TCC_PERF_SEL_EA0_RDREQ_GMI_CREDIT_STALL__RN        = 0x0000002f,
+    TCC_PERF_SEL_EA0_RDREQ_DRAM_CREDIT_STALL__RN       = 0x00000030,
+    TCC_PERF_SEL_EA0_RDREQ_LEVEL__RN                   = 0x00000031,
+    TCC_PERF_SEL_EA0_RDRET_NACK__RN                    = 0x00000048,
+    TCC_PERF_SEL_EA0_WRRET_NACK__RN                    = 0x00000049,
+    TCC_PERF_SEL_EA0_RDREQ_DRAM__RN                    = 0x00000076,
+    TCC_PERF_SEL_EA0_WRREQ_DRAM__RN                    = 0x00000077,
     TCC_PERF_SEL_EA_WRREQ__RV2X                        = 0x0000001d,
     TCC_PERF_SEL_EA_WRREQ_64B__RV2X                    = 0x0000001e,
     TCC_PERF_SEL_EA_WRREQ_PROBE_COMMAND__RV2X          = 0x0000001f,
@@ -12583,6 +12673,45 @@ namespace Nv10
     constexpr unsigned int IP_USB_PD_REVISION_ID                              = 0x00000000;
 } // namespace Nv10
 
+namespace Rn
+{
+    constexpr unsigned int AL_REVISION_ID                                     = 0x00000012;
+    constexpr unsigned int EMMC_CFG_REVISION_ID                               = 0x00000000;
+    constexpr unsigned int EMMC_HC_REG_REVISION_ID                            = 0x00000000;
+    constexpr unsigned int ENHIOMEMAPERTURE_REVISION_ID                       = 0x00000000;
+    constexpr unsigned int ILA_REG_REVISION_ID                                = 0x00000000;
+    constexpr unsigned int IP_AL2AHB_DEVICE_CFG_REVISION_ID                   = 0x00000000;
+    constexpr unsigned int IP_AL2AHB_HARD_ADDR_HCLK_REVISION_ID               = 0x00000000;
+    constexpr unsigned int IP_AL2AHB_HARD_ADDR_REVISION_ID                    = 0x00000000;
+    constexpr unsigned int IP_AL2AHB_P2P_CFG_REVISION_ID                      = 0x00000000;
+    constexpr unsigned int IP_ESPI_REG_REVISION_ID                            = 0x00000000;
+    constexpr unsigned int IP_SDP_REG_REVISION_ID                             = 0x00000000;
+    constexpr unsigned int IP_USB_PD_REVISION_ID                              = 0x00000000;
+    constexpr unsigned int MMREG_REVISION_ID                                  = 0x00000000;
+    constexpr unsigned int NUM_REQUESTORS                                     = 0x00000005;
+    constexpr unsigned int REQID_ECHI2                                        = 0x00000004;
+    constexpr unsigned int REQID_EHCI                                         = 0x00000001;
+    constexpr unsigned int REQID_OCHI2                                        = 0x00000003;
+    constexpr unsigned int REQID_OHCI                                         = 0x00000000;
+    constexpr unsigned int REQID_SATA0                                        = 0x00000002;
+    constexpr unsigned int SATA_AHCI_REG_REVISION_ID                          = 0x00000000;
+    constexpr unsigned int SATA_REVISION_ID                                   = 0x00000000;
+    constexpr unsigned int sata_sgpio_reg_REVISION_ID                         = 0x00000000;
+    constexpr unsigned int SDB_REG_REVISION_ID                                = 0x00000000;
+    constexpr unsigned int SD_PCI_CFG_REVISION_ID                             = 0x00000000;
+    constexpr unsigned int SEM_RESP_FAILED                                    = 0x00000002;
+    constexpr unsigned int SEM_RESP_PASSED                                    = 0x00000003;
+    constexpr unsigned int SQ_V_DOT2_F32_F16                                  = 0x00000023;
+    constexpr unsigned int SQ_V_DOT2_I32_I16                                  = 0x00000026;
+    constexpr unsigned int SQ_V_DOT2_U32_U16                                  = 0x00000027;
+    constexpr unsigned int SQ_V_DOT4_I32_I8                                   = 0x00000028;
+    constexpr unsigned int SQ_V_DOT4_U32_U8                                   = 0x00000029;
+    constexpr unsigned int SQ_V_DOT8_I32_I4                                   = 0x0000002a;
+    constexpr unsigned int SQ_V_DOT8_U32_U4                                   = 0x0000002b;
+    constexpr unsigned int SQ_V_FMAC_F32                                      = 0x0000003b;
+    constexpr unsigned int SQ_V_XNOR_B32                                      = 0x0000003d;
+} // namespace Rn
+
 namespace Rv1x
 {
     constexpr unsigned int ROM_SIGNATURE                                      = 0x0000aa55;
@@ -12898,6 +13027,52 @@ constexpr unsigned int Rv2xMaxPerfEventIds[MaxPerfCtrId] =
     RMI_PERF_SEL_RMI_RB_EARLY_WRACK_NACK3__CORE,
     0,
     SC_DB1_TILE_INTERFACE_CREDIT_AT_MAX_WITH_NO_PENDING_SEND__CORE,
+    SDMA_PERF_SEL_MMHUB_TAG_DELAY_COUNTER__GFX09,
+    SPI_PERF_VWC_CSC_WR__GFX09,
+    SQC_PERF_SEL_DUMMY_LAST__GFX09,
+    PERF_PA_PRIMIC_TO_CLPRIM_FIFO_FULL__GFX09_1X,
+    SX_PERF_SEL_DB3_SIZE,
+    TA_PERF_SEL_first_xnack_on_phase3__GFX09,
+    TCA_PERF_SEL_CROSSBAR_STALL_TCC7,
+    TCC_PERF_SEL_CLIENT127_REQ,
+    TCP_PERF_SEL_TCC_DCC_REQ__GFX09,
+    TD_PERF_SEL_texels_zeroed_out_by_blend_zero_prt__GFX09,
+    0,
+    vgt_perf_sclk_te11_vld,
+    wd_perf_utcl1_stall_utcl2_event,
+};
+
+constexpr unsigned int RnMaxPerfEventIds[MaxPerfCtrId] =
+{
+    CB_PERF_SEL_CC_DCC_KEY_VALUE__CONST_CLEAR_AC11__RN,
+    0,
+    0,
+    0,
+    CPC_PERF_SEL_ME2_DC1_SPI_BUSY__CORE,
+    CPF_PERF_SEL_CPF_UTCL2IU_STALL__GFX09,
+    CPG_PERF_SEL_CPG_UTCL2IU_STALL__RN,
+    0,
+    GDS_PERF_SEL_GWS_BYPASS,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    GRBM_PERF_SEL_CPAXI_BUSY,
+    GRBM_SE0_PERF_SEL_RMI_BUSY,
+    GRBM_SE1_PERF_SEL_RMI_BUSY,
+    GRBM_SE2_PERF_SEL_RMI_BUSY,
+    GRBM_SE3_PERF_SEL_RMI_BUSY,
+    ia_perf_utcl1_stall_utcl2_event__GFX09_1X,
+    DB_PERF_SEL_DB_SC_quad_quads_with_4_pixels__CORE,
+    0,
+    RMI_PERF_SEL_RMI_RB_EARLY_WRACK_NACK3__CORE,
+    0,
+    SC_BACKEND_PRIM_FIFO_FULL__RN,
     SDMA_PERF_SEL_MMHUB_TAG_DELAY_COUNTER__GFX09,
     SPI_PERF_VWC_CSC_WR__GFX09,
     SQC_PERF_SEL_DUMMY_LAST__GFX09,

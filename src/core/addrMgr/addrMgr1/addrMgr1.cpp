@@ -824,6 +824,123 @@ Result AddrMgr1::ComputeSubResourceInfo(
             result = AdjustChromaPlane(pImage, pSubResInfoList, pSubResTileInfoList, subResIdx, pGpuMemLayout);
         }
 
+#if PAL_DEVELOPER_BUILD
+        Developer::ImageDataAddrMgrSurfInfo data = {};
+
+        if ((surfInfoOut.tileMode == ADDR_TM_LINEAR_GENERAL) ||
+            (surfInfoOut.tileMode == ADDR_TM_LINEAR_ALIGNED))
+        {
+            data.tiling.gfx6.mode.dimension = Developer::Gfx6ImageTileModeDimension::Linear;
+        }
+        else if ((surfInfoOut.tileMode == ADDR_TM_1D_TILED_THIN1) ||
+                 (surfInfoOut.tileMode == ADDR_TM_1D_TILED_THICK))
+        {
+            data.tiling.gfx6.mode.dimension = Developer::Gfx6ImageTileModeDimension::Dim1d;
+            if (surfInfoOut.tileMode == ADDR_TM_1D_TILED_THIN1)
+            {
+                data.tiling.gfx6.mode.properties.thin = true;
+            }
+            else
+            {
+                data.tiling.gfx6.mode.properties.thick = true;
+            }
+        }
+        else if ((surfInfoOut.tileMode == ADDR_TM_2D_TILED_THIN1)     ||
+                 (surfInfoOut.tileMode == ADDR_TM_2D_TILED_THIN2)     ||
+                 (surfInfoOut.tileMode == ADDR_TM_2D_TILED_THIN4)     ||
+                 (surfInfoOut.tileMode == ADDR_TM_2D_TILED_THICK)     ||
+                 (surfInfoOut.tileMode == ADDR_TM_2D_TILED_XTHICK)    ||
+                 (surfInfoOut.tileMode == ADDR_TM_PRT_2D_TILED_THIN1) ||
+                 (surfInfoOut.tileMode == ADDR_TM_PRT_2D_TILED_THICK))
+        {
+            data.tiling.gfx6.mode.dimension = Developer::Gfx6ImageTileModeDimension::Dim2d;
+            if ((surfInfoOut.tileMode == ADDR_TM_PRT_2D_TILED_THIN1) ||
+                (surfInfoOut.tileMode == ADDR_TM_PRT_2D_TILED_THICK))
+            {
+                data.tiling.gfx6.mode.properties.prt = true;
+            }
+            if ((surfInfoOut.tileMode == ADDR_TM_2D_TILED_THIN1) ||
+                (surfInfoOut.tileMode == ADDR_TM_2D_TILED_THIN2) ||
+                (surfInfoOut.tileMode == ADDR_TM_2D_TILED_THIN4) ||
+                (surfInfoOut.tileMode == ADDR_TM_PRT_2D_TILED_THIN1))
+            {
+                data.tiling.gfx6.mode.properties.thin = true;
+            }
+            else
+            {
+                data.tiling.gfx6.mode.properties.thick = true;
+            }
+        }
+        else if ((surfInfoOut.tileMode == ADDR_TM_3D_TILED_THIN1)     ||
+                 (surfInfoOut.tileMode == ADDR_TM_3D_TILED_THICK)     ||
+                 (surfInfoOut.tileMode == ADDR_TM_3D_TILED_XTHICK)    ||
+                 (surfInfoOut.tileMode == ADDR_TM_PRT_3D_TILED_THIN1) ||
+                 (surfInfoOut.tileMode == ADDR_TM_PRT_3D_TILED_THICK))
+        {
+            data.tiling.gfx6.mode.dimension = Developer::Gfx6ImageTileModeDimension::Dim3d;
+            if ((surfInfoOut.tileMode == ADDR_TM_PRT_3D_TILED_THIN1) ||
+                (surfInfoOut.tileMode == ADDR_TM_PRT_3D_TILED_THICK))
+            {
+                data.tiling.gfx6.mode.properties.prt = true;
+            }
+            if ((surfInfoOut.tileMode == ADDR_TM_3D_TILED_THIN1) ||
+                (surfInfoOut.tileMode == ADDR_TM_PRT_3D_TILED_THIN1))
+            {
+                data.tiling.gfx6.mode.properties.thin = true;
+            }
+            else
+            {
+                data.tiling.gfx6.mode.properties.thick = true;
+            }
+        }
+
+        if (surfInfoOut.tileType == ADDR_DISPLAYABLE)
+        {
+            data.tiling.gfx6.type = Developer::Gfx6ImageTileType::Displayable;
+        }
+        else if (surfInfoOut.tileType == ADDR_NON_DISPLAYABLE)
+        {
+            data.tiling.gfx6.type = Developer::Gfx6ImageTileType::NonDisplayable;
+        }
+        else if (surfInfoOut.tileType == ADDR_DEPTH_SAMPLE_ORDER)
+        {
+            data.tiling.gfx6.type = Developer::Gfx6ImageTileType::DepthSampleOrder;
+        }
+        else if (surfInfoOut.tileType == ADDR_ROTATED)
+        {
+            data.tiling.gfx6.type = Developer::Gfx6ImageTileType::Rotated;
+        }
+        else if (surfInfoOut.tileType == ADDR_THICK)
+        {
+            data.tiling.gfx6.type = Developer::Gfx6ImageTileType::Thick;
+        }
+
+        data.flags.properties.color             = surfInfoIn.flags.color;
+        data.flags.properties.depth             = surfInfoIn.flags.depth;
+        data.flags.properties.stencil           = surfInfoIn.flags.stencil;
+        data.flags.properties.texture           = surfInfoIn.flags.texture;
+        data.flags.properties.cube              = surfInfoIn.flags.cube;
+        data.flags.properties.volume            = surfInfoIn.flags.volume;
+        data.flags.properties.fmask             = surfInfoIn.flags.fmask;
+        data.flags.properties.compressZ         = surfInfoIn.flags.compressZ;
+        data.flags.properties.overlay           = surfInfoIn.flags.overlay;
+        data.flags.properties.noStencil         = surfInfoIn.flags.noStencil;
+        data.flags.properties.display           = surfInfoIn.flags.display;
+        data.flags.properties.opt4Space         = surfInfoIn.flags.opt4Space;
+        data.flags.properties.prt               = surfInfoIn.flags.prt;
+        data.flags.properties.tcCompatible      = surfInfoIn.flags.tcCompatible;
+        data.flags.properties.dccCompatible     = surfInfoIn.flags.dccCompatible;
+        data.flags.properties.dccPipeWorkaround = surfInfoIn.flags.dccPipeWorkaround;
+        data.flags.properties.disableLinearOpt  = surfInfoIn.flags.disableLinearOpt;
+
+        data.size   = surfInfoOut.surfSize;
+        data.bpp    = surfInfoOut.bpp;
+        data.width  = surfInfoOut.pitch;
+        data.height = surfInfoOut.height;
+        data.depth  = surfInfoOut.depth;
+
+        GetDevice()->DeveloperCb(Developer::CallbackType::CreateImage, &data);
+#endif
     }
 
     if (addrRet != ADDR_OK)

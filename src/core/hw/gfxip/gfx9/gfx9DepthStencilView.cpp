@@ -126,7 +126,8 @@ DepthStencilView::DepthStencilView(
 
     if (settings.waitOnMetadataMipTail)
     {
-        m_flags.waitOnMetadataMipTail = m_pImage->IsInMetadataMipTail(MipLevel());
+        // aspect of the subresource doesn't matter for depth images.
+        m_flags.waitOnMetadataMipTail = m_pImage->IsInMetadataMipTail(m_depthSubresource);
     }
 }
 
@@ -296,7 +297,8 @@ void DepthStencilView::UpdateImageVa(
         {
             if (m_hTileUsage.dsMetadata != 0)
             {
-                pRegs->fastClearMetadataGpuVa = m_pImage->FastClearMetaDataAddr(MipLevel());
+                // Program fast-clear metadata base address.  Aspect shouldn't matter here, just the mip level
+                pRegs->fastClearMetadataGpuVa = m_pImage->FastClearMetaDataAddr(m_depthSubresource);
                 PAL_ASSERT((pRegs->fastClearMetadataGpuVa & 0x3) == 0);
             }
 
@@ -544,10 +546,13 @@ void Gfx9DepthStencilView::InitRegisters(
 
     InitRegistersCommon(device, createInfo, internalInfo, pFmtInfo, &m_regs);
 
-    const SubResourceInfo*const pDepthSubResInfo     = m_pImage->Parent()->SubresourceInfo(m_depthSubresource);
-    const SubResourceInfo*const pStencilSubResInfo   = m_pImage->Parent()->SubresourceInfo(m_stencilSubresource);
+    const Pal::Image*           pParent              = m_pImage->Parent();
+    const Pal::Device*          pPalDevice           = pParent->GetDevice();
+    const auto*                 pAddrMgr             = static_cast<const AddrMgr2::AddrMgr2*>(pPalDevice->GetAddrMgr());
+    const SubResourceInfo*const pDepthSubResInfo     = pParent->SubresourceInfo(m_depthSubresource);
+    const SubResourceInfo*const pStencilSubResInfo   = pParent->SubresourceInfo(m_stencilSubresource);
     const SubresId              baseDepthSubResId    = { m_depthSubresource.aspect, 0 , 0 };
-    const SubResourceInfo*const pBaseDepthSubResInfo = m_pImage->Parent()->SubresourceInfo(baseDepthSubResId);
+    const SubResourceInfo*const pBaseDepthSubResInfo = pParent->SubresourceInfo(baseDepthSubResId);
 
     const ADDR2_COMPUTE_SURFACE_INFO_OUTPUT*const pDepthAddrInfo = m_pImage->GetAddrOutput(pDepthSubResInfo);
     const ADDR2_COMPUTE_SURFACE_INFO_OUTPUT*const pStAddrInfo    = m_pImage->GetAddrOutput(pStencilSubResInfo);
@@ -566,10 +571,10 @@ void Gfx9DepthStencilView::InitRegisters(
 
     m_regs.dbZInfo.gfx09.FAULT_BEHAVIOR        = FAULT_ZERO;
     m_regs.dbStencilInfo.gfx09.FAULT_BEHAVIOR  = FAULT_ZERO;
-    m_regs.dbZInfo.bits.SW_MODE                = AddrMgr2::GetHwSwizzleMode(depthAddrSettings.swizzleMode);
+    m_regs.dbZInfo.bits.SW_MODE                = pAddrMgr->GetHwSwizzleMode(depthAddrSettings.swizzleMode);
     m_regs.dbZInfo2.bits.EPITCH                = AddrMgr2::CalcEpitch(pDepthAddrInfo);
     m_regs.dbStencilInfo2.bits.EPITCH          = AddrMgr2::CalcEpitch(pStAddrInfo);
-    m_regs.dbStencilInfo.bits.SW_MODE          = AddrMgr2::GetHwSwizzleMode(stencilAddrSettings.swizzleMode);
+    m_regs.dbStencilInfo.bits.SW_MODE          = pAddrMgr->GetHwSwizzleMode(stencilAddrSettings.swizzleMode);
 }
 
 // =====================================================================================================================
@@ -684,6 +689,7 @@ void Gfx10DepthStencilView::InitRegisters(
 {
     const Pal::Image*const pParentImg = m_pImage->Parent();
     const Pal::Device&     palDevice  = *device.Parent();
+    const auto*            pAddrMgr   = static_cast<const AddrMgr2::AddrMgr2*>(palDevice.GetAddrMgr());
     const GfxIpLevel       gfxLevel   = palDevice.ChipProperties().gfxLevel;
     const Gfx9PalSettings& settings   = device.Settings();
 
@@ -723,8 +729,8 @@ void Gfx10DepthStencilView::InitRegisters(
         PAL_NEVER_CALLED();
     }
 
-    m_regs.dbZInfo.bits.SW_MODE       = AddrMgr2::GetHwSwizzleMode(depthAddrSettings.swizzleMode);
-    m_regs.dbStencilInfo.bits.SW_MODE = AddrMgr2::GetHwSwizzleMode(stencilAddrSettings.swizzleMode);
+    m_regs.dbZInfo.bits.SW_MODE       = pAddrMgr->GetHwSwizzleMode(depthAddrSettings.swizzleMode);
+    m_regs.dbStencilInfo.bits.SW_MODE = pAddrMgr->GetHwSwizzleMode(stencilAddrSettings.swizzleMode);
 
     m_regs.dbZInfo.gfx10.FAULT_BEHAVIOR       = FAULT_ZERO;
     m_regs.dbStencilInfo.gfx10.FAULT_BEHAVIOR = FAULT_ZERO;

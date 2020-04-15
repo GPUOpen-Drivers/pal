@@ -221,6 +221,16 @@ private:
         bool                      computeResolve
         ) const override;
 
+    virtual void HwlImageToImageMissingPixelCopy(
+        GfxCmdBuffer*          pCmdBuffer,
+        const Pal::Image&      srcImage,
+        const Pal::Image&      dstImage,
+        const ImageCopyRegion& region
+        ) const override
+    {
+        PAL_NOT_IMPLEMENTED();
+    }
+
     void FastDepthStencilClearCompute(
         GfxCmdBuffer*      pCmdBuffer,
         const Image&       dstImage,

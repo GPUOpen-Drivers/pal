@@ -1004,7 +1004,7 @@ void LogContext::Enum(
         "Vega12",
         "Vega20",
         "Raven2",
-        nullptr,
+        "Renoir",
         "Navi10",
         nullptr,
         nullptr,

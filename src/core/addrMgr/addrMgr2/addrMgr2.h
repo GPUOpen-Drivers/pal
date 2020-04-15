@@ -100,51 +100,10 @@ static bool IsLinearSwizzleMode(
 }
 
 // =====================================================================================================================
-// Returns the HW tiling / swizzle mode that corresponds to the specified subresource.
-static Pal::Gfx9::SWIZZLE_MODE_ENUM GetHwSwizzleMode(
+static bool IsSwizzleModeComputeOnly(
     AddrSwizzleMode  swizzleMode)
 {
-    using namespace Pal::Gfx9;
-    static constexpr SWIZZLE_MODE_ENUM  hwSwizzleMode[]=
-    {
-        SW_LINEAR,        // ADDR_SW_LINEAR
-        SW_256B_S,        // ADDR_SW_256B_S
-        SW_256B_D,        // ADDR_SW_256B_D
-        SW_256B_R,        // ADDR_SW_256B_R
-        SW_4KB_Z,         // ADDR_SW_4KB_Z
-        SW_4KB_S,         // ADDR_SW_4KB_S
-        SW_4KB_D,         // ADDR_SW_4KB_D
-        SW_4KB_R,         // ADDR_SW_4KB_R
-        SW_64KB_Z,        // ADDR_SW_64KB_Z
-        SW_64KB_S,        // ADDR_SW_64KB_S
-        SW_64KB_D,        // ADDR_SW_64KB_D
-        SW_64KB_R,        // ADDR_SW_64KB_R
-        SW_VAR_Z__CORE,   // ADDR_SW_VAR_Z
-        SW_VAR_S__CORE,   // ADDR_SW_VAR_S
-        SW_VAR_D__CORE,   // ADDR_SW_VAR_D
-        SW_VAR_R__CORE,   // ADDR_SW_VAR_R
-        SW_64KB_Z_T,      // ADDR_SW_64KB_Z_T
-        SW_64KB_S_T,      // ADDR_SW_64KB_S_T
-        SW_64KB_D_T,      // ADDR_SW_64KB_D_T
-        SW_64KB_R_T,      // ADDR_SW_64KB_R_T
-        SW_4KB_Z_X,       // ADDR_SW_4KB_Z_X
-        SW_4KB_S_X,       // ADDR_SW_4KB_S_X
-        SW_4KB_D_X,       // ADDR_SW_4KB_D_X
-        SW_4KB_R_X,       // ADDR_SW_4KB_R_X
-        SW_64KB_Z_X,      // ADDR_SW_64KB_Z_X
-        SW_64KB_S_X,      // ADDR_SW_64KB_S_X
-        SW_64KB_D_X,      // ADDR_SW_64KB_D_X
-        SW_64KB_R_X,      // ADDR_SW_64KB_R_X
-        SW_VAR_Z_X,       // ADDR_SW_VAR_Z_X
-        SW_VAR_S_X__CORE, // ADDR_SW_VAR_S_X
-        SW_VAR_D_X__CORE, // ADDR_SW_VAR_D_X
-        SW_VAR_R_X,       // ADDR_SW_VAR_R_X
-        SW_LINEAR,        // ADDR_SW_LINEAR_GENERAL
-    };
-
-    PAL_ASSERT (swizzleMode < (sizeof(hwSwizzleMode) / sizeof(SWIZZLE_MODE_ENUM)));
-
-    return hwSwizzleMode[swizzleMode];
+    return false;
 }
 
 // =====================================================================================================================
@@ -172,7 +131,18 @@ static bool IsStandardSwzzle(
 }
 
 // =====================================================================================================================
-// Returns true if the associated swizzle mode works with Z-buffers
+// Returns true if the associated swizzle mode is a 256 mode;
+static bool Is256BSwizzle(
+    AddrSwizzleMode  swizzleMode)
+{
+    return ((swizzleMode == ADDR_SW_256B_S)
+            || (swizzleMode == ADDR_SW_256B_D)
+            || (swizzleMode == ADDR_SW_256B_R)
+           );
+}
+
+// =====================================================================================================================
+// Returns true if the associated swzzle mode works with Z-buffers
 static bool IsZSwizzle(
     AddrSwizzleMode  swizzleMode)
 {
@@ -287,6 +257,8 @@ class AddrMgr2 : public AddrMgr
 public:
     explicit AddrMgr2(const Device*  pDevice);
     virtual ~AddrMgr2() {}
+
+    Pal::Gfx9::SWIZZLE_MODE_ENUM GetHwSwizzleMode(AddrSwizzleMode  swizzleMode) const;
 
     virtual Result InitSubresourcesForImage(
         Image*             pImage,

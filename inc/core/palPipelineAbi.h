@@ -118,6 +118,7 @@ enum GfxIpStepping : uint16
     GfxIpSteppingVega12 = 4,
     GfxIpSteppingVega20 = 6,
     GfxIpSteppingRaven2 = 9,
+    GfxIpSteppingRenoir = 9,
 
     // GFXIP 10.1.x steppings:
     GfxIpSteppingNavi10        = 0,

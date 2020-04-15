@@ -693,7 +693,7 @@ uint32* CmdStream::WriteLoadSeqContextRegs(
 {
     PAL_ASSERT(m_flags.optimizeCommands == Pm4OptEnabled);
 
-    // In gfx9+, PM4PFP_LOAD_CONTEXT_REG_INDEX is always supported.
+    // In gfx9+, PM4_PFP_LOAD_CONTEXT_REG_INDEX is always supported.
     const size_t packetSizeDwords = m_cmdUtil.BuildLoadContextRegsIndex<true>(
                                     dataVirtAddr,
                                     startRegAddr,
@@ -702,7 +702,7 @@ uint32* CmdStream::WriteLoadSeqContextRegs(
     if (Pm4OptEnabled)
     {
         m_pPm4Optimizer->HandleLoadContextRegsIndex(
-                reinterpret_cast<const PM4PFP_LOAD_CONTEXT_REG_INDEX&>(*pCmdSpace));
+                reinterpret_cast<const PM4_PFP_LOAD_CONTEXT_REG_INDEX&>(*pCmdSpace));
     }
     pCmdSpace += packetSizeDwords;
 
@@ -864,7 +864,7 @@ void CmdStream::PatchCondIndirectBuffer(
     uint32       ibSizeDwords
     ) const
 {
-    PM4PFP_COND_INDIRECT_BUFFER* pPacket = static_cast<PM4PFP_COND_INDIRECT_BUFFER*>(pPatch->pPacket);
+    PM4_PFP_COND_INDIRECT_BUFFER* pPacket = static_cast<PM4_PFP_COND_INDIRECT_BUFFER*>(pPatch->pPacket);
 
     switch (pPatch->type)
     {
@@ -872,7 +872,7 @@ void CmdStream::PatchCondIndirectBuffer(
         // The PM4 spec says that the first IB base/size are used if the conditional passes.
         pPacket->ordinal9    = LowPart(address);
         pPacket->ib_base1_hi = HighPart(address);
-        PAL_ASSERT (pPacket->bitfields9.reserved1 == 0);
+        PAL_ASSERT(pPacket->bitfields9.reserved4 == 0);
 
         pPacket->bitfields11.ib_size1 = ibSizeDwords;
         break;
@@ -881,7 +881,7 @@ void CmdStream::PatchCondIndirectBuffer(
         // The PM4 spec says that the second IB base/size are used if the conditional fails.
         pPacket->ordinal12   = LowPart(address);
         pPacket->ib_base2_hi = HighPart(address);
-        PAL_ASSERT (pPacket->bitfields12.reserved1 == 0);
+        PAL_ASSERT(pPacket->bitfields12.reserved7 == 0);
 
         pPacket->bitfields14.ib_size2 = ibSizeDwords;
         break;

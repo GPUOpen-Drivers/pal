@@ -336,14 +336,14 @@ UniversalCmdBuffer::UniversalCmdBuffer(
 
     m_cachedSettings.waUtcL0InconsistentBigPage = settings.waUtcL0InconsistentBigPage;
     m_cachedSettings.waClampGeCntlVertGrpSize   = settings.waClampGeCntlVertGrpSize;
+    m_cachedSettings.ignoreDepthForBinSize      = settings.ignoreDepthForBinSizeIfColorBound;
 
     // Here we pre-calculate constants used in gfx10 PBB bin sizing calculations.
     // The logic is based on formulas that account for the number of RBs and Channels on the ASIC.
     // The bin size is choosen from the minimum size for Depth, Color and Fmask.
     // See usage in Gfx10GetDepthBinSize() and Gfx10GetColorBinSize() for further details.
-    const uint32 totalNumRbs   = m_device.Parent()->ChipProperties().gfx9.numShaderEngines *
-                                 m_device.Parent()->ChipProperties().gfx9.maxNumRbPerSe;
-    const uint32 totalNumPipes = Max(totalNumRbs, m_device.Parent()->ChipProperties().gfx9.numSdpInterfaces);
+    uint32 totalNumRbs   = m_device.Parent()->ChipProperties().gfx9.numActiveRbs;
+    uint32 totalNumPipes = Max(totalNumRbs, m_device.Parent()->ChipProperties().gfx9.numSdpInterfaces);
 
     constexpr uint32 ZsTagSize  = 64;
     constexpr uint32 ZsNumTags  = 312;
@@ -373,16 +373,7 @@ UniversalCmdBuffer::UniversalCmdBuffer(
     m_minBinSizeX = settings.minBatchBinSize.width;
     m_minBinSizeY = settings.minBatchBinSize.height;
 
-    // If minimum sizes are 0, then use default size of 128x64
-    if (m_minBinSizeX == 0)
-    {
-        m_minBinSizeX = 128;
-    }
-    if (m_minBinSizeY == 0)
-    {
-        m_minBinSizeY = 64;
-    }
-
+    PAL_ASSERT((m_minBinSizeX != 0) && (m_minBinSizeY != 0));
     PAL_ASSERT(IsPowerOfTwo(m_minBinSizeX) && IsPowerOfTwo(m_minBinSizeY));
 
     if (settings.binningMode == Gfx9DeferredBatchBinCustom)
@@ -439,6 +430,7 @@ UniversalCmdBuffer::UniversalCmdBuffer(
 Result UniversalCmdBuffer::Init(
     const CmdBufferInternalCreateInfo& internalInfo)
 {
+    const Gfx9PalSettings&   settings  = m_device.Settings();
     const GpuChipProperties& chipProps = m_device.Parent()->ChipProperties();
 
     uint32 ceRamOffset = 0;
@@ -457,7 +449,7 @@ Result UniversalCmdBuffer::Init(
     m_uavExportTable.state.ceRamOffset  = ceRamOffset;
     ceRamOffset += sizeof(m_uavExportTable.srd);
 
-    if (m_device.Settings().nggSupported)
+    if (settings.nggSupported)
     {
         const uint32 nggTableBytes = Pow2Align<uint32>(sizeof(Abi::PrimShaderCbLayout), 256);
 
@@ -3191,7 +3183,7 @@ Result UniversalCmdBuffer::AddPreamble()
     {
         PAL_ASSERT(device.IsPreemptionSupported(EngineType::EngineTypeUniversal) == false);
 
-        PM4PFP_CONTEXT_CONTROL contextControl = {};
+        PM4_PFP_CONTEXT_CONTROL contextControl = {};
 
         contextControl.bitfields2.update_load_enables    = 1;
         contextControl.bitfields2.load_per_context_state = 1;
@@ -5540,7 +5532,6 @@ void UniversalCmdBuffer::Gfx9GetDepthBinSize(
         const auto* pDepthStencilState = static_cast<const DepthStencilState*>(m_graphicsState.pDepthStencilState);
         const auto& imageCreateInfo    = pImage->Parent()->GetImageCreateInfo();
 
-
         // Calculate cDepth
         //   C_per_sample = ((z_enabled) ? 5 : 0) + ((stencil_enabled) ? 1 : 0)
         //   cDepth = 4 * C_per_sample * num_samples
@@ -5781,7 +5772,8 @@ void UniversalCmdBuffer::Gfx10GetDepthBinSize(
             static_cast<const DepthStencilView*>(m_graphicsState.bindTargets.depthTarget.pDepthStencilView);
     const auto*  pImage           = (pDepthTargetView ? pDepthTargetView->GetImage() : nullptr);
 
-    if (pImage == nullptr)
+    if ((pImage == nullptr) ||
+        ((m_cachedSettings.ignoreDepthForBinSize == true) && (m_graphicsState.bindTargets.colorTargetCount > 0)))
     {
         // Set to max sizes when no depth image bound
         pBinSize->width  = 512;
@@ -8508,7 +8500,7 @@ void UniversalCmdBuffer::P2pBltWaCopyBegin(
 {
     if (m_device.Parent()->IsPreemptionSupported(EngineType::EngineTypeUniversal))
     {
-        PM4PFP_CONTEXT_CONTROL contextControl = m_device.GetContextControl();
+        PM4_PFP_CONTEXT_CONTROL contextControl = m_device.GetContextControl();
 
         contextControl.bitfields3.shadow_per_context_state = 0;
         contextControl.bitfields3.shadow_cs_sh_regs        = 0;
@@ -8550,7 +8542,7 @@ void UniversalCmdBuffer::P2pBltWaCopyEnd()
 
     if (m_device.Parent()->IsPreemptionSupported(EngineType::EngineTypeUniversal))
     {
-        PM4PFP_CONTEXT_CONTROL contextControl = m_device.GetContextControl();
+        PM4_PFP_CONTEXT_CONTROL contextControl = m_device.GetContextControl();
 
         uint32* pCmdSpace = m_deCmdStream.ReserveCommands();
         pCmdSpace += CmdUtil::BuildContextControl(contextControl, pCmdSpace);

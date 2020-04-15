@@ -220,84 +220,97 @@ namespace DevDriver
                          messageBuffer.header.sequence,
                          m_sessionId);
 
-        Result result = Result::Error;
-        LockGuard<AtomicLock> lock(m_receiveWindow.lock);
+        Result result = Result::InsufficientMemory;
 
-        Sequence nextSequence = m_receiveWindow.nextExpectedSequence;
-
-        // check to see if we have any unacknowledged data in the receive window
-        const bool pendingAck = (nextSequence > m_receiveWindow.lastUnacknowledgedSequence);
-
-        if ((messageBuffer.header.sequence >= nextSequence)
-            & (messageBuffer.header.payloadSize <= kMaxPayloadSizeInBytes))
+        if (messageBuffer.header.payloadSize <= kMaxPayloadSizeInBytes)
         {
-            const Sequence distance = (messageBuffer.header.sequence - m_receiveWindow.nextUnreadSequence);
+            LockGuard<AtomicLock> lock(m_receiveWindow.lock);
 
-            if (distance < m_receiveWindow.GetWindowSize())
+            Sequence nextSequence = m_receiveWindow.nextExpectedSequence;
+
+            // check to see if we have any unacknowledged data in the receive window
+            const bool pendingAck = (nextSequence > m_receiveWindow.lastUnacknowledgedSequence);
+
+            if (messageBuffer.header.sequence >= nextSequence)
             {
-                DD_PRINT(LogLevel::Debug,
-                         "Session %u received message sq %u",
-                         m_sessionId,
-                         messageBuffer.header.sequence);
+                const Sequence distance = (messageBuffer.header.sequence - m_receiveWindow.nextUnreadSequence);
 
-                // Send the request.
-                const uint32 index = messageBuffer.header.sequence % m_receiveWindow.GetWindowSize();
-
-                // DD_ASSERT(m_receiveWindow.valid[index] == false);
-
-                // copy data + set associated state
-                memcpy(&m_receiveWindow.messages[index],
-                       &messageBuffer,
-                       sizeof(MessageHeader) + messageBuffer.header.payloadSize);
-
-                m_receiveWindow.sequence[index] = messageBuffer.header.sequence;
-                m_receiveWindow.valid[index] = true;
-
-                // Step the sequence number forward until we find an invalid packet or finish scanning the entire window.
-                while ((nextSequence - m_receiveWindow.nextUnreadSequence) < m_receiveWindow.GetWindowSize())
+                if (distance < m_receiveWindow.GetWindowSize())
                 {
-                    if (m_receiveWindow.valid[nextSequence % m_receiveWindow.GetWindowSize()])
+                    DD_PRINT(LogLevel::Debug,
+                        "Session %u received message sq %u",
+                        m_sessionId,
+                        messageBuffer.header.sequence);
+
+                    // Send the request.
+                    const uint32 index = messageBuffer.header.sequence % m_receiveWindow.GetWindowSize();
+
+                    // DD_ASSERT(m_receiveWindow.valid[index] == false);
+
+                    // copy data + set associated state
+                    memcpy(&m_receiveWindow.messages[index],
+                        &messageBuffer,
+                        sizeof(MessageHeader) + messageBuffer.header.payloadSize);
+
+                    m_receiveWindow.sequence[index] = messageBuffer.header.sequence;
+                    m_receiveWindow.valid[index] = true;
+
+                    // Step the sequence number forward until we find an invalid packet or finish scanning the entire window.
+                    while ((nextSequence - m_receiveWindow.nextUnreadSequence) < m_receiveWindow.GetWindowSize())
                     {
-                        // Increment the sequence number since this is a valid packet
-                        nextSequence++;
-                        DD_ASSERT(m_receiveWindow.nextUnreadSequence != nextSequence);
-                        m_receiveWindow.semaphore.Signal();
-                    } else
-                    {
-                        // Break out since we found an invalid packet
-                        break;
+                        if (m_receiveWindow.valid[nextSequence % m_receiveWindow.GetWindowSize()])
+                        {
+                            // Increment the sequence number since this is a valid packet
+                            nextSequence++;
+                            DD_ASSERT(m_receiveWindow.nextUnreadSequence != nextSequence);
+                            m_receiveWindow.semaphore.Signal();
+                        }
+                        else
+                        {
+                            // Break out since we found an invalid packet
+                            break;
+                        }
                     }
+
+                    m_receiveWindow.nextExpectedSequence = nextSequence;
+
+                    // if we already have data waiting we want to ack in two conditions
+                    //  1) if too many packets have not been acknowledged
+                    //  2) if we have waited more than half of the a round trip time
+                    // This is to prevent situations where a client retransmits a bunch of data unnecessarily
+                    if (pendingAck)
+                    {
+                        const uint64 unackDistance = (nextSequence - m_receiveWindow.lastUnacknowledgedSequence);
+                        if (unackDistance >= kMaxUnacknowledgedThreshold)
+                        {
+                            DD_PRINT(LogLevel::Debug, "Early ack seq %u", (nextSequence - 1));
+                            SendAckMessage();
+                        }
+                    }
+                    result = Result::Success;
                 }
-
-                m_receiveWindow.nextExpectedSequence = nextSequence;
-
-                // if we already have data waiting we want to ack in two conditions
-                //  1) if too many packets have not been acknowledged
-                //  2) if we have waited more than half of the a round trip time
-                // This is to prevent situations where a client retransmits a bunch of data unnecessarily
-                if (pendingAck)
+                else
                 {
-                    const uint64 unackDistance = (nextSequence - m_receiveWindow.lastUnacknowledgedSequence);
-                    if (unackDistance >= kMaxUnacknowledgedThreshold)
-                    {
-                        DD_PRINT(LogLevel::Debug, "Early ack seq %u", (nextSequence - 1));
-                        SendAckMessage();
-                    }
+                    DD_PRINT(LogLevel::Debug, "Received packet outside of receive window on session %u!", m_sessionId);
                 }
+            }
+            else
+            {
+                // if this data arrived out of order or was retransmitted
+                // we go ahead and send a new acknowledgment now without waiting
+                if (!pendingAck)
+                {
+                    DD_PRINT(LogLevel::Debug, "Reack seq %u", (nextSequence - 1));
+                }
+                SendAckMessage();
                 result = Result::Success;
             }
         }
         else
         {
-            // if this data arrived out of order or was retransmitted
-            // we go ahead and send a new acknowledgment now without waiting
-            if (!pendingAck)
-            {
-                DD_PRINT(LogLevel::Debug, "Reack seq %u", (nextSequence - 1));
-            }
-            SendAckMessage();
-            result = Result::Success;
+            DD_PRINT(LogLevel::Error, "Received packet with invalid payload size on session %u!", m_sessionId);
         }
+
         return result;
     }
 
@@ -342,15 +355,11 @@ namespace DevDriver
                     messageBuffer.header.sessionId = m_sessionId;
                     messageBuffer.header.windowSize = m_receiveWindow.currentAvailableSize;
                     messageBuffer.header.sequence = seq;
+                    messageBuffer.header.payloadSize = payloadSizeInBytes;
 
                     if ((pPayload != nullptr) & (payloadSizeInBytes > 0))
                     {
                         memcpy(&messageBuffer.payload[0], pPayload, payloadSizeInBytes);
-                        messageBuffer.header.payloadSize = payloadSizeInBytes;
-                    }
-                    else
-                    {
-                        messageBuffer.header.payloadSize = 0;
                     }
 
                     m_sendWindow.sequence[index] = seq;
@@ -359,6 +368,8 @@ namespace DevDriver
             }
             else
             {
+                DD_PRINT(LogLevel::Error, "Attempted to send packet with invalid payload size on session %u!", m_sessionId);
+
                 result = Result::InsufficientMemory;
             }
         }
@@ -1003,7 +1014,7 @@ namespace DevDriver
         return result;
     }
 
-    Result Session::Receive(uint32 payloadSizeInBytes, void* pPayload, uint32* pBytesReceived, uint32 timeoutInMs)
+    Result Session::Receive(uint32 payloadBufferSizeInBytes, void* pPayloadBuffer, uint32* pBytesReceived, uint32 timeoutInMs)
     {
         Result result = Result::Error;
 
@@ -1025,15 +1036,15 @@ namespace DevDriver
                 const Sequence index = m_receiveWindow.nextUnreadSequence % m_receiveWindow.GetWindowSize();
                 MessageBuffer& message = m_receiveWindow.messages[index];
 
-                if (payloadSizeInBytes >= message.header.payloadSize)
+                if (payloadBufferSizeInBytes >= message.header.payloadSize)
                 {
                     if (static_cast<SessionMessage>(message.header.messageId) == SessionMessage::Data)
                     {
-                        uint32 payloadSize = Platform::Min(message.header.payloadSize, payloadSizeInBytes);
+                        const uint32 payloadSize = Platform::Min(message.header.payloadSize, payloadBufferSizeInBytes);
 
                         DD_PRINT(LogLevel::Never, "Reading message number %u", m_receiveWindow.nextUnreadSequence);
                         DD_ASSERT(m_receiveWindow.valid[index] && m_receiveWindow.sequence[index] == m_receiveWindow.nextUnreadSequence);
-                        memcpy(pPayload, &message.payload[0], payloadSize);
+                        memcpy(pPayloadBuffer, &message.payload[0], payloadSize);
                         *pBytesReceived = payloadSize;
                     }
                     else

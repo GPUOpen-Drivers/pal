@@ -51,7 +51,8 @@ option(
 
 # Unity builds are only supported starting in 3.16, but significantly improve Windows build times
 # VERSION_GREATER_EQUAL was introduced in CMake 3.7. We use NOT ${X} VERSION_LESS for compatibility with CMake 3.5.
-if (NOT ${CMAKE_VERSION} VERSION_LESS "3.16.0")
+# Based on performance tests, we only want this enabled by default on Windows.
+if (NOT ${CMAKE_VERSION} VERSION_LESS "3.16.0" AND WIN32)
     set(DEVDRIVER_UNITY_BUILDS_DEFAULT ON)
 else()
     set(DEVDRIVER_UNITY_BUILDS_DEFAULT OFF)

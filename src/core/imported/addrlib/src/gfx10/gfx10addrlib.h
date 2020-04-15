@@ -315,6 +315,7 @@ protected:
 
     virtual ChipFamily HwlConvertChipFamily(UINT_32 uChipFamily, UINT_32 uChipRevision);
 
+private:
     // Initialize equation table
     VOID InitEquationTable();
 
@@ -334,7 +335,6 @@ protected:
         const ADDR2_COMPUTE_SURFACE_ADDRFROMCOORD_INPUT* pIn,
         ADDR2_COMPUTE_SURFACE_ADDRFROMCOORD_OUTPUT*      pOut) const;
 
-private:
     UINT_32 ComputeOffsetFromSwizzlePattern(
         const UINT_64* pPattern,
         UINT_32        numBits,

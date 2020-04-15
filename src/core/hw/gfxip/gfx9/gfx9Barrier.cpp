@@ -733,7 +733,7 @@ void Device::ExpandColor(
             pSyncReqs->cacheFlags |= (CacheSyncFlushTcc | CacheSyncInvTcc);
         }
 
-        if (gfx9Image.HasDccStateMetaData())
+        if (gfx9Image.HasDccStateMetaData(subresRange.startSubres.aspect))
         {
             // If the previous layout was not one which can write compressed DCC data, but the new layout is,
             // then we need to update the Image's DCC state metadata to indicate that the image is (probably)
@@ -888,20 +888,45 @@ void Device::IssueSyncs(
     // rolled this event into an EOP stall if one was required.
     if (TestAnyFlagSet(syncReqs.cacheFlags, CacheSyncFlushAndInvCbMd))
     {
+        // We need to use at least one RELEASE_MEM because it gives us the ability to flush or invalidate the GL2
+        // after the CB cache(s) without using a full wait for idle. If we don't roll the GL2 flush into the CB flush
+        // then the ACQUIRE_MEM path below will do it before the CB flush is done and the CB data won't go to memory.
+        ReleaseMemInfo releaseInfo = {};
+        releaseInfo.engineType     = engineType;
+        releaseInfo.tcCacheOp      = SelectTcCacheOp(&syncReqs.cacheFlags);
+        releaseInfo.dataSel        = data_sel__me_release_mem__none;
+
         if (TestAnyFlagSet(syncReqs.cacheFlags, CacheSyncFlushAndInvDb))
         {
             // If any DB caches also need to be hit we can get everything at once using this event.
-            pCmdSpace += m_cmdUtil.BuildNonSampleEventWrite(CACHE_FLUSH_AND_INV_EVENT, engineType, pCmdSpace);
+            releaseInfo.vgtEvent = CACHE_FLUSH_AND_INV_TS_EVENT;
+            pCmdSpace += m_cmdUtil.BuildReleaseMem(releaseInfo, pCmdSpace);
+
             syncReqs.cacheFlags &= ~CacheSyncFlushAndInvRb;
         }
         else
         {
             // Otherwise we need two events to clear all of the CB metadata caches. The CMask and FMask caches are
-            // cleared by the CB_META event but the DCC keys are only cleared when we use CB_PIXEL_DATA which also
-            // will clear the CB data cache. Thus, we are forced to clear all CB caches.
-            pCmdSpace += m_cmdUtil.BuildNonSampleEventWrite(FLUSH_AND_INV_CB_PIXEL_DATA, engineType, pCmdSpace);
+            // cleared by the CB_META event but the DCC keys are only cleared when we use CB_DATA which will also
+            // clear the CB data cache. Thus, we are forced to clear all CB caches.
             pCmdSpace += m_cmdUtil.BuildNonSampleEventWrite(FLUSH_AND_INV_CB_META, engineType, pCmdSpace);
+
+            releaseInfo.vgtEvent = FLUSH_AND_INV_CB_DATA_TS;
+            pCmdSpace += m_cmdUtil.BuildReleaseMem(releaseInfo, pCmdSpace);
+
             syncReqs.cacheFlags &= ~CacheSyncFlushAndInvCb;
+        }
+
+        // On some hardware it takes us multiple TC cache ops to clear out all of our TC cache flags. We must issue a
+        // dummy RELEASE_MEM for each remaining cache op so that they also execute after the CB cache flush.
+        releaseInfo.tcCacheOp = SelectTcCacheOp(&syncReqs.cacheFlags);
+
+        while (releaseInfo.tcCacheOp != TcCacheOp::Nop)
+        {
+            releaseInfo.vgtEvent = BOTTOM_OF_PIPE_TS;
+            pCmdSpace += m_cmdUtil.BuildReleaseMem(releaseInfo, pCmdSpace);
+
+            releaseInfo.tcCacheOp = SelectTcCacheOp(&syncReqs.cacheFlags);
         }
     }
 
@@ -1498,7 +1523,7 @@ void Device::Barrier(
                             initSyncReqs.cacheFlags    |= CacheSyncInvTccMd;
                         }
 
-                        if (gfx9Image.HasDccStateMetaData())
+                        if (gfx9Image.HasDccStateMetaData(subresRange.startSubres.aspect))
                         {
                             // We need to initialize the Image's DCC state metadata to indicate that the Image will
                             // become DCC compressed (or not) in upcoming operations.

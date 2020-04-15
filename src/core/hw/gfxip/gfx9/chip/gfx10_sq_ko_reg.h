@@ -25,7 +25,6 @@
 
 #pragma once
 
-
 union sq_buf_rsrc_t {
     struct {
         uint64_t base_address                                                 : 48;

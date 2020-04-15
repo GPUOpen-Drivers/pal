@@ -43,8 +43,6 @@ using namespace Pal::AddrMgr2;
 namespace Pal  {
 namespace Gfx9 {
 
-static ADDR2_META_FLAGS GetMetaFlags(const Image&  image);
-
 //=============== Implementation for Gfx9MaskRam: ======================================================================
 
 // =====================================================================================================================
@@ -71,6 +69,35 @@ Gfx9MaskRam::Gfx9MaskRam(
 
     static_assert(MetaDataAddrEquation::MaxNumMetaDataAddrBits  <= (sizeof(m_rbAppendedWithPipeBits) * 8),
                   "Must increase size of m_rbAppendedWithPipeBits storage!");
+}
+
+// =====================================================================================================================
+ADDR2_META_FLAGS Gfx9MaskRam::GetMetaFlags() const
+{
+    const Pal::Image*const  pParent    = m_image.Parent();
+    const Pal::Device*      pDevice    = pParent->GetDevice();
+    const Device*           pGfxDevice = static_cast<Device*>(pDevice->GetGfxDevice());
+
+    ADDR2_META_FLAGS  metaFlags = {};
+
+    // Pipe aligned surfaces are aligned for optimal access from the texture block.  All our surfaces are texture
+    // fetchable as anything can be copied through RPM.
+    // For case MSAA Z/MSAA color/Stencil, metadata is not pipe aligned.
+    metaFlags.pipeAligned = PipeAligned();
+    metaFlags.rbAligned   = pGfxDevice->IsRbAligned();
+
+    return metaFlags;
+}
+
+// =====================================================================================================================
+gpusize Gfx9MaskRam::SliceOffset(
+    uint32  arraySlice
+    ) const
+{
+    // Base implementation only "works" for slice 0.
+    PAL_ASSERT(arraySlice == 0);
+
+    return 0;
 }
 
 // =====================================================================================================================
@@ -440,7 +467,7 @@ void Gfx9MaskRam::CalcMetaEquationGfx9()
     // GFX9 is the only GPU that utilizes the meta-data addressing equation...
     if (pDevice->ChipProperties().gfxLevel == GfxIpLevel::GfxIp9)
     {
-        const ADDR2_META_FLAGS  metaFlags          = GetMetaFlags(m_image);
+        const ADDR2_META_FLAGS  metaFlags          = GetMetaFlags();
         const auto*             pCreateInfo        = &pParent->GetImageCreateInfo();
         const uint32            numSamplesLog2     = GetNumSamplesLog2();
         const uint32            maxFragsLog2       = m_pGfxDevice->GetMaxFragsLog2();
@@ -948,13 +975,6 @@ void Gfx9MaskRam::InitEqGpuAccess(
 }
 
 // =====================================================================================================================
-bool Gfx9MaskRam::IsPipeAligned(
-    const Image*  pImage)
-{
-    return GetMetaFlags(*pImage).pipeAligned;
-}
-
-// =====================================================================================================================
 // Returns the dimensions, in pixels, of a block that gets compressed to one mask-ram equivalent unit.  This is easy
 // for hTile and cMask.  DCC is a pain.
 void Gfx9MaskRam::GetXyzInc(
@@ -966,13 +986,6 @@ void Gfx9MaskRam::GetXyzInc(
     *pXinc = 8;
     *pYinc = 8;
     *pZinc = 1;
-}
-
-// =====================================================================================================================
-bool Gfx9MaskRam::IsRbAligned(
-    const Image*  pImage)
-{
-    return GetMetaFlags(*pImage).rbAligned;
 }
 
 // =====================================================================================================================
@@ -1233,8 +1246,6 @@ bool Gfx9MaskRam::SupportFastColorClear(
     // - The Image is a Color Target - (ensured by caller)
     // - If the image is shader write-able, it's shader-writeable in a good way
     // - The Image is not linear tiled.
-    PAL_ASSERT(pParent->IsRenderTarget());
-
     return (fastColorClearEnable                       == true)  &&
            allowShaderWriteableSurfaces                          &&
            (AddrMgr2::IsLinearSwizzleMode(swizzleMode) == false) &&
@@ -2204,7 +2215,7 @@ void Gfx9MaskRam::CalcMetaEquationGfx10()
 
     MetaDataAddrEquation  pipe(27, "pipe");
 
-    PAL_ASSERT(GetMetaFlags(m_image).pipeAligned != 0);
+    PAL_ASSERT(PipeAligned() != 0);
 
     constexpr uint32 nibbleOffset = 1;
     PAL_ASSERT(m_meta.GetNumValidBits() >= (blockSizeLog2 + nibbleOffset));
@@ -2245,245 +2256,286 @@ void Gfx9MaskRam::CalcMetaEquationGfx10()
             }
         }
 
-        PAL_ASSERT(pipe.GetNumValidBits() >= (blockSizeLog2 + nibbleOffset));
-
-        AddMetaPipeBits(&pipe, nibbleOffset);
-
-        uint32 pos1 = pipeInterleaveLog2 + nibbleOffset;
-
-        start = end;
-        end = (8 - compBlockLog2.width - compBlockLog2.height - compBlockLog2.depth) +
-              (((2 - static_cast<int32>(effectiveNumPipesLog2)) < 0) ?
-               0 : 2 - effectiveNumPipesLog2);
-
-        if ((m_pipeDist == PipeDist16x16) && (effectiveNumPipesLog2 > 1))
+        PAL_ASSERT((IsStandardSwzzle(swizzleMode) == false) && (IsDisplayableSwizzle(swizzleMode) == false));
+        // (!p.pipe_aligned || p.sw == SW_S || p.sw == SW_D) == (!p.pipe_aligned) since SW_S/SW_D wont be used:
+        // 1) HTILE can not be used on a SW_S/SW_D image.
+        // 2) Gfx9Dcc::UseDccForImage() disabled Dcc on SW_S/SW_D.
+        if (PipeAligned() == false)
         {
-            end++;
-        }
-
-        end += start;
-        flipXY = (compBlockLog2.height < compBlockLog2.width) ? true : false;
-
-        const uint32 pipeRotateAmount = GetPipeRotateAmount();
-
-        // This is needed to make htile pipe the same for all bpp modes under 32bpp
-        if ((pipeRotateAmount >= 2)           &&
-            (pipe.GetNumComponents(pos1) > 2) &&
-            IsDepth()                         &&
-            (bppLog2 <= 2)                    &&
-            (((numSamplesLog2 == 1) && (modNumPipesLog2 >= 6)) ||
-             ((numSamplesLog2 == 2) && (modNumPipesLog2 >= 5))))
-        {
+            start = end;
+            if ((numPipesLog2 > 0) &&
+                ((compBlockLog2.width + compBlockLog2.height) > 6) &&
+                (m_pipeDist == PipeDist8x8))
             {
-                pipe.Remove(pipe.GetFirst(pos1), pos1);
-            }
-        }
+                cx = MetaDataAddrEquation::SetCompPair(MetaDataAddrCompX, 3);
+                cy = MetaDataAddrEquation::SetCompPair(MetaDataAddrCompY, 3);
 
-        // In 16Bpe 8xaa, we have an extra overlap bit
-        if ((pipeRotateAmount > 0) && (pixelBlockLog2.width == 4))
-        {
-            {
-                metaOverlap++;
-            }
-        }
-
-        // Because y bits get into the overlap before x bits, we may need to swap an x/y bit pair
-        // where the overlap bits end
-        // 128 pipe is a little funky because although y3 starts the overlap, x3 is used in its place in the equation,
-        // so no need to swap
-        // In 16Bpp 8xaa, we lose 1 overlap bit, which is y2, so we don't need to do this swap
-        bool swapOverlapEnd = ((metaOverlap & 1) != 0)                           &&
-                              (flipXY == false)                                  &&
-                              (effectiveNumPipesLog2 != 7)                       &&
-                              (((bppLog2 == 4) && (numSamplesLog2 == 3)) == false);
-
-        // This is to handle a particular case SW_Z DCC 8 Bpp in 4xaa in 32 pipes
-        // This is the only case where we have "gap" in the overlap which requires two y bits, instead of interleaving
-        // y and x.  Other cases that have a gap end in y3/x4 which naturally works out with interleaved x/y's
-        swapOverlapEnd = swapOverlapEnd           ||
-                         (IsZSwizzle(swizzleMode) &&
-                         (bppLog2 == 3)           &&
-                         (numSamplesLog2 == 2)    &&
-                         IsColor()                &&
-                         (effectiveNumPipesLog2 == 5));
-
-        // Note: this section of flipY1Y2 only affects SW_Z DCC MSAA addressing (which is not needed in gfx10)
-        int32 posY1 = 3 - compBlockLog2.width - compBlockLog2.height;
-        int32 posY2 = posY1 + 2;
-        if (swapOverlapEnd && (posY1 <= 1))
-        {
-            posY1 = 1 ^ posY1;
-        }
-
-        bool flipY1Y2 = ((compBlockLog2.height <  2    ) &&
-                         (metaOverlap          >  posY1) &&
-                         (metaOverlap          <= posY2));
-
-        if (m_pipeDist == PipeDist16x16)
-        {
-            flipY1Y2 = false;
-        }
-
-        uint32 tileSplitBits = 0;
-        uint32 tileOrd = (m_pipeDist == PipeDist8x8) ? 3 : 4;
-
-        for (uint32 i = start; i < end; i++)
-        {
-            if (static_cast<bool>((i - start) & 1) == flipXY)
-            {
+                // Pal only uses PipeUnaligned for DisplayDcc which only has a single sample
+                end = start + 2 - bppLog2;
+                for (uint32 i = start; i < end; i++)
                 {
-                    if ((cx.compPos == 4)           &&
-                        (effectiveNumPipesLog2 > 1) &&
-                        (m_pipeDist == PipeDist8x8))
-                    {
-                        cx.compPos++;
-                    }
                     m_meta.SetBit(i, cx);
                     cx.compPos++;
+                    if ((i == start) || (numPipesLog2 > 1))
+                    {
+                        m_meta.SetBit(i, cy);
+                    }
+                    cy.compPos++;
                 }
+                start = end;
+            }
+            end = blockSizeLog2 + nibbleOffset;
+            if (cy.compPos < cx.compPos)
+            {
+                m_meta.Mort2d(m_pGfxDevice, &cy, &cx, start, end - 1);
             }
             else
             {
-                uint32 ord = cy.compPos;
-                if ((ord == tileOrd) && (effectiveNumPipesLog2 > 0))
+                m_meta.Mort2d(m_pGfxDevice, &cx, &cy, start, end - 1);
+            }
+        }
+        else
+        {
+            PAL_ASSERT(pipe.GetNumValidBits() >= (blockSizeLog2 + nibbleOffset));
+
+            AddMetaPipeBits(&pipe, nibbleOffset);
+
+            uint32 pos1 = pipeInterleaveLog2 + nibbleOffset;
+
+            start = end;
+            end = (8 - compBlockLog2.width - compBlockLog2.height - compBlockLog2.depth) +
+                  (((2 - static_cast<int32>(effectiveNumPipesLog2)) < 0) ?
+                   0 : 2 - effectiveNumPipesLog2);
+
+            if ((m_pipeDist == PipeDist16x16) && (effectiveNumPipesLog2 > 1))
+            {
+                end++;
+            }
+
+            end += start;
+            flipXY = (compBlockLog2.height < compBlockLog2.width) ? true : false;
+
+            const uint32 pipeRotateAmount = GetPipeRotateAmount();
+
+            // This is needed to make htile pipe the same for all bpp modes under 32bpp
+            if ((pipeRotateAmount >= 2)           &&
+                (pipe.GetNumComponents(pos1) > 2) &&
+                IsDepth()                         &&
+                (bppLog2 <= 2)                    &&
+                (((numSamplesLog2 == 1) && (modNumPipesLog2 >= 6)) ||
+                 ((numSamplesLog2 == 2) && (modNumPipesLog2 >= 5))))
+            {
                 {
+                    pipe.Remove(pipe.GetFirst(pos1), pos1);
+                }
+            }
+
+            // In 16Bpe 8xaa, we have an extra overlap bit
+            if ((pipeRotateAmount > 0) && (pixelBlockLog2.width == 4))
+            {
+                {
+                    metaOverlap++;
+                }
+            }
+
+            // Because y bits get into the overlap before x bits, we may need to swap an x/y bit pair
+            // where the overlap bits end
+            // 128 pipe is a little funky because although y3 starts the overlap, x3 is used in its place in the equation,
+            // so no need to swap
+            // In 16Bpp 8xaa, we lose 1 overlap bit, which is y2, so we don't need to do this swap
+            bool swapOverlapEnd = ((metaOverlap & 1) != 0)                           &&
+                                  (flipXY == false)                                  &&
+                                  (effectiveNumPipesLog2 != 7)                       &&
+                                  (((bppLog2 == 4) && (numSamplesLog2 == 3)) == false);
+
+            // This is to handle a particular case SW_Z DCC 8 Bpp in 4xaa in 32 pipes
+            // This is the only case where we have "gap" in the overlap which requires two y bits, instead of interleaving
+            // y and x.  Other cases that have a gap end in y3/x4 which naturally works out with interleaved x/y's
+            swapOverlapEnd = swapOverlapEnd           ||
+                             (IsZSwizzle(swizzleMode) &&
+                             (bppLog2 == 3)           &&
+                             (numSamplesLog2 == 2)    &&
+                             IsColor()                &&
+                             (effectiveNumPipesLog2 == 5));
+
+            // Note: this section of flipY1Y2 only affects SW_Z DCC MSAA addressing (which is not needed in gfx10)
+            int32 posY1 = 3 - compBlockLog2.width - compBlockLog2.height;
+            int32 posY2 = posY1 + 2;
+            if (swapOverlapEnd && (posY1 <= 1))
+            {
+                posY1 = 1 ^ posY1;
+            }
+
+            bool flipY1Y2 = ((compBlockLog2.height <  2    ) &&
+                             (metaOverlap          >  posY1) &&
+                             (metaOverlap          <= posY2));
+
+            if (m_pipeDist == PipeDist16x16)
+            {
+                flipY1Y2 = false;
+            }
+
+            uint32 tileSplitBits = 0;
+            uint32 tileOrd = (m_pipeDist == PipeDist8x8) ? 3 : 4;
+
+            for (uint32 i = start; i < end; i++)
+            {
+                if (static_cast<bool>((i - start) & 1) == flipXY)
+                {
+                    {
+                        if ((cx.compPos == 4)           &&
+                            (effectiveNumPipesLog2 > 1) &&
+                            (m_pipeDist == PipeDist8x8))
+                        {
+                            cx.compPos++;
+                        }
+                        m_meta.SetBit(i, cx);
+                        cx.compPos++;
+                    }
+                }
+                else
+                {
+                    uint32 ord = cy.compPos;
+                    if ((ord == tileOrd) && (effectiveNumPipesLog2 > 0))
+                    {
+                        cy.compPos++;
+                    }
+
+                    if (flipY1Y2)
+                    {
+                        switch (ord)
+                        {
+                        case 1:
+                            cy.compPos++;
+                            break;
+                        case 2:
+                            cy.compPos--;
+                            break;
+                        }
+                    }
+
+                    m_meta.SetBit(i, cy);
+
+                    if (flipY1Y2)
+                    {
+                        switch (ord)
+                        {
+                        case 1:
+                            cy.compPos--;
+                            break;
+                        case 2:
+                            cy.compPos++;
+                            break;
+                        }
+                    }
                     cy.compPos++;
                 }
+            }
 
-                if (flipY1Y2)
+            start = end;
+            end   = blockSizeLog2 - effectiveNumPipesLog2 + nibbleOffset;
+            cx    = MetaDataAddrEquation::SetCompPair(MetaDataAddrCompX, Max(5u, pipeAnchorLog2.width));
+            cy    = MetaDataAddrEquation::SetCompPair(MetaDataAddrCompY, Max(5u, pipeAnchorLog2.height));
+
+            uint32 shiftBit0 = 0;
+            uint32 shiftBit1 = 0;
+
+            {
+                const uint32 pipe_block_ord = GetPipeBlockSize();
+                shiftBit0 = start + 2 * (pipe_block_ord - cy.compPos); // start + 2*(pipe_block_ord - cy.getord());
+                shiftBit1 = shiftBit0;
+
+                if (end > start)
                 {
-                    switch (ord)
+                    if (cy.compPos < cx.compPos)
                     {
-                    case 1:
-                        cy.compPos++;
-                        break;
-                    case 2:
-                        cy.compPos--;
-                        break;
+                        m_meta.Mort2d(m_pGfxDevice, &cy, &cx, start, end - 1);
+                        shiftBit1++;
+                    }
+                    else
+                    {
+                        m_meta.Mort2d(m_pGfxDevice, &cx, &cy, start, end - 1);
+                        shiftBit0++;
                     }
                 }
 
-                m_meta.SetBit(i, cy);
-
-                if (flipY1Y2)
+                if (shiftBit0 == (blockSizeLog2 - numPipesLog2 + pipeRotateAmount + nibbleOffset))
                 {
-                    switch (ord)
-                    {
-                    case 1:
-                        cy.compPos--;
-                        break;
-                    case 2:
-                        cy.compPos++;
-                        break;
-                    }
+                    shiftBit0--;
                 }
-                cy.compPos++;
-            }
-        }
 
-        start = end;
-        end   = blockSizeLog2 - effectiveNumPipesLog2 + nibbleOffset;
-        cx    = MetaDataAddrEquation::SetCompPair(MetaDataAddrCompX, Max(5u, pipeAnchorLog2.width));
-        cy    = MetaDataAddrEquation::SetCompPair(MetaDataAddrCompY, Max(5u, pipeAnchorLog2.height));
-
-        uint32 shiftBit0 = 0;
-        uint32 shiftBit1 = 0;
-
-        {
-            const uint32 pipe_block_ord = GetPipeBlockSize();
-            shiftBit0 = start + 2 * (pipe_block_ord - cy.compPos); // start + 2*(pipe_block_ord - cy.getord());
-            shiftBit1 = shiftBit0;
-
-            if (end > start)
-            {
-                if (cy.compPos < cx.compPos)
+                if (shiftBit0 >= (blockSizeLog2 - numPipesLog2 + pipeRotateAmount + nibbleOffset))
                 {
-                    m_meta.Mort2d(m_pGfxDevice, &cy, &cx, start, end - 1);
-                    shiftBit1++;
-                }
-                else
-                {
-                    m_meta.Mort2d(m_pGfxDevice, &cx, &cy, start, end - 1);
-                    shiftBit0++;
-                }
-            }
-
-            if (shiftBit0 == (blockSizeLog2 - numPipesLog2 + pipeRotateAmount + nibbleOffset))
-            {
-                shiftBit0--;
-            }
-
-            if (shiftBit0 >= (blockSizeLog2 - numPipesLog2 + pipeRotateAmount + nibbleOffset))
-            {
-                shiftBit0 = 2 * (4 - compBlockLog2.width) + nibbleOffset;
-                if (compBlockLog2.height < compBlockLog2.width)
-                {
-                    shiftBit0++;
-                }
-                if (IsRotatedSwizzle(swizzleMode))
-                {
-                    shiftBit0 += maxFragsLog2;
-                }
-            }
-
-            if (shiftBit1 >= (blockSizeLog2 - numPipesLog2 + pipeRotateAmount + nibbleOffset))
-            {
-                CompPair c = pipe.GetFirst(pos1);
-                if (c.compType == MetaDataAddrCompX)
-                {
-                    shiftBit1 = 2 * (c.compPos - compBlockLog2.width) + nibbleOffset;
+                    shiftBit0 = 2 * (4 - compBlockLog2.width) + nibbleOffset;
                     if (compBlockLog2.height < compBlockLog2.width)
                     {
-                        shiftBit1++;
+                        shiftBit0++;
                     }
-                }
-                else
-                {
-                    shiftBit1 = 2 * (c.compPos - compBlockLog2.height) + nibbleOffset;
-                    if (compBlockLog2.height >= compBlockLog2.width)
+                    if (IsRotatedSwizzle(swizzleMode))
                     {
-                        shiftBit1++;
+                        shiftBit0 += maxFragsLog2;
                     }
                 }
-                if (IsRotatedSwizzle(swizzleMode))
+
+                if (shiftBit1 >= (blockSizeLog2 - numPipesLog2 + pipeRotateAmount + nibbleOffset))
                 {
-                    shiftBit1 += maxFragsLog2;
+                    CompPair c = pipe.GetFirst(pos1);
+                    if (c.compType == MetaDataAddrCompX)
+                    {
+                        shiftBit1 = 2 * (c.compPos - compBlockLog2.width) + nibbleOffset;
+                        if (compBlockLog2.height < compBlockLog2.width)
+                        {
+                            shiftBit1++;
+                        }
+                    }
+                    else
+                    {
+                        shiftBit1 = 2 * (c.compPos - compBlockLog2.height) + nibbleOffset;
+                        if (compBlockLog2.height >= compBlockLog2.width)
+                        {
+                            shiftBit1++;
+                        }
+                    }
+                    if (IsRotatedSwizzle(swizzleMode))
+                    {
+                        shiftBit1 += maxFragsLog2;
+                    }
                 }
             }
+
+            if ((pipeRotateAmount >= 2) && (shiftBit1 > shiftBit0))
+            {
+                Swap(shiftBit0, shiftBit1);
+            }
+
+            if (pipeRotateAmount > 0)
+            {
+                m_meta.Shift(-1, shiftBit0);
+            }
+
+            if (pipeRotateAmount > 1)
+            {
+                m_meta.Shift(-1, shiftBit1);
+            }
+
+            start = m_metaDataWordSizeLog2 + nibbleOffset + (IsZSwizzle(swizzleMode) ? 0 : maxCompFragsLog2);
+
+            if (swapOverlapEnd)
+            {
+                m_meta.Rotate(1, start + metaOverlap - 1, start + metaOverlap);
+            }
+
+            end = cachelineSize + metaOverlap;
+
+            end += nibbleOffset;
+
+            m_meta.Rotate(-metaOverlap, start, end - 1);
+
+            start = pipeInterleaveLog2 + nibbleOffset;
+            m_meta.Shift(modNumPipesLog2, start);
+
+            m_meta.XorIn(&pipe);
         }
-
-        if ((pipeRotateAmount >= 2) && (shiftBit1 > shiftBit0))
-        {
-            Swap(shiftBit0, shiftBit1);
-        }
-
-        if (pipeRotateAmount > 0)
-        {
-            m_meta.Shift(-1, shiftBit0);
-        }
-
-        if (pipeRotateAmount > 1)
-        {
-            m_meta.Shift(-1, shiftBit1);
-        }
-
-        start = m_metaDataWordSizeLog2 + nibbleOffset + (IsZSwizzle(swizzleMode) ? 0 : maxCompFragsLog2);
-
-        if (swapOverlapEnd)
-        {
-            m_meta.Rotate(1, start + metaOverlap - 1, start + metaOverlap);
-        }
-
-        end = cachelineSize + metaOverlap;
-
-        end += nibbleOffset;
-
-        m_meta.Rotate(-metaOverlap, start, end - 1);
-
-        start = pipeInterleaveLog2 + nibbleOffset;
-        m_meta.Shift(modNumPipesLog2, start);
-
-        m_meta.XorIn(&pipe);
     }
 
     // The equation is currently 32-bits long, but on GFX10, the equation is an offset into one meta-block
@@ -2767,7 +2819,7 @@ Result Gfx9Htile::ComputeHtileInfo(
     addrHtileIn.numSlices         = imageCreateInfo.arraySize;
     addrHtileIn.numMipLevels      = imageCreateInfo.mipLevels;
     addrHtileIn.depthFlags        = pAddrMgr->DetermineSurfaceFlags(*pParent, pSubResInfo->subresId.aspect);
-    addrHtileIn.hTileFlags        = GetMetaFlags(m_image);
+    addrHtileIn.hTileFlags        = GetMetaFlags();
     addrHtileIn.firstMipIdInTail  = pParentSurfAddrOut->firstMipIdInTail;
 
     const ADDR_E_RETURNCODE addrRet = Addr2ComputeHtileInfo(device.AddrLibHandle(), &addrHtileIn, &m_addrOutput);
@@ -2993,17 +3045,63 @@ uint32 Gfx9Htile::GetMetaBlockSize(
 
 // =====================================================================================================================
 Gfx9Dcc::Gfx9Dcc(
-    const Image&  image)
+    const Image& image,
+    bool         displayDcc)
     :
     Gfx9MaskRam(image,
                 0,  // DCC uses 1-byte quantities, log2(1) = 0
                 1), // ignore the first bit of a nibble equation
-    m_dccControl()
+    m_dccControl(),
+    m_displayDcc(displayDcc)
 {
     memset(&m_addrOutput, 0, sizeof(m_addrOutput));
 
     m_addrOutput.size     = sizeof(m_addrOutput);
     m_addrOutput.pMipInfo = &m_addrMipOutput[0];
+}
+
+// =====================================================================================================================
+uint32 Gfx9Dcc::PipeAligned() const
+{
+    const AddrSwizzleMode  swizzleMode = GetSwizzleMode();
+
+     // most surfaces are pipe-aligned for more performant access.
+     // Display Dcc: from UMDKMDIF_GET_PRIMARYSURF_INFO_OUTPUT::KeyPipeAligned, so far 0 for Gfx10.
+    uint32                 pipeAligned = (m_displayDcc == false);
+
+    //     Meta surfaces with SW_256B_D and SW_256B_S data swizzle mode must not be pipe aligned
+    //
+    if (Is256BSwizzle(swizzleMode))
+    {
+        pipeAligned = 0;
+    }
+
+    return pipeAligned;
+}
+
+// =====================================================================================================================
+gpusize Gfx9Dcc::SliceOffset(
+    uint32  arraySlice
+    ) const
+{
+    // Always assume mip zero.  The HW is expecting the base address of the allocation; on GFX10, mip 0 is not
+    // necessarily where the allocation begins.  Adding in the offset to where "mip 0" actually begins is bad.
+    constexpr  uint32  MipLevel = 0;
+
+    const auto&  palDevice   = *(m_pGfxDevice->Parent());
+    const auto&  addrMipInfo = GetAddrMipInfo(MipLevel); // assume mip zero
+
+    // Slice offset of DCC is meaningless except on GFX10 products.
+    PAL_ASSERT(IsGfx10(palDevice) || (arraySlice == 0));
+
+    // We should only really be requesting either the base subresource (i.e., slice = mip = 0) or a distinct slice
+    // (for YUV surfaces only).
+    PAL_ASSERT((arraySlice == 0) || IsYuv(m_image.Parent()->GetImageCreateInfo().swizzledFormat.format));
+
+    // Because we're always requesting mip level 0, we don't have to add in "addrMipInfo.offset" here; doing so is
+    // actually bad on GFX10 as mip 0 can have a non-zero offset, which causes the HW address block issues as we
+    // would no longer be pointing to the start of the allocation (i.e., good) but would point to MIP 0 itself (bad).
+    return arraySlice * addrMipInfo.sliceSize;
 }
 
 // =====================================================================================================================
@@ -3088,18 +3186,20 @@ void Gfx9Dcc::GetXyzInc(
 
     if ((imageType == ImageType::Tex2d) || isEffective2d)
     {
-        constexpr uint32 XyzIncSizes[][3]=
         {
-            { 16, 16, 1 },  // 8bpp
-            { 16,  8, 1 },  // 16bpp
-            {  8,  8, 1 },  // 32bpp
-            {  8,  4, 1 },  // 64bpp
-            {  4,  4, 1 },  // 128bpp
-        };
+            constexpr uint32 XyzIncSizes[][3]=
+            {
+                { 16, 16, 1 },  // 8bpp
+                { 16,  8, 1 },  // 16bpp
+                {  8,  8, 1 },  // 32bpp
+                {  8,  4, 1 },  // 64bpp
+                {  4,  4, 1 },  // 128bpp
+            };
 
-        *pXinc = XyzIncSizes[bppLog2][0];
-        *pYinc = XyzIncSizes[bppLog2][1];
-        *pZinc = XyzIncSizes[bppLog2][2];
+            *pXinc = XyzIncSizes[bppLog2][0];
+            *pYinc = XyzIncSizes[bppLog2][1];
+            *pZinc = XyzIncSizes[bppLog2][2];
+        }
     }
     else if (imageType == ImageType::Tex3d)
     {
@@ -3149,17 +3249,18 @@ void Gfx9Dcc::GetXyzInc(
 
 // =====================================================================================================================
 Result Gfx9Dcc::Init(
-    gpusize*  pGpuOffset,
-    bool      hasEqGpuAccess)
+    const SubresId&  subResId,
+    gpusize*         pGpuOffset,
+    bool             hasEqGpuAccess)
 {
-    Result result = ComputeDccInfo();
+    Result result = ComputeDccInfo(subResId);
 
     if (result == Result::Success)
     {
         // Compute our aligned GPU memory offset and update the caller-provided running total.
         UpdateGpuMemOffset(pGpuOffset);
 
-        SetControlReg();
+        SetControlReg(subResId);
 
         if (hasEqGpuAccess)
         {
@@ -3173,25 +3274,22 @@ Result Gfx9Dcc::Init(
 
 // =====================================================================================================================
 // Calls into AddrLib to compute DCC info for a subresource
-Result Gfx9Dcc::ComputeDccInfo()
+Result Gfx9Dcc::ComputeDccInfo(
+    const SubresId&  subResId)
 {
-    const Pal::Image*const      pParent         = m_image.Parent();
-    const Pal::Device*const     pDevice         = pParent->GetDevice();
-    const Pal::ImageCreateInfo& imageCreateInfo = pParent->GetImageCreateInfo();
-    const auto*const            pAddrMgr        = static_cast<const AddrMgr2::AddrMgr2*>(pDevice->GetAddrMgr());
-
-    // The Addr2 interface computes all DCC info off of the base level information, so setup a sub-res pointer to
-    // the base of the color aspect here.
-    const SubresId         subResId           = { ImageAspect::Color, 0, 0 };
-    const SubResourceInfo* pSubResInfo        = pParent->SubresourceInfo(subResId);
-    const auto&            surfSettings       = m_image.GetAddrSettings(pSubResInfo);
-    const auto*            pParentSurfAddrOut = m_image.GetAddrOutput(pSubResInfo);
+    const Pal::Image*const      pParent            = m_image.Parent();
+    const Pal::Device*const     pDevice            = pParent->GetDevice();
+    const Pal::ImageCreateInfo& imageCreateInfo    = pParent->GetImageCreateInfo();
+    const auto*const            pAddrMgr           = static_cast<const AddrMgr2::AddrMgr2*>(pDevice->GetAddrMgr());
+    const SubResourceInfo*      pSubResInfo        = pParent->SubresourceInfo(subResId);
+    const auto&                 surfSettings       = m_image.GetAddrSettings(pSubResInfo);
+    const auto*                 pParentSurfAddrOut = m_image.GetAddrOutput(pSubResInfo);
 
     ADDR2_COMPUTE_DCCINFO_INPUT  dccInfoInput = {};
     Result                       result       = Result::ErrorInitializationFailed;
 
     dccInfoInput.size             = sizeof(dccInfoInput);
-    dccInfoInput.dccKeyFlags      = GetMetaFlags(m_image);
+    dccInfoInput.dccKeyFlags      = GetMetaFlags();
     dccInfoInput.colorFlags       = pAddrMgr->DetermineSurfaceFlags(*pParent, subResId.aspect);
     dccInfoInput.resourceType     = m_image.GetAddrSettings(pSubResInfo).resourceType;
     dccInfoInput.swizzleMode      = surfSettings.swizzleMode;
@@ -3242,9 +3340,9 @@ uint32 Gfx9Dcc::GetMinCompressedBlockSize() const
 
 // =====================================================================================================================
 // Calculates the value for the CB_DCC_CONTROL register
-void Gfx9Dcc::SetControlReg()
+void Gfx9Dcc::SetControlReg(
+    const SubresId&  subResId)
 {
-    const SubresId          subResId    = { ImageAspect::Color, 0, 0 };
     const Pal::Image*       pParent     = m_image.Parent();
     const SubResourceInfo*  pSubResInfo = pParent->SubresourceInfo(subResId);
     const Pal::Device*      pDevice     = m_pGfxDevice->Parent();
@@ -3417,13 +3515,12 @@ bool Gfx9Dcc::UseDccForImage(
         useDcc = false;
         mustDisableDcc = true;
     }
-    else if (Formats::IsYuv(createInfo.swizzledFormat.format))
-    {
-        // DCC isn't useful for YUV formats, since those are usually accessed heavily by the multimedia engines.
-        useDcc = false;
-        mustDisableDcc = true;
-    }
-    else if (isNotARenderTarget && (allMipsShaderWritable == false))
+    else if (isNotARenderTarget               &&
+             (allMipsShaderWritable == false) &&
+             // YUV surfaces aren't (normally) render targets or UAV destinations, but they still potentially benefit
+             // from DCC compression.
+             ((Formats::IsYuvPlanar(createInfo.swizzledFormat.format) == false) ||
+              (TestAnyFlagSet(settings.useDcc, Gfx10UseDccYuvPlanar) == false)))
     {
         // DCC should always be off for a resource that is not a UAV and is not a render target.
         useDcc = false;
@@ -3488,6 +3585,13 @@ bool Gfx9Dcc::UseDccForImage(
             (TestAnyFlagSet(settings.useDcc, Gfx9UseDccSrgb) == false))
         {
             useDcc = false;
+        }
+        else if (Formats::IsYuvPacked(createInfo.swizzledFormat.format))
+        {
+            // DCC isn't useful for packed YUV formats, since those are usually accessed heavily
+            // by the multimedia engines.
+            useDcc = false;
+            mustDisableDcc = true;
         }
         else if ((createInfo.flags.prt == 1) && (TestAnyFlagSet(settings.useDcc, Gfx9UseDccPrt) == false))
         {
@@ -3845,7 +3949,7 @@ Result Gfx9Cmask::ComputeCmaskInfo()
     cMaskInput.resourceType    = m_image.GetAddrSettings(pSubResInfo).resourceType;
     cMaskInput.colorFlags      = pAddrMgr->DetermineSurfaceFlags(*pParent, subResId.aspect);
     cMaskInput.swizzleMode     = pFmask->GetSwizzleMode();
-    cMaskInput.cMaskFlags      = GetMetaFlags(m_image);
+    cMaskInput.cMaskFlags      = GetMetaFlags();
 
     const ADDR_E_RETURNCODE  addrRet = Addr2ComputeCmaskInfo(pDevice->AddrLibHandle(),
                                                              &cMaskInput,
@@ -3876,6 +3980,8 @@ uint32 Gfx9Cmask::GetPipeBankXor(
     ImageAspect   aspect
     ) const
 {
+    PAL_ASSERT(aspect == ImageAspect::Fmask);
+
     const uint32 pipeBankXor = m_image.GetFmask()->GetPipeBankXor();
 
     return AdjustPipeBankXorForSwizzle(pipeBankXor);
@@ -4202,30 +4308,6 @@ Result Gfx9Fmask::ComputeFmaskInfo(
     }
 
     return result;
-}
-
-//=============== Some helper functions here ====================================
-
-// =====================================================================================================================
-static ADDR2_META_FLAGS GetMetaFlags(
-    const Image&  image)
-{
-    const Pal::Image*const  pParent    = image.Parent();
-    const Pal::Device*      pDevice    = pParent->GetDevice();
-    const Device*           pGfxDevice = static_cast<Device*>(pDevice->GetGfxDevice());
-
-    ADDR2_META_FLAGS  metaFlags = {};
-
-    // Pipe aligned surfaces are aligned for optimal access from the texture block.  All our surfaces are texture
-    // fetchable as anything can be copied through RPM.
-    // For case MSAA Z/MSAA color/Stencil, metadata is not pipe aligned.
-    metaFlags.pipeAligned = 1;
-
-    //            rbAligned must be true for ASICs with > 1 RBs, otherwise there would be access violation
-    //            between different RBs
-    metaFlags.rbAligned   = ((pGfxDevice->GetNumRbsPerSeLog2() + pGfxDevice->GetNumShaderEnginesLog2()) != 0);
-
-    return metaFlags;
 }
 
 } // Gfx9

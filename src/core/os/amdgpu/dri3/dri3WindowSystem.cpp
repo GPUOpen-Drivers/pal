@@ -363,6 +363,16 @@ Result Dri3WindowSystem::Init()
                 result = SelectEvent();
             }
         }
+
+        if (result == Result::Success)
+        {
+            const auto& settings = m_device.Settings();
+
+            if (settings.enableAdaptiveSync)
+            {
+                SetAdaptiveSyncProperty(true);
+            }
+        }
     }
     else
     {
@@ -1262,6 +1272,50 @@ Result Dri3WindowSystem::AcquireScreenAccess(
 #endif
 
     return result;
+}
+
+// Enable adaptive sync of the X window
+void Dri3WindowSystem::SetAdaptiveSyncProperty(
+    bool enable)
+{
+    const Dri3LoaderFuncs&         dri3Procs      = m_device.GetPlatform()->GetDri3Loader().GetProcsTable();
+    static char const              propertyName[] = "_VARIABLE_REFRESH";
+    const xcb_intern_atom_cookie_t cookie         = dri3Procs.pfnXcbInternAtom(m_pConnection,
+                                                                               0,
+                                                                               strlen(propertyName),
+                                                                               propertyName);
+    xcb_intern_atom_reply_t*const  pReply         = dri3Procs.pfnXcbInternAtomReply(m_pConnection,
+                                                                                    cookie,
+                                                                                    nullptr);
+
+    if (pReply != nullptr)
+    {
+        xcb_void_cookie_t check = {};
+
+        if (enable)
+        {
+            uint32 state = 1;
+            check = dri3Procs.pfnXcbChangePropertyChecked(m_pConnection,
+                                                          XCB_PROP_MODE_REPLACE,
+                                                          m_hWindow,
+                                                          pReply->atom,
+                                                          XCB_ATOM_CARDINAL,
+                                                          32,
+                                                          1,
+                                                          &state);
+        }
+        else
+        {
+            check = dri3Procs.pfnXcbDeletePropertyChecked(m_pConnection,
+                                                          m_hWindow,
+                                                          pReply->atom);
+        }
+
+        dri3Procs.pfnXcbDiscardReply(m_pConnection, check.sequence);
+
+        free(pReply);
+    }
+
 }
 
 } // Amdgpu

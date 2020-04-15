@@ -103,8 +103,11 @@ namespace DevDriver
     namespace Platform
     {
         /* platform functions for performing atomic operations */
-        typedef volatile long Atomic;
+        typedef volatile LONG Atomic;
         DD_CHECK_SIZE(Atomic, sizeof(int32));
+
+        typedef volatile LONG64 Atomic64;
+        DD_CHECK_SIZE(Atomic64, sizeof(int64));
 
         struct EmptyStruct {};
 

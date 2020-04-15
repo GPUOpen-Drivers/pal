@@ -194,7 +194,7 @@ struct ExplicitReleaseMemInfo
 // The "official" "event-write" packet definition (see:  PM4_MEC_EVENT_WRITE) contains "extra" dwords that aren't
 // necessary (and would cause problems if they existed) for event writes other than "".  Define a "plain" event-write
 // packet definition here.
-struct PM4ME_NON_SAMPLE_EVENT_WRITE
+struct PM4_ME_NON_SAMPLE_EVENT_WRITE
 {
     PM4_ME_TYPE_3_HEADER  header;
     uint32                ordinal2;
@@ -276,7 +276,7 @@ struct PipelinePrefetchPm4
 {
     union
     {
-        PM4PFP_DMA_DATA     dmaData;
+        PM4_PFP_DMA_DATA     dmaData;
         PM4_PFP_PRIME_UTCL2 primeUtcl2;
     };
     uint32 spaceNeeded;
@@ -292,32 +292,32 @@ public:
 
     // Returns the number of DWORDs that are required to chain two chunks
     static uint32 ChainSizeInDwords(EngineType engineType);
-    static constexpr uint32 CondIndirectBufferSize  = (sizeof(PM4PFP_COND_INDIRECT_BUFFER) / sizeof(uint32));
-    static constexpr uint32 DispatchDirectSize      = (sizeof(PM4PFP_DISPATCH_DIRECT) / sizeof(uint32));
-    static constexpr uint32 DispatchIndirectMecSize = (sizeof(PM4MEC_DISPATCH_INDIRECT) / sizeof(uint32));
+    static constexpr uint32 CondIndirectBufferSize  = (sizeof(PM4_PFP_COND_INDIRECT_BUFFER) / sizeof(uint32));
+    static constexpr uint32 DispatchDirectSize      = (sizeof(PM4_PFP_DISPATCH_DIRECT) / sizeof(uint32));
+    static constexpr uint32 DispatchIndirectMecSize = (sizeof(PM4_MEC_DISPATCH_INDIRECT) / sizeof(uint32));
     static constexpr uint32 DrawIndexAutoSize       = (sizeof(PM4_PFP_DRAW_INDEX_AUTO) / sizeof(uint32));
     static constexpr uint32 DrawIndex2Size          = (sizeof(PM4_PFP_DRAW_INDEX_2) / sizeof(uint32));
     static constexpr uint32 DrawIndexOffset2Size    = (sizeof(PM4_PFP_DRAW_INDEX_OFFSET_2) / sizeof(uint32));
     static constexpr uint32 MinNopSizeInDwords      = 1; // all gfx9 HW supports 1-DW NOP packets
 
-    static_assert (sizeof(PM4PFP_COND_EXEC) == sizeof(PM4MEC_COND_EXEC),
+    static_assert (sizeof(PM4_PFP_COND_EXEC) == sizeof(PM4_MEC_COND_EXEC),
                    "Conditional execution packet size does not match between PFP and compute engines!");
-    static_assert (sizeof(PM4PFP_COND_EXEC) == sizeof(PM4CE_COND_EXEC),
+    static_assert (sizeof(PM4_PFP_COND_EXEC) == sizeof(PM4_CE_COND_EXEC),
                    "Conditional execution packet size does not match between PFP and constant engines!");
-    static constexpr uint32 CondExecSizeDwords        = (sizeof(PM4PFP_COND_EXEC) / sizeof(uint32));
-    static constexpr uint32 ContextRegRmwSizeDwords   = (sizeof(PM4ME_CONTEXT_REG_RMW) / sizeof(uint32));
+    static constexpr uint32 CondExecSizeDwords        = (sizeof(PM4_PFP_COND_EXEC) / sizeof(uint32));
+    static constexpr uint32 ContextRegRmwSizeDwords   = (sizeof(PM4_ME_CONTEXT_REG_RMW) / sizeof(uint32));
     static constexpr uint32 RegRmwSizeDwords          = (sizeof(PM4_ME_REG_RMW) / sizeof(uint32));
-    static constexpr uint32 ConfigRegSizeDwords       = (sizeof(PM4PFP_SET_UCONFIG_REG) / sizeof(uint32));
-    static constexpr uint32 ContextRegSizeDwords      = (sizeof(PM4PFP_SET_CONTEXT_REG) / sizeof(uint32));
-    static constexpr uint32 DmaDataSizeDwords         = (sizeof(PM4PFP_DMA_DATA) / sizeof(uint32));
+    static constexpr uint32 ConfigRegSizeDwords       = (sizeof(PM4_PFP_SET_UCONFIG_REG) / sizeof(uint32));
+    static constexpr uint32 ContextRegSizeDwords      = (sizeof(PM4_PFP_SET_CONTEXT_REG) / sizeof(uint32));
+    static constexpr uint32 DmaDataSizeDwords         = (sizeof(PM4_PFP_DMA_DATA) / sizeof(uint32));
     static constexpr uint32 NumInstancesDwords        = (sizeof(PM4_PFP_NUM_INSTANCES) / sizeof(uint32));
-    static constexpr uint32 OcclusionQuerySizeDwords  = (sizeof(PM4PFP_OCCLUSION_QUERY) / sizeof(uint32));
-    static constexpr uint32 ShRegSizeDwords           = (sizeof(PM4ME_SET_SH_REG) / sizeof(uint32));
+    static constexpr uint32 OcclusionQuerySizeDwords  = (sizeof(PM4_PFP_OCCLUSION_QUERY) / sizeof(uint32));
+    static constexpr uint32 ShRegSizeDwords           = (sizeof(PM4_ME_SET_SH_REG) / sizeof(uint32));
     static constexpr uint32 ShRegIndexSizeDwords      = (sizeof(PM4_PFP_SET_SH_REG_INDEX) / sizeof(uint32));
-    static constexpr uint32 WaitRegMemSizeDwords      = (sizeof(PM4ME_WAIT_REG_MEM) / sizeof(uint32));
-    static constexpr uint32 WaitRegMem64SizeDwords    = (sizeof(PM4ME_WAIT_REG_MEM64) / sizeof(uint32));
-    static constexpr uint32 WriteDataSizeDwords       = (sizeof(PM4ME_WRITE_DATA) / sizeof(uint32));
-    static constexpr uint32 WriteNonSampleEventDwords = (sizeof(PM4ME_NON_SAMPLE_EVENT_WRITE) / sizeof(uint32));
+    static constexpr uint32 WaitRegMemSizeDwords      = (sizeof(PM4_ME_WAIT_REG_MEM) / sizeof(uint32));
+    static constexpr uint32 WaitRegMem64SizeDwords    = (sizeof(PM4_ME_WAIT_REG_MEM64) / sizeof(uint32));
+    static constexpr uint32 WriteDataSizeDwords       = (sizeof(PM4_ME_WRITE_DATA) / sizeof(uint32));
+    static constexpr uint32 WriteNonSampleEventDwords = (sizeof(PM4_ME_NON_SAMPLE_EVENT_WRITE) / sizeof(uint32));
 
     // The INDIRECT_BUFFER and COND_INDIRECT_BUFFER packet have a hard-coded IB size of 20 bits.
     static constexpr uint32 MaxIndirectBufferSizeDwords = (1 << 20) - 1;
@@ -367,8 +367,8 @@ public:
         bool        constantEngine,
         void*       pBuffer);
     static size_t BuildContextControl(
-        const PM4PFP_CONTEXT_CONTROL& contextControl,
-        void*                         pBuffer);
+        const PM4_PFP_CONTEXT_CONTROL& contextControl,
+        void*                          pBuffer);
     size_t BuildContextRegRmw(
         uint32 regAddr,
         uint32 regMask,

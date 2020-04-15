@@ -164,14 +164,19 @@ Result ShaderLibrary::HwlInit(
             for (uint32 i = 0; i < m_funcCount; ++i)
             {
                 memset(&m_pFunctionList[i], 0, sizeof(ShaderLibraryFunctionInfo));
+
+                // GPU VA should never be 0
+                PAL_ASSERT(createInfo.pFuncList[i].gpuVirtAddr != 0);
+
                 m_pFunctionList[i].gpuVirtAddr = createInfo.pFuncList[i].gpuVirtAddr;
 
                 size_t nameLength = strlen(createInfo.pFuncList[i].pSymbolName) + 1;
-                m_pFunctionList[i].pSymbolName =
+                char* pSymbolName =
                     static_cast<char*>(PAL_MALLOC(nameLength, m_pDevice->GetPlatform(), AllocInternal));
-                if (m_pFunctionList[i].pSymbolName != nullptr)
+                if (pSymbolName != nullptr)
                 {
-                    strncpy(m_pFunctionList[i].pSymbolName, createInfo.pFuncList[i].pSymbolName, nameLength);
+                    strncpy(pSymbolName, createInfo.pFuncList[i].pSymbolName, nameLength);
+                    m_pFunctionList[i].pSymbolName = pSymbolName;
                 }
                 else
                 {

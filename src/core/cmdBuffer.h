@@ -553,6 +553,10 @@ public:
         bool                accumulateData) override
         { PAL_NEVER_CALLED(); }
 
+    virtual void CmdSuspendPredication(
+        bool suspend) override
+        { PAL_NEVER_CALLED(); }
+
     virtual void CmdIf(
         const IGpuMemory& gpuMemory,
         gpusize           offset,

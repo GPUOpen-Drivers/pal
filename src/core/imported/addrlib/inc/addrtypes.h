@@ -255,6 +255,7 @@ typedef enum _AddrSwizzleMode
     ADDR_SW_VAR_R_X         = 31,
     ADDR_SW_LINEAR_GENERAL  = 32,
     ADDR_SW_MAX_TYPE        = 33,
+
 } AddrSwizzleMode;
 
 /**

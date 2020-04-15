@@ -46,13 +46,13 @@ GfxImage::GfxImage(
     m_device(device),
     m_createInfo(m_pParent->GetImageCreateInfo()),
     m_pImageInfo(pImageInfo),
-    m_fastClearMetaDataOffset(0),
-    m_fastClearMetaDataSizePerMip(0),
     m_hiSPretestsMetaDataOffset(0),
     m_hiSPretestsMetaDataSizePerMip(0),
     m_hasSeenNonTcCompatClearColor(false),
     m_pNumSkippedFceCounter(nullptr)
 {
+    memset(&m_fastClearMetaDataOffset[0],     0, sizeof(m_fastClearMetaDataOffset));
+    memset(&m_fastClearMetaDataSizePerMip[0], 0, sizeof(m_fastClearMetaDataSizePerMip));
 }
 
 // =====================================================================================================================
@@ -96,40 +96,81 @@ void GfxImage::UpdateMetaDataHeaderLayout(
 }
 
 // =====================================================================================================================
-// Returns the GPU virtual address of the fast-clear metadata for the specified mip level.
-gpusize GfxImage::FastClearMetaDataAddr(
-    uint32 mipLevel
+// Returns an index into the m_fastClearMetaData* arrays.
+uint32 GfxImage::GetFastClearIndex(
+    ImageAspect  aspect
     ) const
 {
-    PAL_ASSERT(HasFastClearMetaData());
+    uint32 aspectIdx = 0;
+    switch (aspect)
+    {
+    case ImageAspect::Depth:
+    case ImageAspect::Stencil:
+        // Depth / stencil images only have one hTile allocation despite having two aspects.
+        aspectIdx = 0;
+        break;
+    case ImageAspect::CbCr:
+    case ImageAspect::Cb:
+        aspectIdx = 1;
+        break;
+    case ImageAspect::Cr:
+        aspectIdx = 2;
+        break;
+    case ImageAspect::YCbCr:
+    case ImageAspect::Y:
+    case ImageAspect::Color:
+        aspectIdx = 0;
+        break;
+    default:
+        PAL_NEVER_CALLED();
+        break;
+    }
+
+    PAL_ASSERT (aspectIdx < MaxNumPlanes);
+
+    return aspectIdx;
+}
+
+// =====================================================================================================================
+// Returns the GPU virtual address of the fast-clear metadata for the specified mip level.
+gpusize GfxImage::FastClearMetaDataAddr(
+    const SubresId&  subResId
+    ) const
+{
+    const uint32  aspectIndex = GetFastClearIndex(subResId.aspect);
+
+    PAL_ASSERT(HasFastClearMetaData(subResId.aspect));
 
     return Parent()->GetBoundGpuMemory().GpuVirtAddr() +
-           m_fastClearMetaDataOffset                   +
-           (m_fastClearMetaDataSizePerMip * mipLevel);
+           m_fastClearMetaDataOffset[aspectIndex]      +
+           (m_fastClearMetaDataSizePerMip[aspectIndex] * subResId.mipLevel);
 }
 
 // =====================================================================================================================
 // Returns the offset relative to the bound GPU memory of the fast-clear metadata for the specified mip level.
 gpusize GfxImage::FastClearMetaDataOffset(
-    uint32 mipLevel
+    const SubresId&  subResId
     ) const
 {
-    PAL_ASSERT(HasFastClearMetaData());
+    const uint32  aspectIndex = GetFastClearIndex(subResId.aspect);
+
+    PAL_ASSERT(HasFastClearMetaData(subResId.aspect));
 
     return Parent()->GetBoundGpuMemory().Offset() +
-           m_fastClearMetaDataOffset +
-           (m_fastClearMetaDataSizePerMip * mipLevel);
+           m_fastClearMetaDataOffset[aspectIndex] +
+           (m_fastClearMetaDataSizePerMip[aspectIndex] * subResId.mipLevel);
 }
 
 // =====================================================================================================================
 // Returns the GPU memory size of the fast-clear metadata for the specified num mips.
 gpusize GfxImage::FastClearMetaDataSize(
-    uint32 numMips
+    ImageAspect  aspect,
+    uint32       numMips
     ) const
 {
-    PAL_ASSERT(HasFastClearMetaData());
+    PAL_ASSERT(HasFastClearMetaData(aspect));
 
-    return (m_fastClearMetaDataSizePerMip * numMips);
+    return (m_fastClearMetaDataSizePerMip[GetFastClearIndex(aspect)] * numMips);
 }
 
 // =====================================================================================================================
@@ -138,18 +179,19 @@ void GfxImage::InitFastClearMetaData(
     ImageMemoryLayout* pGpuMemLayout,
     gpusize*           pGpuMemSize,
     size_t             sizePerMipLevel,
-    gpusize            alignment)
+    gpusize            alignment,
+    uint32             planeIndex)
 {
     // Fast-clear metadata must be DWORD aligned so LOAD_CONTEXT_REG commands will function properly.
     static constexpr gpusize Alignment = 4;
 
-    m_fastClearMetaDataOffset     = Pow2Align(*pGpuMemSize, alignment);
-    m_fastClearMetaDataSizePerMip = sizePerMipLevel;
-    *pGpuMemSize                  = (m_fastClearMetaDataOffset +
-                                     (m_fastClearMetaDataSizePerMip * m_createInfo.mipLevels));
+    m_fastClearMetaDataOffset[planeIndex]     = Pow2Align(*pGpuMemSize, alignment);
+    m_fastClearMetaDataSizePerMip[planeIndex] = sizePerMipLevel;
+    *pGpuMemSize                              = (m_fastClearMetaDataOffset[planeIndex] +
+                                                 (m_fastClearMetaDataSizePerMip[planeIndex] * m_createInfo.mipLevels));
 
     // Update the layout information against the fast-clear metadata.
-    UpdateMetaDataHeaderLayout(pGpuMemLayout, m_fastClearMetaDataOffset, Alignment);
+    UpdateMetaDataHeaderLayout(pGpuMemLayout, m_fastClearMetaDataOffset[planeIndex], Alignment);
 }
 
 // =====================================================================================================================

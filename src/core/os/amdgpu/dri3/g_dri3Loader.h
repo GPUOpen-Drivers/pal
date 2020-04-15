@@ -154,6 +154,21 @@ typedef void (*XcbDiscardReply)(
             xcb_connection_t*     pConnection,
             uint32                sequence);
 
+typedef xcb_void_cookie_t (*XcbChangePropertyChecked)(
+            xcb_connection_t*     pConnection,
+            uint8_t               mode,
+            xcb_window_t          window,
+            xcb_atom_t            property,
+            xcb_atom_t            type,
+            uint8_t               format,
+            uint32_t              data_len,
+            const void            *pData);
+
+typedef xcb_void_cookie_t (*XcbDeletePropertyChecked)(
+            xcb_connection_t*     pConnection,
+            xcb_window_t          window,
+            xcb_atom_t            property);
+
 // symbols from libxshmfence.so.1
 typedef int32 (*XshmfenceUnmapShm)(
             struct xshmfence*     pFence);
@@ -559,6 +574,18 @@ struct Dri3LoaderFuncs
     bool pfnXcbDiscardReplyisValid() const
     {
         return (pfnXcbDiscardReply != nullptr);
+    }
+
+    XcbChangePropertyChecked              pfnXcbChangePropertyChecked;
+    bool pfnXcbChangePropertyCheckedisValid() const
+    {
+        return (pfnXcbChangePropertyChecked != nullptr);
+    }
+
+    XcbDeletePropertyChecked              pfnXcbDeletePropertyChecked;
+    bool pfnXcbDeletePropertyCheckedisValid() const
+    {
+        return (pfnXcbDeletePropertyChecked != nullptr);
     }
 
     XshmfenceUnmapShm                     pfnXshmfenceUnmapShm;
@@ -1082,6 +1109,31 @@ public:
     bool pfnXcbDiscardReplyisValid() const
     {
         return (m_pFuncs->pfnXcbDiscardReply != nullptr);
+    }
+
+    xcb_void_cookie_t pfnXcbChangePropertyChecked(
+            xcb_connection_t*     pConnection,
+            uint8_t               mode,
+            xcb_window_t          window,
+            xcb_atom_t            property,
+            xcb_atom_t            type,
+            uint8_t               format,
+            uint32_t              data_len,
+            const void            *pData) const;
+
+    bool pfnXcbChangePropertyCheckedisValid() const
+    {
+        return (m_pFuncs->pfnXcbChangePropertyChecked != nullptr);
+    }
+
+    xcb_void_cookie_t pfnXcbDeletePropertyChecked(
+            xcb_connection_t*     pConnection,
+            xcb_window_t          window,
+            xcb_atom_t            property) const;
+
+    bool pfnXcbDeletePropertyCheckedisValid() const
+    {
+        return (m_pFuncs->pfnXcbDeletePropertyChecked != nullptr);
     }
 
     int32 pfnXshmfenceUnmapShm(

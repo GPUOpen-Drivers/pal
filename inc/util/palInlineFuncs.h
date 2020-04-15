@@ -32,6 +32,7 @@
 #pragma once
 
 #include "palAssert.h"
+#include "palStringUtil.h"
 #include <cstdlib>
 #include <cstring>
 #include <cwchar>
@@ -652,7 +653,11 @@ PAL_INLINE void Wcsncpy(
     const wchar_t* pSrc,    ///< [in] Source string to copy.
     size_t         dstSize) ///< Length of the destination buffer, in wchar_t's.
 {
+#if defined(PAL_SHORT_WCHAR)
+    CopyUtf16String(pDst, pSrc, (dstSize - 1));
+#else
     wcsncpy(pDst, pSrc, (dstSize - 1));
+#endif
     pDst[dstSize - 1] = L'\0';
 }
 
@@ -857,9 +862,13 @@ PAL_INLINE void Mbstowcs(
 
     bool result = false;
     // clamp the conversion to the size of the dst buffer (1 char reserved for the NULL terminator)
+#if defined(PAL_SHORT_WCHAR)
+    result = ConvertCharStringToUtf16(pDst, pSrc, dstSizeInWords);
+#else
     size_t retCode = mbstowcs(pDst, pSrc, (dstSizeInWords - 1));
 
     result = (retCode == static_cast<size_t>(-1)) ? false : true;
+#endif
 
     if (result == false)
     {
@@ -889,9 +898,13 @@ PAL_INLINE void Wcstombs(
 
     bool result = false;
     // clamp the conversion to the size of the dst buffer (1 char reserved for the NULL terminator)
+#if defined(PAL_SHORT_WCHAR)
+    result = ConvertUtf16StringToUtf8(pDst, pSrc, (dstSizeInBytes - 1));
+#else
     size_t retCode = wcstombs(pDst, pSrc, (dstSizeInBytes - 1));
 
     result = (retCode == static_cast<size_t>(-1)) ? false : true;
+#endif
 
     if (result == false)
     {
@@ -1031,6 +1044,33 @@ PAL_INLINE typename std::common_type<T1, T2, typename std::common_type<Ts...>::t
     Ts... values)
 {
     return Lcm(Lcm(value1, value2), values...);
+}
+
+/// Returns the length of a wchar_t based string.  This function is necessary when specifying the -fshort-wchar option
+/// because the standard library wcslen still interprets its argument using a 4 byte UTF-32 wide character.
+///
+/// @returns The length of the given string in wide characters
+PAL_INLINE size_t Wcslen(
+    const wchar_t* pWideStr)
+{
+#if defined(PAL_SHORT_WCHAR)
+    return PalWcslen(pWideStr);
+#else
+    return wcslen(pWideStr);
+#endif
+}
+
+/// Performs a reverse string find of wide character wc.  This function is necessary when specifying the -fshort-wchar option
+/// because the standard library wcsrchr still interprets its arguments using a 4 byte UTF-32 wide character.
+///
+/// @returns The matching character at the end of the string or nullptr if not found.
+PAL_INLINE wchar_t* Wcsrchr(wchar_t *pStr, wchar_t wc)
+{
+#if defined(PAL_SHORT_WCHAR)
+    return PalWcsrchr(pStr, wc);
+#else
+    return wcsrchr(pStr, wc);
+#endif
 }
 
 } // Util

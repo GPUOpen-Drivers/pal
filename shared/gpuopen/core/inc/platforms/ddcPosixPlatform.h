@@ -49,6 +49,8 @@
     static_assert(false, "Unknown platform detected");
 #endif
 
+#include <sys/stat.h>
+
 #define DD_RESTRICT __restrict__
 
 #define DD_DEBUG_BREAK() ::raise(SIGTRAP)
@@ -115,7 +117,9 @@ namespace DevDriver
             return retval;
         }
 
+        /* platform functions for performing atomic operations */
         typedef volatile int32 Atomic;
+        typedef volatile int64 Atomic64;
 
         struct EmptyStruct
         {

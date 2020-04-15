@@ -238,7 +238,12 @@ namespace DevDriver
         {
             m_readTransaction.ioPending = false;
 
-            memcpy(&messageBuffer, &m_readTransaction.message, receivedSize);
+            result = ValidateMessageBuffer(&m_readTransaction.message, receivedSize);
+
+            if (result == Result::Success)
+            {
+                memcpy(&messageBuffer, &m_readTransaction.message, receivedSize);
+            }
         }
         else if (result != Result::NotReady)
         {
@@ -253,25 +258,27 @@ namespace DevDriver
     {
         Result result = Result::Error;
 
-        //ResetEvent(m_writeTransaction.oOverlap.hEvent);
-
-        const DWORD totalMsgSize = (sizeof(MessageHeader) + messageBuffer.header.payloadSize);
-        m_writeTransaction.cbSize = totalMsgSize;
-        DWORD bytesWritten = 0;
-
-        BOOL fSuccess = WriteFile(m_pipeHandle, &messageBuffer, totalMsgSize, &bytesWritten, &m_writeTransaction.oOverlap);
-
-        if (!fSuccess)
+        // Make sure we don't attempt to write a message that contains an invalid payload size
+        if (messageBuffer.header.payloadSize <= kMaxPayloadSizeInBytes)
         {
-            DWORD dwErr = GetLastError();
-            if (dwErr == ERROR_IO_PENDING)
+            const DWORD totalMsgSize = (sizeof(MessageHeader) + messageBuffer.header.payloadSize);
+            m_writeTransaction.cbSize = totalMsgSize;
+            DWORD bytesWritten = 0;
+
+            BOOL fSuccess = WriteFile(m_pipeHandle, &messageBuffer, totalMsgSize, &bytesWritten, &m_writeTransaction.oOverlap);
+
+            if (!fSuccess)
             {
-                result = WaitOverlapped(m_pipeHandle, &m_writeTransaction.oOverlap, &bytesWritten, kLogicFailureTimeout);
+                DWORD dwErr = GetLastError();
+                if (dwErr == ERROR_IO_PENDING)
+                {
+                    result = WaitOverlapped(m_pipeHandle, &m_writeTransaction.oOverlap, &bytesWritten, kLogicFailureTimeout);
+                }
             }
-        }
-        else
-        {
-            result = Result::Success;
+            else
+            {
+                result = Result::Success;
+            }
         }
 
         return result;

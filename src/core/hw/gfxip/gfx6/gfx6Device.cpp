@@ -2822,7 +2822,6 @@ void InitializeGpuChipProperties(
     case FAMILY_SI:
         pInfo->gpuType = GpuType::Discrete;
 
-
         pInfo->gfx6.gsVgtTableDepth         = 32;
         pInfo->gfx6.gsPrimBufferDepth       = 1792;
         pInfo->gfx6.maxGsWavesPerVgt        = 32;
@@ -2911,7 +2910,6 @@ void InitializeGpuChipProperties(
     case FAMILY_CI:
         pInfo->gpuType = GpuType::Discrete;
 
-
         pInfo->gfx6.numShaderArrays         = 1;
         pInfo->gfx6.gsVgtTableDepth         = 32;
         pInfo->gfx6.gsPrimBufferDepth       = 1792;
@@ -2968,7 +2966,6 @@ void InitializeGpuChipProperties(
     // GFXIP 7 Kaveri APU's:
     case FAMILY_KV:
         pInfo->gpuType = GpuType::Integrated;
-
 
         pInfo->gfx6.numShaderEngines        = 1;
         pInfo->gfx6.numShaderArrays         = 1;
@@ -3029,7 +3026,6 @@ void InitializeGpuChipProperties(
     // GFXIP 8 Discrete GPU's (Volcanic Islands):
     case FAMILY_VI:
         pInfo->gpuType = GpuType::Discrete;
-
 
         pInfo->gfx6.numShaderArrays                = 1;
         pInfo->gfx6.gsVgtTableDepth                = 32;
@@ -3160,7 +3156,6 @@ void InitializeGpuChipProperties(
     // GFXIP 8.x APU's (Carrizo):
     case FAMILY_CZ:
         pInfo->gpuType = GpuType::Integrated;
-
 
         pInfo->gfx6.numShaderEngines         = 1;
         pInfo->gfx6.numShaderArrays          = 1;

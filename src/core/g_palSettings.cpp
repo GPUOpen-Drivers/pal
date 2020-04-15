@@ -68,13 +68,19 @@ void SettingsLoader::SetupDefaults()
     m_settings.wddm1FreeVirtualGpuMemVA = false;
     m_settings.forceFixedFuncColorResolve = false;
     m_settings.unboundDescriptorAddress = 0xdeadbeefdeadbeef;
+    m_settings.isLocalHeapPreferred = false;
+    m_settings.enableNullCpuAccessFlag = false;
     m_settings.clearAllocatedLfb = false;
+    m_settings.enableAdaptiveSync = false;
     m_settings.addr2Disable4kBSwizzleMode = 0x0;
 
     m_settings.addr2DisableXorTileMode = false;
     m_settings.addr2DisableSModes8BppColor = false;
     m_settings.overlayReportHDR = true;
     m_settings.preferredPipelineUploadHeap = PipelineHeapDeferToClient;
+#if PAL_DEVELOPER_BUILD
+    m_settings.insertGuardPageBetweenWddm2VAs = false;
+#endif
 
     m_settings.forceHeapPerfToFixedValues = false;
     m_settings.cpuReadPerfForLocal = 1;
@@ -234,9 +240,24 @@ void SettingsLoader::ReadSettings()
                            &m_settings.unboundDescriptorAddress,
                            InternalSettingScope::PrivatePalKey);
 
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pIsLocalHeapPreferredStr,
+                           Util::ValueType::Boolean,
+                           &m_settings.isLocalHeapPreferred,
+                           InternalSettingScope::PrivatePalKey);
+
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pEnableNullCpuAccessFlagStr,
+                           Util::ValueType::Boolean,
+                           &m_settings.enableNullCpuAccessFlag,
+                           InternalSettingScope::PrivatePalKey);
+
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pClearAllocatedLfbStr,
                            Util::ValueType::Boolean,
                            &m_settings.clearAllocatedLfb,
+                           InternalSettingScope::PrivatePalKey);
+
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pEnableAdaptiveSyncStr,
+                           Util::ValueType::Boolean,
+                           &m_settings.enableAdaptiveSync,
                            InternalSettingScope::PrivatePalKey);
 
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pAddr2Disable4KbSwizzleModeStr,
@@ -263,6 +284,13 @@ void SettingsLoader::ReadSettings()
                            Util::ValueType::Uint,
                            &m_settings.preferredPipelineUploadHeap,
                            InternalSettingScope::PrivatePalKey);
+
+#if PAL_DEVELOPER_BUILD
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pInsertGuardPageBetweenWddm2VAsStr,
+                           Util::ValueType::Boolean,
+                           &m_settings.insertGuardPageBetweenWddm2VAs,
+                           InternalSettingScope::PrivatePalKey);
+#endif
 
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pForceHeapPerfToFixedValuesStr,
                            Util::ValueType::Boolean,
@@ -649,9 +677,24 @@ void SettingsLoader::InitSettingsInfo()
     m_settingsInfoMap.Insert(2972919517, info);
 
     info.type      = SettingType::Boolean;
+    info.pValuePtr = &m_settings.isLocalHeapPreferred;
+    info.valueSize = sizeof(m_settings.isLocalHeapPreferred);
+    m_settingsInfoMap.Insert(1465087975, info);
+
+    info.type      = SettingType::Boolean;
+    info.pValuePtr = &m_settings.enableNullCpuAccessFlag;
+    info.valueSize = sizeof(m_settings.enableNullCpuAccessFlag);
+    m_settingsInfoMap.Insert(3709502715, info);
+
+    info.type      = SettingType::Boolean;
     info.pValuePtr = &m_settings.clearAllocatedLfb;
     info.valueSize = sizeof(m_settings.clearAllocatedLfb);
     m_settingsInfoMap.Insert(2657420565, info);
+
+    info.type      = SettingType::Boolean;
+    info.pValuePtr = &m_settings.enableAdaptiveSync;
+    info.valueSize = sizeof(m_settings.enableAdaptiveSync);
+    m_settingsInfoMap.Insert(1325234467, info);
 
     info.type      = SettingType::Uint;
     info.pValuePtr = &m_settings.addr2Disable4kBSwizzleMode;
@@ -677,6 +720,13 @@ void SettingsLoader::InitSettingsInfo()
     info.pValuePtr = &m_settings.preferredPipelineUploadHeap;
     info.valueSize = sizeof(m_settings.preferredPipelineUploadHeap);
     m_settingsInfoMap.Insert(1170638299, info);
+#if PAL_DEVELOPER_BUILD
+
+    info.type      = SettingType::Boolean;
+    info.pValuePtr = &m_settings.insertGuardPageBetweenWddm2VAs;
+    info.valueSize = sizeof(m_settings.insertGuardPageBetweenWddm2VAs);
+    m_settingsInfoMap.Insert(3303637006, info);
+#endif
 
     info.type      = SettingType::Boolean;
     info.pValuePtr = &m_settings.forceHeapPerfToFixedValues;
@@ -1064,7 +1114,7 @@ void SettingsLoader::DevDriverRegister()
             component.pfnSetValue = ISettingsLoader::SetValue;
             component.pSettingsData = &g_palJsonData[0];
             component.settingsDataSize = sizeof(g_palJsonData);
-            component.settingsDataHash = 228312753;
+            component.settingsDataHash = 952990859;
             component.settingsDataHeader.isEncoded = true;
             component.settingsDataHeader.magicBufferId = 402778310;
             component.settingsDataHeader.magicBufferOffset = 0;

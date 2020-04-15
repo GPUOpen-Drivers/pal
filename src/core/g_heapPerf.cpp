@@ -360,6 +360,24 @@ void SettingsLoader::SetupHeapPerfRatings(
         pSettings->gpuReadPerfForGartCacheable = 11.f;
     }
     else
+    if (IsRenoir(*(static_cast<Pal::Device*>(m_pDevice))))
+    {
+        pSettings->cpuWritePerfForLocal = 6.4f;
+        pSettings->cpuReadPerfForLocal = 0.01f;
+        pSettings->gpuWritePerfForLocal = 18.f;
+        pSettings->gpuReadPerfForLocal = 18.f;
+        pSettings->gpuWritePerfForInvisible = 18.f;
+        pSettings->gpuReadPerfForInvisible = 19.f;
+        pSettings->cpuWritePerfForGartUswc = 5.6f;
+        pSettings->cpuReadPerfForGartUswc = 0.044f;
+        pSettings->gpuWritePerfForGartUswc = 18.f;
+        pSettings->gpuReadPerfForGartUswc = 18.f;
+        pSettings->cpuWritePerfForGartCacheable = 6.f;
+        pSettings->cpuReadPerfForGartCacheable = 6.f;
+        pSettings->gpuWritePerfForGartCacheable = 18.f;
+        pSettings->gpuReadPerfForGartCacheable = 18.f;
+    }
+    else
     if (IsSpectre(*(static_cast<Pal::Device*>(m_pDevice))))
     {
         pSettings->cpuWritePerfForLocal = 3.9f;

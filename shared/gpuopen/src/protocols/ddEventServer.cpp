@@ -37,8 +37,8 @@
 #include <ddPlatform.h>
 #include <msgChannel.h>
 
-#define EVENT_SERVER_MIN_VERSION EVENT_INITIAL_VERSION
-#define EVENT_SERVER_MAX_VERSION EVENT_INITIAL_VERSION
+#define EVENT_SERVER_MIN_VERSION EVENT_INDEXING_VERSION
+#define EVENT_SERVER_MAX_VERSION EVENT_INDEXING_VERSION
 
 namespace DevDriver
 {
@@ -46,11 +46,16 @@ namespace DevDriver
 namespace EventProtocol
 {
 
+/// Specify a default limit for the max amount of chunks that can be allocated at any one time
+static constexpr size_t kDefaultMemoryUsageLimitInBytes = (256 * 1024 * 1024); // 256 MB
+static constexpr size_t kDefaultMaxAllocatedChunks = (kDefaultMemoryUsageLimitInBytes / kEventChunkMaxDataSize);
+
 EventServer::EventServer(IMsgChannel* pMsgChannel)
     : BaseProtocolServer(pMsgChannel, Protocol::Event, EVENT_SERVER_MIN_VERSION, EVENT_SERVER_MAX_VERSION)
     , m_eventProviders(pMsgChannel->GetAllocCb())
     , m_eventChunkPool(pMsgChannel->GetAllocCb())
     , m_eventChunkAllocList(pMsgChannel->GetAllocCb())
+    , m_maxAllocatedChunks(kDefaultMaxAllocatedChunks)
     , m_eventChunkQueue(pMsgChannel->GetAllocCb())
     , m_pActiveSession(nullptr)
 {
@@ -88,10 +93,9 @@ void EventServer::UpdateSession(const SharedPointer<ISession>& pSession)
 
     m_eventProvidersMutex.Lock();
 
-    const uint64 currentTime = Platform::GetCurrentTimeInMs();
     for (auto providerIter : m_eventProviders)
     {
-        providerIter.value->Update(currentTime);
+        providerIter.value->Update();
     }
 
     m_eventProvidersMutex.Unlock();
@@ -177,6 +181,30 @@ Result EventServer::UnregisterProvider(BaseEventProvider* pProvider)
     return result;
 }
 
+Result EventServer::UpdateMemoryUsageLimit(size_t memoryUsageLimitInBytes)
+{
+    Platform::LockGuard<Platform::AtomicLock> poolLock(m_eventPoolMutex);
+
+    const size_t maxAllocatedChunks = (memoryUsageLimitInBytes / kEventChunkMaxDataSize);
+
+    Result result = Result::Rejected;
+
+    // Only allow the change if our current allocation count adheres to the new limit.
+    if (m_eventChunkAllocList.Size() <= maxAllocatedChunks)
+    {
+        m_maxAllocatedChunks = maxAllocatedChunks;
+
+        result = Result::Success;
+    }
+
+    return result;
+}
+
+size_t EventServer::QueryMemoryUsageLimit() const
+{
+    return (m_maxAllocatedChunks * kEventChunkMaxDataSize);
+}
+
 Result EventServer::AllocateEventChunk(EventChunk** ppChunk)
 {
     DD_ASSERT(ppChunk != nullptr);
@@ -198,7 +226,7 @@ Result EventServer::AllocateEventChunk(EventChunk** ppChunk)
     else
     {
         // Restrict the number of allocated event chunks in order to limit our total memory usage.
-        if (m_eventChunkAllocList.Size() < kMaxAllocatedEventChunks)
+        if (m_eventChunkAllocList.Size() < m_maxAllocatedChunks)
         {
             EventChunk* pChunk = reinterpret_cast<EventChunk*>(DD_CALLOC(sizeof(EventChunk),
                                                                          alignof(EventChunk),

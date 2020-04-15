@@ -556,7 +556,7 @@ StencilFormat HwStencilFmt(
 bool SupportsFastColorClear(
     ChNumFormat format)
 {
-    return ((IsYuv(format) == false) && (BitsPerPixel(format) <= FastColorClearBppLimit));
+    return (BitsPerPixel(format) <= FastColorClearBppLimit);
 }
 
 } // Gfx9

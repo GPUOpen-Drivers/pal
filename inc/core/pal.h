@@ -371,20 +371,20 @@ enum class ChNumFormat : uint32
                                         ///  bit, 10-bit mantissa, and 5-bit biased (15) exponent). There is no sign
                                         ///  bit, and there is a shared 5-bit biased (15) exponent and a 9-bit mantissa
                                         ///  for each channelShared exponent format.
-    Bc1_Unorm                = 0x57,
-    Bc1_Srgb                 = 0x58,
-    Bc2_Unorm                = 0x59,
-    Bc2_Srgb                 = 0x5A,
-    Bc3_Unorm                = 0x5B,
-    Bc3_Srgb                 = 0x5C,
-    Bc4_Unorm                = 0x5D,
-    Bc4_Snorm                = 0x5E,
-    Bc5_Unorm                = 0x5F,
-    Bc5_Snorm                = 0x60,
-    Bc6_Ufloat               = 0x61,
-    Bc6_Sfloat               = 0x62,
-    Bc7_Unorm                = 0x63,
-    Bc7_Srgb                 = 0x64,
+    Bc1_Unorm                = 0x57,    ///< BC1 compressed texture format.
+    Bc1_Srgb                 = 0x58,    ///< BC1 compressed texture format.
+    Bc2_Unorm                = 0x59,    ///< BC2 compressed texture format.
+    Bc2_Srgb                 = 0x5A,    ///< BC2 compressed texture format.
+    Bc3_Unorm                = 0x5B,    ///< BC3 compressed texture format.
+    Bc3_Srgb                 = 0x5C,    ///< BC3 compressed texture format.
+    Bc4_Unorm                = 0x5D,    ///< BC4 compressed texture format.
+    Bc4_Snorm                = 0x5E,    ///< BC4 compressed texture format.
+    Bc5_Unorm                = 0x5F,    ///< BC5 compressed texture format.
+    Bc5_Snorm                = 0x60,    ///< BC5 compressed texture format.
+    Bc6_Ufloat               = 0x61,    ///< BC6 unsigned compressed texture format.
+    Bc6_Sfloat               = 0x62,    ///< BC6 signed compressed texture format.
+    Bc7_Unorm                = 0x63,    ///< BC7 compressed texture format.
+    Bc7_Srgb                 = 0x64,    ///< BC7 compressed texture format.
     Etc2X8Y8Z8_Unorm         = 0x65,
     Etc2X8Y8Z8_Srgb          = 0x66,
     Etc2X8Y8Z8W1_Unorm       = 0x67,

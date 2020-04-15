@@ -160,6 +160,15 @@ Result GfxCmdBuffer::Begin(
             InheritStateFromCmdBuf(static_cast<const GfxCmdBuffer*>(info.pStateInheritCmdBuffer));
         }
 
+#if ((PAL_CLIENT_INTERFACE_MAJOR_VERSION == 584 && PAL_CLIENT_INTERFACE_MINOR_VERSION >= 1) || \
+     (PAL_CLIENT_INTERFACE_MAJOR_VERSION > 584))
+        if (info.pInheritedState != nullptr)
+        {
+            m_gfxCmdBufState.flags.clientPredicate = info.pInheritedState->stateFlags.predication;
+            m_gfxCmdBufState.flags.packetPredicate = info.pInheritedState->stateFlags.predication;
+        }
+#endif
+
         // If this is a nested command buffer execution, this value should be set to 1
         // pipePoint on nested command buffer cannot be optimized using the state from primary
         if (IsNested() == true)

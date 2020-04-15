@@ -25,8 +25,6 @@
 
 #pragma once
 
-
-
 namespace Pal
 {
 namespace Gfx9
@@ -162,6 +160,12 @@ typedef enum IT_OpCodeType {
     IT_DISPATCH_DRAW_ACE__GFX101                       = 0x0000008d,
     IT_DRAW_MULTI_PREAMBLE__GFX101                     = 0x0000008f,
     IT_AQL_PACKET__GFX101                              = 0x00000099,
+    IT_DISPATCH_MESH_INDIRECT_MULTI__NV10              = 0x0000004c,
+    IT_DISPATCH_TASKMESH_GFX__NV10                     = 0x0000004d,
+    IT_LOAD_UCONFIG_REG_INDEX__NV10                    = 0x00000064,
+    IT_DISPATCH_TASK_STATE_INIT__NV10                  = 0x000000a9,
+    IT_DISPATCH_TASKMESH_DIRECT_ACE__NV10              = 0x000000aa,
+    IT_DISPATCH_TASKMESH_INDIRECT_MULTI_ACE__NV10      = 0x000000ab,
 } IT_OpCodeType;
 
 constexpr unsigned int PM4_TYPE_0                                         = 0;

@@ -466,6 +466,17 @@ ImageCopyEngine RsrcProcMgr::CmdCopyImage(
                              regionCount, pRegions, flags);
 
             FixupMetadataForComputeDst(pCmdBuffer, dstImage, dstImageLayout, regionCount, &fixupRegions[0], false);
+
+            if ((Formats::IsBlockCompressed(srcInfo.swizzledFormat.format) && (srcInfo.mipLevels > 1)) ||
+                (Formats::IsBlockCompressed(dstInfo.swizzledFormat.format) && (dstInfo.mipLevels > 1)))
+            {
+                // Assume the missing pixel copy will no overwritten any pixel copied in normal path.
+                // Or a cs done barrier is need to be inserted here.
+                for (uint32 regionIdx = 0; regionIdx < regionCount; regionIdx++)
+                {
+                    HwlImageToImageMissingPixelCopy(pCmdBuffer, srcImage, dstImage, pRegions[regionIdx]);
+                }
+            }
         }
         else
         {
@@ -505,9 +516,6 @@ void RsrcProcMgr::CopyColorImageGraphics(
     Pal::CmdStream*const pStream = pCmdBuffer->GetCmdStreamByEngine(CmdBufferEngineSupport::Graphics);
     PAL_ASSERT(pStream != nullptr);
 
-    const InputAssemblyStateParams   inputAssemblyState    = { PrimitiveTopology::RectList };
-    const DepthBiasParams            depthBias             = { 0.0f, 0.0f, 0.0f };
-    const PointLineRasterStateParams pointLineRasterState  = { 1.0f, 1.0f };
     const StencilRefMaskParams       stencilRefMasks       = { 0xFF, 0xFF, 0xFF, 0x01, 0xFF, 0xFF, 0xFF, 0x01, 0xFF };
 
     ViewportParams viewportInfo = { };
@@ -544,14 +552,11 @@ void RsrcProcMgr::CopyColorImageGraphics(
 
     // Save current command buffer state.
     pCmdBuffer->PushGraphicsState();
+    BindCommonGraphicsState(pCmdBuffer);
     pCmdBuffer->CmdBindColorBlendState(m_pBlendDisableState);
     pCmdBuffer->CmdBindDepthStencilState(m_pDepthDisableState);
     pCmdBuffer->CmdBindMsaaState(GetMsaaState(dstCreateInfo.samples, dstCreateInfo.fragments));
-    pCmdBuffer->CmdSetDepthBiasState(depthBias);
-    pCmdBuffer->CmdSetInputAssemblyState(inputAssemblyState);
-    pCmdBuffer->CmdSetPointLineRasterState(pointLineRasterState);
     pCmdBuffer->CmdSetStencilRefMasks(stencilRefMasks);
-    pCmdBuffer->CmdSetClipRects(DefaultClipRectsRule, 0, nullptr);
 
     RpmUtil::WriteVsZOut(pCmdBuffer, 1.0f);
 
@@ -825,18 +830,7 @@ void RsrcProcMgr::CopyDepthStencilImageGraphics(
     const auto& dstCreateInfo = dstImage.GetImageCreateInfo();
     const auto& srcCreateInfo = srcImage.GetImageCreateInfo();
 
-    const InputAssemblyStateParams   inputAssemblyState   = { PrimitiveTopology::RectList };
-    const DepthBiasParams            depthBias            = { 0.0f, 0.0f, 0.0f };
-    const PointLineRasterStateParams pointLineRasterState = { 1.0f, 1.0f };
     const StencilRefMaskParams       stencilRefMasks      = { 0xFF, 0xFF, 0xFF, 0x01, 0xFF, 0xFF, 0xFF, 0x01, 0xFF, };
-    const TriangleRasterStateParams  triangleRasterState   =
-    {
-        FillMode::Solid,        // frontface fillMode
-        FillMode::Solid,        // backface fillMode
-        CullMode::_None,        // cullMode
-        FaceOrientation::Cw,    // frontFace
-        ProvokingVertex::First  // provokingVertex
-    };
 
     // Initialize some structures we will need later on.
     ViewportParams viewportInfo = { };
@@ -862,12 +856,8 @@ void RsrcProcMgr::CopyDepthStencilImageGraphics(
 
     // Save current command buffer state and bind graphics state which is common for all regions.
     pCmdBuffer->PushGraphicsState();
-    pCmdBuffer->CmdSetDepthBiasState(depthBias);
-    pCmdBuffer->CmdSetInputAssemblyState(inputAssemblyState);
-    pCmdBuffer->CmdSetPointLineRasterState(pointLineRasterState);
+    BindCommonGraphicsState(pCmdBuffer);
     pCmdBuffer->CmdSetStencilRefMasks(stencilRefMasks);
-    pCmdBuffer->CmdSetTriangleRasterState(triangleRasterState);
-    pCmdBuffer->CmdSetClipRects(DefaultClipRectsRule, 0, nullptr);
 
     RpmUtil::WriteVsZOut(pCmdBuffer, 1.0f);
 
@@ -1891,6 +1881,14 @@ void RsrcProcMgr::CopyBetweenMemoryAndImage(
 
         // It will be faster to use a raw format, but we must stick with the base format if replacement isn't an option.
         SwizzledFormat    viewFormat = image.SubresourceInfo(copyRegion.imageSubres)->format;
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 583
+        if (Formats::IsUndefined(copyRegion.swizzledFormat.format) == false)
+        {
+            viewFormat = copyRegion.swizzledFormat;
+        }
+#endif
+
         const ImageTiling srcTiling  = (isImageDst) ? ImageTiling::Linear : imgCreateInfo.tiling;
 
         // Our copy shaders and hardware treat sRGB and UNORM nearly identically, the only difference being that the
@@ -2640,9 +2638,6 @@ void RsrcProcMgr::ScaledCopyImageGraphics(
     Pal::CmdStream*const pStream = pCmdBuffer->GetCmdStreamByEngine(CmdBufferEngineSupport::Graphics);
     PAL_ASSERT(pStream != nullptr);
 
-    const InputAssemblyStateParams   inputAssemblyState   = { PrimitiveTopology::RectList };
-    const DepthBiasParams            depthBias            = { 0.0f, 0.0f, 0.0f };
-    const PointLineRasterStateParams pointLineRasterState = { 1.0f, 1.0f };
     const StencilRefMaskParams       stencilRefMasks      = { 0xFF, 0xFF, 0xFF, 0x01, 0xFF, 0xFF, 0xFF, 0x01, 0xFF };
 
     ViewportParams viewportInfo = {};
@@ -2681,13 +2676,10 @@ void RsrcProcMgr::ScaledCopyImageGraphics(
     PAL_ASSERT(static_cast<const UniversalCmdBuffer*>(pCmdBuffer)->IsGraphicsStatePushed());
 #endif
 
+    BindCommonGraphicsState(pCmdBuffer);
     pCmdBuffer->CmdBindDepthStencilState(m_pDepthDisableState);
     pCmdBuffer->CmdBindMsaaState(GetMsaaState(dstCreateInfo.samples, dstCreateInfo.fragments));
-    pCmdBuffer->CmdSetDepthBiasState(depthBias);
-    pCmdBuffer->CmdSetInputAssemblyState(inputAssemblyState);
-    pCmdBuffer->CmdSetPointLineRasterState(pointLineRasterState);
     pCmdBuffer->CmdSetStencilRefMasks(stencilRefMasks);
-    pCmdBuffer->CmdSetClipRects(DefaultClipRectsRule, 0, nullptr);
 
     if (copyInfo.flags.srcAlpha)
     {
@@ -3888,18 +3880,6 @@ void RsrcProcMgr::CmdClearBoundDepthStencilTargets(
 {
     PAL_ASSERT(regionCount > 0);
 
-    const InputAssemblyStateParams   inputAssemblyState   = { PrimitiveTopology::RectList };
-    const DepthBiasParams            depthBias            = { 0.0f, 0.0f, 0.0f };
-    const PointLineRasterStateParams pointLineRasterState = { 1.0f, 1.0f };
-    const TriangleRasterStateParams  triangleRasterState  =
-    {
-        FillMode::Solid,        // frontface fillMode
-        FillMode::Solid,        // backface fillMode
-        CullMode::None,         // cullMode
-        FaceOrientation::Cw,    // frontFace
-        ProvokingVertex::First  // provokingVertex
-    };
-
     StencilRefMaskParams stencilRefMasks = { };
     stencilRefMasks.flags.u8All    = 0xFF;
     stencilRefMasks.frontRef       = stencil;
@@ -3936,13 +3916,9 @@ void RsrcProcMgr::CmdClearBoundDepthStencilTargets(
 #else
     pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Graphics, GetGfxPipeline(DepthSlowDraw), });
 #endif
+    BindCommonGraphicsState(pCmdBuffer);
     pCmdBuffer->CmdBindMsaaState(GetMsaaState(samples, fragments));
-    pCmdBuffer->CmdSetDepthBiasState(depthBias);
-    pCmdBuffer->CmdSetInputAssemblyState(inputAssemblyState);
-    pCmdBuffer->CmdSetPointLineRasterState(pointLineRasterState);
     pCmdBuffer->CmdSetStencilRefMasks(stencilRefMasks);
-    pCmdBuffer->CmdSetClipRects(DefaultClipRectsRule, 0, nullptr);
-    pCmdBuffer->CmdSetTriangleRasterState(triangleRasterState);
 
     if ((flag.depth != 0) && (flag.stencil != 0))
     {
@@ -4105,18 +4081,6 @@ void RsrcProcMgr::CmdClearBoundColorTargets(
     // for attachment, clear region comes from boxes. So regionCount has to be valid
     PAL_ASSERT(regionCount > 0);
 
-    const InputAssemblyStateParams   inputAssemblyState   = { PrimitiveTopology::RectList };
-    const DepthBiasParams            depthBias            = { 0.0f, 0.0f, 0.0f };
-    const PointLineRasterStateParams pointLineRasterState = { 1.0f, 1.0f };
-    const TriangleRasterStateParams  triangleRasterState  =
-    {
-        FillMode::Solid,        // frontface fillMode
-        FillMode::Solid,        // backface fillMode
-        CullMode::None,         // cullMode
-        FaceOrientation::Cw,    // frontFace
-        ProvokingVertex::First  // provokingVertex
-    };
-
     ViewportParams viewportInfo = { };
     viewportInfo.count                 = 1;
     viewportInfo.viewports[0].originX  = 0;
@@ -4137,13 +4101,9 @@ void RsrcProcMgr::CmdClearBoundColorTargets(
 
     // Save current command buffer state and bind graphics state which is common for all mipmap levels.
     pCmdBuffer->PushGraphicsState();
+    BindCommonGraphicsState(pCmdBuffer);
     pCmdBuffer->CmdBindColorBlendState(m_pBlendDisableState);
     pCmdBuffer->CmdBindDepthStencilState(m_pDepthDisableState);
-    pCmdBuffer->CmdSetDepthBiasState(depthBias);
-    pCmdBuffer->CmdSetInputAssemblyState(inputAssemblyState);
-    pCmdBuffer->CmdSetPointLineRasterState(pointLineRasterState);
-    pCmdBuffer->CmdSetTriangleRasterState(triangleRasterState);
-    pCmdBuffer->CmdSetClipRects(DefaultClipRectsRule, 0, nullptr);
 
     for (uint32 colorIndex = 0; colorIndex < colorTargetCount; ++colorIndex)
     {
@@ -4410,18 +4370,6 @@ void RsrcProcMgr::SlowClearGraphics(
         vpRightShift       = 1;
     }
 
-    const InputAssemblyStateParams   inputAssemblyState   = { PrimitiveTopology::RectList };
-    const DepthBiasParams            depthBias            = { 0.0f, 0.0f, 0.0f };
-    const PointLineRasterStateParams pointLineRasterState = { 1.0f, 1.0f };
-    const TriangleRasterStateParams  triangleRasterState  =
-    {
-        FillMode::Solid,        // frontface fillMode
-        FillMode::Solid,        // backface fillMode
-        CullMode::None,         // cullMode
-        FaceOrientation::Cw,    // frontFace
-        ProvokingVertex::First  // provokingVertex
-    };
-
     ViewportParams viewportInfo = { };
     viewportInfo.count                 = 1;
     viewportInfo.viewports[0].originX  = 0;
@@ -4457,15 +4405,11 @@ void RsrcProcMgr::SlowClearGraphics(
     pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Graphics,
                                   GetGfxPipelineByTargetIndexAndFormat(SlowColorClear0_32ABGR, 0, viewFormat), });
 #endif
+    BindCommonGraphicsState(pCmdBuffer);
     pCmdBuffer->CmdOverwriteRbPlusFormatForBlits(viewFormat, 0);
     pCmdBuffer->CmdBindColorBlendState(m_pBlendDisableState);
     pCmdBuffer->CmdBindDepthStencilState(m_pDepthDisableState);
     pCmdBuffer->CmdBindMsaaState(GetMsaaState(createInfo.samples, createInfo.fragments));
-    pCmdBuffer->CmdSetDepthBiasState(depthBias);
-    pCmdBuffer->CmdSetInputAssemblyState(inputAssemblyState);
-    pCmdBuffer->CmdSetPointLineRasterState(pointLineRasterState);
-    pCmdBuffer->CmdSetTriangleRasterState(triangleRasterState);
-    pCmdBuffer->CmdSetClipRects(DefaultClipRectsRule, 0, nullptr);
 
     RpmUtil::WriteVsZOut(pCmdBuffer, 1.0f);
 
@@ -5674,18 +5618,7 @@ void RsrcProcMgr::ResolveImageGraphics(
                (Formats::IsDepthStencilOnly(srcCreateInfo.swizzledFormat.format) &&
                 Formats::IsDepthStencilOnly(dstCreateInfo.swizzledFormat.format)));
 
-    const InputAssemblyStateParams   inputAssemblyState   = { PrimitiveTopology::RectList };
-    const DepthBiasParams            depthBias            = { 0.0f, 0.0f, 0.0f };
-    const PointLineRasterStateParams pointLineRasterState = { 1.0f, 1.0f };
     const StencilRefMaskParams       stencilRefMasks      = { 0xFF, 0xFF, 0xFF, 0x01, 0xFF, 0xFF, 0xFF, 0x01, 0xFF, };
-    const TriangleRasterStateParams  triangleRasterState  =
-    {
-        FillMode::Solid,        // frontface fillMode
-        FillMode::Solid,        // backface fillMode
-        CullMode::_None,        // cullMode
-        FaceOrientation::Cw,    // frontFace
-        ProvokingVertex::First  // provokingVertex
-    };
 
     // Initialize some structures we will need later on.
     ViewportParams viewportInfo = { };
@@ -5711,12 +5644,8 @@ void RsrcProcMgr::ResolveImageGraphics(
 
     // Save current command buffer state and bind graphics state which is common for all regions.
     pCmdBuffer->PushGraphicsState();
-    pCmdBuffer->CmdSetDepthBiasState(depthBias);
-    pCmdBuffer->CmdSetInputAssemblyState(inputAssemblyState);
-    pCmdBuffer->CmdSetPointLineRasterState(pointLineRasterState);
+    BindCommonGraphicsState(pCmdBuffer);
     pCmdBuffer->CmdSetStencilRefMasks(stencilRefMasks);
-    pCmdBuffer->CmdSetClipRects(DefaultClipRectsRule, 0, nullptr);
-    pCmdBuffer->CmdSetTriangleRasterState(triangleRasterState);
 
     RpmUtil::WriteVsZOut(pCmdBuffer, 1.0f);
 
@@ -6343,18 +6272,7 @@ bool RsrcProcMgr::ExpandDepthStencil(
     PAL_ASSERT((pCmdBuffer->IsNested() == false) || (static_cast<UniversalCmdBuffer*>(
         pCmdBuffer)->GetGraphicsState().inheritedState.stateFlags.targetViewState == 0));
 
-    const InputAssemblyStateParams   inputAssemblyState   = { PrimitiveTopology::RectList };
-    const DepthBiasParams            depthBias            = { 0.0f, 0.0f, 0.0f };
-    const PointLineRasterStateParams pointLineRasterState = { 1.0f, 1.0f };
     const StencilRefMaskParams       stencilRefMasks      = { 0xFF, 0xFF, 0xFF, 0x01, 0xFF, 0xFF, 0xFF, 0x01, 0xFF };
-    const TriangleRasterStateParams  triangleRasterState  =
-    {
-        FillMode::Solid,        // frontface fillMode
-        FillMode::Solid,        // backface fillMode
-        CullMode::None,         // cullMode
-        FaceOrientation::Cw,    // frontFace
-        ProvokingVertex::First  // provokingVertex
-    };
 
     ViewportParams viewportInfo = { };
     viewportInfo.count                 = 1;
@@ -6407,6 +6325,7 @@ bool RsrcProcMgr::ExpandDepthStencil(
 #else
     pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Graphics, GetGfxPipeline(DepthExpand), });
 #endif
+    BindCommonGraphicsState(pCmdBuffer);
     pCmdBuffer->CmdBindDepthStencilState(m_pDepthExpandState);
     pCmdBuffer->CmdBindMsaaState(pMsaaState);
 
@@ -6415,12 +6334,7 @@ bool RsrcProcMgr::ExpandDepthStencil(
         pCmdBuffer->CmdSetMsaaQuadSamplePattern(image.GetImageCreateInfo().samples, *pQuadSamplePattern);
     }
 
-    pCmdBuffer->CmdSetDepthBiasState(depthBias);
-    pCmdBuffer->CmdSetInputAssemblyState(inputAssemblyState);
-    pCmdBuffer->CmdSetPointLineRasterState(pointLineRasterState);
     pCmdBuffer->CmdSetStencilRefMasks(stencilRefMasks);
-    pCmdBuffer->CmdSetClipRects(DefaultClipRectsRule, 0, nullptr);
-    pCmdBuffer->CmdSetTriangleRasterState(triangleRasterState);
 
     RpmUtil::WriteVsZOut(pCmdBuffer, 1.0f);
 
@@ -6512,18 +6426,7 @@ void RsrcProcMgr::ResummarizeDepthStencil(
     PAL_ASSERT((pCmdBuffer->IsNested() == false) || (static_cast<UniversalCmdBuffer*>(
         pCmdBuffer)->GetGraphicsState().inheritedState.stateFlags.targetViewState == 0));
 
-    const InputAssemblyStateParams   inputAssemblyState   = { PrimitiveTopology::RectList };
-    const DepthBiasParams            depthBias            = { 0.0f, 0.0f, 0.0f };
-    const PointLineRasterStateParams pointLineRasterState = { 1.0f, 1.0f };
     const StencilRefMaskParams       stencilRefMasks      = { 0xFF, 0xFF, 0xFF, 0x01, 0xFF, 0xFF, 0xFF, 0x01, 0xFF };
-    const TriangleRasterStateParams  triangleRasterState  =
-    {
-        FillMode::Solid,        // frontface fillMode
-        FillMode::Solid,        // backface fillMode
-        CullMode::_None,        // cullMode
-        FaceOrientation::Cw,    // frontFace
-        ProvokingVertex::First  // provokingVertex
-    };
 
     ViewportParams viewportInfo = { };
     viewportInfo.count                 = 1;
@@ -6574,6 +6477,7 @@ void RsrcProcMgr::ResummarizeDepthStencil(
 #else
     pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Graphics, GetGfxPipeline(DepthResummarize), });
 #endif
+    BindCommonGraphicsState(pCmdBuffer);
     pCmdBuffer->CmdBindDepthStencilState(m_pDepthResummarizeState);
     pCmdBuffer->CmdBindMsaaState(pMsaaState);
 
@@ -6582,12 +6486,7 @@ void RsrcProcMgr::ResummarizeDepthStencil(
         pCmdBuffer->CmdSetMsaaQuadSamplePattern(image.GetImageCreateInfo().samples, *pQuadSamplePattern);
     }
 
-    pCmdBuffer->CmdSetDepthBiasState(depthBias);
-    pCmdBuffer->CmdSetInputAssemblyState(inputAssemblyState);
-    pCmdBuffer->CmdSetPointLineRasterState(pointLineRasterState);
     pCmdBuffer->CmdSetStencilRefMasks(stencilRefMasks);
-    pCmdBuffer->CmdSetClipRects(DefaultClipRectsRule, 0, nullptr);
-    pCmdBuffer->CmdSetTriangleRasterState(triangleRasterState);
 
     RpmUtil::WriteVsZOut(pCmdBuffer, 1.0f);
 
@@ -6722,7 +6621,7 @@ void RsrcProcMgr::GenericColorBlit(
         colorViewInfo.flags.zRangeValid = 1;
     }
 
-    BindTargetParams bindTargetsInfo;
+    BindTargetParams bindTargetsInfo = { };
     bindTargetsInfo.colorTargets[0].pColorTargetView    = nullptr;
     bindTargetsInfo.colorTargets[0].imageLayout.usages  = LayoutColorTarget;
     bindTargetsInfo.colorTargets[0].imageLayout.engines = LayoutUniversalEngine;
@@ -6732,18 +6631,7 @@ void RsrcProcMgr::GenericColorBlit(
     bindTargetsInfo.depthTarget.stencilLayout.usages    = LayoutDepthStencilTarget;
     bindTargetsInfo.depthTarget.stencilLayout.engines   = LayoutUniversalEngine;
 
-    const InputAssemblyStateParams   inputAssemblyState   = { PrimitiveTopology::RectList };
-    const DepthBiasParams            depthBias            = { 0.0f, 0.0f, 0.0f };
-    const PointLineRasterStateParams pointLineRasterState = { 1.0f, 1.0f };
     const StencilRefMaskParams       stencilRefMasks      = { 0xFF, 0xFF, 0xFF, 0x01, 0xFF, 0xFF, 0xFF, 0x01, 0xFF };
-    const TriangleRasterStateParams  triangleRasterState  =
-    {
-        FillMode::Solid,        // frontface fillMode
-        FillMode::Solid,        // backface fillMode
-        CullMode::_None,        // cullMode
-        FaceOrientation::Cw,    // frontFace
-        ProvokingVertex::First  // provokingVertex
-    };
 
     // Save current command buffer state and bind graphics state which is common for all mipmap levels.
     pCmdBuffer->PushGraphicsState();
@@ -6752,6 +6640,8 @@ void RsrcProcMgr::GenericColorBlit(
 #else
     pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Graphics, GetGfxPipeline(pipeline), });
 #endif
+
+    BindCommonGraphicsState(pCmdBuffer);
 
     SwizzledFormat swizzledFormat = {};
 
@@ -6769,12 +6659,7 @@ void RsrcProcMgr::GenericColorBlit(
         pCmdBuffer->CmdSetMsaaQuadSamplePattern(dstImage.GetImageCreateInfo().samples, *pQuadSamplePattern);
     }
 
-    pCmdBuffer->CmdSetDepthBiasState(depthBias);
-    pCmdBuffer->CmdSetInputAssemblyState(inputAssemblyState);
-    pCmdBuffer->CmdSetPointLineRasterState(pointLineRasterState);
     pCmdBuffer->CmdSetStencilRefMasks(stencilRefMasks);
-    pCmdBuffer->CmdSetClipRects(DefaultClipRectsRule, 0, nullptr);
-    pCmdBuffer->CmdSetTriangleRasterState(triangleRasterState);
 
     RpmUtil::WriteVsZOut(pCmdBuffer, 1.0f);
 
@@ -6911,18 +6796,6 @@ void RsrcProcMgr::ResolveImageFixedFunc(
     const auto& srcCreateInfo = srcImage.GetImageCreateInfo();
     const auto& dstCreateInfo = dstImage.GetImageCreateInfo();
 
-    const InputAssemblyStateParams   inputAssemblyState   = { PrimitiveTopology::RectList };
-    const DepthBiasParams            depthBias            = { 0.0f, 0.0f, 0.0f };
-    const PointLineRasterStateParams pointLineRasterState = { 1.0f, 1.0f };
-    const TriangleRasterStateParams  triangleRasterState  =
-    {
-        FillMode::Solid,        // frontface fillMode
-        FillMode::Solid,        // backface fillMode
-        CullMode::_None,        // cullMode
-        FaceOrientation::Cw,    // frontFace
-        ProvokingVertex::First  // provokingVertex
-    };
-
     ViewportParams viewportInfo = { };
     viewportInfo.count                 = 1;
     viewportInfo.viewports[0].minDepth = 0.f;
@@ -6962,14 +6835,10 @@ void RsrcProcMgr::ResolveImageFixedFunc(
 
     // Save current command buffer state and bind graphics state which is common for all regions.
     pCmdBuffer->PushGraphicsState();
+    BindCommonGraphicsState(pCmdBuffer);
     pCmdBuffer->CmdBindMsaaState(GetMsaaState(srcCreateInfo.samples, srcCreateInfo.fragments));
     pCmdBuffer->CmdBindColorBlendState(m_pBlendDisableState);
     pCmdBuffer->CmdBindDepthStencilState(m_pDepthDisableState);
-    pCmdBuffer->CmdSetDepthBiasState(depthBias);
-    pCmdBuffer->CmdSetInputAssemblyState(inputAssemblyState);
-    pCmdBuffer->CmdSetPointLineRasterState(pointLineRasterState);
-    pCmdBuffer->CmdSetTriangleRasterState(triangleRasterState);
-    pCmdBuffer->CmdSetClipRects(DefaultClipRectsRule, 0, nullptr);
 
     const GraphicsPipeline* pPipelinePrevious      = nullptr;
     const GraphicsPipeline* pPipelineByImageFormat =
@@ -7121,18 +6990,6 @@ void RsrcProcMgr::ResolveImageDepthStencilCopy(
     const auto& srcCreateInfo = srcImage.GetImageCreateInfo();
     const auto& dstCreateInfo = dstImage.GetImageCreateInfo();
 
-    const InputAssemblyStateParams   inputAssemblyState = { PrimitiveTopology::RectList };
-    const DepthBiasParams            depthBias = { 0.0f, 0.0f, 0.0f };
-    const PointLineRasterStateParams pointLineRasterState = { 1.0f, 1.0f };
-    const TriangleRasterStateParams  triangleRasterState =
-    {
-        FillMode::Solid,        // frontface fillMode
-        FillMode::Solid,        // backface fillMode
-        CullMode::_None,        // cullMode
-        FaceOrientation::Cw,    // frontFace
-        ProvokingVertex::First  // provokingVertex
-    };
-
     ViewportParams viewportInfo = {};
     viewportInfo.count = 1;
     viewportInfo.viewports[0].minDepth = 0.f;
@@ -7171,14 +7028,10 @@ void RsrcProcMgr::ResolveImageDepthStencilCopy(
 
     // Save current command buffer state and bind graphics state which is common for all regions.
     pCmdBuffer->PushGraphicsState();
+    BindCommonGraphicsState(pCmdBuffer);
     pCmdBuffer->CmdBindMsaaState(GetMsaaState(1u, 1u));
     pCmdBuffer->CmdBindColorBlendState(m_pBlendDisableState);
     pCmdBuffer->CmdBindDepthStencilState(m_pDepthDisableState);
-    pCmdBuffer->CmdSetDepthBiasState(depthBias);
-    pCmdBuffer->CmdSetInputAssemblyState(inputAssemblyState);
-    pCmdBuffer->CmdSetPointLineRasterState(pointLineRasterState);
-    pCmdBuffer->CmdSetTriangleRasterState(triangleRasterState);
-    pCmdBuffer->CmdSetClipRects(DefaultClipRectsRule, 0, nullptr);
 
     // Each region needs to be resolved individually.
     for (uint32 idx = 0; idx < regionCount; ++idx)
@@ -7776,6 +7629,38 @@ const ComputePipeline* RsrcProcMgr::GetComputeMaskRamExpandPipeline(
     PAL_ASSERT(pPipeline != nullptr);
 
     return pPipeline;
+}
+
+// =====================================================================================================================
+// Binds common graphics state.
+void RsrcProcMgr::BindCommonGraphicsState(
+    GfxCmdBuffer* pCmdBuffer
+    ) const
+{
+    const InputAssemblyStateParams   inputAssemblyState   = { PrimitiveTopology::RectList };
+    const DepthBiasParams            depthBias            = { 0.0f, 0.0f, 0.0f };
+    const PointLineRasterStateParams pointLineRasterState = { 1.0f, 1.0f };
+
+    const TriangleRasterStateParams  triangleRasterState =
+    {
+        FillMode::Solid,        // frontface fillMode
+        FillMode::Solid,        // backface fillMode
+        CullMode::_None,        // cullMode
+        FaceOrientation::Cw,    // frontFace
+        ProvokingVertex::First  // provokingVertex
+    };
+
+    GlobalScissorParams scissorParams = { };
+    scissorParams.scissorRegion.extent.width  = MaxScissorExtent;
+    scissorParams.scissorRegion.extent.height = MaxScissorExtent;
+
+    pCmdBuffer->CmdSetInputAssemblyState(inputAssemblyState);
+    pCmdBuffer->CmdSetDepthBiasState(depthBias);
+    pCmdBuffer->CmdSetPointLineRasterState(pointLineRasterState);
+    pCmdBuffer->CmdSetTriangleRasterState(triangleRasterState);
+    pCmdBuffer->CmdSetClipRects(DefaultClipRectsRule, 0, nullptr);
+    pCmdBuffer->CmdSetGlobalScissor(scissorParams);
+
 }
 
 // =====================================================================================================================

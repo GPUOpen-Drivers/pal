@@ -300,11 +300,10 @@ public:
         PM4Predicate       predicate,
         uint32*            pCmdSpace) const;
     uint32* UpdateColorClearMetaData(
-        uint32       startMip,
-        uint32       numMips,
-        const uint32 packedColor[4],
-        PM4Predicate predicate,
-        uint32*      pCmdSpace) const;
+        const SubresRange&  clearRange,
+        const uint32        packedColor[4],
+        PM4Predicate        predicate,
+        uint32*             pCmdSpace) const;
     uint32* UpdateDccStateMetaData(
         const SubresRange& range,
         bool               isCompressed,
