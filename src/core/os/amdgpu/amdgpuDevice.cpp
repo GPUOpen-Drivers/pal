@@ -5410,10 +5410,10 @@ static PAL_INLINE void GetColorCharacteristicsFromEdid(
     pHdrMetaData->metadata.chromaticityRedY        = BitsToDecimal((pEdid[0x1C] << 2) | ((pEdid[0x19] & 0x30) >> 4));
     pHdrMetaData->metadata.chromaticityGreenX      = BitsToDecimal((pEdid[0x1D] << 2) | ((pEdid[0x19] & 0x0C) >> 2));
     pHdrMetaData->metadata.chromaticityGreenY      = BitsToDecimal((pEdid[0x1E] << 2) | (pEdid[0x19] & 0x03));
-    pHdrMetaData->metadata.chromaticityBlueX       = BitsToDecimal((pEdid[0x1F] << 2) | ((pEdid[0x19] & 0xC0) >> 6));
-    pHdrMetaData->metadata.chromaticityBlueY       = BitsToDecimal((pEdid[0x20] << 2) | ((pEdid[0x19] & 0x03) >> 4));
-    pHdrMetaData->metadata.chromaticityWhitePointX = BitsToDecimal((pEdid[0x21] << 2) | ((pEdid[0x19] & 0xC0) >> 2));
-    pHdrMetaData->metadata.chromaticityWhitePointY = BitsToDecimal((pEdid[0x22] << 2) | (pEdid[0x19] & 0x0C));
+    pHdrMetaData->metadata.chromaticityBlueX       = BitsToDecimal((pEdid[0x1F] << 2) | ((pEdid[0x1A] & 0xC0) >> 6));
+    pHdrMetaData->metadata.chromaticityBlueY       = BitsToDecimal((pEdid[0x20] << 2) | ((pEdid[0x1A] & 0x30) >> 4));
+    pHdrMetaData->metadata.chromaticityWhitePointX = BitsToDecimal((pEdid[0x21] << 2) | ((pEdid[0x1A] & 0x0C) >> 2));
+    pHdrMetaData->metadata.chromaticityWhitePointY = BitsToDecimal((pEdid[0x22] << 2) | (pEdid[0x1A] & 0x03));
 
     return;
 }
@@ -5572,6 +5572,7 @@ Result Device::GetHdrMetaData(
             if (result == Result::Success)
             {
                 GetColorCharacteristicsFromEdid(reinterpret_cast<uint8*>(pBlob->data), pHdrMetaData);
+                connectorSupportHdr = true;
             }
 
             m_drmProcs.pfnDrmModeFreePropertyBlob(pBlob);
@@ -5591,12 +5592,14 @@ Result Device::GetHdrMetaData(
 // =====================================================================================================================
 // Set HDR metadata and "max bpc" 10 to enable the HDR display pipeline.
 Result Device::SetHdrMetaData(
+    int32              drmMasterFd,
     uint32             connectorId,
     HdrOutputMetadata* pHdrMetaData
     ) const
 {
     uint32                     blobId = 0;
-    drmModeObjectPropertiesPtr pProps = m_drmProcs.pfnDrmModeObjectGetProperties(m_primaryFileDescriptor,
+    int32 drmFd = (drmMasterFd != InvalidFd) ? drmMasterFd : m_primaryFileDescriptor;
+    drmModeObjectPropertiesPtr pProps = m_drmProcs.pfnDrmModeObjectGetProperties(drmFd,
                                                                                  connectorId,
                                                                                  DRM_MODE_OBJECT_CONNECTOR);
 
@@ -5605,7 +5608,7 @@ Result Device::SetHdrMetaData(
     bool maxBpcSet   = false;
     bool metaDataSet = false;
 
-    Result result = CheckResult(m_drmProcs.pfnDrmModeCreatePropertyBlob(m_primaryFileDescriptor,
+    Result result = CheckResult(m_drmProcs.pfnDrmModeCreatePropertyBlob(drmFd,
                                                                         reinterpret_cast<void*>(pHdrMetaData),
                                                                         sizeof(*pHdrMetaData),
                                                                         &blobId),
@@ -5620,7 +5623,7 @@ Result Device::SetHdrMetaData(
     {
         uint32             propId    = pProps->props[i];
         uint64             propValue = pProps->prop_values[i];
-        drmModePropertyPtr pProp     = m_drmProcs.pfnDrmModeGetProperty(m_primaryFileDescriptor, propId);
+        drmModePropertyPtr pProp     = m_drmProcs.pfnDrmModeGetProperty(drmFd, propId);
 
         if (pProp == nullptr)
         {
@@ -5648,7 +5651,8 @@ Result Device::SetHdrMetaData(
 
     if ((result == Result::Success) && maxBpcSet && metaDataSet)
     {
-        result = CheckResult(m_drmProcs.pfnDrmModeAtomicCommit(m_primaryFileDescriptor,
+        m_drmProcs.pfnDrmSetClientCap(drmFd, DRM_CLIENT_CAP_ATOMIC, 1);
+        result = CheckResult(m_drmProcs.pfnDrmModeAtomicCommit(drmFd,
                                                                pAtomicRequest,
                                                                DRM_MODE_ATOMIC_ALLOW_MODESET,
                                                                nullptr),
@@ -5661,7 +5665,7 @@ Result Device::SetHdrMetaData(
 
     if (blobId > 0)
     {
-        m_drmProcs.pfnDrmModeDestroyPropertyBlob(m_primaryFileDescriptor, blobId);
+        m_drmProcs.pfnDrmModeDestroyPropertyBlob(drmFd, blobId);
     }
 
     if (pAtomicRequest != nullptr)
