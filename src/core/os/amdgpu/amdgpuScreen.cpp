@@ -330,7 +330,7 @@ Result Screen::GetRandrOutput(
     OsDisplayHandle hDisplay,
     uint32*         pRandrOutput)
 {
-    Result result = Result::ErrorUnknown;
+    Result result = Result::Success;
 
     if (m_randrOutput == 0)
     {
