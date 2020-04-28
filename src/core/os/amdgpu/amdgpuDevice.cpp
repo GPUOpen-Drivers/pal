@@ -4649,7 +4649,7 @@ Result Device::SetClockMode(
                     PAL_ASSERT(isQueriedMclkValid);
 #endif
                     requiredSclkVal = static_cast<float>(sClkInMhz);
-                    requiredSclkVal = static_cast<float>(mClkInMhz);
+                    requiredMclkVal = static_cast<float>(mClkInMhz);
                 }
                 break;
             case DeviceClockMode::QueryPeak:
