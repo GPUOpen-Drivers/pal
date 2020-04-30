@@ -29,7 +29,6 @@
 #include "core/hw/gfxip/gfxDevice.h"
 #include "core/hw/gfxip/pipeline.h"
 #include "palFile.h"
-#include "palPipelineAbiProcessorImpl.h"
 #include "palEventDefs.h"
 #include "palSysUtil.h"
 
@@ -122,7 +121,6 @@ void Pipeline::DestroyInternal()
 // Allocates GPU memory for this pipeline and uploads the code and data contain in the ELF binary to it.  Any ELF
 // relocations are also applied to the memory during this operation.
 Result Pipeline::PerformRelocationsAndUploadToGpuMemory(
-    const AbiProcessor&       abiProcessor,
     const CodeObjectMetadata& metadata,
     const GpuHeap&            clientPreferredHeap,
     PipelineUploader*         pUploader)
@@ -199,7 +197,7 @@ Result Pipeline::PerformRelocationsAndUploadToGpuMemory(
 
     if (result == Result::Success)
     {
-        result = pUploader->Begin(abiProcessor, metadata, clientPreferredHeap);
+        result = pUploader->Begin(metadata, clientPreferredHeap);
     }
 
     if (result == Result::Success)
@@ -316,47 +314,24 @@ Result Pipeline::GetShaderCode(
     void*      pBuffer
     ) const
 {
-    Result result = Result::ErrorUnavailable;
-
     const ShaderStageInfo*const pInfo = GetShaderStageInfo(shaderType);
-    if (pSize == nullptr)
+    PAL_ASSERT(pInfo->codeLength != 0); // How did we get here if there's no shader code?!
+
+    // To extract the shader code, we can re-parse the saved ELF binary and lookup the shader's program
+    // instructions by examining the symbol table entry for that shader's entrypoint.
+    AbiReader abiReader(m_pDevice->GetPlatform(), m_pPipelineBinary);
+    Result result = abiReader.Init();
+    if (result == Result::Success)
     {
-        result = Result::ErrorInvalidPointer;
-    }
-    else if (pInfo != nullptr)
-    {
-        PAL_ASSERT(pInfo->codeLength != 0); // How did we get here if there's no shader code?!
-
-        if (pBuffer == nullptr)
+        const Elf::SymbolTableEntry* pSymbol = abiReader.GetPipelineSymbol(
+                Abi::GetSymbolForStage(Abi::PipelineSymbolType::ShaderMainEntry, pInfo->stageId));
+        if (pSymbol != nullptr)
         {
-            (*pSize) = pInfo->codeLength;
-            result   = Result::Success;
-        }
-        else if ((*pSize) >= pInfo->codeLength)
-        {
-            // To extract the shader code, we can re-parse the saved ELF binary and lookup the shader's program
-            // instructions by examining the symbol table entry for that shader's entrypoint.
-            AbiProcessor abiProcessor(m_pDevice->GetPlatform());
-            result = abiProcessor.LoadFromBuffer(m_pPipelineBinary, m_pipelineBinaryLen);
-            if (result == Result::Success)
-            {
-                const auto& symbol = abiProcessor.GetPipelineSymbolEntry(
-                        Abi::GetSymbolForStage(Abi::PipelineSymbolType::ShaderMainEntry, pInfo->stageId));
-                PAL_ASSERT(symbol.size == pInfo->codeLength);
-
-                const void* pCodeSection   = nullptr;
-                size_t      codeSectionLen = 0;
-                abiProcessor.GetPipelineCode(&pCodeSection, &codeSectionLen);
-                PAL_ASSERT((symbol.size + symbol.value) <= codeSectionLen);
-
-                memcpy(pBuffer,
-                       VoidPtrInc(pCodeSection, static_cast<size_t>(symbol.value)),
-                       static_cast<size_t>(symbol.size));
-            }
+            result = abiReader.GetElfReader().CopySymbol(*pSymbol, pSize, pBuffer);
         }
         else
         {
-            result = Result::ErrorInvalidMemorySize;
+            result = Result::ErrorUnavailable;
         }
     }
 
@@ -437,15 +412,15 @@ Result Pipeline::GetShaderStatsForStage(
     memset(pStats, 0, sizeof(ShaderStats));
 
     // We can re-parse the saved pipeline ELF binary to extract shader statistics.
-    AbiProcessor abiProcessor(m_pDevice->GetPlatform());
-    Result result = abiProcessor.LoadFromBuffer(m_pPipelineBinary, m_pipelineBinaryLen);
+    AbiReader abiReader(m_pDevice->GetPlatform(), m_pPipelineBinary);
+    Result result = abiReader.Init();
 
     MsgPackReader      metadataReader;
     CodeObjectMetadata metadata;
 
     if (result == Result::Success)
     {
-        result = abiProcessor.GetMetadata(&metadataReader, &metadata);
+        result = abiReader.GetMetadata(&metadataReader, &metadata);
     }
 
     if (result == Result::Success)
@@ -472,8 +447,13 @@ Result Pipeline::GetShaderStatsForStage(
         pStats->numAvailableVgprs = (stageMetadata.hasEntry.vgprLimit != 0) ? stageMetadata.vgprLimit
                                                                             : MaxVgprPerShader;
 
-        pStats->common.ldsUsageSizeInBytes    = stageMetadata.ldsSize;
-        pStats->common.scratchMemUsageInBytes = stageMetadata.scratchMemorySize;
+        pStats->common.ldsUsageSizeInBytes    =
+            (stageMetadata.hasEntry.ldsSize           != 0) ? stageMetadata.ldsSize           : 0;
+        pStats->common.scratchMemUsageInBytes =
+            (stageMetadata.hasEntry.scratchMemorySize != 0) ? stageMetadata.scratchMemorySize : 0;
+
+        pStats->common.flags.isWave32 =
+            ((stageMetadata.hasEntry.wavefrontSize != 0) && (stageMetadata.wavefrontSize == 32));
 
         pStats->isaSizeInBytes = stageInfo.disassemblyLength;
 
@@ -487,8 +467,13 @@ Result Pipeline::GetShaderStatsForStage(
             pStats->copyShader.numUsedSgprs = copyStageMetadata.sgprCount;
             pStats->copyShader.numUsedVgprs = copyStageMetadata.vgprCount;
 
-            pStats->copyShader.ldsUsageSizeInBytes    = copyStageMetadata.ldsSize;
-            pStats->copyShader.scratchMemUsageInBytes = copyStageMetadata.scratchMemorySize;
+            pStats->copyShader.ldsUsageSizeInBytes    =
+                (copyStageMetadata.hasEntry.ldsSize           != 0) ? copyStageMetadata.ldsSize           : 0;
+            pStats->copyShader.scratchMemUsageInBytes =
+                (copyStageMetadata.hasEntry.scratchMemorySize != 0) ? copyStageMetadata.scratchMemorySize : 0;
+
+            pStats->copyShader.flags.isWave32 =
+                (copyStageMetadata.hasEntry.wavefrontSize != 0) && (copyStageMetadata.wavefrontSize == 32);
         }
     }
 
@@ -513,7 +498,6 @@ size_t Pipeline::PerformanceDataSize(
 
 // =====================================================================================================================
 void Pipeline::DumpPipelineElf(
-    const AbiProcessor& abiProcessor,
     const char*         pPrefix,
     const char*         pName         // Optional: Non-null if we want to use a human-readable name for the filename.
     ) const
@@ -559,11 +543,13 @@ void Pipeline::DumpPipelineElf(
 
 // =====================================================================================================================
 PipelineUploader::PipelineUploader(
-    Device* pDevice,
-    uint32  ctxRegisterCount,
-    uint32  shRegisterCount)
+    Device*             pDevice,
+    const AbiReader&    abiReader,
+    uint32              ctxRegisterCount,
+    uint32              shRegisterCount)
     :
     m_pDevice(pDevice),
+    m_abiReader(abiReader),
     m_pGpuMemory(nullptr),
     m_baseOffset(0),
     m_gpuMemSize(0),
@@ -597,7 +583,6 @@ PipelineUploader::~PipelineUploader()
 // and data.  The GPU virtual addresses for the code, data, and register segments are also computed.  The caller is
 // responsible for calling End() which unmaps the GPU memory.
 Result PipelineUploader::Begin(
-    const AbiProcessor&       abiProcessor,
     const CodeObjectMetadata& metadata,
     const GpuHeap&            clientPreferredHeap)
 {
@@ -646,16 +631,26 @@ Result PipelineUploader::Begin(
     GpuMemoryInternalCreateInfo internalInfo = { };
     internalInfo.flags.alwaysResident        = 1;
 
-    const void* pCodeBuffer = nullptr;
-    size_t      codeLength  = 0;
-    abiProcessor.GetPipelineCode(&pCodeBuffer, &codeLength);
+    const ElfReader::Reader& elfReader = m_abiReader.GetElfReader();
+    ElfReader::SectionId codeSectionId = elfReader.FindSection(".text");
+    PAL_ASSERT_MSG(codeSectionId != 0, "Invalid pipeline ELF, cannot find .text section");
+    const void* pCodeBuffer = elfReader.GetSectionData(codeSectionId);
+    size_t      codeLength  = static_cast<size_t>(elfReader.GetSection(codeSectionId).sh_size);
 
     createInfo.size = codeLength;
 
+    ElfReader::SectionId dataSectionId = m_abiReader.GetElfReader().FindSection(".data");
     const void* pDataBuffer   = nullptr;
     size_t      dataLength    = 0;
     gpusize     dataAlignment = 0;
-    abiProcessor.GetData(&pDataBuffer, &dataLength, &dataAlignment);
+
+    if (dataSectionId != 0)
+    {
+        pDataBuffer = elfReader.GetSectionData(dataSectionId);
+        const Elf::SectionHeader& dataSectionHeader = elfReader.GetSection(dataSectionId);
+        dataLength = static_cast<size_t>(dataSectionHeader.sh_size);
+        dataAlignment = dataSectionHeader.sh_addralign;
+    }
 
     if (dataLength > 0)
     {
@@ -733,14 +728,13 @@ Result PipelineUploader::Begin(
                         Abi::GetSymbolForStage(Abi::PipelineSymbolType::ShaderIntrlTblPtr,
                                                static_cast<Abi::HardwareStage>(s));
 
-                    Abi::PipelineSymbolEntry symbol = { };
-                    if (abiProcessor.HasPipelineSymbolEntry(symbolType, &symbol) &&
-                        (symbol.sectionType == Abi::AbiSectionType::Data))
+                    const Elf::SymbolTableEntry* pSymbol = m_abiReader.GetPipelineSymbol(symbolType);
+                    if ((pSymbol != nullptr) && (pSymbol->st_shndx == dataSectionId))
                     {
                         m_pDevice->GetGfxDevice()->PatchPipelineInternalSrdTable(
-                            VoidPtrInc(pMappedPtr,  static_cast<size_t>(symbol.value)), // Dst
-                            VoidPtrInc(pDataBuffer, static_cast<size_t>(symbol.value)), // Src
-                            static_cast<size_t>(symbol.size),
+                            VoidPtrInc(pMappedPtr,  static_cast<size_t>(pSymbol->st_value)), // Dst
+                            VoidPtrInc(pDataBuffer, static_cast<size_t>(pSymbol->st_value)), // Src
+                            static_cast<size_t>(pSymbol->st_size),
                             m_dataGpuVirtAddr);
                     }
                 } // for each hardware stage
@@ -814,6 +808,62 @@ Result PipelineUploader::End()
         }
 
         m_pMappedPtr = nullptr;
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
+Result PipelineUploader::GetPipelineGpuSymbol(
+    Abi::PipelineSymbolType type,
+    GpuSymbol*              pSymbol) const
+{
+    return GetAbsoluteSymbolAddress(m_abiReader.GetPipelineSymbol(type), pSymbol);
+}
+
+// =====================================================================================================================
+Result PipelineUploader::GetGenericGpuSymbol(
+    const char* pName,
+    GpuSymbol*  pSymbol) const
+{
+    return GetAbsoluteSymbolAddress(m_abiReader.GetGenericSymbol(pName), pSymbol);
+}
+
+// =====================================================================================================================
+Result PipelineUploader::GetAbsoluteSymbolAddress(
+    const Util::Elf::SymbolTableEntry* pElfSymbol,
+    GpuSymbol*                         pSymbol) const
+{
+    Result result = Result::Success;
+    if (pElfSymbol != nullptr)
+    {
+        pSymbol->gpuVirtAddr = pElfSymbol->st_value;
+        pSymbol->size = pElfSymbol->st_size;
+        gpusize offset = 0;
+        const char* pName = m_abiReader.GetElfReader().GetSectionName(pElfSymbol->st_shndx);
+        if (pName != nullptr)
+        {
+            if (strcmp(pName, ".text") == 0)
+            {
+                pSymbol->gpuVirtAddr += m_codeGpuVirtAddr;
+            }
+            else if (strcmp(pName, ".data") == 0)
+            {
+                pSymbol->gpuVirtAddr += m_dataGpuVirtAddr;
+            }
+            else
+            {
+                result = Result::ErrorGpuMemoryNotBound;
+            }
+        }
+        else
+        {
+            result = Result::ErrorInvalidPipelineElf;
+        }
+    }
+    else
+    {
+        result = Result::NotFound;
     }
 
     return result;

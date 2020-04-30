@@ -25,6 +25,8 @@
 
 #pragma once
 
+#if PAL_BUILD_PM4_INSTRUMENTOR
+
 #include "core/layers/decorators.h"
 
 namespace Pal
@@ -75,3 +77,5 @@ private:
 
 } // Pm4Instrumentor
 } // Pal
+
+#endif

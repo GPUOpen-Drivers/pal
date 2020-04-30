@@ -272,9 +272,6 @@ enum class VcnIpLevel : uint32
 #endif
 
     VcnIp1   = 0x1,
-#if PAL_BUILD_VCN3
-    VcnIp3 = 0x4
-#endif
 };
 
 /// Specifies which SPU IP level this device has.
@@ -477,6 +474,17 @@ union RsFeatureInfo
         uint32 limitFps; ///< Specifies the global Delag FPS limit.
     } delag;
 
+};
+
+/// High-dynamic range (HDR) surface display modes.  Used to indicate the HDR display standard for a particular swap
+/// chain texture format and screen colorspace/transfer function combination.
+enum class HdrDisplayMode : uint32
+{
+    Sdr       = 0,  ///< Standard dynamic range; non-HDR compatible (default).
+    Hdr10     = 1,  ///< HDR10 PQ.  Requires 10:10:10:2 swap chain.
+    ScRgb     = 2,  ///< scRGB HDR (Microsoft and FreeSync2 linear mode).  1.0 = 80 nits, 125.0 = 10000 nits.
+                    ///  Requires FP16 swapchain.
+    FreeSync2 = 3,  ///< FreeSync2 HDR10 Gamma 2.2.  Requires 10:10:10:2 swap chain.
 };
 
 static constexpr uint32 MaxPathStrLen = 512;
@@ -1128,6 +1136,7 @@ struct DeviceProperties
                 uint64 support16BitInstructions            :  1; ///< Hardware supports FP16 and INT16 instructions
                 uint64 supportDoubleRate16BitInstructions  :  1; ///< Hardware supports double rate packed math
                 uint64 supportFp16Fetch                    :  1; ///< Hardware supports FP16 texture fetches
+                uint64 supportFp16Dot2                     :  1; ///< Hardware supports a paired FP16 dot product.
                 uint64 supportConservativeRasterization    :  1; ///< Hardware supports conservative rasterization
                 uint64 supportImplicitPrimitiveShader      :  1; ///< Device supports implicit compiling of the
                                                                  ///  hardware vertex shader as a primitive shader to
@@ -1204,9 +1213,9 @@ struct DeviceProperties
                 uint64 placeholder9                        :  1; ///< Placeholder, do not use
 #endif
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 522
-                uint64 reserved                            : 30; ///< Reserved for future use.
-#else
                 uint64 reserved                            : 29; ///< Reserved for future use.
+#else
+                uint64 reserved                            : 28; ///< Reserved for future use.
 #endif
             };
             uint64 u64All;           ///< Flags packed as 32-bit uint.
@@ -1604,10 +1613,12 @@ struct GpuMemoryHeapProperties
                                            ///< virtualized and the logical size will exceed the physical size.
     gpusize  physicalHeapSize;             ///< Physical size of the heap in bytes
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 591
     float    gpuReadPerfRating;            ///< Relative GPU read performance rating for this heap.
     float    gpuWritePerfRating;           ///< Relative GPU write performance rating for this heap.
     float    cpuReadPerfRating;            ///< Relative CPU read performance rating for this heap.
     float    cpuWritePerfRating;           ///< Relative GPU write performance rating for this heap.
+#endif
 };
 
 /// Flags structure reporting available capabilities of a particular format.

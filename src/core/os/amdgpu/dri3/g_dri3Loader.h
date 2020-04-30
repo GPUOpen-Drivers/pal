@@ -28,7 +28,7 @@
 //
 // This code has been generated automatically. Do not hand-modify this code.
 //
-// Modify the procsAnalysis.py and dri3Loader.py in the tools/generate directory OR dri3WindowSystem.proc instead
+// Modify the procAnalysis.py and dri3Loader.py in the tools/generate directory OR dri3WindowSystem.proc instead
 //
 // WARNING!  WARNING!  WARNING!  WARNING!  WARNING!  WARNING!  WARNING! WARNING!  WARNING!  WARNING!  WARNING!
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

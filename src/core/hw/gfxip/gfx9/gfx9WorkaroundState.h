@@ -40,8 +40,10 @@ class  CmdStream;
 class  CmdUtil;
 class  Device;
 struct Gfx9PalSettings;
+class  GraphicsPipeline;
 class  UniversalCmdBuffer;
 struct UniversalCmdBufferState;
+union  CachedSettings;
 
 // =====================================================================================================================
 // Maintains state for hardware workarounds which need tracking of changes between draws. (NOTE - this tracking is not
@@ -53,10 +55,11 @@ public:
     WorkaroundState(
         const Device*                  pDevice,
         bool                           isNested,
-        const UniversalCmdBufferState& universalState);
+        const UniversalCmdBufferState& universalState,
+        const CachedSettings&          cachedSettings);
     ~WorkaroundState() {}
 
-    template <bool StateDirty, bool Pm4OptImmediate>
+    template <bool PipelineDirty, bool StateDirty, bool Pm4OptImmediate>
     uint32* PreDraw(
         const GraphicsState&    gfxState,
         CmdStream*              pDeCmdStream,
@@ -65,6 +68,11 @@ public:
     uint32* SwitchFromNggPipelineToLegacy(
         bool    nextPipelineUsesGs,
         uint32* pCmdSpace) const;
+    uint32* SwitchBetweenLegacyPipelines(
+        bool                    oldPipelineUsesGs,
+        uint32                  oldCutMode,
+        const GraphicsPipeline* pNewPipeline,
+        uint32*                 pCmdSpace) const;
     void HandleZeroIndexBuffer(
         UniversalCmdBuffer* pCmdBuffer,
         gpusize*            pIndexBufferAddr,
@@ -76,7 +84,7 @@ public:
 private:
     const Device&                  m_device;
     const CmdUtil&                 m_cmdUtil;
-    const Gfx9PalSettings&         m_settings;
+    const CachedSettings&          m_cachedSettings;
     const bool                     m_isNested;
     const UniversalCmdBufferState& m_universalState;
 

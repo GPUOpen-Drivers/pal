@@ -54,8 +54,6 @@ private:
     PAL_DISALLOW_COPY_AND_ASSIGN(SettingsLoader);
     PAL_DISALLOW_DEFAULT_CTOR(SettingsLoader);
 
-    void SetupHeapPerfRatings(PalSettings* pSettings);
-
     // Generate the settings hash which is based on HW-specific setting.
     void GenerateSettingHash();
 

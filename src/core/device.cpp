@@ -1813,6 +1813,42 @@ Result Device::CreateDummyCommandStreams()
 // loader has been finalized to make sure that the heap performance settings have been finalized.
 void Device::FinalizeMemoryHeapProperties()
 {
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 591
+    // Heap pref is removed in a major interface version. Use Hawaii data as long as older versions are supported.
+    float cpuWritePerfForLocal         = 2.8f;
+    float cpuReadPerfForLocal          = 0.0058f;
+    float gpuWritePerfForLocal         = 170.f;
+    float gpuReadPerfForLocal          = 130.f;
+    float gpuWritePerfForInvisible     = 180.f;
+    float gpuReadPerfForInvisible      = 130.f;
+    float cpuWritePerfForGartUswc      = 3.3f;
+    float cpuReadPerfForGartUswc       = 0.1f;
+    float gpuWritePerfForGartUswc      = 2.6f;
+    float gpuReadPerfForGartUswc       = 2.6f;
+    float cpuWritePerfForGartCacheable = 2.9f;
+    float cpuReadPerfForGartCacheable  = 3.2f;
+    float gpuWritePerfForGartCacheable = 2.6f;
+    float gpuReadPerfForGartCacheable  = 2.6f;
+
+    if (ChipProperties().gpuType == GpuType::Integrated)
+    {
+        // If we happen to know we're an APU then use these Carrizo values instead of Hawaii.
+        cpuWritePerfForLocal         = 3.4f;
+        cpuReadPerfForLocal          = 0.015f;
+        gpuWritePerfForLocal         = 18.f;
+        gpuReadPerfForLocal          = 8.6f;
+        gpuWritePerfForInvisible     = 17.f;
+        gpuReadPerfForInvisible      = 8.5f;
+        cpuWritePerfForGartUswc      = 2.9f;
+        cpuReadPerfForGartUswc       = 0.045f;
+        gpuWritePerfForGartUswc      = 15.f;
+        gpuReadPerfForGartUswc       = 7.5f;
+        cpuWritePerfForGartCacheable = 2.9f;
+        cpuReadPerfForGartCacheable  = 2.f;
+        gpuWritePerfForGartCacheable = 6.5f;
+        gpuReadPerfForGartCacheable  = 3.3f;
+    }
+
     // cpu access through thunder bolt connect to local visible is 50 times slower based on testing.
     const float cpuAccessLocalPerfModifier = m_chipProperties.gpuConnectedViaThunderbolt ? 0.02f : 1.0f;
     for (uint32 i = 0; i < GpuHeapCount; ++i)
@@ -1820,34 +1856,36 @@ void Device::FinalizeMemoryHeapProperties()
         switch (static_cast<GpuHeap>(i))
         {
         case GpuHeapLocal:
-            m_heapProperties[i].cpuReadPerfRating  = Settings().cpuReadPerfForLocal * cpuAccessLocalPerfModifier;
-            m_heapProperties[i].gpuReadPerfRating  = Settings().gpuReadPerfForLocal;
-            m_heapProperties[i].cpuWritePerfRating = Settings().cpuWritePerfForLocal * cpuAccessLocalPerfModifier;
-            m_heapProperties[i].gpuWritePerfRating = Settings().gpuWritePerfForLocal;
+            m_heapProperties[i].cpuReadPerfRating  = cpuReadPerfForLocal * cpuAccessLocalPerfModifier;
+            m_heapProperties[i].gpuReadPerfRating  = gpuReadPerfForLocal;
+            m_heapProperties[i].cpuWritePerfRating = cpuWritePerfForLocal * cpuAccessLocalPerfModifier;
+            m_heapProperties[i].gpuWritePerfRating = gpuWritePerfForLocal;
             break;
         case GpuHeapInvisible:
             m_heapProperties[i].cpuReadPerfRating  = 0.f;
-            m_heapProperties[i].gpuReadPerfRating  = Settings().gpuReadPerfForInvisible;
+            m_heapProperties[i].gpuReadPerfRating  = gpuReadPerfForInvisible;
             m_heapProperties[i].cpuWritePerfRating = 0.f;
-            m_heapProperties[i].gpuWritePerfRating = Settings().gpuWritePerfForInvisible;
+            m_heapProperties[i].gpuWritePerfRating = gpuWritePerfForInvisible;
             break;
         case GpuHeapGartCacheable:
-            m_heapProperties[i].cpuReadPerfRating  = Settings().cpuReadPerfForGartCacheable;
-            m_heapProperties[i].gpuReadPerfRating  = Settings().gpuReadPerfForGartCacheable;
-            m_heapProperties[i].cpuWritePerfRating = Settings().cpuWritePerfForGartCacheable;
-            m_heapProperties[i].gpuWritePerfRating = Settings().gpuWritePerfForGartCacheable;
+            m_heapProperties[i].cpuReadPerfRating  = cpuReadPerfForGartCacheable;
+            m_heapProperties[i].gpuReadPerfRating  = gpuReadPerfForGartCacheable;
+            m_heapProperties[i].cpuWritePerfRating = cpuWritePerfForGartCacheable;
+            m_heapProperties[i].gpuWritePerfRating = gpuWritePerfForGartCacheable;
             break;
         case GpuHeapGartUswc:
-            m_heapProperties[i].cpuReadPerfRating  = Settings().cpuReadPerfForGartUswc;
-            m_heapProperties[i].gpuReadPerfRating  = Settings().gpuReadPerfForGartUswc;
-            m_heapProperties[i].cpuWritePerfRating = Settings().cpuWritePerfForGartUswc;
-            m_heapProperties[i].gpuWritePerfRating = Settings().gpuWritePerfForGartUswc;
+            m_heapProperties[i].cpuReadPerfRating  = cpuReadPerfForGartUswc;
+            m_heapProperties[i].gpuReadPerfRating  = gpuReadPerfForGartUswc;
+            m_heapProperties[i].cpuWritePerfRating = cpuWritePerfForGartUswc;
+            m_heapProperties[i].gpuWritePerfRating = gpuWritePerfForGartUswc;
             break;
         default:
             PAL_ASSERT_ALWAYS();
             break;
         }
     }
+#endif
+
     if (Settings().force64kPageGranularity)
     {
         m_memoryProperties.realMemAllocGranularity    = Pow2Align(m_memoryProperties.realMemAllocGranularity, 65536);
@@ -2159,6 +2197,7 @@ Result Device::GetProperties(
             pInfo->gfxipProperties.flags.u64All                             = 0;
             pInfo->gfxipProperties.flags.support8bitIndices                 = 0;
             pInfo->gfxipProperties.flags.supportFp16Fetch                   = gfx9Props.supportFp16Fetch;
+            pInfo->gfxipProperties.flags.supportFp16Dot2                    = gfx9Props.supportFp16Dot2;
             pInfo->gfxipProperties.flags.support16BitInstructions           = gfx9Props.support16BitInstructions;
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 532
             pInfo->gfxipProperties.flags.support64BitInstructions           = gfx9Props.support64BitInstructions;
@@ -3258,6 +3297,10 @@ Result Device::CreateGpuMemory(
     void*                      pPlacementAddr,
     IGpuMemory**               ppGpuMemory)
 {
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 585
+    const_cast<GpuMemoryCreateInfo&>(createInfo).flags.presentable = 0;
+#endif
+
     GpuMemoryInternalCreateInfo internalInfo = {};
     internalInfo.flags.isClient = 1;
 
@@ -4592,8 +4635,7 @@ bool Device::UsingHdrColorspaceFormat(
                                CsDciP3       |
                                CsScrgb       |
                                CsUserDefined |
-                               CsNative      |
-                               CsFreeSync2;
+                               CsNative;
 
     return ((m_hdrColorspaceFormat & HdrMask) != 0);
 }

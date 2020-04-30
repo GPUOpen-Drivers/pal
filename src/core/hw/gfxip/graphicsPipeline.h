@@ -73,7 +73,7 @@ protected:
 
     virtual Result HwlInit(
         const GraphicsPipelineCreateInfo& createInfo,
-        const AbiProcessor&               abiProcessor,
+        const AbiReader&                  abiReader,
         const CodeObjectMetadata&         metadata,
         Util::MsgPackReader*              pMetadataReader) = 0;
 

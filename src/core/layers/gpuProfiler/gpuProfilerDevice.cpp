@@ -27,6 +27,7 @@
 #include "core/layers/gpuProfiler/gpuProfilerDevice.h"
 #include "core/layers/gpuProfiler/gpuProfilerPipeline.h"
 #include "core/layers/gpuProfiler/gpuProfilerQueue.h"
+#include <ctype.h>
 
 using namespace Util;
 
@@ -475,6 +476,19 @@ Result Device::CreateComputePipeline(
 }
 
 // =====================================================================================================================
+// A helper function which converts a C-string to upper case characters.
+static void ToUpperCase(
+    char* pString)
+{
+    const size_t len = strlen(pString);
+
+    for (size_t idx = 0; idx < len; ++idx)
+    {
+        pString[idx] = static_cast<char>(toupper(pString[idx]));
+    }
+}
+
+// =====================================================================================================================
 // Helper function to extract SPM or global perf counter info from config file.
 Result Device::ExtractPerfCounterInfo(
     const PerfExperimentProperties& perfExpProps,
@@ -503,25 +517,27 @@ Result Device::ExtractPerfCounterInfo(
             }
             else
             {
-                char  blockName[BlockNameSize];
-                char  instanceName[InstanceNameSize];
-                char  eventName[EventNameSize];
-                char  eventIdStr[8];
-                int32 optData;
+                char  blockName[ConfigBlockNameSize];
+                char  eventIdStr[ConfigEventIdSize];
+                char  instanceName[ConfigInstanceNameSize];
+                char  eventName[ConfigEventNameSize];
+                char  optDataStr[ConfigOptionalDataSize];
 
                 // Read a line of the form "BlockName EventId InstanceName CounterName OptionalData".
                 const int scanfRet = sscanf(&buf[0],
-                                            "%31s %7s %7s %127s %i",
+                                            "%31s %7s %7s %127s %63s",
                                             &blockName[0],
                                             &eventIdStr[0],
                                             &instanceName[0],
                                             &eventName[0],
-                                            &optData);
+                                            &optDataStr[0]);
+
+                // We expect our block names and instance names to be upper case.
+                ToUpperCase(blockName);
+                ToUpperCase(instanceName);
 
                 if (scanfRet >= 4)
                 {
-                    pPerfCounters[counterIdx].optionalData = (scanfRet == 5) ? optData : 0;
-
                     const GpuBlock block = StringToGpuBlock(&blockName[0]);
                     const uint32   blockIdx = static_cast<uint32>(block);
 
@@ -550,6 +566,50 @@ Result Device::ExtractPerfCounterInfo(
                                         lineNum, eventIdStr);
                             result = Result::ErrorInitializationFailed;
                         }
+                    }
+
+                    if (result == Result::Success)
+                    {
+                        // Parse Optional data field, if specified
+                        bool   hasOptData = false;
+                        uint32 optData    = 0;
+                        if (scanfRet >= 5)
+                        {
+                            // Convert optDataStr(decimal or hex) to integer
+                            //   Could be extended to parse other specialized field formatting in future.
+                            if ((optDataStr[0] == '0') && (optDataStr[1] == 'x')) // hex value
+                            {
+                                char* endChar;
+                                optData = strtol(optDataStr + 2, &endChar, 16);
+                                if (endChar == (optDataStr + 2))
+                                {
+                                    // strtol failed
+                                    PAL_DPERROR("Bad perfcounter config (%d): OptData '%s' not a hex number (ignored).",
+                                                lineNum, optDataStr);
+                                }
+                                else
+                                {
+                                    hasOptData = true;
+                                }
+                            }
+                            else // decimal value
+                            {
+                                char* endChar;
+                                optData = strtol(optDataStr, &endChar, 10);
+                                if (endChar == optDataStr)
+                                {
+                                    // strtol failed
+                                    PAL_DPERROR("Bad perfcounter config (%d): OptData '%s' not valid integer (ignored).",
+                                                lineNum, optDataStr);
+                                }
+                                else
+                                {
+                                    hasOptData = true;
+                                }
+                            }
+                        }
+                        pPerfCounters[counterIdx].hasOptionalData = hasOptData;
+                        pPerfCounters[counterIdx].optionalData    = optData;
                     }
 
                     if (result == Result::Success)
@@ -765,21 +825,22 @@ Result Device::CountPerfCounters(
         }
         else
         {
-            constexpr uint32 BlockNameSize    = 32;
-            char blockName[BlockNameSize];
-            int32 eventId;
-            constexpr uint32 InstanceNameSize = 8;
-            char instanceName[InstanceNameSize];
-            constexpr uint32 EventNameSize    = 128;
-            char eventName[EventNameSize];
+            char  blockName[ConfigBlockNameSize];
+            char  eventIdStr[ConfigEventIdSize];
+            char  instanceName[ConfigInstanceNameSize];
+            char  eventName[ConfigEventNameSize];
 
-            // Read a line of the form "BlockName EventId InstanceName CounterName".
+            // Read a line of the form "BlockName EventId InstanceName CounterName" (ignore OptionalData field+)
             const int scanfRet = sscanf(&buf[0],
-                                        "%31s %i %7s %127s",
+                                        "%31s %7s %7s %127s",
                                         &blockName[0],
-                                        &eventId,
+                                        &eventIdStr[0],
                                         &instanceName[0],
                                         &eventName[0]);
+
+            // We expect our block names and instance names to be upper case.
+            ToUpperCase(blockName);
+            ToUpperCase(instanceName);
 
             if (scanfRet == 4)
             {

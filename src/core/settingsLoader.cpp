@@ -82,11 +82,8 @@ Result SettingsLoader::Init()
         // Init Settings Info HashMap
         InitSettingsInfo();
 
-    // setup default values for the settings.
+        // setup default values for the settings.
         SetupDefaults();
-
-        // load the heap performance ratings
-        SetupHeapPerfRatings(&m_settings);
 
         m_state = SettingsLoaderState::EarlyInit;
 
@@ -134,48 +131,6 @@ void SettingsLoader::OverrideDefaults()
 void SettingsLoader::ValidateSettings()
 {
     m_pDevice->GetGfxDevice()->HwlValidateSettings(&m_settings);
-    // If this is set we will use hard-coded heap performance values instead of the usual ASIC-specific values.
-    // This setting is intended for bring-up testing as we will return zeros for all performance data on unknown GPUs.
-    // This can cause strange behavior (e.g., poor performance) in some Mantle applications.
-    if (m_settings.forceHeapPerfToFixedValues)
-    {
-        if (m_pDevice->ChipProperties().gpuType == GpuType::Integrated)
-        {
-            // If we happen to know we're an APU then use these Carrizo values.
-            m_settings.cpuWritePerfForLocal         = 3.4f;
-            m_settings.cpuReadPerfForLocal          = 0.015f;
-            m_settings.gpuWritePerfForLocal         = 18.f;
-            m_settings.gpuReadPerfForLocal          = 8.6f;
-            m_settings.gpuWritePerfForInvisible     = 17.f;
-            m_settings.gpuReadPerfForInvisible      = 8.5f;
-            m_settings.cpuWritePerfForGartUswc      = 2.9f;
-            m_settings.cpuReadPerfForGartUswc       = 0.045f;
-            m_settings.gpuWritePerfForGartUswc      = 15.f;
-            m_settings.gpuReadPerfForGartUswc       = 7.5f;
-            m_settings.cpuWritePerfForGartCacheable = 2.9f;
-            m_settings.cpuReadPerfForGartCacheable  = 2.f;
-            m_settings.gpuWritePerfForGartCacheable = 6.5f;
-            m_settings.gpuReadPerfForGartCacheable  = 3.3f;
-        }
-        else
-        {
-            // Otherwise just go with Hawaii data.
-            m_settings.cpuWritePerfForLocal         = 2.8f;
-            m_settings.cpuReadPerfForLocal          = 0.0058f;
-            m_settings.gpuWritePerfForLocal         = 170.f;
-            m_settings.gpuReadPerfForLocal          = 130.f;
-            m_settings.gpuWritePerfForInvisible     = 180.f;
-            m_settings.gpuReadPerfForInvisible      = 130.f;
-            m_settings.cpuWritePerfForGartUswc      = 3.3f;
-            m_settings.cpuReadPerfForGartUswc       = 0.1f;
-            m_settings.gpuWritePerfForGartUswc      = 2.6f;
-            m_settings.gpuReadPerfForGartUswc       = 2.6f;
-            m_settings.cpuWritePerfForGartCacheable = 2.9f;
-            m_settings.cpuReadPerfForGartCacheable  = 3.2f;
-            m_settings.gpuWritePerfForGartCacheable = 2.6f;
-            m_settings.gpuReadPerfForGartCacheable  = 2.6f;
-        }
-    }
 
     // If developer driver profiling is enabled, we should always request the debug vm id and disable mid command
     // buffer preemption support.

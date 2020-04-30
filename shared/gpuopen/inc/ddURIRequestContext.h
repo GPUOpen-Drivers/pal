@@ -65,7 +65,7 @@ public:
                SharedPointer<TransferProtocol::ServerBlock> pResponseBlock,
                const PostDataInfo&                          postDataInfo);
 
-    void End();
+    void End(Result serviceResult);
 
     URIDataFormat GetUriDataFormat() const;
     SharedPointer<TransferProtocol::ServerBlock> GetBlock() const;

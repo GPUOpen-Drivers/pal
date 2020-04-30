@@ -282,7 +282,7 @@ Result GpuMemory::AllocateOrPinMemory(
                     }
                 }
 
-                if (pDevice->Settings().isLocalHeapPreferred &&
+                if ((pDevice->Settings().isLocalHeapPreferred || (m_priority >= GpuMemPriority::High)) &&
                     (allocRequest.preferred_heap & AMDGPU_GEM_DOMAIN_VRAM))
                 {
                     allocRequest.flags          &= ~AMDGPU_GEM_CREATE_CPU_GTT_USWC;
@@ -573,10 +573,8 @@ Result GpuMemory::OpenSharedMemory(
             }
         }
     }
-
     // handle should be closed here otherwise, the memory would never be freed since it takes one extra refcount.
     close(handle);
-
     return result;
 }
 

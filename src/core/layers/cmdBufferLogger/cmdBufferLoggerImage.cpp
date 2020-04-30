@@ -23,6 +23,8 @@
  *
  **********************************************************************************************************************/
 
+#if PAL_BUILD_CMD_BUFFER_LOGGER
+
 #include "core/layers/cmdBufferLogger/cmdBufferLoggerDevice.h"
 #include "core/layers/cmdBufferLogger/cmdBufferLoggerImage.h"
 
@@ -58,3 +60,5 @@ Result Image::BindGpuMemory(
 
 } // CmdBufferLogger
 } // Pal
+
+#endif

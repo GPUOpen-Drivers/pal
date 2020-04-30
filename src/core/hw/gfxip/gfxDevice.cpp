@@ -34,6 +34,7 @@
 #include "core/hw/gfxip/msaaState.h"
 #include "core/hw/gfxip/rpm/rsrcProcMgr.h"
 #include "palHashMapImpl.h"
+#include "addrinterface.h"
 
 using namespace Util;
 
@@ -691,6 +692,18 @@ uint32* GfxDevice::AllocateFceRefCount()
     }
 
     return pCounter;
+}
+
+// =====================================================================================================================
+void GfxDevice::InitAddrLibChipId(
+    ADDR_CREATE_INPUT*  pInput
+    ) const
+{
+    const GpuChipProperties& chipProps = Parent()->ChipProperties();
+
+    pInput->chipEngine   = chipProps.gfxEngineId;
+    pInput->chipRevision = chipProps.eRevId;
+    pInput->chipFamily   = chipProps.familyId;
 }
 
 } // Pal

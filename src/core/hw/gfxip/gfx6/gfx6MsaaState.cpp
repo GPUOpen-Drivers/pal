@@ -333,10 +333,16 @@ static uint32 ComputeMaxSampleDistance(
 {
     uint32 distance = 0;
 
-    const Offset2d*const pSampleLocations = &quadSamplePattern.topLeft[0];
-    for(uint32 i = 0; i < numSamples; ++i)
+    for (uint32 i = 0; i < numSamples; ++i)
     {
-        distance = Max(distance, static_cast<uint32>(Max(abs(pSampleLocations[i].x), abs(pSampleLocations[i].y))));
+        distance = Max(distance, static_cast<uint32>(Max(abs(quadSamplePattern.topLeft[i].x),
+                                                         abs(quadSamplePattern.topLeft[i].y))));
+        distance = Max(distance, static_cast<uint32>(Max(abs(quadSamplePattern.topRight[i].x),
+                                                         abs(quadSamplePattern.topRight[i].y))));
+        distance = Max(distance, static_cast<uint32>(Max(abs(quadSamplePattern.bottomLeft[i].x),
+                                                         abs(quadSamplePattern.bottomLeft[i].y))));
+        distance = Max(distance, static_cast<uint32>(Max(abs(quadSamplePattern.bottomRight[i].x),
+                                                         abs(quadSamplePattern.bottomRight[i].y))));
     }
 
     return distance;

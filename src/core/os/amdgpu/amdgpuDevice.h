@@ -838,6 +838,10 @@ protected:
         return 0;
     }
 
+    virtual Result OpenExternalResource(
+        const ExternalResourceOpenInfo& openInfo,
+        ExternalSharedInfo*             pSharedInfo) const;
+
 private:
     virtual Result OsEarlyInit() override;
 
@@ -861,11 +865,6 @@ private:
         ) const;
 
     void CheckSyncObjectSupportStatus();
-
-    Result OpenExternalResource(
-        const ExternalResourceOpenInfo& openInfo,
-        ExternalSharedInfo*             pSharedInfo
-        ) const;
 
     Result InitGpuProperties();
     Result InitMemInfo();

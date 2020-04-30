@@ -23,6 +23,8 @@
  *
  **********************************************************************************************************************/
 
+#if PAL_BUILD_INTERFACE_LOGGER
+
 #include "core/layers/interfaceLogger/interfaceLoggerCmdAllocator.h"
 #include "core/layers/interfaceLogger/interfaceLoggerCmdBuffer.h"
 #include "core/layers/interfaceLogger/interfaceLoggerDevice.h"
@@ -1630,6 +1632,7 @@ void CmdBuffer::CmdClearColorImage(
 void CmdBuffer::CmdClearBoundDepthStencilTargets(
     float                         depth,
     uint8                         stencil,
+    uint8                         stencilWriteMask,
     uint32                        samples,
     uint32                        fragments,
     DepthStencilSelectFlags       flag,
@@ -1641,8 +1644,14 @@ void CmdBuffer::CmdClearBoundDepthStencilTargets(
     funcInfo.objectId     = m_objectId;
     funcInfo.preCallTime  = m_pPlatform->GetTime();
 
-    m_pNextLayer->CmdClearBoundDepthStencilTargets(
-        depth, stencil, samples, fragments, flag, regionCount, pClearRegions);
+    m_pNextLayer->CmdClearBoundDepthStencilTargets(depth,
+                                                   stencil,
+                                                   stencilWriteMask,
+                                                   samples,
+                                                   fragments,
+                                                   flag,
+                                                   regionCount,
+                                                   pClearRegions);
 
     funcInfo.postCallTime = m_pPlatform->GetTime();
 
@@ -1652,6 +1661,7 @@ void CmdBuffer::CmdClearBoundDepthStencilTargets(
         pLogContext->BeginInput();
         pLogContext->KeyAndValue("depth", depth);
         pLogContext->KeyAndValue("stencil", stencil);
+        pLogContext->KeyAndValue("stencilWriteMask", stencilWriteMask);
         pLogContext->KeyAndValue("samples", samples);
         pLogContext->KeyAndValue("fragments", fragments);
         pLogContext->KeyAndStruct("flags", flag);
@@ -1676,6 +1686,7 @@ void CmdBuffer::CmdClearDepthStencil(
     ImageLayout        stencilLayout,
     float              depth,
     uint8              stencil,
+    uint8              stencilWriteMask,
     uint32             rangeCount,
     const SubresRange* pRanges,
     uint32             rectCount,
@@ -1691,6 +1702,7 @@ void CmdBuffer::CmdClearDepthStencil(
                                        stencilLayout,
                                        depth,
                                        stencil,
+                                       stencilWriteMask,
                                        rangeCount,
                                        pRanges,
                                        rectCount,
@@ -1707,6 +1719,7 @@ void CmdBuffer::CmdClearDepthStencil(
         pLogContext->KeyAndStruct("stencilLayout", stencilLayout);
         pLogContext->KeyAndValue("depth", depth);
         pLogContext->KeyAndValue("stencil", stencil);
+        pLogContext->KeyAndValue("stencilWriteMask", stencilWriteMask);
         pLogContext->KeyAndBeginList("ranges", false);
 
         for (uint32 idx = 0; idx < rangeCount; ++idx)
@@ -3501,3 +3514,5 @@ void CmdBuffer::CmdSetViewInstanceMask(
 
 } // InterfaceLogger
 } // Pal
+
+#endif

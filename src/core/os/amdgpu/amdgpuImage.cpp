@@ -152,12 +152,12 @@ Result Image::CreatePresentableImage(
         imgCreateInfo.viewFormatCount       = createInfo.viewFormatCount;
         imgCreateInfo.pViewFormats          = createInfo.pViewFormats;
         imgCreateInfo.flags.flippable       = 1;
+        imgCreateInfo.flags.presentable     = 1;
 
         // Linux doesn't support stereo images.
         PAL_ASSERT(createInfo.flags.stereo == 0);
 
         ImageInternalCreateInfo internalInfo = {};
-        internalInfo.flags.presentable       = 1;
 
         result = pDevice->CreateInternalImage(imgCreateInfo, internalInfo, pImagePlacementAddr, &pImage);
 
@@ -266,6 +266,7 @@ Result Image::CreatePresentableMemoryObject(
     pImage->GetGpuMemoryRequirements(&memReqs);
 
     GpuMemoryCreateInfo createInfo = {};
+    createInfo.flags.presentable  = 1;
     createInfo.flags.flippable    = pImage->IsFlippable();
     createInfo.flags.stereo       = pImage->GetInternalCreateInfo().flags.stereo;
     createInfo.flags.peerWritable = presentableImageCreateInfo.flags.peerWritable;

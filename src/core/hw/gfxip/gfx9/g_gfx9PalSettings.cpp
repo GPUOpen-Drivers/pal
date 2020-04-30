@@ -212,9 +212,11 @@ void SettingsLoader::SetupDefaults()
     m_settings.waTessIncorrectRelativeIndex = false;
     m_settings.waLimitLateAllocGsNggFifo = false;
     m_settings.waClampGeCntlVertGrpSize = false;
+    m_settings.waLegacyGsCutModeFlush = false;
 
     m_settings.depthStencilFastClearComputeThresholdSingleSampled = 2097152;
     m_settings.depthStencilFastClearComputeThresholdMultiSampled = 4194304;
+    m_settings.gfx10MaxFpovsInWave = 0;
     m_settings.disableAceCsPartialFlush = true;
     m_settings.debugForceQueueNotWaitForIdle = false;
     m_settings.numSettings = g_gfx9PalNumSettings;
@@ -970,6 +972,11 @@ void SettingsLoader::ReadSettings()
                            &m_settings.waClampGeCntlVertGrpSize,
                            InternalSettingScope::PrivatePalGfx9Key);
 
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pWaLegacyGsCutModeFlushStr,
+                           Util::ValueType::Boolean,
+                           &m_settings.waLegacyGsCutModeFlush,
+                           InternalSettingScope::PrivatePalGfx9Key);
+
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pDepthStencilFastClearComputeThresholdSingleSampledStr,
                            Util::ValueType::Uint,
                            &m_settings.depthStencilFastClearComputeThresholdSingleSampled,
@@ -978,6 +985,11 @@ void SettingsLoader::ReadSettings()
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pDepthStencilFastClearComputeThresholdMultiSampledStr,
                            Util::ValueType::Uint,
                            &m_settings.depthStencilFastClearComputeThresholdMultiSampled,
+                           InternalSettingScope::PrivatePalGfx9Key);
+
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pGfx10MaxFpovsInWaveStr,
+                           Util::ValueType::Uint,
+                           &m_settings.gfx10MaxFpovsInWave,
                            InternalSettingScope::PrivatePalGfx9Key);
 
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pDisableAceCsPartialFlushStr,
@@ -1022,6 +1034,11 @@ void SettingsLoader::RereadSettings()
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pGfx10GePcAllocNumLinesPerSeNggCullingStr,
                            Util::ValueType::Uint,
                            &m_settings.gfx10GePcAllocNumLinesPerSeNggCulling,
+                           InternalSettingScope::PrivatePalGfx9Key);
+
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pBatchBreakOnNewPixelShaderStr,
+                           Util::ValueType::Boolean,
+                           &m_settings.batchBreakOnNewPixelShader,
                            InternalSettingScope::PrivatePalGfx9Key);
 
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pNggSupportedStr,
@@ -1224,6 +1241,11 @@ void SettingsLoader::RereadSettings()
                            &m_settings.waClampGeCntlVertGrpSize,
                            InternalSettingScope::PrivatePalGfx9Key);
 
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pWaLegacyGsCutModeFlushStr,
+                           Util::ValueType::Boolean,
+                           &m_settings.waLegacyGsCutModeFlush,
+                           InternalSettingScope::PrivatePalGfx9Key);
+
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pDepthStencilFastClearComputeThresholdSingleSampledStr,
                            Util::ValueType::Uint,
                            &m_settings.depthStencilFastClearComputeThresholdSingleSampled,
@@ -1232,6 +1254,11 @@ void SettingsLoader::RereadSettings()
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pDepthStencilFastClearComputeThresholdMultiSampledStr,
                            Util::ValueType::Uint,
                            &m_settings.depthStencilFastClearComputeThresholdMultiSampled,
+                           InternalSettingScope::PrivatePalGfx9Key);
+
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pGfx10MaxFpovsInWaveStr,
+                           Util::ValueType::Uint,
+                           &m_settings.gfx10MaxFpovsInWave,
                            InternalSettingScope::PrivatePalGfx9Key);
 
 }
@@ -1987,6 +2014,11 @@ void SettingsLoader::InitSettingsInfo()
     info.valueSize = sizeof(m_settings.waClampGeCntlVertGrpSize);
     m_settingsInfoMap.Insert(4183598840, info);
 
+    info.type      = SettingType::Boolean;
+    info.pValuePtr = &m_settings.waLegacyGsCutModeFlush;
+    info.valueSize = sizeof(m_settings.waLegacyGsCutModeFlush);
+    m_settingsInfoMap.Insert(1477053247, info);
+
     info.type      = SettingType::Uint;
     info.pValuePtr = &m_settings.depthStencilFastClearComputeThresholdSingleSampled;
     info.valueSize = sizeof(m_settings.depthStencilFastClearComputeThresholdSingleSampled);
@@ -1996,6 +2028,11 @@ void SettingsLoader::InitSettingsInfo()
     info.pValuePtr = &m_settings.depthStencilFastClearComputeThresholdMultiSampled;
     info.valueSize = sizeof(m_settings.depthStencilFastClearComputeThresholdMultiSampled);
     m_settingsInfoMap.Insert(2782857680, info);
+
+    info.type      = SettingType::Uint;
+    info.pValuePtr = &m_settings.gfx10MaxFpovsInWave;
+    info.valueSize = sizeof(m_settings.gfx10MaxFpovsInWave);
+    m_settingsInfoMap.Insert(3399078965, info);
 
     info.type      = SettingType::Boolean;
     info.pValuePtr = &m_settings.disableAceCsPartialFlush;
@@ -2028,7 +2065,7 @@ void SettingsLoader::DevDriverRegister()
             component.pfnSetValue = ISettingsLoader::SetValue;
             component.pSettingsData = &g_gfx9PalJsonData[0];
             component.settingsDataSize = sizeof(g_gfx9PalJsonData);
-            component.settingsDataHash = 1407408162;
+            component.settingsDataHash = 812996339;
             component.settingsDataHeader.isEncoded = true;
             component.settingsDataHeader.magicBufferId = 402778310;
             component.settingsDataHeader.magicBufferOffset = 0;

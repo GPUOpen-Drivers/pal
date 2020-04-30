@@ -379,11 +379,14 @@ namespace DevDriver
         DD_CHECK_SIZE(EventTimeDeltaToken, 1);
 
         // Maximum number of bytes contained within an event chunk
-        DD_STATIC_CONST size_t kEventChunkMaxDataSize = (64 * 1024);
+        // We subtract the data size metadata here to make sure the total struct size lands on
+        // a nice power of two. This should help us avoid extra memory overhead per chunk allocation.
+        // This is checked with a static_assert after the EventChunk definition.
+        DD_STATIC_CONST size_t kEventChunkMaxDataSize = ((64 * 1024) - sizeof(uint32));
 
         struct EventChunk
         {
-            size_t dataSize;
+            uint32 dataSize;
             uint8  data[kEventChunkMaxDataSize];
 
             // Writes the provided event data into the event chunk
@@ -396,7 +399,7 @@ namespace DevDriver
                 if (eventDataSize <= bytesRemaining)
                 {
                     memcpy(data + dataSize, pEventData, eventDataSize);
-                    dataSize += eventDataSize;
+                    dataSize += static_cast<uint32>(eventDataSize);
                 }
                 else
                 {
@@ -519,5 +522,7 @@ namespace DevDriver
                 return result;
             }
         };
+
+        static_assert(Platform::IsPowerOfTwo(sizeof(EventChunk)), "EventChunk should be a power of two to avoid extra memory overhead per chunk allocation.");
     }
 }

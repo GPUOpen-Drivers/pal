@@ -34,9 +34,9 @@ using namespace Util;
 
 // Because the buffer sharing depends on wl_drm interface, which relies on wl_buffer_interface. However,
 // wl_buffer_interface can't be located because libwayland-client.so is not linked directly. To solve this issue,
-// wl_buffer_interface is replaced by pWlBufferInterface using a macro, and pWlBufferInterface is set to the dlsym-ed
+// wl_buffer_interface is replaced by wlBufferInterface using a macro, and wlBufferInterface is set to the dlsym-ed
 // wl_buffer_interface symbol in WaylandWindowSystem::Init().
-wl_interface* pWlBufferInterface = nullptr;
+wl_interface wlBufferInterface = {};
 
 namespace Pal
 {
@@ -415,8 +415,8 @@ Result WaylandWindowSystem::Init()
     Result       result    = Result::Success;
     wl_registry* pRegistry = nullptr;
 
-    // pWlBufferInterface must be set before calling any wl_drm interfaces.
-    pWlBufferInterface = m_waylandLoader.GetWlBufferInterface();
+    // wlBufferInterface must be set before calling any wl_drm interfaces.
+    wlBufferInterface = *m_waylandLoader.GetWlBufferInterface();
 
     m_pEventQueue = m_waylandProcs.pfnWlDisplayCreateQueue(m_pDisplay);
 

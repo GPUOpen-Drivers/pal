@@ -114,12 +114,5 @@ extern void LogSystemEvent(
 
 } // Util
 
-/// Must be DX BUILD because it's the only one currently implemented
-
-#if PAL_ENABLE_SYSTEM_EVENTS
-  /// System event macro.
-#define PAL_LOG_EVENT           Util::LogSystemEvent
-#else
   /// System event macro.
 #define PAL_LOG_EVENT(...)     ((void)0)
-#endif

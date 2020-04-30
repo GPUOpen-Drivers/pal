@@ -58,7 +58,6 @@
 #include "palAssert.h"
 #include "palInlineFuncs.h"
 #include "palMath.h"
-#include "palPipelineAbiProcessorImpl.h"
 #include "core/hw/amdgpu_asic.h"
 
 #include <limits.h>
@@ -1948,8 +1947,7 @@ void PAL_STDCALL Device::CreateUntypedBufferViewSrds(
 
     for (uint32 idx = 0; idx < count; ++idx, ++pBufferViewInfo)
     {
-        PAL_ASSERT((pBufferViewInfo->gpuAddr != 0) ||
-                   ((pBufferViewInfo->range == 0) && (pBufferViewInfo->stride == 0)));
+        PAL_ASSERT((pBufferViewInfo->gpuAddr != 0) || (pBufferViewInfo->range == 0));
 
         pOutSrd->word0.bits.BASE_ADDRESS = LowPart(pBufferViewInfo->gpuAddr);
 

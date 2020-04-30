@@ -33,7 +33,7 @@
 #include "palLib.h"
 #include "palMetroHash.h"
 #include "palPipeline.h"
-#include "palPipelineAbiProcessor.h"
+#include "palPipelineAbiReader.h"
 #include "palSparseVectorImpl.h"
 
 namespace Pal
@@ -87,6 +87,13 @@ enum PipelineType : uint32
     PipelineTypeGraphics = 2,
 };
 
+// Describes a symbol that is in GPU memory.
+struct GpuSymbol
+{
+    gpusize gpuVirtAddr;  // The address of the symbol on the GPU.
+    gpusize size;         // The size of the symbol.
+};
+
 // Contains performance data information for a specific hardware stage.
 struct PerfDataInfo
 {
@@ -96,8 +103,8 @@ struct PerfDataInfo
     size_t sizeInBytes;
 };
 
-// Shorthand for a pipeline ABI processor based on the Platform allocator.
-typedef Util::Abi::PipelineAbiProcessor<Platform>  AbiProcessor;
+// Shorthand for a pipeline ABI reader.
+typedef Util::Abi::PipelineAbiReader AbiReader;
 
 // Shorthand for the PAL code object metadata structure.
 typedef Util::Abi::PalCodeObjectMetadata  CodeObjectMetadata;
@@ -151,7 +158,6 @@ protected:
     bool IsInternal() const { return m_flags.isInternal != 0; }
 
     Result PerformRelocationsAndUploadToGpuMemory(
-        const AbiProcessor&       abiProcessor,
         const CodeObjectMetadata& metadata,
         const GpuHeap&            clientPreferredHeap,
         PipelineUploader*         pUploader);
@@ -171,7 +177,6 @@ protected:
         ShaderStats*           pStats) const;
 
     void DumpPipelineElf(
-        const AbiProcessor& abiProcessor,
         const char*         pPrefix,
         const char*         pName) const;
 
@@ -216,13 +221,13 @@ class PipelineUploader
 {
 public:
     PipelineUploader(
-        Device* pDevice,
-        uint32  ctxRegisterCount,
-        uint32  shRegisterCount);
+        Device*          pDevice,
+        const AbiReader& abiReader,
+        uint32           ctxRegisterCount,
+        uint32           shRegisterCount);
     virtual ~PipelineUploader();
 
     Result Begin(
-        const AbiProcessor&       abiProcessor,
         const CodeObjectMetadata& metadata,
         const GpuHeap&            preferredHeap);
 
@@ -237,13 +242,22 @@ public:
     gpusize GpuMemSize() const { return m_gpuMemSize; }
     gpusize GpuMemOffset() const { return m_baseOffset; }
 
-    gpusize CodeGpuVirtAddr() const { return m_codeGpuVirtAddr; }
-    gpusize DataGpuVirtAddr() const { return m_dataGpuVirtAddr; }
     gpusize CtxRegGpuVirtAddr() const { return m_ctxRegGpuVirtAddr; }
     gpusize ShRegGpuVirtAddr() const { return m_shRegGpuVirtAddr; }
 
     gpusize PrefetchAddr() const { return m_prefetchGpuVirtAddr; }
     gpusize PrefetchSize() const { return m_prefetchSize; }
+
+    /// Get the address of a pipeline symbol on the GPU.
+    Result GetPipelineGpuSymbol(
+        Util::Abi::PipelineSymbolType type,
+        GpuSymbol*                    pSymbol
+        ) const;
+    /// Get the address of a generic symbol on the GPU.
+    Result GetGenericGpuSymbol(
+        const char* pName,
+        GpuSymbol*  pSymbol
+        ) const;
 
 protected:
     // Writes a context register offset and value to the mapped region where registers are stored in GPU memory.
@@ -264,9 +278,15 @@ protected:
 
 private:
 
+    Result GetAbsoluteSymbolAddress(
+        const Util::Elf::SymbolTableEntry* pElfSymbol,
+        GpuSymbol*                         pSymbol
+        ) const;
+
     Result CreateUploadCmdBuffer();
 
     Device*const m_pDevice;
+    const AbiReader& m_abiReader;
 
     GpuMemory*  m_pGpuMemory;
     gpusize     m_baseOffset;

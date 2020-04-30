@@ -659,6 +659,7 @@ ADDR_E_RETURNCODE Gfx9Lib::HwlComputeDccInfo(
         pOut->metaBlkWidth = metaBlkDim.w;
         pOut->metaBlkHeight = metaBlkDim.h;
         pOut->metaBlkDepth = metaBlkDim.d;
+        pOut->metaBlkSize = numCompressBlkPerMetaBlk * numFrags;
 
         pOut->metaBlkNumPerSlice = numMetaBlkX * numMetaBlkY;
         pOut->fastClearSizePerSlice =

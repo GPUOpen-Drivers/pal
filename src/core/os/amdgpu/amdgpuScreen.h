@@ -106,6 +106,9 @@ public:
     virtual Result SetColorConfiguration(
         const ScreenColorConfig* pColorConfig) override;
 
+    virtual HdrDisplayMode GetFormatHdrMode(
+        SwizzledFormat format) const override { return HdrDisplayMode::Sdr; }
+
     virtual Result RegisterWindow(Pal::OsWindowHandle) override { return Result::Unsupported; }
     virtual Result IsImplicitFullscreenOwnershipSafe(
         OsDisplayHandle hDisplay,

@@ -111,7 +111,7 @@ typedef union {
           unsigned int num_banks                      : 2;
           unsigned int micro_tile_mode_new            : 3;
           unsigned int sample_split                   : 2;
-          unsigned int                                : 5;
+          unsigned int alt_pipe_config                : 5;
      } GB_TILE_MODE_T;
 
      typedef struct _GB_MACROTILE_MODE_T {
@@ -119,13 +119,16 @@ typedef union {
           unsigned int bank_height                    : 2;
           unsigned int macro_tile_aspect              : 2;
           unsigned int num_banks                      : 2;
-          unsigned int                                : 24;
+          unsigned int alt_bank_height                : 2;
+          unsigned int alt_macro_tile_aspect          : 2;
+          unsigned int alt_num_banks                  : 2;
+          unsigned int                                : 18;
      } GB_MACROTILE_MODE_T;
 
 #elif          defined(BIGENDIAN_CPU)
 
      typedef struct _GB_TILE_MODE_T {
-          unsigned int                                : 5;
+          unsigned int alt_pipe_config                : 5;
           unsigned int sample_split                   : 2;
           unsigned int micro_tile_mode_new            : 3;
           unsigned int num_banks                      : 2;
@@ -139,7 +142,10 @@ typedef union {
      } GB_TILE_MODE_T;
 
      typedef struct _GB_MACROTILE_MODE_T {
-          unsigned int                                : 24;
+          unsigned int                                : 18;
+          unsigned int alt_num_banks                  : 2;
+          unsigned int alt_macro_tile_aspect          : 2;
+          unsigned int alt_bank_height                : 2;
           unsigned int num_banks                      : 2;
           unsigned int macro_tile_aspect              : 2;
           unsigned int bank_height                    : 2;

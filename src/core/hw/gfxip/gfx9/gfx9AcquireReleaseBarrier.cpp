@@ -773,11 +773,15 @@ LayoutTransitionInfo Device::PrepareColorBlt(
     const ColorCompressionState newState      =
         ImageLayoutToColorCompressionState(layoutToState, newLayout);
 
-    // Fast clear eliminates are only possible on universal queue command buffers and will be ignored on others. This
-    // should be okay because prior operations should be aware of this fact (based on layout), and prohibit us from
-    // getting to a situation where one is needed but has not been performed yet.
-    const bool fastClearEliminateSupported = pCmdBufConst->IsGraphicsSupported();
-    const bool isMsaaImage                 = (image.GetImageCreateInfo().samples > 1);
+    // Fast clear eliminates are only possible on universal queue command buffers and with valid fast clear eliminate
+    // address otherwsie will be ignored on others. This should be okay because prior operations should be aware of
+    // this fact (based on layout), and prohibit us from getting to a situation where one is needed but has not been
+    // performed yet.
+    const bool fastClearEliminateSupported =
+        (pCmdBufConst->IsGraphicsSupported() &&
+         (gfx9Image.GetFastClearEliminateMetaDataAddr(subresRange.startSubres) != 0));
+
+    const bool isMsaaImage = (image.GetImageCreateInfo().samples > 1);
 
     LayoutTransitionInfo transitionInfo = {};
 
@@ -865,9 +869,7 @@ LayoutTransitionInfo Device::PrepareColorBlt(
         // 'TcCompatReadFlags' above to skip performing a fast clear eliminate BLT.  If a shader resolve is to be
         // used, a barrier transiton to either LayoutShaderRead or LayoutShaderFmaskBasedRead is issued, which would
         // really trigger an FCE operation.
-        if (fastClearEliminateSupported                         &&
-            TestAnyFlagSet(newLayout.usages, TcCompatReadFlags) &&
-            (gfx9ImageConst.HasDccData() && pSubresInfo->flags.supportMetaDataTexFetch))
+        if (fastClearEliminateSupported && TestAnyFlagSet(newLayout.usages, TcCompatReadFlags))
         {
             if (gfx9ImageConst.IsFceOptimizationEnabled() &&
                 (gfx9ImageConst.HasSeenNonTcCompatibleClearColor() == false))

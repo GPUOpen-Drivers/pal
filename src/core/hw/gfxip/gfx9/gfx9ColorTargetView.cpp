@@ -833,8 +833,11 @@ void Gfx10ColorTargetView::InitRegisters(
         m_regs.cbColorAttrib3.bits.RESOURCE_TYPE = static_cast<uint32>(imageType); // no HW enums
         m_regs.cbColorAttrib3.bits.META_LINEAR   = m_pImage->IsSubResourceLinear(createInfo.imageInfo.baseSubRes);
 
-        m_regs.cbColorAttrib3.bits.CMASK_PIPE_ALIGNED = ((pCmask != nullptr) ? pCmask->PipeAligned() : 0);
-        m_regs.cbColorAttrib3.bits.DCC_PIPE_ALIGNED   = ((pDcc   != nullptr) ? pDcc->PipeAligned()   : 0);
+        const uint32 dccPipeAligned = ((pDcc != nullptr) ? pDcc->PipeAligned() : 0);
+
+        m_regs.cbColorAttrib3.bits.DCC_PIPE_ALIGNED   = dccPipeAligned;
+        m_regs.cbColorAttrib3.bits.CMASK_PIPE_ALIGNED = (dccPipeAligned |
+                                                         ((pCmask != nullptr) ? pCmask->PipeAligned() : 0));
 
         const AddrSwizzleMode fMaskSwizzleMode =
             (hasFmask ? m_pImage->GetFmask()->GetSwizzleMode() : ADDR_SW_LINEAR /* ignored */);

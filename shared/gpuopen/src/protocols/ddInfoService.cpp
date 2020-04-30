@@ -192,7 +192,7 @@ Result InfoService::HandleGetAllInfoSources(
         Platform::LockGuard<Platform::Mutex> infoSourcesLock(m_infoSourceMutex);
 
         // Iterate over each registered info source and invoke the info writer callback.
-        for (const auto currentSourceIter : m_registeredInfoSources)
+        for (const auto& currentSourceIter : m_registeredInfoSources)
         {
             // Write the source's name as the key and the info source map as the value.
             pWriter->Key(currentSourceIter.value.name.AsCStr());
@@ -226,7 +226,7 @@ Result InfoService::HandleGetInfoSourceList(
 
         pWriter->BeginList();
 
-        for (const auto currentInfoSource : m_registeredInfoSources)
+        for (const auto& currentInfoSource : m_registeredInfoSources)
         {
             // Write the name of each info source.
             pWriter->Value(currentInfoSource.value.name.AsCStr());

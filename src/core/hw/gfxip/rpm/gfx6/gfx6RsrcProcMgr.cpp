@@ -1535,6 +1535,7 @@ void RsrcProcMgr::HwlDepthStencilClear(
     ImageLayout        stencilLayout,
     float              depth,
     uint8              stencil,
+    uint8              stencilWriteMask,
     uint32             rangeCount,
     const SubresRange* pRanges,
     bool               fastClear,
@@ -1692,6 +1693,7 @@ void RsrcProcMgr::HwlDepthStencilClear(
                                                   pRanges[idx],
                                                   depth,
                                                   stencil,
+                                                  stencilWriteMask,
                                                   clearFlags,
                                                   fastClear,
                                                   depthLayout,
@@ -2408,6 +2410,7 @@ void RsrcProcMgr::DepthStencilClearGraphics(
     const SubresRange& range,
     float              depth,
     uint8              stencil,
+    uint8              stencilWriteMask,
     uint32             clearMask,
     bool               fastClear,
     ImageLayout        depthLayout,
@@ -2417,20 +2420,20 @@ void RsrcProcMgr::DepthStencilClearGraphics(
     ) const
 {
     PAL_ASSERT(dstImage.Parent()->IsDepthStencil());
-    PAL_ASSERT((fastClear == false) ||
-               dstImage.IsFastDepthStencilClearSupported(depthLayout,
-                                                         stencilLayout,
-                                                         depth,
-                                                         stencil,
-                                                         range));
+    PAL_ASSERT((fastClear == false) || dstImage.IsFastDepthStencilClearSupported(depthLayout,
+                                                                                 stencilLayout,
+                                                                                 depth,
+                                                                                 stencil,
+                                                                                 stencilWriteMask,
+                                                                                 range));
 
     const auto& settings     = m_pDevice->Settings();
     const bool  clearDepth   = TestAnyFlagSet(clearMask, HtileAspectDepth);
     const bool  clearStencil = TestAnyFlagSet(clearMask, HtileAspectStencil);
     PAL_ASSERT(clearDepth || clearStencil); // How did we get here if there's nothing to clear!?
 
-    const StencilRefMaskParams       stencilRefMasks      =
-        { stencil, 0xFF, 0xFF, 0x01, stencil, 0xFF, 0xFF, 0x01, 0xFF };
+    const StencilRefMaskParams stencilRefMasks =
+        { stencil, 0xFF, stencilWriteMask, 0x01, stencil, 0xFF, stencilWriteMask, 0x01, 0xFF };
 
     ViewportParams viewportInfo = { };
     viewportInfo.count                 = 1;

@@ -145,11 +145,6 @@ macro(apply_devdriver_build_flags _target)
 
                 # Be more aggressive with multi-threaded builds
                 /MP${CoreCount}
-
-                # Specify the use of C++ Standard volatile, not the MS extension
-                # We enable warning C4746 too.
-                # See: https://docs.microsoft.com/en-us/cpp/build/reference/volatile-volatile-keyword-interpretation?view=vs-2019
-                /volatile:iso
         )
 
     else()

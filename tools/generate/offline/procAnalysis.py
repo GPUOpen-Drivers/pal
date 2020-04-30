@@ -256,7 +256,7 @@ class ProcMgr:
 
     def GenerateLibrariesEnum(self, fp, name):
         # add libraries's enum
-        fp.write("\nenum " + name + "Libraries : uint32\n")
+        fp.write("enum " + name + "Libraries : uint32\n")
         fp.write("{\n")
         i = 0
         for key in self.libraries.keys():
@@ -267,7 +267,7 @@ class ProcMgr:
         fp.write("};\n\n")
 
     def GenerateClassDeclaration(self, fp, name):
-        fp.write("class Platform;\n")
+        fp.write("class Platform;\n\n")
         self.GenerateCommentLine(fp)
         fp.write("// the class is responsible for resolving all external symbols that required by the Dri3WindowSystem.")
         fp.write("\nclass " + name + "\n")
@@ -316,8 +316,7 @@ class ProcMgr:
         fp.write("    m_timeLogger.Open(file, FileAccessMode::FileAccessWrite);\n")
         fp.write("    Util::Snprintf(file, sizeof(file), \"%s/" + name + "ParamLogger.trace\", pLogPath);\n")
         fp.write("    m_paramLogger.Open(file, FileAccessMode::FileAccessWrite);\n")
-        fp.write("}\n")
-        self.GenerateCommentLine(fp)
+        fp.write("}\n\n")
         # adding stub function for each function pointer
         for key in self.libraries.keys():
             for entry in self.libraries[key]:
@@ -394,9 +393,9 @@ class ProcMgr:
                         fp.write("\n    return ret;\n")
                 fp.write("}\n");
                 fp.write("\n")
-        fp.write("#endif\n")
+        fp.write("#endif\n\n")
     def GenerateCommentLine(self, fp):
-        fp.write("\n// =====================================================================================================================\n")
+        fp.write("// =====================================================================================================================\n")
     def GenerateConstructor(self, fp, name):
         # initialize static variables
         self.GenerateCommentLine(fp);
@@ -408,15 +407,14 @@ class ProcMgr:
         fp.write("    m_initialized(false)\n")
         fp.write("{\n")
         fp.write("    " + "memset(&m_funcs, 0, sizeof(m_funcs));\n")
-        fp.write("}\n")
+        fp.write("}\n\n")
 
         for var in self.var:
             self.GenerateCommentLine(fp);
             fp.write("" + var.GetVarType() + "* " + name + "::Get" + var.GetFormattedName() + "() const\n")
             fp.write("{\n")
             fp.write("    return m_p" + var.GetFormattedName() + ";\n")
-            fp.write("}\n")
-        fp.write("\n")
+            fp.write("}\n\n")
 
     def GenerateInitFunction(self, fp, name):
         # implement Init function
@@ -486,7 +484,7 @@ class ProcMgr:
                 fp.write("        return (pfn" + entry.GetFormattedName() + " != nullptr);\n")
                 fp.write("    }\n")
                 fp.write("\n")
-        fp.write("};\n")
+        fp.write("};\n\n")
     def GenerateFuncProxy(self, fp, name):
         self.GenerateCommentLine(fp)
         fp.write("// the class serves as a proxy layer to add more functionality to wrapped callbacks.\n")
@@ -535,7 +533,7 @@ class ProcMgr:
     def GenerateDestructor(self, fp, name):
         # initialize static variables
         self.GenerateCommentLine(fp);
-        fp.write(name + "::~" + name + "()\n{\n}\n")
+        fp.write(name + "::~" + name + "()\n{\n}\n\n")
 
     def GenerateHeadFile(self, fp, name):
         self.GenerateFunctionDeclaration(fp, name)

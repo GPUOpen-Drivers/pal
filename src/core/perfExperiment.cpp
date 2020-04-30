@@ -40,9 +40,7 @@ PerfExperiment::PerfExperiment(
     m_createInfo(createInfo),
     m_memAlignment(memAlignment),
     m_isFinalized(false),
-    m_hasGlobalCounters(false),
-    m_hasThreadTrace(false),
-    m_hasSpmTrace(false),
+    m_perfExperimentFlags{0},
     m_globalBeginOffset(0),
     m_globalEndOffset(0),
     m_spmRingOffset(0),
@@ -66,7 +64,7 @@ void PerfExperiment::GetGpuMemoryRequirements(
     // We don't know this information until the perf experiment has been finalized.
     PAL_ASSERT(m_isFinalized);
 
-    if (m_hasThreadTrace || m_hasSpmTrace)
+    if (m_perfExperimentFlags.sqtTraceEnabled || m_perfExperimentFlags.spmTraceEnabled)
     {
         pGpuMemReqs->heapCount = 2;
         pGpuMemReqs->heaps[0]  = Pal::GpuHeapInvisible;
@@ -91,19 +89,19 @@ Result PerfExperiment::BindGpuMemory(
 
     // We delay resource description until memory bind time so we know the GPU mem sizes of various experiment data.
     ResourceDescriptionPerfExperiment desc = {};
-    if (m_hasGlobalCounters)
+    if (m_perfExperimentFlags.perfCtrsEnabled)
     {
         // We have begin and end offsets for global counter data
         desc.perfCounterSize = m_globalEndOffset - m_globalBeginOffset + 1;
     }
 
-    if (m_hasThreadTrace)
+    if (m_perfExperimentFlags.sqtTraceEnabled)
     {
         // SQTT data is between SPM and global counters
         desc.sqttSize = m_spmRingOffset - m_globalEndOffset + 1;
     }
 
-    if (m_hasSpmTrace)
+    if (m_perfExperimentFlags.spmTraceEnabled)
     {
         // SPM goes last in the GPU memory allocation, so just subtract the offset from the total size
         desc.spmSize = m_totalMemSize - m_spmRingOffset + 1;

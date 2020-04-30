@@ -51,7 +51,7 @@ DevDriver::Result ISettingsLoader::GetValue(
     auto pInfo = pSettingsLoader->m_settingsInfoMap.FindKey(hash);
     if (pInfo != nullptr)
     {
-        if (pInfo->valueSize >= pSettingValue->valueSize)
+        if (pInfo->valueSize > pSettingValue->valueSize)
         {
             pSettingValue->valueSize = pInfo->valueSize;
             ret = DevDriver::Result::SettingsUriInvalidSettingValueSize;

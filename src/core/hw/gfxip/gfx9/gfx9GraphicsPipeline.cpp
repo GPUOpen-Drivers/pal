@@ -35,7 +35,6 @@
 #include "palFormatInfo.h"
 #include "palInlineFuncs.h"
 #include "palMetroHash.h"
-#include "palPipelineAbiProcessorImpl.h"
 
 using namespace Util;
 
@@ -293,12 +292,17 @@ void GraphicsPipeline::EarlyInit(
 // specified Pipeline ABI processor and create info.
 Result GraphicsPipeline::HwlInit(
     const GraphicsPipelineCreateInfo& createInfo,
-    const AbiProcessor&               abiProcessor,
+    const AbiReader&                  abiReader,
     const CodeObjectMetadata&         metadata,
     MsgPackReader*                    pMetadataReader)
 {
     RegisterVector registers(m_pDevice->GetPlatform());
-    Result result = pMetadataReader->Unpack(&registers);
+    Result result = pMetadataReader->Seek(metadata.pipeline.registers);
+
+    if (result == Result::Success)
+    {
+        result = pMetadataReader->Unpack(&registers);
+    }
 
     if (result == Result::Success)
     {
@@ -306,9 +310,11 @@ Result GraphicsPipeline::HwlInit(
         EarlyInit(metadata, registers, &loadInfo);
 
         // Next, handle relocations and upload the pipeline code & data to GPU memory.
-        GraphicsPipelineUploader uploader(m_pDevice, loadInfo.loadedCtxRegCount, loadInfo.loadedShRegCount);
+        GraphicsPipelineUploader uploader(m_pDevice,
+                                          abiReader,
+                                          loadInfo.loadedCtxRegCount,
+                                          loadInfo.loadedShRegCount);
         result = PerformRelocationsAndUploadToGpuMemory(
-            abiProcessor,
             metadata,
 #if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 488)
 #if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 488) && (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 502)
@@ -323,7 +329,7 @@ Result GraphicsPipeline::HwlInit(
 
         if (result == Result::Success)
         {
-            LateInit(createInfo, abiProcessor, metadata, registers, loadInfo, &uploader);
+            LateInit(createInfo, abiReader, metadata, registers, loadInfo, &uploader);
             result = uploader.End();
         }
     }
@@ -354,7 +360,7 @@ Result GraphicsPipeline::HwlInit(
 // =====================================================================================================================
 void GraphicsPipeline::LateInit(
     const GraphicsPipelineCreateInfo& createInfo,
-    const AbiProcessor&               abiProcessor,
+    const AbiReader&                  abiReader,
     const CodeObjectMetadata&         metadata,
     const RegisterVector&             registers,
     const GraphicsPipelineLoadInfo&   loadInfo,
@@ -364,13 +370,13 @@ void GraphicsPipeline::LateInit(
 
     if (IsTessEnabled())
     {
-        m_chunkHs.LateInit(abiProcessor, registers, pUploader, &hasher);
+        m_chunkHs.LateInit(abiReader, registers, pUploader, &hasher);
     }
     if (IsGsEnabled() || IsNgg())
     {
-        m_chunkGs.LateInit(abiProcessor, metadata, registers, loadInfo, pUploader, &hasher);
+        m_chunkGs.LateInit(abiReader, metadata, registers, loadInfo, pUploader, &hasher);
     }
-    m_chunkVsPs.LateInit(abiProcessor, metadata, registers, loadInfo, createInfo, pUploader, &hasher);
+    m_chunkVsPs.LateInit(abiReader, metadata, registers, loadInfo, createInfo, pUploader, &hasher);
 
     SetupCommonRegisters(createInfo, registers, pUploader);
     SetupNonShaderRegisters(createInfo, registers, pUploader);
@@ -1603,7 +1609,7 @@ uint32 GraphicsPipeline::ComputeScratchMemorySize(
 
             uint32 stageScratchMemorySize = stageMetadata.scratchMemorySize;
 
-            if (IsGfx10(m_pDevice->Parent()->ChipProperties().gfxLevel))
+            if (isWave32Tbl[i] == false)
             {
                 // We allocate scratch memory based on the minimum wave size for the chip, which for Gfx10+ ASICs will
                 // be Wave32. In order to appropriately size the scratch memory (reported in the ELF as per-thread) for

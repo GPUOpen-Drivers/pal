@@ -133,8 +133,6 @@ public:
 
     virtual Result WaitForLastImagePresented() override;
 
-    virtual Result RequestImageWithIndex(uint32 index) override { return Result::Success; }
-
 private:
     static void DisplayVblankCb(
         int32  fd,

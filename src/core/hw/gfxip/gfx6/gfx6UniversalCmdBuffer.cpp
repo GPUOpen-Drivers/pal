@@ -1691,6 +1691,13 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawOpaque(
             // Otherwise wrong register value will be restored once mid-Cmd-preemption(enabled on gfx8+)
             // happened after COPY_DATA to register command. LoadContextRegsIndex can help us copy data
             // into shadow-memory implicitly.
+
+            // The LOAD_CONTEXT_REG_INDEX packet does the load via PFP while the streamOutFilledSizeVa is written
+            // via ME in STRMOUT_BUFFER_UPDATE packet. So there might be race condition issue loading the filled size.
+            // Before the load packet was used (to handle state shadowing), COPY_DATA via ME was used to program the
+            // register so there was no sync issue.
+            // To fix this race condition, a PFP_SYNC_ME packet is required to make it right.
+            pDeCmdSpace += pThis->m_cmdUtil.BuildPfpSyncMe(pDeCmdSpace);
             pDeCmdSpace += pThis->m_cmdUtil.BuildLoadContextRegsIndex<true>(streamOutFilledSizeVa,
                                                                             mmVGT_STRMOUT_DRAW_OPAQUE_BUFFER_FILLED_SIZE,
                                                                             1,
@@ -4156,6 +4163,18 @@ uint32* UniversalCmdBuffer::ValidateDraw(
         }
     }
 
+    regCB_TARGET_MASK updatedRegWriteMask = pPipeline->CbTargetMask();
+    // Always write the value of the over-ridden mask when the enable flag is set.
+    if (m_graphicsState.colorWriteMaskOverride.enable)
+    {
+        //Note that only overwrite target0's regWriteMask.
+        //Because this version currently only supports target0.
+        updatedRegWriteMask.bitfields.TARGET0_ENABLE = m_graphicsState.colorWriteMaskOverride.writeMask;
+        pDeCmdSpace = m_deCmdStream.WriteSetOneContextReg(mmCB_TARGET_MASK,
+                                                          updatedRegWriteMask.u32All,
+                                                          pDeCmdSpace);
+    }
+
     // Validate the per-draw HW state.
     pDeCmdSpace = ValidateDrawTimeHwState<indexed, indirect, pm4OptImmediate>(iaMultiVgtParam,
                                                                               vgtLsHsConfig,
@@ -5120,6 +5139,21 @@ uint32* UniversalCmdBuffer::FlushStreamOut(
 void UniversalCmdBuffer::SetGraphicsState(
     const GraphicsState& newGraphicsState)
 {
+    // Restore the original value of CB_TARGET_MASK if the mask was overridden.
+    if (m_graphicsState.colorWriteMaskOverride.enable)
+    {
+        const auto*const pPipeline = static_cast<const GraphicsPipeline*>(m_graphicsState.pipelineState.pPipeline);
+        if (pPipeline != nullptr)
+        {
+            regCB_TARGET_MASK updatedRegWriteMask = pPipeline->CbTargetMask();
+            uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
+            pDeCmdSpace = m_deCmdStream.WriteSetOneContextReg(mmCB_TARGET_MASK,
+                                                              updatedRegWriteMask.u32All,
+                                                              pDeCmdSpace);
+            m_deCmdStream.CommitCommands(pDeCmdSpace);
+        }
+    }
+
     Pal::UniversalCmdBuffer::SetGraphicsState(newGraphicsState);
 
     // The target state that we would restore is invalid if this is a nested command buffer that inherits target

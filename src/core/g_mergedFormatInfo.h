@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2019-2020 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2020 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -1814,6 +1814,85 @@ const FormatInfo FormatInfoTable[] =
         (YuvPlanar |
          BitCountInaccurate),               // Format Properties
         NumericSupportFlags::Yuv,
+    },
+    // P210
+    {
+        16,  3,                             // 16 bpp, 3 components
+        { 16, 16, 16,  0, },                // # of bits-per-component
+        (ChannelFlags::X |
+         ChannelFlags::Y |
+         ChannelFlags::Z),                  // Channel Mask: XYZ-
+        (YuvPlanar |
+         BitCountInaccurate),               // Format Properties
+        NumericSupportFlags::Yuv,
+    },
+    // X8_MM_Unorm
+    {
+        8,   1,                             // 8 bpp,  1 component
+        {  8,  0,  0,  0, },                // # of bits-per-component
+        ChannelFlags::X,                    // Channel Mask: X---
+        0,                                  // Format Properties
+        NumericSupportFlags::Unorm,
+    },
+    // X8_MM_Uint
+    {
+        8,   1,                             // 8 bpp,  1 component
+        {  8,  0,  0,  0, },                // # of bits-per-component
+        ChannelFlags::X,                    // Channel Mask: X---
+        0,                                  // Format Properties
+        NumericSupportFlags::Uint,
+    },
+    // X8Y8_MM_Unorm
+    {
+        16,  2,                             // 16 bpp, 2 components
+        {  8,  8,  0,  0, },                // # of bits-per-component
+        (ChannelFlags::X |
+         ChannelFlags::Y),                  // Channel Mask: XY--
+        0,                                  // Format Properties
+        NumericSupportFlags::Unorm,
+    },
+    // X8Y8_MM_Uint
+    {
+        16,  2,                             // 16 bpp, 2 components
+        {  8,  8,  0,  0, },                // # of bits-per-component
+        (ChannelFlags::X |
+         ChannelFlags::Y),                  // Channel Mask: XY--
+        0,                                  // Format Properties
+        NumericSupportFlags::Uint,
+    },
+    // X16_MM_Unorm
+    {
+        16,  1,                             // 16 bpp, 1 component
+        { 16,  0,  0,  0, },                // # of bits-per-component
+        ChannelFlags::X,                    // Channel Mask: X---
+        0,                                  // Format Properties
+        NumericSupportFlags::Unorm,
+    },
+    // X16_MM_Uint
+    {
+        16,  1,                             // 16 bpp, 1 component
+        { 16,  0,  0,  0, },                // # of bits-per-component
+        ChannelFlags::X,                    // Channel Mask: X---
+        0,                                  // Format Properties
+        NumericSupportFlags::Uint,
+    },
+    // X16Y16_MM_Unorm
+    {
+        32,  2,                             // 32 bpp, 2 components
+        { 16, 16,  0,  0, },                // # of bits-per-component
+        (ChannelFlags::X |
+         ChannelFlags::Y),                  // Channel Mask: XY--
+        0,                                  // Format Properties
+        NumericSupportFlags::Unorm,
+    },
+    // X16Y16_MM_Uint
+    {
+        32,  2,                             // 32 bpp, 2 components
+        { 16, 16,  0,  0, },                // # of bits-per-component
+        (ChannelFlags::X |
+         ChannelFlags::Y),                  // Channel Mask: XY--
+        0,                                  // Format Properties
+        NumericSupportFlags::Uint,
     },
 };
 

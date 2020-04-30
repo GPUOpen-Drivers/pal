@@ -33,6 +33,7 @@
 
 #include "palUtil.h"
 #include "palElf.h"
+#include <cstring>
 
 namespace Util
 {
@@ -497,6 +498,25 @@ PAL_INLINE PipelineSymbolType GetSymbolForStage(
     return static_cast<PipelineSymbolType>(static_cast<uint32>(symbolType) + static_cast<uint32>(stage));
 }
 
+/// Helper function to get the symbol type when given a symbol name.
+///
+/// @param [in] pName The symbol name.
+///
+/// @returns The corresponding PipelineSymbolType.
+PAL_INLINE PipelineSymbolType GetSymbolTypeFromName(const char* pName)
+{
+    PipelineSymbolType type = PipelineSymbolType::Unknown;
+    for (uint32 i = 0; i < static_cast<uint32>(PipelineSymbolType::Count); i++)
+    {
+        if (strcmp(PipelineAbiSymbolNameStrings[i], pName) == 0)
+        {
+            type = static_cast<PipelineSymbolType>(i);
+            break;
+        }
+    }
+
+    return type;
+}
 /// Deprecated - Legacy pipeline metadata types.
 enum class PipelineMetadataType : uint32
 {

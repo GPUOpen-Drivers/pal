@@ -272,6 +272,23 @@ struct GpuMemoryProperties
     gpusize dcnPrimarySurfaceVaStartAlign; // Starting VA alignment of primary surface provided by KMD
     gpusize dcnPrimarySurfaceVaSizeAlign;  // Physical size alignment of primary surface provided by KMD
 
+    // BIG_PAGE is not supported for allocations < bigPageMinAlignment. If BIG_PAGE is supported then
+    // allocations >= bigPageMinAlignment and < bigPageLargeAlignment must have their size, VA, and PA all aligned to
+    // bigPageMinAlignment and for allocations > bigPageLargeAlignment aligned to bigPageLargeAlignment.
+    // If KMD LargePage feature is disabled, bigPageLargeAlignment = bigPageMinAlignment.
+    // If bigPageMinAlignment = 0, BIG_PAGE is not supported.
+    gpusize bigPageLargeAlignment;
+    gpusize bigPageMinAlignment;
+
+    // ITERATE_256 is not supported for allocations < iterate256MinAlignment and in that case iterate256 bit must be
+    // set to 1. If ITERATE_256 is supported then iterate256 bit is set to 0 and allocations >= iterate256MinAlignment
+    // and < iterate256LargeAlignment must have their size, VA, and PA all aligned to iterate256MinAlignment and for
+    // allocations > iterate256LargeAlignment aligned to iterate256LargeAlignment.
+    // If KMD LargePage feature is disabled, iterate256LargeAlignment = iterate256MinAlignment.
+    // If Iterate256MinAlignment is 0, iterate256 bit must always be set to 1 for the relevant depth buffers.
+    gpusize iterate256LargeAlignment;
+    gpusize iterate256MinAlignment;
+
     union
     {
         struct
@@ -858,6 +875,7 @@ struct GpuChipProperties
                 uint64 doubleOffchipLdsBuffers                  :  1; // HW supports 2x number of offchip LDS buffers
                                                                       // per SE
                 uint64 supportFp16Fetch                         :  1;
+                uint64 supportFp16Dot2                          :  1;
                 uint64 support16BitInstructions                 :  1;
                 uint64 support64BitInstructions                 :  1;
                 uint64 supportDoubleRate16BitInstructions       :  1;
@@ -901,7 +919,7 @@ struct GpuChipProperties
                 uint64 supportShaderDeviceClock                 :  1; // HW supports clock functions across device.
                 uint64 supportAlphaToOne                        :  1; // HW supports forcing alpha channel to one
                 uint64 supportSingleChannelMinMaxFilter         :  1; // HW supports any min/max filter.
-                uint64 reserved                                 : 27;
+                uint64 reserved                                 : 26;
             };
 
             Gfx9PerfCounterInfo perfCounterInfo; // Contains info for perf counters for a specific hardware block
@@ -1706,6 +1724,13 @@ public:
     bool SupportsWindowedPresent(ChNumFormat format, ImageTiling tiling) const
         { return ((FeatureSupportFlags(format, tiling) & FormatFeatureWindowedPresent) != 0); }
 
+    // Checks if a format is supported.
+    bool SupportsFormat(ChNumFormat format) const
+    {
+        return ((FeatureSupportFlags(format, ImageTiling::Linear)  != 0) ||
+                (FeatureSupportFlags(format, ImageTiling::Optimal) != 0));
+    }
+
     virtual Result AddQueue(Queue* pQueue);
     void RemoveQueue(Queue* pQueue);
 
@@ -2264,6 +2289,17 @@ PAL_INLINE bool IsGfx10(GfxIpLevel gfxLevel)
 PAL_INLINE bool IsGfx10(const Device& device)
 {
     return IsGfx10(device.ChipProperties().gfxLevel);
+}
+
+PAL_INLINE bool IsGfx10Plus(GfxIpLevel gfxLevel)
+{
+    return IsGfx10(gfxLevel)
+           ;
+}
+
+PAL_INLINE bool IsGfx10Plus(const Device& device)
+{
+    return IsGfx10Plus(device.ChipProperties().gfxLevel);
 }
 
 PAL_INLINE bool IsTahiti(const Device& device)

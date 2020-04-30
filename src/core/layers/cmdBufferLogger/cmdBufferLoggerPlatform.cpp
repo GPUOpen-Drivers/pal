@@ -23,6 +23,8 @@
  *
  **********************************************************************************************************************/
 
+#if PAL_BUILD_CMD_BUFFER_LOGGER
+
 #include "core/g_palPlatformSettings.h"
 #include "core/layers/cmdBufferLogger/cmdBufferLoggerCmdBuffer.h"
 #include "core/layers/cmdBufferLogger/cmdBufferLoggerDevice.h"
@@ -262,3 +264,5 @@ void PAL_STDCALL Platform::CmdBufferLoggerCb(
 
 } // CmdBufferLogger
 } // Pal
+
+#endif

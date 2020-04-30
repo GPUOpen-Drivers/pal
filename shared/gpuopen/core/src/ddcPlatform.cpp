@@ -31,7 +31,8 @@
 
 #include <ddPlatform.h>
 
-#include <cstddef>
+    #include <cstddef>
+    #include <stdio.h>
 
 namespace DevDriver
 {
@@ -94,6 +95,23 @@ namespace DevDriver
             }
 
             return ret;
+        }
+
+        /////////////////////////////////////////////////////
+        // Print to consoles and debuggers
+        void DebugPrint(LogLevel lvl, const char* pFormat, ...)
+        {
+            va_list args;
+            va_start(args, pFormat);
+            char buffer[1024];
+            Platform::Vsnprintf(buffer, ArraySize(buffer), pFormat, args);
+            va_end(args);
+
+            Platform::Strcat(buffer, "\n", sizeof(buffer));
+
+            printf("[DevDriver] %s", buffer);
+
+            PlatformDebugPrint(lvl, buffer);
         }
 
         ThreadReturnType Thread::ThreadShim(void* pShimParam)
@@ -185,6 +203,18 @@ namespace DevDriver
             // This is bad but not the end of the world.
             DD_WARN(seed < kModulus);
             m_prevState = seed % kModulus;
+        }
+
+        void AtomicLock::Lock()
+        {
+            // TODO - implement timeout
+            while (TryLock() == false)
+            {
+                while (m_lock != 0)
+                {
+                    // Spin until the mutex is unlocked again
+                }
+            }
         }
     }
 

@@ -72,6 +72,12 @@ function(pal_compiler_options)
                 -pthread
             >
 
+            # Having simple optimization on results in dramatically smaller debug builds (and they actually build faster).
+            # This is mostly due to constant-folding and dead-code-elimination of registers.
+            $<$<CONFIG:Debug>:
+                -Og
+            >
+
         )
 
         # TODO: Investigate why the "$<$<COMPILE_LANGUAGE:CXX>:" is neccessary
@@ -89,6 +95,15 @@ function(pal_compiler_options)
                 # This was added to resolve some issues after enabling SSE.
                 -mpreferred-stack-boundary=6
             )
+
+            if("${CMAKE_CXX_COMPILER_VERSION}" VERSION_GREATER "5.0")
+                target_compile_options(pal PRIVATE
+                    # Compress the debug symbols.
+                    $<$<OR:$<CONFIG:Debug>,$<CONFIG:RelWithDebInfo>>:
+                        -gz
+                    >
+                )
+            endif()
 
             # LONG_TERM_TODO:
             # PAL shouldn't be setting up IPO ever. That is the responsibility of the client API (DXCP, XGL, etc.)

@@ -92,6 +92,7 @@ union GpuMemoryCreateFlags
         uint32 shareable        :  1; ///< Memory can be shared between devices in the same process that report the
                                       ///  sharedMemory flag from IDevice::GetMultiGpuCompatibility().
         uint32 interprocess     :  1; ///< Memory will be visible to other processes (they may choose to open it).
+        uint32 presentable      :  1; ///< Memory can be bound to an image that will be used by presents.
         uint32 flippable        :  1; ///< Memory can be bound to an image that will be used by flip presents.
         uint32 stereo           :  1; ///< Gpu memory will be used for stereo.
         uint32 globallyCoherent :  1; ///< Memory needs to be globally coherent, indicating the driver must manage both
@@ -130,7 +131,7 @@ union GpuMemoryCreateFlags
                                        ///  would be cached by other cache hierarchy like L0, RB caches, L1, and L3.
         uint32 placeholder1      :  1; ///< Reserved for future HW.
 
-        uint32 reserved          :  7; ///< Reserved for future use.
+        uint32 reserved          :  6; ///< Reserved for future use.
     };
     uint32     u32All;                 ///< Flags packed as 32-bit uint.
 };

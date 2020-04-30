@@ -23,6 +23,8 @@
  *
  **********************************************************************************************************************/
 
+#if PAL_BUILD_INTERFACE_LOGGER
+
 #include "core/layers/interfaceLogger/interfaceLoggerCmdAllocator.h"
 #include "core/layers/interfaceLogger/interfaceLoggerDevice.h"
 #include "core/layers/interfaceLogger/interfaceLoggerPlatform.h"
@@ -88,3 +90,5 @@ void CmdAllocator::Destroy()
 
 } // InterfaceLogger
 } // Pal
+
+#endif

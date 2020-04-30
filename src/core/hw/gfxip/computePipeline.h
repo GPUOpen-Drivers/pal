@@ -50,7 +50,6 @@ public:
     }
 
     static void GetFunctionGpuVirtAddrs(
-        const AbiProcessor&              abiProcessor,
         const PipelineUploader&          uploader,
         ComputePipelineIndirectFuncInfo* pFuncInfoList,
         uint32                           funcCount);
@@ -63,7 +62,7 @@ protected:
 
     virtual Result HwlInit(
         const ComputePipelineCreateInfo& createInfo,
-        const AbiProcessor&              abiProcessor,
+        const AbiReader&                 abiReader,
         const CodeObjectMetadata&        metadata,
         Util::MsgPackReader*             pMetadataReader) = 0;
 

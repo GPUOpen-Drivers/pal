@@ -24,7 +24,7 @@
  **********************************************************************************************************************/
 
 #include "core/hw/gfxip/shaderLibrary.h"
-#include "palPipelineAbiProcessorImpl.h"
+#include "palVectorImpl.h"
 
 using namespace Util;
 
@@ -44,7 +44,7 @@ ShaderLibrary::ShaderLibrary(
     m_codeObjectBinaryLen(0),
     m_gpuMem(),
     m_gpuMemSize(0),
-    m_maxStackFrameSizeInBytes(0),
+    m_maxStackSizeInBytes(0),
     m_pClientData(nullptr),
     m_perfDataMem(),
     m_perfDataGpuMemSize(0)
@@ -94,29 +94,30 @@ Result ShaderLibrary::InitFromCodeObjectBinary(
 {
     PAL_ASSERT((m_pCodeObjectBinary != nullptr) && (m_codeObjectBinaryLen != 0));
 
-    AbiProcessor abiProcessor(m_pDevice->GetPlatform());
-    Result result = abiProcessor.LoadFromBuffer(m_pCodeObjectBinary, m_codeObjectBinaryLen);
+    AbiReader abiReader(m_pDevice->GetPlatform(), m_pCodeObjectBinary);
+    Result result = abiReader.Init();
 
     MsgPackReader      metadataReader;
     CodeObjectMetadata metadata;
 
     if (result == Result::Success)
     {
-        result = abiProcessor.GetMetadata(&metadataReader, &metadata);
+        result = abiReader.GetMetadata(&metadataReader, &metadata);
     }
 
     if (result == Result::Success)
     {
         ExtractLibraryInfo(metadata);
 
-        const auto& csStageMetadata = metadata.pipeline.hardwareStage[static_cast<uint32>(Abi::HardwareStage::Cs)];
-        if (csStageMetadata.hasEntry.scratchMemorySize != 0)
+        result = metadataReader.Seek(metadata.pipeline.shaderFunctions);
+
+        if (result == Result::Success)
         {
-            m_maxStackFrameSizeInBytes = csStageMetadata.scratchMemorySize;
+            result = ExtractShaderFunctions(&metadataReader);
         }
 
         result = HwlInit(createInfo,
-                abiProcessor,
+                abiReader,
                 metadata,
                 &metadataReader);
     }
@@ -134,14 +135,65 @@ void ShaderLibrary::ExtractLibraryInfo(
 
     // We don't expect the pipeline ABI to report a hash of zero.
     PAL_ALERT((metadata.pipeline.internalPipelineHash[0] | metadata.pipeline.internalPipelineHash[1]) == 0);
+}
 
+// =====================================================================================================================
+// Helper function for extracting shader function metadata.
+Result ShaderLibrary::ExtractShaderFunctions(
+    Util::MsgPackReader* pReader)
+{
+    Result result    = (pReader->Type() == CWP_ITEM_MAP) ? Result::Success : Result::ErrorInvalidValue;
+    const auto& item = pReader->Get().as;
+
+    for (uint32 i = item.map.size; ((result == Result::Success) && (i > 0)); --i)
+    {
+        ShaderFuncStats stats;
+
+        result = pReader->Next(CWP_ITEM_STR);
+        if (result == Result::Success)
+        {
+            stats.symbolNameLength = item.str.length;
+            stats.pSymbolName      = static_cast<const char*>(item.str.start);
+        }
+
+        if (result == Result::Success)
+        {
+            result = pReader->Next(CWP_ITEM_MAP);
+        }
+
+        if (result == Result::Success)
+        {
+            for (uint32 j = item.map.size; ((result == Result::Success) && (j > 0)); --j)
+            {
+                result = pReader->Next(CWP_ITEM_STR);
+
+                if (result == Result::Success)
+                {
+                    switch (HashString(static_cast<const char*>(item.str.start), item.str.length))
+                    {
+                    case HashLiteralString(".stack_frame_size_in_bytes"):
+                    {
+                        result = pReader->UnpackNext(&stats.stackFrameSizeInBytes);
+                        m_maxStackSizeInBytes = Max(m_maxStackSizeInBytes, stats.stackFrameSizeInBytes);
+                        break;
+                    }
+
+                    default:
+                        result = pReader->Skip(1);
+                       break;
+                    }
+                }
+            }
+        }
+    }
+
+    return result;
 }
 
 // =====================================================================================================================
 // Allocates GPU memory for this library and uploads the code and data contain in the ELF binary to it.
 // Any ELF relocations are also applied to the memory during this operation.
 Result ShaderLibrary::PerformRelocationsAndUploadToGpuMemory(
-    const AbiProcessor&       abiProcessor,
     const CodeObjectMetadata& metadata,
     const GpuHeap&            clientPreferredHeap,
     PipelineUploader*         pUploader)
@@ -153,7 +205,7 @@ Result ShaderLibrary::PerformRelocationsAndUploadToGpuMemory(
     m_perfDataGpuMemSize = performanceDataOffset;
     Result result        = Result::Success;
 
-    result = pUploader->Begin(abiProcessor, metadata, clientPreferredHeap);
+    result = pUploader->Begin(metadata, clientPreferredHeap);
 
     if (result == Result::Success)
     {
@@ -225,18 +277,16 @@ Result ShaderLibrary::GetShaderFunctionStats(
 // =====================================================================================================================
 // Computes the GPU virtual address of each of the indirect functions specified by the client.
 void ShaderLibrary::GetFunctionGpuVirtAddrs(
-    const AbiProcessor&             abiProcessor,
     const PipelineUploader&         uploader,
     ShaderLibraryFunctionInfo*      pFuncInfoList,
     uint32                          funcCount)
 {
-    const gpusize codeGpuVirtAddr = uploader.CodeGpuVirtAddr();
     for (uint32 i = 0; i < funcCount; ++i)
     {
-        Abi::GenericSymbolEntry symbol = { };
-        if (abiProcessor.HasGenericSymbolEntry(pFuncInfoList[i].pSymbolName, &symbol))
+        GpuSymbol symbol = { };
+        if (uploader.GetGenericGpuSymbol(pFuncInfoList[i].pSymbolName, &symbol) == Result::Success)
         {
-            pFuncInfoList[i].gpuVirtAddr = (codeGpuVirtAddr + symbol.value);
+            pFuncInfoList[i].gpuVirtAddr = symbol.gpuVirtAddr;
             PAL_ASSERT(pFuncInfoList[i].gpuVirtAddr != 0);
         }
         else

@@ -267,9 +267,12 @@ UniversalCmdBuffer::UniversalCmdBuffer(
     m_pSignatureGfx(&NullGfxSignature),
     m_pipelineCtxRegHash(0),
     m_pipelineCfgRegHash(0),
+#if PAL_ENABLE_PRINTS_ASSERTS
+    m_pipelineStateValid(false),
+#endif
     m_pfnValidateUserDataGfx(nullptr),
     m_pfnValidateUserDataGfxPipelineSwitch(nullptr),
-    m_workaroundState(&device, createInfo.flags.nested, m_state),
+    m_workaroundState(&device, createInfo.flags.nested, m_state, m_cachedSettings),
     m_vertexOffsetReg(UserDataNotMapped),
     m_drawIndexReg(UserDataNotMapped),
     m_log2NumSes(Log2(m_device.Parent()->ChipProperties().gfx9.numShaderEngines)),
@@ -297,7 +300,7 @@ UniversalCmdBuffer::UniversalCmdBuffer(
     memset(&m_currentBinSize,  0, sizeof(m_currentBinSize));
 
     memset(&m_pipelinePsHash, 0, sizeof(m_pipelinePsHash));
-    m_pipelineFlags.u32All = 0;
+    memset(&m_pipelineState,  0, sizeof(m_pipelineState));
 
     // Setup default engine support - Universal Cmd Buffer supports Graphics, Compute and CPDMA.
     m_engineSupport = (CmdBufferEngineSupport::Graphics |
@@ -337,6 +340,18 @@ UniversalCmdBuffer::UniversalCmdBuffer(
     m_cachedSettings.waUtcL0InconsistentBigPage = settings.waUtcL0InconsistentBigPage;
     m_cachedSettings.waClampGeCntlVertGrpSize   = settings.waClampGeCntlVertGrpSize;
     m_cachedSettings.ignoreDepthForBinSize      = settings.ignoreDepthForBinSizeIfColorBound;
+
+    m_cachedSettings.waLogicOpDisablesOverwriteCombiner        = settings.waLogicOpDisablesOverwriteCombiner;
+    m_cachedSettings.waMiscPopsMissedOverlap                   = settings.waMiscPopsMissedOverlap;
+    m_cachedSettings.waColorCacheControllerInvalidEviction     = settings.waColorCacheControllerInvalidEviction;
+    m_cachedSettings.waRotatedSwizzleDisablesOverwriteCombiner = settings.waRotatedSwizzleDisablesOverwriteCombiner;
+    m_cachedSettings.waStalledPopsMode                         = settings.waStalledPopsMode;
+    m_cachedSettings.drainPsOnOverlap                          = settings.drainPsOnOverlap;
+    m_cachedSettings.waTessIncorrectRelativeIndex              = settings.waTessIncorrectRelativeIndex;
+    m_cachedSettings.waVgtFlushNggToLegacy                     = settings.waVgtFlushNggToLegacy;
+    m_cachedSettings.waVgtFlushNggToLegacyGs                   = settings.waVgtFlushNggToLegacyGs;
+    m_cachedSettings.waIndexBufferZeroSize                     = settings.waIndexBufferZeroSize;
+    m_cachedSettings.waLegacyGsCutModeFlush                    = settings.waLegacyGsCutModeFlush;
 
     // Here we pre-calculate constants used in gfx10 PBB bin sizing calculations.
     // The logic is based on formulas that account for the number of RBs and Channels on the ASIC.
@@ -735,15 +750,15 @@ void UniversalCmdBuffer::ResetState()
     m_pipelineCfgRegHash   = 0;
     m_pipelinePsHash.lower = 0;
     m_pipelinePsHash.upper = 0;
-    m_pipelineFlags.u32All = 0;
+    memset(&m_pipelineState, 0, sizeof(m_pipelineState));
 
 #if PAL_ENABLE_PRINTS_ASSERTS
-    m_pipelineFlagsValid = false;
+    m_pipelineStateValid = false;
 #endif
 
     // Set this flag at command buffer Begin/Reset, in case the last draw of the previous chained command buffer has
     // rasterization killed.
-    m_pipelineFlags.noRaster = 1;
+    m_pipelineState.flags.noRaster = 1;
 
     ResetUserDataTable(&m_spillTable.stateCs);
     ResetUserDataTable(&m_spillTable.stateGfx);
@@ -852,7 +867,7 @@ uint32* UniversalCmdBuffer::SwitchGraphicsPipeline(
 
     const bool isFirstDrawInCmdBuf = (m_state.flags.firstDrawExecuted == 0);
     const bool wasPrevPipelineNull = (pPrevSignature == &NullGfxSignature);
-    const bool wasPrevPipelineNgg  = m_pipelineFlags.isNgg;
+    const bool wasPrevPipelineNgg  = m_pipelineState.flags.isNgg;
     const bool isNgg               = pCurrPipeline->IsNgg();
     const bool tessEnabled         = pCurrPipeline->IsTessEnabled();
     const bool gsEnabled           = pCurrPipeline->IsGsEnabled();
@@ -988,12 +1003,21 @@ uint32* UniversalCmdBuffer::SwitchGraphicsPipeline(
         pDeCmdSpace = m_workaroundState.SwitchFromNggPipelineToLegacy(gsEnabled, pDeCmdSpace);
     }
 
+    if ((wasPrevPipelineNull == false) && (wasPrevPipelineNgg == false) && (isNgg == false))
+    {
+        pDeCmdSpace = m_workaroundState.SwitchBetweenLegacyPipelines(m_pipelineState.flags.usesGs,
+                                                                     m_pipelineState.flags.gsCutMode,
+                                                                     pCurrPipeline,
+                                                                     pDeCmdSpace);
+    }
+
     // Save the set of pipeline flags for the next pipeline transition.  This should come last because the previous
     // pipelines' values are used earlier in the function.
-    m_pipelineFlags.isNgg    = isNgg;
-    m_pipelineFlags.usesTess = tessEnabled;
-    m_pipelineFlags.usesGs   = gsEnabled;
-    m_pipelineFlags.noRaster = isRasterKilled;
+    m_pipelineState.flags.isNgg     = isNgg;
+    m_pipelineState.flags.usesTess  = tessEnabled;
+    m_pipelineState.flags.usesGs    = gsEnabled;
+    m_pipelineState.flags.noRaster  = isRasterKilled;
+    m_pipelineState.flags.gsCutMode = pCurrPipeline->VgtGsMode().bits.CUT_MODE;
 
     return pDeCmdSpace;
 }
@@ -2203,6 +2227,12 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawOpaque(
 
     uint32* pDeCmdSpace = pThis->m_deCmdStream.ReserveCommands();
 
+    // The LOAD_CONTEXT_REG_INDEX packet does the load via PFP while the streamOutFilledSizeVa is written
+    // via ME in STRMOUT_BUFFER_UPDATE packet. So there might be race condition issue loading the filled size.
+    // Before the load packet was used (to handle state shadowing), COPY_DATA via ME was used to program the
+    // register so there was no sync issue.
+    // To fix this race condition, a PFP_SYNC_ME packet is required to make it right.
+    pDeCmdSpace += pThis->m_cmdUtil.BuildPfpSyncMe(pDeCmdSpace);
     pDeCmdSpace += pThis->m_cmdUtil.BuildLoadContextRegsIndex<true>(streamOutFilledSizeVa,
                                                                     mmVGT_STRMOUT_DRAW_OPAQUE_BUFFER_FILLED_SIZE,
                                                                     1,
@@ -4659,7 +4689,7 @@ void UniversalCmdBuffer::ValidateDraw(
         pDeCmdSpace = SwitchGraphicsPipeline(pPrevSignature, pNewPipeline, pDeCmdSpace);
 
 #if PAL_ENABLE_PRINTS_ASSERTS
-        m_pipelineFlagsValid = true; ///< Setup in SwitchGraphicsPipeline()
+        m_pipelineStateValid = true; ///< Setup in SwitchGraphicsPipeline()
 #endif
 
         // NOTE: Switching a graphics pipeline can result in a large amount of commands being written, so start a new
@@ -4697,7 +4727,7 @@ void UniversalCmdBuffer::ValidateDraw(
     else
     {
 #if PAL_ENABLE_PRINTS_ASSERTS
-        m_pipelineFlagsValid = true; ///< Valid for all for draw-time when pipeline isn't dirty.
+        m_pipelineStateValid = true; ///< Valid for all for draw-time when pipeline isn't dirty.
 #endif
 
         uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
@@ -4730,7 +4760,7 @@ void UniversalCmdBuffer::ValidateDraw(
 #endif
 
 #if PAL_ENABLE_PRINTS_ASSERTS
-    m_pipelineFlagsValid = false;
+    m_pipelineStateValid = false;
 #endif
 }
 
@@ -4810,18 +4840,32 @@ uint32* UniversalCmdBuffer::UpdateNggCullingDataBufferWithCpu(
         Abi::PrimShaderCbLayout  localShaderLayout;
         memcpy(&localShaderLayout, &m_state.primShaderCbLayout, sizeof(uint32) * NggStateDwords);
 
-        if (m_nggState.flags.dirty.viewports || m_nggState.flags.dirty.msaaState)
+        if ((m_nggState.flags.dirty.viewports || m_nggState.flags.dirty.msaaState) && (m_nggState.numSamples > 1))
         {
             // For small-primitive filter culling with NGG, the shader needs the viewport scale to premultiply
             // the number of samples into it.
             Abi::PrimShaderVportCb*  pVportCb = &localShaderLayout.viewportStateCb;
             Uint32ToFloat uintToFloat = {};
+
+            constexpr float Multiplier = 16.0f;
+
             for (uint32 i = 0; i < m_graphicsState.viewportState.count; i++)
             {
                 uintToFloat.uValue  = pVportCb->vportControls[i].paClVportXscale;
-                uintToFloat.fValue *= (m_nggState.numSamples > 1) ? 16.0f : 1.0f;
-
+                uintToFloat.fValue *= Multiplier;
                 pVportCb->vportControls[i].paClVportXscale = uintToFloat.uValue;
+
+                uintToFloat.uValue  = pVportCb->vportControls[i].paClVportXoffset;
+                uintToFloat.fValue *= Multiplier;
+                pVportCb->vportControls[i].paClVportXoffset = uintToFloat.uValue;
+
+                uintToFloat.uValue  = pVportCb->vportControls[i].paClVportYscale;
+                uintToFloat.fValue *= Multiplier;
+                pVportCb->vportControls[i].paClVportYscale = uintToFloat.uValue;
+
+                uintToFloat.uValue  = pVportCb->vportControls[i].paClVportYoffset;
+                uintToFloat.fValue *= Multiplier;
+                pVportCb->vportControls[i].paClVportYoffset = uintToFloat.uValue;
             }
         }
 
@@ -4889,11 +4933,29 @@ uint32* UniversalCmdBuffer::UpdateNggCullingDataBufferWithGpu(
             // the number of samples into it.
             Abi::PrimShaderVportCb vportCb = m_state.primShaderCbLayout.viewportStateCb;
             Uint32ToFloat uintToFloat = {};
-            for (uint32 i = 0; i < m_graphicsState.viewportState.count; i++)
+
+            if (m_nggState.numSamples > 1)
             {
-                uintToFloat.uValue  = vportCb.vportControls[i].paClVportXscale;
-                uintToFloat.fValue *= (m_nggState.numSamples > 1) ? 16.0f : 1.0f;
-                vportCb.vportControls[i].paClVportXscale = uintToFloat.uValue;
+                constexpr float Multiplier = 16.0f;
+
+                for (uint32 i = 0; i < m_graphicsState.viewportState.count; i++)
+                {
+                    uintToFloat.uValue  = vportCb.vportControls[i].paClVportXscale;
+                    uintToFloat.fValue *= Multiplier;
+                    vportCb.vportControls[i].paClVportXscale = uintToFloat.uValue;
+
+                    uintToFloat.uValue  = vportCb.vportControls[i].paClVportXoffset;
+                    uintToFloat.fValue *= Multiplier;
+                    vportCb.vportControls[i].paClVportXoffset = uintToFloat.uValue;
+
+                    uintToFloat.uValue  = vportCb.vportControls[i].paClVportYscale;
+                    uintToFloat.fValue *= Multiplier;
+                    vportCb.vportControls[i].paClVportYscale = uintToFloat.uValue;
+
+                    uintToFloat.uValue  = vportCb.vportControls[i].paClVportYoffset;
+                    uintToFloat.fValue *= Multiplier;
+                    vportCb.vportControls[i].paClVportYoffset = uintToFloat.uValue;
+                }
             }
 
             pCeCmdSpace = UploadToUserDataTable(
@@ -5338,6 +5400,18 @@ uint32* UniversalCmdBuffer::ValidateDraw(
         }
     }
 
+    regCB_TARGET_MASK updatedRegWriteMask = pPipeline->CbTargetMask();
+    // Always write the value of the over-ridden mask when the enable flag is set.
+    if (m_graphicsState.colorWriteMaskOverride.enable)
+    {
+        //Note that only overwrite target0's regWriteMask.
+        //Because this version currently only supports target0.
+        updatedRegWriteMask.bitfields.TARGET0_ENABLE = m_graphicsState.colorWriteMaskOverride.writeMask;
+        pDeCmdSpace = m_deCmdStream.WriteSetOneContextReg(mmCB_TARGET_MASK,
+                                                          updatedRegWriteMask.u32All,
+                                                          pDeCmdSpace);
+    }
+
     // Validate the per-draw HW state.
     pDeCmdSpace = ValidateDrawTimeHwState<Indexed, Indirect, Pm4OptImmediate>(paScModeCntl1,
                                                                               dbCountControl,
@@ -5345,10 +5419,10 @@ uint32* UniversalCmdBuffer::ValidateDraw(
                                                                               drawInfo,
                                                                               pDeCmdSpace);
 
-    pDeCmdSpace = m_workaroundState.PreDraw<StateDirty, Pm4OptImmediate>(m_graphicsState,
-                                                                         &m_deCmdStream,
-                                                                         this,
-                                                                         pDeCmdSpace);
+    pDeCmdSpace = m_workaroundState.PreDraw<PipelineDirty, StateDirty, Pm4OptImmediate>(m_graphicsState,
+                                                                                        &m_deCmdStream,
+                                                                                        this,
+                                                                                        pDeCmdSpace);
 
     if (IsNgg && (m_pSignatureGfx->nggCullingDataAddr != UserDataNotMapped))
     {
@@ -6425,6 +6499,13 @@ uint32 UniversalCmdBuffer::CalcGeCntl(
         // Recomendation to disable VERT_GRP_SIZE is to set it to 256.
         geCntl.bits.VERT_GRP_SIZE = VertGroupingDisabled;
     }
+    else if (isNggFastLaunch)
+    {
+        const regVGT_GS_ONCHIP_CNTL vgtGsOnchipCntl = pPipeline->VgtGsOnchipCntl();
+
+        geCntl.bits.PRIM_GRP_SIZE = vgtGsOnchipCntl.bits.GS_PRIMS_PER_SUBGRP;
+        geCntl.bits.VERT_GRP_SIZE = vgtGsOnchipCntl.bits.ES_VERTS_PER_SUBGRP;
+    }
     else
     {
         const regVGT_GS_ONCHIP_CNTL vgtGsOnchipCntl = pPipeline->VgtGsOnchipCntl();
@@ -6437,7 +6518,7 @@ uint32 UniversalCmdBuffer::CalcGeCntl(
     }
 
     //  These numbers below come from the hardware restrictions.
-    PAL_ASSERT((IsGfx101(*m_device.Parent()) == false) || (geCntl.bits.VERT_GRP_SIZE >= 24));
+    PAL_ASSERT(isNggFastLaunch || (IsGfx101(*m_device.Parent()) == false) || (geCntl.bits.VERT_GRP_SIZE >= 24));
 
     // Only used for line-stipple
     geCntl.bits.PACKET_TO_ONE_PA = usesLineStipple;
@@ -6562,25 +6643,29 @@ uint32* UniversalCmdBuffer::ValidateDrawTimeHwState(
     }
     else
     {
+        const uint16 vertexOffsetRegAddr = GetVertexOffsetRegAddr();
         // Write the vertex offset user data register.
-        if ((m_drawTimeHwState.vertexOffset != drawInfo.firstVertex) || (m_drawTimeHwState.valid.vertexOffset == 0))
+        if (((m_drawTimeHwState.vertexOffset != drawInfo.firstVertex) ||
+            (m_drawTimeHwState.valid.vertexOffset == 0)) &&
+            (vertexOffsetRegAddr != UserDataNotMapped))
         {
             m_drawTimeHwState.vertexOffset       = drawInfo.firstVertex;
             m_drawTimeHwState.valid.vertexOffset = 1;
 
-            pDeCmdSpace = m_deCmdStream.WriteSetOneShReg<ShaderGraphics, Pm4OptImmediate>(GetVertexOffsetRegAddr(),
+            pDeCmdSpace = m_deCmdStream.WriteSetOneShReg<ShaderGraphics, Pm4OptImmediate>(vertexOffsetRegAddr,
                                                                                           drawInfo.firstVertex,
                                                                                           pDeCmdSpace);
         }
 
         // Write the instance offset user data register.
-        if ((m_drawTimeHwState.instanceOffset != drawInfo.firstInstance) ||
-            (m_drawTimeHwState.valid.instanceOffset == 0))
+        if (((m_drawTimeHwState.instanceOffset != drawInfo.firstInstance) ||
+            (m_drawTimeHwState.valid.instanceOffset == 0)) &&
+            (vertexOffsetRegAddr != UserDataNotMapped))
         {
             m_drawTimeHwState.instanceOffset       = drawInfo.firstInstance;
             m_drawTimeHwState.valid.instanceOffset = 1;
 
-            pDeCmdSpace = m_deCmdStream.WriteSetOneShReg<ShaderGraphics, Pm4OptImmediate>(GetInstanceOffsetRegAddr(),
+            pDeCmdSpace = m_deCmdStream.WriteSetOneShReg<ShaderGraphics, Pm4OptImmediate>(vertexOffsetRegAddr + 1,
                                                                                           drawInfo.firstInstance,
                                                                                           pDeCmdSpace);
         }
@@ -7129,6 +7214,21 @@ uint32* UniversalCmdBuffer::FlushStreamOut(
 void UniversalCmdBuffer::SetGraphicsState(
     const GraphicsState& newGraphicsState)
 {
+    // Restore the original value of CB_TARGET_MASK if the mask was overridden.
+    if (m_graphicsState.colorWriteMaskOverride.enable)
+    {
+        const auto*const pPipeline = static_cast<const GraphicsPipeline*>(m_graphicsState.pipelineState.pPipeline);
+        if (pPipeline != nullptr)
+        {
+            regCB_TARGET_MASK updatedRegWriteMask = pPipeline->CbTargetMask();
+            uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
+            pDeCmdSpace = m_deCmdStream.WriteSetOneContextReg(mmCB_TARGET_MASK,
+                                                              updatedRegWriteMask.u32All,
+                                                              pDeCmdSpace);
+            m_deCmdStream.CommitCommands(pDeCmdSpace);
+        }
+    }
+
     Pal::UniversalCmdBuffer::SetGraphicsState(newGraphicsState);
 
     // The target state that we would restore is invalid if this is a nested command buffer that inherits target
@@ -8144,7 +8244,7 @@ void UniversalCmdBuffer::LeakNestedCmdBufferState(
     m_pipelineCtxRegHash   = cmdBuffer.m_pipelineCtxRegHash;
     m_pipelineCfgRegHash   = cmdBuffer.m_pipelineCfgRegHash;
     m_pipelinePsHash       = cmdBuffer.m_pipelinePsHash;
-    m_pipelineFlags.u32All = cmdBuffer.m_pipelineFlags.u32All;
+    m_pipelineState        = cmdBuffer.m_pipelineState;
 
     if (cmdBuffer.m_graphicsState.pipelineState.dirtyFlags.pipelineDirty ||
         (cmdBuffer.m_graphicsState.pipelineState.pPipeline != nullptr))

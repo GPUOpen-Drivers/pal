@@ -3451,6 +3451,20 @@ bool Gfx9Dcc::UseDccForImage(
     bool useDcc         = true;
     bool mustDisableDcc = false;
 
+    // If the device supports the MM formats and we are a format that would use them, then we don't
+    // have to disable DCC
+    const bool uses8BitMmFormats  = (pDevice->SupportsFormat(ChNumFormat::X8_MM_Uint)        &&
+                                     pDevice->SupportsFormat(ChNumFormat::X8Y8_MM_Uint)      &&
+                                     Formats::IsYuvPlanar(createInfo.swizzledFormat.format)  &&
+                                     (createInfo.swizzledFormat.format != ChNumFormat::P016) &&
+                                     (createInfo.swizzledFormat.format != ChNumFormat::P010) &&
+                                     (createInfo.swizzledFormat.format != ChNumFormat::P210));
+    const bool uses16BitMmFormats = (pDevice->SupportsFormat(ChNumFormat::X16_MM_Uint)        &&
+                                     pDevice->SupportsFormat(ChNumFormat::X16Y16_MM_Uint)     &&
+                                     ((createInfo.swizzledFormat.format == ChNumFormat::P016) ||
+                                      (createInfo.swizzledFormat.format == ChNumFormat::P010) ||
+                                      (createInfo.swizzledFormat.format == ChNumFormat::P210)));
+
     bool allMipsShaderWritable = pParent->IsShaderWritable();
 
     allMipsShaderWritable = (allMipsShaderWritable && (pParent->FirstShaderWritableMip() == 0));
@@ -3506,7 +3520,7 @@ bool Gfx9Dcc::UseDccForImage(
         // swizzle modes.  On GFX10, the "R" modes (render targets, not rotated) are expected to be the
         // most commonly used.  Still, throw an indication if we're faling into this code path with any
         // sort of frequency
-        PAL_ALERT_ALWAYS();
+        PAL_ALERT(isNotARenderTarget == false);
     }
     else if (isDepthStencil || (isNotARenderTarget && isGfx9))
     {
@@ -3519,8 +3533,10 @@ bool Gfx9Dcc::UseDccForImage(
              (allMipsShaderWritable == false) &&
              // YUV surfaces aren't (normally) render targets or UAV destinations, but they still potentially benefit
              // from DCC compression.
+             // Also disable DCC if this image does not use X8_MM/X8Y8_MM and it does not use X16_MM/X16Y16_MM formats.
              ((Formats::IsYuvPlanar(createInfo.swizzledFormat.format) == false) ||
-              (TestAnyFlagSet(settings.useDcc, Gfx10UseDccYuvPlanar) == false)))
+              (TestAnyFlagSet(settings.useDcc, Gfx10UseDccYuvPlanar)  == false) ||
+              ((uses8BitMmFormats == false) && (uses16BitMmFormats == false))))
     {
         // DCC should always be off for a resource that is not a UAV and is not a render target.
         useDcc = false;
@@ -3688,22 +3704,42 @@ void Gfx9Dcc::CalcMetaBlkSizeLog2(
 //    code that corresponds to "Gfx9DccClearColor::Reg".  Surfaces that will potentially be texture-fetched though can
 //    only be fast-cleared to one of four HW-defined colors.
 uint8 Gfx9Dcc::GetFastClearCode(
-    const Image&            image,
-    const Pal::SubresRange& clearRange,
-    const uint32*           pConvertedColor,
-    bool*                   pNeedFastClearElim) // [out] true if this surface will require a fast-clear-eliminate pass
+    const Image&       image,
+    const SubresRange& clearRange,
+    const uint32*      pConvertedColor,
+    bool*              pNeedFastClearElim) // [out] true if this surface will require a fast-clear-eliminate pass
                                                 //       before it can be used as a texture
 {
     // Fast-clear code that is valid for images that won't be texture fetched.
-    const Pal::Image*   pParent             = image.Parent();
-    Gfx9DccClearColor   clearCode           = Gfx9DccClearColor::ClearColorReg;
-    const auto&         settings            = GetGfx9Settings(*image.Parent()->GetDevice());
-    const Pal::SubresId baseSubResource     = { clearRange.startSubres.aspect,
-                                                clearRange.startSubres.mipLevel,
-                                                clearRange.startSubres.arraySlice };
-    const SubResourceInfo*const pSubResInfo = pParent->SubresourceInfo(baseSubResource);
+    const Pal::Image*  const     pParent         = image.Parent();
+    const Pal::Device* const     pDevice         = pParent->GetDevice();
+    const ImageCreateInfo&       createInfo      = pParent->GetImageCreateInfo();
+    Gfx9DccClearColor            clearCode       = Gfx9DccClearColor::ClearColorReg;
+    const auto&                  settings        = GetGfx9Settings(*image.Parent()->GetDevice());
+    const SubresId               baseSubResource = clearRange.startSubres;
+    const SubResourceInfo* const pSubResInfo     = pParent->SubresourceInfo(baseSubResource);
 
-    if ((pSubResInfo->flags.supportMetaDataTexFetch != 0) && (settings.forceRegularClearCode == false))
+    // Check if the device supports the MM formats and we are a format that would use them
+    const bool uses8BitMmFormats  = (pDevice->SupportsFormat(ChNumFormat::X8_MM_Uint)        &&
+                                     pDevice->SupportsFormat(ChNumFormat::X8Y8_MM_Uint)      &&
+                                     Formats::IsYuvPlanar(createInfo.swizzledFormat.format)  &&
+                                     (createInfo.swizzledFormat.format != ChNumFormat::P016) &&
+                                     (createInfo.swizzledFormat.format != ChNumFormat::P010) &&
+                                     (createInfo.swizzledFormat.format != ChNumFormat::P210));
+    const bool uses16BitMmFormats = (pDevice->SupportsFormat(ChNumFormat::X16_MM_Uint)        &&
+                                     pDevice->SupportsFormat(ChNumFormat::X16Y16_MM_Uint)     &&
+                                     ((createInfo.swizzledFormat.format == ChNumFormat::P016) ||
+                                      (createInfo.swizzledFormat.format == ChNumFormat::P010) ||
+                                      (createInfo.swizzledFormat.format == ChNumFormat::P210)));
+
+    // If we use the MM formats, then we can't use the special clear codes. When a client clears
+    // to color(0,0,0,0), it is unclear whether they want all 0s or black and it is most intuitive
+    // to take their request literally and clear to all 0s. With MM formats, a clear code of 0000
+    // will end up writing out 16s because the hardware will take 0000 to mean black (16 in YUV land).
+    if ((pSubResInfo->flags.supportMetaDataTexFetch != 0) &&
+        (settings.forceRegularClearCode == false)         &&
+        (uses8BitMmFormats == false)                      &&
+        (uses16BitMmFormats == false))
     {
         // Surfaces that are fast cleared to one of the following colors may be texture fetched:
         //      1) ARGB(0, 0, 0, 0)
@@ -3714,7 +3750,6 @@ uint8 Gfx9Dcc::GetFastClearCode(
         // If the clear-color is *not* one of those colors, then this routine will produce the "default"
         // clear-code.  The default clear-code is not understood by the TC and a fast-clear-eliminate pass must be
         // issued prior to using this surface as a texture.
-        const ImageCreateInfo& createInfo    = pParent->GetImageCreateInfo();
         const uint32           numComponents = NumComponents(createInfo.swizzledFormat.format);
         const SurfaceSwap      surfSwap      = Formats::Gfx9::ColorCompSwap(createInfo.swizzledFormat);
         const ChannelSwizzle*  pSwizzle      = &createInfo.swizzledFormat.swizzle.swizzle[0];

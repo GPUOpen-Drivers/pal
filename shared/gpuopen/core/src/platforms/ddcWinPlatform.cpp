@@ -129,21 +129,44 @@ namespace DevDriver
         /////////////////////////////////////////////////////
         // Local routines.....
         //
-        void DebugPrint(LogLevel lvl, const char* pFormat, ...)
+        void PlatformDebugPrint(LogLevel lvl, const char* pStr)
         {
             DD_UNUSED(lvl);
 
-            va_list args;
-            va_start(args, pFormat);
-            char buffer[1024];
-            Platform::Vsnprintf(buffer, ArraySize(buffer), pFormat, args);
-            va_end(args);
+            // OutputDebugString routes to the debug output in Visual Studio
+            OutputDebugString(pStr);
+        }
 
-            // Append a newline
-            Platform::Snprintf(buffer, "%s\n", buffer);
+        Result GetAbsPathName(
+            const char*  pPath,
+            char         (&absPath)[256])
+        {
+            constexpr size_t absPathSize = sizeof(absPath);
 
-            OutputDebugString(buffer);
-            printf("[DevDriver] %s", buffer);
+            Result result = Result::InvalidParameter;
+
+            if (pPath != nullptr)
+            {
+                const DWORD len = GetFullPathNameA(pPath, absPathSize, absPath, nullptr);
+
+                if (len == 0)
+                {
+                    // Details about the error are available with GetLastError(), but we can't translate this easily.
+                    result = Result::FileAccessError;
+                }
+                else if (len >= absPathSize)
+                {
+                    // Buffer too small
+                    result = Result::InsufficientMemory;
+                }
+                else
+                {
+                    // Success!
+                    result = Result::Success;
+                }
+            }
+
+            return result;
         }
 
         int32 AtomicIncrement(Atomic* pVariable)
@@ -365,21 +388,14 @@ namespace DevDriver
         // Synchronization primatives...
         //
 
-        void AtomicLock::Lock()
+        bool AtomicLock::TryLock()
         {
-            // TODO - implement timeout
-            while (InterlockedCompareExchangeAcquire(&m_lock, 1, 0) == 1)
-            {
-                while (m_lock != 0)
-                {
-                    // Spin until the mutex is unlocked again
-                }
-            }
+            return (InterlockedCompareExchange(&m_lock, 1, 0) == 0);
         }
 
         void AtomicLock::Unlock()
         {
-            if (InterlockedCompareExchangeRelease(&m_lock, 0, 1) == 0)
+            if (InterlockedCompareExchange(&m_lock, 0, 1) == 0)
             {
                 DD_ASSERT_REASON("Tried to unlock an already unlocked AtomicLock");
             }
@@ -473,7 +489,7 @@ namespace DevDriver
             m_prevState = seed.QuadPart;
         }
 
-        Result Mkdir(const char* pDir)
+        Result Mkdir(const char* pDir, MkdirStatus* pStatus)
         {
             Result result = Result::InvalidParameter;
 
@@ -482,15 +498,26 @@ namespace DevDriver
                 const BOOL ret = CreateDirectory(pDir, NULL);
                 if (ret != 0)
                 {
+                    // The directory did not exist, and was created successfully
                     result = Result::Success;
+
+                    if (pStatus != nullptr)
+                    {
+                        *pStatus = MkdirStatus::Created;
+                    }
                 }
                 else
                 {
                     const int err = GetLastError();
                     if (err == ERROR_ALREADY_EXISTS)
                     {
-                        // The directory already exists, which is fine.
+                        // The directory did exist, which is fine.
                         result = Result::Success;
+
+                        if (pStatus != nullptr)
+                        {
+                            *pStatus = MkdirStatus::Existed;
+                        }
                     }
                     else
                     {

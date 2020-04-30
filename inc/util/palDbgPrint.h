@@ -53,6 +53,7 @@ enum DbgPrintCategory : uint32
     DbgPrintCatScMsg,                   ///< Generic shader compiler messages.
     DbgPrintCatEventPrintMsg,           ///< System event messages.
     DbgPrintCatEventPrintCallbackMsg,   ///< System event messages via callback.
+    DbgPrintCatMsgFile,                 ///< All Messages via file.
     DbgPrintCatCount
 };
 

@@ -23,6 +23,8 @@
  *
  **********************************************************************************************************************/
 
+#if PAL_BUILD_INTERFACE_LOGGER
+
 #include "core/layers/interfaceLogger/interfaceLoggerDepthStencilState.h"
 #include "core/layers/interfaceLogger/interfaceLoggerDevice.h"
 #include "core/layers/interfaceLogger/interfaceLoggerPlatform.h"
@@ -65,3 +67,5 @@ void DepthStencilState::Destroy()
 
 } // InterfaceLogger
 } // Pal
+
+#endif

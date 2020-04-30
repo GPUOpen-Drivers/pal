@@ -35,6 +35,20 @@ class CmdStream;
 class Device;
 class GfxCmdBuffer;
 
+// These flags indicate whether Performance (Global) Counters, SPM Trace and/or Thread (SQ) Trace  have been
+// enabled through this command buffer so that appropriate submit-time operations can be done.
+union PerfExperimentFlags
+{
+    struct
+    {
+        uint32 perfCtrsEnabled : 1;
+        uint32 spmTraceEnabled : 1;
+        uint32 sqtTraceEnabled : 1;
+        uint32 reserved        : 29;
+    };
+    uint32 u32All;
+};
+
 // =====================================================================================================================
 // Core implementation of the IPerfExperiment interface.
 class PerfExperiment : public IPerfExperiment
@@ -54,7 +68,7 @@ public:
 
     virtual void UpdateSqttTokenMask(CmdStream* pPalCmdStream, const ThreadTraceTokenConfig& sqttTokenConfig) const = 0;
 
-    virtual bool HasSpmTrace() const { return m_hasSpmTrace; };
+    PerfExperimentFlags TracesEnabled() const { return m_perfExperimentFlags; }
 
 protected:
     PerfExperiment(Device* pDevice, const PerfExperimentCreateInfo& createInfo, gpusize memAlignment);
@@ -65,9 +79,7 @@ protected:
     const gpusize                  m_memAlignment;      // The GPU memory alignment required by this perf experiment.
     BoundGpuMemory                 m_gpuMemory;
     bool                           m_isFinalized;
-    bool                           m_hasGlobalCounters;
-    bool                           m_hasThreadTrace;
-    bool                           m_hasSpmTrace;
+    PerfExperimentFlags            m_perfExperimentFlags;
 
     // Information describing the size and layout of our bound GPU memory.
     gpusize                        m_globalBeginOffset; // Offset to the "begin" global counters.

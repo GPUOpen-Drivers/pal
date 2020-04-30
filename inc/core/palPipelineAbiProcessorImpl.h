@@ -387,13 +387,19 @@ Result PipelineAbiProcessor<Allocator>::GetMetadata(
 
             if (result == Result::Success)
             {
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 580
                 result = Metadata::DeserializePalCodeObjectMetadata(pReader, pMetadata, &registersOffset);
+#else
+                result = Metadata::DeserializePalCodeObjectMetadata(pReader, pMetadata);
+#endif
             }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 580
             if (result == Result::Success)
             {
                 result = pReader->Seek(registersOffset);
             }
+#endif
         }
         else
         {
@@ -987,25 +993,6 @@ void PipelineAbiProcessor<Allocator>::SaveToBuffer(
     PAL_ASSERT(m_pSymbolStrTabSection != nullptr);
 
     m_elfProcessor.SaveToBuffer(pBuffer);
-}
-
-// =====================================================================================================================
-template <typename Allocator>
-PipelineSymbolType PipelineAbiProcessor<Allocator>::GetSymbolTypeFromName(
-    const char* pName
-    ) const
-{
-    PipelineSymbolType type = PipelineSymbolType::Unknown;
-    for (uint32 i = 0; i < static_cast<uint32>(PipelineSymbolType::Count); i++)
-    {
-        if (strcmp(PipelineAbiSymbolNameStrings[i], pName) == 0)
-        {
-            type = static_cast<PipelineSymbolType>(i);
-            break;
-        }
-    }
-
-    return type;
 }
 
 // =====================================================================================================================

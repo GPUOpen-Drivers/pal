@@ -493,6 +493,16 @@ void UniversalCmdBuffer::CmdOverwriteDisableViewportClampForBlits(
     m_graphicsState.dirtyFlags.validationBits.depthClampOverride = 1;
 }
 
+// =====================================================================================================================
+// Override the CB_TARGET_MASK.TARGET0_ENABLE bit at draw-time validation. It persists until the graphics
+// state is reset.
+void UniversalCmdBuffer::CmdOverrideColorWriteMaskForBlits(
+    uint8 disabledChannelMask)
+{
+    m_graphicsState.colorWriteMaskOverride.enable = 1;
+    m_graphicsState.colorWriteMaskOverride.writeMask = ~disabledChannelMask;
+}
+
 #if PAL_ENABLE_PRINTS_ASSERTS
 // =====================================================================================================================
 // Dumps this command buffer's DE and CE command streams to the given file with an appropriate header.
@@ -546,6 +556,11 @@ void UniversalCmdBuffer::PopGraphicsState()
     PAL_ASSERT(m_graphicsRestoreState.depthClampOverride.enabled == 0);
     m_graphicsState.depthClampOverride.enabled              = 0;
     m_graphicsState.depthClampOverride.disableViewportClamp = 0;
+
+    // This is expected to hold if the override is only used by RPM.
+    PAL_ASSERT(m_graphicsRestoreState.colorWriteMaskOverride.enable == 0);
+    m_graphicsState.colorWriteMaskOverride.enable    = 0;
+    m_graphicsState.colorWriteMaskOverride.writeMask = 0;
 
     // All RMP GFX Blts should push/pop command buffer's graphics state,
     // so this is a safe opprotunity to mark that a GFX Blt is active

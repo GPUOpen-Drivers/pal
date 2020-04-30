@@ -626,10 +626,14 @@ Result PerfExperiment::AddCounter(
                     // UMCCH EventSelect fields are 8 bits. Verify that our event ID can fit.
                     PAL_ASSERT(info.eventId <= ((1 << 8) - 1));
 
-                    m_select.umcch[info.instance].hasCounters                       = true;
-                    m_select.umcch[info.instance].perfmonInUse[idx]                 = true;
-                    m_select.umcch[info.instance].perfmonCntl[idx].vg12.EventSelect = info.eventId;
-                    m_select.umcch[info.instance].perfmonCntl[idx].vg12.Enable      = 1;
+                    m_select.umcch[info.instance].hasCounters       = true;
+                    m_select.umcch[info.instance].perfmonInUse[idx] = true;
+                    m_select.umcch[info.instance].thresholdSet[idx] = false;
+
+                    {
+                        m_select.umcch[info.instance].perfmonCntl[idx].vg12.EventSelect = info.eventId;
+                        m_select.umcch[info.instance].perfmonCntl[idx].vg12.Enable      = 1;
+                    }
 
                     mapping.counterId = idx;
                     searching         = false;
@@ -732,7 +736,7 @@ Result PerfExperiment::AddCounter(
 
     if (result == Result::Success)
     {
-        m_hasGlobalCounters = true;
+        m_perfExperimentFlags.perfCtrsEnabled = true;
     }
 
     return result;
@@ -1097,7 +1101,7 @@ Result PerfExperiment::AddThreadTrace(
 
     if (result == Result::Success)
     {
-        m_hasThreadTrace = true;
+        m_perfExperimentFlags.sqtTraceEnabled = true;
 
         // Set all sqtt properties for this trace except for the buffer offset which is found during Finalize.
         m_sqtt[traceInfo.instance].inUse = true;
@@ -1484,9 +1488,9 @@ Result PerfExperiment::AddSpmTrace(
         }
 
         // If we made it this far the SPM trace is ready to go.
-        m_hasSpmTrace       = true;
-        m_spmRingSize       = static_cast<uint32>(spmCreateInfo.ringSize);
-        m_spmSampleInterval = static_cast<uint16>(spmCreateInfo.spmInterval);
+        m_perfExperimentFlags.spmTraceEnabled       = true;
+        m_spmRingSize                               = static_cast<uint32>(spmCreateInfo.ringSize);
+        m_spmSampleInterval                         = static_cast<uint16>(spmCreateInfo.spmInterval);
     }
     else
     {
@@ -1519,7 +1523,7 @@ Result PerfExperiment::Finalize()
         // Build up the total GPU memory size by figuring out where each section needs to go.
         m_totalMemSize = 0;
 
-        if (m_hasGlobalCounters)
+        if (m_perfExperimentFlags.perfCtrsEnabled)
         {
             // Finalize the global counters by giving each one an offset within the "begin" and "end" sections. We do
             // this simply by placing the counters one after each other. In the end we will also have the total size of
@@ -1541,7 +1545,7 @@ Result PerfExperiment::Finalize()
             m_totalMemSize      = m_globalEndOffset + globalSize;
         }
 
-        if (m_hasThreadTrace)
+        if (m_perfExperimentFlags.sqtTraceEnabled)
         {
             // Add space for each thread trace's info struct and output buffer. The output buffers have high alignment
             // requirements so we group them together after the info structs.
@@ -1569,7 +1573,7 @@ Result PerfExperiment::Finalize()
             }
         }
 
-        if (m_hasSpmTrace)
+        if (m_perfExperimentFlags.spmTraceEnabled)
         {
             // Finally, add space for the SPM ring buffer.
             m_spmRingOffset = Pow2Align(m_totalMemSize, SpmRingBaseAlignment);
@@ -1801,7 +1805,7 @@ void PerfExperiment::IssueBegin(
         // enable them unconditionally. This shouldn't have any effect in the cases that don't really need them on.
         pCmdSpace = WriteUpdateSpiConfigCntl(true, pCmdStream, pCmdSpace);
 
-        if (m_hasGlobalCounters || m_hasSpmTrace)
+        if (m_perfExperimentFlags.perfCtrsEnabled || m_perfExperimentFlags.spmTraceEnabled)
         {
             // SQ_PERFCOUNTER_CTRL controls how the SQGs increments its perf counters. We treat it as global state.
             regSQ_PERFCOUNTER_CTRL sqPerfCounterCtrl = {};
@@ -1836,20 +1840,20 @@ void PerfExperiment::IssueBegin(
             pCmdSpace = pCmdStream->WriteSetOneConfigReg(mmSQ_PERFCOUNTER_CTRL, sqPerfCounterCtrl.u32All, pCmdSpace);
         }
 
-        if (m_hasSpmTrace)
+        if (m_perfExperimentFlags.spmTraceEnabled)
         {
             // Fully configure the RLC SPM state. There's a lot of code for this so it's in a helper function.
             pCmdSpace = WriteSpmSetup(pCmdStream, pCmdSpace);
         }
 
-        if (m_hasGlobalCounters || m_hasSpmTrace)
+        if (m_perfExperimentFlags.perfCtrsEnabled || m_perfExperimentFlags.spmTraceEnabled)
         {
             // Write the necessary PERFCOUNTER#_SELECT registers. This is another huge chunk of code in a helper
             // function. This state is shared between SPM counters and global counters.
             pCmdSpace = WriteSelectRegisters(pCmdStream, pCmdSpace);
         }
 
-        if (m_hasThreadTrace)
+        if (m_perfExperimentFlags.sqtTraceEnabled)
         {
             // Setup all thread traces and start tracing.
             pCmdSpace = WriteStartThreadTraces(pCmdStream, pCmdSpace);
@@ -1865,7 +1869,7 @@ void PerfExperiment::IssueBegin(
             pCmdSpace = WriteWaitIdle(false, pCmdBuffer, pCmdStream, pCmdSpace);
         }
 
-        if (m_hasGlobalCounters)
+        if (m_perfExperimentFlags.perfCtrsEnabled)
         {
             // This will transition the counter state from "reset" to "stop" and take the begin samples. It will
             // also reset all counters that have convenient reset bits in their config registers.
@@ -1873,15 +1877,15 @@ void PerfExperiment::IssueBegin(
         }
 
         // Tell the SPM counters and global counters start counting.
-        if (m_hasGlobalCounters || m_hasSpmTrace)
+        if (m_perfExperimentFlags.perfCtrsEnabled || m_perfExperimentFlags.spmTraceEnabled)
         {
             // CP_PERFMON_CNTL only enables non-windowed counters.
-            if (m_hasGlobalCounters)
+            if (m_perfExperimentFlags.perfCtrsEnabled)
             {
                 cpPerfmonCntl.bits.PERFMON_STATE = CP_PERFMON_STATE_START_COUNTING;
             }
 
-            if (m_hasSpmTrace)
+            if (m_perfExperimentFlags.spmTraceEnabled)
             {
                 cpPerfmonCntl.bits.SPM_PERFMON_STATE = STRM_PERFMON_STATE_START_COUNTING;
             }
@@ -1896,7 +1900,7 @@ void PerfExperiment::IssueBegin(
             // Enable all of the cfg-style global counters. Each block has an extra enable register. Only clear them
             // if we didn't call WriteStopAndSampleGlobalCounters which already clears them and assumes we're not
             // going to reset the counters again after taking the initial sample.
-            pCmdSpace = WriteEnableCfgRegisters(true, (m_hasGlobalCounters == false), pCmdStream, pCmdSpace);
+            pCmdSpace = WriteEnableCfgRegisters(true, (m_perfExperimentFlags.perfCtrsEnabled == false), pCmdStream, pCmdSpace);
         }
 
         pCmdStream->CommitCommands(pCmdSpace);
@@ -1930,12 +1934,12 @@ void PerfExperiment::IssueEnd(
         pCmdSpace = WriteWaitIdle(cacheFlush, pCmdBuffer, pCmdStream, pCmdSpace);
 
         // This is the CP_PERFMON_CNTL state that should be currently active.
-        if (m_hasGlobalCounters)
+        if (m_perfExperimentFlags.perfCtrsEnabled)
         {
             // This will transition the counter state from "start" to "stop" and take the end samples.
             pCmdSpace = WriteStopAndSampleGlobalCounters(false, pCmdBuffer, pCmdStream, pCmdSpace);
         }
-        else if (m_hasSpmTrace)
+        else if (m_perfExperimentFlags.spmTraceEnabled)
         {
             // If SPM is enabled but we didn't call WriteSampleGlobalCounters we still need to disable these manually.
             pCmdSpace = WriteUpdateWindowedCounters(false, pCmdStream, pCmdSpace);
@@ -1950,13 +1954,13 @@ void PerfExperiment::IssueEnd(
             pCmdSpace = pCmdStream->WriteSetOneConfigReg(mmCP_PERFMON_CNTL, cpPerfmonCntl.u32All, pCmdSpace);
         }
 
-        if (m_hasThreadTrace)
+        if (m_perfExperimentFlags.sqtTraceEnabled)
         {
             // Stop all thread traces and copy back some information not contained in the thread trace tokens.
             pCmdSpace = WriteStopThreadTraces(pCmdStream, pCmdSpace);
         }
 
-        if (m_hasSpmTrace)
+        if (m_perfExperimentFlags.spmTraceEnabled)
         {
             // The old perf experiment code did a wait-idle between stopping SPM and resetting things. It said that
             // the RLC can page fault on its remaining writes if we reset things too early. This requirement isn't
@@ -2021,10 +2025,12 @@ void PerfExperiment::BeginInternalOps(
 
         // Write CP_PERFMON_CNTL such that SPM and global counters stop counting.
         regCP_PERFMON_CNTL cpPerfmonCntl = {};
-        cpPerfmonCntl.bits.PERFMON_STATE     = m_hasGlobalCounters ? CP_PERFMON_STATE_STOP_COUNTING
-                                                                   : CP_PERFMON_STATE_DISABLE_AND_RESET;
-        cpPerfmonCntl.bits.SPM_PERFMON_STATE = m_hasSpmTrace ? STRM_PERFMON_STATE_STOP_COUNTING
-                                                             : STRM_PERFMON_STATE_DISABLE_AND_RESET;
+        cpPerfmonCntl.bits.PERFMON_STATE     =
+            m_perfExperimentFlags.perfCtrsEnabled ? CP_PERFMON_STATE_STOP_COUNTING
+                                                  : CP_PERFMON_STATE_DISABLE_AND_RESET;
+        cpPerfmonCntl.bits.SPM_PERFMON_STATE =
+            m_perfExperimentFlags.spmTraceEnabled ? STRM_PERFMON_STATE_STOP_COUNTING
+                                                  : STRM_PERFMON_STATE_DISABLE_AND_RESET;
 
         pCmdSpace = pCmdStream->WriteSetOneConfigReg(mmCP_PERFMON_CNTL, cpPerfmonCntl.u32All, pCmdSpace);
 
@@ -2062,10 +2068,12 @@ void PerfExperiment::EndInternalOps(
 
         // Rewrite the "start" state for all counters.
         regCP_PERFMON_CNTL cpPerfmonCntl = {};
-        cpPerfmonCntl.bits.PERFMON_STATE       = m_hasGlobalCounters ? CP_PERFMON_STATE_START_COUNTING
-                                                                     : CP_PERFMON_STATE_DISABLE_AND_RESET;
-        cpPerfmonCntl.bits.SPM_PERFMON_STATE   = m_hasSpmTrace ? STRM_PERFMON_STATE_START_COUNTING
-                                                               : STRM_PERFMON_STATE_DISABLE_AND_RESET;
+        cpPerfmonCntl.bits.PERFMON_STATE       =
+            m_perfExperimentFlags.perfCtrsEnabled ? CP_PERFMON_STATE_START_COUNTING
+                                                  : CP_PERFMON_STATE_DISABLE_AND_RESET;
+        cpPerfmonCntl.bits.SPM_PERFMON_STATE   =
+            m_perfExperimentFlags.spmTraceEnabled ? STRM_PERFMON_STATE_START_COUNTING
+                                                  : STRM_PERFMON_STATE_DISABLE_AND_RESET;
         cpPerfmonCntl.bits.PERFMON_ENABLE_MODE = CP_PERFMON_ENABLE_MODE_ALWAYS_COUNT;
 
         pCmdSpace = pCmdStream->WriteSetOneConfigReg(mmCP_PERFMON_CNTL, cpPerfmonCntl.u32All, pCmdSpace);
@@ -2091,7 +2099,7 @@ void PerfExperiment::UpdateSqttTokenMask(
         // It's illegal to execute a perf experiment before it's finalized.
         PAL_ASSERT_ALWAYS();
     }
-    else if (m_hasThreadTrace)
+    else if (m_perfExperimentFlags.sqtTraceEnabled)
     {
         uint32* pCmdSpace = pCmdStream->ReserveCommands();
 
@@ -3217,8 +3225,9 @@ uint32* PerfExperiment::WriteStopAndSampleGlobalCounters(
     regCP_PERFMON_CNTL cpPerfmonCntl = {};
     cpPerfmonCntl.bits.PERFMON_SAMPLE_ENABLE = 1;
     cpPerfmonCntl.bits.PERFMON_STATE         = CP_PERFMON_STATE_STOP_COUNTING;
-    cpPerfmonCntl.bits.SPM_PERFMON_STATE     = m_hasSpmTrace ? STRM_PERFMON_STATE_STOP_COUNTING
-                                                             : STRM_PERFMON_STATE_DISABLE_AND_RESET;
+    cpPerfmonCntl.bits.SPM_PERFMON_STATE     =
+        m_perfExperimentFlags.spmTraceEnabled ? STRM_PERFMON_STATE_STOP_COUNTING
+                                              : STRM_PERFMON_STATE_DISABLE_AND_RESET;
 
     pCmdSpace = pCmdStream->WriteSetOneConfigReg(mmCP_PERFMON_CNTL, cpPerfmonCntl.u32All, pCmdSpace);
 

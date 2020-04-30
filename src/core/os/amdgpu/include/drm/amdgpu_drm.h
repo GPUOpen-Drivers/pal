@@ -142,6 +142,12 @@ extern "C" {
  */
 #define AMDGPU_GEM_CREATE_VRAM_WIPE_ON_RELEASE	(1 << 9)
 
+/* Flag that BO will be encrypted and that the TMZ bit should be
+ * set in the PTEs when mapping this buffer via GPUVM or
+ * accessing it with various hw blocks
+ */
+#define AMDGPU_GEM_CREATE_ENCRYPTED		(1 << 10)
+
 /* Hybrid specific */
 /* Flag that the memory allocation should be from top of domain */
 #define AMDGPU_GEM_CREATE_TOP_DOWN		(1ULL << 30)
@@ -638,6 +644,10 @@ union drm_amdgpu_cs {
  * This will reset wave ID counters for the IB.
  */
 #define AMDGPU_IB_FLAG_RESET_GDS_MAX_WAVE_ID (1 << 4)
+
+/* Flag the IB as secure (TMZ)
+ */
+#define AMDGPU_IB_FLAGS_SECURE  (1 << 5)
 
 struct drm_amdgpu_cs_chunk_ib {
 	__u32 _pad;

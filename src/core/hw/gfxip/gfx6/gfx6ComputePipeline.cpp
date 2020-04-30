@@ -28,7 +28,6 @@
 #include "core/hw/gfxip/gfx6/gfx6CmdUtil.h"
 #include "core/hw/gfxip/gfx6/gfx6ComputePipeline.h"
 #include "core/hw/gfxip/gfx6/gfx6Device.h"
-#include "palPipelineAbiProcessorImpl.h"
 #include "palFile.h"
 
 using namespace Util;
@@ -166,7 +165,7 @@ void ComputePipeline::SetupSignatureFromElf(
 // specified Pipeline ABI processor.
 Result ComputePipeline::HwlInit(
     const ComputePipelineCreateInfo& createInfo,
-    const AbiProcessor&              abiProcessor,
+    const AbiReader&                 abiReader,
     const CodeObjectMetadata&        metadata,
     MsgPackReader*                   pMetadataReader)
 {
@@ -174,14 +173,21 @@ Result ComputePipeline::HwlInit(
     const GpuChipProperties& chipProps = m_pDevice->Parent()->ChipProperties();
 
     RegisterVector registers(m_pDevice->GetPlatform());
-    Result result = pMetadataReader->Unpack(&registers);
 
-    ComputePipelineUploader uploader(m_pDevice, settings.enableLoadIndexForObjectBinds ? BaseLoadedShRegCount : 0);
+    Result result = pMetadataReader->Seek(metadata.pipeline.registers);
+
+    if (result == Result::Success)
+    {
+        result = pMetadataReader->Unpack(&registers);
+    }
+
+    ComputePipelineUploader uploader(m_pDevice,
+                                     abiReader,
+                                     settings.enableLoadIndexForObjectBinds ? BaseLoadedShRegCount : 0);
     if (result == Result::Success)
     {
         // Next, handle relocations and upload the pipeline code & data to GPU memory.
         result = PerformRelocationsAndUploadToGpuMemory(
-            abiProcessor,
             metadata,
 #if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 488)
 #if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 488) && (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 502)
@@ -206,23 +212,20 @@ Result ComputePipeline::HwlInit(
         // Next, update our PM4 image with the now-known GPU virtual addresses for the shader entrypoints and
         // internal SRD table addresses:
 
-        Abi::PipelineSymbolEntry csProgram  = { };
-        if (abiProcessor.HasPipelineSymbolEntry(Abi::PipelineSymbolType::CsMainEntry, &csProgram))
+        GpuSymbol symbol = { };
+        if (uploader.GetPipelineGpuSymbol(Abi::PipelineSymbolType::CsMainEntry, &symbol) == Result::Success)
         {
-            m_stageInfo.codeLength    = static_cast<size_t>(csProgram.size);
-            const gpusize csProgramVa = (csProgram.value + uploader.CodeGpuVirtAddr());
-            PAL_ASSERT(csProgramVa == Pow2Align(csProgramVa, 256));
-            PAL_ASSERT(Get256BAddrHi(csProgramVa) == 0);
+            m_stageInfo.codeLength    = static_cast<size_t>(symbol.size);
+            PAL_ASSERT(symbol.gpuVirtAddr == Pow2Align(symbol.gpuVirtAddr, 256));
+            PAL_ASSERT(Get256BAddrHi(symbol.gpuVirtAddr) == 0);
 
-            m_regs.computePgmLo.bits.DATA = Get256BAddrLo(csProgramVa);
+            m_regs.computePgmLo.bits.DATA = Get256BAddrLo(symbol.gpuVirtAddr);
             m_regs.computePgmHi.bits.DATA = 0;
         }
 
-        Abi::PipelineSymbolEntry csSrdTable = { };
-        if (abiProcessor.HasPipelineSymbolEntry(Abi::PipelineSymbolType::CsShdrIntrlTblPtr, &csSrdTable))
+        if (uploader.GetPipelineGpuSymbol(Abi::PipelineSymbolType::CsShdrIntrlTblPtr, &symbol) == Result::Success)
         {
-            const gpusize csSrdTableVa = (csSrdTable.value + uploader.DataGpuVirtAddr());
-            m_regs.computeUserDataLo.bits.DATA = LowPart(csSrdTableVa);
+            m_regs.computeUserDataLo.bits.DATA = LowPart(symbol.gpuVirtAddr);
         }
 
         // Initialize the rest of the PM4 image initialization with register data contained in the ELF:
@@ -310,7 +313,7 @@ Result ComputePipeline::HwlInit(
             SetupSignatureFromElf(metadata, registers);
 
  #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 556
-           GetFunctionGpuVirtAddrs(abiProcessor, uploader, createInfo.pIndirectFuncList, createInfo.indirectFuncCount);
+           GetFunctionGpuVirtAddrs(uploader, createInfo.pIndirectFuncList, createInfo.indirectFuncCount);
 #endif
         }
     }
@@ -483,24 +486,15 @@ Result ComputePipeline::GetShaderStats(
 
             pShaderStats->common.ldsSizePerThreadGroup = chipProps.gfxip.ldsSizePerThreadGroup;
 
-            AbiProcessor abiProcessor(m_pDevice->GetPlatform());
-            result = abiProcessor.LoadFromBuffer(m_pPipelineBinary, m_pipelineBinaryLen);
+            AbiReader abiReader(m_pDevice->GetPlatform(), m_pPipelineBinary);
+            result = abiReader.Init();
 
             MsgPackReader      metadataReader;
             CodeObjectMetadata metadata;
 
             if (result == Result::Success)
             {
-                result = abiProcessor.GetMetadata(&metadataReader, &metadata);
-            }
-
-            if (result == Result::Success)
-            {
-                const auto& csStageMetadata =
-                    metadata.pipeline.hardwareStage[static_cast<uint32>(Abi::HardwareStage::Cs)];
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 580
-                pShaderStats->common.stackFrameSizeInBytes = csStageMetadata.scratchMemorySize;
-#endif
+                result = abiReader.GetMetadata(&metadataReader, &metadata);
             }
         }
     }

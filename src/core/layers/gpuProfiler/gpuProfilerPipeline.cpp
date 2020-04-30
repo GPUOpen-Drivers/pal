@@ -29,7 +29,7 @@
 #include "core/layers/gpuProfiler/shaderPerfDataInfo.h"
 #include "palAutoBuffer.h"
 #include "palFile.h"
-#include "palPipelineAbiProcessorImpl.h"
+#include "palPipelineAbiReader.h"
 
 using namespace Util;
 using namespace Util::Abi;
@@ -268,15 +268,15 @@ Result Pipeline::InitGfx(
 
     if ((createInfo.pPipelineBinary != nullptr) && (createInfo.pipelineBinarySize > 0))
     {
-        PipelineAbiProcessor<PlatformDecorator> abiProcessor(m_pDevice->GetPlatform());
-        result = abiProcessor.LoadFromBuffer(createInfo.pPipelineBinary, createInfo.pipelineBinarySize);
+        PipelineAbiReader abiReader(m_pDevice->GetPlatform(), createInfo.pPipelineBinary);
+        result = abiReader.Init();
 
         MsgPackReader              metadataReader;
         Abi::PalCodeObjectMetadata metadata;
 
         if (result == Result::Success)
         {
-            result = abiProcessor.GetMetadata(&metadataReader, &metadata);
+            result = abiReader.GetMetadata(&metadataReader, &metadata);
         }
 
         if (result == Result::Success)
@@ -321,15 +321,15 @@ Result Pipeline::InitCompute(
 
     if ((createInfo.pPipelineBinary != nullptr) && (createInfo.pipelineBinarySize > 0))
     {
-        PipelineAbiProcessor<PlatformDecorator> abiProcessor(m_pDevice->GetPlatform());
-        result = abiProcessor.LoadFromBuffer(createInfo.pPipelineBinary, createInfo.pipelineBinarySize);
+        PipelineAbiReader abiReader(m_pDevice->GetPlatform(), createInfo.pPipelineBinary);
+        result = abiReader.Init();
 
         MsgPackReader              metadataReader;
         Abi::PalCodeObjectMetadata metadata;
 
         if (result == Result::Success)
         {
-            result = abiProcessor.GetMetadata(&metadataReader, &metadata);
+            result = abiReader.GetMetadata(&metadataReader, &metadata);
         }
 
         if (result == Result::Success)

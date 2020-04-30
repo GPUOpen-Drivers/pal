@@ -25,6 +25,8 @@
 
 #pragma once
 
+#if PAL_BUILD_CMD_BUFFER_LOGGER
+
 #include "core/layers/decorators.h"
 
 namespace Pal
@@ -72,3 +74,5 @@ private:
 
 } // CmdBufferLogger
 } // Pal
+
+#endif

@@ -47,26 +47,45 @@ target_sources(pal PRIVATE
 )
 
 ### Build Definitions ##################################################################################################
+
+# In cmake nomenclature, a compile definition (ifdef) or similar setting is considered 'PUBLIC' if it needs to be seen
+# by clients using PAL's headers and 'PRIVATE' if it does not. Keeping more ifdefs PRIVATE generally helps to do dirty
+# builds faster and makes the compile command lines easier to debug. PUBLIC defines will automatically be propogated to
+# things that depend on PAL (with `target_link_libraries`) and requires no additional action on the clients' part. In
+# fact, the client should *never* explicitly add any PAL ifdefs because they may not match what PAL was built with.
+
+# The gist for all of the following: if it's used anywhere in inc/*, it should be PUBLIC, otherwise make it PRIVATE.
+
+# NOTE:
+#   PAL's coding standard prefers the use of "#if" construct instead of the "#ifdef" construct
+#   This means when making a new compile definition you should assign it a value
+#
+# EX:
+#   target_compile_definitions(pal PRIVATE PAL_FOO=1)
+
 target_compile_definitions(pal PUBLIC
     PAL_CLIENT_INTERFACE_MAJOR_VERSION=${PAL_CLIENT_INTERFACE_MAJOR_VERSION}
     PAL_CLIENT_INTERFACE_MINOR_VERSION=${PAL_CLIENT_INTERFACE_MINOR_VERSION}
 
     # Both of these macros are used to describe debug builds
+    # TODO: Pal should only use one of these.
     $<$<CONFIG:Debug>:
-        PAL_DEBUG_BUILD
-        DEBUG
+        PAL_DEBUG_BUILD=1
+        DEBUG=1
     >
 
 )
 
 target_compile_definitions(pal PRIVATE
+    # Useful for determining determining the architecture (32 vs 64)
     PAL_COMPILE_TYPE=${TARGET_ARCHITECTURE_BITS}
-    ${TARGET_ARCHITECTURE_ENDIANESS}ENDIAN_CPU
+
+    # Ex: BIGENDIAN_CPU or LITTLEENDIAN_CPU
+    ${TARGET_ARCHITECTURE_ENDIANESS}ENDIAN_CPU=1
 )
 
 if(PAL_BUILD_GPUOPEN)
-    # Public because it is used in the interface.
-    target_compile_definitions(pal PUBLIC PAL_BUILD_GPUOPEN)
+    target_compile_definitions(pal PUBLIC PAL_BUILD_GPUOPEN=1)
 endif()
 
 if(PAL_ENABLE_DEVDRIVER_USAGE)
@@ -75,36 +94,40 @@ endif()
 
 target_compile_definitions(pal PUBLIC
     # Turn on PRINT ASSERTS in Debug builds or when the users asks for it
-    PAL_ENABLE_PRINTS_ASSERTS=$<OR:$<CONFIG:Debug>,$<BOOL:${PAL_ENABLE_PRINTS_ASSERTS}>>
+    $<$<OR:$<CONFIG:Debug>,$<BOOL:${PAL_ENABLE_PRINTS_ASSERTS}>>:
+        PAL_ENABLE_PRINTS_ASSERTS=1
+    >
+
+    # Turn on memory tracking in Debug builds or when the user asks for it
+    $<$<OR:$<CONFIG:Debug>,$<BOOL:${PAL_MEMTRACK}>>:
+        PAL_MEMTRACK=1
+    >
 )
 
 #if PAL_DEVELOPER_BUILD
 if(PAL_DEVELOPER_BUILD)
-    target_compile_definitions(pal PUBLIC PAL_DEVELOPER_BUILD)
+    target_compile_definitions(pal PUBLIC PAL_DEVELOPER_BUILD=1)
 endif()
 #endif
 
 if(PAL_DBG_COMMAND_COMMENTS)
-    target_compile_definitions(pal PRIVATE PAL_DBG_COMMAND_COMMENTS)
+    target_compile_definitions(pal PRIVATE PAL_DBG_COMMAND_COMMENTS=1)
 endif()
-
-# Public because it is used in the interface.
-target_compile_definitions(pal PUBLIC PAL_MEMTRACK=$<OR:$<CONFIG:Debug>,$<BOOL:${PAL_MEMTRACK}>>)
 
 set(PAL_CLIENT_${PAL_CLIENT} 1)
 if(PAL_CLIENT_VULKAN)
-    target_compile_definitions(pal PUBLIC PAL_CLIENT_VULKAN)
+    target_compile_definitions(pal PUBLIC PAL_CLIENT_VULKAN=1)
 else()
     message(STATUS "No valid PAL client specified.  Defaulting to Vulkan.")
-    target_compile_definitions(pal PUBLIC PAL_CLIENT_VULKAN)
+    target_compile_definitions(pal PUBLIC PAL_CLIENT_VULKAN=1)
 endif()
 
 if(UNIX)
     set(PAL_AMDGPU_BUILD ON)
-    target_compile_definitions(pal PUBLIC PAL_AMDGPU_BUILD)
+    target_compile_definitions(pal PUBLIC PAL_AMDGPU_BUILD=1)
 endif()
 
-target_compile_definitions(pal PRIVATE PAL_BUILD_CORE)
+target_compile_definitions(pal PRIVATE PAL_BUILD_CORE=1)
 
 ### Include Directories ################################################################################################
 # PAL Include Directories
@@ -225,7 +248,6 @@ target_sources(pal PRIVATE core/libInit.cpp)
 if(PAL_BUILD_CORE)
     # Add rest of core files here, only if the client wants core support.  Util files are always required.
     target_sources(pal PRIVATE
-        core/g_heapPerf.cpp
         core/cmdAllocator.cpp
         core/cmdBuffer.cpp
         core/cmdStream.cpp
@@ -320,7 +342,7 @@ if(PAL_BUILD_CORE)
                core/os/amdgpu/dri3/dri3WindowSystem.cpp
                core/os/amdgpu/dri3/g_dri3Loader.cpp
             )
-            target_compile_definitions(pal PRIVATE PAL_HAVE_DRI3_PLATFORM)
+            target_compile_definitions(pal PRIVATE PAL_HAVE_DRI3_PLATFORM=1)
         endif()
 
         if(PAL_BUILD_WAYLAND)
@@ -332,8 +354,10 @@ if(PAL_BUILD_CORE)
                 core/os/amdgpu/wayland/waylandWindowSystem.cpp
                 core/os/amdgpu/wayland/mesa/wayland-drm-protocol.c
             )
-            set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Dwl_buffer_interface=pWlBufferInterface")
-            target_compile_definitions(pal PRIVATE PAL_HAVE_WAYLAND_PLATFORM)
+            set_property(SOURCE core/os/amdgpu/wayland/mesa/wayland-drm-protocol.c
+                         APPEND PROPERTY COMPILE_DEFINITIONS
+                         wl_buffer_interface=wlBufferInterface)
+            target_compile_definitions(pal PRIVATE PAL_HAVE_WAYLAND_PLATFORM=1)
             target_include_directories(pal PRIVATE ${WAYLAND_CLIENT_INCLUDE_DIR})
         endif()
 
@@ -341,7 +365,7 @@ if(PAL_BUILD_CORE)
 
 ### PAL core/hw ################################################################
     if(PAL_BUILD_GFX)
-        target_compile_definitions(pal PRIVATE PAL_BUILD_GFX)
+        target_compile_definitions(pal PRIVATE PAL_BUILD_GFX=1)
 
         target_sources(pal PRIVATE
             core/hw/gfxip/borderColorPalette.cpp
@@ -371,7 +395,7 @@ if(PAL_BUILD_CORE)
 
         if(PAL_BUILD_GFX6)
             # Add the GFX6 files here, only if the client wants GFXIP 6 support.
-            target_compile_definitions(pal PRIVATE PAL_BUILD_GFX6)
+            target_compile_definitions(pal PRIVATE PAL_BUILD_GFX6=1)
             target_sources(pal PRIVATE
                 core/hw/gfxip/gfx6/g_gfx6PalSettings.cpp
                 core/hw/gfxip/gfx6/gfx6Barrier.cpp
@@ -418,25 +442,25 @@ if(PAL_BUILD_CORE)
 
         if(PAL_BUILD_GFX9)
             # Add the GFX9 files here, only if the client wants GFXIP 9 support.
-            target_compile_definitions(pal PUBLIC PAL_BUILD_GFX9)
+            target_compile_definitions(pal PUBLIC PAL_BUILD_GFX9=1)
             if(PAL_BUILD_VEGA20)
-                target_compile_definitions(pal PUBLIC PAL_BUILD_VEGA20)
-                target_compile_definitions(pal PRIVATE CHIP_HDR_VEGA20)
+                target_compile_definitions(pal PUBLIC PAL_BUILD_VEGA20=1)
+                target_compile_definitions(pal PRIVATE CHIP_HDR_VEGA20=1)
             endif()
             if(PAL_BUILD_RAVEN2)
-                target_compile_definitions(pal PUBLIC PAL_BUILD_RAVEN2)
-                target_compile_definitions(pal PRIVATE CHIP_HDR_RAVEN2)
+                target_compile_definitions(pal PUBLIC PAL_BUILD_RAVEN2=1)
+                target_compile_definitions(pal PRIVATE CHIP_HDR_RAVEN2=1)
             endif()
             if(PAL_BUILD_RENOIR)
-                target_compile_definitions(pal PUBLIC PAL_BUILD_RENOIR)
-                target_compile_definitions(pal PRIVATE CHIP_HDR_RENOIR)
+                target_compile_definitions(pal PUBLIC PAL_BUILD_RENOIR=1)
+                target_compile_definitions(pal PRIVATE CHIP_HDR_RENOIR=1)
             endif()
-            target_compile_definitions(pal PUBLIC PAL_BUILD_GFX10)
-            target_compile_definitions(pal PRIVATE CHIP_HDR_GFX10)
-            target_compile_definitions(pal PRIVATE CHIP_HDR__GFX10)
+            target_compile_definitions(pal PUBLIC PAL_BUILD_GFX10=1)
+            target_compile_definitions(pal PRIVATE CHIP_HDR_GFX10=1)
+            target_compile_definitions(pal PRIVATE CHIP_HDR__GFX10=1)
             if(PAL_BUILD_NAVI14)
-                target_compile_definitions(pal PUBLIC PAL_BUILD_NAVI14)
-                target_compile_definitions(pal PRIVATE CHIP_HDR_NAVI14)
+                target_compile_definitions(pal PUBLIC PAL_BUILD_NAVI14=1)
+                target_compile_definitions(pal PRIVATE CHIP_HDR_NAVI14=1)
             endif()
 
             target_sources(pal PRIVATE
@@ -491,11 +515,11 @@ if(PAL_BUILD_CORE)
     endif()
 
     if(PAL_BUILD_OSS)
-        target_compile_definitions(pal PRIVATE PAL_BUILD_OSS)
+        target_compile_definitions(pal PRIVATE PAL_BUILD_OSS=1)
 
         if(PAL_BUILD_OSS1)
             # Add the OSS1 files here, only if the client wants OSSIP 1 support.
-            target_compile_definitions(pal PRIVATE PAL_BUILD_OSS1)
+            target_compile_definitions(pal PRIVATE PAL_BUILD_OSS1=1)
             target_sources(pal PRIVATE
                 core/hw/ossip/oss1/oss1Device.cpp
                 core/hw/ossip/oss1/oss1DmaCmdBuffer.cpp
@@ -504,7 +528,7 @@ if(PAL_BUILD_CORE)
 
         if(PAL_BUILD_OSS2)
             # Add the OSS2 files here, only if the client wants OSSIP 2 support.
-            target_compile_definitions(pal PRIVATE PAL_BUILD_OSS2)
+            target_compile_definitions(pal PRIVATE PAL_BUILD_OSS2=1)
             target_sources(pal PRIVATE
                 core/hw/ossip/oss2/oss2Device.cpp
                 core/hw/ossip/oss2/oss2DmaCmdBuffer.cpp
@@ -513,7 +537,7 @@ if(PAL_BUILD_CORE)
 
         if(PAL_BUILD_OSS2_4)
             # Add the OSS2.4 files here, only if the client wants OSSIP 2.4 support.
-            target_compile_definitions(pal PRIVATE PAL_BUILD_OSS2_4)
+            target_compile_definitions(pal PRIVATE PAL_BUILD_OSS2_4=1)
             target_sources(pal PRIVATE
                 core/hw/ossip/oss2_4/oss2_4Device.cpp
                 core/hw/ossip/oss2_4/oss2_4DmaCmdBuffer.cpp
@@ -522,7 +546,7 @@ if(PAL_BUILD_CORE)
 
         if(PAL_BUILD_OSS4)
             # Add the OSS4 files here, only if the client wants OSSIP 4 support.
-            target_compile_definitions(pal PRIVATE PAL_BUILD_OSS4)
+            target_compile_definitions(pal PRIVATE PAL_BUILD_OSS4=1)
             target_sources(pal PRIVATE
                 core/hw/ossip/oss4/oss4Device.cpp
                 core/hw/ossip/oss4/oss4DmaCmdBuffer.cpp
@@ -532,11 +556,11 @@ if(PAL_BUILD_CORE)
 
 ### PAL core/layers ############################################################
     if(PAL_BUILD_LAYERS)
-        target_compile_definitions(pal PRIVATE PAL_BUILD_LAYERS)
+        target_compile_definitions(pal PRIVATE PAL_BUILD_LAYERS=1)
         target_sources(pal PRIVATE core/layers/decorators.cpp)
 
         if(PAL_BUILD_DBG_OVERLAY)
-            target_compile_definitions(pal PRIVATE PAL_BUILD_DBG_OVERLAY)
+            target_compile_definitions(pal PRIVATE PAL_BUILD_DBG_OVERLAY=1)
 
             # Add the debug overlay files here, only if the client wants debug overlay support.
             target_sources(pal PRIVATE
@@ -552,7 +576,7 @@ if(PAL_BUILD_CORE)
         endif()
 
         if(PAL_BUILD_GPU_PROFILER)
-            target_compile_definitions(pal PRIVATE PAL_BUILD_GPU_PROFILER)
+            target_compile_definitions(pal PRIVATE PAL_BUILD_GPU_PROFILER=1)
 
             # Add the GPU profiler files here, only if the client wants GPU profiler support.
             target_sources(pal PRIVATE
@@ -565,81 +589,67 @@ if(PAL_BUILD_CORE)
             )
         endif()
 
-        # Save the generator expression so it is properly re-used
-        set(PAL_BUILD_CMD_BUFFER_LOGGER_OR_DEBUG $<OR:$<CONFIG:Debug>,$<BOOL:${PAL_BUILD_CMD_BUFFER_LOGGER}>>)
-
+        # Enable cmd buffer logging on debug configs or when the client asks for it
         target_compile_definitions(pal PRIVATE
-            $<${PAL_BUILD_CMD_BUFFER_LOGGER_OR_DEBUG}:
-                PAL_BUILD_CMD_BUFFER_LOGGER
+            $<$<OR:$<CONFIG:Debug>,$<BOOL:${PAL_BUILD_CMD_BUFFER_LOGGER}>>:
+                PAL_BUILD_CMD_BUFFER_LOGGER=1
             >
         )
 
-        # Add the CmdBuffer Logger files here, only if the client wants CmdBuffer Logger support.
         target_sources(pal PRIVATE
-            $<${PAL_BUILD_CMD_BUFFER_LOGGER_OR_DEBUG}:
-                core/layers/cmdBufferLogger/cmdBufferLoggerCmdBuffer.cpp
-                core/layers/cmdBufferLogger/cmdBufferLoggerDevice.cpp
-                core/layers/cmdBufferLogger/cmdBufferLoggerImage.cpp
-                core/layers/cmdBufferLogger/cmdBufferLoggerPlatform.cpp
-                core/layers/cmdBufferLogger/cmdBufferLoggerQueue.cpp
-            >
+            core/layers/cmdBufferLogger/cmdBufferLoggerCmdBuffer.cpp
+            core/layers/cmdBufferLogger/cmdBufferLoggerDevice.cpp
+            core/layers/cmdBufferLogger/cmdBufferLoggerImage.cpp
+            core/layers/cmdBufferLogger/cmdBufferLoggerPlatform.cpp
+            core/layers/cmdBufferLogger/cmdBufferLoggerQueue.cpp
         )
 
-        # Save the generator expression so it is properly re-used
-        set(PAL_BUILD_INTERFACE_LOGGER_OR_DEBUG $<OR:$<CONFIG:Debug>,$<BOOL:${PAL_BUILD_INTERFACE_LOGGER}>>)
-
+        # Enable interface logging on debug configs or when the client asks for it
         target_compile_definitions(pal PRIVATE
-            $<${PAL_BUILD_INTERFACE_LOGGER_OR_DEBUG}:
-                PAL_BUILD_INTERFACE_LOGGER
+            $<$<OR:$<CONFIG:Debug>,$<BOOL:${PAL_BUILD_INTERFACE_LOGGER}>>:
+                PAL_BUILD_INTERFACE_LOGGER=1
             >
         )
 
-        # Add the log layer files here, only if the client wants interface logging support.
         target_sources(pal PRIVATE
-            $<${PAL_BUILD_INTERFACE_LOGGER_OR_DEBUG}:
-                core/layers/interfaceLogger/interfaceLoggerBorderColorPalette.cpp
-                core/layers/interfaceLogger/interfaceLoggerCmdAllocator.cpp
-                core/layers/interfaceLogger/interfaceLoggerCmdBuffer.cpp
-                core/layers/interfaceLogger/interfaceLoggerColorBlendState.cpp
-                core/layers/interfaceLogger/interfaceLoggerDepthStencilState.cpp
-                core/layers/interfaceLogger/interfaceLoggerDevice.cpp
-                core/layers/interfaceLogger/interfaceLoggerFence.cpp
-                core/layers/interfaceLogger/interfaceLoggerGpuEvent.cpp
-                core/layers/interfaceLogger/interfaceLoggerGpuMemory.cpp
-                core/layers/interfaceLogger/interfaceLoggerImage.cpp
-                core/layers/interfaceLogger/interfaceLoggerIndirectCmdGenerator.cpp
-                core/layers/interfaceLogger/interfaceLoggerLogContext.cpp
-                core/layers/interfaceLogger/interfaceLoggerLogContextEnum.cpp
-                core/layers/interfaceLogger/interfaceLoggerLogContextStruct.cpp
-                core/layers/interfaceLogger/interfaceLoggerMsaaState.cpp
-                core/layers/interfaceLogger/interfaceLoggerPipeline.cpp
-                core/layers/interfaceLogger/interfaceLoggerPlatform.cpp
-                core/layers/interfaceLogger/interfaceLoggerPrivateScreen.cpp
-                core/layers/interfaceLogger/interfaceLoggerQueryPool.cpp
-                core/layers/interfaceLogger/interfaceLoggerQueue.cpp
-                core/layers/interfaceLogger/interfaceLoggerQueueSemaphore.cpp
-                core/layers/interfaceLogger/interfaceLoggerScreen.cpp
-                core/layers/interfaceLogger/interfaceLoggerSwapChain.cpp
-            >
+            core/layers/interfaceLogger/interfaceLoggerBorderColorPalette.cpp
+            core/layers/interfaceLogger/interfaceLoggerCmdAllocator.cpp
+            core/layers/interfaceLogger/interfaceLoggerCmdBuffer.cpp
+            core/layers/interfaceLogger/interfaceLoggerColorBlendState.cpp
+            core/layers/interfaceLogger/interfaceLoggerDepthStencilState.cpp
+            core/layers/interfaceLogger/interfaceLoggerDevice.cpp
+            core/layers/interfaceLogger/interfaceLoggerFence.cpp
+            core/layers/interfaceLogger/interfaceLoggerGpuEvent.cpp
+            core/layers/interfaceLogger/interfaceLoggerGpuMemory.cpp
+            core/layers/interfaceLogger/interfaceLoggerImage.cpp
+            core/layers/interfaceLogger/interfaceLoggerIndirectCmdGenerator.cpp
+            core/layers/interfaceLogger/interfaceLoggerLogContext.cpp
+            core/layers/interfaceLogger/interfaceLoggerLogContextEnum.cpp
+            core/layers/interfaceLogger/interfaceLoggerLogContextStruct.cpp
+            core/layers/interfaceLogger/interfaceLoggerMsaaState.cpp
+            core/layers/interfaceLogger/interfaceLoggerPipeline.cpp
+            core/layers/interfaceLogger/interfaceLoggerPlatform.cpp
+            core/layers/interfaceLogger/interfaceLoggerPrivateScreen.cpp
+            core/layers/interfaceLogger/interfaceLoggerQueryPool.cpp
+            core/layers/interfaceLogger/interfaceLoggerQueue.cpp
+            core/layers/interfaceLogger/interfaceLoggerQueueSemaphore.cpp
+            core/layers/interfaceLogger/interfaceLoggerScreen.cpp
+            core/layers/interfaceLogger/interfaceLoggerSwapChain.cpp
+
         )
 
-        # Save the generator expression so it is properly re-used
-        set(PAL_BUILD_PM4_INSTRUMENTOR_OR_DEBUG $<OR:$<CONFIG:Debug>,$<BOOL:${PAL_BUILD_PM4_INSTRUMENTOR}>>)
-
+        # Enable pm4 instrucment on debug configs or when the client asks for it
         target_compile_definitions(pal PRIVATE
-            $<${PAL_BUILD_PM4_INSTRUMENTOR_OR_DEBUG}:
-                PAL_BUILD_PM4_INSTRUMENTOR
+            $<$<OR:$<CONFIG:Debug>,$<BOOL:${PAL_BUILD_PM4_INSTRUMENTOR}>>:
+                PAL_BUILD_PM4_INSTRUMENTOR=1
             >
         )
 
-        # Add the PM4 Instrumentor files here, only if the client wants Instrumentor support.
         target_sources(pal PRIVATE
-            $<${PAL_BUILD_PM4_INSTRUMENTOR_OR_DEBUG}:
-                core/layers/pm4Instrumentor/pm4InstrumentorCmdBuffer.cpp
-                core/layers/pm4Instrumentor/pm4InstrumentorDevice.cpp
-                core/layers/pm4Instrumentor/pm4InstrumentorPlatform.cpp
-                core/layers/pm4Instrumentor/pm4InstrumentorQueue.cpp
-            >
+            core/layers/pm4Instrumentor/pm4InstrumentorCmdBuffer.cpp
+            core/layers/pm4Instrumentor/pm4InstrumentorDevice.cpp
+            core/layers/pm4Instrumentor/pm4InstrumentorPlatform.cpp
+            core/layers/pm4Instrumentor/pm4InstrumentorQueue.cpp
         )
 
     endif() # PAL_BUILD_LAYERS
@@ -661,6 +671,7 @@ target_sources(pal PRIVATE
     util/assert.cpp
     util/dbgPrint.cpp
     util/cacheLayerBase.cpp
+    util/elfReader.cpp
     util/file.cpp
     util/fileArchiveCacheLayer.cpp
     util/jsonWriter.cpp
@@ -668,12 +679,12 @@ target_sources(pal PRIVATE
     util/md5.cpp
     util/memMapFile.cpp
     util/memoryCacheLayer.cpp
+    util/pipelineAbiReader.cpp
     util/stringUtil.cpp
     util/sysMemory.cpp
     util/sysUtil.cpp
     util/trackingCacheLayer.cpp
     util/platformKey.cpp
-    util/systemEvent.cpp
 )
 
 if(UNIX)

@@ -42,7 +42,6 @@
 #include "protocols/driverControlServer.h"
 #include "protocols/rgpServer.h"
 #include "protocols/loggingServer.h"
-#include "util/systemEvent.h"
 
 using namespace Util;
 
@@ -129,9 +128,6 @@ Platform::Platform(
 Platform::~Platform()
 {
     DestroyDevDriver();
-#if PAL_ENABLE_SYSTEM_EVENTS
-    SystemEventDestroy();
-#endif
 
 #if PAL_ENABLE_PRINTS_ASSERTS
     // Unhook the debug print callback to keep assert/alert function (majorly for client driver) after platform get
@@ -375,9 +371,6 @@ Result Platform::Init()
         result = InitProperties();
     }
 
-#if PAL_ENABLE_SYSTEM_EVENTS
-    SystemEventInit();
-#endif
     return result;
 }
 

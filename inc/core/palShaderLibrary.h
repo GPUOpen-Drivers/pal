@@ -107,6 +107,7 @@ struct ShaderLibStats
     uint32             numAvailableSgprs;
     size_t             isaSizeInBytes;          ///< Size of the shader ISA disassembly for this shader.
     PipelineHash       palInternalLibraryHash;  ///< Internal hash of the shader compilation data used by PAL.
+    uint32             stackFrameSizeInBytes;   ///< Shader function stack frame size
 };
 
 /**

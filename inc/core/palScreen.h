@@ -104,8 +104,10 @@ enum ScreenColorSpace : uint32
     CsDciP3          = 0x020000,  ///< HDR standard: DCI-P3 film industry standard
     CsScrgb          = 0x040000,  ///< HDR standard: scRGB non-linear format (Microsoft)
     CsUserDefined    = 0x080000,  ///< HDR standard: User defined
-    CsNative         = 0x100000,  ///< HDR standard: Panel Native
-    CsFreeSync2      = 0x200000,  ///< HDR standard: AMD FreeSync 2
+    CsNative         = 0x100000,  ///< HDR standard: Panel Native (AMD FreeSync 2)
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 590
+    CsFreeSync2      = 0x100000,  ///< HDR standard: AMD FreeSync 2
+#endif
 };
 
 /// Specifies properties for use with IScreen::GetColorCapabilties()
@@ -396,6 +398,16 @@ public:
     ///          + ErrorUnsupported if changing properties unsupported by the screen.
     virtual Result SetColorConfiguration(
         const ScreenColorConfig* pColorConfig) = 0;
+
+    /// Gets the active HDR display mode for the given swap chain image format.
+    /// In addition to the given format, this may also be based on the screen's currently active colorspace and
+    /// transfer function configuration.
+    ///
+    /// @param [in] format  Swap chain image format to test.
+    ///
+    /// @returns Sdr if the given format + screen colorspace do not support HDR, other HdrDisplayMode values otherwise.
+    virtual HdrDisplayMode GetFormatHdrMode(
+        SwizzledFormat format) const = 0;
 
     /// Blocks until the start of this screen's next vertical blank period.
     ///

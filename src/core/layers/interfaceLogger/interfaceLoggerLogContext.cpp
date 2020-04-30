@@ -23,6 +23,8 @@
  *
  **********************************************************************************************************************/
 
+#if PAL_BUILD_INTERFACE_LOGGER
+
 #include "core/layers/interfaceLogger/interfaceLoggerBorderColorPalette.h"
 #include "core/layers/interfaceLogger/interfaceLoggerCmdAllocator.h"
 #include "core/layers/interfaceLogger/interfaceLoggerCmdBuffer.h"
@@ -1223,3 +1225,5 @@ const char* LogContext::GetEngineName(
 
 } // InterfaceLogger
 } // Pal
+
+#endif

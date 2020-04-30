@@ -116,7 +116,7 @@ public:
         const Image&       dstImage,
         const SubresRange& range) const;
 
-    virtual bool FastClearEliminate(
+    bool FastClearEliminate(
         GfxCmdBuffer*                pCmdBuffer,
         Pal::CmdStream*              pCmdStream,
         const Image&                 image,
@@ -224,8 +224,12 @@ protected:
         uint32             mipLevel) const;
 
     virtual bool HwlUseOptimizedImageCopy(
-        const Pal::Image&  srcImage,
-        const Pal::Image&  dstImage) const override;
+        const Pal::Image&      srcImage,
+        ImageLayout            srcImageLayout,
+        const Pal::Image&      dstImage,
+        ImageLayout            dstImageLayout,
+        uint32                 regionCount,
+        const ImageCopyRegion* pRegions) const override;
 
     // On gfx9/gfx10, we need to use single z range for single subresource view.
     virtual bool HwlNeedSinglezRangeAccess() const override { return true; }
@@ -311,6 +315,7 @@ private:
         ImageLayout        stencilLayout,
         float              depth,
         uint8              stencil,
+        uint8              stencilWriteMask,
         uint32             rangeCount,
         const SubresRange* pRanges,
         bool               fastClear,
@@ -373,6 +378,7 @@ private:
         const SubresRange& range,
         float              depth,
         uint8              stencil,
+        uint8              stencilWriteMask,
         uint32             clearMask,
         bool               fastClear,
         ImageLayout        depthLayout,
@@ -578,14 +584,6 @@ public:
         GfxCmdBuffer*      pCmdBuffer,
         const GfxImage&    image,
         const SubresRange& range) const override;
-
-    virtual bool FastClearEliminate(
-        GfxCmdBuffer*                pCmdBuffer,
-        Pal::CmdStream*              pCmdStream,
-        const Image&                 image,
-        const IMsaaState*            pMsaaState,
-        const MsaaQuadSamplePattern* pQuadSamplePattern,
-        const SubresRange&           range) const override;
 
 protected:
     virtual void ClearDccCompute(

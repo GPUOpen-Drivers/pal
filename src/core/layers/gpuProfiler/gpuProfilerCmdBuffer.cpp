@@ -2147,17 +2147,21 @@ void CmdBuffer::ReplayCmdClearColorImage(
 
 // =====================================================================================================================
 void CmdBuffer::CmdClearBoundDepthStencilTargets(
-    float                           depth,
-    uint8                           stencil,
-    uint32                          samples,
-    uint32                          fragments,
-    DepthStencilSelectFlags         flag,
-    uint32                          regionCount,
-    const ClearBoundTargetRegion*   pClearRegions)
+    float                         depth,
+    uint8                         stencil,
+    uint8                         stencilWriteMask,
+    uint32                        samples,
+    uint32                        fragments,
+    DepthStencilSelectFlags       flag,
+    uint32                        regionCount,
+    const ClearBoundTargetRegion* pClearRegions)
 {
     InsertToken(CmdBufCallId::CmdClearBoundDepthStencilTargets);
     InsertToken(depth);
     InsertToken(stencil);
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 587
+    InsertToken(stencilWriteMask);
+#endif
     InsertToken(samples);
     InsertToken(fragments);
     InsertToken(flag);
@@ -2169,19 +2173,21 @@ void CmdBuffer::ReplayCmdClearBoundDepthStencilTargets(
     Queue*           pQueue,
     TargetCmdBuffer* pTgtCmdBuffer)
 {
-    auto                            depth         = ReadTokenVal<float>();
-    auto                            stencil       = ReadTokenVal<uint8>();
-    auto                            samples       = ReadTokenVal<uint32>();
-    auto                            fragments     = ReadTokenVal<uint32>();
-    auto                            flag          = ReadTokenVal<DepthStencilSelectFlags>();
-    const ClearBoundTargetRegion*   pClearRegions = nullptr;
-    auto                            regionCount   = ReadTokenArray(&pClearRegions);
+    auto                          depth            = ReadTokenVal<float>();
+    auto                          stencil          = ReadTokenVal<uint8>();
+    auto                          stencilWriteMask = ReadTokenVal<uint8>();
+    auto                          samples          = ReadTokenVal<uint32>();
+    auto                          fragments        = ReadTokenVal<uint32>();
+    auto                          flag             = ReadTokenVal<DepthStencilSelectFlags>();
+    const ClearBoundTargetRegion* pClearRegions    = nullptr;
+    auto                          regionCount      = ReadTokenArray(&pClearRegions);
 
     LogItem logItem = { };
 
     LogPreTimedCall(pQueue, pTgtCmdBuffer, &logItem, CmdBufCallId::CmdClearBoundDepthStencilTargets);
     pTgtCmdBuffer->CmdClearBoundDepthStencilTargets(depth,
                                                     stencil,
+                                                    stencilWriteMask,
                                                     samples,
                                                     fragments,
                                                     flag,
@@ -2197,6 +2203,7 @@ void CmdBuffer::CmdClearDepthStencil(
     ImageLayout        stencilLayout,
     float              depth,
     uint8              stencil,
+    uint8              stencilWriteMask,
     uint32             rangeCount,
     const SubresRange* pRanges,
     uint32             rectCount,
@@ -2209,6 +2216,7 @@ void CmdBuffer::CmdClearDepthStencil(
     InsertToken(stencilLayout);
     InsertToken(depth);
     InsertToken(stencil);
+    InsertToken(stencilWriteMask);
     InsertTokenArray(pRanges, rangeCount);
     InsertTokenArray(pRects, rectCount);
     InsertToken(flags);
@@ -2219,16 +2227,17 @@ void CmdBuffer::ReplayCmdClearDepthStencil(
     Queue*           pQueue,
     TargetCmdBuffer* pTgtCmdBuffer)
 {
-    auto               pImage        = ReadTokenVal<IImage*>();
-    auto               depthLayout   = ReadTokenVal<ImageLayout>();
-    auto               stencilLayout = ReadTokenVal<ImageLayout>();
-    auto               depth         = ReadTokenVal<float>();
-    auto               stencil       = ReadTokenVal<uint8>();
-    const SubresRange* pRanges       = nullptr;
-    auto               rangeCount    = ReadTokenArray(&pRanges);
-    const Rect*        pRects        = nullptr;
-    auto               rectCount     = ReadTokenArray(&pRects);
-    auto               flags         = ReadTokenVal<uint32>();
+    auto               pImage           = ReadTokenVal<IImage*>();
+    auto               depthLayout      = ReadTokenVal<ImageLayout>();
+    auto               stencilLayout    = ReadTokenVal<ImageLayout>();
+    auto               depth            = ReadTokenVal<float>();
+    auto               stencil          = ReadTokenVal<uint8>();
+    auto               stencilWriteMask = ReadTokenVal<uint8>();
+    const SubresRange* pRanges          = nullptr;
+    auto               rangeCount       = ReadTokenArray(&pRanges);
+    const Rect*        pRects           = nullptr;
+    auto               rectCount        = ReadTokenArray(&pRects);
+    auto               flags            = ReadTokenVal<uint32>();
 
     LogItem logItem = { };
 
@@ -2238,6 +2247,7 @@ void CmdBuffer::ReplayCmdClearDepthStencil(
                                         stencilLayout,
                                         depth,
                                         stencil,
+                                        stencilWriteMask,
                                         rangeCount,
                                         pRanges,
                                         rectCount,
@@ -4129,6 +4139,15 @@ static const char* FormatToString(
         "NV21",
         "P016",
         "P010",
+        "P210",
+        "X8_MM_Unorm",
+        "X8_MM_Uint",
+        "X8Y8_MM_Unorm",
+        "X8Y8_MM_Uint",
+        "X16_MM_Unorm",
+        "X16_MM_Uint",
+        "X16Y16_MM_Unorm",
+        "X16Y16_MM_Uint",
     };
 
     static_assert(ArrayLen(FormatStrings) == static_cast<size_t>(ChNumFormat::Count),

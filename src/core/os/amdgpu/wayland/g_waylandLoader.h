@@ -28,7 +28,7 @@
 //
 // This code has been generated automatically. Do not hand-modify this code.
 //
-// Modify the procsAnalysis.py and waylandLoader.py in the tools/generate directory OR waylandWindowSystem.proc instead
+// Modify the procAnalysis.py and waylandLoader.py in the tools/generate directory OR waylandWindowSystem.proc instead
 //
 // WARNING!  WARNING!  WARNING!  WARNING!  WARNING!  WARNING!  WARNING! WARNING!  WARNING!  WARNING!  WARNING!
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

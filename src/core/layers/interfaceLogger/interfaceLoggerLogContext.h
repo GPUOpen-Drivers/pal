@@ -25,6 +25,8 @@
 
 #pragma once
 
+#if PAL_BUILD_INTERFACE_LOGGER
+
 #include "core/layers/decorators.h"
 #include "palFile.h"
 #include "palJsonWriter.h"
@@ -921,3 +923,5 @@ private:
 
 } // InterfaceLogger
 } // Pal
+
+#endif

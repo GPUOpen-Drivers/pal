@@ -342,7 +342,9 @@ struct amdgpu_cs_fence_info {
  * \sa amdgpu_cs_submit()
 */
 struct amdgpu_cs_request {
-	/** Specify flags with additional information */
+	/** Specify flags with additional information
+	 * 0-normal, 1-tmz
+	 */
 	uint64_t flags;
 
 	/** Specify HW IP block type to which to send the IB. */
@@ -847,6 +849,19 @@ int amdgpu_bo_cpu_map(amdgpu_bo_handle buf_handle, void **cpu);
  *
 */
 int amdgpu_bo_cpu_unmap(amdgpu_bo_handle buf_handle);
+
+/**
+ * Remap between the non-secure buffer and secure buffer
+ *
+ * \param   buf_handle         - \c [in] Buffer handle
+ * \param   secure_map	       - \c [in] flag for indentifying map to secure buffer or non-secure buffer
+ *
+ * \return   0 on success
+ *          <0 - Negative POSIX Error code
+ *
+*/
+int amdgpu_bo_remap_secure(amdgpu_bo_handle buf_handle, bool secure_map);
+
 
 /**
  * Wait until a buffer is not used by the device.
@@ -2012,6 +2027,7 @@ int amdgpu_cs_submit_raw(amdgpu_device_handle dev,
  * \param   num_chunks - \c [in] number of CS chunks to submit
  * \param   chunks     - \c [in] array of CS chunks
  * \param   seq_no     - \c [out] output sequence number for submission.
+ * \param   secure     - \c [in] flag for indicating secure command submission.
  *
  * \return   0 on success\n
  *          <0 - Negative POSIX Error code
@@ -2023,7 +2039,8 @@ int amdgpu_cs_submit_raw2(amdgpu_device_handle dev,
 			  uint32_t bo_list_handle,
 			  int num_chunks,
 			  struct drm_amdgpu_cs_chunk *chunks,
-			  uint64_t *seq_no);
+			  uint64_t *seq_no,
+			  bool secure);
 
 void amdgpu_cs_chunk_fence_to_dep(struct amdgpu_cs_fence *fence,
 				  struct drm_amdgpu_cs_chunk_dep *dep);

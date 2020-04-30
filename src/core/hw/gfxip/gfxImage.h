@@ -126,6 +126,7 @@ public:
                                                   ImageLayout        stencilLayout,
                                                   float              depth,
                                                   uint8              stencil,
+                                                  uint8              stencilWriteMask,
                                                   const SubresRange& range) const = 0;
 
     virtual bool IsFormatReplaceable(const SubresId& subresId, ImageLayout layout, bool isDst) const = 0;

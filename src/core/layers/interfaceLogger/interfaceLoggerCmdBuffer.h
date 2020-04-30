@@ -25,6 +25,8 @@
 
 #pragma once
 
+#if PAL_BUILD_INTERFACE_LOGGER
+
 #include "core/layers/decorators.h"
 
 namespace Pal
@@ -227,6 +229,7 @@ public:
     virtual void CmdClearBoundDepthStencilTargets(
         float                         depth,
         uint8                         stencil,
+        uint8                         stencilWriteMask,
         uint32                        samples,
         uint32                        fragments,
         DepthStencilSelectFlags       flag,
@@ -238,6 +241,7 @@ public:
         ImageLayout        stencilLayout,
         float              depth,
         uint8              stencil,
+        uint8              stencilWriteMask,
         uint32             rangeCount,
         const SubresRange* pRanges,
         uint32             rectCount,
@@ -539,3 +543,5 @@ private:
 
 } // InterfaceLogger
 } // Pal
+
+#endif

@@ -63,7 +63,6 @@ GfxCmdBuffer::GfxCmdBuffer(
     m_pInternalEvent(nullptr),
     m_timestampGpuVa(0),
     m_computeStateFlags(0),
-    m_spmTraceEnabled(false),
     m_fceRefCountVec(device.GetPlatform()),
     m_gfxBltActiveCtr(0),
     m_csBltActiveCtr(0),
@@ -80,6 +79,7 @@ GfxCmdBuffer::GfxCmdBuffer(
         m_numActiveQueries[i] = 0;
     }
 
+    m_cmdBufPerfExptFlags.u32All  = 0;
     m_gfxCmdBufState.flags.u32All = 0;
 
 }
@@ -249,6 +249,7 @@ void GfxCmdBuffer::ResetState()
 {
     CmdBuffer::ResetState();
 
+    m_cmdBufPerfExptFlags.u32All            = 0;
     m_gfxCmdBufState.flags.u32All           = 0;
     m_gfxCmdBufState.flags.prevCmdBufActive = 1;
 
@@ -915,17 +916,19 @@ void GfxCmdBuffer::CmdClearColorImage(
 
 // =====================================================================================================================
 void GfxCmdBuffer::CmdClearBoundDepthStencilTargets(
-    float                           depth,
-    uint8                           stencil,
-    uint32                          samples,
-    uint32                          fragments,
-    DepthStencilSelectFlags         flag,
-    uint32                          regionCount,
-    const ClearBoundTargetRegion*   pClearRegions)
+    float                         depth,
+    uint8                         stencil,
+    uint8                         stencilWriteMask,
+    uint32                        samples,
+    uint32                        fragments,
+    DepthStencilSelectFlags       flag,
+    uint32                        regionCount,
+    const ClearBoundTargetRegion* pClearRegions)
 {
     m_device.RsrcProcMgr().CmdClearBoundDepthStencilTargets(this,
                                                             depth,
                                                             stencil,
+                                                            stencilWriteMask,
                                                             samples,
                                                             fragments,
                                                             flag,
@@ -940,6 +943,7 @@ void GfxCmdBuffer::CmdClearDepthStencil(
     ImageLayout        stencilLayout,
     float              depth,
     uint8              stencil,
+    uint8              stencilWriteMask,
     uint32             rangeCount,
     const SubresRange* pRanges,
     uint32             rectCount,
@@ -953,6 +957,7 @@ void GfxCmdBuffer::CmdClearDepthStencil(
                                                 stencilLayout,
                                                 depth,
                                                 stencil,
+                                                stencilWriteMask,
                                                 rangeCount,
                                                 pRanges,
                                                 rectCount,
@@ -1291,10 +1296,7 @@ void GfxCmdBuffer::CmdBeginPerfExperiment(
 
     // Indicates that this command buffer is used for enabling a perf experiment. This is used to write any VCOPs that
     // may be needed during submit time.
-    if (pExperiment->HasSpmTrace())
-    {
-        EnableSpmTrace();
-    }
+    m_cmdBufPerfExptFlags.u32All |= pExperiment->TracesEnabled().u32All;
 
     pExperiment->IssueBegin(this, pCmdStream);
     m_pCurrentExperiment = pExperiment;

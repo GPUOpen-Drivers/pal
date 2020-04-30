@@ -178,6 +178,13 @@ struct GraphicsState
         uint32 disableViewportClamp : 1; // The value to write, if used.
     } depthClampOverride;
 
+    // Overrides the value of CB_TARGET_MASK.TARGET0_ENABLE at draw-time validation.
+    struct
+    {
+        uint32 enable               : 1; // Are we going to use the override?
+        uint32 writeMask            : 4; // The value to write, if used.
+    } colorWriteMaskOverride;
+
     GraphicsStateFlags   dirtyFlags;
     GraphicsStateFlags   leakFlags;      // Graphics state which a nested command buffer "leaks" back to its caller.
 };
@@ -216,6 +223,9 @@ public:
 
     virtual void CmdOverwriteDisableViewportClampForBlits(
         bool disableViewportClamp) override;
+
+    virtual void CmdOverrideColorWriteMaskForBlits(
+        uint8 disabledChannelMask) override;
 
 #if PAL_ENABLE_PRINTS_ASSERTS
     // This function allows us to dump the contents of this command buffer to a file at submission time.

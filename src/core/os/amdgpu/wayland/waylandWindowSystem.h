@@ -116,8 +116,6 @@ public:
 
     virtual Result WaitForLastImagePresented() override;
 
-    virtual Result RequestImageWithIndex(uint32 index) override { return Result::Success; }
-
     const WaylandLoader&      GetWaylandLoader() const                      { return m_waylandLoader; }
     const WaylandLoaderFuncs& GetWaylandProcs()  const                      { return m_waylandProcs; }
     wl_display*               GetDisplay() const                            { return m_pDisplay; }

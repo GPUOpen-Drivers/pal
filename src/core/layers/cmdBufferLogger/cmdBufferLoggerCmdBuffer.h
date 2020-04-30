@@ -25,6 +25,8 @@
 
 #pragma once
 
+#if PAL_BUILD_CMD_BUFFER_LOGGER
+
 #include "palCmdBuffer.h"
 #include "palPipeline.h"
 #include "palLinearAllocator.h"
@@ -293,19 +295,21 @@ public:
         const Box*         pBoxes,
         uint32             flags) override;
     virtual void CmdClearBoundDepthStencilTargets(
-        float                           depth,
-        uint8                           stencil,
-        uint32                          samples,
-        uint32                          fragments,
-        DepthStencilSelectFlags         flag,
-        uint32                          regionCount,
-        const ClearBoundTargetRegion*   pClearRegions) override;
+        float                         depth,
+        uint8                         stencil,
+        uint8                         stencilWriteMask,
+        uint32                        samples,
+        uint32                        fragments,
+        DepthStencilSelectFlags       flag,
+        uint32                        regionCount,
+        const ClearBoundTargetRegion* pClearRegions) override;
     virtual void CmdClearDepthStencil(
         const IImage&      image,
         ImageLayout        depthLayout,
         ImageLayout        stencilLayout,
         float              depth,
         uint8              stencil,
+        uint8              stencilWriteMask,
         uint32             rangeCount,
         const SubresRange* pRanges,
         uint32             rectCount,
@@ -634,3 +638,5 @@ private:
 
 } // CmdBufferLogger
 } // Pal
+
+#endif

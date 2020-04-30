@@ -308,7 +308,8 @@ typedef union _ADDR_CREATE_FLAGS
         UINT_32 allowLargeThickTile    : 1;    ///< Allow 64*thickness*bytesPerPixel > rowSize
         UINT_32 forceDccAndTcCompat    : 1;    ///< Force enable DCC and TC compatibility
         UINT_32 nonPower2MemConfig     : 1;    ///< Video memory bit width is not power of 2
-        UINT_32 reserved               : 23;   ///< Reserved bits for future use
+        UINT_32 enableAltTiling        : 1;    ///< Enable alt tile mode
+        UINT_32 reserved               : 22;   ///< Reserved bits for future use
     };
 
     UINT_32 value;
@@ -3306,7 +3307,7 @@ typedef struct _ADDR2_COMPUTE_DCCINFO_OUTPUT
     UINT_32    metaBlkWidth;       ///< DCC meta block width
     UINT_32    metaBlkHeight;      ///< DCC meta block height
     UINT_32    metaBlkDepth;       ///< DCC meta block depth
-
+    UINT_32    metaBlkSize;        ///< DCC meta block size in bytes
     UINT_32    metaBlkNumPerSlice; ///< Number of metablock within one slice
 
     union

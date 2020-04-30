@@ -35,6 +35,7 @@
 
 typedef union _ADDR_CREATE_FLAGS ADDR_CREATE_FLAGS;
 typedef struct _ADDR_REGISTER_VALUE ADDR_REGISTER_VALUE;
+typedef struct _ADDR_CREATE_INPUT ADDR_CREATE_INPUT;
 
 namespace Util { enum SystemAllocType : uint32; }
 namespace Util { class File; }
@@ -661,6 +662,8 @@ public:
         PAL_NEVER_CALLED();
         return 0;
     }
+
+    virtual void InitAddrLibChipId(ADDR_CREATE_INPUT*  pInput) const;
 
 protected:
     uint32 GetCuEnableMaskInternal(uint32 disabledCuMmask, uint32 enabledCuMaskSetting) const;

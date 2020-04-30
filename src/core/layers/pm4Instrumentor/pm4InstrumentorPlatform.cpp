@@ -23,6 +23,8 @@
  *
  **********************************************************************************************************************/
 
+#if PAL_BUILD_PM4_INSTRUMENTOR
+
 #include "core/g_palPlatformSettings.h"
 #include "core/layers/pm4Instrumentor/pm4InstrumentorCmdBuffer.h"
 #include "core/layers/pm4Instrumentor/pm4InstrumentorDevice.h"
@@ -199,3 +201,5 @@ Result Platform::GetScreens(
 
 } // Pm4Instrumentor
 } // Pal
+
+#endif

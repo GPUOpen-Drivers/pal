@@ -30,7 +30,6 @@
 #include "core/hw/gfxip/gfx6/gfx6PipelineChunkEsGs.h"
 #include "core/hw/gfxip/gfx6/gfx6PipelineChunkLsHs.h"
 #include "core/hw/gfxip/gfx6/gfx6PipelineChunkVsPs.h"
-#include "palPipelineAbiProcessor.h"
 
 namespace Pal
 {
@@ -96,6 +95,7 @@ public:
         uint32*    pCmdSpace) const;
 
     regPA_SC_MODE_CNTL_1 PaScModeCntl1() const { return m_regs.other.paScModeCntl1; }
+    regCB_TARGET_MASK CbTargetMask() const { return m_regs.context.cbTargetMask; }
     regDB_RENDER_OVERRIDE DbRenderOverride() const { return m_regs.other.dbRenderOverride; }
 
     regIA_MULTI_VGT_PARAM IaMultiVgtParam(bool forceWdSwitchOnEop) const
@@ -148,7 +148,7 @@ protected:
 
     virtual Result HwlInit(
         const GraphicsPipelineCreateInfo& createInfo,
-        const AbiProcessor&               abiProcessor,
+        const AbiReader&                  abiReader,
         const CodeObjectMetadata&         metadata,
         Util::MsgPackReader*              pMetadataReader) override;
 
@@ -295,11 +295,12 @@ class GraphicsPipelineUploader : public Pal::PipelineUploader
 {
 public:
     explicit GraphicsPipelineUploader(
-        Device* pDevice,
-        uint32  ctxRegisterCount,
-        uint32  shRegisterCount)
+        Device*          pDevice,
+        const AbiReader& abiReader,
+        uint32           ctxRegisterCount,
+        uint32           shRegisterCount)
         :
-        PipelineUploader(pDevice->Parent(), ctxRegisterCount, shRegisterCount)
+        PipelineUploader(pDevice->Parent(), abiReader, ctxRegisterCount, shRegisterCount)
     { }
     virtual ~GraphicsPipelineUploader() { }
 

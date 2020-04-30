@@ -51,11 +51,12 @@ namespace Gfx9
 WorkaroundState::WorkaroundState(
     const Device*                  pDevice,
     bool                           isNested,
-    const UniversalCmdBufferState& universalState)
+    const UniversalCmdBufferState& universalState,
+    const CachedSettings&          cachedSettings)
     :
     m_device(*pDevice),
     m_cmdUtil(pDevice->CmdUtil()),
-    m_settings(pDevice->Settings()),
+    m_cachedSettings(cachedSettings),
     m_isNested(isNested),
     m_universalState(universalState)
 {
@@ -67,7 +68,7 @@ uint32* WorkaroundState::SwitchFromNggPipelineToLegacy(
     uint32* pCmdSpace
     ) const
 {
-    if (m_settings.waVgtFlushNggToLegacy || (m_settings.waVgtFlushNggToLegacyGs && nextPipelineUsesGs))
+    if (m_cachedSettings.waVgtFlushNggToLegacy || (m_cachedSettings.waVgtFlushNggToLegacyGs && nextPipelineUsesGs))
     {
         //  GE has a bug where a legacy GS draw following an NGG draw can cause the legacy GS draw to interfere with
         //  pending NGG primitives, causing the GE to drop the pending NGG primitives and eventually lead to a hang.
@@ -84,12 +85,30 @@ uint32* WorkaroundState::SwitchFromNggPipelineToLegacy(
 }
 
 // =====================================================================================================================
+uint32* WorkaroundState::SwitchBetweenLegacyPipelines(
+    bool                    oldPipelineUsesGs,
+    uint32                  oldCutMode,
+    const GraphicsPipeline* pNewPipeline,
+    uint32*                 pCmdSpace
+    ) const
+{
+    if (m_cachedSettings.waLegacyGsCutModeFlush            &&
+        (oldPipelineUsesGs && pNewPipeline->IsGsEnabled()) &&
+        (oldCutMode != pNewPipeline->VgtGsMode().bits.CUT_MODE))
+    {
+        pCmdSpace += m_cmdUtil.BuildNonSampleEventWrite(VGT_FLUSH, EngineTypeUniversal, pCmdSpace);
+    }
+
+    return pCmdSpace;
+}
+
+// =====================================================================================================================
 void WorkaroundState::HandleZeroIndexBuffer(
     UniversalCmdBuffer* pCmdBuffer,
     gpusize*            pIndexBufferAddr,
     uint32*             pIndexCount)
 {
-    if (m_settings.waIndexBufferZeroSize && (*pIndexCount == 0))
+    if (m_cachedSettings.waIndexBufferZeroSize && (*pIndexCount == 0))
     {
         // The GE has a bug where attempting to use an index buffer of size zero can cause a hang.
         // The workaround is to bind an internal index buffer of a single entry and force the index buffer size to one.
@@ -108,7 +127,7 @@ void WorkaroundState::HandleFirstIndexSmallerThanIndexCount(
     if (*pFirstIndex >= indexCount)
     {
         // The caller (UniversalCmdBuffer::CmdDrawIndexed) request pFirstIndex to be no greater than indexCount.
-        if (m_settings.waIndexBufferZeroSize)
+        if (m_cachedSettings.waIndexBufferZeroSize)
         {
             // In Gfx10 there is a hardware bug (see settings.waIndexBufferZeroSize),
             // In the event that this workaround is active, we need to modify "pFirstIndex" as "indexCount - 1",
@@ -126,7 +145,7 @@ void WorkaroundState::HandleFirstIndexSmallerThanIndexCount(
 // =====================================================================================================================
 // Performs pre-draw validation specifically for hardware workarounds which must be evaluated at draw-time.
 // Returns the next unused DWORD in pCmdSpace.
-template <bool StateDirty, bool Pm4OptImmediate>
+template <bool PipelineDirty, bool StateDirty, bool Pm4OptImmediate>
 uint32* WorkaroundState::PreDraw(
     const GraphicsState&    gfxState,        // Currently-active Command Buffer Graphics state
     CmdStream*              pDeCmdStream,    // DE command stream
@@ -142,14 +161,14 @@ uint32* WorkaroundState::PreDraw(
 
     // the pipeline is only dirty if it is in fact dirty and the setting that is affected by a dirty
     // pipeline is active.
-    const bool pipelineDirty = m_settings.waLogicOpDisablesOverwriteCombiner &&
-                               StateDirty                                    &&
+    const bool pipelineDirty = m_cachedSettings.waLogicOpDisablesOverwriteCombiner &&
+                               PipelineDirty                                       &&
                                gfxState.pipelineState.dirtyFlags.pipelineDirty;
 
     // colorBlendWorkaoundsActive will be true if the state of the view and / or blend state
     // is important.
-    const bool colorBlendWorkaroundsActive = m_settings.waColorCacheControllerInvalidEviction ||
-                                             m_settings.waRotatedSwizzleDisablesOverwriteCombiner;
+    const bool colorBlendWorkaroundsActive = m_cachedSettings.waColorCacheControllerInvalidEviction ||
+                                             m_cachedSettings.waRotatedSwizzleDisablesOverwriteCombiner;
 
     const bool targetsDirty = dirtyFlags.validationBits.colorTargetView ||
                               dirtyFlags.validationBits.colorBlendState;
@@ -173,7 +192,7 @@ uint32* WorkaroundState::PreDraw(
                 // Macro check if the view can possibly need the WA so we avoid it in many cases
                 if (viewCanNeedWa)
                 {
-                    const bool rop3Enabled     = (m_settings.waLogicOpDisablesOverwriteCombiner &&
+                    const bool rop3Enabled     = (m_cachedSettings.waLogicOpDisablesOverwriteCombiner &&
                                                   (pPipeline->GetLogicOp() != LogicOp::Copy));
                     const bool blendingEnabled = ((pBlendState != nullptr) && pBlendState->IsBlendEnabled(cbIdx));
 
@@ -204,7 +223,7 @@ uint32* WorkaroundState::PreDraw(
 
     bool setPopsDrainPsOnOverlap = false;
 
-    if (m_settings.waMiscPopsMissedOverlap && StateDirty && pPipeline->PsUsesRovs())
+    if (m_cachedSettings.waMiscPopsMissedOverlap && StateDirty && pPipeline->PsUsesRovs())
     {
         setPopsDrainPsOnOverlap = ((pMsaaState != nullptr) &&
                                    (pMsaaState->Log2NumSamples() >= 3));
@@ -222,21 +241,22 @@ uint32* WorkaroundState::PreDraw(
 
     if (setPopsDrainPsOnOverlap)
     {
+
         regDB_DFSM_CONTROL dbDfsmControl = {};
         dbDfsmControl.bits.POPS_DRAIN_PS_ON_OVERLAP = 1;
 
         pCmdSpace = pDeCmdStream->WriteContextRegRmw<Pm4OptImmediate>(
-            m_device.CmdUtil().GetRegInfo().mmDbDfsmControl,
+            m_cmdUtil.GetRegInfo().mmDbDfsmControl,
             Core::DB_DFSM_CONTROL__POPS_DRAIN_PS_ON_OVERLAP_MASK,
             dbDfsmControl.u32All,
             pCmdSpace);
     }
 
     // setPopsDrainPsOnOverlap should effectively be false for all Gfx10 products, but adding it here just in case.
-    if (m_settings.waStalledPopsMode &&
+    if (m_cachedSettings.waStalledPopsMode &&
         StateDirty                   &&
         pPipeline->PsUsesRovs()      &&
-        (setPopsDrainPsOnOverlap || m_settings.drainPsOnOverlap))
+        (setPopsDrainPsOnOverlap || m_cachedSettings.drainPsOnOverlap))
     {
         regDB_RENDER_OVERRIDE2 dbRenderOverride2 = {};
         dbRenderOverride2.bits.PARTIAL_SQUAD_LAUNCH_CONTROL = PSLC_ON_HANG_ONLY;
@@ -252,8 +272,8 @@ uint32* WorkaroundState::PreDraw(
     // is disabled to avoid corruption. It is expected that we should rarely hit this case.
     // Since we should rarely hit this and to keep this "simple," we won't handle the case where a legacy tessellation
     // pipeline is bound and fillMode goes from Wireframe to NOT wireframe.
-    if (StateDirty                                               &&
-        m_settings.waTessIncorrectRelativeIndex                  &&
+    if ((StateDirty || PipelineDirty)                            &&
+        m_cachedSettings.waTessIncorrectRelativeIndex            &&
         (gfxState.pipelineState.dirtyFlags.pipelineDirty ||
          gfxState.dirtyFlags.validationBits.triangleRasterState) &&
         pPipeline->IsTessEnabled()                               &&
@@ -285,28 +305,56 @@ uint32* WorkaroundState::PreDraw(
 
 // Instantiate the template for the linker.
 template
-uint32* WorkaroundState::PreDraw<false, false>(
+uint32* WorkaroundState::PreDraw<false, false, false>(
     const GraphicsState&    gfxState,        // Currently-active Command Buffer Graphics state
     CmdStream*              pDeCmdStream,    // DE command stream
     UniversalCmdBuffer*     pCmdBuffer,
     uint32*                 pCmdSpace);
 
 template
-uint32* WorkaroundState::PreDraw<false, true>(
+uint32* WorkaroundState::PreDraw<false, false, true>(
     const GraphicsState&    gfxState,        // Currently-active Command Buffer Graphics state
     CmdStream*              pDeCmdStream,    // DE command stream
     UniversalCmdBuffer*     pCmdBuffer,
     uint32*                 pCmdSpace);
 
 template
-uint32* WorkaroundState::PreDraw<true, false>(
+uint32* WorkaroundState::PreDraw<false, true, false>(
     const GraphicsState&    gfxState,        // Currently-active Command Buffer Graphics state
     CmdStream*              pDeCmdStream,    // DE command stream
     UniversalCmdBuffer*     pCmdBuffer,
     uint32*                 pCmdSpace);
 
 template
-uint32* WorkaroundState::PreDraw<true, true>(
+uint32* WorkaroundState::PreDraw<false, true, true>(
+    const GraphicsState&    gfxState,        // Currently-active Command Buffer Graphics state
+    CmdStream*              pDeCmdStream,    // DE command stream
+    UniversalCmdBuffer*     pCmdBuffer,
+    uint32*                 pCmdSpace);
+
+template
+uint32* WorkaroundState::PreDraw<true, false, false>(
+    const GraphicsState&    gfxState,        // Currently-active Command Buffer Graphics state
+    CmdStream*              pDeCmdStream,    // DE command stream
+    UniversalCmdBuffer*     pCmdBuffer,
+    uint32*                 pCmdSpace);
+
+template
+uint32* WorkaroundState::PreDraw<true, false, true>(
+    const GraphicsState&    gfxState,        // Currently-active Command Buffer Graphics state
+    CmdStream*              pDeCmdStream,    // DE command stream
+    UniversalCmdBuffer*     pCmdBuffer,
+    uint32*                 pCmdSpace);
+
+template
+uint32* WorkaroundState::PreDraw<true, true, false>(
+    const GraphicsState&    gfxState,        // Currently-active Command Buffer Graphics state
+    CmdStream*              pDeCmdStream,    // DE command stream
+    UniversalCmdBuffer*     pCmdBuffer,
+    uint32*                 pCmdSpace);
+
+template
+uint32* WorkaroundState::PreDraw<true, true, true>(
     const GraphicsState&    gfxState,        // Currently-active Command Buffer Graphics state
     CmdStream*              pDeCmdStream,    // DE command stream
     UniversalCmdBuffer*     pCmdBuffer,

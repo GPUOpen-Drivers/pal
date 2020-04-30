@@ -173,8 +173,12 @@ enum class ClearColorType : uint32
 /// Contains everything necessary to store and interpret a clear color.
 struct ClearColor
 {
-    ClearColorType type;    ///< How to interpret this clear color.
-
+    ClearColorType type;                   ///< How to interpret this clear color.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 592
+    uint8 disabledChannelMask;             ///< This 4 bits are used to selectively disable the A,B,G,R channels
+                                           ///  from being written. 0 means write ABRG. 0xF means write nothing.
+                                           ///  0x8 means write Blue, Green, Red. 0x7 means write Alpha. etc...
+#endif
     union
     {
         uint32 u32Color[4]; ///< The clear color, interpreted as four unsigned integers.
@@ -191,6 +195,7 @@ union ImageCreateFlags
                                              ///  guaranteed to have a consistent data layout.
         uint32 cloneable               :  1; ///< Image is valid as a source or destination of a clone operation.
         uint32 shareable               :  1; ///< Image can be shared between compatible devices.
+        uint32 presentable             :  1; ///< Indicates this image can be used in presents.
         uint32 flippable               :  1; ///< Image can be used for flip presents.
         uint32 stereo                  :  1; ///< Whether it is a stereo image
         uint32 cubemap                 :  1; ///< Image will be used as a cubemap.
@@ -242,7 +247,14 @@ union ImageCreateFlags
 #else
         uint32 reserved567             :  1;
 #endif
-        uint32 reserved                : 11; ///< Reserved for future use.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 586
+        uint32 view3dAs2dArray         :  1; ///< If set client can view 3D image as 2D with its depth as array slices.
+                                             ///  Note that not all 3D images supports it. The image creation will
+                                             ///  return error if we fail to create a compatible image.
+#else
+        uint32 reserved586             :  1;
+#endif
+        uint32 reserved                :  9; ///< Reserved for future use.
     };
     uint32 u32All;                           ///< Flags packed as 32-bit uint.
 };

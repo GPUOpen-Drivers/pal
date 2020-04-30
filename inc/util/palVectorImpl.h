@@ -94,6 +94,54 @@ Result Vector<T, defaultCapacity, Allocator>::Reserve(
 }
 
 // =====================================================================================================================
+// Resize vector.  If the new size is smaller, the elements at the end of Vector will be destroyed, though their memory
+// will remain.  If the new size is bigger, more space may be reserved.  The amount of memory reserved will be a power
+// of 2.
+template<typename T, uint32 defaultCapacity, typename Allocator>
+Result Vector<T, defaultCapacity, Allocator>::Resize(
+    uint32 newSize,
+    const T& newVal)
+{
+    Result result = Result::_Success;
+
+    if (m_numElements > newSize)
+    {
+        if (std::is_pod<T>::value)
+        {
+            // Trivial value, so we don't need to destroy any objects.  Just shrink m_numElements.
+            m_numElements = newSize;
+        }
+        else
+        {
+            // Explicitly destroy the removed value if it's non-trivial.
+            while (m_numElements > newSize)
+            {
+                m_pData[--m_numElements].~T();
+            }
+        }
+    }
+    else if (m_numElements < newSize)
+    {
+        // Reserve space for new elements.  It's likely the caller knows exactly how many they need, so reserve exact
+        // amount.
+        result = Reserve(newSize);
+
+        if (result == Result::_Success)
+        {
+            // Push new elements with default value (newVal).
+            while (m_numElements < newSize)
+            {
+                // Insert new data into the array.
+                PAL_PLACEMENT_NEW(m_pData + m_numElements) T(newVal);
+                ++(m_numElements);
+            }
+        }
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
 // Pushes the new element to the end of the vector. If the vector has reached maximum capacity, new space is allocated
 // on the heap and the data in the old space is copied over to the new space. The old space is freed if it was also
 // allocated on the heap.

@@ -25,6 +25,8 @@
 
 #pragma once
 
+#if PAL_BUILD_INTERFACE_LOGGER
+
 #include "core/layers/decorators.h"
 
 namespace Pal
@@ -57,3 +59,5 @@ private:
 
 } // InterfaceLogger
 } // Pal
+
+#endif

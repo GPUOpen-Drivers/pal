@@ -48,7 +48,6 @@ namespace Pal
 {
 namespace Amdgpu
 {
-
 // =====================================================================================================================
 #if defined(PAL_DEBUG_PRINTS)
 void DrmLoaderFuncsProxy::Init(const char* pLogPath)
@@ -59,8 +58,6 @@ void DrmLoaderFuncsProxy::Init(const char* pLogPath)
     Util::Snprintf(file, sizeof(file), "%s/DrmLoaderParamLogger.trace", pLogPath);
     m_paramLogger.Open(file, FileAccessMode::FileAccessWrite);
 }
-
-// =====================================================================================================================
 
 // =====================================================================================================================
 int32 DrmLoaderFuncsProxy::pfnAmdgpuQueryHwIpInfo(
@@ -911,6 +908,29 @@ int32 DrmLoaderFuncsProxy::pfnAmdgpuBoCpuUnmap(
 }
 
 // =====================================================================================================================
+int32 DrmLoaderFuncsProxy::pfnAmdgpuBoRemapSecure(
+    amdgpu_bo_handle  buf_handle,
+    bool              secure_map
+    ) const
+{
+    const int64 begin = Util::GetPerfCpuTime();
+    int32 ret = m_pFuncs->pfnAmdgpuBoRemapSecure(buf_handle,
+                                                 secure_map);
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
+    m_timeLogger.Printf("AmdgpuBoRemapSecure,%ld,%ld,%ld\n", begin, end, elapse);
+    m_timeLogger.Flush();
+
+    m_paramLogger.Printf(
+        "AmdgpuBoRemapSecure(%p, %x)\n",
+        buf_handle,
+        secure_map);
+    m_paramLogger.Flush();
+
+    return ret;
+}
+
+// =====================================================================================================================
 int32 DrmLoaderFuncsProxy::pfnAmdgpuBoWaitForIdle(
     amdgpu_bo_handle  hBuffer,
     uint64            timeoutInNs,
@@ -1587,6 +1607,44 @@ int32 DrmLoaderFuncsProxy::pfnAmdgpuCsSubmitRaw(
         numChunks,
         pChunks,
         pSeqNo);
+    m_paramLogger.Flush();
+
+    return ret;
+}
+
+// =====================================================================================================================
+int32 DrmLoaderFuncsProxy::pfnAmdgpuCsSubmitRaw2(
+    amdgpu_device_handle        dev,
+    amdgpu_context_handle       context,
+    uint32_t                    bo_list_handle,
+    int                         num_chunks,
+    struct drm_amdgpu_cs_chunk  *chunks,
+    uint64_t                    *seq_no,
+    bool                        secure
+    ) const
+{
+    const int64 begin = Util::GetPerfCpuTime();
+    int32 ret = m_pFuncs->pfnAmdgpuCsSubmitRaw2(dev,
+                                                context,
+                                                bo_list_handle,
+                                                num_chunks,
+                                                *chunks,
+                                                *seq_no,
+                                                secure);
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
+    m_timeLogger.Printf("AmdgpuCsSubmitRaw2,%ld,%ld,%ld\n", begin, end, elapse);
+    m_timeLogger.Flush();
+
+    m_paramLogger.Printf(
+        "AmdgpuCsSubmitRaw2(%p, %p, %x, %x, %x, %lx, %x)\n",
+        dev,
+        context,
+        bo_list_handle,
+        num_chunks,
+        *chunks,
+        *seq_no,
+        secure);
     m_paramLogger.Flush();
 
     return ret;
@@ -3077,8 +3135,8 @@ DrmLoader::~DrmLoader()
 Result DrmLoader::Init(
     Platform* pPlatform)
 {
-    Result result                   = Result::Success;
-    constexpr uint32_t LibNameSize  = 64;
+    Result           result      = Result::Success;
+    constexpr uint32 LibNameSize = 64;
     char LibNames[DrmLoaderLibrariesCount][LibNameSize] = {
         "libdrm_amdgpu.so.1",
         "libdrm.so.2",
@@ -3122,6 +3180,7 @@ Result DrmLoader::Init(
             m_library[LibDrmAmdgpu].GetFunction("amdgpu_bo_free", &m_funcs.pfnAmdgpuBoFree);
             m_library[LibDrmAmdgpu].GetFunction("amdgpu_bo_cpu_map", &m_funcs.pfnAmdgpuBoCpuMap);
             m_library[LibDrmAmdgpu].GetFunction("amdgpu_bo_cpu_unmap", &m_funcs.pfnAmdgpuBoCpuUnmap);
+            m_library[LibDrmAmdgpu].GetFunction("amdgpu_bo_remap_secure", &m_funcs.pfnAmdgpuBoRemapSecure);
             m_library[LibDrmAmdgpu].GetFunction("amdgpu_bo_wait_for_idle", &m_funcs.pfnAmdgpuBoWaitForIdle);
             m_library[LibDrmAmdgpu].GetFunction("amdgpu_bo_list_create", &m_funcs.pfnAmdgpuBoListCreate);
             m_library[LibDrmAmdgpu].GetFunction("amdgpu_bo_list_destroy", &m_funcs.pfnAmdgpuBoListDestroy);
@@ -3148,6 +3207,7 @@ Result DrmLoader::Init(
             m_library[LibDrmAmdgpu].GetFunction("amdgpu_cs_export_syncobj", &m_funcs.pfnAmdgpuCsExportSyncobj);
             m_library[LibDrmAmdgpu].GetFunction("amdgpu_cs_import_syncobj", &m_funcs.pfnAmdgpuCsImportSyncobj);
             m_library[LibDrmAmdgpu].GetFunction("amdgpu_cs_submit_raw", &m_funcs.pfnAmdgpuCsSubmitRaw);
+            m_library[LibDrmAmdgpu].GetFunction("amdgpu_cs_submit_raw2", &m_funcs.pfnAmdgpuCsSubmitRaw2);
             m_library[LibDrmAmdgpu].GetFunction("amdgpu_cs_chunk_fence_to_dep", &m_funcs.pfnAmdgpuCsChunkFenceToDep);
             m_library[LibDrmAmdgpu].GetFunction("amdgpu_cs_chunk_fence_info_to_data", &m_funcs.pfnAmdgpuCsChunkFenceInfoToData);
             m_library[LibDrmAmdgpu].GetFunction("amdgpu_cs_syncobj_import_sync_file", &m_funcs.pfnAmdgpuCsSyncobjImportSyncFile);

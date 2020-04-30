@@ -48,7 +48,7 @@ namespace EventProtocol
 
 /// Specify a default limit for the max amount of chunks that can be allocated at any one time
 static constexpr size_t kDefaultMemoryUsageLimitInBytes = (256 * 1024 * 1024); // 256 MB
-static constexpr size_t kDefaultMaxAllocatedChunks = (kDefaultMemoryUsageLimitInBytes / kEventChunkMaxDataSize);
+static constexpr size_t kDefaultMaxAllocatedChunks = (kDefaultMemoryUsageLimitInBytes / sizeof(EventChunk));
 
 EventServer::EventServer(IMsgChannel* pMsgChannel)
     : BaseProtocolServer(pMsgChannel, Protocol::Event, EVENT_SERVER_MIN_VERSION, EVENT_SERVER_MAX_VERSION)
@@ -185,7 +185,7 @@ Result EventServer::UpdateMemoryUsageLimit(size_t memoryUsageLimitInBytes)
 {
     Platform::LockGuard<Platform::AtomicLock> poolLock(m_eventPoolMutex);
 
-    const size_t maxAllocatedChunks = (memoryUsageLimitInBytes / kEventChunkMaxDataSize);
+    const size_t maxAllocatedChunks = (memoryUsageLimitInBytes / sizeof(EventChunk));
 
     Result result = Result::Rejected;
 
@@ -202,7 +202,7 @@ Result EventServer::UpdateMemoryUsageLimit(size_t memoryUsageLimitInBytes)
 
 size_t EventServer::QueryMemoryUsageLimit() const
 {
-    return (m_maxAllocatedChunks * kEventChunkMaxDataSize);
+    return (m_maxAllocatedChunks * sizeof(EventChunk));
 }
 
 Result EventServer::AllocateEventChunk(EventChunk** ppChunk)

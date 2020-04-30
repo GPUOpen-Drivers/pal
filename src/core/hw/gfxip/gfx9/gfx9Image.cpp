@@ -756,12 +756,14 @@ Result Image::Finalize(
         //    b) This is a color image
         //    c) We always fast-clear regardless of the clear-color (meaning a fast-clear eliminate will be required)
         //    d) This image is going to be used as a texture
+        //    e) Image not use comp-to-single or use comp-to-single but not disable comp-to-reg
         //
         // Then setup memory to be used to conditionally-execute the fast-clear-eliminate pass based on the clear-color.
-        if (needsFastColorClearMetaData           &&
-            (Parent()->IsDepthStencil() == false) &&
-            ColorImageSupportsAllFastClears()     &&
-            (pBaseSubResInfo->flags.supportMetaDataTexFetch != 0))
+        if (needsFastColorClearMetaData                           &&
+            ColorImageSupportsAllFastClears()                     &&
+            (pBaseSubResInfo->flags.supportMetaDataTexFetch != 0) &&
+            ((Gfx10UseCompToSingleFastClears() == false) ||
+             (TestAnyFlagSet(settings.useCompToSingle, Gfx10DisableCompToReg) == false)))
         {
             if (useSharedMetadata)
             {
@@ -1784,6 +1786,7 @@ bool Image::IsFastDepthStencilClearSupported(
     ImageLayout        stencilLayout,
     float              depth,
     uint8              stencil,
+    uint8              stencilWriteMask,
     const SubresRange& range
     ) const
 {
@@ -1791,6 +1794,12 @@ bool Image::IsFastDepthStencilClearSupported(
 
     // We can only fast clear all arrays at once.
     bool isFastClearSupported = (subResource.arraySlice == 0) && (range.numSlices == m_createInfo.arraySize);
+
+    // We cannot fast clear if it's doing masked stencil clear.
+    if ((subResource.aspect == ImageAspect::Stencil) && (stencilWriteMask != 0xFF))
+    {
+        isFastClearSupported = false;
+    }
 
     if (isFastClearSupported)
     {
@@ -1880,10 +1889,14 @@ bool Image::IsFormatReplaceable(
     }
     else
     {
-        // DCC must either be disabled or we must be sure that it is decompressed.
+        const bool isMmFormat = Formats::IsMmFormat(m_createInfo.swizzledFormat.format);
+
+        // DCC must either be disabled or we must be sure that it is decompressed. MM formats are also not replaceable
+        // because they have different black and white values and HW will convert which changes the data.
         isFormatReplaceable =
-            ((HasDccData() == false) ||
-             (ImageLayoutToColorCompressionState(m_layoutToState.color, layout) == ColorDecompressed));
+            (((HasDccData() == false) ||
+             (ImageLayoutToColorCompressionState(m_layoutToState.color, layout) == ColorDecompressed)) &&
+             (isMmFormat == false));
     }
 
     return isFormatReplaceable;
@@ -2825,11 +2838,10 @@ void CpuProcessEq(
         pMaskRam->GetXyzInc(&xInc, &yInc, &zInc);
 
         uint32  numSlices  = createInfo.extent.depth;
-        uint32  firstSlice = 0;
+
         if (createInfo.imageType != ImageType::Tex3d)
         {
             numSlices  = clearRange.numSlices;
-            firstSlice = clearRange.startSubres.arraySlice;
         }
 
         eq.PrintEquation(pParent->GetDevice());
@@ -2853,6 +2865,9 @@ void CpuProcessEq(
             const uint32    origMipLevelHeight   = pBaseSliceSubResInfo->extentTexels.height;
             const uint32    origMipLevelWidth    = pBaseSliceSubResInfo->extentTexels.width;
             const auto&     maskRamMipInfo       = pMaskRam->GetAddrMipInfo(mipLevel);
+            const uint32    firstSlice           = ((createInfo.imageType != ImageType::Tex3d)
+                                                    ? clearRange.startSubres.arraySlice
+                                                    : maskRamMipInfo.startZ);
 
             for (uint32  y = 0; y < origMipLevelHeight; y += yInc)
             {
@@ -3324,66 +3339,69 @@ uint32 Image::GetIterate256(
     const SubResourceInfo*  pSubResInfo
     ) const
 {
-    const auto& settings        = GetGfx9Settings(m_device);
-    const auto& imageCreateInfo = Parent()->GetImageCreateInfo();
-    const auto& chipProperties  = m_device.ChipProperties();
+    const auto& settings         = GetGfx9Settings(m_device);
+    const auto& chipProperties   = m_device.ChipProperties();
+    const auto* pPlatform        = m_device.GetPlatform();
+    const auto& memoryProperties = m_device.MemoryProperties();
 
     // The iterate-256 bit doesn't exist except on GFX10 products...  It's not "bad" to call this function on
     // other GPUs, but the answer isn't meaningful
     PAL_ASSERT(IsGfx10(chipProperties.gfxLevel));
 
-    uint32  iterate256  = 0;
-    gpusize minPageSize = 0;
+    // Leaving iterate256=1 is the safe case.
+    uint32  iterate256 = 1;
 
-    if (Parent()->GetBoundGpuMemory().IsBound())
+    // Look for some device-wide easy-outs first.
+    // Emulation must enable iterate256 since the frame buffer is really just system memory where the page
+    // size is unknown.
+    if ((pPlatform->IsEmulationEnabled() == false)        &&
+        //If the panel is forcing iterate256 on, then ignore everything else
+        (settings.forceEnableIterate256 == false)         &&
+        // In cases where our VRAM bus width is not a power of two, we need to have iterate256 enabled at all times
+        IsPowerOfTwo(memoryProperties.vramBusBitWidth))
     {
-        minPageSize = Parent()->GetBoundGpuMemory().Memory()->MinPageSize();
-    }
+        const auto* pParent         = Parent();
+        const auto& imageCreateInfo = pParent->GetImageCreateInfo();
 
-    if ((minPageSize != 0)                                     &&
-        Parent()->IsDepthStencil()                             &&
-        Parent()->IsAspectValid(pSubResInfo->subresId.aspect)  &&
-        (imageCreateInfo.samples > 1)                          &&
-        pSubResInfo->flags.supportMetaDataTexFetch             &&
-        // shareable images are always in system memory where the page size is unknown
-        (imageCreateInfo.flags.shareable ||
-         // depth buffer might not be in 64KiB pages
-         (IsPow2Aligned(minPageSize, 0x10000) == false)))
-    {
-        const auto*  pPlatform = m_device.GetPlatform();
-
-        if (pPlatform->IsEmulationEnabled()     ||
-            imageCreateInfo.flags.shareable     ||  // shareable images are always in system memory
-            ((chipProperties.deviceId == 0x47)  ||
-             (chipProperties.deviceId == 0x53)  ||
-             (chipProperties.deviceId == 0x55)  ||
-             (chipProperties.deviceId == 0x7310)))
+        // Ok, the device supports iterate256=0.  Check for image-specific constraints here.
+        //  Note that this recommendation really only applies to MSAA depth or stencil surfaces that are
+        //  tc-compatible.  The iterate_256 state has no effect on 1xaa surfaces.
+        if (pParent->IsDepthStencil()                            &&
+            pParent->IsAspectValid(pSubResInfo->subresId.aspect) &&
+            pSubResInfo->flags.supportMetaDataTexFetch           &&
+            (imageCreateInfo.samples > 1))
         {
-            // These platforms are really using system memory in place of a real frame buffer, so iterate-256
-            // must always be set.
-            iterate256 = 1;
+            // And finally check the memory alignment requirements.  If there's no bound memory we don't know
+            // what the page-size is. Also, shared images are always in system memory where we have no idea
+            // what the page-size is.
+            const bool   isShared = pParent->IsShared();
+            const auto&  boundMem = pParent->GetBoundGpuMemory();
+
+            if ((isShared == false) && boundMem.IsBound())
+            {
+                const gpusize minPageSize = boundMem.Memory()->MinPageSize();
+                // Iterate256 is not supported for allocations < iterate256MinAlignment.
+                if ((minPageSize >= memoryProperties.iterate256LargeAlignment) &&
+                    (memoryProperties.iterate256LargeAlignment > 0) &&
+                    (IsPow2Aligned(minPageSize, memoryProperties.iterate256LargeAlignment)))
+                {
+                    iterate256 = 0;
+                }
+                else if ((minPageSize >= memoryProperties.iterate256MinAlignment) &&
+                         (memoryProperties.iterate256MinAlignment > 0) &&
+                         (IsPow2Aligned(minPageSize, memoryProperties.iterate256MinAlignment)))
+                {
+                    iterate256 = 0;
+                }
+                // If in case KMD alignments are not correctly populated iterate256 optimization works for
+                // PageSize >=64KB, if aligned to 64KB.
+                else if (IsPow2Aligned(minPageSize, 0x10000))
+                {
+                    iterate256 = 0;
+                }
+            }
         }
-        else
-        {
-            // This should be real HW.
-            PAL_ALERT_ALWAYS();
-
-            // Again play it safe for now.
-            iterate256 = 1;
-        }
     }
-
-    // In cases where our VRAM bus width is not a power of two, we need to have iterate256 enabled at all times
-    if (IsPowerOfTwo(m_device.MemoryProperties().vramBusBitWidth) == false)
-    {
-        iterate256 = 1;
-    }
-
-    if (settings.forceEnableIterate256)
-    {
-        iterate256 = 1;
-    }
-
     return iterate256;
 }
 

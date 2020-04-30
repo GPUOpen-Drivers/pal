@@ -29,7 +29,6 @@
 #include "core/hw/gfxip/gfx9/gfx9Device.h"
 #include "palMsgPack.h"
 #include "palMsgPackImpl.h"
-#include "palPipelineAbiProcessorImpl.h"
 
 using namespace Util;
 
@@ -86,7 +85,7 @@ void ShaderLibrary::SetIsWave32(
 // using the specified library ABI processor.
 Result ShaderLibrary::HwlInit(
     const ShaderLibraryCreateInfo& createInfo,
-    const AbiProcessor&            abiProcessor,
+    const AbiReader&               abiReader,
     const CodeObjectMetadata&      metadata,
     Util::MsgPackReader*           pMetadataReader)
 {
@@ -96,15 +95,19 @@ Result ShaderLibrary::HwlInit(
     const GpuChipProperties& chipProps = m_pDevice->Parent()->ChipProperties();
 
     RegisterVector registers(m_pDevice->GetPlatform());
-    Result result = pMetadataReader->Unpack(&registers);
+    Result result = pMetadataReader->Seek(metadata.pipeline.registers);
 
-    ShaderLibraryUploader uploader(m_pDevice);
+    if (result == Result::Success)
+    {
+        result = pMetadataReader->Unpack(&registers);
+    }
+
+    ShaderLibraryUploader uploader(m_pDevice, abiReader);
 
     if (result == Result::Success)
     {
         // Next, handle relocations and upload the library code & data to GPU memory.
         result = PerformRelocationsAndUploadToGpuMemory(
-            abiProcessor,
             metadata,
             (createInfo.flags.overrideGpuHeap == 1) ? createInfo.preferredHeap : GpuHeapInvisible,
             &uploader);
@@ -115,7 +118,7 @@ Result ShaderLibrary::HwlInit(
     {
         const uint32 wavefrontSize = IsWave32() ? 32 : 64;
 
-        m_chunkCs.LateInit<ShaderLibraryUploader>(abiProcessor,
+        m_chunkCs.LateInit<ShaderLibraryUploader>(abiReader,
                                                   registers,
                                                   wavefrontSize,
                                                   createInfo.pFuncList,
@@ -204,42 +207,23 @@ void ShaderLibrary::UpdateHwInfo()
 Result ShaderLibrary::GetShaderFunctionCode(
     const char*  pShaderExportName,
     size_t*      pSize,
-    void*        pBuffer) const
+    void*        pBuffer
+    ) const
 {
-    Result result = Result::ErrorUnavailable;
-
-    if (pSize == nullptr)
+    // To extract the shader code, we can re-parse the saved ELF binary and lookup the shader's program
+    // instructions by examining the symbol table entry for that shader's entrypoint.
+    AbiReader abiReader(m_pDevice->GetPlatform(), m_pCodeObjectBinary);
+    Result result = abiReader.Init();
+    if (result == Result::Success)
     {
-        result = Result::ErrorInvalidPointer;
-    }
-    else
-    {
-        // To extract the shader code, we can re-parse the saved ELF binary and lookup the shader's program
-        // instructions by examining the symbol table entry for that shader's entrypoint.
-        AbiProcessor abiProcessor(m_pDevice->GetPlatform());
-        result = abiProcessor.LoadFromBuffer(m_pCodeObjectBinary, m_codeObjectBinaryLen);
-        if (result == Result::Success)
+        const Elf::SymbolTableEntry* pSymbol = abiReader.GetGenericSymbol(pShaderExportName);
+        if (pSymbol != nullptr)
         {
-            Abi::GenericSymbolEntry symbol = { };
-            if (abiProcessor.HasGenericSymbolEntry(pShaderExportName, &symbol))
-            {
-                if (pBuffer == nullptr)
-                {
-                    (*pSize) = static_cast<size_t>(symbol.size);
-                    result   = Result::Success;
-                }
-                else
-                {
-                    const void* pCodeSection   = nullptr;
-                    size_t      codeSectionLen = 0;
-                    abiProcessor.GetPipelineCode(&pCodeSection, &codeSectionLen);
-                    PAL_ASSERT((symbol.size + symbol.value) <= codeSectionLen);
-
-                    memcpy(pBuffer,
-                            VoidPtrInc(pCodeSection, static_cast<size_t>(symbol.value)),
-                            static_cast<size_t>(symbol.size));
-                }
-            }
+            result = abiReader.GetElfReader().CopySymbol(*pSymbol, pSize, pBuffer);
+        }
+        else
+        {
+            result = Result::ErrorUnavailable;
         }
     }
 
@@ -268,14 +252,101 @@ Result ShaderLibrary::GetShaderFunctionStats(
     pShaderStats->common.ldsSizePerThreadGroup = chipProps.gfxip.ldsSizePerThreadGroup;
 
     // We can re-parse the saved pipeline ELF binary to extract shader statistics.
-    AbiProcessor abiProcessor(m_pDevice->GetPlatform());
-    result = abiProcessor.LoadFromBuffer(m_pCodeObjectBinary, m_codeObjectBinaryLen);
+    AbiReader abiReader(m_pDevice->GetPlatform(), m_pCodeObjectBinary);
+    result = abiReader.Init();
     if (result == Result::Success)
     {
-        Abi::GenericSymbolEntry symbol = { };
-        if (abiProcessor.HasGenericSymbolEntry(pShaderExportName, &symbol))
+        const Elf::SymbolTableEntry* pSymbol = abiReader.GetGenericSymbol(pShaderExportName);
+        if (pSymbol != nullptr)
         {
-            pShaderStats->isaSizeInBytes = static_cast<size_t>(symbol.size);
+            pShaderStats->isaSizeInBytes = static_cast<size_t>(pSymbol->st_size);
+        }
+    }
+
+    MsgPackReader      metadataReader;
+    CodeObjectMetadata metadata;
+
+    if (result == Result::Success)
+    {
+        result = abiReader.GetMetadata(&metadataReader, &metadata);
+    }
+
+    if (result == Result::Success)
+    {
+        const auto&  stageMetadata = metadata.pipeline.hardwareStage[static_cast<uint32>(Abi::HardwareStage::Cs)];
+
+        pShaderStats->numAvailableSgprs = (stageMetadata.hasEntry.sgprLimit != 0)
+                                            ? stageMetadata.sgprLimit
+                                            : gpuInfo.gfx9.numShaderVisibleSgprs;
+        pShaderStats->numAvailableVgprs = (stageMetadata.hasEntry.vgprLimit != 0)
+                                               ? stageMetadata.vgprLimit
+                                               : MaxVgprPerShader;
+
+        pShaderStats->common.scratchMemUsageInBytes = stageMetadata.scratchMemorySize;
+    }
+
+    if (result == Result::Success)
+    {
+        result = UnpackStackFrameSize(pShaderExportName,
+                                      metadata,
+                                      &metadataReader,
+                                      &pShaderStats->stackFrameSizeInBytes);
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
+// Obtains the shader function stack frame size
+Result ShaderLibrary::UnpackStackFrameSize(
+    const char*               pShaderExportName,
+    const CodeObjectMetadata& metadata,
+    Util::MsgPackReader*      pMetadataReader,
+    uint32*                   pStackFrameSizeInBytes
+    ) const
+{
+    Result result = pMetadataReader->Seek(metadata.pipeline.shaderFunctions);
+
+    if (result == Result::Success)
+    {
+        result    = (pMetadataReader->Type() == CWP_ITEM_MAP) ? Result::Success : Result::ErrorInvalidValue;
+        const auto& item = pMetadataReader->Get().as;
+
+        for (uint32 i = item.map.size; ((result == Result::Success) && (i > 0)); --i)
+        {
+            result = pMetadataReader->Next(CWP_ITEM_STR);
+
+            if ((result == Result::Success) &&
+                (strncmp(pShaderExportName,static_cast<const char*>(item.str.start), item.str.length) == 0) &&
+                (strlen(pShaderExportName) == item.str.length))
+            {
+                result = pMetadataReader->Next(CWP_ITEM_MAP);
+
+                if (result == Result::Success)
+                {
+                    for (uint32 j = item.map.size; ((result == Result::Success) && (j > 0)); --j)
+                    {
+                        result = pMetadataReader->Next(CWP_ITEM_STR);
+
+                        if (result == Result::Success)
+                        {
+                            switch (HashString(static_cast<const char*>(item.str.start), item.str.length))
+                            {
+                            case HashLiteralString(".stack_frame_size_in_bytes"):
+                            {
+                                result = pMetadataReader->UnpackNext(pStackFrameSizeInBytes);
+                                break;
+                            }
+
+                            default:
+                                result = pMetadataReader->Skip(1);
+                                break;
+                            }
+                        }
+                    }
+                }
+                break;
+            }
         }
     }
 

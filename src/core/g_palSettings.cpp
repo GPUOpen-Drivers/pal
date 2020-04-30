@@ -82,21 +82,6 @@ void SettingsLoader::SetupDefaults()
     m_settings.insertGuardPageBetweenWddm2VAs = false;
 #endif
 
-    m_settings.forceHeapPerfToFixedValues = false;
-    m_settings.cpuReadPerfForLocal = 1;
-    m_settings.cpuWritePerfForLocal = 1;
-    m_settings.gpuReadPerfForLocal = 1;
-    m_settings.gpuWritePerfForLocal = 1;
-    m_settings.gpuReadPerfForInvisible = 1;
-    m_settings.gpuWritePerfForInvisible = 1;
-    m_settings.cpuWritePerfForGartUswc = 1;
-    m_settings.cpuReadPerfForGartUswc = 1;
-    m_settings.gpuReadPerfForGartUswc = 1;
-    m_settings.gpuWritePerfForGartUswc = 1;
-    m_settings.cpuReadPerfForGartCacheable = 1;
-    m_settings.cpuWritePerfForGartCacheable = 1;
-    m_settings.gpuReadPerfForGartCacheable = 1;
-    m_settings.gpuWritePerfForGartCacheable = 1;
     m_settings.allocationListReusable = true;
     m_settings.cmdStreamReadOnly = false;
     m_settings.fenceTimeoutOverrideInSec = 0;
@@ -291,11 +276,6 @@ void SettingsLoader::ReadSettings()
                            &m_settings.insertGuardPageBetweenWddm2VAs,
                            InternalSettingScope::PrivatePalKey);
 #endif
-
-    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pForceHeapPerfToFixedValuesStr,
-                           Util::ValueType::Boolean,
-                           &m_settings.forceHeapPerfToFixedValues,
-                           InternalSettingScope::PrivatePalKey);
 
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pAllocationListReusableStr,
                            Util::ValueType::Boolean,
@@ -729,81 +709,6 @@ void SettingsLoader::InitSettingsInfo()
 #endif
 
     info.type      = SettingType::Boolean;
-    info.pValuePtr = &m_settings.forceHeapPerfToFixedValues;
-    info.valueSize = sizeof(m_settings.forceHeapPerfToFixedValues);
-    m_settingsInfoMap.Insert(2415703124, info);
-
-    info.type      = SettingType::Float;
-    info.pValuePtr = &m_settings.cpuReadPerfForLocal;
-    info.valueSize = sizeof(m_settings.cpuReadPerfForLocal);
-    m_settingsInfoMap.Insert(1067711036, info);
-
-    info.type      = SettingType::Float;
-    info.pValuePtr = &m_settings.cpuWritePerfForLocal;
-    info.valueSize = sizeof(m_settings.cpuWritePerfForLocal);
-    m_settingsInfoMap.Insert(2730570157, info);
-
-    info.type      = SettingType::Float;
-    info.pValuePtr = &m_settings.gpuReadPerfForLocal;
-    info.valueSize = sizeof(m_settings.gpuReadPerfForLocal);
-    m_settingsInfoMap.Insert(2638610736, info);
-
-    info.type      = SettingType::Float;
-    info.pValuePtr = &m_settings.gpuWritePerfForLocal;
-    info.valueSize = sizeof(m_settings.gpuWritePerfForLocal);
-    m_settingsInfoMap.Insert(2013287873, info);
-
-    info.type      = SettingType::Float;
-    info.pValuePtr = &m_settings.gpuReadPerfForInvisible;
-    info.valueSize = sizeof(m_settings.gpuReadPerfForInvisible);
-    m_settingsInfoMap.Insert(3386043224, info);
-
-    info.type      = SettingType::Float;
-    info.pValuePtr = &m_settings.gpuWritePerfForInvisible;
-    info.valueSize = sizeof(m_settings.gpuWritePerfForInvisible);
-    m_settingsInfoMap.Insert(2595291601, info);
-
-    info.type      = SettingType::Float;
-    info.pValuePtr = &m_settings.cpuWritePerfForGartUswc;
-    info.valueSize = sizeof(m_settings.cpuWritePerfForGartUswc);
-    m_settingsInfoMap.Insert(4095131286, info);
-
-    info.type      = SettingType::Float;
-    info.pValuePtr = &m_settings.cpuReadPerfForGartUswc;
-    info.valueSize = sizeof(m_settings.cpuReadPerfForGartUswc);
-    m_settingsInfoMap.Insert(664236849, info);
-
-    info.type      = SettingType::Float;
-    info.pValuePtr = &m_settings.gpuReadPerfForGartUswc;
-    info.valueSize = sizeof(m_settings.gpuReadPerfForGartUswc);
-    m_settingsInfoMap.Insert(3761700869, info);
-
-    info.type      = SettingType::Float;
-    info.pValuePtr = &m_settings.gpuWritePerfForGartUswc;
-    info.valueSize = sizeof(m_settings.gpuWritePerfForGartUswc);
-    m_settingsInfoMap.Insert(2574159802, info);
-
-    info.type      = SettingType::Float;
-    info.pValuePtr = &m_settings.cpuReadPerfForGartCacheable;
-    info.valueSize = sizeof(m_settings.cpuReadPerfForGartCacheable);
-    m_settingsInfoMap.Insert(2869172375, info);
-
-    info.type      = SettingType::Float;
-    info.pValuePtr = &m_settings.cpuWritePerfForGartCacheable;
-    info.valueSize = sizeof(m_settings.cpuWritePerfForGartCacheable);
-    m_settingsInfoMap.Insert(959708118, info);
-
-    info.type      = SettingType::Float;
-    info.pValuePtr = &m_settings.gpuReadPerfForGartCacheable;
-    info.valueSize = sizeof(m_settings.gpuReadPerfForGartCacheable);
-    m_settingsInfoMap.Insert(2062750395, info);
-
-    info.type      = SettingType::Float;
-    info.pValuePtr = &m_settings.gpuWritePerfForGartCacheable;
-    info.valueSize = sizeof(m_settings.gpuWritePerfForGartCacheable);
-    m_settingsInfoMap.Insert(1621029738, info);
-
-    info.type      = SettingType::Boolean;
     info.pValuePtr = &m_settings.allocationListReusable;
     info.valueSize = sizeof(m_settings.allocationListReusable);
     m_settingsInfoMap.Insert(1727036994, info);
@@ -1114,7 +1019,7 @@ void SettingsLoader::DevDriverRegister()
             component.pfnSetValue = ISettingsLoader::SetValue;
             component.pSettingsData = &g_palJsonData[0];
             component.settingsDataSize = sizeof(g_palJsonData);
-            component.settingsDataHash = 952990859;
+            component.settingsDataHash = 2201698946;
             component.settingsDataHeader.isEncoded = true;
             component.settingsDataHeader.magicBufferId = 402778310;
             component.settingsDataHeader.magicBufferOffset = 0;

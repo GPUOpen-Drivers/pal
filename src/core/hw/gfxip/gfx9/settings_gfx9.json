@@ -1725,6 +1725,9 @@
       "Defaults": {
         "Default": false
       },
+      "Flags": {
+        "RereadSetting": true
+      },
       "Scope": "PrivatePalGfx9Key",
       "Type": "bool",
       "VariableName": "batchBreakOnNewPixelShader",
@@ -2954,6 +2957,22 @@
       "Name": "WaClampGeCntlVertGrpSize"
     },
     {
+      "Description": "If the workaround is enabled, we to issue a VGT_FLUSH between legacy GS pipelines that have different VGT_GS_MODE::CUT_MODE values.",
+      "Tags": [
+        "Hardware Workarounds"
+      ],
+      "Defaults": {
+        "Default": false
+      },
+      "Flags": {
+        "RereadSetting": true
+      },
+      "Scope": "PrivatePalGfx9Key",
+      "Type": "bool",
+      "VariableName": "waLegacyGsCutModeFlush",
+      "Name": "WaLegacyGsCutModeFlush"
+    },
+    {
       "Description": "Determines if GFX or Compute is used to fast clear SingleSampled DepthStencil surfaces. Value is in units of (pix width x height x depth). Values <= this will take GFX else Compute.",
       "Tags": [
         "RPM"
@@ -2982,6 +3001,37 @@
       "Type": "uint32",
       "VariableName": "depthStencilFastClearComputeThresholdMultiSampled",
       "Name": "DepthStencilFastClearComputeThresholdMultiSampled",
+      "Flags": {
+        "IsHex": false,
+        "RereadSetting": true
+      }
+    },
+    {
+      "Description": "This value is used to program PA_SC_NGG_MODE_CNTL::MAX_FPOVS_IN_WAVE. When the number of FPOVs in a wave exceeds MAX_FPOVS_IN_WAVE, the next FPOV would break wave. Legal values are 0 to 255.",
+      "Tags": [
+        "General",
+        "Gfx10"
+      ],
+      "Defaults": {
+        "Default": 0
+      },
+      "ValidValues": {
+        "Values": [
+          {
+            "Description": "1 FPOV will break the wave.",
+            "Value": 0
+          },
+          {
+            "LogicOp": "LessThanOrEqual",
+            "Description": "Number of FPOVs * 2 that will break the wave.",
+            "Value": 255
+          }
+        ]
+      },
+      "Scope": "PrivatePalGfx9Key",
+      "Type": "uint32",
+      "VariableName": "gfx10MaxFpovsInWave",
+      "Name": "Gfx10MaxFpovsInWave",
       "Flags": {
         "IsHex": false,
         "RereadSetting": true

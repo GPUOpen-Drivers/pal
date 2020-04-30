@@ -346,38 +346,18 @@ void RsrcProcMgr::CmdCloneImageData(
     // 1. Since the source image can be in any state we need a universal command buffer.
     // 2. Both images need to be cloneable.
     // 3. Both images must have been created with identical create info.
-    PAL_ASSERT(pCmdBuffer->IsCpDmaSupported());
+    PAL_ASSERT(pCmdBuffer->IsGraphicsSupported());
     PAL_ASSERT(srcParent.IsCloneable() && dstParent.IsCloneable());
     PAL_ASSERT(memcmp(&srcParent.GetImageCreateInfo(), &dstParent.GetImageCreateInfo(), sizeof(ImageCreateInfo)) == 0);
+    PAL_ASSERT(srcParent.GetGpuMemSize() == dstParent.GetGpuMemSize());
 
-    auto*const pCmdStream = pCmdBuffer->GetCmdStreamByEngine(CmdBufferEngineSupport::CpDma);
-    PAL_ASSERT(pCmdStream != nullptr);
-
-    uint32* pCmdSpace = pCmdStream->ReserveCommands();
-
-    // Construct a DMA_DATA packet to copy all of the source image (including metadata) to the destination image.
-    const gpusize srcBaseAddr = srcParent.GetGpuVirtualAddr();
-    const gpusize srcBaseSize = srcParent.GetGpuMemSize();
-    const gpusize dstBaseAddr = dstParent.GetGpuVirtualAddr();
-    const gpusize dstBaseSize = dstParent.GetGpuMemSize();
-    PAL_ASSERT((srcBaseSize == dstBaseSize) && (HighPart(srcBaseSize) == 0));
-
-    // We want to read and write through L2 because it's faster and expected by CoherCopy.
-    DmaDataInfo dmaDataInfo = {};
-    dmaDataInfo.dstSel   = dst_sel__pfp_dma_data__dst_addr_using_l2;
-    dmaDataInfo.srcSel   = src_sel__pfp_dma_data__src_addr_using_l2;
-    dmaDataInfo.dstAddr  = dstBaseAddr;
-    dmaDataInfo.srcAddr  = srcBaseAddr;
-    dmaDataInfo.numBytes = LowPart(srcBaseSize);
-    dmaDataInfo.sync     = false;
-    dmaDataInfo.usePfp   = false;
-
-    pCmdSpace += m_cmdUtil.BuildDmaData(dmaDataInfo, pCmdSpace);
-
-    pCmdStream->CommitCommands(pCmdSpace);
-
-    pCmdBuffer->SetGfxCmdBufCpBltState(true);
-    pCmdBuffer->SetGfxCmdBufCpBltWriteCacheState(true);
+    // Copy all of the source image (including metadata) to the destination image.
+    Pal::MemoryCopyRegion copyRegion = {};
+    copyRegion.copySize = dstParent.GetGpuMemSize();
+    pCmdBuffer->CmdCopyMemory(*srcParent.GetBoundGpuMemory().Memory(),
+                              *dstParent.GetBoundGpuMemory().Memory(),
+                              1,
+                              &copyRegion);
 }
 
 // =====================================================================================================================
@@ -1450,41 +1430,89 @@ void RsrcProcMgr::HwlFastColorClear(
 // See the HwlFixupCopyDstImageMetaData function.  For this to work, the layout needs to be exactly the same between
 // the two -- including the swizzle modes and pipe-bank XOR values associated with the fmask data.
 bool RsrcProcMgr::HwlUseOptimizedImageCopy(
-    const Pal::Image&  srcImage,
-    const Pal::Image&  dstImage
+    const Pal::Image&      srcImage,
+    ImageLayout            srcImageLayout,
+    const Pal::Image&      dstImage,
+    ImageLayout            dstImageLayout,
+    uint32                 regionCount,
+    const ImageCopyRegion* pRegions
     ) const
 {
     const auto&              srcCreateInfo   = srcImage.GetImageCreateInfo();
     const auto&              dstCreateInfo   = dstImage.GetImageCreateInfo();
     const ImageMemoryLayout& srcImgMemLayout = srcImage.GetMemoryLayout();
     const ImageMemoryLayout& dstImgMemLayout = dstImage.GetMemoryLayout();
+    const Image*             pGfxSrcImage    = static_cast<const Image*>(srcImage.GetGfxImage());
+    const Image*             pGfxDstImage    = static_cast<const Image*>(dstImage.GetGfxImage());
 
-    // If memory sizes differ it could be due to copying between resources with different shader compat
-    // compression modes (1 TC compat, other not).  For RT Src will need to be decompressed which means
-    // we can't take advanatge of optimized copy since we keep fmask compressed. Moreover, there are
-    // metadata layout differences between gfxip8 and below and gfxip9.
-    bool  tileSwizzlesMatch = (((dstImgMemLayout.metadataSize + dstImgMemLayout.metadataHeaderSize) ==
-                                (srcImgMemLayout.metadataSize + srcImgMemLayout.metadataHeaderSize)) &&
-                               (srcCreateInfo.arraySize == dstCreateInfo.arraySize));
+    // Src image and dst image should be fully identical size.
+    bool useFmaskOptimizedCopy = (srcCreateInfo.extent.width  == dstCreateInfo.extent.width) &&
+                                 (srcCreateInfo.extent.height == dstCreateInfo.extent.height) &&
+                                 (srcCreateInfo.extent.depth  == dstCreateInfo.extent.depth) &&
+                                 (srcCreateInfo.mipLevels     == dstCreateInfo.mipLevels) &&
+                                 (srcCreateInfo.arraySize     == dstCreateInfo.arraySize);
 
-    if (tileSwizzlesMatch)
+    // FmaskOptimizedImageCopy must be a whole image copy.
+    if (useFmaskOptimizedCopy)
     {
-        const Image*  pGfxSrcImage = static_cast<const Image*>(srcImage.GetGfxImage());
-        const Image*  pGfxDstImage = static_cast<const Image*>(dstImage.GetGfxImage());
-        const auto*   pSrcFmask    = pGfxSrcImage->GetFmask();
-        const auto*   pDstFmask    = pGfxDstImage->GetFmask();
+        if ((regionCount != 1) ||
+            (memcmp(&pRegions->srcSubres, &pRegions->dstSubres, sizeof(pRegions->srcSubres)) != 0) ||
+            (pRegions->srcSubres.mipLevel   != 0) ||
+            (pRegions->srcSubres.arraySlice != 0) ||
+            (memcmp(&pRegions->srcOffset, &pRegions->dstOffset, sizeof(pRegions->srcOffset)) != 0) ||
+            (pRegions->srcOffset.x != 0) ||
+            (pRegions->srcOffset.y != 0) ||
+            (pRegions->srcOffset.z != 0) ||
+            (memcmp(&pRegions->extent, &srcCreateInfo.extent, sizeof(pRegions->extent)) != 0) ||
+            (pRegions->numSlices != srcCreateInfo.arraySize))
+        {
+            useFmaskOptimizedCopy = false;
+        }
+    }
+
+    if (useFmaskOptimizedCopy)
+    {
+        // If memory sizes differ it could be due to copying between resources with different shader compat
+        // compression modes (1 TC compat, other not).  For RT Src will need to be decompressed which means
+        // we can't take advanatge of optimized copy since we keep fmask compressed. Moreover, there are
+        // metadata layout differences between gfxip8 and below and gfxip9.
+        if ((dstImgMemLayout.metadataSize + dstImgMemLayout.metadataHeaderSize) !=
+            (srcImgMemLayout.metadataSize + srcImgMemLayout.metadataHeaderSize))
+        {
+            useFmaskOptimizedCopy = false;
+        }
+    }
+
+    if (useFmaskOptimizedCopy)
+    {
+        const auto* pSrcFmask = pGfxSrcImage->GetFmask();
+        const auto* pDstFmask = pGfxDstImage->GetFmask();
 
         if ((pSrcFmask != nullptr) && (pDstFmask != nullptr))
         {
             if ((pSrcFmask->GetSwizzleMode() != pDstFmask->GetSwizzleMode()) ||
                 (pSrcFmask->GetPipeBankXor() != pDstFmask->GetPipeBankXor()))
             {
-                tileSwizzlesMatch = false;
+                useFmaskOptimizedCopy = false;
             }
         }
     }
 
-    return tileSwizzlesMatch;
+    if (useFmaskOptimizedCopy)
+    {
+        const auto& srcImgLayoutToState = pGfxSrcImage->LayoutToColorCompressionState();
+        const auto& dstImgLayoutToState = pGfxDstImage->LayoutToColorCompressionState();
+
+        // Src and dst's layout compression states should be compatible, dst image must not be
+        // less compressed than src image.
+        if (ImageLayoutToColorCompressionState(srcImgLayoutToState, srcImageLayout) >
+            ImageLayoutToColorCompressionState(dstImgLayoutToState, dstImageLayout))
+        {
+            useFmaskOptimizedCopy = false;
+        }
+    }
+
+    return useFmaskOptimizedCopy;
 }
 
 // =====================================================================================================================
@@ -1697,6 +1725,7 @@ void RsrcProcMgr::HwlDepthStencilClear(
     ImageLayout        stencilLayout,
     float              depth,
     uint8              stencil,
+    uint8              stencilWriteMask,
     uint32             rangeCount,
     const SubresRange* pRanges,
     bool               fastClear,
@@ -1850,6 +1879,7 @@ void RsrcProcMgr::HwlDepthStencilClear(
                                                   pRanges[idx],
                                                   depth,
                                                   stencil,
+                                                  stencilWriteMask,
                                                   clearFlags,
                                                   fastClear,
                                                   depthLayout,
@@ -2196,10 +2226,12 @@ void RsrcProcMgr::HwlFixupResolveDstImage(
     {
         for (uint32 i = 0; i< regionCount; i++)
         {
-            const SubresId subResId = {pRegions->dstAspect, pRegions->dstMipLevel, pRegions->dstSlice};
-            const DepthStencilLayoutToState layoutToState = gfx9Image.LayoutToDepthCompressionState(subResId);
+            // DepthStencilCompressed needs fixup after resolve.
+            // DepthStencilDecomprWithHiZ needs fixup the values of HiZ.
+            const SubresId subResId = { pRegions->dstAspect, pRegions->dstMipLevel, pRegions->dstSlice };
+            const DepthStencilLayoutToState& layoutToState = gfx9Image.LayoutToDepthCompressionState(subResId);
 
-            if (ImageLayoutToDepthCompressionState(layoutToState, dstImageLayout) != DepthStencilCompressed)
+            if (ImageLayoutToDepthCompressionState(layoutToState, dstImageLayout) == DepthStencilDecomprNoHiZ)
             {
                 canDoFixupForDstImage = false;
                 break;
@@ -2375,6 +2407,7 @@ void RsrcProcMgr::DepthStencilClearGraphics(
     const SubresRange& range,
     float              depth,
     uint8              stencil,
+    uint8              stencilWriteMask,
     uint32             clearMask,
     bool               fastClear,
     ImageLayout        depthLayout,
@@ -2384,19 +2417,19 @@ void RsrcProcMgr::DepthStencilClearGraphics(
     ) const
 {
     PAL_ASSERT(dstImage.Parent()->IsDepthStencil());
-    PAL_ASSERT((fastClear == false) ||
-               dstImage.IsFastDepthStencilClearSupported(depthLayout,
-                                                         stencilLayout,
-                                                         depth,
-                                                         stencil,
-                                                         range));
+    PAL_ASSERT((fastClear == false) ||  dstImage.IsFastDepthStencilClearSupported(depthLayout,
+                                                                                  stencilLayout,
+                                                                                  depth,
+                                                                                  stencil,
+                                                                                  stencilWriteMask,
+                                                                                  range));
 
     const bool clearDepth   = TestAnyFlagSet(clearMask, HtileAspectDepth);
     const bool clearStencil = TestAnyFlagSet(clearMask, HtileAspectStencil);
     PAL_ASSERT(clearDepth || clearStencil); // How did we get here if there's nothing to clear!?
 
-    const StencilRefMaskParams       stencilRefMasks      =
-        { stencil, 0xFF, 0xFF, 0x01, stencil, 0xFF, 0xFF, 0x01, 0xFF };
+    const StencilRefMaskParams stencilRefMasks =
+        { stencil, 0xFF, stencilWriteMask, 0x01, stencil, 0xFF, stencilWriteMask, 0x01, 0xFF };
 
     ViewportParams viewportInfo = { };
     viewportInfo.count                 = 1;
@@ -3279,9 +3312,19 @@ Extent3d RsrcProcMgr::GetCopyViaSrdCopyDims(
 {
     const SubresId  baseMipSubResId  = { subResId.aspect, 0, subResId.arraySlice };
     const auto*     pBaseSubResInfo  = image.SubresourceInfo(baseMipSubResId);
-    const auto&     programmedExtent = (includePadding
+    Extent3d        programmedExtent = (includePadding
                                         ? pBaseSubResInfo->actualExtentElements
                                         : pBaseSubResInfo->extentElements);
+
+    const SwizzledFormat swizzledFormat = image.GetImageCreateInfo().swizzledFormat;
+
+    // Pal view X8Y8_Z8Y8 as X16 for raw copy, need to use texels extent here to match with Gfx[10|9]CreateImageViewSrds
+    if (Formats::IsMacroPixelPackedRgbOnly(swizzledFormat.format))
+    {
+        programmedExtent = (includePadding
+                            ? pBaseSubResInfo->actualExtentTexels
+                            : pBaseSubResInfo->extentTexels);
+    }
 
     Extent3d  hwCopyDims = {};
 
@@ -4249,7 +4292,6 @@ void Gfx9RsrcProcMgr::DoFastClear(
     const auto*            pGfxDevice    = static_cast<const Device*>(pDevice->GetGfxDevice());
     const bool             is3dImage     = (createInfo.imageType == ImageType::Tex3d);
 
-    const uint32           firstSlice        = is3dImage ? 0 : clearRange.startSubres.arraySlice;
     const uint32           log2MetaBlkWidth  = Log2(dccAddrOutput.metaBlkWidth);
     const uint32           log2MetaBlkHeight = Log2(dccAddrOutput.metaBlkHeight);
     const uint32           sliceSize         = (dccAddrOutput.pitch * dccAddrOutput.height) >>
@@ -4301,6 +4343,7 @@ void Gfx9RsrcProcMgr::DoFastClear(
         const uint32    mipLevelHeight = pSubResInfo->extentTexels.height;
         const uint32    mipLevelWidth  = pSubResInfo->extentTexels.width;
         const uint32    depthToClear   = GetClearDepth(dstImage, clearRange, mipLevel);
+        const uint32    firstSlice     = is3dImage ? dccMipInfo.startZ : clearRange.startSubres.arraySlice;
 
         const uint32 constData[] =
         {
@@ -5785,38 +5828,6 @@ void Gfx10RsrcProcMgr::ClearDccComputeSetFirstPixelOfBlock(
 }
 
 // =====================================================================================================================
-// Performs a fast color clear eliminate blt on the provided Image. Returns true if work (blt) is submitted to GPU.
-bool Gfx10RsrcProcMgr::FastClearEliminate(
-    GfxCmdBuffer*                pCmdBuffer,
-    Pal::CmdStream*              pCmdStream,
-    const Image&                 image,
-    const IMsaaState*            pMsaaState,
-    const MsaaQuadSamplePattern* pQuadSamplePattern,
-    const SubresRange&           range
-    ) const
-{
-    const auto& settings = GetGfx9Settings(*image.Parent()->GetDevice());
-
-    bool isSubmitted = false;
-
-    // If this image did *not* use comp-to-single for the clear, then a fast-clear is required.
-    // If this image did *not* disable comp-to-reg, then a fast-clear is also required even if comp-to-single fast
-    // clears were done.
-    if ((image.Gfx10UseCompToSingleFastClears() == false) ||
-        (TestAnyFlagSet(settings.useCompToSingle, Gfx10DisableCompToReg) == false))
-    {
-        isSubmitted = RsrcProcMgr::FastClearEliminate(pCmdBuffer,
-                                                      pCmdStream,
-                                                      image,
-                                                      pMsaaState,
-                                                      pQuadSamplePattern,
-                                                      range);
-    }
-
-    return isSubmitted;
-}
-
-// =====================================================================================================================
 // Performs a "fast" depth and stencil resummarize operation by updating the Image's HTile buffer to represent a fully
 // open HiZ range and set ZMask and SMem to expanded state.
 void Gfx10RsrcProcMgr::HwlResummarizeHtileCompute(
@@ -5848,7 +5859,8 @@ void Gfx10RsrcProcMgr::InitHtileData(
     const Pal::Image*  pPalImage     = dstImage.Parent();
     const auto*        pHtile        = dstImage.GetHtile();
     const auto&        hTileAddrOut  = pHtile->GetAddrOutput();
-    const gpusize      hTileBaseAddr = dstImage.GetMaskRamBaseAddr(pHtile, range.startSubres);
+    const SubresId     baseSubResId  = { range.startSubres.aspect, 0 , 0 };
+    const gpusize      hTileBaseAddr = dstImage.GetMaskRamBaseAddr(pHtile, baseSubResId);
     const auto&        settings      = m_pDevice->Parent()->Settings();
 
     PAL_ASSERT(pCmdBuffer->IsComputeSupported());

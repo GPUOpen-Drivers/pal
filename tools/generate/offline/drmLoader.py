@@ -34,7 +34,7 @@ def main(fileName, outputDir="./"):
 
     procMgr  = proc.ProcMgr(fileName, libraryDict, 1)
 
-    intro = "Modify the procsAnalysis.py and drmLoader.py in the tools/generate directory OR drmLoader.proc instead"
+    intro = "Modify the procAnalysis.py and drmLoader.py in the tools/generate directory OR drmLoader.proc instead"
 
     # let procMgr generate the class named as Dri3Loader
     fp = open(os.path.join(outputDir, "g_drmLoader.h"),'w')

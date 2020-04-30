@@ -114,7 +114,6 @@ union InternalImageFlags
         uint32 hwRotationEnabled           :  1;  // If the DCE will scan vertically to achieve hw rotation
         uint32 primarySupportsNonLocalHeap :  1;  // The resource is primary (flippable) and can be in a non-local heap
         uint32 privateScreenPresent        :  1;  // The image is created for private screen present
-        uint32 presentable                 :  1;  // Image can be be used for Present call
         uint32 stereo                      :  1;  // Image supports stereoscopic rendering and display.  Implies an
                                                   // array size of 2.
         uint32 useSharedTilingOverrides    :  1;  // Enables the shared image tiling parameters in
@@ -126,7 +125,7 @@ union InternalImageFlags
         uint32 placeholder0                :  1;  // Placeholder.
         uint32 placeholder1                :  1;  // Placeholder.
         uint32 placeholder2                :  1;  // Placeholder.
-        uint32 reserved                    : 21;
+        uint32 reserved                    : 22;
     };
     uint32 value;
 };
@@ -382,7 +381,7 @@ public:
 
     // Returns whether or not this Image is a presentable image.
     bool IsPresentable() const
-        { return (m_imageInfo.internalCreateInfo.flags.presentable != 0); }
+        { return (m_createInfo.flags.presentable != 0); }
 
     // Returns whether or not this Image is a flippable image.
     bool IsFlippable() const

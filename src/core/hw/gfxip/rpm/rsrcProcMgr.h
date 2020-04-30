@@ -146,14 +146,15 @@ public:
         uint32           data) const;
 
     void CmdClearBoundDepthStencilTargets(
-        GfxCmdBuffer*                   pCmdBuffer,
-        float                           depth,
-        uint8                           stencil,
-        uint32                          samples,
-        uint32                          fragments,
-        DepthStencilSelectFlags         flag,
-        uint32                          regionCount,
-        const ClearBoundTargetRegion*   pClearRegions) const;
+        GfxCmdBuffer*                 pCmdBuffer,
+        float                         depth,
+        uint8                         stencil,
+        uint8                         stencilWriteMask,
+        uint32                        samples,
+        uint32                        fragments,
+        DepthStencilSelectFlags       flag,
+        uint32                        regionCount,
+        const ClearBoundTargetRegion* pClearRegions) const;
 
     void CmdClearDepthStencil(
         GfxCmdBuffer*      pCmdBuffer,
@@ -162,6 +163,7 @@ public:
         ImageLayout        stencilLayout,
         float              depth,
         uint8              stencil,
+        uint8              stencilWriteMask,
         uint32             rangeCount,
         const SubresRange* pRanges,
         uint32             rectCount,
@@ -271,8 +273,12 @@ protected:
 
     // Assume optimized copies won't work
     virtual bool HwlUseOptimizedImageCopy(
-        const Pal::Image&  srcImage,
-        const Pal::Image&  dstImage) const
+        const Pal::Image&      srcImage,
+        ImageLayout            srcImageLayout,
+        const Pal::Image&      dstImage,
+        ImageLayout            dstImageLayout,
+        uint32                 regionCount,
+        const ImageCopyRegion* pRegions) const
         { return false; }
 
     virtual bool CopyDstBoundStencilNeedsWa(
@@ -288,7 +294,8 @@ protected:
         const Image&           srcImage,
         const Image&           dstImage,
         uint32                 regionCount,
-        const ImageCopyRegion* pRegions) const;
+        const ImageCopyRegion* pRegions,
+        uint32                 copyFlags) const;
 
     const ComputePipeline* GetLinearHtileClearPipeline(
         bool    expClearEnable,
@@ -425,6 +432,7 @@ private:
         ImageLayout        stencilLayout,
         float              depth,
         uint8              stencil,
+        uint8              stencilWriteMask,
         uint32             rangeCount,
         const SubresRange* pRanges,
         bool               fastClear,
