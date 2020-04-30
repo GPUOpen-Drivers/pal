@@ -28,7 +28,7 @@
 //
 // This code has been generated automatically. Do not hand-modify this code.
 //
-// Modify the procsAnalysis.py and drmLoader.py in the tools/generate directory OR drmLoader.proc instead
+// Modify the procAnalysis.py and drmLoader.py in the tools/generate directory OR drmLoader.proc instead
 //
 // WARNING!  WARNING!  WARNING!  WARNING!  WARNING!  WARNING!  WARNING! WARNING!  WARNING!  WARNING!  WARNING!
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -213,6 +213,10 @@ typedef int32 (*AmdgpuBoCpuMap)(
 typedef int32 (*AmdgpuBoCpuUnmap)(
             amdgpu_bo_handle  hBuffer);
 
+typedef int32 (*AmdgpuBoRemapSecure)(
+            amdgpu_bo_handle  buf_handle,
+            bool              secure_map);
+
 typedef int32 (*AmdgpuBoWaitForIdle)(
             amdgpu_bo_handle  hBuffer,
             uint64            timeoutInNs,
@@ -344,6 +348,15 @@ typedef int32 (*AmdgpuCsSubmitRaw)(
             int32                         numChunks,
             struct drm_amdgpu_cs_chunk*   pChunks,
             uint64*                       pSeqNo);
+
+typedef int32 (*AmdgpuCsSubmitRaw2)(
+            amdgpu_device_handle          dev,
+            amdgpu_context_handle         context,
+            uint32_t                      bo_list_handle,
+            int                           num_chunks,
+            struct drm_amdgpu_cs_chunk    *chunks,
+            uint64_t                      *seq_no,
+            bool                          secure);
 
 typedef void (*AmdgpuCsChunkFenceToDep)(
             struct amdgpu_cs_fence*           pFence,
@@ -823,6 +836,12 @@ struct DrmLoaderFuncs
         return (pfnAmdgpuBoCpuUnmap != nullptr);
     }
 
+    AmdgpuBoRemapSecure               pfnAmdgpuBoRemapSecure;
+    bool pfnAmdgpuBoRemapSecureisValid() const
+    {
+        return (pfnAmdgpuBoRemapSecure != nullptr);
+    }
+
     AmdgpuBoWaitForIdle               pfnAmdgpuBoWaitForIdle;
     bool pfnAmdgpuBoWaitForIdleisValid() const
     {
@@ -977,6 +996,12 @@ struct DrmLoaderFuncs
     bool pfnAmdgpuCsSubmitRawisValid() const
     {
         return (pfnAmdgpuCsSubmitRaw != nullptr);
+    }
+
+    AmdgpuCsSubmitRaw2                pfnAmdgpuCsSubmitRaw2;
+    bool pfnAmdgpuCsSubmitRaw2isValid() const
+    {
+        return (pfnAmdgpuCsSubmitRaw2 != nullptr);
     }
 
     AmdgpuCsChunkFenceToDep           pfnAmdgpuCsChunkFenceToDep;
@@ -1672,6 +1697,15 @@ public:
         return (m_pFuncs->pfnAmdgpuBoCpuUnmap != nullptr);
     }
 
+    int32 pfnAmdgpuBoRemapSecure(
+            amdgpu_bo_handle  buf_handle,
+            bool              secure_map) const;
+
+    bool pfnAmdgpuBoRemapSecureisValid() const
+    {
+        return (m_pFuncs->pfnAmdgpuBoRemapSecure != nullptr);
+    }
+
     int32 pfnAmdgpuBoWaitForIdle(
             amdgpu_bo_handle  hBuffer,
             uint64            timeoutInNs,
@@ -1932,6 +1966,20 @@ public:
     bool pfnAmdgpuCsSubmitRawisValid() const
     {
         return (m_pFuncs->pfnAmdgpuCsSubmitRaw != nullptr);
+    }
+
+    int32 pfnAmdgpuCsSubmitRaw2(
+            amdgpu_device_handle          dev,
+            amdgpu_context_handle         context,
+            uint32_t                      bo_list_handle,
+            int                           num_chunks,
+            struct drm_amdgpu_cs_chunk    *chunks,
+            uint64_t                      *seq_no,
+            bool                          secure) const;
+
+    bool pfnAmdgpuCsSubmitRaw2isValid() const
+    {
+        return (m_pFuncs->pfnAmdgpuCsSubmitRaw2 != nullptr);
     }
 
     void pfnAmdgpuCsChunkFenceToDep(

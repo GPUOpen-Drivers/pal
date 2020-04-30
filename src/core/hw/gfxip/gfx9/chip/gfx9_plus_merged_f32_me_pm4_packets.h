@@ -109,8 +109,8 @@ typedef struct PM4_ME_ACQUIRE_MEM__GFX09
 
 } PM4_ME_ACQUIRE_MEM__GFX09;
 
-// ----------------------------------- PM4_ME_ACQUIRE_MEM__GFX10 -----------------------------------
-typedef struct PM4_ME_ACQUIRE_MEM__GFX10
+// --------------------------------- PM4_ME_ACQUIRE_MEM__GFX10PLUS ---------------------------------
+typedef struct PM4_ME_ACQUIRE_MEM__GFX10PLUS
 {
     union
     {
@@ -172,7 +172,7 @@ typedef struct PM4_ME_ACQUIRE_MEM__GFX10
         uint32_t ordinal8;
     };
 
-} PM4_ME_ACQUIRE_MEM__GFX10;
+} PM4_ME_ACQUIRE_MEM__GFX10PLUS;
 
 // ------------------------------- ME_ATOMIC_GDS_atom_cmp_swap_enum -------------------------------
 enum ME_ATOMIC_GDS_atom_cmp_swap_enum
@@ -244,7 +244,7 @@ typedef struct PM4_ME_ATOMIC_GDS
                 uint32_t atom_op   :  8;
                 uint32_t reserved1 :  8;
                 uint32_t           : 16;
-            } gfx10;
+            } gfx10Plus;
         } bitfields2;
         uint32_t ordinal2;
     };
@@ -308,19 +308,19 @@ typedef struct PM4_ME_ATOMIC_GDS
 // ---------------------------------- ME_ATOMIC_MEM_command_enum ----------------------------------
 enum ME_ATOMIC_MEM_command_enum
 {
-    command__me_atomic_mem__single_pass_atomic                 =  0,
-    command__me_atomic_mem__loop_until_compare_satisfied       =  1,
-    command__me_atomic_mem__wait_for_write_confirmation__GFX10 =  2,
-    command__me_atomic_mem__send_and_continue__GFX10           =  3,
+    command__me_atomic_mem__single_pass_atomic                     =  0,
+    command__me_atomic_mem__loop_until_compare_satisfied           =  1,
+    command__me_atomic_mem__wait_for_write_confirmation__GFX10PLUS =  2,
+    command__me_atomic_mem__send_and_continue__GFX10PLUS           =  3,
 };
 
 // -------------------------------- ME_ATOMIC_MEM_cache_policy_enum --------------------------------
 enum ME_ATOMIC_MEM_cache_policy_enum
 {
-    cache_policy__me_atomic_mem__lru           =  0,
-    cache_policy__me_atomic_mem__stream        =  1,
-    cache_policy__me_atomic_mem__noa__GFX10    =  2,
-    cache_policy__me_atomic_mem__bypass__GFX10 =  3,
+    cache_policy__me_atomic_mem__lru               =  0,
+    cache_policy__me_atomic_mem__stream            =  1,
+    cache_policy__me_atomic_mem__noa__GFX10PLUS    =  2,
+    cache_policy__me_atomic_mem__bypass__GFX10PLUS =  3,
 };
 
 // --------------------------------- ME_ATOMIC_MEM_engine_sel_enum ---------------------------------
@@ -548,39 +548,39 @@ typedef struct PM4_ME_CONTEXT_REG_RMW
 // ----------------------------------- ME_COPY_DATA_src_sel_enum -----------------------------------
 enum ME_COPY_DATA_src_sel_enum
 {
-    src_sel__me_copy_data__mem_mapped_register     =  0,
-    src_sel__me_copy_data__memory__GFX09           =  1,
-    src_sel__me_copy_data__tc_l2_obsolete__GFX10   =  1,
-    src_sel__me_copy_data__tc_l2                   =  2,
-    src_sel__me_copy_data__gds                     =  3,
-    src_sel__me_copy_data__perfcounters            =  4,
-    src_sel__me_copy_data__immediate_data          =  5,
-    src_sel__me_copy_data__atomic_return_data      =  6,
-    src_sel__me_copy_data__gds_atomic_return_data0 =  7,
-    src_sel__me_copy_data__gds_atomic_return_data1 =  8,
-    src_sel__me_copy_data__gpu_clock_count         =  9,
-    src_sel__me_copy_data__system_clock_count      = 10,
+    src_sel__me_copy_data__mem_mapped_register       =  0,
+    src_sel__me_copy_data__memory__GFX09             =  1,
+    src_sel__me_copy_data__tc_l2_obsolete__GFX10PLUS =  1,
+    src_sel__me_copy_data__tc_l2                     =  2,
+    src_sel__me_copy_data__gds                       =  3,
+    src_sel__me_copy_data__perfcounters              =  4,
+    src_sel__me_copy_data__immediate_data            =  5,
+    src_sel__me_copy_data__atomic_return_data        =  6,
+    src_sel__me_copy_data__gds_atomic_return_data0   =  7,
+    src_sel__me_copy_data__gds_atomic_return_data1   =  8,
+    src_sel__me_copy_data__gpu_clock_count           =  9,
+    src_sel__me_copy_data__system_clock_count        = 10,
 };
 
 // ----------------------------------- ME_COPY_DATA_dst_sel_enum -----------------------------------
 enum ME_COPY_DATA_dst_sel_enum
 {
-    dst_sel__me_copy_data__mem_mapped_register     =  0,
-    dst_sel__me_copy_data__memory_sync_across_grbm =  1,
-    dst_sel__me_copy_data__tc_l2                   =  2,
-    dst_sel__me_copy_data__gds                     =  3,
-    dst_sel__me_copy_data__perfcounters            =  4,
-    dst_sel__me_copy_data__memory__GFX09           =  5,
-    dst_sel__me_copy_data__tc_l2_obsolete__GFX10   =  5,
+    dst_sel__me_copy_data__mem_mapped_register       =  0,
+    dst_sel__me_copy_data__memory_sync_across_grbm   =  1,
+    dst_sel__me_copy_data__tc_l2                     =  2,
+    dst_sel__me_copy_data__gds                       =  3,
+    dst_sel__me_copy_data__perfcounters              =  4,
+    dst_sel__me_copy_data__memory__GFX09             =  5,
+    dst_sel__me_copy_data__tc_l2_obsolete__GFX10PLUS =  5,
 };
 
 // ------------------------------ ME_COPY_DATA_src_cache_policy_enum ------------------------------
 enum ME_COPY_DATA_src_cache_policy_enum
 {
-    src_cache_policy__me_copy_data__lru           =  0,
-    src_cache_policy__me_copy_data__stream        =  1,
-    src_cache_policy__me_copy_data__noa__GFX10    =  2,
-    src_cache_policy__me_copy_data__bypass__GFX10 =  3,
+    src_cache_policy__me_copy_data__lru               =  0,
+    src_cache_policy__me_copy_data__stream            =  1,
+    src_cache_policy__me_copy_data__noa__GFX10PLUS    =  2,
+    src_cache_policy__me_copy_data__bypass__GFX10PLUS =  3,
 };
 
 // ---------------------------------- ME_COPY_DATA_count_sel_enum ----------------------------------
@@ -600,10 +600,10 @@ enum ME_COPY_DATA_wr_confirm_enum
 // ------------------------------ ME_COPY_DATA_dst_cache_policy_enum ------------------------------
 enum ME_COPY_DATA_dst_cache_policy_enum
 {
-    dst_cache_policy__me_copy_data__lru           =  0,
-    dst_cache_policy__me_copy_data__stream        =  1,
-    dst_cache_policy__me_copy_data__noa__GFX10    =  2,
-    dst_cache_policy__me_copy_data__bypass__GFX10 =  3,
+    dst_cache_policy__me_copy_data__lru               =  0,
+    dst_cache_policy__me_copy_data__stream            =  1,
+    dst_cache_policy__me_copy_data__noa__GFX10PLUS    =  2,
+    dst_cache_policy__me_copy_data__bypass__GFX10PLUS =  3,
 };
 
 // --------------------------------- ME_COPY_DATA_engine_sel_enum ---------------------------------
@@ -747,10 +747,10 @@ enum ME_DMA_DATA_engine_sel_enum
 // ------------------------------- ME_DMA_DATA_src_cache_policy_enum -------------------------------
 enum ME_DMA_DATA_src_cache_policy_enum
 {
-    src_cache_policy__me_dma_data__lru           =  0,
-    src_cache_policy__me_dma_data__stream        =  1,
-    src_cache_policy__me_dma_data__noa__GFX10    =  2,
-    src_cache_policy__me_dma_data__bypass__GFX10 =  3,
+    src_cache_policy__me_dma_data__lru               =  0,
+    src_cache_policy__me_dma_data__stream            =  1,
+    src_cache_policy__me_dma_data__noa__GFX10PLUS    =  2,
+    src_cache_policy__me_dma_data__bypass__GFX10PLUS =  3,
 };
 
 // ----------------------------------- ME_DMA_DATA_dst_sel_enum -----------------------------------
@@ -765,10 +765,10 @@ enum ME_DMA_DATA_dst_sel_enum
 // ------------------------------- ME_DMA_DATA_dst_cache_policy_enum -------------------------------
 enum ME_DMA_DATA_dst_cache_policy_enum
 {
-    dst_cache_policy__me_dma_data__lru           =  0,
-    dst_cache_policy__me_dma_data__stream        =  1,
-    dst_cache_policy__me_dma_data__noa__GFX10    =  2,
-    dst_cache_policy__me_dma_data__bypass__GFX10 =  3,
+    dst_cache_policy__me_dma_data__lru               =  0,
+    dst_cache_policy__me_dma_data__stream            =  1,
+    dst_cache_policy__me_dma_data__noa__GFX10PLUS    =  2,
+    dst_cache_policy__me_dma_data__bypass__GFX10PLUS =  3,
 };
 
 // ----------------------------------- ME_DMA_DATA_src_sel_enum -----------------------------------
@@ -876,10 +876,10 @@ enum ME_DMA_DATA_FILL_MULTI_dst_sel_enum
 // ------------------------- ME_DMA_DATA_FILL_MULTI_dst_cache_policy_enum -------------------------
 enum ME_DMA_DATA_FILL_MULTI_dst_cache_policy_enum
 {
-    dst_cache_policy__me_dma_data_fill_multi__lru           =  0,
-    dst_cache_policy__me_dma_data_fill_multi__stream        =  1,
-    dst_cache_policy__me_dma_data_fill_multi__noa__GFX10    =  2,
-    dst_cache_policy__me_dma_data_fill_multi__bypass__GFX10 =  3,
+    dst_cache_policy__me_dma_data_fill_multi__lru               =  0,
+    dst_cache_policy__me_dma_data_fill_multi__stream            =  1,
+    dst_cache_policy__me_dma_data_fill_multi__noa__GFX10PLUS    =  2,
+    dst_cache_policy__me_dma_data_fill_multi__bypass__GFX10PLUS =  3,
 };
 
 // ------------------------------ ME_DMA_DATA_FILL_MULTI_src_sel_enum ------------------------------
@@ -1043,8 +1043,8 @@ typedef struct PM4_ME_DRAW_INDEX_INDIRECT_MULTI__GFX09
 
 } PM4_ME_DRAW_INDEX_INDIRECT_MULTI__GFX09;
 
-// ---------------------------- PM4_ME_DRAW_INDEX_INDIRECT_MULTI__GFX10 ----------------------------
-typedef struct PM4_ME_DRAW_INDEX_INDIRECT_MULTI__GFX10
+// -------------------------- PM4_ME_DRAW_INDEX_INDIRECT_MULTI__GFX10PLUS --------------------------
+typedef struct PM4_ME_DRAW_INDEX_INDIRECT_MULTI__GFX10PLUS
 {
     union
     {
@@ -1084,7 +1084,7 @@ typedef struct PM4_ME_DRAW_INDEX_INDIRECT_MULTI__GFX10
         uint32_t ordinal5;
     };
 
-} PM4_ME_DRAW_INDEX_INDIRECT_MULTI__GFX10;
+} PM4_ME_DRAW_INDEX_INDIRECT_MULTI__GFX10PLUS;
 
 // --------------------------------- PM4_ME_DRAW_INDEX_MULTI_AUTO ---------------------------------
 typedef struct PM4_ME_DRAW_INDEX_MULTI_AUTO
@@ -1218,8 +1218,8 @@ typedef struct PM4_ME_DRAW_INDIRECT_MULTI__GFX09
 
 } PM4_ME_DRAW_INDIRECT_MULTI__GFX09;
 
-// ------------------------------- PM4_ME_DRAW_INDIRECT_MULTI__GFX10 -------------------------------
-typedef struct PM4_ME_DRAW_INDIRECT_MULTI__GFX10
+// ----------------------------- PM4_ME_DRAW_INDIRECT_MULTI__GFX10PLUS -----------------------------
+typedef struct PM4_ME_DRAW_INDIRECT_MULTI__GFX10PLUS
 {
     union
     {
@@ -1256,7 +1256,7 @@ typedef struct PM4_ME_DRAW_INDIRECT_MULTI__GFX10
         uint32_t ordinal5;
     };
 
-} PM4_ME_DRAW_INDIRECT_MULTI__GFX10;
+} PM4_ME_DRAW_INDIRECT_MULTI__GFX10PLUS;
 
 // -------------------------------- ME_EVENT_WRITE_event_index_enum --------------------------------
 enum ME_EVENT_WRITE_event_index_enum
@@ -1367,10 +1367,10 @@ typedef struct PM4_ME_FRAME_CONTROL
 // ------------------------------ ME_GET_LOD_STATS_cache_policy_enum ------------------------------
 enum ME_GET_LOD_STATS_cache_policy_enum
 {
-    cache_policy__me_get_lod_stats__lru           =  0,
-    cache_policy__me_get_lod_stats__stream        =  1,
-    cache_policy__me_get_lod_stats__noa__GFX10    =  2,
-    cache_policy__me_get_lod_stats__bypass__GFX10 =  3,
+    cache_policy__me_get_lod_stats__lru               =  0,
+    cache_policy__me_get_lod_stats__stream            =  1,
+    cache_policy__me_get_lod_stats__noa__GFX10PLUS    =  2,
+    cache_policy__me_get_lod_stats__bypass__GFX10PLUS =  3,
 };
 
 // ------------------------------------- PM4_ME_GET_LOD_STATS -------------------------------------
@@ -1964,10 +1964,10 @@ enum ME_RELEASE_MEM_event_index_enum
 // ------------------------------- ME_RELEASE_MEM_cache_policy_enum -------------------------------
 enum ME_RELEASE_MEM_cache_policy_enum
 {
-    cache_policy__me_release_mem__lru           =  0,
-    cache_policy__me_release_mem__stream        =  1,
-    cache_policy__me_release_mem__noa__GFX10    =  2,
-    cache_policy__me_release_mem__bypass__GFX10 =  3,
+    cache_policy__me_release_mem__lru               =  0,
+    cache_policy__me_release_mem__stream            =  1,
+    cache_policy__me_release_mem__noa__GFX10PLUS    =  2,
+    cache_policy__me_release_mem__bypass__GFX10PLUS =  3,
 };
 
 // ---------------------------------- ME_RELEASE_MEM_dst_sel_enum ----------------------------------
@@ -2098,14 +2098,14 @@ typedef struct PM4_ME_RELEASE_MEM__GFX09
 // ------------------------------- ME_RELEASE_MEM_mes_action_id_enum -------------------------------
 enum ME_RELEASE_MEM_mes_action_id_enum
 {
-    mes_action_id__me_release_mem__no_mes_notification__GFX10                     =  0,
-    mes_action_id__me_release_mem__interrupt_and_fence__GFX10                     =  1,
-    mes_action_id__me_release_mem__interrupt_no_fence_then_address_payload__GFX10 =  2,
-    mes_action_id__me_release_mem__interrupt_and_address_payload__GFX10           =  3,
+    mes_action_id__me_release_mem__no_mes_notification__GFX10PLUS                     =  0,
+    mes_action_id__me_release_mem__interrupt_and_fence__GFX10PLUS                     =  1,
+    mes_action_id__me_release_mem__interrupt_no_fence_then_address_payload__GFX10PLUS =  2,
+    mes_action_id__me_release_mem__interrupt_and_address_payload__GFX10PLUS           =  3,
 };
 
-// ----------------------------------- PM4_ME_RELEASE_MEM__GFX10 -----------------------------------
-typedef struct PM4_ME_RELEASE_MEM__GFX10
+// --------------------------------- PM4_ME_RELEASE_MEM__GFX10PLUS ---------------------------------
+typedef struct PM4_ME_RELEASE_MEM__GFX10PLUS
 {
     union
     {
@@ -2197,7 +2197,7 @@ typedef struct PM4_ME_RELEASE_MEM__GFX10
         uint32_t ordinal8;
     };
 
-} PM4_ME_RELEASE_MEM__GFX10;
+} PM4_ME_RELEASE_MEM__GFX10PLUS;
 
 // ------------------------------------- PM4_ME_SET_CONFIG_REG -------------------------------------
 typedef struct PM4_ME_SET_CONFIG_REG
@@ -2489,8 +2489,8 @@ typedef struct PM4_ME_SWITCH_BUFFER__GFX09
 
 } PM4_ME_SWITCH_BUFFER__GFX09;
 
-// ---------------------------------- PM4_ME_SWITCH_BUFFER__GFX10 ----------------------------------
-typedef struct PM4_ME_SWITCH_BUFFER__GFX10
+// -------------------------------- PM4_ME_SWITCH_BUFFER__GFX10PLUS --------------------------------
+typedef struct PM4_ME_SWITCH_BUFFER__GFX10PLUS
 {
     union
     {
@@ -2500,7 +2500,7 @@ typedef struct PM4_ME_SWITCH_BUFFER__GFX10
 
     uint32_t dummy;
 
-} PM4_ME_SWITCH_BUFFER__GFX10;
+} PM4_ME_SWITCH_BUFFER__GFX10PLUS;
 
 // ----------------------------------- PM4_ME_WAIT_ON_CE_COUNTER -----------------------------------
 typedef struct PM4_ME_WAIT_ON_CE_COUNTER
@@ -2560,10 +2560,10 @@ enum ME_WAIT_REG_MEM_engine_sel_enum
 // ------------------------------- ME_WAIT_REG_MEM_cache_policy_enum -------------------------------
 enum ME_WAIT_REG_MEM_cache_policy_enum
 {
-    cache_policy__me_wait_reg_mem__lru__GFX10    =  0,
-    cache_policy__me_wait_reg_mem__stream__GFX10 =  1,
-    cache_policy__me_wait_reg_mem__noa__GFX10    =  2,
-    cache_policy__me_wait_reg_mem__bypass__GFX10 =  3,
+    cache_policy__me_wait_reg_mem__lru__GFX10PLUS    =  0,
+    cache_policy__me_wait_reg_mem__stream__GFX10PLUS =  1,
+    cache_policy__me_wait_reg_mem__noa__GFX10PLUS    =  2,
+    cache_policy__me_wait_reg_mem__bypass__GFX10PLUS =  3,
 };
 
 // -------------------------------------- PM4_ME_WAIT_REG_MEM --------------------------------------
@@ -2601,7 +2601,7 @@ typedef struct PM4_ME_WAIT_REG_MEM
                 uint32_t                          mes_action    :  1;
                 ME_WAIT_REG_MEM_cache_policy_enum cache_policy  :  2;
                 uint32_t                          reserved3     :  5;
-            } gfx10;
+            } gfx10Plus;
         } bitfields2;
         uint32_t ordinal2;
     };
@@ -2624,7 +2624,7 @@ typedef struct PM4_ME_WAIT_REG_MEM
             {
                 uint32_t reserved4 :  2;
                 uint32_t           : 30;
-            } gfx10;
+            } gfx10Plus;
         } bitfields3a;
         union
         {
@@ -2642,7 +2642,7 @@ typedef struct PM4_ME_WAIT_REG_MEM
             {
                 uint32_t           : 18;
                 uint32_t reserved5 : 14;
-            } gfx10;
+            } gfx10Plus;
         } bitfields3b;
         union
         {
@@ -2660,7 +2660,7 @@ typedef struct PM4_ME_WAIT_REG_MEM
             {
                 uint32_t           : 18;
                 uint32_t reserved6 : 14;
-            } gfx10;
+            } gfx10Plus;
         } bitfields3c;
         uint32_t ordinal3;
     };
@@ -2684,7 +2684,7 @@ typedef struct PM4_ME_WAIT_REG_MEM
             {
                 uint32_t           : 18;
                 uint32_t reserved7 : 14;
-            } gfx10;
+            } gfx10Plus;
         } bitfields4b;
         uint32_t ordinal4;
     };
@@ -2711,7 +2711,7 @@ typedef struct PM4_ME_WAIT_REG_MEM
             {
                 uint32_t           : 16;
                 uint32_t reserved8 : 16;
-            } gfx10;
+            } gfx10Plus;
         } bitfields7;
         uint32_t ordinal7;
     };
@@ -2754,10 +2754,10 @@ enum ME_WAIT_REG_MEM64_engine_sel_enum
 // ------------------------------ ME_WAIT_REG_MEM64_cache_policy_enum ------------------------------
 enum ME_WAIT_REG_MEM64_cache_policy_enum
 {
-    cache_policy__me_wait_reg_mem64__lru__GFX10    =  0,
-    cache_policy__me_wait_reg_mem64__stream__GFX10 =  1,
-    cache_policy__me_wait_reg_mem64__noa__GFX10    =  2,
-    cache_policy__me_wait_reg_mem64__bypass__GFX10 =  3,
+    cache_policy__me_wait_reg_mem64__lru__GFX10PLUS    =  0,
+    cache_policy__me_wait_reg_mem64__stream__GFX10PLUS =  1,
+    cache_policy__me_wait_reg_mem64__noa__GFX10PLUS    =  2,
+    cache_policy__me_wait_reg_mem64__bypass__GFX10PLUS =  3,
 };
 
 // ------------------------------------- PM4_ME_WAIT_REG_MEM64 -------------------------------------
@@ -2795,7 +2795,7 @@ typedef struct PM4_ME_WAIT_REG_MEM64
                 uint32_t                            mes_action    :  1;
                 ME_WAIT_REG_MEM64_cache_policy_enum cache_policy  :  2;
                 uint32_t                            reserved3     :  5;
-            } gfx10;
+            } gfx10Plus;
         } bitfields2;
         uint32_t ordinal2;
     };
@@ -2818,7 +2818,7 @@ typedef struct PM4_ME_WAIT_REG_MEM64
             {
                 uint32_t reserved4 :  3;
                 uint32_t           : 29;
-            } gfx10;
+            } gfx10Plus;
         } bitfields3a;
         union
         {
@@ -2836,7 +2836,7 @@ typedef struct PM4_ME_WAIT_REG_MEM64
             {
                 uint32_t           : 18;
                 uint32_t reserved5 : 14;
-            } gfx10;
+            } gfx10Plus;
         } bitfields3b;
         union
         {
@@ -2854,7 +2854,7 @@ typedef struct PM4_ME_WAIT_REG_MEM64
             {
                 uint32_t           : 18;
                 uint32_t reserved6 : 14;
-            } gfx10;
+            } gfx10Plus;
         } bitfields3c;
         uint32_t ordinal3;
     };
@@ -2878,7 +2878,7 @@ typedef struct PM4_ME_WAIT_REG_MEM64
             {
                 uint32_t           : 18;
                 uint32_t reserved7 : 14;
-            } gfx10;
+            } gfx10Plus;
         } bitfields4b;
         uint32_t ordinal4;
     };
@@ -2909,7 +2909,7 @@ typedef struct PM4_ME_WAIT_REG_MEM64
             {
                 uint32_t           : 16;
                 uint32_t reserved8 : 16;
-            } gfx10;
+            } gfx10Plus;
         } bitfields9;
         uint32_t ordinal9;
     };
@@ -2943,10 +2943,10 @@ enum ME_WRITE_DATA_wr_confirm_enum
 // -------------------------------- ME_WRITE_DATA_cache_policy_enum --------------------------------
 enum ME_WRITE_DATA_cache_policy_enum
 {
-    cache_policy__me_write_data__lru           =  0,
-    cache_policy__me_write_data__stream        =  1,
-    cache_policy__me_write_data__noa__GFX10    =  2,
-    cache_policy__me_write_data__bypass__GFX10 =  3,
+    cache_policy__me_write_data__lru               =  0,
+    cache_policy__me_write_data__stream            =  1,
+    cache_policy__me_write_data__noa__GFX10PLUS    =  2,
+    cache_policy__me_write_data__bypass__GFX10PLUS =  3,
 };
 
 // --------------------------------- ME_WRITE_DATA_engine_sel_enum ---------------------------------
@@ -2993,7 +2993,7 @@ typedef struct PM4_ME_WRITE_DATA
                 uint32_t           : 17;
                 uint32_t reserved3 :  3;
                 uint32_t           : 12;
-            } gfx10;
+            } gfx10Plus;
         } bitfields2;
         uint32_t ordinal2;
     };
@@ -3157,15 +3157,15 @@ typedef struct PM4_ME_GFX_PIPE_LOCK
 // ----------------------------- ME_LOAD_UCONFIG_REG_INDEX_index_enum -----------------------------
 enum ME_LOAD_UCONFIG_REG_INDEX_index_enum
 {
-    index__me_load_uconfig_reg_index__direct_addr__GFX10 =  0,
-    index__me_load_uconfig_reg_index__offset__GFX10      =  1,
+    index__me_load_uconfig_reg_index__direct_addr__GFX10PLUS =  0,
+    index__me_load_uconfig_reg_index__offset__GFX10PLUS      =  1,
 };
 
 // -------------------------- ME_LOAD_UCONFIG_REG_INDEX_data_format_enum --------------------------
 enum ME_LOAD_UCONFIG_REG_INDEX_data_format_enum
 {
-    data_format__me_load_uconfig_reg_index__offset_and_size__GFX10 =  0,
-    data_format__me_load_uconfig_reg_index__offset_and_data__GFX10 =  1,
+    data_format__me_load_uconfig_reg_index__offset_and_size__GFX10PLUS =  0,
+    data_format__me_load_uconfig_reg_index__offset_and_data__GFX10PLUS =  1,
 };
 
 // --------------------------------- PM4_ME_LOAD_UCONFIG_REG_INDEX ---------------------------------

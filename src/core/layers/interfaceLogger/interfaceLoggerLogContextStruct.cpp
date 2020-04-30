@@ -23,6 +23,8 @@
  *
  **********************************************************************************************************************/
 
+#if PAL_BUILD_INTERFACE_LOGGER
+
 #include "core/layers/interfaceLogger/interfaceLoggerLogContext.h"
 
 using namespace Util;
@@ -375,6 +377,9 @@ void LogContext::Struct(
 {
     BeginMap(false);
     KeyAndEnum("type", value.type);
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 592
+    KeyAndValue("disabledChannelMask", value.disabledChannelMask);
+#endif
     KeyAndBeginList("color", true);
 
     if (value.type == ClearColorType::Float)
@@ -1221,6 +1226,13 @@ void LogContext::Struct(
         Value("interprocess");
     }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 585
+    if (value.presentable)
+    {
+        Value("presentable");
+    }
+#endif
+
     if (value.flippable)
     {
         Value("flippable");
@@ -1488,6 +1500,13 @@ void LogContext::Struct(
     {
         Value("shareable");
     }
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 585
+    if (value.presentable)
+    {
+        Value("presentable");
+    }
+#endif
 
     if (value.flippable)
     {
@@ -3076,3 +3095,5 @@ void LogContext::Struct(
 
 } // InterfaceLogger
 } // Pal
+
+#endif

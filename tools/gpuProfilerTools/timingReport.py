@@ -48,7 +48,8 @@ else:
 QueueCallCol     = 0
 CmdBufIndexCol   = QueueCallCol + 1
 CmdBufCallCol    = CmdBufIndexCol + 1
-StartClockCol    = CmdBufCallCol + 1
+SubQueueIdxCol   = CmdBufCallCol + 1
+StartClockCol    = SubQueueIdxCol + 1
 EndClockCol      = StartClockCol + 1
 TimeCol          = EndClockCol + 1
 PipelineHashCol  = TimeCol + 1

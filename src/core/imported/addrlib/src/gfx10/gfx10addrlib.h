@@ -54,7 +54,7 @@ struct Gfx10ChipSettings
         UINT_32 reserved1           : 32;
 
         // Misc configuration bits
-        UINT_32 isDcn2              : 1;
+        UINT_32 isDcn20             : 1;
         UINT_32 supportRbPlus       : 1;
         UINT_32 dsMipmapHtileFix    : 1;
         UINT_32 dccUnsup3DSwDis     : 1;
@@ -170,20 +170,32 @@ const UINT_32 Gfx10Rsrc3dThick64KBSwModeMask = Gfx10Rsrc3dThickSwModeMask & Gfx1
 const UINT_32 Gfx10MsaaSwModeMask = Gfx10ZSwModeMask |
                                     Gfx10RenderSwModeMask;
 
-const UINT_32 Dcn2NonBpp64SwModeMask = (1u << ADDR_SW_LINEAR)   |
-                                       (1u << ADDR_SW_4KB_S)    |
-                                       (1u << ADDR_SW_64KB_S)   |
-                                       (1u << ADDR_SW_64KB_S_T) |
-                                       (1u << ADDR_SW_4KB_S_X)  |
-                                       (1u << ADDR_SW_64KB_S_X) |
-                                       (1u << ADDR_SW_64KB_R_X);
+const UINT_32 Dcn20NonBpp64SwModeMask = (1u << ADDR_SW_LINEAR)   |
+                                        (1u << ADDR_SW_4KB_S)    |
+                                        (1u << ADDR_SW_64KB_S)   |
+                                        (1u << ADDR_SW_64KB_S_T) |
+                                        (1u << ADDR_SW_4KB_S_X)  |
+                                        (1u << ADDR_SW_64KB_S_X) |
+                                        (1u << ADDR_SW_64KB_R_X);
 
-const UINT_32 Dcn2Bpp64SwModeMask = (1u << ADDR_SW_4KB_D)    |
-                                    (1u << ADDR_SW_64KB_D)   |
-                                    (1u << ADDR_SW_64KB_D_T) |
-                                    (1u << ADDR_SW_4KB_D_X)  |
-                                    (1u << ADDR_SW_64KB_D_X) |
-                                    Dcn2NonBpp64SwModeMask;
+const UINT_32 Dcn20Bpp64SwModeMask = (1u << ADDR_SW_4KB_D)    |
+                                     (1u << ADDR_SW_64KB_D)   |
+                                     (1u << ADDR_SW_64KB_D_T) |
+                                     (1u << ADDR_SW_4KB_D_X)  |
+                                     (1u << ADDR_SW_64KB_D_X) |
+                                     Dcn20NonBpp64SwModeMask;
+
+const UINT_32 Dcn21NonBpp64SwModeMask = (1u << ADDR_SW_LINEAR)   |
+                                        (1u << ADDR_SW_64KB_S)   |
+                                        (1u << ADDR_SW_64KB_S_T) |
+                                        (1u << ADDR_SW_64KB_S_X) |
+                                        (1u << ADDR_SW_64KB_R_X);
+
+const UINT_32 Dcn21Bpp64SwModeMask = (1u << ADDR_SW_64KB_D)   |
+                                     (1u << ADDR_SW_64KB_D_T) |
+                                     (1u << ADDR_SW_64KB_D_X) |
+                                     Dcn21NonBpp64SwModeMask;
+
 /**
 ************************************************************************************************************************
 * @brief This class is the GFX10 specific address library
@@ -491,6 +503,8 @@ private:
                (IsTex3d(resourceType) && isDisplay);
 
     }
+
+    UINT_32 GetValidDisplaySwizzleModes(UINT_32 bpp) const;
 
     BOOL_32 IsValidDisplaySwizzleMode(const ADDR2_COMPUTE_SURFACE_INFO_INPUT* pIn) const;
 

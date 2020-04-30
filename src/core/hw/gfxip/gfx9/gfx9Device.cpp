@@ -189,7 +189,7 @@ Device::Device(
     m_varBlockSize(0)
 {
     PAL_ASSERT(((GetGbAddrConfig().bits.NUM_PIPES - GetGbAddrConfig().bits.NUM_RB_PER_SE) < 2) ||
-               IsGfx10(m_gfxIpLevel));
+               IsGfx10Plus(m_gfxIpLevel));
 
     for (uint32  shaderStage = 0; shaderStage < HwShaderStage::Last; shaderStage++)
     {
@@ -2007,8 +2007,7 @@ void PAL_STDCALL Device::Gfx9CreateUntypedBufferViewSrds(
 
     for (uint32 idx = 0; idx < count; ++idx)
     {
-        PAL_ASSERT((pBufferViewInfo->gpuAddr != 0) ||
-                   ((pBufferViewInfo->range == 0) && (pBufferViewInfo->stride == 0)));
+        PAL_ASSERT((pBufferViewInfo->gpuAddr != 0) || (pBufferViewInfo->range == 0));
 
         pOutSrd->word0.bits.BASE_ADDRESS = LowPart(pBufferViewInfo->gpuAddr);
 
@@ -2059,8 +2058,7 @@ void PAL_STDCALL Device::Gfx10CreateUntypedBufferViewSrds(
 
     for (uint32 idx = 0; idx < count; ++idx)
     {
-        PAL_ASSERT((pBufferViewInfo->gpuAddr != 0) ||
-                   ((pBufferViewInfo->range == 0) && (pBufferViewInfo->stride == 0)));
+        PAL_ASSERT((pBufferViewInfo->gpuAddr != 0) || (pBufferViewInfo->range == 0));
 
         pOutSrd->u32All[0] = LowPart(pBufferViewInfo->gpuAddr);
 
@@ -2660,7 +2658,7 @@ void PAL_STDCALL Device::Gfx9CreateImageViewSrds(
         srd.word3.bits.DST_SEL_Y = Formats::Gfx9::HwSwizzle(viewInfo.swizzledFormat.swizzle.g);
         srd.word3.bits.DST_SEL_Z = Formats::Gfx9::HwSwizzle(viewInfo.swizzledFormat.swizzle.b);
         srd.word3.bits.DST_SEL_W = Formats::Gfx9::HwSwizzle(viewInfo.swizzledFormat.swizzle.a);
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 446)
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 586
         // We need to use D swizzle mode for writing an image with view3dAs2dArray feature enabled.
         // But when reading from it, we need to use S mode.
         // In AddrSwizzleMode, S mode is always right before D mode, so we simply do a "-1" here.
@@ -3088,6 +3086,25 @@ void PAL_STDCALL Device::Gfx10CreateImageViewSrds(
                 PAL_ASSERT(baseArraySlice == 0);
             }
         }
+        else if (Formats::IsMacroPixelPackedRgbOnly(imageCreateInfo.swizzledFormat.format) &&
+                 (Formats::IsMacroPixelPackedRgbOnly(format) == false) &&
+                 (imageCreateInfo.mipLevels > 1))
+        {
+            // If we have view format as X16 for MacroPixelPackedRgbOnly format.
+            // We need a padding view for width need to be padding to even.
+            //      mip0:  100x800
+            //      mip1:  50x400
+            //      mip2:  26x200
+            //      mip3:  12x100
+            //      mip4:  6x50
+            //      mip5:  4x25
+            //      mip6:  2x12
+            //      mip7:  2x6
+            //      mip8:  2x3
+            //      mip9:  2x1   (may missing pixel if actual base extent.width < 2**10)
+            // If we have missing pixel, we will do another following on copy by HwlImageToImageMissingPixelCopy()
+            includePadding = true;
+        }
 
         {
             // MIN_LOD field is unsigned
@@ -3161,6 +3178,9 @@ void PAL_STDCALL Device::Gfx10CreateImageViewSrds(
         srd.dst_sel_y = Formats::Gfx9::HwSwizzle(viewInfo.swizzledFormat.swizzle.g);
         srd.dst_sel_z = Formats::Gfx9::HwSwizzle(viewInfo.swizzledFormat.swizzle.b);
         srd.dst_sel_w = Formats::Gfx9::HwSwizzle(viewInfo.swizzledFormat.swizzle.a);
+
+        // When view3dAs2dArray is enabled for 3d image, we'll use the same mode for writing and viewing
+        // according to the doc, so we don't need to change it here.
         srd.sw_mode   = pAddrMgr->GetHwSwizzleMode(surfSetting.swizzleMode);
 
         const bool isMultiSampled = (imageCreateInfo.samples > 1);
@@ -3177,7 +3197,8 @@ void PAL_STDCALL Device::Gfx10CreateImageViewSrds(
 #if (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 546)
         case ImageViewType::TexQuilt: // quilted textures must be 2D
 #endif
-            srd.type = ((imageCreateInfo.arraySize == 1)
+            // A 3D image with view3dAs2dArray enabled can be accessed via 2D image view too, it needs 2D_ARRAY type.
+            srd.type = (((imageCreateInfo.arraySize == 1) && (imageCreateInfo.imageType != ImageType::Tex3d))
                         ? (isMultiSampled ? SQ_RSRC_IMG_2D_MSAA       : SQ_RSRC_IMG_2D)
                         : (isMultiSampled ? SQ_RSRC_IMG_2D_MSAA_ARRAY : SQ_RSRC_IMG_2D_ARRAY));
             break;
@@ -4126,7 +4147,7 @@ void InitializeGpuChipProperties(
         pInfo->gfx9.minVgprAlloc            = 4;
         pInfo->gfxip.shaderPrefetchBytes    = 3 * ShaderICacheLineSize;
     }
-    else
+    else if (pInfo->gfxLevel == GfxIpLevel::GfxIp9)
     {
         pInfo->gfx9.supportAddrOffsetDumpAndSetShPkt = (cpUcodeVersion >= UcodeVersionWithDumpOffsetSupport);
         pInfo->gfx9.supportAddrOffsetSetSh256Pkt     = (cpUcodeVersion >= Gfx9UcodeVersionSetShRegOffset256B);
@@ -4245,6 +4266,7 @@ void InitializeGpuChipProperties(
             pInfo->gfx9.maxNumRbPerSe        = 4;
             pInfo->gfx9.numSdpInterfaces     = 32;
             pInfo->gfx9.eccProtectedGprs     = 1;
+            pInfo->gfx9.supportFp16Dot2      = 1;
         }
         else
         {
@@ -4284,6 +4306,7 @@ void InitializeGpuChipProperties(
             {
                 pInfo->revision             = AsicRevision::Navi14;
             }
+
             pInfo->gfxStepping              = Abi::GfxIpSteppingNavi14;
             pInfo->gfx9.numShaderEngines    = 1;
             pInfo->gfx9.maxNumCuPerSh       = 12;
@@ -4292,6 +4315,7 @@ void InitializeGpuChipProperties(
             pInfo->gfx9.parameterCacheLines = 512;
             pInfo->gfx9.gfx10.numGl2a       = 2;
             pInfo->gfx9.gfx10.numGl2c       = 8;
+            pInfo->gfx9.supportFp16Dot2     = 1;
         }
         else
         {
@@ -6510,14 +6534,30 @@ bool IsBufferBigPageCompatible(
     uint32           bigPageUsageMask)  // Mask of Gfx10AllowBigPage values
 {
     const Gfx9PalSettings& settings = GetGfx9Settings(*gpuMemory.GetDevice());
+    bool bigPageCompatibility       = false;
 
-    // The hardware BIG_PAGE optimization always requires >= 64KiB page size.
-    constexpr gpusize MinBigPageSize = 64 * 1024;
+    if (TestAllFlagsSet(settings.allowBigPage, bigPageUsageMask))
+    {
+        // The hardware BIG_PAGE optimization always requires >= 64KiB page size
+        gpusize MinBigPageSize   = 64 * 1024;
+        gpusize bigPageLargeSize = gpuMemory.GetDevice()->MemoryProperties().bigPageLargeAlignment;
+        gpusize bigPageMinSize   = gpuMemory.GetDevice()->MemoryProperties().bigPageMinAlignment;
 
-    return TestAllFlagsSet(settings.allowBigPage, bigPageUsageMask) &&
-           IsPow2Aligned(gpuMemory.MinPageSize(), MinBigPageSize)   &&
-           ((settings.waUtcL0InconsistentBigPage == false) ||
-            (IsPow2Aligned(offset, MinBigPageSize) && IsPow2Aligned(extent, MinBigPageSize)));
+        // KMD defined alignment requirements for BIG_PAGE optimization.
+        if ((gpuMemory.MinPageSize() >= bigPageLargeSize) && (bigPageLargeSize > 0))
+        {
+            MinBigPageSize = bigPageLargeSize;
+        }
+        else if ((gpuMemory.MinPageSize() >= bigPageMinSize) && (bigPageMinSize > 0))
+        {
+            MinBigPageSize = bigPageMinSize;
+        }
+
+        bigPageCompatibility = IsPow2Aligned(gpuMemory.MinPageSize(), MinBigPageSize) &&
+                               ((settings.waUtcL0InconsistentBigPage == false) ||
+                                (IsPow2Aligned(offset, MinBigPageSize) && IsPow2Aligned(extent, MinBigPageSize)));
+    }
+    return bigPageCompatibility;
 }
 
 // =====================================================================================================================

@@ -28,7 +28,7 @@
 //
 // This code has been generated automatically. Do not hand-modify this code.
 //
-// Modify the procsAnalysis.py and waylandLoader.py in the tools/generate directory OR waylandWindowSystem.proc instead
+// Modify the procAnalysis.py and waylandLoader.py in the tools/generate directory OR waylandWindowSystem.proc instead
 //
 // WARNING!  WARNING!  WARNING!  WARNING!  WARNING!  WARNING!  WARNING! WARNING!  WARNING!  WARNING!  WARNING!
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -45,7 +45,6 @@ namespace Pal
 {
 namespace Amdgpu
 {
-
 // =====================================================================================================================
 #if defined(PAL_DEBUG_PRINTS)
 void WaylandLoaderFuncsProxy::Init(const char* pLogPath)
@@ -56,8 +55,6 @@ void WaylandLoaderFuncsProxy::Init(const char* pLogPath)
     Util::Snprintf(file, sizeof(file), "%s/WaylandLoaderParamLogger.trace", pLogPath);
     m_paramLogger.Open(file, FileAccessMode::FileAccessWrite);
 }
-
-// =====================================================================================================================
 
 // =====================================================================================================================
 wl_event_queue* WaylandLoaderFuncsProxy::pfnWlDisplayCreateQueue(

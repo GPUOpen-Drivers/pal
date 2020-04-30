@@ -423,6 +423,7 @@ ADDR_E_RETURNCODE Gfx10Lib::HwlComputeDccInfo(
             pOut->metaBlkWidth      = metaBlk.w;
             pOut->metaBlkHeight     = metaBlk.h;
             pOut->metaBlkDepth      = metaBlk.d;
+            pOut->metaBlkSize       = metaBlkSize;
 
             pOut->pitch             = PowTwoAlign(pIn->unalignedWidth,     metaBlk.w);
             pOut->height            = PowTwoAlign(pIn->unalignedHeight,    metaBlk.h);
@@ -948,7 +949,6 @@ ChipFamily Gfx10Lib::HwlConvertChipFamily(
     switch (chipFamily)
     {
         case FAMILY_NV:
-            m_settings.isDcn2 = 1;
 
             break;
 
@@ -962,6 +962,12 @@ ChipFamily Gfx10Lib::HwlConvertChipFamily(
     if (ASICREV_IS_NAVI10_P(chipRevision))
     {
         m_settings.dsMipmapHtileFix = 0;
+    }
+
+    if (ASICREV_IS_NAVI10_P(chipRevision) ||
+        ASICREV_IS_NAVI14_M(chipRevision))
+    {
+        m_settings.isDcn20 = 1;
     }
 
     m_configFlags.use32bppFor422Fmt = TRUE;
@@ -1939,6 +1945,38 @@ UINT_32 Gfx10Lib::HwlGetEquationIndex(
 
 /**
 ************************************************************************************************************************
+*   Gfx10Lib::GetValidDisplaySwizzleModes
+*
+*   @brief
+*       Get valid swizzle modes mask for displayable surface
+*
+*   @return
+*       Valid swizzle modes mask for displayable surface
+************************************************************************************************************************
+*/
+UINT_32 Gfx10Lib::GetValidDisplaySwizzleModes(
+    UINT_32 bpp
+    ) const
+{
+    UINT_32 swModeMask = 0;
+
+    if (bpp <= 64)
+    {
+        if (m_settings.isDcn20)
+        {
+            swModeMask = (bpp == 64) ? Dcn20Bpp64SwModeMask : Dcn20NonBpp64SwModeMask;
+        }
+        else
+        {
+            swModeMask = (bpp == 64) ? Dcn21Bpp64SwModeMask : Dcn21NonBpp64SwModeMask;
+        }
+    }
+
+    return swModeMask;
+}
+
+/**
+************************************************************************************************************************
 *   Gfx10Lib::IsValidDisplaySwizzleMode
 *
 *   @brief
@@ -1954,27 +1992,7 @@ BOOL_32 Gfx10Lib::IsValidDisplaySwizzleMode(
 {
     ADDR_ASSERT(pIn->resourceType == ADDR_RSRC_TEX_2D);
 
-    BOOL_32 support = FALSE;
-
-    if (m_settings.isDcn2)
-    {
-        const UINT_32 swizzleMask = 1 << pIn->swizzleMode;
-
-        if (pIn->bpp < 64)
-        {
-            support = (Dcn2NonBpp64SwModeMask & swizzleMask) ? TRUE : FALSE;
-        }
-        else if (pIn->bpp == 64)
-        {
-            support = (Dcn2Bpp64SwModeMask & swizzleMask) ? TRUE : FALSE;
-        }
-    }
-    else
-    {
-        ADDR_NOT_IMPLEMENTED();
-    }
-
-    return support;
+    return (GetValidDisplaySwizzleModes(pIn->bpp) & (1 << pIn->swizzleMode)) ? TRUE : FALSE;
 }
 
 /**
@@ -2676,14 +2694,7 @@ ADDR_E_RETURNCODE Gfx10Lib::HwlGetPreferredSurfaceSetting(
 
             if (pIn->flags.display)
             {
-                if (m_settings.isDcn2)
-                {
-                    allowedSwModeSet.value &= (bpp == 64) ? Dcn2Bpp64SwModeMask : Dcn2NonBpp64SwModeMask;
-                }
-                else
-                {
-                    ADDR_NOT_IMPLEMENTED();
-                }
+                allowedSwModeSet.value &= GetValidDisplaySwizzleModes(bpp);
             }
 
             if (allowedSwModeSet.value != 0)

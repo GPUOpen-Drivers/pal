@@ -170,9 +170,6 @@ public:
         uint32          connector,
         uint32*         pOutput);
 
-    virtual Result RequestImageWithIndex(
-        uint32          index) = 0;
-
     // Create a presentable image or pixmap from a buffer. This function is only meaningful for Dri3.
     virtual Result CreatePresentableImage(
         SwapChain* pSwapChain,

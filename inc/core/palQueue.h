@@ -354,7 +354,7 @@ struct PresentDirectInfo
                                         ///  but PAL may still call into the OS on certain platforms that expect it.
     };
 
-    MgpuSlsInfo    mgpuSlsInfo;     ///< Optional, MGpu Sls Present Info. imageCount = 0 if not a Mgpu Sls present.
+    MgpuSlsInfo     mgpuSlsInfo;    ///< Optional, MGpu Sls Present Info. imageCount = 0 if not a Mgpu Sls present.
 };
 
 /// Media stream counter information.

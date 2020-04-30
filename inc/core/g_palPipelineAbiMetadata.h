@@ -34,6 +34,8 @@ namespace Util
 namespace Abi
 {
 
+using MsgPackOffset = uint32;
+
 struct BinaryData
 {
     const void*  pBuffer;
@@ -117,6 +119,8 @@ struct PipelineMetadata
     uint64                internalPipelineHash[2];
     ShaderMetadata        shader[static_cast<uint32>(ApiShaderType::Count)];
     HardwareStageMetadata hardwareStage[static_cast<uint32>(HardwareStage::Count)];
+    MsgPackOffset         shaderFunctions;
+    MsgPackOffset         registers;
     uint32                userDataLimit;
     uint32                spillThreshold;
     uint32                esGsLdsSize;
@@ -142,24 +146,27 @@ struct PipelineMetadata
     {
         struct
         {
-            uint16 name                           : 1;
-            uint16 type                           : 1;
-            uint16 internalPipelineHash           : 1;
-            uint16 userDataLimit                  : 1;
-            uint16 spillThreshold                 : 1;
-            uint16 usesViewportArrayIndex         : 1;
-            uint16 esGsLdsSize                    : 1;
-            uint16 streamOutTableAddress          : 1;
-            uint16 indirectUserDataTableAddresses : 1;
-            uint16 nggSubgroupSize                : 1;
-            uint16 numInterpolants                : 1;
-            uint16 placeholder0                   : 1;
-            uint16 calcWaveBreakSizeAtDrawTime    : 1;
-            uint16 placeholder1                   : 1;
-            uint16 api                            : 1;
-            uint16 apiCreateInfo                  : 1;
+            uint32 name                           : 1;
+            uint32 type                           : 1;
+            uint32 internalPipelineHash           : 1;
+            uint32 shaderFunctions                : 1;
+            uint32 registers                      : 1;
+            uint32 userDataLimit                  : 1;
+            uint32 spillThreshold                 : 1;
+            uint32 usesViewportArrayIndex         : 1;
+            uint32 esGsLdsSize                    : 1;
+            uint32 streamOutTableAddress          : 1;
+            uint32 indirectUserDataTableAddresses : 1;
+            uint32 nggSubgroupSize                : 1;
+            uint32 numInterpolants                : 1;
+            uint32 placeholder0                   : 1;
+            uint32 calcWaveBreakSizeAtDrawTime    : 1;
+            uint32 placeholder1                   : 1;
+            uint32 api                            : 1;
+            uint32 apiCreateInfo                  : 1;
+            uint32 reserved                       : 14;
         };
-        uint16 uAll;
+        uint32 uAll;
     } hasEntry;
 };
 
@@ -192,6 +199,7 @@ namespace PipelineMetadataKey
     static constexpr char InternalPipelineHash[]           = ".internal_pipeline_hash";
     static constexpr char Shaders[]                        = ".shaders";
     static constexpr char HardwareStages[]                 = ".hardware_stages";
+    static constexpr char ShaderFunctions[]                = ".shader_functions";
     static constexpr char Registers[]                      = ".registers";
     static constexpr char UserDataLimit[]                  = ".user_data_limit";
     static constexpr char SpillThreshold[]                 = ".spill_threshold";
@@ -237,8 +245,22 @@ namespace Metadata
 
 Result DeserializePalCodeObjectMetadata(
     MsgPackReader*  pReader,
+    PalCodeObjectMetadata*  pMetadata);
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 580
+PAL_INLINE Result DeserializePalCodeObjectMetadata(
+    MsgPackReader*          pReader,
     PalCodeObjectMetadata*  pMetadata,
-    uint32*  pRegistersOffset);
+    uint32*                 pRegistersOffset)
+{
+    const Result result = DeserializePalCodeObjectMetadata(pReader, pMetadata);
+    if ((result == Result::Success) && (pRegistersOffset != nullptr))
+    {
+        *pRegistersOffset = (pMetadata->pipeline.hasEntry.registers != 0) ? pMetadata->pipeline.registers : 0xffffffff;
+    }
+    return result;
+}
+#endif
 
 Result SerializeEnum(MsgPackWriter* pWriter, PipelineType value);
 Result SerializeEnum(MsgPackWriter* pWriter, ApiShaderType value);

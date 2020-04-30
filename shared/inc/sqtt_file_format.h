@@ -699,6 +699,7 @@ typedef enum SpmGpuBlock
     RMI     = 0x1F,
     UMCCH   = 0x20,
     GE      = 0x21,
+    GE1     = GE,
     GL1A    = 0x22,
     GL1C    = 0x23,
     GL1CG   = 0x24,
@@ -713,7 +714,7 @@ typedef enum SpmGpuBlock
     UTCL1   = 0x2D,
     GEDIST  = 0x2E,
     GESE    = 0x2F,
-    DF      = 0x3A,
+    DF      = 0x30,
     COUNT
 } SpmGpuBlock;
 

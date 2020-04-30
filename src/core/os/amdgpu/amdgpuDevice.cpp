@@ -1847,6 +1847,10 @@ Result Device::CreateImage(
     void*                  pPlacementAddr,
     IImage**               ppImage)
 {
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 585
+    const_cast<ImageCreateInfo&>(createInfo).flags.presentable = 0;
+#endif
+
     Pal::Image* pImage = nullptr;
 
     constexpr ImageInternalCreateInfo internalInfo = {};

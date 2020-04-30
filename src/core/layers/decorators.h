@@ -442,6 +442,10 @@ public:
         const ScreenColorConfig* pColorConfig) override
     { return m_pNextLayer->SetColorConfiguration(pColorConfig); }
 
+    virtual HdrDisplayMode GetFormatHdrMode(
+        SwizzledFormat format) const override
+    { return m_pNextLayer->GetFormatHdrMode(format); }
+
     virtual Result WaitForVerticalBlank() const override
         { return m_pNextLayer->WaitForVerticalBlank(); }
 
@@ -1627,6 +1631,7 @@ public:
     virtual void CmdClearBoundDepthStencilTargets(
         float                           depth,
         uint8                           stencil,
+        uint8                           stencilWriteMask,
         uint32                          samples,
         uint32                          fragments,
         DepthStencilSelectFlags         flag,
@@ -1635,6 +1640,7 @@ public:
     {
         m_pNextLayer->CmdClearBoundDepthStencilTargets(depth,
                                                        stencil,
+                                                       stencilWriteMask,
                                                        samples,
                                                        fragments,
                                                        flag,
@@ -1648,6 +1654,7 @@ public:
         ImageLayout        stencilLayout,
         float              depth,
         uint8              stencil,
+        uint8              stencilWriteMask,
         uint32             rangeCount,
         const SubresRange* pRanges,
         uint32             rectCount,
@@ -1659,6 +1666,7 @@ public:
                                            stencilLayout,
                                            depth,
                                            stencil,
+                                           stencilWriteMask,
                                            rangeCount,
                                            pRanges,
                                            rectCount,

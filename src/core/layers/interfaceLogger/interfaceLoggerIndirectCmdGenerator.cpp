@@ -23,6 +23,8 @@
  *
  **********************************************************************************************************************/
 
+#if PAL_BUILD_INTERFACE_LOGGER
+
 #include "core/layers/interfaceLogger/interfaceLoggerDevice.h"
 #include "core/layers/interfaceLogger/interfaceLoggerGpuMemory.h"
 #include "core/layers/interfaceLogger/interfaceLoggerIndirectCmdGenerator.h"
@@ -96,3 +98,5 @@ void IndirectCmdGenerator::Destroy()
 
 } // InterfaceLogger
 } // Pal
+
+#endif

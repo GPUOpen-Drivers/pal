@@ -2745,13 +2745,28 @@ public:
     /// @param [in] regionCount   Number of volumes within the bound depth/stencil target to clear.
     /// @param [in] pClearRegions Array of volumes within the subresources to clear.
     virtual void CmdClearBoundDepthStencilTargets(
-        float                           depth,
-        uint8                           stencil,
-        uint32                          samples,
-        uint32                          fragments,
-        DepthStencilSelectFlags         flag,
-        uint32                          regionCount,
-        const ClearBoundTargetRegion*   pClearRegions) = 0;
+        float                         depth,
+        uint8                         stencil,
+        uint8                         stencilWriteMask,
+        uint32                        samples,
+        uint32                        fragments,
+        DepthStencilSelectFlags       flag,
+        uint32                        regionCount,
+        const ClearBoundTargetRegion* pClearRegions) = 0;
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 589
+    PAL_INLINE void CmdClearBoundDepthStencilTargets(
+        float                         depth,
+        uint8                         stencil,
+        uint32                        samples,
+        uint32                        fragments,
+        DepthStencilSelectFlags       flag,
+        uint32                        regionCount,
+        const ClearBoundTargetRegion* pClearRegions)
+    {
+        CmdClearBoundDepthStencilTargets(depth, stencil, 0xFF, samples, fragments, flag, regionCount, pClearRegions);
+    }
+#endif
 
     /// Clears a depth/stencil image to the specified clear values.
     ///
@@ -2774,11 +2789,39 @@ public:
         ImageLayout        stencilLayout,
         float              depth,
         uint8              stencil,
+        uint8              stencilWriteMask,
         uint32             rangeCount,
         const SubresRange* pRanges,
         uint32             rectCount,
         const Rect*        pRects,
         uint32             flags) = 0;
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 589
+    PAL_INLINE void CmdClearDepthStencil(
+        const IImage&      image,
+        ImageLayout        depthLayout,
+        ImageLayout        stencilLayout,
+        float              depth,
+        uint8              stencil,
+        uint32             rangeCount,
+        const SubresRange* pRanges,
+        uint32             rectCount,
+        const Rect*        pRects,
+        uint32             flags)
+    {
+        CmdClearDepthStencil(image,
+                             depthLayout,
+                             stencilLayout,
+                             depth,
+                             stencil,
+                             0xFF,
+                             rangeCount,
+                             pRanges,
+                             rectCount,
+                             pRects,
+                             flags);
+    }
+#endif
 
     /// Clears a range of GPU memory to the specified clear color using the specified buffer view SRD.
     ///

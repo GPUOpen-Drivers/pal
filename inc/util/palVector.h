@@ -144,6 +144,22 @@ public:
     /// @returns Result ErrorOutOfMemory if the operation failed.
     Result Reserve(uint32 newCapacity);
 
+    /// Set size to newSize.
+    /// If size is decreased, elements at the end of the vector will be removed.
+    /// If size is increased, new elements will be set to newVal.
+    /// If newSize requires a higher capacity, a new allocation is made.  See notes on Reserve.
+    ///
+    /// @note If size is decreased, any iterators referencing removed elements will become invalid.  All other
+    ///       iterators will remain valid.  Otherwise, all iterators will still be valid.
+    ///
+    /// @warning All pointers and references to elements of a vector will be invalidated,
+    ///          in case new storage is allocated.
+    ///
+    /// @param [in] newSize The new size of a vector.
+    ///
+    /// @returns Result ErrorOutOfMemory if the operation failed.
+    Result Resize(uint32 newSize, const T& newVal = T());
+
     /// Copy an element to end of the vector. If not enough space is available, new space will be allocated and the old
     /// data will be copied to the new space.
     ///

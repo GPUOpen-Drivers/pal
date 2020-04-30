@@ -216,7 +216,7 @@ Result SyncobjFence::OpenHandle(
 OsExternalHandle SyncobjFence::ExportExternalHandle(
     const FenceExportInfo& exportInfo) const
 {
-    OsExternalHandle handle = 0;
+    OsExternalHandle handle = InvalidFd;
 
     if (exportInfo.flags.isReference)
     {

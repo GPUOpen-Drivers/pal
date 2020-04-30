@@ -53,14 +53,14 @@ inline uint32 MemoryOpsPerClock(LocalMemoryType type)
     {
         case LocalMemoryType::Unknown: return 0;
 
-        case LocalMemoryType::Ddr2: return 2;
-        case LocalMemoryType::Ddr3: return 2;
-        case LocalMemoryType::Ddr4: return 2;
-        case LocalMemoryType::Gddr5: return 4;
-        case LocalMemoryType::Gddr6: return 1;
-        case LocalMemoryType::Hbm: return 2;
-        case LocalMemoryType::Hbm2: return 2;
-        case LocalMemoryType::Hbm3: return 2;
+        case LocalMemoryType::Ddr2:    return 2;
+        case LocalMemoryType::Ddr3:    return 2;
+        case LocalMemoryType::Ddr4:    return 2;
+        case LocalMemoryType::Gddr5:   return 4;
+        case LocalMemoryType::Gddr6:   return 16;
+        case LocalMemoryType::Hbm:     return 2;
+        case LocalMemoryType::Hbm2:    return 2;
+        case LocalMemoryType::Hbm3:    return 2;
     }
 
     return 0;

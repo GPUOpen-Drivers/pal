@@ -45,6 +45,8 @@ public:
 
     virtual Result Init(const CmdBufferInternalCreateInfo& internalInfo) override;
 
+    virtual Result Begin(const CmdBufferBuildInfo& info) override;
+
     virtual void CmdBarrier(const BarrierInfo& barrierInfo) override;
 
     virtual void CmdCopyMemory(
@@ -260,6 +262,7 @@ private:
     // Note m_gfxCmdBuff.packetPredicate is also temporarily overridden by the driver during some operations
     //
     gpusize  m_predGpuAddr;
+    bool     m_inheritedPredication; // True if the predicate packet is inherited from the root-level command buffer.
 
     PAL_DISALLOW_DEFAULT_CTOR(ComputeCmdBuffer);
     PAL_DISALLOW_COPY_AND_ASSIGN(ComputeCmdBuffer);

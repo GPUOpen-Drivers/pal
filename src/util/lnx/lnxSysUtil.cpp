@@ -703,7 +703,9 @@ Result GetExecutableName(
     if (count >= 0)
     {
 #if defined(PAL_SHORT_WCHAR)
-        Mbstowcs(pWcBuffer, buffer, count);
+        buffer[count] = '\0';
+
+        Mbstowcs(pWcBuffer, buffer, bufferLength);
 #else
         // According to MSDN, if mbstowcs encounters an invalid multibyte character, it returns -1
         int success = (int)mbstowcs(pWcBuffer, static_cast<char *>(buffer), count);

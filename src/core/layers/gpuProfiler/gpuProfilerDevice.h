@@ -44,11 +44,14 @@ namespace GpuProfiler
 class TargetCmdBuffer;
 struct PipelineState;
 
-constexpr uint32 BlockNameSize         = 32;
-constexpr uint32 InstanceNameSize      = 8;
-constexpr uint32 EventNameSize         = 128;
-// The sum of EventNameSize and InstanceNameSize plus 10 for string "_INSTANCE_".
-constexpr uint32 EventInstanceNameSize = EventNameSize + InstanceNameSize + 10;
+// Maximum config field widths is characters
+constexpr uint32 ConfigBlockNameSize    = 32;
+constexpr uint32 ConfigEventIdSize      = 8;
+constexpr uint32 ConfigInstanceNameSize = 8;
+constexpr uint32 ConfigEventNameSize    = 128;
+constexpr uint32 ConfigOptionalDataSize = 64;
+// The sum of ConfigEventNameSize and ConfigInstanceNameSize plus 10 for string "_INSTANCE_".
+constexpr uint32 EventInstanceNameSize  = ConfigEventNameSize + ConfigInstanceNameSize + 10;
 
 // Defines a single performance counter to be collected, as specified by the end-user via config file.
 struct PerfCounter
@@ -57,7 +60,8 @@ struct PerfCounter
     uint32   eventId;
     uint32   instanceId;
     uint32   instanceCount;
-    uint32   optionalData; // Block-specific optional data from the config file.
+    bool     hasOptionalData; // Block-specific optional data was read from the config file.
+    uint32   optionalData;    // Block-specific optional data from the config file.
     char     name[EventInstanceNameSize];
 };
 

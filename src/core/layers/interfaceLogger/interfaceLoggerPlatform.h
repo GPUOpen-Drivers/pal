@@ -25,6 +25,8 @@
 
 #pragma once
 
+#if PAL_BUILD_INTERFACE_LOGGER
+
 #include "core/layers/decorators.h"
 #include "core/layers/interfaceLogger/interfaceLoggerLogContext.h"
 #include "palDevice.h"
@@ -170,3 +172,5 @@ private:
 
 } // InterfaceLogger
 } // Pal
+
+#endif

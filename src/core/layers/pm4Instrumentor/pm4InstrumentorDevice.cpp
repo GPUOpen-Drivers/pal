@@ -23,6 +23,8 @@
  *
  **********************************************************************************************************************/
 
+#if PAL_BUILD_PM4_INSTRUMENTOR
+
 #include "core/layers/pm4Instrumentor/pm4InstrumentorCmdBuffer.h"
 #include "core/layers/pm4Instrumentor/pm4InstrumentorDevice.h"
 #include "core/layers/pm4Instrumentor/pm4InstrumentorPlatform.h"
@@ -199,3 +201,5 @@ Result Device::CreateQueue(
 
 } // Pm4Instrumentor
 } // Pal
+
+#endif

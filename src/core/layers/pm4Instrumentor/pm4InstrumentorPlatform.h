@@ -25,6 +25,8 @@
 
 #pragma once
 
+#if PAL_BUILD_PM4_INSTRUMENTOR
+
 #include "core/layers/decorators.h"
 #include "palMutex.h"
 
@@ -70,3 +72,5 @@ private:
 
 } // Pm4Instrumentor
 } // Pal
+
+#endif

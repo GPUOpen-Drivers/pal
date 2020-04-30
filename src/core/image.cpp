@@ -155,7 +155,7 @@ Result Image::ValidateCreateInfo(
     const bool  shaderWriteUsage     = (imageInfo.usageFlags.shaderWrite != 0);
     const bool  colorUsage           = (imageInfo.usageFlags.colorTarget != 0);
     const bool  depthStencilUsage    = (imageInfo.usageFlags.depthStencil != 0);
-    const bool  windowedPresentUsage = ((internalCreateInfo.flags.presentable != 0) &&
+    const bool  windowedPresentUsage = ((imageInfo.flags.presentable != 0) &&
                                         (imageInfo.flags.flippable == 0));
     const bool  isYuvFormat          = IsYuv(imageInfo.swizzledFormat.format);
 
@@ -374,6 +374,18 @@ Result Image::ValidateCreateInfo(
         }
     }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 586
+    // view3dAs2dArray is only valid for 3d images.
+    if (ret == Result::Success)
+    {
+        if ((imageInfo.flags.view3dAs2dArray != 0) && (imageInfo.imageType != ImageType::Tex3d))
+        {
+            // If it's a 2D image, the app can't use the view 3d as 2d array feature.
+            ret = Result::ErrorInvalidFlags;
+        }
+    }
+#endif
+
     return ret;
 }
 
@@ -457,6 +469,12 @@ void Image::DetermineFormatAndAspectForPlane(
     }
     else if (IsYuvPlanar(format.format))
     {
+        // If the device supports MM formats, then we should use them instead.
+        const bool supportsX8Mm     = m_pDevice->SupportsFormat(ChNumFormat::X8_MM_Uint);
+        const bool supportsX8Y8Mm   = m_pDevice->SupportsFormat(ChNumFormat::X8Y8_MM_Uint);
+        const bool supportsX16Mm    = m_pDevice->SupportsFormat(ChNumFormat::X16_MM_Uint);
+        const bool supportsX16Y16Mm = m_pDevice->SupportsFormat(ChNumFormat::X16Y16_MM_Uint);
+
         if (plane == 0)
         {
             *pAspect         = ImageAspect::Y;
@@ -466,10 +484,11 @@ void Image::DetermineFormatAndAspectForPlane(
             {
             case ChNumFormat::P016:
             case ChNumFormat::P010:
-                pFormat->format  = ChNumFormat::X16_Uint;
+            case ChNumFormat::P210:
+                pFormat->format = supportsX16Mm ? ChNumFormat::X16_MM_Uint : ChNumFormat::X16_Uint;
                 break;
             default:
-                pFormat->format  = ChNumFormat::X8_Uint;
+                pFormat->format = supportsX8Mm ? ChNumFormat::X8_MM_Uint  : ChNumFormat::X8_Uint;
                 break;
             }
         }
@@ -480,20 +499,22 @@ void Image::DetermineFormatAndAspectForPlane(
             case ChNumFormat::NV11:
             case ChNumFormat::NV12:
             case ChNumFormat::NV21:
-                pFormat->format  = ChNumFormat::X8Y8_Uint;
+                pFormat->format  = supportsX8Y8Mm ? ChNumFormat::X8Y8_MM_Uint : ChNumFormat::X8Y8_Uint;
                 pFormat->swizzle =
                     { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Zero, ChannelSwizzle::One };
                 *pAspect = ImageAspect::CbCr;
                 break;
             case ChNumFormat::P016:
             case ChNumFormat::P010:
-                pFormat->format  = ChNumFormat::X16Y16_Uint;
+            case ChNumFormat::P210:
+                pFormat->format  = supportsX16Y16Mm ? ChNumFormat::X16Y16_MM_Uint : ChNumFormat::X16Y16_Uint;
                 pFormat->swizzle =
                     { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Zero, ChannelSwizzle::One };
                 *pAspect = ImageAspect::CbCr;
                 break;
             case ChNumFormat::YV12:
-                pFormat->format  = ChNumFormat::X8_Uint;
+                // The U and V planes in YV12 are separate so use a format that only has one channel for this.
+                pFormat->format  = supportsX8Mm ? ChNumFormat::X8_MM_Uint : ChNumFormat::X8_Uint;
                 pFormat->swizzle =
                     { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One };
                 *pAspect = (plane == 1) ? ImageAspect::Cb : ImageAspect::Cr;
@@ -701,14 +722,14 @@ Result Image::Init()
     if (result == Result::Success)
     {
         ResourceDescriptionImage desc = {};
-        desc.pCreateInfo = &m_createInfo;
+        desc.pCreateInfo   = &m_createInfo;
         desc.pMemoryLayout = &m_gpuMemLayout;
-        desc.isPresentable = (m_imageInfo.internalCreateInfo.flags.presentable == 1);
+        desc.isPresentable = (m_createInfo.flags.presentable == 1);
         ResourceCreateEventData data = {};
-        data.type = ResourceType::Image;
+        data.type              = ResourceType::Image;
         data.pResourceDescData = static_cast<void*>(&desc);
-        data.resourceDescSize = sizeof(ResourceDescriptionImage);
-        data.pObj = this;
+        data.resourceDescSize  = sizeof(ResourceDescriptionImage);
+        data.pObj              = this;
         m_pDevice->GetPlatform()->GetEventProvider()->LogGpuMemoryResourceCreateEvent(data);
     }
 
@@ -1003,7 +1024,10 @@ Result Image::BindGpuMemory(
         // Flippable images should always be bound to flippable memory.  As an exception, it is OK to be bound to a
         // virtual GPU memory object, but it is the clients responsibility to ensure the virtual image is exclusively
         // pointing to flippable memory.
-        PAL_ASSERT((pGpuMem == nullptr) || (pGpuMem->IsFlippable() == IsFlippable()) || pGpuMem->IsVirtual());
+        if ((pGpuMem != nullptr) && (pGpuMem->IsVirtual() == false))
+        {
+            PAL_ASSERT((pGpuMem->IsFlippable() == IsFlippable()) && (pGpuMem->IsPresentable() == IsPresentable()));
+        }
 
         m_vidMem.Update(pGpuMemory, offset);
 
@@ -1063,6 +1087,8 @@ AddrFormat Image::GetAddrFormat(
         case ChNumFormat::A8_Unorm:
         case ChNumFormat::L8_Unorm:
         case ChNumFormat::P8_Uint:
+        case ChNumFormat::X8_MM_Unorm:
+        case ChNumFormat::X8_MM_Uint:
             ret = ADDR_FMT_8;
             break;
         case ChNumFormat::X8Y8_Unorm:
@@ -1073,6 +1099,8 @@ AddrFormat Image::GetAddrFormat(
         case ChNumFormat::X8Y8_Sint:
         case ChNumFormat::X8Y8_Srgb:
         case ChNumFormat::L8A8_Unorm:
+        case ChNumFormat::X8Y8_MM_Unorm:
+        case ChNumFormat::X8Y8_MM_Uint:
             ret = ADDR_FMT_8_8;
             break;
         case ChNumFormat::X8Y8Z8W8_Unorm:
@@ -1118,6 +1146,8 @@ AddrFormat Image::GetAddrFormat(
         case ChNumFormat::X16_Uint:
         case ChNumFormat::X16_Sint:
         case ChNumFormat::L16_Unorm:
+        case ChNumFormat::X16_MM_Unorm:
+        case ChNumFormat::X16_MM_Uint:
             ret = ADDR_FMT_16;
             break;
         case ChNumFormat::X16_Float:
@@ -1129,6 +1159,8 @@ AddrFormat Image::GetAddrFormat(
         case ChNumFormat::X16Y16_Sscaled:
         case ChNumFormat::X16Y16_Uint:
         case ChNumFormat::X16Y16_Sint:
+        case ChNumFormat::X16Y16_MM_Unorm:
+        case ChNumFormat::X16Y16_MM_Uint:
             ret = ADDR_FMT_16_16;
             break;
         case ChNumFormat::X16Y16_Float:

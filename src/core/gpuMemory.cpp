@@ -88,6 +88,16 @@ Result GpuMemory::ValidateCreateInfo(
             result = Result::ErrorInvalidValue;
         }
     }
+    else if (createInfo.pImage != nullptr)
+    {
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 585
+        const Pal::Image* pImage = static_cast<const Pal::Image*>(createInfo.pImage);
+        if (createInfo.flags.presentable != pImage->GetImageCreateInfo().flags.presentable)
+        {
+            result = Result::ErrorInvalidFlags;
+        }
+#endif
+    }
 
     if ((result == Result::Success) && (createInfo.size == 0))
     {
@@ -336,6 +346,7 @@ Result GpuMemory::Init(
     m_desc.flags.isShared        = internalInfo.flags.isExternal; // External memory is memory shared between processes.
 
     {
+        m_flags.isPresentable    = createInfo.flags.presentable;
         m_flags.isFlippable      = createInfo.flags.flippable;
         m_flags.isShareable      = createInfo.flags.shareable;
         m_flags.interprocess     = createInfo.flags.interprocess;

@@ -153,8 +153,6 @@ public:
 
     virtual Result WaitForLastImagePresented() override;
 
-    virtual Result RequestImageWithIndex(uint32 index) override { return Result::Success; }
-
 private:
     Dri3WindowSystem(const Device& device, const WindowSystemCreateInfo& createInfo);
     virtual ~Dri3WindowSystem();

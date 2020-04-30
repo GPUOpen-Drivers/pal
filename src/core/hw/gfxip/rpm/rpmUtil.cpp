@@ -375,6 +375,37 @@ const ColorSpaceConversionInfo CscInfoTable[YuvFormatCount] =
             },
         },
     },
+    // P210 (4:2:2 planar)
+    {
+        RpmComputePipeline::YuvIntToRgb,
+        {
+            {   ImageAspect::Y,             // Y plane
+                { ChNumFormat::X16_Unorm,
+                  { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One },
+                },
+            },
+            {   ImageAspect::CbCr,          // CbCr plane
+                { ChNumFormat::X16Y16_Unorm,
+                  { ChannelSwizzle::Zero, ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::One },
+                },
+            },
+        },
+        RpmComputePipeline::RgbToYuvPlanar,
+        {
+            {   ImageAspect::Y,             // Y plane
+                { ChNumFormat::X16_Unorm,
+                  { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::Zero }, },
+                0.5f, 0.5f,
+                { 0, USHRT_MAX, USHRT_MAX, },
+            },
+            {   ImageAspect::CbCr,          // CbCr plane
+                { ChNumFormat::X16Y16_Unorm,
+                  { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Zero, ChannelSwizzle::Zero }, },
+                0.5f, 0.5f,                 // Mpeg-2 chroma subsampling location
+                { 1, 2, USHRT_MAX, },
+            },
+        },
+    },
 };
 
 // =====================================================================================================================
@@ -405,6 +436,30 @@ void SetupRgbToYuvCscTable(
         {
             memcpy(&pInfo->cscTable[row][0], &cscTable.table[swizzledRow][0], RowBytes);
         }
+    }
+}
+
+//======================================================================================================================
+// Swaps the default format used for YUV planes with MM formats
+void SwapForMMFormat(
+    const Device*   pDevice,
+    SwizzledFormat* pFormat)
+{
+    if ((pFormat->format == ChNumFormat::X8_Unorm) && pDevice->SupportsFormat(ChNumFormat::X8_MM_Unorm))
+    {
+        pFormat->format = ChNumFormat::X8_MM_Unorm;
+    }
+    else if ((pFormat->format == ChNumFormat::X8Y8_Unorm) && pDevice->SupportsFormat(ChNumFormat::X8Y8_MM_Unorm))
+    {
+        pFormat->format = ChNumFormat::X8Y8_MM_Unorm;
+    }
+    else if ((pFormat->format == ChNumFormat::X16_Unorm) && pDevice->SupportsFormat(ChNumFormat::X16_MM_Unorm))
+    {
+        pFormat->format = ChNumFormat::X16_MM_Unorm;
+    }
+    else if ((pFormat->format == ChNumFormat::X16Y16_Unorm) && pDevice->SupportsFormat(ChNumFormat::X16Y16_MM_Unorm))
+    {
+        pFormat->format = ChNumFormat::X16Y16_MM_Unorm;
     }
 }
 

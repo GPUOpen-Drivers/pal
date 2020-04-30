@@ -1226,6 +1226,14 @@ uint32* UniversalQueueContext::WriteUniversalPreamble(
     paScGenericScissor.br.bits.BR_X = ScissorMaxBR;
     paScGenericScissor.br.bits.BR_Y = ScissorMaxBR;
 
+    regPA_SC_NGG_MODE_CNTL paScNggModeCntl = {};
+    // The recommended value for this is half the PC size. The register field granularity is 2.
+    paScNggModeCntl.bits.MAX_DEALLOCS_IN_WAVE = chipProps.gfx9.parameterCacheLines / 4;
+    if (IsGfx10(device))
+    {
+        paScNggModeCntl.gfx10.MAX_FPOVS_IN_WAVE = settings.gfx10MaxFpovsInWave;
+    }
+
     pCmdSpace = m_deCmdStream.WriteSetOneContextReg(mmVGT_OUT_DEALLOC_CNTL,  vgtOutDeallocCntl.u32All,   pCmdSpace);
     pCmdSpace = m_deCmdStream.WriteSetOneContextReg(mmVGT_TESS_DISTRIBUTION, vgtTessDistribution.u32All, pCmdSpace);
     pCmdSpace = m_deCmdStream.WriteSetOneContextReg(mmCB_DCC_CONTROL,        cbDccControl.u32All,        pCmdSpace);
@@ -1237,6 +1245,7 @@ uint32* UniversalQueueContext::WriteUniversalPreamble(
                                                      mmPA_SC_GENERIC_SCISSOR_BR,
                                                      &paScGenericScissor,
                                                      pCmdSpace);
+    pCmdSpace = m_deCmdStream.WriteSetOneContextReg(mmPA_SC_NGG_MODE_CNTL, paScNggModeCntl.u32All, pCmdSpace);
 
     if (chipProps.gfxLevel == GfxIpLevel::GfxIp9)
     {

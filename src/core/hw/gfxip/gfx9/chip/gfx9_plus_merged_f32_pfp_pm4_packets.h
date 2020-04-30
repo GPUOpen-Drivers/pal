@@ -109,8 +109,8 @@ typedef struct PM4_PFP_ACQUIRE_MEM__GFX09
 
 } PM4_PFP_ACQUIRE_MEM__GFX09;
 
-// ---------------------------------- PM4_PFP_ACQUIRE_MEM__GFX10 ----------------------------------
-typedef struct PM4_PFP_ACQUIRE_MEM__GFX10
+// -------------------------------- PM4_PFP_ACQUIRE_MEM__GFX10PLUS --------------------------------
+typedef struct PM4_PFP_ACQUIRE_MEM__GFX10PLUS
 {
     union
     {
@@ -172,7 +172,7 @@ typedef struct PM4_PFP_ACQUIRE_MEM__GFX10
         uint32_t ordinal8;
     };
 
-} PM4_PFP_ACQUIRE_MEM__GFX10;
+} PM4_PFP_ACQUIRE_MEM__GFX10PLUS;
 
 // ------------------------------- PFP_ATOMIC_GDS_atom_cmp_swap_enum -------------------------------
 enum PFP_ATOMIC_GDS_atom_cmp_swap_enum
@@ -244,7 +244,7 @@ typedef struct PM4_PFP_ATOMIC_GDS
                 uint32_t atom_op   :  8;
                 uint32_t reserved1 :  8;
                 uint32_t           : 16;
-            } gfx10;
+            } gfx10Plus;
         } bitfields2;
         uint32_t ordinal2;
     };
@@ -308,19 +308,19 @@ typedef struct PM4_PFP_ATOMIC_GDS
 // ---------------------------------- PFP_ATOMIC_MEM_command_enum ----------------------------------
 enum PFP_ATOMIC_MEM_command_enum
 {
-    command__pfp_atomic_mem__single_pass_atomic                 =  0,
-    command__pfp_atomic_mem__loop_until_compare_satisfied       =  1,
-    command__pfp_atomic_mem__wait_for_write_confirmation__GFX10 =  2,
-    command__pfp_atomic_mem__send_and_continue__GFX10           =  3,
+    command__pfp_atomic_mem__single_pass_atomic                     =  0,
+    command__pfp_atomic_mem__loop_until_compare_satisfied           =  1,
+    command__pfp_atomic_mem__wait_for_write_confirmation__GFX10PLUS =  2,
+    command__pfp_atomic_mem__send_and_continue__GFX10PLUS           =  3,
 };
 
 // ------------------------------- PFP_ATOMIC_MEM_cache_policy_enum -------------------------------
 enum PFP_ATOMIC_MEM_cache_policy_enum
 {
-    cache_policy__pfp_atomic_mem__lru           =  0,
-    cache_policy__pfp_atomic_mem__stream        =  1,
-    cache_policy__pfp_atomic_mem__noa__GFX10    =  2,
-    cache_policy__pfp_atomic_mem__bypass__GFX10 =  3,
+    cache_policy__pfp_atomic_mem__lru               =  0,
+    cache_policy__pfp_atomic_mem__stream            =  1,
+    cache_policy__pfp_atomic_mem__noa__GFX10PLUS    =  2,
+    cache_policy__pfp_atomic_mem__bypass__GFX10PLUS =  3,
 };
 
 // -------------------------------- PFP_ATOMIC_MEM_engine_sel_enum --------------------------------
@@ -464,19 +464,19 @@ enum PFP_COND_INDIRECT_BUFFER_function_enum
 // -------------------------- PFP_COND_INDIRECT_BUFFER_cache_policy1_enum --------------------------
 enum PFP_COND_INDIRECT_BUFFER_cache_policy1_enum
 {
-    cache_policy1__pfp_cond_indirect_buffer__lru           =  0,
-    cache_policy1__pfp_cond_indirect_buffer__stream        =  1,
-    cache_policy1__pfp_cond_indirect_buffer__noa__GFX10    =  2,
-    cache_policy1__pfp_cond_indirect_buffer__bypass__GFX10 =  3,
+    cache_policy1__pfp_cond_indirect_buffer__lru               =  0,
+    cache_policy1__pfp_cond_indirect_buffer__stream            =  1,
+    cache_policy1__pfp_cond_indirect_buffer__noa__GFX10PLUS    =  2,
+    cache_policy1__pfp_cond_indirect_buffer__bypass__GFX10PLUS =  3,
 };
 
 // -------------------------- PFP_COND_INDIRECT_BUFFER_cache_policy2_enum --------------------------
 enum PFP_COND_INDIRECT_BUFFER_cache_policy2_enum
 {
-    cache_policy2__pfp_cond_indirect_buffer__lru           =  0,
-    cache_policy2__pfp_cond_indirect_buffer__stream        =  1,
-    cache_policy2__pfp_cond_indirect_buffer__noa__GFX10    =  2,
-    cache_policy2__pfp_cond_indirect_buffer__bypass__GFX10 =  3,
+    cache_policy2__pfp_cond_indirect_buffer__lru               =  0,
+    cache_policy2__pfp_cond_indirect_buffer__stream            =  1,
+    cache_policy2__pfp_cond_indirect_buffer__noa__GFX10PLUS    =  2,
+    cache_policy2__pfp_cond_indirect_buffer__bypass__GFX10PLUS =  3,
 };
 
 // --------------------------------- PM4_PFP_COND_INDIRECT_BUFFER ---------------------------------
@@ -645,29 +645,29 @@ typedef struct PM4_PFP_CONTEXT_REG_RMW
 // ---------------------------------- PFP_COPY_DATA_src_sel_enum ----------------------------------
 enum PFP_COPY_DATA_src_sel_enum
 {
-    src_sel__pfp_copy_data__mem_mapped_register   =  0,
-    src_sel__pfp_copy_data__memory__GFX09         =  1,
-    src_sel__pfp_copy_data__tc_l2_obsolete__GFX10 =  1,
-    src_sel__pfp_copy_data__tc_l2                 =  2,
-    src_sel__pfp_copy_data__immediate_data        =  5,
+    src_sel__pfp_copy_data__mem_mapped_register       =  0,
+    src_sel__pfp_copy_data__memory__GFX09             =  1,
+    src_sel__pfp_copy_data__tc_l2_obsolete__GFX10PLUS =  1,
+    src_sel__pfp_copy_data__tc_l2                     =  2,
+    src_sel__pfp_copy_data__immediate_data            =  5,
 };
 
 // ---------------------------------- PFP_COPY_DATA_dst_sel_enum ----------------------------------
 enum PFP_COPY_DATA_dst_sel_enum
 {
-    dst_sel__pfp_copy_data__mem_mapped_register   =  0,
-    dst_sel__pfp_copy_data__tc_l2                 =  2,
-    dst_sel__pfp_copy_data__memory__GFX09         =  5,
-    dst_sel__pfp_copy_data__tc_l2_obsolete__GFX10 =  5,
+    dst_sel__pfp_copy_data__mem_mapped_register       =  0,
+    dst_sel__pfp_copy_data__tc_l2                     =  2,
+    dst_sel__pfp_copy_data__memory__GFX09             =  5,
+    dst_sel__pfp_copy_data__tc_l2_obsolete__GFX10PLUS =  5,
 };
 
 // ------------------------------ PFP_COPY_DATA_src_cache_policy_enum ------------------------------
 enum PFP_COPY_DATA_src_cache_policy_enum
 {
-    src_cache_policy__pfp_copy_data__lru           =  0,
-    src_cache_policy__pfp_copy_data__stream        =  1,
-    src_cache_policy__pfp_copy_data__noa__GFX10    =  2,
-    src_cache_policy__pfp_copy_data__bypass__GFX10 =  3,
+    src_cache_policy__pfp_copy_data__lru               =  0,
+    src_cache_policy__pfp_copy_data__stream            =  1,
+    src_cache_policy__pfp_copy_data__noa__GFX10PLUS    =  2,
+    src_cache_policy__pfp_copy_data__bypass__GFX10PLUS =  3,
 };
 
 // --------------------------------- PFP_COPY_DATA_count_sel_enum ---------------------------------
@@ -687,10 +687,10 @@ enum PFP_COPY_DATA_wr_confirm_enum
 // ------------------------------ PFP_COPY_DATA_dst_cache_policy_enum ------------------------------
 enum PFP_COPY_DATA_dst_cache_policy_enum
 {
-    dst_cache_policy__pfp_copy_data__lru           =  0,
-    dst_cache_policy__pfp_copy_data__stream        =  1,
-    dst_cache_policy__pfp_copy_data__noa__GFX10    =  2,
-    dst_cache_policy__pfp_copy_data__bypass__GFX10 =  3,
+    dst_cache_policy__pfp_copy_data__lru               =  0,
+    dst_cache_policy__pfp_copy_data__stream            =  1,
+    dst_cache_policy__pfp_copy_data__noa__GFX10PLUS    =  2,
+    dst_cache_policy__pfp_copy_data__bypass__GFX10PLUS =  3,
 };
 
 // --------------------------------- PFP_COPY_DATA_engine_sel_enum ---------------------------------
@@ -897,7 +897,7 @@ typedef struct PM4_PFP_DISPATCH_DRAW_PREAMBLE
             {
                 uint32_t           : 10;
                 uint32_t reserved4 : 22;
-            } gfx10;
+            } gfx10Plus;
         } bitfields3;
         uint32_t ordinal3;
     };
@@ -934,10 +934,10 @@ enum PFP_DMA_DATA_engine_sel_enum
 // ------------------------------ PFP_DMA_DATA_src_cache_policy_enum ------------------------------
 enum PFP_DMA_DATA_src_cache_policy_enum
 {
-    src_cache_policy__pfp_dma_data__lru           =  0,
-    src_cache_policy__pfp_dma_data__stream        =  1,
-    src_cache_policy__pfp_dma_data__noa__GFX10    =  2,
-    src_cache_policy__pfp_dma_data__bypass__GFX10 =  3,
+    src_cache_policy__pfp_dma_data__lru               =  0,
+    src_cache_policy__pfp_dma_data__stream            =  1,
+    src_cache_policy__pfp_dma_data__noa__GFX10PLUS    =  2,
+    src_cache_policy__pfp_dma_data__bypass__GFX10PLUS =  3,
 };
 
 // ----------------------------------- PFP_DMA_DATA_dst_sel_enum -----------------------------------
@@ -952,10 +952,10 @@ enum PFP_DMA_DATA_dst_sel_enum
 // ------------------------------ PFP_DMA_DATA_dst_cache_policy_enum ------------------------------
 enum PFP_DMA_DATA_dst_cache_policy_enum
 {
-    dst_cache_policy__pfp_dma_data__lru           =  0,
-    dst_cache_policy__pfp_dma_data__stream        =  1,
-    dst_cache_policy__pfp_dma_data__noa__GFX10    =  2,
-    dst_cache_policy__pfp_dma_data__bypass__GFX10 =  3,
+    dst_cache_policy__pfp_dma_data__lru               =  0,
+    dst_cache_policy__pfp_dma_data__stream            =  1,
+    dst_cache_policy__pfp_dma_data__noa__GFX10PLUS    =  2,
+    dst_cache_policy__pfp_dma_data__bypass__GFX10PLUS =  3,
 };
 
 // ----------------------------------- PFP_DMA_DATA_src_sel_enum -----------------------------------
@@ -1063,10 +1063,10 @@ enum PFP_DMA_DATA_FILL_MULTI_dst_sel_enum
 // ------------------------- PFP_DMA_DATA_FILL_MULTI_dst_cache_policy_enum -------------------------
 enum PFP_DMA_DATA_FILL_MULTI_dst_cache_policy_enum
 {
-    dst_cache_policy__pfp_dma_data_fill_multi__lru           =  0,
-    dst_cache_policy__pfp_dma_data_fill_multi__stream        =  1,
-    dst_cache_policy__pfp_dma_data_fill_multi__noa__GFX10    =  2,
-    dst_cache_policy__pfp_dma_data_fill_multi__bypass__GFX10 =  3,
+    dst_cache_policy__pfp_dma_data_fill_multi__lru               =  0,
+    dst_cache_policy__pfp_dma_data_fill_multi__stream            =  1,
+    dst_cache_policy__pfp_dma_data_fill_multi__noa__GFX10PLUS    =  2,
+    dst_cache_policy__pfp_dma_data_fill_multi__bypass__GFX10PLUS =  3,
 };
 
 // ----------------------------- PFP_DMA_DATA_FILL_MULTI_src_sel_enum -----------------------------
@@ -1205,7 +1205,7 @@ typedef struct PM4_PFP_DRAW_INDEX_INDIRECT
                 uint32_t reserved2           :  1;
                 uint32_t                     :  1;
                 uint32_t reserved3           :  3;
-            } gfx10;
+            } gfx10Plus;
         } bitfields4;
         uint32_t ordinal4;
     };
@@ -1275,7 +1275,7 @@ typedef struct PM4_PFP_DRAW_INDEX_INDIRECT_MULTI
                 uint32_t                            :  1;
                 uint32_t thread_trace_marker_enable :  1;
                 uint32_t                            :  2;
-            } gfx10;
+            } gfx10Plus;
         } bitfields5;
         uint32_t ordinal5;
     };
@@ -1300,7 +1300,7 @@ typedef struct PM4_PFP_DRAW_INDEX_INDIRECT_MULTI
             {
                 uint32_t reserved3 :  2;
                 uint32_t           : 30;
-            } gfx10;
+            } gfx10Plus;
         } bitfields7;
         uint32_t ordinal7;
     };
@@ -1476,7 +1476,7 @@ typedef struct PM4_PFP_DRAW_INDIRECT_MULTI
                 uint32_t reserved4                  :  1;
                 uint32_t thread_trace_marker_enable :  1;
                 uint32_t                            :  2;
-            } gfx10;
+            } gfx10Plus;
         } bitfields5;
         uint32_t ordinal5;
     };
@@ -1501,7 +1501,7 @@ typedef struct PM4_PFP_DRAW_INDIRECT_MULTI
             {
                 uint32_t reserved5 :  2;
                 uint32_t           : 30;
-            } gfx10;
+            } gfx10Plus;
         } bitfields7;
         uint32_t ordinal7;
     };
@@ -1651,10 +1651,10 @@ typedef struct PM4_PFP_INDEX_BUFFER_SIZE
 // ----------------------------- PFP_INDIRECT_BUFFER_cache_policy_enum -----------------------------
 enum PFP_INDIRECT_BUFFER_cache_policy_enum
 {
-    cache_policy__pfp_indirect_buffer__lru           =  0,
-    cache_policy__pfp_indirect_buffer__stream        =  1,
-    cache_policy__pfp_indirect_buffer__noa__GFX10    =  2,
-    cache_policy__pfp_indirect_buffer__bypass__GFX10 =  3,
+    cache_policy__pfp_indirect_buffer__lru               =  0,
+    cache_policy__pfp_indirect_buffer__stream            =  1,
+    cache_policy__pfp_indirect_buffer__noa__GFX10PLUS    =  2,
+    cache_policy__pfp_indirect_buffer__bypass__GFX10PLUS =  3,
 };
 
 // ------------------------------------ PM4_PFP_INDIRECT_BUFFER ------------------------------------
@@ -2276,7 +2276,7 @@ typedef struct PM4_PFP_SET_CONTEXT_REG
             {
                 uint32_t           : 16;
                 uint32_t reserved1 : 16;
-            } gfx10;
+            } gfx10Plus;
         } bitfields2;
         uint32_t ordinal2;
     };
@@ -2495,7 +2495,7 @@ typedef struct PM4_PFP_SET_UCONFIG_REG
             {
                 uint32_t           : 16;
                 uint32_t reserved1 : 16;
-            } gfx10;
+            } gfx10Plus;
         } bitfields2;
         uint32_t ordinal2;
     };
@@ -2643,10 +2643,10 @@ enum PFP_WAIT_REG_MEM_engine_sel_enum
 // ------------------------------ PFP_WAIT_REG_MEM_cache_policy_enum ------------------------------
 enum PFP_WAIT_REG_MEM_cache_policy_enum
 {
-    cache_policy__pfp_wait_reg_mem__lru__GFX10    =  0,
-    cache_policy__pfp_wait_reg_mem__stream__GFX10 =  1,
-    cache_policy__pfp_wait_reg_mem__noa__GFX10    =  2,
-    cache_policy__pfp_wait_reg_mem__bypass__GFX10 =  3,
+    cache_policy__pfp_wait_reg_mem__lru__GFX10PLUS    =  0,
+    cache_policy__pfp_wait_reg_mem__stream__GFX10PLUS =  1,
+    cache_policy__pfp_wait_reg_mem__noa__GFX10PLUS    =  2,
+    cache_policy__pfp_wait_reg_mem__bypass__GFX10PLUS =  3,
 };
 
 // ------------------------------------- PM4_PFP_WAIT_REG_MEM -------------------------------------
@@ -2684,7 +2684,7 @@ typedef struct PM4_PFP_WAIT_REG_MEM
                 uint32_t                           mes_action    :  1;
                 PFP_WAIT_REG_MEM_cache_policy_enum cache_policy  :  2;
                 uint32_t                           reserved3     :  5;
-            } gfx10;
+            } gfx10Plus;
         } bitfields2;
         uint32_t ordinal2;
     };
@@ -2707,7 +2707,7 @@ typedef struct PM4_PFP_WAIT_REG_MEM
             {
                 uint32_t reserved4 :  2;
                 uint32_t           : 30;
-            } gfx10;
+            } gfx10Plus;
         } bitfields3a;
         union
         {
@@ -2725,7 +2725,7 @@ typedef struct PM4_PFP_WAIT_REG_MEM
             {
                 uint32_t           : 18;
                 uint32_t reserved5 : 14;
-            } gfx10;
+            } gfx10Plus;
         } bitfields3b;
         union
         {
@@ -2743,7 +2743,7 @@ typedef struct PM4_PFP_WAIT_REG_MEM
             {
                 uint32_t           : 18;
                 uint32_t reserved6 : 14;
-            } gfx10;
+            } gfx10Plus;
         } bitfields3c;
         uint32_t ordinal3;
     };
@@ -2767,7 +2767,7 @@ typedef struct PM4_PFP_WAIT_REG_MEM
             {
                 uint32_t           : 18;
                 uint32_t reserved7 : 14;
-            } gfx10;
+            } gfx10Plus;
         } bitfields4b;
         uint32_t ordinal4;
     };
@@ -2794,7 +2794,7 @@ typedef struct PM4_PFP_WAIT_REG_MEM
             {
                 uint32_t           : 16;
                 uint32_t reserved8 : 16;
-            } gfx10;
+            } gfx10Plus;
         } bitfields7;
         uint32_t ordinal7;
     };
@@ -2837,10 +2837,10 @@ enum PFP_WAIT_REG_MEM64_engine_sel_enum
 // ----------------------------- PFP_WAIT_REG_MEM64_cache_policy_enum -----------------------------
 enum PFP_WAIT_REG_MEM64_cache_policy_enum
 {
-    cache_policy__pfp_wait_reg_mem64__lru__GFX10    =  0,
-    cache_policy__pfp_wait_reg_mem64__stream__GFX10 =  1,
-    cache_policy__pfp_wait_reg_mem64__noa__GFX10    =  2,
-    cache_policy__pfp_wait_reg_mem64__bypass__GFX10 =  3,
+    cache_policy__pfp_wait_reg_mem64__lru__GFX10PLUS    =  0,
+    cache_policy__pfp_wait_reg_mem64__stream__GFX10PLUS =  1,
+    cache_policy__pfp_wait_reg_mem64__noa__GFX10PLUS    =  2,
+    cache_policy__pfp_wait_reg_mem64__bypass__GFX10PLUS =  3,
 };
 
 // ------------------------------------ PM4_PFP_WAIT_REG_MEM64 ------------------------------------
@@ -2878,7 +2878,7 @@ typedef struct PM4_PFP_WAIT_REG_MEM64
                 uint32_t                             mes_action    :  1;
                 PFP_WAIT_REG_MEM64_cache_policy_enum cache_policy  :  2;
                 uint32_t                             reserved3     :  5;
-            } gfx10;
+            } gfx10Plus;
         } bitfields2;
         uint32_t ordinal2;
     };
@@ -2901,7 +2901,7 @@ typedef struct PM4_PFP_WAIT_REG_MEM64
             {
                 uint32_t reserved4 :  3;
                 uint32_t           : 29;
-            } gfx10;
+            } gfx10Plus;
         } bitfields3a;
         union
         {
@@ -2919,7 +2919,7 @@ typedef struct PM4_PFP_WAIT_REG_MEM64
             {
                 uint32_t           : 18;
                 uint32_t reserved5 : 14;
-            } gfx10;
+            } gfx10Plus;
         } bitfields3b;
         union
         {
@@ -2937,7 +2937,7 @@ typedef struct PM4_PFP_WAIT_REG_MEM64
             {
                 uint32_t           : 18;
                 uint32_t reserved6 : 14;
-            } gfx10;
+            } gfx10Plus;
         } bitfields3c;
         uint32_t ordinal3;
     };
@@ -2961,7 +2961,7 @@ typedef struct PM4_PFP_WAIT_REG_MEM64
             {
                 uint32_t           : 18;
                 uint32_t reserved7 : 14;
-            } gfx10;
+            } gfx10Plus;
         } bitfields4b;
         uint32_t ordinal4;
     };
@@ -2992,7 +2992,7 @@ typedef struct PM4_PFP_WAIT_REG_MEM64
             {
                 uint32_t           : 16;
                 uint32_t reserved8 : 16;
-            } gfx10;
+            } gfx10Plus;
         } bitfields9;
         uint32_t ordinal9;
     };
@@ -3025,10 +3025,10 @@ enum PFP_WRITE_DATA_wr_confirm_enum
 // ------------------------------- PFP_WRITE_DATA_cache_policy_enum -------------------------------
 enum PFP_WRITE_DATA_cache_policy_enum
 {
-    cache_policy__pfp_write_data__lru           =  0,
-    cache_policy__pfp_write_data__stream        =  1,
-    cache_policy__pfp_write_data__noa__GFX10    =  2,
-    cache_policy__pfp_write_data__bypass__GFX10 =  3,
+    cache_policy__pfp_write_data__lru               =  0,
+    cache_policy__pfp_write_data__stream            =  1,
+    cache_policy__pfp_write_data__noa__GFX10PLUS    =  2,
+    cache_policy__pfp_write_data__bypass__GFX10PLUS =  3,
 };
 
 // -------------------------------- PFP_WRITE_DATA_engine_sel_enum --------------------------------
@@ -3075,7 +3075,7 @@ typedef struct PM4_PFP_WRITE_DATA
                 uint32_t           : 17;
                 uint32_t reserved3 :  3;
                 uint32_t           : 12;
-            } gfx10;
+            } gfx10Plus;
         } bitfields2;
         uint32_t ordinal2;
     };
@@ -3212,15 +3212,15 @@ typedef struct PM4_PFP_DISPATCH_TASKMESH_GFX
 // ----------------------------- PFP_LOAD_UCONFIG_REG_INDEX_index_enum -----------------------------
 enum PFP_LOAD_UCONFIG_REG_INDEX_index_enum
 {
-    index__pfp_load_uconfig_reg_index__direct_addr__GFX10 =  0,
-    index__pfp_load_uconfig_reg_index__offset__GFX10      =  1,
+    index__pfp_load_uconfig_reg_index__direct_addr__GFX10PLUS =  0,
+    index__pfp_load_uconfig_reg_index__offset__GFX10PLUS      =  1,
 };
 
 // -------------------------- PFP_LOAD_UCONFIG_REG_INDEX_data_format_enum --------------------------
 enum PFP_LOAD_UCONFIG_REG_INDEX_data_format_enum
 {
-    data_format__pfp_load_uconfig_reg_index__offset_and_size__GFX10 =  0,
-    data_format__pfp_load_uconfig_reg_index__offset_and_data__GFX10 =  1,
+    data_format__pfp_load_uconfig_reg_index__offset_and_size__GFX10PLUS =  0,
+    data_format__pfp_load_uconfig_reg_index__offset_and_data__GFX10PLUS =  1,
 };
 
 // -------------------------------- PM4_PFP_LOAD_UCONFIG_REG_INDEX --------------------------------

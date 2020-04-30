@@ -29,7 +29,6 @@
 #include "core/hw/gfxip/gfx9/gfx9ComputePipeline.h"
 #include "core/hw/gfxip/gfx9/gfx9Device.h"
 #include "core/hw/gfxip/gfx9/gfx9ShaderLibrary.h"
-#include "palPipelineAbiProcessorImpl.h"
 #include "palFile.h"
 
 using namespace Util;
@@ -70,7 +69,7 @@ ComputePipeline::ComputePipeline(
 // specified Pipeline ABI processor.
 Result ComputePipeline::HwlInit(
     const ComputePipelineCreateInfo& createInfo,
-    const AbiProcessor&              abiProcessor,
+    const AbiReader&                 abiReader,
     const CodeObjectMetadata&        metadata,
     MsgPackReader*                   pMetadataReader)
 {
@@ -80,16 +79,20 @@ Result ComputePipeline::HwlInit(
     const GpuChipProperties& chipProps = m_pDevice->Parent()->ChipProperties();
 
     RegisterVector registers(m_pDevice->GetPlatform());
-    Result result = pMetadataReader->Unpack(&registers);
+    Result result = pMetadataReader->Seek(metadata.pipeline.registers);
+
+    if (result == Result::Success)
+    {
+        result = pMetadataReader->Unpack(&registers);
+    }
 
     const uint32 loadedShRegCount = m_chunkCs.EarlyInit();
-    ComputePipelineUploader uploader(m_pDevice, loadedShRegCount);
+    ComputePipelineUploader uploader(m_pDevice, abiReader, loadedShRegCount);
 
     if (result == Result::Success)
     {
         // Next, handle relocations and upload the pipeline code & data to GPU memory.
         result = PerformRelocationsAndUploadToGpuMemory(
-            abiProcessor,
             metadata,
 #if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 488)
 #if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 488) && (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 502)
@@ -116,7 +119,7 @@ Result ComputePipeline::HwlInit(
 
         const uint32 wavefrontSize = IsWave32() ? 32 : 64;
 
-        m_chunkCs.LateInit<ComputePipelineUploader>(abiProcessor,
+        m_chunkCs.LateInit<ComputePipelineUploader>(abiReader,
                                                     registers,
                                                     wavefrontSize,
  #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 556
@@ -258,7 +261,7 @@ Result ComputePipeline::LinkWithLibraries(
                 Max(computePgmRsrc3.bits.SHARED_VGPR_CNT, libObjRegInfo.libRegs.computePgmRsrc3.bits.SHARED_VGPR_CNT);
         }
 
-        const uint32 stackSizeNeededInBytes = pLibObj->GetMaxStackFrameSizeInBytes() * m_maxFunctionCallDepth;
+        const uint32 stackSizeNeededInBytes = pLibObj->GetMaxStackSizeInBytes() * m_maxFunctionCallDepth;
         if (stackSizeNeededInBytes > m_stackSizeInBytes)
         {
             m_stackSizeInBytes = stackSizeNeededInBytes;
@@ -313,24 +316,15 @@ Result ComputePipeline::GetShaderStats(
             pShaderStats->common.gpuVirtAddress        = m_chunkCs.CsProgramGpuVa();
             pShaderStats->common.ldsSizePerThreadGroup = chipProps.gfxip.ldsSizePerThreadGroup;
 
-            AbiProcessor abiProcessor(m_pDevice->GetPlatform());
-            result = abiProcessor.LoadFromBuffer(m_pPipelineBinary, m_pipelineBinaryLen);
+            AbiReader abiReader(m_pDevice->GetPlatform(), m_pPipelineBinary);
+            result = abiReader.Init();
 
             MsgPackReader      metadataReader;
             CodeObjectMetadata metadata;
 
             if (result == Result::Success)
             {
-                result = abiProcessor.GetMetadata(&metadataReader, &metadata);
-            }
-
-            if (result == Result::Success)
-            {
-                const auto& csStageMetadata =
-                    metadata.pipeline.hardwareStage[static_cast<uint32>(Abi::HardwareStage::Cs)];
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 580
-                pShaderStats->common.stackFrameSizeInBytes = csStageMetadata.scratchMemorySize;
-#endif
+                result = abiReader.GetMetadata(&metadataReader, &metadata);
             }
         }
     }
@@ -358,7 +352,7 @@ void ComputePipeline::UpdateRingSizes(
 
     if (scratchMemorySize != 0)
     {
-        if (IsGfx10(m_pDevice->Parent()->ChipProperties().gfxLevel))
+        if (IsGfx10(m_pDevice->Parent()->ChipProperties().gfxLevel) && (IsWave32() == false))
         {
             // We allocate scratch memory based on the minimum wave size for the chip, which for Gfx10+ ASICs will
             // be Wave32. In order to appropriately size the scratch memory (reported in the ELF as per-thread) for

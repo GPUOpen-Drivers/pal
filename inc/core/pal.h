@@ -505,6 +505,27 @@ enum class ChNumFormat : uint32
                                         ///  identical to @ref ChNumFormat::P016, except that the lowest 6 bits of each
                                         ///  luma and chroma sample are ignored. This allows the source data to be
                                         ///  interpreted as either P016 or P010 interchangably.
+    P210                     = 0xA8,    ///< YUV 4:2:2 planar format, with 10 bits per luma and chroma sample. This is
+                                        ///  similar to @ref ChNumFormat::P010, except that the UV planes are sub-sampled
+                                        ///  only in the horizontal direction, but still by a factor of 2 so the UV plane
+                                        ///  ends up having the same number of lines as the Y plane.
+    X8_MM_Unorm              = 0xA9,    ///< Multi-media format used with DCC for non-interleaved planes in YUV planar
+                                        ///  surfaces. Such as the Y plane or any plane in YV12.
+    X8_MM_Uint               = 0xAA,    ///< Multi-media format used with DCC for non-interleaved planes in YUV planar
+                                        ///  surfaces. Such as the Y plane or any plane in YV12.
+    X8Y8_MM_Unorm            = 0xAB,    ///< Multi-media format used with DCC for the interleaved UV plane in YUV planar
+                                        ///  surfaces.
+    X8Y8_MM_Uint             = 0xAC,    ///< Multi-media format used with DCC for the interleaved UV plane in YUV planar
+                                        ///  surfaces.
+    X16_MM_Unorm             = 0xAD,    ///< Multi-media format used with DCC for non-interleaved planes in YUV planar
+                                        ///  surfaces. Such as the Y plane or any plane in YV12.
+    X16_MM_Uint              = 0xAE,    ///< Multi-media format used with DCC for non-interleaved planes in YUV planar
+                                        ///  surfaces. Such as the Y plane or any plane in YV12.
+    X16Y16_MM_Unorm          = 0xAF,    ///< Multi-media format used with DCC for the interleaved UV plane in YUV planar
+                                        ///  surfaces.
+    X16Y16_MM_Uint           = 0xB0,    ///< Multi-media format used with DCC for the interleaved UV plane in YUV planar
+                                        ///  surfaces.
+
     Count
 };
 
@@ -646,15 +667,24 @@ struct PipelineHash
 /// Common shader pre and post compilation stats.
 struct CommonShaderStats
 {
-    uint32  numUsedVgprs;              ///< Number of VGPRs used by this shader
-    uint32  numUsedSgprs;              ///< Number of SGPRs used by this shader
-    uint32  ldsSizePerThreadGroup;     ///< LDS size per thread group in bytes.
-    size_t  ldsUsageSizeInBytes;       ///< LDS usage by this shader.
-    size_t  scratchMemUsageInBytes;    ///< Amount of scratch mem used by this shader.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 580
-    size_t  stackFrameSizeInBytes;     ///< Amount of stack size used by this shader.
-#endif
-    gpusize gpuVirtAddress;            ///< Gpu mem address of shader ISA code.
+    uint32  numUsedVgprs;               ///< Number of VGPRs used by this shader
+    uint32  numUsedSgprs;               ///< Number of SGPRs used by this shader
+
+    uint32  ldsSizePerThreadGroup;      ///< LDS size per thread group in bytes.
+    size_t  ldsUsageSizeInBytes;        ///< LDS usage by this shader.
+
+    size_t  scratchMemUsageInBytes;     ///< Amount of scratch mem used by this shader.
+    gpusize gpuVirtAddress;             ///< Gpu mem address of shader ISA code.
+
+    union
+    {
+        struct
+        {
+            uint32 isWave32 :  1;  ///< If set, specifies that the shader is compiled in wave32 mode.
+            uint32 reserved : 31;  ///< Reserved for future use.
+        };
+        uint32 u32All;  ///< Flags packed as a 32-bit uint.
+    } flags;            ///< Shader compilation stat flags.
 };
 
 ///@{

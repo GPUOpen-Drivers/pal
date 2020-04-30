@@ -79,9 +79,7 @@ Result AddrMgr::Init()
 
     // Setup chip info
     const GpuChipProperties& chipProps = m_pDevice->ChipProperties();
-    createInput.chipEngine   = chipProps.gfxEngineId;
-    createInput.chipRevision = chipProps.eRevId;
-    createInput.chipFamily   = chipProps.familyId;
+    pGfxDevice->InitAddrLibChipId(&createInput);
 
     createInput.minPitchAlignPixels = chipProps.imageProperties.minPitchAlignPixel;
 

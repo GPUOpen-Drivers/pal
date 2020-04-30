@@ -410,10 +410,10 @@ public:
     const ADDR2_COMPUTE_DCCINFO_OUTPUT&  GetAddrOutput() const { return m_addrOutput; }
 
     static uint8 GetFastClearCode(
-        const Image&            image,
-        const Pal::SubresRange& clearRange,
-        const uint32*           pConvertedColor,
-        bool*                   pNeedFastClearElim);
+        const Image&       image,
+        const SubresRange& clearRange,
+        const uint32*      pConvertedColor,
+        bool*              pNeedFastClearElim);
 
     // Initial value for a DCC allocation.
     static constexpr uint8 InitialValue = 0xFF;

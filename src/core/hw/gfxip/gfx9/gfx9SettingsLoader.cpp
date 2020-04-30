@@ -332,12 +332,6 @@ void SettingsLoader::ValidateSettings(
         }
     }
 
-    // If we allow > 1 Ctx or Persistent state / batch then the driver should BREAK_BATCH on new PS.
-    if ((m_settings.binningContextStatesPerBin > 1) || (m_settings.binningPersistentStatesPerBin > 1))
-    {
-        m_settings.batchBreakOnNewPixelShader = true;
-    }
-
     // Since XGMI is much faster than PCIe, PAL should not reduce the number of RBs to increase the PCIe throughput
     if (chipProps.p2pSupport.xgmiEnabled != 0)
     {
@@ -388,6 +382,8 @@ static void SetupGfx101Workarounds(
     pSettings->waLimitLateAllocGsNggFifo = true;
 
     pSettings->waClampGeCntlVertGrpSize = true;
+
+    pSettings->waLegacyGsCutModeFlush = true;
 
     {
         // The DB has a bug where an attempted depth expand of a Z16_UNORM 1xAA surface that has not had its
@@ -571,6 +567,12 @@ void SettingsLoader::OverrideDefaults(
     if (m_settings.minBatchBinSize.height == 0)
     {
         m_settings.minBatchBinSize.height = minBatchBinSizeHeight;
+    }
+
+    // If we allow > 1 Ctx or Persistent state / batch then the driver should BREAK_BATCH on new PS.
+    if ((m_settings.binningContextStatesPerBin > 1) || (m_settings.binningPersistentStatesPerBin > 1))
+    {
+        m_settings.batchBreakOnNewPixelShader = true;
     }
 
     m_state = SettingsLoaderState::LateInit;

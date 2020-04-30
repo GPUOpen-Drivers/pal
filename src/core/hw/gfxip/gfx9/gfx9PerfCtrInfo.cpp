@@ -118,7 +118,6 @@ static void UpdateUmcchBlockInfo(
     Gfx9PerfCounterInfo*  pInfo,
     PerfCounterBlockInfo* pBlockInfo)
 {
-
     if (IsGfx9(device))
     {
         // The first instance's registers are common to all ASICs, the rest are a total mess.
@@ -227,6 +226,17 @@ static void UpdateUmcchBlockInfo(
             // This instance is good, check the next one.
             pBlockInfo->numInstances++;
         }
+    }
+
+    // Due to missing headers for some asics, we'll be selective here populating the max counts.
+    if (IsGfx10(device))
+    {
+        pBlockInfo->maxEventId = Nv10MaxPerfEventIds[UmcPerfcountSelectId];
+    }
+    else // gfx9 asics
+    {
+
+        pBlockInfo->maxEventId = Vg10MaxPerfEventIds[UmcPerfcountSelectId];
     }
 }
 
@@ -967,9 +977,8 @@ static void Gfx9InitBasicBlockInfo(
     pUmcch->numGenericSpmModules      = 0;
     pUmcch->numGenericLegacyModules   = 0;
     pUmcch->numSpmWires               = 0;
-    pUmcch->maxEventId                = 39; // BeqEdcErr
 
-    // Note that this function also sets numInstances.
+    // Note that this function also sets: numInstances, maxEventId.
     UpdateUmcchBlockInfo(device, pInfo, pUmcch);
 
     // A quick check to make sure we have registers for all instances. The fact that the number of instances varies
@@ -1413,9 +1422,8 @@ static void Gfx10InitBasicBlockInfo(
         pUmcch->numGenericSpmModules      = 0;
         pUmcch->numGenericLegacyModules   = 0;
         pUmcch->numSpmWires               = 0;
-        pUmcch->maxEventId                = 39; // BeqEdcErr
 
-        // Note that this function also sets numInstances.
+        // Note that this function also sets: numInstances, maxEventId.
         UpdateUmcchBlockInfo(device, pInfo, pUmcch);
 
         // A quick check to make sure we have registers for all instances. The fact that the number of instances varies

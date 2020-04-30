@@ -292,7 +292,7 @@ Dri3WindowSystem::Dri3WindowSystem(
     m_presentMajorVersion(0),
     m_presentMinorVersion(0),
     m_pPresentEvent(nullptr),
-    m_localSerial(1),
+    m_localSerial(0),
     m_remoteSerial(0)
 {
     PAL_ASSERT(createInfo.hDisplay != nullptr);

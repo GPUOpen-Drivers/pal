@@ -98,7 +98,7 @@ private:
     Result HandleGetValue(IURIRequestContext* pContext);
     Result HandleQueryValues(IURIRequestContext* pContext);
     Result HandleSetValue(IURIRequestContext* pContext);
-    bool GetValue(const RegisteredComponent& component, SettingNameHash settingName, SettingValue** ppSettingValue);
+    Result GetValue(const RegisteredComponent& component, SettingNameHash settingName, SettingValue** ppSettingValue, bool* pNeedsCleanup);
 
     inline bool IsSettingNameValid(const RegisteredComponent& component, SettingNameHash name)
     {

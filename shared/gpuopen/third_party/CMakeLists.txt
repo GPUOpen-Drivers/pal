@@ -28,7 +28,7 @@ function(dd_third_party_disable_warnings name)
         #endif
         target_compile_options(${name}
             PRIVATE
-                /w
+                /W0
         )
 
     else()

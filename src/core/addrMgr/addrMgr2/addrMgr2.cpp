@@ -595,6 +595,16 @@ Result AddrMgr2::ComputePlaneSwizzleMode(
 
     InitTilingCaps(pImage, surfSettingInput.flags, &surfSettingInput.forbiddenBlock);
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 586
+    // Enable gfx9 to handle 2d sampling on 3d despite its hardware always interpreting as 3d
+    // The tile size doesn't matter, though, so we still let AddrLib handle this case.
+    // D-mode isn't supported in all cases (PRT, depth-major mipmaps), so watch for overrides.
+    if (createInfo.imageType == ImageType::Tex3d)
+    {
+        surfSettingInput.flags.view3dAs2dArray = createInfo.flags.view3dAs2dArray;
+    }
+#endif
+
     // Start by building a permitted set of swizzle types. From there we will apply performance optimizations to come
     // up with a preferred set. We need a separate permitted set as a fall-back if we can't create our preferred image.
     ADDR2_SWTYPE_SET permittedSwSet = {};
@@ -748,6 +758,23 @@ Result AddrMgr2::ComputePlaneSwizzleMode(
 
         // Fmask surfaces can only use Z-swizzle modes; verify that here.
         PAL_ASSERT((forFmask == false) || IsZSwizzle(pOut->swizzleMode));
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 586
+        // view3dAs2dArray can only use D-swizzle for gfx9, so fail if the hint was overriden. See full details above.
+        if (createInfo.flags.view3dAs2dArray != 0)
+        {
+            if (IsGfx9(*m_pDevice) && (IsDisplayableSwizzle(pOut->swizzleMode) == false))
+            {
+                result = Result::ErrorInvalidFlags;
+            }
+            else if (IsGfx10(*m_pDevice)                      &&
+                     (IsZSwizzle(pOut->swizzleMode) == false) &&
+                     (IsRotatedSwizzle(pOut->swizzleMode) == false))
+            {
+                result = Result::ErrorInvalidFlags;
+            }
+        }
+#endif
     }
 
     return result;

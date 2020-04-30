@@ -234,6 +234,66 @@ struct NggState
     uint32 numSamples;  // Number of active MSAA samples.
 };
 
+// Cached settings used to speed up access to settings/info referenced at draw-time. Shared with Workaround class.
+union CachedSettings
+{
+    struct
+    {
+        uint64 tossPointMode              :  3; // The currently enabled "TossPointMode" global setting
+        uint64 hiDepthDisabled            :  1; // True if Hi-Depth is disabled by settings
+        uint64 hiStencilDisabled          :  1; // True if Hi-Stencil is disabled by settings
+        uint64 disableDfsm                :  1; // A copy of the disableDfsm setting.
+        uint64 disableDfsmPsUav           :  1; // A copy of the disableDfsmPsUav setting.
+        uint64 disableBatchBinning        :  1; // True if binningMode is disabled.
+        uint64 disablePbbPsKill           :  1; // True if PBB should be disabled for pipelines using PS Kill
+        uint64 disablePbbNoDb             :  1; // True if PBB should be disabled for pipelines with no DB
+        uint64 disablePbbBlendingOff      :  1; // True if PBB should be disabled for pipelines with no blending
+        uint64 disablePbbAppendConsume    :  1; // True if PBB should be disabled for pipelines with append/consume
+        uint64 disableWdLoadBalancing     :  1; // True if wdLoadBalancingMode is disabled.
+        uint64 ignoreCsBorderColorPalette :  1; // True if compute border-color palettes should be ignored
+        uint64 blendOptimizationsEnable   :  1; // A copy of the blendOptimizationsEnable setting.
+        uint64 outOfOrderPrimsEnable      :  2; // The out-of-order primitive rendering mode allowed by settings
+        uint64 checkDfsmEqaaWa            :  1; // True if settings are such that the DFSM + EQAA workaround is on.
+        uint64 scissorChangeWa            :  1; // True if the scissor register workaround is enabled
+        uint64 issueSqttMarkerEvent       :  1; // True if settings are such that we need to issue SQ thread trace
+                                                // marker events on draw.
+        uint64 enablePm4Instrumentation   :  1; // True if settings are such that we should enable detailed PM4
+                                                // instrumentation.
+        uint64 batchBreakOnNewPs          :  1; // True if a BREAK_BATCH should be inserted when switching pixel
+                                                // shaders.
+        uint64 padParamCacheSpace         :  1; // True if this command buffer should pad used param-cache space to
+                                                // reduce context rolls.
+        uint64 describeDrawDispatch       :  1; // True if draws/dispatch shader IDs should be specified within the
+                                                // command stream for parsing by PktTools
+        uint64 rbPlusSupported            :  1; // True if RBPlus is supported by the device
+        uint64 disableVertGrouping        :  1; // Disable VertexGrouping.
+        uint64 prefetchIndexBufferForNgg  :  1; // Prefetch index buffers to workaround misses in UTCL2 with NGG
+        uint64 waCeDisableIb2             :  1; // Disable IB2's on the constant engine to workaround HW bug
+        uint64 reserved2                  :  1;
+        uint64 reserved3                  :  1;
+        uint64 pbbMoreThanOneCtxState     :  1;
+        uint64 waUtcL0InconsistentBigPage :  1;
+        uint64 waClampGeCntlVertGrpSize   :  1;
+        uint64 reserved4                  :  1;
+        uint64 ignoreDepthForBinSize      :  1; // Ignore depth when calculating Bin Size (unless no color bound)
+
+        uint64 waLogicOpDisablesOverwriteCombiner        :  1;
+        uint64 waMiscPopsMissedOverlap                   :  1;
+        uint64 waColorCacheControllerInvalidEviction     :  1;
+        uint64 waRotatedSwizzleDisablesOverwriteCombiner :  1;
+        uint64 waStalledPopsMode                         :  1;
+        uint64 drainPsOnOverlap                          :  1;
+        uint64 waTessIncorrectRelativeIndex              :  1;
+        uint64 waVgtFlushNggToLegacy                     :  1;
+        uint64 waVgtFlushNggToLegacyGs                   :  1;
+        uint64 waIndexBufferZeroSize                     :  1;
+        uint64 waLegacyGsCutModeFlush                    :  1;
+
+        uint64 reserved                   : 18;
+    };
+    uint64 u64All;
+};
+
 // =====================================================================================================================
 // GFX9 universal command buffer class: implements GFX9 specific functionality for the UniversalCmdBuffer class.
 class UniversalCmdBuffer : public Pal::UniversalCmdBuffer
@@ -561,7 +621,7 @@ public:
 
     virtual void CpCopyMemory(gpusize dstAddr, gpusize srcAddr, gpusize numBytes) override;
 
-    bool IsRasterizationKilled() const { return (m_pipelineFlags.noRaster != 0); }
+    bool IsRasterizationKilled() const { return (m_pipelineState.flags.noRaster != 0); }
 
 protected:
     virtual ~UniversalCmdBuffer() {}
@@ -911,42 +971,46 @@ private:
     bool IsTessEnabled() const
     {
 #if PAL_ENABLE_PRINTS_ASSERTS
-        PAL_ASSERT(m_pipelineFlagsValid == true);
+        PAL_ASSERT(m_pipelineStateValid == true);
 #endif
-        return (m_pipelineFlags.usesTess != 0);
+        return (m_pipelineState.flags.usesTess != 0);
     }
 
     bool IsGsEnabled() const
     {
 #if PAL_ENABLE_PRINTS_ASSERTS
-        PAL_ASSERT(m_pipelineFlagsValid == true);
+        PAL_ASSERT(m_pipelineStateValid == true);
 #endif
-        return (m_pipelineFlags.usesGs != 0);
+        return (m_pipelineState.flags.usesGs != 0);
     }
 
     bool IsNggEnabled() const
     {
 #if PAL_ENABLE_PRINTS_ASSERTS
-        PAL_ASSERT(m_pipelineFlagsValid == true);
+        PAL_ASSERT(m_pipelineStateValid == true);
 #endif
-        return (m_pipelineFlags.isNgg != 0);
+        return (m_pipelineState.flags.isNgg != 0);
     }
 
-    union
+    struct
     {
-        struct
+        union
         {
-            uint32  usesTess :  1;
-            uint32  usesGs   :  1;
-            uint32  isNgg    :  1;
-            uint32  noRaster :  1;
-            uint32  reserved : 28;
-        };
-        uint32 u32All;
-    }  m_pipelineFlags;  // Flags describing the currently active pipeline stages.
+            struct
+            {
+                uint32  usesTess  :  1;
+                uint32  usesGs    :  1;
+                uint32  isNgg     :  1;
+                uint32  noRaster  :  1;
+                uint32  gsCutMode :  2;
+                uint32  reserved  : 26;
+            };
+            uint32 u32All;
+        } flags; // Flags describing the currently active pipeline stages.
+    }  m_pipelineState;
 
 #if PAL_ENABLE_PRINTS_ASSERTS
-    bool m_pipelineFlagsValid; /// Debug flag for knowing when m_pipeLineFlags is valid (most of draw-time).
+    bool m_pipelineStateValid; /// Debug flag for knowing when m_pipelineState is valid (most of draw-time).
 #endif
 
     // Function pointers which validate all graphics user-data at Draw-time for the cases where the pipeline is
@@ -1036,51 +1100,7 @@ private:
     Extent2d         m_currentBinSize;   // Current PBB bin size that has been chosen. This could be
                                          // equal to the custom bin size.
 
-    union
-    {
-        struct
-        {
-            uint64 tossPointMode              :  3; // The currently enabled "TossPointMode" global setting
-            uint64 hiDepthDisabled            :  1; // True if Hi-Depth is disabled by settings
-            uint64 hiStencilDisabled          :  1; // True if Hi-Stencil is disabled by settings
-            uint64 disableDfsm                :  1; // A copy of the disableDfsm setting.
-            uint64 disableDfsmPsUav           :  1; // A copy of the disableDfsmPsUav setting.
-            uint64 disableBatchBinning        :  1; // True if binningMode is disabled.
-            uint64 disablePbbPsKill           :  1; // True if PBB should be disabled for pipelines using PS Kill
-            uint64 disablePbbNoDb             :  1; // True if PBB should be disabled for pipelines with no DB
-            uint64 disablePbbBlendingOff      :  1; // True if PBB should be disabled for pipelines with no blending
-            uint64 disablePbbAppendConsume    :  1; // True if PBB should be disabled for pipelines with append/consume
-            uint64 disableWdLoadBalancing     :  1; // True if wdLoadBalancingMode is disabled.
-            uint64 ignoreCsBorderColorPalette :  1; // True if compute border-color palettes should be ignored
-            uint64 blendOptimizationsEnable   :  1; // A copy of the blendOptimizationsEnable setting.
-            uint64 outOfOrderPrimsEnable      :  2; // The out-of-order primitive rendering mode allowed by settings
-            uint64 checkDfsmEqaaWa            :  1; // True if settings are such that the DFSM + EQAA workaround is on.
-            uint64 scissorChangeWa            :  1; // True if the scissor register workaround is enabled
-            uint64 issueSqttMarkerEvent       :  1; // True if settings are such that we need to issue SQ thread trace
-                                                    // marker events on draw.
-            uint64 enablePm4Instrumentation   :  1; // True if settings are such that we should enable detailed PM4
-                                                    // instrumentation.
-            uint64 batchBreakOnNewPs          :  1; // True if a BREAK_BATCH should be inserted when switching pixel
-                                                    // shaders.
-            uint64 padParamCacheSpace         :  1; // True if this command buffer should pad used param-cache space to
-                                                    // reduce context rolls.
-            uint64 describeDrawDispatch       :  1; // True if draws/dispatch shader IDs should be specified within the
-                                                    // command stream for parsing by PktTools
-            uint64 rbPlusSupported            :  1; // True if RBPlus is supported by the device
-            uint64 disableVertGrouping        :  1; // Disable VertexGrouping.
-            uint64 prefetchIndexBufferForNgg  :  1; // Prefetch index buffers to workaround misses in UTCL2 with NGG
-            uint64 waCeDisableIb2             :  1; // Disable IB2's on the constant engine to workaround HW bug
-            uint64 reserved2                  :  1;
-            uint64 reserved3                  :  1;
-            uint64 pbbMoreThanOneCtxState     :  1;
-            uint64 waUtcL0InconsistentBigPage :  1;
-            uint64 waClampGeCntlVertGrpSize   :  1;
-            uint64 reserved4                  :  1;
-            uint64 ignoreDepthForBinSize      :  1; // Ignore depth when calculating Bin Size (unless no color bound)
-            uint64 reserved                   : 29;
-        };
-        uint64 u64All;
-    } m_cachedSettings;
+    CachedSettings   m_cachedSettings;   // Cached settings values referenced at draw-time
 
     DrawTimeHwState  m_drawTimeHwState;  // Tracks certain bits of HW-state that might need to be updated per draw.
     NggState         m_nggState;

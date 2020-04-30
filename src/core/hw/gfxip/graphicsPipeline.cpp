@@ -30,7 +30,6 @@
 #include "palFormatInfo.h"
 #include "palMetroHash.h"
 #include "palPipelineAbi.h"
-#include "palPipelineAbiProcessorImpl.h"
 
 using namespace Util;
 
@@ -171,23 +170,22 @@ Result GraphicsPipeline::InitFromPipelineBinary(
     hasher.Update(m_viewInstancingDesc);
 #endif
 
-    AbiProcessor abiProcessor(m_pDevice->GetPlatform());
-    Result result = abiProcessor.LoadFromBuffer(m_pPipelineBinary, m_pipelineBinaryLen);
+    AbiReader abiReader(m_pDevice->GetPlatform(), m_pPipelineBinary);
+    Result result = abiReader.Init();
 
     MsgPackReader      metadataReader;
     CodeObjectMetadata metadata;
 
     if (result == Result::Success)
     {
-        result = abiProcessor.GetMetadata(&metadataReader, &metadata);
+        result = abiReader.GetMetadata(&metadataReader, &metadata);
     }
 
     if (result == Result::Success)
     {
         ExtractPipelineInfo(metadata, ShaderType::Vertex, ShaderType::Pixel);
 
-        DumpPipelineElf(abiProcessor,
-                        "PipelineGfx",
+        DumpPipelineElf("PipelineGfx",
                         ((metadata.pipeline.hasEntry.name != 0) ? &metadata.pipeline.name[0] : nullptr));
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 476
@@ -222,7 +220,7 @@ Result GraphicsPipeline::InitFromPipelineBinary(
         m_flags.psWritesDepth       = (psStageMetadata.flags.writesDepth       != 0);
         m_flags.psUsesAppendConsume = (psStageMetadata.flags.usesAppendConsume != 0);
 
-        result = HwlInit(createInfo, abiProcessor, metadata, &metadataReader);
+        result = HwlInit(createInfo, abiReader, metadata, &metadataReader);
     }
 
     // Finalize the hash.

@@ -30,7 +30,6 @@
 #include "core/hw/gfxip/gfx9/gfx9PipelineChunkGs.h"
 #include "core/hw/gfxip/gfx9/gfx9PipelineChunkHs.h"
 #include "core/hw/gfxip/gfx9/gfx9PipelineChunkVsPs.h"
-#include "palPipelineAbiProcessor.h"
 
 namespace Pal
 {
@@ -121,6 +120,7 @@ public:
     regPA_SC_AA_CONFIG PaScAaConfig() const { return m_chunkVsPs.PaScAaConfig(); }
 
     regVGT_GS_ONCHIP_CNTL VgtGsOnchipCntl() const { return m_regs.context.vgtGsOnchipCntl; }
+    regVGT_GS_MODE VgtGsMode() const { return m_regs.context.vgtGsMode; }
 
     bool   IsNgg() const { return (m_regs.context.vgtShaderStagesEn.bits.PRIMGEN_EN != 0); }
     bool   IsNggFastLaunch() const { return m_isNggFastLaunch; }
@@ -170,7 +170,7 @@ protected:
 
     virtual Result HwlInit(
         const GraphicsPipelineCreateInfo& createInfo,
-        const AbiProcessor&               abiProcessor,
+        const AbiReader&                  abiReader,
         const CodeObjectMetadata&         metadata,
         Util::MsgPackReader*              pMetadataReader) override;
 
@@ -180,7 +180,7 @@ protected:
                    GraphicsPipelineLoadInfo* pInfo);
     void LateInit(
         const GraphicsPipelineCreateInfo& createInfo,
-        const AbiProcessor&               abiProcessor,
+        const AbiReader&                  abiReader,
         const CodeObjectMetadata&         metadata,
         const RegisterVector&             registers,
         const GraphicsPipelineLoadInfo&   loadInfo,
@@ -351,11 +351,12 @@ class GraphicsPipelineUploader : public Pal::PipelineUploader
 {
 public:
     explicit GraphicsPipelineUploader(
-        Device* pDevice,
-        uint32  ctxRegisterCount,
-        uint32  shRegisterCount)
+        Device*          pDevice,
+        const AbiReader& abiReader,
+        uint32           ctxRegisterCount,
+        uint32           shRegisterCount)
         :
-        PipelineUploader(pDevice->Parent(), ctxRegisterCount, shRegisterCount)
+        PipelineUploader(pDevice->Parent(), abiReader, ctxRegisterCount, shRegisterCount)
         { }
     virtual ~GraphicsPipelineUploader() { }
 

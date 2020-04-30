@@ -431,10 +431,13 @@ void Device::ExpandColor(
     bool msaaColorDecompress = false;  // Shader based decompress that writes every sample's color value to the base
                                        // image.  An FMask decompress must be executed before this BLT.
 
-    // Fast clear eliminates are only possible on universal queue command buffers and will be ignored on others.  This
-    // should be okay because prior operations should be aware of this fact (based on layout), and prohibit us from
-    // getting to a situation where one is needed but has not been performed yet.
-    const bool fastClearEliminateSupported = pCmdBuf->IsGraphicsSupported();
+    // Fast clear eliminates are only possible on universal queue command buffers and with valid fast clear eliminate
+    // address otherwsie will be ignored on others. This should be okay because prior operations should be aware of
+    // this fact (based on layout), and prohibit us from getting to a situation where one is needed but has not been
+    // performed yet.
+    const bool fastClearEliminateSupported =
+        (pCmdBuf->IsGraphicsSupported() &&
+         (gfx9Image.GetFastClearEliminateMetaDataAddr(subresRange.startSubres) != 0));
 
     // The "earlyPhase" for decompress BLTs is before any waits and/or cache flushes have been inserted.  It is safe to
     // perform a color expand in the early phase if the client reports there is dirty data in the CB caches.  This
@@ -509,10 +512,7 @@ void Device::ExpandColor(
             // 'TcCompatReadFlags' above to skip performing a fast clear eliminate BLT.  If a shader resolve is to be
             // used, a barrier transiton to either LayoutShaderRead or LayoutShaderFmaskBasedRead is issued, which would
             // really trigger an FCE operation.
-            if (fastClearEliminateSupported                                              &&
-                TestAnyFlagSet(transition.imageInfo.newLayout.usages, TcCompatReadFlags) &&
-                (gfx9Image.HasDccData()                                                  &&
-                pSubresInfo->flags.supportMetaDataTexFetch))
+            if (fastClearEliminateSupported && TestAnyFlagSet(transition.imageInfo.newLayout.usages, TcCompatReadFlags))
             {
                 if ((gfx9Image.HasSeenNonTcCompatibleClearColor() == false) && gfx9Image.IsFceOptimizationEnabled())
                 {
@@ -746,6 +746,8 @@ void Device::ExpandColor(
                 PAL_ASSERT(dccDecompress == false);
 
                 pOperations->layoutTransitions.updateDccStateMetadata = 1;
+                DescribeBarrier(pCmdBuf, &transition, pOperations);
+
                 gfx9Image.UpdateDccStateMetaData(pCmdStream, subresRange, true, engineType, PredDisable);
             }
         }
@@ -1505,10 +1507,6 @@ void Device::Barrier(
                         }
 
                         barrierOps.layoutTransitions.initMaskRam = 1;
-                        DescribeBarrier(pCmdBuf,
-                                        &barrier.pTransitions[i],
-                                        &barrierOps);
-
                         const bool usedCompute = RsrcProcMgr().InitMaskRam(pCmdBuf, pCmdStream, gfx9Image, subresRange);
 
                         // After initializing Mask RAM, we need some syncs to guarantee the initialization blts have
@@ -1549,6 +1547,8 @@ void Device::Barrier(
                             initSyncReqs.cacheFlags |= CacheSyncFlushTcc;
                             initSyncReqs.cacheFlags |= CacheSyncInvTcc;
                         }
+
+                        DescribeBarrier(pCmdBuf, &barrier.pTransitions[i], &barrierOps);
                     }
                 }
                 else if (TestAnyFlagSet(imageInfo.newLayout.usages, LayoutUninitializedTarget))
@@ -1559,7 +1559,7 @@ void Device::Barrier(
                     // We do no decompresses, expands, or any other kind of blt in this case.
                 }
             }
-        }
+        } // For each transition.
 
         IssueSyncs(pCmdBuf, pCmdStream, initSyncReqs, barrier.waitPoint, FullSyncBaseAddr, FullSyncSize, &barrierOps);
 

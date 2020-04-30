@@ -27,7 +27,6 @@
 
 #include "core/hw/gfxip/pipeline.h"
 #include "core/hw/gfxip/gfx9/gfx9Chip.h"
-#include "palPipelineAbiProcessor.h"
 
 namespace Pal
 {
@@ -60,7 +59,7 @@ public:
         GraphicsPipelineLoadInfo* pInfo);
 
     void LateInit(
-        const AbiProcessor&       abiProcessor,
+        const AbiReader&          abiReader,
         const RegisterVector&     registers,
         GraphicsPipelineUploader* pUploader,
         Util::MetroHash64*        pHasher);

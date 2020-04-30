@@ -25,6 +25,8 @@
 
 #pragma once
 
+#if PAL_BUILD_PM4_INSTRUMENTOR
+
 #include "core/g_palPlatformSettings.h"
 #include "core/layers/decorators.h"
 #include "core/layers/functionIds.h"
@@ -130,3 +132,5 @@ private:
 
 } // Pm4Instrumentor
 } // Pal
+
+#endif

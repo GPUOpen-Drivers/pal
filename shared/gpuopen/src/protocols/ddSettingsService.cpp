@@ -259,47 +259,92 @@ Result SettingsService::HandleGetSettingData(
 }
 
 // =====================================================================================================================
-// Queries the value for the given settingNameHash, allocating memory for the value if required.  Returns true if memory
-// was malloc'd for the setting value, it is up to the caller to free the memory in that case.
-bool SettingsService::GetValue(
+// Queries the value for the given settingNameHash, allocating memory for the value if required.
+// Sets pNeedsCleanup to true if memory was malloc'd for the setting value, it is up to the caller to free the memory in
+// that case. In the event of an error, the pNeedsCleanup will never be set to true.
+Result SettingsService::GetValue(
     const RegisteredComponent& component,
     SettingNameHash            settingName,
-    SettingValue**             ppSettingValue)
+    SettingValue**             ppSettingValue,
+    bool*                      pNeedsCleanup)
 {
+    DD_ASSERT(ppSettingValue != nullptr);
+    DD_ASSERT(pNeedsCleanup != nullptr);
+
     bool needsCleanup = false;
     void* pValueBuffer = m_pDefaultGetValueBuffer;
     SettingValue* pSettingValue = static_cast<SettingValue*>(pValueBuffer);
     pSettingValue->pValuePtr = VoidPtrInc(pValueBuffer, sizeof(SettingValue));
     pSettingValue->valueSize = kDefaultGetValueMaxDataSize;
 
-    // First call to get the value size
+    // Attempt to query the setting value
     Result result = component.pfnGetValue(settingName, pSettingValue, component.pPrivateData);
-    if (result != Result::Success)
+    if (result == Result::Success)
     {
-        DD_ASSERT((result == Result::SettingsUriInvalidSettingValueSize) && (pSettingValue->valueSize < kMaxSettingValueSize));
-
-        // The only other result we should expect is insuffient memory, in that case the required memory
-        // size is returned in the valueSize field.  Allocate a buffer big enough to hold the struct and the associated data
-        pValueBuffer = m_allocCb.Alloc((pSettingValue->valueSize + sizeof(SettingValue)), false);
-        if (pValueBuffer != nullptr)
+        // We've successfully acquired the setting value information
+    }
+    else if (result == Result::SettingsUriInvalidSettingValueSize)
+    {
+        if (pSettingValue->valueSize <= kMaxSettingValueSize)
         {
-            needsCleanup = true;
-            pSettingValue = static_cast<SettingValue*>(pValueBuffer);
-            pSettingValue->pValuePtr = VoidPtrInc(pValueBuffer, sizeof(SettingValue));
-            // Try again with our newly malloc'd buffer size
-            result = component.pfnGetValue(settingName, pSettingValue, component.pPrivateData);
+            // In some cases, we need to allocate memory in order to hold the setting. In those cases, the required memory
+            // size is returned in the valueSize field.  Allocate a buffer big enough to hold the struct and the associated data
+            pValueBuffer = m_allocCb.Alloc((pSettingValue->valueSize + sizeof(SettingValue)), false);
+            if (pValueBuffer != nullptr)
+            {
+                needsCleanup = true;
+
+                memcpy(pValueBuffer, pSettingValue, sizeof(SettingValue));
+                pSettingValue = static_cast<SettingValue*>(pValueBuffer);
+                pSettingValue->pValuePtr = VoidPtrInc(pValueBuffer, sizeof(SettingValue));
+
+                // Try again with our newly malloc'd buffer size
+                result = component.pfnGetValue(settingName, pSettingValue, component.pPrivateData);
+            }
+            else
+            {
+                // Malloc failed, we're out of memory
+                result = Result::InsufficientMemory;
+            }
         }
         else
         {
-            // Malloc failed, we're out of memory
+            // The setting requires more memory than we're allowed to use.
             result = Result::InsufficientMemory;
         }
     }
+    else if (result == Result::SettingsUriInvalidSettingName)
+    {
+        // We were unable to get information about the setting
+        // This can happen in cases where settings are conditionally compiled out
+    }
+    else
+    {
+        // We've encountered an unknown error
+    }
 
-    DD_ASSERT(ppSettingValue != nullptr);
-    (*ppSettingValue) = (result == Result::Success) ? pSettingValue : nullptr;
+    if (result == Result::Success)
+    {
+        // Do a little sanity check / validation here to make sure we get reasonable data back from the component
+        const bool isSettingValueValid = ((pSettingValue->pValuePtr != nullptr) && (pSettingValue->valueSize > 0));
+        result = isSettingValueValid ? Result::Success : Result::SettingsUriInvalidSettingValue;
+    }
 
-    return needsCleanup;
+    if (result == Result::Success)
+    {
+        (*ppSettingValue) = pSettingValue;
+        (*pNeedsCleanup)  = needsCleanup;
+    }
+    else
+    {
+        // We've encountered a failure so clean up our memory before returning if necessary.
+        if (needsCleanup)
+        {
+            m_allocCb.Free(pValueBuffer);
+        }
+    }
+
+    return result;
 }
 
 // =====================================================================================================================
@@ -330,20 +375,38 @@ Result SettingsService::HandleQueryValues(
                 {
                     SettingNameHash settingName = component.pSettingsHashes[i];
                     SettingValue* pSettingValue = nullptr;
-                    bool needsCleanup = GetValue(component, settingName, &pSettingValue);
-                    if ((pSettingValue != nullptr) && (pSettingValue->pValuePtr != nullptr) && (pSettingValue->valueSize > 0))
+                    bool needsCleanup = false;
+                    result = GetValue(component, settingName, &pSettingValue, &needsCleanup);
+                    if (result == Result::Success)
                     {
                         pWriter->WriteBytes(&settingName, sizeof(SettingNameHash));
                         pWriter->WriteBytes(pSettingValue, sizeof(SettingValue));
                         pWriter->WriteBytes(pSettingValue->pValuePtr, pSettingValue->valueSize);
-                    }
 
-                    if (needsCleanup)
+                        if (needsCleanup)
+                        {
+                            DD_FREE(pSettingValue, m_allocCb);
+                        }
+                    }
+                    else if ((result == Result::SettingsUriInvalidSettingName) ||
+                             (result == Result::SettingsUriInvalidSettingValue))
                     {
-                        DD_FREE(pSettingValue, m_allocCb);
+                        // This can happen if we have compiled out settings or the component is implemented
+                        // incorrectly. Exclude the setting from the stream in this case.
+
+                        result = Result::Success;
+                    }
+                    else
+                    {
+                        // We've encountered an unknown error. We should abort the operation.
+                        break;
                     }
                 }
-                result = pWriter->End();
+
+                if (result == Result::Success)
+                {
+                    result = pWriter->End();
+                }
             }
         }
         else
@@ -380,42 +443,29 @@ Result SettingsService::HandleGetValue(
             if (IsSettingNameValid(component, settingName))
             {
                 SettingValue* pSettingValue = nullptr;
-                bool needsCleanup = GetValue(component, settingName, &pSettingValue);
 
-                if (pSettingValue != nullptr)
+                bool needsCleanup = false;
+                result = GetValue(component, settingName, &pSettingValue, &needsCleanup);
+                if (result == Result::Success)
                 {
-                    if ((pSettingValue->pValuePtr != nullptr) && (pSettingValue->valueSize > 0))
+                    IByteWriter* pWriter = nullptr;
+                    result = pContext->BeginByteResponse(&pWriter);
+                    if (result == Result::Success)
                     {
-                        IByteWriter* pWriter = nullptr;
-                        result = pContext->BeginByteResponse(&pWriter);
-                        if (result == Result::Success)
-                        {
-                            // We've got the value, now send it back to the client.  We'll send the struct as binary,
-                            // with the pointer zeroed out.
-                            void* pValueDataPtr = pSettingValue->pValuePtr;
-                            pSettingValue->pValuePtr = nullptr;
-                            pWriter->WriteBytes(pSettingValue, sizeof(SettingValue));
-                            pWriter->WriteBytes(pValueDataPtr, pSettingValue->valueSize);
-                            result = pWriter->End();
-                        }
+                        // We've got the value, now send it back to the client.  We'll send the struct as binary,
+                        // with the pointer zeroed out.
+                        void* pValueDataPtr = pSettingValue->pValuePtr;
+                        pSettingValue->pValuePtr = nullptr;
+                        pWriter->WriteBytes(pSettingValue, sizeof(SettingValue));
+                        pWriter->WriteBytes(pValueDataPtr, pSettingValue->valueSize);
+                        result = pWriter->End();
                     }
-                    else
-                    {
-                        // The component didn't properly fill in the setting value struct, return an error
-                        result = Result::Error;
-                    }
-                }
-                else
-                {
-                    // We shouldn't ever hit this assert, probably means we're out of memory
-                    result = Result::InsufficientMemory;
-                    DD_ASSERT_ALWAYS();
-                }
 
-                if (needsCleanup)
-                {
-                    // Free the memory if we allocated a separate buffer to hold the value
-                    DD_FREE(pSettingValue, m_allocCb);
+                    if (needsCleanup)
+                    {
+                        // Free the memory if we allocated a separate buffer to hold the value
+                        DD_FREE(pSettingValue, m_allocCb);
+                    }
                 }
             }
             else

@@ -32,7 +32,6 @@
 #include "core/hw/gfxip/gfx9/gfx9Device.h"
 #include "core/hw/gfxip/gfx9/gfx9GraphicsPipeline.h"
 #include "core/hw/gfxip/gfx9/gfx9PipelineChunkCs.h"
-#include "palPipelineAbiProcessorImpl.h"
 
 using namespace Util;
 
@@ -113,7 +112,7 @@ void PipelineChunkCs::EarlyInit(
 // determining the values of other registers.  Also uploads register state into GPU memory.
 template <typename CsPipelineUploader>
 void PipelineChunkCs::LateInit(
-    const AbiProcessor&              abiProcessor,
+    const AbiReader&                 abiReader,
     const RegisterVector&            registers,
     uint32                           wavefrontSize,
     ComputePipelineIndirectFuncInfo* pIndirectFuncList,
@@ -127,22 +126,19 @@ void PipelineChunkCs::LateInit(
     const auto&              regInfo   = cmdUtil.GetRegInfo();
     const GpuChipProperties& chipProps = m_device.Parent()->ChipProperties();
 
-    Abi::PipelineSymbolEntry csProgram  = { };
-    if (abiProcessor.HasPipelineSymbolEntry(Abi::PipelineSymbolType::CsMainEntry, &csProgram))
+    GpuSymbol symbol = { };
+    if (pUploader->GetPipelineGpuSymbol(Abi::PipelineSymbolType::CsMainEntry, &symbol) == Result::Success)
     {
-        m_pStageInfo->codeLength  = static_cast<size_t>(csProgram.size);
-        const gpusize csProgramVa = (csProgram.value + pUploader->CodeGpuVirtAddr());
-        PAL_ASSERT(IsPow2Aligned(csProgramVa, 256u));
+        m_pStageInfo->codeLength  = static_cast<size_t>(symbol.size);
+        PAL_ASSERT(IsPow2Aligned(symbol.gpuVirtAddr, 256u));
 
-        m_regs.computePgmLo.bits.DATA = Get256BAddrLo(csProgramVa);
-        m_regs.computePgmHi.bits.DATA = Get256BAddrHi(csProgramVa);
+        m_regs.computePgmLo.bits.DATA = Get256BAddrLo(symbol.gpuVirtAddr);
+        m_regs.computePgmHi.bits.DATA = Get256BAddrHi(symbol.gpuVirtAddr);
     }
 
-    Abi::PipelineSymbolEntry csSrdTable = { };
-    if (abiProcessor.HasPipelineSymbolEntry(Abi::PipelineSymbolType::CsShdrIntrlTblPtr, &csSrdTable))
+    if (pUploader->GetPipelineGpuSymbol(Abi::PipelineSymbolType::CsShdrIntrlTblPtr, &symbol) == Result::Success)
     {
-        const gpusize csSrdTableVa = (csSrdTable.value + pUploader->DataGpuVirtAddr());
-        m_regs.userDataInternalTable.bits.DATA = LowPart(csSrdTableVa);
+        m_regs.userDataInternalTable.bits.DATA = LowPart(symbol.gpuVirtAddr);
     }
 
     m_regs.computePgmRsrc1.u32All         = registers.At(mmCOMPUTE_PGM_RSRC1);
@@ -250,7 +246,7 @@ void PipelineChunkCs::LateInit(
 
     cmdUtil.BuildPipelinePrefetchPm4(*pUploader, &m_prefetch);
 
-    ComputePipeline::GetFunctionGpuVirtAddrs(abiProcessor, *pUploader, pIndirectFuncList, indirectFuncCount);
+    ComputePipeline::GetFunctionGpuVirtAddrs(*pUploader, pIndirectFuncList, indirectFuncCount);
 }
 
 // =====================================================================================================================
@@ -372,7 +368,7 @@ void PipelineChunkCs::SetupSignatureFromElf(
 // Instantiate template versions for the linker.
 template
 void PipelineChunkCs::LateInit<ComputePipelineUploader>(
-    const AbiProcessor&              abiProcessor,
+    const AbiReader&                 abiReader,
     const RegisterVector&            registers,
     uint32                           wavefrontSize,
     ComputePipelineIndirectFuncInfo* pIndirectFuncList,
@@ -531,7 +527,7 @@ LibraryChunkCs::LibraryChunkCs(
 // Also uploads register state into GPU memory.
 template <typename ShaderLibraryUploader>
 void LibraryChunkCs::LateInit(
-    const AbiProcessor&              abiProcessor,
+    const AbiReader&                 abiReader,
     const RegisterVector&            registers,
     uint32                           wavefrontSize,
     ShaderLibraryFunctionInfo*       pFunctionList,
@@ -592,12 +588,12 @@ void LibraryChunkCs::LateInit(
     // Might be nice to do so, but it adds up complexity, in that we would have to maintain a list
     // of every linked library with each pipeline object and pretech the main pipeline with each library...
 
-    ShaderLibrary::GetFunctionGpuVirtAddrs(abiProcessor, *pUploader, pFunctionList, funcCount);
+    ShaderLibrary::GetFunctionGpuVirtAddrs(*pUploader, pFunctionList, funcCount);
 }
 
 template
 void LibraryChunkCs::LateInit<ShaderLibraryUploader>(
-    const AbiProcessor&              abiProcessor,
+    const AbiReader&                 abiReader,
     const RegisterVector&            registers,
     uint32                           wavefrontSize,
     ShaderLibraryFunctionInfo*       pFunctionList,

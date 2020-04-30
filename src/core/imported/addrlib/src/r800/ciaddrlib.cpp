@@ -1582,7 +1582,14 @@ VOID CiLib::ReadGbTileMode(
     gbTileMode.val = regValue;
 
     pCfg->type = static_cast<AddrTileType>(gbTileMode.f.micro_tile_mode_new);
-    pCfg->info.pipeConfig = static_cast<AddrPipeCfg>(gbTileMode.f.pipe_config + 1);
+    if (AltTilingEnabled() == TRUE)
+    {
+        pCfg->info.pipeConfig = static_cast<AddrPipeCfg>(gbTileMode.f.alt_pipe_config + 1);
+    }
+    else
+    {
+        pCfg->info.pipeConfig = static_cast<AddrPipeCfg>(gbTileMode.f.pipe_config + 1);
+    }
 
     if (pCfg->type == ADDR_DEPTH_SAMPLE_ORDER)
     {
@@ -1724,10 +1731,19 @@ VOID CiLib::ReadGbMacroTileCfg(
     GB_MACROTILE_MODE gbTileMode;
     gbTileMode.val = regValue;
 
-    pCfg->bankHeight = 1 << gbTileMode.f.bank_height;
+    if (AltTilingEnabled() == TRUE)
+    {
+        pCfg->bankHeight       = 1 << gbTileMode.f.alt_bank_height;
+        pCfg->banks            = 1 << (gbTileMode.f.alt_num_banks + 1);
+        pCfg->macroAspectRatio = 1 << gbTileMode.f.alt_macro_tile_aspect;
+    }
+    else
+    {
+        pCfg->bankHeight       = 1 << gbTileMode.f.bank_height;
+        pCfg->banks            = 1 << (gbTileMode.f.num_banks + 1);
+        pCfg->macroAspectRatio = 1 << gbTileMode.f.macro_tile_aspect;
+    }
     pCfg->bankWidth = 1 << gbTileMode.f.bank_width;
-    pCfg->banks = 1 << (gbTileMode.f.num_banks + 1);
-    pCfg->macroAspectRatio = 1 << gbTileMode.f.macro_tile_aspect;
 }
 
 /**

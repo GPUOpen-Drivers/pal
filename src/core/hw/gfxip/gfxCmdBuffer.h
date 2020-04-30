@@ -27,6 +27,7 @@
 
 #include "core/cmdBuffer.h"
 #include "core/fence.h"
+#include "core/perfExperiment.h"
 #include "core/platform.h"
 #include "palDeque.h"
 #include "palHashMap.h"
@@ -290,13 +291,14 @@ public:
         uint32             flags) override;
 
     virtual void CmdClearBoundDepthStencilTargets(
-        float                           depth,
-        uint8                           stencil,
-        uint32                          samples,
-        uint32                          fragments,
-        DepthStencilSelectFlags         flag,
-        uint32                          regionCount,
-        const ClearBoundTargetRegion*   pClearRegions) override;
+        float                         depth,
+        uint8                         stencil,
+        uint8                         stencilWriteMask,
+        uint32                        samples,
+        uint32                        fragments,
+        DepthStencilSelectFlags       flag,
+        uint32                        regionCount,
+        const ClearBoundTargetRegion* pClearRegions) override;
 
     virtual void CmdClearDepthStencil(
         const IImage&      image,
@@ -304,6 +306,7 @@ public:
         ImageLayout        stencilLayout,
         float              depth,
         uint8              stencil,
+        uint8              stencilWriteMask,
         uint32             rangeCount,
         const SubresRange* pRanges,
         uint32             rectCount,
@@ -350,7 +353,7 @@ public:
         const IImage&   dstImage,
         const Offset3d& dstOffset);
 
-    virtual void CmdSuspendPredication(bool suspend)
+    virtual void CmdSuspendPredication(bool suspend) override
         { m_gfxCmdBufState.flags.packetPredicate = suspend ? 0 : 1; }
 
     virtual void CmdSaveComputeState(uint32 stateFlags) override;
@@ -434,10 +437,12 @@ public:
     virtual void CmdOverwriteDisableViewportClampForBlits(
         bool disableViewportClamp) = 0;
 
+    virtual void CmdOverrideColorWriteMaskForBlits(
+        uint8 disabledChannelMask) { }
+
     virtual uint32 GetUsedSize(CmdAllocType type) const override;
 
-    void EnableSpmTrace() { m_spmTraceEnabled = true; }
-    bool SpmTraceEnabled() const { return m_spmTraceEnabled; }
+    PerfExperimentFlags PerfTracesEnabled() const { return m_cmdBufPerfExptFlags; }
 
     Result AddFceSkippedImageCounter(GfxImage* pGfxImage);
 
@@ -555,8 +560,6 @@ private:
     gpusize    m_timestampGpuVa;    // GPU virtual address of memory used for cache flush & inv timestamp events.
 
     uint32  m_computeStateFlags;       // The flags that CmdSaveComputeState was called with.
-    bool    m_spmTraceEnabled;         // Used to indicate whether Spm Trace has been enabled through this command
-                                       // buffer so that appropriate submit-time operations can be done.
 
     FceRefCountsVector m_fceRefCountVec;
 
@@ -564,6 +567,8 @@ private:
     uint16 m_csBltActiveCtr;  // Count the number of cs BLT that has launched.
 
     ReleaseActivityMap m_releaseActivityMap; // A hashmap that tracks active releases.
+    PerfExperimentFlags m_cmdBufPerfExptFlags; // Flags that indicate which Performance Experiments are ongoing in
+                                               // this CmdBuffer.
 
     PAL_DISALLOW_COPY_AND_ASSIGN(GfxCmdBuffer);
     PAL_DISALLOW_DEFAULT_CTOR(GfxCmdBuffer);

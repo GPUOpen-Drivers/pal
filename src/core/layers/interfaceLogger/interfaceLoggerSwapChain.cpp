@@ -23,6 +23,8 @@
  *
  **********************************************************************************************************************/
 
+#if PAL_BUILD_INTERFACE_LOGGER
+
 #include "core/layers/interfaceLogger/interfaceLoggerDevice.h"
 #include "core/layers/interfaceLogger/interfaceLoggerFence.h"
 #include "core/layers/interfaceLogger/interfaceLoggerPlatform.h"
@@ -124,3 +126,5 @@ void SwapChain::Destroy()
 
 } // InterfaceLogger
 } // Pal
+
+#endif

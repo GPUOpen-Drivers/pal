@@ -34,7 +34,6 @@
 #include "palFormatInfo.h"
 #include "palInlineFuncs.h"
 #include "palMetroHash.h"
-#include "palPipelineAbiProcessorImpl.h"
 
 using namespace Util;
 
@@ -323,21 +322,29 @@ void GraphicsPipeline::EarlyInit(
 // specified Pipeline ABI processor and create info.
 Result GraphicsPipeline::HwlInit(
     const GraphicsPipelineCreateInfo& createInfo,
-    const AbiProcessor&               abiProcessor,
+    const AbiReader&                  abiReader,
     const CodeObjectMetadata&         metadata,
     MsgPackReader*                    pMetadataReader)
 {
     RegisterVector registers(m_pDevice->GetPlatform());
-    Result result = pMetadataReader->Unpack(&registers);
+    Result result = pMetadataReader->Seek(metadata.pipeline.registers);
+
+    if (result == Result::Success)
+    {
+        result = pMetadataReader->Unpack(&registers);
+    }
+
     if (result == Result::Success)
     {
         GraphicsPipelineLoadInfo loadInfo = { };
         EarlyInit(metadata, registers, &loadInfo);
 
         // Next, handle relocations and upload the pipeline code & data to GPU memory.
-        GraphicsPipelineUploader uploader(m_pDevice, loadInfo.loadedCtxRegCount, loadInfo.loadedShRegCount);
+        GraphicsPipelineUploader uploader(m_pDevice,
+                                          abiReader,
+                                          loadInfo.loadedCtxRegCount,
+                                          loadInfo.loadedShRegCount);
         result = PerformRelocationsAndUploadToGpuMemory(
-            abiProcessor,
             metadata,
 #if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 488)
 #if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 488) && (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 502)
@@ -356,13 +363,13 @@ Result GraphicsPipeline::HwlInit(
 
             if (IsTessEnabled())
             {
-                m_chunkLsHs.LateInit(abiProcessor, registers, &uploader, loadInfo, &hasher);
+                m_chunkLsHs.LateInit(abiReader, registers, &uploader, loadInfo, &hasher);
             }
             if (IsGsEnabled())
             {
-                m_chunkEsGs.LateInit(abiProcessor, metadata, registers, loadInfo, &uploader, &hasher);
+                m_chunkEsGs.LateInit(abiReader, metadata, registers, loadInfo, &uploader, &hasher);
             }
-            m_chunkVsPs.LateInit(abiProcessor, registers, loadInfo, createInfo, &uploader, &hasher);
+            m_chunkVsPs.LateInit(abiReader, registers, loadInfo, createInfo, &uploader, &hasher);
 
             SetupCommonRegisters(createInfo, registers, &uploader);
             SetupNonShaderRegisters(createInfo, registers, &uploader);

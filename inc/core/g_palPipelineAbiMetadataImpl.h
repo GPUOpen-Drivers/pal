@@ -539,8 +539,7 @@ Result SerializeEnumBitflags(
 // =====================================================================================================================
 PAL_INLINE Result DeserializeShaderMetadata(
     MsgPackReader*  pReader,
-    ShaderMetadata*  pMetadata,
-    uint32*  pRegistersOffset)
+    ShaderMetadata*  pMetadata)
 {
     Result result = (pReader->Type() == CWP_ITEM_MAP) ? Result::Success : Result::ErrorInvalidValue;
 
@@ -580,8 +579,7 @@ PAL_INLINE Result DeserializeShaderMetadata(
 // =====================================================================================================================
 PAL_INLINE Result DeserializeShaderMetadata(
     MsgPackReader*  pReader,
-    ShaderMetadata (*pMetadata)[static_cast<uint32>(ApiShaderType::Count)],
-    uint32*  pRegistersOffset)
+    ShaderMetadata (*pMetadata)[static_cast<uint32>(ApiShaderType::Count)])
 {
     Result result = ((pReader->Type() == CWP_ITEM_MAP) && (pReader->Get().as.map.size <= ArrayLen(*pMetadata))) ?
                     Result::Success : Result::ErrorInvalidValue;
@@ -599,7 +597,7 @@ PAL_INLINE Result DeserializeShaderMetadata(
         if (result == Result::Success)
         {
             result = DeserializeShaderMetadata(
-                pReader, &((*pMetadata)[static_cast<uint32>(key)]), pRegistersOffset);
+                pReader, &((*pMetadata)[static_cast<uint32>(key)]));
         }
     }
 
@@ -609,8 +607,7 @@ PAL_INLINE Result DeserializeShaderMetadata(
 // =====================================================================================================================
 PAL_INLINE Result DeserializeHardwareStageMetadata(
     MsgPackReader*  pReader,
-    HardwareStageMetadata*  pMetadata,
-    uint32*  pRegistersOffset)
+    HardwareStageMetadata*  pMetadata)
 {
     Result result = (pReader->Type() == CWP_ITEM_MAP) ? Result::Success : Result::ErrorInvalidValue;
 
@@ -774,8 +771,7 @@ PAL_INLINE Result DeserializeHardwareStageMetadata(
 // =====================================================================================================================
 PAL_INLINE Result DeserializeHardwareStageMetadata(
     MsgPackReader*  pReader,
-    HardwareStageMetadata (*pMetadata)[static_cast<uint32>(HardwareStage::Count)],
-    uint32*  pRegistersOffset)
+    HardwareStageMetadata (*pMetadata)[static_cast<uint32>(HardwareStage::Count)])
 {
     Result result = ((pReader->Type() == CWP_ITEM_MAP) && (pReader->Get().as.map.size <= ArrayLen(*pMetadata))) ?
                     Result::Success : Result::ErrorInvalidValue;
@@ -793,7 +789,7 @@ PAL_INLINE Result DeserializeHardwareStageMetadata(
         if (result == Result::Success)
         {
             result = DeserializeHardwareStageMetadata(
-                pReader, &((*pMetadata)[static_cast<uint32>(key)]), pRegistersOffset);
+                pReader, &((*pMetadata)[static_cast<uint32>(key)]));
         }
     }
 
@@ -803,8 +799,7 @@ PAL_INLINE Result DeserializeHardwareStageMetadata(
 // =====================================================================================================================
 PAL_INLINE Result DeserializePipelineMetadata(
     MsgPackReader*  pReader,
-    PipelineMetadata*  pMetadata,
-    uint32*  pRegistersOffset)
+    PipelineMetadata*  pMetadata)
 {
     Result result = (pReader->Type() == CWP_ITEM_ARRAY) ? Result::Success : Result::ErrorInvalidValue;
 
@@ -852,7 +847,7 @@ PAL_INLINE Result DeserializePipelineMetadata(
                 if (result == Result::Success)
                 {
                     result = DeserializeShaderMetadata(
-                        pReader, &pMetadata->shader, pRegistersOffset);
+                        pReader, &pMetadata->shader);
                 }
                 break;
 
@@ -861,15 +856,21 @@ PAL_INLINE Result DeserializePipelineMetadata(
                 if (result == Result::Success)
                 {
                     result = DeserializeHardwareStageMetadata(
-                        pReader, &pMetadata->hardwareStage, pRegistersOffset);
+                        pReader, &pMetadata->hardwareStage);
                 }
                 break;
 
+            case HashLiteralString(PipelineMetadataKey::ShaderFunctions):
+                PAL_ASSERT(pMetadata->hasEntry.shaderFunctions == 0);
+                pMetadata->shaderFunctions = pReader->Tell();
+                pMetadata->hasEntry.shaderFunctions = (result == Result::Success);
+                result = pReader->Skip(1);
+                break;
+
             case HashLiteralString(PipelineMetadataKey::Registers):
-                if (pRegistersOffset != nullptr)
-                {
-                    *pRegistersOffset = pReader->Tell();
-                }
+                PAL_ASSERT(pMetadata->hasEntry.registers == 0);
+                pMetadata->registers = pReader->Tell();
+                pMetadata->hasEntry.registers = (result == Result::Success);
                 result = pReader->Skip(1);
                 break;
 
@@ -974,8 +975,7 @@ PAL_INLINE Result DeserializePipelineMetadata(
 // =====================================================================================================================
 PAL_INLINE Result DeserializePalCodeObjectMetadata(
     MsgPackReader*  pReader,
-    PalCodeObjectMetadata*  pMetadata,
-    uint32*  pRegistersOffset)
+    PalCodeObjectMetadata*  pMetadata)
 {
     Result result = (pReader->Type() == CWP_ITEM_MAP) ? Result::Success : Result::ErrorInvalidValue;
 
@@ -1001,7 +1001,7 @@ PAL_INLINE Result DeserializePalCodeObjectMetadata(
                 if (result == Result::Success)
                 {
                     result = DeserializePipelineMetadata(
-                        pReader, &pMetadata->pipeline, pRegistersOffset);
+                        pReader, &pMetadata->pipeline);
                 }
                 break;
 

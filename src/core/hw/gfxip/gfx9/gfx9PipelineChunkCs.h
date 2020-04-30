@@ -27,7 +27,6 @@
 
 #include "core/hw/gfxip/pipeline.h"
 #include "core/hw/gfxip/gfx9/gfx9Chip.h"
-#include "palPipelineAbiProcessor.h"
 
 namespace Pal
 {
@@ -105,7 +104,7 @@ public:
 
     template <typename CsPipelineUploader>
     void LateInit(
-        const AbiProcessor&              abiProcessor,
+        const AbiReader&                 abiReader,
         const RegisterVector&            registers,
         uint32                           wavefrontSize,
         ComputePipelineIndirectFuncInfo* pIndirectFuncList,
@@ -168,7 +167,7 @@ public:
     // Compute Library use only
     template <typename ShaderLibraryUploader>
     void LateInit(
-        const AbiProcessor&              abiProcessor,
+        const AbiReader&                 abiReader,
         const RegisterVector&            registers,
         uint32                           wavefrontSize,
         ShaderLibraryFunctionInfo*       pFunctionList,

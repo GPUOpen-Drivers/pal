@@ -23,6 +23,8 @@
  *
  **********************************************************************************************************************/
 
+#if PAL_BUILD_INTERFACE_LOGGER
+
 #include "core/layers/interfaceLogger/interfaceLoggerLogContext.h"
 
 using namespace Util;
@@ -419,6 +421,15 @@ void LogContext::Enum(
         "NV21",                     // 0xA5,
         "P016",                     // 0xA6,
         "P010",                     // 0xA7,
+        "P210",                     // 0xA8,
+        "X8_MM_Unorm",              // 0xA9,
+        "X8_MM_Uint",               // 0xAA,
+        "X8Y8_MM_Unorm",            // 0xAB,
+        "X8Y8_MM_Uint",             // 0xAC,
+        "X16_MM_Unorm",             // 0xAD,
+        "X16_MM_Uint",              // 0xAE,
+        "X16Y16_MM_Unorm",          // 0xAF,
+        "X16Y16_MM_Uint",           // 0xB0,
     };
 
     static_assert(ArrayLen(StringTable) == static_cast<uint32>(ChNumFormat::Count),
@@ -1009,6 +1020,8 @@ void LogContext::Enum(
         nullptr,
         nullptr,
         "Navi14",
+        nullptr,
+        nullptr,
         nullptr,
         nullptr,
         nullptr,
@@ -1846,3 +1859,5 @@ void LogContext::Enum(
 
 } // InterfaceLogger
 } // Pal
+
+#endif

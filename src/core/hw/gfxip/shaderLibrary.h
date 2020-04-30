@@ -27,18 +27,27 @@
 
 #include "core/device.h"
 #include "palShaderLibrary.h"
-#include "palPipelineAbiProcessor.h"
 #include "core/hw/gfxip/pipeline.h"
 
 namespace Pal
 {
 class ShaderLibraryUploader;
 
-// Shorthand for a pipeline ABI processor based on the Platform allocator.
-typedef Util::Abi::PipelineAbiProcessor<Platform>  AbiProcessor;
+// Shorthand for a pipeline ABI reader.
+typedef Util::Abi::PipelineAbiReader AbiReader;
 
 // Shorthand for the PAL code object metadata structure.
 typedef Util::Abi::PalCodeObjectMetadata  CodeObjectMetadata;
+
+// Structure describing the shader function statistics.
+struct ShaderFuncStats
+{
+    const char*   pSymbolName;
+    uint32        symbolNameLength;
+    uint32        stackFrameSizeInBytes;
+};
+
+typedef Util::Vector<ShaderFuncStats, 10, Platform> ShaderFuncStatsList;
 
 // =====================================================================================================================
 // Hardware independent compute pipeline class.  Implements all details of a compute pipeline that are common across
@@ -74,34 +83,35 @@ public:
     virtual uint32 GetShaderLibFunctionCount() const override { return 0; }
 
     static void GetFunctionGpuVirtAddrs(
-        const AbiProcessor&             abiProcessor,
-        const PipelineUploader&         uploader,
-        ShaderLibraryFunctionInfo*      pFuncInfoList,
-        uint32                          funcCount);
+        const PipelineUploader&    uploader,
+        ShaderLibraryFunctionInfo* pFuncInfoList,
+        uint32                     funcCount);
 
-    uint32 GetMaxStackFrameSizeInBytes() const { return m_maxStackFrameSizeInBytes; }
+    uint32 GetMaxStackSizeInBytes() const { return m_maxStackSizeInBytes; }
 
 protected:
     // internal Constructor.
     explicit ShaderLibrary(Device* pDevice);
 
     // internal Destructor.
-    virtual ~ShaderLibrary() { };
+    virtual ~ShaderLibrary() { }
 
     virtual Result HwlInit(
         const ShaderLibraryCreateInfo& createInfo,
-        const AbiProcessor&            abiProcessor,
+        const AbiReader&               abiReader,
         const CodeObjectMetadata&      metadata,
         Util::MsgPackReader*           pMetadataReader) = 0;
 
     Result PerformRelocationsAndUploadToGpuMemory(
-        const AbiProcessor&       abiProcessor,
         const CodeObjectMetadata& metadata,
         const GpuHeap&            clientPreferredHeap,
         PipelineUploader*         pUploader);
 
     void ExtractLibraryInfo(
         const CodeObjectMetadata& metadata);
+
+    Result ExtractShaderFunctions(
+        Util::MsgPackReader* pReader);
 
     Device*const    m_pDevice;
 
@@ -111,8 +121,7 @@ protected:
 
     BoundGpuMemory  m_gpuMem;
     gpusize         m_gpuMemSize;
-
-    uint32          m_maxStackFrameSizeInBytes;  // Maximum stack frame size of all functions in the library
+    uint32          m_maxStackSizeInBytes;
 
 private:
     Result InitFromCodeObjectBinary(

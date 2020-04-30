@@ -23,6 +23,8 @@
  *
  **********************************************************************************************************************/
 
+#if PAL_BUILD_CMD_BUFFER_LOGGER
+
 #include "core/layers/cmdBufferLogger/cmdBufferLoggerCmdBuffer.h"
 #include "core/layers/cmdBufferLogger/cmdBufferLoggerDevice.h"
 #include "core/layers/cmdBufferLogger/cmdBufferLoggerImage.h"
@@ -348,6 +350,15 @@ static const char* FormatToString(
         "NV21",
         "P016",
         "P010",
+        "P210",
+        "X8_MM_Unorm",
+        "X8_MM_Uint",
+        "X8Y8_MM_Unorm",
+        "X8Y8_MM_Uint",
+        "X16_MM_Unorm",
+        "X16_MM_Uint",
+        "X16Y16_MM_Unorm",
+        "X16Y16_MM_Uint",
     };
 
     static_assert(ArrayLen(FormatStrings) == static_cast<size_t>(ChNumFormat::Count),
@@ -4272,13 +4283,14 @@ void CmdBuffer::CmdClearColorImage(
 
 // =====================================================================================================================
 void CmdBuffer::CmdClearBoundDepthStencilTargets(
-    float                           depth,
-    uint8                           stencil,
-    uint32                          samples,
-    uint32                          fragments,
-    DepthStencilSelectFlags         flag,
-    uint32                          regionCount,
-    const ClearBoundTargetRegion*   pClearRegions)
+    float                         depth,
+    uint8                         stencil,
+    uint8                         stencilWriteMask,
+    uint32                        samples,
+    uint32                        fragments,
+    DepthStencilSelectFlags       flag,
+    uint32                        regionCount,
+    const ClearBoundTargetRegion* pClearRegions)
 {
     if (m_annotations.logCmdBlts)
     {
@@ -4287,8 +4299,14 @@ void CmdBuffer::CmdClearBoundDepthStencilTargets(
         // TODO: Add comment string.
     }
 
-    GetNextLayer()->CmdClearBoundDepthStencilTargets(
-        depth, stencil, samples, fragments, flag, regionCount, pClearRegions);
+    GetNextLayer()->CmdClearBoundDepthStencilTargets(depth,
+                                                     stencil,
+                                                     stencilWriteMask,
+                                                     samples,
+                                                     fragments,
+                                                     flag,
+                                                     regionCount,
+                                                     pClearRegions);
 
     if (m_singleStep.waitIdleBlts)
     {
@@ -4308,6 +4326,7 @@ void CmdBuffer::CmdClearDepthStencil(
     ImageLayout        stencilLayout,
     float              depth,
     uint8              stencil,
+    uint8              stencilWriteMask,
     uint32             rangeCount,
     const SubresRange* pRanges,
     uint32             rectCount,
@@ -4322,6 +4341,7 @@ void CmdBuffer::CmdClearDepthStencil(
         DumpImageLayout(this, stencilLayout, "stencilLayout");
         DumpFloat(this, "depth", depth);
         DumpUint(this, "stencil", stencil);
+        DumpUint(this, "stencilWriteMask", stencilWriteMask);
         DumpSubresRanges(this, rangeCount, pRanges);
         DumpRects(this, rectCount, pRects);
         DumpClearDepthStencilImageFlags(this, flags);
@@ -4332,6 +4352,7 @@ void CmdBuffer::CmdClearDepthStencil(
                                          stencilLayout,
                                          depth,
                                          stencil,
+                                         stencilWriteMask,
                                          rangeCount,
                                          pRanges,
                                          rectCount,
@@ -5276,3 +5297,5 @@ void CmdBuffer::CmdSetViewInstanceMask(
 
 } // CmdBufferLogger
 } // Pal
+
+#endif

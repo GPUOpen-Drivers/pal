@@ -358,7 +358,8 @@ ImageCopyEngine RsrcProcMgr::GetImageToImageCopyEngine(
     const Image&           srcImage,
     const Image&           dstImage,
     uint32                 regionCount,
-    const ImageCopyRegion* pRegions
+    const ImageCopyRegion* pRegions,
+    uint32                 copyFlags
     ) const
 {
     const auto&      srcInfo      = srcImage.GetImageCreateInfo();
@@ -373,24 +374,29 @@ ImageCopyEngine RsrcProcMgr::GetImageToImageCopyEngine(
                                Formats::IsBlockCompressed(dstInfo.swizzledFormat.format));
     const bool isYuv        = (Formats::IsYuv(srcInfo.swizzledFormat.format) ||
                                Formats::IsYuv(dstInfo.swizzledFormat.format));
-    const bool isSrgb       = Formats::IsSrgb(dstInfo.swizzledFormat.format);
     const bool p2pBltWa     = m_pDevice->Parent()->ChipProperties().p2pBltWaInfo.required &&
                               dstImage.GetBoundGpuMemory().Memory()->AccessesPeerMemory();
+
+    const bool isSrgbWithFormatConversion = (Formats::IsSrgb(dstInfo.swizzledFormat.format) &&
+                                             TestAnyFlagSet(copyFlags, CopyFormatConversion));
+    const bool isMacroPixelPackedRgbOnly  = (Formats::IsMacroPixelPackedRgbOnly(srcInfo.swizzledFormat.format) ||
+                                             Formats::IsMacroPixelPackedRgbOnly(dstInfo.swizzledFormat.format));
 
     ImageCopyEngine  engineType = ImageCopyEngine::Compute;
 
     // We need to decide between the graphics copy path and the compute copy path. The graphics path only supports
-    // single-sampled non-compressed, non-YUV 2D or 2D color images for now.
+    // single-sampled non-compressed, non-YUV , non-MacroPixelPackedRgbOnly 2D or 2D color images for now.
     if ((Image::PreferGraphicsCopy && pCmdBuffer->IsGraphicsSupported()) &&
         (p2pBltWa == false) &&
         (dstImage.IsDepthStencil() ||
-         ((srcImageType != ImageType::Tex1d) &&
-          (dstImageType != ImageType::Tex1d) &&
-          (dstInfo.samples == 1)             &&
-          (isCompressed == false)            &&
-          (isYuv == false)                   &&
-          (bothColor == true)                &&
-          (isSrgb == false))))
+         ((srcImageType != ImageType::Tex1d)   &&
+          (dstImageType != ImageType::Tex1d)   &&
+          (dstInfo.samples == 1)               &&
+          (isCompressed == false)              &&
+          (isYuv == false)                     &&
+          (isMacroPixelPackedRgbOnly == false) &&
+          (bothColor == true)                  &&
+          (isSrgbWithFormatConversion == false))))
     {
         engineType = ImageCopyEngine::Graphics;
     }
@@ -417,11 +423,8 @@ ImageCopyEngine RsrcProcMgr::CmdCopyImage(
     // MSAA source and destination images must have the same number of samples.
     PAL_ASSERT(srcInfo.samples == dstInfo.samples);
 
-    const ImageCopyEngine  copyEngine = GetImageToImageCopyEngine(pCmdBuffer,
-                                                                  srcImage,
-                                                                  dstImage,
-                                                                  regionCount,
-                                                                  pRegions);
+    const ImageCopyEngine copyEngine =
+        GetImageToImageCopyEngine(pCmdBuffer, srcImage, dstImage, regionCount, pRegions, flags);
 
     if (copyEngine == ImageCopyEngine::Graphics)
     {
@@ -467,8 +470,10 @@ ImageCopyEngine RsrcProcMgr::CmdCopyImage(
 
             FixupMetadataForComputeDst(pCmdBuffer, dstImage, dstImageLayout, regionCount, &fixupRegions[0], false);
 
-            if ((Formats::IsBlockCompressed(srcInfo.swizzledFormat.format) && (srcInfo.mipLevels > 1)) ||
-                (Formats::IsBlockCompressed(dstInfo.swizzledFormat.format) && (dstInfo.mipLevels > 1)))
+            if (((Formats::IsBlockCompressed(srcInfo.swizzledFormat.format) ||
+                  Formats::IsMacroPixelPackedRgbOnly(srcInfo.swizzledFormat.format)) && (srcInfo.mipLevels > 1)) ||
+                ((Formats::IsBlockCompressed(dstInfo.swizzledFormat.format) ||
+                  Formats::IsMacroPixelPackedRgbOnly(dstInfo.swizzledFormat.format)) && (dstInfo.mipLevels > 1)))
             {
                 // Assume the missing pixel copy will no overwritten any pixel copied in normal path.
                 // Or a cs done barrier is need to be inserted here.
@@ -1140,7 +1145,7 @@ void RsrcProcMgr::CopyImageCompute(
 
         // Optimized image copies require a call to HwlFixupCopyDstImageMetaData...
         // Verify that any "update" operation performed is legal for the source and dest images.
-        if (HwlUseOptimizedImageCopy(srcImage, dstImage))
+        if (HwlUseOptimizedImageCopy(srcImage, srcImageLayout, dstImage, dstImageLayout, regionCount, pRegions))
         {
             pPipeline = GetPipeline(RpmComputePipeline::MsaaFmaskCopyImageOptimized);
             isFmaskCopyOptimized = true;
@@ -1462,9 +1467,10 @@ void RsrcProcMgr::GetCopyImageFormats(
                                                                                     dstImageLayout,
                                                                                     true);
 
-    const bool chFmtsMatch  = Formats::ShareChFmt(srcFormat.format, dstFormat.format);
-    const bool formatsMatch = (srcFormat.format == dstFormat.format) &&
-                              (srcFormat.swizzle.swizzleValue == dstFormat.swizzle.swizzleValue);
+    const bool chFmtsMatch    = Formats::ShareChFmt(srcFormat.format, dstFormat.format);
+    const bool formatsMatch   = (srcFormat.format == dstFormat.format) &&
+                                (srcFormat.swizzle.swizzleValue == dstFormat.swizzle.swizzleValue);
+    const bool isMmFormatUsed = (Formats::IsMmFormat(srcFormat.format) || Formats::IsMmFormat(dstFormat.format));
 
     // Both formats must have the same pixel size.
     PAL_ASSERT(Formats::BitsPerPixel(srcFormat.format) == Formats::BitsPerPixel(dstFormat.format));
@@ -1555,8 +1561,10 @@ void RsrcProcMgr::GetCopyImageFormats(
         // If one format is deemed "not replaceable" that means it may possibly be compressed. However,
         // if it is compressed, it doesn't necessarily mean it's not replaceable. If we don't do a replacement,
         // copying from one format to another may cause corruption, so we will arbitrarily choose to replace
-        // the source if the channels within the format match.
-        else if ((isSrcFormatReplaceable && (isDstFormatReplaceable == false)) || chFmtsMatch)
+        // the source if the channels within the format match and it is not an MM format. MM formats cannot be
+        // replaced or HW will convert the data to the format's black or white which is different for MM formats.
+        else if ((isSrcFormatReplaceable && (isDstFormatReplaceable == false)) ||
+                 (chFmtsMatch && (isMmFormatUsed == false)))
         {
             // We can replace the source format but not the destination format. This means that we must interpret
             // the source subresource using the destination numeric format. We should keep the original source
@@ -1584,8 +1592,9 @@ void RsrcProcMgr::GetCopyImageFormats(
         }
         else
         {
-            // We can't replace either format, both formats must match.
-            PAL_ASSERT(formatsMatch);
+            // We can't replace either format, both formats must match. Or the channels must match in the case of
+            // an MM copy.
+            PAL_ASSERT(formatsMatch || (chFmtsMatch && isMmFormatUsed));
         }
     }
 
@@ -3524,13 +3533,16 @@ void RsrcProcMgr::ConvertYuvToRgb(
 
         for (uint32 view = 1; view < viewCount; ++view)
         {
-            const auto& cscViewInfo = cscInfo.viewInfoYuvToRgb[view - 1];
-
-            const SubresRange srcRange = { { cscViewInfo.aspect, 0, region.yuvStartSlice }, 1, region.sliceCount };
+            const auto&       cscViewInfo         = cscInfo.viewInfoYuvToRgb[view - 1];
+            SwizzledFormat    imageViewInfoFormat = cscViewInfo.swizzledFormat;
+            const SubresRange srcRange            =
+                { { cscViewInfo.aspect, 0, region.yuvStartSlice }, 1, region.sliceCount };
+            // Try to use MM formats for YUV planes
+            RpmUtil::SwapForMMFormat(srcImage.GetDevice(), &imageViewInfoFormat);
             RpmUtil::BuildImageViewInfo(&viewInfo[view],
                                         srcImage,
                                         srcRange,
-                                        cscViewInfo.swizzledFormat,
+                                        imageViewInfoFormat,
                                         RpmUtil::DefaultRpmLayoutRead,
                                         device.TexOptLevel());
         }
@@ -3722,13 +3734,16 @@ void RsrcProcMgr::ConvertRgbToYuv(
         // Perform one conversion pass per plane of the YUV destination.
         for (uint32 pass = 0; pass < passCount; ++pass)
         {
-            const auto& cscViewInfo = cscInfo.viewInfoRgbToYuv[pass];
-
-            const SubresRange dstRange = { { cscViewInfo.aspect, 0, region.yuvStartSlice }, 1, region.sliceCount };
+            const auto&       cscViewInfo         = cscInfo.viewInfoRgbToYuv[pass];
+            SwizzledFormat    imageViewInfoFormat = cscViewInfo.swizzledFormat;
+            const SubresRange dstRange            =
+                { { cscViewInfo.aspect, 0, region.yuvStartSlice }, 1, region.sliceCount };
+            // Try to use MM formats for YUV planes
+            RpmUtil::SwapForMMFormat(dstImage.GetDevice(), &imageViewInfoFormat);
             RpmUtil::BuildImageViewInfo(&viewInfo[1],
                                         dstImage,
                                         dstRange,
-                                        cscViewInfo.swizzledFormat,
+                                        imageViewInfoFormat,
                                         RpmUtil::DefaultRpmLayoutShaderWrite,
                                         device.TexOptLevel());
 
@@ -3871,6 +3886,7 @@ void RsrcProcMgr::CmdClearBoundDepthStencilTargets(
     GfxCmdBuffer*                 pCmdBuffer,
     float                         depth,
     uint8                         stencil,
+    uint8                         stencilWriteMask,
     uint32                        samples,
     uint32                        fragments,
     DepthStencilSelectFlags       flag,
@@ -3884,10 +3900,10 @@ void RsrcProcMgr::CmdClearBoundDepthStencilTargets(
     stencilRefMasks.flags.u8All    = 0xFF;
     stencilRefMasks.frontRef       = stencil;
     stencilRefMasks.frontReadMask  = 0xFF;
-    stencilRefMasks.frontWriteMask = 0xFF;
+    stencilRefMasks.frontWriteMask = stencilWriteMask;
     stencilRefMasks.backRef        = stencil;
     stencilRefMasks.backReadMask   = 0xFF;
-    stencilRefMasks.backWriteMask  = 0xFF;
+    stencilRefMasks.backWriteMask  = stencilWriteMask;
 
     ViewportParams viewportInfo = { };
     viewportInfo.count = 1;
@@ -3973,6 +3989,7 @@ void RsrcProcMgr::CmdClearDepthStencil(
     ImageLayout        stencilLayout,
     float              depth,
     uint8              stencil,
+    uint8              stencilWriteMask,
     uint32             rangeCount,
     const SubresRange* pRanges,
     uint32             rectCount,
@@ -4021,7 +4038,7 @@ void RsrcProcMgr::CmdClearDepthStencil(
         {
             const uint32 groupBegin = rangesCleared;
 
-            // Note that fast clears don't support sub-rect clears so we skip them if we have any boxes. Futher,
+            // Note that fast clears don't support sub-rect clears so we skip them if we have any boxes. Further,
             // we only can store one fast clear color per mip level, and therefore can only support fast clears
             // when a range covers all slices.
             const bool groupFastClearable = (clearRectCoversWholeImage &&
@@ -4030,6 +4047,7 @@ void RsrcProcMgr::CmdClearDepthStencil(
                                                  stencilLayout,
                                                  depth,
                                                  stencil,
+                                                 stencilWriteMask,
                                                  pRanges[groupBegin]));
 
             // Find as many other ranges that also support/don't support fast clearing so that they can be grouped
@@ -4042,6 +4060,7 @@ void RsrcProcMgr::CmdClearDepthStencil(
                                                                stencilLayout,
                                                                depth,
                                                                stencil,
+                                                               stencilWriteMask,
                                                                pRanges[groupEnd]))
                     == groupFastClearable))
             {
@@ -4058,6 +4077,7 @@ void RsrcProcMgr::CmdClearDepthStencil(
                                  stencilLayout,
                                  depth,
                                  stencil,
+                                 stencilWriteMask,
                                  clearRangeCount,
                                  &pRanges[groupBegin],
                                  groupFastClearable,
@@ -4228,7 +4248,13 @@ void RsrcProcMgr::CmdClearColorImage(
         // Note that fast clears don't support sub-rect clears so we skip them if we have any boxes.  Futher, we only
         // can store one fast clear color per mip level, and therefore can only support fast clears when a range covers
         // all slices.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 592
+        // Fast clear is only usable when all channels of the color are being written.
+        if ((color.disabledChannelMask == 0) &&
+             clearBoxCoversWholeImage        &&
+#else
         if (clearBoxCoversWholeImage &&
+#endif
             pGfxImage->IsFastColorClearSupported(pCmdBuffer,
                                                  dstImageLayout,
                                                  &convertedColor[0],
@@ -4406,6 +4432,13 @@ void RsrcProcMgr::SlowClearGraphics(
                                   GetGfxPipelineByTargetIndexAndFormat(SlowColorClear0_32ABGR, 0, viewFormat), });
 #endif
     BindCommonGraphicsState(pCmdBuffer);
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 592
+    if (pColor->disabledChannelMask != 0)
+    {
+        // Overwrite CbTargetMask for different writeMasks.
+        pCmdBuffer->CmdOverrideColorWriteMaskForBlits(pColor->disabledChannelMask);
+    }
+#endif
     pCmdBuffer->CmdOverwriteRbPlusFormatForBlits(viewFormat, 0);
     pCmdBuffer->CmdBindColorBlendState(m_pBlendDisableState);
     pCmdBuffer->CmdBindDepthStencilState(m_pDepthDisableState);

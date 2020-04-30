@@ -27,6 +27,7 @@
 #include <codecvt>
 #include "palAssert.h"
 #include "palStringUtil.h"
+#include "palInlineFuncs.h"
 
 namespace Util
 {
@@ -87,18 +88,18 @@ bool ConvertCharStringToUtf16(
     const char*   pSrc,             ///< [in] src string
     size_t        dstSizeInWords)   ///< size of the destination buffer in words
 {
-    std::codecvt_utf8_utf16<wchar_t>    converter;
+    std::codecvt_utf8_utf16<char16_t>   converter;
     mbstate_t                           state = {0};
 
     const char* pCharNext = nullptr;
-    wchar_t*    pUtf16Next = nullptr;
+    char16_t*   pUtf16Next = nullptr;
 
     std::codecvt_base::result retCode = converter.in(state,
                                                      pSrc,
                                                      pSrc+strlen(pSrc)+1,
                                                      pCharNext,
-                                                     pDst,
-                                                     pDst + dstSizeInWords,
+                                                     reinterpret_cast<char16_t*>(pDst),
+                                                     reinterpret_cast<char16_t*>(pDst) + dstSizeInWords,
                                                      pUtf16Next);
     return (retCode == std::codecvt_base::ok);
 }
@@ -110,15 +111,15 @@ bool ConvertUtf16StringToUtf8(
     const wchar_t* pSrc,           ///< [in] src string
     size_t         dstSizeInBytes) ///< size of the destination buffer in bytes
 {
-    std::codecvt_utf8_utf16<wchar_t>    converter;
+    std::codecvt_utf8_utf16<char16_t>   converter;
     mbstate_t                           state = {0};
 
     char*           pCharNext = nullptr;
-    const wchar_t*  pUtf16Next = nullptr;
+    const char16_t* pUtf16Next = nullptr;
 
     std::codecvt_base::result retCode = converter.out(state,
-                                                     pSrc,
-                                                     pSrc+PalWcslen(pSrc)+1,
+                                                     reinterpret_cast<const char16_t*>(pSrc),
+                                                     reinterpret_cast<const char16_t*>(pSrc)+PalWcslen(pSrc)+1,
                                                      pUtf16Next,
                                                      pDst,
                                                      pDst + dstSizeInBytes,
@@ -133,21 +134,7 @@ void CopyUtf16String(
     const wchar_t* pSrc,    ///< [in] Source string to copy.
     size_t         dstSize) ///< Length of the destination buffer, in wchar_t's.
 {
-    PAL_ASSERT(sizeof(wchar_t) == sizeof(uint16_t));
-
-    std::codecvt_utf16<wchar_t> converter;
-    mbstate_t                   state = {0};
-
-    const wchar_t*  pWCharNext = nullptr;
-    char*           pUtf16Next = nullptr;
-
-    converter.out(state,
-                  pSrc,
-                  pSrc+PalWcslen(pSrc)+1,
-                  pWCharNext,
-                  reinterpret_cast<char*>(pDst),
-                  reinterpret_cast<char*>(pDst + dstSize),
-                  pUtf16Next);
+    memcpy(pDst, pSrc, Util::Min(dstSize*sizeof(char16_t), sizeof(char16_t)*(PalWcslen(pSrc)+1)));
 }
 
 } // Util

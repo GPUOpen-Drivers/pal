@@ -28,7 +28,7 @@
 //
 // This code has been generated automatically. Do not hand-modify this code.
 //
-// Modify the procsAnalysis.py and dri3Loader.py in the tools/generate directory OR dri3WindowSystem.proc instead
+// Modify the procAnalysis.py and dri3Loader.py in the tools/generate directory OR dri3WindowSystem.proc instead
 //
 // WARNING!  WARNING!  WARNING!  WARNING!  WARNING!  WARNING!  WARNING! WARNING!  WARNING!  WARNING!  WARNING!
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -46,7 +46,6 @@ namespace Pal
 {
 namespace Amdgpu
 {
-
 // =====================================================================================================================
 #if defined(PAL_DEBUG_PRINTS)
 void Dri3LoaderFuncsProxy::Init(const char* pLogPath)
@@ -57,8 +56,6 @@ void Dri3LoaderFuncsProxy::Init(const char* pLogPath)
     Util::Snprintf(file, sizeof(file), "%s/Dri3LoaderParamLogger.trace", pLogPath);
     m_paramLogger.Open(file, FileAccessMode::FileAccessWrite);
 }
-
-// =====================================================================================================================
 
 // =====================================================================================================================
 xcb_connection_t* Dri3LoaderFuncsProxy::pfnXGetXCBConnection(
@@ -1042,7 +1039,6 @@ xcb_dri2_connect_reply_t* Dri3LoaderFuncsProxy::pfnXcbDri2ConnectReply(
 }
 
 #if XCB_RANDR_SUPPORTS_LEASE
-
 // =====================================================================================================================
 xcb_randr_create_lease_cookie_t Dri3LoaderFuncsProxy::pfnXcbRandrCreateLease(
     xcb_connection_t*          pConnection,

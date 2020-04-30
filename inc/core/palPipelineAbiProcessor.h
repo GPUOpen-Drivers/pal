@@ -326,7 +326,8 @@ public:
     /// @param [in] pName The symbol name.
     ///
     /// @returns The corresponding PipelineSymbolType.
-    PipelineSymbolType GetSymbolTypeFromName(const char* pName) const;
+    PipelineSymbolType GetSymbolTypeFromName(const char* pName) const
+        { return Abi::GetSymbolTypeFromName(pName); }
 
     /// Get an iterator at the beginning of the pipeline symbols vector.
     ///

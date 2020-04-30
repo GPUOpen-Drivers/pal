@@ -165,9 +165,12 @@ struct GlobalSelectState
     // all ASICs.
     struct
     {
-        bool           hasCounters;                           // If any counters are in any module are in use.
-        bool           perfmonInUse[Gfx9MaxUmcchPerfModules]; // If this module's global counter is enabled.
-        regPerfMonCtl1 perfmonCntl[Gfx9MaxUmcchPerfModules];  // The control for each global counter.
+        bool              hasCounters;                           // If any counters are in any module are in use.
+        bool              perfmonInUse[Gfx9MaxUmcchPerfModules]; // If this module's global counter is enabled.
+        regPerfMonCtl1    perfmonCntl[Gfx9MaxUmcchPerfModules];  // The control for each global counter.
+        bool              thresholdSet[Gfx9MaxUmcchPerfModules]; // If this module's counter has threshold settings.
+        regPerfMonCtr1_Hi perfmonCtrHi[Gfx9MaxUmcchPerfModules]; // The Upper counter config for each global counter
+                                                                 //  (for counters requiring ThreshCnt, ThreshCntEn)
     } umcch[Gfx9MaxUmcchInstances];
 
     // The generic block state. These arrays are sparse in that elements can be zero or nullptr if:

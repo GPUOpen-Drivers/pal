@@ -2081,6 +2081,7 @@ bool Image::IsFastDepthStencilClearSupported(
     ImageLayout        stencilLayout,
     float              depth,
     uint8              stencil,
+    uint8              stencilWriteMask,
     const SubresRange& range
     ) const
 {
@@ -2088,6 +2089,12 @@ bool Image::IsFastDepthStencilClearSupported(
 
     // We can only fast clear all arrays at once.
     bool isFastClearSupported = (subResource.arraySlice == 0) && (range.numSlices == m_createInfo.arraySize);
+
+    // We cannot fast clear if it's doing masked stencil clear.
+    if ((subResource.aspect == ImageAspect::Stencil) && (stencilWriteMask != 0xFF))
+    {
+        isFastClearSupported = false;
+    }
 
     // Choose which layout to use based on range aspect
     const ImageLayout layout = (subResource.aspect == ImageAspect::Depth) ? depthLayout : stencilLayout;

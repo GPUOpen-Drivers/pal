@@ -29,7 +29,6 @@
 #include "core/hw/gfxip/gfx6/gfx6Device.h"
 #include "core/hw/gfxip/gfx6/gfx6GraphicsPipeline.h"
 #include "core/hw/gfxip/gfx6/gfx6PipelineChunkLsHs.h"
-#include "palPipelineAbiProcessorImpl.h"
 
 using namespace Util;
 
@@ -94,7 +93,7 @@ void PipelineChunkLsHs::EarlyInit(
 // Late initialization for this pipeline chunk.  Responsible for fetching register values from the pipeline binary and
 // determining the values of other registers.  Also uploads register state into GPU memory.
 void PipelineChunkLsHs::LateInit(
-    const AbiProcessor&             abiProcessor,
+    const AbiReader&                abiReader,
     const RegisterVector&           registers,
     GraphicsPipelineUploader*       pUploader,
     const GraphicsPipelineLoadInfo& loadInfo,
@@ -103,47 +102,45 @@ void PipelineChunkLsHs::LateInit(
     const Gfx6PalSettings&   settings  = m_device.Settings();
     const GpuChipProperties& chipProps = m_device.Parent()->ChipProperties();
 
-    Abi::PipelineSymbolEntry symbol = {};
-    if (abiProcessor.HasPipelineSymbolEntry(Abi::PipelineSymbolType::LsMainEntry, &symbol))
+    GpuSymbol symbol = {};
+    if (pUploader->GetPipelineGpuSymbol(Abi::PipelineSymbolType::LsMainEntry, &symbol) == Result::Success)
     {
         m_stageInfoLs.codeLength   = static_cast<size_t>(symbol.size);
-        const gpusize programGpuVa = (pUploader->CodeGpuVirtAddr() + symbol.value);
-        PAL_ASSERT(programGpuVa == Pow2Align(programGpuVa, 256));
+        PAL_ASSERT(symbol.gpuVirtAddr == Pow2Align(symbol.gpuVirtAddr, 256));
 
-        m_regs.sh.spiShaderPgmLoLs.bits.MEM_BASE = Get256BAddrLo(programGpuVa);
-        m_regs.sh.spiShaderPgmHiLs.bits.MEM_BASE = Get256BAddrHi(programGpuVa);
+        m_regs.sh.spiShaderPgmLoLs.bits.MEM_BASE = Get256BAddrLo(symbol.gpuVirtAddr);
+        m_regs.sh.spiShaderPgmHiLs.bits.MEM_BASE = Get256BAddrHi(symbol.gpuVirtAddr);
     }
 
-    if (abiProcessor.HasPipelineSymbolEntry(Abi::PipelineSymbolType::LsShdrIntrlTblPtr, &symbol))
+    if (pUploader->GetPipelineGpuSymbol(Abi::PipelineSymbolType::LsShdrIntrlTblPtr, &symbol) == Result::Success)
     {
-        const gpusize srdTableGpuVa = (pUploader->DataGpuVirtAddr() + symbol.value);
-        m_regs.sh.userDataInternalTableLs.bits.DATA = LowPart(srdTableGpuVa);
+        m_regs.sh.userDataInternalTableLs.bits.DATA = LowPart(symbol.gpuVirtAddr);
     }
 
-    if (abiProcessor.HasPipelineSymbolEntry(Abi::PipelineSymbolType::LsDisassembly, &symbol))
+    const Elf::SymbolTableEntry* pElfSymbol = abiReader.GetPipelineSymbol(Abi::PipelineSymbolType::LsDisassembly);
+    if (pElfSymbol != nullptr)
     {
-        m_stageInfoLs.disassemblyLength = static_cast<size_t>(symbol.size);
+        m_stageInfoLs.disassemblyLength = static_cast<size_t>(pElfSymbol->st_size);
     }
 
-    if (abiProcessor.HasPipelineSymbolEntry(Abi::PipelineSymbolType::HsMainEntry, &symbol))
+    if (pUploader->GetPipelineGpuSymbol(Abi::PipelineSymbolType::HsMainEntry, &symbol) == Result::Success)
     {
         m_stageInfoHs.codeLength   = static_cast<size_t>(symbol.size);
-        const gpusize programGpuVa = (pUploader->CodeGpuVirtAddr() + symbol.value);
-        PAL_ASSERT(programGpuVa == Pow2Align(programGpuVa, 256));
+        PAL_ASSERT(symbol.gpuVirtAddr == Pow2Align(symbol.gpuVirtAddr, 256));
 
-        m_regs.sh.spiShaderPgmLoHs.bits.MEM_BASE = Get256BAddrLo(programGpuVa);
-        m_regs.sh.spiShaderPgmHiHs.bits.MEM_BASE = Get256BAddrHi(programGpuVa);
+        m_regs.sh.spiShaderPgmLoHs.bits.MEM_BASE = Get256BAddrLo(symbol.gpuVirtAddr);
+        m_regs.sh.spiShaderPgmHiHs.bits.MEM_BASE = Get256BAddrHi(symbol.gpuVirtAddr);
     }
 
-    if (abiProcessor.HasPipelineSymbolEntry(Abi::PipelineSymbolType::HsShdrIntrlTblPtr, &symbol))
+    if (pUploader->GetPipelineGpuSymbol(Abi::PipelineSymbolType::HsShdrIntrlTblPtr, &symbol) == Result::Success)
     {
-        const gpusize srdTableGpuVa = (pUploader->DataGpuVirtAddr() + symbol.value);
-        m_regs.sh.userDataInternalTableHs.bits.DATA = LowPart(srdTableGpuVa);
+        m_regs.sh.userDataInternalTableHs.bits.DATA = LowPart(symbol.gpuVirtAddr);
     }
 
-    if (abiProcessor.HasPipelineSymbolEntry(Abi::PipelineSymbolType::HsDisassembly, &symbol))
+    pElfSymbol = abiReader.GetPipelineSymbol(Abi::PipelineSymbolType::HsDisassembly);
+    if (pElfSymbol != nullptr)
     {
-        m_stageInfoHs.disassemblyLength = static_cast<size_t>(symbol.size);
+        m_stageInfoHs.disassemblyLength = static_cast<size_t>(pElfSymbol->st_size);
     }
 
     m_regs.sh.spiShaderPgmRsrc1Ls.u32All = registers.At(mmSPI_SHADER_PGM_RSRC1_LS);

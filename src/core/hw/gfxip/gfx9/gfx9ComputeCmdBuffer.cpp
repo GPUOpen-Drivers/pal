@@ -60,7 +60,8 @@ ComputeCmdBuffer::ComputeCmdBuffer(
                 CmdStreamUsage::Workload,
                 IsNested()),
     m_pSignatureCs(&NullCsSignature),
-    m_predGpuAddr(0)
+    m_predGpuAddr(0),
+    m_inheritedPredication(false)
 {
     // Compute command buffers suppors compute ops and CP DMA.
     m_engineSupport = CmdBufferEngineSupport::Compute | CmdBufferEngineSupport::CpDma;
@@ -109,6 +110,29 @@ void ComputeCmdBuffer::ResetState()
 
     // Command buffers start without a valid predicate GPU address.
     m_predGpuAddr = 0;
+
+    m_inheritedPredication = false;
+}
+
+// =====================================================================================================================
+Result ComputeCmdBuffer::Begin(
+    const CmdBufferBuildInfo& info)
+{
+    const Result result = Pal::ComputeCmdBuffer::Begin(info);
+
+    if ((result == Result::Success) &&
+        (info.pInheritedState != nullptr) && info.pInheritedState->stateFlags.predication)
+    {
+        m_inheritedPredication = true;
+
+        // Allocate the SET_PREDICATION emulation/COND_EXEC memory to be populated by the root-level command buffer.
+        uint32 *pPredCpuAddr = CmdAllocateEmbeddedData(1, 1, &m_predGpuAddr);
+
+        // Initialize the COND_EXEC command memory to non-zero, i.e. always execute
+        *pPredCpuAddr = 1;
+    }
+
+    return result;
 }
 
 // =====================================================================================================================
@@ -1447,6 +1471,23 @@ void ComputeCmdBuffer::CmdExecuteNestedCmdBuffers(
     {
         auto*const pCallee = static_cast<Gfx9::ComputeCmdBuffer*>(ppCmdBuffers[buf]);
         PAL_ASSERT(pCallee != nullptr);
+
+        if (pCallee->m_inheritedPredication && (m_predGpuAddr != 0))
+        {
+            PAL_ASSERT(pCallee->m_predGpuAddr != 0);
+
+            uint32 *pCmdSpace = m_cmdStream.ReserveCommands();
+
+            pCmdSpace += m_cmdUtil.BuildCopyDataCompute(dst_sel__mec_copy_data__tc_l2,
+                                                        pCallee->m_predGpuAddr,
+                                                        src_sel__mec_copy_data__tc_l2,
+                                                        m_predGpuAddr,
+                                                        count_sel__mec_copy_data__32_bits_of_data,
+                                                        wr_confirm__mec_copy_data__wait_for_confirmation,
+                                                        pCmdSpace);
+
+            m_cmdStream.CommitCommands(pCmdSpace);
+        }
 
         // Track the most recent OS paging fence value across all nested command buffers called from this one.
         m_lastPagingFence = Max(m_lastPagingFence, pCallee->LastPagingFence());

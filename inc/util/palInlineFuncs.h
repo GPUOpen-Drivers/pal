@@ -446,6 +446,17 @@ PAL_INLINE bool IsPow2Aligned(
     return ((value & (alignment - 1)) == 0);
 }
 
+/// Determines if 'ptr' is at least aligned to the specified power-of-2 alignment.
+///
+/// @returns True if aligned, false otherwise.
+PAL_INLINE bool VoidPtrIsPow2Aligned(
+    const void* ptr,   ///< Pointer to check.
+    uint64 alignment)  ///< Desired alignment.
+{
+    PAL_ASSERT(IsPowerOfTwo(alignment));
+    return ((reinterpret_cast<size_t>(ptr) + (alignment - 1)) & (alignment - 1)) == 0;
+}
+
 /// Rounds the specified uint 'value' up to the nearest value meeting the specified 'alignment'.  Only power of 2
 /// alignments are supported by this function.
 ///

@@ -80,7 +80,7 @@ public:
 protected:
     virtual Result HwlInit(
         const ComputePipelineCreateInfo& createInfo,
-        const AbiProcessor&              abiProcessor,
+        const AbiReader&                 abiReader,
         const CodeObjectMetadata&        metadata,
         Util::MsgPackReader*             pMetadataReader) override;
 
@@ -102,10 +102,11 @@ class ComputePipelineUploader : public Pal::PipelineUploader
 {
 public:
     explicit ComputePipelineUploader(
-        Device* pDevice,
-        uint32  shRegisterCount)
+        Device*          pDevice,
+        const AbiReader& abiReader,
+        uint32           shRegisterCount)
         :
-        PipelineUploader(pDevice->Parent(), 0, shRegisterCount)
+        PipelineUploader(pDevice->Parent(), abiReader, 0, shRegisterCount)
         { }
     virtual ~ComputePipelineUploader() { }
 

@@ -721,7 +721,6 @@ size_t CmdUtil::BuildAcquireMem(
 
         explicitAcquireMemInfo.gcrCntl.u32All = Gfx10CalcAcquireMemGcrCntl(acquireMemInfo);
     }
-
     // Call a more explicit function.
     return ExplicitBuildAcquireMem(explicitAcquireMemInfo, pBuffer);
 }
@@ -744,12 +743,12 @@ size_t CmdUtil::ExplicitBuildAcquireMem(
 
         packetSize = BuildAcquireMemInternal(acquireMemInfo, pPacket);
     }
-    else if (IsGfx10(m_gfxIpLevel))
+    else if (IsGfx10Plus(m_gfxIpLevel))
     {
-        static_assert(sizeof(PM4_MEC_ACQUIRE_MEM__GFX10) == sizeof(PM4_ME_ACQUIRE_MEM__GFX10),
+        static_assert(sizeof(PM4_MEC_ACQUIRE_MEM__GFX10PLUS) == sizeof(PM4_ME_ACQUIRE_MEM__GFX10PLUS),
                       "GFX10: ACQUIRE_MEM packet size is different between ME compute and ME graphics!");
 
-        auto*const pPacket = static_cast<PM4_ME_ACQUIRE_MEM__GFX10*>(pBuffer);
+        auto*const pPacket = static_cast<PM4_ME_ACQUIRE_MEM__GFX10PLUS*>(pBuffer);
 
         packetSize = BuildAcquireMemInternal(acquireMemInfo, pPacket);
 
@@ -795,10 +794,10 @@ size_t CmdUtil::BuildAtomicMem(
                     static_cast<uint32>(cache_policy__mec_atomic_mem__stream))),
                   "Atomic Mem cache policy enum is different between ME and MEC!");
 
-    static_assert(((static_cast<uint32>(cache_policy__me_atomic_mem__noa__GFX10) ==
-                    static_cast<uint32>(cache_policy__mec_atomic_mem__noa__GFX10))  &&
-                   (static_cast<uint32>(cache_policy__me_atomic_mem__bypass__GFX10) ==
-                    static_cast<uint32>(cache_policy__mec_atomic_mem__bypass__GFX10))),
+    static_assert(((static_cast<uint32>(cache_policy__me_atomic_mem__noa__GFX10PLUS) ==
+                    static_cast<uint32>(cache_policy__mec_atomic_mem__noa__GFX10PLUS))  &&
+                   (static_cast<uint32>(cache_policy__me_atomic_mem__bypass__GFX10PLUS) ==
+                    static_cast<uint32>(cache_policy__mec_atomic_mem__bypass__GFX10PLUS))),
                   "Atomic Mem cache policy enum is different between ME and MEC!");
 
     // The destination address must be aligned to the size of the operands.
@@ -1045,11 +1044,11 @@ size_t CmdUtil::BuildCopyData(
                     static_cast<uint32>(wr_confirm__me_copy_data__wait_for_confirmation))),
                    "CopyData wrConfirm enum is different between ME and MEC!");
 
-    static_assert((static_cast<uint32>(src_sel__pfp_copy_data__tc_l2_obsolete__GFX10) ==
+    static_assert((static_cast<uint32>(src_sel__pfp_copy_data__tc_l2_obsolete__GFX10PLUS) ==
                    static_cast<uint32>(src_sel__pfp_copy_data__memory__GFX09)),
                   "CopyData memory destination enumerations have changed between GFX9 and GFX10");
 
-    static_assert((static_cast<uint32>(dst_sel__pfp_copy_data__tc_l2_obsolete__GFX10) ==
+    static_assert((static_cast<uint32>(dst_sel__pfp_copy_data__tc_l2_obsolete__GFX10PLUS) ==
                    static_cast<uint32>(dst_sel__pfp_copy_data__memory__GFX09)),
                   "CopyData memory destination enumerations have changed between GFX9 and GFX10");
 
@@ -1867,7 +1866,7 @@ size_t CmdUtil::BuildIncrementCeCounter(
 
     pPacket->header.u32All      = Type3Header(IT_INCREMENT_CE_COUNTER, PacketSize);
     pPacket->ordinal2           = 0;
-    pPacket->bitfields2.cntrsel = cntrsel__ce_increment_ce_counter__increment_ce_counter;
+    pPacket->bitfields2.cntrsel = cntrsel__ce_increment_ce_counter__increment_ce_counter__HASCE;
 
     return PacketSize;
 }
@@ -2125,38 +2124,38 @@ size_t CmdUtil::BuildPrimeUtcL2(
                    (sizeof(PM4_PFP_PRIME_UTCL2) == sizeof(PM4_CE_PRIME_UTCL2))),
                    "PRIME_UTCL2 packet is different between PFP, ME, MEC, and CE!");
 
-    static_assert(((static_cast<uint32>(cache_perm__pfp_prime_utcl2__read)            ==
-                    static_cast<uint32>(cache_perm__me_prime_utcl2__read__GFX09))     &&
-                   (static_cast<uint32>(cache_perm__pfp_prime_utcl2__read)            ==
-                    static_cast<uint32>(cache_perm__mec_prime_utcl2__read))           &&
-                   (static_cast<uint32>(cache_perm__pfp_prime_utcl2__read)            ==
-                    static_cast<uint32>(cache_perm__ce_prime_utcl2__read))            &&
-                   (static_cast<uint32>(cache_perm__pfp_prime_utcl2__write)           ==
-                    static_cast<uint32>(cache_perm__me_prime_utcl2__write__GFX09))    &&
-                   (static_cast<uint32>(cache_perm__pfp_prime_utcl2__write)           ==
-                    static_cast<uint32>(cache_perm__mec_prime_utcl2__write))          &&
-                   (static_cast<uint32>(cache_perm__pfp_prime_utcl2__write)           ==
-                    static_cast<uint32>(cache_perm__ce_prime_utcl2__write))           &&
-                   (static_cast<uint32>(cache_perm__pfp_prime_utcl2__execute)         ==
-                    static_cast<uint32>(cache_perm__me_prime_utcl2__execute__GFX09))  &&
-                   (static_cast<uint32>(cache_perm__pfp_prime_utcl2__execute)         ==
-                    static_cast<uint32>(cache_perm__mec_prime_utcl2__execute))        &&
-                   (static_cast<uint32>(cache_perm__pfp_prime_utcl2__execute)         ==
-                    static_cast<uint32>(cache_perm__ce_prime_utcl2__execute))),
+    static_assert(((static_cast<uint32>(cache_perm__pfp_prime_utcl2__read)                  ==
+                    static_cast<uint32>(cache_perm__me_prime_utcl2__read__GFX09))           &&
+                   (static_cast<uint32>(cache_perm__pfp_prime_utcl2__read)                  ==
+                    static_cast<uint32>(cache_perm__mec_prime_utcl2__read))                 &&
+                   (static_cast<uint32>(cache_perm__pfp_prime_utcl2__read)                  ==
+                    static_cast<uint32>(cache_perm__ce_prime_utcl2__read__HASCE))  &&
+                   (static_cast<uint32>(cache_perm__pfp_prime_utcl2__write)                 ==
+                    static_cast<uint32>(cache_perm__me_prime_utcl2__write__GFX09))          &&
+                   (static_cast<uint32>(cache_perm__pfp_prime_utcl2__write)                 ==
+                    static_cast<uint32>(cache_perm__mec_prime_utcl2__write))                &&
+                   (static_cast<uint32>(cache_perm__pfp_prime_utcl2__write)                 ==
+                    static_cast<uint32>(cache_perm__ce_prime_utcl2__write__HASCE)) &&
+                   (static_cast<uint32>(cache_perm__pfp_prime_utcl2__execute)               ==
+                    static_cast<uint32>(cache_perm__me_prime_utcl2__execute__GFX09))        &&
+                   (static_cast<uint32>(cache_perm__pfp_prime_utcl2__execute)               ==
+                    static_cast<uint32>(cache_perm__mec_prime_utcl2__execute))              &&
+                   (static_cast<uint32>(cache_perm__pfp_prime_utcl2__execute)               ==
+                    static_cast<uint32>(cache_perm__ce_prime_utcl2__execute__HASCE))),
                   "Cache permissions enum is different between PFP, ME, MEC, and CE!");
 
-    static_assert(((static_cast<uint32>(prime_mode__pfp_prime_utcl2__dont_wait_for_xack)         ==
-                    static_cast<uint32>(prime_mode__me_prime_utcl2__dont_wait_for_xack__GFX09))  &&
-                   (static_cast<uint32>(prime_mode__pfp_prime_utcl2__dont_wait_for_xack)         ==
-                    static_cast<uint32>(prime_mode__mec_prime_utcl2__dont_wait_for_xack))        &&
-                   (static_cast<uint32>(prime_mode__pfp_prime_utcl2__dont_wait_for_xack)         ==
-                    static_cast<uint32>(prime_mode__ce_prime_utcl2__dont_wait_for_xack))         &&
-                   (static_cast<uint32>(prime_mode__pfp_prime_utcl2__wait_for_xack)              ==
-                    static_cast<uint32>(prime_mode__me_prime_utcl2__wait_for_xack__GFX09))       &&
-                   (static_cast<uint32>(prime_mode__pfp_prime_utcl2__wait_for_xack)              ==
-                    static_cast<uint32>(prime_mode__mec_prime_utcl2__wait_for_xack))             &&
-                   (static_cast<uint32>(prime_mode__pfp_prime_utcl2__wait_for_xack)              ==
-                    static_cast<uint32>(prime_mode__ce_prime_utcl2__wait_for_xack))),
+    static_assert(((static_cast<uint32>(prime_mode__pfp_prime_utcl2__dont_wait_for_xack)                 ==
+                    static_cast<uint32>(prime_mode__me_prime_utcl2__dont_wait_for_xack__GFX09))          &&
+                   (static_cast<uint32>(prime_mode__pfp_prime_utcl2__dont_wait_for_xack)                 ==
+                    static_cast<uint32>(prime_mode__mec_prime_utcl2__dont_wait_for_xack))                &&
+                   (static_cast<uint32>(prime_mode__pfp_prime_utcl2__dont_wait_for_xack)                 ==
+                    static_cast<uint32>(prime_mode__ce_prime_utcl2__dont_wait_for_xack__HASCE)) &&
+                   (static_cast<uint32>(prime_mode__pfp_prime_utcl2__wait_for_xack)                      ==
+                    static_cast<uint32>(prime_mode__me_prime_utcl2__wait_for_xack__GFX09))               &&
+                   (static_cast<uint32>(prime_mode__pfp_prime_utcl2__wait_for_xack)                      ==
+                    static_cast<uint32>(prime_mode__mec_prime_utcl2__wait_for_xack))                     &&
+                   (static_cast<uint32>(prime_mode__pfp_prime_utcl2__wait_for_xack)                      ==
+                    static_cast<uint32>(prime_mode__ce_prime_utcl2__wait_for_xack__HASCE))),
                   "Prime mode enum is different between PFP, ME, MEC, and CE!");
 
     constexpr uint32 PacketSize = (sizeof(PM4_PFP_PRIME_UTCL2) / sizeof(uint32));
@@ -2959,14 +2958,14 @@ size_t CmdUtil::ExplicitBuildReleaseMem(
 
         memcpy(pBuffer, &packet, packetSize * sizeof(uint32));
     }
-    else if (IsGfx10(m_gfxIpLevel))
+    else if (IsGfx10Plus(m_gfxIpLevel))
     {
-        static_assert(sizeof(PM4_MEC_RELEASE_MEM) == sizeof(PM4_ME_RELEASE_MEM__GFX10),
+        static_assert(sizeof(PM4_MEC_RELEASE_MEM) == sizeof(PM4_ME_RELEASE_MEM__GFX10PLUS),
                       "RELEASE_MEM is different sizes between ME and MEC!");
 
         // This function is written with the MEC version of this packet, but we're assuming that the MEC and ME
         // versions are identical.
-        PM4_ME_RELEASE_MEM__GFX10 packet = {};
+        PM4_ME_RELEASE_MEM__GFX10PLUS packet = {};
         packetSize = BuildReleaseMemInternal(releaseMemInfo, &packet, gdsAddr, gdsSize);
 
         // Handle the GFX-specific aspects of a release-mem packet.
@@ -3108,7 +3107,7 @@ size_t CmdUtil::BuildSetSeqConfigRegs(
     {
         // GFX9 started supporting uconfig-reg-index as of ucode version 26.
         if ((m_cpUcodeVersion >= 26)
-            || IsGfx10(m_gfxIpLevel)
+            || IsGfx10Plus(m_gfxIpLevel)
             )
         {
             //    SW needs to change from using the IT_SET_UCONFIG_REG to IT_SET_UCONFIG_REG_INDEX when using the
@@ -3588,11 +3587,11 @@ size_t CmdUtil::BuildWaitRegMem(
 
     if (memSpace == mem_space__me_wait_reg_mem__memory_space)
     {
-        PAL_ASSERT((pPacket->bitfields3a.gfx09.reserved3 == 0) && (pPacket->bitfields3a.gfx10.reserved4 == 0));
+        PAL_ASSERT((pPacket->bitfields3a.gfx09.reserved3 == 0) && (pPacket->bitfields3a.gfx10Plus.reserved4 == 0));
     }
     else if (memSpace == mem_space__mec_wait_reg_mem__register_space)
     {
-        PAL_ASSERT((pPacket->bitfields3b.gfx09.reserved4 == 0) && (pPacket->bitfields3b.gfx10.reserved5 == 0));
+        PAL_ASSERT((pPacket->bitfields3b.gfx09.reserved4 == 0) && (pPacket->bitfields3b.gfx10Plus.reserved5 == 0));
     }
 
     pPacket->mem_poll_addr_hi             = HighPart(addr);
@@ -3669,7 +3668,7 @@ size_t CmdUtil::BuildWaitRegMem64(
     pPacket->bitfields2.operation         = operation__me_wait_reg_mem64__wait_reg_mem;
     pPacket->bitfields2.engine_sel        = static_cast<ME_WAIT_REG_MEM64_engine_sel_enum>(engine);
     pPacket->ordinal3                     = LowPart(addr);
-    PAL_ASSERT((pPacket->bitfields3a.gfx09.reserved3 == 0) && (pPacket->bitfields3a.gfx10.reserved4 == 0));
+    PAL_ASSERT((pPacket->bitfields3a.gfx09.reserved3 == 0) && (pPacket->bitfields3a.gfx10Plus.reserved4 == 0));
     pPacket->mem_poll_addr_hi             = HighPart(addr);
     pPacket->reference                    = LowPart(reference);
     pPacket->reference_hi                 = HighPart(reference);

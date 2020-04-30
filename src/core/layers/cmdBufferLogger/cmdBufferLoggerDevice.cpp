@@ -23,6 +23,8 @@
  *
  **********************************************************************************************************************/
 
+#if PAL_BUILD_CMD_BUFFER_LOGGER
+
 #include "core/layers/cmdBufferLogger/cmdBufferLoggerCmdBuffer.h"
 #include "core/layers/cmdBufferLogger/cmdBufferLoggerDevice.h"
 #include "core/layers/cmdBufferLogger/cmdBufferLoggerImage.h"
@@ -397,3 +399,5 @@ Result Device::CreatePrivateScreenImage(
 
 } // CmdBufferLogger
 } // Pal
+
+#endif

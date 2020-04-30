@@ -293,7 +293,7 @@ namespace DevDriver
                                     // We've successfully extracted the request parameters.
                                     result = m_pServer->ServiceRequest(pServiceName, &m_context);
 
-                                    m_context.End();
+                                    m_context.End(result);
 
                                     // Close the post data block, if necessary
                                     ClosePendingPostRequest();

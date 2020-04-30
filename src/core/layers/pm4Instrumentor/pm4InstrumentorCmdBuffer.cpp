@@ -23,6 +23,8 @@
  *
  **********************************************************************************************************************/
 
+#if PAL_BUILD_PM4_INSTRUMENTOR
+
 #include "core/layers/pm4Instrumentor/pm4InstrumentorCmdBuffer.h"
 #include "core/layers/pm4Instrumentor/pm4InstrumentorDevice.h"
 #include "core/layers/pm4Instrumentor/pm4InstrumentorPlatform.h"
@@ -902,17 +904,19 @@ void CmdBuffer::CmdClearColorImage(
 
 // =====================================================================================================================
 void CmdBuffer::CmdClearBoundDepthStencilTargets(
-    float                           depth,
-    uint8                           stencil,
-    uint32                          samples,
-    uint32                          fragments,
-    DepthStencilSelectFlags         flags,
-    uint32                          regionCount,
-    const ClearBoundTargetRegion*   pClearRegions)
+    float                         depth,
+    uint8                         stencil,
+    uint8                         stencilWriteMask,
+    uint32                        samples,
+    uint32                        fragments,
+    DepthStencilSelectFlags       flags,
+    uint32                        regionCount,
+    const ClearBoundTargetRegion* pClearRegions)
 {
     PreCall();
     CmdBufferFwdDecorator::CmdClearBoundDepthStencilTargets(depth,
                                                             stencil,
+                                                            stencilWriteMask,
                                                             samples,
                                                             fragments,
                                                             flags,
@@ -928,6 +932,7 @@ void CmdBuffer::CmdClearDepthStencil(
     ImageLayout        stencilLayout,
     float              depth,
     uint8              stencil,
+    uint8              stencilWriteMask,
     uint32             rangeCount,
     const SubresRange* pRanges,
     uint32             rectCount,
@@ -940,6 +945,7 @@ void CmdBuffer::CmdClearDepthStencil(
                                                 stencilLayout,
                                                 depth,
                                                 stencil,
+                                                stencilWriteMask,
                                                 rangeCount,
                                                 pRanges,
                                                 rectCount,
@@ -1552,3 +1558,5 @@ void CmdBuffer::CmdUpdateHiSPretests(
 
 } // Pm4Instrumentor
 } // Pal
+
+#endif

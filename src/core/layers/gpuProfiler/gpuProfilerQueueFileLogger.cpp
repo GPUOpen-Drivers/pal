@@ -166,7 +166,7 @@ void Queue::OpenLogFile(
 
     // Write the CSV column headers to the newly opened file.
     const char* pCsvHeader = "Queue Call,CmdBuffer Index,CmdBuffer Call,SubQueueIdx,Start Clock,End Clock,Time (us) "
-                             "[Frequency: %llu],PipelineHash,CompilerHash,VS/CS,HS,DS,GS,PS,"
+                             "[Frequency: %llu],PipelineHash,CompilerHash,VS/CS/TS,HS,DS,MS/GS,PS,"
                              "Verts/ThreadGroups,Instances,Comments,";
     Snprintf(&tempString[0], sizeof(tempString), pCsvHeader, m_pDevice->TimestampFreq());
     m_logFile.Write(&tempString[0], strlen(&tempString[0]));

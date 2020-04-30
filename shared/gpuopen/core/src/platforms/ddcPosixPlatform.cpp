@@ -78,21 +78,10 @@ namespace DevDriver
         /////////////////////////////////////////////////////
         // Local routines.....
         //
-        void DebugPrint(LogLevel lvl, const char* pFormat, ...)
+        void PlatformDebugPrint(LogLevel lvl, const char* pStr)
         {
-            DD_UNUSED(lvl);
-
-            va_list args;
-            va_start(args, pFormat);
-            char buffer[1024];
-            Platform::Vsnprintf(buffer, ArraySize(buffer), pFormat, args);
-            va_end(args);
-
-            // Append a newline
-            Platform::Snprintf(buffer, "%s\n", buffer);
-
 #if defined(DD_PLATFORM_DARWIN_UM)
-            static const os_log_t logObject = os_log_create("com.amd.gpuopen", "developer driver");
+            static const os_log_t logObject = os_log_create("com.amd.devdriver", "amd devdriver");
             static constexpr os_log_type_t kLogLevelTable[static_cast<int>(LogLevel::Count)] =
             {
                 OS_LOG_TYPE_DEBUG,
@@ -102,10 +91,40 @@ namespace DevDriver
                 OS_LOG_TYPE_FAULT,
                 OS_LOG_TYPE_DEFAULT
             };
-            os_log_with_type(logObject, kLogLevelTable[static_cast<int>(lvl)], "%s", buffer);
+            os_log_with_type(logObject, kLogLevelTable[static_cast<int>(lvl)], "%s\n", pStr);
+#else
+            // No Linux-specific logging
+            DD_UNUSED(lvl);
+            DD_UNUSED(pStr);
 #endif
+        }
 
-            printf("[DevDriver] %s", buffer);
+        Result GetAbsPathName(
+            const char*  pPath,
+            char         (&absPath)[256])
+        {
+            Result result = Result::InvalidParameter;
+
+            if (pPath != nullptr)
+            {
+                errno = 0;
+                // WA: gcc 4.8 warns if the return value of realpath isn't used
+                const char* pAbsPath = realpath(pPath, absPath);
+                DD_UNUSED(pAbsPath);
+
+                if (errno != 0)
+                {
+                    // Details about the error are available with errno, but we can't translate this easily.
+                    result = Result::FileAccessError;
+                }
+                else
+                {
+                    // Success!
+                    result = Result::Success;
+                }
+            }
+
+            return result;
         }
 
         int32 AtomicIncrement(Atomic* pVariable)
@@ -310,16 +329,9 @@ namespace DevDriver
         // Synchronization primatives
         //
 
-        void AtomicLock::Lock()
+        bool AtomicLock::TryLock()
         {
-            // TODO - implement timeout
-            while (__sync_val_compare_and_swap(&m_lock, 0, 1) == 1)
-            {
-                // spin until the mutex is unlocked again
-                while (m_lock != 0)
-                {
-                }
-            }
+            return (__sync_val_compare_and_swap(&m_lock, 0, 1) == 0);
         }
 
         void AtomicLock::Unlock()
@@ -528,7 +540,7 @@ namespace DevDriver
             m_prevState = static_cast<uint64>(timeValue.tv_sec * 1000000000 + timeValue.tv_nsec);
         }
 
-        Result Mkdir(const char* pDir)
+        Result Mkdir(const char* pDir, MkdirStatus* pStatus)
         {
             Result result = Result::InvalidParameter;
 
@@ -539,14 +551,25 @@ namespace DevDriver
                 const int ret = mkdir(pDir, 0777);
                 if (ret == 0)
                 {
+                    // The directory did not exist, and was created successfully
                     result = Result::Success;
+
+                    if (pStatus != nullptr)
+                    {
+                        *pStatus = MkdirStatus::Created;
+                    }
                 }
                 else
                 {
                     if (errno == EEXIST)
                     {
-                        // The directory already exists
+                        // The directory did exist, which is fine.
                         result = Result::Success;
+
+                        if (pStatus != nullptr)
+                        {
+                            *pStatus = MkdirStatus::Existed;
+                        }
                     }
                     else
                     {

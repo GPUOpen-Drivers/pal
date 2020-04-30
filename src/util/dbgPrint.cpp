@@ -38,7 +38,7 @@ DbgPrintCallback g_dbgPrintCallback = { nullptr, nullptr };
 
 #if   defined(__unix__)
 // Directory where log files will be written.
-static constexpr char LogDirectoryStr[] = "/var/log/";
+static constexpr char LogDirectoryStr[] = "/var/tmp/";
 #endif
 
 // Entry in the global table of debug print targets. Defines the debug category, output mode and prefix string to use.
@@ -57,7 +57,8 @@ static DbgPrintTarget g_dbgPrintTable[DbgPrintCatCount] =
     { DbgPrintMode::Print,         "Error", "palError.txt", },  // DbgPrintCatErrorMsg
     { DbgPrintMode::Disable,       "ScMsg", "palScMsg.txt", },  // DbgPrintCatScMsg
     { DbgPrintMode::Print,         "Event", "palEvent.txt", },  // DbgPrintCatEventPrintMsg
-    { DbgPrintMode::PrintCallback, "Event", "palEvent.txt", }   // DbgPrintCatEventPrintCallbackMsg
+    { DbgPrintMode::PrintCallback, "Event", "palEvent.txt", },  // DbgPrintCatEventPrintCallbackMsg
+    { DbgPrintMode::File,          "Info",  "palLog.txt",   }   // DbgPrintCatMsgFile
 };
 
 // =====================================================================================================================

@@ -251,7 +251,8 @@ union ConfigFlags
         UINT_32 use32bppFor422Fmt      : 1;    ///< View 422 formats as 32 bits per pixel element
         UINT_32 forceDccAndTcCompat    : 1;    ///< Force enable DCC and TC compatibility
         UINT_32 nonPower2MemConfig     : 1;    ///< Video memory bit width is not power of 2
-        UINT_32 reserved               : 19;   ///< Reserved bits for future use
+        UINT_32 enableAltTiling        : 1;    ///< Enable alt tile mode
+        UINT_32 reserved               : 18;   ///< Reserved bits for future use
     };
 
     UINT_32 value;

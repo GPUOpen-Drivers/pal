@@ -88,10 +88,44 @@ void URIRequestContext::Begin(char*                                        pArgu
 }
 
 // ========================================================================================================
-void URIRequestContext::End()
+void URIRequestContext::End(Result serviceResult)
 {
-    DD_ASSERT((m_contextState == ContextState::WriterSelection) ||
-              (m_contextState == ContextState::WritingCompleted));
+    // If a service handles a request successfully, they should never leave their context in a
+    // non-completed state.
+    if (serviceResult == Result::Success)
+    {
+        DD_ASSERT((m_contextState == ContextState::WriterSelection) ||
+                  (m_contextState == ContextState::WritingCompleted));
+    }
+    else
+    {
+        // The service failed to handle a request.
+
+        // When a service calls End() on their writer, it manipulates the current context state. That means
+        // we can use the final context state to identify whether or not they called End() and clean up
+        // after them if necessary.
+        switch (m_contextState)
+        {
+            // They left their writer without calling End so we need to do it for them.
+            case ContextState::ByteWriterSelected:
+                m_byteWriter.End();
+                break;
+            case ContextState::TextWriterSelected:
+                m_textWriter.End();
+                break;
+            case ContextState::JsonWriterSelected:
+                m_jsonWriter.End();
+                break;
+
+            // If they never used one...
+            case ContextState::WriterSelection:
+            // Or End was already called...
+            case ContextState::WritingCompleted:
+                // We have nothing to do
+                break;
+            }
+    }
+
     m_contextState = ContextState::WriterSelection;
 }
 

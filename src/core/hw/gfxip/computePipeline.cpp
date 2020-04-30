@@ -25,7 +25,6 @@
 
 #include "core/hw/gfxip/computePipeline.h"
 #include "palMetroHash.h"
-#include "palPipelineAbiProcessorImpl.h"
 
 using namespace Util;
 
@@ -85,18 +84,16 @@ Result ComputePipeline::Init(
 // =====================================================================================================================
 // Computes the GPU virtual address of each of the indirect functions specified by the client.
 void ComputePipeline::GetFunctionGpuVirtAddrs(
-    const AbiProcessor&              abiProcessor,
     const PipelineUploader&          uploader,
     ComputePipelineIndirectFuncInfo* pFuncInfoList,
     uint32                           funcCount)
 {
-    const gpusize codeGpuVirtAddr = uploader.CodeGpuVirtAddr();
     for (uint32 i = 0; i < funcCount; ++i)
     {
-        Abi::GenericSymbolEntry symbol = { };
-        if (abiProcessor.HasGenericSymbolEntry(pFuncInfoList[i].pSymbolName, &symbol))
+        GpuSymbol symbol = { };
+        if (uploader.GetGenericGpuSymbol(pFuncInfoList[i].pSymbolName, &symbol) == Result::Success)
         {
-            pFuncInfoList[i].gpuVirtAddr = (codeGpuVirtAddr + symbol.value);
+            pFuncInfoList[i].gpuVirtAddr = symbol.gpuVirtAddr;
         }
     }
 }
@@ -108,29 +105,28 @@ Result ComputePipeline::InitFromPipelineBinary(
 {
     PAL_ASSERT((m_pPipelineBinary != nullptr) && (m_pipelineBinaryLen != 0));
 
-    AbiProcessor abiProcessor(m_pDevice->GetPlatform());
-    Result result = abiProcessor.LoadFromBuffer(m_pPipelineBinary, m_pipelineBinaryLen);
+    AbiReader abiReader(m_pDevice->GetPlatform(), m_pPipelineBinary);
+    Result result = abiReader.Init();
 
     MsgPackReader      metadataReader;
     CodeObjectMetadata metadata;
 
     if (result == Result::Success)
     {
-        result = abiProcessor.GetMetadata(&metadataReader, &metadata);
+        result = abiReader.GetMetadata(&metadataReader, &metadata);
     }
 
     if (result == Result::Success)
     {
         ExtractPipelineInfo(metadata, ShaderType::Compute, ShaderType::Compute);
 
-        DumpPipelineElf(abiProcessor,
-                        "PipelineCs",
+        DumpPipelineElf("PipelineCs",
                         ((metadata.pipeline.hasEntry.name != 0) ? &metadata.pipeline.name[0] : nullptr));
 
-        Abi::PipelineSymbolEntry symbol = { };
-        if (abiProcessor.HasPipelineSymbolEntry(Abi::PipelineSymbolType::CsDisassembly, &symbol))
+        const Elf::SymbolTableEntry* pSymbol = abiReader.GetPipelineSymbol(Abi::PipelineSymbolType::CsDisassembly);
+        if (pSymbol != nullptr)
         {
-            m_stageInfo.disassemblyLength = static_cast<size_t>(symbol.size);
+            m_stageInfo.disassemblyLength = static_cast<size_t>(pSymbol->st_size);
         }
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 580
@@ -143,7 +139,7 @@ Result ComputePipeline::InitFromPipelineBinary(
         }
 
         result = HwlInit(createInfo,
-                         abiProcessor,
+                         abiReader,
                          metadata,
                          &metadataReader);
     }

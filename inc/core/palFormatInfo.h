@@ -794,6 +794,11 @@ PAL_INLINE Extent3d Log2SubsamplingRatio(
             ratio.width  = 1;  // log2(1/2) = -1
             ratio.height = 1;
             break;
+        // 4:2:2 formats have 1/2 as many samples in the horizontal direction, and the same number of samples
+        // in the vertical direction.
+        case ChNumFormat::P210:
+            ratio.width = 1;
+            break;
         // 4:1:1 formats have 1/4 as many samples in the horizontal direction, and the same number of samples
         // in the vertical direction.
         case ChNumFormat::NV11:
@@ -821,6 +826,13 @@ extern float LinearToGamma(float linear);
 ///
 /// @returns Linear color value
 extern float GammaToLinear(float gammaCorrectedVal);
+
+/// Checks to see if a given format is a MM format
+///
+/// #param [in] format Format to check
+///
+/// @returns bool is it an MM format
+extern bool IsMmFormat(ChNumFormat format);
 
 } // Formats
 } // Pal

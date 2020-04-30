@@ -113,6 +113,7 @@ union GpuMemoryFlags
     struct
     {
         uint32 isPinned                 :  1; // GPU memory was pinned for GPU access from CPU memory.
+        uint32 isPresentable            :  1; // GPU memory can be used by presents.
         uint32 isFlippable              :  1; // GPU memory can be used by flip presents.
         uint32 isStereo                 :  1; // GPU memory will be used for a stereoscopic surface.
         uint32 isClient                 :  1; // GPU memory is requested by the client.
@@ -155,7 +156,7 @@ union GpuMemoryFlags
         uint32 crossAdapter             :  1; // GPU memory is shared cross-adapter resource
         uint32 gpuReadOnly              :  1; // GPU memory is read only.
         uint32 placeholder1             :  1;
-        uint32 reserved                 : 25;
+        uint32 reserved                 : 24;
     };
     uint64  u64All;
 };
@@ -220,6 +221,7 @@ public:
     bool IsExternal()            const { return (m_desc.flags.isExternal          != 0); }
     bool IsPinned()              const { return (m_flags.isPinned                 != 0); }
     bool IsShareable()           const { return (m_flags.isShareable              != 0); }
+    bool IsPresentable()         const { return (m_flags.isPresentable            != 0); }
     bool IsFlippable()           const { return (m_flags.isFlippable              != 0); }
     bool IsStereo()              const { return (m_flags.isStereo                 != 0); }
     bool IsClient()              const { return (m_flags.isClient                 != 0); }

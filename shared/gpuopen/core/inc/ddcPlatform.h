@@ -343,7 +343,19 @@ constexpr SizeT ArraySize(const T(&)[Size])
     return static_cast<SizeT>(Size);
 }
 
-void DebugPrint(LogLevel lvl, const char* format, ...);
+// Log to consoles and attached debuggers
+void DebugPrint(LogLevel lvl, const char* pFormat, ...);
+
+// Platform-specific loggers, this is called from DebugPrint.
+void PlatformDebugPrint(LogLevel lvl, const char* pString);
+
+/// Get the absolute path to a file or directory that already exists
+/// If ppAbsPathFilePart is non-NULL, *ppAbsPathFilePart will point into absPath at the beginning of the Filename
+/// This is recommended to do whenever you need to display a path to a user.
+Result GetAbsPathName(
+    const char*  pPath,
+    char         (&absPath)[256]
+);
 
 /* platform functions for performing atomic operations */
 
@@ -371,6 +383,7 @@ public:
     AtomicLock() : m_lock(0) {};
     ~AtomicLock() {};
     void Lock();
+    bool TryLock();
     void Unlock();
     bool IsLocked() { return (m_lock != 0); };
 private:
@@ -530,13 +543,23 @@ private:
     DD_DISALLOW_COPY_AND_ASSIGN(Library);
 };
 
+enum struct MkdirStatus
+{
+    Unknown,
+    Created,
+    Existed,
+};
+
 // Create a directory with default permissions
 //      On Windows, this uses NULL for LPSECURITY_ATTRIBUTES
 //      On Unix, this uses 0777 for the mode.
+// When pStatus is non-NULL, *pStatus is set to
+//      MkdirStatus::Created if the directory did not exist and was created
+//      MkdirStatus::Existed if the directory already existed
 // Returns:
 //      - Result::Success,     if the directory already exists or was created
 //      - Result::FileIoError, if the directory failed to be created
-Result Mkdir(const char* pDir);
+Result Mkdir(const char* pDir, MkdirStatus* pStatus = nullptr);
 
 ProcessId GetProcessId();
 

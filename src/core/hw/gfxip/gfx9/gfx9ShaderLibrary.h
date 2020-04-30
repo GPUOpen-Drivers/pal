@@ -90,9 +90,15 @@ protected:
 
     virtual Result HwlInit(
         const ShaderLibraryCreateInfo& createInfo,
-        const AbiProcessor&            abiProcessor,
+        const AbiReader&               abiReader,
         const CodeObjectMetadata&      metadata,
         Util::MsgPackReader*           pMetadataReader) override;
+
+    Result UnpackStackFrameSize(
+        const char*               pShaderExportName,
+        const CodeObjectMetadata& metadata,
+        Util::MsgPackReader*      pMetadataReader,
+        uint32*                   pStackFrameSizeInBytes) const;
 
     // Update m_hwInfo afer HwlInit
     void UpdateHwInfo();
@@ -119,9 +125,10 @@ class ShaderLibraryUploader : public Pal::PipelineUploader
 {
 public:
     explicit ShaderLibraryUploader(
-        Device* pDevice)
+        Device*          pDevice,
+        const AbiReader& abiReader)
         :
-        PipelineUploader(pDevice->Parent(), 0, 0)
+        PipelineUploader(pDevice->Parent(), abiReader, 0, 0)
         { }
     virtual ~ShaderLibraryUploader() { }
 

@@ -95,6 +95,8 @@ constexpr  NullIdLookup  NullIdLookupTable[] =
     { PAL_UNDEFINED_NULL_DEVICE                                                                                       },
     { PAL_UNDEFINED_NULL_DEVICE                                                                                       },
     { PAL_UNDEFINED_NULL_DEVICE                                                                                       },
+    { PAL_UNDEFINED_NULL_DEVICE                                                                                       },
+    { PAL_UNDEFINED_NULL_DEVICE                                                                                       },
 
     { PAL_UNDEFINED_NULL_DEVICE                                                                                       }, // All
 };
@@ -138,6 +140,8 @@ const char* pNullGpuNames[static_cast<uint32>(Pal::NullGpuId::Max)] =
     nullptr,
     nullptr,
     "NAVI14:gfx1012",
+    nullptr,
+    nullptr,
     nullptr,
     nullptr,
     nullptr,

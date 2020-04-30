@@ -1154,7 +1154,7 @@ void DmaCmdBuffer::SetupMetaData(
         const GfxIpLevel   gfxLevel     = pPalDevice->ChipProperties().gfxLevel;
         const auto*const   pFmtInfo     =
             Pal::Formats::Gfx9::MergedChannelFlatFmtInfoTbl(gfxLevel, &pPalDevice->GetPlatform()->PlatformSettings());
-        const Gfx9MaskRam* pMaskRam     = pGfxImage->GetPrimaryMaskRam(image.pSubresInfo->subresId.aspect);
+        const Gfx9MaskRam* pMaskRam     = nullptr;
         const SubresId     baseSubResId = { image.pSubresInfo->subresId.aspect, 0, 0 };
         const bool         colorMeta    = pGfxImage->HasDccData();
 
@@ -1169,6 +1169,8 @@ void DmaCmdBuffer::SetupMetaData(
                 const Gfx9Dcc*                   pDcc       = pGfxImage->GetDcc(image.pSubresInfo->subresId.aspect);
                 const regCB_COLOR0_DCC_CONTROL&  dccControl = pDcc->GetControlReg();
                 const SurfaceSwap                surfSwap   = Formats::Gfx9::ColorCompSwap(createInfo.swizzledFormat);
+
+                pMaskRam = pDcc;
 
                 pPacket->META_CONFIG_UNION.max_comp_block_size   = dccControl.bits.MAX_COMPRESSED_BLOCK_SIZE;
                 pPacket->META_CONFIG_UNION.max_uncomp_block_size = dccControl.bits.MAX_UNCOMPRESSED_BLOCK_SIZE;
@@ -1187,13 +1189,15 @@ void DmaCmdBuffer::SetupMetaData(
         }
         else if (pGfxImage->HasDsMetadata())
         {
-            const auto*       pBaseSubResInfo = pPalImage->SubresourceInfo(baseSubResId);
-            const ChNumFormat fmt             = pBaseSubResInfo->format.format;
-            const auto dsLayoutToState        = pGfxImage->LayoutToDepthCompressionState(baseSubResId);
-            const auto dsCompressState        = ImageLayoutToDepthCompressionState(dsLayoutToState,
-                                                                                   image.imageLayout);
+            const auto*       pBaseSubResInfo  = pPalImage->SubresourceInfo(baseSubResId);
+            const ChNumFormat fmt              = pBaseSubResInfo->format.format;
+            const auto        dsLayoutToState  = pGfxImage->LayoutToDepthCompressionState(baseSubResId);
+            const auto        dsCompressState  = ImageLayoutToDepthCompressionState(dsLayoutToState,
+                                                                                    image.imageLayout);
             if (dsCompressState == DepthStencilCompressed)
             {
+                pMaskRam = pGfxImage->GetHtile();
+
                 // For depth/stencil image, using HwColorFmt() is correct because:
                 // 1. This field is documented by SDMA spec as "the same as the color_format used by the CB".
                 // 2. IMG_DATA_FORMAT enum texture engine uses is identical as ColorFormat enum CB uses.
@@ -1233,13 +1237,16 @@ uint32* DmaCmdBuffer::UpdateImageMetaData(
     const DmaImageInfo&  image,
     uint32*              pCmdSpace)
 {
-    const Pal::Image*   pPalImage  = static_cast<const Pal::Image*>(image.pImage);
-    const Image*        pGfxImage  = static_cast<const Image*>(pPalImage->GetGfxImage());
-    const Pal::Device*  pPalDevice = pPalImage->GetDevice();
-    const auto&         settings   = GetGfx9Settings(*pPalDevice);
-
+    const Pal::Image*   pPalImage          = static_cast<const Pal::Image*>(image.pImage);
+    const Image*        pGfxImage          = static_cast<const Image*>(pPalImage->GetGfxImage());
+    const Pal::Device*  pPalDevice         = pPalImage->GetDevice();
+    const auto&         settings           = GetGfx9Settings(*pPalDevice);
+    const auto          colorLayoutToState = pGfxImage->LayoutToColorCompressionState();
+    const auto          colorCompressState = ImageLayoutToColorCompressionState(colorLayoutToState,
+                                                                                image.imageLayout);
     // Does this image have DCC data at all?
     if (pGfxImage->HasDccData()                            &&
+        (colorCompressState != ColorDecompressed)          &&
         // Can the SDMA engine access it?
         (settings.waSdmaPreventCompressedSurfUse == false)
        )

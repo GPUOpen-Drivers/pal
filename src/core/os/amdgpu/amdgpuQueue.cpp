@@ -723,7 +723,8 @@ Result Queue::SubmitPm4(
     // by KMD.
     for (uint32 idx = 0; idx < numNextCmdBuffers; ++idx)
     {
-        if (static_cast<GfxCmdBuffer*>(ppNextCmdBuffers[idx])->SpmTraceEnabled())
+        auto pCmdBuf = static_cast<GfxCmdBuffer*>(ppNextCmdBuffers[idx]);
+        if (pCmdBuf->PerfTracesEnabled().spmTraceEnabled)
         {
             result = static_cast<Device*>(m_pDevice)->ReserveVmid();
             break;
