@@ -262,7 +262,7 @@ void SettingsLoader::ValidateSettings(
         //                threadgroups per SPI for 3 control point patches and 64 patches per threadgroup.
         //                GE has internal FIFO limits and that prevents it from launching more work.
         //                So there is no point in increasing the size of the buffer
-        m_settings.tessFactorBufferSizePerSe = Gfx10::mmVGT_TF_RING_SIZE_DEFAULT / gfx9Props.numShaderEngines;
+        m_settings.tessFactorBufferSizePerSe = Gfx10Plus::mmVGT_TF_RING_SIZE_DEFAULT / gfx9Props.numShaderEngines;
 
         if ((m_settings.tessFactorBufferSizePerSe * gfx9Props.numShaderEngines) > VGT_TF_RING_SIZE__SIZE_MASK)
         {

@@ -102,7 +102,8 @@ public:
     virtual Result Init();
     virtual Result Validate(const ShaderRingItemSizes&  ringSizes,
                             const SamplePatternPalette& samplePatternPalette,
-                            const uint64                lastTimeStamp);
+                            const uint64                lastTimeStamp,
+                            bool*                       pHasDeferredChanges);
 
     // Writes the per-Ring-Set register state into the specified command stream.
     virtual uint32* WriteCommands(CmdStream* pCmdStream, uint32* pCmdSpace) const = 0;
@@ -144,7 +145,8 @@ public:
     virtual Result Init() override;
     virtual Result Validate(const ShaderRingItemSizes&  ringSizes,
                             const SamplePatternPalette& samplePatternPalette,
-                            uint64                      lastTimeStamp) override;
+                            uint64                      lastTimeStamp,
+                            bool*                       pHasDeferredChanges) override;
 
     virtual uint32* WriteCommands(CmdStream* pCmdStream, uint32* pCmdSpace) const override;
 
@@ -176,7 +178,8 @@ public:
     virtual Result Init() override;
     virtual Result Validate(const ShaderRingItemSizes&  ringSizes,
                             const SamplePatternPalette& samplePatternPalette,
-                            uint64                      lastTimeStamp) override;
+                            uint64                      lastTimeStamp,
+                            bool*                       pHasDeferredChanges) override;
 
     virtual uint32* WriteCommands(CmdStream* pCmdStream, uint32* pCmdSpace) const override;
 

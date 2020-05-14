@@ -46,8 +46,8 @@ const RegisterRange Gfx10ShShadowRange[] =
         (mmSPI_SHADER_USER_DATA_PS_31 - mmSPI_SHADER_PGM_LO_PS + 1),
     },
     {
-        (Gfx10::mmSPI_SHADER_USER_ACCUM_PS_0 - PERSISTENT_SPACE_START),
-        (Gfx10::mmSPI_SHADER_USER_ACCUM_PS_3 - Gfx10::mmSPI_SHADER_USER_ACCUM_PS_0 + 1),
+        (Gfx10Plus::mmSPI_SHADER_USER_ACCUM_PS_0 - PERSISTENT_SPACE_START),
+        (Gfx10Plus::mmSPI_SHADER_USER_ACCUM_PS_3 - Gfx10Plus::mmSPI_SHADER_USER_ACCUM_PS_0 + 1),
     },
     {
         (Apu09_1xPlus::mmSPI_SHADER_PGM_CHKSUM_VS - PERSISTENT_SPACE_START),
@@ -58,16 +58,16 @@ const RegisterRange Gfx10ShShadowRange[] =
         (mmSPI_SHADER_USER_DATA_VS_31 - mmSPI_SHADER_LATE_ALLOC_VS + 1),
     },
     {
-        (Gfx10::mmSPI_SHADER_USER_ACCUM_VS_0 - PERSISTENT_SPACE_START),
-        (Gfx10::mmSPI_SHADER_USER_ACCUM_VS_3 - Gfx10::mmSPI_SHADER_USER_ACCUM_VS_0 + 1),
+        (Gfx10Plus::mmSPI_SHADER_USER_ACCUM_VS_0 - PERSISTENT_SPACE_START),
+        (Gfx10Plus::mmSPI_SHADER_USER_ACCUM_VS_3 - Gfx10Plus::mmSPI_SHADER_USER_ACCUM_VS_0 + 1),
     },
     {
-        (Gfx10::mmSPI_SHADER_PGM_LO_ES - PERSISTENT_SPACE_START),
-        (Gfx10::mmSPI_SHADER_PGM_HI_ES - Gfx10::mmSPI_SHADER_PGM_LO_ES + 1),
+        (Gfx10Plus::mmSPI_SHADER_PGM_LO_ES - PERSISTENT_SPACE_START),
+        (Gfx10Plus::mmSPI_SHADER_PGM_HI_ES - Gfx10Plus::mmSPI_SHADER_PGM_LO_ES + 1),
     },
     {
-        (Gfx10::mmSPI_SHADER_PGM_LO_LS - PERSISTENT_SPACE_START),
-        (Gfx10::mmSPI_SHADER_PGM_HI_LS - Gfx10::mmSPI_SHADER_PGM_LO_LS + 1),
+        (Gfx10Plus::mmSPI_SHADER_PGM_LO_LS - PERSISTENT_SPACE_START),
+        (Gfx10Plus::mmSPI_SHADER_PGM_HI_LS - Gfx10Plus::mmSPI_SHADER_PGM_LO_LS + 1),
     },
     {
         (Apu09_1xPlus::mmSPI_SHADER_PGM_CHKSUM_GS - PERSISTENT_SPACE_START),
@@ -75,15 +75,15 @@ const RegisterRange Gfx10ShShadowRange[] =
     },
     {
         (mmSPI_SHADER_PGM_RSRC3_GS - PERSISTENT_SPACE_START),
-        (Gfx10::mmSPI_SHADER_USER_DATA_GS_31 - mmSPI_SHADER_PGM_RSRC3_GS + 1),
+        (Gfx10Plus::mmSPI_SHADER_USER_DATA_GS_31 - mmSPI_SHADER_PGM_RSRC3_GS + 1),
     },
     {
         (mmSPI_SHADER_USER_DATA_ADDR_LO_GS - PERSISTENT_SPACE_START),
         (mmSPI_SHADER_USER_DATA_ADDR_HI_GS - mmSPI_SHADER_USER_DATA_ADDR_LO_GS + 1),
     },
     {
-        (Gfx10::mmSPI_SHADER_USER_ACCUM_ESGS_0 - PERSISTENT_SPACE_START),
-        (Gfx10::mmSPI_SHADER_USER_ACCUM_ESGS_3 - Gfx10::mmSPI_SHADER_USER_ACCUM_ESGS_0 + 1),
+        (Gfx10Plus::mmSPI_SHADER_USER_ACCUM_ESGS_0 - PERSISTENT_SPACE_START),
+        (Gfx10Plus::mmSPI_SHADER_USER_ACCUM_ESGS_3 - Gfx10Plus::mmSPI_SHADER_USER_ACCUM_ESGS_0 + 1),
     },
     {
         (Apu09_1xPlus::mmSPI_SHADER_PGM_CHKSUM_HS - PERSISTENT_SPACE_START),
@@ -91,18 +91,18 @@ const RegisterRange Gfx10ShShadowRange[] =
     },
     {
         (mmSPI_SHADER_PGM_RSRC3_HS - PERSISTENT_SPACE_START),
-        (Gfx10::mmSPI_SHADER_USER_DATA_HS_31 - mmSPI_SHADER_PGM_RSRC3_HS + 1),
+        (Gfx10Plus::mmSPI_SHADER_USER_DATA_HS_31 - mmSPI_SHADER_PGM_RSRC3_HS + 1),
     },
     {
-        (Gfx10::mmSPI_SHADER_USER_ACCUM_LSHS_0 - PERSISTENT_SPACE_START),
-        (Gfx10::mmSPI_SHADER_USER_ACCUM_LSHS_3 - Gfx10::mmSPI_SHADER_USER_ACCUM_LSHS_0 + 1),
+        (Gfx10Plus::mmSPI_SHADER_USER_ACCUM_LSHS_0 - PERSISTENT_SPACE_START),
+        (Gfx10Plus::mmSPI_SHADER_USER_ACCUM_LSHS_3 - Gfx10Plus::mmSPI_SHADER_USER_ACCUM_LSHS_0 + 1),
     },
     {
-        (Gfx10::mmSPI_SHADER_REQ_CTRL_PS - PERSISTENT_SPACE_START),
+        (Gfx10Plus::mmSPI_SHADER_REQ_CTRL_PS - PERSISTENT_SPACE_START),
         1,
     },
     {
-        (Gfx10::mmSPI_SHADER_REQ_CTRL_VS - PERSISTENT_SPACE_START),
+        (Gfx10Plus::mmSPI_SHADER_REQ_CTRL_VS - PERSISTENT_SPACE_START),
         1,
     },
 };
@@ -135,11 +135,11 @@ const RegisterRange Gfx10CsShShadowRange[] =
         1,
     },
     {
-        (Gfx10::mmCOMPUTE_USER_ACCUM_0 - PERSISTENT_SPACE_START),               // 0x2E24 - 0x2E28
-        (Gfx10::mmCOMPUTE_PGM_RSRC3 - Gfx10::mmCOMPUTE_USER_ACCUM_0 + 1),
+        (Gfx10Plus::mmCOMPUTE_USER_ACCUM_0 - PERSISTENT_SPACE_START),               // 0x2E24 - 0x2E28
+        (Gfx10Plus::mmCOMPUTE_PGM_RSRC3 - Gfx10Plus::mmCOMPUTE_USER_ACCUM_0 + 1),
     },
     {
-        (Gfx10::mmCOMPUTE_SHADER_CHKSUM - PERSISTENT_SPACE_START),              // 0x2E2A
+        (Gfx10Plus::mmCOMPUTE_SHADER_CHKSUM - PERSISTENT_SPACE_START),              // 0x2E2A
         1
     },
     {
@@ -147,7 +147,7 @@ const RegisterRange Gfx10CsShShadowRange[] =
         (mmCOMPUTE_USER_DATA_15 - mmCOMPUTE_USER_DATA_0 + 1),
     },
     {
-        (Gfx10::mmCOMPUTE_DISPATCH_TUNNEL - PERSISTENT_SPACE_START),            // 0x2E7D
+        (Gfx10Plus::mmCOMPUTE_DISPATCH_TUNNEL - PERSISTENT_SPACE_START),            // 0x2E7D
         1,
     },
 };

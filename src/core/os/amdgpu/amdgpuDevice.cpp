@@ -36,6 +36,7 @@
 #include "core/os/amdgpu/dri3/dri3WindowSystem.h"
 #endif
 #include "core/queueSemaphore.h"
+#include "core/device.h"
 #include "palAutoBuffer.h"
 #include "palHashMapImpl.h"
 #include "palInlineFuncs.h"
@@ -357,12 +358,9 @@ Device::Device(
     m_pSvmMgr(nullptr),
     m_mapAllocator(),
     m_reservedVaMap(32, &m_mapAllocator),
-    m_supportQuerySensorInfo(false),
     m_globalRefMap(MemoryRefMapElements, constructorParams.pPlatform),
     m_semType(SemaphoreType::Legacy),
     m_fenceType(FenceType::Legacy),
-    m_supportQueuePriority(false),
-    m_supportVmAlwaysValid(false),
 #if defined(PAL_DEBUG_PRINTS)
     m_drmProcs(constructorParams.pPlatform->GetDrmLoader().GetProcsTableProxy()),
 #else
@@ -382,6 +380,7 @@ Device::Device(
     m_chipProperties.pciFunctionNumber          = constructorParams.pciBusInfo.func;
     m_chipProperties.gpuConnectedViaThunderbolt = false;
 
+    m_featureState.flags = 0;
     memset(m_supportsPresent, 0, sizeof(m_supportsPresent));
 }
 
@@ -523,7 +522,12 @@ Result Device::OsLateInit()
     // DrmVersion should be equal or greater than 3.22 in case to support queue priority
     if (static_cast<Platform*>(m_pPlatform)->IsQueuePrioritySupported() && IsDrmVersionOrGreater(3,22))
     {
-        m_supportQueuePriority = true;
+        m_featureState.supportQueuePriority = 1;
+    }
+
+    if (static_cast<Platform*>(m_pPlatform)->IsQueueIfhKmdSupported())
+    {
+        m_featureState.supportQueueIfhKmd = 1;
     }
 
     // Start to support per-vm bo from drm 3.20, but bugs were not fixed
@@ -532,23 +536,23 @@ Result Device::OsLateInit()
        ((Settings().enableVmAlwaysValid == VmAlwaysValidDefaultEnable) &&
        (IsDrmVersionOrGreater(3,25) || IsKernelVersionEqualOrGreater(4,16))))
     {
-        m_supportVmAlwaysValid = true;
+        m_featureState.supportVmAlwaysValid = 1;
     }
 
     if (IsDrmVersionOrGreater(3,25))
     {
-        m_supportQuerySensorInfo = true;
+        m_featureState.supportQuerySensorInfo = 1;
     }
 
     // The fix did not bump the kernel version, thus it is only safe to enable it start from the next version: 3.27
     // The fix also has been pulled into 4.18.rc1 upstream kernel already.
     if (IsDrmVersionOrGreater(3,27) || IsKernelVersionEqualOrGreater(4,18))
     {
-        m_requirePrtReserveVaWa = false;
+        m_featureState.requirePrtReserveVaWa = 0;
     }
     else
     {
-        m_requirePrtReserveVaWa = true;
+        m_featureState.requirePrtReserveVaWa = 1;
     }
 
     return result;
@@ -635,6 +639,11 @@ Result Device::EarlyInit(
     if (result == Result::Success)
     {
         result = InitGpuProperties();
+    }
+
+    if (result == Result::Success)
+    {
+        result = InitTmzHeapProperties();
     }
 
     if (result == Result::Success)
@@ -731,7 +740,7 @@ Result Device::GetProperties(
         pInfo->osProperties.timelineSemaphore.supportHostSignal       = m_syncobjSupportState.timelineSemaphore;
         pInfo->osProperties.timelineSemaphore.supportWaitBeforeSignal = false;
 
-        pInfo->osProperties.supportQueuePriority = m_supportQueuePriority;
+        pInfo->osProperties.supportQueuePriority = (m_featureState.supportQueuePriority != 0);
         // Linux don't support changing the queue priority at the submission granularity.
         pInfo->osProperties.supportDynamicQueuePriority = false;
 
@@ -912,6 +921,52 @@ Result Device::InitGpuProperties()
     return result;
 
 }
+// =====================================================================================================================
+// Hardware support determines which heaps can support TMZ.
+Result Device::InitTmzHeapProperties()
+{
+    Result result = Result::Success;
+    // Init Tmz state of each heaps.
+    m_heapProperties[GpuHeapInvisible].flags.supportsTmz     = 0;
+    m_heapProperties[GpuHeapLocal].flags.supportsTmz         = 0;
+    m_heapProperties[GpuHeapGartUswc].flags.supportsTmz      = 0;
+    m_heapProperties[GpuHeapGartCacheable].flags.supportsTmz = 0;
+
+    // set the heap support for protected region
+    if (m_memoryProperties.flags.supportsTmz)
+    {
+        if (IsRavenFamily(*this))
+        {
+            m_heapProperties[GpuHeapInvisible].flags.supportsTmz     = 1;
+            m_heapProperties[GpuHeapLocal].flags.supportsTmz         = 1;
+
+            if (MemoryProperties().flags.iommuv2Support == false)
+            {
+                m_heapProperties[GpuHeapGartUswc].flags.supportsTmz      = 1;
+                m_heapProperties[GpuHeapGartCacheable].flags.supportsTmz = 1;
+            }
+        }
+        else if (IsNavi1x(*this))
+        {
+            m_heapProperties[GpuHeapInvisible].flags.supportsTmz     = 1;
+            m_heapProperties[GpuHeapLocal].flags.supportsTmz         = 1;
+            m_heapProperties[GpuHeapGartUswc].flags.supportsTmz      = 0;
+            m_heapProperties[GpuHeapGartCacheable].flags.supportsTmz = 0;
+        }
+        else
+        {
+            result = Pal::Result::ErrorUnknown;
+            PAL_NOT_IMPLEMENTED();
+        }
+
+        //Assert that at least one heap is claimed to support TMZ/VPR from KMD if we're here
+        PAL_ASSERT(m_heapProperties[GpuHeapInvisible].flags.supportsTmz ||
+                   m_heapProperties[GpuHeapLocal].flags.supportsTmz     ||
+                   m_heapProperties[GpuHeapGartUswc].flags.supportsTmz  ||
+                   m_heapProperties[GpuHeapGartCacheable].flags.supportsTmz);
+    }
+    return result;
+}
 
 // =====================================================================================================================
 // Helper method which tests validity of cu_ao_bitmap in device information structure.
@@ -1084,6 +1139,7 @@ void Device::InitGfx9ChipProperties()
         pChipInfo->maxGsWavesPerVgt         = deviceInfo.max_gs_waves_per_vgt;
         pChipInfo->doubleOffchipLdsBuffers  = deviceInfo.gc_double_offchip_lds_buf;
         pChipInfo->paScTileSteeringOverride = 0;
+        pChipInfo->sdmaL2PolicyValid        = false;
     }
     else
     {
@@ -1382,7 +1438,13 @@ Result Device::InitMemInfo()
             m_memoryProperties.flags.globalGpuVaSupport      = 0; // Not supported
             m_memoryProperties.flags.svmSupport              = 1; // Supported
             m_memoryProperties.flags.autoPrioritySupport     = 0; // Not supported
+            m_memoryProperties.flags.supportsTmz             = 0; // Not supported
 
+            //Client: Only vulkan support this feature on linux. Default disable TMZ feature for other clients.
+            if (IsRavenFamily(*this) || IsNavi1x(*this))
+            {
+                m_memoryProperties.flags.supportsTmz = 1; // Supported
+            }
             // Linux don't support High Bandwidth Cache Controller (HBCC) memory segment
             m_memoryProperties.hbccSizeInBytes   = 0;
 
@@ -1493,9 +1555,9 @@ Result Device::InitQueueInfo()
 #endif
 
             case EngineTypeDma:
-                // GFX10 parts have the DMA engine in the GFX block, not in the OSS
+                // GFX10+ parts have the DMA engine in the GFX block, not in the OSS
                 if ((Settings().disableSdmaEngine == false) &&
-                    ((m_chipProperties.ossLevel != OssIpLevel::None) || IsGfx10(m_chipProperties.gfxLevel)))
+                    ((m_chipProperties.ossLevel != OssIpLevel::None) || IsGfx10Plus(m_chipProperties.gfxLevel)))
                 {
                     if (m_drmProcs.pfnAmdgpuQueryHwIpInfo(m_hDevice, AMDGPU_HW_IP_DMA, 0, &engineInfo) != 0)
                     {
@@ -2170,7 +2232,7 @@ Result Device::ReservePrtVaRange(
     uint64 operations = AMDGPU_VM_PAGE_PRT;
 
     // we have to enabl w/a to delay update the va mapping in case kernel did not ready with the fix.
-    if (m_requirePrtReserveVaWa)
+    if (m_featureState.requirePrtReserveVaWa != 0)
     {
         operations |= AMDGPU_VM_DELAY_UPDATE;
     }
@@ -2387,7 +2449,7 @@ Result Device::CreateCommandSubmissionContext(
     // Check if the global scheduling context isn't available and allocate a new one for each queue
     if (m_hContext == nullptr)
     {
-        if (m_supportQueuePriority)
+        if (m_featureState.supportQueuePriority != 0)
         {
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 530
             constexpr int32 QueuePriorityToAmdgpuPriority[] =
@@ -2414,12 +2476,25 @@ Result Device::CreateCommandSubmissionContext(
                 AMDGPU_CTX_PRIORITY_LOW,        // QueuePriority::VeryLow    = 3,
             };
 #endif
-
-            if (m_drmProcs.pfnAmdgpuCsCtxCreate2(m_hDevice,
-                                                 QueuePriorityToAmdgpuPriority[static_cast<uint32>(priority)],
-                                                 pContextHandle) != 0)
+            if (m_featureState.supportQueueIfhKmd != 0)
             {
-                result = Result::ErrorInvalidValue;
+                const uint32 flags = (Settings().ifh == IfhModeKmd) ? AMDGPU_CTX_FLAGS_IFH : 0;
+                if(m_drmProcs.pfnAmdgpuCsCtxCreate3(m_hDevice,
+                                                 QueuePriorityToAmdgpuPriority[static_cast<uint32>(priority)],
+                                                 flags,
+                                                 pContextHandle) != 0)
+                {
+                    result = Result::ErrorInvalidValue;
+                }
+            }
+            else
+            {
+                if (m_drmProcs.pfnAmdgpuCsCtxCreate2(m_hDevice,
+                                                    QueuePriorityToAmdgpuPriority[static_cast<uint32>(priority)],
+                                                    pContextHandle) != 0)
+                {
+                    result = Result::ErrorInvalidValue;
+                }
             }
         }
         // just ignore the priority.
@@ -4590,7 +4665,7 @@ Result Device::SetClockMode(
         {
             case DeviceClockMode::QueryProfiling:
                 // get stable pstate sclk in Mhz from KMD
-                if (m_supportQuerySensorInfo)
+                if (m_featureState.supportQuerySensorInfo != 0)
                 {
                     result = CheckResult(m_drmProcs.pfnAmdgpuQuerySensorInfo(m_hDevice,
                                                                              AMDGPU_INFO_SENSOR_STABLE_PSTATE_GFX_SCLK,
@@ -4606,7 +4681,7 @@ Result Device::SetClockMode(
                 if (result == Result::Success)
                 {
                     // get stable pstate mclk in Mhz from KMD
-                    if (m_supportQuerySensorInfo)
+                    if (m_featureState.supportQuerySensorInfo != 0)
                     {
                         result = CheckResult(m_drmProcs.pfnAmdgpuQuerySensorInfo(
                                                     m_hDevice,
@@ -4653,7 +4728,7 @@ Result Device::SetClockMode(
                     PAL_ASSERT(isQueriedMclkValid);
 #endif
                     requiredSclkVal = static_cast<float>(sClkInMhz);
-                    requiredSclkVal = static_cast<float>(mClkInMhz);
+                    requiredMclkVal = static_cast<float>(mClkInMhz);
                 }
                 break;
             case DeviceClockMode::QueryPeak:
@@ -4991,40 +5066,24 @@ Result Device::CreateGpuMemoryFromExternalShare(
 
     if (sharedInfo.info.preferred_heap & AMDGPU_GEM_DOMAIN_GTT)
     {
-        // Check for any unexpected flags
-        PAL_ASSERT((sharedInfo.info.preferred_heap & ~AMDGPU_GEM_DOMAIN_GTT) == 0);
-
         if (sharedInfo.info.alloc_flags & AMDGPU_GEM_CREATE_CPU_GTT_USWC)
         {
-            // Check for any unexpected flags
-            PAL_ASSERT((sharedInfo.info.alloc_flags & ~AMDGPU_GEM_CREATE_CPU_GTT_USWC) == 0);
-
             pCreateInfo->heaps[pCreateInfo->heapCount++] = GpuHeapGartUswc;
         }
         else
         {
-            // Check for any unexpected flags
-            PAL_ASSERT(sharedInfo.info.alloc_flags == 0);
-
             pCreateInfo->heaps[pCreateInfo->heapCount++] = GpuHeapGartCacheable;
         }
     }
-    else if (sharedInfo.info.preferred_heap & AMDGPU_GEM_DOMAIN_VRAM)
-    {
-        // Check for any unexpected flags
-        PAL_ASSERT((sharedInfo.info.preferred_heap & ~AMDGPU_GEM_DOMAIN_VRAM) == 0);
 
+    if (sharedInfo.info.preferred_heap & AMDGPU_GEM_DOMAIN_VRAM)
+    {
         if (sharedInfo.info.alloc_flags & AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED)
         {
-            // Check for any unexpected flags
-            PAL_ASSERT((sharedInfo.info.alloc_flags & ~AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED) == 0);
             pCreateInfo->heaps[pCreateInfo->heapCount++] = GpuHeapLocal;
         }
         else if (sharedInfo.info.alloc_flags & AMDGPU_GEM_CREATE_NO_CPU_ACCESS)
         {
-            // Check for any unexpected flags
-            PAL_ASSERT((sharedInfo.info.alloc_flags & ~AMDGPU_GEM_CREATE_NO_CPU_ACCESS) == 0);
-
             pCreateInfo->heaps[pCreateInfo->heapCount++] = GpuHeapInvisible;
         }
         else
@@ -5032,7 +5091,8 @@ Result Device::CreateGpuMemoryFromExternalShare(
             PAL_ASSERT_ALWAYS();
         }
     }
-    else
+
+    if (pCreateInfo->heapCount == 0)
     {
         PAL_ASSERT_ALWAYS();
     }

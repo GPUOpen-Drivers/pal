@@ -786,6 +786,8 @@ public:
     bool IsOneTimeSubmit()   const { return (m_buildFlags.optimizeOneTimeSubmit      != 0); }
     bool AllowLaunchViaIb2() const { return (m_buildFlags.disallowNestedLaunchViaIb2 == 0); }
 
+    bool IsTmzEnabled() { return (m_buildFlags.enableTmz != 0); }
+
     uint64 LastPagingFence() const { return m_lastPagingFence; }
 
     // Note that this is not a general-purpose allocator. It is only valid during command building and its allocations

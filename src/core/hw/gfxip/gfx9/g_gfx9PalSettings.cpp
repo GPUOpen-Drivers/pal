@@ -218,7 +218,6 @@ void SettingsLoader::SetupDefaults()
     m_settings.depthStencilFastClearComputeThresholdMultiSampled = 4194304;
     m_settings.gfx10MaxFpovsInWave = 0;
     m_settings.disableAceCsPartialFlush = true;
-    m_settings.debugForceQueueNotWaitForIdle = false;
     m_settings.numSettings = g_gfx9PalNumSettings;
 }
 
@@ -995,11 +994,6 @@ void SettingsLoader::ReadSettings()
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pDisableAceCsPartialFlushStr,
                            Util::ValueType::Boolean,
                            &m_settings.disableAceCsPartialFlush,
-                           InternalSettingScope::PrivatePalGfx9Key);
-
-    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pDebugForceQueueNotWaitForIdleStr,
-                           Util::ValueType::Boolean,
-                           &m_settings.debugForceQueueNotWaitForIdle,
                            InternalSettingScope::PrivatePalGfx9Key);
 
 }
@@ -2039,11 +2033,6 @@ void SettingsLoader::InitSettingsInfo()
     info.valueSize = sizeof(m_settings.disableAceCsPartialFlush);
     m_settingsInfoMap.Insert(4181362005, info);
 
-    info.type      = SettingType::Boolean;
-    info.pValuePtr = &m_settings.debugForceQueueNotWaitForIdle;
-    info.valueSize = sizeof(m_settings.debugForceQueueNotWaitForIdle);
-    m_settingsInfoMap.Insert(1444246659, info);
-
 }
 
 // =====================================================================================================================
@@ -2065,7 +2054,7 @@ void SettingsLoader::DevDriverRegister()
             component.pfnSetValue = ISettingsLoader::SetValue;
             component.pSettingsData = &g_gfx9PalJsonData[0];
             component.settingsDataSize = sizeof(g_gfx9PalJsonData);
-            component.settingsDataHash = 812996339;
+            component.settingsDataHash = 3740655254;
             component.settingsDataHeader.isEncoded = true;
             component.settingsDataHeader.magicBufferId = 402778310;
             component.settingsDataHeader.magicBufferOffset = 0;

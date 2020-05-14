@@ -131,6 +131,7 @@ endif()
 # set by PAL, mark_as_advanced is used to hide them from the CMake GUI.
 
 # ADDRLIB
+set(ADDR_ENABLE_LTO OFF ${ENABLE_LTO})
 set(PAL_ADDR_PATH ${PROJECT_SOURCE_DIR}/src/core/imported/addrlib CACHE PATH "Specify the path to the ADDRLIB project.")
 set(ADDR_OPTIONS_MARK_ADVANCED ON)
 
@@ -175,6 +176,7 @@ set(PAL_METROHASH_PATH ${PROJECT_SOURCE_DIR}/src/util/imported/metrohash CACHE P
 set(PAL_CWPACK_PATH ${PROJECT_SOURCE_DIR}/src/util/imported/cwpack CACHE PATH "Specify the path to the CWPack project.")
 
 # VAM
+set(VAM_ENABLE_LTO ${ENABLE_LTO})
 set(PAL_VAM_PATH ${PROJECT_SOURCE_DIR}/src/core/imported/vam CACHE PATH "Specify the path to the VAM project.")
 
 # GPUOPEN

@@ -665,6 +665,8 @@ public:
 
     virtual void InitAddrLibChipId(ADDR_CREATE_INPUT*  pInput) const;
 
+    static const MsaaQuadSamplePattern DefaultSamplePattern[];
+
 protected:
     uint32 GetCuEnableMaskInternal(uint32 disabledCuMmask, uint32 enabledCuMaskSetting) const;
 

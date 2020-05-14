@@ -213,7 +213,7 @@ enum GpuHeap : uint32
 
 /// Comparison function determines how a pass/fail condition is determined between two values.  For depth/stencil
 /// comparison, the first value comes from source data and the second value comes from destination data.
-enum class CompareFunc : uint32
+enum class CompareFunc : uint8
 {
     Never        = 0x0,
     Less         = 0x1,

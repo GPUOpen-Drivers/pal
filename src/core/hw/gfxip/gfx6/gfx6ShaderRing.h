@@ -96,10 +96,8 @@ protected:
     virtual void UpdateSrds() const override;
 
 private:
-    const PM4ShaderType     m_shaderType;
-
-    static constexpr uint32 MaxScratchWavesPerCu = 32;
-    uint32                  m_numTotalCus;
+    const PM4ShaderType m_shaderType;
+    uint32              m_numTotalCus;
 
     PAL_DISALLOW_DEFAULT_CTOR(ScratchRing);
     PAL_DISALLOW_COPY_AND_ASSIGN(ScratchRing);

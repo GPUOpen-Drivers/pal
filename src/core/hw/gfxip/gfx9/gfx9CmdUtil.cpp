@@ -357,8 +357,8 @@ CmdUtil::CmdUtil(
             m_registerInfo.mmDbDepthInfo                    = Nv10::mmDB_RESERVED_REG_2;
             m_registerInfo.mmAtcPerfResultCntl              = Gfx101::mmATC_PERFCOUNTER_RSLT_CNTL;
             m_registerInfo.mmAtcL2PerfResultCntl            = Gfx101::mmGC_ATC_L2_PERFCOUNTER_RSLT_CNTL;
-            m_registerInfo.mmDbDfsmControl                  = Gfx10Core::mmDB_DFSM_CONTROL;
-            m_registerInfo.mmRpbPerfResultCntl              = Gfx10Core::mmRPB_PERFCOUNTER_RSLT_CNTL;
+            m_registerInfo.mmDbDfsmControl                  = Gfx10CorePlus::mmDB_DFSM_CONTROL;
+            m_registerInfo.mmRpbPerfResultCntl              = Gfx10CorePlus::mmRPB_PERFCOUNTER_RSLT_CNTL;
 
         }
         else
@@ -366,27 +366,27 @@ CmdUtil::CmdUtil(
             PAL_ASSERT_ALWAYS();
         }
 
-        m_registerInfo.mmRlcPerfmonClkCntl              = Gfx10::mmRLC_PERFMON_CLK_CNTL;
-        m_registerInfo.mmRlcSpmGlobalMuxselAddr         = Gfx10::mmRLC_SPM_GLOBAL_MUXSEL_ADDR;
-        m_registerInfo.mmRlcSpmGlobalMuxselData         = Gfx10::mmRLC_SPM_GLOBAL_MUXSEL_DATA;
-        m_registerInfo.mmRlcSpmSeMuxselAddr             = Gfx10::mmRLC_SPM_SE_MUXSEL_ADDR;
-        m_registerInfo.mmRlcSpmSeMuxselData             = Gfx10::mmRLC_SPM_SE_MUXSEL_DATA;
-        m_registerInfo.mmMcVmL2PerfResultCntl           = Gfx10::mmGCMC_VM_L2_PERFCOUNTER_RSLT_CNTL;
-        m_registerInfo.mmVgtGsMaxPrimsPerSubGroup       = Gfx10::mmGE_MAX_OUTPUT_PER_SUBGROUP;
-        m_registerInfo.mmComputeShaderChksum            = Gfx10::mmCOMPUTE_SHADER_CHKSUM;
-        m_registerInfo.mmPaStereoCntl                   = Gfx10::mmPA_STEREO_CNTL;
-        m_registerInfo.mmPaStateStereoX                 = Gfx10::mmPA_STATE_STEREO_X;
+        m_registerInfo.mmRlcPerfmonClkCntl              = Gfx10Plus::mmRLC_PERFMON_CLK_CNTL;
+        m_registerInfo.mmRlcSpmGlobalMuxselAddr         = Gfx10Plus::mmRLC_SPM_GLOBAL_MUXSEL_ADDR;
+        m_registerInfo.mmRlcSpmGlobalMuxselData         = Gfx10Plus::mmRLC_SPM_GLOBAL_MUXSEL_DATA;
+        m_registerInfo.mmRlcSpmSeMuxselAddr             = Gfx10Plus::mmRLC_SPM_SE_MUXSEL_ADDR;
+        m_registerInfo.mmRlcSpmSeMuxselData             = Gfx10Plus::mmRLC_SPM_SE_MUXSEL_DATA;
+        m_registerInfo.mmMcVmL2PerfResultCntl           = Gfx10Plus::mmGCMC_VM_L2_PERFCOUNTER_RSLT_CNTL;
+        m_registerInfo.mmVgtGsMaxPrimsPerSubGroup       = Gfx10Plus::mmGE_MAX_OUTPUT_PER_SUBGROUP;
+        m_registerInfo.mmComputeShaderChksum            = Gfx10Plus::mmCOMPUTE_SHADER_CHKSUM;
+        m_registerInfo.mmPaStereoCntl                   = Gfx10Plus::mmPA_STEREO_CNTL;
+        m_registerInfo.mmPaStateStereoX                 = Gfx10Plus::mmPA_STATE_STEREO_X;
 
         // GFX10 provides a "PGM_{LO,HI}_ES_GS" and a "PGM_{LO,HI}_LS_HS" register that you would think is
         // what you want to use for the merged shader stages.  You'd be wrong.  According to
         // Those registers are for internal use only.
-        m_registerInfo.mmSpiShaderPgmLoLs = Gfx10::mmSPI_SHADER_PGM_LO_LS;
-        m_registerInfo.mmSpiShaderPgmLoEs = Gfx10::mmSPI_SHADER_PGM_LO_ES;
+        m_registerInfo.mmSpiShaderPgmLoLs = Gfx10Plus::mmSPI_SHADER_PGM_LO_LS;
+        m_registerInfo.mmSpiShaderPgmLoEs = Gfx10Plus::mmSPI_SHADER_PGM_LO_ES;
 
         // The "LS" and "ES" user-data registers (that GFX9 utilizes) do exist on GFX10, but they are only
         // meaningful in non-GEN-TWO mode.  We get 32 of these which is what we want.
-        m_registerInfo.mmUserDataStartHsShaderStage = Gfx10::mmSPI_SHADER_USER_DATA_HS_0;
-        m_registerInfo.mmUserDataStartGsShaderStage = Gfx10::mmSPI_SHADER_USER_DATA_GS_0;
+        m_registerInfo.mmUserDataStartHsShaderStage = Gfx10Plus::mmSPI_SHADER_USER_DATA_HS_0;
+        m_registerInfo.mmUserDataStartGsShaderStage = Gfx10Plus::mmSPI_SHADER_USER_DATA_GS_0;
     }
 }
 
@@ -794,7 +794,7 @@ size_t CmdUtil::BuildAtomicMem(
                     static_cast<uint32>(cache_policy__mec_atomic_mem__stream))),
                   "Atomic Mem cache policy enum is different between ME and MEC!");
 
-    static_assert(((static_cast<uint32>(cache_policy__me_atomic_mem__noa__GFX10PLUS) ==
+    static_assert(((static_cast<uint32>(cache_policy__me_atomic_mem__noa__GFX10PLUS)    ==
                     static_cast<uint32>(cache_policy__mec_atomic_mem__noa__GFX10PLUS))  &&
                    (static_cast<uint32>(cache_policy__me_atomic_mem__bypass__GFX10PLUS) ==
                     static_cast<uint32>(cache_policy__mec_atomic_mem__bypass__GFX10PLUS))),
@@ -1194,10 +1194,10 @@ size_t CmdUtil::BuildDispatchDirect(
     dispatchInitiator.bits.COMPUTE_SHADER_EN     = 1;
     dispatchInitiator.bits.FORCE_START_AT_000    = forceStartAt000;
     dispatchInitiator.bits.USE_THREAD_DIMENSIONS = dimInThreads;
-    dispatchInitiator.gfx10.CS_W32_EN            = isWave32;
-    if (IsGfx10(m_gfxIpLevel))
+    dispatchInitiator.gfx10Plus.CS_W32_EN        = isWave32;
+    if (IsGfx10Plus(m_gfxIpLevel))
     {
-        dispatchInitiator.gfx10.TUNNEL_ENABLE    = useTunneling;
+        dispatchInitiator.gfx10Plus.TUNNEL_ENABLE    = useTunneling;
     }
 
     // Set unordered mode to allow waves launch faster. This bit is related to the QoS (Quality of service) feature and
@@ -1264,7 +1264,7 @@ size_t CmdUtil::BuildDispatchIndirectGfx(
     dispatchInitiator.u32All                   = 0;
     dispatchInitiator.bits.COMPUTE_SHADER_EN   = 1;
     dispatchInitiator.bits.FORCE_START_AT_000  = 1;
-    dispatchInitiator.gfx10.CS_W32_EN          = isWave32;
+    dispatchInitiator.gfx10Plus.CS_W32_EN      = isWave32;
 
     constexpr uint32 PacketSize = (sizeof(PM4_ME_DISPATCH_INDIRECT) / sizeof(uint32));
     auto*const       pPacket    = static_cast<PM4_ME_DISPATCH_INDIRECT*>(pBuffer);
@@ -1297,10 +1297,10 @@ size_t CmdUtil::BuildDispatchIndirectMec(
     dispatchInitiator.bits.COMPUTE_SHADER_EN   = 1;
     dispatchInitiator.bits.FORCE_START_AT_000  = 1;
     dispatchInitiator.bits.ORDER_MODE          = 1;
-    dispatchInitiator.gfx10.CS_W32_EN          = isWave32;
-    if (IsGfx10(m_gfxIpLevel))
+    dispatchInitiator.gfx10Plus.CS_W32_EN      = isWave32;
+    if (IsGfx10Plus(m_gfxIpLevel))
     {
-        dispatchInitiator.gfx10.TUNNEL_ENABLE  = useTunneling;
+        dispatchInitiator.gfx10Plus.TUNNEL_ENABLE  = useTunneling;
     }
 
     pPacket->header.u32All      = Type3Header(IT_DISPATCH_INDIRECT, PacketSize);
@@ -1694,7 +1694,7 @@ size_t CmdUtil::BuildNonSampleEventWrite(
           static_cast<uint32>(event_index__me_event_write__other))                  &&
          (static_cast<uint32>(event_index__mec_event_write__cs_partial_flush)       ==
           static_cast<uint32>(event_index__me_event_write__cs_vs_ps_partial_flush)) &&
-         (static_cast<uint32>(event_index__mec_event_write__sample_pipelinestat)   ==
+         (static_cast<uint32>(event_index__mec_event_write__sample_pipelinestat)    ==
           static_cast<uint32>(event_index__me_event_write__sample_pipelinestat))),
         "event index enumerations don't match between gfx and compute!");
 
@@ -1755,7 +1755,7 @@ size_t CmdUtil::BuildSampleEventWrite(
           static_cast<uint32>(event_index__me_event_write__other))                  &&
          (static_cast<uint32>(event_index__mec_event_write__cs_partial_flush)       ==
           static_cast<uint32>(event_index__me_event_write__cs_vs_ps_partial_flush)) &&
-         (static_cast<uint32>(event_index__mec_event_write__sample_pipelinestat)   ==
+         (static_cast<uint32>(event_index__mec_event_write__sample_pipelinestat)    ==
           static_cast<uint32>(event_index__me_event_write__sample_pipelinestat))),
         "event index enumerations don't match between gfx and compute!");
 
@@ -2129,13 +2129,13 @@ size_t CmdUtil::BuildPrimeUtcL2(
                    (static_cast<uint32>(cache_perm__pfp_prime_utcl2__read)                  ==
                     static_cast<uint32>(cache_perm__mec_prime_utcl2__read))                 &&
                    (static_cast<uint32>(cache_perm__pfp_prime_utcl2__read)                  ==
-                    static_cast<uint32>(cache_perm__ce_prime_utcl2__read__HASCE))  &&
+                    static_cast<uint32>(cache_perm__ce_prime_utcl2__read__HASCE))           &&
                    (static_cast<uint32>(cache_perm__pfp_prime_utcl2__write)                 ==
                     static_cast<uint32>(cache_perm__me_prime_utcl2__write__GFX09))          &&
                    (static_cast<uint32>(cache_perm__pfp_prime_utcl2__write)                 ==
                     static_cast<uint32>(cache_perm__mec_prime_utcl2__write))                &&
                    (static_cast<uint32>(cache_perm__pfp_prime_utcl2__write)                 ==
-                    static_cast<uint32>(cache_perm__ce_prime_utcl2__write__HASCE)) &&
+                    static_cast<uint32>(cache_perm__ce_prime_utcl2__write__HASCE))          &&
                    (static_cast<uint32>(cache_perm__pfp_prime_utcl2__execute)               ==
                     static_cast<uint32>(cache_perm__me_prime_utcl2__execute__GFX09))        &&
                    (static_cast<uint32>(cache_perm__pfp_prime_utcl2__execute)               ==
@@ -2149,7 +2149,7 @@ size_t CmdUtil::BuildPrimeUtcL2(
                    (static_cast<uint32>(prime_mode__pfp_prime_utcl2__dont_wait_for_xack)                 ==
                     static_cast<uint32>(prime_mode__mec_prime_utcl2__dont_wait_for_xack))                &&
                    (static_cast<uint32>(prime_mode__pfp_prime_utcl2__dont_wait_for_xack)                 ==
-                    static_cast<uint32>(prime_mode__ce_prime_utcl2__dont_wait_for_xack__HASCE)) &&
+                    static_cast<uint32>(prime_mode__ce_prime_utcl2__dont_wait_for_xack__HASCE))          &&
                    (static_cast<uint32>(prime_mode__pfp_prime_utcl2__wait_for_xack)                      ==
                     static_cast<uint32>(prime_mode__me_prime_utcl2__wait_for_xack__GFX09))               &&
                    (static_cast<uint32>(prime_mode__pfp_prime_utcl2__wait_for_xack)                      ==
@@ -3121,11 +3121,11 @@ size_t CmdUtil::BuildSetSeqConfigRegs(
             // uconfig-index packet.  This uses a different enumeration.  Verify that the "old" and "new"
             // enumerations match.
             static_assert(((static_cast<uint32>(index__pfp_set_uconfig_reg_index__prim_type__GFX09)       ==
-                            static_cast<uint32>(index__pfp_set_uconfig_reg__prim_type__GFX09))       &&
+                            static_cast<uint32>(index__pfp_set_uconfig_reg__prim_type__GFX09))            &&
                            (static_cast<uint32>(index__pfp_set_uconfig_reg_index__index_type)             ==
-                            static_cast<uint32>(index__pfp_set_uconfig_reg__index_type__GFX09))      &&
+                            static_cast<uint32>(index__pfp_set_uconfig_reg__index_type__GFX09))           &&
                            (static_cast<uint32>(index__pfp_set_uconfig_reg_index__num_instances)          ==
-                            static_cast<uint32>(index__pfp_set_uconfig_reg__num_instances__GFX09))   &&
+                            static_cast<uint32>(index__pfp_set_uconfig_reg__num_instances__GFX09))        &&
                            (static_cast<uint32>(index__pfp_set_uconfig_reg_index__multi_vgt_param__GFX09) ==
                             static_cast<uint32>(index__pfp_set_uconfig_reg__multi_vgt_param__GFX09))),
                           "uconfig index enumerations have changed across old and new packets!");

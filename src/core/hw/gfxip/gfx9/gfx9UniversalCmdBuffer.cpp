@@ -630,7 +630,7 @@ void UniversalCmdBuffer::ResetState()
     // For IndexBuffers - default to STREAM cache policy so that they get evicted from L2 as soon as possible.
     if (IsGfx10(m_gfxIpLevel))
     {
-        m_vgtDmaIndexType.gfx10.RDREQ_POLICY = VGT_POLICY_STREAM;
+        m_vgtDmaIndexType.gfx10Plus.RDREQ_POLICY = VGT_POLICY_STREAM;
 
         const uint32 cbDbCachePolicy = m_device.Settings().cbDbCachePolicy;
 
@@ -1032,6 +1032,7 @@ void UniversalCmdBuffer::CmdSetMsaaQuadSamplePattern(
     m_graphicsState.quadSamplePatternState                           = quadSamplePattern;
     m_graphicsState.numSamplesPerPixel                               = numSamplesPerPixel;
     m_graphicsState.dirtyFlags.validationBits.quadSamplePatternState = 1;
+    m_nggState.flags.dirty.quadSamplePatternState                    = 1;
 
     // MsaaQuadSamplePattern owns MAX_SAMPLE_DIST
     m_paScAaConfigNew.bits.MAX_SAMPLE_DIST = MsaaState::ComputeMaxSampleDistance(numSamplesPerPixel, quadSamplePattern);
@@ -1121,16 +1122,22 @@ void UniversalCmdBuffer::CmdBindMsaaState(
         pDeCmdSpace = pNewState->WriteCommands(&m_deCmdStream, pDeCmdSpace);
         m_deCmdStream.CommitCommands(pDeCmdSpace);
 
-        m_nggState.numSamples = pNewState->NumSamples();
-
         // MSAA State owns MSAA_EXPOSED_SAMPLES and AA_MASK_CENTROID_DTMN
         m_paScAaConfigNew.u32All = ((m_paScAaConfigNew.u32All         & (~MsaaState::PcScAaConfigMask)) |
                                     (pNewState->PaScAaConfig().u32All &   MsaaState::PcScAaConfigMask));
+
+        // NGG state updates
+        m_nggState.numSamples = pNewState->NumSamples();
+        m_state.primShaderCbLayout.renderStateCb.enableConservativeRasterization =
+            pNewState->ConservativeRasterizationEnabled();
     }
     else
     {
-        m_nggState.numSamples    = 1;
         m_paScAaConfigNew.u32All = (m_paScAaConfigNew.u32All & (~MsaaState::PcScAaConfigMask));
+
+        // NGG state updates
+        m_nggState.numSamples = 1;
+        m_state.primShaderCbLayout.renderStateCb.enableConservativeRasterization = 0;
     }
 
     m_graphicsState.pMsaaState                          = pNewState;
@@ -1738,7 +1745,7 @@ void UniversalCmdBuffer::CmdBindTargets(
             m_cbRmiGl2CacheControl.bits.FMASK_BIG_PAGE = fmaskBigPage;
         }
 
-        pDeCmdSpace = m_deCmdStream.WriteSetOneContextReg(Gfx10::mmCB_RMI_GL2_CACHE_CONTROL,
+        pDeCmdSpace = m_deCmdStream.WriteSetOneContextReg(Gfx10Plus::mmCB_RMI_GL2_CACHE_CONTROL,
                                                           m_cbRmiGl2CacheControl.u32All,
                                                           pDeCmdSpace);
     }
@@ -3070,8 +3077,8 @@ uint32* UniversalCmdBuffer::WriteNullDepthTarget(
     }
     else if (IsGfx10(m_gfxIpLevel))
     {
-        pCmdSpace = m_deCmdStream.WriteSetSeqContextRegs(Gfx10::mmDB_Z_INFO,
-                                                         Gfx10::mmDB_STENCIL_INFO,
+        pCmdSpace = m_deCmdStream.WriteSetSeqContextRegs(Gfx10Plus::mmDB_Z_INFO,
+                                                         Gfx10Plus::mmDB_STENCIL_INFO,
                                                          &regs2,
                                                          pCmdSpace);
 
@@ -4840,31 +4847,40 @@ uint32* UniversalCmdBuffer::UpdateNggCullingDataBufferWithCpu(
         Abi::PrimShaderCbLayout  localShaderLayout;
         memcpy(&localShaderLayout, &m_state.primShaderCbLayout, sizeof(uint32) * NggStateDwords);
 
-        if ((m_nggState.flags.dirty.viewports || m_nggState.flags.dirty.msaaState) && (m_nggState.numSamples > 1))
+        if ((m_nggState.flags.dirty.viewports ||
+             m_nggState.flags.dirty.msaaState ||
+             m_nggState.flags.dirty.quadSamplePatternState) &&
+             (m_nggState.numSamples > 0))
         {
+            // If the clients have specified a default sample layout we can use the number of samples as a multiplier.
+            // However, if custom sample positions are in use we need to assume the worst case sample count (16).
+            const MsaaQuadSamplePattern& defaultSamplePattern =
+                GfxDevice::DefaultSamplePattern[Log2(m_nggState.numSamples)];
+            const float multiplier =
+                (memcmp(&m_graphicsState.quadSamplePatternState,
+                        &defaultSamplePattern,
+                        sizeof(MsaaQuadSamplePattern)) == 0) ? static_cast<float>(m_nggState.numSamples) : 16.0f;
+
             // For small-primitive filter culling with NGG, the shader needs the viewport scale to premultiply
             // the number of samples into it.
             Abi::PrimShaderVportCb*  pVportCb = &localShaderLayout.viewportStateCb;
             Uint32ToFloat uintToFloat = {};
-
-            constexpr float Multiplier = 16.0f;
-
             for (uint32 i = 0; i < m_graphicsState.viewportState.count; i++)
             {
                 uintToFloat.uValue  = pVportCb->vportControls[i].paClVportXscale;
-                uintToFloat.fValue *= Multiplier;
+                uintToFloat.fValue *= multiplier;
                 pVportCb->vportControls[i].paClVportXscale = uintToFloat.uValue;
 
                 uintToFloat.uValue  = pVportCb->vportControls[i].paClVportXoffset;
-                uintToFloat.fValue *= Multiplier;
+                uintToFloat.fValue *= multiplier;
                 pVportCb->vportControls[i].paClVportXoffset = uintToFloat.uValue;
 
                 uintToFloat.uValue  = pVportCb->vportControls[i].paClVportYscale;
-                uintToFloat.fValue *= Multiplier;
+                uintToFloat.fValue *= multiplier;
                 pVportCb->vportControls[i].paClVportYscale = uintToFloat.uValue;
 
                 uintToFloat.uValue  = pVportCb->vportControls[i].paClVportYoffset;
-                uintToFloat.fValue *= Multiplier;
+                uintToFloat.fValue *= multiplier;
                 pVportCb->vportControls[i].paClVportYoffset = uintToFloat.uValue;
             }
         }
@@ -4916,7 +4932,7 @@ uint32* UniversalCmdBuffer::UpdateNggCullingDataBufferWithGpu(
 
         uint32* pCeCmdSpace = m_ceCmdStream.ReserveCommands();
 
-        if (m_nggState.flags.dirty.triangleRasterState)
+        if (m_nggState.flags.dirty.triangleRasterState || m_nggState.flags.dirty.msaaState)
         {
             pCeCmdSpace = UploadToUserDataTable(
                 &m_nggTable.state,
@@ -4927,33 +4943,42 @@ uint32* UniversalCmdBuffer::UpdateNggCullingDataBufferWithGpu(
                 pCeCmdSpace);
         }
 
-        if (m_nggState.flags.dirty.viewports || m_nggState.flags.dirty.msaaState)
+        if (m_nggState.flags.dirty.viewports ||
+            m_nggState.flags.dirty.msaaState ||
+            m_nggState.flags.dirty.quadSamplePatternState)
         {
             // For small-primitive filter culling with NGG, the shader needs the viewport scale to premultiply
             // the number of samples into it.
             Abi::PrimShaderVportCb vportCb = m_state.primShaderCbLayout.viewportStateCb;
             Uint32ToFloat uintToFloat = {};
 
-            if (m_nggState.numSamples > 1)
+            if (m_nggState.numSamples > 0)
             {
-                constexpr float Multiplier = 16.0f;
+                // If the clients have specified a default sample layout we can use the number of samples as a multiplier.
+                // However, if custom sample positions are in use we need to assume the worst case sample count (16).
+                const MsaaQuadSamplePattern& defaultSamplePattern =
+                    GfxDevice::DefaultSamplePattern[Log2(m_nggState.numSamples)];
+                const float multiplier =
+                    (memcmp(&m_graphicsState.quadSamplePatternState,
+                            &defaultSamplePattern,
+                            sizeof(MsaaQuadSamplePattern)) == 0) ? static_cast<float>(m_nggState.numSamples) : 16.0f;
 
                 for (uint32 i = 0; i < m_graphicsState.viewportState.count; i++)
                 {
                     uintToFloat.uValue  = vportCb.vportControls[i].paClVportXscale;
-                    uintToFloat.fValue *= Multiplier;
+                    uintToFloat.fValue *= multiplier;
                     vportCb.vportControls[i].paClVportXscale = uintToFloat.uValue;
 
                     uintToFloat.uValue  = vportCb.vportControls[i].paClVportXoffset;
-                    uintToFloat.fValue *= Multiplier;
+                    uintToFloat.fValue *= multiplier;
                     vportCb.vportControls[i].paClVportXoffset = uintToFloat.uValue;
 
                     uintToFloat.uValue  = vportCb.vportControls[i].paClVportYscale;
-                    uintToFloat.fValue *= Multiplier;
+                    uintToFloat.fValue *= multiplier;
                     vportCb.vportControls[i].paClVportYscale = uintToFloat.uValue;
 
                     uintToFloat.uValue  = vportCb.vportControls[i].paClVportYoffset;
-                    uintToFloat.fValue *= Multiplier;
+                    uintToFloat.fValue *= multiplier;
                     vportCb.vportControls[i].paClVportYoffset = uintToFloat.uValue;
                 }
             }
@@ -5037,8 +5062,8 @@ uint32* UniversalCmdBuffer::Gfx10ValidateTriangleRasterState(
         pPipeline->IsPerpEndCapsEnabled())
     {
         pDeCmdSpace = m_deCmdStream.WriteContextRegRmw(mmPA_SU_SC_MODE_CNTL,
-                                                       Gfx10::PA_SU_SC_MODE_CNTL__KEEP_TOGETHER_ENABLE_MASK,
-                                                       Gfx10::PA_SU_SC_MODE_CNTL__KEEP_TOGETHER_ENABLE_MASK,
+                                                       Gfx10Plus::PA_SU_SC_MODE_CNTL__KEEP_TOGETHER_ENABLE_MASK,
+                                                       Gfx10Plus::PA_SU_SC_MODE_CNTL__KEEP_TOGETHER_ENABLE_MASK,
                                                        pDeCmdSpace);
     }
 
@@ -5180,7 +5205,7 @@ uint32* UniversalCmdBuffer::ValidateDraw(
             if (geCntl != m_geCntl.u32All)
             {
                 m_geCntl.u32All = geCntl;
-                pDeCmdSpace = m_deCmdStream.WriteSetOneConfigReg(Gfx10::mmGE_CNTL, geCntl, pDeCmdSpace);
+                pDeCmdSpace = m_deCmdStream.WriteSetOneConfigReg(Gfx10Plus::mmGE_CNTL, geCntl, pDeCmdSpace);
             }
         }
 
@@ -5338,10 +5363,10 @@ uint32* UniversalCmdBuffer::ValidateDraw(
     // the GFX10 register has the exact same layout as the GFX9 register to eliminate the need for run-time "if"
     // statements to verify which Gfx level the active device uses.
     static_assert(VGT_MULTI_PRIM_IB_RESET_EN__MATCH_ALL_BITS_MASK ==
-                  Gfx10::GE_MULTI_PRIM_IB_RESET_EN__MATCH_ALL_BITS_MASK,
+                  Gfx10Plus::GE_MULTI_PRIM_IB_RESET_EN__MATCH_ALL_BITS_MASK,
                   "MATCH_ALL_BITS bits are not in the same place on GFX9 and GFX10!");
     static_assert(VGT_MULTI_PRIM_IB_RESET_EN__RESET_EN_MASK ==
-                  Gfx10::GE_MULTI_PRIM_IB_RESET_EN__RESET_EN_MASK,
+                  Gfx10Plus::GE_MULTI_PRIM_IB_RESET_EN__RESET_EN_MASK,
                   "RESET_EN bits are not in the same place on GFX9 and GFX10!");
 
     regVGT_MULTI_PRIM_IB_RESET_EN vgtMultiPrimIbResetEn = {};
@@ -6515,10 +6540,19 @@ uint32 UniversalCmdBuffer::CalcGeCntl(
             (disableVertGrouping)                       ? VertGroupingDisabled :
             (m_cachedSettings.waClampGeCntlVertGrpSize) ? vgtGsOnchipCntl.bits.ES_VERTS_PER_SUBGRP - 5 :
                                                           vgtGsOnchipCntl.bits.ES_VERTS_PER_SUBGRP;
-    }
 
-    //  These numbers below come from the hardware restrictions.
-    PAL_ASSERT(isNggFastLaunch || (IsGfx101(*m_device.Parent()) == false) || (geCntl.bits.VERT_GRP_SIZE >= 24));
+        // Zero is a legal value for VERT_GRP_SIZE. Other low values are illegal.
+        if (geCntl.bits.VERT_GRP_SIZE != 0)
+        {
+            if (IsGfx101(*m_device.Parent()))
+            {
+                if (geCntl.bits.VERT_GRP_SIZE < 24)
+                {
+                    geCntl.bits.VERT_GRP_SIZE = 24;
+                }
+            }
+        }
+    }
 
     // Only used for line-stipple
     geCntl.bits.PACKET_TO_ONE_PA = usesLineStipple;
@@ -6552,7 +6586,7 @@ uint32* UniversalCmdBuffer::ValidateDrawTimeHwState(
         // GFX10 moves the RESET_EN functionality into a new register that happens to exist in the same place
         // as the GFX9 register.
         static_assert(Gfx09::mmVGT_MULTI_PRIM_IB_RESET_EN ==
-                      Gfx10::mmGE_MULTI_PRIM_IB_RESET_EN,
+                      Gfx10Plus::mmGE_MULTI_PRIM_IB_RESET_EN,
                       "MULTI_PRIM_IB_RESET_EN has moved from GFX9 to GFX10!");
 
         pDeCmdSpace = m_deCmdStream.WriteSetOneConfigReg(Gfx09::mmVGT_MULTI_PRIM_IB_RESET_EN,
@@ -6786,7 +6820,7 @@ uint32* UniversalCmdBuffer::ValidateDispatch(
     if (IsGfx10(m_gfxIpLevel))
     {
         const regCOMPUTE_DISPATCH_TUNNEL dispatchTunnel = { };
-        pDeCmdSpace = m_deCmdStream.WriteSetOneShReg<ShaderCompute>(Gfx10::mmCOMPUTE_DISPATCH_TUNNEL,
+        pDeCmdSpace = m_deCmdStream.WriteSetOneShReg<ShaderCompute>(Gfx10Plus::mmCOMPUTE_DISPATCH_TUNNEL,
                                                                     dispatchTunnel.u32All,
                                                                     pDeCmdSpace);
     }
@@ -7108,7 +7142,7 @@ uint32* UniversalCmdBuffer::UpdateDbCountControl(
 
         if (IsGfx10(m_gfxIpLevel))
         {
-            pDbCountControl->gfx10.DISABLE_CONSERVATIVE_ZPASS_COUNTS = 1;
+            pDbCountControl->gfx10Plus.DISABLE_CONSERVATIVE_ZPASS_COUNTS = 1;
         }
     }
     else

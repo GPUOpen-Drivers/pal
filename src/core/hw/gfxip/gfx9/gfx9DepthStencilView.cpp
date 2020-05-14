@@ -79,8 +79,16 @@ DepthStencilView::DepthStencilView(
     }
 
     m_flags.hiSPretests     = m_pImage->HasHiSPretestsMetaData();
-    m_flags.depth           = parent.SupportsDepth(imageInfo.swizzledFormat.format, imageInfo.tiling);
-    m_flags.stencil         = parent.SupportsStencil(imageInfo.swizzledFormat.format, imageInfo.tiling);
+    m_flags.depth           =
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 594
+                              (createInfo.flags.stencilOnlyView == 0) &&
+#endif
+                              parent.SupportsDepth(imageInfo.swizzledFormat.format, imageInfo.tiling);
+    m_flags.stencil         =
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 594
+                              (createInfo.flags.depthOnlyView == 0) &&
+#endif
+                              parent.SupportsStencil(imageInfo.swizzledFormat.format, imageInfo.tiling);
     m_flags.readOnlyDepth   = createInfo.flags.readOnlyDepth;
     m_flags.readOnlyStencil = createInfo.flags.readOnlyStencil;
     m_flags.viewVaLocked    = createInfo.flags.imageVaLocked;
@@ -250,6 +258,25 @@ void DepthStencilView::InitRegistersCommon(
     // For 4xAA and 8xAA need to decompress on flush for better performance
     pRegs->dbRenderOverride2.bits.DECOMPRESS_Z_ON_FLUSH       = (imageCreateInfo.samples > 2) ? 1 : 0;
     pRegs->dbRenderOverride2.bits.DISABLE_COLOR_ON_VALIDATION = settings.dbDisableColorOnValidation;
+
+    // From the register spec, it seems that for 16 bit unorm DB, we need to write
+    // -16 and for 24 bit unorm DB, we need to write - 24 to POLY_OFFSET_NEG_NUM_DB_BITS
+    //
+    // based on a set of local tests, my observation is:
+    // for unorm depth buffer, e.g. 24bit unorm, HW uses rounding after applying float to
+    // 24bit unorm convertion  where the fomula should be u = round(f * (2^24 - 1))
+    //
+    // for the polygon offset unit value, opengl spec says:
+    // "It is the smallest difference in window coordinate z values that is guaranteed
+    // to remain distinct throughout polygon rasterization and in the depth buffer"
+    //
+    // so that sounds like the delta is 1/(2^24-1). If we do set register field to be -24,
+    // it seems that the HW apply a delta as 1/(2^24), which is a tiny little bit smaller than
+    // the other one. So when there is a float Z value f that can be converted by f*(2^24-1) to be x.5
+    // if we request a polygon offset unit of 1.0f, the HW will do  (f + 1/2^24)*(2^24-1) ,
+    // that will be (x+1).4999...   so when x.5 and (x+1).4999.... are both being rounded,
+    // the result are both x+1, that is, to this Z value f, the polygonoffset is not applied.
+    // this could be the reason we use -22 for 24 bit and - 15 for 16 bit depth buffer.
 
     // Setup PA_SU_POLY_OFFSET_DB_FMT_CNTL.
     if (createInfo.flags.absoluteDepthBias == 0)
@@ -713,8 +740,8 @@ void Gfx10DepthStencilView::InitRegisters(
 
     // From the reg-spec:  Indicates that compressed data must be iterated on flush every pipe interleave bytes in
     //                     order to be readable by TC
-    m_regs.dbZInfo.gfx10.ITERATE_FLUSH       = m_flags.depthMetadataTexFetch;
-    m_regs.dbStencilInfo.gfx10.ITERATE_FLUSH = m_flags.stencilMetadataTexFetch;
+    m_regs.dbZInfo.gfx10Plus.ITERATE_FLUSH       = m_flags.depthMetadataTexFetch;
+    m_regs.dbStencilInfo.gfx10Plus.ITERATE_FLUSH = m_flags.stencilMetadataTexFetch;
 
     const auto& depthAddrSettings   = m_pImage->GetAddrSettings(pDepthSubResInfo);
     const auto& stencilAddrSettings = m_pImage->GetAddrSettings(pStencilSubResInfo);
@@ -732,17 +759,17 @@ void Gfx10DepthStencilView::InitRegisters(
     m_regs.dbZInfo.bits.SW_MODE       = pAddrMgr->GetHwSwizzleMode(depthAddrSettings.swizzleMode);
     m_regs.dbStencilInfo.bits.SW_MODE = pAddrMgr->GetHwSwizzleMode(stencilAddrSettings.swizzleMode);
 
-    m_regs.dbZInfo.gfx10.FAULT_BEHAVIOR       = FAULT_ZERO;
-    m_regs.dbStencilInfo.gfx10.FAULT_BEHAVIOR = FAULT_ZERO;
+    m_regs.dbZInfo.gfx10Plus.FAULT_BEHAVIOR       = FAULT_ZERO;
+    m_regs.dbStencilInfo.gfx10Plus.FAULT_BEHAVIOR = FAULT_ZERO;
 
-    m_regs.dbZInfo.gfx10.ITERATE_256          = m_pImage->GetIterate256(pDepthSubResInfo);
-    m_regs.dbStencilInfo.gfx10.ITERATE_256    = m_pImage->GetIterate256(pStencilSubResInfo);
+    m_regs.dbZInfo.gfx10Plus.ITERATE_256          = m_pImage->GetIterate256(pDepthSubResInfo);
+    m_regs.dbStencilInfo.gfx10Plus.ITERATE_256    = m_pImage->GetIterate256(pStencilSubResInfo);
 
     PAL_ASSERT(CountSetBits(DB_DEPTH_VIEW__SLICE_START_MASK) == DbDepthViewSliceStartMaskNumBits);
     PAL_ASSERT(CountSetBits(DB_DEPTH_VIEW__SLICE_MAX_MASK)   == DbDepthViewSliceMaxMaskNumBits);
 
-    m_regs.dbDepthView.gfx10.SLICE_START_HI = createInfo.baseArraySlice >> DbDepthViewSliceStartMaskNumBits;
-    m_regs.dbDepthView.gfx10.SLICE_MAX_HI   = sliceMax >> DbDepthViewSliceMaxMaskNumBits;
+    m_regs.dbDepthView.gfx10Plus.SLICE_START_HI = createInfo.baseArraySlice >> DbDepthViewSliceStartMaskNumBits;
+    m_regs.dbDepthView.gfx10Plus.SLICE_MAX_HI   = sliceMax >> DbDepthViewSliceMaxMaskNumBits;
 
     const uint32 cbDbCachePolicy = settings.cbDbCachePolicy;
 
@@ -776,7 +803,7 @@ uint32* Gfx10DepthStencilView::WriteCommands(
     pCmdSpace = WriteCommandsCommon(depthLayout, stencilLayout, pCmdStream, pCmdSpace, &regs);
 
     pCmdSpace = pCmdStream->WriteSetOneContextReg(mmDB_RENDER_CONTROL, regs.dbRenderControl.u32All, pCmdSpace);
-    pCmdSpace = pCmdStream->WriteSetOneContextReg(Gfx10::mmDB_RMI_L2_CACHE_CONTROL,
+    pCmdSpace = pCmdStream->WriteSetOneContextReg(Gfx10Plus::mmDB_RMI_L2_CACHE_CONTROL,
                                                   regs.dbRmiL2CacheControl.u32All,
                                                   pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetOneContextReg(mmDB_DEPTH_VIEW, regs.dbDepthView.u32All, pCmdSpace);
@@ -784,9 +811,9 @@ uint32* Gfx10DepthStencilView::WriteCommands(
                                                    mmDB_HTILE_DATA_BASE,
                                                    &regs.dbRenderOverride2,
                                                    pCmdSpace);
-    pCmdSpace = pCmdStream->WriteSetOneContextReg(Gfx10::mmDB_DEPTH_SIZE_XY, regs.dbDepthSizeXy.u32All, pCmdSpace);
-    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(Gfx10::mmDB_Z_INFO,
-                                                   Gfx10::mmDB_STENCIL_WRITE_BASE,
+    pCmdSpace = pCmdStream->WriteSetOneContextReg(Gfx10Plus::mmDB_DEPTH_SIZE_XY, regs.dbDepthSizeXy.u32All, pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(Gfx10Plus::mmDB_Z_INFO,
+                                                   Gfx10Plus::mmDB_STENCIL_WRITE_BASE,
                                                    &regs.dbZInfo,
                                                    pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetOneContextReg(mmDB_HTILE_SURFACE, regs.dbHtileSurface.u32All, pCmdSpace);

@@ -1430,14 +1430,15 @@ Result Image::ComputePipeBankXor(
             }
             else if ((aspect == ImageAspect::Depth) || (aspect == ImageAspect::Stencil))
             {
-                // If the aspect is Depth or Stencil, but "numPlanes" is only 1, using the given pipe/bank xor value.
                 if (m_pImageInfo->numPlanes == 1)
                 {
+                    // If the aspect is Depth or Stencil, but "numPlanes" is only 1, using the given pipe/bank xor value.
                     *pPipeBankXor = m_pImageInfo->internalCreateInfo.gfx9.sharedPipeBankXor;
                 }
                 else
                 {
-                    PAL_NOT_IMPLEMENTED();
+                    // If the image is shareable and has multiple aspects, don't support swizzle for that image.
+                    *pPipeBankXor = 0;
                 }
             }
             else
@@ -2404,6 +2405,29 @@ gpusize Image::GetWaTcCompatZRangeMetaDataAddr(
 }
 
 // =====================================================================================================================
+// Returns the offset relative to the bound GPU memory of the waTcCompatZRange metadata for the specified mip level.
+gpusize Image::WaTcCompatZRangeMetaDataOffset(
+    uint32 mipLevel
+    ) const
+{
+    PAL_ASSERT(HasWaTcCompatZRangeMetaData());
+
+    return Parent()->GetBoundGpuMemory().Offset() + m_waTcCompatZRangeMetaDataOffset +
+           (m_waTcCompatZRangeMetaDataSizePerMip * mipLevel);
+}
+
+// =====================================================================================================================
+// Returns the GPU memory size of the waTcCompatZRange metadata for the specified num mips.
+gpusize Image::WaTcCompatZRangeMetaDataSize(
+    uint32 numMips
+    ) const
+{
+    PAL_ASSERT(HasWaTcCompatZRangeMetaData());
+
+    return (m_waTcCompatZRangeMetaDataSizePerMip * numMips);
+}
+
+// =====================================================================================================================
 // Builds PM4 commands into the command buffer which will update this Image's meta-data to reflect the updated
 // HiSPretests values. Returns the next unused DWORD in pCmdSpace.
 uint32* Image::UpdateHiSPretestsMetaData(
@@ -3031,7 +3055,8 @@ void Image::InitMetadataFill(
 {
     PAL_ASSERT(Parent()->IsFullSubResRange(range));
 
-    const auto&  gpuMemObj = *Parent()->GetBoundGpuMemory().Memory();
+    const auto& gpuMemObj = *Parent()->GetBoundGpuMemory().Memory();
+    const auto  boundGpuMemOffset = Parent()->GetBoundGpuMemory().Offset();
 
     // DMA has to use this path for all maskrams; other queue types have fall-backs.
     const uint32  fullRangeInitMask = (pCmdBuffer->GetEngineType() == EngineTypeDma) ? UINT_MAX :
@@ -3043,7 +3068,7 @@ void Image::InitMetadataFill(
 
         // This will initialize both the depth and stencil aspects simultaneously.  They share hTile data,
         // so it isn't practical to init them separately anyway
-        pCmdBuffer->CmdFillMemory(gpuMemObj, m_pHtile->MemoryOffset(), m_pHtile->TotalSize(), initValue);
+        pCmdBuffer->CmdFillMemory(gpuMemObj, m_pHtile->MemoryOffset() + boundGpuMemOffset, m_pHtile->TotalSize(), initValue);
 
         m_pHtile->UploadEq(pCmdBuffer);
     }
@@ -3061,7 +3086,7 @@ void Image::InitMetadataFill(
                 const ImageAspect  aspect = GetAspectFromPlane(planeIdx);
                 const Gfx9Dcc*     pDcc   = GetDcc(aspect);
 
-                pCmdBuffer->CmdFillMemory(gpuMemObj, pDcc->MemoryOffset(), pDcc->TotalSize(), DccInitValue);
+                pCmdBuffer->CmdFillMemory(gpuMemObj, pDcc->MemoryOffset() + boundGpuMemOffset, pDcc->TotalSize(), DccInitValue);
 
                 pDcc->UploadEq(pCmdBuffer);
             }
@@ -3075,7 +3100,7 @@ void Image::InitMetadataFill(
                                                static_cast<uint32>(Gfx9Cmask::InitialValue <<  8) |
                                                static_cast<uint32>(Gfx9Cmask::InitialValue <<  0));
 
-            pCmdBuffer->CmdFillMemory(gpuMemObj, m_pCmask->MemoryOffset(), m_pCmask->TotalSize(), CmaskInitValue);
+            pCmdBuffer->CmdFillMemory(gpuMemObj, m_pCmask->MemoryOffset() + boundGpuMemOffset, m_pCmask->TotalSize(), CmaskInitValue);
             m_pCmask->UploadEq(pCmdBuffer);
 
             pCmdBuffer->CmdFillMemory(gpuMemObj,
@@ -3102,6 +3127,14 @@ void Image::InitMetadataFill(
         pCmdBuffer->CmdFillMemory(gpuMemObj,
                                   HiSPretestsMetaDataOffset(range.startSubres.mipLevel),
                                   HiSPretestsMetaDataSize(range.numMips),
+                                  0);
+    }
+
+    if (HasWaTcCompatZRangeMetaData() && (range.startSubres.aspect == ImageAspect::Depth))
+    {
+        pCmdBuffer->CmdFillMemory(gpuMemObj,
+                                  WaTcCompatZRangeMetaDataOffset(range.startSubres.mipLevel),
+                                  WaTcCompatZRangeMetaDataSize(range.numMips),
                                   0);
     }
 }

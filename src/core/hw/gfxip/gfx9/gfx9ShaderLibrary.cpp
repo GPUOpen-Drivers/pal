@@ -250,6 +250,7 @@ Result ShaderLibrary::GetShaderFunctionStats(
     pShaderStats->common.ldsUsageSizeInBytes   = m_hwInfo.libRegs.computePgmRsrc2.bits.LDS_SIZE;
     pShaderStats->palInternalLibraryHash       = m_info.internalLibraryHash;
     pShaderStats->common.ldsSizePerThreadGroup = chipProps.gfxip.ldsSizePerThreadGroup;
+    pShaderStats->common.flags.isWave32        = m_hwInfo.flags.isWave32;
 
     // We can re-parse the saved pipeline ELF binary to extract shader statistics.
     AbiReader abiReader(m_pDevice->GetPlatform(), m_pCodeObjectBinary);

@@ -147,12 +147,12 @@ void PipelineChunkCs::LateInit(
     m_regs.computeNumThreadY.u32All       = registers.At(mmCOMPUTE_NUM_THREAD_Y);
     m_regs.computeNumThreadZ.u32All       = registers.At(mmCOMPUTE_NUM_THREAD_Z);
 
-    if (IsGfx10(chipProps.gfxLevel))
+    if (IsGfx10Plus(chipProps.gfxLevel))
     {
-        m_regs.computePgmRsrc3.u32All = registers.At(Gfx10::mmCOMPUTE_PGM_RSRC3);
+        m_regs.computePgmRsrc3.u32All = registers.At(Gfx10Plus::mmCOMPUTE_PGM_RSRC3);
 
 #if PAL_ENABLE_PRINTS_ASSERTS
-        m_device.AssertUserAccumRegsDisabled(registers, Gfx10::mmCOMPUTE_USER_ACCUM_0);
+        m_device.AssertUserAccumRegsDisabled(registers, Gfx10Plus::mmCOMPUTE_USER_ACCUM_0);
 #endif
     }
 
@@ -181,9 +181,9 @@ void PipelineChunkCs::LateInit(
         pUploader->AddShReg(mmCOMPUTE_NUM_THREAD_Y, m_regs.computeNumThreadY);
         pUploader->AddShReg(mmCOMPUTE_NUM_THREAD_Z, m_regs.computeNumThreadZ);
 
-        if (IsGfx10(chipProps.gfxLevel))
+        if (IsGfx10Plus(chipProps.gfxLevel))
         {
-            pUploader->AddShReg(Gfx10::mmCOMPUTE_PGM_RSRC3, m_regs.computePgmRsrc3);
+            pUploader->AddShReg(Gfx10Plus::mmCOMPUTE_PGM_RSRC3, m_regs.computePgmRsrc3);
         }
 
         if (chipProps.gfx9.supportSpp != 0)
@@ -480,9 +480,9 @@ uint32* PipelineChunkCs::WriteShCommandsSetPath(
                                                                 pCmdSpace);
     }
 
-    if (IsGfx10(chipProps.gfxLevel))
+    if (IsGfx10Plus(chipProps.gfxLevel))
     {
-        pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderCompute>(Gfx10::mmCOMPUTE_PGM_RSRC3,
+        pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderCompute>(Gfx10Plus::mmCOMPUTE_PGM_RSRC3,
                                                                 m_regs.computePgmRsrc3.u32All,
                                                                 pCmdSpace);
     }
@@ -541,9 +541,9 @@ void LibraryChunkCs::LateInit(
     m_regs.computePgmRsrc1.u32All         = registers.At(mmCOMPUTE_PGM_RSRC1);
     m_regs.dynamic.computePgmRsrc2.u32All = registers.At(mmCOMPUTE_PGM_RSRC2);
 
-    if (IsGfx10(chipProps.gfxLevel))
+    if (IsGfx10Plus(chipProps.gfxLevel))
     {
-        m_regs.computePgmRsrc3.u32All = registers.At(Gfx10::mmCOMPUTE_PGM_RSRC3);
+        m_regs.computePgmRsrc3.u32All = registers.At(Gfx10Plus::mmCOMPUTE_PGM_RSRC3);
     }
 
     // Double check with Rob - Is this the correct way to calculate wavesPerGroup?

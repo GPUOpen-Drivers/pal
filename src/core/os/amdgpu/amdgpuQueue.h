@@ -187,34 +187,32 @@ private:
 
     Result AddCmdStream(
         const CmdStream& cmdStream,
-        bool             isDummySubmission);
+        bool             isDummySubmission,
+        bool             isTmzEnabled);
 
     Result AddIb(
         gpusize gpuVirtAddr,
         uint32  sizeInDwords,
         bool    isConstantEngine,
         bool    isPreemptionEnabled,
-        bool    dropIfSameContext);
+        bool    dropIfSameContext,
+        bool    isTmzEnabled);
 
     Result SubmitIbs(
-        const InternalSubmitInfo& internalSubmitInfo,
-        bool                      isDummySubmission);
+        const InternalSubmitInfo& internalSubmitInfo);
 
     Result SubmitIbsRaw(
-        const InternalSubmitInfo& internalSubmitInfo,
-        bool                      isDummySubmission);
+        const InternalSubmitInfo& internalSubmitInfo);
 
     Result SubmitPm4(
         const MultiSubmitInfo&    submitInfo,
-        const InternalSubmitInfo& internalSubmitInfo,
-        bool                      isDummySubmission);
+        const InternalSubmitInfo& internalSubmitInfo);
 
     Result PrepareChainedCommandBuffers(
         const InternalSubmitInfo& internalSubmitInfo,
         uint32                    cmdBufferCount,
         ICmdBuffer*const*         ppCmdBuffers,
-        uint32*                   pAppendedCmdBuffers,
-        bool                      isDummySubmission);
+        uint32*                   pAppendedCmdBuffers);
 
     Result PrepareUploadedCommandBuffers(
         const InternalSubmitInfo& internalSubmitInfo,
@@ -222,13 +220,11 @@ private:
         ICmdBuffer*const*         ppCmdBuffers,
         uint32*                   pAppendedCmdBuffers,
         IQueueSemaphore**         ppWaitBeforeLaunch,
-        IQueueSemaphore**         ppSignalAfterLaunch,
-        bool                      isDummySubmission);
+        IQueueSemaphore**         ppSignalAfterLaunch);
 
     Result SubmitNonGfxIp(
         const MultiSubmitInfo&    submitInfo,
-        const InternalSubmitInfo& internalSubmitInfo,
-        bool                      isDummySubmission);
+        const InternalSubmitInfo& internalSubmitInfo);
 
     // Tracks global memory references for this queue. Each key is a GPU memory object and each value is a refcount.
     typedef Util::HashMap<IGpuMemory*, uint32, Pal::Platform> MemoryRefMap;

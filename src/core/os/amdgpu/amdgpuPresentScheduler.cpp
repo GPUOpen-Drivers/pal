@@ -26,6 +26,7 @@
 #include "palFormatInfo.h"
 #include "core/masterQueueSemaphore.h"
 #include "core/cmdBuffer.h"
+#include "core/queue.h"
 #include "core/os/amdgpu/amdgpuDevice.h"
 #include "core/os/amdgpu/amdgpuImage.h"
 #include "core/os/amdgpu/amdgpuPresentScheduler.h"
@@ -321,6 +322,8 @@ Result PresentScheduler::SignalOnAcquire(
             {
                 static_cast<Queue*>(m_pSignalQueue)->AssociateFenceWithContext(pFence);
             }
+
+            static_cast<Queue*>(m_pSignalQueue)->SubmitConfig(submitInfo, &internalSubmitInfo);
 
             result = static_cast<Queue*>(m_pSignalQueue)->OsSubmit(submitInfo, &internalSubmitInfo);
             PAL_ASSERT(result == Result::Success);

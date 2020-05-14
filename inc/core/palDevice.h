@@ -555,9 +555,11 @@ struct PalPublicSettings
     uint32 cpDmaCmdCopyMemoryMaxBytes;
     ///  Forces high performance state for allocated queues. Note: currently supported in Windows only.
     bool forceHighClocks;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 596
     ///  Controls the size of the GFX/Compute Scratch Rings. Valid values are [1-32]. Larger values allocate larger
     ///  Scratch Rings and allow more Waves to run in parallel.
     uint32 numScratchWavesPerCu;
+#endif
     ///  When submitting multiple command buffers in a single grQueueSubmit call, the ICD will patch the command streams
     ///  so that the command buffers are chained together instead of submitting through KMD multiple times. This setting
     ///  limits the number of command buffers that will be chained together; reduce to prevent problems due to long running
@@ -1006,8 +1008,8 @@ struct DeviceProperties
                 /// Indicates KMD has enabled HBCC(High Bandwidth Cache Controller) page migration support.
                 /// This means shaders must be compiled such that all memory clauses can be replayed in response to an XNACK.
                 uint32 pageMigrationEnabled             :  1;
-                /// Placeholder.
-                uint32 placeholder0                     :  1;
+                /// Indicates TMZ (or HSFB) protected memory allocations are supported.
+                uint32 supportsTmz                      :  1;
 
                 uint32 placeholder1                     : 1;
                 /// Reserved for future use.
@@ -1228,7 +1230,8 @@ struct DeviceProperties
             uint32 imageView;   ///< Size in bytes (and required alignment) of an image view SRD.
                                 ///  @see IDevice::CreateImageViewSrds().
             uint32 fmaskView;   ///< Size in bytes (and required alignment) of an fmask view SRD.
-                                ///  @see IDevice::CreateFmaskViewSrds().
+                                ///  @see IDevice::CreateFmaskViewSrds().  This value can be zero to denote
+                                ///  a lack of fMask support.
             uint32 sampler;     ///< Size in bytes (and required alignment) of a sampler SRD.
                                 ///  @see IDevice::CreateSamplerSrds().
         } srdSizes;             ///< Sizes for various types of _shader resource descriptor_ (SRD).
@@ -1237,7 +1240,8 @@ struct DeviceProperties
         {
             const void* pNullBufferView;  ///< Pointer to null buffer view srd
             const void* pNullImageView;   ///< Pointer to null image view srd
-            const void* pNullFmaskView;   ///< Pointer to null fmask view srd
+            const void* pNullFmaskView;   ///< Pointer to null fmask view srd.  This pointer can be nullptr to
+                                          ///  indicate a lack of fMask support.
             const void* pNullSampler;     ///< Pointer to null sampler srd
         } nullSrds;                       ///< Null SRDs are used to drop shader writes or read 0
 
@@ -1603,7 +1607,7 @@ struct GpuMemoryHeapProperties
             uint32 holdsPinned      :  1;  ///< GPU memory objects created by IDevice::CreatePinnedGpuMemory() are in
                                            ///  this heap.
             uint32 shareable        :  1;  ///< GPU memory objects in this heap can be shared between multiple devices.
-            uint32 placeholder0     :  1;  ///< Placeholder.
+            uint32 supportsTmz      :  1;  ///< This heap supports TMZ allocations.
             uint32 reserved         : 25;  ///< Reserved for future use.
         };
         uint32 u32All;                     ///< Flags packed as 32-bit uint.

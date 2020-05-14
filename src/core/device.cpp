@@ -1,4 +1,4 @@
-/*
+﻿/*
  ***********************************************************************************************************************
  *
  *  Copyright (c) 2014-2020 Advanced Micro Devices, Inc. All Rights Reserved.
@@ -200,10 +200,6 @@ bool Device::DetermineGpuIpLevels(
 
 // Initial HashMap element size for referenced GPU memory allocations.
 constexpr uint32 ReferencedMemoryMapElements = 2048;
-
-#if defined(__unix__)
-constexpr char SettingsFileName[] = "amdPalSettings.cfg";
-#endif
 
 // =====================================================================================================================
 Device::Device(
@@ -528,7 +524,9 @@ Result Device::SetupPublicSettingDefaults()
 #endif
     m_publicSettings.cpDmaCmdCopyMemoryMaxBytes = 64 * 1024;
     m_publicSettings.forceHighClocks = false;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 596
     m_publicSettings.numScratchWavesPerCu = 16;
+#endif
     m_publicSettings.cmdBufBatchedSubmitChainLimit = 128;
     m_publicSettings.cmdAllocResidency = 0xF;
     m_publicSettings.presentableImageNumberThreshold = 16;
@@ -1717,8 +1715,8 @@ Result Device::CreateEngine(
         }
 #endif
 
-        // GFX10 level parts have the DMA engine as part of the GFX device...
-        if (IsGfx10(*this))
+        // GFX10 and newer level parts have the DMA engine as part of the GFX device...
+        if (IsGfx10Plus(*this))
         {
             result = m_pGfxDevice->CreateEngine(engineType, engineIndex, &m_pEngines[engineType][engineIndex]);
         }
@@ -2019,6 +2017,7 @@ Result Device::GetProperties(
         pInfo->gpuMemoryProperties.flags.shadowDescVaSupport     = m_memoryProperties.flags.shadowDescVaSupport;
         pInfo->gpuMemoryProperties.flags.autoPrioritySupport     = m_memoryProperties.flags.autoPrioritySupport;
         pInfo->gpuMemoryProperties.flags.pageMigrationEnabled    = m_memoryProperties.flags.intraSubmitMigration;
+        pInfo->gpuMemoryProperties.flags.supportsTmz             = m_memoryProperties.flags.supportsTmz;
 
         pInfo->gpuMemoryProperties.realMemAllocGranularity    = m_memoryProperties.realMemAllocGranularity;
         pInfo->gpuMemoryProperties.virtualMemAllocGranularity = m_memoryProperties.virtualMemAllocGranularity;
@@ -3299,6 +3298,10 @@ Result Device::CreateGpuMemory(
 {
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 585
     const_cast<GpuMemoryCreateInfo&>(createInfo).flags.presentable = 0;
+#endif
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION< 593
+    const_cast<GpuMemoryCreateInfo&>(createInfo).flags.tmzProtected = 0;
 #endif
 
     GpuMemoryInternalCreateInfo internalInfo = {};

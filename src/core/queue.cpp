@@ -411,7 +411,8 @@ Result Queue::Init(
 
                 PAL_ASSERT((m_pQueueInfos[qIndex].createInfo.persistentCeRamOffset ==
                             pCreateInfo[qIndex].persistentCeRamOffset) &&
-                           (m_pQueueInfos[qIndex].createInfo.persistentCeRamSize == pCreateInfo[qIndex].persistentCeRamSize));
+                           (m_pQueueInfos[qIndex].createInfo.persistentCeRamSize   ==
+                            pCreateInfo[qIndex].persistentCeRamSize));
 
                 // The client can request some part of the CE ram to be persistent through consecutive submissions,
                 // and the whole CE ram used must be at least as big as that.
@@ -471,7 +472,7 @@ Result Queue::Init(
                                     pNextQueueContextPlacementAddr,
                                     &m_pQueueInfos[qIndex].pQueueContext);
                     }
-                    else if ((pGfxDevice != nullptr) && IsGfx10(*m_pDevice))
+                    else if ((pGfxDevice != nullptr) && IsGfx10Plus(*m_pDevice))
                     {
                         result = pGfxDevice->CreateQueueContext(
                                     m_pQueueInfos[qIndex].createInfo,
@@ -593,7 +594,9 @@ Result Queue::SubmitInternal(
         {
             if (submitInfo.perSubQueueInfoCount > 0)
             {
-                for (uint32 qIndex = 0; (qIndex < submitInfo.perSubQueueInfoCount) && (result == Result::Success); qIndex++)
+                for (uint32 qIndex = 0;
+                     (qIndex < submitInfo.perSubQueueInfoCount) && (result == Result::Success);
+                     qIndex++)
                 {
                     uint32 cmdBufferCount = submitInfo.pPerSubQueueInfo[qIndex].cmdBufferCount;
                     QueueContext* pQueueContext = m_pQueueInfos[qIndex].pQueueContext;
@@ -676,6 +679,7 @@ Result Queue::SubmitInternal(
                 static_cast<Fence*>(submitInfo.pFence)->AssociateWithContext(m_pSubmissionContext);
             }
 #endif
+            SubmitConfig(submitInfo, &internalSubmitInfos[0]);
 
             // Either execute the submission immediately, or enqueue it for later, depending on whether or not we are
             // stalled and/or the caller is a function after the batching logic and thus must execute immediately.
@@ -1656,6 +1660,7 @@ Result Queue::LateInit()
             MultiSubmitInfo submitInfo      = {};
             submitInfo.perSubQueueInfoCount = m_queueCount;
             submitInfo.pPerSubQueueInfo     = &subQueueInfos[0];
+            SubmitConfig(submitInfo, &internalSubmitInfos[0]);
             if (m_ifhMode == IfhModeDisabled)
             {
                 m_pDummyCmdBuffer->IncrementSubmitCount();
@@ -2181,5 +2186,36 @@ bool Queue::UsesPhysicalModeSubmission() const
 bool Queue::IsPreemptionSupported() const
 {
     return (m_pDevice->IsPreemptionSupported(GetEngineType()) != 0);
+}
+
+// =====================================================================================================================
+// Update pInternalSubmitInfos with related submitInfo (TMZ, DummySubmission) before submitting.
+void Queue::SubmitConfig(
+    const MultiSubmitInfo& submitInfo,
+    InternalSubmitInfo*    pInternalSubmitInfos)
+{
+    bool isTmzEnabled = false;
+    bool isDummySubmission = false;
+
+    if ((submitInfo.pPerSubQueueInfo == nullptr) || (submitInfo.pPerSubQueueInfo[0].cmdBufferCount == 0))
+    {
+        // Dummy submission doesn't need to update resource list since dummy resource list will be used.
+        isDummySubmission = true;
+    }
+
+    pInternalSubmitInfos->flags.isDummySubmission = isDummySubmission;
+
+    if (isDummySubmission == false)
+    {
+        CmdBuffer*const pCmdBuffer = static_cast<CmdBuffer*>(submitInfo.pPerSubQueueInfo[0].ppCmdBuffers[0]);
+        if (pCmdBuffer->GetEngineType() == Pal::EngineTypeUniversal ||
+            pCmdBuffer->GetEngineType() == Pal::EngineTypeCompute)
+        {
+            // Indicate this submision is tmz protected or not.
+            // All IBs in this submission should be marked with TMZ flag.
+            isTmzEnabled = pCmdBuffer->IsTmzEnabled();
+        }
+        pInternalSubmitInfos->flags.isTmzEnabled = isTmzEnabled;
+    }
 }
 } // Pal

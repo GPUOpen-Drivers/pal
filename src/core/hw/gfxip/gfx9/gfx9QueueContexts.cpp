@@ -92,8 +92,8 @@ static uint32* WriteCommonPreamble(
         if (chipProps.gfx9.supportSpiPrefPriority != 0)
         {
             constexpr uint32 FourZeros[4] = {};
-            pCmdSpace = pCmdStream->WriteSetSeqShRegs(Gfx10::mmCOMPUTE_USER_ACCUM_0,
-                                                      Gfx10::mmCOMPUTE_USER_ACCUM_3,
+            pCmdSpace = pCmdStream->WriteSetSeqShRegs(Gfx10Plus::mmCOMPUTE_USER_ACCUM_0,
+                                                      Gfx10Plus::mmCOMPUTE_USER_ACCUM_3,
                                                       ShaderCompute,
                                                       &FourZeros,
                                                       pCmdSpace);
@@ -402,17 +402,16 @@ Result ComputeQueueContext::UpdateRingSet(
         SamplePatternPalette samplePatternPalette;
         m_pDevice->GetSamplePatternPalette(&samplePatternPalette);
 
-        if (m_pDevice->Settings().debugForceQueueNotWaitForIdle == false)
-        {
-            m_pParentQueue->WaitIdle();
-        }
+        m_pParentQueue->WaitIdle();
 
         // The queues are idle, so it is safe to validate the rest of the RingSet.
         if (result == Result::Success)
         {
+            bool hasDeferredMem = false;
             result = m_ringSet.Validate(ringSizes,
                                         samplePatternPalette,
-                                        m_pParentQueue->GetSubmissionContext()->LastTimestamp());
+                                        m_pParentQueue->GetSubmissionContext()->LastTimestamp(),
+                                        &hasDeferredMem);
         }
 
          (*pHasChanged) = true;
@@ -1229,9 +1228,9 @@ uint32* UniversalQueueContext::WriteUniversalPreamble(
     regPA_SC_NGG_MODE_CNTL paScNggModeCntl = {};
     // The recommended value for this is half the PC size. The register field granularity is 2.
     paScNggModeCntl.bits.MAX_DEALLOCS_IN_WAVE = chipProps.gfx9.parameterCacheLines / 4;
-    if (IsGfx10(device))
+    if (IsGfx10Plus(device))
     {
-        paScNggModeCntl.gfx10.MAX_FPOVS_IN_WAVE = settings.gfx10MaxFpovsInWave;
+        paScNggModeCntl.gfx10Plus.MAX_FPOVS_IN_WAVE = settings.gfx10MaxFpovsInWave;
     }
 
     pCmdSpace = m_deCmdStream.WriteSetOneContextReg(mmVGT_OUT_DEALLOC_CNTL,  vgtOutDeallocCntl.u32All,   pCmdSpace);
@@ -1262,7 +1261,7 @@ uint32* UniversalQueueContext::WriteUniversalPreamble(
                                                         &vgt,
                                                         pCmdSpace);
     }
-    else if (IsGfx10(chipProps.gfxLevel))
+    else if (IsGfx10Plus(chipProps.gfxLevel))
     {
         regGE_MAX_VTX_INDX geMaxVtxIndx = { };
         geMaxVtxIndx.bits.MAX_INDX = UINT_MAX;
@@ -1273,9 +1272,9 @@ uint32* UniversalQueueContext::WriteUniversalPreamble(
             regGE_INDX_OFFSET   indxOffset;
         } Ge = { };
 
-        pCmdSpace = m_deCmdStream.WriteSetOneConfigReg(Gfx10::mmGE_MAX_VTX_INDX, geMaxVtxIndx.u32All, pCmdSpace);
-        pCmdSpace = m_deCmdStream.WriteSetSeqConfigRegs(Gfx10::mmGE_MIN_VTX_INDX,
-                                                        Gfx10::mmGE_INDX_OFFSET,
+        pCmdSpace = m_deCmdStream.WriteSetOneConfigReg(Gfx10Plus::mmGE_MAX_VTX_INDX, geMaxVtxIndx.u32All, pCmdSpace);
+        pCmdSpace = m_deCmdStream.WriteSetSeqConfigRegs(Gfx10Plus::mmGE_MIN_VTX_INDX,
+                                                        Gfx10Plus::mmGE_INDX_OFFSET,
                                                         &Ge,
                                                         pCmdSpace);
 
@@ -1287,8 +1286,8 @@ uint32* UniversalQueueContext::WriteUniversalPreamble(
             regCB_COLOR0_DCC_BASE_EXT    cbColorDccBaseExt[MaxColorTargets];
         } CbBaseHi = { };
 
-        pCmdSpace = m_deCmdStream.WriteSetSeqContextRegs(Gfx10::mmCB_COLOR0_BASE_EXT,
-                                                         Gfx10::mmCB_COLOR7_DCC_BASE_EXT,
+        pCmdSpace = m_deCmdStream.WriteSetSeqContextRegs(Gfx10Plus::mmCB_COLOR0_BASE_EXT,
+                                                         Gfx10Plus::mmCB_COLOR7_DCC_BASE_EXT,
                                                          &CbBaseHi,
                                                          pCmdSpace);
 
@@ -1301,8 +1300,8 @@ uint32* UniversalQueueContext::WriteUniversalPreamble(
             regDB_HTILE_DATA_BASE_HI      dbHtileDataBaseHi;
         } DbBaseHi = { };
 
-        pCmdSpace = m_deCmdStream.WriteSetSeqContextRegs(Gfx10::mmDB_Z_READ_BASE_HI,
-                                                         Gfx10::mmDB_HTILE_DATA_BASE_HI,
+        pCmdSpace = m_deCmdStream.WriteSetSeqContextRegs(Gfx10Plus::mmDB_Z_READ_BASE_HI,
+                                                         Gfx10Plus::mmDB_HTILE_DATA_BASE_HI,
                                                          &DbBaseHi,
                                                          pCmdSpace);
 
@@ -1319,11 +1318,11 @@ uint32* UniversalQueueContext::WriteUniversalPreamble(
             spiShaderReqCtrl.bits.NUMBER_OF_REQUESTS_PER_CU = settings.numPsWavesSoftGroupedPerCu - 1;
         }
 
-        pCmdSpace = m_deCmdStream.WriteSetOneShReg<ShaderGraphics>(Gfx10::mmSPI_SHADER_REQ_CTRL_VS,
+        pCmdSpace = m_deCmdStream.WriteSetOneShReg<ShaderGraphics>(Gfx10Plus::mmSPI_SHADER_REQ_CTRL_VS,
                                                                    spiShaderReqCtrl.u32All,
                                                                    pCmdSpace);
 
-        pCmdSpace = m_deCmdStream.WriteSetOneShReg<ShaderGraphics>(Gfx10::mmSPI_SHADER_REQ_CTRL_PS,
+        pCmdSpace = m_deCmdStream.WriteSetOneShReg<ShaderGraphics>(Gfx10Plus::mmSPI_SHADER_REQ_CTRL_PS,
                                                                    spiShaderReqCtrl.u32All,
                                                                    pCmdSpace);
 
@@ -1331,23 +1330,23 @@ uint32* UniversalQueueContext::WriteUniversalPreamble(
         if (chipProps.gfx9.supportSpiPrefPriority != 0)
         {
             constexpr uint32 FourZeros[4] = {};
-            pCmdSpace = m_deCmdStream.WriteSetSeqShRegs(Gfx10::mmSPI_SHADER_USER_ACCUM_ESGS_0,
-                                                        Gfx10::mmSPI_SHADER_USER_ACCUM_ESGS_3,
+            pCmdSpace = m_deCmdStream.WriteSetSeqShRegs(Gfx10Plus::mmSPI_SHADER_USER_ACCUM_ESGS_0,
+                                                        Gfx10Plus::mmSPI_SHADER_USER_ACCUM_ESGS_3,
                                                         ShaderGraphics,
                                                         &FourZeros,
                                                         pCmdSpace);
-            pCmdSpace = m_deCmdStream.WriteSetSeqShRegs(Gfx10::mmSPI_SHADER_USER_ACCUM_LSHS_0,
-                                                        Gfx10::mmSPI_SHADER_USER_ACCUM_LSHS_3,
+            pCmdSpace = m_deCmdStream.WriteSetSeqShRegs(Gfx10Plus::mmSPI_SHADER_USER_ACCUM_LSHS_0,
+                                                        Gfx10Plus::mmSPI_SHADER_USER_ACCUM_LSHS_3,
                                                         ShaderGraphics,
                                                         &FourZeros,
                                                         pCmdSpace);
-            pCmdSpace = m_deCmdStream.WriteSetSeqShRegs(Gfx10::mmSPI_SHADER_USER_ACCUM_VS_0,
-                                                        Gfx10::mmSPI_SHADER_USER_ACCUM_VS_3,
+            pCmdSpace = m_deCmdStream.WriteSetSeqShRegs(Gfx10Plus::mmSPI_SHADER_USER_ACCUM_VS_0,
+                                                        Gfx10Plus::mmSPI_SHADER_USER_ACCUM_VS_3,
                                                         ShaderGraphics,
                                                         &FourZeros,
                                                         pCmdSpace);
-            pCmdSpace = m_deCmdStream.WriteSetSeqShRegs(Gfx10::mmSPI_SHADER_USER_ACCUM_PS_0,
-                                                        Gfx10::mmSPI_SHADER_USER_ACCUM_PS_3,
+            pCmdSpace = m_deCmdStream.WriteSetSeqShRegs(Gfx10Plus::mmSPI_SHADER_USER_ACCUM_PS_0,
+                                                        Gfx10Plus::mmSPI_SHADER_USER_ACCUM_PS_3,
                                                         ShaderGraphics,
                                                         &FourZeros,
                                                         pCmdSpace);
@@ -1381,17 +1380,17 @@ Result UniversalQueueContext::UpdateRingSet(
         SamplePatternPalette samplePatternPalette;
         m_pDevice->GetSamplePatternPalette(&samplePatternPalette);
 
-        if (m_pDevice->Settings().debugForceQueueNotWaitForIdle == false)
-        {
-            m_pParentQueue->WaitIdle();
-        }
+        m_pParentQueue->WaitIdle();
 
         // The queues are idle, so it is safe to validate the rest of the RingSet.
         if (result == Result::Success)
         {
+            bool hasDeferredMem = false;
+
             result = m_ringSet.Validate(ringSizes,
                                         samplePatternPalette,
-                                        m_pParentQueue->GetSubmissionContext()->LastTimestamp());
+                                        m_pParentQueue->GetSubmissionContext()->LastTimestamp(),
+                                        &hasDeferredMem);
         }
 
         *pHasChanged = true;

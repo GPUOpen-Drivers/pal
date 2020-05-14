@@ -62,16 +62,31 @@ Result SettingsFileMgr<Allocator>::Init(
     }
 
     // Open the settings file, if it exists
-    char fileName[512];
-    Snprintf(&fileName[0], sizeof(fileName), "%s/%s", pSettingsPath, m_pSettingsFileName);
-    if (File::Exists(&fileName[0]) == false)
+    char fileAbsPath[512];
+    Snprintf(&fileAbsPath[0], sizeof(fileAbsPath), "%s/%s", pSettingsPath, m_pSettingsFileName);
+
+    if (File::Exists(&fileAbsPath[0]) == false)
     {
+ #if PAL_INTERFACE_MAJOR_VERSION >= 595 && defined(__unix__)
+        char fallbackFileAbsPath[512];
+        Snprintf(&fallbackFileAbsPath[0], sizeof(fallbackFileAbsPath), "%s/amdPalSettings.cfg", pSettingsPath);
+
+        if(File::Exists(&fallbackFileAbsPath[0]) == false)
+        {
+            ret = Result::ErrorUnavailable;
+        }
+        else
+        {
+            ret = m_settingsFile.Open(&fallbackFileAbsPath[0], FileAccessRead);
+        }
+#else
         ret = Result::ErrorUnavailable;
+#endif
     }
     else
     {
         // Open the config file for read-only access
-        ret = m_settingsFile.Open(&fileName[0], FileAccessRead);
+        ret = m_settingsFile.Open(&fileAbsPath[0], FileAccessRead);
     }
 
     if (ret == Result::Success)

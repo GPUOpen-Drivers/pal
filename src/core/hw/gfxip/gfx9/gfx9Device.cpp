@@ -634,8 +634,8 @@ Result Device::CreateEngine(
         pEngine = PAL_NEW(ComputeEngine, GetPlatform(), AllocInternal)(this, engineType, engineIndex);
         break;
     case EngineTypeDma:
-        // Gfx10 has the DMA engine on the GFX level, not the OSS level
-        if (IsGfx10(m_gfxIpLevel))
+        // Gfx10+ has the DMA engine on the GFX level, not the OSS level
+        if (IsGfx10Plus(m_gfxIpLevel))
         {
             pEngine = PAL_NEW(Engine, GetPlatform(), AllocInternal)(*Parent(), engineType, engineIndex);
         }
@@ -734,7 +734,7 @@ size_t Device::GetQueueContextSize(
         size = sizeof(UniversalQueueContext);
         break;
     case QueueTypeDma:
-        PAL_ASSERT(IsGfx10(m_gfxIpLevel));
+        PAL_ASSERT(IsGfx10Plus(m_gfxIpLevel));
 
         size = sizeof(QueueContext);
         break;
@@ -806,8 +806,8 @@ Result Device::CreateQueueContext(
         }
         break;
     case QueueTypeDma:
-        // Only GFX10 implements the DMA queue on the GFX engine.
-        PAL_ASSERT(IsGfx10(m_gfxIpLevel));
+        // All GFX10+ parts implement the DMA queue on the GFX engine.
+        PAL_ASSERT(IsGfx10Plus(m_gfxIpLevel));
 
         (*ppQueueContext) = PAL_PLACEMENT_NEW(pPlacementAddr) QueueContext(Parent());
 
@@ -1364,7 +1364,7 @@ size_t Device::GetCmdBufferSize(
     {
         cmdBufferSize = UniversalCmdBuffer::GetSize(*this);
     }
-    else if (IsGfx10(m_gfxIpLevel) && (createInfo.queueType == QueueTypeDma))
+    else if (IsGfx10Plus(m_gfxIpLevel) && (createInfo.queueType == QueueTypeDma))
     {
         cmdBufferSize = DmaCmdBuffer::GetSize(*this);
     }
@@ -1392,7 +1392,7 @@ Result Device::CreateCmdBuffer(
 
         *ppCmdBuffer = PAL_PLACEMENT_NEW(pPlacementAddr) UniversalCmdBuffer(*this, createInfo);
     }
-    else if ((createInfo.queueType == QueueTypeDma) && IsGfx10(m_gfxIpLevel))
+    else if ((createInfo.queueType == QueueTypeDma) && IsGfx10Plus(m_gfxIpLevel))
     {
         result = Result::Success;
 
@@ -3387,9 +3387,20 @@ void PAL_STDCALL Device::CreateFmaskViewSrds(
     void*                 pOut)
 {
     PAL_ASSERT((pDevice != nullptr) && (pOut != nullptr) && (pFmaskViewInfo != nullptr) && (count > 0));
-    const Device* pGfxDevice = static_cast<const Device*>(static_cast<const Pal::Device*>(pDevice)->GetGfxDevice());
 
-    pGfxDevice->CreateFmaskViewSrdsInternal(count, pFmaskViewInfo, nullptr, pOut);
+    const Pal::Device*  pPalDevice = static_cast<const Pal::Device*>(pDevice);
+
+    if (pPalDevice->ChipProperties().srdSizes.fmaskView != 0)
+    {
+        const Device* pGfxDevice = static_cast<const Device*>(pPalDevice->GetGfxDevice());
+
+        pGfxDevice->CreateFmaskViewSrdsInternal(count, pFmaskViewInfo, nullptr, pOut);
+    }
+    else
+    {
+        // Why are we trying to get a fMask SRD on a device that doesn't support fMask?
+        PAL_ASSERT_ALWAYS();
+    }
 }
 
 // =====================================================================================================================
@@ -4332,6 +4343,11 @@ void InitializeGpuChipProperties(
     pInfo->srdSizes.fmaskView  = sizeof(ImageSrd);
     pInfo->srdSizes.sampler    = sizeof(SamplerSrd);
 
+    pInfo->nullSrds.pNullBufferView = &nullBufferView;
+    pInfo->nullSrds.pNullImageView  = &nullImageView;
+    pInfo->nullSrds.pNullFmaskView  = &nullImageView;
+    pInfo->nullSrds.pNullSampler    = &NullSampler;
+
     // Setup anything specific to a given GFXIP level here
     if (pInfo->gfxLevel == GfxIpLevel::GfxIp9)
     {
@@ -4356,11 +4372,6 @@ void InitializeGpuChipProperties(
         pInfo->gfx9.support1xMsaaSampleLocations  = 1;
         pInfo->gfx9.supportSpiPrefPriority        = 1;
     }
-
-    pInfo->nullSrds.pNullBufferView = &nullBufferView;
-    pInfo->nullSrds.pNullImageView  = &nullImageView;
-    pInfo->nullSrds.pNullFmaskView  = &nullImageView;
-    pInfo->nullSrds.pNullSampler    = &NullSampler;
 
     pInfo->gfxip.numSlotsPerEvent = 1;
 
@@ -4537,9 +4548,9 @@ void InitializeGpuEngineProperties(
     pCompute->minTimestampAlignment                 = 8; // The CP spec requires 8-byte alignment.
     pCompute->queueSupport                          = SupportQueueTypeCompute;
 
-    if (IsGfx10(gfxIpLevel))
+    if (IsGfx10Plus(gfxIpLevel))
     {
-        // SDMA engine is part of GFXIP for GFX10, so set that up here
+        // SDMA engine is part of GFXIP for GFX10+, so set that up here
         auto*const pDma = &pInfo->perEngine[EngineTypeDma];
 
         pDma->flags.timestampSupport               = 1;

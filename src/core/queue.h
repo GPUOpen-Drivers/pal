@@ -60,6 +60,17 @@ struct SubQueueInfo
     Engine*          pEngine;
 };
 
+union InternalSubmitFlags
+{
+    struct
+    {
+        uint32 isTmzEnabled      :1;         // Is TMZ protected submission.
+        uint32 isDummySubmission :1;         // Is dummy submission.
+        uint32 reserve           :30;        // reserve
+    };
+    uint32 u32All;
+};
+
 // Contains internal information describing the submission preamble and postamble for a given QueueContext, and
 // additional internal flags.
 struct InternalSubmitInfo
@@ -76,6 +87,8 @@ struct InternalSubmitInfo
     uint64  pagingFence;
 
     MgpuSlsInfo mgpuSlsInfo;
+
+    InternalSubmitFlags flags;
 
     // The semaphore arrays are only used by Linux backend to better align with u/k interface
     uint32                  signalSemaphoreCount; // The count of semaphores that have to signal after the submission.
@@ -191,6 +204,9 @@ public:
 
     // A special version of Submit with PAL-internal arguments.
     Result SubmitInternal(const MultiSubmitInfo& submitInfo, bool postBatching);
+
+    // Config related submit flags.
+    virtual void SubmitConfig(const MultiSubmitInfo& submitInfo, InternalSubmitInfo* pInternalSubmitInfos);
 
     // NOTE: Part of the public IQueue interface.
     virtual Result WaitIdle() override;

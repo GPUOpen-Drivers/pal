@@ -97,7 +97,7 @@ extern bool IsAssertCategoryEnabled(
 
 #define PAL_ASSERT_MSG(_expr, _pReasonFmt, ...)                                                   \
 {                                                                                                 \
-    if (static_cast<bool>(_expr) == false)                                                                         \
+    if (static_cast<bool>(_expr) == false)                                                        \
     {                                                                                             \
         PAL_TRIGGER_ASSERT("Assertion failed: %s | Reason: " _pReasonFmt, #_expr, ##__VA_ARGS__); \
     }                                                                                             \

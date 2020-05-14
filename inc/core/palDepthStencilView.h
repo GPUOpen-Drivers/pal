@@ -55,7 +55,17 @@ struct DepthStencilViewCreateInfo
                                             ///  Scaled depth bias: before adding to z value, depth bias will be
                                             ///  multiplied to minimum representable z value.
             uint32 reserved0         :  1;  ///< Reserved for future HW
-            uint32 reserved          : 27;  ///< Reserved for future use.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 594
+            uint32 depthOnlyView     :  1;  ///< If set, this view will be a depth-only view of the specified Image.  It
+                                            ///  is illegal to use this flag on an Image with no depth aspect. It's
+                                            ///  illegal to set both depthOnlyView and stencilOnlyView.
+            uint32 stencilOnlyView   :  1;  ///< If set, this view will be a stencil-only view of the specified Image.
+                                            ///  It is illegal to use this flag on an Image with no stencil aspect. It's
+                                            ///  illegal to set both depthOnlyView and stencilOnlyView.
+#else
+            uint32 placeholder       :  2;  ///< Placeholder for new OGLP features.
+#endif
+            uint32 reserved          : 25;  ///< Reserved for future use.
         };
         uint32 u32All;                    ///< Flags packed as 32-bit uint.
     } flags;                              ///< Depth/stencil view creation flags.

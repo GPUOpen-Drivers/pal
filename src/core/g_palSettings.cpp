@@ -578,6 +578,11 @@ void SettingsLoader::RereadSettings()
 {
     // read from the OS adapter for each individual setting
 
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pMipGenUseFastPathStr,
+                           Util::ValueType::Boolean,
+                           &m_settings.mipGenUseFastPath,
+                           InternalSettingScope::PrivatePalKey);
+
 }
 
 // =====================================================================================================================
@@ -1019,7 +1024,7 @@ void SettingsLoader::DevDriverRegister()
             component.pfnSetValue = ISettingsLoader::SetValue;
             component.pSettingsData = &g_palJsonData[0];
             component.settingsDataSize = sizeof(g_palJsonData);
-            component.settingsDataHash = 2201698946;
+            component.settingsDataHash = 233009688;
             component.settingsDataHeader.isEncoded = true;
             component.settingsDataHeader.magicBufferId = 402778310;
             component.settingsDataHeader.magicBufferOffset = 0;

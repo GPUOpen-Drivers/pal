@@ -365,6 +365,7 @@ Result GpuMemory::Init(
     m_flags.restrictedContent    = createInfo.flags.restrictedContent;
     m_flags.restrictedAccess     = createInfo.flags.restrictedAccess;
     m_flags.crossAdapter         = createInfo.flags.crossAdapter;
+    m_flags.tmzProtected         = createInfo.flags.tmzProtected;
 
     m_flags.isClient             = internalInfo.flags.isClient;
     m_flags.pageDirectory        = internalInfo.flags.pageDirectory;

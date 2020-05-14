@@ -54,8 +54,8 @@ const RegisterRange Gfx9UserConfigShadowRange[] =
     // mmVGT_DMA_INDEX_TYPE cannot be shadowed, since it is a register that is sent to VGT by the PFP, so it will not
     // pass through the shadowing logic in ME.
     {
-        (Gfx09::mmVGT_GSVS_RING_SIZE - UCONFIG_SPACE_START),              // 0xC241 - 0xC242
-        (mmVGT_PRIMITIVE_TYPE - Gfx09::mmVGT_GSVS_RING_SIZE + 1),
+        (NotGfx10::mmVGT_GSVS_RING_SIZE - UCONFIG_SPACE_START),              // 0xC241 - 0xC242
+        (mmVGT_PRIMITIVE_TYPE - NotGfx10::mmVGT_GSVS_RING_SIZE + 1),
     },
     {
         (Gfx09::mmVGT_MAX_VTX_INDX - UCONFIG_SPACE_START),                // 0xC248 - 0xC24B
@@ -340,7 +340,7 @@ const RegisterRange Gfx90NonShadowedRanges[] =
         1
     },
     {
-        mmSPI_RESOURCE_RESERVE_EN_CU_0,
+        Gfx09_10::mmSPI_RESOURCE_RESERVE_EN_CU_0,
         1
     },
     // mmVGT_INDEX_TYPE and mmVGT_DMA_INDEX_TYPE are a special case and neither of these should be shadowed.
@@ -393,7 +393,7 @@ const RegisterRange Gfx90NonShadowedRanges[] =
         mmDB_OCCLUSION_COUNT3_HI - mmDB_OCCLUSION_COUNT0_LOW + 1
     },
     {
-        Gfx09::mmSPI_CONFIG_CNTL,
+        NotGfx10::mmSPI_CONFIG_CNTL,
         1
     },
     // SQ thread trace registers are always not shadowed.
@@ -476,7 +476,7 @@ const RegisterRange Gfx91NonShadowedRanges[] =
         1
     },
     {
-        mmSPI_RESOURCE_RESERVE_EN_CU_0,
+        Gfx09_10::mmSPI_RESOURCE_RESERVE_EN_CU_0,
         1
     },
     // mmVGT_INDEX_TYPE and mmVGT_DMA_INDEX_TYPE are a special case and neither of these should be shadowed.
@@ -529,7 +529,7 @@ const RegisterRange Gfx91NonShadowedRanges[] =
         mmDB_OCCLUSION_COUNT3_HI - mmDB_OCCLUSION_COUNT0_LOW + 1
     },
     {
-        Gfx09::mmSPI_CONFIG_CNTL,
+        NotGfx10::mmSPI_CONFIG_CNTL,
         1
     },
     // SQ thread trace registers are always not shadowed.

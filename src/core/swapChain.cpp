@@ -75,6 +75,10 @@ SwapChain::SwapChain(
         // Keep the flag provided by the client.
     }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 593
+    const_cast<SwapChainCreateInfo&>(m_createInfo).flags.tmzProtected = 0;
+#endif
+
     memset(m_unusedImageQueue, 0, sizeof(m_unusedImageQueue));
     memset(m_mailedImageList,  0, sizeof(m_mailedImageList));
     memset(m_pPresentComplete, 0, sizeof(m_pPresentComplete));

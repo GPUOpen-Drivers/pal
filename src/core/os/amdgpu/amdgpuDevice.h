@@ -438,7 +438,7 @@ public:
         return Result::Unsupported;
     }
 
-    bool IsVmAlwaysValidSupported() const { return m_supportVmAlwaysValid; }
+    bool IsVmAlwaysValidSupported() const { return (m_featureState.supportVmAlwaysValid != 0); }
 
     // Access KMD interfaces
     Result AllocBuffer(
@@ -867,6 +867,7 @@ private:
     void CheckSyncObjectSupportStatus();
 
     Result InitGpuProperties();
+    Result InitTmzHeapProperties();
     Result InitMemInfo();
     Result InitQueueInfo();
 
@@ -945,7 +946,6 @@ private:
     char    m_forcePerformanceLevelPath[MaxClockSysFsEntryNameLen];
     char    m_sClkPath[MaxClockSysFsEntryNameLen];
     char    m_mClkPath[MaxClockSysFsEntryNameLen];
-    bool    m_supportQuerySensorInfo;
 
     static Result ParseClkInfo(const char* pFilePath, ClkInfo* pClkInfo, uint32* pCurIndex);
     Result        InitClkInfo();
@@ -976,12 +976,20 @@ private:
         uint32 flags;
     } m_syncobjSupportState;
 
-    // Support creating submission queue with priority.
-    bool m_supportQueuePriority;
-    // Support creating bo that is always resident in current VM.
-    bool m_supportVmAlwaysValid;
-    // Indicate whether kernel has the fix for PRT va range handling.
-    bool m_requirePrtReserveVaWa;
+    // state flags for feature support status.
+    union
+    {
+        struct
+        {
+            uint32 supportQueuePriority                : 1;     // Support creating submission queue with priority.
+            uint32 supportQueueIfhKmd                  : 1;     // Support creating submission queue with IFH KMD.
+            uint32 supportVmAlwaysValid                : 1;     // Support creating bo that is always resident in current VM.
+            uint32 supportQuerySensorInfo              : 1;
+            uint32 requirePrtReserveVaWa               : 1;     // Indicate whether kernel has the fix for PRT va range handling.
+            uint32 reserved                            : 27;
+        };
+        uint32 flags;
+    } m_featureState;
 
 #if defined(PAL_DEBUG_PRINTS)
     const DrmLoaderFuncsProxy& m_drmProcs;

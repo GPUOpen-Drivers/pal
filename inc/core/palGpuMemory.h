@@ -118,7 +118,12 @@ union GpuMemoryCreateFlags
                                       ///  the ppExternPhysMem list for the first submission that references it.
         uint32 sharedViaNtHandle :  1; ///< Memory will be shared by using Nt handle.
         uint32 peerWritable      :  1; ///< The memory can be open as peer memory and be writable.
-        uint32 placeholder0      :  2; ///< Placeholder.
+        uint32 tmzProtected      :  1; ///< The memory is protected using TMZ (Trusted Memory Zone) or HSFB (Hybrid
+                                       ///  Secure Framebuffer). It is not CPU accessible, and GPU access is restricted
+                                       ///  by the hardware such that data cannot be copied from protected memory into
+                                       ///  unprotected memory.
+
+        uint32 placeholder0      :  1; ///< Placeholder.
         uint32 externalOpened    :  1; ///< Specifies the GPUMemory is opened.
         uint32 restrictedContent :  1; ///< Specifies the GPUMemory is protected content.
         uint32 restrictedAccess  :  1; ///< Specifies the GPUMemory is restricted shared access resource.

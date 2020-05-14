@@ -197,12 +197,14 @@ Result ShaderRingSet::Init()
 Result ShaderRingSet::Validate(
     const ShaderRingItemSizes&  ringSizes,
     const SamplePatternPalette& samplePatternPalette,
-    uint64                      lastTimeStamp)
+    uint64                      lastTimeStamp,
+    bool*                       pHasDeferredChanges)
 {
     Result result = Result::Success;
 
     bool updateSrdTable    = false;
     bool deferFreeSrdTable = false;
+    *pHasDeferredChanges   = false;
 
     for (size_t ring = 0; (result == Result::Success) && (ring < NumRings()); ++ring)
     {
@@ -229,6 +231,7 @@ Result ShaderRingSet::Validate(
                 deferFreeSrdTable = true;
                 m_deferredFreeMemList.PushBack(deferredMem);
                 updateSrdTable = true;
+                *pHasDeferredChanges   = true;
             }
         }
     }
@@ -357,10 +360,10 @@ UniversalRingSet::UniversalRingSet(
 // The problem is that only some ASICs moved the registers so we can't use any one name consistently. The good news is
 // that most of the _UMD and _REMAP registers have the same user space address as the old user space registers.
 // If these asserts pass we can just use the Gfx09 version of these registers everywhere in our code.
-static_assert(Gfx09::mmVGT_GSVS_RING_SIZE   == Gfx101::mmVGT_GSVS_RING_SIZE_UMD, "");
-static_assert(Gfx09::mmVGT_HS_OFFCHIP_PARAM == Gfx101::mmVGT_HS_OFFCHIP_PARAM_UMD, "");
-static_assert(Gfx09::mmVGT_TF_MEMORY_BASE   == Gfx101::mmVGT_TF_MEMORY_BASE_UMD, "");
-static_assert(Gfx09::mmVGT_TF_RING_SIZE     == Gfx101::mmVGT_TF_RING_SIZE_UMD, "");
+static_assert(NotGfx10::mmVGT_GSVS_RING_SIZE         == Gfx101::mmVGT_GSVS_RING_SIZE_UMD, "");
+static_assert(NotGfx10::mmVGT_HS_OFFCHIP_PARAM       == Gfx101::mmVGT_HS_OFFCHIP_PARAM_UMD, "");
+static_assert(NotGfx10::mmVGT_TF_MEMORY_BASE         == Gfx101::mmVGT_TF_MEMORY_BASE_UMD, "");
+static_assert(NotGfx10::mmVGT_TF_RING_SIZE           == Gfx101::mmVGT_TF_RING_SIZE_UMD, "");
 
 // =====================================================================================================================
 // Initializes this Universal-Queue shader-ring set object.
@@ -427,12 +430,13 @@ Result UniversalRingSet::Init()
 Result UniversalRingSet::Validate(
     const ShaderRingItemSizes&  ringSizes,
     const SamplePatternPalette& samplePatternPalette,
-    uint64                      lastTimeStamp)
+    uint64                      lastTimeStamp,
+    bool*                       pHasDeferredChanges)
 {
     const Pal::Device&  device = *(m_pDevice->Parent());
 
     // First, perform the base class' validation.
-    Result result = ShaderRingSet::Validate(ringSizes, samplePatternPalette, lastTimeStamp);
+    Result result = ShaderRingSet::Validate(ringSizes, samplePatternPalette, lastTimeStamp, pHasDeferredChanges);
 
     if (result == Result::Success)
     {
@@ -509,14 +513,14 @@ uint32* UniversalRingSet::WriteCommands(
 
     if (m_gfxLevel == GfxIpLevel::GfxIp9)
     {
-        pCmdSpace = pCmdStream->WriteSetSeqConfigRegs(Gfx09::mmVGT_TF_MEMORY_BASE,
+        pCmdSpace = pCmdStream->WriteSetSeqConfigRegs(NotGfx10::mmVGT_TF_MEMORY_BASE,
                                                       Gfx09::mmVGT_TF_MEMORY_BASE_HI,
                                                       &m_regs.vgtTfMemoryBaseLo,
                                                       pCmdSpace);
     }
     else if (IsGfx10(m_gfxLevel))
     {
-        pCmdSpace = pCmdStream->WriteSetOneConfigReg(Gfx09::mmVGT_TF_MEMORY_BASE,
+        pCmdSpace = pCmdStream->WriteSetOneConfigReg(NotGfx10::mmVGT_TF_MEMORY_BASE,
                                                      m_regs.vgtTfMemoryBaseLo.u32All,
                                                      pCmdSpace);
         pCmdSpace = pCmdStream->WriteSetOneConfigReg(Gfx101::mmVGT_TF_MEMORY_BASE_HI_UMD,
@@ -524,12 +528,12 @@ uint32* UniversalRingSet::WriteCommands(
                                                      pCmdSpace);
     }
 
-    pCmdSpace = pCmdStream->WriteSetOneConfigReg(Gfx09::mmVGT_TF_RING_SIZE, m_regs.vgtTfRingSize.u32All, pCmdSpace);
-    pCmdSpace = pCmdStream->WriteSetOneConfigReg(Gfx09::mmVGT_HS_OFFCHIP_PARAM,
+    pCmdSpace = pCmdStream->WriteSetOneConfigReg(NotGfx10::mmVGT_TF_RING_SIZE, m_regs.vgtTfRingSize.u32All, pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetOneConfigReg(NotGfx10::mmVGT_HS_OFFCHIP_PARAM,
                                                  m_regs.vgtHsOffchipParam.u32All,
                                                  pCmdSpace);
 
-    pCmdSpace = pCmdStream->WriteSetOneConfigReg(Gfx09::mmVGT_GSVS_RING_SIZE,
+    pCmdSpace = pCmdStream->WriteSetOneConfigReg(NotGfx10::mmVGT_GSVS_RING_SIZE,
                                                  m_regs.vgtGsVsRingSize.u32All,
                                                  pCmdSpace);
 
@@ -594,10 +598,11 @@ Result ComputeRingSet::Init()
 Result ComputeRingSet::Validate(
     const ShaderRingItemSizes&  ringSizes,
     const SamplePatternPalette& samplePatternPalette,
-    uint64                      lastTimeStamp)
+    uint64                      lastTimeStamp,
+    bool*                       pHasDeferredChanges)
 {
     // First, perform the base class' validation.
-    Result result = ShaderRingSet::Validate(ringSizes, samplePatternPalette, lastTimeStamp);
+    Result result = ShaderRingSet::Validate(ringSizes, samplePatternPalette, lastTimeStamp, pHasDeferredChanges);
 
     if (result == Result::Success)
     {

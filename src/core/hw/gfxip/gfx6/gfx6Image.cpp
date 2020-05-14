@@ -2332,6 +2332,29 @@ gpusize Image::GetWaTcCompatZRangeMetaDataAddr(
 }
 
 // =====================================================================================================================
+// Returns the offset relative to the bound GPU memory of the waTcCompatZRange metadata for the specified mip level.
+gpusize Image::WaTcCompatZRangeMetaDataOffset(
+    uint32 mipLevel
+    ) const
+{
+    PAL_ASSERT(HasWaTcCompatZRangeMetaData());
+
+    return Parent()->GetBoundGpuMemory().Offset() + m_waTcCompatZRangeMetaDataOffset +
+           (m_waTcCompatZRangeMetaDataSizePerMip * mipLevel);
+}
+
+// =====================================================================================================================
+// Returns the GPU memory size of the waTcCompatZRange metadata for the specified num mips.
+gpusize Image::WaTcCompatZRangeMetaDataSize(
+    uint32 numMips
+    ) const
+{
+    PAL_ASSERT(HasWaTcCompatZRangeMetaData());
+
+    return (m_waTcCompatZRangeMetaDataSizePerMip * numMips);
+}
+
+// =====================================================================================================================
 // Determines the correct AddrLib tile mode to use for a subresource
 Result Image::ComputeAddrTileMode(
     uint32        subResIdx,
@@ -3056,6 +3079,14 @@ void Image::InitMetadataFill(
         pCmdBuffer->CmdFillMemory(*boundMem.Memory(),
                                   HiSPretestsMetaDataOffset(range.startSubres.mipLevel),
                                   HiSPretestsMetaDataSize(range.numMips),
+                                  0);
+    }
+
+    if (HasWaTcCompatZRangeMetaData() && (range.startSubres.aspect == ImageAspect::Depth))
+    {
+        pCmdBuffer->CmdFillMemory(*boundMem.Memory(),
+                                  WaTcCompatZRangeMetaDataOffset(range.startSubres.mipLevel),
+                                  WaTcCompatZRangeMetaDataSize(range.numMips),
                                   0);
     }
 

@@ -7194,8 +7194,9 @@ void RsrcProcMgr::ResolveImageDepthStencilCopy(
                     // Draw a fullscreen quad.
                     pCmdBuffer->CmdDraw(0, 3, 0, 1);
 
-                    // Unbind the color-target view and destroy it.
+                    // Unbind the color-target and depth-stencil target view and destroy them.
                     bindTargetsInfo.colorTargetCount = 0;
+                    bindTargetsInfo.depthTarget.pDepthStencilView = nullptr;
                     pCmdBuffer->CmdBindTargets(bindTargetsInfo);
                 }
             }

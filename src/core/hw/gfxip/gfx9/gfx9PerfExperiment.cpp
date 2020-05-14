@@ -289,14 +289,14 @@ static regSQ_THREAD_TRACE_TOKEN_MASK GetGfx10SqttTokenMask(
     // activity could cause GPU hang or generate lot of thread trace traffic.
     PAL_ALERT(grbmCsDataRegs || regReads);
 
-    value.gfx10.REG_INCLUDE = ((sqdecRegs       << SQ_TT_TOKEN_MASK_SQDEC_SHIFT)            |
-                               (shdecRegs       << SQ_TT_TOKEN_MASK_SHDEC_SHIFT)            |
-                               (gfxudecRegs     << SQ_TT_TOKEN_MASK_GFXUDEC_SHIFT)          |
-                               (compRegs        << SQ_TT_TOKEN_MASK_COMP_SHIFT)             |
-                               (contextRegs     << SQ_TT_TOKEN_MASK_CONTEXT_SHIFT)          |
-                               (otherConfigRegs << SQ_TT_TOKEN_MASK_CONFIG_SHIFT)           |
-                               (grbmCsDataRegs  << SQ_TT_TOKEN_MASK_OTHER_SHIFT__GFX10CORE) |
-                               (regReads        << SQ_TT_TOKEN_MASK_READS_SHIFT));
+    value.gfx10Plus.REG_INCLUDE = ((sqdecRegs       << SQ_TT_TOKEN_MASK_SQDEC_SHIFT)                |
+                                   (shdecRegs       << SQ_TT_TOKEN_MASK_SHDEC_SHIFT)                |
+                                   (gfxudecRegs     << SQ_TT_TOKEN_MASK_GFXUDEC_SHIFT)              |
+                                   (compRegs        << SQ_TT_TOKEN_MASK_COMP_SHIFT)                 |
+                                   (contextRegs     << SQ_TT_TOKEN_MASK_CONTEXT_SHIFT)              |
+                                   (otherConfigRegs << SQ_TT_TOKEN_MASK_CONFIG_SHIFT)               |
+                                   (grbmCsDataRegs  << SQ_TT_TOKEN_MASK_OTHER_SHIFT__GFX10COREPLUS) |
+                                   (regReads        << SQ_TT_TOKEN_MASK_READS_SHIFT));
 
     return value;
 }
@@ -1207,17 +1207,17 @@ Result PerfExperiment::AddThreadTrace(
         {
             // Note that gfx10 has new thread trace modes. For now we use "on" to match the gfx9 implementation.
             // We may want to consider using one of the new modes by default.
-            m_sqtt[traceInfo.instance].ctrl.gfx10.MODE              = SQ_TT_MODE_ON;
-            m_sqtt[traceInfo.instance].ctrl.gfx10.HIWATER           = SqttGfx10HiWaterValue;
-            m_sqtt[traceInfo.instance].ctrl.gfx10.UTIL_TIMER        = 1;
-            m_sqtt[traceInfo.instance].ctrl.gfx10.RT_FREQ           = SQ_TT_RT_FREQ_4096_CLK;
-            m_sqtt[traceInfo.instance].ctrl.gfx10.DRAW_EVENT_EN     = 1;
+            m_sqtt[traceInfo.instance].ctrl.gfx10Plus.MODE              = SQ_TT_MODE_ON;
+            m_sqtt[traceInfo.instance].ctrl.gfx10Plus.HIWATER           = SqttGfx10HiWaterValue;
+            m_sqtt[traceInfo.instance].ctrl.gfx10Plus.UTIL_TIMER        = 1;
+            m_sqtt[traceInfo.instance].ctrl.gfx10Plus.RT_FREQ           = SQ_TT_RT_FREQ_4096_CLK;
+            m_sqtt[traceInfo.instance].ctrl.gfx10Plus.DRAW_EVENT_EN     = 1;
 
             // Enable all stalling in "always" mode, "lose detail" mode only disables register stalls.
-            m_sqtt[traceInfo.instance].ctrl.gfx10.REG_STALL_EN      = (stallMode == GpuProfilerStallAlways);
-            m_sqtt[traceInfo.instance].ctrl.gfx10.SPI_STALL_EN      = (stallMode != GpuProfilerStallNever);
-            m_sqtt[traceInfo.instance].ctrl.gfx10.SQ_STALL_EN       = (stallMode != GpuProfilerStallNever);
-            m_sqtt[traceInfo.instance].ctrl.gfx10.REG_DROP_ON_STALL = (stallMode != GpuProfilerStallAlways);
+            m_sqtt[traceInfo.instance].ctrl.gfx10Plus.REG_STALL_EN      = (stallMode == GpuProfilerStallAlways);
+            m_sqtt[traceInfo.instance].ctrl.gfx10Plus.SPI_STALL_EN      = (stallMode != GpuProfilerStallNever);
+            m_sqtt[traceInfo.instance].ctrl.gfx10Plus.SQ_STALL_EN       = (stallMode != GpuProfilerStallNever);
+            m_sqtt[traceInfo.instance].ctrl.gfx10Plus.REG_DROP_ON_STALL = (stallMode != GpuProfilerStallAlways);
 
             static_assert((static_cast<uint32>(PerfShaderMaskPs) == static_cast<uint32>(SQ_TT_WTYPE_INCLUDE_PS_BIT) &&
                            static_cast<uint32>(PerfShaderMaskVs) == static_cast<uint32>(SQ_TT_WTYPE_INCLUDE_VS_BIT) &&
@@ -1225,21 +1225,21 @@ Result PerfExperiment::AddThreadTrace(
                            static_cast<uint32>(PerfShaderMaskHs) == static_cast<uint32>(SQ_TT_WTYPE_INCLUDE_HS_BIT) &&
                            static_cast<uint32>(PerfShaderMaskCs) == static_cast<uint32>(SQ_TT_WTYPE_INCLUDE_CS_BIT) &&
                            static_cast<uint32>(PerfShaderMaskEs) ==
-                               static_cast<uint32>(SQ_TT_WTYPE_INCLUDE_ES_BIT__GFX10CORE) &&
+                               static_cast<uint32>(SQ_TT_WTYPE_INCLUDE_ES_BIT__GFX10COREPLUS) &&
                            static_cast<uint32>(PerfShaderMaskLs) ==
-                               static_cast<uint32>(SQ_TT_WTYPE_INCLUDE_LS_BIT__GFX10CORE)),
+                               static_cast<uint32>(SQ_TT_WTYPE_INCLUDE_LS_BIT__GFX10COREPLUS)),
                            "We assume that the SQ_TT_WTYPE enum matches PerfExperimentShaderFlags.");
 
             {
-                m_sqtt[traceInfo.instance].mask.gfx10.WTYPE_INCLUDE = shaderMask;
+                m_sqtt[traceInfo.instance].mask.gfx10Plus.WTYPE_INCLUDE = shaderMask;
             }
 
-            m_sqtt[traceInfo.instance].mask.gfx10.SA_SEL        = shIndex;
+            m_sqtt[traceInfo.instance].mask.gfx10Plus.SA_SEL        = shIndex;
 
             if (traceInfo.optionFlags.threadTraceTargetCu != 0)
             {
                 // Divide by two to convert to a WGP index.
-                m_sqtt[traceInfo.instance].mask.gfx10.WGP_SEL = traceInfo.optionValues.threadTraceTargetCu / 2;
+                m_sqtt[traceInfo.instance].mask.gfx10Plus.WGP_SEL = traceInfo.optionValues.threadTraceTargetCu / 2;
             }
             else
             {
@@ -1258,11 +1258,11 @@ Result PerfExperiment::AddThreadTrace(
                 }
 
                 // Divide by two to convert from CUs to WGPs.
-                m_sqtt[traceInfo.instance].mask.gfx10.WGP_SEL = firstActiveCu / 2;
+                m_sqtt[traceInfo.instance].mask.gfx10Plus.WGP_SEL = firstActiveCu / 2;
             }
 
             // Default to getting detailed tokens from SIMD 0.
-            m_sqtt[traceInfo.instance].mask.gfx10.SIMD_SEL = (traceInfo.optionFlags.threadTraceSimdMask != 0)
+            m_sqtt[traceInfo.instance].mask.gfx10Plus.SIMD_SEL = (traceInfo.optionFlags.threadTraceSimdMask != 0)
                     ? traceInfo.optionValues.threadTraceSimdMask : 0;
 
             if (traceInfo.optionFlags.threadTraceTokenConfig != 0)
@@ -1274,7 +1274,7 @@ Result PerfExperiment::AddThreadTrace(
             {
                 // By default trace all tokens and registers.
                 SetSqttTokenExclude(m_device, &m_sqtt[traceInfo.instance].tokenMask, SqttGfx10TokenMaskDefault);
-                m_sqtt[traceInfo.instance].tokenMask.gfx10.REG_INCLUDE   = SqttGfx10RegMaskDefault;
+                m_sqtt[traceInfo.instance].tokenMask.gfx10Plus.REG_INCLUDE   = SqttGfx10RegMaskDefault;
 
             }
         }
@@ -1686,7 +1686,7 @@ Result PerfExperiment::GetThreadTraceLayout(
                     else
                     {
                         // Our thread trace tools seem to expect that this is in units of WGPs.
-                        pLayout->traces[traceIdx].computeUnit = m_sqtt[idx].mask.gfx10.WGP_SEL;
+                        pLayout->traces[traceIdx].computeUnit = m_sqtt[idx].mask.gfx10Plus.WGP_SEL;
                     }
                     traceIdx++;
                 }
@@ -2128,8 +2128,8 @@ void PerfExperiment::UpdateSqttTokenMask(
                     regSQ_THREAD_TRACE_TOKEN_MASK tokenMask = GetGfx10SqttTokenMask(m_device, sqttTokenConfig);
 
                     // These fields aren't controlled by the token config.
-                    tokenMask.gfx10.INST_EXCLUDE   = m_sqtt[idx].tokenMask.gfx10.INST_EXCLUDE;
-                    tokenMask.gfx10.REG_DETAIL_ALL = m_sqtt[idx].tokenMask.gfx10.REG_DETAIL_ALL;
+                    tokenMask.gfx10Plus.INST_EXCLUDE   = m_sqtt[idx].tokenMask.gfx10Plus.INST_EXCLUDE;
+                    tokenMask.gfx10Plus.REG_DETAIL_ALL = m_sqtt[idx].tokenMask.gfx10Plus.REG_DETAIL_ALL;
 
                     {
                         pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(Gfx10Core::mmSQ_THREAD_TRACE_TOKEN_MASK,
@@ -2468,8 +2468,8 @@ uint32* PerfExperiment::WriteSpmSetup(
         rlcExtendedSize.glbSegmentSize.bits.GLOBAL_NUM_LINE      =
             m_numMuxselLines[static_cast<uint32>(SpmDataSegmentType::Global)];
 
-        pCmdSpace = pCmdStream->WriteSetSeqConfigRegs(Gfx10::mmRLC_SPM_PERFMON_SE3TO0_SEGMENT_SIZE,
-                                                      Gfx10::mmRLC_SPM_PERFMON_GLB_SEGMENT_SIZE,
+        pCmdSpace = pCmdStream->WriteSetSeqConfigRegs(Gfx10Plus::mmRLC_SPM_PERFMON_SE3TO0_SEGMENT_SIZE,
+                                                      Gfx10Plus::mmRLC_SPM_PERFMON_GLB_SEGMENT_SIZE,
                                                       &rlcExtendedSize,
                                                       pCmdSpace);
     }
@@ -2808,12 +2808,12 @@ uint32* PerfExperiment::WriteStopThreadTraces(
                                                        engine_sel__me_wait_reg_mem__micro_engine,
                                                        Gfx10Core::mmSQ_THREAD_TRACE_STATUS,
                                                        0,
-                                                       Gfx10::SQ_THREAD_TRACE_STATUS__FINISH_DONE_MASK,
+                                                       Gfx10Plus::SQ_THREAD_TRACE_STATUS__FINISH_DONE_MASK,
                                                        pCmdSpace);
 
                 // Set the mode to "OFF".
                 regSQ_THREAD_TRACE_CTRL sqttCtrl = m_sqtt[idx].ctrl;
-                sqttCtrl.gfx10.MODE = SQ_TT_MODE_OFF;
+                sqttCtrl.gfx10Plus.MODE = SQ_TT_MODE_OFF;
 
                 pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(Gfx10Core::mmSQ_THREAD_TRACE_CTRL,
                                                               sqttCtrl.u32All,
@@ -2826,7 +2826,7 @@ uint32* PerfExperiment::WriteStopThreadTraces(
                                                        engine_sel__me_wait_reg_mem__micro_engine,
                                                        Gfx10Core::mmSQ_THREAD_TRACE_STATUS,
                                                        0,
-                                                       Gfx10::SQ_THREAD_TRACE_STATUS__BUSY_MASK,
+                                                       Gfx10Plus::SQ_THREAD_TRACE_STATUS__BUSY_MASK,
                                                        pCmdSpace);
 
                 // Use COPY_DATA to read back the info struct one DWORD at a time.
@@ -3435,7 +3435,7 @@ uint32* PerfExperiment::WriteGrbmGfxIndexBroadcastSe(
 // The problem is that only some ASICs moved the registers so we can't use any one name consistently. The good news is
 // that most of the _UMD and _REMAP registers have the same user space address as the old user space registers.
 // If these asserts pass we can just use the Gfx09 version of these registers everywhere in our code.
-static_assert(Gfx09::mmSPI_CONFIG_CNTL == Gfx101::mmSPI_CONFIG_CNTL_REMAP, "");
+static_assert(NotGfx10::mmSPI_CONFIG_CNTL == Gfx101::mmSPI_CONFIG_CNTL_REMAP, "");
 
 // =====================================================================================================================
 // Writes a packet that updates the SQG event controls in SPI_CONFIG_CNTL.
@@ -3460,7 +3460,7 @@ uint32* PerfExperiment::WriteUpdateSpiConfigCntl(
     }
     else
     {
-        spiConfigCntl.u32All = Gfx10::mmSPI_CONFIG_CNTL_DEFAULT;
+        spiConfigCntl.u32All = Gfx10Plus::mmSPI_CONFIG_CNTL_DEFAULT;
     }
 
     spiConfigCntl.bits.ENABLE_SQG_TOP_EVENTS = enableSqgEvents;
@@ -3468,7 +3468,7 @@ uint32* PerfExperiment::WriteUpdateSpiConfigCntl(
 
     if (m_chipProps.gfxLevel == GfxIpLevel::GfxIp9)
     {
-        pCmdSpace = pCmdStream->WriteSetOneConfigReg(Gfx09::mmSPI_CONFIG_CNTL, spiConfigCntl.u32All, pCmdSpace);
+        pCmdSpace = pCmdStream->WriteSetOneConfigReg(NotGfx10::mmSPI_CONFIG_CNTL, spiConfigCntl.u32All, pCmdSpace);
     }
     else
     {
@@ -3478,14 +3478,14 @@ uint32* PerfExperiment::WriteUpdateSpiConfigCntl(
             constexpr uint32 SpiConfigCntlSqgEventsMask = ((1 << SPI_CONFIG_CNTL__ENABLE_SQG_BOP_EVENTS__SHIFT) |
                                                            (1 << SPI_CONFIG_CNTL__ENABLE_SQG_TOP_EVENTS__SHIFT));
 
-            pCmdSpace += m_cmdUtil.BuildRegRmw(Gfx09::mmSPI_CONFIG_CNTL,
+            pCmdSpace += m_cmdUtil.BuildRegRmw(NotGfx10::mmSPI_CONFIG_CNTL,
                                                spiConfigCntl.u32All,
                                                ~(SpiConfigCntlSqgEventsMask),
                                                pCmdSpace);
         }
         else
         {
-            pCmdSpace = pCmdStream->WriteSetOneConfigReg(Gfx09::mmSPI_CONFIG_CNTL,
+            pCmdSpace = pCmdStream->WriteSetOneConfigReg(NotGfx10::mmSPI_CONFIG_CNTL,
                                                          spiConfigCntl.u32All,
                                                          pCmdSpace);
         }

@@ -188,13 +188,13 @@ ScratchRing::ScratchRing(
     m_numTotalCus(0)
 {
     const GpuChipProperties& chipProps = m_pDevice->Parent()->ChipProperties();
-    const auto pPalSettings = m_pDevice->Parent()->GetPublicSettings();
 
     m_numTotalCus = chipProps.gfx6.numShaderEngines *
                     chipProps.gfx6.numShaderArrays  *
                     chipProps.gfx6.numCuPerSh;
 
-    m_numMaxWaves = (pPalSettings->numScratchWavesPerCu * m_numTotalCus);
+    // The max we expect is one scratch wave on every wave slot in every CU.
+    m_numMaxWaves = (chipProps.gfx6.numWavesPerSimd * chipProps.gfx6.numSimdPerCu * m_numTotalCus);
 
     ShaderRingSrd srdTableIndex = ShaderRingSrd::ScratchGraphics;
 

@@ -79,6 +79,7 @@ libdrm_amdgpu.so.1 @proc  int32 amdgpu_cs_syncobj_transfer (amdgpu_device_handle
 libdrm_amdgpu.so.1 @proc  int32 amdgpu_cs_syncobj_query (amdgpu_device_handle hDevice, const uint32* pHandles, uint64* points, uint32 numHandles)
 libdrm_amdgpu.so.1 @proc  int32 amdgpu_cs_syncobj_query2 (amdgpu_device_handle hDevice, const uint32* pHandles, uint64* points, uint32 numHandles, uint32 flags)
 libdrm_amdgpu.so.1 @proc  int32 amdgpu_cs_ctx_create2 (amdgpu_device_handle hDevice, uint32 priority, amdgpu_context_handle* pContextHandle);
+libdrm_amdgpu.so.1 @proc  int32 amdgpu_cs_ctx_create3 (amdgpu_device_handle hDevice, uint32 priority, uint32_t flags, amdgpu_context_handle* pContextHandle);
 libdrm.so.2        @proc  int32 drmGetNodeTypeFromFd (int fd)
 libdrm.so.2        @proc  char* drmGetRenderDeviceNameFromFd (int fd)
 libdrm.so.2        @proc  int32 drmGetDevices (drmDevicePtr* pDevices, int32 maxDevices)

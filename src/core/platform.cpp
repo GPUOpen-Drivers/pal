@@ -42,6 +42,7 @@
 #include "protocols/driverControlServer.h"
 #include "protocols/rgpServer.h"
 #include "protocols/loggingServer.h"
+#include "protocols/ddInfoService.h"
 
 using namespace Util;
 
@@ -524,6 +525,17 @@ void Platform::LateInitDevDriver()
         deviceClockCallbackInfo.setCallback = SetClockModeCallback;
         deviceClockCallbackInfo.pUserdata = this;
 #endif
+
+        // This is a callback that can be used for any pal information as we add more support for more
+        // information. Currently it is only used for perf experiment information.
+        DevDriver::InfoURIService::InfoService::InfoSource palInfoSource = {};
+
+        palInfoSource.name             = "pal";
+        palInfoSource.version          = 1;
+        palInfoSource.pUserdata        = this;
+        palInfoSource.pfnWriteCallback = &PalCallback;
+
+        m_pDevDriverServer->GetInfoService()->RegisterInfoSource(palInfoSource);
 
         pDriverControlServer->SetNumGpus(m_deviceCount);
 

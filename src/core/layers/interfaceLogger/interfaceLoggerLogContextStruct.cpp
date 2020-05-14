@@ -857,6 +857,18 @@ void LogContext::Struct(
         Value("absoluteDepthBias");
     }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 594
+    if (value.flags.depthOnlyView)
+    {
+        Value("depthOnlyView");
+    }
+
+    if (value.flags.stencilOnlyView)
+    {
+        Value("stencilOnlyView");
+    }
+#endif
+
     EndList();
     KeyAndObject("image", value.pImage);
     KeyAndValue("mipLevel", value.mipLevel);

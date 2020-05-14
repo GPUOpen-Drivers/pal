@@ -359,22 +359,22 @@ void PAL_STDCALL ComputeCmdBuffer::CmdDispatchOffset(
     pThis->m_cmdStream.CommitCommands(pCmdSpace);
 }
 
-static_assert(((Gfx09::COMPUTE_STATIC_THREAD_MGMT_SE0__SH0_CU_EN_MASK ==
-                Gfx10::COMPUTE_STATIC_THREAD_MGMT_SE0__SA0_CU_EN_MASK) &&
-               (Gfx09::COMPUTE_STATIC_THREAD_MGMT_SE0__SH1_CU_EN_MASK ==
-                Gfx10::COMPUTE_STATIC_THREAD_MGMT_SE0__SA1_CU_EN_MASK) &&
-               (Gfx09::COMPUTE_STATIC_THREAD_MGMT_SE1__SH0_CU_EN_MASK ==
-                Gfx10::COMPUTE_STATIC_THREAD_MGMT_SE1__SA0_CU_EN_MASK) &&
-               (Gfx09::COMPUTE_STATIC_THREAD_MGMT_SE1__SH1_CU_EN_MASK ==
-                Gfx10::COMPUTE_STATIC_THREAD_MGMT_SE1__SA1_CU_EN_MASK) &&
-               (Gfx09::COMPUTE_STATIC_THREAD_MGMT_SE2__SH0_CU_EN_MASK ==
-                Gfx10::COMPUTE_STATIC_THREAD_MGMT_SE2__SA0_CU_EN_MASK) &&
-               (Gfx09::COMPUTE_STATIC_THREAD_MGMT_SE2__SH1_CU_EN_MASK ==
-                Gfx10::COMPUTE_STATIC_THREAD_MGMT_SE2__SA1_CU_EN_MASK) &&
-               (Gfx09::COMPUTE_STATIC_THREAD_MGMT_SE3__SH0_CU_EN_MASK ==
-                Gfx10::COMPUTE_STATIC_THREAD_MGMT_SE3__SA0_CU_EN_MASK) &&
-               (Gfx09::COMPUTE_STATIC_THREAD_MGMT_SE3__SH1_CU_EN_MASK ==
-                Gfx10::COMPUTE_STATIC_THREAD_MGMT_SE3__SA1_CU_EN_MASK)),
+static_assert(((Gfx09::COMPUTE_STATIC_THREAD_MGMT_SE0__SH0_CU_EN_MASK      ==
+                Gfx10Plus::COMPUTE_STATIC_THREAD_MGMT_SE0__SA0_CU_EN_MASK) &&
+               (Gfx09::COMPUTE_STATIC_THREAD_MGMT_SE0__SH1_CU_EN_MASK      ==
+                Gfx10Plus::COMPUTE_STATIC_THREAD_MGMT_SE0__SA1_CU_EN_MASK) &&
+               (Gfx09::COMPUTE_STATIC_THREAD_MGMT_SE1__SH0_CU_EN_MASK      ==
+                Gfx10Plus::COMPUTE_STATIC_THREAD_MGMT_SE1__SA0_CU_EN_MASK) &&
+               (Gfx09::COMPUTE_STATIC_THREAD_MGMT_SE1__SH1_CU_EN_MASK      ==
+                Gfx10Plus::COMPUTE_STATIC_THREAD_MGMT_SE1__SA1_CU_EN_MASK) &&
+               (Gfx09::COMPUTE_STATIC_THREAD_MGMT_SE2__SH0_CU_EN_MASK      ==
+                Gfx10Plus::COMPUTE_STATIC_THREAD_MGMT_SE2__SA0_CU_EN_MASK) &&
+               (Gfx09::COMPUTE_STATIC_THREAD_MGMT_SE2__SH1_CU_EN_MASK      ==
+                Gfx10Plus::COMPUTE_STATIC_THREAD_MGMT_SE2__SA1_CU_EN_MASK) &&
+               (Gfx09::COMPUTE_STATIC_THREAD_MGMT_SE3__SH0_CU_EN_MASK      ==
+                Gfx10Plus::COMPUTE_STATIC_THREAD_MGMT_SE3__SA0_CU_EN_MASK) &&
+               (Gfx09::COMPUTE_STATIC_THREAD_MGMT_SE3__SH1_CU_EN_MASK      ==
+                Gfx10Plus::COMPUTE_STATIC_THREAD_MGMT_SE3__SA1_CU_EN_MASK)),
                "COMPUTE_STATIC_THREAD_MGMT regs have changed between GFX9 and 10!");
 
 // =====================================================================================================================
@@ -686,10 +686,10 @@ uint32* ComputeCmdBuffer::ValidateDispatch(
                                                   pCmdSpace);
     }
 
-    if (IsGfx10(m_gfxIpLevel))
+    if (IsGfx10Plus(m_gfxIpLevel))
     {
         const regCOMPUTE_DISPATCH_TUNNEL dispatchTunnel = { };
-        pCmdSpace = m_cmdStream.WriteSetOneShReg<ShaderCompute>(Gfx10::mmCOMPUTE_DISPATCH_TUNNEL,
+        pCmdSpace = m_cmdStream.WriteSetOneShReg<ShaderCompute>(Gfx10Plus::mmCOMPUTE_DISPATCH_TUNNEL,
                                                                 dispatchTunnel.u32All,
                                                                 pCmdSpace);
     }

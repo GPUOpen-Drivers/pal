@@ -25,10 +25,7 @@
 
 include(PalVersionHelper)
 
-if (DEFINED pal_compiler_warnings_include_guard)
-    return()
-endif()
-set(pal_compiler_warnings_include_guard 1)
+pal_include_guard(PalCompilerWarnings)
 
 function(pal_compiler_warnings_gnu_or_clang)
     target_compile_options(pal

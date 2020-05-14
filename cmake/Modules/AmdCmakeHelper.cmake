@@ -22,12 +22,10 @@
  #  SOFTWARE.
  #
  #######################################################################################################################
-
-# Set up global CMake properties ###################################################################
-cmake_minimum_required(VERSION 3.5)
-
-# Include Frequently Used Modules ##################################################################
 include(CMakeDependentOption)
+include(PalVersionHelper)
+
+pal_include_guard(AmdCmakeHelper)
 
 # Build Type Helper ################################################################################
 if (CMAKE_CONFIGURATION_TYPES)

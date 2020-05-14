@@ -219,11 +219,12 @@ struct NggState
             {
                 struct
                 {
-                    uint8 viewports           : 1;
-                    uint8 triangleRasterState : 1;
-                    uint8 inputAssemblyState  : 1;
-                    uint8 msaaState           : 1;
-                    uint8 reserved            : 4;
+                    uint8 viewports              : 1;
+                    uint8 triangleRasterState    : 1;
+                    uint8 inputAssemblyState     : 1;
+                    uint8 msaaState              : 1;
+                    uint8 quadSamplePatternState : 1;
+                    uint8 reserved               : 3;
                 };
                 uint8 u8All;
             } dirty;
