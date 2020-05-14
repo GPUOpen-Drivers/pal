@@ -202,10 +202,10 @@ void PipelineChunkVsPs::LateInit(
         m_regs.dynamic.spiShaderPgmRsrc4Ps.bits.CU_EN = m_device.GetCuEnableMaskHi(0, settings.psCuEnLimitMask);
 
 #if PAL_ENABLE_PRINTS_ASSERTS
-        m_device.AssertUserAccumRegsDisabled(registers, Gfx10::mmSPI_SHADER_USER_ACCUM_PS_0);
+        m_device.AssertUserAccumRegsDisabled(registers, Gfx10Plus::mmSPI_SHADER_USER_ACCUM_PS_0);
         if (loadInfo.enableNgg == false)
         {
-            m_device.AssertUserAccumRegsDisabled(registers, Gfx10::mmSPI_SHADER_USER_ACCUM_VS_0);
+            m_device.AssertUserAccumRegsDisabled(registers, Gfx10Plus::mmSPI_SHADER_USER_ACCUM_VS_0);
         }
 #endif
     }
@@ -311,7 +311,7 @@ void PipelineChunkVsPs::LateInit(
     {
         // Override whatever wave-break size was specified by the pipeline binary if the panel is forcing a
         // value for the preferred wave-break size.
-        m_regs.context.paScShaderControl.gfx10.WAVE_BREAK_REGION_SIZE =
+        m_regs.context.paScShaderControl.gfx10Plus.WAVE_BREAK_REGION_SIZE =
             static_cast<uint32>(settings.forceWaveBreakSize);
     }
 
@@ -432,9 +432,9 @@ uint32* PipelineChunkVsPs::WriteShCommands(
                                                   index__pfp_set_sh_reg_index__apply_kmd_cu_and_mask,
                                                   pCmdSpace);
 
-    if (IsGfx10(chipProps.gfxLevel))
+    if (IsGfx10Plus(chipProps.gfxLevel))
     {
-        pCmdSpace = pCmdStream->WriteSetOneShRegIndex(Gfx10::mmSPI_SHADER_PGM_RSRC4_PS,
+        pCmdSpace = pCmdStream->WriteSetOneShRegIndex(Gfx10Plus::mmSPI_SHADER_PGM_RSRC4_PS,
                                                       dynamic.spiShaderPgmRsrc4Ps.u32All,
                                                       ShaderGraphics,
                                                       index__pfp_set_sh_reg_index__apply_kmd_cu_and_mask,
@@ -473,9 +473,9 @@ uint32* PipelineChunkVsPs::WriteShCommands(
                                                       index__pfp_set_sh_reg_index__apply_kmd_cu_and_mask,
                                                       pCmdSpace);
 
-        if (IsGfx10(chipProps.gfxLevel))
+        if (IsGfx10Plus(chipProps.gfxLevel))
         {
-            pCmdSpace = pCmdStream->WriteSetOneShRegIndex(Gfx10::mmSPI_SHADER_PGM_RSRC4_VS,
+            pCmdSpace = pCmdStream->WriteSetOneShRegIndex(Gfx10Plus::mmSPI_SHADER_PGM_RSRC4_VS,
                                                           dynamic.spiShaderPgmRsrc4Vs.u32All,
                                                           ShaderGraphics,
                                                           index__pfp_set_sh_reg_index__apply_kmd_cu_and_mask,

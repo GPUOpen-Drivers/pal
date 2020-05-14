@@ -318,13 +318,16 @@ ChNumFormat FmtFromHwBufFmt(
     BUF_FMT     bufFmt,
     GfxIpLevel  gfxIpLevel)
 {
-    PAL_ASSERT(IsGfx10(gfxIpLevel));
-
     ChNumFormat format = ChNumFormat::Undefined;
 
-    if (bufFmt < Gfx10MergedBufDataFmtCount)
+    if (IsGfx10(gfxIpLevel) && (bufFmt < Gfx10MergedBufDataFmtCount))
     {
         format = Gfx10MergedBufDataFmtTbl[bufFmt];
+    }
+    else
+    {
+        // What is this?
+        PAL_ASSERT_ALWAYS();
     }
 
     return format;

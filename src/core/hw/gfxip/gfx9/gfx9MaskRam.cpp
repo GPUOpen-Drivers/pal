@@ -2340,8 +2340,8 @@ void Gfx9MaskRam::CalcMetaEquationGfx10()
 
             // Because y bits get into the overlap before x bits, we may need to swap an x/y bit pair
             // where the overlap bits end
-            // 128 pipe is a little funky because although y3 starts the overlap, x3 is used in its place in the equation,
-            // so no need to swap
+            // 128 pipe is a little funky because although y3 starts the overlap, x3 is used in its place
+            // in the equation, so no need to swap
             // In 16Bpp 8xaa, we lose 1 overlap bit, which is y2, so we don't need to do this swap
             bool swapOverlapEnd = ((metaOverlap & 1) != 0)                           &&
                                   (flipXY == false)                                  &&
@@ -2349,8 +2349,9 @@ void Gfx9MaskRam::CalcMetaEquationGfx10()
                                   (((bppLog2 == 4) && (numSamplesLog2 == 3)) == false);
 
             // This is to handle a particular case SW_Z DCC 8 Bpp in 4xaa in 32 pipes
-            // This is the only case where we have "gap" in the overlap which requires two y bits, instead of interleaving
-            // y and x.  Other cases that have a gap end in y3/x4 which naturally works out with interleaved x/y's
+            // This is the only case where we have "gap" in the overlap which requires two y bits, instead of
+            // interleaving y and x.  Other cases that have a gap end in y3/x4 which naturally works out with
+            // interleaved x/y's
             swapOverlapEnd = swapOverlapEnd           ||
                              (IsZSwizzle(swizzleMode) &&
                              (bppLog2 == 3)           &&
@@ -3333,9 +3334,11 @@ uint32 Gfx9Dcc::GetMinCompressedBlockSize() const
     //    "The recommended solution is to limit the minimum compression to 64 B".
     //
     // So, for Raven (an APU) using 64-byte min-block-size is both a good idea and a requirement.
-    return static_cast<uint32>((chipProp.gpuType == GpuType::Integrated)
-                               ? Gfx9DccMinBlockSize::BlockSize64B
-                               : Gfx9DccMinBlockSize::BlockSize32B);
+    uint32 blkSize = static_cast<uint32>((chipProp.gpuType == GpuType::Integrated) ?
+                                         Gfx9DccMinBlockSize::BlockSize64B :
+                                         Gfx9DccMinBlockSize::BlockSize32B);
+
+    return blkSize;
 }
 
 // =====================================================================================================================
@@ -3387,12 +3390,12 @@ void Gfx9Dcc::SetControlReg(
         m_dccControl.bits.INDEPENDENT_64B_BLOCKS    = 1;
         m_dccControl.bits.MAX_COMPRESSED_BLOCK_SIZE = static_cast<unsigned int>(Gfx9DccMaxBlockSize::BlockSize64B);
 
-        if (IsGfx10(gfxLevel))
+        if (IsGfx10Plus(gfxLevel))
         {
-            m_dccControl.bits.INDEPENDENT_64B_BLOCKS     = 0;
-            m_dccControl.bits.MAX_COMPRESSED_BLOCK_SIZE  = static_cast<unsigned int>(
+            m_dccControl.bits.INDEPENDENT_64B_BLOCKS       = 0;
+            m_dccControl.bits.MAX_COMPRESSED_BLOCK_SIZE    = static_cast<unsigned int>(
                                                                   Gfx9DccMaxBlockSize::BlockSize128B);
-            m_dccControl.gfx10.INDEPENDENT_128B_BLOCKS   = 1;
+            m_dccControl.gfx10Plus.INDEPENDENT_128B_BLOCKS = 1;
 
             PAL_ASSERT(m_dccControl.bits.MAX_COMPRESSED_BLOCK_SIZE <= m_dccControl.bits.MAX_UNCOMPRESSED_BLOCK_SIZE);
 
@@ -4075,12 +4078,14 @@ bool Gfx9Cmask::UseCmaskForImage(
     }
     else
     {
-        // Forcing CMask usage forces FMask usage, which is required for EQAA.
-        useCmask = (pParent->IsEqaa() ||
-                    (pParent->IsRenderTarget()                        &&
-                     (pParent->IsShared()                   == false) &&
-                     (pParent->IsMetadataDisabledByClient() == false) &&
-                     (pParent->GetImageCreateInfo().samples > 1)));
+        {
+            // Forcing CMask usage forces FMask usage, which is required for EQAA.
+            useCmask = (pParent->IsEqaa() ||
+                        (pParent->IsRenderTarget()                        &&
+                         (pParent->IsShared()                   == false) &&
+                         (pParent->IsMetadataDisabledByClient() == false) &&
+                         (pParent->GetImageCreateInfo().samples > 1)));
+        }
     }
 
     return useCmask;

@@ -59,6 +59,7 @@ public:
     bool UsesOverRasterization() const { return (m_regs.dbEqaa.bits.OVERRASTERIZATION_AMOUNT != 0); }
     bool ShaderCanKill() const { return (m_regs.dbAlphaToMask.bits.ALPHA_TO_MASK_ENABLE != 0); }
     bool UsesLineStipple() const { return (m_regs.paScModeCntl0.bits.LINE_STIPPLE_ENABLE != 0); }
+    bool ConservativeRasterizationEnabled() const { return (m_regs.paScConsRastCntl.bits.OVER_RAST_ENABLE != 0); }
 
     uint32 NumSamples() const { return (1 << m_log2Samples); }
     uint32 Log2NumSamples() const { return m_log2Samples; }

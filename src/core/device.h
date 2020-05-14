@@ -1,4 +1,4 @@
-/*
+﻿/*
  ***********************************************************************************************************************
  *
  *  Copyright (c) 2014-2020 Advanced Micro Devices, Inc. All Rights Reserved.
@@ -88,6 +88,14 @@ constexpr uint32 MinVaRangeNumBits = 36u;
 
 // PAL minimum fragment size for local memory allocations
 constexpr gpusize PageSize = 0x1000u;
+
+#if defined(__unix__)
+#if PAL_INTERFACE_MAJOR_VERSION >= 595
+constexpr char SettingsFileName[] = "amdVulkanSettings.cfg";
+#else
+constexpr char SettingsFileName[] = "amdPalSettings.cfg";
+#endif
+#endif
 
 // Internal representation of the IDevice::m_pfnTable structure.
 struct DeviceInterfacePfnTable
@@ -312,7 +320,7 @@ struct GpuMemoryProperties
             uint32 iommuv2Support             :  1; // Indicates support for IOMMUv2
             uint32 autoPrioritySupport        :  1; // Indiciates that the platform supports automatic allocation
                                                     // priority management.
-            uint32 placeholder0               :  1; // Placeholder.
+            uint32 supportsTmz                :  1; // Indicates TMZ (or HSFB) protected memory is supported.
             uint32 placeholder1               :  1; // Placeholder
             uint32 reserved                   : 16;
         };
@@ -850,6 +858,9 @@ struct GpuChipProperties
             uint32 gsPrimBufferDepth;
             uint32 maxGsWavesPerVgt;
             uint32 parameterCacheLines;
+	    uint32 sdmaDefaultRdL2Policy;
+	    uint32 sdmaDefaultWrL2Policy;
+	    bool   sdmaL2PolicyValid;
             //                   [SE][SA]
             uint32 activeCuMask  [4] [4];
             uint32 alwaysOnCuMask[4] [4];
@@ -2439,6 +2450,13 @@ static bool IsNavi10(const Device& device)
 static bool IsNavi14(const Device& device)
 {
     return AMDGPU_IS_NAVI14(device.ChipProperties().familyId, device.ChipProperties().eRevId);
+}
+static bool IsNavi1x(const Device& device)
+{
+        return (
+            IsNavi10(device)
+            || IsNavi14(device)
+           );
 }
 static bool IsGfx101(const Device& device)
 {

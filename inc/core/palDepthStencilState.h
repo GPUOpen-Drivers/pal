@@ -38,7 +38,7 @@ namespace Pal
 {
 
 /// Defines a stencil operation performed during the stencil test.
-enum class StencilOp : uint32
+enum class StencilOp : uint8
 {
     Keep     = 0x0,
     Zero     = 0x1,
@@ -65,13 +65,21 @@ struct DepthStencilStateCreateInfo
         CompareFunc stencilFunc;         ///< Stencil comparison function.
     };
 
-    bool            depthEnable;         ///< Enable depth testing.
-    bool            depthWriteEnable;    ///< Enable depth writes.
-    CompareFunc     depthFunc;           ///< Depth comparison function.
-    bool            depthBoundsEnable;   ///< Enables depth bounds testing.
-    bool            stencilEnable;       ///< Enable stencil testing.
     DepthStencilOp  front;               ///< Stencil operation for front-facing geometry.
     DepthStencilOp  back;                ///< Stencil operation for back-facing geometry.
+    CompareFunc     depthFunc;           ///< Depth comparison function.
+
+    union
+    {
+        struct
+        {
+            uint8 depthEnable       :  1; ///< Enable depth testing.
+            uint8 depthWriteEnable  :  1; ///< Enable depth writes.
+            uint8 depthBoundsEnable :  1; ///< Enables depth bounds testing.
+            uint8 stencilEnable     :  1; ///< Enables depth bounds testing.
+            uint8 reserved          :  4; ///< Reserved for future.
+        };
+    };
 };
 
 /**

@@ -96,8 +96,7 @@ static_assert((VGT_INDEX_16 == 0) && (VGT_INDEX_32 == 1) && (VGT_INDEX_8 == 2),
 
 // Context reg space technically goes to 0xBFFF, but in reality there are no registers we currently write beyond
 // a certain limit. This enum can save some memory space in situations where we shadow register state in the driver.
-constexpr uint32 CntxRegUsedRangeEnd  =
-                    Gfx10::mmCB_COLOR7_ATTRIB3;
+constexpr uint32 CntxRegUsedRangeEnd  = Gfx10Plus::mmCB_COLOR7_ATTRIB3;
 
 constexpr uint32 CntxRegUsedRangeSize = (CntxRegUsedRangeEnd - CONTEXT_SPACE_START + 1);
 constexpr uint32 CntxRegCount         = (CONTEXT_SPACE_END - CONTEXT_SPACE_START + 1);
@@ -105,7 +104,7 @@ constexpr uint32 CntxRegCount         = (CONTEXT_SPACE_END - CONTEXT_SPACE_START
 // SH reg space technically goes to 0x2FFF, but in reality there are no registers we currently write beyond the
 // COMPUTE_USER_DATA_15 register.  This enum can save some memory space in situations where we shadow register state
 // in the driver.
-constexpr uint32 ShRegUsedRangeEnd  = Gfx10::mmCOMPUTE_DISPATCH_TUNNEL;
+constexpr uint32 ShRegUsedRangeEnd  = Gfx10Plus::mmCOMPUTE_DISPATCH_TUNNEL;
 constexpr uint32 ShRegUsedRangeSize = (ShRegUsedRangeEnd - PERSISTENT_SPACE_START + 1);
 constexpr uint32 ShRegCount         = (PERSISTENT_SPACE_END - PERSISTENT_SPACE_START + 1);
 
@@ -137,8 +136,8 @@ using RegisterVector = Util::SparseVector<
     CONTEXT_SPACE_START,           CntxRegUsedRangeEnd,
     PERSISTENT_SPACE_START,        ShRegUsedRangeEnd,
     Gfx09::mmIA_MULTI_VGT_PARAM,   Gfx09::mmIA_MULTI_VGT_PARAM,
-    Gfx10::mmGE_STEREO_CNTL,       Gfx10::mmGE_STEREO_CNTL,
-    Gfx10::mmGE_USER_VGPR_EN,      Gfx10::mmGE_USER_VGPR_EN
+    Gfx10Plus::mmGE_STEREO_CNTL,   Gfx10Plus::mmGE_STEREO_CNTL,
+    Gfx10Plus::mmGE_USER_VGPR_EN,  Gfx10Plus::mmGE_USER_VGPR_EN
     >;
 
 // Number of SGPRs available to each wavefront.  Note that while only 104 SGPRs are available for use by a particular
@@ -167,6 +166,9 @@ constexpr uint32 Gfx10NumWavesPerCu   = Gfx10NumWavesPerSimd * Gfx10NumSimdPerCu
 
 // Number of SGPRs physically present per SIMD
 constexpr uint32 Gfx10PhysicalSgprsPerSimd = 128 * Gfx10NumWavesPerSimd;
+
+// The hardware can only support a limited number of scratch waves per CU.
+constexpr uint32 MaxScratchWavesPerCu = 32;
 
 // Number of slots the GPU events need in order to support all the MultiSlots usecases (for now just AcqRelBarrier).
 constexpr uint32 MaxSlotsPerEvent = 2;

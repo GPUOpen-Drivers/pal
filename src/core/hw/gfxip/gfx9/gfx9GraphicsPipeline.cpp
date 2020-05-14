@@ -698,13 +698,13 @@ uint32* GraphicsPipeline::WriteConfigCommandsGfx10(
 {
     // The caller is required to check if this is gfx10 before calling. We'd probably just do it in here if we
     // weren't worried about increasing our draw-time validation CPU overhead.
-    PAL_ASSERT(IsGfx10(m_gfxLevel));
+    PAL_ASSERT(IsGfx10Plus(m_gfxLevel));
 
-    pCmdSpace = pCmdStream->WriteSetSeqConfigRegs(Gfx10::mmGE_STEREO_CNTL,
-                                                  Gfx10::mmGE_PC_ALLOC,
+    pCmdSpace = pCmdStream->WriteSetSeqConfigRegs(Gfx10Plus::mmGE_STEREO_CNTL,
+                                                  Gfx10Plus::mmGE_PC_ALLOC,
                                                   &m_regs.uconfig.geStereoCntl,
                                                   pCmdSpace);
-    pCmdSpace = pCmdStream->WriteSetOneConfigReg(Gfx10::mmGE_USER_VGPR_EN,
+    pCmdSpace = pCmdStream->WriteSetOneConfigReg(Gfx10Plus::mmGE_USER_VGPR_EN,
                                                  m_regs.uconfig.geUserVgprEn.u32All,
                                                  pCmdSpace);
 
@@ -767,9 +767,9 @@ uint32* GraphicsPipeline::WriteContextCommandsSetPath(
                                                       pCmdSpace);
     }
 
-    if (IsGfx10(m_gfxLevel))
+    if (IsGfx10Plus(m_gfxLevel))
     {
-        pCmdSpace = pCmdStream->WriteSetOneContextReg(Gfx10::mmCB_COVERAGE_OUT_CONTROL,
+        pCmdSpace = pCmdStream->WriteSetOneContextReg(Gfx10Plus::mmCB_COVERAGE_OUT_CONTROL,
                                                       m_regs.context.cbCoverageOutCntl.u32All,
                                                       pCmdSpace);
     }
@@ -886,12 +886,12 @@ void GraphicsPipeline::SetupCommonRegisters(
         registers.HasEntry(regInfo.mmPaStereoCntl, &m_regs.context.paStereoCntl.u32All);
     }
 
-    if (IsGfx10(m_gfxLevel))
+    if (IsGfx10Plus(m_gfxLevel))
     {
-        registers.HasEntry(Gfx10::mmGE_STEREO_CNTL,  &m_regs.uconfig.geStereoCntl.u32All);
-        registers.HasEntry(Gfx10::mmGE_USER_VGPR_EN, &m_regs.uconfig.geUserVgprEn.u32All);
+        registers.HasEntry(Gfx10Plus::mmGE_STEREO_CNTL,  &m_regs.uconfig.geStereoCntl.u32All);
+        registers.HasEntry(Gfx10Plus::mmGE_USER_VGPR_EN, &m_regs.uconfig.geUserVgprEn.u32All);
 
-        if ((IsNgg() == false) || (m_regs.context.vgtShaderStagesEn.gfx10.PRIMGEN_PASSTHRU_EN == 1))
+        if ((IsNgg() == false) || (m_regs.context.vgtShaderStagesEn.gfx10Plus.PRIMGEN_PASSTHRU_EN == 1))
         {
             if (settings.gfx10GePcAllocNumLinesPerSeLegacyNggPassthru > 0)
             {
@@ -1452,9 +1452,9 @@ void GraphicsPipeline::SetupNonShaderRegisters(
             pUploader->AddCtxReg(mmVGT_GS_ONCHIP_CNTL, m_regs.context.vgtGsOnchipCntl);
         }
 
-        if (IsGfx10(m_gfxLevel))
+        if (IsGfx10Plus(m_gfxLevel))
         {
-            pUploader->AddCtxReg(Gfx10::mmCB_COVERAGE_OUT_CONTROL, m_regs.context.cbCoverageOutCntl);
+            pUploader->AddCtxReg(Gfx10Plus::mmCB_COVERAGE_OUT_CONTROL, m_regs.context.cbCoverageOutCntl);
         }
     }
 }
@@ -1525,8 +1525,8 @@ uint32 GraphicsPipeline::CalcMaxLateAllocLimit(
         if ((scratchEn != 0) && (spiShaderPgmRsrc2Ps.bits.SCRATCH_EN != 0))
         {
             // The maximum number of waves per SH that can launch using scratch is the number of CUs per SH times
-            // the setting that clamps the maximum number of in-flight scratch waves.
-            const uint32 maxScratchWavesPerSh = numCuForLateAllocVs * pPalSettings->numScratchWavesPerCu;
+            // the hardware limit on scratch waves per CU.
+            const uint32 maxScratchWavesPerSh = numCuForLateAllocVs * MaxScratchWavesPerCu;
 
             maxVsWaves = Min(maxVsWaves, maxScratchWavesPerSh);
         }
@@ -1585,14 +1585,14 @@ uint32 GraphicsPipeline::ComputeScratchMemorySize(
     const CodeObjectMetadata& metadata
     ) const
 {
-    const bool isGfx10       = IsGfx10(m_gfxLevel);
+    const bool isGfx10Plus   = IsGfx10Plus(m_gfxLevel);
     const bool isWave32Tbl[] = {
-        (isGfx10 && (m_regs.context.vgtShaderStagesEn.gfx10.HS_W32_EN != 0)),
-        (isGfx10 && (m_regs.context.vgtShaderStagesEn.gfx10.HS_W32_EN != 0)),
-        (isGfx10 && (m_regs.context.vgtShaderStagesEn.gfx10.GS_W32_EN != 0)),
-        (isGfx10 && (m_regs.context.vgtShaderStagesEn.gfx10.GS_W32_EN != 0)),
-        (isGfx10 && (m_regs.context.vgtShaderStagesEn.gfx10.VS_W32_EN != 0)),
-        (isGfx10 && (m_regs.other.spiPsInControl.gfx10.PS_W32_EN != 0)),
+        (isGfx10Plus && (m_regs.context.vgtShaderStagesEn.gfx10Plus.HS_W32_EN != 0)),
+        (isGfx10Plus && (m_regs.context.vgtShaderStagesEn.gfx10Plus.HS_W32_EN != 0)),
+        (isGfx10Plus && (m_regs.context.vgtShaderStagesEn.gfx10Plus.GS_W32_EN != 0)),
+        (isGfx10Plus && (m_regs.context.vgtShaderStagesEn.gfx10Plus.GS_W32_EN != 0)),
+        (isGfx10Plus && (m_regs.context.vgtShaderStagesEn.gfx10Plus.VS_W32_EN != 0)),
+        (isGfx10Plus && (m_regs.other.spiPsInControl.gfx10Plus.PS_W32_EN != 0)),
         false,
     };
     static_assert(ArrayLen(isWave32Tbl) == static_cast<size_t>(Abi::HardwareStage::Count),
@@ -2253,9 +2253,9 @@ bool GraphicsPipeline::HwStereoRenderingUsesMultipleViewports() const
     const auto&  palDevice  = *(m_pDevice->Parent());
     uint32       vpIdOffset = 0;
 
-    if (IsGfx10(m_gfxLevel))
+    if (IsGfx10Plus(m_gfxLevel))
     {
-        vpIdOffset = m_regs.context.paStereoCntl.gfx10.VP_ID_OFFSET;
+        vpIdOffset = m_regs.context.paStereoCntl.gfx10Plus.VP_ID_OFFSET;
     }
     else
     {
@@ -2336,8 +2336,8 @@ void GraphicsPipeline::SetupStereoRegisters()
                 const uint32  rtSliceOffset = viewInstancingDesc.renderTargetArrayIdx[1] -
                                               viewInstancingDesc.renderTargetArrayIdx[0];
 
-                m_regs.context.paStereoCntl.gfx10.VP_ID_OFFSET    = vpIdOffset;
-                m_regs.context.paStereoCntl.gfx10.RT_SLICE_OFFSET = rtSliceOffset;
+                m_regs.context.paStereoCntl.gfx10Plus.VP_ID_OFFSET    = vpIdOffset;
+                m_regs.context.paStereoCntl.gfx10Plus.RT_SLICE_OFFSET = rtSliceOffset;
 
                 if ((vpIdOffset != 0) || (rtSliceOffset != 0))
                 {
@@ -2349,7 +2349,7 @@ void GraphicsPipeline::SetupStereoRegisters()
 
                 if (m_regs.uconfig.geStereoCntl.bits.VIEWPORT != 0)
                 {
-                    m_regs.context.vgtDrawPayloadCntl.gfx10.EN_DRAW_VP = 1;
+                    m_regs.context.vgtDrawPayloadCntl.gfx10Plus.EN_DRAW_VP = 1;
                 }
 
                 if (m_regs.uconfig.geStereoCntl.bits.RT_SLICE != 0)

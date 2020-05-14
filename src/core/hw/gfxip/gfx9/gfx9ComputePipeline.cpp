@@ -242,20 +242,20 @@ Result ComputePipeline::LinkWithLibraries(
         computePgmRsrc2.bits.TGID_Z_EN  |= libObjRegInfo.libRegs.computePgmRsrc2.bits.TGID_Z_EN;
         computePgmRsrc2.bits.TG_SIZE_EN |= libObjRegInfo.libRegs.computePgmRsrc2.bits.TG_SIZE_EN;
 
-        if (IsGfx10(gpuInfo.gfxLevel))
+        if (IsGfx10Plus(gpuInfo.gfxLevel))
         {
             // FWD_PROGRESS and WGP_MODE should match across all the shader functions and the main shader.
             //
             /// @note Currently we do not support null main shader, but OR the FWD_PROGRESS and WGP_MODE registers from
             ///       the shader functions anyway to make it work with null main shader in the future.
-            PAL_ASSERT((computePgmRsrc1.gfx10.FWD_PROGRESS ==
-                            libObjRegInfo.libRegs.computePgmRsrc1.gfx10.FWD_PROGRESS) &&
-                       (computePgmRsrc1.gfx10.WGP_MODE     ==
-                            libObjRegInfo.libRegs.computePgmRsrc1.gfx10.WGP_MODE));
+            PAL_ASSERT((computePgmRsrc1.gfx10Plus.FWD_PROGRESS ==
+                            libObjRegInfo.libRegs.computePgmRsrc1.gfx10Plus.FWD_PROGRESS) &&
+                       (computePgmRsrc1.gfx10Plus.WGP_MODE     ==
+                            libObjRegInfo.libRegs.computePgmRsrc1.gfx10Plus.WGP_MODE));
 
-            computePgmRsrc1.gfx10.MEM_ORDERED  |= libObjRegInfo.libRegs.computePgmRsrc1.gfx10.MEM_ORDERED;
-            computePgmRsrc1.gfx10.FWD_PROGRESS |= libObjRegInfo.libRegs.computePgmRsrc1.gfx10.FWD_PROGRESS;
-            computePgmRsrc1.gfx10.WGP_MODE     |= libObjRegInfo.libRegs.computePgmRsrc1.gfx10.WGP_MODE;
+            computePgmRsrc1.gfx10Plus.MEM_ORDERED  |= libObjRegInfo.libRegs.computePgmRsrc1.gfx10Plus.MEM_ORDERED;
+            computePgmRsrc1.gfx10Plus.FWD_PROGRESS |= libObjRegInfo.libRegs.computePgmRsrc1.gfx10Plus.FWD_PROGRESS;
+            computePgmRsrc1.gfx10Plus.WGP_MODE     |= libObjRegInfo.libRegs.computePgmRsrc1.gfx10Plus.WGP_MODE;
 
             computePgmRsrc3.bits.SHARED_VGPR_CNT =
                 Max(computePgmRsrc3.bits.SHARED_VGPR_CNT, libObjRegInfo.libRegs.computePgmRsrc3.bits.SHARED_VGPR_CNT);
@@ -352,7 +352,7 @@ void ComputePipeline::UpdateRingSizes(
 
     if (scratchMemorySize != 0)
     {
-        if (IsGfx10(m_pDevice->Parent()->ChipProperties().gfxLevel) && (IsWave32() == false))
+        if (IsGfx10Plus(m_pDevice->Parent()->ChipProperties().gfxLevel) && (IsWave32() == false))
         {
             // We allocate scratch memory based on the minimum wave size for the chip, which for Gfx10+ ASICs will
             // be Wave32. In order to appropriately size the scratch memory (reported in the ELF as per-thread) for

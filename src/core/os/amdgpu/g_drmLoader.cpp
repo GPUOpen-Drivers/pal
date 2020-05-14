@@ -2082,6 +2082,35 @@ int32 DrmLoaderFuncsProxy::pfnAmdgpuCsCtxCreate2(
 }
 
 // =====================================================================================================================
+int32 DrmLoaderFuncsProxy::pfnAmdgpuCsCtxCreate3(
+    amdgpu_device_handle    hDevice,
+    uint32                  priority,
+    uint32_t                flags,
+    amdgpu_context_handle*  pContextHandle
+    ) const
+{
+    const int64 begin = Util::GetPerfCpuTime();
+    int32 ret = m_pFuncs->pfnAmdgpuCsCtxCreate3(hDevice,
+                                                priority,
+                                                flags,
+                                                pContextHandle);
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
+    m_timeLogger.Printf("AmdgpuCsCtxCreate3,%ld,%ld,%ld\n", begin, end, elapse);
+    m_timeLogger.Flush();
+
+    m_paramLogger.Printf(
+        "AmdgpuCsCtxCreate3(%p, %x, %x, %p)\n",
+        hDevice,
+        priority,
+        flags,
+        pContextHandle);
+    m_paramLogger.Flush();
+
+    return ret;
+}
+
+// =====================================================================================================================
 int32 DrmLoaderFuncsProxy::pfnDrmGetNodeTypeFromFd(
     int  fd
     ) const
@@ -3223,6 +3252,7 @@ Result DrmLoader::Init(
             m_library[LibDrmAmdgpu].GetFunction("amdgpu_cs_syncobj_query", &m_funcs.pfnAmdgpuCsSyncobjQuery);
             m_library[LibDrmAmdgpu].GetFunction("amdgpu_cs_syncobj_query2", &m_funcs.pfnAmdgpuCsSyncobjQuery2);
             m_library[LibDrmAmdgpu].GetFunction("amdgpu_cs_ctx_create2", &m_funcs.pfnAmdgpuCsCtxCreate2);
+            m_library[LibDrmAmdgpu].GetFunction("amdgpu_cs_ctx_create3", &m_funcs.pfnAmdgpuCsCtxCreate3);
         }
 
         // resolve symbols from libdrm.so.2

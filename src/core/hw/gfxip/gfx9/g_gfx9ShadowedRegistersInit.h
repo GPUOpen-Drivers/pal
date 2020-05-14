@@ -1383,8 +1383,8 @@ void InitializeContextRegistersNv10(
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmVGT_MULTI_PRIM_IB_RESET_INDX, mmPA_CL_UCP_5_W, VgtMultiPrimIbResetIndxNv10, pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmSPI_PS_INPUT_CNTL_0, mmSPI_SHADER_COL_FORMAT, SpiPsInputCntl0Nv10, pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmSX_PS_DOWNCONVERT, mmCB_BLEND7_CONTROL, SxPsDownconvertNv10, pCmdSpace);
-    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(Gfx10::mmGE_MAX_OUTPUT_PER_SUBGROUP, mmPA_CL_NANINF_CNTL, GeMaxOutputPerSubgroupNv10, pCmdSpace);
-    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmPA_SU_SMALL_PRIM_FILTER_CNTL, Gfx10::mmPA_STATE_STEREO_X, PaSuSmallPrimFilterCntlNv10, pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(Gfx10Plus::mmGE_MAX_OUTPUT_PER_SUBGROUP, mmPA_CL_NANINF_CNTL, GeMaxOutputPerSubgroupNv10, pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmPA_SU_SMALL_PRIM_FILTER_CNTL, Gfx10Plus::mmPA_STATE_STEREO_X, PaSuSmallPrimFilterCntlNv10, pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmPA_SU_POINT_SIZE, mmPA_SC_LINE_STIPPLE, PaSuPointSizeNv10, pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmVGT_HOS_MAX_TESS_LEVEL, mmVGT_HOS_MIN_TESS_LEVEL, VgtHosMaxTessLevelNv10, pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmVGT_GS_MODE, mmVGT_GS_OUT_PRIM_TYPE, VgtGsModeNv10, pCmdSpace);
@@ -1395,7 +1395,7 @@ void InitializeContextRegistersNv10(
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmVGT_DRAW_PAYLOAD_CNTL, mmVGT_STRMOUT_BUFFER_CONFIG, VgtDrawPayloadCntlNv10, pCmdSpace);
     pCmdStream->CommitCommands(pCmdSpace);
     pCmdSpace = pCmdStream->ReserveCommands();
-    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmPA_SC_CENTROID_PRIORITY_0, Gfx10::mmCB_COLOR7_ATTRIB3, PaScCentroidPriority0Nv10, pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmPA_SC_CENTROID_PRIORITY_0, Gfx10Plus::mmCB_COLOR7_ATTRIB3, PaScCentroidPriority0Nv10, pCmdSpace);
     pCmdStream->CommitCommands(pCmdSpace);
 
     for (uint32  regIdx = 0; regIdx < numRegPairs; regIdx++)

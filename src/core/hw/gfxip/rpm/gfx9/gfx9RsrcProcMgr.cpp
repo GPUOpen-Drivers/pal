@@ -985,6 +985,19 @@ bool RsrcProcMgr::InitMaskRam(
         usedCompute = true;
     }
 
+    // The metadata is used as a COND_EXEC condition, init ZRange meta data with 0(e.g, depth value is 1.0 by default)
+    // to indicate DB_Z_INFO.ZRANGE_PRECISION register filed should not be overwrote via this workaround metadata.
+    if (dstImage.HasWaTcCompatZRangeMetaData() && (range.startSubres.aspect == ImageAspect::Depth))
+    {
+        uint32* pCmdSpace = pCmdStream->ReserveCommands();
+        const Pm4Predicate packetPredicate = static_cast<Pm4Predicate>(
+                        pCmdBuffer->GetGfxCmdBufState().flags.packetPredicate);
+
+        pCmdSpace = dstImage.UpdateWaTcCompatZRangeMetaData(range, 1.0f, packetPredicate, pCmdSpace);
+
+        pCmdStream->CommitCommands(pCmdSpace);
+    }
+
     return usedCompute;
 }
 
@@ -2095,7 +2108,8 @@ bool RsrcProcMgr::HwlCanDoDepthStencilCopyResolve(
     AutoBuffer<const ImageResolveRegion*, 2 * MaxImageMipLevels, Platform>
         fixUpRegionList(regionCount, m_pDevice->GetPlatform());
 
-    bool canDoDepthStencilCopyResolve = (pGfxSrcImage->HasDsMetadata() || pGfxDstImage->HasDsMetadata());
+    bool canDoDepthStencilCopyResolve = ((pGfxSrcImage->HasDsMetadata() && pGfxSrcImage->HasHtileLookupTable()) ||
+                                         (pGfxDstImage->HasDsMetadata() && pGfxDstImage->HasHtileLookupTable()));
 
     if (fixUpRegionList.Capacity() >= regionCount)
     {
@@ -6293,7 +6307,8 @@ bool Gfx10RsrcProcMgr::HwlCanDoDepthStencilCopyResolve(
 
     bool canDoDepthStencilCopyResolve =
         settings.allowDepthCopyResolve &&
-        (pGfxSrcImage->HasDsMetadata() || pGfxDstImage->HasDsMetadata());
+        ((pGfxSrcImage->HasDsMetadata() && pGfxSrcImage->HasHtileLookupTable()) ||
+         (pGfxDstImage->HasDsMetadata() && pGfxDstImage->HasHtileLookupTable()));
 
     if (fixUpRegionList.Capacity() >= regionCount)
     {
@@ -6602,7 +6617,7 @@ uint32 Gfx10RsrcProcMgr::HwlBeginGraphicsCopy(
             const auto&                      chipProps = m_pDevice->Parent()->ChipProperties().gfx9;
 
             defaultPaRegVal.u32All  = chipProps.paScTileSteeringOverride;
-            const uint32 maxRbPerSc = (1 << defaultPaRegVal.gfx10.NUM_RB_PER_SC);
+            const uint32 maxRbPerSc = (1 << defaultPaRegVal.gfx10Plus.NUM_RB_PER_SC);
 
             // A setting of zero RBs implies that the driver should use the optimal number.  For now, assume the
             // optimal number is one.  Also don't allow more RBs than actively exist.
@@ -6632,11 +6647,11 @@ uint32 Gfx10RsrcProcMgr::HwlBeginGraphicsCopy(
 
             // LOG2 of the effective number of scan-converters desired. Must not be programmed to greater than the
             // number of active SCs present in the chip
-            paScTileSteeringOverride.gfx10.NUM_SC        = Log2(numNeededScs);
+            paScTileSteeringOverride.gfx10Plus.NUM_SC        = Log2(numNeededScs);
 
             // LOG2 of the effective NUM_RB_PER_SC desired. Must not be programmed to greater than the number of
             // active RBs per SC present in the chip.
-            paScTileSteeringOverride.gfx10.NUM_RB_PER_SC = Log2(numNeededRbsPerSc);
+            paScTileSteeringOverride.gfx10Plus.NUM_RB_PER_SC = Log2(numNeededRbsPerSc);
 
             // LOG2 of the effective NUM_PACKER_PER_SC desired. This is strictly for test purposes, otherwise
             // noramlly would be set to match the number of physical packers active in the design configuration. Must
@@ -6645,7 +6660,7 @@ uint32 Gfx10RsrcProcMgr::HwlBeginGraphicsCopy(
             if (IsGfx101(palDevice))
             {
                 paScTileSteeringOverride.gfx101.NUM_PACKER_PER_SC =
-                        Min(paScTileSteeringOverride.gfx10.NUM_RB_PER_SC,
+                        Min(paScTileSteeringOverride.gfx10Plus.NUM_RB_PER_SC,
                             defaultPaRegVal.gfx101.NUM_PACKER_PER_SC);
             }
 

@@ -165,7 +165,7 @@ void PipelineChunkGs::LateInit(
     m_regs.sh.spiShaderPgmRsrc1Gs.bits.CU_GROUP_ENABLE = (settings.gsCuGroupEnabled ? 1 : 0);
 
 #if PAL_ENABLE_PRINTS_ASSERTS
-    m_device.AssertUserAccumRegsDisabled(registers, Gfx10::mmSPI_SHADER_USER_ACCUM_ESGS_0);
+    m_device.AssertUserAccumRegsDisabled(registers, Gfx10Plus::mmSPI_SHADER_USER_ACCUM_ESGS_0);
 #endif
 
     uint32 lateAllocWaves  = (loadInfo.enableNgg) ? settings.nggLateAllocGs : settings.lateAllocGs;
@@ -240,10 +240,10 @@ void PipelineChunkGs::LateInit(
     else // Gfx10+
     {
         // Note that SPI_SHADER_PGM_RSRC4_GS has a totally different layout on Gfx10+ vs. Gfx9!
-        m_regs.dynamic.spiShaderPgmRsrc4Gs.gfx10.SPI_SHADER_LATE_ALLOC_GS = lateAllocWaves;
+        m_regs.dynamic.spiShaderPgmRsrc4Gs.gfx10Plus.SPI_SHADER_LATE_ALLOC_GS = lateAllocWaves;
 
         constexpr uint16 GsCuDisableMaskHi = 0;
-        m_regs.dynamic.spiShaderPgmRsrc4Gs.gfx10.CU_EN = m_device.GetCuEnableMaskHi(GsCuDisableMaskHi,
+        m_regs.dynamic.spiShaderPgmRsrc4Gs.gfx10Plus.CU_EN = m_device.GetCuEnableMaskHi(GsCuDisableMaskHi,
                                                                                     settings.gsCuEnLimitMask);
     }
 
@@ -281,9 +281,9 @@ void PipelineChunkGs::LateInit(
     }
     else
     {
-        m_regs.context.geMaxOutputPerSubgroup.u32All = registers.At(Gfx10::mmGE_MAX_OUTPUT_PER_SUBGROUP);
-        m_regs.context.spiShaderIdxFormat.u32All     = registers.At(Gfx10::mmSPI_SHADER_IDX_FORMAT);
-        m_regs.context.geNggSubgrpCntl.u32All        = registers.At(Gfx10::mmGE_NGG_SUBGRP_CNTL);
+        m_regs.context.geMaxOutputPerSubgroup.u32All = registers.At(Gfx10Plus::mmGE_MAX_OUTPUT_PER_SUBGROUP);
+        m_regs.context.spiShaderIdxFormat.u32All     = registers.At(Gfx10Plus::mmSPI_SHADER_IDX_FORMAT);
+        m_regs.context.geNggSubgrpCntl.u32All        = registers.At(Gfx10Plus::mmGE_NGG_SUBGRP_CNTL);
     }
 
     pHasher->Update(m_regs.context);
@@ -335,9 +335,9 @@ void PipelineChunkGs::LateInit(
         }
         else // Gfx10+
         {
-            pUploader->AddCtxReg(Gfx10::mmGE_MAX_OUTPUT_PER_SUBGROUP, m_regs.context.geMaxOutputPerSubgroup);
-            pUploader->AddCtxReg(Gfx10::mmSPI_SHADER_IDX_FORMAT,      m_regs.context.spiShaderIdxFormat);
-            pUploader->AddCtxReg(Gfx10::mmGE_NGG_SUBGRP_CNTL,         m_regs.context.geNggSubgrpCntl);
+            pUploader->AddCtxReg(Gfx10Plus::mmGE_MAX_OUTPUT_PER_SUBGROUP, m_regs.context.geMaxOutputPerSubgroup);
+            pUploader->AddCtxReg(Gfx10Plus::mmSPI_SHADER_IDX_FORMAT,      m_regs.context.spiShaderIdxFormat);
+            pUploader->AddCtxReg(Gfx10Plus::mmGE_NGG_SUBGRP_CNTL,         m_regs.context.geNggSubgrpCntl);
         }
     }
 }
@@ -408,8 +408,8 @@ uint32* PipelineChunkGs::WriteShCommands(
     if (gsStageInfo.cuEnableMask != 0)
     {
         dynamic.spiShaderPgmRsrc3Gs.bits.CU_EN &= gsStageInfo.cuEnableMask;
-        dynamic.spiShaderPgmRsrc4Gs.gfx10.CU_EN =
-            Device::AdjustCuEnHi(dynamic.spiShaderPgmRsrc4Gs.gfx10.CU_EN, gsStageInfo.cuEnableMask);
+        dynamic.spiShaderPgmRsrc4Gs.gfx10Plus.CU_EN =
+            Device::AdjustCuEnHi(dynamic.spiShaderPgmRsrc4Gs.gfx10Plus.CU_EN, gsStageInfo.cuEnableMask);
     }
 
     pCmdSpace = pCmdStream->WriteSetOneShRegIndex(mmSPI_SHADER_PGM_RSRC3_GS,
@@ -477,13 +477,13 @@ uint32* PipelineChunkGs::WriteContextCommands(
     }
     else
     {
-        pCmdSpace = pCmdStream->WriteSetOneContextReg(Gfx10::mmGE_MAX_OUTPUT_PER_SUBGROUP,
+        pCmdSpace = pCmdStream->WriteSetOneContextReg(Gfx10Plus::mmGE_MAX_OUTPUT_PER_SUBGROUP,
                                                       m_regs.context.geMaxOutputPerSubgroup.u32All,
                                                       pCmdSpace);
-        pCmdSpace = pCmdStream->WriteSetOneContextReg(Gfx10::mmSPI_SHADER_IDX_FORMAT,
+        pCmdSpace = pCmdStream->WriteSetOneContextReg(Gfx10Plus::mmSPI_SHADER_IDX_FORMAT,
                                                       m_regs.context.spiShaderIdxFormat.u32All,
                                                       pCmdSpace);
-        pCmdSpace = pCmdStream->WriteSetOneContextReg(Gfx10::mmGE_NGG_SUBGRP_CNTL,
+        pCmdSpace = pCmdStream->WriteSetOneContextReg(Gfx10Plus::mmGE_NGG_SUBGRP_CNTL,
                                                       m_regs.context.geNggSubgrpCntl.u32All,
                                                       pCmdSpace);
     }

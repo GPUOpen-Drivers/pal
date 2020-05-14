@@ -251,6 +251,8 @@ union drm_amdgpu_bo_list {
 #define AMDGPU_CTX_PRIORITY_HIGH        512
 #define AMDGPU_CTX_PRIORITY_VERY_HIGH   1023
 
+#define AMDGPU_CTX_FLAGS_IFH            (1<<0)
+
 struct drm_amdgpu_ctx_in {
 	/** AMDGPU_CTX_OP_* */
 	__u32	op;
@@ -648,6 +650,11 @@ union drm_amdgpu_cs {
 /* Flag the IB as secure (TMZ)
  */
 #define AMDGPU_IB_FLAGS_SECURE  (1 << 5)
+
+/* Tell KMD to flush and invalidate caches
+ */
+#define AMDGPU_IB_FLAG_EMIT_MEM_SYNC  (1 << 6)
+
 
 struct drm_amdgpu_cs_chunk_ib {
 	__u32 _pad;

@@ -487,11 +487,19 @@ union CmdBufferBuildFlags
         /// for fine-grained hang identification.
         uint32 enableExecutionMarkerSupport :  1;
 #else
-        uint32 reserved0                     :  1;  ///< Reserved for future use.
+        /// placeholder
+        uint32 placeholder0                 :  1;
 #endif
 
+        /// placeholder
+        uint32 placeholder1                  :  1;
+        /// Enable TMZ mode to allow reading TMZ protected allocations. If this command buffer attempts to write
+        /// non-TMZ memory, the results are undefined. Only valid for graphics and compute.
+        uint32  enableTmz                    :  1;
+
         /// Reserved for future use.
-        uint32 reserved                      : 23;
+        uint32 reserved                      :  21;
+
     };
 
     /// Flags packed as 32-bit uint.

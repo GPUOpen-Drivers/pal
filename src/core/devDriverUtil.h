@@ -37,6 +37,7 @@ namespace DevDriver
     {
         enum struct DeviceClockMode : Pal::uint32;
     }
+    class IStructuredWriter;
 }
 
 namespace Pal
@@ -66,6 +67,10 @@ DevDriver::Result SetClockModeCallback(
     uint32                                            gpuIndex,
     DevDriver::DriverControlProtocol::DeviceClockMode clockMode,
     void*                                             pUserData);
+
+void PalCallback(
+    DevDriver::IStructuredWriter* pWriter,
+    void*                         pUserData);
 
 void* DevDriverAlloc(
     void* pUserdata,

@@ -178,14 +178,14 @@ static void UpdateUmcchBlockInfo(
     }
     else
     {
-        SET_UMCCH_INSTANCE_REGS(Core,      0);
-        SET_UMCCH_INSTANCE_REGS(Gfx10Core, 2);
-        SET_UMCCH_INSTANCE_REGS(Gfx10Core, 4);
-        SET_UMCCH_INSTANCE_REGS(Gfx10Core, 6);
-        SET_UMCCH_INSTANCE_REGS(Gfx10Core, 8);
-        SET_UMCCH_INSTANCE_REGS(Gfx10Core, 10);
-        SET_UMCCH_INSTANCE_REGS(Gfx10Core, 12);
-        SET_UMCCH_INSTANCE_REGS(Gfx10Core, 14);
+        SET_UMCCH_INSTANCE_REGS(Core,          0);
+        SET_UMCCH_INSTANCE_REGS(Gfx10CorePlus, 2);
+        SET_UMCCH_INSTANCE_REGS(Gfx10CorePlus, 4);
+        SET_UMCCH_INSTANCE_REGS(Gfx10CorePlus, 6);
+        SET_UMCCH_INSTANCE_REGS(Gfx10CorePlus, 8);
+        SET_UMCCH_INSTANCE_REGS(Gfx10CorePlus, 10);
+        SET_UMCCH_INSTANCE_REGS(Gfx10CorePlus, 12);
+        SET_UMCCH_INSTANCE_REGS(Gfx10CorePlus, 14);
 
         {
             SET_UMCCH_INSTANCE_REGS(Gfx101, 1);
@@ -426,9 +426,9 @@ static void Gfx10UpdateEaBlockInfo(
 {
     {
         pInfo->regAddr = { Gfx101::mmGCEA_PERFCOUNTER_RSLT_CNTL, {
-            { Gfx101::mmGCEA_PERFCOUNTER0_CFG,       0,                                      Gfx101::mmGCEA_PERFCOUNTER_LO,     Gfx101::mmGCEA_PERFCOUNTER_HI     },
-            { Gfx101::mmGCEA_PERFCOUNTER1_CFG,       0,                                      Gfx101::mmGCEA_PERFCOUNTER_LO,     Gfx101::mmGCEA_PERFCOUNTER_HI     },
-            { Gfx10Core::mmGCEA_PERFCOUNTER2_SELECT, Gfx10Core::mmGCEA_PERFCOUNTER2_SELECT1, Gfx10Core::mmGCEA_PERFCOUNTER2_LO, Gfx10Core::mmGCEA_PERFCOUNTER2_HI },
+            { Gfx101::mmGCEA_PERFCOUNTER0_CFG,           0,                                          Gfx101::mmGCEA_PERFCOUNTER_LO,         Gfx101::mmGCEA_PERFCOUNTER_HI         },
+            { Gfx101::mmGCEA_PERFCOUNTER1_CFG,           0,                                          Gfx101::mmGCEA_PERFCOUNTER_LO,         Gfx101::mmGCEA_PERFCOUNTER_HI         },
+            { Gfx10CorePlus::mmGCEA_PERFCOUNTER2_SELECT, Gfx10CorePlus::mmGCEA_PERFCOUNTER2_SELECT1, Gfx10CorePlus::mmGCEA_PERFCOUNTER2_LO, Gfx10CorePlus::mmGCEA_PERFCOUNTER2_HI },
         }};
     }
 }
@@ -656,10 +656,10 @@ static void Gfx9InitBasicBlockInfo(
     pTcp->maxEventId                = MaxTcpPerfcountSelectGfx09;
 
     pTcp->regAddr = { 0, {
-        { mmTCP_PERFCOUNTER0_SELECT, mmTCP_PERFCOUNTER0_SELECT1, mmTCP_PERFCOUNTER0_LO, mmTCP_PERFCOUNTER0_HI },
-        { mmTCP_PERFCOUNTER1_SELECT, mmTCP_PERFCOUNTER1_SELECT1, mmTCP_PERFCOUNTER1_LO, mmTCP_PERFCOUNTER1_HI },
-        { mmTCP_PERFCOUNTER2_SELECT, 0,                          mmTCP_PERFCOUNTER2_LO, mmTCP_PERFCOUNTER2_HI },
-        { mmTCP_PERFCOUNTER3_SELECT, 0,                          mmTCP_PERFCOUNTER3_LO, mmTCP_PERFCOUNTER3_HI },
+        { mmTCP_PERFCOUNTER0_SELECT,           mmTCP_PERFCOUNTER0_SELECT1, mmTCP_PERFCOUNTER0_LO, mmTCP_PERFCOUNTER0_HI },
+        { mmTCP_PERFCOUNTER1_SELECT,           mmTCP_PERFCOUNTER1_SELECT1, mmTCP_PERFCOUNTER1_LO, mmTCP_PERFCOUNTER1_HI },
+        { NotGfx10::mmTCP_PERFCOUNTER2_SELECT, 0,                          mmTCP_PERFCOUNTER2_LO, mmTCP_PERFCOUNTER2_HI },
+        { NotGfx10::mmTCP_PERFCOUNTER3_SELECT, 0,                          mmTCP_PERFCOUNTER3_LO, mmTCP_PERFCOUNTER3_HI },
     }};
 
     PerfCounterBlockInfo*const pTcc = &pInfo->block[static_cast<uint32>(GpuBlock::Tcc)];
@@ -998,7 +998,7 @@ static void Gfx10InitBasicBlockInfo(
     const uint32              rbPerSa  = pProps->gfx9.maxNumRbPerSe / pProps->gfx9.numShaderArrays;
 
     // Pull in the generic gfx10 registers to make it easier to read the register tables.
-    using namespace Gfx10;
+    using namespace Gfx10Plus;
 
     // Start by hard-coding hardware specific constants for each block. The shared blocks come first followed by
     // gfxip-specific blocks. Note that gfx10 removed or renamed a lot of blocks.
@@ -1216,7 +1216,7 @@ static void Gfx10InitBasicBlockInfo(
     pGrbm->numGenericSpmModules      = 0;
     pGrbm->numGenericLegacyModules   = 2; // GRBM_PERFCOUNTER0-1
     pGrbm->numSpmWires               = 0;
-    pGrbm->maxEventId                = MaxGrbmPerfSelGfx10;
+    pGrbm->maxEventId                = MaxGrbmPerfSelGfx10Plus;
 
     pGrbm->regAddr = { 0, {
         { mmGRBM_PERFCOUNTER0_SELECT, 0, mmGRBM_PERFCOUNTER0_LO, mmGRBM_PERFCOUNTER0_HI },
@@ -1232,7 +1232,7 @@ static void Gfx10InitBasicBlockInfo(
     pGrbmSe->numGenericSpmModules      = 0;
     pGrbmSe->numGenericLegacyModules   = 0;
     pGrbmSe->numSpmWires               = 0;
-    pGrbmSe->maxEventId                = MaxGrbmSe0PerfSelGfx10;
+    pGrbmSe->maxEventId                = MaxGrbmSe0PerfSelGfx10Plus;
 
     // By convention we access the counter register address array using the SE index.
     pGrbmSe->regAddr = { 0, {
@@ -1382,11 +1382,11 @@ static void Gfx10InitBasicBlockInfo(
         pRpb->maxEventId                = 63;
         pRpb->isCfgStyle                = true;
 
-        pRpb->regAddr = { Gfx10Core::mmRPB_PERFCOUNTER_RSLT_CNTL, {
-            { Gfx10Core::mmRPB_PERFCOUNTER0_CFG, 0, Gfx10Core::mmRPB_PERFCOUNTER_LO, Gfx10Core::mmRPB_PERFCOUNTER_HI },
-            { Gfx10Core::mmRPB_PERFCOUNTER1_CFG, 0, Gfx10Core::mmRPB_PERFCOUNTER_LO, Gfx10Core::mmRPB_PERFCOUNTER_HI },
-            { Gfx10Core::mmRPB_PERFCOUNTER2_CFG, 0, Gfx10Core::mmRPB_PERFCOUNTER_LO, Gfx10Core::mmRPB_PERFCOUNTER_HI },
-            { Gfx10Core::mmRPB_PERFCOUNTER3_CFG, 0, Gfx10Core::mmRPB_PERFCOUNTER_LO, Gfx10Core::mmRPB_PERFCOUNTER_HI },
+        pRpb->regAddr = { Gfx10CorePlus::mmRPB_PERFCOUNTER_RSLT_CNTL, {
+            { Gfx10CorePlus::mmRPB_PERFCOUNTER0_CFG, 0, Gfx10CorePlus::mmRPB_PERFCOUNTER_LO, Gfx10CorePlus::mmRPB_PERFCOUNTER_HI },
+            { Gfx10CorePlus::mmRPB_PERFCOUNTER1_CFG, 0, Gfx10CorePlus::mmRPB_PERFCOUNTER_LO, Gfx10CorePlus::mmRPB_PERFCOUNTER_HI },
+            { Gfx10CorePlus::mmRPB_PERFCOUNTER2_CFG, 0, Gfx10CorePlus::mmRPB_PERFCOUNTER_LO, Gfx10CorePlus::mmRPB_PERFCOUNTER_HI },
+            { Gfx10CorePlus::mmRPB_PERFCOUNTER3_CFG, 0, Gfx10CorePlus::mmRPB_PERFCOUNTER_LO, Gfx10CorePlus::mmRPB_PERFCOUNTER_HI },
         }};
     }
 

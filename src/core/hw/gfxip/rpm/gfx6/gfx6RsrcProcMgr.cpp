@@ -2711,6 +2711,19 @@ void RsrcProcMgr::InitMaskRam(
         ClearHiSPretestsMetaData(pCmdBuffer, pCmdStream, dstImage, range);
     }
 
+    // The metadata is used as a COND_EXEC condition, init ZRange meta data with 0(e.g, depth value is 1.0 by default)
+    // to indicate DB_Z_INFO.ZRANGE_PRECISION register filed should not be overwrote via this workaround metadata.
+    if (dstImage.HasWaTcCompatZRangeMetaData() && (range.startSubres.aspect == ImageAspect::Depth))
+    {
+        uint32* pCmdSpace = pCmdStream->ReserveCommands();
+        const PM4Predicate packetPredicate = static_cast<PM4Predicate>(
+                        pCmdBuffer->GetGfxCmdBufState().flags.packetPredicate);
+
+        pCmdSpace = dstImage.UpdateWaTcCompatZRangeMetaData(range, 1.0f, packetPredicate, pCmdSpace);
+
+        pCmdStream->CommitCommands(pCmdSpace);
+    }
+
     // Restore the command buffer's state.
     pCmdBuffer->CmdRestoreComputeState(ComputeStatePipelineAndUserData);
 

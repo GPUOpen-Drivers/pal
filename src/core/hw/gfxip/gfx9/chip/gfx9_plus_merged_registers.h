@@ -469,7 +469,7 @@ union CB_COLOR0_ATTRIB {
         unsigned int DISABLE_FMASK_NOFETCH_OPT                                    :  1;
         unsigned int LIMIT_COLOR_FETCH_TO_256B_MAX                                :  1;
         unsigned int                                                              : 12;
-    } gfx10Core;
+    } gfx10CorePlus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -504,7 +504,7 @@ union CB_COLOR0_ATTRIB3 {
         unsigned int                                                              : 27;
         unsigned int RESOURCE_LEVEL                                               :  3;
         unsigned int                                                              :  2;
-    } gfx10Core;
+    } gfx10CorePlus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -628,7 +628,7 @@ union CB_COLOR0_DCC_CONTROL {
         unsigned int                                                              : 20;
         unsigned int INDEPENDENT_128B_BLOCKS                                      :  1;
         unsigned int                                                              : 11;
-    } gfx10;
+    } gfx10Plus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -690,11 +690,6 @@ union CB_COLOR0_INFO {
         unsigned int                                                              :  1;
     } bits, bitfields;
     struct {
-        unsigned int                                                              :  7;
-        unsigned int LINEAR_GENERAL                                               :  1;
-        unsigned int                                                              : 24;
-    } gfx10;
-    struct {
         unsigned int                                                              : 31;
         unsigned int ALT_TILE_MODE                                                :  1;
     } gfx101;
@@ -702,7 +697,12 @@ union CB_COLOR0_INFO {
         unsigned int                                                              : 19;
         unsigned int CMASK_IS_LINEAR                                              :  1;
         unsigned int                                                              : 12;
-    } gfx10Core;
+    } gfx10CorePlus;
+    struct {
+        unsigned int                                                              :  7;
+        unsigned int LINEAR_GENERAL                                               :  1;
+        unsigned int                                                              : 24;
+    } gfx10Plus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -746,7 +746,7 @@ union CB_COLOR0_VIEW {
         unsigned int SLICE_MAX                                                    : 13;
         unsigned int MIP_LEVEL                                                    :  4;
         unsigned int                                                              :  2;
-    } gfx10;
+    } gfx10Plus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -779,7 +779,7 @@ union CB_COLOR1_ATTRIB {
         unsigned int DISABLE_FMASK_NOFETCH_OPT                                    :  1;
         unsigned int LIMIT_COLOR_FETCH_TO_256B_MAX                                :  1;
         unsigned int                                                              : 12;
-    } gfx10Core;
+    } gfx10CorePlus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -814,7 +814,7 @@ union CB_COLOR1_ATTRIB3 {
         unsigned int                                                              : 27;
         unsigned int RESOURCE_LEVEL                                               :  3;
         unsigned int                                                              :  2;
-    } gfx10Core;
+    } gfx10CorePlus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -938,7 +938,7 @@ union CB_COLOR1_DCC_CONTROL {
         unsigned int                                                              : 20;
         unsigned int INDEPENDENT_128B_BLOCKS                                      :  1;
         unsigned int                                                              : 11;
-    } gfx10;
+    } gfx10Plus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -1000,11 +1000,6 @@ union CB_COLOR1_INFO {
         unsigned int                                                              :  1;
     } bits, bitfields;
     struct {
-        unsigned int                                                              :  7;
-        unsigned int LINEAR_GENERAL                                               :  1;
-        unsigned int                                                              : 24;
-    } gfx10;
-    struct {
         unsigned int                                                              : 31;
         unsigned int ALT_TILE_MODE                                                :  1;
     } gfx101;
@@ -1012,7 +1007,12 @@ union CB_COLOR1_INFO {
         unsigned int                                                              : 19;
         unsigned int CMASK_IS_LINEAR                                              :  1;
         unsigned int                                                              : 12;
-    } gfx10Core;
+    } gfx10CorePlus;
+    struct {
+        unsigned int                                                              :  7;
+        unsigned int LINEAR_GENERAL                                               :  1;
+        unsigned int                                                              : 24;
+    } gfx10Plus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -1056,7 +1056,7 @@ union CB_COLOR1_VIEW {
         unsigned int SLICE_MAX                                                    : 13;
         unsigned int MIP_LEVEL                                                    :  4;
         unsigned int                                                              :  2;
-    } gfx10;
+    } gfx10Plus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -1089,7 +1089,7 @@ union CB_COLOR2_ATTRIB {
         unsigned int DISABLE_FMASK_NOFETCH_OPT                                    :  1;
         unsigned int LIMIT_COLOR_FETCH_TO_256B_MAX                                :  1;
         unsigned int                                                              : 12;
-    } gfx10Core;
+    } gfx10CorePlus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -1124,7 +1124,7 @@ union CB_COLOR2_ATTRIB3 {
         unsigned int                                                              : 27;
         unsigned int RESOURCE_LEVEL                                               :  3;
         unsigned int                                                              :  2;
-    } gfx10Core;
+    } gfx10CorePlus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -1248,7 +1248,7 @@ union CB_COLOR2_DCC_CONTROL {
         unsigned int                                                              : 20;
         unsigned int INDEPENDENT_128B_BLOCKS                                      :  1;
         unsigned int                                                              : 11;
-    } gfx10;
+    } gfx10Plus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -1310,11 +1310,6 @@ union CB_COLOR2_INFO {
         unsigned int                                                              :  1;
     } bits, bitfields;
     struct {
-        unsigned int                                                              :  7;
-        unsigned int LINEAR_GENERAL                                               :  1;
-        unsigned int                                                              : 24;
-    } gfx10;
-    struct {
         unsigned int                                                              : 31;
         unsigned int ALT_TILE_MODE                                                :  1;
     } gfx101;
@@ -1322,7 +1317,12 @@ union CB_COLOR2_INFO {
         unsigned int                                                              : 19;
         unsigned int CMASK_IS_LINEAR                                              :  1;
         unsigned int                                                              : 12;
-    } gfx10Core;
+    } gfx10CorePlus;
+    struct {
+        unsigned int                                                              :  7;
+        unsigned int LINEAR_GENERAL                                               :  1;
+        unsigned int                                                              : 24;
+    } gfx10Plus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -1366,7 +1366,7 @@ union CB_COLOR2_VIEW {
         unsigned int SLICE_MAX                                                    : 13;
         unsigned int MIP_LEVEL                                                    :  4;
         unsigned int                                                              :  2;
-    } gfx10;
+    } gfx10Plus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -1399,7 +1399,7 @@ union CB_COLOR3_ATTRIB {
         unsigned int DISABLE_FMASK_NOFETCH_OPT                                    :  1;
         unsigned int LIMIT_COLOR_FETCH_TO_256B_MAX                                :  1;
         unsigned int                                                              : 12;
-    } gfx10Core;
+    } gfx10CorePlus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -1434,7 +1434,7 @@ union CB_COLOR3_ATTRIB3 {
         unsigned int                                                              : 27;
         unsigned int RESOURCE_LEVEL                                               :  3;
         unsigned int                                                              :  2;
-    } gfx10Core;
+    } gfx10CorePlus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -1558,7 +1558,7 @@ union CB_COLOR3_DCC_CONTROL {
         unsigned int                                                              : 20;
         unsigned int INDEPENDENT_128B_BLOCKS                                      :  1;
         unsigned int                                                              : 11;
-    } gfx10;
+    } gfx10Plus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -1620,11 +1620,6 @@ union CB_COLOR3_INFO {
         unsigned int                                                              :  1;
     } bits, bitfields;
     struct {
-        unsigned int                                                              :  7;
-        unsigned int LINEAR_GENERAL                                               :  1;
-        unsigned int                                                              : 24;
-    } gfx10;
-    struct {
         unsigned int                                                              : 31;
         unsigned int ALT_TILE_MODE                                                :  1;
     } gfx101;
@@ -1632,7 +1627,12 @@ union CB_COLOR3_INFO {
         unsigned int                                                              : 19;
         unsigned int CMASK_IS_LINEAR                                              :  1;
         unsigned int                                                              : 12;
-    } gfx10Core;
+    } gfx10CorePlus;
+    struct {
+        unsigned int                                                              :  7;
+        unsigned int LINEAR_GENERAL                                               :  1;
+        unsigned int                                                              : 24;
+    } gfx10Plus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -1676,7 +1676,7 @@ union CB_COLOR3_VIEW {
         unsigned int SLICE_MAX                                                    : 13;
         unsigned int MIP_LEVEL                                                    :  4;
         unsigned int                                                              :  2;
-    } gfx10;
+    } gfx10Plus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -1709,7 +1709,7 @@ union CB_COLOR4_ATTRIB {
         unsigned int DISABLE_FMASK_NOFETCH_OPT                                    :  1;
         unsigned int LIMIT_COLOR_FETCH_TO_256B_MAX                                :  1;
         unsigned int                                                              : 12;
-    } gfx10Core;
+    } gfx10CorePlus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -1744,7 +1744,7 @@ union CB_COLOR4_ATTRIB3 {
         unsigned int                                                              : 27;
         unsigned int RESOURCE_LEVEL                                               :  3;
         unsigned int                                                              :  2;
-    } gfx10Core;
+    } gfx10CorePlus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -1868,7 +1868,7 @@ union CB_COLOR4_DCC_CONTROL {
         unsigned int                                                              : 20;
         unsigned int INDEPENDENT_128B_BLOCKS                                      :  1;
         unsigned int                                                              : 11;
-    } gfx10;
+    } gfx10Plus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -1930,11 +1930,6 @@ union CB_COLOR4_INFO {
         unsigned int                                                              :  1;
     } bits, bitfields;
     struct {
-        unsigned int                                                              :  7;
-        unsigned int LINEAR_GENERAL                                               :  1;
-        unsigned int                                                              : 24;
-    } gfx10;
-    struct {
         unsigned int                                                              : 31;
         unsigned int ALT_TILE_MODE                                                :  1;
     } gfx101;
@@ -1942,7 +1937,12 @@ union CB_COLOR4_INFO {
         unsigned int                                                              : 19;
         unsigned int CMASK_IS_LINEAR                                              :  1;
         unsigned int                                                              : 12;
-    } gfx10Core;
+    } gfx10CorePlus;
+    struct {
+        unsigned int                                                              :  7;
+        unsigned int LINEAR_GENERAL                                               :  1;
+        unsigned int                                                              : 24;
+    } gfx10Plus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -1986,7 +1986,7 @@ union CB_COLOR4_VIEW {
         unsigned int SLICE_MAX                                                    : 13;
         unsigned int MIP_LEVEL                                                    :  4;
         unsigned int                                                              :  2;
-    } gfx10;
+    } gfx10Plus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -2019,7 +2019,7 @@ union CB_COLOR5_ATTRIB {
         unsigned int DISABLE_FMASK_NOFETCH_OPT                                    :  1;
         unsigned int LIMIT_COLOR_FETCH_TO_256B_MAX                                :  1;
         unsigned int                                                              : 12;
-    } gfx10Core;
+    } gfx10CorePlus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -2054,7 +2054,7 @@ union CB_COLOR5_ATTRIB3 {
         unsigned int                                                              : 27;
         unsigned int RESOURCE_LEVEL                                               :  3;
         unsigned int                                                              :  2;
-    } gfx10Core;
+    } gfx10CorePlus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -2178,7 +2178,7 @@ union CB_COLOR5_DCC_CONTROL {
         unsigned int                                                              : 20;
         unsigned int INDEPENDENT_128B_BLOCKS                                      :  1;
         unsigned int                                                              : 11;
-    } gfx10;
+    } gfx10Plus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -2240,11 +2240,6 @@ union CB_COLOR5_INFO {
         unsigned int                                                              :  1;
     } bits, bitfields;
     struct {
-        unsigned int                                                              :  7;
-        unsigned int LINEAR_GENERAL                                               :  1;
-        unsigned int                                                              : 24;
-    } gfx10;
-    struct {
         unsigned int                                                              : 31;
         unsigned int ALT_TILE_MODE                                                :  1;
     } gfx101;
@@ -2252,7 +2247,12 @@ union CB_COLOR5_INFO {
         unsigned int                                                              : 19;
         unsigned int CMASK_IS_LINEAR                                              :  1;
         unsigned int                                                              : 12;
-    } gfx10Core;
+    } gfx10CorePlus;
+    struct {
+        unsigned int                                                              :  7;
+        unsigned int LINEAR_GENERAL                                               :  1;
+        unsigned int                                                              : 24;
+    } gfx10Plus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -2296,7 +2296,7 @@ union CB_COLOR5_VIEW {
         unsigned int SLICE_MAX                                                    : 13;
         unsigned int MIP_LEVEL                                                    :  4;
         unsigned int                                                              :  2;
-    } gfx10;
+    } gfx10Plus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -2329,7 +2329,7 @@ union CB_COLOR6_ATTRIB {
         unsigned int DISABLE_FMASK_NOFETCH_OPT                                    :  1;
         unsigned int LIMIT_COLOR_FETCH_TO_256B_MAX                                :  1;
         unsigned int                                                              : 12;
-    } gfx10Core;
+    } gfx10CorePlus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -2364,7 +2364,7 @@ union CB_COLOR6_ATTRIB3 {
         unsigned int                                                              : 27;
         unsigned int RESOURCE_LEVEL                                               :  3;
         unsigned int                                                              :  2;
-    } gfx10Core;
+    } gfx10CorePlus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -2488,7 +2488,7 @@ union CB_COLOR6_DCC_CONTROL {
         unsigned int                                                              : 20;
         unsigned int INDEPENDENT_128B_BLOCKS                                      :  1;
         unsigned int                                                              : 11;
-    } gfx10;
+    } gfx10Plus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -2550,11 +2550,6 @@ union CB_COLOR6_INFO {
         unsigned int                                                              :  1;
     } bits, bitfields;
     struct {
-        unsigned int                                                              :  7;
-        unsigned int LINEAR_GENERAL                                               :  1;
-        unsigned int                                                              : 24;
-    } gfx10;
-    struct {
         unsigned int                                                              : 31;
         unsigned int ALT_TILE_MODE                                                :  1;
     } gfx101;
@@ -2562,7 +2557,12 @@ union CB_COLOR6_INFO {
         unsigned int                                                              : 19;
         unsigned int CMASK_IS_LINEAR                                              :  1;
         unsigned int                                                              : 12;
-    } gfx10Core;
+    } gfx10CorePlus;
+    struct {
+        unsigned int                                                              :  7;
+        unsigned int LINEAR_GENERAL                                               :  1;
+        unsigned int                                                              : 24;
+    } gfx10Plus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -2606,7 +2606,7 @@ union CB_COLOR6_VIEW {
         unsigned int SLICE_MAX                                                    : 13;
         unsigned int MIP_LEVEL                                                    :  4;
         unsigned int                                                              :  2;
-    } gfx10;
+    } gfx10Plus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -2639,7 +2639,7 @@ union CB_COLOR7_ATTRIB {
         unsigned int DISABLE_FMASK_NOFETCH_OPT                                    :  1;
         unsigned int LIMIT_COLOR_FETCH_TO_256B_MAX                                :  1;
         unsigned int                                                              : 12;
-    } gfx10Core;
+    } gfx10CorePlus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -2674,7 +2674,7 @@ union CB_COLOR7_ATTRIB3 {
         unsigned int                                                              : 27;
         unsigned int RESOURCE_LEVEL                                               :  3;
         unsigned int                                                              :  2;
-    } gfx10Core;
+    } gfx10CorePlus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -2798,7 +2798,7 @@ union CB_COLOR7_DCC_CONTROL {
         unsigned int                                                              : 20;
         unsigned int INDEPENDENT_128B_BLOCKS                                      :  1;
         unsigned int                                                              : 11;
-    } gfx10;
+    } gfx10Plus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -2860,11 +2860,6 @@ union CB_COLOR7_INFO {
         unsigned int                                                              :  1;
     } bits, bitfields;
     struct {
-        unsigned int                                                              :  7;
-        unsigned int LINEAR_GENERAL                                               :  1;
-        unsigned int                                                              : 24;
-    } gfx10;
-    struct {
         unsigned int                                                              : 31;
         unsigned int ALT_TILE_MODE                                                :  1;
     } gfx101;
@@ -2872,7 +2867,12 @@ union CB_COLOR7_INFO {
         unsigned int                                                              : 19;
         unsigned int CMASK_IS_LINEAR                                              :  1;
         unsigned int                                                              : 12;
-    } gfx10Core;
+    } gfx10CorePlus;
+    struct {
+        unsigned int                                                              :  7;
+        unsigned int LINEAR_GENERAL                                               :  1;
+        unsigned int                                                              : 24;
+    } gfx10Plus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -2916,7 +2916,7 @@ union CB_COLOR7_VIEW {
         unsigned int SLICE_MAX                                                    : 13;
         unsigned int MIP_LEVEL                                                    :  4;
         unsigned int                                                              :  2;
-    } gfx10;
+    } gfx10Plus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -2976,14 +2976,14 @@ union CB_DCC_CONFIG {
         unsigned int                                                              : 24;
     } gfx09_1xPlus;
     struct {
-        unsigned int                                                              : 16;
-        unsigned int READ_RETURN_SKID_FIFO_DEPTH                                  :  9;
-        unsigned int                                                              :  7;
-    } gfx10;
-    struct {
         unsigned int                                                              : 26;
         unsigned int DCC_CACHE_NUM_TAGS                                           :  6;
     } gfx101;
+    struct {
+        unsigned int                                                              : 16;
+        unsigned int READ_RETURN_SKID_FIFO_DEPTH                                  :  9;
+        unsigned int                                                              :  7;
+    } gfx10Plus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -3053,7 +3053,7 @@ union CB_HW_CONTROL {
     struct {
         unsigned int ALLOW_MRT_WITH_DUAL_SOURCE                                   :  1;
         unsigned int                                                              : 31;
-    } gfx10;
+    } gfx10Plus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -3066,8 +3066,7 @@ union CB_HW_CONTROL_1 {
         unsigned int                                                              : 27;
     } bits, bitfields;
     struct {
-        unsigned int                                                              :  5;
-        unsigned int FC_CACHE_NUM_TAGS                                            :  6;
+        unsigned int                                                              : 11;
         unsigned int CC_CACHE_NUM_TAGS                                            :  6;
         unsigned int CM_TILE_FIFO_DEPTH                                           :  9;
         unsigned int RMI_CREDITS                                                  :  6;
@@ -3079,6 +3078,11 @@ union CB_HW_CONTROL_1 {
         unsigned int CM_TILE_FIFO_DEPTH                                           :  9;
         unsigned int RMI_CREDITS                                                  :  6;
     } gfx101;
+    struct {
+        unsigned int                                                              :  5;
+        unsigned int FC_CACHE_NUM_TAGS                                            :  6;
+        unsigned int                                                              : 21;
+    } notGfx10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -3105,7 +3109,7 @@ union CB_HW_CONTROL_2 {
         unsigned int                                                              : 24;
         unsigned int DRR_ASSUMED_FIFO_DEPTH_DIV8                                  :  6;
         unsigned int CHICKEN_BITS                                                 :  2;
-    } gfx10;
+    } gfx10Plus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -3154,11 +3158,6 @@ union CB_HW_CONTROL_3 {
         unsigned int                                                              :  2;
     } gfx09;
     struct {
-        unsigned int                                                              : 30;
-        unsigned int DISABLE_FMASK_NOFETCH_OPT                                    :  1;
-        unsigned int                                                              :  1;
-    } gfx10;
-    struct {
         unsigned int                                                              :  8;
         unsigned int DISABLE_OVERWRITE_COMBINER_TARGET_MASK_VALIDATION            :  1;
         unsigned int                                                              : 18;
@@ -3168,7 +3167,12 @@ union CB_HW_CONTROL_3 {
     struct {
         unsigned int                                                              : 31;
         unsigned int DISABLE_FMASK_NOFETCH_OPT_BC                                 :  1;
-    } gfx10Core;
+    } gfx10CorePlus;
+    struct {
+        unsigned int                                                              : 30;
+        unsigned int DISABLE_FMASK_NOFETCH_OPT                                    :  1;
+        unsigned int                                                              :  1;
+    } gfx10Plus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -3200,7 +3204,7 @@ union CB_HW_CONTROL_4 {
         unsigned int                                                              : 14;
         unsigned int DISABLE_BC_COLOR_CACHE_PREFETCH                              :  1;
         unsigned int                                                              : 17;
-    } gfx10Core;
+    } gfx10CorePlus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -4280,7 +4284,7 @@ union COMPUTE_DISPATCH_INITIATOR {
         unsigned int                                                              :  1;
         unsigned int CS_W32_EN                                                    :  1;
         unsigned int                                                              : 16;
-    } gfx10;
+    } gfx10Plus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -4343,13 +4347,17 @@ union COMPUTE_DISPATCH_TUNNEL {
 
 union COMPUTE_MISC_RESERVED {
     struct {
-        unsigned int SEND_SEID                                                    :  2;
-        unsigned int RESERVED2                                                    :  1;
+        unsigned int                                                              :  3;
         unsigned int RESERVED3                                                    :  1;
         unsigned int RESERVED4                                                    :  1;
         unsigned int WAVE_ID_BASE                                                 : 12;
         unsigned int                                                              : 15;
     } bits, bitfields;
+    struct {
+        unsigned int SEND_SEID                                                    :  2;
+        unsigned int RESERVED2                                                    :  1;
+        unsigned int                                                              : 29;
+    } gfx09_10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -4451,7 +4459,7 @@ union COMPUTE_PGM_RSRC1 {
         unsigned int WGP_MODE                                                     :  1;
         unsigned int MEM_ORDERED                                                  :  1;
         unsigned int FWD_PROGRESS                                                 :  1;
-    } gfx10;
+    } gfx10Plus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -4712,7 +4720,7 @@ union COMPUTE_STATIC_THREAD_MGMT_SE0 {
     struct {
         unsigned int SA0_CU_EN                                                    : 16;
         unsigned int SA1_CU_EN                                                    : 16;
-    } gfx10;
+    } gfx10Plus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -4727,7 +4735,7 @@ union COMPUTE_STATIC_THREAD_MGMT_SE1 {
     struct {
         unsigned int SA0_CU_EN                                                    : 16;
         unsigned int SA1_CU_EN                                                    : 16;
-    } gfx10;
+    } gfx10Plus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -4742,7 +4750,7 @@ union COMPUTE_STATIC_THREAD_MGMT_SE2 {
     struct {
         unsigned int SA0_CU_EN                                                    : 16;
         unsigned int SA1_CU_EN                                                    : 16;
-    } gfx10;
+    } gfx10Plus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -4757,7 +4765,7 @@ union COMPUTE_STATIC_THREAD_MGMT_SE3 {
     struct {
         unsigned int SA0_CU_EN                                                    : 16;
         unsigned int SA1_CU_EN                                                    : 16;
-    } gfx10;
+    } gfx10Plus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -5069,7 +5077,7 @@ union CPC_PERFCOUNTER0_SELECT {
         unsigned int PERF_SEL                                                     : 10;
         unsigned int PERF_SEL1                                                    : 10;
         unsigned int                                                              : 12;
-    } gfx10;
+    } gfx10Plus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -5091,7 +5099,7 @@ union CPC_PERFCOUNTER0_SELECT1 {
         unsigned int PERF_SEL2                                                    : 10;
         unsigned int PERF_SEL3                                                    : 10;
         unsigned int                                                              : 12;
-    } gfx10;
+    } gfx10Plus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -5134,7 +5142,7 @@ union CPC_PERFCOUNTER1_SELECT {
         unsigned int PERF_SEL                                                     : 10;
         unsigned int PERF_SEL1                                                    : 10;
         unsigned int                                                              : 12;
-    } gfx10;
+    } gfx10Plus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -5177,7 +5185,7 @@ union CPF_PERFCOUNTER0_SELECT {
         unsigned int PERF_SEL                                                     : 10;
         unsigned int PERF_SEL1                                                    : 10;
         unsigned int                                                              : 12;
-    } gfx10;
+    } gfx10Plus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -5199,7 +5207,7 @@ union CPF_PERFCOUNTER0_SELECT1 {
         unsigned int PERF_SEL2                                                    : 10;
         unsigned int PERF_SEL3                                                    : 10;
         unsigned int                                                              : 12;
-    } gfx10;
+    } gfx10Plus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -5242,7 +5250,7 @@ union CPF_PERFCOUNTER1_SELECT {
         unsigned int PERF_SEL                                                     : 10;
         unsigned int PERF_SEL1                                                    : 10;
         unsigned int                                                              : 12;
-    } gfx10;
+    } gfx10Plus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -5285,7 +5293,7 @@ union CPG_PERFCOUNTER0_SELECT {
         unsigned int PERF_SEL                                                     : 10;
         unsigned int PERF_SEL1                                                    : 10;
         unsigned int                                                              : 12;
-    } gfx10;
+    } gfx10Plus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -5307,7 +5315,7 @@ union CPG_PERFCOUNTER0_SELECT1 {
         unsigned int PERF_SEL2                                                    : 10;
         unsigned int PERF_SEL3                                                    : 10;
         unsigned int                                                              : 12;
-    } gfx10;
+    } gfx10Plus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -5350,7 +5358,7 @@ union CPG_PERFCOUNTER1_SELECT {
         unsigned int PERF_SEL                                                     : 10;
         unsigned int PERF_SEL1                                                    : 10;
         unsigned int                                                              : 12;
-    } gfx10;
+    } gfx10Plus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -5991,7 +5999,7 @@ union DB_COUNT_CONTROL {
         unsigned int DISABLE_CONSERVATIVE_ZPASS_COUNTS                            :  1;
         unsigned int ENHANCED_CONSERVATIVE_ZPASS_COUNTS                           :  1;
         unsigned int                                                              : 28;
-    } gfx10;
+    } gfx10Plus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -6105,7 +6113,7 @@ union DB_DEPTH_VIEW {
         unsigned int SLICE_START_HI                                               :  2;
         unsigned int                                                              : 17;
         unsigned int SLICE_MAX_HI                                                 :  2;
-    } gfx10;
+    } gfx10Plus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -6130,7 +6138,7 @@ union DB_DFSM_CONFIG {
         unsigned int SQUAD_WATERMARK                                              : 10;
         unsigned int                                                              : 10;
         unsigned int OUTPUT_WATCHDOG                                              :  8;
-    } gfx10Core;
+    } gfx10CorePlus;
     struct {
         unsigned int                                                              : 16;
         unsigned int CAM_WATERMARK                                                :  8;
@@ -6181,7 +6189,7 @@ union DB_DFSM_FLUSH_ENABLE {
     struct {
         unsigned int PRIMARY_EVENTS                                               : 11;
         unsigned int                                                              : 21;
-    } gfx10Core;
+    } gfx10CorePlus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -6300,6 +6308,11 @@ union DB_EXCEPTION_CONTROL {
         unsigned int                                                              : 29;
     } bits, bitfields;
     struct {
+        unsigned int                                                              :  5;
+        unsigned int EXTRA_BITS_GROUP_A                                           :  3;
+        unsigned int                                                              : 24;
+    } gfx101;
+    struct {
         unsigned int                                                              :  3;
         unsigned int AUTO_FLUSH_HTILE                                             :  1;
         unsigned int AUTO_FLUSH_QUAD                                              :  1;
@@ -6308,12 +6321,7 @@ union DB_EXCEPTION_CONTROL {
         unsigned int                                                              : 12;
         unsigned int DTAG_WATERMARK                                               :  7;
         unsigned int                                                              :  1;
-    } gfx10;
-    struct {
-        unsigned int                                                              :  5;
-        unsigned int EXTRA_BITS_GROUP_A                                           :  3;
-        unsigned int                                                              : 24;
-    } gfx101;
+    } gfx10Plus;
     struct {
         unsigned int                                                              : 12;
         unsigned int EXTRA_BITS_GROUP_B                                           : 12;
@@ -6393,7 +6401,7 @@ union DB_FIFO_DEPTH1 {
         unsigned int MI_WRREQ_FIFO_DEPTH                                          :  8;
         unsigned int MCC_DEPTH                                                    :  8;
         unsigned int QC_DEPTH                                                     :  8;
-    } gfx10;
+    } gfx10Plus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -6417,7 +6425,7 @@ union DB_FIFO_DEPTH2 {
         unsigned int ETILE_OP_FIFO_DEPTH                                          :  8;
         unsigned int LQUAD_FIFO_DEPTH                                             :  9;
         unsigned int                                                              :  7;
-    } gfx10;
+    } gfx10Plus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -6449,7 +6457,7 @@ union DB_FREE_CACHELINES {
         unsigned int FREE_PLANE_DEPTH                                             :  8;
         unsigned int FREE_Z_DEPTH                                                 :  8;
         unsigned int FREE_HTILE_DEPTH                                             :  8;
-    } gfx10;
+    } gfx10Plus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -7077,7 +7085,7 @@ union DB_SHADER_CONTROL {
         unsigned int                                                              : 23;
         unsigned int PRE_SHADER_DEPTH_COVERAGE_ENABLE                             :  1;
         unsigned int                                                              :  8;
-    } gfx10;
+    } gfx10Plus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -7197,7 +7205,7 @@ union DB_STENCIL_INFO {
         unsigned int                                                              :  8;
         unsigned int ITERATE_256                                                  :  1;
         unsigned int                                                              : 11;
-    } gfx10;
+    } gfx10Plus;
     struct {
         unsigned int                                                              : 13;
         unsigned int RESERVED_FIELD_1                                             :  3;
@@ -7298,7 +7306,7 @@ union DB_WATERMARKS {
         unsigned int DEPTH_FLUSH                                                  :  8;
         unsigned int DEPTH_PENDING_FREE                                           :  8;
         unsigned int DEPTH_CACHELINE_FREE                                         :  8;
-    } gfx10;
+    } gfx10Plus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -7358,7 +7366,7 @@ union DB_Z_INFO {
         unsigned int                                                              :  8;
         unsigned int ITERATE_256                                                  :  1;
         unsigned int                                                              : 11;
-    } gfx10;
+    } gfx10Plus;
     struct {
         unsigned int                                                              : 13;
         unsigned int RESERVED_FIELD_1                                             :  3;
@@ -8866,7 +8874,7 @@ union GE_PC_CNTL {
         unsigned int                                                              : 16;
         unsigned int EN_GEN_0_1_LATE_ALLOC                                        :  1;
         unsigned int                                                              : 15;
-    } gfx10Core;
+    } gfx10CorePlus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -10053,7 +10061,7 @@ union GRBM_GFX_INDEX {
         unsigned int                                                              : 13;
         unsigned int SA_BROADCAST_WRITES                                          :  1;
         unsigned int                                                              :  2;
-    } gfx10;
+    } gfx10Plus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -10082,7 +10090,7 @@ union GRBM_GFX_INDEX_SR_DATA {
         unsigned int                                                              : 13;
         unsigned int SA_BROADCAST_WRITES                                          :  1;
         unsigned int                                                              :  2;
-    } gfx10;
+    } gfx10Plus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -10166,7 +10174,7 @@ union GRBM_PERFCOUNTER0_SELECT {
         unsigned int TCP_BUSY_USER_DEFINED_MASK                                   :  1;
         unsigned int GE_BUSY_USER_DEFINED_MASK                                    :  1;
         unsigned int                                                              :  3;
-    } gfx10;
+    } gfx10Plus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -10190,7 +10198,7 @@ union GRBM_PERFCOUNTER0_SELECT_HI {
         unsigned int PMM_BUSY_USER_DEFINED_MASK                                   :  1;
         unsigned int GUS_BUSY_USER_DEFINED_MASK                                   :  1;
         unsigned int                                                              : 24;
-    } gfx10Core;
+    } gfx10CorePlus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -10263,7 +10271,7 @@ union GRBM_PERFCOUNTER1_SELECT {
         unsigned int TCP_BUSY_USER_DEFINED_MASK                                   :  1;
         unsigned int GE_BUSY_USER_DEFINED_MASK                                    :  1;
         unsigned int                                                              :  3;
-    } gfx10;
+    } gfx10Plus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -10287,7 +10295,7 @@ union GRBM_PERFCOUNTER1_SELECT_HI {
         unsigned int PMM_BUSY_USER_DEFINED_MASK                                   :  1;
         unsigned int GUS_BUSY_USER_DEFINED_MASK                                   :  1;
         unsigned int                                                              : 24;
-    } gfx10Core;
+    } gfx10CorePlus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -10344,7 +10352,7 @@ union GRBM_SE0_PERFCOUNTER_SELECT {
         unsigned int TCP_BUSY_USER_DEFINED_MASK                                   :  1;
         unsigned int GL1CC_BUSY_USER_DEFINED_MASK                                 :  1;
         unsigned int                                                              :  6;
-    } gfx10;
+    } gfx10Plus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -10401,7 +10409,7 @@ union GRBM_SE1_PERFCOUNTER_SELECT {
         unsigned int TCP_BUSY_USER_DEFINED_MASK                                   :  1;
         unsigned int GL1CC_BUSY_USER_DEFINED_MASK                                 :  1;
         unsigned int                                                              :  6;
-    } gfx10;
+    } gfx10Plus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -10458,7 +10466,7 @@ union GRBM_SE2_PERFCOUNTER_SELECT {
         unsigned int TCP_BUSY_USER_DEFINED_MASK                                   :  1;
         unsigned int GL1CC_BUSY_USER_DEFINED_MASK                                 :  1;
         unsigned int                                                              :  6;
-    } gfx10;
+    } gfx10Plus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -10515,7 +10523,7 @@ union GRBM_SE3_PERFCOUNTER_SELECT {
         unsigned int TCP_BUSY_USER_DEFINED_MASK                                   :  1;
         unsigned int GL1CC_BUSY_USER_DEFINED_MASK                                 :  1;
         unsigned int                                                              :  6;
-    } gfx10;
+    } gfx10Plus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -10900,7 +10908,7 @@ union IA_UTCL1_CNTL {
         unsigned int                                                              : 29;
         unsigned int MTYPE_OVERRIDE                                               :  1;
         unsigned int                                                              :  2;
-    } gfx10;
+    } gfx10Plus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -11171,7 +11179,7 @@ union PA_CL_CNTL_STATUS {
     struct {
         unsigned int                                                              : 31;
         unsigned int CL_BUSY                                                      :  1;
-    } gfx10;
+    } gfx10Plus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -11208,15 +11216,15 @@ union PA_CL_ENHANCE {
         unsigned int                                                              : 10;
     } gfx09_1xPlus;
     struct {
-        unsigned int                                                              : 22;
-        unsigned int DISABLE_PA_PH_INTF_FINE_CLOCK_GATE                           :  1;
-        unsigned int                                                              :  9;
-    } gfx10;
-    struct {
         unsigned int                                                              : 23;
         unsigned int                                                              :  1;
         unsigned int                                                              :  8;
     } gfx101;
+    struct {
+        unsigned int                                                              : 22;
+        unsigned int DISABLE_PA_PH_INTF_FINE_CLOCK_GATE                           :  1;
+        unsigned int                                                              :  9;
+    } gfx10Plus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -12589,15 +12597,15 @@ union PA_CL_VS_OUT_CNTL {
         unsigned int                                                              :  4;
     } gfx09;
     struct {
-        unsigned int                                                              : 27;
-        unsigned int USE_VTX_LINE_WIDTH                                           :  1;
-        unsigned int                                                              :  4;
-    } gfx10;
-    struct {
         unsigned int                                                              : 26;
         unsigned int                                                              :  1;
         unsigned int                                                              :  5;
     } gfx101;
+    struct {
+        unsigned int                                                              : 27;
+        unsigned int USE_VTX_LINE_WIDTH                                           :  1;
+        unsigned int                                                              :  4;
+    } gfx10Plus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -13325,7 +13333,7 @@ union PA_SC_BINNER_CNTL_0 {
         unsigned int                                                              : 29;
         unsigned int BIN_MAPPING_MODE                                             :  2;
         unsigned int                                                              :  1;
-    } gfx10;
+    } gfx10Plus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -13413,7 +13421,7 @@ union PA_SC_BINNER_EVENT_CNTL_1 {
         unsigned int                                                              : 26;
         unsigned int BIN_CONF_OVERRIDE_CHECK                                      :  2;
         unsigned int                                                              :  4;
-    } gfx10;
+    } gfx10Plus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -13452,7 +13460,7 @@ union PA_SC_BINNER_EVENT_CNTL_2 {
         unsigned int                                                              : 10;
         unsigned int RESERVED_41                                                  :  2;
         unsigned int                                                              : 12;
-    } gfx10;
+    } gfx10Plus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -13493,7 +13501,7 @@ union PA_SC_BINNER_EVENT_CNTL_3 {
         unsigned int THREAD_TRACE_DRAW                                            :  2;
         unsigned int                                                              : 16;
         unsigned int DRAW_DONE                                                    :  2;
-    } gfx10;
+    } gfx10Plus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -13735,7 +13743,7 @@ union PA_SC_CONSERVATIVE_RASTERIZATION_CNTL {
         unsigned int UNCERTAINTY_REGION_MULT                                      :  2;
         unsigned int UNCERTAINTY_REGION_PBB_MULT                                  :  2;
         unsigned int                                                              :  3;
-    } gfx10;
+    } gfx10Plus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -13877,7 +13885,7 @@ union PA_SC_ENHANCE_1 {
         unsigned int                                                              : 13;
         unsigned int DEBUG_PIXEL_PICKER_COUNT_PIXELS                              :  1;
         unsigned int                                                              : 18;
-    } gfx10Core;
+    } gfx10CorePlus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -13885,6 +13893,18 @@ union PA_SC_ENHANCE_1 {
 };
 
 union PA_SC_ENHANCE_2 {
+    struct {
+        unsigned int ECO_SPARE0                                                   :  1;
+        unsigned int ECO_SPARE1                                                   :  1;
+        unsigned int ECO_SPARE2                                                   :  1;
+        unsigned int ECO_SPARE3                                                   :  1;
+        unsigned int                                                              : 28;
+    } gfx101;
+    struct {
+        unsigned int                                                              : 20;
+        unsigned int ENABLE_BLOCKING_WRITES_OF_GEN2_REG                           :  1;
+        unsigned int                                                              : 11;
+    } gfx10CorePlus;
     struct {
         unsigned int                                                              :  4;
         unsigned int ENABLE_LPOV_WAVE_BREAK                                       :  1;
@@ -13911,19 +13931,7 @@ union PA_SC_ENHANCE_2 {
         unsigned int BREAK_WHEN_ONE_NULL_PRIM_BATCH                               :  1;
         unsigned int NULL_PRIM_BREAK_BATCH_LIMIT                                  :  3;
         unsigned int                                                              :  2;
-    } gfx10;
-    struct {
-        unsigned int ECO_SPARE0                                                   :  1;
-        unsigned int ECO_SPARE1                                                   :  1;
-        unsigned int ECO_SPARE2                                                   :  1;
-        unsigned int ECO_SPARE3                                                   :  1;
-        unsigned int                                                              : 28;
-    } gfx101;
-    struct {
-        unsigned int                                                              : 20;
-        unsigned int ENABLE_BLOCKING_WRITES_OF_GEN2_REG                           :  1;
-        unsigned int                                                              : 11;
-    } gfx10Core;
+    } gfx10Plus;
     struct {
         unsigned int                                                              : 30;
         unsigned int RSVD                                                         :  2;
@@ -14231,7 +14239,7 @@ union PA_SC_NGG_MODE_CNTL {
         unsigned int                                                              : 16;
         unsigned int MAX_FPOVS_IN_WAVE                                            :  8;
         unsigned int                                                              :  8;
-    } gfx10;
+    } gfx10Plus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -14628,7 +14636,7 @@ union PA_SC_RASTER_CONFIG {
         unsigned int SE_XSEL                                                      :  2;
         unsigned int SE_YSEL                                                      :  2;
         unsigned int                                                              :  2;
-    } gfx10;
+    } gfx10Plus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -14651,7 +14659,7 @@ union PA_SC_RASTER_CONFIG_1 {
         unsigned int SE_PAIR_XSEL                                                 :  2;
         unsigned int SE_PAIR_YSEL                                                 :  2;
         unsigned int                                                              : 26;
-    } gfx10;
+    } gfx10Plus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -14695,7 +14703,7 @@ union PA_SC_SHADER_CONTROL {
         unsigned int                                                              :  5;
         unsigned int WAVE_BREAK_REGION_SIZE                                       :  2;
         unsigned int                                                              : 25;
-    } gfx10;
+    } gfx10Plus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -14715,7 +14723,7 @@ union PA_SC_TILE_STEERING_CREST_OVERRIDE {
         unsigned int SA_SELECT                                                    :  3;
         unsigned int                                                              : 20;
         unsigned int FORCE_TILE_STEERING_OVERRIDE_USE                             :  1;
-    } gfx10;
+    } gfx10Plus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -14735,17 +14743,17 @@ union PA_SC_TILE_STEERING_OVERRIDE {
         unsigned int                                                              : 25;
     } core;
     struct {
+        unsigned int                                                              : 20;
+        unsigned int NUM_PACKER_PER_SC                                            :  1;
+        unsigned int                                                              : 11;
+    } gfx101;
+    struct {
         unsigned int                                                              : 12;
         unsigned int NUM_SC                                                       :  2;
         unsigned int                                                              :  2;
         unsigned int NUM_RB_PER_SC                                                :  2;
         unsigned int                                                              : 14;
-    } gfx10;
-    struct {
-        unsigned int                                                              : 20;
-        unsigned int NUM_PACKER_PER_SC                                            :  1;
-        unsigned int                                                              : 11;
-    } gfx101;
+    } gfx10Plus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -15623,7 +15631,7 @@ union PA_STEREO_CNTL {
         unsigned int VP_ID_MODE                                                   :  3;
         unsigned int VP_ID_OFFSET                                                 :  4;
         unsigned int                                                              :  9;
-    } gfx10;
+    } gfx10Plus;
     struct {
         unsigned int EN_STEREO                                                    :  1;
         unsigned int STEREO_MODE                                                  :  4;
@@ -15883,7 +15891,7 @@ union PA_SU_PERFCOUNTER2_SELECT {
         unsigned int                                                              :  4;
         unsigned int PERF_MODE1                                                   :  4;
         unsigned int                                                              :  4;
-    } gfx10;
+    } gfx10Plus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -15942,7 +15950,7 @@ union PA_SU_PERFCOUNTER3_SELECT {
         unsigned int                                                              :  4;
         unsigned int PERF_MODE1                                                   :  4;
         unsigned int                                                              :  4;
-    } gfx10;
+    } gfx10Plus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -16093,7 +16101,7 @@ union PA_SU_SC_MODE_CNTL {
         unsigned int                                                              : 24;
         unsigned int KEEP_TOGETHER_ENABLE                                         :  1;
         unsigned int                                                              :  7;
-    } gfx10;
+    } gfx10Plus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -16957,7 +16965,7 @@ union RLC_SPM_GDS_PERFMON_SAMPLE_DELAY {
 union RLC_SPM_GLB_SAMPLEDELAY_IND_ADDR {
     struct {
         unsigned int GLB_SAMPLEDELAY_INDEX                                        : 32;
-    } bits, bitfields;
+    } gfx10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -17004,7 +17012,7 @@ union RLC_SPM_GLOBAL_MUXSEL_ADDR {
     struct {
         unsigned int PERFMON_SEL_ADDR                                             :  8;
         unsigned int RESERVED                                                     : 24;
-    } gfx10;
+    } gfx10Plus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -17091,17 +17099,6 @@ union RLC_SPM_MC_CNTL {
         unsigned int RESERVED                                                     : 22;
     } gfx09;
     struct {
-        unsigned int                                                              :  4;
-        unsigned int RLC_SPM_POLICY                                               :  2;
-        unsigned int RLC_SPM_PERF_CNTR                                            :  1;
-        unsigned int RLC_SPM_FED                                                  :  1;
-        unsigned int RLC_SPM_MTYPE_OVER                                           :  1;
-        unsigned int RLC_SPM_MTYPE                                                :  3;
-        unsigned int                                                              :  3;
-        unsigned int RLC_SPM_NOFILL                                               :  1;
-        unsigned int                                                              : 16;
-    } gfx10;
-    struct {
         unsigned int                                                              : 13;
         unsigned int RESERVED_2                                                   :  1;
         unsigned int                                                              :  2;
@@ -17113,7 +17110,18 @@ union RLC_SPM_MC_CNTL {
         unsigned int                                                              :  1;
         unsigned int RLC_SPM_VOL                                                  :  1;
         unsigned int                                                              : 17;
-    } gfx10Core;
+    } gfx10CorePlus;
+    struct {
+        unsigned int                                                              :  4;
+        unsigned int RLC_SPM_POLICY                                               :  2;
+        unsigned int RLC_SPM_PERF_CNTR                                            :  1;
+        unsigned int RLC_SPM_FED                                                  :  1;
+        unsigned int RLC_SPM_MTYPE_OVER                                           :  1;
+        unsigned int RLC_SPM_MTYPE                                                :  3;
+        unsigned int                                                              :  3;
+        unsigned int RLC_SPM_NOFILL                                               :  1;
+        unsigned int                                                              : 16;
+    } gfx10Plus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -17297,7 +17305,7 @@ union RLC_SPM_SEGMENT_THRESHOLD {
     struct {
         unsigned int NUM_SEGMENT_THRESHOLD                                        :  8;
         unsigned int RESERVED                                                     : 24;
-    } gfx10;
+    } gfx10Plus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -17311,7 +17319,7 @@ union RLC_SPM_SE_MUXSEL_ADDR {
     struct {
         unsigned int PERFMON_SEL_ADDR                                             :  9;
         unsigned int RESERVED                                                     : 23;
-    } gfx10;
+    } gfx10Plus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -17342,7 +17350,7 @@ union RLC_SPM_SE_MUXSEL_SKEW {
 union RLC_SPM_SE_SAMPLEDELAY_IND_ADDR {
     struct {
         unsigned int SE_SAMPLEDELAY_INDEX                                         : 32;
-    } bits, bitfields;
+    } gfx10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -18251,8 +18259,7 @@ union SPI_CONFIG_CNTL {
         unsigned int EXP_PRIORITY_ORDER                                           :  3;
         unsigned int ENABLE_SQG_TOP_EVENTS                                        :  1;
         unsigned int ENABLE_SQG_BOP_EVENTS                                        :  1;
-        unsigned int                                                              :  1;
-        unsigned int TTRACE_STALL_ALL                                             :  1;
+        unsigned int                                                              :  2;
         unsigned int ALLOC_ARB_LRU_ENA                                            :  1;
         unsigned int EXP_ARB_LRU_ENA                                              :  1;
         unsigned int PS_PKR_PRIORITY_CNTL                                         :  2;
@@ -18262,6 +18269,11 @@ union SPI_CONFIG_CNTL {
         unsigned int RSRC_MGMT_RESET                                              :  1;
         unsigned int                                                              :  5;
     } most;
+    struct {
+        unsigned int                                                              : 27;
+        unsigned int TTRACE_STALL_ALL                                             :  1;
+        unsigned int                                                              :  4;
+    } gfx09_10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -18280,8 +18292,7 @@ union SPI_CONFIG_CNTL_1 {
         unsigned int                                                              : 16;
     } bits, bitfields;
     struct {
-        unsigned int                                                              :  8;
-        unsigned int CRC_SIMD_ID_WADDR_DISABLE                                    :  1;
+        unsigned int                                                              :  9;
         unsigned int LBPW_CU_CHK_MODE                                             :  1;
         unsigned int LBPW_CU_CHK_CNT                                              :  4;
         unsigned int                                                              : 18;
@@ -18300,7 +18311,12 @@ union SPI_CONFIG_CNTL_1 {
         unsigned int MAX_VTX_SYNC_CNT                                             :  5;
         unsigned int EN_USER_ACCUM                                                :  1;
         unsigned int                                                              : 10;
-    } gfx10;
+    } gfx10Plus;
+    struct {
+        unsigned int                                                              :  8;
+        unsigned int CRC_SIMD_ID_WADDR_DISABLE                                    :  1;
+        unsigned int                                                              : 23;
+    } hasCe;
     struct {
         unsigned int                                                              : 22;
         unsigned int RESERVED                                                     : 10;
@@ -18510,7 +18526,7 @@ union SPI_DSM_CNTL2 {
         unsigned int                                                              :  3;
         unsigned int SPI_SR_MEM_INJECT_DELAY                                      :  6;
         unsigned int                                                              : 23;
-    } gfx10;
+    } gfx10Plus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -19041,7 +19057,7 @@ union SPI_PERFCOUNTER4_SELECT {
     struct {
         unsigned int PERF_SEL                                                     : 10;
         unsigned int                                                              : 22;
-    } gfx10;
+    } gfx10Plus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -19076,7 +19092,7 @@ union SPI_PERFCOUNTER5_SELECT {
     struct {
         unsigned int PERF_SEL                                                     : 10;
         unsigned int                                                              : 22;
-    } gfx10;
+    } gfx10Plus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -19945,7 +19961,7 @@ union SPI_PS_IN_CONTROL {
         unsigned int                                                              : 15;
         unsigned int PS_W32_EN                                                    :  1;
         unsigned int                                                              : 16;
-    } gfx10;
+    } gfx10Plus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -20351,9 +20367,7 @@ union SPI_RESOURCE_RESERVE_EN_CU_7 {
 
 union SPI_RESOURCE_RESERVE_EN_CU_8 {
     struct {
-        unsigned int EN                                                           :  1;
-        unsigned int TYPE_MASK                                                    : 15;
-        unsigned int QUEUE_MASK                                                   :  8;
+        unsigned int                                                              : 24;
         unsigned int RESERVE_SPACE_ONLY                                           :  1;
         unsigned int                                                              :  7;
     } gfx09;
@@ -20364,6 +20378,12 @@ union SPI_RESOURCE_RESERVE_EN_CU_8 {
         unsigned int RESERVE_SPACE_ONLY                                           :  1;
         unsigned int                                                              :  7;
     } gfx101;
+    struct {
+        unsigned int EN                                                           :  1;
+        unsigned int TYPE_MASK                                                    : 15;
+        unsigned int QUEUE_MASK                                                   :  8;
+        unsigned int                                                              :  8;
+    } notGfx10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -20372,9 +20392,7 @@ union SPI_RESOURCE_RESERVE_EN_CU_8 {
 
 union SPI_RESOURCE_RESERVE_EN_CU_9 {
     struct {
-        unsigned int EN                                                           :  1;
-        unsigned int TYPE_MASK                                                    : 15;
-        unsigned int QUEUE_MASK                                                   :  8;
+        unsigned int                                                              : 24;
         unsigned int RESERVE_SPACE_ONLY                                           :  1;
         unsigned int                                                              :  7;
     } gfx09;
@@ -20385,6 +20403,12 @@ union SPI_RESOURCE_RESERVE_EN_CU_9 {
         unsigned int RESERVE_SPACE_ONLY                                           :  1;
         unsigned int                                                              :  7;
     } gfx101;
+    struct {
+        unsigned int EN                                                           :  1;
+        unsigned int TYPE_MASK                                                    : 15;
+        unsigned int QUEUE_MASK                                                   :  8;
+        unsigned int                                                              :  8;
+    } notGfx10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -20393,12 +20417,23 @@ union SPI_RESOURCE_RESERVE_EN_CU_9 {
 
 union SPI_RESOURCE_RESERVE_EN_CU_10 {
     struct {
+        unsigned int                                                              : 24;
+        unsigned int RESERVE_SPACE_ONLY                                           :  1;
+        unsigned int                                                              :  7;
+    } gfx09;
+    struct {
         unsigned int EN                                                           :  1;
         unsigned int TYPE_MASK                                                    : 15;
         unsigned int QUEUE_MASK                                                   :  8;
         unsigned int RESERVE_SPACE_ONLY                                           :  1;
         unsigned int                                                              :  7;
-    } most;
+    } gfx101;
+    struct {
+        unsigned int EN                                                           :  1;
+        unsigned int TYPE_MASK                                                    : 15;
+        unsigned int QUEUE_MASK                                                   :  8;
+        unsigned int                                                              :  8;
+    } notGfx10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -20407,12 +20442,23 @@ union SPI_RESOURCE_RESERVE_EN_CU_10 {
 
 union SPI_RESOURCE_RESERVE_EN_CU_11 {
     struct {
+        unsigned int                                                              : 24;
+        unsigned int RESERVE_SPACE_ONLY                                           :  1;
+        unsigned int                                                              :  7;
+    } gfx09;
+    struct {
         unsigned int EN                                                           :  1;
         unsigned int TYPE_MASK                                                    : 15;
         unsigned int QUEUE_MASK                                                   :  8;
         unsigned int RESERVE_SPACE_ONLY                                           :  1;
         unsigned int                                                              :  7;
-    } most;
+    } gfx101;
+    struct {
+        unsigned int EN                                                           :  1;
+        unsigned int TYPE_MASK                                                    : 15;
+        unsigned int QUEUE_MASK                                                   :  8;
+        unsigned int                                                              :  8;
+    } notGfx10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -20421,12 +20467,23 @@ union SPI_RESOURCE_RESERVE_EN_CU_11 {
 
 union SPI_RESOURCE_RESERVE_EN_CU_12 {
     struct {
+        unsigned int                                                              : 24;
+        unsigned int RESERVE_SPACE_ONLY                                           :  1;
+        unsigned int                                                              :  7;
+    } gfx09;
+    struct {
         unsigned int EN                                                           :  1;
         unsigned int TYPE_MASK                                                    : 15;
         unsigned int QUEUE_MASK                                                   :  8;
         unsigned int RESERVE_SPACE_ONLY                                           :  1;
         unsigned int                                                              :  7;
-    } most;
+    } gfx101;
+    struct {
+        unsigned int EN                                                           :  1;
+        unsigned int TYPE_MASK                                                    : 15;
+        unsigned int QUEUE_MASK                                                   :  8;
+        unsigned int                                                              :  8;
+    } notGfx10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -20435,12 +20492,23 @@ union SPI_RESOURCE_RESERVE_EN_CU_12 {
 
 union SPI_RESOURCE_RESERVE_EN_CU_13 {
     struct {
+        unsigned int                                                              : 24;
+        unsigned int RESERVE_SPACE_ONLY                                           :  1;
+        unsigned int                                                              :  7;
+    } gfx09;
+    struct {
         unsigned int EN                                                           :  1;
         unsigned int TYPE_MASK                                                    : 15;
         unsigned int QUEUE_MASK                                                   :  8;
         unsigned int RESERVE_SPACE_ONLY                                           :  1;
         unsigned int                                                              :  7;
-    } most;
+    } gfx101;
+    struct {
+        unsigned int EN                                                           :  1;
+        unsigned int TYPE_MASK                                                    : 15;
+        unsigned int QUEUE_MASK                                                   :  8;
+        unsigned int                                                              :  8;
+    } notGfx10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -20449,12 +20517,23 @@ union SPI_RESOURCE_RESERVE_EN_CU_13 {
 
 union SPI_RESOURCE_RESERVE_EN_CU_14 {
     struct {
+        unsigned int                                                              : 24;
+        unsigned int RESERVE_SPACE_ONLY                                           :  1;
+        unsigned int                                                              :  7;
+    } gfx09;
+    struct {
         unsigned int EN                                                           :  1;
         unsigned int TYPE_MASK                                                    : 15;
         unsigned int QUEUE_MASK                                                   :  8;
         unsigned int RESERVE_SPACE_ONLY                                           :  1;
         unsigned int                                                              :  7;
-    } most;
+    } gfx101;
+    struct {
+        unsigned int EN                                                           :  1;
+        unsigned int TYPE_MASK                                                    : 15;
+        unsigned int QUEUE_MASK                                                   :  8;
+        unsigned int                                                              :  8;
+    } notGfx10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -20463,12 +20542,23 @@ union SPI_RESOURCE_RESERVE_EN_CU_14 {
 
 union SPI_RESOURCE_RESERVE_EN_CU_15 {
     struct {
+        unsigned int                                                              : 24;
+        unsigned int RESERVE_SPACE_ONLY                                           :  1;
+        unsigned int                                                              :  7;
+    } gfx09;
+    struct {
         unsigned int EN                                                           :  1;
         unsigned int TYPE_MASK                                                    : 15;
         unsigned int QUEUE_MASK                                                   :  8;
         unsigned int RESERVE_SPACE_ONLY                                           :  1;
         unsigned int                                                              :  7;
-    } most;
+    } gfx101;
+    struct {
+        unsigned int EN                                                           :  1;
+        unsigned int TYPE_MASK                                                    : 15;
+        unsigned int QUEUE_MASK                                                   :  8;
+        unsigned int                                                              :  8;
+    } notGfx10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -20766,7 +20856,7 @@ union SPI_SHADER_PGM_RSRC1_GS {
         unsigned int FWD_PROGRESS                                                 :  1;
         unsigned int WGP_MODE                                                     :  1;
         unsigned int                                                              :  4;
-    } gfx10;
+    } gfx10Plus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -20795,7 +20885,7 @@ union SPI_SHADER_PGM_RSRC1_HS {
         unsigned int FWD_PROGRESS                                                 :  1;
         unsigned int WGP_MODE                                                     :  1;
         unsigned int                                                              :  5;
-    } gfx10;
+    } gfx10Plus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -20845,7 +20935,7 @@ union SPI_SHADER_PGM_RSRC1_PS {
         unsigned int MEM_ORDERED                                                  :  1;
         unsigned int FWD_PROGRESS                                                 :  1;
         unsigned int                                                              :  5;
-    } gfx10;
+    } gfx10Plus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -20873,7 +20963,7 @@ union SPI_SHADER_PGM_RSRC1_VS {
         unsigned int MEM_ORDERED                                                  :  1;
         unsigned int FWD_PROGRESS                                                 :  1;
         unsigned int                                                              :  3;
-    } gfx10;
+    } gfx10Plus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -20952,7 +21042,7 @@ union SPI_SHADER_PGM_RSRC2_GS {
         unsigned int                                                              : 27;
         unsigned int USER_SGPR_MSB                                                :  1;
         unsigned int SHARED_VGPR_CNT                                              :  4;
-    } gfx10;
+    } gfx10Plus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -21002,7 +21092,7 @@ union SPI_SHADER_PGM_RSRC2_HS {
         unsigned int LDS_SIZE                                                     :  9;
         unsigned int USER_SGPR_MSB                                                :  1;
         unsigned int SHARED_VGPR_CNT                                              :  4;
-    } gfx10;
+    } gfx10Plus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -21091,7 +21181,7 @@ union SPI_SHADER_PGM_RSRC2_PS {
         unsigned int                                                              : 27;
         unsigned int USER_SGPR_MSB                                                :  1;
         unsigned int SHARED_VGPR_CNT                                              :  4;
-    } gfx10;
+    } gfx10Plus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -21128,7 +21218,7 @@ union SPI_SHADER_PGM_RSRC2_VS {
         unsigned int                                                              : 27;
         unsigned int USER_SGPR_MSB                                                :  1;
         unsigned int SHARED_VGPR_CNT                                              :  4;
-    } gfx10;
+    } gfx10Plus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -21163,7 +21253,7 @@ union SPI_SHADER_PGM_RSRC3_GS {
     struct {
         unsigned int                                                              : 26;
         unsigned int GROUP_FIFO_DEPTH                                             :  6;
-    } gfx10;
+    } gfx10Plus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -21186,7 +21276,7 @@ union SPI_SHADER_PGM_RSRC3_HS {
         unsigned int                                                              : 10;
         unsigned int GROUP_FIFO_DEPTH                                             :  6;
         unsigned int                                                              : 16;
-    } gfx10;
+    } gfx10Plus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -21213,15 +21303,15 @@ union SPI_SHADER_PGM_RSRC3_PS {
         unsigned int                                                              : 10;
     } bits, bitfields;
     struct {
-        unsigned int                                                              : 22;
-        unsigned int LOCK_LOW_THRESHOLD                                           :  4;
-        unsigned int                                                              :  6;
-    } core;
-    struct {
         unsigned int                                                              : 26;
         unsigned int SIMD_DISABLE                                                 :  4;
         unsigned int                                                              :  2;
     } gfx09;
+    struct {
+        unsigned int                                                              : 22;
+        unsigned int LOCK_LOW_THRESHOLD                                           :  4;
+        unsigned int                                                              :  6;
+    } hasCe;
 
     unsigned int u32All;
     signed int   i32All;
@@ -21256,7 +21346,7 @@ union SPI_SHADER_PGM_RSRC4_GS {
         unsigned int CU_EN                                                        : 16;
         unsigned int SPI_SHADER_LATE_ALLOC_GS                                     :  7;
         unsigned int                                                              :  9;
-    } gfx10;
+    } gfx10Plus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -21271,7 +21361,7 @@ union SPI_SHADER_PGM_RSRC4_HS {
     struct {
         unsigned int CU_EN                                                        : 16;
         unsigned int                                                              : 16;
-    } gfx10;
+    } gfx10Plus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -21312,7 +21402,7 @@ union SPI_SHADER_POS_FORMAT {
         unsigned int                                                              : 16;
         unsigned int POS4_EXPORT_FORMAT                                           :  4;
         unsigned int                                                              : 12;
-    } gfx10;
+    } gfx10Plus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -24209,7 +24299,7 @@ union SPI_START_PHASE {
         unsigned int PC_X_PHASE_SE2                                               :  2;
         unsigned int PC_X_PHASE_SE3                                               :  2;
         unsigned int                                                              : 24;
-    } gfx10;
+    } gfx10Plus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -24294,7 +24384,7 @@ union SPI_VS_OUT_CONFIG {
         unsigned int                                                              :  7;
         unsigned int NO_PC_EXPORT                                                 :  1;
         unsigned int                                                              : 24;
-    } gfx10;
+    } gfx10Plus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -24811,7 +24901,7 @@ union SQ_ALU_CLK_CTRL {
     struct {
         unsigned int FORCE_WGP_ON_SA0                                             : 16;
         unsigned int FORCE_WGP_ON_SA1                                             : 16;
-    } gfx10;
+    } gfx10Plus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -24915,7 +25005,7 @@ union SQ_CMD {
         unsigned int                                                              : 12;
         unsigned int WAVE_ID                                                      :  5;
         unsigned int                                                              : 11;
-    } gfx10;
+    } gfx10Plus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -24963,14 +25053,6 @@ union SQ_CONFIG {
         unsigned int DISABLE_MIMG_SOFT_CLAUSE                                     :  1;
     } gfx09;
     struct {
-        unsigned int                                                              : 12;
-        unsigned int VGPR_SWIZZLE_EN                                              :  1;
-        unsigned int LDS_BUSY_HYSTERESIS_CNT                                      :  2;
-        unsigned int SP_BUSY_HYSTERESIS_CNT                                       :  2;
-        unsigned int                                                              : 13;
-        unsigned int TA_BUSY_HYSTERESIS_CNT                                       :  2;
-    } gfx10;
-    struct {
         unsigned int UNUSED                                                       :  7;
         unsigned int                                                              :  2;
         unsigned int DEBUG_SINGLE_MEMOP                                           :  1;
@@ -24980,6 +25062,14 @@ union SQ_CONFIG {
         unsigned int REPLAY_SLEEP_CNT                                             :  7;
         unsigned int                                                              :  4;
     } gfx101;
+    struct {
+        unsigned int                                                              : 12;
+        unsigned int VGPR_SWIZZLE_EN                                              :  1;
+        unsigned int LDS_BUSY_HYSTERESIS_CNT                                      :  2;
+        unsigned int SP_BUSY_HYSTERESIS_CNT                                       :  2;
+        unsigned int                                                              : 13;
+        unsigned int TA_BUSY_HYSTERESIS_CNT                                       :  2;
+    } gfx10Plus;
     struct {
         unsigned int DISABLE_BARRIER_WAITCNT                                      :  1;
         unsigned int UNUSED                                                       :  6;
@@ -25208,7 +25298,7 @@ union SQ_FIFO_SIZES {
         unsigned int EXPORT_BUF_PS_RESERVED                                       :  2;
         unsigned int EXPORT_BUF_REDUCE                                            :  2;
         unsigned int                                                              : 14;
-    } gfx10;
+    } gfx10Plus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -25509,7 +25599,7 @@ union SQ_IND_INDEX {
         unsigned int WORKITEM_ID                                                  :  6;
         unsigned int AUTO_INCR                                                    :  1;
         unsigned int                                                              : 20;
-    } gfx10;
+    } gfx10Plus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -25823,7 +25913,7 @@ union SQ_LDS_CLK_CTRL {
     struct {
         unsigned int FORCE_WGP_ON_SA0                                             : 16;
         unsigned int FORCE_WGP_ON_SA1                                             : 16;
-    } gfx10;
+    } gfx10Plus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -26714,7 +26804,7 @@ union SQ_PERFCOUNTER_CTRL {
         unsigned int                                                              :  8;
         unsigned int CNTR_RATE                                                    :  2;
         unsigned int                                                              : 22;
-    } gfx10;
+    } gfx10Plus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -26786,7 +26876,7 @@ union SQ_RANDOM_WAVE_PRI {
         unsigned int                                                              : 10;
         unsigned int RNG                                                          : 14;
         unsigned int                                                              :  8;
-    } gfx10;
+    } gfx10Plus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -26829,7 +26919,7 @@ union SQ_RUNTIME_CONFIG {
     struct {
         unsigned int UNUSED_REGISTER                                              :  1;
         unsigned int                                                              : 31;
-    } gfx10;
+    } gfx10Plus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -26875,7 +26965,7 @@ union SQ_SHADER_TBA_HI {
     struct {
         unsigned int                                                              : 31;
         unsigned int TRAP_EN                                                      :  1;
-    } gfx10;
+    } gfx10Plus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -27016,7 +27106,7 @@ union SQ_TEX_CLK_CTRL {
     struct {
         unsigned int FORCE_WGP_ON_SA0                                             : 16;
         unsigned int FORCE_WGP_ON_SA1                                             : 16;
-    } gfx10;
+    } gfx10Plus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -27124,7 +27214,7 @@ union SQ_THREAD_TRACE_CTRL {
         unsigned int                                                              : 10;
         unsigned int CAPTURE_ALL                                                  :  1;
         unsigned int DRAW_EVENT_EN                                                :  1;
-    } gfx10;
+    } gfx10Plus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -27212,7 +27302,7 @@ union SQ_THREAD_TRACE_MASK {
         unsigned int SA_SEL                                                       :  1;
         unsigned int WTYPE_INCLUDE                                                :  7;
         unsigned int                                                              : 15;
-    } gfx10;
+    } gfx10Plus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -27277,18 +27367,18 @@ union SQ_THREAD_TRACE_STATUS {
         unsigned int FULL                                                         :  1;
     } gfx09;
     struct {
-        unsigned int FINISH_PENDING                                               : 12;
-        unsigned int FINISH_DONE                                                  : 12;
-        unsigned int UTC_ERR                                                      :  1;
-        unsigned int BUSY                                                         :  1;
-        unsigned int                                                              :  6;
-    } gfx10;
-    struct {
         unsigned int                                                              : 26;
         unsigned int EVENT_CNTR_OVERFLOW                                          :  1;
         unsigned int EVENT_CNTR_STALL                                             :  1;
         unsigned int                                                              :  4;
     } gfx10Core;
+    struct {
+        unsigned int FINISH_PENDING                                               : 12;
+        unsigned int FINISH_DONE                                                  : 12;
+        unsigned int UTC_ERR                                                      :  1;
+        unsigned int BUSY                                                         :  1;
+        unsigned int                                                              :  6;
+    } gfx10Plus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -27303,16 +27393,16 @@ union SQ_THREAD_TRACE_TOKEN_MASK {
         unsigned int                                                              :  7;
     } gfx09;
     struct {
+        unsigned int TOKEN_EXCLUDE                                                : 12;
+        unsigned int                                                              : 20;
+    } gfx101;
+    struct {
         unsigned int                                                              : 16;
         unsigned int REG_INCLUDE                                                  :  8;
         unsigned int INST_EXCLUDE                                                 :  2;
         unsigned int                                                              :  5;
         unsigned int REG_DETAIL_ALL                                               :  1;
-    } gfx10;
-    struct {
-        unsigned int TOKEN_EXCLUDE                                                : 12;
-        unsigned int                                                              : 20;
-    } gfx101;
+    } gfx10Plus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -27693,7 +27783,7 @@ union SQ_THREAD_TRACE_WPTR {
         unsigned int OFFSET                                                       : 29;
         unsigned int                                                              :  2;
         unsigned int BUFFER_ID                                                    :  1;
-    } gfx10;
+    } gfx10Plus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -29566,16 +29656,16 @@ union TA_CNTL_AUX {
         unsigned int                                                              : 12;
     } gfx09;
     struct {
+        unsigned int                                                              :  4;
+        unsigned int DERIV_ADJUST_DIS                                             :  1;
+        unsigned int                                                              : 27;
+    } gfx10CorePlus;
+    struct {
         unsigned int                                                              :  8;
         unsigned int ANISO_MAG_STEP_CLAMP                                         :  1;
         unsigned int AUTO_ALIGN_FORMAT                                            :  1;
         unsigned int                                                              : 22;
-    } gfx10;
-    struct {
-        unsigned int                                                              :  4;
-        unsigned int DERIV_ADJUST_DIS                                             :  1;
-        unsigned int                                                              : 27;
-    } gfx10Core;
+    } gfx10Plus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -30356,7 +30446,7 @@ union TCP_PERFCOUNTER_FILTER {
         unsigned int GLC                                                          :  1;
         unsigned int COMPRESSION_ENABLE                                           :  1;
         unsigned int                                                              :  1;
-    } gfx10;
+    } gfx10Plus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -30402,7 +30492,7 @@ union TCP_PERFCOUNTER_FILTER_EN {
         unsigned int COMPRESSION_ENABLE                                           :  1;
         unsigned int REQ_MODE                                                     :  1;
         unsigned int                                                              : 19;
-    } gfx10;
+    } gfx10Plus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -38270,7 +38360,7 @@ union VGT_DMA_DATA_FIFO_DEPTH {
     struct {
         unsigned int DMA_DATA_FIFO_DEPTH                                          : 10;
         unsigned int                                                              : 22;
-    } gfx10;
+    } gfx10Plus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -38315,7 +38405,7 @@ union VGT_DMA_INDEX_TYPE {
         unsigned int                                                              :  2;
         unsigned int MTYPE                                                        :  3;
         unsigned int                                                              : 18;
-    } gfx10;
+    } gfx10Plus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -38435,16 +38525,16 @@ union VGT_DRAW_PAYLOAD_CNTL {
         unsigned int                                                              : 28;
     } gfx09;
     struct {
-        unsigned int                                                              :  3;
-        unsigned int                                                              :  1;
-        unsigned int EN_DRAW_VP                                                   :  1;
-        unsigned int                                                              : 27;
-    } gfx10;
-    struct {
         unsigned int                                                              :  2;
         unsigned int                                                              :  1;
         unsigned int                                                              : 29;
     } gfx101;
+    struct {
+        unsigned int                                                              :  3;
+        unsigned int                                                              :  1;
+        unsigned int EN_DRAW_VP                                                   :  1;
+        unsigned int                                                              : 27;
+    } gfx10Plus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -38545,7 +38635,7 @@ union VGT_FIFO_DEPTHS {
         unsigned int RESERVED_1                                                   :  1;
         unsigned int HSINPUT_FIFO_DEPTH                                           :  6;
         unsigned int                                                              :  3;
-    } gfx10;
+    } gfx10Plus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -38731,7 +38821,7 @@ union VGT_GS_INSTANCE_CNT {
     struct {
         unsigned int                                                              : 31;
         unsigned int EN_MAX_VERT_OUT_PER_GS_INSTANCE                              :  1;
-    } gfx10;
+    } gfx10Plus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -38801,7 +38891,7 @@ union VGT_GS_MODE {
         unsigned int FAST_COMPUTE_MODE                                            :  1;
         unsigned int ELEMENT_INFO_EN                                              :  1;
         unsigned int                                                              : 15;
-    } gfx10;
+    } gfx10Plus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -39424,7 +39514,7 @@ union VGT_SHADER_STAGES_EN {
         unsigned int NGG_WAVE_ID_EN                                               :  1;
         unsigned int PRIMGEN_PASSTHRU_EN                                          :  1;
         unsigned int                                                              :  6;
-    } gfx10;
+    } gfx10Plus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -39771,7 +39861,7 @@ union VGT_TF_PARAM {
         unsigned int                                                              :  2;
         unsigned int MTYPE                                                        :  3;
         unsigned int                                                              :  6;
-    } gfx10;
+    } gfx10Plus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -39841,7 +39931,7 @@ union VGT_VTX_VECT_EJECT_REG {
     struct {
         unsigned int PRIM_COUNT                                                   : 10;
         unsigned int                                                              : 22;
-    } gfx10;
+    } gfx10Plus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -40119,7 +40209,7 @@ union WD_UTCL1_CNTL {
         unsigned int                                                              : 29;
         unsigned int MTYPE_OVERRIDE                                               :  1;
         unsigned int                                                              :  2;
-    } gfx10;
+    } gfx10Plus;
 
     unsigned int u32All;
     signed int   i32All;

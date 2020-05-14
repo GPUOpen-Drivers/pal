@@ -1759,6 +1759,9 @@
       "Defaults": {
         "Default": false
       },
+      "Flags": {
+        "RereadSetting": true
+      },
       "Scope": "PrivatePalKey",
       "Type": "bool",
       "VariableName": "mipGenUseFastPath",

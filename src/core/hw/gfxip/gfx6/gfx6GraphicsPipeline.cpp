@@ -1329,8 +1329,8 @@ void GraphicsPipeline::SetupLateAllocVs(
             if ((spiShaderPgmRsrc2Vs.bits.SCRATCH_EN != 0) && (spiShaderPgmRsrc2Ps.bits.SCRATCH_EN != 0))
             {
                 // The maximum number of waves per SH that can launch using scratch is the number of CUs per SH times
-                // the setting that clamps the maximum number of in-flight scratch waves.
-                const uint32 maxScratchWavesPerSh = numCuForLateAllocVs * pPalSettings->numScratchWavesPerCu;
+                // the hardware limit on scratch waves per CU.
+                const uint32 maxScratchWavesPerSh = numCuForLateAllocVs * MaxScratchWavesPerCu;
 
                 maxVsWaves = Min(maxVsWaves, maxScratchWavesPerSh);
             }

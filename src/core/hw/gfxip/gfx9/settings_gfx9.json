@@ -3050,20 +3050,6 @@
       "Type": "bool",
       "VariableName": "disableAceCsPartialFlush",
       "Name": "DisableAceCsPartialFlush"
-    },
-    {
-      "Description": "Force queue not to wait for idle before resize ringSet. This is a debug setting and strange behavior might occur in some applications.",
-      "Tags": [
-        "General",
-        "Gfx9"
-      ],
-      "Defaults": {
-        "Default": false
-      },
-      "Scope": "PrivatePalGfx9Key",
-      "Type": "bool",
-      "VariableName": "debugForceQueueNotWaitForIdle",
-      "Name": "DebugForceQueueNotWaitForIdle"
     }
   ]
 }

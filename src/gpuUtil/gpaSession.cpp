@@ -310,14 +310,17 @@ void FillSqttAsicInfo(
     uint32 computeUnitPerShaderEngine     = 0;
     for (uint32 seIndex = 0; seIndex < properties.gfxipProperties.shaderCore.numShaderEngines; seIndex++)
     {
-        const uint32 computeUnitPerPreviousShaderEngine = computeUnitPerShaderEngine;
-        computeUnitPerShaderEngine                      = 0;
+        uint32 totalActiveCu = 0;
         for (uint32 saIndex = 0; saIndex < properties.gfxipProperties.shaderCore.numShaderArrays; saIndex++)
         {
             const uint32 activeCuMask   = properties.gfxipProperties.shaderCore.activeCuMask[seIndex][saIndex];
-            computeUnitPerShaderEngine += Util::CountSetBits(activeCuMask);
+            totalActiveCu += Util::CountSetBits(activeCuMask);
         }
-        PAL_ASSERT((seIndex == 0) || (computeUnitPerShaderEngine == computeUnitPerPreviousShaderEngine));
+        // If there are no Active CU's then we assume this engine is disabled(harvested), and ignore the zero count
+        if (totalActiveCu != 0)
+        {
+            computeUnitPerShaderEngine = totalActiveCu;
+        }
     }
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 491
     if (properties.gfxLevel > Pal::GfxIpLevel::GfxIp9)
@@ -3288,10 +3291,26 @@ Result GpaSession::AcquirePerfExperiment(
                 sqttInfo.optionFlags.threadTraceTokenConfig  = 1;
                 sqttInfo.optionValues.threadTraceTokenConfig = m_flags.enableSampleUpdates ? SqttTokenConfigMinimal :
                                                                                              tokenConfig;
-
+                // Build a mask for active Shader Engines so we don't try trace any inactive/harvested ones
+                uint32 activeSeMask = 0;
+                for (uint32 seIndex = 0; seIndex < m_deviceProps.gfxipProperties.shaderCore.numShaderEngines; seIndex++)
+                {
+                    for (uint32 saIndex = 0; saIndex < m_deviceProps.gfxipProperties.shaderCore.numShaderArrays; saIndex++)
+                    {
+                        const uint32 activeCuMask = m_deviceProps.gfxipProperties.shaderCore.activeCuMask[seIndex][saIndex];
+                        if (activeCuMask != 0)
+                        {
+                            // this engine has one or more active CUs, so mark as available
+                            activeSeMask |= (1 << seIndex);
+                            break;
+                        }
+                    }
+                }
+                PAL_ASSERT(activeSeMask != 0);
+                const uint32 traceSeMask = (sampleConfig.sqtt.seMask == 0) ? activeSeMask : (sampleConfig.sqtt.seMask & activeSeMask);
                 for (uint32 i = 0; (i < m_perfExperimentProps.shaderEngineCount) && (result == Result::Success); i++)
                 {
-                    if (sampleConfig.sqtt.seMask == 0 || Util::TestAnyFlagSet(sampleConfig.sqtt.seMask, 1 << i))
+                    if (Util::TestAnyFlagSet(traceSeMask, 1 << i))
                     {
                         sqttInfo.instance = i;
                         result = pExperiment->AddThreadTrace(sqttInfo);

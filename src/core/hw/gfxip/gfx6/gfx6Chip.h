@@ -184,6 +184,9 @@ constexpr uint32 NumSimdPerCu = 4;
 constexpr uint32 NumWavesPerSimd = 10;
 constexpr uint32 NumWavesPerCu   = NumWavesPerSimd * NumSimdPerCu;
 
+// The hardware can only support a limited number of scratch waves per CU.
+constexpr uint32 MaxScratchWavesPerCu = 32;
+
 // The value of ONCHIP that is the field of register VGT_GS_MODE
 constexpr uint32 VgtGsModeOnchip = 3;
 

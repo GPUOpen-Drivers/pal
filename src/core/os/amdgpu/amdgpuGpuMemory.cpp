@@ -221,9 +221,19 @@ Result GpuMemory::AllocateOrPinMemory(
                                     {
                                         allocRequest.flags |= AMDGPU_GEM_CREATE_CPU_GTT_USWC;
                                     }
+                                    // Kernel request: Protected memory should be allocated with flag AMDGPU_GEM_CREATE_ENCRYPTED.
+                                    if (m_flags.tmzProtected)
+                                    {
+                                        allocRequest.flags |=  AMDGPU_GEM_CREATE_ENCRYPTED;
+                                    }
                                     // Fall through next
                                 case GpuHeapGartCacheable:
                                     allocRequest.preferred_heap |= AMDGPU_GEM_DOMAIN_GTT;
+                                    // Kernel request: Protected memory should be allocated with flag AMDGPU_GEM_CREATE_ENCRYPTED.
+                                    if (m_flags.tmzProtected)
+                                    {
+                                        allocRequest.flags |=  AMDGPU_GEM_CREATE_ENCRYPTED;
+                                    }
                                     break;
                                 case GpuHeapLocal:
                                     if ((allocRequest.flags & AMDGPU_GEM_CREATE_NO_CPU_ACCESS) == 0)
@@ -238,11 +248,22 @@ Result GpuMemory::AllocateOrPinMemory(
                                             allocRequest.preferred_heap |= AMDGPU_GEM_DOMAIN_VRAM;
                                         }
                                     }
+                                    // Kernel request: Protected memory should be allocated with flag AMDGPU_GEM_CREATE_ENCRYPTED.
+                                    if (m_flags.tmzProtected)
+                                    {
+                                        allocRequest.flags |=  AMDGPU_GEM_CREATE_ENCRYPTED;
+                                    }
                                     break;
                                 case GpuHeapInvisible:
                                     allocRequest.flags          &= ~AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED;
                                     allocRequest.flags          |= AMDGPU_GEM_CREATE_NO_CPU_ACCESS;
                                     allocRequest.preferred_heap |= AMDGPU_GEM_DOMAIN_VRAM;
+
+                                    // Kernel request: Protected memory should be allocated with flag AMDGPU_GEM_CREATE_ENCRYPTED.
+                                    if (m_flags.tmzProtected)
+                                    {
+                                        allocRequest.flags |=  AMDGPU_GEM_CREATE_ENCRYPTED;
+                                    }
                                     break;
                                 default:
                                     PAL_ASSERT_ALWAYS();

@@ -575,14 +575,7 @@ Result Queue::OsSubmit(
 
     Result result = Result::Success;
 
-    bool isDummySubmission = false;
-
-    if ((submitInfo.pPerSubQueueInfo == nullptr) || (submitInfo.pPerSubQueueInfo[0].cmdBufferCount == 0))
-    {
-        // Dummy submission doesn't need to update resource list since dummy resource list will be used.
-        isDummySubmission = true;
-    }
-    else
+    if (pInternalSubmitInfos->flags.isDummySubmission == false)
     {
         result = UpdateResourceList(submitInfo.pGpuMemoryRefs, submitInfo.gpuMemRefCount);
     }
@@ -591,7 +584,7 @@ Result Queue::OsSubmit(
     {
         MultiSubmitInfo       localSubmitInfo       = submitInfo;
         PerSubQueueSubmitInfo perSubQueueSubmitInfo = {};
-        if (isDummySubmission == false)
+        if (pInternalSubmitInfos->flags.isDummySubmission == false)
         {
             perSubQueueSubmitInfo            = submitInfo.pPerSubQueueInfo[0];
         }
@@ -599,12 +592,12 @@ Result Queue::OsSubmit(
         localSubmitInfo.perSubQueueInfoCount = 1;
 
         // amdgpu won't give us a new fence value unless the submission has at least one command buffer.
-        if (isDummySubmission || (m_ifhMode == IfhModePal))
+        if ((pInternalSubmitInfos->flags.isDummySubmission) || (m_ifhMode == IfhModePal))
         {
             perSubQueueSubmitInfo.ppCmdBuffers =
                 reinterpret_cast<Pal::ICmdBuffer* const*>(&m_pDummyCmdBuffer);
             perSubQueueSubmitInfo.cmdBufferCount  = 1;
-            if ((m_ifhMode == IfhModeDisabled) && (isDummySubmission == false))
+            if ((m_ifhMode != IfhModePal) && (pInternalSubmitInfos->flags.isDummySubmission == false))
             {
                 m_pDummyCmdBuffer->IncrementSubmitCount();
             }
@@ -615,12 +608,12 @@ Result Queue::OsSubmit(
 
         if ((Type() == QueueTypeUniversal) || (Type() == QueueTypeCompute))
         {
-            result = SubmitPm4(localSubmitInfo, pInternalSubmitInfos[0], isDummySubmission);
+            result = SubmitPm4(localSubmitInfo, pInternalSubmitInfos[0]);
         }
         else if ((Type() == QueueTypeDma)
                 )
         {
-            result = SubmitNonGfxIp(localSubmitInfo, pInternalSubmitInfos[0], isDummySubmission);
+            result = SubmitNonGfxIp(localSubmitInfo, pInternalSubmitInfos[0]);
         }
     }
 
@@ -669,8 +662,7 @@ Result Queue::OsPresentDirect(
 // Submits one or more PM4 command buffers.
 Result Queue::SubmitPm4(
     const MultiSubmitInfo&    submitInfo,
-    const InternalSubmitInfo& internalSubmitInfo,
-    bool                      isDummySubmission)
+    const InternalSubmitInfo& internalSubmitInfo)
 {
     Result result = Result::Success;
 
@@ -752,16 +744,14 @@ Result Queue::SubmitPm4(
                                                        ppNextCmdBuffers,
                                                        &batchSize,
                                                        &pWaitBeforeLaunch,
-                                                       &pSignalAfterLaunch,
-                                                       isDummySubmission);
+                                                       &pSignalAfterLaunch);
             }
             else
             {
                 result = PrepareChainedCommandBuffers(internalSubmitInfo,
                                                       numNextCmdBuffers,
                                                       ppNextCmdBuffers,
-                                                      &batchSize,
-                                                      isDummySubmission);
+                                                      &batchSize);
             }
         }
         else
@@ -769,8 +759,7 @@ Result Queue::SubmitPm4(
             result = PrepareChainedCommandBuffers(internalSubmitInfo,
                                                   numNextCmdBuffers,
                                                   ppNextCmdBuffers,
-                                                  &batchSize,
-                                                  isDummySubmission);
+                                                  &batchSize);
         }
 
         if (result == Result::Success)
@@ -788,7 +777,7 @@ Result Queue::SubmitPm4(
                 result = WaitQueueSemaphoreInternal(pWaitBeforeLaunch, 0, true);
             }
 
-            result = SubmitIbs(internalSubmitInfo, isDummySubmission);
+            result = SubmitIbs(internalSubmitInfo);
 
             if ((pSignalAfterLaunch != nullptr) && (result == Result::Success))
             {
@@ -807,8 +796,7 @@ Result Queue::PrepareChainedCommandBuffers(
     const InternalSubmitInfo& internalSubmitInfo,
     uint32                    cmdBufferCount,
     ICmdBuffer*const*         ppCmdBuffers,
-    uint32*                   pAppendedCmdBuffers,
-    bool                      isDummySubmission)
+    uint32*                   pAppendedCmdBuffers)
 {
     Result result = Result::Success;
 
@@ -830,7 +818,9 @@ Result Queue::PrepareChainedCommandBuffers(
     for (uint32 idx = 0; (result == Result::Success) && (idx < internalSubmitInfo.numPreambleCmdStreams); ++idx)
     {
         PAL_ASSERT(internalSubmitInfo.pPreambleCmdStream[idx] != nullptr);
-        result = AddCmdStream(*internalSubmitInfo.pPreambleCmdStream[idx], isDummySubmission);
+        result = AddCmdStream(*internalSubmitInfo.pPreambleCmdStream[idx],
+                              internalSubmitInfo.flags.isDummySubmission,
+                              internalSubmitInfo.flags.isTmzEnabled);
     }
 
     // The command buffer streams are grouped by stream index.
@@ -857,7 +847,9 @@ Result Queue::PrepareChainedCommandBuffers(
                 if (pPrevCmdStream == nullptr)
                 {
                     // The first command buffer's command streams are what the kernel will launch.
-                    result = AddCmdStream(*pCurCmdStream, isDummySubmission);
+                    result = AddCmdStream(*pCurCmdStream,
+                                          internalSubmitInfo.flags.isDummySubmission,
+                                          internalSubmitInfo.flags.isTmzEnabled);
                 }
                 else
                 {
@@ -893,7 +885,9 @@ Result Queue::PrepareChainedCommandBuffers(
     for (uint32 idx = 0; (result == Result::Success) && (idx < internalSubmitInfo.numPostambleCmdStreams); ++idx)
     {
         PAL_ASSERT(internalSubmitInfo.pPostambleCmdStream[idx] != nullptr);
-        result = AddCmdStream(*internalSubmitInfo.pPostambleCmdStream[idx], isDummySubmission);
+        result = AddCmdStream(*internalSubmitInfo.pPostambleCmdStream[idx],
+                              internalSubmitInfo.flags.isDummySubmission,
+                              internalSubmitInfo.flags.isTmzEnabled);
     }
 
     if (result == Result::Success)
@@ -913,8 +907,7 @@ Result Queue::PrepareUploadedCommandBuffers(
     ICmdBuffer*const*         ppCmdBuffers,
     uint32*                   pAppendedCmdBuffers,
     IQueueSemaphore**         ppWaitBeforeLaunch,
-    IQueueSemaphore**         ppSignalAfterLaunch,
-    bool                      isDummySubmission)
+    IQueueSemaphore**         ppSignalAfterLaunch)
 {
     UploadedCmdBufferInfo uploadInfo = {};
     Result result = m_pCmdUploadRing->UploadCmdBuffers(cmdBufferCount, ppCmdBuffers, &uploadInfo);
@@ -924,7 +917,9 @@ Result Queue::PrepareUploadedCommandBuffers(
     for (uint32 idx = 0; (result == Result::Success) && (idx < internalSubmitInfo.numPreambleCmdStreams); ++idx)
     {
         PAL_ASSERT(internalSubmitInfo.pPreambleCmdStream[idx] != nullptr);
-        result = AddCmdStream(*internalSubmitInfo.pPreambleCmdStream[idx], isDummySubmission);
+        result = AddCmdStream(*internalSubmitInfo.pPreambleCmdStream[idx],
+                              internalSubmitInfo.flags.isDummySubmission,
+                              internalSubmitInfo.flags.isTmzEnabled);
     }
 
     // Append all non-empty uploaded command streams.
@@ -940,7 +935,8 @@ Result Queue::PrepareUploadedCommandBuffers(
                            static_cast<uint32>(streamInfo.launchSize / sizeof(uint32)),
                            (streamInfo.subEngineType == SubEngineType::ConstantEngine),
                            streamInfo.flags.isPreemptionEnabled,
-                           streamInfo.flags.dropIfSameContext);
+                           streamInfo.flags.dropIfSameContext,
+                           internalSubmitInfo.flags.isTmzEnabled);
         }
     }
 
@@ -952,7 +948,9 @@ Result Queue::PrepareUploadedCommandBuffers(
     for (uint32 idx = 0; (result == Result::Success) && (idx < internalSubmitInfo.numPostambleCmdStreams); ++idx)
     {
         PAL_ASSERT(internalSubmitInfo.pPostambleCmdStream[idx] != nullptr);
-        result = AddCmdStream(*internalSubmitInfo.pPostambleCmdStream[idx], isDummySubmission);
+        result = AddCmdStream(*internalSubmitInfo.pPostambleCmdStream[idx],
+                              internalSubmitInfo.flags.isDummySubmission,
+                              internalSubmitInfo.flags.isTmzEnabled);
     }
 
     if (result == Result::Success)
@@ -971,8 +969,7 @@ Result Queue::PrepareUploadedCommandBuffers(
 // present for Non GFX IP Queues.
 Result Queue::SubmitNonGfxIp(
     const MultiSubmitInfo&    submitInfo,
-    const InternalSubmitInfo& internalSubmitInfo,
-    bool                      isDummySubmission)
+    const InternalSubmitInfo& internalSubmitInfo)
 {
     PAL_ASSERT((internalSubmitInfo.numPreambleCmdStreams == 0) && (internalSubmitInfo.numPostambleCmdStreams == 0));
 
@@ -1000,7 +997,8 @@ Result Queue::SubmitNonGfxIp(
         // Non GFX IP command buffers are expected to only have a single command stream.
         PAL_ASSERT(pCmdBuffer->NumCmdStreams() == 1);
 
-        const CmdStream*const pCmdStream = isDummySubmission ? m_pDummyCmdStream : pCmdBuffer->GetCmdStream(0);
+        const CmdStream*const pCmdStream = internalSubmitInfo.flags.isDummySubmission ?
+                                           m_pDummyCmdStream : pCmdBuffer->GetCmdStream(0);
         uint32                chunkCount = 0; // Keep track of how many chunks will be submitted next.
 
         for (auto iter = pCmdStream->GetFwdIterator(); iter.IsValid() && (result == Result::Success); iter.Next())
@@ -1011,15 +1009,15 @@ Result Queue::SubmitNonGfxIp(
                            pChunk->CmdDwordsToExecute(),
                            (pCmdStream->GetSubEngineType() == SubEngineType::ConstantEngine),
                            pCmdStream->IsPreemptionEnabled(),
-                           pCmdStream->DropIfSameContext());
-
+                           pCmdStream->DropIfSameContext(),
+                           internalSubmitInfo.flags.isTmzEnabled);
             // There is a limitation on amdgpu that the ib counts can't exceed MaxIbsPerSubmit.
             // Need to submit several times when there are more than MaxIbsPerSubmit chunks in a
             // command stream.
             if ((++chunkCount == maxChunkCount) && (result == Result::Success))
             {
                 // Submit the command buffer and reset the chunk count.
-                result     = SubmitIbs(internalSubmitInfo, isDummySubmission);
+                result     = SubmitIbs(internalSubmitInfo);
                 chunkCount = 0;
             }
         }
@@ -1027,7 +1025,7 @@ Result Queue::SubmitNonGfxIp(
         // Submit the rest of the chunks.
         if ((chunkCount > 0) && (result == Result::Success))
         {
-            result = SubmitIbs(internalSubmitInfo, isDummySubmission);
+            result = SubmitIbs(internalSubmitInfo);
         }
     }
 
@@ -1214,7 +1212,8 @@ Result Queue::AppendResourceToList(
 // Calls AddIb on the first chunk from the given command stream.
 Result Queue::AddCmdStream(
     const CmdStream& cmdStream,
-    bool             isDummySubmission)
+    bool             isDummySubmission,
+    bool             isTmzEnabled)
 {
     Result result = Result::Success;
 
@@ -1228,7 +1227,8 @@ Result Queue::AddCmdStream(
                         pChunk->CmdDwordsToExecute(),
                         (cmdStream.GetSubEngineType() == SubEngineType::ConstantEngine),
                         cmdStream.IsPreemptionEnabled(),
-                        cmdStream.DropIfSameContext());
+                        cmdStream.DropIfSameContext(),
+                        isTmzEnabled);
     }
 
     return result;
@@ -1241,7 +1241,8 @@ Result Queue::AddIb(
     uint32  sizeInDwords,
     bool    isConstantEngine,
     bool    isPreemptionEnabled,
-    bool    dropIfSameContext)
+    bool    dropIfSameContext,
+    bool    isTmzEnabled)
 {
     Result result = Result::ErrorUnknown;
 
@@ -1255,9 +1256,11 @@ Result Queue::AddIb(
         // In Linux KMD, AMDGPU_IB_FLAG_PREAMBLE simply behaves just like flag "dropIfSameCtx" in windows.
         // But we are forbidden to change the flag name because the interface was already upstreamed to
         // open source libDRM, so we have to still use it for backward compatibility.
-        m_ibs[m_numIbs].flags         = ((isConstantEngine    ? AMDGPU_IB_FLAG_CE       : 0) |
-                                         (isPreemptionEnabled ? AMDGPU_IB_FLAG_PREEMPT  : 0) |
-                                         (dropIfSameContext   ? AMDGPU_IB_FLAG_PREAMBLE : 0));
+        m_ibs[m_numIbs].flags         = ((isConstantEngine    ? AMDGPU_IB_FLAG_CE            : 0) |
+                                         (isPreemptionEnabled ? AMDGPU_IB_FLAG_PREEMPT       : 0) |
+                                         (dropIfSameContext   ? AMDGPU_IB_FLAG_PREAMBLE      : 0) |
+                                         (m_numIbs == 0       ? AMDGPU_IB_FLAG_EMIT_MEM_SYNC : 0) |
+                                         (isTmzEnabled        ? AMDGPU_IB_FLAGS_SECURE       : 0));
 
         m_numIbs++;
     }
@@ -1268,8 +1271,7 @@ Result Queue::AddIb(
 // =====================================================================================================================
 // Submits the accumulated list of IBs to the GPU. Resets the IB list to begin building the next submission.
 Result Queue::SubmitIbsRaw(
-    const InternalSubmitInfo& internalSubmitInfo,
-    bool                      isDummySubmission)
+    const InternalSubmitInfo& internalSubmitInfo)
 {
     auto*const pDevice  = static_cast<Device*>(m_pDevice);
     auto*const pContext = static_cast<SubmissionContext*>(m_pSubmissionContext);
@@ -1443,7 +1445,7 @@ Result Queue::SubmitIbsRaw(
             }
         }
         result = pDevice->SubmitRaw(pContext->Handle(),
-                isDummySubmission ? m_hDummyResourceList : m_hResourceList,
+                internalSubmitInfo.flags.isDummySubmission ? m_hDummyResourceList : m_hResourceList,
                 totalChunk,
                 &chunkArray[0],
                 pContext->LastTimestampPtr());
@@ -1461,8 +1463,7 @@ Result Queue::SubmitIbsRaw(
 // =====================================================================================================================
 // Submits the accumulated list of IBs to the GPU. Resets the IB list to begin building the next submission.
 Result Queue::SubmitIbs(
-    const InternalSubmitInfo& internalSubmitInfo,
-    bool                      isDummySubmission)
+    const InternalSubmitInfo& internalSubmitInfo)
 {
     auto*const pDevice  = static_cast<Device*>(m_pDevice);
     auto*const pContext = static_cast<SubmissionContext*>(m_pSubmissionContext);
@@ -1471,14 +1472,15 @@ Result Queue::SubmitIbs(
     // we should only use new submit routine when sync object is supported in the kenrel as well as u/k interfaces.
     if (pDevice->GetSemaphoreType() == SemaphoreType::SyncObj)
     {
-        result = SubmitIbsRaw(internalSubmitInfo, isDummySubmission);
+        result = SubmitIbsRaw(internalSubmitInfo);
     }
     else
     {
         struct amdgpu_cs_request ibsRequest = {};
+        ibsRequest.flags         = internalSubmitInfo.flags.isTmzEnabled;
         ibsRequest.ip_type       = pContext->IpType();
         ibsRequest.ring          = pContext->EngineId();
-        ibsRequest.resources     = isDummySubmission ? m_hDummyResourceList : m_hResourceList;
+        ibsRequest.resources     = internalSubmitInfo.flags.isDummySubmission ? m_hDummyResourceList : m_hResourceList;
         ibsRequest.number_of_ibs = m_numIbs;
         ibsRequest.ibs           = m_ibs;
 

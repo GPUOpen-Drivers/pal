@@ -47,6 +47,69 @@ static DeviceClockMode PalDeviceClockModeTable[] =
     DeviceClockMode::Peak           // Peak          = 5
 };
 
+// =====================================================================================================================
+// Helper function to take a GpuBlock index and return a corresponding string for that GpuBlock
+static const char* GpuBlockEnumToString(
+    uint32 gpuBlockIdx)
+{
+    const char* GpuBlockStrings[] =
+    {
+        "Cpf",
+        "Ia",
+        "Vgt",
+        "Pa",
+        "Sc",
+        "Spi",
+        "Sq",
+        "Sx",
+        "Ta",
+        "Td",
+        "Tcp",
+        "Tcc",
+        "Tca",
+        "Db",
+        "Cb",
+        "Gds",
+        "Srbm",
+        "Grbm",
+        "GrbmSe",
+        "Rlc",
+        "Dma",
+        "Mc",
+        "Cpg",
+        "Cpc",
+        "Wd",
+        "Tcs",
+        "Atc",
+        "AtcL2",
+        "McVmL2",
+        "Ea",
+        "Rpb",
+        "Rmi",
+        "Umcch",
+        "Ge",
+        "Gl1a",
+        "Gl1c",
+        "Gl1cg",
+        "Gl2a", // TCA is used in Gfx9, and changed to GL2A in Gfx10
+        "Gl2c", // TCC is used in Gfx9, and changed to GL2C in Gfx10
+        "Cha",
+        "Chc",
+        "Chcg",
+        "Gus",
+        "Gcr",
+        "Ph",
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION > 485
+        "UtcL1",
+#endif
+    };
+
+    static_assert(ArrayLen(GpuBlockStrings) == static_cast<size_t>(GpuBlock::Count),
+                  "Size of this table does not match the number of GpuBlock enums!");
+
+    return GpuBlockStrings[gpuBlockIdx];
+}
+
 #if GPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION < GPUOPEN_DRIVER_CONTROL_QUERY_CLOCKS_BY_MODE_VERSION
 // =====================================================================================================================
 // Callback function which returns the current device clock for the requested gpu.
@@ -209,6 +272,96 @@ DevDriver::Result SetClockModeCallback(
     }
 
     return result;
+}
+
+// =====================================================================================================================
+// Callback function used to query information form PAL
+void PalCallback(
+    DevDriver::IStructuredWriter* pWriter,
+    void*                         pUserData)
+{
+    Platform* pPlatform      = reinterpret_cast<Platform*>(pUserData);
+    const uint32 deviceCount = pPlatform->GetDeviceCount();
+
+    // Devices list
+    pWriter->KeyAndBeginList("devices");
+    {
+        // Loop through the number of devices
+        for (uint32 deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++)
+        {
+            // Map for each individual device
+            pWriter->BeginMap();
+            {
+                // Perf Experiment Properties
+                pWriter->KeyAndBeginMap("perfProps");
+                {
+                    Device* pPalDevice = pPlatform->GetDevice(deviceIdx);
+                    PerfExperimentProperties perfProperties = { };
+                    Result result = pPalDevice->GetPerfExperimentProperties(&perfProperties);
+
+                    if (result == Result::Success)
+                    {
+                        const PerfExperimentDeviceFeatureFlags features = perfProperties.features;
+
+                        // Create a features section for each device
+                        pWriter->KeyAndBeginMap("features");
+                        {
+                            pWriter->KeyAndValue("counters",          features.counters);
+                            pWriter->KeyAndValue("spmTrace",          features.spmTrace);
+                            pWriter->KeyAndValue("threadTrace",       features.threadTrace);
+                            pWriter->KeyAndValue("supportsPs1Events", features.supportPs1Events);
+                            pWriter->KeyAndValue("sqttBadScPackerId", features.sqttBadScPackerId);
+                        }
+                        pWriter->EndMap(); // End "features" map
+
+                        // Also list these settings
+                        pWriter->KeyAndValue("maxSqttBufferSize",     perfProperties.maxSqttSeBufferSize);
+                        pWriter->KeyAndValue("shaderEngineCount",     perfProperties.shaderEngineCount);
+                        pWriter->KeyAndValue("sqttSeBufferAlignment", perfProperties.sqttSeBufferAlignment);
+
+                        // Loop through all of the blocks and print the relevant information
+                        pWriter->KeyAndBeginList("blocks");
+                        {
+                            for (uint32 blockIdx = 0; blockIdx < static_cast<uint32>(GpuBlock::Count); blockIdx++)
+                            {
+                                const GpuBlockPerfProperties& block = perfProperties.blocks[blockIdx];
+
+                                // Information for each block
+                                pWriter->BeginMap();
+                                {
+                                    pWriter->KeyAndValue("name",                    GpuBlockEnumToString(blockIdx));
+                                    pWriter->KeyAndValue("blockIdx",                blockIdx);
+                                    pWriter->KeyAndValue("available",               block.available);
+                                    pWriter->KeyAndValue("instanceCount",           block.instanceCount);
+                                    pWriter->KeyAndValue("maxEventId",              block.maxEventId);
+                                    pWriter->KeyAndValue("maxGlobalOnlyCounters",   block.maxGlobalOnlyCounters);
+                                    pWriter->KeyAndValue("maxSpmCounters",          block.maxSpmCounters);
+                                    pWriter->KeyAndValue("maxGlobalSharedCounters", block.maxGlobalSharedCounters);
+                                }
+                                pWriter->EndMap(); // End block info wrapper
+                            }
+                        }
+                        pWriter->EndList(); // End "blocks" list
+                    }
+                    else
+                    {
+                        // Error information
+                        pWriter->BeginMap();
+                        {
+                            pWriter->KeyAndValue("error", "Failed to get perf experiment properties for device.");
+                            pWriter->KeyAndValue("errorIdx", static_cast<int32>(result));
+                        }
+                        pWriter->EndMap(); // End error info
+                    }
+                }
+                pWriter->EndMap(); // End "perfProps" map
+
+                // Additional information for devices can be added here
+            }
+            pWriter->EndMap(); // End each individual device
+        }
+    }
+    pWriter->EndList(); // End "devices" list
 }
 
 // =====================================================================================================================

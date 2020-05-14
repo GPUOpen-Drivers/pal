@@ -32,6 +32,7 @@
 #include "palSysUtil.h"
 #include "palFile.h"
 #include "palFormatInfo.h"
+#include "palSettingsFileMgrImpl.h"
 
 using namespace Util;
 
@@ -154,6 +155,11 @@ Result Platform::ConnectToOsInterface()
     if (drmProcs.pfnAmdgpuCsCtxCreate2isValid())
     {
         m_features.supportQueuePriority = 1;
+    }
+
+    if (drmProcs.pfnAmdgpuCsCtxCreate3isValid())
+    {
+        m_features.supportQueueIfhKmd = 1;
     }
 
     return Result::Success;

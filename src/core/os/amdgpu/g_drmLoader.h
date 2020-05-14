@@ -448,6 +448,12 @@ typedef int32 (*AmdgpuCsCtxCreate2)(
             uint32                    priority,
             amdgpu_context_handle*    pContextHandle);
 
+typedef int32 (*AmdgpuCsCtxCreate3)(
+            amdgpu_device_handle      hDevice,
+            uint32                    priority,
+            uint32_t                  flags,
+            amdgpu_context_handle*    pContextHandle);
+
 // symbols from libdrm.so.2
 typedef int32 (*DrmGetNodeTypeFromFd)(
             int   fd);
@@ -1092,6 +1098,12 @@ struct DrmLoaderFuncs
     bool pfnAmdgpuCsCtxCreate2isValid() const
     {
         return (pfnAmdgpuCsCtxCreate2 != nullptr);
+    }
+
+    AmdgpuCsCtxCreate3                pfnAmdgpuCsCtxCreate3;
+    bool pfnAmdgpuCsCtxCreate3isValid() const
+    {
+        return (pfnAmdgpuCsCtxCreate3 != nullptr);
     }
 
     DrmGetNodeTypeFromFd              pfnDrmGetNodeTypeFromFd;
@@ -2145,6 +2157,17 @@ public:
     bool pfnAmdgpuCsCtxCreate2isValid() const
     {
         return (m_pFuncs->pfnAmdgpuCsCtxCreate2 != nullptr);
+    }
+
+    int32 pfnAmdgpuCsCtxCreate3(
+            amdgpu_device_handle      hDevice,
+            uint32                    priority,
+            uint32_t                  flags,
+            amdgpu_context_handle*    pContextHandle) const;
+
+    bool pfnAmdgpuCsCtxCreate3isValid() const
+    {
+        return (m_pFuncs->pfnAmdgpuCsCtxCreate3 != nullptr);
     }
 
     int32 pfnDrmGetNodeTypeFromFd(

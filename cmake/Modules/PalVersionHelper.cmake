@@ -22,20 +22,32 @@
  #  SOFTWARE.
  #
  #######################################################################################################################
-
-if( (${CMAKE_VERSION} VERSION_GREATER "3.10") OR
-    (${CMAKE_VERSION} VERSION_EQUAL   "3.10") )
-
-    include_guard()
-
-else()
-
-    if (DEFINED PalHelperFunctions)
-        return()
-    endif()
-    set(PalHelperFunctions 1)
-
+if (DEFINED PalVersionHelper_pal_include_guard)
+    return()
 endif()
+set(PalVersionHelper_pal_include_guard ON)
+
+# A helper macro to have include guards with pre 3.10 compatibility
+# See the documentation on include guards for more info (IE the "#pragma once" of cmake)
+# https://cmake.org/cmake/help/latest/command/include_guard.html
+#
+# This needs to be a macro to allow include_guard() to work. Include guard cannot be called
+# from inside a function.
+macro(pal_include_guard client_var)
+    # If you can use 3.10 functionality then use the standard include guard
+    if( (${CMAKE_VERSION} VERSION_GREATER "3.10") OR
+        (${CMAKE_VERSION} VERSION_EQUAL   "3.10") )
+        include_guard()
+    else()
+        # Return if the variable already exists to not waste time
+        if (DEFINED ${client_var}_pal_include_guard)
+            return()
+        endif()
+
+        # Otherwise create the variable
+        set(${client_var}_pal_include_guard ON)
+    endif()
+endmacro()
 
 function(set_ipo_compile_options)
     if ((${CMAKE_CXX_COMPILER_VERSION} VERSION_LESS "5.3") OR

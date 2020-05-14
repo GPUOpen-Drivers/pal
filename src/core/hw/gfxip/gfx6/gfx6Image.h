@@ -279,9 +279,11 @@ public:
     gpusize GetDccStateMetaDataOffset(uint32 mipLevel) const;
     gpusize GetFastClearEliminateMetaDataAddr(uint32 mipLevel) const;
     gpusize GetFastClearEliminateMetaDataOffset(uint32 mipLevel) const;
-    gpusize GetWaTcCompatZRangeMetaDataAddr(uint32 mipLevel) const;
 
     bool HasWaTcCompatZRangeMetaData() const { return m_waTcCompatZRangeMetaDataOffset != 0; }
+    gpusize GetWaTcCompatZRangeMetaDataAddr(uint32 mipLevel) const;
+    gpusize WaTcCompatZRangeMetaDataOffset(uint32 mipLevel) const;
+    gpusize WaTcCompatZRangeMetaDataSize(uint32 numMips) const;
 
     uint32* UpdateDepthClearMetaData(
         const SubresRange& range,

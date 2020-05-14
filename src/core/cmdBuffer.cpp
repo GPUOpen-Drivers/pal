@@ -216,6 +216,10 @@ Result CmdBuffer::Begin(
             // Assemble our building flags for this command building session.
             m_buildFlags = info.flags;
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION< 593
+            m_buildFlags.enableTmz = 0;
+#endif
+
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 475
             m_buildFlags.useCpuPathForTableUpdates = 0;
 #endif

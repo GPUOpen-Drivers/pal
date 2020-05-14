@@ -150,7 +150,8 @@ union GpuMemoryFlags
         uint32 autoPriority             :  1; // GPU memory priority is to be managed automatically
         uint32 peerWritable             :  1; // GPU memory can be open as peer memory and be writable
         uint32 mapppedToPeerMemory      :  1; // GPU memory is remapped to at least one peer physical memory.
-        uint32 placeholder0             :  3; // Placeholder.
+        uint32 tmzProtected             :  1; // GPU memory is TMZ protected.
+        uint32 placeholder0             :  2; // Placeholder.
         uint32 restrictedContent        :  1; // GPU memory is protected content
         uint32 restrictedAccess         :  1; // GPU memory is restricted shared access resource
         uint32 crossAdapter             :  1; // GPU memory is shared cross-adapter resource
@@ -252,6 +253,7 @@ public:
     bool IsRestrictedContent()   const { return (m_flags.restrictedContent        != 0); }
     bool IsRestrictedAccess()    const { return (m_flags.restrictedAccess         != 0); }
     bool IsCrossAdapter()        const { return (m_flags.crossAdapter             != 0); }
+    bool IsTmzProtected()        const { return (m_flags.tmzProtected             != 0); }
     bool IsMapppedToPeerMemory() const { return (m_flags.mapppedToPeerMemory      != 0); }
     bool IsSvmAlloc()            const { return (m_desc.flags.isSvmAlloc          != 0); }
     bool IsExecutable()          const { return (m_desc.flags.isExecutable        != 0); }

@@ -270,6 +270,11 @@ Result Image::CreatePresentableMemoryObject(
     createInfo.flags.flippable    = pImage->IsFlippable();
     createInfo.flags.stereo       = pImage->GetInternalCreateInfo().flags.stereo;
     createInfo.flags.peerWritable = presentableImageCreateInfo.flags.peerWritable;
+    if (presentableImageCreateInfo.pSwapChain)
+    {
+        createInfo.flags.tmzProtected =
+            static_cast<Pal::SwapChain*>(presentableImageCreateInfo.pSwapChain)->CreateInfo().flags.tmzProtected;
+    }
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 516
     createInfo.size               = memReqs.size;
     createInfo.alignment          = memReqs.alignment;

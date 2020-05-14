@@ -57,12 +57,12 @@ const RegisterRange Nv10ContextShadowRange[] =
         (mmCB_BLEND7_CONTROL - mmSX_PS_DOWNCONVERT + 1),
     },
     {
-        (Gfx10::mmGE_MAX_OUTPUT_PER_SUBGROUP - CONTEXT_SPACE_START),
-        (mmPA_CL_NANINF_CNTL - Gfx10::mmGE_MAX_OUTPUT_PER_SUBGROUP + 1),
+        (Gfx10Plus::mmGE_MAX_OUTPUT_PER_SUBGROUP - CONTEXT_SPACE_START),
+        (mmPA_CL_NANINF_CNTL - Gfx10Plus::mmGE_MAX_OUTPUT_PER_SUBGROUP + 1),
     },
     {
         (mmPA_SU_SMALL_PRIM_FILTER_CNTL - CONTEXT_SPACE_START),
-        (Gfx10::mmPA_STATE_STEREO_X - mmPA_SU_SMALL_PRIM_FILTER_CNTL + 1),
+        (Gfx10Plus::mmPA_STATE_STEREO_X - mmPA_SU_SMALL_PRIM_FILTER_CNTL + 1),
     },
     {
         (mmPA_SU_POINT_SIZE - CONTEXT_SPACE_START),
@@ -90,7 +90,7 @@ const RegisterRange Nv10ContextShadowRange[] =
     },
     {
         (mmPA_SC_CENTROID_PRIORITY_0 - CONTEXT_SPACE_START),
-        (Gfx10::mmCB_COLOR7_ATTRIB3 - mmPA_SC_CENTROID_PRIORITY_0 + 1),
+        (Gfx10Plus::mmCB_COLOR7_ATTRIB3 - mmPA_SC_CENTROID_PRIORITY_0 + 1),
     },
 };
 
@@ -110,23 +110,23 @@ const RegisterRange Nv10UserConfigShadowRange[] =
         (mmVGT_PRIMITIVE_TYPE - Gfx101::mmVGT_GSVS_RING_SIZE_UMD + 1),
     },
     {
-        (Gfx10::mmGE_MAX_VTX_INDX - UCONFIG_SPACE_START),
+        (Gfx10Plus::mmGE_MAX_VTX_INDX - UCONFIG_SPACE_START),
          1,
     },
     {
-        (Gfx10::mmGE_MIN_VTX_INDX - UCONFIG_SPACE_START),
-        (Gfx10::mmGE_MULTI_PRIM_IB_RESET_EN - Gfx10::mmGE_MIN_VTX_INDX + 1),
+        (Gfx10Plus::mmGE_MIN_VTX_INDX - UCONFIG_SPACE_START),
+        (Gfx10Plus::mmGE_MULTI_PRIM_IB_RESET_EN - Gfx10Plus::mmGE_MIN_VTX_INDX + 1),
     },
     {
         (mmVGT_NUM_INSTANCES - UCONFIG_SPACE_START),
         (Gfx101::mmVGT_TF_MEMORY_BASE_UMD - mmVGT_NUM_INSTANCES + 1),
     },
     {
-        (Gfx10::mmGE_STEREO_CNTL - UCONFIG_SPACE_START),
-         Gfx101::mmVGT_TF_MEMORY_BASE_HI_UMD - Gfx10::mmGE_STEREO_CNTL + 1,
+        (Gfx10Plus::mmGE_STEREO_CNTL - UCONFIG_SPACE_START),
+         Gfx101::mmVGT_TF_MEMORY_BASE_HI_UMD - Gfx10Plus::mmGE_STEREO_CNTL + 1,
     },
     {
-        (Gfx10::mmGE_CNTL - UCONFIG_SPACE_START),
+        (Gfx10Plus::mmGE_CNTL - UCONFIG_SPACE_START),
          1,
     },
     {
@@ -134,7 +134,7 @@ const RegisterRange Nv10UserConfigShadowRange[] =
          1,
     },
     {
-        (Gfx10::mmGE_USER_VGPR_EN - UCONFIG_SPACE_START),
+        (Gfx10Plus::mmGE_USER_VGPR_EN - UCONFIG_SPACE_START),
         1,
     },
     {
@@ -173,11 +173,11 @@ const RegisterRange Navi10NonShadowedRanges[] =
         1
     },
     {
-        Gfx10::mmSPI_SHADER_PGM_RSRC4_PS,
+        Gfx10Plus::mmSPI_SHADER_PGM_RSRC4_PS,
         1
     },
     {
-        Gfx10::mmSPI_SHADER_PGM_RSRC4_VS,
+        Gfx10Plus::mmSPI_SHADER_PGM_RSRC4_VS,
         1
     },
     {
@@ -211,7 +211,7 @@ const RegisterRange Navi10NonShadowedRanges[] =
     },
     {
         mmSQ_THREAD_TRACE_USERDATA_0,
-        Gfx10::mmSQ_THREAD_TRACE_USERDATA_7 - mmSQ_THREAD_TRACE_USERDATA_0 + 1,
+        Gfx10Plus::mmSQ_THREAD_TRACE_USERDATA_7 - mmSQ_THREAD_TRACE_USERDATA_0 + 1,
     },
     // Perf counter registers are always not shadowed. Most of them are in the perf register space but some legacy
     // registers are still outside of it. The SPM registers are in the perf range as well.
@@ -224,8 +224,8 @@ const RegisterRange Navi10NonShadowedRanges[] =
         Gfx101::mmATC_PERFCOUNTER_HI - Gfx101::mmATC_PERFCOUNTER0_CFG + 1
     },
     {
-        Gfx10Core::mmRPB_PERFCOUNTER_LO,
-        Gfx10Core::mmRPB_PERFCOUNTER_RSLT_CNTL - Gfx10Core::mmRPB_PERFCOUNTER_LO + 1
+        Gfx10CorePlus::mmRPB_PERFCOUNTER_LO,
+        Gfx10CorePlus::mmRPB_PERFCOUNTER_RSLT_CNTL - Gfx10CorePlus::mmRPB_PERFCOUNTER_LO + 1
     },
     {
         Oss50::mmSDMA0_PERFCOUNTER0_SELECT,

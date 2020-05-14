@@ -129,10 +129,10 @@ void PipelineChunkHs::LateInit(
 
     if (IsGfx10(chipProps.gfxLevel))
     {
-        m_regs.dynamic.spiShaderPgmRsrc4Hs.gfx10.CU_EN = m_device.GetCuEnableMaskHi(0, UINT_MAX);
+        m_regs.dynamic.spiShaderPgmRsrc4Hs.gfx10Plus.CU_EN = m_device.GetCuEnableMaskHi(0, UINT_MAX);
 
 #if PAL_ENABLE_PRINTS_ASSERTS
-        m_device.AssertUserAccumRegsDisabled(registers, Gfx10::mmSPI_SHADER_USER_ACCUM_LSHS_0);
+        m_device.AssertUserAccumRegsDisabled(registers, Gfx10Plus::mmSPI_SHADER_USER_ACCUM_LSHS_0);
 #endif
     }
 
@@ -217,8 +217,8 @@ uint32* PipelineChunkHs::WriteShCommands(
     if (hsStageInfo.cuEnableMask != 0)
     {
         dynamic.spiShaderPgmRsrc3Hs.bits.CU_EN &= hsStageInfo.cuEnableMask;
-        dynamic.spiShaderPgmRsrc4Hs.gfx10.CU_EN =
-            Device::AdjustCuEnHi(dynamic.spiShaderPgmRsrc4Hs.gfx10.CU_EN, hsStageInfo.cuEnableMask);
+        dynamic.spiShaderPgmRsrc4Hs.gfx10Plus.CU_EN =
+            Device::AdjustCuEnHi(dynamic.spiShaderPgmRsrc4Hs.gfx10Plus.CU_EN, hsStageInfo.cuEnableMask);
     }
 
     pCmdSpace = pCmdStream->WriteSetOneShRegIndex(mmSPI_SHADER_PGM_RSRC3_HS,

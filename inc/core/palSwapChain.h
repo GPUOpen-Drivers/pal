@@ -144,7 +144,8 @@ struct SwapChainCreateInfo
             uint32 canAcquireBeforeSignaling :  1; ///< If AcquireNextImage can return before queueing the signals to
                                                    ///  the client's sync objects.  This can improve performance but
                                                    ///  may trigger queue batching on internal and client queues.
-            uint32 reserved                  : 31; ///< Reserved for future use.
+            uint32 tmzProtected              :  1; ///< If this swapchain is TMZ protected.
+            uint32 reserved                  : 30; ///< Reserved for future use.
         };
         uint32 u32All;                         ///< Flags packed as 32-bit uint.
     } flags;                                   ///< Swap chain flags.

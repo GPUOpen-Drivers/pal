@@ -56,8 +56,16 @@ DepthStencilView::DepthStencilView(
     m_flags.u32All            = 0;
     m_flags.hTile             = m_pImage->HasHtileData();
     m_flags.hiSPretests       = m_pImage->HasHiSPretestsMetaData();
-    m_flags.depth             = parent.SupportsDepth(imageInfo.swizzledFormat.format, imageInfo.tiling);
-    m_flags.stencil           = parent.SupportsStencil(imageInfo.swizzledFormat.format, imageInfo.tiling);
+    m_flags.depth             =
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 594
+                                (createInfo.flags.stencilOnlyView == 0) &&
+#endif
+                                parent.SupportsDepth(imageInfo.swizzledFormat.format, imageInfo.tiling);
+    m_flags.stencil           =
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 594
+                                (createInfo.flags.depthOnlyView == 0) &&
+#endif
+                                parent.SupportsStencil(imageInfo.swizzledFormat.format, imageInfo.tiling);
     m_flags.readOnlyDepth     = createInfo.flags.readOnlyDepth;
     m_flags.readOnlyStencil   = createInfo.flags.readOnlyStencil;
     m_flags.waDbTcCompatFlush = m_device.WaDbTcCompatFlush();
@@ -264,6 +272,25 @@ void DepthStencilView::InitRegisters(
     m_regs.dbRenderOverride2.bits.DECOMPRESS_Z_ON_FLUSH = (imageCreateInfo.samples > 2) ? 1 : 0;
 
     m_regs.dbRenderOverride2.bits.DISABLE_COLOR_ON_VALIDATION = settings.dbDisableColorOnValidation;
+
+    // From the register spec, it seems that for 16 bit unorm DB, we need to write
+    // -16 and for 24 bit unorm DB, we need to write - 24 to POLY_OFFSET_NEG_NUM_DB_BITS
+    //
+    // based on a set of local tests, my observation is:
+    // for unorm depth buffer, e.g. 24bit unorm, HW uses rounding after applying float to
+    // 24bit unorm convertion  where the fomula should be u = round(f * (2^24 - 1))
+    //
+    // for the polygon offset unit value, opengl spec says:
+    // "It is the smallest difference in window coordinate z values that is guaranteed
+    // to remain distinct throughout polygon rasterization and in the depth buffer"
+    //
+    // so that sounds like the delta is 1/(2^24-1). If we do set register field to be -24,
+    // it seems that the HW apply a delta as 1/(2^24), which is a tiny little bit smaller than
+    // the other one. So when there is a float Z value f that can be converted by f*(2^24-1) to be x.5
+    // if we request a polygon offset unit of 1.0f, the HW will do  (f + 1/2^24)*(2^24-1) ,
+    // that will be (x+1).4999...   so when x.5 and (x+1).4999.... are both being rounded,
+    // the result are both x+1, that is, to this Z value f, the polygonoffset is not applied.
+    // this could be the reason we use -22 for 24 bit and - 15 for 16 bit depth buffer.
 
     // Setup PA_SU_POLY_OFFSET_DB_FMT_CNTL.
     if (createInfo.flags.absoluteDepthBias == 0)

@@ -705,7 +705,7 @@ void Gfx10ColorTargetView::InitRegisters(
     // them all up-front before we get on to the harder register values.
     if (m_flags.isBufferView)
     {
-        InitCommonBufferView(device, createInfo, &m_regs, &m_regs.cbColorView.gfx10);
+        InitCommonBufferView(device, createInfo, &m_regs, &m_regs.cbColorView.gfx10Plus);
 
         m_extent.width  = createInfo.bufferInfo.extent;
         m_extent.height = 1;
@@ -719,7 +719,7 @@ void Gfx10ColorTargetView::InitRegisters(
         m_regs.cbColorAttrib3.bits.META_LINEAR   = 1;         // no meta-data, but should be set for linear surfaces
 
         // Specifying a non-zero buffer offset only works with linear-general surfaces
-        m_regs.cbColorInfo.gfx10.LINEAR_GENERAL  = 1;
+        m_regs.cbColorInfo.gfx10Plus.LINEAR_GENERAL  = 1;
         {
             m_regs.cbColorAttrib.core.FORCE_DST_ALPHA_1 = Formats::HasUnusedAlpha(m_swizzledFormat);
             m_regs.cbColorAttrib.core.NUM_SAMPLES       = 0;
@@ -812,7 +812,7 @@ void Gfx10ColorTargetView::InitRegisters(
                             internalInfo,
                             baseExtent,
                             &m_regs,
-                            &m_regs.cbColorView.gfx10);
+                            &m_regs.cbColorView.gfx10Plus);
 
         m_extent.width  = extent.width;
         m_extent.height = extent.height;
@@ -823,7 +823,7 @@ void Gfx10ColorTargetView::InitRegisters(
             m_regs.cbColorAttrib.core.NUM_SAMPLES       = Log2(imageCreateInfo.samples);
             m_regs.cbColorAttrib.core.NUM_FRAGMENTS     = Log2(imageCreateInfo.fragments);
             m_regs.cbColorAttrib.core.FORCE_DST_ALPHA_1 = Formats::HasUnusedAlpha(m_swizzledFormat);
-            m_regs.cbColorAttrib.gfx10Core.LIMIT_COLOR_FETCH_TO_256B_MAX =
+            m_regs.cbColorAttrib.gfx10CorePlus.LIMIT_COLOR_FETCH_TO_256B_MAX =
                 settings.waForce256bCbFetch && (m_subresource.mipLevel >= pAddrOutput->firstMipIdInTail);
         }
 
@@ -851,13 +851,13 @@ void Gfx10ColorTargetView::InitRegisters(
               m_regs.cbColorInfo.bits.FMASK_COMPRESSION_DISABLE)))
         {
             {
-                m_regs.cbColorAttrib.gfx10Core.DISABLE_FMASK_NOFETCH_OPT = 1;
+                m_regs.cbColorAttrib.gfx10CorePlus.DISABLE_FMASK_NOFETCH_OPT = 1;
             }
         }
     }
 
     {
-        m_regs.cbColorAttrib3.gfx10Core.RESOURCE_LEVEL = 1;
+        m_regs.cbColorAttrib3.gfx10CorePlus.RESOURCE_LEVEL = 1;
     }
 }
 
@@ -891,10 +891,10 @@ uint32* Gfx10ColorTargetView::WriteCommands(
     // Registers above this point are grouped by slot index (e.g., all of slot0 then all of slot1, etc.).  Registers
     // below this point are grouped by register (e.g., all of CB_COLOR*_ATTRIB2, and so on).
 
-    pCmdSpace = pCmdStream->WriteSetOneContextReg((Gfx10::mmCB_COLOR0_ATTRIB2 + slot),
+    pCmdSpace = pCmdStream->WriteSetOneContextReg((Gfx10Plus::mmCB_COLOR0_ATTRIB2 + slot),
                                                   regs.cbColorAttrib2.u32All,
                                                   pCmdSpace);
-    pCmdSpace =  pCmdStream->WriteSetOneContextReg((Gfx10::mmCB_COLOR0_ATTRIB3 + slot),
+    pCmdSpace =  pCmdStream->WriteSetOneContextReg((Gfx10Plus::mmCB_COLOR0_ATTRIB3 + slot),
                                                    regs.cbColorAttrib3.u32All,
                                                    pCmdSpace);
 
