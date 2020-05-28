@@ -57,6 +57,16 @@ class Device;
 class PipelineDumpService;
 class CmdBuffer;
 
+// Structure containing the GPU identifying information
+struct GpuId
+{
+    uint32  familyId;
+    uint32  eRevId;
+    uint32  revisionId;
+    uint32  gfxEngineId;
+    uint32  deviceId;
+};
+
 /**
  ***********************************************************************************************************************
  * @brief Get the default allocation callback.
@@ -161,6 +171,8 @@ public:
         PalEvent    eventId,
         const void* pEventData,
         uint32      eventDataSize) override;
+
+    bool OverrideGpuId(GpuId* pGpuId) const;
 
 protected:
     Platform(const PlatformCreateInfo& createInfo, const Util::AllocCallbacks& allocCb);

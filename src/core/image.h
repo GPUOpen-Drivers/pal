@@ -130,9 +130,29 @@ union InternalImageFlags
     uint32 value;
 };
 
+/// Display Dcc capabilities
+union DisplayDccCaps
+{
+    struct
+    {
+        uint32 enabled                   : 1;
+        uint32 rbAligned                 : 1;  ///< allow RB aligned
+        uint32 pipeAligned               : 1;  ///< allow Pipe aligned
+
+        /// MaxUncompressedBlockSize_MaxCompressedBlockSize_IndependentBlockControl
+        uint32 dcc_256_256_unconstrained : 1;
+        uint32 dcc_256_128_128           : 1;
+        uint32 dcc_128_128_unconstrained : 1;
+        uint32 dcc_256_64_64             : 1;
+        uint32 reserved                  : 25;
+    };
+    uint32 value;
+};
+
 // PAL internal-only creation info for an image object.
 struct ImageInternalCreateInfo
 {
+    DisplayDccCaps     displayDcc;         // DisplayDcc parameters
     uint32             primaryTilingCaps;  // tiling caps for primaries(flippable images)
     union
     {

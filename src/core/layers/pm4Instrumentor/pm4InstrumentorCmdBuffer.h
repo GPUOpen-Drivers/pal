@@ -136,6 +136,7 @@ public:
         ImageLayout            dstImageLayout,
         uint32                 regionCount,
         const ImageCopyRegion* pRegions,
+        const Rect*            pScissorRect,
         uint32                 flags) override;
     virtual void CmdCopyMemoryToImage(
         const IGpuMemory&            srcGpuMemory,
@@ -268,7 +269,8 @@ public:
         ImageLayout               dstImageLayout,
         ResolveMode               resolveMode,
         uint32                    regionCount,
-        const ImageResolveRegion* pRegions) override;
+        const ImageResolveRegion* pRegions,
+        uint32                    flags) override;
 
     virtual void CmdCopyImageToPackedPixelImage(
         const IImage&          srcImage,

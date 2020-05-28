@@ -341,6 +341,15 @@ enum class VaRange : uint32
     Count,
 };
 
+/// Enumerates tmz(trusted memory zone) support level.
+enum class TmzSupportLevel : uint32
+{
+    None          = 0, ///< TMZ not supported.
+    PerQueue      = 1, ///< Enable TMZ mode per queue.
+    PerSubmission = 2, ///< Enable TMZ mode per submission.
+    PerCommandOp  = 3  ///< Enable TMZ mode per command operation.
+};
+
 /// How to interpret a single bit in a swizzle equation.
 union SwizzleEquationBit
 {
@@ -944,6 +953,9 @@ struct DeviceProperties
         /// parameter of @ref CmdAllocatorCreateInfo.  Clients are free to ignore these defaults and use their own
         /// heap preferences, but may suffer a performance penalty.
         GpuHeap preferredCmdAllocHeaps[CmdAllocatorTypeCount];
+
+        /// Indicate which queue supports per-command, per-submit, or per-queue TMZ based on the queue type.
+        TmzSupportLevel tmzSupportLevel;
     } engineProperties[EngineTypeCount];    ///< Lists available engines on this device and their properties.
 
     struct
@@ -1214,10 +1226,11 @@ struct DeviceProperties
 #else
                 uint64 placeholder9                        :  1; ///< Placeholder, do not use
 #endif
+                uint64 supportSortAgnosticBarycentrics     :  1; ///< HW supports sort-agnostic Barycentrics for PS
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 522
-                uint64 reserved                            : 29; ///< Reserved for future use.
-#else
                 uint64 reserved                            : 28; ///< Reserved for future use.
+#else
+                uint64 reserved                            : 27; ///< Reserved for future use.
 #endif
             };
             uint64 u64All;           ///< Flags packed as 32-bit uint.

@@ -41,6 +41,8 @@ class IImage;
 enum DmaCopyFlags : uint32
 {
     None       = 0x00000000,  ///< No flags specified
+    TmzCopy    = 0x00000002,  ///< Whether the copy source is in TMZ memory. Results are undefined if the destination
+                              ///  is not in TMZ memory.
 };
 
 // DmaImageInfo contains all necessary information about a single subresource for an image copy.
@@ -126,6 +128,7 @@ public:
         ImageLayout            dstImageLayout,
         uint32                 regionCount,
         const ImageCopyRegion* pRegions,
+        const Rect*            pScissorRect,
         uint32                 flags) override;
 
     virtual void CmdCopyMemoryToImage(
@@ -326,6 +329,12 @@ protected:
         { CmdBuffer::P2pBltWaCopyNextRegion(&m_cmdStream, chunkAddr); }
 
     static ImageType GetImageType(const IImage&  image);
+
+    static bool IsImageTmzProtected(const DmaImageInfo& imageInfo)
+    {
+        const BoundGpuMemory& gpuMemory = static_cast<const Image*>(imageInfo.pImage)->GetBoundGpuMemory();
+        return gpuMemory.IsBound() ? gpuMemory.Memory()->IsTmzProtected() : false;
+    }
 
     Device*const m_pDevice;
     CmdStream    m_cmdStream;

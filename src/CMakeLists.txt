@@ -92,12 +92,19 @@ if(PAL_ENABLE_DEVDRIVER_USAGE)
     target_compile_definitions(pal PRIVATE PAL_ENABLE_DEVDRIVER_USAGE=1)
 endif()
 
-target_compile_definitions(pal PUBLIC
-    # Turn on PRINT ASSERTS in Debug builds or when the users asks for it
-    $<$<OR:$<CONFIG:Debug>,$<BOOL:${PAL_ENABLE_PRINTS_ASSERTS}>>:
-        PAL_ENABLE_PRINTS_ASSERTS=1
-    >
+if(PAL_ENABLE_PRINTS_ASSERTS)
+    target_compile_definitions(pal PUBLIC
+        $<$<NOT:$<CONFIG:Debug>>:PAL_ENABLE_PRINTS_ASSERTS=1>
+    )
+endif()
 
+if(PAL_ENABLE_PRINTS_ASSERTS_DEBUG)
+    target_compile_definitions(pal PUBLIC
+        $<$<CONFIG:Debug>:PAL_ENABLE_PRINTS_ASSERTS=1>
+    )
+endif()
+
+target_compile_definitions(pal PUBLIC
     # Turn on memory tracking in Debug builds or when the user asks for it
     $<$<OR:$<CONFIG:Debug>,$<BOOL:${PAL_MEMTRACK}>>:
         PAL_MEMTRACK=1

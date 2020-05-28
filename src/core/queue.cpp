@@ -360,6 +360,13 @@ Result Queue::Init(
 
             m_pQueueInfos[qIndex].pEngine = m_pDevice->GetEngine(curEngineType, curEngineId);
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION< 600
+            for (uint32 i = 0; i < m_queueCount; i++)
+            {
+                m_pQueueInfos[i].createInfo.tmzOnly = 0;
+            }
+#endif
+
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 530
             const Pal::EngineSubType engineSubType =
                 m_pDevice->EngineProperties().perEngine[curEngineType].engineSubType[curEngineId];
@@ -452,6 +459,12 @@ Result Queue::Init(
                     if ((result == Result::Success) && (m_pQueueInfos[qIndex].pQueueContext != nullptr))
                     {
                         m_pQueueInfos[qIndex].pQueueContext->SetParentQueue(this);
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 605
+                        m_pQueueInfos[qIndex].pQueueContext->
+                            SetWaitForIdleOnRingResize(m_pQueueInfos[qIndex].createInfo.forceWaitIdleOnRingResize);
+#else
+                        m_pQueueInfos[qIndex].pQueueContext->SetWaitForIdleOnRingResize(true);
+#endif
                     }
                 }
                 else
@@ -528,6 +541,7 @@ Result Queue::Init(
         {
             CmdBufferBuildInfo buildInfo = {};
             buildInfo.flags.optimizeExclusiveSubmit = 1;
+            buildInfo.flags.enableTmz = m_pQueueInfos[0].createInfo.tmzOnly;
             result = m_pDummyCmdBuffer->Begin(buildInfo);
 
             if (result == Result::Success)
@@ -1565,6 +1579,115 @@ Result Queue::DelayAfterVsync(
 }
 
 // =====================================================================================================================
+Result Queue::CopyVirtualMemoryPageMappings(
+    uint32                                    rangeCount,
+    const VirtualMemoryCopyPageMappingsRange* pRanges,
+    bool                                      doNotWait)
+{
+    Result result = Result::ErrorUnavailable;
+
+    // Either execute the delay immediately, or enqueue it for later, depending on whether or not we are stalled.
+    if (m_stalled == false)
+    {
+        result = OsCopyVirtualMemoryPageMappings(rangeCount, pRanges, doNotWait);
+    }
+    else
+    {
+        // After taking the lock, check again to see if we're stalled. The original check which brought us down
+        // this path didn't take the lock beforehand, so its possible that another thread released this Queue
+        // from the stalled state before we were able to get into this method.
+        MutexAuto lock(&m_batchedCmdsLock);
+        if (m_stalled)
+        {
+            BatchedQueueCmdData cmdData = { };
+            cmdData.command    = BatchedQueueCmd::CopyVirtualMemoryPageMappings;
+            cmdData.copyVirtualMemoryPageMappings.rangeCount  = rangeCount;
+            cmdData.copyVirtualMemoryPageMappings.doNotWait   = doNotWait;
+            if (rangeCount > 0)
+            {
+                cmdData.copyVirtualMemoryPageMappings.pRanges = PAL_NEW_ARRAY(VirtualMemoryCopyPageMappingsRange,
+                    rangeCount, m_pDevice->GetPlatform(), AllocInternal);
+                if (cmdData.copyVirtualMemoryPageMappings.pRanges == nullptr)
+                {
+                    result = Result::ErrorOutOfMemory;
+                }
+                else
+                {
+                    memcpy(cmdData.copyVirtualMemoryPageMappings.pRanges, pRanges,
+                        rangeCount * sizeof(VirtualMemoryCopyPageMappingsRange));
+                }
+            }
+            if (result != Result::ErrorOutOfMemory)
+            {
+                result = m_batchedCmds.PushBack(cmdData);
+            }
+        }
+        else
+        {
+            result = OsCopyVirtualMemoryPageMappings(rangeCount, pRanges, doNotWait);
+        }
+    }
+
+    return result;
+
+}
+
+// =====================================================================================================================
+// Updates page mappings for virtual GPU memory allocations.
+Result Queue::RemapVirtualMemoryPages(
+    uint32                         rangeCount,
+    const VirtualMemoryRemapRange* pRanges,
+    bool                           doNotWait,
+    IFence*                        pFence)
+{
+    Result result = Result::ErrorUnavailable;
+
+    // Either execute the delay immediately, or enqueue it for later, depending on whether or not we are stalled.
+    if (m_stalled == false)
+    {
+        result = OsRemapVirtualMemoryPages(rangeCount, pRanges, doNotWait, pFence);
+    }
+    else
+    {
+        // After taking the lock, check again to see if we're stalled. The original check which brought us down
+        // this path didn't take the lock beforehand, so its possible that another thread released this Queue
+        // from the stalled state before we were able to get into this method.
+        MutexAuto lock(&m_batchedCmdsLock);
+        if (m_stalled)
+        {
+            BatchedQueueCmdData cmdData = { };
+            cmdData.command    = BatchedQueueCmd::RemapVirtualMemoryPages;
+            cmdData.remapVirtualMemoryPages.rangeCount  = rangeCount;
+            cmdData.remapVirtualMemoryPages.doNotWait   = doNotWait;
+            cmdData.remapVirtualMemoryPages.pFence      = pFence;
+            if (rangeCount > 0)
+            {
+                cmdData.remapVirtualMemoryPages.pRanges = PAL_NEW_ARRAY(VirtualMemoryRemapRange, rangeCount,
+                    m_pDevice->GetPlatform(), AllocInternal);
+                if (cmdData.remapVirtualMemoryPages.pRanges == nullptr)
+                {
+                    result = Result::ErrorOutOfMemory;
+                }
+                else
+                {
+                    memcpy(cmdData.remapVirtualMemoryPages.pRanges, pRanges, rangeCount * sizeof(VirtualMemoryRemapRange));
+                }
+            }
+            if (result != Result::ErrorOutOfMemory)
+            {
+                result = m_batchedCmds.PushBack(cmdData);
+            }
+        }
+        else
+        {
+            result = OsRemapVirtualMemoryPages(rangeCount, pRanges, doNotWait, pFence);
+        }
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
 // Associates the given fence with the last submit before processing more commands on this queue.
 // NOTE: Part of the public IQueue interface.
 Result Queue::AssociateFenceWithLastSubmit(
@@ -1727,6 +1850,21 @@ Result Queue::ReleaseFromStalledState()
         case BatchedQueueCmd::Delay:
             PAL_ASSERT(Type() == QueueTypeTimer);
             result = OsDelay(cmdData.delay.time, nullptr);
+            break;
+
+        case BatchedQueueCmd::RemapVirtualMemoryPages:
+            result = OsRemapVirtualMemoryPages(cmdData.remapVirtualMemoryPages.rangeCount,
+                                               cmdData.remapVirtualMemoryPages.pRanges,
+                                               cmdData.remapVirtualMemoryPages.doNotWait,
+                                               cmdData.remapVirtualMemoryPages.pFence);
+            PAL_SAFE_DELETE_ARRAY(cmdData.remapVirtualMemoryPages.pRanges, m_pDevice->GetPlatform());
+            break;
+
+        case BatchedQueueCmd::CopyVirtualMemoryPageMappings:
+            result = OsCopyVirtualMemoryPageMappings(cmdData.copyVirtualMemoryPageMappings.rangeCount,
+                                               cmdData.copyVirtualMemoryPageMappings.pRanges,
+                                               cmdData.copyVirtualMemoryPageMappings.doNotWait);
+            PAL_SAFE_DELETE_ARRAY(cmdData.copyVirtualMemoryPageMappings.pRanges, m_pDevice->GetPlatform());
             break;
 
         case BatchedQueueCmd::AssociateFenceWithLastSubmit:

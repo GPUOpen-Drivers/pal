@@ -401,6 +401,12 @@ ImageCopyEngine RsrcProcMgr::GetImageToImageCopyEngine(
         engineType = ImageCopyEngine::Graphics;
     }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 603
+    // Scissor-enabled blit for OGLP is only supported on graphics path.
+    PAL_ASSERT((engineType == ImageCopyEngine::Graphics) ||
+               (TestAnyFlagSet(copyFlags, CopyEnableScissorTest) == false));
+#endif
+
     return engineType;
 }
 
@@ -414,6 +420,7 @@ ImageCopyEngine RsrcProcMgr::CmdCopyImage(
     ImageLayout            dstImageLayout,
     uint32                 regionCount,
     const ImageCopyRegion* pRegions,
+    const Rect*            pScissorRect,
     uint32                 flags
     ) const
 {
@@ -437,6 +444,7 @@ ImageCopyEngine RsrcProcMgr::CmdCopyImage(
                                           dstImageLayout,
                                           regionCount,
                                           pRegions,
+                                          pScissorRect,
                                           0);
         }
         else
@@ -448,6 +456,7 @@ ImageCopyEngine RsrcProcMgr::CmdCopyImage(
                                    dstImageLayout,
                                    regionCount,
                                    pRegions,
+                                   pScissorRect,
                                    flags);
         }
     }
@@ -503,6 +512,7 @@ void RsrcProcMgr::CopyColorImageGraphics(
     ImageLayout            dstImageLayout,
     uint32                 regionCount,
     const ImageCopyRegion* pRegions,
+    const Rect*            pScissorRect,
     uint32                 flags
     ) const
 {
@@ -672,10 +682,22 @@ void RsrcProcMgr::CopyColorImageGraphics(
         viewportInfo.viewports[0].width   = static_cast<float>(copyRegion.extent.width);
         viewportInfo.viewports[0].height  = static_cast<float>(copyRegion.extent.height);
 
-        scissorInfo.scissors[0].offset.x      = copyRegion.dstOffset.x;
-        scissorInfo.scissors[0].offset.y      = copyRegion.dstOffset.y;
-        scissorInfo.scissors[0].extent.width  = copyRegion.extent.width;
-        scissorInfo.scissors[0].extent.height = copyRegion.extent.height;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 603
+        if (TestAnyFlagSet(flags, CopyEnableScissorTest))
+        {
+            scissorInfo.scissors[0].offset.x      = pScissorRect->offset.x;
+            scissorInfo.scissors[0].offset.y      = pScissorRect->offset.y;
+            scissorInfo.scissors[0].extent.width  = pScissorRect->extent.width;
+            scissorInfo.scissors[0].extent.height = pScissorRect->extent.height;
+        }
+        else
+#endif
+        {
+            scissorInfo.scissors[0].offset.x      = copyRegion.dstOffset.x;
+            scissorInfo.scissors[0].offset.y      = copyRegion.dstOffset.y;
+            scissorInfo.scissors[0].extent.width  = copyRegion.extent.width;
+            scissorInfo.scissors[0].extent.height = copyRegion.extent.height;
+        }
 
         pCmdBuffer->CmdSetViewports(viewportInfo);
         pCmdBuffer->CmdSetScissorRects(scissorInfo);
@@ -822,6 +844,7 @@ void RsrcProcMgr::CopyDepthStencilImageGraphics(
     ImageLayout            dstImageLayout,
     uint32                 regionCount,
     const ImageCopyRegion* pRegions,
+    const Rect*            pScissorRect,
     uint32                 flags
     ) const
 {
@@ -872,10 +895,22 @@ void RsrcProcMgr::CopyDepthStencilImageGraphics(
     viewportInfo.viewports[0].width   = static_cast<float>(pRegions[0].extent.width);
     viewportInfo.viewports[0].height  = static_cast<float>(pRegions[0].extent.height);
 
-    scissorInfo.scissors[0].offset.x      = pRegions[0].dstOffset.x;
-    scissorInfo.scissors[0].offset.y      = pRegions[0].dstOffset.y;
-    scissorInfo.scissors[0].extent.width  = pRegions[0].extent.width;
-    scissorInfo.scissors[0].extent.height = pRegions[0].extent.height;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 603
+    if (TestAnyFlagSet(flags, CopyEnableScissorTest))
+    {
+        scissorInfo.scissors[0].offset.x      = pScissorRect->offset.x;
+        scissorInfo.scissors[0].offset.y      = pScissorRect->offset.y;
+        scissorInfo.scissors[0].extent.width  = pScissorRect->extent.width;
+        scissorInfo.scissors[0].extent.height = pScissorRect->extent.height;
+    }
+    else
+#endif
+    {
+        scissorInfo.scissors[0].offset.x      = pRegions[0].dstOffset.x;
+        scissorInfo.scissors[0].offset.y      = pRegions[0].dstOffset.y;
+        scissorInfo.scissors[0].extent.width  = pRegions[0].extent.width;
+        scissorInfo.scissors[0].extent.height = pRegions[0].extent.height;
+    }
 
     // The shader will calculate src coordinates by adding a delta to the dst coordinates. The user data should
     // contain those deltas which are (srcOffset-dstOffset) for X & Y.
@@ -1115,6 +1150,10 @@ void RsrcProcMgr::CopyImageCompute(
     uint32                 flags
     ) const
 {
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 603
+    PAL_ASSERT(TestAnyFlagSet(flags, CopyEnableScissorTest) == false);
+#endif
+
     const auto&     device        = *m_pDevice->Parent();
     const auto&     dstCreateInfo = dstImage.GetImageCreateInfo();
     const auto&     srcCreateInfo = srcImage.GetImageCreateInfo();
@@ -2219,14 +2258,19 @@ bool RsrcProcMgr::ScaledCopyImageUseGraphics(
 
     // We need to decide between the graphics copy path and the compute copy path. The graphics path only supports
     // single-sampled non-compressed, non-YUV 2D or 2D color images for now.
-    const bool useGraphicsCopy = (pCmdBuffer->IsGraphicsSupported()                      &&
-                                  ((srcImageType != ImageType::Tex1d)                    &&
-                                   (dstImageType != ImageType::Tex1d)                    &&
-                                   (dstInfo.samples == 1)                                &&
-                                   (isCompressed == false)                               &&
-                                   (isYuv == false)                                      &&
-                                   (isDepth == false)                                    &&
+    const bool useGraphicsCopy = (pCmdBuffer->IsGraphicsSupported()   &&
+                                  ((srcImageType != ImageType::Tex1d) &&
+                                   (dstImageType != ImageType::Tex1d) &&
+                                   (dstInfo.samples == 1)             &&
+                                   (isCompressed == false)            &&
+                                   (isYuv == false)                   &&
+                                   (isDepth == false)                 &&
                                    (p2pBltWa == false)));
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 603
+    // Scissor-enabled blit for OGLP is only supported on graphics path.
+    PAL_ASSERT(useGraphicsCopy || (copyInfo.flags.scissorTest == 0));
+#endif
 
     return useGraphicsCopy;
 }
@@ -2755,50 +2799,114 @@ void RsrcProcMgr::ScaledCopyImageGraphics(
         // Multiply all x-dimension values in our region by the texel scale.
 
         ImageScaledCopyRegion copyRegion = pRegions[region];
+
         // Calculate the absolute value of dstExtent, which will get fed to the shader.
-        const uint32 dstExtentW = Math::Absu(copyRegion.dstExtent.width);
-        const uint32 dstExtentH = Math::Absu(copyRegion.dstExtent.height);
-        const uint32 dstExtentD = Math::Absu(copyRegion.dstExtent.depth);
-        if ((dstExtentW > 0) && (dstExtentH > 0) && (dstExtentD > 0))
+        const int32 dstExtentW =
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 607
+            (copyInfo.flags.coordsInFloat != 0) ? static_cast<int32>(copyRegion.dstExtentFloat.width + 0.5f) :
+#endif
+            copyRegion.dstExtent.width;
+        const int32 dstExtentH =
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 607
+            (copyInfo.flags.coordsInFloat != 0) ? static_cast<int32>(copyRegion.dstExtentFloat.height + 0.5f) :
+#endif
+            copyRegion.dstExtent.height;
+        const int32 dstExtentD =
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 607
+            (copyInfo.flags.coordsInFloat != 0) ? static_cast<int32>(copyRegion.dstExtentFloat.depth + 0.5f) :
+#endif
+            copyRegion.dstExtent.depth;
+
+        const uint32 absDstExtentW = Math::Absu(dstExtentW);
+        const uint32 absDstExtentH = Math::Absu(dstExtentH);
+        const uint32 absDstExtentD = Math::Absu(dstExtentD);
+
+        if ((absDstExtentW > 0) && (absDstExtentH > 0) && (absDstExtentD > 0))
         {
             // A negative extent means that we should do a reverse the copy.
             // We want to always use the absolute value of dstExtent.
             // If dstExtent is negative in one dimension, then we negate srcExtent in that dimension,
             // and we adjust the offsets as well.
-            if (copyRegion.dstExtent.width < 0)
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 607
+            if (copyInfo.flags.coordsInFloat != 0)
             {
-                copyRegion.dstOffset.x = copyRegion.dstOffset.x + copyRegion.dstExtent.width;
-                copyRegion.srcOffset.x = copyRegion.srcOffset.x + copyRegion.srcExtent.width;
-                copyRegion.srcExtent.width = -copyRegion.srcExtent.width;
-                copyRegion.dstExtent.width = -copyRegion.dstExtent.width;
-            }
+                if (copyRegion.dstExtentFloat.width < 0)
+                {
+                    copyRegion.dstOffsetFloat.x     = copyRegion.dstOffsetFloat.x + copyRegion.dstExtentFloat.width;
+                    copyRegion.srcOffsetFloat.x     = copyRegion.srcOffsetFloat.x + copyRegion.srcExtentFloat.width;
+                    copyRegion.srcExtentFloat.width = -copyRegion.srcExtentFloat.width;
+                    copyRegion.dstExtentFloat.width = -copyRegion.dstExtentFloat.width;
+                }
 
-            if (copyRegion.dstExtent.height < 0)
-            {
-                copyRegion.dstOffset.y = copyRegion.dstOffset.y + copyRegion.dstExtent.height;
-                copyRegion.srcOffset.y = copyRegion.srcOffset.y + copyRegion.srcExtent.height;
-                copyRegion.srcExtent.height = -copyRegion.srcExtent.height;
-                copyRegion.dstExtent.height = -copyRegion.dstExtent.height;
-            }
+                if (copyRegion.dstExtentFloat.height < 0)
+                {
+                    copyRegion.dstOffsetFloat.y      = copyRegion.dstOffsetFloat.y + copyRegion.dstExtentFloat.height;
+                    copyRegion.srcOffsetFloat.y      = copyRegion.srcOffsetFloat.y + copyRegion.srcExtentFloat.height;
+                    copyRegion.srcExtentFloat.height = -copyRegion.srcExtentFloat.height;
+                    copyRegion.dstExtentFloat.height = -copyRegion.dstExtentFloat.height;
+                }
 
-            if (copyRegion.dstExtent.depth < 0)
+                if (copyRegion.dstExtentFloat.depth < 0)
+                {
+                    copyRegion.dstOffsetFloat.z     = copyRegion.dstOffsetFloat.z + copyRegion.dstExtentFloat.depth;
+                    copyRegion.srcOffsetFloat.z     = copyRegion.srcOffsetFloat.z + copyRegion.srcExtentFloat.depth;
+                    copyRegion.srcExtentFloat.depth = -copyRegion.srcExtentFloat.depth;
+                    copyRegion.dstExtentFloat.depth = -copyRegion.dstExtentFloat.depth;
+                }
+            }
+            else
+#endif
             {
-                copyRegion.dstOffset.z = copyRegion.dstOffset.z + copyRegion.dstExtent.depth;
-                copyRegion.srcOffset.z = copyRegion.srcOffset.z + copyRegion.srcExtent.depth;
-                copyRegion.srcExtent.depth = -copyRegion.srcExtent.depth;
-                copyRegion.dstExtent.depth = -copyRegion.dstExtent.depth;
+                if (copyRegion.dstExtent.width < 0)
+                {
+                    copyRegion.dstOffset.x     = copyRegion.dstOffset.x + copyRegion.dstExtent.width;
+                    copyRegion.srcOffset.x     = copyRegion.srcOffset.x + copyRegion.srcExtent.width;
+                    copyRegion.srcExtent.width = -copyRegion.srcExtent.width;
+                    copyRegion.dstExtent.width = -copyRegion.dstExtent.width;
+                }
+
+                if (copyRegion.dstExtent.height < 0)
+                {
+                    copyRegion.dstOffset.y      = copyRegion.dstOffset.y + copyRegion.dstExtent.height;
+                    copyRegion.srcOffset.y      = copyRegion.srcOffset.y + copyRegion.srcExtent.height;
+                    copyRegion.srcExtent.height = -copyRegion.srcExtent.height;
+                    copyRegion.dstExtent.height = -copyRegion.dstExtent.height;
+                }
+
+                if (copyRegion.dstExtent.depth < 0)
+                {
+                    copyRegion.dstOffset.z     = copyRegion.dstOffset.z + copyRegion.dstExtent.depth;
+                    copyRegion.srcOffset.z     = copyRegion.srcOffset.z + copyRegion.srcExtent.depth;
+                    copyRegion.srcExtent.depth = -copyRegion.srcExtent.depth;
+                    copyRegion.dstExtent.depth = -copyRegion.dstExtent.depth;
+                }
             }
 
             // The shader expects the region data to be arranged as follows for each dispatch:
             // Src Normalized Left,  Src Normalized Top,Src Normalized Right, SrcNormalized Bottom.
 
             const Extent3d& srcExtent = pSrcImage->SubresourceInfo(copyRegion.srcSubres)->extentTexels;
-            const float srcLeft       = (1.f * copyRegion.srcOffset.x) / srcExtent.width;
-            const float srcTop        = (1.f * copyRegion.srcOffset.y) / srcExtent.height;
-            const float srcRight      = (1.f * (copyRegion.srcOffset.x + copyRegion.srcExtent.width)) /
-                                        srcExtent.width;
-            const float srcBottom     = (1.f * (copyRegion.srcOffset.y + copyRegion.srcExtent.height)) /
-                                        srcExtent.height;
+            float srcLeft   = 0;
+            float srcTop    = 0;
+            float srcRight  = 0;
+            float srcBottom = 0;
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 607
+            if (copyInfo.flags.coordsInFloat != 0)
+            {
+                srcLeft   = copyRegion.srcOffsetFloat.x / srcExtent.width;
+                srcTop    = copyRegion.srcOffsetFloat.y / srcExtent.height;
+                srcRight  = (copyRegion.srcOffsetFloat.x + copyRegion.srcExtentFloat.width) / srcExtent.width;
+                srcBottom = (copyRegion.srcOffsetFloat.y + copyRegion.srcExtentFloat.height) / srcExtent.height;
+            }
+            else
+#endif
+            {
+                srcLeft   = (1.f * copyRegion.srcOffset.x) / srcExtent.width;
+                srcTop    = (1.f * copyRegion.srcOffset.y) / srcExtent.height;
+                srcRight  = (1.f * (copyRegion.srcOffset.x + copyRegion.srcExtent.width)) / srcExtent.width;
+                srcBottom = (1.f * (copyRegion.srcOffset.y + copyRegion.srcExtent.height)) / srcExtent.height;
+            }
 
             PAL_ASSERT((srcLeft   >= 0.0f)   && (srcLeft   <= 1.0f) &&
                        (srcTop    >= 0.0f)   && (srcTop    <= 1.0f) &&
@@ -2993,21 +3101,57 @@ void RsrcProcMgr::ScaledCopyImageGraphics(
                     (copyRegion.numSlices == static_cast<uint32>(copyRegion.dstExtent.depth))));
 
         // Setup the viewport and scissor to restrict rendering to the destination region being copied.
-        viewportInfo.viewports[0].originX = static_cast<float>(copyRegion.dstOffset.x);
-        viewportInfo.viewports[0].originY = static_cast<float>(copyRegion.dstOffset.y);
-        viewportInfo.viewports[0].width   = static_cast<float>(copyRegion.dstExtent.width);
-        viewportInfo.viewports[0].height  = static_cast<float>(copyRegion.dstExtent.height);
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 607
+        if (copyInfo.flags.coordsInFloat != 0)
+        {
+            viewportInfo.viewports[0].originX = copyRegion.dstOffsetFloat.x;
+            viewportInfo.viewports[0].originY = copyRegion.dstOffsetFloat.y;
+            viewportInfo.viewports[0].width   = copyRegion.dstExtentFloat.width;
+            viewportInfo.viewports[0].height  = copyRegion.dstExtentFloat.height;
+        }
+        else
+#endif
+        {
+            viewportInfo.viewports[0].originX = static_cast<float>(copyRegion.dstOffset.x);
+            viewportInfo.viewports[0].originY = static_cast<float>(copyRegion.dstOffset.y);
+            viewportInfo.viewports[0].width   = static_cast<float>(copyRegion.dstExtent.width);
+            viewportInfo.viewports[0].height  = static_cast<float>(copyRegion.dstExtent.height);
+        }
 
-        scissorInfo.scissors[0].offset.x      = copyRegion.dstOffset.x;
-        scissorInfo.scissors[0].offset.y      = copyRegion.dstOffset.y;
-        scissorInfo.scissors[0].extent.width  = copyRegion.dstExtent.width;
-        scissorInfo.scissors[0].extent.height = copyRegion.dstExtent.height;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 603
+        if (copyInfo.flags.scissorTest != 0)
+        {
+            scissorInfo.scissors[0].offset.x      = copyInfo.pScissorRect->offset.x;
+            scissorInfo.scissors[0].offset.y      = copyInfo.pScissorRect->offset.y;
+            scissorInfo.scissors[0].extent.width  = copyInfo.pScissorRect->extent.width;
+            scissorInfo.scissors[0].extent.height = copyInfo.pScissorRect->extent.height;
+        }
+        else
+#endif
+        {
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 607
+            if (copyInfo.flags.coordsInFloat != 0)
+            {
+                scissorInfo.scissors[0].offset.x      = static_cast<int32>(copyRegion.dstOffsetFloat.x + 0.5f);
+                scissorInfo.scissors[0].offset.y      = static_cast<int32>(copyRegion.dstOffsetFloat.y + 0.5f);
+                scissorInfo.scissors[0].extent.width  = static_cast<int32>(copyRegion.dstExtentFloat.width + 0.5f);
+                scissorInfo.scissors[0].extent.height = static_cast<int32>(copyRegion.dstExtentFloat.height + 0.5f);
+            }
+            else
+#endif
+            {
+                scissorInfo.scissors[0].offset.x      = copyRegion.dstOffset.x;
+                scissorInfo.scissors[0].offset.y      = copyRegion.dstOffset.y;
+                scissorInfo.scissors[0].extent.width  = copyRegion.dstExtent.width;
+                scissorInfo.scissors[0].extent.height = copyRegion.dstExtent.height;
+            }
+        }
 
         pCmdBuffer->CmdSetViewports(viewportInfo);
         pCmdBuffer->CmdSetScissorRects(scissorInfo);
 
         // Copy may happen between the layers of a 2d image and the slices of a 3d image.
-        const uint32 numSlices = Max(copyRegion.numSlices, static_cast<uint32>(copyRegion.dstExtent.depth));
+        const uint32 numSlices = Max(copyRegion.numSlices, absDstExtentD);
 
         // Each slice is copied individually, we can optimize this into fewer draw calls if it becomes a
         // performance bottleneck, but for now this is simpler.
@@ -3090,6 +3234,14 @@ void RsrcProcMgr::ScaledCopyImageCompute(
     GfxCmdBuffer*           pCmdBuffer,
     const ScaledCopyInfo&   copyInfo) const
 {
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 603
+    PAL_ASSERT(copyInfo.flags.scissorTest == 0);
+#endif
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 607
+    PAL_ASSERT(copyInfo.flags.coordsInFloat == 0);
+#endif
+
     const auto& device       = *m_pDevice->Parent();
     const auto* pSrcImage    = static_cast<const Image*>(copyInfo.pSrcImage);
     const auto* pSrcGfxImage = pSrcImage->GetGfxImage();
@@ -4373,7 +4525,14 @@ void RsrcProcMgr::SlowClearGraphics(
 
     // Get some useful information about the image.
     const auto& createInfo = dstImage.GetImageCreateInfo();
-    bool        rawFmtOk   = dstImage.GetGfxImage()->IsFormatReplaceable(clearRange.startSubres, dstImageLayout, true);
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 592
+    bool rawFmtOk = dstImage.GetGfxImage()->IsFormatReplaceable(clearRange.startSubres,
+                                                                dstImageLayout,
+                                                                true,
+                                                                pColor->disabledChannelMask);
+#else
+    bool rawFmtOk = dstImage.GetGfxImage()->IsFormatReplaceable(clearRange.startSubres, dstImageLayout, true);
+#endif
 
     // Query the format of the image and determine which format to use for the color target view. If rawFmtOk is
     // set the caller has allowed us to use a slightly more efficient raw format.
@@ -5361,7 +5520,8 @@ void RsrcProcMgr::CmdResolveImage(
     ImageLayout               dstImageLayout,
     ResolveMode               resolveMode,
     uint32                    regionCount,
-    const ImageResolveRegion* pRegions
+    const ImageResolveRegion* pRegions,
+    uint32                    flags
     ) const
 {
     const ResolveMethod srcMethod = srcImage.GetImageInfo().resolveMethod;
@@ -5378,7 +5538,8 @@ void RsrcProcMgr::CmdResolveImage(
                             resolveMode,
                             regionCount,
                             pRegions,
-                            srcMethod);
+                            srcMethod,
+                            flags);
 
         HwlFixupResolveDstImage(pCmdBuffer,
                                 *dstImage.GetGfxImage(),
@@ -5403,7 +5564,8 @@ void RsrcProcMgr::CmdResolveImage(
                                   dstImage,
                                   dstImageLayout,
                                   regionCount,
-                                  pRegions);
+                                  pRegions,
+                                  flags);
 
             HwlFixupResolveDstImage(pCmdBuffer,
                                     *dstImage.GetGfxImage(),
@@ -5422,14 +5584,15 @@ void RsrcProcMgr::CmdResolveImage(
                                          dstImage,
                                          dstImageLayout,
                                          regionCount,
-                                         pRegions);
+                                         pRegions,
+                                         flags);
 
             HwlHtileCopyAndFixUp(pCmdBuffer, srcImage, dstImage, dstImageLayout, regionCount, pRegions, false);
         }
         else if (dstMethod.shaderPs && (resolveMode == ResolveMode::Average))
         {
             // this only supports Depth/Stencil resolves.
-            ResolveImageGraphics(pCmdBuffer, srcImage, srcImageLayout, dstImage, dstImageLayout, regionCount, pRegions);
+            ResolveImageGraphics(pCmdBuffer, srcImage, srcImageLayout, dstImage, dstImageLayout, regionCount, pRegions, flags);
         }
         else if (pCmdBuffer->IsComputeSupported() &&
                  ((srcMethod.shaderCsFmask == 1) ||
@@ -5443,7 +5606,8 @@ void RsrcProcMgr::CmdResolveImage(
                                 resolveMode,
                                 regionCount,
                                 pRegions,
-                                srcMethod);
+                                srcMethod,
+                                flags);
 
             HwlFixupResolveDstImage(pCmdBuffer,
                                     *dstImage.GetGfxImage(),
@@ -5631,7 +5795,8 @@ void RsrcProcMgr::ResolveImageGraphics(
     const Image&              dstImage,
     ImageLayout               dstImageLayout,
     uint32                    regionCount,
-    const ImageResolveRegion* pRegions
+    const ImageResolveRegion* pRegions,
+    uint32                    flags
     ) const
 {
     PAL_ASSERT(pCmdBuffer->IsGraphicsSupported());
@@ -5680,7 +5845,8 @@ void RsrcProcMgr::ResolveImageGraphics(
     BindCommonGraphicsState(pCmdBuffer);
     pCmdBuffer->CmdSetStencilRefMasks(stencilRefMasks);
 
-    RpmUtil::WriteVsZOut(pCmdBuffer, 1.0f);
+    // Put ImageResolveInvertY value in user data 0 used by VS.
+    pCmdBuffer->CmdSetUserData(PipelineBindPoint::Graphics, 0, 1, &flags);
 
     // Determine which format we should use to view the source image. The initial value is the stencil format.
     SwizzledFormat srcFormat =
@@ -5762,15 +5928,15 @@ void RsrcProcMgr::ResolveImageGraphics(
         // contain those deltas which are (srcOffset-dstOffset) for X & Y.
         const int32  xOffset     = (pRegions[idx].srcOffset.x - pRegions[idx].dstOffset.x);
         const int32  yOffset     = (pRegions[idx].srcOffset.y - pRegions[idx].dstOffset.y);
-        const uint32 userData[2] =
+        const uint32 userData[3] =
         {
             reinterpret_cast<const uint32&>(xOffset),
-            reinterpret_cast<const uint32&>(yOffset)
+            reinterpret_cast<const uint32&>(yOffset),
         };
 
         pCmdBuffer->CmdSetViewports(viewportInfo);
         pCmdBuffer->CmdSetScissorRects(scissorInfo);
-        pCmdBuffer->CmdSetUserData(PipelineBindPoint::Graphics, 1, 2, userData);
+        pCmdBuffer->CmdSetUserData(PipelineBindPoint::Graphics, 2, 2, userData);
 
         for (uint32 slice = 0; slice < pRegions[idx].numSlices; ++slice)
         {
@@ -5784,12 +5950,12 @@ void RsrcProcMgr::ResolveImageGraphics(
                 pRegions[idx].dstSlice + slice
             };
 
-            // Create an embedded user-data table and bind it to user data 0. We only need one image view.
+            // Create an embedded user-data table and bind it to user data 1. We only need one image view.
             uint32* pSrdTable = RpmUtil::CreateAndBindEmbeddedUserData(pCmdBuffer,
                                                                        SrdDwordAlignment(),
                                                                        SrdDwordAlignment(),
                                                                        PipelineBindPoint::Graphics,
-                                                                       0);
+                                                                       1);
 
             // Populate the table with an image view of the source image.
             ImageViewInfo     imageView = { };
@@ -5854,7 +6020,8 @@ void RsrcProcMgr::ResolveImageCompute(
     ResolveMode               resolveMode,
     uint32                    regionCount,
     const ImageResolveRegion* pRegions,
-    ResolveMethod             method
+    ResolveMethod             method,
+    uint32                    flags
     ) const
 {
     const auto& device   = *m_pDevice->Parent();
@@ -5914,21 +6081,23 @@ void RsrcProcMgr::ResolveImageCompute(
             dstFormat.format = pRegions[idx].swizzledFormat.format;
         }
 
-        // Store the necessary region independent user data values in slots 1-3. Shader expects the following layout:
+        // Store the necessary region independent user data values in slots 1-4. Shader expects the following layout:
         // 1 - Num Samples
         // 2 - Gamma correction option (1 if the destination format is SRGB, 0 otherwise)
         // 3 - Copy sample 0 (single sample) flag. (1 for integer formats, 0 otherwise). For DS images this flag
         //     is 1 if resolve mode is set as average.
-        const uint32 imageData[3] =
+        // 4 - Y-invert
+        const uint32 imageData[4] =
         {
             srcImage.GetImageCreateInfo().samples,
             Formats::IsSrgb(dstFormat.format),
             ((pRegions[idx].srcAspect == ImageAspect::Stencil) ? (resolveMode == ResolveMode::Average)
                                                                : (Formats::IsSint(srcFormat.format) ||
                                                                   Formats::IsUint(srcFormat.format))),
+            TestAnyFlagSet(flags, ImageResolveInvertY),
         };
 
-        pCmdBuffer->CmdSetUserData(PipelineBindPoint::Compute, 1, 3, &imageData[0]);
+        pCmdBuffer->CmdSetUserData(PipelineBindPoint::Compute, 1, 4, &imageData[0]);
 
         // The hardware can't handle UAV stores using SRGB num format.  The resolve shaders already contain a
         // linear-to-gamma conversion, but in order for that to work the output UAV's num format must be patched to be
@@ -6481,12 +6650,12 @@ void RsrcProcMgr::ResummarizeDepthStencil(
     scissorInfo.scissors[0].offset.x = 0;
     scissorInfo.scissors[0].offset.y = 0;
 
-    DepthStencilViewInternalCreateInfo depthViewInfoInternal = { };
-    depthViewInfoInternal.flags.isResummarize = 1;
+    const DepthStencilViewInternalCreateInfo depthViewInfoInternal = { };
 
     DepthStencilViewCreateInfo depthViewInfo = { };
     depthViewInfo.pImage    = &image;
     depthViewInfo.arraySize = 1;
+    depthViewInfo.flags.resummarizeHiZ = 1;
 
     // Because a subresource range can't span multiple aspects we should always mark one of them "read only".
     if (range.startSubres.aspect == ImageAspect::Depth)
@@ -6818,7 +6987,8 @@ void RsrcProcMgr::ResolveImageFixedFunc(
     const Image&              dstImage,
     ImageLayout               dstImageLayout,
     uint32                    regionCount,
-    const ImageResolveRegion* pRegions
+    const ImageResolveRegion* pRegions,
+    uint32                    flags
     ) const
 {
     PAL_ASSERT(pCmdBuffer->IsGraphicsSupported());
@@ -6876,6 +7046,9 @@ void RsrcProcMgr::ResolveImageFixedFunc(
     const GraphicsPipeline* pPipelinePrevious      = nullptr;
     const GraphicsPipeline* pPipelineByImageFormat =
         GetGfxPipelineByTargetIndexAndFormat(ResolveFixedFunc_32ABGR, 0, srcCreateInfo.swizzledFormat);
+
+    // Put ImageResolveInvertY value in user data 0 used by VS.
+    pCmdBuffer->CmdSetUserData(PipelineBindPoint::Graphics, 0, 1, &flags);
 
     // Each region needs to be resolved individually.
     for (uint32 idx = 0; idx < regionCount; ++idx)
@@ -7012,7 +7185,8 @@ void RsrcProcMgr::ResolveImageDepthStencilCopy(
     const Image&              dstImage,
     ImageLayout               dstImageLayout,
     uint32                    regionCount,
-    const ImageResolveRegion* pRegions) const
+    const ImageResolveRegion* pRegions,
+    uint32                    flags) const
 {
     PAL_ASSERT(srcImage.IsDepthStencil() && dstImage.IsDepthStencil());
     PAL_ASSERT(pCmdBuffer->IsGraphicsSupported());
@@ -7065,6 +7239,9 @@ void RsrcProcMgr::ResolveImageDepthStencilCopy(
     pCmdBuffer->CmdBindMsaaState(GetMsaaState(1u, 1u));
     pCmdBuffer->CmdBindColorBlendState(m_pBlendDisableState);
     pCmdBuffer->CmdBindDepthStencilState(m_pDepthDisableState);
+
+    // Put ImageResolveInvertY value in user data 0 used by VS.
+    pCmdBuffer->CmdSetUserData(PipelineBindPoint::Graphics, 0, 1, &flags);
 
     // Each region needs to be resolved individually.
     for (uint32 idx = 0; idx < regionCount; ++idx)
@@ -8197,6 +8374,15 @@ void RsrcProcMgr::CopyImageToPackedPixelImage(
                                 RpmUtil::MinThreadGroups(1,  threadsPerGroup[2]));
     }
     pCmdBuffer->CmdRestoreComputeState(ComputeStatePipelineAndUserData);
+}
+
+// =====================================================================================================================
+void RsrcProcMgr::CmdGfxDccToDisplayDcc(
+    GfxCmdBuffer*  pCmdBuffer,
+    const IImage&  image
+    ) const
+{
+    HwlGfxDccToDisplayDcc(pCmdBuffer, static_cast<const Pal::Image&>(image));
 }
 
 } // Pal

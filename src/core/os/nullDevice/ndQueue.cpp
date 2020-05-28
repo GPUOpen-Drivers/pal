@@ -71,7 +71,7 @@ Result Queue::Init(
 // =====================================================================================================================
 // Copies page mappings for one or more virtual GPU memory allocations.  The NULL device doesn't have any page
 // mappings to copy.
-Result Queue::CopyVirtualMemoryPageMappings(
+Result Queue::OsCopyVirtualMemoryPageMappings(
     uint32                                    rangeCount,
     const VirtualMemoryCopyPageMappingsRange* pRangeList,
     bool                                      doNotWait)
@@ -109,7 +109,7 @@ Result Queue::OsWaitIdle()
 // =====================================================================================================================
 // Updates page mappings for one or more virtual GPU memory allocations.  But we don't have any page tables to bother
 // updating.
-Result Queue::RemapVirtualMemoryPages(
+Result Queue::OsRemapVirtualMemoryPages(
     uint32                         rangeCount,
     const VirtualMemoryRemapRange* pRangeList,
     bool                           doNotWait,

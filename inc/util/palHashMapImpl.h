@@ -67,11 +67,11 @@ PAL_INLINE Result HashMap<Key, Value, Allocator, HashFunc, EqualFunc, AllocFunc,
 
     while (pGroup != nullptr)
     {
-        GroupFooter<Entry> *pFooter = this->GetGroupFooter(pGroup);
+        const uint32 numEntries = this->GetGroupFooterNumEntries(pGroup);
 
         // Search this entry group.
         uint32 i = 0;
-        for (; i < pFooter->numEntries; i++)
+        for (; i < numEntries; i++)
         {
             if (this->m_equalFunc(pGroup[i].key, key))
             {
@@ -89,7 +89,7 @@ PAL_INLINE Result HashMap<Key, Value, Allocator, HashFunc, EqualFunc, AllocFunc,
             pGroup[i].key = key;
             pMatchingEntry = &(pGroup[i]);
             this->m_numEntries++;
-            pFooter->numEntries++;
+            this->SetGroupFooterNumEntries(pGroup, numEntries + 1);
         }
 
         if (pMatchingEntry != nullptr)
@@ -127,11 +127,11 @@ PAL_INLINE Value* HashMap<Key, Value, Allocator, HashFunc, EqualFunc, AllocFunc,
 
     while (pGroup != nullptr)
     {
-        GroupFooter<Entry> *pFooter = this->GetGroupFooter(pGroup);
+        const uint32 numEntries = this->GetGroupFooterNumEntries(pGroup);
 
         // Search this entry group
         uint32 i = 0;
-        for (; i < pFooter->numEntries; i++)
+        for (; i < numEntries; i++)
         {
             if (this->m_equalFunc(pGroup[i].key, key))
             {
@@ -199,16 +199,16 @@ PAL_INLINE bool HashMap<Key, Value, Allocator, HashFunc, EqualFunc, AllocFunc, G
 
     Entry* pFoundEntry = nullptr;
     Entry* pLastEntry = nullptr;
-    GroupFooter<Entry> *pLastEntryGroupFooter = nullptr;
+    Entry* pLastEntryGroup = nullptr;
 
     // Find the entry to delete
     while (pGroup != nullptr)
     {
-        GroupFooter<Entry> *pFooter = this->GetGroupFooter(pGroup);
+        const uint32 numEntries = this->GetGroupFooterNumEntries(pGroup);
 
         // Search each group
         uint32 i = 0;
-        for (; i < pFooter->numEntries; i++)
+        for (; i < numEntries; i++)
         {
             if (this->m_equalFunc(pGroup[i].key, key) == true)
             {
@@ -220,7 +220,7 @@ PAL_INLINE bool HashMap<Key, Value, Allocator, HashFunc, EqualFunc, AllocFunc, G
 
             // keep track of last entry of all groups in bucket
             pLastEntry = &(pGroup[i]);
-            pLastEntryGroupFooter = pFooter;
+            pLastEntryGroup = pGroup;
         }
 
         // Chain to the next entry group.
@@ -240,7 +240,8 @@ PAL_INLINE bool HashMap<Key, Value, Allocator, HashFunc, EqualFunc, AllocFunc, G
 
         PAL_ASSERT(this->m_numEntries > 0);
         this->m_numEntries--;
-        pLastEntryGroupFooter->numEntries--;
+        const uint32 numEntries = this->GetGroupFooterNumEntries(pLastEntryGroup);
+        this->SetGroupFooterNumEntries(pLastEntryGroup, numEntries - 1);
     }
 
     return (pFoundEntry != nullptr);

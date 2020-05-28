@@ -47,7 +47,7 @@ struct PipelineState;
 // Maximum config field widths is characters
 constexpr uint32 ConfigBlockNameSize    = 32;
 constexpr uint32 ConfigEventIdSize      = 8;
-constexpr uint32 ConfigInstanceNameSize = 8;
+constexpr uint32 ConfigInstanceNameSize = 32;
 constexpr uint32 ConfigEventNameSize    = 128;
 constexpr uint32 ConfigOptionalDataSize = 64;
 // The sum of ConfigEventNameSize and ConfigInstanceNameSize plus 10 for string "_INSTANCE_".
@@ -60,6 +60,7 @@ struct PerfCounter
     uint32   eventId;
     uint32   instanceId;
     uint32   instanceCount;
+    uint64   instanceMask;    // Optional mask of Instances to select (ignored if zero)
     bool     hasOptionalData; // Block-specific optional data was read from the config file.
     uint32   optionalData;    // Block-specific optional data from the config file.
     char     name[EventInstanceNameSize];

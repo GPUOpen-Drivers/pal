@@ -74,7 +74,8 @@ const MergedFlatFmtInfo* MergedChannelFlatFmtInfoTbl(
     GfxIpLevel                      gfxIpLevel,
     const Pal::PalPlatformSettings* pSettings)
 {
-    PAL_ASSERT(IsGfx10(gfxIpLevel));
+    PAL_ASSERT(IsGfx10Plus(gfxIpLevel));
+
     const MergedFlatFmtInfo*  pFlatFmtInfo = nullptr;
 
     {
@@ -99,7 +100,6 @@ ColorFormat HwColorFormatForExport(
     }
     else
     {
-        PAL_ASSERT(IsGfx10(gfxLevel));
         hwColorFmt = HwColorFmt(MergedChannelFlatFmtInfoTbl(gfxLevel, nullptr), format);
     }
 
@@ -228,11 +228,11 @@ ChNumFormat FmtFromHwImgFmt(
     IMG_FMT     imgFmt,
     GfxIpLevel  gfxIpLevel)
 {
-    PAL_ASSERT(IsGfx10(gfxIpLevel));
+    PAL_ASSERT(IsGfx10Plus(gfxIpLevel));
 
     ChNumFormat format = ChNumFormat::Undefined;
 
-    if (imgFmt < Gfx10MergedImgDataFmtCount)
+    if (IsGfx10(gfxIpLevel) && (imgFmt < Gfx10MergedImgDataFmtCount))
     {
         format = Gfx10MergedImgDataFmtTbl[imgFmt];
     }

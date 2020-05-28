@@ -82,9 +82,11 @@ typedef struct SDMA_PKT_COPY_LINEAR_TAG
         {
             unsigned int op:8;
             unsigned int sub_op:8;
-            unsigned int reserved_0:11;
+            unsigned int reserved_0:2;
+            unsigned int tmz:1;
+            unsigned int reserved_1:8;
             unsigned int broadcast:1;
-            unsigned int reserved_1:4;
+            unsigned int reserved_2:4;
         };
         unsigned int DW_0_DATA;
     } HEADER_UNION;
@@ -162,7 +164,9 @@ typedef struct SDMA_PKT_COPY_DIRTY_PAGE_TAG
         {
             unsigned int op:8;
             unsigned int sub_op:8;
-            unsigned int reserved_0:15;
+            unsigned int reserved_0:2;
+            unsigned int tmz:1;
+            unsigned int reserved_1:12;
             unsigned int all:1;
         };
         unsigned int DW_0_DATA;
@@ -250,7 +254,9 @@ typedef struct SDMA_PKT_COPY_PHYSICAL_LINEAR_TAG
         {
             unsigned int op:8;
             unsigned int sub_op:8;
-            unsigned int reserved_0:16;
+            unsigned int reserved_0:2;
+            unsigned int tmz:1;
+            unsigned int reserved_1:13;
         };
         unsigned int DW_0_DATA;
     } HEADER_UNION;
@@ -339,9 +345,11 @@ typedef struct SDMA_PKT_COPY_BROADCAST_LINEAR_TAG
         {
             unsigned int op:8;
             unsigned int sub_op:8;
-            unsigned int reserved_0:11;
+            unsigned int reserved_0:2;
+            unsigned int tmz:1;
+            unsigned int reserved_1:8;
             unsigned int broadcast:1;
-            unsigned int reserved_1:4;
+            unsigned int reserved_2:4;
         };
         unsigned int DW_0_DATA;
     } HEADER_UNION;
@@ -439,7 +447,9 @@ typedef struct SDMA_PKT_COPY_LINEAR_SUBWIN_TAG
         {
             unsigned int op:8;
             unsigned int sub_op:8;
-            unsigned int reserved_0:13;
+            unsigned int reserved_0:2;
+            unsigned int tmz:1;
+            unsigned int reserved_1:10;
             unsigned int elementsize:3;
         };
         unsigned int DW_0_DATA;
@@ -587,7 +597,9 @@ typedef struct SDMA_PKT_COPY_TILED_TAG
         {
             unsigned int op:8;
             unsigned int sub_op:8;
-            unsigned int reserved_0:4;
+            unsigned int reserved_0:2;
+            unsigned int tmz:1;
+            unsigned int reserved_1:1;
             unsigned int mip_max:4;
             unsigned int reserved_2:7;
             unsigned int detile:1;
@@ -736,12 +748,14 @@ typedef struct SDMA_PKT_COPY_L2T_BROADCAST_TAG
         {
             unsigned int op:8;
             unsigned int sub_op:8;
-            unsigned int reserved_0:4;
+            unsigned int reserved_0:2;
+            unsigned int tmz:1;
+            unsigned int reserved_1:1;
             unsigned int mip_max:4;
-            unsigned int reserved_1:2;
+            unsigned int reserved_2:2;
             unsigned int videocopy:1;
             unsigned int broadcast:1;
-            unsigned int reserved_2:4;
+            unsigned int reserved_3:4;
         };
         unsigned int DW_0_DATA;
     } HEADER_UNION;
@@ -916,9 +930,11 @@ typedef struct SDMA_PKT_COPY_T2T_TAG
         {
             unsigned int op:8;
             unsigned int sub_op:8;
-            unsigned int reserved_0:4;
+            unsigned int reserved_0:2;
+            unsigned int tmz:1;
+            unsigned int reserved_1:1;
             unsigned int mip_max:4;
-            unsigned int reserved_1:8;
+            unsigned int reserved_2:8;
         };
         unsigned int DW_0_DATA;
     } HEADER_UNION;
@@ -1099,10 +1115,12 @@ typedef struct SDMA_PKT_COPY_TILED_SUBWIN_TAG
         {
             unsigned int op:8;
             unsigned int sub_op:8;
-            unsigned int reserved_0:4;
+            unsigned int reserved_0:2;
+            unsigned int tmz:1;
+            unsigned int reserved_1:1;
             unsigned int mip_max:4;
             unsigned int mip_id:4;
-            unsigned int reserved_1:3;
+            unsigned int reserved_2:3;
             unsigned int detile:1;
         };
         unsigned int DW_0_DATA;
@@ -1268,7 +1286,9 @@ typedef struct SDMA_PKT_COPY_STRUCT_TAG
         {
             unsigned int op:8;
             unsigned int sub_op:8;
-            unsigned int reserved_0:15;
+            unsigned int reserved_0:2;
+            unsigned int tmz:1;
+            unsigned int reserved_1:12;
             unsigned int detile:1;
         };
         unsigned int DW_0_DATA;
@@ -1356,7 +1376,9 @@ typedef struct SDMA_PKT_WRITE_UNTILED_TAG
         {
             unsigned int op:8;
             unsigned int sub_op:8;
-            unsigned int reserved_0:16;
+            unsigned int reserved_0:2;
+            unsigned int tmz:1;
+            unsigned int reserved_1:13;
         };
         unsigned int DW_0_DATA;
     } HEADER_UNION;
@@ -1414,9 +1436,11 @@ typedef struct SDMA_PKT_WRITE_TILED_TAG
         {
             unsigned int op:8;
             unsigned int sub_op:8;
-            unsigned int reserved_0:4;
+            unsigned int reserved_0:2;
+            unsigned int tmz:1;
+            unsigned int reserved_1:1;
             unsigned int mip_max:4;
-            unsigned int reserved_1:8;
+            unsigned int reserved_2:8;
         };
         unsigned int DW_0_DATA;
     } HEADER_UNION;
@@ -2625,7 +2649,9 @@ typedef struct SDMA_PKT_ATOMIC_TAG
             unsigned int op:8;
             unsigned int reserved_0:8;
             unsigned int loop:1;
-            unsigned int reserved_1:8;
+            unsigned int reserved_1:1;
+            unsigned int tmz:1;
+            unsigned int reserved_2:6;
             unsigned int atomic_op:7;
         };
         unsigned int DW_0_DATA;

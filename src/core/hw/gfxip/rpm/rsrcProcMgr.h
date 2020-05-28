@@ -91,6 +91,7 @@ public:
         ImageLayout            dstImageLayout,
         uint32                 regionCount,
         const ImageCopyRegion* pRegions,
+        const Rect*            pScissorRect,
         uint32                 flags) const;
 
     virtual void CmdCopyMemoryToImage(
@@ -223,7 +224,8 @@ public:
         ImageLayout               dstImageLayout,
         ResolveMode               resolveMode,
         uint32                    regionCount,
-        const ImageResolveRegion* pRegions) const;
+        const ImageResolveRegion* pRegions,
+        uint32                    flags) const;
 
     void CmdGenerateIndirectCmds(
         GfxCmdBuffer*               pCmdBuffer,
@@ -264,6 +266,10 @@ public:
         uint32                 regionCount,
         const ImageCopyRegion* pRegions,
         Pal::PackedPixelType   packPixelType) const;
+
+    virtual void CmdGfxDccToDisplayDcc(
+        GfxCmdBuffer* pCmdBuffer,
+        const IImage& image) const;
 
 protected:
     // When constructing SRD tables, all SRDs must be size and offset aligned to this many DWORDs.
@@ -425,6 +431,11 @@ private:
         const ImageResolveRegion* pRegions,
         bool                      computeResolve) const = 0;
 
+    virtual void HwlGfxDccToDisplayDcc(
+        GfxCmdBuffer*     pCmdBuffer,
+        const Pal::Image& image) const
+        { PAL_NEVER_CALLED(); }
+
     virtual void HwlDepthStencilClear(
         GfxCmdBuffer*      pCmdBuffer,
         const GfxImage&    dstImage,
@@ -495,6 +506,7 @@ private:
         ImageLayout            dstImageLayout,
         uint32                 regionCount,
         const ImageCopyRegion* pRegions,
+        const Rect*            pScissorRect,
         uint32                 flags) const;
 
     void ScaledCopyImageGraphics(
@@ -513,6 +525,7 @@ private:
         ImageLayout            dstImageLayout,
         uint32                 regionCount,
         const ImageCopyRegion* pRegions,
+        const Rect*            pScissorRect,
         uint32                 flags) const;
 
     void CopyImageCompute(
@@ -557,7 +570,8 @@ private:
         const Image&              dstImage,
         ImageLayout               dstImageLayout,
         uint32                    regionCount,
-        const ImageResolveRegion* pRegions) const;
+        const ImageResolveRegion* pRegions,
+        uint32                    flags) const;
 
     void ResolveImageCompute(
         GfxCmdBuffer*             pCmdBuffer,
@@ -568,7 +582,8 @@ private:
         ResolveMode               resolveMode,
         uint32                    regionCount,
         const ImageResolveRegion* pRegions,
-        ResolveMethod             method) const;
+        ResolveMethod             method,
+        uint32                    flags) const;
 
     void ResolveImageFixedFunc(
         GfxCmdBuffer*             pCmdBuffer,
@@ -577,7 +592,8 @@ private:
         const Image&              dstImage,
         ImageLayout               dstImageLayout,
         uint32                    regionCount,
-        const ImageResolveRegion* pRegions) const;
+        const ImageResolveRegion* pRegions,
+        uint32                    flags) const;
 
     void ResolveImageDepthStencilCopy(
         GfxCmdBuffer*             pCmdBuffer,
@@ -586,7 +602,8 @@ private:
         const Image&              dstImage,
         ImageLayout               dstImageLayout,
         uint32                    regionCount,
-        const ImageResolveRegion* pRegions) const;
+        const ImageResolveRegion* pRegions,
+        uint32                    flags) const;
 
     void SlowClearGraphicsOneMip(
         GfxCmdBuffer*              pCmdBuffer,

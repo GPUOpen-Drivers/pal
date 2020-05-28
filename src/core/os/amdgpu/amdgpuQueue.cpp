@@ -397,7 +397,7 @@ void Queue::RemoveGpuMemoryReferences(
 
 // =====================================================================================================================
 // Remapping the physical memory with new virtual address.
-Result Queue::RemapVirtualMemoryPages(
+Result Queue::OsRemapVirtualMemoryPages(
     uint32                         rangeCount,
     const VirtualMemoryRemapRange* pRangeList,
     bool                           doNotWait,   // Ignored on Linux platforms.

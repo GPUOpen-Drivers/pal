@@ -57,10 +57,10 @@ PAL_INLINE Result HashSet<Key, Allocator, HashFunc, EqualFunc, AllocFunc, GroupS
 
     while (pGroup != nullptr)
     {
-        GroupFooter<Entry> *pFooter = this->GetGroupFooter(pGroup);
+        const uint32 numEntries = this->GetGroupFooterNumEntries(pGroup);
         // Search this entry group.
         uint32 i = 0;
-        for (; i < pFooter->numEntries; i++)
+        for (; i < numEntries; i++)
         {
             if (this->m_equalFunc(pGroup[i].key, key))
             {
@@ -76,7 +76,7 @@ PAL_INLINE Result HashSet<Key, Allocator, HashFunc, EqualFunc, AllocFunc, GroupS
             pGroup[i].key = key;
             pMatchingEntry = &(pGroup[i]);
             this->m_numEntries++;
-            pFooter->numEntries++;
+            this->SetGroupFooterNumEntries(pGroup, numEntries + 1);
         }
 
         if (pMatchingEntry != nullptr)
@@ -112,11 +112,11 @@ PAL_INLINE bool HashSet<Key, Allocator, HashFunc, EqualFunc, AllocFunc, GroupSiz
 
     while (pGroup != nullptr)
     {
-        GroupFooter<Entry> *pFooter = this->GetGroupFooter(pGroup);
+        const uint32 numEntries = this->GetGroupFooterNumEntries(pGroup);
 
         // Search this entry group.
         uint32 i = 0;
-        for (; i < pFooter->numEntries; i++)
+        for (; i < numEntries; i++)
         {
             if (this->m_equalFunc(pGroup[i].key, key))
             {
@@ -155,16 +155,16 @@ PAL_INLINE bool HashSet<Key, Allocator, HashFunc, EqualFunc, AllocFunc, GroupSiz
     Entry* pFoundEntry = nullptr;
     Entry* pLastEntry = nullptr;
 
-    GroupFooter<Entry> *pLastEntryGroupFooter = nullptr;
+    Entry* pLastEntryGroup = nullptr;
 
     // Find the entry to delete.
     while ((pGroup != nullptr))
     {
-        GroupFooter<Entry> *pFooter = this->GetGroupFooter(pGroup);
+        const uint32 numEntries = this->GetGroupFooterNumEntries(pGroup);
 
         // Search this entry
         uint32 i = 0;
-        for (; i < pFooter->numEntries; i++)
+        for (; i < numEntries; i++)
         {
             if (this->m_equalFunc(pGroup[i].key, key) == true)
             {
@@ -176,7 +176,7 @@ PAL_INLINE bool HashSet<Key, Allocator, HashFunc, EqualFunc, AllocFunc, GroupSiz
 
             // keep track of last entry of all groups in bucket
             pLastEntry = &(pGroup[i]);
-            pLastEntryGroupFooter = pFooter;
+            pLastEntryGroup = pGroup;
         }
 
         // Chain to the next entry group
@@ -194,7 +194,8 @@ PAL_INLINE bool HashSet<Key, Allocator, HashFunc, EqualFunc, AllocFunc, GroupSiz
 
         PAL_ASSERT(this->m_numEntries > 0);
         this->m_numEntries--;
-        pLastEntryGroupFooter->numEntries--;
+        const uint32 numEntries = this->GetGroupFooterNumEntries(pLastEntryGroup);
+        this->SetGroupFooterNumEntries(pLastEntryGroup, numEntries - 1);
     }
 
     return (pFoundEntry != nullptr);

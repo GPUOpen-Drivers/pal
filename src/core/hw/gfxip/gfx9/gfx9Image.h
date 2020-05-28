@@ -226,7 +226,10 @@ public:
                                                   uint8              stencilWriteMask,
                                                   const SubresRange& range) const override;
 
-    virtual bool IsFormatReplaceable(const SubresId& subresId, ImageLayout layout, bool isDst) const override;
+    virtual bool IsFormatReplaceable(const SubresId& subresId,
+                                     ImageLayout     layout,
+                                     bool            isDst,
+                                     uint8           disabledChannelMask = 0) const override;
 
     virtual bool IsSubResourceLinear(const SubresId& subresource) const override;
 
@@ -236,6 +239,8 @@ public:
     virtual bool HasHtileData() const override { return (m_pHtile == nullptr) ? false : true; }
 
     virtual bool HasDsMetadata() const { return (GetHtileUsage().dsMetadata != 0); }
+
+    virtual bool HasDisplayDccData() const override { return (m_pDispDcc[0] != nullptr); }
 
     // Returns a pointer to the hTile object associated with this image
     const Gfx9Htile* GetHtile() const
@@ -318,6 +323,7 @@ public:
 
     // Returns a pointer to the Gfx9Dcc object associated with a particular sub-Resource.
     const  Gfx9Dcc*     GetDcc(ImageAspect  aspect) const { return m_pDcc[GetAspectIndex(aspect)]; }
+    const  Gfx9Dcc*     GetDisplayDcc(ImageAspect aspect) const { return m_pDispDcc[GetAspectIndex(aspect)]; }
     const  Gfx9Cmask*   GetCmask() const { return m_pCmask; }
     const  Gfx9Fmask*   GetFmask() const { return m_pFmask; }
     const Gfx9MaskRam*  GetColorMaskRam(ImageAspect  aspect) const
@@ -393,6 +399,7 @@ public:
     virtual gpusize GetAspectBaseAddr(ImageAspect  aspect) const override;
 
     virtual void GetSharedMetadataInfo(SharedMetadataInfo* pMetadataInfo) const override;
+    virtual void GetDisplayDccState(DisplayDccState* pState) const override;
 
     gpusize GetMipAddr(SubresId subresId) const;
 
@@ -433,6 +440,7 @@ private:
     Gfx9Htile*     m_pHtile;
     Gfx9Dcc*       m_pDcc[MaxNumPlanes];
     uint32         m_numDccPlanes;
+    Gfx9Dcc*       m_pDispDcc[MaxNumPlanes];
     Gfx9Cmask*     m_pCmask;
     Gfx9Fmask*     m_pFmask;
 

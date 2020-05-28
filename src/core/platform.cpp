@@ -36,6 +36,12 @@
 #include "core/layers/decorators.h"
 #endif
 
+#if PAL_AMDGPU_BUILD
+#include "core/os/amdgpu/amdgpuHeaders.h"
+#else
+#include "core/os/wddm/wddmHeaders.h"
+#endif
+
 // Dev Driver includes
 #include "devDriverUtil.h"
 #include "devDriverServer.h"
@@ -373,6 +379,20 @@ Result Platform::Init()
     }
 
     return result;
+}
+
+// =====================================================================================================================
+// Optionally overrides the GPU ID for a single device.  This can be initiated through the panel settings for some build
+// configurations.  This MUST BE called after EarlyInitDevDriver() !!
+bool Platform::OverrideGpuId(
+    GpuId* pGpuId   // in,out: GPU ID information to potentially override.
+    ) const
+{
+    bool overridden = false;
+
+    const PalPlatformSettings& settings = PlatformSettings();
+
+     return overridden;
 }
 
 // =====================================================================================================================

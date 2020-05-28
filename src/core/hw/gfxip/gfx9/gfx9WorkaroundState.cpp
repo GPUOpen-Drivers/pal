@@ -286,14 +286,6 @@ uint32* WorkaroundState::PreDraw(
                                                                          pCmdSpace);
     }
 
-    if (pPipeline->IsNggFastLaunch())
-    {
-        //  The IA has a mode which enables ping-pong algorithm at EOP distribution to balance for small draws.
-        //  Unfortunately this mode does not support fast-launch draws of any kind. We must reset to the lowest VGT
-        //  to prevent hangs.
-        pCmdSpace += m_cmdUtil.BuildNonSampleEventWrite(RESET_TO_LOWEST_VGT, EngineTypeUniversal, pCmdSpace);
-    }
-
     // This must go last in order to validate that no other context rolls can occur before the draw.
     if (pCmdBuffer->NeedsToValidateScissorRects(Pm4OptImmediate))
     {

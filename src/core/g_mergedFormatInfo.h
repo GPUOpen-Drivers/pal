@@ -264,13 +264,13 @@ const FormatInfo FormatInfoTable[] =
         0,                                  // Format Properties
         NumericSupportFlags::Unorm,
     },
-    // P8_Uint
+    // P8_Unorm
     {
         8,   1,                             // 8 bpp,  1 component
         {  8,  0,  0,  0, },                // # of bits-per-component
         ChannelFlags::X,                    // Channel Mask: X---
         0,                                  // Format Properties
-        NumericSupportFlags::Uint,
+        NumericSupportFlags::Unorm,
     },
     // X8Y8_Unorm
     {

@@ -295,6 +295,7 @@ public:
         ImageLayout            dstImageLayout,
         uint32                 regionCount,
         const ImageCopyRegion* pRegions,
+        const Rect*            pScissorRect,
         uint32                 flags) override
         { PAL_NEVER_CALLED(); }
 
@@ -464,7 +465,8 @@ public:
         ImageLayout               dstImageLayout,
         ResolveMode               resolveMode,
         uint32                    regionCount,
-        const ImageResolveRegion* pRegions) override
+        const ImageResolveRegion* pRegions,
+        uint32                    flags) override
         { PAL_NEVER_CALLED(); }
 
     virtual void CmdSetEvent(const IGpuEvent& gpuEvent, HwPipePoint setPoint) override

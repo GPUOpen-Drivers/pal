@@ -83,22 +83,41 @@ union SharedMetadataFlags
     uint32 value;
 };
 
+static constexpr uint32 MaxNumPlanes = 3;
+
 // Shared metadata info to be used for opened optimally shared image.
 struct SharedMetadataInfo
 {
     SharedMetadataFlags flags;
-    gpusize             dccOffset;
+    uint32              numPlanes; // the number of valid indices into the various "MaxNumPlanes" arrays.
+    gpusize             dccOffset[MaxNumPlanes];
     gpusize             cmaskOffset;
     gpusize             fmaskOffset;
     gpusize             fmaskXor;
     gpusize             htileOffset;
-    gpusize             dccStateMetaDataOffset;
-    gpusize             fastClearMetaDataOffset;
-    gpusize             fastClearEliminateMetaDataOffset;
+    gpusize             dccStateMetaDataOffset[MaxNumPlanes];
+    gpusize             fastClearMetaDataOffset[MaxNumPlanes];
+    gpusize             fastClearEliminateMetaDataOffset[MaxNumPlanes];
     gpusize             hisPretestMetaDataOffset; // Offset for HiSPrest meta data.
     gpusize             htileLookupTableOffset;
     uint64              resourceId; // This id is a unique name for the cross-process shared memory used to pass extra
                                     // information. Currently it's composed by the image object pointer and process id.
+};
+
+// Display Dcc state for a plane
+struct DisplayDccState
+{
+    gpusize primaryOffset;   // Byte offset in the allocation
+    gpusize secondaryOffset; // Byte offset from the beginning of the first display surface
+    uint32  pitch;           // In pixels
+    struct
+    {
+        uint32 maxUncompressedBlockSize :2;
+        uint32 maxCompressedBlockSize   :2;
+        uint32 independentBlk64B        :1;
+        uint32 independentBlk128B       :1;
+        uint32 reserved                 :26;
+    };
 };
 
 // =====================================================================================================================
@@ -117,6 +136,8 @@ public:
 
     virtual bool HasHtileData() const = 0;
 
+    virtual bool HasDisplayDccData() const { return false; }
+
     virtual bool IsFastColorClearSupported(GfxCmdBuffer*      pCmdBuffer,
                                            ImageLayout        colorLayout,
                                            const uint32*      pColor,
@@ -129,7 +150,10 @@ public:
                                                   uint8              stencilWriteMask,
                                                   const SubresRange& range) const = 0;
 
-    virtual bool IsFormatReplaceable(const SubresId& subresId, ImageLayout layout, bool isDst) const = 0;
+    virtual bool IsFormatReplaceable(const SubresId& subresId,
+                                     ImageLayout     layout,
+                                     bool            isDst,
+                                     uint8           disabledChannelMask = 0) const = 0;
     virtual bool IsSubResourceLinear(const SubresId& subresource) const = 0;
 
     virtual void OverrideGpuMemHeaps(GpuMemoryRequirements* pMemReqs) const { }
@@ -153,6 +177,7 @@ public:
     gpusize HiSPretestsMetaDataSize(uint32 numMips) const;
 
     virtual void GetSharedMetadataInfo(SharedMetadataInfo* pMetadataInfo) const = 0;
+    virtual void GetDisplayDccState(DisplayDccState* pState) const { PAL_NEVER_CALLED(); }
 
     virtual gpusize GetAspectBaseAddr(ImageAspect  aspect) const { PAL_NEVER_CALLED(); return 0; }
 
@@ -222,8 +247,6 @@ public:
     void    IncrementFceRefCount();
 
 protected:
-    static constexpr uint32 MaxNumPlanes = 3;
-
     GfxImage(
         Image*        pParentImage,
         ImageInfo*    pImageInfo,

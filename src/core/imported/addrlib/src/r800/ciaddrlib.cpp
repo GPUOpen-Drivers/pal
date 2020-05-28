@@ -407,7 +407,7 @@ ChipFamily CiLib::HwlConvertChipFamily(
             family = ADDR_CHIP_FAMILY_VI;
             break;
         default:
-            ADDR_ASSERT(!"This should be a unexpected Fusion");
+            ADDR_ASSERT(!"No Chip found");
             break;
     }
 

@@ -344,6 +344,13 @@ enum ClearDepthStencilFlags : uint32
                                     ///  details of how the clear will be performed.
 };
 
+/// Bitmask values for the flags parameter of ICmdBuffer::CmdResolveImage().
+enum ResolveImageFlags : uint32
+{
+    ImageResolveInvertY = 0x00000001,   ///< PAL will invert the y-axis (flip upside down) of the resolved region to
+                                        ///  the destination image.
+};
+
 /// Specifies properties for creation of an ICmdBuffer object.  Input structure to IDevice::CreateCmdBuffer().
 struct CmdBufferCreateInfo
 {
@@ -541,11 +548,22 @@ struct CmdBufferBuildInfo
 /// Specifies info on how a compute shader should use resources.
 struct DynamicComputeShaderInfo
 {
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 604
+    float maxWavesPerCu; ///< Limits the number of waves in flight per compute unit.  This can be used to selectively
+                         ///  throttle certain workloads that bottleneck multiqueue applications.  For ease of use, a
+                         ///  value of zero means no limit is set.  The remaining valid values are in the range (0, 40]
+                         ///  and specify the maximum number of waves per compute unit.  If the hardware has one wave
+                         ///  limit control for multiple shader stages PAL will select the most strict limit.
+                         ///  This option is converted internally to set set HW WavesPerSh setting and the non-integer
+                         ///  maxWavesPerCu value provides more flexibility to allow arbitrary WavesPerSh value; for
+                         ///  example specify less number of waves than number of CUs per shader array.
+#else
     uint32 maxWavesPerCu; ///< Limits the number of waves in flight per compute unit.  This can be used to selectively
                           ///  throttle certain workloads that bottleneck multiqueue applications.  For ease of use, a
                           ///  value of zero means no limit is set.  The remaining valid values are in the range [1, 40]
                           ///  and specify the maximum number of waves per compute unit.  If the hardware has one wave
                           ///  limit control for multiple shader stages PAL will select the most strict limit.
+#endif
 
     uint32 maxThreadGroupsPerCu; ///< Override the maximum number of threadgroups that a particular CS can run on,
                                  ///  throttling it, to enable more graphics work to complete.  0 disables the limit.
@@ -557,11 +575,22 @@ struct DynamicComputeShaderInfo
 /// Specifies info on how a graphics shader should use resources.
 struct DynamicGraphicsShaderInfo
 {
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 604
+    float maxWavesPerCu; ///< Limits the number of waves in flight per compute unit.  This can be used to selectively
+                         ///  throttle certain workloads that bottleneck multiqueue applications.  For ease of use, a
+                         ///  value of zero means no limit is set.  The remaining valid values are in the range (0, 40]
+                         ///  and specify the maximum number of waves per compute unit.  If the hardware has one wave
+                         ///  limit control for multiple shader stages PAL will select the most strict limit.
+                         ///  This option is converted internally to set set HW WavesPerSh setting and the non-integer
+                         ///  maxWavesPerCu value provides more flexibility to allow arbitrary WavesPerSh value; for
+                         ///  example specify less number of waves than number of CUs per shader array.
+#else
     uint32 maxWavesPerCu; ///< Limits the number of waves in flight per compute unit.  This can be used to selectively
                           ///  throttle certain workloads that bottleneck multiqueue applications.  For ease of use, a
                           ///  value of zero means no limit is set.  The remaining valid values are in the range [1, 40]
                           ///  and specify the maximum number of waves per compute unit.  If the hardware has one wave
                           ///  limit control for multiple shader stages PAL will select the most strict limit.
+#endif
 
     uint32 cuEnableMask;  ///< This mask is AND-ed with a PAL decided CU enable mask mask to further allow limiting of
                           ///  enabled CUs.  If the hardware has one CU enable mask for multiple shader stages PAL will
@@ -989,19 +1018,49 @@ struct TypedBufferCopyRegion
 /// destination image subresource.  Used as an input to ICmdBuffer::CmdScaledCopyImage.
 struct ImageScaledCopyRegion
 {
-    SubresId         srcSubres;      ///< Selects the source subresource.
-    Offset3d         srcOffset;      ///< Offset to the start of the chosen region in the source subresource.
-    SignedExtent3d   srcExtent;      ///< Signed size of the source region in pixels.  A negative size indicates a copy
-                                     ///  in the reverse direction.
-    SubresId         dstSubres;      ///< Selects the destination subresource.
-    Offset3d         dstOffset;      ///< Offset to the start of the chosen region in the destination subresource.
-    SignedExtent3d   dstExtent;      ///< Signed size of the destination region in pixels.  A negative size indicates a
-                                     ///  copy in the reverse direction.
-    uint32           numSlices;      ///< Number of slices the copy will span.
+    SubresId           srcSubres;      ///< Selects the source subresource.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 607
+    union
+    {
+        Offset3d       srcOffset;      ///< Offset to the start of the chosen region in the source subresource.
+        Offset3dFloat  srcOffsetFloat; ///< Alternative representation in floating point.
+    };
+    union
+    {
+        SignedExtent3d srcExtent;      ///< Signed size of the source region in pixels.  A negative size indicates
+                                       ///  a copy in the reverse direction.
+        Extent3dFloat  srcExtentFloat; ///< Alternative representation in floating point.
+    };
+#else
+    Offset3d           srcOffset;      ///< Offset to the start of the chosen region in the source subresource.
+    SignedExtent3d     srcExtent;      ///< Signed size of the source region in pixels.  A negative size indicates
+                                       ///  a copy in the reverse direction.
+#endif
+
+    SubresId           dstSubres;      ///< Selects the destination subresource.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 607
+    union
+    {
+        Offset3d       dstOffset;      ///< Offset to the start of the chosen region in the destination subresource.
+        Offset3dFloat  dstOffsetFloat; ///< Alternative representation in floating point.
+    };
+    union
+    {
+        SignedExtent3d dstExtent;      ///< Signed size of the destination region in pixels.  A negative size
+                                       ///  indicates a copy in the reverse direction.
+        Extent3dFloat  dstExtentFloat; ///< Alternative representation in floating point.
+    };
+#else
+    Offset3d           dstOffset;      ///< Offset to the start of the chosen region in the destination subresource.
+    SignedExtent3d     dstExtent;      ///< Signed size of the destination region in pixels.  A negative size
+                                       ///  indicates a copy in the reverse direction.
+#endif
+
+    uint32             numSlices;      ///< Number of slices the copy will span.
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 494
-    SwizzledFormat   swizzledFormat; ///< If not Undefined, reinterpret both subresources using this format and swizzle.
-                                     ///  The specified format needs to have been included in the "pViewFormats" list
-                                     ///  specified at image-creation time, otherwise the result might be incorrect.
+    SwizzledFormat     swizzledFormat; ///< If not Undefined, reinterpret both subresources using this format and swizzle.
+                                       ///  The specified format needs to have been included in the "pViewFormats" list
+                                       ///  specified at image-creation time, otherwise the result might be incorrect.
 #endif
 };
 
@@ -1054,10 +1113,13 @@ extern const ColorSpaceConversionTable DefaultCscTableRgbToYuv;
 /// Specifies flags controlling GPU copy behavior.  Format related flags are ignored by DMA queues.
 enum CopyControlFlags : uint32
 {
-    CopyFormatConversion = 0x1, ///< Requests that the copy convert between two compatible formats. This is ignored
-                                ///  unless both formats support @ref FormatFeatureFormatConversion.
-    CopyRawSwizzle       = 0x2, ///< If possible, raw copies will swizzle from the source channel format into the
-                                ///  destination channel format (e.g., RGBA to BGRA).
+    CopyFormatConversion  = 0x1, ///< Requests that the copy convert between two compatible formats. This is ignored
+                                 ///  unless both formats support @ref FormatFeatureFormatConversion.
+    CopyRawSwizzle        = 0x2, ///< If possible, raw copies will swizzle from the source channel format into the
+                                 ///  destination channel format (e.g., RGBA to BGRA).
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 603
+    CopyEnableScissorTest = 0x4, ///< If set, do scissor test using the specified scissor rectangle.
+#endif
 };
 
 /// Specifies parameters for a resolve of one region in an MSAA source image to a region of the same size in a single
@@ -1660,7 +1722,17 @@ union ScaledCopyFlags
                                     ///  color = src alpha * src color + (1.0 - src alpha) * dst color.
         uint32 srcSrgbAsUnorm : 1;  ///< If set, an sRGB source image will be treated as linear UNORM. Has no effect if the
                                     ///  source is not sRGB.
-        uint32 reserved       : 28; ///< reserved for future useage.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 603
+        uint32 scissorTest    : 1;  ///< If set, do scissor test using the specified scissor rectangle.
+#else
+        uint32 placeholder0   : 1;  ///< Placeholder, do not use
+#endif
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 607
+        uint32 coordsInFloat  : 1;  ///< If set, copy regions are represented in floating point type.
+#else
+        uint32 placeholder1   : 1;  ///< Placeholder, do not use
+#endif
+        uint32 reserved       : 26; ///< reserved for future useage.
     };
     uint32 u32All;                  ///< Flags packed as uint32.
 };
@@ -1677,6 +1749,9 @@ struct ScaledCopyInfo
     TexFilter                       filter;         ///< Controlling how a given texture is sampled.
     ImageRotation                   rotation;       ///< Rotation option between two images.
     const ColorKey*                 pColorKey;      ///< Color key value.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 603
+    const Rect*                     pScissorRect;   ///< Scissor test rectangle.
+#endif
     ScaledCopyFlags                 flags;          ///< Copy flags, identifies the type of blt to peform.
 };
 
@@ -2385,6 +2460,7 @@ public:
     /// @param [in] pRegions       Array of copy regions, each entry specifying a source subresource, destination
     ///                            subresource, source x/y/z offset, destination x/y/z offset, and copy size in the
     ///                            x/y/z dimensions.
+    /// @param [in] pScissorRect   Rectangle for scissor test.
     /// @param [in] flags          A mask of ORed @ref CopyControlFlags that can be used to control copy behavior.
     virtual void CmdCopyImage(
         const IImage&          srcImage,
@@ -2393,7 +2469,22 @@ public:
         ImageLayout            dstImageLayout,
         uint32                 regionCount,
         const ImageCopyRegion* pRegions,
+        const Rect*            pScissorRect,
         uint32                 flags) = 0;
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 603
+    PAL_INLINE void CmdCopyImage(
+        const IImage&          srcImage,
+        ImageLayout            srcImageLayout,
+        const IImage&          dstImage,
+        ImageLayout            dstImageLayout,
+        uint32                 regionCount,
+        const ImageCopyRegion* pRegions,
+        uint32                 flags)
+    {
+        CmdCopyImage(srcImage, srcImageLayout, dstImage, dstImageLayout, regionCount, pRegions, nullptr, flags);
+    }
+#endif
 
     /// Copies data directly (without format conversion) from a GPU memory object to an image.
     ///
@@ -2745,13 +2836,14 @@ public:
     ///
     /// This requires regionCount being specified since resource size is for sure to be known.
     ///
-    /// @param [in] depth         Depth clear value.
-    /// @param [in] stencil       Stencil clear value.
-    /// @param [in] samples       Sample count.
-    /// @param [in] fragments     Fragment count.
-    /// @param [in] flag          Select to depth, stencil or depth and stencil.
-    /// @param [in] regionCount   Number of volumes within the bound depth/stencil target to clear.
-    /// @param [in] pClearRegions Array of volumes within the subresources to clear.
+    /// @param [in] depth            Depth clear value.
+    /// @param [in] stencil          Stencil clear value.
+    /// @param [in] stencilWriteMask Stencil write mask to clear specific stencil planes.
+    /// @param [in] samples          Sample count.
+    /// @param [in] fragments        Fragment count.
+    /// @param [in] flag             Select to depth, stencil or depth and stencil.
+    /// @param [in] regionCount      Number of volumes within the bound depth/stencil target to clear.
+    /// @param [in] pClearRegions    Array of volumes within the subresources to clear.
     virtual void CmdClearBoundDepthStencilTargets(
         float                         depth,
         uint8                         stencil,
@@ -2894,6 +2986,7 @@ public:
     /// @param [in] regionCount    Number of regions to resolve; size of the pRegions array.
     /// @param [in] resolveMode    Resolve mode
     /// @param [in] pRegions       Specifies src/dst subresources and rectangles.
+    /// @param [in] flags          Mask of ResolveImageFlags values controlling behavior of the resolve.
     virtual void CmdResolveImage(
         const IImage&             srcImage,
         ImageLayout               srcImageLayout,
@@ -2901,7 +2994,22 @@ public:
         ImageLayout               dstImageLayout,
         ResolveMode               resolveMode,
         uint32                    regionCount,
-        const ImageResolveRegion* pRegions) = 0;
+        const ImageResolveRegion* pRegions,
+        uint32                    flags) = 0;
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 599
+    PAL_INLINE void CmdResolveImage(
+        const IImage&             srcImage,
+        ImageLayout               srcImageLayout,
+        const IImage&             dstImage,
+        ImageLayout               dstImageLayout,
+        ResolveMode               resolveMode,
+        uint32                    regionCount,
+        const ImageResolveRegion* pRegions)
+    {
+        CmdResolveImage(srcImage, srcImageLayout, dstImage, dstImageLayout, resolveMode, regionCount, pRegions, 0);
+    }
+#endif
 
     /// Puts the specified GPU event into the _set_ state when all previous GPU work reaches the specified point in the
     /// pipeline.

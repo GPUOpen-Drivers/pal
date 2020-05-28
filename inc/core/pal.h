@@ -296,7 +296,7 @@ enum class ChNumFormat : uint32
     X8_Srgb                  = 0x14,
     A8_Unorm                 = 0x15,
     L8_Unorm                 = 0x16,
-    P8_Uint                  = 0x17,
+    P8_Unorm                 = 0x17,
     X8Y8_Unorm               = 0x18,
     X8Y8_Snorm               = 0x19,
     X8Y8_Uscaled             = 0x1A,
@@ -526,7 +526,11 @@ enum class ChNumFormat : uint32
     X16Y16_MM_Uint           = 0xB0,    ///< Multi-media format used with DCC for the interleaved UV plane in YUV planar
                                         ///  surfaces.
 
-    Count
+    Count,
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 601
+    P8_Uint                  = P8_Unorm,///< Alias name of P8_Unorm.
+#endif
 };
 
 /// Specifies which channel of a resource should be mapped to a particular component of an image view.
@@ -591,6 +595,14 @@ struct Offset3d
     int32 z;  ///< Z offset.
 };
 
+/// Defines an floating-point offset into a 3D pixel region.
+struct Offset3dFloat
+{
+    float x;  ///< X offset.
+    float y;  ///< Y offset.
+    float z;  ///< Z offset.
+};
+
 /// Defines a width and height for a 2D image region. The dimensions could be pixels, blocks, or bytes
 /// depending on context, so be sure to check documentation for the PAL interface of interest to be sure you
 /// get it right.
@@ -627,6 +639,16 @@ struct SignedExtent3d
     int32 width;    ///< Width of region.
     int32 height;   ///< Height of region.
     int32 depth;    ///< Depth of region.
+};
+
+/// Defines a floating-point width, height, and depth for a 3D image region. The dimensions could be pixels, blocks, or
+/// bytes depending on context, so be sure to check documentation for the PAL interface of interest to be sure you
+/// get it right.
+struct Extent3dFloat
+{
+    float width;    ///< Width of region.
+    float height;   ///< Height of region.
+    float depth;    ///< Depth of region.
 };
 
 /// Defines a region in 1D space.

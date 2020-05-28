@@ -1086,7 +1086,7 @@ AddrFormat Image::GetAddrFormat(
         case ChNumFormat::X8_Srgb:
         case ChNumFormat::A8_Unorm:
         case ChNumFormat::L8_Unorm:
-        case ChNumFormat::P8_Uint:
+        case ChNumFormat::P8_Unorm:
         case ChNumFormat::X8_MM_Unorm:
         case ChNumFormat::X8_MM_Uint:
             ret = ADDR_FMT_8;

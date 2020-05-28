@@ -770,4 +770,24 @@ uint32 CmdStream::GetUsedCmdMemorySize() const
     return LowPart(sizeof(uint32) * runningTotalDw);
 }
 
+// =====================================================================================================================
+Result CmdStream::TransferRetainedChunks(
+    ChunkRefList* pDest)
+{
+    Result result = Result::Success;
+    while ((m_retainedChunkList.IsEmpty() == false) && (result == Result::Success))
+    {
+        CmdStreamChunk* pChunk = nullptr;
+        m_retainedChunkList.PopBack(&pChunk);
+        result = pDest->PushBack(pChunk);
+
+        // PushBack can fail if there's not enough space,
+        // but since the DefaultCapacity of the Vector used in ChunkRefList is 16 entries,
+        // this case we should never fail the call.
+        PAL_ASSERT(result == Result::Success);
+    }
+
+    return result;
+}
+
 } // Pal

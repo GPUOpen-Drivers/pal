@@ -75,7 +75,7 @@ bool Gfx6Htile::UseHtileForImage(
         if (pParent->GetInternalCreateInfo().flags.useSharedMetadata)
         {
             const auto& metadata = pParent->GetInternalCreateInfo().sharedMetadata;
-            useHtile = (metadata.htileOffset != 0) && (metadata.fastClearMetaDataOffset != 0);
+            useHtile = (metadata.htileOffset != 0) && (metadata.fastClearMetaDataOffset[0] != 0);
         }
         else
         {
@@ -1115,7 +1115,7 @@ bool Gfx6Dcc::UseDccForImage(
     if (pParent->GetInternalCreateInfo().flags.useSharedMetadata)
     {
         const auto& metadata = image.Parent()->GetInternalCreateInfo().sharedMetadata;
-        useDcc = (metadata.dccOffset != 0) && (metadata.fastClearMetaDataOffset != 0);
+        useDcc = (metadata.dccOffset[0] != 0) && (metadata.fastClearMetaDataOffset[0] != 0);
         if (useDcc == false)
         {
             mustDisableDcc = true;

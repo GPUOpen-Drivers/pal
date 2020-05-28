@@ -46,7 +46,6 @@ GraphicsPipeline::GraphicsPipeline(
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 473
     m_vertexBufferCount(0),
 #endif
-    m_vertsPerPrim(0),
     m_numColorTargets(0),
     m_logicOp(LogicOp::Copy)
 {
@@ -102,7 +101,6 @@ Result GraphicsPipeline::InitFromPipelineBinary(
     // Store the ROP code this pipeline was created with
     m_logicOp = createInfo.cbState.logicOp;
 
-    m_flags.adjacencyPrim         = createInfo.iaState.topologyInfo.adjacency;
     m_flags.perpLineEndCapsEnable = createInfo.rsState.perpLineEndCapsEnable;
 
     m_flags.fastClearElim    = internalInfo.flags.fastClearElim;
@@ -117,29 +115,6 @@ Result GraphicsPipeline::InitFromPipelineBinary(
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 473
     m_vertexBufferCount      = createInfo.iaState.vertexBufferCount;
 #endif
-
-    // Determine the number of vertices per primitive.
-    switch (createInfo.iaState.topologyInfo.primitiveType)
-    {
-    case PrimitiveType::Point:
-        m_vertsPerPrim = 1;
-        break;
-    case PrimitiveType::Line:
-        m_vertsPerPrim = (m_flags.adjacencyPrim != 0) ? 4 : 2;
-        break;
-    case PrimitiveType::Rect:
-        m_vertsPerPrim = 3;
-        break;
-    case PrimitiveType::Triangle:
-        m_vertsPerPrim = (m_flags.adjacencyPrim != 0) ? 6 : 3;
-        break;
-    case PrimitiveType::Quad:
-        m_vertsPerPrim = 4;
-        break;
-    case PrimitiveType::Patch:
-        m_vertsPerPrim = createInfo.iaState.topologyInfo.patchControlPoints;
-        break;
-    }
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 476
     // Initialize a MetroHash64 hasher for computing a hash of the creation info.

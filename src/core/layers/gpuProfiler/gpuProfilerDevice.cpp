@@ -27,6 +27,7 @@
 #include "core/layers/gpuProfiler/gpuProfilerDevice.h"
 #include "core/layers/gpuProfiler/gpuProfilerPipeline.h"
 #include "core/layers/gpuProfiler/gpuProfilerQueue.h"
+#include "palSysUtil.h"
 #include <ctype.h>
 
 using namespace Util;
@@ -489,6 +490,100 @@ static void ToUpperCase(
 }
 
 // =====================================================================================================================
+// A helper function which converts a C-string to unsigned integer.
+static bool StrToUInt(
+    char*   pString,
+    uint32* pIntOut)
+{
+    bool   validInt = false;
+    uint32 value    = 0;
+    if ((pString[0] == '0') && ((pString[1] == 'x') || (pString[1] == 'X'))) // hex value
+    {
+        char* endChar;
+        value = strtol(pString + 2, &endChar, 16);
+        if (endChar != (pString + 2))
+        {
+            // strtol success
+            validInt = true;
+        }
+    }
+    else // decimal value
+    {
+        char* endChar;
+        value = strtol(pString, &endChar, 10);
+        if (endChar != pString)
+        {
+            // strtol success
+            validInt = true;
+        }
+    }
+    if (validInt)
+    {
+        *pIntOut = value;
+    }
+    return validInt;
+}
+
+// =====================================================================================================================
+// Helper function to Validate and Set perf counter info which had been extracted from the config file.
+static void SetPerfCounterInfo(
+    char*                         eventName,
+    GpuBlock                      block,
+    const GpuBlockPerfProperties& blockPerfProps,
+    uint32                        eventId,
+    uint32                        instanceId,
+    uint32                        instanceCount,
+    uint64                        instanceMask,
+    bool                          hasOptionalData,
+    uint32                        optionalData,
+    PerfCounter*                  pPerfCounterOut)
+{
+    // block specific validations
+
+    // general validation, and construct the counter field name with appended instance identifier
+    char strInstances[32] = {0};
+    if (instanceCount <= 1)
+    {
+        // This is not a multi-instance sampling config like "ALL" or "MASK".
+        // Note if instanceCount==0, there's nothing to sample and leave it to the caller to throw error as needed.
+        instanceMask = 0;  // any multi-instance mask specified is pointless, so just clear it
+        Snprintf(strInstances, sizeof(strInstances), "%u", instanceId);
+    }
+    else if (instanceMask != 0)
+    {
+        // A 64-bit mask was specified in the config (i.e. 0xFF00 to select only instances 8-15)
+        if ((instanceId + instanceCount) < 64)
+        {
+            // Clear all of the mask's higher bits for instances beyond the last (id + instanceCount).
+            // Technically this should be not necessary because logic elsewhere does not look past the last, however
+            // we'll do this for extra clarity and also because we write the mask value in counter name below.
+            instanceMask &= ((1llu << (instanceId + instanceCount)) - 1);
+        }
+        // the field name will reflect the actual mask for instances profiled
+        Snprintf(strInstances, sizeof(strInstances), "MASK0x%X", instanceMask);
+    }
+    else
+    {
+        // we are capturing ALL instances
+        Snprintf(strInstances, sizeof(strInstances), "ALL");
+    }
+    Snprintf(
+        &pPerfCounterOut->name[0],
+        EventInstanceNameSize,
+        "%s_INSTANCE_%s",
+        &eventName[0], strInstances);
+
+    // populate the PerfCounter info
+    pPerfCounterOut->block           = block;
+    pPerfCounterOut->eventId         = eventId;
+    pPerfCounterOut->instanceId      = instanceId;
+    pPerfCounterOut->instanceCount   = instanceCount;
+    pPerfCounterOut->instanceMask    = instanceMask;
+    pPerfCounterOut->hasOptionalData = hasOptionalData;
+    pPerfCounterOut->optionalData    = optionalData;
+}
+
+// =====================================================================================================================
 // Helper function to extract SPM or global perf counter info from config file.
 Result Device::ExtractPerfCounterInfo(
     const PerfExperimentProperties& perfExpProps,
@@ -525,7 +620,7 @@ Result Device::ExtractPerfCounterInfo(
 
                 // Read a line of the form "BlockName EventId InstanceName CounterName OptionalData".
                 const int scanfRet = sscanf(&buf[0],
-                                            "%31s %7s %7s %127s %63s",
+                                            "%31s %7s %31s %127s %63s",
                                             &blockName[0],
                                             &eventIdStr[0],
                                             &instanceName[0],
@@ -539,142 +634,135 @@ Result Device::ExtractPerfCounterInfo(
                 if (scanfRet >= 4)
                 {
                     const GpuBlock block = StringToGpuBlock(&blockName[0]);
-                    const uint32   blockIdx = static_cast<uint32>(block);
+                    const uint32 blockIdx = static_cast<uint32>(block);
+                    bool hasOptionalData = false;
+                    uint32 optionalData = 0;
 
                     // Convert eventIdStr(decimal or hex) to eventId integer
                     uint32 eventId;
-                    if ((eventIdStr[0] == '0') && (eventIdStr[1] == 'x')) // hex value
+                    if (StrToUInt(eventIdStr, &eventId) == false)
                     {
-                        char* endChar;
-                        eventId = strtol(eventIdStr + 2, &endChar, 16);
-                        if (endChar == (eventIdStr + 2))
-                        {
-                            // strtol failed
-                            PAL_DPERROR("Bad perfcounter config (%d): eventId '%s' is not a hex number.",
-                                        lineNum, eventIdStr);
-                            result = Result::ErrorInitializationFailed;
-                        }
-                    }
-                    else // decimal value
-                    {
-                        char* endChar;
-                        eventId = strtol(eventIdStr, &endChar, 10);
-                        if (endChar == eventIdStr)
-                        {
-                            // strtol failed
-                            PAL_DPERROR("Bad perfcounter config (%d): eventId '%s' is not a valid integer.",
-                                        lineNum, eventIdStr);
-                            result = Result::ErrorInitializationFailed;
-                        }
+                        PAL_DPERROR("Bad perfcounter config (%d): eventId '%s' is not a valid number.",
+                                    lineNum, eventIdStr);
+                        result = Result::ErrorInitializationFailed;
                     }
 
                     if (result == Result::Success)
                     {
                         // Parse Optional data field, if specified
-                        bool   hasOptData = false;
-                        uint32 optData    = 0;
                         if (scanfRet >= 5)
                         {
                             // Convert optDataStr(decimal or hex) to integer
                             //   Could be extended to parse other specialized field formatting in future.
-                            if ((optDataStr[0] == '0') && (optDataStr[1] == 'x')) // hex value
+                            if (StrToUInt(optDataStr, &optionalData))
                             {
-                                char* endChar;
-                                optData = strtol(optDataStr + 2, &endChar, 16);
-                                if (endChar == (optDataStr + 2))
-                                {
-                                    // strtol failed
-                                    PAL_DPERROR("Bad perfcounter config (%d): OptData '%s' not a hex number (ignored).",
-                                                lineNum, optDataStr);
-                                }
-                                else
-                                {
-                                    hasOptData = true;
-                                }
+                                hasOptionalData = true;
                             }
-                            else // decimal value
+                            else
                             {
-                                char* endChar;
-                                optData = strtol(optDataStr, &endChar, 10);
-                                if (endChar == optDataStr)
-                                {
-                                    // strtol failed
-                                    PAL_DPERROR("Bad perfcounter config (%d): OptData '%s' not valid integer (ignored).",
-                                                lineNum, optDataStr);
-                                }
-                                else
-                                {
-                                    hasOptData = true;
-                                }
+                                PAL_DPERROR("Bad perfcounter config (%d): OptData '%s' is not a number (ignored).",
+                                            lineNum, optDataStr);
                             }
                         }
-                        pPerfCounters[counterIdx].hasOptionalData = hasOptData;
-                        pPerfCounters[counterIdx].optionalData    = optData;
                     }
 
                     if (result == Result::Success)
                     {
-                        // Handle instanceName(EACH, ALL, or number)
+                        // Handle instanceName(EACH, ALL, MAX, EVEN, ODD, MASK:<mask>, or number)
                         if (strcmp(instanceName, "EACH") == 0)
                         {
                             const uint32 instanceCount = perfExpProps.blocks[blockIdx].instanceCount;
                             for (uint32 i = 0; i < instanceCount; i++)
                             {
-                                pPerfCounters[counterIdx].block         = block;
-                                pPerfCounters[counterIdx].eventId       = eventId;
-                                pPerfCounters[counterIdx].instanceId    = i;
-                                pPerfCounters[counterIdx].instanceCount = 1;
-                                Snprintf(
-                                    &pPerfCounters[counterIdx].name[0],
-                                    EventInstanceNameSize,
-                                    "%s_INSTANCE_%d",
-                                    &eventName[0],
-                                    i);
+                                SetPerfCounterInfo(eventName,
+                                                   block,
+                                                   perfExpProps.blocks[blockIdx],
+                                                   eventId,
+                                                   i, // instanceId
+                                                   1, // instanceCount: each captured count is for a single instance
+                                                   0, // instanceMask: unused
+                                                   hasOptionalData,
+                                                   optionalData,
+                                                   &pPerfCounters[counterIdx]);
                                 counterIdx++;
                             }
                         }
-                        else if (strcmp(instanceName, "ALL") == 0)
+                        else if (strcmp(instanceName,  "ALL")  == 0  ||
+                                 strcmp(instanceName,  "MAX")  == 0  ||
+                                 strcmp(instanceName,  "EVEN") == 0  ||
+                                 strcmp(instanceName,  "ODD")  == 0  ||
+                                 strncmp(instanceName, "MASK:", 5) == 0)
                         {
-                            const uint32 instanceCount              = perfExpProps.blocks[blockIdx].instanceCount;
-                            pPerfCounters[counterIdx].block         = block;
-                            pPerfCounters[counterIdx].eventId       = eventId;
-                            pPerfCounters[counterIdx].instanceId    = 0;
-                            pPerfCounters[counterIdx].instanceCount = instanceCount;
-                            Snprintf(
-                                &pPerfCounters[counterIdx].name[0],
-                                EventInstanceNameSize,
-                                "%s_INSTANCE_ALL",
-                                &eventName[0]);
-                            counterIdx++;
-                            if (instanceCount == 0)
+                            // multiple instances are summed into one counter result
+                            uint32 instanceCount     = perfExpProps.blocks[blockIdx].instanceCount;
+
+                            // The bits in "instanceMask" are iterated through from 0(lsb) to "instanceCount" and
+                            // only those instances with a bit set are captured and summed into final result.
+                            // See SetPerfCounterInfo() for any special mask validation logic.
+                            uint64 instanceMask      = 0;
+                            if (strcmp(instanceName, "EVEN") == 0)
+                            {
+                                instanceMask = 0x5555555555555555llu;
+                            }
+                            else if (strcmp(instanceName, "ODD") == 0)
+                            {
+                                instanceMask = 0xAAAAAAAAAAAAAAAAllu;
+                            }
+                            else if (strcmp(instanceName, "MAX") == 0)
+                            {
+                                instanceMask = 0xFFFFFFFFFFFFFFFFllu;
+                            }
+                            else if (strncmp(instanceName, "MASK:", 5) == 0)
+                            {
+                                uint32 mask;
+                                if (StrToUInt(instanceName + 5, &mask) == true)
+                                {
+                                    instanceMask = mask;
+                                }
+                                else
+                                {
+                                    PAL_DPERROR("Bad perfcounter config (%d): Instance MASK '%s' is not valid.",
+                                                lineNum, instanceName);
+                                }
+                            }
+
+                            SetPerfCounterInfo(eventName,
+                                               block,
+                                               perfExpProps.blocks[blockIdx],
+                                               eventId,
+                                               0, // instanceId: capture count from 0->instanceCount, unless mask overrides
+                                               instanceCount,
+                                               instanceMask,
+                                               hasOptionalData,
+                                               optionalData,
+                                               &pPerfCounters[counterIdx]);
+                            if (pPerfCounters[counterIdx].instanceCount == 0)
                             {
                                 PAL_DPERROR("Bad perfcounter config (%d): Block %s not available.", lineNum, blockName);
                                 result = Result::ErrorInitializationFailed;
                             }
+                            counterIdx++;
                         }
                         else
                         {
-                            char* endChar;
-                            uint32 instanceId = strtol(instanceName, &endChar, 10);
-                            if (endChar != instanceName)
+                            uint32 instanceId;
+                            if (StrToUInt(instanceName, &instanceId) == true)
                             {
-                                // strtol succeeded
-                                pPerfCounters[counterIdx].block         = block;
-                                pPerfCounters[counterIdx].eventId       = eventId;
-                                pPerfCounters[counterIdx].instanceId    = instanceId;
-                                pPerfCounters[counterIdx].instanceCount = 1;
-                                Snprintf(
-                                    &pPerfCounters[counterIdx].name[0],
-                                    EventInstanceNameSize,
-                                    "%s_INSTANCE_%s",
-                                    &eventName[0],
-                                    &instanceName[0]);
+                                SetPerfCounterInfo(eventName,
+                                                   block,
+                                                   perfExpProps.blocks[blockIdx],
+                                                   eventId,
+                                                   instanceId,
+                                                   1, // instanceCount: capture single count for "instanceId"
+                                                   0, // instanceMask: unused
+                                                   hasOptionalData,
+                                                   optionalData,
+                                                   &pPerfCounters[counterIdx]);
                                 counterIdx++;
                             }
                             else
                             {
-                                // strtol failed
-                                PAL_DPERROR("Bad perfcounter config (%d): instanceId '%s' is not a number, EACH, or ALL.",
+                                PAL_DPERROR("Bad perfcounter config (%d): instanceId '%s' is invalid number/keyword.",
                                             lineNum, instanceName);
                                 result = Result::ErrorInitializationFailed;
                             }
@@ -703,7 +791,7 @@ Result Device::ExtractPerfCounterInfo(
     if (result == Result::Success)
     {
         uint32 blockIdx = 0;
-        // Count number of perf counters per block instace.
+        // Count number of perf counters per block instance.
         // Assume the max number of instances in any block cannot exceed 256.
         uint8 count[static_cast<uint32>(GpuBlock::Count)][256] = {};
 
@@ -739,17 +827,21 @@ Result Device::ExtractPerfCounterInfo(
             // The maximum number of counters depends on whether this is an SPM file or a global counters file.
             const uint32 maxCounters = isSpmConfig ? perfExpProps.blocks[blockIdx].maxSpmCounters
                                                    : perfExpProps.blocks[blockIdx].maxGlobalSharedCounters;
-
+            const bool   countAsGlobalOnly = false;
+            const uint64 instanceMask = pPerfCounters[i].instanceMask;
             for (uint32 j = 0; j < pPerfCounters[i].instanceCount; j++)
             {
-                const uint32 instanceId = pPerfCounters[i].instanceId + j;
-
-                if (++count[blockIdx][instanceId] > maxCounters)
+                if ((instanceMask == 0) || Util::BitfieldIsSet(instanceMask, j))
                 {
-                    // Too many counters enabled for this block instance.
-                    PAL_DPERROR("PerfCounter[%s]: too many counters enabled for this block (count %u > max %u)",
-                                pPerfCounters[i].name, count[blockIdx][instanceId], maxCounters);
-                    result = Result::ErrorInitializationFailed;
+                    uint32 instanceId = (countAsGlobalOnly) ? 0 : (pPerfCounters[i].instanceId + j);
+                    if (++count[blockIdx][instanceId] > maxCounters)
+                    {
+                        // Too many counters enabled for this block or instance.
+                        PAL_DPERROR("PerfCounter[%s]: too many counters enabled for this block (count %u > max %u)",
+                                    pPerfCounters[i].name, count[blockIdx][instanceId], maxCounters);
+                        result = Result::ErrorInitializationFailed;
+                        break;
+                    }
                 }
             }
         }
@@ -832,7 +924,7 @@ Result Device::CountPerfCounters(
 
             // Read a line of the form "BlockName EventId InstanceName CounterName" (ignore OptionalData field+)
             const int scanfRet = sscanf(&buf[0],
-                                        "%31s %7s %7s %127s",
+                                        "%31s %7s %31s %127s",
                                         &blockName[0],
                                         &eventIdStr[0],
                                         &instanceName[0],

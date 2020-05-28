@@ -1438,6 +1438,7 @@ public:
         ImageLayout            dstImageLayout,
         uint32                 regionCount,
         const ImageCopyRegion* pRegions,
+        const Rect*            pScissorRect,
         uint32                 flags) override
     {
         m_pNextLayer->CmdCopyImage(*NextImage(&srcImage),
@@ -1446,6 +1447,7 @@ public:
                                    dstImageLayout,
                                    regionCount,
                                    pRegions,
+                                   pScissorRect,
                                    flags);
     }
 
@@ -1698,7 +1700,8 @@ public:
         ImageLayout               dstImageLayout,
         ResolveMode               resolveMode,
         uint32                    regionCount,
-        const ImageResolveRegion* pRegions) override
+        const ImageResolveRegion* pRegions,
+        uint32                    flags) override
     {
         m_pNextLayer->CmdResolveImage(*NextImage(&srcImage),
                                       srcImageLayout,
@@ -1706,7 +1709,8 @@ public:
                                       dstImageLayout,
                                       resolveMode,
                                       regionCount,
-                                      pRegions);
+                                      pRegions,
+                                      flags);
     }
 
     virtual void CmdCopyImageToPackedPixelImage(

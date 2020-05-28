@@ -1014,6 +1014,7 @@ void CmdBuffer::CmdCopyImage(
     ImageLayout            dstImageLayout,
     uint32                 regionCount,
     const ImageCopyRegion* pRegions,
+    const Rect*            pScissorRect,
     uint32                 flags)
 {
     BeginFuncInfo funcInfo;
@@ -1026,6 +1027,7 @@ void CmdBuffer::CmdCopyImage(
                                dstImageLayout,
                                regionCount,
                                pRegions,
+                               pScissorRect,
                                flags);
     funcInfo.postCallTime = m_pPlatform->GetTime();
 
@@ -1045,6 +1047,12 @@ void CmdBuffer::CmdCopyImage(
         }
 
         pLogContext->EndList();
+
+        if (pScissorRect != nullptr)
+        {
+            pLogContext->KeyAndStruct("scissorRect", *pScissorRect);
+        }
+
         pLogContext->KeyAndCopyControlFlags("flags", flags);
         pLogContext->EndInput();
 
@@ -1823,7 +1831,8 @@ void CmdBuffer::CmdResolveImage(
     ImageLayout               dstImageLayout,
     ResolveMode               resolveMode,
     uint32                    regionCount,
-    const ImageResolveRegion* pRegions)
+    const ImageResolveRegion* pRegions,
+    uint32                    flags)
 {
     BeginFuncInfo funcInfo;
     funcInfo.funcId       = InterfaceFunc::CmdBufferCmdResolveImage;
@@ -1835,7 +1844,8 @@ void CmdBuffer::CmdResolveImage(
                                   dstImageLayout,
                                   resolveMode,
                                   regionCount,
-                                  pRegions);
+                                  pRegions,
+                                  flags);
     funcInfo.postCallTime = m_pPlatform->GetTime();
 
     LogContext* pLogContext = nullptr;
@@ -1855,6 +1865,7 @@ void CmdBuffer::CmdResolveImage(
         }
 
         pLogContext->EndList();
+        pLogContext->KeyAndResolveImageFlags("flags", flags);
         pLogContext->EndInput();
 
         m_pPlatform->LogEndFunc(pLogContext);

@@ -242,6 +242,27 @@ Result Device::Create(
 }
 
 // =====================================================================================================================
+// Helper function which overrides certain GPU properties for experiment purposes.
+static void ValidateGpuInfo(
+    const Platform&         platform,
+    struct amdgpu_gpu_info* pGpuInfo) // in,out: GPU info to (optionally) override
+{
+    GpuId gpuId = { };
+    gpuId.familyId   = pGpuInfo->family_id;
+    gpuId.eRevId     = pGpuInfo->chip_external_rev;
+    gpuId.revisionId = pGpuInfo->pci_rev_id;
+    gpuId.deviceId   = pGpuInfo->asic_id;
+    if (platform.OverrideGpuId(&gpuId))
+    {
+        pGpuInfo->family_id         = gpuId.familyId;
+        pGpuInfo->asic_id           = gpuId.deviceId;
+        pGpuInfo->chip_external_rev = gpuId.eRevId;
+        pGpuInfo->pci_rev_id        = gpuId.revisionId;
+        // On amdgpu, the gfxEngineId is set up based on graphics IP level later on. No need to override it here.
+    }
+}
+
+// =====================================================================================================================
 // This is help methods. Open drm device and initialize it.
 // And also get the drm information.
 static Result OpenAndInitializeDrmDevice(
@@ -283,6 +304,7 @@ static Result OpenAndInitializeDrmDevice(
     {
         // amdgpu_query_gpu_info will never fail only if it is initialized.
         procs.pfnAmdgpuQueryGpuInfo(deviceHandle, pGpuInfo);
+        ValidateGpuInfo(*pPlatform, pGpuInfo);
 
         uint32 version = 0;
         if (procs.pfnAmdgpuQueryFirmwareVersion(deviceHandle,
@@ -711,6 +733,13 @@ void Device::FinalizeQueueProperties()
         m_engineProperties.perEngine[EngineTypeDma].flags.supportsMidCmdBufPreemption = 0;
         m_engineProperties.perEngine[EngineTypeDma].contextSaveAreaSize               = 0;
         m_engineProperties.perEngine[EngineTypeDma].contextSaveAreaAlignment          = 0;
+    }
+
+    if (m_memoryProperties.flags.supportsTmz)
+    {
+        m_engineProperties.perEngine[EngineTypeUniversal].tmzSupportLevel     = TmzSupportLevel::PerSubmission;
+        m_engineProperties.perEngine[EngineTypeCompute].tmzSupportLevel       = TmzSupportLevel::None;
+        m_engineProperties.perEngine[EngineTypeDma].tmzSupportLevel           = TmzSupportLevel::PerCommandOp;
     }
 }
 
@@ -3399,9 +3428,11 @@ void Device::UpdateMetaData(
         SharedMetadataInfo sharedMetadataInfo = {};
         image.GetGfxImage()->GetSharedMetadataInfo(&sharedMetadataInfo);
 
+        PAL_ASSERT(sharedMetadataInfo.numPlanes <= 1);
+
         auto*const pUmdSharedMetadata = reinterpret_cast<amdgpu_shared_metadata_info*>
                                             (&pUmdMetaData->shared_metadata_info);
-        pUmdSharedMetadata->dcc_offset   = sharedMetadataInfo.dccOffset;
+        pUmdSharedMetadata->dcc_offset   = sharedMetadataInfo.dccOffset[0];
         pUmdSharedMetadata->cmask_offset = sharedMetadataInfo.cmaskOffset;
         pUmdSharedMetadata->fmask_offset = sharedMetadataInfo.fmaskOffset;
         pUmdSharedMetadata->htile_offset = sharedMetadataInfo.htileOffset;
@@ -3418,11 +3449,11 @@ void Device::UpdateMetaData(
             sharedMetadataInfo.flags.hasHtileLookupTable;
 
         pUmdSharedMetadata->dcc_state_offset =
-            sharedMetadataInfo.dccStateMetaDataOffset;
+            sharedMetadataInfo.dccStateMetaDataOffset[0];
         pUmdSharedMetadata->fast_clear_value_offset =
-            sharedMetadataInfo.fastClearMetaDataOffset;
+            sharedMetadataInfo.fastClearMetaDataOffset[0];
         pUmdSharedMetadata->fce_state_offset =
-            sharedMetadataInfo.fastClearEliminateMetaDataOffset;
+            sharedMetadataInfo.fastClearEliminateMetaDataOffset[0];
 
         if (sharedMetadataInfo.fmaskOffset != 0)
         {
@@ -3434,7 +3465,7 @@ void Device::UpdateMetaData(
 
         if (sharedMetadataInfo.flags.hasHtileLookupTable)
         {
-            PAL_ASSERT(sharedMetadataInfo.dccStateMetaDataOffset == 0);
+            PAL_ASSERT(sharedMetadataInfo.dccStateMetaDataOffset[0] == 0);
             pUmdSharedMetadata->htile_lookup_table_offset =
                 sharedMetadataInfo.htileLookupTableOffset;
         }

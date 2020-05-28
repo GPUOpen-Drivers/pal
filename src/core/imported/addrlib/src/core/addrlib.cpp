@@ -166,7 +166,7 @@ ADDR_E_RETURNCODE Lib::Create(
                     case FAMILY_VI:
                     case FAMILY_CZ:
                     case FAMILY_CI:
-                    case FAMILY_KV: // CI based fusion
+                    case FAMILY_KV:
                         pLib = CiHwlInit(&client);
                         break;
 #endif

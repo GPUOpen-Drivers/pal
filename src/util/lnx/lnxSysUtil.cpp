@@ -193,22 +193,23 @@ static Result GetCcxMask(
             break;
     }
 
-    // According to spec, CPUID with EXA=0x8000001D, ECX=0x03
+    // According to spec, CPUID with EAX=0x8000001D, ECX=0x03
     // CPUID_Fn8000001D_EAX_x03 [Cache Properties (L3)] (CachePropEax3)
     // Bits(25:14)  NumSharingCache: number of logical processors sharing this cache.
     //              The number of logical processors sharing this cache is NumSharingCache+1.
     uint32 reg[4] = {0, 0, 0, 0};
     CpuId(reg, 0x8000001D, 0x3);
 
-    uint32 logicalProcessorMask = (1 << (reg[0] + 1)) - 1;
-    maxCount = Min(maxCount, totalLogicalCoreCount / (reg[0] + 1));
+    uint32 numSharingCache = ((reg[0] >> 14) & 0xfff) + 1;
+    uint32 logicalProcessorMask = (1 << numSharingCache) - 1;
+    maxCount = Min(maxCount, totalLogicalCoreCount / numSharingCache);
 
     // each CCX has a mask like these: 0xff, 0xff00, ...
     while (idx < maxCount)
     {
         pData[idx] = logicalProcessorMask;
         idx++;
-        logicalProcessorMask = logicalProcessorMask << (reg[0] + 1);
+        logicalProcessorMask = logicalProcessorMask << numSharingCache;
     }
 
     return Result::Success;

@@ -138,8 +138,9 @@ CmdAllocator::CmdAllocator(
             }
             else
             {
-                m_gpuAllocInfo[i].allocCreateInfo.memObjCreateInfo.heapCount = 1;
+                m_gpuAllocInfo[i].allocCreateInfo.memObjCreateInfo.heapCount = 2;
                 m_gpuAllocInfo[i].allocCreateInfo.memObjCreateInfo.heaps[0]  = GpuHeapInvisible;
+                m_gpuAllocInfo[i].allocCreateInfo.memObjCreateInfo.heaps[1]  = GpuHeapLocal;
             }
         }
 

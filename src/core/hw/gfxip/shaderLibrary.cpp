@@ -147,7 +147,7 @@ Result ShaderLibrary::ExtractShaderFunctions(
 
     for (uint32 i = item.map.size; ((result == Result::Success) && (i > 0)); --i)
     {
-        ShaderFuncStats stats;
+        ShaderFuncStats stats = {};
 
         result = pReader->Next(CWP_ITEM_STR);
         if (result == Result::Success)

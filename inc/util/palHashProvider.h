@@ -52,8 +52,9 @@ enum class HashAlgorithm : uint32
 /// Minimum memory buffer sizes needed to hold data relating to hash algorithms
 struct HashContextInfo
 {
-    size_t contextObjectSize; ///< size of buffer needed to pass to CreateHashContext and IHashContext::Duplicate
-    size_t outputBufferSize;  ///< size of buffer needed to pass to IHashContext::Finish
+    size_t contextObjectSize;      ///< size of buffer needed to pass to CreateHashContext and IHashContext::Duplicate
+    size_t contextObjectAlignment; ///< alignment of buffer needed to pass to CreateHashContext and IHashContext::Duplicate
+    size_t outputBufferSize;       ///< size of buffer needed to pass to IHashContext::Finish
 };
 
 /// Get the memory sizes for a hash algorithm
@@ -79,6 +80,7 @@ Result GetHashContextInfo(
 /// @param [in]     algorithm      Enumeration id for the desired hashing method
 /// @param [in]     pPlacementAddr Pointer to the location where the interface should be constructed. There must
 ///                                be as much size available here as reported by HashSizeInfo::contextObjectSize.
+///                                The pointer also must fulfill the reported alignment requirements.
 /// @param [out]    ppHashContext  Hash context interface. On failure this value will be set to nullptr.
 ///
 /// @returns Success if the context is available for use. Otherwise, one of the following errors may be returned:

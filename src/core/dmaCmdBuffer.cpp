@@ -449,7 +449,8 @@ void DmaCmdBuffer::CopyMemoryRegion(
     gpusize bytesJustCopied = 0;
     gpusize bytesLeftToCopy = region.copySize;
 
-    const DmaCopyFlags flags = DmaCopyFlags::None;
+    const DmaCopyFlags flags =
+        static_cast<const GpuMemory&>(srcGpuMemory).IsTmzProtected() ? DmaCopyFlags::TmzCopy : DmaCopyFlags::None;
 
     while (bytesLeftToCopy > 0)
     {
@@ -590,6 +591,11 @@ void DmaCmdBuffer::CmdCopyTypedBuffer(
         copyInfo.copyExtent.width   = region.extent.width * srcTexelScale;
         copyInfo.copyExtent.height  = region.extent.height;
         copyInfo.copyExtent.depth   = region.extent.depth;
+
+        if (static_cast<const GpuMemory&>(srcGpuMemory).IsTmzProtected())
+        {
+            copyInfo.flags = DmaCopyFlags::TmzCopy;
+        }
 
         // Write packet
         pCmdSpace = m_cmdStream.ReserveCommands();
@@ -825,8 +831,13 @@ void DmaCmdBuffer::CmdCopyImage(
     ImageLayout            dstImageLayout,
     uint32                 regionCount,
     const ImageCopyRegion* pRegions,
+    const Rect*            pScissorRect,
     uint32                 flags)
 {
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 603
+    PAL_ASSERT(TestAnyFlagSet(flags, CopyEnableScissorTest) == false);
+#endif
+
     uint32* pCmdSpace = nullptr;
     uint32* pPredCmd  = nullptr;
 

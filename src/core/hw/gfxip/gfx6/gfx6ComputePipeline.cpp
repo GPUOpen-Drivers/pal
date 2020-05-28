@@ -344,7 +344,7 @@ Result ComputePipeline::HwlInit(
 // =====================================================================================================================
 // Helper function to compute the WAVES_PER_SH field of the COMPUTE_RESOURCE_LIMITS register.
 uint32 ComputePipeline::CalcMaxWavesPerSh(
-    uint32 maxWavesPerCu
+    float maxWavesPerCu
     ) const
 {
     // The maximum number of waves per SH in "register units".
@@ -361,7 +361,7 @@ uint32 ComputePipeline::CalcMaxWavesPerSh(
         // We assume no one is trying to use more than 100% of all waves.
         PAL_ASSERT(maxWavesPerCu <= numWavefrontsPerCu);
 
-        const uint32 maxWavesPerSh = (maxWavesPerCu * gfx6ChipProps.numCuPerSh);
+        const uint32 maxWavesPerSh = static_cast<uint32>(round(maxWavesPerCu * gfx6ChipProps.numCuPerSh));
 
         if (chipProps.gfxLevel == GfxIpLevel::GfxIp6)
         {

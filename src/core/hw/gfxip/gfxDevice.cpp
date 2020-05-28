@@ -706,6 +706,63 @@ void GfxDevice::InitAddrLibChipId(
     pInput->chipFamily   = chipProps.familyId;
 }
 
+// =====================================================================================================================
+uint32 GfxDevice::VertsPerPrimitive(
+    PrimitiveTopology topology,
+    uint32            patchControlPoints)
+{
+    uint32 vertsPerPrimitive = 1;
+    switch (topology)
+    {
+    case PrimitiveTopology::PointList:
+        vertsPerPrimitive = 1;
+        break;
+    case PrimitiveTopology::LineList:
+    case PrimitiveTopology::LineStrip:
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 557
+    case PrimitiveTopology::LineLoop:
+#endif
+        vertsPerPrimitive = 2;
+        break;
+
+    case PrimitiveTopology::TriangleList:
+    case PrimitiveTopology::TriangleStrip:
+    case PrimitiveTopology::RectList:
+    case PrimitiveTopology::TriangleFan:
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 557
+    case PrimitiveTopology::Polygon:
+#endif
+        vertsPerPrimitive = 3;
+        break;
+
+    case PrimitiveTopology::QuadList:
+    case PrimitiveTopology::QuadStrip:
+        vertsPerPrimitive = 4;
+        break;
+
+    case PrimitiveTopology::LineListAdj:
+    case PrimitiveTopology::LineStripAdj:
+        vertsPerPrimitive = 4;
+        break;
+
+    case PrimitiveTopology::TriangleListAdj:
+    case PrimitiveTopology::TriangleStripAdj:
+        vertsPerPrimitive = 6;
+        break;
+
+    case PrimitiveTopology::Patch:
+        PAL_ASSERT(patchControlPoints > 0);
+        vertsPerPrimitive = patchControlPoints;
+        break;
+
+    default:
+        PAL_ASSERT_ALWAYS();
+        break;
+    }
+
+    return vertsPerPrimitive;
+}
+
 // Default sample positions, indexed via Log2(numSamples).
 const MsaaQuadSamplePattern GfxDevice::DefaultSamplePattern[] = {
     // 1x

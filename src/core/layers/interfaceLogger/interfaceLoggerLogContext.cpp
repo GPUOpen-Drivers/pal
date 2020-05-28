@@ -923,8 +923,11 @@ void LogContext::CopyControlFlags(
 {
     const char*const StringTable[] =
     {
-        "CopyFormatConversion", // 0x1,
-        "CopyRawSwizzle",       // 0x2,
+        "CopyFormatConversion",  // 0x1,
+        "CopyRawSwizzle",        // 0x2,
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 603
+        "CopyEnableScissorTest", // 0x4,
+#endif
     };
 
     BeginList(false);
@@ -1154,6 +1157,33 @@ void LogContext::ClearDepthStencilFlags(
     const char*const StringTable[] =
     {
         "DsClearAutoSync", // 0x1,
+    };
+
+    BeginList(false);
+
+    constexpr uint32 NumFlags = static_cast<uint32>(ArrayLen(StringTable));
+    for (uint32 idx = 0; idx < NumFlags; ++idx)
+    {
+        if ((flags & (1 << idx)) != 0)
+        {
+            Value(StringTable[idx]);
+        }
+    }
+
+    // This will trigger if there are flags missing in our table.
+    constexpr uint32 UnusedBitMask = ~((1u << NumFlags) - 1u);
+    PAL_ASSERT(TestAnyFlagSet(flags, UnusedBitMask) == false);
+
+    EndList();
+}
+
+// =====================================================================================================================
+void LogContext::ResolveImageFlags(
+    uint32 flags)
+{
+    const char*const StringTable[] =
+    {
+        "ImageResolveInvertY", // 0x1,
     };
 
     BeginList(false);

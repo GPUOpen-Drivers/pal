@@ -158,6 +158,7 @@ void DepthStencilView::InitRegistersCommon(
     const ChNumFormat           zFmt                 = pDepthSubResInfo->format.format;
     const ChNumFormat           sFmt                 = pStencilSubResInfo->format.format;
     const ZFormat               hwZFmt               = HwZFmt(pFmtInfo, zFmt);
+    const bool                  isResummarize        = (createInfo.flags.resummarizeHiZ != 0);
 
     if (m_flags.hTile)
     {
@@ -177,7 +178,7 @@ void DepthStencilView::InitRegistersCommon(
             m_flags.dbRenderControlLocked = 1; // This cannot change at bind-time for expands and copies!
         }
 
-        if (internalInfo.flags.isResummarize)
+        if (isResummarize)
         {
             pRegs->dbRenderControl.bits.RESUMMARIZE_ENABLE = 1;
         }
@@ -235,7 +236,7 @@ void DepthStencilView::InitRegistersCommon(
         m_flags.dbRenderOverrideLocked = 1;
     }
 
-    if (internalInfo.flags.isResummarize)
+    if (isResummarize)
     {
         pRegs->dbRenderOverride.bits.FORCE_Z_VALID           = !zReadOnly;
         pRegs->dbRenderOverride.bits.FORCE_STENCIL_VALID     = !sReadOnly;

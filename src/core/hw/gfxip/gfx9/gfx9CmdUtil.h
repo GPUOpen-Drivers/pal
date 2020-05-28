@@ -262,7 +262,6 @@ struct RegisterInfo
     uint16  mmSpiShaderPgmLoEs;
     uint16  mmVgtGsMaxPrimsPerSubGroup;
     uint16  mmDbDfsmControl;
-    uint16  mmDbDepthInfo;
     uint16  mmUserDataStartHsShaderStage;
     uint16  mmUserDataStartGsShaderStage;
     uint16  mmPaStereoCntl;

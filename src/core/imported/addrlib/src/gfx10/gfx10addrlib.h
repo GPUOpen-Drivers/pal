@@ -367,28 +367,6 @@ private:
         UINT_32*                                pAlignY,
         UINT_32*                                pRightXor) const;
 
-    Dim3d GetDccCompressBlk(
-        AddrResourceType resourceType,
-        AddrSwizzleMode  swizzleMode,
-        UINT_32          bpp) const
-    {
-        UINT_32 index = Log2(bpp >> 3);
-        Dim3d   compressBlkDim;
-
-        if (IsThin(resourceType, swizzleMode))
-        {
-            compressBlkDim.w = Block256_2d[index].w;
-            compressBlkDim.h = Block256_2d[index].h;
-            compressBlkDim.d = 1;
-        }
-        else
-        {
-            compressBlkDim = Block256_3d[index];
-        }
-
-        return compressBlkDim;
-    }
-
     static void GetMipSize(
         UINT_32  mip0Width,
         UINT_32  mip0Height,

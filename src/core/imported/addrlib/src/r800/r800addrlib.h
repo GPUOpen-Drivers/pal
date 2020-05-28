@@ -57,8 +57,7 @@ struct R800ChipSettings
         UINT_32 isRedwood        : 1;  ///< Redwood
         UINT_32 isCedar          : 1;  ///< Cedar
 
-        /// Treat all 8xx fusion the same
-        UINT_32 isSumo           : 1;  ///< Member of Sumo (8xx fusion)
+        UINT_32 isSumo           : 1;
 
         UINT_32 isNorthernIsland : 1;  ///< Member of NorthernIslands family (9xx)
         UINT_32 isCayman         : 1;  ///< Cayman

@@ -66,7 +66,16 @@ public:
 
     static uint32 CalcMaxWavesPerSh(
         const GpuChipProperties& chipProps,
-        uint32                   maxWavesPerCu);
+        float                    maxWavesPerCu);
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 604
+    static uint32 CalcMaxWavesPerSh(
+        const GpuChipProperties& chipProps,
+        uint32                   maxWavesPerCu)
+    {
+        return CalcMaxWavesPerSh(chipProps, static_cast<float>(maxWavesPerCu));
+    }
+#endif
 
     virtual Result LinkWithLibraries(
         const IShaderLibrary*const* ppLibraryList,

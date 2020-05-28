@@ -108,6 +108,8 @@ enum class BatchedQueueCmd : uint32
     PresentDirect,                // Identifies a PresentDirect() call
     Delay,                        // Identifies a Delay() call
     AssociateFenceWithLastSubmit, // Identifies a AssociateFenceWithLastSubmit() call
+    RemapVirtualMemoryPages,      // Identifies a RemapVirtualMemoryPages() call
+    CopyVirtualMemoryPageMappings,// Identifies a CopyVirtualMemoryPageMappings() call
 };
 
 // Defines the data payloads for each type of batched-up Queue command.
@@ -145,6 +147,20 @@ struct BatchedQueueCmdData
             Fence* pFence;
         } associateFence;
 
+        struct
+        {
+            uint32                         rangeCount;
+            VirtualMemoryRemapRange*       pRanges;
+            bool                           doNotWait;
+            IFence*                        pFence;
+        } remapVirtualMemoryPages;
+
+        struct
+        {
+            uint32                                    rangeCount;
+            VirtualMemoryCopyPageMappingsRange*       pRanges;
+            bool                                      doNotWait;
+        } copyVirtualMemoryPageMappings;
     };
 };
 
@@ -242,6 +258,19 @@ public:
     virtual Result DelayAfterVsync(float delayInUs, const IPrivateScreen* pScreen) override;
 
     // NOTE: Part of the public IQueue interface.
+    virtual Result RemapVirtualMemoryPages(
+        uint32                         rangeCount,
+        const VirtualMemoryRemapRange* pRanges,
+        bool                           doNotWait,
+        IFence*                        pFence) override;
+
+    // NOTE: Part of the public IQueue interface.
+    virtual Result CopyVirtualMemoryPageMappings(
+        uint32                                    rangeCount,
+        const VirtualMemoryCopyPageMappingsRange* pRanges,
+        bool                                      doNotWait) override;
+
+    // NOTE: Part of the public IQueue interface.
     virtual Result AssociateFenceWithLastSubmit(IFence* pFence) override;
 
     // NOTE: Part of the public IQueue interface.
@@ -317,6 +346,19 @@ protected:
 
     // Performs OS-specific Queue direct presentation behavior.
     virtual Result OsPresentDirect(const PresentDirectInfo& presentInfo) = 0;
+
+    // Performs OS-specific Queue RemapVirtualMemoryPages behavior.
+    virtual Result OsRemapVirtualMemoryPages(
+        uint32                         rangeCount,
+        const VirtualMemoryRemapRange* pRanges,
+        bool                           doNotWait,
+        IFence*                        pFence) = 0;;
+
+    // Performs OS-specific Queue CopyVirtualMemoryPageMappings behavior.
+    virtual Result OsCopyVirtualMemoryPageMappings(
+        uint32                                    rangeCount,
+        const VirtualMemoryCopyPageMappingsRange* pRanges,
+        bool                                      doNotWait) = 0;
 
     virtual Result UpdateAppPowerProfile(const wchar_t* pFileName, const wchar_t* pPathName) override
         { return Result::Unsupported; }

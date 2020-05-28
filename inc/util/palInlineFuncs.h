@@ -177,7 +177,7 @@ bool BitfieldIsSet(
     uint32  bit)
 {
     PAL_ASSERT(bit < (sizeof(T) * 8));
-    return (bitfield & (1 << bit));
+    return (bitfield & (static_cast<T>(1) << bit));
 }
 
 /// Update a subfield of a bitfield.
@@ -454,7 +454,7 @@ PAL_INLINE bool VoidPtrIsPow2Aligned(
     uint64 alignment)  ///< Desired alignment.
 {
     PAL_ASSERT(IsPowerOfTwo(alignment));
-    return ((reinterpret_cast<size_t>(ptr) + (alignment - 1)) & (alignment - 1)) == 0;
+    return ((reinterpret_cast<size_t>(ptr) & (alignment - 1)) == 0);
 }
 
 /// Rounds the specified uint 'value' up to the nearest value meeting the specified 'alignment'.  Only power of 2

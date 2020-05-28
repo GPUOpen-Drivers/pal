@@ -354,7 +354,6 @@ CmdUtil::CmdUtil(
         if (IsGfx101(parent))
         {
             m_registerInfo.mmEaPerfResultCntl               = Gfx101::mmGCEA_PERFCOUNTER_RSLT_CNTL;
-            m_registerInfo.mmDbDepthInfo                    = Nv10::mmDB_RESERVED_REG_2;
             m_registerInfo.mmAtcPerfResultCntl              = Gfx101::mmATC_PERFCOUNTER_RSLT_CNTL;
             m_registerInfo.mmAtcL2PerfResultCntl            = Gfx101::mmGC_ATC_L2_PERFCOUNTER_RSLT_CNTL;
             m_registerInfo.mmDbDfsmControl                  = Gfx10CorePlus::mmDB_DFSM_CONTROL;

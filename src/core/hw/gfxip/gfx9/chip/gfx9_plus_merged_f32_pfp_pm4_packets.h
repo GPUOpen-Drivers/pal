@@ -32,6 +32,8 @@
 #error "LITTLEENDIAN_CPU must be defined"
 #endif
 
+#include <stdint.h>
+
 // ------------------------------------- PM4_PFP_TYPE_3_HEADER -------------------------------------
 typedef union PM4_PFP_TYPE_3_HEADER
 {

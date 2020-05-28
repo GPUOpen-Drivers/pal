@@ -86,17 +86,6 @@ public:
         const MultiSubmitInfo&    submitInfo,
         const InternalSubmitInfo* pInternalSubmitInfos) override;
 
-    virtual Result CopyVirtualMemoryPageMappings(
-        uint32                                    rangeCount,
-        const VirtualMemoryCopyPageMappingsRange* pRanges,
-        bool                                      doNotWait) override;
-
-    virtual Result RemapVirtualMemoryPages(
-        uint32                         rangeCount,
-        const VirtualMemoryRemapRange* pRangeList,
-        bool                           doNotWait,
-        IFence*                        pFence) override;
-
 protected:
     // Can't delay a queue that doesn't exist in HW.
     virtual Result OsDelay(float delay, const IPrivateScreen* pScreen) override { return Result::ErrorUnavailable; }
@@ -104,6 +93,17 @@ protected:
     virtual Result OsPresentDirect(const PresentDirectInfo& presentInfo) override;
 
     virtual Result OsWaitIdle() override;
+
+    virtual Result OsRemapVirtualMemoryPages(
+        uint32                         rangeCount,
+        const VirtualMemoryRemapRange* pRanges,
+        bool                           doNotWait,
+        IFence*                        pFence) override;
+
+    virtual Result OsCopyVirtualMemoryPageMappings(
+        uint32                                    rangeCount,
+        const VirtualMemoryCopyPageMappingsRange* pRanges,
+        bool                                      doNotWait) override;
 
     Result DoAssociateFenceWithLastSubmit(Pal::Fence* pFence) override;
 private:

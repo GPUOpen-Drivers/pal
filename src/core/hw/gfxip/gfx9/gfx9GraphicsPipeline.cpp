@@ -451,14 +451,14 @@ const ShaderStageInfo* GraphicsPipeline::GetShaderStageInfo(
 // =====================================================================================================================
 // Helper function to compute the WAVE_LIMIT field of the SPI_SHADER_PGM_RSRC3* registers.
 uint32 GraphicsPipeline::CalcMaxWavesPerSh(
-    uint32 maxWavesPerCu1,
-    uint32 maxWavesPerCu2
+    float maxWavesPerCu1,
+    float maxWavesPerCu2
     ) const
 {
     // The HW shader stage might a combination of two API shader stages (e.g., for GS copy shaders), so we must apply
     // the minimum wave limit of both API shader stages.  Note that zero is the largest value because it means
     // unlimited.
-    const uint32 maxWavesPerCu =
+    const float maxWavesPerCu =
         ((maxWavesPerCu2 == 0) ? maxWavesPerCu1
                                : ((maxWavesPerCu1 == 0) ? maxWavesPerCu2
                                                         : Min(maxWavesPerCu1, maxWavesPerCu2)));
@@ -480,7 +480,7 @@ uint32 GraphicsPipeline::CalcMaxWavesPerSh(
 
         // We assume no one is trying to use more than 100% of all waves.
         PAL_ASSERT(maxWavesPerCu <= numWavefrontsPerCu);
-        const uint32 maxWavesPerSh = (maxWavesPerCu * gfx9ChipProps.numCuPerSh);
+        const uint32 maxWavesPerSh = static_cast<uint32>(round(maxWavesPerCu * gfx9ChipProps.numCuPerSh));
 
         // For graphics shaders, the WAVES_PER_SH field is in units of 16 waves and must not exceed 63. We must
         // also clamp to one if maxWavesPerSh rounded down to zero to prevent the limit from being removed.
@@ -852,7 +852,19 @@ void GraphicsPipeline::SetupCommonRegisters(
     // for 2 pipes.
     m_regs.other.paScModeCntl1.bits.WALK_FENCE_SIZE = ((m_pDevice->GetNumPipesLog2() <= 1) ? 2 : 3);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 524
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 598
+    switch (createInfo.rsState.forcedShadingRate)
+    {
+    case PsShadingRate::SampleRate:
+        m_regs.other.paScModeCntl1.bits.PS_ITER_SAMPLE = 1;
+        break;
+    case PsShadingRate::PixelRate:
+        m_regs.other.paScModeCntl1.bits.PS_ITER_SAMPLE = 0;
+        break;
+    default:
+        break;
+    }
+#elif PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 524
     m_regs.other.paScModeCntl1.bits.PS_ITER_SAMPLE |= createInfo.rsState.forceSampleRateShading;
 #endif
 
@@ -2019,7 +2031,7 @@ SX_DOWNCONVERT_FORMAT GraphicsPipeline::SxDownConvertFormat(
     case ChNumFormat::X8_Sint:
     case ChNumFormat::X8_Srgb:
     case ChNumFormat::L8_Unorm:
-    case ChNumFormat::P8_Uint:
+    case ChNumFormat::P8_Unorm:
     case ChNumFormat::X8Y8_Unorm:
     case ChNumFormat::X8Y8_Snorm:
     case ChNumFormat::X8Y8_Uscaled:

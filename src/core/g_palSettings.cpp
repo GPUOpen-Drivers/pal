@@ -76,6 +76,7 @@ void SettingsLoader::SetupDefaults()
 
     m_settings.addr2DisableXorTileMode = false;
     m_settings.addr2DisableSModes8BppColor = false;
+    m_settings.disableOptimizedDisplay = false;
     m_settings.overlayReportHDR = true;
     m_settings.preferredPipelineUploadHeap = PipelineHeapDeferToClient;
 #if PAL_DEVELOPER_BUILD
@@ -135,7 +136,8 @@ void SettingsLoader::SetupDefaults()
     m_settings.maxAvailableSgpr = 0;
     m_settings.maxAvailableVgpr = 0;
     m_settings.maxThreadGroupsPerComputeUnit = 0;
-    m_settings.maxScratchRingSize = 268435456;
+    m_settings.maxScratchRingSizeBaseline = 268435456;
+    m_settings.maxScratchRingScalePct = 10;
     m_settings.ifhGpuMask = 0xf;
     m_settings.hwCompositingEnabled = true;
     m_settings.mgpuCompatibilityEnabled = true;
@@ -258,6 +260,11 @@ void SettingsLoader::ReadSettings()
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pAddr2DisableSModes8BppColorStr,
                            Util::ValueType::Boolean,
                            &m_settings.addr2DisableSModes8BppColor,
+                           InternalSettingScope::PrivatePalKey);
+
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pDisableOptimizedDisplayStr,
+                           Util::ValueType::Boolean,
+                           &m_settings.disableOptimizedDisplay,
                            InternalSettingScope::PrivatePalKey);
 
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pOverlayReportHDRStr,
@@ -514,9 +521,14 @@ void SettingsLoader::ReadSettings()
                            &m_settings.maxThreadGroupsPerComputeUnit,
                            InternalSettingScope::PrivatePalKey);
 
-    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pMaxScratchRingSizeStr,
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pMaxScratchRingSizeBaselineStr,
                            Util::ValueType::Uint64,
-                           &m_settings.maxScratchRingSize,
+                           &m_settings.maxScratchRingSizeBaseline,
+                           InternalSettingScope::PrivatePalKey);
+
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pMaxScratchRingSizeScalePctStr,
+                           Util::ValueType::Uint,
+                           &m_settings.maxScratchRingScalePct,
                            InternalSettingScope::PrivatePalKey);
 
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pIfhGpuMaskStr,
@@ -695,6 +707,11 @@ void SettingsLoader::InitSettingsInfo()
     info.pValuePtr = &m_settings.addr2DisableSModes8BppColor;
     info.valueSize = sizeof(m_settings.addr2DisableSModes8BppColor);
     m_settingsInfoMap.Insert(3379142860, info);
+
+    info.type      = SettingType::Boolean;
+    info.pValuePtr = &m_settings.disableOptimizedDisplay;
+    info.valueSize = sizeof(m_settings.disableOptimizedDisplay);
+    m_settingsInfoMap.Insert(3371140286, info);
 
     info.type      = SettingType::Boolean;
     info.pValuePtr = &m_settings.overlayReportHDR;
@@ -949,9 +966,14 @@ void SettingsLoader::InitSettingsInfo()
     m_settingsInfoMap.Insert(1284517999, info);
 
     info.type      = SettingType::Uint64;
-    info.pValuePtr = &m_settings.maxScratchRingSize;
-    info.valueSize = sizeof(m_settings.maxScratchRingSize);
-    m_settingsInfoMap.Insert(784528758, info);
+    info.pValuePtr = &m_settings.maxScratchRingSizeBaseline;
+    info.valueSize = sizeof(m_settings.maxScratchRingSizeBaseline);
+    m_settingsInfoMap.Insert(913921073, info);
+
+    info.type      = SettingType::Uint;
+    info.pValuePtr = &m_settings.maxScratchRingScalePct;
+    info.valueSize = sizeof(m_settings.maxScratchRingScalePct);
+    m_settingsInfoMap.Insert(3497759531, info);
 
     info.type      = SettingType::Uint;
     info.pValuePtr = &m_settings.ifhGpuMask;
@@ -1024,7 +1046,7 @@ void SettingsLoader::DevDriverRegister()
             component.pfnSetValue = ISettingsLoader::SetValue;
             component.pSettingsData = &g_palJsonData[0];
             component.settingsDataSize = sizeof(g_palJsonData);
-            component.settingsDataHash = 233009688;
+            component.settingsDataHash = 65706473;
             component.settingsDataHeader.isEncoded = true;
             component.settingsDataHeader.magicBufferId = 402778310;
             component.settingsDataHeader.magicBufferOffset = 0;

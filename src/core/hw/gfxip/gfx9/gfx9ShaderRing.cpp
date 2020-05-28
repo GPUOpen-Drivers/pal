@@ -240,7 +240,7 @@ ScratchRing::ScratchRing(
         pSrd->word3.bits.INDEX_STRIDE    = BUF_INDEX_STRIDE_64B;
         pSrd->word3.bits.ADD_TID_ENABLE  = 1;
     }
-    else if (IsGfx10(m_gfxLevel))
+    else if (IsGfx10Plus(m_gfxLevel))
     {
         auto*const  pSrd = &pGenericSrd->gfx10;
 
@@ -293,15 +293,19 @@ size_t ScratchRing::CalculateWaveSize() const
 // Overrides the base class' method for computing the scratch buffer size.
 gpusize ScratchRing::ComputeAllocationSize() const
 {
-    const GpuChipProperties& chipProps = m_pDevice->Parent()->ChipProperties();
-    const PalSettings&       settings  = m_pDevice->Parent()->Settings();
+    const GpuChipProperties&   chipProps = m_pDevice->Parent()->ChipProperties();
+    const GpuMemoryProperties& memProps  = m_pDevice->Parent()->MemoryProperties();
+    const PalSettings&         settings  = m_pDevice->Parent()->Settings();
 
     // Compute the adjusted scratch size required by each wave.
     const size_t waveSize = AdjustScratchWaveSize(m_itemSizeMax * chipProps.gfx9.minWavefrontSize);
 
     // The ideal size to allocate for this Ring is: threadsPerWavefront * maxWaves * itemSize DWORDs.
     // We clamp this allocation to a maximum size to prevent the driver from using an unreasonable amount of scratch.
-    return Min(static_cast<gpusize>(m_numMaxWaves * waveSize * sizeof(uint32)), settings.maxScratchRingSize);
+    const gpusize maxScaledSize = (settings.maxScratchRingScalePct * memProps.invisibleHeapSize) / 100;
+    const gpusize maxSize       = Max(settings.maxScratchRingSizeBaseline, maxScaledSize);
+
+    return Min(static_cast<gpusize>(m_numMaxWaves * waveSize * sizeof(uint32)), maxSize);
 }
 
 // =====================================================================================================================
@@ -352,7 +356,7 @@ GsVsRing::GsVsRing(
             pSrdWr->word3.bits.INDEX_STRIDE   = BUF_INDEX_STRIDE_16B;
             pSrdWr->word3.bits.ADD_TID_ENABLE = 1;
         }
-        else if (IsGfx10(m_gfxLevel))
+        else if (IsGfx10Plus(m_gfxLevel))
         {
             auto*const  pSrdWr = &pBufferSrdWr->gfx10;
 
@@ -399,7 +403,7 @@ void GsVsRing::UpdateSrds() const
         {
             pSrdWr->gfx9.word1.bits.STRIDE = 0;
         }
-        else if (IsGfx10(m_gfxLevel))
+        else if (IsGfx10Plus(m_gfxLevel))
         {
             pSrdWr->gfx10.stride = 0;
         }

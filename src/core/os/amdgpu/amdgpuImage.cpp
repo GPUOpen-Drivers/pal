@@ -458,7 +458,9 @@ Result Image::CreateExternalSharedImage(
             (&pMetadata->shared_metadata_info);
         internalCreateInfo.flags.useSharedMetadata = 1;
 
-        internalCreateInfo.sharedMetadata.dccOffset = pUmdSharedMetadata->dcc_offset;
+        internalCreateInfo.sharedMetadata.numPlanes = 1;
+
+        internalCreateInfo.sharedMetadata.dccOffset[0] = pUmdSharedMetadata->dcc_offset;
         internalCreateInfo.sharedMetadata.cmaskOffset = pUmdSharedMetadata->cmask_offset;
         internalCreateInfo.sharedMetadata.fmaskOffset = pUmdSharedMetadata->fmask_offset;
         internalCreateInfo.sharedMetadata.htileOffset = pUmdSharedMetadata->htile_offset;
@@ -474,9 +476,9 @@ Result Image::CreateExternalSharedImage(
         internalCreateInfo.sharedMetadata.flags.hasHtileLookupTable =
             pUmdSharedMetadata->flags.has_htile_lookup_table;
 
-        internalCreateInfo.sharedMetadata.fastClearMetaDataOffset =
+        internalCreateInfo.sharedMetadata.fastClearMetaDataOffset[0] =
             pUmdSharedMetadata->fast_clear_value_offset;
-        internalCreateInfo.sharedMetadata.fastClearEliminateMetaDataOffset =
+        internalCreateInfo.sharedMetadata.fastClearEliminateMetaDataOffset[0] =
             pUmdSharedMetadata->fce_state_offset;
 
         // The offset here will be updated once change of amdgpu_shared_metadata_info is done.
@@ -484,7 +486,7 @@ Result Image::CreateExternalSharedImage(
 
         if (pUmdSharedMetadata->dcc_offset != 0)
         {
-            internalCreateInfo.sharedMetadata.dccStateMetaDataOffset =
+            internalCreateInfo.sharedMetadata.dccStateMetaDataOffset[0] =
                 pUmdSharedMetadata->dcc_state_offset;
         }
         else if (pUmdSharedMetadata->flags.has_htile_lookup_table)

@@ -91,8 +91,11 @@ uint32* WorkaroundState::PreDraw(
         //  trigger the overflow scenario. Unfortunately this also includes indirect draws because we cannot know
         //  the vertex and instance counts and have to err on the safe side.
 
-        const bool singlePrimitive = (drawInfo.vtxIdxCount <= pPipeline->VertsPerPrimitive());
-        const bool multiInstance   = (drawInfo.instanceCount > 1);
+        const uint32 patchControlPoints = pPipeline->VgtLsHsConfig().bits.HS_NUM_INPUT_CP;
+        const uint32 vertsPerPrim    = GfxDevice::VertsPerPrimitive(gfxState.inputAssemblyState.topology,
+                                                                    patchControlPoints);
+        const bool   singlePrimitive = (drawInfo.vtxIdxCount <= vertsPerPrim);
+        const bool   multiInstance   = (drawInfo.instanceCount > 1);
 
         if (pPipeline->IsGsEnabled() &&
             (iaMultiVgtParam.bits.SWITCH_ON_EOI == 1) &&

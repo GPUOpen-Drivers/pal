@@ -1196,7 +1196,9 @@ Result Queue::BuildGpaSessionSampleConfig()
         {
             for (uint32 i = 0; i < numCounters; i++)
             {
-                m_gpaSessionSampleConfig.perfCounters.numCounters += pCounters[i].instanceCount;
+                m_gpaSessionSampleConfig.perfCounters.numCounters += (pCounters[i].instanceMask == 0)
+                                                                      ? pCounters[i].instanceCount
+                                                                      : Util::CountSetBits(pCounters[i].instanceMask);
             }
             GpuUtil::PerfCounterId* pIds =
                 static_cast<GpuUtil::PerfCounterId*>(
@@ -1213,10 +1215,14 @@ Result Queue::BuildGpaSessionSampleConfig()
                     counterInfo.block   = pCounters[i].block;
                     counterInfo.eventId = pCounters[i].eventId;
 
+                    const uint64 instanceMask = pCounters[i].instanceMask;
                     for (uint32 j = 0; j < pCounters[i].instanceCount; j++)
                     {
-                        counterInfo.instance = pCounters[i].instanceId + j;
-                        pIds[counterIdx++]   = counterInfo;
+                        if ((instanceMask == 0) || Util::BitfieldIsSet(instanceMask, j))
+                        {
+                            counterInfo.instance = pCounters[i].instanceId + j;
+                            pIds[counterIdx++]   = counterInfo;
+                        }
                     }
                 }
                 PAL_ASSERT(counterIdx == m_gpaSessionSampleConfig.perfCounters.numCounters);
@@ -1234,7 +1240,9 @@ Result Queue::BuildGpaSessionSampleConfig()
                 uint32 numTotalInstances = 0;
                 for (uint32 i = 0; i < numSpmCountersRequested; i++)
                 {
-                    numTotalInstances += pStreamingCounters[i].instanceCount;
+                    numTotalInstances += (pStreamingCounters[i].instanceMask == 0)
+                                          ? pStreamingCounters[i].instanceCount
+                                          : Util::CountSetBits(pStreamingCounters[i].instanceMask);
                 }
 
                 gpusize ringSizeInBytes = settings.gpuProfilerSpmConfig.spmBufferSize;
@@ -1281,10 +1289,14 @@ Result Queue::BuildGpaSessionSampleConfig()
                         counterInfo.block   = pStreamingCounters[counter].block;
                         counterInfo.eventId = pStreamingCounters[counter].eventId;
 
+                        const uint64 instanceMask = pStreamingCounters[counter].instanceMask;
                         for (uint32 j = 0; j < pStreamingCounters[counter].instanceCount; j++)
                         {
-                            counterInfo.instance = pStreamingCounters[counter].instanceId + j;
-                            pIds[pIdIndex++]     = counterInfo;
+                            if ((instanceMask == 0) || Util::BitfieldIsSet(instanceMask, j))
+                            {
+                                counterInfo.instance = pStreamingCounters[counter].instanceId + j;
+                                pIds[pIdIndex++]     = counterInfo;
+                            }
                         }
                     }
                     PAL_ASSERT(pIdIndex == numTotalInstances);

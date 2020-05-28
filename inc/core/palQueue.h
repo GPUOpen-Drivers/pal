@@ -140,20 +140,29 @@ struct QueueCreateInfo
                                  ///  It is only supported if supportQueuePriority is set in DeviceProperties.
     struct
     {
-        uint32 placeholder1              :  1; ///< Reserved field. Set to 0.
-        uint32 windowedPriorBlit         :  1; ///< All windowed presents on this queue are notifications
-                                               ///  that the client has manually done a blit present
-        uint32 placeholder2              :  1; ///< Reserved field. Set to 0.
+        uint32 placeholder1                    :  1; ///< Reserved field. Set to 0.
+        uint32 windowedPriorBlit               :  1; ///< All windowed presents on this queue are notifications
+                                                     ///  that the client has manually done a blit present
+        uint32 tmzOnly                         :  1; ///< This queue allows only TMZ submissions. Required for
+                                                     ///  compute TMZ submits.
 
 #if PAL_AMDGPU_BUILD && (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 479)
-        uint32 enableGpuMemoryPriorities :  1; ///< Enables support for GPU memory priorities on this Queue. This is
-                                               ///  optional because enabling the feature requires a small amount of
-                                               ///  memory overhead per-Queue for bookkeeping purposes.
+        uint32 enableGpuMemoryPriorities       :  1; ///< Enables support for GPU memory priorities on this Queue.
+                                                     /// This is optional because enabling the feature requires
+                                                     /// a small amount of memory overhead per-Queue for
+                                                     /// bookkeeping purposes.
 #else
-        uint32 placeholder3              :  1; ///< Reserved field. Set to 0.
+        uint32 placeholder2                    :  1; ///< Reserved field. Set to 0.
 #endif
-        uint32 dispatchTunneling         :  1; ///< This queue uses compute dispatch tunneling.
-        uint32 reserved                  : 27; ///< Reserved for future use.
+        uint32 dispatchTunneling               :  1; ///< This queue uses compute dispatch tunneling.
+
+#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 605)
+        uint32 forceWaitIdleOnRingResize       :  1; ///< This queue need to wait for idle before resize RingSet.
+                                                     ///  This is intended as a workaround for misbehaving applications.
+#else
+        uint32 placeholder3                    :  1; ///< Reserved field. Set to 0.
+#endif
+        uint32 reserved                        : 26; ///< Reserved for future use.
     };
 
     uint32 numReservedCu;           ///< The number of reserved compute units for RT CU queue

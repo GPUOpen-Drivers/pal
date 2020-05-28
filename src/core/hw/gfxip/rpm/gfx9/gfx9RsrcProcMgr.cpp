@@ -930,6 +930,11 @@ bool RsrcProcMgr::InitMaskRam(
 
             // Even if we cleared DCC using graphics, we will always clear CMask below using compute.
             usedCompute = dccClearUsedCompute || dstImage.HasFmaskData();
+
+            if (dstImage.HasDisplayDccData())
+            {
+                dstImage.GetDisplayDcc(range.startSubres.aspect)->UploadEq(pCmdBuffer);
+            }
         }
 
         if (dstImage.HasFmaskData() &&
@@ -6307,8 +6312,7 @@ bool Gfx10RsrcProcMgr::HwlCanDoDepthStencilCopyResolve(
 
     bool canDoDepthStencilCopyResolve =
         settings.allowDepthCopyResolve &&
-        ((pGfxSrcImage->HasDsMetadata() && pGfxSrcImage->HasHtileLookupTable()) ||
-         (pGfxDstImage->HasDsMetadata() && pGfxDstImage->HasHtileLookupTable()));
+        (pGfxSrcImage->HasDsMetadata() || pGfxDstImage->HasDsMetadata());
 
     if (fixUpRegionList.Capacity() >= regionCount)
     {
@@ -6702,6 +6706,14 @@ void Gfx10RsrcProcMgr::HwlEndGraphicsCopy(
     {
         CommitBeginEndGfxCopy(pCmdStream, m_pDevice->Parent()->ChipProperties().gfx9.paScTileSteeringOverride);
     }
+}
+
+// =====================================================================================================================
+// Gfx Dcc -> Display Dcc.
+void Gfx10RsrcProcMgr::HwlGfxDccToDisplayDcc(
+    GfxCmdBuffer*     pCmdBuffer,
+    const Pal::Image& image) const
+{
 }
 
 } // Gfx9

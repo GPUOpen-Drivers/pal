@@ -160,7 +160,14 @@ private:
         const RegisterVector&     registers,
         GraphicsPipelineLoadInfo* pInfo);
 
-    uint32 CalcMaxWavesPerSh(uint32 maxWavesPerCu) const;
+    uint32 CalcMaxWavesPerSh(float maxWavesPerCu) const;
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 604
+    uint32 CalcMaxWavesPerSh(uint32 maxWavesPerCu) const
+    {
+        return CalcMaxWavesPerSh(static_cast<float>(maxWavesPerCu));
+    }
+#endif
 
     void CalcDynamicStageInfo(
         const DynamicGraphicsShaderInfo& shaderInfo,

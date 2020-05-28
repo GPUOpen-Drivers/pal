@@ -186,7 +186,10 @@ public:
                                                   uint8              stencilWriteMask,
                                                   const SubresRange& range) const override;
 
-    virtual bool IsFormatReplaceable(const SubresId& subresId, ImageLayout layout, bool isDst) const override;
+    virtual bool IsFormatReplaceable(const SubresId& subresId,
+                                     ImageLayout     layout,
+                                     bool            isDst,
+                                     uint8           disabledChannelMask = 0) const override;
 
     virtual bool ShaderWriteIncompatibleWithLayout(const SubresId& subresId, ImageLayout layout) const override;
 
