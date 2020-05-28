@@ -121,18 +121,6 @@ public:
 
     virtual Result Init(const QueueCreateInfo* pCreateInfo, void* pContextPlacementAddr) override;
 
-    // NOTE: Part of the public IQueue interface.
-    virtual Result RemapVirtualMemoryPages(
-        uint32                         rangeCount,
-        const VirtualMemoryRemapRange* pRangeList,
-        bool                           doNotWait,
-        IFence*                        pFence) override;
-
-    virtual Result CopyVirtualMemoryPageMappings(
-        uint32                                    rangeCount,
-        const VirtualMemoryCopyPageMappingsRange* pRanges,
-        bool                                      doNotWait) override { return Result::ErrorUnavailable; }
-
     bool IsPendingWait() const { return m_pendingWait; }
 
     Result WaitSemaphore(
@@ -166,6 +154,16 @@ protected:
 
     virtual Result OsWaitIdle() override;
     virtual Result OsPresentDirect(const PresentDirectInfo& presentInfo) override;
+    virtual Result OsRemapVirtualMemoryPages(
+        uint32                         rangeCount,
+        const VirtualMemoryRemapRange* pRanges,
+        bool                           doNotWait,
+        IFence*                        pFence) override;
+
+    virtual Result OsCopyVirtualMemoryPageMappings(
+        uint32                                    rangeCount,
+        const VirtualMemoryCopyPageMappingsRange* pRanges,
+        bool                                      doNotWait) override { return Result::ErrorUnavailable; }
 
     Result DoAssociateFenceWithLastSubmit(Pal::Fence* pFence) override;
 

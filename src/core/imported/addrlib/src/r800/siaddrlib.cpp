@@ -1896,7 +1896,7 @@ ChipFamily SiLib::HwlConvertChipFamily(
             m_settings.isHainan     = ASICREV_IS_HAINAN_V(uChipRevision);
             break;
         default:
-            ADDR_ASSERT(!"This should be a Fusion");
+            ADDR_ASSERT(!"No Chip found");
             break;
     }
 

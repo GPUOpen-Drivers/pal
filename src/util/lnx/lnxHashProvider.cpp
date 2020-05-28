@@ -149,8 +149,9 @@ Result GetHashContextInfo(
 
         if (IsErrorResult(result) == false)
         {
-            pInfo->contextObjectSize = providerInfo.objectSize + sizeof(HashContext);
-            pInfo->outputBufferSize  = providerInfo.hashSize;
+            pInfo->contextObjectSize      = providerInfo.objectSize + sizeof(HashContext);
+            pInfo->contextObjectAlignment = alignof(HashContext);
+            pInfo->outputBufferSize       = providerInfo.hashSize;
         }
     }
 

@@ -1236,8 +1236,8 @@ bool Gfx9MaskRam::SupportFastColorClear(
     const bool allowShaderWriteableSurfaces =
             // If ths image isn't shader-writeable at all, then there isn't a problem
             ((pParent->IsShaderWritable() == false) ||
-            // GFX10 doesn't have a problem with shader-writeable surfaces anyway
-             IsGfx10(gfxLevel)                      ||
+            // GFX10+ parts don't have a problem with shader-writeable surfaces anyway
+             IsGfx10Plus(gfxLevel)                  ||
             // Enable Fast Clear Support if some mips are not shader writable.
              (pParent->FirstShaderWritableMip() != 0));
 
@@ -2215,8 +2215,6 @@ void Gfx9MaskRam::CalcMetaEquationGfx10()
 
     MetaDataAddrEquation  pipe(27, "pipe");
 
-    PAL_ASSERT(PipeAligned() != 0);
-
     constexpr uint32 nibbleOffset = 1;
     PAL_ASSERT(m_meta.GetNumValidBits() >= (blockSizeLog2 + nibbleOffset));
 
@@ -3066,9 +3064,10 @@ uint32 Gfx9Dcc::PipeAligned() const
 {
     const AddrSwizzleMode  swizzleMode = GetSwizzleMode();
 
-     // most surfaces are pipe-aligned for more performant access.
-     // Display Dcc: from UMDKMDIF_GET_PRIMARYSURF_INFO_OUTPUT::KeyPipeAligned, so far 0 for Gfx10.
-    uint32                 pipeAligned = (m_displayDcc == false);
+    // most surfaces are pipe-aligned for more performant access.
+    // Display Dcc: from UMDKMDIF_GET_PRIMARYSURF_INFO_OUTPUT::KeyPipeAligned, 0 for Gfx10. Has to be unaligned to reach
+    // here, aligned cases are filtered out in Device::CreateImage.
+    uint32 pipeAligned = (m_displayDcc == false);
 
     //     Meta surfaces with SW_256B_D and SW_256B_S data swizzle mode must not be pipe aligned
     //
@@ -3078,6 +3077,16 @@ uint32 Gfx9Dcc::PipeAligned() const
     }
 
     return pipeAligned;
+}
+
+// =====================================================================================================================
+uint32 Gfx9Dcc::GetMetaBlockSize(
+    Gfx9MaskRamBlockSize* pExtent
+    ) const
+{
+    CalcMetaBlkSizeLog2(pExtent);
+
+    return Log2(m_addrOutput.metaBlkSize);
 }
 
 // =====================================================================================================================
@@ -3092,8 +3101,8 @@ gpusize Gfx9Dcc::SliceOffset(
     const auto&  palDevice   = *(m_pGfxDevice->Parent());
     const auto&  addrMipInfo = GetAddrMipInfo(MipLevel); // assume mip zero
 
-    // Slice offset of DCC is meaningless except on GFX10 products.
-    PAL_ASSERT(IsGfx10(palDevice) || (arraySlice == 0));
+    // Slice offset of DCC is meaningless except on GFX10+ products.
+    PAL_ASSERT(IsGfx10Plus(palDevice) || (arraySlice == 0));
 
     // We should only really be requesting either the base subresource (i.e., slice = mip = 0) or a distinct slice
     // (for YUV surfaces only).
@@ -3352,6 +3361,7 @@ void Gfx9Dcc::SetControlReg(
     const GfxIpLevel        gfxLevel    = pDevice->ChipProperties().gfxLevel;
     const ImageCreateInfo&  createInfo  = pParent->GetImageCreateInfo();
     const auto&             settings    = GetGfx9Settings(*pDevice);
+    const DisplayDccCaps&   dispDcc     = pParent->GetInternalCreateInfo().displayDcc;
 
     // Setup DCC control registers with suggested value from spec
     m_dccControl.bits.KEY_CLEAR_ENABLE = 0; // not supported on VI
@@ -3362,20 +3372,18 @@ void Gfx9Dcc::SetControlReg(
     // 64B (Set for 8bpp 2+ fragment surfaces needing HW resolves)
     // 128B (Set for 16bpp 2+ fragment surfaces needing HW resolves)
     // 256B (default)
-    m_dccControl.bits.MAX_UNCOMPRESSED_BLOCK_SIZE = static_cast<unsigned int>(Gfx9DccMaxBlockSize::BlockSize256B);
+    m_dccControl.bits.MAX_UNCOMPRESSED_BLOCK_SIZE = static_cast<uint32>(Gfx9DccMaxBlockSize::BlockSize256B);
     if ((gfxLevel == GfxIpLevel::GfxIp9) && (createInfo.samples >= 2))
     {
         const uint32 bitsPerPixel = BitsPerPixel(createInfo.swizzledFormat.format);
 
         if (bitsPerPixel == 8)
         {
-            m_dccControl.bits.MAX_UNCOMPRESSED_BLOCK_SIZE =
-                static_cast<unsigned int>(Gfx9DccMaxBlockSize::BlockSize64B);
+            m_dccControl.bits.MAX_UNCOMPRESSED_BLOCK_SIZE = static_cast<uint32>(Gfx9DccMaxBlockSize::BlockSize64B);
         }
         else if (bitsPerPixel == 16)
         {
-            m_dccControl.bits.MAX_UNCOMPRESSED_BLOCK_SIZE =
-                static_cast<unsigned int>(Gfx9DccMaxBlockSize::BlockSize128B);
+            m_dccControl.bits.MAX_UNCOMPRESSED_BLOCK_SIZE = static_cast<uint32>(Gfx9DccMaxBlockSize::BlockSize128B);
         }
     }
 
@@ -3387,15 +3395,22 @@ void Gfx9Dcc::SetControlReg(
     // If this DCC surface is potentially going to be used in texture fetches though, we need some special settings.
     if (pSubResInfo->flags.supportMetaDataTexFetch)
     {
+        if (dispDcc.dcc_128_128_unconstrained && (dispDcc.dcc_256_128_128 == 0) && (dispDcc.dcc_256_64_64 == 0))
+        {
+            m_dccControl.bits.MAX_UNCOMPRESSED_BLOCK_SIZE =
+                static_cast<unsigned int>(Gfx9DccMaxBlockSize::BlockSize128B);
+        }
         m_dccControl.bits.INDEPENDENT_64B_BLOCKS    = 1;
-        m_dccControl.bits.MAX_COMPRESSED_BLOCK_SIZE = static_cast<unsigned int>(Gfx9DccMaxBlockSize::BlockSize64B);
+        m_dccControl.bits.MAX_COMPRESSED_BLOCK_SIZE = static_cast<uint32>(Gfx9DccMaxBlockSize::BlockSize64B);
 
         if (IsGfx10Plus(gfxLevel))
         {
-            m_dccControl.bits.INDEPENDENT_64B_BLOCKS       = 0;
-            m_dccControl.bits.MAX_COMPRESSED_BLOCK_SIZE    = static_cast<unsigned int>(
-                                                                  Gfx9DccMaxBlockSize::BlockSize128B);
-            m_dccControl.gfx10Plus.INDEPENDENT_128B_BLOCKS = 1;
+            if (dispDcc.dcc_256_64_64 == 0)
+            {
+                m_dccControl.bits.INDEPENDENT_64B_BLOCKS    = 0;
+                m_dccControl.bits.MAX_COMPRESSED_BLOCK_SIZE = static_cast<uint32>(Gfx9DccMaxBlockSize::BlockSize128B);
+            }
+            m_dccControl.gfx10Plus.INDEPENDENT_128B_BLOCKS  = 1;
 
             PAL_ASSERT(m_dccControl.bits.MAX_COMPRESSED_BLOCK_SIZE <= m_dccControl.bits.MAX_UNCOMPRESSED_BLOCK_SIZE);
 
@@ -3421,7 +3436,7 @@ void Gfx9Dcc::SetControlReg(
         m_dccControl.bits.MAX_COMPRESSED_BLOCK_SIZE = m_dccControl.bits.MAX_UNCOMPRESSED_BLOCK_SIZE;
     }
 
-    if (IsGfx10(gfxLevel) && m_image.Gfx10UseCompToSingleFastClears())
+    if (IsGfx10Plus(gfxLevel) && m_image.Gfx10UseCompToSingleFastClears())
     {
         if (TestAnyFlagSet(settings.useCompToSingle, Gfx10DisableCompToReg))
         {
@@ -3545,9 +3560,15 @@ bool Gfx9Dcc::UseDccForImage(
         useDcc = false;
         mustDisableDcc = true;
     }
-    else if (pParent->IsShared() || pParent->IsPresentable() || pParent->IsFlippable())
+    else if (pParent->IsShared())
     {
-        // DCC is never available for shared, presentable, or flippable images.
+        // DCC is never available for shared images.
+        useDcc = false;
+        mustDisableDcc = true;
+    }
+    else if ((pParent->IsPresentable() || pParent->IsFlippable()) &&
+             (pParent->GetInternalCreateInfo().displayDcc.enabled == false))
+    {
         useDcc = false;
         mustDisableDcc = true;
     }
@@ -3585,7 +3606,7 @@ bool Gfx9Dcc::UseDccForImage(
     }
     else
     {
-        if (IsGfx10(*pDevice) && allMipsShaderWritable)
+        if (IsGfx10Plus(*pDevice) && allMipsShaderWritable)
         {
             if (isNotARenderTarget)
             {
@@ -3908,7 +3929,7 @@ uint8 Gfx9Dcc::GetFastClearCode(
         *pNeedFastClearElim = true;
     }
 
-    if (IsGfx10(*pParent->GetDevice())                  &&
+    if (IsGfx10Plus(*pParent->GetDevice())              &&
         (clearCode == Gfx9DccClearColor::ClearColorReg) &&
         image.Gfx10UseCompToSingleFastClears())
     {

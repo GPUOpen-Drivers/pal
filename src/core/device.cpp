@@ -49,6 +49,7 @@
 #endif
 #include "palSysUtil.h"
 #include "palTextWriterImpl.h"
+#include "palDepthStencilView.h"
 
 #include <limits.h>
 
@@ -1944,6 +1945,7 @@ Result Device::GetProperties(
             pEngineInfo->minLinearMemCopyAlignment     = engineInfo.minLinearMemCopyAlignment;
             pEngineInfo->minTimestampAlignment         = engineInfo.minTimestampAlignment;
             pEngineInfo->maxNumDedicatedCu             = engineInfo.maxNumDedicatedCu;
+            pEngineInfo->tmzSupportLevel               = engineInfo.tmzSupportLevel;
 
             // This may have its own value in the future for now use maxNumDedicatedCu
             pEngineInfo->maxNumDedicatedCuPerQueue     = engineInfo.maxNumDedicatedCu;
@@ -2262,6 +2264,8 @@ Result Device::GetProperties(
 
             pInfo->gfxipProperties.flags.support1xMsaaSampleLocations   = gfx9Props.support1xMsaaSampleLocations;
             pInfo->gfxipProperties.flags.supportOutOfOrderPrimitives    = gfx9Props.supportOutOfOrderPrimitives;
+
+            pInfo->gfxipProperties.flags.supportSortAgnosticBarycentrics = gfx9Props.supportSortAgnosticBarycentrics;
 
             PAL_ASSERT((gfx9Props.numShaderEngines <= MaxShaderEngines) &&
                        (gfx9Props.numShaderArrays  <= MaxShaderArraysPerSe));
@@ -3779,6 +3783,10 @@ Result Device::CreateDepthStencilView(
 {
     constexpr DepthStencilViewInternalCreateInfo NullInternalInfo = {};
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 606
+    const_cast<DepthStencilViewCreateInfo&>(createInfo).flags.resummarizeHiZ = 0;
+#endif
+
     return (m_pGfxDevice != nullptr) ?
         m_pGfxDevice->CreateDepthStencilView(createInfo, NullInternalInfo, pPlacementAddr, ppDepthStencilView) :
         Result::ErrorUnavailable;
@@ -5232,18 +5240,22 @@ bool Device::ValidatePipelineUploadHeap(
     const GpuHeap& preferredHeap
     ) const
 {
-    bool  valid = true;
+    // Never prefer the heap which doesn't exit.
+    bool valid = (m_heapProperties[preferredHeap].heapSize > 0);
 
     if (preferredHeap == GpuHeap::GpuHeapInvisible)
     {
         // Disable pipeline upload to local invisible memory if clients have chosen to disable internal residency
         // optimizations or there is no DMA engine support. Other heap types don't have any restrictions.
-        valid = (m_pPlatform->InternalResidencyOptsDisabled() == false) &&
-                (EngineProperties().perEngine[EngineTypeDma].numAvailable > 0)
+        if (m_pPlatform->InternalResidencyOptsDisabled()
+            || (EngineProperties().perEngine[EngineTypeDma].numAvailable == 0)
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 514
-                 && (m_publicSettings.disablePipelineUploadToLocalInvis == false)
+            || m_publicSettings.disablePipelineUploadToLocalInvis
 #endif
-            ;
+           )
+        {
+            valid = false;
+        }
     }
 
     return valid;

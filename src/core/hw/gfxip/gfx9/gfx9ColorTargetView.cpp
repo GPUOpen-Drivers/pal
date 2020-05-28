@@ -118,9 +118,9 @@ ColorTargetView::ColorTargetView(
             (imageCreateInfo.imageType == ImageType::Tex2d)             &&
             (createInfo.imageInfo.arraySize == 1))
         {
-            // YUV planar surfaces can have DCC on GFX10 as the slices are individually addressable
-            // on that platform.
-            PAL_ASSERT(IsGfx10(*(pDevice->Parent())) || (m_flags.hasDcc == 0));
+            // YUV planar surfaces can have DCC on GFX10+ as the slices are individually addressable
+            // on those platforms.
+            PAL_ASSERT(IsGfx10Plus(*(pDevice->Parent())) || (m_flags.hasDcc == 0));
 
             // There's no reason to ever have MSAA YUV, so there won't ever be cMask or fMask surfaces.
             PAL_ASSERT(m_flags.hasCmaskFmask == 0);
@@ -363,7 +363,7 @@ void ColorTargetView::UpdateImageVa(
             // indicate what the clear color is.  (See Gfx9FastColorClearMetaData in gfx9MaskRam.h).
             if (m_flags.hasDcc)
             {
-                PAL_ASSERT(IsGfx10(*(m_pImage->Parent()->GetDevice())));
+                PAL_ASSERT(IsGfx10Plus(*(m_pImage->Parent()->GetDevice())));
 
                 // Invariant: On Gfx9, if we have DCC we also have fast clear metadata.
                 PAL_ASSERT(m_pImage->HasFastClearMetaData(m_subresource.aspect));
@@ -397,12 +397,6 @@ void ColorTargetView::UpdateImageVa(
                 const SubresId  baseSubResId = { m_subresource.aspect, 0, 0 };
 
                 pRegs->cbColorDccBase.bits.BASE_256B = m_pImage->GetDcc256BAddr(baseSubResId);
-            }
-
-            if (m_flags.hasCmaskFmask)
-            {
-                pRegs->cbColorCmask.bits.BASE_256B = m_pImage->GetCmask256BAddr();
-                pRegs->cbColorFmask.bits.BASE_256B = m_pImage->GetFmask256BAddr();
             }
         }
     }
@@ -454,6 +448,100 @@ uint32* ColorTargetView::WriteCommandsCommon(
 }
 
 // =====================================================================================================================
+// Calculates what the extents should be for this color target view.
+// baseExtent, extent and modifiedYuvExtent are outputs.
+void ColorTargetView::SetupExtents(
+    const SubresId                   baseSubRes,
+    const ColorTargetViewCreateInfo& createInfo,
+    Extent3d*                        pBaseExtent,
+    Extent3d*                        pExtent,
+    bool*                            pModifiedYuvExtent
+    ) const
+{
+    const auto* const            pImage          = m_pImage->Parent();
+    const auto*                  pPalDevice      = pImage->GetDevice();
+    const SubResourceInfo* const pBaseSubResInfo = pImage->SubresourceInfo(baseSubRes);
+    const SubResourceInfo* const pSubResInfo     = pImage->SubresourceInfo(m_subresource);
+    const ImageCreateInfo&       imageCreateInfo = pImage->GetImageCreateInfo();
+    const bool                   imgIsBc         = Formats::IsBlockCompressed(imageCreateInfo.swizzledFormat.format);
+
+    // The view should be in terms of texels except in the below cases when we're operating in terms of elements:
+    // 1. Viewing a compressed image in terms of blocks. For BC images elements are blocks, so if the caller gave
+    //    us an uncompressed view format we assume they want to view blocks.
+    // 2. Copying to an "expanded" format (e.g., R32G32B32). In this case we can't do native format writes so we're
+    //    going to write each element independently. The trigger for this case is a mismatched bpp.
+    // 3. Viewing a YUV-packed image with a non-YUV-packed format when the view format is allowed for view formats
+    //    with twice the bpp. In this case, the effective width of the view is half that of the base image.
+    // 4. Viewing a YUV planar Image. The view must be associated with a single plane. Since all planes of an array
+    //    slice are packed together for YUV formats, we need to tell the CB hardware to "skip" the other planes if
+    //    the view either spans multiple array slices or starts at a nonzero array slice.
+    if (imgIsBc || (pSubResInfo->bitsPerTexel != Formats::BitsPerPixel(m_swizzledFormat.format)))
+    {
+        if (IsGfx9(*pPalDevice))
+        {
+            *pBaseExtent = pBaseSubResInfo->extentElements;
+        }
+        else
+        {
+            const uint32  firstMipLevel = this->m_subresource.mipLevel;
+
+            pBaseExtent->width  = Clamp((pSubResInfo->extentElements.width  << firstMipLevel),
+                pBaseSubResInfo->extentElements.width,
+                pBaseSubResInfo->actualExtentElements.width);
+            pBaseExtent->height = Clamp((pSubResInfo->extentElements.height << firstMipLevel),
+                pBaseSubResInfo->extentElements.height,
+                pBaseSubResInfo->actualExtentElements.height);
+        }
+        *pExtent = pSubResInfo->extentElements;
+    }
+
+    if (Formats::IsYuvPacked(pSubResInfo->format.format)         &&
+        (Formats::IsYuvPacked(m_swizzledFormat.format) == false) &&
+        ((pSubResInfo->bitsPerTexel << 1) == Formats::BitsPerPixel(m_swizzledFormat.format)))
+    {
+        // Changing how we interpret the bits-per-pixel of the subresource wreaks havoc with any tile swizzle
+        // pattern used. This will only work for linear-tiled Images.
+        PAL_ASSERT(m_pImage->IsSubResourceLinear(baseSubRes));
+
+        if (IsGfx9(*pPalDevice))
+        {
+            // For GFX9, EPITCH field needs to be programmed to the exact pitch instead of width.
+            *pBaseExtent = pBaseSubResInfo->actualExtentTexels;
+
+            pBaseExtent->width >>= 1;
+            pExtent->width     >>= 1;
+        }
+        else
+        {
+            // The width may be odd..., so the assertion below needs to round it up to even.
+            const uint32 evenExtentWidthInTexels = Util::RoundUpToMultiple(pBaseSubResInfo->extentTexels.width, 2u);
+            // Assert that the extentElements must have been adjusted, since use32bppFor422Fmt is 1 for AddrLib.
+            PAL_ASSERT((pBaseSubResInfo->extentElements.width << 1) == evenExtentWidthInTexels);
+            // Nothing is needed, just set modifiedYuvExtent=true to skip copy from extentElements again below.
+        }
+        *pModifiedYuvExtent = true;
+    }
+    else if ((m_flags.useSubresBaseAddr == 0)                            &&
+             Formats::IsYuvPlanar(imageCreateInfo.swizzledFormat.format) &&
+             ((createInfo.imageInfo.arraySize > 1) || (createInfo.imageInfo.baseSubRes.arraySlice != 0)))
+    {
+        *pBaseExtent = pBaseSubResInfo->actualExtentTexels;
+        m_pImage->PadYuvPlanarViewActualExtent(m_subresource, pBaseExtent);
+        *pModifiedYuvExtent = true;
+    }
+
+    // The view should be in terms of texels except when we're operating in terms of elements. This will only happen
+    // when we're copying to an "expanded" format (e.g., R32G32B32). In this case we can't do native format writes
+    // so we're going to write each element independently. The trigger for this case is a mismatched bpp.
+    if ((pSubResInfo->bitsPerTexel != Formats::BitsPerPixel(m_swizzledFormat.format)) &&
+        (*pModifiedYuvExtent == false))
+    {
+        *pBaseExtent = pBaseSubResInfo->extentElements;
+        *pExtent     = pSubResInfo->extentElements;
+    }
+}
+
+// =====================================================================================================================
 Gfx9ColorTargetView::Gfx9ColorTargetView(
     const Device*                     pDevice,
     const ColorTargetViewCreateInfo&  createInfo,
@@ -467,6 +555,12 @@ Gfx9ColorTargetView::Gfx9ColorTargetView(
     if (m_flags.viewVaLocked && (m_flags.isBufferView == 0))
     {
         UpdateImageVa(&m_regs);
+        if (m_pImage->Parent()->GetBoundGpuMemory().IsBound() &&
+            m_flags.hasCmaskFmask)
+        {
+            m_regs.cbColorCmask.bits.BASE_256B = m_pImage->GetCmask256BAddr();
+            m_regs.cbColorFmask.bits.BASE_256B = m_pImage->GetFmask256BAddr();
+        }
     }
 }
 
@@ -518,62 +612,19 @@ void Gfx9ColorTargetView::InitRegisters(
         const auto*const            pAddrOutput     = m_pImage->GetAddrOutput(pBaseSubResInfo);
         const ImageCreateInfo&      imageCreateInfo = pImage->GetImageCreateInfo();
         const ImageType             imageType       = m_pImage->GetOverrideImageType();
-        const bool                  imgIsBc         = Formats::IsBlockCompressed(imageCreateInfo.swizzledFormat.format);
 
         // NOTE: The color base address will be determined later, we don't need to do anything here.
 
-        Extent3d baseExtent = pBaseSubResInfo->extentTexels;
-        Extent3d extent     = pSubResInfo->extentTexels;
+        Extent3d baseExtent        = pBaseSubResInfo->extentTexels;
+        Extent3d extent            = pSubResInfo->extentTexels;
+        bool     modifiedYuvExtent = false;
 
-        // The view should be in terms of texels except in the below cases when we're operating in terms of elements:
-        // 1. Viewing a compressed image in terms of blocks. For BC images elements are blocks, so if the caller gave
-        //    us an uncompressed view format we assume they want to view blocks.
-        // 2. Copying to an "expanded" format (e.g., R32G32B32). In this case we can't do native format writes so we're
-        //    going to write each element independently. The trigger for this case is a mismatched bpp.
-        // 3. Viewing a YUV-packed image with a non-YUV-packed format when the view format is allowed for view formats
-        //    with twice the bpp. In this case, the effective width of the view is half that of the base image.
-        // 4. Viewing a YUV planar Image. The view must be associated with a single plane. Since all planes of an array
-        //    slice are packed together for YUV formats, we need to tell the CB hardware to "skip" the other planes if
-        //    the view either spans multiple array slices or starts at a nonzero array slice.
-        if (imgIsBc || (pSubResInfo->bitsPerTexel != Formats::BitsPerPixel(m_swizzledFormat.format)))
-        {
-            baseExtent = pBaseSubResInfo->extentElements;
-            extent     = pSubResInfo->extentElements;
-        }
-
-        bool modifiedYuvExtent = false;
-        if (Formats::IsYuvPacked(pSubResInfo->format.format)                  &&
-            (Formats::IsYuvPacked(m_swizzledFormat.format) == false) &&
-            ((pSubResInfo->bitsPerTexel << 1) == Formats::BitsPerPixel(m_swizzledFormat.format)))
-        {
-            // Changing how we interpret the bits-per-pixel of the subresource wreaks havoc with any tile swizzle
-            // pattern used. This will only work for linear-tiled Images.
-            PAL_ASSERT(m_pImage->IsSubResourceLinear(baseSubRes));
-            // For GFX9, EPITCH field needs to be programmed to the exact pitch instead of width.
-            baseExtent = pBaseSubResInfo->actualExtentTexels;
-
-            baseExtent.width >>= 1;
-            extent.width     >>= 1;
-            modifiedYuvExtent  = true;
-        }
-        else if ((m_flags.useSubresBaseAddr == 0)                            &&
-                 Formats::IsYuvPlanar(imageCreateInfo.swizzledFormat.format) &&
-                 ((createInfo.imageInfo.arraySize > 1) || (createInfo.imageInfo.baseSubRes.arraySlice != 0)))
-        {
-            baseExtent = pBaseSubResInfo->actualExtentTexels;
-            m_pImage->PadYuvPlanarViewActualExtent(m_subresource, &baseExtent);
-            modifiedYuvExtent = true;
-        }
-
-        // The view should be in terms of texels except when we're operating in terms of elements. This will only happen
-        // when we're copying to an "expanded" format (e.g., R32G32B32). In this case we can't do native format writes
-        // so we're going to write each element independently. The trigger for this case is a mismatched bpp.
-        if ((pSubResInfo->bitsPerTexel != Formats::BitsPerPixel(m_swizzledFormat.format)) &&
-            (modifiedYuvExtent == false))
-        {
-            baseExtent = pBaseSubResInfo->extentElements;
-            extent     = pSubResInfo->extentElements;
-        }
+        // baseExtent, extent and modifiedYuvExtent are outputs.
+        SetupExtents(baseSubRes,
+                     createInfo,
+                     &baseExtent,
+                     &extent,
+                     &modifiedYuvExtent);
 
         InitCommonImageView(device,
                             createInfo,
@@ -623,6 +674,13 @@ uint32* Gfx9ColorTargetView::WriteCommands(
 {
     Gfx9ColorTargetViewRegs regs = m_regs;
     pCmdSpace = WriteCommandsCommon(slot, imageLayout, pCmdStream, pCmdSpace, &regs);
+    if ((m_flags.viewVaLocked == 0)                       &&
+        m_pImage->Parent()->GetBoundGpuMemory().IsBound() &&
+        m_flags.hasCmaskFmask)
+    {
+        regs.cbColorCmask.bits.BASE_256B = m_pImage->GetCmask256BAddr();
+        regs.cbColorFmask.bits.BASE_256B = m_pImage->GetFmask256BAddr();
+    }
 
     const uint32 slotOffset = (slot * CbRegsPerSlot);
 
@@ -678,6 +736,12 @@ Gfx10ColorTargetView::Gfx10ColorTargetView(
         m_flags.fmaskBigPage = IsFmaskBigPageCompatible(*m_pImage, Gfx10AllowBigPageRenderTarget);
 
         UpdateImageVa(&m_regs);
+        if (m_pImage->Parent()->GetBoundGpuMemory().IsBound() &&
+            m_flags.hasCmaskFmask)
+        {
+            m_regs.cbColorCmask.bits.BASE_256B = m_pImage->GetCmask256BAddr();
+            m_regs.cbColorFmask.bits.BASE_256B = m_pImage->GetFmask256BAddr();
+        }
         if (m_pImage->Parent()->GetImageCreateInfo().imageType == ImageType::Tex2d)
         {
             UpdateImageSrd(*pDevice, &m_uavExportSrd);
@@ -729,8 +793,7 @@ void Gfx10ColorTargetView::InitRegisters(
     else
     {
         const auto*const            pImage          = m_pImage->Parent();
-        const auto*                 pPalDevice      = pImage->GetDevice();
-        const auto*                 pAddrMgr        = static_cast<const AddrMgr2::AddrMgr2*>(pPalDevice->GetAddrMgr());
+        const auto*                 pAddrMgr        = static_cast<const AddrMgr2::AddrMgr2*>(palDevice.GetAddrMgr());
         const SubresId              baseSubRes      = { m_subresource.aspect, 0, 0 };
         const Gfx9Dcc*              pDcc            = m_pImage->GetDcc(m_subresource.aspect);
         const Gfx9Cmask*            pCmask          = m_pImage->GetCmask();
@@ -740,72 +803,20 @@ void Gfx10ColorTargetView::InitRegisters(
         const auto&                 surfSetting     = m_pImage->GetAddrSettings(pSubResInfo);
         const auto&                 imageCreateInfo = pImage->GetImageCreateInfo();
         const ImageType             imageType       = m_pImage->GetOverrideImageType();
-        const bool                  imgIsBc         = Formats::IsBlockCompressed(imageCreateInfo.swizzledFormat.format);
         const bool                  hasFmask        = m_pImage->HasFmaskData();
 
         // Extents are one of the things that could be changing on GFX10 with respect to certain surface formats,
         // so go with the simple approach here for now.
-        Extent3d baseExtent = pBaseSubResInfo->extentTexels;
-        Extent3d extent     = pSubResInfo->extentTexels;
+        Extent3d baseExtent        = pBaseSubResInfo->extentTexels;
+        Extent3d extent            = pSubResInfo->extentTexels;
+        bool     modifiedYuvExtent = false;
 
-        // The view should be in terms of texels except in the below cases when we're operating in terms of elements:
-        // 1. Viewing a compressed image in terms of blocks. For BC images elements are blocks, so if the caller gave
-        //    us an uncompressed view format we assume they want to view blocks.
-        // 2. Copying to an "expanded" format (e.g., R32G32B32). In this case we can't do native format writes so we're
-        //    going to write each element independently. The trigger for this case is a mismatched bpp.
-        // 3. Viewing a YUV-packed image with a non-YUV-packed format when the view format is allowed for view formats
-        //    with twice the bpp. In this case, the effective width of the view is half that of the base image.
-        // 4. Viewing a YUV planar Image. The view must be associated with a single plane. Since all planes of an array
-        //    slice are packed together for YUV formats, we need to tell the CB hardware to "skip" the other planes if
-        //    the view either spans multiple array slices or starts at a nonzero array slice.
-        if (imgIsBc || (pSubResInfo->bitsPerTexel != Formats::BitsPerPixel(m_swizzledFormat.format)))
-        {
-            const uint32  firstMipLevel = this->m_subresource.mipLevel;
-
-            baseExtent.width  = Clamp((pSubResInfo->extentElements.width  << firstMipLevel),
-                                      pBaseSubResInfo->extentElements.width,
-                                      pBaseSubResInfo->actualExtentElements.width);
-            baseExtent.height = Clamp((pSubResInfo->extentElements.height << firstMipLevel),
-                                      pBaseSubResInfo->extentElements.height,
-                                      pBaseSubResInfo->actualExtentElements.height);
-
-            extent = pSubResInfo->extentElements;
-        }
-
-        bool modifiedYuvExtent = false;
-        if (Formats::IsYuvPacked(pSubResInfo->format.format)         &&
-            (Formats::IsYuvPacked(m_swizzledFormat.format) == false) &&
-            ((pSubResInfo->bitsPerTexel << 1) == Formats::BitsPerPixel(m_swizzledFormat.format)))
-        {
-            // Changing how we interpret the bits-per-pixel of the subresource wreaks havoc with any tile swizzle
-            // pattern used. This will only work for linear-tiled Images.
-            PAL_ASSERT(m_pImage->IsSubResourceLinear(baseSubRes));
-
-            // The width may be odd..., so the assertion below needs to round it up to even.
-            const uint32 evenExtentWidthInTexels = Util::RoundUpToMultiple(pBaseSubResInfo->extentTexels.width, 2u);
-            // Assert that the extentElements must have been adjusted, since use32bppFor422Fmt is 1 for AddrLib.
-            PAL_ASSERT((pBaseSubResInfo->extentElements.width << 1) == evenExtentWidthInTexels);
-            // Nothing is needed, just set modifiedYuvExtent=true to skip copy from extentElements again below.
-            modifiedYuvExtent  = true;
-        }
-        else if ((m_flags.useSubresBaseAddr == 0)                            &&
-                 Formats::IsYuvPlanar(imageCreateInfo.swizzledFormat.format) &&
-                 ((createInfo.imageInfo.arraySize > 1) || (createInfo.imageInfo.baseSubRes.arraySlice != 0)))
-        {
-            baseExtent = pBaseSubResInfo->actualExtentTexels;
-            m_pImage->PadYuvPlanarViewActualExtent(m_subresource, &baseExtent);
-            modifiedYuvExtent = true;
-        }
-
-        // The view should be in terms of texels except when we're operating in terms of elements. This will only happen
-        // when we're copying to an "expanded" format (e.g., R32G32B32). In this case we can't do native format writes
-        // so we're going to write each element independently. The trigger for this case is a mismatched bpp.
-        if ((pSubResInfo->bitsPerTexel != Formats::BitsPerPixel(m_swizzledFormat.format)) &&
-            (modifiedYuvExtent == false))
-        {
-            baseExtent = pBaseSubResInfo->extentElements;
-            extent     = pSubResInfo->extentElements;
-        }
+        // baseExtent, extent and modifiedYuvExtent are outputs.
+        SetupExtents(baseSubRes,
+                     createInfo,
+                     &baseExtent,
+                     &extent,
+                     &modifiedYuvExtent);
 
         InitCommonImageView(device,
                             createInfo,
@@ -873,6 +884,13 @@ uint32* Gfx10ColorTargetView::WriteCommands(
 {
     Gfx10ColorTargetViewRegs regs = m_regs;
     pCmdSpace = WriteCommandsCommon(slot, imageLayout, pCmdStream, pCmdSpace, &regs);
+    if ((m_flags.viewVaLocked == 0)                       &&
+        m_pImage->Parent()->GetBoundGpuMemory().IsBound() &&
+        m_flags.hasCmaskFmask)
+    {
+        regs.cbColorCmask.bits.BASE_256B = m_pImage->GetCmask256BAddr();
+        regs.cbColorFmask.bits.BASE_256B = m_pImage->GetFmask256BAddr();
+    }
 
     const uint32 slotOffset = (slot * CbRegsPerSlot);
 

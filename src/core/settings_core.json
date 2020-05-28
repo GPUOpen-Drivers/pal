@@ -464,6 +464,19 @@
       "Name": "Addr2DisableSModes8BppColor"
     },
     {
+      "Description": "Disables Display Dcc on primary color targets.",
+      "Tags": [
+        "General"
+      ],
+      "Defaults": {
+        "Default": false
+      },
+      "Scope": "PrivatePalKey",
+      "Type": "bool",
+      "VariableName": "disableOptimizedDisplay",
+      "Name": "DisableOptimizedDisplay"
+    },
+    {
       "Name": "OverlayReportHDR",
       "Tags": [
         "General",
@@ -1586,7 +1599,7 @@
       "Description": "Controls how many CS thread-groups are allowed to launch per compute unit.  This throttles the shader, which can sometimes enable more graphics shader work to complete in parallel. A value of zero disables limiting the number of thread-groups to launch.  This field is  ignored for graphics shaders."
     },
     {
-      "Name": "MaxScratchRingSize",
+      "Name": "MaxScratchRingSizeBaseline",
       "Tags": [
         "Scratch",
         "Performance"
@@ -1596,8 +1609,22 @@
       },
       "Scope": "PrivatePalKey",
       "Type": "gpusize",
-      "VariableName": "maxScratchRingSize",
-      "Description": "Controls the maximum size of the scratch ring allocation. If the application requests more scratch memory than this, the driver will limit the number of waves in flight to comply with the memory restriction."
+      "VariableName": "maxScratchRingSizeBaseline",
+      "Description": "Controls the maximum size of the scratch ring allocation. This is the minimum value the max size can be, it scales higher with larger VRAM sizes (see MaxScratchRingSizeScalePct). If the application requests more scratch memory than the computed max size, the driver will limit the number of waves in flight to comply with the memory restriction."
+    },
+    {
+      "Name": "MaxScratchRingSizeScalePct",
+      "Tags": [
+        "Scratch",
+        "Performance"
+      ],
+      "Defaults": {
+        "Default": 10
+      },
+      "Scope": "PrivatePalKey",
+      "Type": "uint32",
+      "VariableName": "maxScratchRingScalePct",
+      "Description": "Controls the maximum size of the scratch ring allocation. If the product of this setting and the invisible memory heap size is larger than MaxScratchRingSizeBaseline then the calculated value will be the max scratch ring size. If the application requests more scratch memory than the computed max size, the driver will limit the number of waves in flight to comply with the memory restriction."
     },
     {
       "Name": "IfhGpuMask",

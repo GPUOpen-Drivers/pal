@@ -45,7 +45,13 @@ size_t GetPlatformKeySize(
     PAL_ALERT(IsErrorResult(result));
 
     // Extra context memory for refreshing our key
-    return sizeof(PlatformKey) + info.outputBufferSize + (info.contextObjectSize * 2);
+    size_t size = sizeof(PlatformKey) + info.outputBufferSize;
+    for (uint32 i = 0; i < 2; i++)
+    {
+        size = Pow2Align(size, info.contextObjectAlignment);
+        size += info.contextObjectSize;
+    }
+    return size;
 }
 
 // =====================================================================================================================
@@ -90,7 +96,9 @@ Result CreatePlatformKey(
     if (result == Result::Success)
     {
         void* pContextMem = VoidPtrInc(pKeyMem, info.outputBufferSize);
+        pContextMem       = VoidPtrAlign(pContextMem, info.contextObjectAlignment);
         pTempContextMem   = VoidPtrInc(pContextMem, info.contextObjectSize);
+        pTempContextMem   = VoidPtrAlign(pTempContextMem, info.contextObjectAlignment);
 
         result = CreateHashContext(algorithm, pContextMem, &pContext);
     }

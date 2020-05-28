@@ -205,7 +205,7 @@ static const char* FormatToString(
         "X8_Srgb",
         "A8_Unorm",
         "L8_Unorm",
-        "P8_Uint",
+        "P8_Unorm",
         "X8Y8_Unorm",
         "X8Y8_Snorm",
         "X8Y8_Uscaled",
@@ -3680,6 +3680,7 @@ void CmdBuffer::CmdCopyImage(
     ImageLayout            dstImageLayout,
     uint32                 regionCount,
     const ImageCopyRegion* pRegions,
+    const Rect*            pScissorRect,
     uint32                 flags)
 {
     if (m_annotations.logCmdBlts)
@@ -3700,6 +3701,7 @@ void CmdBuffer::CmdCopyImage(
                               dstImageLayout,
                               regionCount,
                               pRegions,
+                              pScissorRect,
                               flags);
 
     if (m_singleStep.waitIdleBlts)
@@ -4449,7 +4451,8 @@ void CmdBuffer::CmdResolveImage(
     ImageLayout               dstImageLayout,
     ResolveMode               resolveMode,
     uint32                    regionCount,
-    const ImageResolveRegion* pRegions)
+    const ImageResolveRegion* pRegions,
+    uint32                    flags)
 {
     if (m_annotations.logCmdBlts)
     {
@@ -4468,7 +4471,8 @@ void CmdBuffer::CmdResolveImage(
                                     dstImageLayout,
                                     resolveMode,
                                     regionCount,
-                                    pRegions);
+                                    pRegions,
+                                    flags);
 
     if (m_singleStep.waitIdleBlts)
     {

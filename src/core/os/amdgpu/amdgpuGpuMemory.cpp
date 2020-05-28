@@ -293,9 +293,21 @@ Result GpuMemory::AllocateOrPinMemory(
                     {
                         case GpuHeapGartUswc:
                             allocRequest.flags |= AMDGPU_GEM_CREATE_CPU_GTT_USWC;
+
+                            // Kernel request: Protected memory should be allocated with flag AMDGPU_GEM_CREATE_ENCRYPTED.
+                            if (m_flags.tmzProtected)
+                            {
+                                allocRequest.flags |=  AMDGPU_GEM_CREATE_ENCRYPTED;
+                            }
                             // Fall through next
                         case GpuHeapGartCacheable:
                             allocRequest.preferred_heap |= AMDGPU_GEM_DOMAIN_GTT;
+
+                            // Kernel request: Protected memory should be allocated with flag AMDGPU_GEM_CREATE_ENCRYPTED.
+                            if (m_flags.tmzProtected)
+                            {
+                                allocRequest.flags |=  AMDGPU_GEM_CREATE_ENCRYPTED;
+                            }
                             break;
                         default:
                             PAL_ASSERT_ALWAYS();

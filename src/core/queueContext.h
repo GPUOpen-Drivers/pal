@@ -44,7 +44,7 @@ class  Queue;
 class QueueContext
 {
 public:
-    QueueContext(Device* pDevice) : m_pDevice(pDevice), m_pParentQueue(nullptr) { }
+    QueueContext(Device* pDevice) : m_pDevice(pDevice), m_pParentQueue(nullptr), m_needWaitIdleOnRingResize(false) { }
 
     // Queue contexts should only be created in placed memory and must always be destroyed explicitly.
     void Destroy() { this->~QueueContext(); }
@@ -61,7 +61,8 @@ public:
     // Returns Success if the submission is required, and Unsupported otherwise.
     virtual Result ProcessInitialSubmit(InternalSubmitInfo* pSubmitInfo) { return Result::Unsupported; }
 
-    virtual void SetParentQueue(Queue* pQueue) { m_pParentQueue = pQueue; }
+    void SetParentQueue(Queue* pQueue) { m_pParentQueue   = pQueue; }
+    void SetWaitForIdleOnRingResize(bool doWait) { m_needWaitIdleOnRingResize = doWait; }
 
 protected:
     virtual ~QueueContext();
@@ -74,6 +75,8 @@ protected:
     // All QueueContext subclasses require at least one 32-bit timestamp in local GPU memory.
     BoundGpuMemory m_exclusiveExecTs; // This TS prevents independent submissions from running at the same time.
     BoundGpuMemory m_waitForIdleTs;   // This TS implements a full wait-for-idle.
+
+    bool           m_needWaitIdleOnRingResize;
 
 private:
     PAL_DISALLOW_COPY_AND_ASSIGN(QueueContext);

@@ -389,6 +389,32 @@ protected:
     /// @returns Pointer to the footer
     static GroupFooter<Entry>* GetGroupFooter(Entry* pGroup);
 
+    /// @internal Helper function which returns the number of entries from the footer
+    ///
+    /// @param [in] pGroup Group which contains the footer we want.
+    ///
+    /// @returns The number of entries from the footer
+    static uint32 GetGroupFooterNumEntries(Entry* pGroup);
+
+    /// @internal Helper function which sets the number of entries in the footer
+    ///
+    /// @param [in] pGroup Group which contains the footer we want.
+    /// @param [in] numEntries Number of entries that should be set.
+    static void SetGroupFooterNumEntries(Entry* pGroup, uint32 numEntries);
+
+    /// @internal Helper function which returns the next group from the footer
+    ///
+    /// @param [in] pGroup Group which contains the footer we want.
+    ///
+    /// @returns Pointer to the next group from the footer
+    static Entry* GetGroupFooterNextGroup(Entry* pGroup);
+
+    /// @internal Helper function which sets the pointer to the next group in the footer
+    ///
+    /// @param [in] pGroup Group which contains the footer we want.
+    /// @param [in] pNextGroup The next group that should be written into the footer.
+    static void SetGroupFooterNextGroup(Entry* pGroup, Entry* pNextGroup);
+
     /// @internal Allocates a new group if the footer of the specified group is null.
     ///
     /// @param [in] pGroup Current group to allocate a next group for.

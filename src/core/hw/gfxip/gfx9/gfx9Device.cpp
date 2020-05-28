@@ -94,7 +94,7 @@ size_t GetDeviceSize(
 {
     size_t  rpmSize = sizeof(Gfx9RsrcProcMgr);
 
-    if (IsGfx10(gfxLevel))
+    if (IsGfx10Plus(gfxLevel))
     {
         rpmSize = sizeof(Gfx10RsrcProcMgr);
     }
@@ -253,7 +253,7 @@ Result Device::EarlyInit()
     {
         m_pRsrcProcMgr = PAL_PLACEMENT_NEW(pRpmPlacementAddr) Pal::Gfx9::Gfx9RsrcProcMgr(this);
     }
-    else if (IsGfx10(m_gfxIpLevel))
+    else if (IsGfx10Plus(m_gfxIpLevel))
     {
         m_pRsrcProcMgr = PAL_PLACEMENT_NEW(pRpmPlacementAddr) Pal::Gfx9::Gfx10RsrcProcMgr(this);
     }
@@ -1486,7 +1486,7 @@ size_t Device::GetDepthStencilViewSize(
 
     size_t  viewSize = sizeof(Gfx9DepthStencilView);
 
-    if (IsGfx10(m_gfxIpLevel))
+    if (IsGfx10Plus(m_gfxIpLevel))
     {
         viewSize = sizeof(Gfx10DepthStencilView);
     }
@@ -1507,7 +1507,7 @@ Result Device::CreateDepthStencilView(
     {
         (*ppDepthStencilView) = PAL_PLACEMENT_NEW(pPlacementAddr) Gfx9DepthStencilView(this, createInfo, internalInfo);
     }
-    else if (IsGfx10(m_gfxIpLevel))
+    else if (IsGfx10Plus(m_gfxIpLevel))
     {
         (*ppDepthStencilView) = PAL_PLACEMENT_NEW(pPlacementAddr) Gfx10DepthStencilView(this, createInfo, internalInfo);
     }
@@ -2885,6 +2885,7 @@ void PAL_STDCALL Device::Gfx10CreateImageViewSrds(
         const Gfx9MaskRam*     pMaskRam        = image.GetPrimaryMaskRam(viewInfo.subresRange.startSubres.aspect);
         const ImageInfo&       imageInfo       = pParent->GetImageInfo();
         const ImageCreateInfo& imageCreateInfo = pParent->GetImageCreateInfo();
+        const ImageUsageFlags& imageUsageFlags = imageCreateInfo.usageFlags;
         const bool             imgIsBc         = Formats::IsBlockCompressed(imageCreateInfo.swizzledFormat.format);
         const bool             imgIsYuvPlanar  = Formats::IsYuvPlanar(imageCreateInfo.swizzledFormat.format);
         const auto             gfxLevel        = pPalDevice->ChipProperties().gfxLevel;
@@ -3057,7 +3058,10 @@ void PAL_STDCALL Device::Gfx10CreateImageViewSrds(
 
             // When there is mismatched bpp and more than 1 mipLevels, it's possible to have missing texels like it
             // is to block compressed format. To compensate that, we set includePadding to true.
-            includePadding = true;
+            if (imageCreateInfo.mipLevels > 1)
+            {
+                includePadding = true;
+            }
         }
         else if (Formats::IsYuvPacked(pBaseSubResInfo->format.format) &&
                  (Formats::IsYuvPacked(format) == false)              &&
@@ -4130,13 +4134,6 @@ void InitializeGpuChipProperties(
     pInfo->gfx9.supportShaderSubgroupClock = 1;
     pInfo->gfx9.supportShaderDeviceClock   = 1;
 
-    if (
-        IsGfx10(pInfo->gfxLevel) ||
-        (cpUcodeVersion  >= UcodeVersionWithDumpOffsetSupport))
-    {
-        pInfo->gfx9.supportAddrOffsetDumpAndSetShPkt = 1;
-    }
-
     if (IsGfx10(pInfo->gfxLevel))
     {
         pInfo->gfx9.supportAddrOffsetDumpAndSetShPkt = 1;
@@ -4437,7 +4434,7 @@ void FinalizeGpuChipProperties(
     pInfo->gfx9.numAlwaysOnCus = numAlwaysOnCus;
     PAL_ASSERT((pInfo->gfx9.numActiveCus > 0) && (pInfo->gfx9.numActiveCus <= pInfo->gfx9.numPhysicalCus));
     PAL_ASSERT((pInfo->gfx9.numAlwaysOnCus > 0) && (pInfo->gfx9.numAlwaysOnCus <= pInfo->gfx9.numPhysicalCus));
-    if (IsGfx10(pInfo->gfxLevel))
+    if (IsGfx10Plus(pInfo->gfxLevel))
     {
         pInfo->gfx9.nativeWavefrontSize = 32;
     }
@@ -4845,7 +4842,7 @@ gpusize Device::GetBaseAddress(
         gpuVirtAddr = pBufferSrd->gfx9.word1.bits.BASE_ADDRESS_HI;
         gpuVirtAddr = (gpuVirtAddr << 32) + pBufferSrd->gfx9.word0.bits.BASE_ADDRESS;
     }
-    else if (IsGfx10(m_gfxIpLevel))
+    else if (IsGfx10Plus(m_gfxIpLevel))
     {
         gpuVirtAddr = pBufferSrd->gfx10.base_address;
     }
@@ -4866,7 +4863,7 @@ void Device::SetBaseAddress(
         pSrd->word0.bits.BASE_ADDRESS    = LowPart(baseAddress);
         pSrd->word1.bits.BASE_ADDRESS_HI = HighPart(baseAddress);
     }
-    else if (IsGfx10(m_gfxIpLevel))
+    else if (IsGfx10Plus(m_gfxIpLevel))
     {
         pBufferSrd->gfx10.base_address = baseAddress;
     }
@@ -4901,7 +4898,7 @@ void Device::InitBufferSrd(
         pSrd->word3.bits.DATA_FORMAT     = BUF_DATA_FORMAT_32;
         pSrd->word3.bits.ADD_TID_ENABLE  = 0;
     }
-    else if (IsGfx10(m_gfxIpLevel))
+    else if (IsGfx10Plus(m_gfxIpLevel))
     {
         auto*  pSrd = &pBufferSrd->gfx10;
 
@@ -4939,7 +4936,7 @@ void Device::SetNumRecords(
     {
         pBufferSrd->gfx9.word2.bits.NUM_RECORDS = numRecords;
     }
-    else if (IsGfx10(m_gfxIpLevel))
+    else if (IsGfx10Plus(m_gfxIpLevel))
     {
         pBufferSrd->gfx10.num_records = numRecords;
     }
@@ -4963,7 +4960,7 @@ ColorFormat Device::GetHwColorFmt(
         const MergedFmtInfo*const pFmtInfo = MergedChannelFmtInfoTbl(gfxLevel, &GetPlatform()->PlatformSettings());
         hwColorFmt = HwColorFmt(pFmtInfo, format.format);
     }
-    else if (IsGfx10(m_gfxIpLevel))
+    else if (IsGfx10Plus(m_gfxIpLevel))
     {
         const MergedFlatFmtInfo*const pFmtInfo =
             MergedChannelFlatFmtInfoTbl(gfxLevel, &GetPlatform()->PlatformSettings());
@@ -4987,7 +4984,7 @@ StencilFormat Device::GetHwStencilFmt(
         const MergedFmtInfo*const pFmtInfo = MergedChannelFmtInfoTbl(gfxLevel, &GetPlatform()->PlatformSettings());
         hwStencilFmt = HwStencilFmt(pFmtInfo, format);
     }
-    else if (IsGfx10(m_gfxIpLevel))
+    else if (IsGfx10Plus(m_gfxIpLevel))
     {
         const MergedFlatFmtInfo*const pFmtInfo =
             MergedChannelFlatFmtInfoTbl(gfxLevel, &GetPlatform()->PlatformSettings());
@@ -5012,7 +5009,7 @@ ZFormat Device::GetHwZFmt(
 
         zFmt = HwZFmt(pFmtInfo, format);
     }
-    else if (IsGfx10(m_gfxIpLevel))
+    else if (IsGfx10Plus(m_gfxIpLevel))
     {
         const MergedFlatFmtInfo*const pFmtInfo =
             MergedChannelFlatFmtInfoTbl(gfxLevel, &GetPlatform()->PlatformSettings());

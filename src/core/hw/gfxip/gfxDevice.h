@@ -136,12 +136,11 @@ struct DepthStencilViewInternalCreateInfo
         struct
         {
             uint32 isExpand       : 1;  // true if setting up an expand operation
-            uint32 isResummarize  : 1;  // true if setting up a hiz resummarize operation
             uint32 isDepthClear   : 1;  // true if this is a fast-depth clear
             uint32 isStencilClear : 1;  // true if this is a fast-stencil clear
             uint32 isDepthCopy    : 1;  // true if this is a depth copy
             uint32 isStencilCopy  : 1;  // true if this is a stencil copy
-            uint32 reserved       : 26; // reserved, set to zero
+            uint32 reserved       : 27; // reserved, set to zero
         };
         uint32 u32All;
     } flags;
@@ -666,6 +665,10 @@ public:
     virtual void InitAddrLibChipId(ADDR_CREATE_INPUT*  pInput) const;
 
     static const MsaaQuadSamplePattern DefaultSamplePattern[];
+
+    static uint32 VertsPerPrimitive(
+        PrimitiveTopology topology,
+        uint32            patchControlPoints);
 
 protected:
     uint32 GetCuEnableMaskInternal(uint32 disabledCuMmask, uint32 enabledCuMaskSetting) const;

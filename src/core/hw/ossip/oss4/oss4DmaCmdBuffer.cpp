@@ -378,6 +378,10 @@ uint32* DmaCmdBuffer::WriteCopyGpuMemoryCmd(
     packet.HEADER_UNION.DW_0_DATA           = 0;
     packet.HEADER_UNION.op                  = SDMA_OP_COPY;
     packet.HEADER_UNION.sub_op              = SDMA_SUBOP_COPY_LINEAR;
+    if (copyFlags & DmaCopyFlags::TmzCopy)
+    {
+        packet.HEADER_UNION.tmz = 1;
+    }
     packet.COUNT_UNION.DW_1_DATA            = 0;
     packet.COUNT_UNION.count                = *pBytesCopied - 1;
     packet.PARAMETER_UNION.DW_2_DATA        = 0;
@@ -408,6 +412,7 @@ uint32* DmaCmdBuffer::WriteCopyTypedBuffer(
     packet.HEADER_UNION.op            = SDMA_OP_COPY;
     packet.HEADER_UNION.sub_op        = SDMA_SUBOP_COPY_LINEAR_SUB_WIND;
     packet.HEADER_UNION.elementsize   = Log2(typedBufferInfo.dst.bytesPerElement);
+    packet.HEADER_UNION.tmz           = (typedBufferInfo.flags & DmaCopyFlags::TmzCopy) ? 1 : 0;
 
     // Setup the source base address.
     packet.SRC_ADDR_LO_UNION.src_addr_31_0    = LowPart(typedBufferInfo.src.baseAddr);
@@ -496,6 +501,7 @@ void DmaCmdBuffer::WriteCopyImageLinearToLinearCmd(
     packet.HEADER_UNION.op          = SDMA_OP_COPY;
     packet.HEADER_UNION.sub_op      = SDMA_SUBOP_COPY_LINEAR_SUB_WIND;
     packet.HEADER_UNION.elementsize = Log2(imageCopyInfo.dst.bytesPerPixel);
+    packet.HEADER_UNION.tmz         = IsImageTmzProtected(imageCopyInfo.src);
 
     // Base addresses should be dword aligned.
     PAL_ASSERT (((imageCopyInfo.src.baseAddr & 0x3) == 0) && ((imageCopyInfo.dst.baseAddr & 0x3) == 0));
@@ -591,6 +597,7 @@ void DmaCmdBuffer::WriteCopyImageTiledToTiledCmd(
     packet.HEADER_UNION.op        = SDMA_OP_COPY;
     packet.HEADER_UNION.sub_op    = SDMA_SUBOP_COPY_T2T_SUB_WIND;
     packet.HEADER_UNION.mip_max   = 0; // HW says to tie this to zero
+    packet.HEADER_UNION.tmz       = IsImageTmzProtected(imageCopyInfo.src);
 
     // Like everything else with the DMA docs, they are unclear what to do in this case...
     PAL_ASSERT (GetMaxMip(src) == GetMaxMip(dst));
@@ -758,6 +765,7 @@ uint32* DmaCmdBuffer::WriteCopyMemToLinearImageCmd(
     packet.HEADER_UNION.op          = SDMA_OP_COPY;
     packet.HEADER_UNION.sub_op      = SDMA_SUBOP_COPY_LINEAR_SUB_WIND;
     packet.HEADER_UNION.elementsize = Log2(dstImage.bytesPerPixel);
+    packet.HEADER_UNION.tmz         = srcGpuMemory.IsTmzProtected();
 
     // Setup the source base address.
     const gpusize srcBaseAddr = srcGpuMemory.Desc().gpuVirtAddr + rgn.gpuMemoryOffset;
@@ -820,6 +828,7 @@ uint32* DmaCmdBuffer::WriteCopyLinearImageToMemCmd(
     packet.HEADER_UNION.op          = SDMA_OP_COPY;
     packet.HEADER_UNION.sub_op      = SDMA_SUBOP_COPY_LINEAR_SUB_WIND;
     packet.HEADER_UNION.elementsize = Log2(srcImage.bytesPerPixel);
+    packet.HEADER_UNION.tmz         = IsImageTmzProtected(srcImage);
 
     // Setup the source base address.
     packet.SRC_ADDR_LO_UNION.src_addr_31_0  = LowPart(srcImage.baseAddr);
@@ -1052,6 +1061,7 @@ uint32* DmaCmdBuffer::CopyImageLinearTiledTransform(
     packet.HEADER_UNION.detile    = deTile;
     packet.HEADER_UNION.mip_id    = tiledImg.pSubresInfo->subresId.mipLevel;
     packet.HEADER_UNION.mip_max   = GetMaxMip(tiledImg);
+    packet.HEADER_UNION.tmz       = IsImageTmzProtected(copyInfo.src);
 
     // Setup the tiled surface here.
     packet.TILED_ADDR_LO_UNION.tiled_addr_31_0  = LowPart(tiledImg.baseAddr);
@@ -1128,6 +1138,7 @@ uint32* DmaCmdBuffer::CopyImageMemTiledTransform(
     packet.HEADER_UNION.detile    = deTile; // One packet handles both directions.
     packet.HEADER_UNION.mip_id    = image.pSubresInfo->subresId.mipLevel;
     packet.HEADER_UNION.mip_max   = GetMaxMip(image);
+    packet.HEADER_UNION.tmz       = deTile ? IsImageTmzProtected(image) : gpuMemory.IsTmzProtected();
 
     // Setup the tiled surface here.
     packet.TILED_ADDR_LO_UNION.tiled_addr_31_0  = LowPart(image.baseAddr);

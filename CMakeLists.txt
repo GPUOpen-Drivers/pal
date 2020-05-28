@@ -43,6 +43,7 @@ option(PAL_BUILD_GPUOPEN "Build GPUOpen developer driver support?" OFF)
 option(PAL_DBG_COMMAND_COMMENTS "Command with comments" OFF)
 
 option(PAL_ENABLE_PRINTS_ASSERTS "Enable print assertions?" OFF)
+option(PAL_ENABLE_PRINTS_ASSERTS_DEBUG "Enable print assertions on debug builds?" ON)
 
 option(PAL_MEMTRACK "Enable PAL memory tracker?" OFF)
 
@@ -130,8 +131,9 @@ endif()
 # These are options that override PAL subproject options.  As these overrides are managed and force
 # set by PAL, mark_as_advanced is used to hide them from the CMake GUI.
 
+option(PAL_ENABLE_LTO "Enable LTO" ON)
 # ADDRLIB
-set(ADDR_ENABLE_LTO OFF ${ENABLE_LTO})
+set(ADDR_ENABLE_LTO ${PAL_ENABLE_LTO} CACHE BOOL "PAL override to build ADDRLIB without lto support." FORCE)
 set(PAL_ADDR_PATH ${PROJECT_SOURCE_DIR}/src/core/imported/addrlib CACHE PATH "Specify the path to the ADDRLIB project.")
 set(ADDR_OPTIONS_MARK_ADVANCED ON)
 
@@ -176,7 +178,7 @@ set(PAL_METROHASH_PATH ${PROJECT_SOURCE_DIR}/src/util/imported/metrohash CACHE P
 set(PAL_CWPACK_PATH ${PROJECT_SOURCE_DIR}/src/util/imported/cwpack CACHE PATH "Specify the path to the CWPack project.")
 
 # VAM
-set(VAM_ENABLE_LTO ${ENABLE_LTO})
+set(VAM_ENABLE_LTO ${PAL_ENABLE_LTO} CACHE BOOL "PAL override to build ADDRLIB without lto support." FORCE)
 set(PAL_VAM_PATH ${PROJECT_SOURCE_DIR}/src/core/imported/vam CACHE PATH "Specify the path to the VAM project.")
 
 # GPUOPEN

@@ -473,7 +473,7 @@ Result UniversalRingSet::Validate(
                 m_regs.vgtTfMemoryBaseLo.bits.BASE    = addrLo;
                 m_regs.vgtTfMemoryBaseHi.bits.BASE_HI = addrHi;
             }
-            else if (IsGfx10(m_gfxLevel))
+            else if (IsGfx10Plus(m_gfxLevel))
             {
                 m_regs.vgtTfMemoryBaseLo.u32All = addrLo;
                 m_regs.vgtTfMemoryBaseHi.u32All = addrHi;

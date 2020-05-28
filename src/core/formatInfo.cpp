@@ -439,7 +439,7 @@ ChNumFormat PAL_STDCALL ConvertToUnorm(
         ChNumFormat::X8_Unorm,              // ChNumFormat::X8_Srgb
         ChNumFormat::A8_Unorm,              // ChNumFormat::A8_Unorm
         ChNumFormat::L8_Unorm,              // ChNumFormat::L8_Unorm
-        ChNumFormat::Undefined,             // ChNumFormat::P8_Uint
+        ChNumFormat::P8_Unorm,              // ChNumFormat::P8_Unorm
         ChNumFormat::X8Y8_Unorm,            // ChNumFormat::X8Y8_Unorm
         ChNumFormat::X8Y8_Unorm,            // ChNumFormat::X8Y8_Snorm
         ChNumFormat::X8Y8_Unorm,            // ChNumFormat::X8Y8_Uscaled
@@ -631,7 +631,7 @@ ChNumFormat PAL_STDCALL ConvertToSnorm(
         ChNumFormat::X8_Snorm,              // ChNumFormat::X8_Srgb
         ChNumFormat::Undefined,             // ChNumFormat::A8_Unorm
         ChNumFormat::Undefined,             // ChNumFormat::L8_Unorm
-        ChNumFormat::Undefined,             // ChNumFormat::P8_Uint
+        ChNumFormat::Undefined,             // ChNumFormat::P8_Unorm
         ChNumFormat::X8Y8_Snorm,            // ChNumFormat::X8Y8_Unorm
         ChNumFormat::X8Y8_Snorm,            // ChNumFormat::X8Y8_Snorm
         ChNumFormat::X8Y8_Snorm,            // ChNumFormat::X8Y8_Uscaled
@@ -823,7 +823,7 @@ ChNumFormat PAL_STDCALL ConvertToUscaled(
         ChNumFormat::X8_Uscaled,            // ChNumFormat::X8_Srgb
         ChNumFormat::Undefined,             // ChNumFormat::A8_Unorm
         ChNumFormat::Undefined,             // ChNumFormat::L8_Unorm
-        ChNumFormat::Undefined,             // ChNumFormat::P8_Uint
+        ChNumFormat::Undefined,             // ChNumFormat::P8_Unorm
         ChNumFormat::X8Y8_Uscaled,          // ChNumFormat::X8Y8_Unorm
         ChNumFormat::X8Y8_Uscaled,          // ChNumFormat::X8Y8_Snorm
         ChNumFormat::X8Y8_Uscaled,          // ChNumFormat::X8Y8_Uscaled
@@ -1015,7 +1015,7 @@ ChNumFormat PAL_STDCALL ConvertToSscaled(
         ChNumFormat::X8_Sscaled,            // ChNumFormat::X8_Srgb
         ChNumFormat::Undefined,             // ChNumFormat::A8_Unorm
         ChNumFormat::Undefined,             // ChNumFormat::L8_Unorm
-        ChNumFormat::Undefined,             // ChNumFormat::P8_Uint
+        ChNumFormat::Undefined,             // ChNumFormat::P8_Unorm
         ChNumFormat::X8Y8_Sscaled,          // ChNumFormat::X8Y8_Unorm
         ChNumFormat::X8Y8_Sscaled,          // ChNumFormat::X8Y8_Snorm
         ChNumFormat::X8Y8_Sscaled,          // ChNumFormat::X8Y8_Uscaled
@@ -1207,7 +1207,7 @@ ChNumFormat PAL_STDCALL ConvertToUint(
         ChNumFormat::X8_Uint,               // ChNumFormat::X8_Srgb
         ChNumFormat::Undefined,             // ChNumFormat::A8_Unorm
         ChNumFormat::Undefined,             // ChNumFormat::L8_Unorm
-        ChNumFormat::P8_Uint,               // ChNumFormat::P8_Uint
+        ChNumFormat::Undefined,             // ChNumFormat::P8_Unorm
         ChNumFormat::X8Y8_Uint,             // ChNumFormat::X8Y8_Unorm
         ChNumFormat::X8Y8_Uint,             // ChNumFormat::X8Y8_Snorm
         ChNumFormat::X8Y8_Uint,             // ChNumFormat::X8Y8_Uscaled
@@ -1399,7 +1399,7 @@ ChNumFormat PAL_STDCALL ConvertToSint(
         ChNumFormat::X8_Sint,               // ChNumFormat::X8_Srgb
         ChNumFormat::Undefined,             // ChNumFormat::A8_Unorm
         ChNumFormat::Undefined,             // ChNumFormat::L8_Unorm
-        ChNumFormat::Undefined,             // ChNumFormat::P8_Uint
+        ChNumFormat::Undefined,             // ChNumFormat::P8_Unorm
         ChNumFormat::X8Y8_Sint,             // ChNumFormat::X8Y8_Unorm
         ChNumFormat::X8Y8_Sint,             // ChNumFormat::X8Y8_Snorm
         ChNumFormat::X8Y8_Sint,             // ChNumFormat::X8Y8_Uscaled
@@ -1591,7 +1591,7 @@ ChNumFormat PAL_STDCALL ConvertToFloat(
         ChNumFormat::Undefined,             // ChNumFormat::X8_Srgb
         ChNumFormat::Undefined,             // ChNumFormat::A8_Unorm
         ChNumFormat::Undefined,             // ChNumFormat::L8_Unorm
-        ChNumFormat::Undefined,             // ChNumFormat::P8_Uint
+        ChNumFormat::Undefined,             // ChNumFormat::P8_Unorm
         ChNumFormat::Undefined,             // ChNumFormat::X8Y8_Unorm
         ChNumFormat::Undefined,             // ChNumFormat::X8Y8_Snorm
         ChNumFormat::Undefined,             // ChNumFormat::X8Y8_Uscaled
@@ -1783,7 +1783,7 @@ ChNumFormat PAL_STDCALL ConvertToSrgb(
         ChNumFormat::X8_Srgb,               // ChNumFormat::X8_Srgb
         ChNumFormat::Undefined,             // ChNumFormat::A8_Unorm
         ChNumFormat::Undefined,             // ChNumFormat::L8_Unorm
-        ChNumFormat::Undefined,             // ChNumFormat::P8_Uint
+        ChNumFormat::Undefined,             // ChNumFormat::P8_Unorm
         ChNumFormat::X8Y8_Srgb,             // ChNumFormat::X8Y8_Unorm
         ChNumFormat::X8Y8_Srgb,             // ChNumFormat::X8Y8_Snorm
         ChNumFormat::X8Y8_Srgb,             // ChNumFormat::X8Y8_Uscaled
@@ -2005,7 +2005,7 @@ bool ShareChFmt(
     case ChNumFormat::L4A4_Unorm:
     case ChNumFormat::A8_Unorm:
     case ChNumFormat::L8_Unorm:
-    case ChNumFormat::P8_Uint:
+    case ChNumFormat::P8_Unorm:
     case ChNumFormat::L8A8_Unorm:
     case ChNumFormat::X10Y11Z11_Float:
     case ChNumFormat::X11Y11Z10_Float:

@@ -231,6 +231,7 @@ public:
         ImageLayout            dstImageLayout,
         uint32                 regionCount,
         const ImageCopyRegion* pRegions,
+        const Rect*            pScissorRect,
         uint32                 flags) override;
     virtual void CmdScaledCopyImage(
         const ScaledCopyInfo& copyInfo) override;
@@ -335,7 +336,8 @@ public:
         ImageLayout               dstImageLayout,
         ResolveMode               resolveMode,
         uint32                    regionCount,
-        const ImageResolveRegion* pRegions) override;
+        const ImageResolveRegion* pRegions,
+        uint32                    flags) override;
     virtual void CmdSetEvent(
         const IGpuEvent& gpuEvent,
         HwPipePoint      setPoint) override;

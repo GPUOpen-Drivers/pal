@@ -652,6 +652,11 @@ void LogContext::Struct(
     }
 #endif
 
+    if (value.flags.enableTmz)
+    {
+        Value("enableTmz");
+    }
+
     EndList();
 
     if (value.pInheritedState != nullptr)
@@ -1300,6 +1305,11 @@ void LogContext::Struct(
         Value("busAddressable");
     }
 
+    if (value.tmzProtected)
+    {
+        Value("tmzProtected");
+    }
+
     EndList();
 }
 
@@ -1395,7 +1405,6 @@ void LogContext::Struct(
         {
             KeyAndEnum("primitiveType", value.iaState.topologyInfo.primitiveType);
             KeyAndValue("patchControlPoints", value.iaState.topologyInfo.patchControlPoints);
-            KeyAndValue("adjacency", value.iaState.topologyInfo.adjacency);
         }
         EndMap();
     }
@@ -2665,6 +2674,13 @@ void LogContext::Struct(
     {
         KeyAndNullValue("srcColorKey");
     }
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 603
+    if (value.pScissorRect != nullptr)
+    {
+        KeyAndStruct("scissorRect", *value.pScissorRect);
+    }
+#endif
 
     KeyAndStruct("flags", value.flags);
     EndMap();

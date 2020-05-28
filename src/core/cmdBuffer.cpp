@@ -770,7 +770,7 @@ void CmdBuffer::CmdBarrier(
                         }
                     }
 
-                    PAL_ASSERT(otherAspectFound);
+                    PAL_ALERT(otherAspectFound == false);
 
                     processed[idx] = true;
                 } // end check for an image that needs more validation
@@ -1232,7 +1232,7 @@ void CmdBuffer::VerifyBarrierTransitions(
                     }
                 }
 
-                PAL_ASSERT(otherAspectFound);
+                PAL_ALERT(otherAspectFound == false);
 
                 processed[idx] = true;
             } // end check for an image that needs more validation

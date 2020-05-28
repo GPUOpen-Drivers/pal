@@ -628,7 +628,7 @@ void UniversalCmdBuffer::ResetState()
     }
 
     // For IndexBuffers - default to STREAM cache policy so that they get evicted from L2 as soon as possible.
-    if (IsGfx10(m_gfxIpLevel))
+    if (IsGfx10Plus(m_gfxIpLevel))
     {
         m_vgtDmaIndexType.gfx10Plus.RDREQ_POLICY = VGT_POLICY_STREAM;
 
@@ -1577,19 +1577,18 @@ void UniversalCmdBuffer::CmdBindTargets(
             // Set the bit means this color target slot is not bound to a NULL target.
             newColorTargetMask |= (1 << slot);
 
-            const auto* pImage        = pNewView->GetImage();
-            auto*       pGfx10NewView = static_cast<const Gfx10ColorTargetView*>(pNewView);
+            const auto* pImage = pNewView->GetImage();
 
-            if (IsGfx10(m_gfxIpLevel) && (pImage != nullptr))
+            if (pImage != nullptr)
             {
-                colorBigPage &= pGfx10NewView->IsColorBigPage();
+                colorBigPage &= pNewView->IsColorBigPage();
 
                 // There is a shared bit to enable the BIG_PAGE optimization for all targets.  If this image doesn't
                 // have fmask we should leave the accumulated fmaskBigPage state alone so other render targets that
                 // do have fmask can still get the optimization.
                 if (pImage->HasFmaskData())
                 {
-                    fmaskBigPage      &= pGfx10NewView->IsFmaskBigPage();
+                    fmaskBigPage      &= pNewView->IsFmaskBigPage();
                     validAaCbViewFound = true;
                 }
             }
@@ -1833,7 +1832,7 @@ void UniversalCmdBuffer::CmdBindStreamOutTargets(
                 pSrd->word3.bits.DATA_FORMAT     = BUF_DATA_FORMAT_32;
                 pSrd->word3.bits.NUM_FORMAT      = BUF_NUM_FORMAT_UINT;
             }
-            else if (IsGfx10(m_gfxIpLevel))
+            else if (IsGfx10Plus(m_gfxIpLevel))
             {
                 auto*const  pSrd = &pBufferSrd->gfx10;
 
@@ -3075,18 +3074,15 @@ uint32* UniversalCmdBuffer::WriteNullDepthTarget(
                                                          &regs2,
                                                          pCmdSpace);
     }
-    else if (IsGfx10(m_gfxIpLevel))
+    else
     {
+        PAL_ASSERT(IsGfx10Plus(m_gfxIpLevel));
+
         pCmdSpace = m_deCmdStream.WriteSetSeqContextRegs(Gfx10Plus::mmDB_Z_INFO,
                                                          Gfx10Plus::mmDB_STENCIL_INFO,
                                                          &regs2,
                                                          pCmdSpace);
 
-    }
-    else
-    {
-        // What is this?
-        PAL_ASSERT_ALWAYS();
     }
 
     pCmdSpace = m_deCmdStream.WriteSetSeqContextRegs(mmDB_RENDER_OVERRIDE2, mmDB_HTILE_DATA_BASE, &regs1, pCmdSpace);
@@ -3293,7 +3289,7 @@ Result UniversalCmdBuffer::AddPreamble()
     const uint32  mmPaStateStereoX = m_cmdUtil.GetRegInfo().mmPaStateStereoX;
     if (mmPaStateStereoX != 0)
     {
-        if (IsGfx10(m_gfxIpLevel))
+        if (IsGfx10Plus(m_gfxIpLevel))
         {
             pDeCmdSpace = m_deCmdStream.WriteSetOneContextReg(mmPaStateStereoX, 0, pDeCmdSpace);
         }
@@ -4058,11 +4054,12 @@ void UniversalCmdBuffer::UpdateUavExportTable()
     for (uint32 idx = 0; idx < m_uavExportTable.maxColorTargets; ++idx)
     {
         const auto* pTargetView = m_graphicsState.bindTargets.colorTargets[idx].pColorTargetView;
+
         if (pTargetView != nullptr)
         {
-            PAL_ASSERT(IsGfx10(m_gfxIpLevel));
-            const Gfx10ColorTargetView* pGfx10TargetView = static_cast<const Gfx10ColorTargetView*>(pTargetView);
-            pGfx10TargetView->GetImageSrd(m_device, &m_uavExportTable.srd[idx]);
+            const auto* pGfxTargetView = static_cast<const ColorTargetView*>(pTargetView);
+
+            pGfxTargetView->GetImageSrd(m_device, &m_uavExportTable.srd[idx]);
         }
         else
         {
@@ -4954,8 +4951,9 @@ uint32* UniversalCmdBuffer::UpdateNggCullingDataBufferWithGpu(
 
             if (m_nggState.numSamples > 0)
             {
-                // If the clients have specified a default sample layout we can use the number of samples as a multiplier.
-                // However, if custom sample positions are in use we need to assume the worst case sample count (16).
+                // If the clients have specified a default sample layout we can use the number of samples as a
+                // multiplier. However, if custom sample positions are in use we need to assume the worst case sample
+                // count (16).
                 const MsaaQuadSamplePattern& defaultSamplePattern =
                     GfxDevice::DefaultSamplePattern[Log2(m_nggState.numSamples)];
                 const float multiplier =
@@ -5196,7 +5194,7 @@ uint32* UniversalCmdBuffer::ValidateDraw(
                                                              pDeCmdSpace,
                                                              index__pfp_set_uconfig_reg_index__multi_vgt_param__GFX09);
         }
-        else if (IsGfx10(m_gfxIpLevel))
+        else if (IsGfx10Plus(m_gfxIpLevel))
         {
             const bool   lineStippleEnabled = (pMsaaState != nullptr) ? pMsaaState->UsesLineStipple() : false;
             const uint32 geCntl             = CalcGeCntl<IsNgg>(lineStippleEnabled, iaMultiVgtParam);
@@ -6544,7 +6542,7 @@ uint32 UniversalCmdBuffer::CalcGeCntl(
         // Zero is a legal value for VERT_GRP_SIZE. Other low values are illegal.
         if (geCntl.bits.VERT_GRP_SIZE != 0)
         {
-            if (IsGfx101(*m_device.Parent()))
+            if (IsGfx101(m_gfxIpLevel))
             {
                 if (geCntl.bits.VERT_GRP_SIZE < 24)
                 {
@@ -6554,14 +6552,13 @@ uint32 UniversalCmdBuffer::CalcGeCntl(
         }
     }
 
-    // Only used for line-stipple
+    // Note that the only real case in production to use packet_to_one_pa = 1 is when using the PA line stipple mode
+    // which requires the entire packet to be sent to a single PA.
     geCntl.bits.PACKET_TO_ONE_PA = usesLineStipple;
 
     //  ... "the only time break_wave_at_eoi is needed, is for primitive_id/patch_id with tessellation."
     //  ... "I think every DS requires a valid PatchId".
     geCntl.bits.BREAK_WAVE_AT_EOI = isTess;
-
-    geCntl.bits.PACKET_TO_ONE_PA  = (iaMultiVgtParam.bits.WD_SWITCH_ON_EOP && iaMultiVgtParam.bits.SWITCH_ON_EOP);
 
     return geCntl.u32All;
 }
@@ -6817,7 +6814,7 @@ uint32* UniversalCmdBuffer::ValidateDispatch(
                                                       pDeCmdSpace);
     }
 
-    if (IsGfx10(m_gfxIpLevel))
+    if (IsGfx10Plus(m_gfxIpLevel))
     {
         const regCOMPUTE_DISPATCH_TUNNEL dispatchTunnel = { };
         pDeCmdSpace = m_deCmdStream.WriteSetOneShReg<ShaderCompute>(Gfx10Plus::mmCOMPUTE_DISPATCH_TUNNEL,
@@ -7140,7 +7137,7 @@ uint32* UniversalCmdBuffer::UpdateDbCountControl(
         pDbCountControl->bits.ZPASS_ENABLE            = 1;
         pDbCountControl->bits.ZPASS_INCREMENT_DISABLE = 0;
 
-        if (IsGfx10(m_gfxIpLevel))
+        if (IsGfx10Plus(m_gfxIpLevel))
         {
             pDbCountControl->gfx10Plus.DISABLE_CONSERVATIVE_ZPASS_COUNTS = 1;
         }
@@ -7201,8 +7198,11 @@ bool UniversalCmdBuffer::ForceWdSwitchOnEop(
     {
         const uint32 primGroupSize = pipeline.IaMultiVgtParam(false).bits.PRIMGROUP_SIZE + 1;
 
-        PAL_ASSERT(pipeline.VertsPerPrimitive() != 0);
-        const uint32 primCount     = drawInfo.vtxIdxCount / pipeline.VertsPerPrimitive();
+        const uint32 patchControlPoints = pipeline.VgtLsHsConfig().bits.HS_NUM_INPUT_CP;
+        const uint32 vertsPerPrim = GfxDevice::VertsPerPrimitive(m_graphicsState.inputAssemblyState.topology,
+                                                                 patchControlPoints);
+        PAL_ASSERT(vertsPerPrim > 0);
+        const uint32 primCount  = drawInfo.vtxIdxCount / vertsPerPrim;
 
         const bool   singlePrimGrp = (primCount <= primGroupSize);
         const bool   multiInstance = (drawInfo.instanceCount > 1);
@@ -8329,7 +8329,7 @@ uint8 UniversalCmdBuffer::CheckStreamOutBufferStridesOnPipelineSwitch()
             srdNumRecords = pBufferSrd->gfx9.word2.bits.NUM_RECORDS;
             srdStride     = pBufferSrd->gfx9.word1.bits.STRIDE;
         }
-        else if (IsGfx10(m_gfxIpLevel))
+        else if (IsGfx10Plus(m_gfxIpLevel))
         {
             srdNumRecords = pBufferSrd->gfx10.num_records;
             srdStride     = pBufferSrd->gfx10.stride;
@@ -8342,7 +8342,7 @@ uint8 UniversalCmdBuffer::CheckStreamOutBufferStridesOnPipelineSwitch()
                 pBufferSrd->gfx9.word2.bits.NUM_RECORDS = numRecords;
                 pBufferSrd->gfx9.word1.bits.STRIDE      = strideInBytes;
             }
-            else if (IsGfx10(m_gfxIpLevel))
+            else if (IsGfx10Plus(m_gfxIpLevel))
             {
                 pBufferSrd->gfx10.num_records = numRecords;
                 pBufferSrd->gfx10.stride      = strideInBytes;
@@ -8530,7 +8530,7 @@ void UniversalCmdBuffer::CmdExecuteNestedCmdBuffers(
         const bool exclusiveSubmit  = pCallee->IsExclusiveSubmit();
         const bool allowIb2Launch   = (pCallee->AllowLaunchViaIb2() &&
                                        ((pCallee->m_state.flags.containsDrawIndirect == 0) ||
-                                       (IsGfx10(m_gfxIpLevel) == true)));
+                                       IsGfx10Plus(m_gfxIpLevel)));
         const bool allowIb2LaunchCe = (allowIb2Launch && (m_cachedSettings.waCeDisableIb2 == 0));
 
         m_deCmdStream.TrackNestedEmbeddedData(pCallee->m_embeddedData.chunkList);

@@ -5024,7 +5024,10 @@ void UniversalCmdBuffer::UpdatePrimGroupOpt(
         // Compute the optimal primgroup size. The calculation is simple, compute the average primgroup size over the
         // window, divide by the number of prims per clock, round to a multiple of the step, and clamp to the min/max.
         const uint32 primRate      = m_device.Parent()->ChipProperties().primsPerClock;
-        const uint64 primTotal     = m_primGroupOpt.vtxIdxTotal / pipeline.VertsPerPrimitive();
+        const uint32 patchControlPoints = pipeline.VgtLsHsConfig().bits.HS_NUM_INPUT_CP;
+        const uint32 vertsPerPrim  = GfxDevice::VertsPerPrimitive(m_graphicsState.inputAssemblyState.topology,
+                                                                  patchControlPoints);
+        const uint64 primTotal     = m_primGroupOpt.vtxIdxTotal / vertsPerPrim;
         const uint32 rawGroupSize  = static_cast<uint32>(primTotal / (windowSize * primRate));
         const uint32 roundedSize   = static_cast<uint32>(Pow2AlignDown(rawGroupSize, m_primGroupOpt.step));
         m_primGroupOpt.optimalSize = Min(m_primGroupOpt.maxSize, Max(m_primGroupOpt.minSize, roundedSize));
@@ -5099,9 +5102,11 @@ bool UniversalCmdBuffer::ForceWdSwitchOnEop(
         const uint32 primGroupSize =
             (m_primGroupOpt.optimalSize > 0) ? m_primGroupOpt.optimalSize
                                              : (pipeline.IaMultiVgtParam(false).bits.PRIMGROUP_SIZE + 1);
-
-        PAL_ASSERT(pipeline.VertsPerPrimitive() != 0);
-        const uint32 primCount     = drawInfo.vtxIdxCount / pipeline.VertsPerPrimitive();
+        const uint32 patchControlPoints = pipeline.VgtLsHsConfig().bits.HS_NUM_INPUT_CP;
+        const uint32 vertsPerPrim = GfxDevice::VertsPerPrimitive(m_graphicsState.inputAssemblyState.topology,
+                                                                 patchControlPoints);
+        PAL_ASSERT(vertsPerPrim > 0);
+        const uint32 primCount  = drawInfo.vtxIdxCount / vertsPerPrim;
 
         const bool   singlePrimGrp = (primCount <= primGroupSize);
         const bool   multiInstance = (drawInfo.instanceCount > 1);

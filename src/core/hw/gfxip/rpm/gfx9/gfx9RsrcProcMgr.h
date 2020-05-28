@@ -696,6 +696,10 @@ private:
         Pal::CmdStream* pCmdStream,
         uint32          restoreMask) const override;
 
+    virtual void HwlGfxDccToDisplayDcc(
+        GfxCmdBuffer*     pCmdBuffer,
+        const Pal::Image& image) const override;
+
     PAL_DISALLOW_DEFAULT_CTOR(Gfx10RsrcProcMgr);
     PAL_DISALLOW_COPY_AND_ASSIGN(Gfx10RsrcProcMgr);
 };

@@ -564,6 +564,7 @@ void GfxCmdBuffer::CmdCopyImage(
     ImageLayout            dstImageLayout,
     uint32                 regionCount,
     const ImageCopyRegion* pRegions,
+    const Rect*            pScissorRect,
     uint32                 flags)
 {
     PAL_ASSERT(pRegions != nullptr);
@@ -574,6 +575,7 @@ void GfxCmdBuffer::CmdCopyImage(
                                         dstImageLayout,
                                         regionCount,
                                         pRegions,
+                                        pScissorRect,
                                         flags);
 }
 
@@ -647,6 +649,10 @@ void GfxCmdBuffer::CmdCopyMemoryToTiledImage(
             copyRegions[i].gpuMemoryOffset     = pRegions[i].gpuMemoryOffset;
             copyRegions[i].gpuMemoryRowPitch   = pRegions[i].gpuMemoryRowPitch;
             copyRegions[i].gpuMemoryDepthPitch = pRegions[i].gpuMemoryDepthPitch;
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 583
+            copyRegions[i].swizzledFormat      = {};
+#endif
         }
 
         m_device.RsrcProcMgr().CmdCopyMemoryToImage(this,
@@ -693,6 +699,10 @@ void GfxCmdBuffer::CmdCopyTiledImageToMemory(
             copyRegions[i].gpuMemoryOffset     = pRegions[i].gpuMemoryOffset;
             copyRegions[i].gpuMemoryRowPitch   = pRegions[i].gpuMemoryRowPitch;
             copyRegions[i].gpuMemoryDepthPitch = pRegions[i].gpuMemoryDepthPitch;
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 583
+            copyRegions[i].swizzledFormat      = {};
+#endif
         }
 
         m_device.RsrcProcMgr().CmdCopyImageToMemory(this,
@@ -781,6 +791,12 @@ void GfxCmdBuffer::CmdPostProcessFrame(
         if (m_device.GetPlatform()->ShowDevDriverOverlay())
         {
             m_device.Parent()->ApplyDevOverlay(presentedImage, this);
+            addedGpuWork = true;
+        }
+
+        if (image.GetGfxImage()->HasDisplayDccData())
+        {
+            m_device.RsrcProcMgr().CmdGfxDccToDisplayDcc(this, image);
             addedGpuWork = true;
         }
     }
@@ -1004,7 +1020,8 @@ void GfxCmdBuffer::CmdResolveImage(
     ImageLayout               dstImageLayout,
     ResolveMode               resolveMode,
     uint32                    regionCount,
-    const ImageResolveRegion* pRegions)
+    const ImageResolveRegion* pRegions,
+    uint32                    flags)
 {
     PAL_ASSERT(pRegions != nullptr);
     m_device.RsrcProcMgr().CmdResolveImage(this,
@@ -1014,7 +1031,8 @@ void GfxCmdBuffer::CmdResolveImage(
                                            dstImageLayout,
                                            resolveMode,
                                            regionCount,
-                                           pRegions);
+                                           pRegions,
+                                           flags);
 }
 
 // =====================================================================================================================

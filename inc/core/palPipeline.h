@@ -67,11 +67,12 @@ enum class ShaderType : uint32
     Reserved1,      ///< @internal Reserved for future features.  Do not use!
 #endif
     Pixel,
+
+    Count
 };
 
 /// Number of shader program types supported by PAL.
-constexpr uint32 NumShaderTypes =
-    (1u + static_cast<uint32>(ShaderType::Pixel) - static_cast<uint32>(ShaderType::Compute));
+constexpr uint32 NumShaderTypes = static_cast<uint32>(ShaderType::Count);
 
 /// Maximum number of viewports.
 constexpr uint32 MaxViewports = 16;
@@ -110,6 +111,14 @@ enum class ShadeMode : uint32
 {
     Gouraud = 0x0,      ///< Gouraud shading mode, pixel shader input is interpolation of vertex
     Flat    = 0x1       ///< Flat shading mode, pixel shader input from provoking vertex
+};
+
+/// Specifies pixel shader shading rate
+enum class PsShadingRate : uint32
+{
+    Default    = 0x0,   ///< Let PS specify the shading rate
+    SampleRate = 0x1,   ///< Forced per-sample shading rate
+    PixelRate  = 0x2    ///< Forced per-pixel shading rate
 };
 
 /// Defines a logical operation applied between the color coming from the pixel shader and the current value in the
@@ -266,7 +275,9 @@ struct GraphicsPipelineCreateInfo
             PrimitiveType primitiveType;       ///< Basic primitive category: points, line, triangles, patches.
             uint32        patchControlPoints;  ///< Number of control points per patch.  Only required if primitiveType
                                                ///  is PrimitiveType::Patch.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 608
             bool          adjacency;           ///< Primitive includes adjacency info.
+#endif
         } topologyInfo;                        ///< Various information about the primitive topology that will be used
                                                ///  with this pipeline.  All of this info must be consistent with the
                                                ///  full topology specified by ICmdBuffer::SetPrimitiveTopology() when
@@ -298,6 +309,11 @@ struct GraphicsPipelineCreateInfo
         bool            depthClampDisable;         ///< Disable depth clamping to viewport min/max depth
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 524
         uint8           clipDistMask;              ///< Mask to indicate the clipDistance.
+#endif
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 598
+        PsShadingRate   forcedShadingRate;         ///< Forced PS shading rate
+#elif PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 524
         bool            forceSampleRateShading;    ///< Force per sample shading
 #endif
     } rsState;             ///< Rasterizer state.

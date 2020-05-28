@@ -315,39 +315,47 @@ Result ShaderLibrary::UnpackStackFrameSize(
 
         for (uint32 i = item.map.size; ((result == Result::Success) && (i > 0)); --i)
         {
-            result = pMetadataReader->Next(CWP_ITEM_STR);
+            ShaderFuncStats stats;
 
-            if ((result == Result::Success) &&
-                (strncmp(pShaderExportName,static_cast<const char*>(item.str.start), item.str.length) == 0) &&
-                (strlen(pShaderExportName) == item.str.length))
+            result = pMetadataReader->Next(CWP_ITEM_STR);
+            if (result == Result::Success)
+            {
+                stats.symbolNameLength = item.str.length;
+                stats.pSymbolName      = static_cast<const char*>(item.str.start);
+            }
+
+            if (result == Result::Success)
             {
                 result = pMetadataReader->Next(CWP_ITEM_MAP);
+            }
+
+            for (uint32 j = item.map.size; ((result == Result::Success) && (j > 0)); --j)
+            {
+                result = pMetadataReader->Next(CWP_ITEM_STR);
 
                 if (result == Result::Success)
                 {
-                    for (uint32 j = item.map.size; ((result == Result::Success) && (j > 0)); --j)
+                    switch (HashString(static_cast<const char*>(item.str.start), item.str.length))
                     {
-                        result = pMetadataReader->Next(CWP_ITEM_STR);
-
-                        if (result == Result::Success)
+                    case HashLiteralString(".stack_frame_size_in_bytes"):
+                    {
+                        result = pMetadataReader->UnpackNext(&stats.stackFrameSizeInBytes);
+                        if ((result == Result::Success) &&
+                            (strncmp(pShaderExportName, stats.pSymbolName, stats.symbolNameLength) == 0) &&
+                            (strlen(pShaderExportName) == stats.symbolNameLength))
                         {
-                            switch (HashString(static_cast<const char*>(item.str.start), item.str.length))
-                            {
-                            case HashLiteralString(".stack_frame_size_in_bytes"):
-                            {
-                                result = pMetadataReader->UnpackNext(pStackFrameSizeInBytes);
-                                break;
-                            }
-
-                            default:
-                                result = pMetadataReader->Skip(1);
-                                break;
-                            }
+                            *pStackFrameSizeInBytes = stats.stackFrameSizeInBytes;
                         }
                     }
+                    break;
+
+                    default:
+                        result = pMetadataReader->Skip(1);
+                       break;
+                    }
                 }
-                break;
             }
+
         }
     }
 

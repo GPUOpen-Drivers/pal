@@ -37,88 +37,7 @@ namespace Addr
 {
 namespace V2
 {
-/**
-************************************************************************************************************************
-* @brief Bit setting for swizzle pattern
-************************************************************************************************************************
-*/
-union ADDR_BIT_SETTING
-{
-    struct
-    {
-        UINT_16 x;
-        UINT_16 y;
-        UINT_16 z;
-        UINT_16 s;
-    };
-    UINT_64 value;
-};
-
-/**
-************************************************************************************************************************
-* @brief Swizzle pattern information
-************************************************************************************************************************
-*/
-struct ADDR_SW_PATINFO
-{
-    UINT_8  maxItemCount;
-    UINT_8  nibble01Idx;
-    UINT_16 nibble2Idx;
-    UINT_16 nibble3Idx;
-    UINT_8  nibble4Idx;
-};
-
-/**
-************************************************************************************************************************
-*   InitBit
-*
-*   @brief
-*       Initialize bit setting value via a return value
-************************************************************************************************************************
-*/
-#define InitBit(c, index) (1ull << ((c << 4) + index))
-
-const UINT_64 X0  = InitBit(0,  0);
-const UINT_64 X1  = InitBit(0,  1);
-const UINT_64 X2  = InitBit(0,  2);
-const UINT_64 X3  = InitBit(0,  3);
-const UINT_64 X4  = InitBit(0,  4);
-const UINT_64 X5  = InitBit(0,  5);
-const UINT_64 X6  = InitBit(0,  6);
-const UINT_64 X7  = InitBit(0,  7);
-const UINT_64 X8  = InitBit(0,  8);
-const UINT_64 X9  = InitBit(0,  9);
-const UINT_64 X10 = InitBit(0, 10);
-const UINT_64 X11 = InitBit(0, 11);
-
-const UINT_64 Y0  = InitBit(1,  0);
-const UINT_64 Y1  = InitBit(1,  1);
-const UINT_64 Y2  = InitBit(1,  2);
-const UINT_64 Y3  = InitBit(1,  3);
-const UINT_64 Y4  = InitBit(1,  4);
-const UINT_64 Y5  = InitBit(1,  5);
-const UINT_64 Y6  = InitBit(1,  6);
-const UINT_64 Y7  = InitBit(1,  7);
-const UINT_64 Y8  = InitBit(1,  8);
-const UINT_64 Y9  = InitBit(1,  9);
-const UINT_64 Y10 = InitBit(1, 10);
-const UINT_64 Y11 = InitBit(1, 11);
-
-const UINT_64 Z0  = InitBit(2,  0);
-const UINT_64 Z1  = InitBit(2,  1);
-const UINT_64 Z2  = InitBit(2,  2);
-const UINT_64 Z3  = InitBit(2,  3);
-const UINT_64 Z4  = InitBit(2,  4);
-const UINT_64 Z5  = InitBit(2,  5);
-const UINT_64 Z6  = InitBit(2,  6);
-const UINT_64 Z7  = InitBit(2,  7);
-const UINT_64 Z8  = InitBit(2,  8);
-
-const UINT_64 S0  = InitBit(3,  0);
-const UINT_64 S1  = InitBit(3,  1);
-const UINT_64 S2  = InitBit(3,  2);
-
-const ADDR_SW_PATINFO SW_256_S_PATINFO[] =
+const ADDR_SW_PATINFO GFX10_SW_256_S_PATINFO[] =
 {
     {   1,    0,    0,    0,    0, } , // 1 pipes 1 bpe @ SW_256_S @ Navi1x
     {   1,    1,    0,    0,    0, } , // 1 pipes 2 bpe @ SW_256_S @ Navi1x
@@ -157,7 +76,7 @@ const ADDR_SW_PATINFO SW_256_S_PATINFO[] =
     {   1,    4,    0,    0,    0, } , // 64 pipes 16 bpe @ SW_256_S @ Navi1x
 };
 
-const ADDR_SW_PATINFO SW_256_D_PATINFO[] =
+const ADDR_SW_PATINFO GFX10_SW_256_D_PATINFO[] =
 {
     {   1,    5,    0,    0,    0, } , // 1 pipes 1 bpe @ SW_256_D @ Navi1x
     {   1,    1,    0,    0,    0, } , // 1 pipes 2 bpe @ SW_256_D @ Navi1x
@@ -196,7 +115,7 @@ const ADDR_SW_PATINFO SW_256_D_PATINFO[] =
     {   1,    7,    0,    0,    0, } , // 64 pipes 16 bpe @ SW_256_D @ Navi1x
 };
 
-const ADDR_SW_PATINFO SW_4K_S_PATINFO[] =
+const ADDR_SW_PATINFO GFX10_SW_4K_S_PATINFO[] =
 {
     {   1,    0,    1,    0,    0, } , // 1 pipes 1 bpe @ SW_4K_S @ Navi1x
     {   1,    1,    2,    0,    0, } , // 1 pipes 2 bpe @ SW_4K_S @ Navi1x
@@ -235,7 +154,7 @@ const ADDR_SW_PATINFO SW_4K_S_PATINFO[] =
     {   1,    4,    5,    0,    0, } , // 64 pipes 16 bpe @ SW_4K_S @ Navi1x
 };
 
-const ADDR_SW_PATINFO SW_4K_D_PATINFO[] =
+const ADDR_SW_PATINFO GFX10_SW_4K_D_PATINFO[] =
 {
     {   1,    5,    1,    0,    0, } , // 1 pipes 1 bpe @ SW_4K_D @ Navi1x
     {   1,    1,    2,    0,    0, } , // 1 pipes 2 bpe @ SW_4K_D @ Navi1x
@@ -274,7 +193,7 @@ const ADDR_SW_PATINFO SW_4K_D_PATINFO[] =
     {   1,    7,    5,    0,    0, } , // 64 pipes 16 bpe @ SW_4K_D @ Navi1x
 };
 
-const ADDR_SW_PATINFO SW_4K_S_X_PATINFO[] =
+const ADDR_SW_PATINFO GFX10_SW_4K_S_X_PATINFO[] =
 {
     {   1,    0,    1,    0,    0, } , // 1 pipes 1 bpe @ SW_4K_S_X @ Navi1x
     {   1,    1,    2,    0,    0, } , // 1 pipes 2 bpe @ SW_4K_S_X @ Navi1x
@@ -313,7 +232,7 @@ const ADDR_SW_PATINFO SW_4K_S_X_PATINFO[] =
     {   3,    4,   25,    0,    0, } , // 64 pipes 16 bpe @ SW_4K_S_X @ Navi1x
 };
 
-const ADDR_SW_PATINFO SW_4K_D_X_PATINFO[] =
+const ADDR_SW_PATINFO GFX10_SW_4K_D_X_PATINFO[] =
 {
     {   1,    5,    1,    0,    0, } , // 1 pipes 1 bpe @ SW_4K_D_X @ Navi1x
     {   1,    1,    2,    0,    0, } , // 1 pipes 2 bpe @ SW_4K_D_X @ Navi1x
@@ -352,7 +271,7 @@ const ADDR_SW_PATINFO SW_4K_D_X_PATINFO[] =
     {   3,    7,   25,    0,    0, } , // 64 pipes 16 bpe @ SW_4K_D_X @ Navi1x
 };
 
-const ADDR_SW_PATINFO SW_4K_S3_PATINFO[] =
+const ADDR_SW_PATINFO GFX10_SW_4K_S3_PATINFO[] =
 {
     {   1,   29,  131,    0,    0, } , // 1 pipes 1 bpe @ SW_4K_S3 @ Navi1x
     {   1,   30,  132,    0,    0, } , // 1 pipes 2 bpe @ SW_4K_S3 @ Navi1x
@@ -391,7 +310,7 @@ const ADDR_SW_PATINFO SW_4K_S3_PATINFO[] =
     {   1,   33,  135,    0,    0, } , // 64 pipes 16 bpe @ SW_4K_S3 @ Navi1x
 };
 
-const ADDR_SW_PATINFO SW_4K_S3_X_PATINFO[] =
+const ADDR_SW_PATINFO GFX10_SW_4K_S3_X_PATINFO[] =
 {
     {   1,   29,  131,    0,    0, } , // 1 pipes 1 bpe @ SW_4K_S3_X @ Navi1x
     {   1,   30,  132,    0,    0, } , // 1 pipes 2 bpe @ SW_4K_S3_X @ Navi1x
@@ -430,7 +349,7 @@ const ADDR_SW_PATINFO SW_4K_S3_X_PATINFO[] =
     {   3,   33,  155,    0,    0, } , // 64 pipes 16 bpe @ SW_4K_S3_X @ Navi1x
 };
 
-const ADDR_SW_PATINFO SW_64K_S_PATINFO[] =
+const ADDR_SW_PATINFO GFX10_SW_64K_S_PATINFO[] =
 {
     {   1,    0,    1,    1,    0, } , // 1 pipes 1 bpe @ SW_64K_S @ Navi1x
     {   1,    1,    2,    2,    0, } , // 1 pipes 2 bpe @ SW_64K_S @ Navi1x
@@ -469,7 +388,7 @@ const ADDR_SW_PATINFO SW_64K_S_PATINFO[] =
     {   1,    4,    5,    5,    0, } , // 64 pipes 16 bpe @ SW_64K_S @ Navi1x
 };
 
-const ADDR_SW_PATINFO SW_64K_D_PATINFO[] =
+const ADDR_SW_PATINFO GFX10_SW_64K_D_PATINFO[] =
 {
     {   1,    5,    1,    1,    0, } , // 1 pipes 1 bpe @ SW_64K_D @ Navi1x
     {   1,    1,    2,    2,    0, } , // 1 pipes 2 bpe @ SW_64K_D @ Navi1x
@@ -508,7 +427,7 @@ const ADDR_SW_PATINFO SW_64K_D_PATINFO[] =
     {   1,    7,    5,    5,    0, } , // 64 pipes 16 bpe @ SW_64K_D @ Navi1x
 };
 
-const ADDR_SW_PATINFO SW_64K_S_T_PATINFO[] =
+const ADDR_SW_PATINFO GFX10_SW_64K_S_T_PATINFO[] =
 {
     {   1,    0,    1,    1,    0, } , // 1 pipes 1 bpe @ SW_64K_S_T @ Navi1x
     {   1,    1,    2,    2,    0, } , // 1 pipes 2 bpe @ SW_64K_S_T @ Navi1x
@@ -547,7 +466,7 @@ const ADDR_SW_PATINFO SW_64K_S_T_PATINFO[] =
     {   2,    4,    5,   25,    0, } , // 64 pipes 16 bpe @ SW_64K_S_T @ Navi1x
 };
 
-const ADDR_SW_PATINFO SW_64K_D_T_PATINFO[] =
+const ADDR_SW_PATINFO GFX10_SW_64K_D_T_PATINFO[] =
 {
     {   1,    5,    1,    1,    0, } , // 1 pipes 1 bpe @ SW_64K_D_T @ Navi1x
     {   1,    1,    2,    2,    0, } , // 1 pipes 2 bpe @ SW_64K_D_T @ Navi1x
@@ -586,7 +505,7 @@ const ADDR_SW_PATINFO SW_64K_D_T_PATINFO[] =
     {   2,    7,    5,   25,    0, } , // 64 pipes 16 bpe @ SW_64K_D_T @ Navi1x
 };
 
-const ADDR_SW_PATINFO SW_64K_S_X_PATINFO[] =
+const ADDR_SW_PATINFO GFX10_SW_64K_S_X_PATINFO[] =
 {
     {   1,    0,    1,    1,    0, } , // 1 pipes 1 bpe @ SW_64K_S_X @ Navi1x
     {   1,    1,    2,    2,    0, } , // 1 pipes 2 bpe @ SW_64K_S_X @ Navi1x
@@ -625,7 +544,7 @@ const ADDR_SW_PATINFO SW_64K_S_X_PATINFO[] =
     {   3,    4,   35,   15,    0, } , // 64 pipes 16 bpe @ SW_64K_S_X @ Navi1x
 };
 
-const ADDR_SW_PATINFO SW_64K_D_X_PATINFO[] =
+const ADDR_SW_PATINFO GFX10_SW_64K_D_X_PATINFO[] =
 {
     {   1,    5,    1,    1,    0, } , // 1 pipes 1 bpe @ SW_64K_D_X @ Navi1x
     {   1,    1,    2,    2,    0, } , // 1 pipes 2 bpe @ SW_64K_D_X @ Navi1x
@@ -664,7 +583,7 @@ const ADDR_SW_PATINFO SW_64K_D_X_PATINFO[] =
     {   3,    7,   35,   15,    0, } , // 64 pipes 16 bpe @ SW_64K_D_X @ Navi1x
 };
 
-const ADDR_SW_PATINFO SW_64K_R_X_1xaa_PATINFO[] =
+const ADDR_SW_PATINFO GFX10_SW_64K_R_X_1xaa_PATINFO[] =
 {
     {   1,    5,    1,    1,    0, } , // 1 pipes 1 bpe @ SW_64K_R_X 1xaa @ Navi1x
     {   1,    1,    2,    2,    0, } , // 1 pipes 2 bpe @ SW_64K_R_X 1xaa @ Navi1x
@@ -703,7 +622,7 @@ const ADDR_SW_PATINFO SW_64K_R_X_1xaa_PATINFO[] =
     {   3,    7,   79,   41,    0, } , // 64 pipes 16 bpe @ SW_64K_R_X 1xaa @ Navi1x
 };
 
-const ADDR_SW_PATINFO SW_64K_R_X_2xaa_PATINFO[] =
+const ADDR_SW_PATINFO GFX10_SW_64K_R_X_2xaa_PATINFO[] =
 {
     {   2,    5,    1,   99,    0, } , // 1 pipes 1 bpe @ SW_64K_R_X 2xaa @ Navi1x
     {   2,    1,    2,  100,    0, } , // 1 pipes 2 bpe @ SW_64K_R_X 2xaa @ Navi1x
@@ -742,7 +661,7 @@ const ADDR_SW_PATINFO SW_64K_R_X_2xaa_PATINFO[] =
     {   3,    7,  115,   41,    0, } , // 64 pipes 16 bpe @ SW_64K_R_X 2xaa @ Navi1x
 };
 
-const ADDR_SW_PATINFO SW_64K_R_X_4xaa_PATINFO[] =
+const ADDR_SW_PATINFO GFX10_SW_64K_R_X_4xaa_PATINFO[] =
 {
     {   2,    5,    1,  118,    0, } , // 1 pipes 1 bpe @ SW_64K_R_X 4xaa @ Navi1x
     {   2,    1,    2,  119,    0, } , // 1 pipes 2 bpe @ SW_64K_R_X 4xaa @ Navi1x
@@ -781,7 +700,7 @@ const ADDR_SW_PATINFO SW_64K_R_X_4xaa_PATINFO[] =
     {   3,    7,  122,   41,    0, } , // 64 pipes 16 bpe @ SW_64K_R_X 4xaa @ Navi1x
 };
 
-const ADDR_SW_PATINFO SW_64K_R_X_8xaa_PATINFO[] =
+const ADDR_SW_PATINFO GFX10_SW_64K_R_X_8xaa_PATINFO[] =
 {
     {   2,    5,    1,  134,    0, } , // 1 pipes 1 bpe @ SW_64K_R_X 8xaa @ Navi1x
     {   2,    1,    2,  135,    0, } , // 1 pipes 2 bpe @ SW_64K_R_X 8xaa @ Navi1x
@@ -820,7 +739,7 @@ const ADDR_SW_PATINFO SW_64K_R_X_8xaa_PATINFO[] =
     {   3,    7,  130,  147,    0, } , // 64 pipes 16 bpe @ SW_64K_R_X 8xaa @ Navi1x
 };
 
-const ADDR_SW_PATINFO SW_64K_Z_X_1xaa_PATINFO[] =
+const ADDR_SW_PATINFO GFX10_SW_64K_Z_X_1xaa_PATINFO[] =
 {
     {   1,    8,    1,    1,    0, } , // 1 pipes 1 bpe @ SW_64K_Z_X 1xaa @ Navi1x
     {   1,    9,    2,    2,    0, } , // 1 pipes 2 bpe @ SW_64K_Z_X 1xaa @ Navi1x
@@ -859,7 +778,7 @@ const ADDR_SW_PATINFO SW_64K_Z_X_1xaa_PATINFO[] =
     {   3,    7,   79,   41,    0, } , // 64 pipes 16 bpe @ SW_64K_Z_X 1xaa @ Navi1x
 };
 
-const ADDR_SW_PATINFO SW_64K_Z_X_2xaa_PATINFO[] =
+const ADDR_SW_PATINFO GFX10_SW_64K_Z_X_2xaa_PATINFO[] =
 {
     {   1,   13,   80,   42,    0, } , // 1 pipes 1 bpe @ SW_64K_Z_X 2xaa @ Navi1x
     {   1,   14,    3,    3,    0, } , // 1 pipes 2 bpe @ SW_64K_Z_X 2xaa @ Navi1x
@@ -898,7 +817,7 @@ const ADDR_SW_PATINFO SW_64K_Z_X_2xaa_PATINFO[] =
     {   3,   17,   89,   61,    0, } , // 64 pipes 16 bpe @ SW_64K_Z_X 2xaa @ Navi1x
 };
 
-const ADDR_SW_PATINFO SW_64K_Z_X_4xaa_PATINFO[] =
+const ADDR_SW_PATINFO GFX10_SW_64K_Z_X_4xaa_PATINFO[] =
 {
     {   1,   18,    3,    3,    0, } , // 1 pipes 1 bpe @ SW_64K_Z_X 4xaa @ Navi1x
     {   2,   19,   90,   62,    0, } , // 1 pipes 2 bpe @ SW_64K_Z_X 4xaa @ Navi1x
@@ -937,7 +856,7 @@ const ADDR_SW_PATINFO SW_64K_Z_X_4xaa_PATINFO[] =
     {   3,   22,  100,   82,    0, } , // 64 pipes 16 bpe @ SW_64K_Z_X 4xaa @ Navi1x
 };
 
-const ADDR_SW_PATINFO SW_64K_Z_X_8xaa_PATINFO[] =
+const ADDR_SW_PATINFO GFX10_SW_64K_Z_X_8xaa_PATINFO[] =
 {
     {   2,   23,    3,   43,    0, } , // 1 pipes 1 bpe @ SW_64K_Z_X 8xaa @ Navi1x
     {   2,   24,    3,   63,    0, } , // 1 pipes 2 bpe @ SW_64K_Z_X 8xaa @ Navi1x
@@ -976,7 +895,7 @@ const ADDR_SW_PATINFO SW_64K_Z_X_8xaa_PATINFO[] =
     {   3,   27,  112,   98,    0, } , // 64 pipes 16 bpe @ SW_64K_Z_X 8xaa @ Navi1x
 };
 
-const ADDR_SW_PATINFO SW_64K_S3_PATINFO[] =
+const ADDR_SW_PATINFO GFX10_SW_64K_S3_PATINFO[] =
 {
     {   1,   29,  131,  148,    0, } , // 1 pipes 1 bpe @ SW_64K_S3 @ Navi1x
     {   1,   30,  132,  149,    0, } , // 1 pipes 2 bpe @ SW_64K_S3 @ Navi1x
@@ -1015,7 +934,7 @@ const ADDR_SW_PATINFO SW_64K_S3_PATINFO[] =
     {   1,   33,  135,  152,    0, } , // 64 pipes 16 bpe @ SW_64K_S3 @ Navi1x
 };
 
-const ADDR_SW_PATINFO SW_64K_S3_X_PATINFO[] =
+const ADDR_SW_PATINFO GFX10_SW_64K_S3_X_PATINFO[] =
 {
     {   1,   29,  131,  148,    0, } , // 1 pipes 1 bpe @ SW_64K_S3_X @ Navi1x
     {   1,   30,  132,  149,    0, } , // 1 pipes 2 bpe @ SW_64K_S3_X @ Navi1x
@@ -1054,7 +973,7 @@ const ADDR_SW_PATINFO SW_64K_S3_X_PATINFO[] =
     {   3,   33,  165,  162,    0, } , // 64 pipes 16 bpe @ SW_64K_S3_X @ Navi1x
 };
 
-const ADDR_SW_PATINFO SW_64K_S3_T_PATINFO[] =
+const ADDR_SW_PATINFO GFX10_SW_64K_S3_T_PATINFO[] =
 {
     {   1,   29,  131,  148,    0, } , // 1 pipes 1 bpe @ SW_64K_S3_T @ Navi1x
     {   1,   30,  132,  149,    0, } , // 1 pipes 2 bpe @ SW_64K_S3_T @ Navi1x
@@ -1093,7 +1012,7 @@ const ADDR_SW_PATINFO SW_64K_S3_T_PATINFO[] =
     {   3,   33,  135,  167,    0, } , // 64 pipes 16 bpe @ SW_64K_S3_T @ Navi1x
 };
 
-const ADDR_SW_PATINFO SW_64K_D3_X_PATINFO[] =
+const ADDR_SW_PATINFO GFX10_SW_64K_D3_X_PATINFO[] =
 {
     {   1,   34,  131,  148,    0, } , // 1 pipes 1 bpe @ SW_64K_D3_X @ Navi1x
     {   1,   35,  132,  149,    0, } , // 1 pipes 2 bpe @ SW_64K_D3_X @ Navi1x
@@ -1132,7 +1051,7 @@ const ADDR_SW_PATINFO SW_64K_D3_X_PATINFO[] =
     {   3,   38,  209,  182,    0, } , // 64 pipes 16 bpe @ SW_64K_D3_X @ Navi1x
 };
 
-const ADDR_SW_PATINFO SW_256_S_RBPLUS_PATINFO[] =
+const ADDR_SW_PATINFO GFX10_SW_256_S_RBPLUS_PATINFO[] =
 {
     {   1,    0,    0,    0,    0, } , // 1 pipes (1 PKRs) 1 bpe @ SW_256_S @ RbPlus
     {   1,    1,    0,    0,    0, } , // 1 pipes (1 PKRs) 2 bpe @ SW_256_S @ RbPlus
@@ -1211,7 +1130,7 @@ const ADDR_SW_PATINFO SW_256_S_RBPLUS_PATINFO[] =
     {   1,    4,    0,    0,    0, } , // 64 pipes (32 PKRs) 16 bpe @ SW_256_S @ RbPlus
 };
 
-const ADDR_SW_PATINFO SW_256_D_RBPLUS_PATINFO[] =
+const ADDR_SW_PATINFO GFX10_SW_256_D_RBPLUS_PATINFO[] =
 {
     {   1,    5,    0,    0,    0, } , // 1 pipes (1 PKRs) 1 bpe @ SW_256_D @ RbPlus
     {   1,    1,    0,    0,    0, } , // 1 pipes (1 PKRs) 2 bpe @ SW_256_D @ RbPlus
@@ -1290,7 +1209,7 @@ const ADDR_SW_PATINFO SW_256_D_RBPLUS_PATINFO[] =
     {   1,    7,    0,    0,    0, } , // 64 pipes (32 PKRs) 16 bpe @ SW_256_D @ RbPlus
 };
 
-const ADDR_SW_PATINFO SW_4K_S_RBPLUS_PATINFO[] =
+const ADDR_SW_PATINFO GFX10_SW_4K_S_RBPLUS_PATINFO[] =
 {
     {   1,    0,    1,    0,    0, } , // 1 pipes (1 PKRs) 1 bpe @ SW_4K_S @ RbPlus
     {   1,    1,    2,    0,    0, } , // 1 pipes (1 PKRs) 2 bpe @ SW_4K_S @ RbPlus
@@ -1369,7 +1288,7 @@ const ADDR_SW_PATINFO SW_4K_S_RBPLUS_PATINFO[] =
     {   1,    4,    5,    0,    0, } , // 64 pipes (32 PKRs) 16 bpe @ SW_4K_S @ RbPlus
 };
 
-const ADDR_SW_PATINFO SW_4K_D_RBPLUS_PATINFO[] =
+const ADDR_SW_PATINFO GFX10_SW_4K_D_RBPLUS_PATINFO[] =
 {
     {   1,    5,    1,    0,    0, } , // 1 pipes (1 PKRs) 1 bpe @ SW_4K_D @ RbPlus
     {   1,    1,    2,    0,    0, } , // 1 pipes (1 PKRs) 2 bpe @ SW_4K_D @ RbPlus
@@ -1448,7 +1367,7 @@ const ADDR_SW_PATINFO SW_4K_D_RBPLUS_PATINFO[] =
     {   1,    7,    5,    0,    0, } , // 64 pipes (32 PKRs) 16 bpe @ SW_4K_D @ RbPlus
 };
 
-const ADDR_SW_PATINFO SW_4K_S_X_RBPLUS_PATINFO[] =
+const ADDR_SW_PATINFO GFX10_SW_4K_S_X_RBPLUS_PATINFO[] =
 {
     {   1,    0,    1,    0,    0, } , // 1 pipes (1 PKRs) 1 bpe @ SW_4K_S_X @ RbPlus
     {   1,    1,    2,    0,    0, } , // 1 pipes (1 PKRs) 2 bpe @ SW_4K_S_X @ RbPlus
@@ -1527,7 +1446,7 @@ const ADDR_SW_PATINFO SW_4K_S_X_RBPLUS_PATINFO[] =
     {   3,    4,  244,    0,    0, } , // 64 pipes (32 PKRs) 16 bpe @ SW_4K_S_X @ RbPlus
 };
 
-const ADDR_SW_PATINFO SW_4K_D_X_RBPLUS_PATINFO[] =
+const ADDR_SW_PATINFO GFX10_SW_4K_D_X_RBPLUS_PATINFO[] =
 {
     {   1,    5,    1,    0,    0, } , // 1 pipes (1 PKRs) 1 bpe @ SW_4K_D_X @ RbPlus
     {   1,    1,    2,    0,    0, } , // 1 pipes (1 PKRs) 2 bpe @ SW_4K_D_X @ RbPlus
@@ -1606,7 +1525,7 @@ const ADDR_SW_PATINFO SW_4K_D_X_RBPLUS_PATINFO[] =
     {   3,    7,  244,    0,    0, } , // 64 pipes (32 PKRs) 16 bpe @ SW_4K_D_X @ RbPlus
 };
 
-const ADDR_SW_PATINFO SW_4K_S3_RBPLUS_PATINFO[] =
+const ADDR_SW_PATINFO GFX10_SW_4K_S3_RBPLUS_PATINFO[] =
 {
     {   1,   29,  131,    0,    0, } , // 1 pipes (1 PKRs) 1 bpe @ SW_4K_S3 @ RbPlus
     {   1,   30,  132,    0,    0, } , // 1 pipes (1 PKRs) 2 bpe @ SW_4K_S3 @ RbPlus
@@ -1685,7 +1604,7 @@ const ADDR_SW_PATINFO SW_4K_S3_RBPLUS_PATINFO[] =
     {   1,   33,  135,    0,    0, } , // 64 pipes (32 PKRs) 16 bpe @ SW_4K_S3 @ RbPlus
 };
 
-const ADDR_SW_PATINFO SW_4K_S3_X_RBPLUS_PATINFO[] =
+const ADDR_SW_PATINFO GFX10_SW_4K_S3_X_RBPLUS_PATINFO[] =
 {
     {   1,   29,  131,    0,    0, } , // 1 pipes (1 PKRs) 1 bpe @ SW_4K_S3_X @ RbPlus
     {   1,   30,  132,    0,    0, } , // 1 pipes (1 PKRs) 2 bpe @ SW_4K_S3_X @ RbPlus
@@ -1764,7 +1683,7 @@ const ADDR_SW_PATINFO SW_4K_S3_X_RBPLUS_PATINFO[] =
     {   3,   33,  155,    0,    0, } , // 64 pipes (32 PKRs) 16 bpe @ SW_4K_S3_X @ RbPlus
 };
 
-const ADDR_SW_PATINFO SW_64K_S_RBPLUS_PATINFO[] =
+const ADDR_SW_PATINFO GFX10_SW_64K_S_RBPLUS_PATINFO[] =
 {
     {   1,    0,    1,    1,    0, } , // 1 pipes (1 PKRs) 1 bpe @ SW_64K_S @ RbPlus
     {   1,    1,    2,    2,    0, } , // 1 pipes (1 PKRs) 2 bpe @ SW_64K_S @ RbPlus
@@ -1843,7 +1762,7 @@ const ADDR_SW_PATINFO SW_64K_S_RBPLUS_PATINFO[] =
     {   1,    4,    5,    5,    0, } , // 64 pipes (32 PKRs) 16 bpe @ SW_64K_S @ RbPlus
 };
 
-const ADDR_SW_PATINFO SW_64K_D_RBPLUS_PATINFO[] =
+const ADDR_SW_PATINFO GFX10_SW_64K_D_RBPLUS_PATINFO[] =
 {
     {   1,    5,    1,    1,    0, } , // 1 pipes (1 PKRs) 1 bpe @ SW_64K_D @ RbPlus
     {   1,    1,    2,    2,    0, } , // 1 pipes (1 PKRs) 2 bpe @ SW_64K_D @ RbPlus
@@ -1922,7 +1841,7 @@ const ADDR_SW_PATINFO SW_64K_D_RBPLUS_PATINFO[] =
     {   1,    7,    5,    5,    0, } , // 64 pipes (32 PKRs) 16 bpe @ SW_64K_D @ RbPlus
 };
 
-const ADDR_SW_PATINFO SW_64K_S_T_RBPLUS_PATINFO[] =
+const ADDR_SW_PATINFO GFX10_SW_64K_S_T_RBPLUS_PATINFO[] =
 {
     {   1,    0,    1,    1,    0, } , // 1 pipes (1 PKRs) 1 bpe @ SW_64K_S_T @ RbPlus
     {   1,    1,    2,    2,    0, } , // 1 pipes (1 PKRs) 2 bpe @ SW_64K_S_T @ RbPlus
@@ -2001,7 +1920,7 @@ const ADDR_SW_PATINFO SW_64K_S_T_RBPLUS_PATINFO[] =
     {   2,    4,    5,   25,    0, } , // 64 pipes (32 PKRs) 16 bpe @ SW_64K_S_T @ RbPlus
 };
 
-const ADDR_SW_PATINFO SW_64K_D_T_RBPLUS_PATINFO[] =
+const ADDR_SW_PATINFO GFX10_SW_64K_D_T_RBPLUS_PATINFO[] =
 {
     {   1,    5,    1,    1,    0, } , // 1 pipes (1 PKRs) 1 bpe @ SW_64K_D_T @ RbPlus
     {   1,    1,    2,    2,    0, } , // 1 pipes (1 PKRs) 2 bpe @ SW_64K_D_T @ RbPlus
@@ -2080,7 +1999,7 @@ const ADDR_SW_PATINFO SW_64K_D_T_RBPLUS_PATINFO[] =
     {   2,    7,    5,   25,    0, } , // 64 pipes (32 PKRs) 16 bpe @ SW_64K_D_T @ RbPlus
 };
 
-const ADDR_SW_PATINFO SW_64K_S_X_RBPLUS_PATINFO[] =
+const ADDR_SW_PATINFO GFX10_SW_64K_S_X_RBPLUS_PATINFO[] =
 {
     {   1,    0,    1,    1,    0, } , // 1 pipes (1 PKRs) 1 bpe @ SW_64K_S_X @ RbPlus
     {   1,    1,    2,    2,    0, } , // 1 pipes (1 PKRs) 2 bpe @ SW_64K_S_X @ RbPlus
@@ -2159,7 +2078,7 @@ const ADDR_SW_PATINFO SW_64K_S_X_RBPLUS_PATINFO[] =
     {   3,    4,  269,   15,    0, } , // 64 pipes (32 PKRs) 16 bpe @ SW_64K_S_X @ RbPlus
 };
 
-const ADDR_SW_PATINFO SW_64K_D_X_RBPLUS_PATINFO[] =
+const ADDR_SW_PATINFO GFX10_SW_64K_D_X_RBPLUS_PATINFO[] =
 {
     {   1,    5,    1,    1,    0, } , // 1 pipes (1 PKRs) 1 bpe @ SW_64K_D_X @ RbPlus
     {   1,    1,    2,    2,    0, } , // 1 pipes (1 PKRs) 2 bpe @ SW_64K_D_X @ RbPlus
@@ -2238,7 +2157,7 @@ const ADDR_SW_PATINFO SW_64K_D_X_RBPLUS_PATINFO[] =
     {   3,    7,  269,   15,    0, } , // 64 pipes (32 PKRs) 16 bpe @ SW_64K_D_X @ RbPlus
 };
 
-const ADDR_SW_PATINFO SW_64K_R_X_1xaa_RBPLUS_PATINFO[] =
+const ADDR_SW_PATINFO GFX10_SW_64K_R_X_1xaa_RBPLUS_PATINFO[] =
 {
     {   2,    0,  347,  193,    0, } , // 1 pipes (1 PKRs) 1 bpe @ SW_64K_R_X 1xaa @ RbPlus
     {   2,    1,  348,  366,    0, } , // 1 pipes (1 PKRs) 2 bpe @ SW_64K_R_X 1xaa @ RbPlus
@@ -2317,7 +2236,7 @@ const ADDR_SW_PATINFO SW_64K_R_X_1xaa_RBPLUS_PATINFO[] =
     {   3,    7,  324,  414,    0, } , // 64 pipes (32 PKRs) 16 bpe @ SW_64K_R_X 1xaa @ RbPlus
 };
 
-const ADDR_SW_PATINFO SW_64K_R_X_2xaa_RBPLUS_PATINFO[] =
+const ADDR_SW_PATINFO GFX10_SW_64K_R_X_2xaa_RBPLUS_PATINFO[] =
 {
     {   3,    0,  424,  526,    0, } , // 1 pipes (1 PKRs) 1 bpe @ SW_64K_R_X 2xaa @ RbPlus
     {   3,    1,  348,  527,    0, } , // 1 pipes (1 PKRs) 2 bpe @ SW_64K_R_X 2xaa @ RbPlus
@@ -2396,7 +2315,7 @@ const ADDR_SW_PATINFO SW_64K_R_X_2xaa_RBPLUS_PATINFO[] =
     {   3,    7,  429,  414,    0, } , // 64 pipes (32 PKRs) 16 bpe @ SW_64K_R_X 2xaa @ RbPlus
 };
 
-const ADDR_SW_PATINFO SW_64K_R_X_4xaa_RBPLUS_PATINFO[] =
+const ADDR_SW_PATINFO GFX10_SW_64K_R_X_4xaa_RBPLUS_PATINFO[] =
 {
     {   3,    0,  347,  566,    0, } , // 1 pipes (1 PKRs) 1 bpe @ SW_64K_R_X 4xaa @ RbPlus
     {   3,    1,  348,  733,    0, } , // 1 pipes (1 PKRs) 2 bpe @ SW_64K_R_X 4xaa @ RbPlus
@@ -2475,7 +2394,7 @@ const ADDR_SW_PATINFO SW_64K_R_X_4xaa_RBPLUS_PATINFO[] =
     {   3,    7,  441,  414,    0, } , // 64 pipes (32 PKRs) 16 bpe @ SW_64K_R_X 4xaa @ RbPlus
 };
 
-const ADDR_SW_PATINFO SW_64K_R_X_8xaa_RBPLUS_PATINFO[] =
+const ADDR_SW_PATINFO GFX10_SW_64K_R_X_8xaa_RBPLUS_PATINFO[] =
 {
     {   3,    0,  424,  619,    0, } , // 1 pipes (1 PKRs) 1 bpe @ SW_64K_R_X 8xaa @ RbPlus
     {   3,    1,  348,  620,    0, } , // 1 pipes (1 PKRs) 2 bpe @ SW_64K_R_X 8xaa @ RbPlus
@@ -2554,7 +2473,7 @@ const ADDR_SW_PATINFO SW_64K_R_X_8xaa_RBPLUS_PATINFO[] =
     {   3,    7,  458,  414,    0, } , // 64 pipes (32 PKRs) 16 bpe @ SW_64K_R_X 8xaa @ RbPlus
 };
 
-const ADDR_SW_PATINFO SW_64K_Z_X_1xaa_RBPLUS_PATINFO[] =
+const ADDR_SW_PATINFO GFX10_SW_64K_Z_X_1xaa_RBPLUS_PATINFO[] =
 {
     {   2,    8,  347,  193,    0, } , // 1 pipes (1 PKRs) 1 bpe @ SW_64K_Z_X 1xaa @ RbPlus
     {   2,    9,  348,  366,    0, } , // 1 pipes (1 PKRs) 2 bpe @ SW_64K_Z_X 1xaa @ RbPlus
@@ -2633,7 +2552,7 @@ const ADDR_SW_PATINFO SW_64K_Z_X_1xaa_RBPLUS_PATINFO[] =
     {   3,    7,  324,  414,    0, } , // 64 pipes (32 PKRs) 16 bpe @ SW_64K_Z_X 1xaa @ RbPlus
 };
 
-const ADDR_SW_PATINFO SW_64K_Z_X_2xaa_RBPLUS_PATINFO[] =
+const ADDR_SW_PATINFO GFX10_SW_64K_Z_X_2xaa_RBPLUS_PATINFO[] =
 {
     {   2,   13,  357,  415,    0, } , // 1 pipes (1 PKRs) 1 bpe @ SW_64K_Z_X 2xaa @ RbPlus
     {   2,   14,  349,  195,    0, } , // 1 pipes (1 PKRs) 2 bpe @ SW_64K_Z_X 2xaa @ RbPlus
@@ -2712,7 +2631,7 @@ const ADDR_SW_PATINFO SW_64K_Z_X_2xaa_RBPLUS_PATINFO[] =
     {   3,   17,  367,  414,    0, } , // 64 pipes (32 PKRs) 16 bpe @ SW_64K_Z_X 2xaa @ RbPlus
 };
 
-const ADDR_SW_PATINFO SW_64K_Z_X_4xaa_RBPLUS_PATINFO[] =
+const ADDR_SW_PATINFO GFX10_SW_64K_Z_X_4xaa_RBPLUS_PATINFO[] =
 {
     {   2,   18,  349,  195,    0, } , // 1 pipes (1 PKRs) 1 bpe @ SW_64K_Z_X 4xaa @ RbPlus
     {   3,   19,  349,  447,    0, } , // 1 pipes (1 PKRs) 2 bpe @ SW_64K_Z_X 4xaa @ RbPlus
@@ -2791,7 +2710,7 @@ const ADDR_SW_PATINFO SW_64K_Z_X_4xaa_RBPLUS_PATINFO[] =
     {   3,   22,  377,  414,    0, } , // 64 pipes (32 PKRs) 16 bpe @ SW_64K_Z_X 4xaa @ RbPlus
 };
 
-const ADDR_SW_PATINFO SW_64K_Z_X_8xaa_RBPLUS_PATINFO[] =
+const ADDR_SW_PATINFO GFX10_SW_64K_Z_X_8xaa_RBPLUS_PATINFO[] =
 {
     {   3,   23,  358,  263,    0, } , // 1 pipes (1 PKRs) 1 bpe @ SW_64K_Z_X 8xaa @ RbPlus
     {   3,   24,  349,  448,    0, } , // 1 pipes (1 PKRs) 2 bpe @ SW_64K_Z_X 8xaa @ RbPlus
@@ -2870,7 +2789,7 @@ const ADDR_SW_PATINFO SW_64K_Z_X_8xaa_RBPLUS_PATINFO[] =
     {   3,   27,  393,  414,    0, } , // 64 pipes (32 PKRs) 16 bpe @ SW_64K_Z_X 8xaa @ RbPlus
 };
 
-const ADDR_SW_PATINFO SW_64K_S3_RBPLUS_PATINFO[] =
+const ADDR_SW_PATINFO GFX10_SW_64K_S3_RBPLUS_PATINFO[] =
 {
     {   1,   29,  131,  148,    0, } , // 1 pipes (1 PKRs) 1 bpe @ SW_64K_S3 @ RbPlus
     {   1,   30,  132,  149,    0, } , // 1 pipes (1 PKRs) 2 bpe @ SW_64K_S3 @ RbPlus
@@ -2949,7 +2868,7 @@ const ADDR_SW_PATINFO SW_64K_S3_RBPLUS_PATINFO[] =
     {   1,   33,  135,  152,    0, } , // 64 pipes (32 PKRs) 16 bpe @ SW_64K_S3 @ RbPlus
 };
 
-const ADDR_SW_PATINFO SW_64K_S3_X_RBPLUS_PATINFO[] =
+const ADDR_SW_PATINFO GFX10_SW_64K_S3_X_RBPLUS_PATINFO[] =
 {
     {   1,   29,  131,  148,    0, } , // 1 pipes (1 PKRs) 1 bpe @ SW_64K_S3_X @ RbPlus
     {   1,   30,  132,  149,    0, } , // 1 pipes (1 PKRs) 2 bpe @ SW_64K_S3_X @ RbPlus
@@ -3028,7 +2947,7 @@ const ADDR_SW_PATINFO SW_64K_S3_X_RBPLUS_PATINFO[] =
     {   3,   33,  165,  162,    0, } , // 64 pipes (32 PKRs) 16 bpe @ SW_64K_S3_X @ RbPlus
 };
 
-const ADDR_SW_PATINFO SW_64K_S3_T_RBPLUS_PATINFO[] =
+const ADDR_SW_PATINFO GFX10_SW_64K_S3_T_RBPLUS_PATINFO[] =
 {
     {   1,   29,  131,  148,    0, } , // 1 pipes (1 PKRs) 1 bpe @ SW_64K_S3_T @ RbPlus
     {   1,   30,  132,  149,    0, } , // 1 pipes (1 PKRs) 2 bpe @ SW_64K_S3_T @ RbPlus
@@ -3107,7 +3026,7 @@ const ADDR_SW_PATINFO SW_64K_S3_T_RBPLUS_PATINFO[] =
     {   3,   33,  135,  167,    0, } , // 64 pipes (32 PKRs) 16 bpe @ SW_64K_S3_T @ RbPlus
 };
 
-const ADDR_SW_PATINFO SW_64K_D3_X_RBPLUS_PATINFO[] =
+const ADDR_SW_PATINFO GFX10_SW_64K_D3_X_RBPLUS_PATINFO[] =
 {
     {   1,   34,  131,  148,    0, } , // 1 pipes (1 PKRs) 1 bpe @ SW_64K_D3_X @ RbPlus
     {   1,   35,  132,  149,    0, } , // 1 pipes (1 PKRs) 2 bpe @ SW_64K_D3_X @ RbPlus
@@ -3186,7 +3105,7 @@ const ADDR_SW_PATINFO SW_64K_D3_X_RBPLUS_PATINFO[] =
     {   4,   38,  509,  841,    0, } , // 64 pipes (32 PKRs) 16 bpe @ SW_64K_D3_X @ RbPlus
 };
 
-const ADDR_SW_PATINFO SW_VAR_R_X_1xaa_RBPLUS_PATINFO[] =
+const ADDR_SW_PATINFO GFX10_SW_VAR_R_X_1xaa_RBPLUS_PATINFO[] =
 {
     {   2,    0,  270,  183,    0, } , // 1 pipes (1 PKRs) 1 bpe @ SW_VAR_R_X 1xaa @ RbPlus
     {   2,    1,  271,  184,    0, } , // 1 pipes (1 PKRs) 2 bpe @ SW_VAR_R_X 1xaa @ RbPlus
@@ -3265,7 +3184,7 @@ const ADDR_SW_PATINFO SW_VAR_R_X_1xaa_RBPLUS_PATINFO[] =
     {   3,    7,  311,  254,   44, } , // 64 pipes (32 PKRs) 16 bpe @ SW_VAR_R_X 1xaa @ RbPlus
 };
 
-const ADDR_SW_PATINFO SW_VAR_R_X_2xaa_RBPLUS_PATINFO[] =
+const ADDR_SW_PATINFO GFX10_SW_VAR_R_X_2xaa_RBPLUS_PATINFO[] =
 {
     {   3,    0,  403,  516,    0, } , // 1 pipes (1 PKRs) 1 bpe @ SW_VAR_R_X 2xaa @ RbPlus
     {   3,    1,  271,  517,    0, } , // 1 pipes (1 PKRs) 2 bpe @ SW_VAR_R_X 2xaa @ RbPlus
@@ -3344,7 +3263,7 @@ const ADDR_SW_PATINFO SW_VAR_R_X_2xaa_RBPLUS_PATINFO[] =
     {   3,    7,  318,  290,  158, } , // 64 pipes (32 PKRs) 16 bpe @ SW_VAR_R_X 2xaa @ RbPlus
 };
 
-const ADDR_SW_PATINFO SW_VAR_R_X_4xaa_RBPLUS_PATINFO[] =
+const ADDR_SW_PATINFO GFX10_SW_VAR_R_X_4xaa_RBPLUS_PATINFO[] =
 {
     {   3,    0,  270,  556,    0, } , // 1 pipes (1 PKRs) 1 bpe @ SW_VAR_R_X 4xaa @ RbPlus
     {   3,    1,  271,  557,    0, } , // 1 pipes (1 PKRs) 2 bpe @ SW_VAR_R_X 4xaa @ RbPlus
@@ -3423,7 +3342,7 @@ const ADDR_SW_PATINFO SW_VAR_R_X_4xaa_RBPLUS_PATINFO[] =
     {   3,    7,  324,  328,  204, } , // 64 pipes (32 PKRs) 16 bpe @ SW_VAR_R_X 4xaa @ RbPlus
 };
 
-const ADDR_SW_PATINFO SW_VAR_R_X_8xaa_RBPLUS_PATINFO[] =
+const ADDR_SW_PATINFO GFX10_SW_VAR_R_X_8xaa_RBPLUS_PATINFO[] =
 {
     {   3,    0,  407,  610,    0, } , // 1 pipes (1 PKRs) 1 bpe @ SW_VAR_R_X 8xaa @ RbPlus
     {   3,    1,  408,  611,    0, } , // 1 pipes (1 PKRs) 2 bpe @ SW_VAR_R_X 8xaa @ RbPlus
@@ -3502,7 +3421,7 @@ const ADDR_SW_PATINFO SW_VAR_R_X_8xaa_RBPLUS_PATINFO[] =
     {   3,    7,  344,  668,  204, } , // 64 pipes (32 PKRs) 16 bpe @ SW_VAR_R_X 8xaa @ RbPlus
 };
 
-const ADDR_SW_PATINFO SW_VAR_Z_X_1xaa_RBPLUS_PATINFO[] =
+const ADDR_SW_PATINFO GFX10_SW_VAR_Z_X_1xaa_RBPLUS_PATINFO[] =
 {
     {   2,    8,  270,  183,    0, } , // 1 pipes (1 PKRs) 1 bpe @ SW_VAR_Z_X 1xaa @ RbPlus
     {   2,    9,  271,  184,    0, } , // 1 pipes (1 PKRs) 2 bpe @ SW_VAR_Z_X 1xaa @ RbPlus
@@ -3581,7 +3500,7 @@ const ADDR_SW_PATINFO SW_VAR_Z_X_1xaa_RBPLUS_PATINFO[] =
     {   3,    7,  311,  254,   44, } , // 64 pipes (32 PKRs) 16 bpe @ SW_VAR_Z_X 1xaa @ RbPlus
 };
 
-const ADDR_SW_PATINFO SW_VAR_Z_X_2xaa_RBPLUS_PATINFO[] =
+const ADDR_SW_PATINFO GFX10_SW_VAR_Z_X_2xaa_RBPLUS_PATINFO[] =
 {
     {   2,   13,  312,  255,    0, } , // 1 pipes (1 PKRs) 1 bpe @ SW_VAR_Z_X 2xaa @ RbPlus
     {   2,   14,  272,  185,    0, } , // 1 pipes (1 PKRs) 2 bpe @ SW_VAR_Z_X 2xaa @ RbPlus
@@ -3660,7 +3579,7 @@ const ADDR_SW_PATINFO SW_VAR_Z_X_2xaa_RBPLUS_PATINFO[] =
     {   3,   17,  318,  290,   65, } , // 64 pipes (32 PKRs) 16 bpe @ SW_VAR_Z_X 2xaa @ RbPlus
 };
 
-const ADDR_SW_PATINFO SW_VAR_Z_X_4xaa_RBPLUS_PATINFO[] =
+const ADDR_SW_PATINFO GFX10_SW_VAR_Z_X_4xaa_RBPLUS_PATINFO[] =
 {
     {   2,   18,  272,  185,    0, } , // 1 pipes (1 PKRs) 1 bpe @ SW_VAR_Z_X 4xaa @ RbPlus
     {   3,   19,  272,  291,    0, } , // 1 pipes (1 PKRs) 2 bpe @ SW_VAR_Z_X 4xaa @ RbPlus
@@ -3739,7 +3658,7 @@ const ADDR_SW_PATINFO SW_VAR_Z_X_4xaa_RBPLUS_PATINFO[] =
     {   3,   22,  324,  328,  100, } , // 64 pipes (32 PKRs) 16 bpe @ SW_VAR_Z_X 4xaa @ RbPlus
 };
 
-const ADDR_SW_PATINFO SW_VAR_Z_X_8xaa_RBPLUS_PATINFO[] =
+const ADDR_SW_PATINFO GFX10_SW_VAR_Z_X_8xaa_RBPLUS_PATINFO[] =
 {
     {   3,   23,  313,  256,    0, } , // 1 pipes (1 PKRs) 1 bpe @ SW_VAR_Z_X 8xaa @ RbPlus
     {   3,   24,  272,  292,    0, } , // 1 pipes (1 PKRs) 2 bpe @ SW_VAR_Z_X 8xaa @ RbPlus
@@ -5465,7 +5384,7 @@ const UINT_64 GFX10_SW_PATTERN_NIBBLE4[][4] =
     {X3^Y8,         S0^X7^Y7,      S1^X6^Y7,      0,             }, // 238
 };
 
-const UINT_8 DCC_64K_R_X_PATIDX[] =
+const UINT_8 GFX10_DCC_64K_R_X_PATIDX[] =
 {
        0, // 1 pipes 1 bpe ua @ SW_64K_R_X 1xaa @ Navi1x
        1, // 1 pipes 2 bpe ua @ SW_64K_R_X 1xaa @ Navi1x
@@ -5519,7 +5438,7 @@ const UINT_8 DCC_64K_R_X_PATIDX[] =
       37, // 64 pipes 16 bpe pa @ SW_64K_R_X 1xaa @ Navi1x
 };
 
-const UINT_8 HTILE_PATIDX[] =
+const UINT_8 GFX10_HTILE_PATIDX[] =
 {
        0, // 1xaa ua @ HTILE_64K @ Navi1x
        0, // 2xaa ua @ HTILE_64K @ Navi1x
@@ -5555,7 +5474,7 @@ const UINT_8 HTILE_PATIDX[] =
       12, // 64 pipes 8xaa pa @ HTILE_64K @ Navi1x
 };
 
-const UINT_8 CMASK_64K_PATIDX[] =
+const UINT_8 GFX10_CMASK_64K_PATIDX[] =
 {
        0, // 1 bpe ua @ CMASK_64K @ Navi1x
        0, // 2 bpe ua @ CMASK_64K @ Navi1x
@@ -5591,7 +5510,7 @@ const UINT_8 CMASK_64K_PATIDX[] =
        7, // 64 pipes 8 bpe pa @ CMASK_64K @ Navi1x
 };
 
-const UINT_8 DCC_64K_R_X_RBPLUS_PATIDX[] =
+const UINT_8 GFX10_DCC_64K_R_X_RBPLUS_PATIDX[] =
 {
        0, // 1 bpe ua @ SW_64K_R_X 1xaa @ RbPlus
        1, // 2 bpe ua @ SW_64K_R_X 1xaa @ RbPlus
@@ -5675,7 +5594,7 @@ const UINT_8 DCC_64K_R_X_RBPLUS_PATIDX[] =
      107, // 64 pipes (32 PKRs) 16 bpe pa @ SW_64K_R_X 1xaa @ RbPlus
 };
 
-const UINT_8 HTILE_RBPLUS_PATIDX[] =
+const UINT_8 GFX10_HTILE_RBPLUS_PATIDX[] =
 {
        0, // 1xaa ua @ HTILE_64K @ RbPlus
        0, // 2xaa ua @ HTILE_64K @ RbPlus
@@ -5759,7 +5678,7 @@ const UINT_8 HTILE_RBPLUS_PATIDX[] =
       29, // 64 pipes (32 PKRs) 8xaa pa @ HTILE_64K @ RbPlus
 };
 
-const UINT_8 CMASK_64K_RBPLUS_PATIDX[] =
+const UINT_8 GFX10_CMASK_64K_RBPLUS_PATIDX[] =
 {
        0, // 1 bpe ua @ CMASK_64K @ RbPlus
        0, // 2 bpe ua @ CMASK_64K @ RbPlus
@@ -5843,7 +5762,7 @@ const UINT_8 CMASK_64K_RBPLUS_PATIDX[] =
       34, // 64 pipes (32 PKRs) 8 bpe pa @ CMASK_64K @ RbPlus
 };
 
-const UINT_8 CMASK_VAR_RBPLUS_PATIDX[] =
+const UINT_8 GFX10_CMASK_VAR_RBPLUS_PATIDX[] =
 {
        0, // 1 bpe ua @ CMASK_VAR @ RbPlus
        0, // 2 bpe ua @ CMASK_VAR @ RbPlus
@@ -5927,7 +5846,7 @@ const UINT_8 CMASK_VAR_RBPLUS_PATIDX[] =
       31, // 64 pipes (32 PKRs) 8 bpe pa @ CMASK_VAR @ RbPlus
 };
 
-const UINT_64 DCC_64K_R_X_SW_PATTERN[][17] =
+const UINT_64 GFX10_DCC_64K_R_X_SW_PATTERN[][17] =
 {
     {0,             X4,            Y4,            X5,            Y5,            X6,            Y6,            X7,            Y7,            X8,            Y8,            X9,            Y9,            0,             0,             0,             0,             }, //0
     {0,             Y3,            X4,            Y4,            X5,            Y5,            X6,            Y6,            X7,            Y7,            X8,            Y8,            X9,            0,             0,             0,             0,             }, //1
@@ -6039,7 +5958,7 @@ const UINT_64 DCC_64K_R_X_SW_PATTERN[][17] =
     {0,             X3,            Y3,            X7,            Y7,            X8,            Y8,            X2,            Y2,            Y4^X9^Y9,      Z2^X4^Y4,      Z1^Y5^X8,      Z0^X5^Y8,      Y2^Y6^X7,      X2^X6^Y7,      0,             0,             }, //107
 };
 
-const UINT_64 HTILE_SW_PATTERN[][18] =
+const UINT_64 GFX10_HTILE_SW_PATTERN[][18] =
 {
     {0,             0,             0,             X3,            Y3,            X4,            Y4,            X5,            Y5,            X6,            Y6,            X7,            Y7,            0,             0,             0,             0,             0,             }, //0
     {0,             0,             0,             X3,            Y4,            X4,            X5,            Y5,            X6,            Z0^X3^Y3,      Y6,            X7,            Y7,            0,             0,             0,             0,             0,             }, //1
@@ -6073,7 +5992,7 @@ const UINT_64 HTILE_SW_PATTERN[][18] =
     {0,             0,             0,             X3,            Y3,            X7,            Y7,            X8,            Y8,            Y4^X9^Y9,      Z1^X4^Y4,      Z0^Y5^X8,      X5^Y8,         Y6^X7,         X6^Y7,         X9,            Y9,            X10,           }, //29
 };
 
-const UINT_64 CMASK_SW_PATTERN[][17] =
+const UINT_64 GFX10_CMASK_SW_PATTERN[][17] =
 {
     {X3,            Y3,            X4,            Y4,            X5,            Y5,            X6,            Y6,            X7,            Y7,            X8,            Y8,            X9,            0,             0,             0,             0,             }, //0
     {X3,            Y4,            X4,            X5,            Y5,            X6,            Y6,            X7,            Y7,            Z0^X3^Y3,      X8,            Y8,            X9,            0,             0,             0,             0,             }, //1
@@ -6112,7 +6031,7 @@ const UINT_64 CMASK_SW_PATTERN[][17] =
     {X3,            Y3,            X7,            Y7,            X8,            Y8,            X9,            Y9,            X10,           Y4^X9^Y9,      Z3^X4^Y4,      Z2^Y5^X8,      Z1^X5^Y8,      Y6^X7,         Z0^X6^Y7,      0,             0,             }, //34
 };
 
-} // V2
+}// V2
 } // Addr
 
 #endif

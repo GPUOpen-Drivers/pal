@@ -64,6 +64,11 @@ public:
     bool IsVaLocked() const { return m_flags.viewVaLocked; }
     bool WaitOnMetadataMipTail() const { return m_flags.waitOnMetadataMipTail; }
 
+    virtual bool IsColorBigPage() const { return false; };
+    virtual bool IsFmaskBigPage() const { return false; }
+
+    virtual void GetImageSrd(const Device& device, void* pOut) const { PAL_NEVER_CALLED(); }
+
     const Image* GetImage() const { return m_pImage; }
     uint32 MipLevel() const { return m_subresource.mipLevel; }
 
@@ -126,6 +131,13 @@ protected:
         CmdStream*     pCmdStream,
         uint32*        pCmdSpace,
         RegistersType* pRegs) const;
+
+    void SetupExtents(
+        const SubresId                   baseSubRes,
+        const ColorTargetViewCreateInfo& createInfo,
+        Extent3d*                        pBaseExtent,
+        Extent3d*                        pExtent,
+        bool*                            pModifiedYuvExtent) const;
 
     union
     {
@@ -260,10 +272,10 @@ public:
         uint32*            pCmdSpace,
         regCB_COLOR0_INFO* pCbColorInfo) const override;
 
-    bool IsColorBigPage() const;
-    bool IsFmaskBigPage() const;
+    virtual bool IsColorBigPage() const override;
+    virtual bool IsFmaskBigPage() const override;
 
-    void GetImageSrd(const Device& device, void* pOut) const;
+    virtual void GetImageSrd(const Device& device, void* pOut) const override;
 
 protected:
     virtual ~Gfx10ColorTargetView()

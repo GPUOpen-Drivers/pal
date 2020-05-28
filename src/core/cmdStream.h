@@ -110,6 +110,9 @@ struct NestedChunkData
 
 };
 
+// A useful shorthand for a vector list of chunks.
+typedef ChunkVector<CmdStreamChunk*, 16, Platform> ChunkRefList;
+
 // =====================================================================================================================
 // The CmdStream class manages a single stream of hardware commands on behalf of a command buffer.
 //
@@ -128,9 +131,6 @@ struct NestedChunkData
 // chunk, embedded data space is issued from the end of the chunk, and a new chunk is needed when they meet.
 class CmdStream
 {
-    // A useful shorthand for a vector list of chunks.
-    typedef ChunkVector<CmdStreamChunk*, 16, Platform> ChunkRefList;
-
     // A useful shorthand for a hash map of nested command buffer chunk execute-counts.
     typedef Util::HashMap<CmdStreamChunk*, NestedChunkData, Platform> NestedChunkMap;
 
@@ -230,6 +230,9 @@ public:
 
     ChunkRefList::Iter GetFwdIterator() const { return m_chunkList.Begin(); }
     CmdStreamChunk*    GetFirstChunk()  const { return m_chunkList.Front(); }
+
+    // The caller is responsible for returning the chunks saved in "pDest" to their command allocator
+    Result TransferRetainedChunks(ChunkRefList* pDest);
 
     // An upper-bound on all allocated command chunk space. Can be called on a finalized command stream.
     gpusize TotalChunkDwords() const { return m_totalChunkDwords; }

@@ -290,7 +290,10 @@ union CachedSettings
         uint64 waIndexBufferZeroSize                     :  1;
         uint64 waLegacyGsCutModeFlush                    :  1;
 
-        uint64 reserved                   : 18;
+        uint64 reserved5                                 :  1;
+        uint64 reserved6                                 :  1;
+
+        uint64 reserved                   : 16;
     };
     uint64 u64All;
 };

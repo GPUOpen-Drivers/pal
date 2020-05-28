@@ -53,7 +53,6 @@ union sq_buf_rsrc_t {
     } most;
     uint64_t u64All[2];
     uint32_t u32All[4];
-
 };
 
 constexpr uint32_t SqBufRsrcTWord0BaseAddressShift                                          =  0;
@@ -129,7 +128,6 @@ union sq_img_rsrc_t {
     } most;
     uint64_t u64All[4];
     uint32_t u32All[8];
-
 };
 
 constexpr uint32_t SqImgRsrcTWord0BaseAddressShift                                          =  0;
@@ -204,7 +202,6 @@ union sq_img_samp_deriv_adjust_t {
     };
     uint64_t u64All[2];
     uint32_t u32All[4];
-
 };
 
 constexpr uint32_t SqImgSampDerivAdjustTWord0ClampXShift                                    =  0;
@@ -283,7 +280,6 @@ union sq_img_samp_t {
     } most;
     uint64_t u64All[2];
     uint32_t u32All[4];
-
 };
 
 constexpr uint32_t SqImgSampTWord0ClampXShift                                               =  0;

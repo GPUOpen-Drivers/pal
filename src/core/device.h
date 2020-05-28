@@ -450,6 +450,9 @@ struct GpuEngineProperties
         /// parameter of @ref CmdAllocatorCreateInfo.  Clients are free to ignore these defaults and use their own
         /// heap preferences, but may suffer a performance penalty.
         GpuHeap preferredCmdAllocHeaps[CmdAllocatorTypeCount];
+
+        /// Indicate which queue supports per-command, per-submit, or per-queue TMZ based on the queue type.
+        TmzSupportLevel tmzSupportLevel;
     } perEngine[EngineTypeCount];
 };
 
@@ -669,8 +672,9 @@ struct GpuChipProperties
 
                 /// Images created on this device support being sampled with corner sampling.
                 uint32 supportsCornerSampling       :  1;
+                uint32 supportDisplayDcc            :  1; ///< whether to support Display Dcc
                 /// Reserved for future use.
-                uint32 reserved                     : 29;
+                uint32 reserved                     : 28;
             };
             uint32 u32All;           ///< Flags packed as 32-bit uint.
         } flags;
@@ -930,7 +934,8 @@ struct GpuChipProperties
                 uint64 supportShaderDeviceClock                 :  1; // HW supports clock functions across device.
                 uint64 supportAlphaToOne                        :  1; // HW supports forcing alpha channel to one
                 uint64 supportSingleChannelMinMaxFilter         :  1; // HW supports any min/max filter.
-                uint64 reserved                                 : 26;
+                uint64 supportSortAgnosticBarycentrics          :  1; // HW provides provoking vertex for custom interp
+                uint64 reserved                                 : 25;
             };
 
             Gfx9PerfCounterInfo perfCounterInfo; // Contains info for perf counters for a specific hardware block
@@ -2458,9 +2463,13 @@ static bool IsNavi1x(const Device& device)
             || IsNavi14(device)
            );
 }
+static bool IsGfx101(GfxIpLevel gfxLevel)
+{
+    return (gfxLevel == GfxIpLevel::GfxIp10_1);
+}
 static bool IsGfx101(const Device& device)
 {
-    return (device.ChipProperties().gfxLevel == GfxIpLevel::GfxIp10_1);
+    return IsGfx101(device.ChipProperties().gfxLevel);
 }
 
 static bool IsGfx091xPlus(const Device& device)

@@ -359,7 +359,7 @@ void PipelineChunkCs::SetupSignatureFromElf(
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 495
         else if (registers.HasEntry(mmCOMPUTE_DISPATCH_INITIATOR, &dispatchInitiator.u32All))
         {
-            pSignature->flags.isWave32 = dispatchInitiator.gfx10.CS_W32_EN;
+            pSignature->flags.isWave32 = dispatchInitiator.gfx10Plus.CS_W32_EN;
         }
 #endif
     }

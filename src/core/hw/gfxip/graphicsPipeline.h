@@ -59,7 +59,6 @@ public:
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 473
     uint32 VertexBufferCount() const { return m_vertexBufferCount; }
 #endif
-    uint32 VertsPerPrimitive() const { return m_vertsPerPrim; }
 
     const ViewInstancingDescriptor& GetViewInstancingDesc() const { return m_viewInstancingDesc; };
 
@@ -77,7 +76,6 @@ protected:
         const CodeObjectMetadata&         metadata,
         Util::MsgPackReader*              pMetadataReader) = 0;
 
-    bool UsesAdjacency()        const { return m_flags.adjacencyPrim; }
     bool IsDccDecompress()      const { return m_flags.dccDecompress; }
     bool IsResolveFixedFunc()   const { return m_flags.resolveFixedFunc; }
     bool IsFastClearEliminate() const { return m_flags.fastClearElim; }
@@ -102,7 +100,6 @@ private:
             uint32 tessEnabled           :  1; // Tessellation shaders (HS/DS) are active.
             uint32 placeholder0          :  2; // Placeholder for future features.
             uint32 streamOut             :  1; // Stream-output is active.
-            uint32 adjacencyPrim         :  1; // Primitive topology contains adjacency info.
             uint32 vportArrayIdx         :  1; // GS outputs a viewport array index parameter.
             uint32 psUsesUavs            :  1; // PS reads/writes at least one UAV.
             uint32 psUsesRovs            :  1; // PS reads/writes at least one ROV.
@@ -117,7 +114,7 @@ private:
             uint32 perpLineEndCapsEnable :  1; // use perpendicular line end caps instead of axis-aligned end caps
             uint32 placeholder1          :  1;
             uint32 psWritesUavs          :  1; // PS writes at least one UAV.
-            uint32 reserved              : 12;
+            uint32 reserved              : 13;
         };
         uint32 u32All;
     } m_flags;
@@ -127,7 +124,6 @@ private:
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 473
     uint32  m_vertexBufferCount;    // Number of vertex buffer slots used by this pipeline.
 #endif
-    uint32  m_vertsPerPrim;         // Number of vertices per primitive (based on topology).
 
     // Store any info from the pipeline creation info that might be needed later, such as for draw-time blend
     // optimization programming.

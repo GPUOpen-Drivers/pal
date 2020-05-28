@@ -1724,6 +1724,7 @@ void CmdBuffer::CmdCopyImage(
     ImageLayout            dstImageLayout,
     uint32                 regionCount,
     const ImageCopyRegion* pRegions,
+    const Rect*            pScissorRect,
     uint32                 flags)
 {
     InsertToken(CmdBufCallId::CmdCopyImage);
@@ -1732,6 +1733,7 @@ void CmdBuffer::CmdCopyImage(
     InsertToken(&dstImage);
     InsertToken(dstImageLayout);
     InsertTokenArray(pRegions, regionCount);
+    InsertToken(pScissorRect);
     InsertToken(flags);
 }
 
@@ -1746,12 +1748,20 @@ void CmdBuffer::ReplayCmdCopyImage(
     auto                   dstImageLayout = ReadTokenVal<ImageLayout>();
     const ImageCopyRegion* pRegions       = nullptr;
     auto                   regionCount    = ReadTokenArray(&pRegions);
+    auto                   pScissorRect   = ReadTokenVal<Rect*>();
     auto                   flags          = ReadTokenVal<uint32>();
 
     LogItem logItem = { };
 
     LogPreTimedCall(pQueue, pTgtCmdBuffer, &logItem, CmdBufCallId::CmdCopyImage);
-    pTgtCmdBuffer->CmdCopyImage(*pSrcImage, srcImageLayout, *pDstImage, dstImageLayout, regionCount, pRegions, flags);
+    pTgtCmdBuffer->CmdCopyImage(*pSrcImage,
+                                srcImageLayout,
+                                *pDstImage,
+                                dstImageLayout,
+                                regionCount,
+                                pRegions,
+                                pScissorRect,
+                                flags);
     LogPostTimedCall(pQueue, pTgtCmdBuffer, &logItem);
 }
 
@@ -2335,7 +2345,8 @@ void CmdBuffer::CmdResolveImage(
     ImageLayout               dstImageLayout,
     ResolveMode               resolveMode,
     uint32                    regionCount,
-    const ImageResolveRegion* pRegions)
+    const ImageResolveRegion* pRegions,
+    uint32                    flags)
 {
     InsertToken(CmdBufCallId::CmdResolveImage);
     InsertToken(&srcImage);
@@ -2344,6 +2355,7 @@ void CmdBuffer::CmdResolveImage(
     InsertToken(dstImageLayout);
     InsertToken(resolveMode);
     InsertTokenArray(pRegions, regionCount);
+    InsertToken(flags);
 }
 
 // =====================================================================================================================
@@ -2358,6 +2370,7 @@ void CmdBuffer::ReplayCmdResolveImage(
     auto                      resolveMode    = ReadTokenVal<ResolveMode>();
     const ImageResolveRegion* pRegions       = nullptr;
     auto                      regionCount    = ReadTokenArray(&pRegions);
+    auto                      flags          = ReadTokenVal<uint32>();
 
     LogItem logItem = { };
 
@@ -2368,7 +2381,8 @@ void CmdBuffer::ReplayCmdResolveImage(
                                    dstImageLayout,
                                    resolveMode,
                                    regionCount,
-                                   pRegions);
+                                   pRegions,
+                                   flags);
     LogPostTimedCall(pQueue, pTgtCmdBuffer, &logItem);
 }
 
@@ -3994,7 +4008,7 @@ static const char* FormatToString(
         "X8_Srgb",
         "A8_Unorm",
         "L8_Unorm",
-        "P8_Uint",
+        "P8_Unorm",
         "X8Y8_Unorm",
         "X8Y8_Snorm",
         "X8Y8_Uscaled",

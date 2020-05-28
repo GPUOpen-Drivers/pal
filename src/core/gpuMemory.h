@@ -72,7 +72,7 @@ struct GpuMemoryInternalCreateInfo
                                             // suballocating smaller memory blocks.
             uint32 privateScreen      :  1; // GPU memory will be used for a private screen image.
             uint32 userQueue          :  1; // GPU memory will be used for an user queue.
-            uint32 placeholder0       :  1; // Reserved. Set to 0.
+            uint32 tmzUserQueue       :  1; // GPU memory will be used for a TMZ enabled user queue.
             uint32 timestamp          :  1; // GPU memory will be used for KMD timestamp writeback.
             uint32 accessedPhysically :  1; // GPU memory will be accessed physically (physical engine like MM video).
             uint32 pageFaultDebugSrd  :  1; // GPU memory will be used for PageFaultDebugSrd feature.
@@ -151,7 +151,8 @@ union GpuMemoryFlags
         uint32 peerWritable             :  1; // GPU memory can be open as peer memory and be writable
         uint32 mapppedToPeerMemory      :  1; // GPU memory is remapped to at least one peer physical memory.
         uint32 tmzProtected             :  1; // GPU memory is TMZ protected.
-        uint32 placeholder0             :  2; // Placeholder.
+        uint32 tmzUserQueue             :  1; // GPU memory is a user queue for TMZ submission.
+        uint32 placeholder0             :  1; // Placeholder.
         uint32 restrictedContent        :  1; // GPU memory is protected content
         uint32 restrictedAccess         :  1; // GPU memory is restricted shared access resource
         uint32 crossAdapter             :  1; // GPU memory is shared cross-adapter resource
@@ -254,6 +255,7 @@ public:
     bool IsRestrictedAccess()    const { return (m_flags.restrictedAccess         != 0); }
     bool IsCrossAdapter()        const { return (m_flags.crossAdapter             != 0); }
     bool IsTmzProtected()        const { return (m_flags.tmzProtected             != 0); }
+    bool IsTmzUserQueue()        const { return (m_flags.tmzUserQueue             != 0); }
     bool IsMapppedToPeerMemory() const { return (m_flags.mapppedToPeerMemory      != 0); }
     bool IsSvmAlloc()            const { return (m_desc.flags.isSvmAlloc          != 0); }
     bool IsExecutable()          const { return (m_desc.flags.isExecutable        != 0); }

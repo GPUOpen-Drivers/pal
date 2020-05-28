@@ -292,7 +292,17 @@ union ImageUsageFlags
                                             ///  ignored when corner sampling is enabled.
 
         uint32 placeHolder2           :  1;
-        uint32 reserved               : 17; ///< Reserved for future use.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 597
+        uint32 disableOptimizedDisplay:  1; ///< Do not create Display Dcc
+#else
+        uint32 reservedForFutureHw    :  1;
+#endif
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 602
+        uint32 useLossy               :  1; ///< Set if this image may use lossy compression.
+#else
+        uint32 reservedForFutureHw1   :  1;
+#endif
+        uint32 reserved               : 15; ///< Reserved for future use.
     };
     uint32 u32All;                          ///< Flags packed as 32-bit uint.
 };

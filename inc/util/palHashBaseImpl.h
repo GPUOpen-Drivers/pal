@@ -282,13 +282,12 @@ PAL_INLINE void HashIterator<Key, Entry, Allocator, HashFunc, EqualFunc, AllocFu
     {
         PAL_ASSERT(m_pCurrentEntry < &m_pCurrentGroup[Container::EntriesInGroup]);
 
-        auto pFooter = reinterpret_cast<GroupFooter<Entry>*>(&m_pCurrentGroup[Container::EntriesInGroup]);
-
         Entry* pNextGroup = Container::GetNextGroup(m_pCurrentGroup);
 
         // We're in the middle of a group.
+        uint32 numEntries = m_pContainer->GetGroupFooterNumEntries(m_pCurrentGroup);
         if ((m_pCurrentEntry < &m_pCurrentGroup[Container::EntriesInGroup - 1]) &&
-            (m_indexInGroup + 1 < pFooter->numEntries))
+            (m_indexInGroup + 1 < numEntries))
         {
             m_pCurrentEntry++;
             m_indexInGroup++;
@@ -298,7 +297,7 @@ PAL_INLINE void HashIterator<Key, Entry, Allocator, HashFunc, EqualFunc, AllocFu
         // next group's footer->numEntries before jump to the next group. If the numEntry of the next chained
         // group is 0 (invalid), we need to jump to the next bucket directly to avoid returning invalid entry.
         else if ((pNextGroup != nullptr) &&
-                 (m_indexInGroup == pFooter->numEntries - 1) &&
+                 (m_indexInGroup == numEntries - 1) &&
                  (reinterpret_cast<GroupFooter<Entry>*>(&pNextGroup[Container::EntriesInGroup])->numEntries > 0))
         {
             m_pCurrentGroup = pNextGroup;
@@ -315,9 +314,8 @@ PAL_INLINE void HashIterator<Key, Entry, Allocator, HashFunc, EqualFunc, AllocFu
                 pNextGroup = static_cast<Entry*>(VoidPtrInc(m_pContainer->m_pMemory,
                                                             m_currentBucket * GroupSize));
 
-                pFooter = reinterpret_cast<GroupFooter<Entry>*>(&pNextGroup[Container::EntriesInGroup]);
-
-                if (pFooter->numEntries > 0)
+                numEntries = m_pContainer->GetGroupFooterNumEntries(pNextGroup);
+                if (numEntries > 0)
                 {
                     m_indexInGroup = 0;
                     break;
@@ -385,9 +383,8 @@ PAL_INLINE HashBase<Key, Entry, Allocator, HashFunc, EqualFunc, AllocFunc, Group
         for (;bucket < m_numBuckets; ++bucket)
         {
             Entry* pEntry = static_cast<Entry*>(VoidPtrInc(m_pMemory, bucket * GroupSize));
-            GroupFooter<Entry>* pFooter = reinterpret_cast<GroupFooter<Entry>*>(&pEntry[EntriesInGroup]);
-
-            if (pFooter->numEntries > 0)
+            const uint32 numEntries = GetGroupFooterNumEntries(pEntry);
+            if (numEntries > 0)
             {
                 break;
             }
@@ -461,10 +458,7 @@ PAL_INLINE Entry* HashBase<Key, Entry, Allocator, HashFunc, EqualFunc, AllocFunc
     Entry* pGroup)
 {
     // Footer of a group stores the pointer to the next group
-    GroupFooter<Entry>* pFooter = HashBase::GetGroupFooter(pGroup);
-    Entry** ppNextGroup = reinterpret_cast<Entry**>(&(pFooter->pNextGroup));
-
-    return *ppNextGroup;
+    return HashBase::GetGroupFooterNextGroup(pGroup);
 }
 
 // =====================================================================================================================
@@ -481,18 +475,18 @@ PAL_INLINE Entry* HashBase<Key, Entry, Allocator, HashFunc, EqualFunc, AllocFunc
     Entry* pGroup)
 {
     // Footer of a group stores the pointer to the next group.
-    GroupFooter<Entry>* pFooter = this->GetGroupFooter(pGroup);
-    Entry** ppNextGroup = reinterpret_cast<Entry**>(&(pFooter->pNextGroup));
+    Entry* pNextGroup = GetGroupFooterNextGroup(pGroup);
 
-    if (*ppNextGroup == nullptr)
+    if (pNextGroup == nullptr)
     {
         // We allocate the next entry group if it does not exist.
-        *ppNextGroup = static_cast<Entry*>(m_allocator.Allocate());
+        pNextGroup = static_cast<Entry*>(m_allocator.Allocate());
+        SetGroupFooterNextGroup(pGroup, pNextGroup);
     }
 
-    PAL_ASSERT(*ppNextGroup != nullptr);
+    PAL_ASSERT(pNextGroup != nullptr);
 
-    return *ppNextGroup;
+    return pNextGroup;
 }
 
 // =====================================================================================================================
@@ -509,6 +503,78 @@ PAL_INLINE GroupFooter<Entry>* HashBase<Key, Entry, Allocator, HashFunc, EqualFu
     Entry* pGroup)
 {
     return reinterpret_cast<GroupFooter<Entry>*>(&pGroup[EntriesInGroup]);
+}
+
+// =====================================================================================================================
+template<
+    typename Key,
+    typename Entry,
+    typename Allocator,
+    typename HashFunc,
+    typename EqualFunc,
+    typename AllocFunc,
+    size_t GroupSize>
+PAL_INLINE uint32 HashBase<Key, Entry, Allocator, HashFunc, EqualFunc, AllocFunc, GroupSize>::GetGroupFooterNumEntries(
+    Entry* pGroup)
+{
+    const uint32* pNumEntries = reinterpret_cast<uint32*>(reinterpret_cast<uintptr_t>(&pGroup[EntriesInGroup]) +
+            offsetof(GroupFooter<Entry>, numEntries));
+    uint32 numEntries;
+    memcpy(&numEntries, pNumEntries, sizeof(numEntries));
+    return numEntries;
+}
+
+// =====================================================================================================================
+template<
+    typename Key,
+    typename Entry,
+    typename Allocator,
+    typename HashFunc,
+    typename EqualFunc,
+    typename AllocFunc,
+    size_t GroupSize>
+PAL_INLINE void HashBase<Key, Entry, Allocator, HashFunc, EqualFunc, AllocFunc, GroupSize>::SetGroupFooterNumEntries(
+    Entry* pGroup, uint32 numEntries)
+{
+    uint32* pNumEntries = reinterpret_cast<uint32*>(reinterpret_cast<uintptr_t>(&pGroup[EntriesInGroup]) +
+            offsetof(GroupFooter<Entry>, numEntries));
+    memcpy(pNumEntries, &numEntries, sizeof(numEntries));
+}
+
+// =====================================================================================================================
+template<
+    typename Key,
+    typename Entry,
+    typename Allocator,
+    typename HashFunc,
+    typename EqualFunc,
+    typename AllocFunc,
+    size_t GroupSize>
+PAL_INLINE Entry* HashBase<Key, Entry, Allocator, HashFunc, EqualFunc, AllocFunc, GroupSize>::GetGroupFooterNextGroup(
+    Entry* pGroup)
+{
+    Entry** ppNextGroup = reinterpret_cast<Entry**>(reinterpret_cast<uintptr_t>(&pGroup[EntriesInGroup]) +
+            offsetof(GroupFooter<Entry>, pNextGroup));
+    Entry* pNextGroup;
+    memcpy(&pNextGroup, ppNextGroup, sizeof(pNextGroup));
+    return pNextGroup;
+}
+
+// =====================================================================================================================
+template<
+    typename Key,
+    typename Entry,
+    typename Allocator,
+    typename HashFunc,
+    typename EqualFunc,
+    typename AllocFunc,
+    size_t GroupSize>
+PAL_INLINE void HashBase<Key, Entry, Allocator, HashFunc, EqualFunc, AllocFunc, GroupSize>::SetGroupFooterNextGroup(
+    Entry* pGroup, Entry* pNextGroup)
+{
+    Entry** ppNextGroup = reinterpret_cast<Entry**>(reinterpret_cast<uintptr_t>(&pGroup[EntriesInGroup]) +
+            offsetof(GroupFooter<Entry>, pNextGroup));
+    memcpy(ppNextGroup, &pNextGroup, sizeof(pNextGroup));
 }
 
 } // Util

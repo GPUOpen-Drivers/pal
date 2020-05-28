@@ -663,6 +663,7 @@ public:
     void QueryResultFlags(uint32 flags);
     void ClearColorImageFlags(uint32 flags);
     void ClearDepthStencilFlags(uint32 flags);
+    void ResolveImageFlags(uint32 flags);
 
     void KeyAndObject(const char* pKey, const IBorderColorPalette* pDecorator)   { Key(pKey); Object(pDecorator); }
     void KeyAndObject(const char* pKey, const ICmdAllocator* pDecorator)         { Key(pKey); Object(pDecorator); }
@@ -901,6 +902,8 @@ public:
     void KeyAndQueryResultFlags(const char* pKey, uint32 flags)         { Key(pKey); QueryResultFlags(flags); }
     void KeyAndClearColorImageFlags(const char* pKey, uint32 flags)     { Key(pKey); ClearColorImageFlags(flags); }
     void KeyAndClearDepthStencilFlags(const char* pKey, uint32 flags)   { Key(pKey); ClearDepthStencilFlags(flags); }
+    void KeyAndResolveImageFlags(const char* pKey, uint32 flags)        { Key(pKey); ResolveImageFlags(flags); }
+
     void KeyAndClientData(const char* pKey, void* pClientData)
         { Key(pKey); Value(reinterpret_cast<uintptr_t>(pClientData)); }
 

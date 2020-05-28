@@ -56,6 +56,7 @@ cmake_dependent_option(ADDR_RAVEN2_BUILD     "Build support for Raven 2?"    ON 
                 option(ADDR_RENOIR_BUILD      "Build support for RENOIR?"    OFF                                               )
                 option(ADDR_NAVI14_BUILD      "Build support for NAVI14?"    OFF                                               )
 
+               option(ADDR_ENABLE_LTO       "Build with LTO enabled"        ON                                                 )
 add_library(addrlib STATIC "")
 
 target_include_directories(addrlib PUBLIC  inc
@@ -192,12 +193,28 @@ elseif((CMAKE_CXX_COMPILER_ID MATCHES "[Cc]lang")
     #
     # [Clang] Thin LTO
     #    https://clang.llvm.org/docs/ThinLTO.html
+if(ADDR_ENABLE_LTO)
     target_compile_options(addrlib PRIVATE -flto=thin)
+endif()
 
 elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
 
-    target_compile_options(addrlib PRIVATE /GL)
-    set_target_properties(addrlib PROPERTIES STATIC_LIBRARY_FLAGS /LTCG)
+    if( (${CMAKE_VERSION} VERSION_GREATER "3.13") OR
+        (${CMAKE_VERSION} VERSION_EQUAL   "3.13") )
+
+        target_compile_options(addrlib PRIVATE
+            $<$<CONFIG:Release>:/GL>
+        )
+
+        # STATIC_LIBRARY_OPTIONS was introduced in 3.13 and allows generator expressions
+        set_target_properties(addrlib PROPERTIES
+            STATIC_LIBRARY_OPTIONS $<$<CONFIG:Release>:/LTCG>
+        )
+
+    else()
+        target_compile_options(addrlib PRIVATE /GL)
+        set_target_properties(addrlib PROPERTIES STATIC_LIBRARY_FLAGS /LTCG)
+    endif()
 
 else()
     message(FATAL_ERROR "IPO is not supported!")

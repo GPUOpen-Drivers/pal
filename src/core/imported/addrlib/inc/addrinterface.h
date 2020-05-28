@@ -3560,8 +3560,9 @@ typedef union _ADDR2_BLOCK_SET
         UINT_32 macroThin64KB  : 1;   // Thin 64KB for 2D/3D resource
         UINT_32 macroThick64KB : 1;   // Thick 64KB for 3D resource
         UINT_32 var            : 1;   // VAR block
+        UINT_32                : 1;
         UINT_32 linear         : 1;   // Linear block
-        UINT_32 reserved       : 25;
+        UINT_32 reserved       : 24;
     };
 
     UINT_32 value;
@@ -3613,10 +3614,10 @@ typedef union _ADDR2_SWMODE_SET
         UINT_32 sw64KB_S    : 1;
         UINT_32 sw64KB_D    : 1;
         UINT_32 sw64KB_R    : 1;
-        UINT_32 swReserved0 : 1;
-        UINT_32 swReserved1 : 1;
-        UINT_32 swReserved2 : 1;
-        UINT_32 swReserved3 : 1;
+        UINT_32 swMiscDef12 : 1;
+        UINT_32 swMiscDef13 : 1;
+        UINT_32 swMiscDef14 : 1;
+        UINT_32 swMiscDef15 : 1;
         UINT_32 sw64KB_Z_T  : 1;
         UINT_32 sw64KB_S_T  : 1;
         UINT_32 sw64KB_D_T  : 1;
@@ -3629,11 +3630,19 @@ typedef union _ADDR2_SWMODE_SET
         UINT_32 sw64KB_S_X  : 1;
         UINT_32 sw64KB_D_X  : 1;
         UINT_32 sw64KB_R_X  : 1;
-        UINT_32 swVar_Z_X   : 1;
-        UINT_32 swReserved4 : 1;
-        UINT_32 swReserved5 : 1;
-        UINT_32 swVar_R_X   : 1;
+        UINT_32 swMiscDef28 : 1;
+        UINT_32 swMiscDef29 : 1;
+        UINT_32 swMiscDef30 : 1;
+        UINT_32 swMiscDef31 : 1;
     };
+
+    struct
+    {
+        UINT_32             : 28;
+        UINT_32 swVar_Z_X   : 1;
+        UINT_32             : 2;
+        UINT_32 swVar_R_X   : 1;
+    } gfx10;
 
     UINT_32 value;
 } ADDR2_SWMODE_SET;

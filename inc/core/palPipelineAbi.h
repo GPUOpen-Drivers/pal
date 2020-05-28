@@ -432,14 +432,20 @@ enum class PipelineSymbolType : uint32
     PsShdrIntrlData,   ///< PS shader internal data pointer.  Optional.
     CsShdrIntrlData,   ///< CS shader internal data pointer.  Optional.
     PipelineIntrlData, ///< Cross-shader internal data pointer.  Optional.
-    CsAmdIl,           ///< API CS shader AMDIL disassembly.  Optional. Associated with the .AMDGPU.comment.amdil section.
+    CsAmdIl,           ///< API CS shader AMDIL disassembly.  Optional.
+                       ///  Associated with the .AMDGPU.comment.amdil section.
     Reserved0,
-    VsAmdIl,           ///< API VS shader AMDIL disassembly.  Optional. Associated with the .AMDGPU.comment.amdil section.
-    HsAmdIl,           ///< API HS shader AMDIL disassembly.  Optional. Associated with the .AMDGPU.comment.amdil section.
-    DsAmdIl,           ///< API DS shader AMDIL disassembly.  Optional. Associated with the .AMDGPU.comment.amdil section.
-    GsAmdIl,           ///< API GS shader AMDIL disassembly.  Optional. Associated with the .AMDGPU.comment.amdil section.
+    VsAmdIl,           ///< API VS shader AMDIL disassembly.  Optional.
+                       ///  Associated with the .AMDGPU.comment.amdil section.
+    HsAmdIl,           ///< API HS shader AMDIL disassembly.  Optional.
+                       ///  Associated with the .AMDGPU.comment.amdil section.
+    DsAmdIl,           ///< API DS shader AMDIL disassembly.  Optional.
+                       ///  Associated with the .AMDGPU.comment.amdil section.
+    GsAmdIl,           ///< API GS shader AMDIL disassembly.  Optional.
+                       ///  Associated with the .AMDGPU.comment.amdil section.
     Reserved1,
-    PsAmdIl,           ///< API PS shader AMDIL disassembly.  Optional. Associated with the .AMDGPU.comment.amdil section.
+    PsAmdIl,           ///< API PS shader AMDIL disassembly.  Optional.
+                       ///  Associated with the .AMDGPU.comment.amdil section.
     Count,
 
     ShaderMainEntry   = LsMainEntry,        ///< Shorthand for the first shader's entry point
@@ -935,7 +941,7 @@ struct PrimShaderPsoCb
 /// Constant buffer used by primitive shader generation for per-submit register controls of viewport transform.
 struct PrimShaderVportCb
 {
-    struct
+    struct Controls
     {
         /// Viewport transform scale and offset for x, y, z components
         uint32 paClVportXscale;
@@ -964,7 +970,8 @@ struct PrimShaderRenderCb
     uint32 primitiveRestartEnable;          ///< Enable resetting of a triangle strip using a special index.
     uint32 primitiveRestartIndex;           ///< Value used to determine if a primitive restart is triggered
     uint32 matchAllBits;                    ///< When comparing restart indices, this limits number of bits
-    uint32 enableConservativeRasterization; ///< Conservative rasterization is enabled, triggering special logic for culling.
+    uint32 enableConservativeRasterization; ///< Conservative rasterization is enabled, triggering special logic
+                                            ///  for culling.
 };
 
 /// This struct defines the expected layout in memory when 'contiguousCbs' is set

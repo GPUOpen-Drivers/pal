@@ -681,6 +681,7 @@ void CmdBuffer::CmdCopyImage(
     ImageLayout            dstImageLayout,
     uint32                 regionCount,
     const ImageCopyRegion* pRegions,
+    const Rect*            pScissorRect,
     uint32                 flags)
 {
     PreCall();
@@ -690,6 +691,7 @@ void CmdBuffer::CmdCopyImage(
                                         dstImageLayout,
                                         regionCount,
                                         pRegions,
+                                        pScissorRect,
                                         flags);
     PostCall(CmdBufCallId::CmdCopyImage);
 }
@@ -994,7 +996,8 @@ void CmdBuffer::CmdResolveImage(
     ImageLayout               dstImageLayout,
     ResolveMode               resolveMode,
     uint32                    regionCount,
-    const ImageResolveRegion* pRegions)
+    const ImageResolveRegion* pRegions,
+    uint32                    flags)
 {
     PreCall();
     CmdBufferFwdDecorator::CmdResolveImage(srcImage,
@@ -1003,7 +1006,8 @@ void CmdBuffer::CmdResolveImage(
                                            dstImageLayout,
                                            resolveMode,
                                            regionCount,
-                                           pRegions);
+                                           pRegions,
+                                           flags);
     PostCall(CmdBufCallId::CmdResolveImage);
 }
 

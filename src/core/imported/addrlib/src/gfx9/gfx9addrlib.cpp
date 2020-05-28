@@ -1324,7 +1324,7 @@ ChipFamily Gfx9Lib::HwlConvertChipFamily(
 #endif
 
         default:
-            ADDR_ASSERT(!"This should be a Fusion");
+            ADDR_ASSERT(!"No Chip found");
             break;
     }
 
@@ -3632,7 +3632,7 @@ ADDR_E_RETURNCODE Gfx9Lib::HwlGetPreferredSurfaceSetting(
                 // Determine block size if there are 2 or more block type candidates
                 if (IsPow2(allowedBlockSet.value) == FALSE)
                 {
-                    AddrSwizzleMode swMode[AddrBlockMaxTiledType] = { ADDR_SW_LINEAR };
+                    AddrSwizzleMode swMode[AddrBlockMaxTiledType] = {};
 
                     swMode[AddrBlockMicro]    = ADDR_SW_256B_D;
                     swMode[AddrBlockThin4KB]  = ADDR_SW_4KB_D;
@@ -3644,9 +3644,9 @@ ADDR_E_RETURNCODE Gfx9Lib::HwlGetPreferredSurfaceSetting(
                         swMode[AddrBlockThick64KB] = ADDR_SW_64KB_S;
                     }
 
-                    Dim3d   blkDim[AddrBlockMaxTiledType]  = {{0}, {0}, {0}, {0}, {0}, {0}};
-                    Dim3d   padDim[AddrBlockMaxTiledType]  = {{0}, {0}, {0}, {0}, {0}, {0}};
-                    UINT_64 padSize[AddrBlockMaxTiledType] = {0};
+                    Dim3d   blkDim[AddrBlockMaxTiledType]  = {};
+                    Dim3d   padDim[AddrBlockMaxTiledType]  = {};
+                    UINT_64 padSize[AddrBlockMaxTiledType] = {};
 
                     const UINT_32 ratioLow           = pIn->flags.minimizeAlign ? 1 : (pIn->flags.opt4space ? 3 : 2);
                     const UINT_32 ratioHi            = pIn->flags.minimizeAlign ? 1 : (pIn->flags.opt4space ? 2 : 1);

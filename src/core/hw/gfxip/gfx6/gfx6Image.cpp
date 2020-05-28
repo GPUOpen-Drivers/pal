@@ -301,19 +301,19 @@ Result Image::Finalize(
 
     if (useSharedMetadata)
     {
-        useDcc   = (sharedMetadata.dccOffset != 0);
-        useHtile = (sharedMetadata.htileOffset != 0);
-        useCmask = (sharedMetadata.cmaskOffset != 0);
-        useFmask = (sharedMetadata.fmaskOffset != 0);
+        useDcc   = (sharedMetadata.dccOffset[0] != 0);
+        useHtile = (sharedMetadata.htileOffset  != 0);
+        useCmask = (sharedMetadata.cmaskOffset  != 0);
+        useFmask = (sharedMetadata.fmaskOffset  != 0);
 
         // Fast-clear metadata is a must for shared DCC and HTILE. Sharing is disabled if it is not provided.
-        if (useDcc && (sharedMetadata.fastClearMetaDataOffset == 0))
+        if (useDcc && (sharedMetadata.fastClearMetaDataOffset[0] == 0))
         {
             useDcc = false;
             result = Result::ErrorNotShareable;
         }
 
-        if (useHtile && (sharedMetadata.fastClearMetaDataOffset == 0))
+        if (useHtile && (sharedMetadata.fastClearMetaDataOffset[0] == 0))
         {
             useHtile = false;
             result = Result::ErrorNotShareable;
@@ -357,8 +357,11 @@ Result Image::Finalize(
             // Store current memory offset
             if (useSharedMetadata)
             {
-                mipMemOffset      = sharedMetadata.dccOffset;
-                totalMemOffset    = sharedMetadata.dccOffset;
+                // This HWL doesn't support DCC for multi-planar images, so there shouldn't ever be more than one plane.
+                PAL_ASSERT(sharedMetadata.numPlanes == 1);
+
+                mipMemOffset      = sharedMetadata.dccOffset[0];
+                totalMemOffset    = sharedMetadata.dccOffset[0];
             }
             else
             {
@@ -457,7 +460,7 @@ Result Image::Finalize(
 
                     // We also need the DCC state metadata when DCC is enabled.
                     needsDccStateMetaData = useSharedMetadata ?
-                                            (sharedMetadata.dccStateMetaDataOffset != 0) : true;
+                                            (sharedMetadata.dccStateMetaDataOffset[0] != 0) : true;
 
                     // The total DCC memory offset equals the current size of this image's GPU memory.
                     *pGpuMemSize = useSharedMetadata ? Max(totalMemOffset, *pGpuMemSize) : totalMemOffset;
@@ -745,7 +748,7 @@ Result Image::Finalize(
         {
             if (useSharedMetadata)
             {
-                gpusize forcedOffset = sharedMetadata.fastClearMetaDataOffset;
+                gpusize forcedOffset = sharedMetadata.fastClearMetaDataOffset[0];
                 InitFastClearMetaData(pGpuMemLayout, &forcedOffset, sizeof(Gfx6FastColorClearMetaData), sizeof(uint32));
                 *pGpuMemSize = Max(forcedOffset, *pGpuMemSize);
             }
@@ -758,7 +761,7 @@ Result Image::Finalize(
         {
             if (useSharedMetadata)
             {
-                gpusize forcedOffset = sharedMetadata.fastClearMetaDataOffset;
+                gpusize forcedOffset = sharedMetadata.fastClearMetaDataOffset[0];
                 InitFastClearMetaData(pGpuMemLayout, &forcedOffset, sizeof(Gfx6FastDepthClearMetaData), sizeof(uint32));
                 *pGpuMemSize = Max(forcedOffset, *pGpuMemSize);
             }
@@ -794,7 +797,7 @@ Result Image::Finalize(
         {
             if (useSharedMetadata)
             {
-                gpusize forcedOffset = sharedMetadata.dccStateMetaDataOffset;
+                gpusize forcedOffset = sharedMetadata.dccStateMetaDataOffset[0];
                 InitDccStateMetaData(pGpuMemLayout, &forcedOffset);
                 *pGpuMemSize = Max(*pGpuMemSize, forcedOffset);
             }
@@ -823,9 +826,9 @@ Result Image::Finalize(
         {
             if (useSharedMetadata)
             {
-                if (sharedMetadata.fastClearEliminateMetaDataOffset != 0)
+                if (sharedMetadata.fastClearEliminateMetaDataOffset[0] != 0)
                 {
-                    gpusize forcedOffset = sharedMetadata.fastClearEliminateMetaDataOffset;
+                    gpusize forcedOffset = sharedMetadata.fastClearEliminateMetaDataOffset[0];
                     InitFastClearEliminateMetaData(pGpuMemLayout, &forcedOffset);
                     *pGpuMemSize = Max(forcedOffset, *pGpuMemSize);
                 }
@@ -2159,28 +2162,34 @@ bool Image::IsFastDepthStencilClearSupported(
 bool Image::IsFormatReplaceable(
     const SubresId& subresId,
     ImageLayout     layout,
-    bool            isDst
+    bool            isDst,
+    uint8           disabledChannelMask
     ) const
 {
     bool  isFormatReplaceable = false;
 
-    if (Parent()->IsDepthStencil())
+    // The image can only be cleared or copied with format replacement
+    // when all channels of the color are being written.
+    if (disabledChannelMask == 0)
     {
-        const auto layoutToState = LayoutToDepthCompressionState(subresId);
+        if (Parent()->IsDepthStencil())
+        {
+            const auto layoutToState = LayoutToDepthCompressionState(subresId);
 
-        // Htile must either be disabled or we must be sure that the texture pipe doesn't need to read it.
-        // Depth surfaces are either Z-16 unorm or Z-32 float; they would get replaced to x16-uint or x32-uint.
-        // Z-16 unorm is actually replaceable, but Z-32 float will be converted to unorm if replaced.
-        isFormatReplaceable = ((HasHtileData() == false) ||
-                               (ImageLayoutToDepthCompressionState(layoutToState, layout) != DepthStencilCompressed));
-    }
-    else
-    {
-        const auto layoutToState = LayoutToColorCompressionState(subresId);
+            // Htile must either be disabled or we must be sure that the texture pipe doesn't need to read it.
+            // Depth surfaces are either Z-16 unorm or Z-32 float; they would get replaced to x16-uint or x32-uint.
+            // Z-16 unorm is actually replaceable, but Z-32 float will be converted to unorm if replaced.
+            isFormatReplaceable = ((HasHtileData() == false) ||
+                                   (ImageLayoutToDepthCompressionState(layoutToState, layout) != DepthStencilCompressed));
+        }
+        else
+        {
+            const auto layoutToState = LayoutToColorCompressionState(subresId);
 
-        // DCC must either be disabled or we must be sure that it is decompressed.
-        isFormatReplaceable = ((HasDccData() == false) ||
-                               (ImageLayoutToColorCompressionState(layoutToState, layout) == ColorDecompressed));
+            // DCC must either be disabled or we must be sure that it is decompressed.
+            isFormatReplaceable = ((HasDccData() == false) ||
+                                   (ImageLayoutToColorCompressionState(layoutToState, layout) == ColorDecompressed));
+        }
     }
 
     return isFormatReplaceable;
@@ -3120,7 +3129,8 @@ void Image::GetSharedMetadataInfo(
 
     if (m_pDcc != nullptr)
     {
-        pMetadataInfo->dccOffset = m_pDcc->MemoryOffset();
+        pMetadataInfo->numPlanes    = 1;
+        pMetadataInfo->dccOffset[0] = m_pDcc->MemoryOffset();
     }
     if (m_pCmask != nullptr)
     {
@@ -3133,15 +3143,16 @@ void Image::GetSharedMetadataInfo(
     }
     if (m_pHtile != nullptr)
     {
+        pMetadataInfo->numPlanes                 = 1;
         pMetadataInfo->htileOffset               = m_pHtile->MemoryOffset();
         pMetadataInfo->flags.hasWaTcCompatZRange = HasWaTcCompatZRangeMetaData();
     }
     pMetadataInfo->flags.shaderFetchable = Parent()->SubresourceInfo(0)->flags.supportMetaDataTexFetch;
 
-    pMetadataInfo->dccStateMetaDataOffset           = m_dccStateMetaDataOffset;
-    pMetadataInfo->fastClearMetaDataOffset          = m_fastClearMetaDataOffset[0];
-    pMetadataInfo->hisPretestMetaDataOffset         = m_hiSPretestsMetaDataOffset;
-    pMetadataInfo->fastClearEliminateMetaDataOffset = m_fastClearEliminateMetaDataOffset;
+    pMetadataInfo->dccStateMetaDataOffset[0]           = m_dccStateMetaDataOffset;
+    pMetadataInfo->fastClearMetaDataOffset[0]          = m_fastClearMetaDataOffset[0];
+    pMetadataInfo->hisPretestMetaDataOffset            = m_hiSPretestsMetaDataOffset;
+    pMetadataInfo->fastClearEliminateMetaDataOffset[0] = m_fastClearEliminateMetaDataOffset;
 }
 
 } // Gfx6

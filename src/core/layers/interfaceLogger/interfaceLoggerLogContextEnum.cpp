@@ -276,7 +276,7 @@ void LogContext::Enum(
         "X8_Srgb",                  // 0x14,
         "A8_Unorm",                 // 0x15,
         "L8_Unorm",                 // 0x16,
-        "P8_Uint",                  // 0x17,
+        "P8_Unorm",                 // 0x17,
         "X8Y8_Unorm",               // 0x18,
         "X8Y8_Snorm",               // 0x19,
         "X8Y8_Uscaled",             // 0x1A,

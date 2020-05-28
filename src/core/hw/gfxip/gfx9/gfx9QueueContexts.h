@@ -39,6 +39,22 @@ class ComputeEngine;
 class Device;
 class UniversalEngine;
 
+// Structure to pair command stream with the corresponding LastSubmissionTimeStamp from submissionContext
+template <size_t NumStreams>
+struct DeferFreeListItem
+{
+   CmdStreamChunk* pChunk[NumStreams];
+   uint64          timestamp;
+};
+
+// UniversalQueue has 3 comamnd streams that will be reset when ringSet got resized.
+static const uint32 ComputeQueueCmdStreamNum = 3;
+using ComputeQueueDeferFreeList = DeferFreeListItem<ComputeQueueCmdStreamNum>;
+
+// UniversalQueue has 5 comamnd streams that will be reset when ringSet got resized.
+static const uint32 UniversalQueueCmdStreamNum = 5;
+using UniversalQueueDeferFreeList = DeferFreeListItem<UniversalQueueCmdStreamNum>;
+
 // =====================================================================================================================
 class ComputeQueueContext : public QueueContext
 {
@@ -52,10 +68,16 @@ public:
     virtual void PostProcessSubmit() override;
 
     ComputeRingSet* RingSet() { return &m_ringSet; }
-    Result UpdateRingSet(bool* pHasChanged);
+    Result UpdateRingSet(bool* pHasChanged, bool* pHasDeferred, uint64* lastTimeStamp);
 
 private:
-    Result RebuildCommandStreams();
+    Result RebuildCommandStreams(bool hasDeferFreeMem, uint64 lastTimeStamp);
+    void ResetCommandStream(CmdStream*                 pCmdStream,
+                            bool                       hasDeferFreeMem,
+                            ComputeQueueDeferFreeList* pList,
+                            uint32*                    pIndex);
+
+    void ClearDeferredMemory();
 
     Device*const        m_pDevice;
     ComputeEngine*const m_pEngine;
@@ -68,6 +90,8 @@ private:
     CmdStream  m_cmdStream;
     CmdStream  m_perSubmitCmdStream;
     CmdStream  m_postambleCmdStream;
+
+    Util::Deque<ComputeQueueDeferFreeList, Platform> m_deferCmdStreamChunks;
 
     PAL_DISALLOW_DEFAULT_CTOR(ComputeQueueContext);
     PAL_DISALLOW_COPY_AND_ASSIGN(ComputeQueueContext);
@@ -93,16 +117,24 @@ public:
     virtual Result ProcessInitialSubmit(InternalSubmitInfo* pSubmitInfo) override;
 
     UniversalRingSet* RingSet() { return &m_ringSet; }
-    Result UpdateRingSet(bool* pHasChanged);
+    Result UpdateRingSet(bool* pHasChanged, bool* pHasDeferred, uint64* lastTimeStamp);
 
 private:
     Result BuildShadowPreamble();
-    Result RebuildCommandStreams();
+
+    void ResetCommandStream(CmdStream*                   pCmdStream,
+                            bool                         hasDeferFreeMem,
+                            UniversalQueueDeferFreeList* pList,
+                            uint32*                      pIndex);
+
+    Result RebuildCommandStreams(bool pHasDeferred, uint64 lastTimeStamp);
 
     Result AllocateShadowMemory();
 
     void WritePerSubmitPreamble(CmdStream* pCmdStream, bool initShadowMemory);
     uint32* WriteUniversalPreamble(uint32* pCmdSpace);
+
+    void ClearDeferredMemory();
 
     Device*const          m_pDevice;
     const uint32          m_persistentCeRamOffset;
@@ -128,6 +160,8 @@ private:
     CmdStream  m_cePreambleCmdStream;
     CmdStream  m_cePostambleCmdStream;
     CmdStream  m_dePostambleCmdStream;
+
+    Util::Deque<UniversalQueueDeferFreeList, Platform> m_deferCmdStreamChunks;
 
     PAL_DISALLOW_DEFAULT_CTOR(UniversalQueueContext);
     PAL_DISALLOW_COPY_AND_ASSIGN(UniversalQueueContext);

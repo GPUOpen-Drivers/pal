@@ -432,10 +432,10 @@ void AddrMgr2::InitTilingCaps(
         }
     }
 
-    // GFX10 has addressing changes that allow YUV+DCC to be a possibility.  The need to address slices
-    // individually makes YUV+DCC an impossibility on GFX9 platforms; without any possibility for
+    // GFX10 and newer products have addressing changes that allow YUV+DCC to be a possibility.  The need to
+    // address slices individually makes YUV+DCC an impossibility on GFX9 platforms; without any possibility for
     // compression, there isn't any benefit to enabling tiling on YUV surfaces either.
-    if (IsGfx10(*m_pDevice)                         &&
+    if (IsGfx10Plus(*m_pDevice)                     &&
         (createInfo.tiling == ImageTiling::Optimal) &&
         Formats::IsYuvPlanar(createInfo.swizzledFormat.format))
     {
@@ -997,11 +997,13 @@ Result AddrMgr2::InitSubresourceInfo(
     {
         // For GFX9 tiled Images, the mip offset to the beginning of the subresource should be the macro-block offset
         // plus mipTailOffset (for tail mips) which AddrLib computes for us.
+        // On GFX10+, mips are stored in reverse order (i.e., the largest mip is farthest away from the start), so this
+        // assert is meaningless on that platform.
         pSubResInfo->offset = mipInfo.macroBlockOffset + mipInfo.mipTailOffset;
 
         PAL_ASSERT((pSubResInfo->subresId.mipLevel > 0) ||
                    (mipInfo.macroBlockOffset == 0)      ||
-                   IsGfx10(m_gfxLevel));
+                   IsGfx10Plus(m_gfxLevel));
 
         pSubResInfo->blockSize.width  = surfaceInfo.blockWidth;
         pSubResInfo->blockSize.height = surfaceInfo.blockHeight;

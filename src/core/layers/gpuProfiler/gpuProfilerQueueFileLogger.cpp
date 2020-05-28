@@ -31,6 +31,7 @@
 #include "palAutoBuffer.h"
 #include "palDequeImpl.h"
 #include "palGpaSession.h"
+#include "palSysUtil.h"
 #include "sqtt_file_format.h"
 
 using namespace Util;
@@ -670,10 +671,14 @@ void Queue::OutputGlobalPerfCountersToFile(
 
             for (uint32 i = 0; i < numGlobalPerfCounters; i++)
             {
+                const uint64 instanceMask = pPerfCounters[i].instanceMask;
                 data[i] = 0;
                 for (uint32 j = 0; j < pPerfCounters[i].instanceCount; j++)
                 {
-                    data[i] += static_cast<uint64*>(pResult)[pidIndex++];
+                    if ((instanceMask == 0) || Util::BitfieldIsSet(instanceMask, j))
+                    {
+                        data[i] += static_cast<uint64*>(pResult)[pidIndex++];
+                    }
                 }
             }
 

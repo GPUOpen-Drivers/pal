@@ -78,6 +78,7 @@ Image::Image(
     memset(m_metaDataLookupTableSizes,   0, sizeof(m_metaDataLookupTableSizes));
     memset(m_aspectOffset,               0, sizeof(m_aspectOffset));
     memset(m_pDcc,                       0, sizeof(m_pDcc));
+    memset(m_pDispDcc,                   0, sizeof(m_pDispDcc));
     memset(m_dccStateMetaDataOffset,     0, sizeof(m_dccStateMetaDataOffset));
     memset(m_dccStateMetaDataSize,       0, sizeof(m_dccStateMetaDataSize));
     memset(m_fastClearEliminateMetaDataOffset, 0, sizeof(m_fastClearEliminateMetaDataOffset));
@@ -106,6 +107,7 @@ Image::~Image()
     for (uint32  idx = 0; idx < MaxNumPlanes; idx++)
     {
         PAL_SAFE_DELETE(m_pDcc[idx], m_device.GetPlatform());
+        PAL_SAFE_DELETE(m_pDispDcc[idx], m_device.GetPlatform());
     }
 }
 
@@ -340,7 +342,7 @@ void Image::CheckCompToSingle()
     const auto&  createInfo = Parent()->GetImageCreateInfo();
     const auto   imageType  = GetOverrideImageType();
 
-    if (IsGfx10(m_device)               &&
+    if (IsGfx10Plus(m_device)           &&
         // Disable comp-to-single for 1D images.  The tiling pattern for 1D images is essentially the same pattern as
         // used by a 2D image;  i.e., for 16bpp images, it's either 16x8 or 8x16 pixels, with everything outside the
         // first scanline being wasted.  As such, the clear color needs to be written either every 8 or 16 pixels, and
@@ -417,18 +419,20 @@ Result Image::Finalize(
 
     if (useSharedMetadata)
     {
-        useDcc                = (sharedMetadata.dccOffset != 0);
-        htileUsage.dsMetadata = (sharedMetadata.htileOffset != 0);
-        useCmask              = (sharedMetadata.cmaskOffset != 0) && (sharedMetadata.fmaskOffset != 0);
+        PAL_ASSERT(sharedMetadata.numPlanes == 1);
+
+        useDcc                = (sharedMetadata.dccOffset[0] != 0);
+        htileUsage.dsMetadata = (sharedMetadata.htileOffset  != 0);
+        useCmask              = (sharedMetadata.cmaskOffset  != 0) && (sharedMetadata.fmaskOffset != 0);
 
         // Fast-clear metadata is a must for shared DCC and HTILE. Sharing is disabled if it is not provided.
-        if (useDcc && (sharedMetadata.fastClearMetaDataOffset == 0))
+        if (useDcc && (sharedMetadata.fastClearMetaDataOffset[0] == 0))
         {
             useDcc = false;
             result = Result::ErrorNotShareable;
         }
 
-        if ((htileUsage.dsMetadata != 0) && (sharedMetadata.fastClearMetaDataOffset == 0))
+        if ((htileUsage.dsMetadata != 0) && (sharedMetadata.fastClearMetaDataOffset[0] == 0))
         {
             htileUsage.dsMetadata = 0;
             result                = Result::ErrorNotShareable;
@@ -538,7 +542,7 @@ Result Image::Finalize(
                     {
                         needsHtileLookupTable = true;
                     }
-                    if (IsGfx10(m_device))
+                    if (IsGfx10Plus(m_device))
                     {
                         needsHtileLookupTable = false;
                     }
@@ -576,7 +580,7 @@ Result Image::Finalize(
 
             if (useSharedMetadata)
             {
-                needsDccStateMetaData = (sharedMetadata.dccStateMetaDataOffset != 0);
+                needsDccStateMetaData = (sharedMetadata.dccStateMetaDataOffset[0] != 0);
             }
             else
             {
@@ -676,9 +680,17 @@ Result Image::Finalize(
         {
             if (useSharedMetadata)
             {
-                gpusize forcedOffset = sharedMetadata.fastClearMetaDataOffset;
-                InitFastClearMetaData(pGpuMemLayout, &forcedOffset, sizeof(Gfx9FastColorClearMetaData), sizeof(uint32));
-                *pGpuMemSize = Max(forcedOffset, *pGpuMemSize);
+                for (uint32  plane = 0; plane < sharedMetadata.numPlanes; plane++)
+                {
+                    gpusize forcedOffset = sharedMetadata.fastClearMetaDataOffset[plane];
+
+                    InitFastClearMetaData(pGpuMemLayout,
+                                          &forcedOffset,
+                                          sizeof(Gfx9FastColorClearMetaData),
+                                          sizeof(uint32),
+                                          plane);
+                    *pGpuMemSize = Max(forcedOffset, *pGpuMemSize);
+                }
             }
             else
             {
@@ -696,7 +708,11 @@ Result Image::Finalize(
         {
             if (useSharedMetadata)
             {
-                gpusize forcedOffset = sharedMetadata.fastClearMetaDataOffset;
+                // Depth / stencil surfaces share the same hTile data, so there will only be one meta-surface
+                // that contains fast-clear data.
+                PAL_ASSERT(sharedMetadata.numPlanes == 1);
+
+                gpusize forcedOffset = sharedMetadata.fastClearMetaDataOffset[0];
                 InitFastClearMetaData(pGpuMemLayout, &forcedOffset, sizeof(Gfx9FastDepthClearMetaData), sizeof(uint32));
                 *pGpuMemSize = Max(forcedOffset, *pGpuMemSize);
             }
@@ -733,9 +749,12 @@ Result Image::Finalize(
         {
             if (useSharedMetadata)
             {
-                gpusize forcedOffset = sharedMetadata.dccStateMetaDataOffset;
-                InitDccStateMetaData(0, pGpuMemLayout, &forcedOffset);
-                *pGpuMemSize = Max(forcedOffset, *pGpuMemSize);
+                for (uint32 plane = 0; plane < sharedMetadata.numPlanes; plane++)
+                {
+                    gpusize forcedOffset = sharedMetadata.dccStateMetaDataOffset[plane];
+                    InitDccStateMetaData(plane, pGpuMemLayout, &forcedOffset);
+                    *pGpuMemSize = Max(forcedOffset, *pGpuMemSize);
+                }
             }
             else
             {
@@ -767,16 +786,19 @@ Result Image::Finalize(
         {
             if (useSharedMetadata)
             {
-                if (sharedMetadata.fastClearEliminateMetaDataOffset)
+                for (uint32  dccIdx = 0; dccIdx < sharedMetadata.numPlanes; dccIdx++)
                 {
-                    gpusize forcedOffset = sharedMetadata.fastClearEliminateMetaDataOffset;
-                    InitFastClearEliminateMetaData(pBaseSubResInfo->subresId.aspect, pGpuMemLayout, &forcedOffset);
-                    *pGpuMemSize = Max(forcedOffset, *pGpuMemSize);
+                    gpusize forcedOffset = sharedMetadata.fastClearEliminateMetaDataOffset[dccIdx];
+                    if (forcedOffset != 0)
+                    {
+                        InitFastClearEliminateMetaData(GetAspectFromPlane(dccIdx), pGpuMemLayout, &forcedOffset);
+                        *pGpuMemSize = Max(forcedOffset, *pGpuMemSize);
+                    }
                 }
             }
             else
             {
-                for (uint32  dccIdx = 0; dccIdx < this->m_numDccPlanes; dccIdx++)
+                for (uint32  dccIdx = 0; dccIdx < m_numDccPlanes; dccIdx++)
                 {
                     InitFastClearEliminateMetaData(GetAspectFromPlane(dccIdx), pGpuMemLayout, pGpuMemSize);
                 }
@@ -865,7 +887,9 @@ Result Image::CreateDccObject(
         {
             if (useSharedMetadata)
             {
-                gpusize forcedOffset = sharedMetadata.dccOffset;
+                PAL_ASSERT(planeIdx < sharedMetadata.numPlanes);
+
+                gpusize forcedOffset = sharedMetadata.dccOffset[planeIdx];
                 result = pDcc->Init(aspectBaseSubResId, &forcedOffset, sharedMetadata.flags.hasEqGpuAccess);
                 *pGpuMemSize = Max(forcedOffset, *pGpuMemSize);
             }
@@ -891,8 +915,9 @@ Result Image::CreateDccObject(
                             // Enable fast Clear support for RTV/SRV or if we have a mip chain in which some mips aren't
                             // going to be used as UAV but some can be then we enable dcc fast clear on those who aren't
                             // going to be used as UAV and disable dcc fast clear on other mips.
+                            // On Gfx10+, shader writable surface also can have a DCC memory so we can still fast clear.
                             if ((m_createInfo.usageFlags.shaderWrite == 0) ||
-                                IsGfx10(m_device)                          ||
+                                IsGfx10Plus(m_device)                      ||
                                 (mip < m_createInfo.usageFlags.firstShaderWritableMip))
                             {
                                 if (CanMipSupportMetaData(mip))
@@ -916,6 +941,18 @@ Result Image::CreateDccObject(
 
                 // The GetMetaEquationConstParam function needs the DCC object we just created.
                 m_pDcc[planeIdx] = pDcc;
+
+                if (m_pImageInfo->internalCreateInfo.displayDcc.enabled != 0)
+                {
+                    Gfx9Dcc* pDispDcc =
+                        PAL_NEW(Gfx9Dcc, m_device.GetPlatform(), SystemAllocType::AllocObject)(*this, true);
+                    if (pDispDcc != nullptr)
+                    {
+                        pDispDcc->Init(aspectBaseSubResId, pGpuMemSize, true);
+                        PAL_ASSERT(pDcc->GetControlReg().u32All == pDispDcc->GetControlReg().u32All);
+                        m_pDispDcc[planeIdx] = pDispDcc;
+                    }
+                }
                 m_numDccPlanes++;
 
                 // Get the constant data for clears based on DCC meta equation
@@ -993,7 +1030,7 @@ void Image::InitLayoutStateMasks()
             // be decompressed. Additionally, after a FixedFunction resolve the CB does not compress the destination.
             // Because of this, we can't let ResolveDst be considered a "compressed" state, nor can we allow our compute
             // resolve to compress the destination data.
-            if (IsGfx10(m_device))
+            if (IsGfx10Plus(m_device))
             {
                 {
                     compressedWriteLayout.usages |= LayoutShaderWrite;
@@ -1057,7 +1094,7 @@ void Image::InitLayoutStateMasks()
                     compressedLayout.usages |= LayoutShaderRead;
                 }
 
-                if (IsGfx10(m_device) && (isMsaa == false) && (m_pImageInfo->resolveMethod.fixedFunc == 0))
+                if (IsGfx10Plus(m_device) && (isMsaa == false) && (m_pImageInfo->resolveMethod.fixedFunc == 0))
                 {
                     compressedWriteLayout.usages |= LayoutResolveDst;
                 }
@@ -1071,6 +1108,11 @@ void Image::InitLayoutStateMasks()
                 // fetchable images.
                 PAL_ASSERT(((pBaseSubResInfo->bitsPerTexel / 8) < 4) ||
                            TestAnyFlagSet(compressedLayout.usages, LayoutPresentFullscreen) == false);
+            }
+
+            if (HasDisplayDccData())
+            {
+                compressedLayout.usages |= LayoutPresentWindowed | LayoutPresentFullscreen;
             }
         } // if supportMetaDataTexFetch
         else if (isMsaa && isComprFmaskShaderReadable)
@@ -1209,7 +1251,7 @@ void Image::InitLayoutStateMasks()
                 bool sampleLocsAlwaysKnown = m_createInfo.flags.sampleLocsAlwaysKnown;
 
                 // In Gfx10, sample location will always be stored in MSAA depth buffer
-                if (IsGfx10(m_device))
+                if (IsGfx10Plus(m_device))
                 {
                     sampleLocsAlwaysKnown = true;
                 }
@@ -1254,7 +1296,7 @@ void Image::InitLayoutStateMasks()
                     compressedLayouts.engines |= LayoutComputeEngine;
                 }
 
-                if (IsGfx10(m_device))
+                if (IsGfx10Plus(m_device))
                 {
                     // GFX10 supports compressed writes to HTILE, so it should be safe to add ShaderWrite to the
                     // compressed usages (LayoutCopyDst was already added as above).
@@ -1872,32 +1914,39 @@ bool Image::IsFastDepthStencilClearSupported(
 bool Image::IsFormatReplaceable(
     const SubresId& subresId,
     ImageLayout     layout,
-    bool            isDst
+    bool            isDst,
+    uint8           disabledChannelMask
     ) const
 {
     bool  isFormatReplaceable = false;
 
-    if (Parent()->IsDepthStencil())
+    // The image can only be cleared or copied with format replacement
+    // when all channels of the color are being written.
+    if (disabledChannelMask == 0)
     {
-        const auto layoutToState = m_layoutToState.depthStencil[GetDepthStencilStateIndex(subresId.aspect)];
+        if (Parent()->IsDepthStencil())
+        {
+            const auto layoutToState = m_layoutToState.depthStencil[GetDepthStencilStateIndex(subresId.aspect)];
 
-        // Htile must either be disabled or we must be sure that the texture pipe doesn't need to read it.
-        // Depth surfaces are either Z-16 unorm or Z-32 float; they would get replaced to x16-uint or x32-uint.
-        // Z-16 unorm is actually replaceable, but Z-32 float will be converted to unorm if replaced.
-        isFormatReplaceable =
-            ((HasDsMetadata() == false) ||
-             (ImageLayoutToDepthCompressionState(layoutToState, layout) != DepthStencilCompressed));
-    }
-    else
-    {
-        const bool isMmFormat = Formats::IsMmFormat(m_createInfo.swizzledFormat.format);
+            // Htile must either be disabled or we must be sure that the texture pipe doesn't need to read it.
+            // Depth surfaces are either Z-16 unorm or Z-32 float; they would get replaced to x16-uint or x32-uint.
+            // Z-16 unorm is actually replaceable, but Z-32 float will be converted to unorm if replaced.
+            isFormatReplaceable =
+                ((HasDsMetadata() == false) ||
+                 (ImageLayoutToDepthCompressionState(layoutToState, layout) != DepthStencilCompressed));
+        }
+        else
+        {
+            const bool isMmFormat = Formats::IsMmFormat(m_createInfo.swizzledFormat.format);
 
-        // DCC must either be disabled or we must be sure that it is decompressed. MM formats are also not replaceable
-        // because they have different black and white values and HW will convert which changes the data.
-        isFormatReplaceable =
-            (((HasDccData() == false) ||
-             (ImageLayoutToColorCompressionState(m_layoutToState.color, layout) == ColorDecompressed)) &&
-             (isMmFormat == false));
+            // DCC must either be disabled or we must be sure that it is decompressed.
+            // MM formats are also not replaceable
+            // because they have different black and white values and HW will convert which changes the data.
+            isFormatReplaceable =
+                (((HasDccData() == false)                                                                  ||
+                 (ImageLayoutToColorCompressionState(m_layoutToState.color, layout) == ColorDecompressed)) &&
+                 (isMmFormat == false));
+        }
     }
 
     return isFormatReplaceable;
@@ -2681,10 +2730,10 @@ bool Image::SupportsMetaDataTextureFetch(
             // it... Msaa image with resolveSrc usage flag will go through shader based resolve if fixed function
             // resolve is not preferred, the image will be readable by a shader.
             (m_pParent->IsShaderReadable() ||
-             // For GFX10, copy (UAV) dst layout is a compressed state. Barrier to this layout won't trigger metadata
+             // For GFX10+, copy (UAV) dst layout is a compressed state. Barrier to this layout won't trigger metadata
              // decompression. If supportMetaDataTexFetch is not set properly, then RPM copy operation will not enable
              // metadata access (read/write) but write to image directly -- data and meta can be incoherent afterwards.
-             (IsGfx10(m_device) && m_pParent->IsShaderWritable()) ||
+             (IsGfx10Plus(m_device) && m_pParent->IsShaderWritable()) ||
              (m_pParent->IsResolveSrc() && (m_pParent->PreferCbResolve() == false))) &&
             // Meta-data isn't fetchable if the meta-data itself isn't addressable
             CanMipSupportMetaData(subResource.mipLevel) &&
@@ -3089,6 +3138,10 @@ void Image::InitMetadataFill(
                 pCmdBuffer->CmdFillMemory(gpuMemObj, pDcc->MemoryOffset() + boundGpuMemOffset, pDcc->TotalSize(), DccInitValue);
 
                 pDcc->UploadEq(pCmdBuffer);
+                if (HasDisplayDccData())
+                {
+                    GetDisplayDcc(aspect)->UploadEq(pCmdBuffer);
+                }
             }
         }
 
@@ -3211,7 +3264,7 @@ gpusize Image::GetMipAddr(
         // aspect starts.
         imageBaseAddr = pParent->GetSubresourceBaseAddr(subresId) - mipInfo.mipTailOffset;
     }
-    else if (IsGfx10(gfxLevel))
+    else if (IsGfx10Plus(gfxLevel))
     {
         // On GFX10, programming is based on the logical starting address of the aspect.  Mips are stored in
         // reverse order (i.e., mip 0 is *last* and the last mip level isn't necessarily at offset zero either), so
@@ -3283,7 +3336,7 @@ bool Image::CanMipSupportMetaData(
     uint32 mip
     ) const
 {
-    const bool supportsMetaData = ((IsGfx10(*(m_gfxDevice.Parent())) == false) ||
+    const bool supportsMetaData = ((IsGfx10Plus(*(m_gfxDevice.Parent())) == false) ||
                                    (mip <= m_addrSurfOutput[0].firstMipIdInTail));
     return supportsMetaData;
 }
@@ -3306,7 +3359,7 @@ void Image::Addr2InitSubResInfo(
     {
         Addr2InitSubResInfoGfx9(subResIt, pSubResInfoList, pSubResTileInfoList, pGpuMemSize);
     }
-    else if (IsGfx10(gfxLevel))
+    else if (IsGfx10Plus(gfxLevel))
     {
         Addr2InitSubResInfoGfx10(subResIt, pSubResInfoList, pSubResTileInfoList, pGpuMemSize);
     }
@@ -3499,10 +3552,17 @@ void Image::GetSharedMetadataInfo(
     memset(pMetadataInfo, 0, sizeof(SharedMetadataInfo));
 
     const SubresId baseSubResId = Parent()->GetBaseSubResource();
-    if (m_numDccPlanes != 0)
+
+    pMetadataInfo->numPlanes = 0;
+    for (uint32  dccPlane = 0; dccPlane < m_numDccPlanes; dccPlane++)
     {
-        pMetadataInfo->dccOffset            = m_pDcc[0]->MemoryOffset();
-        pMetadataInfo->flags.hasEqGpuAccess = m_pDcc[0]->HasEqGpuAccess();
+        pMetadataInfo->dccOffset[dccPlane]                        = m_pDcc[dccPlane]->MemoryOffset();
+        pMetadataInfo->dccStateMetaDataOffset[dccPlane]           = m_dccStateMetaDataOffset[dccPlane];
+        pMetadataInfo->fastClearEliminateMetaDataOffset[dccPlane] = m_fastClearEliminateMetaDataOffset[dccPlane];
+
+        pMetadataInfo->flags.hasEqGpuAccess = m_pDcc[dccPlane]->HasEqGpuAccess();
+
+        pMetadataInfo->numPlanes = m_numDccPlanes;
     }
     if (m_pCmask != nullptr)
     {
@@ -3517,19 +3577,39 @@ void Image::GetSharedMetadataInfo(
     }
     if (m_pHtile != nullptr)
     {
-        pMetadataInfo->htileOffset               = m_pHtile->MemoryOffset();
-        pMetadataInfo->flags.hasWaTcCompatZRange = HasWaTcCompatZRangeMetaData();
-        pMetadataInfo->flags.hasHtileLookupTable = HasHtileLookupTable();
-        pMetadataInfo->flags.hasEqGpuAccess      = m_pHtile->HasEqGpuAccess();
+        pMetadataInfo->htileOffset                = m_pHtile->MemoryOffset();
+        pMetadataInfo->flags.hasWaTcCompatZRange  = HasWaTcCompatZRangeMetaData();
+        pMetadataInfo->flags.hasHtileLookupTable  = HasHtileLookupTable();
+        pMetadataInfo->flags.hasEqGpuAccess       = m_pHtile->HasEqGpuAccess();
+
+        pMetadataInfo->fastClearMetaDataOffset[0] = m_fastClearMetaDataOffset[0];
+        pMetadataInfo->numPlanes = 1;
     }
+
     pMetadataInfo->flags.shaderFetchable            =
         Parent()->SubresourceInfo(baseSubResId)->flags.supportMetaDataTexFetch;
 
-    pMetadataInfo->dccStateMetaDataOffset           = m_dccStateMetaDataOffset[0];
-    pMetadataInfo->fastClearMetaDataOffset          = m_fastClearMetaDataOffset[0];
     pMetadataInfo->hisPretestMetaDataOffset         = m_hiSPretestsMetaDataOffset;
-    pMetadataInfo->fastClearEliminateMetaDataOffset = m_fastClearEliminateMetaDataOffset[0];
     pMetadataInfo->htileLookupTableOffset           = m_metaDataLookupTableOffsets[0];
+}
+
+// =====================================================================================================================
+void Image::GetDisplayDccState(
+    DisplayDccState* pState
+    ) const
+{
+    if (m_pDispDcc[0] != nullptr)
+    {
+        PAL_ASSERT(m_numDccPlanes == 1); // VCAM_SURFACE_DESCdoes not support YUV presentable yet
+        const regCB_COLOR0_DCC_CONTROL &dccControl = m_pDispDcc[0]->GetControlReg();
+        pState->maxCompressedBlockSize   = dccControl.bits.MAX_COMPRESSED_BLOCK_SIZE;
+        pState->maxUncompressedBlockSize = dccControl.bits.MAX_UNCOMPRESSED_BLOCK_SIZE;
+        pState->independentBlk64B  = dccControl.bits.INDEPENDENT_64B_BLOCKS;
+        pState->independentBlk128B = dccControl.gfx10Plus.INDEPENDENT_128B_BLOCKS;
+        pState->primaryOffset      = m_pDispDcc[0]->MemoryOffset();
+        pState->secondaryOffset    = 0;
+        pState->pitch              = m_pDispDcc[0]->GetAddrOutput().pitch;
+    }
 }
 
 // =====================================================================================================================

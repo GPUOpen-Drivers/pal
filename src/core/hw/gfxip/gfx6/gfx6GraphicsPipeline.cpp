@@ -495,7 +495,7 @@ void GraphicsPipeline::OverrideRbPlusRegistersForRpm(
 // =====================================================================================================================
 // Helper function to compute the WAVE_LIMIT field of the SPI_SHADER_PGM_RSRC3* registers.
 uint32 GraphicsPipeline::CalcMaxWavesPerSh(
-    uint32 maxWavesPerCu
+    float maxWavesPerCu
     ) const
 {
     // The maximum number of waves per SH in "register units".
@@ -513,7 +513,7 @@ uint32 GraphicsPipeline::CalcMaxWavesPerSh(
 
         // We assume no one is trying to use more than 100% of all waves.
         PAL_ASSERT(maxWavesPerCu <= numWavefrontsPerCu);
-        const uint32 maxWavesPerSh = (maxWavesPerCu * gfx6ChipProps.numCuPerSh);
+        const uint32 maxWavesPerSh = static_cast<uint32>(round(maxWavesPerCu * gfx6ChipProps.numCuPerSh));
 
         // For graphics shaders, the WAVE_LIMIT field is in units of 16 waves and must not exceed 63. We must also clamp
         // to one if maxWavesPerSh rounded down to zero to prevent the limit from being removed.
@@ -983,7 +983,19 @@ void GraphicsPipeline::SetupCommonRegisters(
         break;
     }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 524
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 598
+    switch (createInfo.rsState.forcedShadingRate)
+    {
+    case PsShadingRate::SampleRate:
+        m_regs.other.paScModeCntl1.bits.PS_ITER_SAMPLE = 1;
+        break;
+    case PsShadingRate::PixelRate:
+        m_regs.other.paScModeCntl1.bits.PS_ITER_SAMPLE = 0;
+        break;
+    default:
+        break;
+    }
+#elif PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 524
     m_regs.other.paScModeCntl1.bits.PS_ITER_SAMPLE |= createInfo.rsState.forceSampleRateShading;
 #endif
 
@@ -1777,7 +1789,7 @@ static SX_DOWNCONVERT_FORMAT SxDownConvertFormat(
     case ChNumFormat::X8_Sint:
     case ChNumFormat::X8_Srgb:
     case ChNumFormat::L8_Unorm:
-    case ChNumFormat::P8_Uint:
+    case ChNumFormat::P8_Unorm:
     case ChNumFormat::X8Y8_Unorm:
     case ChNumFormat::X8Y8_Snorm:
     case ChNumFormat::X8Y8_Uscaled:

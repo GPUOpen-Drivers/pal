@@ -429,6 +429,8 @@ public:
 
     virtual gpusize  SliceOffset(uint32  arraySlice) const override;
 
+    uint32 GetMetaBlockSize(Gfx9MaskRamBlockSize*  pExtent) const override;
+
 protected:
     virtual uint32  GetNumSamplesLog2() const override;
     virtual uint32  GetMetaCachelineSize() const override { return 6; }
@@ -436,8 +438,6 @@ private:
     ADDR2_COMPUTE_DCCINFO_OUTPUT  m_addrOutput;
     regCB_COLOR0_DCC_CONTROL      m_dccControl;
 
-    // Display Dcc: from UMDKMDIF_GET_PRIMARYSURF_INFO_OUTPUT::KeyPipeAligned, so far 0 for Gfx10.
-    // Normal Dcc : 1.
     const bool m_displayDcc;
 
     Result ComputeDccInfo(const SubresId&  subResId);

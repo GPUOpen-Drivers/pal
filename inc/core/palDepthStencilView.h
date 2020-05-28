@@ -65,7 +65,10 @@ struct DepthStencilViewCreateInfo
 #else
             uint32 placeholder       :  2;  ///< Placeholder for new OGLP features.
 #endif
-            uint32 reserved          : 25;  ///< Reserved for future use.
+            uint32 resummarizeHiZ    :  1;  ///< Enables resummarizing Hi-Z for touched DB tiles touched by drawing with
+                                            ///  This view. This has no effect if the source Image does not have depth
+                                            ///  compression or if the @ref readOnlyDepth flag is set.
+            uint32 reserved          : 24;  ///< Reserved for future use.
         };
         uint32 u32All;                    ///< Flags packed as 32-bit uint.
     } flags;                              ///< Depth/stencil view creation flags.
