@@ -59,6 +59,21 @@
 #define PAL_ALIGN(__x)
 #define PAL_FORCE_INLINE __attribute__((always_inline)) inline
 #define PAL_WEAK_LINK __attribute__((weak))
+#elif defined(_MSC_VER)
+/// Undefined on GCC platforms.
+#define PAL_STDCALL __stdcall
+/// Undefined on GCC platforms.
+#define PAL_CDECL __cdecl
+/// Undefined on GCC platforms.
+#define PAL_NO_RETURN __declspec(noreturn)
+/// Undefined on GCC platforms.
+#define PAL_ALIGN(__x) __declspec(align(__x))
+#define PAL_FORCE_INLINE __forceinline
+#define PAL_WEAK_LINK __declspec(selectany)
+PAL_FORCE_INLINE int strcasecmp(const char* s1, const char* s2)
+{
+    return _stricmp(s1, s2);
+}
 #else
 #error "Unsupported OS platform detected!"
 #endif

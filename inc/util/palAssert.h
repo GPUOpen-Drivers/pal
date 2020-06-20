@@ -44,6 +44,15 @@
 /// compiles do not currently enable static code analysis.
 #define PAL_ANALYSIS_ASSUME(expr)
 
+#elif defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__) || defined(_WIN64)
+
+/// OS-independent macro to force a break into the debugger.
+#define PAL_DEBUG_BREAK() __debugbreak();
+
+/// OS-independent macro to direct static code analysis to assume the specified expression will always be true.  Linux
+/// compiles do not currently enable static code analysis.
+#define PAL_ANALYSIS_ASSUME(expr)
+
 #endif
 
 #if PAL_ENABLE_PRINTS_ASSERTS
