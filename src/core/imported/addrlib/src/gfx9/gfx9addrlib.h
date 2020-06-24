@@ -69,7 +69,8 @@ struct Gfx9ChipSettings
         // Display engine IP version name
         UINT_32 isDce12             : 1;
         UINT_32 isDcn1              : 1;
-        UINT_32 reserved1           : 30;
+        UINT_32 isDcn2              : 1;
+        UINT_32 reserved1           : 29;
 
         // Misc configuration bits
         UINT_32 metaBaseAlignFix    : 1;
@@ -221,6 +222,17 @@ const UINT_32 Dcn1Bpp64SwModeMask = (1u << ADDR_SW_4KB_D)    |
                                     (1u << ADDR_SW_4KB_D_X)  |
                                     (1u << ADDR_SW_64KB_D_X) |
                                     Dcn1NonBpp64SwModeMask;
+
+const UINT_32 Dcn2NonBpp64SwModeMask = (1u << ADDR_SW_LINEAR)   |
+                                       (1u << ADDR_SW_64KB_S)   |
+                                       (1u << ADDR_SW_64KB_S_T) |
+                                       (1u << ADDR_SW_64KB_S_X) |
+                                       (1u << ADDR_SW_64KB_R_X);
+
+const UINT_32 Dcn2Bpp64SwModeMask = (1u << ADDR_SW_64KB_D)   |
+                                    (1u << ADDR_SW_64KB_D_T) |
+                                    (1u << ADDR_SW_64KB_D_X) |
+                                    Dcn2NonBpp64SwModeMask;
 
 /**
 ************************************************************************************************************************

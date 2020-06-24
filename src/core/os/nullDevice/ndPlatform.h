@@ -25,6 +25,8 @@
 
 #pragma once
 
+#if PAL_BUILD_NULL_DEVICE
+
 #include "core/platform.h"
 
 namespace Pal
@@ -75,3 +77,5 @@ private:
 
 } // NullDevice
 } // Pal
+
+#endif

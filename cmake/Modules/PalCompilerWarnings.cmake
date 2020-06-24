@@ -61,6 +61,15 @@ function(pal_compiler_warnings_gnu_or_clang)
         # Make this warning not an error
         -Wno-error=pointer-arith
 
+        # Don't warn on double parentheses in ifs, this is PAL's coding style
+        -Wno-parentheses-equality
+
+        # Only has false positives for computing dword sizes
+        -Wno-sizeof-array-div
+
+        # Don't complain on asserts, we want to keep them
+        -Wno-tautological-compare
+
         # Ignore warnings issues about strict ISO C/C++ related to MFC
         # Allow usage of nameless struct/union
         -fms-extensions

@@ -350,9 +350,12 @@ Result ComputeQueueContext::RebuildCommandStreams(
 
         // Write the shader ring-set's commands before the command stream's normal preamble. If the ring sizes have
         // changed, the hardware requires a CS idle to operate properly.
-        pCmdSpace  = m_ringSet.WriteCommands(&m_cmdStream, pCmdSpace);
-        pCmdSpace += cmdUtil.BuildWaitCsIdle(EngineTypeCompute, m_waitForIdleTs.GpuVirtAddr(), pCmdSpace);
-        pCmdSpace  = WriteCommonPreamble(*m_pDevice, EngineTypeCompute, &m_cmdStream, pCmdSpace);
+        pCmdSpace = m_ringSet.WriteCommands(&m_cmdStream, pCmdSpace);
+
+        const gpusize waitTsGpuVa = (m_waitForIdleTs.IsBound() ? m_waitForIdleTs.GpuVirtAddr() : 0);
+        pCmdSpace += cmdUtil.BuildWaitCsIdle(EngineTypeCompute, waitTsGpuVa, pCmdSpace);
+
+        pCmdSpace = WriteCommonPreamble(*m_pDevice, EngineTypeCompute, &m_cmdStream, pCmdSpace);
 
         m_cmdStream.CommitCommands(pCmdSpace);
         result = m_cmdStream.End();
@@ -370,7 +373,7 @@ Result ComputeQueueContext::RebuildCommandStreams(
     {
         uint32* pCmdSpace = m_perSubmitCmdStream.ReserveCommands();
 
-        // The following wait, write data, and surface sync must be at the beginning of the per-submit preamble.
+        // The following wait and acquire mem must be at the beginning of the per-submit preamble.
         //
         // Wait for a prior submission on this context to be idle before executing the command buffer streams.
         // The timestamp memory is initialized to zero so the first submission on this context will not wait.
@@ -382,14 +385,6 @@ Result ComputeQueueContext::RebuildCommandStreams(
                                               0,
                                               0xFFFFFFFF,
                                               pCmdSpace);
-
-        // Then rewrite the timestamp to some other value so that the next submission will wait until this one is done.
-        WriteDataInfo writeData = {};
-        writeData.engineType = EngineTypeCompute;
-        writeData.dstAddr    = m_exclusiveExecTs.GpuVirtAddr();
-        writeData.dstSel     = dst_sel__mec_write_data__memory;
-
-        pCmdSpace += CmdUtil::BuildWriteData(writeData, 1, pCmdSpace);
 
         // Issue an acquire mem packet to invalidate all SQ caches (SQ I-cache and SQ K-cache).
         //
@@ -424,8 +419,19 @@ Result ComputeQueueContext::RebuildCommandStreams(
     {
         uint32* pCmdSpace = m_postambleCmdStream.ReserveCommands();
 
-        // This release mem must be at the end of the per-submit postamble.
+        // This write data and release mem must be at the end of the per-submit postamble.
         //
+        // Rewrite the timestamp to some other value so that the next submission will wait until this one is done.
+        // Note that we must do this write in the postamble rather than the preamble. Some CP features can preempt our
+        // submission frame without executing the postamble which would cause the wait in the preamble to hang if we
+        // did this write in the preamble.
+        WriteDataInfo writeData = {};
+        writeData.engineType = EngineTypeCompute;
+        writeData.dstAddr    = m_exclusiveExecTs.GpuVirtAddr();
+        writeData.dstSel     = dst_sel__mec_write_data__memory;
+
+        pCmdSpace += CmdUtil::BuildWriteData(writeData, 1, pCmdSpace);
+
         // When the pipeline has emptied, write the timestamp back to zero so that the next submission can execute.
         // We also use this pipelined event to flush and invalidate the shader L1 and L2 caches as described above.
         ReleaseMemInfo releaseInfo = {};
@@ -760,15 +766,6 @@ void UniversalQueueContext::WritePerSubmitPreamble(
                                           0,
                                           UINT_MAX,
                                           pCmdSpace);
-
-    // Then rewrite the timestamp to some other value so that the next submission will wait until this one is done.
-    WriteDataInfo writeData = {};
-    writeData.engineType = EngineTypeUniversal;
-    writeData.dstAddr    = m_exclusiveExecTs.GpuVirtAddr();
-    writeData.engineSel  = engine_sel__pfp_write_data__prefetch_parser;
-    writeData.dstSel     = dst_sel__pfp_write_data__memory;
-
-    pCmdSpace += CmdUtil::BuildWriteData(writeData, 1, pCmdSpace);
 
     // Issue an acquire mem packet to invalidate all SQ caches (SQ I-cache and SQ K-cache).
     //
@@ -1229,8 +1226,20 @@ Result UniversalQueueContext::RebuildCommandStreams(
     {
         uint32* pCmdSpace = m_dePostambleCmdStream.ReserveCommands();
 
-        // This EOP event packet must be at the end of the per-submit DE postamble.
+        // This write data and release mem must be at the end of the per-submit DE postamble.
         //
+        // Rewrite the timestamp to some other value so that the next submission will wait until this one is done.
+        // Note that we must do this write in the postamble rather than the preamble. Some CP features can preempt our
+        // submission frame without executing the postamble which would cause the wait in the preamble to hang if we
+        // did this write in the preamble.
+        WriteDataInfo writeData = {};
+        writeData.engineType = EngineTypeUniversal;
+        writeData.dstAddr    = m_exclusiveExecTs.GpuVirtAddr();
+        writeData.engineSel  = engine_sel__pfp_write_data__prefetch_parser;
+        writeData.dstSel     = dst_sel__pfp_write_data__memory;
+
+        pCmdSpace += CmdUtil::BuildWriteData(writeData, 1, pCmdSpace);
+
         // When the pipeline has emptied, write the timestamp back to zero so that the next submission can execute.
         // We also use this pipelined event to flush and invalidate the L1, L2, and RB caches as described above.
         ReleaseMemInfo releaseInfo = {};

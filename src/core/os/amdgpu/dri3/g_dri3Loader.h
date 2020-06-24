@@ -369,6 +369,24 @@ typedef xcb_randr_query_version_reply_t* (*XcbRandrQueryVersionReply)(
             xcb_randr_query_version_cookie_t  cookie,
             xcb_generic_error_t**             e);
 
+typedef xcb_query_tree_cookie_t (*XcbQueryTree)(
+            xcb_connection_t*     c,
+            xcb_window_t          window);
+
+typedef xcb_query_tree_reply_t* (*XcbQueryTreeReply)(
+            xcb_connection_t          *c,
+            xcb_query_tree_cookie_t   cookie,
+            xcb_generic_error_t       **e);
+
+typedef xcb_get_window_attributes_cookie_t (*XcbGetWindowAttributes)(
+            xcb_connection_t  *c,
+            xcb_window_t      window);
+
+typedef xcb_get_window_attributes_reply_t* (*XcbGetWindowAttributesReply)(
+            xcb_connection_t                      *c,
+            xcb_get_window_attributes_cookie_t    cookie,
+            xcb_generic_error_t                   **e);
+
 // symbols from libxcb-sync.so.1
 typedef xcb_void_cookie_t (*XcbSyncTriggerFenceChecked)(
             xcb_connection_t*     pConnection,
@@ -846,6 +864,30 @@ struct Dri3LoaderFuncs
     bool pfnXcbRandrQueryVersionReplyisValid() const
     {
         return (pfnXcbRandrQueryVersionReply != nullptr);
+    }
+
+    XcbQueryTree                          pfnXcbQueryTree;
+    bool pfnXcbQueryTreeisValid() const
+    {
+        return (pfnXcbQueryTree != nullptr);
+    }
+
+    XcbQueryTreeReply                     pfnXcbQueryTreeReply;
+    bool pfnXcbQueryTreeReplyisValid() const
+    {
+        return (pfnXcbQueryTreeReply != nullptr);
+    }
+
+    XcbGetWindowAttributes                pfnXcbGetWindowAttributes;
+    bool pfnXcbGetWindowAttributesisValid() const
+    {
+        return (pfnXcbGetWindowAttributes != nullptr);
+    }
+
+    XcbGetWindowAttributesReply           pfnXcbGetWindowAttributesReply;
+    bool pfnXcbGetWindowAttributesReplyisValid() const
+    {
+        return (pfnXcbGetWindowAttributesReply != nullptr);
     }
 
     XcbSyncTriggerFenceChecked            pfnXcbSyncTriggerFenceChecked;
@@ -1540,6 +1582,44 @@ public:
     bool pfnXcbRandrQueryVersionReplyisValid() const
     {
         return (m_pFuncs->pfnXcbRandrQueryVersionReply != nullptr);
+    }
+
+    xcb_query_tree_cookie_t pfnXcbQueryTree(
+            xcb_connection_t*     c,
+            xcb_window_t          window) const;
+
+    bool pfnXcbQueryTreeisValid() const
+    {
+        return (m_pFuncs->pfnXcbQueryTree != nullptr);
+    }
+
+    xcb_query_tree_reply_t* pfnXcbQueryTreeReply(
+            xcb_connection_t          *c,
+            xcb_query_tree_cookie_t   cookie,
+            xcb_generic_error_t       **e) const;
+
+    bool pfnXcbQueryTreeReplyisValid() const
+    {
+        return (m_pFuncs->pfnXcbQueryTreeReply != nullptr);
+    }
+
+    xcb_get_window_attributes_cookie_t pfnXcbGetWindowAttributes(
+            xcb_connection_t  *c,
+            xcb_window_t      window) const;
+
+    bool pfnXcbGetWindowAttributesisValid() const
+    {
+        return (m_pFuncs->pfnXcbGetWindowAttributes != nullptr);
+    }
+
+    xcb_get_window_attributes_reply_t* pfnXcbGetWindowAttributesReply(
+            xcb_connection_t                      *c,
+            xcb_get_window_attributes_cookie_t    cookie,
+            xcb_generic_error_t                   **e) const;
+
+    bool pfnXcbGetWindowAttributesReplyisValid() const
+    {
+        return (m_pFuncs->pfnXcbGetWindowAttributesReply != nullptr);
     }
 
     xcb_void_cookie_t pfnXcbSyncTriggerFenceChecked(

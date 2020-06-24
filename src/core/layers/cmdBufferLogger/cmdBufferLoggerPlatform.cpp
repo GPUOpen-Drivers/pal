@@ -228,7 +228,6 @@ void PAL_STDCALL Platform::CmdBufferLoggerCb(
         }
         break;
     }
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 471
     case Developer::CallbackType::BindPipeline:
     {
         PAL_ASSERT(pCbData != nullptr);
@@ -243,7 +242,6 @@ void PAL_STDCALL Platform::CmdBufferLoggerCb(
         }
         break;
     }
-#endif
 #if PAL_BUILD_PM4_INSTRUMENTOR
     case Developer::CallbackType::DrawDispatchValidation:
         PAL_ASSERT(pCbData != nullptr);

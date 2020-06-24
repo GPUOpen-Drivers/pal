@@ -3720,4 +3720,4 @@ ADDR_E_RETURNCODE ADDR_API Addr2GetPreferredSurfaceSetting(
 }
 #endif
 
-#endif // __ADDR_INTERFACE_H__
+#endif

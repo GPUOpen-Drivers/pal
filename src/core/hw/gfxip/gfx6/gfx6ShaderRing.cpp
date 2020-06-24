@@ -279,8 +279,9 @@ gpusize ScratchRing::ComputeAllocationSize() const
 
     // The ideal size to allocate for this Ring is: threadsPerWavefront * maxWaves * itemSize DWORDs.
     // We clamp this allocation to a maximum size to prevent the driver from using an unreasonable amount of scratch.
-    const gpusize maxScaledSize = (settings.maxScratchRingScalePct * memProps.invisibleHeapSize) / 100;
-    const gpusize maxSize       = Max(settings.maxScratchRingSizeBaseline, maxScaledSize);
+    const gpusize totalLocalMemSize = memProps.localHeapSize + memProps.invisibleHeapSize;
+    const gpusize maxScaledSize     = (settings.maxScratchRingScalePct * totalLocalMemSize) / 100;
+    const gpusize maxSize           = Max(settings.maxScratchRingSizeBaseline, maxScaledSize);
 
     return Min(static_cast<gpusize>(m_numMaxWaves * waveSize * sizeof(uint32)), maxSize);
 }

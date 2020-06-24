@@ -102,9 +102,9 @@ public:
     // These functions take a fully built LOAD_DATA header(s) and will update the state of the optimizer state
     // based on the packet's contents.
     void HandleLoadShRegs(const PM4_ME_LOAD_SH_REG& loadData)
-        { HandlePm4LoadReg(loadData, &m_shRegs); }
+        { HandlePm4LoadReg(loadData, PM4_ME_LOAD_SH_REG_SIZEDW__CORE, &m_shRegs); }
     void HandleLoadContextRegs(const PM4_PFP_LOAD_CONTEXT_REG& loadData)
-        { HandlePm4LoadReg(loadData, &m_cntxRegs); }
+        { HandlePm4LoadReg(loadData, PM4_ME_LOAD_CONTEXT_REG_SIZEDW__CORE, &m_cntxRegs); }
     void HandleLoadContextRegsIndex(const PM4_PFP_LOAD_CONTEXT_REG_INDEX& loadData);
 
 #if PAL_BUILD_PM4_INSTRUMENTOR
@@ -115,15 +115,22 @@ private:
     template <typename SetDataPacket, size_t RegisterCount>
     uint32* OptimizePm4SetReg(
         SetDataPacket                 setData,
+        uint32                        setDataSize,
         const uint32*                 pRegData,
         uint32*                       pDstCmd,
         RegGroupState<RegisterCount>* pRegState);
 
     template <typename LoadDataPacket, size_t RegisterCount>
-    void HandlePm4LoadReg(const LoadDataPacket& loadData, RegGroupState<RegisterCount>* pRegState);
+    void HandlePm4LoadReg(
+        const LoadDataPacket&         loadData,
+        uint32                        loadDataSize,
+        RegGroupState<RegisterCount>* pRegState);
 
     template <typename LoadDataIndexPacket, size_t RegisterCount>
-    void HandlePm4LoadRegIndex(const LoadDataIndexPacket& loadDataIndex, RegGroupState<RegisterCount>* pRegState);
+    void HandlePm4LoadRegIndex(
+        const LoadDataIndexPacket&    loadDataIndex,
+        uint32                        loadDataIndexSize,
+        RegGroupState<RegisterCount>* pRegState);
 
     void HandlePm4SetShRegOffset(const PM4_PFP_SET_SH_REG_OFFSET& setShRegOffset);
     void HandlePm4SetContextRegIndirect(const PM4_PFP_SET_CONTEXT_REG& setData);

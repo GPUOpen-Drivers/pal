@@ -51,7 +51,7 @@ constexpr uint8  ElfAbiVersion   = 0;  ///< ELFABIVERSION_AMDGPU_PAL
 constexpr uint32 MetadataNoteType = 32; ///< NT_AMDGPU_METADATA
 
 constexpr uint32 PipelineMetadataMajorVersion = 2;  ///< Pipeline Metadata Major Version
-constexpr uint32 PipelineMetadataMinorVersion = 3;  ///< Pipeline Metadata Minor Version
+constexpr uint32 PipelineMetadataMinorVersion = 4;  ///< Pipeline Metadata Minor Version
 
 constexpr uint32 PipelineMetadataBase = 0x10000000; ///< Deprecated - Pipeline Metadata base value to be OR'd with the
                                                     ///  PipelineMetadataEntry value when saving to ELF.
@@ -321,11 +321,7 @@ static const char* const PipelineMetadataNameStrings[] =
     "INTERNAL_PIPELINE_HASH_DWORD2",
     "INTERNAL_PIPELINE_HASH_DWORD3",
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 495
     "CS_WAVE_FRONT_SIZE",
-#else
-    "RESERVED2",
-#endif
 
 };
 
@@ -333,9 +329,6 @@ static const char* const PipelineMetadataNameStrings[] =
 enum class PipelineAbiNoteType : uint32
 {
     PalMetadata    = MetadataNoteType, ///< Contains metadata needed by the PAL runtime to execute the pipeline.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 477
-    PalMetadataOld = 13,               ///< Deprecated note ID superceded by PalMetadata; refers to the same structure.
-#endif
 
     /// The following legacy note types are deprecated.
 
@@ -687,11 +680,7 @@ enum class PipelineMetadataType : uint32
     InternalPipelineHashDword2,   ///< Dword 2 of a 128-bit hash identifying the internal pipeline (unique portion).
     InternalPipelineHashDword3,   ///< Dword 3 of a 128-bit hash identifying the internal pipeline (unique portion).
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 495
     CsWaveFrontSize,              ///< Wave front size.
-#else
-    Reserved10,                   ///< Reserved for future use.
-#endif
 
     Reserved11,                   ///< Reserved for future use
 
@@ -920,6 +909,53 @@ typedef PalMetadataNoteEntry RegisterEntry;
 /// Maximum number of viewports.
 constexpr uint32 MaxViewports = 16;
 
+// Constant buffer used by the primitive shader when culling is enabled.
+// Passes the currently set register state to the shader to control the culling algorithm.
+struct PrimShaderCullingCb
+{
+    uint32 padding0;
+    uint32 padding1;
+
+    uint32 paClVteCntl;                         ///< Viewport transform control.
+    uint32 paSuVtxCntl;                         ///< Controls for float to fixed vertex conversion.
+    uint32 paClClipCntl;                        ///< Clip space controls.
+
+    uint32 padding2;
+    uint32 padding3;
+
+    uint32 paSuScModeCntl;                      ///< Culling controls.
+
+    uint32 paClGbHorzClipAdj;                   ///< Frustum horizontal adjacent culling control.
+    uint32 paClGbHorzDiscAdj;                   ///< Frustum horizontal discard culling control.
+    uint32 paClGbVertClipAdj;                   ///< Frustum vertical adjacent culling control.
+    uint32 paClGbVertDiscAdj;                   ///< Frustum vertical discard culling control.
+
+    uint32 padding4;
+
+    struct Viewports
+    {
+        uint32 paClVportXScale;                 ///< Viewport transform scale for X.
+        uint32 paClVportXOffset;                ///< Viewport transform offset for X.
+        uint32 paClVportYScale;                 ///< Viewport transform scale for Y.
+        uint32 paClVportYOffset;                ///< Viewport transform offset for Y.
+        uint32 padding5;
+        uint32 padding6;
+    } viewports[MaxViewports];
+
+    struct Scissors
+    {
+        uint32 padding7;
+        uint32 padding8;
+    } scissors[MaxViewports];
+
+    uint32 padding9;
+    uint32 padding10;
+    uint32 padding11;
+
+    uint32 enableConservativeRasterization;     ///< Conservative rasterization is enabled, disabled certain culling
+                                                ///  algorithms.
+};
+
 /// Constant buffer used by primitive shader generation for per-submit register controls of culling.
 struct PrimShaderPsoCb
 {
@@ -982,6 +1018,9 @@ struct PrimShaderCbLayout
     PrimShaderScissorCb scissorStateCb;
     PrimShaderRenderCb  renderStateCb;
 };
+
+static_assert(sizeof(PrimShaderCullingCb) == sizeof(PrimShaderCbLayout),
+    "Transition structure (PrimShaderCullingCb) is not the same size as original structure (PrimShaderCbLayout)!");
 
 } //Abi
 } //Pal

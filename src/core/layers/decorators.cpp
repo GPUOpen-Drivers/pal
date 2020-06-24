@@ -2382,12 +2382,10 @@ void PAL_STDCALL PlatformDecorator::DefaultDeveloperCb(
         PAL_ASSERT(pCbData != nullptr);
         TranslateDrawDispatchData(pCbData);
         break;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 471
     case Developer::CallbackType::BindPipeline:
         PAL_ASSERT(pCbData != nullptr);
         TranslateBindPipelineData(pCbData);
         break;
-#endif
     case Developer::CallbackType::AllocGpuMemory:
     case Developer::CallbackType::FreeGpuMemory:
     case Developer::CallbackType::PresentConcluded:

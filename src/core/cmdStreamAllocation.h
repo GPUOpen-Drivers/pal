@@ -57,7 +57,9 @@ struct CmdStreamAllocationCreateInfo
                                                             // system memory and get dummy GPU memory from Device
         uint32                  cpuAccessible       :  1;   // True if this chunk should be CPU-accessible.  Only valid
                                                             // for "real" GPU memory allocations.
-        uint32                  reserved            : 29;
+        uint32                  optimizePaging      :  1;   // True if the wait-on-submit residency optimization should
+                                                            // be used.
+        uint32                  reserved            : 28;
     } flags;
 };
 

@@ -3624,5 +3624,5 @@ typedef struct _PM4CMDREWIND
 } // namespace Gfx6
 } // namespace Pal
 
-#endif // __SI_CI_VI_MERGED_PM4DEFS_HEADER
+#endif
 

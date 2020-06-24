@@ -161,4 +161,4 @@ typedef unsigned long long VAM_VA_SIZE;
 #define VAM_STATIC    static
 #endif
 
-#endif // __VAMTYPES_H__
+#endif

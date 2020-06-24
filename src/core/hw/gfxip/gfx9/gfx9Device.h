@@ -155,9 +155,7 @@ struct LayoutTransitionInfo
 constexpr size_t ReservedCeRamBytes =
     ((sizeof(BufferSrd) * MaxStreamOutTargets) +
      (sizeof(ImageSrd)  * MaxColorTargets) +
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 469
      (sizeof(BufferSrd) * MaxVertexBuffers) +
-#endif
      (sizeof(uint32) * static_cast<uint32>(PipelineBindPoint::Count) * MaxUserDataEntries) +
      ((sizeof(Util::Abi::PrimShaderCbLayout) + 255u) & ~255u) +
      (31)) & ~31;
@@ -338,6 +336,8 @@ public:
         const PerfExperimentCreateInfo& createInfo,
         void*                           pPlacementAddr,
         IPerfExperiment**               ppPerfExperiment) const override;
+
+    virtual bool SupportsIterate256() const override;
 
     virtual Result CreateCmdUploadRingInternal(
         const CmdUploadRingCreateInfo& createInfo,

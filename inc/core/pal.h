@@ -118,7 +118,7 @@ enum EngineType : uint32
     /// Virtual engine that only supports inserting sleeps, used for implementing frame-pacing.
     EngineTypeTimer            = 0x3,
 
-#endif //PAL_CLIENT_INTERFACE_MAJOR_VERSION < 530
+#endif
 
     /// Number of engine types.
     EngineTypeCount,

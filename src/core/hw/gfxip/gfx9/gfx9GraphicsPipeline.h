@@ -85,7 +85,7 @@ public:
 
     regPA_SC_MODE_CNTL_1 PaScModeCntl1() const { return m_regs.other.paScModeCntl1; }
 
-    void UpdateNggPrimCb(Util::Abi::PrimShaderPsoCb* pPrimShaderCb) const;
+    void UpdateNggPrimCb(Util::Abi::PrimShaderCullingCb* pPrimShaderCb) const;
 
     regIA_MULTI_VGT_PARAM IaMultiVgtParam(bool forceWdSwitchOnEop) const
         { return m_regs.other.iaMultiVgtParam[static_cast<uint32>(forceWdSwitchOnEop)]; }

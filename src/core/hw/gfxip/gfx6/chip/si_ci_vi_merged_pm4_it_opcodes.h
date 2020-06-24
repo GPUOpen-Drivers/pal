@@ -114,4 +114,4 @@ enum IT_OpCodeType {
 #define PM4_TYPE_2 2
 #define PM4_TYPE_3 3
 
-#endif // PM4_IT_OPCODES_H
+#endif

@@ -109,4 +109,4 @@ struct VamAllocation : public VamObject
     VAM_RAFT_HANDLE     m_hRaft;
 };
 
-#endif // __VAMCOMMON_H__
+#endif

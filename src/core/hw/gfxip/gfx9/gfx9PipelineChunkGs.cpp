@@ -188,7 +188,7 @@ void PipelineChunkGs::LateInit(
         VGT_SHADER_STAGES_EN vgtShaderStagesEn = {};
         vgtShaderStagesEn.u32All = registers.At(mmVGT_SHADER_STAGES_EN);
 
-        if (settings.waLimitLateAllocGsNggFifo)
+        if ((vgtShaderStagesEn.bits.PRIMGEN_EN != 0) && settings.waLimitLateAllocGsNggFifo)
         {
             lateAllocLimit = 64;
         }

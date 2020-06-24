@@ -80,4 +80,4 @@
 
 #define VAM_ASSERT_ALWAYS()             VAM_DBG_BREAK()
 
-#endif // __VAMMACROS_H__
+#endif

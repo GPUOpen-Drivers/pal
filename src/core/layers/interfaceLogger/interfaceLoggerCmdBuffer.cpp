@@ -295,67 +295,6 @@ void CmdBuffer::CmdSetVertexBuffers(
     }
 }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 473
-// =====================================================================================================================
-void CmdBuffer::CmdSetIndirectUserData(
-    uint16      tableId,
-    uint32      dwordOffset,
-    uint32      dwordSize,
-    const void* pSrcData)
-{
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::CmdBufferCmdSetIndirectUserData;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
-    m_pNextLayer->CmdSetIndirectUserData(tableId, dwordOffset, dwordSize, pSrcData);
-    funcInfo.postCallTime = m_pPlatform->GetTime();
-
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
-    {
-        pLogContext->BeginInput();
-        pLogContext->KeyAndValue("tableId", tableId);
-        pLogContext->KeyAndValue("dwordOffset", dwordOffset);
-        pLogContext->KeyAndBeginList("srcData", false);
-
-        const uint32*const pSrcDwords = static_cast<const uint32*>(pSrcData);
-        for (uint32 idx = 0; idx < dwordSize; ++idx)
-        {
-            pLogContext->Value(pSrcDwords[idx]);
-        }
-
-        pLogContext->EndList();
-        pLogContext->EndInput();
-
-        m_pPlatform->LogEndFunc(pLogContext);
-    }
-}
-
-// =====================================================================================================================
-void CmdBuffer::CmdSetIndirectUserDataWatermark(
-    uint16 tableId,
-    uint32 dwordLimit)
-{
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::CmdBufferCmdSetIndirectUserDataWatermark;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
-    m_pNextLayer->CmdSetIndirectUserDataWatermark(tableId, dwordLimit);
-    funcInfo.postCallTime = m_pPlatform->GetTime();
-
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
-    {
-        pLogContext->BeginInput();
-        pLogContext->KeyAndValue("tableId", tableId);
-        pLogContext->KeyAndValue("dwordLimit", dwordLimit);
-        pLogContext->EndInput();
-
-        m_pPlatform->LogEndFunc(pLogContext);
-    }
-}
-#endif
-
 // =====================================================================================================================
 void CmdBuffer::CmdBindIndexData(
     gpusize   gpuAddr,
@@ -2832,7 +2771,6 @@ uint32* CmdBuffer::CmdAllocateEmbeddedData(
     return pCpuAddr;
 }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 474
 // =====================================================================================================================
 Result CmdBuffer::AllocateAndBindGpuMemToEvent(
     IGpuEvent* pGpuEvent)
@@ -2840,7 +2778,6 @@ Result CmdBuffer::AllocateAndBindGpuMemToEvent(
     // This function is not logged because it doesn't modify the command buffer.
     return GetNextLayer()->AllocateAndBindGpuMemToEvent(NextGpuEvent(pGpuEvent));
 }
-#endif
 
 // =====================================================================================================================
 void CmdBuffer::CmdExecuteNestedCmdBuffers(

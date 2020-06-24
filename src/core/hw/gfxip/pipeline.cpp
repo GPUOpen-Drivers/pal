@@ -219,12 +219,6 @@ void Pipeline::ExtractPipelineInfo(
     m_info.internalPipelineHash =
         { metadata.pipeline.internalPipelineHash[0], metadata.pipeline.internalPipelineHash[1] };
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 476
-    // Default the PAL runtime hash to the unique portion of the internal pipeline hash. PAL pipelines that include
-    // additional state should override this with a new hash composed of that state and this hash.
-    m_info.palRuntimeHash = m_info.internalPipelineHash.unique;
-#endif
-
     // We don't expect the pipeline ABI to report a hash of zero.
     PAL_ALERT((metadata.pipeline.internalPipelineHash[0] | metadata.pipeline.internalPipelineHash[1]) == 0);
 

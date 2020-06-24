@@ -204,7 +204,7 @@ static void PAL_STDCALL WriteCmdDumpToFile(
     // operation of the "important" stuff...  but still make it apparent that the dump file isn't accurate.
     PAL_ALERT(result != Result::Success);
 }
-#endif // PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 555
+#endif
 
 // =====================================================================================================================
 void SubmissionContext::TakeReference()
@@ -655,14 +655,14 @@ Result Queue::SubmitInternal(
             DumpCmdToFile(submitInfo, internalSubmitInfos[0]);
 #endif
         }
-#endif // PAL_ENABLE_PRINTS_ASSERTS
+#endif
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 555
         if ((submitInfo.pfnCmdDumpCb != nullptr) && (result == Result::Success))
         {
             DumpCmdBuffers(submitInfo, internalSubmitInfos[0]);
         }
-#endif // PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 555
+#endif
 
         if (result == Result::Success)
         {
@@ -957,8 +957,8 @@ Result Queue::OpenCommandDumpFile(
     }
 }
 
-#endif // PAL_ENABLE_PRINTS_ASSERTS
-#endif // PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 555
+#endif
+#endif
 
 #if PAL_ENABLE_PRINTS_ASSERTS
 // =====================================================================================================================

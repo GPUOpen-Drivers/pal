@@ -599,7 +599,7 @@ const RegisterRange Gfx91NonShadowedRanges[] =
 };
 constexpr uint32 Gfx91NumNonShadowedRanges = static_cast<uint32>(Util::ArrayLen(Gfx91NonShadowedRanges));
 
-#endif // PAL_ENABLE_PRINTS_ASSERTS
+#endif
 
 constexpr uint32 Gfx10NumShShadowRanges    = static_cast<uint32>(Util::ArrayLen(Gfx10ShShadowRange));
 constexpr uint32 Gfx10NumCsShShadowRanges  = static_cast<uint32>(Util::ArrayLen(Gfx10CsShShadowRange));

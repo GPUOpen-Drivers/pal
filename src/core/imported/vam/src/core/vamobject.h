@@ -68,4 +68,4 @@ private:
     VamObject& operator=(const VamObject& a);
 };
 
-#endif // __VAMOBJECT_H__
+#endif

@@ -837,6 +837,7 @@ if args.genRegistryCode:
 initSettingsInfo = codeTemplates.InitSettingsInfoFunc.replace("%ClassName%", args.className)
 initSettingsInfo = initSettingsInfo.replace("%InitSettingInfoCode%", settingInfoCode)
 
+# Note, the replacement of %NumSettings% can be removed once all clients update their templates.
 settingHashListCode = codeTemplates.SettingHashList.replace("%NumSettings%", str(numHashes))
 settingHashListCode = settingHashListCode.replace("%SettingHashList%", settingHashList)
 settingHashListCode = settingHashListCode.replace("%SettingHashListName%", settingHashListName)

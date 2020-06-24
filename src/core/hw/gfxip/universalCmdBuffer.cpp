@@ -266,23 +266,17 @@ void UniversalCmdBuffer::CmdBindPipeline(
     {
         m_computeState.dynamicCsInfo            = params.cs;
         m_computeState.pipelineState.pPipeline  = static_cast<const Pipeline*>(params.pPipeline);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 471
         m_computeState.pipelineState.apiPsoHash = params.apiPsoHash;
-#endif
         m_computeState.pipelineState.dirtyFlags.pipelineDirty = 1;
     }
     else
     {
         m_graphicsState.dynamicGraphicsInfo      = params.graphics;
         m_graphicsState.pipelineState.pPipeline  = static_cast<const Pipeline*>(params.pPipeline);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 471
         m_graphicsState.pipelineState.apiPsoHash = params.apiPsoHash;
-#endif
         m_graphicsState.pipelineState.dirtyFlags.pipelineDirty = 1;
     }
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 471
     m_device.DescribeBindPipeline(this, params.pPipeline, params.apiPsoHash, params.pipelineBindPoint);
-#endif
 }
 
 // =====================================================================================================================
@@ -587,9 +581,7 @@ void UniversalCmdBuffer::SetGraphicsState(
         bindParams.pipelineBindPoint  = PipelineBindPoint::Graphics;
         bindParams.pPipeline          = pipelineState.pPipeline;
         bindParams.graphics           = newGraphicsState.dynamicGraphicsInfo;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 471
         bindParams.apiPsoHash         = pipelineState.apiPsoHash;
-#endif
 
         CmdBindPipeline(bindParams);
     }

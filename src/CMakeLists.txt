@@ -28,7 +28,6 @@ include(PalCompilerOptions)
 
 ### Create PAL Library #################################################################################################
 add_library(pal STATIC)
-install(TARGETS pal DESTINATION ${CMAKE_SOURCE_DIR}/lib/$<CONFIG>${TARGET_ARCHITECTURE_BITS})
 
 ### Compiler Options ###################################################################################################
 pal_compiler_options()
@@ -42,6 +41,9 @@ target_sources(pal PRIVATE
     ${PROJECT_SOURCE_DIR}/cmake/Modules/FindXCB.cmake
     ${PROJECT_SOURCE_DIR}/cmake/Modules/PalCompilerOptions.cmake
     ${PROJECT_SOURCE_DIR}/cmake/Modules/PalCompilerWarnings.cmake
+    ${PROJECT_SOURCE_DIR}/cmake/Modules/PalOptions.cmake
+    ${PROJECT_SOURCE_DIR}/cmake/Modules/PalOverrides.cmake
+    ${PROJECT_SOURCE_DIR}/cmake/Modules/PalOverridesGpu.cmake
     ${PROJECT_SOURCE_DIR}/cmake/Modules/PalVersionHelper.cmake
     ${PROJECT_SOURCE_DIR}/cmake/Modules/SetupAmdGlobalRoots.cmake
 )
@@ -84,6 +86,10 @@ target_compile_definitions(pal PRIVATE
     ${TARGET_ARCHITECTURE_ENDIANESS}ENDIAN_CPU=1
 )
 
+if(PAL_BUILD_NULL_DEVICE)
+    target_compile_definitions(pal PRIVATE PAL_BUILD_NULL_DEVICE=1)
+endif()
+
 if(PAL_BUILD_GPUOPEN)
     target_compile_definitions(pal PUBLIC PAL_BUILD_GPUOPEN=1)
 endif()
@@ -125,7 +131,7 @@ set(PAL_CLIENT_${PAL_CLIENT} 1)
 if(PAL_CLIENT_VULKAN)
     target_compile_definitions(pal PUBLIC PAL_CLIENT_VULKAN=1)
 else()
-    message(STATUS "No valid PAL client specified.  Defaulting to Vulkan.")
+    message(AUTHOR_WARNING "No valid PAL client specified.  Defaulting to Vulkan.")
     target_compile_definitions(pal PUBLIC PAL_CLIENT_VULKAN=1)
 endif()
 
@@ -168,7 +174,7 @@ if(UNIX)
             target_include_directories(pal PUBLIC ${DK_X11})
         endif()
 
-        message(STATUS "DK_X11 not set.  Defaulting to ${DK_X11}")
+        message_debug("DK_X11 not set.  Defaulting to ${DK_X11}")
     endif()
 
     if(NOT DEFINED DK_XCB)
@@ -184,7 +190,7 @@ if(UNIX)
             set(DK_XCB ${XCB_INCLUDE_DIRS})
             target_include_directories(pal PUBLIC ${DK_XCB})
         endif()
-        message(STATUS "DK_XCB not set.  Defaulting to ${DK_XCB}")
+        message_debug("DK_XCB not set.  Defaulting to ${DK_XCB}")
     endif()
     target_include_directories(pal PRIVATE ${DK_XCB}/include)
 
@@ -322,7 +328,7 @@ if(PAL_BUILD_CORE)
     )
 
     if(PAL_AMDGPU_BUILD)
-        message(STATUS "PAL build with amdgpu back-end enabled")
+        message_verbose("PAL build with amdgpu back-end enabled")
         target_sources(pal PRIVATE
             core/os/amdgpu/amdgpuDevice.cpp
             core/os/amdgpu/amdgpuGpuMemory.cpp
@@ -343,7 +349,7 @@ if(PAL_BUILD_CORE)
         )
 
         if(PAL_BUILD_DRI3)
-            message(STATUS "PAL build with DRI3 enabled")
+            message_verbose("PAL build with DRI3 enabled")
             target_include_directories(pal PRIVATE ${PROJECT_SOURCE_DIR}/src/core/os/amdgpu/dri3)
             target_sources(pal PRIVATE
                core/os/amdgpu/dri3/dri3WindowSystem.cpp
@@ -353,7 +359,7 @@ if(PAL_BUILD_CORE)
         endif()
 
         if(PAL_BUILD_WAYLAND)
-            message(STATUS "PAL build with Wayland enabled")
+            message_verbose("PAL build with Wayland enabled")
             find_package(Wayland)
             target_include_directories(pal PRIVATE ${PROJECT_SOURCE_DIR}/src/core/os/amdgpu/wayland)
             target_sources(pal PRIVATE

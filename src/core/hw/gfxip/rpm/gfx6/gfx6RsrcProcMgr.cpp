@@ -793,11 +793,7 @@ void RsrcProcMgr::CmdResolveQueryComputeShader(
 
     // Save current command buffer state and bind the pipeline.
     pCmdBuffer->CmdSaveComputeState(ComputeStatePipelineAndUserData);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 471
     pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, InternalApiPsoHash, });
-#else
-    pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, });
-#endif
 
     // Create an embedded user-data table and bind it to user data 0. We need buffer views for the source and dest.
     uint32* pSrdTable = RpmUtil::CreateAndBindEmbeddedUserData(pCmdBuffer,
@@ -866,11 +862,7 @@ bool RsrcProcMgr::ExpandDepthStencil(
         auto*        pComputeCmdStream = pCmdBuffer->GetCmdStreamByEngine(CmdBufferEngineSupport::Compute);
 
         pCmdBuffer->CmdSaveComputeState(ComputeStatePipelineAndUserData);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 471
         pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, InternalApiPsoHash, });
-#else
-        pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, });
-#endif
         // Compute the number of thread groups needed to launch one thread per texel.
         uint32 threadsPerGroup[3] = {};
         pPipeline->ThreadsPerGroupXyz(&threadsPerGroup[0], &threadsPerGroup[1], &threadsPerGroup[2]);
@@ -1129,19 +1121,6 @@ void RsrcProcMgr::HwlFixupCopyDstImageMetaData(
 #endif
 }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 478
-// =====================================================================================================================
-void RsrcProcMgr::HwlCreateDecompressResolveSafeImageViewSrds(
-    uint32                numSrds,
-    const ImageViewInfo*  pImageView,
-    void*                 pSrdTable
-    ) const
-{
-    const auto&  device = *m_pDevice->Parent();
-    device.CreateImageViewSrds(numSrds, pImageView, pSrdTable);
-}
-#endif
-
 // =====================================================================================================================
 // Before fixfunction or compute shader resolve, we do an optimization that we skip expanding DCC if dst image will be
 // fully overwritten in the comming resolve. It means the DCC of dst image needs to be fixed up to expand state after
@@ -1306,11 +1285,7 @@ void RsrcProcMgr::HwlHtileCopyAndFixUp(
         const ComputePipeline*const pPipeline = GetPipeline(RpmComputePipeline::HtileCopyAndFixUp);
 
         // Bind the pipeline.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 471
         pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, InternalApiPsoHash, });
-#else
-        pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, });
-#endif
 
         SubresId dstSubresId = {};
 
@@ -2063,11 +2038,7 @@ void RsrcProcMgr::HwlResummarizeHtileCompute(
         const ComputePipeline*const pPipeline = GetPipeline(RpmComputePipeline::FastDepthClear);
 
         // Bind the pipeline.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 471
         pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, InternalApiPsoHash, });
-#else
-        pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, });
-#endif
         // Put the new HTile data in user data 4 and the old HTile data mask in user data 5.
         const uint32 htileUserData[2] = { htileValue & htileMask, ~htileMask };
         pCmdBuffer->CmdSetUserData(PipelineBindPoint::Compute, 4, 2, htileUserData);
@@ -2167,12 +2138,8 @@ void RsrcProcMgr::FastDepthStencilClearCompute(
             pPipeline = GetPipeline(RpmComputePipeline::FastDepthExpClear);
         }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 471
-        pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, InternalApiPsoHash, });
-#else
         // Bind the pipeline.
-        pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, });
-#endif
+        pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, InternalApiPsoHash, });
 
         // Put the new HTile data in user data 4 and the old HTile data mask in user data 5.
         const uint32 htileUserData[2] = { htileValue & htileMask, ~htileMask };
@@ -2270,12 +2237,7 @@ void RsrcProcMgr::FastDepthStencilClearCompute(
                     threads = htileDwords;
                 }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 471
                 pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, InternalApiPsoHash, });
-#else
-                pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, });
-#endif
-
                 pCmdBuffer->CmdSetUserData(PipelineBindPoint::Compute, 0, 4, &htileSurfSrd.word0.u32All);
 
                 const uint32 constData[] =
@@ -2306,11 +2268,7 @@ void RsrcProcMgr::FastDepthStencilClearCompute(
         {
             pPipeline = GetPipeline(RpmComputePipeline::FastDepthClear);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 471
             pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, InternalApiPsoHash, });
-#else
-            pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, });
-#endif
 
             // Put the new HTile data in user data 4 and the old HTile data mask in user data 5.
             const uint32 htileUserData[2] = { htileValue & htileMask, ~htileMask };
@@ -2476,11 +2434,7 @@ void RsrcProcMgr::DepthStencilClearGraphics(
 
     // Bind the depth expand state because it's just a full image quad and a zero PS (with no internal flags) which
     // is also what we need for the clear.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 471
     pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Graphics, GetGfxPipeline(DepthExpand), InternalApiPsoHash, });
-#else
-    pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Graphics, GetGfxPipeline(DepthExpand), });
-#endif
     pCmdBuffer->CmdBindMsaaState(GetMsaaState(dstImage.Parent()->GetImageCreateInfo().samples,
                                               dstImage.Parent()->GetImageCreateInfo().fragments));
 
@@ -3037,11 +2991,7 @@ void RsrcProcMgr::ClearHtileAspect(
     const ComputePipeline* pPipeline = GetPipeline(RpmComputePipeline::FastDepthClear);
 
     // Bind the pipeline.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 471
     pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, InternalApiPsoHash, });
-#else
-    pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, });
-#endif
 
     // Put the new HTile data in user data 4 and the old HTile data mask in user data 5.
     const uint32 htileUserData[2] = { htileValue & htileMask, ~htileMask };
@@ -3202,11 +3152,7 @@ void RsrcProcMgr::DccDecompressOnCompute(
     pPipeline->ThreadsPerGroupXyz(&threadsPerGroup[0], &threadsPerGroup[1], &threadsPerGroup[2]);
 
     pCmdBuffer->CmdSaveComputeState(ComputeStatePipelineAndUserData);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 471
     pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, InternalApiPsoHash, });
-#else
-    pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, });
-#endif
 
     const uint32 lastMip    = range.startSubres.mipLevel + range.numMips - 1;
     bool         earlyExit  = false;
@@ -3438,11 +3384,7 @@ void RsrcProcMgr::FmaskColorExpand(
 
         // Save current command buffer state and bind the pipeline.
         pCmdBuffer->CmdSaveComputeState(ComputeStatePipelineAndUserData);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 471
         pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, InternalApiPsoHash, });
-#else
-        pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, });
-#endif
 
         // Select the appropriate value to indicate that FMask is fully expanded and place it in user data 8-9.
         // Put the low part is user data 8 and the high part in user data 9.

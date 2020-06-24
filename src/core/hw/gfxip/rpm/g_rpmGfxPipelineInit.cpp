@@ -61,8 +61,6 @@ Result CreateRpmGraphicsPipelines(
     case AsicRevision::Oland:
     case AsicRevision::Hainan:
     case AsicRevision::Bonaire:
-    case AsicRevision::Kalindi:
-    case AsicRevision::Godavari:
     case AsicRevision::Spectre:
     case AsicRevision::Spooky:
         pTable = rpmGfxBinaryTableOland;
@@ -73,14 +71,22 @@ Result CreateRpmGraphicsPipelines(
         pTable = rpmGfxBinaryTableHawaiiPro;
         break;
 
+    case AsicRevision::Kalindi:
+    case AsicRevision::Godavari:
+        pTable = rpmGfxBinaryTableKalindi;
+        break;
+
     case AsicRevision::Carrizo:
     case AsicRevision::Bristol:
-    case AsicRevision::Stoney:
     case AsicRevision::Fiji:
     case AsicRevision::Polaris10:
     case AsicRevision::Polaris11:
     case AsicRevision::Polaris12:
         pTable = rpmGfxBinaryTableCarrizo;
+        break;
+
+    case AsicRevision::Stoney:
+        pTable = rpmGfxBinaryTableStoney;
         break;
 
     case AsicRevision::Iceland:
@@ -395,7 +401,12 @@ Result CreateRpmGraphicsPipelines(
             AllocInternal);
     }
 
-    if ((properties.gfxLevel >= GfxIpLevel::GfxIp8) && (result == Result::Success))
+    if (result == Result::Success && (false
+        || (properties.gfxLevel == GfxIpLevel::GfxIp8)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp8_1)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp9)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
+        ))
     {
         pipeInfo = { };
         pipeInfo.pPipelineBinary    = pTable[DccDecompress].pBuffer;
@@ -516,7 +527,14 @@ Result CreateRpmGraphicsPipelines(
             AllocInternal);
     }
 
-    if (result == Result::Success)
+    if (result == Result::Success && (false
+        || (properties.gfxLevel == GfxIpLevel::GfxIp6)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp7)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp8)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp8_1)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp9)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
+        ))
     {
         pipeInfo = { };
         pipeInfo.pPipelineBinary    = pTable[FmaskDecompress].pBuffer;

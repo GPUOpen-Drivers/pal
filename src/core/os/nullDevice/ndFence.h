@@ -24,6 +24,8 @@
  **********************************************************************************************************************/
 #pragma once
 
+#if PAL_BUILD_NULL_DEVICE
+
 #include "core/fence.h"
 #include "ndDevice.h"
 #include "ndQueue.h"
@@ -72,3 +74,5 @@ private:
 
 } //NullDevice
 } // Pal
+
+#endif

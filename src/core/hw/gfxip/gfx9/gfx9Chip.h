@@ -56,8 +56,8 @@ namespace Gfx9
 // Helper struct for the 2nd dword of a DUMP_CONST_RAM_* CE packet.
 union DumpConstRamOrdinal2
 {
-    decltype(PM4_CE_DUMP_CONST_RAM::bitfields2)  bits;
-    uint32                                       u32All;
+    decltype(PM4_CE_DUMP_CONST_RAM::ordinal2.bitfields)  bits;
+    uint32                                               u32All;
 };
 
 // Describes the layout of the index buffer attributes used by a INDEX_ATTRIBUTES_INDIRECT packet.

@@ -40702,4 +40702,4 @@ constexpr unsigned int XDMA_TEST_DEBUG_INDEX__XDMA_TEST_DEBUG_WRITE_EN_MASK__VI 
 } // namespace Gfx6
 } // namespace Pal
 
-#endif // __SI__CI__VImask_HEADER
+#endif

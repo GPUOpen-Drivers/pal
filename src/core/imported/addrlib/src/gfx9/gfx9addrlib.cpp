@@ -1312,12 +1312,13 @@ ChipFamily Gfx9Lib::HwlConvertChipFamily(
                 m_settings.applyAliasFix = 1;
             }
 
+            m_settings.isDcn1 = m_settings.isRaven;
+
             if (ASICREV_IS_RENOIR(uChipRevision))
             {
                 m_settings.isRaven = 1;
+                m_settings.isDcn2  = 1;
             }
-
-            m_settings.isDcn1 = m_settings.isRaven;
 
             m_settings.metaBaseAlignFix = 1;
             break;
@@ -2966,6 +2967,17 @@ BOOL_32 Gfx9Lib::IsValidDisplaySwizzleMode(
             support = (Dcn1Bpp64SwModeMask & swizzleMask) ? TRUE : FALSE;
         }
     }
+    else if (m_settings.isDcn2)
+    {
+        if (pIn->bpp < 64)
+        {
+            support = (Dcn2NonBpp64SwModeMask & swizzleMask) ? TRUE : FALSE;
+        }
+        else if (pIn->bpp == 64)
+        {
+            support = (Dcn2Bpp64SwModeMask & swizzleMask) ? TRUE : FALSE;
+        }
+    }
     else
     {
         ADDR_NOT_IMPLEMENTED();
@@ -3575,6 +3587,10 @@ ADDR_E_RETURNCODE Gfx9Lib::HwlGetPreferredSurfaceSetting(
             else if (m_settings.isDcn1)
             {
                 allowedSwModeSet.value &= (bpp == 64) ? Dcn1Bpp64SwModeMask : Dcn1NonBpp64SwModeMask;
+            }
+            else if (m_settings.isDcn2)
+            {
+                allowedSwModeSet.value &= (bpp == 64) ? Dcn2Bpp64SwModeMask : Dcn2NonBpp64SwModeMask;
             }
             else
             {

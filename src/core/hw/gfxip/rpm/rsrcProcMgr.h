@@ -415,13 +415,6 @@ private:
         uint32                  regionCount,
         bool                    isFmaskCopyOptimized) const = 0;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 478
-    virtual void HwlCreateDecompressResolveSafeImageViewSrds(
-        uint32                numSrds,
-        const ImageViewInfo*  pImageView,
-        void*                 pSrdTable) const = 0;
-#endif
-
     virtual void HwlHtileCopyAndFixUp(
         GfxCmdBuffer*             pCmdBuffer,
         const Pal::Image&         srcImage,

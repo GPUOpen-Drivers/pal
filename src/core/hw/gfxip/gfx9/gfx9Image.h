@@ -233,6 +233,8 @@ public:
 
     virtual bool IsSubResourceLinear(const SubresId& subresource) const override;
 
+    virtual bool IsIterate256Meaningful(const SubResourceInfo* subResInfo) const override;
+
     virtual bool ShaderWriteIncompatibleWithLayout(const SubresId& subresId, ImageLayout layout) const override;
 
     // Returns true if this Image has associated HTile data.

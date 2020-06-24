@@ -628,11 +628,7 @@ void EventProvider::LogResourceCreateEvent(
         imgCreateInfo.fragments = static_cast<uint8>(pImageData->pCreateInfo->fragments);
         imgCreateInfo.tilingType = PalToRmtTilingType(pImageData->pCreateInfo->tiling);
         imgCreateInfo.tilingOptMode = PalToRmtTilingOptMode(pImageData->pCreateInfo->tilingOptMode);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 481
         imgCreateInfo.metadataMode = PalToRmtMetadataMode(pImageData->pCreateInfo->metadataMode);
-#else
-        imgCreateInfo.metadataMode = RMT_IMAGE_METADATA_MODE_DEFAULT;
-#endif
         imgCreateInfo.maxBaseAlignment = pImageData->pCreateInfo->maxBaseAlign;
         imgCreateInfo.isPresentable = pImageData->isPresentable;
         imgCreateInfo.imageSize = static_cast<uint32>(pImageData->pMemoryLayout->dataSize);
@@ -673,14 +669,10 @@ void EventProvider::LogResourceCreateEvent(
 
         RMT_PIPELINE_CREATE_FLAGS flags;
         flags.CLIENT_INTERNAL   = pPipelineData->pCreateFlags->clientInternal;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 488
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 488) && (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 502)
+#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 502)
         flags.OVERRIDE_GPU_HEAP = 0;
 #else
         flags.OVERRIDE_GPU_HEAP = pPipelineData->pCreateFlags->overrideGpuHeap;
-#endif
-#else
-        flags.OVERRIDE_GPU_HEAP = 0;
 #endif
 
         RMT_PIPELINE_HASH hash;

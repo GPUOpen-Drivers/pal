@@ -108,7 +108,6 @@ enum class ImageAspect : uint32
     Count
 };
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 496
 /// Image metadata modes.
 enum class MetadataMode : uint16
 {
@@ -132,21 +131,6 @@ enum class MetadataTcCompatMode : uint16
     Disabled,           ///< Optimization Hint:  Tells PAL that the client would prefer Metadata is not TC compat.
     Count,
 };
-#else
-/// Image metadata modes.
-enum class MetadataMode : uint32
-{
-    Default = 0,        ///< Default behavior.  This Image will use compression metadata and take advantage of any
-                        ///  features like TC compatible reads as long as the GPU supports them for this Image.
-    OptForTexFetchPerf, ///< Optimization Hint:  Notification that performance is more sensitive towards texture fetches
-                        ///  on this Image compared to the cost of doing decompression or expand blits during transition
-                        ///  barriers.  This will result in this Image not using HW features like TC compatible reads in
-                        ///  order to maximize texture fetch performance.  On GPU's which don't support TC compatible
-                        ///  reads, this mode is no different from @ref MetadataMode::Default.
-    Disabled,           ///< The Image will not contain any compression metadata.
-    Count,
-};
-#endif
 
 /// Image shared metadata support level
 enum class MetadataSharingLevel : uint32
@@ -201,11 +185,6 @@ union ImageCreateFlags
         uint32 cubemap                 :  1; ///< Image will be used as a cubemap.
         uint32 prt                     :  1; ///< Image is a partially resident texture (aka, sparse image or tiled
                                              ///  resource)
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 481
-        uint32 noMetadata              :  1; ///< This image's GPU memory will not contain any metadata.
-#else
-        uint32 reserved481             :  1;
-#endif
         uint32 needSwizzleEqs          :  1; ///< Image requires valid swizzle equations.
         uint32 perSubresInit           :  1; ///< The image may have its subresources initialized independently using
                                              ///  CmdBarrier calls out of the uninitialized layout.
@@ -254,7 +233,7 @@ union ImageCreateFlags
 #else
         uint32 reserved586             :  1;
 #endif
-        uint32 reserved                :  9; ///< Reserved for future use.
+        uint32 reserved                : 10; ///< Reserved for future use.
     };
     uint32 u32All;                           ///< Flags packed as 32-bit uint.
 };
@@ -337,12 +316,8 @@ struct ImageCreateInfo
     TilingOptMode      tilingOptMode;     ///< Hints to pal to select the appropriate tiling mode.
     uint32             tileSwizzle;       ///< If fixedTileSwizzle is set, use this value for the image's base tile
                                           ///  swizzle.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 496
-    MetadataMode         metadataMode;    ///< Metadata behavior mode for this image.
-    MetadataTcCompatMode metadataTcCompatMode; ///< TC compat mode for this image.
-#elif PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 481
     MetadataMode       metadataMode;      ///< Metadata behavior mode for this image.
-#endif
+    MetadataTcCompatMode metadataTcCompatMode; ///< TC compat mode for this image.
     uint32             maxBaseAlign;      ///< Maximum address alignment for this image or zero for an unbounded
                                           ///  alignment.
 

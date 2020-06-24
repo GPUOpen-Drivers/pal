@@ -1130,13 +1130,8 @@ static void CmdBindPipelineToString(
         Snprintf(pString, StringLength, "PipelineUniqueHash      = 0x%016llX", info.internalPipelineHash.unique);
         pCmdBuffer->GetNextLayer()->CmdCommentString(pString);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 476
-        Snprintf(pString, StringLength, "PipelinePalRuntimeHash  = 0x%016llX", info.palRuntimeHash);
-        pCmdBuffer->GetNextLayer()->CmdCommentString(pString);
-#else
         Snprintf(pString, StringLength, "PipelineApiPsoHash      = 0x%016llX", params.apiPsoHash);
         pCmdBuffer->GetNextLayer()->CmdCommentString(pString);
-#endif
     }
     else
     {
@@ -1545,83 +1540,6 @@ void CmdBuffer::CmdSetVertexBuffers(
 
     GetNextLayer()->CmdSetVertexBuffers(firstBuffer, bufferCount, pBuffers);
 }
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 473
-// =====================================================================================================================
-static void CmdSetIndirectUserDataToString(
-    CmdBuffer*  pCmdBuffer,
-    uint16      tableId,
-    uint32      dwordOffset,
-    uint32      dwordSize,
-    const void* pSrcData)
-{
-    LinearAllocatorAuto<VirtualLinearAllocator> allocator(pCmdBuffer->Allocator(), false);
-    char* pString = PAL_NEW_ARRAY(char, StringLength, &allocator, AllocInternalTemp);
-
-    Snprintf(pString, StringLength, "Table Id     = %hu", tableId);
-    pCmdBuffer->GetNextLayer()->CmdCommentString(pString);
-
-    Snprintf(pString, StringLength, "Dword Offset = %u", dwordOffset);
-    pCmdBuffer->GetNextLayer()->CmdCommentString(pString);
-
-    Snprintf(pString, StringLength, "Dword Size   = %u", dwordSize);
-    pCmdBuffer->GetNextLayer()->CmdCommentString(pString);
-
-    PAL_SAFE_DELETE_ARRAY(pString, &allocator);
-
-    UserDataEntriesToString(pCmdBuffer, dwordSize, static_cast<const uint32*>(pSrcData));
-}
-
-// =====================================================================================================================
-void CmdBuffer::CmdSetIndirectUserData(
-    uint16      tableId,
-    uint32      dwordOffset,
-    uint32      dwordSize,
-    const void* pSrcData)
-{
-    if (m_annotations.logCmdSetUserData)
-    {
-        GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdSetIndirectUserData));
-
-        CmdSetIndirectUserDataToString(this, tableId, dwordOffset, dwordSize, pSrcData);
-    }
-
-    GetNextLayer()->CmdSetIndirectUserData(tableId, dwordOffset, dwordSize, pSrcData);
-}
-
-// =====================================================================================================================
-static void CmdSetIndirectUserDataWatermarkToString(
-    CmdBuffer* pCmdBuffer,
-    uint16     tableId,
-    uint32     dwordLimit)
-{
-    LinearAllocatorAuto<VirtualLinearAllocator> allocator(pCmdBuffer->Allocator(), false);
-    char* pString = PAL_NEW_ARRAY(char, StringLength, &allocator, AllocInternalTemp);
-
-    Snprintf(pString, StringLength, "Table Id     = %hu", tableId);
-    pCmdBuffer->GetNextLayer()->CmdCommentString(pString);
-
-    Snprintf(pString, StringLength, "Dword Limit  = %u", dwordLimit);
-    pCmdBuffer->GetNextLayer()->CmdCommentString(pString);
-
-    PAL_SAFE_DELETE_ARRAY(pString, &allocator);
-}
-
-// =====================================================================================================================
-void CmdBuffer::CmdSetIndirectUserDataWatermark(
-    uint16 tableId,
-    uint32 dwordLimit)
-{
-    if (m_annotations.logCmdSetUserData)
-    {
-        GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdSetIndirectUserDataWatermark));
-
-        CmdSetIndirectUserDataWatermarkToString(this, tableId, dwordLimit);
-    }
-
-    GetNextLayer()->CmdSetIndirectUserDataWatermark(tableId, dwordLimit);
-}
-#endif
 
 // =====================================================================================================================
 void CmdBuffer::CmdSetBlendConst(
@@ -2167,13 +2085,11 @@ static void CmdBarrierToString(
         BarrierTransitionToString(pCmdBuffer, i, barrierInfo.pTransitions[i], pString);
     }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 482
     Snprintf(pString, StringLength, "barrierInfo.globalSrcCacheMask = 0x%08X", barrierInfo.globalSrcCacheMask);
     pCmdBuffer->GetNextLayer()->CmdCommentString(pString);
 
     Snprintf(pString, StringLength, "barrierInfo.globalDstCacheMask = 0x%08X", barrierInfo.globalDstCacheMask);
     pCmdBuffer->GetNextLayer()->CmdCommentString(pString);
-#endif
 
     Snprintf(pString, StringLength,
              "barrierInfo.pSplitBarrierGpuEvent = 0x%016" PRIXPTR, barrierInfo.pSplitBarrierGpuEvent);
@@ -3564,12 +3480,10 @@ static void DumpImageScaledCopyRegion(
         Snprintf(pString, StringLength, "\t numSlices  = %u",   region.numSlices);
         pNextCmdBuffer->CmdCommentString(pString);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 494
         Snprintf(pString, StringLength, "\t swizzledFormat = { format = %s, swizzle = ",
                  FormatToString(region.swizzledFormat.format));
         SwizzleToString(region.swizzledFormat.swizzle, pString);
         pNextCmdBuffer->CmdCommentString(pString);
-#endif
 
         Snprintf(pString, StringLength, "]");
         pNextCmdBuffer->CmdCommentString(pString);
@@ -4813,14 +4727,12 @@ uint32* CmdBuffer::CmdAllocateEmbeddedData(
     return GetNextLayer()->CmdAllocateEmbeddedData(sizeInDwords, alignmentInDwords, pGpuAddress);
 }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 474
 // =====================================================================================================================
 Result CmdBuffer::AllocateAndBindGpuMemToEvent(
     IGpuEvent* pGpuEvent)
 {
     return GetNextLayer()->AllocateAndBindGpuMemToEvent(NextGpuEvent(pGpuEvent));
 }
-#endif
 
 // =====================================================================================================================
 void CmdBuffer::CmdExecuteNestedCmdBuffers(

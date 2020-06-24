@@ -163,4 +163,4 @@
 
 #define ASICREV_IS_NAVI14_M(r)         ASICREV_IS(r, NAVI14)
 
-#endif // _AMDGPU_ASIC_ADDR_H
+#endif

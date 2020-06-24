@@ -165,9 +165,9 @@ PalOsiSettingType = """,
 SettingHashListName = "g_%LowerCamelComponentName%SettingHashList"
 SettingNumSettingsName = "g_%LowerCamelComponentName%NumSettings"
 SettingHashList = """
-static const uint32 %SettingNumSettingsName% = %NumSettings%;
 static const SettingNameHash %SettingHashListName%[] = {
 %SettingHashList%};
+static const uint32 %SettingNumSettingsName% = sizeof(%SettingHashListName%) / sizeof(SettingNameHash);
 """
 
 InitSettingsInfoFunc = """

@@ -340,11 +340,7 @@ void CmdBuffer::ReplayCmdBindPipeline(
         if (pPipeline != nullptr)
         {
             m_cpState.pipelineInfo = pPipeline->GetInfo();
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 471
             m_cpState.apiPsoHash   = params.apiPsoHash;
-#else
-            m_cpState.apiPsoHash   = m_cpState.pipelineInfo.palRuntimeHash;
-#endif
         }
         else
         {
@@ -358,11 +354,7 @@ void CmdBuffer::ReplayCmdBindPipeline(
         if (pPipeline != nullptr)
         {
             m_gfxpState.pipelineInfo = pPipeline->GetInfo();
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 471
             m_gfxpState.apiPsoHash   = params.apiPsoHash;
-#else
-            m_gfxpState.apiPsoHash   = m_gfxpState.pipelineInfo.palRuntimeHash;
-#endif
         }
         else
         {
@@ -573,55 +565,6 @@ void CmdBuffer::ReplayCmdSetVertexBuffers(
 
     pTgtCmdBuffer->CmdSetVertexBuffers(firstBuffer, bufferCount, pBuffers);
 }
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 473
-// =====================================================================================================================
-void CmdBuffer::CmdSetIndirectUserData(
-    uint16      tableId,
-    uint32      dwordOffset,
-    uint32      dwordSize,
-    const void* pSrcData)
-{
-    InsertToken(CmdBufCallId::CmdSetIndirectUserData);
-    InsertToken(tableId);
-    InsertToken(dwordOffset);
-    InsertTokenArray(static_cast<const uint32*>(pSrcData), dwordSize);
-}
-
-// =====================================================================================================================
-void CmdBuffer::ReplayCmdSetIndirectUserData(
-    Queue*           pQueue,
-    TargetCmdBuffer* pTgtCmdBuffer)
-{
-    auto          tableId     = ReadTokenVal<uint16>();
-    auto          dwordOffset = ReadTokenVal<uint32>();
-    const uint32* pSrcData    = nullptr;
-    auto          dwordSize   = ReadTokenArray(&pSrcData);
-
-    pTgtCmdBuffer->CmdSetIndirectUserData(tableId, dwordOffset, dwordSize, pSrcData);
-}
-
-// =====================================================================================================================
-void CmdBuffer::CmdSetIndirectUserDataWatermark(
-    uint16 tableId,
-    uint32 dwordLimit)
-{
-    InsertToken(CmdBufCallId::CmdSetIndirectUserDataWatermark);
-    InsertToken(tableId);
-    InsertToken(dwordLimit);
-}
-
-// =====================================================================================================================
-void CmdBuffer::ReplayCmdSetIndirectUserDataWatermark(
-    Queue*           pQueue,
-    TargetCmdBuffer* pTgtCmdBuffer)
-{
-    auto tableId    = ReadTokenVal<uint16>();
-    auto dwordLimit = ReadTokenVal<uint32>();
-
-    pTgtCmdBuffer->CmdSetIndirectUserDataWatermark(tableId, dwordLimit);
-}
-#endif
 
 // =====================================================================================================================
 void CmdBuffer::CmdSetBlendConst(
@@ -853,14 +796,12 @@ void CmdBuffer::ReplayCmdBarrier(
     logItem.cmdBufCall.barrier.pComment = nullptr;
 
     char commentString[MaxCommentLength] = {};
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 482
     Snprintf(&commentString[0], MaxCommentLength,
              "globalSrcCacheMask: 0x%08x\n"
              "globalDstCacheMask: 0x%08x",
              barrierInfo.globalSrcCacheMask,
              barrierInfo.globalDstCacheMask);
     pTgtCmdBuffer->AddBarrierString(&commentString[0]);
-#endif
 
     for (uint32 i = 0; i < barrierInfo.transitionCount; i++)
     {
@@ -2894,14 +2835,12 @@ uint32* CmdBuffer::CmdAllocateEmbeddedData(
     return NextLayer()->CmdAllocateEmbeddedData(sizeInDwords, alignmentInDwords, pGpuAddress);
 }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 474
 // =====================================================================================================================
 Result CmdBuffer::AllocateAndBindGpuMemToEvent(
     IGpuEvent* pGpuEvent)
 {
     return NextLayer()->AllocateAndBindGpuMemToEvent(NextGpuEvent(pGpuEvent));
 }
-#endif
 
 // =====================================================================================================================
 void CmdBuffer::CmdExecuteNestedCmdBuffers(
@@ -3583,10 +3522,6 @@ Result CmdBuffer::Replay(
         &CmdBuffer::ReplayCmdBindBorderColorPalette,
         &CmdBuffer::ReplayCmdSetUserData,
         &CmdBuffer::ReplayCmdSetVertexBuffers,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 473
-        &CmdBuffer::ReplayCmdSetIndirectUserData,
-        &CmdBuffer::ReplayCmdSetIndirectUserDataWatermark,
-#endif
         &CmdBuffer::ReplayCmdSetBlendConst,
         &CmdBuffer::ReplayCmdSetInputAssemblyState,
         &CmdBuffer::ReplayCmdSetTriangleRasterState,

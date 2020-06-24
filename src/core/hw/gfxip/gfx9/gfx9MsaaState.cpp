@@ -71,7 +71,6 @@ MsaaState::MsaaState(
 
     m_flags.u32All = 0;
     m_flags.waFixPostZConservativeRasterization = device.Settings().waFixPostZConservativeRasterization;
-    m_flags.flushDfsm = (device.Settings().disableDfsm == false);
 
     memset(&m_regs, 0, sizeof(m_regs));
     Init(device, createInfo);
@@ -98,17 +97,6 @@ uint32* MsaaState::WriteCommands(
                                                    static_cast<uint32>(~Nv10::DB_RESERVED_REG_2__FIELD_1_MASK),
                                                    m_regs.dbReservedReg2,
                                                    pCmdSpace);
-    }
-
-    if (m_flags.flushDfsm != 0)
-    {
-        //     Driver must insert FLUSH_DFSM event whenever the AA mode changes if force_punchout is set to
-        //     auto as well as channel mask changes (ARGB to RGB)
-        //
-        // NOTE:  force_punchout is set to auto unless DFSM is disabled.  DFSM is disabled by default.
-        //        We already have conditionals for this PM4 image, so we can't add another one.  This event is
-        //        low-perf-impact, so just always issue it.
-        pCmdSpace += CmdUtil::BuildNonSampleEventWrite(FLUSH_DFSM, EngineTypeUniversal, pCmdSpace);
     }
 
     return pCmdSpace;

@@ -23,6 +23,8 @@
  *
  **********************************************************************************************************************/
 
+#if PAL_BUILD_NULL_DEVICE
+
 #include "ndFence.h"
 
 using namespace Util;
@@ -68,3 +70,5 @@ Result Fence::WaitForFences(
 
 } //NullDevice
 } // Pal
+
+#endif

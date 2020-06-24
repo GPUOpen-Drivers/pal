@@ -38,6 +38,7 @@
 #include "palMsgPackImpl.h"
 #include "palInlineFuncs.h"
 #include "palHashLiteralString.h"
+#include "palPipelineAbiUtils.h"
 #include "g_palPipelineAbiMetadataImpl.h"
 
 namespace Util
@@ -380,30 +381,10 @@ Result PipelineAbiProcessor<Allocator>::GetMetadata(
         {
             result = TranslateLegacyMetadata(pReader, pMetadata);
         }
-        else if (m_metadataMajorVer == PipelineMetadataMajorVersion)
-        {
-            result = pReader->InitFromBuffer(m_pMetadata, static_cast<uint32>(m_metadataSize));
-            uint32 registersOffset = UINT_MAX;
-
-            if (result == Result::Success)
-            {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 580
-                result = Metadata::DeserializePalCodeObjectMetadata(pReader, pMetadata, &registersOffset);
-#else
-                result = Metadata::DeserializePalCodeObjectMetadata(pReader, pMetadata);
-#endif
-            }
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 580
-            if (result == Result::Success)
-            {
-                result = pReader->Seek(registersOffset);
-            }
-#endif
-        }
         else
         {
-            result = Result::ErrorUnsupportedPipelineElfAbiVersion;
+            result = DeserializePalCodeObjectMetadata(pReader, pMetadata, m_pMetadata,
+                static_cast<uint32>(m_metadataSize), m_metadataMajorVer, m_metadataMinorVer);
         }
     }
 
@@ -637,113 +618,7 @@ void PipelineAbiProcessor<Allocator>::GetGfxIpVersion(
     uint32* pGfxIpStepping
     ) const
 {
-    switch (m_flags.machineType)
-    {
-    case AmdGpuMachineType::Gfx600:
-        *pGfxIpMajorVer = 6;
-        *pGfxIpMinorVer = 0;
-        *pGfxIpStepping = 0;
-        break;
-    case AmdGpuMachineType::Gfx601:
-        *pGfxIpMajorVer = 6;
-        *pGfxIpMinorVer = 0;
-        *pGfxIpStepping = 1;
-        break;
-    case AmdGpuMachineType::Gfx700:
-        *pGfxIpMajorVer = 7;
-        *pGfxIpMinorVer = 0;
-        *pGfxIpStepping = 0;
-        break;
-    case AmdGpuMachineType::Gfx701:
-        *pGfxIpMajorVer = 7;
-        *pGfxIpMinorVer = 0;
-        *pGfxIpStepping = 1;
-        break;
-    case AmdGpuMachineType::Gfx702:
-        *pGfxIpMajorVer = 7;
-        *pGfxIpMinorVer = 0;
-        *pGfxIpStepping = 2;
-        break;
-    case AmdGpuMachineType::Gfx703:
-        *pGfxIpMajorVer = 7;
-        *pGfxIpMinorVer = 0;
-        *pGfxIpStepping = 3;
-        break;
-    case AmdGpuMachineType::Gfx704:
-        *pGfxIpMajorVer = 7;
-        *pGfxIpMinorVer = 0;
-        *pGfxIpStepping = 4;
-        break;
-    case AmdGpuMachineType::Gfx800:
-        *pGfxIpMajorVer = 8;
-        *pGfxIpMinorVer = 0;
-        *pGfxIpStepping = 0;
-        break;
-    case AmdGpuMachineType::Gfx801:
-        *pGfxIpMajorVer = 8;
-        *pGfxIpMinorVer = 0;
-        *pGfxIpStepping = 1;
-        break;
-    case AmdGpuMachineType::Gfx802:
-        *pGfxIpMajorVer = 8;
-        *pGfxIpMinorVer = 0;
-        *pGfxIpStepping = 2;
-        break;
-    case AmdGpuMachineType::Gfx803:
-        *pGfxIpMajorVer = 8;
-        *pGfxIpMinorVer = 0;
-        *pGfxIpStepping = 3;
-        break;
-    case AmdGpuMachineType::Gfx810:
-        *pGfxIpMajorVer = 8;
-        *pGfxIpMinorVer = 1;
-        *pGfxIpStepping = 0;
-        break;
-    case AmdGpuMachineType::Gfx900:
-        *pGfxIpMajorVer = 9;
-        *pGfxIpMinorVer = 0;
-        *pGfxIpStepping = 0;
-        break;
-    case AmdGpuMachineType::Gfx902:
-        *pGfxIpMajorVer = 9;
-        *pGfxIpMinorVer = 0;
-        *pGfxIpStepping = 2;
-        break;
-    case AmdGpuMachineType::Gfx904:
-        *pGfxIpMajorVer = 9;
-        *pGfxIpMinorVer = 0;
-        *pGfxIpStepping = 4;
-        break;
-    case AmdGpuMachineType::Gfx906:
-        *pGfxIpMajorVer = 9;
-        *pGfxIpMinorVer = 0;
-        *pGfxIpStepping = 6;
-        break;
-    case AmdGpuMachineType::Gfx909:
-        *pGfxIpMajorVer = 9;
-        *pGfxIpMinorVer = 0;
-        *pGfxIpStepping = 9;
-        break;
-    case AmdGpuMachineType::Gfx1010:
-        *pGfxIpMajorVer = 10;
-        *pGfxIpMinorVer = 1;
-        *pGfxIpStepping = 0;
-        break;
-    case AmdGpuMachineType::Gfx1012:
-        *pGfxIpMajorVer = 10;
-        *pGfxIpMinorVer = 1;
-        *pGfxIpStepping = 2;
-        break;
-    default:
-        // What is this?
-        PAL_ASSERT_ALWAYS();
-        *pGfxIpMajorVer = 0;
-        *pGfxIpMinorVer = 0;
-        *pGfxIpStepping = 0;
-        break;
-    }
-
-    return;
+    MachineTypeToGfxIpVersion(m_flags.machineType, pGfxIpMajorVer, pGfxIpMinorVer, pGfxIpStepping);
 }
 
 // =====================================================================================================================
@@ -1076,50 +951,13 @@ Result PipelineAbiProcessor<Allocator>::LoadFromBuffer(
             switch (static_cast<PipelineAbiNoteType>(type))
             {
             case PipelineAbiNoteType::PalMetadata:
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 477
-            case PipelineAbiNoteType::PalMetadataOld:
-#endif
             {
                 m_pMetadata    = pDesc;
                 m_metadataSize = descSize;
 
-                // We need to retrieve version info from the msgpack blob.
                 MsgPackReader reader;
-                result = reader.InitFromBuffer(pDesc, static_cast<uint32>(descSize));
-
-                if ((result == Result::Success) && (reader.Type() != CWP_ITEM_MAP))
-                {
-                    result = Result::ErrorInvalidPipelineElf;
-                }
-
-                for (uint32 j = reader.Get().as.map.size; ((result == Result::Success) && (j > 0)); --j)
-                {
-                    result = reader.Next(CWP_ITEM_STR);
-
-                    if (result == Result::Success)
-                    {
-                        const auto&  str     = reader.Get().as.str;
-                        const uint32 keyHash = HashString(static_cast<const char*>(str.start), str.length);
-                        if (keyHash == HashLiteralString(PalCodeObjectMetadataKey::Version))
-                        {
-                            result = reader.Next(CWP_ITEM_ARRAY);
-                            if ((result == Result::Success) && (reader.Get().as.array.size >= 2))
-                            {
-                                result = reader.UnpackNext(&m_metadataMajorVer);
-                            }
-                            if (result == Result::Success)
-                            {
-                                result = reader.UnpackNext(&m_metadataMinorVer);
-                            }
-                            break;
-                        }
-                        else
-                        {
-                            // Ideally, the version is the first field written so we don't reach here.
-                            result = reader.Skip(1);
-                        }
-                    }
-                }
+                result = GetPalMetadataVersion(&reader, pDesc, static_cast<uint32>(descSize),
+                    &m_metadataMajorVer, &m_metadataMinorVer);
 
                 break;
             }
@@ -1459,7 +1297,6 @@ Result PipelineAbiProcessor<Allocator>::TranslateLegacyMetadata(
         pOut->pipeline.hasEntry.calcWaveBreakSizeAtDrawTime = 1;
     }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 495
     type = static_cast<uint32>(PipelineMetadataType::CsWaveFrontSize);
     if (indices[type] != -1)
     {
@@ -1467,7 +1304,6 @@ Result PipelineAbiProcessor<Allocator>::TranslateLegacyMetadata(
         pOut->pipeline.hardwareStage[Cs].wavefrontSize = metadata.At(indices[type]).value;
         pOut->pipeline.hardwareStage[Cs].hasEntry.wavefrontSize = 1;
     }
-#endif
 
     type = static_cast<uint32>(PipelineMetadataType::PipelineNameIndex);
     if (indices[type] != -1)

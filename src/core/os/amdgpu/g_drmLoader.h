@@ -355,8 +355,7 @@ typedef int32 (*AmdgpuCsSubmitRaw2)(
             uint32_t                      bo_list_handle,
             int                           num_chunks,
             struct drm_amdgpu_cs_chunk    *chunks,
-            uint64_t                      *seq_no,
-            bool                          secure);
+            uint64_t                      *seq_no);
 
 typedef void (*AmdgpuCsChunkFenceToDep)(
             struct amdgpu_cs_fence*           pFence,
@@ -1986,8 +1985,7 @@ public:
             uint32_t                      bo_list_handle,
             int                           num_chunks,
             struct drm_amdgpu_cs_chunk    *chunks,
-            uint64_t                      *seq_no,
-            bool                          secure) const;
+            uint64_t                      *seq_no) const;
 
     bool pfnAmdgpuCsSubmitRaw2isValid() const
     {

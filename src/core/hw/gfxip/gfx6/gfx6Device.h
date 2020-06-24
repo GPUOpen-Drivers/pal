@@ -72,9 +72,7 @@ enum Gfx8TcCompatDbFlushWorkaround : uint32
 // so PAL CE RAM needs to be multiple of 32 bytes to make sure loading only client CE RAM can be correctly done.
 constexpr size_t ReservedCeRamBytes =
     ((sizeof(BufferSrd) * MaxStreamOutTargets) +
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 469
      (sizeof(BufferSrd) * MaxVertexBuffers) +
-#endif
      (sizeof(uint32) * static_cast<uint32>(PipelineBindPoint::Count) * MaxUserDataEntries) +
      (31)) & ~31;
 // so PAL CE RAM needs to be multiple of 32 bytes to make sure loading only client CE RAM can be correctly done.

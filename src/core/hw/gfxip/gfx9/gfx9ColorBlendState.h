@@ -85,7 +85,7 @@ private:
             uint32  blendReadsDst    :  8; // Indicates if blending will read the destination
             uint32  dualSourceBlend  :  1; // Indicates if dual-source blending is enabled
             uint32  rbPlus           :  1; // Indicates if RBPlus is enabled
-            uint32  reserved         : 14;
+            uint32  reserved         :  6;
         };
         uint32  u32All;
     } m_flags;

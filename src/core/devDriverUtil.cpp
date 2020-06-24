@@ -99,9 +99,7 @@ static const char* GpuBlockEnumToString(
         "Gus",
         "Gcr",
         "Ph",
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION > 485
         "UtcL1",
-#endif
     };
 
     static_assert(ArrayLen(GpuBlockStrings) == static_cast<size_t>(GpuBlock::Count),

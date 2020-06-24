@@ -586,8 +586,8 @@ Result GpuMemory::Init(
         else if (createInfo.vaRange == VaRange::Default)
         {
             // For performance reasons we may wish to force our GPU memory allocations' addresses and sizes to be
-            // either fragment-aligned or aligned to KMD's reported optimized large page size.  This should be
-            // skipped if any of the following are true:
+            // either fragment-aligned or aligned to KMD's reported optimized large page size, big page size or for
+            // specific images iterate256 page size.  This should be skipped if any of the following are true:
             // - We're not using the default VA range because non-default VA ranges have special address usage rules.
             // - We have selected a specific base VA for the allocation because it might not be 64KB aligned.
             // - The allocation prefers a non-local heap because we can only get 64KB fragments in local memory.
@@ -596,29 +596,77 @@ Result GpuMemory::Init(
                 ((m_desc.preferredHeap == GpuHeapLocal) || (m_desc.preferredHeap == GpuHeapInvisible)) &&
                 (createInfo.flags.sdiExternal == 0))
             {
+                auto memoryProperties  = m_pDevice->MemoryProperties();
+                gpusize idealAlignment = 0;
+
 #if !defined(PAL_BUILD_BRANCH) || (PAL_BUILD_BRANCH >= 1740)
-                const gpusize largePageSize = m_pDevice->MemoryProperties().largePageSupport.largePageSizeInBytes;
-
-                if (m_pDevice->MemoryProperties().largePageSupport.gpuVaAlignmentNeeded &&
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 584
-                    (createInfo.size >= m_pDevice->GetPublicSettings()->largePageMinSizeForVaAlignmentInBytes))
-#else
-                    (createInfo.size >= m_pDevice->GetPublicSettings()->largePageMinSizeForAlignmentInBytes))
-#endif
+                if (memoryProperties.largePageSupport.gpuVaAlignmentNeeded ||
+                    memoryProperties.largePageSupport.sizeAlignmentNeeded)
                 {
-                    m_desc.alignment = Pow2Align(m_desc.alignment, largePageSize);
-                }
-
-                if (m_pDevice->MemoryProperties().largePageSupport.sizeAlignmentNeeded &&
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 584
-                    (createInfo.size >= m_pDevice->GetPublicSettings()->largePageMinSizeForSizeAlignmentInBytes))
-#else
-                    (createInfo.size >= m_pDevice->GetPublicSettings()->largePageMinSizeForAlignmentInBytes))
-#endif
-                {
-                    m_desc.size = Pow2Align(m_desc.size, largePageSize);
+                    const gpusize largePageSize = memoryProperties.largePageSupport.largePageSizeInBytes;
+                    idealAlignment = Max(idealAlignment, largePageSize);
                 }
 #endif
+                // BigPage is only supported for allocations > bigPageMinAlignment.
+                // Also, if bigPageMinAlignment == 0, BigPage optimization is not supported per KMD.
+                // We do either LargePage or BigPage alignment, whichever has a higher value.
+                if ((memoryProperties.bigPageMinAlignment > 0) &&
+                     m_pDevice->Settings().enableBigPagePreAlignment &&
+                     (createInfo.size >= memoryProperties.bigPageMinAlignment))
+                {
+                    gpusize bigPageSize = memoryProperties.bigPageMinAlignment;
+                    if ((memoryProperties.bigPageLargeAlignment > 0) &&
+                        (createInfo.size >= memoryProperties.bigPageLargeAlignment))
+                    {
+                        bigPageSize = memoryProperties.bigPageLargeAlignment;
+                    }
+                    idealAlignment = Max(idealAlignment, bigPageSize);
+                }
+
+                // Finally, we try to do alignment for iterate256 hardware optimization if m_pImage is populated and
+                // all required conditions for the device and image to support it are met.
+                // When we do this we are actually making this Image (rather the memory block/page that contains this
+                // Image) compatible to pass the conditions of Image::GetIterate256(); which in turn will actually help
+                // when creating this Image's SRD or for setting the value of the iterate256 register or the related
+                // DecompressOnNZPlanes register.
+                if ((m_pImage != nullptr) && m_pDevice->GetGfxDevice()->SupportsIterate256())
+                {
+                    // If the device supports iterate256 the Image should satisy some conditions so that we can
+                    // justify aligning memory to make the optimization work.
+                    const SubResourceInfo* pBaseSubResInfo = m_pImage->SubresourceInfo(m_pImage->GetBaseSubResource());
+                    if (m_pDevice->Settings().enableIterate256PreAlignment &&
+                        m_pImage->GetGfxImage()->IsIterate256Meaningful(pBaseSubResInfo) &&
+                        (createInfo.size >= memoryProperties.iterate256MinAlignment))
+                    {
+                        gpusize iterate256PageSize = memoryProperties.iterate256MinAlignment;
+                        if ((memoryProperties.iterate256LargeAlignment > 0) &&
+                            createInfo.size >= memoryProperties.iterate256LargeAlignment)
+                        {
+                            iterate256PageSize = memoryProperties.iterate256LargeAlignment;
+                        }
+                        idealAlignment = Max(idealAlignment, iterate256PageSize);
+                    }
+                }
+                // The client decides whether or not we pad allocations at all and so should be the final
+                // deciding factor on use of ideal alignment.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 584
+                if((createInfo.size >= m_pDevice->GetPublicSettings()->largePageMinSizeForVaAlignmentInBytes) &&
+#else
+                if ((createInfo.size >= m_pDevice->GetPublicSettings()->largePageMinSizeForAlignmentInBytes) &&
+#endif
+                    (idealAlignment != 0))
+                {
+                    m_desc.alignment = Pow2Align(m_desc.alignment, idealAlignment);
+                }
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 584
+                if ((createInfo.size >= m_pDevice->GetPublicSettings()->largePageMinSizeForSizeAlignmentInBytes) &&
+#else
+                if ((createInfo.size >= m_pDevice->GetPublicSettings()->largePageMinSizeForAlignmentInBytes) &&
+#endif
+                    (idealAlignment != 0))
+                {
+                    m_desc.size = Pow2Align(m_desc.size, idealAlignment);
+                }
             }
         }
         else if (createInfo.vaRange == VaRange::CaptureReplay)
@@ -1118,23 +1166,52 @@ gpusize GpuMemory::GetPhysicalAddressAlignment() const
             if (IsNonLocalOnly() == false)
             {
                 // If the allocation supports local heaps and is suitably large, increase the clamp to the large
-                // page size (typically 256KiB or 2MiB) or fragment size (typically 64KiB) as appropriate to allow
-                // hardware-specific big page features when the allocation resides in local.  If the allocation is
-                // small, stick with the system page alignment to avoid fragmentation.
+                // page size or big page size (typically 256KiB or 2MiB) or fragment size (typically 64KiB) as
+                // appropriate to allow hardware-specific big page features when the allocation resides in local.
+                // If the allocation is small, stick with the system page alignment to avoid fragmentation.
                 const gpusize fragmentSize = memProps.fragmentSize;
 
-                if (memProps.largePageSupport.sizeAlignmentNeeded &&
+                // If client allows it we can try to do alignments for LargePage, BigPage or Iterate256 optimization.
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 584
-                    (m_desc.size >= m_pDevice->GetPublicSettings()->largePageMinSizeForSizeAlignmentInBytes))
+                if (m_desc.size >= m_pDevice->GetPublicSettings()->largePageMinSizeForSizeAlignmentInBytes)
+                {
 #else
-                    (m_desc.size >= m_pDevice->GetPublicSettings()->largePageMinSizeForAlignmentInBytes))
+                if (m_desc.size >= m_pDevice->GetPublicSettings()->largePageMinSizeForAlignmentInBytes)
+                {
 #endif
-                {
-                    clamp = memProps.largePageSupport.largePageSizeInBytes;
+                    // LargePage alignment.
+                    if (memProps.largePageSupport.sizeAlignmentNeeded)
+                    {
+                        clamp = Max(clamp, memProps.largePageSupport.largePageSizeInBytes);
+                    }
+                    // BigPage alignment.
+                    if ((memProps.bigPageMinAlignment > 0) &&
+                        (m_desc.size >= memProps.bigPageMinAlignment))
+                    {
+                        clamp = Max(clamp, memProps.bigPageMinAlignment);
+                        if ((memProps.bigPageLargeAlignment > 0) && (m_desc.size >= memProps.bigPageLargeAlignment))
+                        {
+                            clamp = Max(clamp, memProps.bigPageLargeAlignment);
+                        }
+                    }
+                    // Iterate256 alignment.
+                    if ((m_pImage != nullptr) &&
+                        m_pDevice->GetGfxDevice()->SupportsIterate256() &&
+                        (m_pImage->GetGfxImage()->IsIterate256Meaningful(
+                            (m_pImage->SubresourceInfo(m_pImage->GetBaseSubResource())))) &&
+                        (m_desc.size >= memProps.iterate256MinAlignment))
+                    {
+                        clamp = Max(clamp, memProps.iterate256MinAlignment);
+                        if ((memProps.iterate256LargeAlignment > 0) &&
+                            (m_desc.size >= memProps.iterate256LargeAlignment))
+                        {
+                            clamp = Max(clamp, memProps.iterate256LargeAlignment);
+                        }
+                    }
                 }
-                else if (m_desc.size >= fragmentSize)
+                if (m_desc.size >= fragmentSize)
                 {
-                    clamp = fragmentSize;
+                    clamp = Max(clamp, fragmentSize);
                 }
             }
 

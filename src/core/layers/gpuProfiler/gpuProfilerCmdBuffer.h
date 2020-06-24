@@ -101,16 +101,6 @@ public:
         uint32 firstBuffer,
         uint32 bufferCount,
         const BufferViewInfo* pBuffers) override;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 473
-    virtual void CmdSetIndirectUserData(
-        uint16      tableId,
-        uint32      dwordOffset,
-        uint32      dwordSize,
-        const void* pSrcData) override;
-    virtual void CmdSetIndirectUserDataWatermark(
-        uint16 tableId,
-        uint32 dwordLimit) override;
-#endif
     virtual void CmdSetBlendConst(
         const BlendConstParams& params) override;
     virtual void CmdSetInputAssemblyState(
@@ -387,10 +377,8 @@ public:
         uint32   sizeInDwords,
         uint32   alignmentInDwords,
         gpusize* pGpuAddress) override;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 474
     virtual Result AllocateAndBindGpuMemToEvent(
         IGpuEvent* pGpuEvent) override;
-#endif
     virtual void CmdExecuteNestedCmdBuffers(
         uint32            cmdBufferCount,
         ICmdBuffer*const* ppCmdBuffers) override;
@@ -633,10 +621,6 @@ private:
     void ReplayCmdBindBorderColorPalette(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdSetUserData(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdSetVertexBuffers(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 473
-    void ReplayCmdSetIndirectUserData(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
-    void ReplayCmdSetIndirectUserDataWatermark(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
-#endif
     void ReplayCmdSetBlendConst(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdSetInputAssemblyState(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdSetTriangleRasterState(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);

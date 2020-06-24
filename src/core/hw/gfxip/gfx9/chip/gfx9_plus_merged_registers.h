@@ -117,7 +117,7 @@ union ATC_PERFCOUNTER0_CFG {
         unsigned int ENABLE                                                       :  1;
         unsigned int CLEAR                                                        :  1;
         unsigned int                                                              :  2;
-    } bits, bitfields;
+    } most;
 
     unsigned int u32All;
     signed int   i32All;
@@ -133,7 +133,7 @@ union ATC_PERFCOUNTER1_CFG {
         unsigned int ENABLE                                                       :  1;
         unsigned int CLEAR                                                        :  1;
         unsigned int                                                              :  2;
-    } bits, bitfields;
+    } most;
 
     unsigned int u32All;
     signed int   i32All;
@@ -149,7 +149,7 @@ union ATC_PERFCOUNTER2_CFG {
         unsigned int ENABLE                                                       :  1;
         unsigned int CLEAR                                                        :  1;
         unsigned int                                                              :  2;
-    } bits, bitfields;
+    } most;
 
     unsigned int u32All;
     signed int   i32All;
@@ -165,7 +165,7 @@ union ATC_PERFCOUNTER3_CFG {
         unsigned int ENABLE                                                       :  1;
         unsigned int CLEAR                                                        :  1;
         unsigned int                                                              :  2;
-    } bits, bitfields;
+    } most;
 
     unsigned int u32All;
     signed int   i32All;
@@ -176,7 +176,7 @@ union ATC_PERFCOUNTER_HI {
     struct {
         unsigned int COUNTER_HI                                                   : 16;
         unsigned int COMPARE_VALUE                                                : 16;
-    } bits, bitfields;
+    } most;
 
     unsigned int u32All;
     signed int   i32All;
@@ -186,7 +186,7 @@ union ATC_PERFCOUNTER_HI {
 union ATC_PERFCOUNTER_LO {
     struct {
         unsigned int COUNTER_LO                                                   : 32;
-    } bits, bitfields;
+    } most;
 
     unsigned int u32All;
     signed int   i32All;
@@ -203,7 +203,7 @@ union ATC_PERFCOUNTER_RSLT_CNTL {
         unsigned int CLEAR_ALL                                                    :  1;
         unsigned int STOP_ALL_ON_SATURATE                                         :  1;
         unsigned int                                                              :  5;
-    } bits, bitfields;
+    } most;
 
     unsigned int u32All;
     signed int   i32All;
@@ -14741,7 +14741,7 @@ union PA_SC_TILE_STEERING_OVERRIDE {
         unsigned int                                                              :  2;
         unsigned int NUM_RB_PER_SE                                                :  2;
         unsigned int                                                              : 25;
-    } core;
+    } most;
     struct {
         unsigned int                                                              : 20;
         unsigned int NUM_PACKER_PER_SC                                            :  1;
@@ -18292,6 +18292,11 @@ union SPI_CONFIG_CNTL_1 {
         unsigned int                                                              : 16;
     } bits, bitfields;
     struct {
+        unsigned int                                                              :  8;
+        unsigned int CRC_SIMD_ID_WADDR_DISABLE                                    :  1;
+        unsigned int                                                              : 23;
+    } most;
+    struct {
         unsigned int                                                              :  9;
         unsigned int LBPW_CU_CHK_MODE                                             :  1;
         unsigned int LBPW_CU_CHK_CNT                                              :  4;
@@ -18312,11 +18317,6 @@ union SPI_CONFIG_CNTL_1 {
         unsigned int EN_USER_ACCUM                                                :  1;
         unsigned int                                                              : 10;
     } gfx10Plus;
-    struct {
-        unsigned int                                                              :  8;
-        unsigned int CRC_SIMD_ID_WADDR_DISABLE                                    :  1;
-        unsigned int                                                              : 23;
-    } hasCe;
     struct {
         unsigned int                                                              : 22;
         unsigned int RESERVED                                                     : 10;
@@ -21303,15 +21303,15 @@ union SPI_SHADER_PGM_RSRC3_PS {
         unsigned int                                                              : 10;
     } bits, bitfields;
     struct {
+        unsigned int                                                              : 22;
+        unsigned int LOCK_LOW_THRESHOLD                                           :  4;
+        unsigned int                                                              :  6;
+    } most;
+    struct {
         unsigned int                                                              : 26;
         unsigned int SIMD_DISABLE                                                 :  4;
         unsigned int                                                              :  2;
     } gfx09;
-    struct {
-        unsigned int                                                              : 22;
-        unsigned int LOCK_LOW_THRESHOLD                                           :  4;
-        unsigned int                                                              :  6;
-    } hasCe;
 
     unsigned int u32All;
     signed int   i32All;
@@ -26794,7 +26794,7 @@ union SQ_PERFCOUNTER_CTRL {
         unsigned int                                                              :  1;
         unsigned int LS_EN                                                        :  1;
         unsigned int                                                              : 26;
-    } core;
+    } most;
     struct {
         unsigned int                                                              :  8;
         unsigned int CNTR_RATE                                                    :  5;
@@ -29028,7 +29028,7 @@ union SQ_WREXEC_EXEC_HI {
         unsigned int                                                              :  1;
         unsigned int MTYPE                                                        :  3;
         unsigned int MSB                                                          :  1;
-    } bits, bitfields;
+    } most;
     struct {
         unsigned int                                                              : 27;
         unsigned int ATC                                                          :  1;
@@ -29043,7 +29043,7 @@ union SQ_WREXEC_EXEC_HI {
 union SQ_WREXEC_EXEC_LO {
     struct {
         unsigned int ADDR_LO                                                      : 32;
-    } bits, bitfields;
+    } most;
 
     unsigned int u32All;
     signed int   i32All;

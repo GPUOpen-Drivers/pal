@@ -103,17 +103,22 @@ public:
         WindowSystem**                ppWindowSystem);
 
     // Helper functions to describe the properties of a window system we will create in the future.
-    static Result GetWindowGeometry(
-        Device*             pDevice,
-        OsDisplayHandle     hDisplay,
-        OsWindowHandle      hWindow,
-        Extent2d*           pExtents);
+    static Result GetWindowProperties(
+        Device*              pDevice,
+        OsDisplayHandle      hDisplay,
+        OsWindowHandle       hWindow,
+        SwapChainProperties* pSwapChainProperties);
 
-    static Result GetWindowGeometryXlib(
-        Device*             pDevice,
-        OsDisplayHandle     hDisplay,
-        OsWindowHandle      hWindow,
-        Extent2d*           pExtents);
+    static bool IsAlphaSupported(
+        Device*              pDevice,
+        OsDisplayHandle      hDisplay,
+        OsWindowHandle       hWindow);
+
+    static Result GetWindowPropertiesXlib(
+        Device*              pDevice,
+        OsDisplayHandle      hDisplay,
+        OsWindowHandle       hWindow,
+        SwapChainProperties* pSwapChainProperties);
 
     static Result DeterminePresentationSupported(
         Device*             pDevice,

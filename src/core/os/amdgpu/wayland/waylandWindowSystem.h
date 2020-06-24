@@ -90,11 +90,11 @@ public:
         void*                         pPlacementAddr,
         WindowSystem**                ppWindowSystem);
 
-    static Result GetWindowGeometry(
-        Device*             pDevice,
-        OsDisplayHandle     hDisplay,
-        OsWindowHandle      hWindow,
-        Extent2d*           pExtents);
+    static Result GetWindowProperties(
+        Device*              pDevice,
+        OsDisplayHandle      hDisplay,
+        OsWindowHandle       hWindow,
+        SwapChainProperties* pSwapChainProperties);
 
     static Result DeterminePresentationSupported(
         Device*             pDevice,

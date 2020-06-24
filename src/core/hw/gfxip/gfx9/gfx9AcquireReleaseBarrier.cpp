@@ -1649,12 +1649,6 @@ size_t Device::BuildReleaseSyncPackets(
     PAL_ASSERT(gpuEventBoundMemObj.IsBound());
     const gpusize         gpuEventStartVa     = gpuEventBoundMemObj.GpuVirtAddr();
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 500
-    // If it reaches here, we know the Release-Acquire barrier is enabled, so each event should have MaxSlotsPerEvent
-    // number of slots.
-    PAL_ASSERT(numEventSlots == MaxSlotsPerEvent);
-#endif
-
     VGT_EVENT_TYPE vgtEvents[MaxSlotsPerEvent] = {}; // Always create the max size.
     uint32         vgtEventCount = 0;
 

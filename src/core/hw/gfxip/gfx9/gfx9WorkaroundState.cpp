@@ -221,51 +221,58 @@ uint32* WorkaroundState::PreDraw(
         }
     }
 
-    bool setPopsDrainPsOnOverlap = false;
-
-    if (m_cachedSettings.waMiscPopsMissedOverlap && StateDirty && pPipeline->PsUsesRovs())
+    if (m_cachedSettings.waMiscPopsMissedOverlap)
     {
-        setPopsDrainPsOnOverlap = ((pMsaaState != nullptr) &&
-                                   (pMsaaState->Log2NumSamples() >= 3));
+        bool setPopsDrainPsOnOverlap = false;
 
-        if ((pDepthTargetView != nullptr) && (pDepthTargetView->GetImage() != nullptr))
+        // This should be unreachable since waStalledPopsMode applies to GFX10 only and waMiscPopsMissedOverlap
+        // applies to GFX9 only.
+        PAL_ASSERT(m_device.Settings().waStalledPopsMode == false);
+
+        if ((PipelineDirty && gfxState.pipelineState.dirtyFlags.pipelineDirty) ||
+            (StateDirty && (dirtyFlags.validationBits.msaaState ||
+                            dirtyFlags.validationBits.depthStencilView)))
         {
-            const auto& imageCreateInfo = pDepthTargetView->GetImage()->Parent()->GetImageCreateInfo();
-
-            if (imageCreateInfo.samples >= 8)
+            if (pPipeline->PsUsesRovs())
             {
-                setPopsDrainPsOnOverlap = true;
+                if ((pMsaaState != nullptr) && (pMsaaState->Log2NumSamples() >= 3))
+                {
+                    setPopsDrainPsOnOverlap = true;
+                }
+
+                if ((pDepthTargetView != nullptr) && (pDepthTargetView->GetImage() != nullptr))
+                {
+                    const auto& imageCreateInfo = pDepthTargetView->GetImage()->Parent()->GetImageCreateInfo();
+
+                    if (imageCreateInfo.samples >= 8)
+                    {
+                        setPopsDrainPsOnOverlap = true;
+                    }
+                }
             }
         }
-    }
 
-    if (setPopsDrainPsOnOverlap)
-    {
+        // This WA is rarely needed - once it is applied during a CmdBuffer we need to start validating it.
+        if (setPopsDrainPsOnOverlap || pCmdBuffer->HasWaMiscPopsMissedOverlapBeenApplied())
+        {
+            regDB_DFSM_CONTROL* pPrevDbDfsmControl = pCmdBuffer->GetDbDfsmControl();
+            regDB_DFSM_CONTROL  dbDfsmControl      = *pPrevDbDfsmControl;
 
-        regDB_DFSM_CONTROL dbDfsmControl = {};
-        dbDfsmControl.bits.POPS_DRAIN_PS_ON_OVERLAP = 1;
+            dbDfsmControl.bits.POPS_DRAIN_PS_ON_OVERLAP = ((setPopsDrainPsOnOverlap) ? 1 : 0);
 
-        pCmdSpace = pDeCmdStream->WriteContextRegRmw<Pm4OptImmediate>(
-            m_cmdUtil.GetRegInfo().mmDbDfsmControl,
-            Core::DB_DFSM_CONTROL__POPS_DRAIN_PS_ON_OVERLAP_MASK,
-            dbDfsmControl.u32All,
-            pCmdSpace);
-    }
+            if (dbDfsmControl.u32All != pPrevDbDfsmControl->u32All)
+            {
+                pCmdSpace = pDeCmdStream->WriteSetOneContextRegNoOpt(m_cmdUtil.GetRegInfo().mmDbDfsmControl,
+                                                                     dbDfsmControl.u32All,
+                                                                     pCmdSpace);
 
-    // setPopsDrainPsOnOverlap should effectively be false for all Gfx10 products, but adding it here just in case.
-    if (m_cachedSettings.waStalledPopsMode &&
-        StateDirty                   &&
-        pPipeline->PsUsesRovs()      &&
-        (setPopsDrainPsOnOverlap || m_cachedSettings.drainPsOnOverlap))
-    {
-        regDB_RENDER_OVERRIDE2 dbRenderOverride2 = {};
-        dbRenderOverride2.bits.PARTIAL_SQUAD_LAUNCH_CONTROL = PSLC_ON_HANG_ONLY;
+                pPrevDbDfsmControl->u32All = dbDfsmControl.u32All;
+            }
 
-        pCmdSpace = pDeCmdStream->WriteContextRegRmw<Pm4OptImmediate>(
-            mmDB_RENDER_OVERRIDE2,
-            DB_RENDER_OVERRIDE2__PARTIAL_SQUAD_LAUNCH_CONTROL_MASK,
-            dbRenderOverride2.u32All,
-            pCmdSpace);
+            // Mark CmdBuffer bool that this WA has been applied, so we re-validate it for the remainder of the
+            // CmdBuffer disabling it as necessary.
+            pCmdBuffer->SetWaMiscPopsMissedOverlapHasBeenApplied();
+        }
     }
 
     // If legacy tessellation is active and the fillmode is set to wireframe, the workaround requires that vertex reuse

@@ -374,14 +374,12 @@ void Device::FinalizeChipProperties(
 
     pChipProperties->gfxip.tessFactorBufferSizePerSe = settings.tessFactorBufferSizePerSe;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 500
     const PalPublicSettings* pPublicSettings = Parent()->GetPublicSettings();
     const bool               useMultiSlot    = pPublicSettings->enableGpuEventMultiSlot &&
                                                pPublicSettings->useAcqRelInterface;
 
     // Now is time to update the numSlotsPerEvent based on the new enableGpuEventMultiSlot value updated by client.
     pChipProperties->gfxip.numSlotsPerEvent = useMultiSlot ? MaxSlotsPerEvent : 1;
-#endif
 }
 
 // =====================================================================================================================
@@ -1556,6 +1554,18 @@ Result Device::CreatePerfExperiment(
 }
 
 // =====================================================================================================================
+bool Device::SupportsIterate256() const
+{
+    // ITERATE_256 is only supported on Gfx10 and newer product
+    return IsGfx10(m_gfxIpLevel) &&
+        // Emulation cannot suport iterate256 = 0 since the frame buffer is really just system memory where the
+        // page size is unknown.
+        (GetPlatform()->IsEmulationEnabled() == false) &&
+        // In cases where our VRAM bus width is not a power of two, we need to have iterate256 enabled at all times
+        IsPowerOfTwo(m_pParent->MemoryProperties().vramBusBitWidth);
+}
+
+// =====================================================================================================================
 Result Device::CreateCmdUploadRingInternal(
     const CmdUploadRingCreateInfo& createInfo,
     Pal::CmdUploadRing**           ppCmdUploadRing)
@@ -2341,9 +2351,7 @@ void PAL_STDCALL Device::Gfx9CreateImageViewSrds(
             baseSubResId.arraySlice = baseArraySlice;
             baseArraySlice = 0;
         }
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 478
         PAL_ASSERT((viewInfo.possibleLayouts.engines != 0) && (viewInfo.possibleLayouts.usages != 0 ));
-#endif
 
         bool                        overrideBaseResource       = false;
         bool                        overrideBaseResource96bpp  = false;
@@ -2813,11 +2821,7 @@ void PAL_STDCALL Device::Gfx9CreateImageViewSrds(
             {
                 if (image.Parent()->IsDepthStencil())
                 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 478
                     if (TestAnyFlagSet(viewInfo.possibleLayouts.usages, LayoutShaderWrite | LayoutCopyDst) == false)
-#else
-                    if (viewInfo.flags.shaderWritable == false)
-#endif
                     {
                         srd.word6.bits.COMPRESSION_EN = 1;
                         srd.word7.bits.META_DATA_ADDRESS = image.GetHtile256BAddr();
@@ -2825,11 +2829,7 @@ void PAL_STDCALL Device::Gfx9CreateImageViewSrds(
                 }
                 else
                 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 478
                     if (TestAnyFlagSet(viewInfo.possibleLayouts.usages, LayoutShaderWrite | LayoutCopyDst) == false)
-#else
-                    if (viewInfo.flags.shaderWritable == false)
-#endif
                     {
                         srd.word6.bits.COMPRESSION_EN = 1;
                         // The color image's meta-data always points at the DCC surface.  Any existing cMask or fMask
@@ -2898,9 +2898,7 @@ void PAL_STDCALL Device::Gfx10CreateImageViewSrds(
         uint32       firstMipLevel  = viewInfo.subresRange.startSubres.mipLevel;
         uint32       mipLevels      = imageCreateInfo.mipLevels;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 478
         PAL_ASSERT((viewInfo.possibleLayouts.engines != 0) && (viewInfo.possibleLayouts.usages != 0));
-#endif
 
         if ((viewInfo.flags.zRangeValid == 1) && (imageCreateInfo.imageType == ImageType::Tex3d))
         {
@@ -3352,12 +3350,8 @@ void PAL_STDCALL Device::Gfx10CreateImageViewSrds(
                     // understanding of the surface if the format for the SRD differs from the surface's format.
                     // If the format differs, we need to disable compressed writes.
                     if (Formats::IsSameFormat(viewInfo.swizzledFormat, imageCreateInfo.swizzledFormat) &&
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 478
                         ImageLayoutCanCompressColorData(image.LayoutToColorCompressionState(),
                                                     viewInfo.possibleLayouts))
-#else
-                        (viewInfo.flags.shaderWritable != 0))
-#endif
                     {
                         srd.color_transform            = dccControl.bits.COLOR_TRANSFORM;
                         srd.write_compress_enable = 1;
@@ -4298,6 +4292,10 @@ void InitializeGpuChipProperties(
         pInfo->gfx9.gfx10.numGl2a = 4;
         pInfo->gfx9.gfx10.numGl2c = 16;
 
+        // Similarly, this the most common WGP config from the same sources.
+        pInfo->gfx9.gfx10.numWgpAboveSpi = 3; // GPU__GC__NUM_WGP0_PER_SA
+        pInfo->gfx9.gfx10.numWgpBelowSpi = 2; // GPU__GC__NUM_WGP1_PER_SA
+
         if (AMDGPU_IS_NAVI10(pInfo->familyId, pInfo->eRevId))
         {
             pInfo->gpuType               = GpuType::Discrete;
@@ -4310,26 +4308,32 @@ void InitializeGpuChipProperties(
         }
         else if (AMDGPU_IS_NAVI14(pInfo->familyId, pInfo->eRevId))
         {
-            pInfo->gpuType                  = GpuType::Discrete;
+            pInfo->gpuType                   = GpuType::Discrete;
             {
-                pInfo->revision             = AsicRevision::Navi14;
+                pInfo->revision              = AsicRevision::Navi14;
             }
 
-            pInfo->gfxStepping              = Abi::GfxIpSteppingNavi14;
-            pInfo->gfx9.numShaderEngines    = 1;
-            pInfo->gfx9.maxNumCuPerSh       = 12;
-            pInfo->gfx9.maxNumRbPerSe       = 8;
-            pInfo->gfx9.numSdpInterfaces    = 8;
-            pInfo->gfx9.parameterCacheLines = 512;
-            pInfo->gfx9.gfx10.numGl2a       = 2;
-            pInfo->gfx9.gfx10.numGl2c       = 8;
-            pInfo->gfx9.supportFp16Dot2     = 1;
+            pInfo->gfxStepping               = Abi::GfxIpSteppingNavi14;
+            pInfo->gfx9.numShaderEngines     = 1;
+            pInfo->gfx9.maxNumCuPerSh        = 12;
+            pInfo->gfx9.maxNumRbPerSe        = 8;
+            pInfo->gfx9.numSdpInterfaces     = 8;
+            pInfo->gfx9.parameterCacheLines  = 512;
+            pInfo->gfx9.supportFp16Dot2      = 1;
+            pInfo->gfx9.gfx10.numGl2a        = 2;
+            pInfo->gfx9.gfx10.numGl2c        = 8;
+            pInfo->gfx9.gfx10.numWgpAboveSpi = 3; // GPU__GC__NUM_WGP0_PER_SA
+            pInfo->gfx9.gfx10.numWgpBelowSpi = 3; // GPU__GC__NUM_WGP1_PER_SA
         }
         else
         {
             PAL_ASSERT_ALWAYS();
         }
+
+        // The GL2C is the TCC.
+        pInfo->gfx9.numTccBlocks = pInfo->gfx9.gfx10.numGl2c;
         break;
+
     default:
         PAL_ASSERT_ALWAYS();
         break;
@@ -4371,13 +4375,6 @@ void InitializeGpuChipProperties(
     }
 
     pInfo->gfxip.numSlotsPerEvent = 1;
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 500
-    if (pInfo->gfx9.supportReleaseAcquireInterface == 1)
-    {
-        pInfo->gfxip.numSlotsPerEvent = MaxSlotsPerEvent;
-    }
-#endif
 }
 
 // =====================================================================================================================
@@ -4581,16 +4578,12 @@ void InitializeGpuEngineProperties(
 
 // =====================================================================================================================
 // Returns the value for the DB_DFSM_CONTROL register
-uint32  Device::GetDbDfsmControl() const
+uint32 Device::GetDbDfsmControl() const
 {
-    const Gfx9PalSettings& gfx9Settings  = GetGfx9Settings(*m_pParent);
-    regDB_DFSM_CONTROL     dbDfsmControl = {};
+    regDB_DFSM_CONTROL dbDfsmControl = {};
 
-    // Force off DFSM if requested by the settings
-    dbDfsmControl.bits.PUNCHOUT_MODE = (gfx9Settings.disableDfsm ? DfsmPunchoutModeForceOff : DfsmPunchoutModeAuto);
-
-    // Setup POPS as requested by the settings as well.
-    dbDfsmControl.bits.POPS_DRAIN_PS_ON_OVERLAP = gfx9Settings.drainPsOnOverlap;
+    // Force off DFSM.
+    dbDfsmControl.bits.PUNCHOUT_MODE = DfsmPunchoutModeForceOff;
 
     return dbDfsmControl.u32All;
 }
@@ -5085,7 +5078,7 @@ const RegisterRange* Device::GetRegisterRange(
                 *pRangeEntries = Gfx91NumNonShadowedRanges;
             }
             break;
-#endif // PAL_ENABLE_PRINTS_ASSERTS
+#endif
 
         default:
             // What is this?
@@ -5160,24 +5153,24 @@ PM4_PFP_CONTEXT_CONTROL Device::GetContextControl() const
 
     // Since PAL doesn't preserve GPU state across command buffer boundaries, we don't need to enable state shadowing
     // unless mid command buffer preemption is enabled, but we always need to enable loading context and SH registers.
-    contextControl.bitfields2.update_load_enables    = 1;
-    contextControl.bitfields2.load_per_context_state = 1;
-    contextControl.bitfields2.load_cs_sh_regs        = 1;
-    contextControl.bitfields2.load_gfx_sh_regs       = 1;
-    contextControl.bitfields3.update_shadow_enables  = 1;
+    contextControl.ordinal2.bitfields.update_load_enables    = 1;
+    contextControl.ordinal2.bitfields.load_per_context_state = 1;
+    contextControl.ordinal2.bitfields.load_cs_sh_regs        = 1;
+    contextControl.ordinal2.bitfields.load_gfx_sh_regs       = 1;
+    contextControl.ordinal3.bitfields.update_shadow_enables  = 1;
 
     if (ForceStateShadowing || Parent()->IsPreemptionSupported(EngineType::EngineTypeUniversal))
     {
         // If mid command buffer preemption is enabled, shadowing and loading must be enabled for all register types,
         // because the GPU state needs to be properly restored when this Queue resumes execution after being preempted.
         // (Config registers are exempted because we don't write config registers in PAL.)
-        contextControl.bitfields2.load_global_uconfig      = 1;
-        contextControl.bitfields2.load_ce_ram              = 1;
-        contextControl.bitfields3.shadow_per_context_state = 1;
-        contextControl.bitfields3.shadow_cs_sh_regs        = 1;
-        contextControl.bitfields3.shadow_gfx_sh_regs       = 1;
-        contextControl.bitfields3.shadow_global_config     = 1;
-        contextControl.bitfields3.shadow_global_uconfig    = 1;
+        contextControl.ordinal2.bitfields.load_global_uconfig      = 1;
+        contextControl.ordinal2.bitfields.load_ce_ram              = 1;
+        contextControl.ordinal3.bitfields.shadow_per_context_state = 1;
+        contextControl.ordinal3.bitfields.shadow_cs_sh_regs        = 1;
+        contextControl.ordinal3.bitfields.shadow_gfx_sh_regs       = 1;
+        contextControl.ordinal3.bitfields.shadow_global_config     = 1;
+        contextControl.ordinal3.bitfields.shadow_global_uconfig    = 1;
     }
 
     return contextControl;
@@ -5191,8 +5184,8 @@ uint32 Device::GetCuEnableMaskHi(
     uint32 enabledCuMaskSetting     // Mask of CU's a shader can run on based on a setting
     ) const
 {
-    // It's GFX10 that expanded the CU_EN fields to 32-bits, no other GPU should be calling this
-    PAL_ASSERT(IsGfx10(m_gfxIpLevel));
+    // GFX10 and newer parts have expanded the CU_EN fields to 32-bits, no other GPU should be calling this
+    PAL_ASSERT(IsGfx10Plus(m_gfxIpLevel));
 
     return (GetCuEnableMaskInternal(disabledCuMask, enabledCuMaskSetting) >> 16);
 }

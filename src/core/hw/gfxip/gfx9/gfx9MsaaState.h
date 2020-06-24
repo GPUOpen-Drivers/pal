@@ -89,7 +89,6 @@ protected:
         struct
         {
             uint32 waFixPostZConservativeRasterization :  1;
-            uint32 flushDfsm                           :  1;
         };
         uint32  u32All;
     }  m_flags;

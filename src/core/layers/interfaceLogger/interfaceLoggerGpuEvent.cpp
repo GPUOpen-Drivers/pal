@@ -93,7 +93,6 @@ Result GpuEvent::Reset()
     return result;
 }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 474
 // =====================================================================================================================
 Result GpuEvent::BindGpuMemory(
     IGpuMemory* pGpuMemory,
@@ -123,7 +122,6 @@ Result GpuEvent::BindGpuMemory(
 
     return result;
 }
-#endif
 
 // =====================================================================================================================
 void GpuEvent::Destroy()

@@ -479,4 +479,4 @@ public:
     { m_pPrev = pObject; };
 };
 
-#endif // __VAMLINK_H__
+#endif

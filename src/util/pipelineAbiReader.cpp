@@ -27,6 +27,7 @@
 #include "palHashLiteralString.h"
 #include "palMsgPackImpl.h"
 #include "palPipelineAbiReader.h"
+#include "palPipelineAbiUtils.h"
 #include "palHashMapImpl.h"
 
 #include <climits>
@@ -144,6 +145,7 @@ Result PipelineAbiReader::GetMetadata(
     ) const
 {
     Result result = Result::Success;
+    bool foundMetadata = false;
 
     memset(pMetadata, 0, sizeof(PalCodeObjectMetadata));
 
@@ -172,54 +174,11 @@ Result PipelineAbiReader::GetMetadata(
             switch (static_cast<PipelineAbiNoteType>(note.GetHeader().n_type))
             {
             case PipelineAbiNoteType::PalMetadata:
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 477
-            case PipelineAbiNoteType::PalMetadataOld:
-#endif
             {
                 pRawMetadata = pDesc;
                 metadataSize = descSize;
 
-                // We need to retrieve version info from the msgpack blob.
-                result = pReader->InitFromBuffer(pDesc, static_cast<uint32>(descSize));
-
-                if ((result == Result::Success) && (pReader->Type() != CWP_ITEM_MAP))
-                {
-                    result = Result::ErrorInvalidPipelineElf;
-                    break;
-                }
-
-                for (uint32 j = pReader->Get().as.map.size; ((result == Result::Success) && (j > 0)); --j)
-                {
-                    result = pReader->Next(CWP_ITEM_STR);
-
-                    if (result == Result::Success)
-                    {
-                        const auto&  str     = pReader->Get().as.str;
-                        const uint32 keyHash = HashString(static_cast<const char*>(str.start), str.length);
-                        if (keyHash == HashLiteralString(PalCodeObjectMetadataKey::Version))
-                        {
-                            result = pReader->Next(CWP_ITEM_ARRAY);
-                            if ((result == Result::Success) && (pReader->Get().as.array.size >= 2))
-                            {
-                                result = pReader->UnpackNext(&metadataMajorVer);
-                            }
-                            if (result == Result::Success)
-                            {
-                                result = pReader->UnpackNext(&metadataMinorVer);
-                            }
-                            break;
-                        }
-                        else
-                        {
-                            // Ideally, the version is the first field written so we don't reach here.
-                            result = pReader->Skip(1);
-                        }
-                    }
-                    else
-                    {
-                        break;
-                    }
-                }
+                result = GetPalMetadataVersion(pReader, pDesc, descSize, &metadataMajorVer, &metadataMinorVer);
 
                 break;
             }
@@ -234,36 +193,31 @@ Result PipelineAbiReader::GetMetadata(
             break;
         }
 
-        if (metadataMajorVer == PipelineMetadataMajorVersion)
-        {
-            result = pReader->InitFromBuffer(pRawMetadata, metadataSize);
-            uint32 registersOffset = UINT_MAX;
+        result = DeserializePalCodeObjectMetadata(pReader, pMetadata, pRawMetadata, metadataSize,
+            metadataMajorVer, metadataMinorVer);
+        foundMetadata = true;
 
-            if (result == Result::Success)
-            {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 580
-                result = Metadata::DeserializePalCodeObjectMetadata(pReader, pMetadata, &registersOffset);
-#else
-                result = Metadata::DeserializePalCodeObjectMetadata(pReader, pMetadata);
-#endif
-            }
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 580
-            if (result == Result::Success)
-            {
-                result = pReader->Seek(registersOffset);
-            }
-#endif
-        }
-        else
-        {
-            result = Result::ErrorUnsupportedPipelineElfAbiVersion;
-        }
         // Quit after the first .note section
         break;
     }
 
+    if (result == Result::Success && !foundMetadata)
+    {
+        result = Result::ErrorInvalidPipelineElf;
+    }
+
     return result;
+}
+
+// =====================================================================================================================
+void PipelineAbiReader::GetGfxIpVersion(
+    uint32* pGfxIpMajorVer,
+    uint32* pGfxIpMinorVer,
+    uint32* pGfxIpStepping
+    ) const
+{
+    AmdGpuMachineType machineType = static_cast<AmdGpuMachineType>(GetElfReader().GetHeader().e_flags);
+    MachineTypeToGfxIpVersion(machineType, pGfxIpMajorVer, pGfxIpMinorVer, pGfxIpStepping);
 }
 
 // =====================================================================================================================

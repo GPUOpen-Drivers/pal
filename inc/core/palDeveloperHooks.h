@@ -58,9 +58,7 @@ enum class CallbackType : uint32
     BarrierBegin,           ///< This callback is to inform that a barrier is about to be executed.
     BarrierEnd,             ///< This callback is to inform that a barrier is done being executed.
     DrawDispatch,           ///< This callback is to inform that a draw or dispatch command is being recorded.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 471
     BindPipeline,           ///< This callback is to inform that a pipeline (client or internal) has been bound.
-#endif
 #if PAL_BUILD_PM4_INSTRUMENTOR
     DrawDispatchValidation, ///< This callback is to describe the state validation needed by a draw or dispatch.
     OptimizedRegisters,     ///< This callback is to describe the PM4 optimizer's removal of redundant register

@@ -85,8 +85,8 @@ struct UniversalCmdBufferState
     // that packet to set the increment_ce bit.
     DumpConstRamOrdinal2  lastDumpCeRamOrdinal2;
 
-    // Copy of what will be written into CE RAM for NGG pipelines.
-    Util::Abi::PrimShaderCbLayout  primShaderCbLayout;
+    // Copy of what will be written into CE RAM for NGG culling pipelines.
+    Util::Abi::PrimShaderCullingCb primShaderCullingCb;
 };
 
 // Structure used by UniversalCmdBuffer to track particular bits of hardware state that might need to be updated
@@ -201,35 +201,11 @@ struct RbPlusPm4Img
 // All NGG related state tracking.
 struct NggState
 {
-    union
+    struct
     {
-        struct
-        {
-            union
-            {
-                struct
-                {
-                    uint8 hasPrimShaderWorkload : 1;
-                    uint8 reserved              : 7;
-                };
-                uint8 u8All;
-            } state;
-
-            union
-            {
-                struct
-                {
-                    uint8 viewports              : 1;
-                    uint8 triangleRasterState    : 1;
-                    uint8 inputAssemblyState     : 1;
-                    uint8 msaaState              : 1;
-                    uint8 quadSamplePatternState : 1;
-                    uint8 reserved               : 3;
-                };
-                uint8 u8All;
-            } dirty;
-        };
-        uint16 u16All;
+        uint8 hasPrimShaderWorkload : 1;
+        uint8 dirty                 : 1;
+        uint8 reserved              : 6;
     } flags;
 
     uint32 numSamples;  // Number of active MSAA samples.
@@ -243,8 +219,6 @@ union CachedSettings
         uint64 tossPointMode              :  3; // The currently enabled "TossPointMode" global setting
         uint64 hiDepthDisabled            :  1; // True if Hi-Depth is disabled by settings
         uint64 hiStencilDisabled          :  1; // True if Hi-Stencil is disabled by settings
-        uint64 disableDfsm                :  1; // A copy of the disableDfsm setting.
-        uint64 disableDfsmPsUav           :  1; // A copy of the disableDfsmPsUav setting.
         uint64 disableBatchBinning        :  1; // True if binningMode is disabled.
         uint64 disablePbbPsKill           :  1; // True if PBB should be disabled for pipelines using PS Kill
         uint64 disablePbbNoDb             :  1; // True if PBB should be disabled for pipelines with no DB
@@ -254,7 +228,6 @@ union CachedSettings
         uint64 ignoreCsBorderColorPalette :  1; // True if compute border-color palettes should be ignored
         uint64 blendOptimizationsEnable   :  1; // A copy of the blendOptimizationsEnable setting.
         uint64 outOfOrderPrimsEnable      :  2; // The out-of-order primitive rendering mode allowed by settings
-        uint64 checkDfsmEqaaWa            :  1; // True if settings are such that the DFSM + EQAA workaround is on.
         uint64 scissorChangeWa            :  1; // True if the scissor register workaround is enabled
         uint64 issueSqttMarkerEvent       :  1; // True if settings are such that we need to issue SQ thread trace
                                                 // marker events on draw.
@@ -282,8 +255,6 @@ union CachedSettings
         uint64 waMiscPopsMissedOverlap                   :  1;
         uint64 waColorCacheControllerInvalidEviction     :  1;
         uint64 waRotatedSwizzleDisablesOverwriteCombiner :  1;
-        uint64 waStalledPopsMode                         :  1;
-        uint64 drainPsOnOverlap                          :  1;
         uint64 waTessIncorrectRelativeIndex              :  1;
         uint64 waVgtFlushNggToLegacy                     :  1;
         uint64 waVgtFlushNggToLegacyGs                   :  1;
@@ -293,7 +264,7 @@ union CachedSettings
         uint64 reserved5                                 :  1;
         uint64 reserved6                                 :  1;
 
-        uint64 reserved                   : 16;
+        uint64 reserved                   : 21;
     };
     uint64 u64All;
 };
@@ -380,17 +351,6 @@ public:
         uint32                firstBuffer,
         uint32                bufferCount,
         const BufferViewInfo* pBuffers) override;
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 473
-    virtual void CmdSetIndirectUserData(
-        uint16      tableId,
-        uint32      dwordOffset,
-        uint32      dwordSize,
-        const void* pSrcData) override;
-    virtual void CmdSetIndirectUserDataWatermark(
-        uint16 tableId,
-        uint32 dwordLimit) override;
-#endif
 
     virtual void CmdBindTargets(const BindTargetParams& params) override;
     virtual void CmdBindStreamOutTargets(const BindStreamOutTargetParams& params) override;
@@ -609,8 +569,8 @@ public:
         SwizzledFormat format,
         uint32         targetIndex) override;
 
-    void SetPrimShaderWorkload() { m_nggState.flags.state.hasPrimShaderWorkload = 1; }
-    bool HasPrimShaderWorkload() const { return m_nggState.flags.state.hasPrimShaderWorkload; }
+    void SetPrimShaderWorkload() { m_nggState.flags.hasPrimShaderWorkload = 1; }
+    bool HasPrimShaderWorkload() const { return m_nggState.flags.hasPrimShaderWorkload; }
 
     uint32 BuildScissorRectImage(
         bool               multipleViewports,
@@ -626,6 +586,10 @@ public:
     virtual void CpCopyMemory(gpusize dstAddr, gpusize srcAddr, gpusize numBytes) override;
 
     bool IsRasterizationKilled() const { return (m_pipelineState.flags.noRaster != 0); }
+
+    regDB_DFSM_CONTROL* GetDbDfsmControl() { return &m_dbDfsmControl; }
+    bool HasWaMiscPopsMissedOverlapBeenApplied() const { return m_hasWaMiscPopsMissedOverlapBeenApplied; }
+    void SetWaMiscPopsMissedOverlapHasBeenApplied() { m_hasWaMiscPopsMissedOverlapBeenApplied = true; }
 
 protected:
     virtual ~UniversalCmdBuffer() {}
@@ -650,7 +614,6 @@ protected:
     uint32* ValidateBinSizes(
         const GraphicsPipeline&  pipeline,
         const ColorBlendState*   pColorBlendState,
-        bool                     disableDfsm,
         uint32*                  pDeCmdSpace);
 
     bool ShouldEnablePbb(
@@ -914,8 +877,7 @@ private:
     void Gfx10GetDepthBinSize(Extent2d* pBinSize) const;
     bool SetPaScBinnerCntl0(const GraphicsPipeline&  pipeline,
                             const ColorBlendState*   pColorBlendState,
-                            Extent2d*                pBinSize,
-                            bool                     disableDfsm);
+                            Extent2d*                pBinSize);
 
     void SendFlglSyncCommands(FlglRegSeqType type);
 
@@ -1097,6 +1059,7 @@ private:
     regPA_SC_AA_CONFIG m_paScAaConfigNew;  // PA_SC_AA_CONFIG state that will be written on the next draw.
     regPA_SC_AA_CONFIG m_paScAaConfigLast; // Last written value of PA_SC_AA_CONFIG
 
+    bool             m_hasWaMiscPopsMissedOverlapBeenApplied;
     BinningOverride  m_pbbStateOverride; // Sets PBB on/off as per dictated by the new bound pipeline.
     bool             m_enabledPbb;       // PBB is currently enabled or disabled.
     uint16           m_customBinSizeX;   // Custom bin sizes for PBB.  Zero indicates PBB is not using

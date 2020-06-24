@@ -121,13 +121,9 @@ Result GfxCmdBuffer::Init(
 
             if (pMemory != nullptr)
             {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 474
-                result = GpuEvent::CreateInternal(pDevice, createInfo, pMemory, &m_pInternalEvent);
-#else
                 result = pDevice->CreateGpuEvent(createInfo,
                                                  pMemory,
                                                  reinterpret_cast<IGpuEvent**>(&m_pInternalEvent));
-#endif
                 if (result != Result::Success)
                 {
                     PAL_SAFE_FREE(pMemory, pDevice->GetPlatform());
@@ -1107,9 +1103,7 @@ void GfxCmdBuffer::SetComputeState(
             bindParams.pipelineBindPoint  = PipelineBindPoint::Compute;
             bindParams.pPipeline          = newComputeState.pipelineState.pPipeline;
             bindParams.cs                 = newComputeState.dynamicCsInfo;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 471
             bindParams.apiPsoHash         = newComputeState.pipelineState.apiPsoHash;
-#endif
 
             CmdBindPipeline(bindParams);
         }

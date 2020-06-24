@@ -576,7 +576,7 @@ void MetaDataAddrEquation::PrintEquation(
             DbgPrintf(DbgPrintCatInfoMsg, DbgPrintStyleNoPrefix, "\teq[%2d] = %s", bit, printMe);
         }
     }
-#endif // PAL_ENABLE_PRINTS_ASSERTS
+#endif
 }
 
 // =====================================================================================================================

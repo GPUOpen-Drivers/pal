@@ -1661,6 +1661,104 @@ xcb_randr_query_version_reply_t* Dri3LoaderFuncsProxy::pfnXcbRandrQueryVersionRe
 }
 
 // =====================================================================================================================
+xcb_query_tree_cookie_t Dri3LoaderFuncsProxy::pfnXcbQueryTree(
+    xcb_connection_t*  c,
+    xcb_window_t       window
+    ) const
+{
+    const int64 begin = Util::GetPerfCpuTime();
+    xcb_query_tree_cookie_t ret = m_pFuncs->pfnXcbQueryTree(c,
+                                                            window);
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
+    m_timeLogger.Printf("XcbQueryTree,%ld,%ld,%ld\n", begin, end, elapse);
+    m_timeLogger.Flush();
+
+    m_paramLogger.Printf(
+        "XcbQueryTree(%p, %x)\n",
+        c,
+        window);
+    m_paramLogger.Flush();
+
+    return ret;
+}
+
+// =====================================================================================================================
+xcb_query_tree_reply_t* Dri3LoaderFuncsProxy::pfnXcbQueryTreeReply(
+    xcb_connection_t         *c,
+    xcb_query_tree_cookie_t  cookie,
+    xcb_generic_error_t      **e
+    ) const
+{
+    const int64 begin = Util::GetPerfCpuTime();
+    xcb_query_tree_reply_t* pRet = m_pFuncs->pfnXcbQueryTreeReply(*c,
+                                                                  cookie,
+                                                                  **e);
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
+    m_timeLogger.Printf("XcbQueryTreeReply,%ld,%ld,%ld\n", begin, end, elapse);
+    m_timeLogger.Flush();
+
+    m_paramLogger.Printf(
+        "XcbQueryTreeReply(%x, %p, %x)\n",
+        *c,
+        &cookie,
+        **e);
+    m_paramLogger.Flush();
+
+    return pRet;
+}
+
+// =====================================================================================================================
+xcb_get_window_attributes_cookie_t Dri3LoaderFuncsProxy::pfnXcbGetWindowAttributes(
+    xcb_connection_t  *c,
+    xcb_window_t      window
+    ) const
+{
+    const int64 begin = Util::GetPerfCpuTime();
+    xcb_get_window_attributes_cookie_t ret = m_pFuncs->pfnXcbGetWindowAttributes(*c,
+                                                                                 window);
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
+    m_timeLogger.Printf("XcbGetWindowAttributes,%ld,%ld,%ld\n", begin, end, elapse);
+    m_timeLogger.Flush();
+
+    m_paramLogger.Printf(
+        "XcbGetWindowAttributes(%x, %x)\n",
+        *c,
+        window);
+    m_paramLogger.Flush();
+
+    return ret;
+}
+
+// =====================================================================================================================
+xcb_get_window_attributes_reply_t* Dri3LoaderFuncsProxy::pfnXcbGetWindowAttributesReply(
+    xcb_connection_t                    *c,
+    xcb_get_window_attributes_cookie_t  cookie,
+    xcb_generic_error_t                 **e
+    ) const
+{
+    const int64 begin = Util::GetPerfCpuTime();
+    xcb_get_window_attributes_reply_t* pRet = m_pFuncs->pfnXcbGetWindowAttributesReply(*c,
+                                                                                       cookie,
+                                                                                       **e);
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
+    m_timeLogger.Printf("XcbGetWindowAttributesReply,%ld,%ld,%ld\n", begin, end, elapse);
+    m_timeLogger.Flush();
+
+    m_paramLogger.Printf(
+        "XcbGetWindowAttributesReply(%x, %p, %x)\n",
+        *c,
+        &cookie,
+        **e);
+    m_paramLogger.Flush();
+
+    return pRet;
+}
+
+// =====================================================================================================================
 xcb_void_cookie_t Dri3LoaderFuncsProxy::pfnXcbSyncTriggerFenceChecked(
     xcb_connection_t*  pConnection,
     xcb_sync_fence_t   fence
@@ -2086,6 +2184,10 @@ Result Dri3Loader::Init(
             m_library[LibXcbRandr].GetFunction("xcb_randr_get_provider_info_name", &m_funcs.pfnXcbRandrGetProviderInfoName);
             m_library[LibXcbRandr].GetFunction("xcb_randr_query_version", &m_funcs.pfnXcbRandrQueryVersion);
             m_library[LibXcbRandr].GetFunction("xcb_randr_query_version_reply", &m_funcs.pfnXcbRandrQueryVersionReply);
+            m_library[LibXcbRandr].GetFunction("xcb_query_tree", &m_funcs.pfnXcbQueryTree);
+            m_library[LibXcbRandr].GetFunction("xcb_query_tree_reply", &m_funcs.pfnXcbQueryTreeReply);
+            m_library[LibXcbRandr].GetFunction("xcb_get_window_attributes", &m_funcs.pfnXcbGetWindowAttributes);
+            m_library[LibXcbRandr].GetFunction("xcb_get_window_attributes_reply", &m_funcs.pfnXcbGetWindowAttributesReply);
         }
 
         // resolve symbols from libxcb-sync.so.1

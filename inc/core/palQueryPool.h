@@ -183,16 +183,6 @@ public:
         uint32  queryCount,
         void*   pMappedCpuAddr) = 0;
 
-/// To handle backwards compatibility.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 472
-    PAL_INLINE Result Reset(
-        uint32 startQuery,
-        uint32 queryCount)
-    {
-        return Reset(startQuery, queryCount, nullptr);
-    }
-#endif
-
     /// Returns the value of the associated arbitrary client data pointer.
     /// Can be used to associate arbitrary data with a particular PAL object.
     ///

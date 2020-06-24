@@ -41,22 +41,24 @@ function(get_cpu_endianness CPU_ENDIANNESS)
     endif()
 endfunction()
 
-                option(ADDR_R800_BUILD       "Build support for R800?"       OFF                                               )
-                option(ADDR_SI_BUILD         "Build support for SI?"         OFF                                               )
-cmake_dependent_option(ADDR_CI_BUILD         "Build support for CI?"         ON  "ADDR_SI_BUILD"                            OFF)
-                option(ADDR_GFX9_BUILD       "Build support for GFX9?"       OFF                                               )
-                option(ADDR_GFX10_BUILD      "Build support for GFX10?"      OFF                                               )
-cmake_dependent_option(ADDR_VEGA20_BUILD     "Build support for Vega 20?"    ON  "ADDR_GFX9_BUILD"                          OFF)
-cmake_dependent_option(ADDR_RAVEN1_BUILD     "Build support for Raven 1?"    ON  "ADDR_GFX9_BUILD"                          OFF)
-cmake_dependent_option(ADDR_VEGA12_BUILD     "Build support for Vega 12?"    ON  "ADDR_GFX9_BUILD"                          OFF)
-cmake_dependent_option(ADDR_RAVEN2_BUILD     "Build support for Raven 2?"    ON  "ADDR_RAVEN1_BUILD"                        OFF)
+option(ADDR_R800_BUILD       "Build support for R800?"       OFF                                               )
+option(ADDR_SI_BUILD         "Build support for SI?"         OFF                                               )
+cmake_dependent_option(ADDR_CI_BUILD         "Build support for CI?"         ON  "ADDR_SI_BUILD"            OFF)
+option(ADDR_GFX9_BUILD       "Build support for GFX9?"       OFF                                               )
+option(ADDR_GFX10_BUILD      "Build support for GFX10?"      OFF                                               )
+cmake_dependent_option(ADDR_VEGA20_BUILD     "Build support for Vega 20?"    ON  "ADDR_GFX9_BUILD"          OFF)
+cmake_dependent_option(ADDR_RAVEN1_BUILD     "Build support for Raven 1?"    ON  "ADDR_GFX9_BUILD"          OFF)
+cmake_dependent_option(ADDR_VEGA12_BUILD     "Build support for Vega 12?"    ON  "ADDR_GFX9_BUILD"          OFF)
+cmake_dependent_option(ADDR_RAVEN2_BUILD     "Build support for Raven 2?"    ON  "ADDR_RAVEN1_BUILD"        OFF)
 
-                option(ADDR_AM_BUILD         "Build support for fmask addressing and addr5Swizzle?" OFF                        )
-                option(ADDR_LNX_KERNEL_BUILD "Linux kernel build?"                                  OFF                        )
-                option(ADDR_RENOIR_BUILD      "Build support for RENOIR?"    OFF                                               )
-                option(ADDR_NAVI14_BUILD      "Build support for NAVI14?"    OFF                                               )
+option(ADDR_AM_BUILD         "Build support for fmask addressing and addr5Swizzle?" OFF                        )
+option(ADDR_LNX_KERNEL_BUILD "Linux kernel build?"                                  OFF                        )
+option(ADDR_RENOIR_BUILD      "Build support for RENOIR?"    OFF                                               )
+option(ADDR_NAVI14_BUILD      "Build support for NAVI14?"    OFF                                               )
 
-               option(ADDR_ENABLE_LTO       "Build with LTO enabled"        ON                                                 )
+option(ADDR_ENABLE_LTO       "Build with LTO enabled"        ON                                                 )
+option(ADDR_ENABLE_WERROR    "Build with -Werror enabled"    OFF                                                )
+
 add_library(addrlib STATIC "")
 
 target_include_directories(addrlib PUBLIC  inc
@@ -173,55 +175,59 @@ set_target_properties(addrlib PROPERTIES CXX_STANDARD              11
                                          CXX_EXTENSIONS            OFF
                                          POSITION_INDEPENDENT_CODE ON)
 
-if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-
-    # [GCC] Options That Control Optimization
-    #   https://gcc.gnu.org/onlinedocs/gcc-8.1.0/gcc/Optimize-Options.html
-    if(CMAKE_BUILD_TYPE_RELEASE)
-        execute_process(COMMAND ${CMAKE_C_COMPILER} -dumpversion OUTPUT_VARIABLE GCC_VERSION)
-        if (GCC_VERSION VERSION_GREATER 5.3 OR GCC_VERSION VERSION_EQUAL 5.3)
-            target_compile_options(addrlib PRIVATE $<$<CONFIG:Release>:-flto  -fuse-linker-plugin -Wno-odr>)
-            message(WARNING "LTO enabled for address lib")
-        endif()
-    endif()
-
-elseif((CMAKE_CXX_COMPILER_ID MATCHES "[Cc]lang")
-      )
-
-    # [Clang] Command Line Argument Reference
-    #    https://clang.llvm.org/docs/ClangCommandLineReference.html
-    #
-    # [Clang] Thin LTO
-    #    https://clang.llvm.org/docs/ThinLTO.html
 if(ADDR_ENABLE_LTO)
-    target_compile_options(addrlib PRIVATE -flto=thin)
-endif()
+    if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
 
-elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+        # [GCC] Options That Control Optimization
+        #   https://gcc.gnu.org/onlinedocs/gcc-8.1.0/gcc/Optimize-Options.html
+        if(CMAKE_BUILD_TYPE_RELEASE)
+            execute_process(COMMAND ${CMAKE_C_COMPILER} -dumpversion OUTPUT_VARIABLE GCC_VERSION)
+            if (GCC_VERSION VERSION_GREATER 5.3 OR GCC_VERSION VERSION_EQUAL 5.3)
+                target_compile_options(addrlib PRIVATE $<$<CONFIG:Release>:-flto  -fuse-linker-plugin -Wno-odr>)
+                message(WARNING "LTO enabled for address lib")
+            endif()
+        endif()
 
-    if( (${CMAKE_VERSION} VERSION_GREATER "3.13") OR
-        (${CMAKE_VERSION} VERSION_EQUAL   "3.13") )
-
-        target_compile_options(addrlib PRIVATE
-            $<$<CONFIG:Release>:/GL>
+    elseif((CMAKE_CXX_COMPILER_ID MATCHES "[Cc]lang")
         )
 
-        # STATIC_LIBRARY_OPTIONS was introduced in 3.13 and allows generator expressions
-        set_target_properties(addrlib PROPERTIES
-            STATIC_LIBRARY_OPTIONS $<$<CONFIG:Release>:/LTCG>
-        )
+        # [Clang] Command Line Argument Reference
+        #    https://clang.llvm.org/docs/ClangCommandLineReference.html
+        #
+        # [Clang] Thin LTO
+        #    https://clang.llvm.org/docs/ThinLTO.html
+        target_compile_options(addrlib PRIVATE -flto=thin)
+
+    elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+
+        if( (${CMAKE_VERSION} VERSION_GREATER "3.13") OR
+            (${CMAKE_VERSION} VERSION_EQUAL   "3.13") )
+
+            target_compile_options(addrlib PRIVATE
+                $<$<CONFIG:Release>:/GL>
+                )
+
+            # STATIC_LIBRARY_OPTIONS was introduced in 3.13 and allows generator expressions
+            set_target_properties(addrlib PROPERTIES
+                STATIC_LIBRARY_OPTIONS $<$<CONFIG:Release>:/LTCG>
+                )
+
+        else()
+            target_compile_options(addrlib PRIVATE /GL)
+            set_target_properties(addrlib PROPERTIES STATIC_LIBRARY_FLAGS /LTCG)
+        endif()
 
     else()
-        target_compile_options(addrlib PRIVATE /GL)
-        set_target_properties(addrlib PROPERTIES STATIC_LIBRARY_FLAGS /LTCG)
+        message(FATAL_ERROR "IPO is not supported!")
     endif()
-
-else()
-    message(FATAL_ERROR "IPO is not supported!")
 endif()
 
 if((CMAKE_CXX_COMPILER_ID MATCHES "GNU|[Cc]lang")
   )
+
+    if(ADDR_ENABLE_WERROR)
+        target_compile_options(addrlib PRIVATE -Werror)
+    endif()
 
     # [GCC] Exceptions
     #   https://gcc.gnu.org/onlinedocs/libstdc++/manual/using_exceptions.html
@@ -243,7 +249,6 @@ if((CMAKE_CXX_COMPILER_ID MATCHES "GNU|[Cc]lang")
     target_compile_options(addrlib PRIVATE
         -Wall
         -Wextra
-        -Werror
         -Wno-unused
         -Wno-unused-parameter
         -Wno-unused-command-line-argument

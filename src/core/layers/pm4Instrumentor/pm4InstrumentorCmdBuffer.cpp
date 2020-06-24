@@ -471,30 +471,6 @@ void CmdBuffer::CmdSetVertexBuffers(
     PostCall(CmdBufCallId::CmdSetVertexBuffers);
 }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 473
-// =====================================================================================================================
-void CmdBuffer::CmdSetIndirectUserData(
-    uint16      tableId,
-    uint32      dwordOffset,
-    uint32      dwordSize,
-    const void* pSrcData)
-{
-    PreCall();
-    CmdBufferFwdDecorator::CmdSetIndirectUserData(tableId, dwordOffset, dwordSize, pSrcData);
-    PostCall(CmdBufCallId::CmdSetIndirectUserData);
-}
-
-// =====================================================================================================================
-void CmdBuffer::CmdSetIndirectUserDataWatermark(
-    uint16 tableId,
-    uint32 dwordLimit)
-{
-    PreCall();
-    CmdBufferFwdDecorator::CmdSetIndirectUserDataWatermark(tableId, dwordLimit);
-    PostCall(CmdBufCallId::CmdSetIndirectUserDataWatermark);
-}
-#endif
-
 // =====================================================================================================================
 void CmdBuffer::CmdBindTargets(
     const BindTargetParams& params)

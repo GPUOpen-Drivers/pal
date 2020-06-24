@@ -69,7 +69,23 @@ public:
     ElfReader::Reader& GetElfReader() { return m_elfReader; }
     const ElfReader::Reader& GetElfReader() const { return m_elfReader; }
 
+    /// Get the Pipeline Metadata as a deserialized struct using the given MsgPackReader instance. If successful,
+    /// the reader's position will then be moved to either the start of the registers map, or to EOF if there are
+    /// no registers.
+    ///
+    /// @param [in/out] pReader    Pointer to the MsgPackReader to use and (re)init with the metadata blob.
+    /// @param [out]    pMetadata  Pointer to where to store the deserialized metadata.
+    ///
+    /// @returns Success if successful, ErrorInvalidValue, ErrorUnknown or ErrorUnsupportedPipelineElfAbiVersion
+    ///          if a parser error occurred, ErrorInvalidPipelineElf if there is no metadata.
     Result GetMetadata(MsgPackReader* pReader, PalCodeObjectMetadata* pMetadata) const;
+
+    /// Get the GFXIP version.
+    ///
+    /// @param [out] pGfxIpMajorVer The major version.
+    /// @param [out] pGfxIpMinorVer The minor version.
+    /// @param [out] pGfxIpStepping The stepping.
+    void GetGfxIpVersion(uint32* pGfxIpMajorVer, uint32* pGfxIpMinorVer, uint32* pGfxIpStepping) const;
 
     /// Check if a PipelineSymbolEntry exists and return it.
     ///

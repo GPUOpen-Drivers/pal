@@ -94,14 +94,10 @@ Result ComputePipeline::HwlInit(
         // Next, handle relocations and upload the pipeline code & data to GPU memory.
         result = PerformRelocationsAndUploadToGpuMemory(
             metadata,
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 488)
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 488) && (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 502)
+#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 502)
             (createInfo.flags.preferNonLocalHeap == 1) ? GpuHeapGartUswc : GpuHeapInvisible,
 #else
             (createInfo.flags.overrideGpuHeap == 1) ? createInfo.preferredHeapType : GpuHeapInvisible,
-#endif
-#else
-            GpuHeapInvisible,
 #endif
             &uploader);
     }
@@ -174,7 +170,7 @@ uint32 ComputePipeline::CalcMaxWavesPerSh(
     {
         const auto&  gfx9ChipProps        = chipProps.gfx9;
         const uint32 numWavefrontsPerCu   = (gfx9ChipProps.numSimdPerCu * gfx9ChipProps.numWavesPerSimd);
-        const uint32 maxWavesPerShCompute = numWavefrontsPerCu * gfx9ChipProps.numCuPerSh;
+        const uint32 maxWavesPerShCompute = numWavefrontsPerCu * gfx9ChipProps.maxNumCuPerSh;
 
         // We assume no one is trying to use more than 100% of all waves.
         PAL_ASSERT(maxWavesPerCu <= numWavefrontsPerCu);

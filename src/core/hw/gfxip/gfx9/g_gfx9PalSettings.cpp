@@ -63,7 +63,6 @@ void SettingsLoader::SetupDefaults()
 
     m_settings.allowBigPage = 0x3f;
     m_settings.disableBorderColorPaletteBinds = false;
-    m_settings.drainPsOnOverlap = false;
     m_settings.printMetaEquationInfo = 0x0;
     m_settings.processMetaEquationViaCpu = false;
     m_settings.optimizedFastClear = 0x7;
@@ -163,9 +162,7 @@ void SettingsLoader::SetupDefaults()
     m_settings.binningFpovsPerBatch = 63;
     m_settings.binningOptimalBinSelection = true;
     m_settings.disableBinningAppendConsume = true;
-    m_settings.disableDfsm = true;
 
-    m_settings.disableDfsmPsUav = true;
     m_settings.shaderPrefetchMethod = PrefetchCpDma;
     m_settings.prefetchCommandBuffers = Gfx9PrefetchCommandsBuildInfo;
     m_settings.anisoFilterOptEnabled = false;
@@ -244,11 +241,6 @@ void SettingsLoader::ReadSettings()
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pDisableBorderColorPaletteBindsStr,
                            Util::ValueType::Boolean,
                            &m_settings.disableBorderColorPaletteBinds,
-                           InternalSettingScope::PrivatePalGfx9Key);
-
-    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pDrainPsOnOverlapStr,
-                           Util::ValueType::Boolean,
-                           &m_settings.drainPsOnOverlap,
                            InternalSettingScope::PrivatePalGfx9Key);
 
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pPrintMetaEquationInfoStr,
@@ -739,16 +731,6 @@ void SettingsLoader::ReadSettings()
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pBinningDisableBinningAppendConsumeStr,
                            Util::ValueType::Boolean,
                            &m_settings.disableBinningAppendConsume,
-                           InternalSettingScope::PrivatePalGfx9Key);
-
-    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pDisableDfsmStr,
-                           Util::ValueType::Boolean,
-                           &m_settings.disableDfsm,
-                           InternalSettingScope::PrivatePalGfx9Key);
-
-    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pDisableDfsmPsUavStr,
-                           Util::ValueType::Boolean,
-                           &m_settings.disableDfsmPsUav,
                            InternalSettingScope::PrivatePalGfx9Key);
 
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pShaderPrefetchMethodStr,
@@ -1283,11 +1265,6 @@ void SettingsLoader::InitSettingsInfo()
     info.valueSize = sizeof(m_settings.disableBorderColorPaletteBinds);
     m_settingsInfoMap.Insert(3825276041, info);
 
-    info.type      = SettingType::Boolean;
-    info.pValuePtr = &m_settings.drainPsOnOverlap;
-    info.valueSize = sizeof(m_settings.drainPsOnOverlap);
-    m_settingsInfoMap.Insert(2630919068, info);
-
     info.type      = SettingType::Uint;
     info.pValuePtr = &m_settings.printMetaEquationInfo;
     info.valueSize = sizeof(m_settings.printMetaEquationInfo);
@@ -1778,16 +1755,6 @@ void SettingsLoader::InitSettingsInfo()
     info.valueSize = sizeof(m_settings.disableBinningAppendConsume);
     m_settingsInfoMap.Insert(380189375, info);
 
-    info.type      = SettingType::Boolean;
-    info.pValuePtr = &m_settings.disableDfsm;
-    info.valueSize = sizeof(m_settings.disableDfsm);
-    m_settingsInfoMap.Insert(2943779401, info);
-
-    info.type      = SettingType::Boolean;
-    info.pValuePtr = &m_settings.disableDfsmPsUav;
-    info.valueSize = sizeof(m_settings.disableDfsmPsUav);
-    m_settingsInfoMap.Insert(1592843420, info);
-
     info.type      = SettingType::Uint;
     info.pValuePtr = &m_settings.shaderPrefetchMethod;
     info.valueSize = sizeof(m_settings.shaderPrefetchMethod);
@@ -2054,7 +2021,7 @@ void SettingsLoader::DevDriverRegister()
             component.pfnSetValue = ISettingsLoader::SetValue;
             component.pSettingsData = &g_gfx9PalJsonData[0];
             component.settingsDataSize = sizeof(g_gfx9PalJsonData);
-            component.settingsDataHash = 3740655254;
+            component.settingsDataHash = 2399813199;
             component.settingsDataHeader.isEncoded = true;
             component.settingsDataHeader.magicBufferId = 402778310;
             component.settingsDataHeader.magicBufferOffset = 0;

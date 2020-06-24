@@ -524,12 +524,7 @@ void BuildImageViewInfo(
     pInfo->subresRange          = subresRange;
     pInfo->swizzledFormat       = swizzledFormat;
     pInfo->texOptLevel          = texOptLevel;
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 478
     pInfo->possibleLayouts      = imgLayout;
-#else
-    pInfo->flags.shaderWritable = TestAnyFlagSet(imgLayout.usages, LayoutShaderWrite | LayoutCopyDst);
-#endif
 
 }
 

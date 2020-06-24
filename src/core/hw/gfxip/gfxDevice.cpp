@@ -601,7 +601,6 @@ void GfxDevice::DescribeDraw(
 
 // =====================================================================================================================
 // Call back to above layers to describe a bind pipeline command
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 471
 void GfxDevice::DescribeBindPipeline(
     GfxCmdBuffer*     pCmdBuf,
     const IPipeline*  pPipeline,
@@ -618,7 +617,6 @@ void GfxDevice::DescribeBindPipeline(
 
     m_pParent->DeveloperCb(Developer::CallbackType::BindPipeline, &data);
 }
-#endif
 
 #if PAL_BUILD_PM4_INSTRUMENTOR
 // =====================================================================================================================
