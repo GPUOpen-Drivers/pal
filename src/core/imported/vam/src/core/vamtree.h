@@ -622,4 +622,4 @@ private:
     unsigned int    m_count;      // Node count in the tree.
 };
 
-#endif //__VAMTREE_H__
+#endif

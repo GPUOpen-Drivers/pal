@@ -324,25 +324,45 @@ Result CreateRpmComputePipelines(
             RpmComputePipeline::CopyTypedBuffer3d, pDevice, pTable, pPipelineMem);
     }
 
-    if ((properties.gfxLevel >= GfxIpLevel::GfxIp8) && (result == Result::Success))
+    if (result == Result::Success && (false
+        || (properties.gfxLevel == GfxIpLevel::GfxIp8)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp8_1)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp9)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
+        ))
     {
         result = CreateRpmComputePipeline(
             RpmComputePipeline::ExpandMaskRam, pDevice, pTable, pPipelineMem);
     }
 
-    if ((properties.gfxLevel >= GfxIpLevel::GfxIp8) && (result == Result::Success))
+    if (result == Result::Success && (false
+        || (properties.gfxLevel == GfxIpLevel::GfxIp8)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp8_1)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp9)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
+        ))
     {
         result = CreateRpmComputePipeline(
             RpmComputePipeline::ExpandMaskRamMs2x, pDevice, pTable, pPipelineMem);
     }
 
-    if ((properties.gfxLevel >= GfxIpLevel::GfxIp8) && (result == Result::Success))
+    if (result == Result::Success && (false
+        || (properties.gfxLevel == GfxIpLevel::GfxIp8)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp8_1)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp9)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
+        ))
     {
         result = CreateRpmComputePipeline(
             RpmComputePipeline::ExpandMaskRamMs4x, pDevice, pTable, pPipelineMem);
     }
 
-    if ((properties.gfxLevel >= GfxIpLevel::GfxIp8) && (result == Result::Success))
+    if (result == Result::Success && (false
+        || (properties.gfxLevel == GfxIpLevel::GfxIp8)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp8_1)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp9)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
+        ))
     {
         result = CreateRpmComputePipeline(
             RpmComputePipeline::ExpandMaskRamMs8x, pDevice, pTable, pPipelineMem);
@@ -402,157 +422,339 @@ Result CreateRpmComputePipelines(
             RpmComputePipeline::HtileSRUpdate, pDevice, pTable, pPipelineMem);
     }
 
-    if (result == Result::Success)
+    if (result == Result::Success && (false
+        || (properties.gfxLevel == GfxIpLevel::GfxIp6)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp7)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp8)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp8_1)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp9)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
+        ))
     {
         result = CreateRpmComputePipeline(
             RpmComputePipeline::MsaaFmaskCopyImage, pDevice, pTable, pPipelineMem);
     }
 
-    if (result == Result::Success)
+    if (result == Result::Success && (false
+        || (properties.gfxLevel == GfxIpLevel::GfxIp6)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp7)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp8)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp8_1)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp9)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
+        ))
     {
         result = CreateRpmComputePipeline(
             RpmComputePipeline::MsaaFmaskCopyImageOptimized, pDevice, pTable, pPipelineMem);
     }
 
-    if (result == Result::Success)
+    if (result == Result::Success && (false
+        || (properties.gfxLevel == GfxIpLevel::GfxIp6)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp7)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp8)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp8_1)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp9)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
+        ))
     {
         result = CreateRpmComputePipeline(
             RpmComputePipeline::MsaaFmaskCopyImgToMem, pDevice, pTable, pPipelineMem);
     }
 
-    if (result == Result::Success)
+    if (result == Result::Success && (false
+        || (properties.gfxLevel == GfxIpLevel::GfxIp6)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp7)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp8)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp8_1)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp9)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
+        ))
     {
         result = CreateRpmComputePipeline(
             RpmComputePipeline::MsaaFmaskExpand2x, pDevice, pTable, pPipelineMem);
     }
 
-    if (result == Result::Success)
+    if (result == Result::Success && (false
+        || (properties.gfxLevel == GfxIpLevel::GfxIp6)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp7)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp8)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp8_1)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp9)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
+        ))
     {
         result = CreateRpmComputePipeline(
             RpmComputePipeline::MsaaFmaskExpand4x, pDevice, pTable, pPipelineMem);
     }
 
-    if (result == Result::Success)
+    if (result == Result::Success && (false
+        || (properties.gfxLevel == GfxIpLevel::GfxIp6)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp7)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp8)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp8_1)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp9)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
+        ))
     {
         result = CreateRpmComputePipeline(
             RpmComputePipeline::MsaaFmaskExpand8x, pDevice, pTable, pPipelineMem);
     }
 
-    if (result == Result::Success)
+    if (result == Result::Success && (false
+        || (properties.gfxLevel == GfxIpLevel::GfxIp6)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp7)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp8)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp8_1)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp9)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
+        ))
     {
         result = CreateRpmComputePipeline(
             RpmComputePipeline::MsaaFmaskResolve1xEqaa, pDevice, pTable, pPipelineMem);
     }
 
-    if (result == Result::Success)
+    if (result == Result::Success && (false
+        || (properties.gfxLevel == GfxIpLevel::GfxIp6)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp7)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp8)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp8_1)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp9)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
+        ))
     {
         result = CreateRpmComputePipeline(
             RpmComputePipeline::MsaaFmaskResolve2x, pDevice, pTable, pPipelineMem);
     }
 
-    if (result == Result::Success)
+    if (result == Result::Success && (false
+        || (properties.gfxLevel == GfxIpLevel::GfxIp6)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp7)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp8)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp8_1)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp9)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
+        ))
     {
         result = CreateRpmComputePipeline(
             RpmComputePipeline::MsaaFmaskResolve2xEqaa, pDevice, pTable, pPipelineMem);
     }
 
-    if (result == Result::Success)
+    if (result == Result::Success && (false
+        || (properties.gfxLevel == GfxIpLevel::GfxIp6)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp7)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp8)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp8_1)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp9)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
+        ))
     {
         result = CreateRpmComputePipeline(
             RpmComputePipeline::MsaaFmaskResolve2xEqaaMax, pDevice, pTable, pPipelineMem);
     }
 
-    if (result == Result::Success)
+    if (result == Result::Success && (false
+        || (properties.gfxLevel == GfxIpLevel::GfxIp6)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp7)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp8)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp8_1)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp9)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
+        ))
     {
         result = CreateRpmComputePipeline(
             RpmComputePipeline::MsaaFmaskResolve2xEqaaMin, pDevice, pTable, pPipelineMem);
     }
 
-    if (result == Result::Success)
+    if (result == Result::Success && (false
+        || (properties.gfxLevel == GfxIpLevel::GfxIp6)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp7)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp8)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp8_1)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp9)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
+        ))
     {
         result = CreateRpmComputePipeline(
             RpmComputePipeline::MsaaFmaskResolve2xMax, pDevice, pTable, pPipelineMem);
     }
 
-    if (result == Result::Success)
+    if (result == Result::Success && (false
+        || (properties.gfxLevel == GfxIpLevel::GfxIp6)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp7)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp8)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp8_1)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp9)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
+        ))
     {
         result = CreateRpmComputePipeline(
             RpmComputePipeline::MsaaFmaskResolve2xMin, pDevice, pTable, pPipelineMem);
     }
 
-    if (result == Result::Success)
+    if (result == Result::Success && (false
+        || (properties.gfxLevel == GfxIpLevel::GfxIp6)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp7)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp8)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp8_1)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp9)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
+        ))
     {
         result = CreateRpmComputePipeline(
             RpmComputePipeline::MsaaFmaskResolve4x, pDevice, pTable, pPipelineMem);
     }
 
-    if (result == Result::Success)
+    if (result == Result::Success && (false
+        || (properties.gfxLevel == GfxIpLevel::GfxIp6)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp7)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp8)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp8_1)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp9)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
+        ))
     {
         result = CreateRpmComputePipeline(
             RpmComputePipeline::MsaaFmaskResolve4xEqaa, pDevice, pTable, pPipelineMem);
     }
 
-    if (result == Result::Success)
+    if (result == Result::Success && (false
+        || (properties.gfxLevel == GfxIpLevel::GfxIp6)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp7)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp8)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp8_1)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp9)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
+        ))
     {
         result = CreateRpmComputePipeline(
             RpmComputePipeline::MsaaFmaskResolve4xEqaaMax, pDevice, pTable, pPipelineMem);
     }
 
-    if (result == Result::Success)
+    if (result == Result::Success && (false
+        || (properties.gfxLevel == GfxIpLevel::GfxIp6)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp7)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp8)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp8_1)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp9)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
+        ))
     {
         result = CreateRpmComputePipeline(
             RpmComputePipeline::MsaaFmaskResolve4xEqaaMin, pDevice, pTable, pPipelineMem);
     }
 
-    if (result == Result::Success)
+    if (result == Result::Success && (false
+        || (properties.gfxLevel == GfxIpLevel::GfxIp6)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp7)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp8)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp8_1)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp9)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
+        ))
     {
         result = CreateRpmComputePipeline(
             RpmComputePipeline::MsaaFmaskResolve4xMax, pDevice, pTable, pPipelineMem);
     }
 
-    if (result == Result::Success)
+    if (result == Result::Success && (false
+        || (properties.gfxLevel == GfxIpLevel::GfxIp6)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp7)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp8)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp8_1)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp9)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
+        ))
     {
         result = CreateRpmComputePipeline(
             RpmComputePipeline::MsaaFmaskResolve4xMin, pDevice, pTable, pPipelineMem);
     }
 
-    if (result == Result::Success)
+    if (result == Result::Success && (false
+        || (properties.gfxLevel == GfxIpLevel::GfxIp6)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp7)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp8)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp8_1)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp9)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
+        ))
     {
         result = CreateRpmComputePipeline(
             RpmComputePipeline::MsaaFmaskResolve8x, pDevice, pTable, pPipelineMem);
     }
 
-    if (result == Result::Success)
+    if (result == Result::Success && (false
+        || (properties.gfxLevel == GfxIpLevel::GfxIp6)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp7)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp8)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp8_1)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp9)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
+        ))
     {
         result = CreateRpmComputePipeline(
             RpmComputePipeline::MsaaFmaskResolve8xEqaa, pDevice, pTable, pPipelineMem);
     }
 
-    if (result == Result::Success)
+    if (result == Result::Success && (false
+        || (properties.gfxLevel == GfxIpLevel::GfxIp6)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp7)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp8)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp8_1)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp9)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
+        ))
     {
         result = CreateRpmComputePipeline(
             RpmComputePipeline::MsaaFmaskResolve8xEqaaMax, pDevice, pTable, pPipelineMem);
     }
 
-    if (result == Result::Success)
+    if (result == Result::Success && (false
+        || (properties.gfxLevel == GfxIpLevel::GfxIp6)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp7)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp8)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp8_1)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp9)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
+        ))
     {
         result = CreateRpmComputePipeline(
             RpmComputePipeline::MsaaFmaskResolve8xEqaaMin, pDevice, pTable, pPipelineMem);
     }
 
-    if (result == Result::Success)
+    if (result == Result::Success && (false
+        || (properties.gfxLevel == GfxIpLevel::GfxIp6)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp7)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp8)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp8_1)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp9)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
+        ))
     {
         result = CreateRpmComputePipeline(
             RpmComputePipeline::MsaaFmaskResolve8xMax, pDevice, pTable, pPipelineMem);
     }
 
-    if (result == Result::Success)
+    if (result == Result::Success && (false
+        || (properties.gfxLevel == GfxIpLevel::GfxIp6)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp7)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp8)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp8_1)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp9)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
+        ))
     {
         result = CreateRpmComputePipeline(
             RpmComputePipeline::MsaaFmaskResolve8xMin, pDevice, pTable, pPipelineMem);
     }
 
-    if (result == Result::Success)
+    if (result == Result::Success && (false
+        || (properties.gfxLevel == GfxIpLevel::GfxIp6)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp7)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp8)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp8_1)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp9)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
+        ))
     {
         result = CreateRpmComputePipeline(
             RpmComputePipeline::MsaaFmaskScaledCopy, pDevice, pTable, pPipelineMem);
@@ -708,125 +910,167 @@ Result CreateRpmComputePipelines(
             RpmComputePipeline::YuvToRgb, pDevice, pTable, pPipelineMem);
     }
 
-    if ((properties.gfxLevel >= GfxIpLevel::GfxIp6) &&
-        (properties.gfxLevel <= GfxIpLevel::GfxIp8_1) &&
-        (result == Result::Success))
+    if (result == Result::Success && (false
+        || (properties.gfxLevel == GfxIpLevel::GfxIp6)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp7)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp8)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp8_1)
+        ))
     {
         result = CreateRpmComputePipeline(
             RpmComputePipeline::Gfx6GenerateCmdDispatch, pDevice, pTable, pPipelineMem);
     }
 
-    if ((properties.gfxLevel >= GfxIpLevel::GfxIp6) &&
-        (properties.gfxLevel <= GfxIpLevel::GfxIp8_1) &&
-        (result == Result::Success))
+    if (result == Result::Success && (false
+        || (properties.gfxLevel == GfxIpLevel::GfxIp6)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp7)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp8)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp8_1)
+        ))
     {
         result = CreateRpmComputePipeline(
             RpmComputePipeline::Gfx6GenerateCmdDraw, pDevice, pTable, pPipelineMem);
     }
 
-    if ((properties.gfxLevel == GfxIpLevel::GfxIp9) && (result == Result::Success))
+    if (result == Result::Success && (false
+        || (properties.gfxLevel == GfxIpLevel::GfxIp9)
+        ))
     {
         result = CreateRpmComputePipeline(
             RpmComputePipeline::Gfx9BuildHtileLookupTable, pDevice, pTable, pPipelineMem);
     }
 
-    if ((properties.gfxLevel == GfxIpLevel::GfxIp9) && (result == Result::Success))
+    if (result == Result::Success && (false
+        || (properties.gfxLevel == GfxIpLevel::GfxIp9)
+        ))
     {
         result = CreateRpmComputePipeline(
             RpmComputePipeline::Gfx9ClearDccMultiSample2d, pDevice, pTable, pPipelineMem);
     }
 
-    if ((properties.gfxLevel == GfxIpLevel::GfxIp9) && (result == Result::Success))
+    if (result == Result::Success && (false
+        || (properties.gfxLevel == GfxIpLevel::GfxIp9)
+        ))
     {
         result = CreateRpmComputePipeline(
             RpmComputePipeline::Gfx9ClearDccOptimized2d, pDevice, pTable, pPipelineMem);
     }
 
-    if ((properties.gfxLevel == GfxIpLevel::GfxIp9) && (result == Result::Success))
+    if (result == Result::Success && (false
+        || (properties.gfxLevel == GfxIpLevel::GfxIp9)
+        ))
     {
         result = CreateRpmComputePipeline(
             RpmComputePipeline::Gfx9ClearDccSingleSample2d, pDevice, pTable, pPipelineMem);
     }
 
-    if ((properties.gfxLevel == GfxIpLevel::GfxIp9) && (result == Result::Success))
+    if (result == Result::Success && (false
+        || (properties.gfxLevel == GfxIpLevel::GfxIp9)
+        ))
     {
         result = CreateRpmComputePipeline(
             RpmComputePipeline::Gfx9ClearDccSingleSample3d, pDevice, pTable, pPipelineMem);
     }
 
-    if ((properties.gfxLevel == GfxIpLevel::GfxIp9) && (result == Result::Success))
+    if (result == Result::Success && (false
+        || (properties.gfxLevel == GfxIpLevel::GfxIp9)
+        ))
     {
         result = CreateRpmComputePipeline(
             RpmComputePipeline::Gfx9ClearHtileFast, pDevice, pTable, pPipelineMem);
     }
 
-    if ((properties.gfxLevel == GfxIpLevel::GfxIp9) && (result == Result::Success))
+    if (result == Result::Success && (false
+        || (properties.gfxLevel == GfxIpLevel::GfxIp9)
+        ))
     {
         result = CreateRpmComputePipeline(
             RpmComputePipeline::Gfx9ClearHtileMultiSample, pDevice, pTable, pPipelineMem);
     }
 
-    if ((properties.gfxLevel == GfxIpLevel::GfxIp9) && (result == Result::Success))
+    if (result == Result::Success && (false
+        || (properties.gfxLevel == GfxIpLevel::GfxIp9)
+        ))
     {
         result = CreateRpmComputePipeline(
             RpmComputePipeline::Gfx9ClearHtileOptimized2d, pDevice, pTable, pPipelineMem);
     }
 
-    if ((properties.gfxLevel == GfxIpLevel::GfxIp9) && (result == Result::Success))
+    if (result == Result::Success && (false
+        || (properties.gfxLevel == GfxIpLevel::GfxIp9)
+        ))
     {
         result = CreateRpmComputePipeline(
             RpmComputePipeline::Gfx9ClearHtileSingleSample, pDevice, pTable, pPipelineMem);
     }
 
-    if ((properties.gfxLevel == GfxIpLevel::GfxIp9) && (result == Result::Success))
+    if (result == Result::Success && (false
+        || (properties.gfxLevel == GfxIpLevel::GfxIp9)
+        ))
     {
         result = CreateRpmComputePipeline(
             RpmComputePipeline::Gfx9Fill4x4Dword, pDevice, pTable, pPipelineMem);
     }
 
-    if ((properties.gfxLevel == GfxIpLevel::GfxIp9) && (result == Result::Success))
+    if (result == Result::Success && (false
+        || (properties.gfxLevel == GfxIpLevel::GfxIp9)
+        ))
     {
         result = CreateRpmComputePipeline(
             RpmComputePipeline::Gfx9GenerateCmdDispatch, pDevice, pTable, pPipelineMem);
     }
 
-    if ((properties.gfxLevel == GfxIpLevel::GfxIp9) && (result == Result::Success))
+    if (result == Result::Success && (false
+        || (properties.gfxLevel == GfxIpLevel::GfxIp9)
+        ))
     {
         result = CreateRpmComputePipeline(
             RpmComputePipeline::Gfx9GenerateCmdDraw, pDevice, pTable, pPipelineMem);
     }
 
-    if ((properties.gfxLevel == GfxIpLevel::GfxIp9) && (result == Result::Success))
+    if (result == Result::Success && (false
+        || (properties.gfxLevel == GfxIpLevel::GfxIp9)
+        ))
     {
         result = CreateRpmComputePipeline(
             RpmComputePipeline::Gfx9HtileCopyAndFixUp, pDevice, pTable, pPipelineMem);
     }
 
-    if ((properties.gfxLevel == GfxIpLevel::GfxIp9) && (result == Result::Success))
+    if (result == Result::Success && (false
+        || (properties.gfxLevel == GfxIpLevel::GfxIp9)
+        ))
     {
         result = CreateRpmComputePipeline(
             RpmComputePipeline::Gfx9InitCmaskSingleSample, pDevice, pTable, pPipelineMem);
     }
 
-    if (IsGfx10(properties.gfxLevel) && (result == Result::Success))
+    if (result == Result::Success && (false
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
+        ))
     {
         result = CreateRpmComputePipeline(
             RpmComputePipeline::Gfx10ClearDccComputeSetFirstPixel, pDevice, pTable, pPipelineMem);
     }
 
-    if (IsGfx10(properties.gfxLevel) && (result == Result::Success))
+    if (result == Result::Success && (false
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
+        ))
     {
         result = CreateRpmComputePipeline(
             RpmComputePipeline::Gfx10ClearDccComputeSetFirstPixelMsaa, pDevice, pTable, pPipelineMem);
     }
 
-    if (IsGfx10(properties.gfxLevel) && (result == Result::Success))
+    if (result == Result::Success && (false
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
+        ))
     {
         result = CreateRpmComputePipeline(
             RpmComputePipeline::Gfx10GenerateCmdDispatch, pDevice, pTable, pPipelineMem);
     }
 
-    if (IsGfx10(properties.gfxLevel) && (result == Result::Success))
+    if (result == Result::Success && (false
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
+        ))
     {
         result = CreateRpmComputePipeline(
             RpmComputePipeline::Gfx10GenerateCmdDraw, pDevice, pTable, pPipelineMem);

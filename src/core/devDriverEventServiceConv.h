@@ -257,7 +257,6 @@ static DevDriver::RMT_IMAGE_TILING_OPT_MODE PalToRmtTilingOptMode(
 }
 
 // =====================================================================================================================
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 481
 static DevDriver::RMT_IMAGE_METADATA_MODE PalToRmtMetadataMode(
     MetadataMode palMetadataMode)
 {
@@ -284,7 +283,6 @@ static DevDriver::RMT_IMAGE_METADATA_MODE PalToRmtMetadataMode(
 
     return retMode;
 }
-#endif
 
 // =====================================================================================================================
 static DevDriver::RMT_QUERY_HEAP_TYPE PalToRmtQueryHeapType(
@@ -682,7 +680,7 @@ static DevDriver::RMT_ENGINE_TYPE PalToRmtEngineType(
         retType = DevDriver::RMT_ENGINE_TYPE_TIMER;
         break;
 
-#endif // PAL_CLIENT_INTERFACE_MAJOR_VERSION < 530
+#endif
 
     default:
         PAL_ASSERT_ALWAYS();

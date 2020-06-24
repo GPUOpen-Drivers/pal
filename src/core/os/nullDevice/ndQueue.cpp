@@ -23,6 +23,8 @@
  *
  **********************************************************************************************************************/
 
+#if PAL_BUILD_NULL_DEVICE
+
 #include "core/os/nullDevice/ndDevice.h"
 #include "core/os/nullDevice/ndQueue.h"
 #include "core/os/nullDevice/ndFence.h"
@@ -127,3 +129,5 @@ Result Queue::DoAssociateFenceWithLastSubmit(
 
 } // NullDevice
 } // Pal
+
+#endif

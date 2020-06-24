@@ -1382,11 +1382,11 @@ static void Gfx10InitBasicBlockInfo(
         pRpb->maxEventId                = 63;
         pRpb->isCfgStyle                = true;
 
-        pRpb->regAddr = { Gfx10CorePlus::mmRPB_PERFCOUNTER_RSLT_CNTL, {
-            { Gfx10CorePlus::mmRPB_PERFCOUNTER0_CFG, 0, Gfx10CorePlus::mmRPB_PERFCOUNTER_LO, Gfx10CorePlus::mmRPB_PERFCOUNTER_HI },
-            { Gfx10CorePlus::mmRPB_PERFCOUNTER1_CFG, 0, Gfx10CorePlus::mmRPB_PERFCOUNTER_LO, Gfx10CorePlus::mmRPB_PERFCOUNTER_HI },
-            { Gfx10CorePlus::mmRPB_PERFCOUNTER2_CFG, 0, Gfx10CorePlus::mmRPB_PERFCOUNTER_LO, Gfx10CorePlus::mmRPB_PERFCOUNTER_HI },
-            { Gfx10CorePlus::mmRPB_PERFCOUNTER3_CFG, 0, Gfx10CorePlus::mmRPB_PERFCOUNTER_LO, Gfx10CorePlus::mmRPB_PERFCOUNTER_HI },
+        pRpb->regAddr = { Gfx10Core::mmRPB_PERFCOUNTER_RSLT_CNTL, {
+            { Gfx10Core::mmRPB_PERFCOUNTER0_CFG, 0, Gfx10Core::mmRPB_PERFCOUNTER_LO, Gfx10Core::mmRPB_PERFCOUNTER_HI },
+            { Gfx10Core::mmRPB_PERFCOUNTER1_CFG, 0, Gfx10Core::mmRPB_PERFCOUNTER_LO, Gfx10Core::mmRPB_PERFCOUNTER_HI },
+            { Gfx10Core::mmRPB_PERFCOUNTER2_CFG, 0, Gfx10Core::mmRPB_PERFCOUNTER_LO, Gfx10Core::mmRPB_PERFCOUNTER_HI },
+            { Gfx10Core::mmRPB_PERFCOUNTER3_CFG, 0, Gfx10Core::mmRPB_PERFCOUNTER_LO, Gfx10Core::mmRPB_PERFCOUNTER_HI },
         }};
     }
 
@@ -1596,7 +1596,6 @@ static void Gfx10InitBasicBlockInfo(
         { mmPA_PH_PERFCOUNTER7_SELECT, 0,                            mmPA_PH_PERFCOUNTER7_LO, mmPA_PH_PERFCOUNTER7_HI },
     }};
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION > 485
     PerfCounterBlockInfo*const pUtcl1 = &pInfo->block[static_cast<uint32>(GpuBlock::UtcL1)];
     pUtcl1->distribution              = PerfCounterDistribution::PerShaderArray;
     pUtcl1->numInstances              = 1;
@@ -1609,7 +1608,6 @@ static void Gfx10InitBasicBlockInfo(
         { mmUTCL1_PERFCOUNTER0_SELECT, 0, mmUTCL1_PERFCOUNTER0_LO, mmUTCL1_PERFCOUNTER0_HI },
         { mmUTCL1_PERFCOUNTER1_SELECT, 0, mmUTCL1_PERFCOUNTER1_LO, mmUTCL1_PERFCOUNTER1_HI },
     }};
-#endif
 
     // The GUS and the blocks that exist to service it should exist as a unit. They are present on all gfx10.1 ASICs.
     if (IsGfx101(device)
@@ -1682,7 +1680,7 @@ void InitPerfCtrInfo(
     {
         Gfx9InitBasicBlockInfo(device, pProps);
     }
-    else
+    else if (IsGfx10(pProps->gfxLevel))
     {
         Gfx10InitBasicBlockInfo(device, pProps);
     }

@@ -182,12 +182,8 @@ Queue::Queue(
     Pal::Queue(qCount, pDevice, pCreateInfo),
     m_device(*pDevice),
     m_pResourceList(reinterpret_cast<amdgpu_bo_handle*>(this + 1)),
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 479)
     m_pResourcePriorityList(pCreateInfo[0].enableGpuMemoryPriorities ?
         reinterpret_cast<uint8*>(m_pResourceList + Pal::Device::CmdBufMemReferenceLimit) : nullptr),
-#else
-    m_pResourcePriorityList(nullptr),
-#endif
     m_resourceListSize(Pal::Device::CmdBufMemReferenceLimit),
     m_numResourcesInList(0),
     m_memListResourcesInList(0),

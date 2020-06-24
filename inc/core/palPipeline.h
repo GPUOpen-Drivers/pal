@@ -159,16 +159,12 @@ union PipelineCreateFlags
     struct
     {
         uint32 clientInternal     : 1;  ///< Internal pipeline not created by the application.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 488
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 488) && (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 502)
+#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 502)
         uint32 preferNonLocalHeap : 1;  ///< Use Gart for the PSO memory.
 #else
         uint32 overrideGpuHeap    : 1;  ///< Override the default GPU heap (local invisible) the pipeline resides in.
 #endif
         uint32 reserved           : 30; ///< Reserved for future use.
-#else
-        uint32 reserved           : 31; ///< Reserved for future use.
-#endif
     };
     uint32 u32All;                  ///< Flags packed as 32-bit uint.
 };
@@ -282,13 +278,11 @@ struct GraphicsPipelineCreateInfo
                                                ///  with this pipeline.  All of this info must be consistent with the
                                                ///  full topology specified by ICmdBuffer::SetPrimitiveTopology() when
                                                ///  drawing with this pipeline bound.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 473
         /// Number of vertex buffer slots which are accessed by this pipeline.  Behavior is undefined if the pipeline
         /// tries to access a vertex buffer slot outside the range [0, vertexBufferCount).  It is generally advisable
         /// to make this the minimum value possible because that reduces the number of vertex buffer slots PAL has to
         /// maintain for this pipeline when recording command buffers.
         uint32            vertexBufferCount;
-#endif
     } iaState;                                 ///< Input assembler state.
 
     struct
@@ -323,11 +317,9 @@ struct GraphicsPipelineCreateInfo
         bool    alphaToCoverageEnable;          ///< Enable alpha to coverage.
         bool    dualSourceBlendEnable;          ///< Blend state bound at draw time will use a dual source blend mode.
         LogicOp logicOp;                        ///< Logic operation to perform.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 497
         bool    uavExportSingleDraw;            ///< When UAV export is enabled, acts as a hint that only a single draw
                                                 ///  is done on a color target with this or subsequent pipelines before
                                                 ///  a barrier. Improves performance by allowing pipelines to overlap.
-#endif
 
         struct
         {
@@ -375,12 +367,6 @@ struct PipelineInfo
     PipelineHash internalPipelineHash;  ///< 128-bit identifier extracted from this pipeline's ELF binary, composed of
                                         ///  the state the compiler decided was appropriate to identify the compiled
                                         ///  shaders.  The lower 64 bits are "stable"; the upper 64 bits are "unique".
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 476
-    uint64       palRuntimeHash;        ///< Unique 64-bit identifier for the PAL pipeline, composed of compiler
-                                        ///  information and PAL-specific runtime-adjacent information. Mapping of
-                                        ///  PAL runtime hash to internal pipeline hash is many-to-one.
-#endif
 
     struct
     {

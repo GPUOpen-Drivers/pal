@@ -220,9 +220,6 @@ Result CmdBuffer::Begin(
             m_buildFlags.enableTmz = 0;
 #endif
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 475
-            m_buildFlags.useCpuPathForTableUpdates = 0;
-#endif
             if (settings.cmdBufForceCpuUpdatePath == CmdBufForceCpuUpdatePath::CmdBufForceCpuUpdatePathOn)
             {
                 m_buildFlags.useCpuPathForTableUpdates = 1;
@@ -679,11 +676,7 @@ gpusize CmdBuffer::AllocateGpuScratchMem(
 // access only. Hence client is responsible for resetting the event from GPU, and cannot call Set(), Reset(),
 // GetStatus().
 Result CmdBuffer::AllocateAndBindGpuMemToEvent(
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 474
     IGpuEvent* pGpuEvent)
-#else
-    GpuEvent* pGpuEvent)
-#endif
 {
     PAL_ASSERT(pGpuEvent != nullptr);
 
@@ -777,7 +770,7 @@ void CmdBuffer::CmdBarrier(
             }
         } // end loop through all the transitions associated with this barrier
     }
-#endif // PAL_ENABLE_PRINTS_ASSERTS
+#endif
 }
 
 // =====================================================================================================================
@@ -787,7 +780,7 @@ void CmdBuffer::CmdRelease(
 {
 #if PAL_ENABLE_PRINTS_ASSERTS
     VerifyBarrierTransitions(releaseInfo);
-#endif // PAL_ENABLE_PRINTS_ASSERTS
+#endif
 }
 
 // =====================================================================================================================
@@ -798,7 +791,7 @@ void CmdBuffer::CmdAcquire(
 {
 #if PAL_ENABLE_PRINTS_ASSERTS
     VerifyBarrierTransitions(acquireInfo);
-#endif // PAL_ENABLE_PRINTS_ASSERTS
+#endif
 }
 
 // =====================================================================================================================
@@ -807,7 +800,7 @@ void CmdBuffer::CmdReleaseThenAcquire(
 {
 #if PAL_ENABLE_PRINTS_ASSERTS
     VerifyBarrierTransitions(barrierInfo);
-#endif // PAL_ENABLE_PRINTS_ASSERTS
+#endif
 }
 
 // =====================================================================================================================

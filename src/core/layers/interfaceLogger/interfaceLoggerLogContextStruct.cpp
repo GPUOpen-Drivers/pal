@@ -90,10 +90,8 @@ void LogContext::Struct(
 
     EndList();
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 482
     KeyAndCacheCoherencyUsageFlags("globalSrcCacheMask", value.globalSrcCacheMask);
     KeyAndCacheCoherencyUsageFlags("globalDstCacheMask", value.globalDstCacheMask);
-#endif
 
     KeyAndBeginList("transitions", false);
 
@@ -633,12 +631,10 @@ void LogContext::Struct(
         Value("usesCeRamCmds");
     }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 475
     if (value.flags.useCpuPathForTableUpdates)
     {
         Value("useCpuPathForTableUpdates");
     }
-#endif
 
     if (value.flags.disallowNestedLaunchViaIb2)
     {
@@ -926,18 +922,6 @@ void LogContext::Struct(
         KeyAndValue(pEngineName, value.ceRamSizeUsed[idx]);
     }
     EndMap();
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 469
-    KeyAndBeginList("indirectUserDataTables", false);
-    for (uint32 idx = 0; idx < MaxIndirectUserDataTables; ++idx)
-    {
-        BeginMap(false);
-        KeyAndValue("sizeInDwords", value.indirectUserDataTable[idx].sizeInDwords);
-        KeyAndValue("offsetInDwords", value.indirectUserDataTable[idx].offsetInDwords);
-         EndMap();
-    }
-    EndList();
-#endif
 
     KeyAndStruct("supportedFullScreenFrameMetadata", value.supportedFullScreenFrameMetadata);
     KeyAndEnum("internalTexOptLevel", value.internalTexOptLevel);
@@ -1549,13 +1533,6 @@ void LogContext::Struct(
         Value("prt");
     }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 481
-    if (value.noMetadata)
-    {
-        Value("noMetadata");
-    }
-#endif
-
     if (value.needSwizzleEqs)
     {
         Value("needSwizzleEqs");
@@ -1607,9 +1584,7 @@ void LogContext::Struct(
     KeyAndEnum("tilingPreference", value.tilingPreference);
     KeyAndEnum("tilingOptMode", value.tilingOptMode);
     KeyAndValue("tileSwizzle", value.tileSwizzle);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 481
     KeyAndEnum("metadataMode", value.metadataMode);
-#endif
     KeyAndValue("maxBaseAlign", value.maxBaseAlign);
     KeyAndValue("rowPitch", value.rowPitch);
     KeyAndValue("depthPitch", value.depthPitch);
@@ -1743,18 +1718,9 @@ void LogContext::Struct(
     KeyAndValue("samplePatternIdx", value.samplePatternIdx);
     KeyAndStruct("zRange", value.zRange);
     KeyAndEnum("texOptLevel", value.texOptLevel);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 478
     KeyAndStruct("possibleLayouts", value.possibleLayouts);
-#endif
 
     KeyAndBeginList("flags", true);
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 478
-    if (value.flags.shaderWritable)
-    {
-        Value("shaderWritable");
-    }
-#endif
 
     if (value.flags.zRangeValid)
     {
@@ -1790,22 +1756,12 @@ void LogContext::Struct(
             KeyAndValue("entryCount", value.pParams[idx].userData.entryCount);
             EndMap();
         }
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 473
         else if (value.pParams[idx].type == IndirectParamType::BindVertexData)
         {
             KeyAndBeginMap("vertexData", false);
             KeyAndValue("bufferId", value.pParams[idx].vertexData.bufferId);
             EndMap();
         }
-#else
-        else if (value.pParams[idx].type == IndirectParamType::BindUntypedSrd)
-        {
-            KeyAndBeginMap("untypedSrd", false);
-            KeyAndValue("tableId", value.pParams[idx].untypedSrd.tableId);
-            KeyAndValue("dwordOffset", value.pParams[idx].untypedSrd.dwordOffset);
-            EndMap();
-        }
-#endif
 
         EndMap();
     }
@@ -2232,13 +2188,6 @@ void LogContext::Struct(
     KeyAndObject("swapChain", value.pSwapChain);
     KeyAndValue("imageIndex", value.imageIndex);
     KeyAndBeginList("flags", true);
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 466
-    if (value.flags.turboSyncEnabled)
-    {
-        Value("turboSyncEnabled");
-    }
-#endif
 
     if (value.flags.notifyOnly)
     {

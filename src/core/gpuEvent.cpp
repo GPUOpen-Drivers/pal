@@ -35,31 +35,11 @@ namespace Pal
 static constexpr gpusize GpuRequiredMemSizePerSlotInBytes = 4;
 static constexpr gpusize GpuRequiredMemAlignment          = 8;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 474
-// =====================================================================================================================
-Result GpuEvent::CreateInternal(
-    Device*                   pDevice,
-    const GpuEventCreateInfo& createInfo,
-    void*                     pMemory,
-    GpuEvent**                ppEvent)
-{
-    (*ppEvent) = PAL_PLACEMENT_NEW(pMemory) GpuEvent(createInfo, pDevice);
-
-    // Intentionally do not call Init() here, since we don't want the init method to allocate GPU memory!  It will be
-    // managed by the caller using BindGpuMemory().
-
-    return Result::Success;
-}
-#endif
-
 // =====================================================================================================================
 GpuEvent::GpuEvent(
     const GpuEventCreateInfo& createInfo,
     Device*                   pDevice)
     :
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 474
-    m_ownsGpuMemory(false),
-#endif
     m_createInfo(createInfo),
     m_pDevice(pDevice),
     m_pEventData(nullptr),
@@ -90,69 +70,8 @@ GpuEvent::~GpuEvent()
             const Result unmapResult = m_gpuMemory.Unmap();
             PAL_ASSERT(unmapResult == Result::Success);
         }
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 474
-        if (m_ownsGpuMemory)
-        {
-            const Result freeResult = m_pDevice->MemMgr()->FreeGpuMem(m_gpuMemory.Memory(), m_gpuMemory.Offset());
-            PAL_ASSERT(freeResult == Result::Success);
-        }
-#endif
     }
 }
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 474
-// =====================================================================================================================
-Result GpuEvent::Init()
-{
-    const bool    cpuVisible                = (m_createInfo.flags.gpuAccessOnly == 0);
-    const gpusize gpuRequiredMemSizeInBytes = GpuRequiredMemSizePerSlotInBytes * m_numSlotsPerEvent;
-
-    GpuMemoryCreateInfo createInfo = {};
-    createInfo.size      = gpuRequiredMemSizeInBytes;
-    createInfo.alignment = GpuRequiredMemAlignment;
-    createInfo.vaRange   = VaRange::Default;
-    createInfo.priority  = GpuMemPriority::Normal;
-    createInfo.heapCount = 1;
-    createInfo.heaps[0]  = cpuVisible ? GpuHeapGartCacheable : GpuHeapInvisible;
-
-    GpuMemoryInternalCreateInfo internalInfo = {};
-    internalInfo.flags.alwaysResident = 1;
-
-#if PAL_BUILD_GFX
-    // If queues read/write through caches we can deadlock GPU events by ignoring CPU writes.
-    if (m_pDevice->ChipProperties().gfxip.supportGl2Uncached && cpuVisible)
-    {
-        internalInfo.mtype = MType::Uncached;
-    }
-#endif
-
-    GpuMemory* pMemory = nullptr;
-    gpusize    offset  = 0;
-    Result     result  = m_pDevice->MemMgr()->AllocateGpuMem(createInfo, internalInfo, false, &pMemory, &offset);
-
-    if (result == Result::Success)
-    {
-        m_ownsGpuMemory = true;
-        m_gpuMemory.Update(pMemory, offset);
-
-        // If the event is CPU-visible we keep it mapped and initialize it to the reset state.
-        if (cpuVisible)
-        {
-            void* pCpuAddr = nullptr;
-            result = m_gpuMemory.Map(&pCpuAddr);
-
-            if (result == Result::Success)
-            {
-                m_pEventData = static_cast<uint32*>(pCpuAddr);
-                result       = Reset();
-            }
-        }
-    }
-
-    return result;
-}
-#endif
 
 // =====================================================================================================================
 // Destroys this GpuEvent object. Clients are responsible for freeing the system memory the object occupies.

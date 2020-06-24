@@ -622,7 +622,7 @@ PAL_INLINE bool AreRegistersInRangeList(
 
     return found;
 }
-#endif // #if PAL_ENABLE_PRINTS_ASSERTS
+#endif
 
 } // Gfx6
 } // Pal

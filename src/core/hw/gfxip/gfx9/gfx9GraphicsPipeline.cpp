@@ -316,14 +316,10 @@ Result GraphicsPipeline::HwlInit(
                                           loadInfo.loadedShRegCount);
         result = PerformRelocationsAndUploadToGpuMemory(
             metadata,
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 488)
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 488) && (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 502)
+#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 502)
             (createInfo.flags.preferNonLocalHeap == 1) ? GpuHeapGartUswc : GpuHeapInvisible,
 #else
             (createInfo.flags.overrideGpuHeap == 1) ? createInfo.preferredHeapType : GpuHeapInvisible,
-#endif
-#else
-            GpuHeapInvisible,
 #endif
             &uploader);
 
@@ -675,14 +671,6 @@ uint32* GraphicsPipeline::WriteContextCommands(
 
         // NOTE: The Hs and Gs chunks don't expect us to call WriteContextCommands() when using the LOAD_INDEX path.
         pCmdSpace = m_chunkVsPs.WriteContextCommands<true>(pCmdStream, pCmdSpace);
-    }
-
-    if (m_pDevice->Settings().disableDfsm == false)
-    {
-        // - Driver must insert FLUSH_DFSM event whenever the ... channel mask changes (ARGB to RGB)
-        //
-        // Channel-mask changes refer to the CB_TARGET_MASK register
-        pCmdSpace += CmdUtil::BuildNonSampleEventWrite(FLUSH_DFSM, EngineTypeUniversal, pCmdSpace);
     }
 
     return pCmdSpace;
@@ -1438,11 +1426,7 @@ void GraphicsPipeline::SetupNonShaderRegisters(
 
     if (m_signature.uavExportTableAddr != UserDataNotMapped)
     {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 497
         m_uavExportRequiresFlush = (createInfo.cbState.uavExportSingleDraw == false);
-#else
-        m_uavExportRequiresFlush = true;
-#endif
     }
 
     // Override some register settings based on toss points.  These toss points cannot be processed in the hardware
@@ -2188,7 +2172,7 @@ bool GraphicsPipeline::PsAllowsPunchout() const
 // =====================================================================================================================
 // Updates the NGG Primitive Constant Buffer with the values from this pipeline.
 void GraphicsPipeline::UpdateNggPrimCb(
-    Abi::PrimShaderPsoCb* pPrimShaderCb
+    Abi::PrimShaderCullingCb* pPrimShaderCb
     ) const
 {
     pPrimShaderCb->paClVteCntl  = m_regs.context.paClVteCntl.u32All;

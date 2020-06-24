@@ -162,7 +162,12 @@ Result Platform::Create(
     // Create either a "null" device (good for off-line shader compilation and not much else) or a real device.
     if (createInfo.flags.createNullDevice)
     {
+#if PAL_BUILD_NULL_DEVICE
         pPlatform = Pal::NullDevice::Platform::CreateInstance(createInfo, allocCb, pPlacementAddr);
+#else
+        // Why are you trying to do this?
+        PAL_ASSERT_ALWAYS();
+#endif
     }
     else
     {

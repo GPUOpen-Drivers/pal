@@ -322,18 +322,7 @@ void FillSqttAsicInfo(
             computeUnitPerShaderEngine = totalActiveCu;
         }
     }
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 491
-    if (properties.gfxLevel > Pal::GfxIpLevel::GfxIp9)
-    {
-        pAsicInfo->computeUnitPerShaderEngine = computeUnitPerShaderEngine * 2;
-    }
-    else
-    {
-        pAsicInfo->computeUnitPerShaderEngine = computeUnitPerShaderEngine;
-    }
-#else
     pAsicInfo->computeUnitPerShaderEngine = computeUnitPerShaderEngine;
-#endif
     pAsicInfo->simdPerComputeUnit         = properties.gfxipProperties.shaderCore.numSimdsPerCu;
     pAsicInfo->wavefrontsPerSimd          = properties.gfxipProperties.shaderCore.numWavefrontsPerSimd;
     pAsicInfo->minimumVgprAlloc           = properties.gfxipProperties.shaderCore.minVgprAlloc;
@@ -1515,7 +1504,6 @@ Result GpaSession::Begin(
         result = Result::ErrorUnavailable;
     }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 474
     if (result == Result::Success)
     {
         // Allocate GPU memory to the event at Begin() because we recycle all memory at Reset().
@@ -1536,7 +1524,6 @@ Result GpaSession::Begin(
             result = m_pGpuEvent->BindGpuMemory(gpuMemInfo.pGpuMemory, offset);
         }
     }
-#endif
 
     if (result == Result::Success)
     {
@@ -1625,7 +1612,6 @@ Result GpaSession::End(
         // Mark completion after heap copy cmd finishes
         pCmdBuf->CmdSetEvent(*m_pGpuEvent, HwPipeBottom);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 474
         // Issue a barrier to make sure GPU event data is flushed to memory.
         barrierTransition.srcCacheMask = CoherTimestamp;
         barrierTransition.dstCacheMask = CoherMemory;
@@ -1639,7 +1625,6 @@ Result GpaSession::End(
         barrierInfo.reason             = Developer::BarrierReasonFlushL2CachedData;
 
         pCmdBuf->CmdBarrier(barrierInfo);
-#endif
 
         m_sessionState = GpaSessionState::Complete;
 
@@ -2644,13 +2629,8 @@ Result GpaSession::RegisterPipeline(
 
     if (result == Result::Success)
     {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 476
-        result = m_registeredPipelines.Contains(pipeInfo.palRuntimeHash) ? Result::AlreadyExists :
-                 m_registeredPipelines.Insert(pipeInfo.palRuntimeHash);
-#else
         result = m_registeredPipelines.Contains(pipeInfo.internalPipelineHash.unique) ? Result::AlreadyExists :
                  m_registeredPipelines.Insert(pipeInfo.internalPipelineHash.unique);
-#endif
     }
 
     m_registerPipelineLock.UnlockForWrite();
@@ -2738,6 +2718,63 @@ Result GpaSession::UnregisterPipeline(
     const IPipeline* pPipeline)
 {
     return AddCodeObjectLoadEvent(pPipeline, CodeObjectLoadEventType::UnloadFromGpuMemory);
+}
+
+// =====================================================================================================================
+// Validate a list of perfcounters.
+Result GpaSession::ValidatePerfCounters(
+    Pal::IDevice*        pDevice,
+    const PerfCounterId* pCounters,
+    const uint32         numCounters)
+{
+    Result result = Result::ErrorOutOfMemory;
+
+    // Load PerfExperiment properties to this given device / GpaSession
+    Pal::PerfExperimentProperties perfExperimentProps;
+    result = pDevice->GetPerfExperimentProperties(&perfExperimentProps);
+
+    if (result == Result::Success)
+    {
+        Util::HashSet<BlockEventId, GpaAllocator> counterSet(16, m_pPlatform);
+        result = counterSet.Init();
+        uint32 count[static_cast<size_t>(GpuBlock::Count)] = {};
+
+        for (uint32 i = 0; ((i < numCounters) && (result == Result::Success)); i++)
+        {
+            // Validate the requested counters
+            const uint32 blockIdx = static_cast<uint32>(pCounters[i].block);
+
+            PAL_ASSERT(blockIdx < static_cast<uint32>(GpuBlock::Count));
+
+            BlockEventId key = { pCounters[i].block, pCounters[i].eventId };
+            if (counterSet.Contains(key) == false)
+            {
+                count[blockIdx]++;
+
+                if (count[blockIdx] > perfExperimentProps.blocks[blockIdx].maxGlobalSharedCounters)
+                {
+                    // Too many counters enabled for this block.
+                    result = Result::ErrorInitializationFailed;
+                }
+                else if (pCounters[i].eventId > perfExperimentProps.blocks[blockIdx].maxEventId)
+                {
+                    // Invalid event ID.
+                    result = Result::ErrorInitializationFailed;
+                }
+                else if (pCounters[i].instance >= perfExperimentProps.blocks[blockIdx].instanceCount)
+                {
+                    // Too many instance of this block
+                    result = Result::ErrorInitializationFailed;
+                }
+                else
+                {
+                    result = counterSet.Insert(key);
+                }
+            }
+        }
+    }
+
+    return result;
 }
 
 // =====================================================================================================================

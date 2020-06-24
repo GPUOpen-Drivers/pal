@@ -224,12 +224,12 @@ WindowSystem::WindowSystem(
 
 // =====================================================================================================================
 // Get the window's geometry information through platform specific implementation
-Result WindowSystem::GetWindowGeometry(
-    Device*         pDevice,
-    WsiPlatform     platform,
-    OsDisplayHandle hDisplay,
-    OsWindowHandle  hWindow,
-    Extent2d*       pExtents)
+Result WindowSystem::GetWindowProperties(
+    Device*              pDevice,
+    WsiPlatform          platform,
+    OsDisplayHandle      hDisplay,
+    OsWindowHandle       hWindow,
+    SwapChainProperties* pWindowProperties)
 {
     Result result = Result::ErrorUnavailable;
 
@@ -239,19 +239,19 @@ Result WindowSystem::GetWindowGeometry(
         {
 #if PAL_HAVE_DRI3_PLATFORM
         case WsiPlatform::Xcb:
-            result = Dri3WindowSystem::GetWindowGeometry(pDevice, hDisplay, hWindow, pExtents);
+            result = Dri3WindowSystem::GetWindowProperties(pDevice, hDisplay, hWindow, pWindowProperties);
             break;
         case WsiPlatform::Xlib:
-            result = Dri3WindowSystem::GetWindowGeometryXlib(pDevice, hDisplay, hWindow, pExtents);
+            result = Dri3WindowSystem::GetWindowPropertiesXlib(pDevice, hDisplay, hWindow, pWindowProperties);
             break;
 #endif
 #if PAL_HAVE_WAYLAND_PLATFORM
         case WsiPlatform::Wayland:
-            result = WaylandWindowSystem::GetWindowGeometry(pDevice, hDisplay, hWindow, pExtents);
+            result = WaylandWindowSystem::GetWindowProperties(pDevice, hDisplay, hWindow, pWindowProperties);
             break;
 #endif
         case WsiPlatform::DirectDisplay:
-            result = Result::Success;
+            result = DisplayWindowSystem::GetWindowProperties(pDevice, hDisplay, hWindow, pWindowProperties);
             break;
         default:
             PAL_NEVER_CALLED();

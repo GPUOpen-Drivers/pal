@@ -1063,9 +1063,7 @@ GpuBlock StringToGpuBlock(
         "GUS",     // GpuBlock::Gus
         "GCR",     // GpuBlock::Gcr
         "PH",      // GpuBlock::Ph
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION > 485
         "UTCL1",   // GpuBlock::UtcL1
-#endif
     };
 
     static_assert(ArrayLen(TranslationTbl) == static_cast<uint32>(GpuBlock::Count),

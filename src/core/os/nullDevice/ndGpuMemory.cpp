@@ -23,6 +23,8 @@
  *
  **********************************************************************************************************************/
 
+#if PAL_BUILD_NULL_DEVICE
+
 #include "core/platform.h"
 #include "core/os/nullDevice/ndDevice.h"
 #include "core/os/nullDevice/ndGpuMemory.h"
@@ -105,7 +107,7 @@ OsExternalHandle NdGpuMemory::ExportExternalHandle(
     return nullptr;
 #endif
 }
-#endif // PAL_KMT_BUILD || PAL_AMDGPU_BUILD
+#endif
 
 // =====================================================================================================================
 // Performs OS-specific initialization for allocating peer memory objects.
@@ -159,3 +161,5 @@ Result NdGpuMemory::OsUnmap()
 
 } // NullDevice
 } // Pal
+
+#endif

@@ -61,4 +61,4 @@ private:
 
 typedef VamList<VamSection> SectionList;
 
-#endif  // __VAMSECTIONALLOC_H__
+#endif

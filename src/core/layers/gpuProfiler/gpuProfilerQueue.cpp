@@ -94,12 +94,12 @@ Queue::~Queue()
     Platform* pPlatform = static_cast<Platform*>(m_pDevice->GetPlatform());
     if (m_nextSubmitInfo.pCmdBufCount != nullptr)
     {
-        PAL_SAFE_FREE(m_nextSubmitInfo.pCmdBufCount, pPlatform);
+        PAL_SAFE_DELETE_ARRAY(m_nextSubmitInfo.pCmdBufCount, pPlatform);
     }
 
     if (m_nextSubmitInfo.pNestedCmdBufCount != nullptr)
     {
-        PAL_SAFE_FREE(m_nextSubmitInfo.pNestedCmdBufCount, pPlatform);
+        PAL_SAFE_DELETE_ARRAY(m_nextSubmitInfo.pNestedCmdBufCount, pPlatform);
     }
 
     for (uint32 qIdx = 0; qIdx < m_queueCount; qIdx++)
@@ -128,8 +128,10 @@ Queue::~Queue()
             PAL_SAFE_FREE(info.pCmdAllocator, m_pDevice->GetPlatform());
         }
 
-        PAL_SAFE_FREE(m_pQueueInfos[qIdx].pAvailableCmdBufs, pPlatform);
-        PAL_SAFE_FREE(m_pQueueInfos[qIdx].pAvailableNestedCmdBufs, pPlatform);
+        PAL_SAFE_DELETE(m_pQueueInfos[qIdx].pAvailableCmdBufs, pPlatform);
+        PAL_SAFE_DELETE(m_pQueueInfos[qIdx].pBusyCmdBufs, pPlatform);
+        PAL_SAFE_DELETE(m_pQueueInfos[qIdx].pAvailableNestedCmdBufs, pPlatform);
+        PAL_SAFE_DELETE(m_pQueueInfos[qIdx].pBusyNestedCmdBufs, pPlatform);
     }
 
     PAL_ASSERT(m_pendingSubmits.NumElements() == 0);
@@ -167,7 +169,7 @@ Queue::~Queue()
 
     DestroyGpaSessionSampleConfig();
 
-    PAL_SAFE_FREE(m_pQueueInfos, pPlatform);
+    PAL_SAFE_DELETE_ARRAY(m_pQueueInfos, pPlatform);
 }
 
 // =====================================================================================================================
@@ -316,36 +318,36 @@ Result Queue::InternalSubmit(
         AssociateFenceWithLastSubmit(m_nextSubmitInfo.pFence);
 
         // Track this submission so we know when we can reclaim the queue-owned command buffers and fence.
-        m_pendingSubmits.PushBack(m_nextSubmitInfo);
+        result = m_pendingSubmits.PushBack(m_nextSubmitInfo);
         memset(&m_nextSubmitInfo, 0, sizeof(PendingSubmitInfo));
-    }
 
-    if (result == Result::Success)
-    {
-        m_nextSubmitInfo.pCmdBufCount = PAL_NEW_ARRAY(uint32, m_queueCount, pPlatform, AllocInternal);
-    }
+        if (result == Result::Success)
+        {
+            m_nextSubmitInfo.pCmdBufCount = PAL_NEW_ARRAY(uint32, m_queueCount, pPlatform, AllocInternal);
 
-    if (m_nextSubmitInfo.pCmdBufCount == nullptr)
-    {
-        result = Result::ErrorOutOfMemory;
-    }
-    else
-    {
-        memset(m_nextSubmitInfo.pCmdBufCount, 0, sizeof(uint32) * m_queueCount);
-    }
+            if (m_nextSubmitInfo.pCmdBufCount == nullptr)
+            {
+                result = Result::ErrorOutOfMemory;
+            }
+            else
+            {
+                memset(m_nextSubmitInfo.pCmdBufCount, 0, sizeof(uint32) * m_queueCount);
+            }
+        }
 
-    if (result == Result::Success)
-    {
-        m_nextSubmitInfo.pNestedCmdBufCount = PAL_NEW_ARRAY(uint32, m_queueCount, pPlatform, AllocInternal);
-    }
+        if (result == Result::Success)
+        {
+            m_nextSubmitInfo.pNestedCmdBufCount = PAL_NEW_ARRAY(uint32, m_queueCount, pPlatform, AllocInternal);
 
-    if (m_nextSubmitInfo.pNestedCmdBufCount == nullptr)
-    {
-        result = Result::ErrorOutOfMemory;
-    }
-    else
-    {
-        memset(m_nextSubmitInfo.pNestedCmdBufCount, 0, sizeof(uint32) * m_queueCount);
+            if (m_nextSubmitInfo.pNestedCmdBufCount == nullptr)
+            {
+                result = Result::ErrorOutOfMemory;
+            }
+            else
+            {
+                memset(m_nextSubmitInfo.pNestedCmdBufCount, 0, sizeof(uint32) * m_queueCount);
+            }
+        }
     }
 
     return result;
@@ -1091,8 +1093,8 @@ void Queue::ProcessIdleSubmits()
                 m_pQueueInfos[qIdx].pAvailableNestedCmdBufs->PushBack(info);
             }
         }
-        PAL_FREE(submitInfo.pCmdBufCount, pPlatform);
-        PAL_FREE(submitInfo.pNestedCmdBufCount, pPlatform);
+        PAL_SAFE_DELETE_ARRAY(submitInfo.pCmdBufCount, pPlatform);
+        PAL_SAFE_DELETE_ARRAY(submitInfo.pNestedCmdBufCount, pPlatform);
 
         for (uint32 i = 0; i < submitInfo.gpaSessionCount; i++)
         {

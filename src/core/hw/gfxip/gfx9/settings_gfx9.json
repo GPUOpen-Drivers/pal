@@ -139,20 +139,6 @@
       "Name": "DisableBorderColorPaletteBinds"
     },
     {
-      "Description": "Related to primitive ordered pixel shading.  If set, forces the PS to drain on anydetected overlapping wave",
-      "Tags": [
-        "General",
-        "Gfx9"
-      ],
-      "Defaults": {
-        "Default": false
-      },
-      "Scope": "PrivatePalGfx9Key",
-      "Type": "bool",
-      "VariableName": "drainPsOnOverlap",
-      "Name": "DrainPsOnOverlap"
-    },
-    {
       "ValidValues": {
         "IsEnum": true,
         "Values": [
@@ -2208,34 +2194,6 @@
       "Type": "bool",
       "VariableName": "disableBinningAppendConsume",
       "Name": "BinningDisableBinningAppendConsume"
-    },
-    {
-      "Description": "If true, DFSM is disabled.",
-      "Tags": [
-        "PBB and DFSM",
-        "Gfx9"
-      ],
-      "Defaults": {
-        "Default": true
-      },
-      "Scope": "PrivatePalGfx9Key",
-      "Type": "bool",
-      "VariableName": "disableDfsm",
-      "Name": "DisableDfsm"
-    },
-    {
-      "Description": "If true, DFSM is disabled when the pixel shader uses UAVs or ROVs.",
-      "Tags": [
-        "PBB and DFSM",
-        "Gfx9"
-      ],
-      "Defaults": {
-        "Default": true
-      },
-      "Scope": "PrivatePalGfx9Key",
-      "Type": "bool",
-      "VariableName": "disableDfsmPsUav",
-      "Name": "DisableDfsmPsUav"
     },
     {
       "Description": "Select method of shader prefetching:  0: CP DMA (primes UTCL2 and TCC) 1: PRIME_UTCL2 (primes the UTCL2) ",

@@ -42,27 +42,10 @@ public:
     GpuEvent(const GpuEventCreateInfo& createInfo, Device* pDevice);
     virtual ~GpuEvent();
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 474
-    // Helper which creates an internal event object which does not manage its own GPU memory.  Instead, the memory
-    // will be manage by the caller, using GetGpuMemoryRequirements() & BindGpuMemory().
-    static Result CreateInternal(
-        Device*                   pDevice,
-        const GpuEventCreateInfo& createInfo,
-        void*                     pMemory,
-        GpuEvent**                ppEvent);
-
-    Result Init();
-#endif
-
     virtual void Destroy() override;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 474
     virtual void GetGpuMemoryRequirements(GpuMemoryRequirements* pGpuMemReqs) const override;
     virtual Result BindGpuMemory(IGpuMemory* pGpuMemory, gpusize offset) override;
-#else
-    void GetGpuMemoryRequirements(GpuMemoryRequirements* pGpuMemReqs) const;
-    Result BindGpuMemory(IGpuMemory* pGpuMemory, gpusize offset);
-#endif
 
     virtual Result GetStatus() override;
     virtual Result Set() override;
@@ -78,12 +61,6 @@ public:
 
 private:
     Result CpuWrite(uint32 slotId, uint32 data);
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 474
-    // Temporary flag indicating that this object owns the GPU memory allocation and should free it during a call
-    // to Destroy().
-    bool  m_ownsGpuMemory;
-#endif
 
     const GpuEventCreateInfo m_createInfo;
     Device*const             m_pDevice;

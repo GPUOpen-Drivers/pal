@@ -222,17 +222,6 @@ public:
         uint32                bufferCount,
         const BufferViewInfo* pBuffers) override;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 473
-    virtual void CmdSetIndirectUserData(
-        uint16      tableId,
-        uint32      dwordOffset,
-        uint32      dwordSize,
-        const void* pSrcData) override;
-    virtual void CmdSetIndirectUserDataWatermark(
-        uint16 tableId,
-        uint32 dwordLimit) override;
-#endif
-
     virtual void CmdBindTargets(const BindTargetParams& params) override;
     virtual void CmdBindStreamOutTargets(const BindStreamOutTargetParams& params) override;
 

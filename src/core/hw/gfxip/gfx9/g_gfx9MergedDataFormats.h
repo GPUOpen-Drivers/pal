@@ -510,7 +510,7 @@ constexpr MergedFmtInfo Gfx9MergedChannelFmtInfoTbl[] =
         ChNumFormat::X4Y4_Unorm,           // ChNumFormat
         Chip::COLOR_INVALID,               // CB Channel Format
         Chip::NUMBER_UNORM,                // CB Numeric Format
-        Chip::IMG_DATA_FORMAT_4_4__HASCE,  // Image Channel Format
+        Chip::IMG_DATA_FORMAT_4_4__GFX09,  // Image Channel Format
         Chip::IMG_NUM_FORMAT_UNORM,        // Image Numeric Format
         Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
         Chip::BUF_NUM_FORMAT_UNORM,        // Buffer Numeric Format
@@ -522,7 +522,7 @@ constexpr MergedFmtInfo Gfx9MergedChannelFmtInfoTbl[] =
         ChNumFormat::X4Y4_Uscaled,         // ChNumFormat
         Chip::COLOR_INVALID,               // CB Channel Format
         Chip::NUMBER_USCALED,              // CB Numeric Format
-        Chip::IMG_DATA_FORMAT_4_4__HASCE,  // Image Channel Format
+        Chip::IMG_DATA_FORMAT_4_4__GFX09,  // Image Channel Format
         Chip::IMG_NUM_FORMAT_USCALED,      // Image Numeric Format
         Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
         Chip::BUF_NUM_FORMAT_USCALED,      // Buffer Numeric Format
@@ -534,7 +534,7 @@ constexpr MergedFmtInfo Gfx9MergedChannelFmtInfoTbl[] =
         ChNumFormat::L4A4_Unorm,           // ChNumFormat
         Chip::COLOR_INVALID,               // CB Channel Format
         Chip::NUMBER_UNORM,                // CB Numeric Format
-        Chip::IMG_DATA_FORMAT_4_4__HASCE,  // Image Channel Format
+        Chip::IMG_DATA_FORMAT_4_4__GFX09,  // Image Channel Format
         Chip::IMG_NUM_FORMAT_UNORM,        // Image Numeric Format
         Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
         Chip::BUF_NUM_FORMAT_UNORM,        // Buffer Numeric Format
@@ -715,7 +715,7 @@ constexpr MergedFmtInfo Gfx9MergedChannelFmtInfoTbl[] =
         Chip::COLOR_8,                     // CB Channel Format
         Chip::NUMBER_SRGB,                 // CB Numeric Format
         Chip::IMG_DATA_FORMAT_8,           // Image Channel Format
-        Chip::IMG_NUM_FORMAT_SRGB__HASCE,  // Image Numeric Format
+        Chip::IMG_NUM_FORMAT_SRGB__GFX09,  // Image Numeric Format
         Chip::BUF_DATA_FORMAT_8,           // Buffer Image Format
         Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
         Chip::Z_INVALID,                   // ZFormat
@@ -835,7 +835,7 @@ constexpr MergedFmtInfo Gfx9MergedChannelFmtInfoTbl[] =
         Chip::COLOR_8_8,                   // CB Channel Format
         Chip::NUMBER_SRGB,                 // CB Numeric Format
         Chip::IMG_DATA_FORMAT_8_8,         // Image Channel Format
-        Chip::IMG_NUM_FORMAT_SRGB__HASCE,  // Image Numeric Format
+        Chip::IMG_NUM_FORMAT_SRGB__GFX09,  // Image Numeric Format
         Chip::BUF_DATA_FORMAT_8_8,         // Buffer Image Format
         Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
         Chip::Z_INVALID,                   // ZFormat
@@ -931,7 +931,7 @@ constexpr MergedFmtInfo Gfx9MergedChannelFmtInfoTbl[] =
         Chip::COLOR_8_8_8_8,               // CB Channel Format
         Chip::NUMBER_SRGB,                 // CB Numeric Format
         Chip::IMG_DATA_FORMAT_8_8_8_8,     // Image Channel Format
-        Chip::IMG_NUM_FORMAT_SRGB__HASCE,  // Image Numeric Format
+        Chip::IMG_NUM_FORMAT_SRGB__GFX09,  // Image Numeric Format
         Chip::BUF_DATA_FORMAT_8_8_8_8,     // Buffer Image Format
         Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
         Chip::Z_INVALID,                   // ZFormat
@@ -1506,7 +1506,7 @@ constexpr MergedFmtInfo Gfx9MergedChannelFmtInfoTbl[] =
         ChNumFormat::X9Y9Z9E5_Float,       // ChNumFormat
         Chip::COLOR_INVALID,               // CB Channel Format
         Chip::NUMBER_FLOAT,                // CB Numeric Format
-        Chip::IMG_DATA_FORMAT_5_9_9_9__HASCE, // Image Channel Format
+        Chip::IMG_DATA_FORMAT_5_9_9_9__GFX09, // Image Channel Format
         Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
         Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
         Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
@@ -1518,7 +1518,7 @@ constexpr MergedFmtInfo Gfx9MergedChannelFmtInfoTbl[] =
         ChNumFormat::Bc1_Unorm,            // ChNumFormat
         Chip::COLOR_INVALID,               // CB Channel Format
         Chip::NUMBER_UNORM,                // CB Numeric Format
-        Chip::IMG_DATA_FORMAT_BC1__HASCE,  // Image Channel Format
+        Chip::IMG_DATA_FORMAT_BC1__GFX09,  // Image Channel Format
         Chip::IMG_NUM_FORMAT_UNORM,        // Image Numeric Format
         Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
         Chip::BUF_NUM_FORMAT_UNORM,        // Buffer Numeric Format
@@ -1530,8 +1530,8 @@ constexpr MergedFmtInfo Gfx9MergedChannelFmtInfoTbl[] =
         ChNumFormat::Bc1_Srgb,             // ChNumFormat
         Chip::COLOR_INVALID,               // CB Channel Format
         Chip::NUMBER_SRGB,                 // CB Numeric Format
-        Chip::IMG_DATA_FORMAT_BC1__HASCE,  // Image Channel Format
-        Chip::IMG_NUM_FORMAT_SRGB__HASCE,  // Image Numeric Format
+        Chip::IMG_DATA_FORMAT_BC1__GFX09,  // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SRGB__GFX09,  // Image Numeric Format
         Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
         Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
         Chip::Z_INVALID,                   // ZFormat
@@ -1542,7 +1542,7 @@ constexpr MergedFmtInfo Gfx9MergedChannelFmtInfoTbl[] =
         ChNumFormat::Bc2_Unorm,            // ChNumFormat
         Chip::COLOR_INVALID,               // CB Channel Format
         Chip::NUMBER_UNORM,                // CB Numeric Format
-        Chip::IMG_DATA_FORMAT_BC2__HASCE,  // Image Channel Format
+        Chip::IMG_DATA_FORMAT_BC2__GFX09,  // Image Channel Format
         Chip::IMG_NUM_FORMAT_UNORM,        // Image Numeric Format
         Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
         Chip::BUF_NUM_FORMAT_UNORM,        // Buffer Numeric Format
@@ -1554,8 +1554,8 @@ constexpr MergedFmtInfo Gfx9MergedChannelFmtInfoTbl[] =
         ChNumFormat::Bc2_Srgb,             // ChNumFormat
         Chip::COLOR_INVALID,               // CB Channel Format
         Chip::NUMBER_SRGB,                 // CB Numeric Format
-        Chip::IMG_DATA_FORMAT_BC2__HASCE,  // Image Channel Format
-        Chip::IMG_NUM_FORMAT_SRGB__HASCE,  // Image Numeric Format
+        Chip::IMG_DATA_FORMAT_BC2__GFX09,  // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SRGB__GFX09,  // Image Numeric Format
         Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
         Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
         Chip::Z_INVALID,                   // ZFormat
@@ -1566,7 +1566,7 @@ constexpr MergedFmtInfo Gfx9MergedChannelFmtInfoTbl[] =
         ChNumFormat::Bc3_Unorm,            // ChNumFormat
         Chip::COLOR_INVALID,               // CB Channel Format
         Chip::NUMBER_UNORM,                // CB Numeric Format
-        Chip::IMG_DATA_FORMAT_BC3__HASCE,  // Image Channel Format
+        Chip::IMG_DATA_FORMAT_BC3__GFX09,  // Image Channel Format
         Chip::IMG_NUM_FORMAT_UNORM,        // Image Numeric Format
         Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
         Chip::BUF_NUM_FORMAT_UNORM,        // Buffer Numeric Format
@@ -1578,8 +1578,8 @@ constexpr MergedFmtInfo Gfx9MergedChannelFmtInfoTbl[] =
         ChNumFormat::Bc3_Srgb,             // ChNumFormat
         Chip::COLOR_INVALID,               // CB Channel Format
         Chip::NUMBER_SRGB,                 // CB Numeric Format
-        Chip::IMG_DATA_FORMAT_BC3__HASCE,  // Image Channel Format
-        Chip::IMG_NUM_FORMAT_SRGB__HASCE,  // Image Numeric Format
+        Chip::IMG_DATA_FORMAT_BC3__GFX09,  // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SRGB__GFX09,  // Image Numeric Format
         Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
         Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
         Chip::Z_INVALID,                   // ZFormat
@@ -1590,7 +1590,7 @@ constexpr MergedFmtInfo Gfx9MergedChannelFmtInfoTbl[] =
         ChNumFormat::Bc4_Unorm,            // ChNumFormat
         Chip::COLOR_INVALID,               // CB Channel Format
         Chip::NUMBER_UNORM,                // CB Numeric Format
-        Chip::IMG_DATA_FORMAT_BC4__HASCE,  // Image Channel Format
+        Chip::IMG_DATA_FORMAT_BC4__GFX09,  // Image Channel Format
         Chip::IMG_NUM_FORMAT_UNORM,        // Image Numeric Format
         Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
         Chip::BUF_NUM_FORMAT_UNORM,        // Buffer Numeric Format
@@ -1602,7 +1602,7 @@ constexpr MergedFmtInfo Gfx9MergedChannelFmtInfoTbl[] =
         ChNumFormat::Bc4_Snorm,            // ChNumFormat
         Chip::COLOR_INVALID,               // CB Channel Format
         Chip::NUMBER_SNORM,                // CB Numeric Format
-        Chip::IMG_DATA_FORMAT_BC4__HASCE,  // Image Channel Format
+        Chip::IMG_DATA_FORMAT_BC4__GFX09,  // Image Channel Format
         Chip::IMG_NUM_FORMAT_SNORM,        // Image Numeric Format
         Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
         Chip::BUF_NUM_FORMAT_SNORM,        // Buffer Numeric Format
@@ -1614,7 +1614,7 @@ constexpr MergedFmtInfo Gfx9MergedChannelFmtInfoTbl[] =
         ChNumFormat::Bc5_Unorm,            // ChNumFormat
         Chip::COLOR_INVALID,               // CB Channel Format
         Chip::NUMBER_UNORM,                // CB Numeric Format
-        Chip::IMG_DATA_FORMAT_BC5__HASCE,  // Image Channel Format
+        Chip::IMG_DATA_FORMAT_BC5__GFX09,  // Image Channel Format
         Chip::IMG_NUM_FORMAT_UNORM,        // Image Numeric Format
         Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
         Chip::BUF_NUM_FORMAT_UNORM,        // Buffer Numeric Format
@@ -1626,7 +1626,7 @@ constexpr MergedFmtInfo Gfx9MergedChannelFmtInfoTbl[] =
         ChNumFormat::Bc5_Snorm,            // ChNumFormat
         Chip::COLOR_INVALID,               // CB Channel Format
         Chip::NUMBER_SNORM,                // CB Numeric Format
-        Chip::IMG_DATA_FORMAT_BC5__HASCE,  // Image Channel Format
+        Chip::IMG_DATA_FORMAT_BC5__GFX09,  // Image Channel Format
         Chip::IMG_NUM_FORMAT_SNORM,        // Image Numeric Format
         Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
         Chip::BUF_NUM_FORMAT_SNORM,        // Buffer Numeric Format
@@ -1638,7 +1638,7 @@ constexpr MergedFmtInfo Gfx9MergedChannelFmtInfoTbl[] =
         ChNumFormat::Bc6_Ufloat,           // ChNumFormat
         Chip::COLOR_INVALID,               // CB Channel Format
         Chip::NUMBER_FLOAT,                // CB Numeric Format
-        Chip::IMG_DATA_FORMAT_BC6__HASCE,  // Image Channel Format
+        Chip::IMG_DATA_FORMAT_BC6__GFX09,  // Image Channel Format
         Chip::IMG_NUM_FORMAT_UNORM,        // Image Numeric Format
         Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
         Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
@@ -1650,7 +1650,7 @@ constexpr MergedFmtInfo Gfx9MergedChannelFmtInfoTbl[] =
         ChNumFormat::Bc6_Sfloat,           // ChNumFormat
         Chip::COLOR_INVALID,               // CB Channel Format
         Chip::NUMBER_FLOAT,                // CB Numeric Format
-        Chip::IMG_DATA_FORMAT_BC6__HASCE,  // Image Channel Format
+        Chip::IMG_DATA_FORMAT_BC6__GFX09,  // Image Channel Format
         Chip::IMG_NUM_FORMAT_SNORM,        // Image Numeric Format
         Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
         Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
@@ -1662,7 +1662,7 @@ constexpr MergedFmtInfo Gfx9MergedChannelFmtInfoTbl[] =
         ChNumFormat::Bc7_Unorm,            // ChNumFormat
         Chip::COLOR_INVALID,               // CB Channel Format
         Chip::NUMBER_UNORM,                // CB Numeric Format
-        Chip::IMG_DATA_FORMAT_BC7__HASCE,  // Image Channel Format
+        Chip::IMG_DATA_FORMAT_BC7__GFX09,  // Image Channel Format
         Chip::IMG_NUM_FORMAT_UNORM,        // Image Numeric Format
         Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
         Chip::BUF_NUM_FORMAT_UNORM,        // Buffer Numeric Format
@@ -1674,8 +1674,8 @@ constexpr MergedFmtInfo Gfx9MergedChannelFmtInfoTbl[] =
         ChNumFormat::Bc7_Srgb,             // ChNumFormat
         Chip::COLOR_INVALID,               // CB Channel Format
         Chip::NUMBER_SRGB,                 // CB Numeric Format
-        Chip::IMG_DATA_FORMAT_BC7__HASCE,  // Image Channel Format
-        Chip::IMG_NUM_FORMAT_SRGB__HASCE,  // Image Numeric Format
+        Chip::IMG_DATA_FORMAT_BC7__GFX09,  // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SRGB__GFX09,  // Image Numeric Format
         Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
         Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
         Chip::Z_INVALID,                   // ZFormat
@@ -1699,7 +1699,7 @@ constexpr MergedFmtInfo Gfx9MergedChannelFmtInfoTbl[] =
         Chip::COLOR_INVALID,               // CB Channel Format
         Chip::NUMBER_SRGB,                 // CB Numeric Format
         Chip::IMG_DATA_FORMAT_ETC2_RGB__GFX09, // Image Channel Format
-        Chip::IMG_NUM_FORMAT_SRGB__HASCE,  // Image Numeric Format
+        Chip::IMG_NUM_FORMAT_SRGB__GFX09,  // Image Numeric Format
         Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
         Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
         Chip::Z_INVALID,                   // ZFormat
@@ -1723,7 +1723,7 @@ constexpr MergedFmtInfo Gfx9MergedChannelFmtInfoTbl[] =
         Chip::COLOR_INVALID,               // CB Channel Format
         Chip::NUMBER_SRGB,                 // CB Numeric Format
         Chip::IMG_DATA_FORMAT_ETC2_RGBA1__GFX09, // Image Channel Format
-        Chip::IMG_NUM_FORMAT_SRGB__HASCE,  // Image Numeric Format
+        Chip::IMG_NUM_FORMAT_SRGB__GFX09,  // Image Numeric Format
         Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
         Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
         Chip::Z_INVALID,                   // ZFormat
@@ -1747,7 +1747,7 @@ constexpr MergedFmtInfo Gfx9MergedChannelFmtInfoTbl[] =
         Chip::COLOR_INVALID,               // CB Channel Format
         Chip::NUMBER_SRGB,                 // CB Numeric Format
         Chip::IMG_DATA_FORMAT_ETC2_RGBA__GFX09, // Image Channel Format
-        Chip::IMG_NUM_FORMAT_SRGB__HASCE,  // Image Numeric Format
+        Chip::IMG_NUM_FORMAT_SRGB__GFX09,  // Image Numeric Format
         Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
         Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
         Chip::Z_INVALID,                   // ZFormat
@@ -2310,7 +2310,7 @@ constexpr MergedFmtInfo Gfx9MergedChannelFmtInfoTbl[] =
         ChNumFormat::X8Y8_Z8Y8_Unorm,      // ChNumFormat
         Chip::COLOR_INVALID,               // CB Channel Format
         Chip::NUMBER_UNORM,                // CB Numeric Format
-        Chip::IMG_DATA_FORMAT_GB_GR__HASCE, // Image Channel Format
+        Chip::IMG_DATA_FORMAT_GB_GR__GFX09, // Image Channel Format
         Chip::IMG_NUM_FORMAT_UNORM,        // Image Numeric Format
         Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
         Chip::BUF_NUM_FORMAT_UNORM,        // Buffer Numeric Format
@@ -2322,7 +2322,7 @@ constexpr MergedFmtInfo Gfx9MergedChannelFmtInfoTbl[] =
         ChNumFormat::X8Y8_Z8Y8_Uscaled,    // ChNumFormat
         Chip::COLOR_INVALID,               // CB Channel Format
         Chip::NUMBER_USCALED,              // CB Numeric Format
-        Chip::IMG_DATA_FORMAT_GB_GR__HASCE, // Image Channel Format
+        Chip::IMG_DATA_FORMAT_GB_GR__GFX09, // Image Channel Format
         Chip::IMG_NUM_FORMAT_USCALED,      // Image Numeric Format
         Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
         Chip::BUF_NUM_FORMAT_USCALED,      // Buffer Numeric Format
@@ -2334,7 +2334,7 @@ constexpr MergedFmtInfo Gfx9MergedChannelFmtInfoTbl[] =
         ChNumFormat::Y8X8_Y8Z8_Unorm,      // ChNumFormat
         Chip::COLOR_INVALID,               // CB Channel Format
         Chip::NUMBER_UNORM,                // CB Numeric Format
-        Chip::IMG_DATA_FORMAT_BG_RG__HASCE, // Image Channel Format
+        Chip::IMG_DATA_FORMAT_BG_RG__GFX09, // Image Channel Format
         Chip::IMG_NUM_FORMAT_UNORM,        // Image Numeric Format
         Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
         Chip::BUF_NUM_FORMAT_UNORM,        // Buffer Numeric Format
@@ -2346,7 +2346,7 @@ constexpr MergedFmtInfo Gfx9MergedChannelFmtInfoTbl[] =
         ChNumFormat::Y8X8_Y8Z8_Uscaled,    // ChNumFormat
         Chip::COLOR_INVALID,               // CB Channel Format
         Chip::NUMBER_USCALED,              // CB Numeric Format
-        Chip::IMG_DATA_FORMAT_BG_RG__HASCE, // Image Channel Format
+        Chip::IMG_DATA_FORMAT_BG_RG__GFX09, // Image Channel Format
         Chip::IMG_NUM_FORMAT_USCALED,      // Image Numeric Format
         Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
         Chip::BUF_NUM_FORMAT_USCALED,      // Buffer Numeric Format
@@ -2654,7 +2654,7 @@ constexpr MergedImgDataFmtInfo Gfx9MergedImgDataFmtTbl[] =
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_SRGB__HASCE / IMG_NUM_FORMAT_ASTC_2D_10x6__GFX09
+          { // IMG_NUM_FORMAT_SRGB__GFX09 / IMG_NUM_FORMAT_ASTC_2D_10x6__GFX09
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
@@ -2742,7 +2742,7 @@ constexpr MergedImgDataFmtInfo Gfx9MergedImgDataFmtTbl[] =
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_SRGB__HASCE / IMG_NUM_FORMAT_ASTC_2D_10x6__GFX09
+          { // IMG_NUM_FORMAT_SRGB__GFX09 / IMG_NUM_FORMAT_ASTC_2D_10x6__GFX09
                ChNumFormat::X8_Srgb,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
@@ -2830,7 +2830,7 @@ constexpr MergedImgDataFmtInfo Gfx9MergedImgDataFmtTbl[] =
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_SRGB__HASCE / IMG_NUM_FORMAT_ASTC_2D_10x6__GFX09
+          { // IMG_NUM_FORMAT_SRGB__GFX09 / IMG_NUM_FORMAT_ASTC_2D_10x6__GFX09
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
@@ -2918,7 +2918,7 @@ constexpr MergedImgDataFmtInfo Gfx9MergedImgDataFmtTbl[] =
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_SRGB__HASCE / IMG_NUM_FORMAT_ASTC_2D_10x6__GFX09
+          { // IMG_NUM_FORMAT_SRGB__GFX09 / IMG_NUM_FORMAT_ASTC_2D_10x6__GFX09
                ChNumFormat::X8Y8_Srgb,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
@@ -3006,7 +3006,7 @@ constexpr MergedImgDataFmtInfo Gfx9MergedImgDataFmtTbl[] =
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_SRGB__HASCE / IMG_NUM_FORMAT_ASTC_2D_10x6__GFX09
+          { // IMG_NUM_FORMAT_SRGB__GFX09 / IMG_NUM_FORMAT_ASTC_2D_10x6__GFX09
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
@@ -3094,7 +3094,7 @@ constexpr MergedImgDataFmtInfo Gfx9MergedImgDataFmtTbl[] =
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_SRGB__HASCE / IMG_NUM_FORMAT_ASTC_2D_10x6__GFX09
+          { // IMG_NUM_FORMAT_SRGB__GFX09 / IMG_NUM_FORMAT_ASTC_2D_10x6__GFX09
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
@@ -3182,7 +3182,7 @@ constexpr MergedImgDataFmtInfo Gfx9MergedImgDataFmtTbl[] =
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_SRGB__HASCE / IMG_NUM_FORMAT_ASTC_2D_10x6__GFX09
+          { // IMG_NUM_FORMAT_SRGB__GFX09 / IMG_NUM_FORMAT_ASTC_2D_10x6__GFX09
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
@@ -3270,7 +3270,7 @@ constexpr MergedImgDataFmtInfo Gfx9MergedImgDataFmtTbl[] =
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_SRGB__HASCE / IMG_NUM_FORMAT_ASTC_2D_10x6__GFX09
+          { // IMG_NUM_FORMAT_SRGB__GFX09 / IMG_NUM_FORMAT_ASTC_2D_10x6__GFX09
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
@@ -3358,7 +3358,7 @@ constexpr MergedImgDataFmtInfo Gfx9MergedImgDataFmtTbl[] =
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_SRGB__HASCE / IMG_NUM_FORMAT_ASTC_2D_10x6__GFX09
+          { // IMG_NUM_FORMAT_SRGB__GFX09 / IMG_NUM_FORMAT_ASTC_2D_10x6__GFX09
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
@@ -3446,7 +3446,7 @@ constexpr MergedImgDataFmtInfo Gfx9MergedImgDataFmtTbl[] =
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_SRGB__HASCE / IMG_NUM_FORMAT_ASTC_2D_10x6__GFX09
+          { // IMG_NUM_FORMAT_SRGB__GFX09 / IMG_NUM_FORMAT_ASTC_2D_10x6__GFX09
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
@@ -3534,7 +3534,7 @@ constexpr MergedImgDataFmtInfo Gfx9MergedImgDataFmtTbl[] =
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_SRGB__HASCE / IMG_NUM_FORMAT_ASTC_2D_10x6__GFX09
+          { // IMG_NUM_FORMAT_SRGB__GFX09 / IMG_NUM_FORMAT_ASTC_2D_10x6__GFX09
                ChNumFormat::X8Y8Z8W8_Srgb,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
@@ -3622,7 +3622,7 @@ constexpr MergedImgDataFmtInfo Gfx9MergedImgDataFmtTbl[] =
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_SRGB__HASCE / IMG_NUM_FORMAT_ASTC_2D_10x6__GFX09
+          { // IMG_NUM_FORMAT_SRGB__GFX09 / IMG_NUM_FORMAT_ASTC_2D_10x6__GFX09
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
@@ -3710,7 +3710,7 @@ constexpr MergedImgDataFmtInfo Gfx9MergedImgDataFmtTbl[] =
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_SRGB__HASCE / IMG_NUM_FORMAT_ASTC_2D_10x6__GFX09
+          { // IMG_NUM_FORMAT_SRGB__GFX09 / IMG_NUM_FORMAT_ASTC_2D_10x6__GFX09
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
@@ -3798,7 +3798,7 @@ constexpr MergedImgDataFmtInfo Gfx9MergedImgDataFmtTbl[] =
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_SRGB__HASCE / IMG_NUM_FORMAT_ASTC_2D_10x6__GFX09
+          { // IMG_NUM_FORMAT_SRGB__GFX09 / IMG_NUM_FORMAT_ASTC_2D_10x6__GFX09
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
@@ -3886,7 +3886,7 @@ constexpr MergedImgDataFmtInfo Gfx9MergedImgDataFmtTbl[] =
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_SRGB__HASCE / IMG_NUM_FORMAT_ASTC_2D_10x6__GFX09
+          { // IMG_NUM_FORMAT_SRGB__GFX09 / IMG_NUM_FORMAT_ASTC_2D_10x6__GFX09
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
@@ -3974,7 +3974,7 @@ constexpr MergedImgDataFmtInfo Gfx9MergedImgDataFmtTbl[] =
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_SRGB__HASCE / IMG_NUM_FORMAT_ASTC_2D_10x6__GFX09
+          { // IMG_NUM_FORMAT_SRGB__GFX09 / IMG_NUM_FORMAT_ASTC_2D_10x6__GFX09
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
@@ -4062,7 +4062,7 @@ constexpr MergedImgDataFmtInfo Gfx9MergedImgDataFmtTbl[] =
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_SRGB__HASCE / IMG_NUM_FORMAT_ASTC_2D_10x6__GFX09
+          { // IMG_NUM_FORMAT_SRGB__GFX09 / IMG_NUM_FORMAT_ASTC_2D_10x6__GFX09
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
@@ -4150,7 +4150,7 @@ constexpr MergedImgDataFmtInfo Gfx9MergedImgDataFmtTbl[] =
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_SRGB__HASCE / IMG_NUM_FORMAT_ASTC_2D_10x6__GFX09
+          { // IMG_NUM_FORMAT_SRGB__GFX09 / IMG_NUM_FORMAT_ASTC_2D_10x6__GFX09
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
@@ -4238,7 +4238,7 @@ constexpr MergedImgDataFmtInfo Gfx9MergedImgDataFmtTbl[] =
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_SRGB__HASCE / IMG_NUM_FORMAT_ASTC_2D_10x6__GFX09
+          { // IMG_NUM_FORMAT_SRGB__GFX09 / IMG_NUM_FORMAT_ASTC_2D_10x6__GFX09
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
@@ -4326,7 +4326,7 @@ constexpr MergedImgDataFmtInfo Gfx9MergedImgDataFmtTbl[] =
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_SRGB__HASCE / IMG_NUM_FORMAT_ASTC_2D_10x6__GFX09
+          { // IMG_NUM_FORMAT_SRGB__GFX09 / IMG_NUM_FORMAT_ASTC_2D_10x6__GFX09
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
@@ -4414,7 +4414,7 @@ constexpr MergedImgDataFmtInfo Gfx9MergedImgDataFmtTbl[] =
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_SRGB__HASCE / IMG_NUM_FORMAT_ASTC_2D_10x6__GFX09
+          { // IMG_NUM_FORMAT_SRGB__GFX09 / IMG_NUM_FORMAT_ASTC_2D_10x6__GFX09
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
@@ -4502,7 +4502,7 @@ constexpr MergedImgDataFmtInfo Gfx9MergedImgDataFmtTbl[] =
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_SRGB__HASCE / IMG_NUM_FORMAT_ASTC_2D_10x6__GFX09
+          { // IMG_NUM_FORMAT_SRGB__GFX09 / IMG_NUM_FORMAT_ASTC_2D_10x6__GFX09
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
@@ -4590,7 +4590,7 @@ constexpr MergedImgDataFmtInfo Gfx9MergedImgDataFmtTbl[] =
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_SRGB__HASCE / IMG_NUM_FORMAT_ASTC_2D_10x6__GFX09
+          { // IMG_NUM_FORMAT_SRGB__GFX09 / IMG_NUM_FORMAT_ASTC_2D_10x6__GFX09
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
@@ -4678,7 +4678,7 @@ constexpr MergedImgDataFmtInfo Gfx9MergedImgDataFmtTbl[] =
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_SRGB__HASCE / IMG_NUM_FORMAT_ASTC_2D_10x6__GFX09
+          { // IMG_NUM_FORMAT_SRGB__GFX09 / IMG_NUM_FORMAT_ASTC_2D_10x6__GFX09
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
@@ -4766,7 +4766,7 @@ constexpr MergedImgDataFmtInfo Gfx9MergedImgDataFmtTbl[] =
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_SRGB__HASCE / IMG_NUM_FORMAT_ASTC_2D_10x6__GFX09
+          { // IMG_NUM_FORMAT_SRGB__GFX09 / IMG_NUM_FORMAT_ASTC_2D_10x6__GFX09
                ChNumFormat::Etc2X8Y8Z8_Srgb,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
@@ -4854,7 +4854,7 @@ constexpr MergedImgDataFmtInfo Gfx9MergedImgDataFmtTbl[] =
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_SRGB__HASCE / IMG_NUM_FORMAT_ASTC_2D_10x6__GFX09
+          { // IMG_NUM_FORMAT_SRGB__GFX09 / IMG_NUM_FORMAT_ASTC_2D_10x6__GFX09
                ChNumFormat::Etc2X8Y8Z8W8_Srgb,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
@@ -4942,7 +4942,7 @@ constexpr MergedImgDataFmtInfo Gfx9MergedImgDataFmtTbl[] =
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_SRGB__HASCE / IMG_NUM_FORMAT_ASTC_2D_10x6__GFX09
+          { // IMG_NUM_FORMAT_SRGB__GFX09 / IMG_NUM_FORMAT_ASTC_2D_10x6__GFX09
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
@@ -5030,7 +5030,7 @@ constexpr MergedImgDataFmtInfo Gfx9MergedImgDataFmtTbl[] =
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_SRGB__HASCE / IMG_NUM_FORMAT_ASTC_2D_10x6__GFX09
+          { // IMG_NUM_FORMAT_SRGB__GFX09 / IMG_NUM_FORMAT_ASTC_2D_10x6__GFX09
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
@@ -5118,7 +5118,7 @@ constexpr MergedImgDataFmtInfo Gfx9MergedImgDataFmtTbl[] =
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_SRGB__HASCE / IMG_NUM_FORMAT_ASTC_2D_10x6__GFX09
+          { // IMG_NUM_FORMAT_SRGB__GFX09 / IMG_NUM_FORMAT_ASTC_2D_10x6__GFX09
                ChNumFormat::Etc2X8Y8Z8W1_Srgb,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
@@ -5206,7 +5206,7 @@ constexpr MergedImgDataFmtInfo Gfx9MergedImgDataFmtTbl[] =
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_SRGB__HASCE / IMG_NUM_FORMAT_ASTC_2D_10x6__GFX09
+          { // IMG_NUM_FORMAT_SRGB__GFX09 / IMG_NUM_FORMAT_ASTC_2D_10x6__GFX09
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
@@ -5294,7 +5294,7 @@ constexpr MergedImgDataFmtInfo Gfx9MergedImgDataFmtTbl[] =
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_SRGB__HASCE / IMG_NUM_FORMAT_ASTC_2D_10x6__GFX09
+          { // IMG_NUM_FORMAT_SRGB__GFX09 / IMG_NUM_FORMAT_ASTC_2D_10x6__GFX09
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
@@ -5382,7 +5382,7 @@ constexpr MergedImgDataFmtInfo Gfx9MergedImgDataFmtTbl[] =
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_SRGB__HASCE / IMG_NUM_FORMAT_ASTC_2D_10x6__GFX09
+          { // IMG_NUM_FORMAT_SRGB__GFX09 / IMG_NUM_FORMAT_ASTC_2D_10x6__GFX09
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
@@ -5414,7 +5414,7 @@ constexpr MergedImgDataFmtInfo Gfx9MergedImgDataFmtTbl[] =
           },
       },
     },
-    { Chip::IMG_DATA_FORMAT_GB_GR__HASCE,
+    { Chip::IMG_DATA_FORMAT_GB_GR__GFX09,
       {
           { // IMG_NUM_FORMAT_UNORM / IMG_NUM_FORMAT_ASTC_2D_4x4__GFX09
                ChNumFormat::X8Y8_Z8Y8_Unorm,
@@ -5470,7 +5470,7 @@ constexpr MergedImgDataFmtInfo Gfx9MergedImgDataFmtTbl[] =
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_SRGB__HASCE / IMG_NUM_FORMAT_ASTC_2D_10x6__GFX09
+          { // IMG_NUM_FORMAT_SRGB__GFX09 / IMG_NUM_FORMAT_ASTC_2D_10x6__GFX09
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
@@ -5502,7 +5502,7 @@ constexpr MergedImgDataFmtInfo Gfx9MergedImgDataFmtTbl[] =
           },
       },
     },
-    { Chip::IMG_DATA_FORMAT_BG_RG__HASCE,
+    { Chip::IMG_DATA_FORMAT_BG_RG__GFX09,
       {
           { // IMG_NUM_FORMAT_UNORM / IMG_NUM_FORMAT_ASTC_2D_4x4__GFX09
                ChNumFormat::Y8X8_Y8Z8_Unorm,
@@ -5558,7 +5558,7 @@ constexpr MergedImgDataFmtInfo Gfx9MergedImgDataFmtTbl[] =
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_SRGB__HASCE / IMG_NUM_FORMAT_ASTC_2D_10x6__GFX09
+          { // IMG_NUM_FORMAT_SRGB__GFX09 / IMG_NUM_FORMAT_ASTC_2D_10x6__GFX09
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
@@ -5590,7 +5590,7 @@ constexpr MergedImgDataFmtInfo Gfx9MergedImgDataFmtTbl[] =
           },
       },
     },
-    { Chip::IMG_DATA_FORMAT_5_9_9_9__HASCE,
+    { Chip::IMG_DATA_FORMAT_5_9_9_9__GFX09,
       {
           { // IMG_NUM_FORMAT_UNORM / IMG_NUM_FORMAT_ASTC_2D_4x4__GFX09
                ChNumFormat::Undefined,
@@ -5646,7 +5646,7 @@ constexpr MergedImgDataFmtInfo Gfx9MergedImgDataFmtTbl[] =
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_SRGB__HASCE / IMG_NUM_FORMAT_ASTC_2D_10x6__GFX09
+          { // IMG_NUM_FORMAT_SRGB__GFX09 / IMG_NUM_FORMAT_ASTC_2D_10x6__GFX09
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
@@ -5678,7 +5678,7 @@ constexpr MergedImgDataFmtInfo Gfx9MergedImgDataFmtTbl[] =
           },
       },
     },
-    { Chip::IMG_DATA_FORMAT_BC1__HASCE,
+    { Chip::IMG_DATA_FORMAT_BC1__GFX09,
       {
           { // IMG_NUM_FORMAT_UNORM / IMG_NUM_FORMAT_ASTC_2D_4x4__GFX09
                ChNumFormat::Bc1_Unorm,
@@ -5734,7 +5734,7 @@ constexpr MergedImgDataFmtInfo Gfx9MergedImgDataFmtTbl[] =
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_SRGB__HASCE / IMG_NUM_FORMAT_ASTC_2D_10x6__GFX09
+          { // IMG_NUM_FORMAT_SRGB__GFX09 / IMG_NUM_FORMAT_ASTC_2D_10x6__GFX09
                ChNumFormat::Bc1_Srgb,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
@@ -5766,7 +5766,7 @@ constexpr MergedImgDataFmtInfo Gfx9MergedImgDataFmtTbl[] =
           },
       },
     },
-    { Chip::IMG_DATA_FORMAT_BC2__HASCE,
+    { Chip::IMG_DATA_FORMAT_BC2__GFX09,
       {
           { // IMG_NUM_FORMAT_UNORM / IMG_NUM_FORMAT_ASTC_2D_4x4__GFX09
                ChNumFormat::Bc2_Unorm,
@@ -5822,7 +5822,7 @@ constexpr MergedImgDataFmtInfo Gfx9MergedImgDataFmtTbl[] =
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_SRGB__HASCE / IMG_NUM_FORMAT_ASTC_2D_10x6__GFX09
+          { // IMG_NUM_FORMAT_SRGB__GFX09 / IMG_NUM_FORMAT_ASTC_2D_10x6__GFX09
                ChNumFormat::Bc2_Srgb,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
@@ -5854,7 +5854,7 @@ constexpr MergedImgDataFmtInfo Gfx9MergedImgDataFmtTbl[] =
           },
       },
     },
-    { Chip::IMG_DATA_FORMAT_BC3__HASCE,
+    { Chip::IMG_DATA_FORMAT_BC3__GFX09,
       {
           { // IMG_NUM_FORMAT_UNORM / IMG_NUM_FORMAT_ASTC_2D_4x4__GFX09
                ChNumFormat::Bc3_Unorm,
@@ -5910,7 +5910,7 @@ constexpr MergedImgDataFmtInfo Gfx9MergedImgDataFmtTbl[] =
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_SRGB__HASCE / IMG_NUM_FORMAT_ASTC_2D_10x6__GFX09
+          { // IMG_NUM_FORMAT_SRGB__GFX09 / IMG_NUM_FORMAT_ASTC_2D_10x6__GFX09
                ChNumFormat::Bc3_Srgb,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
@@ -5942,7 +5942,7 @@ constexpr MergedImgDataFmtInfo Gfx9MergedImgDataFmtTbl[] =
           },
       },
     },
-    { Chip::IMG_DATA_FORMAT_BC4__HASCE,
+    { Chip::IMG_DATA_FORMAT_BC4__GFX09,
       {
           { // IMG_NUM_FORMAT_UNORM / IMG_NUM_FORMAT_ASTC_2D_4x4__GFX09
                ChNumFormat::Bc4_Unorm,
@@ -5998,7 +5998,7 @@ constexpr MergedImgDataFmtInfo Gfx9MergedImgDataFmtTbl[] =
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_SRGB__HASCE / IMG_NUM_FORMAT_ASTC_2D_10x6__GFX09
+          { // IMG_NUM_FORMAT_SRGB__GFX09 / IMG_NUM_FORMAT_ASTC_2D_10x6__GFX09
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
@@ -6030,7 +6030,7 @@ constexpr MergedImgDataFmtInfo Gfx9MergedImgDataFmtTbl[] =
           },
       },
     },
-    { Chip::IMG_DATA_FORMAT_BC5__HASCE,
+    { Chip::IMG_DATA_FORMAT_BC5__GFX09,
       {
           { // IMG_NUM_FORMAT_UNORM / IMG_NUM_FORMAT_ASTC_2D_4x4__GFX09
                ChNumFormat::Bc5_Unorm,
@@ -6086,7 +6086,7 @@ constexpr MergedImgDataFmtInfo Gfx9MergedImgDataFmtTbl[] =
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_SRGB__HASCE / IMG_NUM_FORMAT_ASTC_2D_10x6__GFX09
+          { // IMG_NUM_FORMAT_SRGB__GFX09 / IMG_NUM_FORMAT_ASTC_2D_10x6__GFX09
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
@@ -6118,7 +6118,7 @@ constexpr MergedImgDataFmtInfo Gfx9MergedImgDataFmtTbl[] =
           },
       },
     },
-    { Chip::IMG_DATA_FORMAT_BC6__HASCE,
+    { Chip::IMG_DATA_FORMAT_BC6__GFX09,
       {
           { // IMG_NUM_FORMAT_UNORM / IMG_NUM_FORMAT_ASTC_2D_4x4__GFX09
                ChNumFormat::Bc6_Ufloat,
@@ -6174,7 +6174,7 @@ constexpr MergedImgDataFmtInfo Gfx9MergedImgDataFmtTbl[] =
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_SRGB__HASCE / IMG_NUM_FORMAT_ASTC_2D_10x6__GFX09
+          { // IMG_NUM_FORMAT_SRGB__GFX09 / IMG_NUM_FORMAT_ASTC_2D_10x6__GFX09
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
@@ -6206,7 +6206,7 @@ constexpr MergedImgDataFmtInfo Gfx9MergedImgDataFmtTbl[] =
           },
       },
     },
-    { Chip::IMG_DATA_FORMAT_BC7__HASCE,
+    { Chip::IMG_DATA_FORMAT_BC7__GFX09,
       {
           { // IMG_NUM_FORMAT_UNORM / IMG_NUM_FORMAT_ASTC_2D_4x4__GFX09
                ChNumFormat::Bc7_Unorm,
@@ -6262,7 +6262,7 @@ constexpr MergedImgDataFmtInfo Gfx9MergedImgDataFmtTbl[] =
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_SRGB__HASCE / IMG_NUM_FORMAT_ASTC_2D_10x6__GFX09
+          { // IMG_NUM_FORMAT_SRGB__GFX09 / IMG_NUM_FORMAT_ASTC_2D_10x6__GFX09
                ChNumFormat::Bc7_Srgb,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
@@ -6350,7 +6350,7 @@ constexpr MergedImgDataFmtInfo Gfx9MergedImgDataFmtTbl[] =
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_SRGB__HASCE / IMG_NUM_FORMAT_ASTC_2D_10x6__GFX09
+          { // IMG_NUM_FORMAT_SRGB__GFX09 / IMG_NUM_FORMAT_ASTC_2D_10x6__GFX09
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
@@ -6438,7 +6438,7 @@ constexpr MergedImgDataFmtInfo Gfx9MergedImgDataFmtTbl[] =
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_SRGB__HASCE / IMG_NUM_FORMAT_ASTC_2D_10x6__GFX09
+          { // IMG_NUM_FORMAT_SRGB__GFX09 / IMG_NUM_FORMAT_ASTC_2D_10x6__GFX09
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
@@ -6526,7 +6526,7 @@ constexpr MergedImgDataFmtInfo Gfx9MergedImgDataFmtTbl[] =
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_SRGB__HASCE / IMG_NUM_FORMAT_ASTC_2D_10x6__GFX09
+          { // IMG_NUM_FORMAT_SRGB__GFX09 / IMG_NUM_FORMAT_ASTC_2D_10x6__GFX09
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
@@ -6614,7 +6614,7 @@ constexpr MergedImgDataFmtInfo Gfx9MergedImgDataFmtTbl[] =
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_SRGB__HASCE / IMG_NUM_FORMAT_ASTC_2D_10x6__GFX09
+          { // IMG_NUM_FORMAT_SRGB__GFX09 / IMG_NUM_FORMAT_ASTC_2D_10x6__GFX09
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
@@ -6702,7 +6702,7 @@ constexpr MergedImgDataFmtInfo Gfx9MergedImgDataFmtTbl[] =
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_SRGB__HASCE / IMG_NUM_FORMAT_ASTC_2D_10x6__GFX09
+          { // IMG_NUM_FORMAT_SRGB__GFX09 / IMG_NUM_FORMAT_ASTC_2D_10x6__GFX09
                ChNumFormat::AstcLdr10x6_Unorm,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
@@ -6790,7 +6790,7 @@ constexpr MergedImgDataFmtInfo Gfx9MergedImgDataFmtTbl[] =
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_SRGB__HASCE / IMG_NUM_FORMAT_ASTC_2D_10x6__GFX09
+          { // IMG_NUM_FORMAT_SRGB__GFX09 / IMG_NUM_FORMAT_ASTC_2D_10x6__GFX09
                ChNumFormat::AstcHdr10x6_Float,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
@@ -6878,7 +6878,7 @@ constexpr MergedImgDataFmtInfo Gfx9MergedImgDataFmtTbl[] =
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_SRGB__HASCE / IMG_NUM_FORMAT_ASTC_2D_10x6__GFX09
+          { // IMG_NUM_FORMAT_SRGB__GFX09 / IMG_NUM_FORMAT_ASTC_2D_10x6__GFX09
                ChNumFormat::AstcLdr10x6_Srgb,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
@@ -6966,7 +6966,7 @@ constexpr MergedImgDataFmtInfo Gfx9MergedImgDataFmtTbl[] =
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_SRGB__HASCE / IMG_NUM_FORMAT_ASTC_2D_10x6__GFX09
+          { // IMG_NUM_FORMAT_SRGB__GFX09 / IMG_NUM_FORMAT_ASTC_2D_10x6__GFX09
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
@@ -7054,7 +7054,7 @@ constexpr MergedImgDataFmtInfo Gfx9MergedImgDataFmtTbl[] =
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_SRGB__HASCE / IMG_NUM_FORMAT_ASTC_2D_10x6__GFX09
+          { // IMG_NUM_FORMAT_SRGB__GFX09 / IMG_NUM_FORMAT_ASTC_2D_10x6__GFX09
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
@@ -7142,7 +7142,7 @@ constexpr MergedImgDataFmtInfo Gfx9MergedImgDataFmtTbl[] =
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_SRGB__HASCE / IMG_NUM_FORMAT_ASTC_2D_10x6__GFX09
+          { // IMG_NUM_FORMAT_SRGB__GFX09 / IMG_NUM_FORMAT_ASTC_2D_10x6__GFX09
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
@@ -7230,7 +7230,7 @@ constexpr MergedImgDataFmtInfo Gfx9MergedImgDataFmtTbl[] =
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_SRGB__HASCE / IMG_NUM_FORMAT_ASTC_2D_10x6__GFX09
+          { // IMG_NUM_FORMAT_SRGB__GFX09 / IMG_NUM_FORMAT_ASTC_2D_10x6__GFX09
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
@@ -7318,7 +7318,7 @@ constexpr MergedImgDataFmtInfo Gfx9MergedImgDataFmtTbl[] =
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_SRGB__HASCE / IMG_NUM_FORMAT_ASTC_2D_10x6__GFX09
+          { // IMG_NUM_FORMAT_SRGB__GFX09 / IMG_NUM_FORMAT_ASTC_2D_10x6__GFX09
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
@@ -7406,7 +7406,7 @@ constexpr MergedImgDataFmtInfo Gfx9MergedImgDataFmtTbl[] =
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_SRGB__HASCE / IMG_NUM_FORMAT_ASTC_2D_10x6__GFX09
+          { // IMG_NUM_FORMAT_SRGB__GFX09 / IMG_NUM_FORMAT_ASTC_2D_10x6__GFX09
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
@@ -7494,7 +7494,7 @@ constexpr MergedImgDataFmtInfo Gfx9MergedImgDataFmtTbl[] =
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_SRGB__HASCE / IMG_NUM_FORMAT_ASTC_2D_10x6__GFX09
+          { // IMG_NUM_FORMAT_SRGB__GFX09 / IMG_NUM_FORMAT_ASTC_2D_10x6__GFX09
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
@@ -7582,7 +7582,7 @@ constexpr MergedImgDataFmtInfo Gfx9MergedImgDataFmtTbl[] =
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_SRGB__HASCE / IMG_NUM_FORMAT_ASTC_2D_10x6__GFX09
+          { // IMG_NUM_FORMAT_SRGB__GFX09 / IMG_NUM_FORMAT_ASTC_2D_10x6__GFX09
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
@@ -7614,7 +7614,7 @@ constexpr MergedImgDataFmtInfo Gfx9MergedImgDataFmtTbl[] =
           },
       },
     },
-    { Chip::IMG_DATA_FORMAT_4_4__HASCE,
+    { Chip::IMG_DATA_FORMAT_4_4__GFX09,
       {
           { // IMG_NUM_FORMAT_UNORM / IMG_NUM_FORMAT_ASTC_2D_4x4__GFX09
                ChNumFormat::X4Y4_Unorm,
@@ -7670,7 +7670,7 @@ constexpr MergedImgDataFmtInfo Gfx9MergedImgDataFmtTbl[] =
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_SRGB__HASCE / IMG_NUM_FORMAT_ASTC_2D_10x6__GFX09
+          { // IMG_NUM_FORMAT_SRGB__GFX09 / IMG_NUM_FORMAT_ASTC_2D_10x6__GFX09
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,

@@ -118,6 +118,12 @@ public:
         OsDisplayHandle     hDisplay,
         int64               visualId);
 
+    static Result GetWindowProperties(
+        Device*              pDevice,
+        OsDisplayHandle      hDisplay,
+        OsWindowHandle       hWindow,
+        SwapChainProperties* pSwapChainProperties);
+
     virtual Result CreatePresentableImage(
         SwapChain* pSwapChain,
         Image*     pImage,

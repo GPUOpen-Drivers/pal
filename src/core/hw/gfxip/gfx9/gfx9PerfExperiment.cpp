@@ -295,7 +295,7 @@ static regSQ_THREAD_TRACE_TOKEN_MASK GetGfx10SqttTokenMask(
                                    (compRegs        << SQ_TT_TOKEN_MASK_COMP_SHIFT)                 |
                                    (contextRegs     << SQ_TT_TOKEN_MASK_CONTEXT_SHIFT)              |
                                    (otherConfigRegs << SQ_TT_TOKEN_MASK_CONFIG_SHIFT)               |
-                                   (grbmCsDataRegs  << SQ_TT_TOKEN_MASK_OTHER_SHIFT__GFX10COREPLUS) |
+                                   (grbmCsDataRegs  << SQ_TT_TOKEN_MASK_OTHER_SHIFT__GFX10CORE)     |
                                    (regReads        << SQ_TT_TOKEN_MASK_READS_SHIFT));
 
     return value;
@@ -1225,9 +1225,9 @@ Result PerfExperiment::AddThreadTrace(
                            static_cast<uint32>(PerfShaderMaskHs) == static_cast<uint32>(SQ_TT_WTYPE_INCLUDE_HS_BIT) &&
                            static_cast<uint32>(PerfShaderMaskCs) == static_cast<uint32>(SQ_TT_WTYPE_INCLUDE_CS_BIT) &&
                            static_cast<uint32>(PerfShaderMaskEs) ==
-                               static_cast<uint32>(SQ_TT_WTYPE_INCLUDE_ES_BIT__GFX10COREPLUS) &&
+                               static_cast<uint32>(SQ_TT_WTYPE_INCLUDE_ES_BIT__GFX10CORE) &&
                            static_cast<uint32>(PerfShaderMaskLs) ==
-                               static_cast<uint32>(SQ_TT_WTYPE_INCLUDE_LS_BIT__GFX10COREPLUS)),
+                               static_cast<uint32>(SQ_TT_WTYPE_INCLUDE_LS_BIT__GFX10CORE)),
                            "We assume that the SQ_TT_WTYPE enum matches PerfExperimentShaderFlags.");
 
             {
@@ -1275,7 +1275,6 @@ Result PerfExperiment::AddThreadTrace(
                 // By default trace all tokens and registers.
                 SetSqttTokenExclude(m_device, &m_sqtt[traceInfo.instance].tokenMask, SqttGfx10TokenMaskDefault);
                 m_sqtt[traceInfo.instance].tokenMask.gfx10Plus.REG_INCLUDE   = SqttGfx10RegMaskDefault;
-
             }
         }
     }
@@ -1818,8 +1817,8 @@ void PerfExperiment::IssueBegin(
                 sqPerfCounterCtrl.bits.HS_EN = ((m_createInfo.optionValues.sqShaderMask & PerfShaderMaskHs) != 0);
                 sqPerfCounterCtrl.bits.CS_EN = ((m_createInfo.optionValues.sqShaderMask & PerfShaderMaskCs) != 0);
                 {
-                    sqPerfCounterCtrl.core.LS_EN = ((m_createInfo.optionValues.sqShaderMask & PerfShaderMaskLs) != 0);
-                    sqPerfCounterCtrl.core.ES_EN = ((m_createInfo.optionValues.sqShaderMask & PerfShaderMaskEs) != 0);
+                    sqPerfCounterCtrl.most.LS_EN = ((m_createInfo.optionValues.sqShaderMask & PerfShaderMaskLs) != 0);
+                    sqPerfCounterCtrl.most.ES_EN = ((m_createInfo.optionValues.sqShaderMask & PerfShaderMaskEs) != 0);
                 }
             }
             else
@@ -1831,8 +1830,8 @@ void PerfExperiment::IssueBegin(
                 sqPerfCounterCtrl.bits.HS_EN = 1;
                 sqPerfCounterCtrl.bits.CS_EN = 1;
                 {
-                    sqPerfCounterCtrl.core.LS_EN = 1;
-                    sqPerfCounterCtrl.core.ES_EN = 1;
+                    sqPerfCounterCtrl.most.LS_EN = 1;
+                    sqPerfCounterCtrl.most.ES_EN = 1;
                 }
             }
 

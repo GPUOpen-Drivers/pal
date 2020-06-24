@@ -486,6 +486,8 @@ public:
         void*                           pPlacementAddr,
         IPerfExperiment**               ppPerfExperiment) const = 0;
 
+    virtual bool SupportsIterate256() const { return false; }
+
     virtual Result CreateCmdUploadRingInternal(
         const CmdUploadRingCreateInfo& createInfo,
         CmdUploadRing**                ppCmdUploadRing) = 0;
@@ -552,13 +554,11 @@ public:
         uint32                      instanceOffsetUserDataIdx,
         uint32                      drawIndexUserDataIdx) const;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 471
     void DescribeBindPipeline(
         GfxCmdBuffer*     pCmdBuf,
         const IPipeline*  pPipeline,
         uint64            apiPsoHash,
         PipelineBindPoint bindPoint) const;
-#endif
 
 #if PAL_BUILD_PM4_INSTRUMENTOR
     void DescribeDrawDispatchValidation(

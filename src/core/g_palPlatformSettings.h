@@ -327,7 +327,6 @@ static const char* pInterfaceLoggerConfig_MultithreadedStr = "#4177532476";
 static const char* pInterfaceLoggerConfig_BasePresetStr = "#3886684530";
 static const char* pInterfaceLoggerConfig_ElevatedPresetStr = "#3991423149";
 
-static const uint32 g_palPlatformNumSettings = 94;
 static const SettingNameHash g_palPlatformSettingHashList[] = {
 #if PAL_ENABLE_PRINTS_ASSERTS
 87264462,
@@ -443,6 +442,7 @@ static const SettingNameHash g_palPlatformSettingHashList[] = {
 3991423149,
 
 };
+static const uint32 g_palPlatformNumSettings = sizeof(g_palPlatformSettingHashList) / sizeof(SettingNameHash);
 
 static const uint8 g_palPlatformJsonData[] = {
     26, 250, 84, 220, 1, 92, 96, 106, 146, 207, 33, 32, 160, 3, 90, 155, 144, 218, 198, 78, 114, 176, 126, 93, 73, 14,

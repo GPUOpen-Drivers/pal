@@ -526,9 +526,7 @@ static void SerializeResourceDescriptionImage(
         pJsonWriter->KeyAndValue("VideoReferenceOnly",             static_cast<bool>(data.pCreateInfo->flags.videoReferenceOnly));
         pJsonWriter->KeyAndValue("OptimalShareable",               static_cast<bool>(data.pCreateInfo->flags.optimalShareable));
         pJsonWriter->KeyAndValue("SamplePatternAlwaysKnown",       static_cast<bool>(data.pCreateInfo->flags.sampleLocsAlwaysKnown));
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 461
         pJsonWriter->KeyAndValue("FullResolveDstOnly", static_cast<bool>(data.pCreateInfo->flags.fullResolveDstOnly));
-#endif
         pJsonWriter->EndMap();
 
         pJsonWriter->KeyAndBeginMap("UsageFlags", false);
@@ -568,9 +566,7 @@ static void SerializeResourceDescriptionImage(
         pJsonWriter->KeyAndValue("Fragments", data.pCreateInfo->fragments);
         pJsonWriter->KeyAndValue("Tiling", static_cast<uint32>(data.pCreateInfo->tiling));
         pJsonWriter->KeyAndValue("TilingOptMode", static_cast<uint32>(data.pCreateInfo->tilingOptMode));
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 481
         pJsonWriter->KeyAndValue("MetadataMode", static_cast<uint32>(data.pCreateInfo->metadataMode));
-#endif
         pJsonWriter->KeyAndValue("MaxBaseAlignment", data.pCreateInfo->maxBaseAlign);
         pJsonWriter->KeyAndValue("IsPresentable", data.isPresentable);
         pJsonWriter->KeyAndValue("IsFullscreen", data.isFullscreen);
@@ -660,9 +656,7 @@ static void SerializeResourceDescriptionPipeline(
     {
         pJsonWriter->KeyAndBeginMap("CreateFlags", false);
         pJsonWriter->KeyAndValue("ClientInternal", static_cast<bool>(data.pCreateFlags->clientInternal));
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 481
         pJsonWriter->KeyAndValue("OverrideGpuHeap", static_cast<bool>(data.pCreateFlags->overrideGpuHeap));
-#endif
         pJsonWriter->EndMap();
 
         pJsonWriter->KeyAndValue("InternalPipelineHashStable", data.pPipelineInfo->internalPipelineHash.stable);

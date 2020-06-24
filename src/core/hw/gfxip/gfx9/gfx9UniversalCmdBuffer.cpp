@@ -277,6 +277,7 @@ UniversalCmdBuffer::UniversalCmdBuffer(
     m_drawIndexReg(UserDataNotMapped),
     m_log2NumSes(Log2(m_device.Parent()->ChipProperties().gfx9.numShaderEngines)),
     m_log2NumRbPerSe(Log2(m_device.Parent()->ChipProperties().gfx9.maxNumRbPerSe)),
+    m_hasWaMiscPopsMissedOverlapBeenApplied(false),
     m_pbbStateOverride(BinningOverride::Default),
     m_enabledPbb(false),
     m_customBinSizeX(0),
@@ -311,8 +312,6 @@ UniversalCmdBuffer::UniversalCmdBuffer(
     m_cachedSettings.tossPointMode              = static_cast<uint32>(coreSettings.tossPointMode);
     m_cachedSettings.hiDepthDisabled            = !settings.hiDepthEnable;
     m_cachedSettings.hiStencilDisabled          = !settings.hiStencilEnable;
-    m_cachedSettings.disableDfsm                = settings.disableDfsm;
-    m_cachedSettings.disableDfsmPsUav           = settings.disableDfsmPsUav;
     m_cachedSettings.disableBatchBinning        = (settings.binningMode == Gfx9DeferredBatchBinDisabled);
     m_cachedSettings.disablePbbPsKill           = settings.disableBinningPsKill;
     m_cachedSettings.disablePbbNoDb             = settings.disableBinningNoDb;
@@ -323,10 +322,6 @@ UniversalCmdBuffer::UniversalCmdBuffer(
     m_cachedSettings.blendOptimizationsEnable   = settings.blendOptimizationsEnable;
     m_cachedSettings.outOfOrderPrimsEnable      = static_cast<uint32>(settings.enableOutOfOrderPrimitives);
     m_cachedSettings.scissorChangeWa            = settings.waMiscScissorRegisterChange;
-    m_cachedSettings.checkDfsmEqaaWa =
-                     (settings.waDisableDfsmWithEqaa                  &&   // Is the workaround enabled on this GPU?
-                      (m_cachedSettings.disableDfsm         == false) &&   // Is DFSM already forced off?
-                      (m_cachedSettings.disableBatchBinning == false));    // Is binning enabled?
     m_cachedSettings.batchBreakOnNewPs         = settings.batchBreakOnNewPixelShader;
     m_cachedSettings.pbbMoreThanOneCtxState    = (settings.binningContextStatesPerBin > 1);
     m_cachedSettings.padParamCacheSpace        =
@@ -345,8 +340,6 @@ UniversalCmdBuffer::UniversalCmdBuffer(
     m_cachedSettings.waMiscPopsMissedOverlap                   = settings.waMiscPopsMissedOverlap;
     m_cachedSettings.waColorCacheControllerInvalidEviction     = settings.waColorCacheControllerInvalidEviction;
     m_cachedSettings.waRotatedSwizzleDisablesOverwriteCombiner = settings.waRotatedSwizzleDisablesOverwriteCombiner;
-    m_cachedSettings.waStalledPopsMode                         = settings.waStalledPopsMode;
-    m_cachedSettings.drainPsOnOverlap                          = settings.drainPsOnOverlap;
     m_cachedSettings.waTessIncorrectRelativeIndex              = settings.waTessIncorrectRelativeIndex;
     m_cachedSettings.waVgtFlushNggToLegacy                     = settings.waVgtFlushNggToLegacy;
     m_cachedSettings.waVgtFlushNggToLegacyGs                   = settings.waVgtFlushNggToLegacyGs;
@@ -466,7 +459,7 @@ Result UniversalCmdBuffer::Init(
 
     if (settings.nggSupported)
     {
-        const uint32 nggTableBytes = Pow2Align<uint32>(sizeof(Abi::PrimShaderCbLayout), 256);
+        const uint32 nggTableBytes = Pow2Align<uint32>(sizeof(Abi::PrimShaderCullingCb), 256);
 
         m_nggTable.state.sizeInDwords = NumBytesToNumDwords(nggTableBytes);
         m_nggTable.state.ceRamOffset  = ceRamOffset;
@@ -475,19 +468,11 @@ Result UniversalCmdBuffer::Init(
 
     m_vbTable.pSrds              = static_cast<BufferSrd*>(VoidPtrAlign((this + 1), alignof(BufferSrd)));
     m_vbTable.state.sizeInDwords = ((sizeof(BufferSrd) / sizeof(uint32)) * MaxVertexBuffers);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 469
     m_vbTable.state.ceRamOffset  = ceRamOffset;
     ceRamOffset += (sizeof(uint32) * m_vbTable.state.sizeInDwords);
-#endif
 
     PAL_ASSERT(ceRamOffset <= ReservedCeRamBytes);
     ceRamOffset = ReservedCeRamBytes;
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 469
-    m_vbTable.state.ceRamOffset  =
-        (static_cast<uint32>(m_device.Parent()->IndirectUserDataTableCeRamOffset()) + ceRamOffset);
-    ceRamOffset += (sizeof(uint32) * m_vbTable.state.sizeInDwords);
-#endif
 
     Result result = Pal::UniversalCmdBuffer::Init(internalInfo);
 
@@ -612,6 +597,8 @@ void UniversalCmdBuffer::ResetState()
     m_vgtDmaIndexType.bits.SWAP_MODE  = VGT_DMA_SWAP_NONE;
     m_vgtDmaIndexType.bits.INDEX_TYPE = VgtIndexTypeLookup[0];
 
+    m_hasWaMiscPopsMissedOverlapBeenApplied = false;
+
     m_leakCbColorInfoRtv   = 0;
 
     for (uint32 x = 0; x < MaxColorTargets; x++)
@@ -695,14 +682,14 @@ void UniversalCmdBuffer::ResetState()
             m_paScBinnerCntl0.bits.BIN_SIZE_Y_EXTEND = Device::GetBinSizeEnum(binSize.height);
         }
     }
-    m_paScBinnerCntl0.bits.DISABLE_START_OF_PRIM = (m_cachedSettings.disableDfsm) ? 1 : 0;
+    m_paScBinnerCntl0.bits.DISABLE_START_OF_PRIM = 1;
 
     // Reset the command buffer's HWL state tracking
-    m_state.flags.u32All                            = 0;
-    m_state.pLastDumpCeRam                          = nullptr;
-    m_state.lastDumpCeRamOrdinal2.u32All            = 0;
-    m_state.lastDumpCeRamOrdinal2.bits.increment_ce = 1;
-    m_state.minCounterDiff                          = UINT_MAX;
+    m_state.flags.u32All                                  = 0;
+    m_state.pLastDumpCeRam                                = nullptr;
+    m_state.lastDumpCeRamOrdinal2.u32All                  = 0;
+    m_state.lastDumpCeRamOrdinal2.bits.hasCe.increment_ce = 1;
+    m_state.minCounterDiff                                = UINT_MAX;
 
     // Set to an invalid (unaligned) address to indicate that streamout hasn't been set yet, and initialize the SRDs'
     // NUM_RECORDS fields to indicate a zero stream-out stride.
@@ -808,7 +795,6 @@ void UniversalCmdBuffer::CmdBindPipeline(
             m_sxBlendOptControl = pNewPipeline->SxBlendOptControl();
         }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 473
         constexpr uint32 DwordsPerSrd = (sizeof(BufferSrd) / sizeof(uint32));
         const uint32 vbTableDwords =
             ((pNewPipeline == nullptr) ? 0 : pNewPipeline->VertexBufferCount() * DwordsPerSrd);
@@ -822,7 +808,7 @@ void UniversalCmdBuffer::CmdBindPipeline(
         }
 
         m_vbTable.watermark = vbTableDwords;
-#endif
+
         if (newUsesUavExport)
         {
             const uint32 maxTargets = static_cast<const GraphicsPipeline*>(params.pPipeline)->NumColorTargets();
@@ -883,7 +869,7 @@ uint32* UniversalCmdBuffer::SwitchGraphicsPipeline(
     }
 
     // Only gfx10+ pipelines need to set config registers.
-    if (IsGfx10(m_gfxIpLevel))
+    if (IsGfx10Plus(m_gfxIpLevel))
     {
         const uint32 cfgRegHash = pCurrPipeline->GetConfigRegHash();
         if (wasPrevPipelineNull || (m_pipelineCfgRegHash != cfgRegHash))
@@ -959,7 +945,7 @@ uint32* UniversalCmdBuffer::SwitchGraphicsPipeline(
         {
             // If viewport is never set, no need to rewrite viewport, this happens in D3D12 nested command list.
             m_graphicsState.dirtyFlags.validationBits.viewports    = 1;
-            m_nggState.flags.dirty.viewports                       = 1;
+            m_nggState.flags.dirty                                 = 1;
         }
 
         if (m_graphicsState.scissorRectState.count != 0)
@@ -985,7 +971,7 @@ uint32* UniversalCmdBuffer::SwitchGraphicsPipeline(
     if (isNgg)
     {
         // We need to update the primitive shader constant buffer with this new pipeline.
-        pCurrPipeline->UpdateNggPrimCb(&m_state.primShaderCbLayout.pipelineStateCb);
+        pCurrPipeline->UpdateNggPrimCb(&m_state.primShaderCullingCb);
         SetPrimShaderWorkload();
     }
 
@@ -1032,7 +1018,7 @@ void UniversalCmdBuffer::CmdSetMsaaQuadSamplePattern(
     m_graphicsState.quadSamplePatternState                           = quadSamplePattern;
     m_graphicsState.numSamplesPerPixel                               = numSamplesPerPixel;
     m_graphicsState.dirtyFlags.validationBits.quadSamplePatternState = 1;
-    m_nggState.flags.dirty.quadSamplePatternState                    = 1;
+    m_nggState.flags.dirty                                           = 1;
 
     // MsaaQuadSamplePattern owns MAX_SAMPLE_DIST
     m_paScAaConfigNew.bits.MAX_SAMPLE_DIST = MsaaState::ComputeMaxSampleDistance(numSamplesPerPixel, quadSamplePattern);
@@ -1058,7 +1044,7 @@ void UniversalCmdBuffer::CmdSetViewports(
     memcpy(&m_graphicsState.viewportState.horzDiscardRatio, &params.horzDiscardRatio, GuardbandSize);
 
     m_graphicsState.dirtyFlags.validationBits.viewports = 1;
-    m_nggState.flags.dirty.viewports                    = 1;
+    m_nggState.flags.dirty                              = 1;
 
     // Also set scissor dirty flag here since we need cross-validation to handle the case of scissor regions
     // being greater than the viewport regions.
@@ -1128,21 +1114,20 @@ void UniversalCmdBuffer::CmdBindMsaaState(
 
         // NGG state updates
         m_nggState.numSamples = pNewState->NumSamples();
-        m_state.primShaderCbLayout.renderStateCb.enableConservativeRasterization =
-            pNewState->ConservativeRasterizationEnabled();
+        m_state.primShaderCullingCb.enableConservativeRasterization = pNewState->ConservativeRasterizationEnabled();
     }
     else
     {
         m_paScAaConfigNew.u32All = (m_paScAaConfigNew.u32All & (~MsaaState::PcScAaConfigMask));
 
         // NGG state updates
-        m_nggState.numSamples = 1;
-        m_state.primShaderCbLayout.renderStateCb.enableConservativeRasterization = 0;
+        m_nggState.numSamples                                       = 1;
+        m_state.primShaderCullingCb.enableConservativeRasterization = 0;
     }
 
     m_graphicsState.pMsaaState                          = pNewState;
     m_graphicsState.dirtyFlags.validationBits.msaaState = 1;
-    m_nggState.flags.dirty.msaaState                    = 1;
+    m_nggState.flags.dirty                              = 1;
 }
 
 // =====================================================================================================================
@@ -1242,10 +1227,6 @@ void UniversalCmdBuffer::CmdSetInputAssemblyState(
 
     m_graphicsState.inputAssemblyState = params;
     m_graphicsState.dirtyFlags.validationBits.inputAssemblyState   = 1;
-
-    m_state.primShaderCbLayout.renderStateCb.primitiveRestartIndex = params.primitiveRestartIndex;
-    m_state.primShaderCbLayout.pipelineStateCb.vgtPrimitiveType    = vgtPrimitiveType.u32All;
-    m_nggState.flags.dirty.inputAssemblyState                      = 1;
 }
 
 // =====================================================================================================================
@@ -1460,70 +1441,6 @@ void UniversalCmdBuffer::CmdSetVertexBuffers(
     m_vbTable.modified = 1;
 }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 473
-// =====================================================================================================================
-void UniversalCmdBuffer::CmdSetIndirectUserData(
-    uint16      tableId,        // Deprecated, must be zero!
-    uint32      dwordOffset,
-    uint32      dwordSize,
-    const void* pSrcData)
-{
-    PAL_ASSERT(tableId == 0);
-    PAL_ASSERT(dwordSize > 0);
-    PAL_ASSERT((dwordOffset + dwordSize) <= m_vbTable.state.sizeInDwords);
-
-    // All this method needs to do is update the CPU-side copy of the indirect user-data table and upload the new
-    // data to CE RAM. It will be validated at Draw-time.
-
-    uint32* pDst = (reinterpret_cast<uint32*>(m_vbTable.pSrds) + dwordOffset);
-    auto*   pSrc = static_cast<const uint32*>(pSrcData);
-    for (uint32 i = 0; i < dwordSize; ++i)
-    {
-        *pDst = *pSrc;
-        ++pDst;
-        ++pSrc;
-    }
-
-    if (UseCpuPathInsteadOfCeRam() == false)
-    {
-        uint32* pCeCmdSpace = m_ceCmdStream.ReserveCommands();
-        pCeCmdSpace = UploadToUserDataTable(&m_vbTable.state,
-                                            dwordOffset,
-                                            dwordSize,
-                                            static_cast<const uint32*>(pSrcData),
-                                            m_vbTable.watermark,
-                                            pCeCmdSpace);
-        m_ceCmdStream.CommitCommands(pCeCmdSpace);
-    }
-    else if (dwordOffset < m_vbTable.watermark)
-    {
-        // Only mark the contents as dirty if the updated VB table entries fall within the current high watermark.
-        // This will help avoid redundant validation for data which the current pipeline doesn't care about.
-        m_vbTable.state.dirty = 1;
-    }
-
-    m_vbTable.modified = 1;
-}
-
-// =====================================================================================================================
-void UniversalCmdBuffer::CmdSetIndirectUserDataWatermark(
-    uint16 tableId,     // Deprecated, must be zero!
-    uint32 dwordLimit)
-{
-    PAL_ASSERT(tableId == 0);
-
-    dwordLimit = Min(dwordLimit, m_vbTable.state.sizeInDwords);
-    if (dwordLimit > m_vbTable.watermark)
-    {
-        // If the current high watermark is increasing, we need to mark the contents as dirty because data which was
-        // previously uploaded to CE RAM wouldn't have been dumped to GPU memory before the previous Draw.
-        m_vbTable.state.dirty = 1;
-    }
-
-    m_vbTable.watermark = dwordLimit;
-}
-#endif
-
 // =====================================================================================================================
 void UniversalCmdBuffer::CmdBindTargets(
     const BindTargetParams& params)
@@ -1668,8 +1585,7 @@ void UniversalCmdBuffer::CmdBindTargets(
         waitOnMetadataMipTail |= pCurrentDepthView->WaitOnMetadataMipTail();
     }
 
-    if (((!m_cachedSettings.disableDfsm) & colorTargetsChanged) |
-        (m_cachedSettings.pbbMoreThanOneCtxState & (colorTargetsChanged | depthTargetChanged)))
+    if (m_cachedSettings.pbbMoreThanOneCtxState & (colorTargetsChanged | depthTargetChanged))
     {
         // If the slice-index as programmed by the CB is changing, then we have to flush DFSM stuff. This isn't
         // necessary if DFSM is disabled.
@@ -1898,7 +1814,7 @@ void UniversalCmdBuffer::CmdSetTriangleRasterStateInternal(
     m_state.flags.optimizeLinearGfxCpy                               = optimizeLinearDestGfxCopy;
     m_graphicsState.triangleRasterState                              = params;
     m_graphicsState.dirtyFlags.validationBits.triangleRasterState    = 1;
-    m_nggState.flags.dirty.triangleRasterState                       = 1;
+    m_nggState.flags.dirty                                           = 1;
 
     regPA_SU_SC_MODE_CNTL paSuScModeCntl = { };
     paSuScModeCntl.bits.POLY_OFFSET_FRONT_ENABLE = params.flags.depthBiasEnable;
@@ -1967,7 +1883,7 @@ void UniversalCmdBuffer::CmdSetTriangleRasterStateInternal(
 
     paSuScModeCntl.bits.PROVOKING_VTX_LAST = static_cast<uint32>(params.provokingVertex);
 
-    m_state.primShaderCbLayout.pipelineStateCb.paSuScModeCntl = paSuScModeCntl.u32All;
+    m_state.primShaderCullingCb.paSuScModeCntl = paSuScModeCntl.u32All;
 
     uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
     pDeCmdSpace = m_deCmdStream.WriteSetOneContextReg(mmPA_SU_SC_MODE_CNTL, paSuScModeCntl.u32All, pDeCmdSpace);
@@ -2716,7 +2632,11 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDispatchIndirect(
 
     uint32* pDeCmdSpace = pThis->m_deCmdStream.ReserveCommands();
 
-    pDeCmdSpace  = pThis->ValidateDispatch<UseCpuPathForUserDataTables>((gpuMemBaseAddr + offset), 0, 0, 0, pDeCmdSpace);
+    pDeCmdSpace  = pThis->ValidateDispatch<UseCpuPathForUserDataTables>((gpuMemBaseAddr + offset),
+                                                                        0,
+                                                                        0,
+                                                                        0,
+                                                                        pDeCmdSpace);
     pDeCmdSpace  = pThis->WaitOnCeCounter(pDeCmdSpace);
     pDeCmdSpace += CmdUtil::BuildSetBase(gpuMemBaseAddr,
                                          base_index__pfp_set_base__patch_table_base,
@@ -3218,9 +3138,9 @@ Result UniversalCmdBuffer::AddPreamble()
 
         PM4_PFP_CONTEXT_CONTROL contextControl = {};
 
-        contextControl.bitfields2.update_load_enables    = 1;
-        contextControl.bitfields2.load_per_context_state = 1;
-        contextControl.bitfields3.update_shadow_enables  = 1;
+        contextControl.ordinal2.bitfields.update_load_enables    = 1;
+        contextControl.ordinal2.bitfields.load_per_context_state = 1;
+        contextControl.ordinal3.bitfields.update_shadow_enables  = 1;
 
         pDeCmdSpace += CmdUtil::BuildContextControl(contextControl, pDeCmdSpace);
     }
@@ -3636,8 +3556,8 @@ uint32* UniversalCmdBuffer::WaitOnCeCounter(
 {
     if (m_state.pLastDumpCeRam != nullptr)
     {
-        auto*const pDumpCeRam = reinterpret_cast<PM4_CE_DUMP_CONST_RAM*>(m_state.pLastDumpCeRam);
-        pDumpCeRam->ordinal2  = m_state.lastDumpCeRamOrdinal2.u32All;
+        auto*const pDumpCeRam        = reinterpret_cast<PM4_CE_DUMP_CONST_RAM*>(m_state.pLastDumpCeRam);
+        pDumpCeRam->ordinal2.u32All  = m_state.lastDumpCeRamOrdinal2.u32All;
 
         pDeCmdSpace += CmdUtil::BuildWaitOnCeCounter((m_state.flags.ceInvalidateKcache != 0), pDeCmdSpace);
 
@@ -3733,8 +3653,8 @@ uint32* UniversalCmdBuffer::DumpUserDataTable(
 
     // Keep track of the latest DUMP_CONST_RAM packet before the upcoming draw or dispatch.  The last one before the
     // draw or dispatch will be updated to set the increment_ce bit at draw-time.
-    m_state.pLastDumpCeRam                    = pCeCmdSpace;
-    m_state.lastDumpCeRamOrdinal2.bits.offset = (pTable->ceRamOffset + offsetInBytes);
+    m_state.pLastDumpCeRam                          = pCeCmdSpace;
+    m_state.lastDumpCeRamOrdinal2.bits.hasCe.offset = (pTable->ceRamOffset + offsetInBytes);
 
     pCeCmdSpace += CmdUtil::BuildDumpConstRam((pTable->gpuVirtAddr + offsetInBytes),
                                               (pTable->ceRamOffset + offsetInBytes),
@@ -4353,8 +4273,8 @@ uint32* UniversalCmdBuffer::ValidateGraphicsUserDataCpu(
         if (m_uavExportTable.state.dirty != 0)
         {
             UpdateUserDataTableCpu(&m_uavExportTable.state,
-                                   0,
                                    m_uavExportTable.tableSizeDwords,
+                                   0,
                                    reinterpret_cast<const uint32*>(&m_uavExportTable.srd));
         }
 
@@ -4818,12 +4738,52 @@ uint32* UniversalCmdBuffer::ValidateDraw(
     return pDeCmdSpace;
 }
 
-// Helper structure to convert uint32 to a float.
-union Uint32ToFloat
+// =====================================================================================================================
+static void UpdateMsaaForNggCullingCb(
+    uint32                                     numSamples,
+    uint32                                     viewportCount,
+    const MsaaQuadSamplePattern&               quadSamplePatternState,
+    const Abi::PrimShaderCullingCb::Viewports* pInputVportCb,
+    Abi::PrimShaderCullingCb::Viewports*       pOutputVportCb)
 {
-    uint32 uValue;
-    float  fValue;
-};
+    // Helper structure to convert uint32 to a float.
+    union Uint32ToFloat
+    {
+        uint32 uValue;
+        float  fValue;
+    };
+
+    // If the clients have specified a default sample layout we can use the number of samples as a multiplier.
+    // However, if custom sample positions are in use we need to assume the worst case sample count (16).
+    const MsaaQuadSamplePattern& defaultSamplePattern =
+        GfxDevice::DefaultSamplePattern[Log2(numSamples)];
+    const float multiplier =
+        (memcmp(&quadSamplePatternState,
+                &defaultSamplePattern,
+                sizeof(MsaaQuadSamplePattern)) == 0) ? static_cast<float>(numSamples) : 16.0f;
+
+    // For small-primitive filter culling with NGG, the shader needs the viewport scale to premultiply
+    // the number of samples into it.
+    Uint32ToFloat uintToFloat = {};
+    for (uint32 i = 0; i < viewportCount; i++)
+    {
+        uintToFloat.uValue  = pInputVportCb[i].paClVportXScale;
+        uintToFloat.fValue *= multiplier;
+        pOutputVportCb[i].paClVportXScale = uintToFloat.uValue;
+
+        uintToFloat.uValue  = pInputVportCb[i].paClVportXOffset;
+        uintToFloat.fValue *= multiplier;
+        pOutputVportCb[i].paClVportXOffset = uintToFloat.uValue;
+
+        uintToFloat.uValue  = pInputVportCb[i].paClVportYScale;
+        uintToFloat.fValue *= multiplier;
+        pOutputVportCb[i].paClVportYScale = uintToFloat.uValue;
+
+        uintToFloat.uValue  = pInputVportCb[i].paClVportYOffset;
+        uintToFloat.fValue *= multiplier;
+        pOutputVportCb[i].paClVportYOffset = uintToFloat.uValue;
+    }
+}
 
 // =====================================================================================================================
 // This function updates the NGG culling data constant buffer which is needed for NGG culling operations to execute
@@ -4835,51 +4795,22 @@ uint32* UniversalCmdBuffer::UpdateNggCullingDataBufferWithCpu(
     PAL_ASSERT(m_pSignatureGfx->nggCullingDataAddr != UserDataNotMapped);
 
     // If nothing has changed, then there's no need to do anything...
-    if ((m_nggState.flags.dirty.u8All != 0) || m_graphicsState.pipelineState.dirtyFlags.pipelineDirty)
+    if (m_nggState.flags.dirty || m_graphicsState.pipelineState.dirtyFlags.pipelineDirty)
     {
-        constexpr uint32 NggStateDwords = (sizeof(Abi::PrimShaderCbLayout) / sizeof(uint32));
+        constexpr uint32 NggStateDwords = (sizeof(Abi::PrimShaderCullingCb) / sizeof(uint32));
         const     uint16 nggRegAddr     = m_pSignatureGfx->nggCullingDataAddr;
 
         // Make a local copy of the various shader state so that we can modify it as necessary.
-        Abi::PrimShaderCbLayout  localShaderLayout;
-        memcpy(&localShaderLayout, &m_state.primShaderCbLayout, sizeof(uint32) * NggStateDwords);
+        Abi::PrimShaderCullingCb localCb;
+        memcpy(&localCb, &m_state.primShaderCullingCb, NggStateDwords * sizeof(uint32));
 
-        if ((m_nggState.flags.dirty.viewports ||
-             m_nggState.flags.dirty.msaaState ||
-             m_nggState.flags.dirty.quadSamplePatternState) &&
-             (m_nggState.numSamples > 0))
+        if (m_nggState.flags.dirty && (m_nggState.numSamples > 0))
         {
-            // If the clients have specified a default sample layout we can use the number of samples as a multiplier.
-            // However, if custom sample positions are in use we need to assume the worst case sample count (16).
-            const MsaaQuadSamplePattern& defaultSamplePattern =
-                GfxDevice::DefaultSamplePattern[Log2(m_nggState.numSamples)];
-            const float multiplier =
-                (memcmp(&m_graphicsState.quadSamplePatternState,
-                        &defaultSamplePattern,
-                        sizeof(MsaaQuadSamplePattern)) == 0) ? static_cast<float>(m_nggState.numSamples) : 16.0f;
-
-            // For small-primitive filter culling with NGG, the shader needs the viewport scale to premultiply
-            // the number of samples into it.
-            Abi::PrimShaderVportCb*  pVportCb = &localShaderLayout.viewportStateCb;
-            Uint32ToFloat uintToFloat = {};
-            for (uint32 i = 0; i < m_graphicsState.viewportState.count; i++)
-            {
-                uintToFloat.uValue  = pVportCb->vportControls[i].paClVportXscale;
-                uintToFloat.fValue *= multiplier;
-                pVportCb->vportControls[i].paClVportXscale = uintToFloat.uValue;
-
-                uintToFloat.uValue  = pVportCb->vportControls[i].paClVportXoffset;
-                uintToFloat.fValue *= multiplier;
-                pVportCb->vportControls[i].paClVportXoffset = uintToFloat.uValue;
-
-                uintToFloat.uValue  = pVportCb->vportControls[i].paClVportYscale;
-                uintToFloat.fValue *= multiplier;
-                pVportCb->vportControls[i].paClVportYscale = uintToFloat.uValue;
-
-                uintToFloat.uValue  = pVportCb->vportControls[i].paClVportYoffset;
-                uintToFloat.fValue *= multiplier;
-                pVportCb->vportControls[i].paClVportYoffset = uintToFloat.uValue;
-            }
+            UpdateMsaaForNggCullingCb(m_nggState.numSamples,
+                                      m_graphicsState.viewportState.count,
+                                      m_graphicsState.quadSamplePatternState,
+                                      &m_state.primShaderCullingCb.viewports[0],
+                                      &localCb.viewports[0]);
         }
 
         // The alignment of the user data is dependent on the type of register used to store
@@ -4890,7 +4821,7 @@ uint32* UniversalCmdBuffer::UpdateNggCullingDataBufferWithCpu(
         UpdateUserDataTableCpu(&m_nggTable.state,
                                NggStateDwords, // size
                                0,              // offset
-                               reinterpret_cast<const uint32*>(&localShaderLayout),
+                               reinterpret_cast<const uint32*>(&localCb),
                                NumBytesToNumDwords(byteAlignment));
 
         gpusize gpuVirtAddr = m_nggTable.state.gpuVirtAddr;
@@ -4907,7 +4838,7 @@ uint32* UniversalCmdBuffer::UpdateNggCullingDataBufferWithCpu(
                                                       &gpuVirtAddr,
                                                       pDeCmdSpace);
 
-        m_nggState.flags.dirty.u8All = 0;
+        m_nggState.flags.dirty = 0;
     }
 
     return pDeCmdSpace;
@@ -4923,86 +4854,30 @@ uint32* UniversalCmdBuffer::UpdateNggCullingDataBufferWithGpu(
     PAL_ASSERT(m_pSignatureGfx->nggCullingDataAddr != UserDataNotMapped);
 
     // If nothing has changed, then there's no need to do anything...
-    if ((m_nggState.flags.dirty.u8All != 0) || m_graphicsState.pipelineState.dirtyFlags.pipelineDirty)
+    if (m_nggState.flags.dirty || m_graphicsState.pipelineState.dirtyFlags.pipelineDirty)
     {
-        constexpr uint32 NggStateDwords = (sizeof(Abi::PrimShaderCbLayout) / sizeof(uint32));
+        constexpr uint32 NggStateDwords = (sizeof(Abi::PrimShaderCullingCb) / sizeof(uint32));
 
         uint32* pCeCmdSpace = m_ceCmdStream.ReserveCommands();
 
-        if (m_nggState.flags.dirty.triangleRasterState || m_nggState.flags.dirty.msaaState)
+        Abi::PrimShaderCullingCb localCb;
+        memcpy(&localCb, &m_state.primShaderCullingCb, NggStateDwords * sizeof(uint32));
+
+        if (m_nggState.flags.dirty && (m_nggState.numSamples > 1))
         {
-            pCeCmdSpace = UploadToUserDataTable(
-                &m_nggTable.state,
-                (offsetof(Abi::PrimShaderCbLayout, renderStateCb) / sizeof(uint32)),
-                (sizeof(m_state.primShaderCbLayout.renderStateCb) / sizeof(uint32)),
-                reinterpret_cast<const uint32*>(&m_state.primShaderCbLayout.renderStateCb),
-                NggStateDwords,
-                pCeCmdSpace);
+            UpdateMsaaForNggCullingCb(m_nggState.numSamples,
+                                      m_graphicsState.viewportState.count,
+                                      m_graphicsState.quadSamplePatternState,
+                                      &m_state.primShaderCullingCb.viewports[0],
+                                      &localCb.viewports[0]);
         }
 
-        if (m_nggState.flags.dirty.viewports ||
-            m_nggState.flags.dirty.msaaState ||
-            m_nggState.flags.dirty.quadSamplePatternState)
-        {
-            // For small-primitive filter culling with NGG, the shader needs the viewport scale to premultiply
-            // the number of samples into it.
-            Abi::PrimShaderVportCb vportCb = m_state.primShaderCbLayout.viewportStateCb;
-            Uint32ToFloat uintToFloat = {};
-
-            if (m_nggState.numSamples > 0)
-            {
-                // If the clients have specified a default sample layout we can use the number of samples as a
-                // multiplier. However, if custom sample positions are in use we need to assume the worst case sample
-                // count (16).
-                const MsaaQuadSamplePattern& defaultSamplePattern =
-                    GfxDevice::DefaultSamplePattern[Log2(m_nggState.numSamples)];
-                const float multiplier =
-                    (memcmp(&m_graphicsState.quadSamplePatternState,
-                            &defaultSamplePattern,
-                            sizeof(MsaaQuadSamplePattern)) == 0) ? static_cast<float>(m_nggState.numSamples) : 16.0f;
-
-                for (uint32 i = 0; i < m_graphicsState.viewportState.count; i++)
-                {
-                    uintToFloat.uValue  = vportCb.vportControls[i].paClVportXscale;
-                    uintToFloat.fValue *= multiplier;
-                    vportCb.vportControls[i].paClVportXscale = uintToFloat.uValue;
-
-                    uintToFloat.uValue  = vportCb.vportControls[i].paClVportXoffset;
-                    uintToFloat.fValue *= multiplier;
-                    vportCb.vportControls[i].paClVportXoffset = uintToFloat.uValue;
-
-                    uintToFloat.uValue  = vportCb.vportControls[i].paClVportYscale;
-                    uintToFloat.fValue *= multiplier;
-                    vportCb.vportControls[i].paClVportYscale = uintToFloat.uValue;
-
-                    uintToFloat.uValue  = vportCb.vportControls[i].paClVportYoffset;
-                    uintToFloat.fValue *= multiplier;
-                    vportCb.vportControls[i].paClVportYoffset = uintToFloat.uValue;
-                }
-            }
-
-            pCeCmdSpace = UploadToUserDataTable(
-                &m_nggTable.state,
-                (offsetof(Abi::PrimShaderCbLayout, viewportStateCb) / sizeof(uint32)),
-                (sizeof(vportCb) / sizeof(uint32)),
-                reinterpret_cast<const uint32*>(&vportCb),
-                NggStateDwords,
-                pCeCmdSpace);
-        }
-
-        if (m_graphicsState.pipelineState.dirtyFlags.pipelineDirty ||
-            m_nggState.flags.dirty.viewports                       ||
-            m_nggState.flags.dirty.triangleRasterState             ||
-            m_nggState.flags.dirty.inputAssemblyState)
-        {
-            pCeCmdSpace = UploadToUserDataTable(
-                &m_nggTable.state,
-                (offsetof(Abi::PrimShaderCbLayout, pipelineStateCb) / sizeof(uint32)),
-                (sizeof(m_state.primShaderCbLayout.pipelineStateCb) / sizeof(uint32)),
-                reinterpret_cast<const uint32*>(&m_state.primShaderCbLayout.pipelineStateCb),
-                NggStateDwords,
-                pCeCmdSpace);
-        }
+        pCeCmdSpace = UploadToUserDataTable(&m_nggTable.state,
+                                            0,
+                                            NggStateDwords,
+                                            reinterpret_cast<uint32*>(&localCb),
+                                            NggStateDwords,
+                                            pCeCmdSpace);
 
         // It is not expected to enter this path unless we will be updating the NGG CE RAM data!
         PAL_ASSERT(m_nggTable.state.dirty != 0);
@@ -5036,7 +4911,7 @@ uint32* UniversalCmdBuffer::UpdateNggCullingDataBufferWithGpu(
 
         m_ceCmdStream.CommitCommands(pCeCmdSpace);
 
-        m_nggState.flags.dirty.u8All = 0;
+        m_nggState.flags.dirty = 0;
     }
 
     return pDeCmdSpace;
@@ -5278,50 +5153,6 @@ uint32* UniversalCmdBuffer::ValidateDraw(
         m_paScAaConfigLast.u32All = m_paScAaConfigNew.u32All;
     }
 
-    bool disableDfsm = m_cachedSettings.disableDfsm;
-    if (disableDfsm == false)
-    {
-        const auto* pDepthImage = (pDsView ? pDsView->GetImage() : nullptr);
-
-        // Is the setting configured such that this workaround is meaningful, and
-        // Do we have a depth image, and
-        // If the bound depth image has changed or if the number of samples programmed into PA_SC_AA_CONFIG has changed,
-        // then we need to do some further checking.
-        const bool checkDfsmEqaaWa = m_cachedSettings.checkDfsmEqaaWa &&
-                                     (pDepthImage != nullptr) &&
-                                     ((StateDirty && dirtyFlags.depthStencilView) || newAaConfigSamples);
-
-        // Is the setting configured such that we want to disable DFSM when the PS uses UAVs or ROVs, and
-        // Has the current bound pipeline changed?
-        const bool checkDfsmPsUav  = m_cachedSettings.disableDfsmPsUav && PipelineDirty;
-
-        // If we're in EQAA for the purposes of this workaround then we have to kill DFSM.
-        // Remember that the register is programmed in terms of log2, while the create info struct is in terms of
-        // actual samples.
-        if (checkDfsmEqaaWa &&
-            (1u << m_paScAaConfigLast.bits.MSAA_NUM_SAMPLES) != pDepthImage->Parent()->GetImageCreateInfo().samples)
-        {
-            disableDfsm = true;
-        }
-
-        if (checkDfsmPsUav && (pPipeline->PsWritesUavs() || pPipeline->PsUsesRovs()))
-        {
-            disableDfsm = true;
-        }
-
-        regDB_DFSM_CONTROL dbDfsmControl;
-        dbDfsmControl.u32All             = m_dbDfsmControl.u32All;
-        dbDfsmControl.bits.PUNCHOUT_MODE = (disableDfsm ? DfsmPunchoutModeForceOff : DfsmPunchoutModeAuto);
-
-        if (dbDfsmControl.u32All != m_dbDfsmControl.u32All)
-        {
-            pDeCmdSpace = m_deCmdStream.WriteSetOneContextRegNoOpt(m_cmdUtil.GetRegInfo().mmDbDfsmControl,
-                                                                   dbDfsmControl.u32All,
-                                                                   pDeCmdSpace);
-            m_dbDfsmControl.u32All = dbDfsmControl.u32All;
-        }
-    }
-
     // We shouldn't rewrite the PBB bin sizes unless at least one of these state objects has changed
     if (PipelineDirty || (StateDirty && (dirtyFlags.colorBlendState   ||
                                          dirtyFlags.colorTargetView   ||
@@ -5350,7 +5181,7 @@ uint32* UniversalCmdBuffer::ValidateDraw(
             )
         {
             m_enabledPbb = shouldEnablePbb;
-            pDeCmdSpace  = ValidateBinSizes<Pm4OptImmediate>(*pPipeline, pBlendState, disableDfsm, pDeCmdSpace);
+            pDeCmdSpace  = ValidateBinSizes<Pm4OptImmediate>(*pPipeline, pBlendState, pDeCmdSpace);
         }
     }
 
@@ -5371,8 +5202,6 @@ uint32* UniversalCmdBuffer::ValidateDraw(
 
     vgtMultiPrimIbResetEn.bits.RESET_EN = static_cast<uint32>(
         Indexed && m_graphicsState.inputAssemblyState.primitiveRestartEnable);
-
-    m_state.primShaderCbLayout.renderStateCb.primitiveRestartEnable = vgtMultiPrimIbResetEn.bits.RESET_EN;
 
     m_deCmdStream.CommitCommands(pDeCmdSpace);
     pDeCmdSpace = m_deCmdStream.ReserveCommands();
@@ -5916,8 +5745,7 @@ void UniversalCmdBuffer::Gfx10GetDepthBinSize(
 bool UniversalCmdBuffer::SetPaScBinnerCntl0(
     const GraphicsPipeline&  pipeline,
     const ColorBlendState*   pColorBlendState,
-    Extent2d*                pBinSize,
-    bool                     disableDfsm)
+    Extent2d*                pBinSize)
 {
     const regPA_SC_BINNER_CNTL_0 prevPaScBinnerCntl0 = m_paScBinnerCntl0;
 
@@ -5951,25 +5779,6 @@ bool UniversalCmdBuffer::SetPaScBinnerCntl0(
         else
         {
             m_paScBinnerCntl0.bits.BIN_SIZE_Y_EXTEND = Device::GetBinSizeEnum(pBinSize->height);
-        }
-    }
-
-    m_paScBinnerCntl0.bits.DISABLE_START_OF_PRIM = 1;
-
-    const uint32 colorTargetCount = m_graphicsState.bindTargets.colorTargetCount;
-
-    if ((disableDfsm == false)                                   &&
-        (colorTargetCount > 0)                                   &&
-        (m_paScBinnerCntl0.bits.BINNING_MODE == BINNING_ALLOWED) &&
-        (pipeline.PsAllowsPunchout() == true))
-    {
-        const bool blendingEnabled = ((pColorBlendState != nullptr)
-                                      ? ((pColorBlendState->BlendEnableMask() & ((1 << colorTargetCount) - 1)) != 0)
-                                      : false);
-
-        if (blendingEnabled == false)
-        {
-            m_paScBinnerCntl0.bits.DISABLE_START_OF_PRIM = 0;
         }
     }
 
@@ -6038,7 +5847,6 @@ template <bool Pm4OptImmediate>
 uint32* UniversalCmdBuffer::ValidateBinSizes(
     const GraphicsPipeline&  pipeline,
     const ColorBlendState*   pColorBlendState,
-    bool                     disableDfsm,
     uint32*                  pDeCmdSpace)
 {
     // Default to a zero-sized bin to disable binning.
@@ -6077,7 +5885,7 @@ uint32* UniversalCmdBuffer::ValidateBinSizes(
     }
 
     // Update our copy of m_paScBinnerCntl0 and write it out.
-    if (SetPaScBinnerCntl0(pipeline, pColorBlendState, &binSize, disableDfsm))
+    if (SetPaScBinnerCntl0(pipeline, pColorBlendState, &binSize))
     {
         pDeCmdSpace = m_deCmdStream.WriteSetOneContextReg<Pm4OptImmediate>(mmPA_SC_BINNER_CNTL_0,
                                                                            m_paScBinnerCntl0.u32All,
@@ -6119,7 +5927,7 @@ uint32* UniversalCmdBuffer::ValidateViewports(
     {
         const auto&             viewport          = params.viewports[i];
         VportScaleOffsetPm4Img* pScaleOffsetImg   = &scaleOffsetImg[i];
-        auto*                   pNggViewportCntls = &m_state.primShaderCbLayout.viewportStateCb.vportControls[i];
+        auto*                   pNggViewports     = &m_state.primShaderCullingCb.viewports[i];
 
         float xScale = (viewport.width * 0.5f);
         float yScale = (viewport.height * 0.5f);
@@ -6182,18 +5990,16 @@ uint32* UniversalCmdBuffer::ValidateViewports(
         guardbandImg.paClGbHorzClipAdj.f32All = Min(xClip, guardbandImg.paClGbHorzClipAdj.f32All);
         guardbandImg.paClGbVertClipAdj.f32All = Min(yClip, guardbandImg.paClGbVertClipAdj.f32All);
 
-        static_assert((sizeof(*pNggViewportCntls) == sizeof(*pScaleOffsetImg)),
-                      "NGG viewport struct must be same size as PAL viewport struct!");
-        memcpy(pNggViewportCntls, pScaleOffsetImg, sizeof(*pNggViewportCntls));
+        pNggViewports->paClVportXScale  = pScaleOffsetImg->xScale.u32All;
+        pNggViewports->paClVportXOffset = pScaleOffsetImg->xOffset.u32All;
+        pNggViewports->paClVportYScale  = pScaleOffsetImg->yScale.u32All;
+        pNggViewports->paClVportYOffset = pScaleOffsetImg->yOffset.u32All;
     }
 
-    static_assert((offsetof(GuardbandPm4Img, paClGbVertClipAdj) == 0),
-                  "registers are out of order in PrimShaderPsoCb");
-    auto*  pNggPipelineStateCb = &m_state.primShaderCbLayout.pipelineStateCb;
-    pNggPipelineStateCb->paClGbHorzClipAdj = guardbandImg.paClGbHorzClipAdj.u32All;
-    pNggPipelineStateCb->paClGbHorzDiscAdj = guardbandImg.paClGbHorzDiscAdj.u32All;
-    pNggPipelineStateCb->paClGbVertClipAdj = guardbandImg.paClGbVertClipAdj.u32All;
-    pNggPipelineStateCb->paClGbVertDiscAdj = guardbandImg.paClGbVertDiscAdj.u32All;
+    m_state.primShaderCullingCb.paClGbHorzClipAdj = guardbandImg.paClGbHorzClipAdj.u32All;
+    m_state.primShaderCullingCb.paClGbHorzDiscAdj = guardbandImg.paClGbHorzDiscAdj.u32All;
+    m_state.primShaderCullingCb.paClGbVertClipAdj = guardbandImg.paClGbVertClipAdj.u32All;
+    m_state.primShaderCullingCb.paClGbVertDiscAdj = guardbandImg.paClGbVertDiscAdj.u32All;
 
     pDeCmdSpace = m_deCmdStream.WriteSetSeqContextRegs<pm4OptImmediate>(mmPA_CL_GB_VERT_CLIP_ADJ,
                                                                         mmPA_CL_GB_HORZ_DISC_ADJ,
@@ -7505,8 +7311,8 @@ void UniversalCmdBuffer::CmdDumpCeRam(
 
     // Keep track of the latest DUMP_CONST_RAM packet before the upcoming draw or dispatch.  The last one before the
     // draw or dispatch will be updated to set the increment_ce bit at draw-time.
-    m_state.pLastDumpCeRam                    = pCeCmdSpace;
-    m_state.lastDumpCeRamOrdinal2.bits.offset = (ReservedCeRamBytes + ramOffset);
+    m_state.pLastDumpCeRam                          = pCeCmdSpace;
+    m_state.lastDumpCeRamOrdinal2.bits.hasCe.offset = (ReservedCeRamBytes + ramOffset);
 
     pCeCmdSpace += CmdUtil::BuildDumpConstRam(dstGpuMemory.Desc().gpuVirtAddr + memOffset,
                                               (ReservedCeRamBytes + ramOffset),
@@ -8289,8 +8095,8 @@ void UniversalCmdBuffer::LeakNestedCmdBufferState(
         m_geCntl         = cmdBuffer.m_geCntl;
     }
 
-    m_nggState.flags.state.hasPrimShaderWorkload |= cmdBuffer.m_nggState.flags.state.hasPrimShaderWorkload;
-    m_nggState.flags.dirty.u8All                 |= cmdBuffer.m_nggState.flags.dirty.u8All;
+    m_nggState.flags.hasPrimShaderWorkload |= cmdBuffer.m_nggState.flags.hasPrimShaderWorkload;
+    m_nggState.flags.dirty                 |= cmdBuffer.m_nggState.flags.dirty;
 
     // It is possible that nested command buffer execute operation which affect the data in the primary buffer
     m_gfxCmdBufState.flags.gfxBltActive              = cmdBuffer.m_gfxCmdBufState.flags.gfxBltActive;
@@ -8636,11 +8442,11 @@ void UniversalCmdBuffer::P2pBltWaCopyBegin(
     {
         PM4_PFP_CONTEXT_CONTROL contextControl = m_device.GetContextControl();
 
-        contextControl.bitfields3.shadow_per_context_state = 0;
-        contextControl.bitfields3.shadow_cs_sh_regs        = 0;
-        contextControl.bitfields3.shadow_gfx_sh_regs       = 0;
-        contextControl.bitfields3.shadow_global_config     = 0;
-        contextControl.bitfields3.shadow_global_uconfig    = 0;
+        contextControl.ordinal3.bitfields.shadow_per_context_state = 0;
+        contextControl.ordinal3.bitfields.shadow_cs_sh_regs        = 0;
+        contextControl.ordinal3.bitfields.shadow_gfx_sh_regs       = 0;
+        contextControl.ordinal3.bitfields.shadow_global_config     = 0;
+        contextControl.ordinal3.bitfields.shadow_global_uconfig    = 0;
 
         uint32* pCmdSpace = m_deCmdStream.ReserveCommands();
         pCmdSpace += CmdUtil::BuildContextControl(contextControl, pCmdSpace);

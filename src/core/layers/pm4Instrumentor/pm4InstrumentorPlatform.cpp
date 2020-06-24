@@ -68,12 +68,10 @@ static void PAL_STDCALL Pm4InstrumentorCb(
         PAL_ASSERT(pCbData != nullptr);
         TranslateDrawDispatchData(pCbData);
         break;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 471
     case Developer::CallbackType::BindPipeline:
         PAL_ASSERT(pCbData != nullptr);
         TranslateBindPipelineData(pCbData);
         break;
-#endif
     case Developer::CallbackType::DrawDispatchValidation:
         PAL_ASSERT(pCbData != nullptr);
         if (TranslateDrawDispatchValidationData(pCbData))

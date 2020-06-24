@@ -151,10 +151,7 @@ CmdAllocator::CmdAllocator(
         // implicitly wait for each allocation to be resident at create-time.
         if (TestAnyFlagSet(residencyFlags, (1 << i)))
         {
-            // Note: It is safe to give a pointer to this member directly, because either (A) the allocator is thread-
-            // safe, or (B) the allocator is only allowed to be used by a single thread at any given time for recording
-            // command buffers.
-            m_gpuAllocInfo[i].allocCreateInfo.memObjInternalInfo.pPagingFence = &m_lastPagingFence;
+            m_gpuAllocInfo[i].allocCreateInfo.flags.optimizePaging = 1;
         }
 
         constexpr gpusize CmdAllocatorAlignment = 4096;
@@ -614,10 +611,17 @@ Result CmdAllocator::CreateAllocation(
     CmdStreamAllocation* pAlloc = nullptr;
     CmdStreamChunk*      pChunk = nullptr;
 
+    uint64 pagingFence = 0;
     CmdStreamAllocationCreateInfo allocCreateInfo = pAllocInfo->allocCreateInfo;
     // dummyAlloc indicates that the new CmdStreamAllocation will get its GPU memory from device and will not own
     // that piece of memory
     allocCreateInfo.flags.dummyAllocation = dummyAlloc;
+    // If wait-on-submit residency is enabled we must request a paging fence for each allocation. Otherwise we will
+    // implicitly wait for each allocation to be resident at create-time.
+    if (allocCreateInfo.flags.optimizePaging == 1)
+    {
+        allocCreateInfo.memObjInternalInfo.pPagingFence = &pagingFence;
+    }
 
     void*const pPlacementAddr = PAL_MALLOC(CmdStreamAllocation::GetSize(allocCreateInfo),
                                            m_pDevice->GetPlatform(),
@@ -666,6 +670,13 @@ Result CmdAllocator::CreateAllocation(
         pAllocInfo->busyList.PushBack(pChunk->ListNode());
     }
 
+    if ((result == Result::Success) &&
+        (allocCreateInfo.flags.optimizePaging == 1))
+    {
+        // Update the last paging fence if the current paging fence from this allocation is larger.
+        m_lastPagingFence = Max(m_lastPagingFence, *allocCreateInfo.memObjInternalInfo.pPagingFence);
+    }
+
     *ppChunk = pChunk;
     return result;
 }
@@ -677,13 +688,14 @@ Result CmdAllocator::CreateDummyChunkAllocation()
 {
     Result result = Result::ErrorOutOfMemory;
 
+    uint64 pagingFence = 0;
     CmdStreamAllocationCreateInfo createInfo = {};
     createInfo.memObjCreateInfo.priority     = GpuMemPriority::Normal;
     createInfo.memObjCreateInfo.vaRange      = VaRange::Default;
     createInfo.memObjCreateInfo.alignment    = 4096;
     createInfo.memObjCreateInfo.size         = 4096;
 
-    createInfo.memObjInternalInfo.pPagingFence         = &m_lastPagingFence;
+    createInfo.memObjInternalInfo.pPagingFence         = &pagingFence;
     createInfo.memObjInternalInfo.flags.isCmdAllocator = 1;
 
     createInfo.chunkSize             = 4096;
@@ -704,6 +716,11 @@ Result CmdAllocator::CreateDummyChunkAllocation()
         {
             // Free the memory we allocated for the command stream since it failed to initialize.
             PAL_FREE(pPlacementAddr, m_pDevice->GetPlatform());
+        }
+        else
+        {
+            // update the last paging fence if the current paging fence from this dummy allocation is larger.
+            m_lastPagingFence = Max(m_lastPagingFence, pagingFence);
         }
     }
 

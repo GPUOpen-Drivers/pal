@@ -1192,9 +1192,14 @@ void Device::InitGfx9ChipProperties()
 
     if (IsGfx10(m_chipProperties.gfxLevel))
     {
-        pChipInfo->gfx10.numTcpPerSa    = 10; // GPU__GC__NUM_TCP_PER_SA
-        pChipInfo->gfx10.numWgpAboveSpi =  3; // GPU__GC__NUM_WGP0_PER_SA
-        pChipInfo->gfx10.numWgpBelowSpi =  2; // GPU__GC__NUM_WGP1_PER_SA
+        // We should probably ask that GPU__GC__NUM_TCP_PER_SA, GPU__GC__NUM_WGP0_PER_SA, and GPU__GC__NUM_WGP1_PER_SA
+        // be added to drm_amdgpu_info_device. For now use the hard-coded WGP defaults and assume 2 TCPs per WGP.
+        const uint32 wgpPerSa = pChipInfo->gfx10.numWgpAboveSpi + pChipInfo->gfx10.numWgpBelowSpi;
+
+        // If this triggers we probably didn't give this ASIC a hard-coded default WGP count.
+        PAL_ASSERT(wgpPerSa > 0);
+
+        pChipInfo->gfx10.numTcpPerSa = 2 * wgpPerSa;
     }
 
     // Call into the HWL to finish initializing some GPU properties which can be derived from the ones which we
@@ -1824,13 +1829,11 @@ size_t Device::QueueObjectSize(
         // Add the size of Amdgpu::Queue::m_pResourceList
         size = sizeof(Amdgpu::Queue) + CmdBufMemReferenceLimit * sizeof(amdgpu_bo_handle);
 
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 479)
         if (createInfo.enableGpuMemoryPriorities)
         {
             // Add the size of Amdgpu::Queue::m_pResourcePriorityList
             size += CmdBufMemReferenceLimit * sizeof(uint8);
         }
-#endif
 
         break;
     case QueueTypeTimer:
@@ -1983,11 +1986,11 @@ Result Device::GetSwapChainInfo(
     SwapChainProperties* pSwapChainProperties)
 {
     // Get current windows size (height, width) from window system.
-    Result result = WindowSystem::GetWindowGeometry(this,
-                                                    wsiPlatform,
-                                                    hDisplay,
-                                                    hWindow,
-                                                    &pSwapChainProperties->currentExtent);
+    Result result = WindowSystem::GetWindowProperties(this,
+                                                      wsiPlatform,
+                                                      hDisplay,
+                                                      hWindow,
+                                                      pSwapChainProperties);
 
     if (result == Result::Success)
     {
@@ -3190,7 +3193,7 @@ static uint32 AmdGpuToPalPipeConfigConversion(
     static_assert(static_cast<uint32>(Gfx6::ADDR_SURF_P16_32x32_8x16__CI__VI)  == static_cast<uint32>(Gfx9::ADDR_SURF_P16_32x32_8x16),  "Enums need updating!");
     static_assert(static_cast<uint32>(Gfx6::ADDR_SURF_P16_32x32_16x16__CI__VI) == static_cast<uint32>(Gfx9::ADDR_SURF_P16_32x32_16x16), "Enums need updating!");
     // clang-format on
-#endif // PAL_BUILD_GFX6 && PAL_BUILD_GFX9
+#endif
 
     return palPipeConfig;
 }
@@ -5142,9 +5145,9 @@ Result Device::CreateGpuMemoryFromExternalShare(
     }
     else if (pImage != nullptr)
     {
-        pCreateInfo->pImage          = pImage;
-        pCreateInfo->flags.flippable = pImage->IsFlippable();
-
+        pCreateInfo->pImage              = pImage;
+        pCreateInfo->flags.flippable     = pImage->IsFlippable();
+        pCreateInfo->flags.presentable   = pImage->IsPresentable();
         internalInfo.flags.privateScreen = (pImage->GetPrivateScreen() != nullptr);
     }
 

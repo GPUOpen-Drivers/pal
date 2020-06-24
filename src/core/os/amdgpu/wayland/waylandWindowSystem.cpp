@@ -696,18 +696,25 @@ Result WaylandWindowSystem::WaitForLastImagePresented()
 
 // =====================================================================================================================
 // Get window width and height.
-Result WaylandWindowSystem::GetWindowGeometry(
-    Device*             pDevice,
-    OsDisplayHandle     hDisplay,
-    OsWindowHandle      hWindow,
-    Extent2d*           pExtents)
+Result WaylandWindowSystem::GetWindowProperties(
+    Device*              pDevice,
+    OsDisplayHandle      hDisplay,
+    OsWindowHandle       hWindow,
+    SwapChainProperties* pSwapChainProperties)
 {
     Result result = Result::Success;
 
     // UINT32_MAX indicates that the surface size will be determined by the extent of a swapchain
     // targeting the surface.
-    pExtents->width  = UINT32_MAX;
-    pExtents->height = UINT32_MAX;
+    pSwapChainProperties->currentExtent.width  = UINT32_MAX;
+    pSwapChainProperties->currentExtent.height = UINT32_MAX;
+
+    pSwapChainProperties->minImageCount        = 2;
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 610
+    pSwapChainProperties->compositeAlphaMode = static_cast<uint32>(CompositeAlphaMode::PostMultiplied) |
+                                               static_cast<uint32>(CompositeAlphaMode::Opaque);
+#endif
 
     return result;
 }

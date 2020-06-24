@@ -25,6 +25,8 @@
 
 #pragma once
 
+#if PAL_BUILD_NULL_DEVICE
+
 #include "core/device.h"
 #include "palPlatform.h"
 
@@ -423,3 +425,5 @@ private:
 
 } // NullDevice
 } // Pal
+
+#endif

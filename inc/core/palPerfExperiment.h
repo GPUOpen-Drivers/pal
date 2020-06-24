@@ -85,9 +85,7 @@ enum class GpuBlock : uint32
     Gus     = 0x2A,
     Gcr     = 0x2B,
     Ph      = 0x2C,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION > 485
     UtcL1   = 0x2D,
-#endif
     Count
 };
 

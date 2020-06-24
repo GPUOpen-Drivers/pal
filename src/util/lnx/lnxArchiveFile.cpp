@@ -83,9 +83,10 @@ static uint64 UnixTimeToFileTimeToU64(
 static uint64 EarliestValidFileTime()
 {
     struct tm earliestTime = { };
+    earliestTime.tm_mday = 1; // Day of the month (1-31)
+    earliestTime.tm_wday = 1; // Day of the week (0-6, Sunday = 0), 2018-01-01 is a Monday
+    earliestTime.tm_year = 2018 - 1900;
 
-    setenv("TZ", "GMT+0", 1);
-    strptime("20180101000000","%Y%m%d%H%M%S", &earliestTime);
     const uint64 unixTime = mktime(&earliestTime);
 
     return UnixTimeToFileTimeToU64(unixTime);

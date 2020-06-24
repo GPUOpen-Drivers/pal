@@ -128,13 +128,8 @@ void Device::TransitionDepthStencil(
     const BarrierTransition& transition = barrier.pTransitions[transitionId];
     PAL_ASSERT(transition.imageInfo.pImage != nullptr);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 482
     uint32       srcCacheMask = (barrier.globalSrcCacheMask | transition.srcCacheMask);
     const uint32 dstCacheMask = (barrier.globalDstCacheMask | transition.dstCacheMask);
-#else
-    uint32       srcCacheMask = transition.srcCacheMask;
-    const uint32 dstCacheMask = transition.dstCacheMask;
-#endif
 
     // The "earlyPhase" for decompress/resummarize BLTs is before any waits and/or cache flushes have been inserted.
     // It is safe to perform a depth expand or htile resummarize in the early phase if the client reports there is dirty
@@ -391,13 +386,8 @@ void Device::ExpandColor(
     const uint32       allBltOperations       = GetColorBltPerSubres(pCmdBuf, blt, transition, earlyPhase);
     PAL_ASSERT(image.IsDepthStencil() == false);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 482
     const uint32 srcCacheMask = (barrier.globalSrcCacheMask | transition.srcCacheMask);
     const uint32 dstCacheMask = (barrier.globalDstCacheMask | transition.dstCacheMask);
-#else
-    const uint32 srcCacheMask = transition.srcCacheMask;
-    const uint32 dstCacheMask = transition.dstCacheMask;
-#endif
 
     uint32* pCmdSpace = pCmdStream->ReserveCommands();
     // If any mip level needs a Dcc decompress (Dcc FastClearEliminate) or Fmask decompress,
@@ -1164,13 +1154,9 @@ void Device::Barrier(
     {
         const auto& transition = barrier.pTransitions[i];
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 482
         uint32       srcCacheMask = (barrier.globalSrcCacheMask | transition.srcCacheMask);
         const uint32 dstCacheMask = (barrier.globalDstCacheMask | transition.dstCacheMask);
-#else
-        uint32       srcCacheMask = transition.srcCacheMask;
-        const uint32 dstCacheMask = transition.dstCacheMask;
-#endif
+
         // There are various srcCache BLTs (Copy, Clear, and Resolve) which we can further optimize if we know which
         // write caches have been dirtied:
         // - If a graphics BLT occurred, alias these srcCaches to CoherColorTarget.
@@ -1484,13 +1470,8 @@ void Device::Barrier(
                         // Issue a late-phase DB decompress, if necessary.
                         TransitionDepthStencil(pCmdBuf, cmdBufState, barrier, i, false, &imageSyncReqs, &barrierOps);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 482
                         uint32       srcCacheMask = (barrier.globalSrcCacheMask | transition.srcCacheMask);
                         const uint32 dstCacheMask = (barrier.globalDstCacheMask | transition.dstCacheMask);
-#else
-                        uint32       srcCacheMask = transition.srcCacheMask;
-                        const uint32 dstCacheMask = transition.dstCacheMask;
-#endif
 
                         // There are two various srcCache Clear which we can further optimize if we know which
                         // write caches have been dirtied:

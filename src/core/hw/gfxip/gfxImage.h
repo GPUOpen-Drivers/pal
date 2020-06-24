@@ -156,6 +156,8 @@ public:
                                      uint8           disabledChannelMask = 0) const = 0;
     virtual bool IsSubResourceLinear(const SubresId& subresource) const = 0;
 
+    virtual bool IsIterate256Meaningful(const SubResourceInfo* subResInfo) const { return false; }
+
     virtual void OverrideGpuMemHeaps(GpuMemoryRequirements* pMemReqs) const { }
 
     virtual bool IsRestrictedTiledMultiMediaSurface() const;

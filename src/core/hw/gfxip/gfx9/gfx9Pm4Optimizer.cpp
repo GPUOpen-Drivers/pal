@@ -203,7 +203,7 @@ uint32* Pm4Optimizer::WriteOptimizedSetSeqShRegs(
     m_dstContainsSrc = false;
 #endif
 
-    return OptimizePm4SetReg(setData, pData, pCmdSpace, &m_shRegs);
+    return OptimizePm4SetReg(setData, PM4_ME_SET_SH_REG_SIZEDW__CORE, pData, pCmdSpace, &m_shRegs);
 }
 
 // =====================================================================================================================
@@ -221,7 +221,11 @@ uint32* Pm4Optimizer::WriteOptimizedSetSeqContextRegs(
 
     PAL_ASSERT(pContextRollDetected != nullptr);
 
-    uint32* pNewCmdSpace = OptimizePm4SetReg(setData, pData, pCmdSpace, &m_cntxRegs);
+    uint32* pNewCmdSpace = OptimizePm4SetReg(setData,
+                                             PM4_PFP_SET_CONTEXT_REG_SIZEDW__CORE,
+                                             pData,
+                                             pCmdSpace,
+                                             &m_cntxRegs);
     (*pContextRollDetected) |= ((pNewCmdSpace > pCmdSpace) != 0);
     return pNewCmdSpace;
 }
@@ -236,13 +240,13 @@ uint32* Pm4Optimizer::WriteOptimizedSetShShRegOffset(
 {
     // Since this is an indirect write, we do not know the exact SH register data. Invalidate SH register so that
     // the next SH register write will not be skipped inadvertently
-    m_shRegs.state[setShRegOffset.bitfields2.reg_offset].flags.valid = 0;
+    m_shRegs.state[setShRegOffset.ordinal2.bitfields.reg_offset].flags.valid = 0;
 
     // If the index value is set to 0, this packet actually operates on two sequential SH registers so we need to
     // invalidate the following register as well.
-    if (setShRegOffset.bitfields2.index == 0)
+    if (setShRegOffset.ordinal2.bitfields.index == 0)
     {
-        m_shRegs.state[setShRegOffset.bitfields2.reg_offset + 1].flags.valid = 0;
+        m_shRegs.state[setShRegOffset.ordinal2.bitfields.reg_offset + 1].flags.valid = 0;
     }
 
     // memcpy packet into command space
@@ -258,12 +262,13 @@ uint32* Pm4Optimizer::WriteOptimizedSetShShRegOffset(
 template <typename SetDataPacket, size_t RegisterCount>
 uint32* Pm4Optimizer::OptimizePm4SetReg(
     SetDataPacket                 setData,
+    uint32                        setDataSize,
     const uint32*                 pRegData,
     uint32*                       pDstCmd,
     RegGroupState<RegisterCount>* pRegState)
 {
-    const uint32 numRegs   = setData.header.count;
-    const uint32 regOffset = setData.bitfields2.reg_offset;
+    const uint32 numRegs   = setData.ordinal1.header.count;
+    const uint32 regOffset = setData.ordinal2.bitfields.reg_offset;
 
     // Determine which of the registers written by this set command can't be skipped because they must always be set or
     // are taking on a new value.
@@ -287,8 +292,8 @@ uint32* Pm4Optimizer::OptimizePm4SetReg(
     if ((keepRegCount == numRegs) || (numRegs > 32))
     {
         // No register writes can be skipped: emit all registers.
-        memcpy(pDstCmd, &setData, sizeof(setData));
-        pDstCmd += Util::NumBytesToNumDwords(sizeof(SetDataPacket));
+        memcpy(pDstCmd, &setData, setDataSize * sizeof(uint32));
+        pDstCmd += setDataSize;
 
         memmove(pDstCmd, pRegData, numRegs * sizeof(uint32));
         pDstCmd += numRegs;
@@ -302,7 +307,7 @@ uint32* Pm4Optimizer::OptimizePm4SetReg(
         // using more command space than an unoptimized command while conceeding that in some cases we may write
         // redundant registers. The difference between clauseEndIdx and curRegIdx will be one greater than the gap size
         // so we need to add one to the constant below.
-        const uint32 MinClauseIdxGap = Util::NumBytesToNumDwords(sizeof(SetDataPacket)) + 1;
+        const uint32 MinClauseIdxGap = setDataSize + 1;
 
         // Since the keepRegCount is non-zero we must have at least one bit set, find it and use it to start a clause.
         uint32 curRegIdx      = 0;
@@ -322,11 +327,11 @@ uint32* Pm4Optimizer::OptimizePm4SetReg(
             {
                 const uint32 clauseRegCount = clauseEndIdx - clauseStartIdx + 1;
 
-                setData.header.count          = clauseRegCount;
-                setData.bitfields2.reg_offset = regOffset + clauseStartIdx;
+                setData.ordinal1.header.count         = clauseRegCount;
+                setData.ordinal2.bitfields.reg_offset = regOffset + clauseStartIdx;
 
-                memcpy(pDstCmd, &setData, sizeof(setData));
-                pDstCmd += Util::NumBytesToNumDwords(sizeof(SetDataPacket));
+                memcpy(pDstCmd, &setData, setDataSize * sizeof(uint32));
+                pDstCmd += setDataSize;
 
                 memmove(pDstCmd, pRegData + clauseStartIdx, clauseRegCount * sizeof(uint32));
                 pDstCmd += clauseRegCount;
@@ -358,14 +363,15 @@ uint32* Pm4Optimizer::OptimizePm4SetReg(
 template <typename LoadDataPacket, size_t RegisterCount>
 void Pm4Optimizer::HandlePm4LoadReg(
     const LoadDataPacket&         loadData,
+    uint32                        loadDataSize,
     RegGroupState<RegisterCount>* pRegState)
 {
     // NOTE: IT_LOAD_*_REG is a variable-length packet which loads N groups of consecutive register values from GPU
     // memory. The LOAD packet uses 3 DWORD's for the PM4 header and for the GPU virtual address to load from. The
     // last two DWORD's in the packet can be repeated for each group of registers the packet will load from memory.
 
-    const uint32* pRegisterGroup = ((&loadData.ordinal1) + Util::NumBytesToNumDwords(sizeof(LoadDataPacket)) - 2);
-    const uint32* pNextHeader    = ((&loadData.ordinal1) + loadData.header.count + 2);
+    const uint32* pRegisterGroup = ((&loadData.ordinal1.u32All) + loadDataSize                   - 2);
+    const uint32* pNextHeader    = ((&loadData.ordinal1.u32All) + loadData.ordinal1.header.count + 2);
 
     while (pRegisterGroup != pNextHeader)
     {
@@ -386,14 +392,15 @@ void Pm4Optimizer::HandlePm4LoadReg(
 template <typename LoadDataIndexPacket, size_t RegisterCount>
 void Pm4Optimizer::HandlePm4LoadRegIndex(
     const LoadDataIndexPacket&    loadDataIndex,
+    uint32                        loadDataIndexSize,
     RegGroupState<RegisterCount>* pRegState)
 {
     // NOTE: IT_LOAD_*_REG_INDEX is nearly identical to IT_LOAD_*_REG except the register offset values in it are only
     //       16 bits wide. This means we need to perform some special logic when traversing the dwords that follow the
     //       packet header to avoid reading the reserved bits by accident.
 
-    const void* pRegisterGroup = ((&loadDataIndex.ordinal1) + NumBytesToNumDwords(sizeof(LoadDataIndexPacket)) - 2);
-    const void* pNextHeader    = ((&loadDataIndex.ordinal1) + loadDataIndex.header.count + 2);
+    const void* pRegisterGroup = ((&loadDataIndex.ordinal1.u32All) + loadDataIndexSize                   - 2);
+    const void* pNextHeader    = ((&loadDataIndex.ordinal1.u32All) + loadDataIndex.ordinal1.header.count + 2);
 
     while (pRegisterGroup != pNextHeader)
     {
@@ -414,7 +421,9 @@ void Pm4Optimizer::HandlePm4LoadRegIndex(
 void Pm4Optimizer::HandleLoadContextRegsIndex(
      const PM4_PFP_LOAD_CONTEXT_REG_INDEX& loadData)
 {
-    HandlePm4LoadRegIndex<PM4_PFP_LOAD_CONTEXT_REG_INDEX>(loadData, &m_cntxRegs);
+    HandlePm4LoadRegIndex<PM4_PFP_LOAD_CONTEXT_REG_INDEX>(loadData,
+                                                          PM4_PFP_LOAD_CONTEXT_REG_INDEX_SIZEDW__CORE,
+                                                          &m_cntxRegs);
 }
 
 // =====================================================================================================================
@@ -424,13 +433,13 @@ void Pm4Optimizer::HandlePm4SetShRegOffset(
     const PM4_PFP_SET_SH_REG_OFFSET& setShRegOffset)
 {
     // Invalidate the register the packet is operating on.
-    m_shRegs.state[setShRegOffset.bitfields2.reg_offset].flags.valid = 0;
+    m_shRegs.state[setShRegOffset.ordinal2.bitfields.reg_offset].flags.valid = 0;
 
     // If the index value is set to 0, this packet actually operates on two sequential SH registers so we need to
     // invalidate the following register as well.
-    if (setShRegOffset.bitfields2.index == 0)
+    if (setShRegOffset.ordinal2.bitfields.index == 0)
     {
-        m_shRegs.state[setShRegOffset.bitfields2.reg_offset + 1].flags.valid = 0;
+        m_shRegs.state[setShRegOffset.ordinal2.bitfields.reg_offset + 1].flags.valid = 0;
     }
 }
 
@@ -440,8 +449,8 @@ void Pm4Optimizer::HandlePm4SetShRegOffset(
 void Pm4Optimizer::HandlePm4SetContextRegIndirect(
     const PM4_PFP_SET_CONTEXT_REG& setData)
 {
-    const uint32 startRegOffset = static_cast<uint32>(setData.bitfields2.reg_offset);
-    const uint32  endRegOffset  = (startRegOffset + (setData.header.count - 1));
+    const uint32 startRegOffset = static_cast<uint32>(setData.ordinal2.bitfields.reg_offset);
+    const uint32  endRegOffset  = (startRegOffset + (setData.ordinal1.header.count - 1));
 
     for (uint32 reg = startRegOffset; reg <= endRegOffset; ++reg)
     {

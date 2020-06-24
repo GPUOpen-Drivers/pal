@@ -51,7 +51,7 @@
 #define DEFINE_MSWIN_DATATYPES        1 // For Linux we need to define datatypes
 #endif
 #elif (defined (BUILDING_CMMQSLIB) || defined(BUILDING_CMM))
-#endif                                  // #if defined(__unix__)
+#endif
 
 //
 // -----------------  Define standard API calling convention ------------------
@@ -85,13 +85,13 @@
 #define GCC_STRUCT_DEFAULT_ALIGN  __attribute__ ((aligned (8)))
 #else                                   // #ifdef TARGET_32_OS
 #define GCC_STRUCT_DEFAULT_ALIGN  __attribute__ ((aligned (8)))
-#endif                                  // #ifdef TARGET_32_OS
+#endif
 #define GCC_STRUCT_ALIGN(a)  __attribute__ ((aligned (a)))
 #else                                   // #ifdef __GNUC__
 #define GCC_STRUCT_DEFAULT_ALIGN
 #define GCC_STRUCT_ALIGN(a)
 #define GCC_PACK_STRUCT
-#endif                                  // #ifdef __GNUC__
+#endif
 
 //
 // ------------------  Emulate MS Windows build environment -------------------
@@ -152,7 +152,7 @@ typedef uint32_t            UINT_PTR;
 typedef uint64_t            DWORD_PTR;
 typedef uint64_t            ULONG_PTR;
 typedef uint64_t            UINT_PTR;
-#endif                                      // #ifdef TARGET_32_OS
+#endif
 
 #define DWORD_PTR           DWORD_PTR
 #define ULONG_PTR           ULONG_PTR
@@ -160,7 +160,7 @@ typedef uint64_t            UINT_PTR;
 
 #define MAXLONGLONG         (0x7fffffffffffffffLL)
 
-#endif                                      // #ifdef DEFINE_MSWIN_DATATYPES
+#endif
 
-#endif                                      // #ifdef _vam_basic_types_h_
+#endif
 

@@ -2029,6 +2029,18 @@ bool Image::IsSubResourceLinear(
 }
 
 // =====================================================================================================================
+bool Image::IsIterate256Meaningful(
+    const SubResourceInfo* subResInfo
+    ) const
+{
+    //  Note that this recommendation really only applies to MSAA depth or stencil surfaces that are
+    //  tc-compatible.  The iterate_256 state has no effect on 1xaa surfaces.
+    return ((Parent()->GetImageCreateInfo().samples > 1) &&
+            Parent()->GetImageCreateInfo().usageFlags.depthStencil &&
+            subResInfo->flags.supportMetaDataTexFetch &&
+            Parent()->IsAspectValid(subResInfo->subresId.aspect));
+}
+// =====================================================================================================================
 HtileUsageFlags Image::GetHtileUsage() const
 {
     HtileUsageFlags  hTileUsage = {};
@@ -2718,14 +2730,8 @@ bool Image::SupportsMetaDataTextureFetch(
     {
         // If this device doesn't allow any tex fetches of meta data, then don't bother continuing
         if ((m_device.GetPublicSettings()->tcCompatibleMetaData != 0) &&
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 496
             // If the image requested TC compat off
             (m_pParent->GetImageCreateInfo().metadataTcCompatMode != MetadataTcCompatMode::Disabled) &&
-#elif PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 481
-            // If the client has not given us a hint that the cost of decompress/expand blits is less important than
-            // texture-fetch performance.
-            (m_pParent->GetImageCreateInfo().metadataMode != MetadataMode::OptForTexFetchPerf) &&
-#endif
             // If this image isn't readable by a shader then no shader is going to be performing texture fetches from
             // it... Msaa image with resolveSrc usage flag will go through shader based resolve if fixed function
             // resolve is not preferred, the image will be readable by a shader.
@@ -3013,7 +3019,7 @@ void CpuProcessEq(
                                     andOrPrintWidth, andValue,
                                     andOrPrintWidth, orValue);
                             }
-#endif // PAL_ENABLE_PRINTS_ASSERTS
+#endif
 
                             pData[metaOffset] = (pData[metaOffset] & andValue) | orValue;
                         } // end loop through all the samples that actually affect this equation
@@ -3427,64 +3433,50 @@ uint32 Image::GetIterate256(
 {
     const auto& settings         = GetGfx9Settings(m_device);
     const auto& chipProperties   = m_device.ChipProperties();
-    const auto* pPlatform        = m_device.GetPlatform();
     const auto& memoryProperties = m_device.MemoryProperties();
 
-    // The iterate-256 bit doesn't exist except on GFX10 products...  It's not "bad" to call this function on
+    // The iterate-256 bit doesn't exist except on GFX10+ products...  It's not "bad" to call this function on
     // other GPUs, but the answer isn't meaningful
-    PAL_ASSERT(IsGfx10(chipProperties.gfxLevel));
+    PAL_ASSERT(IsGfx10Plus(chipProperties.gfxLevel));
 
     // Leaving iterate256=1 is the safe case.
     uint32  iterate256 = 1;
 
-    // Look for some device-wide easy-outs first.
-    // Emulation must enable iterate256 since the frame buffer is really just system memory where the page
-    // size is unknown.
-    if ((pPlatform->IsEmulationEnabled() == false)        &&
-        //If the panel is forcing iterate256 on, then ignore everything else
-        (settings.forceEnableIterate256 == false)         &&
-        // In cases where our VRAM bus width is not a power of two, we need to have iterate256 enabled at all times
-        IsPowerOfTwo(memoryProperties.vramBusBitWidth))
+    const auto* pParent = Parent();
+    // Look if the device supports setting iterate256 = 0.
+    if (m_gfxDevice.SupportsIterate256() &&
+        // Check for image-specific constraints here.
+        pParent->GetGfxImage()->IsIterate256Meaningful(pSubResInfo) &&
+        // If the panel is forcing iterate256 on, then ignore everything else.
+        (settings.forceEnableIterate256 == false))
     {
-        const auto* pParent         = Parent();
-        const auto& imageCreateInfo = pParent->GetImageCreateInfo();
+        // And finally check the memory alignment requirements.  If there's no bound memory we don't know
+        // what the page-size is. Also, shared images are always in system memory where we have no idea
+        // what the page-size is.
+        const bool  isShared  = pParent->IsShared();
+        const auto& boundMem  = pParent->GetBoundGpuMemory();
 
-        // Ok, the device supports iterate256=0.  Check for image-specific constraints here.
-        //  Note that this recommendation really only applies to MSAA depth or stencil surfaces that are
-        //  tc-compatible.  The iterate_256 state has no effect on 1xaa surfaces.
-        if (pParent->IsDepthStencil()                            &&
-            pParent->IsAspectValid(pSubResInfo->subresId.aspect) &&
-            pSubResInfo->flags.supportMetaDataTexFetch           &&
-            (imageCreateInfo.samples > 1))
+        if ((isShared == false) && boundMem.IsBound())
         {
-            // And finally check the memory alignment requirements.  If there's no bound memory we don't know
-            // what the page-size is. Also, shared images are always in system memory where we have no idea
-            // what the page-size is.
-            const bool   isShared = pParent->IsShared();
-            const auto&  boundMem = pParent->GetBoundGpuMemory();
-
-            if ((isShared == false) && boundMem.IsBound())
+            const gpusize minPageSize = boundMem.Memory()->MinPageSize();
+            // Iterate256 is not supported for allocations < iterate256MinAlignment.
+            if ((minPageSize >= memoryProperties.iterate256LargeAlignment) &&
+                (memoryProperties.iterate256LargeAlignment > 0) &&
+                IsPow2Aligned(minPageSize, memoryProperties.iterate256LargeAlignment))
             {
-                const gpusize minPageSize = boundMem.Memory()->MinPageSize();
-                // Iterate256 is not supported for allocations < iterate256MinAlignment.
-                if ((minPageSize >= memoryProperties.iterate256LargeAlignment) &&
-                    (memoryProperties.iterate256LargeAlignment > 0) &&
-                    (IsPow2Aligned(minPageSize, memoryProperties.iterate256LargeAlignment)))
-                {
-                    iterate256 = 0;
-                }
-                else if ((minPageSize >= memoryProperties.iterate256MinAlignment) &&
-                         (memoryProperties.iterate256MinAlignment > 0) &&
-                         (IsPow2Aligned(minPageSize, memoryProperties.iterate256MinAlignment)))
-                {
-                    iterate256 = 0;
-                }
-                // If in case KMD alignments are not correctly populated iterate256 optimization works for
-                // PageSize >=64KB, if aligned to 64KB.
-                else if (IsPow2Aligned(minPageSize, 0x10000))
-                {
-                    iterate256 = 0;
-                }
+                iterate256 = 0;
+            }
+            else if ((minPageSize >= memoryProperties.iterate256MinAlignment) &&
+                     (memoryProperties.iterate256MinAlignment > 0) &&
+                     IsPow2Aligned(minPageSize, memoryProperties.iterate256MinAlignment))
+            {
+                iterate256 = 0;
+            }
+            // If in case KMD alignments are not correctly populated iterate256 optimization works for
+            // PageSize >=64KB, if aligned to 64KB.
+            else if (IsPow2Aligned(minPageSize, 0x10000))
+            {
+                iterate256 = 0;
             }
         }
     }
@@ -3559,6 +3551,7 @@ void Image::GetSharedMetadataInfo(
         pMetadataInfo->dccOffset[dccPlane]                        = m_pDcc[dccPlane]->MemoryOffset();
         pMetadataInfo->dccStateMetaDataOffset[dccPlane]           = m_dccStateMetaDataOffset[dccPlane];
         pMetadataInfo->fastClearEliminateMetaDataOffset[dccPlane] = m_fastClearEliminateMetaDataOffset[dccPlane];
+        pMetadataInfo->fastClearMetaDataOffset[dccPlane]          = m_fastClearMetaDataOffset[dccPlane];
 
         pMetadataInfo->flags.hasEqGpuAccess = m_pDcc[dccPlane]->HasEqGpuAccess();
 

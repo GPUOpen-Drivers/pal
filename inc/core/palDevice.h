@@ -618,13 +618,11 @@ struct PalPublicSettings
     /// the KMD-reported limit.
     gpusize largePageMinSizeForAlignmentInBytes;
 #endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 500
     /// The acquire/release-based barrier interface is enabled.
     bool useAcqRelInterface;
     /// Enable multiple slots instead of single DWORD slot for GPU event. This will enable anywhere that can utilize
     /// multiple event slots for optimization or function purpose, such as AcqRelBarrier interface.
     bool enableGpuEventMultiSlot;
-#endif
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 503
     ///  Makes the unbound descriptor debug srd 0 so the hardware drops the load and ignores it instead of
     ///  pagefaulting. Used to workaround incorrect app behavior.
@@ -1288,9 +1286,6 @@ struct DeviceProperties
                                             ///< harvesting CUs for yield in certain variants of ASICs (ex: Fiji PRO).
             uint32 numSimdsPerCu;           ///< Number of SIMDs per compute unit.
             uint32 numWavefrontsPerSimd;    ///< Number of wavefront slots in each SIMD.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 484
-            uint32 wavefrontSize;           ///< Wavefront size.
-#endif
             uint32 nativeWavefrontSize;     ///< The native wavefront size.
             uint32 minWavefrontSize;        ///< The smallest supported wavefront size.
             uint32 maxWavefrontSize;        ///< All powers of two between the min size and max size are supported.
@@ -1323,13 +1318,8 @@ struct DeviceProperties
             uint32 shaderPrefetchBytes;     ///< Number of bytes the SQ will prefetch, if any.
             uint32 numAvailableCus;         ///< Total number of CUs that are actually usable.
             uint32 numPhysicalCus;          ///< Count of physical CUs prior to harvesting.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 491
             uint32 activeCuMask[MaxShaderEngines][MaxShaderArraysPerSe];
                                             ///< Mask of present, non-harvested CUs (physical layout)
-#else
-            uint16 activeCuMask[MaxShaderEngines][MaxShaderArraysPerSe];
-                                            ///< Mask of present, non-harvested CUs (physical layout)
-#endif
         } shaderCore;                       ///< Properties of computational power of the shader engine.
 
     } gfxipProperties;
@@ -1525,25 +1515,6 @@ struct DeviceFinalizeInfo
                                            ///  each engine of that type will use this amount of CE RAM so the total size
                                            ///  of (ceRamSizeUsed * queueCounts) must be <= ceRamSizeAvailable for that
                                            ///  engine type.  Each entry must be either zero or a multiple of 32 bytes.
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 469
-    /// PAL provides several "indirect" user-data tables to the client for use within a command buffer.  Each of these
-    /// tables resides in GPU memory and is fully managed by PAL, with the client able to update the tables' contents
-    /// just like the normal user-data entries.  Typically, the contents of these tables are updated using the Constant
-    /// Engine (on a universal queue), so the combined size of all three user-data tables _must_ be small enough to fit
-    /// inside the space declared by the universal queue's @ref DeviceFinalizeInfo::ceRamSizeUsed byte amount.
-    ///
-    /// @see ResourceMappingNodeType::IndirectUserDataTableVaPtr
-    /// @see ICmdBuffer::CmdSetIndirectUserData
-    struct
-    {
-        size_t  sizeInDwords;       ///< Size of this indirect user-data table.  If this is zero, then this table will
-                                    ///  be totally unavailable for use by any pipeline or command buffer.
-        size_t  offsetInDwords;     ///< CE RAM offset of this indirect user-data table.  PAL may or may not always use
-                                    ///  CE RAM to support these tables, but to be safe, these offsets should be chosen
-                                    ///  such that multiple tables won't overlap in CE RAM.
-    } indirectUserDataTable[MaxIndirectUserDataTables];
-#endif
 
     /// @see PrivateScreenNotifyInfo
     /// Private screen notify info, must be filled when supportPrivateScreens=1. The client pointer and callback are to
@@ -1896,7 +1867,6 @@ struct ImageViewInfo
 
     ImageTexOptLevel texOptLevel;     ///< Specific the texture optimization level.
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 478
     ImageLayout possibleLayouts; ///< Union of all possible layouts this view can be in while accessed by this view.
                                  ///  (ie. what can be done with this SRD without having a layout transition?)
                                  ///  In DX, for example, it's possible that a texture SRV could be accessed in a state
@@ -1905,26 +1875,17 @@ struct ImageViewInfo
                                  ///  The primary purpose of this flag is to avoid compressed shader writes if a
                                  ///  different usage does not support compression and PAL won't get an opportunity to
                                  ///  decompress it (ie. a transition in a barrier)
-#endif
 
     union
     {
         struct
         {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 478
-            uint32 shaderWritable  : 1; ///< True if used with an image that has been transitioned to a shader-
-                                        ///  writable image state (e.g. [Graphics|Compute][WriteOnly|ReadWrite]).
-                                        ///  Replaced by the relevant enums in 'possibleLayouts'
-#else
-            uint32 placeholder0    : 1;
-#endif
-
             uint32 placeholder1    : 2;  ///< Reserved for future HW
 
             uint32 zRangeValid     : 1;  ///< whether z offset/ range value is valid.
             uint32 includePadding  : 1;  ///< Whether internal padding should be included in the view range.
 
-            uint32 reserved        : 27; ///< Reserved for future use
+            uint32 reserved        : 28; ///< Reserved for future use
         };
         uint32 u32All;                  ///< Value of flags bitfield
     } flags;                            ///< Image view flags.
@@ -2049,20 +2010,6 @@ struct CalibratedTimestamps
     uint64 cpuQueryPerfCounterTimestamp;  ///< Windows QueryPerformanceCounter timestamp
     uint64 maxDeviation;                  ///< Maximum deviation in nanoseconds between the GPU and CPU timestamps
 };
-
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 470)
-/// Reports a current GPU timestamp along with a current CPU clock value, for use in calibrating CPU and GPU timelines.
-struct GpuTimestampCalibration
-{
-    uint64       gpuTimestamp;       ///< Current GPU timestamp value compatible with ICmdBuffer::CmdWriteTimestamp().
-    union
-    {
-        uint64   cpuWinPerfCounter;  ///< Current CPU performance counter value at the time of the corresponding GPU
-                                     ///  timestamp.  This is a Windows-specific value as returned by
-                                     ///  QueryPerformanceCounter.
-    };
-};
-#endif
 
 /// Specifies connector types
 enum class DisplayConnectorType : uint32
@@ -2923,61 +2870,6 @@ public:
     ///              - unable to capture timestamps for all requested time domains.
     virtual Result GetCalibratedTimestamps(
         CalibratedTimestamps* pCalibratedTimestamps) const = 0;
-
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 470)
-    /// Correlates a current GPU timestamp with the CPU clock, allowing tighter CPU/GPU synchronization using
-    /// timestamps.
-    ///
-    /// @param [out] pCalibrationData  Reports a current GPU timestamp along with the CPU clock value at the time that
-    ///                                timestamp was written.  The CPU clock data is OS-specific.
-    ///
-    /// @returns Success if the calibration was successful.  Otherwise, one of the following errors may be returned:
-    ///          + ErrorInvalidPointer if:
-    ///              - pCalibrationData is null.
-    ///          + ErrorUnavailable if:
-    ///              - neither the query performance counter nor clock monotonic time domain is available
-    virtual Result CalibrateGpuTimestamp(
-        GpuTimestampCalibration* pCalibrationData) const
-    {
-        Result timestampResult = Result::Success;
-
-        if (pCalibrationData != nullptr)
-        {
-            CalibratedTimestamps timestamps = {};
-
-            timestampResult = GetCalibratedTimestamps(&timestamps);
-
-            if (timestampResult == Result::Success)
-            {
-                DeviceProperties properties = {};
-
-                GetProperties(&properties);
-
-                if (properties.osProperties.timeDomains.supportQueryPerformanceCounter == true)
-                {
-                    pCalibrationData->cpuWinPerfCounter = timestamps.cpuQueryPerfCounterTimestamp;
-                    pCalibrationData->gpuTimestamp = timestamps.gpuTimestamp;
-                }
-                else if (properties.osProperties.timeDomains.supportClockMonotonic == true)
-                {
-                    pCalibrationData->cpuWinPerfCounter = timestamps.cpuClockMonotonicTimestamp;
-                    pCalibrationData->gpuTimestamp = timestamps.gpuTimestamp;
-                }
-                else
-                {
-                    PAL_ASSERT_ALWAYS();
-                    timestampResult = Result::ErrorUnavailable;
-                }
-            }
-        }
-        else
-        {
-            timestampResult = Result::ErrorInvalidPointer;
-        }
-
-        return timestampResult;
-    }
-#endif
 
     /// Binds the specified GPU memory as a trap handler for the specified pipeline type.  This GPU memory must hold
     /// shader machine code (i.e., the client must generate HW-specific shader binaries through some external means,

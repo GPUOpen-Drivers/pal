@@ -303,19 +303,11 @@ Result UniversalCmdBuffer::Init(
 
     m_vbTable.pSrds              = static_cast<BufferSrd*>(VoidPtrAlign((this + 1), alignof(BufferSrd)));
     m_vbTable.state.sizeInDwords = ((sizeof(BufferSrd) / sizeof(uint32)) * MaxVertexBuffers);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 469
     m_vbTable.state.ceRamOffset  = ceRamOffset;
     ceRamOffset += (sizeof(uint32) * m_vbTable.state.sizeInDwords);
-#endif
 
     PAL_ASSERT(ceRamOffset <= ReservedCeRamBytes);
     ceRamOffset = ReservedCeRamBytes;
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 469
-    m_vbTable.state.ceRamOffset  =
-        (static_cast<uint32>(m_device.Parent()->IndirectUserDataTableCeRamOffset()) + ceRamOffset);
-    ceRamOffset += (sizeof(uint32) * m_vbTable.state.sizeInDwords);
-#endif
 
     Result result = Pal::UniversalCmdBuffer::Init(internalInfo);
 
@@ -593,7 +585,6 @@ void UniversalCmdBuffer::CmdBindPipeline(
             m_sxBlendOptControl = pNewPipeline->SxBlendOptControl();
         }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 473
         constexpr uint32 DwordsPerSrd = (sizeof(BufferSrd) / sizeof(uint32));
         const uint32 vbTableDwords =
             ((pNewPipeline == nullptr) ? 0 : pNewPipeline->VertexBufferCount() * DwordsPerSrd);
@@ -607,7 +598,6 @@ void UniversalCmdBuffer::CmdBindPipeline(
         }
 
         m_vbTable.watermark = vbTableDwords;
-#endif
     }
 
     Pal::UniversalCmdBuffer::CmdBindPipeline(params);
@@ -1075,64 +1065,6 @@ void UniversalCmdBuffer::CmdSetVertexBuffers(
 
     m_vbTable.modified = 1;
 }
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 473
-// =====================================================================================================================
-void UniversalCmdBuffer::CmdSetIndirectUserData(
-    uint16      tableId,        // Deprecated, must be zero!
-    uint32      dwordOffset,
-    uint32      dwordSize,
-    const void* pSrcData)
-{
-    PAL_ASSERT(tableId == 0);
-    PAL_ASSERT(dwordSize > 0);
-    PAL_ASSERT((dwordOffset + dwordSize) <= m_vbTable.state.sizeInDwords);
-
-    // All this method needs to do is update the CPU-side copy of the indirect user-data table and upload the new
-    // data to CE RAM. It will be validated at Draw-time.
-
-    uint32*const pDst = (reinterpret_cast<uint32*>(m_vbTable.pSrds) + dwordOffset);
-    memcpy(pDst, pSrcData, dwordSize * sizeof(uint32));
-
-    if (UseCpuPathInsteadOfCeRam() == false)
-    {
-        uint32* pCeCmdSpace = m_ceCmdStream.ReserveCommands();
-        pCeCmdSpace = UploadToUserDataTable(&m_vbTable.state,
-                                            dwordOffset,
-                                            dwordSize,
-                                            static_cast<const uint32*>(pSrcData),
-                                            m_vbTable.watermark,
-                                            pCeCmdSpace);
-        m_ceCmdStream.CommitCommands(pCeCmdSpace);
-    }
-    else if (dwordOffset < m_vbTable.watermark)
-    {
-        // Only mark the contents as dirty if the updated VB table entries fall within the current high watermark.
-        // This will help avoid redundant validation for data which the current pipeline doesn't care about.
-        m_vbTable.state.dirty = 1;
-    }
-
-    m_vbTable.modified = 1;
-}
-
-// =====================================================================================================================
-void UniversalCmdBuffer::CmdSetIndirectUserDataWatermark(
-    uint16 tableId,     // Deprecated, must be zero!
-    uint32 dwordLimit)
-{
-    PAL_ASSERT(tableId == 0);
-
-    dwordLimit = Min(dwordLimit, m_vbTable.state.sizeInDwords);
-    if (dwordLimit > m_vbTable.watermark)
-    {
-        // If the current high watermark is increasing, we need to mark the contents as dirty because data which was
-        // previously uploaded to CE RAM wouldn't have been dumped to GPU memory before the previous Draw.
-        m_vbTable.state.dirty = 1;
-    }
-
-    m_vbTable.watermark = dwordLimit;
-}
-#endif
 
 // =====================================================================================================================
 void UniversalCmdBuffer::CmdBindTargets(

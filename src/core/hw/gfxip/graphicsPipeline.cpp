@@ -43,9 +43,7 @@ GraphicsPipeline::GraphicsPipeline(
     :
     Pal::Pipeline(pDevice, isInternal),
     m_binningOverride(BinningOverride::Default),
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 473
     m_vertexBufferCount(0),
-#endif
     m_numColorTargets(0),
     m_logicOp(LogicOp::Copy)
 {
@@ -112,21 +110,7 @@ Result GraphicsPipeline::InitFromPipelineBinary(
 
     m_flags.lateAllocVsLimit = createInfo.useLateAllocVsLimit;
     m_lateAllocVsLimit       = createInfo.lateAllocVsLimit;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 473
     m_vertexBufferCount      = createInfo.iaState.vertexBufferCount;
-#endif
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 476
-    // Initialize a MetroHash64 hasher for computing a hash of the creation info.
-    MetroHash64 hasher;
-
-    hasher.Update(createInfo.flags);
-    hasher.Update(createInfo.iaState);
-    hasher.Update(createInfo.rsState);
-    hasher.Update(createInfo.cbState);
-    hasher.Update(internalInfo.flags);
-#endif
-
     for (uint8 i = 0; i < MaxColorTargets; ++i)
     {
         m_targetSwizzledFormats[i] = createInfo.cbState.target[i].swizzledFormat;
@@ -140,10 +124,6 @@ Result GraphicsPipeline::InitFromPipelineBinary(
 
     m_viewInstancingDesc                   = createInfo.viewInstancingDesc;
     m_viewInstancingDesc.viewInstanceCount = Max(m_viewInstancingDesc.viewInstanceCount, 1u);
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 476
-    hasher.Update(m_viewInstancingDesc);
-#endif
 
     AbiReader abiReader(m_pDevice->GetPlatform(), m_pPipelineBinary);
     Result result = abiReader.Init();
@@ -162,13 +142,6 @@ Result GraphicsPipeline::InitFromPipelineBinary(
 
         DumpPipelineElf("PipelineGfx",
                         ((metadata.pipeline.hasEntry.name != 0) ? &metadata.pipeline.name[0] : nullptr));
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 476
-        // The pipeline ABI reports a unique pipeline hash of all of the components of its pipeline.  However, PAL
-        // includes more state in the graphics pipeline than just the shaders.  We need to incorporate the reported
-        // hash into our own checksum.
-        hasher.Update(m_info.palRuntimeHash);
-#endif
 
         if (ShaderHashIsNonzero(m_info.shader[static_cast<uint32>(ShaderType::Geometry)].hash))
         {
@@ -197,11 +170,6 @@ Result GraphicsPipeline::InitFromPipelineBinary(
 
         result = HwlInit(createInfo, abiReader, metadata, &metadataReader);
     }
-
-    // Finalize the hash.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 476
-    hasher.Finalize(reinterpret_cast<uint8* const>(&m_info.palRuntimeHash));
-#endif
 
     return result;
 }

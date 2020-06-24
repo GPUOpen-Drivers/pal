@@ -104,4 +104,4 @@ private:
     VamDevice*          m_pVamDevice;       ///< Pointer to the associated VAM device
 };
 
-#endif // __VAMPTB_H__
+#endif

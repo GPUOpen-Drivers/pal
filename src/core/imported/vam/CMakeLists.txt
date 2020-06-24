@@ -29,6 +29,8 @@ cmake_minimum_required(VERSION 3.1)
 project(VAM VERSION 1.2.0 LANGUAGES CXX)
 
 add_library(vam STATIC "")
+option(VAM_ENABLE_LTO "Build with LTO enabled" ON)
+option(VAM_ENABLE_WERROR "Build with -Werror enabled" OFF)
 
 target_include_directories(vam PUBLIC  inc
                                PRIVATE src/core)
@@ -63,33 +65,51 @@ set_target_properties(vam PROPERTIES CXX_STANDARD              11
                                      CXX_EXTENSIONS            OFF
                                      POSITION_INDEPENDENT_CODE ON)
 
-# W/A: Replace this code by using CMake module CheckIPOSupported, available since CMake 3.9.
-if((CMAKE_CXX_COMPILER_ID STREQUAL "GNU") AND (NOT (CMAKE_CXX_COMPILER_VERSION VERSION_LESS "4.8")))
+if(VAM_ENABLE_LTO)
+    # W/A: Replace this code by using CMake module CheckIPOSupported, available since CMake 3.9.
+    if((CMAKE_CXX_COMPILER_ID STREQUAL "GNU") AND (NOT (CMAKE_CXX_COMPILER_VERSION VERSION_LESS "4.8")))
 
-    # [GCC] Options That Control Optimization
-    #   https://gcc.gnu.org/onlinedocs/gcc-8.1.0/gcc/Optimize-Options.html
-    target_compile_options(vam PRIVATE $<$<CONFIG:Release>:-flto>)
+        # [GCC] Options That Control Optimization
+        #   https://gcc.gnu.org/onlinedocs/gcc-8.1.0/gcc/Optimize-Options.html
+        target_compile_options(vam PRIVATE $<$<CONFIG:Release>:-flto>)
 
-elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+    elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
 
-    # [Clang] Command Line Argument Reference
-    #    https://clang.llvm.org/docs/ClangCommandLineReference.html
-    #
-    # [Clang] Thin LTO
-    #    https://clang.llvm.org/docs/ThinLTO.html
-    target_compile_options(vam PRIVATE -flto=thin)
+        # [Clang] Command Line Argument Reference
+        #    https://clang.llvm.org/docs/ClangCommandLineReference.html
+        #
+        # [Clang] Thin LTO
+        #    https://clang.llvm.org/docs/ThinLTO.html
+        target_compile_options(vam PRIVATE -flto=thin)
 
-elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
 
-    target_compile_options(vam PRIVATE /GL)
+        if( (${CMAKE_VERSION} VERSION_GREATER "3.13") OR
+            (${CMAKE_VERSION} VERSION_EQUAL   "3.13") )
 
-    set_target_properties(vam PROPERTIES STATIC_LIBRARY_FLAGS /LTCG)
+            target_compile_options(vam PRIVATE
+                $<$<CONFIG:Release>:/GL>
+                )
 
-else()
-    message(WARNING "IPO was not enabled!")
+            # STATIC_LIBRARY_OPTIONS was introduced in 3.13 and allows generator expressions
+            set_target_properties(vam PROPERTIES
+                STATIC_LIBRARY_OPTIONS $<$<CONFIG:Release>:/LTCG>
+                )
+
+        else()
+            target_compile_options(vam PRIVATE /GL)
+            set_target_properties(vam PROPERTIES STATIC_LIBRARY_FLAGS /LTCG)
+        endif()
+
+    else()
+        message(WARNING "IPO was not enabled!")
+    endif()
 endif()
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    if(VAM_ENABLE_WERROR)
+        target_compile_options(vam PRIVATE -Werror)
+    endif()
 
     # [GCC] Exceptions
     #   https://gcc.gnu.org/onlinedocs/libstdc++/manual/using_exceptions.html
@@ -110,7 +130,6 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
     target_compile_options(vam PRIVATE
         -Wall
         -Wextra
-        -Werror
         -Wno-unused
         -Wno-unused-parameter
         -Wno-unused-command-line-argument

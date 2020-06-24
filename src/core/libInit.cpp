@@ -80,7 +80,11 @@ size_t PAL_STDCALL GetPlatformSize()
 {
     // The switch between the "real" and "null" device is determined at run-time.  We would never have both active
     // simultaneously.
+#if PAL_BUILD_NULL_DEVICE
     size_t platformSize = Util::Max(Platform::GetSize(), NullDevice::Platform::GetSize());
+#else
+    size_t platformSize = Platform::GetSize();
+#endif
 
     // We need to always assume that the all layers can be enabled.  Unfortunately, at this point, we have not yet read
     // the settings for the GPUs present so we do not know which layers will actually be enabled.
@@ -265,6 +269,7 @@ Result PAL_STDCALL EnumerateNullDevices(
     uint32*       pNullGpuCount,
     NullGpuInfo*  pNullGpuInfoArray)
 {
+#if PAL_BUILD_NULL_DEVICE
     Result  result = Result::Success;
 
     if (pNullGpuCount != nullptr)
@@ -301,6 +306,9 @@ Result PAL_STDCALL EnumerateNullDevices(
         // No valid count info, can't continue
         result = Result::ErrorInvalidPointer;
     }
+#else
+    const Result result = Result::Unsupported;
+#endif
 
     return result;
 }

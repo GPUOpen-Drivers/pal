@@ -15336,4 +15336,4 @@ constexpr unsigned int pciPCIE_VENDOR_SPECIFIC_HDR_GPUIOV_RESET_CONTROL__VI  = 0
 } // namespace Gfx6
 } // namespace Pal
 
-#endif // __SI__CI__VIoffset_HEADER
+#endif

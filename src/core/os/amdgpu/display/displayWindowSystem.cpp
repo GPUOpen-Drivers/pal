@@ -201,11 +201,6 @@ Result DisplayWindowSystem::Init()
 
     if (result == Result::Success)
     {
-        m_waitEventThread.Begin(&EventPolling, this);
-    }
-
-    if (result == Result::Success)
-    {
         result = m_flipSemaphore.Init(1, 0);
     }
 
@@ -215,6 +210,25 @@ Result DisplayWindowSystem::Init()
     }
 
     return result;
+}
+
+// =====================================================================================================================
+// Get the window properties.
+Result DisplayWindowSystem::GetWindowProperties(
+    Device*              pDevice,
+    OsDisplayHandle      hDisplay,
+    OsWindowHandle       hWindow,
+    SwapChainProperties* pSwapChainProperties)
+{
+
+    // DirectDisplay can support one presentable image for rendering on front buffer.
+    pSwapChainProperties->minImageCount = 1;
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 610
+    pSwapChainProperties->compositeAlphaMode = static_cast<uint32>(CompositeAlphaMode::Opaque);
+#endif
+
+    return Result::Success;
 }
 
 // =====================================================================================================================
@@ -328,6 +342,15 @@ Result DisplayWindowSystem::Present(
     uint32               flipFlag      = (swapChainMode == SwapChainMode::Immediate) ? DRM_MODE_PAGE_FLIP_ASYNC : 0;
 
     Result result = Result::ErrorUnknown;
+
+    // For display window system, two or more swapchain is not supported because the DRM event will be consumed by
+    // other swapchains. But there are some applications will create more than one swapchain although only one of
+    // them is used to present. In order to handle this case, create the waitEventThread here instead of
+    // DisplayWindowSystem::Init().
+    if (m_waitEventThread.IsCreated() == false)
+    {
+        m_waitEventThread.Begin(&EventPolling, this);
+    }
 
     if (pImage->GetImageIndex() == InvalidImageIndex)
     {

@@ -214,16 +214,12 @@ void ComputeCmdBuffer::CmdBindPipeline(
     PAL_ASSERT(params.pipelineBindPoint == PipelineBindPoint::Compute);
 
     m_computeState.pipelineState.pPipeline  = static_cast<const Pipeline*>(params.pPipeline);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 471
     m_computeState.pipelineState.apiPsoHash = params.apiPsoHash;
-#endif
     m_computeState.pipelineState.dirtyFlags.pipelineDirty = 1;
 
     m_computeState.dynamicCsInfo = params.cs;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 471
     m_device.DescribeBindPipeline(this, params.pPipeline, params.apiPsoHash, params.pipelineBindPoint);
-#endif
 }
 
 #if PAL_ENABLE_PRINTS_ASSERTS

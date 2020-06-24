@@ -1279,12 +1279,10 @@ bool Gfx6Dcc::UseDccForImage(
         }
     }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 496
     if ((mustDisableDcc == false) && (createInfo.metadataMode == MetadataMode::ForceEnabled))
     {
         useDcc = true;
     }
-#endif
 
     return useDcc;
 }

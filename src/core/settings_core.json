@@ -436,6 +436,32 @@
       "Description": "Bitmask of surface types which should not allow 4kB swizzle modes for chips which use AddrMgr2."
     },
     {
+      "Description": "Enable big-page alignment on resources which are yet to be bound",
+      "Tags": [
+        "General"
+      ],
+      "Defaults": {
+        "Default": true
+      },
+      "Scope": "PrivatePalKey",
+      "Type": "bool",
+      "VariableName": "enableBigPagePreAlignment",
+      "Name": "enableBigPagePreAlignment"
+    },
+    {
+      "Description": "Enable Iterate256=0 alignment on images which satisfy its conditions and are yet to be bound",
+      "Tags": [
+        "General"
+      ],
+      "Defaults": {
+        "Default": true
+      },
+      "Scope": "PrivatePalKey",
+      "Type": "bool",
+      "VariableName": "enableIterate256PreAlignment",
+      "Name": "enableIterate256PreAlignment"
+    },
+    {
       "Description": "Whether to disable XOR tile modes.",
       "Tags": [
         "General",

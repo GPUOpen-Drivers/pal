@@ -290,4 +290,4 @@
 #define PRID_NV_NAVI10_00           0x00
 #define PRID_NV_NAVI14_00           0x00
 
-#endif // _AMDGPU_ASIC_H
+#endif

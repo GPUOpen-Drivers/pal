@@ -333,11 +333,7 @@ void RsrcProcMgr::CopyMemoryCs(
             }
 
             // Bind pipeline and dispatch.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 471
             pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, InternalApiPsoHash, });
-#else
-            pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, });
-#endif
             pCmdBuffer->CmdDispatch(numThreadGroups, 1, 1);
         }
     }
@@ -573,8 +569,6 @@ void RsrcProcMgr::CopyColorImageGraphics(
     pCmdBuffer->CmdBindMsaaState(GetMsaaState(dstCreateInfo.samples, dstCreateInfo.fragments));
     pCmdBuffer->CmdSetStencilRefMasks(stencilRefMasks);
 
-    RpmUtil::WriteVsZOut(pCmdBuffer, 1.0f);
-
     SubresRange viewRange = { };
     viewRange.startSubres = srcImage.GetBaseSubResource();
     viewRange.numMips     = srcCreateInfo.mipLevels;
@@ -620,11 +614,7 @@ void RsrcProcMgr::CopyColorImageGraphics(
         const GraphicsPipeline*const pPipeline = GetGfxPipelineByTargetIndexAndFormat(Copy_32ABGR, 0, dstFormat);
         if (pPreviousPipeline != pPipeline)
         {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 471
             pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Graphics, pPipeline, InternalApiPsoHash, });
-#else
-            pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Graphics, pPipeline, });
-#endif
             pCmdBuffer->CmdOverwriteRbPlusFormatForBlits(dstFormat, 0);
             pPreviousPipeline = pPipeline;
         }
@@ -642,12 +632,12 @@ void RsrcProcMgr::CopyColorImageGraphics(
                                         srcImageLayout,
                                         device.TexOptLevel());
 
-            // Create an embedded SRD table and bind it to user data 1 for pixel work.
+            // Create an embedded SRD table and bind it to user data 4 for pixel work.
             uint32* pSrdTable = RpmUtil::CreateAndBindEmbeddedUserData(pCmdBuffer,
                                                                        SrdDwordAlignment(),
                                                                        SrdDwordAlignment(),
                                                                        PipelineBindPoint::Graphics,
-                                                                       1);
+                                                                       4);
 
             // Populate the table with an image view of the source image.
             device.CreateImageViewSrds(1, &imageView, pSrdTable);
@@ -702,6 +692,17 @@ void RsrcProcMgr::CopyColorImageGraphics(
         pCmdBuffer->CmdSetViewports(viewportInfo);
         pCmdBuffer->CmdSetScissorRects(scissorInfo);
 
+        const float texcoordVs[4] =
+        {
+            static_cast<float>(copyRegion.srcOffset.x),
+            static_cast<float>(copyRegion.srcOffset.y),
+            static_cast<float>(copyRegion.srcOffset.x + copyRegion.extent.width),
+            static_cast<float>(copyRegion.srcOffset.y + copyRegion.extent.height)
+        };
+
+        const uint32* pUserDataVs = reinterpret_cast<const uint32*>(&texcoordVs);
+        pCmdBuffer->CmdSetUserData(PipelineBindPoint::Graphics, 0, 4, pUserDataVs);
+
         // Copy may happen between the layers of a 2d image and the slices of a 3d image.
         const uint32 numSlices = Max(copyRegion.numSlices, copyRegion.extent.depth);
 
@@ -709,11 +710,6 @@ void RsrcProcMgr::CopyColorImageGraphics(
         // performance bottleneck, but for now this is simpler.
         for (uint32 sliceOffset = 0; sliceOffset < numSlices; ++sliceOffset)
         {
-            // The shader will calculate src coordinates by adding a delta to the dst coordinates. The user data should
-            // contain those deltas which are (srcOffset-dstOffset) for X & Y and the z offset (slice) in the 3rd
-            // register.
-            const int32  xOffset     = (copyRegion.srcOffset.x - copyRegion.dstOffset.x);
-            const int32  yOffset     = (copyRegion.srcOffset.y - copyRegion.dstOffset.y);
             const uint32 srcSlice    = ((srcCreateInfo.imageType == ImageType::Tex3d)
                                         ? copyRegion.srcOffset.z          + sliceOffset
                                         : copyRegion.srcSubres.arraySlice + sliceOffset);
@@ -748,35 +744,32 @@ void RsrcProcMgr::CopyColorImageGraphics(
                     imageView.flags.zRangeValid = 1;
                 }
 
-                // Create an embedded SRD table and bind it to user data 1 for pixel work.
+                // Create an embedded SRD table and bind it to user data 4 for pixel work.
                 uint32* pSrdTable = RpmUtil::CreateAndBindEmbeddedUserData(pCmdBuffer,
                                                                            SrdDwordAlignment(),
                                                                            SrdDwordAlignment(),
                                                                            PipelineBindPoint::Graphics,
-                                                                           1);
+                                                                           4);
 
                 // Populate the table with an image view of the source image.
                 device.CreateImageViewSrds(1, &imageView, pSrdTable);
 
-                const uint32 userData[4] =
+                const uint32 userDataPs[2] =
                 {
-                    reinterpret_cast<const uint32&>(xOffset),
-                    reinterpret_cast<const uint32&>(yOffset),
                     (singleArrayAccess || singlezRangeAccess) ? 0 : sliceOffset,
                     0
                 };
-                pCmdBuffer->CmdSetUserData(PipelineBindPoint::Graphics, 2, 4, &userData[0]);
+
+                pCmdBuffer->CmdSetUserData(PipelineBindPoint::Graphics, 5, 2, &userDataPs[0]);
             }
             else
             {
-                const uint32 userData[4] =
+                const uint32 userDataPs[2] =
                 {
-                    reinterpret_cast<const uint32&>(xOffset),
-                    reinterpret_cast<const uint32&>(yOffset),
                     srcSlice,
                     copyRegion.srcSubres.mipLevel
                 };
-                pCmdBuffer->CmdSetUserData(PipelineBindPoint::Graphics, 2, 4, &userData[0]);
+                pCmdBuffer->CmdSetUserData(PipelineBindPoint::Graphics, 5, 2, &userDataPs[0]);
             }
 
             colorViewInfo.imageInfo.baseSubRes = copyRegion.dstSubres;
@@ -985,20 +978,12 @@ void RsrcProcMgr::CopyDepthStencilImageGraphics(
                     break;
                 }
             }
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 471
             pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Graphics,
                                           GetCopyDepthStencilPipeline(
                                               isDepth,
                                               isDepthStencil,
                                               srcImage.GetImageCreateInfo().samples),
                                           InternalApiPsoHash, });
-#else
-            pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Graphics,
-                                          GetCopyDepthStencilPipeline(
-                                              isDepth,
-                                              isDepthStencil,
-                                              srcImage.GetImageCreateInfo().samples), });
-#endif
 
             // Determine which format we should use to view the source image.
             SwizzledFormat srcFormat =
@@ -1282,11 +1267,7 @@ void RsrcProcMgr::CopyImageCompute(
 
     // Save current command buffer state and bind the pipeline.
     pCmdBuffer->CmdSaveComputeState(ComputeStatePipelineAndUserData);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 471
     pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, InternalApiPsoHash, });
-#else
-    pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, });
-#endif
 
     // Now begin processing the list of copy regions.
     for (uint32 idx = 0; idx < regionCount; ++idx)
@@ -1907,11 +1888,7 @@ void RsrcProcMgr::CopyBetweenMemoryAndImage(
 
     // Save current command buffer state and bind the pipeline.
     pCmdBuffer->CmdSaveComputeState(ComputeStatePipelineAndUserData);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 471
     pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, InternalApiPsoHash, });
-#else
-    pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, });
-#endif
 
     // Now begin processing the list of copy regions.
     for (uint32 idx = 0; idx < regionCount; ++idx)
@@ -2189,11 +2166,7 @@ void RsrcProcMgr::CmdCopyTypedBuffer(
         {
             pPrevPipeline = pPipeline;
             pPipeline->ThreadsPerGroupXyz(&threadsPerGroup[0], &threadsPerGroup[1], &threadsPerGroup[2]);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 471
             pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, InternalApiPsoHash, });
-#else
-            pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, });
-#endif
         }
 
         // Create an embedded user-data table and bind it to user data 0. We need buffer views for the src and dst
@@ -2375,11 +2348,7 @@ void RsrcProcMgr::GenerateMipmapsFast(
 
     // Save current command buffer state and bind the pipeline.
     pCmdBuffer->CmdSaveComputeState(ComputeStatePipelineAndUserData);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 471
     pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, InternalApiPsoHash, });
-#else
-    pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, });
-#endif
 
     BarrierInfo barrier = { };
     barrier.waitPoint   = HwPipePreCs;
@@ -2559,9 +2528,7 @@ void RsrcProcMgr::GenerateMipmapsSlow(
     region.dstSubres.aspect     = genInfo.range.startSubres.aspect;
     region.dstSubres.arraySlice = genInfo.range.startSubres.arraySlice;
     region.numSlices            = genInfo.range.numSlices;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 494
     region.swizzledFormat       = genInfo.swizzledFormat;
-#endif
 
     ScaledCopyInfo copyInfo = {};
     copyInfo.pSrcImage      = pImage;
@@ -2780,10 +2747,8 @@ void RsrcProcMgr::ScaledCopyImageGraphics(
         // Convert uint color key to float representation
         SwizzledFormat format = srcColorKey ? srcCreateInfo.swizzledFormat : dstCreateInfo.swizzledFormat;
         RpmUtil::ConvertClearColorToNativeFormat(format, format, colorKey);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 494
         // Only GenerateMips uses swizzledFormat in regions, color key is not available in this case.
         PAL_ASSERT(Formats::IsUndefined(copyInfo.pRegions[0].swizzledFormat.format));
-#endif
         // Set constant to respect or ignore alpha channel color diff
         constexpr uint32 FloatOne = 0x3f800000;
         alphaDiffMul = Formats::HasUnusedAlpha(format) ? 0 : FloatOne;
@@ -2954,13 +2919,11 @@ void RsrcProcMgr::ScaledCopyImageGraphics(
         // Determine which image formats to use for the copy.
         SwizzledFormat srcFormat = pSrcImage->SubresourceInfo(copyRegion.srcSubres)->format;
         SwizzledFormat dstFormat = pDstImage->SubresourceInfo(copyRegion.dstSubres)->format;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 494
         if (Formats::IsUndefined(copyRegion.swizzledFormat.format) == false)
         {
             srcFormat = copyRegion.swizzledFormat;
             dstFormat = copyRegion.swizzledFormat;
         }
-#endif
 
         const uint32 zfilter   = copyInfo.filter.zFilter;
         const uint32 magfilter = copyInfo.filter.magnification;
@@ -2996,11 +2959,7 @@ void RsrcProcMgr::ScaledCopyImageGraphics(
         // Only switch to the appropriate graphics pipeline if it differs from the previous region's pipeline.
         if (pPreviousPipeline != pPipeline)
         {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 471
             pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Graphics, pPipeline, InternalApiPsoHash, });
-#else
-            pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Graphics, pPipeline, });
-#endif
             pCmdBuffer->CmdOverwriteRbPlusFormatForBlits(dstFormat, 0);
             pPreviousPipeline = pPipeline;
         }
@@ -3283,11 +3242,7 @@ void RsrcProcMgr::ScaledCopyImageCompute(
 
     PAL_ASSERT(pCmdBuffer->IsComputeStateSaved());
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 471
     pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, InternalApiPsoHash, });
-#else
-    pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, });
-#endif
 
     uint32 colorKey[4]          = {0};
     uint32 alphaDiffMul         = 0;
@@ -3324,10 +3279,8 @@ void RsrcProcMgr::ScaledCopyImageCompute(
         // Convert uint color key to float representation
         SwizzledFormat format = srcColorKey ? srcInfo.swizzledFormat : dstInfo.swizzledFormat;
         RpmUtil::ConvertClearColorToNativeFormat(format, format, colorKey);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 494
         // Only GenerateMips uses swizzledFormat in regions, color key is not available in this case.
         PAL_ASSERT(Formats::IsUndefined(copyInfo.pRegions[0].swizzledFormat.format));
-#endif
 
         // Set constant to respect or ignore alpha channel color diff
         constexpr uint32 FloatOne = 0x3f800000;
@@ -3400,13 +3353,11 @@ void RsrcProcMgr::ScaledCopyImageCompute(
 
             SwizzledFormat dstFormat = pDstImage->SubresourceInfo(copyRegion.dstSubres)->format;
             SwizzledFormat srcFormat = pSrcImage->SubresourceInfo(copyRegion.srcSubres)->format;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 494
             if (Formats::IsUndefined(copyRegion.swizzledFormat.format) == false)
             {
                 srcFormat = copyRegion.swizzledFormat;
                 dstFormat = copyRegion.swizzledFormat;
             }
-#endif
 
             const uint32 zfilter   = copyInfo.filter.zFilter;
             const uint32 magfilter = copyInfo.filter.magnification;
@@ -3661,11 +3612,7 @@ void RsrcProcMgr::ConvertYuvToRgb(
     pPipeline->ThreadsPerGroupXyz(&threadsPerGroup[0], &threadsPerGroup[1], &threadsPerGroup[2]);
 
     pCmdBuffer->CmdSaveComputeState(ComputeStateFlags::ComputeStatePipelineAndUserData);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 471
     pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, InternalApiPsoHash, });
-#else
-    pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, });
-#endif
 
     for (uint32 idx = 0; idx < regionCount; ++idx)
     {
@@ -3800,11 +3747,7 @@ void RsrcProcMgr::ConvertRgbToYuv(
     pPipeline->ThreadsPerGroupXyz(&threadsPerGroup[0], &threadsPerGroup[1], &threadsPerGroup[2]);
 
     pCmdBuffer->CmdSaveComputeState(ComputeStateFlags::ComputeStatePipelineAndUserData);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 471
     pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, InternalApiPsoHash, });
-#else
-    pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, });
-#endif
 
     for (uint32 idx = 0; idx < regionCount; ++idx)
     {
@@ -3990,11 +3933,7 @@ void RsrcProcMgr::CmdFillMemory(
         pCmdBuffer->CmdSaveComputeState(ComputeStatePipelineAndUserData);
     }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 471
     pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, InternalApiPsoHash, });
-#else
-    pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, });
-#endif
 
     uint32 srd[4] = { };
     PAL_ASSERT(m_pDevice->Parent()->ChipProperties().srdSizes.bufferView == sizeof(srd));
@@ -4079,11 +4018,7 @@ void RsrcProcMgr::CmdClearBoundDepthStencilTargets(
 
     // Save current command buffer state and bind graphics state which is common for all mipmap levels.
     pCmdBuffer->PushGraphicsState();
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 471
     pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Graphics, GetGfxPipeline(DepthSlowDraw), InternalApiPsoHash, });
-#else
-    pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Graphics, GetGfxPipeline(DepthSlowDraw), });
-#endif
     BindCommonGraphicsState(pCmdBuffer);
     pCmdBuffer->CmdBindMsaaState(GetMsaaState(samples, fragments));
     pCmdBuffer->CmdSetStencilRefMasks(stencilRefMasks);
@@ -4293,20 +4228,12 @@ void RsrcProcMgr::CmdClearBoundColorTargets(
         }
 
         // Get the correct slow clear state based on the view format.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 471
         pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Graphics,
                                       GetGfxPipelineByTargetIndexAndFormat(
                                           SlowColorClear0_32ABGR,
                                           pBoundColorTargets[colorIndex].targetIndex,
                                           pBoundColorTargets[colorIndex].swizzledFormat),
                                       InternalApiPsoHash, });
-#else
-        pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Graphics,
-                                      GetGfxPipelineByTargetIndexAndFormat(
-                                          SlowColorClear0_32ABGR,
-                                          pBoundColorTargets[colorIndex].targetIndex,
-                                          pBoundColorTargets[colorIndex].swizzledFormat), });
-#endif
         pCmdBuffer->CmdOverwriteRbPlusFormatForBlits(pBoundColorTargets[colorIndex].swizzledFormat,
                                                      pBoundColorTargets[colorIndex].targetIndex);
         pCmdBuffer->CmdBindMsaaState(GetMsaaState(pBoundColorTargets[colorIndex].samples,
@@ -4582,14 +4509,9 @@ void RsrcProcMgr::SlowClearGraphics(
 
     // Save current command buffer state and bind graphics state which is common for all mipmap levels.
     pCmdBuffer->PushGraphicsState();
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 471
     pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Graphics,
                                   GetGfxPipelineByTargetIndexAndFormat(SlowColorClear0_32ABGR, 0, viewFormat),
                                   InternalApiPsoHash, });
-#else
-    pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Graphics,
-                                  GetGfxPipelineByTargetIndexAndFormat(SlowColorClear0_32ABGR, 0, viewFormat), });
-#endif
     BindCommonGraphicsState(pCmdBuffer);
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 592
     if (pColor->disabledChannelMask != 0)
@@ -4925,11 +4847,7 @@ void RsrcProcMgr::SlowClearCompute(
 
     // Save current command buffer state and bind the pipeline.
     pCmdBuffer->CmdSaveComputeState(ComputeStatePipelineAndUserData);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 471
     pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, InternalApiPsoHash, });
-#else
-    pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, });
-#endif
 
     // Pack the clear color into the raw format and write it to user data 2-5.
     uint32 packedColor[4] = {0};
@@ -5184,11 +5102,7 @@ void RsrcProcMgr::CmdClearColorBuffer(
 
     // Save current command buffer state and bind the pipeline.
     pCmdBuffer->CmdSaveComputeState(ComputeStatePipelineAndUserData);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 471
     pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, InternalApiPsoHash, });
-#else
-    pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, });
-#endif
 
     // We will do a dispatch for every range. If no ranges are specified then we will do a single full buffer dispatch.
     const Range defaultRange = { 0, bufferExtent };
@@ -5646,11 +5560,7 @@ void RsrcProcMgr::CmdGenerateIndirectCmds(
     pGenerationPipeline->ThreadsPerGroupXyz(&threadsPerGroup[0], &threadsPerGroup[1], &threadsPerGroup[2]);
 
     pCmdBuffer->CmdSaveComputeState(ComputeStatePipelineAndUserData);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 471
     pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pGenerationPipeline, InternalApiPsoHash, });
-#else
-    pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pGenerationPipeline, });
-#endif
 
     // The command-generation pipelines expect the following descriptor-table layout for the resources which are the
     // same for each command-stream chunk being generated:
@@ -5890,26 +5800,17 @@ void RsrcProcMgr::ResolveImageGraphics(
             }
 
             bindTargetsInfo.depthTarget.depthLayout = dstImageLayout;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 471
             pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Graphics,
                                           GetGfxPipeline(ResolveDepth),
                                           InternalApiPsoHash, });
-#else
-            pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Graphics, GetGfxPipeline(ResolveDepth), });
-#endif
-
             pCmdBuffer->CmdBindDepthStencilState(m_pDepthResolveState);
         }
         else
         {
             srcFormat.format                          = ChNumFormat::X8_Uint;
             bindTargetsInfo.depthTarget.stencilLayout = dstImageLayout;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 471
             pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Graphics, GetGfxPipeline(ResolveStencil),
                                           InternalApiPsoHash, });
-#else
-            pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Graphics, GetGfxPipeline(ResolveStencil), });
-#endif
             pCmdBuffer->CmdBindDepthStencilState(m_pStencilResolveState);
         }
 
@@ -6048,11 +5949,7 @@ void RsrcProcMgr::ResolveImageCompute(
         pPipeline->ThreadsPerGroupXyz(&threadsPerGroup[0], &threadsPerGroup[1], &threadsPerGroup[2]);
 
         // Bind the pipeline.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 471
         pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, InternalApiPsoHash, });
-#else
-        pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, });
-#endif
 
         // Set both subresources to the first slice of the required mip level
         const SubresId srcSubres = { pRegions[idx].srcAspect, 0, pRegions[idx].srcSlice };
@@ -6155,13 +6052,7 @@ void RsrcProcMgr::ResolveImageCompute(
                                     srcImageLayout,
                                     device.TexOptLevel());
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 478
-        // CreateImageViewSrds on old interfaces needs a helper to avoid recompressing
-        HwlCreateDecompressResolveSafeImageViewSrds(1, &imageView[0], pUserData);
-        device.CreateImageViewSrds(1, &imageView[1], pUserData + SrdDwordAlignment());
-#else
         device.CreateImageViewSrds(2, &imageView[0], pUserData);
-#endif
         pUserData += SrdDwordAlignment() * 2;
 
         if (isCsFmask)
@@ -6522,11 +6413,7 @@ bool RsrcProcMgr::ExpandDepthStencil(
 
     // Save current command buffer state and bind graphics state which is common for all subresources.
     pCmdBuffer->PushGraphicsState();
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 471
     pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Graphics, GetGfxPipeline(DepthExpand), InternalApiPsoHash, });
-#else
-    pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Graphics, GetGfxPipeline(DepthExpand), });
-#endif
     BindCommonGraphicsState(pCmdBuffer);
     pCmdBuffer->CmdBindDepthStencilState(m_pDepthExpandState);
     pCmdBuffer->CmdBindMsaaState(pMsaaState);
@@ -6674,11 +6561,7 @@ void RsrcProcMgr::ResummarizeDepthStencil(
 
     // Save current command buffer state and bind graphics state which is common for all subresources.
     pCmdBuffer->PushGraphicsState();
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 471
     pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Graphics, GetGfxPipeline(DepthResummarize), InternalApiPsoHash, });
-#else
-    pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Graphics, GetGfxPipeline(DepthResummarize), });
-#endif
     BindCommonGraphicsState(pCmdBuffer);
     pCmdBuffer->CmdBindDepthStencilState(m_pDepthResummarizeState);
     pCmdBuffer->CmdBindMsaaState(pMsaaState);
@@ -6837,11 +6720,7 @@ void RsrcProcMgr::GenericColorBlit(
 
     // Save current command buffer state and bind graphics state which is common for all mipmap levels.
     pCmdBuffer->PushGraphicsState();
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 471
     pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Graphics, GetGfxPipeline(pipeline), InternalApiPsoHash, });
-#else
-    pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Graphics, GetGfxPipeline(pipeline), });
-#endif
 
     BindCommonGraphicsState(pCmdBuffer);
 
@@ -7104,12 +6983,7 @@ void RsrcProcMgr::ResolveImageFixedFunc(
         if (pPipelinePrevious != pPipeline)
         {
             pPipelinePrevious = pPipeline;
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 471
             pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Graphics, pPipeline, InternalApiPsoHash, });
-#else
-            pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Graphics, pPipeline, });
-#endif
         }
 
         pCmdBuffer->CmdSetViewports(viewportInfo);
@@ -7318,12 +7192,8 @@ void RsrcProcMgr::ResolveImageDepthStencilCopy(
 
                     dstColorViewInfo.swizzledFormat.swizzle =
                         {ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One};
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 471
                     pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Graphics, GetGfxPipeline(ResolveDepthCopy),
                                                   InternalApiPsoHash, });
-#else
-                    pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Graphics, GetGfxPipeline(ResolveDepthCopy), });
-#endif
                 }
                 else if (pRegions[idx].dstAspect == ImageAspect::Stencil)
                 {
@@ -7333,12 +7203,8 @@ void RsrcProcMgr::ResolveImageDepthStencilCopy(
 
                     dstColorViewInfo.swizzledFormat.swizzle =
                         { ChannelSwizzle::Zero, ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::One };
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 471
                     pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Graphics, GetGfxPipeline(ResolveStencilCopy),
                                                   InternalApiPsoHash, });
-#else
-                    pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Graphics, GetGfxPipeline(ResolveStencilCopy), });
-#endif
                 }
                 else
                 {
@@ -8235,11 +8101,7 @@ void RsrcProcMgr::CopyImageToPackedPixelImage(
 
     // Save current command buffer state and bind the pipeline.
     pCmdBuffer->CmdSaveComputeState(ComputeStatePipelineAndUserData);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 471
     pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, InternalApiPsoHash, });
-#else
-    pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, });
-#endif
 
     // ALU constants assignment
     PackPixelConstant constantData    = {};

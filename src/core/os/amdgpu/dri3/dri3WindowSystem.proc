@@ -85,3 +85,7 @@ libxcb-randr.so.0   @proc xcb_randr_get_provider_info_reply_t* xcb_randr_get_pro
 libxcb-randr.so.0   @proc char* xcb_randr_get_provider_info_name (const xcb_randr_get_provider_info_reply_t* R)
 libxcb-randr.so.0   @proc xcb_randr_query_version_cookie_t xcb_randr_query_version (xcb_connection_t* c, uint32_t major_version, uint32_t minor_version)
 libxcb-randr.so.0   @proc xcb_randr_query_version_reply_t* xcb_randr_query_version_reply (xcb_connection_t* c, xcb_randr_query_version_cookie_t cookie, xcb_generic_error_t** e)
+libxcb-randr.so.0   @proc xcb_query_tree_cookie_t xcb_query_tree (xcb_connection_t* c, xcb_window_t window)
+libxcb-randr.so.0   @proc xcb_query_tree_reply_t* xcb_query_tree_reply (xcb_connection_t *c, xcb_query_tree_cookie_t cookie, xcb_generic_error_t **e)
+libxcb-randr.so.0   @proc xcb_get_window_attributes_cookie_t xcb_get_window_attributes (xcb_connection_t *c, xcb_window_t window)
+libxcb-randr.so.0   @proc xcb_get_window_attributes_reply_t* xcb_get_window_attributes_reply (xcb_connection_t *c, xcb_get_window_attributes_cookie_t cookie, xcb_generic_error_t **e)

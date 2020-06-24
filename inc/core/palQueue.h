@@ -146,7 +146,7 @@ struct QueueCreateInfo
         uint32 tmzOnly                         :  1; ///< This queue allows only TMZ submissions. Required for
                                                      ///  compute TMZ submits.
 
-#if PAL_AMDGPU_BUILD && (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 479)
+#if PAL_AMDGPU_BUILD
         uint32 enableGpuMemoryPriorities       :  1; ///< Enables support for GPU memory priorities on this Queue.
                                                      /// This is optional because enabling the feature requires
                                                      /// a small amount of memory overhead per-Queue for
@@ -393,15 +393,8 @@ struct PresentSwapChainInfo
     {
         struct
         {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 466
-            uint32 turboSyncEnabled     :  1;   ///< Whether TurboSync is enabled.
-#endif
             uint32 notifyOnly           :  1;   ///< True if it is a notify-only present
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 466)
-            uint32 reserved             : 30;   ///< Reserved for future use.
-#else
             uint32 reserved             : 31;   ///< Reserved for future use.
-#endif
         };
         uint32 u32All;                          ///< Flags packed as 32-bit uint.
     } flags;                                    ///< PresentSwapChainInfo flags.

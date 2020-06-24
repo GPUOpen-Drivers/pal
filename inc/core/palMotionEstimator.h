@@ -62,7 +62,7 @@ struct MotionEstimatorCreateInfo
     MePrecisionType         precision;           ///< Precision mode set by the application.
     MeSizeRange             sizeRange;           ///< Size range set by application.
     MeOutputFormat          outputFormat;        ///< Output format specified by application
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 480
+
     union
     {
         struct
@@ -72,7 +72,6 @@ struct MotionEstimatorCreateInfo
         };
         uint32  u32All;
     } flags;
-#endif
 };
 
 /**

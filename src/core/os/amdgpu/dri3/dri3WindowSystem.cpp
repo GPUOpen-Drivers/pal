@@ -804,25 +804,25 @@ Result Dri3WindowSystem::WaitForLastImagePresented()
 
 // =====================================================================================================================
 // Get the current width and height of the window from Xserver.
-Result Dri3WindowSystem::GetWindowGeometryXlib(
-    Device*             pDevice,
-    OsDisplayHandle     hDisplay,
-    OsWindowHandle      hWindow,
-    Extent2d*           pExtents)
+Result Dri3WindowSystem::GetWindowPropertiesXlib(
+    Device*              pDevice,
+    OsDisplayHandle      hDisplay,
+    OsWindowHandle       hWindow,
+    SwapChainProperties* pSwapChainProperties)
 {
     xcb_connection_t*const pConnection =
         pDevice->GetPlatform()->GetDri3Loader().GetProcsTable().pfnXGetXCBConnection(static_cast<Display*>(hDisplay));
 
-    return GetWindowGeometry(pDevice, pConnection, hWindow, pExtents);
+    return GetWindowProperties(pDevice, pConnection, hWindow, pSwapChainProperties);
 }
 
 // =====================================================================================================================
 // Get the current width and height of the window from Xserver.
-Result Dri3WindowSystem::GetWindowGeometry(
-    Device*             pDevice,
-    OsDisplayHandle     hDisplay,
-    OsWindowHandle      hWindow,
-    Extent2d*           pExtents)
+Result Dri3WindowSystem::GetWindowProperties(
+    Device*              pDevice,
+    OsDisplayHandle      hDisplay,
+    OsWindowHandle       hWindow,
+    SwapChainProperties* pSwapChainProperties)
 {
     Result                          result      = Result::ErrorUnknown;
 
@@ -832,16 +832,126 @@ Result Dri3WindowSystem::GetWindowGeometry(
     const xcb_get_geometry_cookie_t cookie      = dri3Procs.pfnXcbGetGeometry(pConnection, hXcbWindow);
     xcb_get_geometry_reply_t*const  pReply      = dri3Procs.pfnXcbGetGeometryReply(pConnection, cookie, nullptr);
 
+    // Set the alpha composite mode. Tell if opaque supported by alpha channel of X visual.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 610
+    if (IsAlphaSupported(pDevice, hDisplay, hWindow))
+    {
+        pSwapChainProperties->compositeAlphaMode = static_cast<uint32>(CompositeAlphaMode::Inherit) |
+                                                   static_cast<uint32>(CompositeAlphaMode::PostMultiplied);
+    }
+    else
+    {
+        pSwapChainProperties->compositeAlphaMode = static_cast<uint32>(CompositeAlphaMode::Inherit) |
+                                                   static_cast<uint32>(CompositeAlphaMode::Opaque);
+    }
+#endif
+
+    pSwapChainProperties->minImageCount = 2;
+
     if (pReply != nullptr)
     {
-        pExtents->width  = pReply->width;
-        pExtents->height = pReply->height;
-        result           = Result::Success;
+        pSwapChainProperties->currentExtent.width  = pReply->width;
+        pSwapChainProperties->currentExtent.height = pReply->height;
+        result                                     = Result::Success;
 
         free(pReply);
     }
 
     return result;
+}
+
+// =====================================================================================================================
+bool Dri3WindowSystem::IsAlphaSupported(
+    Device*             pDevice,
+    OsDisplayHandle     hDisplay,
+    OsWindowHandle      hWindow)
+{
+    const xcb_window_t      hXcbWindow  = static_cast<xcb_window_t>(hWindow.win);
+    const Dri3LoaderFuncs&  dri3Procs   = pDevice->GetPlatform()->GetDri3Loader().GetProcsTable();
+    xcb_connection_t*const  pConnection = static_cast<xcb_connection_t*>(hDisplay);
+    xcb_screen_iterator_t   iter        = dri3Procs.pfnXcbSetupRootsIterator(dri3Procs.pfnXcbGetSetup(pConnection));
+    xcb_query_tree_cookie_t treeCookie  = {};
+    xcb_query_tree_reply_t* pTree       = nullptr;
+    xcb_visualtype_t*       pVisualType = nullptr;
+    uint32                  depth       = 0;
+    bool                    hasAlpha    = false;
+
+    xcb_get_window_attributes_cookie_t attribCookie = {};
+    xcb_get_window_attributes_reply_t* pAttrib      = nullptr;
+
+    bool queryTreeSupported = dri3Procs.pfnXcbQueryTreeisValid() &&
+                              dri3Procs.pfnXcbQueryTreeReplyisValid() &&
+                              dri3Procs.pfnXcbGetWindowAttributesisValid() &&
+                              dri3Procs.pfnXcbGetWindowAttributesReplyisValid();
+
+    if (queryTreeSupported)
+    {
+        treeCookie   = dri3Procs.pfnXcbQueryTree(pConnection, hXcbWindow);
+        pTree        = dri3Procs.pfnXcbQueryTreeReply(pConnection, treeCookie, nullptr);
+        attribCookie = dri3Procs.pfnXcbGetWindowAttributes(pConnection, hXcbWindow);
+        pAttrib      = dri3Procs.pfnXcbGetWindowAttributesReply(pConnection, attribCookie, nullptr);
+    }
+
+    if ((pTree != nullptr) && (pAttrib != nullptr))
+    {
+        xcb_window_t   root     = pTree->root;
+        xcb_visualid_t visualId = pAttrib->visual;
+
+        while (iter.rem)
+        {
+            if (iter.data->root != root)
+            {
+                continue;
+            }
+
+            xcb_depth_iterator_t depthIter = dri3Procs.pfnXcbScreenAllowedDepthsIterator(iter.data);
+
+            for (; depthIter.rem; dri3Procs.pfnXcbDepthNext(&depthIter))
+            {
+                xcb_visualtype_iterator_t visualIter = dri3Procs.pfnXcbDepthVisualsIterator(depthIter.data);
+
+                for (; visualIter.rem; dri3Procs.pfnXcbVisualtypeNext(&visualIter))
+                {
+                    if (visualId == visualIter.data->visual_id)
+                    {
+                        pVisualType = visualIter.data;
+                        depth       = depthIter.data->depth;
+                        break;
+                    }
+                }
+
+                if (pVisualType != nullptr)
+                {
+                    break;
+                }
+            }
+
+            // Tell if the visualType contains alpha channel
+            if (pVisualType != nullptr)
+            {
+                const uint32 rgbMask   = pVisualType->red_mask |  pVisualType->green_mask | pVisualType->blue_mask;
+                const uint32 colorMask = 0xffffffff >> (32 - depth);
+
+                hasAlpha = (colorMask & ~rgbMask) != 0;
+
+                break;
+            }
+
+            dri3Procs.pfnXcbScreenNext(&iter);
+        }
+    }
+
+    if (pTree != nullptr)
+    {
+        free(pTree);
+    }
+
+    if (pAttrib != nullptr)
+    {
+        free(pAttrib);
+    }
+
+    return hasAlpha;
 }
 
 // =====================================================================================================================

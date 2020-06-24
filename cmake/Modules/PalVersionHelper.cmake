@@ -66,6 +66,32 @@ function(set_ipo_compile_options)
     message(STATUS "LTO enabled for Pal")
 endfunction()
 
+# A helper function to allow usage of DEBUG mode introduced in cmake 3.15
+# This function is intended to prevent printing out everything to STATUS,
+# which is undesirable for clients of PAL, since only cmake developers need to care.
+function(message_debug)
+    # DEBUG mode was introduced in 3.15
+    if( (${CMAKE_VERSION} VERSION_GREATER "3.15") OR
+        (${CMAKE_VERSION} VERSION_EQUAL   "3.15"))
+        message(DEBUG ${ARGV})
+    else()
+        message(STATUS "DEBUG: ${ARGV}")
+    endif()
+endfunction()
+
+# A helper function to allow usage of VERBOSE mode introduced in cmake 3.15
+# This function is intended to prevent printing out everything to STATUS,
+# which is undesirable for clients of PAL, since only cmake developers need to care.
+function(message_verbose)
+    # VERBOSE mode was introduced in 3.15
+    if( (${CMAKE_VERSION} VERSION_GREATER "3.15") OR
+        (${CMAKE_VERSION} VERSION_EQUAL   "3.15"))
+        message(VERBOSE ${ARGV})
+    else()
+        message(STATUS "VERBOSE: ${ARGV}")
+    endif()
+endfunction()
+
 function(setup_ipo_new)
     # If this variable has been defined by the client then don't do anything
     # Since the client of the PAL library will clobber any IPO settings anyway
@@ -97,24 +123,3 @@ function(pal_setup_gcc_ipo)
     endif()
 endfunction()
 
-macro(pal_find_python)
-    # If we have a newer cmake, the new FindPython scripts are much more reliable
-    if( (${CMAKE_VERSION} VERSION_GREATER "3.12") OR
-        (${CMAKE_VERSION} VERSION_EQUAL "3.12"))
-
-        find_package(Python3
-            REQUIRED
-            COMPONENTS Interpreter
-        )
-
-        set(PYTHON_CMD ${Python3_EXECUTABLE})
-    else()
-        find_package(PythonInterp 3)
-        if(NOT PYTHONINTERP_FOUND)
-            if(UNIX)
-                message(FATAL_ERROR "Python 3 is needed to generate some source files.")
-            endif()
-        endif()
-        set(PYTHON_CMD ${PYTHON_EXECUTABLE})
-    endif()
-endmacro()

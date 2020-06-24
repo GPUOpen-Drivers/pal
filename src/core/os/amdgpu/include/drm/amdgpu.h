@@ -2042,7 +2042,6 @@ int amdgpu_cs_submit_raw(amdgpu_device_handle dev,
  * \param   num_chunks - \c [in] number of CS chunks to submit
  * \param   chunks     - \c [in] array of CS chunks
  * \param   seq_no     - \c [out] output sequence number for submission.
- * \param   secure     - \c [in] flag for indicating secure command submission.
  *
  * \return   0 on success\n
  *          <0 - Negative POSIX Error code
@@ -2054,8 +2053,7 @@ int amdgpu_cs_submit_raw2(amdgpu_device_handle dev,
 			  uint32_t bo_list_handle,
 			  int num_chunks,
 			  struct drm_amdgpu_cs_chunk *chunks,
-			  uint64_t *seq_no,
-			  bool secure);
+			  uint64_t *seq_no);
 
 void amdgpu_cs_chunk_fence_to_dep(struct amdgpu_cs_fence *fence,
 				  struct drm_amdgpu_cs_chunk_dep *dep);

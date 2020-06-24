@@ -369,7 +369,7 @@ ADDR_E_RETURNCODE Lib::ComputeSurfaceInfo(
             {
                 ADDR_ASSERT((pOut->pitchAlign % 32) == 0);
             }
-#endif //DEBUG
+#endif
 
             if (localIn.format != ADDR_FMT_INVALID)
             {
@@ -2045,7 +2045,7 @@ ADDR_E_RETURNCODE Lib::ComputeCmaskInfo(
     {
         ADDR_ASSERT_ALWAYS();
     }
-#endif //DEBUG
+#endif
 
     UINT_32 maxBlockMax = HwlGetMaxCmaskBlockMax();
 

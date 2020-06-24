@@ -427,7 +427,7 @@ private:
         const MultiSubmitInfo&      submitInfo,
         const InternalSubmitInfo&   internalSubmitInfo,
         Util::File*                 logFile);
-#endif // PAL_ENABLE_PRINTS_ASSERTS
+#endif
 
     void DumpCmdBuffers(
         const MultiSubmitInfo&    submitInfo,
@@ -437,7 +437,7 @@ private:
         const CmdStream*         pCmdStream,
         CmdDumpCallback          pCmdDumpCallback,
         void*                    pUserData) const;
-#endif // PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 555
+#endif
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 518
     Result CreateTrackedCmdBuffer(TrackedCmdBuffer** ppTrackedCmdBuffer);

@@ -269,7 +269,7 @@ Result ComputeQueueContext::RebuildCommandStream()
     {
         uint32* pCmdSpace = m_perSubmitCmdStream.ReserveCommands();
 
-        // The following wait, write data, and surface sync must be at the beginning of the per-submit preamble.
+        // The following wait and surface sync must be at the beginning of the per-submit preamble.
         //
         // Wait for a prior submission on this context to be idle before executing the command buffer streams.
         // The timestamp memory is initialized to zero so the first submission on this context will not wait.
@@ -281,13 +281,6 @@ Result ComputeQueueContext::RebuildCommandStream()
                                              0xFFFFFFFF,
                                              false,
                                              pCmdSpace);
-
-        // Then rewrite the timestamp to some other value so that the next submission will wait until this one is done.
-        WriteDataInfo writeData = {};
-        writeData.dstAddr = m_exclusiveExecTs.GpuVirtAddr();
-        writeData.dstSel  = WRITE_DATA_DST_SEL_MEMORY_ASYNC;
-
-        pCmdSpace += cmdUtil.BuildWriteData(writeData, 1, pCmdSpace);
 
         // Issue a surface_sync or acquire mem packet to invalidate all L1 caches (TCP, SQ I-cache, SQ K-cache).
         //
@@ -324,8 +317,18 @@ Result ComputeQueueContext::RebuildCommandStream()
     {
         uint32* pCmdSpace = m_postambleCmdStream.ReserveCommands();
 
-        // This EOP event packet must be at the end of the per-submit postamble.
+        // This write data and EOP event packet must be at the end of the per-submit postamble.
         //
+        // Rewrite the timestamp to some other value so that the next submission will wait until this one is done.
+        // Note that we must do this write in the postamble rather than the preamble. Some CP features can preempt our
+        // submission frame without executing the postamble which would cause the wait in the preamble to hang if we
+        // did this write in the preamble.
+        WriteDataInfo writeData = {};
+        writeData.dstAddr = m_exclusiveExecTs.GpuVirtAddr();
+        writeData.dstSel  = WRITE_DATA_DST_SEL_MEMORY_ASYNC;
+
+        pCmdSpace += cmdUtil.BuildWriteData(writeData, 1, pCmdSpace);
+
         // When the pipeline has emptied, write the timestamp back to zero so that the next submission can execute.
         // We also use this pipelined event to flush and invalidate the shader L2 cache as described above.
         pCmdSpace += cmdUtil.BuildGenericEopEvent(BOTTOM_OF_PIPE_TS,
@@ -603,7 +606,7 @@ void UniversalQueueContext::WritePerSubmitPreamble(
     const CmdUtil& cmdUtil = m_pDevice->CmdUtil();
     uint32* pCmdSpace      = pCmdStream->ReserveCommands();
 
-    // The following wait, write data, and surface sync must be at the beginning of the per-submit DE preamble.
+    // The following wait and surface sync must be at the beginning of the per-submit DE preamble.
     //
     // Wait for a prior submission on this context to be idle before executing the command buffer streams.
     // The timestamp memory is initialized to zero so the first submission on this context will not wait.
@@ -615,14 +618,6 @@ void UniversalQueueContext::WritePerSubmitPreamble(
                                          UINT_MAX,
                                          false,
                                          pCmdSpace);
-
-    // Then rewrite the timestamp to some other value so that the next submission will wait until this one is done.
-    WriteDataInfo writeData = {};
-    writeData.dstAddr   = m_exclusiveExecTs.GpuVirtAddr();
-    writeData.engineSel = WRITE_DATA_ENGINE_PFP;
-    writeData.dstSel    = WRITE_DATA_DST_SEL_MEMORY_ASYNC;
-
-    pCmdSpace += cmdUtil.BuildWriteData(writeData, 1, pCmdSpace);
 
     // Issue a surface_sync or acquire mem packet to invalidate all L1 caches (TCP, SQ I-cache, SQ K-cache).
     //
@@ -1047,8 +1042,19 @@ Result UniversalQueueContext::RebuildCommandStreams()
             pCmdSpace += cmdUtil.BuildIncrementDeCounter(pCmdSpace);
         }
 
-        // This EOP event packet must be at the end of the per-submit DE postamble.
+        // This write data and EOP event packet must be at the end of the per-submit DE postamble.
         //
+        // Rewrite the timestamp to some other value so that the next submission will wait until this one is done.
+        // Note that we must do this write in the postamble rather than the preamble. Some CP features can preempt our
+        // submission frame without executing the postamble which would cause the wait in the preamble to hang if we
+        // did this write in the preamble.
+        WriteDataInfo writeData = {};
+        writeData.dstAddr   = m_exclusiveExecTs.GpuVirtAddr();
+        writeData.engineSel = WRITE_DATA_ENGINE_PFP;
+        writeData.dstSel    = WRITE_DATA_DST_SEL_MEMORY_ASYNC;
+
+        pCmdSpace += cmdUtil.BuildWriteData(writeData, 1, pCmdSpace);
+
         // When the pipeline has emptied, write the timestamp back to zero so that the next submission can execute.
         // We also use this pipelined event to flush and invalidate the shader L2 cache and RB caches as described
         // above.

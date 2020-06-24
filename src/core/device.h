@@ -90,7 +90,7 @@ constexpr uint32 MinVaRangeNumBits = 36u;
 constexpr gpusize PageSize = 0x1000u;
 
 #if defined(__unix__)
-#if PAL_INTERFACE_MAJOR_VERSION >= 595
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 595
 constexpr char SettingsFileName[] = "amdVulkanSettings.cfg";
 #else
 constexpr char SettingsFileName[] = "amdPalSettings.cfg";
@@ -577,11 +577,13 @@ struct Gfx6PerfCounterInfo
     // SDMA addresses are handled specially
     PerfCounterRegAddrPerModule      sdmaRegAddr[Gfx7MaxSdmaInstances][Gfx7MaxSdmaPerfModules];
 };
-#endif // PAL_BUILD_GFX6
+#endif
 
 // SDMA is a global block with unique registers for each instance; this requires special handling.
 constexpr uint32 Gfx9MaxSdmaInstances   = 2;
 constexpr uint32 Gfx9MaxSdmaPerfModules = 2;
+
+constexpr uint32 Gfx9MaxShaderEngines = 4;  // We can't have more than 4 SEs on gfx9+.
 
 // UMC is the block that interfaces between the Scalable Data Fabric (SDF) and the physical DRAM. Each UMC block
 // has 1..n channels. Typically, there is one UMC channel per EA block, or one per SDP (Scalable Data Port). We
@@ -611,7 +613,7 @@ struct Gfx9PerfCounterInfo
         } perModule[Gfx9MaxUmcchPerfModules];
     } umcchRegAddr[Gfx9MaxUmcchInstances];
 };
-#endif // PAL_BUILD_GFX
+#endif
 
 // Everything PAL & its clients would ever need to know about the actual GPU hardware.
 struct GpuChipProperties
@@ -825,7 +827,7 @@ struct GpuChipProperties
 
             Gfx6PerfCounterInfo perfCounterInfo; // Contains information for perf counters for a specific hardware block
         } gfx6;
-#endif // PAL_BUILD_GFX6
+#endif
         // Hardware-specific information for GFXIP 9+ hardware.
         struct
         {
@@ -862,12 +864,11 @@ struct GpuChipProperties
             uint32 gsPrimBufferDepth;
             uint32 maxGsWavesPerVgt;
             uint32 parameterCacheLines;
-	    uint32 sdmaDefaultRdL2Policy;
-	    uint32 sdmaDefaultWrL2Policy;
-	    bool   sdmaL2PolicyValid;
-            //                   [SE][SA]
-            uint32 activeCuMask  [4] [4];
-            uint32 alwaysOnCuMask[4] [4];
+            uint32 sdmaDefaultRdL2Policy;
+            uint32 sdmaDefaultWrL2Policy;
+            bool   sdmaL2PolicyValid;
+            uint32 activeCuMask  [Gfx9MaxShaderEngines] [MaxShaderArraysPerSe];
+            uint32 alwaysOnCuMask[Gfx9MaxShaderEngines] [MaxShaderArraysPerSe];
 
             uint32 numSdpInterfaces;          // Number of Synchronous Data Port interfaces to memory.
 
@@ -879,9 +880,8 @@ struct GpuChipProperties
                 uint32  numGl2a;
                 uint32  numGl2c;
 
-                //                     [SE][SA]
-                uint16  activeWgpMask  [4] [2];
-                uint16  alwaysOnWgpMask[4] [2];
+                uint16  activeWgpMask  [Gfx9MaxShaderEngines] [MaxShaderArraysPerSe];
+                uint16  alwaysOnWgpMask[Gfx9MaxShaderEngines] [MaxShaderArraysPerSe];
             } gfx10;
 
             struct
@@ -1757,11 +1757,6 @@ public:
 
     CmdStream* GetDummyCommandStream(EngineType engineType)
         { return m_pDummyCommandStreams[engineType]; }
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 469
-    size_t IndirectUserDataTableCeRamOffset() const
-        { return m_finalizeInfo.indirectUserDataTable[0].offsetInDwords; }
-#endif
 
     size_t CeRamBytesUsed(EngineType engine) const
         { return m_finalizeInfo.ceRamSizeUsed[engine]; }

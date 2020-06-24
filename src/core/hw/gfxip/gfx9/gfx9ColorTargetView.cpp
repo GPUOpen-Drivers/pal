@@ -952,15 +952,11 @@ void Gfx10ColorTargetView::UpdateImageSrd(
     ImageViewInfo viewInfo = {};
     viewInfo.pImage          = GetImage()->Parent();
     viewInfo.viewType        = ImageViewType::Tex2d;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 478
     viewInfo.possibleLayouts =
     {
         Pal::LayoutShaderWrite | Pal::LayoutColorTarget,
         Pal::LayoutUniversalEngine
     };
-#else
-    viewInfo.flags.shaderWritable = true;
-#endif
     viewInfo.swizzledFormat       = m_swizzledFormat;
     viewInfo.subresRange          = { m_subresource, 1, m_arraySize };
 

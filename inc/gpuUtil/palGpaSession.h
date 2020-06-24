@@ -548,11 +548,7 @@ public:
     Pal::Result UpdateSampleTraceParams(
         Pal::ICmdBuffer*          pCmdBuf,
         Pal::uint32               sampleId,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 467
         UpdateSampleTraceMode     updateMode);
-#else
-        UpdateSampleTraceMode     updateMode = UpdateSampleTraceMode::MinimalToFullMask);
-#endif
 
     /// Marks the end of a range of command buffer operations to be measured.
     ///
@@ -652,6 +648,17 @@ public:
     ///
     /// @returns Success if the pipeline has been unregistered with GpaSession successfully.
     Pal::Result UnregisterPipeline(const Pal::IPipeline* pPipeline);
+
+    /// Given a Pal device, validate a list of perfcounters.
+    ///
+    /// @param [in] pDevice      a given device
+    /// @param [in] pCounters    a list of perf counters.
+    /// @param [in] numCounters  perf counter counts.
+    ///
+    /// @returns Success if counters are valid.
+    Pal::Result ValidatePerfCounters(Pal::IDevice*        pDevice,
+                                     const PerfCounterId* pCounters,
+                                     const Pal::uint32    numCounters);
 
 private:
     // Tracking structure for a single IGpuMemory allocation owned by a GpaSession::GpaSession. In particular, it

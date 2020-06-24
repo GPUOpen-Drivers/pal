@@ -224,8 +224,8 @@ const RegisterRange Navi10NonShadowedRanges[] =
         Gfx101::mmATC_PERFCOUNTER_HI - Gfx101::mmATC_PERFCOUNTER0_CFG + 1
     },
     {
-        Gfx10CorePlus::mmRPB_PERFCOUNTER_LO,
-        Gfx10CorePlus::mmRPB_PERFCOUNTER_RSLT_CNTL - Gfx10CorePlus::mmRPB_PERFCOUNTER_LO + 1
+        Gfx10Core::mmRPB_PERFCOUNTER_LO,
+        Gfx10Core::mmRPB_PERFCOUNTER_RSLT_CNTL - Gfx10Core::mmRPB_PERFCOUNTER_LO + 1
     },
     {
         Oss50::mmSDMA0_PERFCOUNTER0_SELECT,
@@ -247,7 +247,7 @@ const RegisterRange Navi10NonShadowedRanges[] =
 
 constexpr uint32 Navi10NumNonShadowedRanges      = static_cast<uint32>(Util::ArrayLen(Navi10NonShadowedRanges));
 
-#endif // PAL_ENABLE_PRINTS_ASSERTS
+#endif
 
 constexpr uint32 Nv10NumUserConfigShadowRanges   = static_cast<uint32>(Util::ArrayLen(Nv10UserConfigShadowRange));
 constexpr uint32 Nv10NumContextShadowRanges      = static_cast<uint32>(Util::ArrayLen(Nv10ContextShadowRange));

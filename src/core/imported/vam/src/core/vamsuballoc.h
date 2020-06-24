@@ -148,4 +148,4 @@ private:
 
 typedef VamList<VamRaft> RaftList;
 
-#endif // __VAMSUBALLOC_H__
+#endif

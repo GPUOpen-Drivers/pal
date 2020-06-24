@@ -2011,9 +2011,7 @@ void PAL_STDCALL Device::CreateImageViewSrds(
         const ImageInfo&       imageInfo       = pParent->GetImageInfo();
         const ImageCreateInfo& imageCreateInfo = pParent->GetImageCreateInfo();
         const bool             imgIsBc         = Formats::IsBlockCompressed(imageCreateInfo.swizzledFormat.format);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 478
         PAL_ASSERT((viewInfo.possibleLayouts.engines != 0) && (viewInfo.possibleLayouts.usages != 0 ));
-#endif
 
         ImageSrd srd = {};
 
@@ -2333,11 +2331,7 @@ void PAL_STDCALL Device::CreateImageViewSrds(
                 {
                     if ((TestAnyFlagSet(settingsCheckFromStartMip, Gfx8CheckMetaDataFetchFromStartMipDepthStencil) ||
                          (startSubresInfo.flags.supportMetaDataTexFetch == true)) &&
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 478
                         (TestAnyFlagSet(viewInfo.possibleLayouts.usages, LayoutShaderWrite | LayoutCopyDst) == false))
-#else
-                        (viewInfo.flags.shaderWritable == false))
-#endif
                     {
                         // Theoretically, the htile address here should have the tile-swizzle OR'd in, but in
                         // SetTileSwizzle, the tile swizzle for texture-fetchable depth images is always set to zero,
@@ -2349,11 +2343,7 @@ void PAL_STDCALL Device::CreateImageViewSrds(
                 }
                 else if ((TestAnyFlagSet(settingsCheckFromStartMip, Gfx8CheckMetaDataFetchFromStartMipColorTarget) ||
                           (startSubresInfo.flags.supportMetaDataTexFetch == true)) &&
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 478
                          (TestAnyFlagSet(viewInfo.possibleLayouts.usages, LayoutShaderWrite | LayoutCopyDst) == false))
-#else
-                         (viewInfo.flags.shaderWritable == false))
-#endif
                 {
                     PAL_ASSERT(pParent->IsRenderTarget());
                     // The color image's meta-data always points at the DCC surface.  Any existing cMask or fMask

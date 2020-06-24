@@ -162,13 +162,6 @@ protected:
         const Image&       dstImage,
         const SubresRange& clearRange) const;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 478
-    virtual void HwlCreateDecompressResolveSafeImageViewSrds(
-        uint32                numSrds,
-        const ImageViewInfo*  pImageView,
-        void*                 pSrdTable) const override;
-#endif
-
     virtual bool CopyDstBoundStencilNeedsWa(
         const GfxCmdBuffer* pCmdBuffer,
         const Pal::Image&   dstImage) const override;
@@ -628,13 +621,6 @@ protected:
         Pal::CmdStream*    pCmdStream,
         const Image&       dstImage,
         const SubresRange& clearRange) const override;
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 478
-    virtual void HwlCreateDecompressResolveSafeImageViewSrds(
-        uint32                numSrds,
-        const ImageViewInfo*  pImageView,
-        void*                 pSrdTable) const override;
-#endif
 
 private:
     void InitHtileData(

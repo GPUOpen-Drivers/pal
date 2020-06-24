@@ -590,12 +590,6 @@ public:
         CalibratedTimestamps* pCalibratedTimestamps) const override
         { return m_pNextLayer->GetCalibratedTimestamps(pCalibratedTimestamps); }
 
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 470)
-    virtual Result CalibrateGpuTimestamp(
-        GpuTimestampCalibration* pCalibrationData) const override
-        { return m_pNextLayer->CalibrateGpuTimestamp(pCalibrationData); }
-#endif
-
     virtual void BindTrapHandler(
         PipelineBindPoint pipelineType,
         IGpuMemory*       pGpuMemory,
@@ -1331,19 +1325,6 @@ public:
         const BufferViewInfo* pBuffers) override
     { m_pNextLayer->CmdSetVertexBuffers(firstBuffer, bufferCount, pBuffers); }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 473
-    virtual void CmdSetIndirectUserData(
-        uint16      tableId,
-        uint32      dwordOffset,
-        uint32      dwordSize,
-        const void* pSrcData) override
-        { m_pNextLayer->CmdSetIndirectUserData(tableId, dwordOffset, dwordSize, pSrcData); }
-    virtual void CmdSetIndirectUserDataWatermark(
-        uint16 tableId,
-        uint32 dwordLimit) override
-        { m_pNextLayer->CmdSetIndirectUserDataWatermark(tableId, dwordLimit); }
-#endif
-
     virtual void CmdBindIndexData(
         gpusize   gpuAddr,
         uint32    indexCount,
@@ -1945,11 +1926,9 @@ public:
         gpusize* pGpuAddress) override
         { return m_pNextLayer->CmdAllocateEmbeddedData(sizeInDwords, alignmentInDwords, pGpuAddress); }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 474
     virtual Result AllocateAndBindGpuMemToEvent(
         IGpuEvent* pGpuEvent) override
     { return m_pNextLayer->AllocateAndBindGpuMemToEvent(NextGpuEvent(pGpuEvent)); }
-#endif
 
     virtual void CmdExecuteNestedCmdBuffers(
         uint32            cmdBufferCount,
@@ -2356,7 +2335,6 @@ public:
     virtual Result Reset() override
         { return m_pNextLayer->Reset(); }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 474
     virtual void GetGpuMemoryRequirements(
         GpuMemoryRequirements* pGpuMemReqs) const override
         { m_pNextLayer->GetGpuMemoryRequirements(pGpuMemReqs); }
@@ -2365,7 +2343,6 @@ public:
         IGpuMemory* pGpuMemory,
         gpusize     offset) override
         { return m_pNextLayer->BindGpuMemory(NextGpuMemory(pGpuMemory), offset); }
-#endif
 
     // Part of the IDestroyable public interface.
     virtual void Destroy() override

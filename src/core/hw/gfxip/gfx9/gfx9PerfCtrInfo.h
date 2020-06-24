@@ -47,8 +47,6 @@ constexpr uint32  SqttBufferAlignShift = 12;
 constexpr gpusize SqttBufferAlignment  = 0x1 << SqttBufferAlignShift;
 
 // Constants defining special block configurations that we must share between InitPerfCtrInfo and the perf experiment.
-// PAL's abstract MaxShaderEngines is very large (32) so in the interest of not wasting memory we define a new one.
-constexpr uint32 Gfx9MaxShaderEngines     = 4;  // We can't have more than 4 SEs on gfx9+.
 constexpr uint32 Gfx9MaxSqgPerfmonModules = 16; // The SQG can have up to 16 custom perfmon modules.
 
 constexpr uint32 Gfx10NumRmiSubInstances = 2; // PAL considers each RMI isntance to consist of sub-instances.

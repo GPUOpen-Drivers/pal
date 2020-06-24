@@ -479,9 +479,6 @@ union CmdBufferBuildFlags
         /// It is expected that the CPU update path will be slightly more efficient for scenarios where these tables'
         /// contents are fully updated often, while the CE RAM path is expected to be more efficient at handling sparse
         /// updates.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 475
-        /// This flag has no effect prior to interface version 475.0.
-#endif
         uint32 useCpuPathForTableUpdates    :  1;
 
         /// Indicates that the client would prefer that this nested command buffer not be launched using an IB2 packet.
@@ -626,11 +623,9 @@ struct PipelineBindParams
     PipelineBindPoint pipelineBindPoint; ///< Specifies which type of pipeline is to be bound (compute or graphics).
     const IPipeline*  pPipeline;         ///< New pipeline to be bound.  Can be null in order to unbind a previously
                                          ///  bound pipeline without binding a new one.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 471
     uint64 apiPsoHash;                   ///< 64-bit identifier provided by client driver based on the Pipeline State
                                          ///  Object. There exists a many-to-one correlation for ApiPsoHash to
                                          ///  internalPipelineHash to map the two.
-#endif
     union
     {
         DynamicComputeShaderInfo   cs;        ///< Dynamic Compute shader information.
@@ -783,7 +778,6 @@ struct BarrierInfo
                                                      ///  be specified more than once in the list of transitions.
                                                      ///  PAL assumes that all specified subresources are unique.
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 482
     uint32  globalSrcCacheMask; ///< Bitmask of @ref CacheCoherencyUsageFlags describing previous write operations whose
                                 ///  results need to be visible for subsequent operations.  This is a global mask and is
                                 ///  combined (bitwise logical union) with the @ref srcCacheMask field belonging to
@@ -795,7 +789,6 @@ struct BarrierInfo
                                 ///  and is combined (bitwise logical union) with the @ref dstCacheMask field belonging
                                 ///  to every element in @ref pTransitions.  If this is zero, then no global cache flags
                                 ///  are applied during every transition.
-#endif
 
     /// If non-null, this is a split barrier.  A split barrier is executed by making two separate CmdBarrier() calls
     /// with identical parameters with the exception that the first call sets flags.splitBarrierEarlyPhase and the
@@ -1057,11 +1050,9 @@ struct ImageScaledCopyRegion
 #endif
 
     uint32             numSlices;      ///< Number of slices the copy will span.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 494
     SwizzledFormat     swizzledFormat; ///< If not Undefined, reinterpret both subresources using this format and swizzle.
                                        ///  The specified format needs to have been included in the "pViewFormats" list
                                        ///  specified at image-creation time, otherwise the result might be incorrect.
-#endif
 };
 
 /// Specifies parameters for a color-space-conversion copy from one region in a source image subresource to a region in
@@ -1958,51 +1949,6 @@ public:
         uint32                firstBuffer,
         uint32                bufferCount,
         const BufferViewInfo* pBuffers) = 0;
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 473
-    /// Updates the contents of one of the command buffer's indirect user-data tables.
-    ///
-    /// The contents of the table will be interpreted based on the resource mapping specified for each shader in the
-    /// currently bound pipeline.  For example, the client can write virtual addresses of tables containing SRDs,
-    /// immediate SRDs which can be loaded without an indirection, or even a small number of immediate ALU constants.
-    ///
-    /// @see PipelineShaderInfo
-    /// @see RespourceMappingNode
-    /// @ingroup ResourceBinding
-    ///
-    /// @param [in] tableId      Specifies which indirect user-data table to update.  Must be less than
-    ///                          MaxIndirectUserDataTables.
-    /// @param [in] dwordOffset  Offset into the indirect table where the data should be written.
-    /// @param [in] dwordSize    Amount of data to write into the table; size of the pSrcData buffer.  Must be greater
-    ///                          than zero, and (dwordOffset + dwordSize) must not extend beyond the client-specified
-    ///                          size of the indirect table.
-    /// @param [in] pSrcData     Opaque block of data to write into the indirect user-data table.
-    virtual void CmdSetIndirectUserData(
-        uint16      tableId,
-        uint32      dwordOffset,
-        uint32      dwordSize,
-        const void* pSrcData) = 0;
-
-    /// Changes the high watermark for one of the command buffer's indirect user-data tables.
-    ///
-    /// This effectively notifies the command buffer that the GPU only expects DWORD's [0,Limit) of the indirect user-
-    /// data table to be valid at shader execution time.  PAL should use this as a hint to reduce the amount of data
-    /// being transferred into GPU memory before issuing a draw or dispatch.  If a shader reads from a location in the
-    /// table beyond this limit, behavior is undefined.
-    ///
-    /// This limit will persist in this command buffer until the limit is changed to some other quantity.  When either
-    /// @ref ICmdBuffer::Begin() or @ref ICmdBuffer::Reset() is called, the limits for all indirect user-data tables
-    /// are implicitly reset to be the entire table.
-    ///
-    /// @param [in] tableId     Specifies which indirect user-data table to update.  Must be less than
-    ///                         MaxIndirectUserDataTables.
-    /// @param [in] dwordLimit  Amount of data in the table which the client wishes to access using the GPU.  Any limit
-    ///                         larger than the table's whole size (e.g., UINT_MAX) will be interpreted as meaning "the
-    ///                         entire table".
-    virtual void CmdSetIndirectUserDataWatermark(
-        uint16 tableId,
-        uint32 dwordLimit) = 0;
-#endif
 
     /// Binds a range of memory for use as index data (i.e., binds an index buffer).
     ///
@@ -3463,7 +3409,6 @@ public:
         uint32   alignmentInDwords,
         gpusize* pGpuAddress) = 0;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 474
     /// Get memory from scratch memory and bind to GPU event. For now only GpuEventPool and CmdBuffer's internal
     /// GpuEvent use this path to allocate and bind GPU memory. These usecases assume the bound GPU memory is GPU access
     /// only, so client is responsible for resetting the event from GPU, and cannot call Set(), Reset(), GetStatus().
@@ -3475,7 +3420,6 @@ public:
     ///          + ErrorUnknown if an internal PAL error occurs.
     virtual Result AllocateAndBindGpuMemToEvent(
         IGpuEvent* pGpuEvent) = 0;
-#endif
 
     /// Issues commands which execute the specified group of nested command buffers.  The observable behavior of this
     /// operation should be indiscernible from directly recording the nested command buffers' commands directly into

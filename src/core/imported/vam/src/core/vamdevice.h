@@ -285,4 +285,4 @@ VAM_INLINE VOID VamDevice::ReleaseSyncObj(void)
     }
 }
 
-#endif // __VAMDEVICE_H__
+#endif

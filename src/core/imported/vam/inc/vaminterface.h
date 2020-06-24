@@ -981,4 +981,4 @@ VAM_RETURNCODE VAM_API VAMSubAllocReclaim (
 }
 #endif
 
-#endif // __VAMINTERFACE_H__
+#endif

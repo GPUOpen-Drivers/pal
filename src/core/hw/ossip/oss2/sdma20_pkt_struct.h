@@ -1967,4 +1967,4 @@ typedef struct SDMA_PKT_NOP_TAG
     } HEADER_UNION;
 } SDMA_PKT_NOP, *PSDMA_PKT_NOP;
 
-#endif // _SDMA20_PKT_H_
+#endif

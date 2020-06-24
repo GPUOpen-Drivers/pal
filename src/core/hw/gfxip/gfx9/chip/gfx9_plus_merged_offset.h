@@ -1232,8 +1232,6 @@ namespace Core
     constexpr unsigned int mmSPI_WF_LIFETIME_LIMIT_5                          = 0x24B0;
     constexpr unsigned int mmSQ_TIME_HI                                       = 0x237C;
     constexpr unsigned int mmSQ_TIME_LO                                       = 0x237D;
-    constexpr unsigned int mmSQ_WREXEC_EXEC_HI                                = 0x23B1;
-    constexpr unsigned int mmSQ_WREXEC_EXEC_LO                                = 0x23B1;
     constexpr unsigned int mmTA_RESERVED_010C                                 = 0x2543;
     constexpr unsigned int mmUMCCH0_PerfMonCtl1                               = 0x14341;
     constexpr unsigned int mmUMCCH0_PerfMonCtl2                               = 0x14342;
@@ -1417,6 +1415,8 @@ namespace Gfx09
     constexpr unsigned int mmSPI_RESOURCE_RESERVE_CU_13                       = 0x31F5;
     constexpr unsigned int mmSPI_RESOURCE_RESERVE_CU_14                       = 0x31F6;
     constexpr unsigned int mmSPI_RESOURCE_RESERVE_CU_15                       = 0x31F7;
+    constexpr unsigned int mmSPI_RESOURCE_RESERVE_EN_CU_6                     = 0x31EC;
+    constexpr unsigned int mmSPI_RESOURCE_RESERVE_EN_CU_7                     = 0x31ED;
     constexpr unsigned int mmSPI_RESOURCE_RESERVE_EN_CU_8                     = 0x31EE;
     constexpr unsigned int mmSPI_RESOURCE_RESERVE_EN_CU_9                     = 0x31EF;
     constexpr unsigned int mmSPI_RESOURCE_RESERVE_EN_CU_10                    = 0x31F2;
@@ -1640,6 +1640,8 @@ namespace Gfx09
     constexpr unsigned int mmSQ_VOP_DPP                                       = 0x237F;
     constexpr unsigned int mmSQ_VOP_SDWA                                      = 0x237F;
     constexpr unsigned int mmSQ_VOP_SDWA_SDST_ENC                             = 0x237F;
+    constexpr unsigned int mmSQ_WREXEC_EXEC_HI                                = 0x23B1;
+    constexpr unsigned int mmSQ_WREXEC_EXEC_LO                                = 0x23B1;
     constexpr unsigned int mmTCA_PERFCOUNTER0_HI                              = 0xD391;
     constexpr unsigned int mmTCA_PERFCOUNTER0_LO                              = 0xD390;
     constexpr unsigned int mmTCA_PERFCOUNTER0_SELECT                          = 0xDB90;
@@ -2104,6 +2106,15 @@ namespace Gfx101
 namespace Gfx10Core
 {
     constexpr unsigned int mmDB_RMI_BC_GL2_CACHE_CONTROL                      = 0x261E;
+    constexpr unsigned int mmRPB_PERFCOUNTER0_CFG                             = 0x0CEB;
+    constexpr unsigned int mmRPB_PERFCOUNTER1_CFG                             = 0x0CEC;
+    constexpr unsigned int mmRPB_PERFCOUNTER2_CFG                             = 0x0CED;
+    constexpr unsigned int mmRPB_PERFCOUNTER3_CFG                             = 0x0CEE;
+    constexpr unsigned int mmRPB_PERFCOUNTER_HI                               = 0x0CEA;
+    constexpr unsigned int mmRPB_PERFCOUNTER_LO                               = 0x0CE9;
+    constexpr unsigned int mmRPB_PERFCOUNTER_RSLT_CNTL                        = 0x0CEF;
+    constexpr unsigned int mmSPI_RESOURCE_RESERVE_EN_CU_6                     = 0x31EC;
+    constexpr unsigned int mmSPI_RESOURCE_RESERVE_EN_CU_7                     = 0x31ED;
     constexpr unsigned int mmSQ_THREAD_TRACE_BUF0_BASE                        = 0x2340;
     constexpr unsigned int mmSQ_THREAD_TRACE_BUF0_SIZE                        = 0x2341;
     constexpr unsigned int mmSQ_THREAD_TRACE_BUF1_BASE                        = 0x2342;
@@ -2118,6 +2129,8 @@ namespace Gfx10Core
     constexpr unsigned int mmSQ_THREAD_TRACE_STATUS                           = 0x2348;
     constexpr unsigned int mmSQ_THREAD_TRACE_TOKEN_MASK                       = 0x2346;
     constexpr unsigned int mmSQ_THREAD_TRACE_WPTR                             = 0x2344;
+    constexpr unsigned int mmSQ_WREXEC_EXEC_HI                                = 0x23B1;
+    constexpr unsigned int mmSQ_WREXEC_EXEC_LO                                = 0x23B1;
 } // namespace Gfx10Core
 
 namespace Gfx10CorePlus
@@ -2165,13 +2178,6 @@ namespace Gfx10CorePlus
     constexpr unsigned int mmGCEA_PERFCOUNTER2_SELECT                         = 0xDA00;
     constexpr unsigned int mmGCEA_PERFCOUNTER2_SELECT1                        = 0xDA01;
     constexpr unsigned int mmPA_SC_ENHANCE_INTERNAL                           = 0x22DD;
-    constexpr unsigned int mmRPB_PERFCOUNTER0_CFG                             = 0x0CEB;
-    constexpr unsigned int mmRPB_PERFCOUNTER1_CFG                             = 0x0CEC;
-    constexpr unsigned int mmRPB_PERFCOUNTER2_CFG                             = 0x0CED;
-    constexpr unsigned int mmRPB_PERFCOUNTER3_CFG                             = 0x0CEE;
-    constexpr unsigned int mmRPB_PERFCOUNTER_HI                               = 0x0CEA;
-    constexpr unsigned int mmRPB_PERFCOUNTER_LO                               = 0x0CE9;
-    constexpr unsigned int mmRPB_PERFCOUNTER_RSLT_CNTL                        = 0x0CEF;
     constexpr unsigned int mmUMCCH2_PerfMonCtl1                               = 0x54341;
     constexpr unsigned int mmUMCCH2_PerfMonCtl2                               = 0x54342;
     constexpr unsigned int mmUMCCH2_PerfMonCtl3                               = 0x54343;
@@ -2734,12 +2740,6 @@ namespace Gfx10Plus
     constexpr unsigned int mmVGT_MULTI_PRIM_IB_RESET_EN                       = 0xA2A5;
     constexpr unsigned int mmVGT_STRMOUT_DELAY                                = 0x2275;
 } // namespace Gfx10Plus
-
-namespace HasCe
-{
-    constexpr unsigned int mmSPI_RESOURCE_RESERVE_EN_CU_6                     = 0x31EC;
-    constexpr unsigned int mmSPI_RESOURCE_RESERVE_EN_CU_7                     = 0x31ED;
-} // namespace HasCe
 
 namespace NotGfx10
 {

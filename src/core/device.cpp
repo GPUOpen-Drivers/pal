@@ -147,7 +147,7 @@ bool Device::DetermineGpuIpLevels(
     case FAMILY_CZ:
         pIpLevels->gfx = Gfx6::DetermineIpLevel(familyId, eRevId, cpMicrocodeVersion);
         break;
-#endif // PAL_BUILD_GFX6
+#endif
     case FAMILY_AI:
     case FAMILY_RV:
     case FAMILY_NV:
@@ -550,10 +550,8 @@ Result Device::SetupPublicSettingDefaults()
 #endif
     m_publicSettings.miscellaneousDebugString[0] = '\0';
     m_publicSettings.renderedByString[0] = '\0';
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 500
     m_publicSettings.enableGpuEventMultiSlot = false;
     m_publicSettings.useAcqRelInterface = false;
-#endif
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 503
     m_publicSettings.zeroUnboundDescDebugSrd = false;
 #endif
@@ -1563,22 +1561,6 @@ Result Device::Finalize(
         }
     }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 469
-    if (result == Result::Success)
-    {
-        if ((finalizeInfo.indirectUserDataTable[0].offsetInDwords +
-             finalizeInfo.indirectUserDataTable[0].sizeInDwords) > finalizeInfo.ceRamSizeUsed[EngineTypeUniversal])
-        {
-            result = Result::ErrorInvalidMemorySize;
-        }
-        else if ((sizeof(uint32) * finalizeInfo.indirectUserDataTable[0].sizeInDwords) >
-                 (m_chipProperties.srdSizes.bufferView * MaxVertexBuffers))
-        {
-            result = Result::ErrorInvalidMemorySize;
-        }
-    }
-#endif
-
     if (result == Result::Success)
     {
         constexpr uint32 CeRamSizeAlignment = 32;
@@ -1794,7 +1776,7 @@ Result Device::CreateDummyCommandStreams()
                 }
 #endif
                 break;
-#endif // PAL_BUILD_OSS || PAL_BUILD_GFX
+#endif
 
             default:
                 // No corresponding dummy command stream for this engine
@@ -2130,9 +2112,6 @@ Result Device::GetProperties(
                                                                      gfx6Props.maxNumCuPerSh;
             pInfo->gfxipProperties.shaderCore.numSimdsPerCu        = gfx6Props.numSimdPerCu;
             pInfo->gfxipProperties.shaderCore.numWavefrontsPerSimd = gfx6Props.numWavesPerSimd;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 484
-            pInfo->gfxipProperties.shaderCore.wavefrontSize        = gfx6Props.nativeWavefrontSize;
-#endif
             pInfo->gfxipProperties.shaderCore.nativeWavefrontSize  = gfx6Props.nativeWavefrontSize;
             pInfo->gfxipProperties.shaderCore.minWavefrontSize     = gfx6Props.nativeWavefrontSize;
             pInfo->gfxipProperties.shaderCore.maxWavefrontSize     = gfx6Props.nativeWavefrontSize;
@@ -2164,12 +2143,7 @@ Result Device::GetProperties(
                 {
                     for (uint32 sh = 0; sh < gfx6Props.numShaderArrays; ++sh)
                     {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 491
                         pInfo->gfxipProperties.shaderCore.activeCuMask[se][sh] = gfx6Props.activeCuMaskGfx6[se][sh];
-#else
-                        pInfo->gfxipProperties.shaderCore.activeCuMask[se][sh] =
-                            static_cast<uint16>(gfx6Props.activeCuMaskGfx6[se][sh]);
-#endif
                     }
                 }
             }
@@ -2178,17 +2152,12 @@ Result Device::GetProperties(
                 // Gfx7-8 have a max 4SE x 1SH layout
                 for (uint32 se = 0; se < gfx6Props.numShaderEngines; ++se)
                 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 491
                     pInfo->gfxipProperties.shaderCore.activeCuMask[se][0] = gfx6Props.activeCuMaskGfx7[se];
-#else
-                    pInfo->gfxipProperties.shaderCore.activeCuMask[se][0] =
-                        static_cast<uint16>(gfx6Props.activeCuMaskGfx7[se]);
-#endif
                 }
             }
             break;
         }
-#endif // PAL_BUILD_GFX6
+#endif
 
         case GfxIpLevel::GfxIp9:
         case GfxIpLevel::GfxIp10_1:
@@ -2231,9 +2200,6 @@ Result Device::GetProperties(
             pInfo->gfxipProperties.shaderCore.numPhysicalCus       = gfx9Props.numPhysicalCus;
             pInfo->gfxipProperties.shaderCore.numSimdsPerCu        = gfx9Props.numSimdPerCu;
             pInfo->gfxipProperties.shaderCore.numWavefrontsPerSimd = gfx9Props.numWavesPerSimd;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 484
-            pInfo->gfxipProperties.shaderCore.wavefrontSize        = gfx9Props.nativeWavefrontSize;
-#endif
             pInfo->gfxipProperties.shaderCore.nativeWavefrontSize  = gfx9Props.nativeWavefrontSize;
             pInfo->gfxipProperties.shaderCore.minWavefrontSize     = gfx9Props.minWavefrontSize;
             pInfo->gfxipProperties.shaderCore.maxWavefrontSize     = gfx9Props.maxWavefrontSize;
@@ -2270,7 +2236,6 @@ Result Device::GetProperties(
             PAL_ASSERT((gfx9Props.numShaderEngines <= MaxShaderEngines) &&
                        (gfx9Props.numShaderArrays  <= MaxShaderArraysPerSe));
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 491
             for (uint32 se = 0; se < gfx9Props.numShaderEngines; ++se)
             {
                 for (uint32 sa = 0; sa < gfx9Props.numShaderArrays; ++sa)
@@ -2278,32 +2243,7 @@ Result Device::GetProperties(
                     pInfo->gfxipProperties.shaderCore.activeCuMask[se][sa] = gfx9Props.activeCuMask[se][sa];
                 }
             }
-#else
-            if (pInfo->gfxLevel == GfxIpLevel::GfxIp9)
-            {
-                for (uint32 se = 0; se < gfx9Props.numShaderEngines; ++se)
-                {
-                    for (uint32 sa = 0; sa < gfx9Props.numShaderArrays; ++sa)
-                    {
-                        pInfo->gfxipProperties.shaderCore.activeCuMask[se][sa] =
-                                static_cast<uint16>(gfx9Props.activeCuMask[se][sa]);
 
-                        // Ensure no overflow occurs
-                        PAL_ASSERT(TestAnyFlagSet(gfx9Props.activeCuMask[se][sa], 0xffff0000) == false);
-                    }
-                }
-            }
-            else
-            {
-                for (uint32 se = 0; se < gfx9Props.numShaderEngines; ++se)
-                {
-                    for (uint32 sa = 0; sa < gfx9Props.numShaderArrays; ++sa)
-                    {
-                        pInfo->gfxipProperties.shaderCore.activeCuMask[se][sa] = gfx9Props.gfx10.activeWgpMask[se][sa];
-                    }
-                }
-            }
-#endif // PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 491
             break;
         }
 
@@ -3158,25 +3098,9 @@ Result Device::CreateGpuEvent(
 {
     PAL_ASSERT((pPlacementAddr != nullptr) && (ppGpuEvent != nullptr));
 
-    GpuEvent* pGpuEvent = PAL_PLACEMENT_NEW(pPlacementAddr) GpuEvent(createInfo, this);
+    (*ppGpuEvent) = PAL_PLACEMENT_NEW(pPlacementAddr) GpuEvent(createInfo, this);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 474
-    Result result = pGpuEvent->Init();
-
-    if (result != Result::Success)
-    {
-        pGpuEvent->Destroy();
-        pGpuEvent = nullptr;
-    }
-#endif
-
-    (*ppGpuEvent) = pGpuEvent;
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 474
     return Result::Success;
-#else
-    return result;
-#endif
 }
 
 // =====================================================================================================================

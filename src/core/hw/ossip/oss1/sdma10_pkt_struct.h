@@ -28,7 +28,7 @@
 
 #ifdef __cplusplus
 extern "C" {
-#endif  //  __cplusplus
+#endif
 
 //
 //  All definitions in this file are common to R6xx, R7xx and Evergreen family
@@ -1853,6 +1853,6 @@ typedef struct _DMA_CMD_PACKET_POLL_REG_MEM
 
 #ifdef __cplusplus
 }
-#endif  // __cplusplus
+#endif
 
-#endif  //  _SDMA10_PKT_H_
+#endif

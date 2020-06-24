@@ -138,7 +138,7 @@ void PlatformSettingsLoader::ReadAssertAndPrintSettings(
         }
     }
 }
-#endif // #if PAL_ENABLE_PRINTS_ASSERTS
+#endif
 
 // =====================================================================================================================
 // Performs required processing to set updated print and assert setting values.

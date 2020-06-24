@@ -195,4 +195,4 @@ private:
     UINT                    m_excludedRangeCount;   // Total number of excluded ranges
 };
 
-#endif // __VAMRANGE_H__
+#endif

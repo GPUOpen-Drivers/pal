@@ -707,11 +707,7 @@ void RsrcProcMgr::CmdResolveQueryComputeShader(
 
     // Save current command buffer state and bind the pipeline.
     pCmdBuffer->CmdSaveComputeState(ComputeStatePipelineAndUserData);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 471
     pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, InternalApiPsoHash, });
-#else
-    pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, });
-#endif
 
     // Create an embedded user-data table and bind it to user data 0-1. We need buffer views for the source and dest.
     uint32* pSrdTable = RpmUtil::CreateAndBindEmbeddedUserData(pCmdBuffer,
@@ -1043,11 +1039,7 @@ void RsrcProcMgr::BuildHtileLookupTable(
     pCmdBuffer->CmdSaveComputeState(ComputeStatePipelineAndUserData);
 
     // Bind Compute Pipeline used for the clear.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 471
     pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, InternalApiPsoHash, });
-#else
-    pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, });
-#endif
 
     // Create a view of the hTile equation so that the shader can access it.
     BufferViewInfo hTileEqBufferView = {};
@@ -1231,11 +1223,7 @@ bool RsrcProcMgr::ExpandDepthStencil(
         const EngineType  engineType        = pCmdBuffer->GetEngineType();
 
         pCmdBuffer->CmdSaveComputeState(ComputeStatePipelineAndUserData);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 471
         pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, InternalApiPsoHash, });
-#else
-        pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, });
-#endif
 
         // Compute the number of thread groups needed to launch one thread per texel.
         uint32 threadsPerGroup[3] = {};
@@ -2490,11 +2478,7 @@ void RsrcProcMgr::DepthStencilClearGraphics(
 
     // Bind the depth expand state because it's just a full image quad and a zero PS (with no internal flags) which
     // is also what we need for the clear.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 471
     pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Graphics, GetGfxPipeline(DepthExpand), InternalApiPsoHash, });
-#else
-    pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Graphics, GetGfxPipeline(DepthExpand), });
-#endif
     pCmdBuffer->CmdBindMsaaState(GetMsaaState(dstImage.Parent()->GetImageCreateInfo().samples,
                                               dstImage.Parent()->GetImageCreateInfo().fragments));
     BindCommonGraphicsState(pCmdBuffer);
@@ -2691,20 +2675,6 @@ bool RsrcProcMgr::ClearDcc(
     return usedCompute;
 }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 478
-// =====================================================================================================================
-void RsrcProcMgr::HwlCreateDecompressResolveSafeImageViewSrds(
-    uint32                numSrds,
-    const ImageViewInfo*  pImageView,
-    void*                 pSrdTable
-    ) const
-{
-    const auto&  device = *m_pDevice->Parent();
-
-    device.CreateImageViewSrds(numSrds, pImageView, pSrdTable);
-}
-#endif
-
 // =====================================================================================================================
 // Performs a DCC decompress blt using the compute engine on the provided Image.  It is the caller's responsibility
 // to verify that the specified "range" supports texture compatability.
@@ -2730,11 +2700,7 @@ void RsrcProcMgr::DccDecompressOnCompute(
     pPipeline->ThreadsPerGroupXyz(&threadsPerGroup[0], &threadsPerGroup[1], &threadsPerGroup[2]);
 
     pCmdBuffer->CmdSaveComputeState(ComputeStatePipelineAndUserData);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 471
     pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, InternalApiPsoHash, });
-#else
-    pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, });
-#endif
     const EngineType engineType = pCmdBuffer->GetEngineType();
     const uint32     lastMip    = range.startSubres.mipLevel + range.numMips - 1;
     bool             earlyExit  = false;
@@ -2789,11 +2755,7 @@ void RsrcProcMgr::DccDecompressOnCompute(
                                         RpmUtil::DefaultRpmLayoutShaderWriteRaw,
                                         device.TexOptLevel());  // dst
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 478
             device.CreateImageViewSrds(2, &imageView[0], pSrdTable);
-#else
-            HwlCreateDecompressResolveSafeImageViewSrds(2, &imageView[0], pSrdTable);
-#endif
 
             pSrdTable += 2 * SrdDwordAlignment();
             memcpy(pSrdTable, constData, sizeof(constData));
@@ -2967,11 +2929,7 @@ void RsrcProcMgr::ClearFmask(
     PAL_ASSERT(imageCreateInfo.mipLevels == 1);
     PAL_ASSERT((clearRange.startSubres.mipLevel == 0) && (clearRange.numMips == 1));
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 471
     pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, InternalApiPsoHash, });
-#else
-    pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, });
-#endif
 
     const uint32  userData[] =
     {
@@ -3074,11 +3032,7 @@ void RsrcProcMgr::FmaskColorExpand(
 
         // Save current command buffer state and bind the pipeline.
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 471
         pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, InternalApiPsoHash, });
-#else
-        pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, });
-#endif
         // Select the appropriate value to indicate that FMask is fully expanded and place it in user data 8-9.
         // Put the low part in user data 8 and the high part in user data 9.
         // The fmask bits is placed in user data 10
@@ -3276,9 +3230,9 @@ uint32 Gfx9RsrcProcMgr::HwlBeginGraphicsCopy(
 
             // Write the new register value to the command stream
             regPA_SC_TILE_STEERING_OVERRIDE  paScTileSteeringOverride = {};
-            paScTileSteeringOverride.bits.ENABLE        = 1;
-            paScTileSteeringOverride.core.NUM_SE        = Log2(numNeededSes);
-            paScTileSteeringOverride.core.NUM_RB_PER_SE = Log2(numNeededRbsPerSe);
+            paScTileSteeringOverride.bits.ENABLE         = 1;
+            paScTileSteeringOverride.most.NUM_SE        = Log2(numNeededSes);
+            paScTileSteeringOverride.most.NUM_RB_PER_SE = Log2(numNeededRbsPerSe);
             CommitBeginEndGfxCopy(pCmdStream, paScTileSteeringOverride.u32All);
 
             // Let EndGraphcisCopy know that it has work to do
@@ -3858,11 +3812,7 @@ void Gfx9RsrcProcMgr::ClearHtileAllBytes(
         pPipeline->ThreadsPerGroupXyz(&threadsPerGroup[0], &threadsPerGroup[1], &threadsPerGroup[2]);
 
         // Bind Compute Pipeline used for the clear.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 471
         pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, InternalApiPsoHash, });
-#else
-        pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, });
-#endif
 
         // On GFX9, we create a single view of the hTile buffer that points to the base mip level.  It's
         // up to the equation to "find" each mip level and slice from that base location.
@@ -3936,11 +3886,7 @@ void Gfx9RsrcProcMgr::ClearHtileAllBytes(
         pPipeline->ThreadsPerGroupXyz(&threadsPerGroup[0], &threadsPerGroup[1], &threadsPerGroup[2]);
 
         // Bind Compute Pipeline used for the clear.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 471
         pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, InternalApiPsoHash, });
-#else
-        pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, });
-#endif
 
         // Create an SRD for the htile surface itself. This is a constant across all mip-levels as it's the shaders
         // job to calculate the proper address for each pixel of each mip level.
@@ -4090,11 +4036,7 @@ void Gfx9RsrcProcMgr::ClearHtileSelectedBytes(
         pPipeline->ThreadsPerGroupXyz(&threadsPerGroup[0], &threadsPerGroup[1], &threadsPerGroup[2]);
 
         // Bind Compute Pipeline used for the clear.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 471
         pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, InternalApiPsoHash, });
-#else
-        pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, });
-#endif
 
         // On GFX9, we create a single view of the hTile buffer that points to the base mip level.  It's
         // up to the equation to "find" each mip level and slice from that base location.
@@ -4167,11 +4109,7 @@ void Gfx9RsrcProcMgr::ClearHtileSelectedBytes(
         pPipeline->ThreadsPerGroupXyz(&threadsPerGroup[0], &threadsPerGroup[1], &threadsPerGroup[2]);
 
         // Bind Compute Pipeline used for the clear.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 471
         pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, InternalApiPsoHash, });
-#else
-        pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, });
-#endif
 
         // Create an SRD for the htile surface itself.  This is a constant across all mip-levels as it's the shaders
         // job to calculate the proper address for each pixel of each mip level.
@@ -4334,11 +4272,7 @@ void Gfx9RsrcProcMgr::DoFastClear(
     pPipeline->ThreadsPerGroupXyz(&threadsPerGroup[0], &threadsPerGroup[1], &threadsPerGroup[2]);
 
     // Bind Compute Pipeline used for the clear.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 471
     pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, InternalApiPsoHash, });
-#else
-    pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, });
-#endif
 
     // Create an SRD for the DCC surface itself.  This is a constant across all mip-levels as it's the shaders
     // job to calculate the proper address for each pixel of each mip level.
@@ -4454,11 +4388,7 @@ void Gfx9RsrcProcMgr::DoOptimizedCmaskInit(
         pPipeline->ThreadsPerGroupXyz(&threadsPerGroup[0], &threadsPerGroup[1], &threadsPerGroup[2]);
 
         // Bind Compute Pipeline used for the clear.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 471
         pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, InternalApiPsoHash, });
-#else
-        pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, });
-#endif
 
         // Create an SRD for the cmask surface itself.  This is a constant across all mip-levels as it's the shaders
         // job to calculate the proper address for each pixel of each mip level.
@@ -4528,11 +4458,7 @@ void Gfx9RsrcProcMgr::DoOptimizedCmaskInit(
         pPipeline->ThreadsPerGroupXyz(&threadsPerGroup[0], &threadsPerGroup[1], &threadsPerGroup[2]);
 
         // Bind Compute Pipeline used for the clear.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 471
         pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, InternalApiPsoHash, });
-#else
-        pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, });
-#endif
 
         // Create an SRD for the cmask surface itself.  This is a constant across all mip-levels as it's the shaders
         // job to calculate the proper address for each pixel of each mip level.
@@ -4651,11 +4577,7 @@ void Gfx9RsrcProcMgr::DoOptimizedFastClear(
         pPipeline->ThreadsPerGroupXyz(&threadsPerGroup[0], &threadsPerGroup[1], &threadsPerGroup[2]);
 
         // Bind Compute Pipeline used for the clear.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 471
         pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, InternalApiPsoHash, });
-#else
-        pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, });
-#endif
 
         // Create an SRD for the DCC surface itself.  This is a constant across all mip-levels as it's the shaders
         // job to calculate the proper address for each pixel of each mip level.
@@ -4725,11 +4647,7 @@ void Gfx9RsrcProcMgr::DoOptimizedFastClear(
         pPipeline->ThreadsPerGroupXyz(&threadsPerGroup[0], &threadsPerGroup[1], &threadsPerGroup[2]);
 
         // Bind Compute Pipeline used for the clear.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 471
         pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, InternalApiPsoHash, });
-#else
-        pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, });
-#endif
 
         // Create an SRD for the DCC surface itself.  This is a constant across all mip-levels as it's the shaders
         // job to calculate the proper address for each pixel of each mip level.
@@ -4911,11 +4829,7 @@ void Gfx9RsrcProcMgr::ExecuteHtileEquation(
         pCmdBuffer->CmdSaveComputeState(ComputeStatePipelineAndUserData);
 
         // Bind Compute Pipeline used for the clear.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 471
         pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, InternalApiPsoHash, });
-#else
-        pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, });
-#endif
 
         // On GFX9, we create a single view of the hTile buffer that points to the base mip level.  It's
         // up to the equation to "find" each mip level and slice from that base location.
@@ -5154,11 +5068,7 @@ void Gfx9RsrcProcMgr::HwlHtileCopyAndFixUp(
         pPipeline->ThreadsPerGroupXyz(&threadsPerGroup[0], &threadsPerGroup[1], &threadsPerGroup[2]);
 
         // Bind Compute Pipeline used for the clear.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 471
         pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, InternalApiPsoHash, });
-#else
-        pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, });
-#endif
 
         for (uint32 i = 0; i < mergedCount; ++i)
         {
@@ -5460,11 +5370,7 @@ void Gfx9RsrcProcMgr::InitCmask(
         pCmdBuffer->CmdSaveComputeState(ComputeStatePipelineAndUserData);
 
         // Bind Compute Pipeline used for the clear.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 471
         pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, InternalApiPsoHash, });
-#else
-        pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, });
-#endif
 
         BufferViewInfo bufferViewCmaskSurf = { };
         pCmask->BuildSurfBufferView(&bufferViewCmaskSurf);
@@ -5723,11 +5629,7 @@ void Gfx10RsrcProcMgr::ClearDccComputeSetFirstPixelOfBlock(
     const auto*const         pPipeline  = GetPipeline(pipeline);
 
     // Bind Compute Pipeline used for the clear.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 471
     pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, InternalApiPsoHash, });
-#else
-    pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, });
-#endif
 
     uint32 xInc = 0;
     uint32 yInc = 0;
@@ -5899,11 +5801,7 @@ void Gfx10RsrcProcMgr::InitHtileData(
     PAL_ASSERT(pPipeline != nullptr);
 
     // Bind the pipeline.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 471
     pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, InternalApiPsoHash, });
-#else
-    pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, });
-#endif
 
     // Put the new HTile data in user data 4 and the old HTile data mask in user data 5.
     const uint32 hTileUserData[2] = { hTileValue & hTileMask, ~hTileMask };
@@ -6081,11 +5979,8 @@ void Gfx10RsrcProcMgr::WriteHtileData(
                         useHisPretests   = true;
                     }
                 }
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 471
+
                 pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, InternalApiPsoHash, });
-#else
-                pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, });
-#endif
 
                 pCmdBuffer->CmdSetUserData(PipelineBindPoint::Compute,
                                            0,
@@ -6504,30 +6399,6 @@ void Gfx10RsrcProcMgr::InitHtile(
         FastDepthStencilClearComputeCommon(pCmdBuffer, pParentImg, clearMask);
     }
 }
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 478
-// =====================================================================================================================
-void Gfx10RsrcProcMgr::HwlCreateDecompressResolveSafeImageViewSrds(
-    uint32                numSrds,
-    const ImageViewInfo*  pBaseImageView,
-    void*                 pSrdTable
-    ) const
-{
-    const auto&     device   = *m_pDevice->Parent();
-    sq_img_rsrc_t*  pBaseSrd = reinterpret_cast<sq_img_rsrc_t*>(pSrdTable);
-
-    for (uint32 i = 0; i < numSrds; i++)
-    {
-        const ImageViewInfo*  pImageView = &pBaseImageView[i];
-        sq_img_rsrc_t*        pSrd       = &pBaseSrd[i];
-
-        device.CreateImageViewSrds(1, pImageView, pSrd);
-
-        // Leave "compression_en=1" so that the HW will update DCC memory with the "DCC is decompressed" code.
-        pSrd->write_compress_enable = 0;
-    }
-}
-#endif
 
 // =====================================================================================================================
 void Gfx10RsrcProcMgr::HwlFixupCopyDstImageMetaData(

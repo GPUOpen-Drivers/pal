@@ -142,12 +142,12 @@ public:
     void Destroy() { this->~WindowSystem(); }
 
     // Helper functions to describe the properties of a window system we will create in the future.
-    static Result GetWindowGeometry(
-        Device*             pDevice,
-        WsiPlatform         platform,
-        OsDisplayHandle     hDisplay,
-        OsWindowHandle      hWindow,
-        Extent2d*           pExtents);
+    static Result GetWindowProperties(
+        Device*              pDevice,
+        WsiPlatform          platform,
+        OsDisplayHandle      hDisplay,
+        OsWindowHandle       hWindow,
+        SwapChainProperties* pSwapChainProperties);
 
     static Result DeterminePresentationSupported(
         Device*             pDevice,

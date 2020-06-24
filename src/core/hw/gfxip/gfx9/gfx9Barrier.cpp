@@ -109,11 +109,7 @@ void Device::FlushAndInvL2IfNeeded(
     const auto&      subresRange          = transition.imageInfo.subresRange;
     constexpr uint32 MaybeTccMdShaderMask = (CoherShader | CoherCopy | CoherResolve | CoherClear);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 482
     const uint32 srcCacheMask = (barrier.globalSrcCacheMask | transition.srcCacheMask);
-#else
-    const uint32 srcCacheMask = transition.srcCacheMask;
-#endif
 
     if (TestAnyFlagSet(srcCacheMask, MaybeTccMdShaderMask) &&
         gfx9Image.NeedFlushForMetadataPipeMisalignment(subresRange))
@@ -158,13 +154,8 @@ void Device::TransitionDepthStencil(
     const auto& gfx9Image   = static_cast<const Image&>(*image.GetGfxImage());
     const auto& subresRange = transition.imageInfo.subresRange;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 482
     uint32       srcCacheMask = (barrier.globalSrcCacheMask | transition.srcCacheMask);
     const uint32 dstCacheMask = (barrier.globalDstCacheMask | transition.dstCacheMask);
-#else
-    uint32       srcCacheMask = transition.srcCacheMask;
-    const uint32 dstCacheMask = transition.dstCacheMask;
-#endif
     const bool   noCacheFlags     = ((srcCacheMask == 0) && (dstCacheMask == 0));
     bool         issuedBlt        = false;
     bool         issuedComputeBlt = false;
@@ -402,13 +393,8 @@ void Device::ExpandColor(
     const auto&                 subresRange = transition.imageInfo.subresRange;
     const SubResourceInfo*const pSubresInfo = image.SubresourceInfo(subresRange.startSubres);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 482
     const uint32 srcCacheMask = (barrier.globalSrcCacheMask | transition.srcCacheMask);
     const uint32 dstCacheMask = (barrier.globalDstCacheMask | transition.dstCacheMask);
-#else
-    const uint32 srcCacheMask = transition.srcCacheMask;
-    const uint32 dstCacheMask = transition.dstCacheMask;
-#endif
     const bool   noCacheFlags = ((srcCacheMask == 0) && (dstCacheMask == 0));
 
     PAL_ASSERT(image.IsDepthStencil() == false);
@@ -1184,13 +1170,8 @@ void Device::Barrier(
     {
         const auto& transition = barrier.pTransitions[i];
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 482
         uint32       srcCacheMask = (barrier.globalSrcCacheMask | transition.srcCacheMask);
         const uint32 dstCacheMask = (barrier.globalDstCacheMask | transition.dstCacheMask);
-#else
-        uint32       srcCacheMask = transition.srcCacheMask;
-        const uint32 dstCacheMask = transition.dstCacheMask;
-#endif
 
         // There are various srcCache BLTs (Copy, Clear, and Resolve) which we can further optimize if we know which
         // write caches have been dirtied:

@@ -3417,14 +3417,9 @@ void Gfx9Dcc::SetControlReg(
         }
         else
         {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 496
             // Verify that we only have DCC memory for shader writeable surfaces on GFX10 or it is ForceEnabled.
             PAL_ASSERT((createInfo.usageFlags.shaderWrite == 0) ||
                        (createInfo.metadataMode == Pal::MetadataMode::ForceEnabled));
-#else
-            // Verify that we only have DCC memory for shader writeable surfaces on GFX10.
-            PAL_ASSERT((createInfo.usageFlags.shaderWrite == 0));
-#endif
         }
     }
     else
@@ -3681,14 +3676,12 @@ bool Gfx9Dcc::UseDccForImage(
         }
     }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 496
     if ((mustDisableDcc == false) &&
         (TestAnyFlagSet(settings.useDcc, Gfx9UseDccAllowForceEnable)) &&
         (createInfo.metadataMode == MetadataMode::ForceEnabled))
     {
         useDcc = true;
     }
-#endif
 
     return useDcc;
 }

@@ -68,4 +68,4 @@ typedef struct RgdExecutionEndMarker
     uint32_t counter;  ///< End counter value
 } RgdExecutionEndMarker;
 
-#endif  // RGD_DRIVER_IFC_MARKER_PAYLOAD_H_
+#endif

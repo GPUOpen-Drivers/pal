@@ -342,26 +342,14 @@ void PipelineChunkCs::SetupSignatureFromElf(
 
     // We don't bother checking the wavefront size for pre-Gfx10 GPU's since it is implicitly 64 before Gfx10. Any ELF
     // which doesn't specify a wavefront size is assumed to use 64, even on Gfx10 and newer.
-    if (IsGfx10(chipProps.gfxLevel))
+    if (IsGfx9(*(m_device.Parent())) == false)
     {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 495
-        // Older ABI versions encoded wave32 vs. wave64 using the CS_W32_EN field of COMPUTE_DISPATCH_INITIATOR. Fall
-        // back to that encoding if the CS metadata does not specify a wavefront size.
-        regCOMPUTE_DISPATCH_INITIATOR dispatchInitiator = { };
-#endif
-
         const auto& csMetadata = metadata.pipeline.hardwareStage[static_cast<uint32>(Abi::HardwareStage::Cs)];
         if (csMetadata.hasEntry.wavefrontSize != 0)
         {
             PAL_ASSERT((csMetadata.wavefrontSize == 64) || (csMetadata.wavefrontSize == 32));
             pSignature->flags.isWave32 = (csMetadata.wavefrontSize == 32);
         }
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 495
-        else if (registers.HasEntry(mmCOMPUTE_DISPATCH_INITIATOR, &dispatchInitiator.u32All))
-        {
-            pSignature->flags.isWave32 = dispatchInitiator.gfx10Plus.CS_W32_EN;
-        }
-#endif
     }
 }
 

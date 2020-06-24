@@ -150,13 +150,11 @@ Result GpuEventPool<PlatformAllocator, GpuEventAllocator>::CreateNewEvent(
         }
     }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 474
     // Bind GPU memory to the event.
     if (result == Result::Success)
     {
         result = pCmdBuffer->AllocateAndBindGpuMemToEvent(*ppEvent);
     }
-#endif
 
     return result;
 }

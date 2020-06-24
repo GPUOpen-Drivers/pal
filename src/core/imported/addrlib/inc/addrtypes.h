@@ -103,7 +103,7 @@ typedef int            INT;
 #else
     // win32, win64, other platforms
     #define ADDR_INLINE   __inline
-#endif // #if defined(__GNUC__)
+#endif
 
 #define ADDR_API ADDR_FASTCALL //default call convention is fast call
 
@@ -729,5 +729,5 @@ typedef union {
     ((void) memcpy(&(dst), &(src), sizeof(va_list)))
 #endif
 
-#endif // __ADDR_TYPES_H__
+#endif
 

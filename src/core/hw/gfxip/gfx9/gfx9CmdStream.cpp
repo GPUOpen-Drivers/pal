@@ -870,20 +870,20 @@ void CmdStream::PatchCondIndirectBuffer(
     {
     case ChainPatchType::CondIndirectBufferPass:
         // The PM4 spec says that the first IB base/size are used if the conditional passes.
-        pPacket->ordinal9    = LowPart(address);
-        pPacket->ib_base1_hi = HighPart(address);
-        PAL_ASSERT(pPacket->bitfields9.reserved4 == 0);
+        pPacket->ordinal9.u32All       = LowPart(address);
+        pPacket->ordinal10.ib_base1_hi = HighPart(address);
+        PAL_ASSERT(pPacket->ordinal9.bitfields.reserved1 == 0);
 
-        pPacket->bitfields11.ib_size1 = ibSizeDwords;
+        pPacket->ordinal11.bitfields.ib_size1 = ibSizeDwords;
         break;
 
     case ChainPatchType::CondIndirectBufferFail:
         // The PM4 spec says that the second IB base/size are used if the conditional fails.
-        pPacket->ordinal12   = LowPart(address);
-        pPacket->ib_base2_hi = HighPart(address);
-        PAL_ASSERT(pPacket->bitfields12.reserved7 == 0);
+        pPacket->ordinal12.u32All      = LowPart(address);
+        pPacket->ordinal13.ib_base2_hi = HighPart(address);
+        PAL_ASSERT(pPacket->ordinal12.bitfields.reserved1 == 0);
 
-        pPacket->bitfields14.ib_size2 = ibSizeDwords;
+        pPacket->ordinal14.bitfields.ib_size2 = ibSizeDwords;
         break;
 
     default:

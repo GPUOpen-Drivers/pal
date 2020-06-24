@@ -56,9 +56,7 @@ public:
 
     BinningOverride GetBinningOverride() const { return m_binningOverride; }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 473
     uint32 VertexBufferCount() const { return m_vertexBufferCount; }
-#endif
 
     const ViewInstancingDescriptor& GetViewInstancingDesc() const { return m_viewInstancingDesc; };
 
@@ -121,9 +119,7 @@ private:
 
     BinningOverride  m_binningOverride; // Override global batched binning. Gfx9 only.
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 473
     uint32  m_vertexBufferCount;    // Number of vertex buffer slots used by this pipeline.
-#endif
 
     // Store any info from the pipeline creation info that might be needed later, such as for draw-time blend
     // optimization programming.

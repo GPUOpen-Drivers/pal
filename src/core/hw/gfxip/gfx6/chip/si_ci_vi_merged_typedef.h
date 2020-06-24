@@ -10856,4 +10856,4 @@ typedef union XDMA_TEST_DEBUG_INDEX__VI        regXDMA_TEST_DEBUG_INDEX__VI;
 } // namespace Gfx6
 } // namespace Pal
 
-#endif // SI_CI_VI_PI_MERGED_TYPEDEF_HEADER
+#endif
