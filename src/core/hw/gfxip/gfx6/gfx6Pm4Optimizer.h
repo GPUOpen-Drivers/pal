@@ -47,6 +47,12 @@ struct RegState
     uint32 value;
 };
 
+// Structure used duing PM4 optimization and instrumentation to track the current value of SET_BASE addresses
+struct SetBaseState
+{
+    gpusize address;
+};
+
 // =====================================================================================================================
 // Utility class which provides routines to optimize PM4 command streams. Currently it only optimizes SH register writes
 // and context register writes.
@@ -62,6 +68,7 @@ public:
     bool MustKeepSetContextReg(uint32 regAddr, uint32 regData);
     bool MustKeepSetShReg(uint32 regAddr, uint32 regData);
     bool MustKeepContextRegRmw(uint32 regAddr, uint32 regMask, uint32 regData);
+    bool MustKeepSetBase(gpusize address, uint32 index, PM4ShaderType shaderType);
 
     // These functions take a fully built SET_DATA header and the corresponding register data and will write the an
     // optimized version into pCmdSpace.
@@ -105,6 +112,10 @@ private:
     // Shadow register state for context and SH registers.
     RegState m_cntxRegs[CntxRegUsedRangeSize];
     RegState m_shRegs[ShRegUsedRangeSize];
+
+    // Base addresses set for SET_BASE
+    SetBaseState  m_setBaseStateGfx[MaxSetBaseIndex + 1];
+    SetBaseState  m_setBaseStateCompute;
 };
 
 } // Gfx6

@@ -81,6 +81,10 @@ public:
     uint32* WriteSetOneContextRegNoOpt(uint32 regAddr, uint32 regData, uint32* pCmdSpace);
 
     template <bool pm4OptImmediate>
+    uint32* WriteSetBase(PM4ShaderType shaderType, uint32 baseIndex, gpusize baseAddr, uint32* pCmdSpace);
+    uint32* WriteSetBase(PM4ShaderType shaderType, uint32 baseIndex, gpusize baseAddr, uint32* pCmdSpace);
+
+    template <bool pm4OptImmediate>
     uint32* WriteLoadSeqContextRegs(
         bool    useIndexVersion,
         uint32  startRegAddr,

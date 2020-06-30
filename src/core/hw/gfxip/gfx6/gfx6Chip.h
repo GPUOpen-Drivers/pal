@@ -190,6 +190,9 @@ constexpr uint32 MaxScratchWavesPerCu = 32;
 // The value of ONCHIP that is the field of register VGT_GS_MODE
 constexpr uint32 VgtGsModeOnchip = 3;
 
+// Highest index of the SET_BASE packet
+constexpr uint32 MaxSetBaseIndex = BASE_INDEX_INDIRECT_DATA;
+
 // Maximum image width
 constexpr uint32 MaxImageWidth = 16384;
 

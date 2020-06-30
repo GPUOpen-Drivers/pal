@@ -2252,7 +2252,7 @@ void RsrcProcMgr::HwlFixupResolveDstImage(
     }
 
     // For Gfx9, we need do fixup after fixfuction or compute shader resolve.
-    if (canDoFixupForDstImage && ((computeResolve == false) || (IsGfx10(device) == false)))
+    if (canDoFixupForDstImage && ((computeResolve == false) || IsGfx9(device)))
     {
         BarrierInfo      barrierInfo = {};
         Pal::SubresRange range       = {};
@@ -2775,7 +2775,7 @@ void RsrcProcMgr::DccDecompressOnCompute(
 
     pCmdBuffer->CmdRestoreComputeState(ComputeStatePipelineAndUserData);
 
-    if (IsGfx10(device))
+    if (IsGfx10Plus(device))
     {
         // The SRD is setup so that writing the decompressed value into the destination image will automagically
         // update DCC memory with the correct initial value.  So there's no need to do it again.

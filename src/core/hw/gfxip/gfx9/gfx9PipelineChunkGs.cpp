@@ -93,7 +93,7 @@ void PipelineChunkGs::EarlyInit(
         pInfo->loadedShRegCount  += (BaseLoadedShRegCount + ((chipProps.gfx9.supportSpp == 1) ? 1 : 0));
 
         // Handle GFX10 specific context registers
-        if (IsGfx10(chipProps.gfxLevel))
+        if (IsGfx10Plus(chipProps.gfxLevel))
         {
             // mmSPI_SHADER_IDX_FORMAT
             // mmGE_NGG_SUBGRP_CNTL
@@ -183,7 +183,7 @@ void PipelineChunkGs::LateInit(
                                                                           pgmRsrc2Gs.SCRATCH_EN,
                                                                           lateAllocWaves);
     }
-    else if (IsGfx10(chipProps.gfxLevel))
+    else if (IsGfx10Plus(chipProps.gfxLevel))
     {
         VGT_SHADER_STAGES_EN vgtShaderStagesEn = {};
         vgtShaderStagesEn.u32All = registers.At(mmVGT_SHADER_STAGES_EN);
@@ -214,7 +214,7 @@ void PipelineChunkGs::LateInit(
     {
         // It is possible, with an NGG shader, that late-alloc GS waves can deadlock the PS.  To prevent this hang
         // situation, we need to mask off one CU when NGG is enabled.
-        if (IsGfx10(chipProps.gfxLevel))
+        if (IsGfx10Plus(chipProps.gfxLevel))
         {
             // Both CU's of a WGP need to be disabled for better performance.
             gsCuDisableMask = 0xC;

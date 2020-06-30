@@ -63,6 +63,17 @@ struct RegGroupState
 #endif
 };
 
+// Structure used duing PM4 optimization and instrumentation to track the current value of SET_BASE addresses
+// as well as the number of times the address was set via the SET_BASE packet or ignored due to optimization.
+struct SetBaseState
+{
+    gpusize address;
+#if PAL_BUILD_PM4_INSTRUMENTOR
+    uint32  totalSets;
+    uint32  keptSets;
+#endif
+};
+
 using ShRegState   = RegGroupState<ShRegUsedRangeSize>;
 using CntxRegState = RegGroupState<CntxRegUsedRangeSize>;
 
@@ -81,6 +92,7 @@ public:
     bool MustKeepSetContextReg(uint32 regAddr, uint32 regData);
     bool MustKeepSetShReg(uint32 regAddr, uint32 regData);
     bool MustKeepContextRegRmw(uint32 regAddr, uint32 regMask, uint32 regData);
+    bool MustKeepSetBase(gpusize address, uint32 index, Pm4ShaderType shaderType);
 
     bool GetContextRollState() const { return m_contextRollDetected; }
     void ResetContextRollState() { m_contextRollDetected = false; }
@@ -149,6 +161,10 @@ private:
     // Shadow register state for context and SH registers.
     CntxRegState  m_cntxRegs;
     ShRegState    m_shRegs;
+
+    // Base addresses set for SET_BASE
+    SetBaseState  m_setBaseStateGfx[MaxSetBaseIndex + 1];
+    SetBaseState  m_setBaseStateCompute;
 
     bool  m_contextRollDetected;
 };

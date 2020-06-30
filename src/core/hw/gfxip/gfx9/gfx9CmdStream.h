@@ -130,6 +130,18 @@ public:
         const UserDataEntries&  entries,
         uint32*                 pCmdSpace);
 
+    template <bool Pm4OptEnabled>
+    uint32* WriteSetBase(
+        gpusize                         address,
+        PFP_SET_BASE_base_index_enum    baseIndex,
+        Pm4ShaderType                   shaderType,
+        uint32*                         pCmdSpace);
+    uint32* WriteSetBase(
+        gpusize                         address,
+        PFP_SET_BASE_base_index_enum    baseIndex,
+        Pm4ShaderType                   shaderType,
+        uint32*                         pCmdSpace);
+
     uint32* WriteClearState(
         PFP_CLEAR_STATE_cmd_enum  clearMode,
         uint32*                   pCmdSpace);

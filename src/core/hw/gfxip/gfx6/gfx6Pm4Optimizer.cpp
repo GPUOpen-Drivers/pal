@@ -120,6 +120,10 @@ void Pm4Optimizer::Reset()
     // Reset the SH register state.
     memset(m_shRegs,   0, sizeof(m_shRegs));
 
+    // Reset the SET_BASE address state
+    memset(&m_setBaseStateGfx, 0, sizeof(m_setBaseStateGfx));
+    memset(&m_setBaseStateCompute, 0, sizeof(m_setBaseStateCompute));
+
     // Some Gfx7 chips have an SPI bug whose workaround requires redundant writes to the SPI_SHADER_PGM_RSRC2_LS
     // register to occur with a write to SPI_SHADER_PGM_RSRC1 in between. Make sure that we don't optimize away a
     // necessary write to either of those two registers. See: Gfx6PipelineChunkLsHs::BuildPm4Headers().
@@ -176,6 +180,39 @@ bool Pm4Optimizer::MustKeepContextRegRmw(
 
         mustKeep = UpdateRegState(newRegVal, pRegState);
     }
+
+    return mustKeep;
+}
+
+// =====================================================================================================================
+// Thi functions should be called by Gfx9 CmdStream's "Write" functions to determine if it can skip writing certain
+// a SET_BASE packet up-front.
+bool Pm4Optimizer::MustKeepSetBase(
+    gpusize         address,
+    uint32          index,
+    PM4ShaderType   shaderType)
+{
+    PAL_ASSERT(address != 0);
+    PAL_ASSERT(index <= MaxSetBaseIndex);
+    PAL_ASSERT((shaderType == ShaderCompute) || (shaderType == ShaderGraphics));
+
+    SetBaseState* pBaseState = nullptr;
+
+    if ((index == BASE_INDEX_DISPATCH_INDIRECT) &&
+        (shaderType == ShaderCompute))
+    {
+        // According to the PM4 packet spec, only the patch table base index
+        // has a different base for ShaderGraphics and ShaderCompute
+        pBaseState = &m_setBaseStateCompute;
+    }
+    else
+    {
+        pBaseState = &m_setBaseStateGfx[index];
+    }
+
+    const bool mustKeep = (pBaseState->address != address);
+
+    pBaseState->address = address;
 
     return mustKeep;
 }

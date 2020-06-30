@@ -127,7 +127,7 @@ void PipelineChunkHs::LateInit(
     // always use the ones PAL prefers.
     m_regs.dynamic.spiShaderPgmRsrc3Hs.bits.CU_EN = m_device.GetCuEnableMask(0, UINT_MAX);
 
-    if (IsGfx10(chipProps.gfxLevel))
+    if (IsGfx10Plus(chipProps.gfxLevel))
     {
         m_regs.dynamic.spiShaderPgmRsrc4Hs.gfx10Plus.CU_EN = m_device.GetCuEnableMaskHi(0, UINT_MAX);
 
@@ -227,7 +227,7 @@ uint32* PipelineChunkHs::WriteShCommands(
                                                   index__pfp_set_sh_reg_index__apply_kmd_cu_and_mask,
                                                   pCmdSpace);
 
-    if (IsGfx10(chipProps.gfxLevel))
+    if (IsGfx10Plus(chipProps.gfxLevel))
     {
         pCmdSpace = pCmdStream->WriteSetOneShRegIndex(mmSPI_SHADER_PGM_RSRC4_HS,
                                                       dynamic.spiShaderPgmRsrc4Hs.u32All,

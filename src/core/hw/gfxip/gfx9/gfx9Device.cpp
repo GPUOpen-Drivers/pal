@@ -1557,7 +1557,7 @@ Result Device::CreatePerfExperiment(
 bool Device::SupportsIterate256() const
 {
     // ITERATE_256 is only supported on Gfx10 and newer product
-    return IsGfx10(m_gfxIpLevel) &&
+    return IsGfx10Plus(m_gfxIpLevel)                  &&
         // Emulation cannot suport iterate256 = 0 since the frame buffer is really just system memory where the
         // page size is unknown.
         (GetPlatform()->IsEmulationEnabled() == false) &&
@@ -1940,6 +1940,16 @@ void PAL_STDCALL Device::Gfx9CreateTypedBufferViewSrds(
 }
 
 // =====================================================================================================================
+uint32 Device::BufferSrdResourceLevel() const
+{
+    const Pal::Device& device = *(Parent());
+
+    uint32  resourceLevel = 1;
+
+    return resourceLevel;
+}
+
+// =====================================================================================================================
 // Gfx10 specific function for creating typed buffer view SRDs.
 void PAL_STDCALL Device::Gfx10CreateTypedBufferViewSrds(
     const IDevice*        pDevice,
@@ -1954,8 +1964,6 @@ void PAL_STDCALL Device::Gfx10CreateTypedBufferViewSrds(
                                                               &pGfxDevice->GetPlatform()->PlatformSettings());
 
     sq_buf_rsrc_t* pOutSrd = static_cast<sq_buf_rsrc_t*>(pOut);
-
-    uint32 resourceLevel = 1;
 
     // This means "(index >= NumRecords)" is out-of-bounds.
     constexpr uint32 OobSelect = SQ_OOB_INDEX_ONLY;
@@ -1988,14 +1996,14 @@ void PAL_STDCALL Device::Gfx10CreateTypedBufferViewSrds(
         // If we get an invalid format in the buffer SRD, then the memory operation involving this SRD will be dropped
         PAL_ASSERT(hwBufFmt != BUF_FMT_INVALID);
 
-        pOutSrd->u32All[3] = ((SqSelX        << SqBufRsrcTWord3DstSelXShift)              |
-                              (SqSelY        << SqBufRsrcTWord3DstSelYShift)              |
-                              (SqSelZ        << SqBufRsrcTWord3DstSelZShift)              |
-                              (SqSelW        << SqBufRsrcTWord3DstSelWShift)              |
-                              (hwBufFmt      << MostSqBufRsrcTWord3FormatShift)           |
-                              (resourceLevel << MostSqBufRsrcTWord3ResourceLevelShift)    |
-                              (OobSelect     << SqBufRsrcTWord3OobSelectShift)            |
-                              (SQ_RSRC_BUF   << SqBufRsrcTWord3TypeShift));
+        pOutSrd->u32All[3] = ((SqSelX                         << SqBufRsrcTWord3DstSelXShift)                      |
+                              (SqSelY                         << SqBufRsrcTWord3DstSelYShift)                      |
+                              (SqSelZ                         << SqBufRsrcTWord3DstSelZShift)                      |
+                              (SqSelW                         << SqBufRsrcTWord3DstSelWShift)                      |
+                              (hwBufFmt                       << MostSqBufRsrcTWord3FormatShift)                   |
+                              (pGfxDevice->BufferSrdResourceLevel() << Gfx10CoreSqBufRsrcTWord3ResourceLevelShift) |
+                              (OobSelect                      << SqBufRsrcTWord3OobSelectShift)                    |
+                              (SQ_RSRC_BUF                    << SqBufRsrcTWord3TypeShift));
 
         pOutSrd++;
         pBufferViewInfo++;
@@ -2064,8 +2072,6 @@ void PAL_STDCALL Device::Gfx10CreateUntypedBufferViewSrds(
 
     sq_buf_rsrc_t* pOutSrd = static_cast<sq_buf_rsrc_t*>(pOut);
 
-    uint32 resourceLevel = 1;
-
     for (uint32 idx = 0; idx < count; ++idx)
     {
         PAL_ASSERT((pBufferViewInfo->gpuAddr != 0) || (pBufferViewInfo->range == 0));
@@ -2086,14 +2092,14 @@ void PAL_STDCALL Device::Gfx10CreateUntypedBufferViewSrds(
             const uint32 oobSelect = ((pBufferViewInfo->stride == 1) ||
                                       (pBufferViewInfo->stride == 0)) ? SQ_OOB_COMPLETE : SQ_OOB_INDEX_ONLY;
 
-            pOutSrd->u32All[3] = ((SQ_SEL_X        << SqBufRsrcTWord3DstSelXShift)              |
-                                  (SQ_SEL_Y        << SqBufRsrcTWord3DstSelYShift)              |
-                                  (SQ_SEL_Z        << SqBufRsrcTWord3DstSelZShift)              |
-                                  (SQ_SEL_W        << SqBufRsrcTWord3DstSelWShift)              |
-                                  (BUF_FMT_32_UINT << MostSqBufRsrcTWord3FormatShift)           |
-                                  (resourceLevel   << MostSqBufRsrcTWord3ResourceLevelShift)    |
-                                  (oobSelect       << SqBufRsrcTWord3OobSelectShift)            |
-                                  (SQ_RSRC_BUF     << SqBufRsrcTWord3TypeShift));
+            pOutSrd->u32All[3] = ((SQ_SEL_X                       << SqBufRsrcTWord3DstSelXShift)                      |
+                                  (SQ_SEL_Y                       << SqBufRsrcTWord3DstSelYShift)                      |
+                                  (SQ_SEL_Z                       << SqBufRsrcTWord3DstSelZShift)                      |
+                                  (SQ_SEL_W                       << SqBufRsrcTWord3DstSelWShift)                      |
+                                  (BUF_FMT_32_UINT                << MostSqBufRsrcTWord3FormatShift)                   |
+                                  (pGfxDevice->BufferSrdResourceLevel() << Gfx10CoreSqBufRsrcTWord3ResourceLevelShift) |
+                                  (oobSelect                      << SqBufRsrcTWord3OobSelectShift)                    |
+                                  (SQ_RSRC_BUF                    << SqBufRsrcTWord3TypeShift));
         }
         else
         {
@@ -2260,7 +2266,7 @@ bool Device::IsImageFormatOverrideNeeded(
     uint32*                pPixelsPerBlock
     ) const
 {
-    return IsGfx10(m_gfxIpLevel) ?
+    return IsGfx10Plus(m_gfxIpLevel) ?
         IsGfx10ImageFormatOverrideNeeded(imageCreateInfo, pFormat, pPixelsPerBlock) :
         IsGfx9ImageFormatWorkaroundNeeded(imageCreateInfo, pFormat, pPixelsPerBlock);
 }
@@ -3112,8 +3118,15 @@ void PAL_STDCALL Device::Gfx10CreateImageViewSrds(
             // MIN_LOD field is unsigned
             constexpr uint32 Gfx9MinLodIntBits  = 4;
             constexpr uint32 Gfx9MinLodFracBits = 8;
+            const     uint32 minLod             = Math::FloatToUFixed(viewInfo.minLod,
+                                                                      Gfx9MinLodIntBits,
+                                                                      Gfx9MinLodFracBits,
+                                                                      true);
 
-            srd.most.min_lod = Math::FloatToUFixed(viewInfo.minLod, Gfx9MinLodIntBits, Gfx9MinLodFracBits, true);
+            {
+                srd.gfx10Core.min_lod = minLod;
+            }
+
             srd.most.format  = Formats::Gfx9::HwImgFmt(pFmtInfo, format);
         }
 
@@ -3128,7 +3141,7 @@ void PAL_STDCALL Device::Gfx10CreateImageViewSrds(
             // This special format indicates to HW that this is a promoted 24-bit surface, so sample_c and border color
             // can be treated differently.
             {
-                srd.most.format        = IMG_FMT_32_FLOAT_CLAMP__GFX10CORE;
+                srd.most.format = IMG_FMT_32_FLOAT_CLAMP__GFX10CORE;
             }
         }
 
@@ -3215,6 +3228,7 @@ void PAL_STDCALL Device::Gfx10CreateImageViewSrds(
             break;
         }
 
+        uint32  maxMipField = 0;
         if (isMultiSampled)
         {
             // MSAA textures cannot be mipmapped; the LAST_LEVEL and MAX_MIP fields indicate the texture's
@@ -3222,20 +3236,17 @@ void PAL_STDCALL Device::Gfx10CreateImageViewSrds(
             // fragments.  I'm going with reality.
             srd.base_level = 0;
             srd.last_level = Log2(imageCreateInfo.fragments);
-
-            {
-                srd.most.max_mip = Log2(imageCreateInfo.fragments);
-            }
-
+            maxMipField    = Log2(imageCreateInfo.fragments);
         }
         else
         {
             srd.base_level = firstMipLevel;
             srd.last_level = firstMipLevel + viewInfo.subresRange.numMips - 1;
+            maxMipField    = mipLevels - 1;
+        }
 
-            {
-                srd.most.max_mip        = mipLevels - 1;
-            }
+        {
+            srd.gfx10Core.max_mip = maxMipField;
         }
 
         srd.depth      = ComputeImageViewDepth(viewInfo, imageInfo, *pBaseSubResInfo);
@@ -3260,10 +3271,14 @@ void PAL_STDCALL Device::Gfx10CreateImageViewSrds(
         }
 #endif
 
-        srd.base_array        = baseArraySlice;
-        srd.meta_pipe_aligned = ((pMaskRam != nullptr) ? pMaskRam->PipeAligned() : 0);
-        srd.iterate_256       = image.GetIterate256(pSubResInfo);
-        srd.corner_samples    = imageCreateInfo.usageFlags.cornerSampling;
+        srd.base_array         = baseArraySlice;
+        srd.meta_pipe_aligned  = ((pMaskRam != nullptr) ? pMaskRam->PipeAligned() : 0);
+        srd.corner_samples     = imageCreateInfo.usageFlags.cornerSampling;
+
+        if (IsGfx10(*pPalDevice))
+        {
+            srd.gfx10.iterate_256 = image.GetIterate256(pSubResInfo);
+        }
 
         // Depth images obviously don't have an alpha component, so don't bother...
         if ((pParent->IsDepthStencil() == false) && pBaseSubResInfo->flags.supportMetaDataTexFetch)
@@ -3294,7 +3309,7 @@ void PAL_STDCALL Device::Gfx10CreateImageViewSrds(
             const uint32            bigPageCompat = IsImageBigPageCompatible(image, bigPageUsage);
 
             {
-                srd.most.big_page        = bigPageCompat;
+                srd.gfx10Core.big_page = bigPageCompat;
             }
 
             // When overrideBaseResource = true (96bpp images), compute baseAddress using the mip/slice in
@@ -3361,10 +3376,13 @@ void PAL_STDCALL Device::Gfx10CreateImageViewSrds(
         }
 
         {
-            srd.most.resource_level = 1;
+            if (IsGfx10(*pPalDevice))
+            {
+                // Fill the unused 4 bits of word6 with sample pattern index
+                srd.gfx10._reserved_206_203  = viewInfo.samplePatternIdx;
 
-            // Fill the unused 4 bits of word6 with sample pattern index
-            srd._reserved_206_203 = viewInfo.samplePatternIdx;
+                srd.gfx10Core.resource_level = 1;
+            }
 
             //   PRT unmapped returns 0.0 or 1.0 if this bit is 0 or 1 respectively
             //   Only used with image ops (sample/load)
@@ -3514,12 +3532,12 @@ void Device::Gfx10CreateFmaskViewSrdsInternal(
     {
         pSrd->most.format  = fmask.Gfx10FmaskFormat(createInfo.samples, createInfo.fragments, isUav);
 
-        pSrd->most.min_lod = 0;
-        pSrd->most.max_mip = 0;
+        pSrd->gfx10Core.min_lod = 0;
+        pSrd->gfx10Core.max_mip = 0;
 
-        pSrd->most.resource_level = 1;
+        pSrd->gfx10Core.resource_level = 1;
 
-        pSrd->most.big_page = bigPageCompat;
+        pSrd->gfx10Core.big_page       = bigPageCompat;
     }
 
     Gfx10SetImageSrdWidth(pSrd, subresInfo.extentTexels.width);
@@ -4908,9 +4926,12 @@ void Device::InitBufferSrd(
         pSrd->oob_select     = SQ_OOB_NUM_RECORDS_0; // never check out-of-bounds
 
         {
-            pSrd->most.format         = BUF_FMT_32_FLOAT;
+            pSrd->most.format = BUF_FMT_32_FLOAT;
 
-            pSrd->most.resource_level = 1;
+            if (IsGfx10(m_gfxIpLevel))
+            {
+                pSrd->gfx10Core.resource_level = 1;
+            }
         }
     }
     else

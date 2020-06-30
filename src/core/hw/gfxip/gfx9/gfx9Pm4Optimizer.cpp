@@ -130,6 +130,10 @@ void Pm4Optimizer::Reset()
     // Reset the SH register state.
     memset(&m_shRegs, 0, sizeof(m_shRegs));
 
+    // Reset the SET_BASE address state
+    memset(&m_setBaseStateGfx, 0, sizeof(m_setBaseStateGfx));
+    memset(&m_setBaseStateCompute, 0, sizeof(m_setBaseStateCompute));
+
     // Always start with no context rolls
     m_contextRollDetected = false;
 }
@@ -187,6 +191,47 @@ bool Pm4Optimizer::MustKeepContextRegRmw(
     }
 
     m_contextRollDetected |= mustKeep;
+
+    return mustKeep;
+}
+
+// =====================================================================================================================
+// Thi functions should be called by Gfx9 CmdStream's "Write" functions to determine if it can skip writing certain
+// a SET_BASE packet up-front.
+bool Pm4Optimizer::MustKeepSetBase(
+    gpusize         address,
+    uint32          index,
+    Pm4ShaderType   shaderType)
+{
+    PAL_ASSERT(address != 0);
+    PAL_ASSERT(index <= MaxSetBaseIndex);
+    PAL_ASSERT((shaderType == ShaderCompute) || (shaderType == ShaderGraphics));
+
+    SetBaseState* pBaseState = nullptr;
+
+    if ((index == base_index__pfp_set_base__patch_table_base) &&
+        (shaderType == ShaderCompute))
+    {
+        // According to the PM4 packet spec, only the patch table base index
+        // has a different base for ShaderGraphics and ShaderCompute
+        pBaseState = &m_setBaseStateCompute;
+    }
+    else
+    {
+        pBaseState = &m_setBaseStateGfx[index];
+    }
+
+    const bool mustKeep = (pBaseState->address != address);
+
+#if PAL_BUILD_PM4_INSTRUMENTOR
+    pBaseState->totalSets++;
+    if (mustKeep)
+    {
+        pBaseState->keptSets++;
+    }
+#endif
+
+    pBaseState->address = address;
 
     return mustKeep;
 }

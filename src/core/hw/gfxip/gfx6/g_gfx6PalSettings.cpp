@@ -527,7 +527,7 @@ void SettingsLoader::ReadSettings()
                            &m_settings.gfx8TrapezoidDistributionFactor,
                            InternalSettingScope::PrivatePalGfx6Key);
 
-    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pUseDccStr,
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pGfx8UseDccStr,
                            Util::ValueType::Uint,
                            &m_settings.gfx8UseDcc,
                            InternalSettingScope::PrivatePalGfx6Key);
@@ -991,7 +991,7 @@ void SettingsLoader::InitSettingsInfo()
     info.type      = SettingType::Uint;
     info.pValuePtr = &m_settings.gfx8UseDcc;
     info.valueSize = sizeof(m_settings.gfx8UseDcc);
-    m_settingsInfoMap.Insert(4029518654, info);
+    m_settingsInfoMap.Insert(3691235539, info);
 
     info.type      = SettingType::Uint;
     info.pValuePtr = &m_settings.gfx8AlwaysDecompress;
@@ -1064,7 +1064,7 @@ void SettingsLoader::DevDriverRegister()
             component.pfnSetValue = ISettingsLoader::SetValue;
             component.pSettingsData = &g_gfx6PalJsonData[0];
             component.settingsDataSize = sizeof(g_gfx6PalJsonData);
-            component.settingsDataHash = 1235962757;
+            component.settingsDataHash = 2649526908;
             component.settingsDataHeader.isEncoded = true;
             component.settingsDataHeader.magicBufferId = 402778310;
             component.settingsDataHeader.magicBufferOffset = 0;
