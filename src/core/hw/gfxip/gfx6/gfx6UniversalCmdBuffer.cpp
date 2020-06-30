@@ -1882,7 +1882,7 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawIndirectMulti(
 
     uint32* pDeCmdSpace = pThis->m_deCmdStream.ReserveCommands();
 
-    pDeCmdSpace += pThis->m_cmdUtil.BuildSetBase(
+    pDeCmdSpace = pThis->m_deCmdStream.WriteSetBase(
         ShaderGraphics, BASE_INDEX_DRAW_INDIRECT, gpuMemory.Desc().gpuVirtAddr, pDeCmdSpace);
 
     const uint16 vtxOffsetReg  = pThis->GetVertexOffsetRegAddr();
@@ -1992,7 +1992,7 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawIndexedIndirectMulti(
 
     uint32* pDeCmdSpace = pThis->m_deCmdStream.ReserveCommands();
 
-    pDeCmdSpace += pThis->m_cmdUtil.BuildSetBase(
+    pDeCmdSpace = pThis->m_deCmdStream.WriteSetBase(
         ShaderGraphics, BASE_INDEX_DRAW_INDIRECT, gpuMemory.Desc().gpuVirtAddr, pDeCmdSpace);
 
     const uint16 vtxOffsetReg  = pThis->GetVertexOffsetRegAddr();
@@ -2120,7 +2120,7 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDispatchIndirect(
     uint32* pDeCmdSpace = pThis->m_deCmdStream.ReserveCommands();
 
     pDeCmdSpace  = pThis->ValidateDispatch<UseCpuPathForUserDataTables>((gpuMemBaseAddr + offset), 0, 0, 0, pDeCmdSpace);
-    pDeCmdSpace += pThis->m_cmdUtil.BuildSetBase(
+    pDeCmdSpace  = pThis->m_deCmdStream.WriteSetBase(
         ShaderCompute, BASE_INDEX_DISPATCH_INDIRECT, gpuMemBaseAddr, pDeCmdSpace);
     pDeCmdSpace  = pThis->WaitOnCeCounter(pDeCmdSpace);
     pDeCmdSpace += pThis->m_cmdUtil.BuildDispatchIndirect(offset, pThis->PacketPredicate(), pDeCmdSpace);
@@ -5620,6 +5620,9 @@ void UniversalCmdBuffer::CmdExecuteNestedCmdBuffers(
 
         // Track the most recent OS paging fence value across all nested command buffers called from this one.
         m_lastPagingFence = Max(m_lastPagingFence, pCallee->LastPagingFence());
+
+        // Track the lastest fence token across all nested command buffers called from this one.
+        m_maxUploadFenceToken = Max(m_maxUploadFenceToken, pCallee->GetMaxUploadFenceToken());
 
         // All user-data entries have been uploaded into CE RAM and GPU memory, so we can safely "call" the nested
         // command buffer's command streams.

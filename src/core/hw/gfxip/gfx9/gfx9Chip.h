@@ -280,6 +280,9 @@ constexpr uint32 VgtGsModeOnchip = 3;
 static constexpr gpusize PrimeUtcL2MemAlignment = 4096;
 static constexpr gpusize CpDmaMemAlignment      = 256;
 
+// Highest index of the SET_BASE packet
+constexpr uint32 MaxSetBaseIndex = base_index__pfp_set_base__indirect_data_base;
+
 // Tile size is fixed at 64kb on all hardware
 constexpr uint32 PrtTileSize = (64 * 1024);
 

@@ -49,6 +49,7 @@ Result PresentSchedulerJob::CreateInternal(
     else
     {
         PresentSchedulerJob*const pJob = PAL_PLACEMENT_NEW(pMemory) PresentSchedulerJob();
+        PAL_ASSERT(pJob != nullptr);
 #if !defined(__unix__)
         // The only unusual part of this process is here, where we place our job's fence immediately after it.
         // Create the fence if it is required to do explicit synchronization between present and prior work

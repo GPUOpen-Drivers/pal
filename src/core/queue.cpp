@@ -39,6 +39,7 @@
 #include "core/hw/gfxip/gfxDevice.h"
 #include "core/hw/gfxip/gfxCmdBuffer.h"
 #include "core/hw/gfxip/rpm/rsrcProcMgr.h"
+#include "core/hw/gfxip/pipeline.h"
 #include "palDequeImpl.h"
 #include "palSysUtil.h"
 #include "palAutoBuffer.h"
@@ -566,6 +567,36 @@ Result Queue::Init(
     }
 #endif
 
+    return result;
+}
+
+// =====================================================================================================================
+// If any command buffer submitted on this queue contains a pipeline, which is uploaded using an internal dma queue,
+// this client queue needs to wait until the pipeline finishes uploading.
+Result Queue::GfxIpWaitPipelineUploading(
+    const MultiSubmitInfo& submitInfo)
+{
+    Result result = Result::Success;
+    UploadFenceToken maxUploadFenceToken = 0;
+    for (uint32 qIdx = 0; qIdx < submitInfo.perSubQueueInfoCount; qIdx++)
+    {
+        QueueType qType = m_pQueueInfos[qIdx].createInfo.queueType;
+        if ((qType == QueueTypeUniversal) || (qType == QueueTypeCompute))
+        {
+            uint32 cmdBufferCount = submitInfo.pPerSubQueueInfo[qIdx].cmdBufferCount;
+
+            for (uint32 cmdIdx = 0; cmdIdx < cmdBufferCount; cmdIdx++)
+            {
+                GfxCmdBuffer* pCmdBuf =
+                    static_cast<GfxCmdBuffer*>(submitInfo.pPerSubQueueInfo[qIdx].ppCmdBuffers[cmdIdx]);
+                maxUploadFenceToken = Max(maxUploadFenceToken, pCmdBuf->GetMaxUploadFenceToken());
+            }
+        }
+    }
+    if (maxUploadFenceToken > 0)
+    {
+        result = m_pDevice->WaitForPendingUpload(this, maxUploadFenceToken);
+    }
     return result;
 }
 

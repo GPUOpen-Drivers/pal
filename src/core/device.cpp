@@ -234,10 +234,8 @@ Device::Device(
 #if defined(__unix__)
     m_settingsMgr(SettingsFileName, pPlatform),
 #endif
-    m_copyQueuesLock(),
-    m_pInternalCopyQueue(nullptr),
-    m_copyCmdBufferLock(),
-    m_pInternalCopyCmdBuffer(nullptr),
+    m_dmaUploadRingLock(),
+    m_pDmaUploadRing(nullptr),
     m_referencedGpuMem(ReferencedMemoryMapElements, pPlatform),
     m_referencedGpuMemLock(),
     m_pAddrMgr(nullptr),
@@ -318,17 +316,10 @@ Result Device::Cleanup()
 {
     Result result = Result::Success;
 
-    // Cleanup the internal device-owned queues.
-    if (m_pInternalCopyQueue != nullptr)
+    if (m_pDmaUploadRing != nullptr)
     {
-        m_pInternalCopyQueue->Destroy();
-        PAL_SAFE_FREE(m_pInternalCopyQueue, GetPlatform());
-    }
-
-    if (m_pInternalCopyCmdBuffer != nullptr)
-    {
-        m_pInternalCopyCmdBuffer->DestroyInternal();
-        m_pInternalCopyCmdBuffer = nullptr;
+        // It will call destructor of DmaUploadRing to free internal resources of m_pDmaUploadRing.
+        PAL_SAFE_DELETE(m_pDmaUploadRing, m_pPlatform);
     }
 
     // If we're cleaning up the device, the client must have destroyed all of their queues.
@@ -409,7 +400,7 @@ Result Device::Cleanup()
         result = m_memMgr.FreeGpuMem(m_dummyChunkMem.Memory(), m_dummyChunkMem.Offset());
         m_dummyChunkMem.Update(nullptr, 0);
 
-        if ((m_pPlatform != nullptr) && (m_pPlatform->GetEventProvider() != nullptr))
+        if (m_pPlatform->GetEventProvider() != nullptr)
         {
             ResourceDestroyEventData destroyData = {};
             destroyData.pObj = &m_dummyChunkMem;
@@ -494,12 +485,7 @@ Result Device::EarlyInit(
 
     if (result == Result::Success)
     {
-        result = m_copyQueuesLock.Init();
-    }
-
-    if (result == Result::Success)
-    {
-        result = m_copyCmdBufferLock.Init();
+        result = m_dmaUploadRingLock.Init();
     }
 
     return result;
@@ -1598,6 +1584,14 @@ Result Device::Finalize(
                 result = CreateDummyCommandStreams();
             }
 
+            // In case there is no dma engine available, PAL does not create dmaUploadRing.
+            // It should be safe to not create a dmaUploadRing, since pipeline uploader will overwrite
+            // client's preference of pipeline heap in case that no dma engine is available.
+            if ((result == Result::Success) && (m_engineProperties.perEngine[EngineTypeDma].numAvailable > 0))
+            {
+                result = CreateDmaUploadRing();
+            }
+
 #if PAL_BUILD_GFX
             if (m_pGfxDevice != nullptr && result == Result::Success)
             {
@@ -2366,6 +2360,55 @@ Result Device::GetPerfExperimentProperties(
         result = Result::Success;
     }
 
+    return result;
+}
+
+// =====================================================================================================================
+// Obtains an Entry of the DmaUploadRing.
+Result Device::AcquireRingSlot(
+    UploadRingSlot* pSlotId)
+{
+    Util::MutexAuto lock(&m_dmaUploadRingLock);
+    PAL_ASSERT(m_pDmaUploadRing != nullptr);
+    Result result = m_pDmaUploadRing->AcquireRingSlot(pSlotId);
+    return result;
+}
+
+// =====================================================================================================================
+// Record commands which upload part of pipeline ELF from CPU to GPU.
+size_t Device::UploadUsingEmbeddedData(
+    UploadRingSlot  slotId,
+    Pal::GpuMemory* pDst,
+    gpusize         dstOffset,
+    size_t          bytes,
+    void**          ppEmbeddedData)
+{
+    PAL_ASSERT(m_pDmaUploadRing != nullptr);
+    size_t rst = m_pDmaUploadRing->UploadUsingEmbeddedData(slotId,pDst,dstOffset,bytes,ppEmbeddedData);
+    return rst;
+}
+
+// =====================================================================================================================
+// Submit command buffer at slotId to the DmaUploadRing's internal dma queue.
+// pCompletionFence is used to track when GPU finishes the work of this command buffer.
+Result Device::SubmitDmaUploadRing(
+    UploadRingSlot    slotId,
+    UploadFenceToken* pCompletionFence)
+{
+    Util::MutexAuto lock(&m_dmaUploadRingLock);
+    Result result = m_pDmaUploadRing->Submit(slotId, pCompletionFence);
+    return result;
+}
+
+// =====================================================================================================================
+// pWaiter will wait until DmaUploadRing's internal dma queue's internal fence value reach fenceValue.
+Result Device::WaitForPendingUpload(
+    Pal::Queue*      pWaiter,
+    UploadFenceToken fenceValue)
+{
+    Util::MutexAuto lock(&m_dmaUploadRingLock);
+    PAL_ASSERT(m_pDmaUploadRing != nullptr);
+    Result result = m_pDmaUploadRing->WaitForPendingUpload(pWaiter, fenceValue);
     return result;
 }
 
@@ -4923,237 +4966,6 @@ Result Device::P2pBltWaModifyRegionListMemoryToImage(
                                                                      pNewRegions,
                                                                      pChunkAddrs);
     }
-
-    return result;
-}
-
-// =====================================================================================================================
-// Creates a queue and optional fence for PAL internal use.
-Result Device::CreateInternalQueue(
-    const QueueCreateInfo& queueCreateInfo,
-    Queue**                ppQueue,
-    const FenceCreateInfo& fenceCreateInfo,
-    Fence**                ppFence)
-{
-    Result result = Result::Success;
-
-    PAL_ASSERT(ppQueue != nullptr);
-
-    size_t queueSize = GetQueueSize(queueCreateInfo, &result);
-
-    if (result == Result::Success)
-    {
-        void* pMemory = PAL_MALLOC(queueSize, GetPlatform(), Util::SystemAllocType::AllocInternal);
-
-        if (pMemory != nullptr)
-        {
-            IQueue* pQueue = nullptr;
-            result = CreateQueue(queueCreateInfo, pMemory, &pQueue);
-
-            if (result != Result::Success)
-            {
-                PAL_SAFE_FREE(pMemory, GetPlatform());
-            }
-            else
-            {
-                (*ppQueue) = static_cast<Queue*>(pQueue);
-            }
-        }
-        else
-        {
-            result = Result::ErrorOutOfMemory;
-        }
-    }
-    PAL_ASSERT(result == Result::Success);
-
-    // Create internal fence.
-    if ((result == Result::Success) && (ppFence != nullptr))
-    {
-        const size_t fenceSize = GetFenceSize(nullptr);
-
-        void* pMemory = PAL_MALLOC(fenceSize, GetPlatform(), AllocInternal);
-
-        if (pMemory != nullptr)
-        {
-            IFence* pFence = nullptr;
-            result = CreateFence(fenceCreateInfo, pMemory, &pFence);
-
-            if (result != Result::Success)
-            {
-                PAL_SAFE_FREE(pMemory, GetPlatform());
-            }
-            else
-            {
-                (*ppFence) = static_cast<Fence*>(pFence);
-            }
-        }
-        else
-        {
-            result = Result::ErrorOutOfMemory;
-        }
-    }
-    PAL_ASSERT(result == Result::Success);
-
-    return result;
-}
-
-// =====================================================================================================================
-// Creates internal copy command buffer for serialized internal DMA operations.
-Result Device::CreateInternalCopyCmdBuffer()
-{
-    Result result = Result::Success;
-
-    CmdBufferCreateInfo cmdBufCreateInfo = { };
-    cmdBufCreateInfo.engineType          = EngineType::EngineTypeDma;
-    cmdBufCreateInfo.queueType           = QueueType::QueueTypeDma;
-    cmdBufCreateInfo.pCmdAllocator       = InternalCmdAllocator(EngineType::EngineTypeDma);
-
-    CmdBufferInternalCreateInfo cmdBufInternalCreateInfo = { };
-    cmdBufInternalCreateInfo.flags.isInternal            = true;
-
-    return CreateInternalCmdBuffer(cmdBufCreateInfo, cmdBufInternalCreateInfo, &m_pInternalCopyCmdBuffer);
-}
-
-// =====================================================================================================================
-// Creates a DMA queue and fence which are meant for uploading pipeline binaries to local invisible heap.
-Result Device::CreateInternalCopyQueues()
-{
-    const uint32 numEnginesAvailable = EngineProperties().perEngine[EngineTypeDma].numAvailable;
-    PAL_ASSERT(numEnginesAvailable > 0);
-
-    Result result                   = Result::Success;
-    QueueCreateInfo queueCreateInfo = { };
-    queueCreateInfo.queueType       = QueueType::QueueTypeDma;
-    queueCreateInfo.engineType      = EngineType::EngineTypeDma;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 530
-    queueCreateInfo.priority        = QueuePriority::Normal;
-#else
-    queueCreateInfo.priority        = QueuePriority::Low;
-#endif
-    queueCreateInfo.engineIndex     = numEnginesAvailable - 1;
-
-    result = CreateInternalQueue(queueCreateInfo, &m_pInternalCopyQueue);
-    PAL_ASSERT(result == Result::Success);
-
-    return result;
-}
-
-// =====================================================================================================================
-// Performs a CP DMA copy from a cpu accessible buffer to gpu memory.
-Result Device::CopyUsingEmbeddedData(
-    const void* pSrcMem,
-    gpusize     copySize,
-    gpusize     destOffset,
-    GpuMemory*  pDstGpuMemory)
-{
-    PAL_ASSERT(pSrcMem != nullptr);
-
-    MutexAuto lock(&m_copyCmdBufferLock);
-    Result result = Result::Success;
-
-    if (m_pInternalCopyCmdBuffer == nullptr)
-    {
-        result = CreateInternalCopyCmdBuffer();
-    }
-
-    if ((result == Result::Success) && (copySize > 0))
-    {
-        CmdBufferBuildFlags flags     = { };
-        flags.optimizeExclusiveSubmit = true;
-        flags.optimizeOneTimeSubmit   = true;
-
-        CmdBufferBuildInfo buildInfo = { };
-        buildInfo.flags              = flags;
-        m_pInternalCopyCmdBuffer->Begin(buildInfo);
-
-        int64 bytesLeft                = copySize;
-        const uint32 embeddedDataLimit = m_pInternalCopyCmdBuffer->GetEmbeddedDataLimit() * sizeof(uint32);
-        gpusize dstOffset              = destOffset;
-        size_t srcOffset               = 0;
-
-        do
-        {
-            const gpusize allocSize = (embeddedDataLimit >= bytesLeft) ? bytesLeft : embeddedDataLimit;
-
-            GpuMemory* pGpuMem   = nullptr;
-            gpusize gpuMemOffset = 0;
-
-            void*const pEmbeddedData = m_pInternalCopyCmdBuffer->CmdAllocateEmbeddedData(
-                NumBytesToNumDwords(static_cast<uint32>(allocSize)), 1, &pGpuMem, &gpuMemOffset);
-
-            PAL_ASSERT(pEmbeddedData != nullptr);
-
-            const void*const pSrcData = VoidPtrInc(pSrcMem, srcOffset);
-            memcpy(pEmbeddedData, pSrcData, static_cast<size_t>(allocSize));
-
-            MemoryCopyRegion copyRegion = { };
-            copyRegion.copySize         = allocSize;
-            copyRegion.dstOffset        = dstOffset;
-            copyRegion.srcOffset        = gpuMemOffset;
-
-            m_pInternalCopyCmdBuffer->CmdCopyMemory(*pGpuMem, *pDstGpuMemory, 1, &copyRegion);
-
-            dstOffset += allocSize;
-            srcOffset += static_cast<size_t>(allocSize);
-            bytesLeft -= embeddedDataLimit;
-
-        } while (bytesLeft > 0);
-
-        result = m_pInternalCopyCmdBuffer->End();
-
-        if (result == Result::Success)
-        {
-            ICmdBuffer*const pSubmitCmdBuffer = m_pInternalCopyCmdBuffer;
-
-            PerSubQueueSubmitInfo perSubQueueInfo = {};
-            perSubQueueInfo.cmdBufferCount = 1;
-            perSubQueueInfo.ppCmdBuffers = &pSubmitCmdBuffer;
-
-            MultiSubmitInfo submitInfo      = {};
-            submitInfo.perSubQueueInfoCount = 1;
-            submitInfo.pPerSubQueueInfo     = &perSubQueueInfo;
-            result = InternalDmaSubmit(submitInfo);
-        }
-
-        PAL_ASSERT(result == Result::Success);
-
-        // Reset the command buffer after the submission.
-        m_pInternalCopyCmdBuffer->Reset(nullptr, true);
-    }
-
-    return result;
-}
-
-// =====================================================================================================================
-// Performs a DMA queue submit and waits for its completion. Assumes the command buffers in the SubmitInfo are DMA
-// command buffers.
-Result Device::InternalDmaSubmit(
-    const MultiSubmitInfo& submitInfo)
-{
-    Result result = Result::Success;
-
-    // Obtain a queue to submit commands to upload this pipeline.
-    m_copyQueuesLock.Lock();
-
-    if (m_pInternalCopyQueue == nullptr)
-    {
-        // We don't have an internal copy queue yet because this is the first time this is called, so create a queue.
-        result = CreateInternalCopyQueues();
-    }
-
-    if (result == Result::Success)
-    {
-        result = m_pInternalCopyQueue->SubmitInternal(submitInfo, false);
-    }
-
-    if (result == Result::Success)
-    {
-        // Wait for the submission to be complete before returning.
-        result = m_pInternalCopyQueue->WaitIdle();
-        PAL_ASSERT(result == Result::Success);
-    }
-
-    m_copyQueuesLock.Unlock();
 
     return result;
 }

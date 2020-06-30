@@ -129,7 +129,8 @@ Result ComputePipeline::HwlInit(
                                                     &m_threadsPerTgY,
                                                     &m_threadsPerTgZ,
                                                     &uploader);
-        result = uploader.End();
+        PAL_ASSERT(m_uploadFenceToken == 0);
+        result = uploader.End(&m_uploadFenceToken);
     }
 
     if (result == Result::Success)
@@ -212,6 +213,10 @@ Result ComputePipeline::LinkWithLibraries(
     for (uint32 idx = 0; idx < libraryCount; idx++)
     {
         const auto*const pLibObj = static_cast<const Pal::Gfx9::ShaderLibrary*const>(ppLibraryList[idx]);
+        // In case this shaderLibrary did not use internal dma queue to upload ELF, the UploadFenceToken
+        // of the shaderLibrary is 0.
+        m_uploadFenceToken = Max(m_uploadFenceToken, pLibObj->GetUploadFenceToken());
+
         const LibraryHwInfo& libObjRegInfo = pLibObj->HwInfo();
 
         PAL_ASSERT(pLibObj->IsWave32() == isWave32);

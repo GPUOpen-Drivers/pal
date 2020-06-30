@@ -220,6 +220,11 @@ void ComputeCmdBuffer::CmdBindPipeline(
     m_computeState.dynamicCsInfo = params.cs;
 
     m_device.DescribeBindPipeline(this, params.pPipeline, params.apiPsoHash, params.pipelineBindPoint);
+    if (m_computeState.pipelineState.pPipeline != nullptr)
+    {
+        m_maxUploadFenceToken = Max(m_maxUploadFenceToken,
+                                    m_computeState.pipelineState.pPipeline->GetUploadFenceToken());
+    }
 }
 
 #if PAL_ENABLE_PRINTS_ASSERTS

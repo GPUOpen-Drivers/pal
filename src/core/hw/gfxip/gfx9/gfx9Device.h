@@ -648,6 +648,8 @@ private:
     Result InitOcclusionResetMem();
     const regGB_ADDR_CONFIG& GetGbAddrConfig() const;
 
+    uint32 BufferSrdResourceLevel() const;
+
     void Gfx9CreateFmaskViewSrdsInternal(
         const FmaskViewInfo&         viewInfo,
         const FmaskViewInternalInfo* pFmaskViewInternalInfo,

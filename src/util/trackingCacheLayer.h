@@ -48,6 +48,8 @@ public:
 
     virtual Result Query(
         const Hash128*  pHashId,
+        uint32          policy,
+        uint32          flags,
         QueryResult*    pQuery) final;
 
     virtual Result Store(

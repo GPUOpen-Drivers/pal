@@ -1064,6 +1064,8 @@ void Queue::ProcessIdleSubmits()
         // Output items from the log item queue that are now known to be idle.
         OutputLogItemsToFile(submitInfo.logItemCount);
 
+        PAL_ASSERT((submitInfo.pCmdBufCount != nullptr) && (submitInfo.pNestedCmdBufCount != nullptr));
+
         for (uint32 qIdx = 0; qIdx < m_queueCount; qIdx++)
         {
             int cmdBufCnt = submitInfo.pCmdBufCount[qIdx];

@@ -251,7 +251,8 @@ Result ComputePipeline::HwlInit(
             uploader.AddShReg(mmCOMPUTE_NUM_THREAD_Y, m_regs.computeNumThreadY);
             uploader.AddShReg(mmCOMPUTE_NUM_THREAD_Z, m_regs.computeNumThreadZ);
         }
-        result = uploader.End();
+        PAL_ASSERT(m_uploadFenceToken == 0);
+        result = uploader.End(&m_uploadFenceToken);
 
         if (result == Result::Success)
         {

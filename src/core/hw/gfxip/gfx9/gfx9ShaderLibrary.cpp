@@ -69,7 +69,7 @@ void ShaderLibrary::SetIsWave32(
     // We don't bother checking the wavefront size for pre-Gfx10 GPU's since it is implicitly 64 before Gfx10. Any ELF
     // which doesn't specify a wavefront size is assumed to use 64, even on Gfx10 and newer.
     const GpuChipProperties& chipProps = m_pDevice->Parent()->ChipProperties();
-    if (IsGfx10(chipProps.gfxLevel))
+    if (IsGfx10Plus(chipProps.gfxLevel))
     {
         const auto& csMetadata = metadata.pipeline.hardwareStage[static_cast<uint32>(Abi::HardwareStage::Cs)];
         if (csMetadata.hasEntry.wavefrontSize != 0)
@@ -126,8 +126,8 @@ Result ShaderLibrary::HwlInit(
                                                   &uploader);
 
         UpdateHwInfo();
-
-        result = uploader.End();
+        PAL_ASSERT(m_uploadFenceToken == 0);
+        result = uploader.End(&m_uploadFenceToken);
     }
 
     if (result == Result::Success)

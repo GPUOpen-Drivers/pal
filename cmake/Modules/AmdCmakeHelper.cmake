@@ -23,9 +23,11 @@
  #
  #######################################################################################################################
 include(CMakeDependentOption)
-include(PalVersionHelper)
 
-pal_include_guard(AmdCmakeHelper)
+if (DEFINED AmdCmakeHelper_pal_include_guard)
+    return()
+endif()
+set(AmdCmakeHelper_pal_include_guard ON)
 
 # Build Type Helper ################################################################################
 if (CMAKE_CONFIGURATION_TYPES)

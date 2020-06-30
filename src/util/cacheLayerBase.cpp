@@ -53,8 +53,10 @@ CacheLayerBase::~CacheLayerBase()
 // =====================================================================================================================
 // Validate inputs, then attempt to query our layer. On Result::NotFound attempt to query children
 Result CacheLayerBase::Query(
-    const Hash128* pHashId,
-    QueryResult*   pQuery)
+    const Hash128*  pHashId,
+    uint32          policy,
+    uint32          flags,
+    QueryResult*    pQuery)
 {
     Result result = Result::NotFound;
 
@@ -72,21 +74,47 @@ Result CacheLayerBase::Query(
 
         if ((result == Result::NotFound) &&
             (m_pNextLayer != nullptr) &&
-            (TestAnyFlagSet(m_loadPolicy, LinkPolicy::PassCalls)))
+            (TestAnyFlagSet(m_loadPolicy, LinkPolicy::PassCalls) || TestAllFlagsSet(policy, LinkPolicy::LoadOnQuery)))
         {
-            result = m_pNextLayer->Query(pHashId, pQuery);
+            result = m_pNextLayer->Query(pHashId, policy, 0, pQuery);
 
             if ((result == Result::Success) &&
-                TestAllFlagsSet(m_loadPolicy, LinkPolicy::PassData | LinkPolicy::LoadOnQuery))
+                (TestAllFlagsSet(m_loadPolicy, LinkPolicy::PassData | LinkPolicy::LoadOnQuery) ||
+                 TestAllFlagsSet(policy, LinkPolicy::LoadOnQuery)))
             {
                 // On successful promotion pQuery may be updated to reflect our layer instead of the original
-                Result promoteResult = PromoteData(m_loadPolicy, m_pNextLayer, pQuery);
+                Result promoteResult = PromoteData(m_pNextLayer, pQuery);
                 PAL_ALERT(IsErrorResult(promoteResult));
             }
+        }
+        bool reserved = false;
+        if ((result == Result::NotFound) &&
+            (TestAllFlagsSet(flags, QueryFlags::ReserveEntryOnMiss)))
+        {
+            result = Reserve(pHashId);
+            if (result == Result::Success)
+            {
+                reserved = true;
+                result = QueryInternal(pHashId, pQuery);
+            }
+        }
+        if (((result == Result::Success) || (result == Result::NotReady)) &&
+            (TestAllFlagsSet(flags, QueryFlags::AcquireEntryRef)))
+        {
+            result = AcquireCacheRef(pQuery);
+            if (result == Result::Success)
+            {
+                result = QueryInternal(pHashId, pQuery);
+            }
+        }
+        if (reserved)
+        {
+            result = Result::Reserved;
         }
     }
 
     return result;
+
 }
 
 // =====================================================================================================================
@@ -116,6 +144,7 @@ Result CacheLayerBase::Store(
 
         // Pass data to children on success
         if ((IsErrorResult(result) == false) &&
+            (pData != nullptr) &&
             (m_pNextLayer != nullptr) &&
             TestAnyFlagSet(m_storePolicy, LinkPolicy::PassData))
         {
@@ -169,7 +198,7 @@ Result CacheLayerBase::Load(
                 {
                     // Copy the query since the one passed in cannot be altered
                     QueryResult tmpQuery      = *pQuery;
-                    Result      promoteResult = PromoteData(m_loadPolicy, m_pNextLayer, &tmpQuery);
+                    Result      promoteResult = PromoteData(m_pNextLayer, &tmpQuery);
                     PAL_ALERT(IsErrorResult(promoteResult));
                 }
             }

@@ -1492,6 +1492,9 @@ void ComputeCmdBuffer::CmdExecuteNestedCmdBuffers(
         // Track the most recent OS paging fence value across all nested command buffers called from this one.
         m_lastPagingFence = Max(m_lastPagingFence, pCallee->LastPagingFence());
 
+        // Track the lastest fence token across all nested command buffers called from this one.
+        m_maxUploadFenceToken = Max(m_maxUploadFenceToken, pCallee->GetMaxUploadFenceToken());
+
         // All user-data entries have been uploaded into the GPU memory the callee expects to receive them in, so we
         // can safely "call" the nested command buffer's command stream.
         m_cmdStream.TrackNestedEmbeddedData(pCallee->m_embeddedData.chunkList);

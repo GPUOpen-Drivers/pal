@@ -88,6 +88,7 @@ public:
         uint32                     funcCount);
 
     uint32 GetMaxStackSizeInBytes() const { return m_maxStackSizeInBytes; }
+    UploadFenceToken GetUploadFenceToken() const { return m_uploadFenceToken; }
 
 protected:
     // internal Constructor.
@@ -122,6 +123,8 @@ protected:
     BoundGpuMemory  m_gpuMem;
     gpusize         m_gpuMemSize;
     uint32          m_maxStackSizeInBytes;
+
+    UploadFenceToken m_uploadFenceToken;
 
 private:
     Result InitFromCodeObjectBinary(

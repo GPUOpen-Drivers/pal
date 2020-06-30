@@ -374,6 +374,8 @@ protected:
 
     virtual Result DoAssociateFenceWithLastSubmit(Fence* pFence) = 0;
 
+    Result GfxIpWaitPipelineUploading(const MultiSubmitInfo& submitInfo);
+
     Device*const        m_pDevice;
 
     // Each Queue is associated with an engine and a submission context. Note that the submission context is created

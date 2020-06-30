@@ -963,10 +963,10 @@ Result AddrMgr2::InitSubresourceInfo(
 
     // Compute the exact row pitch in bytes. This math must be done in terms of elements instead of texels
     // because some formats (e.g., R32G32B32) have pitches that are not multiples of their texel size.
-    if (IsLinearSwizzleMode(surfaceSetting.swizzleMode) || IsGfx10(*m_pDevice))
+    if (IsLinearSwizzleMode(surfaceSetting.swizzleMode) || IsGfx10Plus(*m_pDevice))
     {
-        // Linear images do not have tightly packed mipmap levels, so the rowPitch of a subresource
-        // is the size in bytes of one row of that subresource.
+        // GFX10+ devices and linear images do not have tightly packed mipmap levels, so the rowPitch
+        // of a subresource is the size in bytes of one row of that subresource.
         pSubResInfo->rowPitch = (pSubResInfo->actualExtentElements.width * (surfaceInfo.bpp >> 3));
     }
     else

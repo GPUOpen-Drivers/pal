@@ -340,6 +340,59 @@ uint32* CmdStream::WriteSetOneContextReg(
 }
 
 // =====================================================================================================================
+// Builds a PM4 packet to set the given base unless the PM4 optimizer indicates that it is redundant.
+// Returns a pointer to the next unused DWORD in pCmdSpace.
+template <bool Pm4OptEnabled>
+uint32* CmdStream::WriteSetBase(
+    PM4ShaderType   shaderType,
+    uint32          baseIndex,
+    gpusize         address,
+    uint32*         pCmdSpace)
+{
+    PAL_ASSERT(m_flags.optimizeCommands == Pm4OptEnabled);
+
+    if ((Pm4OptEnabled == false) || m_pPm4Optimizer->MustKeepSetBase(address, baseIndex, shaderType))
+    {
+        pCmdSpace += m_cmdUtil.BuildSetBase(shaderType, baseIndex, address, pCmdSpace);
+    }
+
+    return pCmdSpace;
+}
+
+template
+uint32* CmdStream::WriteSetBase<true>(
+    PM4ShaderType   shaderType,
+    uint32          baseIndex,
+    gpusize         address,
+    uint32*         pCmdSpace);
+template
+uint32* CmdStream::WriteSetBase<false>(
+    PM4ShaderType   shaderType,
+    uint32          baseIndex,
+    gpusize         address,
+    uint32*         pCmdSpace);
+
+// =====================================================================================================================
+// Wrapper for the real WriteBase() when it isn't known whether the immediate pm4 optimizer is enabled.
+uint32* CmdStream::WriteSetBase(
+    PM4ShaderType   shaderType,
+    uint32          baseIndex,
+    gpusize         address,
+    uint32*         pCmdSpace)
+{
+    if (m_flags.optimizeCommands == 0)
+    {
+        pCmdSpace = WriteSetBase<false>(shaderType, baseIndex, address, pCmdSpace);
+    }
+    else
+    {
+        pCmdSpace = WriteSetBase<true>(shaderType, baseIndex, address, pCmdSpace);
+    }
+
+    return pCmdSpace;
+}
+
+// =====================================================================================================================
 // Builds a PM4 packet to set the given register when the caller already guarantees that the write is not redundant. The
 // caller should be careful not to mix this function with the regular WriteSetOneContextReg() for the same register(s).
 // Returns a pointer to the next unused DWORD in pCmdSpace.

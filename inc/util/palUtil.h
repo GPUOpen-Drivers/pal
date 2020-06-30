@@ -148,6 +148,9 @@ enum class Result : int32
     /// End of file reached successfully.
     Eof                             = 0x0000000B,
 
+    /// If ReserveEntryOnMiss was specified, the entry was not found, and the entry was successfully reserved.
+    Reserved                        = 0x0000000C,
+
     /// The operation encountered an unknown error.
     ErrorUnknown                    = -(0x00000001),
 

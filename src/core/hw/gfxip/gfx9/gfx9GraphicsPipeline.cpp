@@ -255,8 +255,8 @@ void GraphicsPipeline::EarlyInit(
 
         pInfo->loadedCtxRegCount =
             // This mimics the definition in BaseLoadedCntxRegCount
-            IsGfx10(m_gfxLevel)                                    + // mmVGT_DRAW_PAYLOAD_CNTL
-            IsGfx10(m_gfxLevel)                                    + // mmCB_COVERAGE_OUT_CONTROL
+            IsGfx10Plus(m_gfxLevel)                                + // mmVGT_DRAW_PAYLOAD_CNTL
+            IsGfx10Plus(m_gfxLevel)                                + // mmCB_COVERAGE_OUT_CONTROL
             (regInfo.mmPaStereoCntl != 0)                          + // mmPA_STEREO_CNTL
             (IsGsEnabled() || IsNgg() || IsTessEnabled())          + // mmVGT_GS_ONCHIP_CNTL
             BaseLoadedCntxRegCount;
@@ -326,7 +326,8 @@ Result GraphicsPipeline::HwlInit(
         if (result == Result::Success)
         {
             LateInit(createInfo, abiReader, metadata, registers, loadInfo, &uploader);
-            result = uploader.End();
+            PAL_ASSERT(m_uploadFenceToken == 0);
+            result = uploader.End(&m_uploadFenceToken);
         }
     }
 
@@ -394,7 +395,7 @@ void GraphicsPipeline::LateInit(
 
     // We write our config registers in a separate function so they get their own hash.
     // Also, we only set config registers on gfx10+.
-    if (IsGfx10(m_gfxLevel))
+    if (IsGfx10Plus(m_gfxLevel))
     {
         hasher.Initialize();
         hasher.Update(m_regs.uconfig);
@@ -974,7 +975,7 @@ void GraphicsPipeline::SetupCommonRegisters(
             pUploader->AddCtxReg(regInfo.mmPaStereoCntl, m_regs.context.paStereoCntl);
         }
 
-        if (IsGfx10(m_gfxLevel))
+        if (IsGfx10Plus(m_gfxLevel))
         {
             pUploader->AddCtxReg(mmVGT_DRAW_PAYLOAD_CNTL, m_regs.context.vgtDrawPayloadCntl);
         }
@@ -1006,7 +1007,7 @@ void GraphicsPipeline::SetupCommonRegisters(
         {
             m_regs.sh.spiShaderLateAllocVs.bits.LIMIT = programmedLimit;
         }
-        else if (IsGfx10(m_gfxLevel))
+        else if (IsGfx10Plus(m_gfxLevel))
         {
             // Always use the (forced) experimental setting if specified, or use a fixed limit if
             // enabled, otherwise check the VS/PS resource usage to compute the limit.
@@ -1861,7 +1862,7 @@ void GraphicsPipeline::SetupSignatureForStageFromElf(
                 PAL_ASSERT((m_signature.uavExportTableAddr == offset) ||
                            (m_signature.uavExportTableAddr == UserDataNotMapped));
                 // This will still work on older gfxips but provides no perf benefits
-                PAL_ASSERT(IsGfx10(m_gfxLevel));
+                PAL_ASSERT(IsGfx10Plus(m_gfxLevel));
                 m_signature.uavExportTableAddr = offset;
             }
             else if (value == static_cast<uint32>(Abi::UserDataMapping::NggCullingData))

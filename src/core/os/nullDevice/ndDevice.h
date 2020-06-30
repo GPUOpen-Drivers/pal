@@ -28,6 +28,7 @@
 #if PAL_BUILD_NULL_DEVICE
 
 #include "core/device.h"
+#include "core/os/nullDevice/ndDmaUploadRing.h"
 #include "palPlatform.h"
 
 namespace Pal
@@ -329,6 +330,8 @@ public:
     virtual Result QueryRadeonSoftwareVersion(
         char*  pBuffer,
         size_t bufferLength) const override { return Result::Unsupported; }
+
+    virtual Result CreateDmaUploadRing() override { return Result::Success; };
 
 protected:
     Device(
