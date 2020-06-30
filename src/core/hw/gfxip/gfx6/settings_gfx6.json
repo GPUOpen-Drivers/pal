@@ -1459,7 +1459,7 @@
       "Scope": "PrivatePalGfx6Key",
       "Type": "uint32",
       "VariableName": "gfx8UseDcc",
-      "Name": "UseDcc"
+      "Name": "Gfx8UseDcc"
     },
     {
       "ValidValues": {

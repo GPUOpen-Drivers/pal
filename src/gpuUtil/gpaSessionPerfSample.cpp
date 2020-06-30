@@ -252,6 +252,7 @@ Pal::Result GpaSession::TraceSample::InitSpmTrace(
         m_flags.spmTraceEnabled = 1;
 
         m_pSpmTraceLayout = PAL_PLACEMENT_NEW (pMem) SpmTraceLayout();
+        PAL_ASSERT(m_pSpmTraceLayout != nullptr);
         m_pSpmTraceLayout->numCounters = m_numSpmCounters;
 
         result = m_pPerfExperiment->GetSpmTraceLayout(m_pSpmTraceLayout);

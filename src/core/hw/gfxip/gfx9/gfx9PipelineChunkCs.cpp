@@ -88,7 +88,7 @@ uint32 PipelineChunkCs::EarlyInit()
         // Add one register if the GPU supports SPP.
         count += (BaseLoadedShRegCount + ((chipProps.gfx9.supportSpp == 1) ? 1 : 0));
 
-        if (IsGfx10(chipProps.gfxLevel))
+        if (IsGfx10Plus(chipProps.gfxLevel))
         {
             count += 1; //  mmCOMPUTE_PGM_RSRC3
         }

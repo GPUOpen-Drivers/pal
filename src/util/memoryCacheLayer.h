@@ -25,6 +25,7 @@
 #pragma once
 
 #include "cacheLayerBase.h"
+#include "palConditionVariable.h"
 #include "palHashMap.h"
 #include "palIntrusiveList.h"
 #include "palVector.h"
@@ -57,6 +58,13 @@ public:
 
     Result GetMemoryCacheHashIds(size_t curCount, Hash128* pHashIds);
 
+    virtual Result AcquireCacheRef(const QueryResult* pQuery) override;
+    virtual Result ReleaseCacheRef(const QueryResult* pQuery) override;
+    virtual Result GetCacheData(const QueryResult* pQuery, const void** ppData) override;
+    virtual Result WaitForEntry(const Hash128* pHashId) override;
+    virtual Result Evict(const Hash128* pHashId) override;
+    virtual Result MarkEntryBad(const Hash128* pHashId) override;
+
 protected:
     virtual Result QueryInternal(
         const Hash128*  pHashId,
@@ -72,15 +80,17 @@ protected:
         void*              pBuffer) override;
 
     virtual Result PromoteData(
-        uint32       loadPolicy,
         ICacheLayer* pNextLayer,
         QueryResult* pQuery) override;
 
+    virtual Result Reserve(
+        const Hash128* pHashId) override;
 private:
     PAL_DISALLOW_COPY_AND_ASSIGN(MemoryCacheLayer);
     PAL_DISALLOW_DEFAULT_CTOR(MemoryCacheLayer);
     class Entry;
 
+    Result SetDataToEntry(Entry* pEntry, const void* pData, size_t dataSize);
     Result AddEntryToCache(Entry* pEntry);
     Result EvictEntryFromCache(Entry* pEntry);
 
@@ -101,45 +111,25 @@ private:
             ForwardAllocator* pAllocator,
             const Hash128*    pHashId,
             const void*       pInitialData,
-            size_t            dataSize)
-        {
-            PAL_ASSERT(pAllocator != nullptr);
-            PAL_ASSERT(pHashId != nullptr);
+            size_t            dataSize);
 
-            Entry* pEntry = nullptr;
-            void*  pMem   = PAL_MALLOC(sizeof(Entry) + dataSize, pAllocator, AllocInternal);
-
-            if (pMem != nullptr)
-            {
-                pEntry = PAL_PLACEMENT_NEW(pMem) Entry(pAllocator);
-
-                void* pData = VoidPtrInc(pMem, sizeof(Entry));
-
-                if (pInitialData != nullptr)
-                {
-                    memcpy(pData, pInitialData, dataSize);
-                }
-
-                pEntry->m_hashId   = *pHashId;
-                pEntry->m_pData    = pData;
-                pEntry->m_dataSize = dataSize;
-            }
-
-            return pEntry;
-        }
-
+        Result SetData(const void* pData, size_t dataSize);
         const Hash128* HashId() const { return &m_hashId; }
         void* Data() const { return m_pData; }
         size_t DataSize() const { return m_dataSize; }
+        void IncreaseRef() { AtomicIncrement(&m_zeroCopyCount); }
+        void DecreaseRef()
+        {
+            PAL_ASSERT(m_zeroCopyCount > 0);
+            AtomicDecrement(&m_zeroCopyCount);
+        }
+        bool CanEvict() { return m_zeroCopyCount == 0; }
+        void SetIsBad(bool isBad) { m_isBad = isBad; }
+        bool IsBad() { return m_isBad; }
 
         Node* ListNode() { return &m_node; }
 
-        void Destroy()
-        {
-            ForwardAllocator* pAllocator = m_pAllocator;
-            this->~Entry();
-            PAL_FREE(this, pAllocator);
-        }
+        void Destroy();
 
     private:
         PAL_DISALLOW_COPY_AND_ASSIGN(Entry);
@@ -151,7 +141,8 @@ private:
             m_node       { this },
             m_hashId     {},
             m_pData      { nullptr },
-            m_dataSize   { 0 }
+            m_dataSize   { 0 },
+            m_isBad      { false }
         {
             PAL_ASSERT(m_pAllocator != nullptr);
         }
@@ -163,6 +154,8 @@ private:
         Hash128                 m_hashId;
         void*                   m_pData;
         size_t                  m_dataSize;
+        volatile uint32         m_zeroCopyCount;
+        bool                    m_isBad;
     };
 
     const size_t m_maxSize;
@@ -177,6 +170,9 @@ private:
 
     Entry::List  m_recentEntryList;
     Entry::Map   m_entryLookup;
+
+    Mutex              m_conditionMutex;      // Mutex that will be used with the condition variable
+    ConditionVariable  m_conditionVariable;   // used for waiting on Entry::ready
 };
 
 } //namespace Util

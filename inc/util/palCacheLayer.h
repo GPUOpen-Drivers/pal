@@ -76,6 +76,54 @@ struct QueryResult
 class ICacheLayer
 {
 public:
+    // Link Policy bitfield. Provides a hint as to how this layer should interact with the next
+    enum LinkPolicy : uint32
+    {
+        // Common flags
+        PassData    = 0x1 << 0,  ///< Data should be passed to (or read from) the next layer
+        PassCalls   = 0x1 << 1,  ///< Function calls should be passed to the next layer
+        Skip        = 0x1 << 2,  ///< Load/Store Operations should skip this layer
+
+        // Store flags
+        BatchStore  = 0x1 << 10, ///< Delay passing data to the next layer and batch for later
+
+        // Load flags
+        LoadOnQuery = 0x1 << 16  ///< Load data from the next layer at query time rather than load
+    };
+
+    // Query flags bitfield. Specify some behaviors to Query().
+    enum QueryFlags : uint32
+    {
+        ReserveEntryOnMiss = 0x1 << 0, ///< Reserve an entry on miss
+        AcquireEntryRef    = 0x1 << 1, ///< Increase the cache entry reference, equivalent of AcquireCacheRef(), so
+                                       ///< user must call ReleaseCacheRef() when not needing that entry.
+    };
+
+    /// Query for data by hash key
+    ///
+    /// @param [in]  pHashId    128-bit precomputed hash used as a reference id for the cache entry
+    /// @param [in]  policy     Allow Query to specify policy, like promote data from file layer to memory cache layer.
+    /// @param [in]  flags      Specify some behaviors to Query
+    /// @param [out] pQuery     Query result containing the entry id and buffer size needed to call ICacheLayer::Load()
+    ///
+    /// @return Success if the hash id was found. Otherwise, one of the following may be returned:
+    ///         + Reserved returned if ReserveEntryOnMiss was specified, the entry was not found, and the entry was
+    ///           successfully reserved.
+    ///         + NotFound if no values was found for the given hash
+    ///         + NotReady if the hash ID was found but the data is not yet ready
+    ///         + ErrorInvalidPointer if pQuery or pHashId are nullptr
+    ///         + ErrorUnknown if there is an internal error.
+    ///         + Unsupported if the cache does not support it.
+    ///
+    /// @note If pQuery->dataSize == 0, the result should be treated as if NotReady were returned
+    virtual Result Query(
+        const Hash128*  pHashId,
+        uint32          policy,
+        uint32          flags,
+        QueryResult*    pQuery) = 0;
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 611
+    /// Overloaded version is for backwards compatibility.
     /// Query for data by hash key
     ///
     /// @param [in]  pHashId    128-bit precomputed hash used as a reference id for the cache entry
@@ -85,9 +133,12 @@ public:
     ///         + NotFound if no values was found for the given hash
     ///         + ErrorInvalidPointer if pQuery or pHashId are nullptr
     ///         + ErrorUnknown if there is an internal error.
+    ///
     virtual Result Query(
         const Hash128*  pHashId,
-        QueryResult*    pQuery) = 0;
+        QueryResult*    pQuery)
+    { return Query(pHashId, 0, 0, pQuery); }
+#endif
 
     /// Store data with corresponding hash key
     ///
@@ -97,13 +148,145 @@ public:
     ///
     /// @return Success if the data was stored under the hash id. Otherwise, one of the following may be returned:
     ///         + AlreadyExists if a value already exists for the given hash ID. Previous data will not be overwritten.
-    ///         + Unsupported if the cache is read-only.
-    ///         + ErrorInvalidPointer if pData or pHashId are nullptr.
+    ///         + Unsupported if the cache cannot complete the operation (eg: read-only or does not support reservation)
+    ///         + ErrorInvalidPointer if pHashId is nullptr.
     ///         + ErrorUnknown if there is an internal error.
+    ///
+    /// @note The id in the cache could be already reserved by Query with ReserveEntryOnMiss. Later, when the data is
+    ///       ready, call `Store` again with the same hash ID but with valid pData and datasize. The expected return
+    ///       code in this situation is expected to be Success and not AlreadyExists.
     virtual Result Store(
         const Hash128*  pHashId,
         const void*     pData,
         size_t          dataSize) = 0;
+
+    /// Accquire a long-lived reference to a cache object
+    ///
+    /// @note The result populated by QueryResult will not be evicted until `ReleaseCacheRef()` is called.
+    ///
+    ///       The primary purpose is a "zero-copy" style hit where the underlying data in the cache can be directly
+    ///       accessed by the caller using `ppData`. However in cases where the internal representation is not usable
+    ///       this function may still serve as a way to ensure that a delayed call to `Load()` will not result in
+    ///       failure due to eviction where supported.
+    ///
+    /// @param [in] pQuery     Query result containing the entry id and buffer size needed to call ICacheLayer::Load()
+    ///
+    /// @return Success if the responder is able to provide an externally managed lifetime reference. Otherwise, one of
+    ///         the following may be returned:
+    ///         + ErrorInvalidPointer if pQuery or pHashId are nullptr
+    ///         + NotFound if entryId is not present in cache
+    ///         + Unsupported if the cache does not support external references
+    ///         + ErrorUnknown if there is an internal error.
+    ///
+    /// @note  It is considered undefined behaviour to call function on any layer that did not directly respond to your
+    ///        query as pQuery->pLayer
+    virtual Result AcquireCacheRef(
+        const QueryResult*  pQuery)
+    {
+        PAL_ASSERT(pQuery != nullptr);
+        PAL_ASSERT(this == pQuery->pLayer);
+        return Result::Unsupported;
+    }
+
+    /// Decriment the external reference count for a cache item
+    ///
+    /// @param [in]  pQuery     Query previously passed into ICacheLayer::AccquireCacheRef()
+    ///
+    /// @return Success if the cache is able to release the external reference. Otherwise, one of the following may be
+    ///         returned:
+    ///         + Unsupported if the cache does not support external references
+    ///         + ErrorUnknown if there is an internal error.
+    ///
+    /// @note: The pointer to memory previously returned by AccquireCacheRef() is not garunteed to be valid after
+    ///        this call and MUST not be accessed.
+    ///
+    /// @note  It is considered undefined behaviour to call function on any layer that did not directly respond to your
+    ///        query as pQuery->pLayer
+    virtual Result ReleaseCacheRef(
+        const QueryResult* pQuery)
+    {
+        PAL_ASSERT(pQuery != nullptr);
+        PAL_ASSERT(this == pQuery->pLayer);
+        return Result::Unsupported;
+    }
+
+    /// Return the pointer to internal cache memory if available
+    ///
+    /// @param [in]  pQuery     Result returned from ICacheLayer::Query()
+    /// @param [out] ppData     Pointer to raw cache storage
+    ///
+    /// @return Success if the cache is able to accquire a read-lock on ppData. Otherwise, one of the following may be
+    ///         returned:
+    ///         + NotFound if entryId is not present in cache
+    ///         + NotReady if entryId is in the cache but the data cannot be accessed yet
+    ///         + ErrorInvalidArgument if the entry has not previously been incremented by AddCacheRef()
+    ///         + Unsupported if the cache (or entry) does not support internal data access
+    ///         + ErrorUnknown if there is an internal error.
+    ///
+    /// @note  ppData is intended to be a "Zero-copy" return from this function. No additional buffer allocations
+    ///        should be performed. Data within the cache layer may be in an internal format and not suitable for
+    ///        direct use. In this case ppData MUST be set to nullptr and Result::Unsupported returned.
+    ///
+    /// @note  It is considered undefined behaviour to call function on any layer that did not directly respond to your
+    ///        query as pQuery->pLayer
+    virtual Result GetCacheData(
+        const QueryResult* pQuery,
+        const void**       ppData)
+    {
+        PAL_ASSERT(pQuery != nullptr);
+        PAL_ASSERT(ppData != nullptr);
+        PAL_ASSERT(this == pQuery->pLayer);
+        *ppData = nullptr;
+        return Result::Unsupported;
+    }
+
+    /// Wait for an entry that is not ready.
+    ///
+    /// @param [in] pHashId     128-bit precomputed hash used as a reference id for the cache entry
+    ///
+    /// @return Success if the entry is ready. Otherwise, one of the following may be returned:
+    ///         + NotFound if no values was found for the given hash
+    ///         + Unsupported if the cache does not support explicit eviction
+    ///         + ErrorInvalidValue if the entry is bad.
+    ///         + ErrorInvalidPointer if pHashId is nullptr.
+    ///         + ErrorUnknown if there is an internal error.
+    virtual Result WaitForEntry(
+        const Hash128* pHashId)
+    {
+        return Result::Unsupported;
+    }
+
+    /// Explicitly remove data with corresponding hash key
+    ///
+    /// @param [in] pHashId     128-bit precomputed hash used as a reference id for the cache entry
+    ///
+    /// @return Success if the data was stored under the hash id. Otherwise, one of the following may be returned:
+    ///         + NotFound if no values was found for the given hash
+    ///         + Unsupported if the cache does not support explicit eviction
+    ///         + ErrorInvalidPointer if pHashId is nullptr.
+    ///         + ErrorUnknown if there is an internal error.
+    virtual Result Evict(
+        const Hash128* pHashId)
+    {
+        return Result::Unsupported;
+    }
+
+    /// Mark the Entry as bad with corresponding hash key
+    /// An Entry could be reserved first and update data later, if the data is generated failly, we need mark previous
+    /// reserved Entry as bad. After it's marked bad, it will be evicted when its refcount becomes zero.
+    ///
+    /// @param [in] pHashId     128-bit precomputed hash used as a reference id for the cache entry
+    ///
+    /// @return Success if the data is marked bad under the hash id. Otherwise, one of the following may be returned:
+    ///         + NotFound if no values was found for the given hash
+    ///         + Unsupported if the cache does not support this behavior
+    ///         + ErrorInvalidPointer if pHashId is nullptr.
+    ///         + ErrorUnknown if there is an internal error.
+    virtual Result MarkEntryBad(
+        const Hash128* pHashId)
+    {
+        return Result::Unsupported;
+    }
 
     /// Load data from cache to buffer by entry id retrieved from Query()
     ///
@@ -112,26 +295,12 @@ public:
     ///
     /// @return Success if data was loaded to the provided buffer. Otherwise, one of the following may be returned:
     ///         + NotFound if entryId is not present in cache
+    ///         + NotReady if entryId is reserved in the cache but the data is not ready
     ///         + ErrorInvalidPointer if pBuffer is nullptr
     ///         + ErrorUnknown if there is an internal error.
     virtual Result Load(
         const QueryResult* pQuery,
         void*              pBuffer) = 0;
-
-    // Link Policy bitfield. Provides a hint as to how this layer should interact with the next
-    enum LinkPolicy : uint32
-    {
-        // Common flags
-        PassData    = 0x1ULL << 0,  ///< Data should be passed to (or read from) the next layer
-        PassCalls   = 0x1ULL << 1,  ///< Function calls should be passed to the next layer
-        Skip        = 0x1ULL << 2,  ///< Load/Store Operations should skip this layer
-
-        // Store flags
-        BatchStore  = 0x1ULL << 10, ///< Delay passing data to the next layer and batch for later
-
-        // Load flags
-        LoadOnQuery = 0x1ULL << 16  ///< Load data from the next layer at query time rather than load
-    };
 
     /// Link one cache layer on top of another, does not transfer ownership of the object
     ///

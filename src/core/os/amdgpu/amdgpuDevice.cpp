@@ -1255,7 +1255,7 @@ void Device::InitGfx9CuMask(
         }
     }
 
-    if (IsGfx10(m_chipProperties.gfxLevel))
+    if (IsGfx10Plus(m_chipProperties.gfxLevel))
     {
         // In GFX 10, we need convert CU mask to WGP mask.
         for (uint32 seIndex = 0; seIndex < m_gpuInfo.num_shader_engines; seIndex++)
@@ -1846,6 +1846,36 @@ size_t Device::QueueObjectSize(
     }
 
     return size;
+}
+
+// =====================================================================================================================
+Result Device::CreateDmaUploadRing()
+{
+    MutexAuto lock(&m_dmaUploadRingLock);
+
+    Result result = Result::Success;
+
+    if (m_pDmaUploadRing == nullptr)
+    {
+        m_pDmaUploadRing = PAL_NEW(DmaUploadRing, GetPlatform(), Util::SystemAllocType::AllocInternal)(this);
+
+        if (m_pDmaUploadRing == nullptr)
+        {
+            result = Result::ErrorOutOfMemory;
+        }
+
+        if (result == Result::Success)
+        {
+            result = m_pDmaUploadRing->Init();
+            if (result != Result::Success)
+            {
+                // It will call destructor of DmaUploadRing to free internal resources of m_pDmaUploadRing.
+                PAL_SAFE_DELETE(m_pDmaUploadRing, m_pPlatform);
+            }
+        }
+    }
+
+    return result;
 }
 
 // =====================================================================================================================

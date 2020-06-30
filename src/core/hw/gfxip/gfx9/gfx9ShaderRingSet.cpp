@@ -518,11 +518,16 @@ uint32* UniversalRingSet::WriteCommands(
                                                       &m_regs.vgtTfMemoryBaseLo,
                                                       pCmdSpace);
     }
-    else if (IsGfx10(m_gfxLevel))
+    else if (IsGfx10Plus(m_gfxLevel))
     {
+        // The use of the "NotGfx10" namespace here is non-intuitive; for GFX10 parts, this is the same offset
+        // as the mmVGT_TF_MEMORY_BASE_UMD register.
         pCmdSpace = pCmdStream->WriteSetOneConfigReg(NotGfx10::mmVGT_TF_MEMORY_BASE,
                                                      m_regs.vgtTfMemoryBaseLo.u32All,
                                                      pCmdSpace);
+
+        // Likewise, this isn't just a GFX10.1 register; this register exists (with and without the UMD extension)
+        // on all GFX10+ parts.
         pCmdSpace = pCmdStream->WriteSetOneConfigReg(Gfx101::mmVGT_TF_MEMORY_BASE_HI_UMD,
                                                      m_regs.vgtTfMemoryBaseHi.u32All,
                                                      pCmdSpace);

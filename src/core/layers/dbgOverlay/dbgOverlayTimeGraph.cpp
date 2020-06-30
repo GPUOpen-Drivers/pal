@@ -176,6 +176,7 @@ void TimeGraph::DrawVisualConfirm(
         uint32 y = 0;
         uint32 yOffset = 10;
         uint32 xOffset = 10;
+        uint32 maxGraphVal = pCreateInfo->extent.height - 1;
 
         switch (pFpsMgr->GetTimeGraphLocation())
         {
@@ -240,7 +241,7 @@ void TimeGraph::DrawVisualConfirm(
         // Storing GpuTime Values from newest to oldest
         for (uint32 i = timeCount; i > 0; i--)
         {
-            dataValues[i - 1] = pFpsMgr->GetScaledGpuTime(timeCount - i);
+            dataValues[i - 1] = Util::Min(maxGraphVal, pFpsMgr->GetScaledGpuTime(timeCount - i));
         }
 
         // Draw gpu line graph
@@ -268,7 +269,7 @@ void TimeGraph::DrawVisualConfirm(
         // Storing CpuTime Values from newest to oldest
         for (uint32 i = timeCount; i > 0; i--)
         {
-            dataValues[i - 1] = pFpsMgr->GetScaledCpuTime(timeCount - i);
+            dataValues[i - 1] = Util::Min(maxGraphVal, pFpsMgr->GetScaledCpuTime(timeCount - i));
         }
 
         // Draw cpu line graph

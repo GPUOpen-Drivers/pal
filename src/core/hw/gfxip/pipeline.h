@@ -29,12 +29,14 @@
 #include "core/cmdBuffer.h"
 #include "core/device.h"
 #include "core/gpuMemory.h"
+#include "core/dmaUploadRing.h"
 #include "palElfPackager.h"
 #include "palLib.h"
 #include "palMetroHash.h"
 #include "palPipeline.h"
 #include "palPipelineAbiReader.h"
 #include "palSparseVectorImpl.h"
+#include "palElfReader.h"
 
 namespace Pal
 {
@@ -152,6 +154,8 @@ public:
     virtual Util::Abi::ApiHwShaderMapping ApiHwShaderMapping() const override
         { return m_apiHwMapping; }
 
+    UploadFenceToken GetUploadFenceToken() const { return m_uploadFenceToken; }
+
 protected:
     Pipeline(Device* pDevice, bool isInternal);
 
@@ -197,6 +201,7 @@ protected:
     PerfDataInfo m_perfDataInfo[static_cast<size_t>(Util::Abi::HardwareStage::Count)];
     Util::Abi::ApiHwShaderMapping m_apiHwMapping;
 
+    UploadFenceToken m_uploadFenceToken;
 private:
     union
     {
@@ -231,7 +236,7 @@ public:
         const CodeObjectMetadata& metadata,
         const GpuHeap&            preferredHeap);
 
-    Result End();
+    Result End(UploadFenceToken* pCompletionFence);
 
     uint32 ShRegisterCount() const { return m_shRegisterCount; }
     uint32 CtxRegisterCount() const { return m_ctxRegisterCount; }
@@ -277,13 +282,19 @@ protected:
     }
 
 private:
+    void UploadPipelineSections(
+        const void* pSectionBuffer,
+        size_t      sectionBufferSize);
+
+    void PatchPipelineInternalSrdTable(
+        Util::ElfReader::SectionId dataSectionId,
+        void*                      pMappedPtr,
+        const void*                pDataBuffer);
 
     Result GetAbsoluteSymbolAddress(
         const Util::Elf::SymbolTableEntry* pElfSymbol,
         GpuSymbol*                         pSymbol
         ) const;
-
-    Result CreateUploadCmdBuffer();
 
     Device*const m_pDevice;
     const AbiReader& m_abiReader;
@@ -314,10 +325,10 @@ private:
     uint32*  m_pCtxRegWritePtrStart;
     uint32*  m_pShRegWritePtrStart;
 #endif
-
-    CmdBuffer* m_pUploadCmdBuffer; // Dma command buffer for uploading this pipeline to local invis heap if that is the
-                                   // destination type chosen.
-    GpuHeap    m_pipelineHeapType; // The heap type where this pipeline is located.
+    GpuHeap  m_pipelineHeapType; // The heap type where this pipeline is located.
+    DmaUploadRing* m_pDmaUploadRing;
+    UploadRingSlot m_slotId;
+    gpusize m_heapInvisUploadOffset;
 
     PAL_DISALLOW_DEFAULT_CTOR(PipelineUploader);
     PAL_DISALLOW_COPY_AND_ASSIGN(PipelineUploader);

@@ -815,6 +815,60 @@ uint32* CmdStream::WriteSetSeqContextRegs(
 }
 
 // =====================================================================================================================
+// Builds a PM4 packet to set the given base unless the PM4 optimizer indicates that it is redundant.
+// Returns a pointer to the next unused DWORD in pCmdSpace.
+template <bool Pm4OptEnabled>
+uint32* CmdStream::WriteSetBase(
+    gpusize                         address,
+    PFP_SET_BASE_base_index_enum    baseIndex,
+    Pm4ShaderType                   shaderType,
+    uint32*                         pCmdSpace)
+{
+    PAL_ASSERT(m_flags.optimizeCommands == Pm4OptEnabled);
+
+    if ((Pm4OptEnabled == false) || m_pPm4Optimizer->MustKeepSetBase(address, baseIndex, shaderType))
+    {
+        pCmdSpace += m_cmdUtil.BuildSetBase(address, baseIndex, shaderType, pCmdSpace);
+    }
+
+    return pCmdSpace;
+}
+
+template
+uint32* CmdStream::WriteSetBase<true>(
+    gpusize                         address,
+    PFP_SET_BASE_base_index_enum    baseIndex,
+    Pm4ShaderType                   shaderType,
+    uint32*                         pCmdSpace);
+template
+uint32* CmdStream::WriteSetBase<false>(
+    gpusize                         address,
+    PFP_SET_BASE_base_index_enum    baseIndex,
+    Pm4ShaderType                   shaderType,
+    uint32*                         pCmdSpace);
+
+// =====================================================================================================================
+// Wrapper for the real WriteSetBase() for when the caller doesn't know if the immediate mode pm4 optimizer
+// is enabled.
+uint32* CmdStream::WriteSetBase(
+    gpusize                         address,
+    PFP_SET_BASE_base_index_enum    baseIndex,
+    Pm4ShaderType                   shaderType,
+    uint32*                         pCmdSpace)
+{
+    if (m_flags.optimizeCommands)
+    {
+        pCmdSpace = WriteSetBase<true>(address, baseIndex, shaderType, pCmdSpace);
+    }
+    else
+    {
+        pCmdSpace = WriteSetBase<false>(address, baseIndex, shaderType, pCmdSpace);
+    }
+
+    return pCmdSpace;
+}
+
+// =====================================================================================================================
 // If immediate mode optimizations are active, tell the optimizer to invalidate its copy of this particular SH register.
 void CmdStream::NotifyIndirectShRegWrite(
     uint32 regAddr)

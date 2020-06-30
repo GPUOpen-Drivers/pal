@@ -66,6 +66,8 @@ Result TrackingCacheLayer::Init()
 // Validate inputs, then attempt to query our layer. On Result::NotFound attempt to query children
 Result TrackingCacheLayer::Query(
     const Hash128* pHashId,
+    uint32         policy,
+    uint32         flags,
     QueryResult*   pQuery)
 {
     Result result = Result::ErrorUnknown;
@@ -78,7 +80,7 @@ Result TrackingCacheLayer::Query(
     }
     else
     {
-        result = m_pNextLayer->Query(pHashId, pQuery);
+        result = m_pNextLayer->Query(pHashId, policy, flags, pQuery);
     }
 
     if (result == Result::Success)

@@ -31,6 +31,7 @@
 #include "core/hw/gfxip/gfxDevice.h"
 #include "core/hw/ossip/ossDevice.h"
 #include "core/addrMgr/addrMgr.h"
+#include "core/dmaUploadRing.h"
 #include "palCmdAllocator.h"
 #include "palDevice.h"
 #include "palDeque.h"
@@ -1861,8 +1862,6 @@ public:
         { return static_cast<const PalPublicSettings*>(&m_publicSettings); }
 
     virtual bool ValidatePipelineUploadHeap(const GpuHeap& preferredHeap) const;
-    Result InternalDmaSubmit(const MultiSubmitInfo& submitInfo);
-    Result CopyUsingEmbeddedData(const void* pSrcData, gpusize copySize, gpusize dstOffset, GpuMemory* pDstGpuMem);
 
     // Add or subtract some memory from our per-heap totals. We refcount each added GPU memory object so it's safe
     // to add memory multiple times or subtract it multiple times.
@@ -1876,6 +1875,26 @@ public:
         bool              forceSubtract);
 
     IfhMode GetIfhMode() const;
+
+    // Helper for creating DmaUploadRing for PAL internal use.
+    virtual Result CreateDmaUploadRing() = 0;
+
+    Result AcquireRingSlot(UploadRingSlot* pSlotId);
+
+    size_t UploadUsingEmbeddedData(
+        UploadRingSlot  slotId,
+        Pal::GpuMemory* pDst,
+        gpusize         dstOffset,
+        size_t          bytes,
+        void**          ppEmbeddedData);
+
+    Result SubmitDmaUploadRing(
+        UploadRingSlot slotId,
+        UploadFenceToken* pCompletionFence);
+
+    Result WaitForPendingUpload(
+        Pal::Queue* pWaiter,
+        UploadFenceToken fenceValue);
 
 protected:
     Device(
@@ -1974,14 +1993,6 @@ protected:
     uint32 GetDeviceIndex() const
         { return m_deviceIndex; }
 
-    // Helpers for creating queues for PAL internal use.
-    Result CreateInternalCopyCmdBuffer();
-    Result CreateInternalCopyQueues();
-    Result CreateInternalQueue(const QueueCreateInfo& queueCreatInfo,
-                               Queue**                ppQueue,
-                               const FenceCreateInfo& fenceCreateInfo = FenceCreateInfo(),
-                               Fence**                ppFence = nullptr);
-
     Platform*      m_pPlatform;
     InternalMemMgr m_memMgr;
 
@@ -2071,11 +2082,8 @@ protected:
     char m_cacheFilePath[MaxPathStrLen];
     char m_debugFilePath[MaxPathStrLen];
 
-    Util::Mutex m_copyQueuesLock;
-    Queue* m_pInternalCopyQueue;
-
-    Util::Mutex m_copyCmdBufferLock;
-    CmdBuffer* m_pInternalCopyCmdBuffer;
+    Util::Mutex m_dmaUploadRingLock;
+    DmaUploadRing* m_pDmaUploadRing;
 
 private:
     Result HwlEarlyInit();

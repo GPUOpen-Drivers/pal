@@ -32,115 +32,25 @@ add_library(pal STATIC)
 ### Compiler Options ###################################################################################################
 pal_compiler_options()
 
-### Add Cmake files
+### Add cmake files  ###################################################################################################
 target_sources(pal PRIVATE
     ${PROJECT_SOURCE_DIR}/CMakeLists.txt
+    # PAL/XGL modules
+    ${PROJECT_SOURCE_DIR}/cmake/Modules/SetupAmdGlobalRoots.cmake
     ${PROJECT_SOURCE_DIR}/cmake/Modules/AmdCmakeHelper.cmake
     ${PROJECT_SOURCE_DIR}/cmake/Modules/FindDRM.cmake
     ${PROJECT_SOURCE_DIR}/cmake/Modules/FindWayland.cmake
     ${PROJECT_SOURCE_DIR}/cmake/Modules/FindXCB.cmake
-    ${PROJECT_SOURCE_DIR}/cmake/Modules/PalCompilerOptions.cmake
-    ${PROJECT_SOURCE_DIR}/cmake/Modules/PalCompilerWarnings.cmake
-    ${PROJECT_SOURCE_DIR}/cmake/Modules/PalOptions.cmake
-    ${PROJECT_SOURCE_DIR}/cmake/Modules/PalOverrides.cmake
-    ${PROJECT_SOURCE_DIR}/cmake/Modules/PalOverridesGpu.cmake
-    ${PROJECT_SOURCE_DIR}/cmake/Modules/PalVersionHelper.cmake
-    ${PROJECT_SOURCE_DIR}/cmake/Modules/SetupAmdGlobalRoots.cmake
+    # PAL modules
+    ${PROJECT_SOURCE_DIR}/cmake/PalCompileDefinitions.cmake
+    ${PROJECT_SOURCE_DIR}/cmake/PalCompileDefinitionsGpu.cmake
+    ${PROJECT_SOURCE_DIR}/cmake/PalCompilerOptions.cmake
+    ${PROJECT_SOURCE_DIR}/cmake/PalCompilerWarnings.cmake
+    ${PROJECT_SOURCE_DIR}/cmake/PalOptions.cmake
+    ${PROJECT_SOURCE_DIR}/cmake/PalOverrides.cmake
+    ${PROJECT_SOURCE_DIR}/cmake/PalOverridesGpu.cmake
+    ${PROJECT_SOURCE_DIR}/cmake/PalVersionHelper.cmake
 )
-
-### Build Definitions ##################################################################################################
-
-# In cmake nomenclature, a compile definition (ifdef) or similar setting is considered 'PUBLIC' if it needs to be seen
-# by clients using PAL's headers and 'PRIVATE' if it does not. Keeping more ifdefs PRIVATE generally helps to do dirty
-# builds faster and makes the compile command lines easier to debug. PUBLIC defines will automatically be propogated to
-# things that depend on PAL (with `target_link_libraries`) and requires no additional action on the clients' part. In
-# fact, the client should *never* explicitly add any PAL ifdefs because they may not match what PAL was built with.
-
-# The gist for all of the following: if it's used anywhere in inc/*, it should be PUBLIC, otherwise make it PRIVATE.
-
-# NOTE:
-#   PAL's coding standard prefers the use of "#if" construct instead of the "#ifdef" construct
-#   This means when making a new compile definition you should assign it a value
-#
-# EX:
-#   target_compile_definitions(pal PRIVATE PAL_FOO=1)
-
-target_compile_definitions(pal PUBLIC
-    PAL_CLIENT_INTERFACE_MAJOR_VERSION=${PAL_CLIENT_INTERFACE_MAJOR_VERSION}
-    PAL_CLIENT_INTERFACE_MINOR_VERSION=${PAL_CLIENT_INTERFACE_MINOR_VERSION}
-
-    # Both of these macros are used to describe debug builds
-    # TODO: Pal should only use one of these.
-    $<$<CONFIG:Debug>:
-        PAL_DEBUG_BUILD=1
-        DEBUG=1
-    >
-
-)
-
-target_compile_definitions(pal PRIVATE
-    # Useful for determining determining the architecture (32 vs 64)
-    PAL_COMPILE_TYPE=${TARGET_ARCHITECTURE_BITS}
-
-    # Ex: BIGENDIAN_CPU or LITTLEENDIAN_CPU
-    ${TARGET_ARCHITECTURE_ENDIANESS}ENDIAN_CPU=1
-)
-
-if(PAL_BUILD_NULL_DEVICE)
-    target_compile_definitions(pal PRIVATE PAL_BUILD_NULL_DEVICE=1)
-endif()
-
-if(PAL_BUILD_GPUOPEN)
-    target_compile_definitions(pal PUBLIC PAL_BUILD_GPUOPEN=1)
-endif()
-
-if(PAL_ENABLE_DEVDRIVER_USAGE)
-    target_compile_definitions(pal PRIVATE PAL_ENABLE_DEVDRIVER_USAGE=1)
-endif()
-
-if(PAL_ENABLE_PRINTS_ASSERTS)
-    target_compile_definitions(pal PUBLIC
-        $<$<NOT:$<CONFIG:Debug>>:PAL_ENABLE_PRINTS_ASSERTS=1>
-    )
-endif()
-
-if(PAL_ENABLE_PRINTS_ASSERTS_DEBUG)
-    target_compile_definitions(pal PUBLIC
-        $<$<CONFIG:Debug>:PAL_ENABLE_PRINTS_ASSERTS=1>
-    )
-endif()
-
-target_compile_definitions(pal PUBLIC
-    # Turn on memory tracking in Debug builds or when the user asks for it
-    $<$<OR:$<CONFIG:Debug>,$<BOOL:${PAL_MEMTRACK}>>:
-        PAL_MEMTRACK=1
-    >
-)
-
-#if PAL_DEVELOPER_BUILD
-if(PAL_DEVELOPER_BUILD)
-    target_compile_definitions(pal PUBLIC PAL_DEVELOPER_BUILD=1)
-endif()
-#endif
-
-if(PAL_DBG_COMMAND_COMMENTS)
-    target_compile_definitions(pal PRIVATE PAL_DBG_COMMAND_COMMENTS=1)
-endif()
-
-set(PAL_CLIENT_${PAL_CLIENT} 1)
-if(PAL_CLIENT_VULKAN)
-    target_compile_definitions(pal PUBLIC PAL_CLIENT_VULKAN=1)
-else()
-    message(AUTHOR_WARNING "No valid PAL client specified.  Defaulting to Vulkan.")
-    target_compile_definitions(pal PUBLIC PAL_CLIENT_VULKAN=1)
-endif()
-
-if(UNIX)
-    set(PAL_AMDGPU_BUILD ON)
-    target_compile_definitions(pal PUBLIC PAL_AMDGPU_BUILD=1)
-endif()
-
-target_compile_definitions(pal PRIVATE PAL_BUILD_CORE=1)
 
 ### Include Directories ################################################################################################
 # PAL Include Directories
@@ -231,12 +141,6 @@ if(NOT TARGET cwpack)
 endif()
 target_link_libraries(pal PUBLIC cwpack)
 
-if(WIN32)
-    if(TARGET_ARCHITECTURE_BITS EQUAL 32)
-        target_compile_definitions(pal PRIVATE CWP_CALL=__fastcall)
-    endif()
-endif()
-
 ### GPUOPEN ####################################################################
 if(PAL_BUILD_GPUOPEN)
     add_subdirectory(${PAL_GPUOPEN_PATH} ${PROJECT_BINARY_DIR}/gpuopen)
@@ -266,6 +170,7 @@ if(PAL_BUILD_CORE)
         core/cmdStream.cpp
         core/cmdStreamAllocation.cpp
         core/device.cpp
+        core/dmaUploadRing.cpp
         core/engine.cpp
         core/eventProvider.cpp
         core/fence.cpp
@@ -318,9 +223,9 @@ if(PAL_BUILD_CORE)
     endif()
 
 ### PAL core/os ################################################################
-    # We don't know if the null device is needed or not until run-time, so always compile it in.
     target_sources(pal PRIVATE
         core/os/nullDevice/ndDevice.cpp
+        core/os/nullDevice/ndDmaUploadRing.cpp
         core/os/nullDevice/ndGpuMemory.cpp
         core/os/nullDevice/ndPlatform.cpp
         core/os/nullDevice/ndQueue.cpp
@@ -331,6 +236,7 @@ if(PAL_BUILD_CORE)
         message_verbose("PAL build with amdgpu back-end enabled")
         target_sources(pal PRIVATE
             core/os/amdgpu/amdgpuDevice.cpp
+            core/os/amdgpu/amdgpuDmaUploadRing.cpp
             core/os/amdgpu/amdgpuGpuMemory.cpp
             core/os/amdgpu/amdgpuImage.cpp
             core/os/amdgpu/amdgpuPlatform.cpp
@@ -355,7 +261,6 @@ if(PAL_BUILD_CORE)
                core/os/amdgpu/dri3/dri3WindowSystem.cpp
                core/os/amdgpu/dri3/g_dri3Loader.cpp
             )
-            target_compile_definitions(pal PRIVATE PAL_HAVE_DRI3_PLATFORM=1)
         endif()
 
         if(PAL_BUILD_WAYLAND)
@@ -370,7 +275,6 @@ if(PAL_BUILD_CORE)
             set_property(SOURCE core/os/amdgpu/wayland/mesa/wayland-drm-protocol.c
                          APPEND PROPERTY COMPILE_DEFINITIONS
                          wl_buffer_interface=wlBufferInterface)
-            target_compile_definitions(pal PRIVATE PAL_HAVE_WAYLAND_PLATFORM=1)
             target_include_directories(pal PRIVATE ${WAYLAND_CLIENT_INCLUDE_DIR})
         endif()
 
@@ -378,8 +282,6 @@ if(PAL_BUILD_CORE)
 
 ### PAL core/hw ################################################################
     if(PAL_BUILD_GFX)
-        target_compile_definitions(pal PRIVATE PAL_BUILD_GFX=1)
-
         target_sources(pal PRIVATE
             core/hw/gfxip/borderColorPalette.cpp
             core/hw/gfxip/cmdUploadRing.cpp
@@ -408,7 +310,6 @@ if(PAL_BUILD_CORE)
 
         if(PAL_BUILD_GFX6)
             # Add the GFX6 files here, only if the client wants GFXIP 6 support.
-            target_compile_definitions(pal PRIVATE PAL_BUILD_GFX6=1)
             target_sources(pal PRIVATE
                 core/hw/gfxip/gfx6/g_gfx6PalSettings.cpp
                 core/hw/gfxip/gfx6/gfx6Barrier.cpp
@@ -451,31 +352,10 @@ if(PAL_BUILD_CORE)
             # Resource Processing Manager(RPM) GFXIP 6 files.
             target_sources(pal PRIVATE core/hw/gfxip/rpm/gfx6/gfx6RsrcProcMgr.cpp)
 
-        endif()
+        endif() # PAL_BUILD_GFX6
 
         if(PAL_BUILD_GFX9)
             # Add the GFX9 files here, only if the client wants GFXIP 9 support.
-            target_compile_definitions(pal PUBLIC PAL_BUILD_GFX9=1)
-            if(PAL_BUILD_VEGA20)
-                target_compile_definitions(pal PUBLIC PAL_BUILD_VEGA20=1)
-                target_compile_definitions(pal PRIVATE CHIP_HDR_VEGA20=1)
-            endif()
-            if(PAL_BUILD_RAVEN2)
-                target_compile_definitions(pal PUBLIC PAL_BUILD_RAVEN2=1)
-                target_compile_definitions(pal PRIVATE CHIP_HDR_RAVEN2=1)
-            endif()
-            if(PAL_BUILD_RENOIR)
-                target_compile_definitions(pal PUBLIC PAL_BUILD_RENOIR=1)
-                target_compile_definitions(pal PRIVATE CHIP_HDR_RENOIR=1)
-            endif()
-            target_compile_definitions(pal PUBLIC PAL_BUILD_GFX10=1)
-            target_compile_definitions(pal PRIVATE CHIP_HDR_GFX10=1)
-            target_compile_definitions(pal PRIVATE CHIP_HDR__GFX10=1)
-            if(PAL_BUILD_NAVI14)
-                target_compile_definitions(pal PUBLIC PAL_BUILD_NAVI14=1)
-                target_compile_definitions(pal PRIVATE CHIP_HDR_NAVI14=1)
-            endif()
-
             target_sources(pal PRIVATE
                 core/hw/gfxip/gfx9/g_gfx9PalSettings.cpp
                 core/hw/gfxip/gfx9/gfx9Barrier.cpp
@@ -524,15 +404,12 @@ if(PAL_BUILD_CORE)
 
             target_sources(pal PRIVATE core/hw/gfxip/gfx9/gfx10DmaCmdBuffer.cpp)
 
-        endif()
-    endif()
+        endif() # PAL_BUILD_GFX9
+    endif() # PAL_BUILD_GFX
 
     if(PAL_BUILD_OSS)
-        target_compile_definitions(pal PRIVATE PAL_BUILD_OSS=1)
-
         if(PAL_BUILD_OSS1)
             # Add the OSS1 files here, only if the client wants OSSIP 1 support.
-            target_compile_definitions(pal PRIVATE PAL_BUILD_OSS1=1)
             target_sources(pal PRIVATE
                 core/hw/ossip/oss1/oss1Device.cpp
                 core/hw/ossip/oss1/oss1DmaCmdBuffer.cpp
@@ -541,7 +418,6 @@ if(PAL_BUILD_CORE)
 
         if(PAL_BUILD_OSS2)
             # Add the OSS2 files here, only if the client wants OSSIP 2 support.
-            target_compile_definitions(pal PRIVATE PAL_BUILD_OSS2=1)
             target_sources(pal PRIVATE
                 core/hw/ossip/oss2/oss2Device.cpp
                 core/hw/ossip/oss2/oss2DmaCmdBuffer.cpp
@@ -550,7 +426,6 @@ if(PAL_BUILD_CORE)
 
         if(PAL_BUILD_OSS2_4)
             # Add the OSS2.4 files here, only if the client wants OSSIP 2.4 support.
-            target_compile_definitions(pal PRIVATE PAL_BUILD_OSS2_4=1)
             target_sources(pal PRIVATE
                 core/hw/ossip/oss2_4/oss2_4Device.cpp
                 core/hw/ossip/oss2_4/oss2_4DmaCmdBuffer.cpp
@@ -559,7 +434,6 @@ if(PAL_BUILD_CORE)
 
         if(PAL_BUILD_OSS4)
             # Add the OSS4 files here, only if the client wants OSSIP 4 support.
-            target_compile_definitions(pal PRIVATE PAL_BUILD_OSS4=1)
             target_sources(pal PRIVATE
                 core/hw/ossip/oss4/oss4Device.cpp
                 core/hw/ossip/oss4/oss4DmaCmdBuffer.cpp
@@ -569,12 +443,9 @@ if(PAL_BUILD_CORE)
 
 ### PAL core/layers ############################################################
     if(PAL_BUILD_LAYERS)
-        target_compile_definitions(pal PRIVATE PAL_BUILD_LAYERS=1)
         target_sources(pal PRIVATE core/layers/decorators.cpp)
 
         if(PAL_BUILD_DBG_OVERLAY)
-            target_compile_definitions(pal PRIVATE PAL_BUILD_DBG_OVERLAY=1)
-
             # Add the debug overlay files here, only if the client wants debug overlay support.
             target_sources(pal PRIVATE
                 core/layers/dbgOverlay/dbgOverlayCmdBuffer.cpp
@@ -589,8 +460,6 @@ if(PAL_BUILD_CORE)
         endif()
 
         if(PAL_BUILD_GPU_PROFILER)
-            target_compile_definitions(pal PRIVATE PAL_BUILD_GPU_PROFILER=1)
-
             # Add the GPU profiler files here, only if the client wants GPU profiler support.
             target_sources(pal PRIVATE
                 core/layers/gpuProfiler/gpuProfilerCmdBuffer.cpp
@@ -602,26 +471,12 @@ if(PAL_BUILD_CORE)
             )
         endif()
 
-        # Enable cmd buffer logging on debug configs or when the client asks for it
-        target_compile_definitions(pal PRIVATE
-            $<$<OR:$<CONFIG:Debug>,$<BOOL:${PAL_BUILD_CMD_BUFFER_LOGGER}>>:
-                PAL_BUILD_CMD_BUFFER_LOGGER=1
-            >
-        )
-
         target_sources(pal PRIVATE
             core/layers/cmdBufferLogger/cmdBufferLoggerCmdBuffer.cpp
             core/layers/cmdBufferLogger/cmdBufferLoggerDevice.cpp
             core/layers/cmdBufferLogger/cmdBufferLoggerImage.cpp
             core/layers/cmdBufferLogger/cmdBufferLoggerPlatform.cpp
             core/layers/cmdBufferLogger/cmdBufferLoggerQueue.cpp
-        )
-
-        # Enable interface logging on debug configs or when the client asks for it
-        target_compile_definitions(pal PRIVATE
-            $<$<OR:$<CONFIG:Debug>,$<BOOL:${PAL_BUILD_INTERFACE_LOGGER}>>:
-                PAL_BUILD_INTERFACE_LOGGER=1
-            >
         )
 
         target_sources(pal PRIVATE
@@ -649,13 +504,6 @@ if(PAL_BUILD_CORE)
             core/layers/interfaceLogger/interfaceLoggerScreen.cpp
             core/layers/interfaceLogger/interfaceLoggerSwapChain.cpp
 
-        )
-
-        # Enable pm4 instrucment on debug configs or when the client asks for it
-        target_compile_definitions(pal PRIVATE
-            $<$<OR:$<CONFIG:Debug>,$<BOOL:${PAL_BUILD_PM4_INSTRUMENTOR}>>:
-                PAL_BUILD_PM4_INSTRUMENTOR=1
-            >
         )
 
         target_sources(pal PRIVATE
@@ -741,21 +589,13 @@ endif()
 ### Other ##############################################################################################################
 # CMAKE-TODO: The AMD Make builds have sub projects inherit compiler options / definitions.
 # The desired behavior is not fully known at this time but this works to keep the same behavior.
+#
+# TODO: Does anyone use this?
 if(AMD_MAKE_BUILD)
-    # if(AMD_ADDITIONAL_C_OPTIONS)
-    #     separate_arguments(AMD_ADDITIONAL_C_OPTIONS UNIX_COMMAND ${AMD_ADDITIONAL_C_OPTIONS})
-    #     target_compile_options(pal PRIVATE $<$<COMPILE_LANGUAGE:C>:${AMD_ADDITIONAL_C_OPTIONS}>)
-    # endif()
-
     if(AMD_ADDITIONAL_C_DEFINITIONS)
         separate_arguments(AMD_ADDITIONAL_C_DEFINITIONS UNIX_COMMAND ${AMD_ADDITIONAL_C_DEFINITIONS})
         target_compile_definitions(pal PRIVATE $<$<COMPILE_LANGUAGE:C>:${AMD_ADDITIONAL_C_DEFINITIONS}>)
     endif()
-
-    # if(AMD_ADDITIONAL_CXX_OPTIONS)
-    #     separate_arguments(AMD_ADDITIONAL_CXX_OPTIONS UNIX_COMMAND ${AMD_ADDITIONAL_CXX_OPTIONS})
-    #     target_compile_options(pal PRIVATE $<$<COMPILE_LANGUAGE:CXX>:${AMD_ADDITIONAL_CXX_OPTIONS}>)
-    # endif()
 
     if(AMD_ADDITIONAL_CXX_DEFINITIONS)
         separate_arguments(AMD_ADDITIONAL_CXX_DEFINITIONS UNIX_COMMAND ${AMD_ADDITIONAL_CXX_DEFINITIONS})

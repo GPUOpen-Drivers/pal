@@ -197,7 +197,7 @@ void PipelineChunkVsPs::LateInit(
 
     m_regs.dynamic.spiShaderPgmRsrc3Ps.bits.CU_EN = m_device.GetCuEnableMask(0, settings.psCuEnLimitMask);
 
-    if (IsGfx10(chipProps.gfxLevel))
+    if (IsGfx10Plus(chipProps.gfxLevel))
     {
         m_regs.dynamic.spiShaderPgmRsrc4Ps.bits.CU_EN = m_device.GetCuEnableMaskHi(0, settings.psCuEnLimitMask);
 
@@ -246,7 +246,7 @@ void PipelineChunkVsPs::LateInit(
         }
 
         uint16 vsCuDisableMask = 0;
-        if (IsGfx10(chipProps.gfxLevel))
+        if (IsGfx10Plus(chipProps.gfxLevel))
         {
             // Both CU's of a WGP need to be disabled for better performance.
             vsCuDisableMask = 0xC;
@@ -261,7 +261,7 @@ void PipelineChunkVsPs::LateInit(
         // always use the ones PAL prefers.
         m_regs.dynamic.spiShaderPgmRsrc3Vs.bits.CU_EN =
                     m_device.GetCuEnableMask(vsCuDisableMask, settings.vsCuEnLimitMask);
-        if (IsGfx10(chipProps.gfxLevel))
+        if (IsGfx10Plus(chipProps.gfxLevel))
         {
             const uint16 vsCuDisableMaskHi = 0;
             m_regs.dynamic.spiShaderPgmRsrc4Vs.bits.CU_EN =

@@ -32,10 +32,12 @@ project(PAL
 
 ### CMake Includes #####################################################################################################
 list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake/Modules)
+list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake/)
 include(AmdCmakeHelper)
 include(PalVersionHelper)
 include(PalOptions)
 include(PalOverrides)
+include(PalCompileDefinitions)
 
 ### Project Options ####################################################################################################
 pal_options()
@@ -45,3 +47,6 @@ pal_overrides()
 
 ### Add Subdirectories #################################################################################################
 add_subdirectory(src)
+
+### Build Definitions ##################################################################################################
+pal_compile_definitions()

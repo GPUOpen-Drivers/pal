@@ -59,6 +59,7 @@ GfxCmdBuffer::GfxCmdBuffer(
     m_retainedGeneratedChunkList(device.GetPlatform()),
     m_pCurrentExperiment(nullptr),
     m_gfxIpLevel(device.Parent()->ChipProperties().gfxLevel),
+    m_maxUploadFenceToken(0),
     m_device(device),
     m_pInternalEvent(nullptr),
     m_timestampGpuVa(0),
@@ -244,6 +245,8 @@ void GfxCmdBuffer::ResetFastClearReferenceCounts()
 void GfxCmdBuffer::ResetState()
 {
     CmdBuffer::ResetState();
+
+    m_maxUploadFenceToken = 0;
 
     m_cmdBufPerfExptFlags.u32All            = 0;
     m_gfxCmdBufState.flags.u32All           = 0;

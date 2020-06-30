@@ -378,7 +378,8 @@ Result GraphicsPipeline::HwlInit(
                 m_loadPath.countSh        = uploader.ShRegisterCount();
             }
 
-            result = uploader.End();
+            PAL_ASSERT(m_uploadFenceToken == 0);
+            result = uploader.End(&m_uploadFenceToken);
 
             if (result == Result::Success)
             {

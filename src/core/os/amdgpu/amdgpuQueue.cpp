@@ -719,6 +719,11 @@ Result Queue::SubmitPm4(
         }
     }
 
+    if (result == Result::Success)
+    {
+        result = GfxIpWaitPipelineUploading(submitInfo);
+    }
+
     while ((result == Result::Success) && (numNextCmdBuffers > 0))
     {
         uint32           batchSize          = 0;

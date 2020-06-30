@@ -45,6 +45,7 @@ ShaderLibrary::ShaderLibrary(
     m_gpuMem(),
     m_gpuMemSize(0),
     m_maxStackSizeInBytes(0),
+    m_uploadFenceToken(0),
     m_pClientData(nullptr),
     m_perfDataMem(),
     m_perfDataGpuMemSize(0)

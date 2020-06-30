@@ -43,6 +43,8 @@ public:
 
     virtual Result Query(
         const Hash128*  pHashId,
+        uint32          policy,
+        uint32          flags,
         QueryResult*    pQuery) final;
 
     virtual Result Store(
@@ -96,9 +98,12 @@ protected:
     // Promote data from a lower cache layer into our own
     // On successful promotion query may be re-written to reflect the newly promoted data rather than the original
     virtual Result PromoteData(
-        uint32       loadPolicy,
         ICacheLayer* pNextLayer,
         QueryResult* pQuery) { return Result::Unsupported; }
+
+    // Reserve a empty entry in cache
+    virtual Result Reserve(
+        const Hash128* pHashId) { return Result::Unsupported; }
 
     // Batch data to be submitted to the next cache layer at a later time
     virtual Result BatchData(

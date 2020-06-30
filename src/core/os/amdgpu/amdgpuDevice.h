@@ -26,6 +26,7 @@
 #pragma once
 
 #include "core/device.h"
+#include "core/os/amdgpu/amdgpuDmaUploadRing.h"
 #include "core/os/amdgpu/amdgpuGpuMemory.h"
 #include "core/os/amdgpu/amdgpuHeaders.h"
 #include "core/os/amdgpu/amdgpuPlatform.h"
@@ -802,6 +803,8 @@ public:
         bool* pIsSame) const;
 
     Result ReserveVmid() const;
+
+    virtual Result CreateDmaUploadRing() override;
 
 protected:
     virtual void FinalizeQueueProperties() override;

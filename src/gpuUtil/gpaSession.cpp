@@ -2800,6 +2800,7 @@ Result GpaSession::AddCodeObjectLoadEvent(
 
     if (result == Result::Success)
     {
+        PAL_ASSERT(gpuSubAlloc.pGpuMemory != nullptr);
         CodeObjectLoadEventRecord record = { };
         record.eventType      = eventType;
         record.baseAddress    = (gpuSubAlloc.pGpuMemory->Desc().gpuVirtAddr + gpuSubAlloc.offset);
@@ -3072,7 +3073,7 @@ Result GpaSession::AcquireGpuMem(
         for (uint32 elementsTried = 0; elementsTried < pAvailableList->NumElements(); elementsTried++)
         {
             result = pAvailableList->PopFront(pCurGpuMem);
-            PAL_ASSERT(result == Result::Success);
+            PAL_ASSERT((result == Result::Success) && (pCurGpuMem->pGpuMemory != nullptr));
             if (pCurGpuMem->pGpuMemory->Desc().size >= size)
             {
                 haveMemFromAvailableList = true;

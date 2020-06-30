@@ -26,6 +26,7 @@
 #pragma once
 
 #include "core/cmdBuffer.h"
+#include "core/dmaUploadRing.h"
 #include "core/fence.h"
 #include "core/perfExperiment.h"
 #include "core/platform.h"
@@ -448,6 +449,8 @@ public:
 
     Result AddFceSkippedImageCounter(GfxImage* pGfxImage);
 
+    UploadFenceToken GetMaxUploadFenceToken() const { return m_maxUploadFenceToken; }
+
 protected:
     GfxCmdBuffer(
         const GfxDevice&           device,
@@ -542,6 +545,8 @@ protected:
 
     const PerfExperiment* m_pCurrentExperiment; // Current performance experiment.
     const GfxIpLevel      m_gfxIpLevel;
+
+    UploadFenceToken m_maxUploadFenceToken;
 
 private:
     void ReturnGeneratedCommandChunks(bool returnGpuMemory);

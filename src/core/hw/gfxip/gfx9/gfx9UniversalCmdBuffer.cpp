@@ -1622,7 +1622,7 @@ void UniversalCmdBuffer::CmdBindTargets(
     // By old logic, the sync will be added between both #1/#2 and #2/#3. The sync added for #1/#2 is unnecessary and it
     // will cause minor CPU and CP performance drop; sync added for #2/#3 will do more than that by draining the whole
     // 3D pipeline, and is completely wrong behavior.
-    if (IsGfx10(m_gfxIpLevel) && validCbViewFound)
+    if (IsGfx10Plus(m_gfxIpLevel) && validCbViewFound)
     {
         if (m_cachedSettings.waUtcL0InconsistentBigPage &&
             ((static_cast<bool>(m_cbRmiGl2CacheControl.bits.COLOR_BIG_PAGE) != colorBigPage) ||
@@ -2391,10 +2391,10 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawIndirectMulti(
 
     uint32* pDeCmdSpace = pThis->m_deCmdStream.ReserveCommands();
 
-    pDeCmdSpace += CmdUtil::BuildSetBase(gpuMemory.Desc().gpuVirtAddr,
-                                         base_index__pfp_set_base__patch_table_base,
-                                         ShaderGraphics,
-                                         pDeCmdSpace);
+    pDeCmdSpace = pThis->m_deCmdStream.WriteSetBase(gpuMemory.Desc().gpuVirtAddr,
+                                                    base_index__pfp_set_base__patch_table_base,
+                                                    ShaderGraphics,
+                                                    pDeCmdSpace);
 
     const uint16 vtxOffsetReg  = pThis->GetVertexOffsetRegAddr();
     const uint16 instOffsetReg = pThis->GetInstanceOffsetRegAddr();
@@ -2499,10 +2499,10 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawIndexedIndirectMulti(
 
     uint32* pDeCmdSpace = pThis->m_deCmdStream.ReserveCommands();
 
-    pDeCmdSpace += CmdUtil::BuildSetBase(gpuMemory.Desc().gpuVirtAddr,
-                                         base_index__pfp_set_base__patch_table_base,
-                                         ShaderGraphics,
-                                         pDeCmdSpace);
+    pDeCmdSpace = pThis->m_deCmdStream.WriteSetBase(gpuMemory.Desc().gpuVirtAddr,
+                                                    base_index__pfp_set_base__patch_table_base,
+                                                    ShaderGraphics,
+                                                    pDeCmdSpace);
 
     const uint16 vtxOffsetReg  = pThis->GetVertexOffsetRegAddr();
     const uint16 instOffsetReg = pThis->GetInstanceOffsetRegAddr();
@@ -2637,11 +2637,11 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDispatchIndirect(
                                                                         0,
                                                                         0,
                                                                         pDeCmdSpace);
-    pDeCmdSpace  = pThis->WaitOnCeCounter(pDeCmdSpace);
-    pDeCmdSpace += CmdUtil::BuildSetBase(gpuMemBaseAddr,
-                                         base_index__pfp_set_base__patch_table_base,
-                                         ShaderCompute,
-                                         pDeCmdSpace);
+    pDeCmdSpace = pThis->WaitOnCeCounter(pDeCmdSpace);
+    pDeCmdSpace = pThis->m_deCmdStream.WriteSetBase(gpuMemBaseAddr,
+                                                    base_index__pfp_set_base__patch_table_base,
+                                                    ShaderCompute,
+                                                    pDeCmdSpace);
     pDeCmdSpace += CmdUtil::BuildDispatchIndirectGfx(offset,
                                                      pThis->PacketPredicate(),
                                                      pThis->m_pSignatureCs->flags.isWave32,
@@ -5206,7 +5206,7 @@ uint32* UniversalCmdBuffer::ValidateDraw(
     m_deCmdStream.CommitCommands(pDeCmdSpace);
     pDeCmdSpace = m_deCmdStream.ReserveCommands();
 
-    if (IsGfx10(m_gfxIpLevel) &&
+    if (IsGfx10Plus(m_gfxIpLevel) &&
         (PipelineDirty || (StateDirty && dirtyFlags.triangleRasterState)))
     {
         pDeCmdSpace = Gfx10ValidateTriangleRasterState(pPipeline, pDeCmdSpace);
@@ -8329,6 +8329,9 @@ void UniversalCmdBuffer::CmdExecuteNestedCmdBuffers(
 
         // Track the most recent OS paging fence value across all nested command buffers called from this one.
         m_lastPagingFence = Max(m_lastPagingFence, pCallee->LastPagingFence());
+
+        // Track the lastest fence token across all nested command buffers called from this one.
+        m_maxUploadFenceToken = Max(m_maxUploadFenceToken, pCallee->GetMaxUploadFenceToken());
 
         // All user-data entries have been uploaded into CE RAM and GPU memory, so we can safely "call" the nested
         // command buffer's command streams.

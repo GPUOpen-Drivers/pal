@@ -268,6 +268,11 @@ void UniversalCmdBuffer::CmdBindPipeline(
         m_computeState.pipelineState.pPipeline  = static_cast<const Pipeline*>(params.pPipeline);
         m_computeState.pipelineState.apiPsoHash = params.apiPsoHash;
         m_computeState.pipelineState.dirtyFlags.pipelineDirty = 1;
+        if (m_computeState.pipelineState.pPipeline != nullptr)
+        {
+            m_maxUploadFenceToken = Max(m_maxUploadFenceToken,
+                                        m_computeState.pipelineState.pPipeline->GetUploadFenceToken());
+        }
     }
     else
     {
@@ -275,6 +280,11 @@ void UniversalCmdBuffer::CmdBindPipeline(
         m_graphicsState.pipelineState.pPipeline  = static_cast<const Pipeline*>(params.pPipeline);
         m_graphicsState.pipelineState.apiPsoHash = params.apiPsoHash;
         m_graphicsState.pipelineState.dirtyFlags.pipelineDirty = 1;
+        if (m_graphicsState.pipelineState.pPipeline != nullptr)
+        {
+            m_maxUploadFenceToken = Max(m_maxUploadFenceToken,
+                                        m_graphicsState.pipelineState.pPipeline->GetUploadFenceToken());
+        }
     }
     m_device.DescribeBindPipeline(this, params.pPipeline, params.apiPsoHash, params.pipelineBindPoint);
 }

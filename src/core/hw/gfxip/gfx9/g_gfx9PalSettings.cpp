@@ -328,7 +328,7 @@ void SettingsLoader::ReadSettings()
                            &m_settings.dccOnComputeEnable,
                            InternalSettingScope::PrivatePalGfx9Key);
 
-    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pUseDccStr,
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pGfx9UseDccStr,
                            Util::ValueType::Uint,
                            &m_settings.useDcc,
                            InternalSettingScope::PrivatePalGfx9Key);
@@ -1353,7 +1353,7 @@ void SettingsLoader::InitSettingsInfo()
     info.type      = SettingType::Uint;
     info.pValuePtr = &m_settings.useDcc;
     info.valueSize = sizeof(m_settings.useDcc);
-    m_settingsInfoMap.Insert(4029518654, info);
+    m_settingsInfoMap.Insert(562025936, info);
 
     info.type      = SettingType::Uint;
     info.pValuePtr = &m_settings.cbDbCachePolicy;
@@ -2021,7 +2021,7 @@ void SettingsLoader::DevDriverRegister()
             component.pfnSetValue = ISettingsLoader::SetValue;
             component.pSettingsData = &g_gfx9PalJsonData[0];
             component.settingsDataSize = sizeof(g_gfx9PalJsonData);
-            component.settingsDataHash = 2399813199;
+            component.settingsDataHash = 1785477024;
             component.settingsDataHeader.isEncoded = true;
             component.settingsDataHeader.magicBufferId = 402778310;
             component.settingsDataHeader.magicBufferOffset = 0;
