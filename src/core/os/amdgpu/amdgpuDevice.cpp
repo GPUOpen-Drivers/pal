@@ -111,14 +111,33 @@ constexpr char UserDefaultConfigFileSubPath[] = "/.config";
 constexpr char UserDefaultCacheFileSubPath[]  = "/.cache";
 constexpr char UserDefaultDebugFilePath[]     = "/var/tmp";
 
-// Maybe the format supported by presentable image should be got from Xserver, so far we just use a fixed format list.
-constexpr SwizzledFormat PresentableImageFormats[] =
+// 32 bpp formats are supported on all supported gpu's and amdgpu kms drivers:
+constexpr SwizzledFormat PresentableSwizzledFormat[] =
 {
-    {   ChNumFormat::X8Y8Z8W8_Srgb,
-        { ChannelSwizzle::Z, ChannelSwizzle::Y, ChannelSwizzle::X, ChannelSwizzle::W },
+    {
+        ChNumFormat::X8Y8Z8W8_Unorm,
+        { ChannelSwizzle::Z, ChannelSwizzle::Y, ChannelSwizzle::X, ChannelSwizzle::W }
     },
-    {   ChNumFormat::X8Y8Z8W8_Unorm,
-        { ChannelSwizzle::Z, ChannelSwizzle::Y, ChannelSwizzle::X, ChannelSwizzle::W },
+    {
+        ChNumFormat::X8Y8Z8W8_Srgb,
+        { ChannelSwizzle::Z, ChannelSwizzle::Y, ChannelSwizzle::X, ChannelSwizzle::W }
+    },
+    {
+        ChNumFormat::X10Y10Z10W2_Unorm,
+        { ChannelSwizzle::Z, ChannelSwizzle::Y, ChannelSwizzle::X, ChannelSwizzle::W }
+    },
+    {
+        ChNumFormat::X10Y10Z10W2_Unorm,
+        { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W }
+    },
+};
+
+// 64 bpp formats are supported on more recent supported gpu's and amdgpu kms drivers:
+constexpr SwizzledFormat Presentable16BitSwizzledFormat[] =
+{
+    {
+        ChNumFormat::X16Y16Z16W16_Float,
+        { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W }
     },
 };
 
@@ -1997,6 +2016,24 @@ void Device::GetDisplayDccInfo(DisplayDccCaps& displayDcc) const
     }
 }
 
+// Returns true if gpu + amdgpu kms driver do support 16 bit floating point display.
+bool Device::HasFp16DisplaySupport()
+{
+    bool supported = false;
+
+    // On Linux 5.8 (DRM 3.38) and later we also have the 64 bpp fp16 floating point format
+    // on display engines of generation DCE 11.2 - DCE 12, and all DCN engines, iow. Polaris
+    // and later.
+    if ((IsDrmVersionOrGreater(3, 38) || IsKernelVersionEqualOrGreater(5, 8)) &&
+        (IsGfx10Plus(m_chipProperties.gfxLevel) || IsGfx9(*this) ||
+        (IsGfx8(*this) && (IsPolaris10(*this) || IsPolaris11(*this) || IsPolaris12(*this)))))
+    {
+        supported = true;
+    }
+
+    return supported;
+}
+
 // =====================================================================================================================
 // Swap chain information is related with OS window system, so get all of the information here.
 Result Device::GetSwapChainInfo(
@@ -2005,6 +2042,8 @@ Result Device::GetSwapChainInfo(
     WsiPlatform          wsiPlatform,
     SwapChainProperties* pSwapChainProperties)
 {
+    const uint32 baseFormatCount = static_cast<uint32>(ArrayLen(PresentableSwizzledFormat));
+
     // Get current windows size (height, width) from window system.
     Result result = WindowSystem::GetWindowProperties(this,
                                                       wsiPlatform,
@@ -2061,11 +2100,28 @@ Result Device::GetSwapChainInfo(
         pSwapChainProperties->supportedUsageFlags.shaderRead    = 1;
         pSwapChainProperties->supportedUsageFlags.shaderWrite   = 1;
 
-        // Get format supported by swap chain.
-        pSwapChainProperties->imageFormatCount = static_cast<uint32>(ArrayLen(PresentableImageFormats));
+        // Get formats supported by swap chain. We have at least the 32 bpp formats.
+        pSwapChainProperties->imageFormatCount = baseFormatCount;
+
+        // Some gpu + amdgpu kms combinations do support fp16 scanout and display.
+        if (HasFp16DisplaySupport())
+        {
+            PAL_ASSERT(pSwapChainProperties->imageFormatCount < MaxPresentableImageFormat);
+
+            // fp16 is first slot in Presentable16BitSwizzledFormat[].
+            pSwapChainProperties->imageFormatCount++;
+        }
+
         for (uint32 i = 0; i < pSwapChainProperties->imageFormatCount; i++)
         {
-            pSwapChainProperties->imageFormat[i] = PresentableImageFormats[i];
+            if (i < baseFormatCount)
+            {
+                pSwapChainProperties->imageFormat[i] = PresentableSwizzledFormat[i];
+            }
+            else
+            {
+                pSwapChainProperties->imageFormat[i] = Presentable16BitSwizzledFormat[i - baseFormatCount];
+            }
         }
     }
 

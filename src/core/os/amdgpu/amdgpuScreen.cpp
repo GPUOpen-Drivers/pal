@@ -122,33 +122,21 @@ Result Screen::GetScreenModeList(
                                                                          pScreenModeList);
 }
 
-const SwizzledFormat PresentableSwizzledFormat[] =
-{
-    {
-        ChNumFormat::X8Y8Z8W8_Unorm,
-        { ChannelSwizzle::Z, ChannelSwizzle::Y, ChannelSwizzle::X, ChannelSwizzle::W }
-    },
-    {
-        ChNumFormat::X8Y8Z8W8_Srgb,
-        { ChannelSwizzle::Z, ChannelSwizzle::Y, ChannelSwizzle::X, ChannelSwizzle::W }
-    },
-    {
-        ChNumFormat::X10Y10Z10W2_Unorm,
-        { ChannelSwizzle::Z, ChannelSwizzle::Y, ChannelSwizzle::X, ChannelSwizzle::W }
-    },
-    {
-        ChNumFormat::X10Y10Z10W2_Unorm,
-        { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W }
-    },
-};
-
 // =====================================================================================================================
 Result Screen::GetFormats(
     uint32*          pFormatCount,
     SwizzledFormat*  pFormatList)
 {
-    Result result      = Result::Success;
-    uint32 formatCount = sizeof(PresentableSwizzledFormat) / sizeof(PresentableSwizzledFormat[0]);
+    Result result;
+    uint32 formatCount                      = 0;
+    SwapChainProperties swapChainProperties = {};
+
+    result = static_cast<Device*>(m_pDevice)->GetSwapChainInfo((OsDisplayHandle) nullptr, NullWindowHandle,
+                                                               WsiPlatform::DirectDisplay, &swapChainProperties);
+    if (result == Result::Success)
+    {
+        formatCount = swapChainProperties.imageFormatCount;
+    }
 
     PAL_ASSERT(((pFormatCount != nullptr) && (pFormatList != nullptr)) ||
                ((pFormatList == nullptr) && (pFormatCount != nullptr)));
@@ -163,7 +151,7 @@ Result Screen::GetFormats(
 
         for (uint32 i = 0; i < returnedFormat; i++)
         {
-            pFormatList[i] = PresentableSwizzledFormat[i];
+            pFormatList[i] = swapChainProperties.imageFormat[i];
         }
 
         if (returnedFormat < formatCount)
