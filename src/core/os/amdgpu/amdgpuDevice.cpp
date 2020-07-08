@@ -5509,7 +5509,7 @@ static PAL_INLINE uint8* GetCeaExtensionBlock(
 }
 
 // =====================================================================================================================
-// Helper function to convert binary to decimal and mulitply 10000
+// Helper function to convert binary to decimal and multiply by 50000
 static PAL_INLINE uint32 BitsToDecimal(
     uint32 value)
 {
@@ -5524,7 +5524,7 @@ static PAL_INLINE uint32 BitsToDecimal(
         }
     }
 
-    return result * 10000;
+    return result * 50000;
 }
 
 // =====================================================================================================================
