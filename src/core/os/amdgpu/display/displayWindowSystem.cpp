@@ -70,6 +70,10 @@ static uint32 PalToDrmFormat(
 
             break;
 
+        case ChNumFormat::X16Y16Z16W16_Float:
+            drmFormat = DRM_FORMAT_XBGR16161616F;
+            break;
+
         default:
             PAL_ASSERT(!"Not supported format!");
             break;
@@ -285,7 +289,7 @@ Result DisplayWindowSystem::CreatePresentableImage(
             pImage->SetPresentImageHandle(imageHandle);
 
             FindCrtc();
-            ModeSet(pImage);
+            ret = ModeSet(pImage) != Result::Success;
         }
     }
 

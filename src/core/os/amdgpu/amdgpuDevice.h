@@ -843,6 +843,8 @@ private:
         uint32    kernelMinorVer
         ) const;
 
+    bool HasFp16DisplaySupport();
+
     void CheckSyncObjectSupportStatus();
 
     Result InitGpuProperties();
