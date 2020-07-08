@@ -122,7 +122,7 @@ Result Screen::GetScreenModeList(
                                                                          pScreenModeList);
 }
 
-const SwizzledFormat PresentableSwizzledFormat[2] =
+const SwizzledFormat PresentableSwizzledFormat[] =
 {
     {
         ChNumFormat::X8Y8Z8W8_Unorm,
@@ -131,21 +131,15 @@ const SwizzledFormat PresentableSwizzledFormat[2] =
     {
         ChNumFormat::X8Y8Z8W8_Srgb,
         { ChannelSwizzle::Z, ChannelSwizzle::Y, ChannelSwizzle::X, ChannelSwizzle::W }
-    }
-};
-
-const SwizzledFormat PresentableHdrSwizzledFormat[2] =
-{
+    },
     {
         ChNumFormat::X10Y10Z10W2_Unorm,
         { ChannelSwizzle::Z, ChannelSwizzle::Y, ChannelSwizzle::X, ChannelSwizzle::W }
     },
-
     {
         ChNumFormat::X10Y10Z10W2_Unorm,
         { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W }
     },
-
 };
 
 // =====================================================================================================================
@@ -153,14 +147,8 @@ Result Screen::GetFormats(
     uint32*          pFormatCount,
     SwizzledFormat*  pFormatList)
 {
-    Result       result          = Result::Success;
-    const uint32 baseFormatCount = sizeof(PresentableSwizzledFormat) / sizeof(PresentableSwizzledFormat[0]);
-    uint32       formatCount     = baseFormatCount;
-
-    if (m_nativeColorGamut.metadata.eotf == HDMI_EOTF_SMPTE_ST2084)
-    {
-        formatCount += sizeof(PresentableHdrSwizzledFormat) / sizeof(PresentableHdrSwizzledFormat[0]);
-    }
+    Result result      = Result::Success;
+    uint32 formatCount = sizeof(PresentableSwizzledFormat) / sizeof(PresentableSwizzledFormat[0]);
 
     PAL_ASSERT(((pFormatCount != nullptr) && (pFormatList != nullptr)) ||
                ((pFormatList == nullptr) && (pFormatCount != nullptr)));
@@ -175,14 +163,7 @@ Result Screen::GetFormats(
 
         for (uint32 i = 0; i < returnedFormat; i++)
         {
-            if (i < baseFormatCount)
-            {
-                pFormatList[i] = PresentableSwizzledFormat[i];
-            }
-            else
-            {
-                pFormatList[i] = PresentableHdrSwizzledFormat[i - baseFormatCount];
-            }
+            pFormatList[i] = PresentableSwizzledFormat[i];
         }
 
         if (returnedFormat < formatCount)
