@@ -122,7 +122,7 @@ Result Screen::GetScreenModeList(
                                                                          pScreenModeList);
 }
 
-const SwizzledFormat PresentableSwizzledFormat[2] =
+const SwizzledFormat PresentableSwizzledFormat[] =
 {
     {
         ChNumFormat::X8Y8Z8W8_Unorm,
@@ -131,21 +131,19 @@ const SwizzledFormat PresentableSwizzledFormat[2] =
     {
         ChNumFormat::X8Y8Z8W8_Srgb,
         { ChannelSwizzle::Z, ChannelSwizzle::Y, ChannelSwizzle::X, ChannelSwizzle::W }
-    }
-};
-
-const SwizzledFormat PresentableHdrSwizzledFormat[2] =
-{
+    },
     {
         ChNumFormat::X10Y10Z10W2_Unorm,
         { ChannelSwizzle::Z, ChannelSwizzle::Y, ChannelSwizzle::X, ChannelSwizzle::W }
     },
-
     {
         ChNumFormat::X10Y10Z10W2_Unorm,
         { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W }
     },
+};
 
+const SwizzledFormat PresentableHdrSwizzledFormat[] =
+{
 };
 
 // =====================================================================================================================
