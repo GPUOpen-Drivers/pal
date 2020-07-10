@@ -764,7 +764,7 @@ Result Device::CreateQueueContext(
         {
             {
                 ComputeQueueContext* pContext =
-                    PAL_PLACEMENT_NEW(pPlacementAddr) ComputeQueueContext(this, pEngine, engineId);
+                    PAL_PLACEMENT_NEW(pPlacementAddr) ComputeQueueContext(this, pEngine, engineId, createInfo.tmzOnly);
 
                 result = pContext->Init();
 
@@ -1602,14 +1602,24 @@ uint32 Device::CalcNumRecords(
 }
 
 // =====================================================================================================================
-// Fills in the AddrLib create input fields based on chip specific properties. Note: this function must not use any
-// settings or member variables that depend on settings because AddrLib is initialized before settings are committed.
+// Fills in the AddrLib create input fields based on chip specific properties. Note: at this point during init, settings
+// have only been partially intialized. Only settings and member variables that are not impacted by validation or
+// the client driver may be used.
 Result Device::InitAddrLibCreateInput(
     ADDR_CREATE_FLAGS*   pCreateFlags, // [out] Creation Flags
     ADDR_REGISTER_VALUE* pRegValue     // [out] Register Value
     ) const
 {
-    pRegValue->gbAddrConfig = m_pParent->ChipProperties().gfx9.gbAddrConfig;
+    const Gfx9PalSettings& settings = GetGfx9Settings(*Parent());
+    if (settings.addrLibGbAddrConfigOverride == 0)
+    {
+        pRegValue->gbAddrConfig = m_pParent->ChipProperties().gfx9.gbAddrConfig;
+    }
+    else
+    {
+        pRegValue->gbAddrConfig = settings.addrLibGbAddrConfigOverride;
+    }
+
     pCreateFlags->nonPower2MemConfig = (IsPowerOfTwo(m_pParent->MemoryProperties().vramBusBitWidth) == false);
 
     return Result::Success;

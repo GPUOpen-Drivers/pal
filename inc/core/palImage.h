@@ -181,7 +181,12 @@ union ImageCreateFlags
         uint32 shareable               :  1; ///< Image can be shared between compatible devices.
         uint32 presentable             :  1; ///< Indicates this image can be used in presents.
         uint32 flippable               :  1; ///< Image can be used for flip presents.
-        uint32 stereo                  :  1; ///< Whether it is a stereo image
+        uint32 stereo                  :  1; ///< Indicates AMD quad buffer stereo extension (AQBS extension) image
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 612
+        uint32 dxgiStereo              :  1; ///< Indicates DXGI stereo (Win8 stereo) image
+#else
+        uint32 reserved612             :  1;
+#endif
         uint32 cubemap                 :  1; ///< Image will be used as a cubemap.
         uint32 prt                     :  1; ///< Image is a partially resident texture (aka, sparse image or tiled
                                              ///  resource)
@@ -233,7 +238,7 @@ union ImageCreateFlags
 #else
         uint32 reserved586             :  1;
 #endif
-        uint32 reserved                : 10; ///< Reserved for future use.
+        uint32 reserved                :  9; ///< Reserved for future use.
     };
     uint32 u32All;                           ///< Flags packed as 32-bit uint.
 };

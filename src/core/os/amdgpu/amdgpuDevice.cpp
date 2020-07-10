@@ -3753,6 +3753,17 @@ Result Device::ImportSyncObject(
 }
 
 // =====================================================================================================================
+Result Device::SignalSyncObject(
+    amdgpu_syncobj_handle*      pSyncObject,
+    uint32                      numSyncObject
+    ) const
+{
+    int32 ret = m_drmProcs.pfnAmdgpuCsSyncobjSignal(m_hDevice, pSyncObject, numSyncObject);
+
+    return CheckResult(ret, Result::ErrorUnknown);
+}
+
+// =====================================================================================================================
 Result Device::CreateSemaphore(
     bool                     isCreatedSignaled,
     bool                     isCreatedTimeline,

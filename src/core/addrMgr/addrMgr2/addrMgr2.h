@@ -323,6 +323,12 @@ private:
         const ADDR2_GET_PREFERRED_SURF_SETTING_OUTPUT& surfaceSetting,
         const ADDR2_COMPUTE_SURFACE_INFO_OUTPUT&       surfaceInfo) const;
 
+    uint32 GetStereoRightEyePipeBankXor(
+        const Image&                                   image,
+        const SubResourceInfo*                         pSubResInfo,
+        const ADDR2_GET_PREFERRED_SURF_SETTING_OUTPUT& surfaceSetting,
+        uint32                                         basePipeBankXor) const;
+
     void Gfx9InitSubresource(
         const SubResIterator&  subResIt,
         SubResourceInfo*       pSubResInfoList,

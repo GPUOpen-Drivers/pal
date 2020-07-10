@@ -24,50 +24,63 @@
  #######################################################################################################################
 
 include(PalVersionHelper)
-include(PalCompilerOptions)
 
 ### Create PAL Library #################################################################################################
 add_library(pal STATIC)
 
-### Compiler Options ###################################################################################################
-pal_compiler_options()
+### PAL Subprojects ####################################################################################################
+### ADDRLIB ####################################################################
+add_subdirectory(${PAL_ADDR_PATH} ${PROJECT_BINARY_DIR}/addrlib)
+target_link_libraries(pal PUBLIC addrlib)
 
-### Add cmake files  ###################################################################################################
-target_sources(pal PRIVATE
-    ${PROJECT_SOURCE_DIR}/CMakeLists.txt
-    # PAL/XGL modules
-    ${PROJECT_SOURCE_DIR}/cmake/Modules/SetupAmdGlobalRoots.cmake
-    ${PROJECT_SOURCE_DIR}/cmake/Modules/AmdCmakeHelper.cmake
-    ${PROJECT_SOURCE_DIR}/cmake/Modules/FindDRM.cmake
-    ${PROJECT_SOURCE_DIR}/cmake/Modules/FindWayland.cmake
-    ${PROJECT_SOURCE_DIR}/cmake/Modules/FindXCB.cmake
-    # PAL modules
-    ${PROJECT_SOURCE_DIR}/cmake/PalCompileDefinitions.cmake
-    ${PROJECT_SOURCE_DIR}/cmake/PalCompileDefinitionsGpu.cmake
-    ${PROJECT_SOURCE_DIR}/cmake/PalCompilerOptions.cmake
-    ${PROJECT_SOURCE_DIR}/cmake/PalCompilerWarnings.cmake
-    ${PROJECT_SOURCE_DIR}/cmake/PalOptions.cmake
-    ${PROJECT_SOURCE_DIR}/cmake/PalOverrides.cmake
-    ${PROJECT_SOURCE_DIR}/cmake/PalOverridesGpu.cmake
-    ${PROJECT_SOURCE_DIR}/cmake/PalVersionHelper.cmake
-)
+### VAM ########################################################################
+add_subdirectory(${PAL_VAM_PATH} ${PROJECT_BINARY_DIR}/vam)
+target_link_libraries(pal PUBLIC vam)
+
+### METROHASH ##################################################################
+if(NOT TARGET metrohash)
+    add_subdirectory(${PAL_METROHASH_PATH} ${PROJECT_BINARY_DIR}/metrohash)
+endif()
+target_link_libraries(pal PUBLIC metrohash)
+
+### CWPACK #####################################################################
+if(NOT TARGET cwpack)
+    add_subdirectory(${PAL_CWPACK_PATH} ${PROJECT_BINARY_DIR}/cwpack)
+endif()
+target_link_libraries(pal PUBLIC cwpack)
+
+### GPUOPEN ####################################################################
+if(PAL_BUILD_GPUOPEN)
+    add_subdirectory(${PAL_GPUOPEN_PATH} ${PROJECT_BINARY_DIR}/gpuopen)
+    target_link_libraries(pal PUBLIC gpuopen)
+endif()
+
+### Link Libraries #####################################################################################################
+if(UNIX)
+    target_link_libraries(pal PRIVATE dl)
+
+        target_link_libraries(pal INTERFACE pthread)
+
+endif()
 
 ### Include Directories ################################################################################################
+
 # PAL Include Directories
 target_include_directories(pal
     PUBLIC
-        ${PROJECT_SOURCE_DIR}/inc
-        ${PROJECT_SOURCE_DIR}/inc/core
-        ${PROJECT_SOURCE_DIR}/inc/gpuUtil
-        ${PROJECT_SOURCE_DIR}/inc/util
-        ${PROJECT_SOURCE_DIR}/shared/inc
+        ${PAL_SOURCE_DIR}/inc
+        ${PAL_SOURCE_DIR}/inc/core
+        ${PAL_SOURCE_DIR}/inc/gpuUtil
+        ${PAL_SOURCE_DIR}/inc/util
+        ${PAL_SOURCE_DIR}/shared/inc
     PRIVATE
-        ${PROJECT_SOURCE_DIR}/res
-        ${PROJECT_SOURCE_DIR}/src
+        ${PAL_SOURCE_DIR}/res
+        ${PAL_SOURCE_DIR}/src
 )
 
-# CMAKE-TODO: Check this for correctness.  Why does xgl set this and not PAL?
-if(UNIX)
+set(PAL_XCB_REQUIRED ON)
+
+if(UNIX AND PAL_XCB_REQUIRED)
     # Needed for dri3Loader.h
     if(NOT DEFINED DK_X11)
         if(DEFINED GLOBAL_ROOT_DK_DIR)
@@ -103,9 +116,11 @@ if(UNIX)
         message_debug("DK_XCB not set.  Defaulting to ${DK_XCB}")
     endif()
     target_include_directories(pal PRIVATE ${DK_XCB}/include)
+endif()
 
-    target_include_directories(pal PRIVATE ${PROJECT_SOURCE_DIR}/src/core/os/amdgpu/include/2d)
-    target_include_directories(pal PRIVATE ${PROJECT_SOURCE_DIR}/src/core/os/amdgpu/include/drm)
+if(PAL_AMDGPU_BUILD)
+    target_include_directories(pal PRIVATE ${PAL_SOURCE_DIR}/src/core/os/amdgpu/include/2d)
+    target_include_directories(pal PRIVATE ${PAL_SOURCE_DIR}/src/core/os/amdgpu/include/drm)
 endif()
 
 # Other Includes
@@ -120,34 +135,28 @@ if(IncludeInternalHeaders)
     )
 endif()
 
-### PAL Subprojects ####################################################################################################
-### ADDRLIB ####################################################################
-add_subdirectory(${PAL_ADDR_PATH} ${PROJECT_BINARY_DIR}/addrlib)
-target_link_libraries(pal PUBLIC addrlib)
-
-### VAM ########################################################################
-add_subdirectory(${PAL_VAM_PATH} ${PROJECT_BINARY_DIR}/vam)
-target_link_libraries(pal PUBLIC vam)
-
-### METROHASH ##################################################################
-if(NOT TARGET metrohash)
-    add_subdirectory(${PAL_METROHASH_PATH} ${PROJECT_BINARY_DIR}/metrohash)
-endif()
-target_link_libraries(pal PUBLIC metrohash)
-
-### CWPACK #####################################################################
-if(NOT TARGET cwpack)
-    add_subdirectory(${PAL_CWPACK_PATH} ${PROJECT_BINARY_DIR}/cwpack)
-endif()
-target_link_libraries(pal PUBLIC cwpack)
-
-### GPUOPEN ####################################################################
-if(PAL_BUILD_GPUOPEN)
-    add_subdirectory(${PAL_GPUOPEN_PATH} ${PROJECT_BINARY_DIR}/gpuopen)
-    target_link_libraries(pal PUBLIC gpuopen)
-endif()
-
 ### PAL Sources ########################################################################################################
+
+### Add cmake files  ###################################################################################################
+target_sources(pal PRIVATE
+    ${PAL_SOURCE_DIR}/CMakeLists.txt
+    # PAL/XGL modules
+    ${PAL_SOURCE_DIR}/cmake/Modules/SetupAmdGlobalRoots.cmake
+    ${PAL_SOURCE_DIR}/cmake/Modules/AmdCmakeHelper.cmake
+    ${PAL_SOURCE_DIR}/cmake/Modules/FindDRM.cmake
+    ${PAL_SOURCE_DIR}/cmake/Modules/FindWayland.cmake
+    ${PAL_SOURCE_DIR}/cmake/Modules/FindXCB.cmake
+    # PAL modules
+    ${PAL_SOURCE_DIR}/cmake/PalCompileDefinitions.cmake
+    ${PAL_SOURCE_DIR}/cmake/PalCompileDefinitionsGpu.cmake
+    ${PAL_SOURCE_DIR}/cmake/PalCompilerOptions.cmake
+    ${PAL_SOURCE_DIR}/cmake/PalCompilerWarnings.cmake
+    ${PAL_SOURCE_DIR}/cmake/PalOptions.cmake
+    ${PAL_SOURCE_DIR}/cmake/PalOverrides.cmake
+    ${PAL_SOURCE_DIR}/cmake/PalOverridesGpu.cmake
+    ${PAL_SOURCE_DIR}/cmake/PalVersionHelper.cmake
+)
+
 ### PAL core ###################################################################
 if(PAL_BUILD_CORE)
     # CMAKE-TODO: check if this is still valid with the cmake targets.  I don't think it matters.
@@ -256,7 +265,7 @@ if(PAL_BUILD_CORE)
 
         if(PAL_BUILD_DRI3)
             message_verbose("PAL build with DRI3 enabled")
-            target_include_directories(pal PRIVATE ${PROJECT_SOURCE_DIR}/src/core/os/amdgpu/dri3)
+            target_include_directories(pal PRIVATE ${PAL_SOURCE_DIR}/src/core/os/amdgpu/dri3)
             target_sources(pal PRIVATE
                core/os/amdgpu/dri3/dri3WindowSystem.cpp
                core/os/amdgpu/dri3/g_dri3Loader.cpp
@@ -266,7 +275,7 @@ if(PAL_BUILD_CORE)
         if(PAL_BUILD_WAYLAND)
             message_verbose("PAL build with Wayland enabled")
             find_package(Wayland)
-            target_include_directories(pal PRIVATE ${PROJECT_SOURCE_DIR}/src/core/os/amdgpu/wayland)
+            target_include_directories(pal PRIVATE ${PAL_SOURCE_DIR}/src/core/os/amdgpu/wayland)
             target_sources(pal PRIVATE
                 core/os/amdgpu/wayland/g_waylandLoader.cpp
                 core/os/amdgpu/wayland/waylandWindowSystem.cpp
@@ -565,14 +574,6 @@ if(UNIX)
         util/lnx/lnxThread.cpp
         util/lnx/lnxTimeout.cpp
     )
-endif()
-
-### Link Libraries #####################################################################################################
-if(UNIX)
-    target_link_libraries(pal PRIVATE dl)
-
-        target_link_libraries(pal INTERFACE pthread)
-
 endif()
 
 ### Find headers and build source groups ###############################################################################

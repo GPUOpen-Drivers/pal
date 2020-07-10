@@ -94,7 +94,7 @@ union GpuMemoryCreateFlags
         uint32 interprocess     :  1; ///< Memory will be visible to other processes (they may choose to open it).
         uint32 presentable      :  1; ///< Memory can be bound to an image that will be used by presents.
         uint32 flippable        :  1; ///< Memory can be bound to an image that will be used by flip presents.
-        uint32 stereo           :  1; ///< Gpu memory will be used for stereo.
+        uint32 stereo           :  1; ///< Memory will be used for stereo (DXGI or AQBS stereo).
         uint32 globallyCoherent :  1; ///< Memory needs to be globally coherent, indicating the driver must manage both
                                       ///  CPU caches and GPU caches that are not flushed on command buffer boundaries.
         uint32 xdmaBuffer       :  1; ///< GPU memory will be used for an XDMA cache buffer for transferring data

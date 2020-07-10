@@ -75,10 +75,12 @@ static PAL_INLINE size_t AdjustScratchWaveSize(
 // =====================================================================================================================
 ShaderRing::ShaderRing(
     Device*    pDevice,
-    BufferSrd* pSrdTable)
+    BufferSrd* pSrdTable,
+    bool       isTmz)
     :
     m_pDevice(pDevice),
     m_pSrdTable(pSrdTable),
+    m_tmzEnabled(isTmz),
     m_allocSize(0),
     m_numMaxWaves(0),
     m_itemSizeMax(0),
@@ -139,16 +141,18 @@ Result ShaderRing::AllocateVideoMemory(
 
     if (ringType == ShaderRingType::SamplePos)
     {
+        // SamplePos doesn't need a TMZ allocation because it's updated by the CPU and only read by the GPU.
         createInfo.heaps[0]  = GpuHeapLocal;
         createInfo.heaps[1]  = GpuHeapGartUswc;
         createInfo.heapCount = 2;
     }
     else
     {
-        createInfo.heaps[0]  = GpuHeapInvisible;
-        createInfo.heaps[1]  = GpuHeapLocal;
-        createInfo.heaps[2]  = GpuHeapGartUswc;
-        createInfo.heapCount = 3;
+        createInfo.flags.tmzProtected = m_tmzEnabled;
+        createInfo.heaps[0]           = GpuHeapInvisible;
+        createInfo.heaps[1]           = GpuHeapLocal;
+        createInfo.heaps[2]           = GpuHeapGartUswc;
+        createInfo.heapCount          = 3;
     }
 
     // Allocate video memory for this Ring.
@@ -199,9 +203,10 @@ Result ShaderRing::Validate(
 ScratchRing::ScratchRing(
     Device*       pDevice,
     BufferSrd*    pSrdTable,
-    Pm4ShaderType shaderType)
+    Pm4ShaderType shaderType,
+    bool          isTmz)
     :
-    ShaderRing(pDevice, pSrdTable),
+    ShaderRing(pDevice, pSrdTable, isTmz),
     m_shaderType(shaderType),
     m_numTotalCus(0)
 {
@@ -326,9 +331,10 @@ void ScratchRing::UpdateSrds() const
 // =====================================================================================================================
 GsVsRing::GsVsRing(
     Device*    pDevice,
-    BufferSrd* pSrdTable)
+    BufferSrd* pSrdTable,
+    bool       isTmz)
     :
-    ShaderRing(pDevice, pSrdTable)
+    ShaderRing(pDevice, pSrdTable, isTmz)
 {
     const GpuChipProperties& chipProps = m_pDevice->Parent()->ChipProperties();
 
@@ -418,9 +424,10 @@ void GsVsRing::UpdateSrds() const
 // =====================================================================================================================
 TessFactorBuffer::TessFactorBuffer(
     Device*    pDevice,
-    BufferSrd* pSrdTable)
+    BufferSrd* pSrdTable,
+    bool       isTmz)
     :
-    ShaderRing(pDevice, pSrdTable)
+    ShaderRing(pDevice, pSrdTable, isTmz)
 {
     const GpuChipProperties& chipProps = m_pDevice->Parent()->ChipProperties();
 
@@ -460,9 +467,10 @@ void TessFactorBuffer::UpdateSrds() const
 // =====================================================================================================================
 OffchipLdsBuffer::OffchipLdsBuffer(
     Device*    pDevice,
-    BufferSrd* pSrdTable) // Pointer to our parent ring-set's SRD table
+    BufferSrd* pSrdTable, // Pointer to our parent ring-set's SRD table
+    bool       isTmz)
     :
-    ShaderRing(pDevice, pSrdTable)
+    ShaderRing(pDevice, pSrdTable, isTmz)
 {
     const GpuChipProperties& chipProps = m_pDevice->Parent()->ChipProperties();
 
@@ -500,9 +508,10 @@ void OffchipLdsBuffer::UpdateSrds() const
 // =====================================================================================================================
 SamplePosBuffer::SamplePosBuffer(
     Device*    pDevice,
-    BufferSrd* pSrdTable) // Pointer to our parent ring-set's SRD table
+    BufferSrd* pSrdTable, // Pointer to our parent ring-set's SRD table
+    bool       isTmz)
     :
-    ShaderRing(pDevice, pSrdTable)
+    ShaderRing(pDevice, pSrdTable, isTmz)
 {
     constexpr uint32 SamplePosBufStride = sizeof(float) * 4;
 

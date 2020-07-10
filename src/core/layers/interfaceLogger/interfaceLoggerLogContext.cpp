@@ -1216,7 +1216,7 @@ const char* LogContext::GetQueueName(
     const uint32 idx = static_cast<uint32>(value);
     PAL_ASSERT(idx < QueueTypeCount);
 
-    return StringTable[value];
+    return StringTable[idx];
 }
 
 // =====================================================================================================================
@@ -1244,7 +1244,7 @@ const char* LogContext::GetEngineName(
     const uint32 idx = static_cast<uint32>(value);
     PAL_ASSERT(idx < EngineTypeCount);
 
-    return StringTable[value];
+    return StringTable[idx];
 }
 
 } // InterfaceLogger

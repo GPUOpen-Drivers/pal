@@ -31,6 +31,7 @@
 #include "core/os/amdgpu/amdgpuImage.h"
 #include "core/os/amdgpu/amdgpuPresentScheduler.h"
 #include "core/os/amdgpu/amdgpuQueue.h"
+#include "core/os/amdgpu/amdgpuSyncobjFence.h"
 #include "core/os/amdgpu/amdgpuSwapChain.h"
 #include "core/os/amdgpu/amdgpuWindowSystem.h"
 
@@ -291,19 +292,6 @@ Result PresentScheduler::SignalOnAcquire(
 
     if (static_cast<Device*>(m_pDevice)->GetSemaphoreType() == SemaphoreType::SyncObj)
     {
-        InternalSubmitInfo internalSubmitInfo = {};
-
-        constexpr PerSubQueueSubmitInfo perSubQueueInfo = {};
-        MultiSubmitInfo submitInfo      = {};
-        submitInfo.perSubQueueInfoCount = 1;
-        submitInfo.pPerSubQueueInfo     = &perSubQueueInfo;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 568
-        submitInfo.ppFences             = &pFence;
-        submitInfo.fenceCount           = (pFence != nullptr) ? 1 : 0;
-#else
-        submitInfo.pFence               = pFence;
-#endif
-
         if ((result == Result::Success) && (pPresentComplete != nullptr))
         {
             result = m_pSignalQueue->WaitQueueSemaphore(pPresentComplete);
@@ -311,21 +299,29 @@ Result PresentScheduler::SignalOnAcquire(
 
         if (result == Result::Success)
         {
+            amdgpu_syncobj_handle syncObjects[2] = { 0, 0 };
+            uint32 numSyncObj = 0;
+
             if (pSemaphore != nullptr)
             {
-                internalSubmitInfo.signalSemaphoreCount = 1;
-                internalSubmitInfo.ppSignalSemaphores = &pSemaphore;
                 static_cast<MasterQueueSemaphore*>(pSemaphore)->EarlySignal();
+                amdgpu_semaphore_handle hSemaphore = static_cast<const QueueSemaphore*>(pSemaphore)->GetSyncObjHandle();
+                syncObjects[numSyncObj] = reinterpret_cast<uintptr_t>(hSemaphore);
+                numSyncObj++;
             }
 
             if (pFence != nullptr)
             {
                 static_cast<Queue*>(m_pSignalQueue)->AssociateFenceWithContext(pFence);
+                syncObjects[numSyncObj] = static_cast<const SyncobjFence*>(pFence)->SyncObjHandle();
+                numSyncObj++;
             }
 
-            static_cast<Queue*>(m_pSignalQueue)->SubmitConfig(submitInfo, &internalSubmitInfo);
+            if (numSyncObj > 0)
+            {
+                result = static_cast<Device*>(m_pDevice)->SignalSyncObject(syncObjects, numSyncObj);
+            }
 
-            result = static_cast<Queue*>(m_pSignalQueue)->OsSubmit(submitInfo, &internalSubmitInfo);
             PAL_ASSERT(result == Result::Success);
         }
     }

@@ -59,7 +59,7 @@ using UniversalQueueDeferFreeList = DeferFreeListItem<UniversalQueueCmdStreamNum
 class ComputeQueueContext : public QueueContext
 {
 public:
-    ComputeQueueContext(Device* pDevice, Engine* pEngine, uint32 queueId);
+    ComputeQueueContext(Device* pDevice, Engine* pEngine, uint32 queueId, bool isTmz);
     virtual ~ComputeQueueContext() { }
 
     Result Init();
@@ -67,7 +67,6 @@ public:
     virtual Result PreProcessSubmit(InternalSubmitInfo* pSubmitInfo, uint32 cmdBufferCount) override;
     virtual void PostProcessSubmit() override;
 
-    ComputeRingSet* RingSet() { return &m_ringSet; }
     Result UpdateRingSet(bool* pHasChanged, bool* pHasDeferred, uint64* lastTimeStamp);
 
 private:
@@ -116,8 +115,7 @@ public:
     virtual void PostProcessSubmit() override;
     virtual Result ProcessInitialSubmit(InternalSubmitInfo* pSubmitInfo) override;
 
-    UniversalRingSet* RingSet() { return &m_ringSet; }
-    Result UpdateRingSet(bool* pHasChanged, bool* pHasDeferred, uint64* lastTimeStamp);
+    Result UpdateRingSet(bool isTmz, bool* pHasChanged, bool* pHasDeferred, uint64* lastTimeStamp);
 
 private:
     Result BuildShadowPreamble();
@@ -127,7 +125,7 @@ private:
                             UniversalQueueDeferFreeList* pList,
                             uint32*                      pIndex);
 
-    Result RebuildCommandStreams(bool pHasDeferred, uint64 lastTimeStamp);
+    Result RebuildCommandStreams(bool isTmz, bool pHasDeferred, uint64 lastTimeStamp);
 
     Result AllocateShadowMemory();
 
@@ -143,9 +141,15 @@ private:
     UniversalEngine*const m_pEngine;
     uint32                m_queueId;
     UniversalRingSet      m_ringSet;
+    UniversalRingSet      m_tmzRingSet;
 
     // Current watermark for the device-initiated context updates which have been processed by this queue context.
     uint32  m_currentUpdateCounter;
+
+    uint32  m_currentUpdateCounterTmz;
+
+    // Indicates whether the current command streams use TMZ protected ring sets.
+    bool    m_cmdsUseTmzRing;
 
     // GPU memory allocation used for shadowing persistent CE RAM between submissions.
     bool            m_useShadowing;

@@ -877,6 +877,38 @@ Result AddrMgr2::ComputeAlignedPlaneDimensions(
 }
 
 // =====================================================================================================================
+// Compute the pipe-bank xor of right eye surface for DXGI stereo
+uint32 AddrMgr2::GetStereoRightEyePipeBankXor(
+    const Image&                                   image,
+    const SubResourceInfo*                         pSubResInfo,
+    const ADDR2_GET_PREFERRED_SURF_SETTING_OUTPUT& surfaceSetting,
+    uint32                                         basePipeBankXor
+    ) const
+{
+    ADDR2_COMPUTE_SLICE_PIPEBANKXOR_INPUT  inSliceXor      = { 0 };
+    ADDR2_COMPUTE_SLICE_PIPEBANKXOR_OUTPUT outSliceXor     = { 0 };
+    const ImageCreateInfo&                 imageCreateInfo = image.GetImageCreateInfo();
+    Pal::Device*                           pDevice         = image.GetDevice();
+
+    inSliceXor.size            = sizeof(ADDR2_COMPUTE_SLICE_PIPEBANKXOR_INPUT);
+    inSliceXor.swizzleMode     = surfaceSetting.swizzleMode;
+    inSliceXor.resourceType    = surfaceSetting.resourceType;
+    inSliceXor.bpe             = ElemSize(AddrLibHandle(), Image::GetAddrFormat(pSubResInfo->format.format));
+    // We always have DXGI stereo primary's base PipeBankXor as zero for GFX9
+    PAL_ASSERT(basePipeBankXor == 0);
+    inSliceXor.basePipeBankXor = basePipeBankXor;
+    inSliceXor.slice           = 1;
+    inSliceXor.numSamples      = imageCreateInfo.samples;
+
+    ADDR_E_RETURNCODE addrRetCode = Addr2ComputeSlicePipeBankXor(pDevice->AddrLibHandle(),
+                                                                 &inSliceXor,
+                                                                 &outSliceXor);
+    PAL_ASSERT(addrRetCode == ADDR_OK);
+
+    return outSliceXor.pipeBankXor;
+}
+
+// =====================================================================================================================
 // Initialize the information for a single subresource given the properties of its aspect plane (as computed by
 // AddrLib).
 Result AddrMgr2::InitSubresourceInfo(
@@ -1008,6 +1040,20 @@ Result AddrMgr2::InitSubresourceInfo(
         pSubResInfo->blockSize.width  = surfaceInfo.blockWidth;
         pSubResInfo->blockSize.height = surfaceInfo.blockHeight;
         pSubResInfo->blockSize.depth  = surfaceInfo.blockSlices;
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 612
+        // Initialize the pipe-bank xor of right eye surface for DXGI stereo.
+        if ((pImage->GetImageCreateInfo().flags.dxgiStereo == 1) && (pSubResInfo->subresId.arraySlice == 1))
+        {
+            const SubresId baseSubRes    = { ImageAspect::Color, 0, 0 };
+            const uint32 basePipeBankXor = GetTileSwizzle(pImage, baseSubRes);
+
+            pTileInfo->pipeBankXor = GetStereoRightEyePipeBankXor(*pImage,
+                                                                  pSubResInfo,
+                                                                  surfaceSetting,
+                                                                  basePipeBankXor);
+        }
+#endif
 
         // In order to support Parameterized Swizzle for mipmapped arrays and for mipmapped tex2d resources,
         // we must call into AddrLib to calculate a special offset for this subresource. This offset should

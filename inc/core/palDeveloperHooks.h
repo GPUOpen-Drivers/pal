@@ -338,6 +338,7 @@ struct ImageDataAddrMgrSurfInfo
         } gfx6;
         struct
         {
+            uint32 swizzle;         ///< Swizzle mode.
         } gfx9;
     } tiling;
 
