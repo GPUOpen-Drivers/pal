@@ -89,6 +89,7 @@ GfxCmdBuffer::GfxCmdBuffer(
 GfxCmdBuffer::~GfxCmdBuffer()
 {
     ReturnGeneratedCommandChunks(true);
+    ResetFastClearReferenceCounts();
 
     Device* device = m_device.Parent();
 

@@ -25,8 +25,7 @@
 
 cmake_minimum_required(VERSION 3.5...3.16)
 project(PAL
-    # If you are wondering why C is also specified. It's because otherwise you get an obscure error during configuration with Ninja.
-    # TODO: Investigate and fix this!
+    # While PAL is primarily a C++ library, it also has some C files.
     LANGUAGES CXX C
 )
 
@@ -38,6 +37,7 @@ include(PalVersionHelper)
 include(PalOptions)
 include(PalOverrides)
 include(PalCompileDefinitions)
+include(PalCompilerOptions)
 
 ### Project Options ####################################################################################################
 pal_options()
@@ -50,3 +50,6 @@ add_subdirectory(src)
 
 ### Build Definitions ##################################################################################################
 pal_compile_definitions()
+
+### Compiler Options ###################################################################################################
+pal_compiler_options()

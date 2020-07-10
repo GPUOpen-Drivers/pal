@@ -186,6 +186,8 @@ protected:
         const GraphicsPipelineLoadInfo&   loadInfo,
         GraphicsPipelineUploader*         pUploader);
 
+    Device*const m_pDevice;
+
 private:
 
     uint32 CalcMaxWavesPerSh(
@@ -258,7 +260,6 @@ private:
     SX_DOWNCONVERT_FORMAT SxDownConvertFormat(ChNumFormat format) const;
 
     const GfxIpLevel  m_gfxLevel;
-    Device*const      m_pDevice;
     uint32            m_contextRegHash;
     uint32            m_configRegHash;
     bool              m_isNggFastLaunch; ///< Is NGG fast launch enabled?

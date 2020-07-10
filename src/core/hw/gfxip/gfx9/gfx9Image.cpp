@@ -842,6 +842,40 @@ Result Image::Finalize(
         {
             m_device.GetAddrMgr()->ComputePackedMipInfo(*Parent(), pGpuMemLayout);
         }
+
+#if PAL_DEVELOPER_BUILD
+        const ImageInternalCreateInfo* pImageInternalCreateInfo = &(m_pImageInfo->internalCreateInfo);
+        if (m_pParent != nullptr)
+        {
+            const SubResourceInfo* pSubResInfo = m_pParent->SubresourceInfo(0);
+            if (pSubResInfo != nullptr)
+            {
+                Developer::ImageDataAddrMgrSurfInfo data = {};
+
+                data.tiling.gfx9.swizzle = pImageInternalCreateInfo->gfx9.sharedSwizzleMode;
+
+                data.flags.properties.color = m_createInfo.usageFlags.colorTarget;
+                data.flags.properties.depth = m_createInfo.usageFlags.depthStencil;
+                data.flags.properties.stencil = (m_createInfo.usageFlags.noStencilShaderRead == 0);
+                data.flags.properties.texture = m_createInfo.usageFlags.shaderRead;
+                data.flags.properties.volume = (m_createInfo.imageType == ImageType::Tex3d);
+                data.flags.properties.cube = m_createInfo.flags.cubemap;
+                data.flags.properties.fmask = HasFmaskData();
+                data.flags.properties.display = m_createInfo.flags.flippable;
+                data.flags.properties.prt = m_createInfo.flags.prt;
+                data.flags.properties.tcCompatible = pSubResInfo->flags.supportMetaDataTexFetch;
+                data.flags.properties.dccCompatible = HasDccData();
+
+                data.size = m_pParent->GetGpuMemSize();
+                data.bpp = pSubResInfo->bitsPerTexel;
+                data.width = m_createInfo.extent.width;
+                data.height = m_createInfo.extent.height;
+                data.depth = m_createInfo.extent.depth;
+
+                m_device.DeveloperCb(Developer::CallbackType::CreateImage, &data);
+            }
+        }
+#endif
     }
 
     return result;

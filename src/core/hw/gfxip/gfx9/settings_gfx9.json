@@ -3008,6 +3008,23 @@
       "Type": "bool",
       "VariableName": "disableAceCsPartialFlush",
       "Name": "DisableAceCsPartialFlush"
+    },
+    {
+      "Description": "Override the value of GB_ADDR_CONFIG sent to the address library with this value. This setting is intended for Architecture Modeling purposes only and cannot be safely modified. 0 means do not override",
+      "Tags": [
+        "General",
+        "Gfx9"
+      ],
+      "Flags": {
+        "IsHex": true
+      },
+      "Defaults": {
+        "Default": 0
+      },
+      "Scope": "PrivatePalGfx9Key",
+      "Type": "uint32",
+      "VariableName": "addrLibGbAddrConfigOverride",
+      "Name": "AddrLibGbAddrConfigOverride"
     }
   ]
 }

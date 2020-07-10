@@ -1671,6 +1671,16 @@ void LogContext::Struct(
         Value("shaderWrite");
     }
 
+    if (value.resolveSrc)
+    {
+        Value("resolveSrc");
+    }
+
+    if (value.resolveDst)
+    {
+        Value("resolveDst");
+    }
+
     if (value.colorTarget)
     {
         Value("colorTarget");
@@ -1695,6 +1705,25 @@ void LogContext::Struct(
     {
         Value("depthAsZ24");
     }
+
+    if (value.cornerSampling)
+    {
+        Value("cornerSampling");
+    }
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 597
+    if (value.disableOptimizedDisplay)
+    {
+        Value("disableOptimizedDisplay");
+    }
+#endif
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 602
+    if (value.useLossy)
+    {
+        Value("useLossy");
+    }
+#endif
 
     EndList();
     KeyAndValue("firstShaderWritableMip", value.firstShaderWritableMip);

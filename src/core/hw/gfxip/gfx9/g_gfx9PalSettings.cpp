@@ -215,6 +215,7 @@ void SettingsLoader::SetupDefaults()
     m_settings.depthStencilFastClearComputeThresholdMultiSampled = 4194304;
     m_settings.gfx10MaxFpovsInWave = 0;
     m_settings.disableAceCsPartialFlush = true;
+    m_settings.addrLibGbAddrConfigOverride = 0x0;
     m_settings.numSettings = g_gfx9PalNumSettings;
 }
 
@@ -976,6 +977,11 @@ void SettingsLoader::ReadSettings()
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pDisableAceCsPartialFlushStr,
                            Util::ValueType::Boolean,
                            &m_settings.disableAceCsPartialFlush,
+                           InternalSettingScope::PrivatePalGfx9Key);
+
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pAddrLibGbAddrConfigOverrideStr,
+                           Util::ValueType::Uint,
+                           &m_settings.addrLibGbAddrConfigOverride,
                            InternalSettingScope::PrivatePalGfx9Key);
 
 }
@@ -2000,6 +2006,11 @@ void SettingsLoader::InitSettingsInfo()
     info.valueSize = sizeof(m_settings.disableAceCsPartialFlush);
     m_settingsInfoMap.Insert(4181362005, info);
 
+    info.type      = SettingType::Uint;
+    info.pValuePtr = &m_settings.addrLibGbAddrConfigOverride;
+    info.valueSize = sizeof(m_settings.addrLibGbAddrConfigOverride);
+    m_settingsInfoMap.Insert(4156569361, info);
+
 }
 
 // =====================================================================================================================
@@ -2021,7 +2032,7 @@ void SettingsLoader::DevDriverRegister()
             component.pfnSetValue = ISettingsLoader::SetValue;
             component.pSettingsData = &g_gfx9PalJsonData[0];
             component.settingsDataSize = sizeof(g_gfx9PalJsonData);
-            component.settingsDataHash = 1785477024;
+            component.settingsDataHash = 4178373512;
             component.settingsDataHeader.isEncoded = true;
             component.settingsDataHeader.magicBufferId = 402778310;
             component.settingsDataHeader.magicBufferOffset = 0;

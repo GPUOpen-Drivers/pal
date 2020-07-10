@@ -99,12 +99,15 @@ Result CreateRpmComputePipelines(
 
     case AsicRevision::Carrizo:
     case AsicRevision::Bristol:
-    case AsicRevision::Stoney:
     case AsicRevision::Fiji:
     case AsicRevision::Polaris10:
     case AsicRevision::Polaris11:
     case AsicRevision::Polaris12:
         pTable = rpmComputeBinaryTableCarrizo;
+        break;
+
+    case AsicRevision::Stoney:
+        pTable = rpmComputeBinaryTableStoney;
         break;
 
     case AsicRevision::Iceland:
@@ -402,6 +405,12 @@ Result CreateRpmComputePipelines(
     {
         result = CreateRpmComputePipeline(
             RpmComputePipeline::GenerateMipmaps, pDevice, pTable, pPipelineMem);
+    }
+
+    if (result == Result::Success)
+    {
+        result = CreateRpmComputePipeline(
+            RpmComputePipeline::GenerateMipmapsLowp, pDevice, pTable, pPipelineMem);
     }
 
     if (result == Result::Success)

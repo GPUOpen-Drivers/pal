@@ -197,8 +197,8 @@ GraphicsPipeline::GraphicsPipeline(
     bool    isInternal)
     :
     Pal::GraphicsPipeline(pDevice->Parent(), isInternal),
-    m_gfxLevel(pDevice->Parent()->ChipProperties().gfxLevel),
     m_pDevice(pDevice),
+    m_gfxLevel(pDevice->Parent()->ChipProperties().gfxLevel),
     m_contextRegHash(0),
     m_configRegHash(0),
     m_isNggFastLaunch(false),

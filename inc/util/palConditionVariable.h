@@ -32,6 +32,7 @@
 #pragma once
 
 #include "palUtil.h"
+#include "palMutex.h"
 
 #if   defined(__unix__)
 #include <pthread.h>
@@ -39,9 +40,6 @@
 
 namespace Util
 {
-
-// Forward declarations.
-class Mutex;
 
 /**
  ***********************************************************************************************************************

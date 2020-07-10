@@ -160,11 +160,13 @@ struct PipelineMetadata
             uint32 nggSubgroupSize                : 1;
             uint32 numInterpolants                : 1;
             uint32 placeholder0                   : 1;
-            uint32 calcWaveBreakSizeAtDrawTime    : 1;
             uint32 placeholder1                   : 1;
+            uint32 placeholder2                   : 1;
+            uint32 calcWaveBreakSizeAtDrawTime    : 1;
+            uint32 placeholder3                   : 1;
             uint32 api                            : 1;
             uint32 apiCreateInfo                  : 1;
-            uint32 reserved                       : 14;
+            uint32 reserved                       : 12;
         };
         uint32 uAll;
     } hasEntry;

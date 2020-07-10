@@ -901,12 +901,9 @@ public:
     void KeyAndClientData(const char* pKey, void* pClientData)
         { Key(pKey); Value(reinterpret_cast<uintptr_t>(pClientData)); }
 
-    // Unlike the other member functions, this helper function returns the name of the given queue type (e.g., Compute)
-    // and does not modify the LogContext. It is intended to help label some PAL arrays that index by QueueType.
+    // Unlike the other member functions, these helper functions return a human readable name for the given enum value
+    // and do not modify the LogContext. They are intended to help label some PAL arrays that index using enums.
     static const char* GetQueueName(QueueType value);
-
-    // Unlike the other member functions, this helper function returns the name of the given engine type (e.g., Compute)
-    // and does not modify the LogContext. It is intended to help label some PAL arrays that index by EngineType.
     static const char* GetEngineName(EngineType value);
 
 private:

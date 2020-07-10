@@ -1819,6 +1819,24 @@
       "Type": "bool",
       "VariableName": "mipGenUseFastPath",
       "Description": "Experimental, not yet production ready. If set, use a single-pass (for up to 12 mip levels) compute shader-based path for CmdGenerateMipmaps. Otherwise, use a multi-pass path based on ScaledCopyImage (may be graphics or compute)."
+    },
+    {
+      "Name": "UseFp16GenMips",
+      "Tags": [
+        "General",
+        "Resource Settings",
+        "Performance"
+      ],
+      "Defaults": {
+        "Default": false
+      },
+      "Flags": {
+        "RereadSetting": true
+      },
+      "Scope": "PrivatePalKey",
+      "Type": "bool",
+      "VariableName": "useFp16GenMips",
+      "Description": "If mipGenUseFastPath == true and this is true - use the fp16 single-pass GenMips compute pass."
     }
   ],
   "DefinedConstants": [

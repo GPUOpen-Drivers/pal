@@ -365,6 +365,17 @@ void PipelineChunkCs::LateInit<ComputePipelineUploader>(
     uint32*                          pThreadsPerTgY,
     uint32*                          pThreadsPerTgZ,
     ComputePipelineUploader*         pUploader);
+template
+void PipelineChunkCs::LateInit<GraphicsPipelineUploader>(
+    const AbiReader&                 abiReader,
+    const RegisterVector&            registers,
+    uint32                           wavefrontSize,
+    ComputePipelineIndirectFuncInfo* pIndirectFuncList,
+    uint32                           indirectFuncCount,
+    uint32*                          pThreadsPerTgX,
+    uint32*                          pThreadsPerTgY,
+    uint32*                          pThreadsPerTgZ,
+    GraphicsPipelineUploader*        pUploader);
 
 // =====================================================================================================================
 // Copies this pipeline chunk's sh commands into the specified command space. Returns the next unused DWORD in

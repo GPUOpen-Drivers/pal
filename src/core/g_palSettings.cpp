@@ -100,6 +100,9 @@ void SettingsLoader::SetupDefaults()
 #if   (__unix__)
     memset(m_settings.cmdBufDumpDirectory, 0, 512);
     strncpy(m_settings.cmdBufDumpDirectory, "amdpal/", 512);
+#else
+    memset(m_settings.cmdBufDumpDirectory, 0, 512);
+    strncpy(m_settings.cmdBufDumpDirectory, "amdpal/", 512);
 #endif
     m_settings.submitTimeCmdBufDumpStartFrame = 0;
     m_settings.submitTimeCmdBufDumpEndFrame = 0;
@@ -113,6 +116,9 @@ void SettingsLoader::SetupDefaults()
     m_settings.pipelineLogConfig.pipelineTypeFilter = 0x0;
     m_settings.pipelineLogConfig.logPipelineHash = 0x0;
 #if   (__unix__)
+    memset(m_settings.pipelineLogConfig.pipelineLogDirectory, 0, 512);
+    strncpy(m_settings.pipelineLogConfig.pipelineLogDirectory, "amdpal/", 512);
+#else
     memset(m_settings.pipelineLogConfig.pipelineLogDirectory, 0, 512);
     strncpy(m_settings.pipelineLogConfig.pipelineLogDirectory, "amdpal/", 512);
 #endif
@@ -151,6 +157,7 @@ void SettingsLoader::SetupDefaults()
     m_settings.debugForceResourceAdditionalPadding = 0;
     m_settings.overlayReportMes = true;
     m_settings.mipGenUseFastPath = false;
+    m_settings.useFp16GenMips = false;
     m_settings.numSettings = g_palNumSettings;
 }
 
@@ -593,6 +600,11 @@ void SettingsLoader::ReadSettings()
                            &m_settings.mipGenUseFastPath,
                            InternalSettingScope::PrivatePalKey);
 
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pUseFp16GenMipsStr,
+                           Util::ValueType::Boolean,
+                           &m_settings.useFp16GenMips,
+                           InternalSettingScope::PrivatePalKey);
+
 }
 
 // =====================================================================================================================
@@ -605,6 +617,11 @@ void SettingsLoader::RereadSettings()
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pMipGenUseFastPathStr,
                            Util::ValueType::Boolean,
                            &m_settings.mipGenUseFastPath,
+                           InternalSettingScope::PrivatePalKey);
+
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pUseFp16GenMipsStr,
+                           Util::ValueType::Boolean,
+                           &m_settings.useFp16GenMips,
                            InternalSettingScope::PrivatePalKey);
 
 }
@@ -1047,6 +1064,11 @@ void SettingsLoader::InitSettingsInfo()
     info.valueSize = sizeof(m_settings.mipGenUseFastPath);
     m_settingsInfoMap.Insert(3353227045, info);
 
+    info.type      = SettingType::Boolean;
+    info.pValuePtr = &m_settings.useFp16GenMips;
+    info.valueSize = sizeof(m_settings.useFp16GenMips);
+    m_settingsInfoMap.Insert(192229910, info);
+
 }
 
 // =====================================================================================================================
@@ -1068,7 +1090,7 @@ void SettingsLoader::DevDriverRegister()
             component.pfnSetValue = ISettingsLoader::SetValue;
             component.pSettingsData = &g_palJsonData[0];
             component.settingsDataSize = sizeof(g_palJsonData);
-            component.settingsDataHash = 1359194938;
+            component.settingsDataHash = 1632084102;
             component.settingsDataHeader.isEncoded = true;
             component.settingsDataHeader.magicBufferId = 402778310;
             component.settingsDataHeader.magicBufferOffset = 0;

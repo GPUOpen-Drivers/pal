@@ -619,14 +619,23 @@ Result Queue::SubmitInternal(
         PAL_ASSERT(submitInfo.perSubQueueInfoCount <= m_queueCount);
         AutoBuffer<InternalSubmitInfo, 8, Platform> internalSubmitInfos(
             submitInfo.perSubQueueInfoCount, m_pDevice->GetPlatform());
-        for (uint32 qIndex = 0; (qIndex < submitInfo.perSubQueueInfoCount) && (result == Result::Success); qIndex++)
+        if (internalSubmitInfos.Capacity() < submitInfo.perSubQueueInfoCount)
         {
-            for (uint32 idx = 0; idx < submitInfo.pPerSubQueueInfo[qIndex].cmdBufferCount; ++idx)
+            result = Result::ErrorOutOfMemory;
+        }
+        else
+        {
+            memset(internalSubmitInfos.Data(), 0, sizeof(InternalSubmitInfo) * submitInfo.perSubQueueInfoCount);
+            for (uint32 qIndex = 0; (qIndex < submitInfo.perSubQueueInfoCount) && (result == Result::Success); qIndex++)
             {
-                // Pre-process the command buffers before submission.
-                // Command buffers that require building the commands at submission time should build them here.
-                auto*const pCmdBuffer = static_cast<CmdBuffer*>(submitInfo.pPerSubQueueInfo[qIndex].ppCmdBuffers[idx]);
-                result = pCmdBuffer->PreSubmit();
+                SubmitConfig(submitInfo, &internalSubmitInfos[qIndex]);
+                for (uint32 idx = 0; idx < submitInfo.pPerSubQueueInfo[qIndex].cmdBufferCount; ++idx)
+                {
+                    // Pre-process the command buffers before submission.
+                    // Command buffers that require building the commands at submission time should build them here.
+                    auto* const pCmdBuffer = static_cast<CmdBuffer*>(submitInfo.pPerSubQueueInfo[qIndex].ppCmdBuffers[idx]);
+                    result = pCmdBuffer->PreSubmit();
+                }
             }
         }
 
@@ -645,10 +654,7 @@ Result Queue::SubmitInternal(
                 {
                     uint32 cmdBufferCount = submitInfo.pPerSubQueueInfo[qIndex].cmdBufferCount;
                     QueueContext* pQueueContext = m_pQueueInfos[qIndex].pQueueContext;
-                    InternalSubmitInfo curInternalSubmitInfo = {};
-
-                    result = pQueueContext->PreProcessSubmit(&curInternalSubmitInfo, cmdBufferCount);
-                    internalSubmitInfos[qIndex] = curInternalSubmitInfo;
+                    result = pQueueContext->PreProcessSubmit(&internalSubmitInfos[qIndex], cmdBufferCount);
                 }
             }
             else
@@ -724,7 +730,6 @@ Result Queue::SubmitInternal(
                 static_cast<Fence*>(submitInfo.pFence)->AssociateWithContext(m_pSubmissionContext);
             }
 #endif
-            SubmitConfig(submitInfo, &internalSubmitInfos[0]);
 
             // Either execute the submission immediately, or enqueue it for later, depending on whether or not we are
             // stalled and/or the caller is a function after the batching logic and thus must execute immediately.

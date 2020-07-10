@@ -614,7 +614,8 @@ private:
         const SubResourceInfo& subResInfo,
         const Box*             pBox,
         bool                   hasBoxes,
-        uint32                 xRightShift) const;
+        uint32                 xRightShift,
+        uint32                 numInstances) const;
 
     void ConvertYuvToRgb(
         GfxCmdBuffer*                     pCmdBuffer,

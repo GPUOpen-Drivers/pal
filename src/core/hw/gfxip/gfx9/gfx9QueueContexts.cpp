@@ -122,13 +122,14 @@ static uint32* WriteCommonPreamble(
 ComputeQueueContext::ComputeQueueContext(
     Device* pDevice,
     Engine* pEngine,
-    uint32  queueId)
+    uint32  queueId,
+    bool    isTmz)
     :
     QueueContext(pDevice->Parent()),
     m_pDevice(pDevice),
     m_pEngine(static_cast<ComputeEngine*>(pEngine)),
     m_queueId(queueId),
-    m_ringSet(pDevice),
+    m_ringSet(pDevice, isTmz),
     m_currentUpdateCounter(0),
     m_cmdStream(*pDevice,
                 pDevice->Parent()->InternalUntrackedCmdAllocator(),
@@ -538,8 +539,11 @@ UniversalQueueContext::UniversalQueueContext(
     m_isPreemptionSupported(isPreemptionSupported),
     m_pEngine(static_cast<UniversalEngine*>(pEngine)),
     m_queueId(queueId),
-    m_ringSet(pDevice),
+    m_ringSet(pDevice, false),
+    m_tmzRingSet(pDevice, true),
     m_currentUpdateCounter(0),
+    m_currentUpdateCounterTmz(0),
+    m_cmdsUseTmzRing(false),
     m_useShadowing(Device::ForceStateShadowing || isPreemptionSupported),
     m_shadowGpuMemSizeInBytes(0),
     m_shadowedRegCount(0),
@@ -601,6 +605,11 @@ Result UniversalQueueContext::Init()
 
     if (result == Result::Success)
     {
+        result = m_tmzRingSet.Init();
+    }
+
+    if (result == Result::Success)
+    {
         result = m_deCmdStream.Init();
     }
 
@@ -647,7 +656,7 @@ Result UniversalQueueContext::Init()
 
     if (result == Result::Success)
     {
-        result = RebuildCommandStreams(false, 0);
+        result = RebuildCommandStreams(m_cmdsUseTmzRing, false, 0);
     }
 
     return result;
@@ -897,12 +906,15 @@ Result UniversalQueueContext::PreProcessSubmit(
     // We only need to rebuild the command stream if the user submits at least one command buffer.
     if (cmdBufferCount != 0)
     {
-        result = UpdateRingSet(&hasUpdated, &hasDeferred, &lastTimeStamp);
+        const bool isTmz = (pSubmitInfo->flags.isTmzEnabled != 0);
 
-        if ((result == Result::Success) && hasUpdated)
+        result = UpdateRingSet(isTmz, &hasUpdated, &hasDeferred, &lastTimeStamp);
+
+        if ((result == Result::Success) && (hasUpdated || (m_cmdsUseTmzRing != isTmz)))
         {
-            result = RebuildCommandStreams(hasDeferred, lastTimeStamp);
+            result = RebuildCommandStreams(isTmz, hasDeferred, lastTimeStamp);
         }
+        m_cmdsUseTmzRing = isTmz;
     }
 
     if (result == Result::Success)
@@ -972,6 +984,7 @@ void UniversalQueueContext::ClearDeferredMemory()
     if (pSubContext != nullptr)
     {
         // Time to free the deferred memory
+        m_tmzRingSet.ClearDeferredFreeMemory(pSubContext);
         m_ringSet.ClearDeferredFreeMemory(pSubContext);
         ChunkRefList chunksToReturn(m_pDevice->GetPlatform());
 
@@ -1067,6 +1080,7 @@ void UniversalQueueContext::ResetCommandStream(
 // =====================================================================================================================
 // Regenerates the contents of this context's internal command streams.
 Result UniversalQueueContext::RebuildCommandStreams(
+    bool   isTmz,
     bool   hasDeferFreeMem,
     uint64 lastTimeStamp)
 {
@@ -1123,7 +1137,14 @@ Result UniversalQueueContext::RebuildCommandStreams(
 
         // Write the shader ring-set's commands after the command stream's normal preamble.  If the ring sizes have
         // changed, the hardware requires a CS/VS/PS partial flush to operate properly.
-        pCmdSpace  = m_ringSet.WriteCommands(&m_deCmdStream, pCmdSpace);
+        if (isTmz)
+        {
+            pCmdSpace = m_tmzRingSet.WriteCommands(&m_deCmdStream, pCmdSpace);
+        }
+        else
+        {
+            pCmdSpace = m_ringSet.WriteCommands(&m_deCmdStream, pCmdSpace);
+        }
         pCmdSpace += CmdUtil::BuildNonSampleEventWrite(CS_PARTIAL_FLUSH, EngineTypeUniversal, pCmdSpace);
         pCmdSpace += CmdUtil::BuildNonSampleEventWrite(VS_PARTIAL_FLUSH, EngineTypeUniversal, pCmdSpace);
         pCmdSpace += CmdUtil::BuildNonSampleEventWrite(PS_PARTIAL_FLUSH, EngineTypeUniversal, pCmdSpace);
@@ -1542,6 +1563,7 @@ uint32* UniversalQueueContext::WriteUniversalPreamble(
 
 // =====================================================================================================================
 Result UniversalQueueContext::UpdateRingSet(
+    bool    isTmz,        // [in]      whether or not the ring set is tmz protected or not.
     bool*   pHasChanged,  // [out]     Whether or not the ring set has updated. If true the ring set must rewrite its
                           //           registers.
     bool*   pHasDeferred, // [out]     Whether or not the ringSet memory cleanup / recycle has been deferred.
@@ -1556,10 +1578,11 @@ Result UniversalQueueContext::UpdateRingSet(
     // Check if the queue context associated with this Queue is dirty, and obtain the ring item-sizes to validate
     // against.
     const uint32 currentCounter = m_pDevice->QueueContextUpdateCounter();
+    uint32* pCurrentUpdateCounter = isTmz ? &m_currentUpdateCounterTmz : &m_currentUpdateCounter;
 
-    if (currentCounter > m_currentUpdateCounter)
+    if (currentCounter > *pCurrentUpdateCounter)
     {
-        m_currentUpdateCounter = currentCounter;
+        *pCurrentUpdateCounter = currentCounter;
 
         ShaderRingItemSizes ringSizes = {};
         m_pDevice->GetLargestRingSizes(&ringSizes);
@@ -1576,17 +1599,19 @@ Result UniversalQueueContext::UpdateRingSet(
         if (result == Result::Success)
         {
             *lastTimeStamp = m_pParentQueue->GetSubmissionContext()->LastTimestamp();
-            result = m_ringSet.Validate(ringSizes,
+
+            UniversalRingSet* pRingSet = isTmz ? &m_tmzRingSet : &m_ringSet;
+            result = pRingSet->Validate(ringSizes,
                                         samplePatternPalette,
                                         *lastTimeStamp,
                                         pHasDeferred);
         }
 
-        *pHasChanged = true;
+        (*pHasChanged) = true;
     }
     else
     {
-        *pHasChanged = false;
+        (*pHasChanged) = false;
     }
 
     return result;

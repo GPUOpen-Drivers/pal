@@ -617,6 +617,10 @@ public:
         amdgpu_syncobj_handle    exportSyncObj,
         uint64                   exportPoint) const;
 
+    Result SignalSyncObject(
+        amdgpu_syncobj_handle*   pSyncObject,
+        uint32                   numSyncObject) const;
+
     Result CreateSemaphore(
         bool                     isCreatedSignaled,
         bool                     isCreatedTimeline,

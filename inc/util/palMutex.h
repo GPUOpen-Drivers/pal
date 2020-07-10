@@ -137,6 +137,11 @@ private:
 class RWLock
 {
 public:
+#if   defined(__unix__)
+    /// Defines RWLockData as a unix pthread_rwlock_t
+    typedef pthread_rwlock_t  RWLockData;
+#endif
+
     /// Enumerates the lock type of RWLockAuto
     enum LockType
     {
@@ -175,12 +180,10 @@ public:
     /// Release the rw lock which is previously contended in exclusive mode.
     void UnlockForWrite();
 
-private:
-#if   defined(__unix__)
-    /// Defines RWLockData as a unix pthread_rwlock_t
-    typedef pthread_rwlock_t  RWLockData;
-#endif
+    /// Returns the OS specific RWLOCK data.
+    RWLockData* GetRWLockData() { return &m_osRWLock; }
 
+private:
     RWLockData m_osRWLock;    ///< Opaque structure to the OS-specific RWLock data
     bool       m_initialized; ///< True indicates this RWLock has been initialized
 

@@ -38,7 +38,7 @@ using namespace Util;
 namespace Pal
 {
 
-static constexpr gpusize PoolAllocationSize       = 1ull << 18; // 256 kilobytes
+static constexpr gpusize PoolAllocationSize       = 1ull << 22; // 4 megabytes
 static constexpr gpusize PoolMinSuballocationSize = 1ull << 4;  // 16 bytes
 
 // =====================================================================================================================
@@ -93,6 +93,7 @@ static PAL_INLINE GpuMemoryFlags ConvertGpuMemoryFlags(
     flags.interprocess   = createInfo.flags.interprocess;
     flags.isStereo       = createInfo.flags.stereo;
     flags.autoPriority   = createInfo.flags.autoPriority;
+    flags.tmzProtected   = createInfo.flags.tmzProtected;
     flags.pageDirectory  = internalInfo.flags.pageDirectory;
     flags.pageTableBlock = internalInfo.flags.pageTableBlock;
     flags.udmaBuffer     = internalInfo.flags.udmaBuffer;
@@ -211,7 +212,7 @@ Result InternalMemMgr::AllocateGpuMemNoAllocLock(
     GpuMemory**                         ppGpuMemory,
     gpusize*                            pOffset)
 {
-    Result result = Result::ErrorOutOfGpuMemory;
+    Result result = Result::Success;
 
     // It doesn't make sense to suballocate virtual memory; this class assumes it only allocates real memory objects.
     PAL_ASSERT(createInfo.flags.virtualAlloc == 0);
@@ -225,12 +226,32 @@ Result InternalMemMgr::AllocateGpuMemNoAllocLock(
                 (internalInfo.flags.isCmdAllocator    == 0) &&
                 (internalInfo.flags.pageFaultDebugSrd == 0)) == (pOffset != nullptr));
 
+    GpuMemoryCreateInfo localCreateInfo = createInfo;
+
+    // TMZ allocations can only be allocated from heaps that support TMZ. The caller must provide at least one TMZ heap.
+    if (localCreateInfo.flags.tmzProtected)
+    {
+        localCreateInfo.heapCount = 0;
+        for (uint32 i = 0; i < createInfo.heapCount; i++)
+        {
+            if (m_pDevice->HeapProperties(createInfo.heaps[i]).flags.supportsTmz)
+            {
+                localCreateInfo.heaps[localCreateInfo.heapCount++] = createInfo.heaps[i];
+            }
+        }
+        if (localCreateInfo.heapCount == 0)
+        {
+            result = Result::ErrorInvalidValue;
+        }
+    }
+
     // If the requested allocation is small enough, try to find an appropriate pool and sub-allocate from it.
-    if ((pOffset != nullptr) && (createInfo.size <= PoolAllocationSize / 2))
+    if ((result == Result::Success) && (pOffset != nullptr) && (localCreateInfo.size <= PoolAllocationSize / 2))
     {
         // Calculate GPU memory flags based on the creation information
-        const GpuMemoryFlags requestedMemFlags = ConvertGpuMemoryFlags(createInfo, internalInfo);
+        const GpuMemoryFlags requestedMemFlags = ConvertGpuMemoryFlags(localCreateInfo, internalInfo);
 
+        result = Result::ErrorOutOfMemory;
         // Try to find a base allocation of the appropriate type that has sufficient enough space
         for (auto it = m_poolList.Begin(); it.Get() != nullptr; it.Next())
         {
@@ -239,13 +260,13 @@ Result InternalMemMgr::AllocateGpuMemNoAllocLock(
             if (IsMatchingPool(*pPool,
                                readOnly,
                                requestedMemFlags,
-                               createInfo.heapCount,
-                               createInfo.heaps,
-                               createInfo.vaRange,
+                               localCreateInfo.heapCount,
+                               localCreateInfo.heaps,
+                               localCreateInfo.vaRange,
                                internalInfo.mtype))
             {
                 // If the base allocation matches the search criteria then try to allocate from it
-                result = pPool->pBuddyAllocator->Allocate(createInfo.size, createInfo.alignment, pOffset);
+                result = pPool->pBuddyAllocator->Allocate(localCreateInfo.size, localCreateInfo.alignment, pOffset);
 
                 if (result == Result::Success)
                 {
@@ -263,9 +284,9 @@ Result InternalMemMgr::AllocateGpuMemNoAllocLock(
             // a new base allocation
 
             // Fix-up the GPU memory create info structures to suit the base allocation's needs
-            GpuMemoryCreateInfo         localCreateInfo   = createInfo;
-            GpuMemoryInternalCreateInfo localInternalInfo = internalInfo;
+            GpuMemoryInternalCreateInfo localInternalInfo  = internalInfo;
 
+            gpusize localCreateInfoSize = localCreateInfo.size;
             localCreateInfo.size = PoolAllocationSize;
             localInternalInfo.flags.buddyAllocated = 1;
 
@@ -273,6 +294,7 @@ Result InternalMemMgr::AllocateGpuMemNoAllocLock(
 
             // Issue the base memory allocation
             result = AllocateBaseGpuMem(localCreateInfo, localInternalInfo, readOnly, &pGpuMemory);
+            localCreateInfo.size = localCreateInfoSize;
 
             if (result == Result::Success)
             {
@@ -282,13 +304,13 @@ Result InternalMemMgr::AllocateGpuMemNoAllocLock(
                 newPool.pGpuMemory = pGpuMemory;
                 newPool.readOnly   = readOnly;
                 newPool.memFlags   = requestedMemFlags;
-                newPool.heapCount  = createInfo.heapCount;
-                newPool.vaRange    = createInfo.vaRange;
+                newPool.heapCount  = localCreateInfo.heapCount;
+                newPool.vaRange    = localCreateInfo.vaRange;
                 newPool.mtype      = internalInfo.mtype;
 
-                for (uint32 h = 0; h < createInfo.heapCount; ++h)
+                for (uint32 h = 0; h < localCreateInfo.heapCount; ++h)
                 {
-                    newPool.heaps[h] = createInfo.heaps[h];
+                    newPool.heaps[h] = localCreateInfo.heaps[h];
                 }
 
                 // Create and initialize the buddy allocator
@@ -307,7 +329,9 @@ Result InternalMemMgr::AllocateGpuMemNoAllocLock(
                         // ... and then sub-allocate from it
                         // NOTE: The sub-allocation should never fail here since we just optained a fresh base
                         // allocation, the only possible case for failure is a low system memory situation
-                        result = newPool.pBuddyAllocator->Allocate(createInfo.size, createInfo.alignment, &localOffset);
+                        result = newPool.pBuddyAllocator->Allocate(localCreateInfo.size,
+                                                                   localCreateInfo.alignment,
+                                                                   &localOffset);
                     }
 
                     // If we successfully sub-allocated from the new buddy allocator, then attempt to add the new pool
@@ -341,7 +365,7 @@ Result InternalMemMgr::AllocateGpuMemNoAllocLock(
             }
         }
     }
-    else
+    else if (result == Result::Success)
     {
         if (pOffset != nullptr)
         {
@@ -354,7 +378,7 @@ Result InternalMemMgr::AllocateGpuMemNoAllocLock(
         }
 
         // Issue the base memory allocation.
-        result = AllocateBaseGpuMem(createInfo, internalInfo, readOnly, ppGpuMemory);
+        result = AllocateBaseGpuMem(localCreateInfo, internalInfo, readOnly, ppGpuMemory);
     }
 
     return result;

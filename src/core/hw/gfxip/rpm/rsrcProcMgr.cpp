@@ -2344,7 +2344,9 @@ void RsrcProcMgr::GenerateMipmapsFast(
     // The shader can only generate up to 12 mips in one pass.
     constexpr uint32 MaxNumMips = 12;
 
-    const ComputePipeline*const pPipeline = GetPipeline(RpmComputePipeline::GenerateMipmaps);
+    const ComputePipeline*const pPipeline = (settings.useFp16GenMips == false) ?
+                                            GetPipeline(RpmComputePipeline::GenerateMipmaps) :
+                                            GetPipeline(RpmComputePipeline::GenerateMipmapsLowp);
 
     // Save current command buffer state and bind the pipeline.
     pCmdBuffer->CmdSaveComputeState(ComputeStatePipelineAndUserData);
@@ -4497,11 +4499,13 @@ void RsrcProcMgr::SlowClearGraphics(
     viewportInfo.depthRange            = DepthRange::ZeroToOne;
 #endif
 
-    ColorTargetViewCreateInfo colorViewInfo = { };
-    colorViewInfo.swizzledFormat              = viewFormat;
-    colorViewInfo.imageInfo.pImage            = &dstImage;
-    colorViewInfo.imageInfo.arraySize         = 1;
-    colorViewInfo.imageInfo.baseSubRes.aspect = clearRange.startSubres.aspect;
+    const bool  is3dImage  = (createInfo.imageType == ImageType::Tex3d);
+    ColorTargetViewCreateInfo colorViewInfo         = { };
+    colorViewInfo.swizzledFormat                    = viewFormat;
+    colorViewInfo.imageInfo.pImage                  = &dstImage;
+    colorViewInfo.imageInfo.arraySize               = (is3dImage ? 1 : clearRange.numSlices);
+    colorViewInfo.imageInfo.baseSubRes.aspect       = clearRange.startSubres.aspect;
+    colorViewInfo.imageInfo.baseSubRes.arraySlice   = clearRange.startSubres.arraySlice;
 
     BindTargetParams bindTargetsInfo = { };
     bindTargetsInfo.colorTargets[0].imageLayout      = dstImageLayout;
@@ -4526,6 +4530,7 @@ void RsrcProcMgr::SlowClearGraphics(
     pCmdBuffer->CmdBindMsaaState(GetMsaaState(createInfo.samples, createInfo.fragments));
 
     RpmUtil::WriteVsZOut(pCmdBuffer, 1.0f);
+    RpmUtil::WriteVsFirstSliceOffset(pCmdBuffer, 0);
 
     uint32 packedColor[4] = {0};
 
@@ -4637,51 +4642,40 @@ void RsrcProcMgr::SlowClearGraphicsOneMip(
 
     if (is3dImage == false)
     {
-        // We need to clear each array slice individually because we cannot select which array slice to render to
-        // without a Geometry Shader.
-        const uint32 baseSlice        = clearRange.startSubres.arraySlice;
-        const uint32 numSlices        = clearRange.numSlices;
-        const uint32 finalSliceAddOne = baseSlice + numSlices;
+        LinearAllocatorAuto<VirtualLinearAllocator> sliceAlloc(pCmdBuffer->Allocator(), false);
 
-        PAL_ASSERT((numSlices > 0) && (finalSliceAddOne <= createInfo.arraySize));
+        // Create and bind a color-target view for this mipmap level and slice.
+        IColorTargetView* pColorView = nullptr;
+        void* pColorViewMem =
+            PAL_MALLOC(m_pDevice->GetColorTargetViewSize(nullptr), &sliceAlloc, AllocInternalTemp);
 
-        for (uint32 arraySlice = baseSlice; arraySlice < finalSliceAddOne; arraySlice++)
+        if (pColorViewMem == nullptr)
         {
-            LinearAllocatorAuto<VirtualLinearAllocator> sliceAlloc(pCmdBuffer->Allocator(), false);
+            pCmdBuffer->NotifyAllocFailure();
+        }
+        else
+        {
+            Result result = m_pDevice->CreateColorTargetView(*pColorViewInfo,
+                                                             colorViewInfoInternal,
+                                                             pColorViewMem,
+                                                             &pColorView);
+            PAL_ASSERT(result == Result::Success);
 
-            // Create and bind a color-target view for this mipmap level and slice.
-            IColorTargetView* pColorView = nullptr;
-            void* pColorViewMem =
-                PAL_MALLOC(m_pDevice->GetColorTargetViewSize(nullptr), &sliceAlloc, AllocInternalTemp);
+            pBindTargetsInfo->colorTargets[0].pColorTargetView = pColorView;
+            pBindTargetsInfo->colorTargetCount = 1;
+            pCmdBuffer->CmdBindTargets(*pBindTargetsInfo);
 
-            if (pColorViewMem == nullptr)
+            for (uint32 i = 0; i < scissorCount; i++)
             {
-                pCmdBuffer->NotifyAllocFailure();
+                ClearImageOneBox(pCmdBuffer, subResInfo, &pBoxes[i], hasBoxes, xRightShift,
+                    pColorViewInfo->imageInfo.arraySize);
             }
-            else
-            {
-                pColorViewInfo->imageInfo.baseSubRes.arraySlice = arraySlice;
-                Result result = m_pDevice->CreateColorTargetView(*pColorViewInfo,
-                                                                 colorViewInfoInternal,
-                                                                 pColorViewMem,
-                                                                 &pColorView);
-                PAL_ASSERT(result == Result::Success);
 
-                pBindTargetsInfo->colorTargets[0].pColorTargetView = pColorView;
-                pBindTargetsInfo->colorTargetCount = 1;
-                pCmdBuffer->CmdBindTargets(*pBindTargetsInfo);
+            // Unbind the color-target view and destroy it.
+            pBindTargetsInfo->colorTargetCount = 0;
+            pCmdBuffer->CmdBindTargets(*pBindTargetsInfo);
 
-                for (uint32 i = 0; i < scissorCount; i++)
-                {
-                    ClearImageOneBox(pCmdBuffer, subResInfo, &pBoxes[i], hasBoxes, xRightShift);
-                }
-
-                // Unbind the color-target view and destroy it.
-                pBindTargetsInfo->colorTargetCount = 0;
-                pCmdBuffer->CmdBindTargets(*pBindTargetsInfo);
-
-                PAL_SAFE_FREE(pColorViewMem, &sliceAlloc);
-            }
+            PAL_SAFE_FREE(pColorViewMem, &sliceAlloc);
         }
     }
     else
@@ -4689,7 +4683,6 @@ void RsrcProcMgr::SlowClearGraphicsOneMip(
         // For 3d image, the start and end slice is based on the z offset and depth extend of the boxes.
         // The slices must be specified using the zRange because the imageInfo "slice" refers to image subresources.
         pColorViewInfo->flags.zRangeValid = 1;
-        pColorViewInfo->zRange.extent     = 1;
 
         for (uint32 i = 0; i < scissorCount; i++)
         {
@@ -4706,29 +4699,26 @@ void RsrcProcMgr::SlowClearGraphicsOneMip(
             }
             else
             {
+
                 const Box*   pBox     = hasBoxes ? &pBoxes[i]     : nullptr;
-                const uint32 baseZ    = hasBoxes ? pBox->offset.z : 0;
                 const uint32 maxDepth = subResInfo.extentTexels.depth;
-                const uint32 depth    = hasBoxes ? pBox->extent.depth : maxDepth;
-                const uint32 lastZ    = baseZ + depth - 1;
+
+                pColorViewInfo->zRange.extent  = hasBoxes ? pBox->extent.depth : maxDepth;
+                pColorViewInfo->zRange.offset  = hasBoxes ? pBox->offset.z : 0;
 
                 PAL_ASSERT((hasBoxes == false) || (pBox->extent.depth <= maxDepth));
 
-                for (uint32 zOffset = baseZ; zOffset <= lastZ; zOffset++)
-                {
-                    pColorViewInfo->zRange.offset = zOffset;
-                    Result result = m_pDevice->CreateColorTargetView(*pColorViewInfo,
-                                                                     colorViewInfoInternal,
-                                                                     pColorViewMem,
-                                                                     &pColorView);
-                    PAL_ASSERT(result == Result::Success);
+                Result result = m_pDevice->CreateColorTargetView(*pColorViewInfo,
+                                                                 colorViewInfoInternal,
+                                                                 pColorViewMem,
+                                                                 &pColorView);
+                PAL_ASSERT(result == Result::Success);
 
-                    pBindTargetsInfo->colorTargets[0].pColorTargetView = pColorView;
-                    pBindTargetsInfo->colorTargetCount = 1;
-                    pCmdBuffer->CmdBindTargets(*pBindTargetsInfo);
+                pBindTargetsInfo->colorTargets[0].pColorTargetView = pColorView;
+                pBindTargetsInfo->colorTargetCount = 1;
+                pCmdBuffer->CmdBindTargets(*pBindTargetsInfo);
 
-                    ClearImageOneBox(pCmdBuffer, subResInfo, pBox, hasBoxes, xRightShift);
-                }
+                ClearImageOneBox(pCmdBuffer, subResInfo, pBox, hasBoxes, xRightShift, pColorViewInfo->zRange.extent);
 
                 // Unbind the color-target view and destroy it.
                 pBindTargetsInfo->colorTargetCount = 0;
@@ -4747,7 +4737,8 @@ void RsrcProcMgr::ClearImageOneBox(
     const SubResourceInfo& subResInfo,
     const Box*             pBox,
     bool                   hasBoxes,
-    uint32                 xRightShift
+    uint32                 xRightShift,
+    uint32                 numInstances
     ) const
 {
     // Create a scissor state for this mipmap level, slice, and current scissor.
@@ -4770,7 +4761,7 @@ void RsrcProcMgr::ClearImageOneBox(
     pCmdBuffer->CmdSetScissorRects(scissorInfo);
 
     // Draw a fullscreen quad.
-    pCmdBuffer->CmdDraw(0, 3, 0, 1);
+    pCmdBuffer->CmdDraw(0, 3, 0, numInstances);
 }
 
 // =====================================================================================================================
