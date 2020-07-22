@@ -296,7 +296,7 @@ static regSQ_THREAD_TRACE_TOKEN_MASK GetGfx10SqttTokenMask(
                                    (contextRegs     << SQ_TT_TOKEN_MASK_CONTEXT_SHIFT)              |
                                    (otherConfigRegs << SQ_TT_TOKEN_MASK_CONFIG_SHIFT)               |
                                    (grbmCsDataRegs  << SQ_TT_TOKEN_MASK_OTHER_SHIFT__GFX10CORE)     |
-                                   (regReads        << SQ_TT_TOKEN_MASK_READS_SHIFT));
+                                   (regReads        << SQ_TT_TOKEN_MASK_READS_SHIFT__GFX10));
 
     return value;
 }
@@ -1214,13 +1214,13 @@ Result PerfExperiment::AddThreadTrace(
             m_sqtt[traceInfo.instance].ctrl.gfx10Plus.DRAW_EVENT_EN     = 1;
 
             // Enable all stalling in "always" mode, "lose detail" mode only disables register stalls.
-            m_sqtt[traceInfo.instance].ctrl.gfx10Plus.REG_STALL_EN      = (stallMode == GpuProfilerStallAlways);
-            m_sqtt[traceInfo.instance].ctrl.gfx10Plus.SPI_STALL_EN      = (stallMode != GpuProfilerStallNever);
-            m_sqtt[traceInfo.instance].ctrl.gfx10Plus.SQ_STALL_EN       = (stallMode != GpuProfilerStallNever);
-            m_sqtt[traceInfo.instance].ctrl.gfx10Plus.REG_DROP_ON_STALL = (stallMode != GpuProfilerStallAlways);
+            m_sqtt[traceInfo.instance].ctrl.gfx10.REG_STALL_EN      = (stallMode == GpuProfilerStallAlways);
+            m_sqtt[traceInfo.instance].ctrl.gfx10.SPI_STALL_EN      = (stallMode != GpuProfilerStallNever);
+            m_sqtt[traceInfo.instance].ctrl.gfx10.SQ_STALL_EN       = (stallMode != GpuProfilerStallNever);
+            m_sqtt[traceInfo.instance].ctrl.gfx10.REG_DROP_ON_STALL = (stallMode != GpuProfilerStallAlways);
 
             static_assert((static_cast<uint32>(PerfShaderMaskPs) == static_cast<uint32>(SQ_TT_WTYPE_INCLUDE_PS_BIT) &&
-                           static_cast<uint32>(PerfShaderMaskVs) == static_cast<uint32>(SQ_TT_WTYPE_INCLUDE_VS_BIT) &&
+                           static_cast<uint32>(PerfShaderMaskVs) == static_cast<uint32>(SQ_TT_WTYPE_INCLUDE_VS_BIT__GFX10) &&
                            static_cast<uint32>(PerfShaderMaskGs) == static_cast<uint32>(SQ_TT_WTYPE_INCLUDE_GS_BIT) &&
                            static_cast<uint32>(PerfShaderMaskHs) == static_cast<uint32>(SQ_TT_WTYPE_INCLUDE_HS_BIT) &&
                            static_cast<uint32>(PerfShaderMaskCs) == static_cast<uint32>(SQ_TT_WTYPE_INCLUDE_CS_BIT) &&
@@ -1811,11 +1811,11 @@ void PerfExperiment::IssueBegin(
 
             if (m_createInfo.optionFlags.sqShaderMask != 0)
             {
-                sqPerfCounterCtrl.bits.PS_EN = ((m_createInfo.optionValues.sqShaderMask & PerfShaderMaskPs) != 0);
-                sqPerfCounterCtrl.bits.VS_EN = ((m_createInfo.optionValues.sqShaderMask & PerfShaderMaskVs) != 0);
-                sqPerfCounterCtrl.bits.GS_EN = ((m_createInfo.optionValues.sqShaderMask & PerfShaderMaskGs) != 0);
-                sqPerfCounterCtrl.bits.HS_EN = ((m_createInfo.optionValues.sqShaderMask & PerfShaderMaskHs) != 0);
-                sqPerfCounterCtrl.bits.CS_EN = ((m_createInfo.optionValues.sqShaderMask & PerfShaderMaskCs) != 0);
+                sqPerfCounterCtrl.bits.PS_EN     = ((m_createInfo.optionValues.sqShaderMask & PerfShaderMaskPs) != 0);
+                sqPerfCounterCtrl.gfx09_10.VS_EN = ((m_createInfo.optionValues.sqShaderMask & PerfShaderMaskVs) != 0);
+                sqPerfCounterCtrl.bits.GS_EN     = ((m_createInfo.optionValues.sqShaderMask & PerfShaderMaskGs) != 0);
+                sqPerfCounterCtrl.bits.HS_EN     = ((m_createInfo.optionValues.sqShaderMask & PerfShaderMaskHs) != 0);
+                sqPerfCounterCtrl.bits.CS_EN     = ((m_createInfo.optionValues.sqShaderMask & PerfShaderMaskCs) != 0);
                 {
                     sqPerfCounterCtrl.most.LS_EN = ((m_createInfo.optionValues.sqShaderMask & PerfShaderMaskLs) != 0);
                     sqPerfCounterCtrl.most.ES_EN = ((m_createInfo.optionValues.sqShaderMask & PerfShaderMaskEs) != 0);
@@ -1824,11 +1824,11 @@ void PerfExperiment::IssueBegin(
             else
             {
                 // By default sample from all shader stages.
-                sqPerfCounterCtrl.bits.PS_EN = 1;
-                sqPerfCounterCtrl.bits.VS_EN = 1;
-                sqPerfCounterCtrl.bits.GS_EN = 1;
-                sqPerfCounterCtrl.bits.HS_EN = 1;
-                sqPerfCounterCtrl.bits.CS_EN = 1;
+                sqPerfCounterCtrl.bits.PS_EN     = 1;
+                sqPerfCounterCtrl.gfx09_10.VS_EN = 1;
+                sqPerfCounterCtrl.bits.GS_EN     = 1;
+                sqPerfCounterCtrl.bits.HS_EN     = 1;
+                sqPerfCounterCtrl.bits.CS_EN     = 1;
                 {
                     sqPerfCounterCtrl.most.LS_EN = 1;
                     sqPerfCounterCtrl.most.ES_EN = 1;

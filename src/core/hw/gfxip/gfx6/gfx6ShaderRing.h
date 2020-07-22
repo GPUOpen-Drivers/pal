@@ -57,7 +57,7 @@ public:
     size_t ItemSizeMax() const { return m_itemSizeMax; }
 
 protected:
-    ShaderRing(Device* pDevice, BufferSrd* pSrdTable);
+    ShaderRing(Device* pDevice, BufferSrd* pSrdTable, bool isTmz);
 
     virtual gpusize ComputeAllocationSize() const;
 
@@ -66,6 +66,7 @@ protected:
 
     Device*const     m_pDevice;
     BufferSrd*const  m_pSrdTable;   // Pointer to the parent ring-set's SRD table
+    const bool       m_tmzEnabled;  // Indicate this shader ring is tmz or not.
 
     BoundGpuMemory  m_ringMem;     // Shader-ring video memory allocation
 
@@ -85,7 +86,7 @@ private:
 class ScratchRing : public ShaderRing
 {
 public:
-    ScratchRing(Device* pDevice, BufferSrd* pSrdTable, PM4ShaderType shaderType);
+    ScratchRing(Device* pDevice, BufferSrd* pSrdTable, PM4ShaderType shaderType, bool isTmz);
     virtual ~ScratchRing() {}
 
     size_t CalculateWaves() const;
@@ -108,7 +109,7 @@ private:
 class EsGsRing : public ShaderRing
 {
 public:
-    EsGsRing(Device* pDevice, BufferSrd* pSrdTable);
+    EsGsRing(Device* pDevice, BufferSrd* pSrdTable, bool isTmz);
     virtual ~EsGsRing() {}
 
 protected:
@@ -127,7 +128,7 @@ private:
 class GsVsRing : public ShaderRing
 {
 public:
-    GsVsRing(Device* pDevice, BufferSrd* pSrdTable);
+    GsVsRing(Device* pDevice, BufferSrd* pSrdTable, bool isTmz);
     virtual ~GsVsRing() {}
 
 protected:
@@ -151,7 +152,7 @@ private:
 class TessFactorBuffer : public ShaderRing
 {
 public:
-    TessFactorBuffer(Device* pDevice, BufferSrd* pSrdTable);
+    TessFactorBuffer(Device* pDevice, BufferSrd* pSrdTable, bool isTmz);
     virtual ~TessFactorBuffer() {}
 
 protected:
@@ -168,7 +169,7 @@ private:
 class OffchipLdsBuffer : public ShaderRing
 {
 public:
-    OffchipLdsBuffer(Device* pDevice, BufferSrd* pSrdTable);
+    OffchipLdsBuffer(Device* pDevice, BufferSrd* pSrdTable, bool isTmz);
     virtual ~OffchipLdsBuffer() {}
 
 protected:
@@ -185,7 +186,7 @@ private:
 class SamplePosBuffer : public ShaderRing
 {
 public:
-    SamplePosBuffer(Device* pDevice, BufferSrd* pSrdTable);
+    SamplePosBuffer(Device* pDevice, BufferSrd* pSrdTable, bool isTmz);
     virtual ~SamplePosBuffer() {}
 
     void UploadSamplePatternPalette(const SamplePatternPalette& samplePatternPalette);

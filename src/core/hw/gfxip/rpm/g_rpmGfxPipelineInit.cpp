@@ -52,12 +52,15 @@ Result CreateRpmGraphicsPipelines(
 
     switch (properties.revision)
     {
+#if PAL_BUILD_GFX6
     case AsicRevision::Tahiti:
     case AsicRevision::Pitcairn:
     case AsicRevision::Capeverde:
         pTable = rpmGfxBinaryTableTahiti;
         break;
+#endif
 
+#if PAL_BUILD_GFX6
     case AsicRevision::Oland:
     case AsicRevision::Hainan:
     case AsicRevision::Bonaire:
@@ -65,17 +68,23 @@ Result CreateRpmGraphicsPipelines(
     case AsicRevision::Spooky:
         pTable = rpmGfxBinaryTableOland;
         break;
+#endif
 
+#if PAL_BUILD_GFX6
     case AsicRevision::HawaiiPro:
     case AsicRevision::Hawaii:
         pTable = rpmGfxBinaryTableHawaiiPro;
         break;
+#endif
 
+#if PAL_BUILD_GFX6
     case AsicRevision::Kalindi:
     case AsicRevision::Godavari:
         pTable = rpmGfxBinaryTableKalindi;
         break;
+#endif
 
+#if PAL_BUILD_GFX6
     case AsicRevision::Carrizo:
     case AsicRevision::Bristol:
     case AsicRevision::Fiji:
@@ -84,15 +93,20 @@ Result CreateRpmGraphicsPipelines(
     case AsicRevision::Polaris12:
         pTable = rpmGfxBinaryTableCarrizo;
         break;
+#endif
 
+#if PAL_BUILD_GFX6
     case AsicRevision::Stoney:
         pTable = rpmGfxBinaryTableStoney;
         break;
+#endif
 
+#if PAL_BUILD_GFX6
     case AsicRevision::Iceland:
     case AsicRevision::Tonga:
         pTable = rpmGfxBinaryTableIceland;
         break;
+#endif
 
     case AsicRevision::Vega10:
     case AsicRevision::Raven:
@@ -402,8 +416,12 @@ Result CreateRpmGraphicsPipelines(
     }
 
     if (result == Result::Success && (false
+#if PAL_BUILD_GFX6
         || (properties.gfxLevel == GfxIpLevel::GfxIp8)
+#endif
+#if PAL_BUILD_GFX6
         || (properties.gfxLevel == GfxIpLevel::GfxIp8_1)
+#endif
         || (properties.gfxLevel == GfxIpLevel::GfxIp9)
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
         ))
@@ -528,10 +546,18 @@ Result CreateRpmGraphicsPipelines(
     }
 
     if (result == Result::Success && (false
+#if PAL_BUILD_GFX6
         || (properties.gfxLevel == GfxIpLevel::GfxIp6)
+#endif
+#if PAL_BUILD_GFX6
         || (properties.gfxLevel == GfxIpLevel::GfxIp7)
+#endif
+#if PAL_BUILD_GFX6
         || (properties.gfxLevel == GfxIpLevel::GfxIp8)
+#endif
+#if PAL_BUILD_GFX6
         || (properties.gfxLevel == GfxIpLevel::GfxIp8_1)
+#endif
         || (properties.gfxLevel == GfxIpLevel::GfxIp9)
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
         ))

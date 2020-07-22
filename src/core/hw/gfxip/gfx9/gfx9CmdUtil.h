@@ -689,7 +689,8 @@ public:
         gpusize    addr,
         uint32     reference,
         uint32     mask,
-        void*      pBuffer);
+        void*      pBuffer,
+        uint32     operation = static_cast<uint32>(operation__me_wait_reg_mem__wait_reg_mem));
     static size_t BuildWaitRegMem64(
         EngineType engineType,
         uint32     memSpace,

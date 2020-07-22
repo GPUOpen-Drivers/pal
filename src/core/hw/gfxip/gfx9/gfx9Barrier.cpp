@@ -798,6 +798,22 @@ void Device::IssueSyncs(
         pOperations->pipelineStalls.syncCpDma = 1;
     }
 
+    // The CmdBarrier API is not great at distinguishing between "wait for X and start flushing Y" and "wait for X and
+    // wait for Y to be flushed". The best thing we can do is treat a bottom-of-pipe wait point as the former case
+    // because PAL is being told to wait at the bottom, meaning no waiting at all of any kind. If the wait point is
+    // anything higher than bottom-of-pipe we have to wait for our cache flush/inv events to finish to be safe.
+    //
+    // To make matters worse we can't flush or invalidate CB metadata using an ACQUIRE_MEM so we must force a
+    // wait-on-eop-ts. With this set the wait-on-eop-ts path will roll in our cache flushes and we'll skip over
+    // the pipelined cache flush logic below which does no waiting.
+    //
+    // Note that if we're executing a barrier that must only wait on a non-CB cache flush this all still works because
+    // the pipelined cache flush path only triggers if we're doing a CB metadata cache flush/inv.
+    if (TestAnyFlagSet(syncReqs.cacheFlags, CacheSyncFlushAndInvCbMd) && (waitPoint < HwPipePoint::HwPipeBottom))
+    {
+        syncReqs.waitOnEopTs = 1;
+    }
+
     // The CmdUtil might not permit us to use a CS_PARTIAL_FLUSH on this engine. If so we must fall back to a EOP TS.
     // Typically we just hide this detail behind BuildWaitCsIdle but the barrier code might generate more efficient
     // commands if we force it down the waitOnEopTs path preemptively.
@@ -1049,7 +1065,6 @@ void Device::Barrier(
 
             if (imageInfo.pImage != nullptr)
             {
-
                 // At least one usage must be specified for the old and new layouts.
                 PAL_ASSERT((imageInfo.oldLayout.usages != 0) && (imageInfo.newLayout.usages != 0));
 
@@ -1487,8 +1502,12 @@ void Device::Barrier(
                                        image.GetGpuVirtualAddr(), gfx9Image.GetGpuMemSyncSize(), &barrierOps);
                         }
 
-                        barrierOps.layoutTransitions.initMaskRam = 1;
-                        const bool usedCompute = RsrcProcMgr().InitMaskRam(pCmdBuf, pCmdStream, gfx9Image, subresRange);
+                        const bool usedCompute = RsrcProcMgr().InitMaskRam(pCmdBuf,
+                                                                           pCmdStream,
+                                                                           gfx9Image,
+                                                                           subresRange,
+                                                                           imageInfo.newLayout,
+                                                                           &barrierOps);
 
                         // After initializing Mask RAM, we need some syncs to guarantee the initialization blts have
                         // finished, even if other Blts caused these operations to occur before any Blts were performed.
@@ -1500,25 +1519,6 @@ void Device::Barrier(
                             initSyncReqs.csPartialFlush = 1;
                             initSyncReqs.cacheFlags    |= CacheSyncInvTcp;
                             initSyncReqs.cacheFlags    |= CacheSyncInvTccMd;
-                        }
-
-                        if (gfx9Image.HasDccStateMetaData(subresRange.startSubres.aspect))
-                        {
-                            // We need to initialize the Image's DCC state metadata to indicate that the Image will
-                            // become DCC compressed (or not) in upcoming operations.
-                            const bool canCompress =
-                                ImageLayoutCanCompressColorData(gfx9Image.LayoutToColorCompressionState(),
-                                                                imageInfo.newLayout);
-
-                            // If the new layout is one which can write compressed DCC data,  then we need to update the
-                            // Image's DCC state metadata to indicate that the image will become DCC compressed in
-                            // upcoming operations.
-                            barrierOps.layoutTransitions.updateDccStateMetadata = 1;
-                            gfx9Image.UpdateDccStateMetaData(pCmdStream,
-                                                             subresRange,
-                                                             canCompress,
-                                                             engineType,
-                                                             PredDisable);
                         }
 
                         // F/I L2 since metadata init is a direct metadata write.  Refer to FlushAndInvL2IfNeeded for

@@ -854,18 +854,21 @@ void RsrcProcMgr::MetaDataDispatch(
 // Issues a compute shader blt to initialize the Mask RAM allocatons for an Image.
 // Returns "true" if the compute engine was used for the InitMaskRam operation.
 bool RsrcProcMgr::InitMaskRam(
-    GfxCmdBuffer*      pCmdBuffer,
-    Pal::CmdStream*    pCmdStream,
-    const Image&       dstImage,
-    const SubresRange& range
+    GfxCmdBuffer*                 pCmdBuffer,
+    Pal::CmdStream*               pCmdStream,
+    const Image&                  dstImage,
+    const SubresRange&            range,
+    ImageLayout                   layout,
+    Developer::BarrierOperations* pBarrierOps
     ) const
 {
     const auto&       settings   = GetGfx9Settings(*dstImage.Parent()->GetDevice());
     const Pal::Image* pParentImg = dstImage.Parent();
 
-    // If this is a full-range init, then allow the fill-mem path as permitted by the settings.  For non-full
-    // range inits, we can't use the fill-mem path for anything.
-    const uint32  fullRangeInitMask = (pParentImg->IsFullSubResRange(range) ? Image::UseFillMemForFullRangeInit : 0);
+    if (pBarrierOps != nullptr)
+    {
+        pBarrierOps->layoutTransitions.initMaskRam = 1;
+    }
 
     // If we're in this function, we know this surface has meta-data.  Most of the meta-data init functions use compute
     // so assume that by default.
@@ -889,15 +892,7 @@ bool RsrcProcMgr::InitMaskRam(
         pCmdStream->CommitCommands(pCmdSpace);
     }
 
-    if (fullRangeInitMask != 0)
-    {
-        // There are at least some mask-rams that we're initializing with fill-memory calls.
-        dstImage.InitMetadataFill(pCmdBuffer, range);
-    }
-
-    if (dstImage.HasHtileData() &&
-        (TestAnyFlagSet(fullRangeInitMask,
-                        Gfx9InitMetaDataFill::Gfx9InitMetaDataFillHtile) == false))
+    if (dstImage.HasHtileData())
     {
         const auto*  pHtile = dstImage.GetHtile();
 
@@ -909,9 +904,7 @@ bool RsrcProcMgr::InitMaskRam(
     }
     else
     {
-        if (dstImage.HasDccData() &&
-            (TestAnyFlagSet(fullRangeInitMask,
-                            Gfx9InitMetaDataFill::Gfx9InitMetaDataFillDcc) == false))
+        if (dstImage.HasDccData())
         {
             const Gfx9Dcc* pDcc = dstImage.GetDcc(range.startSubres.aspect);
 
@@ -933,9 +926,7 @@ bool RsrcProcMgr::InitMaskRam(
             }
         }
 
-        if (dstImage.HasFmaskData() &&
-            (TestAnyFlagSet(fullRangeInitMask,
-                            Gfx9InitMetaDataFill::Gfx9InitMetaDataFillCmask) == false))
+        if (dstImage.HasFmaskData())
         {
             // If we have fMask, then we have cMask
             dstImage.GetCmask()->UploadEq(pCmdBuffer);
@@ -952,7 +943,7 @@ bool RsrcProcMgr::InitMaskRam(
         }
     }
 
-    if (dstImage.HasFastClearMetaData(range.startSubres.aspect) && (fullRangeInitMask == 0))
+    if (dstImage.HasFastClearMetaData(range.startSubres.aspect))
     {
         if (dstImage.HasDsMetadata())
         {
@@ -970,7 +961,6 @@ bool RsrcProcMgr::InitMaskRam(
     }
 
     if (dstImage.HasHiSPretestsMetaData() &&
-        (fullRangeInitMask == 0) &&
         (range.startSubres.aspect == ImageAspect::Stencil))
     {
         ClearHiSPretestsMetaData(pCmdBuffer, pCmdStream, dstImage, range);
@@ -997,6 +987,26 @@ bool RsrcProcMgr::InitMaskRam(
         pCmdSpace = dstImage.UpdateWaTcCompatZRangeMetaData(range, 1.0f, packetPredicate, pCmdSpace);
 
         pCmdStream->CommitCommands(pCmdSpace);
+    }
+
+    if (dstImage.HasDccStateMetaData(range.startSubres.aspect))
+    {
+        // We need to initialize the Image's DCC state metadata to indicate that the Image can become DCC compressed
+        // (or not) in upcoming operations.
+        const bool canCompress = ImageLayoutCanCompressColorData(dstImage.LayoutToColorCompressionState(), layout);
+
+        if (pBarrierOps != nullptr)
+        {
+            pBarrierOps->layoutTransitions.updateDccStateMetadata = 1;
+        }
+
+        // If the new layout is one which can write compressed DCC data,  then we need to update the Image's DCC state
+        // metadata to indicate that the image will become DCC compressed in upcoming operations.
+        dstImage.UpdateDccStateMetaData(pCmdStream,
+                                        range,
+                                        canCompress,
+                                        pCmdBuffer->GetEngineType(),
+                                        PredDisable);
     }
 
     return usedCompute;
@@ -3616,8 +3626,6 @@ void RsrcProcMgr::CmdCopyMemoryToImage(
     bool                         includePadding
     ) const
 {
-    const auto& createInfo = dstImage.GetImageCreateInfo();
-
     Pal::RsrcProcMgr::CmdCopyMemoryToImage(pCmdBuffer,
                                            srcGpuMemory,
                                            dstImage,
@@ -3625,6 +3633,8 @@ void RsrcProcMgr::CmdCopyMemoryToImage(
                                            regionCount,
                                            pRegions,
                                            includePadding);
+
+    const ImageCreateInfo& createInfo = dstImage.GetImageCreateInfo();
 
     if (Formats::IsBlockCompressed(createInfo.swizzledFormat.format) &&
         (createInfo.mipLevels > 1))
@@ -3645,6 +3655,7 @@ void RsrcProcMgr::CmdCopyMemoryToImage(
             }
         } // end loop through copy regions
     } // end check for trivial case
+
 }
 
 // ====================================================================================================================
@@ -6084,13 +6095,30 @@ const Pal::ComputePipeline* Gfx10RsrcProcMgr::GetCmdGenerationPipeline(
 }
 
 // =====================================================================================================================
+template <typename SrdType>
+static uint32 RetrieveHwFmtFromSrd(
+    const Pal::Device&   palDevice,
+    const SrdType*       pSrd)
+{
+    uint32  hwFmt = 0;
+
+    {
+        PAL_ASSERT(IsGfx10(palDevice));
+
+        hwFmt = pSrd->gfx10Core.format;
+    }
+
+    return hwFmt;
+}
+
+// =====================================================================================================================
 void Gfx10RsrcProcMgr::HwlDecodeBufferViewSrd(
     const void*      pBufferViewSrd,
     BufferViewInfo*  pViewInfo
     ) const
 {
     const auto*    pSrd  = static_cast<const sq_buf_rsrc_t*>(pBufferViewSrd);
-    const BUF_FMT  hwFmt = static_cast<BUF_FMT>(pSrd->most.format);
+    const BUF_FMT  hwFmt = static_cast<BUF_FMT>(RetrieveHwFmtFromSrd(*(m_pDevice->Parent()), pSrd));
 
     // Verify that we have a buffer view SRD.
     PAL_ASSERT(pSrd->type == SQ_RSRC_BUF);
@@ -6132,7 +6160,7 @@ void Gfx10RsrcProcMgr::HwlDecodeImageViewSrd(
     const ImageCreateInfo&  createInfo = dstImage.GetImageCreateInfo();
 
     const auto*    pSrd  = static_cast<const sq_img_rsrc_t*>(pImageViewSrd);
-    const IMG_FMT  hwFmt = static_cast<IMG_FMT>(pSrd->most.format);
+    const IMG_FMT  hwFmt = static_cast<IMG_FMT>(RetrieveHwFmtFromSrd(*(m_pDevice->Parent()), pSrd));
 
     // Verify that we have an image view SRD.
     PAL_ASSERT((pSrd->type >= SQ_RSRC_IMG_1D) && (pSrd->type <= SQ_RSRC_IMG_2D_MSAA_ARRAY));

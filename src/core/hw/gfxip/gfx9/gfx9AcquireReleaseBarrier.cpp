@@ -403,20 +403,12 @@ bool Device::AcqRelInitMaskRam(
 
     PAL_ASSERT(gfx9Image.HasColorMetaData() || gfx9Image.HasHtileData());
 
-    const bool usedCompute = RsrcProcMgr().InitMaskRam(pCmdBuf, pCmdStream, gfx9Image, subresRange);
-
-    if (gfx9Image.HasDccStateMetaData(subresRange.startSubres.aspect))
-    {
-        // We need to initialize the Image's DCC state metadata to indicate that the Image will
-        // become DCC compressed (or not) in upcoming operations.
-        const bool canCompress =
-            ImageLayoutCanCompressColorData(gfx9Image.LayoutToColorCompressionState(), imgBarrier.newLayout);
-
-        // If the new layout is one which can write compressed DCC data,  then we need to update the
-        // Image's DCC state metadata to indicate that the image will become DCC compressed in
-        // upcoming operations.
-        gfx9Image.UpdateDccStateMetaData(pCmdStream, subresRange, canCompress, engineType, PredDisable);
-    }
+    const bool usedCompute = RsrcProcMgr().InitMaskRam(pCmdBuf,
+                                                       pCmdStream,
+                                                       gfx9Image,
+                                                       subresRange,
+                                                       imgBarrier.newLayout,
+                                                       nullptr);
 
     return usedCompute;
 }

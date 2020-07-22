@@ -182,8 +182,8 @@ const RegisterRange Gfx9ShShadowRange[] =
         (mmSPI_SHADER_USER_DATA_PS_31 - mmSPI_SHADER_PGM_LO_PS + 1),
     },
     {
-        (mmSPI_SHADER_LATE_ALLOC_VS - PERSISTENT_SPACE_START),                  // 0x2C47 - 0x2C6B
-        (mmSPI_SHADER_USER_DATA_VS_31 - mmSPI_SHADER_LATE_ALLOC_VS + 1),
+        (Gfx09_10::mmSPI_SHADER_LATE_ALLOC_VS - PERSISTENT_SPACE_START),                  // 0x2C47 - 0x2C6B
+        (Gfx09_10::mmSPI_SHADER_USER_DATA_VS_31 - Gfx09_10::mmSPI_SHADER_LATE_ALLOC_VS + 1),
     },
     {
         (mmSPI_SHADER_PGM_RSRC4_GS - PERSISTENT_SPACE_START),                   // 0x2C81 - 0x2C85
@@ -254,12 +254,12 @@ const RegisterRange Gfx9ShShadowRangeRaven2[] =
         (mmSPI_SHADER_USER_DATA_PS_31 - mmSPI_SHADER_PGM_LO_PS + 1),
     },
     {
-        (Apu09_1xPlus::mmSPI_SHADER_PGM_CHKSUM_VS - PERSISTENT_SPACE_START),    // 0x2C45
+        (Gfx10::mmSPI_SHADER_PGM_CHKSUM_VS - PERSISTENT_SPACE_START),    // 0x2C45
         1
     },
     {
-        (mmSPI_SHADER_LATE_ALLOC_VS - PERSISTENT_SPACE_START),                  // 0x2C47 - 0x2C6B
-        (mmSPI_SHADER_USER_DATA_VS_31 - mmSPI_SHADER_LATE_ALLOC_VS + 1),
+        (Gfx09_10::mmSPI_SHADER_LATE_ALLOC_VS - PERSISTENT_SPACE_START),                  // 0x2C47 - 0x2C6B
+        (Gfx09_10::mmSPI_SHADER_USER_DATA_VS_31 - Gfx09_10::mmSPI_SHADER_LATE_ALLOC_VS + 1),
     },
     {
         (Apu09_1xPlus::mmSPI_SHADER_PGM_CHKSUM_GS - PERSISTENT_SPACE_START),    // 0x2C80 - 0x2C85
@@ -415,7 +415,7 @@ const RegisterRange Gfx90NonShadowedRanges[] =
         1
     },
     {
-        mmSPI_SHADER_PGM_RSRC3_VS,
+        Gfx09_10::mmSPI_SHADER_PGM_RSRC3_VS,
         1
     },
     {
@@ -551,7 +551,7 @@ const RegisterRange Gfx91NonShadowedRanges[] =
         1
     },
     {
-        mmSPI_SHADER_PGM_RSRC3_VS,
+        Gfx09_10::mmSPI_SHADER_PGM_RSRC3_VS,
         1
     },
     {

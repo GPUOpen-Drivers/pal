@@ -165,7 +165,7 @@ const RegisterRange Navi10NonShadowedRanges[] =
         1
     },
     {
-        mmSPI_SHADER_PGM_RSRC3_VS,
+        Gfx09_10::mmSPI_SHADER_PGM_RSRC3_VS,
         1
     },
     {
@@ -177,7 +177,7 @@ const RegisterRange Navi10NonShadowedRanges[] =
         1
     },
     {
-        Gfx10Plus::mmSPI_SHADER_PGM_RSRC4_VS,
+        Gfx10::mmSPI_SHADER_PGM_RSRC4_VS,
         1
     },
     {

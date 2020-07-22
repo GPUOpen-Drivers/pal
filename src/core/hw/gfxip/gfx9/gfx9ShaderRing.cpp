@@ -110,8 +110,8 @@ gpusize ShaderRing::ComputeAllocationSize() const
 
 // =====================================================================================================================
 Result ShaderRing::AllocateVideoMemory(
-    gpusize        memorySizeBytes,
-    ShaderRingType ringType,
+    gpusize           memorySizeBytes,
+    ShaderRingType    ringType,
     ShaderRingMemory* pDeferredMem)
 {
     InternalMemMgr*const pMemMgr = m_pDevice->Parent()->MemMgr();
@@ -139,7 +139,8 @@ Result ShaderRing::AllocateVideoMemory(
     createInfo.alignment = ShaderRingAlignment;
     createInfo.priority  = GpuMemPriority::Normal;
 
-    if (ringType == ShaderRingType::SamplePos)
+    if ((ringType == ShaderRingType::SamplePos)
+         )
     {
         // SamplePos doesn't need a TMZ allocation because it's updated by the CPU and only read by the GPU.
         createInfo.heaps[0]  = GpuHeapLocal;

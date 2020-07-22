@@ -130,16 +130,16 @@ union InternalImageFlags
     uint32 value;
 };
 
-/// Display Dcc capabilities
+// Display Dcc capabilities
 union DisplayDccCaps
 {
     struct
     {
         uint32 enabled                   : 1;
-        uint32 rbAligned                 : 1;  ///< allow RB aligned
-        uint32 pipeAligned               : 1;  ///< allow Pipe aligned
+        uint32 rbAligned                 : 1;  // allow RB aligned
+        uint32 pipeAligned               : 1;  // allow Pipe aligned
 
-        /// MaxUncompressedBlockSize_MaxCompressedBlockSize_IndependentBlockControl
+        // MaxUncompressedBlockSize_MaxCompressedBlockSize_IndependentBlockControl
         uint32 dcc_256_256_unconstrained : 1;
         uint32 dcc_256_128_128           : 1;
         uint32 dcc_128_128_unconstrained : 1;
@@ -386,6 +386,16 @@ public:
     // Returns whether or not this Image is a shareable or opened image.
     bool IsShared() const
         { return (m_createInfo.flags.shareable != 0); }
+
+    // Return whether or not this Image is tmz protected.
+    bool IsTmz() const
+    {
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 616
+        return (m_createInfo.flags.tmzProtected);
+#else
+        return false;
+#endif
+    }
 
     // Returns whether or not this Image had metadata disabled by the client. This does NOT
     // tell you if Metadata does exist or not (PAL may still disable Metadata for other reasons).

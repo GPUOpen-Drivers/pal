@@ -195,7 +195,6 @@ PAL_INLINE DepthStencilCompressionState ImageLayoutToDepthCompressionState(
 class Image : public GfxImage
 {
 public:
-    static constexpr uint32 UseFillMemForFullRangeInit = 0;
     static constexpr uint32 FastClearAllTcCompatColorSurfs = (FastClearAllTcCompatColorSurfsNoAa |
                                                               FastClearAllTcCompatColorSurfsMsaa);
 
@@ -312,6 +311,7 @@ public:
 
     gpusize GetDccStateMetaDataAddr(const SubresId&  subResId) const;
     gpusize GetDccStateMetaDataOffset(const SubresId&  subResId) const;
+    gpusize GetDccStateMetaDataSize(const SubresId&  subResId, uint32 numMips) const;
 
     // Returns true if this Image has associated mask-ram data.
     bool HasColorMetaData() const { return HasFmaskData() || HasDccData(); }
@@ -351,7 +351,10 @@ public:
     virtual uint32 GetSwTileMode(const SubResourceInfo*  pSubResInfo) const override
         { return GetAddrSettings(pSubResInfo).swizzleMode; }
 
-    virtual void InitMetadataFill(Pal::CmdBuffer* pCmdBuffer, const SubresRange& range) const override;
+    virtual void InitMetadataFill(
+        Pal::CmdBuffer*    pCmdBuffer,
+        const SubresRange& range,
+        ImageLayout        layout) const override;
 
     void CpuProcessCmaskEq(
         const SubresRange&  clearRange,

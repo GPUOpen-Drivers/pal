@@ -69,6 +69,7 @@ enum class ShaderRingSrd : uint32
     Reserved4,                         // Reserved for future use.
     Reserved5,                         // Reserved for future use.
     Reserved6,                         // Reserved for future use.
+    Reserved7,                         // Reserved for future use.
     NumUniversal,                      // Number of Ring SRD's in a RingSet associated with a universal Queue
     NumCompute = (SamplePosBuffer + 1), // Number of Ring SRD's in a RingSet associated with a compute Queue
 };
@@ -103,7 +104,7 @@ public:
     virtual Result Validate(const ShaderRingItemSizes&  ringSizes,
                             const SamplePatternPalette& samplePatternPalette,
                             const uint64                lastTimeStamp,
-                            bool*                       pHasDeferredChanges);
+                            uint32*                     pReallocatedRings);
 
     // Writes the per-Ring-Set register state into the specified command stream.
     virtual uint32* WriteCommands(CmdStream* pCmdStream, uint32* pCmdSpace) const = 0;
@@ -147,9 +148,11 @@ public:
     virtual Result Validate(const ShaderRingItemSizes&  ringSizes,
                             const SamplePatternPalette& samplePatternPalette,
                             uint64                      lastTimeStamp,
-                            bool*                       pHasDeferredChanges) override;
+                            uint32*                     pReallocatedRings) override;
 
     virtual uint32* WriteCommands(CmdStream* pCmdStream, uint32* pCmdSpace) const override;
+
+    uint32* WriteComputeCommands(CmdStream* pCmdStream, uint32* pCmdSpace) const;
 
 private:
     struct
@@ -159,7 +162,6 @@ private:
         regVGT_TF_MEMORY_BASE_HI      vgtTfMemoryBaseHi;
         regVGT_TF_RING_SIZE           vgtTfRingSize;
         regVGT_HS_OFFCHIP_PARAM       vgtHsOffchipParam;
-
         regSPI_TMPRING_SIZE           gfxScratchRingSize;
         regCOMPUTE_TMPRING_SIZE       computeScratchRingSize;
     }  m_regs;
@@ -180,7 +182,7 @@ public:
     virtual Result Validate(const ShaderRingItemSizes&  ringSizes,
                             const SamplePatternPalette& samplePatternPalette,
                             uint64                      lastTimeStamp,
-                            bool*                       pHasDeferredChanges) override;
+                            uint32*                     pReallocatedRings) override;
 
     virtual uint32* WriteCommands(CmdStream* pCmdStream, uint32* pCmdSpace) const override;
 

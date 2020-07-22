@@ -3498,7 +3498,8 @@ size_t CmdUtil::BuildWaitRegMem(
     gpusize       addr,
     uint32        reference,
     uint32        mask,
-    void*         pBuffer)   // [out] Build the PM4 packet in this buffer.
+    void*         pBuffer,   // [out] Build the PM4 packet in this buffer.
+    uint32        operation)
 {
     static_assert(PM4_ME_WAIT_REG_MEM_SIZEDW__CORE == PM4_MEC_WAIT_REG_MEM_SIZEDW__CORE,
                   "WAIT_REG_MEM has different sizes between compute and gfx!");
@@ -3536,12 +3537,12 @@ size_t CmdUtil::BuildWaitRegMem(
     auto*const pPacket                    = static_cast<PM4_ME_WAIT_REG_MEM*>(pBuffer);
     auto*const pPacketMecOnly             = static_cast<PM4_MEC_WAIT_REG_MEM*>(pBuffer);
 
-    pPacket->ordinal1.header.u32All                = Type3Header(IT_WAIT_REG_MEM, PacketSize);
-    pPacket->ordinal2.u32All                     = 0;
-    pPacket->ordinal2.bitfields.function          = static_cast<ME_WAIT_REG_MEM_function_enum>(function);
-    pPacket->ordinal2.bitfields.mem_space         = static_cast<ME_WAIT_REG_MEM_mem_space_enum>(memSpace);
-    pPacket->ordinal2.bitfields.operation         = operation__me_wait_reg_mem__wait_reg_mem;
-    pPacket->ordinal3.u32All                     = LowPart(addr);
+    pPacket->ordinal1.header.u32All       = Type3Header(IT_WAIT_REG_MEM, PacketSize);
+    pPacket->ordinal2.u32All              = 0;
+    pPacket->ordinal2.bitfields.function  = static_cast<ME_WAIT_REG_MEM_function_enum>(function);
+    pPacket->ordinal2.bitfields.mem_space = static_cast<ME_WAIT_REG_MEM_mem_space_enum>(memSpace);
+    pPacket->ordinal2.bitfields.operation = static_cast<ME_WAIT_REG_MEM_operation_enum>(operation);
+    pPacket->ordinal3.u32All              = LowPart(addr);
 
     if (memSpace == mem_space__me_wait_reg_mem__memory_space)
     {

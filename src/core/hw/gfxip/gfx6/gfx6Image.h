@@ -280,6 +280,8 @@ public:
 
     gpusize GetDccStateMetaDataAddr(uint32 mipLevel) const;
     gpusize GetDccStateMetaDataOffset(uint32 mipLevel) const;
+    gpusize GetDccStateMetaDataSize(uint32 numMips) const;
+
     gpusize GetFastClearEliminateMetaDataAddr(uint32 mipLevel) const;
     gpusize GetFastClearEliminateMetaDataOffset(uint32 mipLevel) const;
 
@@ -344,7 +346,10 @@ public:
     virtual uint32 GetSwTileMode(const SubResourceInfo*  pSubResInfo) const override
         { return GetSubResourceTileMode(pSubResInfo->subresId); }
 
-    virtual void InitMetadataFill(Pal::CmdBuffer* pCmdBuffer, const SubresRange& range) const override;
+    virtual void InitMetadataFill(
+        Pal::CmdBuffer*    pCmdBuffer,
+        const SubresRange& range,
+        ImageLayout        layout) const override;
 
     bool SupportsComputeDecompress(const SubresId& subresId) const;
 

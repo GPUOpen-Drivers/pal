@@ -408,7 +408,7 @@ ImageCopyEngine RsrcProcMgr::GetImageToImageCopyEngine(
 
 // =====================================================================================================================
 // Builds commands to copy one or more regions from one image to another.
-ImageCopyEngine RsrcProcMgr::CmdCopyImage(
+void RsrcProcMgr::CmdCopyImage(
     GfxCmdBuffer*          pCmdBuffer,
     const Image&           srcImage,
     ImageLayout            srcImageLayout,
@@ -494,7 +494,6 @@ ImageCopyEngine RsrcProcMgr::CmdCopyImage(
         }
     }
 
-    return copyEngine;
 }
 
 // =====================================================================================================================
@@ -2215,9 +2214,6 @@ bool RsrcProcMgr::ScaledCopyImageUseGraphics(
     const ImageType  srcImageType = srcInfo.imageType;
     const ImageType  dstImageType = dstInfo.imageType;
 
-    // MSAA source and destination images must have the same number of samples.
-    PAL_ASSERT(srcInfo.samples == dstInfo.samples);
-
     const bool isDepth      = ((srcInfo.usageFlags.depthStencil != 0) ||
                                (dstInfo.usageFlags.depthStencil != 0) ||
                                Formats::IsDepthStencilOnly(srcInfo.swizzledFormat.format) ||
@@ -2234,7 +2230,6 @@ bool RsrcProcMgr::ScaledCopyImageUseGraphics(
     const bool useGraphicsCopy = (pCmdBuffer->IsGraphicsSupported()   &&
                                   ((srcImageType != ImageType::Tex1d) &&
                                    (dstImageType != ImageType::Tex1d) &&
-                                   (dstInfo.samples == 1)             &&
                                    (isCompressed == false)            &&
                                    (isYuv == false)                   &&
                                    (isDepth == false)                 &&
@@ -3516,6 +3511,7 @@ void RsrcProcMgr::ScaledCopyImageCompute(
                                     RpmUtil::MinThreadGroups(zGroups,    threadsPerGroup[2]));
         }
     }
+
 }
 
 // =====================================================================================================================

@@ -366,6 +366,37 @@ Result PipelineAbiProcessor<Allocator>::SetLlvmIr(
 
 // =====================================================================================================================
 template <typename Allocator>
+Result PipelineAbiProcessor<Allocator>::SetGenericSection(
+    const char* pName,
+    const void* pData,
+    size_t      dataSize)
+{
+#if PAL_ENABLE_PRINTS_ASSERTS
+    AssertNotStandardSection(pName);
+#endif
+
+    Elf::Section<Allocator>* pSection = m_elfProcessor.GetSections()->Get(pName);
+
+    if (pSection == nullptr)
+    {
+        pSection = m_elfProcessor.GetSections()->Add(pName);
+        if (pSection != nullptr)
+        {
+            pSection->SetType(Elf::SectionHeaderType::ProgBits);
+        }
+    }
+
+    Result result = Result::Success;
+    if ((pSection == nullptr) || (nullptr == pSection->SetData(pData, dataSize)))
+    {
+        result = Result::ErrorOutOfMemory;
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
+template <typename Allocator>
 Result PipelineAbiProcessor<Allocator>::GetMetadata(
     MsgPackReader*         pReader,
     PalCodeObjectMetadata* pMetadata
@@ -517,12 +548,38 @@ void PipelineAbiProcessor<Allocator>::GetLlvmIr(
 {
     if (m_pLlvmIrSection != nullptr)
     {
-        *ppData = m_pLlvmIrSection->GetData();
+        *ppData    = m_pLlvmIrSection->GetData();
         *pDataSize = m_pLlvmIrSection->GetDataSize();
     }
     else
     {
-        *ppData = nullptr;
+        *ppData    = nullptr;
+        *pDataSize = 0;
+    }
+}
+
+// =====================================================================================================================
+template <typename Allocator>
+void PipelineAbiProcessor<Allocator>::GetGenericSection(
+    const char*  pName,
+    const void** ppData,
+    size_t*      pDataSize
+    ) const
+{
+#if PAL_ENABLE_PRINTS_ASSERTS
+    AssertNotStandardSection(pName);
+#endif
+
+    const Elf::Section<Allocator>* pSection = m_elfProcessor.GetSections()->Get(pName);
+
+    if (pSection != nullptr)
+    {
+        *ppData    = pSection->GetData();
+        *pDataSize = pSection->GetDataSize();
+    }
+    else
+    {
+        *ppData    = nullptr;
         *pDataSize = 0;
     }
 }
@@ -1158,6 +1215,24 @@ Result PipelineAbiProcessor<Allocator>::CreateTextSection()
     }
 
     return result;
+}
+
+// =====================================================================================================================
+template <typename Allocator>
+void PipelineAbiProcessor<Allocator>::AssertNotStandardSection(
+    const char* pName)
+{
+    // Ensure pName does not match a standard section.
+    for (uint32 i = 0; i < static_cast<uint32>(Elf::SectionType::Count); ++i)
+    {
+        PAL_ASSERT(strcmp(Elf::SectionNameStringTable[i], pName) != 0);
+    }
+    static constexpr char const* UsedSectionNames[] = { ".rel.text", ".rel.data", ".rela.text", ".rela.data",
+        AmdGpuDisassemblyName, AmdGpuCommentName, AmdGpuCommentAmdIlName, AmdGpuCommentLlvmIrName };
+    for (uint32 i = 0; i < static_cast<uint32>(Util::ArrayLen(UsedSectionNames)); ++i)
+    {
+        PAL_ASSERT(strcmp(UsedSectionNames[i], pName) != 0);
+    }
 }
 
 // =====================================================================================================================

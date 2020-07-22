@@ -2293,6 +2293,17 @@ gpusize Image::GetDccStateMetaDataOffset(
 }
 
 // =====================================================================================================================
+// Returns the GPU memory size of the dcc state metadata for the specified num mips.
+gpusize Image::GetDccStateMetaDataSize(
+    uint32 numMips
+    ) const
+{
+    PAL_ASSERT(HasDccStateMetaData());
+
+    return (sizeof(MipDccStateMetaData) * numMips);
+}
+
+// =====================================================================================================================
 // Determines the GPU virtual address of the fast-clear-eliminate meta-data.  This metadata is used by a
 // conditional-execute packet around the fast-clear-eliminate packets. Returns the GPU address of the
 // fast-clear-eliminiate packet, zero if this image does not have the FCE meta-data.
@@ -2956,7 +2967,8 @@ uint32 Image::GetSubresource256BAddrSwizzled(
 // Note that pCmdBuffer may not be a GfxCmdBuffer.
 void Image::InitMetadataFill(
     Pal::CmdBuffer*    pCmdBuffer,
-    const SubresRange& range
+    const SubresRange& range,
+    ImageLayout        layout
     ) const
 {
     const auto& boundMem    = m_pParent->GetBoundGpuMemory();
@@ -3090,6 +3102,16 @@ void Image::InitMetadataFill(
         pCmdBuffer->CmdFillMemory(*boundMem.Memory(),
                                   WaTcCompatZRangeMetaDataOffset(range.startSubres.mipLevel),
                                   WaTcCompatZRangeMetaDataSize(range.numMips),
+                                  0);
+    }
+
+    if (HasDccStateMetaData())
+    {
+        // The layout can be ignored here (as opposed to gfx9 images) because gfx6 images always have their DCC
+        // metadata state updated during operations that can cause a DCC (de)compression.
+        pCmdBuffer->CmdFillMemory(*boundMem.Memory(),
+                                  GetDccStateMetaDataOffset(range.startSubres.mipLevel),
+                                  GetDccStateMetaDataSize(range.numMips),
                                   0);
     }
 

@@ -104,11 +104,12 @@ public:
     size_t TotalMemSize() const { return SrdTableSize(); }
 
 protected:
-    ShaderRingSet(Device* pDevice, size_t numRings, size_t numSrds);
+    ShaderRingSet(Device* pDevice, size_t numRings, size_t numSrds, bool isTmz);
 
     Device*const  m_pDevice;
     const size_t  m_numRings;       // Number of shader rings contained in the set
     const size_t  m_numSrds;        // Number of SRD's in this set's table
+    const bool    m_tmzEnabled;     // Indicate this shader ring set is tmz protected or not
 
     ShaderRing**  m_ppRings;
     BufferSrd*    m_pSrdTable;
@@ -125,7 +126,7 @@ private:
 class UniversalRingSet : public ShaderRingSet
 {
 public:
-    explicit UniversalRingSet(Device* pDevice);
+    explicit UniversalRingSet(Device* pDevice, bool isTmz);
     virtual ~UniversalRingSet() {}
 
     virtual Result Init() override;
@@ -158,7 +159,7 @@ private:
 class ComputeRingSet : public ShaderRingSet
 {
 public:
-    explicit ComputeRingSet(Device* pDevice);
+    explicit ComputeRingSet(Device* pDevice, bool isTmz);
     virtual ~ComputeRingSet() {}
 
     virtual Result Init() override;

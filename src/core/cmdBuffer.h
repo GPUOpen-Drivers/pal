@@ -770,7 +770,7 @@ public:
     bool IsOneTimeSubmit()   const { return (m_buildFlags.optimizeOneTimeSubmit      != 0); }
     bool AllowLaunchViaIb2() const { return (m_buildFlags.disallowNestedLaunchViaIb2 == 0); }
 
-    bool IsTmzEnabled() { return (m_buildFlags.enableTmz != 0); }
+    bool IsTmzEnabled() const { return (m_buildFlags.enableTmz != 0); }
 
     uint64 LastPagingFence() const { return m_lastPagingFence; }
 
@@ -778,11 +778,9 @@ public:
     // must follow special life-time rules. Read the CmdBufferBuildInfo documentation for more information.
     Util::VirtualLinearAllocator* Allocator() { return m_pMemAllocator; }
 
-    void NotifyAllocFailure()
-    {
-        PAL_ALERT_ALWAYS();
-        m_status = Result::ErrorOutOfMemory;
-    }
+    // Command building error management:
+    void NotifyAllocFailure();
+    void SetCmdRecordingError(Result error);
 
     // Called once before initiating a copy that will target a peer memory object where the P2P BLT BAR workaround
     // is required.  It should not be called if the workaround is not requied.
@@ -913,7 +911,7 @@ protected:
 
     Util::VirtualLinearAllocator* m_pMemAllocator;
     void*                         m_pMemAllocatorStartPos;
-    Result                        m_status;
+    Result                        m_status; // Remembers if we encountered an error while recording commands.
 
     gpusize                       m_executionMarkerAddr;
     uint32                        m_executionMarkerCount;

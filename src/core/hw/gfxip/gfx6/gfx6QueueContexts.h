@@ -49,7 +49,7 @@ class UniversalEngine;
 class ComputeQueueContext : public QueueContext
 {
 public:
-    ComputeQueueContext(Device* pDevice, Engine* pEngine, uint32 queueId);
+    ComputeQueueContext(Device* pDevice, Engine* pEngine, uint32 queueId, bool isTmz);
     virtual ~ComputeQueueContext() {}
 
     Result Init();
@@ -58,14 +58,16 @@ public:
     virtual void PostProcessSubmit() override;
 
 private:
-    Result RebuildCommandStream();
+    Result RebuildCommandStream(bool isTmz);
 
     Device*const        m_pDevice;
     ComputeEngine*const m_pEngine;
     uint32              m_queueId;
+    bool                m_queueUseTmzRing;
 
     // Current watermark for the device-initiated context updates which have been processed by this queue context.
     uint32  m_currentUpdateCounter;
+    uint32  m_currentUpdateCounterTmz;
 
     CmdStream  m_cmdStream;
     CmdStream  m_perSubmitCmdStream;
@@ -106,7 +108,7 @@ public:
 
 private:
     Result BuildShadowPreamble();
-    Result RebuildCommandStreams();
+    Result RebuildCommandStreams(bool isTmz);
 
     Result AllocateShadowMemory();
 
@@ -122,6 +124,8 @@ private:
 
     // Current watermark for the device-initiated context updates which have been processed by this queue context.
     uint32  m_currentUpdateCounter;
+    uint32  m_currentUpdateCounterTmz;
+    bool    m_cmdsUseTmzRing;
 
     // GPU memory allocation used for shadowing persistent CE RAM between submissions.
     bool            m_useShadowing;

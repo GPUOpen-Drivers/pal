@@ -663,23 +663,24 @@ struct GpuChipProperties
             struct
             {
 #if (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 546)
-                /// Images created on this device support single sampled texture quilting
+                // Images created on this device support single sampled texture quilting
                 uint32 supportsSingleSampleQuilting :  1;
 #else
                 uint32 reservedForFutureHw1         :  1;
 #endif
 
-                /// Images created on this device supports AQBS stereo mode, this AQBS stereo mode doesn't apply to the
-                /// array-based stereo feature supported by Presentable images.
+                // Images created on this device supports AQBS stereo mode, this AQBS stereo mode doesn't apply to the
+                // array-based stereo feature supported by Presentable images.
                 uint32 supportsAqbsStereoMode       :  1;
 
-                /// Images created on this device support being sampled with corner sampling.
+                // Images created on this device support being sampled with corner sampling.
                 uint32 supportsCornerSampling       :  1;
-                uint32 supportDisplayDcc            :  1; ///< whether to support Display Dcc
-                /// Reserved for future use.
+                // Whether to support Display Dcc
+                uint32 supportDisplayDcc            :  1;
+                // Reserved for future use.
                 uint32 reserved                     : 28;
             };
-            uint32 u32All;           ///< Flags packed as 32-bit uint.
+            uint32 u32All;
         } flags;
 
         uint32                 minPitchAlignPixel;

@@ -2715,19 +2715,16 @@ constexpr unsigned int SPI_SHADER_COL_FORMAT__COL4_EXPORT_FORMAT__SHIFT   = 0x00
 constexpr unsigned int SPI_SHADER_COL_FORMAT__COL5_EXPORT_FORMAT__SHIFT   = 0x00000014;
 constexpr unsigned int SPI_SHADER_COL_FORMAT__COL6_EXPORT_FORMAT__SHIFT   = 0x00000018;
 constexpr unsigned int SPI_SHADER_COL_FORMAT__COL7_EXPORT_FORMAT__SHIFT   = 0x0000001c;
-constexpr unsigned int SPI_SHADER_LATE_ALLOC_VS__LIMIT__SHIFT             = 0x00000000;
 constexpr unsigned int SPI_SHADER_PGM_HI_ES__MEM_BASE__SHIFT              = 0x00000000;
 constexpr unsigned int SPI_SHADER_PGM_HI_GS__MEM_BASE__SHIFT              = 0x00000000;
 constexpr unsigned int SPI_SHADER_PGM_HI_HS__MEM_BASE__SHIFT              = 0x00000000;
 constexpr unsigned int SPI_SHADER_PGM_HI_LS__MEM_BASE__SHIFT              = 0x00000000;
 constexpr unsigned int SPI_SHADER_PGM_HI_PS__MEM_BASE__SHIFT              = 0x00000000;
-constexpr unsigned int SPI_SHADER_PGM_HI_VS__MEM_BASE__SHIFT              = 0x00000000;
 constexpr unsigned int SPI_SHADER_PGM_LO_ES__MEM_BASE__SHIFT              = 0x00000000;
 constexpr unsigned int SPI_SHADER_PGM_LO_GS__MEM_BASE__SHIFT              = 0x00000000;
 constexpr unsigned int SPI_SHADER_PGM_LO_HS__MEM_BASE__SHIFT              = 0x00000000;
 constexpr unsigned int SPI_SHADER_PGM_LO_LS__MEM_BASE__SHIFT              = 0x00000000;
 constexpr unsigned int SPI_SHADER_PGM_LO_PS__MEM_BASE__SHIFT              = 0x00000000;
-constexpr unsigned int SPI_SHADER_PGM_LO_VS__MEM_BASE__SHIFT              = 0x00000000;
 constexpr unsigned int SPI_SHADER_PGM_RSRC1_GS__CDBG_USER__SHIFT          = 0x0000001c;
 constexpr unsigned int SPI_SHADER_PGM_RSRC1_GS__CU_GROUP_ENABLE__SHIFT    = 0x00000018;
 constexpr unsigned int SPI_SHADER_PGM_RSRC1_GS__DEBUG_MODE__SHIFT         = 0x00000016;
@@ -2762,27 +2759,6 @@ constexpr unsigned int SPI_SHADER_PGM_RSRC1_PS__PRIORITY__SHIFT           = 0x00
 constexpr unsigned int SPI_SHADER_PGM_RSRC1_PS__PRIV__SHIFT               = 0x00000014;
 constexpr unsigned int SPI_SHADER_PGM_RSRC1_PS__SGPRS__SHIFT              = 0x00000006;
 constexpr unsigned int SPI_SHADER_PGM_RSRC1_PS__VGPRS__SHIFT              = 0x00000000;
-constexpr unsigned int SPI_SHADER_PGM_RSRC1_VS__CDBG_USER__SHIFT          = 0x0000001e;
-constexpr unsigned int SPI_SHADER_PGM_RSRC1_VS__CU_GROUP_ENABLE__SHIFT    = 0x0000001a;
-constexpr unsigned int SPI_SHADER_PGM_RSRC1_VS__DEBUG_MODE__SHIFT         = 0x00000016;
-constexpr unsigned int SPI_SHADER_PGM_RSRC1_VS__DX10_CLAMP__SHIFT         = 0x00000015;
-constexpr unsigned int SPI_SHADER_PGM_RSRC1_VS__FLOAT_MODE__SHIFT         = 0x0000000c;
-constexpr unsigned int SPI_SHADER_PGM_RSRC1_VS__FP16_OVFL__SHIFT          = 0x0000001f;
-constexpr unsigned int SPI_SHADER_PGM_RSRC1_VS__IEEE_MODE__SHIFT          = 0x00000017;
-constexpr unsigned int SPI_SHADER_PGM_RSRC1_VS__PRIORITY__SHIFT           = 0x0000000a;
-constexpr unsigned int SPI_SHADER_PGM_RSRC1_VS__PRIV__SHIFT               = 0x00000014;
-constexpr unsigned int SPI_SHADER_PGM_RSRC1_VS__SGPRS__SHIFT              = 0x00000006;
-constexpr unsigned int SPI_SHADER_PGM_RSRC1_VS__VGPRS__SHIFT              = 0x00000000;
-constexpr unsigned int SPI_SHADER_PGM_RSRC1_VS__VGPR_COMP_CNT__SHIFT      = 0x00000018;
-constexpr unsigned int SPI_SHADER_PGM_RSRC2_GS_VS__EXCP_EN__SHIFT         = 0x00000007;
-constexpr unsigned int SPI_SHADER_PGM_RSRC2_GS_VS__LDS_SIZE__SHIFT        = 0x00000013;
-constexpr unsigned int SPI_SHADER_PGM_RSRC2_GS_VS__OC_LDS_EN__SHIFT       = 0x00000012;
-constexpr unsigned int SPI_SHADER_PGM_RSRC2_GS_VS__SCRATCH_EN__SHIFT      = 0x00000000;
-constexpr unsigned int SPI_SHADER_PGM_RSRC2_GS_VS__SKIP_USGPR0__SHIFT     = 0x0000001b;
-constexpr unsigned int SPI_SHADER_PGM_RSRC2_GS_VS__TRAP_PRESENT__SHIFT    = 0x00000006;
-constexpr unsigned int SPI_SHADER_PGM_RSRC2_GS_VS__USER_SGPR_MSB__SHIFT   = 0x0000001c;
-constexpr unsigned int SPI_SHADER_PGM_RSRC2_GS_VS__USER_SGPR__SHIFT       = 0x00000001;
-constexpr unsigned int SPI_SHADER_PGM_RSRC2_GS_VS__VGPR_COMP_CNT__SHIFT   = 0x00000010;
 constexpr unsigned int SPI_SHADER_PGM_RSRC2_GS__ES_VGPR_COMP_CNT__SHIFT   = 0x00000010;
 constexpr unsigned int SPI_SHADER_PGM_RSRC2_GS__EXCP_EN__SHIFT            = 0x00000007;
 constexpr unsigned int SPI_SHADER_PGM_RSRC2_GS__LDS_SIZE__SHIFT           = 0x00000013;
@@ -2801,17 +2777,6 @@ constexpr unsigned int SPI_SHADER_PGM_RSRC2_PS__SCRATCH_EN__SHIFT         = 0x00
 constexpr unsigned int SPI_SHADER_PGM_RSRC2_PS__TRAP_PRESENT__SHIFT       = 0x00000006;
 constexpr unsigned int SPI_SHADER_PGM_RSRC2_PS__USER_SGPR__SHIFT          = 0x00000001;
 constexpr unsigned int SPI_SHADER_PGM_RSRC2_PS__WAVE_CNT_EN__SHIFT        = 0x00000007;
-constexpr unsigned int SPI_SHADER_PGM_RSRC2_VS__EXCP_EN__SHIFT            = 0x0000000d;
-constexpr unsigned int SPI_SHADER_PGM_RSRC2_VS__OC_LDS_EN__SHIFT          = 0x00000007;
-constexpr unsigned int SPI_SHADER_PGM_RSRC2_VS__PC_BASE_EN__SHIFT         = 0x00000016;
-constexpr unsigned int SPI_SHADER_PGM_RSRC2_VS__SCRATCH_EN__SHIFT         = 0x00000000;
-constexpr unsigned int SPI_SHADER_PGM_RSRC2_VS__SO_BASE0_EN__SHIFT        = 0x00000008;
-constexpr unsigned int SPI_SHADER_PGM_RSRC2_VS__SO_BASE1_EN__SHIFT        = 0x00000009;
-constexpr unsigned int SPI_SHADER_PGM_RSRC2_VS__SO_BASE2_EN__SHIFT        = 0x0000000a;
-constexpr unsigned int SPI_SHADER_PGM_RSRC2_VS__SO_BASE3_EN__SHIFT        = 0x0000000b;
-constexpr unsigned int SPI_SHADER_PGM_RSRC2_VS__SO_EN__SHIFT              = 0x0000000c;
-constexpr unsigned int SPI_SHADER_PGM_RSRC2_VS__TRAP_PRESENT__SHIFT       = 0x00000006;
-constexpr unsigned int SPI_SHADER_PGM_RSRC2_VS__USER_SGPR__SHIFT          = 0x00000001;
 constexpr unsigned int SPI_SHADER_PGM_RSRC3_GS__CU_EN__SHIFT              = 0x00000000;
 constexpr unsigned int SPI_SHADER_PGM_RSRC3_GS__LOCK_LOW_THRESHOLD__SHIFT = 0x00000016;
 constexpr unsigned int SPI_SHADER_PGM_RSRC3_GS__WAVE_LIMIT__SHIFT         = 0x00000010;
@@ -2820,9 +2785,6 @@ constexpr unsigned int SPI_SHADER_PGM_RSRC3_HS__LOCK_LOW_THRESHOLD__SHIFT = 0x00
 constexpr unsigned int SPI_SHADER_PGM_RSRC3_HS__WAVE_LIMIT__SHIFT         = 0x00000000;
 constexpr unsigned int SPI_SHADER_PGM_RSRC3_PS__CU_EN__SHIFT              = 0x00000000;
 constexpr unsigned int SPI_SHADER_PGM_RSRC3_PS__WAVE_LIMIT__SHIFT         = 0x00000010;
-constexpr unsigned int SPI_SHADER_PGM_RSRC3_VS__CU_EN__SHIFT              = 0x00000000;
-constexpr unsigned int SPI_SHADER_PGM_RSRC3_VS__LOCK_LOW_THRESHOLD__SHIFT = 0x00000016;
-constexpr unsigned int SPI_SHADER_PGM_RSRC3_VS__WAVE_LIMIT__SHIFT         = 0x00000010;
 constexpr unsigned int SPI_SHADER_POS_FORMAT__POS0_EXPORT_FORMAT__SHIFT   = 0x00000000;
 constexpr unsigned int SPI_SHADER_POS_FORMAT__POS1_EXPORT_FORMAT__SHIFT   = 0x00000004;
 constexpr unsigned int SPI_SHADER_POS_FORMAT__POS2_EXPORT_FORMAT__SHIFT   = 0x00000008;
@@ -2863,38 +2825,6 @@ constexpr unsigned int SPI_SHADER_USER_DATA_PS_28__DATA__SHIFT            = 0x00
 constexpr unsigned int SPI_SHADER_USER_DATA_PS_29__DATA__SHIFT            = 0x00000000;
 constexpr unsigned int SPI_SHADER_USER_DATA_PS_30__DATA__SHIFT            = 0x00000000;
 constexpr unsigned int SPI_SHADER_USER_DATA_PS_31__DATA__SHIFT            = 0x00000000;
-constexpr unsigned int SPI_SHADER_USER_DATA_VS_0__DATA__SHIFT             = 0x00000000;
-constexpr unsigned int SPI_SHADER_USER_DATA_VS_1__DATA__SHIFT             = 0x00000000;
-constexpr unsigned int SPI_SHADER_USER_DATA_VS_2__DATA__SHIFT             = 0x00000000;
-constexpr unsigned int SPI_SHADER_USER_DATA_VS_3__DATA__SHIFT             = 0x00000000;
-constexpr unsigned int SPI_SHADER_USER_DATA_VS_4__DATA__SHIFT             = 0x00000000;
-constexpr unsigned int SPI_SHADER_USER_DATA_VS_5__DATA__SHIFT             = 0x00000000;
-constexpr unsigned int SPI_SHADER_USER_DATA_VS_6__DATA__SHIFT             = 0x00000000;
-constexpr unsigned int SPI_SHADER_USER_DATA_VS_7__DATA__SHIFT             = 0x00000000;
-constexpr unsigned int SPI_SHADER_USER_DATA_VS_8__DATA__SHIFT             = 0x00000000;
-constexpr unsigned int SPI_SHADER_USER_DATA_VS_9__DATA__SHIFT             = 0x00000000;
-constexpr unsigned int SPI_SHADER_USER_DATA_VS_10__DATA__SHIFT            = 0x00000000;
-constexpr unsigned int SPI_SHADER_USER_DATA_VS_11__DATA__SHIFT            = 0x00000000;
-constexpr unsigned int SPI_SHADER_USER_DATA_VS_12__DATA__SHIFT            = 0x00000000;
-constexpr unsigned int SPI_SHADER_USER_DATA_VS_13__DATA__SHIFT            = 0x00000000;
-constexpr unsigned int SPI_SHADER_USER_DATA_VS_14__DATA__SHIFT            = 0x00000000;
-constexpr unsigned int SPI_SHADER_USER_DATA_VS_15__DATA__SHIFT            = 0x00000000;
-constexpr unsigned int SPI_SHADER_USER_DATA_VS_16__DATA__SHIFT            = 0x00000000;
-constexpr unsigned int SPI_SHADER_USER_DATA_VS_17__DATA__SHIFT            = 0x00000000;
-constexpr unsigned int SPI_SHADER_USER_DATA_VS_18__DATA__SHIFT            = 0x00000000;
-constexpr unsigned int SPI_SHADER_USER_DATA_VS_19__DATA__SHIFT            = 0x00000000;
-constexpr unsigned int SPI_SHADER_USER_DATA_VS_20__DATA__SHIFT            = 0x00000000;
-constexpr unsigned int SPI_SHADER_USER_DATA_VS_21__DATA__SHIFT            = 0x00000000;
-constexpr unsigned int SPI_SHADER_USER_DATA_VS_22__DATA__SHIFT            = 0x00000000;
-constexpr unsigned int SPI_SHADER_USER_DATA_VS_23__DATA__SHIFT            = 0x00000000;
-constexpr unsigned int SPI_SHADER_USER_DATA_VS_24__DATA__SHIFT            = 0x00000000;
-constexpr unsigned int SPI_SHADER_USER_DATA_VS_25__DATA__SHIFT            = 0x00000000;
-constexpr unsigned int SPI_SHADER_USER_DATA_VS_26__DATA__SHIFT            = 0x00000000;
-constexpr unsigned int SPI_SHADER_USER_DATA_VS_27__DATA__SHIFT            = 0x00000000;
-constexpr unsigned int SPI_SHADER_USER_DATA_VS_28__DATA__SHIFT            = 0x00000000;
-constexpr unsigned int SPI_SHADER_USER_DATA_VS_29__DATA__SHIFT            = 0x00000000;
-constexpr unsigned int SPI_SHADER_USER_DATA_VS_30__DATA__SHIFT            = 0x00000000;
-constexpr unsigned int SPI_SHADER_USER_DATA_VS_31__DATA__SHIFT            = 0x00000000;
 constexpr unsigned int SPI_SHADER_Z_FORMAT__Z_EXPORT_FORMAT__SHIFT        = 0x00000000;
 constexpr unsigned int SPI_SX_EXPORT_BUFFER_SIZES__COLOR_BUFFER_SIZE__SHIFT = 0x00000000;
 constexpr unsigned int SPI_SX_EXPORT_BUFFER_SIZES__POSITION_BUFFER_SIZE__SHIFT = 0x00000010;
@@ -2903,7 +2833,6 @@ constexpr unsigned int SPI_SX_SCOREBOARD_BUFFER_SIZES__POSITION_SCOREBOARD_SIZE_
 constexpr unsigned int SPI_TMPRING_SIZE__WAVESIZE__SHIFT                  = 0x0000000c;
 constexpr unsigned int SPI_TMPRING_SIZE__WAVES__SHIFT                     = 0x00000000;
 constexpr unsigned int SPI_VS_OUT_CONFIG__VS_EXPORT_COUNT__SHIFT          = 0x00000001;
-constexpr unsigned int SPI_VS_OUT_CONFIG__VS_HALF_PACK__SHIFT             = 0x00000006;
 constexpr unsigned int SPI_WCL_PIPE_PERCENT_CS0__VALUE__SHIFT             = 0x00000000;
 constexpr unsigned int SPI_WCL_PIPE_PERCENT_CS1__VALUE__SHIFT             = 0x00000000;
 constexpr unsigned int SPI_WCL_PIPE_PERCENT_CS2__VALUE__SHIFT             = 0x00000000;
@@ -2958,8 +2887,6 @@ constexpr unsigned int SQ_CMD__QUEUE_ID__SHIFT                            = 0x00
 constexpr unsigned int SQ_CMD__VM_ID__SHIFT                               = 0x0000001c;
 constexpr unsigned int SQ_CMD__WAVE_ID__SHIFT                             = 0x00000010;
 constexpr unsigned int SQ_CONFIG__DISABLE_SP_REDUNDANT_THREAD_GATING__SHIFT = 0x0000001d;
-constexpr unsigned int SQ_CONFIG__ENABLE_HIPRIO_ON_EXP_RDY_VS__SHIFT      = 0x00000012;
-constexpr unsigned int SQ_CONFIG__PRIO_VAL_ON_EXP_RDY_VS__SHIFT           = 0x00000013;
 constexpr unsigned int SQ_DSM_CNTL2__LDS_D_ENABLE_ERROR_INJECT__SHIFT     = 0x00000003;
 constexpr unsigned int SQ_DSM_CNTL2__LDS_D_SELECT_INJECT_DELAY__SHIFT     = 0x00000005;
 constexpr unsigned int SQ_DSM_CNTL2__LDS_INJECT_DELAY__SHIFT              = 0x0000000e;
@@ -3105,7 +3032,6 @@ constexpr unsigned int SQ_PERFCOUNTER_CTRL__DISABLE_FLUSH__SHIFT          = 0x00
 constexpr unsigned int SQ_PERFCOUNTER_CTRL__GS_EN__SHIFT                  = 0x00000002;
 constexpr unsigned int SQ_PERFCOUNTER_CTRL__HS_EN__SHIFT                  = 0x00000004;
 constexpr unsigned int SQ_PERFCOUNTER_CTRL__PS_EN__SHIFT                  = 0x00000000;
-constexpr unsigned int SQ_PERFCOUNTER_CTRL__VS_EN__SHIFT                  = 0x00000001;
 constexpr unsigned int SQ_RANDOM_WAVE_PRI__RET__SHIFT                     = 0x00000000;
 constexpr unsigned int SQ_RANDOM_WAVE_PRI__RNG__SHIFT                     = 0x0000000a;
 constexpr unsigned int SQ_RANDOM_WAVE_PRI__RUI__SHIFT                     = 0x00000007;
@@ -3670,7 +3596,6 @@ namespace Apu09_1xPlus
     constexpr unsigned int SPI_SHADER_PGM_CHKSUM_GS__CHECKSUM__SHIFT          = 0x00000000;
     constexpr unsigned int SPI_SHADER_PGM_CHKSUM_HS__CHECKSUM__SHIFT          = 0x00000000;
     constexpr unsigned int SPI_SHADER_PGM_CHKSUM_PS__CHECKSUM__SHIFT          = 0x00000000;
-    constexpr unsigned int SPI_SHADER_PGM_CHKSUM_VS__CHECKSUM__SHIFT          = 0x00000000;
 } // namespace Apu09_1xPlus
 
 namespace Core
@@ -3805,7 +3730,6 @@ namespace Core
     constexpr unsigned int RPB_PERFCOUNTER_RSLT_CNTL__STOP_TRIGGER__SHIFT     = 0x00000010;
     constexpr unsigned int RPB_PERF_COUNTER_CNTL__PERF_COUNTER_SELECT__SHIFT  = 0x00000000;
     constexpr unsigned int SPI_CONFIG_CNTL_1__LBPW_CU_CHK_CNT__SHIFT          = 0x0000000a;
-    constexpr unsigned int SPI_CONFIG_CNTL_1__LBPW_CU_CHK_MODE__SHIFT         = 0x00000009;
     constexpr unsigned int SPI_RESOURCE_RESERVE_CU_6__BARRIERS__SHIFT         = 0x0000000f;
     constexpr unsigned int SPI_RESOURCE_RESERVE_CU_6__LDS__SHIFT              = 0x00000008;
     constexpr unsigned int SPI_RESOURCE_RESERVE_CU_6__SGPR__SHIFT             = 0x00000004;
@@ -3830,8 +3754,6 @@ namespace Core
     constexpr unsigned int SPI_WF_LIFETIME_LIMIT_4__MAX_CNT__SHIFT            = 0x00000000;
     constexpr unsigned int SPI_WF_LIFETIME_LIMIT_5__EN_WARN__SHIFT            = 0x0000001f;
     constexpr unsigned int SPI_WF_LIFETIME_LIMIT_5__MAX_CNT__SHIFT            = 0x00000000;
-    constexpr unsigned int SQ_TIME_HI__TIME__SHIFT                            = 0x00000000;
-    constexpr unsigned int SQ_TIME_LO__TIME__SHIFT                            = 0x00000000;
     constexpr unsigned int TA_CGTT_CTRL__OFF_HYSTERESIS__SHIFT                = 0x00000004;
     constexpr unsigned int TA_CGTT_CTRL__ON_DELAY__SHIFT                      = 0x00000000;
     constexpr unsigned int TA_CGTT_CTRL__SOFT_OVERRIDE0__SHIFT                = 0x0000001f;
@@ -3852,7 +3774,6 @@ namespace Core
     constexpr unsigned int TA_CGTT_CTRL__SOFT_STALL_OVERRIDE7__SHIFT          = 0x00000010;
     constexpr unsigned int TA_CNTL_AUX__GATHERH_DST_SEL__SHIFT                = 0x00000006;
     constexpr unsigned int TA_CNTL__TD_FIFO_CREDIT__SHIFT                     = 0x00000016;
-    constexpr unsigned int TA_RESERVED_010C__Unused__SHIFT                    = 0x00000000;
 } // namespace Core
 
 namespace Gfx09
@@ -4293,6 +4214,7 @@ namespace Gfx09
     constexpr unsigned int SDMA0_PERFMON_CNTL__PERF_SEL1__SHIFT               = 0x0000000c;
     constexpr unsigned int SPI_CONFIG_CNTL_1__BATON_RESET_DISABLE__SHIFT      = 0x00000005;
     constexpr unsigned int SPI_CONFIG_CNTL_1__CRC_SIMD_ID_WADDR_DISABLE__SHIFT = 0x00000008;
+    constexpr unsigned int SPI_CONFIG_CNTL_1__LBPW_CU_CHK_MODE__SHIFT         = 0x00000009;
     constexpr unsigned int SPI_CONFIG_CNTL_1__PC_LIMIT_ENABLE__SHIFT          = 0x00000006;
     constexpr unsigned int SPI_CONFIG_CNTL_1__PC_LIMIT_SIZE__SHIFT            = 0x00000010;
     constexpr unsigned int SPI_CONFIG_CNTL__RSRC_MGMT_RESET__SHIFT            = 0x0000001a;
@@ -4985,6 +4907,8 @@ namespace Gfx09
     constexpr unsigned int SQ_THREAD_TRACE_WORD_WAVE__WAVE_ID__SHIFT          = 0x0000000a;
     constexpr unsigned int SQ_THREAD_TRACE_WPTR__READ_OFFSET__SHIFT           = 0x0000001e;
     constexpr unsigned int SQ_THREAD_TRACE_WPTR__WPTR__SHIFT                  = 0x00000000;
+    constexpr unsigned int SQ_TIME_HI__TIME__SHIFT                            = 0x00000000;
+    constexpr unsigned int SQ_TIME_LO__TIME__SHIFT                            = 0x00000000;
     constexpr unsigned int SQ_UTCL1_CNTL1__CLIENTID__SHIFT                    = 0x00000007;
     constexpr unsigned int SQ_UTCL1_CNTL1__ENABLE_LFIFO_PRI_ARB__SHIFT        = 0x00000012;
     constexpr unsigned int SQ_UTCL1_CNTL1__ENABLE_PUSH_LFIFO__SHIFT           = 0x00000011;
@@ -5149,6 +5073,7 @@ namespace Gfx09
     constexpr unsigned int TA_CNTL__FX_XNACK_CREDIT__SHIFT                    = 0x00000000;
     constexpr unsigned int TA_CNTL__SQ_XNACK_CREDIT__SHIFT                    = 0x00000009;
     constexpr unsigned int TA_CNTL__TC_DATA_CREDIT__SHIFT                     = 0x0000000d;
+    constexpr unsigned int TA_RESERVED_010C__Unused__SHIFT                    = 0x00000000;
     constexpr unsigned int TCA_PERFCOUNTER0_HI__PERFCOUNTER_HI__SHIFT         = 0x00000000;
     constexpr unsigned int TCA_PERFCOUNTER0_LO__PERFCOUNTER_LO__SHIFT         = 0x00000000;
     constexpr unsigned int TCA_PERFCOUNTER0_SELECT1__PERF_MODE2__SHIFT        = 0x00000018;
@@ -5343,10 +5268,84 @@ namespace Gfx09_10
 {
     constexpr unsigned int COMPUTE_MISC_RESERVED__RESERVED2__SHIFT            = 0x00000002;
     constexpr unsigned int SPI_CONFIG_CNTL__TTRACE_STALL_ALL__SHIFT           = 0x0000001b;
+    constexpr unsigned int SPI_SHADER_LATE_ALLOC_VS__LIMIT__SHIFT             = 0x00000000;
+    constexpr unsigned int SPI_SHADER_PGM_HI_VS__MEM_BASE__SHIFT              = 0x00000000;
+    constexpr unsigned int SPI_SHADER_PGM_LO_VS__MEM_BASE__SHIFT              = 0x00000000;
+    constexpr unsigned int SPI_SHADER_PGM_RSRC1_VS__CDBG_USER__SHIFT          = 0x0000001e;
+    constexpr unsigned int SPI_SHADER_PGM_RSRC1_VS__CU_GROUP_ENABLE__SHIFT    = 0x0000001a;
+    constexpr unsigned int SPI_SHADER_PGM_RSRC1_VS__DEBUG_MODE__SHIFT         = 0x00000016;
+    constexpr unsigned int SPI_SHADER_PGM_RSRC1_VS__DX10_CLAMP__SHIFT         = 0x00000015;
+    constexpr unsigned int SPI_SHADER_PGM_RSRC1_VS__FLOAT_MODE__SHIFT         = 0x0000000c;
+    constexpr unsigned int SPI_SHADER_PGM_RSRC1_VS__FP16_OVFL__SHIFT          = 0x0000001f;
+    constexpr unsigned int SPI_SHADER_PGM_RSRC1_VS__IEEE_MODE__SHIFT          = 0x00000017;
+    constexpr unsigned int SPI_SHADER_PGM_RSRC1_VS__PRIORITY__SHIFT           = 0x0000000a;
+    constexpr unsigned int SPI_SHADER_PGM_RSRC1_VS__PRIV__SHIFT               = 0x00000014;
+    constexpr unsigned int SPI_SHADER_PGM_RSRC1_VS__SGPRS__SHIFT              = 0x00000006;
+    constexpr unsigned int SPI_SHADER_PGM_RSRC1_VS__VGPRS__SHIFT              = 0x00000000;
+    constexpr unsigned int SPI_SHADER_PGM_RSRC1_VS__VGPR_COMP_CNT__SHIFT      = 0x00000018;
+    constexpr unsigned int SPI_SHADER_PGM_RSRC2_GS_VS__EXCP_EN__SHIFT         = 0x00000007;
+    constexpr unsigned int SPI_SHADER_PGM_RSRC2_GS_VS__LDS_SIZE__SHIFT        = 0x00000013;
+    constexpr unsigned int SPI_SHADER_PGM_RSRC2_GS_VS__OC_LDS_EN__SHIFT       = 0x00000012;
+    constexpr unsigned int SPI_SHADER_PGM_RSRC2_GS_VS__SCRATCH_EN__SHIFT      = 0x00000000;
+    constexpr unsigned int SPI_SHADER_PGM_RSRC2_GS_VS__SKIP_USGPR0__SHIFT     = 0x0000001b;
+    constexpr unsigned int SPI_SHADER_PGM_RSRC2_GS_VS__TRAP_PRESENT__SHIFT    = 0x00000006;
+    constexpr unsigned int SPI_SHADER_PGM_RSRC2_GS_VS__USER_SGPR_MSB__SHIFT   = 0x0000001c;
+    constexpr unsigned int SPI_SHADER_PGM_RSRC2_GS_VS__USER_SGPR__SHIFT       = 0x00000001;
+    constexpr unsigned int SPI_SHADER_PGM_RSRC2_GS_VS__VGPR_COMP_CNT__SHIFT   = 0x00000010;
+    constexpr unsigned int SPI_SHADER_PGM_RSRC2_VS__EXCP_EN__SHIFT            = 0x0000000d;
+    constexpr unsigned int SPI_SHADER_PGM_RSRC2_VS__OC_LDS_EN__SHIFT          = 0x00000007;
+    constexpr unsigned int SPI_SHADER_PGM_RSRC2_VS__PC_BASE_EN__SHIFT         = 0x00000016;
+    constexpr unsigned int SPI_SHADER_PGM_RSRC2_VS__SCRATCH_EN__SHIFT         = 0x00000000;
+    constexpr unsigned int SPI_SHADER_PGM_RSRC2_VS__SO_BASE0_EN__SHIFT        = 0x00000008;
+    constexpr unsigned int SPI_SHADER_PGM_RSRC2_VS__SO_BASE1_EN__SHIFT        = 0x00000009;
+    constexpr unsigned int SPI_SHADER_PGM_RSRC2_VS__SO_BASE2_EN__SHIFT        = 0x0000000a;
+    constexpr unsigned int SPI_SHADER_PGM_RSRC2_VS__SO_BASE3_EN__SHIFT        = 0x0000000b;
+    constexpr unsigned int SPI_SHADER_PGM_RSRC2_VS__SO_EN__SHIFT              = 0x0000000c;
+    constexpr unsigned int SPI_SHADER_PGM_RSRC2_VS__TRAP_PRESENT__SHIFT       = 0x00000006;
+    constexpr unsigned int SPI_SHADER_PGM_RSRC2_VS__USER_SGPR__SHIFT          = 0x00000001;
+    constexpr unsigned int SPI_SHADER_PGM_RSRC3_VS__CU_EN__SHIFT              = 0x00000000;
+    constexpr unsigned int SPI_SHADER_PGM_RSRC3_VS__LOCK_LOW_THRESHOLD__SHIFT = 0x00000016;
+    constexpr unsigned int SPI_SHADER_PGM_RSRC3_VS__WAVE_LIMIT__SHIFT         = 0x00000010;
+    constexpr unsigned int SPI_SHADER_USER_DATA_VS_0__DATA__SHIFT             = 0x00000000;
+    constexpr unsigned int SPI_SHADER_USER_DATA_VS_1__DATA__SHIFT             = 0x00000000;
+    constexpr unsigned int SPI_SHADER_USER_DATA_VS_2__DATA__SHIFT             = 0x00000000;
+    constexpr unsigned int SPI_SHADER_USER_DATA_VS_3__DATA__SHIFT             = 0x00000000;
+    constexpr unsigned int SPI_SHADER_USER_DATA_VS_4__DATA__SHIFT             = 0x00000000;
+    constexpr unsigned int SPI_SHADER_USER_DATA_VS_5__DATA__SHIFT             = 0x00000000;
+    constexpr unsigned int SPI_SHADER_USER_DATA_VS_6__DATA__SHIFT             = 0x00000000;
+    constexpr unsigned int SPI_SHADER_USER_DATA_VS_7__DATA__SHIFT             = 0x00000000;
+    constexpr unsigned int SPI_SHADER_USER_DATA_VS_8__DATA__SHIFT             = 0x00000000;
+    constexpr unsigned int SPI_SHADER_USER_DATA_VS_9__DATA__SHIFT             = 0x00000000;
+    constexpr unsigned int SPI_SHADER_USER_DATA_VS_10__DATA__SHIFT            = 0x00000000;
+    constexpr unsigned int SPI_SHADER_USER_DATA_VS_11__DATA__SHIFT            = 0x00000000;
+    constexpr unsigned int SPI_SHADER_USER_DATA_VS_12__DATA__SHIFT            = 0x00000000;
+    constexpr unsigned int SPI_SHADER_USER_DATA_VS_13__DATA__SHIFT            = 0x00000000;
+    constexpr unsigned int SPI_SHADER_USER_DATA_VS_14__DATA__SHIFT            = 0x00000000;
+    constexpr unsigned int SPI_SHADER_USER_DATA_VS_15__DATA__SHIFT            = 0x00000000;
+    constexpr unsigned int SPI_SHADER_USER_DATA_VS_16__DATA__SHIFT            = 0x00000000;
+    constexpr unsigned int SPI_SHADER_USER_DATA_VS_17__DATA__SHIFT            = 0x00000000;
+    constexpr unsigned int SPI_SHADER_USER_DATA_VS_18__DATA__SHIFT            = 0x00000000;
+    constexpr unsigned int SPI_SHADER_USER_DATA_VS_19__DATA__SHIFT            = 0x00000000;
+    constexpr unsigned int SPI_SHADER_USER_DATA_VS_20__DATA__SHIFT            = 0x00000000;
+    constexpr unsigned int SPI_SHADER_USER_DATA_VS_21__DATA__SHIFT            = 0x00000000;
+    constexpr unsigned int SPI_SHADER_USER_DATA_VS_22__DATA__SHIFT            = 0x00000000;
+    constexpr unsigned int SPI_SHADER_USER_DATA_VS_23__DATA__SHIFT            = 0x00000000;
+    constexpr unsigned int SPI_SHADER_USER_DATA_VS_24__DATA__SHIFT            = 0x00000000;
+    constexpr unsigned int SPI_SHADER_USER_DATA_VS_25__DATA__SHIFT            = 0x00000000;
+    constexpr unsigned int SPI_SHADER_USER_DATA_VS_26__DATA__SHIFT            = 0x00000000;
+    constexpr unsigned int SPI_SHADER_USER_DATA_VS_27__DATA__SHIFT            = 0x00000000;
+    constexpr unsigned int SPI_SHADER_USER_DATA_VS_28__DATA__SHIFT            = 0x00000000;
+    constexpr unsigned int SPI_SHADER_USER_DATA_VS_29__DATA__SHIFT            = 0x00000000;
+    constexpr unsigned int SPI_SHADER_USER_DATA_VS_30__DATA__SHIFT            = 0x00000000;
+    constexpr unsigned int SPI_SHADER_USER_DATA_VS_31__DATA__SHIFT            = 0x00000000;
+    constexpr unsigned int SPI_VS_OUT_CONFIG__VS_HALF_PACK__SHIFT             = 0x00000006;
     constexpr unsigned int SPI_WF_LIFETIME_STATUS_1__INT_SENT__SHIFT          = 0x0000001f;
     constexpr unsigned int SPI_WF_LIFETIME_STATUS_1__MAX_CNT__SHIFT           = 0x00000000;
     constexpr unsigned int SPI_WF_LIFETIME_STATUS_8__INT_SENT__SHIFT          = 0x0000001f;
     constexpr unsigned int SPI_WF_LIFETIME_STATUS_8__MAX_CNT__SHIFT           = 0x00000000;
+    constexpr unsigned int SQ_CONFIG__ENABLE_HIPRIO_ON_EXP_RDY_VS__SHIFT      = 0x00000012;
+    constexpr unsigned int SQ_CONFIG__PRIO_VAL_ON_EXP_RDY_VS__SHIFT           = 0x00000013;
+    constexpr unsigned int SQ_PERFCOUNTER_CTRL__VS_EN__SHIFT                  = 0x00000001;
 } // namespace Gfx09_10
 
 namespace Gfx09_1x
@@ -5374,6 +5373,7 @@ namespace Gfx09_1x
     constexpr unsigned int PA_SC_ENHANCE_1__RSVD__SHIFT                       = 0x0000001f;
     constexpr unsigned int RLC_SPM_PERFMON_SAMPLE_DELAY_MAX__PERFMON_MAX_SAMPLE_DELAY__SHIFT = 0x00000000;
     constexpr unsigned int RLC_SPM_PERFMON_SAMPLE_DELAY_MAX__RESERVED__SHIFT  = 0x00000008;
+    constexpr unsigned int SPI_WAVE_LIMIT_CNTL__VS_WAVE_GRAN__SHIFT           = 0x00000002;
     constexpr unsigned int SX_PERFCOUNTER0_SELECT1__PERF_MODE2__SHIFT         = 0x0000001c;
     constexpr unsigned int SX_PERFCOUNTER0_SELECT1__PERF_MODE3__SHIFT         = 0x00000018;
     constexpr unsigned int SX_PERFCOUNTER0_SELECT1__PERF_SEL2__SHIFT          = 0x00000000;
@@ -5458,13 +5458,40 @@ namespace Gfx09_1xPlus
     constexpr unsigned int SPI_WAVE_LIMIT_CNTL__GS_WAVE_GRAN__SHIFT           = 0x00000004;
     constexpr unsigned int SPI_WAVE_LIMIT_CNTL__HS_WAVE_GRAN__SHIFT           = 0x00000006;
     constexpr unsigned int SPI_WAVE_LIMIT_CNTL__PS_WAVE_GRAN__SHIFT           = 0x00000000;
-    constexpr unsigned int SPI_WAVE_LIMIT_CNTL__VS_WAVE_GRAN__SHIFT           = 0x00000002;
 } // namespace Gfx09_1xPlus
 
 namespace Gfx10
 {
+    constexpr unsigned int PA_SC_BC_WAVE_BREAK__MAX_DEALLOCS_IN_WAVE__SHIFT   = 0x00000000;
+    constexpr unsigned int PA_SC_BC_WAVE_BREAK__MAX_FPOVS_IN_WAVE__SHIFT      = 0x00000010;
     constexpr unsigned int SPI_LB_DATA_PERWGP_WAVE_VSPS__WGP_USED_PS__SHIFT   = 0x00000010;
     constexpr unsigned int SPI_LB_DATA_PERWGP_WAVE_VSPS__WGP_USED_VS__SHIFT   = 0x00000000;
+    constexpr unsigned int SPI_SHADER_PGM_CHKSUM_VS__CHECKSUM__SHIFT          = 0x00000000;
+    constexpr unsigned int SPI_SHADER_PGM_RSRC1_VS__FWD_PROGRESS__SHIFT       = 0x0000001c;
+    constexpr unsigned int SPI_SHADER_PGM_RSRC1_VS__MEM_ORDERED__SHIFT        = 0x0000001b;
+    constexpr unsigned int SPI_SHADER_PGM_RSRC2_VS__SHARED_VGPR_CNT__SHIFT    = 0x0000001c;
+    constexpr unsigned int SPI_SHADER_PGM_RSRC2_VS__USER_SGPR_MSB__SHIFT      = 0x0000001b;
+    constexpr unsigned int SPI_SHADER_PGM_RSRC4_VS__CU_EN__SHIFT              = 0x00000000;
+    constexpr unsigned int SPI_SHADER_REQ_CTRL_VS__ALLOCATION_RATE_THROTTLING_THRESHOLD__SHIFT = 0x00000011;
+    constexpr unsigned int SPI_SHADER_REQ_CTRL_VS__GLOBAL_SCANNING_EN__SHIFT  = 0x00000010;
+    constexpr unsigned int SPI_SHADER_REQ_CTRL_VS__HARD_LOCK_HYSTERESIS__SHIFT = 0x00000009;
+    constexpr unsigned int SPI_SHADER_REQ_CTRL_VS__HARD_LOCK_LOW_THRESHOLD__SHIFT = 0x0000000a;
+    constexpr unsigned int SPI_SHADER_REQ_CTRL_VS__NUMBER_OF_REQUESTS_PER_CU__SHIFT = 0x00000001;
+    constexpr unsigned int SPI_SHADER_REQ_CTRL_VS__PRODUCER_REQUEST_LOCKOUT__SHIFT = 0x0000000f;
+    constexpr unsigned int SPI_SHADER_REQ_CTRL_VS__SOFT_GROUPING_ALLOCATION_TIMEOUT__SHIFT = 0x00000005;
+    constexpr unsigned int SPI_SHADER_REQ_CTRL_VS__SOFT_GROUPING_EN__SHIFT    = 0x00000000;
+    constexpr unsigned int SPI_SHADER_USER_ACCUM_VS_0__CONTRIBUTION__SHIFT    = 0x00000000;
+    constexpr unsigned int SPI_SHADER_USER_ACCUM_VS_1__CONTRIBUTION__SHIFT    = 0x00000000;
+    constexpr unsigned int SPI_SHADER_USER_ACCUM_VS_2__CONTRIBUTION__SHIFT    = 0x00000000;
+    constexpr unsigned int SPI_SHADER_USER_ACCUM_VS_3__CONTRIBUTION__SHIFT    = 0x00000000;
+    constexpr unsigned int SPI_WAVE_LIMIT_CNTL__VS_WAVE_GRAN__SHIFT           = 0x00000002;
+    constexpr unsigned int SQ_FIFO_SIZES__EXPORT_BUF_VS_RESERVED__SHIFT       = 0x0000000c;
+    constexpr unsigned int SQ_THREAD_TRACE_CTRL__REG_DROP_ON_STALL__SHIFT     = 0x0000000c;
+    constexpr unsigned int SQ_THREAD_TRACE_CTRL__REG_STALL_EN__SHIFT          = 0x00000009;
+    constexpr unsigned int SQ_THREAD_TRACE_CTRL__SPI_STALL_EN__SHIFT          = 0x0000000a;
+    constexpr unsigned int SQ_THREAD_TRACE_CTRL__SQ_STALL_EN__SHIFT           = 0x0000000b;
+    constexpr unsigned int TA_POWER_CNTL__NOSAMPLER_CLK_VALID_DELAY__SHIFT    = 0x00000010;
+    constexpr unsigned int TA_POWER_CNTL__SAMPLER_CLK_VALID_DELAY__SHIFT      = 0x00000000;
 } // namespace Gfx10
 
 namespace Gfx101
@@ -6170,11 +6197,14 @@ namespace Gfx10Core
     constexpr unsigned int PA_SC_TILE_STEERING_OVERRIDE__NUM_RB_PER_SE__SHIFT = 0x00000005;
     constexpr unsigned int PA_SC_TILE_STEERING_OVERRIDE__NUM_SE__SHIFT        = 0x00000001;
     constexpr unsigned int SPI_CONFIG_CNTL_1__CRC_SIMD_ID_WADDR_DISABLE__SHIFT = 0x00000008;
+    constexpr unsigned int SPI_CONFIG_CNTL_1__LBPW_CU_CHK_MODE__SHIFT         = 0x00000009;
     constexpr unsigned int SPI_SHADER_PGM_RSRC3_PS__LOCK_LOW_THRESHOLD__SHIFT = 0x00000016;
     constexpr unsigned int SQ_PERFCOUNTER_CTRL__ES_EN__SHIFT                  = 0x00000003;
     constexpr unsigned int SQ_PERFCOUNTER_CTRL__LS_EN__SHIFT                  = 0x00000005;
     constexpr unsigned int SQ_THREAD_TRACE_STATUS__EVENT_CNTR_OVERFLOW__SHIFT = 0x0000001a;
     constexpr unsigned int SQ_THREAD_TRACE_STATUS__EVENT_CNTR_STALL__SHIFT    = 0x0000001b;
+    constexpr unsigned int SQ_TIME_HI__TIME__SHIFT                            = 0x00000000;
+    constexpr unsigned int SQ_TIME_LO__TIME__SHIFT                            = 0x00000000;
     constexpr unsigned int SQ_WAVE_GPR_ALLOC__SGPR_BASE__SHIFT                = 0x00000010;
     constexpr unsigned int SQ_WAVE_GPR_ALLOC__SGPR_SIZE__SHIFT                = 0x00000018;
     constexpr unsigned int SQ_WAVE_HW_ID2__COMPAT_LEVEL__SHIFT                = 0x0000001d;
@@ -6215,6 +6245,7 @@ namespace Gfx10Core
     constexpr unsigned int SQ_WREXEC_EXEC_LO__ADDR_LO__SHIFT                  = 0x00000000;
     constexpr unsigned int TA_POWER_CNTL__NOSAMPLER_CLK_EN_MODE__SHIFT        = 0x00000013;
     constexpr unsigned int TA_POWER_CNTL__SAMPLER_CLK_EN_MODE__SHIFT          = 0x00000003;
+    constexpr unsigned int TA_RESERVED_010C__Unused__SHIFT                    = 0x00000000;
 } // namespace Gfx10Core
 
 namespace Gfx10CorePlus
@@ -7067,8 +7098,6 @@ namespace Gfx10Plus
     constexpr unsigned int PA_PH_PERFCOUNTER7_HI__PERFCOUNTER_HI__SHIFT       = 0x00000000;
     constexpr unsigned int PA_PH_PERFCOUNTER7_LO__PERFCOUNTER_LO__SHIFT       = 0x00000000;
     constexpr unsigned int PA_PH_PERFCOUNTER7_SELECT__PERF_SEL__SHIFT         = 0x00000000;
-    constexpr unsigned int PA_SC_BC_WAVE_BREAK__MAX_DEALLOCS_IN_WAVE__SHIFT   = 0x00000000;
-    constexpr unsigned int PA_SC_BC_WAVE_BREAK__MAX_FPOVS_IN_WAVE__SHIFT      = 0x00000010;
     constexpr unsigned int PA_SC_BINNER_CNTL_0__BIN_MAPPING_MODE__SHIFT       = 0x0000001d;
     constexpr unsigned int PA_SC_BINNER_CNTL_OVERRIDE__BINNING_MODE__SHIFT    = 0x00000000;
     constexpr unsigned int PA_SC_BINNER_CNTL_OVERRIDE__CONTEXT_STATES_PER_BIN__SHIFT = 0x0000000a;
@@ -7203,8 +7232,6 @@ namespace Gfx10Plus
     constexpr unsigned int SPI_SHADER_PGM_RSRC1_HS__WGP_MODE__SHIFT           = 0x0000001a;
     constexpr unsigned int SPI_SHADER_PGM_RSRC1_PS__FWD_PROGRESS__SHIFT       = 0x0000001a;
     constexpr unsigned int SPI_SHADER_PGM_RSRC1_PS__MEM_ORDERED__SHIFT        = 0x00000019;
-    constexpr unsigned int SPI_SHADER_PGM_RSRC1_VS__FWD_PROGRESS__SHIFT       = 0x0000001c;
-    constexpr unsigned int SPI_SHADER_PGM_RSRC1_VS__MEM_ORDERED__SHIFT        = 0x0000001b;
     constexpr unsigned int SPI_SHADER_PGM_RSRC2_GS__SHARED_VGPR_CNT__SHIFT    = 0x0000001c;
     constexpr unsigned int SPI_SHADER_PGM_RSRC2_GS__USER_SGPR_MSB__SHIFT      = 0x0000001b;
     constexpr unsigned int SPI_SHADER_PGM_RSRC2_HS__EXCP_EN__SHIFT            = 0x00000009;
@@ -7215,15 +7242,12 @@ namespace Gfx10Plus
     constexpr unsigned int SPI_SHADER_PGM_RSRC2_HS__USER_SGPR_MSB__SHIFT      = 0x0000001b;
     constexpr unsigned int SPI_SHADER_PGM_RSRC2_PS__SHARED_VGPR_CNT__SHIFT    = 0x0000001c;
     constexpr unsigned int SPI_SHADER_PGM_RSRC2_PS__USER_SGPR_MSB__SHIFT      = 0x0000001b;
-    constexpr unsigned int SPI_SHADER_PGM_RSRC2_VS__SHARED_VGPR_CNT__SHIFT    = 0x0000001c;
-    constexpr unsigned int SPI_SHADER_PGM_RSRC2_VS__USER_SGPR_MSB__SHIFT      = 0x0000001b;
     constexpr unsigned int SPI_SHADER_PGM_RSRC3_GS__GROUP_FIFO_DEPTH__SHIFT   = 0x0000001a;
     constexpr unsigned int SPI_SHADER_PGM_RSRC3_HS__GROUP_FIFO_DEPTH__SHIFT   = 0x0000000a;
     constexpr unsigned int SPI_SHADER_PGM_RSRC4_GS__CU_EN__SHIFT              = 0x00000000;
     constexpr unsigned int SPI_SHADER_PGM_RSRC4_GS__SPI_SHADER_LATE_ALLOC_GS__SHIFT = 0x00000010;
     constexpr unsigned int SPI_SHADER_PGM_RSRC4_HS__CU_EN__SHIFT              = 0x00000000;
     constexpr unsigned int SPI_SHADER_PGM_RSRC4_PS__CU_EN__SHIFT              = 0x00000000;
-    constexpr unsigned int SPI_SHADER_PGM_RSRC4_VS__CU_EN__SHIFT              = 0x00000000;
     constexpr unsigned int SPI_SHADER_POS_FORMAT__POS4_EXPORT_FORMAT__SHIFT   = 0x00000010;
     constexpr unsigned int SPI_SHADER_REQ_CTRL_ESGS__ALLOCATION_RATE_THROTTLING_THRESHOLD__SHIFT = 0x00000011;
     constexpr unsigned int SPI_SHADER_REQ_CTRL_ESGS__GLOBAL_SCANNING_EN__SHIFT = 0x00000010;
@@ -7249,14 +7273,6 @@ namespace Gfx10Plus
     constexpr unsigned int SPI_SHADER_REQ_CTRL_PS__PRODUCER_REQUEST_LOCKOUT__SHIFT = 0x0000000f;
     constexpr unsigned int SPI_SHADER_REQ_CTRL_PS__SOFT_GROUPING_ALLOCATION_TIMEOUT__SHIFT = 0x00000005;
     constexpr unsigned int SPI_SHADER_REQ_CTRL_PS__SOFT_GROUPING_EN__SHIFT    = 0x00000000;
-    constexpr unsigned int SPI_SHADER_REQ_CTRL_VS__ALLOCATION_RATE_THROTTLING_THRESHOLD__SHIFT = 0x00000011;
-    constexpr unsigned int SPI_SHADER_REQ_CTRL_VS__GLOBAL_SCANNING_EN__SHIFT  = 0x00000010;
-    constexpr unsigned int SPI_SHADER_REQ_CTRL_VS__HARD_LOCK_HYSTERESIS__SHIFT = 0x00000009;
-    constexpr unsigned int SPI_SHADER_REQ_CTRL_VS__HARD_LOCK_LOW_THRESHOLD__SHIFT = 0x0000000a;
-    constexpr unsigned int SPI_SHADER_REQ_CTRL_VS__NUMBER_OF_REQUESTS_PER_CU__SHIFT = 0x00000001;
-    constexpr unsigned int SPI_SHADER_REQ_CTRL_VS__PRODUCER_REQUEST_LOCKOUT__SHIFT = 0x0000000f;
-    constexpr unsigned int SPI_SHADER_REQ_CTRL_VS__SOFT_GROUPING_ALLOCATION_TIMEOUT__SHIFT = 0x00000005;
-    constexpr unsigned int SPI_SHADER_REQ_CTRL_VS__SOFT_GROUPING_EN__SHIFT    = 0x00000000;
     constexpr unsigned int SPI_SHADER_RSRC_LIMIT_CTRL__BARRIER_LIMIT_HIERARCHY_LEVEL__SHIFT = 0x00000013;
     constexpr unsigned int SPI_SHADER_RSRC_LIMIT_CTRL__BARRIER_LIMIT__SHIFT   = 0x0000000d;
     constexpr unsigned int SPI_SHADER_RSRC_LIMIT_CTRL__LDS_LIMIT_HIERARCHY_LEVEL__SHIFT = 0x0000001c;
@@ -7277,10 +7293,6 @@ namespace Gfx10Plus
     constexpr unsigned int SPI_SHADER_USER_ACCUM_PS_1__CONTRIBUTION__SHIFT    = 0x00000000;
     constexpr unsigned int SPI_SHADER_USER_ACCUM_PS_2__CONTRIBUTION__SHIFT    = 0x00000000;
     constexpr unsigned int SPI_SHADER_USER_ACCUM_PS_3__CONTRIBUTION__SHIFT    = 0x00000000;
-    constexpr unsigned int SPI_SHADER_USER_ACCUM_VS_0__CONTRIBUTION__SHIFT    = 0x00000000;
-    constexpr unsigned int SPI_SHADER_USER_ACCUM_VS_1__CONTRIBUTION__SHIFT    = 0x00000000;
-    constexpr unsigned int SPI_SHADER_USER_ACCUM_VS_2__CONTRIBUTION__SHIFT    = 0x00000000;
-    constexpr unsigned int SPI_SHADER_USER_ACCUM_VS_3__CONTRIBUTION__SHIFT    = 0x00000000;
     constexpr unsigned int SPI_SHADER_USER_DATA_GS_0__DATA__SHIFT             = 0x00000000;
     constexpr unsigned int SPI_SHADER_USER_DATA_GS_1__DATA__SHIFT             = 0x00000000;
     constexpr unsigned int SPI_SHADER_USER_DATA_GS_2__DATA__SHIFT             = 0x00000000;
@@ -7362,7 +7374,6 @@ namespace Gfx10Plus
     constexpr unsigned int SQ_CONFIG__VGPR_SWIZZLE_EN__SHIFT                  = 0x0000000c;
     constexpr unsigned int SQ_FIFO_SIZES__EXPORT_BUF_PS_RESERVED__SHIFT       = 0x0000000e;
     constexpr unsigned int SQ_FIFO_SIZES__EXPORT_BUF_REDUCE__SHIFT            = 0x00000010;
-    constexpr unsigned int SQ_FIFO_SIZES__EXPORT_BUF_VS_RESERVED__SHIFT       = 0x0000000c;
     constexpr unsigned int SQ_IND_INDEX__AUTO_INCR__SHIFT                     = 0x0000000b;
     constexpr unsigned int SQ_IND_INDEX__WORKITEM_ID__SHIFT                   = 0x00000005;
     constexpr unsigned int SQ_LB_CTR_SEL0__DIV0__SHIFT                        = 0x0000000f;
@@ -7393,11 +7404,7 @@ namespace Gfx10Plus
     constexpr unsigned int SQ_THREAD_TRACE_CTRL__HIWATER__SHIFT               = 0x00000006;
     constexpr unsigned int SQ_THREAD_TRACE_CTRL__INTERRUPT_EN__SHIFT          = 0x00000004;
     constexpr unsigned int SQ_THREAD_TRACE_CTRL__MODE__SHIFT                  = 0x00000000;
-    constexpr unsigned int SQ_THREAD_TRACE_CTRL__REG_DROP_ON_STALL__SHIFT     = 0x0000000c;
-    constexpr unsigned int SQ_THREAD_TRACE_CTRL__REG_STALL_EN__SHIFT          = 0x00000009;
     constexpr unsigned int SQ_THREAD_TRACE_CTRL__RT_FREQ__SHIFT               = 0x00000010;
-    constexpr unsigned int SQ_THREAD_TRACE_CTRL__SPI_STALL_EN__SHIFT          = 0x0000000a;
-    constexpr unsigned int SQ_THREAD_TRACE_CTRL__SQ_STALL_EN__SHIFT           = 0x0000000b;
     constexpr unsigned int SQ_THREAD_TRACE_CTRL__SYNC_COUNT_DRAWS__SHIFT      = 0x00000013;
     constexpr unsigned int SQ_THREAD_TRACE_CTRL__SYNC_COUNT_MARKERS__SHIFT    = 0x00000012;
     constexpr unsigned int SQ_THREAD_TRACE_CTRL__UTIL_TIMER__SHIFT            = 0x0000000d;
@@ -7471,8 +7478,6 @@ namespace Gfx10Plus
     constexpr unsigned int SQ_WAVE_TRAPSTS__BUFFER_OOB__SHIFT                 = 0x0000000f;
     constexpr unsigned int TA_CNTL_AUX__ANISO_MAG_STEP_CLAMP__SHIFT           = 0x00000008;
     constexpr unsigned int TA_CNTL_AUX__AUTO_ALIGN_FORMAT__SHIFT              = 0x00000009;
-    constexpr unsigned int TA_POWER_CNTL__NOSAMPLER_CLK_VALID_DELAY__SHIFT    = 0x00000010;
-    constexpr unsigned int TA_POWER_CNTL__SAMPLER_CLK_VALID_DELAY__SHIFT      = 0x00000000;
     constexpr unsigned int TCP_PERFCOUNTER_FILTER2__REQ_MODE__SHIFT           = 0x00000000;
     constexpr unsigned int TCP_PERFCOUNTER_FILTER_EN__COMPRESSION_ENABLE__SHIFT = 0x0000000b;
     constexpr unsigned int TCP_PERFCOUNTER_FILTER_EN__DLC__SHIFT              = 0x00000009;
@@ -8041,6 +8046,7 @@ namespace Rn
     constexpr unsigned int RLC_SPM_ACCUM_STATUS__RESERVED__SHIFT              = 0x00000010;
     constexpr unsigned int RLC_SPM_ACCUM_THRESHOLD__RESERVED__SHIFT           = 0x00000010;
     constexpr unsigned int RMI_PERF_COUNTER_CNTL__PERF_EVENT_WINDOW_MASK1__SHIFT = 0x00000008;
+    constexpr unsigned int SPI_SHADER_PGM_CHKSUM_VS__CHECKSUM__SHIFT          = 0x00000000;
     constexpr unsigned int SQ_CONFIG__DISABLE_BARRIER_WAITCNT__SHIFT          = 0x00000000;
     constexpr unsigned int SQ_CONFIG__UNUSED__SHIFT                           = 0x00000001;
 } // namespace Rn
@@ -8067,6 +8073,7 @@ namespace Rv2x
     constexpr unsigned int RLC_SPM_ACCUM_SAMPLES_REQUESTED__RESERVED__SHIFT   = 0x00000008;
     constexpr unsigned int RLC_SPM_ACCUM_STATUS__RESERVED__SHIFT              = 0x00000010;
     constexpr unsigned int RLC_SPM_ACCUM_THRESHOLD__RESERVED__SHIFT           = 0x00000010;
+    constexpr unsigned int SPI_SHADER_PGM_CHKSUM_VS__CHECKSUM__SHIFT          = 0x00000000;
     constexpr unsigned int SQ_CONFIG__UNUSED__SHIFT                           = 0x00000000;
 } // namespace Rv2x
 

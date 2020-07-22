@@ -797,6 +797,7 @@ void Device::InitGfx6ChipProperties()
         PAL_ASSERT_ALWAYS();
     }
 
+    pChipInfo->numCuPerSh              = pChipInfo->maxNumCuPerSh;
     pChipInfo->backendDisableMask      = 0; // everything is enabled!
     pChipInfo->numActiveRbs            = pChipInfo->maxNumRbPerSe * pChipInfo->numShaderEngines;
     pChipInfo->gbTileMode[TILEINDEX_LINEAR_ALIGNED] = ADDR_TM_LINEAR_ALIGNED << 2;

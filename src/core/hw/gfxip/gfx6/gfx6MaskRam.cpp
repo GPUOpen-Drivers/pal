@@ -98,6 +98,7 @@ bool Gfx6Htile::UseHtileForImage(
 
             useHtile = ((pParent->IsShared()                   == false) &&
                         (pParent->IsMetadataDisabledByClient() == false) &&
+                        (pParent->IsTmz()                      == false) &&
                         (settings.htileEnable                  == true)  &&
                         (waDisableHtile                        == false));
         }
@@ -665,6 +666,7 @@ bool Gfx6Cmask::UseCmaskForImage(
             // DCC surface is present.
             useCmask = (useDcc == false)           &&
                        (skipSmallSurface == false) &&
+                       (pParent->IsTmz() == false) &&
                        SupportFastColorClear(device, image, tileMode, tileType);
         }
     }
@@ -870,6 +872,7 @@ bool Gfx6Fmask::UseFmaskForImage(
             ((pParent->IsRenderTarget()             == true)  &&
              (pParent->IsShared()                   == false) &&
              (pParent->IsMetadataDisabledByClient() == false) &&
+             (pParent->IsTmz()                      == false) &&
              (pParent->GetImageCreateInfo().samples > 1)));
 }
 
@@ -1137,6 +1140,12 @@ bool Gfx6Dcc::UseDccForImage(
         else if (pParent->IsMetadataDisabledByClient())
         {
             // Don't use DCC if the caller asked that we allocate no metadata.
+            useDcc = false;
+            mustDisableDcc = true;
+        }
+        else if (pParent->IsTmz())
+        {
+            // Disable metadata if the image is tmz protected.
             useDcc = false;
             mustDisableDcc = true;
         }

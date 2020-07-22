@@ -264,10 +264,11 @@ void SettingsLoader::ValidateSettings(
         //                So there is no point in increasing the size of the buffer
         m_settings.tessFactorBufferSizePerSe = Gfx10Plus::mmVGT_TF_RING_SIZE_DEFAULT / gfx9Props.numShaderEngines;
 
-        if ((m_settings.tessFactorBufferSizePerSe * gfx9Props.numShaderEngines) > VGT_TF_RING_SIZE__SIZE_MASK)
+        if ((m_settings.tessFactorBufferSizePerSe * gfx9Props.numShaderEngines) > Gfx09_10::VGT_TF_RING_SIZE__SIZE_MASK)
         {
             m_settings.tessFactorBufferSizePerSe =
-                Pow2AlignDown(VGT_TF_RING_SIZE__SIZE_MASK, gfx9Props.numShaderEngines) / gfx9Props.numShaderEngines;
+                Pow2AlignDown(Gfx09_10::VGT_TF_RING_SIZE__SIZE_MASK,
+                              gfx9Props.numShaderEngines) / gfx9Props.numShaderEngines;
             static_assert(VGT_TF_RING_SIZE__SIZE__SHIFT == 0, "VGT_TF_RING_SIZE::SIZE shift is no longer zero!");
         }
 

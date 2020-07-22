@@ -1264,4 +1264,25 @@ uint32 CmdBuffer::GetUsedSize(
     return (sizeInDwords * sizeof(uint32));
 }
 
+// =====================================================================================================================
+void CmdBuffer::NotifyAllocFailure()
+{
+    PAL_ALERT_ALWAYS();
+    SetCmdRecordingError(Result::ErrorOutOfMemory);
+}
+
+// =====================================================================================================================
+// The command recording status is sticky, remembering the first error seen during command recording.
+void CmdBuffer::SetCmdRecordingError(
+    Result error)
+{
+    // By definition this has to be an error.
+    PAL_ASSERT(Util::IsErrorResult(error));
+
+    if (Util::IsErrorResult(m_status) == false)
+    {
+        m_status = error;
+    }
+}
+
 } // Pal

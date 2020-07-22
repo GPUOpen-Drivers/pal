@@ -878,7 +878,7 @@ Result Device::CreateQueueContext(
         {
             {
                 ComputeQueueContext* pContext =
-                    PAL_PLACEMENT_NEW(pPlacementAddr) ComputeQueueContext(this, pEngine, engineId);
+                    PAL_PLACEMENT_NEW(pPlacementAddr) ComputeQueueContext(this, pEngine, engineId, createInfo.tmzOnly);
 
                 result = pContext->Init();
 

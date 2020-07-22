@@ -1584,10 +1584,14 @@ Result Device::Finalize(
                 result = CreateDummyCommandStreams();
             }
 
-            // In case there is no dma engine available, PAL does not create dmaUploadRing.
-            // It should be safe to not create a dmaUploadRing, since pipeline uploader will overwrite
-            // client's preference of pipeline heap in case that no dma engine is available.
-            if ((result == Result::Success) && (m_engineProperties.perEngine[EngineTypeDma].numAvailable > 0))
+            // Refer to Device::ValidatePipelineUploadHeap.
+            // If any of the following conditions is false, it should be safe to not create a dmaUploadRing,
+            // since pipeline uploader will overwrite client's preference of pipeline heap in case that
+            // no dma engine is available.
+            if ((result == Result::Success)                                    &&
+                (m_engineProperties.perEngine[EngineTypeDma].numAvailable > 0) &&
+                (m_pPlatform->InternalResidencyOptsDisabled() == false)        &&
+                (m_heapProperties[GpuHeapInvisible].heapSize > 0))
             {
                 result = CreateDmaUploadRing();
             }

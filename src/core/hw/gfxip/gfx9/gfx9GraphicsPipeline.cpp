@@ -599,7 +599,7 @@ uint32* GraphicsPipeline::WriteShCommands(
         // If NGG is enabled, there is no hardware-VS, so there is no need to write the late-alloc VS limit.
         if (IsNgg() == false)
         {
-            pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderGraphics>(mmSPI_SHADER_LATE_ALLOC_VS,
+            pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderGraphics>(Gfx09_10::mmSPI_SHADER_LATE_ALLOC_VS,
                                                                      m_regs.sh.spiShaderLateAllocVs.u32All,
                                                                      pCmdSpace);
         }
@@ -925,7 +925,7 @@ void GraphicsPipeline::SetupCommonRegisters(
     // mind that the number of VS exports are represented by a -1 field in the HW register!
     if ((m_regs.other.spiVsOutConfig.bits.VS_EXPORT_COUNT + 1u) > settings.vsHalfPackThreshold)
     {
-        m_regs.other.spiVsOutConfig.bits.VS_HALF_PACK = 1;
+        m_regs.other.spiVsOutConfig.gfx09_10.VS_HALF_PACK = 1;
     }
 
     // For Gfx9+, default VTX_REUSE_DEPTH to 14
@@ -992,10 +992,10 @@ void GraphicsPipeline::SetupCommonRegisters(
                                             : m_pDevice->LateAllocVsLimit() + 1;
 
         regSPI_SHADER_PGM_RSRC1_VS spiShaderPgmRsrc1Vs = { };
-        spiShaderPgmRsrc1Vs.u32All = registers.At(mmSPI_SHADER_PGM_RSRC1_VS);
+        spiShaderPgmRsrc1Vs.u32All = registers.At(Gfx09_10::mmSPI_SHADER_PGM_RSRC1_VS);
 
         regSPI_SHADER_PGM_RSRC2_VS spiShaderPgmRsrc2Vs = { };
-        spiShaderPgmRsrc2Vs.u32All = registers.At(mmSPI_SHADER_PGM_RSRC2_VS);
+        spiShaderPgmRsrc2Vs.u32All = registers.At(Gfx09_10::mmSPI_SHADER_PGM_RSRC2_VS);
         const uint32 programmedLimit = CalcMaxLateAllocLimit(*m_pDevice,
                                                              registers,
                                                              spiShaderPgmRsrc1Vs.bits.VGPRS,
@@ -1022,7 +1022,7 @@ void GraphicsPipeline::SetupCommonRegisters(
         }
         if (pUploader->EnableLoadIndexPath())
         {
-            pUploader->AddShReg(mmSPI_SHADER_LATE_ALLOC_VS, m_regs.sh.spiShaderLateAllocVs);
+            pUploader->AddShReg(Gfx09_10::mmSPI_SHADER_LATE_ALLOC_VS, m_regs.sh.spiShaderLateAllocVs);
         }
     }
     SetupIaMultiVgtParam(registers);
@@ -1703,7 +1703,7 @@ uint32 GraphicsPipeline::GetVsUserDataBaseOffset() const
     }
     else
     {
-        regBase = mmSPI_SHADER_USER_DATA_VS_0;
+        regBase = Gfx09_10::mmSPI_SHADER_USER_DATA_VS_0;
     }
 
     return regBase;
@@ -2118,16 +2118,18 @@ static uint32 SxBlendOptEpsilon(
 static uint32 SxBlendOptControl(
     uint32 writeMask)
 {
-    constexpr uint32 AlphaMask = 0x8;
-    constexpr uint32 ColorMask = 0x7;
+    uint32 sxBlendOptControl = 0;
 
-    const uint32 colorOptDisable = ((writeMask & ColorMask) != 0) ?
-        0 : SX_BLEND_OPT_CONTROL__MRT0_COLOR_OPT_DISABLE_MASK;
+    // In order to determine if alpha or color channels are meaningful to the blender, the blend equations and
+    // coefficients need to be examined for any interdependency. Instead, rely on the SX optimization result except for
+    // the trivial cases: write disabled here and blend disabled using COMB_FCN of SX_MRTx_BLEND_OPT.
+    if (writeMask == 0)
+    {
+        sxBlendOptControl = SX_BLEND_OPT_CONTROL__MRT0_COLOR_OPT_DISABLE_MASK |
+                            SX_BLEND_OPT_CONTROL__MRT0_ALPHA_OPT_DISABLE_MASK;
+    }
 
-    const uint32 alphaOptDisable = ((writeMask & AlphaMask) != 0) ?
-        0 : SX_BLEND_OPT_CONTROL__MRT0_ALPHA_OPT_DISABLE_MASK;
-
-    return (colorOptDisable | alphaOptDisable);
+    return sxBlendOptControl;
 }
 
 // =====================================================================================================================

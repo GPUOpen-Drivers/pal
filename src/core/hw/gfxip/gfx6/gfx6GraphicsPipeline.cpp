@@ -1886,16 +1886,18 @@ static uint32 SxBlendOptEpsilon(
 static uint32 SxBlendOptControl(
     uint32 writeMask)
 {
-    constexpr uint32 AlphaMask = 0x8;
-    constexpr uint32 ColorMask = 0x7;
+    uint32 sxBlendOptControl = 0;
 
-    const uint32 colorOptDisable = ((writeMask & ColorMask) != 0) ?
-        0 : SX_BLEND_OPT_CONTROL__MRT0_COLOR_OPT_DISABLE_MASK__VI;
+    // In order to determine if alpha or color channels are meaningful to the blender, the blend equations and
+    // coefficients need to be examined for any interdependency. Instead, rely on the SX optimization result except for
+    // the trivial cases: write disabled here and blend disabled using COMB_FCN of SX_MRTx_BLEND_OPT.
+    if (writeMask == 0)
+    {
+        sxBlendOptControl = SX_BLEND_OPT_CONTROL__MRT0_COLOR_OPT_DISABLE_MASK__VI |
+                            SX_BLEND_OPT_CONTROL__MRT0_ALPHA_OPT_DISABLE_MASK__VI;
+    }
 
-    const uint32 alphaOptDisable = ((writeMask & AlphaMask) != 0) ?
-        0 : SX_BLEND_OPT_CONTROL__MRT0_ALPHA_OPT_DISABLE_MASK__VI;
-
-    return (colorOptDisable | alphaOptDisable);
+    return sxBlendOptControl;
 }
 
 } // Gfx6

@@ -828,27 +828,21 @@ constexpr unsigned int mmSPI_RESOURCE_RESERVE_CU_3                        = 0x31
 constexpr unsigned int mmSPI_RESOURCE_RESERVE_CU_4                        = 0x31E0;
 constexpr unsigned int mmSPI_RESOURCE_RESERVE_CU_5                        = 0x31E1;
 constexpr unsigned int mmSPI_SHADER_COL_FORMAT                            = 0xA1C5;
-constexpr unsigned int mmSPI_SHADER_LATE_ALLOC_VS                         = 0x2C47;
 constexpr unsigned int mmSPI_SHADER_PGM_HI_GS                             = 0x2C89;
 constexpr unsigned int mmSPI_SHADER_PGM_HI_HS                             = 0x2D09;
 constexpr unsigned int mmSPI_SHADER_PGM_HI_PS                             = 0x2C09;
-constexpr unsigned int mmSPI_SHADER_PGM_HI_VS                             = 0x2C49;
 constexpr unsigned int mmSPI_SHADER_PGM_LO_GS                             = 0x2C88;
 constexpr unsigned int mmSPI_SHADER_PGM_LO_HS                             = 0x2D08;
 constexpr unsigned int mmSPI_SHADER_PGM_LO_PS                             = 0x2C08;
-constexpr unsigned int mmSPI_SHADER_PGM_LO_VS                             = 0x2C48;
 constexpr unsigned int mmSPI_SHADER_PGM_RSRC1_GS                          = 0x2C8A;
 constexpr unsigned int mmSPI_SHADER_PGM_RSRC1_HS                          = 0x2D0A;
 constexpr unsigned int mmSPI_SHADER_PGM_RSRC1_PS                          = 0x2C0A;
-constexpr unsigned int mmSPI_SHADER_PGM_RSRC1_VS                          = 0x2C4A;
 constexpr unsigned int mmSPI_SHADER_PGM_RSRC2_GS                          = 0x2C8B;
 constexpr unsigned int mmSPI_SHADER_PGM_RSRC2_HS                          = 0x2D0B;
 constexpr unsigned int mmSPI_SHADER_PGM_RSRC2_PS                          = 0x2C0B;
-constexpr unsigned int mmSPI_SHADER_PGM_RSRC2_VS                          = 0x2C4B;
 constexpr unsigned int mmSPI_SHADER_PGM_RSRC3_GS                          = 0x2C87;
 constexpr unsigned int mmSPI_SHADER_PGM_RSRC3_HS                          = 0x2D07;
 constexpr unsigned int mmSPI_SHADER_PGM_RSRC3_PS                          = 0x2C07;
-constexpr unsigned int mmSPI_SHADER_PGM_RSRC3_VS                          = 0x2C46;
 constexpr unsigned int mmSPI_SHADER_PGM_RSRC4_GS                          = 0x2C81;
 constexpr unsigned int mmSPI_SHADER_PGM_RSRC4_HS                          = 0x2D01;
 constexpr unsigned int mmSPI_SHADER_POS_FORMAT                            = 0xA1C3;
@@ -888,38 +882,6 @@ constexpr unsigned int mmSPI_SHADER_USER_DATA_PS_28                       = 0x2C
 constexpr unsigned int mmSPI_SHADER_USER_DATA_PS_29                       = 0x2C29;
 constexpr unsigned int mmSPI_SHADER_USER_DATA_PS_30                       = 0x2C2A;
 constexpr unsigned int mmSPI_SHADER_USER_DATA_PS_31                       = 0x2C2B;
-constexpr unsigned int mmSPI_SHADER_USER_DATA_VS_0                        = 0x2C4C;
-constexpr unsigned int mmSPI_SHADER_USER_DATA_VS_1                        = 0x2C4D;
-constexpr unsigned int mmSPI_SHADER_USER_DATA_VS_2                        = 0x2C4E;
-constexpr unsigned int mmSPI_SHADER_USER_DATA_VS_3                        = 0x2C4F;
-constexpr unsigned int mmSPI_SHADER_USER_DATA_VS_4                        = 0x2C50;
-constexpr unsigned int mmSPI_SHADER_USER_DATA_VS_5                        = 0x2C51;
-constexpr unsigned int mmSPI_SHADER_USER_DATA_VS_6                        = 0x2C52;
-constexpr unsigned int mmSPI_SHADER_USER_DATA_VS_7                        = 0x2C53;
-constexpr unsigned int mmSPI_SHADER_USER_DATA_VS_8                        = 0x2C54;
-constexpr unsigned int mmSPI_SHADER_USER_DATA_VS_9                        = 0x2C55;
-constexpr unsigned int mmSPI_SHADER_USER_DATA_VS_10                       = 0x2C56;
-constexpr unsigned int mmSPI_SHADER_USER_DATA_VS_11                       = 0x2C57;
-constexpr unsigned int mmSPI_SHADER_USER_DATA_VS_12                       = 0x2C58;
-constexpr unsigned int mmSPI_SHADER_USER_DATA_VS_13                       = 0x2C59;
-constexpr unsigned int mmSPI_SHADER_USER_DATA_VS_14                       = 0x2C5A;
-constexpr unsigned int mmSPI_SHADER_USER_DATA_VS_15                       = 0x2C5B;
-constexpr unsigned int mmSPI_SHADER_USER_DATA_VS_16                       = 0x2C5C;
-constexpr unsigned int mmSPI_SHADER_USER_DATA_VS_17                       = 0x2C5D;
-constexpr unsigned int mmSPI_SHADER_USER_DATA_VS_18                       = 0x2C5E;
-constexpr unsigned int mmSPI_SHADER_USER_DATA_VS_19                       = 0x2C5F;
-constexpr unsigned int mmSPI_SHADER_USER_DATA_VS_20                       = 0x2C60;
-constexpr unsigned int mmSPI_SHADER_USER_DATA_VS_21                       = 0x2C61;
-constexpr unsigned int mmSPI_SHADER_USER_DATA_VS_22                       = 0x2C62;
-constexpr unsigned int mmSPI_SHADER_USER_DATA_VS_23                       = 0x2C63;
-constexpr unsigned int mmSPI_SHADER_USER_DATA_VS_24                       = 0x2C64;
-constexpr unsigned int mmSPI_SHADER_USER_DATA_VS_25                       = 0x2C65;
-constexpr unsigned int mmSPI_SHADER_USER_DATA_VS_26                       = 0x2C66;
-constexpr unsigned int mmSPI_SHADER_USER_DATA_VS_27                       = 0x2C67;
-constexpr unsigned int mmSPI_SHADER_USER_DATA_VS_28                       = 0x2C68;
-constexpr unsigned int mmSPI_SHADER_USER_DATA_VS_29                       = 0x2C69;
-constexpr unsigned int mmSPI_SHADER_USER_DATA_VS_30                       = 0x2C6A;
-constexpr unsigned int mmSPI_SHADER_USER_DATA_VS_31                       = 0x2C6B;
 constexpr unsigned int mmSPI_SHADER_Z_FORMAT                              = 0xA1C4;
 constexpr unsigned int mmSPI_START_PHASE                                  = 0x243B;
 constexpr unsigned int mmSPI_SX_EXPORT_BUFFER_SIZES                       = 0x24D9;
@@ -1199,7 +1161,6 @@ namespace Apu09_1xPlus
     constexpr unsigned int mmSPI_SHADER_PGM_CHKSUM_GS                         = 0x2C80;
     constexpr unsigned int mmSPI_SHADER_PGM_CHKSUM_HS                         = 0x2D00;
     constexpr unsigned int mmSPI_SHADER_PGM_CHKSUM_PS                         = 0x2C06;
-    constexpr unsigned int mmSPI_SHADER_PGM_CHKSUM_VS                         = 0x2C45;
 } // namespace Apu09_1xPlus
 
 namespace Core
@@ -1230,9 +1191,6 @@ namespace Core
     constexpr unsigned int mmSPI_WF_LIFETIME_LIMIT_3                          = 0x24AE;
     constexpr unsigned int mmSPI_WF_LIFETIME_LIMIT_4                          = 0x24AF;
     constexpr unsigned int mmSPI_WF_LIFETIME_LIMIT_5                          = 0x24B0;
-    constexpr unsigned int mmSQ_TIME_HI                                       = 0x237C;
-    constexpr unsigned int mmSQ_TIME_LO                                       = 0x237D;
-    constexpr unsigned int mmTA_RESERVED_010C                                 = 0x2543;
     constexpr unsigned int mmUMCCH0_PerfMonCtl1                               = 0x14341;
     constexpr unsigned int mmUMCCH0_PerfMonCtl2                               = 0x14342;
     constexpr unsigned int mmUMCCH0_PerfMonCtl3                               = 0x14343;
@@ -1625,6 +1583,8 @@ namespace Gfx09
     constexpr unsigned int mmSQ_THREAD_TRACE_WORD_WAVE                        = 0x23B0;
     constexpr unsigned int mmSQ_THREAD_TRACE_WORD_WAVE_START                  = 0x23B0;
     constexpr unsigned int mmSQ_THREAD_TRACE_WPTR                             = 0xC339;
+    constexpr unsigned int mmSQ_TIME_HI                                       = 0x237C;
+    constexpr unsigned int mmSQ_TIME_LO                                       = 0x237D;
     constexpr unsigned int mmSQ_UTCL1_CNTL1                                   = 0x2317;
     constexpr unsigned int mmSQ_UTCL1_CNTL2                                   = 0x2318;
     constexpr unsigned int mmSQ_UTCL1_STATUS                                  = 0x2319;
@@ -1642,6 +1602,7 @@ namespace Gfx09
     constexpr unsigned int mmSQ_VOP_SDWA_SDST_ENC                             = 0x237F;
     constexpr unsigned int mmSQ_WREXEC_EXEC_HI                                = 0x23B1;
     constexpr unsigned int mmSQ_WREXEC_EXEC_LO                                = 0x23B1;
+    constexpr unsigned int mmTA_RESERVED_010C                                 = 0x2543;
     constexpr unsigned int mmTCA_PERFCOUNTER0_HI                              = 0xD391;
     constexpr unsigned int mmTCA_PERFCOUNTER0_LO                              = 0xD390;
     constexpr unsigned int mmTCA_PERFCOUNTER0_SELECT                          = 0xDB90;
@@ -1727,6 +1688,44 @@ namespace Gfx09_10
     constexpr unsigned int mmSPI_RESOURCE_RESERVE_EN_CU_3                     = 0x31E9;
     constexpr unsigned int mmSPI_RESOURCE_RESERVE_EN_CU_4                     = 0x31EA;
     constexpr unsigned int mmSPI_RESOURCE_RESERVE_EN_CU_5                     = 0x31EB;
+    constexpr unsigned int mmSPI_SHADER_LATE_ALLOC_VS                         = 0x2C47;
+    constexpr unsigned int mmSPI_SHADER_PGM_HI_VS                             = 0x2C49;
+    constexpr unsigned int mmSPI_SHADER_PGM_LO_VS                             = 0x2C48;
+    constexpr unsigned int mmSPI_SHADER_PGM_RSRC1_VS                          = 0x2C4A;
+    constexpr unsigned int mmSPI_SHADER_PGM_RSRC2_VS                          = 0x2C4B;
+    constexpr unsigned int mmSPI_SHADER_PGM_RSRC3_VS                          = 0x2C46;
+    constexpr unsigned int mmSPI_SHADER_USER_DATA_VS_0                        = 0x2C4C;
+    constexpr unsigned int mmSPI_SHADER_USER_DATA_VS_1                        = 0x2C4D;
+    constexpr unsigned int mmSPI_SHADER_USER_DATA_VS_2                        = 0x2C4E;
+    constexpr unsigned int mmSPI_SHADER_USER_DATA_VS_3                        = 0x2C4F;
+    constexpr unsigned int mmSPI_SHADER_USER_DATA_VS_4                        = 0x2C50;
+    constexpr unsigned int mmSPI_SHADER_USER_DATA_VS_5                        = 0x2C51;
+    constexpr unsigned int mmSPI_SHADER_USER_DATA_VS_6                        = 0x2C52;
+    constexpr unsigned int mmSPI_SHADER_USER_DATA_VS_7                        = 0x2C53;
+    constexpr unsigned int mmSPI_SHADER_USER_DATA_VS_8                        = 0x2C54;
+    constexpr unsigned int mmSPI_SHADER_USER_DATA_VS_9                        = 0x2C55;
+    constexpr unsigned int mmSPI_SHADER_USER_DATA_VS_10                       = 0x2C56;
+    constexpr unsigned int mmSPI_SHADER_USER_DATA_VS_11                       = 0x2C57;
+    constexpr unsigned int mmSPI_SHADER_USER_DATA_VS_12                       = 0x2C58;
+    constexpr unsigned int mmSPI_SHADER_USER_DATA_VS_13                       = 0x2C59;
+    constexpr unsigned int mmSPI_SHADER_USER_DATA_VS_14                       = 0x2C5A;
+    constexpr unsigned int mmSPI_SHADER_USER_DATA_VS_15                       = 0x2C5B;
+    constexpr unsigned int mmSPI_SHADER_USER_DATA_VS_16                       = 0x2C5C;
+    constexpr unsigned int mmSPI_SHADER_USER_DATA_VS_17                       = 0x2C5D;
+    constexpr unsigned int mmSPI_SHADER_USER_DATA_VS_18                       = 0x2C5E;
+    constexpr unsigned int mmSPI_SHADER_USER_DATA_VS_19                       = 0x2C5F;
+    constexpr unsigned int mmSPI_SHADER_USER_DATA_VS_20                       = 0x2C60;
+    constexpr unsigned int mmSPI_SHADER_USER_DATA_VS_21                       = 0x2C61;
+    constexpr unsigned int mmSPI_SHADER_USER_DATA_VS_22                       = 0x2C62;
+    constexpr unsigned int mmSPI_SHADER_USER_DATA_VS_23                       = 0x2C63;
+    constexpr unsigned int mmSPI_SHADER_USER_DATA_VS_24                       = 0x2C64;
+    constexpr unsigned int mmSPI_SHADER_USER_DATA_VS_25                       = 0x2C65;
+    constexpr unsigned int mmSPI_SHADER_USER_DATA_VS_26                       = 0x2C66;
+    constexpr unsigned int mmSPI_SHADER_USER_DATA_VS_27                       = 0x2C67;
+    constexpr unsigned int mmSPI_SHADER_USER_DATA_VS_28                       = 0x2C68;
+    constexpr unsigned int mmSPI_SHADER_USER_DATA_VS_29                       = 0x2C69;
+    constexpr unsigned int mmSPI_SHADER_USER_DATA_VS_30                       = 0x2C6A;
+    constexpr unsigned int mmSPI_SHADER_USER_DATA_VS_31                       = 0x2C6B;
     constexpr unsigned int mmSPI_WF_LIFETIME_STATUS_1                         = 0x24B6;
     constexpr unsigned int mmSPI_WF_LIFETIME_STATUS_8                         = 0x24BD;
 } // namespace Gfx09_10
@@ -1756,7 +1755,17 @@ namespace Gfx10
     constexpr unsigned int mmCOMPUTE_RELAUNCH2                                = 0x2E2E;
     constexpr unsigned int mmCOMPUTE_WAVE_RESTORE_ADDR_HI                     = 0x2E2D;
     constexpr unsigned int mmCOMPUTE_WAVE_RESTORE_ADDR_LO                     = 0x2E2C;
+    constexpr unsigned int mmPA_SC_BC_WAVE_BREAK                              = 0x22E4;
     constexpr unsigned int mmSPI_LB_DATA_PERWGP_WAVE_VSPS                     = 0x24E6;
+    constexpr unsigned int mmSPI_SHADER_PGM_CHKSUM_VS                         = 0x2C45;
+    constexpr unsigned int mmSPI_SHADER_PGM_RSRC2_GS_VS                       = 0x2C7B;
+    constexpr unsigned int mmSPI_SHADER_PGM_RSRC4_VS                          = 0x2C41;
+    constexpr unsigned int mmSPI_SHADER_REQ_CTRL_VS                           = 0x2C70;
+    constexpr unsigned int mmSPI_SHADER_USER_ACCUM_VS_0                       = 0x2C72;
+    constexpr unsigned int mmSPI_SHADER_USER_ACCUM_VS_1                       = 0x2C73;
+    constexpr unsigned int mmSPI_SHADER_USER_ACCUM_VS_2                       = 0x2C74;
+    constexpr unsigned int mmSPI_SHADER_USER_ACCUM_VS_3                       = 0x2C75;
+    constexpr unsigned int mmTA_POWER_CNTL                                    = 0x2540;
 } // namespace Gfx10
 
 namespace Gfx101
@@ -2129,8 +2138,11 @@ namespace Gfx10Core
     constexpr unsigned int mmSQ_THREAD_TRACE_STATUS                           = 0x2348;
     constexpr unsigned int mmSQ_THREAD_TRACE_TOKEN_MASK                       = 0x2346;
     constexpr unsigned int mmSQ_THREAD_TRACE_WPTR                             = 0x2344;
+    constexpr unsigned int mmSQ_TIME_HI                                       = 0x237C;
+    constexpr unsigned int mmSQ_TIME_LO                                       = 0x237D;
     constexpr unsigned int mmSQ_WREXEC_EXEC_HI                                = 0x23B1;
     constexpr unsigned int mmSQ_WREXEC_EXEC_LO                                = 0x23B1;
+    constexpr unsigned int mmTA_RESERVED_010C                                 = 0x2543;
 } // namespace Gfx10Core
 
 namespace Gfx10CorePlus
@@ -2560,7 +2572,6 @@ namespace Gfx10Plus
     constexpr unsigned int mmPA_PH_PERFCOUNTER7_HI                            = 0xD58F;
     constexpr unsigned int mmPA_PH_PERFCOUNTER7_LO                            = 0xD58E;
     constexpr unsigned int mmPA_PH_PERFCOUNTER7_SELECT                        = 0xDD88;
-    constexpr unsigned int mmPA_SC_BC_WAVE_BREAK                              = 0x22E4;
     constexpr unsigned int mmPA_SC_BINNER_CNTL_OVERRIDE                       = 0x22DE;
     constexpr unsigned int mmPA_SC_ENHANCE_2                                  = 0x22DC;
     constexpr unsigned int mmPA_SC_PBB_OVERRIDE_FLAG                          = 0x22DF;
@@ -2619,13 +2630,10 @@ namespace Gfx10Plus
     constexpr unsigned int mmSPI_SHADER_PGM_LO_ES_GS                          = 0x2C84;
     constexpr unsigned int mmSPI_SHADER_PGM_LO_LS                             = 0x2D48;
     constexpr unsigned int mmSPI_SHADER_PGM_LO_LS_HS                          = 0x2D04;
-    constexpr unsigned int mmSPI_SHADER_PGM_RSRC2_GS_VS                       = 0x2C7B;
     constexpr unsigned int mmSPI_SHADER_PGM_RSRC4_PS                          = 0x2C01;
-    constexpr unsigned int mmSPI_SHADER_PGM_RSRC4_VS                          = 0x2C41;
     constexpr unsigned int mmSPI_SHADER_REQ_CTRL_ESGS                         = 0x2CB0;
     constexpr unsigned int mmSPI_SHADER_REQ_CTRL_LSHS                         = 0x2D30;
     constexpr unsigned int mmSPI_SHADER_REQ_CTRL_PS                           = 0x2C30;
-    constexpr unsigned int mmSPI_SHADER_REQ_CTRL_VS                           = 0x2C70;
     constexpr unsigned int mmSPI_SHADER_RSRC_LIMIT_CTRL                       = 0x31FF;
     constexpr unsigned int mmSPI_SHADER_USER_ACCUM_ESGS_0                     = 0x2CB2;
     constexpr unsigned int mmSPI_SHADER_USER_ACCUM_ESGS_1                     = 0x2CB3;
@@ -2639,10 +2647,6 @@ namespace Gfx10Plus
     constexpr unsigned int mmSPI_SHADER_USER_ACCUM_PS_1                       = 0x2C33;
     constexpr unsigned int mmSPI_SHADER_USER_ACCUM_PS_2                       = 0x2C34;
     constexpr unsigned int mmSPI_SHADER_USER_ACCUM_PS_3                       = 0x2C35;
-    constexpr unsigned int mmSPI_SHADER_USER_ACCUM_VS_0                       = 0x2C72;
-    constexpr unsigned int mmSPI_SHADER_USER_ACCUM_VS_1                       = 0x2C73;
-    constexpr unsigned int mmSPI_SHADER_USER_ACCUM_VS_2                       = 0x2C74;
-    constexpr unsigned int mmSPI_SHADER_USER_ACCUM_VS_3                       = 0x2C75;
     constexpr unsigned int mmSPI_SHADER_USER_DATA_GS_0                        = 0x2C8C;
     constexpr unsigned int mmSPI_SHADER_USER_DATA_GS_1                        = 0x2C8D;
     constexpr unsigned int mmSPI_SHADER_USER_DATA_GS_2                        = 0x2C8E;
@@ -2726,7 +2730,6 @@ namespace Gfx10Plus
     constexpr unsigned int mmSQ_WATCH3_ADDR_H                                 = 0x2339;
     constexpr unsigned int mmSQ_WATCH3_ADDR_L                                 = 0x233A;
     constexpr unsigned int mmSQ_WATCH3_CNTL                                   = 0x233B;
-    constexpr unsigned int mmTA_POWER_CNTL                                    = 0x2540;
     constexpr unsigned int mmTCP_PERFCOUNTER_FILTER2                          = 0x32BB;
     constexpr unsigned int mmUTCL1_PERFCOUNTER0_HI                            = 0xD51D;
     constexpr unsigned int mmUTCL1_PERFCOUNTER0_LO                            = 0xD51C;
@@ -2949,6 +2952,7 @@ namespace Rn
     constexpr unsigned int mmRPB_PERFCOUNTER_LO                               = 0x0D02;
     constexpr unsigned int mmRPB_PERFCOUNTER_RSLT_CNTL                        = 0x0D08;
     constexpr unsigned int mmRPB_PERF_COUNTER_CNTL                            = 0x0CFB;
+    constexpr unsigned int mmSPI_SHADER_PGM_CHKSUM_VS                         = 0x2C45;
 } // namespace Rn
 
 namespace Rv1x
@@ -2985,6 +2989,7 @@ namespace Rv2x
     constexpr unsigned int mmRPB_PERFCOUNTER_LO                               = 0x0D01;
     constexpr unsigned int mmRPB_PERFCOUNTER_RSLT_CNTL                        = 0x0D07;
     constexpr unsigned int mmRPB_PERF_COUNTER_CNTL                            = 0x0CFA;
+    constexpr unsigned int mmSPI_SHADER_PGM_CHKSUM_VS                         = 0x2C45;
 } // namespace Rv2x
 
 namespace Vega

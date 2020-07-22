@@ -72,7 +72,6 @@ public:
 private:
     Result RebuildCommandStreams(bool hasDeferFreeMem, uint64 lastTimeStamp);
     void ResetCommandStream(CmdStream*                 pCmdStream,
-                            bool                       hasDeferFreeMem,
                             ComputeQueueDeferFreeList* pList,
                             uint32*                    pIndex);
 
@@ -121,7 +120,6 @@ private:
     Result BuildShadowPreamble();
 
     void ResetCommandStream(CmdStream*                   pCmdStream,
-                            bool                         hasDeferFreeMem,
                             UniversalQueueDeferFreeList* pList,
                             uint32*                      pIndex);
 

@@ -42,11 +42,13 @@ namespace Gfx6
 ShaderRingSet::ShaderRingSet(
     Device* pDevice,
     size_t  numRings,      // Number of shader rings contained in this ring-set
-    size_t  numSrds)       // Number of SRD's in the ring-set's table
+    size_t  numSrds,       // Number of SRD's in the ring-set's table
+    bool    isTmz)
     :
     m_pDevice(pDevice),
     m_numRings(numRings),
     m_numSrds(numSrds),
+    m_tmzEnabled(isTmz),
     m_ppRings(nullptr),
     m_pSrdTable(nullptr)
 {
@@ -144,27 +146,27 @@ Result ShaderRingSet::Init()
             {
             case ShaderRingType::ComputeScratch:
                 m_ppRings[idx] =
-                    PAL_NEW(ScratchRing, m_pDevice->GetPlatform(), AllocObject)(m_pDevice, m_pSrdTable, ShaderCompute);
+                    PAL_NEW(ScratchRing, m_pDevice->GetPlatform(), AllocObject)(m_pDevice, m_pSrdTable, ShaderCompute, m_tmzEnabled);
                 break;
 
             case ShaderRingType::GfxScratch:
                 m_ppRings[idx] =
-                    PAL_NEW(ScratchRing, m_pDevice->GetPlatform(), AllocObject)(m_pDevice, m_pSrdTable, ShaderGraphics);
+                    PAL_NEW(ScratchRing, m_pDevice->GetPlatform(), AllocObject)(m_pDevice, m_pSrdTable, ShaderGraphics, m_tmzEnabled);
                 break;
 
             case ShaderRingType::EsGs:
                 m_ppRings[idx] =
-                    PAL_NEW(EsGsRing, m_pDevice->GetPlatform(), AllocObject)(m_pDevice, m_pSrdTable);
+                    PAL_NEW(EsGsRing, m_pDevice->GetPlatform(), AllocObject)(m_pDevice, m_pSrdTable, m_tmzEnabled);
                 break;
 
             case ShaderRingType::GsVs:
                 m_ppRings[idx] =
-                    PAL_NEW(GsVsRing, m_pDevice->GetPlatform(), AllocObject)(m_pDevice, m_pSrdTable);
+                    PAL_NEW(GsVsRing, m_pDevice->GetPlatform(), AllocObject)(m_pDevice, m_pSrdTable, m_tmzEnabled);
                 break;
 
             case ShaderRingType::TfBuffer:
                 m_ppRings[idx] =
-                    PAL_NEW(TessFactorBuffer, m_pDevice->GetPlatform(), AllocObject)(m_pDevice, m_pSrdTable);
+                    PAL_NEW(TessFactorBuffer, m_pDevice->GetPlatform(), AllocObject)(m_pDevice, m_pSrdTable, m_tmzEnabled);
                 break;
 
             case ShaderRingType::OffChipLds:
@@ -172,7 +174,7 @@ Result ShaderRingSet::Init()
                 if (GetGfx6Settings(*m_pDevice->Parent()).numOffchipLdsBuffers > 0)
                 {
                     m_ppRings[idx] =
-                        PAL_NEW(OffchipLdsBuffer, m_pDevice->GetPlatform(), AllocObject)(m_pDevice, m_pSrdTable);
+                        PAL_NEW(OffchipLdsBuffer, m_pDevice->GetPlatform(), AllocObject)(m_pDevice, m_pSrdTable, m_tmzEnabled);
                 }
                 else
                 {
@@ -182,7 +184,7 @@ Result ShaderRingSet::Init()
 
             case ShaderRingType::SamplePos:
                 m_ppRings[idx] =
-                    PAL_NEW(SamplePosBuffer, m_pDevice->GetPlatform(), AllocObject)(m_pDevice, m_pSrdTable);
+                    PAL_NEW(SamplePosBuffer, m_pDevice->GetPlatform(), AllocObject)(m_pDevice, m_pSrdTable, m_tmzEnabled);
                 break;
 
             default:
@@ -261,11 +263,13 @@ Result ShaderRingSet::Validate(
 
 // =====================================================================================================================
 UniversalRingSet::UniversalRingSet(
-    Device* pDevice)
+    Device* pDevice,
+    bool    isTmz)
     :
     ShaderRingSet(pDevice,
                   static_cast<size_t>(ShaderRingType::NumUniversal),
-                  static_cast<size_t>(ShaderRingSrd::NumUniversal))
+                  static_cast<size_t>(ShaderRingSrd::NumUniversal),
+                  isTmz)
 {
     memset(&m_regs, 0, sizeof(m_regs));
 }
@@ -458,11 +462,13 @@ uint32* UniversalRingSet::WriteNonRlcRestoredRegs(
 
 // =====================================================================================================================
 ComputeRingSet::ComputeRingSet(
-    Device* pDevice)
+    Device* pDevice,
+    bool    isTmz)
     :
     ShaderRingSet(pDevice,
                   static_cast<size_t>(ShaderRingType::NumCompute),
-                  static_cast<size_t>(ShaderRingSrd::NumCompute))
+                  static_cast<size_t>(ShaderRingSrd::NumCompute),
+                  isTmz)
 {
     memset(&m_regs, 0, sizeof(m_regs));
 }

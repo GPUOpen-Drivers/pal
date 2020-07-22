@@ -243,8 +243,12 @@ void PipelineChunkGs::LateInit(
         m_regs.dynamic.spiShaderPgmRsrc4Gs.gfx10Plus.SPI_SHADER_LATE_ALLOC_GS = lateAllocWaves;
 
         constexpr uint16 GsCuDisableMaskHi = 0;
-        m_regs.dynamic.spiShaderPgmRsrc4Gs.gfx10Plus.CU_EN = m_device.GetCuEnableMaskHi(GsCuDisableMaskHi,
-                                                                                    settings.gsCuEnLimitMask);
+
+        if (IsGfx10(chipProps.gfxLevel))
+        {
+            m_regs.dynamic.spiShaderPgmRsrc4Gs.gfx10.CU_EN = m_device.GetCuEnableMaskHi(GsCuDisableMaskHi,
+                                                                                        settings.gsCuEnLimitMask);
+        }
     }
 
     if (chipProps.gfx9.supportSpp != 0)
@@ -408,8 +412,12 @@ uint32* PipelineChunkGs::WriteShCommands(
     if (gsStageInfo.cuEnableMask != 0)
     {
         dynamic.spiShaderPgmRsrc3Gs.bits.CU_EN &= gsStageInfo.cuEnableMask;
-        dynamic.spiShaderPgmRsrc4Gs.gfx10Plus.CU_EN =
-            Device::AdjustCuEnHi(dynamic.spiShaderPgmRsrc4Gs.gfx10Plus.CU_EN, gsStageInfo.cuEnableMask);
+
+        if (IsGfx10(chipProps.gfxLevel))
+        {
+            dynamic.spiShaderPgmRsrc4Gs.gfx10.CU_EN =
+                Device::AdjustCuEnHi(dynamic.spiShaderPgmRsrc4Gs.gfx10.CU_EN, gsStageInfo.cuEnableMask);
+        }
     }
 
     pCmdSpace = pCmdStream->WriteSetOneShRegIndex(mmSPI_SHADER_PGM_RSRC3_GS,

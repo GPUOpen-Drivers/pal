@@ -33,15 +33,16 @@ namespace Gfx6
 {
 
 // =====================================================================================================================
-ComputeEngine::ComputeEngine(
-    Device*    pDevice,
-    EngineType type,
-    uint32     index)
-    :
-    Engine(*pDevice->Parent(), type, index),
-    m_pDevice(pDevice),
-    m_ringSet(pDevice),
-    m_currentUpdateCounter(0)
+    ComputeEngine::ComputeEngine(
+        Device* pDevice,
+        EngineType type,
+        uint32     index)
+        :
+        Engine(*pDevice->Parent(), type, index),
+        m_pDevice(pDevice),
+        m_ringSet(pDevice, false),
+        m_tmzRingSet(pDevice, true),
+        m_currentUpdateCounter(0)
 {
 }
 
@@ -55,11 +56,16 @@ Result ComputeEngine::Init()
         result = m_ringSet.Init();
     }
 
+    if (result == Result::Success)
+    {
+        result = m_tmzRingSet.Init();
+    }
     return result;
 }
 
 // =====================================================================================================================
 Result ComputeEngine::UpdateRingSet(
+    bool    isTmz,        // [in]      Whether or not the ring set is tmz protected.
     uint32* pCounterVal,  // [in, out] As input is the currently known counter value of the QueueContext.
                           //           On output, this is the current counter value.
     bool*   pHasChanged)  // [out]     Whether or not the ring set has updated. If true the ring set must rewrite its
@@ -72,10 +78,11 @@ Result ComputeEngine::UpdateRingSet(
     // Check if the queue context associated with this Queue is dirty, and obtain the ring item-sizes to validate
     // against.
     const uint32 currentCounter = m_pDevice->QueueContextUpdateCounter();
+    uint32* pCurrentUpdateCounter = isTmz ? &m_currentUpdateCounterTmz : &m_currentUpdateCounter;
 
-    if (currentCounter > m_currentUpdateCounter)
+    if (currentCounter > *pCurrentUpdateCounter)
     {
-        m_currentUpdateCounter = currentCounter;
+        *pCurrentUpdateCounter = currentCounter;
 
         ShaderRingItemSizes ringSizes = {};
         m_pDevice->GetLargestRingSizes(&ringSizes);
@@ -96,12 +103,13 @@ Result ComputeEngine::UpdateRingSet(
         // The queues are idle, so it is safe to validate the rest of the RingSet.
         if (result == Result::Success)
         {
-            result = m_ringSet.Validate(ringSizes, samplePatternPalette);
+            ComputeRingSet* pRingSet = isTmz ? &m_tmzRingSet : &m_ringSet;
+            result = pRingSet->Validate(ringSizes, samplePatternPalette);
         }
     }
 
-    (*pHasChanged) = (m_currentUpdateCounter > (*pCounterVal));
-    (*pCounterVal) = m_currentUpdateCounter;
+    (*pHasChanged) = (*pCurrentUpdateCounter > (*pCounterVal));
+    (*pCounterVal) = *pCurrentUpdateCounter;
 
     return result;
 }

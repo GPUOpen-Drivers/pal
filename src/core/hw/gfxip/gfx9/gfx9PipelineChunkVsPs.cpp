@@ -52,12 +52,12 @@ static constexpr uint32 BaseLoadedShRegCountPs =
 
 // Base count of VS SH registers which are loaded using LOAD_SH_REG_INDEX when binding to a command buffer.
 static constexpr uint32 BaseLoadedShRegCountVs =
-    1 + // mmSPI_SHADER_PGM_LO_VS
-    1 + // mmSPI_SHADER_PGM_HI_VS
-    1 + // mmSPI_SHADER_PGM_RSRC1_VS
-    1 + // mmSPI_SHADER_PGM_RSRC2_VS
+    1 + // Gfx09_10::mmSPI_SHADER_PGM_LO_VS
+    1 + // Gfx09_10::mmSPI_SHADER_PGM_HI_VS
+    1 + // Gfx09_10::mmSPI_SHADER_PGM_RSRC1_VS
+    1 + // Gfx09_10::mmSPI_SHADER_PGM_RSRC2_VS
     0 + // SPI_SHADER_PGM_CHKSUM_VS is not included because it is not present on all HW
-    1;  // mmSPI_SHADER_USER_DATA_VS_0 + ConstBufTblStartReg
+    1;  // Gfx09_10::mmSPI_SHADER_USER_DATA_VS_0 + ConstBufTblStartReg
 
 // Base count of Context registers which are loaded using LOAD_CNTX_REG_INDEX when binding to a command buffer.
 static constexpr uint32 BaseLoadedCntxRegCount =
@@ -205,7 +205,7 @@ void PipelineChunkVsPs::LateInit(
         m_device.AssertUserAccumRegsDisabled(registers, Gfx10Plus::mmSPI_SHADER_USER_ACCUM_PS_0);
         if (loadInfo.enableNgg == false)
         {
-            m_device.AssertUserAccumRegsDisabled(registers, Gfx10Plus::mmSPI_SHADER_USER_ACCUM_VS_0);
+            m_device.AssertUserAccumRegsDisabled(registers, Gfx10::mmSPI_SHADER_USER_ACCUM_VS_0);
         }
 #endif
     }
@@ -232,9 +232,9 @@ void PipelineChunkVsPs::LateInit(
             m_stageInfoVs.disassemblyLength = static_cast<size_t>(pElfSymbol->st_size);
         }
 
-        m_regs.sh.spiShaderPgmRsrc1Vs.u32All = registers.At(mmSPI_SHADER_PGM_RSRC1_VS);
-        m_regs.sh.spiShaderPgmRsrc2Vs.u32All = registers.At(mmSPI_SHADER_PGM_RSRC2_VS);
-        registers.HasEntry(mmSPI_SHADER_PGM_RSRC3_VS, &m_regs.dynamic.spiShaderPgmRsrc3Vs.u32All);
+        m_regs.sh.spiShaderPgmRsrc1Vs.u32All = registers.At(Gfx09_10::mmSPI_SHADER_PGM_RSRC1_VS);
+        m_regs.sh.spiShaderPgmRsrc2Vs.u32All = registers.At(Gfx09_10::mmSPI_SHADER_PGM_RSRC2_VS);
+        registers.HasEntry(Gfx09_10::mmSPI_SHADER_PGM_RSRC3_VS, &m_regs.dynamic.spiShaderPgmRsrc3Vs.u32All);
 
         // NOTE: The Pipeline ABI doesn't specify CU_GROUP_ENABLE for various shader stages, so it should be safe to
         // always use the setting PAL prefers.
@@ -242,7 +242,12 @@ void PipelineChunkVsPs::LateInit(
 
         if (chipProps.gfx9.supportSpp != 0)
         {
-            registers.HasEntry(Apu09_1xPlus::mmSPI_SHADER_PGM_CHKSUM_VS, &m_regs.sh.spiShaderPgmChksumVs.u32All);
+            static_assert((Gfx10::mmSPI_SHADER_PGM_CHKSUM_VS == Rn::mmSPI_SHADER_PGM_CHKSUM_VS),
+                          "CHKSUM_VS register has moved between GFX10 and  Renoir!");
+            static_assert((Gfx10::mmSPI_SHADER_PGM_CHKSUM_VS == Rv2x::mmSPI_SHADER_PGM_CHKSUM_VS),
+                          "CHKSUM_VS register has moved between GFX10 and  Raven2!");
+
+            registers.HasEntry(Gfx10::mmSPI_SHADER_PGM_CHKSUM_VS, &m_regs.sh.spiShaderPgmChksumVs.u32All);
         }
 
         uint16 vsCuDisableMask = 0;
@@ -351,16 +356,16 @@ void PipelineChunkVsPs::LateInit(
 
         if (loadInfo.enableNgg == false)
         {
-            pUploader->AddShReg(mmSPI_SHADER_PGM_LO_VS,    m_regs.sh.spiShaderPgmLoVs);
-            pUploader->AddShReg(mmSPI_SHADER_PGM_HI_VS,    m_regs.sh.spiShaderPgmHiVs);
-            pUploader->AddShReg(mmSPI_SHADER_PGM_RSRC1_VS, m_regs.sh.spiShaderPgmRsrc1Vs);
-            pUploader->AddShReg(mmSPI_SHADER_PGM_RSRC2_VS, m_regs.sh.spiShaderPgmRsrc2Vs);
-
-            pUploader->AddShReg(mmSPI_SHADER_USER_DATA_VS_0 + ConstBufTblStartReg, m_regs.sh.userDataInternalTableVs);
+            pUploader->AddShReg(Gfx09_10::mmSPI_SHADER_PGM_LO_VS,    m_regs.sh.spiShaderPgmLoVs);
+            pUploader->AddShReg(Gfx09_10::mmSPI_SHADER_PGM_HI_VS,    m_regs.sh.spiShaderPgmHiVs);
+            pUploader->AddShReg(Gfx09_10::mmSPI_SHADER_PGM_RSRC1_VS, m_regs.sh.spiShaderPgmRsrc1Vs);
+            pUploader->AddShReg(Gfx09_10::mmSPI_SHADER_PGM_RSRC2_VS, m_regs.sh.spiShaderPgmRsrc2Vs);
+            pUploader->AddShReg(Gfx09_10::mmSPI_SHADER_USER_DATA_VS_0 + ConstBufTblStartReg,
+                                m_regs.sh.userDataInternalTableVs);
 
             if (chipProps.gfx9.supportSpp != 0)
             {
-                pUploader->AddShReg(Apu09_1xPlus::mmSPI_SHADER_PGM_CHKSUM_VS, m_regs.sh.spiShaderPgmChksumVs);
+                pUploader->AddShReg(Gfx10::mmSPI_SHADER_PGM_CHKSUM_VS, m_regs.sh.spiShaderPgmChksumVs);
             }
         } // if enableNgg == false
 
@@ -467,7 +472,7 @@ uint32* PipelineChunkVsPs::WriteShCommands(
                 Device::AdjustCuEnHi(dynamic.spiShaderPgmRsrc4Vs.bits.CU_EN, vsStageInfo.cuEnableMask);
         }
 
-        pCmdSpace = pCmdStream->WriteSetOneShRegIndex(mmSPI_SHADER_PGM_RSRC3_VS,
+        pCmdSpace = pCmdStream->WriteSetOneShRegIndex(Gfx09_10::mmSPI_SHADER_PGM_RSRC3_VS,
                                                       dynamic.spiShaderPgmRsrc3Vs.u32All,
                                                       ShaderGraphics,
                                                       index__pfp_set_sh_reg_index__apply_kmd_cu_and_mask,
@@ -475,7 +480,7 @@ uint32* PipelineChunkVsPs::WriteShCommands(
 
         if (IsGfx10Plus(chipProps.gfxLevel))
         {
-            pCmdSpace = pCmdStream->WriteSetOneShRegIndex(Gfx10Plus::mmSPI_SHADER_PGM_RSRC4_VS,
+            pCmdSpace = pCmdStream->WriteSetOneShRegIndex(Gfx10::mmSPI_SHADER_PGM_RSRC4_VS,
                                                           dynamic.spiShaderPgmRsrc4Vs.u32All,
                                                           ShaderGraphics,
                                                           index__pfp_set_sh_reg_index__apply_kmd_cu_and_mask,
@@ -598,19 +603,19 @@ uint32* PipelineChunkVsPs::WriteShCommandsSetPathVs(
 {
     const GpuChipProperties& chipProps = m_device.Parent()->ChipProperties();
 
-    pCmdSpace = pCmdStream->WriteSetSeqShRegs(mmSPI_SHADER_PGM_LO_VS,
-                                              mmSPI_SHADER_PGM_RSRC2_VS,
+    pCmdSpace = pCmdStream->WriteSetSeqShRegs(Gfx09_10::mmSPI_SHADER_PGM_LO_VS,
+                                              Gfx09_10::mmSPI_SHADER_PGM_RSRC2_VS,
                                               ShaderGraphics,
                                               &m_regs.sh.spiShaderPgmLoVs,
                                               pCmdSpace);
 
-    pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderGraphics>(mmSPI_SHADER_USER_DATA_VS_0 + ConstBufTblStartReg,
+    pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderGraphics>(Gfx09_10::mmSPI_SHADER_USER_DATA_VS_0 + ConstBufTblStartReg,
                                                              m_regs.sh.userDataInternalTableVs.u32All,
                                                              pCmdSpace);
 
     if (chipProps.gfx9.supportSpp != 0)
     {
-        pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderGraphics>(Apu09_1xPlus::mmSPI_SHADER_PGM_CHKSUM_VS,
+        pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderGraphics>(Gfx10::mmSPI_SHADER_PGM_CHKSUM_VS,
                                                                  m_regs.sh.spiShaderPgmChksumVs.u32All,
                                                                  pCmdSpace);
     }

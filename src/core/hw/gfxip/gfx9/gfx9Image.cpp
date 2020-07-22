@@ -2197,6 +2197,18 @@ gpusize Image::GetDccStateMetaDataOffset(
 }
 
 // =====================================================================================================================
+// Returns the GPU memory size of the dcc state metadata for the specified num mips.
+gpusize Image::GetDccStateMetaDataSize(
+    const SubresId&  subResId,
+    uint32           numMips
+    ) const
+{
+    PAL_ASSERT(HasDccStateMetaData(subResId.aspect));
+
+    return (sizeof(MipDccStateMetaData) * numMips);
+}
+
+// =====================================================================================================================
 // Initializes the GPU offset for this Image's DCC state metadata. It must include an array of Gfx9DccMipMetaData with
 // one item for each mip level.
 void Image::InitDccStateMetaData(
@@ -3139,7 +3151,8 @@ void Image::CpuProcessHtileEq(
 // Initializes the metadata in the given subresource range using CmdFillMemory calls.
 void Image::InitMetadataFill(
     Pal::CmdBuffer*    pCmdBuffer,
-    const SubresRange& range
+    const SubresRange& range,
+    ImageLayout        layout
     ) const
 {
     PAL_ASSERT(Parent()->IsFullSubResRange(range));
@@ -3147,11 +3160,7 @@ void Image::InitMetadataFill(
     const auto& gpuMemObj = *Parent()->GetBoundGpuMemory().Memory();
     const auto  boundGpuMemOffset = Parent()->GetBoundGpuMemory().Offset();
 
-    // DMA has to use this path for all maskrams; other queue types have fall-backs.
-    const uint32  fullRangeInitMask = (pCmdBuffer->GetEngineType() == EngineTypeDma) ? UINT_MAX :
-                                                                                       UseFillMemForFullRangeInit;
-
-    if (HasHtileData() && TestAnyFlagSet(fullRangeInitMask, Gfx9InitMetaDataFill::Gfx9InitMetaDataFillHtile))
+    if (HasHtileData())
     {
         const uint32 initValue = m_pHtile->GetInitialValue();
 
@@ -3163,30 +3172,26 @@ void Image::InitMetadataFill(
     }
     else if (Parent()->IsRenderTarget())
     {
-        if (HasDccData() && TestAnyFlagSet(fullRangeInitMask, Gfx9InitMetaDataFill::Gfx9InitMetaDataFillDcc))
+        if (HasDccData())
         {
-            constexpr uint32 DccInitValue = (static_cast<uint32>(Gfx9Dcc::InitialValue << 24) |
-                                             static_cast<uint32>(Gfx9Dcc::InitialValue << 16) |
-                                             static_cast<uint32>(Gfx9Dcc::InitialValue <<  8) |
-                                             static_cast<uint32>(Gfx9Dcc::InitialValue <<  0));
+            constexpr uint32   DccInitValue = (static_cast<uint32>(Gfx9Dcc::InitialValue << 24) |
+                                               static_cast<uint32>(Gfx9Dcc::InitialValue << 16) |
+                                               static_cast<uint32>(Gfx9Dcc::InitialValue <<  8) |
+                                               static_cast<uint32>(Gfx9Dcc::InitialValue <<  0));
 
-            for (uint32  planeIdx = 0; planeIdx < Parent()->GetImageInfo().numPlanes; planeIdx++)
+            const Gfx9Dcc* pDcc = GetDcc(range.startSubres.aspect);
+
+            pCmdBuffer->CmdFillMemory(gpuMemObj, pDcc->MemoryOffset() + boundGpuMemOffset, pDcc->TotalSize(), DccInitValue);
+
+            pDcc->UploadEq(pCmdBuffer);
+            if (HasDisplayDccData())
             {
-                const ImageAspect  aspect = GetAspectFromPlane(planeIdx);
-                const Gfx9Dcc*     pDcc   = GetDcc(aspect);
-
-                pCmdBuffer->CmdFillMemory(gpuMemObj, pDcc->MemoryOffset() + boundGpuMemOffset, pDcc->TotalSize(), DccInitValue);
-
-                pDcc->UploadEq(pCmdBuffer);
-                if (HasDisplayDccData())
-                {
-                    GetDisplayDcc(aspect)->UploadEq(pCmdBuffer);
-                }
+                GetDisplayDcc(range.startSubres.aspect)->UploadEq(pCmdBuffer);
             }
         }
 
         // If we have fMask then we also have cMask.
-        if (HasFmaskData() && TestAnyFlagSet(fullRangeInitMask, Gfx9InitMetaDataFill::Gfx9InitMetaDataFillCmask))
+        if (HasFmaskData())
         {
             constexpr uint32 CmaskInitValue = (static_cast<uint32>(Gfx9Cmask::InitialValue << 24) |
                                                static_cast<uint32>(Gfx9Cmask::InitialValue << 16) |
@@ -3229,6 +3234,19 @@ void Image::InitMetadataFill(
                                   WaTcCompatZRangeMetaDataOffset(range.startSubres.mipLevel),
                                   WaTcCompatZRangeMetaDataSize(range.numMips),
                                   0);
+    }
+
+    if (HasDccStateMetaData(range.startSubres.aspect))
+    {
+        // We need to initialize the Image's DCC state metadata to indicate that the Image can become DCC compressed
+        // (or not) in upcoming operations.
+        const bool canCompress = ImageLayoutCanCompressColorData(LayoutToColorCompressionState(), layout);
+
+        const uint32 dccStateInitValue = canCompress ? 1 : 0;
+        pCmdBuffer->CmdFillMemory(gpuMemObj,
+                                  GetDccStateMetaDataOffset(range.startSubres),
+                                  GetDccStateMetaDataSize(range.startSubres, range.numMips),
+                                  dccStateInitValue);
     }
 }
 

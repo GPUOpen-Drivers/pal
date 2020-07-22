@@ -2562,6 +2562,7 @@ HtileUsageFlags Gfx9Htile::UseHtileForImage(
 
         hTileUsage.dsMetadata = ((pParent->IsShared()                   == false) &&
                                  (pParent->IsMetadataDisabledByClient() == false) &&
+                                 (pParent->IsTmz()                      == false) &&
                                  (settings.htileEnable                  == true));
 
         constexpr uint32 MinHtileWidth = 8;
@@ -3496,6 +3497,12 @@ bool Gfx9Dcc::UseDccForImage(
         useDcc = false;
         mustDisableDcc = true;
     }
+    else if (pParent->IsTmz())
+    {
+        // Disable metadata if the image is tmz protected.
+        useDcc = false;
+        mustDisableDcc = true;
+    }
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 564
     else if ((createInfo.metadataMode == MetadataMode::FmaskOnly) &&
              (createInfo.samples > 1) &&
@@ -4098,6 +4105,7 @@ bool Gfx9Cmask::UseCmaskForImage(
                         (pParent->IsRenderTarget()                        &&
                          (pParent->IsShared()                   == false) &&
                          (pParent->IsMetadataDisabledByClient() == false) &&
+                         (pParent->IsTmz()                      == false) &&
                          (pParent->GetImageCreateInfo().samples > 1)));
         }
     }

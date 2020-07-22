@@ -276,7 +276,7 @@ bool DmaCmdBuffer::HandleImageTransition(
 
         if (pGfxImage != nullptr)
         {
-            pGfxImage->InitMetadataFill(this, subresRange);
+            pGfxImage->InitMetadataFill(this, subresRange, newLayout);
             didTransition = true;
         }
     }

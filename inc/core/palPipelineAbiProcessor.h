@@ -121,7 +121,7 @@ public:
         size_t      dataSize,
         gpusize     alignment);
 
-    /// Set the pipelines' disassembly data.  This should contain disassembly for all shader stages in the
+    /// Set the pipeline's disassembly data.  This should contain disassembly for all shader stages in the
     /// pipeline.  Each shader stage has an associated symbol type which defines the size and offset to the
     /// disassembly data for that stage.
     ///
@@ -134,7 +134,7 @@ public:
         const void* pData,
         size_t      dataSize);
 
-    /// Set the pipelines' AMDIL data.  This should contain AMDIL disassembly for all shader stages in the
+    /// Set the pipeline's AMDIL data.  This should contain AMDIL disassembly for all shader stages in the
     /// pipeline.  Each shader stage has an associated symbol type which defines the size and offset to the
     /// AMDIL disassembly data for that stage.
     ///
@@ -146,7 +146,7 @@ public:
         const void* pData,
         size_t      dataSize);
 
-    /// Set the pipelines' LLVMIR data.  This should contain LLVMIR disassembly for all shader stages in the
+    /// Set the pipeline's LLVMIR data.  This should contain LLVMIR disassembly for all shader stages in the
     /// pipeline.  Each shader stage has an associated symbol type which defines the size and offset to the
     /// LLVMIR disassembly data for that stage.
     ///
@@ -164,6 +164,18 @@ public:
     ///
     /// @returns Success if successful, ErrorOutOfMemory if memory allocation fails.
     Result SetComment(const char* pComment);
+
+    /// Sets the data for a generic named section.
+    ///
+    /// @param [in] pName     The name of the section to set.
+    /// @param [in] pData     Pointer to the section's data.
+    /// @param [in] dataSize  Size of the section's data, in bytes.
+    ///
+    /// @returns Success if successful, ErrorOutOfMemory if memory allocation fails.
+    Result SetGenericSection(
+        const char* pName,
+        const void* pData,
+        size_t      dataSize);
 
     /// Check if data has been added.
     ///
@@ -303,6 +315,18 @@ public:
         const void** ppData,
         size_t*      pDataSize) const;
 
+    /// Gets the data for a generic named section, if it is present.
+    ///
+    /// @param [in]  pName      The name of the section to get.
+    /// @param [out] ppData     Pointer to the section's data.  Will be nullptr if
+    ///                         the section is not present in the ELF.
+    /// @param [out] pDataSize  Size of the sections's data, in bytes.  Will be zero if the section
+    ///                         is not present in the ELF.
+    void GetGenericSection(
+        const char*  pName,
+        const void** ppData,
+        size_t*      pDataSize) const;
+
     /// Get the GFXIP version.
     ///
     /// @param [out] pGfxIpMajorVer The major version.
@@ -399,6 +423,8 @@ private:
     Result CreateDataSection();
     Result CreateRoDataSection();
     Result CreateTextSection();
+
+    static void AssertNotStandardSection(const char* pName);
 
     Elf::Section<Allocator>* m_pTextSection;         // Contains executable machine code for all shader stages.
     Elf::Section<Allocator>* m_pDataSection;         // Data

@@ -190,7 +190,10 @@ public:
 
     // Initializes the metadata in the given subresource range using CmdFillMemory calls. It may not be possible
     // for some gfxip layers to implement this function.
-    virtual void InitMetadataFill(CmdBuffer* pCmdBuffer, const SubresRange& range) const = 0;
+    virtual void InitMetadataFill(
+        CmdBuffer*         pCmdBuffer,
+        const SubresRange& range,
+        ImageLayout        layout) const = 0;
 
     // Helper function for AddrMgr1 to initialize the AddrLib surface info strucutre for a subresource.
     virtual Result Addr1InitSurfaceInfo(

@@ -31,8 +31,8 @@
 #include "core/hw/gfxip/gfx9/gfx9WorkaroundState.h"
 #include "core/hw/gfxip/gfx9/g_gfx9PalSettings.h"
 #include "palIntervalTree.h"
-
 #include "palPipelineAbi.h"
+#include "palVector.h"
 
 namespace Pal
 {
@@ -40,6 +40,7 @@ namespace Gfx9
 {
 
 class GraphicsPipeline;
+class Gfx10DepthStencilView;
 class UniversalCmdBuffer;
 
 // Structure to track the state of internal command buffer operations.
@@ -312,27 +313,6 @@ public:
     virtual void CmdFlglSync() override;
     virtual void CmdFlglEnable() override;
     virtual void CmdFlglDisable() override;
-
-    static uint32* BuildSetBlendConst(const BlendConstParams& params, const CmdUtil& cmdUtil, uint32* pCmdSpace);
-    static uint32* BuildSetStencilRefMasks(
-        const StencilRefMaskParams& params,
-        const CmdUtil&              cmdUtil,
-        uint32*                     pCmdSpace);
-    static uint32* BuildSetDepthBounds(const DepthBoundsParams& params, const CmdUtil& cmdUtil, uint32* pCmdSpace);
-    static uint32* BuildSetDepthBiasState(const DepthBiasParams& params, const CmdUtil& cmdUtil, uint32* pCmdSpace);
-    static uint32* BuildSetPointLineRasterState(
-        const PointLineRasterStateParams& params,
-        const CmdUtil&                    cmdUtil,
-        uint32*                           pCmdSpace);
-    static uint32* BuildSetGlobalScissor(
-        const GlobalScissorParams& params,
-        const CmdUtil&             cmdUtil,
-        uint32*                    pCmdSpace);
-    static uint32* BuildSetUserClipPlane(uint32               firstPlane,
-                                         uint32               count,
-                                         const UserClipPlane* pPlanes,
-                                         const CmdUtil&       cmdUtil,
-                                         uint32*              pCmdSpace);
 
     virtual void CmdBarrier(const BarrierInfo& barrierInfo) override;
 
@@ -1072,14 +1052,14 @@ private:
     DrawTimeHwState  m_drawTimeHwState;  // Tracks certain bits of HW-state that might need to be updated per draw.
     NggState         m_nggState;
 
+    uint8 m_leakCbColorInfoRtv;   // Sticky per-MRT dirty mask of CB_COLORx_INFO state written due to RTV
+
     // In order to prevent invalid query results if an app does Begin()/End(), Reset()/Begin()/End(), Resolve() on a
     // query slot in a command buffer (the first End() might overwrite values written by the Reset()), we have to
     // insert an idle before performing the Reset().  This has a high performance penalty.  This structure is used
     // to track memory ranges affected by outstanding End() calls in this command buffer so we can avoid the idle
     // during Reset() if the reset doesn't affect any pending queries.
     Util::IntervalTree<gpusize, bool, Platform>  m_activeOcclusionQueryWriteRanges;
-
-    uint8 m_leakCbColorInfoRtv;   // Sticky per-MRT dirty mask of CB_COLORx_INFO state written due to RTV
 
     PAL_DISALLOW_DEFAULT_CTOR(UniversalCmdBuffer);
     PAL_DISALLOW_COPY_AND_ASSIGN(UniversalCmdBuffer);

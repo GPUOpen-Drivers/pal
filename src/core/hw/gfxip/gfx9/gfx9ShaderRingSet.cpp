@@ -150,12 +150,16 @@ Result ShaderRingSet::Init()
             {
             case ShaderRingType::ComputeScratch:
                 m_ppRings[idx] =
-                    PAL_NEW(ScratchRing, m_pDevice->GetPlatform(), AllocObject)(m_pDevice, m_pSrdTable, ShaderCompute, m_tmzEnabled);
+                    PAL_NEW(ScratchRing,
+                            m_pDevice->GetPlatform(),
+                            AllocObject)(m_pDevice, m_pSrdTable, ShaderCompute, m_tmzEnabled);
                 break;
 
             case ShaderRingType::GfxScratch:
                 m_ppRings[idx] =
-                    PAL_NEW(ScratchRing, m_pDevice->GetPlatform(), AllocObject)(m_pDevice, m_pSrdTable, ShaderGraphics, m_tmzEnabled);
+                    PAL_NEW(ScratchRing,
+                            m_pDevice->GetPlatform(),
+                            AllocObject)(m_pDevice, m_pSrdTable, ShaderGraphics, m_tmzEnabled);
                 break;
 
             case ShaderRingType::GsVs:
@@ -200,13 +204,12 @@ Result ShaderRingSet::Validate(
     const ShaderRingItemSizes&  ringSizes,
     const SamplePatternPalette& samplePatternPalette,
     uint64                      lastTimeStamp,
-    bool*                       pHasDeferredChanges)
+    uint32*                     pReallocatedRings)
 {
     Result result = Result::Success;
 
     bool updateSrdTable    = false;
     bool deferFreeSrdTable = false;
-    *pHasDeferredChanges   = false;
 
     for (size_t ring = 0; (result == Result::Success) && (ring < NumRings()); ++ring)
     {
@@ -233,7 +236,11 @@ Result ShaderRingSet::Validate(
                 deferFreeSrdTable = true;
                 m_deferredFreeMemList.PushBack(deferredMem);
                 updateSrdTable = true;
-                *pHasDeferredChanges   = true;
+            }
+
+            if (updateSrdTable && deferFreeSrdTable)
+            {
+                (*pReallocatedRings) |= (1 << ring);
             }
         }
     }
@@ -435,12 +442,12 @@ Result UniversalRingSet::Validate(
     const ShaderRingItemSizes&  ringSizes,
     const SamplePatternPalette& samplePatternPalette,
     uint64                      lastTimeStamp,
-    bool*                       pHasDeferredChanges)
+    uint32*                     pReallocatedRings)
 {
     const Pal::Device&  device = *(m_pDevice->Parent());
 
     // First, perform the base class' validation.
-    Result result = ShaderRingSet::Validate(ringSizes, samplePatternPalette, lastTimeStamp, pHasDeferredChanges);
+    Result result = ShaderRingSet::Validate(ringSizes, samplePatternPalette, lastTimeStamp, pReallocatedRings);
 
     if (result == Result::Success)
     {
@@ -466,7 +473,7 @@ Result UniversalRingSet::Validate(
         m_regs.vgtGsVsRingSize.bits.MEM_SIZE = (pGsVsRing->MemorySizeDwords() >> GsRingSizeAlignmentShift);
 
         // Tess-Factor Buffer:
-        m_regs.vgtTfRingSize.bits.SIZE = pTfBuffer->MemorySizeDwords();
+        m_regs.vgtTfRingSize.gfx09_10.SIZE = pTfBuffer->MemorySizeDwords();
         if (pTfBuffer->IsMemoryValid())
         {
             const uint32  addrLo = Get256BAddrLo(pTfBuffer->GpuVirtAddr());
@@ -558,7 +565,7 @@ uint32* UniversalRingSet::WriteCommands(
     {
         static_cast<uint32>(m_pDevice->GetBaseUserDataReg(HwShaderStage::Hs) + InternalTblStartReg),
         static_cast<uint32>(regInfo.mmUserDataStartGsShaderStage             + InternalTblStartReg),
-        mmSPI_SHADER_USER_DATA_VS_0                                          + InternalTblStartReg,
+        Gfx09_10::mmSPI_SHADER_USER_DATA_VS_0                                + InternalTblStartReg,
         mmSPI_SHADER_USER_DATA_PS_0                                          + InternalTblStartReg,
     };
 
@@ -568,6 +575,28 @@ uint32* UniversalRingSet::WriteCommands(
     }
 
     return pCmdStream->WriteSetOneContextReg(mmSPI_TMPRING_SIZE, m_regs.gfxScratchRingSize.u32All, pCmdSpace);
+}
+
+// =====================================================================================================================
+// Writes the compute portion of this ShaderRingSet into the command stream provided. This is used by the ACE-GFX gang
+// submit, where ACE commands are submitted together with GFX in the DE command stream.
+uint32* UniversalRingSet::WriteComputeCommands(
+    CmdStream* pCmdStream,
+    uint32*    pCmdSpace) const
+{
+    PAL_ASSERT(pCmdSpace != nullptr);
+
+    const CmdUtil& cmdUtil = m_pDevice->CmdUtil();
+
+    pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderCompute>(mmCOMPUTE_USER_DATA_0 + InternalTblStartReg,
+                                                            LowPart(m_srdTableMem.GpuVirtAddr()),
+                                                            pCmdSpace);
+
+    pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderCompute>(mmCOMPUTE_TMPRING_SIZE,
+                                                            m_regs.computeScratchRingSize.u32All,
+                                                            pCmdSpace);
+
+    return pCmdSpace;
 }
 
 // =====================================================================================================================
@@ -610,10 +639,10 @@ Result ComputeRingSet::Validate(
     const ShaderRingItemSizes&  ringSizes,
     const SamplePatternPalette& samplePatternPalette,
     uint64                      lastTimeStamp,
-    bool*                       pHasDeferredChanges)
+    uint32*                     pReallocatedRings)
 {
     // First, perform the base class' validation.
-    Result result = ShaderRingSet::Validate(ringSizes, samplePatternPalette, lastTimeStamp, pHasDeferredChanges);
+    Result result = ShaderRingSet::Validate(ringSizes, samplePatternPalette, lastTimeStamp, pReallocatedRings);
 
     if (result == Result::Success)
     {

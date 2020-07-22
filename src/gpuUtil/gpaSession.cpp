@@ -29,7 +29,6 @@
 #include "palDequeImpl.h"
 #include "palFence.h"
 #include "palGpuEvent.h"
-#include "palGpuMemory.h"
 #include "palHashSetImpl.h"
 #include "palInlineFuncs.h"
 #include "palMemTrackerImpl.h"
@@ -3024,11 +3023,11 @@ Result GpaSession::ImportSampleItem(
 // =====================================================================================================================
 // Acquires a range of queue-owned GPU memory for use by the next command buffer submission.
 Result GpaSession::AcquireGpuMem(
-    gpusize        size,
-    gpusize        alignment,
-    GpuHeap        heapType,
-    GpuMemoryInfo* pGpuMem,
-    gpusize*       pOffset)
+    gpusize          size,
+    gpusize          alignment,
+    GpuHeap          heapType,
+    GpuMemoryInfo*   pGpuMem,
+    gpusize*         pOffset)
 {
     Util::Deque<GpuMemoryInfo, GpaAllocator>* pAvailableList = &m_availableGartGpuMem;
     Util::Deque<GpuMemoryInfo, GpaAllocator>* pBusyList      = &m_busyGartGpuMem;
@@ -3095,6 +3094,7 @@ Result GpaSession::AcquireGpuMem(
             createInfo.heapCount = 1;
             createInfo.heaps[0]  = heapType;
             createInfo.priority  = (heapType == GpuHeapInvisible) ? GpuMemPriority::High : GpuMemPriority::Normal;
+
             if (heapType == GpuHeapInvisible)
             {
                 // Having perf data in caches thrashes more for the real GPU work, and it won't be read back till later.
@@ -3416,6 +3416,7 @@ Result GpaSession::AcquirePerfExperiment(
 
         if (result == Result::Success)
         {
+
             result = AcquireGpuMem(gpuMemReqs.size,
                                    gpuMemReqs.alignment,
                                    GpuHeapGartCacheable,

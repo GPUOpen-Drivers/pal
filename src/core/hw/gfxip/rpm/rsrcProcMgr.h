@@ -83,7 +83,7 @@ public:
     Result LateInit();
     void Cleanup();
 
-    ImageCopyEngine CmdCopyImage(
+    void CmdCopyImage(
         GfxCmdBuffer*          pCmdBuffer,
         const Image&           srcImage,
         ImageLayout            srcImageLayout,

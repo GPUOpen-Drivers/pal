@@ -142,6 +142,7 @@ void SettingsLoader::SetupDefaults()
     m_settings.shaderPrefetchSizeBytes = 4294967295;
     m_settings.gfx9OffChipHsMultiWavePatchDataCopy = false;
     m_settings.gfx9OptimizeDsDataFetch = false;
+
     m_settings.nggSupported = true;
     m_settings.nggLateAllocGs = 127;
     m_settings.nggRingSize = 32;
@@ -2032,7 +2033,7 @@ void SettingsLoader::DevDriverRegister()
             component.pfnSetValue = ISettingsLoader::SetValue;
             component.pSettingsData = &g_gfx9PalJsonData[0];
             component.settingsDataSize = sizeof(g_gfx9PalJsonData);
-            component.settingsDataHash = 4178373512;
+            component.settingsDataHash = 1568706620;
             component.settingsDataHeader.isEncoded = true;
             component.settingsDataHeader.magicBufferId = 402778310;
             component.settingsDataHeader.magicBufferOffset = 0;

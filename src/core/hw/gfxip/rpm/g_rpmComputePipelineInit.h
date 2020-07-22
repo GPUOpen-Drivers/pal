@@ -131,8 +131,10 @@ enum class RpmComputePipeline : uint32
     ScaledCopyImage3d                     = 92,
     YuvIntToRgb                           = 93,
     YuvToRgb                              = 94,
+#if PAL_BUILD_GFX6
     Gfx6GenerateCmdDispatch               = 95,
     Gfx6GenerateCmdDraw                   = 96,
+#endif
     Gfx9BuildHtileLookupTable             = 97,
     Gfx9ClearDccMultiSample2d             = 98,
     Gfx9ClearDccOptimized2d               = 99,

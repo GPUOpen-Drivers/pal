@@ -3487,15 +3487,15 @@ void Device::UpdateMetaData(
             sharedMetadataInfo.fastClearMetaDataOffset[0];
         pUmdSharedMetadata->fce_state_offset =
             sharedMetadataInfo.fastClearEliminateMetaDataOffset[0];
-
-        if (sharedMetadataInfo.fmaskOffset != 0)
+        if ((sharedMetadataInfo.fmaskOffset != 0) &&
+            (ChipProperties().gfxLevel >= GfxIpLevel::GfxIp9))
         {
+            // Only hardware of gfxlevel >= gfx9 supports that Fmask has its own PipeBankXor.
             //if the shared surface is a color surface, reuse the htileOffset as fmaskXor.
             PAL_ASSERT(sharedMetadataInfo.htileOffset == 0);
             pUmdSharedMetadata->flags.htile_as_fmask_xor = 1;
             pUmdSharedMetadata->htile_offset = sharedMetadataInfo.fmaskXor;
         }
-
         if (sharedMetadataInfo.flags.hasHtileLookupTable)
         {
             PAL_ASSERT(sharedMetadataInfo.dccStateMetaDataOffset[0] == 0);

@@ -281,30 +281,25 @@ void ComputeQueueContext::ClearDeferredMemory()
 // =====================================================================================================================
 void ComputeQueueContext::ResetCommandStream(
     CmdStream*                 pCmdStream,
-    bool                       hasDeferFreeMem,
     ComputeQueueDeferFreeList* pList,
     uint32*                    pIndex)
 {
-    if (hasDeferFreeMem && (pCmdStream->IsEmpty() == false))
+    pCmdStream->Reset(nullptr, false);
+
+    Pal::ChunkRefList deferList(m_pDevice->GetPlatform());
+    Result result = pCmdStream->TransferRetainedChunks(&deferList);
+
+    // PushBack used in TransferRetainedChunks should never fail,
+    // since here only require at most 3 entries,
+    // and by default the Vector used in ChunkRefList has 16 entried
+    PAL_ASSERT(result == Result::Success);
+
+    // the command streams in the queue context should only have 1 chunk each.
+    PAL_ASSERT(deferList.NumElements() <= 1);
+    if (deferList.NumElements() == 1)
     {
-        pCmdStream->Reset(nullptr, false);
-
-        Pal::ChunkRefList deferList(m_pDevice->GetPlatform());
-        Result result = pCmdStream->TransferRetainedChunks(&deferList);
-
-        // PushBack used in TransferRetainedChunks should never fail,
-        // since here only require at most 3 entries,
-        // and by default the Vector used in ChunkRefList has 16 entried
-        PAL_ASSERT(result == Result::Success);
-
-        // the command streams in the queue context should only have 1 chunk each.
-        PAL_ASSERT(deferList.NumElements() == 1);
         deferList.PopBack(&pList->pChunk[*pIndex]);
         *pIndex = *pIndex + 1;
-    }
-    else
-    {
-        pCmdStream->Reset(nullptr, true);
     }
 }
 
@@ -342,7 +337,7 @@ Result ComputeQueueContext::RebuildCommandStreams(
 
     // The drop-if-same-context queue preamble.
     //==================================================================================================================
-    ResetCommandStream(&m_cmdStream, hasDeferFreeMem, &deferFreeChunkList, &chunkIdx);
+    ResetCommandStream(&m_cmdStream, &deferFreeChunkList, &chunkIdx);
     Result result = m_cmdStream.Begin({}, nullptr);
 
     if (result == Result::Success)
@@ -366,7 +361,7 @@ Result ComputeQueueContext::RebuildCommandStreams(
     //==================================================================================================================
     if (result == Result::Success)
     {
-        ResetCommandStream(&m_perSubmitCmdStream, hasDeferFreeMem, &deferFreeChunkList, &chunkIdx);
+        ResetCommandStream(&m_perSubmitCmdStream, &deferFreeChunkList, &chunkIdx);
         result = m_perSubmitCmdStream.Begin({}, nullptr);
     }
 
@@ -412,7 +407,7 @@ Result ComputeQueueContext::RebuildCommandStreams(
 
     if (result == Result::Success)
     {
-        ResetCommandStream(&m_postambleCmdStream, hasDeferFreeMem, &deferFreeChunkList, &chunkIdx);
+        ResetCommandStream(&m_postambleCmdStream, &deferFreeChunkList, &chunkIdx);
         result = m_postambleCmdStream.Begin({}, nullptr);
     }
 
@@ -507,10 +502,12 @@ Result ComputeQueueContext::UpdateRingSet(
         if (result == Result::Success)
         {
             *lastTimeStamp = m_pParentQueue->GetSubmissionContext()->LastTimestamp();
+            uint32 reallocatedRings = 0;
             result = m_ringSet.Validate(ringSizes,
                                         samplePatternPalette,
                                         *lastTimeStamp,
-                                        pHasDeferred);
+                                        &reallocatedRings);
+            *pHasDeferred = (reallocatedRings > 0);
         }
 
          (*pHasChanged) = true;
@@ -1050,30 +1047,25 @@ Result UniversalQueueContext::ProcessInitialSubmit(
 // =====================================================================================================================
 void UniversalQueueContext::ResetCommandStream(
     CmdStream*                   pCmdStream,
-    bool                         hasDeferFreeMem,
     UniversalQueueDeferFreeList* pList,
     uint32_t*                    pIndex)
 {
-    if (hasDeferFreeMem && (pCmdStream->IsEmpty() == false))
+    pCmdStream->Reset(nullptr, false);
+
+    Pal::ChunkRefList deferList(m_pDevice->GetPlatform());
+    Result result = pCmdStream->TransferRetainedChunks(&deferList);
+
+    // PushBack used in TransferRetainedChunks should never fail,
+    // since here only require at most 5 entries,
+    // and by default the Vector used in ChunkRefList has 16 entried
+    PAL_ASSERT(result == Result::Success);
+
+    // the command streams in the queue context should only have 1 chunk each.
+    PAL_ASSERT(deferList.NumElements() <= 1);
+    if (deferList.NumElements() == 1)
     {
-        pCmdStream->Reset(nullptr, false);
-
-        Pal::ChunkRefList deferList(m_pDevice->GetPlatform());
-        Result result = pCmdStream->TransferRetainedChunks(&deferList);
-
-        // PushBack used in TransferRetainedChunks should never fail,
-        // since here only require at most 5 entries,
-        // and by default the Vector used in ChunkRefList has 16 entried
-        PAL_ASSERT(result == Result::Success);
-
-        // the command streams in the queue context should only have 1 chunk each.
-        PAL_ASSERT(deferList.NumElements() == 1);
         deferList.PopBack(&pList->pChunk[*pIndex]);
         *pIndex = *pIndex + 1;
-    }
-    else
-    {
-        pCmdStream->Reset(nullptr, true);
     }
 }
 
@@ -1126,7 +1118,7 @@ Result UniversalQueueContext::RebuildCommandStreams(
 
     // The drop-if-same-context DE preamble.
     //==================================================================================================================
-    ResetCommandStream(&m_deCmdStream, hasDeferFreeMem, &deferFreeChunkList, &deferChunkIndex);
+    ResetCommandStream(&m_deCmdStream, &deferFreeChunkList, &deferChunkIndex);
     Result result = m_deCmdStream.Begin({}, nullptr);
 
     if (result == Result::Success)
@@ -1158,7 +1150,7 @@ Result UniversalQueueContext::RebuildCommandStreams(
 
     if (result == Result::Success)
     {
-        ResetCommandStream(&m_perSubmitCmdStream, hasDeferFreeMem, &deferFreeChunkList, &deferChunkIndex);
+        ResetCommandStream(&m_perSubmitCmdStream, &deferFreeChunkList, &deferChunkIndex);
         result = m_perSubmitCmdStream.Begin({}, nullptr);
     }
 
@@ -1198,7 +1190,7 @@ Result UniversalQueueContext::RebuildCommandStreams(
 
         if (result == Result::Success)
         {
-            ResetCommandStream(&m_cePreambleCmdStream, hasDeferFreeMem, &deferFreeChunkList, &deferChunkIndex);
+            ResetCommandStream(&m_cePreambleCmdStream, &deferFreeChunkList, &deferChunkIndex);
             result = m_cePreambleCmdStream.Begin({}, nullptr);
         }
 
@@ -1219,7 +1211,7 @@ Result UniversalQueueContext::RebuildCommandStreams(
         {
             if (result == Result::Success)
             {
-                ResetCommandStream(&m_cePostambleCmdStream, hasDeferFreeMem, &deferFreeChunkList, &deferChunkIndex);
+                ResetCommandStream(&m_cePostambleCmdStream, &deferFreeChunkList, &deferChunkIndex);
                 result = m_cePostambleCmdStream.Begin({}, nullptr);
             }
 
@@ -1239,7 +1231,7 @@ Result UniversalQueueContext::RebuildCommandStreams(
 
     if (result == Result::Success)
     {
-        ResetCommandStream(&m_dePostambleCmdStream, hasDeferFreeMem, &deferFreeChunkList, &deferChunkIndex);
+        ResetCommandStream(&m_dePostambleCmdStream, &deferFreeChunkList, &deferChunkIndex);
         result = m_dePostambleCmdStream.Begin({}, nullptr);
     }
 
@@ -1523,9 +1515,11 @@ uint32* UniversalQueueContext::WriteUniversalPreamble(
             spiShaderReqCtrl.bits.NUMBER_OF_REQUESTS_PER_CU = settings.numPsWavesSoftGroupedPerCu - 1;
         }
 
-        pCmdSpace = m_deCmdStream.WriteSetOneShReg<ShaderGraphics>(Gfx10Plus::mmSPI_SHADER_REQ_CTRL_VS,
-                                                                   spiShaderReqCtrl.u32All,
-                                                                   pCmdSpace);
+        {
+            pCmdSpace = m_deCmdStream.WriteSetOneShReg<ShaderGraphics>(Gfx10::mmSPI_SHADER_REQ_CTRL_VS,
+                                                                       spiShaderReqCtrl.u32All,
+                                                                       pCmdSpace);
+        }
 
         pCmdSpace = m_deCmdStream.WriteSetOneShReg<ShaderGraphics>(Gfx10Plus::mmSPI_SHADER_REQ_CTRL_PS,
                                                                    spiShaderReqCtrl.u32All,
@@ -1545,16 +1539,12 @@ uint32* UniversalQueueContext::WriteUniversalPreamble(
                                                         ShaderGraphics,
                                                         &FourZeros,
                                                         pCmdSpace);
-            pCmdSpace = m_deCmdStream.WriteSetSeqShRegs(Gfx10Plus::mmSPI_SHADER_USER_ACCUM_VS_0,
-                                                        Gfx10Plus::mmSPI_SHADER_USER_ACCUM_VS_3,
-                                                        ShaderGraphics,
-                                                        &FourZeros,
-                                                        pCmdSpace);
             pCmdSpace = m_deCmdStream.WriteSetSeqShRegs(Gfx10Plus::mmSPI_SHADER_USER_ACCUM_PS_0,
                                                         Gfx10Plus::mmSPI_SHADER_USER_ACCUM_PS_3,
                                                         ShaderGraphics,
                                                         &FourZeros,
                                                         pCmdSpace);
+
         }
     } // if Gfx10.x
 
@@ -1601,10 +1591,13 @@ Result UniversalQueueContext::UpdateRingSet(
             *lastTimeStamp = m_pParentQueue->GetSubmissionContext()->LastTimestamp();
 
             UniversalRingSet* pRingSet = isTmz ? &m_tmzRingSet : &m_ringSet;
+            uint32 reallocatedRings = 0;
             result = pRingSet->Validate(ringSizes,
                                         samplePatternPalette,
                                         *lastTimeStamp,
-                                        pHasDeferred);
+                                        &reallocatedRings);
+
+            *pHasDeferred = (reallocatedRings > 0);
         }
 
         (*pHasChanged) = true;

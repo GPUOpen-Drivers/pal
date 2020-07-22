@@ -46,14 +46,17 @@ public:
     virtual Result Init() override;
 
     UniversalRingSet* RingSet() { return &m_ringSet; }
+    UniversalRingSet* TmzRingSet() { return &m_tmzRingSet; }
 
-    Result UpdateRingSet(uint32* pCounterVal, bool* pHasChanged);
+    Result UpdateRingSet(bool isTmz, uint32* pCounterVal, bool* pHasChanged);
 
 private:
     Device*          m_pDevice;
     UniversalRingSet m_ringSet;
+    UniversalRingSet m_tmzRingSet;
     uint32           m_currentUpdateCounter;  // Current watermark for the device-initiated context updates that have
                                               // been processed by this engine.
+    uint32           m_currentUpdateCounterTmz;
 
     PAL_DISALLOW_COPY_AND_ASSIGN(UniversalEngine);
     PAL_DISALLOW_DEFAULT_CTOR(UniversalEngine);

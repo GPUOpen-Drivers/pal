@@ -107,13 +107,16 @@ static uint32* WriteCommonPreamble(
 ComputeQueueContext::ComputeQueueContext(
     Device* pDevice,
     Engine* pEngine,
-    uint32  queueId)
+    uint32  queueId,
+    bool    isTmz)
     :
     QueueContext(pDevice->Parent()),
     m_pDevice(pDevice),
     m_pEngine(static_cast<ComputeEngine*>(pEngine)),
     m_queueId(queueId),
+    m_queueUseTmzRing(isTmz),
     m_currentUpdateCounter(0),
+    m_currentUpdateCounterTmz(0),
     m_cmdStream(*pDevice,
                 pDevice->Parent()->InternalUntrackedCmdAllocator(),
                 EngineTypeCompute,
@@ -159,7 +162,7 @@ Result ComputeQueueContext::Init()
 
     if (result == Result::Success)
     {
-        result = RebuildCommandStream();
+        result = RebuildCommandStream(m_queueUseTmzRing);
     }
 
     return result;
@@ -174,12 +177,17 @@ Result ComputeQueueContext::PreProcessSubmit(
     uint32              cmdBufferCount)
 {
     bool   hasUpdated = false;
-    Result result     = m_pEngine->UpdateRingSet(&m_currentUpdateCounter, &hasUpdated);
+    const bool isTmz = (pSubmitInfo->flags.isTmzEnabled != 0);
+
+    Result result     = m_pEngine->UpdateRingSet(isTmz, &m_currentUpdateCounter, &hasUpdated);
 
     if ((result == Result::Success) && hasUpdated)
     {
-        result = RebuildCommandStream();
+        // isTmz won't change, because TMZ submission can only be submitted to a tmz only queue.
+        PAL_ASSERT(m_queueUseTmzRing == isTmz);
+        result = RebuildCommandStream(isTmz);
     }
+    m_queueUseTmzRing = isTmz;
 
     if (result == Result::Success)
     {
@@ -211,7 +219,8 @@ void ComputeQueueContext::PostProcessSubmit()
 
 // =====================================================================================================================
 // Regenerates the contents of this context's internal command stream.
-Result ComputeQueueContext::RebuildCommandStream()
+Result ComputeQueueContext::RebuildCommandStream(
+    bool isTmz)
 {
     /*
      * There are two preambles which PAL submits with every set of command buffers: one which executes as a preamble
@@ -244,7 +253,14 @@ Result ComputeQueueContext::RebuildCommandStream()
 
         // Write the shader ring-set's commands before the command stream's normal preamble. If the ring sizes have
         // changed, the hardware requires a CS idle to operate properly.
-        pCmdSpace  = m_pEngine->RingSet()->WriteCommands(&m_cmdStream, pCmdSpace);
+        if (isTmz)
+        {
+            pCmdSpace = m_pEngine->TmzRingSet()->WriteCommands(&m_cmdStream, pCmdSpace);
+        }
+        else
+        {
+            pCmdSpace = m_pEngine->RingSet()->WriteCommands(&m_cmdStream, pCmdSpace);
+        }
 
         const gpusize waitTsGpuVa = (m_waitForIdleTs.IsBound() ? m_waitForIdleTs.GpuVirtAddr() : 0);
         pCmdSpace += cmdUtil.BuildWaitCsIdle(EngineTypeCompute, waitTsGpuVa, pCmdSpace);
@@ -394,6 +410,8 @@ UniversalQueueContext::UniversalQueueContext(
     m_persistentCeRamOffset(persistentCeRamOffset),
     m_persistentCeRamSize(persistentCeRamSize),
     m_currentUpdateCounter(0),
+    m_currentUpdateCounterTmz(0),
+    m_cmdsUseTmzRing(false),
     m_useShadowing((Device::ForceStateShadowing &&
                     pDevice->Parent()->ChipProperties().gfx6.supportLoadRegIndexPkt) ||
                     isPreemptionSupported),
@@ -497,7 +515,7 @@ Result UniversalQueueContext::Init()
 
     if (result == Result::Success)
     {
-        result = RebuildCommandStreams();
+        result = RebuildCommandStreams(m_cmdsUseTmzRing);
     }
 
     return result;
@@ -746,12 +764,20 @@ Result UniversalQueueContext::PreProcessSubmit(
     // We only need to rebuild the command stream if the user submits at least one command buffer.
     if (cmdBufferCount != 0)
     {
-        result = m_pEngine->UpdateRingSet(&m_currentUpdateCounter, &hasUpdated);
+        const bool isTmz = (pSubmitInfo->flags.isTmzEnabled != 0);
+        result = m_pEngine->UpdateRingSet(isTmz, &m_currentUpdateCounter, &hasUpdated);
+
+        if ((result == Result::Success) && (hasUpdated == false) && (m_cmdsUseTmzRing != isTmz))
+        {
+            result = m_pEngine->WaitIdleAllQueues();
+            hasUpdated = true;
+        }
 
         if ((result == Result::Success) && hasUpdated)
         {
-            result = RebuildCommandStreams();
+            result = RebuildCommandStreams(isTmz);
         }
+        m_cmdsUseTmzRing = isTmz;
     }
 
     if (result == Result::Success)
@@ -845,7 +871,8 @@ Result UniversalQueueContext::ProcessInitialSubmit(
 
 // =====================================================================================================================
 // Regenerates the contents of this context's internal command streams.
-Result UniversalQueueContext::RebuildCommandStreams()
+Result UniversalQueueContext::RebuildCommandStreams(
+    bool isTmz)
 {
     /*
      * There are two DE preambles which PAL submits with every set of command buffers: one which executes as a preamble
@@ -894,10 +921,18 @@ Result UniversalQueueContext::RebuildCommandStreams()
         pCmdSpace = WriteUniversalPreamble(pCmdSpace);
 
         const auto* pRingSet = m_pEngine->RingSet();
+        const auto* ptmzRingSet = m_pEngine->TmzRingSet();
 
         // Write the shader ring-set's commands after the command stream's normal preamble. If the ring sizes have changed,
         // the hardware requires a CS/VS/PS partial flush to operate properly.
-        pCmdSpace  = pRingSet->WriteCommands(&m_deCmdStream, pCmdSpace);
+        if (isTmz)
+        {
+            pCmdSpace = ptmzRingSet->WriteCommands(&m_deCmdStream, pCmdSpace);
+        }
+        else
+        {
+            pCmdSpace = pRingSet->WriteCommands(&m_deCmdStream, pCmdSpace);
+        }
         pCmdSpace += cmdUtil.BuildEventWrite(CS_PARTIAL_FLUSH, pCmdSpace);
         pCmdSpace += cmdUtil.BuildEventWrite(VS_PARTIAL_FLUSH, pCmdSpace);
         pCmdSpace += cmdUtil.BuildEventWrite(PS_PARTIAL_FLUSH, pCmdSpace);

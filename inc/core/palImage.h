@@ -238,7 +238,12 @@ union ImageCreateFlags
 #else
         uint32 reserved586             :  1;
 #endif
-        uint32 reserved                :  9; ///< Reserved for future use.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 616
+        uint32 tmzProtected            :  1; ///< Indicate this image is protected or not.
+#else
+        uint32 reserved616             :  1;
+#endif
+        uint32 reserved                :  8; ///< Reserved for future use.
     };
     uint32 u32All;                           ///< Flags packed as 32-bit uint.
 };

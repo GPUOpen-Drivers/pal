@@ -40,6 +40,7 @@
 #include "palVector.h"
 #include "palPlatform.h"
 #include "palSysMemory.h"
+#include "palGpuMemory.h"
 #include "palMemTrackerImpl.h"
 
 // Forward declarations.

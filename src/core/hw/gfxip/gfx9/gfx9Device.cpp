@@ -1967,6 +1967,7 @@ void PAL_STDCALL Device::Gfx10CreateTypedBufferViewSrds(
     const BufferViewInfo* pBufferViewInfo,
     void*                 pOut)
 {
+
     PAL_ASSERT((pDevice != nullptr) && (pOut != nullptr) && (pBufferViewInfo != nullptr) && (count > 0));
     const auto*const pPalDevice = static_cast<const Pal::Device*>(pDevice);
     const auto*const pGfxDevice = static_cast<const Device*>(pPalDevice->GetGfxDevice());
@@ -2005,12 +2006,11 @@ void PAL_STDCALL Device::Gfx10CreateTypedBufferViewSrds(
 
         // If we get an invalid format in the buffer SRD, then the memory operation involving this SRD will be dropped
         PAL_ASSERT(hwBufFmt != BUF_FMT_INVALID);
-
         pOutSrd->u32All[3] = ((SqSelX                         << SqBufRsrcTWord3DstSelXShift)                      |
                               (SqSelY                         << SqBufRsrcTWord3DstSelYShift)                      |
                               (SqSelZ                         << SqBufRsrcTWord3DstSelZShift)                      |
                               (SqSelW                         << SqBufRsrcTWord3DstSelWShift)                      |
-                              (hwBufFmt                       << MostSqBufRsrcTWord3FormatShift)                   |
+                              (hwBufFmt                       << Gfx10CoreSqBufRsrcTWord3FormatShift)              |
                               (pGfxDevice->BufferSrdResourceLevel() << Gfx10CoreSqBufRsrcTWord3ResourceLevelShift) |
                               (OobSelect                      << SqBufRsrcTWord3OobSelectShift)                    |
                               (SQ_RSRC_BUF                    << SqBufRsrcTWord3TypeShift));
@@ -2106,7 +2106,7 @@ void PAL_STDCALL Device::Gfx10CreateUntypedBufferViewSrds(
                                   (SQ_SEL_Y                       << SqBufRsrcTWord3DstSelYShift)                      |
                                   (SQ_SEL_Z                       << SqBufRsrcTWord3DstSelZShift)                      |
                                   (SQ_SEL_W                       << SqBufRsrcTWord3DstSelWShift)                      |
-                                  (BUF_FMT_32_UINT                << MostSqBufRsrcTWord3FormatShift)                   |
+                                  (BUF_FMT_32_UINT                << Gfx10CoreSqBufRsrcTWord3FormatShift)              |
                                   (pGfxDevice->BufferSrdResourceLevel() << Gfx10CoreSqBufRsrcTWord3ResourceLevelShift) |
                                   (oobSelect                      << SqBufRsrcTWord3OobSelectShift)                    |
                                   (SQ_RSRC_BUF                    << SqBufRsrcTWord3TypeShift));
@@ -3135,9 +3135,8 @@ void PAL_STDCALL Device::Gfx10CreateImageViewSrds(
 
             {
                 srd.gfx10Core.min_lod = minLod;
+                srd.gfx10Core.format  = Formats::Gfx9::HwImgFmt(pFmtInfo, format);
             }
-
-            srd.most.format  = Formats::Gfx9::HwImgFmt(pFmtInfo, format);
         }
 
         // GFX10 does not support native 24-bit surfaces...  Clients promote 24-bit depth surfaces to 32-bit depth on
@@ -3151,7 +3150,7 @@ void PAL_STDCALL Device::Gfx10CreateImageViewSrds(
             // This special format indicates to HW that this is a promoted 24-bit surface, so sample_c and border color
             // can be treated differently.
             {
-                srd.most.format = IMG_FMT_32_FLOAT_CLAMP__GFX10CORE;
+                srd.gfx10Core.format = IMG_FMT_32_FLOAT_CLAMP__GFX10CORE;
             }
         }
 
@@ -3284,11 +3283,7 @@ void PAL_STDCALL Device::Gfx10CreateImageViewSrds(
         srd.base_array         = baseArraySlice;
         srd.meta_pipe_aligned  = ((pMaskRam != nullptr) ? pMaskRam->PipeAligned() : 0);
         srd.corner_samples     = imageCreateInfo.usageFlags.cornerSampling;
-
-        if (IsGfx10(*pPalDevice))
-        {
-            srd.gfx10.iterate_256 = image.GetIterate256(pSubResInfo);
-        }
+        srd.iterate_256        = image.GetIterate256(pSubResInfo);
 
         // Depth images obviously don't have an alpha component, so don't bother...
         if ((pParent->IsDepthStencil() == false) && pBaseSubResInfo->flags.supportMetaDataTexFetch)
@@ -3388,11 +3383,11 @@ void PAL_STDCALL Device::Gfx10CreateImageViewSrds(
         {
             if (IsGfx10(*pPalDevice))
             {
-                // Fill the unused 4 bits of word6 with sample pattern index
-                srd.gfx10._reserved_206_203  = viewInfo.samplePatternIdx;
-
                 srd.gfx10Core.resource_level = 1;
             }
+
+            // Fill the unused 4 bits of word6 with sample pattern index
+            srd._reserved_206_203  = viewInfo.samplePatternIdx;
 
             //   PRT unmapped returns 0.0 or 1.0 if this bit is 0 or 1 respectively
             //   Only used with image ops (sample/load)
@@ -3540,7 +3535,7 @@ void Device::Gfx10CreateFmaskViewSrdsInternal(
 
     // For Fmask views, the format is based on the sample and fragment counts.
     {
-        pSrd->most.format  = fmask.Gfx10FmaskFormat(createInfo.samples, createInfo.fragments, isUav);
+        pSrd->gfx10Core.format  = fmask.Gfx10FmaskFormat(createInfo.samples, createInfo.fragments, isUav);
 
         pSrd->gfx10Core.min_lod = 0;
         pSrd->gfx10Core.max_mip = 0;
@@ -4832,7 +4827,7 @@ uint16 Device::GetBaseUserDataReg(
         baseUserDataReg = CmdUtil().GetRegInfo().mmUserDataStartGsShaderStage;
         break;
     case HwShaderStage::Vs:
-        baseUserDataReg = mmSPI_SHADER_USER_DATA_VS_0;
+        baseUserDataReg = Gfx09_10::mmSPI_SHADER_USER_DATA_VS_0;
         break;
     case HwShaderStage::Ps:
         baseUserDataReg = mmSPI_SHADER_USER_DATA_PS_0;
@@ -4936,11 +4931,10 @@ void Device::InitBufferSrd(
         pSrd->oob_select     = SQ_OOB_NUM_RECORDS_0; // never check out-of-bounds
 
         {
-            pSrd->most.format = BUF_FMT_32_FLOAT;
-
             if (IsGfx10(m_gfxIpLevel))
             {
                 pSrd->gfx10Core.resource_level = 1;
+                pSrd->gfx10Core.format = BUF_FMT_32_FLOAT;
             }
         }
     }

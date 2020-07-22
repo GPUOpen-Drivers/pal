@@ -106,10 +106,12 @@ public:
         const SubresRange&           range) const;
 
     bool InitMaskRam(
-        GfxCmdBuffer*      pCmdBuffer,
-        Pal::CmdStream*    pCmdStream,
-        const Image&       dstImage,
-        const SubresRange& range) const;
+        GfxCmdBuffer*                 pCmdBuffer,
+        Pal::CmdStream*               pCmdStream,
+        const Image&                  dstImage,
+        const SubresRange&            range,
+        ImageLayout                   layout,
+        Developer::BarrierOperations* pBarrierOps) const;
 
     void BuildHtileLookupTable(
         GfxCmdBuffer*      pCmdBuffer,

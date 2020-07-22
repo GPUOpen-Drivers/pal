@@ -282,6 +282,7 @@ UniversalCmdBuffer::UniversalCmdBuffer(
     m_enabledPbb(false),
     m_customBinSizeX(0),
     m_customBinSizeY(0),
+    m_leakCbColorInfoRtv(0),
     m_activeOcclusionQueryWriteRanges(m_device.GetPlatform())
 {
     const auto&                palDevice        = *(m_device.Parent());
@@ -1329,6 +1330,7 @@ void UniversalCmdBuffer::CmdBarrier(
     m_device.Barrier(this, &m_deCmdStream, barrierInfo);
 
     m_gfxCmdBufState.flags.packetPredicate = packetPredicate;
+
 }
 
 // =====================================================================================================================
@@ -1353,6 +1355,7 @@ void UniversalCmdBuffer::CmdRelease(
     m_device.DescribeBarrierEnd(this, &barrierOps);
 
     m_gfxCmdBufState.flags.packetPredicate = packetPredicate;
+
 }
 
 // =====================================================================================================================
@@ -1401,6 +1404,7 @@ void UniversalCmdBuffer::CmdReleaseThenAcquire(
     m_device.DescribeBarrierEnd(this, &barrierOps);
 
     m_gfxCmdBufState.flags.packetPredicate = packetPredicate;
+
 }
 
 // =====================================================================================================================
@@ -1748,13 +1752,13 @@ void UniversalCmdBuffer::CmdBindStreamOutTargets(
                 pSrd->word3.bits.DATA_FORMAT     = BUF_DATA_FORMAT_32;
                 pSrd->word3.bits.NUM_FORMAT      = BUF_NUM_FORMAT_UINT;
             }
-            else if (IsGfx10Plus(m_gfxIpLevel))
+            else if (IsGfx10(m_gfxIpLevel))
             {
                 auto*const  pSrd = &pBufferSrd->gfx10;
 
-                pSrd->add_tid_enable = 0;
-                pSrd->most.format    = BUF_FMT_32_UINT;
-                pSrd->oob_select     = SQ_OOB_INDEX_ONLY;
+                pSrd->add_tid_enable   = 0;
+                pSrd->gfx10Core.format = BUF_FMT_32_UINT;
+                pSrd->oob_select       = SQ_OOB_INDEX_ONLY;
             }
             else
             {

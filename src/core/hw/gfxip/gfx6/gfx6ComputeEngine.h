@@ -47,13 +47,18 @@ public:
 
     ComputeRingSet* RingSet() { return &m_ringSet; }
 
-    Result UpdateRingSet(uint32* pCounterVal, bool* pHasChanged);
+    ComputeRingSet* TmzRingSet() { return &m_tmzRingSet; }
+
+    Result UpdateRingSet(bool isTmz, uint32* pCounterVal, bool* pHasChanged);
 
 private:
     Device*        m_pDevice;
     ComputeRingSet m_ringSet;
+    ComputeRingSet m_tmzRingSet;
     uint32         m_currentUpdateCounter;  // Current watermark for the device-initiated context updates that have been
                                             // processed by this engine.
+    uint32         m_currentUpdateCounterTmz;
+    bool           m_tmzEnabled;
 
     PAL_DISALLOW_COPY_AND_ASSIGN(ComputeEngine);
     PAL_DISALLOW_DEFAULT_CTOR(ComputeEngine);
