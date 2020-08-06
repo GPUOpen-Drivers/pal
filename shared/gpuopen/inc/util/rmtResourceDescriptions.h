@@ -73,8 +73,7 @@ struct RMT_IMAGE_USAGE_FLAGS
             uint16 DEPTH_AS_Z24              : 1;
             uint16 FIRST_SHADER_WRITABLE_MIP : 3;
             uint16 CORNER_SAMPLING           : 1;
-            uint16 VRS_DEPTH                 : 1;
-            uint16 RESERVED                  : 1;
+            uint16 RESERVED                  : 2;
         };
 
        uint16 u16Val;

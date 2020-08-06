@@ -280,7 +280,7 @@ enum ImageLayoutUsageFlags : uint32
     LayoutPresentFullscreen       = 0x00000800,  ///< Fullscreen (flip) present.  Layout must be supported by the
                                                  ///  display engine.
     LayoutUncompressed            = 0x00001000,  ///< Metadata fully decompressed/expanded layout
-    LayoutAllUsages               = 0x00001FFF
+    LayoutAllUsages               = 0x00003FFF
 };
 
 /// Bitmask values that can be ORed together to specify all potential engines an image might be used on.  Such a
@@ -321,7 +321,7 @@ enum CacheCoherencyUsageFlags : uint32
     CoherCeDump             = 0x00001000,  ///< Destination of CmdDumpCeRam() call.
     CoherStreamOut          = 0x00002000,  ///< Data written as stream output.
     CoherMemory             = 0x00004000,  ///< Data read or written directly from/to memory
-    CoherAllUsages          = 0x00007FFF
+    CoherAllUsages          = 0x0000FFFF
 };
 
 /// Bitmask values for the flags parameter of ICmdBuffer::CmdClearColorImage().
@@ -362,9 +362,6 @@ struct CmdBufferCreateInfo
                                                  ///  This defines the set of allowed actions in the command buffer.
     QueuePriority                 queuePriority; ///< Priority level of the queue this command buffer will target.
     EngineType                    engineType;    ///< Type of engine the queue commands will run on.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 530
-    EngineSubType                 engineSubType; ///< Sub type of engine the queue commands will run on.
-#endif
 
     union
     {
@@ -486,14 +483,9 @@ union CmdBufferBuildFlags
         /// the optimizeExclusiveSubmit flag is also set. This flag is ignored for root command buffers.
         uint32 disallowNestedLaunchViaIb2   :  1;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 533
         /// Enables execution marker support, which adds structured NOPs and timestamps to the command buffer to allow
         /// for fine-grained hang identification.
         uint32 enableExecutionMarkerSupport :  1;
-#else
-        /// placeholder
-        uint32 placeholder0                 :  1;
-#endif
 
         /// placeholder
         uint32 placeholder1                  :  1;
@@ -536,10 +528,8 @@ struct CmdBufferBuildInfo
     ///   before calling Begin() or PAL will accidentally free it.
     Util::VirtualLinearAllocator* pMemAllocator;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 533
     uint64 execMarkerClientHandle; ///< Client/app data handle. This can have an arbitrary value and is used to uniquely
                                    ///  identify this command buffer.
-#endif
 };
 
 /// Specifies info on how a compute shader should use resources.
@@ -926,11 +916,9 @@ struct AcquireReleaseInfo
     uint32               imageBarrierCount;   ///< Number of entries in pImageBarriers.
     const ImgBarrier*    pImageBarriers;      ///  Describes memory dependencies and image layout transitions required
                                               ///  for a subresource range of a particular IImage object.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 504
     uint32 reason;                            ///< The reason that the barrier was invoked.
                                               ///  See @ref Developer::BarrierReason for internal reason codes, though
                                               ///  clients may define their own as well
-#endif
 };
 
 /// Specifies parameters for a copy from one range of a source GPU memory allocation to a range of the same size in a
@@ -1319,13 +1307,7 @@ struct InputAssemblyStateParams
 /// @see ICmdBuffer::CmdSetTriangleRasterState
 struct TriangleRasterStateParams
 {
-    union
-    {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 524
-        FillMode    fillMode;        ///< Specifies whether triangles should be rendered solid or wireframe.
-#endif
-        FillMode    frontFillMode;   ///< Specifies whether front-facing triangles should be rendered solid or wireframe.
-    };
+    FillMode        frontFillMode;   ///< Specifies whether front-facing triangles should be rendered solid or wireframe.
     FillMode        backFillMode;    ///< Specifies whether back-facing triangles should be rendered solid or wireframe.
     CullMode        cullMode;        ///< Specifies which, if any, triangles should be culled based on whether they are
                                      ///  front or back facing.
@@ -1520,9 +1502,7 @@ struct ViewportParams
     float           vertDiscardRatio;   ///< The ratio between guardband discard rect height and viewport height.
     float           horzClipRatio;      ///< The ratio between guardband clip rect width and viewport width.
     float           vertClipRatio;      ///< The ratio between guardband clip rect height and viewport height.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 524
     DepthRange      depthRange;         ///< Specifies the target range of Z values
-#endif
 };
 
 /// Specifies the parameters for specifing the scissor rectangle.
@@ -1565,9 +1545,6 @@ enum class PredicateType : uint32
 {
     Zpass     = 1, ///< Enable occlusion predicate
     PrimCount = 2, ///< Enable streamout predicate
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 550
-    Boolean   = 3, ///< CP PFP treats memory as a 64bit integer which is either false (0) or true, DX12 style.
-#endif
     Boolean64 = 3, ///< CP PFP treats memory as a 64bit integer which is either false (0) or true, DX12 style.
     Boolean32 = 4, ///< CP PFP treats memory as a 32bit integer which is either false (0) or true, Vulkan style.
 };
@@ -3506,72 +3483,6 @@ public:
         gpusize                      offset,
         uint32                       maximumCount,
         gpusize                      countGpuAddr) = 0;
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 509
-    /// Sets the hierarchical stencil compare state (slot 0).
-    ///
-    /// Hierarchical stencil (Hi-S) allows work to be discarded by the stencil test at tile rate in certain cases.
-    /// Unfortunately, this feature is more difficult to use than Hi-Z, and requires help from the client driver,
-    /// possibly driven by app detect, to get the most out of this feature.
-    ///
-    /// In order to use Hi-S, the client will define one or two "pre-tests" that will be performed whenever a
-    /// particular stencil image is written.  HTILE will track the results of the pre-test for each 8x8 tile, keeping a
-    /// record of whether any pixel in the tile "may-pass" or "may-fail" the specified pre-test.  When stencil testing
-    /// is enabled, the hardware may be able to discard whole tiles early based on what it can glean from the Hi-S
-    /// pretest states.
-    ///
-    /// This feature works best if the future stencil test behavior is known, either directly told via an API extension
-    /// or via an app profile in the client layer. For example, if the application 1) clears stencil, 2) does a pass to
-    /// write stencil, 3) then does a final pass that masks rendering based on the stencil value being > 0, ideally we
-    /// would choose a pretest of compFunc=Greater, compMask=0xFF, and compValue=0 so that #2 would update HTILE with
-    /// per-tile data that lets #3 be accelerated at maximum effeciency.
-    ///
-    /// @warning Hi-S compare states must be programmed consistently when rendering any particular image starting with
-    /// the first draw after a full image clear until its next full clear. Otherwise, the may-pass and may-fail bits
-    /// will not have the expected meaning, and will lead to incorrect behavior.  It is up to the client to enforce
-    /// this restriction.
-    ///
-    /// In absence of app-specific knowledge, the following algorithm may be a good generic approach:
-    /// 1. When the stencil image is cleared, set pre-test #0 to compFunc=Equal, compMask=0xFF, and compValue set to
-    ///    the specified clear value.
-    /// 2. On the first draw with stencil writes enabled, set pre-test #1 with compMask set to the app's current stencil
-    ///    mask, and
-    ///      a. If the stencil op is INC or DEC, set compFunc=GreaterEqual and compValue the same as in #1.
-    ///      b. If the stencil op is REPLACE, set compFunc=Equal and set compValue to the app's current stencil ref
-    ///         value.
-    ///
-    /// @param [in] compFunc      Comparison function determines how a pass/fail condition is determined between
-    ///                           compValue and the destination stencil data. The expression is evaluated with
-    ///                           compValue as the left-hand operand and the destination stencil data as the right-hand
-    ///                           operand.
-    /// @param [in] comMask       This value is ANDed with the SResults compare value. This value is ANDed with the
-    ///                           destination stencil data before evaluating the comparison function. A mask of 0
-    ///                           invalidates the may-pass/may-fail bist in HTILE.
-    /// @param [in] comValue      Stencil value compared against for pre-test operation.
-    /// @param [in] enable        Enables Hi-S tile culling based on pre-test results.
-    virtual void CmdSetHiSCompareState0(
-        CompareFunc compFunc,
-        uint32      compMask,
-        uint32      compValue,
-        bool        enable) = 0;
-
-    /// Sets the hierarchical stencil compare state (slot 1).
-    ///
-    /// @param [in] compFunc      Comparison function determines how a pass/fail condition is determined between
-    ///                           compValue and the destination stencil data. The expression is evaluated with
-    ///                           compValue as the left-hand operand and the destination stencil data as the right-hand
-    ///                           operand.
-    /// @param [in] comMask       This value is ANDed with the SResults compare value. This value is ANDed with the
-    ///                           destination stencil data before evaluating the comparison function. A mask of 0
-    ///                           invalidates the may-pass/may-fail bist in HTILE.
-    /// @param [in] comValue      Stencil value compared against for pre-test operation.
-    /// @param [in] enable        Enables Hi-S tile culling based on pre-test results.
-    virtual void CmdSetHiSCompareState1(
-        CompareFunc compFunc,
-        uint32      compMask,
-        uint32      compValue,
-        bool        enable) = 0;
-#endif
 
     /// Updates one or more HiS pretests bound to the given stencil image within a range of mip levels.
     /// See @ref HiSPretests for a summary of HiS.

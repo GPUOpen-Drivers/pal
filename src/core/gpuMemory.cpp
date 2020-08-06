@@ -139,20 +139,6 @@ Result GpuMemory::ValidateCreateInfo(
     const gpusize allocGranularity = createInfo.flags.virtualAlloc ? memProps.virtualMemAllocGranularity
                                                                    : memProps.realMemAllocGranularity;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 516
-    if ((result == Result::Success) && ((createInfo.alignment % allocGranularity) != 0))
-    {
-        // Requested alignment must be zero or a multiple of the relevant allocation granularity!
-        result = Result::ErrorInvalidAlignment;
-    }
-
-    if ((result == Result::Success) && ((createInfo.size % allocGranularity) != 0))
-    {
-        // The requested allocation size doesn't match the allocation granularity requirements!
-        result = Result::ErrorInvalidMemorySize;
-    }
-#endif
-
     if ((result == Result::Success) && createInfo.flags.shareable && (nonLocalOnly == false))
     {
         // Shareable allocations must reside only in non-local heaps in order for multiple GPU's to access them
@@ -407,7 +393,6 @@ Result GpuMemory::Init(
     // always resident.
     PAL_ALERT((IsAlwaysResident() == false) && (internalInfo.pPagingFence != nullptr));
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 516
     const gpusize allocGranularity   = (IsVirtual() == false) ?
         m_pDevice->MemoryProperties().realMemAllocGranularity :
         m_pDevice->MemoryProperties().virtualMemAllocGranularity;
@@ -429,10 +414,6 @@ Result GpuMemory::Init(
         m_desc.size      = createInfo.size;
         m_desc.alignment = ((createInfo.alignment != 0) ? createInfo.alignment : allocGranularity);
     }
-#else
-    m_desc.size      = createInfo.size;
-    m_desc.alignment = createInfo.alignment;
-#endif
 
     m_vaPartition    = m_pDevice->ChooseVaPartition(createInfo.vaRange, (createInfo.flags.virtualAlloc != 0));
     m_priority       = createInfo.priority;
@@ -451,21 +432,8 @@ Result GpuMemory::Init(
         m_desc.size = Pow2Align(m_desc.size, pageSize) + pageSize;
     }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 516
     if (IsVirtual() == false)
     {
-#else
-    gpusize allocGranularity = 0;
-
-    if (IsVirtual())
-    {
-        allocGranularity = m_pDevice->MemoryProperties().virtualMemAllocGranularity;
-    }
-    else
-    {
-        allocGranularity = m_pDevice->MemoryProperties().realMemAllocGranularity;
-#endif
-
         // NOTE: Assume that the heap selection is both local-only and nonlocal-only temporarily. When we scan the
         // heap selections below, this paradoxical assumption will be corrected.
         m_flags.localOnly    = 1;
@@ -512,25 +480,6 @@ Result GpuMemory::Init(
     }
 
     m_desc.preferredHeap = m_heaps[0];
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 516
-    // Requested alignment must be a multiple of the relevant allocation granularity! If no alignment value was
-    // provided, use the allocation granularity.
-    if (m_desc.alignment == 0)
-    {
-        m_desc.alignment = allocGranularity;
-    }
-    else
-    {
-        // The caller provided their own alignment value, make sure it's a multiple of the allocation granularity.
-        PAL_ASSERT(IsPowerOfTwo(allocGranularity));
-        if (createInfo.flags.sdiExternal == 0)
-        {
-            PAL_ASSERT(IsPow2Aligned(m_desc.alignment, allocGranularity));
-            m_desc.alignment = Pow2Align(m_desc.alignment, allocGranularity);
-        }
-    }
-#endif
 
     Result result = Result::Success;
 

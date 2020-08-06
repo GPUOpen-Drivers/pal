@@ -2404,9 +2404,7 @@ void RsrcProcMgr::DepthStencilClearGraphics(
     viewportInfo.horzDiscardRatio      = 1.0f;
     viewportInfo.vertClipRatio         = FLT_MAX;
     viewportInfo.vertDiscardRatio      = 1.0f;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 524
     viewportInfo.depthRange            = DepthRange::ZeroToOne;
-#endif
 
     ScissorRectParams scissorInfo    = { };
     scissorInfo.count                = 1;

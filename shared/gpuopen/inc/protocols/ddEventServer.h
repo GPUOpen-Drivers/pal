@@ -64,12 +64,6 @@ public:
     Result RegisterProvider(BaseEventProvider* pProvider);
     Result UnregisterProvider(BaseEventProvider* pProvider);
 
-    // Attempts to set a new memory usage limit
-    Result UpdateMemoryUsageLimit(size_t memoryUsageLimitInBytes);
-
-    // Returns the max memory usage limit in bytes
-    size_t QueryMemoryUsageLimit() const;
-
 private:
     Result AllocateEventChunk(EventChunk** ppChunk);
     void FreeEventChunk(EventChunk* pChunk);
@@ -77,16 +71,17 @@ private:
     EventChunk* DequeueEventChunk();
     Result BuildQueryProvidersResponse(BlockId* pBlockId);
     Result ApplyProviderUpdate(const ProviderUpdateHeader* pUpdate);
+    bool IsTargetMemoryUsageExceeded() const;
+    void TrimEventChunkMemory();
 
     HashMap<EventProviderId, BaseEventProvider*, 16u> m_eventProviders;
     Platform::AtomicLock                              m_eventProvidersMutex;
     Platform::AtomicLock                              m_eventPoolMutex;
     Vector<EventChunk*>                               m_eventChunkPool;
-    Vector<EventChunk*>                               m_eventChunkAllocList;
-    size_t                                            m_maxAllocatedChunks;
     Platform::AtomicLock                              m_eventQueueMutex;
     Vector<EventChunk*>                               m_eventChunkQueue;
     EventServerSession*                               m_pActiveSession;
+    uint64                                            m_nextTrimTime;
 };
 
 } // EventProtocol

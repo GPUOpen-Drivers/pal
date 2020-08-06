@@ -41,42 +41,6 @@ namespace Abi
 {
 
 // =====================================================================================================================
-// Reverses the bytes on a big-endian machine. This converts an u32 from big to little endian or the other way around.
-static uint32 ChangeHostDeviceOrder32(
-    uint32 value)
-{
-#if defined(LITTLEENDIAN_CPU)
-    // No reversal is necessary on little-endian architecture.
-    return value;
-#else
-    return ((value & 0xff) << 24)
-        | (((value >> 8) & 0xff) << 16)
-        | (((value >> 16) & 0xff) << 8)
-        | ((value >> 24) & 0xff);
-#endif
-}
-
-// =====================================================================================================================
-// Reverses the bytes on a big-endian machine. This converts an u64 from big to little endian or the other way around.
-static uint64 ChangeHostDeviceOrder64(
-    uint64 value)
-{
-#if defined(LITTLEENDIAN_CPU)
-    // No reversal is necessary on little-endian architecture.
-    return value;
-#else
-    return ((value & 0xff) << 56)
-        | (((value >> 8) & 0xff) << 48)
-        | (((value >> 16) & 0xff) << 40)
-        | (((value >> 24) & 0xff) << 32)
-        | (((value >> 32) & 0xff) << 24)
-        | (((value >> 40) & 0xff) << 16)
-        | (((value >> 48) & 0xff) << 8)
-        | ((value >> 56) & 0xff);
-#endif
-}
-
-// =====================================================================================================================
 Result PipelineAbiReader::Init()
 {
     Result result = Result::Success;
@@ -171,9 +135,9 @@ Result PipelineAbiReader::GetMetadata(
             const void* pDesc    = note.GetDescriptor();
             uint32      descSize = note.GetHeader().n_descsz;
 
-            switch (static_cast<PipelineAbiNoteType>(note.GetHeader().n_type))
+            switch (note.GetHeader().n_type)
             {
-            case PipelineAbiNoteType::PalMetadata:
+            case MetadataNoteType:
             {
                 pRawMetadata = pDesc;
                 metadataSize = descSize;

@@ -207,10 +207,6 @@ static constexpr FuncFormattingEntry FuncFormattingTable[] =
     { InterfaceFunc::CmdBufferDestroy,                                          InterfaceObject::CmdBuffer,            "Destroy"                                 },
     { InterfaceFunc::CmdBufferCopyImageToPackedPixelImage,                      InterfaceObject::CmdBuffer,            "CmdBufferCopyImageToPackedPixelImage"    },
     { InterfaceFunc::CmdBufferCmdSetViewInstanceMask,                           InterfaceObject::CmdBuffer,            "CmdSetViewInstanceMask"                  },
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 509
-    { InterfaceFunc::CmdSetHiSCompareState0,                                    InterfaceObject::CmdBuffer,            "CmdSetHiSCompareState0"                  },
-    { InterfaceFunc::CmdSetHiSCompareState1,                                    InterfaceObject::CmdBuffer,            "CmdSetHiSCompareState1"                  },
-#endif
     { InterfaceFunc::CmdUpdateHiSPretests,                                      InterfaceObject::CmdBuffer,            "CmdUpdateHiSPretests"                    },
     { InterfaceFunc::CmdBufferCmdSetClipRects,                                  InterfaceObject::CmdBuffer,            "CmdSetClipRects"                         },
     { InterfaceFunc::CmdBufferCmdPostProcessFrame,                              InterfaceObject::CmdBuffer,            "CmdBufferCmdPostProcessFrame"            },
@@ -1227,15 +1223,9 @@ const char* LogContext::GetEngineName(
     {
         "Universal",        // EngineTypeUniversal
         "Compute",          // EngineTypeCompute
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 530
-        "ExclusiveCompute", // EngineTypeExclusiveCompute
-#endif
         "Dma",              // EngineTypeDma
         "Timer",            // EngineTypeTimer
 
-#if   PAL_CLIENT_INTERFACE_MAJOR_VERSION < 530
-        "HpUniversal",      // EngineTypeHighPriorityUniversal
-#endif
     };
 
     static_assert(ArrayLen(StringTable) == EngineTypeCount,

@@ -46,16 +46,12 @@ constexpr size_t GpuMemByteAlign = 256;
 constexpr Abi::ApiShaderType PalToAbiShaderType[] =
 {
     Abi::ApiShaderType::Cs, // ShaderType::Cs
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 549
     Abi::ApiShaderType::Reserved0,
-#endif
     Abi::ApiShaderType::Vs, // ShaderType::Vs
     Abi::ApiShaderType::Hs, // ShaderType::Hs
     Abi::ApiShaderType::Ds, // ShaderType::Ds
     Abi::ApiShaderType::Gs, // ShaderType::Gs
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 549
     Abi::ApiShaderType::Reserved1,
-#endif
     Abi::ApiShaderType::Ps, // ShaderType::Ps
 };
 static_assert(ArrayLen(PalToAbiShaderType) == NumShaderTypes,
@@ -200,6 +196,11 @@ Result Pipeline::PerformRelocationsAndUploadToGpuMemory(
     if (result == Result::Success)
     {
         result = pUploader->Begin(metadata, clientPreferredHeap);
+    }
+
+    if (result == Result::Success)
+    {
+        result = pUploader->ApplyRelocations();
     }
 
     if (result == Result::Success)
@@ -538,6 +539,76 @@ void Pipeline::DumpPipelineElf(
 }
 
 // =====================================================================================================================
+void* SectionInfo::GetCpuMappedAddr(
+    gpusize offset
+    ) const
+{
+    auto chunkIter = m_chunks.Begin();
+    while (offset > chunkIter.Get().size)
+    {
+        offset -= chunkIter.Get().size;
+        chunkIter.Next();
+    }
+    return Util::VoidPtrInc(chunkIter.Get().pCpuMappedAddr, static_cast<size_t>(offset));
+}
+
+// =====================================================================================================================
+SectionInfo* SectionMemoryMap::AddSection(
+    Util::ElfReader::SectionId sectionId,
+    gpusize                    gpuVirtAddr,
+    const void*                pCpuLocalAddr)
+{
+    SectionInfo info(&m_allocator, sectionId, gpuVirtAddr, pCpuLocalAddr);
+    Result result = m_sections.PushBack(info);
+    SectionInfo* pSection = nullptr;
+    if (result == Result::Success)
+    {
+        pSection = &m_sections.Back();
+    }
+    return pSection;
+}
+
+// =====================================================================================================================
+const SectionInfo* SectionMemoryMap::FindSection(
+    Util::ElfReader::SectionId sectionId
+    ) const
+{
+    const SectionInfo* pSection = nullptr;
+    for (uint32 i = 0; i < m_sections.NumElements(); i++)
+    {
+        const auto& section = m_sections.At(i);
+        if (section.GetSectionId() == sectionId)
+        {
+            pSection = &section;
+            break;
+        }
+    }
+    return pSection;
+}
+
+// =====================================================================================================================
+Result SectionAddressCalculator::AddSection(
+    const Util::ElfReader::Reader& elfReader,
+    Util::ElfReader::SectionId     sectionId)
+{
+    gpusize alignment = elfReader.GetSection(sectionId).sh_addralign;
+    // According to the elf spec, 0 and 1 mean everything is allowed
+    if (alignment == 0)
+    {
+        alignment = 1;
+    }
+    const gpusize offset = Util::Pow2Align(m_size, alignment);
+    m_size = offset + elfReader.GetSection(sectionId).sh_size;
+
+    if (alignment > m_alignment)
+    {
+        m_alignment = alignment;
+    }
+
+    return m_sections.PushBack({sectionId, offset});
+}
+
+// =====================================================================================================================
 PipelineUploader::PipelineUploader(
     Device*             pDevice,
     const AbiReader&    abiReader,
@@ -551,8 +622,7 @@ PipelineUploader::PipelineUploader(
     m_gpuMemSize(0),
     m_pUploadGpuMem(nullptr),
     m_uploadOffset(0),
-    m_codeGpuVirtAddr(0),
-    m_dataGpuVirtAddr(0),
+    m_memoryMap(pDevice->GetPlatform()),
     m_ctxRegGpuVirtAddr(0),
     m_shRegGpuVirtAddr(0),
     m_shRegisterCount(shRegisterCount),
@@ -578,10 +648,12 @@ PipelineUploader::~PipelineUploader()
 }
 
 // =====================================================================================================================
-void PipelineUploader::UploadPipelineSections(
-    const void* pSectionBuffer,
-    size_t sectionBufferSize)
+Result PipelineUploader::UploadPipelineSections(
+    const void*  pSectionBuffer,
+    size_t       sectionBufferSize,
+    SectionInfo* pChunks)
 {
+    Result result = Result::Success;
     size_t bytesRemaining = sectionBufferSize;
     size_t localOffset = 0;
     while (bytesRemaining > 0)
@@ -594,18 +666,26 @@ void PipelineUploader::UploadPipelineSections(
                                                         bytesRemaining,
                                                         &pEmbeddedData);
 
+        if (pChunks != nullptr)
+        {
+            result = pChunks->AddCpuMappedChunk({pEmbeddedData, bytesCopied});
+            if (result != Result::Success)
+            {
+                break;
+            }
+        }
+
         memcpy(pEmbeddedData, VoidPtrInc(pSectionBuffer, localOffset), bytesCopied);
         localOffset             += bytesCopied;
         m_heapInvisUploadOffset += bytesCopied;
         bytesRemaining          -= bytesCopied;
     }
+    return result;
 }
 
 // =====================================================================================================================
 void PipelineUploader::PatchPipelineInternalSrdTable(
-    ElfReader::SectionId dataSectionId,
-    void*                pMappedPtr,
-    const void*          pDataBuffer)
+    ElfReader::SectionId dataSectionId)
 {
     // The for loop which follows is entirely non-standard behavior for an ELF loader, but is intended to
     // only be temporary code.
@@ -618,11 +698,14 @@ void PipelineUploader::PatchPipelineInternalSrdTable(
         const Elf::SymbolTableEntry* pSymbol = m_abiReader.GetPipelineSymbol(symbolType);
         if ((pSymbol != nullptr) && (pSymbol->st_shndx == dataSectionId))
         {
+            const SectionInfo*const pSectionInfo = m_memoryMap.FindSection(dataSectionId);
+            PAL_ASSERT_MSG(pSectionInfo != nullptr, "Data section not uploaded to GPU");
             m_pDevice->GetGfxDevice()->PatchPipelineInternalSrdTable(
-                VoidPtrInc(pMappedPtr, static_cast<size_t>(pSymbol->st_value)), // Dst
-                VoidPtrInc(pDataBuffer, static_cast<size_t>(pSymbol->st_value)), // Src
+                pSectionInfo->GetCpuMappedAddr(pSymbol->st_value), // Dst
+                VoidPtrInc(m_abiReader.GetElfReader().GetSectionData(pSymbol->st_shndx),
+                           static_cast<size_t>(pSymbol->st_value)), // Src
                 static_cast<size_t>(pSymbol->st_size),
-                m_dataGpuVirtAddr);
+                pSectionInfo->GetGpuVirtAddr());
         }
     } // for each hardware stage
 }
@@ -646,6 +729,7 @@ Result PipelineUploader::Begin(
     static_assert(static_cast<uint32>(PreferredPipelineUploadHeap::PipelineHeapDeferToClient) ==
         static_cast<uint32>(GpuHeap::GpuHeapCount),         "Pipeline heap enumeration needs to be updated!");
 
+    Result result = Result::Success;
     const auto& settingPreferredHeap = m_pDevice->Settings().preferredPipelineUploadHeap;
 
     // Compute the final destination heap of the pipeline.
@@ -669,22 +753,9 @@ Result PipelineUploader::Begin(
         PAL_ALERT(m_pDevice->ValidatePipelineUploadHeap(clientPreferredHeap));
     }
 
-    const void* pCodeBuffer            = nullptr;
-    size_t      codeLength             = 0;
-    const void* pDataBuffer            = nullptr;
-    size_t      dataLength             = 0;
-    gpusize     dataAlignment          = 0;
-    ElfReader::SectionId dataSectionId = 0;
+    SectionAddressCalculator addressCalculator(m_pDevice->GetPlatform());
     const uint32 totalRegisters = (m_ctxRegisterCount + m_shRegisterCount);
     m_heapInvisUploadOffset = 0;
-    // The driver must make sure there is a distance of at least gpuInfo.shaderPrefetchBytes
-    // that follows the end of the shader to avoid a page fault when the SQ tries to
-    // prefetch past the end of a shader
-    // shaderPrefetchBytes is set from "SQC_CONFIG.INST_PRF_COUNT" (gfx8-9)
-    // defaulting to the hardware supported maximum if necessary
-    gpusize minSafeSize = Pow2Align(codeLength, ShaderICacheLineSize) +
-                                m_pDevice->ChipProperties().gfxip.shaderPrefetchBytes;
-
     GpuMemoryCreateInfo createInfo = { };
     createInfo.alignment = GpuMemByteAlign;
     createInfo.vaRange = VaRange::DescriptorTable;
@@ -697,40 +768,46 @@ Result PipelineUploader::Begin(
     internalInfo.flags.alwaysResident = 1;
 
     const ElfReader::Reader& elfReader = m_abiReader.GetElfReader();
-    ElfReader::SectionId codeSectionId = elfReader.FindSection(".text");
-    PAL_ASSERT_MSG(codeSectionId != 0, "Invalid pipeline ELF, cannot find .text section");
-    pCodeBuffer = elfReader.GetSectionData(codeSectionId);
-    codeLength = static_cast<size_t>(elfReader.GetSection(codeSectionId).sh_size);
-
-    createInfo.size = codeLength;
-
-    dataSectionId = m_abiReader.GetElfReader().FindSection(".data");
-    if (dataSectionId != 0)
+    for (ElfReader::SectionId i = 0; i < elfReader.GetNumSections(); i++)
     {
-        pDataBuffer = elfReader.GetSectionData(dataSectionId);
-        const Elf::SectionHeader& dataSectionHeader = elfReader.GetSection(dataSectionId);
-        dataLength = static_cast<size_t>(dataSectionHeader.sh_size);
-        dataAlignment = dataSectionHeader.sh_addralign;
+        const auto& section = elfReader.GetSection(i);
+        if (section.sh_flags & Elf::ShfAlloc)
+        {
+            result = addressCalculator.AddSection(elfReader, i);
+            if (result != Result::Success)
+            {
+                break;
+            }
+        }
     }
-
-    if (dataLength > 0)
-    {
-        createInfo.size = (Pow2Align(createInfo.size, dataAlignment) + dataLength);
-    }
-
-    if (totalRegisters > 0)
-    {
-        constexpr uint32 RegisterEntryBytes = (sizeof(uint32) << 1);
-        createInfo.size = (Pow2Align(createInfo.size, sizeof(uint32)) + (RegisterEntryBytes * totalRegisters));
-    }
-
-    createInfo.size = Max(createInfo.size, minSafeSize);
-
-    m_gpuMemSize = createInfo.size;
-    Result result = m_pDevice->MemMgr()->AllocateGpuMem(createInfo, internalInfo, false, &m_pGpuMemory, &m_baseOffset);
 
     if (result == Result::Success)
     {
+        createInfo.size = addressCalculator.GetSize();
+
+        if (totalRegisters > 0)
+        {
+            constexpr uint32 RegisterEntryBytes = (sizeof(uint32) << 1);
+            createInfo.size = (Pow2Align(createInfo.size, sizeof(uint32)) + (RegisterEntryBytes * totalRegisters));
+        }
+
+        // The driver must make sure there is a distance of at least gpuInfo.shaderPrefetchBytes
+        // that follows the end of the shader to avoid a page fault when the SQ tries to
+        // prefetch past the end of a shader
+        // shaderPrefetchBytes is set from "SQC_CONFIG.INST_PRF_COUNT" (gfx8-9)
+        // defaulting to the hardware supported maximum if necessary
+        const gpusize minSafeSize = Pow2Align(createInfo.size, ShaderICacheLineSize) +
+                                              m_pDevice->ChipProperties().gfxip.shaderPrefetchBytes;
+
+        createInfo.size = Max(createInfo.size, minSafeSize);
+
+        m_gpuMemSize = createInfo.size;
+        result = m_pDevice->MemMgr()->AllocateGpuMem(createInfo, internalInfo, false, &m_pGpuMemory, &m_baseOffset);
+    }
+
+    if (result == Result::Success)
+    {
+        gpusize gpuVirtAddr = (m_pGpuMemory->Desc().gpuVirtAddr + m_baseOffset);
         void* pMappedPtr = nullptr;
         if (m_pipelineHeapType == GpuHeap::GpuHeapInvisible)
         {
@@ -738,25 +815,54 @@ Result PipelineUploader::Begin(
 
             if (result == Result::Success)
             {
-                UploadPipelineSections(pCodeBuffer, codeLength);
-
-                // Including potential padding space before data and register section, and potential padding space after
-                // end of all sections in case total size of all pipeline sections is less than minSafeSize.
-                const gpusize dataRegisterAndPadding = m_gpuMemSize - m_heapInvisUploadOffset;
-                if (dataRegisterAndPadding > 0)
+                for (auto sectionIter = addressCalculator.GetSectionsBegin(); sectionIter.IsValid(); sectionIter.Next())
                 {
-                    m_pMappedPtr = PAL_CALLOC_ALIGNED(static_cast<size_t>(dataRegisterAndPadding),
-                                                GpuMemByteAlign,
-                                                m_pDevice->GetPlatform(),
-                                                AllocInternal);
-
-                    if (m_pMappedPtr == nullptr)
+                    const SectionAddressCalculator::SectionOffset& section = sectionIter.Get();
+                    const void* pSectionData = elfReader.GetSectionData(section.sectionId);
+                    SectionInfo* pInfo = m_memoryMap.AddSection(section.sectionId, gpuVirtAddr + section.offset,
+                                                                pSectionData);
+                    if (pInfo == nullptr)
                     {
                         result = Result::ErrorOutOfMemory;
+                        break;
                     }
-                    else
+
+                    // Insert into dma queue
+                    m_heapInvisUploadOffset = section.offset;
+                    result = UploadPipelineSections(pSectionData,
+                                                    static_cast<size_t>(elfReader.GetSection(section.sectionId).sh_size),
+                                                    pInfo);
+                    if (result != Result::Success)
                     {
-                        pMappedPtr = m_pMappedPtr;
+                        break;
+                    }
+
+                    if (strcmp(elfReader.GetSectionName(section.sectionId), ".data") == 0)
+                    {
+                        PatchPipelineInternalSrdTable(section.sectionId);
+                    }
+                }
+
+                if (result == Result::Success)
+                {
+                    // Including potential padding space before data and register section, and potential padding space after
+                    // end of all sections in case total size of all pipeline sections is less than minSafeSize.
+                    const gpusize dataRegisterAndPadding = m_gpuMemSize - m_heapInvisUploadOffset;
+                    if (dataRegisterAndPadding > 0)
+                    {
+                        m_pMappedPtr = PAL_CALLOC_ALIGNED(static_cast<size_t>(dataRegisterAndPadding),
+                                                    GpuMemByteAlign,
+                                                    m_pDevice->GetPlatform(),
+                                                    AllocInternal);
+
+                        if (m_pMappedPtr == nullptr)
+                        {
+                            result = Result::ErrorOutOfMemory;
+                        }
+                        else
+                        {
+                            pMappedPtr = m_pMappedPtr;
+                        }
                     }
                 }
             }
@@ -767,36 +873,49 @@ Result PipelineUploader::Begin(
             if (result == Result::Success)
             {
                 m_pMappedPtr = VoidPtrInc(m_pMappedPtr, static_cast<size_t>(m_baseOffset));
-                pMappedPtr   = m_pMappedPtr;
-                memcpy(pMappedPtr, pCodeBuffer, codeLength);
-                pMappedPtr   = VoidPtrInc(pMappedPtr, codeLength);
+                for (auto sectionIter = addressCalculator.GetSectionsBegin(); sectionIter.IsValid(); sectionIter.Next())
+                {
+                    const SectionAddressCalculator::SectionOffset& section = sectionIter.Get();
+                    const void* pSectionData = elfReader.GetSectionData(section.sectionId);
+                    pMappedPtr = VoidPtrInc(m_pMappedPtr, static_cast<size_t>(section.offset));
+                    uint64 sectionSize = elfReader.GetSection(section.sectionId).sh_size;
+
+                    SectionInfo* pInfo = m_memoryMap.AddSection(section.sectionId, gpuVirtAddr + section.offset,
+                                                                pSectionData);
+                    if (pInfo == nullptr)
+                    {
+                        result = Result::ErrorOutOfMemory;
+                        break;
+                    }
+
+                    result = pInfo->AddCpuMappedChunk({pMappedPtr, sectionSize});
+                    if (result != Result::Success)
+                    {
+                        break;
+                    }
+
+                    // Copy onto GPU
+                    memcpy(pMappedPtr, pSectionData, static_cast<size_t>(sectionSize));
+
+                    if (strcmp(elfReader.GetSectionName(section.sectionId), ".data") == 0)
+                    {
+                        PatchPipelineInternalSrdTable(section.sectionId);
+                    }
+                }
+
+                if (result == Result::Success)
+                {
+                    pMappedPtr = VoidPtrInc(m_pMappedPtr, static_cast<size_t>(addressCalculator.GetSize()));
+                }
             }
         }
+
         if (result == Result::Success)
         {
-            gpusize gpuVirtAddr = (m_pGpuMemory->Desc().gpuVirtAddr + m_baseOffset);
-            m_codeGpuVirtAddr = gpuVirtAddr;
-            m_prefetchGpuVirtAddr = m_codeGpuVirtAddr;
-            gpuVirtAddr           += codeLength;
-            m_prefetchSize        = codeLength;
-
-            if (dataLength > 0)
-            {
-                PAL_ASSERT(pMappedPtr != nullptr);
-                uint64 paddingSize = Pow2Align(gpuVirtAddr, dataAlignment) - gpuVirtAddr;
-                pMappedPtr  = VoidPtrInc(pMappedPtr, static_cast<size_t>(paddingSize));
-                gpuVirtAddr = gpuVirtAddr + paddingSize;
-
-                m_dataGpuVirtAddr = gpuVirtAddr;
-                memcpy(pMappedPtr, pDataBuffer, dataLength);
-
-                PatchPipelineInternalSrdTable(dataSectionId, pMappedPtr, pDataBuffer);
-
-                pMappedPtr  = VoidPtrInc(pMappedPtr, dataLength);
-                gpuVirtAddr += dataLength;
-
-                m_prefetchSize = gpuVirtAddr - m_prefetchGpuVirtAddr;
-            } // if dataLength > 0
+            gpuVirtAddr           = (m_pGpuMemory->Desc().gpuVirtAddr + m_baseOffset);
+            m_prefetchGpuVirtAddr = gpuVirtAddr;
+            gpuVirtAddr           += addressCalculator.GetSize();
+            m_prefetchSize        = addressCalculator.GetSize();
 
             if (totalRegisters > 0)
             {
@@ -832,6 +951,152 @@ Result PipelineUploader::Begin(
 }
 
 // =====================================================================================================================
+// Apply relocations
+Result PipelineUploader::ApplyRelocations()
+{
+    Result result = Result::Success;
+    // Apply relocations: Iterate through all REL sections
+    Util::ElfReader::SectionId numSections = m_abiReader.GetElfReader().GetNumSections();
+    for (Util::ElfReader::SectionId i = 0; i < numSections; i++)
+    {
+        auto type = m_abiReader.GetElfReader().GetSectionType(i);
+        if ((type != Elf::SectionHeaderType::Rel) && (type != Elf::SectionHeaderType::Rela))
+        {
+            continue;
+        }
+
+        Util::ElfReader::Relocations relocs(m_abiReader.GetElfReader(), i);
+        result = ApplyRelocationSection(relocs);
+        if (result != Result::Success)
+        {
+            break;
+        }
+    }
+    return result;
+}
+
+// =====================================================================================================================
+// Applies the relocations of one section.
+Result PipelineUploader::ApplyRelocationSection(
+    const Util::ElfReader::Relocations& relocations)
+{
+    bool isRela = relocations.IsRela();
+    // sh_info contains a reference to the target section where the
+    // relocations should be performed.
+    const SectionInfo* pMemInfo = m_memoryMap.FindSection(relocations.GetDestSection());
+    Result result = Result::Success;
+
+    if (pMemInfo == nullptr)
+    {
+        result = Result::ErrorInvalidPipelineElf;
+    }
+
+    if (result == Result::Success)
+    {
+        // sh_link contains a reference to the symbol section
+        Util::ElfReader::Symbols symbols(m_abiReader.GetElfReader(), relocations.GetSymbolSection());
+        Util::ElfReader::SectionId dstSection = relocations.GetDestSection();
+
+        // We have three types of addresses:
+        // 1. Virtual GPU addresses, these will be written into the destination
+        // 2. The CPU address of the ELF, we read from there because it is fast
+        // 3. The CPU mapped address of the destination section on the GPU, we write to that address
+        const void* pSecSrcAddr = m_abiReader.GetElfReader().GetSectionData(relocations.GetDestSection());
+
+        for (uint64 i = 0; i < relocations.GetNumRelocations(); i++)
+        {
+            const Elf::RelTableEntry& relocation = relocations.GetRel(i);
+            const Util::Elf::SymbolTableEntry& symbol = symbols.GetSymbol(relocation.r_info.sym);
+
+            // Get address of referenced symbol
+            const SectionInfo* pSymSection = m_memoryMap.FindSection(symbol.st_shndx);
+            if (pSymSection == nullptr)
+            {
+                result = Result::ErrorInvalidPipelineElf;
+                break;
+            }
+
+            // Address where to write the relocation
+            const uint64* pSrcAddr = static_cast<const uint64*>(
+                VoidPtrInc(pSecSrcAddr, static_cast<size_t>(relocation.r_offset)));
+            void* pDstAddr = pMemInfo->GetCpuMappedAddr(relocation.r_offset);
+            gpusize gpuVirtAddr = pMemInfo->GetGpuVirtAddr() + relocation.r_offset;
+
+            Util::Abi::RelocationType relType = static_cast<Util::Abi::RelocationType>(relocation.r_info.type);
+            uint64 addend = 0;
+            if (isRela)
+            {
+                addend = relocations.GetRela(i).r_addend;
+            }
+            else
+            {
+                // Add original value for .rel sections.
+                // .rela sections explicitely contain the addend.
+                uint32 addend32 = 0;
+                switch (relType) {
+                case Util::Abi::RelocationType::Abs32:
+                case Util::Abi::RelocationType::Abs32Lo:
+                case Util::Abi::RelocationType::Abs32Hi:
+                case Util::Abi::RelocationType::Rel32:
+                case Util::Abi::RelocationType::Rel32Lo:
+                case Util::Abi::RelocationType::Rel32Hi:
+                    memcpy(&addend32, pSrcAddr, sizeof(addend32));
+                    addend = addend32;
+                    break;
+                case Util::Abi::RelocationType::Abs64:
+                case Util::Abi::RelocationType::Rel64:
+                    memcpy(&addend, pSrcAddr, sizeof(addend));
+                    break;
+                default:
+                    PAL_ASSERT_ALWAYS();
+                }
+            }
+
+            // The virtual GPU address of the symbol
+            gpusize symbolAddr = pSymSection->GetGpuVirtAddr() + symbol.st_value;
+            uint64 abs = symbolAddr + addend;
+
+            uint32 val32 = 0;
+            uint64 val64 = 0;
+            switch (relType) {
+            case Util::Abi::RelocationType::Abs32:
+                PAL_ASSERT(static_cast<uint64>(static_cast<uint32>(abs)) == abs);
+            case Util::Abi::RelocationType::Abs32Lo:
+                val32 = static_cast<uint32>(abs);
+                memcpy(pDstAddr, &val32, sizeof(val32));
+                break;
+            case Util::Abi::RelocationType::Abs32Hi:
+                val32 = static_cast<uint32>(abs >> 32);
+                memcpy(pDstAddr, &val32, sizeof(val32));
+                break;
+            case Util::Abi::RelocationType::Abs64:
+                val64 = abs;
+                memcpy(pDstAddr, &val64, sizeof(val64));
+                break;
+            case Util::Abi::RelocationType::Rel32:
+                PAL_ASSERT(static_cast<uint64>(static_cast<uint32>(abs - gpuVirtAddr)) == (abs - gpuVirtAddr));
+            case Util::Abi::RelocationType::Rel32Lo:
+                val32 = static_cast<uint32>(abs - gpuVirtAddr);
+                memcpy(pDstAddr, &val32, sizeof(val32));
+                break;
+            case Util::Abi::RelocationType::Rel32Hi:
+                val32 = static_cast<uint32>((abs - gpuVirtAddr) >> 32);
+                memcpy(pDstAddr, &val32, sizeof(val32));
+                break;
+            case Util::Abi::RelocationType::Rel64:
+                val64 = abs - gpuVirtAddr;
+                memcpy(pDstAddr, &val64, sizeof(val64));
+                break;
+            default:
+                PAL_ASSERT_ALWAYS();
+            }
+        }
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
 // "Finishes" uploading a pipeline to GPU memory by requesting the device to submit a DMA copy of the pipeline from
 // its initial heap to the local invisible heap. The temporary CPU visible heap is freed.
 Result PipelineUploader::End(
@@ -858,11 +1123,14 @@ Result PipelineUploader::End(
             if (dataRegisterAndPadding > 0)
             {
                 PAL_ASSERT(m_pMappedPtr != nullptr);
-                UploadPipelineSections(m_pMappedPtr, dataRegisterAndPadding);
+                result = UploadPipelineSections(m_pMappedPtr, dataRegisterAndPadding, nullptr);
             }
-            result = m_pDevice->SubmitDmaUploadRing(m_slotId, pCompletionFence);
-            PAL_ASSERT(*pCompletionFence > 0);
-            PAL_SAFE_FREE(m_pMappedPtr, m_pDevice->GetPlatform());
+            if (result == Result::Success)
+            {
+                result = m_pDevice->SubmitDmaUploadRing(m_slotId, pCompletionFence);
+                PAL_ASSERT(*pCompletionFence > 0);
+                PAL_SAFE_FREE(m_pMappedPtr, m_pDevice->GetPlatform());
+            }
         }
         else
         {
@@ -902,26 +1170,14 @@ Result PipelineUploader::GetAbsoluteSymbolAddress(
     {
         pSymbol->gpuVirtAddr = pElfSymbol->st_value;
         pSymbol->size = pElfSymbol->st_size;
-        gpusize offset = 0;
-        const char* pName = m_abiReader.GetElfReader().GetSectionName(pElfSymbol->st_shndx);
-        if (pName != nullptr)
+        const SectionInfo* pSection = m_memoryMap.FindSection(pElfSymbol->st_shndx);
+        if (pSection != nullptr)
         {
-            if (strcmp(pName, ".text") == 0)
-            {
-                pSymbol->gpuVirtAddr += m_codeGpuVirtAddr;
-            }
-            else if (strcmp(pName, ".data") == 0)
-            {
-                pSymbol->gpuVirtAddr += m_dataGpuVirtAddr;
-            }
-            else
-            {
-                result = Result::ErrorGpuMemoryNotBound;
-            }
+            pSymbol->gpuVirtAddr += pSection->GetGpuVirtAddr();
         }
         else
         {
-            result = Result::ErrorInvalidPipelineElf;
+            result = Result::ErrorGpuMemoryNotBound;
         }
     }
     else

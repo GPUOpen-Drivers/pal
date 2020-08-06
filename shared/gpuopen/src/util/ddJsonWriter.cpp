@@ -128,6 +128,15 @@ void JsonWriter::Value(const char* pValue)
 }
 
 //=====================================================================================================================
+void JsonWriter::Value(const char* pValue, size_t length)
+{
+    if (CanWrite())
+    {
+        m_lastResult = Bool2Result(m_rjWriter.String(pValue, static_cast<rapidjson::SizeType>(length)));
+    }
+}
+
+//=====================================================================================================================
 void JsonWriter::Value(uint64 value)
 {
     if (CanWrite())

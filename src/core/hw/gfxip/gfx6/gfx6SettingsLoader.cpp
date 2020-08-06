@@ -316,12 +316,6 @@ void SettingsLoader::ValidateSettings(
         pPalSettings->dccBitsPerPixelThreshold = 0;
     }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 548
-    // Clamp the number of supported user-data entries between the number of fast-user-data registers available and
-    // the maximum number of virtualized user-data entries.
-    pPalSettings->maxUserDataEntries = Max(14u, Min(pPalSettings->maxUserDataEntries, MaxUserDataEntries));
-#endif
-
     m_state = SettingsLoaderState::Final;
 }
 

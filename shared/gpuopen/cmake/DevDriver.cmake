@@ -31,47 +31,44 @@ cmake_minimum_required(VERSION 3.5)
 # Users of this file should only `include(DevDriver)`
 include(AMD)
 
-option(
-    DD_BUILD_FORCE_COLOR_OUPUT "Force colored diagnostic messages (Clang/gcc only)"
+option(DD_OPT_FORCE_COLOR_OUPUT "Force colored diagnostic messages (Clang/gcc only)"
     ON)
 
-string(CONCAT DD_BUILD_ENABLE_VERBOSE_STATIC_ASSERTS_HELP_TEXT
+string(CONCAT DD_OPT_VERBOSE_STATIC_ASSERTS_HELP_TEXT
     "C++ static_asserts cannot format strings. "
     "You can fake it with SFINAE template types, but it's rough. "
     "This enables that alternate mode for some special assert macros."
 )
-option(DD_BUILD_ENABLE_VERBOSE_STATIC_ASSERTS
-    ${DD_BUILD_ENABLE_VERBOSE_STATIC_ASSERTS_HELP_TEXT}
+option(DD_OPT_VERBOSE_STATIC_ASSERTS
+    ${DD_OPT_VERBOSE_STATIC_ASSERTS_HELP_TEXT}
     OFF)
-unset(DD_BUILD_ENABLE_VERBOSE_STATIC_ASSERTS_HELP_TEXT)
+unset(DD_OPT_VERBOSE_STATIC_ASSERTS_HELP_TEXT)
 
-option(
-    DD_BUILD_WARNINGS_AS_ERRORS "Enforce a warning-clean build"
+option(DD_OPT_WARNINGS_AS_ERRORS "Enforce a warning-clean build"
     OFF)
 
 # Unity builds are only supported starting in 3.16, but significantly improve Windows build times
 # VERSION_GREATER_EQUAL was introduced in CMake 3.7. We use NOT ${X} VERSION_LESS for compatibility with CMake 3.5.
 # Based on performance tests, we only want this enabled by default on Windows.
 if (NOT ${CMAKE_VERSION} VERSION_LESS "3.16.0" AND WIN32)
-    set(DEVDRIVER_UNITY_BUILDS_DEFAULT ON)
+    set(DD_OPT_UNITY_BUILDS_DEFAULT ON)
 else()
-    set(DEVDRIVER_UNITY_BUILDS_DEFAULT OFF)
+    set(DD_OPT_UNITY_BUILDS_DEFAULT OFF)
 endif()
 option(
-    DEVDRIVER_UNITY_BUILDS "Optionally build all devdriver CMake targets with unity builds. Can be overwritten with CMAKE_UNITY_BUILD."
-    ${DEVDRIVER_UNITY_BUILDS_DEFAULT})
+    DD_OPT_UNITY_BUILDS "Optionally build all devdriver CMake targets with unity builds. Can be overwritten with CMAKE_UNITY_BUILD."
+    ${DD_OPT_UNITY_BUILDS_DEFAULT})
 
 # Configure compilation options depending on available CPU cores
 include(ProcessorCount)
 
 macro(apply_devdriver_build_flags _target)
 
-    set(DD_BUILD_CPP_STD "" CACHE STRING "Passed to CMake's CXX_STANDARD to define the C++ standard")
+    set(DD_OPT_CPP_STD "" CACHE STRING "Passed to CMake's CXX_STANDARD to define the C++ standard")
 
-    if(DD_BUILD_CPP_STD)
+    if(DD_OPT_CPP_STD)
 
-        message(STATUS "Using C++${DD_BUILD_CPP_STD} for ${_target}")
-        set_target_properties(${_target} PROPERTIES CXX_STANDARD ${DD_BUILD_CPP_STD})
+        set_target_properties(${_target} PROPERTIES CXX_STANDARD ${DD_OPT_CPP_STD})
 
     else()
 
@@ -85,13 +82,20 @@ macro(apply_devdriver_build_flags _target)
     # Do not use flags like `-std=gnu++11`, instead use `-std=c++11`.
     set_target_properties(${_target} PROPERTIES CXX_EXTENSIONS FALSE)
 
-    if (DD_BUILD_ENABLE_VERBOSE_STATIC_ASSERTS)
-        target_compile_definitions(${_target} PUBLIC DD_BUILD_ENABLE_VERBOSE_STATIC_ASSERTS)
+    # Make a DD_SHORT_FILE macro that includes a shorter, partial file path.
+    # The additional / is important to remove the last character from the path.
+    # Note that it does not matter if the OS uses / or \, because we are only
+    # saving the path size.
+    string(LENGTH "${CMAKE_SOURCE_DIR}/" SOURCE_PATH_SIZE)
+    target_compile_definitions(${_target} PUBLIC "DD_SHORT_FILE=(__FILE__+${SOURCE_PATH_SIZE})")
+
+    if (DD_OPT_VERBOSE_STATIC_ASSERTS)
+        target_compile_definitions(${_target} PUBLIC DD_OPT_VERBOSE_STATIC_ASSERTS)
     endif()
 
     if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
 
-        if (DD_BUILD_FORCE_COLOR_OUPUT)
+        if (DD_OPT_FORCE_COLOR_OUPUT)
 
             if (NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 5.0)
 
@@ -113,7 +117,7 @@ macro(apply_devdriver_build_flags _target)
                 # No Clang-specific options yet
         )
 
-        if (DD_BUILD_FORCE_COLOR_OUPUT)
+        if (DD_OPT_FORCE_COLOR_OUPUT)
             target_compile_options(${_target}
                 PRIVATE
                     -fcolor-diagnostics
@@ -127,7 +131,7 @@ macro(apply_devdriver_build_flags _target)
                 # No AppleClang-specific options yet
         )
 
-        if (DD_BUILD_FORCE_COLOR_OUPUT)
+        if (DD_OPT_FORCE_COLOR_OUPUT)
             target_compile_options(${_target}
                 PRIVATE
                     -fcolor-diagnostics
@@ -165,10 +169,10 @@ macro(apply_devdriver_build_flags _target)
 endmacro()
 
 # Apply/disable warnings unique to DevDriver targets.
-# Warnings are treated as Errors when DD_BUILD_WARNINGS_AS_ERRORS=ON
+# Warnings are treated as Errors when DD_OPT_WARNINGS_AS_ERRORS=ON
 function(apply_devdriver_warnings ${name})
 
-    if (DD_BUILD_WARNINGS_AS_ERRORS)
+    if (DD_OPT_WARNINGS_AS_ERRORS)
 
         if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
 
@@ -203,8 +207,10 @@ function(apply_devdriver_warnings ${name})
                     -Wno-class-memaccess
             )
 
+        endif()
+
         # Apply special options for versions earlier than GCC 5.x
-        elseif (CMAKE_CXX_COMPILER_VERSION VERSION_LESS 5.0)
+        if (CMAKE_CXX_COMPILER_VERSION VERSION_LESS 5.0)
 
             target_compile_options(${name}
                 PRIVATE
@@ -232,12 +238,15 @@ function(apply_devdriver_warnings ${name})
     elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
 
         target_compile_options(${name} PRIVATE
+            # Disable specific warnings
             /wd4127 # Conditional expression is constant
             /wd4201 # Nonstandard extension used : nameless struct/union
             /wd4512 # Assignment operator could not be generated
+            /wd6326 # Potential comparison of a constant with another constant
+
+            # Enable extra warnings
             /we4296 # Unsigned integer comparison is constant
             /we5038 # Initialization order
-            /wd6326 # Potential comparison of a constant with another constant
             /we4746 # Warn about potential issues with MSVC's two modes of volatile
         )
 
@@ -256,7 +265,7 @@ function(apply_devdriver_build_configs name)
     if (NOT DEFINED CMAKE_UNITY_BUILD)
         set_target_properties(${name}
             PROPERTIES
-                UNITY_BUILD ${DEVDRIVER_UNITY_BUILDS}
+                UNITY_BUILD ${DD_OPT_UNITY_BUILDS}
         )
     endif()
 
@@ -297,7 +306,22 @@ endfunction()
 
 function(devdriver_library name type)
 
-    amd_library(${name} ${type} ${ARGN})
-    devdriver_target(${name})
+    #if DD_CLOSED_SOURCE
+    # WA: For now, we need to use special functions to make KM libraries
+    if(DD_TOOLCHAIN_WA_BUILD_KERNELMODE)
+
+        wdk_add_library(${name} ${type})
+        amd_target(${name})
+        devdriver_target(${name} ${type})
+
+    else()
+    #endif
+
+        amd_library(${name} ${type} ${ARGN})
+        devdriver_target(${name})
+
+    #if DD_CLOSED_SOURCE
+    endif()
+    #endif
 
 endfunction()

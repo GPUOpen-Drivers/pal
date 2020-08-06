@@ -31,6 +31,13 @@ else
     LCXXDEFS += -DDD_BRANCH_STRING=\"unknown\"
 endif
 
+# WA: Support both of these flags until we fully remove GPUOPEN_UWP_SUPPORT.
+# GPUOPEN_UWP_SUPPORT was renamed in July 2020. Clients that use this should rename their flag.
+# Until they do, we offer this back-compat layer.
+ifneq ($(GPUOPEN_UWP_SUPPORT),)
+    DD_ENABLE_UWP_TRANSPORT = $(GPUOPEN_UWP_SUPPORT)
+endif
+
 ifeq ($(PLATFORM_FLAVOR), win)
     LCXXDEFS += -DDD_PLATFORM_WINDOWS_UM=1 -DDD_PLATFORM_IS_UM=1
     LCXXDEFS += -DDD_PLATFORM_STRING=\"Windows_User_Mode\"
@@ -40,17 +47,18 @@ else
 endif
 
 ifeq ($(BUILD_TYPE),dbg)
-    LCXXDEFS += -DDEVDRIVER_SHOW_DEBUG_LABELS
+    LCXXDEFS += -DDD_OPT_SHOW_DEBUG_LABELS
 endif
 
-ifneq ($(DEVDRIVER_LOG_LEVEL),)
-    LCXXDEFS += -DDEVDRIVER_LOG_LEVEL=$(DEVDRIVER_LOG_LEVEL)
+ifneq ($(DD_OPT_LOG_LEVEL),)
+    LCXXDEFS += -DDD_OPT_LOG_LEVEL=$(DD_OPT_LOG_LEVEL)
 endif
 
 LCXXINCS += -I$(DEVDRIVER_DEPTH)/inc                           \
             -I$(DEVDRIVER_DEPTH)/src                           \
             -I$(DEVDRIVER_DEPTH)/third_party/rapidjson/include \
-            -I$(DEVDRIVER_DEPTH)/third_party/mpack
+            -I$(DEVDRIVER_DEPTH)/third_party/mpack             \
+            -I$(DEVDRIVER_DEPTH)/third_party/tiny_printf
 
 ## ddCore
 vpath %.cpp $(DEVDRIVER_DEPTH)/core/src
@@ -120,8 +128,10 @@ ifeq ($(PLATFORM_FLAVOR), win)
                 ddWinUmIoCtlDevice.cpp     \
                 ddDevModeQueue.cpp
 
-    ifneq ($(GPUOPEN_UWP_SUPPORT),)
+    ifneq ($(DD_ENABLE_UWP_TRANSPORT),)
+        # WA: Support both of these flags until we fully remove GPUOPEN_UWP_SUPPORT
         LCXXDEFS += -DGPUOPEN_UWP_SUPPORT=1
+        LCXXDEFS += -DDD_ENABLE_UWP_TRANSPORT=1
         LCXXINCS += -I$(DEVDRIVER_DEPTH)/message/inc
 
         ifeq ($(GPUOPEN_USE_MESSAGE_LIB),)
@@ -163,4 +173,10 @@ endif
 ifndef MPACK_DEPTH
     MPACK_DEPTH = $(DEVDRIVER_DEPTH)/third_party/mpack
     include $(MPACK_DEPTH)/Makefile.mpack
+endif
+
+# Build a local copy of tiny_printf if it hasn't already been built
+ifndef TINY_PRINTF_DEPTH
+    TINY_PRINTF_DEPTH = $(DEVDRIVER_DEPTH)/third_party/tiny_printf
+    include $(TINY_PRINTF_DEPTH)/Makefile.tiny_printf
 endif

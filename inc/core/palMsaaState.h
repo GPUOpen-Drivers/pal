@@ -96,9 +96,6 @@ struct MsaaStateCreateInfo
                                           ///  Valid values are 1, 2, 4, 8, and 16.
     uint32 occlusionQuerySamples;         ///< Controls the number of samples to use for occlusion  queries>
                                           ///  This value must never exceed the MSAA rate.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 523
-    bool   disableAlphaToCoverageDither;  ///< Disables coverage dithering.
-#endif
 
     ConservativeRasterizationMode conservativeRasterizationMode;
                                           ///< Selects overestimate or underestimate conservative
@@ -111,16 +108,8 @@ struct MsaaStateCreateInfo
         {
             uint32  enableConservativeRasterization :  1; ///< Set to true to enable conservative rasterization
             uint32  enable1xMsaaSampleLocations     :  1; ///< Set to true to enable 1xMSAA quad sample pattern
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 523
             uint32  disableAlphaToCoverageDither    :  1; ///< Disables coverage dithering.
-#else
-            uint32  reserved0                       :  1; ///< Reserved for future use.
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 525
             uint32  enableLineStipple               :  1; ///< Set to true to enable line stippling
-#else
-            uint32  reserved1                       :  1; ///< Reserved for future use.
-#endif
             uint32  reserved                        : 28; ///<  Reserved for future use
 
         };

@@ -71,7 +71,9 @@ struct HardwareStageMetadata
     uint32             sgprLimit;
     uint32             threadgroupDimensions[3];
     uint32             wavefrontSize;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 619
     uint32             maxPrimsPerWave;
+#endif
 
     union
     {
@@ -106,7 +108,11 @@ struct HardwareStageMetadata
             uint16 writesUavs            : 1;
             uint16 writesDepth           : 1;
             uint16 usesAppendConsume     : 1;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 619
             uint16 maxPrimsPerWave       : 1;
+#else
+            uint16 placeholder0          : 1;
+#endif
         };
         uint16 uAll;
     } hasEntry;
@@ -124,8 +130,10 @@ struct PipelineMetadata
     uint32                userDataLimit;
     uint32                spillThreshold;
     uint32                esGsLdsSize;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 619
     uint32                streamOutTableAddress;
     uint32                indirectUserDataTableAddresses[3];
+#endif
     uint32                nggSubgroupSize;
     uint32                numInterpolants;
     char                  api[16];
@@ -136,7 +144,11 @@ struct PipelineMetadata
         struct
         {
             uint8 usesViewportArrayIndex      : 1;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 619
             uint8 calcWaveBreakSizeAtDrawTime : 1;
+#else
+            uint8 placeholder0                : 1;
+#endif
             uint8 reserved                    : 6;
         };
         uint8 uAll;
@@ -155,15 +167,24 @@ struct PipelineMetadata
             uint32 spillThreshold                 : 1;
             uint32 usesViewportArrayIndex         : 1;
             uint32 esGsLdsSize                    : 1;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 619
             uint32 streamOutTableAddress          : 1;
             uint32 indirectUserDataTableAddresses : 1;
-            uint32 nggSubgroupSize                : 1;
-            uint32 numInterpolants                : 1;
+#else
             uint32 placeholder0                   : 1;
             uint32 placeholder1                   : 1;
+#endif
+            uint32 nggSubgroupSize                : 1;
+            uint32 numInterpolants                : 1;
             uint32 placeholder2                   : 1;
-            uint32 calcWaveBreakSizeAtDrawTime    : 1;
             uint32 placeholder3                   : 1;
+            uint32 placeholder4                   : 1;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 619
+            uint32 calcWaveBreakSizeAtDrawTime    : 1;
+#else
+            uint32 placeholder5                   : 1;
+#endif
+            uint32 placeholder6                   : 1;
             uint32 api                            : 1;
             uint32 apiCreateInfo                  : 1;
             uint32 reserved                       : 12;
@@ -207,11 +228,15 @@ namespace PipelineMetadataKey
     static constexpr char SpillThreshold[]                 = ".spill_threshold";
     static constexpr char UsesViewportArrayIndex[]         = ".uses_viewport_array_index";
     static constexpr char EsGsLdsSize[]                    = ".es_gs_lds_size";
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 619
     static constexpr char StreamOutTableAddress[]          = ".stream_out_table_address";
     static constexpr char IndirectUserDataTableAddresses[] = ".indirect_user_data_table_addresses";
+#endif
     static constexpr char NggSubgroupSize[]                = ".nggSubgroupSize";
     static constexpr char NumInterpolants[]                = ".num_interpolants";
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 619
     static constexpr char CalcWaveBreakSizeAtDrawTime[]    = ".calc_wave_break_size_at_draw_time";
+#endif
     static constexpr char Api[]                            = ".api";
     static constexpr char ApiCreateInfo[]                  = ".api_create_info";
 };
@@ -233,7 +258,9 @@ namespace HardwareStageMetadataKey
     static constexpr char WritesUavs[]            = ".writes_uavs";
     static constexpr char WritesDepth[]           = ".writes_depth";
     static constexpr char UsesAppendConsume[]     = ".uses_append_consume";
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 619
     static constexpr char MaxPrimsPerWave[]       = ".max_prims_per_wave";
+#endif
 };
 
 namespace ShaderMetadataKey

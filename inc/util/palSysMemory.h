@@ -412,7 +412,7 @@ public:
     { }
 
     /// Constructor specialization for a pointer to another IndirectAllocator, which acts like a copy constructor.
-    IndirectAllocator(IndirectAllocator*const pAllocator) : IndirectAllocator(*pAllocator) { }
+    IndirectAllocator(const IndirectAllocator*const pAllocator) : IndirectAllocator(*pAllocator) { }
 
     /// Allocates memory.
     ///

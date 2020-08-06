@@ -182,10 +182,6 @@ enum class InterfaceFunc : uint32
     CmdBufferDestroy,
     CmdBufferCopyImageToPackedPixelImage,
     CmdBufferCmdSetViewInstanceMask,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 509
-    CmdSetHiSCompareState0,
-    CmdSetHiSCompareState1,
-#endif
     CmdUpdateHiSPretests,
     CmdBufferCmdSetClipRects,
     CmdBufferCmdPostProcessFrame,

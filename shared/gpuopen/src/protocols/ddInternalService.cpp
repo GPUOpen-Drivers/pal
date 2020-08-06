@@ -36,8 +36,8 @@ DevDriver::Result InternalService::HandleRequest(DevDriver::IURIRequestContext* 
 {
     Result result = Result::Unavailable;
 
-    const char* const pArgDelim      = " ";
     // Safety note: Strtok handles nullptr by returning nullptr. We handle that below.
+    const char* const pArgDelim = " ";
     char* pStrtokContext = nullptr;
     char* pCmdName = Platform::Strtok(pRequestContext->GetRequestArguments(), pArgDelim, &pStrtokContext);
 

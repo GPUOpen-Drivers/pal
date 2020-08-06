@@ -954,14 +954,8 @@ Result CmdBuffer::Init()
         if (result == Result::Success)
         {
             result = Result::ErrorOutOfMemory;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 516
             createInfo.size               = sizeof(CmdBufferTimestampData);
             createInfo.alignment          = sizeof(uint64);
-#else
-            const Pal::gpusize allocGranularity = deviceProps.gpuMemoryProperties.virtualMemAllocGranularity;
-            createInfo.size               = Util::Pow2Align(sizeof(CmdBufferTimestampData), allocGranularity);
-            createInfo.alignment          = Util::Pow2Align(sizeof(uint64), allocGranularity);
-#endif
             createInfo.vaRange            = VaRange::Default;
             createInfo.priority           = GpuMemPriority::VeryLow;
             createInfo.heapCount          = 1;
@@ -1669,6 +1663,64 @@ void CmdBuffer::CmdSetMsaaQuadSamplePattern(
 }
 
 // =====================================================================================================================
+static void ViewportParamsToString(
+    CmdBuffer*            pCmdBuffer,
+    const ViewportParams& params)
+{
+    pCmdBuffer->GetNextLayer()->CmdCommentString("params = [");
+
+    LinearAllocatorAuto<VirtualLinearAllocator> allocator(pCmdBuffer->Allocator(), false);
+    char* pString = PAL_NEW_ARRAY(char, StringLength, &allocator, AllocInternalTemp);
+
+    Snprintf(pString, StringLength, " count = 0x%0X", params.count);
+    pCmdBuffer->GetNextLayer()->CmdCommentString(pString);
+
+    pCmdBuffer->GetNextLayer()->CmdCommentString(" viewports = {");
+    for (uint32 i = 0; i < params.count; i++)
+    {
+        Snprintf(pString, StringLength, " \tViewport[%d] = [", i);
+        pCmdBuffer->GetNextLayer()->CmdCommentString(pString);
+
+        const auto& viewport = params.viewports[i];
+        Snprintf(pString, StringLength, " \t\toriginX  = %f", viewport.originX);
+        pCmdBuffer->GetNextLayer()->CmdCommentString(pString);
+        Snprintf(pString, StringLength, " \t\toriginY  = %f", viewport.originY);
+        pCmdBuffer->GetNextLayer()->CmdCommentString(pString);
+        Snprintf(pString, StringLength, " \t\twidth    = %f", viewport.width);
+        pCmdBuffer->GetNextLayer()->CmdCommentString(pString);
+        Snprintf(pString, StringLength, " \t\theight   = %f", viewport.height);
+        pCmdBuffer->GetNextLayer()->CmdCommentString(pString);
+        Snprintf(pString, StringLength, " \t\tminDepth = %f", viewport.minDepth);
+        pCmdBuffer->GetNextLayer()->CmdCommentString(pString);
+        Snprintf(pString, StringLength, " \t\tmaxDepth = %f", viewport.maxDepth);
+        pCmdBuffer->GetNextLayer()->CmdCommentString(pString);
+        Snprintf(pString, StringLength, " \t\torigin  = %s",
+                 (viewport.origin == PointOrigin::UpperLeft) ? "UpperLeft" : "LowerLeft");
+        pCmdBuffer->GetNextLayer()->CmdCommentString(pString);
+
+        Snprintf(pString, StringLength, " \t] // Viewport[%d]", i);
+        pCmdBuffer->GetNextLayer()->CmdCommentString(pString);
+    }
+    pCmdBuffer->GetNextLayer()->CmdCommentString(" } // viewports");
+
+    Snprintf(pString, StringLength, " horzDiscardRatio = %f", params.horzDiscardRatio);
+    pCmdBuffer->GetNextLayer()->CmdCommentString(pString);
+    Snprintf(pString, StringLength, " vertDiscardRatio = %f", params.vertDiscardRatio);
+    pCmdBuffer->GetNextLayer()->CmdCommentString(pString);
+    Snprintf(pString, StringLength, " horzClipRatio    = %f", params.horzClipRatio);
+    pCmdBuffer->GetNextLayer()->CmdCommentString(pString);
+    Snprintf(pString, StringLength, " vertClipRatio    = %f", params.horzClipRatio);
+    pCmdBuffer->GetNextLayer()->CmdCommentString(pString);
+    Snprintf(pString, StringLength, " depthRange       = %s",
+             (params.depthRange == DepthRange::ZeroToOne) ? "ZeroToOne" : "NegativeOneToOne");
+    pCmdBuffer->GetNextLayer()->CmdCommentString(pString);
+
+    pCmdBuffer->GetNextLayer()->CmdCommentString("] // params");
+
+    PAL_SAFE_DELETE_ARRAY(pString, &allocator);
+}
+
+// =====================================================================================================================
 void CmdBuffer::CmdSetViewports(
     const ViewportParams& params)
 {
@@ -1676,7 +1728,7 @@ void CmdBuffer::CmdSetViewports(
     {
         GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdSetViewports));
 
-        // TODO: Add comment string.
+        ViewportParamsToString(this, params);
     }
 
     GetNextLayer()->CmdSetViewports(params);
@@ -2217,17 +2269,10 @@ void CmdBuffer::DescribeBarrier(
 
         GetNextLayer()->CmdCommentString("PipelineStalls = {");
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 504
         if (pData->operations.pipelineStalls.eopTsBottomOfPipe)
         {
             GetNextLayer()->CmdCommentString("\teopTsBottomOfPipe");
         }
-#else
-        if (pData->operations.pipelineStalls.waitOnEopTsBottomOfPipe)
-        {
-            GetNextLayer()->CmdCommentString("\twaitOnEopTsBottomOfPipe");
-        }
-#endif
 
         if (pData->operations.pipelineStalls.vsPartialFlush)
         {
@@ -2654,7 +2699,6 @@ static void CmdReleaseToString(
         "pGpuEvent = 0x%016" PRIXPTR, pGpuEvent);
     pNextCmdBuffer->CmdCommentString(pString);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 504
     const char* pReasonStr = BarrierReasonToString(barrierInfo.reason);
     if (pReasonStr != nullptr)
     {
@@ -2665,7 +2709,6 @@ static void CmdReleaseToString(
         Snprintf(pString, StringLength, "releaseInfo.reason = 0x%08X (client-defined reason)", barrierInfo.reason);
     }
     pCmdBuffer->GetNextLayer()->CmdCommentString(pString);
-#endif
 
     PAL_SAFE_DELETE_ARRAY(pString, &allocator);
 }
@@ -2718,7 +2761,6 @@ static void CmdAcquireToString(
         pNextCmdBuffer->CmdCommentString(pString);
     }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 504
     const char* pReasonStr = BarrierReasonToString(barrierInfo.reason);
     if (pReasonStr != nullptr)
     {
@@ -2729,7 +2771,6 @@ static void CmdAcquireToString(
         Snprintf(pString, StringLength, "acquireInfo.reason = 0x%08X (client-defined reason)", barrierInfo.reason);
     }
     pCmdBuffer->GetNextLayer()->CmdCommentString(pString);
-#endif
 
     PAL_SAFE_DELETE_ARRAY(pString, &allocator);
 }
@@ -2777,7 +2818,6 @@ static void CmdAcquireReleaseToString(
         ImageBarrierTransitionToString(pCmdBuffer, i, barrierInfo.pImageBarriers[i], pString);
     }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 504
     const char* pReasonStr = BarrierReasonToString(barrierInfo.reason);
     if (pReasonStr != nullptr)
     {
@@ -2788,7 +2828,6 @@ static void CmdAcquireReleaseToString(
         Snprintf(pString, StringLength, "barrierInfo.reason = 0x%08X (client-defined reason)", barrierInfo.reason);
     }
     pCmdBuffer->GetNextLayer()->CmdCommentString(pString);
-#endif
 
     PAL_SAFE_DELETE_ARRAY(pString, &allocator);
 }
@@ -4863,42 +4902,6 @@ void CmdBuffer::CmdEndWhile()
 
     GetNextLayer()->CmdEndWhile();
 }
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 509
-// =====================================================================================================================
-void CmdBuffer::CmdSetHiSCompareState0(
-    CompareFunc compFunc,
-    uint32      compMask,
-    uint32      compValue,
-    bool        enable)
-{
-    if (m_annotations.logMiscellaneous)
-    {
-        GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdSetHiSCompareState0));
-
-        // TODO: Add comment string.
-    }
-
-    GetNextLayer()->CmdSetHiSCompareState0(compFunc, compMask, compValue, enable);
-}
-
-// =====================================================================================================================
-void CmdBuffer::CmdSetHiSCompareState1(
-    CompareFunc compFunc,
-    uint32      compMask,
-    uint32      compValue,
-    bool        enable)
-{
-    if (m_annotations.logMiscellaneous)
-    {
-        GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdSetHiSCompareState1));
-
-        // TODO: Add comment string.
-    }
-
-    GetNextLayer()->CmdSetHiSCompareState1(compFunc, compMask, compValue, enable);
-}
-#endif
 
 // =====================================================================================================================
 static void CmdUpdateHiSPretestsToString(

@@ -110,9 +110,6 @@ CmdBuffer::CmdBuffer(
     :
     m_createInfo(createInfo),
     m_engineType(createInfo.engineType),
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 530
-    m_engineSubType(createInfo.engineSubType),
-#endif
     m_pCmdAllocator(static_cast<CmdAllocator*>(createInfo.pCmdAllocator)),
     m_pMemAllocator(nullptr),
     m_pMemAllocatorStartPos(nullptr),
@@ -313,7 +310,6 @@ Result CmdBuffer::Begin(
 #endif
             }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 533
             if (SupportsExecutionMarker() && (m_buildFlags.enableExecutionMarkerSupport == 1))
             {
                 BeginExecutionMarker(info.execMarkerClientHandle);
@@ -322,7 +318,6 @@ Result CmdBuffer::Begin(
             {
                 m_buildFlags.enableExecutionMarkerSupport = 0;
             }
-#endif
         }
     }
 
@@ -365,12 +360,10 @@ Result CmdBuffer::End()
     }
     else if (m_recordState == CmdBufferRecordState::Building)
     {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 533
         if (m_buildFlags.enableExecutionMarkerSupport == 1)
         {
             EndExecutionMarker();
         }
-#endif
         result = AddPostamble();
 
         // Update the last paging fence to reflect that of the command allocator and of all nested command buffers

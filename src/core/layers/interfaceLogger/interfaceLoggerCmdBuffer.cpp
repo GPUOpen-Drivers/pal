@@ -2454,68 +2454,6 @@ void CmdBuffer::CmdWaitBusAddressableMemoryMarker(
     }
 }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 509
-// =====================================================================================================================
-void CmdBuffer::CmdSetHiSCompareState0(
-    CompareFunc compFunc,
-    uint32      compMask,
-    uint32      compValue,
-    bool        enable)
-{
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId = InterfaceFunc::CmdSetHiSCompareState0;
-    funcInfo.objectId = m_objectId;
-    funcInfo.preCallTime = m_pPlatform->GetTime();
-    m_pNextLayer->CmdSetHiSCompareState0(compFunc, compMask, compValue, enable);
-    funcInfo.postCallTime = m_pPlatform->GetTime();
-
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
-    {
-        pLogContext->BeginInput();
-        pLogContext->KeyAndEnum("compFunc", compFunc);
-        pLogContext->KeyAndValue("compMask", compMask);
-        pLogContext->KeyAndValue("compValue", compValue);
-        pLogContext->KeyAndValue("enable", enable);
-
-        pLogContext->EndInput();
-
-        m_pPlatform->LogEndFunc(pLogContext);
-    }
-
-}
-
-// =====================================================================================================================
-void CmdBuffer::CmdSetHiSCompareState1(
-    CompareFunc compFunc,
-    uint32      compMask,
-    uint32      compValue,
-    bool        enable)
-{
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId = InterfaceFunc::CmdSetHiSCompareState1;
-    funcInfo.objectId = m_objectId;
-    funcInfo.preCallTime = m_pPlatform->GetTime();
-    m_pNextLayer->CmdSetHiSCompareState1(compFunc, compMask, compValue, enable);
-    funcInfo.postCallTime = m_pPlatform->GetTime();
-
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
-    {
-        pLogContext->BeginInput();
-        pLogContext->KeyAndEnum("compFunc", compFunc);
-        pLogContext->KeyAndValue("compMask", compMask);
-        pLogContext->KeyAndValue("compValue", compValue);
-        pLogContext->KeyAndValue("enable", enable);
-
-        pLogContext->EndInput();
-
-        m_pPlatform->LogEndFunc(pLogContext);
-    }
-
-}
-#endif
-
 // =====================================================================================================================
 void CmdBuffer::CmdUpdateHiSPretests(
     const IImage*      pImage,

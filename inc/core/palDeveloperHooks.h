@@ -119,13 +119,8 @@ struct BarrierOperations
     {
         struct
         {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 504
-            uint16 waitOnEopTsBottomOfPipe        : 1;  ///< This barrier is a wait on end-of-pipe timestamp waiting on
-                                                        ///  the bottom of pipe.
-#else
             uint16 eopTsBottomOfPipe              : 1;  ///< Issue an end-of-pipe event that can be waited on.
                                                         ///  When combined with waitOnTs, makes a full pipeline stall.
-#endif
             uint16 vsPartialFlush                 : 1;  ///< Stall at ME, waiting for all prior VS waves to complete.
             uint16 psPartialFlush                 : 1;  ///< Stall at ME, waiting for all prior PS waves to complete.
             uint16 csPartialFlush                 : 1;  ///< Stall at ME, waiting for all prior CS waves to complete.

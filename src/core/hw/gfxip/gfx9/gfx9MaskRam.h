@@ -172,7 +172,8 @@ public:
         AddrSwizzleMode    swizzleMode);
 
     const ADDR2_META_MIP_INFO&  GetAddrMipInfo(uint32  mipLevel) const { return m_addrMipOutput[mipLevel]; }
-    uint32  GetFirstBit() const { return m_firstUploadBit; }
+    uint32 GetFirstBit() const { return m_firstUploadBit; }
+    uint32 CapPipe() const;
 
     // Returns the number of samples that actually matter when it comes to processing the meta equation associated
     // with this mask ram.  This can be different than the number of samples associated with the image this mask-ram
@@ -239,7 +240,6 @@ private:
     void   CalcMetaEquationGfx10();
     void   CalcDataOffsetEquation(MetaDataAddrEquation* pDataOffset);
     void   CalcPipeEquation(MetaDataAddrEquation* pPipe, MetaDataAddrEquation* pDataOffset, uint32  numPipesLog2);
-    uint32 CapPipe() const;
     void   CalcRbEquation(MetaDataAddrEquation* pRb, uint32  numSesLog2, uint32  numRbsPerSeLog2);
     void   MergePipeAndRbEq(MetaDataAddrEquation* pRb, MetaDataAddrEquation* pPipe);
     uint32 RemoveSmallRbBits(MetaDataAddrEquation* pRb);

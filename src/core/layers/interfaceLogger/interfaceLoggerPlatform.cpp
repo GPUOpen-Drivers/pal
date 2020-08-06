@@ -166,10 +166,6 @@ static constexpr FuncLoggingTableEntry FuncLoggingTable[] =
     { InterfaceFunc::CmdBufferDestroy,                              (CrtDstry | CmdBuild) },
     { InterfaceFunc::CmdBufferCopyImageToPackedPixelImage,          (CmdBuild)            },
     { InterfaceFunc::CmdBufferCmdSetViewInstanceMask,               (CmdBuild)            },
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 509
-    { InterfaceFunc::CmdSetHiSCompareState0,                        (CmdBuild)            },
-    { InterfaceFunc::CmdSetHiSCompareState1,                        (CmdBuild)            },
-#endif
     { InterfaceFunc::CmdUpdateHiSPretests,                          (CmdBuild)            },
     { InterfaceFunc::CmdBufferCmdSetClipRects,                      (CmdBuild)            },
     { InterfaceFunc::CmdBufferCmdPostProcessFrame,                  (CmdBuild)            },

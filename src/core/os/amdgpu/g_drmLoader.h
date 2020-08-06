@@ -612,6 +612,9 @@ typedef drmModeObjectPropertiesPtr (*DrmModeObjectGetProperties)(
             uint32    object_id,
             uint32    object_type);
 
+typedef void (*DrmModeFreeObjectProperties)(
+            drmModeObjectPropertiesPtr    props);
+
 typedef drmModePropertyBlobPtr (*DrmModeGetPropertyBlob)(
             int       fd,
             uint32    blob_id);
@@ -1319,6 +1322,12 @@ struct DrmLoaderFuncs
     bool pfnDrmModeObjectGetPropertiesisValid() const
     {
         return (pfnDrmModeObjectGetProperties != nullptr);
+    }
+
+    DrmModeFreeObjectProperties       pfnDrmModeFreeObjectProperties;
+    bool pfnDrmModeFreeObjectPropertiesisValid() const
+    {
+        return (pfnDrmModeFreeObjectProperties != nullptr);
     }
 
     DrmModeGetPropertyBlob            pfnDrmModeGetPropertyBlob;
@@ -2504,6 +2513,14 @@ public:
     bool pfnDrmModeObjectGetPropertiesisValid() const
     {
         return (m_pFuncs->pfnDrmModeObjectGetProperties != nullptr);
+    }
+
+    void pfnDrmModeFreeObjectProperties(
+            drmModeObjectPropertiesPtr    props) const;
+
+    bool pfnDrmModeFreeObjectPropertiesisValid() const
+    {
+        return (m_pFuncs->pfnDrmModeFreeObjectProperties != nullptr);
     }
 
     drmModePropertyBlobPtr pfnDrmModeGetPropertyBlob(

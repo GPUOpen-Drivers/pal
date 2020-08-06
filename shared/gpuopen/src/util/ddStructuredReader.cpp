@@ -105,7 +105,10 @@ namespace DevDriver
         // The input size of the Json is a reasonable estimate.
         Result Init(size_t sizeEstimate)
         {
+            // Small size estimates can hit weird corner cases
+            sizeEstimate = Platform::Max(static_cast<size_t>(16u), sizeEstimate);
             m_buffer.Resize(sizeEstimate);
+
             // TODO: mpack may have a mechanism to resize its internal buffer, but will take time to research and hook up.
             //       Until then, we over allocate a buffer upfront and shrink it later.
             mpack_writer_init(&m_writer, m_buffer.Data(), m_buffer.Size());
@@ -297,8 +300,8 @@ namespace DevDriver
                     DD_WARN(info.type == PatchInfo::Type::Object);
                     valid &= (info.type == PatchInfo::Type::Object);
 
-                    DD_WARN(info.offset + info.size < mpack_writer_buffer_used(&m_writer));
-                    valid &= (info.offset + info.size < mpack_writer_buffer_used(&m_writer));
+                    DD_WARN(info.offset + info.size <= mpack_writer_buffer_used(&m_writer));
+                    valid &= (info.offset + info.size <= mpack_writer_buffer_used(&m_writer));
 
                     if (valid)
                     {
@@ -788,15 +791,15 @@ namespace DevDriver
     }
 
     Result IStructuredReader::CreateFromJson(
-        const char*         pJsonText,
-        size_t              textSize,
+        const void*         pBytes,
+        size_t              numBytes,
         const AllocCb&      allocCb,
         IStructuredReader** ppReader
     )
     {
         Result result = Result::InvalidParameter;
 
-        if ((pJsonText != nullptr) && (textSize > 0) && (ppReader != nullptr))
+        if ((pBytes != nullptr) && (numBytes > 0) && (ppReader != nullptr))
         {
             result = Result::Success;
         }
@@ -826,13 +829,14 @@ namespace DevDriver
                 //      2. The second pass then writes out all of the data, after allocating it exactly.
                 //
                 // For now just double the size and know that it'll be "good enough".
-                const size_t messagepackSizeEstimate = 2 * textSize;
+                const size_t messagepackSizeEstimate = 2 * numBytes;
                 result = handler.Init(messagepackSizeEstimate);
             }
 
             if (result == Result::Success)
             {
-                rapidjson::StringStream stream(pJsonText);
+                rapidjson::MemoryStream memoryStream(reinterpret_cast<const char*>(pBytes), numBytes);
+                rapidjson::EncodedInputStream<rapidjson::UTF8<char>, rapidjson::MemoryStream> stream(memoryStream);
 
                 rapidjson::Reader reader(nullptr, 0);
                 rapidjson::ParseResult parseResult = reader.Parse(stream, handler);
@@ -845,7 +849,7 @@ namespace DevDriver
                     // This is potentially quite expensive, so guard it behind an error level check
                     if (DD_WILL_PRINT(LogLevel::Error))
                     {
-                        PrintDetailedJsonParseError(parseResult, pJsonText, textSize, allocCb);
+                        PrintDetailedJsonParseError(parseResult, reinterpret_cast<const char*>(pBytes), numBytes, allocCb);
                     }
                 }
                 else
@@ -870,7 +874,7 @@ namespace DevDriver
         {
             DD_PRINT(LogLevel::Verbose,
                      "[IStructuredReader::CreateFromJson] Parsed %zu bytes of Json into %zu bytes of MessagePack",
-                     textSize,
+                     numBytes,
                      msgpackBuffer.Size());
             pReader = DD_NEW(MessagePackReader, allocCb)(allocCb);
             result = (pReader != nullptr) ? Result::Success : Result::InsufficientMemory;

@@ -28,6 +28,7 @@
 #include "core/hw/gfxip/universalCmdBuffer.h"
 #include "core/hw/gfxip/gfx9/gfx9Chip.h"
 #include "core/hw/gfxip/gfx9/gfx9CmdStream.h"
+#include "core/hw/gfxip/gfx9/gfx9ComputeCmdBuffer.h"
 #include "core/hw/gfxip/gfx9/gfx9WorkaroundState.h"
 #include "core/hw/gfxip/gfx9/g_gfx9PalSettings.h"
 #include "palIntervalTree.h"
@@ -478,20 +479,6 @@ public:
         uint32            mask,
         CompareFunc       compareFunc) override;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 509
-    virtual void CmdSetHiSCompareState0(
-        CompareFunc compFunc,
-        uint32      compMask,
-        uint32      compValue,
-        bool        enable) override;
-
-    virtual void CmdSetHiSCompareState1(
-        CompareFunc compFunc,
-        uint32      compMask,
-        uint32      compValue,
-        bool        enable) override;
-#endif
-
     virtual void CmdUpdateHiSPretests(
         const IImage*      pImage,
         const HiSPretests& pretests,
@@ -572,7 +559,7 @@ public:
     void SetWaMiscPopsMissedOverlapHasBeenApplied() { m_hasWaMiscPopsMissedOverlapBeenApplied = true; }
 
 protected:
-    virtual ~UniversalCmdBuffer() {}
+    virtual ~UniversalCmdBuffer();
 
     virtual Result AddPreamble() override;
     virtual Result AddPostamble() override;
@@ -767,12 +754,12 @@ private:
     void SetUserDataValidationFunctions(bool tessEnabled, bool gsEnabled, bool isNgg);
 
     template <bool UseCpuPathForUserDataTables>
-    uint32* ValidateDispatch(
-        gpusize indirectGpuVirtAddr,
-        uint32  xDim,
-        uint32  yDim,
-        uint32  zDim,
-        uint32* pDeCmdSpace);
+    void ValidateDispatch(
+        CmdStream* pCmdStream,
+        gpusize    indirectGpuVirtAddr,
+        uint32     xDim,
+        uint32     yDim,
+        uint32     zDim);
 
     uint32* SwitchGraphicsPipeline(
         const GraphicsPipelineSignature* pPrevSignature,
@@ -879,27 +866,33 @@ private:
 
     void SwitchDrawFunctions(
         bool hasUavExport,
-        bool viewInstancingEnable);
+        bool viewInstancingEnable
+    );
 
     template <bool IssueSqtt,
               bool DescribeDrawDispatch>
     void SwitchDrawFunctionsInternal(
         bool hasUavExport,
-        bool viewInstancingEnable);
+        bool viewInstancingEnable
+    );
 
     template <bool ViewInstancing,
               bool IssueSqtt,
               bool DescribeDrawDispatch>
     void SwitchDrawFunctionsInternal(
-        bool hasUavExport);
+        bool hasUavExport
+    );
 
     template <bool ViewInstancing,
               bool HasUavExport,
               bool IssueSqtt,
               bool DescribeDrawDispatch>
-    void SwitchDrawFunctionsInternal();
+    void SwitchDrawFunctionsInternal(
+    );
 
     BinningMode GetDisableBinningSetting(Extent2d* pBinSize) const;
+
+    CmdStream* GetAceCmdStream();
 
     const Device&   m_device;
     const CmdUtil&  m_cmdUtil;

@@ -1052,10 +1052,6 @@ Result Device::EarlyInit(
         {
         case EngineTypeUniversal:
         case EngineTypeCompute:
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 530
-        case EngineTypeExclusiveCompute:
-        case EngineTypeHighPriorityUniversal:
-#endif
         case EngineTypeDma:
             m_engineProperties.perEngine[i].flags.supportsTrackBusyChunks = 1;
             break;

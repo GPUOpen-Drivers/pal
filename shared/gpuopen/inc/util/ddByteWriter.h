@@ -128,18 +128,7 @@ namespace DevDriver
             else if ((pInBytes != nullptr))
             {
                 const uint8* pInBuffer = static_cast<const uint8*>(pInBytes);
-                // TODO: If Resize returned whether the allocation succeeded, we could replace the following
-                // for-loop with a memcpy
-                outBuffer.Reserve(outBuffer.Size() + numBytes);
-
-                for (uint32 i = 0; i < numBytes; i += 1)
-                {
-                    if (!outBuffer.PushBack(pInBuffer[i]))
-                    {
-                        result = Result::InsufficientMemory;
-                        break;
-                    }
-                }
+                result = outBuffer.Append(pInBuffer, numBytes) ? Result::Success : Result::InsufficientMemory;
             }
             else
             {

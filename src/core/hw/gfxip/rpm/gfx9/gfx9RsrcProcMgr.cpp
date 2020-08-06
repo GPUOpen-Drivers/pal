@@ -353,7 +353,11 @@ void RsrcProcMgr::CmdCloneImageData(
 
     // Copy all of the source image (including metadata) to the destination image.
     Pal::MemoryCopyRegion copyRegion = {};
-    copyRegion.copySize = dstParent.GetGpuMemSize();
+
+    copyRegion.srcOffset = srcParent.GetBoundGpuMemory().Offset();
+    copyRegion.dstOffset = dstParent.GetBoundGpuMemory().Offset();
+    copyRegion.copySize  = dstParent.GetGpuMemSize();
+
     pCmdBuffer->CmdCopyMemory(*srcParent.GetBoundGpuMemory().Memory(),
                               *dstParent.GetBoundGpuMemory().Memory(),
                               1,
@@ -2459,9 +2463,7 @@ void RsrcProcMgr::DepthStencilClearGraphics(
     viewportInfo.horzDiscardRatio      = 1.0f;
     viewportInfo.vertClipRatio         = FLT_MAX;
     viewportInfo.vertDiscardRatio      = 1.0f;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 524
     viewportInfo.depthRange            = DepthRange::ZeroToOne;
-#endif
 
     ScissorRectParams scissorInfo      = { };
     scissorInfo.count                  = 1;
@@ -6085,7 +6087,6 @@ const Pal::ComputePipeline* Gfx10RsrcProcMgr::GetCmdGenerationPipeline(
 
         pipeline = RpmComputePipeline::Gfx10GenerateCmdDispatch;
         break;
-
     default:
         PAL_ASSERT_ALWAYS();
         break;
@@ -6504,73 +6505,75 @@ uint32 Gfx10RsrcProcMgr::HwlBeginGraphicsCopy(
     const GpuMemory*     pGpuMem      = dstImage.GetBoundGpuMemory().Memory();
     const auto&          palDevice    = *(m_pDevice->Parent());
     const auto&          coreSettings = palDevice.Settings();
-    const auto&          settings     = m_pDevice->Settings();
     uint32               modifiedMask = 0;
 
     if (pGpuMem != nullptr)
     {
-        const GpuHeap firstHeap = pGpuMem->Heap(0);
+        const GpuHeap firstHeap  = pGpuMem->Heap(0);
+        const bool    isNonLocal = ((firstHeap == GpuHeapGartUswc) || (firstHeap == GpuHeapGartCacheable))
+                                   || pGpuMem->IsPeer();
 
-        if ((((firstHeap == GpuHeapGartUswc)       ||
-              (firstHeap == GpuHeapGartCacheable)) ||
-              pGpuMem->IsPeer())                   &&
-            (coreSettings.nonlocalDestGraphicsCopyRbs >= 0))
+        if (isNonLocal)
         {
-            regPA_SC_TILE_STEERING_OVERRIDE  defaultPaRegVal = {};
-            const auto&                      chipProps = m_pDevice->Parent()->ChipProperties().gfx9;
-
-            defaultPaRegVal.u32All  = chipProps.paScTileSteeringOverride;
-            const uint32 maxRbPerSc = (1 << defaultPaRegVal.gfx10Plus.NUM_RB_PER_SC);
-
-            // A setting of zero RBs implies that the driver should use the optimal number.  For now, assume the
-            // optimal number is one.  Also don't allow more RBs than actively exist.
-            const uint32 numNeededTotalRbs = Min(Max(1u,
-                                                     static_cast<uint32>(coreSettings.nonlocalDestGraphicsCopyRbs)),
-                                                 chipProps.numActiveRbs);
-
-            // We now have the total number of RBs that we need...  However, the ASIC divides RBs up between the
-            // various SEs, so calculate how many SEs we need to involve and how many RBs each SE should use.
-            const uint32  numNeededScs      = Max(1u, (numNeededTotalRbs / maxRbPerSc));
-            const uint32  numNeededRbsPerSc = numNeededTotalRbs / numNeededScs;
-
-            //   - SC typically supports the following:
-            //       - Non-RB+ chip
-            //           -- 1-2 (base 10) packers
-            //           -- Each packer has 2 (base 10) RBs
-            //       - RB+ chip
-            //           -- 1-2 (base 10) packers
-            //           -- Each packer has 1 (base 10) RB
-            //           -- Each packer again has 1 (base 10) RB
-            //
-            //   - For a non-RB+ chip, we can support 1 RB per packer.  A non-RB+ chip, always has
-            //     2 RBs per packer.   RB+, is restricted to 1 RB per packer
-
-            // Write the new register value to the command stream
-            regPA_SC_TILE_STEERING_OVERRIDE  paScTileSteeringOverride = {};
-
-            // LOG2 of the effective number of scan-converters desired. Must not be programmed to greater than the
-            // number of active SCs present in the chip
-            paScTileSteeringOverride.gfx10Plus.NUM_SC        = Log2(numNeededScs);
-
-            // LOG2 of the effective NUM_RB_PER_SC desired. Must not be programmed to greater than the number of
-            // active RBs per SC present in the chip.
-            paScTileSteeringOverride.gfx10Plus.NUM_RB_PER_SC = Log2(numNeededRbsPerSc);
-
-            // LOG2 of the effective NUM_PACKER_PER_SC desired. This is strictly for test purposes, otherwise
-            // noramlly would be set to match the number of physical packers active in the design configuration. Must
-            // not be programmed to greater than the number of active packers per SA (SC) present in the chip
-            // configuration. Must be 0x1 if NUM_RB_PER_SC = 0x2.
-            if (IsGfx101(palDevice))
+            if (IsGfx101(palDevice) && (coreSettings.nonlocalDestGraphicsCopyRbs >= 0))
             {
+                regPA_SC_TILE_STEERING_OVERRIDE  defaultPaRegVal = {};
+                const auto&                      chipProps = m_pDevice->Parent()->ChipProperties().gfx9;
+
+                defaultPaRegVal.u32All  = chipProps.paScTileSteeringOverride;
+                const uint32 maxRbPerSc = (1 << defaultPaRegVal.gfx10Plus.NUM_RB_PER_SC);
+
+                // A setting of zero RBs implies that the driver should use the optimal number.  For now, assume the
+                // optimal number is one.  Also don't allow more RBs than actively exist.
+                const uint32 numNeededTotalRbs =
+                    Min(Max(1u, static_cast<uint32>(coreSettings.nonlocalDestGraphicsCopyRbs)),
+                        chipProps.numActiveRbs);
+
+                // We now have the total number of RBs that we need...  However, the ASIC divides RBs up between the
+                // various SEs, so calculate how many SEs we need to involve and how many RBs each SE should use.
+                const uint32  numNeededScs      = Max(1u, (numNeededTotalRbs / maxRbPerSc));
+                const uint32  numNeededRbsPerSc = numNeededTotalRbs / numNeededScs;
+
+                //   - SC typically supports the following:
+                //       - Non-RB+ chip
+                //           -- 1-2 (base 10) packers
+                //           -- Each packer has 2 (base 10) RBs
+                //       - RB+ chip
+                //           -- 1-2 (base 10) packers
+                //           -- Each packer has 1 (base 10) RB
+                //           -- Each packer again has 1 (base 10) RB
+                //
+                //   - For a non-RB+ chip, we can support 1 RB per packer.  A non-RB+ chip, always has
+                //     2 RBs per packer.   RB+, is restricted to 1 RB per packer
+
+                // Write the new register value to the command stream
+                regPA_SC_TILE_STEERING_OVERRIDE  paScTileSteeringOverride = {};
+
+                // LOG2 of the effective number of scan-converters desired. Must not be programmed to greater than the
+                // number of active SCs present in the chip
+                paScTileSteeringOverride.gfx10Plus.NUM_SC        = Log2(numNeededScs);
+
+                // LOG2 of the effective NUM_RB_PER_SC desired. Must not be programmed to greater than the number of
+                // active RBs per SC present in the chip.
+                paScTileSteeringOverride.gfx10Plus.NUM_RB_PER_SC = Log2(numNeededRbsPerSc);
+
+                // LOG2 of the effective NUM_PACKER_PER_SC desired. This is strictly for test purposes, otherwise
+                // noramlly would be set to match the number of physical packers active in the design configuration.
+                // Must not be programmed to greater than the number of active packers per SA (SC) present in the chip
+                // configuration. Must be 0x1 if NUM_RB_PER_SC = 0x2.
                 paScTileSteeringOverride.gfx101.NUM_PACKER_PER_SC =
-                        Min(paScTileSteeringOverride.gfx10Plus.NUM_RB_PER_SC,
-                            defaultPaRegVal.gfx101.NUM_PACKER_PER_SC);
+                    Min(paScTileSteeringOverride.gfx10Plus.NUM_RB_PER_SC,
+                        defaultPaRegVal.gfx101.NUM_PACKER_PER_SC);
+
+                CommitBeginEndGfxCopy(pCmdStream, paScTileSteeringOverride.u32All);
+
+                // Let EndGraphcisCopy know that it has work to do
+                modifiedMask |= PaScTileSteeringOverrideMask;
             }
-
-            CommitBeginEndGfxCopy(pCmdStream, paScTileSteeringOverride.u32All);
-
-            // Let EndGraphcisCopy know that it has work to do
-            modifiedMask |= PaScTileSteeringOverrideMask;
+            else if (IsGfx101(palDevice) == false)
+            {
+                PAL_ALERT_ALWAYS_MSG("Non-local copies should prefer compute");
+            }
         }
     }
 

@@ -137,6 +137,7 @@ namespace DevDriver
         // ===== Value Writers =========================================================================================
 
         virtual void Value(const char* pValue) = 0;
+        virtual void Value(const char* pValue, size_t length) = 0;
 
         virtual void Value(uint64 value) = 0;
         virtual void Value(uint32 value) = 0;
@@ -186,14 +187,15 @@ namespace DevDriver
         void KeyAndBeginMap(const char* pKey)  { Key(pKey); BeginMap(); }
 
         // Write a key-value pair.
-        void KeyAndValue(const char* pKey, const char* pValue) { Key(pKey); Value(pValue); }
-        void KeyAndValue(const char* pKey, uint64      value)  { Key(pKey); Value(value); }
-        void KeyAndValue(const char* pKey, uint32      value)  { Key(pKey); Value(value); }
-        void KeyAndValue(const char* pKey, int64       value)  { Key(pKey); Value(value); }
-        void KeyAndValue(const char* pKey, int32       value)  { Key(pKey); Value(value); }
-        void KeyAndValue(const char* pKey, double      value)  { Key(pKey); Value(value); }
-        void KeyAndValue(const char* pKey, float       value)  { Key(pKey); Value(value); }
-        void KeyAndValue(const char* pKey, bool        value)  { Key(pKey); Value(value); }
+        void KeyAndValue(const char* pKey, const char* pValue)                { Key(pKey); Value(pValue); }
+        void KeyAndValue(const char* pKey, const char* pValue, size_t length) { Key(pKey); Value(pValue, length); }
+        void KeyAndValue(const char* pKey, uint64      value)                 { Key(pKey); Value(value); }
+        void KeyAndValue(const char* pKey, uint32      value)                 { Key(pKey); Value(value); }
+        void KeyAndValue(const char* pKey, int64       value)                 { Key(pKey); Value(value); }
+        void KeyAndValue(const char* pKey, int32       value)                 { Key(pKey); Value(value); }
+        void KeyAndValue(const char* pKey, double      value)                 { Key(pKey); Value(value); }
+        void KeyAndValue(const char* pKey, float       value)                 { Key(pKey); Value(value); }
+        void KeyAndValue(const char* pKey, bool        value)                 { Key(pKey); Value(value); }
 
         template <typename Enum>
         void KeyAndValueEnumOrHex(const char* pKey, Enum value) { Key(pKey); ValueEnumOrHex(value); }

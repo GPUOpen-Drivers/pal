@@ -372,9 +372,7 @@ enum class ExportHandleType : uint32
 /// Specifies parameters for export a GPUMemory NT handle from its name.
 struct GpuMemoryExportInfo
 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 541
     ExportHandleType            exportType;         ///< Type of handle to use for exporting the memory.
-#endif
 };
 
 /**

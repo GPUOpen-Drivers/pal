@@ -51,7 +51,7 @@ constexpr uint8  ElfAbiVersion   = 0;  ///< ELFABIVERSION_AMDGPU_PAL
 constexpr uint32 MetadataNoteType = 32; ///< NT_AMDGPU_METADATA
 
 constexpr uint32 PipelineMetadataMajorVersion = 2;  ///< Pipeline Metadata Major Version
-constexpr uint32 PipelineMetadataMinorVersion = 4;  ///< Pipeline Metadata Minor Version
+constexpr uint32 PipelineMetadataMinorVersion = 5;  ///< Pipeline Metadata Minor Version
 
 constexpr uint32 PipelineMetadataBase = 0x10000000; ///< Deprecated - Pipeline Metadata base value to be OR'd with the
                                                     ///  PipelineMetadataEntry value when saving to ELF.
@@ -182,6 +182,7 @@ static const char* PipelineAbiSymbolNameStrings[] =
     "_amdgpu_ps_amdil",
 };
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 619
 /// Deprecated - String table of the Pipeline Metadata key names.
 static const char* const PipelineMetadataNameStrings[] =
 {
@@ -336,6 +337,7 @@ enum class PipelineAbiNoteType : uint32
     AbiMinorVersion = 8,  ///< ABI minor version.
     LegacyMetadata  = 12, ///< Contains metadata needed by the PAL runtime to execute the pipeline.
 };
+#endif
 
 /// Pipeline category.
 enum PipelineType : uint32
@@ -516,6 +518,8 @@ PAL_INLINE PipelineSymbolType GetSymbolTypeFromName(const char* pName)
 
     return type;
 }
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 619
 /// Deprecated - Legacy pipeline metadata types.
 enum class PipelineMetadataType : uint32
 {
@@ -726,6 +730,7 @@ PAL_INLINE PipelineMetadataType GetMetadataHashForApiShader(
         (static_cast<uint32>(PipelineMetadataType::ApiCsHashDword0) + dwordSelected) +
         (static_cast<uint32>(shader) << 2));
 }
+#endif
 
 /// User data entries can map to physical user data registers.  UserDataMapping describes the
 /// content of the registers.
@@ -859,6 +864,7 @@ union AmdGpuElfFlags
 
 static_assert(sizeof(AmdGpuMachineType) == 1, "AmdGpuMachineType enum underlying type is larger than expected.");
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 619
 /// Deprecated - The structure of a NT_AMDGPU_HSA_ISA note.
 #pragma pack (push, 1)
 struct AbiAmdGpuVersionNote
@@ -905,6 +911,7 @@ struct PipelineMetadataEntry
 /// The value specifies how the GFX hardware register at the corresponding byte offset should be
 /// programmed by the PAL runtime when executing the pipeline.
 typedef PalMetadataNoteEntry RegisterEntry;
+#endif
 
 /// Maximum number of viewports.
 constexpr uint32 MaxViewports = 16;

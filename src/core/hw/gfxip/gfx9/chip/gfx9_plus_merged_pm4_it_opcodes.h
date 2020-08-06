@@ -165,7 +165,7 @@ typedef enum IT_OpCodeType {
     IT_LOAD_UCONFIG_REG_INDEX__NV10                    = 0x00000064,
     IT_DISPATCH_TASK_STATE_INIT__NV10                  = 0x000000a9,
     IT_DISPATCH_TASKMESH_DIRECT_ACE__NV10              = 0x000000aa,
-    IT_DISPATCH_TASKMESH_INDIRECT_MULTI_ACE__NV10      = 0x000000ab,
+    IT_DISPATCH_TASKMESH_INDIRECT_MULTI_ACE__NV10      = 0x000000ad,
 } IT_OpCodeType;
 
 constexpr unsigned int PM4_TYPE_0                                         = 0;

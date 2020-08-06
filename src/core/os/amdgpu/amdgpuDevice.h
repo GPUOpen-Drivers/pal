@@ -363,42 +363,6 @@ public:
        return Result::ErrorUnavailable;
     }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 537
-    virtual bool DidDelagSettingsChange() override
-    {
-       PAL_NOT_IMPLEMENTED();
-       return false;
-    }
-
-    virtual bool DidTurboSyncSettingsChange() override
-    {
-       PAL_NOT_IMPLEMENTED();
-       return false;
-    }
-
-    virtual Result DidChillSettingsChange(
-        bool* pChangeDetected) override
-    {
-       PAL_NOT_IMPLEMENTED();
-       if (pChangeDetected != nullptr)
-       {
-           *pChangeDetected = false;
-       }
-       return Result::ErrorUnavailable;
-    }
-
-    virtual Result GetChillGlobalEnable(
-        bool* pGlobalEnable) override
-    {
-       PAL_NOT_IMPLEMENTED();
-       if (pGlobalEnable != nullptr)
-       {
-           *pGlobalEnable = false;
-       }
-       return Result::ErrorUnavailable;
-    }
-#endif
-
     virtual Result UpdateChillStatus(
         uint64 lastChillActiveTimeStampUs) override
     {

@@ -43,7 +43,7 @@
 ///            compatible, it is not assumed that the client will initialize all input structs to 0.
 ///
 /// @ingroup LibInit
-#define PAL_INTERFACE_MAJOR_VERSION 616
+#define PAL_INTERFACE_MAJOR_VERSION 619
 
 /// Minor interface version.  Note that the interface version is distinct from the PAL version itself, which is returned
 /// in @ref Pal::PlatformProperties.
@@ -53,13 +53,13 @@
 /// of the existing enum values will change.  This number will be reset to 0 when the major version is incremented.
 ///
 /// @ingroup LibInit
-#define PAL_INTERFACE_MINOR_VERSION 0
+#define PAL_INTERFACE_MINOR_VERSION 1
 
 /// Minimum major interface version. This is the minimum interface version PAL supports in order to support backward
 /// compatibility. When it is equal to PAL_INTERFACE_MAJOR_VERSION, only the latest interface version is supported.
 ///
 /// @ingroup LibInit
-#define PAL_MINIMUM_INTERFACE_MAJOR_VERSION 500
+#define PAL_MINIMUM_INTERFACE_MAJOR_VERSION 551
 
 /// Minimum supported major interface version for gpuopen library. This is the minimum interface version of the gpuopen
 /// library that PAL is backwards compatible to.
@@ -170,13 +170,9 @@ struct PlatformCreateInfo
             uint32 disableInternalResidencyOpts   :  1; ///< Disables residency optimizations for internal GPU memory
                                                         ///  allocations.  Some clients may wish to have them turned
                                                         ///  off to save on system resources.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 535
             uint32 supportRgpTraces               :  1; ///< Indicates that the client supports RGP tracing. PAL will
                                                         ///  use this flag and the hardware support flag to setup the
                                                         ///  DevDriver RgpServer.
-#else
-            uint32 reserved0                      :  1; ///< Reserved for future use.
-#endif
 
             uint32 reserved                       : 25; ///< Reserved for future use.
         };

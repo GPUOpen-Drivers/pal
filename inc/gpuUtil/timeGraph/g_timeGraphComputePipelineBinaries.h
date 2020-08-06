@@ -38,6 +38,7 @@ struct PipelineBinary
     size_t size;
 };
 
+#if PAL_BUILD_GFX6
 // Time Graph compute shader binary
 constexpr Util::uint8 TimeGraph_Cs_D5543C67[] =
 {
@@ -149,7 +150,9 @@ constexpr Util::uint8 TimeGraph_Cs_D5543C67[] =
     0x00, 0xc0, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 };
+#endif
 
+#if PAL_BUILD_GFX6
 // Time Graph compute shader binary
 constexpr Util::uint8 TimeGraph_Cs_7A58A19B[] =
 {
@@ -261,7 +264,9 @@ constexpr Util::uint8 TimeGraph_Cs_7A58A19B[] =
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 };
+#endif
 
+#if PAL_BUILD_GFX6
 // Time Graph compute shader binary
 constexpr Util::uint8 TimeGraph_Cs_F5A9FB7F[] =
 {
@@ -373,7 +378,9 @@ constexpr Util::uint8 TimeGraph_Cs_F5A9FB7F[] =
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 };
+#endif
 
+#if PAL_BUILD_GFX6
 // Time Graph compute shader binary
 constexpr Util::uint8 TimeGraph_Cs_776C0A11[] =
 {
@@ -485,6 +492,7 @@ constexpr Util::uint8 TimeGraph_Cs_776C0A11[] =
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 };
+#endif
 
 // Time Graph compute shader binary
 constexpr Util::uint8 TimeGraph_Cs_3AFC84A4[] =
@@ -839,29 +847,37 @@ constexpr Util::uint8 TimeGraph_Cs_91ECA425[] =
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 };
 
+#if PAL_BUILD_GFX6
 // Table of compute pipeline binaries for Tahiti
 constexpr PipelineBinary timeGraphComputeBinaryTableTahiti[] =
 {
     {TimeGraph_Cs_D5543C67,  sizeof(TimeGraph_Cs_D5543C67)},
 };
+#endif
 
+#if PAL_BUILD_GFX6
 // Table of compute pipeline binaries for Spectre
 constexpr PipelineBinary timeGraphComputeBinaryTableSpectre[] =
 {
     {TimeGraph_Cs_7A58A19B,  sizeof(TimeGraph_Cs_7A58A19B)},
 };
+#endif
 
+#if PAL_BUILD_GFX6
 // Table of compute pipeline binaries for Carrizo
 constexpr PipelineBinary timeGraphComputeBinaryTableCarrizo[] =
 {
     {TimeGraph_Cs_F5A9FB7F,  sizeof(TimeGraph_Cs_F5A9FB7F)},
 };
+#endif
 
+#if PAL_BUILD_GFX6
 // Table of compute pipeline binaries for Iceland
 constexpr PipelineBinary timeGraphComputeBinaryTableIceland[] =
 {
     {TimeGraph_Cs_776C0A11,  sizeof(TimeGraph_Cs_776C0A11)},
 };
+#endif
 
 // Table of compute pipeline binaries for Vega10
 constexpr PipelineBinary timeGraphComputeBinaryTableVega10[] =

@@ -1498,32 +1498,6 @@ void CmdBuffer::CmdSetViewInstanceMask(
     PostCall(CmdBufCallId::CmdSetViewInstanceMask);
 }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 509
-// =====================================================================================================================
-void CmdBuffer::CmdSetHiSCompareState0(
-    CompareFunc compFunc,
-    uint32      compMask,
-    uint32      compValue,
-    bool        enable)
-{
-    PreCall();
-    CmdBufferFwdDecorator::CmdSetHiSCompareState0(compFunc, compMask, compValue, enable);
-    PostCall(CmdBufCallId::CmdSetHiSCompareState0);
-}
-
-// =====================================================================================================================
-void CmdBuffer::CmdSetHiSCompareState1(
-    CompareFunc compFunc,
-    uint32      compMask,
-    uint32      compValue,
-    bool        enable)
-{
-    PreCall();
-    CmdBufferFwdDecorator::CmdSetHiSCompareState1(compFunc, compMask, compValue, enable);
-    PostCall(CmdBufCallId::CmdSetHiSCompareState1);
-}
-#endif
-
 // =====================================================================================================================
 void CmdBuffer::CmdUpdateHiSPretests(
     const IImage*      pImage,

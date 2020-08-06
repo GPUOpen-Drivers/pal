@@ -210,10 +210,9 @@ if(PAL_BUILD_CORE)
     target_include_directories(pal PRIVATE core/)
 
     if(PAL_BUILD_GPUOPEN)
-        target_sources(pal
-            PRIVATE
-                core/devDriverUtil.cpp
-                core/devDriverEventService.cpp
+        target_sources(pal PRIVATE
+            core/devDriverUtil.cpp
+            core/devDriverEventService.cpp
         )
     endif()
 
@@ -242,7 +241,6 @@ if(PAL_BUILD_CORE)
     )
 
     if(PAL_AMDGPU_BUILD)
-        message_verbose("PAL build with amdgpu back-end enabled")
         target_sources(pal PRIVATE
             core/os/amdgpu/amdgpuDevice.cpp
             core/os/amdgpu/amdgpuDmaUploadRing.cpp
@@ -264,7 +262,6 @@ if(PAL_BUILD_CORE)
         )
 
         if(PAL_BUILD_DRI3)
-            message_verbose("PAL build with DRI3 enabled")
             target_include_directories(pal PRIVATE ${PAL_SOURCE_DIR}/src/core/os/amdgpu/dri3)
             target_sources(pal PRIVATE
                core/os/amdgpu/dri3/dri3WindowSystem.cpp
@@ -273,7 +270,6 @@ if(PAL_BUILD_CORE)
         endif()
 
         if(PAL_BUILD_WAYLAND)
-            message_verbose("PAL build with Wayland enabled")
             find_package(Wayland)
             target_include_directories(pal PRIVATE ${PAL_SOURCE_DIR}/src/core/os/amdgpu/wayland)
             target_sources(pal PRIVATE

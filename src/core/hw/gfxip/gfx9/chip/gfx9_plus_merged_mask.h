@@ -7549,6 +7549,7 @@ namespace Gfx10Plus
     constexpr unsigned int VGT_DMA_INDEX_TYPE__MTYPE_MASK                     = 0x00003800L;
     constexpr unsigned int VGT_DMA_INDEX_TYPE__RDREQ_POLICY_MASK              = 0x000000c0L;
     constexpr unsigned int VGT_DRAW_PAYLOAD_CNTL__EN_DRAW_VP_MASK             = 0x00000010L;
+    constexpr unsigned int VGT_DRAW_PAYLOAD_CNTL__EN_PRIM_PAYLOAD_MASK        = 0x00000008L;
     constexpr unsigned int VGT_ESGS_RING_SIZE__MEM_SIZE_MASK                  = 0xffffffffL;
     constexpr unsigned int VGT_FIFO_DEPTHS__HSINPUT_FIFO_DEPTH_MASK           = 0x1f800000L;
     constexpr unsigned int VGT_FIFO_DEPTHS__RESERVED_1_MASK                   = 0x00400000L;

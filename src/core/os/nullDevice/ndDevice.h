@@ -282,32 +282,6 @@ public:
        return Result::Success;
     }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 537
-
-    virtual bool DidDelagSettingsChange()     override { return false; }
-    virtual bool DidTurboSyncSettingsChange() override { return false; }
-
-    virtual Result DidChillSettingsChange(
-        bool* pChangeDetected) override
-    {
-        if (pChangeDetected != nullptr)
-        {
-            *pChangeDetected = false;
-        }
-        return Result::Success;
-    }
-
-    virtual Result GetChillGlobalEnable(
-        bool* pGlobalEnable) override
-    {
-        if (pGlobalEnable != nullptr)
-        {
-            *pGlobalEnable = false;
-        }
-        return Result::Success;
-    }
-#endif
-
     virtual Result UpdateChillStatus(
         uint64 lastChillActiveTimeStampUs) override { return Result::Success; }
 

@@ -100,7 +100,6 @@ namespace DevDriver
         ServerCreateInfo m_createInfo;
 
         SettingsURIService::SettingsService* m_pSettingsService;
-        InfoURIService::InfoService* m_pInfoService;
 
         template <Protocol protocol, class ...Args>
         inline Result RegisterProtocol(Args... args);

@@ -629,24 +629,6 @@ namespace DevDriver
             return _stricmp(pSrc1, pSrc2);
         }
 
-        int32 Vsnprintf(char* pDst, size_t dstSize, const char* format, va_list args)
-        {
-            int32 ret = vsnprintf(pDst, dstSize, format, args);
-
-            // If the return value looks like a valid length, add one to account for a NULL byte.
-            if (ret >= 0)
-            {
-                ret += 1;
-            }
-            else
-            {
-                // A negative value means that some error occurred
-                // We don't print anything here because our logging requires Vsnprintf
-            }
-
-            return ret;
-        }
-
         Result QueryOsInfo(OsInfo* pInfo)
         {
             DD_ASSERT(pInfo != nullptr);

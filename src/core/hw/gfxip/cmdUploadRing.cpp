@@ -187,14 +187,8 @@ Result CmdUploadRing::Init(
         if (result == Result::Success)
         {
             GpuMemoryCreateInfo createInfo = {};
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 516
             createInfo.size      = RaftMemBytes;
             createInfo.alignment = m_addrAlignBytes;
-#else
-            const gpusize allocGranularity = m_pDevice->MemoryProperties().realMemAllocGranularity;
-            createInfo.size      = Pow2Align(RaftMemBytes,     allocGranularity);
-            createInfo.alignment = Pow2Align(m_addrAlignBytes, allocGranularity);
-#endif
             createInfo.vaRange   = VaRange::Default;
             createInfo.priority  = GpuMemPriority::High;
             createInfo.heapCount = 2;

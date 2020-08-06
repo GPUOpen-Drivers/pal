@@ -34,6 +34,7 @@
 #include <baseProtocolClient.h>
 #include <protocols/ddEventProtocol.h>
 #include <util/vector.h>
+#include <util/ddByteWriter.h>
 
 namespace DevDriver
 {
@@ -228,10 +229,8 @@ namespace EventProtocol
 
         EventDataCallbackInfo m_callback;
 
-        // Default to a max of 8 MB of in-flight event data for event data buffer
-        DD_STATIC_CONST size_t kEventDataBufferSize = (1024 * 1024 * 8);
-        uint8           m_eventDataBuffer[kEventDataBufferSize];
-        size_t          m_eventDataOffset;
+        Vector<uint8>   m_eventDataBuffer;
+        ByteWriter      m_eventDataWriter;
         size_t          m_eventDataPayloadOffset;
         EventDataState  m_eventDataState;
     };

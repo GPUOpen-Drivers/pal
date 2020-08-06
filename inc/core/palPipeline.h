@@ -56,16 +56,12 @@ enum class PrimitiveTopology : uint32;
 enum class ShaderType : uint32
 {
     Compute = 0,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 549
     Reserved0,      ///< @internal Reserved for future features.  Do not use!
-#endif
     Vertex,
     Hull,
     Domain,
     Geometry,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 549
     Reserved1,      ///< @internal Reserved for future features.  Do not use!
-#endif
     Pixel,
 
     Count
@@ -159,11 +155,7 @@ union PipelineCreateFlags
     struct
     {
         uint32 clientInternal     : 1;  ///< Internal pipeline not created by the application.
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 502)
-        uint32 preferNonLocalHeap : 1;  ///< Use Gart for the PSO memory.
-#else
         uint32 overrideGpuHeap    : 1;  ///< Override the default GPU heap (local invisible) the pipeline resides in.
-#endif
         uint32 reserved           : 30; ///< Reserved for future use.
     };
     uint32 u32All;                  ///< Flags packed as 32-bit uint.
@@ -224,11 +216,9 @@ struct ComputePipelineCreateInfo
                                                ///  interface. The Pipeline ELF contains pre-compiled shaders,
                                                ///  register values, and additional metadata.
     size_t              pipelineBinarySize;    ///< Size of Pipeline ELF binary in bytes.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 502
     GpuHeap             preferredHeapType;     ///< Upload this pipeline to this heap. This setting is ignored if
                                                ///  overrideGpuHeap flag is not set. The device will fallback to using
                                                ///  the local visible heap if the requested heap type is unsupported.
-#endif
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 556
     /// Optional.  Specifies a set of indirect functions for PAL to compute virtual addresses for during pipeline
@@ -254,11 +244,9 @@ struct GraphicsPipelineCreateInfo
                                                ///  interface. The Pipeline ELF contains pre-compiled shaders,
                                                ///  register values, and additional metadata.
     size_t              pipelineBinarySize;    ///< Size of Pipeline ELF binary in bytes.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 502
     GpuHeap             preferredHeapType;     ///< Upload this pipeline to this heap. This setting is ignored if
                                                ///  overrideGpuHeap flag is not set. The device will fallback to using
                                                ///  the local visible heap if the requested heap type is unsupported.
-#endif
     bool                useLateAllocVsLimit;   ///< If set, use the specified lateAllocVsLimit instead of PAL internally
                                                ///  determining the limit.
     uint32              lateAllocVsLimit;      ///< The number of VS waves that can be in flight without having param
@@ -301,13 +289,11 @@ struct GraphicsPipelineCreateInfo
         BinningOverride binningOverride;           ///< Binning setting for this pipeline.
 
         bool            depthClampDisable;         ///< Disable depth clamping to viewport min/max depth
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 524
         uint8           clipDistMask;              ///< Mask to indicate the clipDistance.
-#endif
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 598
         PsShadingRate   forcedShadingRate;         ///< Forced PS shading rate
-#elif PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 524
+#else
         bool            forceSampleRateShading;    ///< Force per sample shading
 #endif
     } rsState;             ///< Rasterizer state.
@@ -327,10 +313,8 @@ struct GraphicsPipelineCreateInfo
                                                 ///  if no color target will be bound at this slot.
             uint8          channelWriteMask;    ///< Color target write mask.  Bit 0 controls the red channel, bit 1 is
                                                 ///  green, bit 2 is blue, and bit 3 is alpha.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 551
             bool           forceAlphaToOne;     ///< Treat alpha as one regardless of the shader output.  Ignored unless
                                                 ///  supportAlphaToOne is set in DeviceProperties.
-#endif
         } target[MaxColorTargets];              ///< Per-MRT color target info.
     } cbState;                                  ///< Color target state.
 

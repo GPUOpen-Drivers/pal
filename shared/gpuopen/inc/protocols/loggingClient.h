@@ -30,6 +30,9 @@
 #include "util/queue.h"
 #include "util/vector.h"
 
+#define DD_ENABLE_32 (DEVDRIVER_ARCHITECTURE_BITS == 32)
+#define DD_ENABLE_64 (DEVDRIVER_ARCHITECTURE_BITS == 64)
+
 namespace DevDriver
 {
     class IMsgChannel;
@@ -92,7 +95,7 @@ namespace DevDriver
                                          uint32                    retryInMs   = kDefaultRetryTimeoutInMs);
 
 #if !DD_VERSION_SUPPORTS(GPUOPEN_SIMPLER_LOGGING_VERSION)
-#if DD_BUILD_32
+#if DD_ENABLE_32
             // Add padding to make sure the SizedPayloadContainer starts at an 8 byte boundary.
             size_t _padding;
 #endif

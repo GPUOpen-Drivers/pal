@@ -1093,23 +1093,6 @@ public:
         RsFeatureInfo* pRsFeatureInfo) override
         { return m_pNextLayer->GetRsFeatureGlobalSettings(rsFeature, pRsFeatureInfo); }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 537
-
-    virtual bool DidDelagSettingsChange() override
-        { return m_pNextLayer->DidDelagSettingsChange(); }
-
-    virtual bool DidTurboSyncSettingsChange() override
-        { return m_pNextLayer->DidTurboSyncSettingsChange(); }
-
-    virtual Result DidChillSettingsChange(
-        bool* pChangeDetected) override
-        { return m_pNextLayer->DidChillSettingsChange(pChangeDetected); }
-
-    virtual Result GetChillGlobalEnable(
-        bool* pGlobalEnable) override
-        { return m_pNextLayer->GetChillGlobalEnable(pGlobalEnable); }
-#endif
-
     virtual Result UpdateChillStatus(
         uint64 lastChillActiveTimeStampUs) override
         { return m_pNextLayer->UpdateChillStatus(lastChillActiveTimeStampUs); }
@@ -2005,26 +1988,6 @@ public:
 
     virtual void CmdSetViewInstanceMask(uint32 mask) override
         { m_pNextLayer->CmdSetViewInstanceMask(mask); }
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 509
-    virtual void CmdSetHiSCompareState0(
-        CompareFunc compFunc,
-        uint32      compMask,
-        uint32      compValue,
-        bool        enable) override
-    {
-        m_pNextLayer->CmdSetHiSCompareState0(compFunc, compMask, compValue, enable);
-    }
-
-    virtual void CmdSetHiSCompareState1(
-        CompareFunc compFunc,
-        uint32      compMask,
-        uint32      compValue,
-        bool        enable) override
-    {
-        m_pNextLayer->CmdSetHiSCompareState1(compFunc, compMask, compValue, enable);
-    }
-#endif
 
     virtual void CmdUpdateHiSPretests(
         const IImage*      pImage,

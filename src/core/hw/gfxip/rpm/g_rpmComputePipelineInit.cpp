@@ -45,8 +45,10 @@ Result CreateRpmComputePipeline(
     const uint32 index = static_cast<uint32>(pipelineType);
 
     ComputePipelineCreateInfo pipeInfo = { };
-    pipeInfo.pPipelineBinary    = pTable[index].pBuffer;
-    pipeInfo.pipelineBinarySize = pTable[index].size;
+    pipeInfo.flags.overrideGpuHeap     = 1;
+    pipeInfo.preferredHeapType         = GpuHeap::GpuHeapLocal;
+    pipeInfo.pPipelineBinary           = pTable[index].pBuffer;
+    pipeInfo.pipelineBinarySize        = pTable[index].size;
 
     PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
@@ -1329,6 +1331,12 @@ Result CreateRpmComputePipelines(
     {
         result = CreateRpmComputePipeline(
             RpmComputePipeline::Gfx10GenerateCmdDispatch, pDevice, pTable, pPipelineMem);
+    }
+
+    if (result == Result::Success)
+    {
+        result = CreateRpmComputePipeline(
+            RpmComputePipeline::Gfx10GenerateCmdDispatchTaskMesh, pDevice, pTable, pPipelineMem);
     }
 
     if (result == Result::Success && (false

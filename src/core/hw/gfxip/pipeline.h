@@ -31,12 +31,13 @@
 #include "core/gpuMemory.h"
 #include "core/dmaUploadRing.h"
 #include "palElfPackager.h"
+#include "palElfReader.h"
 #include "palLib.h"
 #include "palMetroHash.h"
 #include "palPipeline.h"
 #include "palPipelineAbiReader.h"
 #include "palSparseVectorImpl.h"
-#include "palElfReader.h"
+#include "palVectorImpl.h"
 
 namespace Pal
 {
@@ -221,6 +222,137 @@ private:
 };
 
 // =====================================================================================================================
+struct SectionChunk
+{
+    // The CPU address where the GPU memory is mapped.
+    // For host invisible memory, this is the address of the temporary CPU copy in the dma queue.
+    void* pCpuMappedAddr;
+    gpusize size;
+};
+
+// =====================================================================================================================
+class SectionInfo
+{
+public:
+    template <typename Allocator>
+    SectionInfo(
+        Allocator*const            pAllocator,
+        Util::ElfReader::SectionId sectionId,
+        gpusize                    gpuVirtAddr,
+        const void*                pCpuLocalAddr) :
+        m_sectionId(sectionId),
+        m_gpuVirtAddr(gpuVirtAddr),
+        m_pCpuLocalAddr(pCpuLocalAddr),
+        m_allocator(pAllocator),
+        m_chunks(&m_allocator)
+    {}
+    SectionInfo(const SectionInfo& other) :
+        m_sectionId(other.m_sectionId),
+        m_gpuVirtAddr(other.m_gpuVirtAddr),
+        m_pCpuLocalAddr(other.m_pCpuLocalAddr),
+        m_allocator(&other.m_allocator),
+        m_chunks(&m_allocator)
+    {
+        for (uint32 i = 0; i < other.m_chunks.NumElements(); i++)
+        {
+            Result result = m_chunks.PushBack(other.m_chunks.At(i));
+            PAL_ASSERT_MSG(result == Result::Success, "Failed to allocate memory to copy vector");
+        }
+    }
+
+    void* GetCpuMappedAddr(gpusize offset) const;
+
+    Util::ElfReader::SectionId GetSectionId() const { return m_sectionId; }
+    gpusize GetGpuVirtAddr() const { return m_gpuVirtAddr; }
+    const void* GetCpuLocalAddr() const { return m_pCpuLocalAddr; }
+
+    Result AddCpuMappedChunk(const SectionChunk &chunk) { return m_chunks.PushBack(chunk); }
+
+private:
+    Util::ElfReader::SectionId m_sectionId;
+    // Address of the section in the GPU virtual memory.
+    gpusize m_gpuVirtAddr;
+    // Address of the section on the CPU. Refers to the ELF file.
+    const void* m_pCpuLocalAddr;
+
+    Util::IndirectAllocator m_allocator;
+
+    // The CPU address where the GPU memory is mapped.
+    // For host invisible memory, this is the address of the temporary CPU copy in the dma queue.
+    // The dma queue buffer can be split in multiple parts, so we may need to jump between them.
+    Util::Vector<SectionChunk, 1, Util::IndirectAllocator> m_chunks;
+};
+
+// =====================================================================================================================
+class SectionMemoryMap
+{
+public:
+    template <typename Allocator>
+    SectionMemoryMap(Allocator*const pAllocator) :
+        m_allocator(pAllocator),
+        m_sections(&m_allocator)
+    {}
+
+    // The cpu mapped chunks have to be filled afterwards.
+    // Returns null if an out of memory error occured.
+    SectionInfo* AddSection(Util::ElfReader::SectionId sectionId, gpusize gpuVirtAddr, const void* pCpuLocalAddr);
+
+    uint32 GetNumSections() const { return m_sections.NumElements(); }
+    Util::ElfReader::SectionId GetSectionId(uint32 i) const { return m_sections.At(i).GetSectionId(); }
+
+    // Get the GPU virtual address of a section.
+    // Returns null if the given section id was not found.
+    const SectionInfo* FindSection(Util::ElfReader::SectionId sectionId) const;
+
+private:
+    Util::IndirectAllocator m_allocator;
+    // A pipeline usually has one or two sections that get uploaded to the GPU.
+    Util::Vector<SectionInfo, 2, Util::IndirectAllocator> m_sections;
+
+    PAL_DISALLOW_COPY_AND_ASSIGN(SectionMemoryMap);
+};
+
+// =====================================================================================================================
+// Helper class used to compute addresses of ELFsection in GPU memory.
+// Stores a mapping of where sections from pipeline ELF files are mapped into virtual GPU memory.
+class SectionAddressCalculator
+{
+public:
+    struct SectionOffset
+    {
+        Util::ElfReader::SectionId sectionId;
+        gpusize offset;
+    };
+
+    typedef Util::VectorIterator<SectionOffset, 2, Util::IndirectAllocator> SectionsIter;
+
+    template <typename Allocator>
+    SectionAddressCalculator(Allocator*const pAllocator) :
+        m_alignment(1),
+        m_size(0),
+        m_allocator(pAllocator),
+        m_sections(&m_allocator)
+    {}
+
+    Result AddSection(const Util::ElfReader::Reader& elfReader, Util::ElfReader::SectionId sectionId);
+
+    SectionsIter GetSectionsBegin() const { return m_sections.Begin(); }
+    SectionsIter GetSectionsEnd() const { return m_sections.End(); }
+    uint64 GetAlignment() const { return m_alignment; }
+    gpusize GetSize() const { return m_size; }
+
+private:
+    uint64 m_alignment;
+    gpusize m_size;
+
+    Util::IndirectAllocator m_allocator;
+    // A pipeline usually has one or two sections that get uploaded to the GPU.
+    Util::Vector<SectionOffset, 2, Util::IndirectAllocator> m_sections;
+
+    PAL_DISALLOW_COPY_AND_ASSIGN(SectionAddressCalculator);
+};
+
+// =====================================================================================================================
 // Helper class used for uploading pipeline data from an ELF binary into GPU memory for later execution.
 class PipelineUploader
 {
@@ -235,6 +367,8 @@ public:
     Result Begin(
         const CodeObjectMetadata& metadata,
         const GpuHeap&            preferredHeap);
+
+    Result ApplyRelocations();
 
     Result End(UploadFenceToken* pCompletionFence);
 
@@ -253,18 +387,20 @@ public:
     gpusize PrefetchAddr() const { return m_prefetchGpuVirtAddr; }
     gpusize PrefetchSize() const { return m_prefetchSize; }
 
-    /// Get the address of a pipeline symbol on the GPU.
+    // Get the address of a pipeline symbol on the GPU.
     Result GetPipelineGpuSymbol(
         Util::Abi::PipelineSymbolType type,
         GpuSymbol*                    pSymbol
         ) const;
-    /// Get the address of a generic symbol on the GPU.
+    // Get the address of a generic symbol on the GPU.
     Result GetGenericGpuSymbol(
         const char* pName,
         GpuSymbol*  pSymbol
         ) const;
 
 protected:
+    Result ApplyRelocationSection(const Util::ElfReader::Relocations& relocations);
+
     // Writes a context register offset and value to the mapped region where registers are stored in GPU memory.
     PAL_INLINE void AddCtxRegister(uint16 offset, uint32 value)
     {
@@ -282,14 +418,12 @@ protected:
     }
 
 private:
-    void UploadPipelineSections(
-        const void* pSectionBuffer,
-        size_t      sectionBufferSize);
+    Result UploadPipelineSections(
+        const void*  pSectionBuffer,
+        size_t       sectionBufferSize,
+        SectionInfo* pChunks);
 
-    void PatchPipelineInternalSrdTable(
-        Util::ElfReader::SectionId dataSectionId,
-        void*                      pMappedPtr,
-        const void*                pDataBuffer);
+    void PatchPipelineInternalSrdTable(Util::ElfReader::SectionId dataSectionId);
 
     Result GetAbsoluteSymbolAddress(
         const Util::Elf::SymbolTableEntry* pElfSymbol,
@@ -310,8 +444,7 @@ private:
     gpusize     m_prefetchGpuVirtAddr;
     gpusize     m_prefetchSize;
 
-    gpusize  m_codeGpuVirtAddr;
-    gpusize  m_dataGpuVirtAddr;
+    SectionMemoryMap m_memoryMap;
     gpusize  m_ctxRegGpuVirtAddr;
     gpusize  m_shRegGpuVirtAddr;
 

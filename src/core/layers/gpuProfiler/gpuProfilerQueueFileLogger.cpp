@@ -45,14 +45,8 @@ constexpr const char* EngineTypeStrings[] =
 {
     "Gfx",
     "Ace",
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 530
-    "XAce",
-#endif
     "Dma",
     "Timer",
-#if   PAL_CLIENT_INTERFACE_MAJOR_VERSION < 530
-    "HpUniversal",
-#endif
 
 };
 

@@ -53,18 +53,12 @@ Queue::Queue(
     m_pDevice(pDevice),
     m_queueType(queueType),
     m_engineType(engineType),
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 518
-    m_overlaySupported(Device::DetermineDbgOverlaySupport(queueType)),
-#endif
     m_supportTimestamps(pDevice->GpuProps().engineProperties[engineType].flags.supportsTimestamps),
     m_timestampAlignment(pDevice->GpuProps().engineProperties[engineType].minTimestampAlignment),
     m_timestampMemorySize(2 * MaxGpuTimestampPairCount * m_timestampAlignment),
     m_nextTimestampOffset(0),
     m_pTimestampMemory(nullptr),
     m_gpuTimestampPairDeque(pDevice->GetPlatform())
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 518
-    ,m_overlayCmdBufferDeque(pDevice->GetPlatform())
-#endif
 {
 }
 
@@ -81,15 +75,6 @@ Queue::~Queue()
         m_gpuTimestampPairDeque.PopFront(&pTimestamp);
         DestroyGpuTimestampPair(pTimestamp);
     }
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 518
-    while (m_overlayCmdBufferDeque.NumElements() > 0)
-    {
-        TrackedCmdBuffer* pTrackedCmdBuffer = nullptr;
-        m_overlayCmdBufferDeque.PopFront(&pTrackedCmdBuffer);
-        DestroyTrackedCmdBuffer(pTrackedCmdBuffer);
-    }
-#endif
 
     if (m_pTimestampMemory != nullptr)
     {
@@ -197,13 +182,6 @@ Result Queue::PresentDirect(
 {
     Result result = Result::Success;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 518
-    if (m_overlaySupported)
-    {
-        result = SubmitOverlayCmdBuffer(static_cast<const Image&>(*presentInfo.pSrcImage), presentInfo.presentMode);
-    }
-#endif
-
     const Result presentResult = QueueDecorator::PresentDirect(presentInfo);
     result = CollapseResults(presentResult, result);
 
@@ -223,13 +201,6 @@ Result Queue::PresentSwapChain(
     const PresentSwapChainInfo& presentInfo)
 {
     Result result = Result::Success;
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 518
-    if (m_overlaySupported)
-    {
-        result = SubmitOverlayCmdBuffer(static_cast<const Image&>(*presentInfo.pSrcImage), presentInfo.presentMode);
-    }
-#endif
 
     // Note: We must always call down to the next layer because we must release ownership of the image index.
     const Result presentResult = QueueDecorator::PresentSwapChain(presentInfo);
@@ -332,121 +303,6 @@ Result Queue::Submit(
 
     return result;
 }
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 518
-// =====================================================================================================================
-// Draw the debug overlay using a tracked command buffer.
-Result Queue::SubmitOverlayCmdBuffer(
-    const Image& image,
-    PresentMode  presentMode)
-{
-    TrackedCmdBuffer* pTrackedCmdBuffer = nullptr;
-    Result            result            = Result::Success;
-
-    // Create a new command buffer if the least recently used one is still busy.
-    if ((m_overlayCmdBufferDeque.NumElements() == 0) ||
-        (m_overlayCmdBufferDeque.Front()->pFence->GetStatus() == Result::NotReady))
-    {
-        result = CreateTrackedCmdBuffer(&pTrackedCmdBuffer);
-    }
-    else
-    {
-        result = m_overlayCmdBufferDeque.PopFront(&pTrackedCmdBuffer);
-    }
-
-    // Immediately push this command buffer onto the back of the deque to avoid leaking memory.
-    if (result == Result::Success)
-    {
-        result = m_overlayCmdBufferDeque.PushBack(pTrackedCmdBuffer);
-
-        if (result != Result::Success)
-        {
-            // We failed to push this command buffer onto the deque. To avoid leaking memory we must delete it.
-            DestroyTrackedCmdBuffer(pTrackedCmdBuffer);
-            pTrackedCmdBuffer = nullptr;
-        }
-    }
-
-    // Rebuild the command buffer and submit it with the fence.
-    if (result == Result::Success)
-    {
-        CmdBufferBuildInfo buildInfo = {};
-        buildInfo.flags.optimizeOneTimeSubmit = 1;
-
-        result = pTrackedCmdBuffer->pCmdBuffer->Begin(NextCmdBufferBuildInfo(buildInfo));
-    }
-
-    if (result == Result::Success)
-    {
-        // Issue a barrier to ensure the text written via CS is complete and flushed out of L2.
-        BarrierInfo barrier = {};
-        barrier.waitPoint   = HwPipePreCs;
-
-        const HwPipePoint postCs   = HwPipePostCs;
-        barrier.pipePointWaitCount = 1;
-        barrier.pPipePoints        = &postCs;
-
-        BarrierTransition transition = {};
-        transition.srcCacheMask      = CoherShader;
-        transition.dstCacheMask      = CoherShader;
-
-        barrier.transitionCount = 1;
-        barrier.pTransitions    = &transition;
-
-        const auto& settings = m_pDevice->GetPlatform()->PlatformSettings();
-
-        if (settings.debugOverlayConfig.visualConfirmEnabled == true)
-        {
-            const PlatformProperties& properties   = static_cast<Platform*>(m_pDevice->GetPlatform())->Properties();
-            const PresentMode expectedMode =
-                ((properties.explicitPresentModes == 0) ? PresentMode::Count : presentMode);
-
-            m_pDevice->GetTextWriter().WriteVisualConfirm(image, pTrackedCmdBuffer->pCmdBuffer, expectedMode);
-
-            barrier.reason = Developer::BarrierReasonDebugOverlayText;
-
-            pTrackedCmdBuffer->pCmdBuffer->CmdBarrier(barrier);
-        }
-
-        if (settings.debugOverlayConfig.timeGraphEnabled == true)
-        {
-            m_pDevice->GetTimeGraph().DrawVisualConfirm(image, pTrackedCmdBuffer->pCmdBuffer);
-
-            barrier.reason = Developer::BarrierReasonDebugOverlayGraph;
-
-            pTrackedCmdBuffer->pCmdBuffer->CmdBarrier(barrier);
-        }
-
-        result = pTrackedCmdBuffer->pCmdBuffer->End();
-    }
-
-    if (result == Result::Success)
-    {
-        result = m_pDevice->ResetFences(1, &pTrackedCmdBuffer->pFence);
-    }
-
-    if (result == Result::Success)
-    {
-        // We don't need to pass any memory references because everything is already resident.
-        PerSubQueueSubmitInfo perSubQueueInfo = {};
-        perSubQueueInfo.cmdBufferCount        = 1;
-        perSubQueueInfo.ppCmdBuffers          = &pTrackedCmdBuffer->pCmdBuffer;
-        MultiSubmitInfo submitInfo            = {};
-        submitInfo.perSubQueueInfoCount       = 1;
-        submitInfo.pPerSubQueueInfo           = &perSubQueueInfo;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 568
-        submitInfo.ppFences                   = &pTrackedCmdBuffer->pFence;
-        submitInfo.fenceCount                 = 1;
-#else
-        submitInfo.pFence                     = pTrackedCmdBuffer->pFence;
-#endif
-
-        result = Submit(submitInfo);
-    }
-
-    return result;
-}
-#endif
 
 // =====================================================================================================================
 Result Queue::SubmitWithGpuTimestampPair(
@@ -649,68 +505,6 @@ void Queue::DestroyGpuTimestampPair(
 
     PAL_SAFE_DELETE(pTimestamp, m_pDevice->GetPlatform());
 }
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 518
-// =====================================================================================================================
-Result Queue::CreateTrackedCmdBuffer(
-    TrackedCmdBuffer** ppTrackedCmdBuffer)
-{
-    Result result = Result::Success;
-
-    TrackedCmdBuffer* pTrackedCmdBuffer = PAL_NEW(TrackedCmdBuffer, m_pDevice->GetPlatform(), AllocInternal);
-
-    if (pTrackedCmdBuffer == nullptr)
-    {
-        result = Result::ErrorOutOfMemory;
-    }
-
-    if (result == Result::Success)
-    {
-        Pal::FenceCreateInfo createInfo = {};
-        result = CreateFence(createInfo, &pTrackedCmdBuffer->pFence);
-    }
-
-    if (result == Result::Success)
-    {
-        CmdBufferCreateInfo createInfo = {};
-        createInfo.pCmdAllocator = m_pDevice->InternalCmdAllocator();
-        createInfo.queueType     = m_queueType;
-        createInfo.engineType    = m_engineType;
-
-        result = CreateCmdBuffer(createInfo, &pTrackedCmdBuffer->pCmdBuffer);
-    }
-
-    if (result == Result::Success)
-    {
-        *ppTrackedCmdBuffer = pTrackedCmdBuffer;
-    }
-    else
-    {
-        DestroyTrackedCmdBuffer(pTrackedCmdBuffer);
-    }
-
-    return result;
-}
-
-// =====================================================================================================================
-void Queue::DestroyTrackedCmdBuffer(
-    TrackedCmdBuffer* pTrackedCmdBuffer)
-{
-    if (pTrackedCmdBuffer->pCmdBuffer != nullptr)
-    {
-        pTrackedCmdBuffer->pCmdBuffer->Destroy();
-        PAL_SAFE_FREE(pTrackedCmdBuffer->pCmdBuffer, m_pDevice->GetPlatform());
-    }
-
-    if (pTrackedCmdBuffer->pFence != nullptr)
-    {
-        pTrackedCmdBuffer->pFence->Destroy();
-        PAL_SAFE_FREE(pTrackedCmdBuffer->pFence, m_pDevice->GetPlatform());
-    }
-
-    PAL_SAFE_DELETE(pTrackedCmdBuffer, m_pDevice->GetPlatform());
-}
-#endif
 
 } // DbgOverlay
 } // Pal

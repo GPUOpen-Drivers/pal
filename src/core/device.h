@@ -442,10 +442,6 @@ struct GpuEngineProperties
                                                       //  by multiple hardware pipes/threads.
         } capabilities[MaxAvailableEngines];
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 530
-        EngineSubType  engineSubType[MaxAvailableEngines];
-#endif
-
         /// Specifies the suggested heap preference clients should use when creating an @ref ICmdAllocator that will
         /// allocate command space for this engine type.  These heap preferences should be specified in the allocHeap
         /// parameter of @ref CmdAllocatorCreateInfo.  Clients are free to ignore these defaults and use their own
@@ -662,13 +658,6 @@ struct GpuChipProperties
         {
             struct
             {
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 546)
-                // Images created on this device support single sampled texture quilting
-                uint32 supportsSingleSampleQuilting :  1;
-#else
-                uint32 reservedForFutureHw1         :  1;
-#endif
-
                 // Images created on this device supports AQBS stereo mode, this AQBS stereo mode doesn't apply to the
                 // array-based stereo feature supported by Presentable images.
                 uint32 supportsAqbsStereoMode       :  1;
@@ -678,7 +667,7 @@ struct GpuChipProperties
                 // Whether to support Display Dcc
                 uint32 supportDisplayDcc            :  1;
                 // Reserved for future use.
-                uint32 reserved                     : 28;
+                uint32 reserved                     : 29;
             };
             uint32 u32All;
         } flags;

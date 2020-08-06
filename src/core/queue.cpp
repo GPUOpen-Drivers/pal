@@ -244,9 +244,6 @@ Queue::Queue(
     m_deviceMembershipNode(this),
     m_lastFrameCnt(0),
     m_submitIdPerFrame(0)
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 518
-    ,m_pTrackedCmdBufferDeque(nullptr)
-#endif
 {
     if (m_pDevice->Settings().ifhGpuMask & (0x1 << m_pDevice->ChipProperties().gpuIndex))
     {
@@ -278,19 +275,6 @@ void Queue::Destroy()
     // and can cause ASIC hang. This issue could be easily re-produced under SRIOV platform because virtual GPU is
     // slow and have chance to be preempted. Solution is call WaitIdle before doing anything else.
     WaitIdle();
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 518
-    if (m_pTrackedCmdBufferDeque != nullptr)
-    {
-        while (m_pTrackedCmdBufferDeque->NumElements() > 0)
-        {
-            TrackedCmdBuffer* pTrackedCmdBuffer = nullptr;
-            m_pTrackedCmdBufferDeque->PopFront(&pTrackedCmdBuffer);
-            DestroyTrackedCmdBuffer(pTrackedCmdBuffer);
-        }
-        PAL_SAFE_DELETE(m_pTrackedCmdBufferDeque, m_pDevice->GetPlatform());
-    }
-#endif
 
     if (m_pDummyCmdBuffer != nullptr)
     {
@@ -368,31 +352,11 @@ Result Queue::Init(
             }
 #endif
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 530
-            const Pal::EngineSubType engineSubType =
-                m_pDevice->EngineProperties().perEngine[curEngineType].engineSubType[curEngineId];
-
-            // Override the priority here.
-            // RtCuHighCompute and Exclusive Compute are only supported on Windows for now.
-            m_pQueueInfos[qIndex].createInfo.priority =
-                (engineSubType == EngineSubType::RtCuHighCompute) ? QueuePriority::Realtime :
-                (engineSubType == EngineSubType::RtCuMedCompute) ? QueuePriority::Medium :
-                (curEngineType == EngineTypeExclusiveCompute) ? QueuePriority::High :
-                pCreateInfo[qIndex].priority;
-#endif
-
             if (m_pQueueInfos[qIndex].createInfo.priority != QueuePriority::Realtime)
             {
                 // CU reservation is only supported on queues with realtime priority.
                 m_pQueueInfos[qIndex].createInfo.numReservedCu = 0;
             }
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 530
-            if (engineSubType == EngineSubType::VrHighPriority)
-            {
-                m_pQueueInfos[qIndex].createInfo.dispatchTunneling = 1;
-            }
-#endif
 
             if (m_pDevice->EngineProperties().perEngine[curEngineType].flags.supportPersistentCeRam == 0)
             {
@@ -551,21 +515,6 @@ Result Queue::Init(
             }
         }
     }
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 518
-    const bool shouldAllocTrackedCmdBuffers =
-        m_pDevice->GetPlatform()->IsDeveloperModeEnabled();
-
-    // Initialize internal tracked command buffers if they are required.
-    if ((result == Result::Success) && shouldAllocTrackedCmdBuffers)
-    {
-        m_pTrackedCmdBufferDeque =
-            PAL_NEW(TrackedCmdBufferDeque, m_pDevice->GetPlatform(), AllocInternal)
-            (m_pDevice->GetPlatform());
-
-        result = (m_pTrackedCmdBufferDeque != nullptr) ? Result::Success : Result::ErrorOutOfMemory;
-    }
-#endif
 
     return result;
 }
@@ -1161,142 +1110,6 @@ void Queue::DumpCmdToFile(
 }
 #endif
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 518
-// =====================================================================================================================
-Result Queue::CreateTrackedCmdBuffer(
-    TrackedCmdBuffer** ppTrackedCmdBuffer)
-{
-    PAL_ASSERT(m_pTrackedCmdBufferDeque != nullptr);
-
-    Result result = Result::Success;
-
-    TrackedCmdBuffer* pTrackedCmdBuffer = nullptr;
-
-    if ((m_pTrackedCmdBufferDeque->NumElements() == 0) ||
-        (m_pTrackedCmdBufferDeque->Front()->pFence->GetStatus() == Result::NotReady))
-    {
-        pTrackedCmdBuffer = PAL_NEW(TrackedCmdBuffer, m_pDevice->GetPlatform(), AllocInternal);
-
-        if (pTrackedCmdBuffer == nullptr)
-        {
-            result = Result::ErrorOutOfMemory;
-        }
-
-        if (result == Result::Success)
-        {
-            Pal::FenceCreateInfo createInfo = {};
-            result = m_pDevice->CreateInternalFence(createInfo, &pTrackedCmdBuffer->pFence);
-        }
-
-        if (result == Result::Success)
-        {
-            CmdBufferCreateInfo createInfo = {};
-            createInfo.pCmdAllocator = m_pDevice->InternalCmdAllocator(GetEngineType());
-            createInfo.queueType     = Type();
-            createInfo.engineType    = GetEngineType();
-            createInfo.engineSubType =
-                m_pDevice->EngineProperties().perEngine[GetEngineType()].engineSubType[EngineId()];
-
-            CmdBufferInternalCreateInfo internalInfo = {};
-            internalInfo.flags.isInternal            = 1;
-
-            result = m_pDevice->CreateInternalCmdBuffer(createInfo, internalInfo, &pTrackedCmdBuffer->pCmdBuffer);
-        }
-    }
-    else
-    {
-        result = m_pTrackedCmdBufferDeque->PopFront(&pTrackedCmdBuffer);
-    }
-
-    // Immediately push this command buffer onto the back of the deque to avoid leaking memory.
-    if (result == Result::Success)
-    {
-        result = m_pTrackedCmdBufferDeque->PushBack(pTrackedCmdBuffer);
-    }
-
-    if ((result != Result::Success) && (pTrackedCmdBuffer != nullptr))
-    {
-        DestroyTrackedCmdBuffer(pTrackedCmdBuffer);
-        pTrackedCmdBuffer = nullptr;
-    }
-
-    // Rebuild the command buffer with the assumption it will be used for a single submission.
-    if (result == Result::Success)
-    {
-        CmdBufferBuildInfo buildInfo = {};
-        buildInfo.flags.optimizeOneTimeSubmit = 1;
-
-        result = pTrackedCmdBuffer->pCmdBuffer->Begin(buildInfo);
-    }
-
-    if (result == Result::Success)
-    {
-        *ppTrackedCmdBuffer = pTrackedCmdBuffer;
-    }
-
-    return result;
-}
-
-// =====================================================================================================================
-Result Queue::SubmitTrackedCmdBuffer(
-    TrackedCmdBuffer* pTrackedCmdBuffer,
-    const GpuMemory*  pWrittenPrimary)
-{
-    Result result = pTrackedCmdBuffer->pCmdBuffer->End();
-
-    if (result == Result::Success)
-    {
-        result = m_pDevice->ResetFences(1, reinterpret_cast<IFence**>(&pTrackedCmdBuffer->pFence));
-    }
-
-    if (result == Result::Success)
-    {
-        PerSubQueueSubmitInfo perSubQueueInfo = {};
-        perSubQueueInfo.cmdBufferCount        = 1;
-        perSubQueueInfo.ppCmdBuffers          = reinterpret_cast<ICmdBuffer**>(&pTrackedCmdBuffer->pCmdBuffer);
-
-        MultiSubmitInfo submitInfo      = {};
-        submitInfo.perSubQueueInfoCount = 1;
-        submitInfo.pPerSubQueueInfo     = &perSubQueueInfo;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 568
-        submitInfo.ppFences             = &pTrackedCmdBuffer->pFence;
-        submitInfo.fenceCount           = 1;
-#else
-        submitInfo.pFence               = pTrackedCmdBuffer->pFence;
-#endif
-        if ((m_pDevice->GetPlatform()->GetProperties().supportBlockIfFlipping == 1) &&
-            (pWrittenPrimary != nullptr) && (pWrittenPrimary->IsFlippable()))
-        {
-            submitInfo.ppBlockIfFlipping    = reinterpret_cast<const IGpuMemory**>(&pWrittenPrimary);
-            submitInfo.blockIfFlippingCount = 1;
-        }
-
-        result = Submit(submitInfo);
-    }
-
-    return result;
-}
-
-// =====================================================================================================================
-// Destroys a tracked command buffer object. It is the caller's responsibility to make sure that the command buffer has
-// finished executing before calling this function and that it has been removed from the deque.
-void Queue::DestroyTrackedCmdBuffer(
-    TrackedCmdBuffer* pTrackedCmdBuffer)
-{
-    if (pTrackedCmdBuffer->pCmdBuffer != nullptr)
-    {
-        pTrackedCmdBuffer->pCmdBuffer->DestroyInternal();
-    }
-
-    if (pTrackedCmdBuffer->pFence != nullptr)
-    {
-        pTrackedCmdBuffer->pFence->DestroyInternal(m_pDevice->GetPlatform());
-    }
-
-    PAL_SAFE_DELETE(pTrackedCmdBuffer, m_pDevice->GetPlatform());
-}
-#endif
-
 // =====================================================================================================================
 // Waits for all requested submissions on this Queue to finish, including any batched-up submissions. This call never
 // fails, but may wait awhile if the command buffers are long-running, or forever if the GPU is hung.) We do not wait
@@ -1434,15 +1247,6 @@ Result Queue::PresentDirectInternal(
     }
     else
     {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 518
-        // We only want to add postprocessing when this is a non-internal present. Internal presents are expected to
-        // have done so themselves.
-        if (((result == Result::Success) && isClientPresent) && (presentInfo.pSrcImage != nullptr))
-        {
-            result = SubmitPostprocessCmdBuffer(static_cast<Image&>(*presentInfo.pSrcImage));
-        }
-#endif
-
         if (result == Result::Success)
         {
             // Either execute the present immediately, or enqueue it for later, depending on whether or not we are
@@ -1509,13 +1313,6 @@ Result Queue::PresentSwapChain(
     {
         result = Result::ErrorInvalidValue;
     }
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 518
-    if (result == Result::Success)
-    {
-        result = SubmitPostprocessCmdBuffer(static_cast<Image&>(*presentInfo.pSrcImage));
-    }
-#endif
 
     if (presentInfo.flags.notifyOnly == 0)
     {
@@ -2280,44 +2077,6 @@ void Queue::IncFrameCount()
     m_pDevice->IncFrameCount();
 }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 518
-// =====================================================================================================================
-// Applies developer overlay and other postprocessing to be done prior to presenting an image.
-Result Queue::SubmitPostprocessCmdBuffer(
-    const Image& image)
-{
-    Result result = Result::Success;
-
-    const bool shouldPostprocess =
-        (Queue::SupportsComputeShader(Type()) &&
-         (
-          m_pDevice->GetPlatform()->ShowDevDriverOverlay()));
-
-    if (shouldPostprocess)
-    {
-        const auto& presentedImage =
-            image;
-
-        TrackedCmdBuffer* pTrackedCmdBuffer = nullptr;
-        result = CreateTrackedCmdBuffer(&pTrackedCmdBuffer);
-
-        if (result == Result::Success)
-        {
-
-            // If developer mode is enabled, we need to apply the developer overlay.
-            if (m_pDevice->GetPlatform()->ShowDevDriverOverlay())
-            {
-                m_pDevice->ApplyDevOverlay(presentedImage, pTrackedCmdBuffer->pCmdBuffer);
-            }
-
-            result = SubmitTrackedCmdBuffer(pTrackedCmdBuffer, presentedImage.GetBoundGpuMemory().Memory());
-        }
-    }
-
-    return result;
-}
-#endif
-
 // =====================================================================================================================
 // Check whether the present mode is supported by the queue.
 bool Queue::IsPresentModeSupported(
@@ -2370,6 +2129,7 @@ void Queue::SubmitConfig(
 {
     bool isTmzEnabled = false;
     bool isDummySubmission = false;
+    bool hasHybridPipeline = false;
 
     if ((submitInfo.pPerSubQueueInfo == nullptr) || (submitInfo.pPerSubQueueInfo[0].cmdBufferCount == 0))
     {
@@ -2381,6 +2141,21 @@ void Queue::SubmitConfig(
 
     if (isDummySubmission == false)
     {
+        // Loop over all CmdBuffers from all SubQueues to check if a HybridPipeline is bound.
+        for (uint32 i = 0; (i < submitInfo.perSubQueueInfoCount) && (hasHybridPipeline == false); ++i)
+        {
+            const PerSubQueueSubmitInfo perSubQueueInfo = submitInfo.pPerSubQueueInfo[i];
+            for (uint32 j = 0; j < perSubQueueInfo.cmdBufferCount; ++j)
+            {
+                const CmdBuffer*const pCmdBuffer = static_cast<CmdBuffer*>(perSubQueueInfo.ppCmdBuffers[j]);
+                if (pCmdBuffer->HasHybridPipeline() == true)
+                {
+                    hasHybridPipeline = true;
+                    break;
+                }
+            }
+        }
+
         CmdBuffer*const pCmdBuffer = static_cast<CmdBuffer*>(submitInfo.pPerSubQueueInfo[0].ppCmdBuffers[0]);
         if (pCmdBuffer->GetEngineType() == Pal::EngineTypeUniversal ||
             pCmdBuffer->GetEngineType() == Pal::EngineTypeCompute)
@@ -2389,7 +2164,9 @@ void Queue::SubmitConfig(
             // All IBs in this submission should be marked with TMZ flag.
             isTmzEnabled = pCmdBuffer->IsTmzEnabled();
         }
-        pInternalSubmitInfos->flags.isTmzEnabled = isTmzEnabled;
+
+        pInternalSubmitInfos->flags.isTmzEnabled      = isTmzEnabled;
+        pInternalSubmitInfos->flags.hasHybridPipeline = hasHybridPipeline;
     }
 }
 } // Pal

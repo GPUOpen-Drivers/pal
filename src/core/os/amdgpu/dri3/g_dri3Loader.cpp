@@ -1807,7 +1807,7 @@ xcb_void_cookie_t Dri3LoaderFuncsProxy::pfnXcbSyncDestroyFenceChecked(
 // =====================================================================================================================
 XVisualInfo* Dri3LoaderFuncsProxy::pfnXGetVisualInfo(
     Display*      pDisplay,
-    uint64        visualMask,
+    long          visualMask,
     XVisualInfo*  pVisualInfoList,
     int32*        count
     ) const
@@ -1823,7 +1823,7 @@ XVisualInfo* Dri3LoaderFuncsProxy::pfnXGetVisualInfo(
     m_timeLogger.Flush();
 
     m_paramLogger.Printf(
-        "XGetVisualInfo(%p, %lx, %p, %p)\n",
+        "XGetVisualInfo(%p, %x, %p, %p)\n",
         pDisplay,
         visualMask,
         pVisualInfoList,

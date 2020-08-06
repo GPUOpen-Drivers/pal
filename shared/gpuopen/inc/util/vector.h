@@ -206,7 +206,7 @@ namespace DevDriver
         // Remove the object at the specified index. Does not maintain order.
         void Remove(size_t index)
         {
-            DD_ASSERT((index < m_size) && (index >= 0));
+            DD_ASSERT(index < m_size);
 
             const size_t lastIndex = m_size - 1;
 
@@ -474,6 +474,8 @@ namespace DevDriver
 
             return End();
         }
+
+        const AllocCb& GetAllocCb() const { return m_allocCb; }
     private:
         // Disallow copy construct.
         Vector(Vector& rhs) = delete;

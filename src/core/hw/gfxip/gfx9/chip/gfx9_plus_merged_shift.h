@@ -7503,6 +7503,7 @@ namespace Gfx10Plus
     constexpr unsigned int VGT_DMA_INDEX_TYPE__ATC__SHIFT                     = 0x00000008;
     constexpr unsigned int VGT_DMA_INDEX_TYPE__MTYPE__SHIFT                   = 0x0000000b;
     constexpr unsigned int VGT_DRAW_PAYLOAD_CNTL__EN_DRAW_VP__SHIFT           = 0x00000004;
+    constexpr unsigned int VGT_DRAW_PAYLOAD_CNTL__EN_PRIM_PAYLOAD__SHIFT      = 0x00000003;
     constexpr unsigned int VGT_ESGS_RING_SIZE__MEM_SIZE__SHIFT                = 0x00000000;
     constexpr unsigned int VGT_FIFO_DEPTHS__HSINPUT_FIFO_DEPTH__SHIFT         = 0x00000017;
     constexpr unsigned int VGT_FIFO_DEPTHS__RESERVED_1__SHIFT                 = 0x00000016;

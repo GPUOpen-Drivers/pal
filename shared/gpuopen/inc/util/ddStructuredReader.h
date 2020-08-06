@@ -174,7 +174,7 @@ namespace DevDriver
             return GetStringCopy(buffer, BufferSize, nullptr);
         }
 
-        // Return a a NULL-terminated string from the backing messagepack data.
+        // Return a NULL-terminated string from the backing messagepack data.
         // This will fail and return NULL if the embedded string does not end with a NULL byte. Use GetStringCopy() if this is the case.
         DD_NODISCARD const char* GetStringPtr() const;
 
@@ -323,8 +323,8 @@ namespace DevDriver
         virtual ~IStructuredReader() {};
 
         DD_NODISCARD static Result CreateFromJson(
-            const char*         pText,
-            size_t              textSize,
+            const void*         pBytes,
+            size_t              numBytes,
             const AllocCb&      allocCb,
             IStructuredReader** ppReader
         );

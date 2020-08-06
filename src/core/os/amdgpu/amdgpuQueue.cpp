@@ -75,9 +75,6 @@ static uint32 GetIpType(
         ipType = AMDGPU_HW_IP_GFX;
         break;
     case EngineTypeCompute:
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 530
-    case EngineTypeExclusiveCompute:
-#endif
         ipType = AMDGPU_HW_IP_COMPUTE;
         break;
     case EngineTypeDma:

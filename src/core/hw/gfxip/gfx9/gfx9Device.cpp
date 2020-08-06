@@ -619,16 +619,10 @@ Result Device::CreateEngine(
 
     switch (engineType)
     {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 530
-    case EngineTypeHighPriorityUniversal:
-#endif
     case EngineTypeUniversal:
         pEngine = PAL_NEW(UniversalEngine, GetPlatform(), AllocInternalShader)(this, engineType, engineIndex);
         break;
     case EngineTypeCompute:
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 530
-    case EngineTypeExclusiveCompute:
-#endif
         pEngine = PAL_NEW(ComputeEngine, GetPlatform(), AllocInternal)(this, engineType, engineIndex);
         break;
     case EngineTypeDma:
@@ -2710,9 +2704,6 @@ void PAL_STDCALL Device::Gfx9CreateImageViewSrds(
             srd.word3.bits.TYPE = SQ_RSRC_IMG_1D_ARRAY;
             break;
         case ImageViewType::Tex2d:
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 546)
-        case ImageViewType::TexQuilt: // quilted textures must be 2D
-#endif
             srd.word3.bits.TYPE = (isMultiSampled) ? SQ_RSRC_IMG_2D_MSAA_ARRAY : SQ_RSRC_IMG_2D_ARRAY;
             break;
         case ImageViewType::Tex3d:
@@ -2758,22 +2749,6 @@ void PAL_STDCALL Device::Gfx9CreateImageViewSrds(
             srd.word4.bits.PITCH =
                 ((pAddrOutput->epitchIsHeight ? programmedExtent.height : programmedExtent.width) - 1);
         }
-
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 546)
-        //   The array_pitch resource field is defined so that setting it to zero disables quilting and behavior
-        //   reverts back to a texture array
-        uint32  arrayPitch = 0;
-        if (viewInfo.viewType == ImageViewType::TexQuilt)
-        {
-            PAL_ASSERT(isMultiSampled == false); // quilted images must be single sampled
-            PAL_ASSERT(IsPowerOfTwo(viewInfo.quiltWidthInSlices));
-
-            //    Encoded as trunc(log2(# horizontal  slices)) + 1
-            arrayPitch = Log2(viewInfo.quiltWidthInSlices) + 1;
-        }
-
-        srd.word5.bits.ARRAY_PITCH       = arrayPitch;
-#endif
 
         srd.word5.bits.BASE_ARRAY        = baseArraySlice;
         if (pMaskRam != nullptr)
@@ -3218,9 +3193,6 @@ void PAL_STDCALL Device::Gfx10CreateImageViewSrds(
             srd.type = ((imageCreateInfo.arraySize == 1) ? SQ_RSRC_IMG_1D : SQ_RSRC_IMG_1D_ARRAY);
             break;
         case ImageViewType::Tex2d:
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 546)
-        case ImageViewType::TexQuilt: // quilted textures must be 2D
-#endif
             // A 3D image with view3dAs2dArray enabled can be accessed via 2D image view too, it needs 2D_ARRAY type.
             srd.type = (((imageCreateInfo.arraySize == 1) && (imageCreateInfo.imageType != ImageType::Tex3d))
                         ? (isMultiSampled ? SQ_RSRC_IMG_2D_MSAA       : SQ_RSRC_IMG_2D)
@@ -3261,24 +3233,6 @@ void PAL_STDCALL Device::Gfx10CreateImageViewSrds(
         srd.depth      = ComputeImageViewDepth(viewInfo, imageInfo, *pBaseSubResInfo);
 
         srd.bc_swizzle = GetBcSwizzle(viewInfo);
-
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 546)
-        {
-            //   The array_pitch resource field is defined so that setting it to zero disables quilting and behavior
-            //   reverts back to a texture array
-            uint32  arrayPitch = 0;
-            if (viewInfo.viewType == ImageViewType::TexQuilt)
-            {
-                PAL_ASSERT(isMultiSampled == false); // quilted images must be single sampled
-                PAL_ASSERT(IsPowerOfTwo(viewInfo.quiltWidthInSlices));
-
-                //    Encoded as trunc(log2(# horizontal  slices)) + 1
-                arrayPitch = Log2(viewInfo.quiltWidthInSlices) + 1;
-            }
-
-            srd.most.array_pitch  = arrayPitch;
-        }
-#endif
 
         srd.base_array         = baseArraySlice;
         srd.meta_pipe_aligned  = ((pMaskRam != nullptr) ? pMaskRam->PipeAligned() : 0);
@@ -3971,7 +3925,6 @@ void PAL_STDCALL Device::Gfx10CreateSamplerSrds(
                 pSrd->border_color_type = SQ_TEX_BORDER_COLOR_OPAQUE_BLACK;
                 break;
             case BorderColorType::PaletteIndex:
-
                 pSrd->border_color_type     = SQ_TEX_BORDER_COLOR_REGISTER;
                 pSrd->most.border_color_ptr = pInfo->borderColorPaletteIndex;
                 break;
@@ -4085,10 +4038,6 @@ void InitializeGpuChipProperties(
     pInfo->imageProperties.maxImageDimension.height = MaxImageHeight;
     pInfo->imageProperties.maxImageDimension.depth  = MaxImageDepth;
 
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 546)
-    // GFX9 ASICs support texture quilting on single-sample surfaces.
-    pInfo->imageProperties.flags.supportsSingleSampleQuilting = 1;
-#endif
     pInfo->imageProperties.flags.supportsAqbsStereoMode = 1;
 
     // GFX9 core ASICs support all MSAA modes (up to S16F8)
@@ -4122,7 +4071,6 @@ void InitializeGpuChipProperties(
     pInfo->gfxip.gl2UncachedCpuCoherency = (CoherCpu | CoherShader | CoherIndirectArgs | CoherIndexData |
                                             CoherQueueAtomic | CoherTimestamp | CoherCeLoad | CoherCeDump |
                                             CoherStreamOut | CoherMemory);
-
     pInfo->gfxip.supportCaptureReplay    = 1;
 
     pInfo->gfxip.maxUserDataEntries = MaxUserDataEntries;
@@ -4591,12 +4539,6 @@ void InitializeGpuEngineProperties(
     pInfo->perEngine[EngineTypeDma].flags.supportsImageInitBarrier        = 1;
     pInfo->perEngine[EngineTypeDma].flags.supportsMismatchedTileTokenCopy = 1;
     pInfo->perEngine[EngineTypeDma].flags.supportsUnmappedPrtPageAccess   = 1;
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 530
-    // Copy the compute properties into the exclusive compute engine properties
-    auto*const pExclusiveCompute = &pInfo->perEngine[EngineTypeExclusiveCompute];
-    memcpy(pExclusiveCompute, pCompute, sizeof(pInfo->perEngine[EngineTypeExclusiveCompute]));
-#endif
 }
 
 // =====================================================================================================================

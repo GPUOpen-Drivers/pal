@@ -1,0 +1,19 @@
+####
+#
+#   Modifications Copyright© 2020 Advanced Micro Devices, Inc. All rights reserved.
+#
+####
+
+#-----------------------------------------------------------------------
+# Common Tiny Printf Implementation Files
+#-----------------------------------------------------------------------
+
+vpath %.cpp $(TINY_PRINTF_DEPTH)
+
+CPPFILES += printf.cpp
+
+#-----------------------------------------------------------------------
+# Common Tiny Printf Includes
+#-----------------------------------------------------------------------
+
+LCXXINCS += -I$(TINY_PRINTF_DEPTH)

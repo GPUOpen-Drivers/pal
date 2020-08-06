@@ -669,11 +669,7 @@ void EventProvider::LogResourceCreateEvent(
 
         RMT_PIPELINE_CREATE_FLAGS flags;
         flags.CLIENT_INTERNAL   = pPipelineData->pCreateFlags->clientInternal;
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 502)
-        flags.OVERRIDE_GPU_HEAP = 0;
-#else
         flags.OVERRIDE_GPU_HEAP = pPipelineData->pCreateFlags->overrideGpuHeap;
-#endif
 
         RMT_PIPELINE_HASH hash;
         hash.hashUpper = pPipelineData->pPipelineInfo->internalPipelineHash.unique;

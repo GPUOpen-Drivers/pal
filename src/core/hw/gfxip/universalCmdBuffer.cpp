@@ -48,9 +48,11 @@ UniversalCmdBuffer::UniversalCmdBuffer(
     const CmdBufferCreateInfo& createInfo,
     GfxCmdStream*              pDeCmdStream,
     GfxCmdStream*              pCeCmdStream,
+    GfxCmdStream*              pAceCmdStream,
     bool                       blendOptEnable)
     :
     GfxCmdBuffer(device, createInfo),
+    m_pAceCmdStream(pAceCmdStream),
     m_device(device),
     m_pDeCmdStream(pDeCmdStream),
     m_pCeCmdStream(pCeCmdStream),
@@ -115,6 +117,11 @@ Result UniversalCmdBuffer::BeginCommandStreams(
     {
         m_pDeCmdStream->Reset(nullptr, true);
         m_pCeCmdStream->Reset(nullptr, true);
+
+        if (m_pAceCmdStream != nullptr)
+        {
+            m_pAceCmdStream->Reset(nullptr, true);
+        }
     }
 
     if (result == Result::Success)
@@ -125,6 +132,11 @@ Result UniversalCmdBuffer::BeginCommandStreams(
     if (result == Result::Success)
     {
         result = m_pCeCmdStream->Begin(cmdStreamFlags, m_pMemAllocator);
+    }
+
+    if ((result == Result::Success) && (m_pAceCmdStream != nullptr))
+    {
+        result = m_pAceCmdStream->Begin(cmdStreamFlags, m_pMemAllocator);
     }
 
     return result;
@@ -147,6 +159,11 @@ Result UniversalCmdBuffer::End()
     if (result == Result::Success)
     {
         result = m_pCeCmdStream->End();
+    }
+
+    if ((result == Result::Success) && (m_pAceCmdStream != nullptr))
+    {
+        result = m_pAceCmdStream->End();
     }
 
     if (result == Result::Success)
@@ -203,6 +220,11 @@ Result UniversalCmdBuffer::Reset(
     {
         m_pDeCmdStream->Reset(static_cast<CmdAllocator*>(pCmdAllocator), returnGpuMemory);
         m_pCeCmdStream->Reset(static_cast<CmdAllocator*>(pCmdAllocator), returnGpuMemory);
+
+        if (m_pAceCmdStream != nullptr)
+        {
+            m_pAceCmdStream->Reset(static_cast<CmdAllocator*>(pCmdAllocator), returnGpuMemory);
+        }
     }
 
     // Command buffers initialize blend opts to default based on setting.
@@ -517,6 +539,11 @@ void UniversalCmdBuffer::DumpCmdStreamsToFile(
 {
     m_pDeCmdStream->DumpCommands(pFile, "# Universal Queue - DE Command length = ", mode);
     m_pCeCmdStream->DumpCommands(pFile, "# Universal Queue - CE Command length = ", mode);
+
+    if (m_pAceCmdStream != nullptr)
+    {
+        m_pAceCmdStream->DumpCommands(pFile, "# Universal Queue - ACE Command length = ", mode);
+    }
 }
 #endif
 
@@ -606,7 +633,6 @@ void UniversalCmdBuffer::SetGraphicsState(
     {
         m_graphicsState.gfxUserDataEntries.dirty[i] |= newGraphicsState.gfxUserDataEntries.touched[i];
     }
-
 }
 
 // =====================================================================================================================
@@ -757,16 +783,25 @@ const CmdStream* UniversalCmdBuffer::GetCmdStream(
 
     CmdStream* pStream = nullptr;
 
+    if (m_pAceCmdStream == nullptr)
+    {
+        cmdStreamIdx += 1;
+    }
+
     // CE command stream index < DE command stream index so CE will be launched before the DE.
     // DE cmd stream index > all others because CmdBuffer::End() uses
     // GetCmdStream(NumCmdStreams() - 1) to get a "root" chunk.
+    // The ACE command stream is located first so that the DE CmdStream is at NumCmdStreams() - 1
+    // and the CE CmdStream remains before the DE CmdStream.
     switch (cmdStreamIdx)
     {
     case 0:
+        pStream = m_pAceCmdStream;
+        break;
+    case 1:
         pStream = m_pCeCmdStream;
         break;
-
-    case 1:
+    case 2:
         pStream = m_pDeCmdStream;
         break;
     }

@@ -75,6 +75,8 @@ public:
         PAL_ASSERT(pData != nullptr);
         PAL_ASSERT_MSG(VoidPtrIsPow2Aligned(m_pData, alignof(FileHeader)),
             "Invalid alignment, not allowed to cast");
+        PAL_ASSERT_MSG(GetHeader().ei_data == Util::Elf::ElfLittleEndian,
+            "Elf reader can only read little endian elfs");
     }
     const void* GetData() const { return m_pData; }
 

@@ -45,7 +45,6 @@ public:
     bool IsGsEnabled() const { return m_flags.gsEnabled; }
     bool IsGsOnChip() const { return m_flags.isGsOnchip; }
     bool IsTessEnabled() const { return m_flags.tessEnabled; }
-    bool UsesStreamOut() const { return m_flags.streamOut; }
     bool PsUsesUavs() const { return m_flags.psUsesUavs; }
     bool PsWritesUavs() const { return m_flags.psWritesUavs; }
     bool PsUsesRovs() const { return m_flags.psUsesRovs; }
@@ -97,7 +96,6 @@ private:
             uint32 gsEnabled             :  1; // Geometry shader is active.
             uint32 tessEnabled           :  1; // Tessellation shaders (HS/DS) are active.
             uint32 placeholder0          :  2; // Placeholder for future features.
-            uint32 streamOut             :  1; // Stream-output is active.
             uint32 vportArrayIdx         :  1; // GS outputs a viewport array index parameter.
             uint32 psUsesUavs            :  1; // PS reads/writes at least one UAV.
             uint32 psUsesRovs            :  1; // PS reads/writes at least one ROV.
@@ -112,7 +110,7 @@ private:
             uint32 perpLineEndCapsEnable :  1; // use perpendicular line end caps instead of axis-aligned end caps
             uint32 placeholder1          :  1;
             uint32 psWritesUavs          :  1; // PS writes at least one UAV.
-            uint32 reserved              : 13;
+            uint32 reserved              : 14;
         };
         uint32 u32All;
     } m_flags;

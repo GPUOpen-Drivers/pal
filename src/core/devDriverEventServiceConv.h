@@ -50,11 +50,7 @@ static uint32 PalToRmtImgCreateFlags(
     rmtFlags.READ_SWIZZLE_EQUATIONS = palFlags.needSwizzleEqs;
     rmtFlags.PER_SUBRESOURCE_INIT = palFlags.perSubresInit;
     rmtFlags.SEPARATE_DEPTH_ASPECT_RATIO = palFlags.separateDepthAspectInit;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 547
-    rmtFlags.COPY_FORMATS_MATCH = palFlags.copyFormatsMatch;
-#else
     rmtFlags.COPY_FORMATS_MATCH = 0;
-#endif
     rmtFlags.REPETITIVE_RESOLVE = palFlags.repetitiveResolve;
     rmtFlags.PREFR_SWIZZLE_EQUATIONS = palFlags.preferSwizzleEqs;
     rmtFlags.FIXED_TILE_SWIZZLE = palFlags.fixedTileSwizzle;
@@ -83,7 +79,6 @@ static uint16 PalToRmtImgUsageFlags(
     rmtUsageFlags.DEPTH_AS_Z24 = palUsageFlags.depthAsZ24;
     rmtUsageFlags.FIRST_SHADER_WRITABLE_MIP = palUsageFlags.firstShaderWritableMip;
     rmtUsageFlags.CORNER_SAMPLING = palUsageFlags.cornerSampling;
-    rmtUsageFlags.VRS_DEPTH  = 0;
     rmtUsageFlags.RESERVED = 0;
 
     return rmtUsageFlags.u16Val;
@@ -654,11 +649,6 @@ static DevDriver::RMT_ENGINE_TYPE PalToRmtEngineType(
         retType = DevDriver::RMT_ENGINE_TYPE_COMPUTE;
         break;
 
-    #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 530
-    case EngineTypeExclusiveCompute:
-        retType = DevDriver::RMT_ENGINE_TYPE_EXCLUSIVE_COMPUTE;
-        break;
-
     case EngineTypeDma:
         retType = DevDriver::RMT_ENGINE_TYPE_DMA;
         break;
@@ -666,21 +656,6 @@ static DevDriver::RMT_ENGINE_TYPE PalToRmtEngineType(
     case EngineTypeTimer:
         retType = DevDriver::RMT_ENGINE_TYPE_TIMER;
         break;
-
-    case EngineTypeHighPriorityUniversal:
-        retType = DevDriver::RMT_ENGINE_TYPE_HP3D;
-        break;
-
-#else //PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 530
-    case EngineTypeDma:
-        retType = DevDriver::RMT_ENGINE_TYPE_DMA;
-        break;
-
-    case EngineTypeTimer:
-        retType = DevDriver::RMT_ENGINE_TYPE_TIMER;
-        break;
-
-#endif
 
     default:
         PAL_ASSERT_ALWAYS();

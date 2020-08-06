@@ -499,16 +499,10 @@ Result Device::SetupPublicSettingDefaults()
     m_publicSettings.useGraphicsFastDepthStencilClear = false;
     m_publicSettings.forceLoadObjectFailure = false;
     m_publicSettings.distributionTessMode = DistributionTessDefault;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 507
-    m_publicSettings.shaderCacheMode = ShaderCacheRuntimeOnly;
-#endif
     m_publicSettings.contextRollOptimizationFlags = 0;
     m_publicSettings.unboundDescriptorDebugSrdCount = 1;
     m_publicSettings.disableResourceProcessingManager = false;
     m_publicSettings.tcCompatibleMetaData = 0x7F;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 548
-    m_publicSettings.maxUserDataEntries = 0xFFFFFFFF;
-#endif
     m_publicSettings.cpDmaCmdCopyMemoryMaxBytes = 64 * 1024;
     m_publicSettings.forceHighClocks = false;
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 596
@@ -538,15 +532,8 @@ Result Device::SetupPublicSettingDefaults()
     m_publicSettings.renderedByString[0] = '\0';
     m_publicSettings.enableGpuEventMultiSlot = false;
     m_publicSettings.useAcqRelInterface = false;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 503
     m_publicSettings.zeroUnboundDescDebugSrd = false;
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 514
     m_publicSettings.disablePipelineUploadToLocalInvis = false;
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 542
-    m_publicSettings.ifhMode = PublicSettingIfhMode::IfhModeDisabled;
-#endif
     m_publicSettings.depthClampBasedOnZExport = true;
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 577
     m_publicSettings.forceWaitPointPreColorToPostIndexFetch = false;
@@ -1399,14 +1386,12 @@ void Device::InitPageFaultDebugSrd()
 
         if (result == Result::Success)
         {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 503
             if (m_publicSettings.zeroUnboundDescDebugSrd == true)
             {
                 // Set null srds to avoid app bugs when reading from a null descriptor table.
                 memset(pData, 0, numDebugSrds * maxSrdSize);
             }
             else
-#endif
             {
                 BufferViewInfo bufferViewInfo = {};
 
@@ -1678,9 +1663,6 @@ Result Device::CreateEngine(
     {
     case EngineTypeUniversal:
     case EngineTypeCompute:
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 530
-    case EngineTypeExclusiveCompute:
-#endif
 #if PAL_BUILD_GFX
         if (m_pGfxDevice != nullptr)
         {
@@ -1746,9 +1728,6 @@ Result Device::CreateDummyCommandStreams()
 #if PAL_BUILD_GFX
             case EngineTypeUniversal:
             case EngineTypeCompute:
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 530
-            case EngineTypeExclusiveCompute:
-#endif
                 if (m_pGfxDevice != nullptr)
                 {
                     result = m_pGfxDevice->CreateDummyCommandStream(engineType, &m_pDummyCommandStreams[engineType]);
@@ -1941,11 +1920,7 @@ Result Device::GetProperties(
             pEngineInfo->flags.supportsTimestamps              = engineInfo.flags.timestampSupport;
             pEngineInfo->flags.supportsQueryPredication        = engineInfo.flags.queryPredicationSupport;
             pEngineInfo->flags.supports32bitMemoryPredication  = engineInfo.flags.memory32bPredicationSupport;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 550
-            pEngineInfo->flags.supportsMemoryPredication       = engineInfo.flags.memory64bPredicationSupport;
-#else
             pEngineInfo->flags.supports64bitMemoryPredication  = engineInfo.flags.memory64bPredicationSupport;
-#endif
             pEngineInfo->flags.supportsConditionalExecution    = engineInfo.flags.conditionalExecutionSupport;
             pEngineInfo->flags.supportsLoopExecution           = engineInfo.flags.loopExecutionSupport;
             pEngineInfo->flags.supportsRegMemAccess            = engineInfo.flags.regMemAccessSupport;
@@ -1970,10 +1945,6 @@ Result Device::GetProperties(
                 pCapabilitiesInfo->dispatchTunnelingPrioritySupport = capabilitiesInfo.dispatchTunnelingPrioritySupport;
                 pCapabilitiesInfo->flags.supportsMultiQueue         = capabilitiesInfo.flags.supportsMultiQueue;
                 pCapabilitiesInfo->maxFrontEndPipes                 = capabilitiesInfo.maxFrontEndPipes;
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 530
-                pEngineInfo->engineSubType[engineIdx]        = engineInfo.engineSubType[engineIdx];
-#endif
             }
 
             for (uint32 j = 0; j < CmdAllocatorTypeCount; j++)
@@ -2044,10 +2015,6 @@ Result Device::GetProperties(
         pInfo->imageProperties.maxMsaaFragments = m_chipProperties.imageProperties.maxMsaaFragments;
 
         pInfo->imageProperties.flags.u32All                       = 0;
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 546)
-        pInfo->imageProperties.flags.supportsSingleSampleQuilting =
-                m_chipProperties.imageProperties.flags.supportsSingleSampleQuilting;
-#endif
         pInfo->imageProperties.flags.supportsAqbsStereoMode       =
                 m_chipProperties.imageProperties.flags.supportsAqbsStereoMode;
         pInfo->imageProperties.flags.supportsCornerSampling       =
@@ -2086,9 +2053,7 @@ Result Device::GetProperties(
             pInfo->gfxipProperties.flags.u64All                         = 0;
             pInfo->gfxipProperties.flags.support8bitIndices             = gfx6Props.support8bitIndices;
             pInfo->gfxipProperties.flags.support16BitInstructions       = gfx6Props.support16BitInstructions;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 532
             pInfo->gfxipProperties.flags.support64BitInstructions       = gfx6Props.support64BitInstructions;
-#endif
             pInfo->gfxipProperties.flags.supportShaderSubgroupClock     = gfx6Props.supportShaderSubgroupClock;
             pInfo->gfxipProperties.flags.supportShaderDeviceClock       = gfx6Props.supportShaderDeviceClock;
             pInfo->gfxipProperties.flags.supports2BitSignedValues       = gfx6Props.supports2BitSignedValues;
@@ -2167,14 +2132,10 @@ Result Device::GetProperties(
             pInfo->gfxipProperties.flags.supportFp16Fetch                   = gfx9Props.supportFp16Fetch;
             pInfo->gfxipProperties.flags.supportFp16Dot2                    = gfx9Props.supportFp16Dot2;
             pInfo->gfxipProperties.flags.support16BitInstructions           = gfx9Props.support16BitInstructions;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 532
             pInfo->gfxipProperties.flags.support64BitInstructions           = gfx9Props.support64BitInstructions;
-#endif
             pInfo->gfxipProperties.flags.supportShaderSubgroupClock         = gfx9Props.supportShaderSubgroupClock;
             pInfo->gfxipProperties.flags.supportShaderDeviceClock           = gfx9Props.supportShaderDeviceClock;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 551
             pInfo->gfxipProperties.flags.supportAlphaToOne                  = gfx9Props.supportAlphaToOne;
-#endif
             pInfo->gfxipProperties.flags.supportDoubleRate16BitInstructions =
                 gfx9Props.supportDoubleRate16BitInstructions;
             pInfo->gfxipProperties.flags.supportConservativeRasterization = gfx9Props.supportConservativeRasterization;
@@ -4497,11 +4458,7 @@ Result Device::SubtractFromReferencedMemoryTotals(
 // =====================================================================================================================
 IfhMode Device::GetIfhMode() const
 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 542
-    return static_cast<IfhMode>(GetPublicSettings()->ifhMode);
-#else
     return Settings().ifh;
-#endif
 }
 
 // =====================================================================================================================
@@ -4836,11 +4793,6 @@ bool Device::EngineSupportsCompute(
 {
     const bool supportsCompute = ((engineType == EngineTypeCompute)   ||
                                   (engineType == EngineTypeUniversal)
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 530
-                                                                             ||
-                                  (engineType == EngineTypeExclusiveCompute) ||
-                                  (engineType == EngineTypeHighPriorityUniversal)
-#endif
                                   );
 
     return supportsCompute;
@@ -4850,11 +4802,7 @@ bool Device::EngineSupportsCompute(
 bool Device::EngineSupportsGraphics(
     EngineType  engineType)
 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 530
     const bool supportsGfx = (engineType == EngineTypeUniversal);
-#else
-    const bool supportsGfx = (engineType == EngineTypeUniversal) || (engineType == EngineTypeHighPriorityUniversal);
-#endif
 
     return supportsGfx;
 }
@@ -4989,9 +4937,7 @@ bool Device::ValidatePipelineUploadHeap(
         // optimizations or there is no DMA engine support. Other heap types don't have any restrictions.
         if (m_pPlatform->InternalResidencyOptsDisabled()
             || (EngineProperties().perEngine[EngineTypeDma].numAvailable == 0)
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 514
             || m_publicSettings.disablePipelineUploadToLocalInvis
-#endif
            )
         {
             valid = false;

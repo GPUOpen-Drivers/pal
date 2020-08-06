@@ -38567,7 +38567,7 @@ union VGT_DRAW_PAYLOAD_CNTL {
     } gfx101;
     struct {
         unsigned int                                                              :  3;
-        unsigned int                                                              :  1;
+        unsigned int EN_PRIM_PAYLOAD                                              :  1;
         unsigned int EN_DRAW_VP                                                   :  1;
         unsigned int                                                              : 27;
     } gfx10Plus;

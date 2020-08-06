@@ -72,14 +72,8 @@ Result Queue::Init(
         if (result == Result::Success)
         {
             result = Result::ErrorOutOfMemory;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 516
             createInfo.size               = sizeof(CmdBufferTimestampData);
             createInfo.alignment          = sizeof(uint64);
-#else
-            const Pal::gpusize allocGranularity = deviceProps.gpuMemoryProperties.realMemAllocGranularity;
-            createInfo.size               = Util::Pow2Align(sizeof(CmdBufferTimestampData), allocGranularity);
-            createInfo.alignment          = Util::Pow2Align(sizeof(uint64), allocGranularity);
-#endif
             createInfo.vaRange            = VaRange::Default;
             createInfo.priority           = GpuMemPriority::VeryLow;
             createInfo.heapCount          = 1;

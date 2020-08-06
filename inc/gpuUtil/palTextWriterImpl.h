@@ -180,14 +180,8 @@ Pal::Result TextWriter<Allocator>::CreateGpuMemory(
 {
     // Translate the memory requirements into a GpuMemory create info.
     Pal::GpuMemoryCreateInfo createInfo = {};
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 516
     createInfo.size      = pMemReqs->size;
     createInfo.alignment = pMemReqs->alignment;
-#else
-    const Pal::gpusize allocGranularity = m_deviceProps.gpuMemoryProperties.realMemAllocGranularity;
-    createInfo.size      = Util::Pow2Align(pMemReqs->size, allocGranularity);
-    createInfo.alignment = Util::Pow2Align(pMemReqs->alignment, allocGranularity);
-#endif
     createInfo.vaRange   = Pal::VaRange::Default;
     createInfo.priority  = Pal::GpuMemPriority::VeryLow;
     createInfo.heapCount = pMemReqs->heapCount;

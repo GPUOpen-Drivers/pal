@@ -418,8 +418,6 @@ private:
         uint64                   baseAddress,
         Elf::Section<Allocator>* pRelocationSection) const;
 
-    Result TranslateLegacyMetadata(MsgPackReader* pReader, PalCodeObjectMetadata* pOut) const;
-
     Result CreateDataSection();
     Result CreateRoDataSection();
     Result CreateTextSection();

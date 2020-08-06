@@ -178,6 +178,16 @@ void InfoService::UnregisterInfoSource(
 }
 
 // =====================================================================================================================
+// Clears all currently registered info sources from the service.
+void InfoService::ClearInfoSources()
+{
+    // Lock access to the registered sources map.
+    Platform::LockGuard<Platform::Mutex> infoSourcesLock(m_infoSourceMutex);
+
+    m_registeredInfoSources.Clear();
+}
+
+// =====================================================================================================================
 Result InfoService::HandleGetAllInfoSources(
     IURIRequestContext* pContext)
 {

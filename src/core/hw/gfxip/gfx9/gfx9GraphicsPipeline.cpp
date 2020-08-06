@@ -316,11 +316,7 @@ Result GraphicsPipeline::HwlInit(
                                           loadInfo.loadedShRegCount);
         result = PerformRelocationsAndUploadToGpuMemory(
             metadata,
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 502)
-            (createInfo.flags.preferNonLocalHeap == 1) ? GpuHeapGartUswc : GpuHeapInvisible,
-#else
             (createInfo.flags.overrideGpuHeap == 1) ? createInfo.preferredHeapType : GpuHeapInvisible,
-#endif
             &uploader);
 
         if (result == Result::Success)
@@ -853,7 +849,7 @@ void GraphicsPipeline::SetupCommonRegisters(
     default:
         break;
     }
-#elif PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 524
+#else
     m_regs.other.paScModeCntl1.bits.PS_ITER_SAMPLE |= createInfo.rsState.forceSampleRateShading;
 #endif
 
@@ -955,8 +951,7 @@ void GraphicsPipeline::SetupCommonRegisters(
             (createInfo.rsState.pointCoordOrigin != PointOrigin::UpperLeft);
     }
 
-    // Default to nothing enabled
-    m_regs.context.vgtDrawPayloadCntl.u32All = 0;
+    registers.HasEntry(mmVGT_DRAW_PAYLOAD_CNTL, &m_regs.context.vgtDrawPayloadCntl.u32All);
 
     if (pUploader->EnableLoadIndexPath())
     {
@@ -1717,28 +1712,6 @@ void GraphicsPipeline::SetupSignatureForStageFromElf(
     HwShaderStage             stage,
     uint16*                   pEsGsLdsSizeReg)
 {
-    const uint16 streamOutTableEntryPlus1 = (metadata.pipeline.hasEntry.streamOutTableAddress == 0)
-                                            ? UserDataNotMapped
-                                            : static_cast<uint16>(metadata.pipeline.streamOutTableAddress);
-    const uint16 indirectTableEntryPlus1 = (metadata.pipeline.hasEntry.indirectUserDataTableAddresses == 0)
-                                            ? UserDataNotMapped
-                                            : static_cast<uint16>(metadata.pipeline.indirectUserDataTableAddresses[0]);
-    const HwShaderStage vbTableStage =
-        (IsTessEnabled() ? HwShaderStage::Hs : ((IsNgg() || IsGsEnabled()) ? HwShaderStage::Gs : HwShaderStage::Vs));
-#if PAL_ENABLE_PRINTS_ASSERTS
-    if (metadata.pipeline.hasEntry.indirectUserDataTableAddresses != 0)
-    {
-        constexpr uint32 MetadataIndirectTableAddressCount =
-            (sizeof(metadata.pipeline.indirectUserDataTableAddresses) /
-             sizeof(metadata.pipeline.indirectUserDataTableAddresses[0]));
-        constexpr uint32 DummyAddresses[MetadataIndirectTableAddressCount - 1] = { 0 };
-
-        PAL_ASSERT_MSG(0 == memcmp(&metadata.pipeline.indirectUserDataTableAddresses[1],
-                                   &DummyAddresses[0], sizeof(DummyAddresses)),
-                       "Multiple indirect user-data tables are not supported!");
-    }
-#endif
-
     const uint16 baseRegAddr = m_pDevice->GetBaseUserDataReg(stage);
     const uint16 lastRegAddr = (baseRegAddr + 31);
 
@@ -1750,27 +1723,7 @@ void GraphicsPipeline::SetupSignatureForStageFromElf(
         uint32 value = 0;
         if (registers.HasEntry(offset, &value))
         {
-            // Backwards compatibility for the stream-out table user-SGPR.  Older ABI versions encoded this by mapping
-            // the table's address to a user-data entry which was written internally by PAL.
-            if ((value + 1) == streamOutTableEntryPlus1)
-            {
-                if (stage == HwShaderStage::Vs)
-                {
-                    m_signature.streamOutTableRegAddr = offset;
-                }
-            }
-            // Backwards compatibility for the indirect user-data table user-SGPR.  Older ABI versions encoded this by
-            // mapping the table's address to a user-data entry which was written internally by PAL.
-            else if ((value + 1) == indirectTableEntryPlus1)
-            {
-                if (stage == vbTableStage)
-                {
-                    m_signature.vertexBufTableRegAddr = offset;
-                }
-                PAL_ASSERT_MSG(stage == vbTableStage,
-                               "Indirect user-data tables are only supported for vertex shaders now!");
-            }
-            else if (value < MaxUserDataEntries)
+            if (value < MaxUserDataEntries)
             {
                 if (pStage->firstUserSgprRegAddr == UserDataNotMapped)
                 {
@@ -1893,25 +1846,6 @@ void GraphicsPipeline::SetupSignatureForStageFromElf(
             m_signature.nggCullingDataAddr = mmSPI_SHADER_PGM_LO_GS;
         }
     }
-
-#if PAL_ENABLE_PRINTS_ASSERTS
-    // Backwards compatibility for the stream-out table user-SGPR.  Older ABI versions encoded this by mapping the
-    // table's address to a user-data entry which was written internally by PAL.
-    if ((stage == HwShaderStage::Vs) &&
-        (m_signature.streamOutTableRegAddr == UserDataNotMapped) && (streamOutTableEntryPlus1 != UserDataNotMapped))
-    {
-        PAL_ASSERT_MSG((streamOutTableEntryPlus1 - 1) < m_signature.spillThreshold,
-                       "Mapping the stream-out table address to spilled user-data is no longer supported!");
-    }
-    // Backwards compatibility for the indirect user-data table user-SGPR.  Older ABI versions encoded this by
-    // mapping the table's address to a user-data entry which was written internally by PAL.
-    if ((stage == vbTableStage) &&
-        (m_signature.vertexBufTableRegAddr == UserDataNotMapped) && (indirectTableEntryPlus1 != UserDataNotMapped))
-    {
-        PAL_ASSERT_MSG((indirectTableEntryPlus1 - 1) < m_signature.spillThreshold,
-                       "Mapping the indirect user-data table address to spilled user-data is no longer supported!");
-    }
-#endif
 
     // Compute a hash of the regAddr array and spillTableRegAddr for the CS stage.
     MetroHash64::Hash(

@@ -77,6 +77,8 @@ class GfxCmdStream : public CmdStream
     typedef ChunkVector<CmdStreamChunk*, 16, Platform> ChunkRefList;
 
 public:
+    virtual ~GfxCmdStream() { }
+
     virtual void Reset(CmdAllocator* pNewAllocator, bool returnGpuMemory) override;
 
     virtual void If(CompareFunc compareFunc, gpusize  compareGpuAddr, uint64  data, uint64  mask);
@@ -114,7 +116,6 @@ protected:
         uint32           minNopSizeInDwords,
         uint32           condIndirectBufferSize,
         bool             isNested);
-    virtual ~GfxCmdStream() { }
 
     void UpdateTailChainLocation(uint32* pTailChain);
 

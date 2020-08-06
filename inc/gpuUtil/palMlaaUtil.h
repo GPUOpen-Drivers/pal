@@ -26,7 +26,7 @@
 #pragma once
 
 #include "palDevice.h"
-#include "mlaa/g_mlaaComputePipelineInitImpl.h"
+#include "mlaa/g_mlaaComputePipelineInit.h"
 
 // Forward declarations.
 namespace Pal

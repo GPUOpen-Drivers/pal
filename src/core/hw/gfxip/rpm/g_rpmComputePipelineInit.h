@@ -152,7 +152,8 @@ enum class RpmComputePipeline : uint32
     Gfx10ClearDccComputeSetFirstPixel     = 114,
     Gfx10ClearDccComputeSetFirstPixelMsaa = 115,
     Gfx10GenerateCmdDispatch              = 116,
-    Gfx10GenerateCmdDraw                  = 117,
+    Gfx10GenerateCmdDispatchTaskMesh      = 117,
+    Gfx10GenerateCmdDraw                  = 118,
     Count
 };
 

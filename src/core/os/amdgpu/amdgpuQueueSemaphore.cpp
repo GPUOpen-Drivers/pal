@@ -101,11 +101,7 @@ Result QueueSemaphore::OpenExternal(
 
     m_flags.shared         = 1;
     m_flags.externalOpened = 1;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 517
     m_flags.timeline       = openInfo.flags.timeline;
-#else
-    m_flags.timeline       = 0;
-#endif
 
     return static_cast<Amdgpu::Device*>(m_pDevice)->ImportSemaphore(openInfo.externalSemaphore,
                                                                     &m_hSemaphore,

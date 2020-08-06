@@ -232,11 +232,15 @@ public:
     virtual void DumpCmdStreamsToFile(Util::File* pFile, CmdBufDumpFormat mode) const override;
 #endif
 
-    // Universal command buffers have two command streams: Draw Engine and Constant Engine.
-    static constexpr uint32 NumCmdStreamsVal = 2;
+    // Universal command buffers have three command streams: Draw Engine, Constant Engine and a hidden ACE cmd stream.
+    static constexpr uint32 NumCmdStreamsVal        = 2;
+    static constexpr uint32 NumCmdStreamsValWithAce = 3;
 
     // Returns the number of command streams associated with this command buffer.
-    virtual uint32 NumCmdStreams() const override { return NumCmdStreamsVal; }
+    virtual uint32 NumCmdStreams() const override
+    {
+        return (m_pAceCmdStream != nullptr) ? NumCmdStreamsValWithAce : NumCmdStreamsVal;
+    }
     virtual const CmdStream* GetCmdStream(uint32 cmdStreamIdx) const override;
 
     // Universal command buffers support every type of query
@@ -250,6 +254,11 @@ public:
     {
         m_pDeCmdStream->IncrementSubmitCount();
         m_pCeCmdStream->IncrementSubmitCount();
+
+        if (m_pAceCmdStream != nullptr)
+        {
+            m_pAceCmdStream->IncrementSubmitCount();
+        }
     }
 
     virtual uint32 GetUsedSize(CmdAllocType type) const override;
@@ -279,6 +288,7 @@ protected:
         const CmdBufferCreateInfo& createInfo,
         GfxCmdStream*              pDeCmdStream,
         GfxCmdStream*              pCeCmdStream,
+        GfxCmdStream*              pAceCmdStream,
         bool                       blendOptEnable);
 
     virtual ~UniversalCmdBuffer() {}
@@ -312,6 +322,11 @@ protected:
         { CmdBuffer::P2pBltWaCopyNextRegion(m_pDeCmdStream, chunkAddr); }
     virtual uint32* WriteNops(uint32* pCmdSpace, uint32 numDwords) const override
         { return pCmdSpace + m_pDeCmdStream->BuildNop(numDwords, pCmdSpace); }
+
+    // Late-initialized ACE command buffer stream.
+    // Ace command stream is used for ganged submit of compute workloads (task shader workloads)
+    // after which graphics workloads will be submitted on the DE command stream.
+    GfxCmdStream* m_pAceCmdStream;
 
 private:
     const GfxDevice&   m_device;

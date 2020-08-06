@@ -56,7 +56,6 @@ namespace DevDriver
         , m_allocCb(allocCb)
         , m_createInfo(createInfo)
         , m_pSettingsService(nullptr)
-        , m_pInfoService(nullptr)
     {
     }
 
@@ -156,12 +155,6 @@ namespace DevDriver
             m_pSettingsService = nullptr;
         }
 
-        if (m_pInfoService != nullptr)
-        {
-            DD_DELETE(m_pInfoService, m_allocCb);
-            m_pInfoService = nullptr;
-        }
-
         if (m_pMsgChannel != nullptr)
         {
             DestroyProtocols();
@@ -209,6 +202,7 @@ namespace DevDriver
     {
         return GetServer<Protocol::Event>();
     }
+
     SettingsURIService::SettingsService* DevDriverServer::GetSettingsService()
     {
         return m_pSettingsService;
@@ -216,7 +210,7 @@ namespace DevDriver
 
     InfoURIService::InfoService* DevDriverServer::GetInfoService()
     {
-        return m_pInfoService;
+        return &m_pMsgChannel->GetInfoService();
     }
 
     Result DevDriverServer::InitializeProtocols()
@@ -256,19 +250,6 @@ namespace DevDriver
         if (m_createInfo.servers.event)
         {
             result = RegisterProtocol<Protocol::Event>();
-        }
-
-        // Always create the Info service.
-        m_pInfoService = DD_NEW(InfoURIService::InfoService, m_allocCb)(m_allocCb);
-        if (m_pInfoService != nullptr)
-        {
-            result = m_pMsgChannel->RegisterService(m_pInfoService);
-        }
-        else
-        {
-            // Something bad happened, we're probably out of memory
-            result = Result::InsufficientMemory;
-            DD_ASSERT_ALWAYS();
         }
 
         return result;

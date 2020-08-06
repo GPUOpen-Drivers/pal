@@ -251,11 +251,7 @@ static void UpdateCmdBufStateFromAcquire(
     GfxCmdBuffer*                       pCmdBuf,
     const Developer::BarrierOperations& ops)
 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 504
     const bool waitOnEopTs = (ops.pipelineStalls.eopTsBottomOfPipe != 0) && (ops.pipelineStalls.waitOnTs != 0);
-#else
-    const bool waitOnEopTs = (ops.pipelineStalls.waitOnEopTsBottomOfPipe != 0);
-#endif
 
     if (waitOnEopTs)
     {
@@ -1652,9 +1648,7 @@ size_t Device::BuildReleaseSyncPackets(
     {
         // Issue a pipelined EOP event that writes timestamp to a GpuEvent slot when all prior GPU work completes.
         vgtEvents[vgtEventCount++] = CACHE_FLUSH_AND_INV_TS_EVENT;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 504
         pBarrierOps->pipelineStalls.eopTsBottomOfPipe = 1;
-#endif
         // Clear up CB/DB request
         accessMask &= ~(CoherColorTarget | CoherDepthStencilTarget);
 
@@ -1675,9 +1669,7 @@ size_t Device::BuildReleaseSyncPackets(
     {
         // Implement set with an EOP event written when all prior GPU work completes.
         vgtEvents[vgtEventCount++] = BOTTOM_OF_PIPE_TS;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 504
         pBarrierOps->pipelineStalls.eopTsBottomOfPipe = 1;
-#endif
     }
     else if (TestAnyFlagSet(stageMask, PipelineStageVs | PipelineStageHs | PipelineStageDs | PipelineStageGs) &&
              (TestAnyFlagSet(stageMask, PipelineStagePs) == false))
@@ -1685,9 +1677,7 @@ size_t Device::BuildReleaseSyncPackets(
         // Unfortunately, there is no VS_DONE event with which to implement PipelineStageVs/Hs/Ds/Gs, so it has to
         // conservatively use BottomOfPipe.
         vgtEvents[vgtEventCount++] = BOTTOM_OF_PIPE_TS;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 504
         pBarrierOps->pipelineStalls.eopTsBottomOfPipe = 1;
-#endif
     }
     else
     {
@@ -1718,9 +1708,7 @@ size_t Device::BuildReleaseSyncPackets(
             vgtEventCount = 1;
             pBarrierOps->pipelineStalls.eosTsCsDone = 0;
             pBarrierOps->pipelineStalls.eosTsPsDone = 0;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 504
             pBarrierOps->pipelineStalls.eopTsBottomOfPipe = 1;
-#endif
         }
     }
 

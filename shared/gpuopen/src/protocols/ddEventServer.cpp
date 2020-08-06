@@ -46,25 +46,35 @@ namespace DevDriver
 namespace EventProtocol
 {
 
-/// Specify a default limit for the max amount of chunks that can be allocated at any one time
-static constexpr size_t kDefaultMemoryUsageLimitInBytes = (256 * 1024 * 1024); // 256 MB
-static constexpr size_t kDefaultMaxAllocatedChunks = (kDefaultMemoryUsageLimitInBytes / sizeof(EventChunk));
+/// Specify a memory usage target for the set of allocated event chunks
+/// The implementation will attempt to keep memory usage at or below this level at all times.
+/// This level may be exceeded when large events are logged, but memory usage will eventually return to the target
+/// level over time.
+static constexpr size_t kMemoryUsageTargetInBytes = (4 * 1024 * 1024); // 4 MB
+static constexpr size_t kTargetAllocatedChunks = (kMemoryUsageTargetInBytes / sizeof(EventChunk));
+static constexpr size_t kTrimFrequencyInMs = 16;
+static constexpr size_t kMaxChunksPerTrim = 16;
 
 EventServer::EventServer(IMsgChannel* pMsgChannel)
     : BaseProtocolServer(pMsgChannel, Protocol::Event, EVENT_SERVER_MIN_VERSION, EVENT_SERVER_MAX_VERSION)
     , m_eventProviders(pMsgChannel->GetAllocCb())
     , m_eventChunkPool(pMsgChannel->GetAllocCb())
-    , m_eventChunkAllocList(pMsgChannel->GetAllocCb())
-    , m_maxAllocatedChunks(kDefaultMaxAllocatedChunks)
     , m_eventChunkQueue(pMsgChannel->GetAllocCb())
     , m_pActiveSession(nullptr)
+    , m_nextTrimTime(0)
 {
     DD_ASSERT(m_pMsgChannel != nullptr);
 }
 
 EventServer::~EventServer()
 {
-    for (EventChunk* pChunk : m_eventChunkAllocList)
+    // All providers should be unregistered before the event server is destroyed.
+    // If this is not the case, event chunks may leak because they're still owned by the providers
+    // and now they can't be returned to the event server!
+    DD_ASSERT(m_eventProviders.IsEmpty());
+
+    // Free any event chunks that are still in the pool before we destroy the server.
+    for (EventChunk* pChunk : m_eventChunkPool)
     {
         DD_FREE(pChunk, m_pMsgChannel->GetAllocCb());
     }
@@ -101,6 +111,15 @@ void EventServer::UpdateSession(const SharedPointer<ISession>& pSession)
     m_eventProvidersMutex.Unlock();
 
     pEventSession->UpdateSession();
+
+    // Run a trim operation every once in a while to make sure we give up memory we don't need anymore.
+    const uint64 currentTime = Platform::GetCurrentTimeInMs();
+    if (currentTime >= m_nextTrimTime)
+    {
+        m_nextTrimTime = currentTime + kTrimFrequencyInMs;
+
+        TrimEventChunkMemory();
+    }
 }
 
 void EventServer::SessionTerminated(const SharedPointer<ISession>& pSession, Result terminationReason)
@@ -142,7 +161,7 @@ Result EventServer::RegisterProvider(BaseEventProvider* pProvider)
             result = m_eventProviders.Insert(providerId, pProvider);
             if (result == Result::Success)
             {
-                pProvider->SetEventServer(this);
+                pProvider->Register(this);
             }
         }
         else
@@ -168,7 +187,7 @@ Result EventServer::UnregisterProvider(BaseEventProvider* pProvider)
         if (providerIter != m_eventProviders.End())
         {
             m_eventProviders.Remove(providerIter);
-            providerIter->value->SetEventServer(nullptr);
+            providerIter->value->Unregister();
 
             result = Result::Success;
         }
@@ -181,30 +200,6 @@ Result EventServer::UnregisterProvider(BaseEventProvider* pProvider)
     return result;
 }
 
-Result EventServer::UpdateMemoryUsageLimit(size_t memoryUsageLimitInBytes)
-{
-    Platform::LockGuard<Platform::AtomicLock> poolLock(m_eventPoolMutex);
-
-    const size_t maxAllocatedChunks = (memoryUsageLimitInBytes / sizeof(EventChunk));
-
-    Result result = Result::Rejected;
-
-    // Only allow the change if our current allocation count adheres to the new limit.
-    if (m_eventChunkAllocList.Size() <= maxAllocatedChunks)
-    {
-        m_maxAllocatedChunks = maxAllocatedChunks;
-
-        result = Result::Success;
-    }
-
-    return result;
-}
-
-size_t EventServer::QueryMemoryUsageLimit() const
-{
-    return (m_maxAllocatedChunks * sizeof(EventChunk));
-}
-
 Result EventServer::AllocateEventChunk(EventChunk** ppChunk)
 {
     DD_ASSERT(ppChunk != nullptr);
@@ -215,7 +210,7 @@ Result EventServer::AllocateEventChunk(EventChunk** ppChunk)
 
     if (m_eventChunkPool.IsEmpty() == false)
     {
-        EventChunk* pChunk;
+        EventChunk* pChunk = nullptr;
         m_eventChunkPool.PopBack(&pChunk);
 
         // Reset the chunk before we hand it back to the caller
@@ -225,33 +220,16 @@ Result EventServer::AllocateEventChunk(EventChunk** ppChunk)
     }
     else
     {
-        // Restrict the number of allocated event chunks in order to limit our total memory usage.
-        if (m_eventChunkAllocList.Size() < m_maxAllocatedChunks)
+        EventChunk* pChunk = reinterpret_cast<EventChunk*>(DD_CALLOC(sizeof(EventChunk),
+                                                                     alignof(EventChunk),
+                                                                     m_pMsgChannel->GetAllocCb()));
+        if (pChunk != nullptr)
         {
-            EventChunk* pChunk = reinterpret_cast<EventChunk*>(DD_CALLOC(sizeof(EventChunk),
-                                                                         alignof(EventChunk),
-                                                                         m_pMsgChannel->GetAllocCb()));
-            if (pChunk != nullptr)
-            {
-                if (m_eventChunkAllocList.PushBack(pChunk))
-                {
-                    *ppChunk = pChunk;
-                }
-                else
-                {
-                    DD_FREE(pChunk, m_pMsgChannel->GetAllocCb());
-
-                    result = Result::InsufficientMemory;
-                }
-            }
-            else
-            {
-                result = Result::InsufficientMemory;
-            }
+            *ppChunk = pChunk;
         }
         else
         {
-            result = Result::LimitReached;
+            result = Result::InsufficientMemory;
         }
     }
 
@@ -264,7 +242,16 @@ void EventServer::FreeEventChunk(EventChunk* pChunk)
 
     Platform::LockGuard<Platform::AtomicLock> poolLock(m_eventPoolMutex);
 
-    DD_UNHANDLED_RESULT(m_eventChunkPool.PushBack(pChunk) ? Result::Success : Result::InsufficientMemory);
+    if (IsTargetMemoryUsageExceeded())
+    {
+        // Free the chunk's memory immediately if we're already past our target memory usage
+        DD_FREE(pChunk, m_pMsgChannel->GetAllocCb());
+    }
+    else
+    {
+        // Return the chunk's memory to the pool if we're under our usage budget
+        DD_UNHANDLED_RESULT(m_eventChunkPool.PushBack(pChunk) ? Result::Success : Result::InsufficientMemory);
+    }
 }
 
 void EventServer::EnqueueEventChunks(size_t numChunks, EventChunk** ppChunks)
@@ -277,7 +264,19 @@ void EventServer::EnqueueEventChunks(size_t numChunks, EventChunk** ppChunks)
 
     for (size_t chunkIndex = 0; chunkIndex < numChunks; ++chunkIndex)
     {
-        result = (m_eventChunkQueue.PushBack(ppChunks[chunkIndex]) ? Result::Success : Result::InsufficientMemory);
+        EventChunk* pChunk = ppChunks[chunkIndex];
+
+        // Due to the fact that the event providers never know exactly how much data they'll need, they may over-allocate event
+        // chunks in some cases. This can lead to them submitting empty chunks to the server. We just filter them out here since
+        // we know they don't contain any useful data.
+        if (pChunk->IsEmpty() == false)
+        {
+            result = (m_eventChunkQueue.PushBack(pChunk) ? Result::Success : Result::InsufficientMemory);
+        }
+        else
+        {
+            FreeEventChunk(pChunk);
+        }
 
         if (result != Result::Success)
         {
@@ -397,6 +396,34 @@ Result EventServer::ApplyProviderUpdate(const ProviderUpdateHeader* pUpdate)
     }
 
     return result;
+}
+
+bool EventServer::IsTargetMemoryUsageExceeded() const
+{
+    return (m_eventChunkPool.Size() > kTargetAllocatedChunks);
+}
+
+void EventServer::TrimEventChunkMemory()
+{
+    // Trimming should only happen in the background if there's no contention for the event chunk pool.
+    // When an application is making heavy use of the memory pool, we shouldn't waste time trying to trim it.
+    if (m_eventPoolMutex.TryLock())
+    {
+        // If we have more chunks allocated than we should, we'll attempt to deallocate a few of them here.
+        // We limit the amount of chunks we free in a single trim cycle to reduce the runtime overhead of this operation.
+        size_t numChunksTrimmed = 0;
+        while (IsTargetMemoryUsageExceeded() && (numChunksTrimmed < kMaxChunksPerTrim))
+        {
+            EventChunk* pChunk = nullptr;
+            m_eventChunkPool.PopBack(&pChunk);
+
+            DD_FREE(pChunk, m_pMsgChannel->GetAllocCb());
+
+            ++numChunksTrimmed;
+        }
+
+        m_eventPoolMutex.Unlock();
+    }
 }
 
 } // EventProtocol

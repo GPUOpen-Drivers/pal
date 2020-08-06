@@ -46,10 +46,6 @@ namespace Util
 namespace Abi
 {
 
-constexpr size_t AbiAmdGpuVersionNoteSize = sizeof(AbiAmdGpuVersionNote);
-constexpr size_t AbiMinorVersionNoteSize  = sizeof(AbiMinorVersionNote);
-constexpr size_t PalMetadataNoteEntrySize = sizeof(PalMetadataNoteEntry);
-
 // =====================================================================================================================
 template <typename Allocator>
 PipelineAbiProcessor<Allocator>::PipelineAbiProcessor(
@@ -408,11 +404,7 @@ Result PipelineAbiProcessor<Allocator>::GetMetadata(
     {
         memset(pMetadata, 0, sizeof(*pMetadata));
 
-        if (m_metadataMajorVer == 0)
-        {
-            result = TranslateLegacyMetadata(pReader, pMetadata);
-        }
-        else
+        if (m_metadataMajorVer != 0)
         {
             result = DeserializePalCodeObjectMetadata(pReader, pMetadata, m_pMetadata,
                 static_cast<uint32>(m_metadataSize), m_metadataMajorVer, m_metadataMinorVer);
@@ -993,7 +985,6 @@ Result PipelineAbiProcessor<Allocator>::LoadFromBuffer(
     if (result == Result::Success)
     {
         Elf::NoteProcessor<Allocator> noteProcessor(m_pNoteSection, m_pAllocator);
-        Vector<PalMetadataNoteEntry, 16, Allocator> legacyRegisters(m_pAllocator);
 
         result = noteProcessor.Init();
         for (uint32 i = 0; ((result == Result::Success) && (i < noteProcessor.GetNumNotes())); ++i)
@@ -1005,9 +996,9 @@ Result PipelineAbiProcessor<Allocator>::LoadFromBuffer(
 
             noteProcessor.Get(i, &type, &pName, &pDesc, &descSize);
 
-            switch (static_cast<PipelineAbiNoteType>(type))
+            switch (type)
             {
-            case PipelineAbiNoteType::PalMetadata:
+            case MetadataNoteType:
             {
                 m_pMetadata    = pDesc;
                 m_metadataSize = descSize;
@@ -1019,43 +1010,6 @@ Result PipelineAbiProcessor<Allocator>::LoadFromBuffer(
                 break;
             }
 
-            // Handle legacy note types:
-            case PipelineAbiNoteType::HsaIsa:
-            {
-                PAL_ASSERT(descSize >= AbiAmdGpuVersionNoteSize);
-                const auto*const pNote = static_cast<const AbiAmdGpuVersionNote*>(pDesc);
-                SetGfxIpVersion(pNote->gfxipMajorVer, pNote->gfxipMinorVer, pNote->gfxipStepping);
-                break;
-            }
-            case PipelineAbiNoteType::AbiMinorVersion:
-            {
-                PAL_ASSERT(descSize == AbiMinorVersionNoteSize);
-                const auto*const pNote = static_cast<const AbiMinorVersionNote*>(pDesc);
-                m_metadataMajorVer = m_elfProcessor.GetFileHeader()->ei_abiversion;
-                m_metadataMinorVer = pNote->minorVersion;
-                break;
-            }
-            case PipelineAbiNoteType::LegacyMetadata:
-            {
-                PAL_ASSERT(descSize % PalMetadataNoteEntrySize == 0);
-                m_pMetadata    = pDesc;
-                m_metadataSize = descSize;
-
-                const PalMetadataNoteEntry* pMetadataEntryReader =
-                    static_cast<const PalMetadataNoteEntry*>(pDesc);
-
-                while ((result == Result::Success) && (VoidPtrDiff(pMetadataEntryReader, pDesc) < descSize))
-                {
-                    if (pMetadataEntryReader->key < 0x10000000)
-                    {
-                        // Entry is a RegisterEntry
-                        result = legacyRegisters.PushBack(*pMetadataEntryReader);
-                    }
-
-                    pMetadataEntryReader++;
-                }
-                break;
-            }
             default:
                 // Unknown note type.
                 break;
@@ -1065,27 +1019,6 @@ Result PipelineAbiProcessor<Allocator>::LoadFromBuffer(
         if (m_pCompatRegisterBlob != nullptr)
         {
             PAL_SAFE_FREE(m_pCompatRegisterBlob, m_pAllocator);
-        }
-
-        if ((result == Result::Success) && (legacyRegisters.NumElements() > 0))
-        {
-            // 1-3 bytes for map declaration + 5 bytes per key + 5 bytes per value
-            const uint32 allocSize = (3 + (10 * legacyRegisters.NumElements()) + 1);
-            m_pCompatRegisterBlob = PAL_MALLOC(allocSize, m_pAllocator, AllocInternal);
-
-            MsgPackWriter registerWriter(m_pCompatRegisterBlob, allocSize);
-            result = registerWriter.DeclareMap(legacyRegisters.NumElements());
-
-            for (auto iter = legacyRegisters.Begin(); ((result == Result::Success) && iter.IsValid()); iter.Next())
-            {
-                const auto& entry = iter.Get();
-                result = registerWriter.PackPair(entry.key, entry.value);
-            }
-
-            if (result == Result::Success)
-            {
-                m_compatRegisterSize = registerWriter.GetSize();
-            }
         }
     }
 
@@ -1233,315 +1166,6 @@ void PipelineAbiProcessor<Allocator>::AssertNotStandardSection(
     {
         PAL_ASSERT(strcmp(UsedSectionNames[i], pName) != 0);
     }
-}
-
-// =====================================================================================================================
-template <typename Allocator>
-Result PipelineAbiProcessor<Allocator>::TranslateLegacyMetadata(
-    MsgPackReader*         pReader,
-    PalCodeObjectMetadata* pOut
-    ) const
-{
-    PAL_ASSERT(m_metadataMajorVer == 0);
-
-    Result result = Result::Success;
-
-    Vector<PipelineMetadataEntry, 16, Allocator> metadata(m_pAllocator);
-    int32 indices[static_cast<uint32>(PipelineMetadataType::Count)];
-    for (uint32 i = 0; i < static_cast<uint32>(PipelineMetadataType::Count); i++)
-    {
-        indices[i] = -1;
-    }
-
-    const PalMetadataNoteEntry* pMetadataEntryReader = static_cast<const PalMetadataNoteEntry*>(m_pMetadata);
-
-    while ((result == Result::Success) && (VoidPtrDiff(pMetadataEntryReader, m_pMetadata) < m_metadataSize))
-    {
-        if (pMetadataEntryReader->key >= 0x10000000)
-        {
-            // Entry is a PipelineMetadataEntry
-            PipelineMetadataEntry entry;
-
-            entry.key = static_cast<PipelineMetadataType>(pMetadataEntryReader->key & 0x0FFFFFFF);
-            entry.value = pMetadataEntryReader->value;
-
-            PAL_ASSERT((entry.key >= PipelineMetadataType::ApiCsHashDword0) &&
-                       (entry.key <  PipelineMetadataType::Count));
-
-            result = metadata.PushBack(entry);
-
-            if (result == Result::Success)
-            {
-                indices[static_cast<uint32>(entry.key)] = metadata.NumElements() - 1;
-            }
-        }
-
-        pMetadataEntryReader++;
-    }
-
-    if (result == Result::Success)
-    {
-        result = pReader->InitFromBuffer(m_pCompatRegisterBlob, m_compatRegisterSize);
-    }
-
-    pOut->version[0] = m_metadataMajorVer; // 0
-    pOut->version[1] = m_metadataMinorVer; // 1
-    pOut->hasEntry.version = 1;
-
-    // Translate pipeline metadata.
-    pOut->pipeline.internalPipelineHash[0] = 0;
-    pOut->pipeline.internalPipelineHash[1] = 0;
-    uint32 type = static_cast<uint32>(PipelineMetadataType::InternalPipelineHashDword0);
-    if (indices[type] != -1)
-    {
-        pOut->pipeline.internalPipelineHash[0] |= static_cast<uint64>(metadata.At(indices[type]).value);
-        pOut->pipeline.hasEntry.internalPipelineHash = 1;
-    }
-
-    type = static_cast<uint32>(PipelineMetadataType::InternalPipelineHashDword1);
-    if (indices[type] != -1)
-    {
-        pOut->pipeline.internalPipelineHash[0] |= (static_cast<uint64>(metadata.At(indices[type]).value) << 32);
-        pOut->pipeline.hasEntry.internalPipelineHash = 1;
-    }
-
-    type = static_cast<uint32>(PipelineMetadataType::InternalPipelineHashDword2);
-    if (indices[type] != -1)
-    {
-        pOut->pipeline.internalPipelineHash[1] |= static_cast<uint64>(metadata.At(indices[type]).value);
-        pOut->pipeline.hasEntry.internalPipelineHash = 1;
-    }
-
-    type = static_cast<uint32>(PipelineMetadataType::InternalPipelineHashDword3);
-    if (indices[type] != -1)
-    {
-        pOut->pipeline.internalPipelineHash[1] |= (static_cast<uint64>(metadata.At(indices[type]).value) << 32);
-        pOut->pipeline.hasEntry.internalPipelineHash = 1;
-    }
-
-    if (pOut->pipeline.internalPipelineHash[1] == 0)
-    {
-        // If the hash is a legacy 64-bit pipeline compiler hash, just use the same hash for both halves of the internal
-        // pipeline hash - the legacy hash is most like the "stable" hash.
-        pOut->pipeline.internalPipelineHash[1] = pOut->pipeline.internalPipelineHash[0];
-    }
-
-    type = static_cast<uint32>(PipelineMetadataType::UserDataLimit);
-    if (indices[type] != -1)
-    {
-        pOut->pipeline.userDataLimit = metadata.At(indices[type]).value;
-        pOut->pipeline.hasEntry.userDataLimit = 1;
-    }
-
-    type = static_cast<uint32>(PipelineMetadataType::SpillThreshold);
-    if (indices[type] != -1)
-    {
-        pOut->pipeline.spillThreshold = metadata.At(indices[type]).value;
-        pOut->pipeline.hasEntry.spillThreshold = 1;
-    }
-
-    type = static_cast<uint32>(PipelineMetadataType::StreamOutTableEntry);
-    if (indices[type] != -1)
-    {
-        pOut->pipeline.streamOutTableAddress = metadata.At(indices[type]).value;
-        pOut->pipeline.hasEntry.streamOutTableAddress = 1;
-    }
-    else
-    {
-        pOut->pipeline.streamOutTableAddress = 0;
-    }
-
-    type = static_cast<uint32>(PipelineMetadataType::EsGsLdsByteSize);
-    if (indices[type] != -1)
-    {
-        pOut->pipeline.esGsLdsSize = metadata.At(indices[type]).value;
-        pOut->pipeline.hasEntry.esGsLdsSize = 1;
-    }
-
-    type = static_cast<uint32>(PipelineMetadataType::UsesViewportArrayIndex);
-    if (indices[type] != -1)
-    {
-        pOut->pipeline.flags.usesViewportArrayIndex = (metadata.At(indices[type]).value != 0);
-        pOut->pipeline.hasEntry.usesViewportArrayIndex = 1;
-    }
-
-    type = static_cast<uint32>(PipelineMetadataType::CalcWaveBreakSizeAtDrawTime);
-    if (indices[type] != -1)
-    {
-        pOut->pipeline.flags.calcWaveBreakSizeAtDrawTime = (metadata.At(indices[type]).value != 0);
-        pOut->pipeline.hasEntry.calcWaveBreakSizeAtDrawTime = 1;
-    }
-
-    type = static_cast<uint32>(PipelineMetadataType::CsWaveFrontSize);
-    if (indices[type] != -1)
-    {
-        constexpr uint32 Cs = static_cast<uint32>(HardwareStage::Cs);
-        pOut->pipeline.hardwareStage[Cs].wavefrontSize = metadata.At(indices[type]).value;
-        pOut->pipeline.hardwareStage[Cs].hasEntry.wavefrontSize = 1;
-    }
-
-    type = static_cast<uint32>(PipelineMetadataType::PipelineNameIndex);
-    if (indices[type] != -1)
-    {
-        Elf::StringProcessor<Allocator> symbolStringProcessor(m_pSymbolStrTabSection, m_pAllocator);
-        const char*const pPipelineName = symbolStringProcessor.Get(metadata.At(indices[type]).value);
-
-        Strncpy(&pOut->pipeline.name[0], pPipelineName, sizeof(pOut->pipeline.name));
-        pOut->pipeline.hasEntry.name = 1;
-    }
-
-    ApiHwShaderMapping apiHwMapping = {};
-
-    type = static_cast<uint32>(PipelineMetadataType::ApiHwShaderMappingLo);
-    if (indices[type] != -1)
-    {
-        apiHwMapping.u32Lo = metadata.At(indices[type]).value;
-    }
-
-    type = static_cast<uint32>(PipelineMetadataType::ApiHwShaderMappingHi);
-    if (indices[type] != -1)
-    {
-        apiHwMapping.u32Hi = metadata.At(indices[type]).value;
-    }
-
-    for (type  = static_cast<uint32>(PipelineMetadataType::IndirectTableEntryLow);
-         type <= static_cast<uint32>(PipelineMetadataType::IndirectTableEntryHigh);
-         ++type)
-    {
-        const uint32 num = type - static_cast<uint32>(PipelineMetadataType::IndirectTableEntryLow);
-        if (indices[type] != -1)
-        {
-            pOut->pipeline.indirectUserDataTableAddresses[num] = metadata.At(indices[type]).value;
-            pOut->pipeline.hasEntry.indirectUserDataTableAddresses = 1;
-        }
-        else
-        {
-            pOut->pipeline.indirectUserDataTableAddresses[num] = 0;
-        }
-    }
-
-    // Translate per-API shader metadata.
-    for (uint32 s = 0; s < static_cast<uint32>(ApiShaderType::Count); ++s)
-    {
-        pOut->pipeline.shader[s].hasEntry.uAll = 0;
-
-        auto*const pDwords = reinterpret_cast<uint32*>(&pOut->pipeline.shader[s].apiShaderHash[0]);
-
-        for (uint32 i = 0; i < 4; ++i)
-        {
-            type = ((static_cast<uint32>(PipelineMetadataType::ApiCsHashDword0) + i) + (s << 2));
-
-            if (indices[type] != -1)
-            {
-                pDwords[i] = metadata.At(indices[type]).value;
-                pOut->pipeline.shader[s].hasEntry.apiShaderHash = 1;
-            }
-            else
-            {
-                pDwords[i] = 0;
-            }
-        }
-
-        if (apiHwMapping.apiShaders[s] != 0)
-        {
-            pOut->pipeline.shader[s].hardwareMapping = apiHwMapping.apiShaders[s];
-            pOut->pipeline.shader[s].hasEntry.hardwareMapping = 1;
-        }
-    }
-
-    // Translate per-hardware stage metadata.
-    static constexpr uint32 Ps = static_cast<uint32>(HardwareStage::Ps);
-
-    type = static_cast<uint32>(PipelineMetadataType::PsUsesUavs);
-    if (indices[type] != -1)
-    {
-        pOut->pipeline.hardwareStage[Ps].flags.usesUavs = (metadata.At(indices[type]).value != 0);
-        pOut->pipeline.hardwareStage[Ps].hasEntry.usesUavs = 1;
-    }
-
-    type = static_cast<uint32>(PipelineMetadataType::PsUsesRovs);
-    if (indices[type] != -1)
-    {
-        pOut->pipeline.hardwareStage[Ps].flags.usesRovs = (metadata.At(indices[type]).value != 0);
-        pOut->pipeline.hardwareStage[Ps].hasEntry.usesRovs = 1;
-    }
-
-    type = static_cast<uint32>(PipelineMetadataType::PsWritesUavs);
-    if (indices[type] != -1)
-    {
-        pOut->pipeline.hardwareStage[Ps].flags.writesUavs = (metadata.At(indices[type]).value != 0);
-        pOut->pipeline.hardwareStage[Ps].hasEntry.writesUavs = 1;
-    }
-
-    type = static_cast<uint32>(PipelineMetadataType::PsWritesDepth);
-    if (indices[type] != -1)
-    {
-        pOut->pipeline.hardwareStage[Ps].flags.writesDepth = (metadata.At(indices[type]).value != 0);
-        pOut->pipeline.hardwareStage[Ps].hasEntry.writesDepth = 1;
-    }
-
-    type = static_cast<uint32>(PipelineMetadataType::PsUsesAppendConsume);
-    if (indices[type] != -1)
-    {
-        pOut->pipeline.hardwareStage[Ps].flags.usesAppendConsume = (metadata.At(indices[type]).value != 0);
-        pOut->pipeline.hardwareStage[Ps].hasEntry.usesAppendConsume = 1;
-    }
-
-    for (uint32 h = 0; h < static_cast<uint32>(HardwareStage::Count); ++h)
-    {
-        pOut->pipeline.hardwareStage[h].hasEntry.uAll = 0;
-
-        type = static_cast<uint32>(PipelineMetadataType::ShaderNumUsedVgprs) + h;
-        if (indices[type] != -1)
-        {
-            pOut->pipeline.hardwareStage[h].vgprCount = metadata.At(indices[type]).value;
-            pOut->pipeline.hardwareStage[h].hasEntry.vgprCount = 1;
-        }
-
-        type = static_cast<uint32>(PipelineMetadataType::ShaderNumUsedSgprs) + h;
-        if (indices[type] != -1)
-        {
-            pOut->pipeline.hardwareStage[h].sgprCount = metadata.At(indices[type]).value;
-            pOut->pipeline.hardwareStage[h].hasEntry.sgprCount = 1;
-        }
-
-        type = static_cast<uint32>(PipelineMetadataType::ShaderNumAvailVgprs) + h;
-        if (indices[type] != -1)
-        {
-            pOut->pipeline.hardwareStage[h].vgprLimit = metadata.At(indices[type]).value;
-            pOut->pipeline.hardwareStage[h].hasEntry.vgprLimit = 1;
-        }
-
-        type = static_cast<uint32>(PipelineMetadataType::ShaderNumAvailSgprs) + h;
-        if (indices[type] != -1)
-        {
-            pOut->pipeline.hardwareStage[h].sgprLimit = metadata.At(indices[type]).value;
-            pOut->pipeline.hardwareStage[h].hasEntry.sgprLimit = 1;
-        }
-
-        type = static_cast<uint32>(PipelineMetadataType::ShaderLdsByteSize) + h;
-        if (indices[type] != -1)
-        {
-            pOut->pipeline.hardwareStage[h].ldsSize = metadata.At(indices[type]).value;
-            pOut->pipeline.hardwareStage[h].hasEntry.ldsSize = 1;
-        }
-
-        type = static_cast<uint32>(PipelineMetadataType::ShaderScratchByteSize) + h;
-        if (indices[type] != -1)
-        {
-            pOut->pipeline.hardwareStage[h].scratchMemorySize = metadata.At(indices[type]).value;
-            pOut->pipeline.hardwareStage[h].hasEntry.scratchMemorySize = 1;
-        }
-
-        type = static_cast<uint32>(PipelineMetadataType::ShaderPerformanceDataBufferSize) + h;
-        if (indices[type] != -1)
-        {
-            pOut->pipeline.hardwareStage[h].perfDataBufferSize = metadata.At(indices[type]).value;
-            pOut->pipeline.hardwareStage[h].hasEntry.perfDataBufferSize = 1;
-        }
-    }
-
-    return result;
 }
 
 } // Abi

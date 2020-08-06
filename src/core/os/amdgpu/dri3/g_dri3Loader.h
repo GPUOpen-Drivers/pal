@@ -399,7 +399,7 @@ typedef xcb_void_cookie_t (*XcbSyncDestroyFenceChecked)(
 // symbols from libX11.so.6
 typedef XVisualInfo* (*XGetVisualInfo)(
             Display*      pDisplay,
-            uint64        visualMask,
+            long          visualMask,
             XVisualInfo*  pVisualInfoList,
             int32*        count);
 
@@ -1642,7 +1642,7 @@ public:
 
     XVisualInfo* pfnXGetVisualInfo(
             Display*      pDisplay,
-            uint64        visualMask,
+            long          visualMask,
             XVisualInfo*  pVisualInfoList,
             int32*        count) const;
 

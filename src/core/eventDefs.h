@@ -292,14 +292,8 @@ static const char* EngineTypeToStr(
     {
     case EngineType::EngineTypeUniversal:             pRet = "Universal";             break;
     case EngineType::EngineTypeCompute:               pRet = "Compute";               break;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 530
-    case EngineType::EngineTypeExclusiveCompute:      pRet = "ExclusiveCompute";      break;
-#endif
     case EngineType::EngineTypeDma:                   pRet = "Dma";                   break;
     case EngineType::EngineTypeTimer:                 pRet = "Timer";                  break;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 530
-    case EngineType::EngineTypeHighPriorityUniversal: pRet = "HighPriorityUniversal"; break;
-#endif
     default:
         PAL_ASSERT_ALWAYS();
         break;

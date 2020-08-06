@@ -110,7 +110,7 @@ function(dd_third_party_add_lib)
 
     endif()
 
-    message(VERBOSE "Adding third party target \"${third_party_TARGET}\" from ${CMAKE_CURRENT_SOURCE_DIR}/${third_party_DIRECTORY}")
+    message(VERBOSE "Adding third party targets \"${third_party_TARGETS}\" from ${CMAKE_CURRENT_SOURCE_DIR}/${third_party_DIRECTORY}")
     add_subdirectory("${third_party_DIRECTORY}" EXCLUDE_FROM_ALL)
 
     set(BAD_TARGETS "")
@@ -147,7 +147,12 @@ endif()
 
 ### JSON Reader/Writer ###
 # WA: Check that this target hasn't already been added (Only until we have a global CMake context)
-if (NOT TARGET rapidjson)
+if (NOT TARGET rapidjson
+#if DD_CLOSED_SOURCE
+# WA: We will move this logic into a toolchain
+AND NOT DD_TOOLCHAIN_WA_BUILD_KERNELMODE
+#endif
+)
 
     dd_third_party_add_lib(
         TARGETS   rapidjson
@@ -178,13 +183,51 @@ if (NOT TARGET lz4)
 
 endif()
 
-### C++ Unit Tests ###
+### Locate the current executable and module in the filesystem ###
 # WA: Check that these targets haven't already been added (Only until we have a global CMake context)
-if (NOT TARGET gtest)
+if (NOT TARGET whereami)
 
     dd_third_party_add_lib(
-        TARGETS   gtest
-        DIRECTORY gtest
+        TARGETS   whereami
+        DIRECTORY whereami
+    )
+
+endif()
+
+### Path Utility Library ###
+# WA: Check that these targets haven't already been added (Only until we have a global CMake context)
+if (NOT TARGET cwalk)
+
+    dd_third_party_add_lib(
+        TARGETS   cwalk
+        DIRECTORY cwalk
+    )
+
+endif()
+
+
+### C++ Unit Tests ###
+# WA: Check that these targets haven't already been added (Only until we have a global CMake context)
+if (DD_ENABLE_TESTS)
+    # This is only used when building test (as it's a testing framework), so we disable it otherwise.
+    # Building this is nontrivial, so we want to be conservative about when we do.
+    if (NOT TARGET gtest)
+
+        dd_third_party_add_lib(
+            TARGETS   gtest
+            DIRECTORY gtest
+        )
+
+    endif()
+endif()
+
+### Cross platform printf with bonus features ###
+# WA: Check that these targets haven't already been added (Only until we have a global CMake context)
+if (NOT TARGET tiny_printf)
+
+    dd_third_party_add_lib(
+        TARGETS   tiny_printf
+        DIRECTORY tiny_printf
     )
 
 endif()

@@ -40,6 +40,7 @@
 #include "ddTransferManager.h"
 #include "protocols/ddURIServer.h"
 #include "ddClientURIService.h"
+#include "protocols/ddInfoService.h"
 
 namespace DevDriver
 {
@@ -118,6 +119,11 @@ namespace DevDriver
         TransferProtocol::TransferManager& GetTransferManager() override final
         {
             return m_transferManager;
+        }
+
+        InfoURIService::InfoService& GetInfoService() override final
+        {
+            return m_infoService;
         }
 
         Result RegisterService(IService* pService) override final
@@ -219,6 +225,9 @@ namespace DevDriver
         }
 #endif
 
+        // Write callback for the "client" InfoService node
+        static void QueryClientInfoCb(IStructuredWriter* pWriter, void* pUserdata);
+
         DD_STATIC_CONST uint64            kKeepAliveTimeout = 2000;
         DD_STATIC_CONST uint64            kKeepAliveThreshold = 5;
         DD_STATIC_CONST uint64            kRetransmitTimeoutInMs = 50;
@@ -245,6 +254,7 @@ namespace DevDriver
         TransferProtocol::TransferManager m_transferManager;
         URIProtocol::URIServer*           m_pURIServer;
         ClientURIService                  m_clientURIService;
+        InfoURIService::InfoService       m_infoService;
     };
 
 } // DevDriver

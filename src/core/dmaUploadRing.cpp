@@ -334,11 +334,7 @@ Result DmaUploadRing::CreateInternalCopyQueue()
     QueueCreateInfo queueCreateInfo = { };
     queueCreateInfo.queueType = QueueType::QueueTypeDma;
     queueCreateInfo.engineType = EngineType::EngineTypeDma;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 530
     queueCreateInfo.priority = QueuePriority::Normal;
-#else
-    queueCreateInfo.priority = QueuePriority::Low;
-#endif
     queueCreateInfo.engineIndex = numEnginesAvailable - 1;
 
     size_t queueSize = m_pDevice->GetQueueSize(queueCreateInfo, &result);

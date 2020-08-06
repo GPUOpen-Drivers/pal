@@ -103,15 +103,14 @@ DriverControlServer::~DriverControlServer()
 
 void DriverControlServer::Finalize()
 {
-#if GPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION < GPUOPEN_DRIVER_CONTROL_CLEANUP_VERSION
-    // Prior to this version clients called Finalize to move to LateDeviceInit, with the cleanup StartLateDeviceInit should be
-    // called intead. To simulate that and preserve back-compat we'll check the status and just call StartLateDeviceInit() if
-    // we're not yet in the LateDeviceInit state
+    // This call is being reenabled because responsibility to call StartLateDeviceInit is being moved back to the client drivers.
+    // This is a safeguard against clients who update their PAL version without adding the call to StartLateDeviceInit in which
+    // case we would not advance through all of the init states.
     if (m_driverStatus == DriverStatus::EarlyDeviceInit)
     {
+        DD_ASSERT_REASON("A call to StartLateDeviceInit must be made prior to calling Finalize");
         StartLateDeviceInit();
     }
-#endif
 
     BaseProtocolServer::Finalize();
 }

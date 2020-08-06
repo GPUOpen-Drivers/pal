@@ -389,14 +389,22 @@ namespace DevDriver
             uint32 dataSize;
             uint8  data[kEventChunkMaxDataSize];
 
+            // Returns the number of available bytes remaining in the chunk
+            size_t CalculateBytesRemaining() const { return (sizeof(data) - dataSize); }
+
+            // Returns true if the chunk has no data in it
+            bool IsEmpty() const { return (dataSize == 0); }
+
+            // Returns true if the chunk is completely filled with data
+            bool IsFull() const { return (dataSize == sizeof(data)); }
+
             // Writes the provided event data into the event chunk
             // Returns InsufficientMemory if the data won't fit
-            Result WriteEventDataRaw(const void* pEventData, size_t eventDataSize)
+            Result Write(const void* pEventData, size_t eventDataSize)
             {
                 Result result = Result::Success;
 
-                const size_t bytesRemaining = (sizeof(data) - dataSize);
-                if (eventDataSize <= bytesRemaining)
+                if (eventDataSize <= CalculateBytesRemaining())
                 {
                     memcpy(data + dataSize, pEventData, eventDataSize);
                     dataSize += static_cast<uint32>(eventDataSize);
@@ -404,6 +412,76 @@ namespace DevDriver
                 else
                 {
                     result = Result::InsufficientMemory;
+                }
+
+                return result;
+            }
+        };
+
+        // Utility class that abstracts the logic required to write data across multiple event chunks
+        class EventChunkBufferView
+        {
+        public:
+            EventChunkBufferView(EventChunk** ppChunkList, size_t numChunks)
+                : m_ppChunkList(ppChunkList)
+                , m_numChunks(numChunks)
+                , m_currentChunkIndex(0)
+            {
+            }
+
+            EventChunkBufferView(EventChunk** ppChunk)
+                : m_ppChunkList(ppChunk)
+                , m_numChunks(1)
+                , m_currentChunkIndex(0)
+            {
+            }
+
+            // Writes data into the buffer and automatically strides over the event chunks as necessary.
+            Result Write(const void* pData, size_t dataSize)
+            {
+                Result result = Result::Success;
+
+                size_t bytesWritten = 0;
+
+                while (result == Result::Success)
+                {
+                    // If we've filled the current chunk, we need to move on to the next one
+                    if (m_ppChunkList[m_currentChunkIndex]->IsFull())
+                    {
+                        if ((m_currentChunkIndex + 1) < m_numChunks)
+                        {
+                            // We have another chunk, increment our index to start using it.
+                            m_currentChunkIndex++;
+                        }
+                        else
+                        {
+                            // We've run out of chunks. Return an out of memory error.
+                            result = Result::InsufficientMemory;
+                        }
+                    }
+
+                    if (result == Result::Success)
+                    {
+                        EventChunk* pChunk = m_ppChunkList[m_currentChunkIndex];
+
+                        const void* pDataPtr = VoidPtrInc(pData, bytesWritten);
+
+                        const size_t bytesRemaining = (dataSize - bytesWritten);
+                        const size_t bytesToWrite = Platform::Min(pChunk->CalculateBytesRemaining(), bytesRemaining);
+
+                        result = pChunk->Write(pDataPtr, bytesToWrite);
+
+                        if (result == Result::Success)
+                        {
+                            bytesWritten += bytesToWrite;
+
+                            // Break out of the loop if we've finished writing all of our data
+                            if (bytesWritten == dataSize)
+                            {
+                                break;
+                            }
+                        }
+                    }
                 }
 
                 return result;
@@ -420,7 +498,7 @@ namespace DevDriver
                 header.id               = static_cast<uint8>(EventTokenType::Provider);
                 header.delta            = 0;
 
-                Result result = WriteEventDataRaw(&header, sizeof(header));
+                Result result = Write(&header, sizeof(header));
 
                 if (result == Result::Success)
                 {
@@ -429,26 +507,25 @@ namespace DevDriver
                     token.frequency      = frequency;
                     token.timestamp      = timestamp;
 
-                    result = WriteEventDataRaw(&token, sizeof(token));
+                    result = Write(&token, sizeof(token));
                 }
 
                 return result;
             }
 
             // Writes the provided event data token information into the event chunk
-            // Returns InsufficientMemory if the data won't fit
+            // Returns InsufficientMemory if we don't have enough space remaining
             Result WriteEventDataToken(
-                uint8          delta,
-                uint32         eventId,
-                uint32         index,
-                const void*    pEventData,
-                size_t         eventDataSize)
+                uint8  delta,
+                uint32 eventId,
+                uint32 index,
+                size_t eventDataSize)
             {
                 EventTokenHeader header = {};
                 header.id               = static_cast<uint8>(EventTokenType::Data);
                 header.delta            = delta;
 
-                Result result = WriteEventDataRaw(&header, sizeof(header));
+                Result result = Write(&header, sizeof(header));
 
                 if (result == Result::Success)
                 {
@@ -457,12 +534,7 @@ namespace DevDriver
                     token.index          = index;
                     token.size           = eventDataSize;
 
-                    result = WriteEventDataRaw(&token, sizeof(token));
-                }
-
-                if ((result == Result::Success) && (eventDataSize > 0))
-                {
-                    result = WriteEventDataRaw(pEventData, eventDataSize);
+                    result = Write(&token, sizeof(token));
                 }
 
                 return result;
@@ -478,7 +550,7 @@ namespace DevDriver
                 header.id               = static_cast<uint8>(EventTokenType::Timestamp);
                 header.delta            = 0;
 
-                Result result = WriteEventDataRaw(&header, sizeof(header));
+                Result result = Write(&header, sizeof(header));
 
                 if (result == Result::Success)
                 {
@@ -486,7 +558,7 @@ namespace DevDriver
                     token.frequency           = frequency;
                     token.timestamp           = timestamp;
 
-                    result = WriteEventDataRaw(&token, sizeof(token));
+                    result = Write(&token, sizeof(token));
                 }
 
                 return result;
@@ -504,23 +576,28 @@ namespace DevDriver
                 header.id               = static_cast<uint8>(EventTokenType::TimeDelta);
                 header.delta            = 0;
 
-                Result result = WriteEventDataRaw(&header, sizeof(header));
+                Result result = Write(&header, sizeof(header));
 
                 if (result == Result::Success)
                 {
                     EventTimeDeltaToken token = {};
                     token.numBytes            = numBytes;
 
-                    result = WriteEventDataRaw(&token, sizeof(token));
+                    result = Write(&token, sizeof(token));
                 }
 
                 if (result == Result::Success)
                 {
-                    result = WriteEventDataRaw(&timeDelta, numBytes);
+                    result = Write(&timeDelta, numBytes);
                 }
 
                 return result;
             }
+
+        private:
+            EventChunk** m_ppChunkList;
+            size_t       m_numChunks;
+            size_t       m_currentChunkIndex;
         };
 
         static_assert(Platform::IsPowerOfTwo(sizeof(EventChunk)), "EventChunk should be a power of two to avoid extra memory overhead per chunk allocation.");

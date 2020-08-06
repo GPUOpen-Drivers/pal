@@ -105,13 +105,6 @@ struct ColorLayoutToState
     ImageLayout fmaskDecompressed; // Mask of layouts compatible with the ColorFmaskDecompressed state.
 };
 
-enum Gfx9InitMetaDataFill : uint32
-{
-    Gfx9InitMetaDataFillDcc = 0x00000001,
-    Gfx9InitMetaDataFillCmask = 0x00000002,
-    Gfx9InitMetaDataFillHtile = 0x00000004,
-};
-
 // =====================================================================================================================
 // Returns the best color hardware compression state based on a set of allowed usages and queues. Images with metadata
 // are always compressed if they are only used on the universal queue and only support the color target usage.

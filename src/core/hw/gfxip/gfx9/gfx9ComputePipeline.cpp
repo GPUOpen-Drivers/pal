@@ -94,11 +94,7 @@ Result ComputePipeline::HwlInit(
         // Next, handle relocations and upload the pipeline code & data to GPU memory.
         result = PerformRelocationsAndUploadToGpuMemory(
             metadata,
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 502)
-            (createInfo.flags.preferNonLocalHeap == 1) ? GpuHeapGartUswc : GpuHeapInvisible,
-#else
             (createInfo.flags.overrideGpuHeap == 1) ? createInfo.preferredHeapType : GpuHeapInvisible,
-#endif
             &uploader);
     }
 

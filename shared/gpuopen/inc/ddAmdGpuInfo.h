@@ -92,7 +92,8 @@ inline const char* ToString(LocalMemoryType type)
 /// There is an InfoService node in ListenerCore that mirrors this struct into Json
 struct AmdGpuInfo
 {
-    char name[128];
+    char name[128];             // Name of the AMD GPU
+    char driverInstallDir[256]; // Path to the driver installation directory
 
     struct PciLocation
     {
@@ -190,6 +191,8 @@ inline Result QueryGpuInfo(const AllocCb& allocCb, Vector<AmdGpuInfo>* pGpus)
 {
     DD_UNUSED(allocCb);
     DD_UNUSED(pGpus);
+
+    DD_PRINT(LogLevel::Warn, "QueryGpuInfo() is not yet implemented on your platform.");
 
     // Not yet implemented
     return Result::Unavailable;

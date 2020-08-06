@@ -67,13 +67,14 @@ public:
     virtual Result PreProcessSubmit(InternalSubmitInfo* pSubmitInfo, uint32 cmdBufferCount) override;
     virtual void PostProcessSubmit() override;
 
-    Result UpdateRingSet(bool* pHasChanged, bool* pHasDeferred, uint64* lastTimeStamp);
+    Result UpdateRingSet(bool* pHasChanged, uint64 lastTimeStamp);
 
 private:
-    Result RebuildCommandStreams(bool hasDeferFreeMem, uint64 lastTimeStamp);
+    Result RebuildCommandStreams(uint64 lastTimeStamp);
     void ResetCommandStream(CmdStream*                 pCmdStream,
                             ComputeQueueDeferFreeList* pList,
-                            uint32*                    pIndex);
+                            uint32*                    pIndex,
+                            uint64                     lastTimeStamp);
 
     void ClearDeferredMemory();
 
@@ -114,16 +115,17 @@ public:
     virtual void PostProcessSubmit() override;
     virtual Result ProcessInitialSubmit(InternalSubmitInfo* pSubmitInfo) override;
 
-    Result UpdateRingSet(bool isTmz, bool* pHasChanged, bool* pHasDeferred, uint64* lastTimeStamp);
+    Result UpdateRingSet(bool isTmz, bool* pHasChanged, uint64 lastTimeStamp);
 
 private:
     Result BuildShadowPreamble();
 
     void ResetCommandStream(CmdStream*                   pCmdStream,
                             UniversalQueueDeferFreeList* pList,
-                            uint32*                      pIndex);
+                            uint32*                      pIndex,
+                            uint64                       lastTimeStamp);
 
-    Result RebuildCommandStreams(bool isTmz, bool pHasDeferred, uint64 lastTimeStamp);
+    Result RebuildCommandStreams(bool isTmz, uint64 lastTimeStamp);
 
     Result AllocateShadowMemory();
 
@@ -162,6 +164,9 @@ private:
     CmdStream  m_cePreambleCmdStream;
     CmdStream  m_cePostambleCmdStream;
     CmdStream  m_dePostambleCmdStream;
+
+    // Command stream used for setting up state on the ACE queue for the DispatchDraw mechanism.
+    CmdStream  m_acePreambleCmdStream;
 
     Util::Deque<UniversalQueueDeferFreeList, Platform> m_deferCmdStreamChunks;
 

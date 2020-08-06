@@ -161,33 +161,6 @@ struct PerfCounterInfo
     uint32                       instance;    ///< Instance of that block in the device.
     uint32                       eventId;     ///< Which event ID to track.
 
-#if   PAL_CLIENT_INTERFACE_MAJOR_VERSION < 543
-    union
-    {
-        struct
-        {
-            // SQ counter specific parameters
-            uint32 sqSimdMask      :  1;
-
-            // SQ counter specific parameters for GFXIP7+
-            uint32 sqSqcBankMask   :  1;
-            uint32 sqSqcClientMask :  1;
-
-            uint32 reserved        : 29;
-        };
-        uint32 u32All;
-    } optionFlags;
-
-    struct
-    {
-        // SQ counter specific parameters
-        uint32 sqSimdMask;
-
-        // SQ counter specific parameters for GFXIP7+
-        uint32 sqSqcBankMask;
-        uint32 sqSqcClientMask;
-    } optionValues;
-#endif
 };
 
 /// Specifies properties for setting up a streaming performance counter trace. Input structure to
@@ -265,15 +238,9 @@ enum ThreadTraceRegTypeFlags : Pal::uint32
     AsyncComputeRegs      = 0x00000100, ///< Async compute registers. TT 3.0.
     GraphicsContextRegs   = 0x00000200, ///< Graphics context registers. TT 3.0.
     OtherConfigRegs       = 0x00000400, ///< Other regs. TT 2.3.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 544
     AllRegWrites          = 0x000007FF, ///< All reg writes other than OtherBusRegs.
     OtherBusRegs          = 0x00000800, ///< All write activity over gfx and compute buses. Debug only. TT 3.0.
     AllRegReads           = 0x00001000, ///< Not encouraged to be enabled. This can cause a GPU hang.
-#else
-    OtherBusRegs          = 0x00000800, ///< All write activity over gfx and compute buses. Debug only. TT 3.0.
-    AllRegWrites          = 0x00001FFF, ///< All reg writes other than OtherBusRegs.
-    AllRegReads           = 0x00002000, ///< Not encouraged to be enabled. This can cause a GPU hang.
-#endif
     AllReadsAndWrites     = 0xFFFFFFFF  ///< All reads and writes. Not encouraged. This can cause a GPU hang.
 };
 

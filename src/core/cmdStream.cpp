@@ -779,6 +779,7 @@ Result CmdStream::TransferRetainedChunks(
     {
         CmdStreamChunk* pChunk = nullptr;
         m_retainedChunkList.PopBack(&pChunk);
+        pChunk->RemoveCommandStreamReference();
         result = pDest->PushBack(pChunk);
 
         // PushBack can fail if there's not enough space,

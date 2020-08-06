@@ -34,6 +34,10 @@
     #include <cstddef>
     #include <stdio.h>
 
+#include <tiny_printf/tiny_printf.h>
+
+#include <util/vector.h>
+
 namespace DevDriver
 {
     namespace Platform
@@ -97,21 +101,62 @@ namespace DevDriver
             return ret;
         }
 
+        int32 Vsnprintf(char* pDst, size_t dstSize, const char* format, va_list args)
+        {
+            int32 ret = tiny_vsnprintf(pDst, dstSize, format, args);
+
+            // If the return value looks like a valid length, add one to account for a NULL byte.
+            if (ret >= 0)
+            {
+                ret += 1;
+            }
+            else
+            {
+                // A negative value means that some error occurred
+                // We don't print anything here because our logging requires Vsnprintf
+            }
+
+            return ret;
+        }
+
         /////////////////////////////////////////////////////
         // Print to consoles and debuggers
         void DebugPrint(LogLevel lvl, const char* pFormat, ...)
         {
+            // Use the typical pattern of snprintf-style functions:
+            //      1. Call a first time to get the required buffer size
+            //      2. Call a second time to do the actual formatting
+            // We'll need two va_lists for this, since each execution of vsnprintf consumes its va_list
+
+            // This buffer has a fixed amount stack-allocated for the common case
+            // It's pretty rare that we need to spill onto the heap.
+            Vector<char, 128> buffer(GenericAllocCb);
             va_list args;
-            va_start(args, pFormat);
-            char buffer[1024];
-            Platform::Vsnprintf(buffer, ArraySize(buffer), pFormat, args);
+            {
+                // 1. Dry run format to get the required buffer size
+                va_list dryRunArgs;
+                va_start(dryRunArgs, pFormat);
+                va_copy(args, dryRunArgs);
+
+                // This is the buffer requirement including the NULL terminator.
+                const int requiredSize = Platform::Vsnprintf(nullptr, 0, pFormat, dryRunArgs);
+                va_end(dryRunArgs);
+
+                // Reserve enough space for the fully formatted output and a trailing newline.
+                buffer.ResizeAndZero(requiredSize + 1);
+            }
+
+            // 2. Do the actual formatting
+            Platform::Vsnprintf(buffer.Data(), buffer.Size(), pFormat, args);
             va_end(args);
 
-            Platform::Strcat(buffer, "\n", sizeof(buffer));
+            // Append a newline - This keeps consecutive messages clearly delimited.
+            Platform::Strcat(buffer.Data(), "\n", buffer.Size());
 
-            printf("[DevDriver] %s", buffer);
+            printf("[DevDriver] %s", buffer.Data());
 
-            PlatformDebugPrint(lvl, buffer);
+            // Platforms may have additional logging to do - e.g. system logging frameworks like OutputDebugStringA().
+            PlatformDebugPrint(lvl, buffer.Data());
         }
 
         ThreadReturnType Thread::ThreadShim(void* pShimParam)

@@ -293,7 +293,6 @@ void PipelineChunkVsPs::LateInit(
     m_regs.context.spiShaderZFormat.u32All   = registers.At(mmSPI_SHADER_Z_FORMAT);
     m_regs.context.paClVsOutCntl.u32All      = registers.At(mmPA_CL_VS_OUT_CNTL);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 524
     if (createInfo.rsState.clipDistMask != 0)
     {
         m_regs.context.paClVsOutCntl.bitfields.CLIP_DIST_ENA_0 &= (createInfo.rsState.clipDistMask & 0x1) != 0;
@@ -305,7 +304,6 @@ void PipelineChunkVsPs::LateInit(
         m_regs.context.paClVsOutCntl.bitfields.CLIP_DIST_ENA_6 &= (createInfo.rsState.clipDistMask & 0x40) != 0;
         m_regs.context.paClVsOutCntl.bitfields.CLIP_DIST_ENA_7 &= (createInfo.rsState.clipDistMask & 0x80) != 0;
     }
-#endif
 
     m_regs.context.spiShaderPosFormat.u32All = registers.At(mmSPI_SHADER_POS_FORMAT);
     m_regs.context.vgtPrimitiveIdEn.u32All   = registers.At(mmVGT_PRIMITIVEID_EN);

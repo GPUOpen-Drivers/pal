@@ -356,18 +356,6 @@ public:
         uint32            data,
         uint32            mask,
         CompareFunc       compareFunc) override;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 509
-    virtual void CmdSetHiSCompareState0(
-        CompareFunc compFunc,
-        uint32      compMask,
-        uint32      compValue,
-        bool        enable) override;
-    virtual void CmdSetHiSCompareState1(
-        CompareFunc compFunc,
-        uint32      compMask,
-        uint32      compValue,
-        bool        enable) override;
-#endif
     void CmdUpdateHiSPretests(
         const IImage*      pImage,
         const HiSPretests& pretests,

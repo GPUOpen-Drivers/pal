@@ -312,24 +312,6 @@ void PipelineChunkCs::SetupSignatureFromElf(
         } // If HasEntry()
     } // For each user-SGPR
 
-#if PAL_ENABLE_PRINTS_ASSERTS
-    // Indirect user-data table(s) are not supported on compute pipelines, so just assert that the table addresses
-    // are unmapped.
-    if (metadata.pipeline.hasEntry.indirectUserDataTableAddresses != 0)
-    {
-        constexpr uint32 MetadataIndirectTableAddressCount =
-            (sizeof(metadata.pipeline.indirectUserDataTableAddresses) /
-             sizeof(metadata.pipeline.indirectUserDataTableAddresses[0]));
-        constexpr uint32 DummyAddresses[MetadataIndirectTableAddressCount] = { 0 };
-
-        PAL_ASSERT_MSG(0 == memcmp(&metadata.pipeline.indirectUserDataTableAddresses[0],
-                                   &DummyAddresses[0], sizeof(DummyAddresses)),
-                       "Indirect user-data tables are not supported for Compute Pipelines!");
-    }
-#endif
-
-    // NOTE: We skip the stream-out table address here because it is not used by compute pipelines.
-
     if (metadata.pipeline.hasEntry.spillThreshold != 0)
     {
         pSignature->spillThreshold = static_cast<uint16>(metadata.pipeline.spillThreshold);

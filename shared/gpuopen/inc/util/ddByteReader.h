@@ -29,7 +29,8 @@
   ***********************************************************************************************************************
   */
 #pragma once
-#include "gpuopen.h"
+
+#include <ddPlatform.h>
 
 namespace DevDriver
 {
@@ -53,6 +54,9 @@ namespace DevDriver
             DD_ASSERT(pEnd >= pCur);
             return (pEnd - pCur);
         }
+
+        // Returns true if there are more bytes to read
+        bool HasBytes() const { return (Remaining() > 0); }
 
         // Returns a pointer to a sized subset of the byte array based on the current position
         // Fails if there are not enough bytes remaining, or if ppValue is NULL.

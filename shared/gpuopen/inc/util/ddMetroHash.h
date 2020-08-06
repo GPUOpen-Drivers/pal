@@ -31,9 +31,8 @@
 
 #pragma once
 
-#include "gpuopen.h"
-#include "ddPlatform.h"
-#include "metrohash.h"
+#include <ddPlatform.h>
+#include <metrohash.h>
 
 namespace DevDriver
 {

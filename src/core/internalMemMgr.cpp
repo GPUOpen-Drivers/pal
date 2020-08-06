@@ -392,22 +392,10 @@ Result InternalMemMgr::AllocateBaseGpuMem(
     bool                                readOnly,
     GpuMemory**                         ppGpuMemory)
 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 516
-    const gpusize allocGranularity = m_pDevice->MemoryProperties().realMemAllocGranularity;
-
-    GpuMemoryCreateInfo localCreateInfo = createInfo;
-    localCreateInfo.size      = Pow2Align(localCreateInfo.size,      allocGranularity);
-    localCreateInfo.alignment = Pow2Align(localCreateInfo.alignment, allocGranularity);
-#endif
-
     // All memory allocated by the internal mem mgr should be always resident.
     PAL_ASSERT(internalInfo.flags.alwaysResident);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 516
     Result result = m_pDevice->CreateInternalGpuMemory(createInfo, internalInfo, ppGpuMemory);
-#else
-    Result result = m_pDevice->CreateInternalGpuMemory(localCreateInfo, internalInfo, ppGpuMemory);
-#endif
 
     if (IsErrorResult(result) == false)
     {

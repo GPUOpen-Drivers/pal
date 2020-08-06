@@ -137,6 +137,7 @@ void SettingsLoader::SetupDefaults()
     m_settings.vsCuEnLimitMask = 0xffffffff;
     m_settings.psCuEnLimitMask = 0xffffffff;
     m_settings.csCuEnLimitMask = 0xffffffff;
+
     m_settings.gfx9OffChipHsCopyMethod = Gfx9OffChipHsCopyAllAtEnd;
     m_settings.gfx9OffChipHsSkipDataCopyNullPatch = true;
     m_settings.shaderPrefetchSizeBytes = 4294967295;
@@ -2033,7 +2034,7 @@ void SettingsLoader::DevDriverRegister()
             component.pfnSetValue = ISettingsLoader::SetValue;
             component.pSettingsData = &g_gfx9PalJsonData[0];
             component.settingsDataSize = sizeof(g_gfx9PalJsonData);
-            component.settingsDataHash = 1568706620;
+            component.settingsDataHash = 735254405;
             component.settingsDataHeader.isEncoded = true;
             component.settingsDataHeader.magicBufferId = 402778310;
             component.settingsDataHeader.magicBufferOffset = 0;

@@ -838,9 +838,7 @@ void CmdBuffer::CmdRelease(
     InsertToken(releaseInfo.dstGlobalAccessMask);
     InsertTokenArray(releaseInfo.pMemoryBarriers, releaseInfo.memoryBarrierCount);
     InsertTokenArray(releaseInfo.pImageBarriers, releaseInfo.imageBarrierCount);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 504
     InsertToken(releaseInfo.reason);
-#endif
 
     InsertToken(pGpuEvent);
 }
@@ -858,9 +856,7 @@ void CmdBuffer::ReplayCmdRelease(
     releaseInfo.dstGlobalAccessMask = ReadTokenVal<uint32>();
     releaseInfo.memoryBarrierCount  = ReadTokenArray(&releaseInfo.pMemoryBarriers);
     releaseInfo.imageBarrierCount   = ReadTokenArray(&releaseInfo.pImageBarriers);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 504
     releaseInfo.reason              = ReadTokenVal<uint32>();
-#endif
 
     auto pGpuEvent = ReadTokenVal<IGpuEvent*>();
 
@@ -927,9 +923,7 @@ void CmdBuffer::CmdAcquire(
     InsertToken(acquireInfo.dstGlobalAccessMask);
     InsertTokenArray(acquireInfo.pMemoryBarriers, acquireInfo.memoryBarrierCount);
     InsertTokenArray(acquireInfo.pImageBarriers, acquireInfo.imageBarrierCount);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 504
     InsertToken(acquireInfo.reason);
-#endif
 
     InsertTokenArray(ppGpuEvents, gpuEventCount);
 }
@@ -947,9 +941,7 @@ void CmdBuffer::ReplayCmdAcquire(
     acquireInfo.dstGlobalAccessMask = ReadTokenVal<uint32>();
     acquireInfo.memoryBarrierCount  = ReadTokenArray(&acquireInfo.pMemoryBarriers);
     acquireInfo.imageBarrierCount   = ReadTokenArray(&acquireInfo.pImageBarriers);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 504
     acquireInfo.reason              = ReadTokenVal<uint32>();
-#endif
 
     IGpuEvent** ppGpuEvents   = nullptr;
     uint32      gpuEventCount = ReadTokenArray(&ppGpuEvents);
@@ -1015,9 +1007,7 @@ void CmdBuffer::CmdReleaseThenAcquire(
     InsertToken(barrierInfo.dstGlobalAccessMask);
     InsertTokenArray(barrierInfo.pMemoryBarriers, barrierInfo.memoryBarrierCount);
     InsertTokenArray(barrierInfo.pImageBarriers, barrierInfo.imageBarrierCount);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 504
     InsertToken(barrierInfo.reason);
-#endif
 }
 
 // =====================================================================================================================
@@ -1033,9 +1023,7 @@ void CmdBuffer::ReplayCmdReleaseThenAcquire(
     barrierInfo.dstGlobalAccessMask = ReadTokenVal<uint32>();
     barrierInfo.memoryBarrierCount  = ReadTokenArray(&barrierInfo.pMemoryBarriers);
     barrierInfo.imageBarrierCount   = ReadTokenArray(&barrierInfo.pImageBarriers);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 504
     barrierInfo.reason              = ReadTokenVal<uint32>();
-#endif
 
     pTgtCmdBuffer->ResetBarrierString();
 
@@ -3041,63 +3029,6 @@ void CmdBuffer::ReplayCmdEndWhile(
     LogPostTimedCall(pQueue, pTgtCmdBuffer, &m_loopLogItem);
 }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 509
-// =====================================================================================================================
-void CmdBuffer::CmdSetHiSCompareState0(
-    CompareFunc compFunc,
-    uint32      compMask,
-    uint32      compValue,
-    bool        enable)
-{
-    InsertToken(CmdBufCallId::CmdSetHiSCompareState0);
-    InsertToken(compFunc);
-    InsertToken(compMask);
-    InsertToken(compValue);
-    InsertToken(enable);
-}
-
-// =====================================================================================================================
-void CmdBuffer::ReplayCmdSetHiSCompareState0(
-    Queue*           pQueue,
-    TargetCmdBuffer* pTgtCmdBuffer)
-{
-    const CompareFunc compFunc  = ReadTokenVal<CompareFunc>();
-    const uint32      compMask  = ReadTokenVal<uint32>();
-    const uint32      compValue = ReadTokenVal<uint32>();
-    const bool        enable    = ReadTokenVal<bool>();
-
-    pTgtCmdBuffer->CmdSetHiSCompareState0(compFunc, compMask, compValue, enable);
-}
-
-// =====================================================================================================================
-void CmdBuffer::CmdSetHiSCompareState1(
-    CompareFunc compFunc,
-    uint32      compMask,
-    uint32      compValue,
-    bool        enable)
-{
-    InsertToken(CmdBufCallId::CmdSetHiSCompareState1);
-    InsertToken(compFunc);
-    InsertToken(compMask);
-    InsertToken(compValue);
-    InsertToken(enable);
-
-}
-
-// =====================================================================================================================
-void CmdBuffer::ReplayCmdSetHiSCompareState1(
-    Queue*           pQueue,
-    TargetCmdBuffer* pTgtCmdBuffer)
-{
-    const CompareFunc compFunc  = ReadTokenVal<CompareFunc>();
-    const uint32      compMask  = ReadTokenVal<uint32>();
-    const uint32      compValue = ReadTokenVal<uint32>();
-    const bool        enable    = ReadTokenVal<bool>();
-
-    pTgtCmdBuffer->CmdSetHiSCompareState1(compFunc, compMask, compValue, enable);
-}
-#endif
-
 // =====================================================================================================================
 void CmdBuffer::CmdUpdateHiSPretests(
     const IImage*      pImage,
@@ -3617,10 +3548,6 @@ Result CmdBuffer::Replay(
         &CmdBuffer::ReplayCmdStartGpuProfilerLogging,
         &CmdBuffer::ReplayCmdStopGpuProfilerLogging,
         &CmdBuffer::ReplayCmdSetViewInstanceMask,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 509
-        &CmdBuffer::ReplayCmdSetHiSCompareState0,
-        &CmdBuffer::ReplayCmdSetHiSCompareState1,
-#endif
         &CmdBuffer::ReplayCmdUpdateHiSPretests,
         &CmdBuffer::ReplayCmdSetClipRects,
         &CmdBuffer::ReplayCmdPostProcessFrame,
@@ -4193,11 +4120,7 @@ void TargetCmdBuffer::UpdateCommentString(
 
         const char* PipelineStallsStrings[] =
         {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 504
             "EOP TS Bottom of Pipe",
-#else
-            "Wait on EOP TS Bottom of Pipe",
-#endif
             "VS Partial Flush",
             "PS Partial Flush",
             "CS Partial Flush",

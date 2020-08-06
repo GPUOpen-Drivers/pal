@@ -153,11 +153,6 @@ Result GraphicsPipeline::InitFromPipelineBinary(
             m_flags.tessEnabled = 1;
         }
 
-        if (metadata.pipeline.hasEntry.streamOutTableAddress != 0)
-        {
-            m_flags.streamOut = (metadata.pipeline.streamOutTableAddress != 0);
-        }
-
         m_flags.vportArrayIdx = (metadata.pipeline.flags.usesViewportArrayIndex != 0);
 
         const auto& psStageMetadata = metadata.pipeline.hardwareStage[static_cast<uint32>(Abi::HardwareStage::Ps)];

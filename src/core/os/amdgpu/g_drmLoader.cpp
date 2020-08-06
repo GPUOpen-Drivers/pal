@@ -2958,6 +2958,24 @@ drmModeObjectPropertiesPtr DrmLoaderFuncsProxy::pfnDrmModeObjectGetProperties(
 }
 
 // =====================================================================================================================
+void DrmLoaderFuncsProxy::pfnDrmModeFreeObjectProperties(
+    drmModeObjectPropertiesPtr  props
+    ) const
+{
+    const int64 begin = Util::GetPerfCpuTime();
+    m_pFuncs->pfnDrmModeFreeObjectProperties(props);
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
+    m_timeLogger.Printf("DrmModeFreeObjectProperties,%ld,%ld,%ld\n", begin, end, elapse);
+    m_timeLogger.Flush();
+
+    m_paramLogger.Printf(
+        "DrmModeFreeObjectProperties(%p)\n",
+        props);
+    m_paramLogger.Flush();
+}
+
+// =====================================================================================================================
 drmModePropertyBlobPtr DrmLoaderFuncsProxy::pfnDrmModeGetPropertyBlob(
     int     fd,
     uint32  blob_id
@@ -3292,6 +3310,7 @@ Result DrmLoader::Init(
             m_library[LibDrm].GetFunction("drmModeGetProperty", &m_funcs.pfnDrmModeGetProperty);
             m_library[LibDrm].GetFunction("drmModeFreeProperty", &m_funcs.pfnDrmModeFreeProperty);
             m_library[LibDrm].GetFunction("drmModeObjectGetProperties", &m_funcs.pfnDrmModeObjectGetProperties);
+            m_library[LibDrm].GetFunction("drmModeFreeObjectProperties", &m_funcs.pfnDrmModeFreeObjectProperties);
             m_library[LibDrm].GetFunction("drmModeGetPropertyBlob", &m_funcs.pfnDrmModeGetPropertyBlob);
             m_library[LibDrm].GetFunction("drmModeFreePropertyBlob", &m_funcs.pfnDrmModeFreePropertyBlob);
             m_library[LibDrm].GetFunction("drmModeAtomicAlloc", &m_funcs.pfnDrmModeAtomicAlloc);

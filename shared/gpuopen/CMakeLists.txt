@@ -48,7 +48,6 @@ set_target_properties(${GPUOPEN_LIB_NAME}
 )
 
 ### Cached Project Options #############################################################################################
-
 if(NOT DEFINED GPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION)
     file(STRINGS inc/gpuopen.h GPUOPEN_MAJOR_VERSION REGEX "^#define GPUOPEN_INTERFACE_MAJOR_VERSION [0-9]+")
 
@@ -73,8 +72,9 @@ target_link_libraries(${GPUOPEN_LIB_NAME} PUBLIC ddCore)
 add_subdirectory(third_party)
 
 target_link_libraries(${GPUOPEN_LIB_NAME} PRIVATE mpack)
-target_link_libraries(${GPUOPEN_LIB_NAME} PUBLIC  rapidjson)
 target_link_libraries(${GPUOPEN_LIB_NAME} PUBLIC  metrohash)
+
+    target_link_libraries(${GPUOPEN_LIB_NAME} PUBLIC  rapidjson)
 
 ### Build Defines ######################################################################################################
 target_compile_definitions(${GPUOPEN_LIB_NAME} PUBLIC GPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION=${GPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION})
@@ -91,6 +91,7 @@ target_include_directories(${GPUOPEN_LIB_NAME} PRIVATE src)
 
 ### Core Components ###
 target_sources(${GPUOPEN_LIB_NAME} PRIVATE
+    ## Core files
     src/ddVersion.cpp
     src/session.cpp
     src/sessionManager.cpp
@@ -101,6 +102,7 @@ target_sources(${GPUOPEN_LIB_NAME} PRIVATE
     src/ddTransferManager.cpp
     src/ddClientURIService.cpp
     src/ddURIRequestContext.cpp
+
     ## Protocols
     src/protocols/ddTransferServer.cpp
     src/protocols/ddTransferClient.cpp
@@ -110,13 +112,17 @@ target_sources(${GPUOPEN_LIB_NAME} PRIVATE
     src/protocols/ddEventProvider.cpp
     src/protocols/ddEventServerSession.cpp
     src/protocols/ddInternalService.cpp
+
     ## Utility functions and classes
     src/util/ddTextWriter.cpp
     src/util/ddStructuredReader.cpp
-    src/util/ddJsonWriter.cpp
     src/util/rmtWriter.cpp
     src/util/ddEventTimer.cpp
 )
+
+    target_sources(${GPUOPEN_LIB_NAME} PRIVATE
+        src/util/ddJsonWriter.cpp
+    )
 
 ### Local Transport ###
 # Local transports are always supported
@@ -125,7 +131,8 @@ if(UNIX)
         src/posix/ddPosixSocket.cpp
         src/socketMsgTransport.cpp
     )
-elseif(WIN32)
+elseif(WIN32
+)
     target_sources(${GPUOPEN_LIB_NAME} PRIVATE
         src/win/ddWinPipeMsgTransport.cpp
     )
@@ -279,11 +286,11 @@ endif()
 ################
 ### Services ###
 ################
-target_sources(${GPUOPEN_LIB_NAME} PRIVATE
-    src/protocols/ddSettingsService.cpp
-    src/protocols/ddPipelineUriService.cpp
-    src/protocols/ddInfoService.cpp
-)
+    target_sources(${GPUOPEN_LIB_NAME} PRIVATE
+        src/protocols/ddSettingsService.cpp
+        src/protocols/ddPipelineUriService.cpp
+        src/protocols/ddInfoService.cpp
+    )
 
 # Find Headers Helper ##############################################################################
 macro(target_find_headers _target)

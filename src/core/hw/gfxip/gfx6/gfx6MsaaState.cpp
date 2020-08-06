@@ -132,9 +132,7 @@ void MsaaState::Init(
 
     // Setup the PA_SC_MODE_CNTL_0 register
     m_regs.paScModeCntl0.u32All = 0;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 525
     m_regs.paScModeCntl0.bits.LINE_STIPPLE_ENABLE  = msaaState.flags.enableLineStipple;
-#endif
     m_regs.paScModeCntl0.bits.VPORT_SCISSOR_ENABLE = 1;
     m_regs.paScModeCntl0.bits.MSAA_ENABLE          = ((NumSamples() > 1) ? 1 : 0);
 
@@ -172,11 +170,7 @@ void MsaaState::Init(
     // chosen values set up a different offset for each pixel of a 2x2 quad, allowing many more levels of apparent
     // coverage. The graphics pipeline also writes to DB_ALPHA_TO_MASK so we must use a read/modify/write packet
     // to set these fields.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 523
-    if (msaaState.disableAlphaToCoverageDither)
-#else
     if (msaaState.flags.disableAlphaToCoverageDither)
-#endif
     {
         m_regs.dbAlphaToMask.bits.ALPHA_TO_MASK_OFFSET0 = 2;
         m_regs.dbAlphaToMask.bits.ALPHA_TO_MASK_OFFSET1 = 2;

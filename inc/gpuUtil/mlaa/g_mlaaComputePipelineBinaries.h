@@ -38,6 +38,7 @@ struct PipelineBinary
     size_t size;
 };
 
+#if PAL_BUILD_GFX6
 // Mlaa Calc Sep Edge Length compute shader binary
 constexpr Util::uint8 MlaaCalcSepEdgeLength_Cs_D5543C67[] =
 {
@@ -876,7 +877,9 @@ constexpr Util::uint8 MlaaFindSepEdge_Cs_D5543C67[] =
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 };
+#endif
 
+#if PAL_BUILD_GFX6
 // Mlaa Calc Sep Edge Length compute shader binary
 constexpr Util::uint8 MlaaCalcSepEdgeLength_Cs_F5A9FB7F[] =
 {
@@ -1724,7 +1727,9 @@ constexpr Util::uint8 MlaaFindSepEdge_Cs_F5A9FB7F[] =
     0x00, 0x00, 0x00, 0x00, 0x00, 0xac, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 };
+#endif
 
+#if PAL_BUILD_GFX6
 // Mlaa Calc Sep Edge Length compute shader binary
 constexpr Util::uint8 MlaaCalcSepEdgeLength_Cs_776C0A11[] =
 {
@@ -2572,6 +2577,7 @@ constexpr Util::uint8 MlaaFindSepEdge_Cs_776C0A11[] =
     0x00, 0x00, 0x00, 0x00, 0x00, 0xac, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 };
+#endif
 
 // Mlaa Calc Sep Edge Length compute shader binary
 constexpr Util::uint8 MlaaCalcSepEdgeLength_Cs_3AFC84A4[] =
@@ -5240,6 +5246,7 @@ constexpr Util::uint8 MlaaFindSepEdge_Cs_91ECA425[] =
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 };
 
+#if PAL_BUILD_GFX6
 // Table of compute pipeline binaries for Tahiti
 constexpr PipelineBinary mlaaComputeBinaryTableTahiti[] =
 {
@@ -5250,7 +5257,9 @@ constexpr PipelineBinary mlaaComputeBinaryTableTahiti[] =
     {MlaaFinalBlendFast_Cs_D5543C67,            sizeof(MlaaFinalBlendFast_Cs_D5543C67)},
     {MlaaFindSepEdge_Cs_D5543C67,               sizeof(MlaaFindSepEdge_Cs_D5543C67)},
 };
+#endif
 
+#if PAL_BUILD_GFX6
 // Table of compute pipeline binaries for Carrizo
 constexpr PipelineBinary mlaaComputeBinaryTableCarrizo[] =
 {
@@ -5261,7 +5270,9 @@ constexpr PipelineBinary mlaaComputeBinaryTableCarrizo[] =
     {MlaaFinalBlendFast_Cs_F5A9FB7F,            sizeof(MlaaFinalBlendFast_Cs_F5A9FB7F)},
     {MlaaFindSepEdge_Cs_F5A9FB7F,               sizeof(MlaaFindSepEdge_Cs_F5A9FB7F)},
 };
+#endif
 
+#if PAL_BUILD_GFX6
 // Table of compute pipeline binaries for Iceland
 constexpr PipelineBinary mlaaComputeBinaryTableIceland[] =
 {
@@ -5272,6 +5283,7 @@ constexpr PipelineBinary mlaaComputeBinaryTableIceland[] =
     {MlaaFinalBlendFast_Cs_776C0A11,            sizeof(MlaaFinalBlendFast_Cs_776C0A11)},
     {MlaaFindSepEdge_Cs_776C0A11,               sizeof(MlaaFindSepEdge_Cs_776C0A11)},
 };
+#endif
 
 // Table of compute pipeline binaries for Vega10
 constexpr PipelineBinary mlaaComputeBinaryTableVega10[] =

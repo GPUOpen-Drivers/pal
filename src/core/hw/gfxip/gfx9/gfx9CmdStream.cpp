@@ -1024,11 +1024,7 @@ uint32* CmdStream::WriteSetOnePerfCtrReg(
 
             // The resetFilterCam bit is not valid for the Compute Micro Engine. Setting this bit would cause a hang in
             // compute-only engines.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 530
             if (engineType == EngineTypeUniversal)
-#else
-            if ((engineType == EngineTypeUniversal) || (engineType == EngineTypeHighPriorityUniversal))
-#endif
             {
                 pReturnVal = WriteSetOneConfigReg<true>(regAddr, value, pCmdSpace);
             }

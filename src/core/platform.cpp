@@ -119,9 +119,7 @@ Platform::Platform(
     m_flags.enableSvmMode                = createInfo.flags.enableSvmMode;
     m_flags.requestShadowDescVaRange     = createInfo.flags.requestShadowDescriptorVaRange;
     m_flags.disableInternalResidencyOpts = createInfo.flags.disableInternalResidencyOpts;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 535
     m_flags.supportRgpTraces             = createInfo.flags.supportRgpTraces;
-#endif
 
     if (createInfo.pLogInfo != nullptr)
     {
@@ -584,7 +582,6 @@ void Platform::LateInitDevDriver()
 #if GPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION >= GPUOPEN_DRIVER_CONTROL_CLEANUP_VERSION
     if (m_pDevDriverServer != nullptr)
     {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 535
         if (m_deviceCount >= 1)
         {
             Pal::DeviceProperties deviceProperties = {};
@@ -598,7 +595,6 @@ void Platform::LateInitDevDriver()
                 m_pDevDriverServer->GetRGPServer()->EnableTraces();
             }
         }
-#endif
 
         DevDriver::DriverControlProtocol::DriverControlServer* pDriverControlServer =
             m_pDevDriverServer->GetDriverControlServer();

@@ -25,7 +25,7 @@
 
 #pragma once
 
-#include "pal.h"
+#include "palInlineFuncs.h"
 
 namespace Pal
 {
@@ -205,6 +205,14 @@ extern uint32 CalculatNumFmaskBits(uint32 fragments, uint32 samples);
 extern void SwapForMMFormat(
     const Device*   pDevice,
     SwizzledFormat* pFormat);
+
+// Helper function to pack a user-data value into a reduced number of bits.
+template<uint32 Bits>
+uint32 PackBits(uint32 value)
+{
+    PAL_ASSERT(value <= Util::BitfieldGenMask(Bits));
+    return value & Util::BitfieldGenMask(Bits);
+}
 
 } // RpmUtil
 } // Pal

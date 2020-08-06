@@ -111,13 +111,19 @@ function(pal_compile_definitions)
     target_compile_definitions(pal PRIVATE PAL_BUILD_CORE=1)
 
     if(PAL_AMDGPU_BUILD)
+        message_verbose("PAL build with amdgpu back-end enabled")
+
         target_compile_definitions(pal PUBLIC PAL_AMDGPU_BUILD=1)
 
         if(PAL_BUILD_DRI3)
+            message_verbose("PAL build with DRI3 enabled")
+
             target_compile_definitions(pal PRIVATE PAL_HAVE_DRI3_PLATFORM=1)
         endif()
 
         if (PAL_BUILD_WAYLAND)
+            message_verbose("PAL build with Wayland enabled")
+
             target_compile_definitions(pal PRIVATE PAL_HAVE_WAYLAND_PLATFORM=1)
         endif()
     endif()

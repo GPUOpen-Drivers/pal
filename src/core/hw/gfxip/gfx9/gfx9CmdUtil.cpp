@@ -414,11 +414,7 @@ uint32 CmdUtil::ChainSizeInDwords(
     {
         size = PM4_PFP_INDIRECT_BUFFER_SIZEDW__CORE;
     }
-    else if ((engineType == EngineTypeCompute)
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 530
-             || (engineType == EngineTypeExclusiveCompute)
-#endif
-             )
+    else if (engineType == EngineTypeCompute)
     {
         size = PM4_MEC_INDIRECT_BUFFER_SIZEDW__CORE;
     }

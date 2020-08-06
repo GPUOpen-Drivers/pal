@@ -239,7 +239,6 @@ void DmaCmdBuffer::BeginExecutionMarker(
 uint32 DmaCmdBuffer::CmdInsertExecutionMarker()
 {
     uint32 returnVal = UINT_MAX;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 533
     if (m_buildFlags.enableExecutionMarkerSupport == 1)
     {
         PAL_ASSERT(m_executionMarkerAddr != 0);
@@ -262,7 +261,6 @@ uint32 DmaCmdBuffer::CmdInsertExecutionMarker()
 
         returnVal = m_executionMarkerCount;
     }
-#endif
     return returnVal;
 }
 

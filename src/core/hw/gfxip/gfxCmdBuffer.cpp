@@ -477,11 +477,7 @@ void GfxCmdBuffer::UpdateReleaseActivityMapFromRelease(
 
     value.pipelineStalls.eosTsPsDone       = barrierOps.pipelineStalls.eosTsPsDone;
     value.pipelineStalls.eosTsCsDone       = barrierOps.pipelineStalls.eosTsCsDone;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 504
-    value.pipelineStalls.eopTsBottomOfPipe = barrierOps.pipelineStalls.waitOnEopTsBottomOfPipe;
-#else
     value.pipelineStalls.eopTsBottomOfPipe = barrierOps.pipelineStalls.eopTsBottomOfPipe;
-#endif
 
     // Log any cache operation that a release could issue.
     value.caches.gfxBltCacheSync = (barrierOps.caches.flushCb         || barrierOps.caches.invalCb         ||

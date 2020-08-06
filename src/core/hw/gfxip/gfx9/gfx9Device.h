@@ -550,6 +550,8 @@ public:
         Developer::BarrierType        type) const;
     void DescribeBarrierEnd(GfxCmdBuffer* pCmdBuf, Developer::BarrierOperations* pOperations) const;
 
+    const regGB_ADDR_CONFIG& GetGbAddrConfig() const;
+
     uint32 GetMaxFragsLog2() const         { return GetGbAddrConfig().bits.MAX_COMPRESSED_FRAGS; }
     uint32 GetNumPipesLog2() const         { return GetGbAddrConfig().bits.NUM_PIPES; }
     uint32 GetNumShaderEnginesLog2() const { return GetGbAddrConfig().bits.NUM_SHADER_ENGINES; }
@@ -646,7 +648,6 @@ public:
 
 private:
     Result InitOcclusionResetMem();
-    const regGB_ADDR_CONFIG& GetGbAddrConfig() const;
 
     uint32 BufferSrdResourceLevel() const;
 

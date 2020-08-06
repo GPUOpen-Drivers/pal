@@ -191,6 +191,7 @@ UniversalCmdBuffer::UniversalCmdBuffer(
                             createInfo,
                             &m_deCmdStream,
                             &m_ceCmdStream,
+                            nullptr,
                             device.Settings().blendOptimizationsEnable),
     m_device(device),
     m_cmdUtil(device.CmdUtil()),
@@ -414,7 +415,6 @@ void UniversalCmdBuffer::BeginExecutionMarker(
 uint32 UniversalCmdBuffer::CmdInsertExecutionMarker()
 {
     uint32 returnVal = UINT_MAX;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 533
     if (m_buildFlags.enableExecutionMarkerSupport == 1)
     {
         PAL_ASSERT(m_executionMarkerAddr != 0);
@@ -429,7 +429,6 @@ uint32 UniversalCmdBuffer::CmdInsertExecutionMarker()
 
         returnVal = m_executionMarkerCount;
     }
-#endif
     return returnVal;
 }
 
@@ -767,9 +766,7 @@ void UniversalCmdBuffer::CmdSetViewports(
     constexpr size_t GuardbandSize = (sizeof(float) * 4);
 
     m_graphicsState.viewportState.count      = params.count;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 524
     m_graphicsState.viewportState.depthRange = params.depthRange;
-#endif
 
     memcpy(&m_graphicsState.viewportState.viewports[0],     &params.viewports[0],     viewportSize);
     memcpy(&m_graphicsState.viewportState.horzDiscardRatio, &params.horzDiscardRatio, GuardbandSize);
@@ -1305,16 +1302,10 @@ void UniversalCmdBuffer::CmdSetTriangleRasterStateInternal(
     }
     else
     {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 524
-        paSuScModeCntl.bits.POLY_MODE            = (params.fillMode != FillMode::Solid);
-        paSuScModeCntl.bits.POLYMODE_BACK_PTYPE  = static_cast<uint32>(params.fillMode);
-        paSuScModeCntl.bits.POLYMODE_FRONT_PTYPE = static_cast<uint32>(params.fillMode);
-#else
         paSuScModeCntl.bits.POLY_MODE            = ((params.frontFillMode != FillMode::Solid) ||
                                                     (params.backFillMode  != FillMode::Solid));
         paSuScModeCntl.bits.POLYMODE_BACK_PTYPE  = static_cast<uint32>(params.backFillMode);
         paSuScModeCntl.bits.POLYMODE_FRONT_PTYPE = static_cast<uint32>(params.frontFillMode);
-#endif
     }
 
     constexpr uint32 FrontCull = static_cast<uint32>(CullMode::Front);
@@ -4169,14 +4160,12 @@ uint32* UniversalCmdBuffer::ValidateViewports(
         pScaleOffsetImg->yScale.f32All  = yScale * (viewport.origin == PointOrigin::UpperLeft ? 1.0f : -1.0f);
         pScaleOffsetImg->yOffset.f32All = (viewport.originY + yScale);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 524
         if (params.depthRange == DepthRange::NegativeOneToOne)
         {
             pScaleOffsetImg->zScale.f32All  = (viewport.maxDepth - viewport.minDepth) * 0.5f;
             pScaleOffsetImg->zOffset.f32All = (viewport.maxDepth + viewport.minDepth) * 0.5f;
         }
         else
-#endif
         {
             pScaleOffsetImg->zScale.f32All  = (viewport.maxDepth - viewport.minDepth);
             pScaleOffsetImg->zOffset.f32All = viewport.minDepth;
@@ -5202,9 +5191,7 @@ void UniversalCmdBuffer::SetGraphicsState(
     const auto& currentViewports = m_graphicsState.viewportState;
 
     if ((restoreViewports.count != currentViewports.count) ||
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 524
         (restoreViewports.depthRange != currentViewports.depthRange) ||
-#endif
         (memcmp(&restoreViewports.viewports[0],
                 &currentViewports.viewports[0],
                 restoreViewports.count * sizeof(restoreViewports.viewports[0])) != 0))
@@ -6197,52 +6184,6 @@ void UniversalCmdBuffer::CmdOverwriteRbPlusFormatForBlits(
                                                  &m_sxBlendOptControl);
     }
 }
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 509
-// =====================================================================================================================
-void UniversalCmdBuffer::CmdSetHiSCompareState0(
-    CompareFunc compFunc,
-    uint32      compMask,
-    uint32      compValue,
-    bool        enable)
-{
-    regDB_SRESULTS_COMPARE_STATE0 dbSResultCompare;
-
-    dbSResultCompare.bitfields.COMPAREFUNC0  = DepthStencilState :: HwStencilCompare(compFunc);
-    dbSResultCompare.bitfields.COMPAREMASK0  = compMask;
-    dbSResultCompare.bitfields.COMPAREVALUE0 = compValue;
-    dbSResultCompare.bitfields.ENABLE0       = enable;
-
-    uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
-
-    pDeCmdSpace =
-        m_deCmdStream.WriteSetOneContextReg(mmDB_SRESULTS_COMPARE_STATE0, dbSResultCompare.u32All, pDeCmdSpace);
-
-    m_deCmdStream.CommitCommands(pDeCmdSpace);
-}
-
-// =====================================================================================================================
-void UniversalCmdBuffer::CmdSetHiSCompareState1(
-    CompareFunc compFunc,
-    uint32      compMask,
-    uint32      compValue,
-    bool        enable)
-{
-    regDB_SRESULTS_COMPARE_STATE1 dbSResultCompare;
-
-    dbSResultCompare.bitfields.COMPAREFUNC1  = DepthStencilState :: HwStencilCompare(compFunc);
-    dbSResultCompare.bitfields.COMPAREMASK1  = compMask;
-    dbSResultCompare.bitfields.COMPAREVALUE1 = compValue;
-    dbSResultCompare.bitfields.ENABLE1       = enable;
-
-    uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
-
-    pDeCmdSpace =
-        m_deCmdStream.WriteSetOneContextReg(mmDB_SRESULTS_COMPARE_STATE1, dbSResultCompare.u32All, pDeCmdSpace);
-
-    m_deCmdStream.CommitCommands(pDeCmdSpace);
-}
-#endif
 
 // =====================================================================================================================
 void UniversalCmdBuffer::CmdUpdateHiSPretests(

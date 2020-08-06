@@ -43,6 +43,8 @@ Result CreateRpmGraphicsPipelines(
     Result result = Result::Success;
 
     GraphicsPipelineCreateInfo               pipeInfo         = { };
+    pipeInfo.flags.overrideGpuHeap                            = 1;
+    pipeInfo.preferredHeapType                                = GpuHeap::GpuHeapLocal;
     GraphicsPipelineInternalCreateInfo       internalInfo     = { };
     const GraphicsPipelineInternalCreateInfo NullInternalInfo = { };
 
@@ -146,8 +148,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
-        pipeInfo.pPipelineBinary    = pTable[Copy2xMsaaDepth].pBuffer;
-        pipeInfo.pipelineBinarySize = pTable[Copy2xMsaaDepth].size;
+        pipeInfo.flags.overrideGpuHeap = 1;
+        pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+        pipeInfo.pPipelineBinary       = pTable[Copy2xMsaaDepth].pBuffer;
+        pipeInfo.pipelineBinarySize    = pTable[Copy2xMsaaDepth].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
@@ -167,8 +171,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
-        pipeInfo.pPipelineBinary    = pTable[Copy2xMsaaDepthStencil].pBuffer;
-        pipeInfo.pipelineBinarySize = pTable[Copy2xMsaaDepthStencil].size;
+        pipeInfo.flags.overrideGpuHeap = 1;
+        pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+        pipeInfo.pPipelineBinary       = pTable[Copy2xMsaaDepthStencil].pBuffer;
+        pipeInfo.pipelineBinarySize    = pTable[Copy2xMsaaDepthStencil].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
@@ -188,8 +194,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
-        pipeInfo.pPipelineBinary    = pTable[Copy2xMsaaStencil].pBuffer;
-        pipeInfo.pipelineBinarySize = pTable[Copy2xMsaaStencil].size;
+        pipeInfo.flags.overrideGpuHeap = 1;
+        pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+        pipeInfo.pPipelineBinary       = pTable[Copy2xMsaaStencil].pBuffer;
+        pipeInfo.pipelineBinarySize    = pTable[Copy2xMsaaStencil].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
@@ -214,8 +222,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
-        pipeInfo.pPipelineBinary    = pTable[Copy4xMsaaDepth].pBuffer;
-        pipeInfo.pipelineBinarySize = pTable[Copy4xMsaaDepth].size;
+        pipeInfo.flags.overrideGpuHeap = 1;
+        pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+        pipeInfo.pPipelineBinary       = pTable[Copy4xMsaaDepth].pBuffer;
+        pipeInfo.pipelineBinarySize    = pTable[Copy4xMsaaDepth].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
@@ -235,8 +245,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
-        pipeInfo.pPipelineBinary    = pTable[Copy4xMsaaDepthStencil].pBuffer;
-        pipeInfo.pipelineBinarySize = pTable[Copy4xMsaaDepthStencil].size;
+        pipeInfo.flags.overrideGpuHeap = 1;
+        pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+        pipeInfo.pPipelineBinary       = pTable[Copy4xMsaaDepthStencil].pBuffer;
+        pipeInfo.pipelineBinarySize    = pTable[Copy4xMsaaDepthStencil].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
@@ -256,8 +268,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
-        pipeInfo.pPipelineBinary    = pTable[Copy4xMsaaStencil].pBuffer;
-        pipeInfo.pipelineBinarySize = pTable[Copy4xMsaaStencil].size;
+        pipeInfo.flags.overrideGpuHeap = 1;
+        pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+        pipeInfo.pPipelineBinary       = pTable[Copy4xMsaaStencil].pBuffer;
+        pipeInfo.pipelineBinarySize    = pTable[Copy4xMsaaStencil].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
@@ -282,8 +296,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
-        pipeInfo.pPipelineBinary    = pTable[Copy8xMsaaDepth].pBuffer;
-        pipeInfo.pipelineBinarySize = pTable[Copy8xMsaaDepth].size;
+        pipeInfo.flags.overrideGpuHeap = 1;
+        pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+        pipeInfo.pPipelineBinary       = pTable[Copy8xMsaaDepth].pBuffer;
+        pipeInfo.pipelineBinarySize    = pTable[Copy8xMsaaDepth].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
@@ -303,8 +319,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
-        pipeInfo.pPipelineBinary    = pTable[Copy8xMsaaDepthStencil].pBuffer;
-        pipeInfo.pipelineBinarySize = pTable[Copy8xMsaaDepthStencil].size;
+        pipeInfo.flags.overrideGpuHeap = 1;
+        pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+        pipeInfo.pPipelineBinary       = pTable[Copy8xMsaaDepthStencil].pBuffer;
+        pipeInfo.pipelineBinarySize    = pTable[Copy8xMsaaDepthStencil].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
@@ -324,8 +342,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
-        pipeInfo.pPipelineBinary    = pTable[Copy8xMsaaStencil].pBuffer;
-        pipeInfo.pipelineBinarySize = pTable[Copy8xMsaaStencil].size;
+        pipeInfo.flags.overrideGpuHeap = 1;
+        pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+        pipeInfo.pPipelineBinary       = pTable[Copy8xMsaaStencil].pBuffer;
+        pipeInfo.pipelineBinarySize    = pTable[Copy8xMsaaStencil].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
@@ -350,8 +370,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
-        pipeInfo.pPipelineBinary    = pTable[CopyDepth].pBuffer;
-        pipeInfo.pipelineBinarySize = pTable[CopyDepth].size;
+        pipeInfo.flags.overrideGpuHeap = 1;
+        pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+        pipeInfo.pPipelineBinary       = pTable[CopyDepth].pBuffer;
+        pipeInfo.pipelineBinarySize    = pTable[CopyDepth].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
@@ -371,8 +393,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
-        pipeInfo.pPipelineBinary    = pTable[CopyDepthStencil].pBuffer;
-        pipeInfo.pipelineBinarySize = pTable[CopyDepthStencil].size;
+        pipeInfo.flags.overrideGpuHeap = 1;
+        pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+        pipeInfo.pPipelineBinary       = pTable[CopyDepthStencil].pBuffer;
+        pipeInfo.pipelineBinarySize    = pTable[CopyDepthStencil].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
@@ -392,8 +416,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
-        pipeInfo.pPipelineBinary    = pTable[CopyStencil].pBuffer;
-        pipeInfo.pipelineBinarySize = pTable[CopyStencil].size;
+        pipeInfo.flags.overrideGpuHeap = 1;
+        pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+        pipeInfo.pPipelineBinary       = pTable[CopyStencil].pBuffer;
+        pipeInfo.pipelineBinarySize    = pTable[CopyStencil].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
@@ -427,8 +453,10 @@ Result CreateRpmGraphicsPipelines(
         ))
     {
         pipeInfo = { };
-        pipeInfo.pPipelineBinary    = pTable[DccDecompress].pBuffer;
-        pipeInfo.pipelineBinarySize = pTable[DccDecompress].size;
+        pipeInfo.flags.overrideGpuHeap = 1;
+        pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+        pipeInfo.pPipelineBinary       = pTable[DccDecompress].pBuffer;
+        pipeInfo.pipelineBinarySize    = pTable[DccDecompress].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
@@ -456,8 +484,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
-        pipeInfo.pPipelineBinary    = pTable[DepthExpand].pBuffer;
-        pipeInfo.pipelineBinarySize = pTable[DepthExpand].size;
+        pipeInfo.flags.overrideGpuHeap = 1;
+        pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+        pipeInfo.pPipelineBinary       = pTable[DepthExpand].pBuffer;
+        pipeInfo.pipelineBinarySize    = pTable[DepthExpand].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
@@ -477,8 +507,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
-        pipeInfo.pPipelineBinary    = pTable[DepthResummarize].pBuffer;
-        pipeInfo.pipelineBinarySize = pTable[DepthResummarize].size;
+        pipeInfo.flags.overrideGpuHeap = 1;
+        pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+        pipeInfo.pPipelineBinary       = pTable[DepthResummarize].pBuffer;
+        pipeInfo.pipelineBinarySize    = pTable[DepthResummarize].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
@@ -498,8 +530,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
-        pipeInfo.pPipelineBinary    = pTable[DepthSlowDraw].pBuffer;
-        pipeInfo.pipelineBinarySize = pTable[DepthSlowDraw].size;
+        pipeInfo.flags.overrideGpuHeap = 1;
+        pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+        pipeInfo.pPipelineBinary       = pTable[DepthSlowDraw].pBuffer;
+        pipeInfo.pipelineBinarySize    = pTable[DepthSlowDraw].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
@@ -519,8 +553,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
-        pipeInfo.pPipelineBinary    = pTable[FastClearElim].pBuffer;
-        pipeInfo.pipelineBinarySize = pTable[FastClearElim].size;
+        pipeInfo.flags.overrideGpuHeap = 1;
+        pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+        pipeInfo.pPipelineBinary       = pTable[FastClearElim].pBuffer;
+        pipeInfo.pipelineBinarySize    = pTable[FastClearElim].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
@@ -563,8 +599,10 @@ Result CreateRpmGraphicsPipelines(
         ))
     {
         pipeInfo = { };
-        pipeInfo.pPipelineBinary    = pTable[FmaskDecompress].pBuffer;
-        pipeInfo.pipelineBinarySize = pTable[FmaskDecompress].size;
+        pipeInfo.flags.overrideGpuHeap = 1;
+        pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+        pipeInfo.pPipelineBinary       = pTable[FmaskDecompress].pBuffer;
+        pipeInfo.pipelineBinarySize    = pTable[FmaskDecompress].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
@@ -592,8 +630,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
-        pipeInfo.pPipelineBinary    = pTable[Copy_32ABGR].pBuffer;
-        pipeInfo.pipelineBinarySize = pTable[Copy_32ABGR].size;
+        pipeInfo.flags.overrideGpuHeap = 1;
+        pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+        pipeInfo.pPipelineBinary       = pTable[Copy_32ABGR].pBuffer;
+        pipeInfo.pipelineBinarySize    = pTable[Copy_32ABGR].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
@@ -618,8 +658,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
-        pipeInfo.pPipelineBinary    = pTable[Copy_32GR].pBuffer;
-        pipeInfo.pipelineBinarySize = pTable[Copy_32GR].size;
+        pipeInfo.flags.overrideGpuHeap = 1;
+        pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+        pipeInfo.pPipelineBinary       = pTable[Copy_32GR].pBuffer;
+        pipeInfo.pipelineBinarySize    = pTable[Copy_32GR].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
@@ -644,8 +686,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
-        pipeInfo.pPipelineBinary    = pTable[Copy_32R].pBuffer;
-        pipeInfo.pipelineBinarySize = pTable[Copy_32R].size;
+        pipeInfo.flags.overrideGpuHeap = 1;
+        pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+        pipeInfo.pPipelineBinary       = pTable[Copy_32R].pBuffer;
+        pipeInfo.pipelineBinarySize    = pTable[Copy_32R].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
@@ -670,8 +714,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
-        pipeInfo.pPipelineBinary    = pTable[Copy_FP16].pBuffer;
-        pipeInfo.pipelineBinarySize = pTable[Copy_FP16].size;
+        pipeInfo.flags.overrideGpuHeap = 1;
+        pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+        pipeInfo.pPipelineBinary       = pTable[Copy_FP16].pBuffer;
+        pipeInfo.pipelineBinarySize    = pTable[Copy_FP16].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
@@ -696,8 +742,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
-        pipeInfo.pPipelineBinary    = pTable[Copy_SINT16].pBuffer;
-        pipeInfo.pipelineBinarySize = pTable[Copy_SINT16].size;
+        pipeInfo.flags.overrideGpuHeap = 1;
+        pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+        pipeInfo.pPipelineBinary       = pTable[Copy_SINT16].pBuffer;
+        pipeInfo.pipelineBinarySize    = pTable[Copy_SINT16].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
@@ -722,8 +770,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
-        pipeInfo.pPipelineBinary    = pTable[Copy_SNORM16].pBuffer;
-        pipeInfo.pipelineBinarySize = pTable[Copy_SNORM16].size;
+        pipeInfo.flags.overrideGpuHeap = 1;
+        pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+        pipeInfo.pPipelineBinary       = pTable[Copy_SNORM16].pBuffer;
+        pipeInfo.pipelineBinarySize    = pTable[Copy_SNORM16].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
@@ -748,8 +798,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
-        pipeInfo.pPipelineBinary    = pTable[Copy_UINT16].pBuffer;
-        pipeInfo.pipelineBinarySize = pTable[Copy_UINT16].size;
+        pipeInfo.flags.overrideGpuHeap = 1;
+        pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+        pipeInfo.pPipelineBinary       = pTable[Copy_UINT16].pBuffer;
+        pipeInfo.pipelineBinarySize    = pTable[Copy_UINT16].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
@@ -774,8 +826,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
-        pipeInfo.pPipelineBinary    = pTable[Copy_UNORM16].pBuffer;
-        pipeInfo.pipelineBinarySize = pTable[Copy_UNORM16].size;
+        pipeInfo.flags.overrideGpuHeap = 1;
+        pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+        pipeInfo.pPipelineBinary       = pTable[Copy_UNORM16].pBuffer;
+        pipeInfo.pipelineBinarySize    = pTable[Copy_UNORM16].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
@@ -800,8 +854,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
-        pipeInfo.pPipelineBinary    = pTable[ResolveFixedFunc_32ABGR].pBuffer;
-        pipeInfo.pipelineBinarySize = pTable[ResolveFixedFunc_32ABGR].size;
+        pipeInfo.flags.overrideGpuHeap = 1;
+        pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+        pipeInfo.pPipelineBinary       = pTable[ResolveFixedFunc_32ABGR].pBuffer;
+        pipeInfo.pipelineBinarySize    = pTable[ResolveFixedFunc_32ABGR].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
@@ -829,8 +885,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
-        pipeInfo.pPipelineBinary    = pTable[ResolveFixedFunc_32GR].pBuffer;
-        pipeInfo.pipelineBinarySize = pTable[ResolveFixedFunc_32GR].size;
+        pipeInfo.flags.overrideGpuHeap = 1;
+        pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+        pipeInfo.pPipelineBinary       = pTable[ResolveFixedFunc_32GR].pBuffer;
+        pipeInfo.pipelineBinarySize    = pTable[ResolveFixedFunc_32GR].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
@@ -858,8 +916,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
-        pipeInfo.pPipelineBinary    = pTable[ResolveFixedFunc_32R].pBuffer;
-        pipeInfo.pipelineBinarySize = pTable[ResolveFixedFunc_32R].size;
+        pipeInfo.flags.overrideGpuHeap = 1;
+        pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+        pipeInfo.pPipelineBinary       = pTable[ResolveFixedFunc_32R].pBuffer;
+        pipeInfo.pipelineBinarySize    = pTable[ResolveFixedFunc_32R].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
@@ -887,8 +947,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
-        pipeInfo.pPipelineBinary    = pTable[ResolveFixedFunc_FP16].pBuffer;
-        pipeInfo.pipelineBinarySize = pTable[ResolveFixedFunc_FP16].size;
+        pipeInfo.flags.overrideGpuHeap = 1;
+        pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+        pipeInfo.pPipelineBinary       = pTable[ResolveFixedFunc_FP16].pBuffer;
+        pipeInfo.pipelineBinarySize    = pTable[ResolveFixedFunc_FP16].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
@@ -916,8 +978,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
-        pipeInfo.pPipelineBinary    = pTable[ResolveFixedFunc_SINT16].pBuffer;
-        pipeInfo.pipelineBinarySize = pTable[ResolveFixedFunc_SINT16].size;
+        pipeInfo.flags.overrideGpuHeap = 1;
+        pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+        pipeInfo.pPipelineBinary       = pTable[ResolveFixedFunc_SINT16].pBuffer;
+        pipeInfo.pipelineBinarySize    = pTable[ResolveFixedFunc_SINT16].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
@@ -945,8 +1009,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
-        pipeInfo.pPipelineBinary    = pTable[ResolveFixedFunc_SNORM16].pBuffer;
-        pipeInfo.pipelineBinarySize = pTable[ResolveFixedFunc_SNORM16].size;
+        pipeInfo.flags.overrideGpuHeap = 1;
+        pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+        pipeInfo.pPipelineBinary       = pTable[ResolveFixedFunc_SNORM16].pBuffer;
+        pipeInfo.pipelineBinarySize    = pTable[ResolveFixedFunc_SNORM16].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
@@ -974,8 +1040,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
-        pipeInfo.pPipelineBinary    = pTable[ResolveFixedFunc_UINT16].pBuffer;
-        pipeInfo.pipelineBinarySize = pTable[ResolveFixedFunc_UINT16].size;
+        pipeInfo.flags.overrideGpuHeap = 1;
+        pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+        pipeInfo.pPipelineBinary       = pTable[ResolveFixedFunc_UINT16].pBuffer;
+        pipeInfo.pipelineBinarySize    = pTable[ResolveFixedFunc_UINT16].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
@@ -1003,8 +1071,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
-        pipeInfo.pPipelineBinary    = pTable[ResolveFixedFunc_UNORM16].pBuffer;
-        pipeInfo.pipelineBinarySize = pTable[ResolveFixedFunc_UNORM16].size;
+        pipeInfo.flags.overrideGpuHeap = 1;
+        pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+        pipeInfo.pPipelineBinary       = pTable[ResolveFixedFunc_UNORM16].pBuffer;
+        pipeInfo.pipelineBinarySize    = pTable[ResolveFixedFunc_UNORM16].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
@@ -1032,8 +1102,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
-        pipeInfo.pPipelineBinary    = pTable[ScaledCopy2d_32ABGR].pBuffer;
-        pipeInfo.pipelineBinarySize = pTable[ScaledCopy2d_32ABGR].size;
+        pipeInfo.flags.overrideGpuHeap = 1;
+        pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+        pipeInfo.pPipelineBinary       = pTable[ScaledCopy2d_32ABGR].pBuffer;
+        pipeInfo.pipelineBinarySize    = pTable[ScaledCopy2d_32ABGR].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
@@ -1058,8 +1130,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
-        pipeInfo.pPipelineBinary    = pTable[ScaledCopy2d_32GR].pBuffer;
-        pipeInfo.pipelineBinarySize = pTable[ScaledCopy2d_32GR].size;
+        pipeInfo.flags.overrideGpuHeap = 1;
+        pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+        pipeInfo.pPipelineBinary       = pTable[ScaledCopy2d_32GR].pBuffer;
+        pipeInfo.pipelineBinarySize    = pTable[ScaledCopy2d_32GR].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
@@ -1084,8 +1158,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
-        pipeInfo.pPipelineBinary    = pTable[ScaledCopy2d_32R].pBuffer;
-        pipeInfo.pipelineBinarySize = pTable[ScaledCopy2d_32R].size;
+        pipeInfo.flags.overrideGpuHeap = 1;
+        pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+        pipeInfo.pPipelineBinary       = pTable[ScaledCopy2d_32R].pBuffer;
+        pipeInfo.pipelineBinarySize    = pTable[ScaledCopy2d_32R].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
@@ -1110,8 +1186,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
-        pipeInfo.pPipelineBinary    = pTable[ScaledCopy2d_FP16].pBuffer;
-        pipeInfo.pipelineBinarySize = pTable[ScaledCopy2d_FP16].size;
+        pipeInfo.flags.overrideGpuHeap = 1;
+        pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+        pipeInfo.pPipelineBinary       = pTable[ScaledCopy2d_FP16].pBuffer;
+        pipeInfo.pipelineBinarySize    = pTable[ScaledCopy2d_FP16].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
@@ -1136,8 +1214,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
-        pipeInfo.pPipelineBinary    = pTable[ScaledCopy2d_SINT16].pBuffer;
-        pipeInfo.pipelineBinarySize = pTable[ScaledCopy2d_SINT16].size;
+        pipeInfo.flags.overrideGpuHeap = 1;
+        pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+        pipeInfo.pPipelineBinary       = pTable[ScaledCopy2d_SINT16].pBuffer;
+        pipeInfo.pipelineBinarySize    = pTable[ScaledCopy2d_SINT16].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
@@ -1162,8 +1242,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
-        pipeInfo.pPipelineBinary    = pTable[ScaledCopy2d_SNORM16].pBuffer;
-        pipeInfo.pipelineBinarySize = pTable[ScaledCopy2d_SNORM16].size;
+        pipeInfo.flags.overrideGpuHeap = 1;
+        pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+        pipeInfo.pPipelineBinary       = pTable[ScaledCopy2d_SNORM16].pBuffer;
+        pipeInfo.pipelineBinarySize    = pTable[ScaledCopy2d_SNORM16].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
@@ -1188,8 +1270,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
-        pipeInfo.pPipelineBinary    = pTable[ScaledCopy2d_UINT16].pBuffer;
-        pipeInfo.pipelineBinarySize = pTable[ScaledCopy2d_UINT16].size;
+        pipeInfo.flags.overrideGpuHeap = 1;
+        pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+        pipeInfo.pPipelineBinary       = pTable[ScaledCopy2d_UINT16].pBuffer;
+        pipeInfo.pipelineBinarySize    = pTable[ScaledCopy2d_UINT16].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
@@ -1214,8 +1298,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
-        pipeInfo.pPipelineBinary    = pTable[ScaledCopy2d_UNORM16].pBuffer;
-        pipeInfo.pipelineBinarySize = pTable[ScaledCopy2d_UNORM16].size;
+        pipeInfo.flags.overrideGpuHeap = 1;
+        pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+        pipeInfo.pPipelineBinary       = pTable[ScaledCopy2d_UNORM16].pBuffer;
+        pipeInfo.pipelineBinarySize    = pTable[ScaledCopy2d_UNORM16].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
@@ -1240,8 +1326,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
-        pipeInfo.pPipelineBinary    = pTable[ScaledCopy3d_32ABGR].pBuffer;
-        pipeInfo.pipelineBinarySize = pTable[ScaledCopy3d_32ABGR].size;
+        pipeInfo.flags.overrideGpuHeap = 1;
+        pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+        pipeInfo.pPipelineBinary       = pTable[ScaledCopy3d_32ABGR].pBuffer;
+        pipeInfo.pipelineBinarySize    = pTable[ScaledCopy3d_32ABGR].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
@@ -1266,8 +1354,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
-        pipeInfo.pPipelineBinary    = pTable[ScaledCopy3d_32GR].pBuffer;
-        pipeInfo.pipelineBinarySize = pTable[ScaledCopy3d_32GR].size;
+        pipeInfo.flags.overrideGpuHeap = 1;
+        pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+        pipeInfo.pPipelineBinary       = pTable[ScaledCopy3d_32GR].pBuffer;
+        pipeInfo.pipelineBinarySize    = pTable[ScaledCopy3d_32GR].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
@@ -1292,8 +1382,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
-        pipeInfo.pPipelineBinary    = pTable[ScaledCopy3d_32R].pBuffer;
-        pipeInfo.pipelineBinarySize = pTable[ScaledCopy3d_32R].size;
+        pipeInfo.flags.overrideGpuHeap = 1;
+        pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+        pipeInfo.pPipelineBinary       = pTable[ScaledCopy3d_32R].pBuffer;
+        pipeInfo.pipelineBinarySize    = pTable[ScaledCopy3d_32R].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
@@ -1318,8 +1410,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
-        pipeInfo.pPipelineBinary    = pTable[ScaledCopy3d_FP16].pBuffer;
-        pipeInfo.pipelineBinarySize = pTable[ScaledCopy3d_FP16].size;
+        pipeInfo.flags.overrideGpuHeap = 1;
+        pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+        pipeInfo.pPipelineBinary       = pTable[ScaledCopy3d_FP16].pBuffer;
+        pipeInfo.pipelineBinarySize    = pTable[ScaledCopy3d_FP16].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
@@ -1344,8 +1438,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
-        pipeInfo.pPipelineBinary    = pTable[ScaledCopy3d_SINT16].pBuffer;
-        pipeInfo.pipelineBinarySize = pTable[ScaledCopy3d_SINT16].size;
+        pipeInfo.flags.overrideGpuHeap = 1;
+        pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+        pipeInfo.pPipelineBinary       = pTable[ScaledCopy3d_SINT16].pBuffer;
+        pipeInfo.pipelineBinarySize    = pTable[ScaledCopy3d_SINT16].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
@@ -1370,8 +1466,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
-        pipeInfo.pPipelineBinary    = pTable[ScaledCopy3d_SNORM16].pBuffer;
-        pipeInfo.pipelineBinarySize = pTable[ScaledCopy3d_SNORM16].size;
+        pipeInfo.flags.overrideGpuHeap = 1;
+        pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+        pipeInfo.pPipelineBinary       = pTable[ScaledCopy3d_SNORM16].pBuffer;
+        pipeInfo.pipelineBinarySize    = pTable[ScaledCopy3d_SNORM16].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
@@ -1396,8 +1494,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
-        pipeInfo.pPipelineBinary    = pTable[ScaledCopy3d_UINT16].pBuffer;
-        pipeInfo.pipelineBinarySize = pTable[ScaledCopy3d_UINT16].size;
+        pipeInfo.flags.overrideGpuHeap = 1;
+        pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+        pipeInfo.pPipelineBinary       = pTable[ScaledCopy3d_UINT16].pBuffer;
+        pipeInfo.pipelineBinarySize    = pTable[ScaledCopy3d_UINT16].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
@@ -1422,8 +1522,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
-        pipeInfo.pPipelineBinary    = pTable[ScaledCopy3d_UNORM16].pBuffer;
-        pipeInfo.pipelineBinarySize = pTable[ScaledCopy3d_UNORM16].size;
+        pipeInfo.flags.overrideGpuHeap = 1;
+        pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+        pipeInfo.pPipelineBinary       = pTable[ScaledCopy3d_UNORM16].pBuffer;
+        pipeInfo.pipelineBinarySize    = pTable[ScaledCopy3d_UNORM16].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
@@ -1448,8 +1550,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
-        pipeInfo.pPipelineBinary    = pTable[SlowColorClear0_32ABGR].pBuffer;
-        pipeInfo.pipelineBinarySize = pTable[SlowColorClear0_32ABGR].size;
+        pipeInfo.flags.overrideGpuHeap = 1;
+        pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+        pipeInfo.pPipelineBinary       = pTable[SlowColorClear0_32ABGR].pBuffer;
+        pipeInfo.pipelineBinarySize    = pTable[SlowColorClear0_32ABGR].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
@@ -1474,8 +1578,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
-        pipeInfo.pPipelineBinary    = pTable[SlowColorClear0_32GR].pBuffer;
-        pipeInfo.pipelineBinarySize = pTable[SlowColorClear0_32GR].size;
+        pipeInfo.flags.overrideGpuHeap = 1;
+        pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+        pipeInfo.pPipelineBinary       = pTable[SlowColorClear0_32GR].pBuffer;
+        pipeInfo.pipelineBinarySize    = pTable[SlowColorClear0_32GR].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
@@ -1500,8 +1606,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
-        pipeInfo.pPipelineBinary    = pTable[SlowColorClear0_32R].pBuffer;
-        pipeInfo.pipelineBinarySize = pTable[SlowColorClear0_32R].size;
+        pipeInfo.flags.overrideGpuHeap = 1;
+        pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+        pipeInfo.pPipelineBinary       = pTable[SlowColorClear0_32R].pBuffer;
+        pipeInfo.pipelineBinarySize    = pTable[SlowColorClear0_32R].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
@@ -1526,8 +1634,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
-        pipeInfo.pPipelineBinary    = pTable[SlowColorClear0_FP16].pBuffer;
-        pipeInfo.pipelineBinarySize = pTable[SlowColorClear0_FP16].size;
+        pipeInfo.flags.overrideGpuHeap = 1;
+        pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+        pipeInfo.pPipelineBinary       = pTable[SlowColorClear0_FP16].pBuffer;
+        pipeInfo.pipelineBinarySize    = pTable[SlowColorClear0_FP16].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
@@ -1552,8 +1662,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
-        pipeInfo.pPipelineBinary    = pTable[SlowColorClear0_SINT16].pBuffer;
-        pipeInfo.pipelineBinarySize = pTable[SlowColorClear0_SINT16].size;
+        pipeInfo.flags.overrideGpuHeap = 1;
+        pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+        pipeInfo.pPipelineBinary       = pTable[SlowColorClear0_SINT16].pBuffer;
+        pipeInfo.pipelineBinarySize    = pTable[SlowColorClear0_SINT16].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
@@ -1578,8 +1690,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
-        pipeInfo.pPipelineBinary    = pTable[SlowColorClear0_SNORM16].pBuffer;
-        pipeInfo.pipelineBinarySize = pTable[SlowColorClear0_SNORM16].size;
+        pipeInfo.flags.overrideGpuHeap = 1;
+        pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+        pipeInfo.pPipelineBinary       = pTable[SlowColorClear0_SNORM16].pBuffer;
+        pipeInfo.pipelineBinarySize    = pTable[SlowColorClear0_SNORM16].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
@@ -1604,8 +1718,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
-        pipeInfo.pPipelineBinary    = pTable[SlowColorClear0_UINT16].pBuffer;
-        pipeInfo.pipelineBinarySize = pTable[SlowColorClear0_UINT16].size;
+        pipeInfo.flags.overrideGpuHeap = 1;
+        pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+        pipeInfo.pPipelineBinary       = pTable[SlowColorClear0_UINT16].pBuffer;
+        pipeInfo.pipelineBinarySize    = pTable[SlowColorClear0_UINT16].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
@@ -1630,8 +1746,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
-        pipeInfo.pPipelineBinary    = pTable[SlowColorClear0_UNORM16].pBuffer;
-        pipeInfo.pipelineBinarySize = pTable[SlowColorClear0_UNORM16].size;
+        pipeInfo.flags.overrideGpuHeap = 1;
+        pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+        pipeInfo.pPipelineBinary       = pTable[SlowColorClear0_UNORM16].pBuffer;
+        pipeInfo.pipelineBinarySize    = pTable[SlowColorClear0_UNORM16].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
@@ -1656,8 +1774,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
-        pipeInfo.pPipelineBinary    = pTable[SlowColorClear1_32ABGR].pBuffer;
-        pipeInfo.pipelineBinarySize = pTable[SlowColorClear1_32ABGR].size;
+        pipeInfo.flags.overrideGpuHeap = 1;
+        pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+        pipeInfo.pPipelineBinary       = pTable[SlowColorClear1_32ABGR].pBuffer;
+        pipeInfo.pipelineBinarySize    = pTable[SlowColorClear1_32ABGR].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
@@ -1682,8 +1802,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
-        pipeInfo.pPipelineBinary    = pTable[SlowColorClear1_32GR].pBuffer;
-        pipeInfo.pipelineBinarySize = pTable[SlowColorClear1_32GR].size;
+        pipeInfo.flags.overrideGpuHeap = 1;
+        pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+        pipeInfo.pPipelineBinary       = pTable[SlowColorClear1_32GR].pBuffer;
+        pipeInfo.pipelineBinarySize    = pTable[SlowColorClear1_32GR].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
@@ -1708,8 +1830,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
-        pipeInfo.pPipelineBinary    = pTable[SlowColorClear1_32R].pBuffer;
-        pipeInfo.pipelineBinarySize = pTable[SlowColorClear1_32R].size;
+        pipeInfo.flags.overrideGpuHeap = 1;
+        pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+        pipeInfo.pPipelineBinary       = pTable[SlowColorClear1_32R].pBuffer;
+        pipeInfo.pipelineBinarySize    = pTable[SlowColorClear1_32R].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
@@ -1734,8 +1858,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
-        pipeInfo.pPipelineBinary    = pTable[SlowColorClear1_FP16].pBuffer;
-        pipeInfo.pipelineBinarySize = pTable[SlowColorClear1_FP16].size;
+        pipeInfo.flags.overrideGpuHeap = 1;
+        pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+        pipeInfo.pPipelineBinary       = pTable[SlowColorClear1_FP16].pBuffer;
+        pipeInfo.pipelineBinarySize    = pTable[SlowColorClear1_FP16].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
@@ -1760,8 +1886,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
-        pipeInfo.pPipelineBinary    = pTable[SlowColorClear1_SINT16].pBuffer;
-        pipeInfo.pipelineBinarySize = pTable[SlowColorClear1_SINT16].size;
+        pipeInfo.flags.overrideGpuHeap = 1;
+        pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+        pipeInfo.pPipelineBinary       = pTable[SlowColorClear1_SINT16].pBuffer;
+        pipeInfo.pipelineBinarySize    = pTable[SlowColorClear1_SINT16].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
@@ -1786,8 +1914,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
-        pipeInfo.pPipelineBinary    = pTable[SlowColorClear1_SNORM16].pBuffer;
-        pipeInfo.pipelineBinarySize = pTable[SlowColorClear1_SNORM16].size;
+        pipeInfo.flags.overrideGpuHeap = 1;
+        pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+        pipeInfo.pPipelineBinary       = pTable[SlowColorClear1_SNORM16].pBuffer;
+        pipeInfo.pipelineBinarySize    = pTable[SlowColorClear1_SNORM16].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
@@ -1812,8 +1942,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
-        pipeInfo.pPipelineBinary    = pTable[SlowColorClear1_UINT16].pBuffer;
-        pipeInfo.pipelineBinarySize = pTable[SlowColorClear1_UINT16].size;
+        pipeInfo.flags.overrideGpuHeap = 1;
+        pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+        pipeInfo.pPipelineBinary       = pTable[SlowColorClear1_UINT16].pBuffer;
+        pipeInfo.pipelineBinarySize    = pTable[SlowColorClear1_UINT16].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
@@ -1838,8 +1970,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
-        pipeInfo.pPipelineBinary    = pTable[SlowColorClear1_UNORM16].pBuffer;
-        pipeInfo.pipelineBinarySize = pTable[SlowColorClear1_UNORM16].size;
+        pipeInfo.flags.overrideGpuHeap = 1;
+        pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+        pipeInfo.pPipelineBinary       = pTable[SlowColorClear1_UNORM16].pBuffer;
+        pipeInfo.pipelineBinarySize    = pTable[SlowColorClear1_UNORM16].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
@@ -1864,8 +1998,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
-        pipeInfo.pPipelineBinary    = pTable[SlowColorClear2_32ABGR].pBuffer;
-        pipeInfo.pipelineBinarySize = pTable[SlowColorClear2_32ABGR].size;
+        pipeInfo.flags.overrideGpuHeap = 1;
+        pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+        pipeInfo.pPipelineBinary       = pTable[SlowColorClear2_32ABGR].pBuffer;
+        pipeInfo.pipelineBinarySize    = pTable[SlowColorClear2_32ABGR].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
@@ -1890,8 +2026,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
-        pipeInfo.pPipelineBinary    = pTable[SlowColorClear2_32GR].pBuffer;
-        pipeInfo.pipelineBinarySize = pTable[SlowColorClear2_32GR].size;
+        pipeInfo.flags.overrideGpuHeap = 1;
+        pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+        pipeInfo.pPipelineBinary       = pTable[SlowColorClear2_32GR].pBuffer;
+        pipeInfo.pipelineBinarySize    = pTable[SlowColorClear2_32GR].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
@@ -1916,8 +2054,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
-        pipeInfo.pPipelineBinary    = pTable[SlowColorClear2_32R].pBuffer;
-        pipeInfo.pipelineBinarySize = pTable[SlowColorClear2_32R].size;
+        pipeInfo.flags.overrideGpuHeap = 1;
+        pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+        pipeInfo.pPipelineBinary       = pTable[SlowColorClear2_32R].pBuffer;
+        pipeInfo.pipelineBinarySize    = pTable[SlowColorClear2_32R].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
@@ -1942,8 +2082,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
-        pipeInfo.pPipelineBinary    = pTable[SlowColorClear2_FP16].pBuffer;
-        pipeInfo.pipelineBinarySize = pTable[SlowColorClear2_FP16].size;
+        pipeInfo.flags.overrideGpuHeap = 1;
+        pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+        pipeInfo.pPipelineBinary       = pTable[SlowColorClear2_FP16].pBuffer;
+        pipeInfo.pipelineBinarySize    = pTable[SlowColorClear2_FP16].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
@@ -1968,8 +2110,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
-        pipeInfo.pPipelineBinary    = pTable[SlowColorClear2_SINT16].pBuffer;
-        pipeInfo.pipelineBinarySize = pTable[SlowColorClear2_SINT16].size;
+        pipeInfo.flags.overrideGpuHeap = 1;
+        pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+        pipeInfo.pPipelineBinary       = pTable[SlowColorClear2_SINT16].pBuffer;
+        pipeInfo.pipelineBinarySize    = pTable[SlowColorClear2_SINT16].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
@@ -1994,8 +2138,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
-        pipeInfo.pPipelineBinary    = pTable[SlowColorClear2_SNORM16].pBuffer;
-        pipeInfo.pipelineBinarySize = pTable[SlowColorClear2_SNORM16].size;
+        pipeInfo.flags.overrideGpuHeap = 1;
+        pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+        pipeInfo.pPipelineBinary       = pTable[SlowColorClear2_SNORM16].pBuffer;
+        pipeInfo.pipelineBinarySize    = pTable[SlowColorClear2_SNORM16].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
@@ -2020,8 +2166,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
-        pipeInfo.pPipelineBinary    = pTable[SlowColorClear2_UINT16].pBuffer;
-        pipeInfo.pipelineBinarySize = pTable[SlowColorClear2_UINT16].size;
+        pipeInfo.flags.overrideGpuHeap = 1;
+        pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+        pipeInfo.pPipelineBinary       = pTable[SlowColorClear2_UINT16].pBuffer;
+        pipeInfo.pipelineBinarySize    = pTable[SlowColorClear2_UINT16].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
@@ -2046,8 +2194,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
-        pipeInfo.pPipelineBinary    = pTable[SlowColorClear2_UNORM16].pBuffer;
-        pipeInfo.pipelineBinarySize = pTable[SlowColorClear2_UNORM16].size;
+        pipeInfo.flags.overrideGpuHeap = 1;
+        pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+        pipeInfo.pPipelineBinary       = pTable[SlowColorClear2_UNORM16].pBuffer;
+        pipeInfo.pipelineBinarySize    = pTable[SlowColorClear2_UNORM16].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
@@ -2072,8 +2222,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
-        pipeInfo.pPipelineBinary    = pTable[SlowColorClear3_32ABGR].pBuffer;
-        pipeInfo.pipelineBinarySize = pTable[SlowColorClear3_32ABGR].size;
+        pipeInfo.flags.overrideGpuHeap = 1;
+        pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+        pipeInfo.pPipelineBinary       = pTable[SlowColorClear3_32ABGR].pBuffer;
+        pipeInfo.pipelineBinarySize    = pTable[SlowColorClear3_32ABGR].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
@@ -2098,8 +2250,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
-        pipeInfo.pPipelineBinary    = pTable[SlowColorClear3_32GR].pBuffer;
-        pipeInfo.pipelineBinarySize = pTable[SlowColorClear3_32GR].size;
+        pipeInfo.flags.overrideGpuHeap = 1;
+        pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+        pipeInfo.pPipelineBinary       = pTable[SlowColorClear3_32GR].pBuffer;
+        pipeInfo.pipelineBinarySize    = pTable[SlowColorClear3_32GR].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
@@ -2124,8 +2278,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
-        pipeInfo.pPipelineBinary    = pTable[SlowColorClear3_32R].pBuffer;
-        pipeInfo.pipelineBinarySize = pTable[SlowColorClear3_32R].size;
+        pipeInfo.flags.overrideGpuHeap = 1;
+        pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+        pipeInfo.pPipelineBinary       = pTable[SlowColorClear3_32R].pBuffer;
+        pipeInfo.pipelineBinarySize    = pTable[SlowColorClear3_32R].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
@@ -2150,8 +2306,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
-        pipeInfo.pPipelineBinary    = pTable[SlowColorClear3_FP16].pBuffer;
-        pipeInfo.pipelineBinarySize = pTable[SlowColorClear3_FP16].size;
+        pipeInfo.flags.overrideGpuHeap = 1;
+        pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+        pipeInfo.pPipelineBinary       = pTable[SlowColorClear3_FP16].pBuffer;
+        pipeInfo.pipelineBinarySize    = pTable[SlowColorClear3_FP16].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
@@ -2176,8 +2334,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
-        pipeInfo.pPipelineBinary    = pTable[SlowColorClear3_SINT16].pBuffer;
-        pipeInfo.pipelineBinarySize = pTable[SlowColorClear3_SINT16].size;
+        pipeInfo.flags.overrideGpuHeap = 1;
+        pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+        pipeInfo.pPipelineBinary       = pTable[SlowColorClear3_SINT16].pBuffer;
+        pipeInfo.pipelineBinarySize    = pTable[SlowColorClear3_SINT16].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
@@ -2202,8 +2362,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
-        pipeInfo.pPipelineBinary    = pTable[SlowColorClear3_SNORM16].pBuffer;
-        pipeInfo.pipelineBinarySize = pTable[SlowColorClear3_SNORM16].size;
+        pipeInfo.flags.overrideGpuHeap = 1;
+        pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+        pipeInfo.pPipelineBinary       = pTable[SlowColorClear3_SNORM16].pBuffer;
+        pipeInfo.pipelineBinarySize    = pTable[SlowColorClear3_SNORM16].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
@@ -2228,8 +2390,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
-        pipeInfo.pPipelineBinary    = pTable[SlowColorClear3_UINT16].pBuffer;
-        pipeInfo.pipelineBinarySize = pTable[SlowColorClear3_UINT16].size;
+        pipeInfo.flags.overrideGpuHeap = 1;
+        pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+        pipeInfo.pPipelineBinary       = pTable[SlowColorClear3_UINT16].pBuffer;
+        pipeInfo.pipelineBinarySize    = pTable[SlowColorClear3_UINT16].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
@@ -2254,8 +2418,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
-        pipeInfo.pPipelineBinary    = pTable[SlowColorClear3_UNORM16].pBuffer;
-        pipeInfo.pipelineBinarySize = pTable[SlowColorClear3_UNORM16].size;
+        pipeInfo.flags.overrideGpuHeap = 1;
+        pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+        pipeInfo.pPipelineBinary       = pTable[SlowColorClear3_UNORM16].pBuffer;
+        pipeInfo.pipelineBinarySize    = pTable[SlowColorClear3_UNORM16].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
@@ -2280,8 +2446,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
-        pipeInfo.pPipelineBinary    = pTable[SlowColorClear4_32ABGR].pBuffer;
-        pipeInfo.pipelineBinarySize = pTable[SlowColorClear4_32ABGR].size;
+        pipeInfo.flags.overrideGpuHeap = 1;
+        pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+        pipeInfo.pPipelineBinary       = pTable[SlowColorClear4_32ABGR].pBuffer;
+        pipeInfo.pipelineBinarySize    = pTable[SlowColorClear4_32ABGR].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
@@ -2306,8 +2474,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
-        pipeInfo.pPipelineBinary    = pTable[SlowColorClear4_32GR].pBuffer;
-        pipeInfo.pipelineBinarySize = pTable[SlowColorClear4_32GR].size;
+        pipeInfo.flags.overrideGpuHeap = 1;
+        pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+        pipeInfo.pPipelineBinary       = pTable[SlowColorClear4_32GR].pBuffer;
+        pipeInfo.pipelineBinarySize    = pTable[SlowColorClear4_32GR].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
@@ -2332,8 +2502,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
-        pipeInfo.pPipelineBinary    = pTable[SlowColorClear4_32R].pBuffer;
-        pipeInfo.pipelineBinarySize = pTable[SlowColorClear4_32R].size;
+        pipeInfo.flags.overrideGpuHeap = 1;
+        pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+        pipeInfo.pPipelineBinary       = pTable[SlowColorClear4_32R].pBuffer;
+        pipeInfo.pipelineBinarySize    = pTable[SlowColorClear4_32R].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
@@ -2358,8 +2530,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
-        pipeInfo.pPipelineBinary    = pTable[SlowColorClear4_FP16].pBuffer;
-        pipeInfo.pipelineBinarySize = pTable[SlowColorClear4_FP16].size;
+        pipeInfo.flags.overrideGpuHeap = 1;
+        pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+        pipeInfo.pPipelineBinary       = pTable[SlowColorClear4_FP16].pBuffer;
+        pipeInfo.pipelineBinarySize    = pTable[SlowColorClear4_FP16].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
@@ -2384,8 +2558,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
-        pipeInfo.pPipelineBinary    = pTable[SlowColorClear4_SINT16].pBuffer;
-        pipeInfo.pipelineBinarySize = pTable[SlowColorClear4_SINT16].size;
+        pipeInfo.flags.overrideGpuHeap = 1;
+        pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+        pipeInfo.pPipelineBinary       = pTable[SlowColorClear4_SINT16].pBuffer;
+        pipeInfo.pipelineBinarySize    = pTable[SlowColorClear4_SINT16].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
@@ -2410,8 +2586,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
-        pipeInfo.pPipelineBinary    = pTable[SlowColorClear4_SNORM16].pBuffer;
-        pipeInfo.pipelineBinarySize = pTable[SlowColorClear4_SNORM16].size;
+        pipeInfo.flags.overrideGpuHeap = 1;
+        pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+        pipeInfo.pPipelineBinary       = pTable[SlowColorClear4_SNORM16].pBuffer;
+        pipeInfo.pipelineBinarySize    = pTable[SlowColorClear4_SNORM16].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
@@ -2436,8 +2614,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
-        pipeInfo.pPipelineBinary    = pTable[SlowColorClear4_UINT16].pBuffer;
-        pipeInfo.pipelineBinarySize = pTable[SlowColorClear4_UINT16].size;
+        pipeInfo.flags.overrideGpuHeap = 1;
+        pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+        pipeInfo.pPipelineBinary       = pTable[SlowColorClear4_UINT16].pBuffer;
+        pipeInfo.pipelineBinarySize    = pTable[SlowColorClear4_UINT16].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
@@ -2462,8 +2642,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
-        pipeInfo.pPipelineBinary    = pTable[SlowColorClear4_UNORM16].pBuffer;
-        pipeInfo.pipelineBinarySize = pTable[SlowColorClear4_UNORM16].size;
+        pipeInfo.flags.overrideGpuHeap = 1;
+        pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+        pipeInfo.pPipelineBinary       = pTable[SlowColorClear4_UNORM16].pBuffer;
+        pipeInfo.pipelineBinarySize    = pTable[SlowColorClear4_UNORM16].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
@@ -2488,8 +2670,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
-        pipeInfo.pPipelineBinary    = pTable[SlowColorClear5_32ABGR].pBuffer;
-        pipeInfo.pipelineBinarySize = pTable[SlowColorClear5_32ABGR].size;
+        pipeInfo.flags.overrideGpuHeap = 1;
+        pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+        pipeInfo.pPipelineBinary       = pTable[SlowColorClear5_32ABGR].pBuffer;
+        pipeInfo.pipelineBinarySize    = pTable[SlowColorClear5_32ABGR].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
@@ -2514,8 +2698,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
-        pipeInfo.pPipelineBinary    = pTable[SlowColorClear5_32GR].pBuffer;
-        pipeInfo.pipelineBinarySize = pTable[SlowColorClear5_32GR].size;
+        pipeInfo.flags.overrideGpuHeap = 1;
+        pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+        pipeInfo.pPipelineBinary       = pTable[SlowColorClear5_32GR].pBuffer;
+        pipeInfo.pipelineBinarySize    = pTable[SlowColorClear5_32GR].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
@@ -2540,8 +2726,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
-        pipeInfo.pPipelineBinary    = pTable[SlowColorClear5_32R].pBuffer;
-        pipeInfo.pipelineBinarySize = pTable[SlowColorClear5_32R].size;
+        pipeInfo.flags.overrideGpuHeap = 1;
+        pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+        pipeInfo.pPipelineBinary       = pTable[SlowColorClear5_32R].pBuffer;
+        pipeInfo.pipelineBinarySize    = pTable[SlowColorClear5_32R].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
@@ -2566,8 +2754,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
-        pipeInfo.pPipelineBinary    = pTable[SlowColorClear5_FP16].pBuffer;
-        pipeInfo.pipelineBinarySize = pTable[SlowColorClear5_FP16].size;
+        pipeInfo.flags.overrideGpuHeap = 1;
+        pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+        pipeInfo.pPipelineBinary       = pTable[SlowColorClear5_FP16].pBuffer;
+        pipeInfo.pipelineBinarySize    = pTable[SlowColorClear5_FP16].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
@@ -2592,8 +2782,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
-        pipeInfo.pPipelineBinary    = pTable[SlowColorClear5_SINT16].pBuffer;
-        pipeInfo.pipelineBinarySize = pTable[SlowColorClear5_SINT16].size;
+        pipeInfo.flags.overrideGpuHeap = 1;
+        pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+        pipeInfo.pPipelineBinary       = pTable[SlowColorClear5_SINT16].pBuffer;
+        pipeInfo.pipelineBinarySize    = pTable[SlowColorClear5_SINT16].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
@@ -2618,8 +2810,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
-        pipeInfo.pPipelineBinary    = pTable[SlowColorClear5_SNORM16].pBuffer;
-        pipeInfo.pipelineBinarySize = pTable[SlowColorClear5_SNORM16].size;
+        pipeInfo.flags.overrideGpuHeap = 1;
+        pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+        pipeInfo.pPipelineBinary       = pTable[SlowColorClear5_SNORM16].pBuffer;
+        pipeInfo.pipelineBinarySize    = pTable[SlowColorClear5_SNORM16].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
@@ -2644,8 +2838,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
-        pipeInfo.pPipelineBinary    = pTable[SlowColorClear5_UINT16].pBuffer;
-        pipeInfo.pipelineBinarySize = pTable[SlowColorClear5_UINT16].size;
+        pipeInfo.flags.overrideGpuHeap = 1;
+        pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+        pipeInfo.pPipelineBinary       = pTable[SlowColorClear5_UINT16].pBuffer;
+        pipeInfo.pipelineBinarySize    = pTable[SlowColorClear5_UINT16].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
@@ -2670,8 +2866,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
-        pipeInfo.pPipelineBinary    = pTable[SlowColorClear5_UNORM16].pBuffer;
-        pipeInfo.pipelineBinarySize = pTable[SlowColorClear5_UNORM16].size;
+        pipeInfo.flags.overrideGpuHeap = 1;
+        pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+        pipeInfo.pPipelineBinary       = pTable[SlowColorClear5_UNORM16].pBuffer;
+        pipeInfo.pipelineBinarySize    = pTable[SlowColorClear5_UNORM16].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
@@ -2696,8 +2894,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
-        pipeInfo.pPipelineBinary    = pTable[SlowColorClear6_32ABGR].pBuffer;
-        pipeInfo.pipelineBinarySize = pTable[SlowColorClear6_32ABGR].size;
+        pipeInfo.flags.overrideGpuHeap = 1;
+        pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+        pipeInfo.pPipelineBinary       = pTable[SlowColorClear6_32ABGR].pBuffer;
+        pipeInfo.pipelineBinarySize    = pTable[SlowColorClear6_32ABGR].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
@@ -2722,8 +2922,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
-        pipeInfo.pPipelineBinary    = pTable[SlowColorClear6_32GR].pBuffer;
-        pipeInfo.pipelineBinarySize = pTable[SlowColorClear6_32GR].size;
+        pipeInfo.flags.overrideGpuHeap = 1;
+        pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+        pipeInfo.pPipelineBinary       = pTable[SlowColorClear6_32GR].pBuffer;
+        pipeInfo.pipelineBinarySize    = pTable[SlowColorClear6_32GR].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
@@ -2748,8 +2950,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
-        pipeInfo.pPipelineBinary    = pTable[SlowColorClear6_32R].pBuffer;
-        pipeInfo.pipelineBinarySize = pTable[SlowColorClear6_32R].size;
+        pipeInfo.flags.overrideGpuHeap = 1;
+        pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+        pipeInfo.pPipelineBinary       = pTable[SlowColorClear6_32R].pBuffer;
+        pipeInfo.pipelineBinarySize    = pTable[SlowColorClear6_32R].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
@@ -2774,8 +2978,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
-        pipeInfo.pPipelineBinary    = pTable[SlowColorClear6_FP16].pBuffer;
-        pipeInfo.pipelineBinarySize = pTable[SlowColorClear6_FP16].size;
+        pipeInfo.flags.overrideGpuHeap = 1;
+        pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+        pipeInfo.pPipelineBinary       = pTable[SlowColorClear6_FP16].pBuffer;
+        pipeInfo.pipelineBinarySize    = pTable[SlowColorClear6_FP16].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
@@ -2800,8 +3006,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
-        pipeInfo.pPipelineBinary    = pTable[SlowColorClear6_SINT16].pBuffer;
-        pipeInfo.pipelineBinarySize = pTable[SlowColorClear6_SINT16].size;
+        pipeInfo.flags.overrideGpuHeap = 1;
+        pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+        pipeInfo.pPipelineBinary       = pTable[SlowColorClear6_SINT16].pBuffer;
+        pipeInfo.pipelineBinarySize    = pTable[SlowColorClear6_SINT16].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
@@ -2826,8 +3034,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
-        pipeInfo.pPipelineBinary    = pTable[SlowColorClear6_SNORM16].pBuffer;
-        pipeInfo.pipelineBinarySize = pTable[SlowColorClear6_SNORM16].size;
+        pipeInfo.flags.overrideGpuHeap = 1;
+        pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+        pipeInfo.pPipelineBinary       = pTable[SlowColorClear6_SNORM16].pBuffer;
+        pipeInfo.pipelineBinarySize    = pTable[SlowColorClear6_SNORM16].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
@@ -2852,8 +3062,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
-        pipeInfo.pPipelineBinary    = pTable[SlowColorClear6_UINT16].pBuffer;
-        pipeInfo.pipelineBinarySize = pTable[SlowColorClear6_UINT16].size;
+        pipeInfo.flags.overrideGpuHeap = 1;
+        pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+        pipeInfo.pPipelineBinary       = pTable[SlowColorClear6_UINT16].pBuffer;
+        pipeInfo.pipelineBinarySize    = pTable[SlowColorClear6_UINT16].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
@@ -2878,8 +3090,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
-        pipeInfo.pPipelineBinary    = pTable[SlowColorClear6_UNORM16].pBuffer;
-        pipeInfo.pipelineBinarySize = pTable[SlowColorClear6_UNORM16].size;
+        pipeInfo.flags.overrideGpuHeap = 1;
+        pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+        pipeInfo.pPipelineBinary       = pTable[SlowColorClear6_UNORM16].pBuffer;
+        pipeInfo.pipelineBinarySize    = pTable[SlowColorClear6_UNORM16].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
@@ -2904,8 +3118,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
-        pipeInfo.pPipelineBinary    = pTable[SlowColorClear7_32ABGR].pBuffer;
-        pipeInfo.pipelineBinarySize = pTable[SlowColorClear7_32ABGR].size;
+        pipeInfo.flags.overrideGpuHeap = 1;
+        pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+        pipeInfo.pPipelineBinary       = pTable[SlowColorClear7_32ABGR].pBuffer;
+        pipeInfo.pipelineBinarySize    = pTable[SlowColorClear7_32ABGR].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
@@ -2930,8 +3146,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
-        pipeInfo.pPipelineBinary    = pTable[SlowColorClear7_32GR].pBuffer;
-        pipeInfo.pipelineBinarySize = pTable[SlowColorClear7_32GR].size;
+        pipeInfo.flags.overrideGpuHeap = 1;
+        pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+        pipeInfo.pPipelineBinary       = pTable[SlowColorClear7_32GR].pBuffer;
+        pipeInfo.pipelineBinarySize    = pTable[SlowColorClear7_32GR].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
@@ -2956,8 +3174,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
-        pipeInfo.pPipelineBinary    = pTable[SlowColorClear7_32R].pBuffer;
-        pipeInfo.pipelineBinarySize = pTable[SlowColorClear7_32R].size;
+        pipeInfo.flags.overrideGpuHeap = 1;
+        pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+        pipeInfo.pPipelineBinary       = pTable[SlowColorClear7_32R].pBuffer;
+        pipeInfo.pipelineBinarySize    = pTable[SlowColorClear7_32R].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
@@ -2982,8 +3202,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
-        pipeInfo.pPipelineBinary    = pTable[SlowColorClear7_FP16].pBuffer;
-        pipeInfo.pipelineBinarySize = pTable[SlowColorClear7_FP16].size;
+        pipeInfo.flags.overrideGpuHeap = 1;
+        pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+        pipeInfo.pPipelineBinary       = pTable[SlowColorClear7_FP16].pBuffer;
+        pipeInfo.pipelineBinarySize    = pTable[SlowColorClear7_FP16].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
@@ -3008,8 +3230,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
-        pipeInfo.pPipelineBinary    = pTable[SlowColorClear7_SINT16].pBuffer;
-        pipeInfo.pipelineBinarySize = pTable[SlowColorClear7_SINT16].size;
+        pipeInfo.flags.overrideGpuHeap = 1;
+        pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+        pipeInfo.pPipelineBinary       = pTable[SlowColorClear7_SINT16].pBuffer;
+        pipeInfo.pipelineBinarySize    = pTable[SlowColorClear7_SINT16].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
@@ -3034,8 +3258,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
-        pipeInfo.pPipelineBinary    = pTable[SlowColorClear7_SNORM16].pBuffer;
-        pipeInfo.pipelineBinarySize = pTable[SlowColorClear7_SNORM16].size;
+        pipeInfo.flags.overrideGpuHeap = 1;
+        pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+        pipeInfo.pPipelineBinary       = pTable[SlowColorClear7_SNORM16].pBuffer;
+        pipeInfo.pipelineBinarySize    = pTable[SlowColorClear7_SNORM16].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
@@ -3060,8 +3286,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
-        pipeInfo.pPipelineBinary    = pTable[SlowColorClear7_UINT16].pBuffer;
-        pipeInfo.pipelineBinarySize = pTable[SlowColorClear7_UINT16].size;
+        pipeInfo.flags.overrideGpuHeap = 1;
+        pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+        pipeInfo.pPipelineBinary       = pTable[SlowColorClear7_UINT16].pBuffer;
+        pipeInfo.pipelineBinarySize    = pTable[SlowColorClear7_UINT16].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
@@ -3086,8 +3314,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
-        pipeInfo.pPipelineBinary    = pTable[SlowColorClear7_UNORM16].pBuffer;
-        pipeInfo.pipelineBinarySize = pTable[SlowColorClear7_UNORM16].size;
+        pipeInfo.flags.overrideGpuHeap = 1;
+        pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+        pipeInfo.pPipelineBinary       = pTable[SlowColorClear7_UNORM16].pBuffer;
+        pipeInfo.pipelineBinarySize    = pTable[SlowColorClear7_UNORM16].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
@@ -3112,8 +3342,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
-        pipeInfo.pPipelineBinary    = pTable[ResolveDepth].pBuffer;
-        pipeInfo.pipelineBinarySize = pTable[ResolveDepth].size;
+        pipeInfo.flags.overrideGpuHeap = 1;
+        pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+        pipeInfo.pPipelineBinary       = pTable[ResolveDepth].pBuffer;
+        pipeInfo.pipelineBinarySize    = pTable[ResolveDepth].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
@@ -3133,8 +3365,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
-        pipeInfo.pPipelineBinary    = pTable[ResolveDepthCopy].pBuffer;
-        pipeInfo.pipelineBinarySize = pTable[ResolveDepthCopy].size;
+        pipeInfo.flags.overrideGpuHeap = 1;
+        pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+        pipeInfo.pPipelineBinary       = pTable[ResolveDepthCopy].pBuffer;
+        pipeInfo.pipelineBinarySize    = pTable[ResolveDepthCopy].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
@@ -3159,8 +3393,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
-        pipeInfo.pPipelineBinary    = pTable[ResolveStencil].pBuffer;
-        pipeInfo.pipelineBinarySize = pTable[ResolveStencil].size;
+        pipeInfo.flags.overrideGpuHeap = 1;
+        pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+        pipeInfo.pPipelineBinary       = pTable[ResolveStencil].pBuffer;
+        pipeInfo.pipelineBinarySize    = pTable[ResolveStencil].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
@@ -3179,8 +3415,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
-        pipeInfo.pPipelineBinary    = pTable[ResolveStencilCopy].pBuffer;
-        pipeInfo.pipelineBinarySize = pTable[ResolveStencilCopy].size;
+        pipeInfo.flags.overrideGpuHeap = 1;
+        pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+        pipeInfo.pPipelineBinary       = pTable[ResolveStencilCopy].pBuffer;
+        pipeInfo.pipelineBinarySize    = pTable[ResolveStencilCopy].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
@@ -3232,11 +3470,7 @@ static_assert((
     "PointLineRasterStateParams interface change not propagated. Update this file to match interface changes.");
 
 static_assert((
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 524
-    (offsetof(TriangleRasterStateParams, fillMode)        == 0) &&
-#else
     (offsetof(TriangleRasterStateParams, frontFillMode)   == 0) &&
-#endif
     (offsetof(TriangleRasterStateParams, backFillMode)    == sizeof(Pal::FillMode)) &&
     (offsetof(TriangleRasterStateParams, cullMode)        == 2 * sizeof(Pal::FillMode)) &&
     (offsetof(TriangleRasterStateParams, frontFace)       == 2 * sizeof(Pal::FillMode) + sizeof(Pal::CullMode)) &&

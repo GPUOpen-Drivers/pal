@@ -162,11 +162,7 @@ void ComputeCmdBuffer::CmdRelease(
     m_gfxCmdBufState.flags.packetPredicate = 0;
 
     // Mark these as traditional barriers in RGP
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 504
     m_device.DescribeBarrierStart(this, releaseInfo.reason, Developer::BarrierType::Release);
-#else
-    m_device.DescribeBarrierStart(this, Developer::BarrierReasonUnknown, Developer::BarrierType::Release);
-#endif
     Developer::BarrierOperations barrierOps = {};
     m_device.BarrierRelease(this, &m_cmdStream, releaseInfo, pGpuEvent, &barrierOps);
     m_device.DescribeBarrierEnd(this, &barrierOps);
@@ -187,11 +183,7 @@ void ComputeCmdBuffer::CmdAcquire(
     m_gfxCmdBufState.flags.packetPredicate = 0;
 
     // Mark these as traditional barriers in RGP
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 504
     m_device.DescribeBarrierStart(this, acquireInfo.reason, Developer::BarrierType::Acquire);
-#else
-    m_device.DescribeBarrierStart(this, Developer::BarrierReasonUnknown, Developer::BarrierType::Acquire);
-#endif
     Developer::BarrierOperations barrierOps = {};
     m_device.BarrierAcquire(this, &m_cmdStream, acquireInfo, gpuEventCount, ppGpuEvents, &barrierOps);
     m_device.DescribeBarrierEnd(this, &barrierOps);
@@ -210,11 +202,7 @@ void ComputeCmdBuffer::CmdReleaseThenAcquire(
     m_gfxCmdBufState.flags.packetPredicate = 0;
 
     // Mark these as traditional barriers in RGP
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 504
     m_device.DescribeBarrierStart(this, barrierInfo.reason, Developer::BarrierType::Full);
-#else
-    m_device.DescribeBarrierStart(this, Developer::BarrierReasonUnknown, Developer::BarrierType::Full);
-#endif
     Developer::BarrierOperations barrierOps = {};
     m_device.BarrierReleaseThenAcquire(this, &m_cmdStream, barrierInfo, &barrierOps);
     m_device.DescribeBarrierEnd(this, &barrierOps);
@@ -1054,15 +1042,67 @@ void ComputeCmdBuffer::LeakNestedCmdBufferState(
 // =====================================================================================================================
 // Adds a preamble to the start of a new command buffer.
 // SEE: ComputePreamblePm4Img and CommonPreamblePm4Img structures in gfx9Preambles.h for what is written in the preamble
-Result ComputeCmdBuffer::AddPreamble()
+Result ComputeCmdBuffer::WritePreambleCommands(
+    const CmdUtil& cmdUtil,
+    CmdStream*     pCmdStream)
 {
     // If this trips, it means that this isn't really the preamble -- i.e., somebody has inserted something into the
     // command stream before the preamble.  :-(
-    PAL_ASSERT(m_cmdStream.IsEmpty());
+    PAL_ASSERT(pCmdStream->IsEmpty());
 
-    uint32* pCmdSpace = m_cmdStream.ReserveCommands();
-    pCmdSpace += m_cmdUtil.BuildNonSampleEventWrite(PIPELINESTAT_START, EngineTypeCompute, pCmdSpace);
-    m_cmdStream.CommitCommands(pCmdSpace);
+    uint32* pCmdSpace = pCmdStream->ReserveCommands();
+    pCmdSpace += cmdUtil.BuildNonSampleEventWrite(PIPELINESTAT_START, EngineTypeCompute, pCmdSpace);
+    pCmdStream->CommitCommands(pCmdSpace);
+
+    return Result::Success;
+}
+
+// =====================================================================================================================
+// Adds a preamble to the start of a new command buffer.
+Result ComputeCmdBuffer::AddPreamble()
+{
+    Result result = ComputeCmdBuffer::WritePreambleCommands(m_cmdUtil, &m_cmdStream);
+
+    return result;
+}
+
+// =====================================================================================================================
+// Adds a postamble to the end of a new command buffer.
+Result ComputeCmdBuffer::WritePostambleCommands(
+    const CmdUtil&     cmdUtil,
+    GfxCmdBuffer*const pCmdBuffer,
+    CmdStream*         pCmdStream)
+{
+    uint32* pCmdSpace = pCmdStream->ReserveCommands();
+
+    if (pCmdBuffer->GetGfxCmdBufState().flags.cpBltActive)
+    {
+        // Stalls the CP MEC until the CP's DMA engine has finished all previous "CP blts" (DMA_DATA commands
+        // without the sync bit set). The ring won't wait for CP DMAs to finish so we need to do this manually.
+        pCmdSpace += cmdUtil.BuildWaitDmaData(pCmdSpace);
+    }
+
+    // The following ATOMIC_MEM packet increments the done-count for the command stream, so that we can probe when the
+    // command buffer has completed execution on the GPU.
+    // NOTE: Normally, we would need to flush the L2 cache to guarantee that this memory operation makes it out to
+    // memory. However, since we're at the end of the command buffer, we can rely on the fact that the KMD inserts
+    // an EOP event which flushes and invalidates the caches in between command buffers.
+    if (pCmdStream->GetFirstChunk()->BusyTrackerGpuAddr() != 0)
+    {
+        // We also need a wait-for-idle before the atomic increment because command memory might be read or written
+        // by dispatches. If we don't wait for idle then the driver might reset and write over that memory before the
+        // shaders are done executing.
+        pCmdSpace += cmdUtil.BuildWaitCsIdle(pCmdBuffer->GetEngineType(),
+                                             static_cast<GfxCmdBuffer*>(pCmdBuffer)->TimestampGpuVirtAddr(),
+                                             pCmdSpace);
+
+        pCmdSpace += cmdUtil.BuildAtomicMem(AtomicOp::AddInt32,
+                                            pCmdStream->GetFirstChunk()->BusyTrackerGpuAddr(),
+                                            1,
+                                            pCmdSpace);
+    }
+
+    pCmdStream->CommitCommands(pCmdSpace);
 
     return Result::Success;
 }
@@ -1071,36 +1111,16 @@ Result ComputeCmdBuffer::AddPreamble()
 // Adds a postamble to the end of a new command buffer.
 Result ComputeCmdBuffer::AddPostamble()
 {
-    uint32* pCmdSpace = m_cmdStream.ReserveCommands();
-
-    if (m_gfxCmdBufState.flags.cpBltActive)
+    Result result = ComputeCmdBuffer::WritePostambleCommands(m_cmdUtil,
+                                                             this,
+                                                             &m_cmdStream);
+    if (result == Result::Success)
     {
-        // Stalls the CP MEC until the CP's DMA engine has finished all previous "CP blts" (DMA_DATA commands
-        // without the sync bit set). The ring won't wait for CP DMAs to finish so we need to do this manually.
-        pCmdSpace += m_cmdUtil.BuildWaitDmaData(pCmdSpace);
         SetGfxCmdBufCpBltState(false);
+
     }
 
-    // The following ATOMIC_MEM packet increments the done-count for the command stream, so that we can probe when the
-    // command buffer has completed execution on the GPU.
-    // NOTE: Normally, we would need to flush the L2 cache to guarantee that this memory operation makes it out to
-    // memory. However, since we're at the end of the command buffer, we can rely on the fact that the KMD inserts
-    // an EOP event which flushes and invalidates the caches in between command buffers.
-    if (m_cmdStream.GetFirstChunk()->BusyTrackerGpuAddr() != 0)
-    {
-        // We also need a wait-for-idle before the atomic increment because command memory might be read or written
-        // by dispatches. If we don't wait for idle then the driver might reset and write over that memory before the
-        // shaders are done executing.
-        pCmdSpace += m_cmdUtil.BuildWaitCsIdle(m_engineType, TimestampGpuVirtAddr(), pCmdSpace);
-        pCmdSpace += m_cmdUtil.BuildAtomicMem(AtomicOp::AddInt32,
-                                              m_cmdStream.GetFirstChunk()->BusyTrackerGpuAddr(),
-                                              1,
-                                              pCmdSpace);
-    }
-
-    m_cmdStream.CommitCommands(pCmdSpace);
-
-    return Result::Success;
+    return result;
 }
 
 // =====================================================================================================================
@@ -1123,7 +1143,6 @@ void ComputeCmdBuffer::BeginExecutionMarker(
 uint32 ComputeCmdBuffer::CmdInsertExecutionMarker()
 {
     uint32 returnVal = UINT_MAX;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 533
     if (m_buildFlags.enableExecutionMarkerSupport == 1)
     {
         PAL_ASSERT(m_executionMarkerAddr != 0);
@@ -1138,7 +1157,6 @@ uint32 ComputeCmdBuffer::CmdInsertExecutionMarker()
 
         returnVal = m_executionMarkerCount;
     }
-#endif
     return returnVal;
 }
 

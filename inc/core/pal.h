@@ -78,11 +78,7 @@ constexpr uint32 MaxColorTargets          = 8;   ///< Maximum number of color ta
 constexpr uint32 MaxStreamOutTargets      = 4;   ///< Maximum number of stream output target buffers.
 constexpr uint32 MaxDescriptorSets        = 2;   ///< Maximum number of descriptor sets.
 constexpr uint32 MaxMsaaRasterizerSamples = 16;  ///< Maximum number of MSAA samples supported by the rasterizer.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 530
 constexpr uint32 MaxAvailableEngines      = 12;  ///< Maximum number of engines for a particular engine type.
-#else
-constexpr uint32 MaxAvailableEngines      = 8;   ///< Maximum number of engines for a particular engine type.
-#endif
 
 constexpr uint64 InternalApiPsoHash       = UINT64_MAX;  ///< Default Hash for PAL internal pipelines.
 
@@ -97,28 +93,11 @@ enum EngineType : uint32
     /// Corresponds to asynchronous compute engines (ACE).
     EngineTypeCompute          = 0x1,
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 530
-    /// Corresponds to asynchronous compute engines (ACE) which are exclusively owned by one client at a time.
-    EngineTypeExclusiveCompute = 0x2,
-
-    /// Corresponds to SDMA engines.
-    EngineTypeDma              = 0x3,
-
-    /// Virtual engine that only supports inserting sleeps, used for implementing frame-pacing.
-    EngineTypeTimer            = 0x4,
-
-    /// Corresponds to a hw engine that supports all operations (graphics and compute)
-    EngineTypeHighPriorityUniversal = 0x5,
-
-#else //PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 530
-
     /// Corresponds to SDMA engines.
     EngineTypeDma              = 0x2,
 
     /// Virtual engine that only supports inserting sleeps, used for implementing frame-pacing.
     EngineTypeTimer            = 0x3,
-
-#endif
 
     /// Number of engine types.
     EngineTypeCount,
@@ -161,6 +140,7 @@ enum class SubEngineType : uint32
 {
     Primary        = 0, // Subqueue that is the queue itself, rather than an ancilliary queue.
     ConstantEngine = 1, // CP constant update engine that runs in parallel with draw engine.
+    AsyncCompute   = 2, // Auxiliary ACE subqueue, together with a primary subqueue forms a "ganged" submit.
     Count,
 };
 
@@ -168,37 +148,21 @@ enum class SubEngineType : uint32
 /// on platforms that support it.  QueuePriority::Normal corresponds to the default priority.
 enum class QueuePriority : uint32
 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 530
     Normal   =  0,  ///< Normal priority (default).
     Idle     =  1,  ///< Idle, or low priority (lower than Normal).
     Medium   =  2,  ///< Medium priority (higher than Normal).
     High     =  3,  ///< High priority (higher than Normal).
     Realtime =  4,  ///< Real time priority (higher than Normal).
-#else
-    Low      =  0,  ///< Low priority (default).
-    Medium   =  1,  ///< Medium priority.
-    High     =  2,  ///< High priority.
-    VeryLow  =  3,  ///< Lowest priority.
-    Realtime =  4,  ///< Real time priority.
-#endif
 };
 
 /// Defines flags for describing which queue priority levels are supported.
 enum QueuePrioritySupport : uint32
 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 530
     SupportQueuePriorityNormal   = (1 << static_cast<uint32>(QueuePriority::Normal)),
     SupportQueuePriorityIdle     = (1 << static_cast<uint32>(QueuePriority::Idle)),
     SupportQueuePriorityMedium   = (1 << static_cast<uint32>(QueuePriority::Medium)),
     SupportQueuePriorityHigh     = (1 << static_cast<uint32>(QueuePriority::High)),
     SupportQueuePriorityRealtime = (1 << static_cast<uint32>(QueuePriority::Realtime)),
-#else
-    SupportQueuePriorityLow      = (1 << static_cast<uint32>(QueuePriority::Low)),
-    SupportQueuePriorityMedium   = (1 << static_cast<uint32>(QueuePriority::Medium)),
-    SupportQueuePriorityHigh     = (1 << static_cast<uint32>(QueuePriority::High)),
-    SupportQueuePriorityVeryLow  = (1 << static_cast<uint32>(QueuePriority::VeryLow)),
-    SupportQueuePriorityRealtime = (1 << static_cast<uint32>(QueuePriority::Realtime)),
-#endif
 };
 
 /// Selects one of a few possible memory heaps accessible by a GPU.

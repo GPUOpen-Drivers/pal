@@ -752,12 +752,14 @@ PAL_INLINE Result DeserializeHardwareStageMetadata(
                 break;
             }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 619
             case HashLiteralString(HardwareStageMetadataKey::MaxPrimsPerWave):
                 PAL_ASSERT(pMetadata->hasEntry.maxPrimsPerWave == 0);
                 result = pReader->UnpackNext(&pMetadata->maxPrimsPerWave);
                 pMetadata->hasEntry.maxPrimsPerWave = (result == Result::Success);
                 break;
 
+#endif
             default:
                 result = pReader->Skip(1);
                 break;
@@ -906,6 +908,7 @@ PAL_INLINE Result DeserializePipelineMetadata(
                 pMetadata->hasEntry.esGsLdsSize = (result == Result::Success);
                 break;
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 619
             case HashLiteralString(PipelineMetadataKey::StreamOutTableAddress):
                 PAL_ASSERT(pMetadata->hasEntry.streamOutTableAddress == 0);
                 result = pReader->UnpackNext(&pMetadata->streamOutTableAddress);
@@ -918,6 +921,7 @@ PAL_INLINE Result DeserializePipelineMetadata(
                 pMetadata->hasEntry.indirectUserDataTableAddresses = (result == Result::Success);
                 break;
 
+#endif
             case HashLiteralString(PipelineMetadataKey::NggSubgroupSize):
                 PAL_ASSERT(pMetadata->hasEntry.nggSubgroupSize == 0);
                 result = pReader->UnpackNext(&pMetadata->nggSubgroupSize);
@@ -930,6 +934,7 @@ PAL_INLINE Result DeserializePipelineMetadata(
                 pMetadata->hasEntry.numInterpolants = (result == Result::Success);
                 break;
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 619
             case HashLiteralString(PipelineMetadataKey::CalcWaveBreakSizeAtDrawTime):
             {
                 PAL_ASSERT(pMetadata->hasEntry.calcWaveBreakSizeAtDrawTime == 0);
@@ -944,6 +949,7 @@ PAL_INLINE Result DeserializePipelineMetadata(
                 break;
             }
 
+#endif
             case HashLiteralString(PipelineMetadataKey::Api):
                 PAL_ASSERT(pMetadata->hasEntry.api == 0);
                 result = pReader->UnpackNext(&pMetadata->api);

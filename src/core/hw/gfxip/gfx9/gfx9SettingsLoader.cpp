@@ -203,11 +203,6 @@ void SettingsLoader::ValidateSettings(
         }
     }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 548
-    // Clamp the number of supported user-data entries between the number of fast-user-data registers available and
-    pPalSettings->maxUserDataEntries = Min(pPalSettings->maxUserDataEntries, MaxUserDataEntries);
-#endif
-
     // If HTile is disabled, also disable the other settings whic
     // If HTile is disabled, also disable the other settings which depend on it:
     if (m_settings.htileEnable == false)

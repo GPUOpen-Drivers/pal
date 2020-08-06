@@ -703,20 +703,6 @@ public:
 
     virtual void CmdXdmaWaitFlipPending() override { PAL_NEVER_CALLED(); }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 509
-    virtual void CmdSetHiSCompareState0(
-        CompareFunc compFunc,
-        uint32      compMask,
-        uint32      compValue,
-        bool        enable) override { PAL_NEVER_CALLED(); }
-
-    virtual void CmdSetHiSCompareState1(
-        CompareFunc compFunc,
-        uint32      compMask,
-        uint32      compValue,
-        bool        enable) override { PAL_NEVER_CALLED(); }
-#endif
-
     virtual void CmdUpdateHiSPretests(
        const IImage*      pImage,
        const HiSPretests& pretests,
@@ -753,18 +739,10 @@ public:
     QueueType       GetQueueType()      const { return m_createInfo.queueType; }
     QueuePriority   GetQueuePriority()  const { return m_createInfo.queuePriority; }
     EngineType      GetEngineType()     const { return m_engineType; }
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 530
-    EngineSubType   GetEngineSubType()  const { return m_engineSubType; }
-#endif
 
     bool IsNested()               const { return (m_createInfo.flags.nested               != 0); }
     bool IsRealtimeComputeUnits() const { return (m_createInfo.flags.realtimeComputeUnits != 0); }
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 530
     bool UsesDispatchTunneling()  const { return (m_createInfo.flags.dispatchTunneling    != 0); }
-#else
-    bool UsesDispatchTunneling()  const
-        { return (GetEngineSubType() == EngineSubType::VrHighPriority) || (m_createInfo.flags.dispatchTunneling != 0); }
-#endif
 
     bool IsExclusiveSubmit() const { return (m_buildFlags.optimizeExclusiveSubmit    != 0); }
     bool IsOneTimeSubmit()   const { return (m_buildFlags.optimizeOneTimeSubmit      != 0); }
@@ -811,6 +789,11 @@ public:
         uint32      alignmentInDwords,
         GpuMemory** ppGpuMem,
         gpusize*    pOffset);
+
+    // True if a Hybrid pipeline was bound to this command buffer or if any of the task/mesh draw functions were
+    // invoked.
+    bool HasHybridPipeline() const { return (m_flags.hasHybridPipeline == 1); }
+    void ReportHybridPipelineBind() { m_flags.hasHybridPipeline = 1; }
 
 protected:
     CmdBuffer(const Device&              device,
@@ -903,9 +886,6 @@ protected:
     CmdBufferInternalCreateInfo   m_internalInfo;
     CmdBufferBuildFlags           m_buildFlags;
     const EngineType              m_engineType;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 530
-    const EngineSubType           m_engineSubType;
-#endif
 
     CmdAllocator*                 m_pCmdAllocator;
 
@@ -945,7 +925,8 @@ protected:
         struct
         {
             uint32 internalMemAllocator  : 1;  // True if m_pMemAllocator is owned internally by PAL.
-            uint32 reserved              : 31;
+            uint32 hasHybridPipeline     : 1;  // True if this command buffer has a hybrid pipeline bound.
+            uint32 reserved              : 30;
         };
 
         uint32     u32All;

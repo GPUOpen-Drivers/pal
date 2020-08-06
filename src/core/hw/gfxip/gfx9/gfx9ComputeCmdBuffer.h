@@ -42,6 +42,12 @@ class ComputeCmdBuffer : public Pal::ComputeCmdBuffer
 public:
     ComputeCmdBuffer(const Device& device, const CmdBufferCreateInfo& createInfo);
 
+    static Result WritePreambleCommands(const CmdUtil& cmdUtil, CmdStream* pCmdStream);
+    static Result WritePostambleCommands(
+        const CmdUtil&     cmdUtil,
+        GfxCmdBuffer*const pCmdBuffer,
+        CmdStream*         pCmdStream);
+
     virtual Result Init(const CmdBufferInternalCreateInfo& internalInfo) override;
 
     virtual Result Begin(const CmdBufferBuildInfo& info) override;

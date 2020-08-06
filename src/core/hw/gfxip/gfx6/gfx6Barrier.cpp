@@ -850,11 +850,7 @@ void Device::IssueSyncs(
             eopEvent = BOTTOM_OF_PIPE_TS;
         }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 504
         pOperations->pipelineStalls.eopTsBottomOfPipe = 1;
-#else
-        pOperations->pipelineStalls.waitOnEopTsBottomOfPipe = 1;
-#endif
 
         pCmdSpace += m_cmdUtil.BuildWaitOnGenericEopEvent(eopEvent,
                                                           pCmdBuf->TimestampGpuVirtAddr(),

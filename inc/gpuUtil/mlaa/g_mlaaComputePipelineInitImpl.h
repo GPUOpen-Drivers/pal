@@ -99,6 +99,7 @@ Pal::Result CreateMlaaComputePipelines(
 
     switch (properties.revision)
     {
+#if PAL_BUILD_GFX6
     case Pal::AsicRevision::Tahiti:
     case Pal::AsicRevision::Pitcairn:
     case Pal::AsicRevision::Capeverde:
@@ -113,7 +114,9 @@ Pal::Result CreateMlaaComputePipelines(
     case Pal::AsicRevision::Spooky:
         pTable = mlaaComputeBinaryTableTahiti;
         break;
+#endif
 
+#if PAL_BUILD_GFX6
     case Pal::AsicRevision::Carrizo:
     case Pal::AsicRevision::Bristol:
     case Pal::AsicRevision::Stoney:
@@ -123,11 +126,14 @@ Pal::Result CreateMlaaComputePipelines(
     case Pal::AsicRevision::Polaris12:
         pTable = mlaaComputeBinaryTableCarrizo;
         break;
+#endif
 
+#if PAL_BUILD_GFX6
     case Pal::AsicRevision::Iceland:
     case Pal::AsicRevision::Tonga:
         pTable = mlaaComputeBinaryTableIceland;
         break;
+#endif
 
     case Pal::AsicRevision::Vega10:
     case Pal::AsicRevision::Vega12:

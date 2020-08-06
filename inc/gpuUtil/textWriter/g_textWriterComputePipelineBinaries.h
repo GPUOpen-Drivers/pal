@@ -38,6 +38,7 @@ struct PipelineBinary
     size_t size;
 };
 
+#if PAL_BUILD_GFX6
 // Text Writer compute shader binary
 constexpr Util::uint8 TextWriter_Cs_D5543C67[] =
 {
@@ -123,7 +124,9 @@ constexpr Util::uint8 TextWriter_Cs_D5543C67[] =
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00,
 };
+#endif
 
+#if PAL_BUILD_GFX6
 // Text Writer compute shader binary
 constexpr Util::uint8 TextWriter_Cs_00B5D24B[] =
 {
@@ -209,7 +212,9 @@ constexpr Util::uint8 TextWriter_Cs_00B5D24B[] =
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00,
 };
+#endif
 
+#if PAL_BUILD_GFX6
 // Text Writer compute shader binary
 constexpr Util::uint8 TextWriter_Cs_7A58A19B[] =
 {
@@ -295,7 +300,9 @@ constexpr Util::uint8 TextWriter_Cs_7A58A19B[] =
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00,
 };
+#endif
 
+#if PAL_BUILD_GFX6
 // Text Writer compute shader binary
 constexpr Util::uint8 TextWriter_Cs_F5A9FB7F[] =
 {
@@ -381,7 +388,9 @@ constexpr Util::uint8 TextWriter_Cs_F5A9FB7F[] =
     0x00, 0x00, 0x00, 0xb8, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 };
+#endif
 
+#if PAL_BUILD_GFX6
 // Text Writer compute shader binary
 constexpr Util::uint8 TextWriter_Cs_776C0A11[] =
 {
@@ -467,6 +476,7 @@ constexpr Util::uint8 TextWriter_Cs_776C0A11[] =
     0x00, 0x00, 0x00, 0xb8, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 };
+#endif
 
 // Text Writer compute shader binary
 constexpr Util::uint8 TextWriter_Cs_3AFC84A4[] =
@@ -745,35 +755,45 @@ constexpr Util::uint8 TextWriter_Cs_91ECA425[] =
     0x00, 0x00, 0x00, 0x00, 0x00,
 };
 
+#if PAL_BUILD_GFX6
 // Table of compute pipeline binaries for Tahiti
 constexpr PipelineBinary textWriterComputeBinaryTableTahiti[] =
 {
     {TextWriter_Cs_D5543C67,  sizeof(TextWriter_Cs_D5543C67)},
 };
+#endif
 
+#if PAL_BUILD_GFX6
 // Table of compute pipeline binaries for Kalindi
 constexpr PipelineBinary textWriterComputeBinaryTableKalindi[] =
 {
     {TextWriter_Cs_00B5D24B,  sizeof(TextWriter_Cs_00B5D24B)},
 };
+#endif
 
+#if PAL_BUILD_GFX6
 // Table of compute pipeline binaries for Spectre
 constexpr PipelineBinary textWriterComputeBinaryTableSpectre[] =
 {
     {TextWriter_Cs_7A58A19B,  sizeof(TextWriter_Cs_7A58A19B)},
 };
+#endif
 
+#if PAL_BUILD_GFX6
 // Table of compute pipeline binaries for Carrizo
 constexpr PipelineBinary textWriterComputeBinaryTableCarrizo[] =
 {
     {TextWriter_Cs_F5A9FB7F,  sizeof(TextWriter_Cs_F5A9FB7F)},
 };
+#endif
 
+#if PAL_BUILD_GFX6
 // Table of compute pipeline binaries for Iceland
 constexpr PipelineBinary textWriterComputeBinaryTableIceland[] =
 {
     {TextWriter_Cs_776C0A11,  sizeof(TextWriter_Cs_776C0A11)},
 };
+#endif
 
 // Table of compute pipeline binaries for Vega10
 constexpr PipelineBinary textWriterComputeBinaryTableVega10[] =

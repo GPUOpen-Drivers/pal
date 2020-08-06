@@ -197,12 +197,6 @@ union ImageCreateFlags
                                              ///  "Uninitialized" state at any time.  Otherwise, both aspects must be
                                              ///  transitioned in the same barrier call.  Only meaningful if
                                              /// "perSubresInit" is set
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 547
-        uint32 copyFormatsMatch        :  1; ///< Optimization: When this image is used as an argument to CmdCopyImage,
-                                             ///  its format must match the format of the other image.
-#else
-        uint32 reserved547             :  1;
-#endif
         uint32 repetitiveResolve       :  1; ///< Optimization: Is this image resolved multiple times to an image which
                                              ///  is mostly similar to this image?
         uint32 preferSwizzleEqs        :  1; ///< Image prefers valid swizzle equations, but an invalid swizzle
@@ -226,8 +220,8 @@ union ImageCreateFlags
         uint32 reserved562             :  1;
 #endif
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 567
-        uint32 pipSwapChain            :  1; ///< Indicates this image is PIP swap-chain. It is only supported on Windows
-                                             ///  platforms.
+        uint32 pipSwapChain            :  1; ///< Indicates this image is PIP swap-chain. It is only supported on
+                                             ///  Windows platforms.
 #else
         uint32 reserved567             :  1;
 #endif
@@ -243,7 +237,7 @@ union ImageCreateFlags
 #else
         uint32 reserved616             :  1;
 #endif
-        uint32 reserved                :  8; ///< Reserved for future use.
+        uint32 reserved                :  9; ///< Reserved for future use.
     };
     uint32 u32All;                           ///< Flags packed as 32-bit uint.
 };
@@ -260,10 +254,10 @@ union ImageUsageFlags
         uint32 colorTarget            :  1; ///< Image will be bound as a color target.
         uint32 depthStencil           :  1; ///< Image will be bound as a depth/stencil target.
         uint32 noStencilShaderRead    :  1; ///< Image will be neither read as stencil nor resolved on stencil aspect.
-                                            ///< Note that if resolveSrc bit has been set to indicate that the image
-                                            ///< could be adopted as a resolveSrc image and there could be stencil
-                                            ///< resolve, noStencilShaderRead must be set to 0, since shader-read
-                                            ///< based stencil resolve might be performed.
+                                            ///  Note that if resolveSrc bit has been set to indicate that the image
+                                            ///  could be adopted as a resolveSrc image and there could be stencil
+                                            ///  resolve, noStencilShaderRead must be set to 0, since shader-read
+                                            ///  based stencil resolve might be performed.
         uint32 hiZNeverInvalid        :  1; ///< Hint to PAL indicating the client will guarantee that no operations
                                             ///  performed on this Image while it is in a decompressed state will cause
                                             ///  Hi-Z metadata to become invalid. This allows PAL to avoid an expensive
@@ -337,15 +331,7 @@ struct ImageCreateInfo
     uint32             rowPitch;          ///< The image must have this row pitch for the first mip level (in bytes).
     uint32             depthPitch;        ///< The image must have this depth pitch for the first mip level (in bytes).
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 539
     Rational           refreshRate;       ///< The expected refresh rate when presenting this flippable or stereo image.
-#else
-    union
-    {
-        Rational       stereoRefreshRate; ///< The expected refresh rate when presenting this stereo image.
-        Rational       refreshRate;       ///< The expected refresh rate when presenting this flippable image.
-    };
-#endif
 
     uint32             viewFormatCount;   ///< Number of additional image formats views of this image can be used with
                                           ///  or the special value AllCompatibleFormats to indicate that all

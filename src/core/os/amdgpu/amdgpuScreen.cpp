@@ -219,14 +219,10 @@ Result Screen::GetColorCapabilities(
         pCapabilities->nativeColorGamut.chromaticityWhitePointY  = m_nativeColorGamut.metadata.chromaticityWhitePointY;
         pCapabilities->nativeColorGamut.minLuminance             = m_nativeColorGamut.metadata.minLuminance;
         pCapabilities->nativeColorGamut.maxLuminance             = m_nativeColorGamut.metadata.maxLuminance;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 506
         pCapabilities->nativeColorGamut.maxContentLightLevel     = m_nativeColorGamut.metadata.maxContentLightLevel;
-#endif
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 512
         pCapabilities->nativeColorGamut.maxFrameAverageLightLevel =
             m_nativeColorGamut.metadata.maxFrameAverageLightLevel;
-#endif
 
         pCapabilities->dolbyVisionSupported     = false; // Doesn't support yet.
         pCapabilities->freeSyncHdrSupported     = false; // Doesn't support yet.
@@ -266,14 +262,10 @@ Result Screen::SetColorConfiguration(
     m_userColorGamut.metadata.chromaticityWhitePointY  = pColorConfig->userDefinedColorGamut.chromaticityWhitePointY;
     m_userColorGamut.metadata.minLuminance             = pColorConfig->userDefinedColorGamut.minLuminance;
     m_userColorGamut.metadata.maxLuminance             = pColorConfig->userDefinedColorGamut.maxLuminance;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 506
     m_userColorGamut.metadata.maxContentLightLevel     = pColorConfig->userDefinedColorGamut.maxContentLightLevel;
-#endif
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 512
     m_userColorGamut.metadata.maxFrameAverageLightLevel =
         pColorConfig->userDefinedColorGamut.maxFrameAverageLightLevel;
-#endif
 
     // Only static metadata is supported so far
     m_userColorGamut.metadataType          = HDMI_STATIC_METADATA_TYPE1;

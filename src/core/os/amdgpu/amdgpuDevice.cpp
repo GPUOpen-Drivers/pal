@@ -844,10 +844,6 @@ Result Device::InitGpuProperties()
         {
         case EngineTypeUniversal:
         case EngineTypeCompute:
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 530
-        case EngineTypeExclusiveCompute:
-        case EngineTypeHighPriorityUniversal:
-#endif
         case EngineTypeDma:
             m_engineProperties.perEngine[i].flags.supportsTrackBusyChunks = 1;
             break;
@@ -1579,15 +1575,6 @@ Result Device::InitQueueInfo()
                 }
                 break;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 530
-            case EngineTypeExclusiveCompute:
-                // NOTE: amdgpu doesn't support the ExclusiveCompute Queue.
-                pEngineInfo->numAvailable = 0;
-                pEngineInfo->startAlign = 8;
-                pEngineInfo->sizeAlignInDwords = 1;
-                break;
-#endif
-
             case EngineTypeDma:
                 // GFX10+ parts have the DMA engine in the GFX block, not in the OSS
                 if ((Settings().disableSdmaEngine == false) &&
@@ -1611,9 +1598,6 @@ Result Device::InitQueueInfo()
                 pEngineInfo->sizeAlignInDwords = 1;
                 break;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 530
-            case EngineTypeHighPriorityUniversal:
-#endif
                 // not supported on linux
                 pEngineInfo->numAvailable       = 0;
                 pEngineInfo->startAlign         = 1;
@@ -1772,12 +1756,7 @@ Result Device::GetMultiGpuCompatibility(
             pInfo->flags.sharedSync   = 1;
             if (settings.peerMemoryEnabled)
             {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 521
                 pInfo->flags.peerTransferWrite = 1;
-#else
-                pInfo->flags.peerTransfer      = 1;
-#endif
-
             }
             if (settings.hwCompositingEnabled)
             {
@@ -2513,7 +2492,6 @@ Result Device::CreateCommandSubmissionContext(
     {
         if (m_featureState.supportQueuePriority != 0)
         {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 530
             constexpr int32 QueuePriorityToAmdgpuPriority[] =
             {
                 AMDGPU_CTX_PRIORITY_NORMAL,     // QueuePriority::Normal     = 0,
@@ -2529,15 +2507,6 @@ Result Device::CreateCommandSubmissionContext(
                           (static_cast<uint32>(QueuePriority::High)     == 3) &&
                           (static_cast<uint32>(QueuePriority::Realtime) == 4),
                 "The QueuePriorityToAmdgpuPriority table needs to be updated.");
-#else
-            constexpr int32 QueuePriorityToAmdgpuPriority[] =
-            {
-                AMDGPU_CTX_PRIORITY_NORMAL,     // QueuePriority::Low        = 0,
-                AMDGPU_CTX_PRIORITY_HIGH,       // QueuePriority::Medium     = 1,
-                AMDGPU_CTX_PRIORITY_VERY_HIGH,  // QueuePriority::High       = 2,
-                AMDGPU_CTX_PRIORITY_LOW,        // QueuePriority::VeryLow    = 3,
-            };
-#endif
             if (m_featureState.supportQueueIfhKmd != 0)
             {
                 const uint32 flags = (Settings().ifh == IfhModeKmd) ? AMDGPU_CTX_FLAGS_IFH : 0;
@@ -5127,14 +5096,8 @@ Result Device::CreateGpuMemoryFromExternalShare(
     PAL_ASSERT((sharedInfo.info.phys_alignment % 4096) == 0);
     PAL_ASSERT((sharedInfo.info.alloc_size     % 4096) == 0);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 516
     pCreateInfo->alignment = static_cast<gpusize>(sharedInfo.info.phys_alignment);
     pCreateInfo->size      = sharedInfo.info.alloc_size;
-#else
-    pCreateInfo->alignment = Max(static_cast<gpusize>(sharedInfo.info.phys_alignment),
-                                 m_memoryProperties.realMemAllocGranularity);
-    pCreateInfo->size      = Pow2Align(sharedInfo.info.alloc_size, pCreateInfo->alignment);
-#endif
 
     pCreateInfo->vaRange   = VaRange::Default;
     pCreateInfo->priority  = GpuMemPriority::High;
@@ -5719,6 +5682,8 @@ Result Device::GetHdrMetaData(
 
         m_drmProcs.pfnDrmModeFreeProperty(pProp);
     }
+
+    m_drmProcs.pfnDrmModeFreeObjectProperties(pProps);
 
     if ((result == Result::Success) && ((driverSupportHdr == false) || (connectorSupportHdr == false)))
     {

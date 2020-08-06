@@ -108,7 +108,7 @@ public:
         return Util::VoidPtrInc(m_pTileInfoList, (subResId * m_tileInfoBytes));
     }
 
-    virtual void SetOptimalSharingLevel(MetadataSharingLevel level) override { PAL_NOT_IMPLEMENTED(); }
+    virtual void SetOptimalSharingLevel(MetadataSharingLevel level) override {}
     virtual MetadataSharingLevel GetOptimalSharingLevel() const override { return MetadataSharingLevel::FullExpand; }
 
     void SetFramebufferId(uint32 fbId) { m_framebufferId = fbId; }

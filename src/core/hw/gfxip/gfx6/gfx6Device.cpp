@@ -759,9 +759,6 @@ Result Device::CreateEngine(
         pEngine = PAL_NEW(UniversalEngine, GetPlatform(), AllocInternal)(this, engineType, engineIndex);
         break;
     case EngineTypeCompute:
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 530
-    case EngineTypeExclusiveCompute:
-#endif
         pEngine = PAL_NEW(ComputeEngine, GetPlatform(), AllocInternal)(this, engineType, engineIndex);
         break;
     default:
@@ -3415,12 +3412,6 @@ void InitializeGpuEngineProperties(
     pDma->flags.supportsImageInitPerSubresource = 1;
     pDma->flags.supportsMismatchedTileTokenCopy = 1;
     pDma->flags.supportsUnmappedPrtPageAccess   = 0; // SDMA can't ignore VM faults for PRT resources on GFXIP 6/7/8.
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 530
-    // Copy the compute properties into the exclusive compute engine properties
-    auto*const pExclusiveCompute = &pInfo->perEngine[EngineTypeExclusiveCompute];
-    memcpy(pExclusiveCompute, pCompute, sizeof(pInfo->perEngine[EngineTypeExclusiveCompute]));
-#endif
 }
 
 // =====================================================================================================================

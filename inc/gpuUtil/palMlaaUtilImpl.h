@@ -33,6 +33,7 @@
 #include "palPipeline.h"
 #include "palSysMemory.h"
 #include "palMlaaUtil.h"
+#include "mlaa/g_mlaaComputePipelineInitImpl.h"
 
 namespace GpuUtil
 {
@@ -299,14 +300,8 @@ Pal::Result MlaaUtil<Allocator>::CreateImageMemoryObject(
 
     // Translate the memory requirements into a GpuMemory create info.
     Pal::GpuMemoryCreateInfo createInfo = {};
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 516
     createInfo.size      = memReqs.size;
     createInfo.alignment = memReqs.alignment;
-#else
-    const Pal::gpusize allocGranularity = m_deviceProps.gpuMemoryProperties.realMemAllocGranularity;
-    createInfo.size      = Util::Pow2Align(memReqs.size, allocGranularity);
-    createInfo.alignment = Util::Pow2Align(memReqs.alignment, allocGranularity);
-#endif
     createInfo.vaRange   = Pal::VaRange::Default;
     createInfo.priority  = Pal::GpuMemPriority::Normal;
     createInfo.heapCount = memReqs.heapCount;

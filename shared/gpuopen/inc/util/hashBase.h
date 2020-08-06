@@ -31,7 +31,6 @@
 
 #pragma once
 
-#include "gpuopen.h"
 #include "ddPlatform.h"
 #include "memory.h"
 #include "hashFunc.h"

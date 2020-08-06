@@ -1245,7 +1245,7 @@ void Image::InitLayoutStateMasks()
         // depth-stencil.  The path also does not yet check the layout at all.  That is why here we do not
         // report them as being DB-compatible layouts.
 
-        // Identify the supported shader readable usages
+        // Identify the supported shader readable usages.
         constexpr uint32 ShaderReadUsages = LayoutCopySrc | LayoutResolveSrc | LayoutShaderRead;
 
         // Layouts that are decompressed (with hiz enabled) support both depth rendering and shader reads (though

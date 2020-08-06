@@ -674,24 +674,6 @@ namespace DevDriver
             return strcasecmp(pSrc1, pSrc2);
         }
 
-        int32 Vsnprintf(char* pDst, size_t dstSize, const char* format, va_list args)
-        {
-            int32 ret = vsnprintf(pDst, dstSize, format, args);
-
-            // If the return value looks like a valid length, add one to account for a NULL byte.
-            if (ret >= 0)
-            {
-                ret += 1;
-            }
-            else
-            {
-                // A negative value means that some error occurred
-                // We don't print anything here because our logging requires Vsnprintf
-            }
-
-            return ret;
-        }
-
 #if defined(DD_PLATFORM_DARWIN_UM)
         template <size_t BufferSize>
         Result DarwinSysCtlString(int key0, int key1, char (&buffer)[BufferSize])

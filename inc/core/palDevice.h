@@ -125,8 +125,8 @@ constexpr uint32 MaxShaderArraysPerSe   = 2;
 enum HostWaitFlags : uint32
 {
     HostWaitAny                = 0x1,  ///< if set this bit, return after any signle semaphore/fence in the array has
-                                       ///< completed. if not set, wait for completion of all semaphores/fences in the
-                                       ///< array before returning.
+                                       ///  completed. if not set, wait for completion of all semaphores/fences in the
+                                       ///  array before returning.
 };
 
 /// Specifies what type of GPU a particular IDevice is (i.e., discrete vs. integrated).
@@ -366,16 +366,6 @@ constexpr uint32 SwizzleEquationMaxBits = 20;   ///< Swizzle equations will cons
 constexpr uint8  InvalidSwizzleEqIndex  = 0xFF; ///< Indicates an invalid swizzle equation index in the equation table.
 constexpr uint8  LinearSwizzleEqIndex   = 0xFE; ///< An invalid eq. index indicating a row-major, linear memory layout.
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 507
-/// Supported shader cache modes
-enum ShaderCacheMode : uint32
-{
-    ShaderCacheDisabled = 0,
-    ShaderCacheRuntimeOnly = 1,
-    ShaderCacheOnDisk = 2,
-};
-#endif
-
 /// Texture fetch meta-data capabilities bitfield definition, used with tcCompatibleMetaData setting
 enum TexFetchMetaDataCaps : uint32
 {
@@ -441,22 +431,13 @@ enum class FeatureOverride : uint32
     Disabled = 2   ///< (Force) disabled state.  Default may change itself to this state.
 };
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 542
-/// Enum defining Infinitely Fast Hardware (IFH) mode
-enum class PublicSettingIfhMode : uint32
-{
-    IfhModeDisabled = 0,  ///< IFH is disabled
-    IfhModePal      = 1,  ///< IFH is implemented in PAL (kernel is not called)
-    IfhModeKmd      = 2   ///< IFH is implemented in the kernel
-};
-#endif
-
 /// Enum bitmask defining externally-controlled (e.g. by Radeon Settings/KMD) driver feature settings.
 enum RsFeatureType : uint32
 {
     RsFeatureTypeTurboSync = (1u << 0),
     RsFeatureTypeChill     = (1u << 1),
     RsFeatureTypeDelag     = (1u << 2),
+    RsFeatureTypeBoost     = (1u << 4),
 };
 
 /// Output structure containing information about the requested RsFeatureType (singular).
@@ -472,6 +453,7 @@ union RsFeatureInfo
     struct
     {
         bool enabled;    ///< Specifies whether Chill is enabled globally.
+        uint32 hotkey;   ///< If nonzero, specifies the virtual key code assigned to Chill.
         uint32 minFps;   ///< Specifies the global Chill minimum FPS limit.
         uint32 maxFps;   ///< Specifies the global Chill maximum FPS limit.
     } chill;
@@ -480,8 +462,17 @@ union RsFeatureInfo
     struct
     {
         bool enabled;    ///< Specifies whether Delag is enabled globally.
+        uint32 hotkey;   ///< If nonzero, specifies the virtual key code assigned to Delag.
         uint32 limitFps; ///< Specifies the global Delag FPS limit.
     } delag;
+
+    /// Global Boost settings.
+    struct
+    {
+        bool enabled;    ///< Specifies whether Boost is enabled globally.
+        uint32 hotkey;   ///< If nonzero, specifies the virtual key code assigned to Boost.
+        uint32 minRes;   ///< Specifies the global Boost minimum resolution.
+    } boost;
 
 };
 
@@ -517,12 +508,6 @@ struct PalPublicSettings
     ///  distributed to different VGTs. Falls back to donut mode if HW does not support this mode. 5: Trapezoid only -
     ///  Distribution turned off if HW does not support this mode.
     uint32 distributionTessMode;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 507
-    ///  Controls whether the Device shader cache should be used to try to avoid redundant shader compiles 0: Shader
-    ///  Cache is disabled. 1: Shader Cache is enabled for runtime use only. 2: Shader Cache is enabled with on-disk file
-    ///  backing.
-    ShaderCacheMode shaderCacheMode;
-#endif
     ///  Flags that control PAL optimizations to reduce context rolls. 0: Optimization disabled. 1: Pad parameter cache
     ///  space. Sets VS export count and PS interpolant number to per-command buffer maximum value. Reduces context rolls at
     ///  the expense of parameter cache space.
@@ -553,12 +538,6 @@ struct PalPublicSettings
     ///  color surface: 0x00000002 FMask data: 0x00000004 Single-sample depth surface: 0x00000008 MSAA depth surface:
     ///  0x00000010 Allow stencil: 0x00000020 Allow Z-16 surfs 0x00000040
     uint32 tcCompatibleMetaData;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 548
-    ///  Determines the maximum number of supported user-data entries accessible to a pipeline. If larger than the
-    ///  number of user-data registers in hardware, the rest of the entries will be spilled to GPU memory. The default is the
-    ///  maximum number of supported user-data entries based on client type.
-    uint32 maxUserDataEntries;
-#endif
     ///  Specifies the threshold below which CmdCopyMemory() is executed via a CpDma BLT, in bytes. CPDMA copies have
     ///  lower overhead than CS/Gfx copies, but less throughput for large copies.
     uint32 cpDmaCmdCopyMemoryMaxBytes;
@@ -623,12 +602,9 @@ struct PalPublicSettings
     /// Enable multiple slots instead of single DWORD slot for GPU event. This will enable anywhere that can utilize
     /// multiple event slots for optimization or function purpose, such as AcqRelBarrier interface.
     bool enableGpuEventMultiSlot;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 503
     ///  Makes the unbound descriptor debug srd 0 so the hardware drops the load and ignores it instead of
     ///  pagefaulting. Used to workaround incorrect app behavior.
     bool zeroUnboundDescDebugSrd;
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 514
     /// Prevents PAL from uploading any of its internal and client pipelines to the local invisible heap. Default is set
     /// to false.
     /// Note: Currently pipeline residency can be controlled by three interfaces:
@@ -640,11 +616,6 @@ struct PalPublicSettings
     ///    of the above mentioned flags are set then a heap preferrence of type local invisible memory is considered
     ///    invalid and we fall back to local visible heap.
     bool disablePipelineUploadToLocalInvis;
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 542
-    /// Infinitely Fast Hardware (IFH) mode requested by the client.
-    PublicSettingIfhMode ifhMode;
-#endif
     bool depthClampBasedOnZExport;
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 577
     /// Force the PreColorTarget to an earlier PreRasterization point if used as a wait point. This is to prevent a
@@ -701,26 +672,6 @@ enum class SettingScope
     Driver,   ///< For settings specific to a UMD
     Global,   ///< For global settings controlled by CCC
 };
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 530
-/// The engine subtype is used to indicate engine's purpose.
-enum class EngineSubType : uint32
-{
-    _None = 0x0,        ///< Engine has no special properties.
-
-    // Unfortunately for Linux clients, X.h includes a "#define None 0" macro.  Clients have their choice of either
-    // undefing None before including this header or using _None when dealing with PAL.
-#ifndef None
-    None = _None,       ///< Engine has no special properties.
-#endif
-    RtCuHighCompute,    ///< Engine is for real time audio with high priority and
-                        ///  compute unit reservation.
-    RtCuMedCompute,     ///< Engine is for real time audio with medium priority.
-    LowLatency,         ///< Engine is for low latency usage.
-    VrHighPriority,     ///< Engine is for VR with high priority.
-    Count,
-};
-#endif
 
 /// Big Software (BigSW) Release information structure
 /// Software release management uses this version # to control a rollout of big SW features together.
@@ -833,13 +784,8 @@ struct DeviceProperties
                 /// This engine supports ICmdBuffer::CmdSetPredication() based on a 32-bit GPU memory allocation
                 uint32 supports32bitMemoryPredication  :  1;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 550
-                /// This engine supports ICmdBuffer::CmdSetPredication() based on a 64-bit GPU memory allocation
-                uint32 supportsMemoryPredication       :  1;
-#else
                 /// This engine supports ICmdBuffer::CmdSetPredication() based on a 64-bit GPU memory allocation
                 uint32 supports64bitMemoryPredication  :  1;
-#endif
 
                 /// This engine supports ICmdBuffer::If(), Else() and EndIf() calls.
                 uint32 supportsConditionalExecution    :  1;
@@ -920,10 +866,6 @@ struct DeviceProperties
                                                       ///  by multiple hardware pipes/threads.
         } capabilities[MaxAvailableEngines];          ///< Lists each engine of this type (up to engineCount) and their
                                                       ///  properties.
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 530
-        EngineSubType engineSubType[MaxAvailableEngines]; ///< Engines subtype.
-#endif
 
         uint32   engineCount;                   ///< Number available engines of this type.
         uint32   queueSupport;                  ///< Mask of QueueTypeSupport flags indicating which queues are
@@ -1073,24 +1015,15 @@ struct DeviceProperties
         {
             struct
             {
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 546)
-                /// Single-sample images created on this device support texture quilting
-                uint32 supportsSingleSampleQuilting :  1;
-#endif
-
                 /// Images created on this device supports AQBS stereo mode, this AQBS stereo mode doesn't apply to the
                 /// array-based stereo feature supported by Presentable images.
                 uint32 supportsAqbsStereoMode       :  1;
 
                 /// Set if images created on this device support being created with corner sampling.
                 uint32 supportsCornerSampling       :  1;
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 546)
-                /// Reserved for future use.
-                uint32 reserved                     : 29;
-#else
+
                 /// Reserved for future use.
                 uint32 reserved                     : 30;
-#endif
             };
             uint32 u32All;              ///< Flags packed as 32-bit uint.
         } flags;                        ///< GPU memory property flags.
@@ -1186,14 +1119,6 @@ struct DeviceProperties
                                                                  ///  command buffer submissions.
                 uint64 support1xMsaaSampleLocations        :  1; ///< HW supports 1xMSAA custom quad sample patterns
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 522
-                /// Indicates that the GFX IP hardware (and PAL) support state inheritance for nested command buffers.
-                /// If true, nested command buffers inherit most API state from the calling root command buffer until
-                /// that state is bound to the nested command buffer itself.  If false, only the currently-bound color
-                /// and depth targets are inherited from the caller for Universal Engines, and no state is inherited
-                /// for other Engine types.
-                uint64 supportNestedCmdBufStateInheritance :  1;
-#endif
                 uint64 supportReleaseAcquireInterface      :  1; ///< If true, ASIC supports the new barrier interface
                                                                  ///  designed for Acquire/Released-based barrier.
                 uint64 supportSplitReleaseAcquire          :  1; ///< If true, ASIC supports split CmdRelease()
@@ -1207,29 +1132,17 @@ struct DeviceProperties
 
                 uint64 placeholder5                        :  1; ///< Placeholder, do not use
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 532
                 uint64 support64BitInstructions            :  1; ///< Hardware supports 64b instructions
-#else
-                uint64 placeholder6                        :  1; ///< Placeholder, do not use
-#endif
                 uint64 supportShaderSubgroupClock          :  1; ///< HW supports clock functions across subgroup.
                 uint64 supportShaderDeviceClock            :  1; ///< HW supports clock functions across device.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 551
                 uint64 supportAlphaToOne                   :  1; ///< HW supports forcing PS output alpha channel to 1
-#else
-                uint64 placeholder8                        :  1; ///< Placeholder, do not use
-#endif
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 560
                 uint64 supportCaptureReplay                :  1; ///< HW supports captureReplay
 #else
                 uint64 placeholder9                        :  1; ///< Placeholder, do not use
 #endif
                 uint64 supportSortAgnosticBarycentrics     :  1; ///< HW supports sort-agnostic Barycentrics for PS
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 522
-                uint64 reserved                            : 28; ///< Reserved for future use.
-#else
                 uint64 reserved                            : 27; ///< Reserved for future use.
-#endif
             };
             uint64 u64All;           ///< Flags packed as 32-bit uint.
         } flags;                     ///< Device IP property flags.
@@ -1276,7 +1189,7 @@ struct DeviceProperties
                     uint32  eccProtectedGprs :  1;  ///< Whether or not the GPU has ECC protection on its VGPR's
                     uint32  reserved :  31;         ///< Reserved for future use.
                 };
-                uint32  u32All;                      ///< Flags packed as a 32-bit unsigned integer.
+                uint32  u32All;                     ///< Flags packed as a 32-bit unsigned integer.
             } flags;
 
             uint32 numShaderEngines;        ///< Number of shader engines.
@@ -1335,11 +1248,7 @@ struct DeviceProperties
                 uint32 isCwgSupported             :  1;    ///< KMD supports Creator Who Game (CWG) feature
                 uint32 isGamingDriver             :  1;    ///< KMD works in gaming mode
                 uint32 placeholder0               :  1;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 542
                 uint32 ifhModeEnabled             :  1;    ///< Whether the IFH mode is enabled
-#else
-                uint32 placeholder1               :  1;
-#endif
                 uint32 reserved                   : 26;    ///< Reserved for future use.
             };
             uint32 u32All;                        ///< Flags packed as 32-bit uint.
@@ -1544,16 +1453,10 @@ struct GpuCompatibilityInfo
             uint32 gpuFeatures         :  1;  ///< The devices have an exact feature match: same internal tiling, same
                                               ///  pipeline binary data, etc.
             uint32 iqMatch             :  1;  ///< Devices produce images with same precision.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 521
             uint32 peerTransferWrite   :  1;  ///< Peer-to-peer transfers write are supported.  See
                                               ///  IDevice::OpenPeerMemory() and IDevice::OpenPeerImage().
             uint32 peerTransferRead    :  1;  ///< Peer-to-peer transfers based on xmgi are supported.
                                               ///  See IDevice::OpenPeerMemory() and IDevice::OpenPeerImage().
-#else
-            uint32 peerTransfer        :  1;  ///< Peer-to-peer transfers write are supported.  See
-                                              ///  IDevice::OpenPeerMemory() and IDevice::OpenPeerImage().
-            uint32 placeholder0        :  1;  ///< Placeholder.
-#endif
             uint32 sharedMemory        :  1;  ///< Devices can share memory objects with.  IDevice::OpenSharedMemory().
             uint32 sharedSync          :  1;  ///< Devices can share queue semaphores with
                                               ///  IDevice::OpenSharedQueueSemaphore().
@@ -1702,9 +1605,6 @@ enum class ImageViewType : uint32
     Tex2d    = 0x1,
     Tex3d    = 0x2,
     TexCube  = 0x3,
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 546)
-    TexQuilt = 0x4,
-#endif
 
     Count
 };
@@ -1831,7 +1731,7 @@ struct BufferViewInfo
             uint32 placeholder0    : 2;  ///< Reserved for future HW
             uint32 reserved        : 30; ///< Reserved for future use
         };
-        uint32 u32All;                  ///< Value of flags bitfield
+        uint32 u32All;                   ///< Value of flags bitfield
     } flags;
 };
 
@@ -1852,11 +1752,6 @@ struct ImageViewInfo
     SubresRange    subresRange;    ///< Specifies a subset of subresources to include in the view.  If the base Image
                                    ///  has a YUV planar format, the number of array slices in the range must be 1.
     float          minLod;         ///< Minimum mip level of detail to use for this view.
-
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 546)
-    uint32         quiltWidthInSlices; ///< Width of a quilted surface.  Only used if viewType == TexQuilt.
-                                       ///  Must be a power of 2.
-#endif
 
     uint32         samplePatternIdx;  ///< Index into the currently bound MSAA sample pattern palette to be
                                       ///  read/evaluated when samplepos shader instructions are executed on this
@@ -1887,8 +1782,8 @@ struct ImageViewInfo
 
             uint32 reserved        : 28; ///< Reserved for future use
         };
-        uint32 u32All;                  ///< Value of flags bitfield
-    } flags;                            ///< Image view flags.
+        uint32 u32All;                   ///< Value of flags bitfield
+    } flags;                             ///< Image view flags.
 };
 
 /// Specifies parameters controlling execution of sample instructions in a shader.  Input to CreateSamplerSrd().
@@ -4613,47 +4508,6 @@ public:
     /// @returns Success if the call succeeded.
     virtual Result UpdateChillStatus(
         uint64 lastChillActiveTimeStampUs) = 0;
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 537
-    /// Checks if Chill settings have changed since the last time the function was called.
-    /// This is intended to be a lightweight function that can be called once a frame. If the function returns
-    /// Result::Success and *pChangeDetected = true, then the user changed some Chill related settings in the UI.
-    /// The Pal client should re-read the Chill application profile settings by calling
-    /// IPlatform::QueryRawApplicationProfile() with client = ApplicationProfileClient::Chill for the system
-    /// app profiles and then with client = ApplicationProfileClient::User3D for any per user
-    /// chill overrides.
-    ///
-    /// @param [out] pChangeDetected    Pointer to the location that PAL should write the change status back
-    ///
-    /// @returns Success if the call succeeded.
-    virtual Result DidChillSettingsChange(
-        bool* pChangeDetected) = 0;
-
-    /// Gets the value of a KMD-managed flag for globally enabling Chill. This function will typically be called
-    /// at the same time as the DidChillSettingsChange(), and is also very lightweight.
-    ///
-    /// @param [out]    pGlobalEnable    Pointer to the location where PAL should write the flag value
-    ///
-    /// @returns Success if the call succeeded.
-    virtual Result GetChillGlobalEnable(
-        bool* pGlobalEnable) = 0;
-
-    /// Checks if delag settings have changed since the last time the function was called.
-    /// This is intended to be a lightweight function that can be called once a frame. If the function returns true,
-    /// then the user changed some delag related settings in the UI, the Pal client should re-read the delag
-    /// application profile settings.
-    ///
-    /// @returns true if delag settings have been changed, otherwise false.
-    virtual bool DidDelagSettingsChange() = 0;
-
-    /// Checks if TurboSync settings have changed since the last time the function was called.
-    /// This is intended to be a lightweight function that can be called once a frame. If the function returns true,
-    /// then the user changed some TurboSync related settings in the UI, the Pal client should re-read the TurboSync
-    /// application profile settings.
-    ///
-    /// @returns true if TurboSync settings have been changed, otherwise false.
-    virtual bool DidTurboSyncSettingsChange() = 0;
-#endif
 
     /// Make the Bus Addressable allocations available to be accessed by remote device.
     /// Exposes the surface and marker bus addresses for each allocation. These bus addresses can be accessed by

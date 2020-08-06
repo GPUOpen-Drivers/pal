@@ -93,7 +93,7 @@ static_assert(DD_CPLUSPLUS_SUPPORTS(CPP11), "C++11 is required to build devdrive
 #define DD_NETWORK_STRUCT(name, alignment) struct DD_ALIGNAS(alignment) name final
 
 // This is disabled by default because (1) it's horribly hacky and (2) doesn't work very well in some compilers.
-#if DD_BUILD_ENABLE_VERBOSE_STATIC_ASSERTS
+#if DD_OPT_VERBOSE_STATIC_ASSERTS
     #include <type_traits>
 
     // Conditionally expose a `value` member using SFINAE and `std::enable_if`.
@@ -199,9 +199,6 @@ static_assert(DD_CPLUSPLUS_SUPPORTS(CPP11), "C++11 is required to build devdrive
 #endif
 static_assert(DEVDRIVER_ARCHITECTURE_BITS == (8 * sizeof(void*)), // Assume 8-bits-per-byte.
              "DEVDRIVER_ARCHITECTURE_BITS does not match sizeof(void*).");
-
-#define DD_BUILD_32 (DEVDRIVER_ARCHITECTURE_BITS == 32)
-#define DD_BUILD_64 (DEVDRIVER_ARCHITECTURE_BITS == 64)
 
 // Add a detailed function name macro
 // These vary across platforms, so we'll just pick the first one that's defined

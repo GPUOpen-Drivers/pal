@@ -207,9 +207,7 @@ void LogContext::Struct(
     }
     EndList();
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 504
     KeyAndEnum("reason", static_cast<Developer::BarrierReason>(value.reason));
-#endif
 
     EndMap();
 }
@@ -641,12 +639,10 @@ void LogContext::Struct(
         Value("disallowNestedLaunchViaIb2");
     }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 533
     if (value.flags.enableExecutionMarkerSupport)
     {
         Value("enableExecutionMarkerSupport");
     }
-#endif
 
     if (value.flags.enableTmz)
     {
@@ -673,9 +669,7 @@ void LogContext::Struct(
         KeyAndNullValue("stateInheritCmdBuffer");
     }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 533
     KeyAndValue("execMarkerClientHandle", value.execMarkerClientHandle);
-#endif
 
     EndMap();
 }
@@ -1032,12 +1026,10 @@ void LogContext::Struct(
         Value("crossProcess");
     }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 517
     if (value.flags.timeline)
     {
         Value("timeline");
     }
-#endif
 
     EndList();
     EndMap();
@@ -1741,9 +1733,6 @@ void LogContext::Struct(
     KeyAndStruct("swizzledFormat", value.swizzledFormat);
     KeyAndStruct("subresRange", value.subresRange);
     KeyAndValue("minLod", value.minLod);
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 546)
-    KeyAndValue("quiltWidthInSlices", value.quiltWidthInSlices);
-#endif
     KeyAndValue("samplePatternIdx", value.samplePatternIdx);
     KeyAndStruct("zRange", value.zRange);
     KeyAndEnum("texOptLevel", value.texOptLevel);
@@ -1936,12 +1925,10 @@ void LogContext::Struct(
     {
         Value("enableConservativeRasterization");
     }
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 523
     if (value.flags.disableAlphaToCoverageDither)
     {
         Value("disableAlphaToCoverageDither");
     }
-#endif
 
     EndList();
     KeyAndValue("coverageSamples", value.coverageSamples);
@@ -1952,9 +1939,6 @@ void LogContext::Struct(
     KeyAndValue("sampleMask", value.sampleMask);
     KeyAndValue("sampleClusters", value.sampleClusters);
     KeyAndValue("alphaToCoverageSamples", value.alphaToCoverageSamples);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 523
-    KeyAndValue("disableAlphaToCoverageDither", value.disableAlphaToCoverageDither);
-#endif
     EndMap();
 }
 

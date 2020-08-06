@@ -50,6 +50,11 @@ namespace DevDriver
         class TransferManager;
     }
 
+    namespace InfoURIService
+    {
+        class InfoService;
+    }
+
     // Temporarily changing from 10ms to 15ms to workaround a timing issue with Windows named pipes, should change back once that
     // transport is refactored/replaced.
     DD_STATIC_CONST uint32 kDefaultUpdateTimeoutInMs = 15;
@@ -241,6 +246,8 @@ namespace DevDriver
         {
             return ((GetStatusFlags() & static_cast<StatusFlags>(flag)) != 0);
         }
+
+        virtual InfoURIService::InfoService& GetInfoService() = 0;
 
         // Utility functions that should probably not be publicly exposed.
         // TODO: Refactor surrounding code to eliminate these.

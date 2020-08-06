@@ -36,14 +36,14 @@ namespace DevDriver
         LoggingClient::LoggingClient(IMsgChannel* pMsgChannel)
             : BaseProtocolClient(pMsgChannel, Protocol::Logging, LOGGING_CLIENT_MIN_VERSION, LOGGING_CLIENT_MAX_VERSION)
 #if !DD_VERSION_SUPPORTS(GPUOPEN_SIMPLER_LOGGING_VERSION)
-#if DD_BUILD_32
+#if DD_ENABLE_32
             , _padding(0)
 #endif
 #endif
             , m_isLoggingEnabled(false)
         {
 #if !DD_VERSION_SUPPORTS(GPUOPEN_SIMPLER_LOGGING_VERSION)
-#if DD_BUILD_32
+#if DD_ENABLE_32
             DD_UNUSED(_padding);
 #endif
             m_pendingMsg.payloadSize = 0;

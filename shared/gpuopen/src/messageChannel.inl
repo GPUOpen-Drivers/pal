@@ -27,6 +27,7 @@
 #include "protocolServer.h"
 #include "protocolClient.h"
 #include "util/hashSet.h"
+#include "ddVersion.h"
 
 namespace DevDriver
 {
@@ -97,7 +98,8 @@ namespace DevDriver
         m_sessionManager(allocCb),
         m_transferManager(allocCb),
         m_pURIServer(nullptr),
-        m_clientURIService()
+        m_clientURIService(),
+        m_infoService(allocCb)
     {
     }
 
@@ -780,7 +782,19 @@ namespace DevDriver
             if (status == Result::Success)
             {
                 m_clientURIService.BindMessageChannel(this);
-                m_pURIServer->RegisterService(&m_clientURIService);
+                DD_UNHANDLED_RESULT(m_pURIServer->RegisterService(&m_clientURIService));
+
+                DD_UNHANDLED_RESULT(m_pURIServer->RegisterService(&m_infoService));
+
+                using namespace InfoURIService;
+
+                InfoService::InfoSource clientInfoSource = {};
+                clientInfoSource.name                    = "client";
+                clientInfoSource.version                 = 1;
+                clientInfoSource.pUserdata               = this;
+                clientInfoSource.pfnWriteCallback        = &MessageChannel<MsgTransport>::QueryClientInfoCb;
+
+                DD_UNHANDLED_RESULT(m_infoService.RegisterInfoSource(clientInfoSource));
             }
 
             if ((status == Result::Success) & m_createInfo.createUpdateThread)
@@ -906,6 +920,95 @@ namespace DevDriver
     IProtocolServer *MessageChannel<MsgTransport>::GetProtocolServer(Protocol protocol)
     {
         return m_sessionManager.GetProtocolServer(protocol);
+    }
+
+    // Helper function to write data about a protcol server into an info stream
+    inline void WriteProtocolInfo(IStructuredWriter* pWriter, const char* pLabel, IProtocolServer* pServer)
+    {
+        if (pServer != nullptr)
+        {
+            pWriter->KeyAndBeginMap(pLabel);
+            {
+                pWriter->KeyAndValue("minVersion", pServer->GetMinVersion());
+                pWriter->KeyAndValue("maxVersion", pServer->GetMaxVersion());
+            }
+            pWriter->EndMap();
+        }
+    }
+
+    // Helper function to write a specific status flag into an info stream
+    inline void WriteStatusFlagInfo(IStructuredWriter* pWriter, const char* pLabel, uint32 statusFlags, ClientStatusFlags statusFlag)
+    {
+        const bool flagEnabled = ((statusFlags & static_cast<uint32>(statusFlag)) != 0);
+        pWriter->KeyAndValue(pLabel, flagEnabled);
+    }
+
+    // Helper function that converts a component type to a string
+    inline const char* ComponentTypeToString(Component component)
+    {
+        const char* pClientTypeString = "Unknown";
+
+        switch (component)
+        {
+            case Component::Server: pClientTypeString = "Server"; break;
+            case Component::Tool:   pClientTypeString = "Tool";   break;
+            case Component::Driver: pClientTypeString = "Driver"; break;
+            default: DD_WARN_ALWAYS(); break;
+        }
+
+        return pClientTypeString;
+    }
+
+    template <class MsgTransport>
+    void MessageChannel<MsgTransport>::QueryClientInfoCb(IStructuredWriter* pWriter, void* pUserdata)
+    {
+        auto pThis = reinterpret_cast<MessageChannel<MsgTransport>*>(pUserdata);
+
+        pWriter->KeyAndValue("libraryVersion", GetVersionString());
+        pWriter->KeyAndValue("branch", DD_BRANCH_STRING);
+        pWriter->KeyAndBeginMap("interfaceVersion");
+        {
+            pWriter->KeyAndValue("available", GPUOPEN_INTERFACE_MAJOR_VERSION);
+            pWriter->KeyAndValue("supported", GPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION);
+        }
+        pWriter->EndMap();
+        pWriter->KeyAndValue("busVersion", kMessageVersion);
+        pWriter->KeyAndValue("transport", pThis->GetTransportName());
+        pWriter->KeyAndValue("id", pThis->m_clientId);
+
+        pWriter->KeyAndValue("name", pThis->m_clientInfoResponse.clientName);
+        pWriter->KeyAndValue("description", pThis->m_clientInfoResponse.clientDescription);
+        pWriter->KeyAndValue("processId", pThis->m_clientInfoResponse.processId);
+        pWriter->KeyAndValue("platform", DD_PLATFORM_STRING " " DD_STRINGIFY(AMD_TARGET_ARCH_BITS) "-bit");
+
+        // Write the client type
+        pWriter->KeyAndValue("type", ComponentTypeToString(pThis->m_clientInfoResponse.metadata.clientType));
+
+        // Write protocol info
+        pWriter->KeyAndBeginList("protocols");
+        {
+            WriteProtocolInfo(pWriter, "transfer", pThis->GetProtocolServer(Protocol::Transfer));
+            WriteProtocolInfo(pWriter, "uri", pThis->GetProtocolServer(Protocol::URI));
+            WriteProtocolInfo(pWriter, "logging", pThis->GetProtocolServer(Protocol::Logging));
+            WriteProtocolInfo(pWriter, "settings", pThis->GetProtocolServer(Protocol::Settings));
+            WriteProtocolInfo(pWriter, "driverControl", pThis->GetProtocolServer(Protocol::DriverControl));
+            WriteProtocolInfo(pWriter, "rgp", pThis->GetProtocolServer(Protocol::RGP));
+            WriteProtocolInfo(pWriter, "etw", pThis->GetProtocolServer(Protocol::ETW));
+        }
+        pWriter->EndList();
+
+        // Write the status flags
+        pWriter->KeyAndBeginMap("status");
+        {
+            const uint32 statusFlags = pThis->m_clientInfoResponse.metadata.status;
+
+            WriteStatusFlagInfo(pWriter, "developerModeEnabled", statusFlags, ClientStatusFlags::DeveloperModeEnabled);
+            WriteStatusFlagInfo(pWriter, "deviceHaltOnConnectEnabled", statusFlags, ClientStatusFlags::DeviceHaltOnConnect);
+            WriteStatusFlagInfo(pWriter, "gpuCrashEnabled", statusFlags, ClientStatusFlags::GpuCrashDumpsEnabled);
+            WriteStatusFlagInfo(pWriter, "pipelineDumpsEnabled", statusFlags, ClientStatusFlags::PipelineDumpsEnabled);
+            WriteStatusFlagInfo(pWriter, "platformHaltOnConnectEnabled", statusFlags, ClientStatusFlags::PlatformHaltOnConnect);
+        }
+        pWriter->EndMap();
     }
 
 } // DevDriver

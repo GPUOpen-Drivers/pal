@@ -32,6 +32,7 @@
 #include <protocols/ddEventClient.h>
 #include <msgChannel.h>
 #include <ddTransferManager.h>
+#include <util/ddByteReader.h>
 
 #define EVENT_CLIENT_MIN_VERSION EVENT_INDEXING_VERSION
 #define EVENT_CLIENT_MAX_VERSION EVENT_INDEXING_VERSION
@@ -44,7 +45,8 @@ namespace EventProtocol
 // =====================================================================================================================
 EventClient::EventClient(IMsgChannel* pMsgChannel)
     : BaseProtocolClient(pMsgChannel, Protocol::Event, EVENT_CLIENT_MIN_VERSION, EVENT_CLIENT_MAX_VERSION)
-    , m_eventDataOffset(0)
+    , m_eventDataBuffer(pMsgChannel->GetAllocCb())
+    , m_eventDataWriter(&m_eventDataBuffer)
     , m_eventDataPayloadOffset(0)
     , m_eventDataState(EventDataState::WaitingForHeader)
 {
@@ -256,9 +258,11 @@ size_t EventClient::GetTokenSize(EventTokenType tokenType)
 // =====================================================================================================================
 void EventClient::OnTokenAvailable()
 {
+    DD_UNHANDLED_RESULT(m_eventDataWriter.End());
+
     if (m_callback.pCallback != nullptr)
     {
-        m_callback.pCallback(m_callback.pUserdata, m_eventDataBuffer, m_eventDataOffset);
+        m_callback.pCallback(m_callback.pUserdata, m_eventDataBuffer.Data(), m_eventDataBuffer.Size());
     }
 
     // Once we've returned from the callback, we can reset our state to prepare to process the next one
@@ -269,62 +273,59 @@ void EventClient::OnTokenAvailable()
 Result EventClient::ReceiveEventData(const void* pEventData, size_t eventDataSize)
 {
     Result result = Result::Success;
-    size_t bytesRemaining = eventDataSize;
 
-    while (bytesRemaining > 0)
+    ByteReader reader(pEventData, eventDataSize);
+    while (reader.HasBytes() && (result == Result::Success))
     {
         switch (m_eventDataState)
         {
         case EventDataState::WaitingForHeader:
         {
-            // Since we know
-            //  A) we're at the start of the data buffer
-            //  B) We have > 0 bytes remaining and
-            //  C) the header is only 1 byte in size
-            // we don't need to do any bounds checking on the copy.
-            DD_ASSERT(m_eventDataOffset == 0);
-            static_assert(kTokenHeaderSize == 1, "Size of event token header changed");
+            // We should only be looking for a token header when we have an empty buffer
+            DD_ASSERT(m_eventDataBuffer.IsEmpty());
 
-            memcpy(&m_eventDataBuffer[m_eventDataOffset], pEventData, kTokenHeaderSize);
-            pEventData = VoidPtrInc(pEventData, kTokenHeaderSize);
-            bytesRemaining -= kTokenHeaderSize;
-            m_eventDataOffset += kTokenHeaderSize;
+            const EventTokenHeader* pTokenHeader = nullptr;
+            result = reader.Get(&pTokenHeader);
+            if (result == Result::Success)
+            {
+                m_eventDataWriter.Write(*pTokenHeader);
 
-            m_eventDataState = EventDataState::WaitingForToken;
+                m_eventDataState = EventDataState::WaitingForToken;
+            }
             break;
         }
         case EventDataState::WaitingForToken:
         {
-            // If this if this condition is not true, something went very wrong and our offset is no longer
-            // synchronized with our state.
-            DD_ASSERT(m_eventDataOffset >= kTokenHeaderSize);
+            ByteReader bufferReader(m_eventDataBuffer.Data(), m_eventDataBuffer.Size());
 
-            const EventTokenHeader* pHeader = reinterpret_cast<const EventTokenHeader*>(m_eventDataBuffer);
-
-            const size_t tokenSize = GetTokenSize(static_cast<EventTokenType>(pHeader->id));
-            const size_t bytesCopied = m_eventDataOffset - kTokenHeaderSize;
-            const size_t copySize = Platform::Min(bytesRemaining, (tokenSize - bytesCopied));
-
-            // Similarly, we know that our event data buffer is big enough to hold any of the tokens we might receive
-            // so we can just assert that this copy is withing the capacity.
-            DD_ASSERT((m_eventDataOffset + copySize) <= kEventDataBufferSize);
-
-            memcpy(&m_eventDataBuffer[m_eventDataOffset], pEventData, copySize);
-            pEventData = VoidPtrInc(pEventData, copySize);
-            bytesRemaining -= copySize;
-            m_eventDataOffset += copySize;
-
-            if (m_eventDataOffset == (tokenSize + kTokenHeaderSize))
+            const EventTokenHeader* pTokenHeader = nullptr;
+            result = bufferReader.Get(&pTokenHeader);
+            if (result == Result::Success)
             {
-                if ((pHeader->id == static_cast<uint8>(EventTokenType::Data)) ||
-                    (pHeader->id == static_cast<uint8>(EventTokenType::TimeDelta)))
+                const size_t tokenSize = GetTokenSize(static_cast<EventTokenType>(pTokenHeader->id));
+
+                const size_t bytesCopied = bufferReader.Remaining();
+                const size_t copySize = Platform::Min(reader.Remaining(), (tokenSize - bytesCopied));
+
+                const void* pBytes = nullptr;
+                result = reader.GetBytes(&pBytes, copySize);
+                if (result == Result::Success)
                 {
-                    m_eventDataPayloadOffset = m_eventDataOffset;
-                    m_eventDataState = EventDataState::WaitingForPayload;
-                }
-                else
-                {
-                    OnTokenAvailable();
+                    m_eventDataWriter.WriteBytes(pBytes, copySize);
+
+                    if (m_eventDataBuffer.Size() == (tokenSize + kTokenHeaderSize))
+                    {
+                        if ((pTokenHeader->id == static_cast<uint8>(EventTokenType::Data)) ||
+                            (pTokenHeader->id == static_cast<uint8>(EventTokenType::TimeDelta)))
+                        {
+                            m_eventDataPayloadOffset = m_eventDataBuffer.Size();
+                            m_eventDataState = EventDataState::WaitingForPayload;
+                        }
+                        else
+                        {
+                            OnTokenAvailable();
+                        }
+                    }
                 }
             }
 
@@ -332,53 +333,62 @@ Result EventClient::ReceiveEventData(const void* pEventData, size_t eventDataSiz
         }
         case EventDataState::WaitingForPayload:
         {
-            // We should always have more than a token header in our buffer if we reach this state.
-            DD_ASSERT(m_eventDataOffset > kTokenHeaderSize);
+            ByteReader bufferReader(m_eventDataBuffer.Data(), m_eventDataBuffer.Size());
 
-            const EventTokenHeader* pHeader = reinterpret_cast<const EventTokenHeader*>(m_eventDataBuffer);
-
+            const EventTokenHeader* pTokenHeader = nullptr;
+            result = bufferReader.Get(&pTokenHeader);
             size_t payloadSize = 0;
-            if (pHeader->id == static_cast<uint8>(EventTokenType::Data))
-            {
-                const EventDataToken* pToken = reinterpret_cast<const EventDataToken*>(m_eventDataBuffer + kTokenHeaderSize);
-                payloadSize = pToken->size;
-            }
-            else if (pHeader->id == static_cast<uint8>(EventTokenType::TimeDelta))
-            {
-                const EventTimeDeltaToken* pToken = reinterpret_cast<const EventTimeDeltaToken*>(m_eventDataBuffer + kTokenHeaderSize);
-                payloadSize = pToken->numBytes;
-            }
-            else
-            {
-                DD_ASSERT_REASON("Invalid token type!");
-                result = Result::Aborted;
-            }
-            DD_ASSERT(payloadSize != 0);
-
             if (result == Result::Success)
             {
-                const size_t bytesCopied = m_eventDataOffset - m_eventDataPayloadOffset;
-                const size_t copySize = Platform::Min(bytesRemaining, (payloadSize - bytesCopied));
-                if ((m_eventDataOffset + copySize) <= kEventDataBufferSize)
+                if (pTokenHeader->id == static_cast<uint8>(EventTokenType::Data))
                 {
-                    memcpy(&m_eventDataBuffer[m_eventDataOffset], pEventData, copySize);
+                    const EventDataToken* pToken = nullptr;
+                    result = bufferReader.Get(&pToken);
+                    if (result == Result::Success)
+                    {
+                        // Make sure the token size actually fits in a pointer before casting it
+                        if (pToken->size <= SIZE_MAX)
+                        {
+                            payloadSize = static_cast<size_t>(pToken->size);
+                        }
+                        else
+                        {
+                            DD_ASSERT_REASON("Packet too large for 32bit client implementation!");
+                            result = Result::Aborted;
+                        }
+                    }
+                }
+                else if (pTokenHeader->id == static_cast<uint8>(EventTokenType::TimeDelta))
+                {
+                    const EventTimeDeltaToken* pToken = nullptr;
+                    result = bufferReader.Get(&pToken);
+                    if (result == Result::Success)
+                    {
+                        payloadSize = pToken->numBytes;
+                    }
                 }
                 else
                 {
-                    // In this case the variably sized payload is too big to fit in our data buffer. We'll assert and
-                    // return an error
-                    DD_ASSERT_ALWAYS();
-                    result = Result::InsufficientMemory;
+                    DD_ASSERT_REASON("Invalid token type!");
+                    result = Result::Aborted;
                 }
-
-                // But we also want to continue processing other tokens so we'll also advance the pointer/counters/state
-                // whether there was an error or not.
-                pEventData = VoidPtrInc(pEventData, copySize);
-                bytesRemaining -= copySize;
-                m_eventDataOffset += copySize;
+                DD_ASSERT(payloadSize != 0);
             }
 
-            if ((m_eventDataOffset - m_eventDataPayloadOffset) == payloadSize)
+            if (result == Result::Success)
+            {
+                const size_t bytesCopied = bufferReader.Remaining();
+                const size_t copySize = Platform::Min(reader.Remaining(), (payloadSize - bytesCopied));
+
+                const void* pBytes = nullptr;
+                result = reader.GetBytes(&pBytes, copySize);
+                if (result == Result::Success)
+                {
+                    m_eventDataWriter.WriteBytes(pBytes, copySize);
+                }
+            }
+
+            if ((m_eventDataBuffer.Size() - m_eventDataPayloadOffset) == payloadSize)
             {
                 if (result == Result::Success)
                 {
@@ -440,7 +450,9 @@ Result EventClient::FreeProvidersDescription(EventProvidersDescription** ppProvi
 // =====================================================================================================================
 void EventClient::ResetEventDataBufferState()
 {
-    m_eventDataOffset        = 0;
+    // Reset the size of the event data buffer without reallocating memory
+    m_eventDataBuffer.Reset();
+
     m_eventDataPayloadOffset = 0;
     m_eventDataState         = EventDataState::WaitingForHeader;
 }

@@ -537,9 +537,7 @@ void RsrcProcMgr::CopyColorImageGraphics(
     viewportInfo.horzDiscardRatio      = 1.0f;
     viewportInfo.vertClipRatio         = FLT_MAX;
     viewportInfo.vertDiscardRatio      = 1.0f;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 524
     viewportInfo.depthRange            = DepthRange::ZeroToOne;
-#endif
 
     ScissorRectParams scissorInfo = { };
     scissorInfo.count = 1;
@@ -862,9 +860,7 @@ void RsrcProcMgr::CopyDepthStencilImageGraphics(
     viewportInfo.horzDiscardRatio      = 1.0f;
     viewportInfo.vertClipRatio         = FLT_MAX;
     viewportInfo.vertDiscardRatio      = 1.0f;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 524
     viewportInfo.depthRange            = DepthRange::ZeroToOne;
-#endif
 
     ScissorRectParams scissorInfo = { };
     scissorInfo.count = 1;
@@ -2225,9 +2221,11 @@ bool RsrcProcMgr::ScaledCopyImageUseGraphics(
     const bool p2pBltWa     = m_pDevice->Parent()->ChipProperties().p2pBltWaInfo.required &&
                               pDstImage->GetBoundGpuMemory().Memory()->AccessesPeerMemory();
 
+    bool preferGraphicsCopy = Image::PreferGraphicsCopy;
+
     // We need to decide between the graphics copy path and the compute copy path. The graphics path only supports
     // single-sampled non-compressed, non-YUV 2D or 2D color images for now.
-    const bool useGraphicsCopy = (pCmdBuffer->IsGraphicsSupported()   &&
+    const bool useGraphicsCopy = ((preferGraphicsCopy && pCmdBuffer->IsGraphicsSupported()) &&
                                   ((srcImageType != ImageType::Tex1d) &&
                                    (dstImageType != ImageType::Tex1d) &&
                                    (isCompressed == false)            &&
@@ -2666,9 +2664,7 @@ void RsrcProcMgr::ScaledCopyImageGraphics(
     viewportInfo.horzDiscardRatio      = 1.0f;
     viewportInfo.vertClipRatio         = FLT_MAX;
     viewportInfo.vertDiscardRatio      = 1.0f;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 524
     viewportInfo.depthRange            = DepthRange::ZeroToOne;
-#endif
 
     ScissorRectParams scissorInfo = {};
     scissorInfo.count = 1;
@@ -4005,9 +4001,7 @@ void RsrcProcMgr::CmdClearBoundDepthStencilTargets(
     viewportInfo.horzDiscardRatio      = 1.0f;
     viewportInfo.vertClipRatio         = FLT_MAX;
     viewportInfo.vertDiscardRatio      = 1.0f;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 524
     viewportInfo.depthRange            = DepthRange::ZeroToOne;
-#endif
 
     ScissorRectParams scissorInfo = { };
     scissorInfo.count = 1;
@@ -4197,9 +4191,7 @@ void RsrcProcMgr::CmdClearBoundColorTargets(
     viewportInfo.horzDiscardRatio      = 1.0f;
     viewportInfo.vertClipRatio         = FLT_MAX;
     viewportInfo.vertDiscardRatio      = 1.0f;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 524
     viewportInfo.depthRange            = DepthRange::ZeroToOne;
-#endif
 
     ScissorRectParams scissorInfo = { };
     scissorInfo.count = 1;
@@ -4491,9 +4483,7 @@ void RsrcProcMgr::SlowClearGraphics(
     viewportInfo.horzDiscardRatio      = 1.0f;
     viewportInfo.vertClipRatio         = FLT_MAX;
     viewportInfo.vertDiscardRatio      = 1.0f;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 524
     viewportInfo.depthRange            = DepthRange::ZeroToOne;
-#endif
 
     const bool  is3dImage  = (createInfo.imageType == ImageType::Tex3d);
     ColorTargetViewCreateInfo colorViewInfo         = { };
@@ -5725,9 +5715,7 @@ void RsrcProcMgr::ResolveImageGraphics(
     viewportInfo.horzDiscardRatio      = 1.0f;
     viewportInfo.vertClipRatio         = FLT_MAX;
     viewportInfo.vertDiscardRatio      = 1.0f;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 524
     viewportInfo.depthRange            = DepthRange::ZeroToOne;
-#endif
 
     ScissorRectParams scissorInfo = { };
     scissorInfo.count = 1;
@@ -6365,9 +6353,7 @@ bool RsrcProcMgr::ExpandDepthStencil(
     viewportInfo.horzDiscardRatio      = 1.0f;
     viewportInfo.vertClipRatio         = FLT_MAX;
     viewportInfo.vertDiscardRatio      = 1.0f;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 524
     viewportInfo.depthRange            = DepthRange::ZeroToOne;
-#endif
 
     ScissorRectParams scissorInfo      = { };
     scissorInfo.count                  = 1;
@@ -6515,9 +6501,7 @@ void RsrcProcMgr::ResummarizeDepthStencil(
     viewportInfo.horzDiscardRatio      = 1.0f;
     viewportInfo.vertClipRatio         = FLT_MAX;
     viewportInfo.vertDiscardRatio      = 1.0f;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 524
     viewportInfo.depthRange            = DepthRange::ZeroToOne;
-#endif
 
     ScissorRectParams scissorInfo    = { };
     scissorInfo.count                = 1;
@@ -6667,9 +6651,7 @@ void RsrcProcMgr::GenericColorBlit(
     viewportInfo.horzDiscardRatio      = 1.0f;
     viewportInfo.vertClipRatio         = FLT_MAX;
     viewportInfo.vertDiscardRatio      = 1.0f;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 524
     viewportInfo.depthRange            = DepthRange::ZeroToOne;
-#endif
 
     ScissorRectParams scissorInfo;
     scissorInfo.count                  = 1;
@@ -6874,9 +6856,7 @@ void RsrcProcMgr::ResolveImageFixedFunc(
     viewportInfo.horzDiscardRatio      = 1.0f;
     viewportInfo.vertClipRatio         = FLT_MAX;
     viewportInfo.vertDiscardRatio      = 1.0f;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 524
     viewportInfo.depthRange            = DepthRange::ZeroToOne;
-#endif
 
     ScissorRectParams scissorInfo = { };
     scissorInfo.count = 1;
@@ -7068,9 +7048,7 @@ void RsrcProcMgr::ResolveImageDepthStencilCopy(
     viewportInfo.horzDiscardRatio   = 1.0f;
     viewportInfo.vertClipRatio      = FLT_MAX;
     viewportInfo.vertDiscardRatio   = 1.0f;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 524
     viewportInfo.depthRange         = DepthRange::ZeroToOne;
-#endif
 
     ScissorRectParams scissorInfo = {};
     scissorInfo.count = 1;

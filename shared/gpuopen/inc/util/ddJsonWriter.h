@@ -104,6 +104,7 @@ namespace DevDriver
 
         // Write a string value.
         void Value(const char* pValue) override;
+        void Value(const char* pValue, size_t length) override;
 
         // Write a value.
         void Value(uint64 value) override;

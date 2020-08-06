@@ -654,7 +654,6 @@ OsExternalHandle GpuMemory::ExportExternalHandle(
     OsExternalHandle fd;
     {
         amdgpu_bo_handle_type type = m_externalHandleType;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 541
         switch (exportInfo.exportType)
         {
             case ExportHandleType::FileDescriptor:
@@ -667,7 +666,6 @@ OsExternalHandle GpuMemory::ExportExternalHandle(
                 type = m_externalHandleType;
                 break;
         }
-#endif
 
         Result result = static_cast<Device*>(m_pDevice)->ExportBuffer(m_hSurface,
                                                 type,

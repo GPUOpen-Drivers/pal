@@ -35,6 +35,23 @@ namespace Pal
 namespace Gfx9
 {
 
+// The set of all cache flags that could access memory through the TC metadata cache.
+constexpr uint32 MaybeTccMdShaderMask = CoherShader | CoherCopy | CoherResolve | CoherClear;
+
+// The set of all cache flags that could access memory through the L0/L1 shader caches.
+constexpr uint32 MaybeL1ShaderMask = MaybeTccMdShaderMask | CoherStreamOut;
+
+// The set of all cache flags that will access memory through the L2 cache.
+constexpr uint32 AlwaysL2Mask = (MaybeL1ShaderMask       |
+                                 CoherColorTarget        |
+                                 CoherDepthStencilTarget |
+                                 CoherIndirectArgs       |
+                                 CoherIndexData          |
+                                 CoherQueueAtomic        |
+                                 CoherTimestamp          |
+                                 CoherCeLoad             |
+                                 CoherCeDump);
+
 // =====================================================================================================================
 // Creates an MSAA state with the sample positions specified by the client for the given transition.
 // The caller of this function must destroy the MSAA state object and free the memory associated with it.
@@ -104,11 +121,9 @@ void Device::FlushAndInvL2IfNeeded(
     const auto& transition = barrier.pTransitions[transitionId];
     PAL_ASSERT(transition.imageInfo.pImage != nullptr);
 
-    const auto&      image                = static_cast<const Pal::Image&>(*transition.imageInfo.pImage);
-    const auto&      gfx9Image            = static_cast<const Image&>(*image.GetGfxImage());
-    const auto&      subresRange          = transition.imageInfo.subresRange;
-    constexpr uint32 MaybeTccMdShaderMask = (CoherShader | CoherCopy | CoherResolve | CoherClear);
-
+    const auto&  image        = static_cast<const Pal::Image&>(*transition.imageInfo.pImage);
+    const auto&  gfx9Image    = static_cast<const Image&>(*image.GetGfxImage());
+    const auto&  subresRange  = transition.imageInfo.subresRange;
     const uint32 srcCacheMask = (barrier.globalSrcCacheMask | transition.srcCacheMask);
 
     if (TestAnyFlagSet(srcCacheMask, MaybeTccMdShaderMask) &&
@@ -306,7 +321,7 @@ void Device::TransitionDepthStencil(
             // CoherDepthStencilTarget), this shouldn't result in any additional sync.
             //
             // Note that we must always invalidate these caches if the client didn't give us any cache information.
-            if (TestAnyFlagSet(dstCacheMask, CoherShader | CoherCopy | CoherResolve) || noCacheFlags)
+            if (TestAnyFlagSet(dstCacheMask, MaybeTccMdShaderMask) || noCacheFlags)
             {
                 pSyncReqs->cacheFlags |= CacheSyncInvTcp;
                 pSyncReqs->cacheFlags |= CacheSyncInvTccMd;
@@ -693,7 +708,7 @@ void Device::ExpandColor(
         //
         // Note that we must always invalidate these caches if the client didn't give us any cache information.
 
-        if (TestAnyFlagSet(dstCacheMask, CoherShader | CoherCopy | CoherResolve) || noCacheFlags)
+        if (TestAnyFlagSet(dstCacheMask, MaybeTccMdShaderMask) || noCacheFlags)
         {
             pSyncReqs->cacheFlags |= CacheSyncInvTcp;
             pSyncReqs->cacheFlags |= CacheSyncInvTccMd;
@@ -836,11 +851,7 @@ void Device::IssueSyncs(
             syncReqs.cacheFlags &= ~CacheSyncFlushAndInvRb;
             eopEvent             = CACHE_FLUSH_AND_INV_TS_EVENT;
         }
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 504
         pOperations->pipelineStalls.eopTsBottomOfPipe       = 1;
-#else
-        pOperations->pipelineStalls.waitOnEopTsBottomOfPipe = 1;
-#endif
         pOperations->pipelineStalls.waitOnTs                = 1;
         pCmdSpace += m_cmdUtil.BuildWaitOnReleaseMemEvent(engineType,
                                                           eopEvent,
@@ -1205,23 +1216,8 @@ void Device::Barrier(
             srcCacheMask |= cmdBufState.flags.cpMemoryWriteL2CacheStale ? CoherMemory      : 0;
         }
 
-        // AlwaysL2Mask is a mask of usages that always read/write through the L2 cache.
-        constexpr uint32 AlwaysL2Mask = (CoherShader             |
-                                         CoherCopy               |
-                                         CoherColorTarget        |
-                                         CoherDepthStencilTarget |
-                                         CoherResolve            |
-                                         CoherClear              |
-                                         CoherIndirectArgs       |
-                                         CoherIndexData          |
-                                         CoherQueueAtomic        |
-                                         CoherTimestamp          |
-                                         CoherCeLoad             |
-                                         CoherCeDump             |
-                                         CoherStreamOut);
-
         // MaybeL2Mask is a mask of usages that may or may not read/write through the L2 cache.
-        const uint32 MaybeL2Mask = AlwaysL2Mask;
+        constexpr uint32 MaybeL2Mask = AlwaysL2Mask;
 
         // Flush L2 if prior output might have been through L2 and upcoming reads/writes might not be through L2.
         if (TestAnyFlagSet(srcCacheMask, MaybeL2Mask) && TestAnyFlagSet(dstCacheMask, ~AlwaysL2Mask))
@@ -1234,8 +1230,6 @@ void Device::Barrier(
         {
             globalSyncReqs.cacheFlags |= CacheSyncInvTcc;
         }
-
-        constexpr uint32 MaybeL1ShaderMask = CoherShader | CoherStreamOut | CoherCopy | CoherResolve | CoherClear;
 
         // Invalidate L1 shader caches if the previous output may have done shader writes, since there is no coherence
         // between different CUs' TCP (vector L1) caches.  Invalidate TCP and flush and invalidate SQ-K cache
@@ -1263,8 +1257,6 @@ void Device::Barrier(
                 globalSyncReqs.waitOnEopTs = 1;
             }
         }
-
-        constexpr uint32 MaybeTccMdShaderMask = CoherShader | CoherCopy | CoherResolve | CoherClear;
 
         const IImage* pImage            = transition.imageInfo.pImage;
         const bool    couldHaveMetadata = ((pImage == nullptr) || (pImage->GetMemoryLayout().metadataSize > 0));

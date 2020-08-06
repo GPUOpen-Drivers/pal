@@ -98,6 +98,9 @@ public:
     // Unregisters an info source from the service using the provided source name.
     void UnregisterInfoSource(const char* pName);
 
+    // Clears all currently registered info sources from the service.
+    void ClearInfoSources();
+
 private:
     // Overview:
     //      Retrieve a JSON string containing info for all registered info sources.

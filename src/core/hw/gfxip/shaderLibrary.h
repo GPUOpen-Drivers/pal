@@ -95,7 +95,10 @@ protected:
     explicit ShaderLibrary(Device* pDevice);
 
     // internal Destructor.
-    virtual ~ShaderLibrary() { }
+    virtual ~ShaderLibrary()
+    {
+        PAL_SAFE_FREE(m_pCodeObjectBinary, m_pDevice->GetPlatform());
+    }
 
     virtual Result HwlInit(
         const ShaderLibraryCreateInfo& createInfo,

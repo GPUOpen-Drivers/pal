@@ -47,7 +47,7 @@ class GpuMemory;
 // On some hardware layers, particular Queue types may need to bundle several "special" command streams with each
 // client submission to guarantee the state of the GPU is consistent across multiple submissions. These constants
 // are the maximum number of command streams allowed for both the submission preamble and submission postamble.
-constexpr uint32 MaxPreambleCmdStreams  = 3;
+constexpr uint32 MaxPreambleCmdStreams  = 4;
 constexpr uint32 MaxPostambleCmdStreams = 2;
 
 // This struct tracks per subQueue info when we do gang submission.
@@ -64,9 +64,10 @@ union InternalSubmitFlags
 {
     struct
     {
-        uint32 isTmzEnabled      :1;         // Is TMZ protected submission.
-        uint32 isDummySubmission :1;         // Is dummy submission.
-        uint32 reserve           :30;        // reserve
+        uint32 isTmzEnabled      : 1;  // Is TMZ protected submission.
+        uint32 isDummySubmission : 1;  // Is dummy submission.
+        uint32 hasHybridPipeline : 1;  // This submission has a HybridPipeline bound.
+        uint32 reserved          : 29; // reserved.
     };
     uint32 u32All;
 };
@@ -367,11 +368,6 @@ protected:
 
     bool IsMinClockRequired() const { return false; }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 518
-    // Applies developer overlay and other postprocessing to be done prior to presenting an image.
-    Result SubmitPostprocessCmdBuffer(const Image& image);
-#endif
-
     virtual Result DoAssociateFenceWithLastSubmit(Fence* pFence) = 0;
 
     Result GfxIpWaitPipelineUploading(const MultiSubmitInfo& submitInfo);
@@ -397,14 +393,6 @@ protected:
     const uint32  m_queueCount;
 
 private:
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 518
-    // A command buffer and a fence to track its submission state wrapped into one object.
-    struct TrackedCmdBuffer
-    {
-        CmdBuffer* pCmdBuffer;
-        Fence*     pFence;
-    };
-#endif
 
     virtual Result ValidateSubmit(const MultiSubmitInfo& submitInfo) const;
 
@@ -441,12 +429,6 @@ private:
         void*                    pUserData) const;
 #endif
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 518
-    Result CreateTrackedCmdBuffer(TrackedCmdBuffer** ppTrackedCmdBuffer);
-    void   DestroyTrackedCmdBuffer(TrackedCmdBuffer* pTrackedCmdBuffer);
-    Result SubmitTrackedCmdBuffer(TrackedCmdBuffer* pTrackedCmdBuffer, const GpuMemory* pWrittenPrimary);
-#endif
-
     // Tracks whether or not this Queue is stalled by a Queue Semaphore, and if so, the Semaphore which is blocking
     // this Queue.
     volatile bool     m_stalled;
@@ -462,13 +444,6 @@ private:
 
     uint32           m_lastFrameCnt;       // Most recent frame in which the queue submission occurs
     uint32           m_submitIdPerFrame;   // The Nth queue submission of the frame
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 518
-    // Internal command buffers used by this queue for various postprocess tasks such as render the developer overlay.
-    // The least recently used item is at the front.
-    typedef Util::Deque<TrackedCmdBuffer*, Platform> TrackedCmdBufferDeque;
-    TrackedCmdBufferDeque* m_pTrackedCmdBufferDeque;
-#endif
 
     PAL_DISALLOW_DEFAULT_CTOR(Queue);
     PAL_DISALLOW_COPY_AND_ASSIGN(Queue);

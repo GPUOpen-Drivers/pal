@@ -51,11 +51,11 @@
 
 // Always enable asserts in Debug builds
 #if !defined(NDEBUG)
-    #if !defined(DEVDRIVER_ASSERTS_ENABLE)
-        #define DEVDRIVER_ASSERTS_ENABLE
+    #if !defined(DD_OPT_ASSERTS_ENABLE)
+        #define DD_OPT_ASSERTS_ENABLE
     #endif
-    #if !defined(DEVDRIVER_ASSERTS_DEBUGBREAK)
-        #define DEVDRIVER_ASSERTS_DEBUGBREAK
+    #if !defined(DD_OPT_ASSERTS_DEBUGBREAK)
+        #define DD_OPT_ASSERTS_DEBUGBREAK
     #endif
 #endif
 
@@ -151,22 +151,22 @@ typedef void (*ThreadFunction)(void* pThreadParameter);
 #endif
 
 // TODO: remove this and make kDebugLogLevel DD_STATIC_CONST when we use a version of visual studio that supports it
-#ifdef DEVDRIVER_LOG_LEVEL
-    #define DEVDRIVER_LOG_LEVEL_VALUE static_cast<LogLevel>(DEVDRIVER_LOG_LEVEL)
+#ifdef DD_OPT_LOG_LEVEL
+    #define DD_OPT_LOG_LEVEL_VALUE static_cast<LogLevel>(DD_OPT_LOG_LEVEL)
 #else
     #if defined(NDEBUG)
         // In non-debug builds, default to printing asserts, Error, and Always log messages
-        #define DEVDRIVER_LOG_LEVEL_VALUE LogLevel::Error
+        #define DD_OPT_LOG_LEVEL_VALUE LogLevel::Error
     #else
         // In debug builds, default to more messages
-        #define DEVDRIVER_LOG_LEVEL_VALUE LogLevel::Verbose
+        #define DD_OPT_LOG_LEVEL_VALUE LogLevel::Verbose
     #endif
 #endif
 
-#define DD_WILL_PRINT(lvl) ((lvl >= DEVDRIVER_LOG_LEVEL_VALUE) & (lvl < DevDriver::LogLevel::Count))
+#define DD_WILL_PRINT(lvl) ((lvl >= DD_OPT_LOG_LEVEL_VALUE) & (lvl < DevDriver::LogLevel::Count))
 #define DD_PRINT(lvl, ...) DevDriver::LogString<lvl>(__VA_ARGS__)
 
-#if defined(DEVDRIVER_ASSERTS_DEBUGBREAK)
+#if defined(DD_OPT_ASSERTS_DEBUGBREAK)
     #define DD_ASSERT_DEBUG_BREAK() DD_DEBUG_BREAK()
 #else
     #define DD_ASSERT_DEBUG_BREAK()
@@ -183,7 +183,7 @@ namespace DevDriver
     void check_expr_is_bool(const T&) = delete;
 }
 
-#if !defined(DEVDRIVER_ASSERTS_ENABLE)
+#if !defined(DD_OPT_ASSERTS_ENABLE)
     #define DD_WARN(statement)       DD_UNUSED(0)
     #define DD_WARN_REASON(reason)   DD_UNUSED(0)
     #define DD_ASSERT(statement)     DD_UNUSED(0) // WA: Do not optimize code using DD_ASSERT(), by calling DD_ASSUME().
@@ -586,6 +586,12 @@ char* Strtok(char* pDst, const char* pDelimiter, char** ppContext);
 
 void Strcat(char* pDst, const char* pSrc, size_t dstSize);
 
+template <size_t DstSize>
+void Strcat(char(&dst)[DstSize], const char* pSrc)
+{
+    Strcat(dst, pSrc, DstSize);
+}
+
 int32 Strcmpi(const char* pSrc1, const char* pSrc2);
 
 int32 Snprintf(char* pDst, size_t dstSize, const char* pFormat, ...);
@@ -826,7 +832,7 @@ static inline void MarkUnhandledResultImpl(
     int         lineNumber,
     const char* pFunc)
 {
-#if defined(DEVDRIVER_ASSERTS_ENABLE)
+#if defined(DD_OPT_ASSERTS_ENABLE)
     if (result != Result::Success)
     {
         DD_PRINT(DevDriver::LogLevel::Error,
