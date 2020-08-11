@@ -5762,8 +5762,12 @@ Result Device::SetHdrMetaData(
 
         if (strcmp(pProp->name, "max bpc") == 0)
         {
-            result = (m_drmProcs.pfnDrmModeAtomicAddProperty(pAtomicRequest, connectorId, propId, 10) < 0) ?
-                        Result::ErrorInvalidValue : Result::Success;
+            // Increase "max bpc" to at least 10 bits, as needed by HDR-10, if the current limit is lower.
+            if (propValue < 10)
+            {
+                result = (m_drmProcs.pfnDrmModeAtomicAddProperty(pAtomicRequest, connectorId, propId, 10) < 0) ?
+                            Result::ErrorInvalidValue : Result::Success;
+            }
 
             maxBpcSet = true;
         }
