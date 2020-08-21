@@ -159,6 +159,10 @@ static void PAL_STDCALL WriteCmdDumpToFile(
             subEngineId = 1; // CE subengine ID
         }
     }
+    else if (cmdBufferDesc.engineType == EngineType::EngineTypeCompute)
+    {
+        subEngineId = 3; // Compute subengine ID
+    }
     else if (cmdBufferDesc.engineType == EngineType::EngineTypeDma)
     {
         subEngineId = 4; // SDMA engine ID
@@ -739,16 +743,17 @@ void Queue::DumpCmdBuffers(
             for (uint32 idx = 0; idx < pCmdBuffer->NumCmdStreams(); ++idx)
             {
                 const CmdStream* const pCmdStream = pCmdBuffer->GetCmdStream(idx);
-                PAL_ASSERT(pCmdStream != nullptr);
+                if (pCmdStream != nullptr)
+                {
+                    CmdBufferDumpDesc cmdBufferDesc = {};
 
-                CmdBufferDumpDesc cmdBufferDesc = {};
+                    cmdBufferDesc.engineType = GetEngineType();
+                    cmdBufferDesc.queueType = Type();
+                    cmdBufferDesc.subEngineType = pCmdStream->GetSubEngineType();
+                    cmdBufferDesc.cmdBufferIdx = idxCmdBuf;
 
-                cmdBufferDesc.engineType = GetEngineType();
-                cmdBufferDesc.queueType = Type();
-                cmdBufferDesc.subEngineType = pCmdStream->GetSubEngineType();
-                cmdBufferDesc.cmdBufferIdx = idxCmdBuf;
-
-                DumpCmdStream(cmdBufferDesc, pCmdStream, submitInfo.pfnCmdDumpCb, submitInfo.pUserData);
+                    DumpCmdStream(cmdBufferDesc, pCmdStream, submitInfo.pfnCmdDumpCb, submitInfo.pUserData);
+                }
             }
         }
 
@@ -909,7 +914,12 @@ Result Queue::OpenCommandDumpFile(
 
                 for (uint32 idxStream = 0; idxStream < pCmdBuffer->NumCmdStreams(); ++idxStream)
                 {
-                    listHeader.count += pCmdBuffer->GetCmdStream(idxStream)->GetNumChunks();
+                    const CmdStream*const pCmdStream = pCmdBuffer->GetCmdStream(idxStream);
+
+                    if (pCmdStream != nullptr)
+                    {
+                        listHeader.count += pCmdStream->GetNumChunks();
+                    }
                 }
             }
 
@@ -1045,7 +1055,12 @@ void Queue::DumpCmdToFile(
 
                 for (uint32 idxStream = 0; idxStream < pCmdBuffer->NumCmdStreams(); ++idxStream)
                 {
-                    listHeader.count += pCmdBuffer->GetCmdStream(idxStream)->GetNumChunks();
+                    const CmdStream*const pCmdStream = pCmdBuffer->GetCmdStream(idxStream);
+
+                    if (pCmdStream != nullptr)
+                    {
+                        listHeader.count += pCmdStream->GetNumChunks();
+                    }
                 }
             }
 

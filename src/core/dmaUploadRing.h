@@ -57,7 +57,8 @@ public:
     Result AcquireRingSlot(UploadRingSlot* pSlotId);
     Result Submit(
         UploadRingSlot    slotId,
-        UploadFenceToken* pCompletionFence);
+        UploadFenceToken* pCompletionFence,
+        uint64            pagingFenceVal);
 
     virtual Result WaitForPendingUpload(
         Pal::Queue*      pWaiter,

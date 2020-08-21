@@ -39,7 +39,7 @@ class IQueue;
 class IQueueSemaphore;
 
 // How many command streams CmdUploadRing can upload from a command buffer.
-constexpr uint32 MaxUploadedCmdStreams = 2;
+constexpr uint32 MaxUploadedCmdStreams = 3;
 
 // Flags we must track for each uploaded command stream.
 union UploadedStreamFlags

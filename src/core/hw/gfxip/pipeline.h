@@ -156,6 +156,7 @@ public:
         { return m_apiHwMapping; }
 
     UploadFenceToken GetUploadFenceToken() const { return m_uploadFenceToken; }
+    uint64 GetPagingFenceVal() const { return m_pagingFenceVal; }
 
 protected:
     Pipeline(Device* pDevice, bool isInternal);
@@ -202,14 +203,17 @@ protected:
     PerfDataInfo m_perfDataInfo[static_cast<size_t>(Util::Abi::HardwareStage::Count)];
     Util::Abi::ApiHwShaderMapping m_apiHwMapping;
 
-    UploadFenceToken m_uploadFenceToken;
+    UploadFenceToken  m_uploadFenceToken;
+    uint64            m_pagingFenceVal;
+
 private:
     union
     {
         struct
         {
-            uint32  isInternal       :  1;  // True if this Pipeline object was created internally by PAL.
-            uint32  reserved         : 31;
+            uint32  isInternal        :  1;  // True if this Pipeline object was created internally by PAL.
+            uint32  reserved0         :  1;
+            uint32  reserved          : 30;
         };
         uint32  value;  // Flags packed as a uint32.
     } m_flags;
@@ -364,9 +368,7 @@ public:
         uint32           shRegisterCount);
     virtual ~PipelineUploader();
 
-    Result Begin(
-        const CodeObjectMetadata& metadata,
-        const GpuHeap&            preferredHeap);
+    Result Begin(const CodeObjectMetadata& metadata, GpuHeap heap);
 
     Result ApplyRelocations();
 
@@ -381,6 +383,8 @@ public:
     gpusize GpuMemSize() const { return m_gpuMemSize; }
     gpusize GpuMemOffset() const { return m_baseOffset; }
 
+    uint64 PagingFenceVal() const { return m_pagingFenceVal; }
+
     gpusize CtxRegGpuVirtAddr() const { return m_ctxRegGpuVirtAddr; }
     gpusize ShRegGpuVirtAddr() const { return m_shRegGpuVirtAddr; }
 
@@ -390,13 +394,11 @@ public:
     // Get the address of a pipeline symbol on the GPU.
     Result GetPipelineGpuSymbol(
         Util::Abi::PipelineSymbolType type,
-        GpuSymbol*                    pSymbol
-        ) const;
+        GpuSymbol*                    pSymbol) const;
     // Get the address of a generic symbol on the GPU.
     Result GetGenericGpuSymbol(
         const char* pName,
-        GpuSymbol*  pSymbol
-        ) const;
+        GpuSymbol*  pSymbol) const;
 
 protected:
     Result ApplyRelocationSection(const Util::ElfReader::Relocations& relocations);
@@ -427,8 +429,14 @@ private:
 
     Result GetAbsoluteSymbolAddress(
         const Util::Elf::SymbolTableEntry* pElfSymbol,
-        GpuSymbol*                         pSymbol
-        ) const;
+        GpuSymbol*                         pSymbol) const;
+
+    GpuHeap SelectUploadHeap(GpuHeap heap);
+
+    bool ShouldUploadUsingDma() const { return (m_pipelineHeapType == GpuHeap::GpuHeapInvisible); }
+
+    Result UploadUsingCpu(const SectionAddressCalculator& addressCalc, void** ppMappedPtr);
+    Result UploadUsingDma(const SectionAddressCalculator& addressCalc, void** ppMappedPtr);
 
     Device*const m_pDevice;
     const AbiReader& m_abiReader;
@@ -436,10 +444,6 @@ private:
     GpuMemory*  m_pGpuMemory;
     gpusize     m_baseOffset;
     gpusize     m_gpuMemSize;
-
-    // GpuMemory objects of embedded data allocations used for uploading pipelines to local invis heap.
-    GpuMemory* m_pUploadGpuMem;
-    gpusize    m_uploadOffset;
 
     gpusize     m_prefetchGpuVirtAddr;
     gpusize     m_prefetchSize;
@@ -458,10 +462,11 @@ private:
     uint32*  m_pCtxRegWritePtrStart;
     uint32*  m_pShRegWritePtrStart;
 #endif
-    GpuHeap  m_pipelineHeapType; // The heap type where this pipeline is located.
-    DmaUploadRing* m_pDmaUploadRing;
-    UploadRingSlot m_slotId;
-    gpusize m_heapInvisUploadOffset;
+    uint64   m_pagingFenceVal;
+
+    GpuHeap         m_pipelineHeapType; // The heap type where this pipeline is located.
+    UploadRingSlot  m_slotId;
+    gpusize         m_heapInvisUploadOffset;
 
     PAL_DISALLOW_DEFAULT_CTOR(PipelineUploader);
     PAL_DISALLOW_COPY_AND_ASSIGN(PipelineUploader);

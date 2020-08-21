@@ -10,10 +10,10 @@
 
 vpath %.cpp $(TINY_PRINTF_DEPTH)
 
-CPPFILES += printf.cpp
+CPPFILES += tiny_printf.cpp
 
 #-----------------------------------------------------------------------
 # Common Tiny Printf Includes
 #-----------------------------------------------------------------------
 
-LCXXINCS += -I$(TINY_PRINTF_DEPTH)
+LCXXINCS += -I$(TINY_PRINTF_DEPTH)/include

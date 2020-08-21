@@ -765,19 +765,19 @@ uint32* CmdStream::WriteSetSeqShRegsIndex(
 
 // =====================================================================================================================
 // Helper function for writing the user-SGPR's mapped to user-data entries for a graphics shader stage.
-template <bool IgnoreDirtyFlags>
-uint32* CmdStream::WriteUserDataEntriesToSgprsGfx(
+template <bool IgnoreDirtyFlags, PM4ShaderType shaderType>
+uint32* CmdStream::WriteUserDataEntriesToSgprs(
     const UserDataEntryMap& entryMap,
     const UserDataEntries&  entries,
     uint32*                 pCmdSpace)
 {
     if (m_flags.optimizeCommands != 0)
     {
-        pCmdSpace = WriteUserDataEntriesToSgprsGfx<IgnoreDirtyFlags, true>(entryMap, entries, pCmdSpace);
+        pCmdSpace = WriteUserDataEntriesToSgprs<IgnoreDirtyFlags, shaderType, true>(entryMap, entries, pCmdSpace);
     }
     else
     {
-        pCmdSpace = WriteUserDataEntriesToSgprsGfx<IgnoreDirtyFlags, false>(entryMap, entries, pCmdSpace);
+        pCmdSpace = WriteUserDataEntriesToSgprs<IgnoreDirtyFlags, shaderType, false>(entryMap, entries, pCmdSpace);
     }
 
     return pCmdSpace;
@@ -785,20 +785,30 @@ uint32* CmdStream::WriteUserDataEntriesToSgprsGfx(
 
 // Instantiate template for linker.
 template
-uint32* CmdStream::WriteUserDataEntriesToSgprsGfx<false>(
+uint32* CmdStream::WriteUserDataEntriesToSgprs<false, ShaderGraphics>(
     const UserDataEntryMap& entryMap,
     const UserDataEntries&  entries,
     uint32*                 pCmdSpace);
 template
-uint32* CmdStream::WriteUserDataEntriesToSgprsGfx<true>(
+uint32* CmdStream::WriteUserDataEntriesToSgprs<false, ShaderCompute>(
     const UserDataEntryMap& entryMap,
     const UserDataEntries&  entries,
     uint32*                 pCmdSpace);
+template
+uint32* CmdStream::WriteUserDataEntriesToSgprs<true, ShaderGraphics>(
+    const UserDataEntryMap& entryMap,
+    const UserDataEntries& entries,
+    uint32* pCmdSpace);
+template
+uint32* CmdStream::WriteUserDataEntriesToSgprs<true, ShaderCompute>(
+    const UserDataEntryMap& entryMap,
+    const UserDataEntries& entries,
+    uint32* pCmdSpace);
 
 // =====================================================================================================================
 // Helper function for writing the user-SGPR's mapped to user-data entries for a graphics shader stage.
-template <bool IgnoreDirtyFlags, bool Pm4OptEnabled>
-uint32* CmdStream::WriteUserDataEntriesToSgprsGfx(
+template <bool IgnoreDirtyFlags, PM4ShaderType shaderType, bool Pm4OptEnabled>
+uint32* CmdStream::WriteUserDataEntriesToSgprs(
     const UserDataEntryMap& entryMap,
     const UserDataEntries&  entries,
     uint32*                 pCmdSpace)
@@ -826,7 +836,7 @@ uint32* CmdStream::WriteUserDataEntriesToSgprsGfx(
                 PM4CMDSETDATA setShReg;
                 m_cmdUtil.BuildSetSeqShRegs(firstUserSgpr,
                                             (firstUserSgpr + userSgprCount - 1),
-                                            ShaderGraphics,
+                                            shaderType,
                                             &setShReg);
 
                 pCmdSpace = m_pPm4Optimizer->WriteOptimizedSetSeqShRegs(setShReg, pCmdPayload, pCmdSpace);
@@ -835,7 +845,7 @@ uint32* CmdStream::WriteUserDataEntriesToSgprsGfx(
             {
                 const size_t totalDwords = m_cmdUtil.BuildSetSeqShRegs(firstUserSgpr,
                                                                        (firstUserSgpr + userSgprCount - 1),
-                                                                       ShaderGraphics,
+                                                                       shaderType,
                                                                        pCmdSpace);
                 // The packet is complete and will not be optimized, fix-up pCmdSpace and we're done.
                 PAL_ASSERT(totalDwords == (userSgprCount + PM4_CMD_SET_DATA_DWORDS));
@@ -868,7 +878,7 @@ uint32* CmdStream::WriteUserDataEntriesToSgprsGfx(
                     PM4CMDSETDATA setShReg;
                     m_cmdUtil.BuildSetSeqShRegs(packetFirstSgpr,
                                                 (packetFirstSgpr + packetSgprCount - 1),
-                                                ShaderGraphics,
+                                                shaderType,
                                                 &setShReg);
 
                     pCmdSpace = m_pPm4Optimizer->WriteOptimizedSetSeqShRegs(setShReg, pCmdPayload, pCmdSpace);
@@ -877,7 +887,7 @@ uint32* CmdStream::WriteUserDataEntriesToSgprsGfx(
                 {
                     const size_t totalDwords = m_cmdUtil.BuildSetSeqShRegs(packetFirstSgpr,
                                                                            (packetFirstSgpr + packetSgprCount - 1),
-                                                                           ShaderGraphics,
+                                                                           shaderType,
                                                                            pCmdSpace);
                     // The packet is complete and will not be optimized, fix-up pCmdSpace and we're done.
                     PAL_ASSERT(totalDwords == (packetSgprCount + PM4_CMD_SET_DATA_DWORDS));

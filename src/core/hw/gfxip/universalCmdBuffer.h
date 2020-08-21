@@ -233,13 +233,12 @@ public:
 #endif
 
     // Universal command buffers have three command streams: Draw Engine, Constant Engine and a hidden ACE cmd stream.
-    static constexpr uint32 NumCmdStreamsVal        = 2;
-    static constexpr uint32 NumCmdStreamsValWithAce = 3;
+    static constexpr uint32 NumCmdStreamsVal = 3;
 
     // Returns the number of command streams associated with this command buffer.
     virtual uint32 NumCmdStreams() const override
     {
-        return (m_pAceCmdStream != nullptr) ? NumCmdStreamsValWithAce : NumCmdStreamsVal;
+        return NumCmdStreamsVal;
     }
     virtual const CmdStream* GetCmdStream(uint32 cmdStreamIdx) const override;
 
@@ -278,9 +277,6 @@ public:
     // Used to initialize boundColorTargetMask. Null color target is bound only when the slot was not NULL and being
     // bound to NULL. Set all 1s so NULL color targets will be bound when BuildNullColorTargets() is called first time.
     static constexpr uint32 NoNullColorTargetMask = ((1 << MaxColorTargets) - 1);
-
-    bool UseCpuPathInsteadOfCeRam() const
-        { return (m_buildFlags.useCpuPathForTableUpdates != 0); }
 
 protected:
     UniversalCmdBuffer(

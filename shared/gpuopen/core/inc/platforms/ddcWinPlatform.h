@@ -149,6 +149,9 @@ namespace DevDriver
             Handle MapSystemBufferView(Handle hBuffer, Size bufferSizeInBytes);
             Handle MapProcessBufferView(Handle hBuffer, ProcessId processId);
             void UnmapBufferView(Handle hSharedBuffer, Handle hSharedBufferView);
+
+            // Whether or not the user has enabled Windows Developer Mode on their system
+            bool IsWin10DeveloperModeEnabled();
         }
     }
 }

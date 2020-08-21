@@ -406,6 +406,10 @@ struct drm_amdgpu_gem_dgma {
 #define AMDGPU_TILING_DCC_PITCH_MAX_MASK		0x3FFF
 #define AMDGPU_TILING_DCC_INDEPENDENT_64B_SHIFT		43
 #define AMDGPU_TILING_DCC_INDEPENDENT_64B_MASK		0x1
+#define AMDGPU_TILING_DCC_INDEPENDENT_128B_SHIFT	44
+#define AMDGPU_TILING_DCC_INDEPENDENT_128B_MASK		0x1
+#define AMDGPU_TILING_SCANOUT_SHIFT			63
+#define AMDGPU_TILING_SCANOUT_MASK			0x1
 
 /* Set/Get helpers for tiling flags. */
 #define AMDGPU_TILING_SET(field, value) \
@@ -561,6 +565,8 @@ struct drm_amdgpu_gem_op {
 #define AMDGPU_VM_MTYPE_CC		(3 << 5)
 /* Use UC MTYPE instead of default MTYPE */
 #define AMDGPU_VM_MTYPE_UC		(4 << 5)
+/* Use RW MTYPE instead of default MTYPE */
+#define AMDGPU_VM_MTYPE_RW		(5 << 5)
 
 struct drm_amdgpu_gem_va {
 	/** GEM object handle */
@@ -613,7 +619,7 @@ struct drm_amdgpu_cs_in {
 	/**  Handle of resource list associated with CS */
 	__u32		bo_list_handle;
 	__u32		num_chunks;
-	__u32		_pad;
+	__u32		flags;
 	/** this points to __u64 * which point to cs chunks */
 	__u64		chunks;
 };
@@ -771,6 +777,8 @@ struct drm_amdgpu_cs_chunk_data {
 	/* Subquery id: Query DMCU firmware version */
 	#define AMDGPU_INFO_FW_DMCU		0x12
 	#define AMDGPU_INFO_FW_TA		0x13
+	/* Subquery id: Query DMCUB firmware version */
+	#define AMDGPU_INFO_FW_DMCUB		0x14
 /* number of bytes moved for TTM migration */
 #define AMDGPU_INFO_NUM_BYTES_MOVED		0x0f
 /* the used VRAM size */

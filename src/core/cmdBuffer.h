@@ -751,6 +751,8 @@ public:
     bool IsTmzEnabled() const { return (m_buildFlags.enableTmz != 0); }
 
     uint64 LastPagingFence() const { return m_lastPagingFence; }
+    void UpdateLastPagingFence(uint64 pagingFence)
+        { m_lastPagingFence = Util::Max(pagingFence, m_lastPagingFence); }
 
     // Note that this is not a general-purpose allocator. It is only valid during command building and its allocations
     // must follow special life-time rules. Read the CmdBufferBuildInfo documentation for more information.

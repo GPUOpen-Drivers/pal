@@ -360,7 +360,12 @@ struct PresentableImageCreateInfo
                                         ///  Implies an array size of 2. Fullscreen must be set.
             uint32 turbosync    :  1;   ///< Image supports turbosync flip
             uint32 peerWritable :  1;   ///< Indicates if the memory allocated will be writable by other devices
-            uint32 reserved     : 28;   ///< Reserved for future use.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 620
+            uint32 tmzProtected :  1;   ///< Indicates this presenatble image's memory is tmz Protected.
+#else
+            uint32 placeHolder  :  1;
+#endif
+            uint32 reserved     : 27;   ///< Reserved for future use.
         };
         uint32 u32All;                  ///< Flags packed as 32-bit uint.
     } flags;                            ///< Presentable image creation flags.

@@ -27,6 +27,7 @@
 #include "core/platform.h"
 #include "core/hw/gfxip/gfx9/gfx9CmdStream.h"
 #include "core/hw/gfxip/gfx9/gfx9ColorBlendState.h"
+#include "core/hw/gfxip/gfx9/gfx9ComputePipeline.h"
 #include "core/hw/gfxip/gfx9/gfx9DepthStencilState.h"
 #include "core/hw/gfxip/gfx9/gfx9DepthStencilView.h"
 #include "core/hw/gfxip/gfx9/gfx9Device.h"
@@ -1593,12 +1594,10 @@ uint32 GraphicsPipeline::ComputeScratchMemorySize(
     uint32 scratchMemorySizeBytes = 0;
     for (uint32 i = 0; i < static_cast<uint32>(Abi::HardwareStage::Count); ++i)
     {
+
         const auto& stageMetadata = metadata.pipeline.hardwareStage[i];
         if (stageMetadata.hasEntry.scratchMemorySize != 0)
         {
-            PAL_ASSERT_MSG((i != static_cast<uint32>(Abi::HardwareStage::Cs)),
-                           "Do not expect a graphics pipeline to have a compute shader stage!");
-
             uint32 stageScratchMemorySize = stageMetadata.scratchMemorySize;
 
             if (isWave32Tbl[i] == false)

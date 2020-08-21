@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 3.5)
 project(DevDriverThirdParty CXX)
 
+set(CMAKE_FOLDER "${CMAKE_FOLDER}/Third Party")
 
 # We cannot fix warnings in third-party code, so we silence them instead.
 # This should never be used on code you can easily modify.
@@ -49,16 +50,6 @@ function(dd_mark_third_party_target target)
     if (target_type STREQUAL "STATIC_LIBRARY")
 
         set_target_properties(${target} PROPERTIES POSITION_INDEPENDENT_CODE ON)
-
-    endif()
-
-    # INTERFACE_LIBRARY targets have restricted properties, so we skip them.
-    if (NOT target_type STREQUAL "INTERFACE_LIBRARY")
-
-        set_target_properties(${target}
-            PROPERTIES
-                FOLDER "Third Party"
-        )
 
     endif()
 

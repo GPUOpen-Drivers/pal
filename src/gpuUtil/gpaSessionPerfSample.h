@@ -175,7 +175,7 @@ public:
 
     // Initializes this TraceSample by setting thread trace layout.
     Pal::Result InitThreadTrace();
-    Pal::Result InitSpmTrace(Pal::uint32 numCounters);
+    Pal::Result InitSpmTrace(const GpaSampleConfig& sampleconfig);
 
     Pal::ThreadTraceLayout* GetThreadTraceLayout() const { return m_pThreadTraceLayout; }
     Pal::gpusize            GetTraceBufferSize() const { return m_traceMemorySize; }
@@ -183,6 +183,7 @@ public:
     Pal::uint32             GetNumSpmCounters() const { return m_numSpmCounters; }
     Pal::Result             GetSpmTraceResults(void* pDstBuffer, size_t bufferSize);
     void                    GetSpmResultsSize(Pal::gpusize* pSizeInBytes, Pal::gpusize* pNumSamples);
+    Pal::uint32             GetSpmSampleInterval() const { return m_spmSampleInterval; }
 
     Pal::Result SetThreadTraceLayout(Pal::ThreadTraceLayout* pLayout);
     void SetTraceMemory(const GpuMemoryInfo& gpuMemoryInfo, Pal::gpusize offset, Pal::gpusize size);
@@ -218,7 +219,7 @@ private:
     // SPM specific member variables.
     Pal::uint32          m_numSpmCounters;      // Number of spm counters requested.
     Pal::gpusize         m_spmRingSize;         // Ring buffer size allocated for this spm trace.
-    Pal::gpusize         m_spmSampleInterval;   // Sample interval of this spm trace.
+    Pal::uint32          m_spmSampleInterval;   // Sample interval of this spm trace.
     Pal::SpmTraceLayout* m_pSpmTraceLayout;     // Layout describing the results of the spm trace.
     Pal::int32           m_numSpmSamples;       // Number of samples of data written by HW.
 };

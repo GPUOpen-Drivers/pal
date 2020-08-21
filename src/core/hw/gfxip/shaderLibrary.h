@@ -89,6 +89,7 @@ public:
 
     uint32 GetMaxStackSizeInBytes() const { return m_maxStackSizeInBytes; }
     UploadFenceToken GetUploadFenceToken() const { return m_uploadFenceToken; }
+    uint64 GetPagingFenceVal() const { return m_pagingFenceVal; }
 
 protected:
     // internal Constructor.
@@ -127,7 +128,8 @@ protected:
     gpusize         m_gpuMemSize;
     uint32          m_maxStackSizeInBytes;
 
-    UploadFenceToken m_uploadFenceToken;
+    UploadFenceToken  m_uploadFenceToken;
+    uint64            m_pagingFenceVal;
 
 private:
     Result InitFromCodeObjectBinary(

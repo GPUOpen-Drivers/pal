@@ -377,6 +377,18 @@ VamMgrSingleton::~VamMgrSingleton()
 }
 
 // =====================================================================================================================
+// This function is called once before lib is unloaded from process
+void  __attribute__((destructor)) palExit(void)
+{
+    if (pVamMgrSingleton)
+    {
+        GenericAllocator genericAllocator;
+        PAL_DELETE(pVamMgrSingleton, &genericAllocator);
+        pVamMgrSingleton = nullptr;
+    }
+}
+
+// =====================================================================================================================
 // Cleanup global VAM manager when one device is destroyed.
 void VamMgrSingleton::Cleanup(
     Device* pDevice)

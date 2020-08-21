@@ -75,6 +75,9 @@ void PlatformSettingsLoader::SetupDefaults()
 #if   (__unix__)
     memset(m_settings.eventLogDirectory, 0, 512);
     strncpy(m_settings.eventLogDirectory, "amdpal/", 512);
+#else
+    memset(m_settings.eventLogDirectory, 0, 512);
+    strncpy(m_settings.eventLogDirectory, "amdpal/", 512);
 #endif
     memset(m_settings.eventLogFilename, 0, 512);
     strncpy(m_settings.eventLogFilename, "PalEventLog.json", 512);
@@ -97,11 +100,17 @@ void PlatformSettingsLoader::SetupDefaults()
 #if   (__unix__)
     memset(m_settings.overlayBenchmarkConfig.usageLogDirectory, 0, 512);
     strncpy(m_settings.overlayBenchmarkConfig.usageLogDirectory, "amdpal/", 512);
+#else
+    memset(m_settings.overlayBenchmarkConfig.usageLogDirectory, 0, 512);
+    strncpy(m_settings.overlayBenchmarkConfig.usageLogDirectory, "amdpal/", 512);
 #endif
     memset(m_settings.overlayBenchmarkConfig.usageLogFilename, 0, 512);
     strncpy(m_settings.overlayBenchmarkConfig.usageLogFilename, "PalUsageLog.txt", 512);
     m_settings.overlayBenchmarkConfig.logFrameStats = false;
 #if   (__unix__)
+    memset(m_settings.overlayBenchmarkConfig.frameStatsLogDirectory, 0, 512);
+    strncpy(m_settings.overlayBenchmarkConfig.frameStatsLogDirectory, "amdpal/", 512);
+#else
     memset(m_settings.overlayBenchmarkConfig.frameStatsLogDirectory, 0, 512);
     strncpy(m_settings.overlayBenchmarkConfig.frameStatsLogDirectory, "amdpal/", 512);
 #endif
@@ -116,17 +125,21 @@ void PlatformSettingsLoader::SetupDefaults()
 #if   (__unix__)
     memset(m_settings.gpuProfilerConfig.logDirectory, 0, 512);
     strncpy(m_settings.gpuProfilerConfig.logDirectory, "amdpal/", 512);
+#else
+    memset(m_settings.gpuProfilerConfig.logDirectory, 0, 512);
+    strncpy(m_settings.gpuProfilerConfig.logDirectory, "amdpal/", 512);
 #endif
     m_settings.gpuProfilerConfig.startFrame = 0;
     m_settings.gpuProfilerConfig.frameCount = 0;
     m_settings.gpuProfilerConfig.recordPipelineStats = false;
     m_settings.gpuProfilerConfig.breakSubmitBatches = false;
+    m_settings.gpuProfilerConfig.ignoreNonDrawDispatchCmdBufs = false;
     m_settings.gpuProfilerConfig.useFullPipelineHash = false;
     m_settings.gpuProfilerConfig.traceModeMask = 0x0;
+    m_settings.gpuProfilerConfig.granularity = GpuProfilerGranularityDraw;
     memset(m_settings.gpuProfilerPerfCounterConfig.globalPerfCounterConfigFile, 0, 256);
     strncpy(m_settings.gpuProfilerPerfCounterConfig.globalPerfCounterConfigFile, "", 256);
     m_settings.gpuProfilerPerfCounterConfig.cacheFlushOnCounterCollection = false;
-    m_settings.gpuProfilerPerfCounterConfig.granularity = GpuProfilerGranularityDraw;
     m_settings.gpuProfilerSqttConfig.tokenMask = 0xffff;
     m_settings.gpuProfilerSqttConfig.seMask = 0xf;
     m_settings.gpuProfilerSqttConfig.pipelineHash = 0x0;
@@ -163,6 +176,9 @@ void PlatformSettingsLoader::SetupDefaults()
 #if   (__unix__)
     memset(m_settings.pm4InstrumentorConfig.logDirectory, 0, 512);
     strncpy(m_settings.pm4InstrumentorConfig.logDirectory, "amdpal/", 512);
+#else
+    memset(m_settings.pm4InstrumentorConfig.logDirectory, 0, 512);
+    strncpy(m_settings.pm4InstrumentorConfig.logDirectory, "amdpal/", 512);
 #endif
     memset(m_settings.pm4InstrumentorConfig.filenameSuffix, 0, 512);
     strncpy(m_settings.pm4InstrumentorConfig.filenameSuffix, "pm4-stats.log", 512);
@@ -170,6 +186,9 @@ void PlatformSettingsLoader::SetupDefaults()
     m_settings.pm4InstrumentorConfig.dumpInterval = 5;
     m_settings.interfaceLoggerEnabled = false;
 #if   (__unix__)
+    memset(m_settings.interfaceLoggerConfig.logDirectory, 0, 512);
+    strncpy(m_settings.interfaceLoggerConfig.logDirectory, "amdpal/", 512);
+#else
     memset(m_settings.interfaceLoggerConfig.logDirectory, 0, 512);
     strncpy(m_settings.interfaceLoggerConfig.logDirectory, "amdpal/", 512);
 #endif
@@ -407,6 +426,11 @@ void PlatformSettingsLoader::ReadSettings(Pal::Device* pDevice)
                            &m_settings.gpuProfilerConfig.breakSubmitBatches,
                            InternalSettingScope::PrivatePalKey);
 
+    pDevice->ReadSetting(pGpuProfilerConfig_IgnoreNonDrawDispatchCmdBufsStr,
+                           Util::ValueType::Boolean,
+                           &m_settings.gpuProfilerConfig.ignoreNonDrawDispatchCmdBufs,
+                           InternalSettingScope::PrivatePalKey);
+
     pDevice->ReadSetting(pGpuProfilerConfig_UseFullPipelineHashStr,
                            Util::ValueType::Boolean,
                            &m_settings.gpuProfilerConfig.useFullPipelineHash,
@@ -415,6 +439,11 @@ void PlatformSettingsLoader::ReadSettings(Pal::Device* pDevice)
     pDevice->ReadSetting(pGpuProfilerConfig_TraceModeMaskStr,
                            Util::ValueType::Uint,
                            &m_settings.gpuProfilerConfig.traceModeMask,
+                           InternalSettingScope::PrivatePalKey);
+
+    pDevice->ReadSetting(pGpuProfilerConfig_GranularityStr,
+                           Util::ValueType::Uint,
+                           &m_settings.gpuProfilerConfig.granularity,
                            InternalSettingScope::PrivatePalKey);
 
     pDevice->ReadSetting(pGpuProfilerPerfCounterConfig_GlobalPerfCounterConfigFileStr,
@@ -426,11 +455,6 @@ void PlatformSettingsLoader::ReadSettings(Pal::Device* pDevice)
     pDevice->ReadSetting(pGpuProfilerPerfCounterConfig_CacheFlushOnCounterCollectionStr,
                            Util::ValueType::Boolean,
                            &m_settings.gpuProfilerPerfCounterConfig.cacheFlushOnCounterCollection,
-                           InternalSettingScope::PrivatePalKey);
-
-    pDevice->ReadSetting(pGpuProfilerPerfCounterConfig_GranularityStr,
-                           Util::ValueType::Uint,
-                           &m_settings.gpuProfilerPerfCounterConfig.granularity,
                            InternalSettingScope::PrivatePalKey);
 
     pDevice->ReadSetting(pGpuProfilerSqttConfig_TokenMaskStr,
@@ -879,6 +903,11 @@ void PlatformSettingsLoader::InitSettingsInfo()
     m_settingsInfoMap.Insert(2743656777, info);
 
     info.type      = SettingType::Boolean;
+    info.pValuePtr = &m_settings.gpuProfilerConfig.ignoreNonDrawDispatchCmdBufs;
+    info.valueSize = sizeof(m_settings.gpuProfilerConfig.ignoreNonDrawDispatchCmdBufs);
+    m_settingsInfoMap.Insert(2163321285, info);
+
+    info.type      = SettingType::Boolean;
     info.pValuePtr = &m_settings.gpuProfilerConfig.useFullPipelineHash;
     info.valueSize = sizeof(m_settings.gpuProfilerConfig.useFullPipelineHash);
     m_settingsInfoMap.Insert(3204367348, info);
@@ -887,6 +916,11 @@ void PlatformSettingsLoader::InitSettingsInfo()
     info.pValuePtr = &m_settings.gpuProfilerConfig.traceModeMask;
     info.valueSize = sizeof(m_settings.gpuProfilerConfig.traceModeMask);
     m_settingsInfoMap.Insert(2717664970, info);
+
+    info.type      = SettingType::Uint;
+    info.pValuePtr = &m_settings.gpuProfilerConfig.granularity;
+    info.valueSize = sizeof(m_settings.gpuProfilerConfig.granularity);
+    m_settingsInfoMap.Insert(1675329864, info);
 
     info.type      = SettingType::String;
     info.pValuePtr = &m_settings.gpuProfilerPerfCounterConfig.globalPerfCounterConfigFile;
@@ -897,11 +931,6 @@ void PlatformSettingsLoader::InitSettingsInfo()
     info.pValuePtr = &m_settings.gpuProfilerPerfCounterConfig.cacheFlushOnCounterCollection;
     info.valueSize = sizeof(m_settings.gpuProfilerPerfCounterConfig.cacheFlushOnCounterCollection);
     m_settingsInfoMap.Insert(3543519762, info);
-
-    info.type      = SettingType::Uint;
-    info.pValuePtr = &m_settings.gpuProfilerPerfCounterConfig.granularity;
-    info.valueSize = sizeof(m_settings.gpuProfilerPerfCounterConfig.granularity);
-    m_settingsInfoMap.Insert(3380953453, info);
 
     info.type      = SettingType::Uint;
     info.pValuePtr = &m_settings.gpuProfilerSqttConfig.tokenMask;
@@ -1129,7 +1158,7 @@ void PlatformSettingsLoader::DevDriverRegister()
             component.pfnSetValue = ISettingsLoader::SetValue;
             component.pSettingsData = &g_palPlatformJsonData[0];
             component.settingsDataSize = sizeof(g_palPlatformJsonData);
-            component.settingsDataHash = 3240883077;
+            component.settingsDataHash = 989129819;
             component.settingsDataHeader.isEncoded = true;
             component.settingsDataHeader.magicBufferId = 402778310;
             component.settingsDataHeader.magicBufferOffset = 0;

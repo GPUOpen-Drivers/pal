@@ -121,7 +121,7 @@ static constexpr RgpChunkVersionNumbers RgpChunkVersionNumberLookup[] =
     {1, 1}, // SQTT_FILE_CHUNK_TYPE_QUEUE_EVENT_TIMINGS,
     {0, 0}, // SQTT_FILE_CHUNK_TYPE_CLOCK_CALIBRATION,
     {0, 0}, // SQTT_FILE_CHUNK_TYPE_CPU_INFO,
-    {1, 2}, // SQTT_FILE_CHUNK_TYPE_SPM_DB,
+    {1, 3}, // SQTT_FILE_CHUNK_TYPE_SPM_DB,
     {0, 0}, // SQTT_FILE_CHUNK_TYPE_CODE_OBJECT_DATABASE,
     {1, 0}, // SQTT_FILE_CHUNK_TYPE_CODE_OBJECT_LOADER_EVENTS
     {0, 0}, // SQTT_FILE_CHUNK_TYPE_PSO_CORRELATION
@@ -748,6 +748,7 @@ typedef struct SqttFileChunkSpmDb
     SqttFileSpmInfoFlags flags;
     uint32_t             numTimestamps;          /*!<  Number of timestamps in this trace. */
     uint32_t             numSpmCounterInfo;      /*!<  Number of SpmCounterInfo. */
+    uint32_t             samplingInterval;       /*!<  The sampling interval */
 } SqttFileChunkSpmDb;
 
 /** A structure encapsulating the state of the SQTT file parser.

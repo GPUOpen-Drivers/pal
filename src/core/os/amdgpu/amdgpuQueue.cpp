@@ -838,7 +838,12 @@ Result Queue::PrepareChainedCommandBuffers(
             PAL_ASSERT(numStreams == pCurCmdBuf->NumCmdStreams());
 
             const CmdStream*const pCurCmdStream = pCurCmdBuf->GetCmdStream(streamIdx);
-            PAL_ASSERT(pCurCmdStream != nullptr);
+            if (pCurCmdStream == nullptr)
+            {
+                // There are some CmdStreams which are only active when specific features are enabled.
+                // As a result, not all command buffers in a submit will contain these CmdStreams.
+                continue;
+            }
 
             if (pCurCmdStream->IsEmpty() == false)
             {
@@ -999,7 +1004,9 @@ Result Queue::SubmitNonGfxIp(
                                            m_pDummyCmdStream : pCmdBuffer->GetCmdStream(0);
         uint32                chunkCount = 0; // Keep track of how many chunks will be submitted next.
 
-        for (auto iter = pCmdStream->GetFwdIterator(); iter.IsValid() && (result == Result::Success); iter.Next())
+        for (auto iter = pCmdStream->GetFwdIterator();
+            (pCmdStream != nullptr) && iter.IsValid() && (result == Result::Success);
+            iter.Next())
         {
             const CmdStreamChunk*const pChunk = iter.Get();
 

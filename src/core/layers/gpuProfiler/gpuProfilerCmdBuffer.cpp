@@ -3608,12 +3608,20 @@ void CmdBuffer::LogPreTimedCall(
             pLogItem->cmdBufCall.draw.apiPsoHash   = m_gfxpState.apiPsoHash;
 
             if (m_flags.enableSqThreadTrace &&
-                m_pDevice->SqttEnabledForPipeline(m_gfxpState, PipelineBindPoint::Graphics))
+                (m_forceDrawGranularityLogging ||
+                 m_pDevice->SqttEnabledForPipeline(m_gfxpState, PipelineBindPoint::Graphics)))
             {
-                if ((m_pDevice->GetSqttMaxDraws() == 0) ||
-                    (m_pDevice->GetSqttCurDraws() < m_pDevice->GetSqttMaxDraws()))
+                if (m_forceDrawGranularityLogging == false)
                 {
-                    m_pDevice->AddSqttCurDraws();
+                    if ((m_pDevice->GetSqttMaxDraws() == 0) ||
+                        (m_pDevice->GetSqttCurDraws() < m_pDevice->GetSqttMaxDraws()))
+                    {
+                        m_pDevice->AddSqttCurDraws();
+                        enableSqThreadTrace = true;
+                    }
+                }
+                else
+                {
                     enableSqThreadTrace = true;
                 }
             }
@@ -3624,12 +3632,20 @@ void CmdBuffer::LogPreTimedCall(
             pLogItem->cmdBufCall.dispatch.apiPsoHash   = m_cpState.apiPsoHash;
 
             if (m_flags.enableSqThreadTrace &&
-                m_pDevice->SqttEnabledForPipeline(m_cpState, PipelineBindPoint::Compute))
+                (m_forceDrawGranularityLogging ||
+                 m_pDevice->SqttEnabledForPipeline(m_cpState, PipelineBindPoint::Compute)))
             {
-                if ((m_pDevice->GetSqttMaxDraws() == 0) ||
-                    (m_pDevice->GetSqttCurDraws() < m_pDevice->GetSqttMaxDraws()))
+                if (m_forceDrawGranularityLogging == false)
                 {
-                    m_pDevice->AddSqttCurDraws();
+                    if ((m_pDevice->GetSqttMaxDraws() == 0) ||
+                        (m_pDevice->GetSqttCurDraws() < m_pDevice->GetSqttMaxDraws()))
+                    {
+                        m_pDevice->AddSqttCurDraws();
+                        enableSqThreadTrace = true;
+                    }
+                }
+                else
+                {
                     enableSqThreadTrace = true;
                 }
             }

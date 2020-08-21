@@ -288,16 +288,17 @@ uint32 CmdUploadRing::PredictBatchSize(
             for (uint32 streamIdx = 0; (streamIdx < m_createInfo.numCmdStreams); ++streamIdx)
             {
                 const CmdStream*const pCmdStream = pCmdBuffer->GetCmdStream(streamIdx);
-                PAL_ASSERT(pCmdStream != nullptr);
-
-                totalSize[streamIdx] += pCmdStream->TotalChunkDwords() * sizeof(uint32);
-
-                // Check if we have any space left for the next command buffer's stream. We don't need to track where
-                // the postambles will go because TotalChunkDwords includes all command stream postambles which in the
-                // worst case will be just as large as what we will upload.
-                if (totalSize[streamIdx] >= RaftMemBytes)
+                if (pCmdStream != nullptr)
                 {
-                    uploadMoreCmdBuffers = false;
+                    totalSize[streamIdx] += pCmdStream->TotalChunkDwords() * sizeof(uint32);
+
+                    // Check if we have any space left for the next command buffer's stream. We don't need to track
+                    // where the postambles will go because TotalChunkDwords includes all command stream postambles
+                    // which in the worst case will be just as large as what we will upload.
+                    if (totalSize[streamIdx] >= RaftMemBytes)
+                    {
+                        uploadMoreCmdBuffers = false;
+                    }
                 }
             }
         }
@@ -350,12 +351,19 @@ Result CmdUploadRing::UploadCmdBuffers(
 
     for (uint32 idx = 0; idx < m_createInfo.numCmdStreams; ++idx)
     {
-        const CmdStream*const pFirstStream = static_cast<const CmdBuffer*>(ppCmdBuffers[0])->GetCmdStream(idx);
+        const CmdStream* pFirstStream = nullptr;
+        for (uint32 cmdBufIdx = 0; (cmdBufIdx < cmdBufferCount) && (pFirstStream == nullptr); cmdBufIdx++)
+        {
+            pFirstStream = static_cast<const CmdBuffer*>(ppCmdBuffers[cmdBufIdx])->GetCmdStream(idx);
+        }
 
-        streamState[idx].curIbFreeBytes                 = Min(m_maxStreamBytes, RaftMemBytes) - m_minPostambleBytes;
-        streamState[idx].subEngineType                  = pFirstStream->GetSubEngineType();
-        streamState[idx].flags.isPreemptionEnabled      = pFirstStream->IsPreemptionEnabled();
-        streamState[idx].flags.dropIfSameContext        = pFirstStream->DropIfSameContext();
+        if (pFirstStream != nullptr)
+        {
+            streamState[idx].curIbFreeBytes                 = Min(m_maxStreamBytes, RaftMemBytes) - m_minPostambleBytes;
+            streamState[idx].subEngineType                  = pFirstStream->GetSubEngineType();
+            streamState[idx].flags.isPreemptionEnabled      = pFirstStream->IsPreemptionEnabled();
+            streamState[idx].flags.dropIfSameContext        = pFirstStream->DropIfSameContext();
+        }
     }
 
     const PalSettings& settings = m_pDevice->Settings();
@@ -397,9 +405,8 @@ Result CmdUploadRing::UploadCmdBuffers(
             {
                 UploadState*const     pState     = &streamState[streamIdx];
                 const CmdStream*const pCmdStream = pCmdBuffer->GetCmdStream(streamIdx);
-                PAL_ASSERT(pCmdStream != nullptr);
 
-                if (pCmdStream->IsEmpty() == false)
+                if ((pCmdStream != nullptr) && (pCmdStream->IsEmpty() == false))
                 {
                     for (auto chunkIter = pCmdStream->GetFwdIterator();
                          chunkIter.IsValid() && (result == Result::Success);

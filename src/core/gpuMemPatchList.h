@@ -56,6 +56,17 @@ enum class GpuMemoryPatchOp : uint32
     Count,
 };
 
+// patch type used for IB patching
+enum class PatchType : uint32
+{
+    None = 0,
+    Input,
+    Output,
+    FeedBack,
+    InputOutput,
+    Count,
+};
+
 // An entry in a patch list: contains information informing the KMD how to patch a GPU memory object's physical GPU
 // address into a command buffer at submission-time.
 struct GpuMemoryPatchEntry
@@ -81,6 +92,11 @@ struct GpuMemoryPatchEntry
         };
         uint32 u32All;
     } flags;
+
+#if PAL_BUILD_SMIBS
+    gpusize     resourceDataSize;
+    PatchType   resourceType;
+#endif
 };
 
 // =====================================================================================================================
@@ -122,7 +138,9 @@ public:
         bool             readOnly,
         uint32           chunkIdx,
         uint32           chunkOffsetLo,
-        uint32           chunkOffsetHi);
+        uint32           chunkOffsetHi,
+        gpusize          patchSize = 0,
+        PatchType        patchType = PatchType::None);
 
     uint32 NumMemoryRefs() const { return m_gpuMemoryRefs.NumElements(); }
     uint32 NumPatchEntries() const { return m_patchEntries.NumElements(); }

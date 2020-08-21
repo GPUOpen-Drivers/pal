@@ -165,7 +165,10 @@ if(PAL_BUILD_CORE)
     # generated files.
     target_sources(pal PRIVATE
         core/g_palSettings.cpp
-        core/g_palPlatformSettings.cpp)
+        core/settings_core.json
+        core/g_palPlatformSettings.cpp
+        core/settings_platform.json
+    )
 endif()
 
 # CMAKE-TODO: Check if this is supposed to be added outside of core support....?
@@ -285,6 +288,12 @@ if(PAL_BUILD_CORE)
 
     endif()
 
+    if (PAL_BUILD_SMIBS)
+        target_sources(pal PRIVATE
+            core/os/wddm/wddm2/smibsQueue.cpp
+        )
+    endif()
+
 ### PAL core/hw ################################################################
     if(PAL_BUILD_GFX)
         target_sources(pal PRIVATE
@@ -317,6 +326,7 @@ if(PAL_BUILD_CORE)
             # Add the GFX6 files here, only if the client wants GFXIP 6 support.
             target_sources(pal PRIVATE
                 core/hw/gfxip/gfx6/g_gfx6PalSettings.cpp
+                core/hw/gfxip/gfx6/settings_gfx6.json
                 core/hw/gfxip/gfx6/gfx6Barrier.cpp
                 core/hw/gfxip/gfx6/gfx6BorderColorPalette.cpp
                 core/hw/gfxip/gfx6/gfx6CmdStream.cpp
@@ -363,6 +373,7 @@ if(PAL_BUILD_CORE)
             # Add the GFX9 files here, only if the client wants GFXIP 9 support.
             target_sources(pal PRIVATE
                 core/hw/gfxip/gfx9/g_gfx9PalSettings.cpp
+                core/hw/gfxip/gfx9/settings_gfx9.json
                 core/hw/gfxip/gfx9/gfx9Barrier.cpp
                 core/hw/gfxip/gfx9/gfx9BorderColorPalette.cpp
                 core/hw/gfxip/gfx9/gfx9CmdStream.cpp

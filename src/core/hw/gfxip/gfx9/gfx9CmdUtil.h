@@ -415,6 +415,7 @@ public:
         Pm4Predicate    predicate,
         bool            isWave32,
         bool            useTunneling,
+        bool            disablePartialPreempt,
         void*           pBuffer) const;
     static size_t BuildDispatchIndirectGfx(
         gpusize      byteOffset,
@@ -425,6 +426,7 @@ public:
         gpusize         address,
         bool            isWave32,
         bool            useTunneling,
+        bool            disablePartialPreempt,
         void*           pBuffer) const;
     static size_t BuildDrawIndex2(
         uint32       indexCount,

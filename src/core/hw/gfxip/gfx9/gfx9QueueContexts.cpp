@@ -698,7 +698,7 @@ Result UniversalQueueContext::AllocateShadowMemory()
         // Also, if mid command buffer preemption is enabled, we must restore all CE RAM used by the client and
         // internally by PAL. All of that data will need to be restored aftere resuming this Queue from being
         // preempted.
-        ceRamBytes = static_cast<uint32>(ReservedCeRamBytes + pDevice->CeRamBytesUsed(EngineTypeUniversal));
+        ceRamBytes = static_cast<uint32>(pDevice->CeRamBytesUsed(EngineTypeUniversal));
     }
 
     constexpr gpusize ShadowMemoryAlignment = 256;
@@ -1230,15 +1230,14 @@ Result UniversalQueueContext::RebuildCommandStreams(
     {
         PAL_ASSERT(m_shadowGpuMem.IsBound());
         const gpusize gpuVirtAddr = (m_shadowGpuMem.GpuVirtAddr() + (sizeof(uint32) * m_shadowedRegCount));
-        uint32 ceRamByteOffset    = (m_persistentCeRamOffset + ReservedCeRamBytes);
+        uint32 ceRamByteOffset    = m_persistentCeRamOffset;
         uint32 ceRamDwordSize     =  m_persistentCeRamSize;
 
         if (m_useShadowing)
         {
             // If preemption is supported, we must save & restore all CE RAM used by either PAL or the client.
             ceRamByteOffset = 0;
-            ceRamDwordSize  =
-                static_cast<uint32>((ReservedCeRamDwords + m_pDevice->Parent()->CeRamDwordsUsed(EngineTypeUniversal)));
+            ceRamDwordSize  = static_cast<uint32>(m_pDevice->Parent()->CeRamDwordsUsed(EngineTypeUniversal));
         }
 
         if (result == Result::Success)

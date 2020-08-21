@@ -29,6 +29,14 @@ project(GPUOPEN CXX)
 # Put ZERO_CHECK, INSTALL, etc default targets in a separate folder in VS solutions
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
+# This folder may be used stand-alone, or as part of our larger CMake package
+# We'll pick a name for the folder based on the use-case/
+if ("${CMAKE_FOLDER}" MATCHES "DevDriver")
+    set(CMAKE_FOLDER "${CMAKE_FOLDER}/Libs")
+else()
+    set(CMAKE_FOLDER "${CMAKE_FOLDER}/DevDriver Libs")
+endif()
+
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
 # Include project-wide and AMD-wide CMake options
@@ -40,12 +48,6 @@ endif()
 
 ### Create GpuOpen Library #############################################################################################
 devdriver_library(${GPUOPEN_LIB_NAME} STATIC)
-
-# Put the library in a folder
-set_target_properties(${GPUOPEN_LIB_NAME}
-    PROPERTIES
-        FOLDER "DevDriver Libs"
-)
 
 ### Cached Project Options #############################################################################################
 if(NOT DEFINED GPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION)
@@ -210,6 +212,13 @@ if(GPUOPEN_BUILD_LISTENER_CORE)
 
         )
     endif()
+
+    # We have special code to query information about Amd gpus. This changes per platform and is only built in the Listener.
+    add_subdirectory(../gpuinfo gpuinfo)
+    target_link_libraries(${GPUOPEN_LIB_NAME}
+        PUBLIC
+            devdriver_gpuinfo
+    )
 
     target_include_directories(${GPUOPEN_LIB_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/listener)
 endif()

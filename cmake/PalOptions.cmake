@@ -60,6 +60,8 @@ macro(pal_options)
 
     option(PAL_BUILD_GPU_PROFILER "Build PAL GPU Profiler?" ON)
 
+    option(PAL_DISPLAY_DCC "Enable DISPLAY DCC?" OFF)
+
 #if PAL_DEVELOPER_BUILD
     option(PAL_DEVELOPER_BUILD "Enable developer build" OFF)
 

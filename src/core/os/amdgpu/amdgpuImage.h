@@ -36,6 +36,7 @@ namespace Amdgpu
 class Device;
 class GpuMemory;
 class WindowSystem;
+class AndroidWindowSystem;
 
 constexpr uint32 InvalidImageIndex = -1;
 

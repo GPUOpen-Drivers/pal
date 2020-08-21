@@ -629,10 +629,12 @@ void LogContext::Struct(
         Value("usesCeRamCmds");
     }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 621
     if (value.flags.useCpuPathForTableUpdates)
     {
         Value("useCpuPathForTableUpdates");
     }
+#endif
 
     if (value.flags.disallowNestedLaunchViaIb2)
     {

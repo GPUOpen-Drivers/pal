@@ -165,7 +165,7 @@ Result Device::CommitSettingsAndInit()
                                   ShaderHashIsNonzero(m_sqttCsHash));
         m_sqttAddTtvHashes     = settings.gpuProfilerSqttConfig.addTtvHashes;
 
-        m_profilerGranularity = settings.gpuProfilerPerfCounterConfig.granularity;
+        m_profilerGranularity = settings.gpuProfilerConfig.granularity;
 
         m_maxDrawsForThreadTrace = settings.gpuProfilerSqttConfig.maxDraws;
         m_curDrawsForThreadTrace = 0;
@@ -1116,7 +1116,8 @@ bool Device::SqttEnabledForPipeline(
             {
                 enabled = true;
             }
-            else if ((m_sqttCompilerHash == RayTracingPsoHashPrefix) &&
+            else if ((hashForComparison != Pal::InternalApiPsoHash) &&
+                     (m_sqttCompilerHash == RayTracingPsoHashPrefix) &&
                      ((m_sqttCompilerHash & hashForComparison) == RayTracingPsoHashPrefix))
             {
                 enabled = true;

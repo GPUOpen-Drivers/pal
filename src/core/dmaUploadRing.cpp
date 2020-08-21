@@ -37,6 +37,9 @@
 namespace Pal
 {
 
+constexpr EngineType UploadEngine = EngineTypeDma;
+constexpr QueueType  UploadQueue  = QueueTypeDma;
+
 // =====================================================================================================================
 DmaUploadRing::DmaUploadRing(
     Device* pDevice)
@@ -57,6 +60,7 @@ Result DmaUploadRing::InitRingItem(
     uint32 slotIdx)
 {
     PAL_ASSERT((m_pRing[slotIdx].pCmdBuf == nullptr) && (m_pRing[slotIdx].pFence == nullptr));
+
     CmdBuffer* pCmdBuf = nullptr;
     IFence* pFence     = nullptr;
     Result result      = CreateInternalCopyCmdBuffer(&pCmdBuf);
@@ -251,11 +255,14 @@ size_t DmaUploadRing::UploadUsingEmbeddedData(
 // =====================================================================================================================
 Result DmaUploadRing::Submit(
     UploadRingSlot    slotId,
-    UploadFenceToken* pCompletionFence)
+    UploadFenceToken* pCompletionFence,
+    uint64            pagingFenceVal)
 {
     Result result = m_pRing[slotId].pCmdBuf->End();
     if(result == Result::Success)
     {
+        static_cast<CmdBuffer*>(m_pRing[slotId].pCmdBuf)->UpdateLastPagingFence(pagingFenceVal);
+
         PerSubQueueSubmitInfo perSubQueueInfo = {};
         perSubQueueInfo.cmdBufferCount        = 1;
         perSubQueueInfo.ppCmdBuffers          = &m_pRing[slotId].pCmdBuf;
@@ -313,9 +320,9 @@ Result DmaUploadRing::CreateInternalCopyCmdBuffer(
     Result result = Result::Success;
 
     CmdBufferCreateInfo cmdBufCreateInfo = { };
-    cmdBufCreateInfo.engineType = EngineType::EngineTypeDma;
-    cmdBufCreateInfo.queueType = QueueType::QueueTypeDma;
-    cmdBufCreateInfo.pCmdAllocator = m_pDevice->InternalCmdAllocator(EngineType::EngineTypeDma);
+    cmdBufCreateInfo.engineType    = UploadEngine;
+    cmdBufCreateInfo.queueType     = UploadQueue;
+    cmdBufCreateInfo.pCmdAllocator = m_pDevice->InternalCmdAllocator(UploadEngine);
 
     CmdBufferInternalCreateInfo cmdBufInternalCreateInfo = { };
     cmdBufInternalCreateInfo.flags.isInternal = true;
@@ -327,15 +334,15 @@ Result DmaUploadRing::CreateInternalCopyCmdBuffer(
 // Creates a DMA queue which is meant for uploading pipeline binaries to local invisible heap.
 Result DmaUploadRing::CreateInternalCopyQueue()
 {
-    const uint32 numEnginesAvailable = m_pDevice->EngineProperties().perEngine[EngineTypeDma].numAvailable;
+    const uint32 numEnginesAvailable = m_pDevice->EngineProperties().perEngine[UploadEngine].numAvailable;
     PAL_ASSERT(numEnginesAvailable > 0);
 
     Result result = Result::Success;
     QueueCreateInfo queueCreateInfo = { };
-    queueCreateInfo.queueType = QueueType::QueueTypeDma;
-    queueCreateInfo.engineType = EngineType::EngineTypeDma;
-    queueCreateInfo.priority = QueuePriority::Normal;
-    queueCreateInfo.engineIndex = numEnginesAvailable - 1;
+    queueCreateInfo.queueType       = UploadQueue;
+    queueCreateInfo.engineType      = UploadEngine;
+    queueCreateInfo.priority        = QueuePriority::Normal;
+    queueCreateInfo.engineIndex     = (numEnginesAvailable - 1);
 
     size_t queueSize = m_pDevice->GetQueueSize(queueCreateInfo, &result);
 

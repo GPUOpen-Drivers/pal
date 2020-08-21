@@ -63,8 +63,6 @@ MsaaState::MsaaState(
     :
     Pal::MsaaState(),
     m_log2Samples(0),
-    m_sampleMask(0),
-    m_pixelShaderSamples(0),
     m_log2OcclusionQuerySamples(0)
 {
     m_paScAaConfig.u32All = 0;
@@ -111,12 +109,10 @@ void MsaaState::Init(
     const auto& settings = GetGfx9Settings(*device.Parent());
 
     m_log2Samples               = Log2(msaaState.coverageSamples);
-    m_sampleMask                = msaaState.sampleMask;
-    m_pixelShaderSamples        = msaaState.pixelShaderSamples;
     m_log2OcclusionQuerySamples = Log2(msaaState.occlusionQuerySamples);
 
     // Use the supplied sample mask to initialize the PA_SC_AA_MASK_** registers:
-    uint32 usedMask    = (m_sampleMask & ((1 << NumSamples()) - 1));
+    uint32 usedMask    = (msaaState.sampleMask & ((1 << NumSamples()) - 1));
     uint32 maskSamples = NumSamples();
 
     // HW requires us to replicate the sample mask to all 16 bits if there are fewer than 16 samples active.

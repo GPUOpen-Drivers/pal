@@ -268,19 +268,6 @@
       "Description": "Toss points enables stripping out of GPU work for more focused performace analysis. This setting controls which work will be tossed."
     },
     {
-      "Name": "Wddm1FreeVirtualGpuMemVA",
-      "Tags": [
-        "General"
-      ],
-      "Defaults": {
-        "Default": false
-      },
-      "Scope": "PrivatePalKey",
-      "Type": "bool",
-      "VariableName": "wddm1FreeVirtualGpuMemVA",
-      "Description": "Whether VA of virtual gpu memory will be freed and returned to VAM at memory destroy time under wddm1."
-    },
-    {
       "Name": "ForceFixedFuncColorResolve",
       "Tags": [
         "General",
@@ -1223,41 +1210,6 @@
       "Type": "enum",
       "VariableName": "cmdBufOptimizePm4",
       "Description": "Controls fine-grained optimization of each command buffer's PM4 stream. Can improve performance of CP-bound applications that have CPU cycles to spare."
-    },
-    {
-      "ValidValues": {
-        "IsEnum": true,
-        "Values": [
-          {
-            "Name": "CmdBufForceCpuUpdatePathDefault",
-            "Value": 0,
-            "Description": "No override, use client's preference."
-          },
-          {
-            "Name": "CmdBufForceCpuUpdatePathOn",
-            "Value": 1,
-            "Description": "Force PAL to use the CPU update path for vertex buffer, stream-out and spill tables."
-          },
-          {
-            "Name": "CmdBufForceCpuUpdatePathOff",
-            "Value": 2,
-            "Description": "Force PAL to use the CE RAM path for vertex buffer, stream-out and spill tables."
-          }
-        ],
-        "Name": "CmdBufForceCpuUpdatePath",
-        "IsExclusive": true
-      },
-      "Name": "CmdBufForceCpuUpdatePath",
-      "Tags": [
-        "Command Buffer"
-      ],
-      "Defaults": {
-        "Default": "CmdBufForceCpuUpdatePathOn"
-      },
-      "Scope": "PrivatePalKey",
-      "Type": "enum",
-      "VariableName": "cmdBufForceCpuUpdatePath",
-      "Description": "Globally overrides the value of CmdBufferBuildFlags::useCpuPathForTableUpdates passed in by the client."
     },
     {
       "ValidValues": {

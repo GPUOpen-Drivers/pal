@@ -110,7 +110,9 @@ Result GpuMemoryPatchList::AddWidePatchEntry(
     bool             readOnly,
     uint32           chunkIdx,
     uint32           chunkOffsetLo,
-    uint32           chunkOffsetHi)
+    uint32           chunkOffsetHi,
+    gpusize          resourceSize,
+    PatchType        resourceType)
 {
     PAL_ASSERT((patchOpLo != GpuMemoryPatchOp::Count) && (patchOpHi != GpuMemoryPatchOp::Count));
 
@@ -124,6 +126,10 @@ Result GpuMemoryPatchList::AddWidePatchEntry(
     entry.chunkOffset            = chunkOffsetLo;
     entry.patchOp                = patchOpLo;
     entry.patchOpNum             = patchOpNumLo;
+#if PAL_BUILD_SMIBS
+    entry.resourceType           = resourceType;
+    entry.resourceDataSize       = resourceSize;
+#endif
 
     if (pGpuMem != nullptr)
     {

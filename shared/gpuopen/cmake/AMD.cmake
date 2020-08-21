@@ -50,10 +50,15 @@ if(CMAKE_SIZEOF_VOID_P EQUAL 8)
 elseif(CMAKE_SIZEOF_VOID_P EQUAL 4)
     set_property(GLOBAL PROPERTY AMD_TARGET_ARCH_BITS 32)
 else()
-    message(FATAL_ERROR
-        "Target CPU architecture ${CMAKE_SYSTEM_PROCESSOR} is not supported!
-         Adresses must be 4-byte or 8-byte wide, not ${CMAKE_SIZEOF_VOID_P}-byte wide."
-    )
+    if (DEFINED CMAKE_SIZEOF_VOID_P)
+        message(FATAL_ERROR
+            "Target CPU architecture ${CMAKE_SYSTEM_PROCESSOR} is not supported!
+             Adresses must be 4-byte or 8-byte wide, not ${CMAKE_SIZEOF_VOID_P}-byte wide."
+        )
+    else()
+        message(FATAL_ERROR
+            "Unable to set AMD_TARGET_ARCH_BITS for CPU architecture ${CMAKE_SYSTEM_PROCESSOR} because CMAKE_SIZEOF_VOID_P is not defined")
+    endif()
 endif()
 
 # Set the variable here for convenience. Only CMake "code" that directly

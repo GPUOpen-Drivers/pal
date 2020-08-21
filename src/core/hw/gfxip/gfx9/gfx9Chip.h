@@ -497,6 +497,9 @@ struct ComputeShaderSignature
     // shader-specific performance profiling. Zero indicates that the shader does not use this buffer.
     uint16  perfDataAddr;
 
+    // Hash of CS stage user-data mapping, used to speed up pipeline binds.
+    uint64  userDataHash;
+
     union
     {
         struct
@@ -570,6 +573,9 @@ enum class TexPerfModulation : uint32
     Default = 4,
     Max     = 7,
 };
+
+// This flag in COMPUTE_DISPATCH_INITIATOR tells the CP to not preempt mid-dispatch when CWSR is disabled.
+constexpr uint32 ComputeDispatchInitiatorDisablePartialPreemptMask = (1 << 17);
 
 } // Gfx9
 } // Pal

@@ -65,7 +65,6 @@ void SettingsLoader::SetupDefaults()
     m_settings.ifh = IfhModeDisabled;
     m_settings.idleAfterSubmitGpuMask = 0x0;
     m_settings.tossPointMode = TossPointNone;
-    m_settings.wddm1FreeVirtualGpuMemVA = false;
     m_settings.forceFixedFuncColorResolve = false;
     m_settings.unboundDescriptorAddress = 0xdeadbeefdeadbeef;
     m_settings.isLocalHeapPreferred = false;
@@ -128,7 +127,6 @@ void SettingsLoader::SetupDefaults()
     m_settings.cmdBufChunkEnableStagingBuffer = false;
     m_settings.cmdAllocatorFreeOnReset = false;
     m_settings.cmdBufOptimizePm4 = Pm4OptDefaultEnable;
-    m_settings.cmdBufForceCpuUpdatePath = CmdBufForceCpuUpdatePathOn;
     m_settings.cmdBufForceOneTimeSubmit = CmdBufForceOneTimeSubmitDefault;
     m_settings.cmdBufPreemptionMode = CmdBufPreemptModeEnable;
     m_settings.commandBufferForceCeRamDumpInPostamble = false;
@@ -219,11 +217,6 @@ void SettingsLoader::ReadSettings()
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pTossPointModeStr,
                            Util::ValueType::Uint,
                            &m_settings.tossPointMode,
-                           InternalSettingScope::PrivatePalKey);
-
-    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pWddm1FreeVirtualGpuMemVAStr,
-                           Util::ValueType::Boolean,
-                           &m_settings.wddm1FreeVirtualGpuMemVA,
                            InternalSettingScope::PrivatePalKey);
 
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pForceFixedFuncColorResolveStr,
@@ -460,11 +453,6 @@ void SettingsLoader::ReadSettings()
                            &m_settings.cmdBufOptimizePm4,
                            InternalSettingScope::PrivatePalKey);
 
-    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pCmdBufForceCpuUpdatePathStr,
-                           Util::ValueType::Uint,
-                           &m_settings.cmdBufForceCpuUpdatePath,
-                           InternalSettingScope::PrivatePalKey);
-
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pCmdBufForceOneTimeSubmitStr,
                            Util::ValueType::Uint,
                            &m_settings.cmdBufForceOneTimeSubmit,
@@ -686,11 +674,6 @@ void SettingsLoader::InitSettingsInfo()
     info.pValuePtr = &m_settings.tossPointMode;
     info.valueSize = sizeof(m_settings.tossPointMode);
     m_settingsInfoMap.Insert(440136999, info);
-
-    info.type      = SettingType::Boolean;
-    info.pValuePtr = &m_settings.wddm1FreeVirtualGpuMemVA;
-    info.valueSize = sizeof(m_settings.wddm1FreeVirtualGpuMemVA);
-    m_settingsInfoMap.Insert(1212684339, info);
 
     info.type      = SettingType::Boolean;
     info.pValuePtr = &m_settings.forceFixedFuncColorResolve;
@@ -925,11 +908,6 @@ void SettingsLoader::InitSettingsInfo()
     m_settingsInfoMap.Insert(1018895288, info);
 
     info.type      = SettingType::Uint;
-    info.pValuePtr = &m_settings.cmdBufForceCpuUpdatePath;
-    info.valueSize = sizeof(m_settings.cmdBufForceCpuUpdatePath);
-    m_settingsInfoMap.Insert(3282911281, info);
-
-    info.type      = SettingType::Uint;
     info.pValuePtr = &m_settings.cmdBufForceOneTimeSubmit;
     info.valueSize = sizeof(m_settings.cmdBufForceOneTimeSubmit);
     m_settingsInfoMap.Insert(909934676, info);
@@ -1090,7 +1068,7 @@ void SettingsLoader::DevDriverRegister()
             component.pfnSetValue = ISettingsLoader::SetValue;
             component.pSettingsData = &g_palJsonData[0];
             component.settingsDataSize = sizeof(g_palJsonData);
-            component.settingsDataHash = 1632084102;
+            component.settingsDataHash = 3655312250;
             component.settingsDataHeader.isEncoded = true;
             component.settingsDataHeader.magicBufferId = 402778310;
             component.settingsDataHeader.magicBufferOffset = 0;

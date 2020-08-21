@@ -218,6 +218,7 @@ void SettingsLoader::SetupDefaults()
     m_settings.gfx10MaxFpovsInWave = 0;
     m_settings.disableAceCsPartialFlush = true;
     m_settings.addrLibGbAddrConfigOverride = 0x0;
+
     m_settings.numSettings = g_gfx9PalNumSettings;
 }
 
@@ -2034,7 +2035,7 @@ void SettingsLoader::DevDriverRegister()
             component.pfnSetValue = ISettingsLoader::SetValue;
             component.pSettingsData = &g_gfx9PalJsonData[0];
             component.settingsDataSize = sizeof(g_gfx9PalJsonData);
-            component.settingsDataHash = 735254405;
+            component.settingsDataHash = 1807646493;
             component.settingsDataHeader.isEncoded = true;
             component.settingsDataHeader.magicBufferId = 402778310;
             component.settingsDataHeader.magicBufferOffset = 0;

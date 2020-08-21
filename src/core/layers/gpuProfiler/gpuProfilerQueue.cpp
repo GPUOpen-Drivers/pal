@@ -1062,7 +1062,7 @@ void Queue::ProcessIdleSubmits()
         m_pendingSubmits.PopFront(&submitInfo);
 
         // Output items from the log item queue that are now known to be idle.
-        OutputLogItemsToFile(submitInfo.logItemCount);
+        OutputLogItemsToFile(submitInfo.logItemCount, submitInfo.hasDrawOrDispatch);
 
         PAL_ASSERT((submitInfo.pCmdBufCount != nullptr) && (submitInfo.pNestedCmdBufCount != nullptr));
 
@@ -1118,6 +1118,29 @@ void Queue::AddLogItem(
 {
     m_logItems.PushBack(logItem);
     m_nextSubmitInfo.logItemCount++;
+
+    if ((logItem.type == CmdBufferCall) &&
+        (m_nextSubmitInfo.hasDrawOrDispatch == false))
+    {
+        switch (logItem.cmdBufCall.callId)
+        {
+        case CmdBufCallId::CmdDraw:
+        case CmdBufCallId::CmdDrawOpaque:
+        case CmdBufCallId::CmdDrawIndexed:
+        case CmdBufCallId::CmdDrawIndirectMulti:
+        case CmdBufCallId::CmdDrawIndexedIndirectMulti:
+        case CmdBufCallId::CmdDispatch:
+        case CmdBufCallId::CmdDispatchIndirect:
+        case CmdBufCallId::CmdDispatchOffset:
+        case CmdBufCallId::CmdExecuteIndirectCmds:
+        {
+            m_nextSubmitInfo.hasDrawOrDispatch = true;
+            break;
+        }
+        default:
+            break;
+        }
+    }
 }
 
 // =====================================================================================================================
@@ -1253,7 +1276,7 @@ Result Queue::BuildGpaSessionSampleConfig()
 
                 if (ringSizeInBytes == 0)
                 {
-                    switch (settings.gpuProfilerPerfCounterConfig.granularity)
+                    switch (settings.gpuProfilerConfig.granularity)
                     {
                     case GpuProfilerGranularityDraw:
                         ringSizeInBytes = 1024 * 1024; // 1 MB

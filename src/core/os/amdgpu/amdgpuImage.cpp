@@ -158,6 +158,25 @@ Result Image::CreatePresentableImage(
         PAL_ASSERT(createInfo.flags.stereo == 0);
 
         ImageInternalCreateInfo internalInfo = {};
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 597 && PAL_DISPLAY_DCC
+            if ((imgCreateInfo.usageFlags.disableOptimizedDisplay == 0) &&
+                (pDevice->SupportDisplayDcc() == true) &&
+                // VCAM_SURFACE_DESC does not support YUV presentable yet
+                (Formats::IsYuv(imgCreateInfo.swizzledFormat.format) == false))
+            {
+                DisplayDccCaps displayDcc = { };
+
+                pDevice->GetDisplayDccInfo(displayDcc);
+                PAL_ASSERT(displayDcc.dcc_256_128_128 ||
+                           displayDcc.dcc_128_128_unconstrained ||
+                           displayDcc.dcc_256_64_64);
+                if (displayDcc.pipeAligned == 0)
+                {
+                    internalInfo.displayDcc.value   = displayDcc.value;
+                    internalInfo.displayDcc.enabled = 1;
+                }
+            }
+#endif
 
         result = pDevice->CreateInternalImage(imgCreateInfo, internalInfo, pImagePlacementAddr, &pImage);
 
@@ -270,11 +289,16 @@ Result Image::CreatePresentableMemoryObject(
     createInfo.flags.flippable    = pImage->IsFlippable();
     createInfo.flags.stereo       = pImage->GetInternalCreateInfo().flags.stereo;
     createInfo.flags.peerWritable = presentableImageCreateInfo.flags.peerWritable;
-    if (presentableImageCreateInfo.pSwapChain)
-    {
-        createInfo.flags.tmzProtected =
-            static_cast<Pal::SwapChain*>(presentableImageCreateInfo.pSwapChain)->CreateInfo().flags.tmzProtected;
-    }
+
+    // If client creates presentable image without swapchain, TMZ state should be determined by PresentableImageCreateInfo.
+    const bool tmzEnable = (presentableImageCreateInfo.pSwapChain == nullptr) ?
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 620
+        presentableImageCreateInfo.flags.tmzProtected
+#else
+        false
+#endif
+        : static_cast<SwapChain*>(presentableImageCreateInfo.pSwapChain)->CreateInfo().flags.tmzProtected;
+
     createInfo.size               = memReqs.size;
     createInfo.alignment          = memReqs.alignment;
     createInfo.vaRange            = VaRange::Default;

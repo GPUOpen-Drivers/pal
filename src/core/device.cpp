@@ -2035,6 +2035,7 @@ Result Device::GetProperties(
         pInfo->pciProperties.flags.u32All                     = 0;
         pInfo->pciProperties.flags.gpuConnectedViaThunderbolt = m_chipProperties.gpuConnectedViaThunderbolt ? 1 : 0;
         pInfo->pciProperties.flags.gpuEmulatedInSoftware      = GetPlatform()->IsEmulationEnabled() ? 1 : 0;
+        pInfo->pciProperties.flags.gpuEmulatedInHardware      = IsHwEmulationEnabled() ? 1 : 0;
 
 #if PAL_BUILD_GFX
         pInfo->gfxipProperties.maxUserDataEntries = m_chipProperties.gfxip.maxUserDataEntries;
@@ -2334,9 +2335,9 @@ Result Device::AcquireRingSlot(
     UploadRingSlot* pSlotId)
 {
     Util::MutexAuto lock(&m_dmaUploadRingLock);
+
     PAL_ASSERT(m_pDmaUploadRing != nullptr);
-    Result result = m_pDmaUploadRing->AcquireRingSlot(pSlotId);
-    return result;
+    return m_pDmaUploadRing->AcquireRingSlot(pSlotId);
 }
 
 // =====================================================================================================================
@@ -2349,8 +2350,7 @@ size_t Device::UploadUsingEmbeddedData(
     void**          ppEmbeddedData)
 {
     PAL_ASSERT(m_pDmaUploadRing != nullptr);
-    size_t rst = m_pDmaUploadRing->UploadUsingEmbeddedData(slotId,pDst,dstOffset,bytes,ppEmbeddedData);
-    return rst;
+    return m_pDmaUploadRing->UploadUsingEmbeddedData(slotId,pDst,dstOffset,bytes,ppEmbeddedData);
 }
 
 // =====================================================================================================================
@@ -2358,11 +2358,13 @@ size_t Device::UploadUsingEmbeddedData(
 // pCompletionFence is used to track when GPU finishes the work of this command buffer.
 Result Device::SubmitDmaUploadRing(
     UploadRingSlot    slotId,
-    UploadFenceToken* pCompletionFence)
+    UploadFenceToken* pCompletionFence,
+    uint64            pagingFenceVal)
 {
     Util::MutexAuto lock(&m_dmaUploadRingLock);
-    Result result = m_pDmaUploadRing->Submit(slotId, pCompletionFence);
-    return result;
+
+    PAL_ASSERT(m_pDmaUploadRing != nullptr);
+    return m_pDmaUploadRing->Submit(slotId, pCompletionFence, pagingFenceVal);
 }
 
 // =====================================================================================================================
@@ -2372,9 +2374,9 @@ Result Device::WaitForPendingUpload(
     UploadFenceToken fenceValue)
 {
     Util::MutexAuto lock(&m_dmaUploadRingLock);
+
     PAL_ASSERT(m_pDmaUploadRing != nullptr);
-    Result result = m_pDmaUploadRing->WaitForPendingUpload(pWaiter, fenceValue);
-    return result;
+    return m_pDmaUploadRing->WaitForPendingUpload(pWaiter, fenceValue);
 }
 
 // =====================================================================================================================

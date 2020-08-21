@@ -46,6 +46,7 @@ const ComputePipelineSignature NullCsSignature =
     NoUserDataSpilling,         // Spill threshold
     0,                          // User-data entry limit
     UserDataNotMapped,          // Register address for performance data buffer
+    0,                          // User-data hash
     0,                          // Flags
 };
 static_assert(UserDataNotMapped == 0, "Unexpected value for indicating unmapped user-data entries!");
@@ -59,7 +60,8 @@ ComputePipeline::ComputePipeline(
     m_pDevice(pDevice),
     m_chunkCs(*pDevice,
               &m_stageInfo,
-              &m_perfDataInfo[static_cast<uint32>(Util::Abi::HardwareStage::Cs)])
+              &m_perfDataInfo[static_cast<uint32>(Util::Abi::HardwareStage::Cs)]),
+    m_disablePartialPreempt(false)
 {
     memcpy(&m_signature, &NullCsSignature, sizeof(m_signature));
 }
@@ -77,6 +79,10 @@ Result ComputePipeline::HwlInit(
     const CmdUtil&           cmdUtil   = m_pDevice->CmdUtil();
     const auto&              regInfo   = cmdUtil.GetRegInfo();
     const GpuChipProperties& chipProps = m_pDevice->Parent()->ChipProperties();
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 622
+    m_disablePartialPreempt = createInfo.disablePartialDispatchPreemption;
+#endif
 
     RegisterVector registers(m_pDevice->GetPlatform());
     Result result = pMetadataReader->Seek(metadata.pipeline.registers);
@@ -103,10 +109,10 @@ Result ComputePipeline::HwlInit(
         // Update the pipeline signature with user-mapping data contained in the ELF:
         m_chunkCs.SetupSignatureFromElf(&m_signature, metadata, registers);
 
-        const auto& csStageMetadata = metadata.pipeline.hardwareStage[static_cast<uint32>(Abi::HardwareStage::Cs)];
-        if (csStageMetadata.hasEntry.scratchMemorySize != 0)
+        const uint32 scratchMemorySize = CalcScratchMemSize(m_pDevice->Parent()->ChipProperties().gfxLevel, metadata);
+        if (scratchMemorySize != 0)
         {
-            UpdateRingSizes(csStageMetadata.scratchMemorySize);
+            UpdateRingSizes(scratchMemorySize);
         }
 
         const uint32 wavefrontSize = IsWave32() ? 32 : 64;
@@ -124,6 +130,7 @@ Result ComputePipeline::HwlInit(
                                                     &m_threadsPerTgX,
                                                     &m_threadsPerTgY,
                                                     &m_threadsPerTgZ,
+                                                    false,
                                                     &uploader);
         PAL_ASSERT(m_uploadFenceToken == 0);
         result = uploader.End(&m_uploadFenceToken);
@@ -212,6 +219,7 @@ Result ComputePipeline::LinkWithLibraries(
         // In case this shaderLibrary did not use internal dma queue to upload ELF, the UploadFenceToken
         // of the shaderLibrary is 0.
         m_uploadFenceToken = Max(m_uploadFenceToken, pLibObj->GetUploadFenceToken());
+        m_pagingFenceVal   = Max(m_pagingFenceVal,   pLibObj->GetPagingFenceVal());
 
         const LibraryHwInfo& libObjRegInfo = pLibObj->HwInfo();
 
@@ -262,7 +270,7 @@ Result ComputePipeline::LinkWithLibraries(
         if (stackSizeNeededInBytes > m_stackSizeInBytes)
         {
             m_stackSizeInBytes = stackSizeNeededInBytes;
-            UpdateRingSizes(stackSizeNeededInBytes);
+            UpdateRingSizes(stackSizeNeededInBytes / sizeof(uint32));
         }
     }
 
@@ -336,30 +344,45 @@ void ComputePipeline::SetStackSizeInBytes(
     uint32 stackSizeInBytes)
 {
     m_stackSizeInBytes = stackSizeInBytes;
-    UpdateRingSizes(stackSizeInBytes);
+    UpdateRingSizes(stackSizeInBytes / sizeof(uint32));
 }
 #endif
+
+// =====================================================================================================================
+uint32 ComputePipeline::CalcScratchMemSize(
+    GfxIpLevel                gfxIpLevel,
+    const CodeObjectMetadata& metadata)
+{
+    uint32 scratchMemorySize = 0;
+
+    const auto& csStageMetadata = metadata.pipeline.hardwareStage[static_cast<uint32>(Abi::HardwareStage::Cs)];
+    if (csStageMetadata.hasEntry.scratchMemorySize != 0)
+    {
+        scratchMemorySize = csStageMetadata.scratchMemorySize;
+    }
+
+    if (IsGfx10Plus(gfxIpLevel) &&
+        // If there is no metadata entry for wavefront size, we assume it is Wave64.
+        ((csStageMetadata.hasEntry.wavefrontSize == 0) || (csStageMetadata.wavefrontSize == 64)))
+    {
+        // We allocate scratch memory based on the minimum wave size for the chip, which for Gfx10+ ASICs will
+        // be Wave32. In order to appropriately size the scratch memory (reported in the ELF as per-thread) for
+        // a Wave64, we need to multiply by 2.
+        scratchMemorySize *= 2;
+    }
+
+    return scratchMemorySize / sizeof(uint32);
+}
 
 // =====================================================================================================================
 // Update the device that this compute pipeline has some new ring-size requirements.
 void ComputePipeline::UpdateRingSizes(
     uint32 scratchMemorySize)
 {
+    PAL_ASSERT(scratchMemorySize != 0);
+
     ShaderRingItemSizes ringSizes = { };
-
-    if (scratchMemorySize != 0)
-    {
-        if (IsGfx10Plus(m_pDevice->Parent()->ChipProperties().gfxLevel) && (IsWave32() == false))
-        {
-            // We allocate scratch memory based on the minimum wave size for the chip, which for Gfx10+ ASICs will
-            // be Wave32. In order to appropriately size the scratch memory (reported in the ELF as per-thread) for
-            // a Wave64, we need to multiply by 2.
-            scratchMemorySize *= 2;
-        }
-
-        ringSizes.itemSize[static_cast<size_t>(ShaderRingType::ComputeScratch)] =
-            (scratchMemorySize / sizeof(uint32));
-    }
+    ringSizes.itemSize[static_cast<size_t>(ShaderRingType::ComputeScratch)] = scratchMemorySize;
 
     // Inform the device that this pipeline has some new ring-size requirements.
     m_pDevice->UpdateLargestRingSizes(&ringSizes);

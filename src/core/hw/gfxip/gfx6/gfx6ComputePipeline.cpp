@@ -44,6 +44,7 @@ const ComputePipelineSignature NullCsSignature =
     UserDataNotMapped,          // Register address for numWorkGroups
     NoUserDataSpilling,         // Spill threshold
     0,                          // User-data entry limit
+    0,                          // User-data hash
 };
 static_assert(UserDataNotMapped == 0, "Unexpected value for indicating unmapped user-data entries!");
 
@@ -140,6 +141,11 @@ void ComputePipeline::SetupSignatureFromElf(
     {
         m_signature.userDataLimit = static_cast<uint16>(metadata.pipeline.userDataLimit);
     }
+    // Compute a hash of the regAddr array and spillTableRegAddr for the CS stage.
+    MetroHash64::Hash(
+        reinterpret_cast<const uint8*>(&m_signature.stage),
+        sizeof(UserDataEntryMap),
+        reinterpret_cast<uint8* const>(&m_signature.userDataHash));
 }
 
 // =====================================================================================================================

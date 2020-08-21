@@ -119,13 +119,13 @@ public:
     template <bool pm4OptImmediate>
     uint32* WriteSetVgtLsHsConfig(regVGT_LS_HS_CONFIG vgtLsHsConfig, uint32* pCmdSpace);
 
-    template <bool IgnoreDirtyFlags>
-    uint32* WriteUserDataEntriesToSgprsGfx(
+    template <bool IgnoreDirtyFlags, Pm4ShaderType shaderType>
+    uint32* WriteUserDataEntriesToSgprs(
         const UserDataEntryMap& entryMap,
         const UserDataEntries&  entries,
         uint32*                 pCmdSpace);
-    template <bool IgnoreDirtyFlags, bool Pm4OptImmediate>
-    uint32* WriteUserDataEntriesToSgprsGfx(
+    template <bool IgnoreDirtyFlags, Pm4ShaderType shaderType, bool Pm4OptImmediate>
+    uint32* WriteUserDataEntriesToSgprs(
         const UserDataEntryMap& entryMap,
         const UserDataEntries&  entries,
         uint32*                 pCmdSpace);

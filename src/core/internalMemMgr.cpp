@@ -273,6 +273,10 @@ Result InternalMemMgr::AllocateGpuMemNoAllocLock(
                     // If we found a free block, fill in the memory object pointer from the base allocation and
                     // stop searching
                     *ppGpuMemory = pPool->pGpuMemory;
+                    if (internalInfo.pPagingFence != nullptr)
+                    {
+                        *internalInfo.pPagingFence = pPool->pagingFenceVal;
+                    }
                     break;
                 }
             }
@@ -307,6 +311,10 @@ Result InternalMemMgr::AllocateGpuMemNoAllocLock(
                 newPool.heapCount  = localCreateInfo.heapCount;
                 newPool.vaRange    = localCreateInfo.vaRange;
                 newPool.mtype      = internalInfo.mtype;
+                if (internalInfo.pPagingFence != nullptr)
+                {
+                    newPool.pagingFenceVal = *internalInfo.pPagingFence;
+                }
 
                 for (uint32 h = 0; h < localCreateInfo.heapCount; ++h)
                 {

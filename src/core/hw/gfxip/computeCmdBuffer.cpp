@@ -213,17 +213,20 @@ void ComputeCmdBuffer::CmdBindPipeline(
 {
     PAL_ASSERT(params.pipelineBindPoint == PipelineBindPoint::Compute);
 
-    m_computeState.pipelineState.pPipeline  = static_cast<const Pipeline*>(params.pPipeline);
+    const Pipeline*const pPipeline = static_cast<const Pipeline*>(params.pPipeline);
+
+    m_computeState.pipelineState.pPipeline  = pPipeline;
     m_computeState.pipelineState.apiPsoHash = params.apiPsoHash;
     m_computeState.pipelineState.dirtyFlags.pipelineDirty = 1;
 
     m_computeState.dynamicCsInfo = params.cs;
 
-    m_device.DescribeBindPipeline(this, params.pPipeline, params.apiPsoHash, params.pipelineBindPoint);
-    if (m_computeState.pipelineState.pPipeline != nullptr)
+    m_device.DescribeBindPipeline(this, pPipeline, params.apiPsoHash, params.pipelineBindPoint);
+
+    if (pPipeline != nullptr)
     {
-        m_maxUploadFenceToken = Max(m_maxUploadFenceToken,
-                                    m_computeState.pipelineState.pPipeline->GetUploadFenceToken());
+        m_maxUploadFenceToken = Max(m_maxUploadFenceToken, pPipeline->GetUploadFenceToken());
+        m_lastPagingFence     = Max(m_lastPagingFence,     pPipeline->GetPagingFenceVal());
     }
 }
 

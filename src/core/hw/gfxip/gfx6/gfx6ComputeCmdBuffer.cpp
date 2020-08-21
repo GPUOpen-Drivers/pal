@@ -538,50 +538,85 @@ uint32* ComputeCmdBuffer::ValidateUserData(
     // fewer fast sgprs than the current pipeline.
     if (HasPipelineChanged)
     {
-        FixupUserSgprsOnPipelineSwitch(pPrevSignature);
+        pCmdSpace = FixupUserSgprsOnPipelineSwitch(pPrevSignature, pCmdSpace);
     }
 
-    pCmdSpace = WriteDirtyUserDataEntries(pCmdSpace);
+    pCmdSpace = m_cmdStream.WriteUserDataEntriesToSgprs<false, ShaderCompute>(m_pSignatureCs->stage,
+                                                                              m_computeState.csUserDataEntries,
+                                                                              pCmdSpace);
 
     const uint16 spillThreshold = m_pSignatureCs->spillThreshold;
     if (spillThreshold != NoUserDataSpilling)
     {
         const uint16 userDataLimit = m_pSignatureCs->userDataLimit;
-        PAL_ASSERT(userDataLimit > 0);
+        PAL_ASSERT(userDataLimit != 0);
+        const uint16 lastUserData = (userDataLimit - 1);
 
         // Step #2:
-        // The spill table will be marked dirty if the checks during step #2 above found that any dirty user-data falls
-        // within the spilled region for the active pipeline.  Also, if the pipeline is changing, it is possible that
-        // the region of the spill table which was relevant to that pipeline doesn't match the important region for the
-        // new pipeline.  In that case, the spill table contents must also be updated.
-        bool relocated = false;
-        if ((HasPipelineChanged && ((spillThreshold < pPrevSignature->spillThreshold) ||
-                                    (userDataLimit  > pPrevSignature->userDataLimit)))
-            || m_spillTableCs.dirty)
+        // Because the spill table is managed using CPU writes to embedded data, it must be fully re-uploaded for any
+        // Dispatch whenever *any* contents have changed.
+        bool reUpload = (m_spillTableCs.dirty != 0);
+        if (HasPipelineChanged &&
+            ((spillThreshold < pPrevSignature->spillThreshold) || (userDataLimit > pPrevSignature->userDataLimit)))
         {
-            const uint32 sizeInDwords = (userDataLimit - spillThreshold);
+            // If the pipeline is changing and the spilled region is expanding, we need to re-upload the table because
+            // we normally only update the portions useable by the bound pipeline to minimize memory usage.
+            reUpload = true;
+        }
+        else
+        {
+            // Otherwise, use the following loop to check if any of the spilled user-data entries are dirty.
+            const uint32 firstMaskId = (spillThreshold / UserDataEntriesPerMask);
+            const uint32 lastMaskId = (lastUserData / UserDataEntriesPerMask);
+            for (uint32 maskId = firstMaskId; maskId <= lastMaskId; ++maskId)
+            {
+                size_t dirtyMask = m_computeState.csUserDataEntries.dirty[maskId];
+                if (maskId == firstMaskId)
+                {
+                    // Ignore the dirty bits for any entries below the spill threshold.
+                    const uint32 firstEntryInMask = (spillThreshold & (UserDataEntriesPerMask - 1));
+                    dirtyMask &= ~BitfieldGenMask(static_cast<size_t>(firstEntryInMask));
+                }
+                if (maskId == lastMaskId)
+                {
+                    // Ignore the dirty bits for any entries beyond the user-data limit.
+                    const uint32 lastEntryInMask = (lastUserData & (UserDataEntriesPerMask - 1));
+                    dirtyMask &= BitfieldGenMask(static_cast<size_t>(lastEntryInMask + 1));
+                }
 
-            UpdateUserDataTableCpu(&m_spillTableCs,
-                                   sizeInDwords,
-                                   spillThreshold,
-                                   &m_computeState.csUserDataEntries.entries[0]);
-            relocated = true;
+                if (dirtyMask != 0)
+                {
+                    reUpload = true;
+                    break; // We only care if *any* spill table contents change!
+                }
+            } // for each wide-bitfield sub-mask
         }
 
         // Step #3:
-        // We need to re-write the spill table GPU address to its user-SGPR if:
-        // - the spill table was relocated during step #2, or
-        // - the pipeline was changed and the previous pipeline either didn't spill or used a different spill register.
-        if (relocated ||
-            (HasPipelineChanged &&
-             ((pPrevSignature->spillThreshold == NoUserDataSpilling) ||
-              (pPrevSignature->stage.spillTableRegAddr != m_pSignatureCs->stage.spillTableRegAddr))))
+        // Re-upload spill table contents if necessary, and write the new GPU virtual address to the user-SGPR(s).
+        if (reUpload)
         {
-            pCmdSpace = m_cmdStream.WriteSetOneShReg<ShaderCompute>(m_pSignatureCs->stage.spillTableRegAddr,
-                                                                    LowPart(m_spillTableCs.gpuVirtAddr),
-                                                                    pCmdSpace);
+            UpdateUserDataTableCpu(&m_spillTableCs,
+                                   (userDataLimit - spillThreshold),
+                                   spillThreshold,
+                                   &m_computeState.csUserDataEntries.entries[0]);
         }
-    } // if current pipeline uses the spill table
+
+        if (reUpload || HasPipelineChanged)
+        {
+            if (m_pSignatureCs->stage.spillTableRegAddr != UserDataNotMapped)
+            {
+                pCmdSpace = m_cmdStream.WriteSetOneShReg<ShaderCompute>(m_pSignatureCs->stage.spillTableRegAddr,
+                                                                        LowPart(m_spillTableCs.gpuVirtAddr),
+                                                                        pCmdSpace);
+            }
+        }
+    } // if current pipeline spills user-data
+
+    // All dirtied user-data entries have been written to user-SGPR's or to the spill table somewhere in this method,
+    // so it is safe to clear these bits.
+    memset(&m_computeState.csUserDataEntries.dirty[0], 0, sizeof(m_computeState.csUserDataEntries.dirty));
+    // if current pipeline spills user-data
 
     return pCmdSpace;
 }
@@ -674,122 +709,25 @@ uint32* ComputeCmdBuffer::ValidateDispatch(
 // =====================================================================================================================
 // Helper function responsible for handling user-SGPR updates during Dispatch-time validation when the active pipeline
 // has changed since the previous Dispathc operation.  It is expected that this will be called only when the pipeline
-// is changing and immediately before a call to WriteDirtyUserDataEntries().
-void ComputeCmdBuffer::FixupUserSgprsOnPipelineSwitch(
-    const ComputePipelineSignature* pPrevSignature)
+// is changing and immediately before a call to WriteUserDataEntriesToSgprs<false, ..>().
+uint32* ComputeCmdBuffer::FixupUserSgprsOnPipelineSwitch(
+    const ComputePipelineSignature* pPrevSignature,
+    uint32*                         pCmdSpace)
 {
-    // As in WriteDirtyUserDataEntries, we assume that all fast user data fit in a single dirty bitfield.
-    static_assert(NumUserDataRegisters <= UserDataEntriesPerMask,
-                  "The CS user-data entries mapped to user-SGPR's spans multiple wide-bitfield elements!");
+    PAL_ASSERT(pPrevSignature != nullptr);
 
-    const size_t prevFastUserData = pPrevSignature->stage.userSgprCount;
-    const size_t nextFastUserData = m_pSignatureCs->stage.userSgprCount;
+    // The WriteUserDataEntriesToSgprs() method only writes entries which are mapped to user-SGPR's and have
+    // been marked dirty.  When the active pipeline is changing, the set of entries mapped to user-SGPR's can change
+    // and which entries are mapped to which registers can also change. The simplest way to handle this is to write
+    // all mapped user-SGPR's whose mappings are changing.  If mappings are not changing it will be handled through
+    // the normal "pipeline not changing" path.
 
-    if (prevFastUserData < nextFastUserData)
+    if (m_pSignatureCs->userDataHash != pPrevSignature->userDataHash)
     {
-        // Compute the mask of all dirty bits from the end of the previous fast user data range to the end of the
-        // next fast user data range. This is required to handle these cases:
-        // 1. If the next spillThreshold is higher we need to migrate user data from the table to sgprs.
-        // 2. We only write fast user data up to the userDataLimit. If the client bound user data for the next pipeline
-        //    (higher limit) before binding the previous pipeline (lower limit) we wouldn't have written it out.
-        //
-        // This could be wasteful if the client binds a common set of user data and frequently switches between
-        // pipelines with different user data limits. We probably can't avoid that overhead without rewriting
-        // our compute user data management.
-        const size_t rewriteMask = BitfieldGenMask(nextFastUserData) & ~BitfieldGenMask(prevFastUserData);
-
-        m_computeState.csUserDataEntries.dirty[0] |= rewriteMask;
+        pCmdSpace = m_cmdStream.WriteUserDataEntriesToSgprs<true, ShaderCompute>(m_pSignatureCs->stage,
+                                                                                 m_computeState.csUserDataEntries,
+                                                                                 pCmdSpace);
     }
-}
-
-// =====================================================================================================================
-// Helper function responsible for writing all dirty user-data entries to their respective user-SGPR's.  Also checks if
-// any dirty user-data entries fall into the spill-table region and marks the spill table dirty accordingly.
-uint32* ComputeCmdBuffer::WriteDirtyUserDataEntries(
-    uint32* pCmdSpace)
-{
-    // Compute pipelines all use a fixed user-data mapping of entries to user-SGPR's, because compute command buffers
-    // are not able to use LOAD_SH_REG packets, which are used for inheriting user-data entries in a nested command
-    // buffer.  The only way to correctly handle user-data inheritance is by using a fixed mapping.  This has the side
-    // effect of allowing us to know that only the first few entries ever need to be written to user-SGPR's, which lets
-    // us get away with only checking the first sub-mask of the user-data entries' wide-bitfield of dirty flags.
-    static_assert(NumUserDataRegisters <= UserDataEntriesPerMask,
-                  "The CS user-data entries mapped to user-SGPR's spans multiple wide-bitfield elements!");
-
-    const size_t numFastUserDataEntries  = m_pSignatureCs->stage.userSgprCount;
-    const size_t fastUserDataEntriesMask = BitfieldGenMask(numFastUserDataEntries);
-    const size_t userSgprDirtyMask       = (m_computeState.csUserDataEntries.dirty[0] & fastUserDataEntriesMask);
-
-    // Additionally, dirty compute user-data is always written to user-SGPR's if it could be mapped by a pipeline,
-    // which lets us avoid any complex logic when switching pipelines.
-    constexpr uint32 BaseUserSgpr = FirstUserDataRegAddr[static_cast<uint32>(HwShaderStage::Cs)];
-
-    uint32 lastEntry = 0;
-    uint32 count     = 0;
-    for (uint32 e = 0; e < numFastUserDataEntries; ++e)
-    {
-        while ((e < numFastUserDataEntries) && ((userSgprDirtyMask & (static_cast<size_t>(1) << e)) != 0))
-        {
-            PAL_ASSERT((lastEntry == 0) || (lastEntry == (e - 1)));
-            lastEntry = e;
-            ++count;
-            ++e;
-        }
-
-        if (count > 0)
-        {
-            const uint32 firstEntry = (lastEntry - count + 1);
-            pCmdSpace = m_cmdStream.WriteSetSeqShRegs((BaseUserSgpr + firstEntry),
-                                                      (BaseUserSgpr + lastEntry),
-                                                      ShaderCompute,
-                                                      &m_computeState.csUserDataEntries.entries[firstEntry],
-                                                      pCmdSpace);
-
-            // Reset accumulators for the next packet.
-            lastEntry = 0;
-            count     = 0;
-        }
-    }
-
-    // If the currently active pipeline spills any entries to GPU memory, we need to check if any of the dirty
-    // user-data entries fall within the spilled region for the current pipeline.
-    if (m_pSignatureCs->spillThreshold != NoUserDataSpilling)
-    {
-        PAL_ASSERT(m_pSignatureCs->userDataLimit != 0);
-
-        // Since the spill table is managed by the CPU in embedded memory, it needs to be fully "re-uploaded" for
-        // each Dispatch whenever any contents change.  Therefore, the following loop just needs to check the
-        // relevant dirty flags and mark the spill table dirty if any were set.
-        const uint32 firstMaskId = (m_pSignatureCs->spillThreshold / UserDataEntriesPerMask);
-        const uint32 lastMaskId  = ((m_pSignatureCs->userDataLimit - 1) / UserDataEntriesPerMask);
-        for (uint32 maskId = firstMaskId; maskId <= lastMaskId; ++maskId)
-        {
-            size_t dirtyMask = m_computeState.csUserDataEntries.dirty[maskId];
-            if (maskId == firstMaskId)
-            {
-                // Ignore the dirty bits for any entries below the spill threshold.
-                const uint32 firstEntryInMask = (m_pSignatureCs->spillThreshold & (UserDataEntriesPerMask - 1));
-                dirtyMask &= ~BitfieldGenMask(static_cast<size_t>(firstEntryInMask));
-            }
-            if (maskId == lastMaskId)
-            {
-                // Ignore the dirty bits for any entries beyond the user-data limit.
-                const uint32 lastEntryInMask = ((m_pSignatureCs->userDataLimit - 1) & (UserDataEntriesPerMask - 1));
-                dirtyMask &= BitfieldGenMask(static_cast<size_t>(lastEntryInMask + 1));
-            }
-
-            if (dirtyMask != 0)
-            {
-                m_spillTableCs.dirty = 1;
-                m_computeState.csUserDataEntries.dirty[maskId] &= ~dirtyMask;
-            }
-        } // for each wide-bitfield sub-mask
-    } // if current pipeline spills user-data
-
-    // Clear all dirty bits for user-data entries which were written to user-SGPR's.  These are cleared last because
-    // some entries may be simultaneously spilled to GPU memory and mapped to a user-SGPR.
-    m_computeState.csUserDataEntries.dirty[0] &= ~fastUserDataEntriesMask;
-
     return pCmdSpace;
 }
 
@@ -1131,20 +1069,21 @@ void ComputeCmdBuffer::CmdExecuteIndirectCmds(
 }
 
 // =====================================================================================================================
-CmdStreamChunk* ComputeCmdBuffer::GetChunkForCmdGeneration(
+void ComputeCmdBuffer::GetChunkForCmdGeneration(
     const Pal::IndirectCmdGenerator& generator,
     const Pal::Pipeline&             pipeline,
     uint32                           maxCommands,
-    uint32*                          pCommandsInChunk, // Out: How many commands can safely fit into the command chunk
-    gpusize*                         pEmbeddedDataAddr,
-    uint32*                          pEmbeddedDataSize)
+    uint32                           numChunkOutputs,
+    ChunkOutput*                     pChunkOutputs)
 {
     const GeneratorProperties&      properties = generator.Properties();
     const ComputePipelineSignature& signature  = static_cast<const ComputePipeline&>(pipeline).Signature();
 
     PAL_ASSERT(m_pCmdAllocator != nullptr);
+    PAL_ASSERT(numChunkOutputs == 1);
 
-    CmdStreamChunk*const pChunk = Pal::GfxCmdBuffer::GetNextGeneratedChunk();
+    CmdStreamChunk* const pChunk = Pal::GfxCmdBuffer::GetNextGeneratedChunk();
+    pChunkOutputs->pChunk = pChunk;
 
     // NOTE: RPM uses a compute shader to generate indirect commands, so we need to use the saved user-data state
     // because RPM will have pushed its own state before calling this method.
@@ -1172,8 +1111,11 @@ CmdStreamChunk* ComputeCmdBuffer::GetChunkForCmdGeneration(
 
     // Ask the DE command stream to make sure the command chunk is ready to receive GPU-generated commands (this
     // includes setting up padding for size alignment, allocating command space, etc.
-    (*pCommandsInChunk)  = m_cmdStream.PrepareChunkForCmdGeneration(pChunk, commandDwords, embeddedDwords, maxCommands);
-    (*pEmbeddedDataSize) = ((*pCommandsInChunk) * embeddedDwords);
+    (pChunkOutputs->commandsInChunk)  = m_cmdStream.PrepareChunkForCmdGeneration(pChunk,
+                                                                                 commandDwords,
+                                                                                 embeddedDwords,
+                                                                                 maxCommands);
+    (pChunkOutputs->embeddedDataSize) = ((pChunkOutputs->commandsInChunk) * embeddedDwords);
 
     if (spillDwords > 0)
     {
@@ -1181,18 +1123,17 @@ CmdStreamChunk* ComputeCmdBuffer::GetChunkForCmdGeneration(
         // space for all of the generated commands which will go into this chunk. PrepareChunkForCmdGeneration() should
         // have determined a value for commandsInChunk which allows us to allocate the appropriate amount of embeded
         // data space.
-        uint32* pDataSpace = pChunk->ValidateCmdGenerationDataSpace((*pEmbeddedDataSize), pEmbeddedDataAddr);
+        uint32* pDataSpace = pChunk->ValidateCmdGenerationDataSpace(pChunkOutputs->embeddedDataSize,
+                                                                    &(pChunkOutputs->embeddedDataAddr));
 
         // We also need to seed the embedded data for each generated command with the current indirect user-data table
         // and spill-table contents, because the generator will only update the table entries which get modified.
-        for (uint32 cmd = 0; cmd < (*pCommandsInChunk); ++cmd)
+        for (uint32 cmd = 0; cmd < (pChunkOutputs->commandsInChunk); ++cmd)
         {
             memcpy(pDataSpace, pUserDataEntries, (sizeof(uint32) * spillDwords));
             pDataSpace += spillDwords;
         }
     }
-
-    return pChunk;
 }
 
 // =====================================================================================================================

@@ -153,9 +153,9 @@ public:
         VaPartition          vaPartition,
         gpusize              vaStart);
 
+    ~VamMgrSingleton();
 private:
     VamMgrSingleton();
-    ~VamMgrSingleton();
 
     typedef Util::HashMap<
         amdgpu_device_handle,

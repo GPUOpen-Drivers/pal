@@ -384,11 +384,10 @@ Device::Device(
     m_semType(SemaphoreType::Legacy),
     m_fenceType(FenceType::Legacy),
 #if defined(PAL_DEBUG_PRINTS)
-    m_drmProcs(constructorParams.pPlatform->GetDrmLoader().GetProcsTableProxy()),
+    m_drmProcs(constructorParams.pPlatform->GetDrmLoader().GetProcsTableProxy())
 #else
-    m_drmProcs(constructorParams.pPlatform->GetDrmLoader().GetProcsTable()),
+    m_drmProcs(constructorParams.pPlatform->GetDrmLoader().GetProcsTable())
 #endif
-    m_attachedToVamMgrSingleton(false)
 {
     Util::Strncpy(m_busId, constructorParams.pBusId, MaxBusIdStringLen);
     Util::Strncpy(m_renderNodeName, constructorParams.pRenderNode, MaxNodeNameLen);
@@ -419,10 +418,9 @@ Device::~Device()
     {
         m_drmProcs.pfnAmdgpuCsUnreservedVmid(m_hDevice);
     }
-    if (m_attachedToVamMgrSingleton)
-    {
-        VamMgrSingleton::Cleanup(this);
-    }
+
+    VamMgrSingleton::Cleanup(this);
+
     if (m_hDevice != nullptr)
     {
         m_drmProcs.pfnAmdgpuDeviceDeinitialize(m_hDevice);
@@ -462,10 +460,8 @@ Result Device::Cleanup()
 
     // Note: Pal::Device::Cleanup() uses m_memoryProperties.vaRanges to find VAM sections for memory release.
     // If ranges aren't provided, then VAM silently leaks virtual addresses.
-    if (m_attachedToVamMgrSingleton)
-    {
-        VamMgrSingleton::FreeReservedVaRange(GetPlatform()->GetDrmLoader().GetProcsTable(), m_hDevice);
-    }
+    VamMgrSingleton::FreeReservedVaRange(GetPlatform()->GetDrmLoader().GetProcsTable(), m_hDevice);
+
     memset(&m_memoryProperties.vaRange, 0, sizeof(m_memoryProperties.vaRange));
     return result;
 }
@@ -931,13 +927,7 @@ Result Device::InitGpuProperties()
 
     if (result == Result::Success)
     {
-        if (m_gpuInfo.ce_ram_size != 0)
-        {
-            PAL_ASSERT(m_gpuInfo.ce_ram_size >= m_engineProperties.perEngine[EngineTypeUniversal].reservedCeRamSize);
-
-            m_engineProperties.perEngine[EngineTypeUniversal].availableCeRamSize =
-                (m_gpuInfo.ce_ram_size - m_engineProperties.perEngine[EngineTypeUniversal].reservedCeRamSize);
-        }
+        m_engineProperties.perEngine[EngineTypeUniversal].availableCeRamSize = m_gpuInfo.ce_ram_size;
 
         InitPerformanceRatings();
         InitMemoryHeapProperties();
@@ -1148,6 +1138,12 @@ void Device::InitGfx9ChipProperties()
         m_chipProperties.imageProperties.prtFeatures = static_cast<PrtFeatureFlags>(0);
     }
 
+    if (((m_chipProperties.imageProperties.flags.supportDisplayDcc == 1) &&
+        (IsDrmVersionOrGreater(3, 34) == false))
+        )
+    {
+        m_chipProperties.imageProperties.flags.supportDisplayDcc = 0;
+    }
     pChipInfo->gbAddrConfig = m_gpuInfo.gb_addr_cfg;
 
     if (m_drmProcs.pfnAmdgpuQueryInfo(m_hDevice, AMDGPU_INFO_DEV_INFO, sizeof(deviceInfo), &deviceInfo) == 0)
@@ -1292,7 +1288,7 @@ static LocalMemoryType TranslateMemoryType(
     case AMDGPU_VRAM_TYPE_UNKNOWN:
         {
             // Unknown  memory type
-            PAL_ASSERT_ALWAYS();
+            PAL_ALERT_ALWAYS();
             break;
         }
 
@@ -1456,8 +1452,6 @@ Result Device::InitMemInfo()
         if (result == Result::Success)
         {
             result = VamMgrSingleton::InitVaRangesAndFinalizeVam(this);
-
-            m_attachedToVamMgrSingleton = (result == Result::Success) ? true : false;
         }
 
         if (result == Result::Success)
@@ -1984,6 +1978,23 @@ Result Device::CreateInternalImage(
     }
 
     return result;
+}
+
+// =====================================================================================================================
+//Get Display Dcc Info
+void Device::GetDisplayDccInfo(DisplayDccCaps& displayDcc) const
+{
+    PAL_ASSERT(ChipProperties().imageProperties.flags.supportDisplayDcc == 1);
+    if (m_gpuInfo.rb_pipes == 1)
+    {
+        displayDcc.pipeAligned = 1;
+        displayDcc.rbAligned   = 1;
+    }
+    else
+    {
+        displayDcc.pipeAligned = 0;
+        displayDcc.rbAligned   = 0;
+    }
 }
 
 // =====================================================================================================================
@@ -3393,7 +3404,10 @@ void Device::UpdateMetaData(
         AMDGPU_SWIZZLE_MODE curSwizzleMode   =
             static_cast<AMDGPU_SWIZZLE_MODE>(image.GetGfxImage()->GetSwTileMode(pSubResInfo));
 
-        metadata.swizzle_info   = curSwizzleMode;
+        // in order to sharing resource metadata with Mesa3D, the definition have to follow Mesa's way.
+        // the swizzle_info is used in Mesa to indicate whether the surface is displyable.
+        metadata.swizzle_info   = curSwizzleMode | AMDGPU_TILING_SET(SCANOUT, 1);
+
         metadata.size_metadata  = PRO_UMD_METADATA_SIZE;
 
         memset(&metadata.umd_metadata[0], 0, PRO_UMD_METADATA_OFFSET_DWORD * sizeof(metadata.umd_metadata[0]));
@@ -3407,6 +3421,17 @@ void Device::UpdateMetaData(
         pUmdMetaData->pipeBankXor  = pTileInfo->pipeBankXor;
         pUmdMetaData->swizzleMode  = curSwizzleMode;
         pUmdMetaData->resourceType = static_cast<AMDGPU_ADDR_RESOURCE_TYPE>(imageCreateInfo.imageType);
+
+        if (image.GetGfxImage()->HasDisplayDccData())
+        {
+            DisplayDccState dccState = {};
+            image.GetGfxImage()->GetDisplayDccState(&dccState);
+            metadata.tiling_info = 0;
+            metadata.tiling_info |= AMDGPU_TILING_SET(SWIZZLE_MODE, curSwizzleMode);
+            metadata.tiling_info |= AMDGPU_TILING_SET(DCC_OFFSET_256B, Get256BAddrLo(dccState.primaryOffset));
+            metadata.tiling_info |= AMDGPU_TILING_SET(DCC_PITCH_MAX, (dccState.pitch - 1));
+            metadata.tiling_info |= AMDGPU_TILING_SET(DCC_INDEPENDENT_64B, dccState.independentBlk64B);
+        }
     }
     else
     {

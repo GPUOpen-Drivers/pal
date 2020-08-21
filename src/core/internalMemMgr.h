@@ -53,6 +53,7 @@ struct GpuMemoryPool
     GpuHeap                         heaps[GpuHeapCount];    // Heap preference array
     VaRange                         vaRange;                // Virtual address range
     MType                           mtype;                  // The mtype of the GPU memory object.
+    uint64                          pagingFenceVal;         // Paging fence value
 
     Util::BuddyAllocator<Platform>* pBuddyAllocator;        // Buddy allocator used for the suballocation
 };

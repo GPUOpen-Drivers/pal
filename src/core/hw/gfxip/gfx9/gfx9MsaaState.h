@@ -63,7 +63,6 @@ public:
 
     uint32 NumSamples() const { return (1 << m_log2Samples); }
     uint32 Log2NumSamples() const { return m_log2Samples; }
-    uint32 NumPixelShaderSamples() const { return m_pixelShaderSamples; }
     uint32 Log2OcclusionQuerySamples() const { return m_log2OcclusionQuerySamples; }
 
     regPA_SC_CONSERVATIVE_RASTERIZATION_CNTL PaScConsRastCntl() const { return m_regs.paScConsRastCntl; }
@@ -79,8 +78,6 @@ protected:
     void Init(const Device& device, const MsaaStateCreateInfo& msaaState);
 
     uint32             m_log2Samples;
-    uint32             m_sampleMask;
-    uint32             m_pixelShaderSamples;
     uint32             m_log2OcclusionQuerySamples;
     regPA_SC_AA_CONFIG m_paScAaConfig; // This register is only written in the draw-time validation code.
 

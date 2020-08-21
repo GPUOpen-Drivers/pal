@@ -232,6 +232,14 @@ struct ComputePipelineCreateInfo
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 580
     uint32                            maxFunctionCallDepth; ///< Maximum depth for indirect function calls
 #endif
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 622
+    bool disablePartialDispatchPreemption; ///< Prevents scenarios where a subset of the dispatched thread groups are
+                                           ///  preempted and the remaining thread groups run to completion. This
+                                           ///  can occur when thread group granularity preemption is available and
+                                           ///  instruction level (CWSR) is not. This setting is useful for allowing
+                                           ///  dispatches with interdependent thread groups.
+#endif
 };
 
 /// Specifies properties for creation of a graphics @ref IPipeline object.  Input structure to

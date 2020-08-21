@@ -177,17 +177,15 @@ struct PipelineMetadata
             uint32 nggSubgroupSize                : 1;
             uint32 numInterpolants                : 1;
             uint32 placeholder2                   : 1;
-            uint32 placeholder3                   : 1;
-            uint32 placeholder4                   : 1;
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 619
             uint32 calcWaveBreakSizeAtDrawTime    : 1;
 #else
-            uint32 placeholder5                   : 1;
+            uint32 placeholder3                   : 1;
 #endif
-            uint32 placeholder6                   : 1;
+            uint32 placeholder4                   : 1;
             uint32 api                            : 1;
             uint32 apiCreateInfo                  : 1;
-            uint32 reserved                       : 12;
+            uint32 reserved                       : 14;
         };
         uint32 uAll;
     } hasEntry;

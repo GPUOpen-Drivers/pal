@@ -873,6 +873,7 @@ void RsrcProcMgr::CopyDepthStencilImageGraphics(
     // Save current command buffer state and bind graphics state which is common for all regions.
     pCmdBuffer->PushGraphicsState();
     BindCommonGraphicsState(pCmdBuffer);
+    pCmdBuffer->CmdBindMsaaState(GetMsaaState(dstCreateInfo.samples, dstCreateInfo.fragments));
     pCmdBuffer->CmdSetStencilRefMasks(stencilRefMasks);
 
     RpmUtil::WriteVsZOut(pCmdBuffer, 1.0f);
@@ -913,6 +914,22 @@ void RsrcProcMgr::CopyDepthStencilImageGraphics(
     pCmdBuffer->CmdSetViewports(viewportInfo);
     pCmdBuffer->CmdSetScissorRects(scissorInfo);
     pCmdBuffer->CmdSetUserData(PipelineBindPoint::Graphics, 2, 2, userData);
+
+    // To improve performance, for non-msaa depth stencil copy case.
+    // Input src coordinates to VS, avoid using screen position in PS.
+    if (srcImage.GetImageCreateInfo().samples == 1)
+    {
+        const float texcoordVs[4] =
+        {
+            static_cast<float>(pRegions[0].srcOffset.x),
+            static_cast<float>(pRegions[0].srcOffset.y),
+            static_cast<float>(pRegions[0].srcOffset.x + pRegions[0].extent.width),
+            static_cast<float>(pRegions[0].srcOffset.y + pRegions[0].extent.height)
+        };
+
+        const uint32* pUserDataVs = reinterpret_cast<const uint32*>(&texcoordVs);
+        pCmdBuffer->CmdSetUserData(PipelineBindPoint::Graphics, 6, 4, pUserDataVs);
+    }
 
     AutoBuffer<bool, 16, Platform> isRangeProcessed(regionCount, m_pDevice->GetPlatform());
     PAL_ASSERT(isRangeProcessed.Capacity() >= regionCount);
@@ -2221,7 +2238,8 @@ bool RsrcProcMgr::ScaledCopyImageUseGraphics(
     const bool p2pBltWa     = m_pDevice->Parent()->ChipProperties().p2pBltWaInfo.required &&
                               pDstImage->GetBoundGpuMemory().Memory()->AccessesPeerMemory();
 
-    bool preferGraphicsCopy = Image::PreferGraphicsCopy;
+    const bool preferGraphicsCopy = Image::PreferGraphicsCopy &&
+                                    (PreferComputeForNonLocalDestCopy(*pDstImage) == false);
 
     // We need to decide between the graphics copy path and the compute copy path. The graphics path only supports
     // single-sampled non-compressed, non-YUV 2D or 2D color images for now.
@@ -2703,8 +2721,6 @@ void RsrcProcMgr::ScaledCopyImageGraphics(
         pCmdBuffer->CmdBindColorBlendState(m_pBlendDisableState);
     }
 
-    RpmUtil::WriteVsZOut(pCmdBuffer, 1.0f);
-
     // Keep track of the previous graphics pipeline to reduce the pipeline switching overhead.
     const GraphicsPipeline* pPreviousPipeline = nullptr;
 
@@ -2849,6 +2865,11 @@ void RsrcProcMgr::ScaledCopyImageGraphics(
             float srcRight  = 0;
             float srcBottom = 0;
 
+            float dstLeft   = 0;
+            float dstTop    = 0;
+            float dstRight  = 0;
+            float dstBottom = 0;
+
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 607
             if (copyInfo.flags.coordsInFloat != 0)
             {
@@ -2856,6 +2877,11 @@ void RsrcProcMgr::ScaledCopyImageGraphics(
                 srcTop    = copyRegion.srcOffsetFloat.y / srcExtent.height;
                 srcRight  = (copyRegion.srcOffsetFloat.x + copyRegion.srcExtentFloat.width) / srcExtent.width;
                 srcBottom = (copyRegion.srcOffsetFloat.y + copyRegion.srcExtentFloat.height) / srcExtent.height;
+
+                dstLeft   = copyRegion.dstOffsetFloat.x;
+                dstTop    = copyRegion.dstOffsetFloat.y;
+                dstRight  = copyRegion.dstOffsetFloat.x + copyRegion.dstExtentFloat.width;
+                dstBottom = copyRegion.dstOffsetFloat.y + copyRegion.dstExtentFloat.height;
             }
             else
 #endif
@@ -2864,6 +2890,11 @@ void RsrcProcMgr::ScaledCopyImageGraphics(
                 srcTop    = (1.f * copyRegion.srcOffset.y) / srcExtent.height;
                 srcRight  = (1.f * (copyRegion.srcOffset.x + copyRegion.srcExtent.width)) / srcExtent.width;
                 srcBottom = (1.f * (copyRegion.srcOffset.y + copyRegion.srcExtent.height)) / srcExtent.height;
+
+                dstLeft   = 1.f * copyRegion.dstOffset.x;
+                dstTop    = 1.f * copyRegion.dstOffset.y;
+                dstRight  = 1.f * (copyRegion.dstOffset.x + copyRegion.dstExtent.width);
+                dstBottom = 1.f * (copyRegion.dstOffset.y + copyRegion.dstExtent.height);
             }
 
             PAL_ASSERT((srcLeft   >= 0.0f)   && (srcLeft   <= 1.0f) &&
@@ -2885,6 +2916,14 @@ void RsrcProcMgr::ScaledCopyImageGraphics(
 
             const uint32 rotationIndex = static_cast<const uint32>(copyInfo.rotation);
 
+            const uint32 texcoordVs[4] =
+            {
+                reinterpret_cast<const uint32&>(dstLeft),
+                reinterpret_cast<const uint32&>(dstTop),
+                reinterpret_cast<const uint32&>(dstRight),
+                reinterpret_cast<const uint32&>(dstBottom),
+            };
+
             const uint32 userData[10] =
             {
                 reinterpret_cast<const uint32&>(srcLeft),
@@ -2901,11 +2940,12 @@ void RsrcProcMgr::ScaledCopyImageGraphics(
 
             if (isTex3d == true)
             {
-                pCmdBuffer->CmdSetUserData(PipelineBindPoint::Graphics, 2, 4, &userData[0]);
+                pCmdBuffer->CmdSetUserData(PipelineBindPoint::Graphics, 1, 4, &userData[0]);
             }
             else
             {
-                pCmdBuffer->CmdSetUserData(PipelineBindPoint::Graphics, 2, 10, &userData[0]);
+                pCmdBuffer->CmdSetUserData(PipelineBindPoint::Graphics, 1, 4, &texcoordVs[0]);
+                pCmdBuffer->CmdSetUserData(PipelineBindPoint::Graphics, 5, 10, &userData[0]);
             }
         }
 
@@ -2968,7 +3008,7 @@ void RsrcProcMgr::ScaledCopyImageGraphics(
             colorKey[3],
         };
 
-        // Create an embedded SRD table and bind it to user data 1. We need image views and
+        // Create an embedded SRD table and bind it to user data 0. We need image views and
         // a sampler for the src and dest subresource, as well as some inline constants for src and dest
         // color key for 2d texture copy. Only need image view and a sampler for the src subresource
         // as not support color key for 3d texture copy.
@@ -2978,7 +3018,7 @@ void RsrcProcMgr::ScaledCopyImageGraphics(
                                                                    sizeInDwords,
                                                                    SrdDwordAlignment(),
                                                                    PipelineBindPoint::Graphics,
-                                                                   1);
+                                                                   0);
         // Follow up the compute path of scaled copy that SRGB can be treated as UNORM
         // when copying from SRGB -> XX.
         if (copyInfo.flags.srcSrgbAsUnorm)
@@ -3123,11 +3163,11 @@ void RsrcProcMgr::ScaledCopyImageGraphics(
 
             if (isTex3d == true)
             {
-                pCmdBuffer->CmdSetUserData(PipelineBindPoint::Graphics, 6, 1, &userData[0]);
+                pCmdBuffer->CmdSetUserData(PipelineBindPoint::Graphics, 5, 1, &userData[0]);
             }
             else
             {
-                pCmdBuffer->CmdSetUserData(PipelineBindPoint::Graphics, 12, 1, &userData[0]);
+                pCmdBuffer->CmdSetUserData(PipelineBindPoint::Graphics, 15, 1, &userData[0]);
             }
 
             colorViewInfo.imageInfo.baseSubRes = copyRegion.dstSubres;
@@ -5555,7 +5595,7 @@ void RsrcProcMgr::CmdGenerateIndirectCmds(
 
     // The generation pipelines expect the descriptor table's GPU address to be written to user-data #0-1.
     gpusize tableGpuAddr = 0uLL;
-    uint32* pTableMem = pCmdBuffer->CmdAllocateEmbeddedData(((6 * SrdDwords) + 3), 1, &tableGpuAddr);
+    uint32* pTableMem = pCmdBuffer->CmdAllocateEmbeddedData(((6 * SrdDwords) + 4), 1, &tableGpuAddr);
     PAL_ASSERT(pTableMem != nullptr);
 
     pCmdBuffer->CmdSetUserData(PipelineBindPoint::Compute, 0, 2, reinterpret_cast<uint32*>(&tableGpuAddr));
@@ -5598,7 +5638,8 @@ void RsrcProcMgr::CmdGenerateIndirectCmds(
     const bool sqttEnabled = ((platformSettings.gpuProfilerMode > GpuProfilerCounterAndTimingOnly) &&
                               Util::TestAnyFlagSet(platformSettings.gpuProfilerConfig.traceModeMask,
                                                    GpuProfilerTraceSqtt));
-    const bool issueSqttMarkerEvent = (sqttEnabled | m_pDevice->Parent()->GetPlatform()->IsDevDriverProfilingEnabled());
+    const bool issueSqttMarkerEvent = (sqttEnabled |
+                                       m_pDevice->Parent()->GetPlatform()->IsDevDriverProfilingEnabled());
 
     // Flag to decide whether to issue THREAD_TRACE_MARKER following generated draw/dispatch commands.
     pTableMem[0] = issueSqttMarkerEvent;
@@ -5609,15 +5650,15 @@ void RsrcProcMgr::CmdGenerateIndirectCmds(
         // Obtain a command-stream chunk for generating commands into. This also sets-up the padding requirements
         // for the chunk and determines the number of commands which will safely fit. We'll need to build a raw-
         // buffer SRD so the shader can access the command buffer as a UAV.
-        uint32  commandsInChunk  = 0;
-        uint32  embeddedDataSize = 0;
-        gpusize embeddedDataAddr = 0uLL;
-        CmdStreamChunk* pChunk = pCmdBuffer->GetChunkForCmdGeneration(generator,
-                                                                      *pPipeline,
-                                                                      (maximumCount - commandIdOffset),
-                                                                      &commandsInChunk,
-                                                                      &embeddedDataAddr,
-                                                                      &embeddedDataSize);
+        ChunkOutput output[2] = {};
+        const uint32 numChunks = 1;
+        pCmdBuffer->GetChunkForCmdGeneration(generator,
+                                             *pPipeline,
+                                             (maximumCount - commandIdOffset),
+                                             numChunks,
+                                             output);
+
+        const ChunkOutput& mainChunk = output[0];
 
         // The command generation pipeline also expects the following descriptor-table layout for the resources
         // which change between each command-stream chunk being generated:
@@ -5633,19 +5674,19 @@ void RsrcProcMgr::CmdGenerateIndirectCmds(
         pCmdBuffer->CmdSetUserData(PipelineBindPoint::Compute, 2, 2, reinterpret_cast<uint32*>(&tableGpuAddr));
 
         // UAV buffer SRD for the command-stream-chunk to generate:
-        viewInfo.gpuAddr        = pChunk->GpuVirtAddr();
+        viewInfo.gpuAddr        = mainChunk.pChunk->GpuVirtAddr();
         viewInfo.swizzledFormat = UndefinedSwizzledFormat;
-        viewInfo.range          = (commandsInChunk * generator.Properties().cmdBufStride);
+        viewInfo.range          = (mainChunk.commandsInChunk * generator.Properties().cmdBufStride);
         viewInfo.stride         = 1;
         m_pDevice->Parent()->CreateUntypedBufferViewSrds(1, &viewInfo, pTableMem);
         pTableMem += SrdDwords;
 
         // UAV buffer SRD for the embedded-data spill table:
-        if (embeddedDataSize != 0)
+        if (mainChunk.embeddedDataSize != 0)
         {
-            viewInfo.gpuAddr        = embeddedDataAddr;
+            viewInfo.gpuAddr        = mainChunk.embeddedDataAddr;
             viewInfo.swizzledFormat = UndefinedSwizzledFormat;
-            viewInfo.range          = (sizeof(uint32) * embeddedDataSize);
+            viewInfo.range          = (sizeof(uint32) * mainChunk.embeddedDataSize);
             viewInfo.stride         = 1;
             m_pDevice->Parent()->CreateUntypedBufferViewSrds(1, &viewInfo, pTableMem);
         }
@@ -5661,13 +5702,13 @@ void RsrcProcMgr::CmdGenerateIndirectCmds(
         // Command ID offset for the current command stream-chunk
         pTableMem[0] = commandIdOffset;
         // Low portion of the spill table's GPU virtual address
-        pTableMem[1] = LowPart(embeddedDataAddr);
+        pTableMem[1] = LowPart(mainChunk.embeddedDataAddr);
 
         pCmdBuffer->CmdDispatch(RpmUtil::MinThreadGroups(generator.ParameterCount(), threadsPerGroup[0]),
-                                RpmUtil::MinThreadGroups(commandsInChunk, threadsPerGroup[1]),
+                                RpmUtil::MinThreadGroups(mainChunk.commandsInChunk, threadsPerGroup[1]),
                                 1);
 
-        commandIdOffset += commandsInChunk;
+        commandIdOffset += mainChunk.commandsInChunk;
     }
 
     pCmdBuffer->CmdRestoreComputeState(ComputeStatePipelineAndUserData);
@@ -5728,6 +5769,7 @@ void RsrcProcMgr::ResolveImageGraphics(
     // Save current command buffer state and bind graphics state which is common for all regions.
     pCmdBuffer->PushGraphicsState();
     BindCommonGraphicsState(pCmdBuffer);
+    pCmdBuffer->CmdBindMsaaState(GetMsaaState(dstCreateInfo.samples, dstCreateInfo.fragments));
     pCmdBuffer->CmdSetStencilRefMasks(stencilRefMasks);
 
     // Put ImageResolveInvertY value in user data 0 used by VS.

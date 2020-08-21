@@ -37,12 +37,6 @@ include(DevDriver)
 ### Create ddCore Library #############################################################################################
 devdriver_library(ddCore STATIC)
 
-# Put the library in a folder
-set_target_properties(ddCore
-    PROPERTIES
-        FOLDER "DevDriver Libs"
-)
-
 ### Cached Project Options #############################################################################################
 option(DD_OPT_SHOW_DEBUG_LABELS "Show debug labels in various log outputs?" ON)
 

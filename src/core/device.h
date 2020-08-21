@@ -368,7 +368,6 @@ struct GpuEngineProperties
         uint32   sizeAlignInDwords;             // Alignment requirement for the size of command buffers.
         uint32   maxControlFlowNestingDepth;    // Maximum depth of nested control-flow operations in command buffers.
         uint32   availableCeRamSize;            // Size of CE RAM available on this queue for use by clients.
-        uint32   reservedCeRamSize;             // Size of CE RAM reserved on this queue for internal PAL use.
         Extent3d minTiledImageCopyAlignment;    // Minimum alignments for X/Y/Z/Width/Height/Depth for
                                                 // ICmdBuffer::CmdCopyImage() between optimally tiled images.
         Extent3d minTiledImageMemCopyAlignment; // Minimum alignments for X/Y/Z/Width/Height/Depth for
@@ -1879,12 +1878,15 @@ public:
         void**          ppEmbeddedData);
 
     Result SubmitDmaUploadRing(
-        UploadRingSlot slotId,
-        UploadFenceToken* pCompletionFence);
+        UploadRingSlot    slotId,
+        UploadFenceToken* pCompletionFence,
+        uint64            pagingFenceVal);
 
     Result WaitForPendingUpload(
         Pal::Queue* pWaiter,
         UploadFenceToken fenceValue);
+
+    virtual bool IsHwEmulationEnabled() const { return false; }
 
 protected:
     Device(

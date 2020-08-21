@@ -1164,7 +1164,8 @@ size_t CmdUtil::BuildDispatchDirect(
     Pm4Predicate    predicate,    // Predication enable control. Must be PredDisable on the Compute Engine.
     bool            isWave32,     // Meaningful for GFX10 only, set if wave-size is 32 for bound compute shader
     bool            useTunneling, // Meaningful for GFX10 only, set if dispatch tunneling should be used (VR)
-    void*           pBuffer       // [out] Build the PM4 packet in this buffer.
+    bool            disablePartialPreempt, // Avoid preemption at thread group level without CWSR. Only affects GFX10.
+    void*           pBuffer                // [out] Build the PM4 packet in this buffer.
     ) const
 {
     regCOMPUTE_DISPATCH_INITIATOR dispatchInitiator;
@@ -1175,13 +1176,17 @@ size_t CmdUtil::BuildDispatchDirect(
     dispatchInitiator.gfx10Plus.CS_W32_EN        = isWave32;
     if (IsGfx10Plus(m_gfxIpLevel))
     {
-        dispatchInitiator.gfx10Plus.TUNNEL_ENABLE    = useTunneling;
+        dispatchInitiator.gfx10Plus.TUNNEL_ENABLE = useTunneling;
+    }
+    if (disablePartialPreempt)
+    {
+        dispatchInitiator.u32All |= ComputeDispatchInitiatorDisablePartialPreemptMask;
     }
 
     // Set unordered mode to allow waves launch faster. This bit is related to the QoS (Quality of service) feature and
     // should be safe to set by default as the feature gets enabled only when allowed by the KMD. This bit also only
     // applies to asynchronous compute pipe and the graphics pipe simply ignores it.
-    dispatchInitiator.bits.ORDER_MODE            = 1;
+    dispatchInitiator.bits.ORDER_MODE = 1;
 
     static_assert(PM4_MEC_DISPATCH_DIRECT_SIZEDW__CORE == PM4_ME_DISPATCH_DIRECT_SIZEDW__CORE,
                   "MEC_DISPATCH_DIRECT packet definition has been updated, fix this!");
@@ -1206,6 +1211,7 @@ size_t CmdUtil::BuildDispatchDirect<true, true>(
     Pm4Predicate    predicate,
     bool            isWave32,
     bool            useTunneling,
+    bool            disablePartialPreempt,
     void*           pBuffer) const;
 template
 size_t CmdUtil::BuildDispatchDirect<false, false>(
@@ -1215,6 +1221,7 @@ size_t CmdUtil::BuildDispatchDirect<false, false>(
     Pm4Predicate    predicate,
     bool            isWave32,
     bool            useTunneling,
+    bool            disablePartialPreempt,
     void*           pBuffer) const;
 template
 size_t CmdUtil::BuildDispatchDirect<false, true>(
@@ -1224,6 +1231,7 @@ size_t CmdUtil::BuildDispatchDirect<false, true>(
     Pm4Predicate    predicate,
     bool            isWave32,
     bool            useTunneling,
+    bool            disablePartialPreempt,
     void*           pBuffer) const;
 
 // =====================================================================================================================
@@ -1262,7 +1270,8 @@ size_t CmdUtil::BuildDispatchIndirectMec(
     gpusize       address,      // Address of the indirect args data.
     bool          isWave32,     // Meaningful for GFX10 only, set if wave-size is 32 for bound compute shader
     bool          useTunneling, // Meaningful for GFX10 only, set if dispatch tunneling should be used (VR)
-    void*         pBuffer       // [out] Build the PM4 packet in this buffer.
+    bool          disablePartialPreempt, // Avoid preemption at thread group level without CWSR. Only affects GFX10.
+    void*         pBuffer                // [out] Build the PM4 packet in this buffer.
     ) const
 {
     // Address must be 32-bit aligned
@@ -1279,7 +1288,11 @@ size_t CmdUtil::BuildDispatchIndirectMec(
     dispatchInitiator.gfx10Plus.CS_W32_EN      = isWave32;
     if (IsGfx10Plus(m_gfxIpLevel))
     {
-        dispatchInitiator.gfx10Plus.TUNNEL_ENABLE  = useTunneling;
+        dispatchInitiator.gfx10Plus.TUNNEL_ENABLE = useTunneling;
+    }
+    if (disablePartialPreempt)
+    {
+        dispatchInitiator.u32All |= ComputeDispatchInitiatorDisablePartialPreemptMask;
     }
 
     pPacket->ordinal1.header.u32All      = Type3Header(IT_DISPATCH_INDIRECT, PacketSize);
@@ -3142,8 +3155,8 @@ size_t CmdUtil::BuildSetSeqShRegs(
     auto*const           pPacket    = static_cast<PM4_ME_SET_SH_REG*>(pBuffer);
 
     pPacket->ordinal1.header.u32All         = Type3Header(IT_SET_SH_REG, packetSize, false, shaderType);
-    pPacket->ordinal2.u32All              = 0;
-    pPacket->ordinal2.bitfields.reg_offset = startRegAddr - PERSISTENT_SPACE_START;
+    pPacket->ordinal2.u32All                = 0;
+    pPacket->ordinal2.bitfields.reg_offset  = startRegAddr - PERSISTENT_SPACE_START;
 
     return packetSize;
 }

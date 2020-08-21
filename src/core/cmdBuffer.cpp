@@ -217,23 +217,6 @@ Result CmdBuffer::Begin(
             m_buildFlags.enableTmz = 0;
 #endif
 
-            if (settings.cmdBufForceCpuUpdatePath == CmdBufForceCpuUpdatePath::CmdBufForceCpuUpdatePathOn)
-            {
-                m_buildFlags.useCpuPathForTableUpdates = 1;
-            }
-            else if (settings.cmdBufForceCpuUpdatePath == CmdBufForceCpuUpdatePath::CmdBufForceCpuUpdatePathOff)
-            {
-                m_buildFlags.useCpuPathForTableUpdates = 0;
-            }
-
-            // If this device does not support a constant engine, then we must use the
-            // CPU path for uploads regardless of any settings or the clients request.
-            const auto& engineFlags = m_device.EngineProperties().perEngine[m_engineType].flags;
-            if (engineFlags.constantEngineSupport == 0)
-            {
-                m_buildFlags.useCpuPathForTableUpdates = 1;
-            }
-
             if (settings.cmdBufForceOneTimeSubmit == CmdBufForceOneTimeSubmit::CmdBufForceOneTimeSubmitOn)
             {
                 m_buildFlags.optimizeOneTimeSubmit = 1;
@@ -368,7 +351,7 @@ Result CmdBuffer::End()
 
         // Update the last paging fence to reflect that of the command allocator and of all nested command buffers
         // called by this command buffer (if any).
-        m_lastPagingFence = Max(m_lastPagingFence, m_pCmdAllocator->LastPagingFence());
+        UpdateLastPagingFence(m_pCmdAllocator->LastPagingFence());
 
         // NOTE: The root chunk comes from the last command stream in this command buffer because for universal command
         // buffers, the order of command streams is CE, DE. We always want the "DE" to be the root since the CE may not
@@ -995,7 +978,11 @@ bool CmdBuffer::HasAddressDependentCmdStream() const
 
     for (uint32 idx = 0; idx < NumCmdStreams(); ++idx)
     {
-        addressDependent |= GetCmdStream(idx)->IsAddressDependent();
+        const CmdStream* pStream = GetCmdStream(idx);
+        if (pStream != nullptr)
+        {
+            addressDependent |=  pStream->IsAddressDependent();
+        }
     }
 
     return addressDependent;

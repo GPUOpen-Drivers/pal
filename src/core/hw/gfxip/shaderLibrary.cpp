@@ -46,6 +46,7 @@ ShaderLibrary::ShaderLibrary(
     m_gpuMemSize(0),
     m_maxStackSizeInBytes(0),
     m_uploadFenceToken(0),
+    m_pagingFenceVal(0),
     m_pClientData(nullptr),
     m_perfDataMem(),
     m_perfDataGpuMemSize(0)
@@ -210,7 +211,8 @@ Result ShaderLibrary::PerformRelocationsAndUploadToGpuMemory(
 
     if (result == Result::Success)
     {
-        m_gpuMemSize = pUploader->GpuMemSize();
+        m_pagingFenceVal = pUploader->PagingFenceVal();
+        m_gpuMemSize     = pUploader->GpuMemSize();
         m_gpuMem.Update(pUploader->GpuMem(), pUploader->GpuMemOffset());
     }
 

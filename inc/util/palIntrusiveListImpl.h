@@ -41,7 +41,8 @@ namespace Util
 template<typename T>
 IntrusiveList<T>::IntrusiveList()
     :
-    m_sentinel()
+    m_sentinel(),
+    m_numElements(0)
 {
     // The sentinel must start out pointing at itself.
     m_sentinel.m_pPrev = &m_sentinel;
@@ -87,6 +88,9 @@ void IntrusiveList<T>::PushFrontList(
     // Point the source list's sentinel back at itself.
     pSource->m_sentinel.m_pPrev = &pSource->m_sentinel;
     pSource->m_sentinel.m_pNext = &pSource->m_sentinel;
+
+    m_numElements += pSource->m_numElements;
+    pSource->m_numElements = 0;
 }
 
 // =====================================================================================================================
@@ -115,6 +119,9 @@ void IntrusiveList<T>::PushBackList(
     // Point the source list's sentinel back at itself.
     pSource->m_sentinel.m_pPrev = &pSource->m_sentinel;
     pSource->m_sentinel.m_pNext = &pSource->m_sentinel;
+
+    m_numElements += pSource->m_numElements;
+    pSource->m_numElements = 0;
 }
 
 // =====================================================================================================================
@@ -137,6 +144,8 @@ void IntrusiveList<T>::InsertBefore(
 
     pNextNode->m_pPrev = pNode;
     pPrevNode->m_pNext = pNode;
+
+    m_numElements++;
 }
 
 // =====================================================================================================================
@@ -156,6 +165,10 @@ void IntrusiveList<T>::Unlink(
     // Reset the node by setting its node pointers to null.
     pNode->m_pPrev = nullptr;
     pNode->m_pNext = nullptr;
+
+    PAL_ASSERT(m_numElements > 0);
+
+    m_numElements--;
 }
 
 // =====================================================================================================================

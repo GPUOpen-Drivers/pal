@@ -524,7 +524,10 @@ public:
 
     // Helper function telling what kind of DCC format encoding an image created with
     // the specified creation image and all of its potential view formats will end up with
-    virtual DccFormatEncoding ComputeDccFormatEncoding(const ImageCreateInfo& imageCreateInfo) const = 0;
+    virtual DccFormatEncoding ComputeDccFormatEncoding(
+        const SwizzledFormat& swizzledFormat,
+        const SwizzledFormat* pViewFormats,
+        uint32                viewFormatCount) const = 0;
 
     // Init and get the cmd buffer that increment memory of frame count and write to register.
     Result InitAndGetFrameCountCmdBuffer(QueueType queueType, EngineType engineType, GfxCmdBuffer** ppBuffer);

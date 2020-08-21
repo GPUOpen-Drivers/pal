@@ -1001,12 +1001,17 @@ Result Device::CreateGraphicsPipeline(
     bool                                      isInternal,
     IPipeline**                               ppPipeline)
 {
+    PAL_ASSERT(createInfo.pPipelineBinary != nullptr);
     PAL_ASSERT(pPlacementAddr != nullptr);
+    AbiReader abiReader(GetPlatform(), createInfo.pPipelineBinary);
+    Result result = abiReader.Init();
+
     auto* pPipeline = PAL_PLACEMENT_NEW(pPlacementAddr) GraphicsPipeline(this, isInternal);
 
-    Result result = pPipeline->Init(createInfo, internalInfo);
-    if (pPipeline != nullptr)
+    if (result == Result::Success)
     {
+        result = pPipeline->Init(createInfo, internalInfo, abiReader);
+
         if (result != Result::Success)
         {
             pPipeline->Destroy();
@@ -1622,12 +1627,14 @@ Result Device::InitAddrLibCreateInput(
 // Helper function telling what kind of DCC format encoding an image created with
 // the specified creation image and all of its potential view formats will end up with
 DccFormatEncoding Device::ComputeDccFormatEncoding(
-    const ImageCreateInfo& imageCreateInfo
+    const SwizzledFormat& swizzledFormat,
+    const SwizzledFormat* pViewFormats,
+    uint32                viewFormatCount
     ) const
 {
     DccFormatEncoding dccFormatEncoding = DccFormatEncoding::Optimal;
 
-    if (imageCreateInfo.viewFormatCount == AllCompatibleFormats)
+    if (viewFormatCount == AllCompatibleFormats)
     {
         // If all compatible formats are allowed as view formats then the image is not DCC compatible as none of
         // the format compatibility classes comprise only of formats that are DCC compatible.
@@ -1641,27 +1648,24 @@ DccFormatEncoding Device::ComputeDccFormatEncoding(
         // as long as all formats are from within one of the following compatible buckets:
         // (1) Unorm, Uint, Uscaled, and Srgb
         // (2) Snorm, Sint, and Sscaled
-        const bool baseFormatIsUnsigned = Formats::IsUnorm(imageCreateInfo.swizzledFormat.format)   ||
-                                          Formats::IsUint(imageCreateInfo.swizzledFormat.format)    ||
-                                          Formats::IsUscaled(imageCreateInfo.swizzledFormat.format) ||
-                                          Formats::IsSrgb(imageCreateInfo.swizzledFormat.format);
+        const bool baseFormatIsUnsigned = Formats::IsUnorm(swizzledFormat.format)   ||
+                                          Formats::IsUint(swizzledFormat.format)    ||
+                                          Formats::IsUscaled(swizzledFormat.format) ||
+                                          Formats::IsSrgb(swizzledFormat.format);
 
-        const bool baseFormatIsSigned = Formats::IsSnorm(imageCreateInfo.swizzledFormat.format) ||
-                                        Formats::IsSint(imageCreateInfo.swizzledFormat.format)  ||
-                                        Formats::IsSscaled(imageCreateInfo.swizzledFormat.format);
+        const bool baseFormatIsSigned = Formats::IsSnorm(swizzledFormat.format) ||
+                                        Formats::IsSint(swizzledFormat.format)  ||
+                                        Formats::IsSscaled(swizzledFormat.format);
 
-        const bool baseFormatIsFloat = Formats::IsFloat(imageCreateInfo.swizzledFormat.format);
+        const bool baseFormatIsFloat = Formats::IsFloat(swizzledFormat.format);
 
         // If viewFormatCount is not zero then pViewFormats must point to a valid array.
-        PAL_ASSERT((imageCreateInfo.viewFormatCount == 0) || (imageCreateInfo.pViewFormats != nullptr));
+        PAL_ASSERT((viewFormatCount == 0) || (pViewFormats != nullptr));
 
-        const SwizzledFormat* pFormats = imageCreateInfo.pViewFormats;
+        const SwizzledFormat* pFormats = pViewFormats;
 
-        for (uint32 i = 0; i < imageCreateInfo.viewFormatCount; ++i)
+        for (uint32 i = 0; i < viewFormatCount; ++i)
         {
-            // The pViewFormats array should not contain the base format of the image.
-            PAL_ASSERT(memcmp(&imageCreateInfo.swizzledFormat, &pFormats[i], sizeof(SwizzledFormat)) != 0);
-
             const bool viewFormatIsUnsigned = Formats::IsUnorm(pFormats[i].format)   ||
                                               Formats::IsUint(pFormats[i].format)    ||
                                               Formats::IsUscaled(pFormats[i].format) ||
@@ -1673,13 +1677,13 @@ DccFormatEncoding Device::ComputeDccFormatEncoding(
 
             const bool viewFormatIsFloat = Formats::IsFloat(pFormats[i].format);
 
-            if (baseFormatIsFloat != viewFormatIsFloat)
+            if ((baseFormatIsFloat != viewFormatIsFloat) ||
+                (Formats::ShareChFmt(swizzledFormat.format, pFormats[i].format) == false))
             {
                 dccFormatEncoding = DccFormatEncoding::Incompatible;
                 break;
             }
-            else if ((Formats::ShareChFmt(imageCreateInfo.swizzledFormat.format, pFormats[i].format) == false) ||
-                     (baseFormatIsUnsigned != viewFormatIsUnsigned) ||
+            else if ((baseFormatIsUnsigned != viewFormatIsUnsigned) ||
                      (baseFormatIsSigned != viewFormatIsSigned))
             {
                 //dont have to turn off DCC entirely only Constant Encoding
@@ -3353,7 +3357,6 @@ void InitializeGpuEngineProperties(
     pUniversal->flags.supportsImageInitPerSubresource = 1;
     pUniversal->flags.supportsUnmappedPrtPageAccess   = 1;
     pUniversal->maxControlFlowNestingDepth            = CmdStream::CntlFlowNestingLimit;
-    pUniversal->reservedCeRamSize                     = ReservedCeRamBytes;
     pUniversal->minTiledImageCopyAlignment.width      = 1;
     pUniversal->minTiledImageCopyAlignment.height     = 1;
     pUniversal->minTiledImageCopyAlignment.depth      = 1;

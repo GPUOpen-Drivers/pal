@@ -510,6 +510,9 @@ struct ComputePipelineSignature
     // The number of 'important' user-data entries for this pipeline. This effectively equates to one plus the index
     // of the highest user-data entry accessed by the pipeline.
     uint16  userDataLimit;
+
+    // Hash of CS stage user-data mapping, used to speed up pipeline binds.
+    uint64  userDataHash;
 };
 
 // User-data signature for an unbound compute pipeline.

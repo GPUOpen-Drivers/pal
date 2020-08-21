@@ -112,6 +112,7 @@ public:
         uint32*                          pThreadsPerTgX,
         uint32*                          pThreadsPerTgY,
         uint32*                          pThreadsPerTgZ,
+        bool                             forceDisableLoadPath,
         CsPipelineUploader*              pUploader);
 
     uint32* WriteShCommands(

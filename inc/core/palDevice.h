@@ -1312,7 +1312,9 @@ struct DeviceProperties
                                                         ///  write performance of memory in the @ref GpuHeapLocal heap.
                 uint32 gpuEmulatedInSoftware      :  1; ///< Device is really a software package which emulates the
                                                         ///  GPU.  This is meant for pre-silicon development.
-                uint32 reserved                   : 30; ///< Reserved for future use.
+                uint32 gpuEmulatedInHardware      :  1; ///< Device is a hardware emulated GPU.  This is meant for
+                                                        ///  pre-silicon development.
+                uint32 reserved                   : 29; ///< Reserved for future use.
             };
             uint32 u32All;                  ///< Flags packed as 32-bit uint.
         } flags;                            ///< PCI bus property flags.

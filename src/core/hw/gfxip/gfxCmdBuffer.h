@@ -145,9 +145,6 @@ struct UserDataTableState
     // CPU address of the embedded-data allocation storing the current copy of the table data.  This can be null if
     // the table has not yet been uploaded to embedded data.
     uint32*  pCpuVirtAddr;
-    // Offset into CE RAM (in bytes!) where the staging area is located. This can be zero if the table is being
-    // managed using CPU updates instead of the constant engine.
-    uint32   ceRamOffset;
     struct
     {
         uint32  sizeInDwords : 31; // Size of one full instance of the user-data table, in DWORD's.
@@ -178,6 +175,15 @@ struct ReleaseActivityInfo
 
     uint16 gfxBltActiveTimestamp;
     uint16 csBltActiveTimestamp;
+};
+
+// Structure for getting CmdChunks for the IndirectCmdGenerator.
+struct ChunkOutput
+{
+    CmdStreamChunk* pChunk;
+    uint32          commandsInChunk;
+    gpusize         embeddedDataAddr;
+    uint32          embeddedDataSize;
 };
 
 typedef Util::HashMap<const IGpuEvent*, ReleaseActivityInfo, Platform> ReleaseActivityMap;
@@ -402,13 +408,12 @@ public:
     // Obtains a fresh command stream chunk from the current command allocator, for use as the target of GPU-generated
     // commands. The chunk is inserted onto the generated-chunks list so it can be recycled by the allocator after the
     // GPU is done with it.
-    virtual CmdStreamChunk* GetChunkForCmdGeneration(
+    virtual void GetChunkForCmdGeneration(
         const IndirectCmdGenerator& generator,
         const Pipeline&             pipeline,
         uint32                      maxCommands,
-        uint32*                     pCommandsInChunk,
-        gpusize*                    pEmbeddedDataAddr,
-        uint32*                     pEmbeddedDataSize) = 0;
+        uint32                      numChunkOutputs,
+        ChunkOutput*                pChunkOutputs) = 0;
 
     virtual void CmdBeginPerfExperiment(IPerfExperiment* pPerfExperiment) override;
     virtual void CmdUpdatePerfExperimentSqttTokenMask(

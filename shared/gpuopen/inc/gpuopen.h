@@ -202,6 +202,10 @@
 #define GPUOPEN_EXPLICIT_ENABLE_RGP_VERSION                                    2
 #define GPUOPEN_INITIAL_VERSION                                                1
 
+// This will be properly defined when RMV 1.1 features are complete, defining it now allows
+// clients to code to the interface ahead of all of the work being complete.
+#define GPUOPEN_RMV_1_1_VERSION 0xFFFF
+
 #define DD_VERSION_SUPPORTS(x) (GPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION >= x)
 
 namespace DevDriver

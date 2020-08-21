@@ -93,7 +93,10 @@ Image::Image(
     m_imageInfo.internalCreateInfo     = internalCreateInfo;
     m_imageInfo.resolveMethod.u32All   = 0;
 
-    m_imageInfo.dccFormatEncoding = m_pDevice->GetGfxDevice()->ComputeDccFormatEncoding(createInfo);
+    GfxDevice* pGfxDevice = m_pDevice->GetGfxDevice();
+    m_imageInfo.dccFormatEncoding = pGfxDevice->ComputeDccFormatEncoding(createInfo.swizzledFormat,
+                                                                         createInfo.pViewFormats,
+                                                                         createInfo.viewFormatCount);
 
     if (IsDepthStencil())
     {
@@ -120,7 +123,7 @@ Image::Image(
 
     if (IsRenderTarget())
     {
-        m_pDevice->GetGfxDevice()->IncreaseMsaaHistogram(createInfo.samples);
+        pGfxDevice->IncreaseMsaaHistogram(createInfo.samples);
     }
 }
 static_assert(ADDR_TM_LINEAR_GENERAL == 0,

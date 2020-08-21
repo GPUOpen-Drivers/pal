@@ -772,6 +772,14 @@ public:
 
     Result ReserveVmid() const;
 
+    void GetDisplayDccInfo(DisplayDccCaps& displayDcc) const;
+
+    bool SupportDisplayDcc() const
+    {
+        return ((Settings().disableOptimizedDisplay == false) &&
+                (ChipProperties().imageProperties.flags.supportDisplayDcc == 1));
+    }
+
     virtual Result CreateDmaUploadRing() override;
 
 protected:
@@ -967,8 +975,6 @@ private:
 #else
     const DrmLoaderFuncs& m_drmProcs;
 #endif
-    // Indicates this device is added to VamMgrSingleton with InitVaRangesAndFinalizeVam
-    bool m_attachedToVamMgrSingleton;
 
     PAL_DISALLOW_DEFAULT_CTOR(Device);
     PAL_DISALLOW_COPY_AND_ASSIGN(Device);

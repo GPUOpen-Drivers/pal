@@ -469,6 +469,7 @@ union CmdBufferBuildFlags
         /// or CmdWriteCeRam()
         uint32 usesCeRamCmds                :  1;
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 621
         /// Indicates that the client prefers that this command buffer use a CPU update path for updating the contents
         /// of the vertex buffer, stream-out and user-data-spill tables instead of using CE RAM.  Ignored for command
         /// buffers on queues or engines which don't support CE RAM.
@@ -477,6 +478,7 @@ union CmdBufferBuildFlags
         /// contents are fully updated often, while the CE RAM path is expected to be more efficient at handling sparse
         /// updates.
         uint32 useCpuPathForTableUpdates    :  1;
+#endif
 
         /// Indicates that the client would prefer that this nested command buffer not be launched using an IB2 packet.
         /// The calling command buffer will either inline this command buffer into itself or use IB chaining based on if
@@ -493,8 +495,13 @@ union CmdBufferBuildFlags
         /// non-TMZ memory, the results are undefined. Only valid for graphics and compute.
         uint32  enableTmz                    :  1;
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 621
         /// Reserved for future use.
         uint32 reserved                      :  21;
+#else
+        /// Reserved for future use.
+        uint32 reserved                      :  22;
+#endif
 
     };
 

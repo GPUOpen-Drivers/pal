@@ -56,7 +56,8 @@ static_assert(ArrayLen(EngineTypeStrings) == EngineTypeCount, "Missing entry in 
 // Writes .csv entries to file corresponding to the first count items in the m_logItems deque.  The caller guarantees
 // that all of these calls are idle.
 void Queue::OutputLogItemsToFile(
-    size_t count)
+    size_t count,
+    bool   hasDrawsDispatches)
 {
     PAL_ASSERT(count <= m_logItems.NumElements());
 
@@ -66,6 +67,10 @@ void Queue::OutputLogItemsToFile(
     // of the root-level command buffers submitted during a particular frame.  This is incremented anytime a root-level
     // command buffer is ended.
     uint32 activeCmdBufs = 0;
+
+    const auto& settings = m_pDevice->GetPlatform()->PlatformSettings();
+
+    const bool writeResults = (settings.gpuProfilerConfig.ignoreNonDrawDispatchCmdBufs) ? hasDrawsDispatches : true;
 
     for (uint32 i = 0; i < count; i++)
     {
@@ -98,7 +103,10 @@ void Queue::OutputLogItemsToFile(
                 m_curLogCmdBufIdx = 0;
             }
 
-            OutputCmdBufCallToFile(logItem, pNestedCmdBufPrefix);
+            if (writeResults)
+            {
+                OutputCmdBufCallToFile(logItem, pNestedCmdBufPrefix);
+            }
 
             if (logItem.cmdBufCall.callId == CmdBufCallId::End)
             {
@@ -225,21 +233,34 @@ void Queue::OpenSqttFile(
         }
         if (addPipelineHash)
         {
+            const PipelineInfo* pPipelineInfo = nullptr;
+            uint64 apiPsoHash = 0;
+
+            if (true == logItem.cmdBufCall.flags.draw)
+            {
+                pPipelineInfo = &(logItem.cmdBufCall.draw.pipelineInfo);
+                apiPsoHash = logItem.cmdBufCall.draw.apiPsoHash;
+            }
+            else if (true == logItem.cmdBufCall.flags.dispatch)
+            {
+                pPipelineInfo = &(logItem.cmdBufCall.dispatch.pipelineInfo);
+                apiPsoHash = logItem.cmdBufCall.dispatch.apiPsoHash;
+            }
+
             if (settings.gpuProfilerConfig.useFullPipelineHash)
             {
                 crcPos += Snprintf(crcInfo + crcPos, CrcInfoSize - crcPos, "_PIPELINE%016llx-%016llx",
-                                   logItem.cmdBufCall.draw.pipelineInfo.internalPipelineHash.stable,
-                                   logItem.cmdBufCall.draw.pipelineInfo.internalPipelineHash.unique);
+                                   pPipelineInfo->internalPipelineHash.stable,
+                                   pPipelineInfo->internalPipelineHash.unique);
             }
             else if (settings.gpuProfilerSqttConfig.pipelineHashAsApiPsoHash)
             {
-                crcPos += Snprintf(crcInfo + crcPos, CrcInfoSize - crcPos, "_PIPELINE%016llx",
-                                   logItem.cmdBufCall.draw.apiPsoHash);
+                crcPos += Snprintf(crcInfo + crcPos, CrcInfoSize - crcPos, "_PIPELINE%016llx", apiPsoHash);
             }
             else
             {
                 crcPos += Snprintf(crcInfo + crcPos, CrcInfoSize - crcPos, "_PIPELINE%016llx",
-                                   logItem.cmdBufCall.draw.pipelineInfo.internalPipelineHash.stable);
+                                   pPipelineInfo->internalPipelineHash.stable);
             }
         }
     }
@@ -566,7 +587,7 @@ void Queue::OutputTimestampsToFile(
         m_logFile.Printf("%llu,%llu,", pResult[0], pResult[1]);
 
         bool hideElapsedTime =
-            (m_pDevice->GetPlatform()->PlatformSettings().gpuProfilerPerfCounterConfig.granularity ==
+            (m_pDevice->GetPlatform()->PlatformSettings().gpuProfilerConfig.granularity ==
                 GpuProfilerGranularityDraw) &&
             (logItem.type == LogItemType::CmdBufferCall) &&
             (logItem.cmdBufCall.callId == CmdBufCallId::Begin);
@@ -710,7 +731,7 @@ void Queue::OutputTraceDataToFile(
         // Output trace data in RGP format.
         if ((m_pDevice->GetProfilerMode() == GpuProfilerTraceEnabledRgp))
         {
-            if (settings.gpuProfilerPerfCounterConfig.granularity ==
+            if (settings.gpuProfilerConfig.granularity ==
                 GpuProfilerGranularity::GpuProfilerGranularityFrame)
             {
                 OutputRgpFile(*logItem.pGpaSession, logItem.gpaSampleId);

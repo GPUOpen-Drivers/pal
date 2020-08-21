@@ -94,6 +94,11 @@ function(pal_compile_definitions)
             PAL_MEMTRACK=1
         >
     )
+if(UNIX)
+    if (PAL_DISPLAY_DCC)
+        target_compile_definitions(pal PRIVATE PAL_DISPLAY_DCC=1)
+    endif()
+endif()
 
 #if PAL_DEVELOPER_BUILD
     if(PAL_DEVELOPER_BUILD)

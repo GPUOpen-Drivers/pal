@@ -55,15 +55,16 @@ DmaCmdBuffer::DmaCmdBuffer(
     Device&                    device,
     const CmdBufferCreateInfo& createInfo)
     :
-    Pal::DmaCmdBuffer(device.Parent(), createInfo, 0)
+    Pal::DmaCmdBuffer(device.Parent(), createInfo, ((1 << static_cast<uint32>(ImageType::Count)) - 1))
 {
     // Regarding copyOverlapHazardSyncs value in the constructor above:
     //   While GFX10 may execute sequences of small copies/writes asynchronously, the hardware should
     //   have automatic detection of hazards between these copies based on VA range comparison, so the
     //   driver does not itself need to do any manual synchronization.
 
-    // Temporary note: The above description is not correct at the moment: there is a likely HW bug with the
-    // the copy overlap feature and it is temporarily disabled.
+    // Temporary note: The above description is not correct at the moment: there is a likely HW bug with the the copy
+    // overlap feature and it is temporarily disabled. This could also be a PAL bug because sDMA is only meant to
+    // detect some RAW hazards. Some copies (which?) do require manual SW barriers which we don't do currently.
 }
 
 // =====================================================================================================================

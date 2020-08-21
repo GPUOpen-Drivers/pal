@@ -174,7 +174,8 @@ void* Thread::StartThread(
 // =====================================================================================================================
 // Creates a new key for this process to store and retrieve thread-local data.
 Result CreateThreadLocalKey(
-    ThreadLocalKey* pKey)
+    ThreadLocalKey*       pKey,
+    ThreadLocalDestructor pDestructor)
 {
     Result result = Result::Success;
 
@@ -182,7 +183,7 @@ Result CreateThreadLocalKey(
     {
         result = Result::ErrorInvalidPointer;
     }
-    else if (pthread_key_create(pKey, nullptr) != 0)
+    else if (pthread_key_create(pKey, pDestructor) != 0)
     {
         result = Result::ErrorUnavailable;
     }

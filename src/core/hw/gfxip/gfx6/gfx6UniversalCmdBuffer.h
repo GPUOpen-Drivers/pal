@@ -397,13 +397,12 @@ public:
 
     virtual uint32 CmdInsertExecutionMarker() override;
 
-    virtual CmdStreamChunk* GetChunkForCmdGeneration(
+    virtual void GetChunkForCmdGeneration(
         const Pal::IndirectCmdGenerator& generator,
         const Pal::Pipeline&             pipeline,
         uint32                           maxCommands,
-        uint32*                          pCommandsInChunk,
-        gpusize*                         pEmbeddedDataAddr,
-        uint32*                          pEmbeddedDataSize) override;
+        uint32                           numChunkOutputs,
+        ChunkOutput*                     pChunkOutputs) override;
 
     Util::IntervalTree<gpusize, bool, Platform>* ActiveOcclusionQueryWriteRanges()
         { return &m_activeOcclusionQueryWriteRanges; }
@@ -519,18 +518,18 @@ private:
         uint32            maximumCount,
         gpusize           countGpuAddr);
 
-    template <bool IssueSqttMarkerEvent, bool UseCpuPathForUserDataTables, bool DescribeDrawDispatch>
+    template <bool IssueSqttMarkerEvent, bool DescribeDrawDispatch>
     static void PAL_STDCALL CmdDispatch(
         ICmdBuffer* pCmdBuffer,
         uint32      x,
         uint32      y,
         uint32      z);
-    template <bool IssueSqttMarkerEvent, bool UseCpuPathForUserDataTables, bool DescribeDrawDispatch>
+    template <bool IssueSqttMarkerEvent, bool DescribeDrawDispatch>
     static void PAL_STDCALL CmdDispatchIndirect(
         ICmdBuffer*       pCmdBuffer,
         const IGpuMemory& gpuMemory,
         gpusize           offset);
-    template <bool IssueSqttMarkerEvent, bool UseCpuPathForUserDataTables, bool DescribeDrawDispatch>
+    template <bool IssueSqttMarkerEvent, bool DescribeDrawDispatch>
     static void PAL_STDCALL CmdDispatchOffset(
         ICmdBuffer* pCmdBuffer,
         uint32      xOffset,
@@ -584,7 +583,6 @@ private:
     void SetUserDataValidationFunctions();
     void SetUserDataValidationFunctions(bool tessEnabled, bool gsEnabled);
 
-    template <bool UseCpuPathForUserDataTables>
     uint32* ValidateDispatch(
         gpusize indirectGpuVirtAddr,
         uint32  xDim,
@@ -597,38 +595,13 @@ private:
         const GraphicsPipeline*          pCurrPipeline,
         uint32*                          pDeCmdSpace);
 
-    void RelocateUserDataTable(
-        UserDataTableState* pTable,
-        uint32              offsetInDwords,
-        uint32              dwordsNeeded);
-    uint32* UploadToUserDataTable(
-        UserDataTableState* pTable,
-        uint32              offsetInDwords,
-        uint32              dwordsNeeded,
-        const uint32*       pSrcData,
-        uint32              highWatermark,
-        uint32*             pCeCmdSpace);
-    uint32* DumpUserDataTable(
-        UserDataTableState* pTable,
-        uint32              offsetInDwords,
-        uint32              dwordsNeeded,
-        uint32*             pCeCmdSpace);
-
     template <bool HasPipelineChanged, bool TessEnabled, bool GsEnabled>
-    uint32* ValidateGraphicsUserDataCeRam(
-        const GraphicsPipelineSignature* pPrevSignature,
-        uint32*                          pDeCmdSpace);
-    template <bool HasPipelineChanged, bool TessEnabled, bool GsEnabled>
-    uint32* ValidateGraphicsUserDataCpu(
+    uint32* ValidateGraphicsUserData(
         const GraphicsPipelineSignature* pPrevSignature,
         uint32*                          pDeCmdSpace);
 
     template <bool HasPipelineChanged>
-    uint32* ValidateComputeUserDataCeRam(
-        const ComputePipelineSignature* pPrevSignature,
-        uint32*                         pDeCmdSpace);
-    template <bool HasPipelineChanged>
-    uint32* ValidateComputeUserDataCpu(
+    uint32* ValidateComputeUserData(
         const ComputePipelineSignature* pPrevSignature,
         uint32*                         pDeCmdSpace);
 
@@ -638,35 +611,19 @@ private:
         uint8                            alreadyWrittenStageMask,
         uint32*                          pDeCmdSpace);
 
-    uint32* WriteDirtyUserDataEntriesToUserSgprsCs(
-        uint32* pDeCmdSpace);
-
-    template <typename PipelineSignature>
-    uint32* WriteDirtyUserDataEntriesToCeRam(
-        const PipelineSignature* pPrevSignature,
-        const PipelineSignature* pCurrSignature,
-        uint32*                  pCeCmdSpace);
-
     template <bool TessEnabled, bool GsEnabled>
     uint8 FixupUserSgprsOnPipelineSwitch(
         const GraphicsPipelineSignature* pPrevSignature,
         uint32**                         ppDeCmdSpace);
 
-    void FixupUserSgprsOnPipelineSwitchCs(
-        const ComputePipelineSignature* pPrevSignature);
-
-    template <typename PipelineSignature>
-    void FixupSpillTableOnPipelineSwitch(
-        const PipelineSignature* pPrevSignature,
-        const PipelineSignature* pCurrSignature);
+    uint32* FixupUserSgprsOnPipelineSwitchCs(
+        const ComputePipelineSignature* pPrevSignature,
+        uint32*                         pDeCmdSpace);
 
     void LeakNestedCmdBufferState(
         const UniversalCmdBuffer& cmdBuffer);
 
     uint8 CheckStreamOutBufferStridesOnPipelineSwitch();
-    uint32* UploadStreamOutBufferStridesToCeRam(
-        uint8   dirtyStrideMask,
-        uint32* pCeCmdSpace);
 
     void SendFlglSyncCommands(FlglRegSeqType type);
 

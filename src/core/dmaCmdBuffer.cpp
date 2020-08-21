@@ -1705,8 +1705,6 @@ void DmaCmdBuffer::WriteCopyMemImageDwordUnalignedCmd(
 
     MemoryImageCopyRegion sliceRgn;
 
-    uint32_t skip = 0;
-
     for (uint32 zIdx = 0; zIdx < alignedRgn.imageExtent.depth; zIdx++)
     {
         if (zIdx > 0)
@@ -1723,7 +1721,7 @@ void DmaCmdBuffer::WriteCopyMemImageDwordUnalignedCmd(
 
         // Attempt to copy the whole slice from image to embedded if we can.  This simplifies the inner loop
         // below.
-        if (wholeSliceInEmbedded)
+        if ((memToImg == false) && wholeSliceInEmbedded)
         {
             // Copy whole slice from image to embedded
             sliceRgn                    = passRgn;
@@ -1769,7 +1767,7 @@ void DmaCmdBuffer::WriteCopyMemImageDwordUnalignedCmd(
                     uint32* pCmdSpace = nullptr;
 
                     // Copy from image to embedded per scanline if we did not already do a whole slice
-                    if (wholeSliceInEmbedded == false)
+                    if ((memToImg == false) && (wholeSliceInEmbedded == false))
                     {
                         // Propagate the copy offset to the other struct
                         alignedImage.offset = passRgn.imageOffset;
@@ -1838,8 +1836,6 @@ void DmaCmdBuffer::WriteCopyMemImageDwordUnalignedCmd(
 
                         CopyMemoryRegion(gpuMemory, *m_pT2tEmbeddedGpuMemory, memToEmbeddedRgn);
 
-                        skip++;
-
                         // Copy from embedded back to the image
                         if (wholeSliceInEmbedded == false)
                         {
@@ -1882,8 +1878,15 @@ void DmaCmdBuffer::WriteCopyMemImageDwordUnalignedCmd(
         // Copy from embedded back to the image
         if (memToImg && wholeSliceInEmbedded)
         {
-            // Note that sliceRgn has already been set-up at the top of this z-iteration
             CmdBarrier(barrierInfo);
+
+            sliceRgn                    = passRgn;
+            sliceRgn.imageOffset.x      = alignedRgn.imageOffset.x;
+            sliceRgn.imageOffset.y      = alignedRgn.imageOffset.y;
+            sliceRgn.imageExtent.width  = alignedRgn.imageExtent.width;
+            sliceRgn.imageExtent.height = alignedRgn.imageExtent.height;
+
+            alignedImage.offset = sliceRgn.imageOffset;
 
             uint32* pCmdSpace = m_cmdStream.ReserveCommands();
 

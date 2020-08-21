@@ -112,15 +112,19 @@ private:
 typedef pthread_key_t ThreadLocalKey;
 #endif
 
+/// Defines the destructor called when the thread exits.
+typedef void (*ThreadLocalDestructor)(void*);
+
 /// Creates a new key for this process to store and retrieve thread-local data.  It is a good idea to use a small
 /// number of keys because some platforms may place low limits on the number of keys per process.
 ///
 /// @param [in,out] pKey Pointer to the key being created.
+/// @param [in] pDestructor Pointer to the destructor function.
 ///
 /// @returns Success if the key was successfully created.  Otherwise, one of the following error codes may be returned.
 ///          + ErrorInvalidPointer if pKey is null.
 ///          + ErrorUnavailable if no more keys can be created.
-extern Result CreateThreadLocalKey(ThreadLocalKey* pKey);
+extern Result CreateThreadLocalKey(ThreadLocalKey* pKey, ThreadLocalDestructor pDestructor = nullptr);
 
 /// Deletes a key that was previously created by @ref CreateThreadLocalKey.  It is the caller's responsibility to free
 /// any thread-local dynamic allocations stored at this key.  The key is considered invalid after the call returns.

@@ -235,11 +235,11 @@ Pal::Result GpaSession::TraceSample::InitThreadTrace()
 }
 
 // =====================================================================================================================
-Pal::Result GpaSession::TraceSample::InitSpmTrace(
-    Pal::uint32 numCounters)
+Pal::Result GpaSession::TraceSample::InitSpmTrace(const GpaSampleConfig& sampleconfig)
 {
-    Result result    = Result::ErrorOutOfMemory;
-    m_numSpmCounters = numCounters;
+    Result result       = Result::ErrorOutOfMemory;
+    m_numSpmCounters    = sampleconfig.perfCounters.numCounters;
+    m_spmSampleInterval = sampleconfig.perfCounters.spmTraceSampleInterval;
 
     // Space is already allocated for one counter in the SpmTraceLayout.
     const size_t size = sizeof(SpmTraceLayout) +

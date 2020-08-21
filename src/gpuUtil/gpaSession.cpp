@@ -1783,7 +1783,7 @@ Result GpaSession::BeginSample(
                         // Spm trace is enabled, so init the Spm trace portion of the TraceSample.
                         if (pSampleItem->sampleConfig.perfCounters.numCounters > 0)
                         {
-                            result = pTraceSample->InitSpmTrace(pSampleItem->sampleConfig.perfCounters.numCounters);
+                            result = pTraceSample->InitSpmTrace(pSampleItem->sampleConfig);
                         }
                     }
                     else
@@ -3344,6 +3344,18 @@ Result GpaSession::AcquirePerfExperiment(
                 {
                     if (Util::TestAnyFlagSet(traceSeMask, 1 << i))
                     {
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 623
+                        // Build another mask of detailed info such as instruction tracing of SEs in order for gpu
+                        // profiler tools, And the shader type mask controls which shader stages emit detailed tokens
+                        // Note: An SE detailed mask of 0 means that detailed tokens should be enabled for all SEs.
+                        const bool enableDetailedTokens =
+                            (Util::TestAnyFlagSet(sampleConfig.sqtt.seDetailedMask, 1 << i) ||
+                             (sampleConfig.sqtt.seDetailedMask == 0));
+
+                        sqttInfo.optionFlags.threadTraceShaderTypeMask  = 1;
+                        sqttInfo.optionValues.threadTraceShaderTypeMask =
+                            enableDetailedTokens ? PerfShaderMaskAll : static_cast<PerfExperimentShaderFlags>(0);
+#endif
                         sqttInfo.instance = i;
                         result = pExperiment->AddThreadTrace(sqttInfo);
                     }
@@ -4331,6 +4343,7 @@ Result GpaSession::AppendSpmTraceData(
             spmDbChunk.header.sizeInBytes               = static_cast<int32>(sizeof(SqttFileChunkSpmDb) + spmDataSize);
             spmDbChunk.numTimestamps                    = static_cast<uint32>(numSpmSamples);
             spmDbChunk.numSpmCounterInfo                = pTraceSample->GetNumSpmCounters();
+            spmDbChunk.samplingInterval                 = pTraceSample->GetSpmSampleInterval();
 
             spmDbChunk.header.majorVersion = RgpChunkVersionNumberLookup[SQTT_FILE_CHUNK_TYPE_SPM_DB].majorVersion;
             spmDbChunk.header.minorVersion = RgpChunkVersionNumberLookup[SQTT_FILE_CHUNK_TYPE_SPM_DB].minorVersion;

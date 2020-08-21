@@ -120,6 +120,7 @@ void PipelineChunkCs::LateInit(
     uint32*                          pThreadsPerTgX,
     uint32*                          pThreadsPerTgY,
     uint32*                          pThreadsPerTgZ,
+    bool                             forceDisableLoadPath,
     CsPipelineUploader*              pUploader)
 {
     const auto&              cmdUtil   = m_device.CmdUtil();
@@ -166,7 +167,7 @@ void PipelineChunkCs::LateInit(
     *pThreadsPerTgY = m_regs.computeNumThreadY.bits.NUM_THREAD_FULL;
     *pThreadsPerTgZ = m_regs.computeNumThreadZ.bits.NUM_THREAD_FULL;
 
-    if (pUploader->EnableLoadIndexPath())
+    if ((forceDisableLoadPath == false) && pUploader->EnableLoadIndexPath())
     {
         m_loadPath.gpuVirtAddr = pUploader->ShRegGpuVirtAddr();
         m_loadPath.count       = pUploader->ShRegisterCount();
@@ -322,6 +323,12 @@ void PipelineChunkCs::SetupSignatureFromElf(
         pSignature->userDataLimit = static_cast<uint16>(metadata.pipeline.userDataLimit);
     }
 
+    // Compute a hash of the regAddr array and spillTableRegAddr for the CS stage.
+     MetroHash64::Hash(
+        reinterpret_cast<const uint8*>(&pSignature->stage),
+        sizeof(UserDataEntryMap),
+        reinterpret_cast<uint8* const>(&pSignature->userDataHash));
+
     // We don't bother checking the wavefront size for pre-Gfx10 GPU's since it is implicitly 64 before Gfx10. Any ELF
     // which doesn't specify a wavefront size is assumed to use 64, even on Gfx10 and newer.
     if (IsGfx9(*(m_device.Parent())) == false)
@@ -346,6 +353,7 @@ void PipelineChunkCs::LateInit<ComputePipelineUploader>(
     uint32*                          pThreadsPerTgX,
     uint32*                          pThreadsPerTgY,
     uint32*                          pThreadsPerTgZ,
+    bool                             forceDisableLoadPath,
     ComputePipelineUploader*         pUploader);
 template
 void PipelineChunkCs::LateInit<GraphicsPipelineUploader>(
@@ -357,6 +365,7 @@ void PipelineChunkCs::LateInit<GraphicsPipelineUploader>(
     uint32*                          pThreadsPerTgX,
     uint32*                          pThreadsPerTgY,
     uint32*                          pThreadsPerTgZ,
+    bool                             forceDisableLoadPath,
     GraphicsPipelineUploader*        pUploader);
 
 // =====================================================================================================================

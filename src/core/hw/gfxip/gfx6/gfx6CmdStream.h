@@ -131,13 +131,13 @@ public:
         uint32*       pCmdSpace);
     uint32* WriteSetSeqConfigRegs(uint32 startRegAddr, uint32 endRegAddr, const void* pData, uint32* pCmdSpace);
 
-    template <bool IgnoreDirtyFlags>
-    uint32* WriteUserDataEntriesToSgprsGfx(
+    template <bool IgnoreDirtyFlags, PM4ShaderType shaderType>
+    uint32* WriteUserDataEntriesToSgprs(
         const UserDataEntryMap& entryMap,
         const UserDataEntries&  entries,
         uint32*                 pCmdSpace);
-    template <bool IgnoreDirtyFlags, bool Pm4OptImmediate>
-    uint32* WriteUserDataEntriesToSgprsGfx(
+    template <bool IgnoreDirtyFlags, PM4ShaderType shaderType, bool Pm4OptImmediate>
+    uint32* WriteUserDataEntriesToSgprs(
         const UserDataEntryMap& entryMap,
         const UserDataEntries&  entries,
         uint32*                 pCmdSpace);

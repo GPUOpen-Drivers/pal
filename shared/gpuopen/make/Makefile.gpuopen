@@ -57,8 +57,7 @@ endif
 LCXXINCS += -I$(DEVDRIVER_DEPTH)/inc                           \
             -I$(DEVDRIVER_DEPTH)/src                           \
             -I$(DEVDRIVER_DEPTH)/third_party/rapidjson/include \
-            -I$(DEVDRIVER_DEPTH)/third_party/mpack             \
-            -I$(DEVDRIVER_DEPTH)/third_party/tiny_printf
+            -I$(DEVDRIVER_DEPTH)/third_party/mpack
 
 ## ddCore
 vpath %.cpp $(DEVDRIVER_DEPTH)/core/src
@@ -142,8 +141,7 @@ ifeq ($(PLATFORM_FLAVOR), win)
             vpath %.cpp $(DEVDRIVER_DEPTH)/message/src
             CPPFILES += kmdEscapeProxy.cpp      \
                         message.cpp             \
-                        localMsgTransport.cpp   \
-                        ddWindowsAmdGpuInfo.cpp
+                        localMsgTransport.cpp
 
             ifeq ($(BUILD_TYPE),dbg)
                 LCXXDEFS += -DDEVDRIVER_FAKEIOCTL

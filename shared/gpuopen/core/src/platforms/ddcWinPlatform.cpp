@@ -887,6 +887,39 @@ namespace DevDriver
 
                 return sharedBuffer;
             }
+
+            bool IsWin10DeveloperModeEnabled()
+            {
+                DWORD isEnabled = 0;
+
+                HKEY hKey;
+                auto hResult = RegOpenKeyEx(
+                    HKEY_LOCAL_MACHINE,
+                    R"(SOFTWARE\Microsoft\Windows\CurrentVersion\AppModelUnlock)",
+                    0,
+                    KEY_READ,
+                    &hKey
+                );
+
+                if (SUCCEEDED(hResult))
+                {
+                    DWORD valueSize = sizeof(DWORD);
+
+                    hResult = RegQueryValueEx(
+                        hKey,
+                        "AllowDevelopmentWithoutDevLicense",
+                        0,
+                        NULL,
+                        reinterpret_cast<LPBYTE>(&isEnabled),
+                        &valueSize
+                    );
+                    DD_ASSERT(valueSize == sizeof(DWORD));
+
+                    RegCloseKey(hKey);
+                }
+
+                return isEnabled != 0;
+            }
         }
     }
 }

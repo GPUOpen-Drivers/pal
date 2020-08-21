@@ -241,7 +241,7 @@ private:
 
     void LogQueueCall(QueueCallId callId);
 
-    void OutputLogItemsToFile(size_t count);
+    void OutputLogItemsToFile(size_t count, bool hasDrawsDispatches);
     void OpenLogFile(uint32 frameId);
     void OpenSqttFile(
         uint32 shaderEngineId,
@@ -309,6 +309,7 @@ private:
         uint32   gpuMemCount;
         uint32   logItemCount;
         uint32   gpaSessionCount;
+        bool     hasDrawOrDispatch;
     };
     Util::Deque<PendingSubmitInfo, Platform> m_pendingSubmits;
 

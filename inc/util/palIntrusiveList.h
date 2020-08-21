@@ -144,6 +144,9 @@ public:
 
     IntrusiveList();
 
+    /// Returns the number of elements in the list, not counting the sentinel.
+    size_t NumElements() const { return m_numElements; }
+
     /// Returns true if the list is empty.
     bool IsEmpty() const { return m_sentinel.m_pNext == &m_sentinel; }
 
@@ -227,7 +230,8 @@ private:
     void InsertBefore(Node* pBeforeMe, Node* pNode);
     void Unlink(Node* pNode);
 
-    Node m_sentinel; // Ties the head to the tail and signifies the boundary of the list.
+    Node   m_sentinel;    // Ties the head to the tail and signifies the boundary of the list.
+    size_t m_numElements; // Number of elements.
 
     PAL_DISALLOW_COPY_AND_ASSIGN(IntrusiveList);
 };

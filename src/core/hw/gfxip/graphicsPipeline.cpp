@@ -58,7 +58,8 @@ GraphicsPipeline::GraphicsPipeline(
 // Initialize this graphics pipeline based on the provided creation info.
 Result GraphicsPipeline::Init(
     const GraphicsPipelineCreateInfo&         createInfo,
-    const GraphicsPipelineInternalCreateInfo& internalInfo)
+    const GraphicsPipelineInternalCreateInfo& internalInfo,
+    const AbiReader&                          abiReader)
 {
     Result result = Result::Success;
 
@@ -83,7 +84,7 @@ Result GraphicsPipeline::Init(
     if (result == Result::Success)
     {
         PAL_ASSERT(m_pPipelineBinary != nullptr);
-        result = InitFromPipelineBinary(createInfo, internalInfo);
+        result = InitFromPipelineBinary(createInfo, internalInfo, abiReader);
     }
 
     return result;
@@ -94,7 +95,8 @@ Result GraphicsPipeline::Init(
 // info.
 Result GraphicsPipeline::InitFromPipelineBinary(
     const GraphicsPipelineCreateInfo&         createInfo,
-    const GraphicsPipelineInternalCreateInfo& internalInfo)
+    const GraphicsPipelineInternalCreateInfo& internalInfo,
+    const AbiReader&                          abiReader)
 {
     // Store the ROP code this pipeline was created with
     m_logicOp = createInfo.cbState.logicOp;
@@ -125,16 +127,9 @@ Result GraphicsPipeline::InitFromPipelineBinary(
     m_viewInstancingDesc                   = createInfo.viewInstancingDesc;
     m_viewInstancingDesc.viewInstanceCount = Max(m_viewInstancingDesc.viewInstanceCount, 1u);
 
-    AbiReader abiReader(m_pDevice->GetPlatform(), m_pPipelineBinary);
-    Result result = abiReader.Init();
-
     MsgPackReader      metadataReader;
     CodeObjectMetadata metadata;
-
-    if (result == Result::Success)
-    {
-        result = abiReader.GetMetadata(&metadataReader, &metadata);
-    }
+    Result result = abiReader.GetMetadata(&metadataReader, &metadata);
 
     if (result == Result::Success)
     {

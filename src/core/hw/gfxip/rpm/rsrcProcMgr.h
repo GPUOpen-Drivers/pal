@@ -303,6 +303,10 @@ protected:
         const ImageCopyRegion* pRegions,
         uint32                 copyFlags) const;
 
+    virtual bool PreferComputeForNonLocalDestCopy(
+        const Pal::Image& dstImage) const
+        { return false; }
+
     const ComputePipeline* GetLinearHtileClearPipeline(
         bool    expClearEnable,
         bool    tileStencilDisabled,

@@ -86,6 +86,13 @@ public:
         uint32 stackSizeInBytes) override;
 #endif
 
+    bool DisablePartialPreempt() const { return m_disablePartialPreempt; }
+
+    // Returns the scratch memory size in dwords
+    static uint32 CalcScratchMemSize(
+        GfxIpLevel                gfxIpLevel,
+        const CodeObjectMetadata& metadata);
+
 protected:
     virtual Result HwlInit(
         const ComputePipelineCreateInfo& createInfo,
@@ -100,6 +107,7 @@ private:
 
     ComputePipelineSignature  m_signature;
     PipelineChunkCs           m_chunkCs;
+    bool                      m_disablePartialPreempt;
 
     PAL_DISALLOW_DEFAULT_CTOR(ComputePipeline);
     PAL_DISALLOW_COPY_AND_ASSIGN(ComputePipeline);

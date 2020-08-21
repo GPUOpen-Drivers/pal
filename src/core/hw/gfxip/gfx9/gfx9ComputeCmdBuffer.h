@@ -27,6 +27,7 @@
 
 #include "core/hw/gfxip/computeCmdBuffer.h"
 #include "core/hw/gfxip/gfx9/gfx9CmdStream.h"
+#include "core/hw/gfxip/gfx9/gfx9ComputePipeline.h"
 
 namespace Pal
 {
@@ -169,13 +170,12 @@ public:
 
     virtual uint32 CmdInsertExecutionMarker() override;
 
-    virtual CmdStreamChunk* GetChunkForCmdGeneration(
+    virtual void GetChunkForCmdGeneration(
         const Pal::IndirectCmdGenerator& generator,
         const Pal::Pipeline&             pipeline,
         uint32                           maxCommands,
-        uint32*                          pCommandsInChunk,
-        gpusize*                         pEmbeddedDataAddr,
-        uint32*                          pEmbeddedDataSize) override;
+        uint32                           numChunkOutputs,
+        ChunkOutput*                     pChunkOutputs) override;
 
     virtual void CmdSetPredication(
         IQueryPool*         pQueryPool,
@@ -252,14 +252,17 @@ private:
         const ComputePipelineSignature* pPrevSignature,
         uint32*                         pCmdSpace);
 
-    void FixupUserSgprsOnPipelineSwitch(
-        const ComputePipelineSignature* pPrevSignature);
-
-    uint32* WriteDirtyUserDataEntries(
-        uint32* pCmdSpace);
+    uint32* FixupUserSgprsOnPipelineSwitch(
+        const ComputePipelineSignature* pPrevSignature,
+        uint32*                         pCmdSpace);
 
     void LeakNestedCmdBufferState(
         const ComputeCmdBuffer& cmdBuffer);
+
+    bool DisablePartialPreempt() const
+    {
+        return static_cast<const ComputePipeline*>(m_computeState.pipelineState.pPipeline)->DisablePartialPreempt();
+    }
 
     const Device&   m_device;
     const CmdUtil&  m_cmdUtil;

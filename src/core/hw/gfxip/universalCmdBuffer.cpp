@@ -284,31 +284,30 @@ void UniversalCmdBuffer::ResetState()
 void UniversalCmdBuffer::CmdBindPipeline(
     const PipelineBindParams& params)
 {
+    const Pipeline*const pPipeline = static_cast<const Pipeline*>(params.pPipeline);
+
     if (params.pipelineBindPoint == PipelineBindPoint::Compute)
     {
         m_computeState.dynamicCsInfo            = params.cs;
-        m_computeState.pipelineState.pPipeline  = static_cast<const Pipeline*>(params.pPipeline);
+        m_computeState.pipelineState.pPipeline  = pPipeline;
         m_computeState.pipelineState.apiPsoHash = params.apiPsoHash;
         m_computeState.pipelineState.dirtyFlags.pipelineDirty = 1;
-        if (m_computeState.pipelineState.pPipeline != nullptr)
-        {
-            m_maxUploadFenceToken = Max(m_maxUploadFenceToken,
-                                        m_computeState.pipelineState.pPipeline->GetUploadFenceToken());
-        }
     }
     else
     {
         m_graphicsState.dynamicGraphicsInfo      = params.graphics;
-        m_graphicsState.pipelineState.pPipeline  = static_cast<const Pipeline*>(params.pPipeline);
+        m_graphicsState.pipelineState.pPipeline  = pPipeline;
         m_graphicsState.pipelineState.apiPsoHash = params.apiPsoHash;
         m_graphicsState.pipelineState.dirtyFlags.pipelineDirty = 1;
-        if (m_graphicsState.pipelineState.pPipeline != nullptr)
-        {
-            m_maxUploadFenceToken = Max(m_maxUploadFenceToken,
-                                        m_graphicsState.pipelineState.pPipeline->GetUploadFenceToken());
-        }
     }
-    m_device.DescribeBindPipeline(this, params.pPipeline, params.apiPsoHash, params.pipelineBindPoint);
+
+    m_device.DescribeBindPipeline(this, pPipeline, params.apiPsoHash, params.pipelineBindPoint);
+
+    if (pPipeline != nullptr)
+    {
+        m_maxUploadFenceToken = Max(m_maxUploadFenceToken, pPipeline->GetUploadFenceToken());
+        m_lastPagingFence     = Max(m_lastPagingFence,     pPipeline->GetPagingFenceVal());
+    }
 }
 
 // =====================================================================================================================
@@ -783,11 +782,6 @@ const CmdStream* UniversalCmdBuffer::GetCmdStream(
 
     CmdStream* pStream = nullptr;
 
-    if (m_pAceCmdStream == nullptr)
-    {
-        cmdStreamIdx += 1;
-    }
-
     // CE command stream index < DE command stream index so CE will be launched before the DE.
     // DE cmd stream index > all others because CmdBuffer::End() uses
     // GetCmdStream(NumCmdStreams() - 1) to get a "root" chunk.
@@ -805,8 +799,6 @@ const CmdStream* UniversalCmdBuffer::GetCmdStream(
         pStream = m_pDeCmdStream;
         break;
     }
-
-    PAL_ASSERT(pStream != nullptr);
 
     return pStream;
 }

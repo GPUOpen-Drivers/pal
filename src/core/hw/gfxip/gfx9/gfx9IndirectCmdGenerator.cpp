@@ -407,15 +407,21 @@ void IndirectCmdGenerator::PopulateInvocationBuffer(
 
     if (Type() == GeneratorType::Dispatch)
     {
+        const ComputePipeline* pComputePipeline = static_cast<const ComputePipeline*>(pPipeline);
+
         regCOMPUTE_DISPATCH_INITIATOR dispatchInitiator = {};
 
         dispatchInitiator.bits.COMPUTE_SHADER_EN  = 1;
         dispatchInitiator.bits.ORDER_MODE         = 1;
         if (IsGfx10Plus(*m_device.Parent()))
         {
-            const bool csWave32 = static_cast<const ComputePipeline*>(pPipeline)->Signature().flags.isWave32;
+            const bool csWave32 = pComputePipeline->Signature().flags.isWave32;
             dispatchInitiator.gfx10Plus.CS_W32_EN     = csWave32;
             dispatchInitiator.gfx10Plus.TUNNEL_ENABLE = pCmdBuffer->UsesDispatchTunneling();
+        }
+        if (pComputePipeline->DisablePartialPreempt())
+        {
+            dispatchInitiator.u32All |= ComputeDispatchInitiatorDisablePartialPreemptMask;
         }
 
         pData->gfx9.dispatchInitiator = dispatchInitiator.u32All;

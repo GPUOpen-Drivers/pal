@@ -645,7 +645,7 @@ void RsrcProcMgr::CmdResolveQueryComputeShader(
 
     // On GFX9, we don't need to invalidate the L2, as DB writes timestamps directly to it.
     // It should be safe to launch our compute shader now. Select the correct pipeline.
-    const ComputePipeline* pPipeline = nullptr;
+    const Pal::ComputePipeline* pPipeline = nullptr;
 
     // Translate the result flags and query type into the flags that the shader expects.
     ResolveQueryControl controlFlags;
@@ -1045,7 +1045,7 @@ void RsrcProcMgr::BuildHtileLookupTable(
         PAL_ASSERT(pipeBankXor == pBaseHtile->CalcPipeXorMask(ImageAspect::Stencil));
     }
 
-    const ComputePipeline* pPipeline = GetPipeline(RpmComputePipeline::Gfx9BuildHtileLookupTable);
+    const Pal::ComputePipeline* pPipeline = GetPipeline(RpmComputePipeline::Gfx9BuildHtileLookupTable);
 
     pPipeline->ThreadsPerGroupXyz(&threadsPerGroup[0], &threadsPerGroup[1], &threadsPerGroup[2]);
 
@@ -1334,9 +1334,13 @@ bool RsrcProcMgr::ExpandDepthStencil(
     else
     {
 #if PAL_AMDGPU_BUILD
-        // After expand, Htile SMEM bit is wrong for partially covered Htile, a DB cache flush and invalidation here can
-        // make sure Htile result is correct.
-        if (IsGfx9(device) && (range.startSubres.aspect == ImageAspect::Stencil))
+        // The issue could be triggered when clear non-tile aligned and non-TC compatible stencil that goes through
+        // graphics fast clear path as following steps.
+        //
+        // This could be a DB cache issue since it looks like DB fail to eliminate all fast clear codes when do
+        // the expand operation.
+        if ((image.SubresourceInfo(range.startSubres)->flags.supportMetaDataTexFetch == 0) &&
+            (range.startSubres.aspect == ImageAspect::Stencil))
         {
             auto*const pCmdStream = pCmdBuffer->GetCmdStreamByEngine(CmdBufferEngineSupport::Graphics);
             PAL_ASSERT(pCmdStream != nullptr);
@@ -3013,7 +3017,7 @@ void RsrcProcMgr::FmaskColorExpand(
     else
     {
         // Select the correct pipeline for the given number of fragments.
-        const ComputePipeline* pPipeline = nullptr;
+        const Pal::ComputePipeline* pPipeline = nullptr;
         switch (createInfo.fragments)
         {
         case 2:
@@ -4832,7 +4836,7 @@ void Gfx9RsrcProcMgr::ExecuteHtileEquation(
         uint32          threadsPerGroup[3] = {};
 
         // TODO: need to obey the "dbPerTileExpClearEnable" setting here.
-        const ComputePipeline* pPipeline = GetPipeline((effectiveSamples > 1)
+        const Pal::ComputePipeline* pPipeline = GetPipeline((effectiveSamples > 1)
                                                        ? RpmComputePipeline::Gfx9ClearHtileMultiSample
                                                        : RpmComputePipeline::Gfx9ClearHtileSingleSample);
 
@@ -5075,7 +5079,7 @@ void Gfx9RsrcProcMgr::HwlHtileCopyAndFixUp(
         // Save the command buffer's state
         pCmdBuffer->CmdSaveComputeState(ComputeStatePipelineAndUserData);
 
-        const ComputePipeline* pPipeline = GetPipeline(RpmComputePipeline::Gfx9HtileCopyAndFixUp);
+        const Pal::ComputePipeline* pPipeline = GetPipeline(RpmComputePipeline::Gfx9HtileCopyAndFixUp);
 
         uint32 threadsPerGroup[3] = {};
         pPipeline->ThreadsPerGroupXyz(&threadsPerGroup[0], &threadsPerGroup[1], &threadsPerGroup[2]);
@@ -5805,7 +5809,7 @@ void Gfx10RsrcProcMgr::InitHtileData(
     // Determine which pipeline to use for this clear.  The "GetLinearHtileClearPipeline" will return nullptr if
     // the mask value is UINT_MAX (i.e., don't keep any existing values, just write hTileValue directly).  However,
     // the FastDepthClear pipeline will still work for this case.
-    const ComputePipeline* pPipeline = ((hTileMask != UINT_MAX)
+    const Pal::ComputePipeline* pPipeline = ((hTileMask != UINT_MAX)
                                         ? GetLinearHtileClearPipeline(m_pDevice->Settings().dbPerTileExpClearEnable,
                                                                       pHtile->TileStencilDisabled(),
                                                                       hTileMask)
@@ -5895,9 +5899,10 @@ void Gfx10RsrcProcMgr::WriteHtileData(
 
     const bool expClearEnable        = m_pDevice->Settings().dbPerTileExpClearEnable;
     const bool tileStencilDisabled   = pHtile->TileStencilDisabled();
-    const ComputePipeline* pPipeline = nullptr;
     const uint32 numBufferSrdDwords  = NumBytesToNumDwords(sizeof(sq_buf_rsrc_t));
     bool  wroteLastMipLevel          = false;
+
+    const Pal::ComputePipeline* pPipeline = nullptr;
 
     for (uint32 mipIdx = 0; mipIdx < range.numMips; mipIdx++)
     {
