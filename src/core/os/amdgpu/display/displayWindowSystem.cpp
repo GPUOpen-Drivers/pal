@@ -285,6 +285,7 @@ Result DisplayWindowSystem::CreatePresentableImage(
             pImage->SetPresentImageHandle(imageHandle);
 
             FindCrtc();
+            ModeSet(pImage);
         }
     }
 
