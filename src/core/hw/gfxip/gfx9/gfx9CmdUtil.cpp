@@ -3270,6 +3270,8 @@ size_t CmdUtil::BuildSetPredication(
 
     // The predication memory address must be 16-byte aligned, and cannot be wider than 40 bits.
     PAL_ASSERT(((gpuVirtAddr & 0xF) == 0) && (gpuVirtAddr <= ((1uLL << 40) - 1)));
+    // The predicate type has to be valid.
+    PAL_ASSERT(predType < PredicateType::Boolean32);
 
     pPacket->ordinal1.header.u32All = Type3Header(IT_SET_PREDICATION, PacketSize);
     pPacket->ordinal3.u32All        = LowPart(gpuVirtAddr);

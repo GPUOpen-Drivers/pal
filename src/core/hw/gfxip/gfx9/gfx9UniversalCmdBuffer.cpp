@@ -6986,6 +6986,30 @@ void UniversalCmdBuffer::CmdSetPredication(
 
     uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
 
+    // If the predicate is 32-bits, allocate a 64-bit embedded predicate, zero it, emit a ME copy from the
+    // original to the lower 32-bits of the embedded predicate, and update `gpuVirtAddr` and `predType`.
+    if (predType == PredicateType::Boolean32)
+    {
+        PAL_ASSERT(gpuVirtAddr != 0);
+        constexpr size_t PredicateDwordSize  = sizeof(uint64) / sizeof(uint32);
+        constexpr size_t PredicateDwordAlign = 16 / sizeof(uint32);
+        gpusize predicateVirtAddr            = 0;
+        uint32* pPredicate                   = CmdAllocateEmbeddedData(PredicateDwordSize, PredicateDwordAlign, &predicateVirtAddr);
+        pPredicate[0] = 0;
+        pPredicate[1] = 0;
+        pDeCmdSpace += CmdUtil::BuildCopyDataGraphics(engine_sel__me_copy_data__micro_engine,
+                                                      dst_sel__me_copy_data__memory__GFX09,
+                                                      predicateVirtAddr,
+                                                      src_sel__me_copy_data__memory__GFX09,
+                                                      gpuVirtAddr,
+                                                      count_sel__me_copy_data__32_bits_of_data,
+                                                      wr_confirm__me_copy_data__wait_for_confirmation,
+                                                      pDeCmdSpace);
+        pDeCmdSpace += CmdUtil::BuildPfpSyncMe(pDeCmdSpace);
+        gpuVirtAddr = predicateVirtAddr;
+        predType    = PredicateType::Boolean64;
+    }
+
     pDeCmdSpace += CmdUtil::BuildSetPredication(gpuVirtAddr,
                                                 predPolarity,
                                                 waitResults,
