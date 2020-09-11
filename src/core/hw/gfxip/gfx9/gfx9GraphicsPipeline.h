@@ -243,6 +243,13 @@ private:
         GraphicsPipelineUploader*         pUploader);
     void SetupStereoRegisters();
 
+    void SetupFetchShaderInfo(const GraphicsPipelineUploader* pUploader);
+
+    uint32* WriteFsShCommands(
+        CmdStream* pCmdStream,
+        uint32*    pCmdSpace,
+        uint32     fetchShaderRegAddr) const;
+
     void SetupIaMultiVgtParam(
         const RegisterVector& registers);
     void FixupIaMultiVgtParam(
@@ -265,6 +272,9 @@ private:
     bool              m_isNggFastLaunch; ///< Is NGG fast launch enabled?
     uint32            m_nggSubgroupSize;
     bool              m_uavExportRequiresFlush; // If false, must flush after each draw when UAV export is enabled
+
+    uint16            m_fetchShaderRegAddr; // The user data register which fetch shader address will be writen to.
+    gpusize           m_fetchShaderPgm;     // The GPU virtual address of fetch shader entry.
 
     // We need two copies of IA_MULTI_VGT_PARAM to cover all possible register combinations depending on whether or not
     // WD_SWITCH_ON_EOP is required.

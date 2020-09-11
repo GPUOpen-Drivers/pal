@@ -291,12 +291,16 @@ public:
 
     // Returns the number of DWORDs that are required to chain two chunks
     static uint32 ChainSizeInDwords(EngineType engineType);
-    static constexpr uint32 CondIndirectBufferSize  = PM4_PFP_COND_INDIRECT_BUFFER_SIZEDW__CORE;
-    static constexpr uint32 DispatchDirectSize      = PM4_PFP_DISPATCH_DIRECT_SIZEDW__CORE;
-    static constexpr uint32 DispatchIndirectMecSize = PM4_MEC_DISPATCH_INDIRECT_SIZEDW__CORE;
-    static constexpr uint32 DrawIndexAutoSize       = PM4_PFP_DRAW_INDEX_AUTO_SIZEDW__CORE;
-    static constexpr uint32 DrawIndex2Size          = PM4_PFP_DRAW_INDEX_2_SIZEDW__CORE;
-    static constexpr uint32 DrawIndexOffset2Size    = PM4_PFP_DRAW_INDEX_OFFSET_2_SIZEDW__CORE;
+    static constexpr uint32 CondIndirectBufferSize        = PM4_PFP_COND_INDIRECT_BUFFER_SIZEDW__CORE;
+    static constexpr uint32 DispatchDirectSize            = PM4_PFP_DISPATCH_DIRECT_SIZEDW__CORE;
+    static constexpr uint32 DispatchIndirectMecSize       = PM4_MEC_DISPATCH_INDIRECT_SIZEDW__CORE;
+    static constexpr uint32 DrawIndexAutoSize             = PM4_PFP_DRAW_INDEX_AUTO_SIZEDW__CORE;
+    static constexpr uint32 DrawIndex2Size                = PM4_PFP_DRAW_INDEX_2_SIZEDW__CORE;
+    static constexpr uint32 DrawIndexOffset2Size          = PM4_PFP_DRAW_INDEX_OFFSET_2_SIZEDW__CORE;
+    static constexpr uint32 DispatchTaskMeshDirectMecSize =
+        PM4_MEC_DISPATCH_TASKMESH_DIRECT_ACE_SIZEDW__GFX10PLUS;
+    static constexpr uint32 DispatchTaskMeshIndirectMecSize =
+        PM4_MEC_DISPATCH_TASKMESH_INDIRECT_MULTI_ACE_SIZEDW__GFX10PLUS;
     static constexpr uint32 MinNopSizeInDwords      = 1; // all gfx9 HW supports 1-DW NOP packets
 
     static_assert (PM4_PFP_COND_EXEC_SIZEDW__CORE == PM4_MEC_COND_EXEC_SIZEDW__CORE,
@@ -723,7 +727,8 @@ public:
         const uint32*        pPeriodData,
         void*                pBuffer);
 
-    static size_t BuildCommentString(const char* pComment, void* pBuffer);
+    static size_t BuildCommentString(const char* pComment, Pm4ShaderType type, void* pBuffer);
+
     size_t BuildNopPayload(const void* pPayload, uint32 payloadSize, void* pBuffer) const;
 
     void BuildPipelinePrefetchPm4(const PipelineUploader& uploader, PipelinePrefetchPm4* pOutput) const;

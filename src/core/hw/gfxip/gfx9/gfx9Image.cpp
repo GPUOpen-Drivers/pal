@@ -587,6 +587,16 @@ Result Image::Finalize(
                 // We also need the DCC state metadata when DCC is enabled.
                 needsDccStateMetaData = true;
             }
+
+            // As CP doesn't support to LOAD_***REG/SET_PREDICATION/WRITE_DATA on TMZ images,
+            // Fast clears on TMZ images are only supported if they are TC-compatible and the
+            // clear value is TC-compatible, so there is no need to load the clear colors or FCE.
+            // Also disable DCC state metadata to avoid using predication on TMZ images.
+            if (m_pParent->IsTmz())
+            {
+                needsFastColorClearMetaData = false;
+                needsDccStateMetaData = false;
+            }
         }
     } // End check for (useDcc != false)
 
@@ -1728,8 +1738,11 @@ bool Image::IsFastColorClearSupported(
                 // The clear value must be TC-compatible
                 isClearColorTcCompatible;
 
-            // Allow fast clear only if either is possible
-            isFastClearSupported = (nonTcCompatibleFastClearPossible || tcCompatibleFastClearPossible);
+            // For non-tmz image, allow fast clear if either is possible.
+            // As CP doesn't support to LOAD_***REG/SET_PREDICATION/WRITE_DATA on TMZ images,
+            // Only support fast clears on TMZ images if they are TC-compatible and the clear value is TC-compatible.
+            isFastClearSupported = m_pParent->IsTmz() ? tcCompatibleFastClearPossible
+                                                      : (nonTcCompatibleFastClearPossible || tcCompatibleFastClearPossible);
         }
     }
 
@@ -3193,12 +3206,16 @@ void Image::InitMetadataFill(
         // If we have fMask then we also have cMask.
         if (HasFmaskData())
         {
-            constexpr uint32 CmaskInitValue = (static_cast<uint32>(Gfx9Cmask::InitialValue << 24) |
-                                               static_cast<uint32>(Gfx9Cmask::InitialValue << 16) |
-                                               static_cast<uint32>(Gfx9Cmask::InitialValue <<  8) |
-                                               static_cast<uint32>(Gfx9Cmask::InitialValue <<  0));
+            const uint8  cmaskInitValue    = m_pCmask->GetInitialValue();
+            const uint32 expandedInitValue = (static_cast<uint32>(cmaskInitValue << 24) |
+                                              static_cast<uint32>(cmaskInitValue << 16) |
+                                              static_cast<uint32>(cmaskInitValue <<  8) |
+                                              static_cast<uint32>(cmaskInitValue <<  0));
 
-            pCmdBuffer->CmdFillMemory(gpuMemObj, m_pCmask->MemoryOffset() + boundGpuMemOffset, m_pCmask->TotalSize(), CmaskInitValue);
+            pCmdBuffer->CmdFillMemory(gpuMemObj,
+                                      m_pCmask->MemoryOffset() + boundGpuMemOffset,
+                                      m_pCmask->TotalSize(),
+                                      expandedInitValue);
             m_pCmask->UploadEq(pCmdBuffer);
 
             pCmdBuffer->CmdFillMemory(gpuMemObj,

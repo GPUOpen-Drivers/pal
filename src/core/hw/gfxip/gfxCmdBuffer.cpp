@@ -255,20 +255,20 @@ void GfxCmdBuffer::ResetState()
 
     // It's possible that another of our command buffers still has blts in flight, except for CP blts which must be
     // flushed in each command buffer postamble.
-    m_gfxCmdBufState.flags.gfxBltActive        = 1;
-    m_gfxCmdBufState.flags.gfxWriteCachesDirty = 1;
-    m_gfxCmdBufState.flags.csBltActive         = 1;
-    m_gfxCmdBufState.flags.csWriteCachesDirty  = 1;
+    m_gfxCmdBufState.flags.gfxBltActive        = IsGraphicsSupported();
+    m_gfxCmdBufState.flags.gfxWriteCachesDirty = IsGraphicsSupported();
+    m_gfxCmdBufState.flags.csBltActive         = IsComputeSupported();
+    m_gfxCmdBufState.flags.csWriteCachesDirty  = IsComputeSupported();
 
     // A previous, chained command buffer could have used a CP blt which may have accessed L2 or the memory directly.
     // By convention, our CP blts will only use L2 if the HW supports it so we only need to set one bit here.
     if (m_device.Parent()->ChipProperties().gfxLevel > GfxIpLevel::GfxIp6)
     {
-        m_gfxCmdBufState.flags.cpWriteCachesDirty = 1;
+        m_gfxCmdBufState.flags.cpWriteCachesDirty = IsCpDmaSupported();
     }
     else
     {
-        m_gfxCmdBufState.flags.cpMemoryWriteL2CacheStale = 1;
+        m_gfxCmdBufState.flags.cpMemoryWriteL2CacheStale = IsCpDmaSupported();
     }
 
     m_gfxBltActiveCtr = 0;
@@ -794,7 +794,48 @@ void GfxCmdBuffer::CmdPostProcessFrame(
 
         if (image.GetGfxImage()->HasDisplayDccData())
         {
-            m_device.RsrcProcMgr().CmdGfxDccToDisplayDcc(this, image);
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 625
+            // The surface must be fully expanded if another component may access it via PFPA,
+            // or KMD nofify UMD to expand DCC.
+            if (postProcessInfo.fullScreenFrameMetadataControlFlags.primaryHandle ||
+                postProcessInfo.fullScreenFrameMetadataControlFlags.expandDcc)
+            {
+                BarrierInfo barrier = {};
+
+                BarrierTransition transition = {};
+                transition.srcCacheMask                    = CoherShader;
+                transition.dstCacheMask                    = CoherShader;
+
+                transition.imageInfo.pImage                = &image;
+                transition.imageInfo.oldLayout.usages      = LayoutPresentWindowed | LayoutPresentFullscreen;
+                transition.imageInfo.oldLayout.engines     = (GetEngineType() == EngineTypeUniversal) ?
+                                                             LayoutUniversalEngine : LayoutComputeEngine;
+                transition.imageInfo.newLayout.usages      = LayoutShaderRead | LayoutUncompressed;
+                transition.imageInfo.newLayout.engines     = transition.imageInfo.oldLayout.engines;
+                transition.imageInfo.subresRange.numMips   = 1;
+                transition.imageInfo.subresRange.numSlices = 1;
+
+                barrier.pTransitions = &transition;
+                barrier.transitionCount = 1;
+
+                barrier.waitPoint = HwPipePreCs;
+
+                HwPipePoint pipePoints = HwPipeTop;
+                barrier.pPipePoints = &pipePoints;
+                barrier.pipePointWaitCount = 1;
+
+                CmdBarrier(barrier);
+
+                // if Dcc is decompressed, needn't do retile, put displayDCC memory
+                // itself back into a "fully decompressed" state.
+                m_device.RsrcProcMgr().CmdDisplayDccFixUp(this, image);
+            }
+            else
+#endif
+            {
+                m_device.RsrcProcMgr().CmdGfxDccToDisplayDcc(this, image);
+            }
+
             addedGpuWork = true;
         }
     }

@@ -46,7 +46,7 @@ size_t CmdAllocator::GetSize(
     Result*                       pResult)    // [optional] The additional validation result is stored here.
 {
     // We need extra space for two Mutex objects if the allocator is thread safe.
-    size_t size = sizeof(CmdAllocator) + (createInfo.flags.threadSafe ? (2 * sizeof(Mutex)) : 0);
+    size_t size = sizeof(CmdAllocator) + GetPlacementSize(createInfo);
 
     // Validate the createInfo if requested.
     if (pResult != nullptr)
@@ -84,6 +84,15 @@ size_t CmdAllocator::GetSize(
 }
 
 // =====================================================================================================================
+// Returns the ammount of additional placement memory required by this class.
+size_t CmdAllocator::GetPlacementSize(
+    const CmdAllocatorCreateInfo& createInfo)
+{
+    // We need extra space for two Mutex objects if the allocator is thread safe.
+    return createInfo.flags.threadSafe ? (2 * sizeof(Mutex)) : 0;
+}
+
+// =====================================================================================================================
 CmdAllocator::CmdAllocator(
     Device*                       pDevice,
     const CmdAllocatorCreateInfo& createInfo)
@@ -104,13 +113,6 @@ CmdAllocator::CmdAllocator(
     if (createInfo.flags.disableBusyChunkTracking == 0)
     {
         m_flags.trackBusyChunks = m_flags.autoMemoryReuse;
-    }
-
-    if (createInfo.flags.threadSafe)
-    {
-        // If this allocator is thread safe we construct mutexes immediately following this object in memory.
-        m_pChunkLock       = PAL_PLACEMENT_NEW(this + 1) Mutex();
-        m_pLinearAllocLock = PAL_PLACEMENT_NEW(m_pChunkLock + 1) Mutex();
     }
 
     const uint32 residencyFlags = m_pDevice->GetPublicSettings()->cmdAllocResidency;
@@ -345,14 +347,23 @@ void CmdAllocator::FreeAllLinearAllocators()
 }
 
 // =====================================================================================================================
-Result CmdAllocator::Init()
+Result CmdAllocator::Init(
+    const CmdAllocatorCreateInfo& createInfo,
+    void* pPlacementAddr)
 {
-    // Initialize the allocator's mutexes if they were constructed.
-    Result result = (m_pChunkLock != nullptr) ? m_pChunkLock->Init() : Result::Success;
+    Result result = Result::Success;
 
-    if ((m_pLinearAllocLock != nullptr) && (result == Result::Success))
+    // Initialize the allocator's mutexes if they are necessary
+    if (createInfo.flags.threadSafe)
     {
-        result = m_pLinearAllocLock->Init();
+        m_pChunkLock = PAL_PLACEMENT_NEW(pPlacementAddr) Mutex();
+        result       = m_pChunkLock->Init();
+
+        if (result == Result::Success)
+        {
+            m_pLinearAllocLock = PAL_PLACEMENT_NEW(m_pChunkLock + 1) Mutex();
+            result             = m_pLinearAllocLock->Init();
+        }
     }
 
 #if PAL_ENABLE_PRINTS_ASSERTS

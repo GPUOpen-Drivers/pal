@@ -854,7 +854,8 @@ private:
     BinningMode GetDisableBinningSetting(Extent2d* pBinSize) const;
 
     CmdStream* GetAceCmdStream();
-    gpusize GangedCmdStreamSemAddr();
+    gpusize    GangedCmdStreamSemAddr();
+    void       IssueGangedBarrierIncr();
 
     const Device&   m_device;
     const CmdUtil&  m_cmdUtil;
@@ -1018,6 +1019,7 @@ private:
 
     // Used to sync the ACE and DE in a ganged submit.
     gpusize m_gangedCmdStreamSemAddr;
+    uint32  m_barrierCount;
 
     PAL_DISALLOW_DEFAULT_CTOR(UniversalCmdBuffer);
     PAL_DISALLOW_COPY_AND_ASSIGN(UniversalCmdBuffer);

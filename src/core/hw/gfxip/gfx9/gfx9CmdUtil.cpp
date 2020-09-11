@@ -3278,6 +3278,8 @@ size_t CmdUtil::BuildSetPredication(
     // Verify that the address is properly aligned
     PAL_ASSERT(pPacket->ordinal3.bitfields.reserved1 == 0);
 
+    const bool continueSupported = (predType == PredicateType::Zpass) || (predType == PredicateType::PrimCount);
+    PAL_ASSERT(continueSupported || (continuePredicate == false));
     pPacket->ordinal2.u32All                = 0;
     pPacket->ordinal2.bitfields.pred_bool    = (predicationBool
                                             ? pred_bool__pfp_set_predication__draw_if_visible_or_no_overflow
@@ -3286,7 +3288,7 @@ size_t CmdUtil::BuildSetPredication(
                                             ? hint__pfp_set_predication__draw_if_not_final_zpass_written
                                             : hint__pfp_set_predication__wait_until_final_zpass_written);
     pPacket->ordinal2.bitfields.pred_op      = static_cast<PFP_SET_PREDICATION_pred_op_enum>(predType);
-    pPacket->ordinal2.bitfields.continue_bit = (((predType == PredicateType::Zpass) && continuePredicate)
+    pPacket->ordinal2.bitfields.continue_bit = ((continueSupported && continuePredicate)
                                             ? continue_bit__pfp_set_predication__continue_set_predication
                                             : continue_bit__pfp_set_predication__new_set_predication);
 
@@ -3837,8 +3839,9 @@ size_t CmdUtil::BuildWriteDataPeriodic(
 // Builds an NOP PM4 packet with the ASCII string comment embedded inside. The comment is preceeded by a signature
 // that analysis tools can use to tell that this is a comment.
 size_t CmdUtil::BuildCommentString(
-    const char* pComment,
-    void*       pBuffer)
+    const char*   pComment,
+    Pm4ShaderType type,
+    void*         pBuffer)
 {
     const size_t stringLength    = strlen(pComment) + 1;
     const size_t payloadSize     = (PM4_PFP_NOP_SIZEDW__CORE * sizeof(uint32)) + stringLength;
@@ -3849,7 +3852,7 @@ size_t CmdUtil::BuildCommentString(
     PAL_ASSERT(stringLength < MaxPayloadSize);
 
     // Build header (NOP, signature, size, type)
-    pPacket->ordinal1.header.u32All = Type3Header(IT_NOP, static_cast<uint32>(packetSize));
+    pPacket->ordinal1.header.u32All = Type3Header(IT_NOP, static_cast<uint32>(packetSize), false, type);
     pData->signature       = CmdBufferPayloadSignature;
     pData->payloadSize     = static_cast<uint32>(packetSize);
     pData->type            = CmdBufferPayloadType::String;

@@ -3439,6 +3439,34 @@ Result CreateRpmGraphicsPipelines(
             AllocInternal);
     }
 
+    if (result == Result::Success)
+    {
+        pipeInfo = { };
+        pipeInfo.flags.overrideGpuHeap = 1;
+        pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+        pipeInfo.pPipelineBinary       = pTable[ScaledCopyImageColorKey].pBuffer;
+        pipeInfo.pipelineBinarySize    = pTable[ScaledCopyImageColorKey].size;
+
+        PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
+
+        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
+
+        pipeInfo.cbState.target[0].channelWriteMask       = 0xF;
+        pipeInfo.cbState.target[0].swizzledFormat.format  = ChNumFormat::X8Y8Z8W8_Unorm;
+        pipeInfo.cbState.target[0].swizzledFormat.swizzle =
+            { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
+
+        pipeInfo.cbState.logicOp           = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable = true;
+
+        result = pDevice->CreateGraphicsPipelineInternal(
+            pipeInfo,
+            NullInternalInfo,
+            &pPipelineMem[ScaledCopyImageColorKey],
+            AllocInternal);
+    }
+
     return result;
 }
 

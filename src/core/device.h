@@ -925,7 +925,8 @@ struct GpuChipProperties
                 uint64 supportAlphaToOne                        :  1; // HW supports forcing alpha channel to one
                 uint64 supportSingleChannelMinMaxFilter         :  1; // HW supports any min/max filter.
                 uint64 supportSortAgnosticBarycentrics          :  1; // HW provides provoking vertex for custom interp
-                uint64 reserved                                 : 25;
+                uint64 placeholder4                             :  1;
+                uint64 reserved                                 : 24;
             };
 
             Gfx9PerfCounterInfo perfCounterInfo; // Contains info for perf counters for a specific hardware block

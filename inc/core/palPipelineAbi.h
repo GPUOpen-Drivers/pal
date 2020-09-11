@@ -150,6 +150,7 @@ static const char* PipelineAbiSymbolNameStrings[] =
     "_amdgpu_vs_main",
     "_amdgpu_ps_main",
     "_amdgpu_cs_main",
+    "_amdgpu_fs_main",
     "_amdgpu_ls_shdr_intrl_tbl",
     "_amdgpu_hs_shdr_intrl_tbl",
     "_amdgpu_es_shdr_intrl_tbl",
@@ -405,6 +406,7 @@ enum class PipelineSymbolType : uint32
     VsMainEntry,       ///< Hardware VS entry point.  Must be aligned to hardware requirements.
     PsMainEntry,       ///< Hardware PS entry point.  Must be aligned to hardware requirements.
     CsMainEntry,       ///< Hardware CS entry point.  Must be aligned to hardware requirements.
+    FsMainEntry,       ///< Hardware FS entry point.  Must be aligned to hardware requirements.
     LsShdrIntrlTblPtr, ///< LS shader internal table pointer.  Optional.  Described in Per-Shader Internal Table.
     HsShdrIntrlTblPtr, ///< HS shader internal table pointer.  Optional.  Described in Per-Shader Internal Table.
     EsShdrIntrlTblPtr, ///< ES shader internal table pointer.  Optional.  Described in Per-Shader Internal Table.
@@ -767,6 +769,7 @@ enum class UserDataMapping : uint32
     NggCullingData    = 0x10000011, ///< 64-bit pointer to GPU memory containing the hardware register data needed by
                                     ///  some NGG pipelines to perform culling.  This value contains the address of the
                                     ///  first of two consecutive registers which provide the full GPU address.
+    FetchShaderPtr    = 0x10000015, ///< 64-bit pointer to GPU memory containing the fetch shader subroutine.
 
     /// @internal The following enum values are deprecated and only remain in the header file to avoid build errors.
 

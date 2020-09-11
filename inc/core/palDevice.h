@@ -709,6 +709,7 @@ enum class LocalMemoryType : uint32
     Hbm,
     Hbm2,
     Hbm3,
+    Lpddr4,
     Count
 };
 
@@ -1360,7 +1361,8 @@ union FullScreenFrameMetadataControlFlags
                                                ///  synchronize the flip of frame N (postFrameTimerSubmission == TRUE)
                                                ///  or N+1 (postFrameTimerSubmission == FALSE).
                                                ///  It's only valid when timerNodeSubmission is also set.
-        uint32 reserved                  : 25; ///< Reserved for future use.
+        uint32 expandDcc                 :  1; ///< Expaned Dcc flag, KMD nofify UMD to expand DCC.
+        uint32 reserved                  : 24; ///< Reserved for future use.
     };
     uint32 u32All;    ///< Flags packed as 32-bit uint.
 };

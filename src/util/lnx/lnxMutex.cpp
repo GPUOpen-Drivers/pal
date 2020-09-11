@@ -311,4 +311,22 @@ uint64 AtomicOr64(
     return __sync_fetch_and_or(pTarget, value);
 }
 
+// =====================================================================================================================
+// Atomically AND two 32-bit integers, returning the original value.
+uint32 AtomicAnd(
+    volatile uint32* pTarget,
+    uint32           value)
+{
+    return __sync_fetch_and_and(pTarget, value);
+}
+
+// =====================================================================================================================
+// Atomically OR two 64-bit integers, returning the original value.
+uint64 AtomicAnd64(
+    volatile uint64* pTarget,
+    uint64           value)
+{
+    return __sync_fetch_and_and(pTarget, value);
+}
+
 } // Util

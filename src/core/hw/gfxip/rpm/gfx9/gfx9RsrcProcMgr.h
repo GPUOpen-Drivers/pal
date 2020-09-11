@@ -341,7 +341,8 @@ private:
         GfxCmdBuffer*      pCmdBuffer,
         Pal::CmdStream*    pCmdStream,
         const Image&       image,
-        const SubresRange& range) const = 0;
+        const SubresRange& range,
+        const uint8        initValue) const = 0;
 
     virtual void InitHtile(
         GfxCmdBuffer*      pCmdBuffer,
@@ -475,7 +476,8 @@ protected:
         GfxCmdBuffer*      pCmdBuffer,
         Pal::CmdStream*    pCmdStream,
         const Image&       image,
-        const SubresRange& range) const override;
+        const SubresRange& range,
+        const uint8        initValue) const override;
 
     void InitHtile(
         GfxCmdBuffer*      pCmdBuffer,
@@ -616,7 +618,8 @@ protected:
         GfxCmdBuffer*      pCmdBuffer,
         Pal::CmdStream*    pCmdStream,
         const Image&       image,
-        const SubresRange& range) const override;
+        const SubresRange& range,
+        const uint8        initValue) const override;
 
     virtual void InitHtile(
         GfxCmdBuffer*      pCmdBuffer,
@@ -687,6 +690,10 @@ private:
     virtual void HwlGfxDccToDisplayDcc(
         GfxCmdBuffer*     pCmdBuffer,
         const Pal::Image& image) const override;
+
+    virtual void InitDisplayDcc(
+        GfxCmdBuffer*      pCmdBuffer,
+        const Pal::Image&  image) const override;
 
     PAL_DISALLOW_DEFAULT_CTOR(Gfx10RsrcProcMgr);
     PAL_DISALLOW_COPY_AND_ASSIGN(Gfx10RsrcProcMgr);

@@ -797,6 +797,10 @@ public:
     bool HasHybridPipeline() const { return (m_flags.hasHybridPipeline == 1); }
     void ReportHybridPipelineBind() { m_flags.hasHybridPipeline = 1; }
 
+    // Get the cmd allocator currently associated with this cmd buffer
+    CmdAllocator* GetCmdAllocator() { return m_pCmdAllocator; }
+    const CmdAllocator* GetCmdAllocator() const { return m_pCmdAllocator; }
+
 protected:
     CmdBuffer(const Device&              device,
               const CmdBufferCreateInfo& createInfo);

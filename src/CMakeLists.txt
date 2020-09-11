@@ -126,15 +126,6 @@ endif()
 # Other Includes
 target_include_directories(pal PRIVATE ${GLOBAL_ROOT_SRC_DIR}/drivers/inc/shared)
 
-if(IncludeInternalHeaders)
-    target_sources(pal PRIVATE
-        ${GLOBAL_ROOT_SRC_DIR}/drivers/inc/asic_reg/cwddeci.h
-        ${GLOBAL_ROOT_SRC_DIR}/drivers/inc/asic_reg/cwddedi.h
-        ${GLOBAL_ROOT_SRC_DIR}/drivers/inc/asic_reg/cwddepm.h
-        ${GLOBAL_ROOT_SRC_DIR}/drivers/inc/asic_reg/cwddeva.h
-    )
-endif()
-
 ### PAL Sources ########################################################################################################
 
 ### Add cmake files  ###################################################################################################
@@ -586,13 +577,6 @@ endif()
 ### Find headers and build source groups ###############################################################################
 target_find_headers(pal)
 target_source_groups(pal)
-
-if(IncludeInternalHeaders)
-    # This should be up in the "Other Includes" section but doing so breaks the generated MSVC project because it
-    # includes gigabytes of extra headers due to the target_find_headers macro. Technically speaking, we shouldn't
-    # use that macro and should instead manually specify the headers we use one-by-one.
-    target_include_directories(pal PRIVATE ${GLOBAL_ROOT_SRC_DIR}/drivers/inc/asic_reg)
-endif()
 
 ### Other ##############################################################################################################
 # CMAKE-TODO: The AMD Make builds have sub projects inherit compiler options / definitions.

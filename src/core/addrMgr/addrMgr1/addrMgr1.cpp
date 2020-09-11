@@ -337,7 +337,7 @@ static ADDR_SURFACE_FLAGS InitSurfaceInfoFlags(
     flags.interleaved = Formats::IsYuv(createInfo.swizzledFormat.format);
 
     flags.volume  = (createInfo.imageType == ImageType::Tex3d);
-    flags.cube    = ((createInfo.arraySize % 6) == 0);
+    flags.cube    = createInfo.flags.cubemap;
     flags.pow2Pad = (createInfo.mipLevels > 1);
     flags.display = createInfo.flags.flippable;
 
@@ -491,8 +491,27 @@ ADDR_E_RETURNCODE AddrMgr1::CalcSurfInfoOut(
     pSurfInfoInput->slice        = pSubResInfo->subresId.arraySlice;
     pSurfInfoInput->width        = subResWidth;
     pSurfInfoInput->height       = subResHeight;
-    pSurfInfoInput->numSlices    = (imageCreateInfo.imageType == ImageType::Tex3d) ? pSubResInfo->extentTexels.depth
-                                                                                   : imageCreateInfo.arraySize;
+
+    // If the number of slices is not a multiple of 6 and the image can be used as a cubemap
+    // or cubemap array, we have to align the number of slices to a multiple of 6.
+    // The image view can set the baselayer so that (baselayer % 6) > 0
+    // and the cubemap will intersect the multiple of 6 boundary.
+    // The layers than go beyond the multiple of 6 boundary won't be synchronized
+    // correctly if we don't expand the number of layers to a multiple of 6.
+
+    if (imageCreateInfo.imageType == ImageType::Tex3d)
+    {
+        pSurfInfoInput->numSlices = pSubResInfo->extentTexels.depth;
+    }
+    else if (imageCreateInfo.flags.cubemap)
+    {
+        pSurfInfoInput->numSlices = Util::RoundUpToMultiple(imageCreateInfo.arraySize, 6u);
+    }
+    else
+    {
+        pSurfInfoInput->numSlices = imageCreateInfo.arraySize;
+    }
+
     pSurfInfoInput->numSamples   = imageCreateInfo.samples;
     pSurfInfoInput->numFrags     = imageCreateInfo.fragments;
     pSurfInfoInput->maxBaseAlign = imageCreateInfo.maxBaseAlign;

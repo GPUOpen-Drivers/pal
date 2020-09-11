@@ -280,6 +280,12 @@ struct RegisterPipelineInfo
     Pal::uint64 apiPsoHash;  ///< Client-provided PSO hash.
 };
 
+/// Struct for supplying API-dependent information about libraries.
+struct RegisterLibraryInfo
+{
+    Pal::uint64 apiHash; ///< Client-provided api hash.
+};
+
 /// Enumeration of RGP trace profiling modes
 enum class TraceProfilingMode : Pal::uint32
 {
@@ -654,6 +660,23 @@ public:
     /// @returns Success if the pipeline has been unregistered with GpaSession successfully.
     Pal::Result UnregisterPipeline(const Pal::IPipeline* pPipeline);
 
+    /// Register library with GpaSession for obtaining shader dumps and load events in the RGP file.
+    ///
+    /// @param [in] pLibrary   The PAL library to be tracked.
+    /// @param [in] clientInfo API-dependent information for this library to also be recorded.
+    ///
+    /// @returns Success if the library has been registered with GpaSession successfully.
+    ///          + AlreadyExists if a duplicate library is provided.
+    Pal::Result RegisterLibrary(const Pal::IShaderLibrary* pLibrary, const RegisterLibraryInfo& clientInfo);
+
+    /// Unregister library with GpaSession for obtaining unload events in the RGP file.
+    /// This should be called immediately before destroying the PAL library object.
+    ///
+    /// @param [in] pLibrary The PAL library to be tracked.
+    ///
+    /// @returns Success if the library has been unregistered with GpaSession successfully.
+    Pal::Result UnregisterLibrary(const Pal::IShaderLibrary* pLibrary);
+
     /// Given a Pal device, validate a list of perfcounters.
     ///
     /// @param [in] pDevice      a given device
@@ -753,7 +776,7 @@ private:
     // Unique pipelines registered with this GpaSession.
     Util::HashSet<Pal::uint64, GpaAllocator, Util::JenkinsHashFunc> m_registeredPipelines;
     // Unique API PSOs registered with this GpaSession.
-    Util::HashSet<Pal::uint64, GpaAllocator, Util::JenkinsHashFunc> m_registeredApiPsos;
+    Util::HashSet<Pal::uint64, GpaAllocator, Util::JenkinsHashFunc> m_registeredApiHashes;
 
     // List of cached pipeline code object records that will be copied to the final database at the end of a trace
     Util::Deque<SqttCodeObjectDatabaseRecord*, GpaAllocator>  m_codeObjectRecordsCache;
@@ -929,6 +952,7 @@ private:
                                    Pal::gpusize* pSizeInBytes) const;
 
     Pal::Result AddCodeObjectLoadEvent(const Pal::IPipeline* pPipeline, CodeObjectLoadEventType eventType);
+    Pal::Result AddCodeObjectLoadEvent(const Pal::IShaderLibrary* pLibrary, CodeObjectLoadEventType eventType);
 
     // recycle used Gart rafts and put back to available pool
     void RecycleGartGpuMem();

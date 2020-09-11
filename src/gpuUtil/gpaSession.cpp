@@ -37,6 +37,7 @@
 #include "palSysMemory.h"
 #include "palSysUtil.h"
 #include "palVectorImpl.h"
+#include "palMetroHash.h"
 #include "sqtt_file_format.h"
 #include <ctime>
 
@@ -156,7 +157,8 @@ static constexpr SqttMemoryType SqttMemoryTypeTable[] =
     SQTT_MEMORY_TYPE_GDDR6,   // Gddr6
     SQTT_MEMORY_TYPE_HBM,     // Hbm
     SQTT_MEMORY_TYPE_HBM2,    // Hbm2
-    SQTT_MEMORY_TYPE_HBM3     // Hbm3
+    SQTT_MEMORY_TYPE_HBM3,    // Hbm3
+    SQTT_MEMORY_TYPE_LPDDR4   // Lpddr4
 };
 
 static_assert(Util::ArrayLen(SqttMemoryTypeTable) == static_cast<uint32>(Pal::LocalMemoryType::Count),
@@ -410,7 +412,7 @@ GpaSession::GpaSession(
     m_sampleItemArray(m_pPlatform),
     m_pAvailablePerfExpMem(pAvailablePerfExpMem),
     m_registeredPipelines(512, m_pPlatform),
-    m_registeredApiPsos(512, m_pPlatform),
+    m_registeredApiHashes(512, m_pPlatform),
     m_codeObjectRecordsCache(m_pPlatform),
     m_curCodeObjectRecords(m_pPlatform),
     m_codeObjectLoadEventRecordsCache(m_pPlatform),
@@ -576,7 +578,7 @@ GpaSession::GpaSession(
     m_sampleItemArray(m_pPlatform),
     m_pAvailablePerfExpMem(src.m_pAvailablePerfExpMem),
     m_registeredPipelines(512, m_pPlatform),
-    m_registeredApiPsos(512, m_pPlatform),
+    m_registeredApiHashes(512, m_pPlatform),
     m_codeObjectRecordsCache(m_pPlatform),
     m_curCodeObjectRecords(m_pPlatform),
     m_codeObjectLoadEventRecordsCache(m_pPlatform),
@@ -709,7 +711,7 @@ Result GpaSession::Init()
     }
     if (result == Result::Success)
     {
-        result = m_registeredApiPsos.Init();
+        result = m_registeredApiHashes.Init();
     }
 
     // CopySession specific work
@@ -1569,36 +1571,39 @@ Result GpaSession::End(
 
         pCmdBuf->CmdBarrier(barrierInfo);
 
-        // Copy all SQTT results to CPU accessible memory
-        const uint32 numEntries = m_sampleCount;
-        bool needsPostTraceIdle = true;
-        for (uint32 i = 0; i < numEntries; i++)
+        // Copy all SQTT results to CPU accessible memory on non-APU platforms
+        if (m_deviceProps.gpuType == GpuType::Discrete)
         {
-            SampleItem* pSampleItem = m_sampleItemArray.At(i);
-            PAL_ASSERT(pSampleItem != nullptr);
-
-            if (pSampleItem->sampleConfig.type == GpaSampleType::Trace)
+            const uint32 numEntries = m_sampleCount;
+            bool needsPostTraceIdle = true;
+            for (uint32 i = 0; i < numEntries; i++)
             {
-                if (needsPostTraceIdle)
+                SampleItem* pSampleItem = m_sampleItemArray.At(i);
+                PAL_ASSERT(pSampleItem != nullptr);
+
+                if (pSampleItem->sampleConfig.type == GpaSampleType::Trace)
                 {
-                    needsPostTraceIdle = false;
+                    if (needsPostTraceIdle)
+                    {
+                        needsPostTraceIdle = false;
 
-                    // Issue a barrier to make sure work being measured is complete before copy
-                    barrierTransition.srcCacheMask     = CoherMemory;
-                    barrierTransition.dstCacheMask     = CoherCopy;
-                    barrierTransition.imageInfo.pImage = nullptr;
+                        // Issue a barrier to make sure work being measured is complete before copy
+                        barrierTransition.srcCacheMask     = CoherMemory;
+                        barrierTransition.dstCacheMask     = CoherCopy;
+                        barrierTransition.imageInfo.pImage = nullptr;
 
-                    barrierInfo.waitPoint          = HwPipePreBlt;
-                    barrierInfo.pipePointWaitCount = 0;
-                    barrierInfo.transitionCount    = 1;
-                    barrierInfo.pTransitions       = &barrierTransition;
-                    barrierInfo.reason             = Developer::BarrierReasonPostSqttTrace;
+                        barrierInfo.waitPoint          = HwPipePreBlt;
+                        barrierInfo.pipePointWaitCount = 0;
+                        barrierInfo.transitionCount    = 1;
+                        barrierInfo.pTransitions       = &barrierTransition;
+                        barrierInfo.reason             = Developer::BarrierReasonPostSqttTrace;
 
-                    pCmdBuf->CmdBarrier(barrierInfo);
+                        pCmdBuf->CmdBarrier(barrierInfo);
+                    }
+
+                    // Add cmd to copy from gpu local invisible memory to Gart heap memory for CPU access.
+                    static_cast<TraceSample*>(pSampleItem->pPerfSample)->WriteCopyTraceData(pCmdBuf);
                 }
-
-                // Add cmd to copy from gpu local invisible memory to Gart heap memory for CPU access.
-                static_cast<TraceSample*>(pSampleItem->pPerfSample)->WriteCopyTraceData(pCmdBuf);
             }
         }
 
@@ -2604,19 +2609,29 @@ Result GpaSession::RegisterPipeline(
 
     m_registerPipelineLock.LockForWrite();
 
-    if ((result == Result::Success)  &&
-        (clientInfo.apiPsoHash != 0) &&
-        (m_registeredApiPsos.Contains(clientInfo.apiPsoHash) == false))
+    if ((result == Result::Success) && (clientInfo.apiPsoHash != 0))
     {
-        // Record a (many-to-one) mapping of API PSO hash -> internal pipeline hash so they can be correlated.
-        PsoCorrelationRecord record = { };
-        record.apiPsoHash           = clientInfo.apiPsoHash;
-        record.internalPipelineHash = pipeInfo.internalPipelineHash;
-        result = m_psoCorrelationRecordsCache.PushBack(record);
+        Util::MetroHash::Hash tempHash = {};
 
-        if (result == Result::Success)
+        Util::MetroHash128 hasher;
+        hasher.Update(clientInfo.apiPsoHash);
+        hasher.Update(pipeInfo.internalPipelineHash);
+        hasher.Finalize(tempHash.bytes);
+
+        const uint64 uniqueHash = Util::MetroHash::Compact64(&tempHash);
+
+        if (m_registeredApiHashes.Contains(uniqueHash) == false)
         {
-            result = m_registeredApiPsos.Insert(clientInfo.apiPsoHash);
+            // Record a mapping of API PSO hash -> internal pipeline hash so they can be correlated.
+            PsoCorrelationRecord record = { };
+            record.apiPsoHash           = clientInfo.apiPsoHash;
+            record.internalPipelineHash = pipeInfo.internalPipelineHash;
+            result = m_psoCorrelationRecordsCache.PushBack(record);
+
+            if (result == Result::Success)
+            {
+                result = m_registeredApiHashes.Insert(uniqueHash);
+            }
         }
     }
 
@@ -2706,11 +2721,122 @@ Result GpaSession::RegisterPipeline(
 }
 
 // =====================================================================================================================
-// Unregisters a pipeline with the GpaSession.
+// Unregisters a pipeline from the GpaSession.
 Result GpaSession::UnregisterPipeline(
     const IPipeline* pPipeline)
 {
     return AddCodeObjectLoadEvent(pPipeline, CodeObjectLoadEventType::UnloadFromGpuMemory);
+}
+
+// =====================================================================================================================
+// Registers a library with the GpaSession. Returns AlreadyExists on duplicate library.
+Result GpaSession::RegisterLibrary(
+    const IShaderLibrary*      pLibrary,
+    const RegisterLibraryInfo& clientInfo)
+{
+    PAL_ASSERT(pLibrary != nullptr);
+    const LibraryInfo& libraryInfo = pLibrary->GetInfo();
+
+    // Even if the library was already previously encountered, we still want to record every time it gets loaded.
+    Result result = AddCodeObjectLoadEvent(pLibrary, CodeObjectLoadEventType::LoadToGpuMemory);
+
+    m_registerPipelineLock.LockForWrite();
+
+    if ((result == Result::Success) && (clientInfo.apiHash != 0))
+    {
+        Util::MetroHash::Hash tempHash = {};
+
+        Util::MetroHash128 hasher;
+        hasher.Update(clientInfo.apiHash);
+        hasher.Update(libraryInfo.internalLibraryHash);
+        hasher.Finalize(tempHash.bytes);
+
+        const uint64 uniqueHash = Util::MetroHash::Compact64(&tempHash);
+
+        if (m_registeredApiHashes.Contains(uniqueHash) == false)
+        {
+            // Record a mapping of API hash -> internal library hash so they can be correlated.
+            PsoCorrelationRecord record = { };
+            record.apiPsoHash           = clientInfo.apiHash;
+            record.internalPipelineHash = libraryInfo.internalLibraryHash;
+            result = m_psoCorrelationRecordsCache.PushBack(record);
+
+            if (result == Result::Success)
+            {
+                result = m_registeredApiHashes.Insert(uniqueHash);
+            }
+        }
+    }
+
+    if (result == Result::Success)
+    {
+        result = m_registeredPipelines.Contains(libraryInfo.internalLibraryHash.unique) ? Result::AlreadyExists :
+                 m_registeredPipelines.Insert(libraryInfo.internalLibraryHash.unique);
+    }
+
+    m_registerPipelineLock.UnlockForWrite();
+
+    if (result == Result::Success)
+    {
+        // Cache the code object binary in GpaSession-owned memory.
+        SqttCodeObjectDatabaseRecord record = {};
+
+        void* pCodeObjectRecord = nullptr;
+
+        result = pLibrary->GetCodeObject(&record.recordSize, nullptr);
+
+        if (result == Result::Success)
+        {
+            PAL_ASSERT(record.recordSize != 0);
+
+            // Pad the record size to the nearest multiple of 4 bytes per the RGP file format spec.
+            record.recordSize = Util::RoundUpToMultiple(record.recordSize, 4U);
+
+            // Allocate space to store all the information for one record.
+            pCodeObjectRecord = PAL_MALLOC((sizeof(SqttCodeObjectDatabaseRecord) + record.recordSize),
+                                           m_pPlatform,
+                                           Util::SystemAllocType::AllocInternal);
+
+            if (pCodeObjectRecord != nullptr)
+            {
+                // Write the record header.
+                memcpy(pCodeObjectRecord, &record, sizeof(record));
+
+                // Write the code object binary.
+                result = pLibrary->GetCodeObject(&record.recordSize,
+                                                 Util::VoidPtrInc(pCodeObjectRecord, sizeof(record)));
+
+                if (result != Result::Success)
+                {
+                    // Deallocate if some error occurred.
+                    PAL_SAFE_FREE(pCodeObjectRecord, m_pPlatform)
+                }
+            }
+            else
+            {
+                result = Result::ErrorOutOfMemory;
+            }
+        }
+
+        if (result == Result::Success)
+        {
+            m_registerPipelineLock.LockForWrite();
+
+            m_codeObjectRecordsCache.PushBack(static_cast<SqttCodeObjectDatabaseRecord*>(pCodeObjectRecord));
+
+            m_registerPipelineLock.UnlockForWrite();
+        }
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
+// Unregisters a library from the GpaSession.
+Result GpaSession::UnregisterLibrary(
+    const IShaderLibrary* pLibrary)
+{
+    return AddCodeObjectLoadEvent(pLibrary, CodeObjectLoadEventType::UnloadFromGpuMemory);
 }
 
 // =====================================================================================================================
@@ -2798,6 +2924,44 @@ Result GpaSession::AddCodeObjectLoadEvent(
         record.eventType      = eventType;
         record.baseAddress    = (gpuSubAlloc.pGpuMemory->Desc().gpuVirtAddr + gpuSubAlloc.offset);
         record.codeObjectHash = { info.internalPipelineHash.stable, info.internalPipelineHash.unique };
+        record.timestamp      = static_cast<uint64>(Util::GetPerfCpuTime());
+
+        m_registerPipelineLock.LockForWrite();
+        result = m_codeObjectLoadEventRecordsCache.PushBack(record);
+        m_registerPipelineLock.UnlockForWrite();
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
+// Helper function to add a new code object load event record.
+Result GpaSession::AddCodeObjectLoadEvent(
+    const IShaderLibrary*    pLibrary,
+    CodeObjectLoadEventType  eventType)
+{
+    PAL_ASSERT(pLibrary != nullptr);
+
+    const auto& info = pLibrary->GetInfo();
+
+    size_t numGpuAllocations = 0;
+    GpuMemSubAllocInfo gpuSubAlloc = { };
+
+    Result result = pLibrary->QueryAllocationInfo(&numGpuAllocations, nullptr);
+
+    if (result == Result::Success)
+    {
+        PAL_ASSERT(numGpuAllocations == 1);
+        result = pLibrary->QueryAllocationInfo(&numGpuAllocations, &gpuSubAlloc);
+    }
+
+    if (result == Result::Success)
+    {
+        PAL_ASSERT(gpuSubAlloc.pGpuMemory != nullptr);
+        CodeObjectLoadEventRecord record = { };
+        record.eventType      = eventType;
+        record.baseAddress    = (gpuSubAlloc.pGpuMemory->Desc().gpuVirtAddr + gpuSubAlloc.offset);
+        record.codeObjectHash = { info.internalLibraryHash.stable, info.internalLibraryHash.unique };
         record.timestamp      = static_cast<uint64>(Util::GetPerfCpuTime());
 
         m_registerPipelineLock.LockForWrite();
@@ -3441,7 +3605,8 @@ Result GpaSession::AcquirePerfExperiment(
 
             // Acquire new local invisible gpu memory for use as the trace buffer into which the trace data is written
             // by the GPU. Trace data will later be copied to the secondary memory which is CPU-visible.
-            if (sampleConfig.type == GpaSampleType::Trace)
+            // Invisible copy is not necessary on APU platforms.
+            if ((m_deviceProps.gpuType == GpuType::Discrete) && (sampleConfig.type == GpaSampleType::Trace))
             {
                 result = AcquireGpuMem(gpuMemReqs.size,
                                         gpuMemReqs.alignment,

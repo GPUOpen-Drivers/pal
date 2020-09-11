@@ -749,41 +749,38 @@ Result Gfx6Cmask::Init(
 }
 
 // =====================================================================================================================
-// Determines the initial 32-bit value that the cmask memory associated with the provided image should be initialized to
+// Here we want to give a value to correctly indicate that CMask is in expanded state, According to cb.doc, the Cmask
+// Encoding for AA without fast clear is bits 3:2(2'b11) and bits 1:0(compression mode).
 uint32 Gfx6Cmask::GetInitialValue(
     const Image& image)
 {
-    // Here we want to give a value to correctly indicate that CMask is in expanded state. According to cb.doc, the Cmask
-    // Encoding for AA without fast clear is bits 3:2(2'b11) and bits 1:0(compression mode). If the compression mode is
-    // at the maximum value for the current AA, it indicates that the Fmask for that tile is in the uncompressed state.
-
     const auto& imgCreateInfo = image.Parent()->GetImageCreateInfo();
-    const bool isEqaa         = (imgCreateInfo.fragments != imgCreateInfo.samples);
+    // We need enough bits to fit all fragments, plus an extra bit for EQAA support.
+    const bool   isEqaa       = (imgCreateInfo.fragments != imgCreateInfo.samples);
+    const uint32 numBits      = Log2(imgCreateInfo.fragments) + isEqaa;
+    uint32       cmaskValue   = Gfx6Cmask::FullyExpanded;
 
-    // Initialize cmaskValue to express SS fully expanded mode.
-    uint32 cmaskValue = Gfx6Cmask::FullyExpanded;
-
-    if (isEqaa)
+    switch (numBits)
     {
-        cmaskValue = FastClearValueDcc;
-    }
-    else
-    {
-        switch (image.Parent()->GetImageCreateInfo().samples)
-        {
-        case 2:
-            cmaskValue = 0xDDDDDDDD;     // bits 3:2(2'b11)   bits 1:0(2'b01)
-            break;
-        case 4:
-            cmaskValue = 0xEEEEEEEE;     // bits 3:2(2'b11)   bits 1:0(2'b10)
-            break;
-        case 8:
-            cmaskValue = 0xFFFFFFFF;     // bits 3:2(2'b11)   bits 1:0(2'b11)
-            break;
-        default:
-            break;
-        };
-    }
+    case 0:
+        PAL_ASSERT(image.HasFmaskData() == false);
+        // For single-sampled image, cmask value is represented as fast-cleared state if not has DCC surface
+        cmaskValue = Gfx6Cmask::FullyExpanded;
+        break;
+    case 1:
+        cmaskValue = 0xDDDDDDDD;  // bits 3:2(2'b11)   bits 1:0(2'b01)
+        break;
+    case 2:
+        cmaskValue = 0xEEEEEEEE;  // bits 3:2(2'b11)   bits 1:0(2'b10)
+        break;
+    case 3:
+    case 4:                       // 8f16s EQAA also has a 0xFF clear value
+        cmaskValue = 0xFFFFFFFF;  // bits 3:2(2'b11)   bits 1:0(2'b11)
+        break;
+    default:
+        PAL_ASSERT_ALWAYS();
+        break;
+    };
 
     return cmaskValue;
 }
@@ -1140,12 +1137,6 @@ bool Gfx6Dcc::UseDccForImage(
         else if (pParent->IsMetadataDisabledByClient())
         {
             // Don't use DCC if the caller asked that we allocate no metadata.
-            useDcc = false;
-            mustDisableDcc = true;
-        }
-        else if (pParent->IsTmz())
-        {
-            // Disable metadata if the image is tmz protected.
             useDcc = false;
             mustDisableDcc = true;
         }

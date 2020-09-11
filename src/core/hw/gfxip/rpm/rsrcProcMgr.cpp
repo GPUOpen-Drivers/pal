@@ -441,7 +441,7 @@ void RsrcProcMgr::CmdCopyImage(
                                           regionCount,
                                           pRegions,
                                           pScissorRect,
-                                          0);
+                                          flags);
         }
         else
         {
@@ -2982,7 +2982,17 @@ void RsrcProcMgr::ScaledCopyImageGraphics(
         const GraphicsPipeline* pPipeline = nullptr;
         if (srcCreateInfo.imageType == ImageType::Tex2d)
         {
-            pPipeline = GetGfxPipelineByTargetIndexAndFormat(ScaledCopy2d_32ABGR, 0, dstFormat);
+            if (colorKeyEnableMask)
+            {
+                // There is no UINT/SINT formats in DX9 and only legacy formats <= 32 bpp can be used in color key blit.
+                const uint32 bpp = Formats::BytesPerPixel(srcFormat.format);
+                PAL_ASSERT(bpp <= 32);
+                pPipeline = GetGfxPipeline(ScaledCopyImageColorKey);
+            }
+            else
+            {
+                pPipeline = GetGfxPipelineByTargetIndexAndFormat(ScaledCopy2d_32ABGR, 0, dstFormat);
+            }
         }
         else
         {
@@ -2997,23 +3007,22 @@ void RsrcProcMgr::ScaledCopyImageGraphics(
             pPreviousPipeline = pPipeline;
         }
 
-        const uint32 copyData[] =
+        uint32 sizeInDwords;
+        constexpr uint32 ColorKeyDataDwords = 7;
+        if (colorKeyEnableMask)
         {
-            colorKeyEnableMask,
-            alphaDiffMul,
-            Util::Math::FloatToBits(threshold),
-            colorKey[0],
-            colorKey[1],
-            colorKey[2],
-            colorKey[3],
-        };
+            // Create an embedded SRD table and bind it to user data 0. We need image views and
+            // a sampler for the src and dest subresource, as well as some inline constants for src and dest
+            // color key for 2d texture copy. Only need image view and a sampler for the src subresource
+            // as not support color key for 3d texture copy.
+            sizeInDwords = SrdDwordAlignment() * 3 + ColorKeyDataDwords;
+        }
+        else
+        {
+            // If color Key is not enabled, the ps shader don't need to allocate memory for copydata.
+            sizeInDwords = SrdDwordAlignment() * 2;
+        }
 
-        // Create an embedded SRD table and bind it to user data 0. We need image views and
-        // a sampler for the src and dest subresource, as well as some inline constants for src and dest
-        // color key for 2d texture copy. Only need image view and a sampler for the src subresource
-        // as not support color key for 3d texture copy.
-        const uint32 DataDwords   = NumBytesToNumDwords(sizeof(copyData));
-        const uint32 sizeInDwords = isTex3d ? (SrdDwordAlignment() * 2) : (SrdDwordAlignment() * 3 + DataDwords);
         uint32* pSrdTable = RpmUtil::CreateAndBindEmbeddedUserData(pCmdBuffer,
                                                                    sizeInDwords,
                                                                    SrdDwordAlignment(),
@@ -3026,7 +3035,6 @@ void RsrcProcMgr::ScaledCopyImageGraphics(
             srcFormat.format = Formats::ConvertToUnorm(srcFormat.format);
         }
 
-        // We'll setup both 2D and 3D src images as a 2D view.
         ImageViewInfo imageView[2] = {};
         SubresRange   viewRange    = { copyRegion.srcSubres, 1, copyRegion.numSlices };
 
@@ -3037,24 +3045,22 @@ void RsrcProcMgr::ScaledCopyImageGraphics(
                                     srcImageLayout,
                                     device.TexOptLevel());
 
-        // Note that this is a read-only view of the destination.
-        viewRange.startSubres = copyRegion.dstSubres;
-        RpmUtil::BuildImageViewInfo(&imageView[1],
-                                    *pDstImage,
-                                    viewRange,
-                                    dstFormat,
-                                    dstImageLayout,
-                                    device.TexOptLevel());
-
-        if (isTex3d == false)
+        if (colorKeyEnableMask)
         {
-            imageView[0].viewType = ImageViewType::Tex2d;
-            imageView[1].viewType = ImageViewType::Tex2d;
+            // Note that this is a read-only view of the destination.
+            viewRange.startSubres = copyRegion.dstSubres;
+            RpmUtil::BuildImageViewInfo(&imageView[1],
+                *pDstImage,
+                viewRange,
+                dstFormat,
+                dstImageLayout,
+                device.TexOptLevel());
+             PAL_ASSERT(imageView[1].viewType == ImageViewType::Tex2d);
         }
 
         // Populate the table with image views of the source and dest image for 2d texture.
         // Only populate the table with an image view of the source image for 3d texutre.
-        const uint32 imageCount = isTex3d ? 1 : 2;
+        const uint32 imageCount = colorKeyEnableMask ? 2 : 1;
         device.CreateImageViewSrds(imageCount, &imageView[0], pSrdTable);
         pSrdTable += SrdDwordAlignment() * imageCount;
 
@@ -3068,8 +3074,20 @@ void RsrcProcMgr::ScaledCopyImageGraphics(
         pSrdTable += SrdDwordAlignment();
 
         // Copy the copy parameters into the embedded user-data space for 2d texture copy.
-        if (isTex3d == false)
+        if (colorKeyEnableMask)
         {
+            PAL_ASSERT(isTex3d == false);
+            uint32 copyData[ColorKeyDataDwords] =
+            {
+                colorKeyEnableMask,
+                alphaDiffMul,
+                Util::Math::FloatToBits(threshold),
+                colorKey[0],
+                colorKey[1],
+                colorKey[2],
+                colorKey[3],
+            };
+
             memcpy(pSrdTable, &copyData[0], sizeof(copyData));
         }
 
@@ -8252,6 +8270,16 @@ void RsrcProcMgr::CmdGfxDccToDisplayDcc(
     ) const
 {
     HwlGfxDccToDisplayDcc(pCmdBuffer, static_cast<const Pal::Image&>(image));
+}
+
+// =====================================================================================================================
+// Put displayDCC memory itself back into a "fully decompressed" state.
+void RsrcProcMgr::CmdDisplayDccFixUp(
+    GfxCmdBuffer*      pCmdBuffer,
+    const IImage&      image
+    ) const
+{
+    InitDisplayDcc(pCmdBuffer, static_cast<const Pal::Image&>(image));
 }
 
 } // Pal

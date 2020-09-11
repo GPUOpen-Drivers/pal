@@ -3497,12 +3497,6 @@ bool Gfx9Dcc::UseDccForImage(
         useDcc = false;
         mustDisableDcc = true;
     }
-    else if (pParent->IsTmz())
-    {
-        // Disable metadata if the image is tmz protected.
-        useDcc = false;
-        mustDisableDcc = true;
-    }
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 564
     else if ((createInfo.metadataMode == MetadataMode::FmaskOnly) &&
              (createInfo.samples > 1) &&
@@ -4044,6 +4038,38 @@ uint32 Gfx9Cmask::GetPipeBankXor(
     const uint32 pipeBankXor = m_image.GetFmask()->GetPipeBankXor();
 
     return AdjustPipeBankXorForSwizzle(pipeBankXor);
+}
+
+// =====================================================================================================================
+// Here we want to give a value to correctly indicate that CMask is in expanded state, According to cb.doc, the Cmask
+// Encoding for AA without fast clear is bits 3:2(2'b11) and bits 1:0(compression mode).
+uint8 Gfx9Cmask::GetInitialValue() const
+{
+    const auto& imgCreateInfo = m_image.Parent()->GetImageCreateInfo();
+    // We need enough bits to fit all fragments, plus an extra bit for EQAA support.
+    const bool   isEqaa       = (imgCreateInfo.fragments != imgCreateInfo.samples);
+    const uint32 numBits      = Log2(imgCreateInfo.fragments) + isEqaa;
+    uint8        cmaskValue   = 0xFF;
+
+    switch (numBits)
+    {
+    case 1:
+        cmaskValue = 0xDD;     // bits 3:2(2'b11)   bits 1:0(2'b01)
+        break;
+    case 2:
+        cmaskValue = 0xEE;     // bits 3:2(2'b11)   bits 1:0(2'b10)
+        break;
+    case 3:
+    case 4:                    // 8f16s EQAA also has a 0xFF clear value
+        cmaskValue = 0xFF;     // bits 3:2(2'b11)   bits 1:0(2'b11)
+        break;
+    default:
+        // Note: 1 fragment/1 sample is invalid
+        PAL_ASSERT_ALWAYS();
+        break;
+    };
+
+    return cmaskValue;
 }
 
 // =====================================================================================================================

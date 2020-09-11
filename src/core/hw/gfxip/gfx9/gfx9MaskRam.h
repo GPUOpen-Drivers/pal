@@ -472,7 +472,11 @@ public:
     virtual uint32  GetPipeBankXor(ImageAspect   aspect) const override;
 
     // Initial value for a cMask allocation (MSAA associated cMask only)
-    static constexpr uint8 InitialValue = 0xCC;
+    uint8 GetInitialValue() const;
+
+    // CMask value which represents fast-cleared for images that have DCC memory. Bits 3:2 should be 2'b11 to indicate
+    // 'not fast cleared' and bits 1:0 being 2'b00 to mean all FMask pointers are zero for the entire tile.
+    static constexpr uint8 FastClearValueDcc = 0xCC;
 
 protected:
     virtual uint32  GetBytesPerPixelLog2() const override;

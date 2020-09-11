@@ -937,7 +937,7 @@ bool RsrcProcMgr::InitMaskRam(
 
             // The docs state that we only need to initialize either cMask or fMask data.  Init the cMask data
             // since we have a meta-equation for that one.
-            InitCmask(pCmdBuffer, pCmdStream, dstImage, range);
+            InitCmask(pCmdBuffer, pCmdStream, dstImage, range, dstImage.GetCmask()->GetInitialValue());
 
             // It's possible that this image will be resolved with fMask pipeline later, so the fMask must be cleared
             // here.
@@ -1445,7 +1445,7 @@ void RsrcProcMgr::HwlFastColorClear(
         // instead fast clearing CMask to "0xCC" which is 1 fragment
         //
         // NOTE:  On Gfx9, if an image has fMask it will also have cMask.
-        InitCmask(pCmdBuffer, pCmdStream, gfx9Image, clearRange);
+        InitCmask(pCmdBuffer, pCmdStream, gfx9Image, clearRange, Gfx9Cmask::FastClearValueDcc);
     }
 }
 
@@ -1618,7 +1618,7 @@ void RsrcProcMgr::HwlFixupCopyDstImageMetaData(
                 range.numSlices              = clearRegion.numSlices;
 
                 // Since color data is no longer compressed set CMask and FMask to fully uncompressed.
-                InitCmask(pCmdBuffer, pStream, gfx9DstImage, range);
+                InitCmask(pCmdBuffer, pStream, gfx9DstImage, range, gfx9DstImage.GetCmask()->GetInitialValue());
 
                 pCmdBuffer->CmdSaveComputeState(ComputeStatePipelineAndUserData);
                 ClearFmask(pCmdBuffer, gfx9DstImage, range, Gfx9Fmask::GetPackedExpandedValue(gfx9DstImage));
@@ -2935,6 +2935,7 @@ void RsrcProcMgr::ClearFmask(
 {
     const auto*  pParent            = dstImage.Parent();
     const auto*  pFmask             = dstImage.GetFmask();
+    const auto&  fMaskAddrOutput    = pFmask->GetAddrOutput();
     const auto&  imageCreateInfo    = pParent->GetImageCreateInfo();
     const auto   pPipeline          = GetPipeline(RpmComputePipeline::ClearImage2d);
     uint32       threadsPerGroup[3] = {};
@@ -2947,10 +2948,14 @@ void RsrcProcMgr::ClearFmask(
 
     pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, InternalApiPsoHash, });
 
+    // The shader will saturate the fmask value to the fmask view format's size. so we mask-off clearValue to fit it.
+    const uint64 validBitsMask    = (1ULL << fMaskAddrOutput.bpp) - 1ULL;
+    const uint64 maskedClearValue = clearValue & validBitsMask;
+
     const uint32  userData[] =
     {
         // color
-        LowPart(clearValue), HighPart(clearValue), 0, 0,
+        LowPart(maskedClearValue), HighPart(maskedClearValue), 0, 0,
         // (x,y) offset, (width,height)
         0, 0, imageCreateInfo.extent.width, imageCreateInfo.extent.height,
         // ignored
@@ -5337,7 +5342,8 @@ void Gfx9RsrcProcMgr::InitCmask(
     GfxCmdBuffer*      pCmdBuffer,
     Pal::CmdStream*    pCmdStream,
     const Image&       image,
-    const SubresRange& initRange
+    const SubresRange& initRange,
+    const uint8        initValue
     ) const
 {
     const Pal::Image*      pPalImage  = image.Parent();
@@ -5361,7 +5367,7 @@ void Gfx9RsrcProcMgr::InitCmask(
         // Save the command buffer's state.
         pCmdBuffer->CmdSaveComputeState(ComputeStatePipelineAndUserData);
 
-        DoOptimizedCmaskInit(pCmdBuffer, pCmdStream, image, initRange, Gfx9Cmask::InitialValue);
+        DoOptimizedCmaskInit(pCmdBuffer, pCmdStream, image, initRange, initValue);
 
         // Restore the command buffer's state.
         pCmdBuffer->CmdRestoreComputeState(ComputeStatePipelineAndUserData);
@@ -5379,7 +5385,7 @@ void Gfx9RsrcProcMgr::InitCmask(
 
         // Does cMask *ever* depend on the number of samples?  If so, our shader is going to need some tweaking.
         PAL_ASSERT (pCmask->GetNumEffectiveSamples() == 1);
-        const auto*const pPipeline  = GetPipeline(RpmComputePipeline::Gfx9InitCmaskSingleSample);
+        const auto*const pPipeline  = GetPipeline(RpmComputePipeline::Gfx9InitCmask);
 
         pPipeline->ThreadsPerGroupXyz(&threadsPerGroup[0], &threadsPerGroup[1], &threadsPerGroup[2]);
 
@@ -5405,7 +5411,9 @@ void Gfx9RsrcProcMgr::InitCmask(
             createInfo.extent.width,
             createInfo.extent.height,
             sliceSize,
-            pipeBankXor
+            pipeBankXor,
+            // start cb0[2]
+            static_cast<uint32>(initValue & 0xF), 0, 0, 0
         };
 
         // Create an embedded user-data table and bind it to user data 0.
@@ -5435,7 +5443,7 @@ void Gfx9RsrcProcMgr::InitCmask(
     }
     else
     {
-        image.CpuProcessCmaskEq(initRange, Gfx9Cmask::InitialValue);
+        image.CpuProcessCmaskEq(initRange, initValue);
     }
 }
 
@@ -6376,18 +6384,19 @@ void Gfx10RsrcProcMgr::InitCmask(
     GfxCmdBuffer*      pCmdBuffer,
     Pal::CmdStream*    pCmdStream,
     const Image&       image,
-    const SubresRange& range
+    const SubresRange& range,
+    const uint8        initValue
     ) const
 {
-    const auto&            boundMem     = image.Parent()->GetBoundGpuMemory();
-    const GpuMemory*       pGpuMemory   = boundMem.Memory();
-    const ImageCreateInfo& createInfo   = image.Parent()->GetImageCreateInfo();
-    const Gfx9Cmask*       pCmask       = image.GetCmask();
-    const auto&            cMaskAddrOut = pCmask->GetAddrOutput();
-    const uint32           clearValue   = ExpandClearCodeToDword(Gfx9Cmask::InitialValue);
-    const uint32           startSlice   = ((createInfo.imageType == ImageType::Tex3d)
-                                           ? 0
-                                           : range.startSubres.arraySlice);
+    const auto&            boundMem        = image.Parent()->GetBoundGpuMemory();
+    const GpuMemory*       pGpuMemory      = boundMem.Memory();
+    const ImageCreateInfo& createInfo      = image.Parent()->GetImageCreateInfo();
+    const Gfx9Cmask*       pCmask          = image.GetCmask();
+    const auto&            cMaskAddrOut    = pCmask->GetAddrOutput();
+    const uint32           expandedInitVal = ExpandClearCodeToDword(initValue);
+    const uint32           startSlice      = ((createInfo.imageType == ImageType::Tex3d)
+                                              ? 0
+                                              : range.startSubres.arraySlice);
 
     // This is the byte offset from the start of the memory bound to this image
     const gpusize          cMaskOffset  = boundMem.Offset() + pCmask->MemoryOffset();
@@ -6403,7 +6412,7 @@ void Gfx10RsrcProcMgr::InitCmask(
                   *pGpuMemory,
                   offset,
                   numSlices * cMaskAddrOut.sliceSize,
-                  clearValue);
+                  expandedInitVal);
 }
 
 // =====================================================================================================================
@@ -6619,7 +6628,16 @@ void Gfx10RsrcProcMgr::HwlEndGraphicsCopy(
 // Gfx Dcc -> Display Dcc.
 void Gfx10RsrcProcMgr::HwlGfxDccToDisplayDcc(
     GfxCmdBuffer*     pCmdBuffer,
-    const Pal::Image& image) const
+    const Pal::Image& image
+    ) const
+{
+}
+
+// =====================================================================================================================
+void Gfx10RsrcProcMgr::InitDisplayDcc(
+    GfxCmdBuffer*      pCmdBuffer,
+    const Pal::Image&  image
+    ) const
 {
 }
 

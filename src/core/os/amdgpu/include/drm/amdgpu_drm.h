@@ -1001,15 +1001,16 @@ struct drm_amdgpu_info_firmware {
 };
 
 #define AMDGPU_VRAM_TYPE_UNKNOWN 0
-#define AMDGPU_VRAM_TYPE_GDDR1 1
-#define AMDGPU_VRAM_TYPE_DDR2  2
-#define AMDGPU_VRAM_TYPE_GDDR3 3
-#define AMDGPU_VRAM_TYPE_GDDR4 4
-#define AMDGPU_VRAM_TYPE_GDDR5 5
-#define AMDGPU_VRAM_TYPE_HBM   6
-#define AMDGPU_VRAM_TYPE_DDR3  7
-#define AMDGPU_VRAM_TYPE_DDR4  8
-#define AMDGPU_VRAM_TYPE_GDDR6 9
+#define AMDGPU_VRAM_TYPE_GDDR1   1
+#define AMDGPU_VRAM_TYPE_DDR2    2
+#define AMDGPU_VRAM_TYPE_GDDR3   3
+#define AMDGPU_VRAM_TYPE_GDDR4   4
+#define AMDGPU_VRAM_TYPE_GDDR5   5
+#define AMDGPU_VRAM_TYPE_HBM     6
+#define AMDGPU_VRAM_TYPE_DDR3    7
+#define AMDGPU_VRAM_TYPE_DDR4    8
+#define AMDGPU_VRAM_TYPE_GDDR6   9
+#define AMDGPU_VRAM_TYPE_LPDDR4  10
 
 struct drm_amdgpu_info_device {
 	/** PCI Device ID */

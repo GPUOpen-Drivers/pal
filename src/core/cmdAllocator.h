@@ -54,7 +54,7 @@ public:
     CmdAllocator(Device* pDevice, const CmdAllocatorCreateInfo& createInfo);
     virtual ~CmdAllocator();
 
-    Result Init();
+    virtual Result Init(const CmdAllocatorCreateInfo& createInfo, void* pPlacementAddr);
 
     virtual void Destroy() override { this->~CmdAllocator(); }
     void DestroyInternal();
@@ -91,6 +91,11 @@ public:
     bool TrackBusyChunks() const      { return (m_flags.trackBusyChunks != 0); }
 
     uint64 LastPagingFence() const { return m_lastPagingFence; }
+
+    static size_t GetPlacementSize(const CmdAllocatorCreateInfo& createInfo);
+
+protected:
+    Device*const    m_pDevice;
 
 private:
     // Helper structure for managing a particular type of command allocator memory.
@@ -130,8 +135,6 @@ private:
         };
         uint32 u32All;
     }  m_flags;
-
-    Device*const    m_pDevice;
 
     Util::Mutex*    m_pChunkLock;          // If non-null, this protects the allocator's command-chunk state.
     CmdAllocInfo    m_gpuAllocInfo[CmdAllocatorTypeCount];

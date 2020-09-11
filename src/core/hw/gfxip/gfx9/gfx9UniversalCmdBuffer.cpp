@@ -293,7 +293,8 @@ UniversalCmdBuffer::UniversalCmdBuffer(
     m_customBinSizeY(0),
     m_leakCbColorInfoRtv(0),
     m_activeOcclusionQueryWriteRanges(m_device.GetPlatform()),
-    m_gangedCmdStreamSemAddr(0)
+    m_gangedCmdStreamSemAddr(0),
+    m_barrierCount(0)
 {
     const auto&                palDevice        = *(m_device.Parent());
     const PalPlatformSettings& platformSettings = m_device.Parent()->GetPlatform()->PlatformSettings();
@@ -741,6 +742,7 @@ void UniversalCmdBuffer::ResetState()
     m_activeOcclusionQueryWriteRanges.Clear();
 
     m_gangedCmdStreamSemAddr = 0;
+    m_barrierCount = 0;
 }
 
 // =====================================================================================================================
@@ -1338,6 +1340,7 @@ void UniversalCmdBuffer::CmdRelease(
 
     m_gfxCmdBufState.flags.packetPredicate = packetPredicate;
 
+    IssueGangedBarrierIncr();
 }
 
 // =====================================================================================================================
@@ -1359,6 +1362,8 @@ void UniversalCmdBuffer::CmdAcquire(
     m_device.DescribeBarrierEnd(this, &barrierOps);
 
     m_gfxCmdBufState.flags.packetPredicate = packetPredicate;
+
+    IssueGangedBarrierIncr();
 }
 
 // =====================================================================================================================
@@ -1379,6 +1384,33 @@ void UniversalCmdBuffer::CmdReleaseThenAcquire(
 
     m_gfxCmdBufState.flags.packetPredicate = packetPredicate;
 
+    IssueGangedBarrierIncr();
+}
+
+// =====================================================================================================================
+// For ganged-submit with ACE+GFX, we need to ensure that any stalls that occur on the GFX engine are properly stalled
+// on the ACE engine. To that end, when we detect when ganged-submit is active, we issue a bottom-of-pipe timestamp
+// event which will write the current barrier count. Later, when the ACE engine is used, we'll issue a WAIT_REG_MEM
+// to ensure that all prior events on the GFX engine have completed.
+void UniversalCmdBuffer::IssueGangedBarrierIncr()
+{
+    m_barrierCount++;
+
+    if (m_pAceCmdStream != nullptr)
+    {
+        uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
+
+        ReleaseMemInfo releaseInfo = {};
+        releaseInfo.engineType = m_pAceCmdStream->GetEngineType();
+        releaseInfo.tcCacheOp  = TcCacheOp::Nop;
+        releaseInfo.dstAddr    = GangedCmdStreamSemAddr();
+        releaseInfo.dataSel    = data_sel__mec_release_mem__send_32_bit_low;
+        releaseInfo.data       = m_barrierCount;
+        releaseInfo.vgtEvent   = BOTTOM_OF_PIPE_TS;
+        pDeCmdSpace += m_cmdUtil.BuildReleaseMem(releaseInfo, pDeCmdSpace);
+
+        m_deCmdStream.CommitCommands(pDeCmdSpace);
+    }
 }
 
 // =====================================================================================================================
@@ -3600,27 +3632,31 @@ uint32* UniversalCmdBuffer::WriteDirtyUserDataEntriesToSgprsGfx(
     {
         if (TessEnabled && (dirtyStageMask & (1 << HsStageId)))
         {
-            pDeCmdSpace = m_deCmdStream.WriteUserDataEntriesToSgprs<false, ShaderGraphics>(m_pSignatureGfx->stage[HsStageId],
-                                                                              m_graphicsState.gfxUserDataEntries,
-                                                                              pDeCmdSpace);
+            pDeCmdSpace =
+                m_deCmdStream.WriteUserDataEntriesToSgprs<false, ShaderGraphics>(m_pSignatureGfx->stage[HsStageId],
+                                                                                 m_graphicsState.gfxUserDataEntries,
+                                                                                 pDeCmdSpace);
         }
         if (GsEnabled && (dirtyStageMask & (1 << GsStageId)))
         {
-            pDeCmdSpace = m_deCmdStream.WriteUserDataEntriesToSgprs<false, ShaderGraphics>(m_pSignatureGfx->stage[GsStageId],
-                                                                              m_graphicsState.gfxUserDataEntries,
-                                                                              pDeCmdSpace);
+            pDeCmdSpace =
+                m_deCmdStream.WriteUserDataEntriesToSgprs<false, ShaderGraphics>(m_pSignatureGfx->stage[GsStageId],
+                                                                                 m_graphicsState.gfxUserDataEntries,
+                                                                                 pDeCmdSpace);
         }
         if (VsEnabled && (dirtyStageMask & (1 << VsStageId)))
         {
-            pDeCmdSpace = m_deCmdStream.WriteUserDataEntriesToSgprs<false, ShaderGraphics>(m_pSignatureGfx->stage[VsStageId],
-                                                                              m_graphicsState.gfxUserDataEntries,
-                                                                              pDeCmdSpace);
+            pDeCmdSpace =
+                m_deCmdStream.WriteUserDataEntriesToSgprs<false, ShaderGraphics>(m_pSignatureGfx->stage[VsStageId],
+                                                                                 m_graphicsState.gfxUserDataEntries,
+                                                                                 pDeCmdSpace);
         }
         if (dirtyStageMask & (1 << PsStageId))
         {
-            pDeCmdSpace = m_deCmdStream.WriteUserDataEntriesToSgprs<false, ShaderGraphics>(m_pSignatureGfx->stage[PsStageId],
-                                                                              m_graphicsState.gfxUserDataEntries,
-                                                                              pDeCmdSpace);
+            pDeCmdSpace =
+                m_deCmdStream.WriteUserDataEntriesToSgprs<false, ShaderGraphics>(m_pSignatureGfx->stage[PsStageId],
+                                                                                 m_graphicsState.gfxUserDataEntries,
+                                                                                 pDeCmdSpace);
         }
     } // if any stages still need dirty state processing
 
@@ -7148,9 +7184,26 @@ void UniversalCmdBuffer::CmdExecuteIndirectCmds(
 void UniversalCmdBuffer::CmdCommentString(
     const char* pComment)
 {
-    uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
-    pDeCmdSpace += m_cmdUtil.BuildCommentString(pComment, pDeCmdSpace);
-    m_deCmdStream.CommitCommands(pDeCmdSpace);
+    const struct
+    {
+        Pal::CmdStream* pStream;
+        Pm4ShaderType   shaderType;
+    } streams[] =
+    {
+        { &m_deCmdStream,  ShaderGraphics, },
+        { m_pAceCmdStream, ShaderCompute,  },
+    };
+
+    for (uint32 i = 0; i < Util::ArrayLen(streams); i++)
+    {
+        Pal::CmdStream* pStream = streams[i].pStream;
+        if (pStream != nullptr)
+        {
+            uint32* pCmdSpace = pStream->ReserveCommands();
+            pCmdSpace += m_cmdUtil.BuildCommentString(pComment, streams[i].shaderType, pCmdSpace);
+            pStream->CommitCommands(pCmdSpace);
+        }
+    }
 }
 
 // =====================================================================================================================
@@ -7917,6 +7970,11 @@ CmdStream* UniversalCmdBuffer::GetAceCmdStream()
         {
             SetCmdRecordingError(result);
         }
+        else
+        {
+            // We need to properly issue a stall in case we're requesting the ACE CmdStream after a barrier call.
+            IssueGangedBarrierIncr();
+        }
     }
 
     return static_cast<CmdStream*>(m_pAceCmdStream);
@@ -7930,6 +7988,9 @@ gpusize UniversalCmdBuffer::GangedCmdStreamSemAddr()
     {
         m_gangedCmdStreamSemAddr = AllocateGpuScratchMem(1, CacheLineDwords);
         PAL_ASSERT(m_gangedCmdStreamSemAddr != 0);
+
+        // The first time the GangedCmdStreamSemAddr is requested, we'll be initializing it, so we don't need to do it
+        // here.
     }
 
     return m_gangedCmdStreamSemAddr;

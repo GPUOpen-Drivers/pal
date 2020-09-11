@@ -462,6 +462,16 @@ Result Image::Finalize(
                     needsDccStateMetaData = useSharedMetadata ?
                                             (sharedMetadata.dccStateMetaDataOffset[0] != 0) : true;
 
+                    // As CP doesn't support to LOAD_***REG/SET_PREDICATION/WRITE_DATA on TMZ images,
+                    // Fast clears on TMZ images are only supported if they are TC-compatible and the
+                    // clear value is TC-compatible, so there is no need to load the clear colors or FCE.
+                    // Also disable DCC state metadata to avoid using predication on TMZ images.
+                    if (m_pParent->IsTmz())
+                    {
+                        needsFastColorClearMetaData = false;
+                        needsDccStateMetaData = false;
+                    }
+
                     // The total DCC memory offset equals the current size of this image's GPU memory.
                     *pGpuMemSize = useSharedMetadata ? Max(totalMemOffset, *pGpuMemSize) : totalMemOffset;
 
@@ -2048,8 +2058,11 @@ bool Image::IsFastColorClearSupported(
             // The clear value is TC-compatible
             isClearColorTcCompatible;
 
-        // Allow fast clear only if either is possible
-        isFastClearSupported = (nonTcCompatibleFastClearPossible || tcCompatDccFastClearPossible);
+        // For non-tmz image, allow fast clear if either is possible.
+        // As CP doesn't support to LOAD_***REG/SET_PREDICATION/WRITE_DATA on TMZ images,
+        // Only support fast clears on TMZ images if they are TC-compatible and the clear value is TC-compatible.
+        isFastClearSupported = m_pParent->IsTmz() ? tcCompatDccFastClearPossible
+                                                  : (nonTcCompatibleFastClearPossible || tcCompatDccFastClearPossible);
     }
 
     return isFastClearSupported;

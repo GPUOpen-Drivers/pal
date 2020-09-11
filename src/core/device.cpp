@@ -75,7 +75,8 @@ static constexpr uint32 MemoryOpsPerClockTable[static_cast<uint32>(LocalMemoryTy
     16, // Gddr6
     2,  // Hbm
     2,  // Hbm2
-    2   // Hbm3
+    2,  // Hbm3
+    2   // Lpddr4
 };
 
 // =====================================================================================================================
@@ -2689,7 +2690,7 @@ Result Device::CreateCmdAllocator(
     {
         CmdAllocator* pCmdAllocator = PAL_PLACEMENT_NEW(pPlacementAddr) CmdAllocator(this, createInfo);
 
-        result = pCmdAllocator->Init();
+        result = pCmdAllocator->Init(createInfo, pCmdAllocator + 1);
         if (result != Result::Success)
         {
             pCmdAllocator->Destroy();

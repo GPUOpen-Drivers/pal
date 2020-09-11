@@ -1306,7 +1306,7 @@ Result CreateRpmComputePipelines(
         ))
     {
         result = CreateRpmComputePipeline(
-            RpmComputePipeline::Gfx9InitCmaskSingleSample, pDevice, pTable, pPipelineMem);
+            RpmComputePipeline::Gfx9InitCmask, pDevice, pTable, pPipelineMem);
     }
 
     if (result == Result::Success && (false

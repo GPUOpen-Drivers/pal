@@ -29,6 +29,7 @@
 #include "palFile.h"
 #include "palSysMemory.h"
 #include "palMemTrackerImpl.h"
+#include "palMutex.h"
 #include "palHashMapImpl.h"
 
 #include <cwchar>
@@ -502,31 +503,82 @@ static bool FindKeyboardDeviceNode(
 }
 
 // =====================================================================================================================
-static bool CompareKeys(
-    KeyCode keyToCheck,
-    KeyCode keyReceived)
+// This class provides a thread-safe bitset for storing currently depressed keys.
+class KeyBitset
 {
-    bool result = (keyToCheck == keyReceived);
-    if (!result)
+public:
+    KeyBitset()
     {
-        if (keyToCheck == KeyCode::Shift)
+        for (uint32 i = 0; i < BITMAP_WORDS; ++i)
         {
-            result = ((keyReceived == KeyCode::LShift) ||
-                      (keyReceived == KeyCode::RShift));
-        }
-        else if (keyToCheck == KeyCode::Control)
-        {
-            result = ((keyReceived == KeyCode::LControl) ||
-                      (keyReceived == KeyCode::RControl));
-        }
-        else if (keyToCheck == KeyCode::Alt)
-        {
-            result = ((keyReceived == KeyCode::LAlt) ||
-                      (keyReceived == KeyCode::RAlt));
+            m_bitmap[i] = 0;
         }
     }
-    return result;
-}
+
+    bool IsSet(KeyCode key)
+    {
+        const uint32 wordIndex = KeyWordIndex(key);
+        const uint32 bitIndex = KeyBitIndex(key);
+        return TestAnyFlagSet(m_bitmap[wordIndex], 1U << bitIndex);
+    }
+
+    void Clear(KeyCode key)
+    {
+        const uint32 wordIndex = KeyWordIndex(key);
+        const uint32 bitIndex = KeyBitIndex(key);
+        Util::AtomicAnd(&(m_bitmap[wordIndex]), ~(1U << bitIndex));
+    }
+
+    void Set(KeyCode key)
+    {
+        const uint32 wordIndex = KeyWordIndex(key);
+        const uint32 bitIndex = KeyBitIndex(key);
+        Util::AtomicOr(&(m_bitmap[wordIndex]), 1U << bitIndex);
+    }
+
+    bool Test(KeyCode key)
+    {
+        bool result = IsSet(key);
+        if (!result)
+        {
+            if (key == KeyCode::Shift)
+            {
+                result = (IsSet(KeyCode::LShift) ||
+                          IsSet(KeyCode::RShift));
+            }
+            else if (key == KeyCode::Control)
+            {
+                result = (IsSet(KeyCode::LControl) ||
+                          IsSet(KeyCode::RControl));
+            }
+            else if (key == KeyCode::Alt)
+            {
+                result = (IsSet(KeyCode::LAlt) ||
+                          IsSet(KeyCode::RAlt));
+            }
+        }
+        return result;
+    }
+
+private:
+    static constexpr size_t BITMAP_WORDS =
+        (static_cast<size_t>(KeyCode::Undefined) / sizeof(uint32)) + 1;
+    volatile uint32 m_bitmap[BITMAP_WORDS];
+
+    uint32 KeyWordIndex(KeyCode key)
+    {
+        const uint32 value = static_cast<uint32>(key);
+        const uint32 wordIndex = value / (sizeof(uint32) * 8);
+        return wordIndex;
+    }
+
+    uint32 KeyBitIndex(KeyCode key)
+    {
+        const uint32 value = static_cast<uint32>(key);
+        const uint32 bitIndex = value % (sizeof(uint32) * 8);
+        return bitIndex;
+    }
+};
 
 // =====================================================================================================================
 // Reports whether the specified key has been pressed down.
@@ -537,6 +589,7 @@ bool IsKeyPressed(
     char              devName[128]  = {0};
     static const bool ret           = FindKeyboardDeviceNode(devName);
     static int        device        = ret ? open(devName, O_RDONLY|O_NONBLOCK) : -1;
+    static KeyBitset  keyBitset;
 
     bool isKeySet = false;
 
@@ -549,81 +602,63 @@ bool IsKeyPressed(
 
     int maxIndex = IsComboKey(key, keys) ? 1 : 0;
 
-    int index = 0;
-
-    // 4 is a heuristic number
-    int retry = 4;
-
-    while ((retVal >= 0) && (index <= maxIndex))
+    // Process outstanding key events and updated the key bitmap.
+    while (retVal >= 0)
     {
-        retVal = read(device,&ev, sizeof(ev));
+        retVal = read(device, &ev, sizeof(ev));
 
-        if ((retVal   >= 0) &&  // The read do grab some event back.
-            (ev.type  == 1) &&  // The event is EV_KEY
-            (ev.value == 1))    // 0: key release 1: key pressed 2: key auto repeat
+        if ((retVal   >= 0) &&  // The read returned an event
+            (ev.type  == 1))    // The event is EV_KEY
         {
             KeyCode keyGet;
             if (KeyTranslate(ev.code, &keyGet))
             {
-                if (CompareKeys(keys[index], keyGet))
+                if (ev.value == 0)
                 {
-                    if (index == maxIndex)
-                    {
-                        isKeySet = true;
-                        break;
-                    }
-                    else
-                    {
-                        index ++;
-                    }
+                    // 0: key release
+                    keyBitset.Clear(keyGet);
+                }
+                else if (ev.value == 1)
+                {
+                    // 1: key pressed
+                    keyBitset.Set(keyGet);
                 }
             }
         }
-        else if (retVal == -1)
+        else if ((retVal == -1) &&
+                 (errno != EAGAIN))
         {
-            // if errno is not EAGAIN, we should just close the device.
-            if (errno != EAGAIN)
-            {
-                close(device);
-                device = -1;
-            }
-            else if ((index > 0) && (retry > 0))
-            {
-                // poll at most 100ms in case it is a second key of a combo key.
-                int ret = -1;
-                do
-                {
-                    struct pollfd fd = {};
-                    fd.fd            = device;
-                    fd.events        = POLLIN;
-
-                    ret = poll(&fd, 1, 100);
-
-                    // retry if there are something to read
-                    if ((ret > 0) && (fd.revents == POLLIN))
-                    {
-                        // try to read once more
-                        retVal = 0;
-                        retry --;
-                    }
-                    // ret == 0 means the timout happens
-                    // therefore, we don't need to retry the read but kick off next round of polling.
-                    else if (ret == 0)
-                    {
-                        retVal = 0;
-                        retry --;
-                    }
-                } while (ret == 0);
-            }
+            // If errno is not EAGAIN, close the device.
+            close(device);
+            device = -1;
         }
     }
 
-    // On windows, the pPrevState is supposed to provide an aux-state so that IsKeyPressed can identify
-    // the *pressed* event, but it is not needed for Linux.
-    // Just set it to isKeySet to maintain the correct prev-state.
+    for (int i = 0; i <= maxIndex ; i++)
+    {
+        isKeySet = keyBitset.Test(keys[i]);
+        if (isKeySet == false)
+        {
+            break;
+        }
+    }
+
     if (pPrevState != nullptr)
     {
-        *pPrevState = isKeySet;
+        if (isKeySet && (*pPrevState == false))
+        {
+            isKeySet    = true;
+            *pPrevState = true;
+        }
+        else
+        {
+            if (isKeySet == false)
+            {
+                *pPrevState = false;
+            }
+
+            isKeySet = false;
+        }
     }
 
     return isKeySet;

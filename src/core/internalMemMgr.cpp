@@ -290,8 +290,11 @@ Result InternalMemMgr::AllocateGpuMemNoAllocLock(
             // Fix-up the GPU memory create info structures to suit the base allocation's needs
             GpuMemoryInternalCreateInfo localInternalInfo  = internalInfo;
 
-            gpusize localCreateInfoSize = localCreateInfo.size;
+            const gpusize localCreateInfoAlignment = localCreateInfo.alignment;
+            const gpusize localCreateInfoSize = localCreateInfo.size;
+
             localCreateInfo.size = PoolAllocationSize;
+            localCreateInfo.alignment = PoolAllocationSize / 2;
             localInternalInfo.flags.buddyAllocated = 1;
 
             GpuMemory* pGpuMemory = nullptr;
@@ -299,6 +302,7 @@ Result InternalMemMgr::AllocateGpuMemNoAllocLock(
             // Issue the base memory allocation
             result = AllocateBaseGpuMem(localCreateInfo, localInternalInfo, readOnly, &pGpuMemory);
             localCreateInfo.size = localCreateInfoSize;
+            localCreateInfo.alignment = localCreateInfoAlignment;
 
             if (result == Result::Success)
             {

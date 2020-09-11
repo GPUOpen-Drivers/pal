@@ -2882,6 +2882,9 @@ size_t CmdUtil::BuildSetPredication(
     // The predication memory address must be 16-byte aligned, and cannot be wider than 40 bits.
     PAL_ASSERT(((gpuVirtAddr & 0xF) == 0) && (gpuVirtAddr <= ((1uLL << 40) - 1)));
 
+    const bool continueSupported = (predType == PredicateType::Zpass) || (predType == PredicateType::PrimCount);
+    PAL_ASSERT(continueSupported || (continuePredicate == false));
+
     pPacket->header.u32All      = Type3Header(IT_SET_PREDICATION, PacketSize);
     pPacket->startAddressLo     = LowPart(gpuVirtAddr);
     pPacket->ordinal3           = 0;
@@ -2889,7 +2892,7 @@ size_t CmdUtil::BuildSetPredication(
     pPacket->predicationBoolean = (predicationBool ? 1 : 0);
     pPacket->hint               = ((predType == PredicateType::Zpass) && occlusionHint) ? 1 : 0;
     pPacket->predOp             = static_cast<uint32>(predType);
-    pPacket->continueBit        = ((predType == PredicateType::Zpass) && continuePredicate) ? 1 : 0;
+    pPacket->continueBit        = (continueSupported && continuePredicate) ? 1 : 0;
 
     return PacketSize;
 }

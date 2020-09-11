@@ -142,6 +142,19 @@ void Device::FlushAndInvL2IfNeeded(
     }
 }
 
+// ==================================================================================================================
+// For global memory barrier to check if need to F/I L2 cache
+//
+// F/I TCC are required between CB writes and TC reads/writes as the TCC isn't actually coherent on non-power2
+// width memory bus. Add F/I L2 check to handle global memory barrier situation that is without an image object,
+// and Image::GetPipeMisalignedMetadataFirstMip() handles image pointer contains situation on non-pow2 memory bus.
+bool Device::NeedGlobalFlushAndInvL2(
+    const IImage* pImage
+    ) const
+{
+    return ((pImage == nullptr) && (IsPowerOfTwo(m_pParent->MemoryProperties().vramBusBitWidth) == false));
+}
+
 // =====================================================================================================================
 // Issue BLT operations (i.e., decompress, resummarize) necessary to convert a depth/stencil image from one ImageLayout
 // to another.
@@ -1220,13 +1233,15 @@ void Device::Barrier(
         constexpr uint32 MaybeL2Mask = AlwaysL2Mask;
 
         // Flush L2 if prior output might have been through L2 and upcoming reads/writes might not be through L2.
-        if (TestAnyFlagSet(srcCacheMask, MaybeL2Mask) && TestAnyFlagSet(dstCacheMask, ~AlwaysL2Mask))
+	if ((TestAnyFlagSet(srcCacheMask, MaybeL2Mask) && TestAnyFlagSet(dstCacheMask, ~AlwaysL2Mask)) ||
+            (TestAnyFlagSet(srcCacheMask, MaybeTccMdShaderMask) && NeedGlobalFlushAndInvL2(transition.imageInfo.pImage)))
         {
             globalSyncReqs.cacheFlags |= CacheSyncFlushTcc;
         }
 
         // Invalidate L2 if prior output might not have been through L2 and upcoming reads/writes might be through L2.
-        if (TestAnyFlagSet(srcCacheMask, ~AlwaysL2Mask) && TestAnyFlagSet(dstCacheMask, MaybeL2Mask))
+	if ((TestAnyFlagSet(srcCacheMask, ~AlwaysL2Mask) && TestAnyFlagSet(dstCacheMask, MaybeL2Mask)) ||
+            (TestAnyFlagSet(srcCacheMask, MaybeTccMdShaderMask) && NeedGlobalFlushAndInvL2(transition.imageInfo.pImage)))
         {
             globalSyncReqs.cacheFlags |= CacheSyncInvTcc;
         }

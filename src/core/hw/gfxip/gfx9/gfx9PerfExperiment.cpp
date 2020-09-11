@@ -629,11 +629,8 @@ Result PerfExperiment::AddCounter(
                     m_select.umcch[info.instance].hasCounters       = true;
                     m_select.umcch[info.instance].perfmonInUse[idx] = true;
                     m_select.umcch[info.instance].thresholdSet[idx] = false;
-
-                    {
-                        m_select.umcch[info.instance].perfmonCntl[idx].vg12.EventSelect = info.eventId;
-                        m_select.umcch[info.instance].perfmonCntl[idx].vg12.Enable      = 1;
-                    }
+                    m_select.umcch[info.instance].perfmonCntl[idx].most.EventSelect = info.eventId;
+                    m_select.umcch[info.instance].perfmonCntl[idx].most.Enable = 1;
 
                     mapping.counterId = idx;
                     searching         = false;

@@ -951,7 +951,7 @@ void ComputeCmdBuffer::CmdCommentString(
 {
     uint32* pCmdSpace = m_cmdStream.ReserveCommands();
 
-    pCmdSpace += m_cmdUtil.BuildCommentString(pComment, pCmdSpace);
+    pCmdSpace += m_cmdUtil.BuildCommentString(pComment, ShaderCompute, pCmdSpace);
 
     m_cmdStream.CommitCommands(pCmdSpace);
 }

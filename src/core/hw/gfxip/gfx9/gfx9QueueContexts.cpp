@@ -258,7 +258,7 @@ void ComputeQueueContext::ClearDeferredMemory()
                 break;
             }
 
-            ComputeQueueDeferFreeList list;
+            ComputeQueueDeferFreeList list = {};
             m_deferCmdStreamChunks.PopFront(&list);
 
             for (uint32 idx = 0; idx < Util::ArrayLen(list.pChunk); ++idx)
@@ -1019,7 +1019,7 @@ void UniversalQueueContext::ClearDeferredMemory()
                 break;
             }
 
-            UniversalQueueDeferFreeList list;
+            UniversalQueueDeferFreeList list = {};
             m_deferCmdStreamChunks.PopFront(&list);
 
             for (uint32 idx = 0; idx < Util::ArrayLen(list.pChunk); ++idx)

@@ -311,6 +311,9 @@ PAL_INLINE Result DeserializeEnum(
         case HashLiteralString("_amdgpu_cs_main"):
             *pValue = PipelineSymbolType::CsMainEntry;
             break;
+        case HashLiteralString("_amdgpu_fs_main"):
+            *pValue = PipelineSymbolType::FsMainEntry;
+            break;
         case HashLiteralString("_amdgpu_ls_shdr_intrl_tbl"):
             *pValue = PipelineSymbolType::LsShdrIntrlTblPtr;
             break;
@@ -418,6 +421,9 @@ PAL_INLINE Result SerializeEnum(
         break;
     case PipelineSymbolType::CsMainEntry:
         result = pWriter->Pack("_amdgpu_cs_main");
+        break;
+    case PipelineSymbolType::FsMainEntry:
+        result = pWriter->Pack("_amdgpu_fs_main");
         break;
     case PipelineSymbolType::LsShdrIntrlTblPtr:
         result = pWriter->Pack("_amdgpu_ls_shdr_intrl_tbl");

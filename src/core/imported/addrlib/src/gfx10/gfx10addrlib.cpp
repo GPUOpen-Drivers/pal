@@ -3301,7 +3301,7 @@ ADDR_E_RETURNCODE Gfx10Lib::ComputeSurfaceInfoMacroTiled(
                         {
                             pOut->pMipInfo[i].pitch  = pitch;
                             pOut->pMipInfo[i].height = height;
-                            pOut->pMipInfo[i].depth  = depth;
+                            pOut->pMipInfo[i].depth  = IsTex3d(pIn->resourceType) ? pOut->numSlices : 1;
                         }
                     }
                 }
@@ -3355,7 +3355,7 @@ ADDR_E_RETURNCODE Gfx10Lib::ComputeSurfaceInfoMacroTiled(
 
                         pOut->pMipInfo[i].pitch  = pitch;
                         pOut->pMipInfo[i].height = height;
-                        pOut->pMipInfo[i].depth  = depth;
+                        pOut->pMipInfo[i].depth  = IsTex3d(pIn->resourceType) ? pOut->numSlices : 1;
 
                         UINT_32 mipX = ((mipOffset >> 9)  & 1)  |
                                        ((mipOffset >> 10) & 2)  |
@@ -3391,7 +3391,6 @@ ADDR_E_RETURNCODE Gfx10Lib::ComputeSurfaceInfoMacroTiled(
 
                             pitch  = Max(pitch  >> 1, Block256_2d[index].w);
                             height = Max(height >> 1, Block256_2d[index].h);
-                            depth  = 1;
                         }
                         else
                         {
@@ -3401,7 +3400,6 @@ ADDR_E_RETURNCODE Gfx10Lib::ComputeSurfaceInfoMacroTiled(
 
                             pitch  = Max(pitch  >> 1, Block256_3d[index].w);
                             height = Max(height >> 1, Block256_3d[index].h);
-                            depth  = PowTwoAlign(Max(depth  >> 1, 1u), Block256_3d[index].d);
                         }
                     }
                 }
@@ -3415,7 +3413,7 @@ ADDR_E_RETURNCODE Gfx10Lib::ComputeSurfaceInfoMacroTiled(
                 {
                     pOut->pMipInfo[0].pitch            = pOut->pitch;
                     pOut->pMipInfo[0].height           = pOut->height;
-                    pOut->pMipInfo[0].depth            = IsTex3d(pIn->resourceType)? pOut->numSlices : 1;
+                    pOut->pMipInfo[0].depth            = IsTex3d(pIn->resourceType) ? pOut->numSlices : 1;
                     pOut->pMipInfo[0].offset           = 0;
                     pOut->pMipInfo[0].mipTailOffset    = 0;
                     pOut->pMipInfo[0].macroBlockOffset = 0;

@@ -1677,6 +1677,10 @@ struct CmdPostProcessFrameInfo
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 561
     PresentMode presentMode;               /// The Presentation Mode of the application.
 #endif
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 625
+    FullScreenFrameMetadataControlFlags fullScreenFrameMetadataControlFlags;
+#endif
 };
 
 /// External flags for ScaledCopyImage.
@@ -3147,7 +3151,7 @@ public:
     /// @param [in] waitResults    Hint only valid for Zpass/Occlusion.
     ///                                false = wait_until_final_zpass_written
     ///                                true  = draw_if_not_final_zpass_written
-    /// @param [in] accumulateData true(1) = allow_accumulation of ZPASS count across command buffer boundaries.
+    /// @param [in] accumulateData true(1) = allow_accumulation of Zpass and PrimCount across command buffer boundaries.
     ///
     /// pQueryPool and gpuVirtAddr should be exclusively set, when both are nullptr/0, other params will be ignored
     /// and it means to reset/disable predication so that the following commands can perform normally.

@@ -569,6 +569,8 @@ public:
     uint32 GetPixelCount() const override { return m_presentResolution.height * m_presentResolution.width; }
     uint32 GetMsaaRate() const override { return m_msaaRate; }
 
+    bool NeedGlobalFlushAndInvL2(const IImage* pImage) const;
+
 #if DEBUG
     uint32* TemporarilyHangTheGpu(EngineType engineType, uint32 number, uint32* pCmdSpace) const override;
 #endif

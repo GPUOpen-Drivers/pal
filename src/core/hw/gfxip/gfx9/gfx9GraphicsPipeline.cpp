@@ -205,6 +205,7 @@ GraphicsPipeline::GraphicsPipeline(
     m_isNggFastLaunch(false),
     m_nggSubgroupSize(0),
     m_uavExportRequiresFlush(false),
+    m_fetchShaderRegAddr(UserDataNotMapped),
     m_chunkHs(*pDevice,
               &m_perfDataInfo[static_cast<uint32>(Util::Abi::HardwareStage::Hs)]),
     m_chunkGs(*pDevice,
@@ -375,6 +376,7 @@ void GraphicsPipeline::LateInit(
     SetupCommonRegisters(createInfo, registers, pUploader);
     SetupNonShaderRegisters(createInfo, registers, pUploader);
     SetupStereoRegisters();
+    SetupFetchShaderInfo(pUploader);
 
     if (pUploader->EnableLoadIndexPath())
     {
@@ -630,6 +632,8 @@ uint32* GraphicsPipeline::WriteShCommands(
         }
         pCmdSpace = m_chunkVsPs.WriteShCommands<true>(pCmdStream, pCmdSpace, IsNgg(), stageInfos.vs, stageInfos.ps);
     }
+
+    pCmdSpace = WriteFsShCommands(pCmdStream, pCmdSpace, m_fetchShaderRegAddr);
 
     return pCmdSpace;
 }
@@ -1826,6 +1830,12 @@ void GraphicsPipeline::SetupSignatureForStageFromElf(
                 PAL_ASSERT(stage == HwShaderStage::Gs);
                 m_signature.nggCullingDataAddr = offset;
             }
+            else if (value == static_cast<uint32>(Abi::UserDataMapping::FetchShaderPtr))
+            {
+                 PAL_ASSERT((m_fetchShaderRegAddr == offset) ||
+                            (m_fetchShaderRegAddr == UserDataNotMapped));
+                 m_fetchShaderRegAddr = offset;
+            }
             else
             {
                 // This appears to be an illegally-specified user-data register!
@@ -2291,6 +2301,39 @@ void GraphicsPipeline::SetupStereoRegisters()
             }
         }
     }
+}
+
+// =====================================================================================================================
+// Setup fetch shader info.
+void GraphicsPipeline::SetupFetchShaderInfo(
+    const GraphicsPipelineUploader* pUploader)
+{
+    GpuSymbol symbol = { };
+
+    if (pUploader->GetPipelineGpuSymbol(Abi::PipelineSymbolType::FsMainEntry, &symbol) == Result::Success)
+    {
+        m_fetchShaderPgm = symbol.gpuVirtAddr;
+    }
+}
+
+// =====================================================================================================================
+// Writes PM4 commands to program the fetch shader addr to user data registers.
+uint32* GraphicsPipeline::WriteFsShCommands(
+    CmdStream* pCmdStream,
+    uint32*    pCmdSpace,
+    uint32     fetchShaderRegAddr
+    )const
+{
+    if (m_fetchShaderRegAddr != UserDataNotMapped)
+    {
+        pCmdSpace = pCmdStream->WriteSetSeqShRegs(fetchShaderRegAddr,
+                                                  (fetchShaderRegAddr + 1),
+                                                  ShaderGraphics,
+                                                  &m_fetchShaderPgm,
+                                                  pCmdSpace);
+    }
+
+    return pCmdSpace;
 }
 
 } // Gfx9

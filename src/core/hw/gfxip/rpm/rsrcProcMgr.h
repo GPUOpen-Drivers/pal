@@ -271,6 +271,10 @@ public:
         GfxCmdBuffer* pCmdBuffer,
         const IImage& image) const;
 
+    virtual void CmdDisplayDccFixUp(
+        GfxCmdBuffer*      pCmdBuffer,
+        const IImage&      image) const;
+
 protected:
     // When constructing SRD tables, all SRDs must be size and offset aligned to this many DWORDs.
     uint32 SrdDwordAlignment() const { return m_srdAlignment; }
@@ -431,6 +435,11 @@ private:
     virtual void HwlGfxDccToDisplayDcc(
         GfxCmdBuffer*     pCmdBuffer,
         const Pal::Image& image) const
+        { PAL_NEVER_CALLED(); }
+
+    virtual void InitDisplayDcc(
+        GfxCmdBuffer*      pCmdBuffer,
+        const Pal::Image&  image) const
         { PAL_NEVER_CALLED(); }
 
     virtual void HwlDepthStencilClear(

@@ -1899,6 +1899,11 @@ const CmdPostProcessFrameInfo* CmdBufferDecorator::NextCmdPostProcessFrameInfo(
         pNextPostProcessInfo->pSrcImage = NextImage(postProcessInfo.pSrcImage);
     }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 625
+    pNextPostProcessInfo->fullScreenFrameMetadataControlFlags.u32All =
+        postProcessInfo.fullScreenFrameMetadataControlFlags.u32All;
+#endif
+
     return pNextPostProcessInfo;
 }
 

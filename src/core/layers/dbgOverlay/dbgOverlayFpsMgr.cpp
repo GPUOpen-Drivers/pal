@@ -68,7 +68,6 @@ FpsMgr::FpsMgr(
     m_gpuTimeIndex(0),
     m_gpuTimeSum(0.f),
     m_submitTimeList(pPlatform),
-    m_prevDebugKeyState(false),
     m_prevGraphKeyState(false),
     m_numGpuTimeRanges(0)
 {
@@ -623,7 +622,8 @@ DebugOverlayLocation FpsMgr::GetDebugOverlayLocation()
     DebugOverlayLocation overlayLocation =
         m_pDevice->GetPlatform()->PlatformSettings().debugOverlayConfig.overlayLocation;
 
-    if (Util::IsKeyPressed(Util::KeyCode::F10, &m_prevDebugKeyState))
+    // If F10 is held then shift the overlay
+    if (Util::IsKeyPressed(Util::KeyCode::F10))
     {
         overlayLocation = static_cast<DebugOverlayLocation>((overlayLocation + 1) % DebugOverlayCount);
     }
