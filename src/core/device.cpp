@@ -1920,7 +1920,8 @@ Result Device::GetProperties(
 
             pEngineInfo->flags.supportsTimestamps              = engineInfo.flags.timestampSupport;
             pEngineInfo->flags.supportsQueryPredication        = engineInfo.flags.queryPredicationSupport;
-            pEngineInfo->flags.supports32bitMemoryPredication  = engineInfo.flags.memory32bPredicationSupport;
+            pEngineInfo->flags.supports32bitMemoryPredication  = engineInfo.flags.memory32bPredicationSupport ||
+                                                                 engineInfo.flags.memory32bPredicationEmulated;
             pEngineInfo->flags.supports64bitMemoryPredication  = engineInfo.flags.memory64bPredicationSupport;
             pEngineInfo->flags.supportsConditionalExecution    = engineInfo.flags.conditionalExecutionSupport;
             pEngineInfo->flags.supportsLoopExecution           = engineInfo.flags.loopExecutionSupport;
