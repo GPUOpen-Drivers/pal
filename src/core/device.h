@@ -412,7 +412,8 @@ struct GpuEngineProperties
                 uint32 mustUseSvmIfSupported           :  1;
                 uint32 supportsTrackBusyChunks         :  1;
                 uint32 supportsUnmappedPrtPageAccess   :  1;
-                uint32 reserved                        :  9;
+                uint32 memory32bPredicationEmulated    :  1;
+                uint32 reserved                        :  8;
             };
             uint32 u32All;
         } flags;

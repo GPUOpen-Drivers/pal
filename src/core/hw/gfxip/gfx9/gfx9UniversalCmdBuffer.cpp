@@ -6958,10 +6958,6 @@ void UniversalCmdBuffer::CmdSetPredication(
     bool                accumulateData)
 {
     PAL_ASSERT((pQueryPool == nullptr) || (pGpuMemory == nullptr));
-    PAL_ASSERT(
-        (predType != PredicateType::Boolean32) ||
-        (m_device.Parent()->EngineProperties().perEngine[EngineTypeUniversal].flags.memory32bPredicationSupport != 0)
-    );
 
     m_gfxCmdBufState.flags.clientPredicate = ((pQueryPool != nullptr) || (pGpuMemory != nullptr)) ? 1 : 0;
     m_gfxCmdBufState.flags.packetPredicate = m_gfxCmdBufState.flags.clientPredicate;
@@ -6986,9 +6982,11 @@ void UniversalCmdBuffer::CmdSetPredication(
 
     uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
 
-    // If the predicate is 32-bits, allocate a 64-bit embedded predicate, zero it, emit a ME copy from the
-    // original to the lower 32-bits of the embedded predicate, and update `gpuVirtAddr` and `predType`.
-    if (predType == PredicateType::Boolean32)
+    // If the predicate is 32-bits and the engine does not support that width natively, allocate a 64-bit
+    // embedded predicate, zero it, emit a ME copy from the original to the lower 32-bits of the embedded
+    // predicate, and update `gpuVirtAddr` and `predType`.
+    if ((predType == PredicateType::Boolean32) &&
+        (m_device.Parent()->EngineProperties().perEngine[EngineTypeUniversal].flags.memory32bPredicationSupport == 0))
     {
         PAL_ASSERT(gpuVirtAddr != 0);
         constexpr size_t PredicateDwordSize  = sizeof(uint64) / sizeof(uint32);
