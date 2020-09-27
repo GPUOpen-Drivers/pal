@@ -46,20 +46,15 @@ namespace DbgOverlay
 Queue::Queue(
     IQueue*    pNextQueue,
     Device*    pDevice,
-    QueueType  queueType,
-    EngineType engineType)
+    uint32     queueCount)
     :
     QueueDecorator(pNextQueue, pDevice),
     m_pDevice(pDevice),
-    m_queueType(queueType),
-    m_engineType(engineType),
-    m_supportTimestamps(pDevice->GpuProps().engineProperties[engineType].flags.supportsTimestamps),
-    m_timestampAlignment(pDevice->GpuProps().engineProperties[engineType].minTimestampAlignment),
-    m_timestampMemorySize(2 * MaxGpuTimestampPairCount * m_timestampAlignment),
-    m_nextTimestampOffset(0),
-    m_pTimestampMemory(nullptr),
-    m_gpuTimestampPairDeque(pDevice->GetPlatform())
+    m_queueCount(queueCount),
+    m_pSubQueueInfos(nullptr),
+    m_supportAnyTimestamp(false)
 {
+    PAL_ASSERT(m_queueCount > 0);
 }
 
 // =====================================================================================================================
@@ -69,28 +64,77 @@ Queue::~Queue()
 
     pPlatform->GetFpsMgr()->NotifyQueueDestroyed(this);
 
-    while (m_gpuTimestampPairDeque.NumElements() > 0)
+    for (uint32 qIdx = 0; qIdx < m_queueCount; qIdx++)
     {
-        GpuTimestampPair* pTimestamp = nullptr;
-        m_gpuTimestampPairDeque.PopFront(&pTimestamp);
-        DestroyGpuTimestampPair(pTimestamp);
+        SubQueueInfo* pSubQueueInfo = &m_pSubQueueInfos[qIdx];
+        PAL_ASSERT(pSubQueueInfo->pGpuTimestamps != nullptr);
+
+        while (pSubQueueInfo->pGpuTimestamps->NumElements() > 0)
+        {
+            GpuTimestampPair* pTimestamp = nullptr;
+            pSubQueueInfo->pGpuTimestamps->PopFront(&pTimestamp);
+            DestroyGpuTimestampPair(pTimestamp);
+        }
+        PAL_SAFE_DELETE(pSubQueueInfo->pGpuTimestamps, pPlatform);
+
+        if (pSubQueueInfo->pTimestampMemory != nullptr)
+        {
+            pSubQueueInfo->pTimestampMemory->Destroy();
+            PAL_SAFE_FREE(pSubQueueInfo->pTimestampMemory, pPlatform);
+        }
     }
 
-    if (m_pTimestampMemory != nullptr)
-    {
-        m_pTimestampMemory->Destroy();
-        PAL_SAFE_FREE(m_pTimestampMemory, pPlatform);
-    }
+    PAL_SAFE_DELETE_ARRAY(m_pSubQueueInfos, pPlatform);
 }
 
 // =====================================================================================================================
-Result Queue::Init()
+Result Queue::Init(
+    const QueueCreateInfo* pCreateInfo)
 {
-    Result result = Result::Success;
+    PAL_ASSERT(pCreateInfo != nullptr);
 
-    if (m_supportTimestamps)
+    Platform* pPlatform = static_cast<Platform*>(m_pDevice->GetPlatform());
+    Result    result    = Result::Success;
+    m_pSubQueueInfos = PAL_NEW_ARRAY(SubQueueInfo, m_queueCount, pPlatform, AllocInternal);
+
+    if (m_pSubQueueInfos == nullptr)
     {
-        result = CreateGpuTimestampPairMemory();
+        result = Result::ErrorOutOfMemory;
+    }
+    const auto& engineProps = m_pDevice->GpuProps().engineProperties;
+
+    if (result == Result::Success)
+    {
+        memset(&m_pSubQueueInfos[0], 0, sizeof(SubQueueInfo) * m_queueCount);
+    }
+
+    for (uint32 i = 0; ((result == Result::Success) && (i < m_queueCount)); ++i)
+    {
+        const auto& subQueueEngineProps = engineProps[pCreateInfo[i].engineType];
+
+        m_pSubQueueInfos[i].engineType          = pCreateInfo[i].engineType;
+        m_pSubQueueInfos[i].engineIndex         = pCreateInfo[i].engineIndex;
+        m_pSubQueueInfos[i].queueType           = pCreateInfo[i].queueType;
+        m_pSubQueueInfos[i].supportTimestamps   = subQueueEngineProps.flags.supportsTimestamps;
+        m_pSubQueueInfos[i].timestampAlignment  = subQueueEngineProps.minTimestampAlignment;
+        m_pSubQueueInfos[i].timestampMemorySize =
+            2 * MaxGpuTimestampPairCount * subQueueEngineProps.minTimestampAlignment;
+
+        m_pSubQueueInfos[i].pGpuTimestamps = PAL_NEW(GpuTimestampDeque, pPlatform, AllocInternal)(pPlatform);
+        if (m_pSubQueueInfos[i].pGpuTimestamps == nullptr)
+        {
+            result = Result::ErrorOutOfMemory;
+        }
+
+        if (result == Result::Success)
+        {
+            m_supportAnyTimestamp |= m_pSubQueueInfos[i].supportTimestamps;
+
+            if (m_pSubQueueInfos[i].supportTimestamps)
+            {
+                result = CreateGpuTimestampPairMemory(&m_pSubQueueInfos[i]);
+            }
+        }
     }
 
     return result;
@@ -134,13 +178,14 @@ Result Queue::CreateFence(
 
 // =====================================================================================================================
 // Allocates Gpu Memory for GpuTimestampPair structs
-Result Queue::CreateGpuTimestampPairMemory()
+Result Queue::CreateGpuTimestampPairMemory(
+    SubQueueInfo* pSubQueueInfo)
 {
     Result result = Result::Success;
 
     GpuMemoryCreateInfo gpuMemoryCreateInfo = {};
 
-    gpuMemoryCreateInfo.size           = m_timestampMemorySize;
+    gpuMemoryCreateInfo.size           = pSubQueueInfo->timestampMemorySize;
     gpuMemoryCreateInfo.vaRange        = VaRange::Default;
     gpuMemoryCreateInfo.heapCount      = 1;
     gpuMemoryCreateInfo.priority       = GpuMemPriority::Normal;
@@ -153,7 +198,7 @@ Result Queue::CreateGpuTimestampPairMemory()
 
     if (pMemory != nullptr)
     {
-        result = m_pDevice->CreateGpuMemory(gpuMemoryCreateInfo, pMemory, &m_pTimestampMemory);
+        result = m_pDevice->CreateGpuMemory(gpuMemoryCreateInfo, pMemory, &pSubQueueInfo->pTimestampMemory);
     }
     else
     {
@@ -161,7 +206,7 @@ Result Queue::CreateGpuTimestampPairMemory()
     }
 
     GpuMemoryRef gpuMemoryRef = {};
-    gpuMemoryRef.pGpuMemory = m_pTimestampMemory;
+    gpuMemoryRef.pGpuMemory = pSubQueueInfo->pTimestampMemory;
 
     if (result == Result::Success)
     {
@@ -170,7 +215,7 @@ Result Queue::CreateGpuTimestampPairMemory()
 
     if (result == Result::Success)
     {
-        result = m_pTimestampMemory->Map(&m_pMappedTimestampData);
+        result = pSubQueueInfo->pTimestampMemory->Map(&pSubQueueInfo->pMappedTimestampData);
     }
 
     return result;
@@ -221,15 +266,18 @@ Result Queue::PresentSwapChain(
 Result Queue::Submit(
     const MultiSubmitInfo& submitInfo)
 {
-    PAL_ASSERT(submitInfo.perSubQueueInfoCount == 1);
+    PAL_ASSERT_MSG((submitInfo.perSubQueueInfoCount <= 1),
+                   "Multi-Queue support has not yet been tested in DbgOverlay!");
+    PAL_ASSERT((submitInfo.perSubQueueInfoCount <= 1) || (submitInfo.perSubQueueInfoCount == m_queueCount));
+
     const auto& gpuProps = m_pDevice->GpuProps();
     Platform* pPlatform = static_cast<Platform*>(m_pDevice->GetPlatform());
     pPlatform->SetGpuWork(gpuProps.gpuIndex, true);
 
     // Determine if we should add timestamps to this submission.
-    bool addTimestamps = m_supportTimestamps                     &&
-                        (submitInfo.pPerSubQueueInfo != nullptr) &&
-                        (submitInfo.pPerSubQueueInfo[0].cmdBufferCount > 0);
+    bool addTimestamps = m_supportAnyTimestamp                    &&
+                         (submitInfo.pPerSubQueueInfo != nullptr) &&
+                         (submitInfo.pPerSubQueueInfo[0].cmdBufferCount > 0);
     if (addTimestamps)
     {
         // Other PAL layers assume that CmdPresent can only be in the last command buffer in a submission.
@@ -246,46 +294,87 @@ Result Queue::Submit(
     if (addTimestamps)
     {
         // Try to reuse an existing GpuTimestampPair, otherwise create a new one if we still have space for it.
-        GpuTimestampPair* pTimestamp = nullptr;
+        AutoBuffer<GpuTimestampPair*, 8, Platform> gpuTimestamps(submitInfo.perSubQueueInfoCount, pPlatform);
 
-        if ((m_gpuTimestampPairDeque.NumElements() > 0) &&
-            (m_gpuTimestampPairDeque.Front()->numActiveSubmissions == 0))
+        if (gpuTimestamps.Capacity() >= submitInfo.perSubQueueInfoCount)
         {
-            result = m_gpuTimestampPairDeque.PopFront(&pTimestamp);
+            memset(gpuTimestamps.Data(), 0, gpuTimestamps.SizeBytes());
 
-            if (result == Result::Success)
+            uint32 i = 0;
+            for (; i < submitInfo.perSubQueueInfoCount; ++i)
             {
-                result = m_pDevice->ResetFences(1, &pTimestamp->pFence);
+                SubQueueInfo*     pSubQueueInfo = &m_pSubQueueInfos[i];
+                GpuTimestampPair* pTimestamp    = nullptr;
+
+                if (pSubQueueInfo->supportTimestamps)
+                {
+                    if ((pSubQueueInfo->pGpuTimestamps->NumElements() > 0) &&
+                        (pSubQueueInfo->pGpuTimestamps->Front()->numActiveSubmissions == 0))
+                    {
+                        result = pSubQueueInfo->pGpuTimestamps->PopFront(&pTimestamp);
+
+                        if (result == Result::Success)
+                        {
+                            result = m_pDevice->ResetFences(1, &pTimestamp->pFence);
+                        }
+                    }
+                    else if (pSubQueueInfo->nextTimestampOffset < pSubQueueInfo->timestampMemorySize)
+                    {
+                        result = CreateGpuTimestampPair(pSubQueueInfo, &pTimestamp);
+                    }
+
+                    // Immediately push it onto the back of the deque to avoid leaking memory if something fails.
+                    if (pTimestamp != nullptr)
+                    {
+                        // The timestamp should be null if any error occured.
+                        PAL_ASSERT(result == Result::Success);
+
+                        result = pSubQueueInfo->pGpuTimestamps->PushBack(pTimestamp);
+
+                        if (result != Result::Success)
+                        {
+                            // We failed to push the timestamp onto the deque. To avoid leaking memory we must delete it.
+                            DestroyGpuTimestampPair(pTimestamp);
+                            pTimestamp    = nullptr;
+                            addTimestamps = false;
+                            break;
+                        }
+
+                        gpuTimestamps[i] = pTimestamp;
+                    }
+                    else
+                    {
+                        addTimestamps = false;
+                        break;
+                    }
+                }
+            }
+
+            if (addTimestamps == false)
+            {
+                for (i = 0; ((result == Result::Success) && (i < submitInfo.perSubQueueInfoCount)); i++)
+                {
+                    if (gpuTimestamps[i] != nullptr)
+                    {
+                        SubQueueInfo* pSubQueueInfo = &m_pSubQueueInfos[i];
+                        result =  pSubQueueInfo->pGpuTimestamps->PushFront(gpuTimestamps[i]);
+                    }
+                }
             }
         }
-        else if (m_nextTimestampOffset < m_timestampMemorySize)
+        else
         {
-            result = CreateGpuTimestampPair(&pTimestamp);
-        }
-
-        // Immediately push it onto the back of the deque to avoid leaking memory if something fails.
-        if (pTimestamp != nullptr)
-        {
-            // The timestamp should be null if any error occured.
-            PAL_ASSERT(result == Result::Success);
-
-            result = m_gpuTimestampPairDeque.PushBack(pTimestamp);
-
-            if (result != Result::Success)
-            {
-                // We failed to push the timestamp onto the deque. To avoid leaking memory we must delete it.
-                DestroyGpuTimestampPair(pTimestamp);
-                pTimestamp = nullptr;
-            }
+            result        = Result::ErrorOutOfMemory;
+            addTimestamps = false;
         }
 
         // Submit to the next layer. We should do this even if a failure occured to avoid crashing the application.
-        if (pTimestamp != nullptr)
+        if ((result == Result::Success) && addTimestamps)
         {
             // The timestamp should be null if any error occured.
             PAL_ASSERT(result == Result::Success);
 
-            result = SubmitWithGpuTimestampPair(submitInfo, pTimestamp);
+            result = SubmitWithGpuTimestampPair(submitInfo, gpuTimestamps.Data());
         }
         else
         {
@@ -307,7 +396,7 @@ Result Queue::Submit(
 // =====================================================================================================================
 Result Queue::SubmitWithGpuTimestampPair(
     const MultiSubmitInfo& submitInfo,
-    GpuTimestampPair*      pTimestamp)
+    GpuTimestampPair**     ppTimestamp)
 {
     // Caller should have made sure that there was at least one command buffer in here.
     PAL_ASSERT((submitInfo.pPerSubQueueInfo != nullptr) && (submitInfo.pPerSubQueueInfo[0].cmdBufferCount > 0));
@@ -315,72 +404,93 @@ Result Queue::SubmitWithGpuTimestampPair(
 
     Platform* pPlatform = static_cast<Platform*>(m_pDevice->GetPlatform());
 
-    // For a multi-queue submit, we only need to add our timestamps around the primary queue's command buffers.
-    // Capacity increased by two to accommodate the two Command Buffers needed to time the submission
-    const uint32 cmdBufferCapacity = submitInfo.pPerSubQueueInfo[0].cmdBufferCount + 2;
+    uint32 cmdBufferCapacity = submitInfo.perSubQueueInfoCount * 2;
 
-    AutoBuffer<PerSubQueueSubmitInfo, 16, PlatformDecorator>
-        perSubQueueInfo(submitInfo.perSubQueueInfoCount, pPlatform);
-    AutoBuffer<ICmdBuffer*,  256, PlatformDecorator> cmdBuffers(cmdBufferCapacity, pPlatform);
-    AutoBuffer<CmdBufInfo,   256, PlatformDecorator> cmdBufInfoList(cmdBufferCapacity, pPlatform);
+    for (uint32 i = 0; i < submitInfo.perSubQueueInfoCount; i++)
+    {
+        cmdBufferCapacity += submitInfo.pPerSubQueueInfo[i].cmdBufferCount;
+    }
 
-    if ((perSubQueueInfo.Capacity() < submitInfo.perSubQueueInfoCount) ||
-        (cmdBuffers.Capacity()      < cmdBufferCapacity)               ||
-        (cmdBufInfoList.Capacity()  < cmdBufferCapacity))
+    AutoBuffer<PerSubQueueSubmitInfo, 16,  PlatformDecorator> perSubQueueInfos(submitInfo.perSubQueueInfoCount,
+                                                                               pPlatform);
+    AutoBuffer<ICmdBuffer*,           256, PlatformDecorator> cmdBuffers(cmdBufferCapacity,     pPlatform);
+    AutoBuffer<CmdBufInfo,            256, PlatformDecorator> cmdBufInfoList(cmdBufferCapacity, pPlatform);
+
+    if ((perSubQueueInfos.Capacity() < submitInfo.perSubQueueInfoCount) ||
+        (cmdBuffers.Capacity()       < cmdBufferCapacity)               ||
+        (cmdBufInfoList.Capacity()   < cmdBufferCapacity))
     {
         result = Result::ErrorOutOfMemory;
     }
     else
     {
-        const IGpuMemory* pNextBlockIfFlipping[MaxBlockIfFlippingCount] = {};
-        PAL_ASSERT(submitInfo.blockIfFlippingCount <= MaxBlockIfFlippingCount);
+        uint32 cmdBufferIndex  = 0;
+        uint32 cmdBufInfoIndex = 0;
 
-        for (uint32 queueIdx = 0; queueIdx < submitInfo.perSubQueueInfoCount; queueIdx++)
-        {
-            perSubQueueInfo[queueIdx] = submitInfo.pPerSubQueueInfo[queueIdx];
-        }
+        memset(cmdBufInfoList.Data(), 0, cmdBufInfoList.SizeBytes());
 
-        PerSubQueueSubmitInfo* pPrimarySubQueue = &perSubQueueInfo[0];
-        pPrimarySubQueue->cmdBufferCount        = cmdBufferCapacity;
-        pPrimarySubQueue->ppCmdBuffers          = &cmdBuffers[0];
-        cmdBuffers[0]                           = pTimestamp->pBeginCmdBuffer;
-        for (uint32 i = 0; i < submitInfo.pPerSubQueueInfo[0].cmdBufferCount; i++)
+        for (uint32 queueIdx = 0; queueIdx < submitInfo.perSubQueueInfoCount; ++queueIdx)
         {
-            cmdBuffers[i + 1] = submitInfo.pPerSubQueueInfo[0].ppCmdBuffers[i];
-        }
-        cmdBuffers[submitInfo.pPerSubQueueInfo[0].cmdBufferCount + 1] = pTimestamp->pEndCmdBuffer;
+            const PerSubQueueSubmitInfo& origPerSubQueueInfo = submitInfo.pPerSubQueueInfo[queueIdx];
+            PerSubQueueSubmitInfo*       pNewPerSubQueueInfo = &perSubQueueInfos[queueIdx];
 
-        if (pPrimarySubQueue->pCmdBufInfoList != nullptr)
-        {
-            // Note that we must leave pCmdBufInfoList null if it was null in submitInfo.
-            pPrimarySubQueue->pCmdBufInfoList = &cmdBufInfoList[0];
-            cmdBufInfoList[0].u32All = 0;
-            for (uint32 i = 0; i < submitInfo.pPerSubQueueInfo[0].cmdBufferCount; i++)
+            const bool hasCmdBufInfo      = (origPerSubQueueInfo.pCmdBufInfoList != nullptr);
+            const bool supportsTimestamps = m_pSubQueueInfos[queueIdx].supportTimestamps;
+
+            (*pNewPerSubQueueInfo) = origPerSubQueueInfo;
+
+            if (pNewPerSubQueueInfo->cmdBufferCount > 0)
             {
-                const auto& cmdBufInfo = submitInfo.pPerSubQueueInfo[0].pCmdBufInfoList[i];
-                cmdBufInfoList[i + 1].u32All = cmdBufInfo.u32All;
+                GpuTimestampPair* pTimestamp = ppTimestamp[queueIdx];
+                PAL_ASSERT((pTimestamp != nullptr) || (supportsTimestamps == false));
 
-                if (cmdBufInfoList[i + 1].isValid)
+                pNewPerSubQueueInfo->cmdBufferCount += (supportsTimestamps) ? 2 : 0;
+                pNewPerSubQueueInfo->ppCmdBuffers    = &cmdBuffers[cmdBufferIndex];
+                pNewPerSubQueueInfo->pCmdBufInfoList = (hasCmdBufInfo) ? &cmdBufInfoList[cmdBufInfoIndex] : nullptr;
+
+                if (supportsTimestamps)
                 {
-                    cmdBufInfoList[i + 1].pPrimaryMemory = cmdBufInfo.pPrimaryMemory;
+                    cmdBuffers[cmdBufferIndex++] = pTimestamp->pBeginCmdBuffer;
+                    cmdBufInfoIndex += (hasCmdBufInfo) ? 1 : 0;
+                }
+
+                for (uint32 cmdBufIdx = 0; cmdBufIdx < origPerSubQueueInfo.cmdBufferCount; ++cmdBufIdx)
+                {
+                    cmdBuffers[cmdBufferIndex++] = origPerSubQueueInfo.ppCmdBuffers[cmdBufIdx];
+
+                    if (hasCmdBufInfo)
+                    {
+                        cmdBufInfoList[cmdBufInfoIndex++] = origPerSubQueueInfo.pCmdBufInfoList[cmdBufIdx];
+                    }
+                }
+
+                if (supportsTimestamps)
+                {
+                    cmdBuffers[cmdBufferIndex++] = pTimestamp->pEndCmdBuffer;
+                    cmdBufInfoIndex += (hasCmdBufInfo) ? 1 : 0;
                 }
             }
-            cmdBufInfoList[submitInfo.pPerSubQueueInfo[0].cmdBufferCount + 1].u32All = 0;
+
+            PAL_ASSERT(cmdBufferIndex  <= cmdBufferCapacity);
+            PAL_ASSERT(cmdBufInfoIndex <= cmdBufferCapacity);
         }
 
         MultiSubmitInfo finalSubmitInfo  = submitInfo;
-        finalSubmitInfo.pPerSubQueueInfo = perSubQueueInfo.Data();
+        finalSubmitInfo.pPerSubQueueInfo = perSubQueueInfos.Data();
 
         result = QueueDecorator::Submit(finalSubmitInfo);
 
-        if (result == Result::Success)
+        for (uint32 i = 0; ((result == Result::Success) && (i < submitInfo.perSubQueueInfoCount)); ++i)
         {
-            result = AssociateFenceWithLastSubmit(pTimestamp->pFence);
+            if (ppTimestamp[i] != nullptr)
+            {
+                result = AssociateFenceWithLastSubmit(ppTimestamp[i]->pFence);
+            }
         }
 
         if (result == Result::Success)
         {
-            pPlatform->GetFpsMgr()->UpdateSubmitTimelist(pTimestamp);
+            pPlatform->GetFpsMgr()->UpdateSubmitTimelist(submitInfo.perSubQueueInfoCount, ppTimestamp);
         }
     }
     return result;
@@ -389,6 +499,7 @@ Result Queue::SubmitWithGpuTimestampPair(
 // =====================================================================================================================
 // Creates and initializes a new GpuTimestampPair
 Result Queue::CreateGpuTimestampPair(
+    SubQueueInfo*       pSubQueueInfo,
      GpuTimestampPair** ppTimestamp)
 {
     Result result = Result::Success;
@@ -414,8 +525,8 @@ Result Queue::CreateGpuTimestampPair(
     {
         CmdBufferCreateInfo beginCmdBufferCreateInfo = {};
         beginCmdBufferCreateInfo.pCmdAllocator = m_pDevice->InternalCmdAllocator();
-        beginCmdBufferCreateInfo.queueType     = m_queueType;
-        beginCmdBufferCreateInfo.engineType    = m_engineType;
+        beginCmdBufferCreateInfo.queueType     = pSubQueueInfo->queueType;
+        beginCmdBufferCreateInfo.engineType    = pSubQueueInfo->engineType;
 
         result = CreateCmdBuffer(beginCmdBufferCreateInfo, &pTimestamp->pBeginCmdBuffer);
     }
@@ -424,8 +535,8 @@ Result Queue::CreateGpuTimestampPair(
     {
         CmdBufferCreateInfo endCmdBufferCreateInfo = {};
         endCmdBufferCreateInfo.pCmdAllocator = m_pDevice->InternalCmdAllocator();
-        endCmdBufferCreateInfo.queueType     = m_queueType;
-        endCmdBufferCreateInfo.engineType    = m_engineType;
+        endCmdBufferCreateInfo.queueType     = pSubQueueInfo->queueType;
+        endCmdBufferCreateInfo.engineType    = pSubQueueInfo->engineType;
 
         result = CreateCmdBuffer(endCmdBufferCreateInfo, &pTimestamp->pEndCmdBuffer);
     }
@@ -440,15 +551,17 @@ Result Queue::CreateGpuTimestampPair(
 
     if (result == Result::Success)
     {
-        pTimestamp->pBeginCmdBuffer->CmdWriteTimestamp(HwPipeBottom, *m_pTimestampMemory, m_nextTimestampOffset);
+        pTimestamp->pBeginCmdBuffer->CmdWriteTimestamp(HwPipeBottom,
+                                                       *pSubQueueInfo->pTimestampMemory,
+                                                       pSubQueueInfo->nextTimestampOffset);
         result = pTimestamp->pBeginCmdBuffer->End();
     }
 
     if (result == Result::Success)
     {
-        pTimestamp->pBeginTimestamp =
-            static_cast<uint64*>(Util::VoidPtrInc(m_pMappedTimestampData, m_nextTimestampOffset));
-        m_nextTimestampOffset += m_timestampAlignment;
+        pTimestamp->pBeginTimestamp = static_cast<uint64*>(Util::VoidPtrInc(pSubQueueInfo->pMappedTimestampData,
+                                                                            pSubQueueInfo->nextTimestampOffset));
+        pSubQueueInfo->nextTimestampOffset += pSubQueueInfo->timestampAlignment;
 
         CmdBufferBuildInfo cmdBufferBuildInfo = {};
         cmdBufferBuildInfo.flags.optimizeExclusiveSubmit = 1;
@@ -458,15 +571,17 @@ Result Queue::CreateGpuTimestampPair(
 
     if (result == Result::Success)
     {
-        pTimestamp->pEndCmdBuffer->CmdWriteTimestamp(HwPipeBottom, *m_pTimestampMemory, m_nextTimestampOffset);
+        pTimestamp->pEndCmdBuffer->CmdWriteTimestamp(HwPipeBottom,
+                                                     *pSubQueueInfo->pTimestampMemory,
+                                                     pSubQueueInfo->nextTimestampOffset);
         result = pTimestamp->pEndCmdBuffer->End();
     }
 
     if (result == Result::Success)
     {
-        pTimestamp->pEndTimestamp =
-            static_cast<uint64*>(Util::VoidPtrInc(m_pMappedTimestampData, m_nextTimestampOffset));
-        m_nextTimestampOffset += m_timestampAlignment;
+        pTimestamp->pEndTimestamp = static_cast<uint64*>(Util::VoidPtrInc(pSubQueueInfo->pMappedTimestampData,
+                                                                          pSubQueueInfo->nextTimestampOffset));
+        pSubQueueInfo->nextTimestampOffset += pSubQueueInfo->timestampAlignment;
     }
 
     if (result == Result::Success)

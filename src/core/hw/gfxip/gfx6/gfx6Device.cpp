@@ -1678,7 +1678,8 @@ DccFormatEncoding Device::ComputeDccFormatEncoding(
             const bool viewFormatIsFloat = Formats::IsFloat(pFormats[i].format);
 
             if ((baseFormatIsFloat != viewFormatIsFloat) ||
-                (Formats::ShareChFmt(swizzledFormat.format, pFormats[i].format) == false))
+                (Formats::ShareChFmt(swizzledFormat.format, pFormats[i].format) == false) ||
+                (swizzledFormat.swizzle.swizzleValue != pFormats[i].swizzle.swizzleValue))
             {
                 dccFormatEncoding = DccFormatEncoding::Incompatible;
                 break;

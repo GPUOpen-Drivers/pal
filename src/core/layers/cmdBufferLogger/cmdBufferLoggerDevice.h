@@ -47,6 +47,13 @@ class Device : public DeviceDecorator
 public:
     Device(PlatformDecorator* pPlatform, IDevice* pNextDevice);
 
+    bool SupportsCommentString(QueueType queueType) const
+        { return ((queueType == QueueTypeUniversal) || (queueType == QueueTypeCompute)); }
+
+    bool SupportsCommentString(
+        uint32                 queueCount,
+        const QueueCreateInfo* pCreateInfo) const;
+
     // Public IDevice interface methods:
     virtual size_t GetCmdBufferSize(
         const CmdBufferCreateInfo& createInfo,
@@ -56,21 +63,23 @@ public:
         void*                      pPlacementAddr,
         ICmdBuffer**               ppCmdBuffer) override;
 
-    // need a real implementation later!
-    virtual size_t GetMultiQueueSize(
-        uint32                 queueCount,
-        const QueueCreateInfo* pCreateInfo,
-        Result*                pResult) const override
-    {
-        return 0;
-    }
-
     virtual size_t GetQueueSize(
         const QueueCreateInfo& createInfo,
         Result*                pResult) const override;
 
     virtual Result CreateQueue(
         const QueueCreateInfo& createInfo,
+        void*                  pPlacementAddr,
+        IQueue**               ppQueue) override;
+
+    virtual size_t GetMultiQueueSize(
+        uint32                 queueCount,
+        const QueueCreateInfo* pCreateInfo,
+        Result*                pResult) const override;
+
+    virtual Result CreateMultiQueue(
+        uint32                 queueCount,
+        const QueueCreateInfo* pCreateInfo,
         void*                  pPlacementAddr,
         IQueue**               ppQueue) override;
 

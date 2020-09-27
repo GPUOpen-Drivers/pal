@@ -242,16 +242,14 @@ void PipelineChunkVsPs::LateInit(
 
         if (chipProps.gfx9.supportSpp != 0)
         {
-            static_assert((Gfx10::mmSPI_SHADER_PGM_CHKSUM_VS == Rn::mmSPI_SHADER_PGM_CHKSUM_VS),
-                          "CHKSUM_VS register has moved between GFX10 and  Renoir!");
-            static_assert((Gfx10::mmSPI_SHADER_PGM_CHKSUM_VS == Rv2x::mmSPI_SHADER_PGM_CHKSUM_VS),
-                          "CHKSUM_VS register has moved between GFX10 and  Raven2!");
+            static_assert((Gfx10::mmSPI_SHADER_PGM_CHKSUM_VS == Rv2x_Rn::mmSPI_SHADER_PGM_CHKSUM_VS),
+                          "CHKSUM_VS register has moved between GFX10 and Raven2/Renoir!");
 
             registers.HasEntry(Gfx10::mmSPI_SHADER_PGM_CHKSUM_VS, &m_regs.sh.spiShaderPgmChksumVs.u32All);
         }
 
         uint16 vsCuDisableMask = 0;
-        if (IsGfx10Plus(chipProps.gfxLevel))
+        if (IsGfx101(chipProps.gfxLevel))
         {
             // Both CU's of a WGP need to be disabled for better performance.
             vsCuDisableMask = 0xC;

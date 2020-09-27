@@ -390,6 +390,7 @@ Device::Device(
     m_fileDescriptor(constructorParams.fileDescriptor),
     m_primaryFileDescriptor(constructorParams.primaryFileDescriptor),
     m_hDevice(constructorParams.hDevice),
+    m_pVamMgr(nullptr),
     m_hContext(nullptr),
     m_deviceNodeIndex(constructorParams.deviceNodeIndex),
     m_drmMajorVer(constructorParams.drmMajorVer),
@@ -438,7 +439,11 @@ Device::~Device()
         m_drmProcs.pfnAmdgpuCsUnreservedVmid(m_hDevice);
     }
 
-    VamMgrSingleton::Cleanup(this);
+    if (m_pVamMgr != nullptr)
+    {
+        VamMgrSingleton::Cleanup(this);
+        m_pVamMgr = nullptr;
+    }
 
     if (m_hDevice != nullptr)
     {
@@ -476,10 +481,6 @@ Result Device::Cleanup()
     }
 
     PAL_SAFE_DELETE(m_pSvmMgr, m_pPlatform);
-
-    // Note: Pal::Device::Cleanup() uses m_memoryProperties.vaRanges to find VAM sections for memory release.
-    // If ranges aren't provided, then VAM silently leaks virtual addresses.
-    VamMgrSingleton::FreeReservedVaRange(GetPlatform()->GetDrmLoader().GetProcsTable(), m_hDevice);
 
     memset(&m_memoryProperties.vaRange, 0, sizeof(m_memoryProperties.vaRange));
     return result;
@@ -1462,6 +1463,11 @@ Result Device::InitMemInfo()
 
         if (result == Result::Success)
         {
+            result = VamMgrSingleton::GetVamMgr(this, &m_pVamMgr);
+        }
+
+        if (result == Result::Success)
+        {
             m_memoryProperties.fragmentSize = sizeAlign.size_local;
 
             // The libdrm_amdgpu GPU memory interfaces map very nicely to PAL's interfaces; we can simply use
@@ -1476,7 +1482,7 @@ Result Device::InitMemInfo()
 
         if (result == Result::Success)
         {
-            result = VamMgrSingleton::InitVaRangesAndFinalizeVam(this);
+            result = m_pVamMgr->Finalize(this);
         }
 
         if (result == Result::Success)
@@ -4413,7 +4419,7 @@ Result Device::AssignVirtualAddress(
         vaInfo.alignment = pGpuMemory->Desc().alignment;
         vaInfo.partition = vaPart;
 
-        ret = VamMgrSingleton::AssignVirtualAddress(this, vaInfo, pGpuVirtAddr);
+        ret = m_pVamMgr->AssignVirtualAddress(this, vaInfo, pGpuVirtAddr);
         static_cast<GpuMemory*>(pGpuMemory)->SetVaRangeHandle(nullptr);
     }
     else
@@ -4427,7 +4433,7 @@ Result Device::AssignVirtualAddress(
 // =====================================================================================================================
 // Free virtual address for the allocation.
 void Device::FreeVirtualAddress(
-    Pal::GpuMemory*     pGpuMemory)
+    Pal::GpuMemory* pGpuMemory)
 {
     GpuMemory*        pMemory = static_cast<GpuMemory*>(pGpuMemory);
     const VaPartition vaPart  = pGpuMemory->VirtAddrPartition();
@@ -4441,7 +4447,7 @@ void Device::FreeVirtualAddress(
              (vaPart == VaPartition::CaptureReplay))
     {
         PAL_ASSERT(pMemory->VaRangeHandle() == nullptr);
-        VamMgrSingleton::FreeVirtualAddress(this, *pGpuMemory);
+        m_pVamMgr->FreeVirtualAddress(this, pGpuMemory);
     }
     else
     {
@@ -4457,39 +4463,7 @@ Result Device::ProbeGpuVaRange(
     VaPartition vaPartition
     ) const
 {
-    Result           result      = Result::Success;
-    gpusize          vaAllocated = 0u;
-    amdgpu_va_handle vaHandle    = nullptr;
-
-    // While there are two instances created simultaneously, the VA range has been reserved by the first
-    // instance. The second instance fails to allocate the VA range here as a consequence. So need to check
-    // if it's been allocated first.
-    if (!VamMgrSingleton::IsVamPartitionAllocated(m_hDevice, vaPartition, vaStart))
-    {
-        result = CheckResult(m_drmProcs.pfnAmdgpuVaRangeAlloc(m_hDevice,
-                                                             amdgpu_gpu_va_range_general,
-                                                             vaSize,
-                                                             0u,
-                                                             vaStart,
-                                                             &vaAllocated,
-                                                             &vaHandle,
-                                                             0u),
-                             Result::ErrorUnknown);
-
-        if (result == Result::Success)
-        {
-            result = CheckResult(m_drmProcs.pfnAmdgpuVaRangeFree(vaHandle),
-                                 Result::ErrorUnknown);
-        }
-
-        if ((result == Result::Success) &&
-                (vaAllocated != vaStart))
-        {
-            result = Result::ErrorOutOfGpuMemory;
-        }
-    }
-
-    return result;
+    return m_pVamMgr->AllocateVaRange(this, vaPartition, vaStart, vaSize);
 }
 
 // =====================================================================================================================
@@ -4567,15 +4541,6 @@ Result Device::FreeGpuVirtualAddress(
     }
 
     return result;
-}
-
-// =====================================================================================================================
-Result Device::InitReservedVaRanges()
-{
-    return VamMgrSingleton::GetReservedVaRange(
-        GetPlatform()->GetDrmLoader().GetProcsTable(),
-        m_hDevice,
-        &m_memoryProperties);
 }
 
 // =====================================================================================================================
@@ -5934,6 +5899,62 @@ Result Device::IsSameGpu(
     }
 
     return result;
+}
+
+// =====================================================================================================================
+// Helper function for Vam manager to allocate va range
+Result Device::AllocVaRange(
+    uint64            size,
+    uint64            vaBaseRequired,
+    uint64*           pVaAllocated,
+    amdgpu_va_handle* pVaRange
+    ) const
+{
+    return CheckResult(m_drmProcs.pfnAmdgpuVaRangeAlloc(m_hDevice,
+                                                        amdgpu_gpu_va_range_general,
+                                                        size,
+                                                        m_memoryProperties.fragmentSize,
+                                                        vaBaseRequired,
+                                                        pVaAllocated,
+                                                        pVaRange,
+                                                        0),
+                       Result::ErrorUnknown);
+}
+
+// =====================================================================================================================
+// Helper function for Vam manager to free va range
+void Device::FreeVaRange(
+    amdgpu_va_handle hVaRange
+    ) const
+{
+    m_drmProcs.pfnAmdgpuVaRangeFree(hVaRange);
+}
+
+// =====================================================================================================================
+// Add bo and va information into shared bo map
+bool Device::AddToSharedBoMap(
+    amdgpu_bo_handle hBuffer,
+    amdgpu_va_handle hVaRange,
+    gpusize          gpuVirtAddr)
+{
+    return m_pVamMgr->AddToSharedBoMap(hBuffer, hVaRange, gpuVirtAddr);
+}
+
+// =====================================================================================================================
+// Remove bo information from shared bo map
+bool Device::RemoveFromSharedBoMap(
+    amdgpu_bo_handle hBuffer)
+{
+    return m_pVamMgr->RemoveFromSharedBoMap(hBuffer);
+}
+
+// =====================================================================================================================
+// Search bo handle in shared bo map to get va information
+amdgpu_va_handle Device::SearchSharedBoMap(
+    amdgpu_bo_handle hBuffer,
+    gpusize*         pGpuVirtAddr)
+{
+    return m_pVamMgr->SearchSharedBoMap(hBuffer, pGpuVirtAddr);
 }
 
 } // Amdgpu

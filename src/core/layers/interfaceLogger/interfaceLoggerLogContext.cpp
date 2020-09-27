@@ -227,6 +227,7 @@ static constexpr FuncFormattingEntry FuncFormattingTable[] =
     { InterfaceFunc::DeviceBindTrapHandler,                                     InterfaceObject::Device,               "BindTrapHandler"                         },
     { InterfaceFunc::DeviceBindTrapBuffer,                                      InterfaceObject::Device,               "BindTrapBuffer"                          },
     { InterfaceFunc::DeviceCreateQueue,                                         InterfaceObject::Device,               "CreateQueue"                             },
+    { InterfaceFunc::DeviceCreateMultiQueue,                                    InterfaceObject::Device,               "CreateMultiQueue"                        },
     { InterfaceFunc::DeviceCreateGpuMemory,                                     InterfaceObject::Device,               "CreateGpuMemory"                         },
     { InterfaceFunc::DeviceCreatePinnedGpuMemory,                               InterfaceObject::Device,               "CreatePinnedGpuMemory"                   },
     { InterfaceFunc::DeviceCreateSvmGpuMemory,                                  InterfaceObject::Device,               "CreateSvmGpuMemory"                      },

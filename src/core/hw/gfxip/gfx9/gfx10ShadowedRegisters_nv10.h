@@ -73,8 +73,8 @@ const RegisterRange Nv10ContextShadowRange[] =
         (mmVGT_HOS_MIN_TESS_LEVEL - mmVGT_HOS_MAX_TESS_LEVEL + 1),
     },
     {
-        (mmVGT_GS_MODE - CONTEXT_SPACE_START),
-        (mmVGT_GS_OUT_PRIM_TYPE - mmVGT_GS_MODE + 1),
+        (Gfx09_10::mmVGT_GS_MODE - CONTEXT_SPACE_START),
+        (mmVGT_GS_OUT_PRIM_TYPE - Gfx09_10::mmVGT_GS_MODE + 1),
     },
     {
         (mmVGT_PRIMITIVEID_EN - CONTEXT_SPACE_START),
@@ -148,8 +148,8 @@ const RegisterRange Nv10UserConfigShadowRange[] =
 const RegisterRange Navi10NonShadowedRanges[] =
 {
     {
-        mmVGT_DMA_PRIMITIVE_TYPE,
-        mmVGT_DMA_LS_HS_CONFIG - mmVGT_DMA_PRIMITIVE_TYPE + 1
+        Gfx09_10::mmVGT_DMA_PRIMITIVE_TYPE,
+        Gfx09_10::mmVGT_DMA_LS_HS_CONFIG - Gfx09_10::mmVGT_DMA_PRIMITIVE_TYPE + 1
     },
     // mmVGT_INDEX_TYPE and mmVGT_DMA_INDEX_TYPE are a special case and neither of these should be shadowed.
     {

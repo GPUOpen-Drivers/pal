@@ -391,6 +391,42 @@ Result DeviceDecorator::CreateQueue(
 }
 
 // =====================================================================================================================
+size_t DeviceDecorator::GetMultiQueueSize(
+    uint32                 queueCount,
+    const QueueCreateInfo* pCreateInfo,
+    Result*                pResult
+    ) const
+{
+    return m_pNextLayer->GetMultiQueueSize(queueCount, pCreateInfo, pResult) + sizeof(QueueDecorator);
+}
+
+// =====================================================================================================================
+Result DeviceDecorator::CreateMultiQueue(
+    uint32                 queueCount,
+    const QueueCreateInfo* pCreateInfo,
+    void*                  pPlacementAddr,
+    IQueue**               ppQueue)
+{
+    IQueue*          pNextQueue = nullptr;
+    QueueDecorator*  pQueue     = nullptr;
+
+    Result result = m_pNextLayer->CreateMultiQueue(queueCount,
+                                                   pCreateInfo,
+                                                   NextObjectAddr<QueueDecorator>(pPlacementAddr),
+                                                   &pNextQueue);
+
+    if (result == Result::Success)
+    {
+        PAL_ASSERT(pNextQueue != nullptr);
+        pNextQueue->SetClientData(pPlacementAddr);
+
+        (*ppQueue) = PAL_PLACEMENT_NEW(pPlacementAddr) QueueDecorator(pNextQueue, this);
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
 Result DeviceDecorator::ResetFences(
     uint32              fenceCount,
     IFence*const*       ppFences

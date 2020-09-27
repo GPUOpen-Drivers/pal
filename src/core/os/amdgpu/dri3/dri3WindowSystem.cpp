@@ -745,8 +745,6 @@ Result Dri3WindowSystem::Present(
         m_dri3Procs.pfnXcbFlush(m_pConnection);
     }
 
-    m_device.DeveloperCb(Developer::CallbackType::PresentConcluded, nullptr);
-
     return result;
 }
 
@@ -760,8 +758,24 @@ Result Dri3WindowSystem::HandlePresentEvent(
     switch (pPresentEvent->evtype)
     {
     case XCB_PRESENT_COMPLETE_NOTIFY:
+    {
         m_remoteSerial = reinterpret_cast<xcb_present_complete_notify_event_t*>(pPresentEvent)->serial;
+
+        Developer::PresentationModeData data = {};
+        auto mode = (reinterpret_cast<xcb_present_complete_notify_event_t*>(pPresentEvent))->mode;
+
+        if (mode == XCB_PRESENT_COMPLETE_MODE_FLIP)
+        {
+            data.presentationMode = Developer::PresentModeType::Flip;
+        }
+        else
+        {
+            data.presentationMode = Developer::PresentModeType::Composite;
+        }
+
+        m_device.DeveloperCb(Developer::CallbackType::PresentConcluded, &data);
         break;
+    }
     default:
         result = Result::ErrorUnknown;
         break;

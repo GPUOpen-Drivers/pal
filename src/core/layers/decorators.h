@@ -628,24 +628,16 @@ public:
         const QueueCreateInfo& createInfo,
         Result*                pResult) const override;
 
-    // need a real implementation later!
     virtual size_t GetMultiQueueSize(
         uint32                 queueCount,
         const QueueCreateInfo* pCreateInfo,
-        Result*                pResult) const override
-    {
-        return 0;
-    }
+        Result*                pResult) const override;
 
-    // need a real implementation later!
     virtual Result CreateMultiQueue(
         uint32                 queueCount,
         const QueueCreateInfo* pCreateInfo,
         void*                  pPlacementAddr,
-        IQueue**               ppQueue) override
-    {
-        return Result::Unsupported;
-    }
+        IQueue**               ppQueue) override;
 
     virtual Result CreateQueue(
         const QueueCreateInfo& createInfo,

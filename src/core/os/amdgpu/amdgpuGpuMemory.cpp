@@ -43,6 +43,7 @@ GpuMemory::GpuMemory(
     m_hVaRange(nullptr),
     m_offset(0),
     m_isVmAlwaysValid(false),
+    m_shared(false),
     m_externalHandleType(amdgpu_bo_handle_type_dma_buf_fd)
 {
 }
@@ -68,11 +69,16 @@ GpuMemory::~GpuMemory()
     // Unmap the buffer object and free its virtual address.
     if (m_desc.gpuVirtAddr != 0)
     {
+        const bool freeVirtAddr = m_shared ? pDevice->RemoveFromSharedBoMap(m_hSurface) : true;
+
         if (IsVirtual() == false)
         {
-            // virtual allocation just reserve the va range but never map to itself.
-            result = pDevice->UnmapVirtualAddress(m_hSurface, m_offset, m_desc.size, m_desc.gpuVirtAddr);
-            PAL_ALERT(result != Result::Success);
+            if (freeVirtAddr)
+            {
+                // virtual allocation just reserve the va range but never map to itself.
+                result = pDevice->UnmapVirtualAddress(m_hSurface, m_offset, m_desc.size, m_desc.gpuVirtAddr);
+                PAL_ALERT(result != Result::Success);
+            }
         }
         else
         {
@@ -80,7 +86,10 @@ GpuMemory::~GpuMemory()
         }
         if (m_vaPartition != VaPartition::Svm)
         {
-            pDevice->FreeVirtualAddress(this);
+            if (freeVirtAddr)
+            {
+                pDevice->FreeVirtualAddress(this);
+            }
         }
     }
 
@@ -480,8 +489,8 @@ Result GpuMemory::ImportMemory(
     amdgpu_bo_handle_type handleType,
     OsExternalHandle      handle)
 {
-    amdgpu_bo_import_result importResult    = {};
-    Device* pDevice                         = static_cast<Device*>(m_pDevice);
+    amdgpu_bo_import_result importResult = {};
+    Device* const           pDevice      = static_cast<Device*>(m_pDevice);
 
     Result result = pDevice->ImportBuffer(handleType, handle, &importResult);
 
@@ -507,12 +516,21 @@ Result GpuMemory::ImportMemory(
 
             if (result == Result::Success)
             {
-                result = pDevice->AssignVirtualAddress(this, &m_desc.gpuVirtAddr);
+                m_hVaRange = pDevice->SearchSharedBoMap(m_hSurface, &m_desc.gpuVirtAddr);
+
+                if (m_hVaRange != nullptr)
+                {
+                    m_shared = true;
+                }
+                else
+                {
+                    result = pDevice->AssignVirtualAddress(this, &m_desc.gpuVirtAddr);
+                }
             }
         }
     }
 
-    if (result == Result::Success)
+    if ((result == Result::Success) && (m_shared == false))
     {
         result = pDevice->MapVirtualAddress(m_hSurface, 0, m_desc.size, m_desc.gpuVirtAddr, m_mtype);
 
@@ -667,10 +685,16 @@ OsExternalHandle GpuMemory::ExportExternalHandle(
                 break;
         }
 
-        Result result = static_cast<Device*>(m_pDevice)->ExportBuffer(m_hSurface,
-                                                type,
-                                                reinterpret_cast<uint32*>(&fd));
-        PAL_ASSERT(result == Result::Success);
+        Device* const pDevice = static_cast<Device*>(m_pDevice);
+
+        Result result = pDevice->ExportBuffer(m_hSurface,
+                                              type,
+                                              reinterpret_cast<uint32*>(&fd));
+
+        if ((result == Result::Success) && (m_shared == false))
+        {
+            m_shared = pDevice->AddToSharedBoMap(m_hSurface, m_hVaRange, m_desc.gpuVirtAddr);
+        }
     }
 
     return fd;

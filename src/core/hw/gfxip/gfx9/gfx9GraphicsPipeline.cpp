@@ -240,10 +240,12 @@ void GraphicsPipeline::EarlyInit(
     m_nggSubgroupSize = (metadata.pipeline.hasEntry.nggSubgroupSize) ? metadata.pipeline.nggSubgroupSize : 0;
 
     // Similarly, VGT_GS_MODE should also be read early, since it determines if on-chip GS is enabled.
-    registers.HasEntry(mmVGT_GS_MODE, &m_regs.context.vgtGsMode.u32All);
-    if (IsGsEnabled() && (m_regs.context.vgtGsMode.bits.ONCHIP == VgtGsModeOnchip))
     {
-        SetIsGsOnChip(true);
+        registers.HasEntry(Gfx09_10::mmVGT_GS_MODE, &m_regs.context.vgtGsMode.u32All);
+        if (IsGsEnabled() && (m_regs.context.vgtGsMode.bits.ONCHIP == VgtGsModeOnchip))
+        {
+            SetIsGsOnChip(true);
+        }
     }
 
     // Must be called *after* determining active HW stages!
@@ -261,6 +263,7 @@ void GraphicsPipeline::EarlyInit(
             IsGfx10Plus(m_gfxLevel)                                + // mmCB_COVERAGE_OUT_CONTROL
             (regInfo.mmPaStereoCntl != 0)                          + // mmPA_STEREO_CNTL
             (IsGsEnabled() || IsNgg() || IsTessEnabled())          + // mmVGT_GS_ONCHIP_CNTL
+
             BaseLoadedCntxRegCount;
     }
 
@@ -725,7 +728,6 @@ uint32* GraphicsPipeline::WriteContextCommandsSetPath(
     pCmdSpace = pCmdStream->WriteSetOneContextReg(mmVGT_SHADER_STAGES_EN,
                                                   m_regs.context.vgtShaderStagesEn.u32All,
                                                   pCmdSpace);
-    pCmdSpace = pCmdStream->WriteSetOneContextReg(mmVGT_GS_MODE, m_regs.context.vgtGsMode.u32All, pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetOneContextReg(mmVGT_REUSE_OFF, m_regs.context.vgtReuseOff.u32All, pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetOneContextReg(mmVGT_TF_PARAM, m_regs.context.vgtTfParam.u32All, pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetOneContextReg(mmVGT_DRAW_PAYLOAD_CNTL,
@@ -746,9 +748,14 @@ uint32* GraphicsPipeline::WriteContextCommandsSetPath(
                                                   m_regs.context.spiInterpControl0.u32All,
                                                   pCmdSpace);
 
-    pCmdSpace = pCmdStream->WriteSetOneContextReg(mmVGT_VERTEX_REUSE_BLOCK_CNTL,
-                                                  m_regs.context.vgtVertexReuseBlockCntl.u32All,
-                                                  pCmdSpace);
+    {
+        pCmdSpace = pCmdStream->WriteSetOneContextReg(Gfx09_10::mmVGT_GS_MODE,
+                                                      m_regs.context.vgtGsMode.u32All,
+                                                      pCmdSpace);
+        pCmdSpace = pCmdStream->WriteSetOneContextReg(Gfx09_10::mmVGT_VERTEX_REUSE_BLOCK_CNTL,
+                                                      m_regs.context.vgtVertexReuseBlockCntl.u32All,
+                                                      pCmdSpace);
+    }
 
     if (regInfo.mmPaStereoCntl != 0)
     {
@@ -821,6 +828,17 @@ void GraphicsPipeline::SetupCommonRegisters(
     m_regs.context.paClVteCntl.u32All  = registers.At(mmPA_CL_VTE_CNTL);
     m_regs.context.paSuVtxCntl.u32All  = registers.At(mmPA_SU_VTX_CNTL);
     m_regs.other.paScModeCntl1.u32All  = registers.At(mmPA_SC_MODE_CNTL_1);
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 629
+
+    m_regs.context.paClClipCntl.bits.DX_CLIP_SPACE_DEF = (createInfo.viewportInfo.depthRange == DepthRange::ZeroToOne);
+    if (createInfo.viewportInfo.depthClipEnable == false)
+    {
+        m_regs.context.paClClipCntl.bits.ZCLIP_NEAR_DISABLE = 1;
+        m_regs.context.paClClipCntl.bits.ZCLIP_FAR_DISABLE = 1;
+    }
+
+#endif
 
     registers.HasEntry(mmVGT_GS_ONCHIP_CNTL, &m_regs.context.vgtGsOnchipCntl.u32All);
 
@@ -960,15 +978,17 @@ void GraphicsPipeline::SetupCommonRegisters(
 
     if (pUploader->EnableLoadIndexPath())
     {
-        pUploader->AddCtxReg(mmVGT_SHADER_STAGES_EN,        m_regs.context.vgtShaderStagesEn);
-        pUploader->AddCtxReg(mmVGT_GS_MODE,                 m_regs.context.vgtGsMode);
-        pUploader->AddCtxReg(mmVGT_REUSE_OFF,               m_regs.context.vgtReuseOff);
-        pUploader->AddCtxReg(mmVGT_TF_PARAM,                m_regs.context.vgtTfParam);
-        pUploader->AddCtxReg(mmPA_CL_CLIP_CNTL,             m_regs.context.paClClipCntl);
-        pUploader->AddCtxReg(mmPA_SU_VTX_CNTL,              m_regs.context.paSuVtxCntl);
-        pUploader->AddCtxReg(mmPA_CL_VTE_CNTL,              m_regs.context.paClVteCntl);
-        pUploader->AddCtxReg(mmSPI_INTERP_CONTROL_0,        m_regs.context.spiInterpControl0);
-        pUploader->AddCtxReg(mmVGT_VERTEX_REUSE_BLOCK_CNTL, m_regs.context.vgtVertexReuseBlockCntl);
+        pUploader->AddCtxReg(mmVGT_SHADER_STAGES_EN, m_regs.context.vgtShaderStagesEn);
+        pUploader->AddCtxReg(mmVGT_REUSE_OFF,        m_regs.context.vgtReuseOff);
+        pUploader->AddCtxReg(mmVGT_TF_PARAM,         m_regs.context.vgtTfParam);
+        pUploader->AddCtxReg(mmPA_CL_CLIP_CNTL,      m_regs.context.paClClipCntl);
+        pUploader->AddCtxReg(mmPA_SU_VTX_CNTL,       m_regs.context.paSuVtxCntl);
+        pUploader->AddCtxReg(mmPA_CL_VTE_CNTL,       m_regs.context.paClVteCntl);
+        pUploader->AddCtxReg(mmSPI_INTERP_CONTROL_0, m_regs.context.spiInterpControl0);
+        {
+            pUploader->AddCtxReg(Gfx09_10::mmVGT_GS_MODE,                 m_regs.context.vgtGsMode);
+            pUploader->AddCtxReg(Gfx09_10::mmVGT_VERTEX_REUSE_BLOCK_CNTL, m_regs.context.vgtVertexReuseBlockCntl);
+        }
 
         if (regInfo.mmPaStereoCntl != 0)
         {
@@ -2169,13 +2189,9 @@ bool GraphicsPipeline::HwStereoRenderingEnabled() const
 
     if (m_gfxLevel == GfxIpLevel::GfxIp9)
     {
-        if (IsVega12(device))
+        if (IsVega12(device) || IsVega20(device))
         {
-            enStereo = m_regs.context.paStereoCntl.vg12.EN_STEREO;
-        }
-        else if (IsVega20(device))
-        {
-            enStereo = m_regs.context.paStereoCntl.vg20.EN_STEREO;
+            enStereo = m_regs.context.paStereoCntl.vg12_Vg20.EN_STEREO;
         }
     }
     else
@@ -2199,16 +2215,9 @@ bool GraphicsPipeline::HwStereoRenderingUsesMultipleViewports() const
     {
         vpIdOffset = m_regs.context.paStereoCntl.gfx10Plus.VP_ID_OFFSET;
     }
-    else
+    else if (IsVega12(palDevice) || IsVega20(palDevice))
     {
-        if (IsVega12(palDevice))
-        {
-            vpIdOffset = m_regs.context.paStereoCntl.vg12.VP_ID_OFFSET;
-        }
-        else if (IsVega20(palDevice))
-        {
-            vpIdOffset = m_regs.context.paStereoCntl.vg20.VP_ID_OFFSET;
-        }
+        vpIdOffset = m_regs.context.paStereoCntl.vg12_Vg20.VP_ID_OFFSET;
     }
 
     return (vpIdOffset != 0);
@@ -2262,13 +2271,9 @@ void GraphicsPipeline::SetupStereoRegisters()
                 const uint32  vpIdOffset    = viewInstancingDesc.viewportArrayIdx[1];
                 const uint32  rtSliceOffset = viewInstancingDesc.renderTargetArrayIdx[1];
 
-                if (IsVega12(device))
+                if (IsVega12(device) || IsVega20(device))
                 {
-                    SetPaStereoCntl(rtSliceOffset, vpIdOffset, &m_regs.context.paStereoCntl.vg12);
-                }
-                else if (IsVega20(device))
-                {
-                    SetPaStereoCntl(rtSliceOffset, vpIdOffset, &m_regs.context.paStereoCntl.vg20);
+                    SetPaStereoCntl(rtSliceOffset, vpIdOffset, &m_regs.context.paStereoCntl.vg12_Vg20);
                 }
             }
             else

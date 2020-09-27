@@ -61,14 +61,32 @@ struct TrackedCmdBuffer
     IFence*     pFence;
 };
 
+typedef Util::Deque<GpuTimestampPair*, PlatformDecorator> GpuTimestampDeque;
+
+// This struct tracks per subQueue info when we do gang submission.
+struct SubQueueInfo
+{
+    QueueType   queueType;
+    EngineType  engineType;
+    uint32      engineIndex;
+    bool        supportTimestamps;    // Queue (based on engine type) supports timestamps.
+    uint32      timestampAlignment;   // Aligns the Timestamps in Memory
+    size_t      timestampMemorySize;  // Size of the GpuTimestamp buffer (mapped CPU memory and GPU memory).
+    size_t      nextTimestampOffset;  // Offset for the next GpuTimestamp
+    void*       pMappedTimestampData; // Mapped memory pointing to the initial GpuTimestamp
+    IGpuMemory* pTimestampMemory;
+
+    GpuTimestampDeque* pGpuTimestamps;
+};
+
 // =====================================================================================================================
 class Queue : public QueueDecorator
 {
 public:
-    Queue(IQueue* pNextQueue, Device* pDevice, QueueType queueType, EngineType engineType);
+    Queue(IQueue* pNextQueue, Device* pDevice, uint32 queueCount);
     virtual ~Queue();
 
-    Result Init();
+    Result Init(const QueueCreateInfo* pCreateInfo);
 
     // Part of the IQueue public interface.
     virtual Result PresentDirect(const PresentDirectInfo& presentInfo) override;
@@ -82,28 +100,19 @@ private:
         const FenceCreateInfo& createInfo,
         IFence**               ppFence);
 
-    Result CreateGpuTimestampPairMemory();
+    Result CreateGpuTimestampPairMemory(SubQueueInfo* pSubQueueInfo);
 
-    Result SubmitWithGpuTimestampPair(const MultiSubmitInfo& submitInfo, GpuTimestampPair* pTimestamp);
+    Result SubmitWithGpuTimestampPair(const MultiSubmitInfo& submitInfo, GpuTimestampPair** ppTimestamp);
 
-    Result CreateGpuTimestampPair(GpuTimestampPair** ppTimestamp);
+    Result CreateGpuTimestampPair(SubQueueInfo* pSubQueueInfo, GpuTimestampPair** ppTimestamp);
     void DestroyGpuTimestampPair(GpuTimestampPair* pTimestamp);
 
     static constexpr uint32 MaxGpuTimestampPairCount = 256;
 
     Device*const     m_pDevice;
-    const QueueType  m_queueType;
-    const EngineType m_engineType;
-    const bool       m_supportTimestamps;    // Queue (based on engine type) supports timestamps.
-    const uint32     m_timestampAlignment;   // Aligns the Timestamps in Memory
-    const size_t     m_timestampMemorySize;  // Size of the GpuTimestamp buffer (mapped CPU memory and GPU memory).
-    size_t           m_nextTimestampOffset;  // Offset for the next GpuTimestamp
-    void*            m_pMappedTimestampData; // Mapped memory pointing to the initial GpuTimestamp
-    IGpuMemory*      m_pTimestampMemory;
-
-    // Contains a Deque of GpuTimestampPair being used to record Timestamps where the least recently used
-    // GpuTimestampPair is always at the front
-    Util::Deque<GpuTimestampPair*, PlatformDecorator> m_gpuTimestampPairDeque;
+    const uint32     m_queueCount;
+    SubQueueInfo*    m_pSubQueueInfos;
+    bool             m_supportAnyTimestamp;
 };
 
 } // DbgOverlay

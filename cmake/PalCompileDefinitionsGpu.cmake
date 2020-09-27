@@ -28,31 +28,20 @@ include(PalVersionHelper)
 pal_include_guard(PalCompilerDefinitionsGpu)
 
 function(pal_compile_definitions_gfx6)
-    target_compile_definitions(pal PRIVATE PAL_BUILD_GFX6=1)
+    # Needs to be public.
+    # See the following directories:
+    #   inc\gpuUtil\cas\...
+    #   inc\gpuUtil\mlaa\...
+    #   inc\gpuUtil\textWriter\...
+    #   inc\gpuUtil\timeGraphics\...
+    target_compile_definitions(pal PUBLIC PAL_BUILD_GFX6=1)
 
 endfunction()
 
 function(pal_compile_definitions_gfx9)
     target_compile_definitions(pal PUBLIC PAL_BUILD_GFX9=1)
 
-    if(PAL_BUILD_VEGA20)
-        target_compile_definitions(pal PUBLIC PAL_BUILD_VEGA20=1)
-        target_compile_definitions(pal PRIVATE CHIP_HDR_VEGA20=1)
-    endif()
-
-    if(PAL_BUILD_RAVEN2)
-        target_compile_definitions(pal PUBLIC PAL_BUILD_RAVEN2=1)
-        target_compile_definitions(pal PRIVATE CHIP_HDR_RAVEN2=1)
-    endif()
-
-    if(PAL_BUILD_RENOIR)
-        target_compile_definitions(pal PUBLIC PAL_BUILD_RENOIR=1)
-        target_compile_definitions(pal PRIVATE CHIP_HDR_RENOIR=1)
-    endif()
-
     target_compile_definitions(pal PUBLIC PAL_BUILD_GFX10=1)
-    target_compile_definitions(pal PRIVATE CHIP_HDR_GFX10=1)
-    target_compile_definitions(pal PRIVATE CHIP_HDR__GFX10=1)
 
     if(PAL_BUILD_NAVI14)
         target_compile_definitions(pal PUBLIC PAL_BUILD_NAVI14=1)

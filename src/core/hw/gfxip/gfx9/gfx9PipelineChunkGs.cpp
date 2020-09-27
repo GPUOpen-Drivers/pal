@@ -89,16 +89,19 @@ void PipelineChunkGs::EarlyInit(
 
     if (settings.enableLoadIndexForObjectBinds != false)
     {
-        pInfo->loadedCtxRegCount += BaseLoadedCntxRegCount;
-        pInfo->loadedShRegCount  += (BaseLoadedShRegCount + ((chipProps.gfx9.supportSpp == 1) ? 1 : 0));
-
-        // Handle GFX10 specific context registers
-        if (IsGfx10Plus(chipProps.gfxLevel))
         {
-            // mmSPI_SHADER_IDX_FORMAT
-            // mmGE_NGG_SUBGRP_CNTL
-            pInfo->loadedCtxRegCount += 2;
+            pInfo->loadedCtxRegCount += BaseLoadedCntxRegCount;
+
+            // Handle GFX10 specific context registers
+            if (IsGfx10Plus(chipProps.gfxLevel))
+            {
+                // mmSPI_SHADER_IDX_FORMAT
+                // mmGE_NGG_SUBGRP_CNTL
+                pInfo->loadedCtxRegCount += 2;
+            }
         }
+
+        pInfo->loadedShRegCount  += (BaseLoadedShRegCount + ((chipProps.gfx9.supportSpp == 1) ? 1 : 0));
 
         // Up to two additional SH registers will be loaded for on-chip GS or NGG pipelines for the ES/GS LDS sizes.
         if (pInfo->enableNgg)
@@ -214,7 +217,7 @@ void PipelineChunkGs::LateInit(
     {
         // It is possible, with an NGG shader, that late-alloc GS waves can deadlock the PS.  To prevent this hang
         // situation, we need to mask off one CU when NGG is enabled.
-        if (IsGfx10Plus(chipProps.gfxLevel))
+        if (IsGfx101(chipProps.gfxLevel))
         {
             // Both CU's of a WGP need to be disabled for better performance.
             gsCuDisableMask = 0xC;
@@ -266,16 +269,20 @@ void PipelineChunkGs::LateInit(
     }
 
     m_regs.context.vgtGsInstanceCnt.u32All    = registers.At(mmVGT_GS_INSTANCE_CNT);
-    m_regs.context.vgtGsVertItemSize0.u32All  = registers.At(mmVGT_GS_VERT_ITEMSIZE);
-    m_regs.context.vgtGsVertItemSize1.u32All  = registers.At(mmVGT_GS_VERT_ITEMSIZE_1);
-    m_regs.context.vgtGsVertItemSize2.u32All  = registers.At(mmVGT_GS_VERT_ITEMSIZE_2);
-    m_regs.context.vgtGsVertItemSize3.u32All  = registers.At(mmVGT_GS_VERT_ITEMSIZE_3);
-    m_regs.context.vgtGsVsRingOffset1.u32All  = registers.At(mmVGT_GSVS_RING_OFFSET_1);
-    m_regs.context.vgtGsVsRingOffset2.u32All  = registers.At(mmVGT_GSVS_RING_OFFSET_2);
-    m_regs.context.vgtGsVsRingOffset3.u32All  = registers.At(mmVGT_GSVS_RING_OFFSET_3);
+
+    {
+        m_regs.context.vgtGsPerVs.u32All          = registers.At(Gfx09_10::mmVGT_GS_PER_VS);
+        m_regs.context.vgtGsVertItemSize0.u32All  = registers.At(Gfx09_10::mmVGT_GS_VERT_ITEMSIZE);
+        m_regs.context.vgtGsVertItemSize1.u32All  = registers.At(Gfx09_10::mmVGT_GS_VERT_ITEMSIZE_1);
+        m_regs.context.vgtGsVertItemSize2.u32All  = registers.At(Gfx09_10::mmVGT_GS_VERT_ITEMSIZE_2);
+        m_regs.context.vgtGsVertItemSize3.u32All  = registers.At(Gfx09_10::mmVGT_GS_VERT_ITEMSIZE_3);
+        m_regs.context.vgtGsVsRingItemSize.u32All = registers.At(Gfx09_10::mmVGT_GSVS_RING_ITEMSIZE);
+        m_regs.context.vgtGsVsRingOffset1.u32All  = registers.At(Gfx09_10::mmVGT_GSVS_RING_OFFSET_1);
+        m_regs.context.vgtGsVsRingOffset2.u32All  = registers.At(Gfx09_10::mmVGT_GSVS_RING_OFFSET_2);
+        m_regs.context.vgtGsVsRingOffset3.u32All  = registers.At(Gfx09_10::mmVGT_GSVS_RING_OFFSET_3);
+    }
+
     m_regs.context.vgtGsOutPrimType.u32All    = registers.At(mmVGT_GS_OUT_PRIM_TYPE);
-    m_regs.context.vgtGsPerVs.u32All          = registers.At(mmVGT_GS_PER_VS);
-    m_regs.context.vgtGsVsRingItemSize.u32All = registers.At(mmVGT_GSVS_RING_ITEMSIZE);
     m_regs.context.vgtEsGsRingItemSize.u32All = registers.At(mmVGT_ESGS_RING_ITEMSIZE);
     m_regs.context.vgtGsMaxVertOut.u32All     = registers.At(mmVGT_GS_MAX_VERT_OUT);
 
@@ -320,16 +327,18 @@ void PipelineChunkGs::LateInit(
         }
 
         pUploader->AddCtxReg(mmVGT_GS_INSTANCE_CNT,    m_regs.context.vgtGsInstanceCnt);
-        pUploader->AddCtxReg(mmVGT_GS_VERT_ITEMSIZE,   m_regs.context.vgtGsVertItemSize0);
-        pUploader->AddCtxReg(mmVGT_GS_VERT_ITEMSIZE_1, m_regs.context.vgtGsVertItemSize1);
-        pUploader->AddCtxReg(mmVGT_GS_VERT_ITEMSIZE_2, m_regs.context.vgtGsVertItemSize2);
-        pUploader->AddCtxReg(mmVGT_GS_VERT_ITEMSIZE_3, m_regs.context.vgtGsVertItemSize3);
-        pUploader->AddCtxReg(mmVGT_GSVS_RING_OFFSET_1, m_regs.context.vgtGsVsRingOffset1);
-        pUploader->AddCtxReg(mmVGT_GSVS_RING_OFFSET_2, m_regs.context.vgtGsVsRingOffset2);
-        pUploader->AddCtxReg(mmVGT_GSVS_RING_OFFSET_3, m_regs.context.vgtGsVsRingOffset3);
+        {
+            pUploader->AddCtxReg(Gfx09_10::mmVGT_GS_PER_VS,          m_regs.context.vgtGsPerVs);
+            pUploader->AddCtxReg(Gfx09_10::mmVGT_GS_VERT_ITEMSIZE,   m_regs.context.vgtGsVertItemSize0);
+            pUploader->AddCtxReg(Gfx09_10::mmVGT_GS_VERT_ITEMSIZE_1, m_regs.context.vgtGsVertItemSize1);
+            pUploader->AddCtxReg(Gfx09_10::mmVGT_GS_VERT_ITEMSIZE_2, m_regs.context.vgtGsVertItemSize2);
+            pUploader->AddCtxReg(Gfx09_10::mmVGT_GS_VERT_ITEMSIZE_3, m_regs.context.vgtGsVertItemSize3);
+            pUploader->AddCtxReg(Gfx09_10::mmVGT_GSVS_RING_ITEMSIZE, m_regs.context.vgtGsVsRingItemSize);
+            pUploader->AddCtxReg(Gfx09_10::mmVGT_GSVS_RING_OFFSET_1, m_regs.context.vgtGsVsRingOffset1);
+            pUploader->AddCtxReg(Gfx09_10::mmVGT_GSVS_RING_OFFSET_2, m_regs.context.vgtGsVsRingOffset2);
+            pUploader->AddCtxReg(Gfx09_10::mmVGT_GSVS_RING_OFFSET_3, m_regs.context.vgtGsVsRingOffset3);
+        }
         pUploader->AddCtxReg(mmVGT_GS_OUT_PRIM_TYPE,   m_regs.context.vgtGsOutPrimType);
-        pUploader->AddCtxReg(mmVGT_GS_PER_VS,          m_regs.context.vgtGsPerVs);
-        pUploader->AddCtxReg(mmVGT_GSVS_RING_ITEMSIZE, m_regs.context.vgtGsVsRingItemSize);
         pUploader->AddCtxReg(mmVGT_ESGS_RING_ITEMSIZE, m_regs.context.vgtEsGsRingItemSize);
         pUploader->AddCtxReg(mmVGT_GS_MAX_VERT_OUT,    m_regs.context.vgtGsMaxVertOut);
 
@@ -502,18 +511,25 @@ uint32* PipelineChunkGs::WriteContextCommands(
     pCmdSpace = pCmdStream->WriteSetOneContextReg(mmVGT_GS_INSTANCE_CNT,
                                                   m_regs.context.vgtGsInstanceCnt.u32All,
                                                   pCmdSpace);
-    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmVGT_ESGS_RING_ITEMSIZE,
-                                                   mmVGT_GSVS_RING_ITEMSIZE,
-                                                   &m_regs.context.vgtEsGsRingItemSize,
-                                                   pCmdSpace);
-    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmVGT_GS_PER_VS,
-                                                   mmVGT_GS_OUT_PRIM_TYPE,
-                                                   &m_regs.context.vgtGsPerVs,
-                                                   pCmdSpace);
-    return pCmdStream->WriteSetSeqContextRegs(mmVGT_GS_VERT_ITEMSIZE,
-                                              mmVGT_GS_VERT_ITEMSIZE_3,
-                                              &m_regs.context.vgtGsVertItemSize0,
-                                              pCmdSpace);
+
+    {
+        pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmVGT_ESGS_RING_ITEMSIZE,
+                                                       Gfx09_10::mmVGT_GSVS_RING_ITEMSIZE,
+                                                       &m_regs.context.vgtEsGsRingItemSize,
+                                                       pCmdSpace);
+
+        pCmdSpace = pCmdStream->WriteSetSeqContextRegs(Gfx09_10::mmVGT_GS_PER_VS,
+                                                       mmVGT_GS_OUT_PRIM_TYPE,
+                                                       &m_regs.context.vgtGsPerVs,
+                                                       pCmdSpace);
+
+        pCmdSpace = pCmdStream->WriteSetSeqContextRegs(Gfx09_10::mmVGT_GS_VERT_ITEMSIZE,
+                                                       Gfx09_10::mmVGT_GS_VERT_ITEMSIZE_3,
+                                                       &m_regs.context.vgtGsVertItemSize0,
+                                                       pCmdSpace);
+    }
+
+    return pCmdSpace;
 }
 
 // Instantiate template versions for the linker.

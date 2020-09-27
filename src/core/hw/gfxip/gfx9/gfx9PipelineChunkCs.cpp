@@ -405,6 +405,16 @@ uint32* PipelineChunkCs::WriteShCommands(
             Gfx9::ComputePipeline::CalcMaxWavesPerSh(m_device.Parent()->ChipProperties(), csInfo.maxWavesPerCu);
     }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 628
+    // CU_GROUP_COUNT: Sets the number of CS threadgroups to attempt to send to a single CU before moving to the next CU.
+    // Range is 1 to 8, 0 disables the limit.
+    constexpr uint32 Gfx9MaxCuGroupCount = 8;
+    if (csInfo.tgScheduleCountPerCu > 0)
+    {
+        dynamic.computeResourceLimits.bits.CU_GROUP_COUNT = Min(csInfo.tgScheduleCountPerCu, Gfx9MaxCuGroupCount) - 1;
+    }
+#endif
+
     if (csInfo.ldsBytesPerTg > 0)
     {
         // Round to nearest multiple of the LDS granularity, then convert to the register value.

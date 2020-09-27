@@ -35,8 +35,7 @@ set(PalVersionHelper_pal_include_guard ON)
 # from inside a function.
 macro(pal_include_guard client_var)
     # If you can use 3.10 functionality then use the standard include guard
-    if( (${CMAKE_VERSION} VERSION_GREATER "3.10") OR
-        (${CMAKE_VERSION} VERSION_EQUAL   "3.10") )
+    if(${CMAKE_VERSION} VERSION_GREATER_EQUAL "3.10")
         include_guard()
     else()
         # Return if the variable already exists to not waste time
@@ -71,8 +70,7 @@ endfunction()
 # which is undesirable for clients of PAL, since only cmake developers need to care.
 function(message_debug)
     # DEBUG mode was introduced in 3.15
-    if( (${CMAKE_VERSION} VERSION_GREATER "3.15") OR
-        (${CMAKE_VERSION} VERSION_EQUAL   "3.15"))
+    if(${CMAKE_VERSION} VERSION_GREATER_EQUAL "3.15")
         message(DEBUG ${ARGV})
     else()
         message(STATUS "DEBUG: ${ARGV}")
@@ -84,8 +82,7 @@ endfunction()
 # which is undesirable for clients of PAL, since only cmake developers need to care.
 function(message_verbose)
     # VERBOSE mode was introduced in 3.15
-    if( (${CMAKE_VERSION} VERSION_GREATER "3.15") OR
-        (${CMAKE_VERSION} VERSION_EQUAL   "3.15"))
+    if(${CMAKE_VERSION} VERSION_GREATER_EQUAL "3.15")
         message(VERBOSE ${ARGV})
     else()
         message(STATUS "VERBOSE: ${ARGV}")
@@ -114,12 +111,8 @@ function(pal_setup_gcc_ipo)
         message(FATAL_ERROR "This function is currently only intended for GCC")
     endif()
 
-    if (${CMAKE_VERSION} VERSION_GREATER "3.9")
-        # This path checks if the user is setting cmake global variables
-        # that would clobber/conflict with out compile options
-        setup_ipo_new()
-    else()
-        set_ipo_compile_options()
-    endif()
+    # This path checks if the user is setting cmake global variables
+    # that would clobber/conflict with out compile options
+    setup_ipo_new()
 endfunction()
 

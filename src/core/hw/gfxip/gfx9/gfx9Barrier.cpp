@@ -145,14 +145,18 @@ void Device::FlushAndInvL2IfNeeded(
 // ==================================================================================================================
 // For global memory barrier to check if need to F/I L2 cache
 //
-// F/I TCC are required between CB writes and TC reads/writes as the TCC isn't actually coherent on non-power2
-// width memory bus. Add F/I L2 check to handle global memory barrier situation that is without an image object,
-// and Image::GetPipeMisalignedMetadataFirstMip() handles image pointer contains situation on non-pow2 memory bus.
+// F/I TCC are required between CB writes and TC reads/writes as the TCC isn't actually coherent.
 bool Device::NeedGlobalFlushAndInvL2(
+    uint32        srcCacheMask,
+    uint32        dstCacheMask,
     const IImage* pImage
     ) const
 {
-    return ((pImage == nullptr) && (IsPowerOfTwo(m_pParent->MemoryProperties().vramBusBitWidth) == false));
+    return ((pImage == nullptr) &&
+            ((TestAnyFlagSet(srcCacheMask, MaybeTccMdShaderMask) &&
+              TestAnyFlagSet(dstCacheMask, CoherColorTarget | CoherDepthStencilTarget)) ||
+             (TestAnyFlagSet(srcCacheMask, CoherColorTarget | CoherDepthStencilTarget) &&
+              TestAnyFlagSet(dstCacheMask, MaybeTccMdShaderMask))));
 }
 
 // =====================================================================================================================
@@ -1233,15 +1237,15 @@ void Device::Barrier(
         constexpr uint32 MaybeL2Mask = AlwaysL2Mask;
 
         // Flush L2 if prior output might have been through L2 and upcoming reads/writes might not be through L2.
-	if ((TestAnyFlagSet(srcCacheMask, MaybeL2Mask) && TestAnyFlagSet(dstCacheMask, ~AlwaysL2Mask)) ||
-            (TestAnyFlagSet(srcCacheMask, MaybeTccMdShaderMask) && NeedGlobalFlushAndInvL2(transition.imageInfo.pImage)))
+        if ((TestAnyFlagSet(srcCacheMask, MaybeL2Mask) && TestAnyFlagSet(dstCacheMask, ~AlwaysL2Mask)) ||
+            NeedGlobalFlushAndInvL2(srcCacheMask, dstCacheMask, transition.imageInfo.pImage))
         {
             globalSyncReqs.cacheFlags |= CacheSyncFlushTcc;
         }
 
         // Invalidate L2 if prior output might not have been through L2 and upcoming reads/writes might be through L2.
-	if ((TestAnyFlagSet(srcCacheMask, ~AlwaysL2Mask) && TestAnyFlagSet(dstCacheMask, MaybeL2Mask)) ||
-            (TestAnyFlagSet(srcCacheMask, MaybeTccMdShaderMask) && NeedGlobalFlushAndInvL2(transition.imageInfo.pImage)))
+        if ((TestAnyFlagSet(srcCacheMask, ~AlwaysL2Mask) && TestAnyFlagSet(dstCacheMask, MaybeL2Mask)) ||
+            NeedGlobalFlushAndInvL2(srcCacheMask, dstCacheMask, transition.imageInfo.pImage))
         {
             globalSyncReqs.cacheFlags |= CacheSyncInvTcc;
         }

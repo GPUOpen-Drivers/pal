@@ -199,6 +199,59 @@ Result Device::CreateQueue(
     return result;
 }
 
+// =====================================================================================================================
+size_t Device::GetMultiQueueSize(
+    uint32                 queueCount,
+    const QueueCreateInfo* pCreateInfo,
+    Result*                pResult
+    ) const
+{
+    PAL_ASSERT((queueCount > 0) && (pCreateInfo != nullptr));
+    const bool enableLayer = SupportsInstrumentation(pCreateInfo[0].queueType);
+
+    return (m_pNextLayer->GetMultiQueueSize(queueCount, pCreateInfo, pResult) +
+            (enableLayer ? sizeof(Queue) : sizeof(QueueDecorator)));
+}
+
+// =====================================================================================================================
+Result Device::CreateMultiQueue(
+    uint32                 queueCount,
+    const QueueCreateInfo* pCreateInfo,
+    void*                  pPlacementAddr,
+    IQueue**               ppQueue)
+{
+    PAL_ASSERT((queueCount > 0) && (pCreateInfo != nullptr));
+    const bool   enableLayer = SupportsInstrumentation(pCreateInfo[0].queueType);
+    const size_t offset      = (enableLayer ? sizeof(Queue) : sizeof(QueueDecorator));
+
+    IQueue* pNextQueue = nullptr;
+    IQueue* pQueue     = nullptr;
+
+    Result result = m_pNextLayer->CreateMultiQueue(queueCount,
+                                                   pCreateInfo,
+                                                   VoidPtrInc(pPlacementAddr, offset),
+                                                   &pNextQueue);
+
+    if (result == Result::Success)
+    {
+        PAL_ASSERT(pNextQueue != nullptr);
+
+        if (enableLayer)
+        {
+            pQueue = PAL_PLACEMENT_NEW(pPlacementAddr) Queue(pNextQueue, this);
+        }
+        else
+        {
+            pQueue = PAL_PLACEMENT_NEW(pPlacementAddr) QueueDecorator(pNextQueue, this);
+        }
+
+        pNextQueue->SetClientData(pPlacementAddr);
+        (*ppQueue) = pQueue;
+    }
+
+    return result;
+}
+
 } // Pm4Instrumentor
 } // Pal
 

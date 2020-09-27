@@ -1022,9 +1022,10 @@ struct DeviceProperties
 
                 /// Set if images created on this device support being created with corner sampling.
                 uint32 supportsCornerSampling       :  1;
-
+                /// Placeholder, do not use.
+                uint32 placeholder0                 :  1;
                 /// Reserved for future use.
-                uint32 reserved                     : 30;
+                uint32 reserved                     : 29;
             };
             uint32 u32All;              ///< Flags packed as 32-bit uint.
         } flags;                        ///< GPU memory property flags.
@@ -1187,10 +1188,10 @@ struct DeviceProperties
             {
                 struct
                 {
-                    uint32  eccProtectedGprs :  1;  ///< Whether or not the GPU has ECC protection on its VGPR's
-                    uint32  reserved :  31;         ///< Reserved for future use.
+                    uint32 eccProtectedGprs :  1; ///< Whether or not the GPU has ECC protection on its VGPR's
+                    uint32 reserved         : 31; ///< Reserved for future use.
                 };
-                uint32  u32All;                     ///< Flags packed as a 32-bit unsigned integer.
+                uint32     u32All;                ///< Flags packed as a 32-bit unsigned integer.
             } flags;
 
             uint32 numShaderEngines;        ///< Number of shader engines.
@@ -1250,7 +1251,10 @@ struct DeviceProperties
                 uint32 isGamingDriver             :  1;    ///< KMD works in gaming mode
                 uint32 placeholder0               :  1;
                 uint32 ifhModeEnabled             :  1;    ///< Whether the IFH mode is enabled
-                uint32 reserved                   : 26;    ///< Reserved for future use.
+                uint32 requireFrameEnd            :  1;    ///< If the client must tag the last command buffer
+                                                           ///  submission in each frame with a @ref CmdBufInfo with
+                                                           ///  the frameEnd flag set.
+                uint32 reserved                   : 25;    ///< Reserved for future use.
             };
             uint32 u32All;                        ///< Flags packed as 32-bit uint.
         } flags;                                  ///< OS-specific property flags.
@@ -1361,8 +1365,9 @@ union FullScreenFrameMetadataControlFlags
                                                ///  synchronize the flip of frame N (postFrameTimerSubmission == TRUE)
                                                ///  or N+1 (postFrameTimerSubmission == FALSE).
                                                ///  It's only valid when timerNodeSubmission is also set.
-        uint32 expandDcc                 :  1; ///< Expaned Dcc flag, KMD nofify UMD to expand DCC.
-        uint32 reserved                  : 24; ///< Reserved for future use.
+        uint32 useHp3dForDwm             :  1; ///< KMD Informs (DX11) UMD to use HP3D for DWM or not (Output only).
+        uint32 expandDcc                 :  1; ///< KMD notifies UMD to expand DCC (Output only).
+        uint32 reserved                  : 23; ///< Reserved for future use.
     };
     uint32 u32All;    ///< Flags packed as 32-bit uint.
 };

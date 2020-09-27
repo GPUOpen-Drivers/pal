@@ -166,7 +166,7 @@ static uint32 GetFrameCountRegister(
 
         if (engineProps.cpUcodeVersion >= 31)
         {
-            frameCountRegister = Vg10_Vg12::mmMP1_SMN_FPS_CNT;
+            frameCountRegister = Vg10_Vg12_Rn::mmMP1_SMN_FPS_CNT;
         }
     }
 
@@ -955,8 +955,8 @@ bool Device::DetermineHwStereoRenderingSupported(
     {
         if (m_gfxIpLevel == GfxIpLevel::GfxIp9)
         {
-            hwStereoRenderingSupported |= IsVega12(*Parent());
-            hwStereoRenderingSupported |= IsVega20(*Parent());
+            hwStereoRenderingSupported = IsVega12(*Parent()) || IsVega20(*Parent());
+
             if (hwStereoRenderingSupported)
             {
                 // The bits number of RT_SLICE_OFFSET in PA_STEREO_CNTL.
@@ -1685,7 +1685,8 @@ DccFormatEncoding Device::ComputeDccFormatEncoding(
             const bool viewFormatIsFloat = Formats::IsFloat(pFormats[i].format);
 
             if ((baseFormatIsFloat != viewFormatIsFloat) ||
-                (Formats::ShareChFmt(swizzledFormat.format, pFormats[i].format) == false))
+                (Formats::ShareChFmt(swizzledFormat.format, pFormats[i].format) == false) ||
+                (swizzledFormat.swizzle.swizzleValue != pFormats[i].swizzle.swizzleValue))
             {
                 dccFormatEncoding = DccFormatEncoding::Incompatible;
                 break;
@@ -4561,10 +4562,11 @@ void InitializeGpuEngineProperties(
 // Returns the value for the DB_DFSM_CONTROL register
 uint32 Device::GetDbDfsmControl() const
 {
+
     regDB_DFSM_CONTROL dbDfsmControl = {};
 
     // Force off DFSM.
-    dbDfsmControl.bits.PUNCHOUT_MODE = DfsmPunchoutModeForceOff;
+    dbDfsmControl.most.PUNCHOUT_MODE = DfsmPunchoutModeForceOff;
 
     return dbDfsmControl.u32All;
 }
@@ -5019,32 +5021,28 @@ const RegisterRange* Device::GetRegisterRange(
             break;
 
         case RegRangeSh:
-             pRange        = Gfx9ShShadowRange;
-            *pRangeEntries = Gfx9NumShShadowRanges;
-            if (IsRaven2(*Parent()))
+            if (IsRaven2(*Parent()) || IsRenoir(*Parent()))
             {
                 pRange         = Gfx9ShShadowRangeRaven2;
                 *pRangeEntries = Gfx9NumShShadowRangesRaven2;
             }
-            if (IsRenoir(*Parent()))
+            else
             {
-                pRange         = Gfx9ShShadowRangeRaven2;
-                *pRangeEntries = Gfx9NumShShadowRangesRaven2;
+                pRange         = Gfx9ShShadowRange;
+                *pRangeEntries = Gfx9NumShShadowRanges;
             }
             break;
 
         case RegRangeCsSh:
-            pRange         = Gfx9CsShShadowRange;
-            *pRangeEntries = Gfx9NumCsShShadowRanges;
-            if (IsRaven2(*Parent()))
+            if (IsRaven2(*Parent()) || IsRenoir(*Parent()))
             {
                 pRange         = Gfx9CsShShadowRangeRaven2;
                 *pRangeEntries = Gfx9NumCsShShadowRangesRaven2;
             }
-            if (IsRenoir(*Parent()))
+            else
             {
-                pRange         = Gfx9CsShShadowRangeRaven2;
-                *pRangeEntries = Gfx9NumCsShShadowRangesRaven2;
+                pRange         = Gfx9CsShShadowRange;
+                *pRangeEntries = Gfx9NumCsShShadowRanges;
             }
             break;
 

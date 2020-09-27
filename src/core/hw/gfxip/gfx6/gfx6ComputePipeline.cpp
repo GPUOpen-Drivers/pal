@@ -398,12 +398,28 @@ uint32* ComputePipeline::WriteCommands(
         dynamic.computeResourceLimits.bits.WAVES_PER_SH = CalcMaxWavesPerSh(csInfo.maxWavesPerCu);
     }
 
+    const auto& chipProperties = m_pDevice->Parent()->ChipProperties();
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 628
+    if (chipProperties.gfxLevel != GfxIpLevel::GfxIp6)
+    {
+        // CU_GROUP_COUNT: Sets the number of CS threadgroups to attempt to send to a single CU before moving to
+        // the next CU. Range is 1 to 8, 0 disables the limit.
+        constexpr uint32 Gfx7PlusMaxCuGroupCount = 8;
+        if (csInfo.tgScheduleCountPerCu > 0)
+        {
+            dynamic.computeResourceLimits.bits.CU_GROUP_COUNT__CI__VI =
+                Min(csInfo.tgScheduleCountPerCu, Gfx7PlusMaxCuGroupCount) - 1;
+        }
+    }
+#endif
+
     if (csInfo.ldsBytesPerTg > 0)
     {
         const uint32 ldsSizeDwords = csInfo.ldsBytesPerTg / sizeof(uint32);
 
         // Round to nearest multiple of the LDS granularity, then convert to the register value.
-        if (m_pDevice->Parent()->ChipProperties().gfxLevel == GfxIpLevel::GfxIp6)
+        if (chipProperties.gfxLevel == GfxIpLevel::GfxIp6)
         {
             // NOTE: Gfx6: Granularity for the LDS_SIZE field is 64, range is 0->128 which allocates 0 to 8K DWORDs.
             dynamic.computePgmRsrc2.bits.LDS_SIZE =

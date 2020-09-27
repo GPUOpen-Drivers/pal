@@ -33,10 +33,6 @@ namespace Pal
 {
 namespace Gfx9
 {
-static_assert((Vg12::mmPA_STEREO_CNTL == Vg20::mmPA_STEREO_CNTL),
-              "mmPA_STEREO_CNTL has moved between Vega12 and Vega20!");
-static_assert((Vg12::mmPA_STATE_STEREO_X == Vg20::mmPA_STATE_STEREO_X),
-              "PA_STATE_STEREO_X has moved between Vega12 and Vega20!");
 
 // Defines the set of ranges of user-config registers we shadow when mid command buffer preemption is enabled.
 const RegisterRange Gfx9UserConfigShadowRange[] =
@@ -54,8 +50,8 @@ const RegisterRange Gfx9UserConfigShadowRange[] =
     // mmVGT_DMA_INDEX_TYPE cannot be shadowed, since it is a register that is sent to VGT by the PFP, so it will not
     // pass through the shadowing logic in ME.
     {
-        (NotGfx10::mmVGT_GSVS_RING_SIZE - UCONFIG_SPACE_START),              // 0xC241 - 0xC242
-        (mmVGT_PRIMITIVE_TYPE - NotGfx10::mmVGT_GSVS_RING_SIZE + 1),
+        (Gfx09::mmVGT_GSVS_RING_SIZE - UCONFIG_SPACE_START),              // 0xC241 - 0xC242
+        (mmVGT_PRIMITIVE_TYPE - Gfx09::mmVGT_GSVS_RING_SIZE + 1),
     },
     {
         (Gfx09::mmVGT_MAX_VTX_INDX - UCONFIG_SPACE_START),                // 0xC248 - 0xC24B
@@ -81,7 +77,7 @@ const RegisterRange Gfx9UserConfigShadowRange[] =
         (mmTA_CS_BC_BASE_ADDR_HI - mmTA_CS_BC_BASE_ADDR + 1),
     },
     {
-        (Vg12::mmPA_STATE_STEREO_X - UCONFIG_SPACE_START),                // 0xC2B5
+        (Vg12_Vg20::mmPA_STATE_STEREO_X - UCONFIG_SPACE_START),           // 0xC2B5
         1,
     },
 
@@ -121,7 +117,7 @@ const RegisterRange Gfx9ContextShadowRange[] =
     },
     {
         (mmPA_SU_SMALL_PRIM_FILTER_CNTL - CONTEXT_SPACE_START),
-        (Vg12::mmPA_STEREO_CNTL - mmPA_SU_SMALL_PRIM_FILTER_CNTL + 1),          // 0xA20C - 0xA210
+        (Vg12_Vg20::mmPA_STEREO_CNTL - mmPA_SU_SMALL_PRIM_FILTER_CNTL + 1),     // 0xA20C - 0xA210
     },
     {
         (mmPA_SU_POINT_SIZE - CONTEXT_SPACE_START),                             // 0xA280 - 0xA283
@@ -132,8 +128,8 @@ const RegisterRange Gfx9ContextShadowRange[] =
         (mmVGT_HOS_MIN_TESS_LEVEL - mmVGT_HOS_MAX_TESS_LEVEL + 1),
     },
     {
-        (mmVGT_GS_MODE - CONTEXT_SPACE_START),                                  // 0xA290 - 0xA29B
-        (mmVGT_GS_OUT_PRIM_TYPE - mmVGT_GS_MODE + 1),
+        (Gfx09_10::mmVGT_GS_MODE - CONTEXT_SPACE_START),                        // 0xA290 - 0xA29B
+        (mmVGT_GS_OUT_PRIM_TYPE - Gfx09_10::mmVGT_GS_MODE + 1),
     },
     {
         (mmVGT_PRIMITIVEID_EN - CONTEXT_SPACE_START),                           // 0xA2A1
@@ -328,8 +324,8 @@ constexpr uint32 Gfx9NumCsShShadowRangesRaven2 = static_cast<uint32>(Util::Array
 const RegisterRange Gfx90NonShadowedRanges[] =
 {
     {
-        mmVGT_DMA_PRIMITIVE_TYPE,
-        mmVGT_DMA_LS_HS_CONFIG - mmVGT_DMA_PRIMITIVE_TYPE + 1
+        Gfx09_10::mmVGT_DMA_PRIMITIVE_TYPE,
+        Gfx09_10::mmVGT_DMA_LS_HS_CONFIG - Gfx09_10::mmVGT_DMA_PRIMITIVE_TYPE + 1
     },
     {
         mmCOMPUTE_VMID,
@@ -440,10 +436,9 @@ const RegisterRange Gfx90NonShadowedRanges[] =
         Gfx09::mmATC_PERFCOUNTER0_CFG,
         Gfx09::mmATC_PERFCOUNTER_HI - Gfx09::mmATC_PERFCOUNTER0_CFG + 1
     },
-    // The "Vega" RPB offsets work for all gfx9.0 ASICs.
     {
-        Vega::mmRPB_PERFCOUNTER_LO,
-        Vega::mmRPB_PERFCOUNTER_RSLT_CNTL - Vega::mmRPB_PERFCOUNTER_LO + 1
+        Vg10_Vg12_Vg20_Rv1x_Rv2x::mmRPB_PERFCOUNTER_LO,
+        Vg10_Vg12_Vg20_Rv1x_Rv2x::mmRPB_PERFCOUNTER_RSLT_CNTL - Vg10_Vg12_Vg20_Rv1x_Rv2x::mmRPB_PERFCOUNTER_LO + 1
     },
     {
         Gfx09::mmSDMA0_PERFMON_CNTL,
@@ -464,8 +459,8 @@ constexpr uint32 Gfx90NumNonShadowedRanges = static_cast<uint32>(Util::ArrayLen(
 const RegisterRange Gfx91NonShadowedRanges[] =
 {
     {
-        mmVGT_DMA_PRIMITIVE_TYPE,
-        mmVGT_DMA_LS_HS_CONFIG - mmVGT_DMA_PRIMITIVE_TYPE + 1
+        Gfx09_10::mmVGT_DMA_PRIMITIVE_TYPE,
+        Gfx09_10::mmVGT_DMA_LS_HS_CONFIG - Gfx09_10::mmVGT_DMA_PRIMITIVE_TYPE + 1
     },
     {
         mmCOMPUTE_VMID,
@@ -577,11 +572,11 @@ const RegisterRange Gfx91NonShadowedRanges[] =
         Gfx09::mmATC_PERFCOUNTER_HI - Gfx09::mmATC_PERFCOUNTER0_CFG + 1
     },
     {
-        Vega::mmRPB_PERFCOUNTER_LO,
+        Vg10_Vg12_Vg20_Rv1x_Rv2x::mmRPB_PERFCOUNTER_LO,
         // Renoir moved these up one slot. We don't have a Renoir-specific table so don't shadow the union of both
         // RPB perfcounter ranges. We don't use the registers immediately before and after the perfcounters so it's
         // safe that we're including one extra register.
-        Rn::mmRPB_PERFCOUNTER_RSLT_CNTL - Vega::mmRPB_PERFCOUNTER_LO + 1
+        Rn::mmRPB_PERFCOUNTER_RSLT_CNTL - Vg10_Vg12_Vg20_Rv1x_Rv2x::mmRPB_PERFCOUNTER_LO + 1
     },
     {
         Gfx09::mmSDMA0_PERFMON_CNTL,

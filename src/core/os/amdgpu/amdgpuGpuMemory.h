@@ -97,15 +97,16 @@ protected:
     virtual Result FreeSvmVirtualAddress() override;
 
 private:
-    amdgpu_bo_handle  m_hSurface; // Handle of allocated memory.
-    amdgpu_va_handle  m_hVaRange; // Handle of allocated va range.
+    amdgpu_bo_handle m_hSurface;  // Handle of allocated memory.
+    amdgpu_va_handle m_hVaRange;  // Handle of allocated va range.
 
-    amdgpu_bo_handle  m_hMarker; // Handle of marker.
-    amdgpu_va_handle  m_hMarkerVa; // Handle of marker va range.
+    amdgpu_bo_handle m_hMarker;   // Handle of marker.
+    amdgpu_va_handle m_hMarkerVa; // Handle of marker va range.
 
-    uint64  m_offset;   // Offset in buffer object bound. It's only meaningful when it's a virtual gpu memroy.
+    uint64           m_offset;    // Offset in buffer object bound. It's only meaningful when it's a virtual gpu memroy.
 
-    bool  m_isVmAlwaysValid; // If the virtual memory is always valid.
+    bool             m_isVmAlwaysValid; // If the virtual memory is always valid.
+    mutable bool     m_shared;          // If this gpu memory object has been added into shared bo map
 
     enum amdgpu_bo_handle_type  m_externalHandleType; // Handle type such as GEM global names or dma-buf fd.
 

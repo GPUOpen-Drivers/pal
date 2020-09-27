@@ -258,7 +258,7 @@ uint32* WorkaroundState::PreDraw(
             regDB_DFSM_CONTROL* pPrevDbDfsmControl = pCmdBuffer->GetDbDfsmControl();
             regDB_DFSM_CONTROL  dbDfsmControl      = *pPrevDbDfsmControl;
 
-            dbDfsmControl.bits.POPS_DRAIN_PS_ON_OVERLAP = ((setPopsDrainPsOnOverlap) ? 1 : 0);
+            dbDfsmControl.most.POPS_DRAIN_PS_ON_OVERLAP = ((setPopsDrainPsOnOverlap) ? 1 : 0);
 
             if (dbDfsmControl.u32All != pPrevDbDfsmControl->u32All)
             {

@@ -194,9 +194,10 @@ static void SetSqttTokenExclude(
     regSQ_THREAD_TRACE_TOKEN_MASK* pRegValue,
     uint32                         tokenExclude)
 {
-    if (IsGfx101(device))
+    if (IsGfx101(device)
+    )
     {
-        pRegValue->gfx101.TOKEN_EXCLUDE = tokenExclude;
+        pRegValue->most.TOKEN_EXCLUDE = tokenExclude;
     }
     else
     {
@@ -2446,43 +2447,48 @@ uint32* PerfExperiment::WriteSpmSetup(
         totalLines += m_numMuxselLines[idx];
     }
 
-    if (over31Lines && IsGfx10(m_chipProps.gfxLevel))
     {
-        // We must use these extended registers when at least one segment is over 31 lines. The original SEGMENT_SIZE
-        // register must still be written but it must be full of zeros.
-        struct
+        if (over31Lines && IsGfx10(m_chipProps.gfxLevel))
         {
-            regRLC_SPM_PERFMON_SE3TO0_SEGMENT_SIZE se3To0SegmentSize;
-            regRLC_SPM_PERFMON_GLB_SEGMENT_SIZE    glbSegmentSize;
-        } rlcExtendedSize = {};
+            // We must use these extended registers when at least one segment is over 31 lines. The original
+            // SEGMENT_SIZE register must still be written but it must be full of zeros.
+            struct
+            {
+                regRLC_SPM_PERFMON_SE3TO0_SEGMENT_SIZE se3To0SegmentSize;
+                regRLC_SPM_PERFMON_GLB_SEGMENT_SIZE    glbSegmentSize;
+            } rlcExtendedSize = {};
 
-        rlcExtendedSize.se3To0SegmentSize.bits.SE0_NUM_LINE      = m_numMuxselLines[0];
-        rlcExtendedSize.se3To0SegmentSize.bits.SE1_NUM_LINE      = m_numMuxselLines[1];
-        rlcExtendedSize.se3To0SegmentSize.bits.SE2_NUM_LINE      = m_numMuxselLines[2];
-        rlcExtendedSize.se3To0SegmentSize.bits.SE3_NUM_LINE      = m_numMuxselLines[3];
-        rlcExtendedSize.glbSegmentSize.bits.PERFMON_SEGMENT_SIZE = totalLines;
-        rlcExtendedSize.glbSegmentSize.bits.GLOBAL_NUM_LINE      =
-            m_numMuxselLines[static_cast<uint32>(SpmDataSegmentType::Global)];
+            rlcExtendedSize.se3To0SegmentSize.bits.SE0_NUM_LINE      = m_numMuxselLines[0];
+            rlcExtendedSize.se3To0SegmentSize.bits.SE1_NUM_LINE      = m_numMuxselLines[1];
+            rlcExtendedSize.se3To0SegmentSize.bits.SE2_NUM_LINE      = m_numMuxselLines[2];
+            rlcExtendedSize.se3To0SegmentSize.bits.SE3_NUM_LINE      = m_numMuxselLines[3];
+            rlcExtendedSize.glbSegmentSize.bits.PERFMON_SEGMENT_SIZE = totalLines;
+            rlcExtendedSize.glbSegmentSize.bits.GLOBAL_NUM_LINE      =
+                m_numMuxselLines[static_cast<uint32>(SpmDataSegmentType::Global)];
 
-        pCmdSpace = pCmdStream->WriteSetSeqConfigRegs(Gfx10Plus::mmRLC_SPM_PERFMON_SE3TO0_SEGMENT_SIZE,
-                                                      Gfx10Plus::mmRLC_SPM_PERFMON_GLB_SEGMENT_SIZE,
-                                                      &rlcExtendedSize,
-                                                      pCmdSpace);
+            pCmdSpace = pCmdStream->WriteSetSeqConfigRegs(Gfx10::mmRLC_SPM_PERFMON_SE3TO0_SEGMENT_SIZE,
+                                                          Gfx10::mmRLC_SPM_PERFMON_GLB_SEGMENT_SIZE,
+                                                          &rlcExtendedSize,
+                                                          pCmdSpace);
+        }
+        else
+        {
+            // We have no way to handle more than 31 lines. Assert so that the user knows this is broken but continue
+            // anyway and hope to maybe get some partial data.
+            PAL_ASSERT(over31Lines == false);
+
+            spmSegmentSize.gfx09_10.PERFMON_SEGMENT_SIZE = totalLines;
+            spmSegmentSize.gfx09_10.SE0_NUM_LINE         = m_numMuxselLines[0];
+            spmSegmentSize.gfx09_10.SE1_NUM_LINE         = m_numMuxselLines[1];
+            spmSegmentSize.gfx09_10.SE2_NUM_LINE         = m_numMuxselLines[2];
+            spmSegmentSize.gfx09_10.GLOBAL_NUM_LINE      =
+                m_numMuxselLines[static_cast<uint32>(SpmDataSegmentType::Global)];
+        }
+
+        pCmdSpace = pCmdStream->WriteSetOneConfigReg(Gfx09_10::mmRLC_SPM_PERFMON_SEGMENT_SIZE,
+                                                     spmSegmentSize.u32All,
+                                                     pCmdSpace);
     }
-    else
-    {
-        // We have no way to handle more than 31 lines. Assert so that the user knows this is broken but continue
-        // anyway and hope to maybe get some partial data.
-        PAL_ASSERT(over31Lines == false);
-
-        spmSegmentSize.bits.PERFMON_SEGMENT_SIZE = totalLines;
-        spmSegmentSize.bits.SE0_NUM_LINE         = m_numMuxselLines[0];
-        spmSegmentSize.bits.SE1_NUM_LINE         = m_numMuxselLines[1];
-        spmSegmentSize.bits.SE2_NUM_LINE         = m_numMuxselLines[2];
-        spmSegmentSize.bits.GLOBAL_NUM_LINE      = m_numMuxselLines[static_cast<uint32>(SpmDataSegmentType::Global)];
-    }
-
-    pCmdSpace = pCmdStream->WriteSetOneConfigReg(mmRLC_SPM_PERFMON_SEGMENT_SIZE, spmSegmentSize.u32All, pCmdSpace);
 
     // Now upload each muxsel ram to the RLC. If a particular segment is empty we skip it.
     for (uint32 idx = 0; idx < MaxNumSpmSegments; ++idx)

@@ -45,7 +45,6 @@ pal_include_guard(PalCompilerDefinitions)
 function(pal_compile_definitions)
     target_compile_definitions(pal PUBLIC
         PAL_CLIENT_INTERFACE_MAJOR_VERSION=${PAL_CLIENT_INTERFACE_MAJOR_VERSION}
-        PAL_CLIENT_INTERFACE_MINOR_VERSION=${PAL_CLIENT_INTERFACE_MINOR_VERSION}
 
         # Both of these macros are used to describe debug builds
         # TODO: Pal should only use one of these.
@@ -63,6 +62,15 @@ function(pal_compile_definitions)
         # Ex: BIGENDIAN_CPU or LITTLEENDIAN_CPU
         ${TARGET_ARCHITECTURE_ENDIANESS}ENDIAN_CPU=1
     )
+
+    # If this build is part of a release branch, define the variable
+    if (DEFINED PAL_BUILD_BRANCH)
+        target_compile_definitions(pal PRIVATE PAL_BUILD_BRANCH=${PAL_BUILD_BRANCH})
+    endif()
+
+    if (PAL_BUILD_GPUUTIL)
+        target_compile_definitions(pal PRIVATE PAL_BUILD_GPUUTIL=1)
+    endif()
 
     if(PAL_BUILD_NULL_DEVICE)
         target_compile_definitions(pal PRIVATE PAL_BUILD_NULL_DEVICE=1)
@@ -179,7 +187,8 @@ endif()
         )
 
         # Enable pm4 instrumentor on debug configs or when the client asks for it
-        target_compile_definitions(pal PRIVATE
+        # This needs to be public, see inc/core/palDeveloperHooks.h
+        target_compile_definitions(pal PUBLIC
             $<$<OR:$<CONFIG:Debug>,$<BOOL:${PAL_BUILD_PM4_INSTRUMENTOR}>>:
                 PAL_BUILD_PM4_INSTRUMENTOR=1
             >

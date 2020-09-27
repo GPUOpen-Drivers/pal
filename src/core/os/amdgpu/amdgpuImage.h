@@ -125,6 +125,9 @@ public:
     uint32     GetImageIndex() { return m_imageIndex; }
     void       SetImageIndex(uint32 imageIndex) { m_imageIndex = imageIndex; }
 
+    bool       GetDrmModeIsSet() const { return m_drmModeIsSet; }
+    void       SetDrmModeIsSet() { m_drmModeIsSet = true; }
+
 protected:
     virtual void UpdateMetaDataInfo(IGpuMemory* pGpuMemory) override;
 
@@ -140,6 +143,8 @@ private:
 
     SwapChain*    m_pSwapChain;  // The swapchain the image is attached to.
     uint32        m_imageIndex;  // The image index in the swapchain.
+
+    bool          m_drmModeIsSet;      // Set DrmMode before first Present
 
     PAL_DISALLOW_DEFAULT_CTOR(Image);
     PAL_DISALLOW_COPY_AND_ASSIGN(Image);

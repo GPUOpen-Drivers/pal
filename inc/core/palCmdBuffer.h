@@ -562,6 +562,9 @@ struct DynamicComputeShaderInfo
     uint32 maxThreadGroupsPerCu; ///< Override the maximum number of threadgroups that a particular CS can run on,
                                  ///  throttling it, to enable more graphics work to complete.  0 disables the limit.
 
+    uint32 tgScheduleCountPerCu; ///< Override the number of threadgroups to schedule on a single compute unit before
+                                 ///  moving to the next compute unit. 0 selects optimal default.
+
     uint32 ldsBytesPerTg; ///< Override the amount of LDS space used per thread-group for this pipeline, in bytes.
                           ///  Zero indicates that the LDS size determined at pipeline-compilation time will be used.
 };
@@ -1699,8 +1702,12 @@ union ScaledCopyFlags
                                     ///  Mutually exclusive with srcColorKey.
         uint32 srcAlpha       : 1;  ///< If set, use alpha channel in source surface as blend factor.
                                     ///  color = src alpha * src color + (1.0 - src alpha) * dst color.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 626
+        uint32 dstAsSrgb      : 1;  ///< If set, a non-srgb destination image will be treated as srgb format.
+#else
         uint32 srcSrgbAsUnorm : 1;  ///< If set, an sRGB source image will be treated as linear UNORM. Has no effect if the
                                     ///  source is not sRGB.
+#endif
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 603
         uint32 scissorTest    : 1;  ///< If set, do scissor test using the specified scissor rectangle.
 #else

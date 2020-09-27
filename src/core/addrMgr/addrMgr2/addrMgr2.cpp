@@ -698,9 +698,7 @@ Result AddrMgr2::ComputePlaneSwizzleMode(
         else if (pImage->GetGfxImage()->IsRestrictedTiledMultiMediaSurface() &&
                  (createInfo.tiling == ImageTiling::Optimal))
         {
-            if (IsVega10(*m_pDevice) || IsVega12(*m_pDevice)
-                || IsVega20(*m_pDevice)
-                )
+            if (IsVega10(*m_pDevice) || IsVega12(*m_pDevice) || IsVega20(*m_pDevice))
             {
                 if (createInfo.flags.videoReferenceOnly)
                 {

@@ -1182,8 +1182,13 @@ Result Device::FixupUsableGpuVirtualAddressRange(
         // Need to account for any exclusion at the beginning of the range
         const gpusize descTblSize = _1GB - (baseVirtAddr - RoundDownToMultiple(baseVirtAddr, _1GB));
 
-        pVaRange[static_cast<uint32>(VaPartition::DescriptorTable)].baseVirtAddr = baseVirtAddr;
-        pVaRange[static_cast<uint32>(VaPartition::DescriptorTable)].size         = descTblSize;
+        result = ProbeGpuVaRange(baseVirtAddr, descTblSize, VaPartition::DescriptorTable);
+
+        if (result == Result::Success)
+        {
+            pVaRange[static_cast<uint32>(VaPartition::DescriptorTable)].baseVirtAddr = baseVirtAddr;
+            pVaRange[static_cast<uint32>(VaPartition::DescriptorTable)].size         = descTblSize;
+        }
 
         baseVirtAddr += descTblSize;
 
@@ -1192,8 +1197,13 @@ Result Device::FixupUsableGpuVirtualAddressRange(
 
         baseVirtAddr += (3uLL * _1GB);
 
-        pVaRange[static_cast<uint32>(VaPartition::ShadowDescriptorTable)].baseVirtAddr = baseVirtAddr;
-        pVaRange[static_cast<uint32>(VaPartition::ShadowDescriptorTable)].size = _1GB;
+        result = ProbeGpuVaRange(baseVirtAddr, _1GB, VaPartition::ShadowDescriptorTable);
+
+        if (result == Result::Success)
+        {
+            pVaRange[static_cast<uint32>(VaPartition::ShadowDescriptorTable)].baseVirtAddr = baseVirtAddr;
+            pVaRange[static_cast<uint32>(VaPartition::ShadowDescriptorTable)].size         = _1GB;
+        }
 
         baseVirtAddr += _1GB;
 

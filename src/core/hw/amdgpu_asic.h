@@ -214,8 +214,8 @@
 #define DEVICE_ID_RV_15DD               0x15DD
 #define DEVICE_ID_AI_VEGA12_P_69A0      0x69A0
 #define DEVICE_ID_AI_VEGA20_P_66A0      0x66A0
-#define DEVICE_ID_RV2_15D8              0x15D8
 
+#define DEVICE_ID_RV2_15D8              0x15D8
 #define DEVICE_ID_RENOIR_1636           0x1636
 
 #define DEVICE_ID_NV_NAVI10_P_7310      0x7310
@@ -249,6 +249,7 @@
 #define RAVEN_A0                     1
 #define AI_VEGA12_P_A0              20
 #define AI_VEGA20_P_A0              40
+
 #define RAVEN2_A0                  0x81
 #define RENOIR_A0                  0x91
 
@@ -284,6 +285,7 @@
 #define PRID_RV_81                  0x81
 #define PRID_AI_VEGA12_00           0x00
 #define PRID_AI_VEGA20_00           0x00
+
 #define PRID_RV_E2                  0xE2
 #define PRID_RENOIR_01              0x01
 

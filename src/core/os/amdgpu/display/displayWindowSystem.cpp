@@ -289,7 +289,7 @@ Result DisplayWindowSystem::CreatePresentableImage(
             pImage->SetPresentImageHandle(imageHandle);
 
             FindCrtc();
-            ret = ModeSet(pImage) != Result::Success;
+            //ModeSet() postpone to before the first flip operation in Present(), the image to render not ready now.
         }
     }
 
@@ -370,6 +370,12 @@ Result DisplayWindowSystem::Present(
 
     while (result != Result::Success)
     {
+        if (pImage->GetDrmModeIsSet() == false)
+        {
+            ModeSet(pImage);
+            pImage->SetDrmModeIsSet();
+        }
+
         int32 ret = m_drmProcs.pfnDrmModePageFlip(m_drmMasterFd,
                                                   m_crtcId,
                                                   pImage->GetFrameBufferId(),
@@ -413,6 +419,8 @@ Result DisplayWindowSystem::Present(
             break;
         }
     }
+
+    m_device.DeveloperCb(Developer::CallbackType::PresentConcluded, nullptr);
 
     return result;
 }

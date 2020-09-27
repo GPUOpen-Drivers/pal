@@ -62,6 +62,17 @@ public:
         void*                  pPlacementAddr,
         IQueue**               ppQueue) override;
 
+    virtual size_t GetMultiQueueSize(
+        uint32                 queueCount,
+        const QueueCreateInfo* pCreateInfo,
+        Result*                pResult) const override;
+
+    virtual Result CreateMultiQueue(
+        uint32                 queueCount,
+        const QueueCreateInfo* pCreateInfo,
+        void*                  pPlacementAddr,
+        IQueue**               ppQueue) override;
+
     const PalPublicSettings* PublicSettings() const { return m_pPublicSettings; }
     const DeviceProperties&  DeviceProps() const { return m_deviceProperties; }
 

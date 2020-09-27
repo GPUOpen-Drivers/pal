@@ -79,7 +79,7 @@ public:
     DebugOverlayLocation GetDebugOverlayLocation();
     DebugOverlayLocation GetTimeGraphLocation();
 
-    void UpdateSubmitTimelist(GpuTimestampPair* pTimestamp);
+    void UpdateSubmitTimelist(uint32 queueCount, GpuTimestampPair** ppTimestamp);
     void NotifySubmitWithoutTimestamp();
     void NotifyQueueDestroyed(const IQueue* pQueue);
 

@@ -186,6 +186,7 @@ static constexpr FuncLoggingTableEntry FuncLoggingTable[] =
     { InterfaceFunc::DeviceBindTrapHandler,                         (GenCalls)            },
     { InterfaceFunc::DeviceBindTrapBuffer,                          (GenCalls)            },
     { InterfaceFunc::DeviceCreateQueue,                             (CrtDstry | QueueOps) },
+    { InterfaceFunc::DeviceCreateMultiQueue,                        (CrtDstry | QueueOps) },
     { InterfaceFunc::DeviceCreateGpuMemory,                         (CrtDstry)            },
     { InterfaceFunc::DeviceCreatePinnedGpuMemory,                   (CrtDstry)            },
     { InterfaceFunc::DeviceCreateSvmGpuMemory,                      (CrtDstry)            },
