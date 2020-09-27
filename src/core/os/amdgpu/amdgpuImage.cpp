@@ -54,7 +54,8 @@ Image::Image(
     m_framebufferId(0),
     m_idle(true),
     m_pSwapChain(nullptr),
-    m_imageIndex(InvalidImageIndex)
+    m_imageIndex(InvalidImageIndex),
+    m_drmModeIsSet(false)
 {
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 567
     // Pip swap-chain is only supported on Windows platforms.

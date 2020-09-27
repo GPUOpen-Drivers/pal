@@ -1829,6 +1829,12 @@ void UniversalCmdBuffer::CmdSetTriangleRasterStateInternal(
         paSuScModeCntl.bits.POLYMODE_FRONT_PTYPE = static_cast<uint32>(params.frontFillMode);
     }
 
+    // See comment in Gfx10ValidateTriangleRasterState.
+    if (IsGfx10Plus(m_gfxIpLevel) && paSuScModeCntl.bits.POLY_MODE)
+    {
+        paSuScModeCntl.gfx10Plus.KEEP_TOGETHER_ENABLE = 1;
+    }
+
     constexpr uint32 FrontCull = static_cast<uint32>(CullMode::Front);
     constexpr uint32 BackCull  = static_cast<uint32>(CullMode::Back);
 
@@ -4307,10 +4313,8 @@ uint32* UniversalCmdBuffer::Gfx10ValidateTriangleRasterState(
     //  primitives must be kept in order
     //
     //  it should be enabled when POLY_MODE is enabled.  Also, if the driver ever sets PERPENDICULAR_ENDCAP_ENA, that
-    //  should follow the same rules
-    if ((m_graphicsState.triangleRasterState.frontFillMode != FillMode::Solid) ||
-        (m_graphicsState.triangleRasterState.backFillMode  != FillMode::Solid) ||
-        pPipeline->IsPerpEndCapsEnabled())
+    //  should follow the same rules. POLY_MODE is handled @ set-time as it is known then.
+    if (pPipeline->IsPerpEndCapsEnabled())
     {
         pDeCmdSpace = m_deCmdStream.WriteContextRegRmw(mmPA_SU_SC_MODE_CNTL,
                                                        Gfx10Plus::PA_SU_SC_MODE_CNTL__KEEP_TOGETHER_ENABLE_MASK,
@@ -4569,10 +4573,10 @@ uint32* UniversalCmdBuffer::ValidateDraw(
     // GFX10 moves the RESET_EN functionality to a new register called GE_MULTI_PRIM_IB_RESET_EN.  Verify that
     // the GFX10 register has the exact same layout as the GFX9 register to eliminate the need for run-time "if"
     // statements to verify which Gfx level the active device uses.
-    static_assert(VGT_MULTI_PRIM_IB_RESET_EN__MATCH_ALL_BITS_MASK ==
+    static_assert(Gfx09_10::VGT_MULTI_PRIM_IB_RESET_EN__MATCH_ALL_BITS_MASK ==
                   Gfx10Plus::GE_MULTI_PRIM_IB_RESET_EN__MATCH_ALL_BITS_MASK,
                   "MATCH_ALL_BITS bits are not in the same place on GFX9 and GFX10!");
-    static_assert(VGT_MULTI_PRIM_IB_RESET_EN__RESET_EN_MASK ==
+    static_assert(Gfx09_10::VGT_MULTI_PRIM_IB_RESET_EN__RESET_EN_MASK ==
                   Gfx10Plus::GE_MULTI_PRIM_IB_RESET_EN__RESET_EN_MASK,
                   "RESET_EN bits are not in the same place on GFX9 and GFX10!");
 
@@ -5693,51 +5697,59 @@ uint32 UniversalCmdBuffer::CalcGeCntl(
 
     regGE_CNTL  geCntl = {};
 
+    uint32 primsPerSubgroup = 0;
+    uint32 vertsPerSubgroup = 0;
+
     if ((IsNgg == false) || isTess)
     {
         // PRIMGROUP_SIZE is zero-based (i.e., zero means one) but PRIM_GRP_SIZE is one based (i.e., one means one).
-        geCntl.bits.PRIM_GRP_SIZE = iaMultiVgtParam.bits.PRIMGROUP_SIZE + 1;
+        primsPerSubgroup = iaMultiVgtParam.bits.PRIMGROUP_SIZE + 1;
 
         // Recomendation to disable VERT_GRP_SIZE is to set it to 256.
-        geCntl.bits.VERT_GRP_SIZE = VertGroupingDisabled;
+        vertsPerSubgroup = VertGroupingDisabled;
     }
     else if (isNggFastLaunch)
     {
         const regVGT_GS_ONCHIP_CNTL vgtGsOnchipCntl = pPipeline->VgtGsOnchipCntl();
 
-        geCntl.bits.PRIM_GRP_SIZE = vgtGsOnchipCntl.bits.GS_PRIMS_PER_SUBGRP;
-        geCntl.bits.VERT_GRP_SIZE = vgtGsOnchipCntl.bits.ES_VERTS_PER_SUBGRP;
+        primsPerSubgroup = vgtGsOnchipCntl.bits.GS_PRIMS_PER_SUBGRP;
+        vertsPerSubgroup = vgtGsOnchipCntl.bits.ES_VERTS_PER_SUBGRP;
     }
     else
     {
         const regVGT_GS_ONCHIP_CNTL vgtGsOnchipCntl = pPipeline->VgtGsOnchipCntl();
 
-        geCntl.bits.PRIM_GRP_SIZE = vgtGsOnchipCntl.bits.GS_PRIMS_PER_SUBGRP;
-        geCntl.bits.VERT_GRP_SIZE =
+        primsPerSubgroup = vgtGsOnchipCntl.bits.GS_PRIMS_PER_SUBGRP;
+        vertsPerSubgroup =
             (disableVertGrouping)                       ? VertGroupingDisabled :
             (m_cachedSettings.waClampGeCntlVertGrpSize) ? vgtGsOnchipCntl.bits.ES_VERTS_PER_SUBGRP - 5 :
                                                           vgtGsOnchipCntl.bits.ES_VERTS_PER_SUBGRP;
 
         // Zero is a legal value for VERT_GRP_SIZE. Other low values are illegal.
-        if (geCntl.bits.VERT_GRP_SIZE != 0)
+        if (vertsPerSubgroup != 0)
         {
             if (IsGfx101(m_gfxIpLevel))
             {
-                if (geCntl.bits.VERT_GRP_SIZE < 24)
+                if (vertsPerSubgroup < 24)
                 {
-                    geCntl.bits.VERT_GRP_SIZE = 24;
+                    vertsPerSubgroup = 24;
                 }
             }
         }
     }
 
+    geCntl.gfx10.PRIM_GRP_SIZE = primsPerSubgroup;
+    geCntl.gfx10.VERT_GRP_SIZE = vertsPerSubgroup;
+
     // Note that the only real case in production to use packet_to_one_pa = 1 is when using the PA line stipple mode
     // which requires the entire packet to be sent to a single PA.
     geCntl.bits.PACKET_TO_ONE_PA = usesLineStipple;
 
-    //  ... "the only time break_wave_at_eoi is needed, is for primitive_id/patch_id with tessellation."
-    //  ... "I think every DS requires a valid PatchId".
-    geCntl.bits.BREAK_WAVE_AT_EOI = isTess;
+    {
+        //  ... "the only time break_wave_at_eoi is needed, is for primitive_id/patch_id with tessellation."
+        //  ... "I think every DS requires a valid PatchId".
+        geCntl.gfx10.BREAK_WAVE_AT_EOI = isTess;
+    }
 
     return geCntl.u32All;
 }

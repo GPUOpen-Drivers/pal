@@ -53,7 +53,15 @@ macro(pal_options)
     option(PAL_MEMTRACK "Enable PAL memory tracker?" OFF)
 
     option(PAL_BUILD_CORE "Build PAL Core?" ON)
+
+    # If present, it specifies that the build is on a release branch (not stg) and en/disables features
+    # specific to that branch. On stg, all branch-related features are enabled.
+    if (DEFINED PAL_BUILD_BRANCH)
+        message_verbose("Client specified PAL_BUILD_BRANCH: ${PAL_BUILD_BRANCH}")
+    endif()
+
     option(PAL_BUILD_GPUUTIL "Build PAL GPU Util?" ON)
+
     cmake_dependent_option(PAL_BUILD_LAYERS "Build PAL Layers?" ON "PAL_BUILD_GPUUTIL" OFF)
 
     option(PAL_BUILD_DBG_OVERLAY "Build PAL Debug Overlay?" ON)
@@ -84,11 +92,6 @@ macro(pal_options)
     option(PAL_BUILD_GFX  "Build PAL with Graphics support?" ON)
     cmake_dependent_option(PAL_BUILD_GFX6 "Build PAL with GFX6 support?" ON "PAL_BUILD_GFX" OFF)
     cmake_dependent_option(PAL_BUILD_GFX9 "Build PAL with GFX9 support?" ON "PAL_BUILD_GFX" OFF)
-    cmake_dependent_option(PAL_BUILD_VEGA20 "Build PAL with Vega20 support?" ON "PAL_BUILD_GFX" OFF)
-    cmake_dependent_option(CHIP_HDR_VEGA20 "Build PAL chip with Vega20 support?" ON "PAL_BUILD_GFX" OFF)
-
-    cmake_dependent_option(PAL_BUILD_RAVEN2 "Build PAL with Raven2 support?" ON "PAL_BUILD_GFX" OFF)
-    cmake_dependent_option(CHIP_HDR_RAVEN2 "Build PAL chip with Raven2 support?" ON "PAL_BUILD_GFX" OFF)
 
     option(PAL_BUILD_OSS  "Build PAL with Operating System support?" ON)
     cmake_dependent_option(PAL_BUILD_OSS1   "Build PAL with OSS1?"   ON "PAL_BUILD_OSS" OFF)
@@ -101,41 +104,21 @@ macro(pal_options)
     option(PAL_BUILD_WAYLAND "Build PAL with WAYLAND support?" OFF)
 
     # PAL Client Options ###############################################################################
-    # Use Vulkan as the default client.
-    set(PAL_CLIENT "VULKAN" CACHE STRING "Client interfacing with PAL.")
+    if (NOT DEFINED PAL_CLIENT)
+        message(FATAL_ERROR "User didn't specify PAL_CLIENT")
+    endif()
+
     # Create a more convenient variable to avoid string comparisons.
     set(PAL_CLIENT_${PAL_CLIENT} ON)
 
     if(DEFINED PAL_CLIENT_INTERFACE_MAJOR_VERSION)
         message_verbose("Client configured PAL_INTERFACE_MAJOR_VERSION as " ${PAL_CLIENT_INTERFACE_MAJOR_VERSION})
     else()
-        # If the user didn't provide a version, read the latest version from palLib.h
-        file(STRINGS inc/core/palLib.h PAL_MAJOR_VERSION REGEX "^#define PAL_INTERFACE_MAJOR_VERSION [0-9]+")
-
-        if(PAL_MAJOR_VERSION STREQUAL "")
-            message(FATAL_ERROR "Failed to find PAL_INTERFACE_MAJOR_VERSION")
-        else()
-            string(REGEX REPLACE "^#define PAL_INTERFACE_MAJOR_VERSION " "" PAL_MAJOR_VERSION ${PAL_MAJOR_VERSION})
-            message_verbose("Detected PAL_INTERFACE_MAJOR_VERSION is " ${PAL_MAJOR_VERSION})
-        endif()
-
-        set(PAL_CLIENT_INTERFACE_MAJOR_VERSION ${PAL_MAJOR_VERSION})
+        message(FATAL_ERROR "Client must specify PAL_CLIENT_INTERFACE_MAJOR_VERSION")
     endif()
 
     if(DEFINED PAL_CLIENT_INTERFACE_MINOR_VERSION)
-        message_verbose("Client configured PAL_INTERFACE_MINOR_VERSION as " ${PAL_CLIENT_INTERFACE_MINOR_VERSION})
-    else()
-        # If the user didn't provide a version, read the latest version from palLib.h
-        file(STRINGS inc/core/palLib.h PAL_MINOR_VERSION REGEX "^#define PAL_INTERFACE_MINOR_VERSION [0-9]+")
-
-        if(PAL_MINOR_VERSION STREQUAL "")
-            message(FATAL_ERROR "Failed to find PAL_INTERFACE_MINOR_VERSION")
-        else()
-            string(REGEX REPLACE "^#define PAL_INTERFACE_MINOR_VERSION " "" PAL_MINOR_VERSION ${PAL_MINOR_VERSION})
-            message_verbose("Detected PAL_INTERFACE_MINOR_VERSION is " ${PAL_MINOR_VERSION})
-        endif()
-
-        set(PAL_CLIENT_INTERFACE_MINOR_VERSION ${PAL_MINOR_VERSION})
+        message(AUTHOR_WARNING "Unneccessary to specify PAL_CLIENT_INTERFACE_MINOR_VERSION")
     endif()
 
     # Paths to PAL's dependencies

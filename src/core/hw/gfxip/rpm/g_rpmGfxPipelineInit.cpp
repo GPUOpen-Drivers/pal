@@ -116,19 +116,13 @@ Result CreateRpmGraphicsPipelines(
         break;
 
     case AsicRevision::Vega12:
+    case AsicRevision::Vega20:
         pTable = rpmGfxBinaryTableVega12;
         break;
 
-    case AsicRevision::Vega20:
-        pTable = rpmGfxBinaryTableVega20;
-        break;
-
     case AsicRevision::Raven2:
-        pTable = rpmGfxBinaryTableRaven2;
-        break;
-
     case AsicRevision::Renoir:
-        pTable = rpmGfxBinaryTableRenoir;
+        pTable = rpmGfxBinaryTableRaven2;
         break;
 
     case AsicRevision::Navi10:

@@ -666,8 +666,10 @@ struct GpuChipProperties
                 uint32 supportsCornerSampling       :  1;
                 // Whether to support Display Dcc
                 uint32 supportDisplayDcc            :  1;
+                // Placeholder, do not use.
+                uint32 placeholder0                 :  1;
                 // Reserved for future use.
-                uint32 reserved                     : 29;
+                uint32 reserved                     : 28;
             };
             uint32 u32All;
         } flags;
@@ -2419,6 +2421,7 @@ PAL_INLINE bool IsVega12(const Device& device)
 {
     return AMDGPU_IS_VEGA12(device.ChipProperties().familyId, device.ChipProperties().eRevId);
 }
+
 PAL_INLINE bool IsVega20(const Device& device)
 {
     return AMDGPU_IS_VEGA20(device.ChipProperties().familyId, device.ChipProperties().eRevId);
@@ -2432,10 +2435,12 @@ PAL_INLINE bool IsRaven(const Device& device)
 {
     return AMDGPU_IS_RAVEN(device.ChipProperties().familyId, device.ChipProperties().eRevId);
 }
+
 PAL_INLINE bool IsRaven2(const Device& device)
 {
     return AMDGPU_IS_RAVEN2(device.ChipProperties().familyId, device.ChipProperties().eRevId);
 }
+
 PAL_INLINE bool IsRenoir(const Device& device)
 {
     return AMDGPU_IS_RENOIR(device.ChipProperties().familyId, device.ChipProperties().eRevId);
@@ -2471,11 +2476,7 @@ static bool IsGfx101(const Device& device)
 
 static bool IsGfx091xPlus(const Device& device)
 {
-    return (IsVega12(device)
-            || IsVega20(device)
-            || IsRaven2(device)
-            || IsRenoir(device)
-            || IsGfx10(device)
+    return (IsVega12(device) || IsVega20(device) || IsRaven2(device) || IsRenoir(device) || IsGfx10(device)
            );
 }
 

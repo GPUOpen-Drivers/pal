@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2019-2020 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2020 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -56,7 +56,6 @@ constexpr unsigned int SDMA_SUBOP_COPY_T2T_SUB_WIND             = 6;
 constexpr unsigned int SDMA_SUBOP_COPY_TILED                    = 1;
 constexpr unsigned int SDMA_SUBOP_COPY_TILED_SUB_WIND           = 5;
 constexpr unsigned int SDMA_SUBOP_DATA_FILL_MULTI               = 1;
-constexpr unsigned int SDMA_SUBOP_INVALIDATION                  = 4;
 constexpr unsigned int SDMA_SUBOP_MEM_INCR                      = 1;
 constexpr unsigned int SDMA_SUBOP_POLL_DBIT_WRITE_MEM           = 2;
 constexpr unsigned int SDMA_SUBOP_POLL_MEM_VERIFY               = 3;
@@ -69,6 +68,7 @@ constexpr unsigned int SDMA_SUBOP_WRITE_TILED                   = 1;
 
 namespace Gfx101
 {
+    constexpr unsigned int SDMA_SUBOP_INVALIDATION                  = 4;
 } // namespace Gfx101
 
 typedef struct SDMA_PKT_ATOMIC_TAG
@@ -2013,7 +2013,7 @@ typedef struct SDMA_PKT_INVALIDATION_TAG
             unsigned int op                             :  8;
             unsigned int sub_op                         :  8;
             unsigned int                                : 16;
-        };
+        } gfx101;
         unsigned int DW_0_DATA;
     } HEADER_UNION;
 
@@ -2022,7 +2022,7 @@ typedef struct SDMA_PKT_INVALIDATION_TAG
         struct
         {
             unsigned int invalidatereq                  : 32;
-        };
+        } gfx101;
         unsigned int DW_1_DATA;
     } INVALIDATEREQ_UNION;
 
@@ -2031,7 +2031,7 @@ typedef struct SDMA_PKT_INVALIDATION_TAG
         struct
         {
             unsigned int addressrangelo                 : 32;
-        };
+        } gfx101;
         unsigned int DW_2_DATA;
     } ADDRESSRANGELO_UNION;
 
@@ -2044,7 +2044,7 @@ typedef struct SDMA_PKT_INVALIDATION_TAG
             unsigned int invalidategfxhub               :  1;
             unsigned int invalidatemmhub                :  1;
             unsigned int                                :  9;
-        };
+        } gfx101;
         unsigned int DW_3_DATA;
     } ADDRESSRANGEHI_UNION;
 

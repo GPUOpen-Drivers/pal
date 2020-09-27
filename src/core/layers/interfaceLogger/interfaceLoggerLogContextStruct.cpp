@@ -963,6 +963,7 @@ void LogContext::Struct(
     BeginMap(false);
     KeyAndValue("maxWavesPerCu", value.maxWavesPerCu);
     KeyAndValue("maxThreadGroupsPerCu", value.maxThreadGroupsPerCu);
+    KeyAndValue("tgScheduleCountPerCu", value.tgScheduleCountPerCu);
     KeyAndValue("ldsBytesPerTg", value.ldsBytesPerTg);
     EndMap();
 }
@@ -1438,6 +1439,22 @@ void LogContext::Struct(
         }
         EndList();
         KeyAndValue("enableMasking", value.viewInstancingDesc.enableMasking);
+    }
+    EndMap();
+
+    KeyAndBeginMap("coverageOutDesc", false);
+    {
+        KeyAndValue("enable", value.coverageOutDesc.flags.enable);
+        KeyAndValue("numSamples", value.coverageOutDesc.flags.numSamples);
+        KeyAndValue("mrt", value.coverageOutDesc.flags.mrt);
+        KeyAndValue("channel", value.coverageOutDesc.flags.channel);
+    }
+    EndMap();
+
+    KeyAndBeginMap("viewportInfo", false);
+    {
+        KeyAndValue("depthClipEnable", value.viewportInfo.depthClipEnable);
+        KeyAndEnum("depthRange", value.viewportInfo.depthRange);
     }
     EndMap();
 

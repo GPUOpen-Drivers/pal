@@ -4131,7 +4131,6 @@ bool Gfx9Cmask::UseCmaskForImage(
                         (pParent->IsRenderTarget()                        &&
                          (pParent->IsShared()                   == false) &&
                          (pParent->IsMetadataDisabledByClient() == false) &&
-                         (pParent->IsTmz()                      == false) &&
                          (pParent->GetImageCreateInfo().samples > 1)));
         }
     }

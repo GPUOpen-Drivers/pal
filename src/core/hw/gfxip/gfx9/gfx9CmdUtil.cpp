@@ -312,15 +312,10 @@ CmdUtil::CmdUtil(
             m_registerInfo.mmEaPerfResultCntl    = Gfx09_1x::mmGCEA_PERFCOUNTER_RSLT_CNTL;
             m_registerInfo.mmComputeShaderChksum = Gfx09_1x::mmCOMPUTE_SHADER_CHKSUM;
 
-            if (IsVega12(parent))
+            if (IsVega12(parent) || IsVega20(parent))
             {
-                m_registerInfo.mmPaStereoCntl   = Vg12::mmPA_STEREO_CNTL;
-                m_registerInfo.mmPaStateStereoX = Vg12::mmPA_STATE_STEREO_X;
-            }
-            else if (IsVega20(parent))
-            {
-                m_registerInfo.mmPaStereoCntl   = Vg20::mmPA_STEREO_CNTL;
-                m_registerInfo.mmPaStateStereoX = Vg20::mmPA_STATE_STEREO_X;
+                m_registerInfo.mmPaStereoCntl   = Vg12_Vg20::mmPA_STEREO_CNTL;
+                m_registerInfo.mmPaStateStereoX = Vg12_Vg20::mmPA_STATE_STEREO_X;
             }
         }
 
@@ -339,7 +334,7 @@ CmdUtil::CmdUtil(
         }
         else
         {
-            m_registerInfo.mmRpbPerfResultCntl = Vega::mmRPB_PERFCOUNTER_RSLT_CNTL;
+            m_registerInfo.mmRpbPerfResultCntl = Vg10_Vg12_Vg20_Rv1x_Rv2x::mmRPB_PERFCOUNTER_RSLT_CNTL;
         }
 
         m_registerInfo.mmSpiShaderPgmLoLs           = Gfx09::mmSPI_SHADER_PGM_LO_LS;
@@ -351,12 +346,17 @@ CmdUtil::CmdUtil(
     }
     else
     {
+        m_registerInfo.mmRlcSpmGlobalMuxselAddr         = Gfx10::mmRLC_SPM_GLOBAL_MUXSEL_ADDR;
+        m_registerInfo.mmRlcSpmGlobalMuxselData         = Gfx10::mmRLC_SPM_GLOBAL_MUXSEL_DATA;
+        m_registerInfo.mmRlcSpmSeMuxselAddr             = Gfx10::mmRLC_SPM_SE_MUXSEL_ADDR;
+        m_registerInfo.mmRlcSpmSeMuxselData             = Gfx10::mmRLC_SPM_SE_MUXSEL_DATA;
+
         if (IsGfx101(parent))
         {
             m_registerInfo.mmEaPerfResultCntl               = Gfx101::mmGCEA_PERFCOUNTER_RSLT_CNTL;
             m_registerInfo.mmAtcPerfResultCntl              = Gfx101::mmATC_PERFCOUNTER_RSLT_CNTL;
             m_registerInfo.mmAtcL2PerfResultCntl            = Gfx101::mmGC_ATC_L2_PERFCOUNTER_RSLT_CNTL;
-            m_registerInfo.mmDbDfsmControl                  = Gfx10CorePlus::mmDB_DFSM_CONTROL;
+            m_registerInfo.mmDbDfsmControl                  = Gfx10Core::mmDB_DFSM_CONTROL;
             m_registerInfo.mmRpbPerfResultCntl              = Gfx10Core::mmRPB_PERFCOUNTER_RSLT_CNTL;
 
         }
@@ -366,10 +366,6 @@ CmdUtil::CmdUtil(
         }
 
         m_registerInfo.mmRlcPerfmonClkCntl              = Gfx10Plus::mmRLC_PERFMON_CLK_CNTL;
-        m_registerInfo.mmRlcSpmGlobalMuxselAddr         = Gfx10Plus::mmRLC_SPM_GLOBAL_MUXSEL_ADDR;
-        m_registerInfo.mmRlcSpmGlobalMuxselData         = Gfx10Plus::mmRLC_SPM_GLOBAL_MUXSEL_DATA;
-        m_registerInfo.mmRlcSpmSeMuxselAddr             = Gfx10Plus::mmRLC_SPM_SE_MUXSEL_ADDR;
-        m_registerInfo.mmRlcSpmSeMuxselData             = Gfx10Plus::mmRLC_SPM_SE_MUXSEL_DATA;
         m_registerInfo.mmMcVmL2PerfResultCntl           = Gfx10Plus::mmGCMC_VM_L2_PERFCOUNTER_RSLT_CNTL;
         m_registerInfo.mmVgtGsMaxPrimsPerSubGroup       = Gfx10Plus::mmGE_MAX_OUTPUT_PER_SUBGROUP;
         m_registerInfo.mmComputeShaderChksum            = Gfx10Plus::mmCOMPUTE_SHADER_CHKSUM;
@@ -1763,7 +1759,7 @@ size_t CmdUtil::BuildSampleEventWrite(
                (vgtEvent == SAMPLE_STREAMOUTSTATS1)  ||
                (vgtEvent == SAMPLE_STREAMOUTSTATS2)  ||
                (vgtEvent == SAMPLE_STREAMOUTSTATS3)  ||
-               (vgtEvent == ZPASS_DONE));
+               (vgtEvent == ZPASS_DONE__GFX09_10));
 
     PAL_ASSERT((VgtEventIndex[vgtEvent] == event_index__me_event_write__zpass_pixel_pipe_stat_control_or_dump) ||
                (VgtEventIndex[vgtEvent] == event_index__me_event_write__sample_pipelinestat)                  ||
@@ -2742,7 +2738,7 @@ size_t CmdUtil::BuildReleaseMem(
         const BoundGpuMemory& dummyMemory = m_device.DummyZpassDoneMem();
         PAL_ASSERT(dummyMemory.IsBound());
 
-        totalSize += BuildSampleEventWrite(ZPASS_DONE,
+        totalSize += BuildSampleEventWrite(ZPASS_DONE__GFX09_10,
                                            releaseMemInfo.engineType,
                                            dummyMemory.GpuVirtAddr(),
                                            VoidPtrInc(pBuffer, sizeof(uint32) * totalSize));

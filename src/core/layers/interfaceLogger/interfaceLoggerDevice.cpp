@@ -535,6 +535,71 @@ Result Device::CreateQueue(
 }
 
 // =====================================================================================================================
+size_t Device::GetMultiQueueSize(
+    uint32                 queueCount,
+    const QueueCreateInfo* pCreateInfo,
+    Result*                pResult
+    ) const
+{
+    return m_pNextLayer->GetMultiQueueSize(queueCount, pCreateInfo, pResult) + sizeof(Queue);
+}
+
+// =====================================================================================================================
+Result Device::CreateMultiQueue(
+    uint32                 queueCount,
+    const QueueCreateInfo* pCreateInfo,
+    void*                  pPlacementAddr,
+    IQueue**               ppQueue)
+{
+    auto*const pPlatform  = static_cast<Platform*>(m_pPlatform);
+    IQueue*    pNextQueue = nullptr;
+
+    BeginFuncInfo funcInfo;
+    funcInfo.funcId       = InterfaceFunc::DeviceCreateMultiQueue;
+    funcInfo.objectId     = m_objectId;
+    funcInfo.preCallTime  = pPlatform->GetTime();
+    const Result result   = m_pNextLayer->CreateMultiQueue(queueCount,
+                                                           pCreateInfo,
+                                                           NextObjectAddr<Queue>(pPlacementAddr),
+                                                           &pNextQueue);
+    funcInfo.postCallTime = pPlatform->GetTime();
+
+    if (result == Result::Success)
+    {
+        PAL_ASSERT(pNextQueue != nullptr);
+        pNextQueue->SetClientData(pPlacementAddr);
+
+        const uint32 objectId = pPlatform->NewObjectId(InterfaceObject::Queue);
+
+        (*ppQueue) = PAL_PLACEMENT_NEW(pPlacementAddr) Queue(pNextQueue, this, objectId);
+    }
+
+    LogContext* pLogContext = nullptr;
+    if (pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    {
+        pLogContext->BeginInput();
+        pLogContext->KeyAndBeginList("createInfo", false);
+
+        for (uint32 i = 0; i < queueCount; i++)
+        {
+            pLogContext->Struct(pCreateInfo[i]);
+        }
+
+        pLogContext->EndList();
+        pLogContext->EndInput();
+
+        pLogContext->BeginOutput();
+        pLogContext->KeyAndEnum("result", result);
+        pLogContext->KeyAndObject("createdObj", *ppQueue);
+        pLogContext->EndOutput();
+
+        pPlatform->LogEndFunc(pLogContext);
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
 size_t Device::GetGpuMemorySize(
     const GpuMemoryCreateInfo& createInfo,
     Result*                    pResult

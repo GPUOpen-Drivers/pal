@@ -32,10 +32,32 @@
 
 namespace Pal
 {
+
+class Device;
+
 namespace Amdgpu
 {
 
 class Device;
+
+// =====================================================================================================================
+// ReservedVaRangeInfo holds information about reserved ranges on the physical GPU device. New logical devices can
+// retrieve this information without extra reservations.
+struct ReservedVaRangeInfo
+{
+    gpusize          baseVirtualAddr;  // Virtual base address of the range
+    gpusize          size;             // Size of each allocated va range
+    amdgpu_va_handle allocatedVa;      // Handles of each allocated VAs
+};
+
+// =====================================================================================================================
+// SharedBoInfo holds information about shared buffer object between different PAL based drivers in single process
+struct SharedBoInfo
+{
+    uint32           refCount;      // Reference count of the shared buffer object
+    gpusize          gpuVirtAddr;   // Gpu virtual address of the shared buffer object
+    amdgpu_va_handle hVaRange;      // Va range of the shared buffer object
+};
 
 // =====================================================================================================================
 // VamMgr provides a clean interface between PAL and the VAM library, which is used to allocate and free GPU virtual
@@ -54,24 +76,53 @@ public:
     VamMgr();
     virtual ~VamMgr();
 
-    virtual Result LateInit(
-        Pal::Device*const pDevice) override;
+    virtual Result EarlyInit() override;
+
+    virtual Result Finalize(
+        Pal::Device* pDevice) override;
 
     virtual Result AssignVirtualAddress(
-        Pal::Device*const         pDevice,
+        Pal::Device*              pDevice,
         const VirtAddrAssignInfo& vaInfo,
         gpusize*                  pGpuVirtAddr) override;
 
     virtual Result FreeVirtualAddress(
-        Pal::Device*const     pDevice,
+        Pal::Device*          pDevice,
         const Pal::GpuMemory* pGpuMemory) override;
 
     virtual bool IsVamPartition(
         VaPartition vaPartition) const override;
 
+    virtual Result Cleanup(
+        Pal::Device* pDevice) override;
+
+    Result AllocateVaRange(
+        const Device* pDevice,
+        VaPartition   vaPartition,
+        gpusize       vaStart,
+        gpusize       vaSize);
+
+    virtual Result LateInit(
+        Pal::Device* pDevice) override;
+
+    bool AddToSharedBoMap(
+        amdgpu_bo_handle hBuffer,
+        amdgpu_va_handle hVaRange,
+        gpusize          gpuVirtAddr);
+
+    bool RemoveFromSharedBoMap(
+        amdgpu_bo_handle hBuffer);
+
+    amdgpu_va_handle SearchSharedBoMap(
+        amdgpu_bo_handle hBuffer,
+        gpusize*         pGpuVirtAddr);
+
 protected:
     Result AllocPageTableBlock(VAM_VIRTUAL_ADDRESS ptbBaseVirtAddr, VAM_PTB_HANDLE* hPtbAlloc) override;
     void   FreePageTableBlock(VAM_PTB_HANDLE hPtbAlloc) override;
+
+    void FreeReservedVaRanges(
+        Device* pDevice);
 
     // VAM callbacks.
     static void*             VAM_STDCALL AllocSysMemCb(VAM_CLIENT_HANDLE hPal, uint32 sizeInBytes);
@@ -90,25 +141,25 @@ protected:
     static VAM_RETURNCODE    VAM_STDCALL NeedPtbCb();
 
     PAL_DISALLOW_COPY_AND_ASSIGN(VamMgr);
+
+protected:
+    typedef Util::HashMap<amdgpu_bo_handle, SharedBoInfo, Util::GenericAllocatorAuto> SharedBoMap;
+
+    ReservedVaRangeInfo        m_vaRangeInfo[static_cast<uint32>(VaPartition::Count)];
+    Util::Mutex                m_mutex;
+    Util::GenericAllocatorAuto m_mapAllocator;
+    SharedBoMap                m_sharedBoMap;
+
+    static constexpr uint32    InitialBoCount = 8;
 };
 
 // =====================================================================================================================
-// ReservedVaRangeInfo holds information about reserved ranges on the physical GPU device. New logical devices can
-// retrieve this information without extra reservations.
-struct ReservedVaRangeInfo
-{
-    gpusize          baseVirtualAddr[static_cast<uint32>(VaPartition::Count)];  // Virtual base address of the range
-    amdgpu_va_handle allocatedVa[static_cast<uint32>(VaPartition::Count)];      // Handles of each allocated VAs
-    uint32           devCounter;                                                // Number of allocated logical devices
-};
-
-// =====================================================================================================================
-//VamMgrInfo holds information of VamMgr on the physical GPU device.
-//The virtual address management should be per physical device.
+// VamMgrInfo holds information of VamMgr on the physical GPU device.
+// The virtual address management should be per physical device.
 struct VamMgrInfo
 {
-    VamMgr* pVamMgr;                      //handle of va manager
-    uint32  deviceRefCount;               //Number of logical devices
+    VamMgr* pVamMgr;                      // handle of va manager
+    uint32  deviceRefCount;               // Number of logical devices
 };
 
 // =====================================================================================================================
@@ -124,53 +175,20 @@ public:
     static void Cleanup(
         Device* pDevice);
 
-    static Result InitVaRangesAndFinalizeVam(
-        Device* pDevice);
-
-    static Result AssignVirtualAddress(
-        Device*                   pDevice,
-        const VirtAddrAssignInfo& vaInfo,
-        gpusize*                  pGpuVirtAddr);
-
-    static void FreeVirtualAddress(
-        Device*               pDevice,
-        const Pal::GpuMemory& gpuMemory);
-
-    static Result GetReservedVaRange(
-        const DrmLoaderFuncs& drmFuncs,
-        amdgpu_device_handle  devHandle,
-        GpuMemoryProperties*  memoryProperties);
-
-    static void FreeReservedVaRange(
-        const DrmLoaderFuncs& drmFuncs,
-        amdgpu_device_handle  devHandle);
-
     static bool IsVamPartition(
         VaPartition vaPartition);
 
-    static bool IsVamPartitionAllocated(
-        amdgpu_device_handle devHandle,
-        VaPartition          vaPartition,
-        gpusize              vaStart);
+    static Result GetVamMgr(
+        Device*  pDevice,
+        VamMgr** ppVamMgr);
 
     ~VamMgrSingleton();
 private:
     VamMgrSingleton();
 
-    typedef Util::HashMap<
-        amdgpu_device_handle,
-        ReservedVaRangeInfo,
-        Util::GenericAllocatorAuto,
-        Util::DefaultHashFunc,
-        Util::DefaultEqualFunc,
-        Util::HashAllocator<Util::GenericAllocatorAuto>,
-        (PAL_CACHE_LINE_BYTES * 4)> ReservedVaMap;
-
     typedef Util::HashMap<amdgpu_device_handle, VamMgrInfo, Util::GenericAllocatorAuto> VamMgrMap;
 
     Util::GenericAllocatorAuto m_mapAllocator;
-    ReservedVaMap              m_reservedVaMap;
-    Util::Mutex                m_vaMapLock;
     VamMgrMap                  m_vamMgrMap;
     Util::Mutex                m_mutex;
 

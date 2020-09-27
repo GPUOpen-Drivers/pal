@@ -134,8 +134,8 @@ Result CreateRpmComputePipelines(
 #endif
 
     case AsicRevision::Vega10:
-    case AsicRevision::Vega12:
     case AsicRevision::Raven:
+    case AsicRevision::Vega12:
         pTable = rpmComputeBinaryTableVega10;
         break;
 
@@ -144,11 +144,8 @@ Result CreateRpmComputePipelines(
         break;
 
     case AsicRevision::Raven2:
-        pTable = rpmComputeBinaryTableRaven2;
-        break;
-
     case AsicRevision::Renoir:
-        pTable = rpmComputeBinaryTableRenoir;
+        pTable = rpmComputeBinaryTableRaven2;
         break;
 
     case AsicRevision::Navi10:

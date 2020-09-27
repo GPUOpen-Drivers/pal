@@ -42,11 +42,10 @@ class Queue : public QueueDecorator
 {
 public:
     Queue(IQueue*    pNextQueue,
-          Device*    pDevice);
+          Device*    pDevice,
+          uint32     queueCount);
 
-    Result Init(
-        EngineType engineType,
-        QueueType  queueType);
+    Result Init(const QueueCreateInfo* pCreateInfo);
 
     // Public IQueue interface methods:
     virtual Result Submit(
@@ -56,16 +55,19 @@ public:
 private:
     virtual ~Queue() {}
 
-    Result InitCmdBuffer(EngineType engineType, QueueType  queueType);
+    Result InitCmdBuffers(
+        const QueueCreateInfo* pCreateInfo);
     void AddRemapRange(
+        uint32                   queueId,
         VirtualMemoryRemapRange* pRange,
         CmdBuffer*               pCmdBuffer) const;
 
     Device*const   m_pDevice;
+    const uint32   m_queueCount;
     bool           m_timestampingActive;
     ICmdAllocator* m_pCmdAllocator;
-    CmdBuffer*     m_pCmdBuffer;
-    IGpuMemory*    m_pTimestamp;
+    CmdBuffer**    m_ppCmdBuffer;
+    IGpuMemory**   m_ppTimestamp;
     IFence*        m_pFence;
 
     PAL_DISALLOW_DEFAULT_CTOR(Queue);

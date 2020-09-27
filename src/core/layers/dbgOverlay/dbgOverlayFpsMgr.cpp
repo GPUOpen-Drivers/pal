@@ -368,19 +368,32 @@ float FpsMgr::ComputeGpuTimePerFrame()
 // =====================================================================================================================
 // Updates the submission tracking info for the timestamp and adds it to the submitted time list.
 void FpsMgr::UpdateSubmitTimelist(
-    GpuTimestampPair* pTimestamp)
+    uint32             queueCount,
+    GpuTimestampPair** ppTimestamp)
 {
+    PAL_ASSERT(ppTimestamp != nullptr);
+    PAL_ASSERT(queueCount > 0);
+
     MutexAuto lock(&m_gpuTimestampWorkLock);
 
     // This class is owned by the platform so it has no way to query the timer frequency from any device. We rely on
     // the timestamp pairs reporting their frequency which must be constant across all devices.
-    PAL_ASSERT((m_gpuTimerFrequency == 0) || (m_gpuTimerFrequency == pTimestamp->timestampFrequency));
-    m_gpuTimerFrequency = pTimestamp->timestampFrequency;
+    for (uint32 i = 0; i < queueCount; i++)
+    {
+        if (ppTimestamp[i] == nullptr)
+        {
+            continue;
+        }
 
-    pTimestamp->frameNumber = m_frameCount;
-    AtomicIncrement(&pTimestamp->numActiveSubmissions);
+        PAL_ASSERT((m_gpuTimerFrequency == 0) || (m_gpuTimerFrequency == ppTimestamp[i]->timestampFrequency));
 
-    m_submitTimeList.PushBack(pTimestamp);
+        m_gpuTimerFrequency = ppTimestamp[i]->timestampFrequency;
+
+        ppTimestamp[i]->frameNumber = m_frameCount;
+        AtomicIncrement(&ppTimestamp[i]->numActiveSubmissions);
+
+        m_submitTimeList.PushBack(ppTimestamp[i]);
+    }
 }
 
 // =====================================================================================================================

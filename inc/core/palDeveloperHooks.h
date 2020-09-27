@@ -92,6 +92,22 @@ enum class GpuMemoryAllocationMethod : uint32
     Svm,                                    ///< Shared virtual memory allocation.
 };
 
+/// Enumeration describing the different Presentation modes an application can take.
+enum class PresentModeType : uint32
+{
+    Unknown = 0,                            ///< When the present mode is not known.
+    Flip,                                   ///< when the presentation surface is used directly as the front buffer.
+    Composite,                              ///< When the flipped image is drawn by a window compositor instead
+                                            ///  of the application.
+    Blit,                                   ///< when the presentation surface is copied to the front buffer.
+};
+
+/// Information about the presentation mode an application is in.
+struct PresentationModeData
+{
+    PresentModeType presentationMode;       ///< Information about present mode from above enumeration.
+};
+
 /// Information for allocation/deallocation of GPU memory.
 struct GpuMemoryData
 {

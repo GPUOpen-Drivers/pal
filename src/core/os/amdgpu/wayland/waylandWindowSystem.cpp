@@ -658,6 +658,8 @@ Result WaylandWindowSystem::Present(
     m_waylandProcs.pfnWlProxyMarshal(reinterpret_cast<wl_proxy*>(m_pSurfaceWrapper), WL_SURFACE_COMMIT);
     m_waylandProcs.pfnWlDisplayFlush(m_pDisplay);
 
+    m_device.DeveloperCb(Developer::CallbackType::PresentConcluded, nullptr);
+
     return Result::Success;
 }
 

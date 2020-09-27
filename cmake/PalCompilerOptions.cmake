@@ -64,11 +64,6 @@ function(pal_compiler_options)
             # so we need to enable this switch to have GCC include that if-check.
             -fcheck-new
 
-            # Link with the POSIX threads library
-            $<$<BOOL:${UNIX}>:
-                -pthread
-            >
-
             # Having simple optimization on results in dramatically smaller debug builds (and they actually build faster).
             # This is mostly due to constant-folding and dead-code-elimination of registers.
             $<$<CONFIG:Debug>:
@@ -107,7 +102,9 @@ function(pal_compiler_options)
             # using CMAKE_INTERPROCEDURAL_OPTIMIZATION.
             # Perhaps setup a warning if the client doesn't set it up.
             # This requires good cmake practice among all components so this is a fight for another day.
-            pal_setup_gcc_ipo()
+            if(${PAL_ENABLE_LTO})
+                pal_setup_gcc_ipo()
+            endif()
 
         elseif(${isClang})
 

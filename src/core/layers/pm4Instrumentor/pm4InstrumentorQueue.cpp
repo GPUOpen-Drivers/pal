@@ -135,7 +135,7 @@ Result Queue::Submit(
     const MultiSubmitInfo& submitInfo)
 {
     PAL_ASSERT_MSG((submitInfo.perSubQueueInfoCount <= 1),
-                   "Multi-Queue support has not yet been implemented in Pm4Instrumentor!", nullptr);
+                   "Multi-Queue support has not yet been implemented in Pm4Instrumentor!");
 
     if (submitInfo.pPerSubQueueInfo != nullptr)
     {

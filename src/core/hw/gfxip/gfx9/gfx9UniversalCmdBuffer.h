@@ -266,7 +266,9 @@ union CachedSettings
         uint64 reserved5                                 :  1;
         uint64 reserved6                                 :  1;
 
-        uint64 reserved                   : 21;
+        uint64 reserved7                  :  4;
+
+        uint64 reserved                   : 17;
     };
     uint64 u64All;
 };

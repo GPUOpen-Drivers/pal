@@ -132,43 +132,36 @@ static void UpdateUmcchBlockInfo(
             SET_UMCCH_INSTANCE_REGS(Vega, 6);
             SET_UMCCH_INSTANCE_REGS(Vega, 7);
 
-            if (IsVega10(device))
+            if (IsVega10(device) || IsVega20(device))
             {
-                SET_UMCCH_INSTANCE_REGS(Vg10, 8);
-                SET_UMCCH_INSTANCE_REGS(Vg10, 9);
-                SET_UMCCH_INSTANCE_REGS(Vg10, 10);
-                SET_UMCCH_INSTANCE_REGS(Vg10, 11);
-                SET_UMCCH_INSTANCE_REGS(Vg10, 12);
-                SET_UMCCH_INSTANCE_REGS(Vg10, 13);
-                SET_UMCCH_INSTANCE_REGS(Vg10, 14);
-                SET_UMCCH_INSTANCE_REGS(Vg10, 15);
-            }
-            else if (IsVega20(device))
-            {
-                SET_UMCCH_INSTANCE_REGS(Vg20, 8);
-                SET_UMCCH_INSTANCE_REGS(Vg20, 9);
-                SET_UMCCH_INSTANCE_REGS(Vg20, 10);
-                SET_UMCCH_INSTANCE_REGS(Vg20, 11);
-                SET_UMCCH_INSTANCE_REGS(Vg20, 12);
-                SET_UMCCH_INSTANCE_REGS(Vg20, 13);
-                SET_UMCCH_INSTANCE_REGS(Vg20, 14);
-                SET_UMCCH_INSTANCE_REGS(Vg20, 15);
-                SET_UMCCH_INSTANCE_REGS(Vg20, 16);
-                SET_UMCCH_INSTANCE_REGS(Vg20, 17);
-                SET_UMCCH_INSTANCE_REGS(Vg20, 18);
-                SET_UMCCH_INSTANCE_REGS(Vg20, 19);
-                SET_UMCCH_INSTANCE_REGS(Vg20, 20);
-                SET_UMCCH_INSTANCE_REGS(Vg20, 21);
-                SET_UMCCH_INSTANCE_REGS(Vg20, 22);
-                SET_UMCCH_INSTANCE_REGS(Vg20, 23);
-                SET_UMCCH_INSTANCE_REGS(Vg20, 24);
-                SET_UMCCH_INSTANCE_REGS(Vg20, 25);
-                SET_UMCCH_INSTANCE_REGS(Vg20, 26);
-                SET_UMCCH_INSTANCE_REGS(Vg20, 27);
-                SET_UMCCH_INSTANCE_REGS(Vg20, 28);
-                SET_UMCCH_INSTANCE_REGS(Vg20, 29);
-                SET_UMCCH_INSTANCE_REGS(Vg20, 30);
-                SET_UMCCH_INSTANCE_REGS(Vg20, 31);
+                SET_UMCCH_INSTANCE_REGS(Vg10_Vg20, 8);
+                SET_UMCCH_INSTANCE_REGS(Vg10_Vg20, 9);
+                SET_UMCCH_INSTANCE_REGS(Vg10_Vg20, 10);
+                SET_UMCCH_INSTANCE_REGS(Vg10_Vg20, 11);
+                SET_UMCCH_INSTANCE_REGS(Vg10_Vg20, 12);
+                SET_UMCCH_INSTANCE_REGS(Vg10_Vg20, 13);
+                SET_UMCCH_INSTANCE_REGS(Vg10_Vg20, 14);
+                SET_UMCCH_INSTANCE_REGS(Vg10_Vg20, 15);
+
+                if (IsVega20(device))
+                {
+                    SET_UMCCH_INSTANCE_REGS(Vg20, 16);
+                    SET_UMCCH_INSTANCE_REGS(Vg20, 17);
+                    SET_UMCCH_INSTANCE_REGS(Vg20, 18);
+                    SET_UMCCH_INSTANCE_REGS(Vg20, 19);
+                    SET_UMCCH_INSTANCE_REGS(Vg20, 20);
+                    SET_UMCCH_INSTANCE_REGS(Vg20, 21);
+                    SET_UMCCH_INSTANCE_REGS(Vg20, 22);
+                    SET_UMCCH_INSTANCE_REGS(Vg20, 23);
+                    SET_UMCCH_INSTANCE_REGS(Vg20, 24);
+                    SET_UMCCH_INSTANCE_REGS(Vg20, 25);
+                    SET_UMCCH_INSTANCE_REGS(Vg20, 26);
+                    SET_UMCCH_INSTANCE_REGS(Vg20, 27);
+                    SET_UMCCH_INSTANCE_REGS(Vg20, 28);
+                    SET_UMCCH_INSTANCE_REGS(Vg20, 29);
+                    SET_UMCCH_INSTANCE_REGS(Vg20, 30);
+                    SET_UMCCH_INSTANCE_REGS(Vg20, 31);
+                }
             }
         }
         else
@@ -176,7 +169,8 @@ static void UpdateUmcchBlockInfo(
             SET_UMCCH_INSTANCE_REGS(Raven, 1);
         }
     }
-    else
+    else if (IsGfx10(device)
+            )
     {
         SET_UMCCH_INSTANCE_REGS(Core,          0);
         SET_UMCCH_INSTANCE_REGS(Gfx10CorePlus, 2);
@@ -297,14 +291,13 @@ static void Gfx9UpdateRpbBlockInfo(
     }
     else
     {
-        static_assert(Rv1x::mmRPB_PERFCOUNTER0_CFG == Vega::mmRPB_PERFCOUNTER0_CFG, "Must fix RPB registers!");
-        static_assert(Rv2x::mmRPB_PERFCOUNTER0_CFG == Vega::mmRPB_PERFCOUNTER0_CFG, "Must fix RPB registers!");
+        using namespace Vg10_Vg12_Vg20_Rv1x_Rv2x;
 
-        pInfo->regAddr = { Vega::mmRPB_PERFCOUNTER_RSLT_CNTL, {
-            { Vega::mmRPB_PERFCOUNTER0_CFG, 0, Vega::mmRPB_PERFCOUNTER_LO, Vega::mmRPB_PERFCOUNTER_HI },
-            { Vega::mmRPB_PERFCOUNTER1_CFG, 0, Vega::mmRPB_PERFCOUNTER_LO, Vega::mmRPB_PERFCOUNTER_HI },
-            { Vega::mmRPB_PERFCOUNTER2_CFG, 0, Vega::mmRPB_PERFCOUNTER_LO, Vega::mmRPB_PERFCOUNTER_HI },
-            { Vega::mmRPB_PERFCOUNTER3_CFG, 0, Vega::mmRPB_PERFCOUNTER_LO, Vega::mmRPB_PERFCOUNTER_HI },
+        pInfo->regAddr = { mmRPB_PERFCOUNTER_RSLT_CNTL, {
+            { mmRPB_PERFCOUNTER0_CFG, 0, mmRPB_PERFCOUNTER_LO, mmRPB_PERFCOUNTER_HI },
+            { mmRPB_PERFCOUNTER1_CFG, 0, mmRPB_PERFCOUNTER_LO, mmRPB_PERFCOUNTER_HI },
+            { mmRPB_PERFCOUNTER2_CFG, 0, mmRPB_PERFCOUNTER_LO, mmRPB_PERFCOUNTER_HI },
+            { mmRPB_PERFCOUNTER3_CFG, 0, mmRPB_PERFCOUNTER_LO, mmRPB_PERFCOUNTER_HI },
         }};
     }
 }
@@ -669,9 +662,7 @@ static void Gfx9InitBasicBlockInfo(
     pTcc->numGenericLegacyModules   = 2; // TCC_PERFCOUNTER2-3
     pTcc->numSpmWires               = 4;
     pTcc->spmBlockSelect            = Gfx9SpmGlobalBlockSelectTcc;
-    pTcc->maxEventId                = MaxTccPerfSelVg10_Vg12;
-
-    static_assert(MaxTccPerfSelVg10_Vg12 == MaxTccPerfSelRaven, "Max TCC perf counter ID doesn't match!");
+    pTcc->maxEventId                = IsVega20(device) ? MaxTccPerfSelVg20 : MaxTccPerfSelVg10_Vg12_Rv1x_Rv2x_Rn;
 
     pTcc->regAddr = { 0, {
         { mmTCC_PERFCOUNTER0_SELECT, mmTCC_PERFCOUNTER0_SELECT1, mmTCC_PERFCOUNTER0_LO, mmTCC_PERFCOUNTER0_HI },

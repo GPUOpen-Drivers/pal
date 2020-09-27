@@ -136,21 +136,15 @@ Pal::Result CreateMlaaComputePipelines(
 #endif
 
     case Pal::AsicRevision::Vega10:
-    case Pal::AsicRevision::Vega12:
     case Pal::AsicRevision::Raven:
+    case Pal::AsicRevision::Vega12:
+    case Pal::AsicRevision::Vega20:
         pTable = mlaaComputeBinaryTableVega10;
         break;
 
-    case Pal::AsicRevision::Vega20:
-        pTable = mlaaComputeBinaryTableVega20;
-        break;
-
     case Pal::AsicRevision::Raven2:
-        pTable = mlaaComputeBinaryTableRaven2;
-        break;
-
     case Pal::AsicRevision::Renoir:
-        pTable = mlaaComputeBinaryTableRenoir;
+        pTable = mlaaComputeBinaryTableRaven2;
         break;
 
     case Pal::AsicRevision::Navi10:

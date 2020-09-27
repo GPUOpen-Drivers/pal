@@ -39,8 +39,17 @@ namespace Amdgpu
 // Note that this constructor is invoked before settings have been committed.
 VamMgr::VamMgr()
     :
-    Pal::VamMgr()
+    Pal::VamMgr(),
+    m_mutex(),
+    m_mapAllocator(),
+    m_sharedBoMap(InitialBoCount, &m_mapAllocator)
 {
+    for (uint32 partIndex = 0; partIndex < static_cast<uint32>(VaPartition::Count); partIndex++)
+    {
+        m_vaRangeInfo[partIndex].allocatedVa     = nullptr;
+        m_vaRangeInfo[partIndex].baseVirtualAddr = 0;
+        m_vaRangeInfo[partIndex].size            = 0;
+    }
 }
 
 // =====================================================================================================================
@@ -52,10 +61,23 @@ VamMgr::~VamMgr()
 }
 
 // =====================================================================================================================
+// Performs any early-stage initialization.
+Result VamMgr::EarlyInit()
+{
+    Result result = m_mutex.Init();
+
+    if (result == Result::Success)
+    {
+        result = m_sharedBoMap.Init();
+    }
+    return result;
+}
+
+// =====================================================================================================================
 // Performs any late-stage initialization that can only be done after settings have been committed.
 // - Starts up the VAM library.
 Result VamMgr::LateInit(
-    Pal::Device*const pDevice)
+    Pal::Device* pDevice)
 {
     const auto& memProps = pDevice->MemoryProperties();
     Result      result   = Result::Success;
@@ -100,13 +122,40 @@ Result VamMgr::LateInit(
 }
 
 // =====================================================================================================================
+// Vam manager finalize
+Result VamMgr::Finalize(
+    Pal::Device* pDevice)
+{
+    Result result = Result::Success;
+
+    MutexAuto lock(&m_mutex);
+
+    if (m_hVamInstance == nullptr)
+    {
+        result = LateInit(pDevice);
+
+        if (result == Result::Success)
+        {
+            result = Pal::VamMgr::Finalize(pDevice);
+
+            if (result != Result::Success)
+            {
+                Pal::VamMgr::Cleanup(pDevice);
+            }
+        }
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
 // Assigns a GPU virtual address for the specified allocation.
 Result VamMgr::AssignVirtualAddress(
-    Pal::Device*const         pDevice,
-    const VirtAddrAssignInfo& vaInfo,
-    gpusize*                  pGpuVirtAddr)  // [in/out] In: Zero, or the desired VA. Out: The assigned VA.
+    Pal::Device*               pDevice,
+    const VirtAddrAssignInfo&  vaInfo,
+    gpusize*                   pGpuVirtAddr)  // [in/out] In: Zero, or the desired VA. Out: The assigned VA.
 {
-    Result result = Result::ErrorInvalidFlags;
+    Result result = Result::Success;
 
     VAM_ALLOC_INPUT  vamAllocIn  = { };
     VAM_ALLOC_OUTPUT vamAllocOut = { };
@@ -121,16 +170,9 @@ Result VamMgr::AssignVirtualAddress(
     vamAllocIn.hSection = m_hSection[static_cast<uint32>(vaInfo.partition)];
     PAL_ASSERT(vamAllocIn.hSection != nullptr);
 
-    if (VAMAlloc(m_hVamInstance, &vamAllocIn, &vamAllocOut) == VAM_OK)
-    {
-        result = Result::Success;
-    }
-    else
-    {
-        result = Result::ErrorOutOfGpuMemory;
-    }
+    MutexAuto lock(&m_mutex);
 
-    if (result == Result::Success)
+    if (VAMAlloc(m_hVamInstance, &vamAllocIn, &vamAllocOut) == VAM_OK)
     {
         // Applications are expected to size-align their allocations to the largest size-alignment amongst the
         // heaps they want the allocation to go into.
@@ -139,7 +181,11 @@ Result VamMgr::AssignVirtualAddress(
         // If the caller had a particular VA in mind we should make sure VAM gave it to us.
         PAL_ASSERT((*pGpuVirtAddr == 0) || (*pGpuVirtAddr == vamAllocOut.virtualAddress));
 
-        (*pGpuVirtAddr) = vamAllocOut.virtualAddress;
+        *pGpuVirtAddr = vamAllocOut.virtualAddress;
+    }
+    else
+    {
+        result = Result::ErrorOutOfGpuMemory;
     }
 
     return result;
@@ -151,36 +197,25 @@ Result VamMgr::AssignVirtualAddress(
 //
 // On Linux, since we don't use an unmap-info buffer, we ask VAM to free the unmapped address immediately.
 Result VamMgr::FreeVirtualAddress(
-    Pal::Device*const     pDevice,
+    Pal::Device*          pDevice,
     const Pal::GpuMemory* pGpuMemory)
 {
+    Result result = Result::Success;
+
+    PAL_ASSERT((pGpuMemory != nullptr) &&
+               IsVamPartition(pGpuMemory->VirtAddrPartition()));
+
     VAM_FREE_INPUT vamFreeIn = { };
+    vamFreeIn.virtualAddress = pGpuMemory->Desc().gpuVirtAddr;
+    vamFreeIn.actualSize     = pGpuMemory->Desc().size;
+    vamFreeIn.hSection       = m_hSection[static_cast<uint32>(pGpuMemory->VirtAddrPartition())];
 
-    Result result = Result::ErrorInvalidPointer;
+    MutexAuto lock(&m_mutex);
 
-    if (pGpuMemory != nullptr)
+    if (VAMFree(m_hVamInstance, &vamFreeIn) != VAM_OK)
     {
-        vamFreeIn.virtualAddress = pGpuMemory->Desc().gpuVirtAddr;
-        vamFreeIn.actualSize     = pGpuMemory->Desc().size;
-
-        for (uint32 i = 0; i < static_cast<uint32>(VaPartition::Count); ++i)
-        {
-            const auto& vaRange = pDevice->MemoryProperties().vaRange[i];
-
-            if ((vaRange.baseVirtAddr <= vamFreeIn.virtualAddress) &&
-                ((vaRange.baseVirtAddr + vaRange.size) >= (vamFreeIn.virtualAddress + vamFreeIn.actualSize)))
-            {
-                vamFreeIn.hSection = m_hSection[i];
-                break;
-            }
-        }
-
-        if (VAMFree(m_hVamInstance, &vamFreeIn) != VAM_OK)
-        {
-            PAL_ASSERT_ALWAYS();
-        }
-
-        result = Result::Success;
+        PAL_ASSERT_ALWAYS();
+        result = Result::ErrorOutOfGpuMemory;
     }
 
     return result;
@@ -217,6 +252,16 @@ bool VamMgr::IsVamPartition(
 {
     // Call the singleton, which controls the VA partition reservations
     return VamMgrSingleton::IsVamPartition(vaPartition);
+}
+
+// =====================================================================================================================
+// Vam manager object cleanup.
+Result VamMgr::Cleanup(
+    Pal::Device* pDevice)
+{
+    FreeReservedVaRanges(static_cast<Device*>(pDevice));
+
+    return Pal::VamMgr::Cleanup(pDevice);
 }
 
 // =====================================================================================================================
@@ -357,15 +402,161 @@ VAM_RETURNCODE VAM_STDCALL VamMgr::NeedPtbCb()
     return VAM_OK;
 }
 
-constexpr uint32     InitialGpuNumber = 32;
+// =====================================================================================================================
+// Free va range if it's not null.
+void VamMgr::FreeReservedVaRanges(
+    Device* pDevice)
+{
+    for (uint32 partIndex = 0; partIndex < static_cast<uint32>(VaPartition::Count); partIndex++)
+    {
+        if (m_vaRangeInfo[partIndex].allocatedVa != nullptr)
+        {
+            pDevice->FreeVaRange(m_vaRangeInfo[partIndex].allocatedVa);
+            m_vaRangeInfo[partIndex].allocatedVa     = nullptr;
+            m_vaRangeInfo[partIndex].baseVirtualAddr = 0;
+            m_vaRangeInfo[partIndex].size            = 0;
+        }
+    }
+}
+
+// =====================================================================================================================
+// Allocate va range if it shall be shared across amdgpu drm device
+Result VamMgr::AllocateVaRange(
+    const Device* pDevice,
+    VaPartition   vaPartition,
+    gpusize       vaStart,
+    gpusize       vaSize)
+{
+    Result result = Result::Success;
+
+    PAL_ASSERT(IsVamPartition(vaPartition));
+
+    MutexAuto    lock(&m_mutex);
+    const uint32 index = static_cast<uint32>(vaPartition);
+
+    if (m_vaRangeInfo[index].allocatedVa != nullptr)
+    {
+        if (m_vaRangeInfo[index].baseVirtualAddr != vaStart)
+        {
+            result = Result::ErrorOutOfGpuMemory;
+        }
+        else
+        {
+            PAL_ASSERT(m_vaRangeInfo[index].size == vaSize);
+        }
+    }
+    else
+    {
+        result = pDevice->AllocVaRange(vaSize,
+                                       vaStart,
+                                       &m_vaRangeInfo[index].baseVirtualAddr,
+                                       &m_vaRangeInfo[index].allocatedVa);
+        if (result == Result::Success)
+        {
+            if (vaStart == m_vaRangeInfo[index].baseVirtualAddr)
+            {
+                m_vaRangeInfo[index].size = vaSize;
+            }
+            else
+            {
+                PAL_ASSERT_ALWAYS();
+                result = Result::ErrorOutOfGpuMemory;
+            }
+        }
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
+// Add buffer object information into shared bo map.
+bool VamMgr::AddToSharedBoMap(
+    amdgpu_bo_handle hBuffer,
+    amdgpu_va_handle hVaRange,
+    gpusize          gpuVirtAddr)
+{
+    bool added = false;
+
+    MutexAuto     lock(&m_mutex);
+    SharedBoInfo* pInfo = m_sharedBoMap.FindKey(hBuffer);
+
+    if (pInfo != nullptr)
+    {
+        // It's possible that single buffer object contains multiple va ranges
+        // Shared bo map only records one va range for one buffer object
+        if (pInfo->hVaRange == hVaRange)
+        {
+            PAL_ASSERT(pInfo->gpuVirtAddr == gpuVirtAddr);
+            pInfo->refCount++;
+            added = true;
+        }
+    }
+    else
+    {
+        SharedBoInfo info = {};
+        info.refCount    = 1;
+        info.gpuVirtAddr = gpuVirtAddr;
+        info.hVaRange    = hVaRange;
+
+        if (m_sharedBoMap.Insert(hBuffer, info) == Result::Success)
+        {
+            added = true;
+        }
+    }
+    return added;
+}
+
+// =====================================================================================================================
+// Remove buffer object from shared bo map.
+bool VamMgr::RemoveFromSharedBoMap(
+    amdgpu_bo_handle hBuffer)
+{
+    bool removed = false;
+
+    MutexAuto     lock(&m_mutex);
+    SharedBoInfo* pInfo = m_sharedBoMap.FindKey(hBuffer);
+
+    PAL_ASSERT(pInfo != nullptr);
+
+    pInfo->refCount--;
+
+    if (pInfo->refCount == 0)
+    {
+        m_sharedBoMap.Erase(hBuffer);
+        removed = true;
+    }
+
+    return removed;
+}
+
+// =====================================================================================================================
+// Search bo handle in shared bo map. Increase reference count if the bo handle is already in hash map.
+amdgpu_va_handle VamMgr::SearchSharedBoMap(
+    amdgpu_bo_handle hBuffer,
+    gpusize*         pGpuVirtAddr)
+{
+    amdgpu_va_handle hVaRange = nullptr;
+
+    MutexAuto     lock(&m_mutex);
+    SharedBoInfo* pInfo = m_sharedBoMap.FindKey(hBuffer);
+
+    if (pInfo != nullptr)
+    {
+        pInfo->refCount++;
+
+        *pGpuVirtAddr = pInfo->gpuVirtAddr;
+        hVaRange      = pInfo->hVaRange;
+    }
+    return hVaRange;
+}
+
+constexpr uint32        InitialGpuNumber = 32;
 static VamMgrSingleton* pVamMgrSingleton = nullptr;
 
 // =====================================================================================================================
 VamMgrSingleton::VamMgrSingleton()
     :
     m_mapAllocator(),
-    m_reservedVaMap(InitialGpuNumber, &m_mapAllocator),
-    m_vaMapLock(),
     m_vamMgrMap(InitialGpuNumber, &m_mapAllocator),
     m_mutex()
 {
@@ -394,7 +585,7 @@ void VamMgrSingleton::Cleanup(
     Device* pDevice)
 {
     PAL_ASSERT(pVamMgrSingleton != nullptr);
-    MutexAuto lock(&pVamMgrSingleton->m_mutex);
+    MutexAuto   lock(&pVamMgrSingleton->m_mutex);
     VamMgrInfo* pVamMgrInfo = pVamMgrSingleton->m_vamMgrMap.FindKey(pDevice->DeviceHandle());
 
     if (pVamMgrInfo != nullptr)
@@ -411,47 +602,55 @@ void VamMgrSingleton::Cleanup(
 }
 
 // =====================================================================================================================
-// Allocate VA from base driver and initialize global VAM manager.
-Result VamMgrSingleton::InitVaRangesAndFinalizeVam(
-    Device* const pDevice)
+// Get vam manager object for given device
+Result VamMgrSingleton::GetVamMgr(
+    Device*  pDevice,
+    VamMgr** ppVamMgr)
 {
+    Result result = Result::Success;
+
     PAL_ASSERT(pVamMgrSingleton != nullptr);
     MutexAuto lock(&pVamMgrSingleton->m_mutex);
 
-    // Initialize reserved VA ranges on the GPU device.
-    // Note: Each device requires a reservation, otherwise mem allocation will have an address conflict on VA reserve
-    Result result = pDevice->InitReservedVaRanges();
-
-    amdgpu_device_handle devHandle = pDevice->DeviceHandle();
-    VamMgrInfo* pVamMgrInfo = pVamMgrSingleton->m_vamMgrMap.FindKey(devHandle);
+    amdgpu_device_handle devHandle   = pDevice->DeviceHandle();
+    VamMgrInfo*          pVamMgrInfo = pVamMgrSingleton->m_vamMgrMap.FindKey(devHandle);
 
     if (pVamMgrInfo == nullptr)
     {
         GenericAllocator genericAllocator;
 
         VamMgrInfo vamMgrInfo = {};
-        VamMgr* pVamMgr = PAL_NEW(VamMgr, &genericAllocator, AllocInternal);
+        VamMgr*    pVamMgr    = PAL_NEW(VamMgr, &genericAllocator, AllocInternal);
 
-        if (result == Result::Success)
+        if (pVamMgr != nullptr)
         {
-            result = pVamMgr->LateInit(pDevice);
+            result = pVamMgr->EarlyInit();
+
+            if (result == Result::Success)
+            {
+                vamMgrInfo.pVamMgr        = pVamMgr;
+                vamMgrInfo.deviceRefCount = 1;
+                result = pVamMgrSingleton->m_vamMgrMap.Insert(devHandle, vamMgrInfo);
+            }
+
+            if (result == Result::Success)
+            {
+                *ppVamMgr = pVamMgr;
+            }
+            else
+            {
+                PAL_DELETE(pVamMgr, &genericAllocator);
+            }
         }
-
-        if (result == Result::Success)
+        else
         {
-            result = pVamMgr->Finalize(pDevice);
-        }
-
-        if (result == Result::Success)
-        {
-            vamMgrInfo.pVamMgr = pVamMgr;
-            vamMgrInfo.deviceRefCount = 1;
-            result = pVamMgrSingleton->m_vamMgrMap.Insert(devHandle, vamMgrInfo);
+            result = Result::ErrorOutOfMemory;
         }
     }
     else
     {
         pVamMgrInfo->deviceRefCount++;
+        *ppVamMgr = pVamMgrInfo->pVamMgr;
     }
 
     return result;
@@ -482,14 +681,6 @@ Result VamMgrSingleton::Init()
         }
         if (result == Result::Success)
         {
-            pVamMgrSingleton->m_vaMapLock.Init();
-        }
-        if (result == Result::Success)
-        {
-            pVamMgrSingleton->m_reservedVaMap.Init();
-        }
-        if (result == Result::Success)
-        {
             pVamMgrSingleton->m_vamMgrMap.Init();
         }
         if (result == Result::Success)
@@ -498,7 +689,7 @@ Result VamMgrSingleton::Init()
             s_initialized ++;
         }
     }
-    if(result == Result::Success)
+    if (result == Result::Success)
     {
         // s_initialized is 2 indicates the one time initialization is finished.
         while (s_initialized != 2)
@@ -510,43 +701,6 @@ Result VamMgrSingleton::Init()
 }
 
 // =====================================================================================================================
-// Thread safe VA allocate function.
-Result VamMgrSingleton::AssignVirtualAddress(
-    Device*const                   pDevice,
-    const Pal::VirtAddrAssignInfo& vaInfo,
-    gpusize*                       pGpuVirtAddr)
-{
-    PAL_ASSERT(pVamMgrSingleton != nullptr);
-    MutexAuto lock(&pVamMgrSingleton->m_mutex);
-    Result result = Result::ErrorInvalidValue;
-    VamMgrInfo* pVamMgrInfo = pVamMgrSingleton->m_vamMgrMap.FindKey(pDevice->DeviceHandle());
-
-    if (pVamMgrInfo != nullptr)
-    {
-        result = pVamMgrInfo->pVamMgr->AssignVirtualAddress(pDevice, vaInfo, pGpuVirtAddr);
-    }
-
-    return result;
-}
-
-// =====================================================================================================================
-// Thread safe VA free function.
-void VamMgrSingleton::FreeVirtualAddress(
-    Device*const                 pDevice,
-    const Pal::GpuMemory&        gpuMemory)
-{
-    PAL_ASSERT(pVamMgrSingleton != nullptr);
-    MutexAuto lock(&pVamMgrSingleton->m_mutex);
-
-    VamMgrInfo* pVamMgrInfo = pVamMgrSingleton->m_vamMgrMap.FindKey(pDevice->DeviceHandle());
-
-    if (pVamMgrInfo != nullptr)
-    {
-        pVamMgrInfo->pVamMgr->FreeVirtualAddress(pDevice, &gpuMemory);
-    }
-}
-
-// =====================================================================================================================
 // Return true for the partitions that may be reserved by VamMgrSingleton
 bool VamMgrSingleton::IsVamPartition(
     VaPartition vaPartition)
@@ -554,121 +708,6 @@ bool VamMgrSingleton::IsVamPartition(
     return ((vaPartition == VaPartition::DescriptorTable)       ||
             (vaPartition == VaPartition::ShadowDescriptorTable) ||
             (vaPartition == VaPartition::CaptureReplay));
-}
-
-// =====================================================================================================================
-// Reserves fixed VA ranges on the first logical PAL device and updates memory properties with the reserved ranges.
-Result VamMgrSingleton::GetReservedVaRange(
-    const DrmLoaderFuncs& drmFuncs,
-    amdgpu_device_handle  devHandle,
-    GpuMemoryProperties*  pMemoryProperties)
-{
-    PAL_ASSERT(pVamMgrSingleton != nullptr);
-    MutexAuto lock(&pVamMgrSingleton->m_vaMapLock);
-
-    Result result = Result::Success;
-    auto*  pInfo  = pVamMgrSingleton->m_reservedVaMap.FindKey(devHandle);
-
-    if (pInfo != nullptr)
-    {
-        ++pInfo->devCounter;
-        for (uint32 partIndex = 0; partIndex < static_cast<uint32>(VaPartition::Count); partIndex++)
-        {
-            if ((pMemoryProperties->vaRange[partIndex].size > 0) &&
-                IsVamPartition(static_cast<VaPartition>(partIndex)))
-            {
-                pMemoryProperties->vaRange[partIndex].baseVirtAddr = pInfo->baseVirtualAddr[partIndex];
-            }
-        }
-    }
-    else
-    {
-        ReservedVaRangeInfo info = {};
-        int32 ret = 0;
-        for (uint32 partIndex = 0; partIndex < static_cast<uint32>(VaPartition::Count); partIndex++)
-        {
-            if ((pMemoryProperties->vaRange[partIndex].size > 0) &&
-                IsVamPartition(static_cast<VaPartition>(partIndex)))
-            {
-                ret |= drmFuncs.pfnAmdgpuVaRangeAlloc(
-                    devHandle,
-                    amdgpu_gpu_va_range_general,
-                    pMemoryProperties->vaRange[partIndex].size,
-                    pMemoryProperties->fragmentSize,
-                    pMemoryProperties->vaRange[partIndex].baseVirtAddr,
-                    &info.baseVirtualAddr[partIndex],
-                    &info.allocatedVa[partIndex],
-                    0);
-                // Warn if we get a VA space that wasn't what was requested
-                PAL_ASSERT((pMemoryProperties->vaRange[partIndex].baseVirtAddr == 0)  ||
-                           ((pMemoryProperties->vaRange[partIndex].baseVirtAddr != 0) &&
-                            (pMemoryProperties->vaRange[partIndex].baseVirtAddr == info.baseVirtualAddr[partIndex])));
-                pMemoryProperties->vaRange[partIndex].baseVirtAddr = info.baseVirtualAddr[partIndex];
-            }
-        }
-        if (ret != 0)
-        {
-            for (uint32 partIndex = 0; partIndex < static_cast<uint32>(VaPartition::Count); partIndex++)
-            {
-                if (info.allocatedVa[partIndex] != nullptr)
-                {
-                    drmFuncs.pfnAmdgpuVaRangeFree(info.allocatedVa[partIndex]);
-                    info.allocatedVa[partIndex] = nullptr;
-                }
-            }
-            memset(&pMemoryProperties->vaRange, 0, sizeof(pMemoryProperties->vaRange));
-            result = Result::ErrorOutOfMemory;
-        }
-        else
-        {
-            info.devCounter = 1;
-            result = pVamMgrSingleton->m_reservedVaMap.Insert(devHandle, info);
-        }
-    }
-    return result;
-}
-
-// =====================================================================================================================
-// Decrements the ref counter for PAL logical devices and frees reserved VA ranges if it reaches the last device.
-void VamMgrSingleton::FreeReservedVaRange(
-    const DrmLoaderFuncs& drmFuncs,
-    amdgpu_device_handle  devHandle)
-{
-    PAL_ASSERT(pVamMgrSingleton != nullptr);
-    MutexAuto lock(&pVamMgrSingleton->m_vaMapLock);
-    auto* pInfo = pVamMgrSingleton->m_reservedVaMap.FindKey(devHandle);
-    if (pInfo != nullptr)
-    {
-        if (--pInfo->devCounter == 0)
-        {
-            for (uint32 partIndex = 0; partIndex < static_cast<uint32>(VaPartition::Count); partIndex++)
-            {
-                if (pInfo->allocatedVa[partIndex] != nullptr)
-                {
-                    drmFuncs.pfnAmdgpuVaRangeFree(pInfo->allocatedVa[partIndex]);
-                    pInfo->allocatedVa[partIndex] = nullptr;
-                }
-            }
-            pVamMgrSingleton->m_reservedVaMap.Erase(devHandle);
-        }
-    }
-}
-
-// =====================================================================================================================
-// Check if the partiton has already been allocated
-bool VamMgrSingleton::IsVamPartitionAllocated(
-    amdgpu_device_handle devHandle,
-    VaPartition          vaPartition,
-    gpusize              vaStart)
-{
-    PAL_ASSERT(pVamMgrSingleton != nullptr);
-    MutexAuto lock(&pVamMgrSingleton->m_vaMapLock);
-
-    auto* pInfo = pVamMgrSingleton->m_reservedVaMap.FindKey(devHandle);
-
-    return ((pInfo != nullptr) &&
-            (pInfo->allocatedVa[static_cast<uint32>(vaPartition)] != nullptr) &&
-            (pInfo->baseVirtualAddr[static_cast<uint32>(vaPartition)] == vaStart));
 }
 
 } // Amdgpu

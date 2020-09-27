@@ -202,6 +202,7 @@ enum class InterfaceFunc : uint32
     DeviceBindTrapHandler,
     DeviceBindTrapBuffer,
     DeviceCreateQueue,
+    DeviceCreateMultiQueue,
     DeviceCreateGpuMemory,
     DeviceCreatePinnedGpuMemory,
     DeviceCreateSvmGpuMemory,

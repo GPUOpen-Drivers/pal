@@ -31,37 +31,43 @@ add_library(pal STATIC)
 ### PAL Subprojects ####################################################################################################
 ### ADDRLIB ####################################################################
 add_subdirectory(${PAL_ADDR_PATH} ${PROJECT_BINARY_DIR}/addrlib)
-target_link_libraries(pal PUBLIC addrlib)
+target_link_libraries(pal PRIVATE addrlib)
 
 ### VAM ########################################################################
 add_subdirectory(${PAL_VAM_PATH} ${PROJECT_BINARY_DIR}/vam)
-target_link_libraries(pal PUBLIC vam)
+target_link_libraries(pal PRIVATE vam)
 
 ### METROHASH ##################################################################
 if(NOT TARGET metrohash)
     add_subdirectory(${PAL_METROHASH_PATH} ${PROJECT_BINARY_DIR}/metrohash)
 endif()
+
+# Metrohash needs to be a public dependency.
+# See: palMetroHash.h
 target_link_libraries(pal PUBLIC metrohash)
 
 ### CWPACK #####################################################################
 if(NOT TARGET cwpack)
     add_subdirectory(${PAL_CWPACK_PATH} ${PROJECT_BINARY_DIR}/cwpack)
 endif()
+
+# cwpack needs to be a public dependency.
+# See: palMsgPack.h
 target_link_libraries(pal PUBLIC cwpack)
 
 ### GPUOPEN ####################################################################
 if(PAL_BUILD_GPUOPEN)
     add_subdirectory(${PAL_GPUOPEN_PATH} ${PROJECT_BINARY_DIR}/gpuopen)
+
+    # Gpuopen needs to be a public dependency.
+    # Clients include "gpuopen.h"
     target_link_libraries(pal PUBLIC gpuopen)
 endif()
 
 ### Link Libraries #####################################################################################################
-if(UNIX)
-    target_link_libraries(pal PRIVATE dl)
-
-        target_link_libraries(pal INTERFACE pthread)
-
-endif()
+include(FindThreads)
+target_link_libraries(pal PRIVATE ${CMAKE_DL_LIBS})
+target_link_libraries(pal PRIVATE Threads::Threads)
 
 ### Include Directories ################################################################################################
 
@@ -277,12 +283,6 @@ if(PAL_BUILD_CORE)
             target_include_directories(pal PRIVATE ${WAYLAND_CLIENT_INCLUDE_DIR})
         endif()
 
-    endif()
-
-    if (PAL_BUILD_SMIBS)
-        target_sources(pal PRIVATE
-            core/os/wddm/wddm2/smibsQueue.cpp
-        )
     endif()
 
 ### PAL core/hw ################################################################

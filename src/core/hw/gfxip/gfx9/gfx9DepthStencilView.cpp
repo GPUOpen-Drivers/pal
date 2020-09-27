@@ -285,7 +285,7 @@ void DepthStencilView::InitRegistersCommon(
         // NOTE: The client has indicated this Image has promoted 24bit depth to 32bits, we should set the negative num
         //       bit as -24 and use fixed points format
         pRegs->paSuPolyOffsetDbFmtCntl.bits.POLY_OFFSET_NEG_NUM_DB_BITS =
-            (imageCreateInfo.usageFlags.depthAsZ24 == 1) ? -24 : ((pRegs->dbZInfo.bits.FORMAT == Z_16) ? -16 : -23);
+            (imageCreateInfo.usageFlags.depthAsZ24 == 1) ? -22 : ((pRegs->dbZInfo.bits.FORMAT == Z_16) ? -15 : -23);
         pRegs->paSuPolyOffsetDbFmtCntl.bits.POLY_OFFSET_DB_IS_FLOAT_FMT =
             ((pRegs->dbZInfo.bits.FORMAT == Z_32_FLOAT) && (imageCreateInfo.usageFlags.depthAsZ24 == 0)) ? 1 : 0;
     }
@@ -489,6 +489,8 @@ uint32 DepthStencilView::CalcDecompressOnZPlanesValue(
             decompressOnZPlanes = 1;
         }
     }
+
+    PAL_ASSERT((decompressOnZPlanes != 0) || (IsGfx10(*(device.Parent())) == false));
 
     return decompressOnZPlanes + 1;
 }

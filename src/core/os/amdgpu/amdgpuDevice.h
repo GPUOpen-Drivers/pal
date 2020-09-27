@@ -40,7 +40,7 @@ namespace Pal
 {
 namespace Amdgpu
 {
-
+class  VamMgr;
 class  Image;
 class  WindowSystem;
 struct HdrOutputMetadata;
@@ -722,8 +722,6 @@ public:
         amdgpu_syncobj_handle   syncObj,
         int*                    pSyncFileFd) const;
 
-    Result InitReservedVaRanges();
-
     virtual Result InitBusAddressableGpuMemory(
         IQueue*           pQueue,
         uint32            gpuMemCount,
@@ -781,6 +779,27 @@ public:
     }
 
     virtual Result CreateDmaUploadRing() override;
+
+    Result AllocVaRange(
+        uint64            size,
+        uint64            vaBaseRequired,
+        uint64*           pVaAllocated,
+        amdgpu_va_handle* pVaRange) const;
+
+    void FreeVaRange(
+        amdgpu_va_handle hVaRange) const;
+
+    bool AddToSharedBoMap(
+        amdgpu_bo_handle hBuffer,
+        amdgpu_va_handle hVaRange,
+        gpusize          gpuVirtAddr);
+
+    bool RemoveFromSharedBoMap(
+        amdgpu_bo_handle hBuffer);
+
+    amdgpu_va_handle SearchSharedBoMap(
+        amdgpu_bo_handle hBuffer,
+        gpusize*         pGpuVirtAddr);
 
 protected:
     virtual void FinalizeQueueProperties() override;
@@ -884,6 +903,7 @@ private:
     int32                 m_fileDescriptor;         // File descriptor used for communicating with the kernel driver
     int32                 m_primaryFileDescriptor;  // primary node file descriptor used for display subsystem.
     amdgpu_device_handle  m_hDevice;                // Device handle of the amdgpu
+    VamMgr*               m_pVamMgr;                // VAM manager per amdgpu_device_handle
     amdgpu_context_handle m_hContext;               // Context handle of the amdgpu device
     const uint32          m_deviceNodeIndex;        // The device node index in the system, with this node, driver could
                                                     // open the device with /dev/dri/card+m_deviceNodeIndex.

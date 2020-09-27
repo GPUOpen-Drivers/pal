@@ -588,7 +588,7 @@ UniversalQueueContext::UniversalQueueContext(
                            false),
     m_acePreambleCmdStream(*pDevice,
                            pDevice->Parent()->InternalUntrackedCmdAllocator(),
-                           EngineTypeUniversal,
+                           EngineTypeCompute,
                            SubEngineType::AsyncCompute,
                            CmdStreamUsage::Preamble,
                            false),
@@ -1484,7 +1484,11 @@ uint32* UniversalQueueContext::WriteUniversalPreamble(
         paScNggModeCntl.gfx10Plus.MAX_FPOVS_IN_WAVE = settings.gfx10MaxFpovsInWave;
     }
 
-    pCmdSpace = m_deCmdStream.WriteSetOneContextReg(mmVGT_OUT_DEALLOC_CNTL,  vgtOutDeallocCntl.u32All,   pCmdSpace);
+    {
+        pCmdSpace = m_deCmdStream.WriteSetOneContextReg(Gfx09_10::mmVGT_OUT_DEALLOC_CNTL,
+                                                        vgtOutDeallocCntl.u32All,
+                                                        pCmdSpace);
+    }
     pCmdSpace = m_deCmdStream.WriteSetOneContextReg(mmVGT_TESS_DISTRIBUTION, vgtTessDistribution.u32All, pCmdSpace);
     pCmdSpace = m_deCmdStream.WriteSetOneContextReg(mmCB_DCC_CONTROL,        cbDccControl.u32All,        pCmdSpace);
     pCmdSpace = m_deCmdStream.WriteSetOneContextReg(mmPA_SU_SMALL_PRIM_FILTER_CNTL,

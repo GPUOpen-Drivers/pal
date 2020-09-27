@@ -666,7 +666,6 @@ bool Gfx6Cmask::UseCmaskForImage(
             // DCC surface is present.
             useCmask = (useDcc == false)           &&
                        (skipSmallSurface == false) &&
-                       (pParent->IsTmz() == false) &&
                        SupportFastColorClear(device, image, tileMode, tileType);
         }
     }
@@ -869,7 +868,6 @@ bool Gfx6Fmask::UseFmaskForImage(
             ((pParent->IsRenderTarget()             == true)  &&
              (pParent->IsShared()                   == false) &&
              (pParent->IsMetadataDisabledByClient() == false) &&
-             (pParent->IsTmz()                      == false) &&
              (pParent->GetImageCreateInfo().samples > 1)));
 }
 

@@ -96,21 +96,15 @@ Pal::Result CreateTimeGraphComputePipelines(
 #endif
 
     case Pal::AsicRevision::Vega10:
-    case Pal::AsicRevision::Vega12:
     case Pal::AsicRevision::Raven:
+    case Pal::AsicRevision::Vega12:
+    case Pal::AsicRevision::Vega20:
         pTable = timeGraphComputeBinaryTableVega10;
         break;
 
-    case Pal::AsicRevision::Vega20:
-        pTable = timeGraphComputeBinaryTableVega20;
-        break;
-
     case Pal::AsicRevision::Raven2:
-        pTable = timeGraphComputeBinaryTableRaven2;
-        break;
-
     case Pal::AsicRevision::Renoir:
-        pTable = timeGraphComputeBinaryTableRenoir;
+        pTable = timeGraphComputeBinaryTableRaven2;
         break;
 
     case Pal::AsicRevision::Navi10:

@@ -2329,7 +2329,8 @@ void RsrcProcMgr::CmdGenerateMipmaps(
                ((genInfo.range.startSubres.mipLevel + genInfo.range.numMips) <=
                 genInfo.pImage->GetImageCreateInfo().mipLevels));
 
-    if (m_pDevice->Parent()->Settings().mipGenUseFastPath)
+    if (m_pDevice->Parent()->Settings().mipGenUseFastPath &&
+        (genInfo.pImage->GetImageCreateInfo().imageType == ImageType::Tex2d))
     {
         // Use compute shader-based path that can generate up to 12 mipmaps/array slice per pass.
         GenerateMipmapsFast(pCmdBuffer, genInfo);
@@ -2976,6 +2977,15 @@ void RsrcProcMgr::ScaledCopyImageGraphics(
             zOffset = 0.5f;
         }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 626
+        // Non-SRGB can be treated as SRGB when copying to non-srgb image
+        if (copyInfo.flags.dstAsSrgb)
+        {
+            dstFormat.format = Formats::ConvertToSrgb(dstFormat.format);
+            PAL_ASSERT(Formats::IsUndefined(dstFormat.format) == false);
+        }
+#endif
+
         // Update the color target view format with the destination format.
         colorViewInfo.swizzledFormat = dstFormat;
 
@@ -3028,12 +3038,14 @@ void RsrcProcMgr::ScaledCopyImageGraphics(
                                                                    SrdDwordAlignment(),
                                                                    PipelineBindPoint::Graphics,
                                                                    0);
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 626
         // Follow up the compute path of scaled copy that SRGB can be treated as UNORM
         // when copying from SRGB -> XX.
         if (copyInfo.flags.srcSrgbAsUnorm)
         {
             srcFormat.format = Formats::ConvertToUnorm(srcFormat.format);
         }
+#endif
 
         ImageViewInfo imageView[2] = {};
         SubresRange   viewRange    = { copyRegion.srcSubres, 1, copyRegion.numSlices };
@@ -3442,11 +3454,17 @@ void RsrcProcMgr::ScaledCopyImageCompute(
 
             const uint32 rotationIndex = static_cast<const uint32>(copyInfo.rotation);
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 626
+            // Enable gamma conversion when dstFormat is Srgb or copyInfo.flags.dstAsSrgb
+            const uint32 enableGammaConversion =
+                (Formats::IsSrgb(dstFormat.format) || copyInfo.flags.dstAsSrgb) ? 1 : 0;
+#else
             // Enable gamma conversion when dstFormat is Srgb, but only if srcFormat is not Srgb-as-Unorm.
             // Because the Srgb-as-Unorm sample is still gamma compressed and therefore no additional
             // conversion before shader export is needed.
             const uint32 enableGammaConversion =
                 (Formats::IsSrgb(dstFormat.format) && (copyInfo.flags.srcSrgbAsUnorm == 0)) ? 1 : 0;
+#endif
 
             const uint32 copyData[] =
             {
@@ -3501,10 +3519,12 @@ void RsrcProcMgr::ScaledCopyImageCompute(
                 PAL_ASSERT(Formats::IsUndefined(dstFormat.format) == false);
             }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 626
             if (copyInfo.flags.srcSrgbAsUnorm)
             {
                 srcFormat.format = Formats::ConvertToUnorm(srcFormat.format);
             }
+#endif
 
             ImageViewInfo imageView[2] = {};
             SubresRange   viewRange    = { copyRegion.dstSubres, 1, copyRegion.numSlices };
@@ -3962,60 +3982,67 @@ void RsrcProcMgr::CmdFillMemory(
     PAL_ASSERT(IsPow2Aligned(dstOffset, sizeof(uint32)));
     PAL_ASSERT(IsPow2Aligned(fillSize,  sizeof(uint32)));
 
-    const auto&  settings      = m_pDevice->Parent()->Settings();
-    const uint32 numDwords     = static_cast<uint32>(fillSize / sizeof(uint32));
-    const bool   is4xOptimized = ((numDwords % 4) == 0);
+    constexpr gpusize FillSizeLimit   = 268435456; // 256MB
+    const auto& settings              = m_pDevice->Parent()->Settings();
 
-    const ComputePipeline* pPipeline = nullptr;
-
-    if (is4xOptimized)
-    {
-        // This fill memory can be optimized to use the 4xDWORD pipeline.
-        pPipeline = GetPipeline(RpmComputePipeline::FillMem4xDword);
-    }
-    else
-    {
-        // Use the fill memory DWORD pipeline since this call expects everything to be DWORD-aligned.
-        pPipeline = GetPipeline(RpmComputePipeline::FillMemDword);
-    }
-
-    // Save the command buffer's state and bind the pipeline.
     if (saveRestoreComputeState)
     {
+        // Save the command buffer's state.
         pCmdBuffer->CmdSaveComputeState(ComputeStatePipelineAndUserData);
     }
 
-    pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, InternalApiPsoHash, });
-
-    uint32 srd[4] = { };
-    PAL_ASSERT(m_pDevice->Parent()->ChipProperties().srdSizes.bufferView == sizeof(srd));
-
-    BufferViewInfo dstBufferView = {};
-    dstBufferView.gpuAddr       = dstGpuMemory.Desc().gpuVirtAddr + dstOffset;
-    dstBufferView.range         = fillSize;
-    dstBufferView.stride        = (is4xOptimized) ? (sizeof(uint32) * 4) : sizeof(uint32);
-    if (is4xOptimized)
+    for (gpusize fillOffset = 0; fillOffset < fillSize; fillOffset += FillSizeLimit)
     {
-        dstBufferView.swizzledFormat.format  = ChNumFormat::X32Y32Z32W32_Uint;
-        dstBufferView.swizzledFormat.swizzle =
+        const uint32 numDwords = static_cast<uint32>(Min(FillSizeLimit, (fillSize - fillOffset)) / sizeof(uint32));
+
+        // ((FillSizeLimit % 4) == 0) as the value stands now, ensuring fillSize is 4xOptimized too. If we change it
+        // to something that doesn't satisfy this condition we would need to check ((fillSize - fillOffset) % 4) too.
+        const bool is4xOptimized = ((numDwords % 4) == 0);
+
+        const ComputePipeline* pPipeline = nullptr;
+
+        if (is4xOptimized)
+        {
+            // This fill memory can be optimized to use the 4xDWORD pipeline.
+            pPipeline = GetPipeline(RpmComputePipeline::FillMem4xDword);
+        }
+        else
+        {
+            // Use the fill memory DWORD pipeline since this call expects everything to be DWORD-aligned.
+            pPipeline = GetPipeline(RpmComputePipeline::FillMemDword);
+        }
+
+        pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, InternalApiPsoHash, });
+
+        uint32 srd[4] = { };
+        PAL_ASSERT(m_pDevice->Parent()->ChipProperties().srdSizes.bufferView == sizeof(srd));
+
+        BufferViewInfo dstBufferView = {};
+        dstBufferView.gpuAddr = dstGpuMemory.Desc().gpuVirtAddr + dstOffset + fillOffset;
+        dstBufferView.range   = numDwords * sizeof(uint32);
+        dstBufferView.stride  = (is4xOptimized) ? (sizeof(uint32) * 4) : sizeof(uint32);
+        if (is4xOptimized)
+        {
+            dstBufferView.swizzledFormat.format  = ChNumFormat::X32Y32Z32W32_Uint;
+            dstBufferView.swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
-    }
-    else
-    {
-        dstBufferView.swizzledFormat.format  = ChNumFormat::X32_Uint;
-        dstBufferView.swizzledFormat.swizzle =
+        }
+        else
+        {
+            dstBufferView.swizzledFormat.format  = ChNumFormat::X32_Uint;
+            dstBufferView.swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One };
+        }
+        m_pDevice->Parent()->CreateTypedBufferViewSrds(1, &dstBufferView, &srd[0]);
+
+        pCmdBuffer->CmdSetUserData(PipelineBindPoint::Compute, 0, 4, &srd[0]);
+        pCmdBuffer->CmdSetUserData(PipelineBindPoint::Compute, 4, 1, &data);
+
+        // Issue a dispatch with one thread per DWORD.
+        const uint32 minThreads   = (is4xOptimized) ? (numDwords / 4) : numDwords;
+        const uint32 threadGroups = RpmUtil::MinThreadGroups(minThreads, pPipeline->ThreadsPerGroup());
+        pCmdBuffer->CmdDispatch(threadGroups, 1, 1);
     }
-    m_pDevice->Parent()->CreateTypedBufferViewSrds(1, &dstBufferView, &srd[0]);
-
-    pCmdBuffer->CmdSetUserData(PipelineBindPoint::Compute, 0, 4, &srd[0]);
-    pCmdBuffer->CmdSetUserData(PipelineBindPoint::Compute, 4, 1, &data);
-
-    // Issue a dispatch with one thread per DWORD.
-    const uint32 minThreads   = (is4xOptimized) ? (numDwords / 4) : numDwords;
-    const uint32 threadGroups = RpmUtil::MinThreadGroups(minThreads, pPipeline->ThreadsPerGroup());
-    pCmdBuffer->CmdDispatch(threadGroups, 1, 1);
-
     if (saveRestoreComputeState)
     {
         // Restore the command buffer's state.

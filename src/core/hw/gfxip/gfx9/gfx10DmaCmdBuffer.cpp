@@ -991,26 +991,43 @@ void DmaCmdBuffer::CmdUpdateMemory(
     PAL_ASSERT(IsPow2Aligned(dstAddr,  sizeof(uint32)));
     PAL_ASSERT(IsPow2Aligned(dataSize, sizeof(uint32)));
 
-    // The SDMA_PKT_WRITE_UNTILED definition contains space for one dword of data.  To make the math a little simpler
-    // below, we consider the packetHeader size to be the packet size without any associated data.
-    constexpr uint32 PacketMaxDataInDwords = (1u << 20) - 1;
-
-    // Given that PacketMaxDataInDwords is quite large, we're likely limited by the size of the reserve buffer.
-    const uint32 maxDataDwords = Min(m_cmdStream.ReserveLimit() - UpdateMemoryPacketHdrSizeInDwords,
-                                     PacketMaxDataInDwords);
+    // We're likely limited by the size of the embedded data.
+    const uint32 maxDataDwords = GetEmbeddedDataLimit();
 
     // Loop until we've submitted enough packets to upload the whole src buffer.
     const uint32* pRemainingSrcData   = pData;
     uint32        remainingDataDwords = static_cast<uint32>(dataSize) / sizeof(uint32);
+
     while (remainingDataDwords > 0)
     {
+        gpusize gpuVa = 0;
         const uint32 packetDataDwords = Min(remainingDataDwords, maxDataDwords);
+        uint32* pEmbeddedData = CmdAllocateEmbeddedData(packetDataDwords, 1u, &gpuVa);
 
-        // Setup the packet.
-        uint32*    pCmdSpace = m_cmdStream.ReserveCommands();
-        pCmdSpace = BuildUpdateMemoryPacket(dstAddr, packetDataDwords, pRemainingSrcData, pCmdSpace);
+        // Copy the src data into memory prepared for embedded data.
+        memcpy(pEmbeddedData, pRemainingSrcData, sizeof(uint32) * packetDataDwords);
 
-        m_cmdStream.CommitCommands(pCmdSpace);
+        gpusize bytesJustCopied = 0;
+        gpusize bytesLeftToCopy = static_cast<gpusize>(packetDataDwords * sizeof(uint32));
+        gpusize srcGpuAddr      = gpuVa;
+        gpusize dstGpuAddr      = dstAddr;
+        // Copy the embedded data into dstAddr.
+        while (bytesLeftToCopy > 0)
+        {
+            uint32* pCmdSpace = m_cmdStream.ReserveCommands();
+            pCmdSpace = WriteCopyGpuMemoryCmd(
+                gpuVa,
+                dstAddr,
+                bytesLeftToCopy,
+                DmaCopyFlags::None,
+                pCmdSpace,
+                &bytesJustCopied);
+            m_cmdStream.CommitCommands(pCmdSpace);
+
+            bytesLeftToCopy     -= bytesJustCopied;
+            srcGpuAddr          += bytesJustCopied;
+            dstGpuAddr          += bytesJustCopied;
+        }
 
         // Update all variable addresses and sizes.
         remainingDataDwords -= packetDataDwords;

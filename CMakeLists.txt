@@ -23,7 +23,7 @@
  #
  #######################################################################################################################
 
-cmake_minimum_required(VERSION 3.5...3.16)
+cmake_minimum_required(VERSION 3.9...3.16)
 project(PAL
     # While PAL is primarily a C++ library, it also has some C files.
     LANGUAGES CXX C

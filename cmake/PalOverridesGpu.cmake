@@ -46,26 +46,22 @@ macro(pal_overrides_gpu)
         mark_as_advanced(ADDR_GFX9_CHIP_DIR)
 
         # Vega12
-        set(ADDR_VEGA12_BUILD  ON CACHE BOOL "PAL override to build ADDRLIB with Vega12 support." FORCE)
+        set(ADDR_VEGA12_BUILD ON CACHE BOOL "PAL override to build ADDRLIB with Vega12 support." FORCE)
         mark_as_advanced(ADDR_VEGA12_BUILD)
 
         # Vega20
-        set(ADDR_VEGA20_BUILD ${PAL_BUILD_VEGA20} CACHE BOOL "PAL override to build ADDRLIB with Vega20 support." FORCE)
+        set(ADDR_VEGA20_BUILD ON CACHE BOOL "PAL override to build ADDRLIB with Vega20 support." FORCE)
         mark_as_advanced(ADDR_VEGA20_BUILD)
-        set(CHIP_HDR_VEGA20   ${PAL_BUILD_VEGA20} CACHE BOOL "PAL override to build chip register header with Vega20 support." FORCE)
-        mark_as_advanced(CHIP_HDR_VEGA20)
 
         # Raven2
-        set(ADDR_RAVEN2_BUILD ${PAL_BUILD_RAVEN2} CACHE BOOL "PAL override to build ADDRLIB with Raven2 support." FORCE)
+        set(ADDR_RAVEN2_BUILD ON CACHE BOOL "PAL override to build ADDRLIB with Raven2 support." FORCE)
         mark_as_advanced(ADDR_RAVEN2_BUILD)
-        set(CHIP_HDR_RAVEN2   ${PAL_BUILD_RAVEN2} CACHE BOOL "PAL override to build chip register header with Raven2 support." FORCE)
-        mark_as_advanced(CHIP_HDR_RAVEN2)
 
-        if(PAL_BUILD_RENOIR)
-            set(ADDR_RENOIR_BUILD ON CACHE BOOL "PAL override to build ADDRLIB with RENOIR support." FORCE)
-        endif()
+        set(ADDR_RENOIR_BUILD ON CACHE BOOL "PAL override to build ADDRLIB with RENOIR support." FORCE)
+        mark_as_advanced(ADDR_RENOIR_BUILD)
 
         set(ADDR_GFX10_BUILD ON CACHE BOOL "PAL override to build ADDRLIB with GFX10 support." FORCE)
+        mark_as_advanced(ADDR_GFX10_BUILD)
 
         if(PAL_BUILD_NAVI14)
             set(ADDR_NAVI14_BUILD ON CACHE BOOL "PAL override to build ADDRLIB with NAVI14 support." FORCE)

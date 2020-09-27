@@ -242,6 +242,15 @@ struct ComputePipelineCreateInfo
 #endif
 };
 
+/// Specifies information about the viewport behavior of an assembled graphics pipeline.  Part of the input
+/// structure @ref GraphicsPipelineCreateInfo.
+struct ViewportInfo
+{
+    bool       depthClipEnable; ///< Enable clipping based on Z coordinate.
+    DepthRange depthRange;      ///< Specifies Z dimensions of screen space (i.e., post viewport transform:
+                                ///  0 to 1 or -1 to 1).
+};
+
 /// Specifies properties for creation of a graphics @ref IPipeline object.  Input structure to
 /// IDevice::CreateGraphicsPipeline().
 struct GraphicsPipelineCreateInfo
@@ -326,9 +335,10 @@ struct GraphicsPipelineCreateInfo
         } target[MaxColorTargets];              ///< Per-MRT color target info.
     } cbState;                                  ///< Color target state.
 
-    ViewInstancingDescriptor viewInstancingDesc;    ///< Descriptor describes view instancing state
-                                                    ///  of the graphics pipeline
-    MsaaCoverageOutDescriptor  coverageOutDesc;     ///< Descriptor describes input parameters for MSAA coverage out.
+    ViewInstancingDescriptor  viewInstancingDesc; ///< Descriptor describes view instancing state
+                                                  ///  of the graphics pipeline
+    MsaaCoverageOutDescriptor coverageOutDesc;    ///< Descriptor describes input parameters for MSAA coverage out.
+    ViewportInfo              viewportInfo;       ///< Viewport info.
 };
 
 /// The graphic pipeline view instancing information. This is used to determine if hardware accelerated stereo rendering

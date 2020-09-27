@@ -199,9 +199,56 @@ Result Device::CreateQueue(
         PAL_ASSERT(pNextQueue != nullptr);
         pNextQueue->SetClientData(pPlacementAddr);
 
-        pQueue = PAL_PLACEMENT_NEW(pPlacementAddr) Queue(pNextQueue, this, createInfo.queueType, createInfo.engineType);
+        pQueue = PAL_PLACEMENT_NEW(pPlacementAddr) Queue(pNextQueue, this, 1);
 
-        result = pQueue->Init();
+        result = pQueue->Init(&createInfo);
+    }
+
+    if (result == Result::Success)
+    {
+        (*ppQueue) = pQueue;
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
+size_t Device::GetMultiQueueSize(
+    uint32                 queueCount,
+    const QueueCreateInfo* pCreateInfo,
+    Result*                pResult
+    ) const
+{
+    return m_pNextLayer->GetMultiQueueSize(queueCount, pCreateInfo, pResult) + sizeof(Queue);
+}
+
+// =====================================================================================================================
+Result Device::CreateMultiQueue(
+    uint32                 queueCount,
+    const QueueCreateInfo* pCreateInfo,
+    void*                  pPlacementAddr,
+    IQueue**               ppQueue)
+{
+    PAL_ASSERT(pCreateInfo != nullptr);
+
+    IQueue* pNextQueue = nullptr;
+    Queue*  pQueue     = nullptr;
+
+    Result result = m_pNextLayer->CreateMultiQueue(queueCount,
+                                                   pCreateInfo,
+                                                   NextObjectAddr<Queue>(pPlacementAddr),
+                                                   &pNextQueue);
+
+    if (result == Result::Success)
+    {
+        PAL_ASSERT(pNextQueue != nullptr);
+        pNextQueue->SetClientData(pPlacementAddr);
+
+        pQueue = PAL_PLACEMENT_NEW(pPlacementAddr) Queue(pNextQueue,
+                                                         this,
+                                                         queueCount);
+
+        result = pQueue->Init(pCreateInfo);
     }
 
     if (result == Result::Success)

@@ -513,10 +513,7 @@ void SettingsLoader::OverrideDefaults(
             m_settings.waRotatedSwizzleDisablesOverwriteCombiner = true;
         }
 
-        if (IsVega10(device) || IsRaven(device)
-            || IsRaven2(device)
-            || IsRenoir(device)
-            )
+        if (IsVega10(device) || IsRaven(device) || IsRaven2(device) || IsRenoir(device))
         {
             m_settings.waMetaAliasingFixEnabled = false;
         }

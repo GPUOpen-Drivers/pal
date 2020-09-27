@@ -158,8 +158,7 @@ Result GfxCmdBuffer::Begin(
             InheritStateFromCmdBuf(static_cast<const GfxCmdBuffer*>(info.pStateInheritCmdBuffer));
         }
 
-#if ((PAL_CLIENT_INTERFACE_MAJOR_VERSION == 584 && PAL_CLIENT_INTERFACE_MINOR_VERSION >= 1) || \
-     (PAL_CLIENT_INTERFACE_MAJOR_VERSION > 584))
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION > 584
         if (info.pInheritedState != nullptr)
         {
             m_gfxCmdBufState.flags.clientPredicate = info.pInheritedState->stateFlags.predication;
@@ -892,7 +891,11 @@ void GfxCmdBuffer::CmdPresentBlt(
     copyInfo.rotation               = ImageRotation::Ccw0;
     copyInfo.pColorKey              = nullptr;
     copyInfo.flags.srcColorKey      = false;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 626
+    copyInfo.flags.dstAsSrgb        = false;
+#else
     copyInfo.flags.srcSrgbAsUnorm   = Formats::IsSrgb(srcImageInfo.swizzledFormat.format) ? 1 : 0;
+#endif
 
     m_device.RsrcProcMgr().CmdScaledCopyImage(this, copyInfo);
 }

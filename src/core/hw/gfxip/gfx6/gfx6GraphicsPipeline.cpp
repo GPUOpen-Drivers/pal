@@ -923,6 +923,17 @@ void GraphicsPipeline::SetupCommonRegisters(
     m_regs.context.paSuVtxCntl.u32All  = registers.At(mmPA_SU_VTX_CNTL);
     m_regs.other.paScModeCntl1.u32All  = registers.At(mmPA_SC_MODE_CNTL_1);
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 629
+
+    m_regs.context.paClClipCntl.bits.DX_CLIP_SPACE_DEF = (createInfo.viewportInfo.depthRange == DepthRange::ZeroToOne);
+    if (createInfo.viewportInfo.depthClipEnable == false)
+    {
+        m_regs.context.paClClipCntl.bits.ZCLIP_NEAR_DISABLE = 1;
+        m_regs.context.paClClipCntl.bits.ZCLIP_FAR_DISABLE = 1;
+    }
+
+#endif
+
     // Overrides some of the fields in PA_SC_MODE_CNTL1 to account for GPU pipe config and features like out-of-order
     // rasterization.
 

@@ -86,6 +86,7 @@ constexpr  NullIdLookup  NullIdLookupTable[] =
     { FAMILY_AI,  AI_VEGA20_P_A0,       PRID_AI_VEGA20_00,            GfxEngineGfx9,  DEVICE_ID_AI_VEGA20_P_66A0      },
     { FAMILY_RV,  RAVEN2_A0,            PRID_RV_E2,                   GfxEngineGfx9,  DEVICE_ID_RV2_15D8              },
     { FAMILY_RV,  RENOIR_A0,            PRID_RENOIR_01,               GfxEngineGfx9,  DEVICE_ID_RENOIR_1636           },
+
     { FAMILY_NV,  NV_NAVI10_P_A2,       PRID_NV_NAVI10_00,            GfxEngineGfx9,  DEVICE_ID_NV_NAVI10_P_7310      },
     { PAL_UNDEFINED_NULL_DEVICE                                                                                       },
     { PAL_UNDEFINED_NULL_DEVICE                                                                                       },
@@ -138,6 +139,7 @@ const char* pNullGpuNames[static_cast<uint32>(Pal::NullGpuId::Max)] =
     "VEGA20:gfx906",
     "RAVEN2:gfx909",
     "RENOIR:gfx909",
+
     "NAVI10:gfx1010",
     nullptr,
     nullptr,
@@ -934,6 +936,8 @@ void Device::InitGfx9ChipProperties()
         pChipInfo->numShaderArrays         =    1; // GPU__GC__NUM_SH_PER_SE;
         pChipInfo->maxNumRbPerSe           =    2; // GPU__GC__NUM_RB_PER_SE;
         pChipInfo->nativeWavefrontSize     =   64; // GPU__GC__WAVE_SIZE;
+        pChipInfo->minWavefrontSize        =   64;
+        pChipInfo->maxWavefrontSize        =   64;
         pChipInfo->numPhysicalVgprsPerSimd =  256; // GPU__GC__NUM_GPRS;
         pChipInfo->maxNumCuPerSh           =    8; // GPU__GC__NUM_CU_PER_SH;
         pChipInfo->numTccBlocks            =    4; // GPU__TC__NUM_TCCS;

@@ -42,22 +42,23 @@ namespace CmdBufferLogger
 // =====================================================================================================================
 Queue::Queue(
     IQueue*    pNextQueue,
-    Device*    pDevice)
+    Device*    pDevice,
+    uint32     queueCount)
     :
     QueueDecorator(pNextQueue, pDevice),
     m_pDevice(pDevice),
+    m_queueCount(queueCount),
     m_timestampingActive(static_cast<Platform*>(pDevice->GetPlatform())->IsTimestampingEnabled()),
     m_pCmdAllocator(nullptr),
-    m_pCmdBuffer(nullptr),
-    m_pTimestamp(nullptr),
+    m_ppCmdBuffer(nullptr),
+    m_ppTimestamp(nullptr),
     m_pFence(nullptr)
 {
 }
 
 // =====================================================================================================================
 Result Queue::Init(
-    EngineType engineType,
-    QueueType  queueType)
+    const QueueCreateInfo* pCreateInfo)
 {
     Result result = Result::Success;
 
@@ -68,38 +69,52 @@ Result Queue::Init(
         DeviceProperties deviceProps = {};
         result = m_pDevice->GetProperties(&deviceProps);
 
-        GpuMemoryCreateInfo createInfo = {};
         if (result == Result::Success)
         {
-            result = Result::ErrorOutOfMemory;
-            createInfo.size               = sizeof(CmdBufferTimestampData);
-            createInfo.alignment          = sizeof(uint64);
-            createInfo.vaRange            = VaRange::Default;
-            createInfo.priority           = GpuMemPriority::VeryLow;
-            createInfo.heapCount          = 1;
-            createInfo.heaps[0]           = GpuHeap::GpuHeapInvisible;
-            createInfo.flags.cpuInvisible = 1;
+            m_ppTimestamp = static_cast<IGpuMemory**>(PAL_CALLOC(sizeof(IGpuMemory*) * m_queueCount,
+                                                                 pPlatform,
+                                                                 AllocInternal));
 
-            m_pTimestamp = static_cast<IGpuMemory*>(PAL_MALLOC(m_pDevice->GetGpuMemorySize(createInfo, &result),
-                                                    pPlatform,
-                                                    AllocInternal));
+            result = (m_ppTimestamp != nullptr) ? Result::Success : Result::ErrorOutOfMemory;
+        }
 
-            if (m_pTimestamp != nullptr)
+        if (result == Result::Success)
+        {
+            GpuMemoryCreateInfo createInfo = {};
+            createInfo.size                = sizeof(CmdBufferTimestampData);
+            createInfo.alignment           = sizeof(uint64);
+            createInfo.vaRange             = VaRange::Default;
+            createInfo.priority            = GpuMemPriority::VeryLow;
+            createInfo.heapCount           = 1;
+            createInfo.heaps[0]            = GpuHeap::GpuHeapInvisible;
+            createInfo.flags.cpuInvisible  = 1;
+
+            for (uint32 i = 0; ((result == Result::Success) && (i < m_queueCount)); i++)
             {
-                result = m_pDevice->CreateGpuMemory(createInfo, static_cast<void*>(m_pTimestamp), &m_pTimestamp);
+                m_ppTimestamp[i] = static_cast<IGpuMemory*>(PAL_MALLOC(m_pDevice->GetGpuMemorySize(createInfo, &result),
+                                                                       pPlatform,
+                                                                       AllocInternal));
+
+                result = Result::ErrorOutOfMemory;
+                if (m_ppTimestamp[i] != nullptr)
+                {
+                    result = m_pDevice->CreateGpuMemory(createInfo,
+                                                        static_cast<void*>(m_ppTimestamp[i]),
+                                                        reinterpret_cast<IGpuMemory**>(m_ppTimestamp[i]));
+                }
+
+                if (result == Result::Success)
+                {
+                    GpuMemoryRef memRef = {};
+                    memRef.pGpuMemory   = m_ppTimestamp[i];
+                    result = m_pDevice->AddGpuMemoryReferences(1, &memRef, this, GpuMemoryRefCantTrim);
+                }
             }
         }
 
         if (result == Result::Success)
         {
-            GpuMemoryRef memRef = {};
-            memRef.pGpuMemory   = m_pTimestamp;
-            result = m_pDevice->AddGpuMemoryReferences(1, &memRef, this, GpuMemoryRefCantTrim);
-        }
-
-        if (result == Result::Success)
-        {
-            result = InitCmdBuffer(engineType, queueType);
+            result = InitCmdBuffers(pCreateInfo);
         }
 
         if (result == Result::Success)
@@ -120,9 +135,8 @@ Result Queue::Init(
 }
 
 // =====================================================================================================================
-Result Queue::InitCmdBuffer(
-    EngineType engineType,
-    QueueType  queueType)
+Result Queue::InitCmdBuffers(
+    const QueueCreateInfo* pCreateInfo)
 {
     Platform* pPlatform = static_cast<Platform*>(m_pDevice->GetPlatform());
 
@@ -159,46 +173,60 @@ Result Queue::InitCmdBuffer(
 
     if (result == Result::Success)
     {
+        m_ppCmdBuffer = static_cast<CmdBuffer**>(PAL_CALLOC(sizeof(CmdBuffer*) * m_queueCount,
+                                                            pPlatform,
+                                                            AllocInternal));
+
+        result = (m_ppCmdBuffer != nullptr) ? Result::Success : Result::ErrorOutOfMemory;
+    }
+
+    for (uint32 i = 0; (result == Result::Success) && (i < m_queueCount); ++i)
+    {
+        if (m_pDevice->SupportsCommentString(pCreateInfo[i].queueType) == false)
+        {
+            continue;
+        }
+
         CmdBufferCreateInfo cmdBufferCreateInfo = {};
-        cmdBufferCreateInfo.engineType          = engineType;
-        cmdBufferCreateInfo.queueType           = queueType;
+        cmdBufferCreateInfo.engineType          = pCreateInfo[i].engineType;
+        cmdBufferCreateInfo.queueType           = pCreateInfo[i].queueType;
         cmdBufferCreateInfo.pCmdAllocator       = m_pCmdAllocator;
 
-        m_pCmdBuffer =
+        m_ppCmdBuffer[i] =
             static_cast<CmdBuffer*>(PAL_MALLOC(m_pDevice->GetCmdBufferSize(cmdBufferCreateInfo, &result),
                                                 pPlatform,
                                                 AllocInternal));
 
         result = Result::ErrorOutOfMemory;
-        if (m_pCmdBuffer != nullptr)
+        if (m_ppCmdBuffer[i] != nullptr)
         {
             result = m_pDevice->CreateCmdBuffer(cmdBufferCreateInfo,
-                                                m_pCmdBuffer,
-                                                reinterpret_cast<ICmdBuffer**>(&m_pCmdBuffer));
+                                                m_ppCmdBuffer[i],
+                                                reinterpret_cast<ICmdBuffer**>(&m_ppCmdBuffer[i]));
         }
-    }
 
-    if (result == Result::Success)
-    {
-        CmdBufferBuildInfo buildInfo = {};
-        buildInfo.flags.optimizeExclusiveSubmit = 1;
-        result = m_pCmdBuffer->Begin(buildInfo);
-    }
+        if (result == Result::Success)
+        {
+            CmdBufferBuildInfo buildInfo = {};
+            buildInfo.flags.optimizeExclusiveSubmit = 1;
+            result = m_ppCmdBuffer[i]->Begin(buildInfo);
+        }
 
-    if (result == Result::Success)
-    {
-        char buffer[256] = {};
-        Snprintf(&buffer[0], sizeof(buffer),
-                 "This submit contains timestamps which are written to the following GPU virtual address:");
-        m_pCmdBuffer->CmdCommentString(&buffer[0]);
-        Snprintf(&buffer[0], sizeof(buffer), "    0x%016llX", m_pTimestamp->Desc().gpuVirtAddr);
-        m_pCmdBuffer->CmdCommentString(&buffer[0]);
-        Snprintf(&buffer[0], sizeof(buffer), "The structure of the data at the above address is:");
-        m_pCmdBuffer->CmdCommentString(&buffer[0]);
-        Snprintf(&buffer[0], sizeof(buffer), "    uint64 cmdBufferHash; uint32 counter;");
-        m_pCmdBuffer->CmdCommentString(&buffer[0]);
+        if (result == Result::Success)
+        {
+            char buffer[256] = {};
+            Snprintf(&buffer[0], sizeof(buffer),
+                     "This submit contains timestamps which are written to the following GPU virtual address:");
+            m_ppCmdBuffer[i]->CmdCommentString(&buffer[0]);
+            Snprintf(&buffer[0], sizeof(buffer), "    0x%016llX", m_ppTimestamp[i]->Desc().gpuVirtAddr);
+            m_ppCmdBuffer[i]->CmdCommentString(&buffer[0]);
+            Snprintf(&buffer[0], sizeof(buffer), "The structure of the data at the above address is:");
+            m_ppCmdBuffer[i]->CmdCommentString(&buffer[0]);
+            Snprintf(&buffer[0], sizeof(buffer), "    uint64 cmdBufferHash; uint32 counter;");
+            m_ppCmdBuffer[i]->CmdCommentString(&buffer[0]);
 
-        result = m_pCmdBuffer->End();
+            result = m_ppCmdBuffer[i]->End();
+        }
     }
 
     return result;
@@ -210,17 +238,30 @@ void Queue::Destroy()
     Platform* pPlatform = static_cast<Platform*>(m_pDevice->GetPlatform());
     if (m_timestampingActive)
     {
-        if (m_pTimestamp != nullptr)
+        if (m_ppTimestamp != nullptr)
         {
-            m_pDevice->RemoveGpuMemoryReferences(1, &m_pTimestamp, this);
-            m_pTimestamp->Destroy();
-            PAL_SAFE_FREE(m_pTimestamp, pPlatform);
+            m_pDevice->RemoveGpuMemoryReferences(m_queueCount, m_ppTimestamp, this);
+            for (uint32 i = 0; i < m_queueCount; i++)
+            {
+                m_ppTimestamp[i]->Destroy();
+                PAL_SAFE_FREE(m_ppTimestamp[i], pPlatform);
+            }
+            PAL_SAFE_FREE(m_ppTimestamp, pPlatform);
         }
 
-        if (m_pCmdBuffer != nullptr)
+        if (m_ppCmdBuffer != nullptr)
         {
-            m_pCmdBuffer->Destroy();
-            PAL_SAFE_FREE(m_pCmdBuffer, pPlatform);
+            for (uint32 i = 0; i < m_queueCount; i++)
+            {
+                CmdBuffer* pCmdBuffer = m_ppCmdBuffer[i];
+                if (pCmdBuffer != nullptr)
+                {
+                    pCmdBuffer->Destroy();
+                    PAL_SAFE_FREE(pCmdBuffer, pPlatform);
+                }
+            }
+
+            PAL_SAFE_FREE(m_ppCmdBuffer, pPlatform);
         }
 
         if (m_pCmdAllocator != nullptr)
@@ -243,15 +284,16 @@ void Queue::Destroy()
 
 // =====================================================================================================================
 void Queue::AddRemapRange(
+    uint32                   queueId,
     VirtualMemoryRemapRange* pRange,
     CmdBuffer*               pCmdBuffer
     ) const
 {
-    pRange->pRealGpuMem        = m_pTimestamp;
+    pRange->pRealGpuMem        = m_ppTimestamp[queueId];
     pRange->realStartOffset    = 0;
     pRange->pVirtualGpuMem     = pCmdBuffer->TimestampMem();
     pRange->virtualStartOffset = 0;
-    pRange->size               = m_pTimestamp->Desc().size;
+    pRange->size               = m_ppTimestamp[queueId]->Desc().size;
     pRange->virtualAccessMode  = VirtualGpuMemAccessMode::NoAccess;
 }
 
@@ -259,55 +301,92 @@ void Queue::AddRemapRange(
 Result Queue::Submit(
     const MultiSubmitInfo& submitInfo)
 {
+    PAL_ASSERT_MSG((submitInfo.perSubQueueInfoCount <= 1),
+                   "Multi-Queue support has not yet been tested in CmdBufferLogger!");
+
     // Wait for a maximum of 1000 seconds.
     constexpr uint64 Timeout = 1000000000000ull;
-    PAL_ASSERT(submitInfo.perSubQueueInfoCount == 1);
 
     Platform*       pPlatform       = static_cast<Platform*>(m_pDevice->GetPlatform());
     MultiSubmitInfo finalSubmitInfo = submitInfo;
     Result          result          = Result::Success;
 
-    PerSubQueueSubmitInfo perSubQueueInfo = {};
+    const bool dummySubmit =
+        ((submitInfo.pPerSubQueueInfo == nullptr) || (submitInfo.pPerSubQueueInfo[0].cmdBufferCount == 0));
 
-    if (m_timestampingActive)
+    if ((m_timestampingActive) && (dummySubmit == false))
     {
-        const uint32 maxCmdBufferCount = submitInfo.pPerSubQueueInfo[0].cmdBufferCount + 1;
-        AutoBuffer<ICmdBuffer*, 32, Platform> cmdBuffers(maxCmdBufferCount, pPlatform);
-        AutoBuffer<CmdBufInfo, 32, Platform> cmdBufInfoList(maxCmdBufferCount, pPlatform);
-        AutoBuffer<VirtualMemoryRemapRange, 16, Platform> ranges(maxCmdBufferCount, pPlatform);
+        // Start by assuming we'll need to add our header CmdBuffer per queue.
+        uint32 maxCmdBufferCount = m_queueCount;
 
-        if ((cmdBuffers.Capacity() < submitInfo.pPerSubQueueInfo[0].cmdBufferCount)     ||
-            (cmdBufInfoList.Capacity() < submitInfo.pPerSubQueueInfo[0].cmdBufferCount) ||
-            (ranges.Capacity() < submitInfo.pPerSubQueueInfo[0].cmdBufferCount))
+        for (uint32 i = 0; i < submitInfo.perSubQueueInfoCount; i++)
+        {
+            maxCmdBufferCount += submitInfo.pPerSubQueueInfo[i].cmdBufferCount;
+        }
+
+        AutoBuffer<PerSubQueueSubmitInfo,   32, Platform> perSubQueueInfoList(m_queueCount, pPlatform);
+        AutoBuffer<ICmdBuffer*,             32, Platform> cmdBuffers(maxCmdBufferCount,     pPlatform);
+        AutoBuffer<CmdBufInfo,              32, Platform> cmdBufInfoList(maxCmdBufferCount, pPlatform);
+        AutoBuffer<VirtualMemoryRemapRange, 32, Platform> ranges(maxCmdBufferCount,         pPlatform);
+
+        if ((perSubQueueInfoList.Capacity() < m_queueCount)      ||
+            (cmdBuffers.Capacity()          < maxCmdBufferCount) ||
+            (cmdBufInfoList.Capacity()      < maxCmdBufferCount) ||
+            (ranges.Capacity()              < maxCmdBufferCount))
         {
             result = Result::ErrorOutOfMemory;
         }
         else
         {
-            memset(cmdBufInfoList.Data(), 0, sizeof(CmdBufInfo) * maxCmdBufferCount);
+            memset(perSubQueueInfoList.Data(), 0, sizeof(PerSubQueueSubmitInfo) * m_queueCount);
+            memset(cmdBufInfoList.Data(),      0, sizeof(CmdBufInfo) * maxCmdBufferCount);
 
-            const bool  hasCmdBufInfo   = (submitInfo.pPerSubQueueInfo[0].pCmdBufInfoList != nullptr);
+            finalSubmitInfo.pPerSubQueueInfo = perSubQueueInfoList.Data();
 
-            // Our informative command buffer goes first.
-            cmdBuffers[0] = m_pCmdBuffer;
-            AddRemapRange(&ranges[0], m_pCmdBuffer);
+            uint32 newCmdBufferIdx  = 0;
+            uint32 newCmdBufInfoIdx = 0;
+            uint32 newRangesIdx     = 0;
 
-            if (hasCmdBufInfo)
+            for (uint32 i = 0; i < submitInfo.perSubQueueInfoCount; ++i)
             {
-                // Only the first one of these has any real data in it.
-                cmdBufInfoList[0] = submitInfo.pPerSubQueueInfo[0].pCmdBufInfoList[0];
-            }
+                const auto& perSubQueueInfo      = submitInfo.pPerSubQueueInfo[i];
+                const bool  supportsTimestamping = (m_ppCmdBuffer[i] != nullptr);
 
-            for (uint32 i = 0; i < submitInfo.pPerSubQueueInfo[0].cmdBufferCount; i++)
-            {
-                CmdBuffer* pCmdBuffer = static_cast<CmdBuffer*>(submitInfo.pPerSubQueueInfo[0].ppCmdBuffers[i]);
-                AddRemapRange(&ranges[i + 1], pCmdBuffer);
-                cmdBuffers[i + 1] = pCmdBuffer;
+                const uint32 startCmdBufferIdx  = newCmdBufferIdx;
+                const uint32 startCmdBufInfoIdx = newCmdBufInfoIdx;
+
+                if (supportsTimestamping)
+                {
+                    cmdBuffers[newCmdBufferIdx++] = m_ppCmdBuffer[i];
+                    newCmdBufInfoIdx++;
+                    AddRemapRange(i, &ranges[newRangesIdx++], m_ppCmdBuffer[i]);
+                }
+
+                const bool hasCmdBufInfo = (perSubQueueInfo.pCmdBufInfoList != nullptr);
+                for (uint32 cmdBufIdx = 0; cmdBufIdx < perSubQueueInfo.cmdBufferCount; cmdBufIdx++)
+                {
+                    CmdBuffer* pCmdBuffer = static_cast<CmdBuffer*>(perSubQueueInfo.ppCmdBuffers[cmdBufIdx]);
+                    cmdBuffers[newCmdBufferIdx++] = pCmdBuffer;
+
+                    if (hasCmdBufInfo)
+                    {
+                        cmdBufInfoList[newCmdBufInfoIdx++] = perSubQueueInfo.pCmdBufInfoList[cmdBufIdx];
+                    }
+                    AddRemapRange(i, &ranges[newRangesIdx++], pCmdBuffer);
+                }
+
+                PAL_ASSERT((hasCmdBufInfo == false) ||
+                           (newCmdBufferIdx - startCmdBufferIdx) == (newCmdBufInfoIdx - startCmdBufInfoIdx));
+
+                PerSubQueueSubmitInfo* pNewPerSubQueueInfo = &perSubQueueInfoList[i];
+                pNewPerSubQueueInfo->cmdBufferCount  = (newCmdBufferIdx - startCmdBufferIdx);
+                pNewPerSubQueueInfo->ppCmdBuffers    = &cmdBuffers[startCmdBufferIdx];
+                pNewPerSubQueueInfo->pCmdBufInfoList = &cmdBufInfoList[startCmdBufInfoIdx];
             }
 
             if (result == Result::Success)
             {
-                result = RemapVirtualMemoryPages(maxCmdBufferCount, ranges.Data(), true, nullptr);
+                result = RemapVirtualMemoryPages(newRangesIdx, ranges.Data(), true, nullptr);
             }
 
             if ((result == Result::Success) && (m_pFence != nullptr))
@@ -317,10 +396,6 @@ Result Queue::Submit(
 
             if (result == Result::Success)
             {
-                perSubQueueInfo.cmdBufferCount = maxCmdBufferCount;
-                perSubQueueInfo.ppCmdBuffers = &cmdBuffers[0];
-                perSubQueueInfo.pCmdBufInfoList = (hasCmdBufInfo) ? &cmdBufInfoList[0] : nullptr;
-                finalSubmitInfo.pPerSubQueueInfo = &perSubQueueInfo;
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 568
                 finalSubmitInfo.ppFences   = (submitInfo.fenceCount > 0) ? submitInfo.ppFences : &m_pFence;
                 finalSubmitInfo.fenceCount = (submitInfo.fenceCount > 0) ? submitInfo.fenceCount :
@@ -332,7 +407,7 @@ Result Queue::Submit(
         }
     }
 
-    if(result == Result::Success)
+    if (result == Result::Success)
     {
         result = QueueDecorator::Submit(finalSubmitInfo);
     }
