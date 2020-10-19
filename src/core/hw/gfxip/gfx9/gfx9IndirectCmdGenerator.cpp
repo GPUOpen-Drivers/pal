@@ -28,6 +28,7 @@
 #include "core/hw/gfxip/gfx9/gfx9ComputePipeline.h"
 #include "core/hw/gfxip/gfx9/gfx9Device.h"
 #include "core/hw/gfxip/gfx9/gfx9GraphicsPipeline.h"
+#include "core/hw/gfxip/gfx9/gfx9HybridGraphicsPipeline.h"
 #include "core/hw/gfxip/gfx9/gfx9IndirectCmdGenerator.h"
 #include "core/g_palPlatformSettings.h"
 #include "palInlineFuncs.h"
@@ -42,7 +43,7 @@ namespace Gfx9
 
 // Contains all information the indirect command generation shader(s) need to represent a compute pipeline signature.
 // NOTE: This *must* be compatible with the 'ComputePipelineSignature' structure defined in
-// core/hw/gfxip/rpm/gfx9/globals.hlsl!
+// core/hw/gfxip/rpm/gfx9/gfx9Chip.hlsl!
 struct ComputePipelineSignatureData
 {
     // First user-data entry which is spilled to GPU memory. A value of 'NO_SPILLING' indicates the pipeline does
@@ -52,6 +53,10 @@ struct ComputePipelineSignatureData
     // of thread groups launched in a Dispatch operation. Two sequential SPI user-data registers are needed to store
     // the address, this is the first register.
     uint32  numWorkGroupsRegAddr;
+    // Register address for the dispatch dimensions of task shaders.
+    uint32  taskDispatchDimsRegAddr;
+    // Register address for the ring index for task shaders.
+    uint32  taskRingIndexAddr;
 };
 
 // Contains all information the indirect command generation shader(s) need to represent a graphics pipeline signature.
@@ -405,9 +410,18 @@ void IndirectCmdGenerator::PopulateInvocationBuffer(
     pData->argumentBufAddr[0] = LowPart(argsGpuAddr);
     pData->argumentBufAddr[1] = HighPart(argsGpuAddr);
 
-    if (Type() == GeneratorType::Dispatch)
+    if ((Type() == GeneratorType::Dispatch)
+       )
     {
-        const ComputePipeline* pComputePipeline = static_cast<const ComputePipeline*>(pPipeline);
+        bool csWave32              = false;
+        bool disablePartialPreempt = false;
+
+        if (Type() == GeneratorType::Dispatch)
+        {
+            const ComputePipeline* pCsPipeline = static_cast<const ComputePipeline*>(pPipeline);
+            csWave32              = pCsPipeline->Signature().flags.isWave32;
+            disablePartialPreempt = pCsPipeline->DisablePartialPreempt();
+        }
 
         regCOMPUTE_DISPATCH_INITIATOR dispatchInitiator = {};
 
@@ -415,11 +429,10 @@ void IndirectCmdGenerator::PopulateInvocationBuffer(
         dispatchInitiator.bits.ORDER_MODE         = 1;
         if (IsGfx10Plus(*m_device.Parent()))
         {
-            const bool csWave32 = pComputePipeline->Signature().flags.isWave32;
             dispatchInitiator.gfx10Plus.CS_W32_EN     = csWave32;
             dispatchInitiator.gfx10Plus.TUNNEL_ENABLE = pCmdBuffer->UsesDispatchTunneling();
         }
-        if (pComputePipeline->DisablePartialPreempt())
+        if (disablePartialPreempt)
         {
             dispatchInitiator.u32All |= ComputeDispatchInitiatorDisablePartialPreemptMask;
         }
@@ -466,10 +479,10 @@ void IndirectCmdGenerator::PopulateSignatureBuffer(
 
         const auto& signature = static_cast<const GraphicsPipeline*>(pPipeline)->Signature();
 
-        pData->spillThreshold        = signature.spillThreshold;
-        pData->vertexOffsetRegAddr   = signature.vertexOffsetRegAddr;
-        pData->drawIndexRegAddr      = signature.drawIndexRegAddr;
-        pData->vertexBufTableRegAddr = signature.vertexBufTableRegAddr;
+        pData->spillThreshold          = signature.spillThreshold;
+        pData->vertexOffsetRegAddr     = signature.vertexOffsetRegAddr;
+        pData->drawIndexRegAddr        = signature.drawIndexRegAddr;
+        pData->vertexBufTableRegAddr   = signature.vertexBufTableRegAddr;
     }
 
     viewInfo.range          = viewInfo.stride;

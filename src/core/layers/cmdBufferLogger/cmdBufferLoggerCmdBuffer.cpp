@@ -3050,7 +3050,8 @@ void PAL_STDCALL CmdBuffer::CmdDraw(
     uint32      firstVertex,
     uint32      vertexCount,
     uint32      firstInstance,
-    uint32      instanceCount)
+    uint32      instanceCount,
+    uint32      drawId)
 {
     auto* pThis = static_cast<CmdBuffer*>(pCmdBuffer);
 
@@ -3069,11 +3070,13 @@ void PAL_STDCALL CmdBuffer::CmdDraw(
         pThis->GetNextLayer()->CmdCommentString(pString);
         Snprintf(pString, StringLength, "Instance Count = 0x%08x", instanceCount);
         pThis->GetNextLayer()->CmdCommentString(pString);
+        Snprintf(pString, StringLength, "Draw Id = 0x%08x", drawId);
+        pThis->GetNextLayer()->CmdCommentString(pString);
 
         PAL_SAFE_DELETE_ARRAY(pString, &allocator);
     }
 
-    pThis->GetNextLayer()->CmdDraw(firstVertex, vertexCount, firstInstance, instanceCount);
+    pThis->GetNextLayer()->CmdDraw(firstVertex, vertexCount, firstInstance, instanceCount, drawId);
 
     pThis->HandleDrawDispatch(Developer::DrawDispatchType::CmdDraw);
 }
@@ -3107,7 +3110,8 @@ void PAL_STDCALL CmdBuffer::CmdDrawIndexed(
     uint32      indexCount,
     int32       vertexOffset,
     uint32      firstInstance,
-    uint32      instanceCount)
+    uint32      instanceCount,
+    uint32      drawId)
 {
     auto* pThis = static_cast<CmdBuffer*>(pCmdBuffer);
 
@@ -3128,11 +3132,13 @@ void PAL_STDCALL CmdBuffer::CmdDrawIndexed(
         pThis->GetNextLayer()->CmdCommentString(pString);
         Snprintf(pString, StringLength, "Instance Count = 0x%08x", instanceCount);
         pThis->GetNextLayer()->CmdCommentString(pString);
+        Snprintf(pString, StringLength, "Draw Id = 0x%08x", drawId);
+        pThis->GetNextLayer()->CmdCommentString(pString);
 
         PAL_SAFE_DELETE_ARRAY(pString, &allocator);
     }
 
-    pThis->GetNextLayer()->CmdDrawIndexed(firstIndex, indexCount, vertexOffset, firstInstance, instanceCount);
+    pThis->GetNextLayer()->CmdDrawIndexed(firstIndex, indexCount, vertexOffset, firstInstance, instanceCount, drawId);
 
     pThis->HandleDrawDispatch(Developer::DrawDispatchType::CmdDrawIndexed);
 }

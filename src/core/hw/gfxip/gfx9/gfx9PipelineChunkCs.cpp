@@ -401,8 +401,16 @@ uint32* PipelineChunkCs::WriteShCommands(
     dynamic.computeResourceLimits.bits.TG_PER_CU = Min(csInfo.maxThreadGroupsPerCu, Gfx9MaxTgPerCu);
     if (csInfo.maxWavesPerCu > 0)
     {
-        dynamic.computeResourceLimits.bits.WAVES_PER_SH =
-            Gfx9::ComputePipeline::CalcMaxWavesPerSh(m_device.Parent()->ChipProperties(), csInfo.maxWavesPerCu);
+        if (IsGfx10Plus(m_device.Parent()->ChipProperties().gfxLevel))
+        {
+            dynamic.computeResourceLimits.bits.WAVES_PER_SH =
+                Gfx9::ComputePipeline::CalcMaxWavesPerSe(m_device.Parent()->ChipProperties(), csInfo.maxWavesPerCu);
+        }
+        else
+        {
+            dynamic.computeResourceLimits.bits.WAVES_PER_SH =
+                Gfx9::ComputePipeline::CalcMaxWavesPerSh(m_device.Parent()->ChipProperties(), csInfo.maxWavesPerCu);
+        }
     }
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 628

@@ -3088,7 +3088,9 @@ void PAL_STDCALL CmdBuffer::CmdDraw(
     uint32      firstVertex,
     uint32      vertexCount,
     uint32      firstInstance,
-    uint32      instanceCount)
+    uint32      instanceCount,
+    uint32      drawId)
+
 {
     auto*const pThis = static_cast<CmdBuffer*>(pCmdBuffer);
 
@@ -3096,7 +3098,8 @@ void PAL_STDCALL CmdBuffer::CmdDraw(
     funcInfo.funcId       = InterfaceFunc::CmdBufferCmdDraw;
     funcInfo.objectId     = pThis->m_objectId;
     funcInfo.preCallTime  = pThis->m_pPlatform->GetTime();
-    pThis->m_pNextLayer->CmdDraw(firstVertex, vertexCount, firstInstance, instanceCount);
+
+    pThis->m_pNextLayer->CmdDraw(firstVertex, vertexCount, firstInstance, instanceCount, drawId);
     funcInfo.postCallTime = pThis->m_pPlatform->GetTime();
 
     LogContext* pLogContext = nullptr;
@@ -3107,6 +3110,7 @@ void PAL_STDCALL CmdBuffer::CmdDraw(
         pLogContext->KeyAndValue("vertexCount", vertexCount);
         pLogContext->KeyAndValue("firstInstance", firstInstance);
         pLogContext->KeyAndValue("instanceCount", instanceCount);
+        pLogContext->KeyAndValue("drawId", drawId);
         pLogContext->EndInput();
 
         pThis->m_pPlatform->LogEndFunc(pLogContext);
@@ -3151,7 +3155,8 @@ void PAL_STDCALL CmdBuffer::CmdDrawIndexed(
     uint32      indexCount,
     int32       vertexOffset,
     uint32      firstInstance,
-    uint32      instanceCount)
+    uint32      instanceCount,
+    uint32      drawId)
 {
     auto*const pThis = static_cast<CmdBuffer*>(pCmdBuffer);
 
@@ -3159,7 +3164,7 @@ void PAL_STDCALL CmdBuffer::CmdDrawIndexed(
     funcInfo.funcId       = InterfaceFunc::CmdBufferCmdDrawIndexed;
     funcInfo.objectId     = pThis->m_objectId;
     funcInfo.preCallTime  = pThis->m_pPlatform->GetTime();
-    pThis->m_pNextLayer->CmdDrawIndexed(firstIndex, indexCount, vertexOffset, firstInstance, instanceCount);
+    pThis->m_pNextLayer->CmdDrawIndexed(firstIndex, indexCount, vertexOffset, firstInstance, instanceCount, drawId);
     funcInfo.postCallTime = pThis->m_pPlatform->GetTime();
 
     LogContext* pLogContext = nullptr;
@@ -3171,6 +3176,7 @@ void PAL_STDCALL CmdBuffer::CmdDrawIndexed(
         pLogContext->KeyAndValue("vertexOffset", vertexOffset);
         pLogContext->KeyAndValue("firstInstance", firstInstance);
         pLogContext->KeyAndValue("instanceCount", instanceCount);
+        pLogContext->KeyAndValue("drawId", drawId);
         pLogContext->EndInput();
 
         pThis->m_pPlatform->LogEndFunc(pLogContext);

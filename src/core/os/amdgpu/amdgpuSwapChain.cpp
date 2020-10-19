@@ -181,6 +181,13 @@ Result SwapChain::Init(
 }
 
 // =====================================================================================================================
+bool SwapChain::NeedWindowSizeChangedCheck(
+    ) const
+{
+    return m_pWindowSystem->NeedWindowSizeChangedCheck();
+}
+
+// =====================================================================================================================
 void SwapChain::WaitForImageIdle(
     uint32 imageIndex)
 {
@@ -256,6 +263,7 @@ Result SwapChain::ReclaimUnusedImages(
                 {
                     m_mailedImageList[dstIdx] = m_mailedImageList[dstIdx + 1];
                 }
+                break;
             }
         }
 

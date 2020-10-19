@@ -492,7 +492,8 @@ private:
         uint32      firstVertex,
         uint32      vertexCount,
         uint32      firstInstance,
-        uint32      instanceCount);
+        uint32      instanceCount,
+        uint32      drawId);
     static void PAL_STDCALL CmdDrawOpaqueDecorator(
         ICmdBuffer*   pCmdBuffer,
         gpusize       streamOutFilledSizeVa,
@@ -506,7 +507,8 @@ private:
         uint32      indexCount,
         int32       vertexOffset,
         uint32      firstInstance,
-        uint32      instanceCount);
+        uint32      instanceCount,
+        uint32      drawId);
     static void PAL_STDCALL CmdDrawIndirectMultiDecorator(
         ICmdBuffer*       pCmdBuffer,
         const IGpuMemory& gpuMemory,

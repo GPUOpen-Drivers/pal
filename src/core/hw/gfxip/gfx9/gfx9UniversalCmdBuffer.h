@@ -31,6 +31,7 @@
 #include "core/hw/gfxip/gfx9/gfx9ComputeCmdBuffer.h"
 #include "core/hw/gfxip/gfx9/gfx9WorkaroundState.h"
 #include "core/hw/gfxip/gfx9/g_gfx9PalSettings.h"
+#include "palAutoBuffer.h"
 #include "palIntervalTree.h"
 #include "palPipelineAbi.h"
 #include "palVector.h"
@@ -131,6 +132,7 @@ struct DrawTimeHwState
     uint32                        instanceOffset;            // Current value of the instance offset user data.
     uint32                        vertexOffset;              // Current value of the vertex offset user data.
     uint32                        numInstances;              // Current value of the NUM_INSTANCES state.
+    uint32                        drawIndex;                 // Current value of the draw index user data.
     regPA_SC_MODE_CNTL_1          paScModeCntl1;             // Current value of the PA_SC_MODE_CNTL1 register.
     regDB_COUNT_CONTROL           dbCountControl;            // Current value of the DB_COUNT_CONTROL register.
     regVGT_MULTI_PRIM_IB_RESET_EN vgtMultiPrimIbResetEn;     // Current value of the VGT_MULTI_PRIM_IB_RESET_EN
@@ -642,7 +644,8 @@ private:
         uint32      firstVertex,
         uint32      vertexCount,
         uint32      firstInstance,
-        uint32      instanceCount);
+        uint32      instanceCount,
+        uint32      drawId);
 
     template <bool IssueSqttMarkerEvent,
               bool HasUavExport,
@@ -666,7 +669,8 @@ private:
         uint32      indexCount,
         int32       vertexOffset,
         uint32      firstInstance,
-        uint32      instanceCount);
+        uint32      instanceCount,
+        uint32      drawId);
 
     template <bool IssueSqttMarkerEvent, bool ViewInstancingEnable, bool DescribeDrawDispatch>
     static void PAL_STDCALL CmdDrawIndirectMulti(
@@ -858,19 +862,8 @@ private:
     CmdStream* GetAceCmdStream();
     gpusize    GangedCmdStreamSemAddr();
     void       IssueGangedBarrierIncr();
-
-    const Device&   m_device;
-    const CmdUtil&  m_cmdUtil;
-    CmdStream       m_deCmdStream;
-    CmdStream       m_ceCmdStream;
-
-    // Tracks the user-data signature of the currently active compute & graphics pipelines.
-    const ComputePipelineSignature*   m_pSignatureCs;
-    const GraphicsPipelineSignature*  m_pSignatureGfx;
-
-    uint32      m_pipelineCtxRegHash;   // Hash of current pipeline's context registers.
-    uint32      m_pipelineCfgRegHash;   // Hash of current pipeline's config registers.
-    ShaderHash  m_pipelinePsHash;       // Hash of current pipeline's pixel shader program.
+    void       UpdateTaskMeshRingSize();
+    void       ValidateTaskMeshDispatch(gpusize indirectGpuVirtAddr, uint32 xDim, uint32 yDim, uint32 zDim);
 
     bool IsTessEnabled() const
     {
@@ -895,6 +888,19 @@ private:
 #endif
         return (m_pipelineState.flags.isNgg != 0);
     }
+
+    const Device&   m_device;
+    const CmdUtil&  m_cmdUtil;
+    CmdStream       m_deCmdStream;
+    CmdStream       m_ceCmdStream;
+
+    // Tracks the user-data signature of the currently active compute & graphics pipelines.
+    const ComputePipelineSignature*   m_pSignatureCs;
+    const GraphicsPipelineSignature*  m_pSignatureGfx;
+
+    uint32      m_pipelineCtxRegHash;   // Hash of current pipeline's context registers.
+    uint32      m_pipelineCfgRegHash;   // Hash of current pipeline's config registers.
+    ShaderHash  m_pipelinePsHash;       // Hash of current pipeline's pixel shader program.
 
     struct
     {

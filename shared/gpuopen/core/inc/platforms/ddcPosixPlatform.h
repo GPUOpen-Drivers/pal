@@ -138,6 +138,17 @@ namespace DevDriver
         typedef sem_t SemaphoreStorage;
 #elif defined(DD_PLATFORM_DARWIN_UM)
         typedef dispatch_semaphore_t SemaphoreStorage;
+
+        // Functions to override the process name & ID returned by GetProcessId/GetProcessName.
+        // On Mac the DevDriver is compiled as a separate XPC service executable.
+        // Each XPC connection therefore has to provide the actual program name & PID,
+        // otherwise all the connections will report as coming from the XPC service!
+
+        // Overrides the ProcessId with one provided, should only be used by RadeonDeveloperServiceXPC
+        void OverrideProcessId(ProcessId id);
+
+        // Overrides the Process name with one provided, should only be used by RadeonDeveloperServiceXPC
+        void OverrideProcessName(char const* name);
 #endif
 
         typedef pthread_t ThreadHandle;

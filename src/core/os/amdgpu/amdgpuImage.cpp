@@ -30,6 +30,8 @@
 #include "core/os/amdgpu/amdgpuWindowSystem.h"
 #include "palFormatInfo.h"
 #include "palSysMemory.h"
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 633
+#endif
 
 using namespace Util;
 
@@ -620,6 +622,9 @@ void Image::SetIdle(
         pAmdgpuDevice->DirtyGlobalReferences();
     }
 }
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 633
+#endif
 
 } // Linux
 } // Pal

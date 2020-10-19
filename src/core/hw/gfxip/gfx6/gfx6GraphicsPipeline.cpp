@@ -346,7 +346,11 @@ Result GraphicsPipeline::HwlInit(
                                           loadInfo.loadedShRegCount);
         result = PerformRelocationsAndUploadToGpuMemory(
             metadata,
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
             (createInfo.flags.overrideGpuHeap == 1) ? createInfo.preferredHeapType : GpuHeapInvisible,
+#else
+            IsInternal() ? GpuHeapLocal : m_pDevice->Parent()->GetPublicSettings()->pipelinePreferredHeap,
+#endif
             &uploader);
 
         if (result == Result::Success)

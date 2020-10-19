@@ -163,6 +163,7 @@ void SettingsLoader::SetupDefaults()
 
     m_settings.binningFpovsPerBatch = 63;
     m_settings.binningOptimalBinSelection = true;
+
     m_settings.disableBinningAppendConsume = true;
 
     m_settings.shaderPrefetchMethod = PrefetchCpDma;
@@ -216,7 +217,7 @@ void SettingsLoader::SetupDefaults()
     m_settings.depthStencilFastClearComputeThresholdSingleSampled = 2097152;
     m_settings.depthStencilFastClearComputeThresholdMultiSampled = 4194304;
     m_settings.gfx10MaxFpovsInWave = 0;
-    m_settings.disableAceCsPartialFlush = true;
+    m_settings.disableAceCsPartialFlush = false;
     m_settings.addrLibGbAddrConfigOverride = 0x0;
 
     m_settings.numSettings = g_gfx9PalNumSettings;
@@ -2035,7 +2036,7 @@ void SettingsLoader::DevDriverRegister()
             component.pfnSetValue = ISettingsLoader::SetValue;
             component.pSettingsData = &g_gfx9PalJsonData[0];
             component.settingsDataSize = sizeof(g_gfx9PalJsonData);
-            component.settingsDataHash = 232176129;
+            component.settingsDataHash = 2332314935;
             component.settingsDataHeader.isEncoded = true;
             component.settingsDataHeader.magicBufferId = 402778310;
             component.settingsDataHeader.magicBufferOffset = 0;

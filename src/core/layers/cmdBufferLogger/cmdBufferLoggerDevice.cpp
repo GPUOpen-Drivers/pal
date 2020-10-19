@@ -139,19 +139,25 @@ Result Device::CreateCmdBuffer(
                                                   VoidPtrInc(pPlacementAddr, offset),
                                                   &pNextCmdBuffer);
 
-    if ((result == Result::Success) && supportsCommentString)
+    if (result == Result::Success)
     {
         PAL_ASSERT(pNextCmdBuffer != nullptr);
 
-        pCmdBuffer = PAL_PLACEMENT_NEW(pPlacementAddr) CmdBuffer(pNextCmdBuffer, this, createInfo);
-        result     = static_cast<CmdBuffer*>(pCmdBuffer)->Init();
-    }
-    else if (result == Result::Success)
-    {
-        PAL_ASSERT(pNextCmdBuffer != nullptr);
-
-        pCmdBuffer = PAL_PLACEMENT_NEW(pPlacementAddr)
-            CmdBufferFwdDecorator(pNextCmdBuffer, static_cast<const DeviceDecorator*>(m_pNextLayer));
+        if (supportsCommentString)
+        {
+            pCmdBuffer = PAL_PLACEMENT_NEW(pPlacementAddr) CmdBuffer(pNextCmdBuffer, this, createInfo);
+            auto* pCb = static_cast<CmdBuffer*>(pCmdBuffer);
+            result = pCb->Init();
+            if (result != Result::Success)
+            {
+                pCb->Destroy();
+            }
+        }
+        else
+        {
+            pCmdBuffer = PAL_PLACEMENT_NEW(pPlacementAddr)
+                CmdBufferFwdDecorator(pNextCmdBuffer, static_cast<const DeviceDecorator*>(m_pNextLayer));
+        }
     }
 
     if (result == Result::Success)
@@ -180,7 +186,7 @@ Result Device::CreateQueue(
     IQueue**               ppQueue)
 {
     IQueue* pNextQueue = nullptr;
-    IQueue* pQueue = nullptr;
+    IQueue* pQueue     = nullptr;
 
     // TODO: Some queues do not support CmdCommentString. When they do, this branch can go away.
     const bool   supportsCommentString = SupportsCommentString(createInfo.queueType);
@@ -195,7 +201,12 @@ Result Device::CreateQueue(
         PAL_ASSERT(pNextQueue != nullptr);
 
         pQueue = PAL_PLACEMENT_NEW(pPlacementAddr) Queue(pNextQueue, this, 1);
-        result = static_cast<Queue*>(pQueue)->Init(&createInfo);
+        auto* pQ = static_cast<Queue*>(pQueue);
+        result = pQ->Init(&createInfo);
+        if (result != Result::Success)
+        {
+            pQ->Destroy();
+        }
     }
     else if (result == Result::Success)
     {
@@ -233,7 +244,7 @@ Result Device::CreateMultiQueue(
     IQueue**               ppQueue)
 {
     IQueue* pNextQueue = nullptr;
-    IQueue* pQueue = nullptr;
+    IQueue* pQueue     = nullptr;
 
     // TODO: Some queues do not support CmdCommentString. When they do, this branch can go away.
     const bool   supportsCommentString = SupportsCommentString(queueCount, pCreateInfo);
@@ -249,7 +260,12 @@ Result Device::CreateMultiQueue(
         PAL_ASSERT(pNextQueue != nullptr);
 
         pQueue = PAL_PLACEMENT_NEW(pPlacementAddr) Queue(pNextQueue, this, queueCount);
-        result = static_cast<Queue*>(pQueue)->Init(pCreateInfo);
+        auto* pQ = static_cast<Queue*>(pQueue);
+        result = pQ->Init(pCreateInfo);
+        if (result != Result::Success)
+        {
+            pQ->Destroy();
+        }
     }
     else if (result == Result::Success)
     {

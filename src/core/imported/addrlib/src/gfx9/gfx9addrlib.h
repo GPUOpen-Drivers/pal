@@ -226,8 +226,7 @@ const UINT_32 Dcn1Bpp64SwModeMask = (1u << ADDR_SW_4KB_D)    |
 const UINT_32 Dcn2NonBpp64SwModeMask = (1u << ADDR_SW_LINEAR)   |
                                        (1u << ADDR_SW_64KB_S)   |
                                        (1u << ADDR_SW_64KB_S_T) |
-                                       (1u << ADDR_SW_64KB_S_X) |
-                                       (1u << ADDR_SW_64KB_R_X);
+                                       (1u << ADDR_SW_64KB_S_X);
 
 const UINT_32 Dcn2Bpp64SwModeMask = (1u << ADDR_SW_64KB_D)   |
                                     (1u << ADDR_SW_64KB_D_T) |

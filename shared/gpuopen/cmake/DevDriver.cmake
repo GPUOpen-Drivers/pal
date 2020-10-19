@@ -24,7 +24,7 @@
  #
  #######################################################################################################################
 
-cmake_minimum_required(VERSION 3.5)
+cmake_minimum_required(VERSION 3.10..3.16)
 
 # DevDriver.cmake adds project-specific options and warnings.
 # It does this while depending on the base AMD-wide configurations defined here.

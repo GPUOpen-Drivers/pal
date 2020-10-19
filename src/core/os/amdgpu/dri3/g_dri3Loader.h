@@ -90,6 +90,10 @@ typedef xcb_generic_event_t* (*XcbWaitForSpecialEvent)(
             xcb_connection_t*     pConnection,
             xcb_special_event*    pEvent);
 
+typedef xcb_generic_event_t* (*XcbPollForSpecialEvent)(
+            xcb_connection_t*     pConnection,
+            xcb_special_event*    pEvent);
+
 typedef const xcb_query_extension_reply_t* (*XcbGetExtensionData)(
             xcb_connection_t*     pConnection,
             xcb_extension_t*      pExtension);
@@ -490,6 +494,12 @@ struct Dri3LoaderFuncs
     bool pfnXcbWaitForSpecialEventisValid() const
     {
         return (pfnXcbWaitForSpecialEvent != nullptr);
+    }
+
+    XcbPollForSpecialEvent                pfnXcbPollForSpecialEvent;
+    bool pfnXcbPollForSpecialEventisValid() const
+    {
+        return (pfnXcbPollForSpecialEvent != nullptr);
     }
 
     XcbGetExtensionData                   pfnXcbGetExtensionData;
@@ -1002,6 +1012,15 @@ public:
     bool pfnXcbWaitForSpecialEventisValid() const
     {
         return (m_pFuncs->pfnXcbWaitForSpecialEvent != nullptr);
+    }
+
+    xcb_generic_event_t* pfnXcbPollForSpecialEvent(
+            xcb_connection_t*     pConnection,
+            xcb_special_event*    pEvent) const;
+
+    bool pfnXcbPollForSpecialEventisValid() const
+    {
+        return (m_pFuncs->pfnXcbPollForSpecialEvent != nullptr);
     }
 
     const xcb_query_extension_reply_t* pfnXcbGetExtensionData(

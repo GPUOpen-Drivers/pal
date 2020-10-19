@@ -38,6 +38,8 @@
 #include "core/os/amdgpu/amdgpuHeaders.h"
 #endif
 
+#include <ctime>
+
 using namespace Util;
 
 namespace Pal
@@ -160,6 +162,14 @@ void TextWriter::WriteVisualConfirm(
         }
     }
     textLines++;
+
+    if (settings.debugOverlayConfig.dateTimeEnabled)
+    {
+        time_t now = time(0);
+        struct tm tstruct = *localtime(&now);
+        strftime(&overlayText[textLines++][0], BufSize, "Date: %Y-%m-%d (YYYY-MM-DD)", &tstruct);
+        strftime(&overlayText[textLines++][0], BufSize, "Time: %H:%M:%S   (HH:MM:SS)",   &tstruct);
+    }
 
     // Blank line.
     textLines++;

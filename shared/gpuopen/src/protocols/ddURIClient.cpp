@@ -134,7 +134,11 @@ Result URIClient::TransactURIRequestV(
             // Ensure we have enough buffer space to read the whole response.
             pResponseBuffer->Resize(responseHeader.responseDataSizeInBytes);
 
-            result = ReadFullResponse(pResponseBuffer->Data(), pResponseBuffer->Size());
+            // Not all requests return data, so only read the full response if there is data to read.
+            if (responseHeader.responseDataSizeInBytes != 0)
+            {
+                result = ReadFullResponse(pResponseBuffer->Data(), pResponseBuffer->Size());
+            }
         }
     }
 

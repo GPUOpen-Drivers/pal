@@ -67,6 +67,19 @@ enum class ImageCopyEngine : uint32
     Compute         = 0x2,
 };
 
+// Specifies gpu addresses that are used as input to CmdGenerateIndirectCmds
+struct GenerateInfo
+{
+    GfxCmdBuffer*               pCmdBuffer;
+    const Pipeline*             pPipeline;
+    const IndirectCmdGenerator& generator;
+    uint32                      indexBufSize; // Maximum number of indices in the bound index buffer.
+    uint32                      maximumCount; // Maximum number of draw or dispatch commands.
+    gpusize                     argsGpuAddr;  // Argument buffer GPU address.
+    gpusize                     countGpuAddr; // GPU address of the memory containing the actual command
+                                              // count to generate.
+};
+
 // =====================================================================================================================
 // Resource Processing Manager: Contains resource modification and preparation logic. RPM and its subclasses issue
 // draws, dispatches, and other operations to manipulate resource contents and hardware state.
@@ -228,13 +241,10 @@ public:
         uint32                    flags) const;
 
     void CmdGenerateIndirectCmds(
-        GfxCmdBuffer*               pCmdBuffer,
-        const Pipeline*             pPipeline,
-        const IndirectCmdGenerator& generator,
-        gpusize                     argsGpuAddr,
-        gpusize                     countGpuAddr,
-        uint32                      indexBufSize,
-        uint32                      maximumCount
+        const GenerateInfo& genInfo,
+        CmdStreamChunk**    ppChunkLists[],
+        uint32              NumChunkLists,
+        uint32*             pNumGenChunks
         ) const;
 
     virtual bool ExpandDepthStencil(

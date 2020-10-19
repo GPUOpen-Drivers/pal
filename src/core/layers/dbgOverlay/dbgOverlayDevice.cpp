@@ -197,15 +197,19 @@ Result Device::CreateQueue(
     if (result == Result::Success)
     {
         PAL_ASSERT(pNextQueue != nullptr);
-        pNextQueue->SetClientData(pPlacementAddr);
 
         pQueue = PAL_PLACEMENT_NEW(pPlacementAddr) Queue(pNextQueue, this, 1);
 
         result = pQueue->Init(&createInfo);
+        if (result != Result::Success)
+        {
+            pQueue->Destroy();
+        }
     }
 
     if (result == Result::Success)
     {
+        pNextQueue->SetClientData(pPlacementAddr);
         (*ppQueue) = pQueue;
     }
 
@@ -242,17 +246,21 @@ Result Device::CreateMultiQueue(
     if (result == Result::Success)
     {
         PAL_ASSERT(pNextQueue != nullptr);
-        pNextQueue->SetClientData(pPlacementAddr);
 
         pQueue = PAL_PLACEMENT_NEW(pPlacementAddr) Queue(pNextQueue,
                                                          this,
                                                          queueCount);
 
         result = pQueue->Init(pCreateInfo);
+        if (result != Result::Success)
+        {
+            pQueue->Destroy();
+        }
     }
 
     if (result == Result::Success)
     {
+        pNextQueue->SetClientData(pPlacementAddr);
         (*ppQueue) = pQueue;
     }
 

@@ -23,7 +23,7 @@
  #
  #######################################################################################################################
 
-cmake_minimum_required(VERSION 3.5)
+cmake_minimum_required(VERSION 3.10..3.16)
 project(GPUOPEN CXX)
 
 # Put ZERO_CHECK, INSTALL, etc default targets in a separate folder in VS solutions
@@ -80,7 +80,11 @@ target_link_libraries(${GPUOPEN_LIB_NAME} PUBLIC  metrohash)
 
 ### Build Defines ######################################################################################################
 target_compile_definitions(${GPUOPEN_LIB_NAME} PUBLIC GPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION=${GPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION})
-target_compile_definitions(${GPUOPEN_LIB_NAME} PUBLIC DD_BRANCH_STRING=\"unknown\")
+
+if (NOT DEFINED DD_BRANCH_STRING)
+    set(DD_BRANCH_STRING \"unknown\")
+endif()
+target_compile_definitions(${GPUOPEN_LIB_NAME} PUBLIC DD_BRANCH_STRING=${DD_BRANCH_STRING})
 
 # Add NDEBUG flag in release builds since several code files depend on it.
 target_compile_definitions(${GPUOPEN_LIB_NAME} PRIVATE $<$<CONFIG:Release>:NDEBUG>)
@@ -110,6 +114,7 @@ target_sources(${GPUOPEN_LIB_NAME} PRIVATE
     src/protocols/ddTransferClient.cpp
     src/protocols/ddURIServer.cpp
     src/protocols/ddEventClient.cpp
+    src/protocols/ddEventParser.cpp
     src/protocols/ddEventServer.cpp
     src/protocols/ddEventProvider.cpp
     src/protocols/ddEventServerSession.cpp
@@ -166,19 +171,20 @@ endif()
 ### Standard Driver Protocols ###
 if(GPUOPEN_BUILD_STANDARD_DRIVER_PROTOCOLS)
     set(GPUOPEN_BUILD_PROTOCOL_DRIVERCONTROL_SERVER ON)
-    set(GPUOPEN_BUILD_PROTOCOL_SETTINGS_SERVER ON)
-    set(GPUOPEN_BUILD_PROTOCOL_LOGGING_SERVER ON)
-    set(GPUOPEN_BUILD_PROTOCOL_RGP_SERVER ON)
+    set(GPUOPEN_BUILD_PROTOCOL_SETTINGS_SERVER      ON)
+    set(GPUOPEN_BUILD_PROTOCOL_LOGGING_SERVER       ON)
+    set(GPUOPEN_BUILD_PROTOCOL_RGP_SERVER           ON)
+
 endif()
 
 ### Standard Tool Protocols ###
 if(GPUOPEN_BUILD_STANDARD_TOOL_PROTOCOLS)
     set(GPUOPEN_BUILD_PROTOCOL_DRIVERCONTROL_CLIENT ON)
-    set(GPUOPEN_BUILD_PROTOCOL_SETTINGS_CLIENT ON)
-    set(GPUOPEN_BUILD_PROTOCOL_LOGGING_CLIENT ON)
-    set(GPUOPEN_BUILD_PROTOCOL_RGP_CLIENT ON)
-    set(GPUOPEN_BUILD_PROTOCOL_URI_CLIENT ON)
-    set(GPUOPEN_BUILD_PROTOCOL_CRASHDUMP_SERVER ON)
+    set(GPUOPEN_BUILD_PROTOCOL_SETTINGS_CLIENT      ON)
+    set(GPUOPEN_BUILD_PROTOCOL_LOGGING_CLIENT       ON)
+    set(GPUOPEN_BUILD_PROTOCOL_RGP_CLIENT           ON)
+    set(GPUOPEN_BUILD_PROTOCOL_URI_CLIENT           ON)
+    set(GPUOPEN_BUILD_PROTOCOL_CRASHDUMP_SERVER     ON)
 endif()
 
 ### Standard Listener Protocols ###

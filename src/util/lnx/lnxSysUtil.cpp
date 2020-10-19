@@ -1103,6 +1103,16 @@ Result GetStatusOfDir(
     return result;
 }
 
+// =====================================================================================================================
+// Almost-Posix-style rename file or directory: replaces already-existing file.
+// Posix says this operation is atomic; Windows does not specify.
+Result Rename(
+    const char* pOldName,
+    const char* pNewName)
+{
+    return (rename(pOldName, pNewName) == 0) ?  Result::Success : Result::ErrorInvalidValue;
+}
+
 /// Get the Process ID of the current process
 uint32 GetIdOfCurrentProcess()
 {

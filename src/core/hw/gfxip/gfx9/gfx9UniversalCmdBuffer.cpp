@@ -54,8 +54,6 @@ using namespace Util;
 using namespace Pal::Formats;
 using namespace Pal::Formats::Gfx9;
 
-using std::is_same;
-
 namespace Pal
 {
 namespace Gfx9
@@ -743,6 +741,7 @@ void UniversalCmdBuffer::ResetState()
 
     m_gangedCmdStreamSemAddr = 0;
     m_barrierCount = 0;
+
 }
 
 // =====================================================================================================================
@@ -2024,7 +2023,8 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDraw(
     uint32      firstVertex,
     uint32      vertexCount,
     uint32      firstInstance,
-    uint32      instanceCount)
+    uint32      instanceCount,
+    uint32      drawId)
 {
     auto* pThis = static_cast<UniversalCmdBuffer*>(pCmdBuffer);
 
@@ -2034,6 +2034,7 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDraw(
     drawInfo.firstVertex   = firstVertex;
     drawInfo.firstInstance = firstInstance;
     drawInfo.firstIndex    = 0;
+    drawInfo.drawIndex     = drawId;
     drawInfo.useOpaque     = false;
 
     pThis->ValidateDraw<false, false>(drawInfo);
@@ -2121,6 +2122,7 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawOpaque(
     drawInfo.firstVertex   = 0;
     drawInfo.firstInstance = firstInstance;
     drawInfo.firstIndex    = 0;
+    drawInfo.drawIndex     = 0;
     drawInfo.useOpaque     = true;
 
     pThis->ValidateDraw<false, false>(drawInfo);
@@ -2218,7 +2220,8 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawIndexed(
     uint32      indexCount,
     int32       vertexOffset,
     uint32      firstInstance,
-    uint32      instanceCount)
+    uint32      instanceCount,
+    uint32      drawId)
 {
     auto* pThis = static_cast<UniversalCmdBuffer*>(pCmdBuffer);
 
@@ -2238,6 +2241,7 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawIndexed(
     drawInfo.firstVertex   = vertexOffset;
     drawInfo.firstInstance = firstInstance;
     drawInfo.firstIndex    = firstIndex;
+    drawInfo.drawIndex     = drawId;
     drawInfo.useOpaque     = false;
 
     pThis->ValidateDraw<true, false>(drawInfo);
@@ -2364,6 +2368,7 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawIndirectMulti(
     drawInfo.firstVertex   = 0;
     drawInfo.firstInstance = 0;
     drawInfo.firstIndex    = 0;
+    drawInfo.drawIndex     = 0;
     drawInfo.useOpaque     = false;
 
     pThis->ValidateDraw<false, true>(drawInfo);
@@ -2473,6 +2478,7 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawIndexedIndirectMulti(
     drawInfo.firstVertex   = 0;
     drawInfo.firstInstance = 0;
     drawInfo.firstIndex    = 0;
+    drawInfo.drawIndex     = 0;
     drawInfo.useOpaque     = false;
 
     pThis->ValidateDraw<true, true>(drawInfo);
@@ -3629,11 +3635,11 @@ uint32* UniversalCmdBuffer::WriteDirtyUserDataEntriesToSgprsGfx(
     uint8                            alreadyWrittenStageMask,
     uint32*                          pDeCmdSpace)
 {
-    const uint8 activeStageMask = ((TessEnabled ? (1 << HsStageId) : 0) |
-                                   (GsEnabled   ? (1 << GsStageId) : 0) |
-                                   (VsEnabled   ? (1 << VsStageId) : 0) |
-                                                  (1 << PsStageId));
-    const uint8 dirtyStageMask  = ((~alreadyWrittenStageMask) & activeStageMask);
+    constexpr uint8 ActiveStageMask = ((TessEnabled ? (1 << HsStageId) : 0) |
+                                       (GsEnabled   ? (1 << GsStageId) : 0) |
+                                       (VsEnabled   ? (1 << VsStageId) : 0) |
+                                                      (1 << PsStageId));
+    const uint8 dirtyStageMask  = ((~alreadyWrittenStageMask) & ActiveStageMask);
     if (dirtyStageMask)
     {
         if (TessEnabled && (dirtyStageMask & (1 << HsStageId)))
@@ -3730,8 +3736,6 @@ uint32* UniversalCmdBuffer::ValidateGraphicsUserData(
     PAL_ASSERT((HasPipelineChanged  && (pPrevSignature != nullptr)) ||
                (!HasPipelineChanged && (pPrevSignature == nullptr)));
 
-    constexpr uint32 StreamOutTableDwords = (sizeof(m_streamOut.srd) / sizeof(uint32));
-
     // Step #1:
     // If the stream-out table or vertex buffer table were updated since the previous Draw, and are referenced by the
     // current pipeline, they must be relocated to a new location in GPU memory and re-uploaded by the CPU.
@@ -3775,6 +3779,7 @@ uint32* UniversalCmdBuffer::ValidateGraphicsUserData(
 
         if (m_streamOut.state.dirty)
         {
+            constexpr uint32 StreamOutTableDwords = (sizeof(m_streamOut.srd) / sizeof(uint32));
             UpdateUserDataTableCpu(&m_streamOut.state,
                                    StreamOutTableDwords,
                                    0,
@@ -3826,86 +3831,98 @@ uint32* UniversalCmdBuffer::ValidateGraphicsUserData(
         alreadyWrittenStageMask = FixupUserSgprsOnPipelineSwitch<TessEnabled, GsEnabled, VsEnabled>(pPrevSignature,
                                                                                                     &pDeCmdSpace);
     }
-    pDeCmdSpace = WriteDirtyUserDataEntriesToSgprsGfx<TessEnabled, GsEnabled, VsEnabled>(pPrevSignature,
-                                                                                         alreadyWrittenStageMask,
-                                                                                         pDeCmdSpace);
 
-    const uint16 spillThreshold = m_pSignatureGfx->spillThreshold;
-    if (spillThreshold != NoUserDataSpilling)
+    const bool anyUserDataDirty = IsAnyGfxUserDataDirty();
+    if (anyUserDataDirty)
     {
-        const uint16 userDataLimit = m_pSignatureGfx->userDataLimit;
-        PAL_ASSERT(userDataLimit > 0);
-        const uint16 lastUserData  = (userDataLimit - 1);
+        pDeCmdSpace = WriteDirtyUserDataEntriesToSgprsGfx<TessEnabled, GsEnabled, VsEnabled>(pPrevSignature,
+                                                                                             alreadyWrittenStageMask,
+                                                                                             pDeCmdSpace);
 
-        // Step #3:
-        // Because the spill table is managed using CPU writes to embedded data, it must be fully re-uploaded for any
-        // Dispatch whenever *any* contents have changed.
-        bool reUpload = (m_spillTable.stateCs.dirty != 0);
-        if (HasPipelineChanged &&
-            ((spillThreshold < pPrevSignature->spillThreshold) || (userDataLimit > pPrevSignature->userDataLimit)))
+        const uint16 spillThreshold = m_pSignatureGfx->spillThreshold;
+        if (spillThreshold != NoUserDataSpilling)
         {
-            // If the pipeline is changing and the spilled region is expanding, we need to re-upload the table because
-            // we normally only update the portions useable by the bound pipeline to minimize memory usage.
-            reUpload = true;
-        }
-        else
-        {
-            // Otherwise, use the following loop to check if any of the spilled user-data entries are dirty.
-            const uint32 firstMaskId = (spillThreshold / UserDataEntriesPerMask);
-            const uint32 lastMaskId  = (lastUserData   / UserDataEntriesPerMask);
-            for (uint32 maskId = firstMaskId; maskId <= lastMaskId; ++maskId)
+            const uint16 userDataLimit = m_pSignatureGfx->userDataLimit;
+            PAL_ASSERT(userDataLimit > 0);
+            const uint16 lastUserData  = (userDataLimit - 1);
+
+            // Step #3:
+            // Because the spill table is managed using CPU writes to embedded data, it must be fully re-uploaded for
+            // any Dispatch whenever *any* contents have changed.
+            bool reUpload = (m_spillTable.stateCs.dirty != 0);
+            if (HasPipelineChanged &&
+                ((spillThreshold < pPrevSignature->spillThreshold) || (userDataLimit > pPrevSignature->userDataLimit)))
             {
-                size_t dirtyMask = m_graphicsState.gfxUserDataEntries.dirty[maskId];
-                if (maskId == firstMaskId)
-                {
-                    // Ignore the dirty bits for any entries below the spill threshold.
-                    const uint32 firstEntryInMask = (spillThreshold & (UserDataEntriesPerMask - 1));
-                    dirtyMask &= ~BitfieldGenMask(static_cast<size_t>(firstEntryInMask));
-                }
-                if (maskId == lastMaskId)
-                {
-                    // Ignore the dirty bits for any entries beyond the user-data limit.
-                    const uint32 lastEntryInMask = (lastUserData & (UserDataEntriesPerMask - 1));
-                    dirtyMask &= BitfieldGenMask(static_cast<size_t>(lastEntryInMask + 1));
-                }
-
-                if (dirtyMask != 0)
-                {
-                    reUpload = true;
-                    break; // We only care if *any* spill table contents change!
-                }
-            } // for each wide-bitfield sub-mask
-        }
-
-        // Step #4:
-        // Re-upload spill table contents if necessary, and write the new GPU virtual address to the user-SGPR(s).
-        if (reUpload)
-        {
-            UpdateUserDataTableCpu(&m_spillTable.stateGfx,
-                                   (userDataLimit - spillThreshold),
-                                   spillThreshold,
-                                   &m_graphicsState.gfxUserDataEntries.entries[0]);
-        }
-
-        // NOTE: If the pipeline is changing, we may need to re-write the spill table address to any shader stage, even
-        // if the spill table wasn't re-uploaded because the mapped user-SGPRs for the spill table could have changed.
-        if (HasPipelineChanged || reUpload)
-        {
-            const uint32 gpuVirtAddrLo = LowPart(m_spillTable.stateGfx.gpuVirtAddr);
-            for (uint32 s = 0; s < NumHwShaderStagesGfx; ++s)
+                // If the pipeline is changing and the spilled region is expanding, we need to re-upload the table
+                // because we normally only update the portions usable by the bound pipeline to minimize memory usage.
+                reUpload = true;
+            }
+            else
             {
-                const uint16 userSgpr = m_pSignatureGfx->stage[s].spillTableRegAddr;
-                if (userSgpr != UserDataNotMapped)
+                // Otherwise, use the following loop to check if any of the spilled user-data entries are dirty.
+                const uint32 firstMaskId = (spillThreshold / UserDataEntriesPerMask);
+                const uint32 lastMaskId  = (lastUserData   / UserDataEntriesPerMask);
+                for (uint32 maskId = firstMaskId; maskId <= lastMaskId; ++maskId)
                 {
-                    pDeCmdSpace = m_deCmdStream.WriteSetOneShReg<ShaderGraphics>(userSgpr, gpuVirtAddrLo, pDeCmdSpace);
+                    size_t dirtyMask = m_graphicsState.gfxUserDataEntries.dirty[maskId];
+                    if (maskId == firstMaskId)
+                    {
+                        // Ignore the dirty bits for any entries below the spill threshold.
+                        const uint32 firstEntryInMask = (spillThreshold & (UserDataEntriesPerMask - 1));
+                        dirtyMask &= ~BitfieldGenMask(static_cast<size_t>(firstEntryInMask));
+                    }
+                    if (maskId == lastMaskId)
+                    {
+                        // Ignore the dirty bits for any entries beyond the user-data limit.
+                        const uint32 lastEntryInMask = (lastUserData & (UserDataEntriesPerMask - 1));
+                        dirtyMask &= BitfieldGenMask(static_cast<size_t>(lastEntryInMask + 1));
+                    }
+
+                    if (dirtyMask != 0)
+                    {
+                        reUpload = true;
+                        break; // We only care if *any* spill table contents change!
+                    }
+                } // for each wide-bitfield sub-mask
+            }
+
+            // Step #4:
+            // Re-upload spill table contents if necessary, and write the new GPU virtual address to the user-SGPR(s).
+            if (reUpload)
+            {
+                UpdateUserDataTableCpu(&m_spillTable.stateGfx,
+                                       (userDataLimit - spillThreshold),
+                                       spillThreshold,
+                                       &m_graphicsState.gfxUserDataEntries.entries[0]);
+            }
+
+            // NOTE: If the pipeline is changing, we may need to re-write the spill table address to any shader stage,
+            // even if the spill table wasn't re-uploaded because the mapped user-SGPRs for the spill table could have
+            // changed.
+            if (HasPipelineChanged || reUpload)
+            {
+                const uint32 gpuVirtAddrLo = LowPart(m_spillTable.stateGfx.gpuVirtAddr);
+                for (uint32 s = 0; s < NumHwShaderStagesGfx; ++s)
+                {
+                    const uint16 userSgpr = m_pSignatureGfx->stage[s].spillTableRegAddr;
+                    if (userSgpr != UserDataNotMapped)
+                    {
+                        pDeCmdSpace = m_deCmdStream.WriteSetOneShReg<ShaderGraphics>(userSgpr,
+                                                                                     gpuVirtAddrLo,
+                                                                                     pDeCmdSpace);
+                    }
                 }
             }
-        }
-    } // if current pipeline spills user-data
+        } // if current pipeline spills user-data
 
-    // All dirtied user-data entries have been written to user-SGPR's or to the spill table somewhere in this method,
-    // so it is safe to clear these bits.
-    memset(&m_graphicsState.gfxUserDataEntries.dirty[0], 0, sizeof(m_graphicsState.gfxUserDataEntries.dirty));
+        // All dirtied user-data entries have been written to user-SGPR's or to the spill table somewhere in this
+        // method, so it is safe to clear these bits.
+        size_t* pDirtyMask = &m_graphicsState.gfxUserDataEntries.dirty[0];
+        for (uint32 i = 0; i < NumUserDataFlagsParts; i++)
+        {
+            pDirtyMask[i] = 0;
+        }
+    }// if any user data is dirty
 
     return pDeCmdSpace;
 }
@@ -4015,7 +4032,11 @@ uint32* UniversalCmdBuffer::ValidateComputeUserData(
 
     // All dirtied user-data entries have been written to user-SGPR's or to the spill table somewhere in this method,
     // so it is safe to clear these bits.
-    memset(&pComputeState->csUserDataEntries.dirty[0], 0, sizeof(pComputeState->csUserDataEntries.dirty));
+    size_t* pDirtyMask = &pComputeState->csUserDataEntries.dirty[0];
+    for (uint32 i = 0; i < NumUserDataFlagsParts; i++)
+    {
+        pDirtyMask[i] = 0;
+    }
 
     return pCmdSpace;
 }
@@ -4397,7 +4418,7 @@ uint32* UniversalCmdBuffer::ValidateDraw(
 
     regPA_SC_MODE_CNTL_1 paScModeCntl1 = m_drawTimeHwState.paScModeCntl1;
 
-    // Re-calculate paScModeCntl1 value if state constributing to the register has changed.
+    // Re-calculate paScModeCntl1 value if state contributing to the register has changed.
     if ((m_drawTimeHwState.valid.paScModeCntl1 == 0) ||
         PipelineDirty ||
         (StateDirty && (dirtyFlags.depthStencilState || dirtyFlags.colorBlendState || dirtyFlags.depthStencilView ||
@@ -4521,17 +4542,12 @@ uint32* UniversalCmdBuffer::ValidateDraw(
 
     // Rewrite PA_SC_AA_CONFIG if any of its fields have changed. There are lots of state binds that can cause this
     // in addition to the draw-time validation code above.
-    bool newAaConfigSamples = false;
-
     if ((PipelineDirty || StateDirty) &&
         (m_paScAaConfigNew.u32All != m_paScAaConfigLast.u32All))
     {
-        newAaConfigSamples = (m_paScAaConfigNew.bits.MSAA_NUM_SAMPLES != m_paScAaConfigLast.bits.MSAA_NUM_SAMPLES);
-
         pDeCmdSpace = m_deCmdStream.WriteSetOneContextRegNoOpt(mmPA_SC_AA_CONFIG,
                                                                m_paScAaConfigNew.u32All,
                                                                pDeCmdSpace);
-
         m_paScAaConfigLast.u32All = m_paScAaConfigNew.u32All;
     }
 
@@ -4567,29 +4583,10 @@ uint32* UniversalCmdBuffer::ValidateDraw(
         }
     }
 
-    // Validate primitive restart enable.  Primitive restart should only apply for indexed draws, but on gfx9,
-    // VGT also applies it to auto-generated vertex index values.
-    //
-    // GFX10 moves the RESET_EN functionality to a new register called GE_MULTI_PRIM_IB_RESET_EN.  Verify that
-    // the GFX10 register has the exact same layout as the GFX9 register to eliminate the need for run-time "if"
-    // statements to verify which Gfx level the active device uses.
-    static_assert(Gfx09_10::VGT_MULTI_PRIM_IB_RESET_EN__MATCH_ALL_BITS_MASK ==
-                  Gfx10Plus::GE_MULTI_PRIM_IB_RESET_EN__MATCH_ALL_BITS_MASK,
-                  "MATCH_ALL_BITS bits are not in the same place on GFX9 and GFX10!");
-    static_assert(Gfx09_10::VGT_MULTI_PRIM_IB_RESET_EN__RESET_EN_MASK ==
-                  Gfx10Plus::GE_MULTI_PRIM_IB_RESET_EN__RESET_EN_MASK,
-                  "RESET_EN bits are not in the same place on GFX9 and GFX10!");
-
-    regVGT_MULTI_PRIM_IB_RESET_EN vgtMultiPrimIbResetEn = {};
-
-    vgtMultiPrimIbResetEn.bits.RESET_EN = static_cast<uint32>(
-        Indexed && m_graphicsState.inputAssemblyState.primitiveRestartEnable);
-
     m_deCmdStream.CommitCommands(pDeCmdSpace);
     pDeCmdSpace = m_deCmdStream.ReserveCommands();
 
-    if (IsGfx10Plus(m_gfxIpLevel) &&
-        (PipelineDirty || (StateDirty && dirtyFlags.triangleRasterState)))
+    if ((PipelineDirty || (StateDirty && dirtyFlags.triangleRasterState)) && IsGfx10Plus(m_gfxIpLevel))
     {
         pDeCmdSpace = Gfx10ValidateTriangleRasterState(pPipeline, pDeCmdSpace);
     }
@@ -4634,17 +4631,35 @@ uint32* UniversalCmdBuffer::ValidateDraw(
         }
     }
 
-    regCB_TARGET_MASK updatedRegWriteMask = pPipeline->CbTargetMask();
     // Always write the value of the over-ridden mask when the enable flag is set.
     if (m_graphicsState.colorWriteMaskOverride.enable)
     {
         //Note that only overwrite target0's regWriteMask.
         //Because this version currently only supports target0.
+        regCB_TARGET_MASK updatedRegWriteMask = pPipeline->CbTargetMask();
         updatedRegWriteMask.bitfields.TARGET0_ENABLE = m_graphicsState.colorWriteMaskOverride.writeMask;
         pDeCmdSpace = m_deCmdStream.WriteSetOneContextReg(mmCB_TARGET_MASK,
                                                           updatedRegWriteMask.u32All,
                                                           pDeCmdSpace);
     }
+
+    // Validate primitive restart enable.  Primitive restart should only apply for indexed draws, but on gfx9,
+    // VGT also applies it to auto-generated vertex index values.
+    //
+    // GFX10 moves the RESET_EN functionality to a new register called GE_MULTI_PRIM_IB_RESET_EN.  Verify that
+    // the GFX10 register has the exact same layout as the GFX9 register to eliminate the need for run-time "if"
+    // statements to verify which Gfx level the active device uses.
+    static_assert(Gfx09_10::VGT_MULTI_PRIM_IB_RESET_EN__MATCH_ALL_BITS_MASK ==
+                  Gfx10Plus::GE_MULTI_PRIM_IB_RESET_EN__MATCH_ALL_BITS_MASK,
+                  "MATCH_ALL_BITS bits are not in the same place on GFX9 and GFX10!");
+    static_assert(Gfx09_10::VGT_MULTI_PRIM_IB_RESET_EN__RESET_EN_MASK ==
+                  Gfx10Plus::GE_MULTI_PRIM_IB_RESET_EN__RESET_EN_MASK,
+                  "RESET_EN bits are not in the same place on GFX9 and GFX10!");
+
+    regVGT_MULTI_PRIM_IB_RESET_EN vgtMultiPrimIbResetEn = {};
+
+    vgtMultiPrimIbResetEn.bits.RESET_EN = static_cast<uint32>(
+        Indexed && m_graphicsState.inputAssemblyState.primitiveRestartEnable);
 
     // Validate the per-draw HW state.
     pDeCmdSpace = ValidateDrawTimeHwState<Indexed, Indirect, Pm4OptImmediate>(paScModeCntl1,
@@ -5812,12 +5827,12 @@ uint32* UniversalCmdBuffer::ValidateDrawTimeHwState(
             // draw will blow-away the SPI user-data register used to pass that value to the shader.
             m_drawTimeHwState.valid.drawIndex = 0;
         }
-        else if (m_drawTimeHwState.valid.drawIndex == 0)
+        else if ((m_drawTimeHwState.drawIndex != drawInfo.drawIndex) || (m_drawTimeHwState.valid.drawIndex == 0))
         {
-            // Otherwise, this SH register write will reset it to zero for us.
+            m_drawTimeHwState.drawIndex = drawInfo.drawIndex;
             m_drawTimeHwState.valid.drawIndex = 1;
             pDeCmdSpace = m_deCmdStream.WriteSetOneShReg<ShaderGraphics, Pm4OptImmediate>(m_drawIndexReg,
-                                                                                          0,
+                                                                                          drawInfo.drawIndex,
                                                                                           pDeCmdSpace);
         }
     }
@@ -6093,6 +6108,7 @@ void UniversalCmdBuffer::RemoveQuery(
 void UniversalCmdBuffer::CmdLoadBufferFilledSizes(
     const gpusize (&gpuVirtAddr)[MaxStreamOutTargets])
 {
+
     uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
 
     for (uint32 idx = 0; idx < MaxStreamOutTargets; ++idx)
@@ -6116,6 +6132,7 @@ void UniversalCmdBuffer::CmdLoadBufferFilledSizes(
 void UniversalCmdBuffer::CmdSaveBufferFilledSizes(
     const gpusize (&gpuVirtAddr)[MaxStreamOutTargets])
 {
+
     uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
 
     // The VGT's internal stream output state needs to be flushed before writing the buffer filled size counters
@@ -6143,6 +6160,7 @@ void UniversalCmdBuffer::CmdSetBufferFilledSize(
     uint32  bufferId,
     uint32  offset)
 {
+
     uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
     PAL_ASSERT(bufferId < MaxStreamOutTargets);
 
@@ -6219,8 +6237,14 @@ void UniversalCmdBuffer::DeactivateQueryType(
 {
     switch (queryPoolType)
     {
-    // PIPELINESTAT_STOP works for both pipeline stats and stream out stats
     case QueryPoolType::PipelineStats:
+        {
+            uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
+            pDeCmdSpace += CmdUtil::BuildNonSampleEventWrite(PIPELINESTAT_STOP, EngineTypeUniversal, pDeCmdSpace);
+            m_deCmdStream.CommitCommands(pDeCmdSpace);
+        }
+        break;
+
     case QueryPoolType::StreamoutStats:
         {
             uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
@@ -6251,8 +6275,14 @@ void UniversalCmdBuffer::ActivateQueryType(
 {
     switch (queryPoolType)
     {
-    // PIPELINESTAT_START works for both pipeline stats and stream out stats
     case QueryPoolType::PipelineStats:
+        {
+            uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
+            pDeCmdSpace += CmdUtil::BuildNonSampleEventWrite(PIPELINESTAT_START, EngineTypeUniversal, pDeCmdSpace);
+            m_deCmdStream.CommitCommands(pDeCmdSpace);
+        }
+        break;
+
     case QueryPoolType::StreamoutStats:
         {
             uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
@@ -6415,26 +6445,27 @@ bool UniversalCmdBuffer::ForceWdSwitchOnEop(
 uint32* UniversalCmdBuffer::FlushStreamOut(
     uint32* pDeCmdSpace)
 {
-    constexpr uint32 CpStrmoutCntlData = 0;
-    WriteDataInfo    writeData         = {};
+    {
+        constexpr uint32 CpStrmoutCntlData = 0;
+        WriteDataInfo    writeData         = {};
 
-    writeData.engineType       = m_engineType;
-    writeData.dstAddr          = mmCP_STRMOUT_CNTL;
-    writeData.engineSel        = engine_sel__me_write_data__micro_engine;
-    writeData.dstSel           = dst_sel__me_write_data__mem_mapped_register;
-    writeData.dontWriteConfirm = true;
+        writeData.engineType       = m_engineType;
+        writeData.dstAddr          = mmCP_STRMOUT_CNTL;
+        writeData.engineSel        = engine_sel__me_write_data__micro_engine;
+        writeData.dstSel           = dst_sel__me_write_data__mem_mapped_register;
+        writeData.dontWriteConfirm = true;
 
-    pDeCmdSpace += CmdUtil::BuildWriteData(writeData, CpStrmoutCntlData, pDeCmdSpace);
-    pDeCmdSpace += CmdUtil::BuildNonSampleEventWrite(SO_VGTSTREAMOUT_FLUSH, EngineTypeUniversal, pDeCmdSpace);
-    pDeCmdSpace += CmdUtil::BuildWaitRegMem(EngineTypeUniversal,
-                                            mem_space__pfp_wait_reg_mem__register_space,
-                                            function__pfp_wait_reg_mem__equal_to_the_reference_value,
-                                            engine_sel__me_wait_reg_mem__micro_engine,
-                                            mmCP_STRMOUT_CNTL,
-                                            1,
-                                            0x00000001,
-                                            pDeCmdSpace);
-
+        pDeCmdSpace += CmdUtil::BuildWriteData(writeData, CpStrmoutCntlData, pDeCmdSpace);
+        pDeCmdSpace += CmdUtil::BuildNonSampleEventWrite(SO_VGTSTREAMOUT_FLUSH, EngineTypeUniversal, pDeCmdSpace);
+        pDeCmdSpace += CmdUtil::BuildWaitRegMem(EngineTypeUniversal,
+                                                mem_space__pfp_wait_reg_mem__register_space,
+                                                function__pfp_wait_reg_mem__equal_to_the_reference_value,
+                                                engine_sel__me_wait_reg_mem__micro_engine,
+                                                mmCP_STRMOUT_CNTL,
+                                                1,
+                                                0x00000001,
+                                                pDeCmdSpace);
+    }
     return pDeCmdSpace;
 }
 
@@ -6619,21 +6650,25 @@ void UniversalCmdBuffer::SetGraphicsState(
 void UniversalCmdBuffer::InheritStateFromCmdBuf(
     const GfxCmdBuffer* pCmdBuffer)
 {
-    const auto*const pUniversalCmdBuffer = static_cast<const UniversalCmdBuffer*>(pCmdBuffer);
-
-    SetGraphicsState(pUniversalCmdBuffer->GetGraphicsState());
     SetComputeState(pCmdBuffer->GetComputeState(), ComputeStateAll);
 
-    // Was "CmdSetVertexBuffers" ever called on the parent command buffer?
-    if (pUniversalCmdBuffer->m_vbTable.modified != 0)
+    if (pCmdBuffer->IsGraphicsSupported())
     {
-        // Yes, so we need to copy all the VB SRDs into this command buffer as well.
-        m_vbTable.modified  = 1;
-        m_vbTable.watermark = pUniversalCmdBuffer->m_vbTable.watermark;
-        memcpy(m_vbTable.pSrds, pUniversalCmdBuffer->m_vbTable.pSrds, (sizeof(BufferSrd) * MaxVertexBuffers));
+        const auto*const pUniversalCmdBuffer = static_cast<const UniversalCmdBuffer*>(pCmdBuffer);
 
-        // Set the "dirty" flag here to trigger the CPU update path in "ValidateGraphicsUserData".
-        m_vbTable.state.dirty = 1;
+        SetGraphicsState(pUniversalCmdBuffer->GetGraphicsState());
+
+        // Was "CmdSetVertexBuffers" ever called on the parent command buffer?
+        if (pUniversalCmdBuffer->m_vbTable.modified != 0)
+        {
+            // Yes, so we need to copy all the VB SRDs into this command buffer as well.
+            m_vbTable.modified  = 1;
+            m_vbTable.watermark = pUniversalCmdBuffer->m_vbTable.watermark;
+            memcpy(m_vbTable.pSrds, pUniversalCmdBuffer->m_vbTable.pSrds, (sizeof(BufferSrd) * MaxVertexBuffers));
+
+            // Set the "dirty" flag here to trigger the CPU update path in "ValidateGraphicsUserData".
+            m_vbTable.state.dirty = 1;
+        }
     }
 }
 
@@ -6970,10 +7005,6 @@ void UniversalCmdBuffer::CmdSetPredication(
     bool                accumulateData)
 {
     PAL_ASSERT((pQueryPool == nullptr) || (pGpuMemory == nullptr));
-    PAL_ASSERT(
-        (predType != PredicateType::Boolean32) ||
-        (m_device.Parent()->EngineProperties().perEngine[EngineTypeUniversal].flags.memory32bPredicationSupport != 0)
-    );
 
     m_gfxCmdBufState.flags.clientPredicate = ((pQueryPool != nullptr) || (pGpuMemory != nullptr)) ? 1 : 0;
     m_gfxCmdBufState.flags.packetPredicate = m_gfxCmdBufState.flags.clientPredicate;
@@ -6997,6 +7028,32 @@ void UniversalCmdBuffer::CmdSetPredication(
     }
 
     uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
+
+    // If the predicate is 32-bits and the engine does not support that width natively, allocate a 64-bit
+    // embedded predicate, zero it, emit a ME copy from the original to the lower 32-bits of the embedded
+    // predicate, and update `gpuVirtAddr` and `predType`.
+    if ((predType == PredicateType::Boolean32) &&
+        (m_device.Parent()->EngineProperties().perEngine[EngineTypeUniversal].flags.memory32bPredicationSupport == 0))
+    {
+        PAL_ASSERT(gpuVirtAddr != 0);
+        constexpr size_t PredicateDwordSize  = sizeof(uint64) / sizeof(uint32);
+        constexpr size_t PredicateDwordAlign = 16 / sizeof(uint32);
+        gpusize predicateVirtAddr            = 0;
+        uint32* pPredicate                   = CmdAllocateEmbeddedData(PredicateDwordSize, PredicateDwordAlign, &predicateVirtAddr);
+        pPredicate[0] = 0;
+        pPredicate[1] = 0;
+        pDeCmdSpace += CmdUtil::BuildCopyDataGraphics(engine_sel__me_copy_data__micro_engine,
+                                                      dst_sel__me_copy_data__memory__GFX09,
+                                                      predicateVirtAddr,
+                                                      src_sel__me_copy_data__memory__GFX09,
+                                                      gpuVirtAddr,
+                                                      count_sel__me_copy_data__32_bits_of_data,
+                                                      wr_confirm__me_copy_data__wait_for_confirmation,
+                                                      pDeCmdSpace);
+        pDeCmdSpace += CmdUtil::BuildPfpSyncMe(pDeCmdSpace);
+        gpuVirtAddr = predicateVirtAddr;
+        predType    = PredicateType::Boolean64;
+    }
 
     pDeCmdSpace += CmdUtil::BuildSetPredication(gpuVirtAddr,
                                                 predPolarity,
@@ -7073,121 +7130,136 @@ void UniversalCmdBuffer::CmdExecuteIndirectCmds(
         }
     }
 
-    // There is a lot of logic necessary to support NGG pipelines with indirect command generation that would cause
-    // indirect command generation to suffer more of a performance hit.
-    PAL_ASSERT((bindPoint == PipelineBindPoint::Compute) ||
-               (static_cast<const GraphicsPipeline*>(PipelineState(bindPoint)->pPipeline)->IsNggFastLaunch() == false));
+    AutoBuffer<CmdStreamChunk*, 16, Platform> deChunks(maximumCount, m_device.GetPlatform());
 
-    for (uint32 i = 0; mask != 0; ++i, mask >>= 1)
+    if ((deChunks.Capacity() < maximumCount)
+       )
     {
-        if (TestAnyFlagSet(mask, 1) == false)
+        NotifyAllocFailure();
+    }
+    else
+    {
+        CmdStreamChunk** ppChunkList[] =
         {
-            continue;
-        }
+            deChunks.Data(),
+        };
+        uint32 numGenChunks = 0;
+        const uint32 numChunkLists = 1;
 
-        // NOTE: Save an iterator to the current end of the generated-chunk list. Each command buffer chunk generated by
-        // the call to RPM below will be added to the end of the list, so we can iterate over the new chunks starting
-        // from the first item in the list following this iterator.
-        auto chunkIter = m_generatedChunkList.End();
+        // There is a lot of logic necessary to support NGG pipelines with indirect command generation that would cause
+        // indirect command generation to suffer more of a performance hit.
+        PAL_ASSERT((bindPoint == PipelineBindPoint::Compute) ||
+            (static_cast<const GraphicsPipeline*>(PipelineState(bindPoint)->pPipeline)->IsNggFastLaunch() == false));
 
-        // Generate the indirect command buffer chunk(s) using RPM. Since we're wrapping the command generation and
-        // execution inside a CmdIf, we want to disable normal predication for this blit.
-        const uint32 packetPredicate = PacketPredicate();
-        m_gfxCmdBufState.flags.packetPredicate = 0;
-
-        m_device.RsrcProcMgr().CmdGenerateIndirectCmds(this,
-                                                       PipelineState(bindPoint)->pPipeline,
-                                                       gfx9Generator,
-                                                       (gpuMemory.Desc().gpuVirtAddr + offset),
-                                                       countGpuAddr,
-                                                       m_graphicsState.iaState.indexCount,
-                                                       maximumCount);
-
-        m_gfxCmdBufState.flags.packetPredicate = packetPredicate;
-
-        uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
-
-        // Insert a CS_PARTIAL_FLUSH to make sure that the generated commands are written out to L2 before we attempt to
-        // execute them. Then, a PFP_SYNC_ME is also required so that the PFP doesn't prefetch the generated commands
-        // before they are finished executing.
-        AcquireMemInfo acquireInfo = {};
-        acquireInfo.flags.invSqK$ = 1;
-        acquireInfo.tcCacheOp     = TcCacheOp::Nop;
-        acquireInfo.engineType    = EngineTypeUniversal;
-        acquireInfo.baseAddress   = FullSyncBaseAddr;
-        acquireInfo.sizeBytes     = FullSyncSize;
-
-        pDeCmdSpace += CmdUtil::BuildNonSampleEventWrite(CS_PARTIAL_FLUSH, EngineTypeUniversal, pDeCmdSpace);
-        pDeCmdSpace += m_cmdUtil.BuildAcquireMem(acquireInfo, pDeCmdSpace);
-        pDeCmdSpace += CmdUtil::BuildPfpSyncMe(pDeCmdSpace);
-        m_deCmdStream.SetContextRollDetected<false>();
-
-        m_deCmdStream.CommitCommands(pDeCmdSpace);
-
-        // Just like a normal direct/indirect draw/dispatch, we need to perform state validation before executing the
-        // generated command chunks.
-        if (bindPoint == PipelineBindPoint::Graphics)
+        for (uint32 i = 0; mask != 0; ++i, mask >>= 1)
         {
-            // NOTE: If we tell ValidateDraw() that this draw call is indexed, it will validate all of the draw-time
-            // HW state related to the index buffer. However, since some indirect command generators can genrate the
-            // commands to bind their own index buffer state, our draw-time validation could be redundant. Therefore,
-            // pretend this is a non-indexed draw call if the generated command binds its own index buffer(s).
-            ValidateDrawInfo drawInfo;
-            drawInfo.vtxIdxCount   = 0;
-            drawInfo.instanceCount = 0;
-            drawInfo.firstVertex   = 0;
-            drawInfo.firstInstance = 0;
-            drawInfo.firstIndex    = 0;
-            drawInfo.useOpaque     = false;
-            if (gfx9Generator.ContainsIndexBufferBind() || (gfx9Generator.Type() == GeneratorType::Draw))
+            if (TestAnyFlagSet(mask, 1) == false)
             {
-                ValidateDraw<false, true>(drawInfo);
+                continue;
+            }
+
+            // Generate the indirect command buffer chunk(s) using RPM. Since we're wrapping the command generation and
+            // execution inside a CmdIf, we want to disable normal predication for this blit.
+            const uint32 packetPredicate   = PacketPredicate();
+            const uint32 numChunksExecuted = numGenChunks;
+            m_gfxCmdBufState.flags.packetPredicate = 0;
+
+            const GenerateInfo genInfo =
+            {
+                this,
+                PipelineState(bindPoint)->pPipeline,
+                gfx9Generator,
+                m_graphicsState.iaState.indexCount,
+                maximumCount,
+                (gpuMemory.Desc().gpuVirtAddr + offset),
+                countGpuAddr
+            };
+
+            m_device.RsrcProcMgr().CmdGenerateIndirectCmds(genInfo, &ppChunkList[0], numChunkLists, &numGenChunks);
+
+            m_gfxCmdBufState.flags.packetPredicate = packetPredicate;
+
+            uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
+
+            // Insert a CS_PARTIAL_FLUSH to make sure that the generated commands are written out to L2 before we
+            // attempt to execute them. Then, a PFP_SYNC_ME is also required so that the PFP doesn't prefetch the
+            // generated commands before they are finished executing.
+            AcquireMemInfo acquireInfo = {};
+            acquireInfo.flags.invSqK$  = 1;
+            acquireInfo.tcCacheOp      = TcCacheOp::Nop;
+            acquireInfo.engineType     = EngineTypeUniversal;
+            acquireInfo.baseAddress    = FullSyncBaseAddr;
+            acquireInfo.sizeBytes      = FullSyncSize;
+
+            pDeCmdSpace += CmdUtil::BuildNonSampleEventWrite(CS_PARTIAL_FLUSH, EngineTypeUniversal, pDeCmdSpace);
+            pDeCmdSpace += m_cmdUtil.BuildAcquireMem(acquireInfo, pDeCmdSpace);
+            pDeCmdSpace += CmdUtil::BuildPfpSyncMe(pDeCmdSpace);
+            m_deCmdStream.SetContextRollDetected<false>();
+
+            m_deCmdStream.CommitCommands(pDeCmdSpace);
+
+            if (bindPoint == PipelineBindPoint::Graphics)
+            {
+                // NOTE: If we tell ValidateDraw() that this draw call is indexed, it will validate all of the draw-time
+                // HW state related to the index buffer. However, since some indirect command generators can genrate the
+                // commands to bind their own index buffer state, our draw-time validation could be redundant. Therefore,
+                // pretend this is a non-indexed draw call if the generated command binds its own index buffer(s).
+                ValidateDrawInfo drawInfo;
+                drawInfo.vtxIdxCount   = 0;
+                drawInfo.instanceCount = 0;
+                drawInfo.firstVertex   = 0;
+                drawInfo.firstInstance = 0;
+                drawInfo.firstIndex    = 0;
+                drawInfo.useOpaque     = false;
+                if (gfx9Generator.ContainsIndexBufferBind() || (gfx9Generator.Type() == GeneratorType::Draw))
+                {
+                    ValidateDraw<false, true>(drawInfo);
+                }
+                else
+                {
+                    ValidateDraw<true, true>(drawInfo);
+                }
+
+                CommandGeneratorTouchedUserData(m_graphicsState.gfxUserDataEntries.touched,
+                                                gfx9Generator,
+                                                *m_pSignatureGfx);
             }
             else
             {
-                ValidateDraw<true, true>(drawInfo);
+                ValidateDispatch(&m_computeState, &m_deCmdStream, 0uLL, 0, 0, 0);
+                CommandGeneratorTouchedUserData(m_computeState.csUserDataEntries.touched,
+                                                gfx9Generator,
+                                                *m_pSignatureCs);
             }
 
-            CommandGeneratorTouchedUserData(m_graphicsState.gfxUserDataEntries.touched,
-                                            gfx9Generator,
-                                            *m_pSignatureGfx);
-        }
-        else
-        {
-            ValidateDispatch(&m_computeState, &m_deCmdStream, 0uLL, 0, 0, 0);
-            CommandGeneratorTouchedUserData(m_computeState.csUserDataEntries.touched, gfx9Generator, *m_pSignatureCs);
-        }
+            if (setViewId)
+            {
+                const auto& viewInstancingDesc = pGfxPipeline->GetViewInstancingDesc();
 
-        if (setViewId)
-        {
-            const auto& viewInstancingDesc = pGfxPipeline->GetViewInstancingDesc();
+                pDeCmdSpace = m_deCmdStream.ReserveCommands();
+                pDeCmdSpace = BuildWriteViewId(viewInstancingDesc.viewId[i], pDeCmdSpace);
+                m_deCmdStream.CommitCommands(pDeCmdSpace);
+            }
+            m_deCmdStream.ExecuteGeneratedCommands(ppChunkList[0], numChunksExecuted, numGenChunks);
 
             pDeCmdSpace = m_deCmdStream.ReserveCommands();
-            pDeCmdSpace = BuildWriteViewId(viewInstancingDesc.viewId[i], pDeCmdSpace);
+
+            // We need to issue any post-draw or post-dispatch workarounds after all of the generated command buffers
+            // have finished.
+            if (bindPoint == PipelineBindPoint::Graphics)
+            {
+                if ((gfx9Generator.Type() == GeneratorType::Draw)
+                   )
+                {
+                    // Command generators which issue non-indexed draws generate DRAW_INDEX_AUTO packets, which will
+                    // invalidate some of our draw-time HW state. SEE: CmdDraw() for more details.
+                    m_drawTimeHwState.dirty.indexedIndexType = 1;
+                }
+            }
+
+            pDeCmdSpace = IncrementDeCounter(pDeCmdSpace);
             m_deCmdStream.CommitCommands(pDeCmdSpace);
         }
-
-        // NOTE: The command stream expects an iterator to the first chunk to execute, but this iterator points to the
-        // place in the list before the first generated chunk (see comments above).
-        chunkIter.Next();
-        m_deCmdStream.ExecuteGeneratedCommands(chunkIter);
-
-        pDeCmdSpace = m_deCmdStream.ReserveCommands();
-
-        // We need to issue any post-draw or post-dispatch workarounds after all of the generated command buffers have
-        // finished.
-        if (bindPoint == PipelineBindPoint::Graphics)
-        {
-            if (gfx9Generator.Type() == GeneratorType::Draw)
-            {
-                // Command generators which issue non-indexed draws generate DRAW_INDEX_AUTO packets, which will
-                // invalidate some of our draw-time HW state. SEE: CmdDraw() for more details.
-                m_drawTimeHwState.dirty.indexedIndexType = 1;
-            }
-        }
-
-        pDeCmdSpace = IncrementDeCounter(pDeCmdSpace);
-        m_deCmdStream.CommitCommands(pDeCmdSpace);
     }
 
 }
@@ -7241,16 +7313,16 @@ void UniversalCmdBuffer::GetChunkForCmdGeneration(
     PAL_ASSERT(m_pCmdAllocator != nullptr);
     PAL_ASSERT((numChunkOutputs > 0) && (numChunkOutputs <= 2));
 
-    GfxCmdStream* pStreams[] =
+    const GfxCmdStream* pStreams[] =
     {
         &m_deCmdStream,
-        m_pAceCmdStream
+        m_pAceCmdStream,
     };
 
     for (uint32 i = 0; i < numChunkOutputs; i++)
     {
-        GfxCmdStream* pStream   = pStreams[i];
-        ChunkOutput* pOutput    = &pChunkOutputs[i];
+        const GfxCmdStream* pStream   = pStreams[i];
+        ChunkOutput* pOutput          = &pChunkOutputs[i];
 
         pOutput->pChunk = Pal::GfxCmdBuffer::GetNextGeneratedChunk();
 

@@ -284,7 +284,9 @@ Dri3WindowSystem::Dri3WindowSystem(
     m_depth(0),
     m_swapChainMode(createInfo.swapChainMode),
     m_hWindow(static_cast<xcb_window_t>(createInfo.hWindow.win)),
-
+    m_windowWidth(0),
+    m_windowHeight(0),
+    m_needWindowSizeChangedCheck(false),
     m_pConnection(nullptr),
     m_dri2Supported(true),
     m_dri3MajorVersion(0),
@@ -356,9 +358,7 @@ Result Dri3WindowSystem::Init()
             {
                 result = Result::ErrorInvalidFormat;
             }
-            // for non-fifo mode, we rely on the idle fence and should not wait for the complete event.
-            if ((m_swapChainMode == SwapChainMode::Fifo) &&
-                (result == Result::Success))
+            else
             {
                 result = SelectEvent();
             }
@@ -372,6 +372,25 @@ Result Dri3WindowSystem::Init()
             {
                 SetAdaptiveSyncProperty(true);
             }
+
+            // Get the window size from Xorg
+            const Dri3LoaderFuncs&          dri3Procs = m_device.GetPlatform()->GetDri3Loader().GetProcsTable();
+            const xcb_get_geometry_cookie_t cookie    = dri3Procs.pfnXcbGetGeometry(m_pConnection, m_hWindow);
+
+            xcb_get_geometry_reply_t*const  pReply = dri3Procs.pfnXcbGetGeometryReply(m_pConnection, cookie, nullptr);
+
+            if (pReply != nullptr)
+            {
+                m_windowWidth  = pReply->width;
+                m_windowHeight = pReply->height;
+
+                free(pReply);
+            }
+            else
+            {
+                result = Result::ErrorInitializationFailed;
+            }
+
         }
     }
     else
@@ -538,7 +557,8 @@ Result Dri3WindowSystem::SelectEvent()
         m_dri3Procs.pfnXcbPresentSelectInputChecked(m_pConnection,
                                                     eventId,
                                                     m_hWindow,
-                                                    XCB_PRESENT_EVENT_MASK_COMPLETE_NOTIFY);
+                                                    XCB_PRESENT_EVENT_MASK_COMPLETE_NOTIFY |
+                                                    XCB_PRESENT_EVENT_MASK_CONFIGURE_NOTIFY);
 
     xcb_generic_error_t*const pError = m_dri3Procs.pfnXcbRequestCheck(m_pConnection, cookie);
 
@@ -551,7 +571,7 @@ Result Dri3WindowSystem::SelectEvent()
         free(pError);
         if (pEvent != nullptr)
         {
-            m_dri3Procs.pfnXcbUnregisterForSpecialEvent(m_pConnection, m_pPresentEvent);
+            m_dri3Procs.pfnXcbUnregisterForSpecialEvent(m_pConnection, pEvent);
         }
         result = Result::ErrorUnknown;
     }
@@ -743,6 +763,14 @@ Result Dri3WindowSystem::Present(
         pSrcImage->SetIdle(false); // From now on, the image/buffer is owned by Xorg
 
         m_dri3Procs.pfnXcbFlush(m_pConnection);
+
+        // Poll the event to check if the window is resized
+        xcb_generic_event_t* pEvent = nullptr;
+
+        while((pEvent = m_dri3Procs.pfnXcbPollForSpecialEvent(m_pConnection, m_pPresentEvent)) != nullptr)
+        {
+            HandlePresentEvent(reinterpret_cast<xcb_present_generic_event_t*>(pEvent));
+        }
     }
 
     return result;
@@ -776,6 +804,23 @@ Result Dri3WindowSystem::HandlePresentEvent(
         m_device.DeveloperCb(Developer::CallbackType::PresentConcluded, &data);
         break;
     }
+
+    case XCB_PRESENT_CONFIGURE_NOTIFY:
+    {
+        xcb_present_configure_notify_event_t *pConfig =
+            reinterpret_cast<xcb_present_configure_notify_event_t*>(pPresentEvent);
+
+        if (m_windowWidth != pConfig->width || m_windowHeight != pConfig->height)
+        {
+            m_needWindowSizeChangedCheck = true;
+
+            m_windowWidth  = pConfig->width;
+            m_windowHeight = pConfig->height;
+        }
+
+        break;
+    }
+
     default:
         result = Result::ErrorUnknown;
         break;

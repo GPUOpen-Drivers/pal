@@ -189,6 +189,9 @@ protected:
     Device*const m_pDevice;
 
 private:
+    uint32 CalcMaxWavesPerSe(
+        float maxWavesPerCu1,
+        float maxWavesPerCu2) const;
 
     uint32 CalcMaxWavesPerSh(
         float maxWavesPerCu1,

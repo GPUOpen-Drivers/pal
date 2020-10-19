@@ -109,7 +109,11 @@ Result ShaderLibrary::HwlInit(
         // Next, handle relocations and upload the library code & data to GPU memory.
         result = PerformRelocationsAndUploadToGpuMemory(
             metadata,
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
             (createInfo.flags.overrideGpuHeap == 1) ? createInfo.preferredHeap : GpuHeapInvisible,
+#else
+            m_pDevice->Parent()->GetPublicSettings()->pipelinePreferredHeap, // ShaderLibrary is never internal
+#endif
             &uploader);
         SetIsWave32(metadata);
     }
@@ -288,10 +292,10 @@ Result ShaderLibrary::GetShaderFunctionStats(
 
     if (result == Result::Success)
     {
-        result = UnpackStackFrameSize(pShaderExportName,
-                                      metadata,
-                                      &metadataReader,
-                                      &pShaderStats->stackFrameSizeInBytes);
+        result = UnpackShaderFunctionStats(pShaderExportName,
+                                           metadata,
+                                           &metadataReader,
+                                           pShaderStats);
     }
 
     return result;
@@ -299,11 +303,11 @@ Result ShaderLibrary::GetShaderFunctionStats(
 
 // =====================================================================================================================
 // Obtains the shader function stack frame size
-Result ShaderLibrary::UnpackStackFrameSize(
+Result ShaderLibrary::UnpackShaderFunctionStats(
     const char*               pShaderExportName,
     const CodeObjectMetadata& metadata,
     Util::MsgPackReader*      pMetadataReader,
-    uint32*                   pStackFrameSizeInBytes
+    ShaderLibStats*           pShaderStats
     ) const
 {
     Result result = pMetadataReader->Seek(metadata.pipeline.shaderFunctions);
@@ -335,23 +339,32 @@ Result ShaderLibrary::UnpackStackFrameSize(
 
                 if (result == Result::Success)
                 {
-                    switch (HashString(static_cast<const char*>(item.str.start), item.str.length))
+                    if ((strncmp(pShaderExportName, stats.pSymbolName, stats.symbolNameLength) == 0) &&
+                        (strlen(pShaderExportName) == stats.symbolNameLength))
                     {
-                    case HashLiteralString(".stack_frame_size_in_bytes"):
-                    {
-                        result = pMetadataReader->UnpackNext(&stats.stackFrameSizeInBytes);
-                        if ((result == Result::Success) &&
-                            (strncmp(pShaderExportName, stats.pSymbolName, stats.symbolNameLength) == 0) &&
-                            (strlen(pShaderExportName) == stats.symbolNameLength))
+                        switch (HashString(static_cast<const char*>(item.str.start), item.str.length))
                         {
-                            *pStackFrameSizeInBytes = stats.stackFrameSizeInBytes;
+                        case HashLiteralString(".stack_frame_size_in_bytes"):
+                        {
+                            result = pMetadataReader->UnpackNext(&stats.stackFrameSizeInBytes);
+                                pShaderStats->stackFrameSizeInBytes = stats.stackFrameSizeInBytes;
+                        }
+                        break;
+                        case HashLiteralString(".shader_subtype"):
+                        {
+                            Util::Abi::ApiShaderSubType shaderSubType;
+                            Util::Abi::Metadata::DeserializeEnum(pMetadataReader, &shaderSubType);
+                            stats.shaderSubType = static_cast<Pal::ShaderSubType>(shaderSubType);
+                        }
+                        break;
+                        default:
+                            result = pMetadataReader->Skip(1);
+                            break;
                         }
                     }
-                    break;
-
-                    default:
+                    else
+                    {
                         result = pMetadataReader->Skip(1);
-                       break;
                     }
                 }
             }

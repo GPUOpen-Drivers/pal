@@ -291,6 +291,7 @@ PAL_INLINE Result DeserializePalCodeObjectMetadata(
 
 Result SerializeEnum(MsgPackWriter* pWriter, PipelineType value);
 Result SerializeEnum(MsgPackWriter* pWriter, ApiShaderType value);
+Result SerializeEnum(MsgPackWriter* pWriter, ApiShaderSubType value);
 Result SerializeEnum(MsgPackWriter* pWriter, HardwareStage value);
 Result SerializeEnum(MsgPackWriter* pWriter, PipelineSymbolType value);
 

@@ -188,6 +188,8 @@ public:
 
     virtual Result WaitForLastImagePresented() = 0;
 
+    virtual bool NeedWindowSizeChangedCheck() const { return true; }
+
     WsiPlatform PlatformType() const { return m_platform; }
     const WindowSystemProperties& GetWindowSystemProperties() const { return m_windowSystemProperties; }
     bool PresentOnSameGpu() const { return m_presentOnSameGpu; }

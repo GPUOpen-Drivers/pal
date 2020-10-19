@@ -35,8 +35,8 @@ def main(fileName, outputDir="./"):
         "libxcb-dri2.so.0"    : "LibXcbDri2",
         "libxcb.so.1"         : "LibXcb",
         "libxshmfence.so.1"   : "LibXshmFence",
-        "libX11-xcb.so"       : "LibX11Xcb",
-        "libX11.so"           : "LibX11",
+        "libX11-xcb.so.1"     : "LibX11Xcb",
+        "libX11.so.6"         : "LibX11",
         "libxcb-randr.so.0"   : "LibXcbRandr"}
 
     procMgr  = proc.ProcMgr(fileName, libraryDict, 0)

@@ -2565,15 +2565,18 @@ HtileUsageFlags Gfx9Htile::UseHtileForImage(
                                  (pParent->IsTmz()                      == false) &&
                                  (settings.htileEnable                  == true));
 
-        constexpr uint32 MinHtileWidth = 8;
-        constexpr uint32 MinHtileHeight = 8;
-
-        if ((hTileUsage.dsMetadata != 0)              &&
-            pParent->IsDepthAsZ24()                   &&
-            (createInfo.extent.width < MinHtileWidth) &&
-            (createInfo.extent.height < MinHtileHeight))
+        if (settings.waDisable24BitHWFormatForTCCompatibleDepth == true)
         {
-            hTileUsage.dsMetadata = 0;
+            constexpr uint32 MinHtileWidth  = 8;
+            constexpr uint32 MinHtileHeight = 8;
+
+            if ((hTileUsage.dsMetadata != 0)              &&
+                pParent->IsDepthAsZ24()                   &&
+                (createInfo.extent.width < MinHtileWidth) &&
+                (createInfo.extent.height < MinHtileHeight))
+            {
+                hTileUsage.dsMetadata = 0;
+            }
         }
 
         //

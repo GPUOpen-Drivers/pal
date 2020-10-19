@@ -28,6 +28,27 @@ include(CMakeDependentOption)
 
 pal_include_guard(PalOptions)
 
+macro(pal_gfx9_options)
+
+    pal_warn_about_default_gpu(PAL_BUILD_NAVI14 "Build PAL with Navi14 support?" ON)
+
+endmacro() # gfx9
+
+# Specify GPU build options
+macro(pal_gfx_options)
+    option(PAL_BUILD_GFX "Build PAL with Graphics support?" ON)
+
+    if (PAL_BUILD_GFX)
+        pal_warn_about_default_gpu(PAL_BUILD_GFX6 "Build PAL with GFX6 support?" ${PAL_BUILD_GFX})
+        pal_warn_about_default_gpu(PAL_BUILD_GFX9 "Build PAL with GFX9 support?" ${PAL_BUILD_GFX})
+
+        if (PAL_BUILD_GFX9)
+            pal_gfx9_options()
+        endif()
+
+    endif() # PAL_BUILD_GFX
+endmacro()
+
 # This macro is meant to encapsulate all the variables that PAL's clients are intended to
 # manipulate when customizing PAL for their purposes. Making it the first place cmake developers
 # for DXCP, XGL, etc. will look to when they have build problems/ideas/confusion.
@@ -41,7 +62,15 @@ macro(pal_options)
 
     option(PAL_BUILD_GPUOPEN "Build GPUOpen developer driver support?" OFF)
 
-    option(PAL_ENABLE_LTO "Enable LTO" ON)
+    if (DEFINED PAL_ENABLE_LTO)
+        message(AUTHOR_WARNING "\nPAL_ENABLE_LTO is deprecated in favor of cmakes native support.\n"
+                               "Lookup official cmake docs for assistance.\n"
+                               "Unlike before this will support all compilers properly.\n"
+                               "And you can set it per build config (Debug, Release, etc.).\n"
+                               "Ex:\n"
+                               "\t set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE ON) \n"
+                               "Clients should also properly check for IPO support using the official cmake module: 'CheckIPOSupported' \n")
+    endif()
 
     option(PAL_ENABLE_DEVDRIVER_USAGE "Enables developer driver suppport." ON)
 
@@ -68,7 +97,7 @@ macro(pal_options)
 
     option(PAL_BUILD_GPU_PROFILER "Build PAL GPU Profiler?" ON)
 
-    option(PAL_DISPLAY_DCC "Enable DISPLAY DCC?" OFF)
+    option(PAL_DISPLAY_DCC "Enable DISPLAY DCC?" ON)
 
 #if PAL_DEVELOPER_BUILD
     option(PAL_DEVELOPER_BUILD "Enable developer build" OFF)
@@ -89,9 +118,8 @@ macro(pal_options)
     endif()
 #endif
 
-    option(PAL_BUILD_GFX  "Build PAL with Graphics support?" ON)
-    cmake_dependent_option(PAL_BUILD_GFX6 "Build PAL with GFX6 support?" ON "PAL_BUILD_GFX" OFF)
-    cmake_dependent_option(PAL_BUILD_GFX9 "Build PAL with GFX9 support?" ON "PAL_BUILD_GFX" OFF)
+    # Specify GPU build options
+    pal_gfx_options()
 
     option(PAL_BUILD_OSS  "Build PAL with Operating System support?" ON)
     cmake_dependent_option(PAL_BUILD_OSS1   "Build PAL with OSS1?"   ON "PAL_BUILD_OSS" OFF)
@@ -111,13 +139,13 @@ macro(pal_options)
     # Create a more convenient variable to avoid string comparisons.
     set(PAL_CLIENT_${PAL_CLIENT} ON)
 
-    if(DEFINED PAL_CLIENT_INTERFACE_MAJOR_VERSION)
+    if (DEFINED PAL_CLIENT_INTERFACE_MAJOR_VERSION)
         message_verbose("Client configured PAL_INTERFACE_MAJOR_VERSION as " ${PAL_CLIENT_INTERFACE_MAJOR_VERSION})
     else()
         message(FATAL_ERROR "Client must specify PAL_CLIENT_INTERFACE_MAJOR_VERSION")
     endif()
 
-    if(DEFINED PAL_CLIENT_INTERFACE_MINOR_VERSION)
+    if (DEFINED PAL_CLIENT_INTERFACE_MINOR_VERSION)
         message(AUTHOR_WARNING "Unneccessary to specify PAL_CLIENT_INTERFACE_MINOR_VERSION")
     endif()
 

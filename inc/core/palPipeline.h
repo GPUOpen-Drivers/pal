@@ -155,8 +155,12 @@ union PipelineCreateFlags
     struct
     {
         uint32 clientInternal     : 1;  ///< Internal pipeline not created by the application.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
         uint32 overrideGpuHeap    : 1;  ///< Override the default GPU heap (local invisible) the pipeline resides in.
         uint32 reserved           : 30; ///< Reserved for future use.
+#else
+        uint32 reserved           : 31; ///< Reserved for future use.
+#endif
     };
     uint32 u32All;                  ///< Flags packed as 32-bit uint.
 };
@@ -216,10 +220,11 @@ struct ComputePipelineCreateInfo
                                                ///  interface. The Pipeline ELF contains pre-compiled shaders,
                                                ///  register values, and additional metadata.
     size_t              pipelineBinarySize;    ///< Size of Pipeline ELF binary in bytes.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
     GpuHeap             preferredHeapType;     ///< Upload this pipeline to this heap. This setting is ignored if
                                                ///  overrideGpuHeap flag is not set. The device will fallback to using
                                                ///  the local visible heap if the requested heap type is unsupported.
-
+#endif
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 556
     /// Optional.  Specifies a set of indirect functions for PAL to compute virtual addresses for during pipeline
     /// creation.  These GPU addresses can then be passed as shader arguments for a later dispatch operation to
@@ -261,9 +266,11 @@ struct GraphicsPipelineCreateInfo
                                                ///  interface. The Pipeline ELF contains pre-compiled shaders,
                                                ///  register values, and additional metadata.
     size_t              pipelineBinarySize;    ///< Size of Pipeline ELF binary in bytes.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
     GpuHeap             preferredHeapType;     ///< Upload this pipeline to this heap. This setting is ignored if
                                                ///  overrideGpuHeap flag is not set. The device will fallback to using
                                                ///  the local visible heap if the requested heap type is unsupported.
+#endif
     bool                useLateAllocVsLimit;   ///< If set, use the specified lateAllocVsLimit instead of PAL internally
                                                ///  determining the limit.
     uint32              lateAllocVsLimit;      ///< The number of VS waves that can be in flight without having param

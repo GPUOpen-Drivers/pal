@@ -77,7 +77,11 @@ void SettingsLoader::SetupDefaults()
     m_settings.enableIterate256PreAlignment = true;
     m_settings.addr2DisableXorTileMode = false;
     m_settings.addr2DisableSModes8BppColor = false;
+#if   (__unix__)
+    m_settings.disableOptimizedDisplay = true;
+#else
     m_settings.disableOptimizedDisplay = false;
+#endif
     m_settings.overlayReportHDR = true;
     m_settings.preferredPipelineUploadHeap = PipelineHeapDeferToClient;
 #if PAL_DEVELOPER_BUILD
@@ -1068,7 +1072,7 @@ void SettingsLoader::DevDriverRegister()
             component.pfnSetValue = ISettingsLoader::SetValue;
             component.pSettingsData = &g_palJsonData[0];
             component.settingsDataSize = sizeof(g_palJsonData);
-            component.settingsDataHash = 3655312250;
+            component.settingsDataHash = 2237215379;
             component.settingsDataHeader.isEncoded = true;
             component.settingsDataHeader.magicBufferId = 402778310;
             component.settingsDataHeader.magicBufferOffset = 0;

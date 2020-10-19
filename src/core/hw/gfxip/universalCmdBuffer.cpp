@@ -418,6 +418,20 @@ bool UniversalCmdBuffer::FilterSetUserDataGfx(
 }
 
 // =====================================================================================================================
+bool UniversalCmdBuffer::IsAnyGfxUserDataDirty() const
+{
+    const size_t* pDirtyMask = &m_graphicsState.gfxUserDataEntries.dirty[0];
+
+    size_t dirty = 0;
+    for (uint32 i = 0; i < NumUserDataFlagsParts; i++)
+    {
+        dirty |= pDirtyMask[i];
+    }
+
+    return (dirty != 0);
+}
+
+// =====================================================================================================================
 // Updates the given stencil state ref and masks params based on the flags set in StencilRefMaskParams
 void UniversalCmdBuffer::SetStencilRefMasksState(
     const StencilRefMaskParams& updatedRefMaskState,    // [in]  Updated state

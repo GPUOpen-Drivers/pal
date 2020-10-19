@@ -158,6 +158,8 @@ public:
 
     virtual Result WaitForLastImagePresented() override;
 
+    virtual bool NeedWindowSizeChangedCheck() const override { return m_needWindowSizeChangedCheck; }
+
 private:
     Dri3WindowSystem(const Device& device, const WindowSystemCreateInfo& createInfo);
     virtual ~Dri3WindowSystem();
@@ -195,11 +197,14 @@ private:
 #else
     const Dri3LoaderFuncs&      m_dri3Procs;
 #endif
-    const SwizzledFormat   m_format;              // format for presentable image
-    uint32                 m_depth;               // depth for presentable image
-    const SwapChainMode    m_swapChainMode;       // swapchain mode
-    const xcb_window_t     m_hWindow;             // xcb window created by App
-    xcb_connection_t*      m_pConnection;         // xcb connection created by App
+    const SwizzledFormat   m_format;                     // format for presentable image
+    uint32                 m_depth;                      // depth for presentable image
+    const SwapChainMode    m_swapChainMode;              // swapchain mode
+    const xcb_window_t     m_hWindow;                    // xcb window created by App
+    int32                  m_windowWidth;                // width of m_hWindow
+    int32                  m_windowHeight;               // height of m_hWindow
+    bool                   m_needWindowSizeChangedCheck; // need client to check if window is resized
+    xcb_connection_t*      m_pConnection;                // xcb connection created by App
     bool                   m_dri2Supported;
     int32                  m_dri3MajorVersion;
     int32                  m_dri3MinorVersion;

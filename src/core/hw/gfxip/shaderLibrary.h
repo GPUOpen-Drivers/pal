@@ -42,9 +42,10 @@ typedef Util::Abi::PalCodeObjectMetadata  CodeObjectMetadata;
 // Structure describing the shader function statistics.
 struct ShaderFuncStats
 {
-    const char*   pSymbolName;
-    uint32        symbolNameLength;
-    uint32        stackFrameSizeInBytes;
+    const char*                 pSymbolName;
+    uint32                      symbolNameLength;
+    uint32                      stackFrameSizeInBytes;
+    ShaderSubType               shaderSubType;
 };
 
 typedef Util::Vector<ShaderFuncStats, 10, Platform> ShaderFuncStatsList;

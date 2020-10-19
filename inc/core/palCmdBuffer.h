@@ -1222,7 +1222,8 @@ typedef void (PAL_STDCALL *CmdDrawFunc)(
     uint32      firstVertex,
     uint32      vertexCount,
     uint32      firstInstance,
-    uint32      instanceCount);
+    uint32      instanceCount,
+    uint32      drawId);
 
 /// @internal Function pointer type definition for issuing draws auto.
 ///
@@ -1244,7 +1245,8 @@ typedef void (PAL_STDCALL *CmdDrawIndexedFunc)(
     uint32      indexCount,
     int32       vertexOffset,
     uint32      firstInstance,
-    uint32      instanceCount);
+    uint32      instanceCount,
+    uint32      drawId);
 
 /// @internal Function pointer type definition for issuing indirect draws.
 ///
@@ -2158,6 +2160,7 @@ public:
     /// Issues an instanced, non-indexed draw call using the command buffer's currently bound graphics state.  Results
     /// in instanceCount * vertexCount vertices being processed.
     ///
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 632
     ///
     /// @param [in] firstVertex   Starting index value for the draw.  Indices passed to the vertex shader will range
     ///                           from firstVertex to firstVertex + vertexCount - 1.
@@ -2171,7 +2174,25 @@ public:
         uint32 firstInstance,
         uint32 instanceCount)
     {
-        m_funcTable.pfnCmdDraw(this, firstVertex, vertexCount, firstInstance, instanceCount);
+        m_funcTable.pfnCmdDraw(this, firstVertex, vertexCount, firstInstance, instanceCount, 0);
+    }
+#endif
+    ///
+    /// @param [in] firstVertex   Starting index value for the draw.  Indices passed to the vertex shader will range
+    ///                           from firstVertex to firstVertex + vertexCount - 1.
+    /// @param [in] vertexCount   Number of vertices to draw.  If zero, the draw will be discarded.
+    /// @param [in] firstInstance Starting instance for the draw.  Instance IDs passed to the vertex shader will range
+    ///                           from firstInstance to firstInstance + instanceCount - 1.
+    /// @param [in] instanceCount Number of instances to draw.  If zero, the draw will be discarded.
+    /// @param [in] drawId        Draw index for the draw.
+    PAL_INLINE void CmdDraw(
+        uint32 firstVertex,
+        uint32 vertexCount,
+        uint32 firstInstance,
+        uint32 instanceCount,
+        uint32 drawId)
+    {
+        m_funcTable.pfnCmdDraw(this, firstVertex, vertexCount, firstInstance, instanceCount, drawId);
     }
 
     /// Issues draw opaque call using the command buffer's currently bound graphics state.
@@ -2210,6 +2231,7 @@ public:
     /// + IndexBuffer[firstIndex + 1] + vertexOffset,
     /// + ...
     /// + IndexBuffer[firstIndex + indexCount - 1] + vertexOffset
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 632
     ///
     /// @param [in] firstIndex    Starting index buffer slot for the draw.
     /// @param [in] indexCount    Number of vertices to draw.  If zero, the draw will be discarded.
@@ -2225,7 +2247,27 @@ public:
         uint32 firstInstance,
         uint32 instanceCount)
     {
-        m_funcTable.pfnCmdDrawIndexed(this, firstIndex, indexCount, vertexOffset, firstInstance, instanceCount);
+        m_funcTable.pfnCmdDrawIndexed(this, firstIndex, indexCount, vertexOffset, firstInstance, instanceCount, 0);
+    }
+#endif
+    ///
+    /// @param [in] firstIndex    Starting index buffer slot for the draw.
+    /// @param [in] indexCount    Number of vertices to draw.  If zero, the draw will be discarded.
+    /// @param [in] vertexOffset  Offset added to the index fetched from the index buffer before it is passed to the
+    ///                           vertex shader.
+    /// @param [in] firstInstance Starting instance for the draw.  Instance IDs passed to the vertex shader will range
+    ///                           from firstInstance to firstInstance + instanceCount - 1.
+    /// @param [in] instanceCount Number of instances to draw.  If zero, the draw will be discarded.
+    /// @param [in] drawId        Draw index for the draw.
+    PAL_INLINE void CmdDrawIndexed(
+        uint32 firstIndex,
+        uint32 indexCount,
+        int32  vertexOffset,
+        uint32 firstInstance,
+        uint32 instanceCount,
+        uint32 drawId)
+    {
+        m_funcTable.pfnCmdDrawIndexed(this, firstIndex, indexCount, vertexOffset, firstInstance, instanceCount, drawId);
     }
 
     /// Issues instanced, non-indexed draw calls using the command buffer's currently bound graphics state.  The draw
@@ -2813,17 +2855,18 @@ public:
     ///
     /// If any Rects have been specified, all subresource ranges must contain a single, identical mip level.
     ///
-    /// @param [in] image         Image to be cleared.
-    /// @param [in] depth         Depth clear value.
-    /// @param [in] depthLayout   Current allowed usages and engines for the depth aspect.
-    /// @param [in] stencil       Stencil clear value.
-    /// @param [in] stencilLayout Current allowed usages and engines for the stencil aspect.
-    /// @param [in] rangeCount    Number of subresource ranges to clear; size of the pRanges array.
-    /// @param [in] pRanges       Array of subresource ranges to clear.
-    /// @param [in] rectCount     Number of areas within the image to clear; size of the pRects array.
-    ///                           If zero, entire subresources will be cleared and pRects will be ignored.
-    /// @param [in] pRects        Array of areas within the subresources to clear.
-    /// @param [in] flags         Mask of ClearDepthStencilFlags values controlling behavior of the clear.
+    /// @param [in] image            Image to be cleared.
+    /// @param [in] depth            Depth clear value.
+    /// @param [in] depthLayout      Current allowed usages and engines for the depth aspect.
+    /// @param [in] stencil          Stencil clear value.
+    /// @param [in] stencilWriteMask Write-mask to apply to the stencil subresource ranges during the clear.
+    /// @param [in] stencilLayout    Current allowed usages and engines for the stencil aspect.
+    /// @param [in] rangeCount       Number of subresource ranges to clear; size of the pRanges array.
+    /// @param [in] pRanges          Array of subresource ranges to clear.
+    /// @param [in] rectCount        Number of areas within the image to clear; size of the pRects array.  If zero,
+    ///                              the entire subresources will be cleared and pRects will be ignored.
+    /// @param [in] pRects           Array of areas within the subresources to clear.
+    /// @param [in] flags            Mask of ClearDepthStencilFlags values controlling behavior of the clear.
     virtual void CmdClearDepthStencil(
         const IImage&      image,
         ImageLayout        depthLayout,

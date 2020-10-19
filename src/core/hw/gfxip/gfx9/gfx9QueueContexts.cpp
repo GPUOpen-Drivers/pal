@@ -362,6 +362,16 @@ Result ComputeQueueContext::RebuildCommandStreams(
 
         pCmdSpace = WriteCommonPreamble(*m_pDevice, EngineTypeCompute, &m_cmdStream, pCmdSpace);
 
+        // If SPM interval spans across gfx and ace, we need to manually set COMPUTE_PERFCOUNT_ENABLE for the pipes.
+        // SPM via devdriver (RDP, PIX) have this register set once profiling enabled to meet RDP's need for extended
+        // SPM interval.
+        // SPM via PAL GpuProfiler will need similar work to have accurate per-frame SPM counts.
+        regCOMPUTE_PERFCOUNT_ENABLE computeEnable = {};
+        computeEnable.bits.PERFCOUNT_ENABLE = m_pDevice->GetPlatform()->IsDevDriverProfilingEnabled() ? 1 : 0;
+        pCmdSpace = m_cmdStream.WriteSetOneShReg<ShaderCompute>(mmCOMPUTE_PERFCOUNT_ENABLE,
+                                                                computeEnable.u32All,
+                                                                pCmdSpace);
+
         m_cmdStream.CommitCommands(pCmdSpace);
         result = m_cmdStream.End();
     }
@@ -872,6 +882,17 @@ void UniversalQueueContext::WritePerSubmitPreamble(
 
         pRegRange = m_pDevice->GetRegisterRange(RegRangeCsSh, &numEntries);
         pCmdSpace += CmdUtil::BuildLoadShRegs(shRegGpuAddr, pRegRange, numEntries, ShaderCompute, pCmdSpace);
+
+        // If SPM interval spans across gfx and ace, we need to manually set COMPUTE_PERFCOUNT_ENABLE for the pipes.
+        // Set this register to correct value instead of loading with zero.
+        // SPM via devdriver (RDP, PIX) have this register set once profiling enabled to meet RDP's need for extended
+        // SPM interval.
+        // SPM via PAL GpuProfiler will need similar work to have accurate per-frame SPM counts.
+        regCOMPUTE_PERFCOUNT_ENABLE computeEnable = {};
+        computeEnable.bits.PERFCOUNT_ENABLE = m_pDevice->GetPlatform()->IsDevDriverProfilingEnabled() ? 1 : 0;
+        pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderCompute>(mmCOMPUTE_PERFCOUNT_ENABLE,
+                                                                computeEnable.u32All,
+                                                                pCmdSpace);
 
         pCmdStream->CommitCommands(pCmdSpace);
 

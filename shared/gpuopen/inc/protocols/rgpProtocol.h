@@ -35,7 +35,7 @@
 
 #include "gpuopen.h"
 
-#define RGP_PROTOCOL_VERSION 10
+#define RGP_PROTOCOL_VERSION 11
 
 #define RGP_PROTOCOL_MINIMUM_VERSION 2
 
@@ -43,6 +43,7 @@
 ***********************************************************************************************************************
 *| Version | Change Description                                                                                       |
 *| ------- | ---------------------------------------------------------------------------------------------------------|
+*|  11.0   | Version bumped to indicate driver support for SE mask only applying to detailed instruction tracing      |
 *|  10.0   | Added support for SPM counters and SE masking.                                                           |
 *|  9.0    | Decoupled trace parameters from execute trace request.                                                   |
 *|  8.0    | Added support for capturing the RGP trace on specific frame or dispatch                                  |
@@ -57,6 +58,7 @@
 ***********************************************************************************************************************
 */
 
+#define RGP_DETAILED_SEMASK_VERSION 11
 #define RGP_SPM_COUNTERS_VERSION 10
 #define RGP_DECOUPLED_TRACE_PARAMETERS 9
 #define RGP_FRAME_CAPTURE_VERSION 8

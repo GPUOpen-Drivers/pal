@@ -839,6 +839,10 @@ Result Image::Finalize(
 
         m_gpuMemSyncSize = *pGpuMemSize;
 
+        // Force its size 16 bytes aligned so it's able to go through the fastest CopyBufferDqword in
+        // CopyMemoryCs (e.g. called by CmdCopyMemory or CmdCloneImageData).
+        *pGpuMemSize = Pow2Align(*pGpuMemSize, 16);
+
         if (useCmask && settings.waCmaskImageSyncs)
         {
             // Keep the size to sync the same, and pad the required allocation size up to the next fragment multiple.
@@ -1076,9 +1080,7 @@ void Image::InitLayoutStateMasks()
             // resolve to compress the destination data.
             if (IsGfx10Plus(m_device))
             {
-                {
-                    compressedWriteLayout.usages |= LayoutShaderWrite;
-                }
+                compressedWriteLayout.usages |= isMsaa ? 0 : LayoutShaderWrite;
 
                 // If we don't ever want copyDst to be compressed, then we're done. Otherwise, it should be on if
                 // it's generally enabled or if it's enabled for readable formats and this image is readable.
@@ -1271,7 +1273,10 @@ void Image::InitLayoutStateMasks()
         // If the client has given us a hint that this Image never does anything to this Image which would cause
         // the Image data and Hi-Z to become out-of-sync, we can include all layouts in the decomprWithHiZ state
         // because this Image will never need to do a resummarization blit.
-        if (m_createInfo.usageFlags.hiZNeverInvalid != 0)
+        // In the case of Gfx10+, shader writes to a compressed image will keep the HiZ in a consistent state and
+        // therefore don't require the hiZNeverInvalid flag to be enabled in order to allow the
+        // ShaderWrite and CopyDst usage flags.
+        if ((m_createInfo.usageFlags.hiZNeverInvalid != 0) || IsGfx10Plus(m_device))
         {
             decomprWithHiZLayout.usages  = AllDepthImageLayoutFlags;
             decomprWithHiZLayout.engines = LayoutUniversalEngine | LayoutComputeEngine | LayoutDmaEngine;
@@ -1349,36 +1354,52 @@ void Image::InitLayoutStateMasks()
             }
         }
 
-    // If this trips, the SDMA engine is in danger of seeing compressed image data, which it can't understand.
-    PAL_ASSERT((GetGfx9Settings(m_device).waSdmaPreventCompressedSurfUse   == false) ||
-               (TestAnyFlagSet(compressedLayouts.engines, LayoutDmaEngine) == false));
+        // If this trips, the SDMA engine is in danger of seeing compressed image data, which it can't understand.
+        PAL_ASSERT((GetGfx9Settings(m_device).waSdmaPreventCompressedSurfUse   == false) ||
+                   (TestAnyFlagSet(compressedLayouts.engines, LayoutDmaEngine) == false));
 
         // Supported depth layouts per compression state
         const uint32 depth   = GetDepthStencilStateIndex(ImageAspect::Depth);
         const uint32 stencil = GetDepthStencilStateIndex(ImageAspect::Stencil);
 
-        m_layoutToState.depthStencil[depth].compressed     = compressedLayouts;
-        m_layoutToState.depthStencil[depth].decomprWithHiZ = decomprWithHiZLayout;
+        if (m_pHtile->DepthCompressed())
+        {
+            m_layoutToState.depthStencil[depth].compressed  = compressedLayouts;
+            m_defaultGfxLayout.depthStencil[depth]          = compressedLayouts;
+        }
+        else
+        {
+            m_layoutToState.depthStencil[depth].compressed.usages   = 0;
+            m_layoutToState.depthStencil[depth].compressed.engines  = 0;
+            m_defaultGfxLayout.depthStencil[depth].usages           = LayoutAllUsages & (~LayoutUninitializedTarget);
+            m_defaultGfxLayout.depthStencil[depth].engines          = LayoutAllEngines;
+        }
 
-        m_defaultGfxLayout.depthStencil[depth] = compressedLayouts;
+        m_layoutToState.depthStencil[depth].decomprWithHiZ = decomprWithHiZLayout;
 
         if (depth != stencil)
         {
             // Supported stencil layouts per compression state
             if (m_pHtile->TileStencilDisabled() == false)
             {
-                m_layoutToState.depthStencil[stencil].compressed     = compressedLayouts;
                 m_layoutToState.depthStencil[stencil].decomprWithHiZ = decomprWithHiZLayout;
-
-                m_defaultGfxLayout.depthStencil[stencil] = compressedLayouts;
             }
             else
             {
-                m_layoutToState.depthStencil[stencil].compressed.usages      = 0;
-                m_layoutToState.depthStencil[stencil].compressed.engines     = 0;
                 m_layoutToState.depthStencil[stencil].decomprWithHiZ.usages  = 0;
                 m_layoutToState.depthStencil[stencil].decomprWithHiZ.engines = 0;
+            }
 
+            if ((m_pHtile->TileStencilDisabled() == false) &&
+                m_pHtile->StencilCompressed())
+            {
+                m_layoutToState.depthStencil[stencil].compressed = compressedLayouts;
+                m_defaultGfxLayout.depthStencil[stencil]         = compressedLayouts;
+            }
+            else
+            {
+                m_layoutToState.depthStencil[stencil].compressed.usages  = 0;
+                m_layoutToState.depthStencil[stencil].compressed.engines = 0;
                 m_defaultGfxLayout.depthStencil[stencil].usages  = LayoutAllUsages & (~LayoutUninitializedTarget);
                 m_defaultGfxLayout.depthStencil[stencil].engines = LayoutAllEngines;
             }
@@ -1676,13 +1697,43 @@ const Image& GetGfx9Image(
 }
 
 // =====================================================================================================================
+// Helper function to determine if the layout supports comp-to-reg
+bool Image::SupportsCompToReg(
+    ImageLayout     layout,
+    const SubresId& subResId
+    ) const
+{
+    // Comp-to-reg fast clears are only ever supported in the compressed layout.
+    ImageLayout compToRegLayout = m_layoutToState.color.compressed;
+
+    // Fast clear eliminates are only supported on the universal engine, so that is the only engine that
+    // can support comp-to-reg.
+    compToRegLayout.engines = LayoutUniversalEngine;
+
+    // The texture block does not understand comp-to-reg.
+    // LayoutResolveSrc is treated as supporting compToReg under the assumption we will perform a fixed-function
+    // resolve. If we end up executing a shader resolve, RPM will transition to one of the ShaderRead states explicitly.
+    compToRegLayout.usages &= ~(LayoutShaderRead           |
+                                LayoutShaderFmaskBasedRead |
+                                LayoutShaderWrite          |
+                                LayoutCopySrc              |
+                                LayoutCopyDst);
+
+    // Comp-to-reg is only supported if the image setup the FCE metadata and the specified
+    // layout can support compToReg.
+    return (GetFastClearEliminateMetaDataAddr(subResId) != 0) &&
+           (TestAnyFlagSet(layout.engines, ~compToRegLayout.engines) == false) &&
+           (TestAnyFlagSet(layout.usages, ~compToRegLayout.usages) == false);
+}
+
+// =====================================================================================================================
 bool Image::IsFastColorClearSupported(
     GfxCmdBuffer*      pCmdBuffer,
     ImageLayout        colorLayout,
     const uint32*      pColor,
     const SubresRange& range)
 {
-    const SubresId& subResource = range.startSubres;
+    const SubresId&  subResource = range.startSubres;
 
     // We can only fast clear all arrays at once.
     bool isFastClearSupported =
@@ -1716,15 +1767,8 @@ bool Image::IsFastColorClearSupported(
             // Figure out if we can do a a non-TC compatible DCC fast clear.  This kind of fast clear works on any
             // clear color, but requires a fast clear eliminate blt.
             const bool nonTcCompatibleFastClearPossible =
-                // Non-universal queues can't execute CB fast clear eliminates.  If the image layout declares a non-
-                // universal queue type as currently legal, the barrier to execute such a blit may occur on one of those
-                // unsupported queues and thus will be ignored.  Because there's a chance the eliminate may be skipped,
-                // we must not allow the kind of fast clear that requires one.
-                (colorLayout.engines == LayoutUniversalEngine) &&
-                // The image setting must dictate that all fast clear colors are allowed -- not just TC-compatible ones
-                // (this is a profile preference in case sometimes the fast clear eliminate becomes too expensive for
-                // specific applications)
-                ColorImageSupportsAllFastClears() &&
+                // If the layout supports comp-to-reg then we can do a non-TC compatible DCC fast clear.
+                SupportsCompToReg(colorLayout, subResource) &&
                 // Allow non-TC compatible clears only if there are no skipped fast clear eliminates.
                 noSkippedFastClearElim;
 

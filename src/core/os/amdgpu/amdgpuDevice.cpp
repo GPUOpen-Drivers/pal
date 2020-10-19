@@ -1187,21 +1187,6 @@ void Device::InitGfx9ChipProperties()
         PAL_ASSERT_ALWAYS();
     }
 
-    InitGfx9CuMask(&deviceInfo);
-
-    // Get the disabled render backend mask. m_gpuInfo.backend_disable is per se, m_gpuInfo.backend_disable[0]
-    // is for se[0]. However backendDisableMask is in following organization if RbPerSe is 4,
-    // *         b15 b14 b13 b12 - b11 b10 b9 b8 - b7 b6 b5 b4 - b3 b2 b1 b0
-    // *             SE3/SH0          SE2/SH0        SE1/SH0       SE0/SH0
-    pChipInfo->backendDisableMask = 0;
-
-    for (uint32 i = 0; i < deviceInfo.num_shader_engines; i++)
-    {
-        uint32 disabledRbMaskPerSe     = (1 << pChipInfo->maxNumRbPerSe) - 1;
-        uint32 disabledRbBits          = m_gpuInfo.backend_disable[i] & disabledRbMaskPerSe;
-        pChipInfo->backendDisableMask |= disabledRbBits << (i * pChipInfo->maxNumRbPerSe);
-    }
-
     if (IsGfx10(m_chipProperties.gfxLevel))
     {
         // We should probably ask that GPU__GC__NUM_TCP_PER_SA, GPU__GC__NUM_WGP0_PER_SA, and GPU__GC__NUM_WGP1_PER_SA
@@ -1214,11 +1199,15 @@ void Device::InitGfx9ChipProperties()
         pChipInfo->gfx10.numTcpPerSa = 2 * wgpPerSa;
     }
 
+    InitGfx9CuMask(&deviceInfo);
+
     // Call into the HWL to finish initializing some GPU properties which can be derived from the ones which we
     // overrode above.
     Gfx9::FinalizeGpuChipProperties(*this, &m_chipProperties);
 
     pChipInfo->numActiveRbs = CountSetBits(m_gpuInfo.enabled_rb_pipes_mask);
+
+    pChipInfo->backendDisableMask = (~m_gpuInfo.enabled_rb_pipes_mask) & ((1 << pChipInfo->numTotalRbs) - 1);
 
     Gfx9::InitializePerfExperimentProperties(m_chipProperties, &m_perfExperimentProperties);
 
@@ -1269,6 +1258,10 @@ void Device::InitGfx9CuMask(
 
     if (IsGfx10Plus(m_chipProperties.gfxLevel))
     {
+        // We start by assuming that the most WGP per SA that we get will are the feature defines.
+        pChipInfo->gfx10.minNumWgpPerSa = pChipInfo->gfx10.numWgpAboveSpi + pChipInfo->gfx10.numWgpBelowSpi;
+        PAL_ASSERT(pChipInfo->gfx10.minNumWgpPerSa != 0);
+
         // In GFX 10, we need convert CU mask to WGP mask.
         for (uint32 seIndex = 0; seIndex < m_gpuInfo.num_shader_engines; seIndex++)
         {
@@ -1290,6 +1283,12 @@ void Device::InitGfx9CuMask(
                     {
                         pChipInfo->gfx10.alwaysOnWgpMask[seIndex][shIndex] |= wgpMask;
                     }
+                }
+
+                const uint32 numActiveWgpPerSa = Util::CountSetBits(pChipInfo->gfx10.activeWgpMask[seIndex][shIndex]);
+                if (numActiveWgpPerSa > 0)
+                {
+                    pChipInfo->gfx10.minNumWgpPerSa = Min(pChipInfo->gfx10.minNumWgpPerSa, numActiveWgpPerSa);
                 }
             }
         }

@@ -70,7 +70,7 @@ constexpr uint32  SqttGfx10RegMaskDefault = (SQ_TT_TOKEN_MASK_SQDEC_BIT   |
 constexpr uint32  SqttGfx10TokenMaskDefault = ((1 << SQ_TT_TOKEN_EXCLUDE_VMEMEXEC_SHIFT) |
                                                (1 << SQ_TT_TOKEN_EXCLUDE_ALUEXEC_SHIFT)  |
                                                (1 << SQ_TT_TOKEN_EXCLUDE_WAVERDY_SHIFT)  |
-                                               (1 << SQ_TT_TOKEN_EXCLUDE_PERF_SHIFT));
+                                               (1 << SQ_TT_TOKEN_EXCLUDE_PERF_SHIFT__GFX10COREPLUS));
 
 // The SPM ring buffer base address must be 32-byte aligned.
 constexpr uint32 SpmRingBaseAlignment = 32;
@@ -250,7 +250,7 @@ static regSQ_THREAD_TRACE_TOKEN_MASK GetGfx10SqttTokenMask(
                              (regExclude         << SQ_TT_TOKEN_EXCLUDE_REG_SHIFT)       |
                              (eventExclude       << SQ_TT_TOKEN_EXCLUDE_EVENT_SHIFT)     |
                              (instExclude        << SQ_TT_TOKEN_EXCLUDE_INST_SHIFT)      |
-                             (PerfExclude        << SQ_TT_TOKEN_EXCLUDE_PERF_SHIFT));
+                             (PerfExclude        << SQ_TT_TOKEN_EXCLUDE_PERF_SHIFT__GFX10COREPLUS));
 
     {
 
@@ -1271,6 +1271,7 @@ Result PerfExperiment::AddThreadTrace(
             else
             {
                 // By default trace all tokens and registers.
+                uint32 excludeMask = SqttGfx10TokenMaskDefault;
                 SetSqttTokenExclude(m_device, &m_sqtt[traceInfo.instance].tokenMask, SqttGfx10TokenMaskDefault);
                 m_sqtt[traceInfo.instance].tokenMask.gfx10Plus.REG_INCLUDE   = SqttGfx10RegMaskDefault;
             }

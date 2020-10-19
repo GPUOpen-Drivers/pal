@@ -90,7 +90,7 @@ public:
 
     virtual void Call(const CmdStream& targetStream, bool exclusiveSubmit, bool allowIb2Launch) override;
 
-    void ExecuteGeneratedCommands(ChunkRefList::Iter chunkIter);
+    void ExecuteGeneratedCommands(CmdStreamChunk** ppChunkList, uint32 numChunksExecuted, uint32 numGenChunks);
 
     uint32 PrepareChunkForCmdGeneration(
         CmdStreamChunk* pChunk,

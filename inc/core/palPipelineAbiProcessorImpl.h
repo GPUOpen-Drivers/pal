@@ -934,7 +934,13 @@ Result PipelineAbiProcessor<Allocator>::LoadFromBuffer(
 
     if (result == Result::Success)
     {
-        if ((m_elfProcessor.GetFileHeader()->ei_osabi != ElfOsAbiVersion) ||
+        m_flags.u32All = m_elfProcessor.GetFileHeader()->e_flags;
+
+        if ((m_elfProcessor.GetFileHeader()->ei_osabi != ElfOsAbiVersion)                  ||
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 634
+            (GetXnackFeatureV4()                      == AmdGpuFeatureV4Type::Unsupported) ||
+            (GetSramEccFeatureV4()                    == AmdGpuFeatureV4Type::Unsupported) ||
+#endif
             (m_elfProcessor.GetTargetMachine()        != Elf::MachineType::AmdGpu))
         {
             result = Result::ErrorInvalidPipelineElf;
@@ -969,8 +975,6 @@ Result PipelineAbiProcessor<Allocator>::LoadFromBuffer(
         m_pDisasmSection       = m_elfProcessor.GetSections()->Get(AmdGpuDisassemblyName);
         m_pAmdIlSection        = m_elfProcessor.GetSections()->Get(AmdGpuCommentAmdIlName);
         m_pLlvmIrSection       = m_elfProcessor.GetSections()->Get(AmdGpuCommentLlvmIrName);
-
-        m_flags.u32All         = m_elfProcessor.GetFileHeader()->e_flags;
 
         // Check that all required sections are present
         if ((m_pTextSection == nullptr)   ||

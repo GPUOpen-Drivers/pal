@@ -1815,6 +1815,9 @@ static PAL_INLINE SQ_TEX_CLAMP GetAddressClamp(
         SQ_TEX_CLAMP_LAST_TEXEL,        // TexAddressMode::Clamp
         SQ_TEX_MIRROR_ONCE_LAST_TEXEL,  // TexAddressMode::MirrorOnce
         SQ_TEX_CLAMP_BORDER,            // TexAddressMode::ClampBorder
+        SQ_TEX_MIRROR_ONCE_HALF_BORDER, // TexAddressMode::MirrorClampHalfBorder
+        SQ_TEX_CLAMP_HALF_BORDER,       // TexAddressMode::ClampHalfBorder
+        SQ_TEX_MIRROR_ONCE_BORDER,      // TexAddressMode::MirrorClampBorder
     };
 
     static_assert((ArrayLen(PalTexAddrToHwTbl) == static_cast<size_t>(TexAddressMode::Count)),
@@ -4479,6 +4482,7 @@ void InitializeGpuEngineProperties(
     pUniversal->flags.timestampSupport                = 1;
     pUniversal->flags.borderColorPaletteSupport       = 1;
     pUniversal->flags.queryPredicationSupport         = 1;
+    pUniversal->flags.memory32bPredicationEmulated    = 1; // Emulated by embedding a 64-bit predicate in the cmdbuf and copying from the 32-bit source.
     pUniversal->flags.memory64bPredicationSupport     = 1;
     pUniversal->flags.conditionalExecutionSupport     = 1;
     pUniversal->flags.loopExecutionSupport            = 1;

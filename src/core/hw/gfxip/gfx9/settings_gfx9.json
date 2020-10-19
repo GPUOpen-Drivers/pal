@@ -2996,13 +2996,13 @@
       }
     },
     {
-      "Description": "If we should use EOP timestamp waits on ACE engines instead of CS_PARTIAL_FLUSH events. This is intended to fix a HW bug/feature which breaks CS_PARTIAL_FLUSH when compute wave save restore (CWSR) is on.",
+      "Description": "If we should use EOP timestamp waits on ACE engines instead of CS_PARTIAL_FLUSH events. This is intended as a debug switch.",
       "Tags": [
         "General",
         "Gfx9"
       ],
       "Defaults": {
-        "Default": true
+        "Default": false
       },
       "Scope": "PrivatePalGfx9Key",
       "Type": "bool",

@@ -49,14 +49,12 @@ namespace EventProtocol
 {
     class EventClient;
 
-    DD_STATIC_CONST size_t kTokenHeaderSize = sizeof(EventTokenHeader);
+    typedef void(*RawEventDataReceived)(void* pUserdata, const void* pData, size_t dataSize);
 
-    typedef void(*EventDataReceived)(void* pUserdata, const void* pEventData, size_t eventDataSize);
-
-    struct EventDataCallbackInfo
+    struct EventCallbackInfo
     {
-        EventDataReceived pCallback = nullptr;
-        void*             pUserdata = nullptr;
+        RawEventDataReceived pfnRawEventDataReceived;
+        void*                pUserdata;
     };
 
     class EventProviderIterator
@@ -196,43 +194,32 @@ namespace EventProtocol
         explicit EventClient(IMsgChannel* pMsgChannel);
         ~EventClient();
 
-        // Sets the event data callback which will be called whenever a full new event is available from the server
-        void SetEventDataCallback(const EventDataCallbackInfo& callbackInfo)
+        // Sets the event callback which will be called to deliver raw event data from the network whenever
+        // it's available. This callback will only be invoked during QueryProviders, UpdateProviders, and ReadEventData.
+        // It does not run on a background thread.
+        void SetEventCallback(const EventCallbackInfo& callbackInfo)
         {
             m_callback = callbackInfo;
         }
 
+        // Returns any available event providers exposed by the remote server
+        // Note: The memory returned by this function must later be returned via FreeProvidersDescription
         Result QueryProviders(EventProvidersDescription** ppProvidersDescription);
 
+        // Updates the configuration of event providers exposed by the remote server
         Result UpdateProviders(const EventProviderUpdateRequest* pProviderUpdates, uint32 numProviderUpdates);
 
         // Reads any available event data from the server
         Result ReadEventData(uint32 timeoutInMs = kDefaultCommunicationTimeoutInMs);
 
+        // Frees the memory allocated as part of a previous event provider query operation
         Result FreeProvidersDescription(EventProvidersDescription** ppProvidersDescription);
 
     private:
-        void OnTokenAvailable();
-        static size_t GetTokenSize(EventTokenType tokenType);
-        Result ReceiveEventData(const void* pEventData, size_t eventDataSize);
-        void ResetState() override;
-        void ResetEventDataBufferState();
-
+        void EmitEventData(const void* pEventData, size_t eventDataSize);
         Result ReceiveResponsePayload(SizedPayloadContainer* pContainer, EventMessage responseType);
 
-        enum class EventDataState : uint32
-        {
-            WaitingForHeader  = 0,
-            WaitingForToken   = 1,
-            WaitingForPayload = 2,
-        };
-
-        EventDataCallbackInfo m_callback;
-
-        Vector<uint8>   m_eventDataBuffer;
-        ByteWriter      m_eventDataWriter;
-        size_t          m_eventDataPayloadOffset;
-        EventDataState  m_eventDataState;
+        EventCallbackInfo m_callback;
     };
 
 }

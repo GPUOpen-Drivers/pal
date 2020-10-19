@@ -297,6 +297,7 @@ public:
     static constexpr uint32 DrawIndexAutoSize             = PM4_PFP_DRAW_INDEX_AUTO_SIZEDW__CORE;
     static constexpr uint32 DrawIndex2Size                = PM4_PFP_DRAW_INDEX_2_SIZEDW__CORE;
     static constexpr uint32 DrawIndexOffset2Size          = PM4_PFP_DRAW_INDEX_OFFSET_2_SIZEDW__CORE;
+    static constexpr uint32 DispatchTaskMeshGfxSize       = PM4_ME_DISPATCH_TASKMESH_GFX_SIZEDW__GFX10PLUS;
     static constexpr uint32 DispatchTaskMeshDirectMecSize =
         PM4_MEC_DISPATCH_TASKMESH_DIRECT_ACE_SIZEDW__GFX10PLUS;
     static constexpr uint32 DispatchTaskMeshIndirectMecSize =

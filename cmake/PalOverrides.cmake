@@ -22,49 +22,61 @@
  #  SOFTWARE.
  #
  #######################################################################################################################
-
 include(PalVersionHelper)
-include(PalOverridesGpu)
 
 pal_include_guard(PalOverrides)
 
-# These are options that override PAL subproject options.  As these overrides are managed and force
-# set by PAL, mark_as_advanced is used to hide them from the CMake GUI.
+macro(pal_overrides_gpu_gfx9)
+    # Generic support for GFX9 cards
+    pal_override(ADDR_GFX9_BUILD ON)
+    pal_override(ADDR_VEGA12_BUILD ON)
+    pal_override(ADDR_VEGA20_BUILD ON)
+    pal_override(ADDR_RAVEN1_BUILD ON)
+    pal_override(ADDR_RAVEN2_BUILD ON)
+    pal_override(ADDR_RENOIR_BUILD ON)
+
+    pal_override(ADDR_GFX9_CHIP_DIR "${PROJECT_SOURCE_DIR}/src/core/hw/gfxip/gfx9/chip")
+
+    pal_override(ADDR_GFX10_BUILD ON)
+
+    pal_override(ADDR_NAVI14_BUILD ${PAL_BUILD_NAVI14})
+
+endmacro()
+
+macro(pal_overrides_gpu)
+
+    if(PAL_BUILD_GFX9)
+        pal_overrides_gpu_gfx9()
+    endif() # PAL_BUILD_GFX9
+endmacro()
+
 macro(pal_overrides)
 
     # ADDRLIB
-    set(ADDR_ENABLE_LTO ${PAL_ENABLE_LTO} CACHE BOOL "PAL override to build ADDRLIB without lto support." FORCE)
-    mark_as_advanced(ADDR_ENABLE_LTO)
+    pal_override(ADDR_SI_BUILD ON)
+    pal_override(ADDR_CI_BUILD ON)
+    pal_override(ADDR_VI_BUILD ON)
 
-    set(ADDR_SI_BUILD ON CACHE BOOL "PAL override to build ADDRLIB with SI support." FORCE)
-    mark_as_advanced(ADDR_SI_BUILD)
-    set(ADDR_CI_BUILD ON CACHE BOOL "PAL override to build ADDRLIB with CI support." FORCE)
-    mark_as_advanced(ADDR_CI_BUILD)
-    set(ADDR_VI_BUILD ON CACHE BOOL "PAL override to build ADDRLIB with VI support." FORCE)
-    mark_as_advanced(ADDR_VI_BUILD)
-
-    set(ADDR_SI_CHIP_DIR ${PROJECT_SOURCE_DIR}/src/core/hw/gfxip/gfx6/chip CACHE PATH "PAL override for ADDRLIB SI/CI/VI register chip headers." FORCE)
-    mark_as_advanced(ADDR_SI_CHIP_DIR)
+    # PAL override for ADDRLIB SI/CI/VI register chip headers
+    pal_override(ADDR_SI_CHIP_DIR "${PROJECT_SOURCE_DIR}/src/core/hw/gfxip/gfx6/chip")
 
     # VAM
-    set(VAM_ENABLE_LTO ${PAL_ENABLE_LTO} CACHE BOOL "PAL override to build ADDRLIB without lto support." FORCE)
-    mark_as_advanced(VAM_ENABLE_LTO)
 
     # GPUOPEN
     if(PAL_BUILD_GPUOPEN)
-        set(GPUOPEN_BUILD_METROHASH OFF CACHE BOOL "PAL override to build GPUOpen without the Metrohash library since PAL has its own." FORCE)
-        mark_as_advanced(GPUOPEN_BUILD_METROHASH)
+        # PAL override to build GPUOpen without the Metrohash library since PAL has its own.
+        pal_override(GPUOPEN_BUILD_METROHASH OFF)
 
-        set(METROHASH_PATH ${PAL_METROHASH_PATH}/src CACHE PATH "PAL override to specify the path to the MetroHash module." FORCE)
-        mark_as_advanced(METROHASH_PATH)
+        # PAL override to specify the path to the MetroHash module.
+        pal_override(METROHASH_PATH "${PAL_METROHASH_PATH}/src")
 
-        set(GPUOPEN_BUILD_SERVER_HELPERS ON CACHE BOOL "PAL override to build GPUOpen with server helper classes." FORCE)
-        mark_as_advanced(GPUOPEN_BUILD_SERVER_HELPERS)
+        # PAL override to build GPUOpen with server helper classes
+        pal_override(GPUOPEN_BUILD_SERVER_HELPERS ON)
 
-        set(GPUOPEN_BUILD_STANDARD_DRIVER_PROTOCOLS ON CACHE BOOL "PAL override to build GPUOpen with support for the standard driver protocols." FORCE)
-        mark_as_advanced(GPUOPEN_BUILD_STANDARD_DRIVER_PROTOCOLS)
+        # PAL override to build GPUOpen with support for the standard driver protocols
+        pal_override(GPUOPEN_BUILD_STANDARD_DRIVER_PROTOCOLS ON)
     endif()
 
-    # ADDRLIB/SC GPU Overrides
+    # GPU Overrides
     pal_overrides_gpu()
 endmacro()

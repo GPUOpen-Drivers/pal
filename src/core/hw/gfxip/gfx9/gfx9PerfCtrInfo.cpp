@@ -761,10 +761,10 @@ static void Gfx9InitBasicBlockInfo(
 
     // By convention we access the counter register address array using the SE index.
     pGrbmSe->regAddr = { 0, {
-        { mmGRBM_SE0_PERFCOUNTER_SELECT, 0, mmGRBM_SE0_PERFCOUNTER_LO, mmGRBM_SE0_PERFCOUNTER_HI },
-        { mmGRBM_SE1_PERFCOUNTER_SELECT, 0, mmGRBM_SE1_PERFCOUNTER_LO, mmGRBM_SE1_PERFCOUNTER_HI },
-        { mmGRBM_SE2_PERFCOUNTER_SELECT, 0, mmGRBM_SE2_PERFCOUNTER_LO, mmGRBM_SE2_PERFCOUNTER_HI },
-        { mmGRBM_SE3_PERFCOUNTER_SELECT, 0, mmGRBM_SE3_PERFCOUNTER_LO, mmGRBM_SE3_PERFCOUNTER_HI },
+        { mmGRBM_SE0_PERFCOUNTER_SELECT,       0, mmGRBM_SE0_PERFCOUNTER_LO,       mmGRBM_SE0_PERFCOUNTER_HI },
+        { Core::mmGRBM_SE1_PERFCOUNTER_SELECT, 0, Core::mmGRBM_SE1_PERFCOUNTER_LO, Core::mmGRBM_SE1_PERFCOUNTER_HI },
+        { Core::mmGRBM_SE2_PERFCOUNTER_SELECT, 0, Core::mmGRBM_SE2_PERFCOUNTER_LO, Core::mmGRBM_SE2_PERFCOUNTER_HI },
+        { Core::mmGRBM_SE3_PERFCOUNTER_SELECT, 0, Core::mmGRBM_SE3_PERFCOUNTER_LO, Core::mmGRBM_SE3_PERFCOUNTER_HI },
     }};
 
     // The RLC's SELECT registers are non-standard because they lack PERF_MODE fields. This should be fine though
@@ -1226,12 +1226,14 @@ static void Gfx10InitBasicBlockInfo(
     pGrbmSe->maxEventId                = MaxGrbmSe0PerfSelGfx10Plus;
 
     // By convention we access the counter register address array using the SE index.
-    pGrbmSe->regAddr = { 0, {
-        { mmGRBM_SE0_PERFCOUNTER_SELECT, 0, mmGRBM_SE0_PERFCOUNTER_LO, mmGRBM_SE0_PERFCOUNTER_HI },
-        { mmGRBM_SE1_PERFCOUNTER_SELECT, 0, mmGRBM_SE1_PERFCOUNTER_LO, mmGRBM_SE1_PERFCOUNTER_HI },
-        { mmGRBM_SE2_PERFCOUNTER_SELECT, 0, mmGRBM_SE2_PERFCOUNTER_LO, mmGRBM_SE2_PERFCOUNTER_HI },
-        { mmGRBM_SE3_PERFCOUNTER_SELECT, 0, mmGRBM_SE3_PERFCOUNTER_LO, mmGRBM_SE3_PERFCOUNTER_HI },
-    }};
+    {
+        pGrbmSe->regAddr = { 0, {
+            { mmGRBM_SE0_PERFCOUNTER_SELECT,       0, mmGRBM_SE0_PERFCOUNTER_LO,       mmGRBM_SE0_PERFCOUNTER_HI },
+            { Core::mmGRBM_SE1_PERFCOUNTER_SELECT, 0, Core::mmGRBM_SE1_PERFCOUNTER_LO, Core::mmGRBM_SE1_PERFCOUNTER_HI },
+            { Core::mmGRBM_SE2_PERFCOUNTER_SELECT, 0, Core::mmGRBM_SE2_PERFCOUNTER_LO, Core::mmGRBM_SE2_PERFCOUNTER_HI },
+            { Core::mmGRBM_SE3_PERFCOUNTER_SELECT, 0, Core::mmGRBM_SE3_PERFCOUNTER_LO, Core::mmGRBM_SE3_PERFCOUNTER_HI },
+        }};
+    }
 
     // The RLC's SELECT registers are non-standard because they lack PERF_MODE fields. This should be fine though
     // because we only use PERFMON_COUNTER_MODE_ACCUM which is zero. If we ever try to use a different mode the RLC

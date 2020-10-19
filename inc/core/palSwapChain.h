@@ -241,6 +241,12 @@ public:
     ///          + ErrorUnknown when an unexpected condition is encountered.
     virtual Result WaitIdle() = 0;
 
+    /// Indicate if the window size is possibly changed. If true, client should check if
+    /// the window is indeed resized with GetSwapChainInfo.
+    ///
+    /// @returns True if window size is possibly changed.
+    virtual bool NeedWindowSizeChangedCheck() const = 0;
+
     /// Returns the value of the associated arbitrary client data pointer.
     /// Can be used to associate arbitrary data with a particular PAL object.
     ///

@@ -1,8 +1,7 @@
-
 ##
  #######################################################################################################################
  #
- #  Copyright (c) 2017-2020 Advanced Micro Devices, Inc. All Rights Reserved.
+ #  Copyright (c) 2020 Advanced Micro Devices, Inc. All Rights Reserved.
  #
  #  Permission is hereby granted, free of charge, to any person obtaining a copy
  #  of this software and associated documentation files (the "Software"), to deal
@@ -23,88 +22,63 @@
  #  SOFTWARE.
  #
  #######################################################################################################################
-
-cmake_minimum_required(VERSION 3.1)
+cmake_minimum_required(VERSION 3.9...3.15)
 
 project(VAM VERSION 1.2.0 LANGUAGES CXX)
 
-add_library(vam STATIC "")
-option(VAM_ENABLE_LTO "Build with LTO enabled" ON)
+add_library(vam STATIC)
 option(VAM_ENABLE_WERROR "Build with -Werror enabled" OFF)
 
-target_include_directories(vam PUBLIC  inc
-                               PRIVATE src/core)
+if (NOT DEFINED VAM_CLIENT_DX12_LINUX)
+    set(VAM_CLIENT_DX12_LINUX OFF)
+    message(AUTHOR_WARNING "VAM_CLIENT_DX12_LINUX defaulting to ${VAM_CLIENT_DX12_LINUX}")
+endif()
 
-target_sources(vam PRIVATE inc/vambasictypes.h
-                           inc/vamtypes.h
-                           inc/vaminterface.h)
+target_include_directories(vam
+    PUBLIC
+        inc
+    PRIVATE
+        src/core
+)
 
-target_sources(vam PRIVATE src/vaminterface.cpp)
-
-target_sources(vam PRIVATE src/core/vammacros.h
-                           src/core/vamlink.h
-                           src/core/vamtree.h
-                           src/core/vamcommon.h
-                           src/core/vamobject.h
-                           src/core/vamobject.cpp
-                           src/core/vamrange.h
-                           src/core/vamrange.cpp
-                           src/core/vamsuballoc.h
-                           src/core/vamsuballoc.cpp
-                           src/core/vamsectionalloc.h
-                           src/core/vamsectionalloc.cpp
-                           src/core/vamptb.h
-                           src/core/vamptb.cpp
-                           src/core/vamdevice.h
-                           src/core/vamdevice.cpp)
+target_sources(vam PRIVATE
+    # inc
+    inc/vambasictypes.h
+    inc/vamtypes.h
+    inc/vaminterface.h
+    # src
+    src/vaminterface.cpp
+    # src/core
+    src/core/vammacros.h
+    src/core/vamlink.h
+    src/core/vamtree.h
+    src/core/vamcommon.h
+    src/core/vamobject.h
+    src/core/vamobject.cpp
+    src/core/vamrange.h
+    src/core/vamrange.cpp
+    src/core/vamsuballoc.h
+    src/core/vamsuballoc.cpp
+    src/core/vamsectionalloc.h
+    src/core/vamsectionalloc.cpp
+    src/core/vamptb.h
+    src/core/vamptb.cpp
+    src/core/vamdevice.h
+    src/core/vamdevice.cpp
+)
 
 target_compile_definitions(vam PRIVATE $<$<CONFIG:Debug>:VAM_DEBUG>)
 
-set_target_properties(vam PROPERTIES CXX_STANDARD              11
-                                     CXX_STANDARD_REQUIRED     ON
-                                     CXX_EXTENSIONS            OFF
-                                     POSITION_INDEPENDENT_CODE ON)
-
-if(VAM_ENABLE_LTO)
-    # W/A: Replace this code by using CMake module CheckIPOSupported, available since CMake 3.9.
-    if((CMAKE_CXX_COMPILER_ID STREQUAL "GNU") AND (NOT (CMAKE_CXX_COMPILER_VERSION VERSION_LESS "4.8")))
-
-        # [GCC] Options That Control Optimization
-        #   https://gcc.gnu.org/onlinedocs/gcc-8.1.0/gcc/Optimize-Options.html
-        target_compile_options(vam PRIVATE $<$<CONFIG:Release>:-flto>)
-
-    elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
-
-        # [Clang] Command Line Argument Reference
-        #    https://clang.llvm.org/docs/ClangCommandLineReference.html
-        #
-        # [Clang] Thin LTO
-        #    https://clang.llvm.org/docs/ThinLTO.html
-        target_compile_options(vam PRIVATE -flto=thin)
-
-    elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-
-        if( (${CMAKE_VERSION} VERSION_GREATER "3.13") OR
-            (${CMAKE_VERSION} VERSION_EQUAL   "3.13") )
-
-            target_compile_options(vam PRIVATE
-                $<$<CONFIG:Release>:/GL>
-                )
-
-            # STATIC_LIBRARY_OPTIONS was introduced in 3.13 and allows generator expressions
-            set_target_properties(vam PROPERTIES
-                STATIC_LIBRARY_OPTIONS $<$<CONFIG:Release>:/LTCG>
-                )
-
-        else()
-            target_compile_options(vam PRIVATE /GL)
-            set_target_properties(vam PROPERTIES STATIC_LIBRARY_FLAGS /LTCG)
-        endif()
-
-    else()
-        message(WARNING "IPO was not enabled!")
-    endif()
+if (VAM_CLIENT_DX12_LINUX)
+    target_compile_definitions(vam PUBLIC VAM_CLIENT_DX12_LINUX)
 endif()
+
+set_target_properties(vam PROPERTIES
+    CXX_STANDARD              11
+    CXX_STANDARD_REQUIRED     ON
+    CXX_EXTENSIONS            OFF
+    POSITION_INDEPENDENT_CODE ON
+)
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
     if(VAM_ENABLE_WERROR)
@@ -120,10 +94,11 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
     # [GCC] Options That Control Optimization
     #   https://gcc.gnu.org/onlinedocs/gcc-8.1.0/gcc/Optimize-Options.html
     target_compile_options(vam PRIVATE
-        -fno-exceptions  # Disable exception handling support.
-        -fno-rtti        # Disable run-time type information support.
-        -fcheck-new      # Check if pointer returned by operator new is non-null.
-        -fno-math-errno) # Single instruction math operations do not set ERRNO.
+        -fno-exceptions # Disable exception handling support.
+        -fno-rtti       # Disable run-time type information support.
+        -fcheck-new     # Check if pointer returned by operator new is non-null.
+        -fno-math-errno # Single instruction math operations do not set ERRNO.
+    )
 
     # [GCC] Options to Request or Suppress Warnings
     #   https://gcc.gnu.org/onlinedocs/gcc-8.1.0/gcc/Warning-Options.html
@@ -134,7 +109,8 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
         -Wno-unused-parameter
         -Wno-unused-command-line-argument
         -Wno-ignored-qualifiers
-        -Wno-missing-field-initializers)
+        -Wno-missing-field-initializers
+    )
 
 elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
 
@@ -144,7 +120,8 @@ elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
         /EHsc # Catches only C++ exceptions and assumes
               # functions declared as extern "C" never throw a C++ exception.
         /GR-  # Disables run-time type information.
-        /GS-) # Disables detection of buffer overruns.
+        /GS-  # Disables detection of buffer overruns.
+    )
 
     target_compile_options(vam PRIVATE
         /W4      # Enable warning level 4.
@@ -154,8 +131,16 @@ elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
         /wd4189  # local variable is initialized but not referenced
         /wd4201  # nonstandard extension used : nameless struct/union
         /wd4701  # potentially uninitialized local variable
-        /wd4703) # potentially uninitialized local pointer variable
+        /wd4703  # potentially uninitialized local pointer variable
+    )
 
 else()
     message(FATAL_ERROR "Compiler ${CMAKE_CXX_COMPILER_ID} is not supported!")
 endif()
+
+# Nice ide support
+get_target_property(vam_sources vam SOURCES)
+source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR}
+             FILES ${vam_sources}
+)
+

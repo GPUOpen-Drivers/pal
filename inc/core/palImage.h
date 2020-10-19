@@ -598,6 +598,9 @@ public:
     /// @returns A summarized supporting level.
     virtual MetadataSharingLevel GetOptimalSharingLevel() const = 0;
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 633
+#endif
+
 protected:
     /// @internal Constructor.
     ///

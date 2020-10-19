@@ -171,6 +171,29 @@ xcb_generic_event_t* Dri3LoaderFuncsProxy::pfnXcbWaitForSpecialEvent(
 }
 
 // =====================================================================================================================
+xcb_generic_event_t* Dri3LoaderFuncsProxy::pfnXcbPollForSpecialEvent(
+    xcb_connection_t*   pConnection,
+    xcb_special_event*  pEvent
+    ) const
+{
+    const int64 begin = Util::GetPerfCpuTime();
+    xcb_generic_event_t* pRet = m_pFuncs->pfnXcbPollForSpecialEvent(pConnection,
+                                                                    pEvent);
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
+    m_timeLogger.Printf("XcbPollForSpecialEvent,%ld,%ld,%ld\n", begin, end, elapse);
+    m_timeLogger.Flush();
+
+    m_paramLogger.Printf(
+        "XcbPollForSpecialEvent(%p, %p)\n",
+        pConnection,
+        pEvent);
+    m_paramLogger.Flush();
+
+    return pRet;
+}
+
+// =====================================================================================================================
 const xcb_query_extension_reply_t* Dri3LoaderFuncsProxy::pfnXcbGetExtensionData(
     xcb_connection_t*  pConnection,
     xcb_extension_t*   pExtension
@@ -2078,11 +2101,11 @@ Result Dri3Loader::Init(
         "libX11.so.6",
         "libxcb-present.so.0",
     };
-
     if (m_initialized == false)
     {
         // resolve symbols from libX11-xcb.so.1
         result = m_library[LibX11Xcb].Load(LibNames[LibX11Xcb]);
+        PAL_ASSERT_MSG(result == Result::Success, "Failed to load LibX11Xcb library");
         if (result == Result::Success)
         {
             m_library[LibX11Xcb].GetFunction("XGetXCBConnection", &m_funcs.pfnXGetXCBConnection);
@@ -2090,12 +2113,14 @@ Result Dri3Loader::Init(
 
         // resolve symbols from libxcb.so.1
         result = m_library[LibXcb].Load(LibNames[LibXcb]);
+        PAL_ASSERT_MSG(result == Result::Success, "Failed to load LibXcb library");
         if (result == Result::Success)
         {
             m_library[LibXcb].GetFunction("xcb_generate_id", &m_funcs.pfnXcbGenerateId);
             m_library[LibXcb].GetFunction("xcb_register_for_special_xge", &m_funcs.pfnXcbRegisterForSpecialXge);
             m_library[LibXcb].GetFunction("xcb_unregister_for_special_event", &m_funcs.pfnXcbUnregisterForSpecialEvent);
             m_library[LibXcb].GetFunction("xcb_wait_for_special_event", &m_funcs.pfnXcbWaitForSpecialEvent);
+            m_library[LibXcb].GetFunction("xcb_poll_for_special_event", &m_funcs.pfnXcbPollForSpecialEvent);
             m_library[LibXcb].GetFunction("xcb_get_extension_data", &m_funcs.pfnXcbGetExtensionData);
             m_library[LibXcb].GetFunction("xcb_prefetch_extension_data", &m_funcs.pfnXcbPrefetchExtensionData);
             m_library[LibXcb].GetFunction("xcb_request_check", &m_funcs.pfnXcbRequestCheck);
@@ -2119,6 +2144,7 @@ Result Dri3Loader::Init(
 
         // resolve symbols from libxshmfence.so.1
         result = m_library[LibXshmFence].Load(LibNames[LibXshmFence]);
+        PAL_ASSERT_MSG(result == Result::Success, "Failed to load LibXshmFence library");
         if (result == Result::Success)
         {
             m_library[LibXshmFence].GetFunction("xshmfence_unmap_shm", &m_funcs.pfnXshmfenceUnmapShm);
@@ -2132,6 +2158,7 @@ Result Dri3Loader::Init(
 
         // resolve symbols from libxcb-dri3.so.0
         result = m_library[LibXcbDri3].Load(LibNames[LibXcbDri3]);
+        PAL_ASSERT_MSG(result == Result::Success, "Failed to load LibXcbDri3 library");
         if (result == Result::Success)
         {
             m_library[LibXcbDri3].GetFunction("xcb_dri3_open", &m_funcs.pfnXcbDri3Open);
@@ -2145,6 +2172,7 @@ Result Dri3Loader::Init(
 
         // resolve symbols from libxcb-dri2.so.0
         result = m_library[LibXcbDri2].Load(LibNames[LibXcbDri2]);
+        PAL_ASSERT_MSG(result == Result::Success, "Failed to load LibXcbDri2 library");
         if (result == Result::Success)
         {
             m_library[LibXcbDri2].GetFunction("xcb_dri2_connect", &m_funcs.pfnXcbDri2Connect);
@@ -2155,6 +2183,7 @@ Result Dri3Loader::Init(
 
         // resolve symbols from libxcb-randr.so.0
         result = m_library[LibXcbRandr].Load(LibNames[LibXcbRandr]);
+        PAL_ASSERT_MSG(result == Result::Success, "Failed to load LibXcbRandr library");
         if (result == Result::Success)
         {
 #if XCB_RANDR_SUPPORTS_LEASE
@@ -2192,6 +2221,7 @@ Result Dri3Loader::Init(
 
         // resolve symbols from libxcb-sync.so.1
         result = m_library[LibXcbSync].Load(LibNames[LibXcbSync]);
+        PAL_ASSERT_MSG(result == Result::Success, "Failed to load LibXcbSync library");
         if (result == Result::Success)
         {
             m_library[LibXcbSync].GetFunction("xcb_sync_trigger_fence_checked", &m_funcs.pfnXcbSyncTriggerFenceChecked);
@@ -2200,6 +2230,7 @@ Result Dri3Loader::Init(
 
         // resolve symbols from libX11.so.6
         result = m_library[LibX11].Load(LibNames[LibX11]);
+        PAL_ASSERT_MSG(result == Result::Success, "Failed to load LibX11 library");
         if (result == Result::Success)
         {
             m_library[LibX11].GetFunction("XGetVisualInfo", &m_funcs.pfnXGetVisualInfo);
@@ -2209,6 +2240,7 @@ Result Dri3Loader::Init(
 
         // resolve symbols from libxcb-present.so.0
         result = m_library[LibXcbPresent].Load(LibNames[LibXcbPresent]);
+        PAL_ASSERT_MSG(result == Result::Success, "Failed to load LibXcbPresent library");
         if (result == Result::Success)
         {
             m_library[LibXcbPresent].GetFunction("xcb_present_query_version", &m_funcs.pfnXcbPresentQueryVersion);
