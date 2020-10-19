@@ -100,7 +100,11 @@ Result ComputePipeline::HwlInit(
         // Next, handle relocations and upload the pipeline code & data to GPU memory.
         result = PerformRelocationsAndUploadToGpuMemory(
             metadata,
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
             (createInfo.flags.overrideGpuHeap == 1) ? createInfo.preferredHeapType : GpuHeapInvisible,
+#else
+            IsInternal() ? GpuHeapLocal : m_pDevice->Parent()->GetPublicSettings()->pipelinePreferredHeap,
+#endif
             &uploader);
     }
 
@@ -161,6 +165,29 @@ Result ComputePipeline::HwlInit(
 
 // =====================================================================================================================
 // Helper function to compute the WAVES_PER_SH field of the COMPUTE_RESOURCE_LIMITS register.
+uint32 ComputePipeline::CalcMaxWavesPerSe(
+    const GpuChipProperties& chipProps,
+    float                    maxWavesPerCu)
+{
+    // The maximum number of waves per SH in "register units".
+    // By default set the WAVE_LIMIT field to be unlimited.
+    // Limits given by the ELF will only apply if the caller doesn't set their own limit.
+    uint32 wavesPerSe = 0;
+
+    if (maxWavesPerCu > 0)
+    {
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 630
+        const auto&  gfx9ChipProps        = chipProps.gfx9;
+        wavesPerSe = CalcMaxWavesPerSh(chipProps, maxWavesPerCu) * gfx9ChipProps.numShaderArrays;
+#else
+        wavesPerSe = CalcMaxWavesPerSh(chipProps, maxWavesPerCu);
+#endif
+    }
+
+    return wavesPerSe;
+}
+
+// =====================================================================================================================
 uint32 ComputePipeline::CalcMaxWavesPerSh(
     const GpuChipProperties& chipProps,
     float                    maxWavesPerCu)

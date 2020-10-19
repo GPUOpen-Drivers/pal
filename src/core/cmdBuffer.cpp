@@ -59,7 +59,8 @@ static void PAL_STDCALL CmdDrawInvalid(
     uint32      firstVertex,
     uint32      vertexCount,
     uint32      firstInstance,
-    uint32      instanceCount);
+    uint32      instanceCount,
+    uint32      drawId);
 static void PAL_STDCALL CmdDrawOpaqueInvalid(
     ICmdBuffer* pCmdBuffer,
     gpusize     streamOutFilledSizeVa,
@@ -73,7 +74,8 @@ static void PAL_STDCALL CmdDrawIndexedInvalid(
     uint32      indexCount,
     int32       vertexOffset,
     uint32      firstInstance,
-    uint32      instanceCount);
+    uint32      instanceCount,
+    uint32      drawId);
 static void PAL_STDCALL CmdDrawIndirectMultiInvalid(
     ICmdBuffer*       pCmdBuffer,
     const IGpuMemory& gpuMemory,
@@ -1048,7 +1050,8 @@ static void PAL_STDCALL CmdDrawInvalid(
     uint32      firstVertex,
     uint32      vertexCount,
     uint32      firstInstance,
-    uint32      instanceCount)
+    uint32      instanceCount,
+    uint32      drawId)
 {
     PAL_NEVER_CALLED();
 }
@@ -1074,7 +1077,8 @@ static void PAL_STDCALL CmdDrawIndexedInvalid(
     uint32      indexCount,
     int32       vertexOffset,
     uint32      firstInstance,
-    uint32      instanceCount)
+    uint32      instanceCount,
+    uint32      drawId)
 {
     PAL_NEVER_CALLED();
 }

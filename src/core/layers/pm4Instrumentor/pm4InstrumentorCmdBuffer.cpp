@@ -288,13 +288,14 @@ void PAL_STDCALL CmdBuffer::CmdDrawDecorator(
     uint32      firstVertex,
     uint32      vertexCount,
     uint32      firstInstance,
-    uint32      instanceCount)
+    uint32      instanceCount,
+    uint32      drawId)
 {
     CmdBuffer*const  pThis = static_cast<CmdBuffer*>(pCmdBuffer);
     ICmdBuffer*const pNext = pThis->GetNextLayer();
 
     pThis->PreDrawCall();
-    pNext->CmdDraw(firstVertex, vertexCount, firstInstance, instanceCount);
+    pNext->CmdDraw(firstVertex, vertexCount, firstInstance, instanceCount, drawId);
     pThis->PostDrawCall(CmdBufCallId::CmdDraw);
 }
 
@@ -322,13 +323,14 @@ void PAL_STDCALL CmdBuffer::CmdDrawIndexedDecorator(
     uint32      indexCount,
     int32       vertexOffset,
     uint32      firstInstance,
-    uint32      instanceCount)
+    uint32      instanceCount,
+    uint32      drawId)
 {
     CmdBuffer*const  pThis = static_cast<CmdBuffer*>(pCmdBuffer);
     ICmdBuffer*const pNext = pThis->GetNextLayer();
 
     pThis->PreDrawCall();
-    pNext->CmdDrawIndexed(firstIndex, indexCount, vertexOffset, firstInstance, instanceCount);
+    pNext->CmdDrawIndexed(firstIndex, indexCount, vertexOffset, firstInstance, instanceCount, drawId);
     pThis->PostDrawCall(CmdBufCallId::CmdDrawIndexed);
 }
 

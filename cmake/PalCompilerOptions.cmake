@@ -47,7 +47,7 @@ function(pal_compiler_options)
         set(isClang TRUE)
     endif()
 
-    if(${isGNU} OR ${isClang})
+    if(isGNU OR isClang)
         # Setup warnings
         pal_compiler_warnings_gnu_or_clang()
 
@@ -80,7 +80,7 @@ function(pal_compiler_options)
         >)
 
         # Setup any compiler flags specific to GCC
-        if(${isGNU})
+        if (isGNU)
 
             target_compile_options(pal PRIVATE
                 # Align the stack pointer on a 64 byte boundary (2^6)
@@ -97,16 +97,7 @@ function(pal_compiler_options)
                 )
             endif()
 
-            # LONG_TERM_TODO:
-            # PAL shouldn't be setting up IPO ever. That is the responsibility of the client API (DXCP, XGL, etc.)
-            # using CMAKE_INTERPROCEDURAL_OPTIMIZATION.
-            # Perhaps setup a warning if the client doesn't set it up.
-            # This requires good cmake practice among all components so this is a fight for another day.
-            if(${PAL_ENABLE_LTO})
-                pal_setup_gcc_ipo()
-            endif()
-
-        elseif(${isClang})
+        elseif (isClang)
 
             message(WARNING "Clang is untested.")
 

@@ -42,7 +42,7 @@ namespace Gfx6
 
 // Contains all information the indirect command generation shader(s) need to represent a compute pipeline signature.
 // NOTE: This *must* be compatible with the 'ComputePipelineSignature' structure defined in
-// core/hw/gfxip/rpm/gfx6/globals.hlsl!
+// core/hw/gfxip/rpm/gfx6/gfx6Chip.hlsl!
 struct ComputePipelineSignatureData
 {
     // First user-data entry which is spilled to GPU memory. A value of 'NO_SPILLING' indicates the pipeline does

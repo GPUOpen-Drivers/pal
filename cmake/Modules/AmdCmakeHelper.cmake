@@ -93,6 +93,7 @@ if(NOT DEFINED TARGET_ARCHITECTURE_ENDIANESS)
     set(TARGET_ARCHITECTURE_ENDIANESS ${TARGET_ARCHITECTURE_ENDIANESS} CACHE STRING "Specify the target architecture endianess.")
     set(TARGET_ARCHITECTURE_ENDIANESS_OPTIONS "BIG" "LITTLE")
     dropdown_option(TARGET_ARCHITECTURE_ENDIANESS TARGET_ARCHITECTURE_ENDIANESS_OPTIONS)
+    mark_as_advanced(TARGET_ARCHITECTURE_ENDIANESS)
 endif()
 
 # Architecture Bits ################################################################################
@@ -101,6 +102,7 @@ if(NOT DEFINED TARGET_ARCHITECTURE_BITS)
     set(TARGET_ARCHITECTURE_BITS ${TARGET_ARCHITECTURE_BITS} CACHE STRING "Specify the target architecture bits.")
     set(TARGET_ARCHITECTURE_BITS_OPTIONS "32" "64")
     dropdown_option(TARGET_ARCHITECTURE_BITS TARGET_ARCHITECTURE_BITS_OPTIONS)
+    mark_as_advanced(TARGET_ARCHITECTURE_BITS)
 endif()
 
 # Find Headers Helper ##############################################################################

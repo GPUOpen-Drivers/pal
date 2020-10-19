@@ -548,14 +548,12 @@ Result GpuMemory::Init(
                 auto memoryProperties  = m_pDevice->MemoryProperties();
                 gpusize idealAlignment = 0;
 
-#if !defined(PAL_BUILD_BRANCH) || (PAL_BUILD_BRANCH >= 1740)
                 if (memoryProperties.largePageSupport.gpuVaAlignmentNeeded ||
                     memoryProperties.largePageSupport.sizeAlignmentNeeded)
                 {
                     const gpusize largePageSize = memoryProperties.largePageSupport.largePageSizeInBytes;
                     idealAlignment = Max(idealAlignment, largePageSize);
                 }
-#endif
                 // BigPage is only supported for allocations > bigPageMinAlignment.
                 // Also, if bigPageMinAlignment == 0, BigPage optimization is not supported per KMD.
                 // We do either LargePage or BigPage alignment, whichever has a higher value.

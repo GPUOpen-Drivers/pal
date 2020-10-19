@@ -48,23 +48,6 @@ macro(pal_include_guard client_var)
     endif()
 endmacro()
 
-function(set_ipo_compile_options)
-    if ((${CMAKE_CXX_COMPILER_VERSION} VERSION_LESS "5.3") OR
-        (${CMAKE_C_COMPILER_VERSION} VERSION_LESS "5.3"))
-        return()
-    endif()
-
-    target_compile_options(pal PRIVATE
-        $<$<CONFIG:Release>:
-            -flto
-            # Use linker plugin requires gcc version to be greater or equal to 5.3
-            -fuse-linker-plugin
-        >
-    )
-
-    message(STATUS "LTO enabled for Pal")
-endfunction()
-
 # A helper function to allow usage of DEBUG mode introduced in cmake 3.15
 # This function is intended to prevent printing out everything to STATUS,
 # which is undesirable for clients of PAL, since only cmake developers need to care.
@@ -89,30 +72,66 @@ function(message_verbose)
     endif()
 endfunction()
 
-function(setup_ipo_new)
-    # If this variable has been defined by the client then don't do anything
-    # Since the client of the PAL library will clobber any IPO settings anyway
-    if (DEFINED CMAKE_INTERPROCEDURAL_OPTIMIZATION)
+# Use this when you don't to create a cache variable, but still want to inform
+# the client about build options. As cache variables have downsides.
+#
+# This function is especially helpful for build options that are expected to change
+# over time. Something cache variables aren't well suited to.
+# The best example is GPU build options, this is something PAL expects it's clients to override.
+#
+# This is also really helpful when creating new GPU support, since clients are alerted about the suppport
+# programatically!
+function(pal_warn_about_default_gpu VARIABLE MESSAGE DEFAULT_VALUE)
+    # Ex:
+    # VARIABLE = FOOBAR
+    # MESSAGE = "FOORBAR is a cool idea"
+    # DEFAULT_VALUE = OFF
+
+    # If PAL is being built standalone, no need to display as warnings. Since the warnings are intended
+    # for PAL clients.
+    if (PAL_IS_STANDALONE)
+        set(mode "STATUS")
+    else()
+        set(mode "AUTHOR_WARNING")
+    endif()
+
+    if (NOT DEFINED ${VARIABLE})
+        set(${VARIABLE} ${DEFAULT_VALUE} PARENT_SCOPE)
+
+        message(${mode} "${VARIABLE} not specified. Defaulting to ${DEFAULT_VALUE}\n"
+                        "Message: ${MESSAGE}")
+    endif()
+
+    # To assist in potential debugging
+    message_debug("PAL GPU SUPPORT: ${VARIABLE} set to ${${VARIABLE}}")
+endfunction()
+
+# PAL uses specific asics, SC uses generations, Addrlib does both...
+# That's why I made the helper function "pal_set_or", to help set variables that specify graphics generations.
+# Basically the idea being if any are enabled it'll activate.
+# Cmake doesn't have a 'set_or' function (ie |= )
+function(pal_set_or VARIABLE VALUE)
+    # Ex:
+    # VARIABLE = FOOBAR
+    # VALUE = OFF
+
+    # If the variable hasn't been defined before then set it.
+    if (NOT DEFINED ${VARIABLE})
+        set(${VARIABLE} ${VALUE} PARENT_SCOPE)
         return()
     endif()
 
-    foreach(configType DEBUG RELEASE RELWITHDEBINFO MINSIZEREL)
-        if (DEFINED CMAKE_INTERPROCEDURAL_OPTIMIZATION_${configType})
-            return()
-        endif()
-    endforeach()
+    set(cur_value ${${VARIABLE}})
 
-    set_ipo_compile_options()
-endfunction()
-
-# Setup IPO for gcc/release builds only
-function(pal_setup_gcc_ipo)
-    if(NOT ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU"))
-        message(FATAL_ERROR "This function is currently only intended for GCC")
+    if (NOT ${cur_value})
+        set(${VARIABLE} ${VALUE} PARENT_SCOPE)
     endif()
-
-    # This path checks if the user is setting cmake global variables
-    # that would clobber/conflict with out compile options
-    setup_ipo_new()
 endfunction()
 
+# Helper function to override cache variables, that pal's clients have
+function(pal_override VARIABLE VALUE)
+    # Always use string as the 'type'
+    # 'type' is only used for gui presentation. Everything in cmake is really a string.
+    set(${VARIABLE} ${VALUE} CACHE STRING "PAL OVERRIDE" FORCE)
+    mark_as_advanced(${VARIABLE})
+endfunction()

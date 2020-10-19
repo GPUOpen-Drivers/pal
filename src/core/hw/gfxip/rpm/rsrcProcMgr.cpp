@@ -316,9 +316,19 @@ void RsrcProcMgr::CopyMemoryCs(
             const ComputePipeline* pPipeline = nullptr;
             uint32 numThreadGroups           = 0;
 
-            if (IsPow2Aligned(srcOffset + copyOffset, sizeof(uint32)) &&
-                IsPow2Aligned(dstOffset + copyOffset, sizeof(uint32)) &&
-                IsPow2Aligned(copySectionSize, sizeof(uint32)))
+            constexpr uint32 DqwordSize = 4 * sizeof(uint32);
+            if (IsPow2Aligned(srcOffset + copyOffset, DqwordSize) &&
+                IsPow2Aligned(dstOffset + copyOffset, DqwordSize) &&
+                IsPow2Aligned(copySectionSize, DqwordSize))
+            {
+                // Offsets and copySectionSize are DQWORD aligned so we can use the DQWORD copy pipeline.
+                pPipeline       = GetPipeline(RpmComputePipeline::CopyBufferDqword);
+                numThreadGroups = RpmUtil::MinThreadGroups(copySectionSize / DqwordSize,
+                                                           pPipeline->ThreadsPerGroup());
+            }
+            else if (IsPow2Aligned(srcOffset + copyOffset, sizeof(uint32)) &&
+                     IsPow2Aligned(dstOffset + copyOffset, sizeof(uint32)) &&
+                     IsPow2Aligned(copySectionSize, sizeof(uint32)))
             {
                 // Offsets and copySectionSize are DWORD aligned so we can use the DWORD copy pipeline.
                 pPipeline       = GetPipeline(RpmComputePipeline::CopyBufferDword);
@@ -807,7 +817,7 @@ void RsrcProcMgr::CopyColorImageGraphics(
                 pCmdBuffer->CmdBindTargets(bindTargetsInfo);
 
                 // Draw a fullscreen quad.
-                pCmdBuffer->CmdDraw(0, 3, 0, 1);
+                pCmdBuffer->CmdDraw(0, 3, 0, 1, 0);
 
                 // Unbind the color-target view.
                 bindTargetsInfo.colorTargetCount = 0;
@@ -915,21 +925,17 @@ void RsrcProcMgr::CopyDepthStencilImageGraphics(
     pCmdBuffer->CmdSetScissorRects(scissorInfo);
     pCmdBuffer->CmdSetUserData(PipelineBindPoint::Graphics, 2, 2, userData);
 
-    // To improve performance, for non-msaa depth stencil copy case.
-    // Input src coordinates to VS, avoid using screen position in PS.
-    if (srcImage.GetImageCreateInfo().samples == 1)
+    // To improve performance, input src coordinates to VS, avoid using screen position in PS.
+    const float texcoordVs[4] =
     {
-        const float texcoordVs[4] =
-        {
-            static_cast<float>(pRegions[0].srcOffset.x),
-            static_cast<float>(pRegions[0].srcOffset.y),
-            static_cast<float>(pRegions[0].srcOffset.x + pRegions[0].extent.width),
-            static_cast<float>(pRegions[0].srcOffset.y + pRegions[0].extent.height)
-        };
+        static_cast<float>(pRegions[0].srcOffset.x),
+        static_cast<float>(pRegions[0].srcOffset.y),
+        static_cast<float>(pRegions[0].srcOffset.x + pRegions[0].extent.width),
+        static_cast<float>(pRegions[0].srcOffset.y + pRegions[0].extent.height)
+    };
 
-        const uint32* pUserDataVs = reinterpret_cast<const uint32*>(&texcoordVs);
-        pCmdBuffer->CmdSetUserData(PipelineBindPoint::Graphics, 6, 4, pUserDataVs);
-    }
+    const uint32* pUserDataVs = reinterpret_cast<const uint32*>(&texcoordVs);
+    pCmdBuffer->CmdSetUserData(PipelineBindPoint::Graphics, 6, 4, pUserDataVs);
 
     AutoBuffer<bool, 16, Platform> isRangeProcessed(regionCount, m_pDevice->GetPlatform());
     PAL_ASSERT(isRangeProcessed.Capacity() >= regionCount);
@@ -1118,7 +1124,7 @@ void RsrcProcMgr::CopyDepthStencilImageGraphics(
                     pCmdBuffer->CmdBindTargets(bindTargetsInfo);
 
                     // Draw a fullscreen quad.
-                    pCmdBuffer->CmdDraw(0, 3, 0, 1);
+                    pCmdBuffer->CmdDraw(0, 3, 0, 1, 0);
 
                     // Unbind the depth view and destroy it.
                     bindTargetsInfo.depthTarget.pDepthStencilView = nullptr;
@@ -3238,7 +3244,7 @@ void RsrcProcMgr::ScaledCopyImageGraphics(
                 pCmdBuffer->CmdBindTargets(bindTargetsInfo);
 
                 // Draw a fullscreen quad.
-                pCmdBuffer->CmdDraw(0, 3, 0, 1);
+                pCmdBuffer->CmdDraw(0, 3, 0, 1, 0);
 
                 // Unbind the color-target view.
                 bindTargetsInfo.colorTargetCount = 0;
@@ -4137,7 +4143,7 @@ void RsrcProcMgr::CmdClearBoundDepthStencilTargets(
         pCmdBuffer->CmdSetScissorRects(scissorInfo);
 
         // Draw numSlices fullscreen instanced quads.
-        pCmdBuffer->CmdDraw(0, 3, 0, pClearRegions[scissorIndex].numSlices);
+        pCmdBuffer->CmdDraw(0, 3, 0, pClearRegions[scissorIndex].numSlices, 0);
     }
 
     // Restore original command buffer state and destroy the depth/stencil state.
@@ -4342,7 +4348,7 @@ void RsrcProcMgr::CmdClearBoundColorTargets(
             pCmdBuffer->CmdSetScissorRects(scissorInfo);
 
             // Draw numSlices fullscreen instanced quads.
-            pCmdBuffer->CmdDraw(0, 3, 0, pClearRegions[scissorIndex].numSlices);
+            pCmdBuffer->CmdDraw(0, 3, 0, pClearRegions[scissorIndex].numSlices, 0);
         }
     }
 
@@ -4832,7 +4838,7 @@ void RsrcProcMgr::ClearImageOneBox(
     pCmdBuffer->CmdSetScissorRects(scissorInfo);
 
     // Draw a fullscreen quad.
-    pCmdBuffer->CmdDraw(0, 3, 0, numInstances);
+    pCmdBuffer->CmdDraw(0, 3, 0, numInstances, 0);
 }
 
 // =====================================================================================================================
@@ -5604,17 +5610,20 @@ void RsrcProcMgr::CmdResolveImage(
 // commands being generated will not fit into a single command-stream chunk, this will issue multiple dispatches, one
 // for each command chunk to generate.
 void RsrcProcMgr::CmdGenerateIndirectCmds(
-    GfxCmdBuffer*               pCmdBuffer,
-    const Pipeline*             pPipeline,
-    const IndirectCmdGenerator& generator,
-    gpusize                     argsGpuAddr,
-    gpusize                     countGpuAddr,
-    uint32                      indexBufSize, // Number of indices in the bound index buffer. Ignored for command
-                                              // generators which don't issue indexed draws.
-    uint32                      maximumCount
+    const GenerateInfo& genInfo,
+    CmdStreamChunk**    ppChunkLists[],
+    uint32              NumChunkLists,
+    uint32*             pNumGenChunks
     ) const
 {
-    const auto& settings = m_pDevice->Parent()->Settings();
+    const auto&                 settings     = m_pDevice->Parent()->Settings();
+    const gpusize               argsGpuAddr  = genInfo.argsGpuAddr;
+    const gpusize               countGpuAddr = genInfo.countGpuAddr;
+    const Pipeline*             pPipeline    = genInfo.pPipeline;
+    const IndirectCmdGenerator& generator    = genInfo.generator;
+    GfxCmdBuffer*               pCmdBuffer   = genInfo.pCmdBuffer;
+    uint32                      indexBufSize = genInfo.indexBufSize;
+    uint32                      maximumCount = genInfo.maximumCount;
 
     const ComputePipeline* pGenerationPipeline = GetCmdGenerationPipeline(generator, *pCmdBuffer);
 
@@ -5640,14 +5649,14 @@ void RsrcProcMgr::CmdGenerateIndirectCmds(
 
     // The generation pipelines expect the descriptor table's GPU address to be written to user-data #0-1.
     gpusize tableGpuAddr = 0uLL;
-    uint32* pTableMem = pCmdBuffer->CmdAllocateEmbeddedData(((6 * SrdDwords) + 4), 1, &tableGpuAddr);
+    uint32* pTableMem = pCmdBuffer->CmdAllocateEmbeddedData(((7 * SrdDwords) + 4), 1, &tableGpuAddr);
     PAL_ASSERT(pTableMem != nullptr);
 
     pCmdBuffer->CmdSetUserData(PipelineBindPoint::Compute, 0, 2, reinterpret_cast<uint32*>(&tableGpuAddr));
 
     // Raw-buffer SRD for the indirect-argument data:
     BufferViewInfo viewInfo = { };
-    viewInfo.gpuAddr = argsGpuAddr;
+    viewInfo.gpuAddr        = argsGpuAddr;
     viewInfo.swizzledFormat = UndefinedSwizzledFormat;
     viewInfo.range          = (generator.Properties().argBufStride * maximumCount);
     viewInfo.stride         = 1;
@@ -5671,7 +5680,12 @@ void RsrcProcMgr::CmdGenerateIndirectCmds(
     pTableMem += SrdDwords;
 
     // Constant buffer SRD for the properties of the ExecuteIndirect() invocation:
-    generator.PopulateInvocationBuffer(pCmdBuffer, pPipeline, argsGpuAddr, maximumCount, indexBufSize, pTableMem);
+    generator.PopulateInvocationBuffer(pCmdBuffer,
+                                       pPipeline,
+                                       argsGpuAddr,
+                                       maximumCount,
+                                       indexBufSize,
+                                       pTableMem);
     pTableMem += SrdDwords;
 
     // GPU address of the memory containing the actual command count to generate:
@@ -5695,7 +5709,7 @@ void RsrcProcMgr::CmdGenerateIndirectCmds(
         // Obtain a command-stream chunk for generating commands into. This also sets-up the padding requirements
         // for the chunk and determines the number of commands which will safely fit. We'll need to build a raw-
         // buffer SRD so the shader can access the command buffer as a UAV.
-        ChunkOutput output[2] = {};
+        ChunkOutput output[2]  = {};
         const uint32 numChunks = 1;
         pCmdBuffer->GetChunkForCmdGeneration(generator,
                                              *pPipeline,
@@ -5703,7 +5717,8 @@ void RsrcProcMgr::CmdGenerateIndirectCmds(
                                              numChunks,
                                              output);
 
-        const ChunkOutput& mainChunk = output[0];
+        ChunkOutput& mainChunk          = output[0];
+        ppChunkLists[0][*pNumGenChunks] = mainChunk.pChunk;
 
         // The command generation pipeline also expects the following descriptor-table layout for the resources
         // which change between each command-stream chunk being generated:
@@ -5753,6 +5768,7 @@ void RsrcProcMgr::CmdGenerateIndirectCmds(
                                 RpmUtil::MinThreadGroups(mainChunk.commandsInChunk, threadsPerGroup[1]),
                                 1);
 
+        (*pNumGenChunks)++;
         commandIdOffset += mainChunk.commandsInChunk;
     }
 
@@ -5955,7 +5971,7 @@ void RsrcProcMgr::ResolveImageGraphics(
                 pCmdBuffer->CmdBindTargets(bindTargetsInfo);
 
                 // Draw a fullscreen quad.
-                pCmdBuffer->CmdDraw(0, 3, 0, 1);
+                pCmdBuffer->CmdDraw(0, 3, 0, 1, 0);
 
                 // Unbind the depth view and destroy it.
                 bindTargetsInfo.depthTarget.pDepthStencilView = nullptr;
@@ -6538,7 +6554,7 @@ bool RsrcProcMgr::ExpandDepthStencil(
                     pCmdBuffer->CmdBindTargets(bindTargetsInfo);
 
                     // Draw a fullscreen quad.
-                    pCmdBuffer->CmdDraw(0, 3, 0, 1);
+                    pCmdBuffer->CmdDraw(0, 3, 0, 1, 0);
 
                     PAL_SAFE_FREE(pDepthViewMem, &sliceAlloc);
 
@@ -6684,7 +6700,7 @@ void RsrcProcMgr::ResummarizeDepthStencil(
                     pCmdBuffer->CmdBindTargets(bindTargetsInfo);
 
                     // Draw a fullscreen quad.
-                    pCmdBuffer->CmdDraw(0, 3, 0, 1);
+                    pCmdBuffer->CmdDraw(0, 3, 0, 1, 0);
 
                     PAL_SAFE_FREE(pDepthViewMem, &sliceAlloc);
 
@@ -6884,7 +6900,7 @@ void RsrcProcMgr::GenericColorBlit(
                     pCmdBuffer->CmdBindTargets(bindTargetsInfo);
 
                     // Draw a fullscreen quad.
-                    pCmdBuffer->CmdDraw(0, 3, 0, 1);
+                    pCmdBuffer->CmdDraw(0, 3, 0, 1, 0);
 
                     // Unbind the color-target view and destroy it.
                     bindTargetsInfo.colorTargetCount = 0;
@@ -7086,7 +7102,7 @@ void RsrcProcMgr::ResolveImageFixedFunc(
                     pCmdBuffer->CmdBindTargets(bindTargetsInfo);
 
                     // Draw a fullscreen quad.
-                    pCmdBuffer->CmdDraw(0, 3, 0, 1);
+                    pCmdBuffer->CmdDraw(0, 3, 0, 1, 0);
 
                     // Unbind the color-target view and destroy it.
                     bindTargetsInfo.colorTargetCount = 0;
@@ -7287,7 +7303,7 @@ void RsrcProcMgr::ResolveImageDepthStencilCopy(
                     pCmdBuffer->CmdBindTargets(bindTargetsInfo);
 
                     // Draw a fullscreen quad.
-                    pCmdBuffer->CmdDraw(0, 3, 0, 1);
+                    pCmdBuffer->CmdDraw(0, 3, 0, 1, 0);
 
                     // Unbind the color-target and depth-stencil target view and destroy them.
                     bindTargetsInfo.colorTargetCount = 0;
@@ -7313,79 +7329,25 @@ const GraphicsPipeline* RsrcProcMgr::GetCopyDepthStencilPipeline(
     uint32 numSamples
     ) const
 {
-    const GraphicsPipeline* pGraphicsPipeline = nullptr;
+    RpmGfxPipeline pipelineType;
+
     if (isDepthStencil)
     {
-        switch (numSamples)
-        {
-        case 1:
-            pGraphicsPipeline = GetGfxPipeline(CopyDepthStencil);
-            break;
-        case 2:
-            pGraphicsPipeline = GetGfxPipeline(Copy2xMsaaDepthStencil);
-            break;
-        case 4:
-            pGraphicsPipeline = GetGfxPipeline(Copy4xMsaaDepthStencil);
-            break;
-        case 8:
-            pGraphicsPipeline = GetGfxPipeline(Copy8xMsaaDepthStencil);
-            break;
-        default:
-            // We only expect to hit this case for MSAA DS surfaces, as regular DS surfaces can be copied directly.
-            PAL_ASSERT_ALWAYS();
-            break;
-        }
+        pipelineType = (numSamples > 1) ? CopyMsaaDepthStencil : CopyDepthStencil;
     }
     else
     {
-
         if (isDepth)
         {
-            switch (numSamples)
-            {
-            case 1:
-                pGraphicsPipeline = GetGfxPipeline(CopyDepth);
-                break;
-            case 2:
-                pGraphicsPipeline = GetGfxPipeline(Copy2xMsaaDepth);
-                break;
-            case 4:
-                pGraphicsPipeline = GetGfxPipeline(Copy4xMsaaDepth);
-                break;
-            case 8:
-                pGraphicsPipeline = GetGfxPipeline(Copy8xMsaaDepth);
-                break;
-            default:
-                // We only expect to hit this case for MSAA depth surfaces, as regular depth can be copied directly.
-                PAL_ASSERT_ALWAYS();
-                break;
-            }
+            pipelineType = (numSamples > 1) ? CopyMsaaDepth : CopyDepth;
         }
         else
         {
-            switch (numSamples)
-            {
-            case 1:
-                pGraphicsPipeline = GetGfxPipeline(CopyStencil);
-                break;
-            case 2:
-                pGraphicsPipeline = GetGfxPipeline(Copy2xMsaaStencil);
-                break;
-            case 4:
-                pGraphicsPipeline = GetGfxPipeline(Copy4xMsaaStencil);
-                break;
-            case 8:
-                pGraphicsPipeline = GetGfxPipeline(Copy8xMsaaStencil);
-                break;
-            default:
-                // We only expect to hit this case for MSAA stencil surfaces, as regular stencil can be copied directly.
-                PAL_ASSERT_ALWAYS();
-                break;
-            }
+            pipelineType = (numSamples > 1) ? CopyMsaaStencil : CopyStencil;
         }
     }
 
-    return pGraphicsPipeline;
+    return GetGfxPipeline(pipelineType);
 }
 
 // =====================================================================================================================

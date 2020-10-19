@@ -22,26 +22,47 @@
  #  SOFTWARE.
  #
  #######################################################################################################################
-
 include(PalVersionHelper)
-include(PalCompileDefinitionsGpu)
 
 pal_include_guard(PalCompilerDefinitions)
 
-# In cmake nomenclature, a compile definition (ifdef) or similar setting is considered 'PUBLIC' if it needs to be seen
-# by clients using PAL's headers and 'PRIVATE' if it does not. Keeping more ifdefs PRIVATE generally helps to do dirty
-# builds faster and makes the compile command lines easier to debug. PUBLIC defines will automatically be propogated to
-# things that depend on PAL (with `target_link_libraries`) and requires no additional action on the clients' part. In
-# fact, the client should *never* explicitly add any PAL ifdefs because they may not match what PAL was built with.
-#
-# The gist for all of the following: if it's used anywhere in inc/*, it should be PUBLIC, otherwise make it PRIVATE.
-#
-# NOTE:
-#   PAL's coding standard prefers the use of "#if" construct instead of the "#ifdef" construct
-#   This means when making a new compile definition you should assign it a value
-#
-# EX:
-#   target_compile_definitions(pal PRIVATE PAL_FOO=1)
+function(pal_compile_definitions_gfx6)
+    # Needs to be public.
+    # See the following directories:
+    #   inc\gpuUtil\cas\...
+    #   inc\gpuUtil\mlaa\...
+    #   inc\gpuUtil\textWriter\...
+    #   inc\gpuUtil\timeGraphics\...
+    target_compile_definitions(pal PUBLIC PAL_BUILD_GFX6=1)
+
+endfunction()
+
+function(pal_compile_definitions_gfx9)
+    target_compile_definitions(pal PUBLIC PAL_BUILD_GFX9=1)
+
+    target_compile_definitions(pal PUBLIC PAL_BUILD_GFX10=1)
+
+    if(PAL_BUILD_NAVI14)
+        target_compile_definitions(pal PUBLIC PAL_BUILD_NAVI14=1)
+        target_compile_definitions(pal PRIVATE CHIP_HDR_NAVI14=1)
+    endif()
+
+endfunction()
+
+function(pal_compile_definitions_gpu)
+    if (PAL_BUILD_CORE AND PAL_BUILD_GFX)
+        target_compile_definitions(pal PRIVATE PAL_BUILD_GFX=1)
+
+        if(PAL_BUILD_GFX6)
+            pal_compile_definitions_gfx6()
+        endif()
+
+        if(PAL_BUILD_GFX9)
+            pal_compile_definitions_gfx9()
+        endif()
+    endif()
+endfunction()
+
 function(pal_compile_definitions)
     target_compile_definitions(pal PUBLIC
         PAL_CLIENT_INTERFACE_MAJOR_VERSION=${PAL_CLIENT_INTERFACE_MAJOR_VERSION}
@@ -102,11 +123,12 @@ function(pal_compile_definitions)
             PAL_MEMTRACK=1
         >
     )
-if(UNIX)
-    if (PAL_DISPLAY_DCC)
-        target_compile_definitions(pal PRIVATE PAL_DISPLAY_DCC=1)
+
+    if(UNIX)
+        if (PAL_DISPLAY_DCC)
+            target_compile_definitions(pal PRIVATE PAL_DISPLAY_DCC=1)
+        endif()
     endif()
-endif()
 
 #if PAL_DEVELOPER_BUILD
     if(PAL_DEVELOPER_BUILD)

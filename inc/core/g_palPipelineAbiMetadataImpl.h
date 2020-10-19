@@ -195,6 +195,51 @@ PAL_INLINE Result SerializeEnum(
 // =====================================================================================================================
 PAL_INLINE Result DeserializeEnum(
     MsgPackReader*  pReader,
+    ApiShaderSubType*  pValue)
+{
+    Result result = pReader->Next(CWP_ITEM_STR);
+
+    if (result == Result::Success)
+    {
+        const uint32 strHash = HashString(static_cast<const char*>(pReader->Get().as.str.start),
+                                          pReader->Get().as.str.length);
+
+        switch (strHash)
+        {
+        case HashLiteralString("Unknown"):
+            *pValue = ApiShaderSubType::Unknown;
+            break;
+        default:
+            result = Result::NotFound;
+            break;
+        }
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
+PAL_INLINE Result SerializeEnum(
+    MsgPackWriter*  pWriter,
+    ApiShaderSubType  value)
+{
+    Result result = Result::ErrorInvalidValue;
+
+    switch (value)
+    {
+    case ApiShaderSubType::Unknown:
+        result = pWriter->Pack("Unknown");
+        break;
+    default:
+        break;
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
+PAL_INLINE Result DeserializeEnum(
+    MsgPackReader*  pReader,
     HardwareStage*  pValue)
 {
     Result result = pReader->Next(CWP_ITEM_STR);

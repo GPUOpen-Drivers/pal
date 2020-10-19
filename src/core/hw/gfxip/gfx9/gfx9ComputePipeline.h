@@ -64,6 +64,10 @@ public:
 
     bool IsWave32() const { return m_signature.flags.isWave32; }
 
+    static uint32 CalcMaxWavesPerSe(
+        const GpuChipProperties& chipProps,
+        float                    maxWavesPerCu);
+
     static uint32 CalcMaxWavesPerSh(
         const GpuChipProperties& chipProps,
         float                    maxWavesPerCu);

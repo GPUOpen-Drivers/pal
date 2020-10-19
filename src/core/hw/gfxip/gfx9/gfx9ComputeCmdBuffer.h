@@ -28,6 +28,7 @@
 #include "core/hw/gfxip/computeCmdBuffer.h"
 #include "core/hw/gfxip/gfx9/gfx9CmdStream.h"
 #include "core/hw/gfxip/gfx9/gfx9ComputePipeline.h"
+#include "palAutoBuffer.h"
 
 namespace Pal
 {

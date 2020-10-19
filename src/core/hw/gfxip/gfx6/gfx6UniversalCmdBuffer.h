@@ -31,6 +31,7 @@
 #include "core/hw/gfxip/gfx6/gfx6CmdStream.h"
 #include "core/hw/gfxip/gfx6/gfx6CmdUtil.h"
 #include "core/hw/gfxip/gfx6/gfx6WorkaroundState.h"
+#include "palAutoBuffer.h"
 #include "palIntervalTree.h"
 
 namespace Pal
@@ -115,6 +116,7 @@ struct DrawTimeHwState
     uint32                instanceOffset;   // The current value of the instance offset user data.
     uint32                vertexOffset;     // The current value of the vertex offset user data.
     uint32                numInstances;     // The current value of the NUM_INSTANCES state.
+    uint32                drawIndex;        // The current value of the draw index user data
     regDB_COUNT_CONTROL   dbCountControl;   // The current value of the DB_COUNT_CONTROL register.
     regVGT_LS_HS_CONFIG   vgtLsHsConfig;    // The current value of the VGT_LS_HS_CONFIG register.
     regIA_MULTI_VGT_PARAM iaMultiVgtParam;  // The current value of the IA_MULTI_VGT_PARAM register.
@@ -484,7 +486,8 @@ private:
         uint32      firstVertex,
         uint32      vertexCount,
         uint32      firstInstance,
-        uint32      instanceCount);
+        uint32      instanceCount,
+        uint32      drawId);
     template <GfxIpLevel gfxLevel, bool issueSqttMarkerEvent, bool viewInstancingEnable, bool DescribeDrawDispatch>
     static void PAL_STDCALL CmdDrawOpaque(
         ICmdBuffer* pCmdBuffer,
@@ -500,7 +503,8 @@ private:
         uint32      indexCount,
         int32       vertexOffset,
         uint32      firstInstance,
-        uint32      instanceCount);
+        uint32      instanceCount,
+        uint32      drawId);
     template <GfxIpLevel gfxLevel, bool issueSqttMarkerEvent, bool viewInstancingEnable, bool DescribeDrawDispatch>
     static void PAL_STDCALL CmdDrawIndirectMulti(
         ICmdBuffer*       pCmdBuffer,

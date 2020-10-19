@@ -581,10 +581,33 @@ namespace DevDriver
             return result;
         }
 
+#if defined(DD_PLATFORM_DARWIN_UM)
+        // On Mac the DevDriver is an XPC service, which can create multiple connections concurrently.
+        // Therefore to override the process id used to create connections we need a thread-local variable.
+        static thread_local ProcessId GOverrideProcessId = 0;
+
+        void OverrideProcessId(ProcessId id)
+        {
+            GOverrideProcessId = id;
+        }
+
+        ProcessId GetProcessId()
+        {
+            if (GOverrideProcessId)
+            {
+                return GOverrideProcessId;
+            }
+            else
+            {
+                return static_cast<ProcessId>(getpid());
+            }
+        }
+#else
         ProcessId GetProcessId()
         {
             return static_cast<ProcessId>(getpid());
         }
+#endif
 
         uint64 GetCurrentTimeInMs()
         {
@@ -629,6 +652,24 @@ namespace DevDriver
             RetryTemporaryFailure(nanosleep, &relativeTime, &relativeTime);
         }
 
+#if defined(DD_PLATFORM_DARWIN_UM)
+        // On Mac the DevDriver is an XPC service, which can create multiple connections concurrently.
+        // Therefore to override the process name used to create connections we need a thread-local variable.
+        static constexpr size_t kMaxStringLength = 128;
+        static thread_local char GOverrideProcessName[kMaxStringLength] = "";
+
+        void OverrideProcessName(char const* name)
+        {
+            Strncpy(GOverrideProcessName, name, kMaxStringLength);
+        }
+
+        void GetProcessName(char* buffer, size_t bufferSize)
+        {
+            DD_ASSERT(buffer != nullptr);
+            const char* pProcessName = (strlen(GOverrideProcessName) > 0) ? GOverrideProcessName : getprogname();
+            Strncpy(buffer, (pProcessName != nullptr) ? pProcessName : "Unknown", bufferSize);
+        }
+#else
         void GetProcessName(char* buffer, size_t bufferSize)
         {
             DD_ASSERT(buffer != nullptr);
@@ -640,6 +681,7 @@ namespace DevDriver
             Strncpy(buffer, (pProcessName != nullptr) ? pProcessName : "Unknown", bufferSize);
 
         }
+#endif
 
         void Strncpy(char* pDst, const char* pSrc, size_t dstSize)
         {

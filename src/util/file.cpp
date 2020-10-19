@@ -34,7 +34,7 @@ namespace Util
 // =====================================================================================================================
 // Opens a file stream for read, write or append access.
 Result File::Open(
-    const char* pFilename,    // Name of file to open.
+    const char* pFilename,    // Name of file to open; "-" for stdin/stdout (depending on access mode)
     uint32      accessFlags)  // ORed mask of FileAccessMode values describing how the file will be used.
 {
     Result result = Result::Success;
@@ -46,6 +46,23 @@ Result File::Open(
     else if (pFilename == nullptr)
     {
         result = Result::ErrorInvalidPointer;
+    }
+    else if (strcmp(pFilename, "-") == 0)
+    {
+        switch (accessFlags & (FileAccessRead | FileAccessWrite | FileAccessAppend))
+        {
+        case FileAccessRead:
+            m_pFileHandle = stdin;
+            break;
+        case FileAccessWrite:
+        case FileAccessAppend:
+            m_pFileHandle = stdout;
+            break;
+        default:
+            PAL_ASSERT_ALWAYS();
+            result = Result::ErrorInvalidFlags;
+            break;
+        }
     }
     else
     {
@@ -132,7 +149,10 @@ void File::Close()
 {
     if (m_pFileHandle != nullptr)
     {
-        fclose(m_pFileHandle);
+        if ((m_pFileHandle != stdin) && (m_pFileHandle != stdout))
+        {
+            fclose(m_pFileHandle);
+        }
         m_pFileHandle = nullptr;
     }
 }

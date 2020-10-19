@@ -1177,7 +1177,8 @@ void PAL_STDCALL CmdBuffer::CmdDraw(
     uint32      firstVertex,
     uint32      vertexCount,
     uint32      firstInstance,
-    uint32      instanceCount)
+    uint32      instanceCount,
+    uint32      drawId)
 {
     auto* pThis = static_cast<CmdBuffer*>(pCmdBuffer);
 
@@ -1186,6 +1187,7 @@ void PAL_STDCALL CmdBuffer::CmdDraw(
     pThis->InsertToken(vertexCount);
     pThis->InsertToken(firstInstance);
     pThis->InsertToken(instanceCount);
+    pThis->InsertToken(drawId);
 }
 
 // =====================================================================================================================
@@ -1197,6 +1199,7 @@ void CmdBuffer::ReplayCmdDraw(
     auto vertexCount   = ReadTokenVal<uint32>();
     auto firstInstance = ReadTokenVal<uint32>();
     auto instanceCount = ReadTokenVal<uint32>();
+    auto drawId        = ReadTokenVal<uint32>();
 
     LogItem logItem = { };
     logItem.cmdBufCall.flags.draw         = 1;
@@ -1204,7 +1207,7 @@ void CmdBuffer::ReplayCmdDraw(
     logItem.cmdBufCall.draw.instanceCount = instanceCount;
 
     LogPreTimedCall(pQueue, pTgtCmdBuffer, &logItem, CmdBufCallId::CmdDraw);
-    pTgtCmdBuffer->CmdDraw(firstVertex, vertexCount, firstInstance, instanceCount);
+    pTgtCmdBuffer->CmdDraw(firstVertex, vertexCount, firstInstance, instanceCount, drawId);
     LogPostTimedCall(pQueue, pTgtCmdBuffer, &logItem);
 }
 
@@ -1255,7 +1258,8 @@ void PAL_STDCALL CmdBuffer::CmdDrawIndexed(
     uint32      indexCount,
     int32       vertexOffset,
     uint32      firstInstance,
-    uint32      instanceCount)
+    uint32      instanceCount,
+    uint32      drawId)
 {
     auto* pThis = static_cast<CmdBuffer*>(pCmdBuffer);
 
@@ -1265,6 +1269,7 @@ void PAL_STDCALL CmdBuffer::CmdDrawIndexed(
     pThis->InsertToken(vertexOffset);
     pThis->InsertToken(firstInstance);
     pThis->InsertToken(instanceCount);
+    pThis->InsertToken(drawId);
 }
 
 // =====================================================================================================================
@@ -1277,6 +1282,7 @@ void CmdBuffer::ReplayCmdDrawIndexed(
     auto vertexOffset  = ReadTokenVal<int32>();
     auto firstInstance = ReadTokenVal<uint32>();
     auto instanceCount = ReadTokenVal<uint32>();
+    auto drawId        = ReadTokenVal<uint32>();
 
     LogItem logItem = { };
     logItem.cmdBufCall.flags.draw         = 1;
@@ -1284,7 +1290,7 @@ void CmdBuffer::ReplayCmdDrawIndexed(
     logItem.cmdBufCall.draw.instanceCount = instanceCount;
 
     LogPreTimedCall(pQueue, pTgtCmdBuffer, &logItem, CmdBufCallId::CmdDrawIndexed);
-    pTgtCmdBuffer->CmdDrawIndexed(firstIndex, indexCount, vertexOffset, firstInstance, instanceCount);
+    pTgtCmdBuffer->CmdDrawIndexed(firstIndex, indexCount, vertexOffset, firstInstance, instanceCount, drawId);
     LogPostTimedCall(pQueue, pTgtCmdBuffer, &logItem);
 }
 

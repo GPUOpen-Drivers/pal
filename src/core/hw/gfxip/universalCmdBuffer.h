@@ -196,6 +196,7 @@ struct ValidateDrawInfo
     uint32 firstVertex;   // First vertex
     uint32 firstInstance; // First instance
     uint32 firstIndex;    // First index
+    uint32 drawIndex;     // draw index
     bool   useOpaque;     // if draw opaque
 };
 
@@ -306,6 +307,8 @@ protected:
         const uint32* pEntryValues);
 
     bool FilterSetUserDataGfx(UserDataArgs* pUserDataArgs);
+
+    bool IsAnyGfxUserDataDirty() const;
 
     virtual void SetGraphicsState(const GraphicsState& newGraphicsState);
 

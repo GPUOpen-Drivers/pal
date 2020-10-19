@@ -36,7 +36,6 @@
 
 using namespace Util;
 using namespace Pal::Formats::Gfx9;
-using std::is_same;
 
 namespace Pal
 {

@@ -2024,10 +2024,11 @@ private:
         uint32      firstVertex,
         uint32      vertexCount,
         uint32      firstInstance,
-        uint32      instanceCount)
+        uint32      instanceCount,
+        uint32      drawId)
     {
         ICmdBuffer* pNextLayer = static_cast<CmdBufferFwdDecorator*>(pCmdBuffer)->m_pNextLayer;
-        pNextLayer->CmdDraw(firstVertex, vertexCount, firstInstance, instanceCount);
+        pNextLayer->CmdDraw(firstVertex, vertexCount, firstInstance, instanceCount, drawId);
     }
 
     static void PAL_STDCALL CmdDrawOpaqueDecorator(
@@ -2048,10 +2049,11 @@ private:
         uint32      indexCount,
         int32       vertexOffset,
         uint32      firstInstance,
-        uint32      instanceCount)
+        uint32      instanceCount,
+        uint32      drawId)
     {
         ICmdBuffer* pNextLayer = static_cast<CmdBufferFwdDecorator*>(pCmdBuffer)->m_pNextLayer;
-        pNextLayer->CmdDrawIndexed(firstIndex, indexCount, vertexOffset, firstInstance, instanceCount);
+        pNextLayer->CmdDrawIndexed(firstIndex, indexCount, vertexOffset, firstInstance, instanceCount, drawId);
     }
 
     static void PAL_STDCALL CmdDrawIndirectMultiDecorator(
@@ -2398,6 +2400,9 @@ public:
 
     virtual MetadataSharingLevel GetOptimalSharingLevel() const override
         { return m_pNextLayer->GetOptimalSharingLevel(); }
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 633
+#endif
 
     // Part of the IDestroyable public interface.
     virtual void Destroy() override
@@ -3007,6 +3012,8 @@ public:
 
     virtual Result WaitIdle() override
         { return m_pNextLayer->WaitIdle(); }
+
+    virtual bool NeedWindowSizeChangedCheck() const override { return m_pNextLayer->NeedWindowSizeChangedCheck(); }
 
     const IDevice*  GetDevice() const { return m_pDevice; }
     ISwapChain*     GetNextLayer() const { return m_pNextLayer; }

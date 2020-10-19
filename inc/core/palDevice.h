@@ -605,6 +605,7 @@ struct PalPublicSettings
     ///  Makes the unbound descriptor debug srd 0 so the hardware drops the load and ignores it instead of
     ///  pagefaulting. Used to workaround incorrect app behavior.
     bool zeroUnboundDescDebugSrd;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
     /// Prevents PAL from uploading any of its internal and client pipelines to the local invisible heap. Default is set
     /// to false.
     /// Note: Currently pipeline residency can be controlled by three interfaces:
@@ -616,6 +617,11 @@ struct PalPublicSettings
     ///    of the above mentioned flags are set then a heap preferrence of type local invisible memory is considered
     ///    invalid and we fall back to local visible heap.
     bool disablePipelineUploadToLocalInvis;
+#else
+    /// Preferred heap for uploading client pipelines. Default is set to @ref GpuHeap::GpuHeapInvisible. Setting is
+    /// ignored for internal pipelines and are uploaded to @ref GpuHeap::GpuHeapLocal.
+    GpuHeap pipelinePreferredHeap;
+#endif
     bool depthClampBasedOnZExport;
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 577
     /// Force the PreColorTarget to an earlier PreRasterization point if used as a wait point. This is to prevent a
@@ -1521,56 +1527,6 @@ struct GpuMemoryHeapProperties
 #endif
 };
 
-/// Flags structure reporting available capabilities of a particular format.
-enum FormatFeatureFlags : uint32
-{
-    FormatFeatureCopy                = 0x00001,  ///< Images of this format can be used as a copy source or destination.
-    FormatFeatureFormatConversion    = 0x00002,  ///< Images of this format support format conversion in copy
-                                                 ///  operations.
-    FormatFeatureImageShaderRead     = 0x00004,  ///< Images of this format can be read from a shader.
-    FormatFeatureImageShaderWrite    = 0x00008,  ///< Images of this format can be written from a shader.
-    FormatFeatureImageShaderAtomics  = 0x00010,  ///< Images of this format can be written atomically from a shader.
-    FormatFeatureMemoryShaderRead    = 0x00020,  ///< Memory views of this format can be read from a shader.
-    FormatFeatureMemoryShaderWrite   = 0x00040,  ///< Memory views of this format can be written from a shader.
-    FormatFeatureMemoryShaderAtomics = 0x00080,  ///< Memory views of this format can be written atomically from a
-                                                 ///  shader.
-    FormatFeatureColorTargetWrite    = 0x00100,  ///< Images of this format can be bound as a color target.
-    FormatFeatureColorTargetBlend    = 0x00200,  ///< Images of this format can be bound as a color target for blending.
-    FormatFeatureDepthTarget         = 0x00400,  ///< Images of this format can be bound as a depth target.
-    FormatFeatureStencilTarget       = 0x00800,  ///< Images of this format can be bound as a stencil target.
-    FormatFeatureMsaaTarget          = 0x01000,  ///< Images of this format can support multisampling.
-    FormatFeatureWindowedPresent     = 0x02000,  ///< Images of this format can support windowed-mode presents.
-                                                 ///  Fullscreen present capability is queried using the @ref
-                                                 ///  IScreen::GetScreenModeList method.
-    FormatFeatureImageFilterLinear   = 0x04000,  ///< Images of this format can be linearly filtered.
-    FormatFeatureImageFilterMinMax   = 0x08000,  ///< Images of this format can be min/max filtered.
-    FormatFeatureFormatConversionSrc = 0x10000,  ///< Images of this format support format conversion in copy
-                                                 ///  operations as the source image.
-                                                 ///  @note This is aliased to FormatFeatureFormatConversionDst for
-                                                 ///  backwards compatibility.
-    FormatFeatureFormatConversionDst = 0x20000,  ///< Images of this format support format conversion in copy
-                                                 ///  operations as the destination image.
-                                                 ///  @note This is aliased to FormatFeatureFormatConversionSrc for
-                                                 ///  backwards compatibility.
-};
-
-/// Enumeration for indexing into the format properties table based on tiling.
-enum FormatPropertiesTiling : uint32
-{
-    IsLinear  = 0,  ///< Format properties requested is for linearly-tiled surfaces.
-    IsNonLinear,    ///< Format properties requested is for non-linearly tiled surfaces.
-    Count,          ///< Number of format property tile types.
-};
-
-/// The format properties lookup table.  Contains information about which device access features are available for all
-/// formats and tiling modes.  The tiling features for non-linear tiling modes are identical so we only store linear
-/// and non-linear tiling features.  From left to right, it is indexed by format and "is-non-linear".
-/// Returned by IDevice::GetFormatProperties().
-struct MergedFormatPropertiesTable
-{
-    FormatFeatureFlags features[static_cast<size_t>(ChNumFormat::Count)][FormatPropertiesTiling::Count];
-};
-
 /// Reports properties of a specific GPU block required for interpretting performance experiment data from that block.
 /// See @ref PerfExperimentProperties.
 struct GpuBlockPerfProperties
@@ -1684,11 +1640,14 @@ enum class TexFilterMode : uint32
 /// @ingroup ResourceBinding
 enum class TexAddressMode : uint32
 {
-    Wrap        = 0x0,  ///< Repeat the texture.
-    Mirror      = 0x1,  ///< Mirror the texture by flipping it at every other coordinate interval.
-    Clamp       = 0x2,  ///< Clamp the texture to the texture's edge pixel.
-    MirrorOnce  = 0x3,  ///< Mirror the texture once then clamp.
-    ClampBorder = 0x4,  ///< Clamp the texture to the border color specified in the sampler.
+    Wrap                    = 0x0,  ///< Repeat the texture.
+    Mirror                  = 0x1,  ///< Mirror the texture by flipping it at every other coordinate interval.
+    Clamp                   = 0x2,  ///< Clamp the texture to the texture's edge pixel.
+    MirrorOnce              = 0x3,  ///< Mirror the texture once then clamp.
+    ClampBorder             = 0x4,  ///< Clamp the texture to the border color specified in the sampler.
+    MirrorClampHalfBorder   = 0x5,  ///< Mirror the texture once then clamp the texture to half of the edge color.
+    ClampHalfBorder         = 0x6,  ///< Clamp the texture to half of the edge color.
+    MirrorClampBorder       = 0x7,  ///< Mirror the texture once then clamp the texture to the samler's border color.
     Count
 };
 

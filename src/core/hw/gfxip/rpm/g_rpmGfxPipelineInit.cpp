@@ -43,8 +43,10 @@ Result CreateRpmGraphicsPipelines(
     Result result = Result::Success;
 
     GraphicsPipelineCreateInfo               pipeInfo         = { };
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
     pipeInfo.flags.overrideGpuHeap                            = 1;
     pipeInfo.preferredHeapType                                = GpuHeap::GpuHeapLocal;
+#endif
     GraphicsPipelineInternalCreateInfo       internalInfo     = { };
     const GraphicsPipelineInternalCreateInfo NullInternalInfo = { };
 
@@ -65,9 +67,6 @@ Result CreateRpmGraphicsPipelines(
 #if PAL_BUILD_GFX6
     case AsicRevision::Oland:
     case AsicRevision::Hainan:
-    case AsicRevision::Bonaire:
-    case AsicRevision::Spectre:
-    case AsicRevision::Spooky:
         pTable = rpmGfxBinaryTableOland;
         break;
 #endif
@@ -83,6 +82,14 @@ Result CreateRpmGraphicsPipelines(
     case AsicRevision::Kalindi:
     case AsicRevision::Godavari:
         pTable = rpmGfxBinaryTableKalindi;
+        break;
+#endif
+
+#if PAL_BUILD_GFX6
+    case AsicRevision::Bonaire:
+    case AsicRevision::Spectre:
+    case AsicRevision::Spooky:
+        pTable = rpmGfxBinaryTableSpectre;
         break;
 #endif
 
@@ -142,230 +149,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
         pipeInfo.flags.overrideGpuHeap = 1;
         pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
-        pipeInfo.pPipelineBinary       = pTable[Copy2xMsaaDepth].pBuffer;
-        pipeInfo.pipelineBinarySize    = pTable[Copy2xMsaaDepth].size;
-
-        PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
-
-        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
-
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
-
-        result = pDevice->CreateGraphicsPipelineInternal(
-            pipeInfo,
-            NullInternalInfo,
-            &pPipelineMem[Copy2xMsaaDepth],
-            AllocInternal);
-    }
-
-    if (result == Result::Success)
-    {
-        pipeInfo = { };
-        pipeInfo.flags.overrideGpuHeap = 1;
-        pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
-        pipeInfo.pPipelineBinary       = pTable[Copy2xMsaaDepthStencil].pBuffer;
-        pipeInfo.pipelineBinarySize    = pTable[Copy2xMsaaDepthStencil].size;
-
-        PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
-
-        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
-
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
-
-        result = pDevice->CreateGraphicsPipelineInternal(
-            pipeInfo,
-            NullInternalInfo,
-            &pPipelineMem[Copy2xMsaaDepthStencil],
-            AllocInternal);
-    }
-
-    if (result == Result::Success)
-    {
-        pipeInfo = { };
-        pipeInfo.flags.overrideGpuHeap = 1;
-        pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
-        pipeInfo.pPipelineBinary       = pTable[Copy2xMsaaStencil].pBuffer;
-        pipeInfo.pipelineBinarySize    = pTable[Copy2xMsaaStencil].size;
-
-        PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
-
-        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
-
-        pipeInfo.cbState.target[0].channelWriteMask       = 0x1;
-        pipeInfo.cbState.target[0].swizzledFormat.format  = ChNumFormat::X8_Uint;
-        pipeInfo.cbState.target[0].swizzledFormat.swizzle =
-            { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One };
-
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
-
-        result = pDevice->CreateGraphicsPipelineInternal(
-            pipeInfo,
-            NullInternalInfo,
-            &pPipelineMem[Copy2xMsaaStencil],
-            AllocInternal);
-    }
-
-    if (result == Result::Success)
-    {
-        pipeInfo = { };
-        pipeInfo.flags.overrideGpuHeap = 1;
-        pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
-        pipeInfo.pPipelineBinary       = pTable[Copy4xMsaaDepth].pBuffer;
-        pipeInfo.pipelineBinarySize    = pTable[Copy4xMsaaDepth].size;
-
-        PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
-
-        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
-
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
-
-        result = pDevice->CreateGraphicsPipelineInternal(
-            pipeInfo,
-            NullInternalInfo,
-            &pPipelineMem[Copy4xMsaaDepth],
-            AllocInternal);
-    }
-
-    if (result == Result::Success)
-    {
-        pipeInfo = { };
-        pipeInfo.flags.overrideGpuHeap = 1;
-        pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
-        pipeInfo.pPipelineBinary       = pTable[Copy4xMsaaDepthStencil].pBuffer;
-        pipeInfo.pipelineBinarySize    = pTable[Copy4xMsaaDepthStencil].size;
-
-        PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
-
-        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
-
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
-
-        result = pDevice->CreateGraphicsPipelineInternal(
-            pipeInfo,
-            NullInternalInfo,
-            &pPipelineMem[Copy4xMsaaDepthStencil],
-            AllocInternal);
-    }
-
-    if (result == Result::Success)
-    {
-        pipeInfo = { };
-        pipeInfo.flags.overrideGpuHeap = 1;
-        pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
-        pipeInfo.pPipelineBinary       = pTable[Copy4xMsaaStencil].pBuffer;
-        pipeInfo.pipelineBinarySize    = pTable[Copy4xMsaaStencil].size;
-
-        PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
-
-        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
-
-        pipeInfo.cbState.target[0].channelWriteMask       = 0x1;
-        pipeInfo.cbState.target[0].swizzledFormat.format  = ChNumFormat::X8_Uint;
-        pipeInfo.cbState.target[0].swizzledFormat.swizzle =
-            { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One };
-
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
-
-        result = pDevice->CreateGraphicsPipelineInternal(
-            pipeInfo,
-            NullInternalInfo,
-            &pPipelineMem[Copy4xMsaaStencil],
-            AllocInternal);
-    }
-
-    if (result == Result::Success)
-    {
-        pipeInfo = { };
-        pipeInfo.flags.overrideGpuHeap = 1;
-        pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
-        pipeInfo.pPipelineBinary       = pTable[Copy8xMsaaDepth].pBuffer;
-        pipeInfo.pipelineBinarySize    = pTable[Copy8xMsaaDepth].size;
-
-        PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
-
-        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
-
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
-
-        result = pDevice->CreateGraphicsPipelineInternal(
-            pipeInfo,
-            NullInternalInfo,
-            &pPipelineMem[Copy8xMsaaDepth],
-            AllocInternal);
-    }
-
-    if (result == Result::Success)
-    {
-        pipeInfo = { };
-        pipeInfo.flags.overrideGpuHeap = 1;
-        pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
-        pipeInfo.pPipelineBinary       = pTable[Copy8xMsaaDepthStencil].pBuffer;
-        pipeInfo.pipelineBinarySize    = pTable[Copy8xMsaaDepthStencil].size;
-
-        PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
-
-        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
-
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
-
-        result = pDevice->CreateGraphicsPipelineInternal(
-            pipeInfo,
-            NullInternalInfo,
-            &pPipelineMem[Copy8xMsaaDepthStencil],
-            AllocInternal);
-    }
-
-    if (result == Result::Success)
-    {
-        pipeInfo = { };
-        pipeInfo.flags.overrideGpuHeap = 1;
-        pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
-        pipeInfo.pPipelineBinary       = pTable[Copy8xMsaaStencil].pBuffer;
-        pipeInfo.pipelineBinarySize    = pTable[Copy8xMsaaStencil].size;
-
-        PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
-
-        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
-
-        pipeInfo.cbState.target[0].channelWriteMask       = 0x1;
-        pipeInfo.cbState.target[0].swizzledFormat.format  = ChNumFormat::X8_Uint;
-        pipeInfo.cbState.target[0].swizzledFormat.swizzle =
-            { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One };
-
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
-
-        result = pDevice->CreateGraphicsPipelineInternal(
-            pipeInfo,
-            NullInternalInfo,
-            &pPipelineMem[Copy8xMsaaStencil],
-            AllocInternal);
-    }
-
-    if (result == Result::Success)
-    {
-        pipeInfo = { };
-        pipeInfo.flags.overrideGpuHeap = 1;
-        pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+#endif
         pipeInfo.pPipelineBinary       = pTable[CopyDepth].pBuffer;
         pipeInfo.pipelineBinarySize    = pTable[CopyDepth].size;
 
@@ -373,9 +160,11 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
 
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthClipEnable = false;
+        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp              = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable    = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -387,8 +176,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
         pipeInfo.flags.overrideGpuHeap = 1;
         pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+#endif
         pipeInfo.pPipelineBinary       = pTable[CopyDepthStencil].pBuffer;
         pipeInfo.pipelineBinarySize    = pTable[CopyDepthStencil].size;
 
@@ -396,9 +187,11 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
 
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthClipEnable = false;
+        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp              = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable    = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -410,8 +203,96 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
         pipeInfo.flags.overrideGpuHeap = 1;
         pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+#endif
+        pipeInfo.pPipelineBinary       = pTable[CopyMsaaDepth].pBuffer;
+        pipeInfo.pipelineBinarySize    = pTable[CopyMsaaDepth].size;
+
+        PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
+
+        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
+
+        pipeInfo.viewportInfo.depthClipEnable = false;
+        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp              = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable    = true;
+
+        result = pDevice->CreateGraphicsPipelineInternal(
+            pipeInfo,
+            NullInternalInfo,
+            &pPipelineMem[CopyMsaaDepth],
+            AllocInternal);
+    }
+
+    if (result == Result::Success)
+    {
+        pipeInfo = { };
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
+        pipeInfo.flags.overrideGpuHeap = 1;
+        pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+#endif
+        pipeInfo.pPipelineBinary       = pTable[CopyMsaaDepthStencil].pBuffer;
+        pipeInfo.pipelineBinarySize    = pTable[CopyMsaaDepthStencil].size;
+
+        PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
+
+        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
+
+        pipeInfo.viewportInfo.depthClipEnable = false;
+        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp              = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable    = true;
+
+        result = pDevice->CreateGraphicsPipelineInternal(
+            pipeInfo,
+            NullInternalInfo,
+            &pPipelineMem[CopyMsaaDepthStencil],
+            AllocInternal);
+    }
+
+    if (result == Result::Success)
+    {
+        pipeInfo = { };
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
+        pipeInfo.flags.overrideGpuHeap = 1;
+        pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+#endif
+        pipeInfo.pPipelineBinary       = pTable[CopyMsaaStencil].pBuffer;
+        pipeInfo.pipelineBinarySize    = pTable[CopyMsaaStencil].size;
+
+        PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
+
+        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
+
+        pipeInfo.cbState.target[0].channelWriteMask       = 0x1;
+        pipeInfo.cbState.target[0].swizzledFormat.format  = ChNumFormat::X8_Uint;
+        pipeInfo.cbState.target[0].swizzledFormat.swizzle =
+            { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One };
+
+        pipeInfo.viewportInfo.depthClipEnable = false;
+        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp              = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable    = true;
+
+        result = pDevice->CreateGraphicsPipelineInternal(
+            pipeInfo,
+            NullInternalInfo,
+            &pPipelineMem[CopyMsaaStencil],
+            AllocInternal);
+    }
+
+    if (result == Result::Success)
+    {
+        pipeInfo = { };
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
+        pipeInfo.flags.overrideGpuHeap = 1;
+        pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+#endif
         pipeInfo.pPipelineBinary       = pTable[CopyStencil].pBuffer;
         pipeInfo.pipelineBinarySize    = pTable[CopyStencil].size;
 
@@ -424,9 +305,11 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[0].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One };
 
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthClipEnable = false;
+        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp              = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable    = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -447,8 +330,10 @@ Result CreateRpmGraphicsPipelines(
         ))
     {
         pipeInfo = { };
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
         pipeInfo.flags.overrideGpuHeap = 1;
         pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+#endif
         pipeInfo.pPipelineBinary       = pTable[DccDecompress].pBuffer;
         pipeInfo.pipelineBinarySize    = pTable[DccDecompress].size;
 
@@ -461,9 +346,11 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[0].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthClipEnable = false;
+        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp              = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable    = true;
 
         internalInfo = { };
         internalInfo.flags.dccDecompress = true;
@@ -478,8 +365,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
         pipeInfo.flags.overrideGpuHeap = 1;
         pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+#endif
         pipeInfo.pPipelineBinary       = pTable[DepthExpand].pBuffer;
         pipeInfo.pipelineBinarySize    = pTable[DepthExpand].size;
 
@@ -487,9 +376,11 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
 
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthClipEnable = false;
+        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp              = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable    = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -501,8 +392,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
         pipeInfo.flags.overrideGpuHeap = 1;
         pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+#endif
         pipeInfo.pPipelineBinary       = pTable[DepthResummarize].pBuffer;
         pipeInfo.pipelineBinarySize    = pTable[DepthResummarize].size;
 
@@ -510,9 +403,11 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
 
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthClipEnable = false;
+        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp              = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable    = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -524,8 +419,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
         pipeInfo.flags.overrideGpuHeap = 1;
         pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+#endif
         pipeInfo.pPipelineBinary       = pTable[DepthSlowDraw].pBuffer;
         pipeInfo.pipelineBinarySize    = pTable[DepthSlowDraw].size;
 
@@ -533,9 +430,11 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
 
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthClipEnable = false;
+        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp              = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable    = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -547,8 +446,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
         pipeInfo.flags.overrideGpuHeap = 1;
         pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+#endif
         pipeInfo.pPipelineBinary       = pTable[FastClearElim].pBuffer;
         pipeInfo.pipelineBinarySize    = pTable[FastClearElim].size;
 
@@ -561,9 +462,11 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[0].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthClipEnable = false;
+        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp              = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable    = true;
 
         internalInfo = { };
         internalInfo.flags.fastClearElim = true;
@@ -593,8 +496,10 @@ Result CreateRpmGraphicsPipelines(
         ))
     {
         pipeInfo = { };
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
         pipeInfo.flags.overrideGpuHeap = 1;
         pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+#endif
         pipeInfo.pPipelineBinary       = pTable[FmaskDecompress].pBuffer;
         pipeInfo.pipelineBinarySize    = pTable[FmaskDecompress].size;
 
@@ -607,9 +512,11 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[0].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthClipEnable = false;
+        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp              = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable    = true;
 
         internalInfo = { };
         internalInfo.flags.fmaskDecompress = true;
@@ -624,8 +531,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
         pipeInfo.flags.overrideGpuHeap = 1;
         pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+#endif
         pipeInfo.pPipelineBinary       = pTable[Copy_32ABGR].pBuffer;
         pipeInfo.pipelineBinarySize    = pTable[Copy_32ABGR].size;
 
@@ -638,9 +547,11 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[0].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthClipEnable = false;
+        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp              = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable    = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -652,8 +563,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
         pipeInfo.flags.overrideGpuHeap = 1;
         pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+#endif
         pipeInfo.pPipelineBinary       = pTable[Copy_32GR].pBuffer;
         pipeInfo.pipelineBinarySize    = pTable[Copy_32GR].size;
 
@@ -666,9 +579,11 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[0].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Zero, ChannelSwizzle::One };
 
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthClipEnable = false;
+        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp              = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable    = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -680,8 +595,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
         pipeInfo.flags.overrideGpuHeap = 1;
         pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+#endif
         pipeInfo.pPipelineBinary       = pTable[Copy_32R].pBuffer;
         pipeInfo.pipelineBinarySize    = pTable[Copy_32R].size;
 
@@ -694,9 +611,11 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[0].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One };
 
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthClipEnable = false;
+        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp              = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable    = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -708,8 +627,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
         pipeInfo.flags.overrideGpuHeap = 1;
         pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+#endif
         pipeInfo.pPipelineBinary       = pTable[Copy_FP16].pBuffer;
         pipeInfo.pipelineBinarySize    = pTable[Copy_FP16].size;
 
@@ -722,9 +643,11 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[0].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthClipEnable = false;
+        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp              = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable    = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -736,8 +659,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
         pipeInfo.flags.overrideGpuHeap = 1;
         pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+#endif
         pipeInfo.pPipelineBinary       = pTable[Copy_SINT16].pBuffer;
         pipeInfo.pipelineBinarySize    = pTable[Copy_SINT16].size;
 
@@ -750,9 +675,11 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[0].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthClipEnable = false;
+        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp              = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable    = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -764,8 +691,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
         pipeInfo.flags.overrideGpuHeap = 1;
         pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+#endif
         pipeInfo.pPipelineBinary       = pTable[Copy_SNORM16].pBuffer;
         pipeInfo.pipelineBinarySize    = pTable[Copy_SNORM16].size;
 
@@ -778,9 +707,11 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[0].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthClipEnable = false;
+        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp              = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable    = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -792,8 +723,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
         pipeInfo.flags.overrideGpuHeap = 1;
         pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+#endif
         pipeInfo.pPipelineBinary       = pTable[Copy_UINT16].pBuffer;
         pipeInfo.pipelineBinarySize    = pTable[Copy_UINT16].size;
 
@@ -806,9 +739,11 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[0].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthClipEnable = false;
+        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp              = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable    = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -820,8 +755,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
         pipeInfo.flags.overrideGpuHeap = 1;
         pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+#endif
         pipeInfo.pPipelineBinary       = pTable[Copy_UNORM16].pBuffer;
         pipeInfo.pipelineBinarySize    = pTable[Copy_UNORM16].size;
 
@@ -834,9 +771,11 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[0].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthClipEnable = false;
+        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp              = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable    = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -848,8 +787,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
         pipeInfo.flags.overrideGpuHeap = 1;
         pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+#endif
         pipeInfo.pPipelineBinary       = pTable[ResolveFixedFunc_32ABGR].pBuffer;
         pipeInfo.pipelineBinarySize    = pTable[ResolveFixedFunc_32ABGR].size;
 
@@ -862,9 +803,11 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[0].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthClipEnable = false;
+        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp              = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable    = true;
 
         internalInfo = { };
         internalInfo.flags.resolveFixedFunc = true;
@@ -879,8 +822,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
         pipeInfo.flags.overrideGpuHeap = 1;
         pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+#endif
         pipeInfo.pPipelineBinary       = pTable[ResolveFixedFunc_32GR].pBuffer;
         pipeInfo.pipelineBinarySize    = pTable[ResolveFixedFunc_32GR].size;
 
@@ -893,9 +838,11 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[0].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Zero, ChannelSwizzle::One };
 
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthClipEnable = false;
+        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp              = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable    = true;
 
         internalInfo = { };
         internalInfo.flags.resolveFixedFunc = true;
@@ -910,8 +857,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
         pipeInfo.flags.overrideGpuHeap = 1;
         pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+#endif
         pipeInfo.pPipelineBinary       = pTable[ResolveFixedFunc_32R].pBuffer;
         pipeInfo.pipelineBinarySize    = pTable[ResolveFixedFunc_32R].size;
 
@@ -924,9 +873,11 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[0].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One };
 
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthClipEnable = false;
+        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp              = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable    = true;
 
         internalInfo = { };
         internalInfo.flags.resolveFixedFunc = true;
@@ -941,8 +892,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
         pipeInfo.flags.overrideGpuHeap = 1;
         pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+#endif
         pipeInfo.pPipelineBinary       = pTable[ResolveFixedFunc_FP16].pBuffer;
         pipeInfo.pipelineBinarySize    = pTable[ResolveFixedFunc_FP16].size;
 
@@ -955,9 +908,11 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[0].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthClipEnable = false;
+        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp              = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable    = true;
 
         internalInfo = { };
         internalInfo.flags.resolveFixedFunc = true;
@@ -972,8 +927,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
         pipeInfo.flags.overrideGpuHeap = 1;
         pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+#endif
         pipeInfo.pPipelineBinary       = pTable[ResolveFixedFunc_SINT16].pBuffer;
         pipeInfo.pipelineBinarySize    = pTable[ResolveFixedFunc_SINT16].size;
 
@@ -986,9 +943,11 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[0].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthClipEnable = false;
+        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp              = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable    = true;
 
         internalInfo = { };
         internalInfo.flags.resolveFixedFunc = true;
@@ -1003,8 +962,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
         pipeInfo.flags.overrideGpuHeap = 1;
         pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+#endif
         pipeInfo.pPipelineBinary       = pTable[ResolveFixedFunc_SNORM16].pBuffer;
         pipeInfo.pipelineBinarySize    = pTable[ResolveFixedFunc_SNORM16].size;
 
@@ -1017,9 +978,11 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[0].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthClipEnable = false;
+        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp              = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable    = true;
 
         internalInfo = { };
         internalInfo.flags.resolveFixedFunc = true;
@@ -1034,8 +997,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
         pipeInfo.flags.overrideGpuHeap = 1;
         pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+#endif
         pipeInfo.pPipelineBinary       = pTable[ResolveFixedFunc_UINT16].pBuffer;
         pipeInfo.pipelineBinarySize    = pTable[ResolveFixedFunc_UINT16].size;
 
@@ -1048,9 +1013,11 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[0].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthClipEnable = false;
+        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp              = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable    = true;
 
         internalInfo = { };
         internalInfo.flags.resolveFixedFunc = true;
@@ -1065,8 +1032,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
         pipeInfo.flags.overrideGpuHeap = 1;
         pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+#endif
         pipeInfo.pPipelineBinary       = pTable[ResolveFixedFunc_UNORM16].pBuffer;
         pipeInfo.pipelineBinarySize    = pTable[ResolveFixedFunc_UNORM16].size;
 
@@ -1079,9 +1048,11 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[0].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthClipEnable = false;
+        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp              = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable    = true;
 
         internalInfo = { };
         internalInfo.flags.resolveFixedFunc = true;
@@ -1096,8 +1067,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
         pipeInfo.flags.overrideGpuHeap = 1;
         pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+#endif
         pipeInfo.pPipelineBinary       = pTable[ScaledCopy2d_32ABGR].pBuffer;
         pipeInfo.pipelineBinarySize    = pTable[ScaledCopy2d_32ABGR].size;
 
@@ -1110,9 +1083,11 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[0].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthClipEnable = false;
+        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp              = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable    = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1124,8 +1099,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
         pipeInfo.flags.overrideGpuHeap = 1;
         pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+#endif
         pipeInfo.pPipelineBinary       = pTable[ScaledCopy2d_32GR].pBuffer;
         pipeInfo.pipelineBinarySize    = pTable[ScaledCopy2d_32GR].size;
 
@@ -1138,9 +1115,11 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[0].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Zero, ChannelSwizzle::One };
 
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthClipEnable = false;
+        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp              = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable    = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1152,8 +1131,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
         pipeInfo.flags.overrideGpuHeap = 1;
         pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+#endif
         pipeInfo.pPipelineBinary       = pTable[ScaledCopy2d_32R].pBuffer;
         pipeInfo.pipelineBinarySize    = pTable[ScaledCopy2d_32R].size;
 
@@ -1166,9 +1147,11 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[0].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One };
 
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthClipEnable = false;
+        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp              = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable    = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1180,8 +1163,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
         pipeInfo.flags.overrideGpuHeap = 1;
         pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+#endif
         pipeInfo.pPipelineBinary       = pTable[ScaledCopy2d_FP16].pBuffer;
         pipeInfo.pipelineBinarySize    = pTable[ScaledCopy2d_FP16].size;
 
@@ -1194,9 +1179,11 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[0].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthClipEnable = false;
+        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp              = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable    = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1208,8 +1195,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
         pipeInfo.flags.overrideGpuHeap = 1;
         pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+#endif
         pipeInfo.pPipelineBinary       = pTable[ScaledCopy2d_SINT16].pBuffer;
         pipeInfo.pipelineBinarySize    = pTable[ScaledCopy2d_SINT16].size;
 
@@ -1222,9 +1211,11 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[0].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthClipEnable = false;
+        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp              = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable    = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1236,8 +1227,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
         pipeInfo.flags.overrideGpuHeap = 1;
         pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+#endif
         pipeInfo.pPipelineBinary       = pTable[ScaledCopy2d_SNORM16].pBuffer;
         pipeInfo.pipelineBinarySize    = pTable[ScaledCopy2d_SNORM16].size;
 
@@ -1250,9 +1243,11 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[0].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthClipEnable = false;
+        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp              = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable    = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1264,8 +1259,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
         pipeInfo.flags.overrideGpuHeap = 1;
         pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+#endif
         pipeInfo.pPipelineBinary       = pTable[ScaledCopy2d_UINT16].pBuffer;
         pipeInfo.pipelineBinarySize    = pTable[ScaledCopy2d_UINT16].size;
 
@@ -1278,9 +1275,11 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[0].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthClipEnable = false;
+        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp              = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable    = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1292,8 +1291,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
         pipeInfo.flags.overrideGpuHeap = 1;
         pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+#endif
         pipeInfo.pPipelineBinary       = pTable[ScaledCopy2d_UNORM16].pBuffer;
         pipeInfo.pipelineBinarySize    = pTable[ScaledCopy2d_UNORM16].size;
 
@@ -1306,9 +1307,11 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[0].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthClipEnable = false;
+        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp              = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable    = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1320,8 +1323,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
         pipeInfo.flags.overrideGpuHeap = 1;
         pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+#endif
         pipeInfo.pPipelineBinary       = pTable[ScaledCopy3d_32ABGR].pBuffer;
         pipeInfo.pipelineBinarySize    = pTable[ScaledCopy3d_32ABGR].size;
 
@@ -1334,9 +1339,11 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[0].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthClipEnable = false;
+        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp              = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable    = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1348,8 +1355,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
         pipeInfo.flags.overrideGpuHeap = 1;
         pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+#endif
         pipeInfo.pPipelineBinary       = pTable[ScaledCopy3d_32GR].pBuffer;
         pipeInfo.pipelineBinarySize    = pTable[ScaledCopy3d_32GR].size;
 
@@ -1362,9 +1371,11 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[0].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Zero, ChannelSwizzle::One };
 
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthClipEnable = false;
+        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp              = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable    = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1376,8 +1387,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
         pipeInfo.flags.overrideGpuHeap = 1;
         pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+#endif
         pipeInfo.pPipelineBinary       = pTable[ScaledCopy3d_32R].pBuffer;
         pipeInfo.pipelineBinarySize    = pTable[ScaledCopy3d_32R].size;
 
@@ -1390,9 +1403,11 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[0].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One };
 
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthClipEnable = false;
+        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp              = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable    = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1404,8 +1419,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
         pipeInfo.flags.overrideGpuHeap = 1;
         pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+#endif
         pipeInfo.pPipelineBinary       = pTable[ScaledCopy3d_FP16].pBuffer;
         pipeInfo.pipelineBinarySize    = pTable[ScaledCopy3d_FP16].size;
 
@@ -1418,9 +1435,11 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[0].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthClipEnable = false;
+        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp              = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable    = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1432,8 +1451,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
         pipeInfo.flags.overrideGpuHeap = 1;
         pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+#endif
         pipeInfo.pPipelineBinary       = pTable[ScaledCopy3d_SINT16].pBuffer;
         pipeInfo.pipelineBinarySize    = pTable[ScaledCopy3d_SINT16].size;
 
@@ -1446,9 +1467,11 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[0].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthClipEnable = false;
+        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp              = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable    = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1460,8 +1483,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
         pipeInfo.flags.overrideGpuHeap = 1;
         pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+#endif
         pipeInfo.pPipelineBinary       = pTable[ScaledCopy3d_SNORM16].pBuffer;
         pipeInfo.pipelineBinarySize    = pTable[ScaledCopy3d_SNORM16].size;
 
@@ -1474,9 +1499,11 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[0].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthClipEnable = false;
+        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp              = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable    = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1488,8 +1515,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
         pipeInfo.flags.overrideGpuHeap = 1;
         pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+#endif
         pipeInfo.pPipelineBinary       = pTable[ScaledCopy3d_UINT16].pBuffer;
         pipeInfo.pipelineBinarySize    = pTable[ScaledCopy3d_UINT16].size;
 
@@ -1502,9 +1531,11 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[0].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthClipEnable = false;
+        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp              = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable    = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1516,8 +1547,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
         pipeInfo.flags.overrideGpuHeap = 1;
         pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+#endif
         pipeInfo.pPipelineBinary       = pTable[ScaledCopy3d_UNORM16].pBuffer;
         pipeInfo.pipelineBinarySize    = pTable[ScaledCopy3d_UNORM16].size;
 
@@ -1530,9 +1563,11 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[0].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthClipEnable = false;
+        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp              = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable    = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1544,8 +1579,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
         pipeInfo.flags.overrideGpuHeap = 1;
         pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+#endif
         pipeInfo.pPipelineBinary       = pTable[SlowColorClear0_32ABGR].pBuffer;
         pipeInfo.pipelineBinarySize    = pTable[SlowColorClear0_32ABGR].size;
 
@@ -1558,9 +1595,11 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[0].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthClipEnable = false;
+        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp              = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable    = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1572,8 +1611,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
         pipeInfo.flags.overrideGpuHeap = 1;
         pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+#endif
         pipeInfo.pPipelineBinary       = pTable[SlowColorClear0_32GR].pBuffer;
         pipeInfo.pipelineBinarySize    = pTable[SlowColorClear0_32GR].size;
 
@@ -1586,9 +1627,11 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[0].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Zero, ChannelSwizzle::One };
 
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthClipEnable = false;
+        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp              = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable    = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1600,8 +1643,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
         pipeInfo.flags.overrideGpuHeap = 1;
         pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+#endif
         pipeInfo.pPipelineBinary       = pTable[SlowColorClear0_32R].pBuffer;
         pipeInfo.pipelineBinarySize    = pTable[SlowColorClear0_32R].size;
 
@@ -1614,9 +1659,11 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[0].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One };
 
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthClipEnable = false;
+        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp              = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable    = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1628,8 +1675,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
         pipeInfo.flags.overrideGpuHeap = 1;
         pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+#endif
         pipeInfo.pPipelineBinary       = pTable[SlowColorClear0_FP16].pBuffer;
         pipeInfo.pipelineBinarySize    = pTable[SlowColorClear0_FP16].size;
 
@@ -1642,9 +1691,11 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[0].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthClipEnable = false;
+        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp              = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable    = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1656,8 +1707,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
         pipeInfo.flags.overrideGpuHeap = 1;
         pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+#endif
         pipeInfo.pPipelineBinary       = pTable[SlowColorClear0_SINT16].pBuffer;
         pipeInfo.pipelineBinarySize    = pTable[SlowColorClear0_SINT16].size;
 
@@ -1670,9 +1723,11 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[0].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthClipEnable = false;
+        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp              = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable    = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1684,8 +1739,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
         pipeInfo.flags.overrideGpuHeap = 1;
         pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+#endif
         pipeInfo.pPipelineBinary       = pTable[SlowColorClear0_SNORM16].pBuffer;
         pipeInfo.pipelineBinarySize    = pTable[SlowColorClear0_SNORM16].size;
 
@@ -1698,9 +1755,11 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[0].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthClipEnable = false;
+        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp              = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable    = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1712,8 +1771,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
         pipeInfo.flags.overrideGpuHeap = 1;
         pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+#endif
         pipeInfo.pPipelineBinary       = pTable[SlowColorClear0_UINT16].pBuffer;
         pipeInfo.pipelineBinarySize    = pTable[SlowColorClear0_UINT16].size;
 
@@ -1726,9 +1787,11 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[0].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthClipEnable = false;
+        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp              = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable    = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1740,8 +1803,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
         pipeInfo.flags.overrideGpuHeap = 1;
         pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+#endif
         pipeInfo.pPipelineBinary       = pTable[SlowColorClear0_UNORM16].pBuffer;
         pipeInfo.pipelineBinarySize    = pTable[SlowColorClear0_UNORM16].size;
 
@@ -1754,9 +1819,11 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[0].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthClipEnable = false;
+        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp              = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable    = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1768,8 +1835,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
         pipeInfo.flags.overrideGpuHeap = 1;
         pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+#endif
         pipeInfo.pPipelineBinary       = pTable[SlowColorClear1_32ABGR].pBuffer;
         pipeInfo.pipelineBinarySize    = pTable[SlowColorClear1_32ABGR].size;
 
@@ -1782,9 +1851,11 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[1].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthClipEnable = false;
+        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp              = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable    = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1796,8 +1867,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
         pipeInfo.flags.overrideGpuHeap = 1;
         pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+#endif
         pipeInfo.pPipelineBinary       = pTable[SlowColorClear1_32GR].pBuffer;
         pipeInfo.pipelineBinarySize    = pTable[SlowColorClear1_32GR].size;
 
@@ -1810,9 +1883,11 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[1].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Zero, ChannelSwizzle::One };
 
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthClipEnable = false;
+        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp              = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable    = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1824,8 +1899,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
         pipeInfo.flags.overrideGpuHeap = 1;
         pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+#endif
         pipeInfo.pPipelineBinary       = pTable[SlowColorClear1_32R].pBuffer;
         pipeInfo.pipelineBinarySize    = pTable[SlowColorClear1_32R].size;
 
@@ -1838,9 +1915,11 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[1].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One };
 
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthClipEnable = false;
+        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp              = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable    = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1852,8 +1931,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
         pipeInfo.flags.overrideGpuHeap = 1;
         pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+#endif
         pipeInfo.pPipelineBinary       = pTable[SlowColorClear1_FP16].pBuffer;
         pipeInfo.pipelineBinarySize    = pTable[SlowColorClear1_FP16].size;
 
@@ -1866,9 +1947,11 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[1].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthClipEnable = false;
+        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp              = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable    = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1880,8 +1963,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
         pipeInfo.flags.overrideGpuHeap = 1;
         pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+#endif
         pipeInfo.pPipelineBinary       = pTable[SlowColorClear1_SINT16].pBuffer;
         pipeInfo.pipelineBinarySize    = pTable[SlowColorClear1_SINT16].size;
 
@@ -1894,9 +1979,11 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[1].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthClipEnable = false;
+        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp              = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable    = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1908,8 +1995,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
         pipeInfo.flags.overrideGpuHeap = 1;
         pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+#endif
         pipeInfo.pPipelineBinary       = pTable[SlowColorClear1_SNORM16].pBuffer;
         pipeInfo.pipelineBinarySize    = pTable[SlowColorClear1_SNORM16].size;
 
@@ -1922,9 +2011,11 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[1].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthClipEnable = false;
+        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp              = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable    = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1936,8 +2027,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
         pipeInfo.flags.overrideGpuHeap = 1;
         pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+#endif
         pipeInfo.pPipelineBinary       = pTable[SlowColorClear1_UINT16].pBuffer;
         pipeInfo.pipelineBinarySize    = pTable[SlowColorClear1_UINT16].size;
 
@@ -1950,9 +2043,11 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[1].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthClipEnable = false;
+        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp              = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable    = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1964,8 +2059,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
         pipeInfo.flags.overrideGpuHeap = 1;
         pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+#endif
         pipeInfo.pPipelineBinary       = pTable[SlowColorClear1_UNORM16].pBuffer;
         pipeInfo.pipelineBinarySize    = pTable[SlowColorClear1_UNORM16].size;
 
@@ -1978,9 +2075,11 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[1].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthClipEnable = false;
+        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp              = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable    = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1992,8 +2091,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
         pipeInfo.flags.overrideGpuHeap = 1;
         pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+#endif
         pipeInfo.pPipelineBinary       = pTable[SlowColorClear2_32ABGR].pBuffer;
         pipeInfo.pipelineBinarySize    = pTable[SlowColorClear2_32ABGR].size;
 
@@ -2006,9 +2107,11 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[2].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthClipEnable = false;
+        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp              = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable    = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2020,8 +2123,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
         pipeInfo.flags.overrideGpuHeap = 1;
         pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+#endif
         pipeInfo.pPipelineBinary       = pTable[SlowColorClear2_32GR].pBuffer;
         pipeInfo.pipelineBinarySize    = pTable[SlowColorClear2_32GR].size;
 
@@ -2034,9 +2139,11 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[2].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Zero, ChannelSwizzle::One };
 
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthClipEnable = false;
+        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp              = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable    = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2048,8 +2155,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
         pipeInfo.flags.overrideGpuHeap = 1;
         pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+#endif
         pipeInfo.pPipelineBinary       = pTable[SlowColorClear2_32R].pBuffer;
         pipeInfo.pipelineBinarySize    = pTable[SlowColorClear2_32R].size;
 
@@ -2062,9 +2171,11 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[2].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One };
 
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthClipEnable = false;
+        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp              = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable    = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2076,8 +2187,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
         pipeInfo.flags.overrideGpuHeap = 1;
         pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+#endif
         pipeInfo.pPipelineBinary       = pTable[SlowColorClear2_FP16].pBuffer;
         pipeInfo.pipelineBinarySize    = pTable[SlowColorClear2_FP16].size;
 
@@ -2090,9 +2203,11 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[2].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthClipEnable = false;
+        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp              = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable    = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2104,8 +2219,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
         pipeInfo.flags.overrideGpuHeap = 1;
         pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+#endif
         pipeInfo.pPipelineBinary       = pTable[SlowColorClear2_SINT16].pBuffer;
         pipeInfo.pipelineBinarySize    = pTable[SlowColorClear2_SINT16].size;
 
@@ -2118,9 +2235,11 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[2].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthClipEnable = false;
+        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp              = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable    = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2132,8 +2251,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
         pipeInfo.flags.overrideGpuHeap = 1;
         pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+#endif
         pipeInfo.pPipelineBinary       = pTable[SlowColorClear2_SNORM16].pBuffer;
         pipeInfo.pipelineBinarySize    = pTable[SlowColorClear2_SNORM16].size;
 
@@ -2146,9 +2267,11 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[2].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthClipEnable = false;
+        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp              = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable    = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2160,8 +2283,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
         pipeInfo.flags.overrideGpuHeap = 1;
         pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+#endif
         pipeInfo.pPipelineBinary       = pTable[SlowColorClear2_UINT16].pBuffer;
         pipeInfo.pipelineBinarySize    = pTable[SlowColorClear2_UINT16].size;
 
@@ -2174,9 +2299,11 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[2].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthClipEnable = false;
+        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp              = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable    = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2188,8 +2315,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
         pipeInfo.flags.overrideGpuHeap = 1;
         pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+#endif
         pipeInfo.pPipelineBinary       = pTable[SlowColorClear2_UNORM16].pBuffer;
         pipeInfo.pipelineBinarySize    = pTable[SlowColorClear2_UNORM16].size;
 
@@ -2202,9 +2331,11 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[2].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthClipEnable = false;
+        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp              = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable    = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2216,8 +2347,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
         pipeInfo.flags.overrideGpuHeap = 1;
         pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+#endif
         pipeInfo.pPipelineBinary       = pTable[SlowColorClear3_32ABGR].pBuffer;
         pipeInfo.pipelineBinarySize    = pTable[SlowColorClear3_32ABGR].size;
 
@@ -2230,9 +2363,11 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[3].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthClipEnable = false;
+        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp              = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable    = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2244,8 +2379,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
         pipeInfo.flags.overrideGpuHeap = 1;
         pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+#endif
         pipeInfo.pPipelineBinary       = pTable[SlowColorClear3_32GR].pBuffer;
         pipeInfo.pipelineBinarySize    = pTable[SlowColorClear3_32GR].size;
 
@@ -2258,9 +2395,11 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[3].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Zero, ChannelSwizzle::One };
 
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthClipEnable = false;
+        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp              = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable    = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2272,8 +2411,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
         pipeInfo.flags.overrideGpuHeap = 1;
         pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+#endif
         pipeInfo.pPipelineBinary       = pTable[SlowColorClear3_32R].pBuffer;
         pipeInfo.pipelineBinarySize    = pTable[SlowColorClear3_32R].size;
 
@@ -2286,9 +2427,11 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[3].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One };
 
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthClipEnable = false;
+        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp              = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable    = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2300,8 +2443,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
         pipeInfo.flags.overrideGpuHeap = 1;
         pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+#endif
         pipeInfo.pPipelineBinary       = pTable[SlowColorClear3_FP16].pBuffer;
         pipeInfo.pipelineBinarySize    = pTable[SlowColorClear3_FP16].size;
 
@@ -2314,9 +2459,11 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[3].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthClipEnable = false;
+        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp              = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable    = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2328,8 +2475,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
         pipeInfo.flags.overrideGpuHeap = 1;
         pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+#endif
         pipeInfo.pPipelineBinary       = pTable[SlowColorClear3_SINT16].pBuffer;
         pipeInfo.pipelineBinarySize    = pTable[SlowColorClear3_SINT16].size;
 
@@ -2342,9 +2491,11 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[3].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthClipEnable = false;
+        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp              = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable    = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2356,8 +2507,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
         pipeInfo.flags.overrideGpuHeap = 1;
         pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+#endif
         pipeInfo.pPipelineBinary       = pTable[SlowColorClear3_SNORM16].pBuffer;
         pipeInfo.pipelineBinarySize    = pTable[SlowColorClear3_SNORM16].size;
 
@@ -2370,9 +2523,11 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[3].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthClipEnable = false;
+        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp              = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable    = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2384,8 +2539,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
         pipeInfo.flags.overrideGpuHeap = 1;
         pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+#endif
         pipeInfo.pPipelineBinary       = pTable[SlowColorClear3_UINT16].pBuffer;
         pipeInfo.pipelineBinarySize    = pTable[SlowColorClear3_UINT16].size;
 
@@ -2398,9 +2555,11 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[3].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthClipEnable = false;
+        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp              = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable    = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2412,8 +2571,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
         pipeInfo.flags.overrideGpuHeap = 1;
         pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+#endif
         pipeInfo.pPipelineBinary       = pTable[SlowColorClear3_UNORM16].pBuffer;
         pipeInfo.pipelineBinarySize    = pTable[SlowColorClear3_UNORM16].size;
 
@@ -2426,9 +2587,11 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[3].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthClipEnable = false;
+        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp              = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable    = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2440,8 +2603,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
         pipeInfo.flags.overrideGpuHeap = 1;
         pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+#endif
         pipeInfo.pPipelineBinary       = pTable[SlowColorClear4_32ABGR].pBuffer;
         pipeInfo.pipelineBinarySize    = pTable[SlowColorClear4_32ABGR].size;
 
@@ -2454,9 +2619,11 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[4].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthClipEnable = false;
+        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp              = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable    = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2468,8 +2635,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
         pipeInfo.flags.overrideGpuHeap = 1;
         pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+#endif
         pipeInfo.pPipelineBinary       = pTable[SlowColorClear4_32GR].pBuffer;
         pipeInfo.pipelineBinarySize    = pTable[SlowColorClear4_32GR].size;
 
@@ -2482,9 +2651,11 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[4].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Zero, ChannelSwizzle::One };
 
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthClipEnable = false;
+        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp              = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable    = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2496,8 +2667,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
         pipeInfo.flags.overrideGpuHeap = 1;
         pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+#endif
         pipeInfo.pPipelineBinary       = pTable[SlowColorClear4_32R].pBuffer;
         pipeInfo.pipelineBinarySize    = pTable[SlowColorClear4_32R].size;
 
@@ -2510,9 +2683,11 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[4].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One };
 
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthClipEnable = false;
+        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp              = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable    = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2524,8 +2699,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
         pipeInfo.flags.overrideGpuHeap = 1;
         pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+#endif
         pipeInfo.pPipelineBinary       = pTable[SlowColorClear4_FP16].pBuffer;
         pipeInfo.pipelineBinarySize    = pTable[SlowColorClear4_FP16].size;
 
@@ -2538,9 +2715,11 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[4].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthClipEnable = false;
+        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp              = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable    = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2552,8 +2731,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
         pipeInfo.flags.overrideGpuHeap = 1;
         pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+#endif
         pipeInfo.pPipelineBinary       = pTable[SlowColorClear4_SINT16].pBuffer;
         pipeInfo.pipelineBinarySize    = pTable[SlowColorClear4_SINT16].size;
 
@@ -2566,9 +2747,11 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[4].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthClipEnable = false;
+        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp              = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable    = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2580,8 +2763,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
         pipeInfo.flags.overrideGpuHeap = 1;
         pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+#endif
         pipeInfo.pPipelineBinary       = pTable[SlowColorClear4_SNORM16].pBuffer;
         pipeInfo.pipelineBinarySize    = pTable[SlowColorClear4_SNORM16].size;
 
@@ -2594,9 +2779,11 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[4].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthClipEnable = false;
+        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp              = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable    = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2608,8 +2795,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
         pipeInfo.flags.overrideGpuHeap = 1;
         pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+#endif
         pipeInfo.pPipelineBinary       = pTable[SlowColorClear4_UINT16].pBuffer;
         pipeInfo.pipelineBinarySize    = pTable[SlowColorClear4_UINT16].size;
 
@@ -2622,9 +2811,11 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[4].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthClipEnable = false;
+        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp              = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable    = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2636,8 +2827,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
         pipeInfo.flags.overrideGpuHeap = 1;
         pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+#endif
         pipeInfo.pPipelineBinary       = pTable[SlowColorClear4_UNORM16].pBuffer;
         pipeInfo.pipelineBinarySize    = pTable[SlowColorClear4_UNORM16].size;
 
@@ -2650,9 +2843,11 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[4].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthClipEnable = false;
+        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp              = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable    = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2664,8 +2859,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
         pipeInfo.flags.overrideGpuHeap = 1;
         pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+#endif
         pipeInfo.pPipelineBinary       = pTable[SlowColorClear5_32ABGR].pBuffer;
         pipeInfo.pipelineBinarySize    = pTable[SlowColorClear5_32ABGR].size;
 
@@ -2678,9 +2875,11 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[5].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthClipEnable = false;
+        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp              = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable    = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2692,8 +2891,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
         pipeInfo.flags.overrideGpuHeap = 1;
         pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+#endif
         pipeInfo.pPipelineBinary       = pTable[SlowColorClear5_32GR].pBuffer;
         pipeInfo.pipelineBinarySize    = pTable[SlowColorClear5_32GR].size;
 
@@ -2706,9 +2907,11 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[5].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Zero, ChannelSwizzle::One };
 
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthClipEnable = false;
+        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp              = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable    = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2720,8 +2923,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
         pipeInfo.flags.overrideGpuHeap = 1;
         pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+#endif
         pipeInfo.pPipelineBinary       = pTable[SlowColorClear5_32R].pBuffer;
         pipeInfo.pipelineBinarySize    = pTable[SlowColorClear5_32R].size;
 
@@ -2734,9 +2939,11 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[5].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One };
 
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthClipEnable = false;
+        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp              = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable    = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2748,8 +2955,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
         pipeInfo.flags.overrideGpuHeap = 1;
         pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+#endif
         pipeInfo.pPipelineBinary       = pTable[SlowColorClear5_FP16].pBuffer;
         pipeInfo.pipelineBinarySize    = pTable[SlowColorClear5_FP16].size;
 
@@ -2762,9 +2971,11 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[5].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthClipEnable = false;
+        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp              = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable    = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2776,8 +2987,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
         pipeInfo.flags.overrideGpuHeap = 1;
         pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+#endif
         pipeInfo.pPipelineBinary       = pTable[SlowColorClear5_SINT16].pBuffer;
         pipeInfo.pipelineBinarySize    = pTable[SlowColorClear5_SINT16].size;
 
@@ -2790,9 +3003,11 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[5].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthClipEnable = false;
+        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp              = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable    = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2804,8 +3019,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
         pipeInfo.flags.overrideGpuHeap = 1;
         pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+#endif
         pipeInfo.pPipelineBinary       = pTable[SlowColorClear5_SNORM16].pBuffer;
         pipeInfo.pipelineBinarySize    = pTable[SlowColorClear5_SNORM16].size;
 
@@ -2818,9 +3035,11 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[5].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthClipEnable = false;
+        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp              = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable    = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2832,8 +3051,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
         pipeInfo.flags.overrideGpuHeap = 1;
         pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+#endif
         pipeInfo.pPipelineBinary       = pTable[SlowColorClear5_UINT16].pBuffer;
         pipeInfo.pipelineBinarySize    = pTable[SlowColorClear5_UINT16].size;
 
@@ -2846,9 +3067,11 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[5].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthClipEnable = false;
+        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp              = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable    = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2860,8 +3083,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
         pipeInfo.flags.overrideGpuHeap = 1;
         pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+#endif
         pipeInfo.pPipelineBinary       = pTable[SlowColorClear5_UNORM16].pBuffer;
         pipeInfo.pipelineBinarySize    = pTable[SlowColorClear5_UNORM16].size;
 
@@ -2874,9 +3099,11 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[5].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthClipEnable = false;
+        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp              = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable    = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2888,8 +3115,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
         pipeInfo.flags.overrideGpuHeap = 1;
         pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+#endif
         pipeInfo.pPipelineBinary       = pTable[SlowColorClear6_32ABGR].pBuffer;
         pipeInfo.pipelineBinarySize    = pTable[SlowColorClear6_32ABGR].size;
 
@@ -2902,9 +3131,11 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[6].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthClipEnable = false;
+        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp              = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable    = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2916,8 +3147,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
         pipeInfo.flags.overrideGpuHeap = 1;
         pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+#endif
         pipeInfo.pPipelineBinary       = pTable[SlowColorClear6_32GR].pBuffer;
         pipeInfo.pipelineBinarySize    = pTable[SlowColorClear6_32GR].size;
 
@@ -2930,9 +3163,11 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[6].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Zero, ChannelSwizzle::One };
 
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthClipEnable = false;
+        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp              = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable    = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2944,8 +3179,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
         pipeInfo.flags.overrideGpuHeap = 1;
         pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+#endif
         pipeInfo.pPipelineBinary       = pTable[SlowColorClear6_32R].pBuffer;
         pipeInfo.pipelineBinarySize    = pTable[SlowColorClear6_32R].size;
 
@@ -2958,9 +3195,11 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[6].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One };
 
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthClipEnable = false;
+        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp              = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable    = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2972,8 +3211,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
         pipeInfo.flags.overrideGpuHeap = 1;
         pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+#endif
         pipeInfo.pPipelineBinary       = pTable[SlowColorClear6_FP16].pBuffer;
         pipeInfo.pipelineBinarySize    = pTable[SlowColorClear6_FP16].size;
 
@@ -2986,9 +3227,11 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[6].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthClipEnable = false;
+        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp              = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable    = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -3000,8 +3243,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
         pipeInfo.flags.overrideGpuHeap = 1;
         pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+#endif
         pipeInfo.pPipelineBinary       = pTable[SlowColorClear6_SINT16].pBuffer;
         pipeInfo.pipelineBinarySize    = pTable[SlowColorClear6_SINT16].size;
 
@@ -3014,9 +3259,11 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[6].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthClipEnable = false;
+        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp              = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable    = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -3028,8 +3275,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
         pipeInfo.flags.overrideGpuHeap = 1;
         pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+#endif
         pipeInfo.pPipelineBinary       = pTable[SlowColorClear6_SNORM16].pBuffer;
         pipeInfo.pipelineBinarySize    = pTable[SlowColorClear6_SNORM16].size;
 
@@ -3042,9 +3291,11 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[6].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthClipEnable = false;
+        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp              = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable    = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -3056,8 +3307,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
         pipeInfo.flags.overrideGpuHeap = 1;
         pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+#endif
         pipeInfo.pPipelineBinary       = pTable[SlowColorClear6_UINT16].pBuffer;
         pipeInfo.pipelineBinarySize    = pTable[SlowColorClear6_UINT16].size;
 
@@ -3070,9 +3323,11 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[6].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthClipEnable = false;
+        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp              = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable    = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -3084,8 +3339,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
         pipeInfo.flags.overrideGpuHeap = 1;
         pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+#endif
         pipeInfo.pPipelineBinary       = pTable[SlowColorClear6_UNORM16].pBuffer;
         pipeInfo.pipelineBinarySize    = pTable[SlowColorClear6_UNORM16].size;
 
@@ -3098,9 +3355,11 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[6].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthClipEnable = false;
+        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp              = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable    = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -3112,8 +3371,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
         pipeInfo.flags.overrideGpuHeap = 1;
         pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+#endif
         pipeInfo.pPipelineBinary       = pTable[SlowColorClear7_32ABGR].pBuffer;
         pipeInfo.pipelineBinarySize    = pTable[SlowColorClear7_32ABGR].size;
 
@@ -3126,9 +3387,11 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[7].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthClipEnable = false;
+        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp              = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable    = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -3140,8 +3403,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
         pipeInfo.flags.overrideGpuHeap = 1;
         pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+#endif
         pipeInfo.pPipelineBinary       = pTable[SlowColorClear7_32GR].pBuffer;
         pipeInfo.pipelineBinarySize    = pTable[SlowColorClear7_32GR].size;
 
@@ -3154,9 +3419,11 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[7].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Zero, ChannelSwizzle::One };
 
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthClipEnable = false;
+        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp              = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable    = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -3168,8 +3435,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
         pipeInfo.flags.overrideGpuHeap = 1;
         pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+#endif
         pipeInfo.pPipelineBinary       = pTable[SlowColorClear7_32R].pBuffer;
         pipeInfo.pipelineBinarySize    = pTable[SlowColorClear7_32R].size;
 
@@ -3182,9 +3451,11 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[7].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One };
 
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthClipEnable = false;
+        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp              = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable    = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -3196,8 +3467,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
         pipeInfo.flags.overrideGpuHeap = 1;
         pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+#endif
         pipeInfo.pPipelineBinary       = pTable[SlowColorClear7_FP16].pBuffer;
         pipeInfo.pipelineBinarySize    = pTable[SlowColorClear7_FP16].size;
 
@@ -3210,9 +3483,11 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[7].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthClipEnable = false;
+        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp              = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable    = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -3224,8 +3499,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
         pipeInfo.flags.overrideGpuHeap = 1;
         pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+#endif
         pipeInfo.pPipelineBinary       = pTable[SlowColorClear7_SINT16].pBuffer;
         pipeInfo.pipelineBinarySize    = pTable[SlowColorClear7_SINT16].size;
 
@@ -3238,9 +3515,11 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[7].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthClipEnable = false;
+        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp              = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable    = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -3252,8 +3531,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
         pipeInfo.flags.overrideGpuHeap = 1;
         pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+#endif
         pipeInfo.pPipelineBinary       = pTable[SlowColorClear7_SNORM16].pBuffer;
         pipeInfo.pipelineBinarySize    = pTable[SlowColorClear7_SNORM16].size;
 
@@ -3266,9 +3547,11 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[7].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthClipEnable = false;
+        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp              = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable    = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -3280,8 +3563,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
         pipeInfo.flags.overrideGpuHeap = 1;
         pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+#endif
         pipeInfo.pPipelineBinary       = pTable[SlowColorClear7_UINT16].pBuffer;
         pipeInfo.pipelineBinarySize    = pTable[SlowColorClear7_UINT16].size;
 
@@ -3294,9 +3579,11 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[7].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthClipEnable = false;
+        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp              = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable    = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -3308,8 +3595,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
         pipeInfo.flags.overrideGpuHeap = 1;
         pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+#endif
         pipeInfo.pPipelineBinary       = pTable[SlowColorClear7_UNORM16].pBuffer;
         pipeInfo.pipelineBinarySize    = pTable[SlowColorClear7_UNORM16].size;
 
@@ -3322,9 +3611,11 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[7].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthClipEnable = false;
+        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp              = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable    = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -3336,8 +3627,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
         pipeInfo.flags.overrideGpuHeap = 1;
         pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+#endif
         pipeInfo.pPipelineBinary       = pTable[ResolveDepth].pBuffer;
         pipeInfo.pipelineBinarySize    = pTable[ResolveDepth].size;
 
@@ -3345,9 +3638,11 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
 
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthClipEnable = false;
+        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp              = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable    = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -3359,8 +3654,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
         pipeInfo.flags.overrideGpuHeap = 1;
         pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+#endif
         pipeInfo.pPipelineBinary       = pTable[ResolveDepthCopy].pBuffer;
         pipeInfo.pipelineBinarySize    = pTable[ResolveDepthCopy].size;
 
@@ -3373,9 +3670,11 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[0].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One };
 
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthClipEnable = false;
+        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp              = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable    = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -3387,8 +3686,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
         pipeInfo.flags.overrideGpuHeap = 1;
         pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+#endif
         pipeInfo.pPipelineBinary       = pTable[ResolveStencil].pBuffer;
         pipeInfo.pipelineBinarySize    = pTable[ResolveStencil].size;
 
@@ -3396,8 +3697,10 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
 
-        pipeInfo.cbState.logicOp         = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride = BinningOverride::Disable;
+        pipeInfo.viewportInfo.depthClipEnable = false;
+        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp              = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -3409,8 +3712,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
         pipeInfo.flags.overrideGpuHeap = 1;
         pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+#endif
         pipeInfo.pPipelineBinary       = pTable[ResolveStencilCopy].pBuffer;
         pipeInfo.pipelineBinarySize    = pTable[ResolveStencilCopy].size;
 
@@ -3423,8 +3728,10 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[0].swizzledFormat.swizzle =
             { ChannelSwizzle::Y, ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::One };
 
-        pipeInfo.cbState.logicOp         = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride = BinningOverride::Disable;
+        pipeInfo.viewportInfo.depthClipEnable = false;
+        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp              = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -3436,8 +3743,10 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
         pipeInfo.flags.overrideGpuHeap = 1;
         pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+#endif
         pipeInfo.pPipelineBinary       = pTable[ScaledCopyImageColorKey].pBuffer;
         pipeInfo.pipelineBinarySize    = pTable[ScaledCopyImageColorKey].size;
 
@@ -3450,9 +3759,11 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[0].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthClipEnable = false;
+        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp              = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable    = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,

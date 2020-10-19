@@ -22,22 +22,30 @@
  #  SOFTWARE.
  #
  #######################################################################################################################
-
 cmake_minimum_required(VERSION 3.9...3.16)
-project(PAL
-    # While PAL is primarily a C++ library, it also has some C files.
-    LANGUAGES CXX C
-)
 
 ### CMake Includes #####################################################################################################
-list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake/Modules)
-list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake/)
+list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake/Modules)
+list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake/)
 include(AmdCmakeHelper)
 include(PalVersionHelper)
 include(PalOptions)
 include(PalOverrides)
 include(PalCompileDefinitions)
 include(PalCompilerOptions)
+
+### Standlone Build ####################################################################################################
+set(PAL_IS_STANDALONE OFF)
+if (${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_CURRENT_SOURCE_DIR})
+    message(AUTHOR_WARNING "Pal is being built as a standalone project. This isn't properly supported yet.")
+    set(PAL_IS_STANDALONE ON)
+endif()
+
+### Define Project #####################################################################################################
+project(PAL
+    # While PAL is primarily a C++ library, it also has some C files.
+    LANGUAGES CXX C
+)
 
 ### Project Options ####################################################################################################
 pal_options()

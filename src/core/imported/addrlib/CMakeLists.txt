@@ -1,8 +1,7 @@
-
 ##
  #######################################################################################################################
  #
- #  Copyright (c) 2017-2020 Advanced Micro Devices, Inc. All Rights Reserved.
+ #  Copyright (c) 2020 Advanced Micro Devices, Inc. All Rights Reserved.
  #
  #  Permission is hereby granted, free of charge, to any person obtaining a copy
  #  of this software and associated documentation files (the "Software"), to deal
@@ -23,8 +22,7 @@
  #  SOFTWARE.
  #
  #######################################################################################################################
-
-cmake_minimum_required(VERSION 3.1)
+cmake_minimum_required(VERSION 3.9...3.15)
 
 project(AddrLib VERSION 4.4.0 LANGUAGES CXX)
 
@@ -56,10 +54,9 @@ option(ADDR_LNX_KERNEL_BUILD "Linux kernel build?"                              
 option(ADDR_RENOIR_BUILD      "Build support for RENOIR?"    OFF                                               )
 option(ADDR_NAVI14_BUILD      "Build support for NAVI14?"    OFF                                               )
 
-option(ADDR_ENABLE_LTO       "Build with LTO enabled"        ON                                                 )
 option(ADDR_ENABLE_WERROR    "Build with -Werror enabled"    OFF                                                )
 
-add_library(addrlib STATIC "")
+add_library(addrlib STATIC)
 
 target_include_directories(addrlib PUBLIC  inc
                                    PRIVATE src
@@ -174,53 +171,6 @@ set_target_properties(addrlib PROPERTIES CXX_STANDARD              11
                                          CXX_STANDARD_REQUIRED     ON
                                          CXX_EXTENSIONS            OFF
                                          POSITION_INDEPENDENT_CODE ON)
-
-if(ADDR_ENABLE_LTO)
-    if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-
-        # [GCC] Options That Control Optimization
-        #   https://gcc.gnu.org/onlinedocs/gcc-8.1.0/gcc/Optimize-Options.html
-        if(CMAKE_BUILD_TYPE_RELEASE)
-            execute_process(COMMAND ${CMAKE_C_COMPILER} -dumpversion OUTPUT_VARIABLE GCC_VERSION)
-            if (GCC_VERSION VERSION_GREATER 5.3 OR GCC_VERSION VERSION_EQUAL 5.3)
-                target_compile_options(addrlib PRIVATE $<$<CONFIG:Release>:-flto  -fuse-linker-plugin -Wno-odr>)
-                message(WARNING "LTO enabled for address lib")
-            endif()
-        endif()
-
-    elseif((CMAKE_CXX_COMPILER_ID MATCHES "[Cc]lang")
-        )
-
-        # [Clang] Command Line Argument Reference
-        #    https://clang.llvm.org/docs/ClangCommandLineReference.html
-        #
-        # [Clang] Thin LTO
-        #    https://clang.llvm.org/docs/ThinLTO.html
-        target_compile_options(addrlib PRIVATE -flto=thin)
-
-    elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-
-        if( (${CMAKE_VERSION} VERSION_GREATER "3.13") OR
-            (${CMAKE_VERSION} VERSION_EQUAL   "3.13") )
-
-            target_compile_options(addrlib PRIVATE
-                $<$<CONFIG:Release>:/GL>
-                )
-
-            # STATIC_LIBRARY_OPTIONS was introduced in 3.13 and allows generator expressions
-            set_target_properties(addrlib PROPERTIES
-                STATIC_LIBRARY_OPTIONS $<$<CONFIG:Release>:/LTCG>
-                )
-
-        else()
-            target_compile_options(addrlib PRIVATE /GL)
-            set_target_properties(addrlib PROPERTIES STATIC_LIBRARY_FLAGS /LTCG)
-        endif()
-
-    else()
-        message(FATAL_ERROR "IPO is not supported!")
-    endif()
-endif()
 
 if((CMAKE_CXX_COMPILER_ID MATCHES "GNU|[Cc]lang")
   )

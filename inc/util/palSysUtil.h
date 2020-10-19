@@ -370,6 +370,17 @@ Result GetStatusOfDir(
     uint64*     pTotalSize,
     uint64*     pOldestTime);
 
+/// Almost-Posix-style rename file or directory: replaces already-existing file.
+/// Posix says this operation is atomic; Windows does not specify.
+///
+/// @param [in] pOldName Old file or directory name
+/// @param [in] pNewName Name to rename to
+///
+/// @returns Result::Success if file/directory successfully moved.
+Result Rename(
+    const char* pOldName,
+    const char* pNewName);
+
 /// Get the Process ID of the current process
 ///
 /// @returns The Process ID of the current process

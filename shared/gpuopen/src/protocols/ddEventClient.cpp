@@ -32,7 +32,6 @@
 #include <protocols/ddEventClient.h>
 #include <msgChannel.h>
 #include <ddTransferManager.h>
-#include <util/ddByteReader.h>
 
 #define EVENT_CLIENT_MIN_VERSION EVENT_INDEXING_VERSION
 #define EVENT_CLIENT_MAX_VERSION EVENT_INDEXING_VERSION
@@ -45,10 +44,6 @@ namespace EventProtocol
 // =====================================================================================================================
 EventClient::EventClient(IMsgChannel* pMsgChannel)
     : BaseProtocolClient(pMsgChannel, Protocol::Event, EVENT_CLIENT_MIN_VERSION, EVENT_CLIENT_MAX_VERSION)
-    , m_eventDataBuffer(pMsgChannel->GetAllocCb())
-    , m_eventDataWriter(&m_eventDataBuffer)
-    , m_eventDataPayloadOffset(0)
-    , m_eventDataState(EventDataState::WaitingForHeader)
 {
 }
 
@@ -236,175 +231,12 @@ Result EventClient::UpdateProviders(
 }
 
 // =====================================================================================================================
-size_t EventClient::GetTokenSize(EventTokenType tokenType)
+void EventClient::EmitEventData(const void* pEventData, size_t eventDataSize)
 {
-    switch (tokenType)
+    if (m_callback.pfnRawEventDataReceived != nullptr)
     {
-    case EventTokenType::Provider:
-        return sizeof(EventProviderToken);
-    case EventTokenType::Data:
-        return sizeof(EventDataToken);
-    case EventTokenType::Timestamp:
-        return sizeof(EventTimestampToken);
-    case EventTokenType::TimeDelta:
-        return sizeof(EventTimeDeltaToken);
-    case EventTokenType::Count:
-        break;
+        m_callback.pfnRawEventDataReceived(m_callback.pUserdata, pEventData, eventDataSize);
     }
-    DD_ASSERT_REASON("Invalid token type!");
-    return 0;
-}
-
-// =====================================================================================================================
-void EventClient::OnTokenAvailable()
-{
-    DD_UNHANDLED_RESULT(m_eventDataWriter.End());
-
-    if (m_callback.pCallback != nullptr)
-    {
-        m_callback.pCallback(m_callback.pUserdata, m_eventDataBuffer.Data(), m_eventDataBuffer.Size());
-    }
-
-    // Once we've returned from the callback, we can reset our state to prepare to process the next one
-    ResetEventDataBufferState();
-}
-
-// =====================================================================================================================
-Result EventClient::ReceiveEventData(const void* pEventData, size_t eventDataSize)
-{
-    Result result = Result::Success;
-
-    ByteReader reader(pEventData, eventDataSize);
-    while (reader.HasBytes() && (result == Result::Success))
-    {
-        switch (m_eventDataState)
-        {
-        case EventDataState::WaitingForHeader:
-        {
-            // We should only be looking for a token header when we have an empty buffer
-            DD_ASSERT(m_eventDataBuffer.IsEmpty());
-
-            const EventTokenHeader* pTokenHeader = nullptr;
-            result = reader.Get(&pTokenHeader);
-            if (result == Result::Success)
-            {
-                m_eventDataWriter.Write(*pTokenHeader);
-
-                m_eventDataState = EventDataState::WaitingForToken;
-            }
-            break;
-        }
-        case EventDataState::WaitingForToken:
-        {
-            ByteReader bufferReader(m_eventDataBuffer.Data(), m_eventDataBuffer.Size());
-
-            const EventTokenHeader* pTokenHeader = nullptr;
-            result = bufferReader.Get(&pTokenHeader);
-            if (result == Result::Success)
-            {
-                const size_t tokenSize = GetTokenSize(static_cast<EventTokenType>(pTokenHeader->id));
-
-                const size_t bytesCopied = bufferReader.Remaining();
-                const size_t copySize = Platform::Min(reader.Remaining(), (tokenSize - bytesCopied));
-
-                const void* pBytes = nullptr;
-                result = reader.GetBytes(&pBytes, copySize);
-                if (result == Result::Success)
-                {
-                    m_eventDataWriter.WriteBytes(pBytes, copySize);
-
-                    if (m_eventDataBuffer.Size() == (tokenSize + kTokenHeaderSize))
-                    {
-                        if ((pTokenHeader->id == static_cast<uint8>(EventTokenType::Data)) ||
-                            (pTokenHeader->id == static_cast<uint8>(EventTokenType::TimeDelta)))
-                        {
-                            m_eventDataPayloadOffset = m_eventDataBuffer.Size();
-                            m_eventDataState = EventDataState::WaitingForPayload;
-                        }
-                        else
-                        {
-                            OnTokenAvailable();
-                        }
-                    }
-                }
-            }
-
-            break;
-        }
-        case EventDataState::WaitingForPayload:
-        {
-            ByteReader bufferReader(m_eventDataBuffer.Data(), m_eventDataBuffer.Size());
-
-            const EventTokenHeader* pTokenHeader = nullptr;
-            result = bufferReader.Get(&pTokenHeader);
-            size_t payloadSize = 0;
-            if (result == Result::Success)
-            {
-                if (pTokenHeader->id == static_cast<uint8>(EventTokenType::Data))
-                {
-                    const EventDataToken* pToken = nullptr;
-                    result = bufferReader.Get(&pToken);
-                    if (result == Result::Success)
-                    {
-                        // Make sure the token size actually fits in a pointer before casting it
-                        if (pToken->size <= SIZE_MAX)
-                        {
-                            payloadSize = static_cast<size_t>(pToken->size);
-                        }
-                        else
-                        {
-                            DD_ASSERT_REASON("Packet too large for 32bit client implementation!");
-                            result = Result::Aborted;
-                        }
-                    }
-                }
-                else if (pTokenHeader->id == static_cast<uint8>(EventTokenType::TimeDelta))
-                {
-                    const EventTimeDeltaToken* pToken = nullptr;
-                    result = bufferReader.Get(&pToken);
-                    if (result == Result::Success)
-                    {
-                        payloadSize = pToken->numBytes;
-                    }
-                }
-                else
-                {
-                    DD_ASSERT_REASON("Invalid token type!");
-                    result = Result::Aborted;
-                }
-                DD_ASSERT(payloadSize != 0);
-            }
-
-            if (result == Result::Success)
-            {
-                const size_t bytesCopied = bufferReader.Remaining();
-                const size_t copySize = Platform::Min(reader.Remaining(), (payloadSize - bytesCopied));
-
-                const void* pBytes = nullptr;
-                result = reader.GetBytes(&pBytes, copySize);
-                if (result == Result::Success)
-                {
-                    m_eventDataWriter.WriteBytes(pBytes, copySize);
-                }
-            }
-
-            if ((m_eventDataBuffer.Size() - m_eventDataPayloadOffset) == payloadSize)
-            {
-                if (result == Result::Success)
-                {
-                    OnTokenAvailable();
-                }
-                else
-                {
-                    ResetEventDataBufferState();
-                }
-            }
-            break;
-        }
-        }
-    }
-
-    return result;
 }
 
 // =====================================================================================================================
@@ -419,7 +251,7 @@ Result EventClient::ReadEventData(uint32 timeoutInMs)
         if (container.GetPayload<EventHeader>().command == EventMessage::EventDataUpdate)
         {
             const EventDataUpdatePayload& payload = container.GetPayload<EventDataUpdatePayload>();
-            result = ReceiveEventData(payload.GetEventDataBuffer(), payload.GetEventDataSize());
+            EmitEventData(payload.GetEventDataBuffer(), payload.GetEventDataSize());
         }
         else
         {
@@ -448,22 +280,6 @@ Result EventClient::FreeProvidersDescription(EventProvidersDescription** ppProvi
 }
 
 // =====================================================================================================================
-void EventClient::ResetEventDataBufferState()
-{
-    // Reset the size of the event data buffer without reallocating memory
-    m_eventDataBuffer.Reset();
-
-    m_eventDataPayloadOffset = 0;
-    m_eventDataState         = EventDataState::WaitingForHeader;
-}
-
-// =====================================================================================================================
-void EventClient::ResetState()
-{
-    ResetEventDataBufferState();
-}
-
-// =====================================================================================================================
 Result EventClient::ReceiveResponsePayload(SizedPayloadContainer* pContainer, EventMessage responseType)
 {
     // This function should never be used when the caller is directly looking for an event data update.
@@ -485,7 +301,7 @@ Result EventClient::ReceiveResponsePayload(SizedPayloadContainer* pContainer, Ev
             {
                 const EventDataUpdatePayload& payload = pContainer->GetPayload<EventDataUpdatePayload>();
 
-                result = ReceiveEventData(payload.GetEventDataBuffer(), payload.GetEventDataSize());
+                EmitEventData(payload.GetEventDataBuffer(), payload.GetEventDataSize());
             }
             else
             {

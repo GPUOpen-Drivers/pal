@@ -316,6 +316,8 @@ public:
     bool HasHtileLookupTable() const
         { return (HasHtileData() && (m_metaDataLookupTableOffsets[0] != 0u)); }
 
+    bool SupportsCompToReg(ImageLayout layout, const SubresId& subResId) const;
+
     // Returns a pointer to the Gfx9Dcc object associated with a particular sub-Resource.
     const  Gfx9Dcc*     GetDcc(ImageAspect  aspect) const { return m_pDcc[GetAspectIndex(aspect)]; }
     const  Gfx9Dcc*     GetDisplayDcc(ImageAspect aspect) const { return m_pDispDcc[GetAspectIndex(aspect)]; }

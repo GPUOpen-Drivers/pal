@@ -873,6 +873,7 @@ struct GpuChipProperties
                 uint32  numGl2a;
                 uint32  numGl2c;
 
+                uint32  minNumWgpPerSa;
                 uint16  activeWgpMask  [Gfx9MaxShaderEngines] [MaxShaderArraysPerSe];
                 uint16  alwaysOnWgpMask[Gfx9MaxShaderEngines] [MaxShaderArraysPerSe];
             } gfx10;

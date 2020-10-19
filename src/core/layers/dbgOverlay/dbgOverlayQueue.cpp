@@ -64,27 +64,36 @@ Queue::~Queue()
 
     pPlatform->GetFpsMgr()->NotifyQueueDestroyed(this);
 
-    for (uint32 qIdx = 0; qIdx < m_queueCount; qIdx++)
+    if (m_pSubQueueInfos != nullptr)
     {
-        SubQueueInfo* pSubQueueInfo = &m_pSubQueueInfos[qIdx];
-        PAL_ASSERT(pSubQueueInfo->pGpuTimestamps != nullptr);
-
-        while (pSubQueueInfo->pGpuTimestamps->NumElements() > 0)
+        for (uint32 qIdx = 0; qIdx < m_queueCount; qIdx++)
         {
-            GpuTimestampPair* pTimestamp = nullptr;
-            pSubQueueInfo->pGpuTimestamps->PopFront(&pTimestamp);
-            DestroyGpuTimestampPair(pTimestamp);
-        }
-        PAL_SAFE_DELETE(pSubQueueInfo->pGpuTimestamps, pPlatform);
+            SubQueueInfo* pSubQueueInfo = &m_pSubQueueInfos[qIdx];
+            if (pSubQueueInfo == nullptr)
+            {
+                continue;
+            }
 
-        if (pSubQueueInfo->pTimestampMemory != nullptr)
-        {
-            pSubQueueInfo->pTimestampMemory->Destroy();
-            PAL_SAFE_FREE(pSubQueueInfo->pTimestampMemory, pPlatform);
+            if (pSubQueueInfo->pGpuTimestamps != nullptr)
+            {
+                while (pSubQueueInfo->pGpuTimestamps->NumElements() > 0)
+                {
+                    GpuTimestampPair* pTimestamp = nullptr;
+                    pSubQueueInfo->pGpuTimestamps->PopFront(&pTimestamp);
+                    DestroyGpuTimestampPair(pTimestamp);
+                }
+                PAL_SAFE_DELETE(pSubQueueInfo->pGpuTimestamps, pPlatform);
+            }
+
+            if (pSubQueueInfo->pTimestampMemory != nullptr)
+            {
+                pSubQueueInfo->pTimestampMemory->Destroy();
+                PAL_SAFE_FREE(pSubQueueInfo->pTimestampMemory, pPlatform);
+            }
         }
+
+        PAL_SAFE_DELETE_ARRAY(m_pSubQueueInfos, pPlatform);
     }
-
-    PAL_SAFE_DELETE_ARRAY(m_pSubQueueInfos, pPlatform);
 }
 
 // =====================================================================================================================

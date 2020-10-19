@@ -796,8 +796,11 @@ void GfxCmdBuffer::CmdPostProcessFrame(
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 625
             // The surface must be fully expanded if another component may access it via PFPA,
             // or KMD nofify UMD to expand DCC.
+            // Presentable surface has dcc and displayDcc, but turbo sync surface hasn't dcc,
+            // before present, need decompress dcc when turbo sync enables.
             if (postProcessInfo.fullScreenFrameMetadataControlFlags.primaryHandle ||
-                postProcessInfo.fullScreenFrameMetadataControlFlags.expandDcc)
+                postProcessInfo.fullScreenFrameMetadataControlFlags.expandDcc     ||
+                postProcessInfo.fullScreenFrameMetadataControlFlags.timerNodeSubmission)
             {
                 BarrierInfo barrier = {};
 

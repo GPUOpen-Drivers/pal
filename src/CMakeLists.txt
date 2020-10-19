@@ -25,10 +25,14 @@
 
 include(PalVersionHelper)
 
+# Nestly PAL targets under the label following label
+set(CMAKE_FOLDER "${CMAKE_FOLDER}/PAL Libs")
+
 ### Create PAL Library #################################################################################################
 add_library(pal STATIC)
 
 ### PAL Subprojects ####################################################################################################
+
 ### ADDRLIB ####################################################################
 add_subdirectory(${PAL_ADDR_PATH} ${PROJECT_BINARY_DIR}/addrlib)
 target_link_libraries(pal PRIVATE addrlib)
@@ -145,12 +149,10 @@ target_sources(pal PRIVATE
     ${PAL_SOURCE_DIR}/cmake/Modules/FindXCB.cmake
     # PAL modules
     ${PAL_SOURCE_DIR}/cmake/PalCompileDefinitions.cmake
-    ${PAL_SOURCE_DIR}/cmake/PalCompileDefinitionsGpu.cmake
     ${PAL_SOURCE_DIR}/cmake/PalCompilerOptions.cmake
     ${PAL_SOURCE_DIR}/cmake/PalCompilerWarnings.cmake
     ${PAL_SOURCE_DIR}/cmake/PalOptions.cmake
     ${PAL_SOURCE_DIR}/cmake/PalOverrides.cmake
-    ${PAL_SOURCE_DIR}/cmake/PalOverridesGpu.cmake
     ${PAL_SOURCE_DIR}/cmake/PalVersionHelper.cmake
 )
 
@@ -578,19 +580,3 @@ endif()
 target_find_headers(pal)
 target_source_groups(pal)
 
-### Other ##############################################################################################################
-# CMAKE-TODO: The AMD Make builds have sub projects inherit compiler options / definitions.
-# The desired behavior is not fully known at this time but this works to keep the same behavior.
-#
-# TODO: Does anyone use this?
-if(AMD_MAKE_BUILD)
-    if(AMD_ADDITIONAL_C_DEFINITIONS)
-        separate_arguments(AMD_ADDITIONAL_C_DEFINITIONS UNIX_COMMAND ${AMD_ADDITIONAL_C_DEFINITIONS})
-        target_compile_definitions(pal PRIVATE $<$<COMPILE_LANGUAGE:C>:${AMD_ADDITIONAL_C_DEFINITIONS}>)
-    endif()
-
-    if(AMD_ADDITIONAL_CXX_DEFINITIONS)
-        separate_arguments(AMD_ADDITIONAL_CXX_DEFINITIONS UNIX_COMMAND ${AMD_ADDITIONAL_CXX_DEFINITIONS})
-        target_compile_definitions(pal PRIVATE $<$<COMPILE_LANGUAGE:CXX>:${AMD_ADDITIONAL_CXX_DEFINITIONS}>)
-    endif()
-endif()

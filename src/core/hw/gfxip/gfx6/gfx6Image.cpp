@@ -857,6 +857,10 @@ Result Image::Finalize(
             pGpuMemLayout->metadataHeaderSize = (*pGpuMemSize - pGpuMemLayout->metadataHeaderOffset);
         }
 
+        // Force its size 16 bytes aligned so it's able to go through the fastest CopyBufferDqword in
+        // CopyMemoryCs (e.g. called by CmdCopyMemory or CmdCloneImageData).
+        *pGpuMemSize = Pow2Align(*pGpuMemSize, 16);
+
         InitLayoutStateMasks(allowComputeDecompress);
 
         if (m_createInfo.flags.prt != 0)
@@ -1107,22 +1111,40 @@ void Image::InitLayoutStateMasksOneMip(
         const uint32 depth   = GetDepthStencilStateIndex(ImageAspect::Depth);
         const uint32 stencil = GetDepthStencilStateIndex(ImageAspect::Stencil);
 
-        m_layoutToState[mip].depthStencil[depth].compressed     = compressedLayouts;
+        if (m_pHtile->DepthCompressed())
+        {
+            m_layoutToState[mip].depthStencil[depth].compressed = compressedLayouts;
+        }
+        else
+        {
+            m_layoutToState[mip].depthStencil[depth].compressed.usages  = 0;
+            m_layoutToState[mip].depthStencil[depth].compressed.engines = 0;
+        }
+
         m_layoutToState[mip].depthStencil[depth].decomprWithHiZ = decomprWithHiZ;
+
         if (depth != stencil)
         {
             // Supported stencil layouts per compression state
             if (m_pHtile->TileStencilDisabled() == false)
             {
-                m_layoutToState[mip].depthStencil[stencil].compressed     = compressedLayouts;
                 m_layoutToState[mip].depthStencil[stencil].decomprWithHiZ = decomprWithHiZ;
             }
             else
             {
-                m_layoutToState[mip].depthStencil[stencil].compressed.usages      = 0;
-                m_layoutToState[mip].depthStencil[stencil].compressed.engines     = 0;
                 m_layoutToState[mip].depthStencil[stencil].decomprWithHiZ.usages  = 0;
                 m_layoutToState[mip].depthStencil[stencil].decomprWithHiZ.engines = 0;
+            }
+
+            if ((m_pHtile->TileStencilDisabled() == false) &&
+                m_pHtile->StencilCompressed())
+            {
+                m_layoutToState[mip].depthStencil[stencil].compressed = compressedLayouts;
+            }
+            else
+            {
+                m_layoutToState[mip].depthStencil[stencil].compressed.usages  = 0;
+                m_layoutToState[mip].depthStencil[stencil].compressed.engines = 0;
             }
         }
 

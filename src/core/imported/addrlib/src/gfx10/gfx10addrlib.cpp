@@ -946,30 +946,28 @@ ChipFamily Gfx10Lib::HwlConvertChipFamily(
 {
     ChipFamily family = ADDR_CHIP_FAMILY_NAVI;
 
-    m_settings.dccUnsup3DSwDis = 1;
+    m_settings.dccUnsup3DSwDis  = 1;
+    m_settings.dsMipmapHtileFix = 1;
 
     switch (chipFamily)
     {
         case FAMILY_NV:
+            if (ASICREV_IS_NAVI10_P(chipRevision))
+            {
+                m_settings.dsMipmapHtileFix = 0;
+                m_settings.isDcn20          = 1;
+            }
+
+            if (ASICREV_IS_NAVI14_M(chipRevision))
+            {
+                m_settings.isDcn20 = 1;
+            }
 
             break;
 
         default:
             ADDR_ASSERT(!"Unknown chip family");
             break;
-    }
-
-    m_settings.dsMipmapHtileFix = 1;
-
-    if (ASICREV_IS_NAVI10_P(chipRevision))
-    {
-        m_settings.dsMipmapHtileFix = 0;
-    }
-
-    if (ASICREV_IS_NAVI10_P(chipRevision) ||
-        ASICREV_IS_NAVI14_M(chipRevision))
-    {
-        m_settings.isDcn20 = 1;
     }
 
     m_configFlags.use32bppFor422Fmt = TRUE;

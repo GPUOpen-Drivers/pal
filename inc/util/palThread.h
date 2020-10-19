@@ -31,6 +31,10 @@
 
 #pragma once
 
+#if defined(__unix__)
+#include <pthread.h>
+#endif
+
 #include "palUtil.h"
 
 namespace Util

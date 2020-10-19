@@ -1027,6 +1027,7 @@ void LogContext::Enum(
         nullptr,
         nullptr,
         nullptr,
+        nullptr,
 
         "Max",
         "All",
@@ -1640,11 +1641,14 @@ void LogContext::Enum(
 {
     const char*const StringTable[] =
     {
-        "Wrap",        // 0x0,
-        "Mirror",      // 0x1,
-        "Clamp",       // 0x2,
-        "MirrorOnce",  // 0x3,
-        "ClampBorder", // 0x4,
+        "Wrap",                  // 0x0,
+        "Mirror",                // 0x1,
+        "Clamp",                 // 0x2,
+        "MirrorOnce",            // 0x3,
+        "ClampBorder",           // 0x4,
+        "MirrorClampHalfBorder", // 0x5,
+        "ClampHalfBorder",       // 0x6,
+        "MirrorClampBorder",     // 0x7,
     };
 
     static_assert(ArrayLen(StringTable) == static_cast<uint32>(TexAddressMode::Count),

@@ -55,6 +55,8 @@ public:
 
     virtual void WaitForImageIdle(uint32 imageIndex) override;
 
+    virtual bool NeedWindowSizeChangedCheck() const override;
+
 private:
     SwapChain(const SwapChainCreateInfo& createInfo, Device* pDevice);
     virtual ~SwapChain();

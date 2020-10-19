@@ -321,7 +321,11 @@ Result GraphicsPipeline::HwlInit(
                                           loadInfo.loadedShRegCount);
         result = PerformRelocationsAndUploadToGpuMemory(
             metadata,
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
             (createInfo.flags.overrideGpuHeap == 1) ? createInfo.preferredHeapType : GpuHeapInvisible,
+#else
+            IsInternal() ? GpuHeapLocal : m_pDevice->Parent()->GetPublicSettings()->pipelinePreferredHeap,
+#endif
             &uploader);
 
         if (result == Result::Success)
@@ -449,10 +453,31 @@ const ShaderStageInfo* GraphicsPipeline::GetShaderStageInfo(
 
 // =====================================================================================================================
 // Helper function to compute the WAVE_LIMIT field of the SPI_SHADER_PGM_RSRC3* registers.
-uint32 GraphicsPipeline::CalcMaxWavesPerSh(
+uint32 GraphicsPipeline::CalcMaxWavesPerSe(
     float maxWavesPerCu1,
     float maxWavesPerCu2
     ) const
+{
+    // The maximum number of waves per SH in "register units".
+    // By default set the WAVE_LIMIT field to be unlimited.
+    // Limits given by the ELF will only apply if the caller doesn't set their own limit.
+    uint32 wavesPerSe = 0;
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 630
+    const auto& gfx9ChipProps = m_pDevice->Parent()->ChipProperties().gfx9;
+    wavesPerSe = CalcMaxWavesPerSh(maxWavesPerCu1, maxWavesPerCu2) * gfx9ChipProps.numShaderArrays;
+#else
+    wavesPerSe = CalcMaxWavesPerSh(maxWavesPerCu1, maxWavesPerCu2);
+#endif
+
+    return wavesPerSe;
+}
+
+// =====================================================================================================================
+// Helper function to compute the max wave per SH.
+uint32 GraphicsPipeline::CalcMaxWavesPerSh(
+    float maxWavesPerCu1,
+    float maxWavesPerCu2) const
 {
     // The HW shader stage might a combination of two API shader stages (e.g., for GS copy shaders), so we must apply
     // the minimum wave limit of both API shader stages.  Note that zero is the largest value because it means
@@ -496,7 +521,15 @@ void GraphicsPipeline::CalcDynamicStageInfo(
     DynamicStageInfo*                pStageInfo
     ) const
 {
-    pStageInfo->wavesPerSh   = CalcMaxWavesPerSh(shaderInfo.maxWavesPerCu, 0);
+    if (IsGfx10Plus(m_gfxLevel))
+    {
+        pStageInfo->wavesPerSh   = CalcMaxWavesPerSe(shaderInfo.maxWavesPerCu, 0);
+    }
+    else
+    {
+        pStageInfo->wavesPerSh   = CalcMaxWavesPerSh(shaderInfo.maxWavesPerCu, 0);
+    }
+
     pStageInfo->cuEnableMask = shaderInfo.cuEnableMask;
 }
 
@@ -508,7 +541,14 @@ void GraphicsPipeline::CalcDynamicStageInfo(
     DynamicStageInfo*                pStageInfo
     ) const
 {
-    pStageInfo->wavesPerSh   = CalcMaxWavesPerSh(shaderInfo1.maxWavesPerCu, shaderInfo2.maxWavesPerCu);
+    if (IsGfx10Plus(m_gfxLevel))
+    {
+        pStageInfo->wavesPerSh   = CalcMaxWavesPerSe(shaderInfo1.maxWavesPerCu, shaderInfo2.maxWavesPerCu);
+    }
+    else
+    {
+        pStageInfo->wavesPerSh   = CalcMaxWavesPerSh(shaderInfo1.maxWavesPerCu, shaderInfo2.maxWavesPerCu);
+    }
     pStageInfo->cuEnableMask = shaderInfo1.cuEnableMask & shaderInfo2.cuEnableMask;
 }
 

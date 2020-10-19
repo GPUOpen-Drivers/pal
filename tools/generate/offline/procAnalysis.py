@@ -424,10 +424,32 @@ class ProcMgr:
         fp.write("{\n")
         fp.write("    Result           result      = Result::Success;\n")
         fp.write("    constexpr uint32 LibNameSize = 64;\n")
+        # On Android, there is no libdrm.so.2 and libdrm_amdgpu.so.1. There are only libdrm.so and libamdgpu_drm.so.
+        # Generate the code for Android accordingly.
+
+        androidLibdrm = [];
+        for key in self.libraries.keys():
+            if key.find("libdrm") >= 0:
+                # Get the base name and append ".so" to generate the library name without version.
+                androidLibdrm.append(key.split('.')[0] + '.so');
+                print key.split('.')[0]
+
+        if len(androidLibdrm) > 0:
+            fp.write("#if PAL_BUILD_ANDROID\n")
+            fp.write("    char LibNames[" + name + "LibrariesCount][LibNameSize] = {\n")
+            for key in androidLibdrm:
+                fp.write("        \"" + key + "\",\n")
+            fp.write("    };\n")
+            fp.write("#else\n")
+
         fp.write("    char LibNames[" + name + "LibrariesCount][LibNameSize] = {\n")
         for key in self.libraries.keys():
             fp.write("        \"" + key + "\",\n")
-        fp.write("    };\n\n")
+        fp.write("    };\n")
+
+        if len(androidLibdrm) > 0:
+            fp.write("#endif\n")
+
         if (self.needSpecializedInit):
             fp.write("    SpecializedInit(pPlatform, &LibNames[LibDrmAmdgpu][0]);\n")
         # load function point from libraries.
@@ -437,6 +459,7 @@ class ProcMgr:
             libraryEnum = self.GetFormattedLibraryName(key)
             fp.write("        // resolve symbols from " + key + "\n")
             fp.write("        result = m_library[" + libraryEnum + "].Load(LibNames[" + libraryEnum + "]);\n")
+            fp.write("        PAL_ASSERT_MSG(result == Result::Success, \"Failed to load " + self.libraryDict[key] +" library\");\n")
             fp.write("        if (result == Result::Success)\n")
             fp.write("        {\n")
             for entry in self.libraries[key]:

@@ -1449,14 +1449,15 @@ uint32* DmaCmdBuffer::CopyImageMemTiledTransform(
     SetupMetaData(image, &packet, (deTile == false));
 
     auto*const  pPacket = reinterpret_cast<SDMA_PKT_COPY_TILED_SUBWIN*>(pCmdSpace);
-    *pPacket = packet;
+    *pPacket   = packet;
+    pCmdSpace += PacketDwords;
 
     if (deTile == false)
     {
         pCmdSpace = UpdateImageMetaData(image, pCmdSpace);
     }
 
-    return pCmdSpace + PacketDwords;
+    return pCmdSpace;
 }
 
 // =====================================================================================================================

@@ -482,7 +482,9 @@
         "General"
       ],
       "Defaults": {
-        "Default": false
+        "Default": false,
+        "WinDefault": false,
+        "LnxDefault": true
       },
       "Scope": "PrivatePalKey",
       "Type": "bool",

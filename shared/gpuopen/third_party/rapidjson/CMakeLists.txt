@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.5)
+cmake_minimum_required(VERSION 3.10..3.16)
 project(RapidJSON VERSION 1.1.0 LANGUAGES CXX)
 
 add_library(rapidjson INTERFACE)

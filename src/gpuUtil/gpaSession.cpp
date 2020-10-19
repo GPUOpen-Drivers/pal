@@ -3464,9 +3464,11 @@ Result GpaSession::AcquirePerfExperiment(
                 constexpr size_t DefaultSqttSeBufferSize = 128 * 1024 * 1024;
 
                 // Use default SQTT size if client doesn't request specific size.
-                const size_t sqttSeBufferSize = static_cast<size_t>((sampleConfig.sqtt.gpuMemoryLimit == 0) ?
-                    Util::Min(m_perfExperimentProps.maxSqttSeBufferSize, DefaultSqttSeBufferSize) :
-                    sampleConfig.sqtt.gpuMemoryLimit / m_perfExperimentProps.shaderEngineCount);
+                const size_t userSeMemoryLimit = static_cast<size_t>(sampleConfig.sqtt.gpuMemoryLimit);
+                const size_t sqttSeBufferSize = Util::Min(m_perfExperimentProps.maxSqttSeBufferSize,
+                                                          ((userSeMemoryLimit == 0) ?
+                                                           DefaultSqttSeBufferSize :
+                                                           userSeMemoryLimit));
 
                 const size_t alignedBufferSize = Util::Pow2AlignDown(sqttSeBufferSize,
                                                                      m_perfExperimentProps.sqttSeBufferAlignment);
@@ -3475,7 +3477,6 @@ Result GpaSession::AcquirePerfExperiment(
                 ThreadTraceInfo sqttInfo = { };
                 sqttInfo.traceType                             = PerfTraceType::ThreadTrace;
                 sqttInfo.optionFlags.bufferSize                = 1;
-                sqttInfo.optionValues.bufferSize               = alignedBufferSize;
                 sqttInfo.optionFlags.threadTraceStallBehavior  = 1;
                 sqttInfo.optionValues.threadTraceStallBehavior = sampleConfig.sqtt.flags.stallMode;
 
@@ -3506,6 +3507,8 @@ Result GpaSession::AcquirePerfExperiment(
                 const uint32 traceSeMask = (sampleConfig.sqtt.seMask == 0) ? activeSeMask : (sampleConfig.sqtt.seMask & activeSeMask);
                 for (uint32 i = 0; (i < m_perfExperimentProps.shaderEngineCount) && (result == Result::Success); i++)
                 {
+                    sqttInfo.optionValues.bufferSize = alignedBufferSize;
+
                     if (Util::TestAnyFlagSet(traceSeMask, 1 << i))
                     {
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 623
@@ -3516,9 +3519,25 @@ Result GpaSession::AcquirePerfExperiment(
                             (Util::TestAnyFlagSet(sampleConfig.sqtt.seDetailedMask, 1 << i) ||
                              (sampleConfig.sqtt.seDetailedMask == 0));
 
-                        sqttInfo.optionFlags.threadTraceShaderTypeMask  = 1;
-                        sqttInfo.optionValues.threadTraceShaderTypeMask =
-                            enableDetailedTokens ? PerfShaderMaskAll : static_cast<PerfExperimentShaderFlags>(0);
+                        // In the case of the seDetailedMask set for this specific SE we want to increase the buffer
+                        // size.
+                        if (Util::TestAnyFlagSet(sampleConfig.sqtt.seDetailedMask, 1 << i) &&
+                            (skipInstTokens == false))
+                        {
+                            constexpr size_t DetailSqttSeBufferMultiplier = 4;
+                            sqttInfo.optionValues.bufferSize *= DetailSqttSeBufferMultiplier;
+                        }
+
+                        // All shader types are enabled by default so we don't need to modify the shader type mask when
+                        // detailed tokens are enabled for this SE.
+                        // If the user didn't request detailed tokens for this SE, we need to override the shader type
+                        // mask to turn them off.
+                        sqttInfo.optionFlags.threadTraceShaderTypeMask = enableDetailedTokens ?
+                                                                         sqttInfo.optionFlags.threadTraceShaderTypeMask :
+                                                                         1;
+                        sqttInfo.optionValues.threadTraceShaderTypeMask = enableDetailedTokens ?
+                                                                          PerfShaderMaskAll :
+                                                                          static_cast<PerfExperimentShaderFlags>(0);
 #endif
                         sqttInfo.instance = i;
                         result = pExperiment->AddThreadTrace(sqttInfo);

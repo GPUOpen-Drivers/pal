@@ -94,11 +94,11 @@ protected:
         const CodeObjectMetadata&      metadata,
         Util::MsgPackReader*           pMetadataReader) override;
 
-    Result UnpackStackFrameSize(
+    Result UnpackShaderFunctionStats(
         const char*               pShaderExportName,
         const CodeObjectMetadata& metadata,
         Util::MsgPackReader*      pMetadataReader,
-        uint32*                   pStackFrameSizeInBytes) const;
+        ShaderLibStats*           pShaderStats) const;
 
     // Update m_hwInfo afer HwlInit
     void UpdateHwInfo();

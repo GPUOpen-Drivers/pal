@@ -650,7 +650,9 @@ static void SerializeResourceDescriptionPipeline(
     {
         pJsonWriter->KeyAndBeginMap("CreateFlags", false);
         pJsonWriter->KeyAndValue("ClientInternal", static_cast<bool>(data.pCreateFlags->clientInternal));
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
         pJsonWriter->KeyAndValue("OverrideGpuHeap", static_cast<bool>(data.pCreateFlags->overrideGpuHeap));
+#endif
         pJsonWriter->EndMap();
 
         pJsonWriter->KeyAndValue("InternalPipelineHashStable", data.pPipelineInfo->internalPipelineHash.stable);

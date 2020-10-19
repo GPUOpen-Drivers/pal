@@ -454,12 +454,12 @@ Result Device::EarlyInit(
 
     if (result == Result::Success)
     {
-        m_referencedGpuMemLock.Init();
+        result = m_referencedGpuMemLock.Init();
     }
 
     if (result == Result::Success)
     {
-        m_referencedGpuMem.Init();
+        result = m_referencedGpuMem.Init();
     }
 
     if (result == Result::Success)
@@ -534,7 +534,11 @@ Result Device::SetupPublicSettingDefaults()
     m_publicSettings.enableGpuEventMultiSlot = false;
     m_publicSettings.useAcqRelInterface = false;
     m_publicSettings.zeroUnboundDescDebugSrd = false;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
     m_publicSettings.disablePipelineUploadToLocalInvis = false;
+#else
+    m_publicSettings.pipelinePreferredHeap = GpuHeap::GpuHeapInvisible;
+#endif
     m_publicSettings.depthClampBasedOnZExport = true;
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 577
     m_publicSettings.forceWaitPointPreColorToPostIndexFetch = false;
@@ -4951,7 +4955,11 @@ bool Device::ValidatePipelineUploadHeap(
         // optimizations or there is no DMA engine support. Other heap types don't have any restrictions.
         if (m_pPlatform->InternalResidencyOptsDisabled()
             || (EngineProperties().perEngine[EngineTypeDma].numAvailable == 0)
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
             || m_publicSettings.disablePipelineUploadToLocalInvis
+#else
+            || (m_publicSettings.pipelinePreferredHeap != GpuHeap::GpuHeapInvisible)
+#endif
            )
         {
             valid = false;

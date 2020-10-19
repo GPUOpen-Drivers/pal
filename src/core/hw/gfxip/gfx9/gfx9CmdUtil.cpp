@@ -391,11 +391,43 @@ bool CmdUtil::CanUseCsPartialFlush(
     EngineType engineType
     ) const
 {
-    // The CP team says that CS_PARTIAL_FLUSH isn't supported on engines that have compute wave save restore (CWSR)
-    // enabled. Unfortunately, PAL doesn't know if CWSR is enabled when we write our PM4 and thus must always use
-    // EOP timestamp waits on compute engines just to be safe. It's still safe to use CS_PARTIAL_FLUSH on graphics
-    // engines so we will do so to avoid hurting performance. We've also put this on a setting for perf triage.
-    return Pal::Device::EngineSupportsGraphics(engineType) || (m_device.Settings().disableAceCsPartialFlush == false);
+    // There is a CP ucode bug which causes CS_PARTIAL_FLUSH to return early if compute wave save restore (CWSR) is
+    // enabled. CWSR was added in gfx8 and the bug was undetected for a few generations. The bug has been fixed in
+    // certain versions of the gfx9+ CP ucode. Thus, in the long term we can enable cspf for all ASICs on the gfx9
+    // HWL but we still need a fallback if someone runs with old CP ucode.
+    bool useCspf = true;
+
+    // We will only try to disable cspf if this is an async compute engine on an ASIC that at some point had the bug.
+    if ((Pal::Device::EngineSupportsGraphics(engineType) == false)
+        )
+    {
+        if (m_device.Settings().disableAceCsPartialFlush)
+        {
+            // Always disable ACE support if someone set the debug setting.
+            useCspf = false;
+        }
+        else if (m_gfxIpLevel == GfxIpLevel::GfxIp9)
+        {
+            // Disable ACE support on gfx9 if the ucode doesn't have the fix.
+            constexpr uint32 MinUcodeVerForCsPartialFlushGfx9 = 52;
+
+            useCspf = (m_cpUcodeVersion >= MinUcodeVerForCsPartialFlushGfx9);
+        }
+        else if (m_gfxIpLevel == GfxIpLevel::GfxIp10_1)
+        {
+            // Disable ACE support on gfx10.1 if the ucode doesn't have the fix.
+            constexpr uint32 MinUcodeVerForCsPartialFlushGfx10_1 = 32;
+
+            useCspf = (m_cpUcodeVersion >= MinUcodeVerForCsPartialFlushGfx10_1);
+        }
+        else
+        {
+            // Otherwise, assume the bug exists and wasn't fixed.
+            useCspf = false;
+        }
+    }
+
+    return useCspf;
 }
 
 // =====================================================================================================================

@@ -3185,12 +3185,12 @@ Result DrmLoader::Init(
         "libdrm_amdgpu.so.1",
         "libdrm.so.2",
     };
-
     SpecializedInit(pPlatform, &LibNames[LibDrmAmdgpu][0]);
     if (m_initialized == false)
     {
         // resolve symbols from libdrm_amdgpu.so.1
         result = m_library[LibDrmAmdgpu].Load(LibNames[LibDrmAmdgpu]);
+        PAL_ASSERT_MSG(result == Result::Success, "Failed to load LibDrmAmdgpu library");
         if (result == Result::Success)
         {
             m_library[LibDrmAmdgpu].GetFunction("amdgpu_query_hw_ip_info", &m_funcs.pfnAmdgpuQueryHwIpInfo);
@@ -3272,6 +3272,7 @@ Result DrmLoader::Init(
 
         // resolve symbols from libdrm.so.2
         result = m_library[LibDrm].Load(LibNames[LibDrm]);
+        PAL_ASSERT_MSG(result == Result::Success, "Failed to load LibDrm library");
         if (result == Result::Success)
         {
             m_library[LibDrm].GetFunction("drmGetNodeTypeFromFd", &m_funcs.pfnDrmGetNodeTypeFromFd);

@@ -45,8 +45,10 @@ Result CreateRpmComputePipeline(
     const uint32 index = static_cast<uint32>(pipelineType);
 
     ComputePipelineCreateInfo pipeInfo = { };
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
     pipeInfo.flags.overrideGpuHeap     = 1;
     pipeInfo.preferredHeapType         = GpuHeap::GpuHeapLocal;
+#endif
     pipeInfo.pPipelineBinary           = pTable[index].pBuffer;
     pipeInfo.pipelineBinarySize        = pTable[index].size;
 
@@ -208,6 +210,12 @@ Result CreateRpmComputePipelines(
     {
         result = CreateRpmComputePipeline(
             RpmComputePipeline::CopyBufferByte, pDevice, pTable, pPipelineMem);
+    }
+
+    if (result == Result::Success)
+    {
+        result = CreateRpmComputePipeline(
+            RpmComputePipeline::CopyBufferDqword, pDevice, pTable, pPipelineMem);
     }
 
     if (result == Result::Success)
@@ -1330,7 +1338,9 @@ Result CreateRpmComputePipelines(
             RpmComputePipeline::Gfx10GenerateCmdDispatch, pDevice, pTable, pPipelineMem);
     }
 
-    if (result == Result::Success)
+    if (result == Result::Success && (false
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
+        ))
     {
         result = CreateRpmComputePipeline(
             RpmComputePipeline::Gfx10GenerateCmdDispatchTaskMesh, pDevice, pTable, pPipelineMem);

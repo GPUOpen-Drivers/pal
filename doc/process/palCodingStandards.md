@@ -1216,10 +1216,16 @@ default:
 }
 ```
 
+-   When testing booleans, `if (x == true)` should be used instead of `if (x)`.
+    It is permissible to omit the `== true` if the expression forms a clearly
+    readable statement without it e.g. `if (image.HasDsMetadata())` or
+    `if (hasDsMetadata)`.
+
 -   When testing non-booleans, `if (x != 0)` or `if (x != nullptr)`
     ***must*** be used instead of `if (x)`.
 
--   `if (x == 0)` or `if (x == NULL)` ***must*** be used instead of `if (!x)`.
+-   `if (x == false)`, `if (x == 0)` or `if (x == NULL)`
+     ***must*** be used instead of `if (!x)`.
 
 -   Subexpressions in if statements that use comparison operators
     ***must*** have explicit bracketing.

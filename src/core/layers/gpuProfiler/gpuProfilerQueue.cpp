@@ -1335,13 +1335,12 @@ Result Queue::BuildGpaSessionSampleConfig()
             }
 
             // Thread trace specific config.
-            m_gpaSessionSampleConfig.sqtt.flags.enable = m_pDevice->IsThreadTraceEnabled();
-            m_gpaSessionSampleConfig.sqtt.seMask = m_pDevice->GetSeMask();
-            m_gpaSessionSampleConfig.sqtt.gpuMemoryLimit =
-                settings.gpuProfilerSqttConfig.bufferSize * perfExpProps.shaderEngineCount;
-            m_gpaSessionSampleConfig.sqtt.flags.stallMode = m_pDevice->GetSqttStallMode();
-            m_gpaSessionSampleConfig.sqtt.flags.supressInstructionTokens =
-                (settings.gpuProfilerSqttConfig.tokenMask != 0xFFFF);
+            m_gpaSessionSampleConfig.sqtt.flags.enable                   = m_pDevice->IsThreadTraceEnabled();
+            m_gpaSessionSampleConfig.sqtt.seMask                         = m_pDevice->GetSeMask();
+            m_gpaSessionSampleConfig.sqtt.gpuMemoryLimit                 = settings.gpuProfilerSqttConfig.bufferSize;
+            m_gpaSessionSampleConfig.sqtt.flags.stallMode                = m_pDevice->GetSqttStallMode();
+            m_gpaSessionSampleConfig.sqtt.flags.supressInstructionTokens = (settings.gpuProfilerSqttConfig.tokenMask !=
+                                                                            0xFFFF);
         }
         else
         {

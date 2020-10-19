@@ -517,21 +517,12 @@ void Device::ExpandColor(
         }
         else if ((oldState == ColorCompressed) && (newState == ColorCompressed))
         {
-            // This case indicates that the layout capabilities changed, but the color image is able to remain in
-            // the compressed state.  If the image is about to be read, we may need to perform a fast clear
-            // eliminate BLT if the clear color is not texture compatible.  This BLT will end up being skipped on
-            // the GPU side if the latest clear color was supported by the texture hardware (i.e., black or white).
-            constexpr uint32 TcCompatReadFlags = LayoutShaderRead           |
-                                                 LayoutShaderFmaskBasedRead |
-                                                 LayoutCopySrc;
-
-            // LayoutResolveSrc is treated as a color compressed state and if any decompression is required at resolve
-            // time, @ref RsrcProcMgr::LateExpandResolveSrc will do the job.  So LayoutResolveSrc isn't added into
-            // 'TcCompatReadFlags' above to skip performing a fast clear eliminate BLT.  If a shader resolve is to be
-            // used, a barrier transiton to either LayoutShaderRead or LayoutShaderFmaskBasedRead is issued, which would
-            // really trigger an FCE operation.
-            if (fastClearEliminateSupported && TestAnyFlagSet(transition.imageInfo.newLayout.usages, TcCompatReadFlags))
+            // If the previous state allowed the possibility of a reg-based fast clear(comp-to-reg) while the new state
+            // does not, we need to issue a fast clear eliminate BLT
+            if ((gfx9Image.SupportsCompToReg(transition.imageInfo.newLayout, subresRange.startSubres) == false) &&
+                gfx9Image.SupportsCompToReg(transition.imageInfo.oldLayout, subresRange.startSubres))
             {
+                PAL_ASSERT(fastClearEliminateSupported);
                 if ((gfx9Image.HasSeenNonTcCompatibleClearColor() == false) && gfx9Image.IsFceOptimizationEnabled())
                 {
                     // Skip the fast clear eliminate for this image if the clear color is TC-compatible and the

@@ -45,8 +45,12 @@ union LibraryCreateFlags
     struct
     {
         uint32 clientInternal  : 1;  ///< Internal library not created by the application.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
         uint32 overrideGpuHeap : 1;  ///< Override the default GPU heap (local invisible) the library resides in.
         uint32 reserved        : 30; ///< Reserved for future use.
+#else
+        uint32 reserved        : 31; ///< Reserved for future use.
+#endif
     };
     uint32 u32All;                  ///< Flags packed as 32-bit uint.
 };
@@ -60,6 +64,13 @@ struct ShaderLibraryFunctionInfo
                               ///  library creation.
 };
 
+/// Specifies a shader sub type / ShaderKind.
+enum class ShaderSubType : uint32
+{
+    Unknown = 0,
+    Count
+};
+
 /// Specifies properties for creation of a compute @ref IShaderLibrary object.  Input structure to
 /// IDevice::CreateShaderLibrary().
 struct ShaderLibraryCreateInfo
@@ -71,8 +82,10 @@ struct ShaderLibraryCreateInfo
                                     ///  additional metadata.
     size_t       codeObjectSize;    ///< Size of code object in bytes.
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
     GpuHeap      preferredHeap;     ///< Upload this pipeline to this heap.  This is ignored if
                                     ///  @ref LibraryCreateFlags::overrideGpuHeap is not set.
+#endif
 
     /// List of functions for PAL to compute virtual addresses for during library creation.  These GPU addresses can
     /// then be passed as shader arguments to a later dispatch operation to allow a compute pipeline's shaders to jump
@@ -108,6 +121,7 @@ struct ShaderLibStats
     size_t             isaSizeInBytes;          ///< Size of the shader ISA disassembly for this shader.
     PipelineHash       palInternalLibraryHash;  ///< Internal hash of the shader compilation data used by PAL.
     uint32             stackFrameSizeInBytes;   ///< Shader function stack frame size
+    ShaderSubType      shaderSubType;           ///< ShaderSubType / Shader Kind
 };
 
 /**

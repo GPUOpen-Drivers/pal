@@ -84,6 +84,15 @@ enum class AmdGpuMachineType : uint8
     Gfx1012 = 0x35,  ///< EF_AMDGPU_MACH_AMDGCN_GFX1012
 };
 
+/// AmdGpuFeatureV4Type for the feature selection mask bits in e_flags.
+enum class AmdGpuFeatureV4Type : uint8
+{
+    Unsupported = 0x00, ///< EF_AMDGPU_FEATURE_*_UNSUPPORTED_V4
+    Any         = 0x01, ///< EF_AMDGPU_FEATURE_*_ANY_V4
+    Off         = 0x02, ///< EF_AMDGPU_FEATURE_*_OFF_V4
+    On          = 0x03, ///< EF_AMDGPU_FEATURE_*_ON_V4
+};
+
 /// Enumerates the steppng values for each GPU supported by PAL (and by PAL's ABI).  There are many duplicates
 /// in this list, because some values are re-used across different GFXIP major/minor versions (e.g., Gfx6.0.0
 /// and Gfx9.0.0 are different GPUs that happen to share a common stepping number).
@@ -380,6 +389,13 @@ enum class ApiShaderType : uint32
     Gs,     ///< API geometry shader
     Reserved1,
     Ps,     ///< API pixel shader
+    Count
+};
+
+// Helper enum defined shader subType
+enum class ApiShaderSubType : uint32
+{
+    Unknown = 0,
     Count
 };
 
@@ -855,14 +871,20 @@ union AmdGpuElfFlags
 {
     struct
     {
-        uint32 machineId    : 8;    ///< EF_AMDGPU_MACH
-        uint32 xnackEnabled : 1;    ///< EF_AMDGPU_XNACK
-        uint32 reserved     : 23;
+        uint32 machineId      :  8;  ///< EF_AMDGPU_MACH
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 634
+        uint32 xnackEnabled   :  1;  ///< EF_AMDGPU_XNACK
+        uint32 reserved633    :  3;
+#else
+        uint32 xnackFeature   :  2;  ///< EF_AMDGPU_FEATURE_XNACK_V4
+        uint32 sramEccFeature :  2;  ///< EF_AMDGPU_FEATURE_SRAMECC_V4
+#endif
+        uint32 reserved       : 20;
     };
 
-    AmdGpuMachineType machineType;  ///< EF_AMDGPU_MACH
+    AmdGpuMachineType machineType;   ///< EF_AMDGPU_MACH
 
-    uint32 u32All;                  ///< e_flags packed as a 32-bit unsigned integer.
+    uint32 u32All;                   ///< e_flags packed as a 32-bit unsigned integer.
 };
 
 static_assert(sizeof(AmdGpuMachineType) == 1, "AmdGpuMachineType enum underlying type is larger than expected.");

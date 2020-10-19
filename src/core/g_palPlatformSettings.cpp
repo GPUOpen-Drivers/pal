@@ -90,6 +90,7 @@ void PlatformSettingsLoader::SetupDefaults()
     strncpy(m_settings.debugOverlayConfig.renderedByString, "", 61);
     memset(m_settings.debugOverlayConfig.miscellaneousDebugString, 0, 61);
     strncpy(m_settings.debugOverlayConfig.miscellaneousDebugString, "", 61);
+    m_settings.debugOverlayConfig.dateTimeEnabled = false;
     m_settings.debugOverlayConfig.printFrameNumber = false;
     m_settings.debugOverlayConfig.useDebugOverlayOnColorSpaceConversionCopy = false;
     m_settings.timeGraphConfig.gridLineColor = RedColor;
@@ -301,6 +302,11 @@ void PlatformSettingsLoader::ReadSettings(Pal::Device* pDevice)
                            &m_settings.debugOverlayConfig.miscellaneousDebugString,
                            InternalSettingScope::PrivatePalKey,
                            61);
+
+    pDevice->ReadSetting(pDebugOverlayConfig_DateTimeEnabledStr,
+                           Util::ValueType::Boolean,
+                           &m_settings.debugOverlayConfig.dateTimeEnabled,
+                           InternalSettingScope::PrivatePalKey);
 
     pDevice->ReadSetting(pDebugOverlayConfig_PrintFrameNumberStr,
                            Util::ValueType::Boolean,
@@ -783,6 +789,11 @@ void PlatformSettingsLoader::InitSettingsInfo()
     m_settingsInfoMap.Insert(1196026490, info);
 
     info.type      = SettingType::Boolean;
+    info.pValuePtr = &m_settings.debugOverlayConfig.dateTimeEnabled;
+    info.valueSize = sizeof(m_settings.debugOverlayConfig.dateTimeEnabled);
+    m_settingsInfoMap.Insert(239137718, info);
+
+    info.type      = SettingType::Boolean;
     info.pValuePtr = &m_settings.debugOverlayConfig.printFrameNumber;
     info.valueSize = sizeof(m_settings.debugOverlayConfig.printFrameNumber);
     m_settingsInfoMap.Insert(2763643877, info);
@@ -1158,7 +1169,7 @@ void PlatformSettingsLoader::DevDriverRegister()
             component.pfnSetValue = ISettingsLoader::SetValue;
             component.pSettingsData = &g_palPlatformJsonData[0];
             component.settingsDataSize = sizeof(g_palPlatformJsonData);
-            component.settingsDataHash = 989129819;
+            component.settingsDataHash = 1364331057;
             component.settingsDataHeader.isEncoded = true;
             component.settingsDataHeader.magicBufferId = 402778310;
             component.settingsDataHeader.magicBufferOffset = 0;

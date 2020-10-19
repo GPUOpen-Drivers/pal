@@ -378,6 +378,13 @@ namespace DevDriver
 
         DD_CHECK_SIZE(EventTimeDeltaToken, 1);
 
+        // Maximum number of bytes required by a single event token
+        DD_STATIC_CONST size_t kMaxEventTokenSize =
+            sizeof(EventTokenHeader) +
+            Platform::Max(sizeof(EventProviderToken),
+                Platform::Max(sizeof(EventDataToken),
+                    Platform::Max(sizeof(EventTimestampToken), sizeof(EventTimeDeltaToken) + 6)));
+
         // Maximum number of bytes contained within an event chunk
         // We subtract the data size metadata here to make sure the total struct size lands on
         // a nice power of two. This should help us avoid extra memory overhead per chunk allocation.

@@ -241,6 +241,25 @@ namespace DevDriver
 #define DD_ALERT_REASON(reason)  DD_WARN_REASON(reason)
 #define DD_ALERT_ALWAYS()        DD_WARN_ALWAYS()
 
+// Debug utility to log an expression
+//
+// This works by taking the format specifier for a local variable, and an expression.
+// The expression is evaluated once.
+// It then prints that expression and its value:
+// ```cpp
+//      int x = 5;
+//      int y = 10;
+//      int z = 0xf0;
+//      DD_DBG("0x%x", x + y + z); // Prints: foo/file.cpp:5   "x + y + z" == 0xff
+// ```
+#define DD_DBG(level, fmt, expr) DD_PRINT(              \
+        level,                                          \
+        "%s:%d:\t\"" DD_STRINGIFY(expr) "\" == " fmt,   \
+        __FILE__,                                       \
+        __LINE__,                                       \
+        (expr)                                          \
+    )
+
 // Allocates memory using an AllocCb.
 // This overload is declared noexcept, and will correctly handle AllocCb::pfnAlloc() returning NULL.
 void* operator new(

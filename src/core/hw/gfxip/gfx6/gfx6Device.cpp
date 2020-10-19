@@ -1802,6 +1802,9 @@ static PAL_INLINE SQ_TEX_CLAMP GetAddressClamp(
         SQ_TEX_CLAMP_LAST_TEXEL,        // TexAddressMode::Clamp
         SQ_TEX_MIRROR_ONCE_LAST_TEXEL,  // TexAddressMode::MirrorOnce
         SQ_TEX_CLAMP_BORDER,            // TexAddressMode::ClampBorder
+        SQ_TEX_MIRROR_ONCE_HALF_BORDER, // TexAddressMode::MirrorClampHalfBorder
+        SQ_TEX_CLAMP_HALF_BORDER,       // TexAddressMode::ClampHalfBorder
+        SQ_TEX_MIRROR_ONCE_BORDER,      // TexAddressMode::MirrorClampBorder
     };
 
     static_assert((ArrayLen(PalTexAddrToHwTbl) == static_cast<size_t>(TexAddressMode::Count)),

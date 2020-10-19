@@ -294,6 +294,7 @@ void SettingsLoader::ValidateSettings(
         {
             m_settings.useCompToSingle |= (Gfx10UseCompToSingle8bpp | Gfx10UseCompToSingle16bpp);
         }
+
     }
 
     if ((pPalSettings->distributionTessMode == DistributionTessTrapezoidOnly) ||

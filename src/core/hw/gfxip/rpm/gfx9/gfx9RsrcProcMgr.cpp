@@ -2618,7 +2618,7 @@ void RsrcProcMgr::DepthStencilClearGraphics(
                     pCmdBuffer->CmdSetScissorRects(scissorInfo);
 
                     // Draw a fullscreen quad.
-                    pCmdBuffer->CmdDraw(0, 3, 0, 1);
+                    pCmdBuffer->CmdDraw(0, 3, 0, 1, 0);
                 }
 
                 // Unbind the depth view and destroy it.
