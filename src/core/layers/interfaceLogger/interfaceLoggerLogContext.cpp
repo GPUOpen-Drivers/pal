@@ -47,6 +47,7 @@
 #include "core/layers/interfaceLogger/interfaceLoggerQueue.h"
 #include "core/layers/interfaceLogger/interfaceLoggerQueueSemaphore.h"
 #include "core/layers/interfaceLogger/interfaceLoggerScreen.h"
+#include "core/layers/interfaceLogger/interfaceLoggerShaderLibrary.h"
 #include "core/layers/interfaceLogger/interfaceLoggerSwapChain.h"
 
 using namespace Util;
@@ -79,8 +80,7 @@ const char*const ObjectNames[] =
     "IQueue",
     "IQueueSemaphore",
     "IScreen",
-    "IShader",
-    "IShaderCache",
+    "IShaderLibrary",
     "ISwapChain",
 };
 
@@ -249,7 +249,7 @@ static constexpr FuncFormattingEntry FuncFormattingTable[] =
     { InterfaceFunc::DeviceCreateBorderColorPalette,                            InterfaceObject::Device,               "CreateBorderColorPalette"                },
     { InterfaceFunc::DeviceCreateComputePipeline,                               InterfaceObject::Device,               "CreateComputePipeline"                   },
     { InterfaceFunc::DeviceCreateGraphicsPipeline,                              InterfaceObject::Device,               "CreateGraphicsPipeline"                  },
-    { InterfaceFunc::DeviceLoadPipeline,                                        InterfaceObject::Device,               "LoadPipeline"                            },
+    { InterfaceFunc::DeviceCreateShaderLibrary,                                 InterfaceObject::Device,               "CreateShaderLibrary"                     },
     { InterfaceFunc::DeviceCreateMsaaState,                                     InterfaceObject::Device,               "CreateMsaaState"                         },
     { InterfaceFunc::DeviceCreateColorBlendState,                               InterfaceObject::Device,               "CreateColorBlendState"                   },
     { InterfaceFunc::DeviceCreateDepthStencilState,                             InterfaceObject::Device,               "CreateDepthStencilState"                 },
@@ -291,7 +291,7 @@ static constexpr FuncFormattingEntry FuncFormattingTable[] =
     { InterfaceFunc::IndirectCmdGeneratorBindGpuMemory,                         InterfaceObject::IndirectCmdGenerator, "BindGpuMemory"                           },
     { InterfaceFunc::IndirectCmdGeneratorDestroy,                               InterfaceObject::IndirectCmdGenerator, "Destroy"                                 },
     { InterfaceFunc::MsaaStateDestroy,                                          InterfaceObject::MsaaState,            "Destroy"                                 },
-    { InterfaceFunc::PipelineAddShadersToCache,                                 InterfaceObject::Pipeline,             "AddShadersToCache"                       },
+    { InterfaceFunc::PipelineLinkWithLibraries,                                 InterfaceObject::Pipeline,             "LinkWithLibraries"                       },
     { InterfaceFunc::PipelineDestroy,                                           InterfaceObject::Pipeline,             "Destroy"                                 },
     { InterfaceFunc::PlatformEnumerateDevices,                                  InterfaceObject::Platform,             "EnumerateDevices"                        },
     { InterfaceFunc::PlatformGetScreens,                                        InterfaceObject::Platform,             "GetScreens"                              },
@@ -330,6 +330,7 @@ static constexpr FuncFormattingEntry FuncFormattingTable[] =
     { InterfaceFunc::ScreenSetGammaRamp,                                        InterfaceObject::Screen,               "SetGammaRamp"                            },
     { InterfaceFunc::ScreenWaitForVerticalBlank,                                InterfaceObject::Screen,               "WaitForVerticalBlank"                    },
     { InterfaceFunc::ScreenDestroy,                                             InterfaceObject::Screen,               "Destroy"                                 },
+    { InterfaceFunc::ShaderLibraryDestroy,                                      InterfaceObject::ShaderLibrary,        "Destroy"                                 },
     { InterfaceFunc::SwapChainAcquireNextImage,                                 InterfaceObject::SwapChain,            "AcquireNextImage"                        },
     { InterfaceFunc::SwapChainWaitIdle,                                         InterfaceObject::SwapChain,            "WaitIdle"                                },
     { InterfaceFunc::SwapChainDestroy,                                          InterfaceObject::SwapChain,            "Destroy"                                 },
@@ -767,6 +768,20 @@ void LogContext::Object(
     if (pDecorator != nullptr)
     {
         Object(InterfaceObject::Screen, static_cast<const Screen*>(pDecorator)->ObjectId());
+    }
+    else
+    {
+        NullValue();
+    }
+}
+
+// =====================================================================================================================
+void LogContext::Object(
+    const IShaderLibrary* pDecorator)
+{
+    if (pDecorator != nullptr)
+    {
+        Object(InterfaceObject::ShaderLibrary, static_cast<const ShaderLibrary*>(pDecorator)->ObjectId());
     }
     else
     {

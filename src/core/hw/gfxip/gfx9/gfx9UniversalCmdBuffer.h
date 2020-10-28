@@ -66,12 +66,12 @@ struct UniversalCmdBufferState
             uint32 containsDrawIndirect  :  1;
             uint32 optimizeLinearGfxCpy  :  1;
             uint32 firstDrawExecuted     :  1;
-            uint32 placeholder0          :  1; // Placeholder for future feature support.
+            uint32 placeholder0          :  2; // Placeholder for future feature support.
             uint32 cbTargetMaskChanged   :  1; // Flag setup at Pipeline bind-time informing the draw-time set
                                                // that the CB_TARGET_MASK has been changed.
             uint32 reserved0             :  6;
             uint32 cbColorInfoDirtyRtv   :  8; // Per-MRT dirty mask for CB_COLORx_INFO as a result of RTV
-            uint32 reserved1             :  9;
+            uint32 reserved1             :  8;
         };
         uint32 u32All;
     } flags;
@@ -777,7 +777,7 @@ private:
         uint32*                          pDeCmdSpace);
 
     template <bool HasPipelineChanged>
-    static uint32* ValidateComputeUserData(
+    uint32* ValidateComputeUserData(
         ICmdBuffer*                     pCmdBuffer,
         UserDataTableState*             pCsUserData,
         ComputeState*                   pComputeState,

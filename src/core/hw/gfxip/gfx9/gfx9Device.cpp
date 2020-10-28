@@ -488,12 +488,16 @@ Result Device::InitOcclusionResetMem()
 
     if (gfx9Settings.waDummyZpassDoneBeforeTs)
     {
+        // This unprotected memory will be written under TMZ state. So align to 64 bytes for Tmz Write Block Size.
+        constexpr uint32 TmzWriteBlockSize = 64;
+
         // We need enough space for a full occlusion query slot because the DBs write to every other result location.
         // According to the packet spec it must be QWORD-aligned. We prefer the local heap to avoid impacting timestamp
         // performance and expect to get suballocated out of the same raft as the occlusion reset memory above.
+        const uint32 gpuMemSize = chipProps.gfx9.numTotalRbs * sizeof(OcclusionQueryResultPair);
         GpuMemoryCreateInfo zPassDoneCreateInfo = {};
-        zPassDoneCreateInfo.alignment = sizeof(uint64);
-        zPassDoneCreateInfo.size      = chipProps.gfx9.numTotalRbs * sizeof(OcclusionQueryResultPair);
+        zPassDoneCreateInfo.alignment = TmzWriteBlockSize;
+        zPassDoneCreateInfo.size      = Util::Pow2Align(gpuMemSize, TmzWriteBlockSize);
         zPassDoneCreateInfo.priority  = GpuMemPriority::Normal;
         zPassDoneCreateInfo.heaps[0]  = GpuHeapLocal;
         zPassDoneCreateInfo.heaps[1]  = GpuHeapGartUswc;
@@ -4303,9 +4307,9 @@ void InitializeGpuChipProperties(
             pInfo->gpuType                   = GpuType::Discrete;
             {
                 pInfo->revision              = AsicRevision::Navi14;
+                pInfo->gfxStepping           = Abi::GfxIpSteppingNavi14;
             }
 
-            pInfo->gfxStepping               = Abi::GfxIpSteppingNavi14;
             pInfo->gfx9.numShaderEngines     = 1;
             pInfo->gfx9.maxNumCuPerSh        = 12;
             pInfo->gfx9.maxNumRbPerSe        = 8;

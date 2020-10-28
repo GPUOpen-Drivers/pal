@@ -177,9 +177,10 @@ void Queue::OpenLogFile(
     // Add some additional column headers based on enabled profiling features.
     if (settings.gpuProfilerConfig.recordPipelineStats)
     {
-        const char* pCsvPipelineStatsHeader = "IaVertices,IaPrimitives,VsInvocations,GsInvocations,"
-                                              "GsPrimitives,CInvocations,CPrimitives,PsInvocations,"
-                                              "HsInvocations,DsInvocations,CsInvocations,";
+        const char* pCsvPipelineStatsHeader = "IaVertices,IaPrimitives,VsInvocations,GsInvocations,GsPrimitives,"
+                                              "CInvocations,CPrimitives,PsInvocations,HsInvocations,DsInvocations,"
+                                              "CsInvocations,"
+            ;
         m_logFile.Write(pCsvPipelineStatsHeader, strlen(pCsvPipelineStatsHeader));
     }
 
@@ -618,20 +619,27 @@ void Queue::OutputPipelineStatsToFile(
 {
     if (HasValidGpaSample(&logItem, GpuUtil::GpaSampleType::Query))
     {
-        uint64 pipelineStats[11] = {};
+        // Allocate max number of pipeline stats counters.
+        uint64 pipelineStats[14] = {};
         size_t pipelineStatsSize = sizeof(pipelineStats);
         const Result result = logItem.pGpaSession->GetResults(logItem.gpaSampleIdQuery,
                                                               &pipelineStatsSize,
                                                               pipelineStats);
 
         PAL_ASSERT(result == Result::Success);
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 631
         PAL_ASSERT(pipelineStatsSize == sizeof(pipelineStats));
+#else
+        // Mesh/task pipeline stats are not available until interface exposes them.
+        PAL_ASSERT(pipelineStatsSize <= sizeof(pipelineStats));
+#endif
 
         // PAL hardcodes the layout of the return pipeline stats values based on the client, leading to different
         // versions of this code to a uniform log layout.
         m_logFile.Printf("%llu,%llu,%llu,%llu,%llu,%llu,%llu,%llu,%llu,%llu,%llu,", pipelineStats[0],
                          pipelineStats[1], pipelineStats[2], pipelineStats[3], pipelineStats[4], pipelineStats[5],
                          pipelineStats[6], pipelineStats[7], pipelineStats[8], pipelineStats[9], pipelineStats[10]);
+
     }
     else if (m_pDevice->GetPlatform()->PlatformSettings().gpuProfilerConfig.recordPipelineStats)
     {

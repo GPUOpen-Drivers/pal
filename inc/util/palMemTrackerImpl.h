@@ -33,6 +33,7 @@
 
 #if PAL_MEMTRACK
 
+#include "palIntrusiveListImpl.h"
 #include "palMemTracker.h"
 #include "palSysMemory.h"
 
@@ -54,14 +55,12 @@ template <typename Allocator>
 MemTracker<Allocator>::MemTracker(
     Allocator*const pAllocator)
     :
-    m_pMemListHead(&m_memListHead),
     m_markerSizeUints(MarkerSizeUints),
     m_markerSizeBytes(MarkerSizeBytes),
     m_pAllocator(pAllocator),
     m_nextAllocNum(1),
     m_breakOnAllocNum(0)
 {
-    memset(&m_memListHead, 0, sizeof(MemTrackerElem));
 }
 
 // =====================================================================================================================
@@ -69,10 +68,10 @@ template <typename Allocator>
 MemTracker<Allocator>::~MemTracker()
 {
     // Clean-up leaked memory if needed
-    if (m_pMemListHead->pNext != nullptr)
+    if (m_trackerList.IsEmpty() == false)
     {
-        // If the dummy head has a valid next pointer, we have a leak.  The leak could either be caused by an
-        // internal PAL leak, a client leak, or even the application not destroying API objects.
+        // If the list isn't empty, we have a leak.  The leak could either be caused by an internal PAL leak,
+        // a client leak, or even the application not destroying API objects.
         PAL_ALERT_ALWAYS();
 
         // Dump out a list of unfreed blocks.
@@ -82,7 +81,6 @@ MemTracker<Allocator>::~MemTracker()
 }
 
 // =====================================================================================================================
-// Initializes the MemTracker singleton.
 template <typename Allocator>
 Result MemTracker<Allocator>::Init()
 {
@@ -100,16 +98,22 @@ template <typename Allocator>
 void* MemTracker<Allocator>::AddMemElement(
     void*       pMem,        // [in,out] Original pointer allocated by MemTracker::Alloc.
     size_t      bytes,       // Client requested allocation size in bytes.
-    size_t      align,       // Client-requested alignment in bytes.
+    size_t      align,       // The max of the client-requested alignment or the internal alignment, in bytes.
     MemBlkType  blockType,   // Block type based on calling allocation routine.
     const char* pFilename,   // Client filename that is requesting the memory.
     uint32      lineNumber)  // Line number in client file that is requesting the memory.
 {
-    // Increment memory pointer for alloced memory.
-    void* pClientMem = VoidPtrAlign(VoidPtrInc(pMem, m_markerSizeBytes), align);
+    // Our internal data is all relative to the client pointer so find that first. See Alloc for more details.
+    //   (align1)(MemTrackerList::Node)(MemTrackerElem)(underflow tracker)(client allocation)(align2)(overflow tracker)
+    constexpr size_t InternalSize = sizeof(MemTrackerList::Node) + sizeof(MemTrackerElem);
 
-    uint32* pUnderrun = static_cast<uint32*>(Util::VoidPtrDec(pClientMem, m_markerSizeBytes));
-    uint32* pOverrun  = static_cast<uint32*>(Util::VoidPtrInc(pClientMem, Pow2Align(bytes, sizeof(uint32))));
+    void*const pClientMem = VoidPtrAlign(VoidPtrInc(pMem, m_markerSizeBytes + InternalSize), align);
+    uint32*    pUnderrun  = static_cast<uint32*>(VoidPtrDec(pClientMem, m_markerSizeBytes));
+    uint32*    pOverrun   = static_cast<uint32*>(VoidPtrInc(pClientMem, Pow2Align(bytes, sizeof(uint32))));
+
+    auto*const pNewElement = static_cast<MemTrackerElem*>(VoidPtrDec(pUnderrun, sizeof(MemTrackerElem)));
+    void*const pNewNodeMem = VoidPtrDec(pNewElement, sizeof(MemTrackerList::Node));
+    auto*const pNewNode    = PAL_PLACEMENT_NEW(pNewNodeMem) MemTrackerList::Node(pNewElement);
 
     // Mark the memory with the underrun/overrun marker.
     for (uint32 markerUints = 0; markerUints < m_markerSizeUints; ++markerUints)
@@ -118,37 +122,26 @@ void* MemTracker<Allocator>::AddMemElement(
         *pOverrun++  = OverrunSentinel;
     }
 
-    MemTrackerElem*const pNewElement = static_cast<MemTrackerElem*>(malloc(sizeof(MemTrackerElem)));
+    pNewElement->size       = bytes;
+    pNewElement->pFilename  = pFilename;
+    pNewElement->lineNumber = lineNumber;
+    pNewElement->blockType  = blockType;
+    pNewElement->pClientMem = pClientMem;
+    pNewElement->pOrigMem   = pMem;
+    pNewElement->pList      = &m_trackerList;
 
-    if (pNewElement != nullptr)
+    MutexAuto lock(&m_mutex);
+
+    // Trigger an assert if we're about to allocate the break-on-allocation number.
+    if (m_nextAllocNum == m_breakOnAllocNum)
     {
-        pNewElement->size       = bytes;
-        pNewElement->pFilename  = pFilename;
-        pNewElement->lineNumber = lineNumber;
-        pNewElement->blockType  = blockType;
-        pNewElement->pClientMem = pClientMem;
-        pNewElement->pOrigMem   = pMem;
-
-        MutexAuto lock(&m_mutex);
-
-        // Trigger an assert if we're about to allocate the break-on-allocation number.
-        if (m_nextAllocNum == m_breakOnAllocNum)
-        {
-            PAL_ASSERT_ALWAYS();
-        }
-
-        pNewElement->allocNum = m_nextAllocNum;
-        ++m_nextAllocNum;
-
-        pNewElement->pNext     = m_pMemListHead->pNext;
-        pNewElement->pNextNext = m_pMemListHead->pNextNext;
-
-        m_pMemListHead->pNextNext = m_pMemListHead->pNext;
-        m_pMemListHead->pNext     = pNewElement;
-
-        // Sanity check to make sure we've updated both pointers properly.
-        PAL_ASSERT(m_pMemListHead->pNextNext != m_pMemListHead->pNext);
+        PAL_ASSERT_ALWAYS();
     }
+
+    pNewElement->allocNum = m_nextAllocNum;
+    ++m_nextAllocNum;
+
+    m_trackerList.PushFront(pNewNode);
 
     return pClientMem;
 }
@@ -166,83 +159,48 @@ void* MemTracker<Allocator>::RemoveMemElement(
     void*       pClientMem,  // Pointer to client usable memory.
     MemBlkType  blockType)   // Block type based on calling deallocation routine.
 {
-    bool  badFree  = false;
     void* pOrigPtr = nullptr;
 
-    m_mutex.Lock();
+    // Recall that this is our internal memory layout. See Alloc for more details.
+    //   (align1)(MemTrackerList::Node)(MemTrackerElem)(underflow tracker)(client allocation)(align2)(overflow tracker)
+    uint32*    pUnderrun    = static_cast<uint32*>(VoidPtrDec(pClientMem, m_markerSizeBytes));
+    auto*const pCurrent     = static_cast<MemTrackerElem*>(VoidPtrDec(pUnderrun, sizeof(MemTrackerElem)));
+    auto*const pCurrentNode = static_cast<MemTrackerList::Node*>(VoidPtrDec(pCurrent, sizeof(MemTrackerList::Node)));
+    uint32*    pOverrun     = static_cast<uint32*>(VoidPtrInc(pClientMem, Pow2Align(pCurrent->size, sizeof(uint32))));
 
-    MemTrackerElem* pCurrent  = m_pMemListHead->pNext;
-    MemTrackerElem* pCurNext  = m_pMemListHead->pNextNext;
-    MemTrackerElem* pPrevious = m_pMemListHead;
-    MemTrackerElem* pPrevPrev = nullptr;
-
-    while ((pCurrent != nullptr) && (pCurrent->pClientMem != pClientMem))
-    {
-        // We will hit this assert if someone has corrupted the current tracker's pNext.
-        // That probably means that someone is writing into random heap memory they don't own.
-        PAL_ASSERT(pCurNext == pCurrent->pNext);
-
-        pPrevPrev = pPrevious;
-        pPrevious = pCurrent;
-        pCurNext  = pCurrent->pNextNext;
-        pCurrent  = pCurrent->pNext;
-    }
-
-    // We should not be trying to free something twice or trying to free something which has not been allocated.  The
-    // assert will catch the invalid free. Current equals previous only for empty lists.
-
-    if (pCurrent == nullptr)
+    // We should not be trying to free something twice or trying to free something which has not been allocated
+    // by this MemTracker. We can verify both of these things by checking that the tracker's pList is equal to the
+    // MemTracker's list.
+    if (pCurrent->pList != &m_trackerList)
     {
         // A free was attempted on an unrecognized pointer.
         PAL_DPERROR("Invalid Free Attempted with ptr = : (%#x)", pClientMem);
-        badFree = true;
     }
     else if (pCurrent->blockType != blockType)
     {
         // We have a mismatch in the alloc/free pair, e.g. PAL_NEW with PAL_FREE etc.  return early here without freeing
         // the memory so it shows up as a leak.
         PAL_DPERROR("Trying to Free %s as %s.",
-                  MemBlkTypeStr[static_cast<uint32>(pCurrent->blockType)],
-                  MemBlkTypeStr[static_cast<uint32>(blockType)]);
-        badFree = true;
+                    MemBlkTypeStr[static_cast<uint32>(pCurrent->blockType)],
+                    MemBlkTypeStr[static_cast<uint32>(blockType)]);
     }
     else
     {
-        // Update the linked list to no longer contain the element we are removing.
-        if (pPrevPrev != nullptr)
-        {
-            pPrevPrev->pNextNext = pCurrent->pNext;
-
-            // Sanity check to make sure we've updated both pointers properly.
-            PAL_ASSERT((pPrevPrev->pNextNext == nullptr) || (pPrevPrev->pNextNext != pPrevPrev->pNext));
-        }
-
-        pPrevious->pNextNext = pCurrent->pNextNext;
-        pPrevious->pNext     = pCurrent->pNext;
-        pOrigPtr             = pCurrent->pOrigMem;
-
-        // Sanity check to make sure we've updated both pointers properly.
-        PAL_ASSERT((pPrevious->pNextNext == nullptr) || (pPrevious->pNextNext != pPrevious->pNext));
-    }
-
-    m_mutex.Unlock();
-
-    if (badFree == false)
-    {
-        // We can check for memory corruption at top and bottom since the element was found in our free list.
-
-        uint32* pUnderrun = static_cast<uint32*>(Util::VoidPtrDec(pClientMem, m_markerSizeBytes));
-        uint32* pOverrun  = static_cast<uint32*>
-                            (Util::VoidPtrInc(pClientMem, Pow2Align(pCurrent->size, sizeof(uint32))));
-
+        // We should check for memory corruption due to overflow or underflow before continuing because any underflow
+        // might indicate that our internal state is corrupted. This could lead to a crash in the code below.
         for (uint32 markerUints = 0; markerUints < m_markerSizeUints; ++markerUints)
         {
             PAL_ASSERT(*pUnderrun++ == UnderrunSentinel);
             PAL_ASSERT(*pOverrun++  == OverrunSentinel);
         }
 
-        // Free the current memory element
-        free(pCurrent);
+        // Remove our tracker from the list and set it's pList to null to detect a double-free in the future.
+        MutexAuto lock(&m_mutex);
+
+        m_trackerList.Erase(pCurrentNode);
+
+        pCurrent->pList = nullptr;
+        pOrigPtr        = pCurrent->pOrigMem;
     }
 
     // Return a pointer to the actual allocated block.
@@ -260,20 +218,26 @@ void* MemTracker<Allocator>::Alloc(
 
     void* pMem = nullptr;
 
-    size_t paddedSizeBytes = allocInfo.bytes;
+    // We want to allocate extra memory from the caller's allocator, in this layout:
+    //   (align1)(MemTrackerList::Node)(MemTrackerElem)(underflow tracker)(client allocation)(align2)(overflow tracker)
+    // Here's why we need each of those sections:
+    //   1. align1 is zero or more bytes needed to align the client allocation and our internal data.
+    //   2. The MemTrackerList::Node object, which is used to link this allocation into m_trackerList.
+    //   3. The MemTrackerElem struct contains bookkeeping data we need to report memory errors.
+    //   4. The underflow and overflow trackers detect out of bounds writes. They are optional.
+    //   5. The client allocation, which is actually returned to the caller.
+    //   6. align2 is zero or more bytes needed to DWORD-align the overflow tracker.
+    constexpr size_t InternalAlignment = Max(alignof(MemTrackerList::Node), alignof(MemTrackerElem));
+    const size_t     paddedAlignBytes  = Max(allocInfo.alignment, InternalAlignment);
+    const size_t     paddedSizeBytes   = (paddedAlignBytes +                            // 1
+                                          sizeof(MemTrackerList::Node) +                // 2
+                                          sizeof(MemTrackerElem) +                      // 3
+                                          m_markerSizeBytes +                           // 4.a
+                                          Pow2Align(allocInfo.bytes, sizeof(uint32)) +  // 5 & 6
+                                          m_markerSizeBytes);                           // 4.b
 
-    // Allocate two "m_markerSizeBytes" elements to detect over/under runs of the memory range.  The overrun marker will
-    // actually start at the next aligned point after the allocation.  We need to allocate additional space to re-align
-    // returned start pointer so that the address immediately following the underrun marker is properly aligned.
-    if (m_markerSizeBytes != 0)
-    {
-        paddedSizeBytes  = Pow2Align(paddedSizeBytes, sizeof(uint32));
-        paddedSizeBytes += m_markerSizeBytes * 2;
-        paddedSizeBytes += allocInfo.alignment;
-    }
-
-    AllocInfo memTrackerInfo(allocInfo);
-    memTrackerInfo.bytes = paddedSizeBytes;
+    const AllocInfo memTrackerInfo(paddedSizeBytes, paddedAlignBytes, allocInfo.zeroMem, allocInfo.allocType,
+                                   allocInfo.blockType, allocInfo.pFilename, allocInfo.lineNumber);
 
     pMem = m_pAllocator->Alloc(memTrackerInfo);
 
@@ -282,7 +246,7 @@ void* MemTracker<Allocator>::Alloc(
         // Don't bother adding a failed allocation to the Memtrack list.
         pMem = AddMemElement(pMem,
                              allocInfo.bytes,
-                             allocInfo.alignment,
+                             paddedAlignBytes,
                              allocInfo.blockType,
                              allocInfo.pFilename,
                              allocInfo.lineNumber);
@@ -318,13 +282,15 @@ void MemTracker<Allocator>::Free(
 template <typename Allocator>
 void MemTracker<Allocator>::FreeLeakedMemory()
 {
-    const MemTrackerElem* pCurrent = m_pMemListHead->pNext;
-
-    while (pCurrent != nullptr)
+    for (MemTrackerList::Iter iter = m_trackerList.Begin(); iter.IsValid(); )
     {
-        // Free will release the memory for tracking and the actual element.
+        MemTrackerElem*const pCurrent = iter.Get();
+
+        // Free will release the memory for tracking and the actual element. This will invalidate our list iterator
+        // unless we advance the iterator first.
+        iter.Next();
+
         Free(FreeInfo(pCurrent->pClientMem, pCurrent->blockType));
-        pCurrent = m_pMemListHead->pNext;
     }
 }
 
@@ -333,13 +299,12 @@ void MemTracker<Allocator>::FreeLeakedMemory()
 template <typename Allocator>
 void MemTracker<Allocator>::MemoryReport()
 {
-    const MemTrackerElem* pCurrent = m_pMemListHead;
-
     PAL_DPWARN("================ List of Leaked Blocks ================");
 
-    while (pCurrent->pNext != nullptr)
+    for (MemTrackerList::Iter iter = m_trackerList.Begin(); iter.IsValid(); iter.Next())
     {
-        pCurrent = pCurrent->pNext;
+        MemTrackerElem*const pCurrent = iter.Get();
+
         PAL_DPWARN("ClientMem = 0x%p, AllocSize = %8d, MemBlkType = %s, File = %-15s, LineNumber = %8d, AllocNum = %8d",
                    pCurrent->pClientMem,
                    pCurrent->size,

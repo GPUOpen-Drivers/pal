@@ -38,7 +38,7 @@
 #include "core/hw/gfxip/gfx9/gfx9MsaaState.h"
 #include "core/hw/gfxip/gfx9/gfx9PerfExperiment.h"
 #include "core/hw/gfxip/gfx9/gfx9UniversalCmdBuffer.h"
-#include "core/hw/gfxip/queryPool.h"
+#include "core/hw/gfxip/gfx9/gfx9PipelineStatsQueryPool.h"
 #include "core/g_palPlatformSettings.h"
 #include "core/settingsLoader.h"
 #include "marker_payload.h"
@@ -624,7 +624,7 @@ void UniversalCmdBuffer::ResetState()
     }
     else
     {
-        PAL_ASSERT(IsGfx9(*m_device.Parent()));
+        PAL_ASSERT(IsGfx9(m_gfxIpLevel));
         m_vgtDmaIndexType.gfx09.RDREQ_POLICY = VGT_POLICY_STREAM;
     }
 
@@ -2902,7 +2902,7 @@ void UniversalCmdBuffer::CmdInsertTraceMarker(
         (markerType == PerfTraceMarkerType::A) ? mmSQ_THREAD_TRACE_USERDATA_2 : mmSQ_THREAD_TRACE_USERDATA_3;
 
     uint32* pCmdSpace = m_deCmdStream.ReserveCommands();
-    if (m_device.Parent()->ChipProperties().gfxLevel != GfxIpLevel::GfxIp9)
+    if (IsGfx9(m_gfxIpLevel) == false)
     {
         pCmdSpace = m_deCmdStream.WriteSetOneConfigReg<true>(userDataAddr, markerData, pCmdSpace);
     }
@@ -2931,7 +2931,7 @@ void UniversalCmdBuffer::CmdInsertRgpTraceMarker(
         // Reserve and commit command space inside this loop.  Some of the RGP packets are unbounded, like adding a
         // comment string, so it's not safe to assume the whole packet will fit under our reserve limit.
         uint32* pCmdSpace = m_deCmdStream.ReserveCommands();
-        if (m_device.Parent()->ChipProperties().gfxLevel != GfxIpLevel::GfxIp9)
+        if (IsGfx9(m_gfxIpLevel) == false)
         {
             pCmdSpace = m_deCmdStream.WriteSetSeqConfigRegs<true>(mmSQ_THREAD_TRACE_USERDATA_2,
                                                                   mmSQ_THREAD_TRACE_USERDATA_2 + dwordsToWrite - 1,
@@ -3794,6 +3794,7 @@ uint32* UniversalCmdBuffer::ValidateGraphicsUserData(
                                                                          pDeCmdSpace);
         }
     } // if stream-out table is mapped by current pipeline
+
     // Update uav export srds if enabled
     const uint16 uavExportEntry = m_pSignatureGfx->uavExportTableAddr;
     if (uavExportEntry != UserDataNotMapped)
@@ -4658,8 +4659,8 @@ uint32* UniversalCmdBuffer::ValidateDraw(
 
     regVGT_MULTI_PRIM_IB_RESET_EN vgtMultiPrimIbResetEn = {};
 
-    vgtMultiPrimIbResetEn.bits.RESET_EN = static_cast<uint32>(
-        Indexed && m_graphicsState.inputAssemblyState.primitiveRestartEnable);
+    vgtMultiPrimIbResetEn.bits.RESET_EN =
+        static_cast<uint32>(Indexed && m_graphicsState.inputAssemblyState.primitiveRestartEnable);
 
     // Validate the per-draw HW state.
     pDeCmdSpace = ValidateDrawTimeHwState<Indexed, Indirect, Pm4OptImmediate>(paScModeCntl1,

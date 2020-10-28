@@ -36,6 +36,7 @@
 #include "palMath.h"
 
 #include <limits.h>
+#include <type_traits>
 
 using namespace Pal::AddrMgr2;
 using namespace Util;
@@ -50,6 +51,35 @@ namespace Gfx9
 uint32 Image::s_cbSwizzleIdx    = 0;
 uint32 Image::s_txSwizzleIdx    = 0;
 uint32 Image::s_fMaskSwizzleIdx = 0;
+
+// =====================================================================================================================
+// Helper function for allocating memory for a Gfx9MaskRam object, and instantiating the derived class.
+template <typename MaskRamType, typename ...Args>
+Result CreateGfx9MaskRam(
+    const Pal::Device& device,
+    const Image&       image,
+    MaskRamType**      ppMaskRam,
+    Args...            args)
+{
+    static_assert(std::is_base_of<Gfx9MaskRam, MaskRamType>::value, "MaskRamType must be derived from Gfx9MaskRam");
+
+    PAL_ASSERT(*ppMaskRam == nullptr);
+
+    Result result = Result::ErrorOutOfMemory;
+
+    size_t allocSize   = sizeof(MaskRamType) + sizeof(Gfx9MetaEqGenerator);
+    void*  pMaskRamMem = PAL_MALLOC(allocSize, device.GetPlatform(), SystemAllocType::AllocObject);
+
+    if (pMaskRamMem != nullptr)
+    {
+        void* pEqGeneratorMem = VoidPtrInc(pMaskRamMem, sizeof(MaskRamType));
+        *ppMaskRam = PAL_PLACEMENT_NEW(pMaskRamMem) MaskRamType(image, pEqGeneratorMem, args...);
+
+        result = Result::Success;
+    }
+
+    return result;
+}
 
 // =====================================================================================================================
 Image::Image(
@@ -100,14 +130,14 @@ Image::~Image()
 {
     Pal::GfxImage::Destroy();
 
-    PAL_SAFE_DELETE(m_pHtile, m_device.GetPlatform());
-    PAL_SAFE_DELETE(m_pFmask, m_device.GetPlatform());
-    PAL_SAFE_DELETE(m_pCmask, m_device.GetPlatform());
+    PAL_SAFE_FREE(m_pHtile, m_device.GetPlatform());
+    PAL_SAFE_FREE(m_pFmask, m_device.GetPlatform());
+    PAL_SAFE_FREE(m_pCmask, m_device.GetPlatform());
 
     for (uint32  idx = 0; idx < MaxNumPlanes; idx++)
     {
-        PAL_SAFE_DELETE(m_pDcc[idx], m_device.GetPlatform());
-        PAL_SAFE_DELETE(m_pDispDcc[idx], m_device.GetPlatform());
+        PAL_SAFE_FREE(m_pDcc[idx], m_device.GetPlatform());
+        PAL_SAFE_FREE(m_pDispDcc[idx], m_device.GetPlatform());
     }
 }
 
@@ -185,15 +215,15 @@ void Image::GetMetaEquationConstParam(
 
                 const Gfx9Cmask*const pCmask = GetCmask();
                 // we must have a valid MaskRam surface
-                PAL_ASSERT(pCmask != nullptr);
-                clearPara = pCmask->GetMetaEquationParam();
+                PAL_ASSERT((pCmask != nullptr) && pCmask->HasMetaEqGenerator());
+                clearPara = pCmask->GetMetaEqGenerator()->GetMetaEquationParam();
             }
             else
             {
                 const Gfx9Dcc*const pDcc = GetDcc(ImageAspect::Color);
                 // we must have a valid MaskRam surface
-                PAL_ASSERT(pDcc != nullptr);
-                clearPara = pDcc->GetMetaEquationParam();
+                PAL_ASSERT((pDcc != nullptr) && pDcc->HasMetaEqGenerator());
+                clearPara = pDcc->GetMetaEqGenerator()->GetMetaEquationParam();
             }
         }
         else
@@ -202,8 +232,8 @@ void Image::GetMetaEquationConstParam(
 
             const Gfx9Htile*const pHtile = GetHtile();
             // we must have a valid MaskRam surface
-            PAL_ASSERT(pHtile != nullptr);
-            clearPara         = pHtile->GetMetaEquationParam();
+            PAL_ASSERT((pHtile != nullptr) && pHtile->HasMetaEqGenerator());
+            clearPara = pHtile->GetMetaEqGenerator()->GetMetaEquationParam();
         }
 
         // metaBlocks are generally interleaved in memory except one case as defined below.
@@ -459,8 +489,8 @@ Result Image::Finalize(
     // Initialize Htile:
     if (htileUsage.value != 0)
     {
-        m_pHtile = PAL_NEW(Gfx9Htile, m_device.GetPlatform(), SystemAllocType::AllocObject)(*this, htileUsage);
-        if (m_pHtile != nullptr)
+        result = CreateGfx9MaskRam(m_device, *this, &m_pHtile, htileUsage);
+        if (result == Result::Success)
         {
             if (useSharedMetadata)
             {
@@ -553,10 +583,6 @@ Result Image::Finalize(
                 }
             }
         }
-        else
-        {
-            result = Result::ErrorOutOfMemory;
-        }
     } // End check for needing hTile data
 
     // Initialize DCC:
@@ -646,8 +672,8 @@ Result Image::Finalize(
         // On GFX9, Cmask and fmask go together. There's no point to having just one of them.
         if (result == Result::Success)
         {
-            m_pCmask = PAL_NEW(Gfx9Cmask, m_device.GetPlatform(), SystemAllocType::AllocObject)(*this);
-            if (m_pCmask != nullptr)
+            result = CreateGfx9MaskRam(m_device, *this, &m_pCmask);
+            if (result == Result::Success)
             {
                 if (useSharedMetadata)
                 {
@@ -930,9 +956,11 @@ Result Image::CreateDccObject(
 
         // There is nothing mip-level specific about DCC on Gfx9+, so we just have one DCC objct that represents the
         // entire DCC allocation.
-        Gfx9Dcc*  pDcc = PAL_NEW(Gfx9Dcc, m_device.GetPlatform(), SystemAllocType::AllocObject)(*this, false);
-        if (pDcc != nullptr)
+        result = CreateGfx9MaskRam(m_device, *this, &m_pDcc[planeIdx], false);
+        if (result == Result::Success)
         {
+            Gfx9Dcc*  pDcc = m_pDcc[planeIdx];
+
             if (useSharedMetadata)
             {
                 PAL_ASSERT(planeIdx < sharedMetadata.numPlanes);
@@ -956,7 +984,7 @@ Result Image::CreateDccObject(
                 {
                     const auto& surfSettings = GetAddrSettings(pAspectBaseSubResInfo);
 
-                    if (Gfx9MaskRam::SupportFastColorClear(m_device, *this, surfSettings.swizzleMode))
+                    if (Gfx9Dcc::SupportFastColorClear(m_device, *this, surfSettings.swizzleMode))
                     {
                         for (uint32 mip = 0; mip < m_createInfo.mipLevels; ++mip)
                         {
@@ -987,18 +1015,13 @@ Result Image::CreateDccObject(
                 const auto&  addrOutput           = pDcc->GetAddrOutput();
                 const uint32 metaBlkFastClearSize = addrOutput.fastClearSizePerSlice / addrOutput.metaBlkNumPerSlice;
 
-                // The GetMetaEquationConstParam function needs the DCC object we just created.
-                m_pDcc[planeIdx] = pDcc;
-
                 if (m_pImageInfo->internalCreateInfo.displayDcc.enabled != 0)
                 {
-                    Gfx9Dcc* pDispDcc =
-                        PAL_NEW(Gfx9Dcc, m_device.GetPlatform(), SystemAllocType::AllocObject)(*this, true);
-                    if (pDispDcc != nullptr)
+                    result = CreateGfx9MaskRam(m_device, *this, &m_pDispDcc[planeIdx], true);
+                    if (result == Result::Success)
                     {
-                        pDispDcc->Init(aspectBaseSubResId, pGpuMemSize, true);
-                        PAL_ASSERT(pDcc->GetControlReg().u32All == pDispDcc->GetControlReg().u32All);
-                        m_pDispDcc[planeIdx] = pDispDcc;
+                        m_pDispDcc[planeIdx]->Init(aspectBaseSubResId, pGpuMemSize, true);
+                        PAL_ASSERT(pDcc->GetControlReg().u32All == m_pDispDcc[planeIdx]->GetControlReg().u32All);
                     }
                 }
                 m_numDccPlanes++;
@@ -1006,10 +1029,6 @@ Result Image::CreateDccObject(
                 // Get the constant data for clears based on DCC meta equation
                 GetMetaEquationConstParam(&m_metaDataClearConst[MetaDataDcc], metaBlkFastClearSize);
             }
-        }
-        else
-        {
-            result = Result::ErrorOutOfMemory;
         }
     }
 
@@ -1273,10 +1292,7 @@ void Image::InitLayoutStateMasks()
         // If the client has given us a hint that this Image never does anything to this Image which would cause
         // the Image data and Hi-Z to become out-of-sync, we can include all layouts in the decomprWithHiZ state
         // because this Image will never need to do a resummarization blit.
-        // In the case of Gfx10+, shader writes to a compressed image will keep the HiZ in a consistent state and
-        // therefore don't require the hiZNeverInvalid flag to be enabled in order to allow the
-        // ShaderWrite and CopyDst usage flags.
-        if ((m_createInfo.usageFlags.hiZNeverInvalid != 0) || IsGfx10Plus(m_device))
+        if (m_createInfo.usageFlags.hiZNeverInvalid != 0)
         {
             decomprWithHiZLayout.usages  = AllDepthImageLayoutFlags;
             decomprWithHiZLayout.engines = LayoutUniversalEngine | LayoutComputeEngine | LayoutDmaEngine;
@@ -2071,27 +2087,6 @@ bool Image::ShaderWriteIncompatibleWithLayout(
     }
 
     return writeIncompatible;
-}
-
-// =====================================================================================================================
-// Determines the memory requirements for this image.
-void Image::OverrideGpuMemHeaps(
-    GpuMemoryRequirements* pMemReqs     // [in,out] returns with populated 'heap' info
-    ) const
-{
-    const auto&  settings = GetGfx9Settings(m_device);
-
-    // If this surface has meta-data and the equations are being processed via the CPU, then make sure that this
-    // surface is in a mappable heap.
-    if (((HasColorMetaData() || HasHtileData()) && settings.processMetaEquationViaCpu))
-    {
-        uint32  heapIdx = 0;
-
-        pMemReqs->heaps[heapIdx++] = GpuHeapLocal;
-        pMemReqs->heaps[heapIdx++] = GpuHeapGartUswc;
-        pMemReqs->heaps[heapIdx++] = GpuHeapGartCacheable;
-        pMemReqs->heapCount        = heapIdx;
-    }
 }
 
 // =====================================================================================================================
@@ -2984,227 +2979,6 @@ bool Image::DepthImageSupportsMetaDataTextureFetch(
 }
 
 // =====================================================================================================================
-// This function uses the CPU to process the meta-data equation for the specific mask-ram.  This means it will do
-// whatever operation is requested during command buffer create time, not during command buffer execution time.  Which
-// means that this routine is unsafe to call with anything other than really, really simple apps like MTF tests.
-template<typename MetaDataType, typename AddrOutputType>
-void CpuProcessEq(
-    const Image*           pImage,
-    const Gfx9MaskRam*     pMaskRam,
-    const SubresRange&     clearRange,
-    const AddrOutputType&  maskRamAddrOutput,
-    uint32                 log2MetaBlkDepth,
-    uint32                 numSamples,
-    MetaDataType           clearValue,
-    MetaDataType           clearMask)
-{
-    const auto*      pParent  = pImage->Parent();
-    BoundGpuMemory&  boundMem = const_cast<BoundGpuMemory&>(pParent->GetBoundGpuMemory());
-    void*            pMem     = nullptr;
-
-    if (boundMem.Map(&pMem) == Result::Success)
-    {
-        const auto&   eq          = pMaskRam->GetMetaEquation();
-        const auto&   createInfo  = pParent->GetImageCreateInfo();
-        const uint32  pipeXorMask = pMaskRam->CalcPipeXorMask(clearRange.startSubres.aspect);
-
-        // This is a mask used to determine which byte within the MetaDataType will be updated.  If
-        // MetaDataType is a byte-quantity, this will be zero.
-        const uint32  metaDataTypeByteMask = ((1 << Log2(sizeof(MetaDataType))) - 1) << 1;
-
-        // The compression ratio of image pixels into mask-ram blocks changes based on the mask-ram
-        // type and image info.
-        uint32  xInc = 0;
-        uint32  yInc = 0;
-        uint32  zInc = 0;
-        pMaskRam->GetXyzInc(&xInc, &yInc, &zInc);
-
-        uint32  numSlices  = createInfo.extent.depth;
-
-        if (createInfo.imageType != ImageType::Tex3d)
-        {
-            numSlices  = clearRange.numSlices;
-        }
-
-        eq.PrintEquation(pParent->GetDevice());
-
-        const uint32  log2MetaBlkWidth  = Log2(maskRamAddrOutput.metaBlkWidth);
-        const uint32  log2MetaBlkHeight = Log2(maskRamAddrOutput.metaBlkHeight);
-        const uint32  metaBlkSize       = maskRamAddrOutput.pitch * maskRamAddrOutput.height;
-        const uint32  sliceSize         = metaBlkSize >> (log2MetaBlkWidth + log2MetaBlkHeight);
-        const uint32  firstEqBit        = pMaskRam->GetFirstBit();
-
-        // Point pMem to the base of the mask ram memory...  previously it was pointing at the base of the memory
-        // bound to this image.
-        MetaDataType* pData =
-            reinterpret_cast<MetaDataType*>(VoidPtrInc(pMem, static_cast<size_t>(pMaskRam->MemoryOffset())));
-
-        for (uint32  mipLevelIdx = 0; mipLevelIdx < clearRange.numMips; mipLevelIdx++)
-        {
-            const uint32    mipLevel             = clearRange.startSubres.mipLevel + mipLevelIdx;
-            const SubresId  baseSliceSubResId    = { clearRange.startSubres.aspect, mipLevel, 0 };
-            const auto*     pBaseSliceSubResInfo = pParent->SubresourceInfo(baseSliceSubResId);
-            const uint32    origMipLevelHeight   = pBaseSliceSubResInfo->extentTexels.height;
-            const uint32    origMipLevelWidth    = pBaseSliceSubResInfo->extentTexels.width;
-            const auto&     maskRamMipInfo       = pMaskRam->GetAddrMipInfo(mipLevel);
-            const uint32    firstSlice           = ((createInfo.imageType != ImageType::Tex3d)
-                                                    ? clearRange.startSubres.arraySlice
-                                                    : maskRamMipInfo.startZ);
-
-            for (uint32  y = 0; y < origMipLevelHeight; y += yInc)
-            {
-                const uint32  yRelToMetaBlock = (maskRamMipInfo.startY + y) & (maskRamAddrOutput.metaBlkHeight - 1);
-                const uint32  metaY           = (y + maskRamMipInfo.startY) >> log2MetaBlkHeight;
-
-                for (uint32  x = 0; x < origMipLevelWidth; x += xInc)
-                {
-                    const uint32  xRelToMetaBlock = (maskRamMipInfo.startX + x) & (maskRamAddrOutput.metaBlkWidth - 1);
-                    const uint32  metaX           = (x + maskRamMipInfo.startX) >> log2MetaBlkWidth;
-
-                    // For volume surfaces, "numSlices" is the full depth of the surface
-                    // For 2D array's, "numSlices" is the number of slices that the client is requesting that we clear.
-                    for (uint32  sliceIdx = 0; sliceIdx < numSlices; sliceIdx += zInc)
-                    {
-                        const uint32  absSlice  = firstSlice + sliceIdx;
-                        const uint32  metaZ     = (absSlice + maskRamMipInfo.startZ) >> log2MetaBlkDepth;
-                        const uint32  metaBlock = metaX +
-                                                  metaY * (maskRamAddrOutput.pitch >> log2MetaBlkWidth) +
-                                                  metaZ * sliceSize;
-
-                        for (uint32  sample = 0; sample < numSamples; sample++)
-                        {
-                            uint32 metaOffsetInNibbles = eq.CpuSolve(xRelToMetaBlock,
-                                                                     yRelToMetaBlock,
-                                                                     absSlice,
-                                                                     sample,
-                                                                     metaBlock);
-
-                            // Take care of any pipe/bank swizzling associated with this surface.  The pipeXormask
-                            // is in terms of bytes, so shift it up to get it in the correct position for a nibble
-                            // address.
-                            metaOffsetInNibbles ^= (pipeXorMask << 1);
-
-                            // Check that the offset is still valid...
-                            PAL_ASSERT (metaOffsetInNibbles < 2 * pMaskRam->TotalSize());
-
-                            // Make sure all the bits that we think we can ignore are still zero.
-                            PAL_ASSERT ((metaOffsetInNibbles & ((1 << firstEqBit) - 1)) == 0);
-
-                            // Determine which byte within the "MetaDataType" that we need to access.  If MetaDataType
-                            // is a byte quantity, this will be zero.
-                            const uint32  numBytesOver = (metaOffsetInNibbles & metaDataTypeByteMask) >> 1;
-
-                            // Each nibble is four bits wide.  Find the amount we need to shift the clear data
-                            // to access the nibble within the MetaDataType that we are actually addressing.  Also
-                            // take into account the byte offset within MetaDataType.
-                            const uint32 bitShiftAmount = ((metaOffsetInNibbles & 1) << 2) + (numBytesOver << 3);
-
-                            // We need to get metaOffset back into the units of MetaDataType.  Remember that we're
-                            // shifting a nibble address here (i.e., two nibbles per byte).
-                            const uint32 metaOffset = metaOffsetInNibbles >> Log2(2 * sizeof(MetaDataType));
-
-                            const MetaDataType  andValue = ~(clearMask << bitShiftAmount);
-                            const MetaDataType  orValue  = ((clearValue & clearMask) << bitShiftAmount);
-
-#if PAL_ENABLE_PRINTS_ASSERTS
-                            const auto&  settings = GetGfx9Settings(*pParent->GetDevice());
-
-                            if (TestAnyFlagSet(settings.printMetaEquationInfo, Gfx9PrintMetaEquationInfoProcessing))
-                            {
-                                // "sizeof" returns bytes, the width of a printf hex field is specified in nibbles
-                                const uint32  andOrPrintWidth = sizeof(MetaDataType) * 2;
-
-                                PAL_DPINFO(
-                                    "(%3d, %3d, %2d), (%3d, %3d, %3d, %3d, %3d) = (meta[0x%04X] & 0x%0*X) | 0x%0*X\n",
-                                    x, y, mipLevel,
-                                    xRelToMetaBlock, yRelToMetaBlock, absSlice, sample, metaBlock,
-                                    metaOffset * sizeof(MetaDataType),
-                                    andOrPrintWidth, andValue,
-                                    andOrPrintWidth, orValue);
-                            }
-#endif
-
-                            pData[metaOffset] = (pData[metaOffset] & andValue) | orValue;
-                        } // end loop through all the samples that actually affect this equation
-                    } // end loop through all the slices associated with this mip level
-                } // end "width" loop through a mip level
-            } // end "height" loop through a mip level
-        } // end loop through all the mip levels to clear
-
-        boundMem.Unmap();
-    }
-    else
-    {
-        // Couldn't get a CPU pointer to our meta-data...  The clear didn't happen, future behavior is now undefined.
-        PAL_ASSERT_ALWAYS();
-    } // end check for CPU access to DCC memory
-}
-
-// =====================================================================================================================
-// This function uses the CPU to process the meta-data equation for cMask memory.
-void Image::CpuProcessCmaskEq(
-    const SubresRange&  clearRange,
-    uint8               clearValue  // really only a nibble
-    ) const
-{
-    const auto*  pCmask          = GetCmask();
-    const auto&  cMaskAddrOutput = pCmask->GetAddrOutput();
-
-    // To the HW, cMask is a nibble (4-bit) quantity, but there is no 4-bit data type.
-    CpuProcessEq<uint8, ADDR2_COMPUTE_CMASK_INFO_OUTPUT>(this,
-                                                         pCmask,
-                                                         clearRange,
-                                                         cMaskAddrOutput,
-                                                         0, // msaa surfaces are always 2d
-                                                         pCmask->GetNumEffectiveSamples(),
-                                                         clearValue,
-                                                         0xF); // cMask is nibble addressed, mask is only 4-bits wide
-}
-
-// =====================================================================================================================
-// This function uses the CPU to process the meta-data equation for DCC memory.
-void Image::CpuProcessDccEq(
-    const SubresRange&  clearRange,
-    uint8               clearValue,
-    DccClearPurpose     clearPurpose
-    ) const
-{
-    const auto*  pDcc          = GetDcc(clearRange.startSubres.aspect);
-    const auto&  dccAddrOutput = pDcc->GetAddrOutput();
-
-    CpuProcessEq<uint8, ADDR2_COMPUTE_DCCINFO_OUTPUT>(this,
-                                                      pDcc,
-                                                      clearRange,
-                                                      dccAddrOutput,
-                                                      Log2(dccAddrOutput.metaBlkDepth),
-                                                      pDcc->GetNumEffectiveSamples(clearPurpose),
-                                                      clearValue,
-                                                      0xFF); // keep all of clearValue, erase current data
-}
-
-// =====================================================================================================================
-// This function uses the CPU to process the meta-data equation for hTile memory.
-void Image::CpuProcessHtileEq(
-    const SubresRange&  clearRange,
-    uint32              clearValue,
-    uint32              clearMask
-    ) const
-{
-    // The equation is only stored with the base hTile
-    const auto*  pHtile          = GetHtile();
-    const auto&  hTileAddrOutput = pHtile->GetAddrOutput();
-
-    CpuProcessEq<uint32, ADDR2_COMPUTE_HTILE_INFO_OUTPUT>(this,
-                                                          pHtile,
-                                                          clearRange,
-                                                          hTileAddrOutput,
-                                                          0, // hTile surfaces are always 2D
-                                                          pHtile->GetNumEffectiveSamples(),
-                                                          clearValue,
-                                                          clearMask);
-}
-
-// =====================================================================================================================
 // Initializes the metadata in the given subresource range using CmdFillMemory calls.
 void Image::InitMetadataFill(
     Pal::CmdBuffer*    pCmdBuffer,
@@ -3225,7 +2999,8 @@ void Image::InitMetadataFill(
         // so it isn't practical to init them separately anyway
         pCmdBuffer->CmdFillMemory(gpuMemObj, m_pHtile->MemoryOffset() + boundGpuMemOffset, m_pHtile->TotalSize(), initValue);
 
-        m_pHtile->UploadEq(pCmdBuffer);
+        PAL_ASSERT(m_pHtile->HasMetaEqGenerator());
+        m_pHtile->GetMetaEqGenerator()->UploadEq(pCmdBuffer);
     }
     else if (Parent()->IsRenderTarget())
     {
@@ -3240,10 +3015,15 @@ void Image::InitMetadataFill(
 
             pCmdBuffer->CmdFillMemory(gpuMemObj, pDcc->MemoryOffset() + boundGpuMemOffset, pDcc->TotalSize(), DccInitValue);
 
-            pDcc->UploadEq(pCmdBuffer);
+            PAL_ASSERT(pDcc->HasMetaEqGenerator());
+            pDcc->GetMetaEqGenerator()->UploadEq(pCmdBuffer);
+
             if (HasDisplayDccData())
             {
-                GetDisplayDcc(range.startSubres.aspect)->UploadEq(pCmdBuffer);
+                const Gfx9Dcc* pDispDcc = GetDisplayDcc(range.startSubres.aspect);
+
+                PAL_ASSERT(pDispDcc->HasMetaEqGenerator());
+                pDispDcc->GetMetaEqGenerator()->UploadEq(pCmdBuffer);
             }
         }
 
@@ -3260,7 +3040,9 @@ void Image::InitMetadataFill(
                                       m_pCmask->MemoryOffset() + boundGpuMemOffset,
                                       m_pCmask->TotalSize(),
                                       expandedInitValue);
-            m_pCmask->UploadEq(pCmdBuffer);
+
+            PAL_ASSERT(m_pCmask->HasMetaEqGenerator());
+            m_pCmask->GetMetaEqGenerator()->UploadEq(pCmdBuffer);
 
             pCmdBuffer->CmdFillMemory(gpuMemObj,
                                       m_pFmask->MemoryOffset(),
@@ -3666,14 +3448,17 @@ void Image::GetSharedMetadataInfo(
         pMetadataInfo->fastClearEliminateMetaDataOffset[dccPlane] = m_fastClearEliminateMetaDataOffset[dccPlane];
         pMetadataInfo->fastClearMetaDataOffset[dccPlane]          = m_fastClearMetaDataOffset[dccPlane];
 
-        pMetadataInfo->flags.hasEqGpuAccess = m_pDcc[dccPlane]->HasEqGpuAccess();
+        PAL_ASSERT(m_pDcc[dccPlane]->HasMetaEqGenerator());
+        pMetadataInfo->flags.hasEqGpuAccess = m_pDcc[dccPlane]->GetMetaEqGenerator()->HasEqGpuAccess();
 
         pMetadataInfo->numPlanes = m_numDccPlanes;
     }
     if (m_pCmask != nullptr)
     {
         pMetadataInfo->cmaskOffset          = m_pCmask->MemoryOffset();
-        pMetadataInfo->flags.hasEqGpuAccess = m_pCmask->HasEqGpuAccess();
+
+        PAL_ASSERT(m_pCmask->HasMetaEqGenerator());
+        pMetadataInfo->flags.hasEqGpuAccess = m_pCmask->GetMetaEqGenerator()->HasEqGpuAccess();
     }
     if (m_pFmask != nullptr)
     {
@@ -3686,7 +3471,9 @@ void Image::GetSharedMetadataInfo(
         pMetadataInfo->htileOffset                = m_pHtile->MemoryOffset();
         pMetadataInfo->flags.hasWaTcCompatZRange  = HasWaTcCompatZRangeMetaData();
         pMetadataInfo->flags.hasHtileLookupTable  = HasHtileLookupTable();
-        pMetadataInfo->flags.hasEqGpuAccess       = m_pHtile->HasEqGpuAccess();
+
+        PAL_ASSERT(m_pHtile->HasMetaEqGenerator());
+        pMetadataInfo->flags.hasEqGpuAccess       = m_pHtile->GetMetaEqGenerator()->HasEqGpuAccess();
 
         pMetadataInfo->fastClearMetaDataOffset[0] = m_fastClearMetaDataOffset[0];
         pMetadataInfo->numPlanes = 1;

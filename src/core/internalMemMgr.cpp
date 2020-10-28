@@ -246,7 +246,10 @@ Result InternalMemMgr::AllocateGpuMemNoAllocLock(
     }
 
     // If the requested allocation is small enough, try to find an appropriate pool and sub-allocate from it.
-    if ((result == Result::Success) && (pOffset != nullptr) && (localCreateInfo.size <= PoolAllocationSize / 2))
+    if ((result                    == Result::Success)        &&
+        (pOffset                   != nullptr)                &&
+        (localCreateInfo.size      <= PoolAllocationSize / 2) &&
+        (localCreateInfo.alignment <= PoolAllocationSize / 2))
     {
         // Calculate GPU memory flags based on the creation information
         const GpuMemoryFlags requestedMemFlags = ConvertGpuMemoryFlags(localCreateInfo, internalInfo);

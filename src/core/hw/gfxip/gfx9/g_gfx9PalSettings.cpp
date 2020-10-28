@@ -64,7 +64,6 @@ void SettingsLoader::SetupDefaults()
     m_settings.allowBigPage = 0x3f;
     m_settings.disableBorderColorPaletteBinds = false;
     m_settings.printMetaEquationInfo = 0x0;
-    m_settings.processMetaEquationViaCpu = false;
     m_settings.optimizedFastClear = 0x7;
     m_settings.alwaysDecompress = 0x0;
     m_settings.treat1dAs2d = true;
@@ -251,11 +250,6 @@ void SettingsLoader::ReadSettings()
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pPrintMetaEquationInfoStr,
                            Util::ValueType::Uint,
                            &m_settings.printMetaEquationInfo,
-                           InternalSettingScope::PrivatePalGfx9Key);
-
-    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pProcessMetaEquationViaCpuStr,
-                           Util::ValueType::Boolean,
-                           &m_settings.processMetaEquationViaCpu,
                            InternalSettingScope::PrivatePalGfx9Key);
 
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pOptimizedFastClearStr,
@@ -1280,11 +1274,6 @@ void SettingsLoader::InitSettingsInfo()
     info.valueSize = sizeof(m_settings.printMetaEquationInfo);
     m_settingsInfoMap.Insert(2137175839, info);
 
-    info.type      = SettingType::Boolean;
-    info.pValuePtr = &m_settings.processMetaEquationViaCpu;
-    info.valueSize = sizeof(m_settings.processMetaEquationViaCpu);
-    m_settingsInfoMap.Insert(3623936311, info);
-
     info.type      = SettingType::Uint;
     info.pValuePtr = &m_settings.optimizedFastClear;
     info.valueSize = sizeof(m_settings.optimizedFastClear);
@@ -2036,7 +2025,7 @@ void SettingsLoader::DevDriverRegister()
             component.pfnSetValue = ISettingsLoader::SetValue;
             component.pSettingsData = &g_gfx9PalJsonData[0];
             component.settingsDataSize = sizeof(g_gfx9PalJsonData);
-            component.settingsDataHash = 2332314935;
+            component.settingsDataHash = 2796808804;
             component.settingsDataHeader.isEncoded = true;
             component.settingsDataHeader.magicBufferId = 402778310;
             component.settingsDataHeader.magicBufferOffset = 0;

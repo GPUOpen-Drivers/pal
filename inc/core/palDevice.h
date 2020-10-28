@@ -185,6 +185,7 @@ enum class AsicRevision : uint32
 
     Iceland     = 0x11,
     Tonga       = 0x12,
+    TongaPro    = Tonga,
     Fiji        = 0x13,
 
     Polaris10   = 0x14,

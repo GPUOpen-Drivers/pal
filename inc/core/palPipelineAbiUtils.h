@@ -65,6 +65,11 @@ PAL_INLINE void MachineTypeToGfxIpVersion(
         *pGfxIpMinorVer = 0;
         *pGfxIpStepping = 1;
         break;
+    case AmdGpuMachineType::Gfx602:
+        *pGfxIpMajorVer = 6;
+        *pGfxIpMinorVer = 0;
+        *pGfxIpStepping = 2;
+        break;
     case AmdGpuMachineType::Gfx700:
         *pGfxIpMajorVer = 7;
         *pGfxIpMinorVer = 0;
@@ -90,6 +95,11 @@ PAL_INLINE void MachineTypeToGfxIpVersion(
         *pGfxIpMinorVer = 0;
         *pGfxIpStepping = 4;
         break;
+    case AmdGpuMachineType::Gfx705:
+        *pGfxIpMajorVer = 7;
+        *pGfxIpMinorVer = 0;
+        *pGfxIpStepping = 5;
+        break;
     case AmdGpuMachineType::Gfx800:
         *pGfxIpMajorVer = 8;
         *pGfxIpMinorVer = 0;
@@ -109,6 +119,11 @@ PAL_INLINE void MachineTypeToGfxIpVersion(
         *pGfxIpMajorVer = 8;
         *pGfxIpMinorVer = 0;
         *pGfxIpStepping = 3;
+        break;
+    case AmdGpuMachineType::Gfx805:
+        *pGfxIpMajorVer = 8;
+        *pGfxIpMinorVer = 0;
+        *pGfxIpStepping = 5;
         break;
     case AmdGpuMachineType::Gfx810:
         *pGfxIpMajorVer = 8;

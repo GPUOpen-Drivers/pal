@@ -33,6 +33,7 @@
 
 #if PAL_MEMTRACK
 
+#include "palIntrusiveList.h"
 #include "palMutex.h"
 
 namespace Util
@@ -41,7 +42,13 @@ namespace Util
 // Forward declarations
 struct AllocInfo;
 struct FreeInfo;
+struct MemTrackerElem;
 enum   SystemAllocType : uint32;
+
+/// @internal
+///
+/// An alloc-less list used by the MemTracker to keep track of all allocations.
+typedef IntrusiveList<MemTrackerElem> MemTrackerList;
 
 /// @internal
 ///
@@ -56,19 +63,17 @@ enum class MemBlkType : uint32
 
 /// @internal
 ///
-/// Internal structure used by MemTracker to store information on each allocation.  These elements form a singly linked
-/// list.
+/// Internal structure used by MemTracker to store information on each allocation.
 struct MemTrackerElem
 {
-    MemTrackerElem* pNext;       ///< Pointer to next element in the linked list.
-    MemTrackerElem* pNextNext;   ///< Pointer to next element's next element; detects if the next tracker is corrupted.
-    size_t          size;        ///< Size of allocation request.
-    MemBlkType      blockType;   ///< Memory block type (malloc, new, new array).
-    const char*     pFilename;   ///< File that requested allocation.
-    uint32          lineNumber;  ///< Line number that requested allocation.
-    void*           pClientMem;  ///< Starting "client usable" data address.
-    void*           pOrigMem;    ///< Original address of the allocation returned from our underlying allocator.
-    size_t          allocNum;    ///< The number of the memory allocation. 1 based.
+    size_t          size;       ///< Size of allocation request.
+    MemBlkType      blockType;  ///< Memory block type (malloc, new, new array).
+    const char*     pFilename;  ///< File that requested allocation.
+    uint32          lineNumber; ///< Line number that requested allocation.
+    void*           pClientMem; ///< Starting "client usable" data address.
+    void*           pOrigMem;   ///< Original address of the allocation returned from our underlying allocator.
+    size_t          allocNum;   ///< The number of the memory allocation. 1 based.
+    MemTrackerList* pList;      ///< The list this struct is in. It helps check which MemTracker owns this struct.
 };
 
 /**
@@ -132,11 +137,7 @@ private:
     // Size of underrun/overrun markers in bytes.
     static constexpr size_t MarkerSizeBytes = MarkerSizeUints * sizeof(uint32);
 
-    // Create a statically allocated dummy head element in the list. Then the list insertion and deletion functions
-    // don't have to check if the head is being changed.
-    MemTrackerElem     m_memListHead;      // Dummy head for link list of allocations.
-    MemTrackerElem*    m_pMemListHead;     // Linked-list of allocations.
-
+    MemTrackerList     m_trackerList;      // The list of active allocations.
     Mutex              m_mutex;            // Serializes access to list of active allocations.
 
     const size_t       m_markerSizeUints;  // Member variable copy of MarkerSizeUints.  Only used to prevent compiler

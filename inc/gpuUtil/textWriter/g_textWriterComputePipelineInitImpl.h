@@ -55,69 +55,40 @@ Pal::Result CreateTextWriterComputePipelines(
     switch (properties.revision)
     {
 #if PAL_BUILD_GFX6
-    case Pal::AsicRevision::Tahiti:
-    case Pal::AsicRevision::Pitcairn:
-    case Pal::AsicRevision::Capeverde:
-    case Pal::AsicRevision::Oland:
-    case Pal::AsicRevision::Hainan:
-        pTable = textWriterComputeBinaryTableTahiti;
+    case Pal::AsicRevision::Tahiti:    case Pal::AsicRevision::Pitcairn:    case Pal::AsicRevision::Capeverde:    case Pal::AsicRevision::Oland:    case Pal::AsicRevision::Hainan:        pTable = textWriterComputeBinaryTableTahiti;
         break;
 #endif
 
 #if PAL_BUILD_GFX6
-    case Pal::AsicRevision::Bonaire:
-    case Pal::AsicRevision::Kalindi:
-    case Pal::AsicRevision::Godavari:
-        pTable = textWriterComputeBinaryTableKalindi;
+    case Pal::AsicRevision::Bonaire:    case Pal::AsicRevision::Kalindi:    case Pal::AsicRevision::Godavari:        pTable = textWriterComputeBinaryTableKalindi;
         break;
 #endif
 
 #if PAL_BUILD_GFX6
-    case Pal::AsicRevision::HawaiiPro:
-    case Pal::AsicRevision::Hawaii:
-    case Pal::AsicRevision::Spectre:
-    case Pal::AsicRevision::Spooky:
-        pTable = textWriterComputeBinaryTableSpectre;
+    case Pal::AsicRevision::HawaiiPro:    case Pal::AsicRevision::Hawaii:    case Pal::AsicRevision::Spectre:    case Pal::AsicRevision::Spooky:        pTable = textWriterComputeBinaryTableSpectre;
         break;
 #endif
 
 #if PAL_BUILD_GFX6
-    case Pal::AsicRevision::Carrizo:
-    case Pal::AsicRevision::Bristol:
-    case Pal::AsicRevision::Stoney:
-    case Pal::AsicRevision::Fiji:
-    case Pal::AsicRevision::Polaris10:
-    case Pal::AsicRevision::Polaris11:
-    case Pal::AsicRevision::Polaris12:
-        pTable = textWriterComputeBinaryTableCarrizo;
+    case Pal::AsicRevision::Carrizo:    case Pal::AsicRevision::Bristol:    case Pal::AsicRevision::Stoney:    case Pal::AsicRevision::Fiji:    case Pal::AsicRevision::Polaris10:    case Pal::AsicRevision::Polaris11:    case Pal::AsicRevision::Polaris12:        pTable = textWriterComputeBinaryTableCarrizo;
         break;
 #endif
 
 #if PAL_BUILD_GFX6
-    case Pal::AsicRevision::Iceland:
-    case Pal::AsicRevision::Tonga:
-        pTable = textWriterComputeBinaryTableIceland;
+    case Pal::AsicRevision::Iceland:    case Pal::AsicRevision::TongaPro:        pTable = textWriterComputeBinaryTableIceland;
         break;
 #endif
 
-    case Pal::AsicRevision::Vega10:
-    case Pal::AsicRevision::Raven:
-    case Pal::AsicRevision::Vega12:
-    case Pal::AsicRevision::Vega20:
-        pTable = textWriterComputeBinaryTableVega10;
+    case Pal::AsicRevision::Vega10:    case Pal::AsicRevision::Raven:    case Pal::AsicRevision::Vega12:    case Pal::AsicRevision::Vega20:        pTable = textWriterComputeBinaryTableVega10;
         break;
 
-    case Pal::AsicRevision::Raven2:
-    case Pal::AsicRevision::Renoir:
-        pTable = textWriterComputeBinaryTableRaven2;
+    case Pal::AsicRevision::Raven2:    case Pal::AsicRevision::Renoir:        pTable = textWriterComputeBinaryTableRaven2;
         break;
 
-    case Pal::AsicRevision::Navi10:
-        pTable = textWriterComputeBinaryTableNavi10;
+    case Pal::AsicRevision::Navi10:        pTable = textWriterComputeBinaryTableNavi10;
         break;
 
-    case Pal::AsicRevision::Navi14:
-        pTable = textWriterComputeBinaryTableNavi14;
+    case Pal::AsicRevision::Navi14:        pTable = textWriterComputeBinaryTableNavi14;
         break;
 
     default:

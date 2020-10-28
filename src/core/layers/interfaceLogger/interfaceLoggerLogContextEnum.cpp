@@ -192,6 +192,8 @@ void LogContext::Enum(
         "ReverseSubtract", // 0x2,
         "Min",             // 0x3,
         "Max",             // 0x4,
+        "ScaledMin",       // 0x5,
+        "ScaledMax",       // 0x6,
     };
 
     static_assert(ArrayLen(StringTable) == static_cast<uint32>(BlendFunc::Count),
@@ -999,7 +1001,7 @@ void LogContext::Enum(
         "Carrizo",
         "Bristol",
         "Iceland",
-        "Tonga",
+        "TongaPro",
         "Fiji",
         "Polaris10",
         "Polaris11",

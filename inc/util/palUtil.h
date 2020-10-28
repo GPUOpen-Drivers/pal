@@ -151,6 +151,9 @@ enum class Result : int32
     /// If ReserveEntryOnMiss was specified, the entry was not found, and the entry was successfully reserved.
     Reserved                        = 0x0000000C,
 
+    /// If an operation is purposefully terminated early, rather than from an error.
+    Aborted                         = 0x0000000D,
+
     /// The operation encountered an unknown error.
     ErrorUnknown                    = -(0x00000001),
 

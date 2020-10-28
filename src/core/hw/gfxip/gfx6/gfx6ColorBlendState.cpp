@@ -91,11 +91,13 @@ CombFunc ColorBlendState::HwBlendFunc(
 {
     constexpr CombFunc blendFuncTbl[] =
     {
-        COMB_DST_PLUS_SRC,  // Add              = 0,
-        COMB_SRC_MINUS_DST, // Subtract         = 1,
-        COMB_DST_MINUS_SRC, // ReverseSubtract  = 2,
-        COMB_MIN_DST_SRC,   // Min              = 3,
-        COMB_MAX_DST_SRC,   // Max              = 4,
+        COMB_DST_PLUS_SRC,      // Add              = 0,
+        COMB_SRC_MINUS_DST,     // Subtract         = 1,
+        COMB_DST_MINUS_SRC,     // ReverseSubtract  = 2,
+        COMB_MIN_DST_SRC,       // Min              = 3,
+        COMB_MAX_DST_SRC,       // Max              = 4,
+        COMB_MIN_DST_SRC,       // ScaledMin        = 5, use the same hw value with Min.
+        COMB_MIN_DST_SRC,       // ScaledMax        = 6, use the same hw value with Max.
     };
 
     return blendFuncTbl[static_cast<size_t>(blendFunc)];
@@ -306,15 +308,15 @@ void ColorBlendState::Init(
         m_cbBlendControl[i].bits.ALPHA_COMB_FCN       = HwBlendFunc(blend.targets[i].blendFuncAlpha);
 
         // BlendOps are forced to ONE for MIN/MAX blend funcs
-        if ((m_cbBlendControl[i].bits.COLOR_COMB_FCN == COMB_MIN_DST_SRC) ||
-            (m_cbBlendControl[i].bits.COLOR_COMB_FCN == COMB_MAX_DST_SRC))
+        if ((blend.targets[i].blendFuncColor == BlendFunc::Min) ||
+            (blend.targets[i].blendFuncColor == BlendFunc::Max))
         {
             m_cbBlendControl[i].bits.COLOR_SRCBLEND  = BLEND_ONE;
             m_cbBlendControl[i].bits.COLOR_DESTBLEND = BLEND_ONE;
         }
 
-        if ((m_cbBlendControl[i].bits.ALPHA_COMB_FCN == COMB_MIN_DST_SRC) ||
-            (m_cbBlendControl[i].bits.ALPHA_COMB_FCN == COMB_MAX_DST_SRC))
+        if ((blend.targets[i].blendFuncAlpha == BlendFunc::Min) ||
+            (blend.targets[i].blendFuncAlpha == BlendFunc::Max))
         {
             m_cbBlendControl[i].bits.ALPHA_SRCBLEND  = BLEND_ONE;
             m_cbBlendControl[i].bits.ALPHA_DESTBLEND = BLEND_ONE;

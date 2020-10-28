@@ -208,7 +208,7 @@ static constexpr FuncLoggingTableEntry FuncLoggingTable[] =
     { InterfaceFunc::DeviceCreateBorderColorPalette,                (CrtDstry)            },
     { InterfaceFunc::DeviceCreateComputePipeline,                   (CrtDstry)            },
     { InterfaceFunc::DeviceCreateGraphicsPipeline,                  (CrtDstry)            },
-    { InterfaceFunc::DeviceLoadPipeline,                            (CrtDstry)            },
+    { InterfaceFunc::DeviceCreateShaderLibrary,                     (CrtDstry)            },
     { InterfaceFunc::DeviceCreateMsaaState,                         (CrtDstry)            },
     { InterfaceFunc::DeviceCreateColorBlendState,                   (CrtDstry)            },
     { InterfaceFunc::DeviceCreateDepthStencilState,                 (CrtDstry)            },
@@ -250,7 +250,7 @@ static constexpr FuncLoggingTableEntry FuncLoggingTable[] =
     { InterfaceFunc::IndirectCmdGeneratorBindGpuMemory,             (BindMem)             },
     { InterfaceFunc::IndirectCmdGeneratorDestroy,                   (CrtDstry | BindMem)  },
     { InterfaceFunc::MsaaStateDestroy,                              (CrtDstry)            },
-    { InterfaceFunc::PipelineAddShadersToCache,                     (GenCalls)            },
+    { InterfaceFunc::PipelineLinkWithLibraries,                     (GenCalls)            },
     { InterfaceFunc::PipelineDestroy,                               (CrtDstry)            },
     { InterfaceFunc::PlatformEnumerateDevices,                      (GenCalls)            },
     { InterfaceFunc::PlatformGetScreens,                            (GenCalls)            },
@@ -289,6 +289,7 @@ static constexpr FuncLoggingTableEntry FuncLoggingTable[] =
     { InterfaceFunc::ScreenSetGammaRamp,                            (GenCalls)            },
     { InterfaceFunc::ScreenWaitForVerticalBlank,                    (GenCalls)            },
     { InterfaceFunc::ScreenDestroy,                                 (CrtDstry)            },
+    { InterfaceFunc::ShaderLibraryDestroy,                          (CrtDstry)            },
     { InterfaceFunc::SwapChainAcquireNextImage,                     (GenCalls | QueueOps) },
     { InterfaceFunc::SwapChainWaitIdle,                             (GenCalls)            },
     { InterfaceFunc::SwapChainDestroy,                              (CrtDstry)            },
@@ -319,7 +320,7 @@ Platform::Platform(
     }
 #endif
 
-    m_flags.u32All       = 0;
+    m_flags.u32All = 0;
 
     memset(&m_startTime, 0, sizeof(m_startTime));
     memset(&m_threadKey, 0, sizeof(m_threadKey));

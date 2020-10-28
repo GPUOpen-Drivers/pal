@@ -112,7 +112,7 @@ Result CreateRpmGraphicsPipelines(
 
 #if PAL_BUILD_GFX6
     case AsicRevision::Iceland:
-    case AsicRevision::Tonga:
+    case AsicRevision::TongaPro:
         pTable = rpmGfxBinaryTableIceland;
         break;
 #endif

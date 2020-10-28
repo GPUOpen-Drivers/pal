@@ -351,18 +351,6 @@ public:
         const SubresRange& range,
         ImageLayout        layout) const override;
 
-    void CpuProcessCmaskEq(
-        const SubresRange&  clearRange,
-        uint8               clearValue) const;
-    void CpuProcessDccEq(
-        const SubresRange&  clearRange,
-        uint8               clearValue,
-        DccClearPurpose     clearPurpose) const;
-    void CpuProcessHtileEq(
-        const SubresRange&  clearRange,
-        uint32              clearValue,
-        uint32              clearMask) const;
-
     virtual void Addr2InitSubResInfo(
         const SubResIterator&  subResIt,
         SubResourceInfo*       pSubResInfoList,
@@ -386,9 +374,6 @@ public:
         ImageMemoryLayout* pGpuMemLayout,
         gpusize*           pGpuMemSize,
         gpusize*           pGpuMemAlignment) override;
-
-    virtual void OverrideGpuMemHeaps(
-        GpuMemoryRequirements* pMemReqs) const override;
 
     bool SupportsComputeDecompress(const SubresId& subresId) const;
 

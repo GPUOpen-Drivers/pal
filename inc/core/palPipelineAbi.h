@@ -51,7 +51,7 @@ constexpr uint8  ElfAbiVersion   = 0;  ///< ELFABIVERSION_AMDGPU_PAL
 constexpr uint32 MetadataNoteType = 32; ///< NT_AMDGPU_METADATA
 
 constexpr uint32 PipelineMetadataMajorVersion = 2;  ///< Pipeline Metadata Major Version
-constexpr uint32 PipelineMetadataMinorVersion = 5;  ///< Pipeline Metadata Minor Version
+constexpr uint32 PipelineMetadataMinorVersion = 6;  ///< Pipeline Metadata Minor Version
 
 constexpr uint32 PipelineMetadataBase = 0x10000000; ///< Deprecated - Pipeline Metadata base value to be OR'd with the
                                                     ///  PipelineMetadataEntry value when saving to ELF.
@@ -65,15 +65,18 @@ enum class AmdGpuMachineType : uint8
     GfxNone = 0x00,  ///< EF_AMDGPU_MACH_NONE
     Gfx600  = 0x20,  ///< EF_AMDGPU_MACH_AMDGCN_GFX600
     Gfx601  = 0x21,  ///< EF_AMDGPU_MACH_AMDGCN_GFX601
+    Gfx602  = 0x3A,  ///< EF_AMDGPU_MACH_AMDGCN_GFX602
     Gfx700  = 0x22,  ///< EF_AMDGPU_MACH_AMDGCN_GFX700
     Gfx701  = 0x23,  ///< EF_AMDGPU_MACH_AMDGCN_GFX701
     Gfx702  = 0x24,  ///< EF_AMDGPU_MACH_AMDGCN_GFX702
     Gfx703  = 0x25,  ///< EF_AMDGPU_MACH_AMDGCN_GFX703
     Gfx704  = 0x26,  ///< EF_AMDGPU_MACH_AMDGCN_GFX704
+    Gfx705  = 0x3B,  ///< EF_AMDGPU_MACH_AMDGCN_GFX705
     Gfx800  = 0x27,  ///< EF_AMDGPU_MACH_AMDGCN_GFX800
     Gfx801  = 0x28,  ///< EF_AMDGPU_MACH_AMDGCN_GFX801
     Gfx802  = 0x29,  ///< EF_AMDGPU_MACH_AMDGCN_GFX802
     Gfx803  = 0x2a,  ///< EF_AMDGPU_MACH_AMDGCN_GFX803
+    Gfx805  = 0x3C,  ///< EF_AMDGPU_MACH_AMDGCN_GFX805
     Gfx810  = 0x2b,  ///< EF_AMDGPU_MACH_AMDGCN_GFX810
     Gfx900  = 0x2c,  ///< EF_AMDGPU_MACH_AMDGCN_GFX900
     Gfx902  = 0x2d,  ///< EF_AMDGPU_MACH_AMDGCN_GFX902
@@ -102,8 +105,8 @@ enum GfxIpStepping : uint16
     GfxIpSteppingTahiti    = 0,
     GfxIpSteppingPitcairn  = 1,
     GfxIpSteppingCapeVerde = 1,
-    GfxIpSteppingOland     = 1,
-    GfxIpSteppingHainan    = 1,
+    GfxIpSteppingOland     = 2,
+    GfxIpSteppingHainan    = 2,
 
     // GFXIP 7.0.x steppings:
     GfxIpSteppingKaveri    = 0,
@@ -111,13 +114,15 @@ enum GfxIpStepping : uint16
     GfxIpSteppingHawaii    = 2,
     GfxIpSteppingKalindi   = 3,
     GfxIpSteppingBonaire   = 4,
+    GfxIpSteppingGodavari  = 5,
 
     // GFXIP 8.0.x steppings:
-    GfxIpSteppingCarrizo = 1,
-    GfxIpSteppingIceland = 2,
-    GfxIpSteppingTonga   = 2,
-    GfxIpSteppingFiji    = 3,
-    GfxIpSteppingPolaris = 3,
+    GfxIpSteppingCarrizo  = 1,
+    GfxIpSteppingIceland  = 2,
+    GfxIpSteppingTonga    = 2,
+    GfxIpSteppingFiji     = 3,
+    GfxIpSteppingPolaris  = 3,
+    GfxIpSteppingTongaPro = 5,
 
     // GFXIP 8.1.x steppings:
     GfxIpSteppingStoney = 0,

@@ -35,6 +35,8 @@ namespace Gfx9
 
 class Device;
 
+constexpr uint64  PipelineStatsResetMemValue64 = 0xFFFFFFFFFFFFFFFF;
+
 // =====================================================================================================================
 // Query pool for retrieving shader execution status, as well as the number of invocations of some other fixed
 // function parts of the geometry pipeline.
@@ -88,6 +90,7 @@ protected:
         void*            pData) override;
 
 private:
+
     const Device& m_device;
     uint32        m_numEnabledStats;
 

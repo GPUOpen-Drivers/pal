@@ -28,6 +28,10 @@
 #include "core/layers/interfaceLogger/interfaceLoggerDevice.h"
 #include "core/layers/interfaceLogger/interfaceLoggerPipeline.h"
 #include "core/layers/interfaceLogger/interfaceLoggerPlatform.h"
+#include "core/layers/interfaceLogger/interfaceLoggerShaderLibrary.h"
+#include "palAutoBuffer.h"
+
+using namespace Util;
 
 namespace Pal
 {
@@ -63,6 +67,51 @@ void Pipeline::Destroy()
     }
 
     PipelineDecorator::Destroy();
+}
+
+// =====================================================================================================================
+Result Pipeline::LinkWithLibraries(
+    const IShaderLibrary*const* ppLibraryList,
+    uint32                      libraryCount)
+{
+    Result result = Result::Success;
+
+    AutoBuffer<IShaderLibrary*, 16, Platform> nextLibraryList(libraryCount, m_pPlatform);
+    if (nextLibraryList.Capacity() < libraryCount)
+    {
+        result = Result::ErrorOutOfMemory;
+    }
+    else
+    {
+        for (uint32 i = 0; i < libraryCount; i++)
+        {
+            nextLibraryList[i] = NextShaderLibrary(ppLibraryList[i]);
+        }
+
+        BeginFuncInfo funcInfo;
+        funcInfo.funcId       = InterfaceFunc::PipelineLinkWithLibraries;
+        funcInfo.objectId     = m_objectId;
+        funcInfo.preCallTime  = m_pPlatform->GetTime();
+        result = m_pNextLayer->LinkWithLibraries(&nextLibraryList[0], libraryCount);
+        funcInfo.postCallTime = m_pPlatform->GetTime();
+
+        LogContext* pLogContext = nullptr;
+        if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+        {
+            pLogContext->BeginInput();
+            pLogContext->KeyAndBeginList("libraries", false);
+            for (uint32 i = 0; i < libraryCount; ++i)
+            {
+                pLogContext->Object(ppLibraryList[i]);
+            }
+            pLogContext->EndList();
+            pLogContext->EndInput();
+
+            m_pPlatform->LogEndFunc(pLogContext);
+        }
+    }
+
+    return result;
 }
 
 } // InterfaceLogger

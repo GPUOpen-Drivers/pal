@@ -2996,7 +2996,9 @@ void InitializeGpuChipProperties(
             pInfo->revision             = (ASICREV_IS_KALINDI_GODAVARI(pInfo->eRevId)
                                            ? AsicRevision::Godavari
                                            : AsicRevision::Kalindi);
-            pInfo->gfxStepping          = Abi::GfxIpSteppingKalindi;
+            pInfo->gfxStepping          = (ASICREV_IS_KALINDI_GODAVARI(pInfo->eRevId)
+                                           ? Abi::GfxIpSteppingGodavari
+                                           : Abi::GfxIpSteppingKalindi);
         }
         else if (ASICREV_IS_SPECTRE(pInfo->eRevId) || ASICREV_IS_SPOOKY(pInfo->eRevId))
         {
@@ -3084,7 +3086,17 @@ void InitializeGpuChipProperties(
             pInfo->gfx6.numTccBlocks          = 12;
             pInfo->gfx6.numShaderVisibleSgprs = MaxSgprsAvailableWithSpiBug;
             pInfo->revision                   = AsicRevision::Tonga;
-            pInfo->gfxStepping                = Abi::GfxIpSteppingTonga;
+            switch (pInfo->deviceId)
+            {
+            case DEVICE_ID_VI_TONGA_P_6929:
+            case DEVICE_ID_VI_TONGA_P_692B:
+            case DEVICE_ID_VI_TONGA_P_692F:
+                pInfo->gfxStepping                = Abi::GfxIpSteppingTongaPro;
+                break;
+            default:
+                pInfo->gfxStepping                = Abi::GfxIpSteppingTonga;
+                break;
+            }
             pInfo->gfxip.tccSizeInBytes       = 768 * 1024;
         }
         else if (ASICREV_IS_FIJI_P(pInfo->eRevId))

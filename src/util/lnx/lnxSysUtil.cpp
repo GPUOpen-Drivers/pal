@@ -1113,7 +1113,8 @@ Result Rename(
     return (rename(pOldName, pNewName) == 0) ?  Result::Success : Result::ErrorInvalidValue;
 }
 
-/// Get the Process ID of the current process
+// =====================================================================================================================
+// Get the Process ID of the current process
 uint32 GetIdOfCurrentProcess()
 {
     return getpid();
@@ -1128,6 +1129,39 @@ size_t DumpStackTrace(
 {
     PAL_NOT_IMPLEMENTED();
     return 0;
+}
+
+// =====================================================================================================================
+void SleepMs(
+    uint32 duration)
+{
+    constexpr uint32 MsPerSec = 1000;
+    constexpr uint32 NsPerMs  = (1000 * 1000);
+
+    struct timespec timeRemaining = { };
+    struct timespec timeToSleep = { };
+    timeToSleep.tv_sec  = (duration / MsPerSec);
+    timeToSleep.tv_nsec = ((duration % MsPerSec) * NsPerMs);
+
+    while (true)
+    {
+        if (::nanosleep(&timeToSleep, &timeRemaining) == 0)
+        {
+            break; // Successfully slept for the requested duration.
+        }
+        else if (errno == EINTR)
+        {
+            // A signal has interrupted the call to nanosleep.  timeRemaining has the amount of remaining time from
+            // the original duration.
+            timeToSleep = timeRemaining;
+            // Try again on the next iteration through the loop...
+        }
+        else
+        {
+            PAL_ALERT_ALWAYS_MSG("Unexpected error from nanosleep().");
+            break;
+        }
+    } // while (true)
 }
 
 // =====================================================================================================================

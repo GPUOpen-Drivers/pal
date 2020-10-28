@@ -68,8 +68,10 @@ enum class BlendFunc : uint32
     Add             = 0x0,
     Subtract        = 0x1,
     ReverseSubtract = 0x2,
-    Min             = 0x3,
-    Max             = 0x4,
+    Min             = 0x3, // minimum of src color and dst color, min(Rs, Rd).
+    Max             = 0x4, // maximum of src color and dst color, max(Rs, Rd).
+    ScaledMin       = 0x5, // minimum of src color and src factor, dst color and dst factor, min(Rs * Sr, Rd * Dr).
+    ScaledMax       = 0x6, // maximum of src color and src factor, dst color and dst factor, max(Rs * Sr, Rd * Dr).
     Count
 };
 

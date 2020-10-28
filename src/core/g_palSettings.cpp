@@ -158,7 +158,7 @@ void SettingsLoader::SetupDefaults()
     m_settings.debugForceSurfaceAlignment = 0;
     m_settings.debugForceResourceAdditionalPadding = 0;
     m_settings.overlayReportMes = true;
-    m_settings.mipGenUseFastPath = false;
+    m_settings.mipGenUseFastPath = true;
     m_settings.useFp16GenMips = false;
     m_settings.numSettings = g_palNumSettings;
 }
@@ -1072,7 +1072,7 @@ void SettingsLoader::DevDriverRegister()
             component.pfnSetValue = ISettingsLoader::SetValue;
             component.pSettingsData = &g_palJsonData[0];
             component.settingsDataSize = sizeof(g_palJsonData);
-            component.settingsDataHash = 2237215379;
+            component.settingsDataHash = 410878009;
             component.settingsDataHeader.isEncoded = true;
             component.settingsDataHeader.magicBufferId = 402778310;
             component.settingsDataHeader.magicBufferOffset = 0;

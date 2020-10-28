@@ -578,10 +578,6 @@ Result GpuMemory::OpenSharedMemory(
             {
                 m_heaps[m_heapCount++] = GpuHeapInvisible;
             }
-            else
-            {
-                PAL_ASSERT_ALWAYS();
-            }
         }
 
         if (bufferInfo.preferred_heap & AMDGPU_GEM_DOMAIN_GTT)

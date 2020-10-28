@@ -100,59 +100,30 @@ Pal::Result CreateMlaaComputePipelines(
     switch (properties.revision)
     {
 #if PAL_BUILD_GFX6
-    case Pal::AsicRevision::Tahiti:
-    case Pal::AsicRevision::Pitcairn:
-    case Pal::AsicRevision::Capeverde:
-    case Pal::AsicRevision::Oland:
-    case Pal::AsicRevision::Hainan:
-    case Pal::AsicRevision::Bonaire:
-    case Pal::AsicRevision::HawaiiPro:
-    case Pal::AsicRevision::Hawaii:
-    case Pal::AsicRevision::Kalindi:
-    case Pal::AsicRevision::Godavari:
-    case Pal::AsicRevision::Spectre:
-    case Pal::AsicRevision::Spooky:
-        pTable = mlaaComputeBinaryTableTahiti;
+    case Pal::AsicRevision::Tahiti:    case Pal::AsicRevision::Pitcairn:    case Pal::AsicRevision::Capeverde:    case Pal::AsicRevision::Oland:    case Pal::AsicRevision::Hainan:    case Pal::AsicRevision::Bonaire:    case Pal::AsicRevision::HawaiiPro:    case Pal::AsicRevision::Hawaii:    case Pal::AsicRevision::Kalindi:    case Pal::AsicRevision::Godavari:    case Pal::AsicRevision::Spectre:    case Pal::AsicRevision::Spooky:        pTable = mlaaComputeBinaryTableTahiti;
         break;
 #endif
 
 #if PAL_BUILD_GFX6
-    case Pal::AsicRevision::Carrizo:
-    case Pal::AsicRevision::Bristol:
-    case Pal::AsicRevision::Stoney:
-    case Pal::AsicRevision::Fiji:
-    case Pal::AsicRevision::Polaris10:
-    case Pal::AsicRevision::Polaris11:
-    case Pal::AsicRevision::Polaris12:
-        pTable = mlaaComputeBinaryTableCarrizo;
+    case Pal::AsicRevision::Carrizo:    case Pal::AsicRevision::Bristol:    case Pal::AsicRevision::Stoney:    case Pal::AsicRevision::Fiji:    case Pal::AsicRevision::Polaris10:    case Pal::AsicRevision::Polaris11:    case Pal::AsicRevision::Polaris12:        pTable = mlaaComputeBinaryTableCarrizo;
         break;
 #endif
 
 #if PAL_BUILD_GFX6
-    case Pal::AsicRevision::Iceland:
-    case Pal::AsicRevision::Tonga:
-        pTable = mlaaComputeBinaryTableIceland;
+    case Pal::AsicRevision::Iceland:    case Pal::AsicRevision::TongaPro:        pTable = mlaaComputeBinaryTableIceland;
         break;
 #endif
 
-    case Pal::AsicRevision::Vega10:
-    case Pal::AsicRevision::Raven:
-    case Pal::AsicRevision::Vega12:
-    case Pal::AsicRevision::Vega20:
-        pTable = mlaaComputeBinaryTableVega10;
+    case Pal::AsicRevision::Vega10:    case Pal::AsicRevision::Raven:    case Pal::AsicRevision::Vega12:    case Pal::AsicRevision::Vega20:        pTable = mlaaComputeBinaryTableVega10;
         break;
 
-    case Pal::AsicRevision::Raven2:
-    case Pal::AsicRevision::Renoir:
-        pTable = mlaaComputeBinaryTableRaven2;
+    case Pal::AsicRevision::Raven2:    case Pal::AsicRevision::Renoir:        pTable = mlaaComputeBinaryTableRaven2;
         break;
 
-    case Pal::AsicRevision::Navi10:
-        pTable = mlaaComputeBinaryTableNavi10;
+    case Pal::AsicRevision::Navi10:        pTable = mlaaComputeBinaryTableNavi10;
         break;
 
-    case Pal::AsicRevision::Navi14:
-        pTable = mlaaComputeBinaryTableNavi14;
+    case Pal::AsicRevision::Navi14:        pTable = mlaaComputeBinaryTableNavi14;
         break;
 
     default:

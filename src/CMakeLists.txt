@@ -511,6 +511,7 @@ if(PAL_BUILD_CORE)
             core/layers/interfaceLogger/interfaceLoggerQueue.cpp
             core/layers/interfaceLogger/interfaceLoggerQueueSemaphore.cpp
             core/layers/interfaceLogger/interfaceLoggerScreen.cpp
+            core/layers/interfaceLogger/interfaceLoggerShaderLibrary.cpp
             core/layers/interfaceLogger/interfaceLoggerSwapChain.cpp
 
         )

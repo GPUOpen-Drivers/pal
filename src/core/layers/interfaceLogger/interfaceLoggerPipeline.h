@@ -49,6 +49,11 @@ public:
     // Public IDestroyable interface methods:
     virtual void Destroy() override;
 
+    // Public IShaderLibrary interface methods:
+    virtual Result LinkWithLibraries(
+        const IShaderLibrary*const* ppLibraryList,
+        uint32                      libraryCount) override;
+
 private:
     virtual ~Pipeline() { }
 

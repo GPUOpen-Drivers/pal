@@ -130,8 +130,13 @@ Result CreateRpmComputePipelines(
 
 #if PAL_BUILD_GFX6
     case AsicRevision::Iceland:
-    case AsicRevision::Tonga:
         pTable = rpmComputeBinaryTableIceland;
+        break;
+#endif
+
+#if PAL_BUILD_GFX6
+    case AsicRevision::TongaPro:
+        pTable = rpmComputeBinaryTableTongaPro;
         break;
 #endif
 

@@ -54,6 +54,7 @@ struct Gfx6PipelineStatsData
     uint64 hsInvocations;
     uint64 dsInvocations;
     uint64 csInvocations;
+    uint64 unused[3];     // 3 QWORDs-placeholder as fixed-size structure padding for easier shader access.
 };
 
 // Defines the structure of a begin / end pair of data.

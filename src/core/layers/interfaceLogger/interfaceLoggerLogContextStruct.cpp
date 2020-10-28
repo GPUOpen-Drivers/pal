@@ -2036,10 +2036,26 @@ void LogContext::Struct(
 
 // =====================================================================================================================
 void LogContext::Struct(
+    LibraryCreateFlags value)
+{
+    BeginMap(false);
+    KeyAndValue("clientInternal", value.clientInternal);
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
+    KeyAndValue("overrideGpuHeap", value.overrideGpuHeap);
+#endif
+    EndMap();
+}
+
+// =====================================================================================================================
+void LogContext::Struct(
     PipelineCreateFlags value)
 {
-    BeginList(false);
-    EndList();
+    BeginMap(false);
+    KeyAndValue("clientInternal", value.clientInternal);
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
+    KeyAndValue("overrideGpuHeap", value.overrideGpuHeap);
+#endif
+    EndMap();
 }
 
 // =====================================================================================================================
@@ -2724,6 +2740,25 @@ void LogContext::Struct(
     KeyAndValue("vidPnSrcId", value.vidPnSrcId);
     KeyAndEnum("mgpuMode", value.mgpuMode);
     KeyAndValue("isFramePacingEnabled", value.isFramePacingEnabled);
+    EndMap();
+}
+
+// =====================================================================================================================
+void LogContext::Struct(
+    const ShaderLibraryCreateInfo& value)
+{
+    BeginMap(false);
+    KeyAndStruct("flags", value.flags);
+    EndMap();
+}
+
+// =====================================================================================================================
+void LogContext::Struct(
+    const ShaderLibraryFunctionInfo& value)
+{
+    BeginMap(true);
+    KeyAndValue("symbolName", value.pSymbolName);
+    KeyAndValue("gpuVirtAddr", value.gpuVirtAddr);
     EndMap();
 }
 

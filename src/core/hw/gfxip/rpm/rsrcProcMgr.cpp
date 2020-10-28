@@ -2399,6 +2399,24 @@ void RsrcProcMgr::GenerateMipmapsFast(
     SubresId srcSubres = genInfo.range.startSubres;
     --srcSubres.mipLevel;
 
+    uint32 samplerType = 0; // 0 = linearSampler, 1 = pointSampler
+
+    if ((genInfo.filter.magnification == Pal::XyFilterLinear) && (genInfo.filter.minification == Pal::XyFilterLinear))
+    {
+        PAL_ASSERT(genInfo.filter.mipFilter == Pal::MipFilterNone);
+        samplerType = 0;
+    }
+    else if ((genInfo.filter.magnification == Pal::XyFilterPoint)
+        && (genInfo.filter.minification == Pal::XyFilterPoint))
+    {
+        PAL_ASSERT(genInfo.filter.mipFilter == Pal::MipFilterNone);
+        samplerType = 1;
+    }
+    else
+    {
+        PAL_NOT_IMPLEMENTED();
+    }
+
     for (uint32 start = 0; start < genInfo.range.numMips; start += MaxNumMips, srcSubres.mipLevel += MaxNumMips)
     {
         const uint32 numMipsToGenerate = Min((genInfo.range.numMips - start), MaxNumMips);
@@ -2412,7 +2430,7 @@ void RsrcProcMgr::GenerateMipmapsFast(
                 (genInfo.swizzledFormat.format != ChNumFormat::Undefined) ? genInfo.swizzledFormat : subresInfo.format;
             SwizzledFormat dstFormat = srcFormat;
 
-            const uint32 threadsPerGroup[] =
+            const uint32 numWorkGroupsPerDim[] =
             {
                 RpmUtil::MinThreadGroups(subresInfo.extentTexels.width,  64),
                 RpmUtil::MinThreadGroups(subresInfo.extentTexels.height, 64),
@@ -2429,9 +2447,10 @@ void RsrcProcMgr::GenerateMipmapsFast(
             const uint32 copyData[] =
             {
                 numMipsToGenerate,                                               // numMips
-                (threadsPerGroup[0] * threadsPerGroup[1] * threadsPerGroup[2]),  // numWorkGroups
+                (numWorkGroupsPerDim[0] * numWorkGroupsPerDim[1] * numWorkGroupsPerDim[2]),
                 reinterpret_cast<const uint32&>(invInputDims[0]),
                 reinterpret_cast<const uint32&>(invInputDims[1]),
+                samplerType,
             };
             const uint32 copyDataDwords = Util::NumBytesToNumDwords(sizeof(copyData));
 
@@ -2513,7 +2532,7 @@ void RsrcProcMgr::GenerateMipmapsFast(
             device.CreateUntypedBufferViewSrds(1, &bufferView, pUserData);
 
             // Execute the dispatch.
-            pCmdBuffer->CmdDispatch(threadsPerGroup[0], threadsPerGroup[1], threadsPerGroup[2]);
+            pCmdBuffer->CmdDispatch(numWorkGroupsPerDim[0], numWorkGroupsPerDim[1], numWorkGroupsPerDim[2]);
         }
 
         srcSubres.arraySlice = genInfo.range.startSubres.arraySlice;
@@ -2965,24 +2984,6 @@ void RsrcProcMgr::ScaledCopyImageGraphics(
             dstFormat = copyRegion.swizzledFormat;
         }
 
-        const uint32 zfilter   = copyInfo.filter.zFilter;
-        const uint32 magfilter = copyInfo.filter.magnification;
-        const uint32 minfilter = copyInfo.filter.minification;
-
-        float zOffset = 0.0f;
-
-        if (zfilter == ZFilterNone)
-        {
-            if ((magfilter != XyFilterPoint) || (minfilter != XyFilterPoint))
-            {
-                zOffset = 0.5f;
-            }
-        }
-        else if (zfilter != ZFilterPoint)
-        {
-            zOffset = 0.5f;
-        }
-
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 626
         // Non-SRGB can be treated as SRGB when copying to non-srgb image
         if (copyInfo.flags.dstAsSrgb)
@@ -3186,7 +3187,12 @@ void RsrcProcMgr::ScaledCopyImageGraphics(
         for (uint32 sliceOffset = 0; sliceOffset < numSlices; ++sliceOffset)
         {
             const Extent3d& srcExtent = pSrcImage->SubresourceInfo(copyRegion.srcSubres)->extentTexels;
-            const float src3dSlice    = (1.f * sliceOffset + zOffset) / numSlices;
+
+            const float src3dSliceNom = ((copyRegion.srcExtent.depth / numSlices) *
+                                         (static_cast<float>(sliceOffset) + 0.5f))
+                                        + static_cast<float>(copyRegion.srcOffset.z);
+            const float src3dSlice    = src3dSliceNom /
+                                        copyInfo.pSrcImage->GetImageCreateInfo().extent.depth;
             const float src2dSlice    = static_cast<const float>(sliceOffset);
             const uint32 srcSlice     = isTex3d
                                         ? reinterpret_cast<const uint32&>(src3dSlice)

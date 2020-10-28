@@ -64,18 +64,18 @@ enum class QueryType : uint32
 /// Specifies which pipeline stats should be tracked by a pipeline stats query pool.
 enum QueryPipelineStatsFlags : uint32
 {
-    QueryPipelineStatsIaVertices    = 0x1,   ///< Input vertices.
-    QueryPipelineStatsIaPrimitives  = 0x2,   ///< Input primitives.
-    QueryPipelineStatsVsInvocations = 0x4,   ///< Vertex shader invocations.
-    QueryPipelineStatsGsInvocations = 0x8,   ///< Geometry shader invocations.
-    QueryPipelineStatsGsPrimitives  = 0x10,  ///< Geometry shader primitives.
-    QueryPipelineStatsCInvocations  = 0x20,  ///< Clipper invocations.
-    QueryPipelineStatsCPrimitives   = 0x40,  ///< Clipper primitives.
-    QueryPipelineStatsPsInvocations = 0x80,  ///< Pixel shader invocations.
-    QueryPipelineStatsHsInvocations = 0x100, ///< Hull shader invocations.
-    QueryPipelineStatsDsInvocations = 0x200, ///< Domain shader invocations.
-    QueryPipelineStatsCsInvocations = 0x400, ///< Compute shader invocations.
-    QueryPipelineStatsAll           = 0x7FF  ///< All of the above stats.
+    QueryPipelineStatsIaVertices    = 0x1,    ///< Input vertices.
+    QueryPipelineStatsIaPrimitives  = 0x2,    ///< Input primitives.
+    QueryPipelineStatsVsInvocations = 0x4,    ///< Vertex shader invocations.
+    QueryPipelineStatsGsInvocations = 0x8,    ///< Geometry shader invocations.
+    QueryPipelineStatsGsPrimitives  = 0x10,   ///< Geometry shader primitives.
+    QueryPipelineStatsCInvocations  = 0x20,   ///< Clipper invocations.
+    QueryPipelineStatsCPrimitives   = 0x40,   ///< Clipper primitives.
+    QueryPipelineStatsPsInvocations = 0x80,   ///< Pixel shader invocations.
+    QueryPipelineStatsHsInvocations = 0x100,  ///< Hull shader invocations.
+    QueryPipelineStatsDsInvocations = 0x200,  ///< Domain shader invocations.
+    QueryPipelineStatsCsInvocations = 0x400,  ///< Compute shader invocations.
+    QueryPipelineStatsAll           = 0x7FF   ///< All of the above stats.
 };
 
 /// Specifies properties for @ref IQueryPool creation.  Input structure to IDevice::CreateQueryPool().

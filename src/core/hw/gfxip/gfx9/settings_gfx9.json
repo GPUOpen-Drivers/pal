@@ -173,20 +173,6 @@
       "Name": "PrintMetaEquationInfo"
     },
     {
-      "Description": "If true, the meta-equations will be processed by the cpu instead of by a compute shader.Emulation, debug builds only.  Useful for pre-silicon development",
-      "Tags": [
-        "General",
-        "Gfx9"
-      ],
-      "Defaults": {
-        "Default": false
-      },
-      "Scope": "PrivatePalGfx9Key",
-      "Type": "bool",
-      "VariableName": "processMetaEquationViaCpu",
-      "Name": "ProcessMetaEquationViaCpu"
-    },
-    {
       "ValidValues": {
         "IsEnum": true,
         "Values": [

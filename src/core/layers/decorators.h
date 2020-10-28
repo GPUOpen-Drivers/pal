@@ -107,6 +107,7 @@ class QueryPoolDecorator;
 class QueueDecorator;
 class QueueSemaphoreDecorator;
 class ScreenDecorator;
+class ShaderLibraryDecorator;
 class ScissorStateDecorator;
 class ViewportStateDecorator;
 
@@ -134,6 +135,7 @@ extern IQueryPool*            NextQueryPool(const IQueryPool* pQueryPool);
 extern IQueue*                NextQueue(const IQueue* pQueue);
 extern IQueueSemaphore*       NextQueueSemaphore(const IQueueSemaphore* pQueueSemaphore);
 extern IScreen*               NextScreen(const IScreen* pScreen);
+extern IShaderLibrary*        NextShaderLibrary(const IShaderLibrary* pLibrary);
 extern IScissorState*         NextScissorState(const IScissorState* pScissorState);
 extern ISwapChain*            NextSwapChain(const ISwapChain* pSwapChain);
 extern IViewportState*        NextViewportState(const IViewportState* pViewportState);
@@ -809,7 +811,6 @@ public:
         void*                            pPlacementAddr,
         IPipeline**                      ppPipeline) override;
 
-    // NOTE: Part of the public IDevice interface.
     virtual size_t GetShaderLibrarySize(
         const ShaderLibraryCreateInfo& createInfo,
         Result*                        pResult) const override;

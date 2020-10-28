@@ -1495,7 +1495,8 @@ Result Device::InitMemInfo()
             m_memoryProperties.flags.supportsTmz             = 0; // Not supported
 
             //Client: Only vulkan support this feature on linux. Default disable TMZ feature for other clients.
-            if (IsRavenFamily(*this) || IsNavi1x(*this))
+            if (IsRavenFamily(*this) ||
+                IsNavi1x(*this))
             {
                 m_memoryProperties.flags.supportsTmz = 1; // Supported
             }
@@ -5174,10 +5175,6 @@ Result Device::CreateGpuMemoryFromExternalShare(
         else if (sharedInfo.info.alloc_flags & AMDGPU_GEM_CREATE_NO_CPU_ACCESS)
         {
             pCreateInfo->heaps[pCreateInfo->heapCount++] = GpuHeapInvisible;
-        }
-        else
-        {
-            PAL_ASSERT_ALWAYS();
         }
     }
 

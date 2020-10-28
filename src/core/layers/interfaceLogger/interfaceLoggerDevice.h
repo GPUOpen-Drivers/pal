@@ -217,6 +217,13 @@ public:
         const GraphicsPipelineCreateInfo& createInfo,
         void*                             pPlacementAddr,
         IPipeline**                       ppPipeline) override;
+    virtual size_t GetShaderLibrarySize(
+        const ShaderLibraryCreateInfo& createInfo,
+        Result*                        pResult) const override;
+    virtual Result CreateShaderLibrary(
+        const ShaderLibraryCreateInfo& createInfo,
+        void*                          pPlacementAddr,
+        IShaderLibrary**               ppLibrary) override;
     virtual size_t GetMsaaStateSize(
         const MsaaStateCreateInfo& createInfo,
         Result*                    pResult) const override;

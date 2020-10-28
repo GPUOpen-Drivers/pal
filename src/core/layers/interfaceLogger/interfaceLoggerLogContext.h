@@ -62,8 +62,7 @@ enum class InterfaceObject : uint32
     Queue,
     QueueSemaphore,
     Screen,
-    Shader,
-    ShaderCache,
+    ShaderLibrary,
     SwapChain,
     Count
 };
@@ -224,7 +223,7 @@ enum class InterfaceFunc : uint32
     DeviceCreateBorderColorPalette,
     DeviceCreateComputePipeline,
     DeviceCreateGraphicsPipeline,
-    DeviceLoadPipeline,
+    DeviceCreateShaderLibrary,
     DeviceCreateMsaaState,
     DeviceCreateColorBlendState,
     DeviceCreateDepthStencilState,
@@ -266,7 +265,7 @@ enum class InterfaceFunc : uint32
     IndirectCmdGeneratorBindGpuMemory,
     IndirectCmdGeneratorDestroy,
     MsaaStateDestroy,
-    PipelineAddShadersToCache,
+    PipelineLinkWithLibraries,
     PipelineDestroy,
     PlatformEnumerateDevices,
     PlatformGetScreens,
@@ -305,6 +304,7 @@ enum class InterfaceFunc : uint32
     ScreenSetGammaRamp,
     ScreenWaitForVerticalBlank,
     ScreenDestroy,
+    ShaderLibraryDestroy,
     SwapChainAcquireNextImage,
     SwapChainWaitIdle,
     SwapChainDestroy,
@@ -431,6 +431,7 @@ public:
     void Object(const IQueue* pDecorator);
     void Object(const IQueueSemaphore* pDecorator);
     void Object(const IScreen* pDecorator);
+    void Object(const IShaderLibrary* pDecorator);
     void Object(const ISwapChain* pDecorator);
 
     // These functions create a list or map that represents a PAL interface structure.
@@ -512,6 +513,7 @@ public:
     void Struct(const PerSubQueueSubmitInfo& value);
     void Struct(const PinnedGpuMemoryCreateInfo& value);
     void Struct(const PipelineBindParams& value);
+    void Struct(LibraryCreateFlags value);
     void Struct(PipelineCreateFlags value);
     void Struct(const PlatformCreateInfo& value);
     void Struct(const PointLineRasterStateParams& value);
@@ -547,6 +549,8 @@ public:
     void Struct(const SetClockModeInput& value);
     void Struct(const SetClockModeOutput& value);
     void Struct(const SetMgpuModeInput& value);
+    void Struct(const ShaderLibraryCreateInfo& value);
+    void Struct(const ShaderLibraryFunctionInfo& value);
     void Struct(SignedExtent2d value);
     void Struct(SignedExtent3d value);
     void Struct(const StencilRefMaskParams& value);
@@ -656,231 +660,14 @@ public:
     void ClearDepthStencilFlags(uint32 flags);
     void ResolveImageFlags(uint32 flags);
 
-    void KeyAndObject(const char* pKey, const IBorderColorPalette* pDecorator)   { Key(pKey); Object(pDecorator); }
-    void KeyAndObject(const char* pKey, const ICmdAllocator* pDecorator)         { Key(pKey); Object(pDecorator); }
-    void KeyAndObject(const char* pKey, const ICmdBuffer* pDecorator)            { Key(pKey); Object(pDecorator); }
-    void KeyAndObject(const char* pKey, const IColorBlendState* pDecorator)      { Key(pKey); Object(pDecorator); }
-    void KeyAndObject(const char* pKey, const IColorTargetView* pDecorator)      { Key(pKey); Object(pDecorator); }
-    void KeyAndObject(const char* pKey, const IDepthStencilState* pDecorator)    { Key(pKey); Object(pDecorator); }
-    void KeyAndObject(const char* pKey, const IDepthStencilView* pDecorator)     { Key(pKey); Object(pDecorator); }
-    void KeyAndObject(const char* pKey, const IDevice* pDecorator)               { Key(pKey); Object(pDecorator); }
-    void KeyAndObject(const char* pKey, const IFence* pDecorator)                { Key(pKey); Object(pDecorator); }
-    void KeyAndObject(const char* pKey, const IGpuEvent* pDecorator)             { Key(pKey); Object(pDecorator); }
-    void KeyAndObject(const char* pKey, const IGpuMemory* pDecorator)            { Key(pKey); Object(pDecorator); }
-    void KeyAndObject(const char* pKey, const IImage* pDecorator)                { Key(pKey); Object(pDecorator); }
-    void KeyAndObject(const char* pKey, const IIndirectCmdGenerator* pDecorator) { Key(pKey); Object(pDecorator); }
-    void KeyAndObject(const char* pKey, const IMsaaState* pDecorator)            { Key(pKey); Object(pDecorator); }
-    void KeyAndObject(const char* pKey, const IPipeline* pDecorator)             { Key(pKey); Object(pDecorator); }
-    void KeyAndObject(const char* pKey, const IPrivateScreen* pDecorator)        { Key(pKey); Object(pDecorator); }
-    void KeyAndObject(const char* pKey, const IQueryPool* pDecorator)            { Key(pKey); Object(pDecorator); }
-    void KeyAndObject(const char* pKey, const IQueue* pDecorator)                { Key(pKey); Object(pDecorator); }
-    void KeyAndObject(const char* pKey, const IQueueSemaphore* pDecorator)       { Key(pKey); Object(pDecorator); }
-    void KeyAndObject(const char* pKey, const IScreen* pDecorator)               { Key(pKey); Object(pDecorator); }
-    void KeyAndObject(const char* pKey, const ISwapChain* pDecorator)            { Key(pKey); Object(pDecorator); }
-    void KeyAndStruct(const char* pKey, const AcquireNextImageInfo& value)                { Key(pKey); Struct(value); }
-    void KeyAndStruct(const char* pKey, const BarrierInfo& value)                         { Key(pKey); Struct(value); }
-    void KeyAndStruct(const char* pKey, const AcquireReleaseInfo& value)                  { Key(pKey); Struct(value); }
-    void KeyAndStruct(const char* pKey, const BindStreamOutTargetParams& value)           { Key(pKey); Struct(value); }
-    void KeyAndStruct(const char* pKey, const BindTargetParams& value)                    { Key(pKey); Struct(value); }
-    void KeyAndStruct(const char* pKey, const BlendConstParams& value)                    { Key(pKey); Struct(value); }
-    void KeyAndStruct(const char* pKey, const BorderColorPaletteCreateInfo& value)        { Key(pKey); Struct(value); }
-    void KeyAndStruct(const char* pKey, const BoundColorTarget& value)                    { Key(pKey); Struct(value); }
-    void KeyAndStruct(const char* pKey, Box value)                                        { Key(pKey); Struct(value); }
-    void KeyAndStruct(const char* pKey, const BufferViewInfo& value)                      { Key(pKey); Struct(value); }
-    void KeyAndStruct(const char* pKey, ChannelMapping value)                             { Key(pKey); Struct(value); }
-    void KeyAndStruct(const char* pKey, const ClearBoundTargetRegion& value)              { Key(pKey); Struct(value); }
-    void KeyAndStruct(const char* pKey, const ClearColor& value)                          { Key(pKey); Struct(value); }
-    void KeyAndStruct(const char* pKey, const CmdAllocatorCreateInfo& value)              { Key(pKey); Struct(value); }
-    void KeyAndStruct(const char* pKey, const CmdBufferBuildInfo& value)                  { Key(pKey); Struct(value); }
-    void KeyAndStruct(const char* pKey, const CmdBufferCreateInfo& value)                 { Key(pKey); Struct(value); }
-    void KeyAndStruct(const char* pKey, const CmdBufInfo& value)                          { Key(pKey); Struct(value); }
-    void KeyAndStruct(const char* pKey, const CmdPostProcessFrameInfo& value)             { Key(pKey); Struct(value); }
-    void KeyAndStruct(const char* pKey, const ColorBlendStateCreateInfo& value)           { Key(pKey); Struct(value); }
-    void KeyAndStruct(const char* pKey, const ColorKey& value)                            { Key(pKey); Struct(value); }
-    void KeyAndStruct(const char* pKey, const ColorSpaceConversionRegion& value)          { Key(pKey); Struct(value); }
-    void KeyAndStruct(const char* pKey, const ColorSpaceConversionTable& value)           { Key(pKey); Struct(value); }
-    void KeyAndStruct(const char* pKey, const ColorTargetViewCreateInfo& value)           { Key(pKey); Struct(value); }
-    void KeyAndStruct(const char* pKey, const ColorTransform& value)                      { Key(pKey); Struct(value); }
-    void KeyAndStruct(const char* pKey, const ComputePipelineCreateInfo& value)           { Key(pKey); Struct(value); }
-    void KeyAndStruct(const char* pKey, const DepthBiasParams& value)                     { Key(pKey); Struct(value); }
-    void KeyAndStruct(const char* pKey, const DepthBoundsParams& value)                   { Key(pKey); Struct(value); }
-    void KeyAndStruct(const char* pKey, const DepthStencilSelectFlags& value)             { Key(pKey); Struct(value); }
-    void KeyAndStruct(const char* pKey, const DepthStencilStateCreateInfo& value)         { Key(pKey); Struct(value); }
-    void KeyAndStruct(const char* pKey, const DepthStencilViewCreateInfo& value)          { Key(pKey); Struct(value); }
-    void KeyAndStruct(const char* pKey, const DeviceFinalizeInfo& value)                  { Key(pKey); Struct(value); }
-    void KeyAndStruct(const char* pKey, const DoppDesktopInfo& value)                     { Key(pKey); Struct(value); }
-    void KeyAndStruct(const char* pKey, const DoppRef& value)                             { Key(pKey); Struct(value); }
-    void KeyAndStruct(const char* pKey, const DynamicComputeShaderInfo& value)            { Key(pKey); Struct(value); }
-    void KeyAndStruct(const char* pKey, const DynamicGraphicsShaderInfo& value)           { Key(pKey); Struct(value); }
-    void KeyAndStruct(const char* pKey, const DynamicGraphicsShaderInfos& value)          { Key(pKey); Struct(value); }
-    void KeyAndStruct(const char* pKey, Extent2d value)                                   { Key(pKey); Struct(value); }
-    void KeyAndStruct(const char* pKey, Extent3d value)                                   { Key(pKey); Struct(value); }
-    void KeyAndStruct(const char* pKey, const ExternalGpuMemoryOpenInfo& value)           { Key(pKey); Struct(value); }
-    void KeyAndStruct(const char* pKey, const ExternalImageOpenInfo& value)               { Key(pKey); Struct(value); }
-    void KeyAndStruct(const char* pKey, const ExternalQueueSemaphoreOpenInfo& value)      { Key(pKey); Struct(value); }
-    void KeyAndStruct(const char* pKey, const ExternalResourceOpenInfo& value)            { Key(pKey); Struct(value); }
-    void KeyAndStruct(const char* pKey, const FlglState& value)                           { Key(pKey); Struct(value); }
-    void KeyAndStruct(const char* pKey, const FmaskViewInfo& value)                       { Key(pKey); Struct(value); }
-    void KeyAndStruct(const char* pKey, const FullScreenFrameMetadataControlFlags& value) { Key(pKey); Struct(value); }
-    void KeyAndStruct(const char* pKey, const GammaRamp& value)                           { Key(pKey); Struct(value); }
-    void KeyAndStruct(const char* pKey, const GlobalScissorParams& value)                 { Key(pKey); Struct(value); }
-    void KeyAndStruct(const char* pKey, const GpuEventCreateInfo& value)                  { Key(pKey); Struct(value); }
-    void KeyAndStruct(const char* pKey, GpuMemoryCreateFlags value)                       { Key(pKey); Struct(value); }
-    void KeyAndStruct(const char* pKey, const GpuMemoryCreateInfo& value)                 { Key(pKey); Struct(value); }
-    void KeyAndStruct(const char* pKey, const GpuMemoryOpenInfo& value)                   { Key(pKey); Struct(value); }
-    void KeyAndStruct(const char* pKey, const GpuMemoryRef& value)                        { Key(pKey); Struct(value); }
-    void KeyAndStruct(const char* pKey, const GraphicsPipelineCreateInfo& value)          { Key(pKey); Struct(value); }
-    void KeyAndStruct(const char* pKey, const HiSPretests& value)                         { Key(pKey); Struct(value); }
-    void KeyAndStruct(const char* pKey, const ImageCopyRegion& value)                     { Key(pKey); Struct(value); }
-    void KeyAndStruct(const char* pKey, ImageCreateFlags value)                           { Key(pKey); Struct(value); }
-    void KeyAndStruct(const char* pKey, const ImageCreateInfo& value)                     { Key(pKey); Struct(value); }
-    void KeyAndStruct(const char* pKey, ImageLayout value)                                { Key(pKey); Struct(value); }
-    void KeyAndStruct(const char* pKey, const ImageResolveRegion& value)                  { Key(pKey); Struct(value); }
-    void KeyAndStruct(const char* pKey, const ImageScaledCopyRegion& value)               { Key(pKey); Struct(value); }
-    void KeyAndStruct(const char* pKey, ImageUsageFlags value)                            { Key(pKey); Struct(value); }
-    void KeyAndStruct(const char* pKey, const ImageViewInfo& value)                       { Key(pKey); Struct(value); }
-    void KeyAndStruct(const char* pKey, const IndirectCmdGeneratorCreateInfo& value)      { Key(pKey); Struct(value); }
-    void KeyAndStruct(const char* pKey, const InheritedStateParams& value)                { Key(pKey); Struct(value); }
-    void KeyAndStruct(const char* pKey, const InputAssemblyStateParams& value)            { Key(pKey); Struct(value); }
-    void KeyAndStruct(const char* pKey, const MemoryCopyRegion& value)                    { Key(pKey); Struct(value); }
-    void KeyAndStruct(const char* pKey, const MemoryImageCopyRegion& value)               { Key(pKey); Struct(value); }
-    void KeyAndStruct(const char* pKey, const MemoryTiledImageCopyRegion& value)          { Key(pKey); Struct(value); }
-    void KeyAndStruct(const char* pKey, const MsaaQuadSamplePattern& value)               { Key(pKey); Struct(value); }
-    void KeyAndStruct(const char* pKey, const MsaaStateCreateInfo& value)                 { Key(pKey); Struct(value); }
-    void KeyAndStruct(const char* pKey, Offset2d value)                                   { Key(pKey); Struct(value); }
-    void KeyAndStruct(const char* pKey, Offset3d value)                                   { Key(pKey); Struct(value); }
-    void KeyAndStruct(const char* pKey, const PeerGpuMemoryOpenInfo& value)               { Key(pKey); Struct(value); }
-    void KeyAndStruct(const char* pKey, const PeerImageOpenInfo& value)                   { Key(pKey); Struct(value); }
-    void KeyAndStruct(const char* pKey, const PinnedGpuMemoryCreateInfo& value)           { Key(pKey); Struct(value); }
-    void KeyAndStruct(const char* pKey, const PipelineBindParams& value)                  { Key(pKey); Struct(value); }
-    void KeyAndStruct(const char* pKey, PipelineCreateFlags value)                        { Key(pKey); Struct(value); }
-    void KeyAndStruct(const char* pKey, const PlatformCreateInfo& value)                  { Key(pKey); Struct(value); }
-    void KeyAndStruct(const char* pKey, const PointLineRasterStateParams& value)          { Key(pKey); Struct(value); }
-    void KeyAndStruct(const char* pKey, const LineStippleStateParams& value)              { Key(pKey); Struct(value); }
-    void KeyAndStruct(const char* pKey, const PowerSwitchInfo& value)                     { Key(pKey); Struct(value); }
-    void KeyAndStruct(const char* pKey, const PresentableImageCreateInfo& value)          { Key(pKey); Struct(value); }
-    void KeyAndStruct(const char* pKey, const PresentDirectInfo& value)                   { Key(pKey); Struct(value); }
-    void KeyAndStruct(const char* pKey, const PresentSwapChainInfo& value)                { Key(pKey); Struct(value); }
-    void KeyAndStruct(const char* pKey, const PrivateDisplayMode& value)                  { Key(pKey); Struct(value); }
-    void KeyAndStruct(const char* pKey, const PrivateDisplayTiming& value)                { Key(pKey); Struct(value); }
-    void KeyAndStruct(const char* pKey, const PrivateScreenCaps& value)                   { Key(pKey); Struct(value); }
-    void KeyAndStruct(const char* pKey, const PrivateScreenCreateInfo& value)             { Key(pKey); Struct(value); }
-    void KeyAndStruct(const char* pKey, const PrivateScreenEnableInfo& value)             { Key(pKey); Struct(value); }
-    void KeyAndStruct(const char* pKey, const PrivateScreenImageCreateInfo& value)        { Key(pKey); Struct(value); }
-    void KeyAndStruct(const char* pKey, const PrivateScreenPresentInfo& value)            { Key(pKey); Struct(value); }
-    void KeyAndStruct(const char* pKey, const PrivateScreenProperties& value)             { Key(pKey); Struct(value); }
-    void KeyAndStruct(const char* pKey, const QueryControlFlags& value)                   { Key(pKey); Struct(value); }
-    void KeyAndStruct(const char* pKey, const QueryPoolCreateInfo& value)                 { Key(pKey); Struct(value); }
-    void KeyAndStruct(const char* pKey, const QueueCreateInfo& value)                     { Key(pKey); Struct(value); }
-    void KeyAndStruct(const char* pKey, const QueueSemaphoreCreateInfo& value)            { Key(pKey); Struct(value); }
-    void KeyAndStruct(const char* pKey, const QueueSemaphoreOpenInfo& value)              { Key(pKey); Struct(value); }
-    void KeyAndStruct(const char* pKey, Range value)                                      { Key(pKey); Struct(value); }
-    void KeyAndStruct(const char* pKey, Rational value)                                   { Key(pKey); Struct(value); }
-    void KeyAndStruct(const char* pKey, Rect value)                                       { Key(pKey); Struct(value); }
-    void KeyAndStruct(const char* pKey, RgbFloat value)                                   { Key(pKey); Struct(value); }
-    void KeyAndStruct(const char* pKey, const SamplePatternPalette& value)                { Key(pKey); Struct(value); }
-    void KeyAndStruct(const char* pKey, const SamplerInfo& value)                         { Key(pKey); Struct(value); }
-    void KeyAndStruct(const char* pKey, SamplePos value)                                  { Key(pKey); Struct(value); }
-    void KeyAndStruct(const char* pKey, ScaledCopyFlags value)                            { Key(pKey); Struct(value); }
-    void KeyAndStruct(const char* pKey, const ScaledCopyInfo& value)                      { Key(pKey); Struct(value); }
-    void KeyAndStruct(const char* pKey, const GenMipmapsInfo& value)                      { Key(pKey); Struct(value); }
-    void KeyAndStruct(const char* pKey, const ScissorRectParams& value)                   { Key(pKey); Struct(value); }
-    void KeyAndStruct(const char* pKey, const SetClockModeInput& value)                   { Key(pKey); Struct(value); }
-    void KeyAndStruct(const char* pKey, const SetClockModeOutput& value)                  { Key(pKey); Struct(value); }
-    void KeyAndStruct(const char* pKey, const SetMgpuModeInput& value)                    { Key(pKey); Struct(value); }
-    void KeyAndStruct(const char* pKey, SignedExtent2d value)                             { Key(pKey); Struct(value); }
-    void KeyAndStruct(const char* pKey, SignedExtent3d value)                             { Key(pKey); Struct(value); }
-    void KeyAndStruct(const char* pKey, const StencilRefMaskParams& value)                { Key(pKey); Struct(value); }
-    void KeyAndStruct(const char* pKey, SubresId value)                                   { Key(pKey); Struct(value); }
-    void KeyAndStruct(const char* pKey, SubresRange value)                                { Key(pKey); Struct(value); }
-    void KeyAndStruct(const char* pKey, const SvmGpuMemoryCreateInfo& value)              { Key(pKey); Struct(value); }
-    void KeyAndStruct(const char* pKey, const SwapChainCreateInfo& value)                 { Key(pKey); Struct(value); }
-    void KeyAndStruct(const char* pKey, SwizzledFormat value)                             { Key(pKey); Struct(value); }
-    void KeyAndStruct(const char* pKey, TexFilter value)                                  { Key(pKey); Struct(value); }
-    void KeyAndStruct(const char* pKey, const TriangleRasterStateParams& value)           { Key(pKey); Struct(value); }
-    void KeyAndStruct(const char* pKey, const TurboSyncControlInput& value)               { Key(pKey); Struct(value); }
-    void KeyAndStruct(const char* pKey, const TypedBufferCopyRegion& value)               { Key(pKey); Struct(value); }
-    void KeyAndStruct(const char* pKey, const TypedBufferCreateInfo& value)               { Key(pKey); Struct(value); }
-    void KeyAndStruct(const char* pKey, const TypedBufferInfo& value)                     { Key(pKey); Struct(value); }
-    void KeyAndStruct(const char* pKey, const UserClipPlane& value)                       { Key(pKey); Struct(value); }
-    void KeyAndStruct(const char* pKey, const ViewportParams& value)                      { Key(pKey); Struct(value); }
-    void KeyAndStruct(const char* pKey, const VirtualMemoryCopyPageMappingsRange& value)  { Key(pKey); Struct(value); }
-    void KeyAndStruct(const char* pKey, const VirtualMemoryRemapRange& value)             { Key(pKey); Struct(value); }
-    void KeyAndStruct(const char* pKey, const VirtualDisplayInfo& value)                  { Key(pKey); Struct(value); }
-    void KeyAndStruct(const char* pKey, const VirtualDisplayProperties& value)            { Key(pKey); Struct(value); }
-    void KeyAndStruct(const char* pKey, const FenceCreateInfo& value)                     { Key(pKey); Struct(value); }
-    void KeyAndStruct(const char* pKey, const FenceOpenInfo& value)                       { Key(pKey); Struct(value); }
+    template <typename O>
+    void KeyAndObject(const char* pKey, const O* pObj) { Key(pKey); Object(pObj); }
 
-    void KeyAndEnum(const char* pKey, AtomicOp value)                     { Key(pKey); Enum(value); }
-    void KeyAndEnum(const char* pKey, Developer::BarrierReason value)     { Key(pKey); Enum(value); }
-    void KeyAndEnum(const char* pKey, BinningOverride value)              { Key(pKey); Enum(value); }
-    void KeyAndEnum(const char* pKey, Blend value)                        { Key(pKey); Enum(value); }
-    void KeyAndEnum(const char* pKey, BlendFunc value)                    { Key(pKey); Enum(value); }
-    void KeyAndEnum(const char* pKey, BorderColorType value)              { Key(pKey); Enum(value); }
-    void KeyAndEnum(const char* pKey, ChNumFormat value)                  { Key(pKey); Enum(value); }
-    void KeyAndEnum(const char* pKey, ChannelSwizzle value)               { Key(pKey); Enum(value); }
-    void KeyAndEnum(const char* pKey, ClearColorType value)               { Key(pKey); Enum(value); }
-    void KeyAndEnum(const char* pKey, CompareFunc value)                  { Key(pKey); Enum(value); }
-    void KeyAndEnum(const char* pKey, CullMode value)                     { Key(pKey); Enum(value); }
-    void KeyAndEnum(const char* pKey, DepthRange value)                   { Key(pKey); Enum(value); }
-    void KeyAndEnum(const char* pKey, DeviceClockMode value)              { Key(pKey); Enum(value); }
-    void KeyAndEnum(const char* pKey, EngineType value)                   { Key(pKey); Enum(value); }
-    void KeyAndEnum(const char* pKey, FaceOrientation value)              { Key(pKey); Enum(value); }
-    void KeyAndEnum(const char* pKey, FillMode value)                     { Key(pKey); Enum(value); }
-    void KeyAndEnum(const char* pKey, FlglSupport value)                  { Key(pKey); Enum(value); }
-    void KeyAndEnum(const char* pKey, GpuHeap value)                      { Key(pKey); Enum(value); }
-    void KeyAndEnum(const char* pKey, GpuMemPriority value)               { Key(pKey); Enum(value); }
-    void KeyAndEnum(const char* pKey, GpuMemPriorityOffset value)         { Key(pKey); Enum(value); }
-    void KeyAndEnum(const char* pKey, ImmediateDataWidth value)           { Key(pKey); Enum(value); }
-    void KeyAndEnum(const char* pKey, HwPipePoint value)                  { Key(pKey); Enum(value); }
-    void KeyAndEnum(const char* pKey, ImageAspect value)                  { Key(pKey); Enum(value); }
-    void KeyAndEnum(const char* pKey, ImageRotation value)                { Key(pKey); Enum(value); }
-    void KeyAndEnum(const char* pKey, ImageTexOptLevel value)             { Key(pKey); Enum(value); }
-    void KeyAndEnum(const char* pKey, ImageTiling value)                  { Key(pKey); Enum(value); }
-    void KeyAndEnum(const char* pKey, ImageTilingPattern value)           { Key(pKey); Enum(value); }
-    void KeyAndEnum(const char* pKey, ImageType value)                    { Key(pKey); Enum(value); }
-    void KeyAndEnum(const char* pKey, ImageViewType value)                { Key(pKey); Enum(value); }
-    void KeyAndEnum(const char* pKey, IndexType value)                    { Key(pKey); Enum(value); }
-    void KeyAndEnum(const char* pKey, IndirectParamType value)            { Key(pKey); Enum(value); }
-    void KeyAndEnum(const char* pKey, LogicOp value)                      { Key(pKey); Enum(value); }
-    void KeyAndEnum(const char* pKey, MetadataMode value)                 { Key(pKey); Enum(value); }
-    void KeyAndEnum(const char* pKey, MgpuMode value)                     { Key(pKey); Enum(value); }
-    void KeyAndEnum(const char* pKey, MipFilter value)                    { Key(pKey); Enum(value); }
-    void KeyAndEnum(const char* pKey, NullGpuId value)                    { Key(pKey); Enum(value); }
-    void KeyAndEnum(const char* pKey, PipelineBindPoint value)            { Key(pKey); Enum(value); }
-    void KeyAndEnum(const char* pKey, PointOrigin value)                  { Key(pKey); Enum(value); }
-    void KeyAndEnum(const char* pKey, PowerProfile value)                 { Key(pKey); Enum(value); }
-    void KeyAndEnum(const char* pKey, PredicateType value)                { Key(pKey); Enum(value); }
-    void KeyAndEnum(const char* pKey, PresentMode value)                  { Key(pKey); Enum(value); }
-    void KeyAndEnum(const char* pKey, PrimitiveTopology value)            { Key(pKey); Enum(value); }
-    void KeyAndEnum(const char* pKey, PrimitiveType value)                { Key(pKey); Enum(value); }
-    void KeyAndEnum(const char* pKey, PrivateDisplayColorDepth value)     { Key(pKey); Enum(value); }
-    void KeyAndEnum(const char* pKey, PrivateDisplayPixelEncoding value)  { Key(pKey); Enum(value); }
-    void KeyAndEnum(const char* pKey, PrivateDisplayPowerState value)     { Key(pKey); Enum(value); }
-    void KeyAndEnum(const char* pKey, PrivateScreenType value)            { Key(pKey); Enum(value); }
-    void KeyAndEnum(const char* pKey, ProvokingVertex value)              { Key(pKey); Enum(value); }
-    void KeyAndEnum(const char* pKey, QueuePriority value)                { Key(pKey); Enum(value); }
-    void KeyAndEnum(const char* pKey, QueryPoolType value)                { Key(pKey); Enum(value); }
-    void KeyAndEnum(const char* pKey, QueryType value)                    { Key(pKey); Enum(value); }
-    void KeyAndEnum(const char* pKey, QueueType value)                    { Key(pKey); Enum(value); }
-    void KeyAndEnum(const char* pKey, ReclaimResult value)                { Key(pKey); Enum(value); }
-    void KeyAndEnum(const char* pKey, ResolveMode value)                  { Key(pKey); Enum(value); }
-    void KeyAndEnum(const char* pKey, Result value)                       { Key(pKey); Enum(value); }
-    void KeyAndEnum(const char* pKey, ShadeMode value)                    { Key(pKey); Enum(value); }
-    void KeyAndEnum(const char* pKey, StencilOp value)                    { Key(pKey); Enum(value); }
-    void KeyAndEnum(const char* pKey, SubmitOptMode value)                { Key(pKey); Enum(value); }
-    void KeyAndEnum(const char* pKey, SurfaceTransformFlags value)        { Key(pKey); Enum(value); }
-    void KeyAndEnum(const char* pKey, SwapChainMode value)                { Key(pKey); Enum(value); }
-    void KeyAndEnum(const char* pKey, TexAddressMode value)               { Key(pKey); Enum(value); }
-    void KeyAndEnum(const char* pKey, TexFilterMode value)                { Key(pKey); Enum(value); }
-    void KeyAndEnum(const char* pKey, TilingOptMode value)                { Key(pKey); Enum(value); }
-    void KeyAndEnum(const char* pKey, VaRange value)                      { Key(pKey); Enum(value); }
-    void KeyAndEnum(const char* pKey, VirtualGpuMemAccessMode value)      { Key(pKey); Enum(value); }
-    void KeyAndEnum(const char* pKey, WsiPlatform value)                  { Key(pKey); Enum(value); }
-    void KeyAndEnum(const char* pKey, XyFilter value)                     { Key(pKey); Enum(value); }
-    void KeyAndEnum(const char* pKey, ZFilter value)                      { Key(pKey); Enum(value); }
-    void KeyAndEnum(const char* pKey, VirtualDisplayVSyncMode value)      { Key(pKey); Enum(value); }
-    void KeyAndEnum(const char* pKey, TurboSyncControlMode value)         { Key(pKey); Enum(value); }
+    template <typename E>
+    void KeyAndEnum(const char* pKey, E value) { Key(pKey); Enum(value); }
+
+    template <typename S>
+    void KeyAndStruct(const char* pKey, const S& value) { Key(pKey); Struct(value); }
 
     void KeyAndCacheCoherencyUsageFlags(const char* pKey, uint32 flags) { Key(pKey); CacheCoherencyUsageFlags(flags); }
     void KeyAndPipelineStageFlags(const char* pKey, uint32 flags)       { Key(pKey); PipelineStageFlags(flags); }

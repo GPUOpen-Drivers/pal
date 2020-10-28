@@ -46,6 +46,7 @@
 #include "core/layers/interfaceLogger/interfaceLoggerQueue.h"
 #include "core/layers/interfaceLogger/interfaceLoggerQueueSemaphore.h"
 #include "core/layers/interfaceLogger/interfaceLoggerScreen.h"
+#include "core/layers/interfaceLogger/interfaceLoggerShaderLibrary.h"
 #include "core/layers/interfaceLogger/interfaceLoggerSwapChain.h"
 #include "palSysUtil.h"
 
@@ -1556,6 +1557,70 @@ Result Device::CreateGraphicsPipeline(
         pLogContext->BeginOutput();
         pLogContext->KeyAndEnum("result", result);
         pLogContext->KeyAndObject("createdObj", *ppPipeline);
+        pLogContext->EndOutput();
+
+        pPlatform->LogEndFunc(pLogContext);
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
+size_t Device::GetShaderLibrarySize(
+    const ShaderLibraryCreateInfo& createInfo,
+    Result*                        pResult
+    ) const
+{
+    return m_pNextLayer->GetShaderLibrarySize(createInfo, pResult) + sizeof(ShaderLibrary);
+}
+
+// =====================================================================================================================
+Result Device::CreateShaderLibrary(
+    const ShaderLibraryCreateInfo& createInfo,
+    void*                          pPlacementAddr,
+    IShaderLibrary**               ppLibrary)
+{
+    auto*const      pPlatform = static_cast<Platform*>(m_pPlatform);
+    IShaderLibrary* pLibrary  = nullptr;
+
+    BeginFuncInfo funcInfo;
+    funcInfo.funcId       = InterfaceFunc::DeviceCreateShaderLibrary;
+    funcInfo.objectId     = m_objectId;
+    funcInfo.preCallTime  = pPlatform->GetTime();
+    Result result = m_pNextLayer->CreateShaderLibrary(createInfo,
+                                                      NextObjectAddr<ShaderLibrary>(pPlacementAddr),
+                                                      &pLibrary);
+    funcInfo.postCallTime = pPlatform->GetTime();
+
+    if (result == Result::Success)
+    {
+        PAL_ASSERT(pLibrary != nullptr);
+        pLibrary->SetClientData(pPlacementAddr);
+
+        const uint32 objectId = pPlatform->NewObjectId(InterfaceObject::ShaderLibrary);
+
+        (*ppLibrary) = PAL_PLACEMENT_NEW(pPlacementAddr) ShaderLibrary(pLibrary, this, objectId);
+    }
+
+    LogContext* pLogContext = nullptr;
+    if (pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    {
+        pLogContext->BeginInput();
+        pLogContext->KeyAndStruct("createInfo", createInfo);
+        pLogContext->EndInput();
+
+        pLogContext->BeginOutput();
+        pLogContext->KeyAndEnum("result", result);
+        pLogContext->KeyAndObject("createdObj", *ppLibrary);
+        if (result == Result::Success)
+        {
+            pLogContext->KeyAndBeginList("functions", false);
+            for (uint32 i = 0; i < createInfo.funcCount; ++i)
+            {
+                pLogContext->Struct(createInfo.pFuncList[i]);
+            }
+            pLogContext->EndList();
+        }
         pLogContext->EndOutput();
 
         pPlatform->LogEndFunc(pLogContext);

@@ -43,7 +43,7 @@ class ShaderRing
 public:
     virtual ~ShaderRing();
 
-    Result Validate(size_t itemSize, ShaderRingType ringType, ShaderRingMemory* pDeferredMem);
+    Result Validate(size_t itemSize, ShaderRingMemory* pDeferredMem);
 
     bool IsMemoryValid() const { return m_ringMem.IsBound(); }
 
@@ -57,25 +57,26 @@ public:
     size_t ItemSizeMax() const { return m_itemSizeMax; }
 
 protected:
-    ShaderRing(Device* pDevice, BufferSrd* pSrdTable, bool isTmz);
+    ShaderRing(Device* pDevice, BufferSrd* pSrdTable, bool isTmz, ShaderRingType type);
+
+    virtual Result AllocateVideoMemory(gpusize memorySizeBytes, ShaderRingMemory* pDeferredMem);
 
     virtual gpusize ComputeAllocationSize() const;
 
     // Informs the Shader Ring to update its SRD's.
     virtual void UpdateSrds() const = 0;
 
-    Device*const      m_pDevice;
-    BufferSrd*const   m_pSrdTable;   // Pointer to the parent ring-set's SRD table
-    BoundGpuMemory    m_ringMem;     // Shader-ring video memory allocation
-    const bool        m_tmzEnabled;  // Shader-ring video mmeory allcated on protected memory
-    gpusize           m_allocSize;   // Current "real" video memory size (in bytes)
-    size_t            m_numMaxWaves; // Max. number of waves allowed to execute in parallel
-    size_t            m_itemSizeMax; // Highest item size this Ring has needed so far
-    const GfxIpLevel  m_gfxLevel;
+    Device*const         m_pDevice;
+    BufferSrd*const      m_pSrdTable;   // Pointer to the parent ring-set's SRD table
+    BoundGpuMemory       m_ringMem;     // Shader-ring video memory allocation
+    const bool           m_tmzEnabled;  // Shader-ring video memory allocated on protected memory
+    gpusize              m_allocSize;   // Current "real" video memory size (in bytes)
+    size_t               m_numMaxWaves; // Max. number of waves allowed to execute in parallel
+    size_t               m_itemSizeMax; // Highest item size this Ring has needed so far
+    const ShaderRingType m_ringType;
+    const GfxIpLevel     m_gfxLevel;
 
 private:
-    Result AllocateVideoMemory(gpusize memorySizeBytes, ShaderRingType ringType, ShaderRingMemory* pDeferredMem);
-
     PAL_DISALLOW_DEFAULT_CTOR(ShaderRing);
     PAL_DISALLOW_COPY_AND_ASSIGN(ShaderRing);
 };

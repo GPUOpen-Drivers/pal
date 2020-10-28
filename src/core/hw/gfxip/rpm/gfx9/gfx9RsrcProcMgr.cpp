@@ -902,7 +902,8 @@ bool RsrcProcMgr::InitMaskRam(
 
         // We're transitioning out of "uninitialized" state here, so take advantage of this one-time opportunity
         // to upload the meta-equation so our upcoming compute shader knows what to do.
-        pHtile->UploadEq(pCmdBuffer);
+        PAL_ASSERT(pHtile->HasMetaEqGenerator());
+        pHtile->GetMetaEqGenerator()->UploadEq(pCmdBuffer);
 
         InitHtile(pCmdBuffer, pCmdStream, dstImage, range);
     }
@@ -912,7 +913,8 @@ bool RsrcProcMgr::InitMaskRam(
         {
             const Gfx9Dcc* pDcc = dstImage.GetDcc(range.startSubres.aspect);
 
-            pDcc->UploadEq(pCmdBuffer);
+            PAL_ASSERT(pDcc->HasMetaEqGenerator());
+            pDcc->GetMetaEqGenerator()->UploadEq(pCmdBuffer);
 
             const bool dccClearUsedCompute = ClearDcc(pCmdBuffer,
                                                       pCmdStream,
@@ -926,14 +928,18 @@ bool RsrcProcMgr::InitMaskRam(
 
             if (dstImage.HasDisplayDccData())
             {
-                dstImage.GetDisplayDcc(range.startSubres.aspect)->UploadEq(pCmdBuffer);
+                const Gfx9Dcc* pDispDcc = dstImage.GetDisplayDcc(range.startSubres.aspect);
+
+                PAL_ASSERT(pDispDcc->HasMetaEqGenerator());
+                pDispDcc->GetMetaEqGenerator()->UploadEq(pCmdBuffer);
             }
         }
 
         if (dstImage.HasFmaskData())
         {
             // If we have fMask, then we have cMask
-            dstImage.GetCmask()->UploadEq(pCmdBuffer);
+            PAL_ASSERT(dstImage.GetCmask()->HasMetaEqGenerator());
+            dstImage.GetCmask()->GetMetaEqGenerator()->UploadEq(pCmdBuffer);
 
             // The docs state that we only need to initialize either cMask or fMask data.  Init the cMask data
             // since we have a meta-equation for that one.
@@ -1030,19 +1036,21 @@ void RsrcProcMgr::BuildHtileLookupTable(
 
     const auto&     createInfo = pParentImg->GetImageCreateInfo();
     const auto*     pBaseHtile = dstImage.GetHtile();
-    const uint32    pipeBankXor = pBaseHtile->CalcPipeXorMask(range.startSubres.aspect);
+    PAL_ASSERT(pBaseHtile->HasMetaEqGenerator());
+    const auto*     pEqGenerator = pBaseHtile->GetMetaEqGenerator();
+    const uint32    pipeBankXor = pEqGenerator->CalcPipeXorMask(range.startSubres.aspect);
     const auto&     hTileAddrOutput = pBaseHtile->GetAddrOutput();
     const uint32    log2MetaBlkWidth = Log2(hTileAddrOutput.metaBlkWidth);
     const uint32    log2MetaBlkHeight = Log2(hTileAddrOutput.metaBlkHeight);
     const uint32    sliceSize = (hTileAddrOutput.pitch * hTileAddrOutput.height) >>
         (log2MetaBlkWidth + log2MetaBlkHeight);
-    const uint32    effectiveSamples = pBaseHtile->GetNumEffectiveSamples();
+    const uint32    effectiveSamples = pEqGenerator->GetNumEffectiveSamples();
     BufferSrd       bufferSrds[2] = {};
     uint32          threadsPerGroup[3] = {};
 
     if (m_pDevice->GetHwStencilFmt(createInfo.swizzledFormat.format) != STENCIL_INVALID)
     {
-        PAL_ASSERT(pipeBankXor == pBaseHtile->CalcPipeXorMask(ImageAspect::Stencil));
+        PAL_ASSERT(pipeBankXor == pEqGenerator->CalcPipeXorMask(ImageAspect::Stencil));
     }
 
     const Pal::ComputePipeline* pPipeline = GetPipeline(RpmComputePipeline::Gfx9BuildHtileLookupTable);
@@ -1057,7 +1065,7 @@ void RsrcProcMgr::BuildHtileLookupTable(
 
     // Create a view of the hTile equation so that the shader can access it.
     BufferViewInfo hTileEqBufferView = {};
-    pBaseHtile->BuildEqBufferView(&hTileEqBufferView);
+    pEqGenerator->BuildEqBufferView(&hTileEqBufferView);
     pParentDev->CreateUntypedBufferViewSrds(1, &hTileEqBufferView, &bufferSrds[1]);
 
     const uint32 lastMip = range.startSubres.mipLevel + range.numMips - 1;
@@ -3778,7 +3786,6 @@ void Gfx9RsrcProcMgr::ClearDccCompute(
     // path must only be used for fast clear.
     const bool canDoDccOptimizedClear = ((clearPurpose == DccClearPurpose::FastClear)  &&
                                          (dccMipInfo.inMiptail == 0)                   &&
-                                         (settings.processMetaEquationViaCpu == false) &&
                                          TestAnyFlagSet(settings.optimizedFastClear, Gfx9OptimizedFastClearColorDcc) &&
                                          allowOptimizedFastClear);
 
@@ -3786,13 +3793,9 @@ void Gfx9RsrcProcMgr::ClearDccCompute(
     {
         DoOptimizedFastClear(pCmdBuffer, pCmdStream, dstImage, clearRange, clearCode, clearPurpose);
     }
-    else if (settings.processMetaEquationViaCpu == false)
-    {
-        DoFastClear(pCmdBuffer, pCmdStream, dstImage, clearRange, clearCode, clearPurpose);
-    }
     else
     {
-        dstImage.CpuProcessDccEq(clearRange, clearCode, clearPurpose);
+        DoFastClear(pCmdBuffer, pCmdStream, dstImage, clearRange, clearCode, clearPurpose);
     }
 
     // Restore the command buffer's state.
@@ -4267,6 +4270,8 @@ void Gfx9RsrcProcMgr::DoFastClear(
     const Gfx9PalSettings& settings      = GetGfx9Settings(*pDevice);
     const auto&            createInfo    = pPalImage->GetImageCreateInfo();
     const auto*            pDcc          = dstImage.GetDcc(clearRange.startSubres.aspect);
+    PAL_ASSERT(pDcc->HasMetaEqGenerator());
+    const auto*            pEqGenerator  = pDcc->GetMetaEqGenerator();
     const auto&            dccAddrOutput = pDcc->GetAddrOutput();
     const auto*            pGfxDevice    = static_cast<const Device*>(pDevice->GetGfxDevice());
     const bool             is3dImage     = (createInfo.imageType == ImageType::Tex3d);
@@ -4282,7 +4287,7 @@ void Gfx9RsrcProcMgr::DoFastClear(
                                           : RpmComputePipeline::Gfx9ClearDccSingleSample2d));
 
     const auto*const pPipeline    = GetPipeline(pipeline);
-    const uint32     pipeBankXor  = pDcc->CalcPipeXorMask(clearRange.startSubres.aspect);
+    const uint32     pipeBankXor  = pEqGenerator->CalcPipeXorMask(clearRange.startSubres.aspect);
 
     BufferSrd     bufferSrds[2] = {};
     uint32        xInc = 0;
@@ -4304,7 +4309,7 @@ void Gfx9RsrcProcMgr::DoFastClear(
 
     // Create an SRD for the DCC equation.  Again, this is a constant as there is only one equation
     BufferViewInfo bufferViewDccEq = {};
-    pDcc->BuildEqBufferView(&bufferViewDccEq);
+    pEqGenerator->BuildEqBufferView(&bufferViewDccEq);
     pDevice->CreateUntypedBufferViewSrds(1, &bufferViewDccEq, &bufferSrds[1]);
 
     // Clear each mip level invidually.  Create a constant buffer so the compute shader knows the
@@ -4826,105 +4831,100 @@ void Gfx9RsrcProcMgr::ExecuteHtileEquation(
     const Pal::Device*     pParentDev = pParentImg->GetDevice();
     const Gfx9PalSettings& settings   = GetGfx9Settings(*pParentDev);
 
-    if (settings.processMetaEquationViaCpu == false)
+    const auto&     createInfo         = pParentImg->GetImageCreateInfo();
+    const auto*     pBaseHtile         = dstImage.GetHtile();
+    PAL_ASSERT(pBaseHtile->HasMetaEqGenerator());
+    const auto*     pEqGenerator       = pBaseHtile->GetMetaEqGenerator();
+    const uint32    pipeBankXor        = pEqGenerator->CalcPipeXorMask(range.startSubres.aspect);
+    const auto&     hTileAddrOutput    = pBaseHtile->GetAddrOutput();
+    const uint32    log2MetaBlkWidth   = Log2(hTileAddrOutput.metaBlkWidth);
+    const uint32    log2MetaBlkHeight  = Log2(hTileAddrOutput.metaBlkHeight);
+    const uint32    sliceSize          = (hTileAddrOutput.pitch * hTileAddrOutput.height) >>
+                                         (log2MetaBlkWidth + log2MetaBlkHeight);
+    const uint32    effectiveSamples   = pEqGenerator->GetNumEffectiveSamples();
+    BufferSrd       bufferSrds[2]      = {};
+    uint32          threadsPerGroup[3] = {};
+
+    // TODO: need to obey the "dbPerTileExpClearEnable" setting here.
+    const Pal::ComputePipeline* pPipeline = GetPipeline((effectiveSamples > 1)
+                                                   ? RpmComputePipeline::Gfx9ClearHtileMultiSample
+                                                   : RpmComputePipeline::Gfx9ClearHtileSingleSample);
+
+    pPipeline->ThreadsPerGroupXyz(&threadsPerGroup[0], &threadsPerGroup[1], &threadsPerGroup[2]);
+
+    // Save the command buffer's state
+    pCmdBuffer->CmdSaveComputeState(ComputeStatePipelineAndUserData);
+
+    // Bind Compute Pipeline used for the clear.
+    pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, InternalApiPsoHash, });
+
+    // On GFX9, we create a single view of the hTile buffer that points to the base mip level.  It's
+    // up to the equation to "find" each mip level and slice from that base location.
+    BufferViewInfo hTileSurfBufferView = { };
+    pBaseHtile->BuildSurfBufferView(&hTileSurfBufferView);
+    pParentDev->CreateUntypedBufferViewSrds(1, &hTileSurfBufferView, &bufferSrds[0]);
+
+    // Create a view of the hTile equation so that the shader can access it.
+    BufferViewInfo hTileEqBufferView = { };
+    pEqGenerator->BuildEqBufferView(&hTileEqBufferView);
+    pParentDev->CreateUntypedBufferViewSrds(1, &hTileEqBufferView, &bufferSrds[1]);
+
+    const uint32 lastMip = range.startSubres.mipLevel + range.numMips - 1;
+    for (uint32 mipLevel = range.startSubres.mipLevel; mipLevel <= lastMip; ++mipLevel)
     {
-        const auto&     createInfo         = pParentImg->GetImageCreateInfo();
-        const auto*     pBaseHtile         = dstImage.GetHtile();
-        const uint32    pipeBankXor        = pBaseHtile->CalcPipeXorMask(range.startSubres.aspect);
-        const auto&     hTileAddrOutput    = pBaseHtile->GetAddrOutput();
-        const uint32    log2MetaBlkWidth   = Log2(hTileAddrOutput.metaBlkWidth);
-        const uint32    log2MetaBlkHeight  = Log2(hTileAddrOutput.metaBlkHeight);
-        const uint32    sliceSize          = (hTileAddrOutput.pitch * hTileAddrOutput.height) >>
-                                             (log2MetaBlkWidth + log2MetaBlkHeight);
-        const uint32    effectiveSamples   = pBaseHtile->GetNumEffectiveSamples();
-        BufferSrd       bufferSrds[2]      = {};
-        uint32          threadsPerGroup[3] = {};
+        const SubresId  subResId       = { range.startSubres.aspect, mipLevel, 0 };
+        const auto*     pSubResInfo    = pParentImg->SubresourceInfo(subResId);
+        const auto&     hTileMipInfo   = pBaseHtile->GetAddrMipInfo(mipLevel);
+        const uint32    mipLevelHeight = pSubResInfo->extentTexels.height;
+        const uint32    mipLevelWidth  = pSubResInfo->extentTexels.width;
 
-        // TODO: need to obey the "dbPerTileExpClearEnable" setting here.
-        const Pal::ComputePipeline* pPipeline = GetPipeline((effectiveSamples > 1)
-                                                       ? RpmComputePipeline::Gfx9ClearHtileMultiSample
-                                                       : RpmComputePipeline::Gfx9ClearHtileSingleSample);
-
-        pPipeline->ThreadsPerGroupXyz(&threadsPerGroup[0], &threadsPerGroup[1], &threadsPerGroup[2]);
-
-        // Save the command buffer's state
-        pCmdBuffer->CmdSaveComputeState(ComputeStatePipelineAndUserData);
-
-        // Bind Compute Pipeline used for the clear.
-        pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, InternalApiPsoHash, });
-
-        // On GFX9, we create a single view of the hTile buffer that points to the base mip level.  It's
-        // up to the equation to "find" each mip level and slice from that base location.
-        BufferViewInfo hTileSurfBufferView = { };
-        pBaseHtile->BuildSurfBufferView(&hTileSurfBufferView);
-        pParentDev->CreateUntypedBufferViewSrds(1, &hTileSurfBufferView, &bufferSrds[0]);
-
-        // Create a view of the hTile equation so that the shader can access it.
-        BufferViewInfo hTileEqBufferView = { };
-        pBaseHtile->BuildEqBufferView(&hTileEqBufferView);
-        pParentDev->CreateUntypedBufferViewSrds(1, &hTileEqBufferView, &bufferSrds[1]);
-
-        const uint32 lastMip = range.startSubres.mipLevel + range.numMips - 1;
-        for (uint32 mipLevel = range.startSubres.mipLevel; mipLevel <= lastMip; ++mipLevel)
+        const uint32 constData[] =
         {
-            const SubresId  subResId       = { range.startSubres.aspect, mipLevel, 0 };
-            const auto*     pSubResInfo    = pParentImg->SubresourceInfo(subResId);
-            const auto&     hTileMipInfo   = pBaseHtile->GetAddrMipInfo(mipLevel);
-            const uint32    mipLevelHeight = pSubResInfo->extentTexels.height;
-            const uint32    mipLevelWidth  = pSubResInfo->extentTexels.width;
+            // start cb0[0]
+            hTileMipInfo.startX,
+            hTileMipInfo.startY,
+            range.startSubres.arraySlice,
+            sliceSize,
+            // start cb0[1]
+            log2MetaBlkWidth,
+            log2MetaBlkHeight,
+            0, // depth surfaces are always 2D
+            hTileAddrOutput.pitch >> log2MetaBlkWidth,
+            // start cb0[2]
+            mipLevelWidth,
+            mipLevelHeight,
+            htileValue & htileMask,
+            ~htileMask,
+            // start cb0[3]
+            pipeBankXor,
+            effectiveSamples,
+        };
 
-            const uint32 constData[] =
-            {
-                // start cb0[0]
-                hTileMipInfo.startX,
-                hTileMipInfo.startY,
-                range.startSubres.arraySlice,
-                sliceSize,
-                // start cb0[1]
-                log2MetaBlkWidth,
-                log2MetaBlkHeight,
-                0, // depth surfaces are always 2D
-                hTileAddrOutput.pitch >> log2MetaBlkWidth,
-                // start cb0[2]
-                mipLevelWidth,
-                mipLevelHeight,
-                htileValue & htileMask,
-                ~htileMask,
-                // start cb0[3]
-                pipeBankXor,
-                effectiveSamples,
-            };
+        // Create an embedded user-data table and bind it to user data 0.
+        const uint32  sizeConstDataDwords = NumBytesToNumDwords(sizeof(constData));
+        uint32* pSrdTable = RpmUtil::CreateAndBindEmbeddedUserData(pCmdBuffer,
+                                                                   SrdDwordAlignment() * 2 + sizeConstDataDwords,
+                                                                   SrdDwordAlignment(),
+                                                                   PipelineBindPoint::Compute,
+                                                                   0);
 
-            // Create an embedded user-data table and bind it to user data 0.
-            const uint32  sizeConstDataDwords = NumBytesToNumDwords(sizeof(constData));
-            uint32* pSrdTable = RpmUtil::CreateAndBindEmbeddedUserData(pCmdBuffer,
-                                                                       SrdDwordAlignment() * 2 + sizeConstDataDwords,
-                                                                       SrdDwordAlignment(),
-                                                                       PipelineBindPoint::Compute,
-                                                                       0);
+        // Put the SRDs for the hTile buffer and hTile equation into shader-accessible memory
+        memcpy(pSrdTable, &bufferSrds[0], sizeof(bufferSrds));
+        pSrdTable += Util::NumBytesToNumDwords(sizeof(bufferSrds));
 
-            // Put the SRDs for the hTile buffer and hTile equation into shader-accessible memory
-            memcpy(pSrdTable, &bufferSrds[0], sizeof(bufferSrds));
-            pSrdTable += Util::NumBytesToNumDwords(sizeof(bufferSrds));
+        // Provide the shader with all kinds of fun dimension info
+        memcpy(pSrdTable, &constData[0], sizeof(constData));
 
-            // Provide the shader with all kinds of fun dimension info
-            memcpy(pSrdTable, &constData[0], sizeof(constData));
-
-            MetaDataDispatch(pCmdBuffer,
-                             pBaseHtile,
-                             mipLevelWidth,
-                             mipLevelHeight,
-                             range.numSlices,
-                             threadsPerGroup);
-        }
-
-        // Restore the command buffer's state.
-        pCmdBuffer->CmdRestoreComputeState(ComputeStatePipelineAndUserData);
+        MetaDataDispatch(pCmdBuffer,
+                         pBaseHtile,
+                         mipLevelWidth,
+                         mipLevelHeight,
+                         range.numSlices,
+                         threadsPerGroup);
     }
-    else
-    {
-        dstImage.CpuProcessHtileEq(range, htileValue, htileMask);
-    }
+
+    // Restore the command buffer's state.
+    pCmdBuffer->CmdRestoreComputeState(ComputeStatePipelineAndUserData);
 }
 
 // =====================================================================================================================
@@ -5221,8 +5221,7 @@ void Gfx9RsrcProcMgr::FastDepthStencilClearCompute(
 
     // For now just find out here if this resource can do Optimized Htile clear (for all depth surfaces except
     // those whose meta data is in mip tail)
-    const bool canDoHtileOptimizedClear = ((hTileMipInfo.inMiptail == 0)                 &&
-                                           (settings.processMetaEquationViaCpu == false) &&
+    const bool canDoHtileOptimizedClear = ((hTileMipInfo.inMiptail == 0) &&
                                            (TestAnyFlagSet(settings.optimizedFastClear, Gfx9OptimizedFastClearDepth)));
 
     const uint32 htileMask = pHtile->GetAspectMask(clearMask);
@@ -5358,9 +5357,8 @@ void Gfx9RsrcProcMgr::InitCmask(
     PAL_ASSERT (createInfo.mipLevels == 1);
 
     // check if this resource can do Optimized cmask clear
-    const bool canDoCmaskOptimizedClear = ((settings.processMetaEquationViaCpu == false) &&
-                                           (TestAnyFlagSet(settings.optimizedFastClear,
-                                                           Gfx9OptimizedFastClearColorCmask)));
+    const bool canDoCmaskOptimizedClear = TestAnyFlagSet(settings.optimizedFastClear,
+                                                         Gfx9OptimizedFastClearColorCmask);
 
     if (canDoCmaskOptimizedClear)
     {
@@ -5372,19 +5370,21 @@ void Gfx9RsrcProcMgr::InitCmask(
         // Restore the command buffer's state.
         pCmdBuffer->CmdRestoreComputeState(ComputeStatePipelineAndUserData);
     }
-    else if (settings.processMetaEquationViaCpu == false)
+    else
     {
         const auto*   pCmask             = image.GetCmask();
+        PAL_ASSERT(pCmask->HasMetaEqGenerator());
+        const auto*   pEqGenerator       = pCmask->GetMetaEqGenerator();
         const auto&   cMaskAddrOutput    = pCmask->GetAddrOutput();
         const uint32  log2MetaBlkWidth   = Log2(cMaskAddrOutput.metaBlkWidth);
         const uint32  log2MetaBlkHeight  = Log2(cMaskAddrOutput.metaBlkHeight);
         const uint32  sliceSize          = (cMaskAddrOutput.pitch * cMaskAddrOutput.height) >>
                                            (log2MetaBlkWidth + log2MetaBlkHeight);
-        const uint32  pipeBankXor        = pCmask->CalcPipeXorMask(initRange.startSubres.aspect);
+        const uint32  pipeBankXor        = pEqGenerator->CalcPipeXorMask(initRange.startSubres.aspect);
         uint32        threadsPerGroup[3] = {};
 
         // Does cMask *ever* depend on the number of samples?  If so, our shader is going to need some tweaking.
-        PAL_ASSERT (pCmask->GetNumEffectiveSamples() == 1);
+        PAL_ASSERT (pEqGenerator->GetNumEffectiveSamples() == 1);
         const auto*const pPipeline  = GetPipeline(RpmComputePipeline::Gfx9InitCmask);
 
         pPipeline->ThreadsPerGroupXyz(&threadsPerGroup[0], &threadsPerGroup[1], &threadsPerGroup[2]);
@@ -5398,7 +5398,7 @@ void Gfx9RsrcProcMgr::InitCmask(
         BufferViewInfo bufferViewCmaskSurf = { };
         pCmask->BuildSurfBufferView(&bufferViewCmaskSurf);
         BufferViewInfo bufferViewCmaskEq   = { };
-        pCmask->BuildEqBufferView(&bufferViewCmaskEq);
+        pEqGenerator->BuildEqBufferView(&bufferViewCmaskEq);
 
         const uint32 constData[] =
         {
@@ -5441,10 +5441,7 @@ void Gfx9RsrcProcMgr::InitCmask(
         // Restore the command buffer's state.
         pCmdBuffer->CmdRestoreComputeState(ComputeStatePipelineAndUserData);
     }
-    else
-    {
-        image.CpuProcessCmaskEq(initRange, initValue);
-    }
+
 }
 
 // =====================================================================================================================

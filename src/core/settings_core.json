@@ -1764,7 +1764,7 @@
         "Performance"
       ],
       "Defaults": {
-        "Default": false
+        "Default": true
       },
       "Flags": {
         "RereadSetting": true

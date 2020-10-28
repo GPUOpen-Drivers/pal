@@ -227,7 +227,6 @@ Result ShaderRingSet::Validate(
 
             ShaderRingMemory deferredMem = {nullptr, 0, lastTimeStamp};
             result = m_ppRings[ring]->Validate(ringSizes.itemSize[ring],
-                                               static_cast<ShaderRingType>(ring),
                                                &deferredMem);
             if (deferredMem.pGpuMemory != nullptr)
             {
@@ -413,6 +412,7 @@ Result UniversalRingSet::Init()
             // Which GPU is this?
             PAL_ASSERT_ALWAYS();
         }
+
     }
 
     if (result == Result::Success)
@@ -501,6 +501,7 @@ Result UniversalRingSet::Validate(
                 m_regs.vgtHsOffchipParam.most.OFFCHIP_BUFFERING = pOffchipLds->ItemSizeMax() - 1;
             }
         }
+
     }
 
     return result;

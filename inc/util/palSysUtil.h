@@ -393,7 +393,7 @@ extern uint32 GetIdOfCurrentProcess();
 /// @param [in]  bufSize    Available space in pOutput.
 /// @param [in]  skipFrames Number of stack frames to skip. Implied skip of 1 (0 is 1).
 ///
-/// @param The resultant length of the stack trace string.
+/// @returns The resultant length of the stack trace string.
 extern size_t DumpStackTrace(
     char*   pOutput,
     size_t  bufSize,
@@ -409,10 +409,27 @@ PAL_INLINE void FlushCpuWrites()
 #endif
 }
 
-// =====================================================================================================================
-/// Check if the request key is combo key
+/// Issues a full memory barrier.
+PAL_INLINE void MemoryBarrier()
+{
+#if  defined(__unix__)
+    atomic_thread_fence(std::memory_order_acq_rel);
+#else
+#error "Not implemented for the current platform"
+#endif
+}
+
+/// Puts the calling thread to sleep for a specified number of milliseconds.
+///
+/// @param [in] duration  Amount of time to sleep for, in milliseconds.
+extern void SleepMs(uint32 duration);
+
+/// Check if the requested key is combo key.
+///
 /// @param [in]  key    The requested key value
-/// @param [out] pKeys  The array of keys the combo key composed of.
+/// @param [out] pKeys  The array of keys the combo key composed of
+///
+/// @returns If the requested key is a combo key.
 PAL_INLINE bool IsComboKey(KeyCode key, KeyCode* pKeys)
 {
     bool ret = false;
@@ -437,18 +454,6 @@ PAL_INLINE bool IsComboKey(KeyCode key, KeyCode* pKeys)
     return ret;
 }
 
-// =====================================================================================================================
-// Issue a full memory barrier.
-PAL_INLINE void MemoryBarrier()
-{
-#if  defined(__unix__)
-    atomic_thread_fence(std::memory_order_acq_rel);
-#else
-#error "Not implemented for the current platform"
-#endif
-}
-
-// =====================================================================================================================
 /// Issue the cpuid instruction.
 ///
 /// @param [out]  pRegValues  EAX/EBX/ECX/EDX values
@@ -464,7 +469,6 @@ PAL_INLINE void CpuId(
 #endif
 }
 
-// =====================================================================================================================
 /// Issue the cpuid instruction, with an additional sublevel code.
 ///
 /// @param [out]  pRegValues  EAX/EBX/ECX/EDX values

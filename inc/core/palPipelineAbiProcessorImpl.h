@@ -137,16 +137,50 @@ void PipelineAbiProcessor<Allocator>::SetGfxIpVersion(
     switch (gfxIpMajorVer)
     {
     case 6:
-        m_flags.machineType = static_cast<AmdGpuMachineType>(static_cast<uint32>(AmdGpuMachineType::Gfx600) +
-                                                             gfxIpStepping);
+        switch (gfxIpStepping)
+        {
+        case GfxIpSteppingOland:
+            m_flags.machineType = AmdGpuMachineType::Gfx602;
+            break;
+        default:
+            m_flags.machineType = static_cast<AmdGpuMachineType>(static_cast<uint32>(AmdGpuMachineType::Gfx600) +
+                                                                 gfxIpStepping);
+            break;
+        }
         break;
     case 7:
-        m_flags.machineType = static_cast<AmdGpuMachineType>(static_cast<uint32>(AmdGpuMachineType::Gfx700) +
-                                                             gfxIpStepping);
+        switch (gfxIpStepping)
+        {
+        case GfxIpSteppingGodavari:
+            m_flags.machineType = AmdGpuMachineType::Gfx705;
+            break;
+        default:
+            m_flags.machineType = static_cast<AmdGpuMachineType>(static_cast<uint32>(AmdGpuMachineType::Gfx700) +
+                                                                 gfxIpStepping);
+            break;
+        }
         break;
     case 8:
-        m_flags.machineType = (gfxIpMinorVer > 0) ? AmdGpuMachineType::Gfx810 :
-            static_cast<AmdGpuMachineType>(static_cast<uint32>(AmdGpuMachineType::Gfx801) + gfxIpStepping - 1);
+        switch (gfxIpMinorVer)
+        {
+        case 0:
+            switch (gfxIpStepping)
+            {
+            case GfxIpSteppingTongaPro:
+                m_flags.machineType = AmdGpuMachineType::Gfx805;
+                break;
+            default:
+                m_flags.machineType =
+                    static_cast<AmdGpuMachineType>(static_cast<uint32>(AmdGpuMachineType::Gfx801) + gfxIpStepping - 1);
+                break;
+            }
+            break;
+        case 1:
+            m_flags.machineType = AmdGpuMachineType::Gfx810;
+            break;
+        default:
+            PAL_ASSERT_ALWAYS();
+        }
         break;
     case 9:
         switch (gfxIpStepping)

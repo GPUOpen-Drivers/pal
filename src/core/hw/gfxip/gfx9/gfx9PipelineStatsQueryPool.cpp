@@ -38,7 +38,7 @@ namespace Pal
 namespace Gfx9
 {
 
-static constexpr uint32  QueryTimestampEnd = 0xABCD1234;
+constexpr uint32  QueryTimestampEnd = 0xABCD1234;
 
 // The hardware uses 64-bit counters with this ordering internally.
 struct Gfx9PipelineStatsData
@@ -54,6 +54,7 @@ struct Gfx9PipelineStatsData
     uint64 hsInvocations;
     uint64 dsInvocations;
     uint64 csInvocations;
+    uint64 unused[3]; // 6 DWORDs-placeholder as fixed-size structure padding for easier shader access.
 };
 
 // Defines the structure of a begin / end pair of data.
@@ -70,13 +71,8 @@ struct PipelineStatsLayoutData
     uint32                  counterOffset; // The offset in QWORDs to this stat inside of a Gfx9ipelineStatsData.
 };
 
-static constexpr uint32  PipelineStatsMaxNumCounters       = sizeof(Gfx9PipelineStatsData) / sizeof(uint64);
-static constexpr uint32  PipelineStatsResetMemValue32      = 0xFFFFFFFF;
-static constexpr uint64  PipelineStatsResetMemValue64      = 0xFFFFFFFFFFFFFFFF;
-static constexpr gpusize PipelineStatsQueryMemoryAlignment = 8;
-
 // All other clients use this layout.
-static constexpr PipelineStatsLayoutData PipelineStatsLayout[PipelineStatsMaxNumCounters] =
+constexpr PipelineStatsLayoutData PipelineStatsLayout[] =
 {
     { QueryPipelineStatsIaVertices,    offsetof(Gfx9PipelineStatsData, iaVertices)    / sizeof(uint64) },
     { QueryPipelineStatsIaPrimitives,  offsetof(Gfx9PipelineStatsData, iaPrimitives)  / sizeof(uint64) },
@@ -88,8 +84,13 @@ static constexpr PipelineStatsLayoutData PipelineStatsLayout[PipelineStatsMaxNum
     { QueryPipelineStatsPsInvocations, offsetof(Gfx9PipelineStatsData, psInvocations) / sizeof(uint64) },
     { QueryPipelineStatsHsInvocations, offsetof(Gfx9PipelineStatsData, hsInvocations) / sizeof(uint64) },
     { QueryPipelineStatsDsInvocations, offsetof(Gfx9PipelineStatsData, dsInvocations) / sizeof(uint64) },
-    { QueryPipelineStatsCsInvocations, offsetof(Gfx9PipelineStatsData, csInvocations) / sizeof(uint64) }
+    { QueryPipelineStatsCsInvocations, offsetof(Gfx9PipelineStatsData, csInvocations) / sizeof(uint64) },
 };
+
+constexpr size_t  PipelineStatsMaxNumCounters       = sizeof(Gfx9PipelineStatsData) / sizeof(uint64);
+constexpr size_t  PipelineStatsNumSupportedCounters = ArrayLen(PipelineStatsLayout);
+constexpr uint32  PipelineStatsResetMemValue32      = 0xFFFFFFFF;
+constexpr gpusize PipelineStatsQueryMemoryAlignment = 8;
 
 // =====================================================================================================================
 PipelineStatsQueryPool::PipelineStatsQueryPool(
@@ -131,21 +132,24 @@ void PipelineStatsQueryPool::Begin(
 
     gpusize gpuAddr = 0;
     Result  result  = GetQueryGpuAddress(slot, &gpuAddr);
+    gpuAddr += offsetof(Gfx9PipelineStatsDataPair, begin);
 
     if ((result == Result::Success) && pCmdBuffer->IsQueryAllowed(QueryPoolType::PipelineStats))
     {
         pCmdBuffer->AddQuery(QueryPoolType::PipelineStats, flags);
 
         uint32* pCmdSpace = pCmdStream->ReserveCommands();
-        gpuAddr += offsetof(Gfx9PipelineStatsDataPair, begin);
 
-        const EngineType engineType = pCmdBuffer->GetEngineType();
+        const EngineType engineType     = pCmdBuffer->GetEngineType();
+        const gpusize    beginQueryAddr = gpuAddr;
 
         if (engineType == EngineTypeCompute)
         {
             // Query event for compute engine only writes csInvocation, must write dummy zero's to other slots.
             constexpr uint32 DwordsToWrite = offsetof(Gfx9PipelineStatsData, csInvocations) / sizeof(uint32);
             const uint32 pData[DwordsToWrite] = {};
+
+            gpuAddr = beginQueryAddr;
 
             WriteDataInfo writeData = {};
             writeData.engineType = engineType;
@@ -161,6 +165,7 @@ void PipelineStatsQueryPool::Begin(
                                                     engineType,
                                                     gpuAddr,
                                                     pCmdSpace);
+
         pCmdStream->CommitCommands(pCmdSpace);
     }
 }
@@ -178,6 +183,7 @@ void PipelineStatsQueryPool::End(
 
     gpusize gpuAddr       = 0;
     Result  result        = GetQueryGpuAddress(slot, &gpuAddr);
+    gpuAddr              += offsetof(Gfx9PipelineStatsDataPair, end);
     gpusize timeStampAddr = 0;
 
     if (result == Result::Success)
@@ -190,15 +196,17 @@ void PipelineStatsQueryPool::End(
         pCmdBuffer->RemoveQuery(QueryPoolType::PipelineStats);
 
         uint32* pCmdSpace = pCmdStream->ReserveCommands();
-        gpuAddr += offsetof(Gfx9PipelineStatsDataPair, end);
 
-        const EngineType engineType = pCmdBuffer->GetEngineType();
+        const EngineType engineType   = pCmdBuffer->GetEngineType();
+        const gpusize    endQueryAddr = gpuAddr;
 
         if (engineType == EngineTypeCompute)
         {
             // Query event for compute engine only writes csInvocation, must write dummy zero's to other slots.
             constexpr uint32 DwordsToWrite = offsetof(Gfx9PipelineStatsData, csInvocations) / sizeof(uint32);
             const uint32 pData[DwordsToWrite] = {};
+
+            gpuAddr = endQueryAddr;
 
             WriteDataInfo writeData = {};
             writeData.engineType = engineType;
@@ -409,11 +417,11 @@ static bool ComputeResultsForOneSlot(
 {
     // Unless QueryResultPartial is set, we can't touch the destination buffer if some results aren't ready. We will
     // store our results in here until we know whether or not it's safe to write to the output buffer.
-    ResultUint results[PipelineStatsMaxNumCounters] = {};
+    ResultUint results[PipelineStatsNumSupportedCounters] = {};
     uint32     numStatsEnabled = 0;
     bool       queryReady      = true;
 
-    for (uint32 layoutIdx = 0; layoutIdx < PipelineStatsMaxNumCounters; ++layoutIdx)
+    for (uint32 layoutIdx = 0; layoutIdx < PipelineStatsNumSupportedCounters; ++layoutIdx)
     {
         // Filter out stats that are not enabled for this pool.
         if (TestAnyFlagSet(enableStatsFlags, PipelineStatsLayout[layoutIdx].statFlag))
