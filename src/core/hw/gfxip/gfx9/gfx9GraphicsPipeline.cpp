@@ -201,6 +201,7 @@ GraphicsPipeline::GraphicsPipeline(
     m_pDevice(pDevice),
     m_gfxLevel(pDevice->Parent()->ChipProperties().gfxLevel),
     m_contextRegHash(0),
+    m_rbplusRegHash(0),
     m_configRegHash(0),
     m_isNggFastLaunch(false),
     m_nggSubgroupSize(0),
@@ -398,6 +399,14 @@ void GraphicsPipeline::LateInit(
     hasher.Update(m_regs.context);
     hasher.Finalize(hash.bytes);
     m_contextRegHash = MetroHash::Compact32(&hash);
+
+    hasher.Initialize();
+    hasher.Update(reinterpret_cast<const uint8_t*>(&m_regs.other.sxPsDownconvert),
+                  sizeof(m_regs.other.sxPsDownconvert) +
+                  sizeof(m_regs.other.sxBlendOptEpsilon) +
+                  sizeof(m_regs.other.sxBlendOptControl));
+    hasher.Finalize(hash.bytes);
+    m_rbplusRegHash = MetroHash::Compact32(&hash);
 
     // We write our config registers in a separate function so they get their own hash.
     // Also, we only set config registers on gfx10+.
@@ -1306,18 +1315,9 @@ void GraphicsPipeline::FixupIaMultiVgtParam(
     //  }
     if (IsNggFastLaunch() == false)
     {
-        if (settings.wdLoadBalancingMode == Gfx9WdLoadBalancingBasic)
-        {
-            // Basic optimization enables small instanced draw optimizations. HW optimally distributes workload
-            // across shader engines automatically.
-            pIaMultiVgtParam->gfx09.EN_INST_OPT_BASIC = 1;
-        }
-        else if (settings.wdLoadBalancingMode == Gfx9WdLoadBalancingAdvanced)
-        {
-            // Advanced optimization enables basic optimization and additional sub-draw call distribution algorithm
-            // which splits batch into smaller instanced draws.
-            pIaMultiVgtParam->gfx09.EN_INST_OPT_ADV = 1;
-        }
+        // Advanced optimization enables basic optimization and additional sub-draw call distribution algorithm
+        // which splits batch into smaller instanced draws.
+        pIaMultiVgtParam->gfx09.EN_INST_OPT_ADV = 1;
     }
 
 }
@@ -1394,7 +1394,7 @@ void GraphicsPipeline::SetupNonShaderRegisters(
     }
     else if (IsFmaskDecompress())
     {
-        m_regs.context.cbColorControl.bits.MODE = CB_FMASK_DECOMPRESS;
+        m_regs.context.cbColorControl.bits.MODE = CB_FMASK_DECOMPRESS__GFX09_10;
         m_regs.context.cbColorControl.bits.ROP3 = Rop3(LogicOp::Copy);
 
         // NOTE: the CB spec states that for fmask-decompress, these registers should be set to enable writes to all
@@ -1404,7 +1404,10 @@ void GraphicsPipeline::SetupNonShaderRegisters(
     }
     else if (IsDccDecompress())
     {
-        m_regs.context.cbColorControl.bits.MODE = CB_DCC_DECOMPRESS;
+        {
+            m_regs.context.cbColorControl.bits.MODE = CB_DCC_DECOMPRESS__GFX09_10;
+        }
+
         m_regs.context.cbColorControl.bits.ROP3 = Rop3(LogicOp::Copy);
 
         // According to the reg-spec, DCC decompress ops imply fmask decompress and fast-clear eliminate operations as
@@ -1414,7 +1417,7 @@ void GraphicsPipeline::SetupNonShaderRegisters(
     }
     else if (IsResolveFixedFunc())
     {
-        m_regs.context.cbColorControl.bits.MODE = CB_RESOLVE;
+        m_regs.context.cbColorControl.bits.MODE = CB_RESOLVE__GFX09_10;
         m_regs.context.cbColorControl.bits.ROP3 = Rop3(LogicOp::Copy);
 
         m_regs.context.cbShaderMask.u32All = 0xF;
@@ -1445,7 +1448,7 @@ void GraphicsPipeline::SetupNonShaderRegisters(
     // Initialize RB+ registers for pipelines which are able to use the feature.
     if (settings.gfx9RbPlusEnable &&
         (createInfo.cbState.dualSourceBlendEnable == false) &&
-        (m_regs.context.cbColorControl.bits.MODE != CB_RESOLVE))
+        (m_regs.context.cbColorControl.bits.MODE != CB_RESOLVE__GFX09_10))
     {
         PAL_ASSERT(chipProps.gfx9.rbPlus);
 
@@ -2177,13 +2180,23 @@ bool GraphicsPipeline::PsAllowsPunchout() const
 
 // =====================================================================================================================
 // Updates the NGG Primitive Constant Buffer with the values from this pipeline.
-void GraphicsPipeline::UpdateNggPrimCb(
+bool GraphicsPipeline::UpdateNggPrimCb(
     Abi::PrimShaderCullingCb* pPrimShaderCb
     ) const
 {
-    pPrimShaderCb->paClVteCntl  = m_regs.context.paClVteCntl.u32All;
-    pPrimShaderCb->paSuVtxCntl  = m_regs.context.paSuVtxCntl.u32All;
-    pPrimShaderCb->paClClipCntl = m_regs.context.paClClipCntl.u32All;
+    bool dirty = false;
+
+    if ((pPrimShaderCb->paClVteCntl  != m_regs.context.paClVteCntl.u32All) ||
+        (pPrimShaderCb->paSuVtxCntl  != m_regs.context.paSuVtxCntl.u32All) ||
+        (pPrimShaderCb->paClClipCntl != m_regs.context.paClClipCntl.u32All))
+    {
+        dirty = true;
+        pPrimShaderCb->paClVteCntl  = m_regs.context.paClVteCntl.u32All;
+        pPrimShaderCb->paSuVtxCntl  = m_regs.context.paSuVtxCntl.u32All;
+        pPrimShaderCb->paClClipCntl = m_regs.context.paClClipCntl.u32All;
+    }
+
+    return dirty;
 }
 
 // =====================================================================================================================

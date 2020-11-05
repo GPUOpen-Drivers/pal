@@ -423,8 +423,8 @@ void OcclusionQueryPool::OptimizedReset(
             // 3. The destination is in system memory (DMA fills are slow to system).
             if ((m_canUseDmaFill == false)                                           ||
                 (m_device.Parent()->ChipProperties().gpuType == GpuType::Integrated) ||
-                (m_gpuMemory.Memory()->Heap(0) == GpuHeapGartCacheable)              ||
-                (m_gpuMemory.Memory()->Heap(0) == GpuHeapGartUswc))
+                (m_gpuMemory.Memory()->PreferredHeap() == GpuHeapGartCacheable)      ||
+                (m_gpuMemory.Memory()->PreferredHeap() == GpuHeapGartUswc))
             {
                 // We need to know exactly how much space we have left.
                 uint32 remainingDwords = pCmdStream->ReserveLimit() - static_cast<uint32>(pCmdSpace - pCmdSpaceBase);

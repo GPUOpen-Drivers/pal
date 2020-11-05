@@ -99,7 +99,7 @@ static_assert((VGT_INDEX_16 == 0) && (VGT_INDEX_32 == 1) && (VGT_INDEX_8 == 2),
 constexpr uint32 CntxRegUsedRangeEnd  = Gfx10Plus::mmCB_COLOR7_ATTRIB3;
 
 constexpr uint32 CntxRegUsedRangeSize = (CntxRegUsedRangeEnd - CONTEXT_SPACE_START + 1);
-constexpr uint32 CntxRegCount         = (CONTEXT_SPACE_END - CONTEXT_SPACE_START + 1);
+constexpr uint32 CntxRegCount         = (Gfx09_10::CONTEXT_SPACE_END - CONTEXT_SPACE_START + 1);
 
 // SH reg space technically goes to 0x2FFF, but in reality there are no registers we currently write beyond the
 // COMPUTE_USER_DATA_15 register.  This enum can save some memory space in situations where we shadow register state

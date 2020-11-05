@@ -2698,7 +2698,7 @@ Result Gfx9Htile::Init(
     gpusize*  pGpuOffset,    // [in,out] Current GPU memory offset & size
     bool      hasEqGpuAccess)
 {
-    const Pal::Device&       device           = *(m_pGfxDevice->Parent());
+    const  Pal::Device&      device           = *(m_pGfxDevice->Parent());
     const  Gfx9PalSettings&  settings         = GetGfx9Settings(device);
     const  Pal::Image*const  pParent          = m_image.Parent();
     const  ImageCreateInfo&  imageCreateInfo  = pParent->GetImageCreateInfo();
@@ -2707,6 +2707,16 @@ Result Gfx9Htile::Init(
 
     m_flags.compressZ = settings.depthCompressEnable   && (m_hTileUsage.dsMetadata != 0);
     m_flags.compressS = settings.stencilCompressEnable && (m_hTileUsage.dsMetadata != 0);
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 636
+    // Some HW has a problem with S compression on ZS images that use stencil only targets
+    if (settings.waDisableSCompressSOnly &&
+        imageCreateInfo.usageFlags.stencilOnlyTarget &&
+        pParent->IsAspectValid(ImageAspect::Depth))
+    {
+        m_flags.compressS = false;
+    }
+#endif
 
     // NOTE: Default ZRANGE_PRECISION to 1, since this is typically the optimal value for DX applications, since they
     // usually clear Z to 1.0f and use a < depth comparison for their depth testing. But we change ZRANGE_PRECISION
@@ -3338,13 +3348,14 @@ uint32 Gfx9Dcc::GetMinCompressedBlockSize() const
 void Gfx9Dcc::SetControlReg(
     const SubresId&  subResId)
 {
-    const Pal::Image*       pParent     = m_image.Parent();
-    const SubResourceInfo*  pSubResInfo = pParent->SubresourceInfo(subResId);
-    const Pal::Device*      pDevice     = m_pGfxDevice->Parent();
-    const GfxIpLevel        gfxLevel    = pDevice->ChipProperties().gfxLevel;
-    const ImageCreateInfo&  createInfo  = pParent->GetImageCreateInfo();
-    const auto&             settings    = GetGfx9Settings(*pDevice);
-    const DisplayDccCaps&   dispDcc     = pParent->GetInternalCreateInfo().displayDcc;
+    const Pal::Image*              pParent      = m_image.Parent();
+    const SubResourceInfo*         pSubResInfo  = pParent->SubresourceInfo(subResId);
+    const Pal::Device*             pDevice      = m_pGfxDevice->Parent();
+    const GfxIpLevel               gfxLevel     = pDevice->ChipProperties().gfxLevel;
+    const ImageCreateInfo&         createInfo   = pParent->GetImageCreateInfo();
+    const auto&                    settings     = GetGfx9Settings(*pDevice);
+    const ImageInternalCreateInfo& internalInfo = pParent->GetInternalCreateInfo();
+    const DisplayDccCaps&          dispDcc      = internalInfo.displayDcc;
 
     // Setup DCC control registers with suggested value from spec
     m_dccControl.bits.KEY_CLEAR_ENABLE = 0; // not supported on VI
@@ -3386,14 +3397,14 @@ void Gfx9Dcc::SetControlReg(
         m_dccControl.bits.INDEPENDENT_64B_BLOCKS    = 1;
         m_dccControl.bits.MAX_COMPRESSED_BLOCK_SIZE = static_cast<uint32>(Gfx9DccMaxBlockSize::BlockSize64B);
 
-        if (IsGfx10Plus(gfxLevel))
+        if (IsGfx10(gfxLevel))
         {
             if (dispDcc.dcc_256_64_64 == 0)
             {
                 m_dccControl.bits.INDEPENDENT_64B_BLOCKS    = 0;
                 m_dccControl.bits.MAX_COMPRESSED_BLOCK_SIZE = static_cast<uint32>(Gfx9DccMaxBlockSize::BlockSize128B);
             }
-            m_dccControl.gfx10Plus.INDEPENDENT_128B_BLOCKS  = 1;
+            m_dccControl.gfx10.INDEPENDENT_128B_BLOCKS  = 1;
 
             PAL_ASSERT(m_dccControl.bits.MAX_COMPRESSED_BLOCK_SIZE <= m_dccControl.bits.MAX_UNCOMPRESSED_BLOCK_SIZE);
 
@@ -3414,7 +3425,7 @@ void Gfx9Dcc::SetControlReg(
         m_dccControl.bits.MAX_COMPRESSED_BLOCK_SIZE = m_dccControl.bits.MAX_UNCOMPRESSED_BLOCK_SIZE;
     }
 
-    if (IsGfx10Plus(gfxLevel) && m_image.Gfx10UseCompToSingleFastClears())
+    if (IsGfx10(gfxLevel) && m_image.Gfx10UseCompToSingleFastClears())
     {
         if (TestAnyFlagSet(settings.useCompToSingle, Gfx10DisableCompToReg))
         {
@@ -3426,8 +3437,17 @@ void Gfx9Dcc::SetControlReg(
             // anyway.  Because CB_DCC_CONTROL.DISABLE_ELIMFC_SKIP_OF_SINGLE=0, any DCC codes left at comp-to-
             // single will be skipped during the FCE and it will (theoretically) be a super-fast-fast-clear-eliminate.
             // Theoretically.
-            m_dccControl.gfx09_1xPlus.DISABLE_CONSTANT_ENCODE_REG = 1;
+            m_dccControl.most.DISABLE_CONSTANT_ENCODE_REG = 1;
         }
+    }
+
+    if (internalInfo.flags.useSharedDccState)
+    {
+        // Use the shared control register values when available
+        m_dccControl.bits.MAX_COMPRESSED_BLOCK_SIZE   = internalInfo.gfx9.sharedDccState.maxCompressedBlockSize;
+        m_dccControl.bits.MAX_UNCOMPRESSED_BLOCK_SIZE = internalInfo.gfx9.sharedDccState.maxUncompressedBlockSize;
+        m_dccControl.bits.INDEPENDENT_64B_BLOCKS      = internalInfo.gfx9.sharedDccState.independentBlk64B;
+        m_dccControl.gfx10.INDEPENDENT_128B_BLOCKS    = internalInfo.gfx9.sharedDccState.independentBlk128B;
     }
 }
 
@@ -3953,6 +3973,22 @@ uint8 Gfx9Dcc::GetFastClearCode(
     }
 
     return static_cast<uint8>(clearCode);
+}
+
+// =====================================================================================================================
+void Gfx9Dcc::GetState(
+    DccState* pState
+    ) const
+{
+    PAL_ASSERT(IsGfx9(*(m_pGfxDevice->Parent())) || IsGfx10(*(m_pGfxDevice->Parent())));
+
+    pState->maxCompressedBlockSize   = m_dccControl.bits.MAX_COMPRESSED_BLOCK_SIZE;
+    pState->maxUncompressedBlockSize = m_dccControl.bits.MAX_UNCOMPRESSED_BLOCK_SIZE;
+    pState->independentBlk64B        = m_dccControl.bits.INDEPENDENT_64B_BLOCKS;
+    pState->independentBlk128B       = m_dccControl.gfx10.INDEPENDENT_128B_BLOCKS;
+    pState->primaryOffset            = m_offset;
+    pState->secondaryOffset          = 0;
+    pState->pitch                    = m_addrOutput.pitch;
 }
 
 //=============== Implementation for Gfx9Cmask: ========================================================================

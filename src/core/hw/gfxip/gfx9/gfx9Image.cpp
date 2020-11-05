@@ -131,7 +131,7 @@ Image::~Image()
     Pal::GfxImage::Destroy();
 
     PAL_SAFE_FREE(m_pHtile, m_device.GetPlatform());
-    PAL_SAFE_FREE(m_pFmask, m_device.GetPlatform());
+    PAL_SAFE_DELETE(m_pFmask, m_device.GetPlatform());
     PAL_SAFE_FREE(m_pCmask, m_device.GetPlatform());
 
     for (uint32  idx = 0; idx < MaxNumPlanes; idx++)
@@ -1099,7 +1099,7 @@ void Image::InitLayoutStateMasks()
             // resolve to compress the destination data.
             if (IsGfx10Plus(m_device))
             {
-                compressedWriteLayout.usages |= isMsaa ? 0 : LayoutShaderWrite;
+                compressedWriteLayout.usages |= LayoutShaderWrite;
 
                 // If we don't ever want copyDst to be compressed, then we're done. Otherwise, it should be on if
                 // it's generally enabled or if it's enabled for readable formats and this image is readable.
@@ -3367,12 +3367,6 @@ uint32 Image::GetIterate256(
             {
                 iterate256 = 0;
             }
-            // If in case KMD alignments are not correctly populated iterate256 optimization works for
-            // PageSize >=64KB, if aligned to 64KB.
-            else if (IsPow2Aligned(minPageSize, 0x10000))
-            {
-                iterate256 = 0;
-            }
         }
     }
     return iterate256;
@@ -3488,20 +3482,25 @@ void Image::GetSharedMetadataInfo(
 
 // =====================================================================================================================
 void Image::GetDisplayDccState(
-    DisplayDccState* pState
+    DccState* pState
     ) const
 {
     if (m_pDispDcc[0] != nullptr)
     {
         PAL_ASSERT(m_numDccPlanes == 1); // VCAM_SURFACE_DESCdoes not support YUV presentable yet
-        const regCB_COLOR0_DCC_CONTROL &dccControl = m_pDispDcc[0]->GetControlReg();
-        pState->maxCompressedBlockSize   = dccControl.bits.MAX_COMPRESSED_BLOCK_SIZE;
-        pState->maxUncompressedBlockSize = dccControl.bits.MAX_UNCOMPRESSED_BLOCK_SIZE;
-        pState->independentBlk64B  = dccControl.bits.INDEPENDENT_64B_BLOCKS;
-        pState->independentBlk128B = dccControl.gfx10Plus.INDEPENDENT_128B_BLOCKS;
-        pState->primaryOffset      = m_pDispDcc[0]->MemoryOffset();
-        pState->secondaryOffset    = 0;
-        pState->pitch              = m_pDispDcc[0]->GetAddrOutput().pitch;
+        m_pDispDcc[0]->GetState(pState);
+    }
+}
+
+// =====================================================================================================================
+void Image::GetDccState(
+    DccState* pState
+    ) const
+{
+    if (m_pDcc[0] != nullptr)
+    {
+        PAL_ASSERT(m_numDccPlanes == 1);
+        m_pDcc[0]->GetState(pState);
     }
 }
 

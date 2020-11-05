@@ -1430,7 +1430,7 @@ uint32* UniversalQueueContext::WriteUniversalPreamble(
     regCB_DCC_CONTROL cbDccControl = { };
     if (IsGfx091xPlus(device) && settings.forceRegularClearCode)
     {
-        cbDccControl.gfx09_1xPlus.DISABLE_CONSTANT_ENCODE_AC01 = 1;
+        cbDccControl.most.DISABLE_CONSTANT_ENCODE_AC01 = 1;
     }
 
     if (chipProps.gfxLevel == GfxIpLevel::GfxIp9)
@@ -1447,7 +1447,7 @@ uint32* UniversalQueueContext::WriteUniversalPreamble(
         // FCE operation on that image will leave the comp-to-single in place.  Setting this bit to one will mean
         // that the FCE operation on that image will actually "eliminate the fast clear".  We want to leave this
         // at zero because the texture pipe can understand comp-to-single, so there's no need to fce those pixels.
-        cbDccControl.gfx09_1xPlus.DISABLE_ELIMFC_SKIP_OF_SINGLE = 0;
+        cbDccControl.most.DISABLE_ELIMFC_SKIP_OF_SINGLE = 0;
 
         // This register also contains various "DISABLE_CONSTANT_ENCODE" bits.  Those are the master switches
         // for CB-based rendering.  i.e., setting DISABLE_CONSTANT_ENCODE_REG will disable all compToReg
@@ -1509,9 +1509,11 @@ uint32* UniversalQueueContext::WriteUniversalPreamble(
         pCmdSpace = m_deCmdStream.WriteSetOneContextReg(Gfx09_10::mmVGT_OUT_DEALLOC_CNTL,
                                                         vgtOutDeallocCntl.u32All,
                                                         pCmdSpace);
+        pCmdSpace = m_deCmdStream.WriteSetOneContextReg(Gfx09_10::mmCB_DCC_CONTROL,
+                                                        cbDccControl.u32All,
+                                                        pCmdSpace);
     }
     pCmdSpace = m_deCmdStream.WriteSetOneContextReg(mmVGT_TESS_DISTRIBUTION, vgtTessDistribution.u32All, pCmdSpace);
-    pCmdSpace = m_deCmdStream.WriteSetOneContextReg(mmCB_DCC_CONTROL,        cbDccControl.u32All,        pCmdSpace);
     pCmdSpace = m_deCmdStream.WriteSetOneContextReg(mmPA_SU_SMALL_PRIM_FILTER_CNTL,
                                                     paSuSmallPrimFilterCntl.u32All,
                                                     pCmdSpace);

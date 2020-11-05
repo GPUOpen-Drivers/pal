@@ -72,7 +72,7 @@ private:
     void InitBlendOpts(const ColorBlendStateCreateInfo& createInfo);
     void InitBlendMasks(const ColorBlendStateCreateInfo& createInfo);
 
-    static BlendOp  HwBlendOp(Blend blendOp);
+    BlendOp  HwBlendOp(Blend blendOp) const;
     static CombFunc HwBlendFunc(BlendFunc blendFunc);
     static bool     IsDualSrcBlendOption(Blend blend);
 
@@ -90,6 +90,7 @@ private:
         uint32  u32All;
     } m_flags;
 
+    const Device&         m_device;
     regCB_BLEND0_CONTROL  m_cbBlendControl[MaxColorTargets];
     regSX_MRT0_BLEND_OPT  m_sxMrtBlendOpt[MaxColorTargets];
 

@@ -125,7 +125,8 @@ union InternalImageFlags
         uint32 placeholder0                :  1;  // Placeholder.
         uint32 placeholder1                :  1;  // Placeholder.
         uint32 placeholder2                :  1;  // Placeholder.
-        uint32 reserved                    : 22;
+        uint32 useSharedDccState           :  1;  // Use the shared dcc block sizing
+        uint32 reserved                    : 21;
     };
     uint32 value;
 };
@@ -169,6 +170,7 @@ struct ImageInternalCreateInfo
             AddrSwizzleMode    sharedSwizzleMode;       // Swizzle mdoe for shared iamge
             uint32             sharedPipeBankXor;       // Pipe-bank-xor setting for shared image
             uint32             sharedPipeBankXorFmask;  // Pipe-bank-xor setting for fmask
+            DccState           sharedDccState;          // DCC state shared
         } gfx9;
     };
 

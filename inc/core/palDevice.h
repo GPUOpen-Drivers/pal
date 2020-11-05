@@ -1151,7 +1151,9 @@ struct DeviceProperties
                 uint64 placeholder9                        :  1; ///< Placeholder, do not use
 #endif
                 uint64 supportSortAgnosticBarycentrics     :  1; ///< HW supports sort-agnostic Barycentrics for PS
-                uint64 reserved                            : 27; ///< Reserved for future use.
+                uint64 placeholder10                       :  1; ///< Placeholder, do not use
+                                                                 ///  when z or stencil exports are enabled
+                uint64 reserved                            : 26; ///< Reserved for future use.
             };
             uint64 u64All;           ///< Flags packed as 32-bit uint.
         } flags;                     ///< Device IP property flags.

@@ -98,7 +98,7 @@ const RegisterRange Nv10ContextShadowRange[] =
 const RegisterRange Nv10UserConfigShadowRange[] =
 {
     {
-        (mmCP_STRMOUT_CNTL - UCONFIG_SPACE_START),
+        (Gfx09_10::mmCP_STRMOUT_CNTL - UCONFIG_SPACE_START),
          1,
     },
     {

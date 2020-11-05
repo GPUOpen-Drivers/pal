@@ -1047,9 +1047,6 @@ void DmaCmdBuffer::CmdWriteImmediate(
     // Make sure our destination address is dword aligned.
     PAL_ASSERT(IsPow2Aligned(address, sizeof(uint32)));
 
-    // We only support 32bit data
-    PAL_ASSERT(dataSize == ImmediateDataWidth::ImmediateData32Bit);
-
     uint32* pCmdSpace = m_cmdStream.ReserveCommands();
 
     constexpr size_t PacketDwords = sizeof(SDMA_PKT_FENCE) / sizeof(uint32);
@@ -1065,8 +1062,20 @@ void DmaCmdBuffer::CmdWriteImmediate(
     packet.DATA_UNION.DW_3_DATA     = LowPart(data);
 
     *pPacket = packet;
+    size_t dwordsWritten = PacketDwords;
 
-    m_cmdStream.CommitCommands(pCmdSpace + PacketDwords);
+    if (dataSize == ImmediateDataWidth::ImmediateData64Bit)
+    {
+        address += sizeof(uint32);
+        packet.ADDR_LO_UNION.addr_31_0  = LowPart(address);
+        packet.ADDR_HI_UNION.addr_63_32 = HighPart(address);
+        packet.DATA_UNION.DW_3_DATA     = HighPart(data);
+
+        pPacket[1] = packet;
+        dwordsWritten += PacketDwords;
+    }
+
+    m_cmdStream.CommitCommands(pCmdSpace + dwordsWritten);
 }
 
 // =====================================================================================================================
@@ -1098,7 +1107,11 @@ uint32* DmaCmdBuffer::WriteFillMemoryCmd(
     packet.DST_ADDR_HI_UNION.dst_addr_63_32 = HighPart(dstAddr);
     packet.DATA_UNION.src_data_31_0         = data;
     packet.COUNT_UNION.DW_4_DATA            = 0;
-    packet.COUNT_UNION.count                = *pBytesCopied - 1;
+
+    if (IsGfx10(*m_pDevice))
+    {
+        packet.COUNT_UNION.gfx10x.count     = *pBytesCopied - 1;
+    }
 
     *pPacket = packet;
 

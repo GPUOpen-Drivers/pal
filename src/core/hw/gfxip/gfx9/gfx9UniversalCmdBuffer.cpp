@@ -272,6 +272,7 @@ UniversalCmdBuffer::UniversalCmdBuffer(
                   IsNested()),
     m_pSignatureCs(&NullCsSignature),
     m_pSignatureGfx(&NullGfxSignature),
+    m_rbplusRegHash(0),
     m_pipelineCtxRegHash(0),
     m_pipelineCfgRegHash(0),
 #if PAL_ENABLE_PRINTS_ASSERTS
@@ -327,7 +328,6 @@ UniversalCmdBuffer::UniversalCmdBuffer(
     m_cachedSettings.disablePbbNoDb             = settings.disableBinningNoDb;
     m_cachedSettings.disablePbbBlendingOff      = settings.disableBinningBlendingOff;
     m_cachedSettings.disablePbbAppendConsume    = settings.disableBinningAppendConsume;
-    m_cachedSettings.disableWdLoadBalancing     = (settings.wdLoadBalancingMode == Gfx9WdLoadBalancingDisabled);
     m_cachedSettings.ignoreCsBorderColorPalette = settings.disableBorderColorPaletteBinds;
     m_cachedSettings.blendOptimizationsEnable   = settings.blendOptimizationsEnable;
     m_cachedSettings.outOfOrderPrimsEnable      = static_cast<uint32>(settings.enableOutOfOrderPrimitives);
@@ -602,15 +602,15 @@ void UniversalCmdBuffer::ResetState()
         const uint32 cbDbCachePolicy = m_device.Settings().cbDbCachePolicy;
 
         m_cbRmiGl2CacheControl.u32All               = 0;
-        m_cbRmiGl2CacheControl.bits.CMASK_WR_POLICY =
+        m_cbRmiGl2CacheControl.gfx10.CMASK_WR_POLICY =
             (cbDbCachePolicy & Gfx10CbDbCachePolicyLruCmask) ? CACHE_LRU_WR : CACHE_STREAM;
-        m_cbRmiGl2CacheControl.bits.FMASK_WR_POLICY =
+        m_cbRmiGl2CacheControl.gfx10.FMASK_WR_POLICY =
             (cbDbCachePolicy & Gfx10CbDbCachePolicyLruFmask) ? CACHE_LRU_WR : CACHE_STREAM;
-        m_cbRmiGl2CacheControl.bits.DCC_WR_POLICY   =
+        m_cbRmiGl2CacheControl.gfx10.DCC_WR_POLICY   =
             (cbDbCachePolicy & Gfx10CbDbCachePolicyLruDcc)   ? CACHE_LRU_WR : CACHE_STREAM;
-        m_cbRmiGl2CacheControl.bits.CMASK_RD_POLICY =
+        m_cbRmiGl2CacheControl.gfx10.CMASK_RD_POLICY =
             (cbDbCachePolicy & Gfx10CbDbCachePolicyLruCmask) ? CACHE_LRU_RD : CACHE_NOA;
-        m_cbRmiGl2CacheControl.bits.FMASK_RD_POLICY =
+        m_cbRmiGl2CacheControl.gfx10.FMASK_RD_POLICY =
             (cbDbCachePolicy & Gfx10CbDbCachePolicyLruFmask) ? CACHE_LRU_RD : CACHE_NOA;
         m_cbRmiGl2CacheControl.bits.DCC_RD_POLICY   =
             (cbDbCachePolicy & Gfx10CbDbCachePolicyLruDcc)   ? CACHE_LRU_RD : CACHE_NOA;
@@ -619,7 +619,7 @@ void UniversalCmdBuffer::ResetState()
 
         // If any of the bound color targets are using linear swizzle mode (or 256_S or 256_D, but PAL doesn't utilize
         // those), then COLOR_WR_POLICY can not be CACHE_BYPASS.
-        m_cbRmiGl2CacheControl.bits.COLOR_WR_POLICY =
+        m_cbRmiGl2CacheControl.gfx10.COLOR_WR_POLICY =
             (cbDbCachePolicy & Gfx10CbDbCachePolicyLruColor) ? CACHE_LRU_WR : CACHE_STREAM;
     }
     else
@@ -717,6 +717,7 @@ void UniversalCmdBuffer::ResetState()
 
     m_pSignatureCs         = &NullCsSignature;
     m_pSignatureGfx        = &NullGfxSignature;
+    m_rbplusRegHash        = 0;
     m_pipelineCtxRegHash   = 0;
     m_pipelineCfgRegHash   = 0;
     m_pipelinePsHash.lower = 0;
@@ -869,13 +870,15 @@ uint32* UniversalCmdBuffer::SwitchGraphicsPipeline(
         }
     }
 
-    if (m_cachedSettings.rbPlusSupported != 0)
+    if ((m_cachedSettings.rbPlusSupported != 0) && (m_rbplusRegHash != pCurrPipeline->GetRbplusRegHash()))
     {
+        // m_sxPsDownconvert, m_sxBlendOptEpsilon and m_sxBlendOptControl have been updated in cmdBindPipeline.
         pDeCmdSpace = m_deCmdStream.WriteSetSeqContextRegs(mmSX_PS_DOWNCONVERT,
                                                            mmSX_BLEND_OPT_CONTROL,
                                                            &m_sxPsDownconvert,
                                                            pDeCmdSpace);
         m_deCmdStream.SetContextRollDetected<true>();
+        m_rbplusRegHash = pCurrPipeline->GetRbplusRegHash();
     }
 
     bool breakBatch = ((m_cachedSettings.pbbMoreThanOneCtxState) && (m_state.flags.cbTargetMaskChanged));
@@ -960,8 +963,15 @@ uint32* UniversalCmdBuffer::SwitchGraphicsPipeline(
 
     if (isNgg)
     {
-        // We need to update the primitive shader constant buffer with this new pipeline.
-        pCurrPipeline->UpdateNggPrimCb(&m_state.primShaderCullingCb);
+        // We need to update the primitive shader constant buffer with this new pipeline if any value changes.
+        bool dirty = pCurrPipeline->UpdateNggPrimCb(&m_state.primShaderCullingCb);
+
+        // We need to update the primitive shader constant buffer with this new pipeline if previous pipeline is
+        // null or culling data register address changes.
+        dirty |= (wasPrevPipelineNull || (pPrevSignature->nggCullingDataAddr != m_pSignatureGfx->nggCullingDataAddr));
+
+        m_nggState.flags.dirty |= dirty;
+
         SetPrimShaderWorkload();
     }
 
@@ -1005,8 +1015,13 @@ void UniversalCmdBuffer::CmdSetMsaaQuadSamplePattern(
 {
     PAL_ASSERT((numSamplesPerPixel > 0) && (numSamplesPerPixel <= MaxMsaaRasterizerSamples));
 
-    m_graphicsState.quadSamplePatternState                           = quadSamplePattern;
-    m_graphicsState.numSamplesPerPixel                               = numSamplesPerPixel;
+    m_graphicsState.quadSamplePatternState = quadSamplePattern;
+    m_graphicsState.numSamplesPerPixel     = numSamplesPerPixel;
+
+    const MsaaQuadSamplePattern& defaultSamplePattern = GfxDevice::DefaultSamplePattern[Log2(numSamplesPerPixel)];
+    m_graphicsState.useCustomSamplePattern =
+        (memcmp(&quadSamplePattern, &defaultSamplePattern, sizeof(MsaaQuadSamplePattern)) != 0);
+
     m_graphicsState.dirtyFlags.validationBits.quadSamplePatternState = 1;
     m_nggState.flags.dirty                                           = 1;
 
@@ -1624,7 +1639,7 @@ void UniversalCmdBuffer::CmdBindTargets(
     {
         if (m_cachedSettings.waUtcL0InconsistentBigPage &&
             ((static_cast<bool>(m_cbRmiGl2CacheControl.bits.COLOR_BIG_PAGE) != colorBigPage) ||
-             ((static_cast<bool>(m_cbRmiGl2CacheControl.bits.FMASK_BIG_PAGE) != fmaskBigPage) && validAaCbViewFound)))
+             ((static_cast<bool>(m_cbRmiGl2CacheControl.gfx10.FMASK_BIG_PAGE) != fmaskBigPage) && validAaCbViewFound)))
         {
             // For following case, BIG_PAGE bit polarity changes between #A/#B and #C/#D, and we will need to add sync
             // A. Draw to RT[0] (big_page enable)
@@ -1655,7 +1670,7 @@ void UniversalCmdBuffer::CmdBindTargets(
         // Similar to "validCbViewFound" check, only update fmaskBigPage setting if next draw(s) really use fmask
         if (validAaCbViewFound)
         {
-            m_cbRmiGl2CacheControl.bits.FMASK_BIG_PAGE = fmaskBigPage;
+            m_cbRmiGl2CacheControl.gfx10.FMASK_BIG_PAGE = fmaskBigPage;
         }
 
         pDeCmdSpace = m_deCmdStream.WriteSetOneContextReg(Gfx10Plus::mmCB_RMI_GL2_CACHE_CONTROL,
@@ -4219,9 +4234,8 @@ uint32* UniversalCmdBuffer::ValidateDraw(
 
 // =====================================================================================================================
 static void UpdateMsaaForNggCullingCb(
-    uint32                                     numSamples,
     uint32                                     viewportCount,
-    const MsaaQuadSamplePattern&               quadSamplePatternState,
+    float                                      multiplier,
     const Abi::PrimShaderCullingCb::Viewports* pInputVportCb,
     Abi::PrimShaderCullingCb::Viewports*       pOutputVportCb)
 {
@@ -4231,15 +4245,6 @@ static void UpdateMsaaForNggCullingCb(
         uint32 uValue;
         float  fValue;
     };
-
-    // If the clients have specified a default sample layout we can use the number of samples as a multiplier.
-    // However, if custom sample positions are in use we need to assume the worst case sample count (16).
-    const MsaaQuadSamplePattern& defaultSamplePattern =
-        GfxDevice::DefaultSamplePattern[Log2(numSamples)];
-    const float multiplier =
-        (memcmp(&quadSamplePatternState,
-                &defaultSamplePattern,
-                sizeof(MsaaQuadSamplePattern)) == 0) ? static_cast<float>(numSamples) : 16.0f;
 
     // For small-primitive filter culling with NGG, the shader needs the viewport scale to premultiply
     // the number of samples into it.
@@ -4274,20 +4279,27 @@ uint32* UniversalCmdBuffer::UpdateNggCullingDataBufferWithCpu(
     PAL_ASSERT(m_pSignatureGfx->nggCullingDataAddr != UserDataNotMapped);
 
     // If nothing has changed, then there's no need to do anything...
-    if (m_nggState.flags.dirty || m_graphicsState.pipelineState.dirtyFlags.pipelineDirty)
+    if (m_nggState.flags.dirty)
     {
         constexpr uint32 NggStateDwords = (sizeof(Abi::PrimShaderCullingCb) / sizeof(uint32));
         const     uint16 nggRegAddr     = m_pSignatureGfx->nggCullingDataAddr;
 
+        Abi::PrimShaderCullingCb* pPrimShaderCullingCb = &m_state.primShaderCullingCb;
+
+        // If the clients have specified a default sample layout we can use the number of samples as a multiplier.
+        // However, if custom sample positions are in use we need to assume the worst case sample count (16).
+        const float multiplier = m_graphicsState.useCustomSamplePattern
+                                 ? 16.0f : static_cast<float>(m_nggState.numSamples);
+
         // Make a local copy of the various shader state so that we can modify it as necessary.
         Abi::PrimShaderCullingCb localCb;
-        memcpy(&localCb, &m_state.primShaderCullingCb, NggStateDwords * sizeof(uint32));
-
-        if (m_nggState.numSamples > 0)
+        if (multiplier > 1.0f)
         {
-            UpdateMsaaForNggCullingCb(m_nggState.numSamples,
-                                      m_graphicsState.viewportState.count,
-                                      m_graphicsState.quadSamplePatternState,
+            memcpy(&localCb, &m_state.primShaderCullingCb, NggStateDwords * sizeof(uint32));
+            pPrimShaderCullingCb = &localCb;
+
+            UpdateMsaaForNggCullingCb(m_graphicsState.viewportState.count,
+                                      multiplier,
                                       &m_state.primShaderCullingCb.viewports[0],
                                       &localCb.viewports[0]);
         }
@@ -4300,7 +4312,7 @@ uint32* UniversalCmdBuffer::UpdateNggCullingDataBufferWithCpu(
         UpdateUserDataTableCpu(&m_nggTable.state,
                                NggStateDwords, // size
                                0,              // offset
-                               reinterpret_cast<const uint32*>(&localCb),
+                               reinterpret_cast<const uint32*>(pPrimShaderCullingCb),
                                NumBytesToNumDwords(byteAlignment));
 
         gpusize gpuVirtAddr = m_nggTable.state.gpuVirtAddr;
@@ -4455,9 +4467,7 @@ uint32* UniversalCmdBuffer::ValidateDraw(
         pDeCmdSpace = UpdateDbCountControl<Pm4OptImmediate>(log2OcclusionQuerySamples, &dbCountControl, pDeCmdSpace);
     }
 
-    if (PipelineDirty ||
-        (StateDirty && (dirtyFlags.msaaState || dirtyFlags.inputAssemblyState)) ||
-        m_cachedSettings.disableWdLoadBalancing)
+    if (PipelineDirty || (StateDirty && (dirtyFlags.msaaState || dirtyFlags.inputAssemblyState)))
     {
         // Typically, ForceWdSwitchOnEop only depends on the primitive topology and restart state.  However, when we
         // disable the hardware WD load balancing feature, we do need to some draw time parameters that can
@@ -6420,23 +6430,6 @@ bool UniversalCmdBuffer::ForceWdSwitchOnEop(
                         (primitiveRestartEnabled && restartPrimsCheck) ||
                         drawInfo.useOpaque);
 
-    if ((switchOnEop == false) && m_cachedSettings.disableWdLoadBalancing)
-    {
-        const uint32 primGroupSize = pipeline.IaMultiVgtParam(false).bits.PRIMGROUP_SIZE + 1;
-
-        const uint32 patchControlPoints = pipeline.VgtLsHsConfig().bits.HS_NUM_INPUT_CP;
-        const uint32 vertsPerPrim = GfxDevice::VertsPerPrimitive(m_graphicsState.inputAssemblyState.topology,
-                                                                 patchControlPoints);
-        PAL_ASSERT(vertsPerPrim > 0);
-        const uint32 primCount  = drawInfo.vtxIdxCount / vertsPerPrim;
-
-        const bool   singlePrimGrp = (primCount <= primGroupSize);
-        const bool   multiInstance = (drawInfo.instanceCount > 1);
-        const bool   isIndirect    = (drawInfo.vtxIdxCount == 0);
-
-        switchOnEop = (isIndirect|| (singlePrimGrp && multiInstance));
-    }
-
     return switchOnEop;
 }
 
@@ -6451,7 +6444,7 @@ uint32* UniversalCmdBuffer::FlushStreamOut(
         WriteDataInfo    writeData         = {};
 
         writeData.engineType       = m_engineType;
-        writeData.dstAddr          = mmCP_STRMOUT_CNTL;
+        writeData.dstAddr          = Gfx09_10::mmCP_STRMOUT_CNTL;
         writeData.engineSel        = engine_sel__me_write_data__micro_engine;
         writeData.dstSel           = dst_sel__me_write_data__mem_mapped_register;
         writeData.dontWriteConfirm = true;
@@ -6462,7 +6455,7 @@ uint32* UniversalCmdBuffer::FlushStreamOut(
                                                 mem_space__pfp_wait_reg_mem__register_space,
                                                 function__pfp_wait_reg_mem__equal_to_the_reference_value,
                                                 engine_sel__me_wait_reg_mem__micro_engine,
-                                                mmCP_STRMOUT_CNTL,
+                                                Gfx09_10::mmCP_STRMOUT_CNTL,
                                                 1,
                                                 0x00000001,
                                                 pDeCmdSpace);
@@ -7473,7 +7466,11 @@ void UniversalCmdBuffer::LeakNestedCmdBufferState(
     if (cmdBuffer.m_graphicsState.leakFlags.validationBits.colorTargetView)
     {
         m_cbRmiGl2CacheControl.bits.COLOR_BIG_PAGE = cmdBuffer.m_cbRmiGl2CacheControl.bits.COLOR_BIG_PAGE;
-        m_cbRmiGl2CacheControl.bits.FMASK_BIG_PAGE = cmdBuffer.m_cbRmiGl2CacheControl.bits.FMASK_BIG_PAGE;
+
+        if (IsGfx10(m_gfxIpLevel))
+        {
+            m_cbRmiGl2CacheControl.gfx10.FMASK_BIG_PAGE = cmdBuffer.m_cbRmiGl2CacheControl.gfx10.FMASK_BIG_PAGE;
+        }
     }
 
     // DB_DFSM_CONTROL is written at AddPreamble time for all CmdBuffer states and potentially turned off
@@ -7498,6 +7495,7 @@ void UniversalCmdBuffer::LeakNestedCmdBufferState(
     m_spillTable.stateCs.dirty  |= cmdBuffer.m_spillTable.stateCs.dirty;
     m_spillTable.stateGfx.dirty |= cmdBuffer.m_spillTable.stateGfx.dirty;
 
+    m_rbplusRegHash        = cmdBuffer.m_rbplusRegHash;
     m_pipelineCtxRegHash   = cmdBuffer.m_pipelineCtxRegHash;
     m_pipelineCfgRegHash   = cmdBuffer.m_pipelineCfgRegHash;
     m_pipelinePsHash       = cmdBuffer.m_pipelinePsHash;
@@ -8000,6 +7998,26 @@ void UniversalCmdBuffer::CpCopyMemory(
 
     SetGfxCmdBufCpBltState(true);
     SetGfxCmdBufCpBltWriteCacheState(true);
+}
+
+// =====================================================================================================================
+void UniversalCmdBuffer::PushGraphicsState()
+{
+    Pal::UniversalCmdBuffer::PushGraphicsState();
+    // We reset the rbplusRegHash in this cmdBuffer to 0, so that we'll definitely set the context roll state true
+    // and update the values of rb+ registers through pm4 commands.
+    m_rbplusRegHash        = 0;
+}
+
+// =====================================================================================================================
+void UniversalCmdBuffer::PopGraphicsState()
+{
+    Pal::UniversalCmdBuffer::PopGraphicsState();
+    // We reset the rbplusRegHash in this cmdBuffer to 0, so that we'll definitely set the context roll state true
+    // and update the values of rb+ registers through pm4 commands.
+    // Switching the pipeline during a pop operation will already cause a context roll, so forcing a re - write of the
+    // RB + registers won't cause extra rolls.
+    m_rbplusRegHash        = 0;
 }
 
 // =====================================================================================================================

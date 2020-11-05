@@ -38,7 +38,7 @@ namespace Gfx9
 const RegisterRange Gfx9UserConfigShadowRange[] =
 {
     {
-        (mmCP_STRMOUT_CNTL - UCONFIG_SPACE_START),                        // 0xC03F
+        (Gfx09_10::mmCP_STRMOUT_CNTL - UCONFIG_SPACE_START),              // 0xC03F
          1,
     },
     {
@@ -332,7 +332,7 @@ const RegisterRange Gfx90NonShadowedRanges[] =
         1
     },
     {
-        mmSPI_RESOURCE_RESERVE_CU_0,
+        Gfx09_10::mmSPI_RESOURCE_RESERVE_CU_0,
         1
     },
     {
@@ -365,8 +365,8 @@ const RegisterRange Gfx90NonShadowedRanges[] =
         1
     },
     {
-        mmCP_NUM_PRIM_WRITTEN_COUNT0_LO,
-        mmCP_NUM_PRIM_NEEDED_COUNT3_HI - mmCP_NUM_PRIM_WRITTEN_COUNT0_LO + 1
+        Gfx09_10::mmCP_NUM_PRIM_WRITTEN_COUNT0_LO,
+        Gfx09_10::mmCP_NUM_PRIM_NEEDED_COUNT3_HI - Gfx09_10::mmCP_NUM_PRIM_WRITTEN_COUNT0_LO + 1
     },
     {
         mmCP_VGT_IAVERT_COUNT_LO,
@@ -467,7 +467,7 @@ const RegisterRange Gfx91NonShadowedRanges[] =
         1
     },
     {
-        mmSPI_RESOURCE_RESERVE_CU_0,
+        Gfx09_10::mmSPI_RESOURCE_RESERVE_CU_0,
         1
     },
     {
@@ -500,8 +500,8 @@ const RegisterRange Gfx91NonShadowedRanges[] =
         1
     },
     {
-        mmCP_NUM_PRIM_WRITTEN_COUNT0_LO,
-        mmCP_NUM_PRIM_NEEDED_COUNT3_HI - mmCP_NUM_PRIM_WRITTEN_COUNT0_LO + 1
+        Gfx09_10::mmCP_NUM_PRIM_WRITTEN_COUNT0_LO,
+        Gfx09_10::mmCP_NUM_PRIM_NEEDED_COUNT3_HI - Gfx09_10::mmCP_NUM_PRIM_WRITTEN_COUNT0_LO + 1
     },
     {
         mmCP_VGT_IAVERT_COUNT_LO,

@@ -68,8 +68,12 @@ constexpr unsigned int SDMA_SUBOP_WRITE_TILED                   = 1;
 
 namespace Gfx101
 {
-    constexpr unsigned int SDMA_SUBOP_INVALIDATION                  = 4;
 } // namespace Gfx101
+
+namespace Gfx10x
+{
+    constexpr unsigned int SDMA_SUBOP_INVALIDATION                  = 4;
+} // namespace Gfx10x
 
 typedef struct SDMA_PKT_ATOMIC_TAG
 {
@@ -254,7 +258,7 @@ typedef struct SDMA_PKT_CONSTANT_FILL_TAG
         {
             unsigned int count                          : 22;
             unsigned int                                : 10;
-        };
+        } gfx10x;
         unsigned int DW_4_DATA;
     } COUNT_UNION;
 
@@ -2013,7 +2017,7 @@ typedef struct SDMA_PKT_INVALIDATION_TAG
             unsigned int op                             :  8;
             unsigned int sub_op                         :  8;
             unsigned int                                : 16;
-        } gfx101;
+        };
         unsigned int DW_0_DATA;
     } HEADER_UNION;
 
@@ -2022,7 +2026,7 @@ typedef struct SDMA_PKT_INVALIDATION_TAG
         struct
         {
             unsigned int invalidatereq                  : 32;
-        } gfx101;
+        };
         unsigned int DW_1_DATA;
     } INVALIDATEREQ_UNION;
 
@@ -2031,7 +2035,7 @@ typedef struct SDMA_PKT_INVALIDATION_TAG
         struct
         {
             unsigned int addressrangelo                 : 32;
-        } gfx101;
+        };
         unsigned int DW_2_DATA;
     } ADDRESSRANGELO_UNION;
 
@@ -2044,7 +2048,7 @@ typedef struct SDMA_PKT_INVALIDATION_TAG
             unsigned int invalidategfxhub               :  1;
             unsigned int invalidatemmhub                :  1;
             unsigned int                                :  9;
-        } gfx101;
+        };
         unsigned int DW_3_DATA;
     } ADDRESSRANGEHI_UNION;
 

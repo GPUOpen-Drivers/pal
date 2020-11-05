@@ -933,7 +933,7 @@
       "Description": "Controls whether command stream commit sizes are logged to a file."
     },
     {
-      "Name": "LogPipelineInfo",
+      "Name": "LogPipelineElf",
       "Tags": [
         "Printing and Logging"
       ],
@@ -947,8 +947,8 @@
       },
       "Scope": "PrivatePalKey",
       "Type": "bool",
-      "VariableName": "logPipelines",
-      "Description": "Enables Pipeline Logging"
+      "VariableName": "logPipelineElf",
+      "Description": "Enables Pipeline Logging of ELFs to disk."
     },
     {
       "Description": "Pipeline Logging configuration options",
@@ -964,16 +964,16 @@
             "Values": [
               true
             ],
-            "Name": "LogPipelineInfo"
+            "Name": "LogPipelineElf"
           }
         ]
       },
       "Scope": "PrivatePalKey",
       "Type": "struct",
-      "VariableName": "pipelineLogConfig",
+      "VariableName": "pipelineElfLogConfig",
       "Structure": [
         {
-          "Description": "Contols logging of internally generated pipelines (i.e. RPM pipelines, etc",
+          "Description": "Controls logging of internally generated pipelines ELFs (i.e. RPM pipelines, etc.)",
           "Defaults": {
             "Default": false
           },
@@ -982,7 +982,7 @@
           "Name": "LogInternal"
         },
         {
-          "Description": "Contols logging of externally generated pipelines (i.e. the application's pipelines",
+          "Description": "Contols logging of externally generated pipelines ELFs (i.e. the application's pipelines)",
           "Defaults": {
             "Default": false
           },
@@ -991,83 +991,7 @@
           "Name": "LogExternal"
         },
         {
-          "Description": "If true, each shader in a pipeline will be logged to a separate file on disk. Otherwise the whole pipeline is placed in a single file",
-          "Defaults": {
-            "Default": false
-          },
-          "Type": "bool",
-          "VariableName": "logShadersSeparately",
-          "Name": "LogShadersSeparately"
-        },
-        {
-          "Description": "If true, duplicate pipelines will be dumped to a file with a numeric suffix attached to the filename to distinguish each copy of the pipeline.",
-          "Defaults": {
-            "Default": true
-          },
-          "Type": "bool",
-          "VariableName": "logDuplicatePipelines",
-          "Name": "LogDuplicatePipelines"
-        },
-        {
-          "Description": "If true, disassembly information will be embedded into compiled ELF binaries.",
-          "Defaults": {
-            "Default": false
-          },
-          "Type": "bool",
-          "VariableName": "embedPipelineDisassembly",
-          "Name": "EmbedPipelineDisassembly"
-        },
-        {
-          "ValidValues": {
-            "IsEnum": true,
-            "Values": [
-              {
-                "Name": "PipelineLogFilterNone",
-                "Value": 0,
-                "Description": "Do not disable logging based on pipeline type."
-              },
-              {
-                "Name": "PipelineLogFilterCs",
-                "Value": 1,
-                "Description": "Disable logging for Cs pipelines"
-              },
-              {
-                "Name": "PipelineLogFilterNgg",
-                "Value": 2,
-                "Description": "Disable logging for NGG pipelines"
-              },
-              {
-                "Name": "PipelineLogFilterGs",
-                "Value": 4,
-                "Description": "Disable logging for Gs pipelines"
-              },
-              {
-                "Name": "PipelineLogFilterTess",
-                "Value": 8,
-                "Description": "Disable logging for Tess pipelines"
-              },
-              {
-                "Name": "PipelineLogFilterVsPs",
-                "Value": 16,
-                "Description": "Disable logging for VsPs pipelines"
-              }
-            ],
-            "Name": "PipelineLogFilters"
-          },
-          "Name": "PipelineTypeFilter",
-          "Flags": {
-            "IsHex": true,
-            "IsBitmask": true
-          },
-          "Defaults": {
-            "Default": 0
-          },
-          "Type": "uint32",
-          "VariableName": "pipelineTypeFilter",
-          "Description": "Bitfield which allows for filtering pipeline logging to exclude specific pipeline types.  If a bit is set then that pipeline type will NOT be logged.  The bits are defined in the ValidValues array."
-        },
-        {
-          "Name": "LogPipelineHash",
+          "Name": "LogHash",
           "Flags": {
             "IsHex": true
           },
@@ -1075,7 +999,7 @@
             "Default": 0
           },
           "Type": "uint64",
-          "VariableName": "logPipelineHash",
+          "VariableName": "logHash",
           "Description": "Specific pipeline hash to log."
         },
         {
@@ -1090,11 +1014,11 @@
           },
           "Size": "MaxPathStrLen",
           "Type": "string",
-          "VariableName": "pipelineLogDirectory",
-          "Name": "PipelineLogDirectory"
+          "VariableName": "logDirectory",
+          "Name": "LogDirectory"
         }
       ],
-      "Name": "PipelineLogConfig"
+      "Name": "PipelineElfLogConfig"
     },
     {
       "Name": "CmdStreamReserveLimit",
@@ -1764,7 +1688,7 @@
         "Performance"
       ],
       "Defaults": {
-        "Default": true
+        "Default": false
       },
       "Flags": {
         "RereadSetting": true

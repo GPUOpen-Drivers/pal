@@ -370,8 +370,7 @@ void Device::FinalizeChipProperties(
 
     pChipProperties->gfxip.numOffchipTessBuffers = settings.numOffchipLdsBuffers;
 
-    pChipProperties->gfxip.maxPrimgroupSize =
-        (settings.wdLoadBalancingMode != Gfx9WdLoadBalancingDisabled) ? 253 : 256;
+    pChipProperties->gfxip.maxPrimgroupSize = 253;
 
     pChipProperties->gfxip.tessFactorBufferSizePerSe = settings.tessFactorBufferSizePerSe;
 
@@ -381,6 +380,7 @@ void Device::FinalizeChipProperties(
 
     // Now is time to update the numSlotsPerEvent based on the new enableGpuEventMultiSlot value updated by client.
     pChipProperties->gfxip.numSlotsPerEvent = useMultiSlot ? MaxSlotsPerEvent : 1;
+
 }
 
 // =====================================================================================================================
@@ -3800,6 +3800,20 @@ void PAL_STDCALL Device::Gfx9CreateSamplerSrds(
 }
 
 // =====================================================================================================================
+void Device::SetSrdBorderColorPtr(
+    sq_img_samp_t*  pSrd,
+    uint32          borderColorPtr
+    ) const
+{
+    const Pal::Device&  device = *Parent();
+
+    if (IsGfx10(device))
+    {
+        pSrd->gfx10Core.border_color_ptr = borderColorPtr;
+    }
+}
+
+// =====================================================================================================================
 // Gfx10 specific function for creating sampler SRDs. Installed in the function pointer table of the parent device
 // during initialization.
 void PAL_STDCALL Device::Gfx10CreateSamplerSrds(
@@ -3935,7 +3949,7 @@ void PAL_STDCALL Device::Gfx10CreateSamplerSrds(
             }
 
             // The BORDER_COLOR_PTR field is only used by the HW for the SQ_TEX_BORDER_COLOR_REGISTER case
-            pSrd->most.border_color_ptr = 0;
+            pGfxDevice->SetSrdBorderColorPtr(pSrd, 0);
 
             // And setup the HW-supported border colors appropriately
             switch (pInfo->borderColorType)
@@ -3951,7 +3965,7 @@ void PAL_STDCALL Device::Gfx10CreateSamplerSrds(
                 break;
             case BorderColorType::PaletteIndex:
                 pSrd->border_color_type     = SQ_TEX_BORDER_COLOR_REGISTER;
-                pSrd->most.border_color_ptr = pInfo->borderColorPaletteIndex;
+                pGfxDevice->SetSrdBorderColorPtr(pSrd, pInfo->borderColorPaletteIndex);
                 break;
             default:
                 PAL_ALERT_ALWAYS();
@@ -3968,7 +3982,7 @@ void PAL_STDCALL Device::Gfx10CreateSamplerSrds(
             if (settings.disableBorderColorPaletteBinds)
             {
                 pSrd->border_color_type     = SQ_TEX_BORDER_COLOR_TRANS_BLACK;
-                pSrd->most.border_color_ptr = 0;
+                pGfxDevice->SetSrdBorderColorPtr(pSrd, 0);
             }
 
             // This allows the sampler to override anisotropic filtering when the resource view contains a single
@@ -4888,8 +4902,6 @@ void Device::InitBufferSrd(
 
         pSrd->base_address   = gpuVirtAddr;
         pSrd->stride         = stride;
-        pSrd->cache_swizzle  = 0;
-        pSrd->swizzle_enable = 0;
         pSrd->dst_sel_x      = SQ_SEL_X;
         pSrd->dst_sel_y      = SQ_SEL_Y;
         pSrd->dst_sel_z      = SQ_SEL_Z;
@@ -4902,7 +4914,9 @@ void Device::InitBufferSrd(
             if (IsGfx10(m_gfxIpLevel))
             {
                 pSrd->gfx10Core.resource_level = 1;
-                pSrd->gfx10Core.format = BUF_FMT_32_FLOAT;
+                pSrd->gfx10Core.format         = BUF_FMT_32_FLOAT;
+                pSrd->gfx10.cache_swizzle      = 0;
+                pSrd->gfx10.swizzle_enable     = 0;
             }
         }
     }
@@ -6526,26 +6540,28 @@ bool IsBufferBigPageCompatible(
     const Gfx9PalSettings& settings = GetGfx9Settings(*gpuMemory.GetDevice());
     bool bigPageCompatibility       = false;
 
-    if (TestAllFlagsSet(settings.allowBigPage, bigPageUsageMask))
-    {
-        // The hardware BIG_PAGE optimization always requires >= 64KiB page size
-        gpusize MinBigPageSize   = 64 * 1024;
-        gpusize bigPageLargeSize = gpuMemory.GetDevice()->MemoryProperties().bigPageLargeAlignment;
-        gpusize bigPageMinSize   = gpuMemory.GetDevice()->MemoryProperties().bigPageMinAlignment;
+    // Minimum page size required to support BigPage optimization supplied by KMD.
+    gpusize bigPageSize = gpuMemory.GetDevice()->MemoryProperties().bigPageMinAlignment;
 
-        // KMD defined alignment requirements for BIG_PAGE optimization.
+    // The hardware BIG_PAGE optimization always requires >= bigPageMinAlignment.
+    // Also if bigPageMinAlignment == 0, BigPage optimization is not supported
+    if ((TestAllFlagsSet(settings.allowBigPage, bigPageUsageMask)) &&
+        (bigPageSize > 0) &&
+        (gpuMemory.MinPageSize() >= bigPageSize))
+    {
+        gpusize bigPageLargeSize = gpuMemory.GetDevice()->MemoryProperties().bigPageLargeAlignment;
+
+        // Increase alignment requirements to bigPageLargeAlignment if the buffer's page size is larger and KMD
+        // supports it.
         if ((gpuMemory.MinPageSize() >= bigPageLargeSize) && (bigPageLargeSize > 0))
         {
-            MinBigPageSize = bigPageLargeSize;
-        }
-        else if ((gpuMemory.MinPageSize() >= bigPageMinSize) && (bigPageMinSize > 0))
-        {
-            MinBigPageSize = bigPageMinSize;
+            bigPageSize = bigPageLargeSize;
         }
 
-        bigPageCompatibility = IsPow2Aligned(gpuMemory.MinPageSize(), MinBigPageSize) &&
+        // KMD defined alignment requirements for BIG_PAGE optimization.
+        bigPageCompatibility = IsPow2Aligned(gpuMemory.MinPageSize(), bigPageSize) &&
                                ((settings.waUtcL0InconsistentBigPage == false) ||
-                                (IsPow2Aligned(offset, MinBigPageSize) && IsPow2Aligned(extent, MinBigPageSize)));
+                                (IsPow2Aligned(offset, bigPageSize) && IsPow2Aligned(extent, bigPageSize)));
     }
     return bigPageCompatibility;
 }

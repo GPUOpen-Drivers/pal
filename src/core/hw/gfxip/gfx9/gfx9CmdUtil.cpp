@@ -25,7 +25,6 @@
 
 #include "core/cmdStream.h"
 #include "core/hw/gfxip/pipeline.h"
-#include "core/hw/gfxip/gfx9/gfx9Chip.h"
 #include "core/hw/gfxip/gfx9/gfx9CmdUtil.h"
 #include "core/hw/gfxip/gfx9/gfx9Device.h"
 #include "core/hw/gfxip/gfx9/g_gfx9PalSettings.h"
@@ -366,7 +365,7 @@ CmdUtil::CmdUtil(
         }
 
         m_registerInfo.mmRlcPerfmonClkCntl              = Gfx10Plus::mmRLC_PERFMON_CLK_CNTL;
-        m_registerInfo.mmMcVmL2PerfResultCntl           = Gfx10Plus::mmGCMC_VM_L2_PERFCOUNTER_RSLT_CNTL;
+        m_registerInfo.mmMcVmL2PerfResultCntl           = Gfx10::mmGCMC_VM_L2_PERFCOUNTER_RSLT_CNTL;
         m_registerInfo.mmVgtGsMaxPrimsPerSubGroup       = Gfx10Plus::mmGE_MAX_OUTPUT_PER_SUBGROUP;
         m_registerInfo.mmComputeShaderChksum            = Gfx10Plus::mmCOMPUTE_SHADER_CHKSUM;
         m_registerInfo.mmPaStereoCntl                   = Gfx10Plus::mmPA_STEREO_CNTL;
@@ -459,7 +458,7 @@ uint32 CmdUtil::ChainSizeInDwords(
 bool CmdUtil::IsContextReg(
     uint32 regAddr)
 {
-    const bool isContextReg = ((regAddr >= CONTEXT_SPACE_START) && (regAddr <= CONTEXT_SPACE_END));
+    const bool isContextReg = ((regAddr >= CONTEXT_SPACE_START) && (regAddr <= Gfx09_10::CONTEXT_SPACE_END));
 
     // Assert if we need to extend our internal range of context registers we actually set.
     PAL_ASSERT((isContextReg == false) || ((regAddr - CONTEXT_SPACE_START) < CntxRegUsedRangeSize));
@@ -1434,8 +1433,10 @@ size_t CmdUtil::BuildDrawIndexIndirect(
     pPacket->ordinal2.data_offset              = LowPart(offset);
     pPacket->ordinal3.u32All                   = 0;
     pPacket->ordinal3.bitfields.base_vtx_loc   = baseVtxLoc - PERSISTENT_SPACE_START;
-    pPacket->ordinal4.u32All                   = 0;
-    pPacket->ordinal4.bitfields.start_inst_loc = startInstLoc - PERSISTENT_SPACE_START;
+
+    decltype(PM4_PFP_DRAW_INDEX_INDIRECT::ordinal4) ordinal4 = {};
+    ordinal4.bitfields.start_inst_loc = startInstLoc - PERSISTENT_SPACE_START;
+    pPacket->ordinal4 = ordinal4;
 
     regVGT_DRAW_INITIATOR drawInitiator;
     drawInitiator.u32All             = 0;
@@ -1475,28 +1476,20 @@ size_t CmdUtil::BuildDrawIndexIndirectMulti(
     pPacket->ordinal3.bitfields.base_vtx_loc   = baseVtxLoc - PERSISTENT_SPACE_START;
     pPacket->ordinal4.u32All                   = 0;
     pPacket->ordinal4.bitfields.start_inst_loc = startInstLoc - PERSISTENT_SPACE_START;
-    pPacket->ordinal5.u32All                   = 0;
-    pPacket->ordinal7.u32All                   = 0;
 
+    decltype(PM4_PFP_DRAW_INDEX_INDIRECT_MULTI::ordinal5) ordinal5 = {};
     if (drawIndexLoc != UserDataNotMapped)
     {
-        pPacket->ordinal5.bitfields.draw_index_enable = 1;
-        pPacket->ordinal5.bitfields.draw_index_loc    = drawIndexLoc - PERSISTENT_SPACE_START;
+        ordinal5.bitfields.draw_index_enable = 1;
+        ordinal5.bitfields.draw_index_loc    = drawIndexLoc - PERSISTENT_SPACE_START;
     }
+    ordinal5.bitfields.count_indirect_enable = (countGpuAddr != 0);
 
-    if (countGpuAddr != 0)
-    {
-        pPacket->ordinal5.bitfields.count_indirect_enable = 1;
-        pPacket->ordinal7.u32All                          = LowPart(countGpuAddr);
-        pPacket->ordinal8.count_addr_hi                   = HighPart(countGpuAddr);
-    }
-    else
-    {
-        pPacket->ordinal8.count_addr_hi = 0;
-    }
-
-    pPacket->ordinal6.count  = count;
-    pPacket->ordinal9.stride = stride;
+    pPacket->ordinal5               = ordinal5;
+    pPacket->ordinal6.count         = count;
+    pPacket->ordinal7.u32All        = LowPart(countGpuAddr);
+    pPacket->ordinal8.count_addr_hi = HighPart(countGpuAddr);
+    pPacket->ordinal9.stride        = stride;
 
     regVGT_DRAW_INITIATOR drawInitiator;
     drawInitiator.u32All             = 0;
@@ -1533,28 +1526,20 @@ size_t CmdUtil::BuildDrawIndirectMulti(
     pPacket->ordinal3.bitfields.start_vtx_loc  = baseVtxLoc - PERSISTENT_SPACE_START;
     pPacket->ordinal4.u32All                   = 0;
     pPacket->ordinal4.bitfields.start_inst_loc = startInstLoc - PERSISTENT_SPACE_START;
-    pPacket->ordinal5.u32All                   = 0;
-    pPacket->ordinal7.u32All                   = 0;
 
+    decltype(PM4_PFP_DRAW_INDIRECT_MULTI::ordinal5) ordinal5 = {};
     if (drawIndexLoc != UserDataNotMapped)
     {
-        pPacket->ordinal5.bitfields.draw_index_enable = 1;
-        pPacket->ordinal5.bitfields.draw_index_loc    = drawIndexLoc - PERSISTENT_SPACE_START;
+        ordinal5.bitfields.draw_index_enable = 1;
+        ordinal5.bitfields.draw_index_loc    = drawIndexLoc - PERSISTENT_SPACE_START;
     }
+    ordinal5.bitfields.count_indirect_enable = (countGpuAddr != 0);
 
-    if (countGpuAddr != 0)
-    {
-        pPacket->ordinal5.bitfields.count_indirect_enable = 1;
-        pPacket->ordinal7.u32All                          = LowPart(countGpuAddr);
-        pPacket->ordinal8.count_addr_hi                   = HighPart(countGpuAddr);
-    }
-    else
-    {
-        pPacket->ordinal8.count_addr_hi = 0;
-    }
-
-    pPacket->ordinal6.count  = count;
-    pPacket->ordinal9.stride = stride;
+    pPacket->ordinal5               = ordinal5;
+    pPacket->ordinal6.count         = count;
+    pPacket->ordinal7.u32All        = LowPart(countGpuAddr);
+    pPacket->ordinal8.count_addr_hi = HighPart(countGpuAddr);
+    pPacket->ordinal9.stride        = stride;
 
     regVGT_DRAW_INITIATOR drawInitiator;
     drawInitiator.u32All             = 0;

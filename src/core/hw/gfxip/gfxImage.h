@@ -105,7 +105,7 @@ struct SharedMetadataInfo
 };
 
 // Display Dcc state for a plane
-struct DisplayDccState
+struct DccState
 {
     gpusize primaryOffset;   // Byte offset in the allocation
     gpusize secondaryOffset; // Byte offset from the beginning of the first display surface
@@ -179,7 +179,8 @@ public:
     gpusize HiSPretestsMetaDataSize(uint32 numMips) const;
 
     virtual void GetSharedMetadataInfo(SharedMetadataInfo* pMetadataInfo) const = 0;
-    virtual void GetDisplayDccState(DisplayDccState* pState) const { PAL_NEVER_CALLED(); }
+    virtual void GetDisplayDccState(DccState* pState) const { PAL_NEVER_CALLED(); }
+    virtual void GetDccState(DccState* pState) const { PAL_NEVER_CALLED(); }
 
     virtual gpusize GetAspectBaseAddr(ImageAspect  aspect) const { PAL_NEVER_CALLED(); return 0; }
 

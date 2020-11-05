@@ -1207,7 +1207,7 @@ static void Gfx10InitBasicBlockInfo(
     pGrbm->numGenericSpmModules      = 0;
     pGrbm->numGenericLegacyModules   = 2; // GRBM_PERFCOUNTER0-1
     pGrbm->numSpmWires               = 0;
-    pGrbm->maxEventId                = MaxGrbmPerfSelGfx10Plus;
+    pGrbm->maxEventId                = MaxGrbmPerfSelGfx10;
 
     pGrbm->regAddr = { 0, {
         { mmGRBM_PERFCOUNTER0_SELECT, 0, mmGRBM_PERFCOUNTER0_LO, mmGRBM_PERFCOUNTER0_HI },
@@ -1223,7 +1223,7 @@ static void Gfx10InitBasicBlockInfo(
     pGrbmSe->numGenericSpmModules      = 0;
     pGrbmSe->numGenericLegacyModules   = 0;
     pGrbmSe->numSpmWires               = 0;
-    pGrbmSe->maxEventId                = MaxGrbmSe0PerfSelGfx10Plus;
+    pGrbmSe->maxEventId                = MaxGrbmSe0PerfSelGfx10;
 
     // By convention we access the counter register address array using the SE index.
     {
@@ -1338,17 +1338,17 @@ static void Gfx10InitBasicBlockInfo(
     pMcVmL2->maxEventId                = 20; // Number of l2 cache invalidations
     pMcVmL2->isCfgStyle                = true;
 
-    pMcVmL2->regAddr = { mmGCMC_VM_L2_PERFCOUNTER_RSLT_CNTL, {
-        { mmGCMC_VM_L2_PERFCOUNTER0_CFG,  0,                               mmGCMC_VM_L2_PERFCOUNTER_LO, mmGCMC_VM_L2_PERFCOUNTER_HI },
-        { mmGCMC_VM_L2_PERFCOUNTER1_CFG,  0,                               mmGCMC_VM_L2_PERFCOUNTER_LO, mmGCMC_VM_L2_PERFCOUNTER_HI },
-        { mmGCMC_VM_L2_PERFCOUNTER2_CFG,  0,                               mmGCMC_VM_L2_PERFCOUNTER_LO, mmGCMC_VM_L2_PERFCOUNTER_HI },
-        { mmGCMC_VM_L2_PERFCOUNTER3_CFG,  0,                               mmGCMC_VM_L2_PERFCOUNTER_LO, mmGCMC_VM_L2_PERFCOUNTER_HI },
-        { mmGCMC_VM_L2_PERFCOUNTER4_CFG,  0,                               mmGCMC_VM_L2_PERFCOUNTER_LO, mmGCMC_VM_L2_PERFCOUNTER_HI },
-        { mmGCMC_VM_L2_PERFCOUNTER5_CFG,  0,                               mmGCMC_VM_L2_PERFCOUNTER_LO, mmGCMC_VM_L2_PERFCOUNTER_HI },
-        { mmGCMC_VM_L2_PERFCOUNTER6_CFG,  0,                               mmGCMC_VM_L2_PERFCOUNTER_LO, mmGCMC_VM_L2_PERFCOUNTER_HI },
-        { mmGCMC_VM_L2_PERFCOUNTER7_CFG,  0,                               mmGCMC_VM_L2_PERFCOUNTER_LO, mmGCMC_VM_L2_PERFCOUNTER_HI },
-        { mmGCVML2_PERFCOUNTER2_0_SELECT, mmGCVML2_PERFCOUNTER2_0_SELECT1, mmGCVML2_PERFCOUNTER2_0_LO,  mmGCVML2_PERFCOUNTER2_0_HI  },
-        { mmGCVML2_PERFCOUNTER2_1_SELECT, mmGCVML2_PERFCOUNTER2_1_SELECT1, mmGCVML2_PERFCOUNTER2_1_LO,  mmGCVML2_PERFCOUNTER2_1_HI  }
+    pMcVmL2->regAddr = { Gfx10::mmGCMC_VM_L2_PERFCOUNTER_RSLT_CNTL, {
+        { Gfx10::mmGCMC_VM_L2_PERFCOUNTER0_CFG,  0,                                      Gfx10::mmGCMC_VM_L2_PERFCOUNTER_LO, Gfx10::mmGCMC_VM_L2_PERFCOUNTER_HI },
+        { Gfx10::mmGCMC_VM_L2_PERFCOUNTER1_CFG,  0,                                      Gfx10::mmGCMC_VM_L2_PERFCOUNTER_LO, Gfx10::mmGCMC_VM_L2_PERFCOUNTER_HI },
+        { Gfx10::mmGCMC_VM_L2_PERFCOUNTER2_CFG,  0,                                      Gfx10::mmGCMC_VM_L2_PERFCOUNTER_LO, Gfx10::mmGCMC_VM_L2_PERFCOUNTER_HI },
+        { Gfx10::mmGCMC_VM_L2_PERFCOUNTER3_CFG,  0,                                      Gfx10::mmGCMC_VM_L2_PERFCOUNTER_LO, Gfx10::mmGCMC_VM_L2_PERFCOUNTER_HI },
+        { Gfx10::mmGCMC_VM_L2_PERFCOUNTER4_CFG,  0,                                      Gfx10::mmGCMC_VM_L2_PERFCOUNTER_LO, Gfx10::mmGCMC_VM_L2_PERFCOUNTER_HI },
+        { Gfx10::mmGCMC_VM_L2_PERFCOUNTER5_CFG,  0,                                      Gfx10::mmGCMC_VM_L2_PERFCOUNTER_LO, Gfx10::mmGCMC_VM_L2_PERFCOUNTER_HI },
+        { Gfx10::mmGCMC_VM_L2_PERFCOUNTER6_CFG,  0,                                      Gfx10::mmGCMC_VM_L2_PERFCOUNTER_LO, Gfx10::mmGCMC_VM_L2_PERFCOUNTER_HI },
+        { Gfx10::mmGCMC_VM_L2_PERFCOUNTER7_CFG,  0,                                      Gfx10::mmGCMC_VM_L2_PERFCOUNTER_LO, Gfx10::mmGCMC_VM_L2_PERFCOUNTER_HI },
+        { Gfx10::mmGCVML2_PERFCOUNTER2_0_SELECT, Gfx10::mmGCVML2_PERFCOUNTER2_0_SELECT1, Gfx10::mmGCVML2_PERFCOUNTER2_0_LO,  Gfx10::mmGCVML2_PERFCOUNTER2_0_HI  },
+        { Gfx10::mmGCVML2_PERFCOUNTER2_1_SELECT, Gfx10::mmGCVML2_PERFCOUNTER2_1_SELECT1, Gfx10::mmGCVML2_PERFCOUNTER2_1_LO,  Gfx10::mmGCVML2_PERFCOUNTER2_1_HI  }
     }};
 
     {
@@ -1598,8 +1598,8 @@ static void Gfx10InitBasicBlockInfo(
     pUtcl1->maxEventId                = maxIds[UTCL1PerfSelId];
 
     pUtcl1->regAddr = { 0, {
-        { mmUTCL1_PERFCOUNTER0_SELECT, 0, mmUTCL1_PERFCOUNTER0_LO, mmUTCL1_PERFCOUNTER0_HI },
-        { mmUTCL1_PERFCOUNTER1_SELECT, 0, mmUTCL1_PERFCOUNTER1_LO, mmUTCL1_PERFCOUNTER1_HI },
+        { mmUTCL1_PERFCOUNTER0_SELECT, 0, Gfx10::mmUTCL1_PERFCOUNTER0_LO, Gfx10::mmUTCL1_PERFCOUNTER0_HI },
+        { mmUTCL1_PERFCOUNTER1_SELECT, 0, Gfx10::mmUTCL1_PERFCOUNTER1_LO, Gfx10::mmUTCL1_PERFCOUNTER1_HI },
     }};
 
     // The GUS and the blocks that exist to service it should exist as a unit. They are present on all gfx10.1 ASICs.

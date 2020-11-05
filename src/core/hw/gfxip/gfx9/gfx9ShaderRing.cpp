@@ -251,13 +251,13 @@ ScratchRing::ScratchRing(
         pSrd->word3.bits.INDEX_STRIDE    = BUF_INDEX_STRIDE_64B;
         pSrd->word3.bits.ADD_TID_ENABLE  = 1;
     }
-    else if (IsGfx10Plus(m_gfxLevel))
+    else if (IsGfx10(m_gfxLevel))
     {
         auto*const  pSrd = &pGenericSrd->gfx10;
 
-        pSrd->swizzle_enable = 1;
-        pSrd->index_stride   = BUF_INDEX_STRIDE_64B;
-        pSrd->add_tid_enable = 1;
+        pSrd->gfx10.swizzle_enable = 1;
+        pSrd->index_stride         = BUF_INDEX_STRIDE_64B;
+        pSrd->add_tid_enable       = 1;
     }
     else
     {
@@ -369,13 +369,13 @@ GsVsRing::GsVsRing(
             pSrdWr->word3.bits.INDEX_STRIDE   = BUF_INDEX_STRIDE_16B;
             pSrdWr->word3.bits.ADD_TID_ENABLE = 1;
         }
-        else if (IsGfx10Plus(m_gfxLevel))
+        else if (IsGfx10(m_gfxLevel))
         {
             auto*const  pSrdWr = &pBufferSrdWr->gfx10;
 
-            pSrdWr->swizzle_enable = 1;
-            pSrdWr->index_stride   = BUF_INDEX_STRIDE_16B;
-            pSrdWr->add_tid_enable = 1;
+            pSrdWr->gfx10.swizzle_enable = 1;
+            pSrdWr->index_stride         = BUF_INDEX_STRIDE_16B;
+            pSrdWr->add_tid_enable       = 1;
         }
         else
         {

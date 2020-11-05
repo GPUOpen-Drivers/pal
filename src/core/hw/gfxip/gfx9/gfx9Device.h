@@ -643,6 +643,10 @@ public:
 #endif
 
 private:
+    void SetSrdBorderColorPtr(
+        sq_img_samp_t*  pSrd,
+        uint32          borderColorPtr) const;
+
     Result InitOcclusionResetMem();
 
     uint32 BufferSrdResourceLevel() const;

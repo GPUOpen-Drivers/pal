@@ -214,8 +214,8 @@ public:
     VaPartition VirtAddrPartition() const { return m_vaPartition; }
     MType Mtype() const { return m_mtype; }
 
-    size_t HeapCount() const { return m_heapCount; }
-    GpuHeap Heap(size_t index) const { return m_heaps[index]; }
+    // Returns the preferred heap.
+    GpuHeap PreferredHeap() const { return m_heaps[0]; }
 
     bool IsVirtual()             const { return (m_desc.flags.isVirtual           != 0); }
     bool IsPeer()                const { return (m_desc.flags.isPeer              != 0); }

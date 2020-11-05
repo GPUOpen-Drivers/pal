@@ -829,9 +829,6 @@ void DmaCmdBuffer::CmdWriteImmediate(
     // Make sure our destination address is dword aligned.
     PAL_ASSERT(IsPow2Aligned(address, sizeof(uint32)));
 
-    // We only support 32bit data
-    PAL_ASSERT(dataSize == ImmediateDataWidth::ImmediateData32Bit);
-
     uint32* pCmdSpace = m_cmdStream.ReserveCommands();
 
     constexpr size_t PacketDwords = sizeof(DMA_CMD_FENCE) / sizeof(uint32);
@@ -846,11 +843,23 @@ void DmaCmdBuffer::CmdWriteImmediate(
     packet.fence_base_lo    = LowPart(address) >> 2;
     packet.fence_base_hi    = HighPart(address) & 0xFF;
     packet.reserved2        = 0;
-    packet.fence_data       = data;
+    packet.fence_data       = LowPart(data);
 
     *pPacket = packet;
+    size_t dwordsWritten = PacketDwords;
 
-    m_cmdStream.CommitCommands(pCmdSpace + PacketDwords);
+    if (dataSize == ImmediateDataWidth::ImmediateData64Bit)
+    {
+        address += sizeof(uint32);
+        packet.fence_base_lo = LowPart(address) >> 2;
+        packet.fence_base_hi = HighPart(address) & 0xFF;
+        packet.fence_data    = HighPart(data);
+
+        pPacket[1]     = packet;
+        dwordsWritten += PacketDwords;
+    }
+
+    m_cmdStream.CommitCommands(pCmdSpace + dwordsWritten);
 }
 
 // =====================================================================================================================

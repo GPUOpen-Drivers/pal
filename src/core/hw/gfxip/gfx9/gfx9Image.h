@@ -384,7 +384,8 @@ public:
     virtual gpusize GetAspectBaseAddr(ImageAspect  aspect) const override;
 
     virtual void GetSharedMetadataInfo(SharedMetadataInfo* pMetadataInfo) const override;
-    virtual void GetDisplayDccState(DisplayDccState* pState) const override;
+    virtual void GetDisplayDccState(DccState* pState) const override;
+    virtual void GetDccState(DccState* pState) const override;
 
     gpusize GetMipAddr(SubresId subresId) const;
 

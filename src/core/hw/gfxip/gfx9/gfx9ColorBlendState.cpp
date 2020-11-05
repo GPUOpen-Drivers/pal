@@ -41,7 +41,8 @@ ColorBlendState::ColorBlendState(
     const Device&                    device,
     const ColorBlendStateCreateInfo& createInfo)
     :
-    Pal::ColorBlendState()
+    Pal::ColorBlendState(),
+    m_device(device)
 {
     m_flags.u32All = 0;
     m_flags.rbPlus = device.Settings().gfx9RbPlusEnable;
@@ -56,32 +57,41 @@ ColorBlendState::ColorBlendState(
 // =====================================================================================================================
 // Converts a Pal::Blend value to a Gfx9 hardware BlendOp
 BlendOp ColorBlendState::HwBlendOp(
-    Blend blendOp)    // Pal::Blend enum value to convert
+    Blend blendOp    // Pal::Blend enum value to convert
+    ) const
 {
-    constexpr BlendOp BlendOpTbl[] =
-    {
-        BLEND_ZERO,                     // Zero
-        BLEND_ONE,                      // One
-        BLEND_SRC_COLOR,                // SrcColor
-        BLEND_ONE_MINUS_SRC_COLOR,      // OneMinusSrcColor
-        BLEND_DST_COLOR,                // DstColor
-        BLEND_ONE_MINUS_DST_COLOR,      // OneMinusDstColor
-        BLEND_SRC_ALPHA,                // SrcAlpha
-        BLEND_ONE_MINUS_SRC_ALPHA,      // OneMinusSrcAlpha
-        BLEND_DST_ALPHA,                // DstAlpha
-        BLEND_ONE_MINUS_DST_ALPHA,      // OneMinusDstAlpha
-        BLEND_CONSTANT_COLOR,           // ConstantColor
-        BLEND_ONE_MINUS_CONSTANT_COLOR, // OneMinusConstantColor
-        BLEND_CONSTANT_ALPHA,           // ConstantAlpha
-        BLEND_ONE_MINUS_CONSTANT_ALPHA, // OneMinusConstantAlpha
-        BLEND_SRC_ALPHA_SATURATE,       // SrcAlphaSaturate
-        BLEND_SRC1_COLOR,               // Src1Color
-        BLEND_INV_SRC1_COLOR,           // OneMinusSrc1Color
-        BLEND_SRC1_ALPHA,               // Src1Alpha
-        BLEND_INV_SRC1_ALPHA,           // OneMinusSrc1Alpha
-    };
+    const Pal::Device&  device = *(m_device.Parent());
+    BlendOp             hwOp   = BLEND_ZERO;
 
-    return BlendOpTbl[static_cast<size_t>(blendOp)];
+    if (IsGfx9(device) || IsGfx10(device))
+    {
+        constexpr BlendOp BlendOpTbl[] =
+        {
+            BLEND_ZERO,                               // Zero
+            BLEND_ONE,                                // One
+            BLEND_SRC_COLOR,                          // SrcColor
+            BLEND_ONE_MINUS_SRC_COLOR,                // OneMinusSrcColor
+            BLEND_DST_COLOR,                          // DstColor
+            BLEND_ONE_MINUS_DST_COLOR,                // OneMinusDstColor
+            BLEND_SRC_ALPHA,                          // SrcAlpha
+            BLEND_ONE_MINUS_SRC_ALPHA,                // OneMinusSrcAlpha
+            BLEND_DST_ALPHA,                          // DstAlpha
+            BLEND_ONE_MINUS_DST_ALPHA,                // OneMinusDstAlpha
+            BLEND_CONSTANT_COLOR__GFX09_10,           // ConstantColor
+            BLEND_ONE_MINUS_CONSTANT_COLOR__GFX09_10, // OneMinusConstantColor
+            BLEND_CONSTANT_ALPHA__GFX09_10,           // ConstantAlpha
+            BLEND_ONE_MINUS_CONSTANT_ALPHA__GFX09_10, // OneMinusConstantAlpha
+            BLEND_SRC_ALPHA_SATURATE,                 // SrcAlphaSaturate
+            BLEND_SRC1_COLOR__GFX09_10,               // Src1Color
+            BLEND_INV_SRC1_COLOR__GFX09_10,           // OneMinusSrc1Color
+            BLEND_SRC1_ALPHA__GFX09_10,               // Src1Alpha
+            BLEND_INV_SRC1_ALPHA__GFX09_10,           // OneMinusSrc1Alpha
+        };
+
+        hwOp = BlendOpTbl[static_cast<size_t>(blendOp)];
+    }
+
+    return hwOp;
 }
 
 // =====================================================================================================================
@@ -252,8 +262,6 @@ static GfxBlendOptimizer::BlendOp HwEnumToBlendOp(
     constexpr uint32 ConversionTableSize = sizeof(ConversionTable) / sizeof(BlendOp);
 
     static_assert(BLEND_ZERO == 0, "Conversion table needs to start with zero");
-    static_assert(ConversionTableSize == BLEND_ONE_MINUS_CONSTANT_ALPHA + 1,
-                  "Conversion table does not include all HW enumerations");
 
     PAL_ASSERT(ConversionTable[BLEND_ZERO] == BlendOp::BlendZero);
     PAL_ASSERT(hwEnum < ConversionTableSize);

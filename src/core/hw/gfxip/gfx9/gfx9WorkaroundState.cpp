@@ -212,8 +212,8 @@ uint32* WorkaroundState::PreDraw(
                     }
 
                     pCmdSpace = pDeCmdStream->WriteContextRegRmw<Pm4OptImmediate>(
-                        mmCB_COLOR0_DCC_CONTROL + (cbIdx * CbRegsPerSlot),
-                        CB_COLOR0_DCC_CONTROL__OVERWRITE_COMBINER_DISABLE_MASK,
+                        Gfx09_10::mmCB_COLOR0_DCC_CONTROL + (cbIdx * CbRegsPerSlot),
+                        Gfx09_10::CB_COLOR0_DCC_CONTROL__OVERWRITE_COMBINER_DISABLE_MASK,
                         cbColorDccControl.u32All,
                         pCmdSpace);
                 }

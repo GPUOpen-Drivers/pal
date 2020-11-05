@@ -1231,38 +1231,29 @@ size_t CmdUtil::BuildDrawIndexIndirectMulti(
     constexpr size_t PacketSize = PM4_CMD_DRAW_INDEX_INDIRECT_MULTI_DWORDS;
     auto*const       pPacket    = static_cast<PM4CMDDRAWINDEXINDIRECTMULTI*>(pBuffer);
 
-    pPacket->header.u32All = Type3Header(IT_DRAW_INDEX_INDIRECT_MULTI, PacketSize, ShaderGraphics, predicate);
-    pPacket->dataOffset    = LowPart(offset);
-    pPacket->ordinal3      = 0;
-    pPacket->baseVtxLoc    = baseVtxLoc - PERSISTENT_SPACE_START;
-    pPacket->ordinal4      = 0;
-    pPacket->startInstLoc  = startInstLoc - PERSISTENT_SPACE_START;
-    pPacket->ordinal5      = 0;
+    PM4CMDDRAWINDEXINDIRECTMULTI packet = {};
+
+    packet.header.u32All = Type3Header(IT_DRAW_INDEX_INDIRECT_MULTI, PacketSize, ShaderGraphics, predicate);
+    packet.dataOffset    = LowPart(offset);
+    packet.baseVtxLoc    = baseVtxLoc - PERSISTENT_SPACE_START;
+    packet.startInstLoc  = startInstLoc - PERSISTENT_SPACE_START;
 
     if (drawIndexLoc != UserDataNotMapped)
     {
-        pPacket->drawIndexEnable = 1;
-        pPacket->drawIndexLoc    = drawIndexLoc - PERSISTENT_SPACE_START;
+        packet.drawIndexEnable = 1;
+        packet.drawIndexLoc    = drawIndexLoc - PERSISTENT_SPACE_START;
     }
 
-    if (countGpuAddr != 0)
-    {
-        pPacket->countIndirectEnable = 1;
-        pPacket->countAddrLo         = LowPart(countGpuAddr);
-        pPacket->countAddrHi         = HighPart(countGpuAddr);
-    }
-    else
-    {
-        pPacket->countAddrLo = 0;
-        pPacket->countAddrHi = 0;
-    }
+    packet.countIndirectEnable = (countGpuAddr != 0);
+    packet.countAddrLo         = LowPart(countGpuAddr);
+    packet.countAddrHi         = HighPart(countGpuAddr);
+    packet.count               = count;
+    packet.stride              = stride;
 
-    pPacket->count  = count;
-    pPacket->stride = stride;
+    packet.drawInitiator.bits.SOURCE_SELECT = DI_SRC_SEL_DMA;
+    packet.drawInitiator.bits.MAJOR_MODE    = DI_MAJOR_MODE_0;
 
-    pPacket->drawInitiator.u32All             = 0;
-    pPacket->drawInitiator.bits.SOURCE_SELECT = DI_SRC_SEL_DMA;
-    pPacket->drawInitiator.bits.MAJOR_MODE    = DI_MAJOR_MODE_0;
+    memcpy(pBuffer, &packet, sizeof(packet));
 
     bytesWritten = PacketSize;
 
@@ -1318,38 +1309,29 @@ size_t CmdUtil::BuildDrawIndirectMulti(
     constexpr size_t PacketSize = PM4_CMD_DRAW_INDIRECT_MULTI_DWORDS;
     auto*const       pPacket    = static_cast<PM4CMDDRAWINDIRECTMULTI*>(pBuffer);
 
-    pPacket->header.u32All = Type3Header(IT_DRAW_INDIRECT_MULTI, PacketSize, ShaderGraphics, predicate);
-    pPacket->dataOffset    = LowPart(offset);
-    pPacket->ordinal3      = 0;
-    pPacket->baseVtxLoc    = baseVtxLoc - PERSISTENT_SPACE_START;
-    pPacket->ordinal4      = 0;
-    pPacket->startInstLoc  = startInstLoc - PERSISTENT_SPACE_START;
-    pPacket->ordinal5      = 0;
+    PM4CMDDRAWINDIRECTMULTI packet = {};
+
+    packet.header.u32All = Type3Header(IT_DRAW_INDIRECT_MULTI, PacketSize, ShaderGraphics, predicate);
+    packet.dataOffset    = LowPart(offset);
+    packet.baseVtxLoc    = baseVtxLoc - PERSISTENT_SPACE_START;
+    packet.startInstLoc  = startInstLoc - PERSISTENT_SPACE_START;
 
     if (drawIndexLoc != UserDataNotMapped)
     {
-        pPacket->drawIndexEnable = 1;
-        pPacket->drawIndexLoc    = drawIndexLoc - PERSISTENT_SPACE_START;
+        packet.drawIndexEnable = 1;
+        packet.drawIndexLoc    = drawIndexLoc - PERSISTENT_SPACE_START;
     }
 
-    if (countGpuAddr != 0)
-    {
-        pPacket->countIndirectEnable = 1;
-        pPacket->countAddrLo         = LowPart(countGpuAddr);
-        pPacket->countAddrHi         = HighPart(countGpuAddr);
-    }
-    else
-    {
-        pPacket->countAddrLo = 0;
-        pPacket->countAddrHi = 0;
-    }
+    packet.countIndirectEnable = (countGpuAddr != 0);
+    packet.countAddrLo         = LowPart(countGpuAddr);
+    packet.countAddrHi         = HighPart(countGpuAddr);
+    packet.count               = count;
+    packet.stride              = stride;
 
-    pPacket->count  = count;
-    pPacket->stride = stride;
+    packet.drawInitiator.bits.SOURCE_SELECT = DI_SRC_SEL_AUTO_INDEX;
+    packet.drawInitiator.bits.MAJOR_MODE    = DI_MAJOR_MODE_0;
 
-    pPacket->drawInitiator.u32All             = 0;
-    pPacket->drawInitiator.bits.SOURCE_SELECT = DI_SRC_SEL_AUTO_INDEX;
-    pPacket->drawInitiator.bits.MAJOR_MODE    = DI_MAJOR_MODE_0;
+    memcpy(pBuffer, &packet, sizeof(packet));
 
     bytesWritten = PacketSize;
 

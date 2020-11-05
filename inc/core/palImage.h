@@ -285,7 +285,13 @@ union ImageUsageFlags
 #else
         uint32 reservedForFutureHw1   :  1;
 #endif
-        uint32 reserved               : 15; ///< Reserved for future use.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 636
+        uint32 stencilOnlyTarget      :  1; ///< This must be set if a stencil-only IDepthStencilView will be created
+                                            ///< for this image.
+#else
+        uint32 reserved636            :  1;
+#endif
+        uint32 reserved               : 14; ///< Reserved for future use.
     };
     uint32 u32All;                          ///< Flags packed as 32-bit uint.
 };

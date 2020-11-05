@@ -3237,11 +3237,10 @@ uint32 Gfx9RsrcProcMgr::HwlBeginGraphicsCopy(
 
     if (pGpuMem != nullptr)
     {
-        const GpuHeap firstHeap = pGpuMem->Heap(0);
+        const GpuHeap preferredHeap = pGpuMem->PreferredHeap();
 
-        if ((((firstHeap == GpuHeapGartUswc)       ||
-              (firstHeap == GpuHeapGartCacheable)) ||
-              pGpuMem->IsPeer())                   &&
+        if ((((preferredHeap == GpuHeapGartUswc) || (preferredHeap == GpuHeapGartCacheable)) ||
+             pGpuMem->IsPeer()) &&
             (coreSettings.nonlocalDestGraphicsCopyRbs >= 0))
         {
             const auto&  chipProps = m_pDevice->Parent()->ChipProperties().gfx9;
@@ -6520,9 +6519,10 @@ uint32 Gfx10RsrcProcMgr::HwlBeginGraphicsCopy(
 
     if (pGpuMem != nullptr)
     {
-        const GpuHeap firstHeap  = pGpuMem->Heap(0);
-        const bool    isNonLocal = ((firstHeap == GpuHeapGartUswc) || (firstHeap == GpuHeapGartCacheable))
-                                   || pGpuMem->IsPeer();
+        const GpuHeap preferredHeap = pGpuMem->PreferredHeap();
+        const bool    isNonLocal    = ((preferredHeap == GpuHeapGartUswc) ||
+                                       (preferredHeap == GpuHeapGartCacheable)) ||
+                                      pGpuMem->IsPeer();
 
         if (isNonLocal)
         {

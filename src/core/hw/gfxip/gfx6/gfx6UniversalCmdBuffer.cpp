@@ -714,8 +714,13 @@ void UniversalCmdBuffer::CmdSetMsaaQuadSamplePattern(
 {
     PAL_ASSERT((numSamplesPerPixel > 0) && (numSamplesPerPixel <= MaxMsaaRasterizerSamples));
 
-    m_graphicsState.quadSamplePatternState                           = quadSamplePattern;
-    m_graphicsState.numSamplesPerPixel                               = numSamplesPerPixel;
+    m_graphicsState.quadSamplePatternState = quadSamplePattern;
+    m_graphicsState.numSamplesPerPixel     = numSamplesPerPixel;
+
+    const MsaaQuadSamplePattern& defaultSamplePattern = GfxDevice::DefaultSamplePattern[Log2(numSamplesPerPixel)];
+    m_graphicsState.useCustomSamplePattern =
+        (memcmp(&quadSamplePattern, &defaultSamplePattern, sizeof(MsaaQuadSamplePattern)) != 0);
+
     m_graphicsState.dirtyFlags.validationBits.quadSamplePatternState = 1;
 
     uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();

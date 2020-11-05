@@ -24,8 +24,20 @@
  #######################################################################################################################
 
 include(PalVersionHelper)
+include(CheckCXXCompilerFlag)
 
 pal_include_guard(PalCompilerWarnings)
+
+# If the current compiler supports the flag, add it.
+function(add_flag_if_exists flag cachevarname)
+    # GCC emits no diagnostics on warning suppressions
+    # So enable the warning for the feature check instead
+    string(REGEX REPLACE "^-Wno-" "-W" testflag "${flag}")
+    check_cxx_compiler_flag("${testflag}" ${cachevarname})
+    if(${cachevarname})
+        target_compile_options(pal PRIVATE "${flag}")
+    endif()
+endfunction()
 
 function(pal_compiler_warnings_gnu_or_clang)
     target_compile_options(pal
@@ -61,18 +73,15 @@ function(pal_compiler_warnings_gnu_or_clang)
         # Make this warning not an error
         -Wno-error=pointer-arith
 
-        # Don't warn on double parentheses in ifs, this is PAL's coding style
-        -Wno-parentheses-equality
-
-        # Only has false positives for computing dword sizes
-        -Wno-sizeof-array-div
-
-        # Don't complain on asserts, we want to keep them
-        -Wno-tautological-compare
-
         # Ignore warnings issues about strict ISO C/C++ related to MFC
         # Allow usage of nameless struct/union
         -fms-extensions
     )
+    # Don't complain on asserts, we want to keep them
+    add_flag_if_exists(-Wno-tautological-compare HAS_WARN_TAUTOLOGICAL)
+    # Only has false positives for computing dword sizes
+    add_flag_if_exists(-Wno-sizeof-array-div HAS_WARN_SIZEOF_DIV)
+    # Don't warn on double parentheses in ifs, this is PAL's coding style
+    add_flag_if_exists(-Wno-parentheses-equality HAS_WARN_PARENS)
 endfunction()
 

@@ -43,7 +43,6 @@ class  ColorBlendState;
 class  DepthStencilState;
 class  DepthStencilView;
 class  GraphicsPipelineUploader;
-struct RbPlusPm4Img;
 
 // Contains information about the pipeline which needs to be passed to the Init methods or between the multiple Init
 // phases.
@@ -85,7 +84,7 @@ public:
 
     regPA_SC_MODE_CNTL_1 PaScModeCntl1() const { return m_regs.other.paScModeCntl1; }
 
-    void UpdateNggPrimCb(Util::Abi::PrimShaderCullingCb* pPrimShaderCb) const;
+    bool UpdateNggPrimCb(Util::Abi::PrimShaderCullingCb* pPrimShaderCb) const;
 
     regIA_MULTI_VGT_PARAM IaMultiVgtParam(bool forceWdSwitchOnEop) const
         { return m_regs.other.iaMultiVgtParam[static_cast<uint32>(forceWdSwitchOnEop)]; }
@@ -144,6 +143,7 @@ public:
     uint32* WriteConfigCommandsGfx10(CmdStream* pCmdStream, uint32* pCmdSpace) const;
 
     uint32 GetContextRegHash() const { return m_contextRegHash; }
+    uint32 GetRbplusRegHash() const { return m_rbplusRegHash; }
     uint32 GetConfigRegHash() const { return m_configRegHash; }
 
     void OverrideRbPlusRegistersForRpm(
@@ -271,6 +271,7 @@ private:
 
     const GfxIpLevel  m_gfxLevel;
     uint32            m_contextRegHash;
+    uint32            m_rbplusRegHash;
     uint32            m_configRegHash;
     bool              m_isNggFastLaunch; ///< Is NGG fast launch enabled?
     uint32            m_nggSubgroupSize;

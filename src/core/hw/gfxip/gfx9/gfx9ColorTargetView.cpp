@@ -42,15 +42,6 @@ namespace Pal
 namespace Gfx9
 {
 
-// Value for CB_COLOR_DCC_CONTROL when compressed rendering is disabled.
-constexpr uint32 CbColorDccControlDecompressed = 0;
-
-// Mask of CB_COLOR_INFO bits to clear when compressed rendering is disabled.
-constexpr uint32 CbColorInfoDecompressedMask = (CB_COLOR0_INFO__DCC_ENABLE_MASK                |
-                                                CB_COLOR0_INFO__COMPRESSION_MASK               |
-                                                CB_COLOR0_INFO__FMASK_COMPRESSION_DISABLE_MASK |
-                                                CB_COLOR0_INFO__FMASK_COMPRESS_1FRAG_ONLY_MASK);
-
 // =====================================================================================================================
 ColorTargetView::ColorTargetView(
     const Device*                     pDevice,
@@ -227,8 +218,12 @@ regCB_COLOR0_INFO ColorTargetView::InitCbColorInfo(
     const Pal::Device*const pParentDevice = device.Parent();
 
     regCB_COLOR0_INFO cbColorInfo = { };
-    cbColorInfo.bits.ENDIAN      = ENDIAN_NONE;
-    cbColorInfo.bits.FORMAT      = Formats::Gfx9::HwColorFmt(pFmtInfo, m_swizzledFormat.format);
+    if (IsGfx9(*pParentDevice) || IsGfx10(*pParentDevice))
+    {
+        cbColorInfo.gfx09_10.ENDIAN  = ENDIAN_NONE;
+        cbColorInfo.gfx09_10.FORMAT  = Formats::Gfx9::HwColorFmt(pFmtInfo, m_swizzledFormat.format);
+    }
+
     cbColorInfo.bits.NUMBER_TYPE = Formats::Gfx9::ColorSurfNum(pFmtInfo, m_swizzledFormat.format);
     cbColorInfo.bits.COMP_SWAP   = Formats::Gfx9::ColorCompSwap(m_swizzledFormat);
 
@@ -299,11 +294,11 @@ void ColorTargetView::InitCommonImageView(
             (internalInfo.flags.fastClearElim || pSubResInfo->flags.supportMetaDataTexFetch))
         {
             // Without this, the CB will not expand the compress-to-register (0x20) keys.
-            dccControl.gfx09_1xPlus.DISABLE_CONSTANT_ENCODE_REG = 1;
+            dccControl.most.DISABLE_CONSTANT_ENCODE_REG = 1;
         }
 
-        pRegs->cbColorDccControl = dccControl;
-        pRegs->cbColorInfo.bits.DCC_ENABLE = 1;
+        pRegs->cbColorDccControl.u32All = dccControl.u32All;
+        pRegs->cbColorInfo.gfx09_10.DCC_ENABLE = 1;
     }
 
     if (m_flags.hasCmaskFmask != 0)
@@ -312,8 +307,8 @@ void ColorTargetView::InitCommonImageView(
         const bool fMaskTexFetchAllowed = m_pImage->IsComprFmaskShaderReadable(m_subresource);
 
         // Setup CB_COLOR*_INFO register fields which depend on CMask or fMask state:
-        pRegs->cbColorInfo.bits.COMPRESSION               = 1;
-        pRegs->cbColorInfo.bits.FMASK_COMPRESSION_DISABLE = settings.fmaskCompressDisable;
+        pRegs->cbColorInfo.gfx09_10.COMPRESSION               = 1;
+        pRegs->cbColorInfo.gfx09_10.FMASK_COMPRESSION_DISABLE = settings.fmaskCompressDisable;
 
         if (fMaskTexFetchAllowed                      &&
             (internalInfo.flags.dccDecompress   == 0) &&
@@ -325,7 +320,7 @@ void ColorTargetView::InitCommonImageView(
             //    2) If this bit is set then the fMask decompress operation will not occur
             //       whether happening explicitly through fmaskdecompress or as a part of
             //       dcc decompress.(not documented)
-            pRegs->cbColorInfo.bits.FMASK_COMPRESS_1FRAG_ONLY = 1;
+            pRegs->cbColorInfo.gfx09_10.FMASK_COMPRESS_1FRAG_ONLY = 1;
         }
     }
 
@@ -436,10 +431,25 @@ uint32* ColorTargetView::WriteCommandsCommon(
         }
         else
         {
-            // For decompressed rendering to an Image, we need to override the values for CB_COLOR_CONTROL and for
-            // CB_COLOR_DCC_CONTROL.
+            // Value for CB_COLOR_DCC_CONTROL when compressed rendering is disabled.
+            constexpr uint32 CbColorDccControlDecompressed = 0;
+
+            const Pal::Device&  parentDev = *(m_pImage->Parent()->GetDevice());
+
             pRegs->cbColorDccControl.u32All = CbColorDccControlDecompressed;
-            pRegs->cbColorInfo.u32All      &= ~CbColorInfoDecompressedMask;
+
+            if (IsGfx9(parentDev) || IsGfx10(parentDev))
+            {
+                // Mask of CB_COLOR_INFO bits to clear when compressed rendering is disabled.
+                constexpr uint32 CbColorInfoDecompressedMask = (Gfx09_10::CB_COLOR0_INFO__DCC_ENABLE_MASK                |
+                                                                Gfx09_10::CB_COLOR0_INFO__COMPRESSION_MASK               |
+                                                                Gfx09_10::CB_COLOR0_INFO__FMASK_COMPRESSION_DISABLE_MASK |
+                                                                Gfx09_10::CB_COLOR0_INFO__FMASK_COMPRESS_1FRAG_ONLY_MASK);
+
+                // For decompressed rendering to an Image, we need to override the values for CB_COLOR_CONTROL and for
+                // CB_COLOR_DCC_CONTROL.
+                pRegs->cbColorInfo.u32All      &= ~CbColorInfoDecompressedMask;
+            }
         }
     } // if isBufferView == 0
 
@@ -586,9 +596,9 @@ void Gfx9ColorTargetView::InitRegisters(
         m_extent.width  = createInfo.bufferInfo.extent;
         m_extent.height = 1;
 
-        m_regs.cbColorAttrib.core.FORCE_DST_ALPHA_1 = Formats::HasUnusedAlpha(m_swizzledFormat) ? 1 : 0;
-        m_regs.cbColorAttrib.core.NUM_SAMPLES       = 0;
-        m_regs.cbColorAttrib.core.NUM_FRAGMENTS     = 0;
+        m_regs.cbColorAttrib.most.FORCE_DST_ALPHA_1 = Formats::HasUnusedAlpha(m_swizzledFormat) ? 1 : 0;
+        m_regs.cbColorAttrib.most.NUM_SAMPLES       = 0;
+        m_regs.cbColorAttrib.most.NUM_FRAGMENTS     = 0;
         m_regs.cbColorAttrib.gfx09.MIP0_DEPTH       = 0; // what is this?
         m_regs.cbColorAttrib.gfx09.COLOR_SW_MODE    = SW_LINEAR;
         m_regs.cbColorAttrib.gfx09.RESOURCE_TYPE    = static_cast<uint32>(ImageType::Tex1d); // no HW enums
@@ -635,9 +645,9 @@ void Gfx9ColorTargetView::InitRegisters(
         m_extent.width  = extent.width;
         m_extent.height = extent.height;
 
-        m_regs.cbColorAttrib.core.NUM_SAMPLES       = Log2(imageCreateInfo.samples);
-        m_regs.cbColorAttrib.core.NUM_FRAGMENTS     = Log2(imageCreateInfo.fragments);
-        m_regs.cbColorAttrib.core.FORCE_DST_ALPHA_1 = Formats::HasUnusedAlpha(m_swizzledFormat);
+        m_regs.cbColorAttrib.most.NUM_SAMPLES       = Log2(imageCreateInfo.samples);
+        m_regs.cbColorAttrib.most.NUM_FRAGMENTS     = Log2(imageCreateInfo.fragments);
+        m_regs.cbColorAttrib.most.FORCE_DST_ALPHA_1 = Formats::HasUnusedAlpha(m_swizzledFormat);
         m_regs.cbColorAttrib.gfx09.MIP0_DEPTH    =
             ((imageType == ImageType::Tex3d) ? imageCreateInfo.extent.depth : imageCreateInfo.arraySize) - 1;
         m_regs.cbColorAttrib.gfx09.COLOR_SW_MODE = pAddrMgr->GetHwSwizzleMode(surfSetting.swizzleMode);
@@ -778,15 +788,15 @@ void Gfx10ColorTargetView::InitRegisters(
         m_regs.cbColorAttrib3.bits.COLOR_SW_MODE = SW_LINEAR;
         m_regs.cbColorAttrib3.bits.RESOURCE_TYPE = static_cast<uint32>(ImageType::Tex1d); // no HW enums
 
-        m_regs.cbColorAttrib3.bits.FMASK_SW_MODE = SW_LINEAR; // ignored as there is no fmask
-        m_regs.cbColorAttrib3.bits.META_LINEAR   = 1;         // no meta-data, but should be set for linear surfaces
+        m_regs.cbColorAttrib3.gfx10.FMASK_SW_MODE = SW_LINEAR; // ignored as there is no fmask
+        m_regs.cbColorAttrib3.bits.META_LINEAR    = 1;         // no meta-data, but should be set for linear surfaces
 
         // Specifying a non-zero buffer offset only works with linear-general surfaces
         m_regs.cbColorInfo.gfx10Plus.LINEAR_GENERAL  = 1;
         {
-            m_regs.cbColorAttrib.core.FORCE_DST_ALPHA_1 = Formats::HasUnusedAlpha(m_swizzledFormat);
-            m_regs.cbColorAttrib.core.NUM_SAMPLES       = 0;
-            m_regs.cbColorAttrib.core.NUM_FRAGMENTS     = 0;
+            m_regs.cbColorAttrib.most.FORCE_DST_ALPHA_1 = Formats::HasUnusedAlpha(m_swizzledFormat);
+            m_regs.cbColorAttrib.most.NUM_SAMPLES       = 0;
+            m_regs.cbColorAttrib.most.NUM_FRAGMENTS     = 0;
         }
     }
     else
@@ -830,10 +840,10 @@ void Gfx10ColorTargetView::InitRegisters(
         //  Not setting this can lead to functional issues.   It's not a performance measure.   Due to multiple mip
         //  levels possibly being within same 1K address space, CB can get confused
         {
-            m_regs.cbColorAttrib.core.NUM_SAMPLES       = Log2(imageCreateInfo.samples);
-            m_regs.cbColorAttrib.core.NUM_FRAGMENTS     = Log2(imageCreateInfo.fragments);
-            m_regs.cbColorAttrib.core.FORCE_DST_ALPHA_1 = Formats::HasUnusedAlpha(m_swizzledFormat);
-            m_regs.cbColorAttrib.gfx10CorePlus.LIMIT_COLOR_FETCH_TO_256B_MAX =
+            m_regs.cbColorAttrib.most.NUM_SAMPLES       = Log2(imageCreateInfo.samples);
+            m_regs.cbColorAttrib.most.NUM_FRAGMENTS     = Log2(imageCreateInfo.fragments);
+            m_regs.cbColorAttrib.most.FORCE_DST_ALPHA_1 = Formats::HasUnusedAlpha(m_swizzledFormat);
+            m_regs.cbColorAttrib.gfx10Core.LIMIT_COLOR_FETCH_TO_256B_MAX =
                 settings.waForce256bCbFetch && (m_subresource.mipLevel >= pAddrOutput->firstMipIdInTail);
         }
 
@@ -846,28 +856,28 @@ void Gfx10ColorTargetView::InitRegisters(
         const uint32 dccPipeAligned = ((pDcc != nullptr) ? pDcc->PipeAligned() : 0);
 
         m_regs.cbColorAttrib3.bits.DCC_PIPE_ALIGNED   = dccPipeAligned;
-        m_regs.cbColorAttrib3.bits.CMASK_PIPE_ALIGNED = (dccPipeAligned |
+        m_regs.cbColorAttrib3.gfx10.CMASK_PIPE_ALIGNED = (dccPipeAligned |
                                                          ((pCmask != nullptr) ? pCmask->PipeAligned() : 0));
 
         const AddrSwizzleMode fMaskSwizzleMode =
             (hasFmask ? m_pImage->GetFmask()->GetSwizzleMode() : ADDR_SW_LINEAR /* ignored */);
-        m_regs.cbColorAttrib3.bits.FMASK_SW_MODE = pAddrMgr->GetHwSwizzleMode(fMaskSwizzleMode);
+        m_regs.cbColorAttrib3.gfx10.FMASK_SW_MODE = pAddrMgr->GetHwSwizzleMode(fMaskSwizzleMode);
 
         // From the reg-spec:
         //  this bit or the CONFIG equivalent must be set if parts of FMask surface may be unmapped (such as in PRT`s).
         if (hasFmask &&
             (imageCreateInfo.flags.prt ||
              (settings.waDisableFmaskNofetchOpOnFmaskCompressionDisable &&
-              m_regs.cbColorInfo.bits.FMASK_COMPRESSION_DISABLE)))
+              m_regs.cbColorInfo.gfx09_10.FMASK_COMPRESSION_DISABLE)))
         {
             {
-                m_regs.cbColorAttrib.gfx10CorePlus.DISABLE_FMASK_NOFETCH_OPT = 1;
+                m_regs.cbColorAttrib.gfx10Core.DISABLE_FMASK_NOFETCH_OPT = 1;
             }
         }
     }
 
     {
-        m_regs.cbColorAttrib3.gfx10CorePlus.RESOURCE_LEVEL = 1;
+        m_regs.cbColorAttrib3.gfx10Core.RESOURCE_LEVEL = 1;
     }
 }
 
@@ -898,7 +908,7 @@ uint32* Gfx10ColorTargetView::WriteCommands(
                                                    &regs.cbColorBase,
                                                    pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs((mmCB_COLOR0_ATTRIB + slotOffset),
-                                                   (mmCB_COLOR0_FMASK  + slotOffset),
+                                                   (Gfx09_10::mmCB_COLOR0_FMASK  + slotOffset),
                                                    &regs.cbColorAttrib,
                                                    pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetOneContextReg((mmCB_COLOR0_DCC_BASE + slotOffset),

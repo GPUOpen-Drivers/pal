@@ -155,9 +155,9 @@ void SettingsLoader::ValidateSettings()
         Snprintf(m_settings.cmdBufDumpDirectory, sizeof(m_settings.cmdBufDumpDirectory),
                  "%s/%s", pRootPath, subDir);
 
-        Strncpy(subDir, m_settings.pipelineLogConfig.pipelineLogDirectory, sizeof(subDir));
-        Snprintf(m_settings.pipelineLogConfig.pipelineLogDirectory,
-                 sizeof(m_settings.pipelineLogConfig.pipelineLogDirectory),
+        Strncpy(subDir, m_settings.pipelineElfLogConfig.logDirectory, sizeof(subDir));
+        Snprintf(m_settings.pipelineElfLogConfig.logDirectory,
+                 sizeof(m_settings.pipelineElfLogConfig.logDirectory),
                  "%s/%s", pRootPath, subDir);
 
         Strncpy(subDir, pPlatformSettings->overlayBenchmarkConfig.usageLogDirectory, sizeof(subDir));

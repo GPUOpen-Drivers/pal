@@ -29,8 +29,7 @@ union sq_buf_rsrc_t {
     struct {
         uint64_t base_address                                                 : 48;
         uint64_t stride                                                       : 14;
-        uint64_t cache_swizzle                                                :  1;
-        uint64_t swizzle_enable                                               :  1;
+        uint64_t                                                              :  2;
         uint64_t num_records                                                  : 32;
         uint64_t dst_sel_x                                                    :  3;
         uint64_t dst_sel_y                                                    :  3;
@@ -43,6 +42,12 @@ union sq_buf_rsrc_t {
         uint64_t oob_select                                                   :  2;
         uint64_t type                                                         :  2;
     };
+    struct {
+        uint64_t                                                              : 62;
+        uint64_t cache_swizzle                                                :  1;
+        uint64_t swizzle_enable                                               :  1;
+        uint64_t                                                              : 64;
+    } gfx10;
     struct {
         uint64_t                                                              : 64;
         uint64_t                                                              : 44;
@@ -57,8 +62,6 @@ union sq_buf_rsrc_t {
 
 constexpr uint32_t SqBufRsrcTWord0BaseAddressShift                                          =  0;
 constexpr uint32_t SqBufRsrcTWord1StrideShift                                               = 16;
-constexpr uint32_t SqBufRsrcTWord1CacheSwizzleShift                                         = 30;
-constexpr uint32_t SqBufRsrcTWord1SwizzleEnableShift                                        = 31;
 constexpr uint32_t SqBufRsrcTWord2NumRecordsShift                                           =  0;
 constexpr uint32_t SqBufRsrcTWord3DstSelXShift                                              =  0;
 constexpr uint32_t SqBufRsrcTWord3DstSelYShift                                              =  3;
@@ -68,6 +71,8 @@ constexpr uint32_t SqBufRsrcTWord3IndexStrideShift                              
 constexpr uint32_t SqBufRsrcTWord3AddTidEnableShift                                         = 23;
 constexpr uint32_t SqBufRsrcTWord3OobSelectShift                                            = 28;
 constexpr uint32_t SqBufRsrcTWord3TypeShift                                                 = 30;
+constexpr uint32_t Gfx10SqBufRsrcTWord1CacheSwizzleShift                                    = 30;
+constexpr uint32_t Gfx10SqBufRsrcTWord1SwizzleEnableShift                                   = 31;
 constexpr uint32_t Gfx10CoreSqBufRsrcTWord3FormatShift                                      = 12;
 constexpr uint32_t Gfx10CoreSqBufRsrcTWord3ResourceLevelShift                               = 24;
 
@@ -276,6 +281,12 @@ union sq_img_samp_t {
         uint64_t border_color_type                                            :  2;
     };
     struct {
+        uint64_t                                                              : 64;
+        uint64_t                                                              : 32;
+        uint64_t border_color_ptr                                             : 12;
+        uint64_t                                                              : 20;
+    } gfx10Core;
+    struct {
         uint64_t                                                              : 29;
         uint64_t filter_mode                                                  :  2;
         uint64_t                                                              : 33;
@@ -284,8 +295,7 @@ union sq_img_samp_t {
         uint64_t                                                              :  1;
         uint64_t blend_prt                                                    :  1;
         uint64_t deriv_adjust_en                                              :  1;
-        uint64_t border_color_ptr                                             : 12;
-        uint64_t                                                              : 20;
+        uint64_t                                                              : 32;
     } most;
     struct {
         uint64_t                                                              : 64;
@@ -322,9 +332,9 @@ constexpr uint32_t SqImgSampTWord2ZFilterShift                                  
 constexpr uint32_t SqImgSampTWord2MipFilterShift                                            = 26;
 constexpr uint32_t SqImgSampTWord2AnisoOverrideShift                                        = 29;
 constexpr uint32_t SqImgSampTWord3BorderColorTypeShift                                      = 30;
+constexpr uint32_t Gfx10CoreSqImgSampTWord3BorderColorPtrShift                              =  0;
 constexpr uint32_t MostSqImgSampTWord0FilterModeShift                                       = 29;
 constexpr uint32_t MostSqImgSampTWord2MipPointPreclampShift                                 = 28;
 constexpr uint32_t MostSqImgSampTWord2BlendPrtShift                                         = 30;
 constexpr uint32_t MostSqImgSampTWord2DerivAdjustEnShift                                    = 31;
-constexpr uint32_t MostSqImgSampTWord3BorderColorPtrShift                                   =  0;
 

@@ -130,7 +130,6 @@ void SettingsLoader::SetupDefaults()
     m_settings.vsHalfPackThreshold = 16;
     m_settings.vsForcePartialWave = false;
     m_settings.disableCoverageAaMask = true;
-    m_settings.wdLoadBalancingMode = Gfx9WdLoadBalancingAdvanced;
     m_settings.batchBreakOnNewPixelShader = false;
     m_settings.gsCuEnLimitMask = 0xffffffff;
     m_settings.vsCuEnLimitMask = 0xffffffff;
@@ -179,6 +178,7 @@ void SettingsLoader::SetupDefaults()
     m_settings.waLogicOpDisablesOverwriteCombiner = false;
     m_settings.waRotatedSwizzleDisablesOverwriteCombiner = false;
     m_settings.waDisableFmaskNofetchOpOnFmaskCompressionDisable = false;
+
     m_settings.waFixPostZConservativeRasterization = false;
     m_settings.waClampQuadDistributionFactor = false;
     m_settings.waWrite1xAASampleLocationsToZero = false;
@@ -205,6 +205,7 @@ void SettingsLoader::SetupDefaults()
     m_settings.waIndexBufferZeroSize = false;
     m_settings.waStalledPopsMode = false;
     m_settings.waCeDisableIb2 = false;
+    m_settings.waDisableSCompressSOnly = false;
 
     m_settings.waUtcL0InconsistentBigPage = false;
     m_settings.waTwoPlanesIterate256 = false;
@@ -582,11 +583,6 @@ void SettingsLoader::ReadSettings()
                            &m_settings.disableCoverageAaMask,
                            InternalSettingScope::PrivatePalGfx9Key);
 
-    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pWdLoadBalancingModeStr,
-                           Util::ValueType::Uint,
-                           &m_settings.wdLoadBalancingMode,
-                           InternalSettingScope::PrivatePalGfx9Key);
-
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pBatchBreakOnNewPixelShaderStr,
                            Util::ValueType::Boolean,
                            &m_settings.batchBreakOnNewPixelShader,
@@ -927,6 +923,11 @@ void SettingsLoader::ReadSettings()
                            &m_settings.waCeDisableIb2,
                            InternalSettingScope::PrivatePalKey);
 
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pWaDisableSCompressSOnlyStr,
+                           Util::ValueType::Boolean,
+                           &m_settings.waDisableSCompressSOnly,
+                           InternalSettingScope::PrivatePalKey);
+
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pWaUtcL0InconsistentBigPageStr,
                            Util::ValueType::Boolean,
                            &m_settings.waUtcL0InconsistentBigPage,
@@ -1194,6 +1195,11 @@ void SettingsLoader::RereadSettings()
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pWaCeDisableIb2Str,
                            Util::ValueType::Boolean,
                            &m_settings.waCeDisableIb2,
+                           InternalSettingScope::PrivatePalKey);
+
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pWaDisableSCompressSOnlyStr,
+                           Util::ValueType::Boolean,
+                           &m_settings.waDisableSCompressSOnly,
                            InternalSettingScope::PrivatePalKey);
 
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pWaUtcL0InconsistentBigPageStr,
@@ -1604,11 +1610,6 @@ void SettingsLoader::InitSettingsInfo()
     info.valueSize = sizeof(m_settings.disableCoverageAaMask);
     m_settingsInfoMap.Insert(1829991091, info);
 
-    info.type      = SettingType::Uint;
-    info.pValuePtr = &m_settings.wdLoadBalancingMode;
-    info.valueSize = sizeof(m_settings.wdLoadBalancingMode);
-    m_settingsInfoMap.Insert(2657864074, info);
-
     info.type      = SettingType::Boolean;
     info.pValuePtr = &m_settings.batchBreakOnNewPixelShader;
     info.valueSize = sizeof(m_settings.batchBreakOnNewPixelShader);
@@ -1950,6 +1951,11 @@ void SettingsLoader::InitSettingsInfo()
     m_settingsInfoMap.Insert(2126259346, info);
 
     info.type      = SettingType::Boolean;
+    info.pValuePtr = &m_settings.waDisableSCompressSOnly;
+    info.valueSize = sizeof(m_settings.waDisableSCompressSOnly);
+    m_settingsInfoMap.Insert(1364141327, info);
+
+    info.type      = SettingType::Boolean;
     info.pValuePtr = &m_settings.waUtcL0InconsistentBigPage;
     info.valueSize = sizeof(m_settings.waUtcL0InconsistentBigPage);
     m_settingsInfoMap.Insert(1748539367, info);
@@ -2025,7 +2031,7 @@ void SettingsLoader::DevDriverRegister()
             component.pfnSetValue = ISettingsLoader::SetValue;
             component.pSettingsData = &g_gfx9PalJsonData[0];
             component.settingsDataSize = sizeof(g_gfx9PalJsonData);
-            component.settingsDataHash = 2796808804;
+            component.settingsDataHash = 3535011852;
             component.settingsDataHeader.isEncoded = true;
             component.settingsDataHeader.magicBufferId = 402778310;
             component.settingsDataHeader.magicBufferOffset = 0;

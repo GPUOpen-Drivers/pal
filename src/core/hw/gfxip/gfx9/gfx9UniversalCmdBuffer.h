@@ -191,17 +191,6 @@ struct LoadDataIndexPm4Img
 
 };
 
-// Represents an image of the PM4 commands necessary to write RB-plus related info to hardware.
-struct RbPlusPm4Img
-{
-    PM4_PFP_SET_CONTEXT_REG  header;
-    regSX_PS_DOWNCONVERT     sxPsDownconvert;
-    regSX_BLEND_OPT_EPSILON  sxBlendOptEpsilon;
-    regSX_BLEND_OPT_CONTROL  sxBlendOptControl;
-
-    size_t  spaceNeeded;
-};
-
 // All NGG related state tracking.
 struct NggState
 {
@@ -228,7 +217,6 @@ union CachedSettings
         uint64 disablePbbNoDb             :  1; // True if PBB should be disabled for pipelines with no DB
         uint64 disablePbbBlendingOff      :  1; // True if PBB should be disabled for pipelines with no blending
         uint64 disablePbbAppendConsume    :  1; // True if PBB should be disabled for pipelines with append/consume
-        uint64 disableWdLoadBalancing     :  1; // True if wdLoadBalancingMode is disabled.
         uint64 ignoreCsBorderColorPalette :  1; // True if compute border-color palettes should be ignored
         uint64 blendOptimizationsEnable   :  1; // A copy of the blendOptimizationsEnable setting.
         uint64 outOfOrderPrimsEnable      :  2; // The out-of-order primitive rendering mode allowed by settings
@@ -270,7 +258,7 @@ union CachedSettings
 
         uint64 reserved7                  :  4;
 
-        uint64 reserved                   : 17;
+        uint64 reserved                   : 18;
     };
     uint64 u64All;
 };
@@ -554,6 +542,9 @@ public:
     bool NeedsToValidateScissorRects() const;
 
     virtual void CpCopyMemory(gpusize dstAddr, gpusize srcAddr, gpusize numBytes) override;
+
+    virtual void PushGraphicsState() override;
+    virtual void PopGraphicsState() override;
 
     bool IsRasterizationKilled() const { return (m_pipelineState.flags.noRaster != 0); }
 
@@ -898,6 +889,8 @@ private:
     const ComputePipelineSignature*   m_pSignatureCs;
     const GraphicsPipelineSignature*  m_pSignatureGfx;
 
+    // Hash of current rb+ related registers(m_sxPsDownconvert, m_sxBlendOptEpsilon, m_sxBlendOptControl).
+    uint32      m_rbplusRegHash;        // Hash of current pipeline's rb+ registers.
     uint32      m_pipelineCtxRegHash;   // Hash of current pipeline's context registers.
     uint32      m_pipelineCfgRegHash;   // Hash of current pipeline's config registers.
     ShaderHash  m_pipelinePsHash;       // Hash of current pipeline's pixel shader program.

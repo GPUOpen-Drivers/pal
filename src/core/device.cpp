@@ -3737,9 +3737,30 @@ Result Device::CreateDepthStencilView(
     const_cast<DepthStencilViewCreateInfo&>(createInfo).flags.resummarizeHiZ = 0;
 #endif
 
-    return (m_pGfxDevice != nullptr) ?
-        m_pGfxDevice->CreateDepthStencilView(createInfo, NullInternalInfo, pPlacementAddr, ppDepthStencilView) :
-        Result::ErrorUnavailable;
+    Result result = Result::Success;
+
+    if (m_pGfxDevice == nullptr)
+    {
+        result = Result::ErrorUnavailable;
+    }
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 636
+    if (result == Result::Success)
+    {
+        if (createInfo.flags.stencilOnlyView &&
+            (createInfo.pImage->GetImageCreateInfo().usageFlags.stencilOnlyTarget == 0))
+        {
+            result = Result::ErrorInvalidFlags;
+        }
+    }
+#endif
+
+    if (result == Result::Success)
+    {
+        result = m_pGfxDevice->CreateDepthStencilView(createInfo, NullInternalInfo, pPlacementAddr, ppDepthStencilView);
+    }
+
+    return result;
 }
 
 // =====================================================================================================================

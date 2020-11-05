@@ -527,8 +527,6 @@ void RsrcProcMgr::CopyColorImageGraphics(
         pCmdBuffer)->GetGraphicsState().inheritedState.stateFlags.targetViewState == 0));
 
     // Get some useful information about the image.
-    const auto& dstSubResInfo = dstImage.SubresourceInfo(dstImage.GetBaseSubResource());
-    const auto& srcSubResInfo = srcImage.SubresourceInfo(srcImage.GetBaseSubResource());
     const auto& dstCreateInfo = dstImage.GetImageCreateInfo();
     const auto& srcCreateInfo = srcImage.GetImageCreateInfo();
     const auto& device        = *m_pDevice->Parent();
@@ -2687,8 +2685,6 @@ void RsrcProcMgr::ScaledCopyImageGraphics(
     uint32 regionCount                    = copyInfo.regionCount;
     const ImageScaledCopyRegion* pRegions = copyInfo.pRegions;
 
-    const auto& dstSubResInfo = pDstImage->SubresourceInfo(pDstImage->GetBaseSubResource());
-    const auto& srcSubResInfo = pSrcImage->SubresourceInfo(pSrcImage->GetBaseSubResource());
     const auto& dstCreateInfo = pDstImage->GetImageCreateInfo();
     const auto& srcCreateInfo = pSrcImage->GetImageCreateInfo();
     const auto& device        = *m_pDevice->Parent();
@@ -3188,11 +3184,10 @@ void RsrcProcMgr::ScaledCopyImageGraphics(
         {
             const Extent3d& srcExtent = pSrcImage->SubresourceInfo(copyRegion.srcSubres)->extentTexels;
 
-            const float src3dSliceNom = ((copyRegion.srcExtent.depth / numSlices) *
+            const float src3dSliceNom = ((static_cast<float>(copyRegion.srcExtent.depth) / numSlices) *
                                          (static_cast<float>(sliceOffset) + 0.5f))
                                         + static_cast<float>(copyRegion.srcOffset.z);
-            const float src3dSlice    = src3dSliceNom /
-                                        copyInfo.pSrcImage->GetImageCreateInfo().extent.depth;
+            const float src3dSlice    = src3dSliceNom / srcExtent.depth;
             const float src2dSlice    = static_cast<const float>(sliceOffset);
             const uint32 srcSlice     = isTex3d
                                         ? reinterpret_cast<const uint32&>(src3dSlice)
@@ -5351,33 +5346,32 @@ void RsrcProcMgr::LateExpandResolveSrcHelper(
 {
     const Image& image = *static_cast<const Image*>(transition.imageInfo.pImage);
 
-    LinearAllocatorAuto<VirtualLinearAllocator> transitionAllocator(pCmdBuffer->Allocator(), false);
-    auto* pTransitions = PAL_NEW_ARRAY(BarrierTransition, regionCount, &transitionAllocator, AllocInternalTemp);
+    AutoBuffer<BarrierTransition, 32, Platform> transitions(regionCount, m_pDevice->GetPlatform());
 
-    if (pTransitions != nullptr)
+    if (transitions.Capacity() >= regionCount)
     {
         for (uint32 i = 0; i < regionCount; i++)
         {
-            pTransitions[i].imageInfo.subresRange.startSubres.aspect     = pRegions[i].srcAspect;
-            pTransitions[i].imageInfo.subresRange.startSubres.arraySlice = pRegions[i].srcSlice;
-            pTransitions[i].imageInfo.subresRange.startSubres.mipLevel   = 0;
-            pTransitions[i].imageInfo.subresRange.numMips                = 1;
-            pTransitions[i].imageInfo.subresRange.numSlices              = pRegions[i].numSlices;
+            transitions[i].imageInfo.subresRange.startSubres.aspect     = pRegions[i].srcAspect;
+            transitions[i].imageInfo.subresRange.startSubres.arraySlice = pRegions[i].srcSlice;
+            transitions[i].imageInfo.subresRange.startSubres.mipLevel   = 0;
+            transitions[i].imageInfo.subresRange.numMips                = 1;
+            transitions[i].imageInfo.subresRange.numSlices              = pRegions[i].numSlices;
 
-            pTransitions[i].imageInfo.pImage             = &image;
-            pTransitions[i].imageInfo.oldLayout          = transition.imageInfo.oldLayout;
-            pTransitions[i].imageInfo.newLayout          = transition.imageInfo.newLayout;
-            pTransitions[i].imageInfo.pQuadSamplePattern = pRegions[i].pQuadSamplePattern;
+            transitions[i].imageInfo.pImage             = &image;
+            transitions[i].imageInfo.oldLayout          = transition.imageInfo.oldLayout;
+            transitions[i].imageInfo.newLayout          = transition.imageInfo.newLayout;
+            transitions[i].imageInfo.pQuadSamplePattern = pRegions[i].pQuadSamplePattern;
 
-            pTransitions[i].srcCacheMask = transition.srcCacheMask;
-            pTransitions[i].dstCacheMask = transition.dstCacheMask;
+            transitions[i].srcCacheMask = transition.srcCacheMask;
+            transitions[i].dstCacheMask = transition.dstCacheMask;
 
             PAL_ASSERT((image.GetImageCreateInfo().flags.sampleLocsAlwaysKnown != 0) ==
                        (pRegions[i].pQuadSamplePattern != nullptr));
         }
 
         BarrierInfo barrierInfo = { };
-        barrierInfo.pTransitions    = pTransitions;
+        barrierInfo.pTransitions    = &transitions[0];
         barrierInfo.transitionCount = regionCount;
         barrierInfo.waitPoint       = waitPoint;
 
@@ -5386,8 +5380,6 @@ void RsrcProcMgr::LateExpandResolveSrcHelper(
         barrierInfo.pPipePoints        = &releasePipePoint;
 
         pCmdBuffer->CmdBarrier(barrierInfo);
-
-        PAL_SAFE_DELETE_ARRAY(pTransitions, &transitionAllocator);
     }
     else
     {
@@ -5428,23 +5420,22 @@ void RsrcProcMgr::FixupMetadataForComputeDst(
 
         if (needBarrier)
         {
-            LinearAllocatorAuto<VirtualLinearAllocator> allocator(pCmdBuffer->Allocator(), false);
-            auto* pTransitions = PAL_NEW_ARRAY(BarrierTransition, regionCount, &allocator, AllocInternalTemp);
+            AutoBuffer<BarrierTransition, 32, Platform> transitions(regionCount, m_pDevice->GetPlatform());
 
-            if (pTransitions != nullptr)
+            if (transitions.Capacity() >= regionCount)
             {
                 const uint32 shaderWriteLayout =
                     (enableCompressedDepthWriteTempWa ? (LayoutShaderWrite | LayoutUncompressed) : LayoutShaderWrite);
 
                 for (uint32 i = 0; i < regionCount; i++)
                 {
-                    pTransitions[i].imageInfo.pImage                  = &dstImage;
-                    pTransitions[i].imageInfo.subresRange.startSubres = pRegions[i].subres;
-                    pTransitions[i].imageInfo.subresRange.numMips     = 1;
-                    pTransitions[i].imageInfo.subresRange.numSlices   = pRegions[i].numSlices;
-                    pTransitions[i].imageInfo.oldLayout               = dstImageLayout;
-                    pTransitions[i].imageInfo.newLayout               = dstImageLayout;
-                    pTransitions[i].imageInfo.pQuadSamplePattern      = nullptr;
+                    transitions[i].imageInfo.pImage                  = &dstImage;
+                    transitions[i].imageInfo.subresRange.startSubres = pRegions[i].subres;
+                    transitions[i].imageInfo.subresRange.numMips     = 1;
+                    transitions[i].imageInfo.subresRange.numSlices   = pRegions[i].numSlices;
+                    transitions[i].imageInfo.oldLayout               = dstImageLayout;
+                    transitions[i].imageInfo.newLayout               = dstImageLayout;
+                    transitions[i].imageInfo.pQuadSamplePattern      = nullptr;
 
                     // The first barrier must prepare the image for shader writes, perhaps by decompressing metadata.
                     // The second barrier is required to undo those changes, perhaps by resummarizing the metadata.
@@ -5462,24 +5453,24 @@ void RsrcProcMgr::FixupMetadataForComputeDst(
 
                         if (fullSubresCopy)
                         {
-                            pTransitions[i].imageInfo.oldLayout.usages = LayoutUninitializedTarget;
+                            transitions[i].imageInfo.oldLayout.usages = LayoutUninitializedTarget;
                         }
 
-                        pTransitions[i].imageInfo.newLayout.usages |= shaderWriteLayout;
-                        pTransitions[i].srcCacheMask                = CoherCopy;
-                        pTransitions[i].dstCacheMask                = CoherShader;
+                        transitions[i].imageInfo.newLayout.usages |= shaderWriteLayout;
+                        transitions[i].srcCacheMask                = CoherCopy;
+                        transitions[i].dstCacheMask                = CoherShader;
                     }
                     else // After copy
                     {
-                        pTransitions[i].imageInfo.oldLayout.usages |= shaderWriteLayout;
-                        pTransitions[i].srcCacheMask                = CoherShader;
-                        pTransitions[i].dstCacheMask                = CoherCopy;
+                        transitions[i].imageInfo.oldLayout.usages |= shaderWriteLayout;
+                        transitions[i].srcCacheMask                = CoherShader;
+                        transitions[i].dstCacheMask                = CoherCopy;
                     }
                 }
 
                 // Operations like resummarizes might read the blit's output so we can't optimize the wait point.
                 BarrierInfo barrierInfo = {};
-                barrierInfo.pTransitions    = pTransitions;
+                barrierInfo.pTransitions    = &transitions[0];
                 barrierInfo.transitionCount = regionCount;
                 barrierInfo.waitPoint       = HwPipePreBlt;
 
@@ -5488,7 +5479,6 @@ void RsrcProcMgr::FixupMetadataForComputeDst(
                 barrierInfo.pPipePoints        = &releasePipePoint;
 
                 pCmdBuffer->CmdBarrier(barrierInfo);
-                PAL_SAFE_DELETE_ARRAY(pTransitions, &allocator);
             }
             else
             {

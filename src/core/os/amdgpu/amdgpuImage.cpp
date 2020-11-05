@@ -462,6 +462,18 @@ Result Image::CreateExternalSharedImage(
         {
             internalCreateInfo.gfx9.sharedSwizzleMode = ADDR_SW_LINEAR;
         }
+
+        internalCreateInfo.flags.useSharedDccState = 1;
+
+        const uint64 tilingInfo = sharedInfo.info.metadata.tiling_info;
+        DccState*    pDccState  = &internalCreateInfo.gfx9.sharedDccState;
+
+        pDccState->maxCompressedBlockSize   = AMDGPU_TILING_GET(tilingInfo, DCC_MAX_COMPRESSED_BLOCK_SIZE);
+        pDccState->maxUncompressedBlockSize = AMDGPU_TILING_GET(tilingInfo, DCC_MAX_UNCOMPRESSED_BLOCK_SIZE);
+        pDccState->independentBlk64B        = AMDGPU_TILING_GET(tilingInfo, DCC_INDEPENDENT_64B);
+        pDccState->independentBlk128B       = AMDGPU_TILING_GET(tilingInfo, DCC_INDEPENDENT_128B);
+
+        PAL_ASSERT(AMDGPU_TILING_GET(tilingInfo, SWIZZLE_MODE) == pMetadata->swizzleMode);
     }
     else
     {

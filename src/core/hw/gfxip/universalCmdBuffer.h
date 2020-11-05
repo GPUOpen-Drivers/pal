@@ -157,9 +157,10 @@ struct GraphicsState
 
     struct
     {
-        uint32  enableMultiViewport   : 1;  // Is the current pipeline using viewport-array-index?
-        uint32  everUsedMultiViewport : 1;  // Did this command buffer ever draw with a pipeline which used
-                                            // viewport-array-index?
+        uint32  enableMultiViewport    : 1;  // Is the current pipeline using viewport-array-index?
+        uint32  everUsedMultiViewport  : 1;  // Did this command buffer ever draw with a pipeline which used
+                                             // viewport-array-index?
+        uint32  useCustomSamplePattern : 1;  // If use custom sample pattern instead of default sample pattern
     };
 
     InheritedStateParams inheritedState; // States provided to nested command buffer from primary command buffer.

@@ -504,17 +504,17 @@ void Pipeline::DumpPipelineElf(
 {
 #if PAL_ENABLE_PRINTS_ASSERTS
     const PalSettings& settings = m_pDevice->Settings();
-    uint64 hashToDump = settings.pipelineLogConfig.logPipelineHash;
+    uint64 hashToDump = settings.pipelineElfLogConfig.logHash;
     bool hashMatches = ((hashToDump == 0) || (m_info.internalPipelineHash.stable == hashToDump));
 
-    const bool dumpInternal  = settings.pipelineLogConfig.logInternal;
-    const bool dumpExternal  = settings.pipelineLogConfig.logExternal;
+    const bool dumpInternal  = settings.pipelineElfLogConfig.logInternal;
+    const bool dumpExternal  = settings.pipelineElfLogConfig.logExternal;
     const bool dumpPipeline  =
-        (hashMatches && ((dumpExternal && !IsInternal()) || (dumpInternal && IsInternal())));
+        (settings.logPipelineElf && hashMatches && ((dumpExternal && !IsInternal()) || (dumpInternal && IsInternal())));
 
     if (dumpPipeline)
     {
-        const char*const pLogDir = &settings.pipelineLogConfig.pipelineLogDirectory[0];
+        const char*const pLogDir = &settings.pipelineElfLogConfig.logDirectory[0];
 
         // Create the directory. We don't care if it fails (existing is fine, failure is caught when opening the file).
         MkDir(pLogDir);

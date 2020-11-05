@@ -465,9 +465,11 @@ public:
 
     uint32 GetMetaBlockSize(Gfx9MaskRamBlockSize* pExtent) const override;
     uint32 GetNumSamplesLog2() const override;
-    uint32 GetMetaCachelineSize() const { return 6; }
+    uint32 GetMetaCachelineSize() const override { return 6; }
     void   CalcCompBlkSizeLog2(Gfx9MaskRamBlockSize*  pBlockSize) const override;
     void   CalcMetaBlkSizeLog2(Gfx9MaskRamBlockSize*  pBlockSize) const override;
+
+    void GetState(DccState* pState) const;
 
 private:
 
@@ -515,7 +517,7 @@ public:
     uint32 GetBytesPerPixelLog2() const override;
     // FMASK always treated as 1xAA for Cmask addressing
     uint32 GetNumSamplesLog2() const override { return 0; }
-    uint32 GetMetaCachelineSize() const { return 8; }
+    uint32 GetMetaCachelineSize() const override { return 8; }
     void   CalcCompBlkSizeLog2(Gfx9MaskRamBlockSize*  pBlockSize) const override;
     void   CalcMetaBlkSizeLog2(Gfx9MaskRamBlockSize*  pBlockSize) const override;
 

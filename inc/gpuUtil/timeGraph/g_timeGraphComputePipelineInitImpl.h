@@ -55,35 +55,64 @@ Pal::Result CreateTimeGraphComputePipelines(
     switch (properties.revision)
     {
 #if PAL_BUILD_GFX6
-    case Pal::AsicRevision::Tahiti:    case Pal::AsicRevision::Pitcairn:    case Pal::AsicRevision::Capeverde:    case Pal::AsicRevision::Oland:    case Pal::AsicRevision::Hainan:        pTable = timeGraphComputeBinaryTableTahiti;
+    case Pal::AsicRevision::Tahiti:
+    case Pal::AsicRevision::Pitcairn:
+    case Pal::AsicRevision::Capeverde:
+    case Pal::AsicRevision::Oland:
+    case Pal::AsicRevision::Hainan:
+        pTable = timeGraphComputeBinaryTableTahiti;
         break;
 #endif
 
 #if PAL_BUILD_GFX6
-    case Pal::AsicRevision::Bonaire:    case Pal::AsicRevision::HawaiiPro:    case Pal::AsicRevision::Hawaii:    case Pal::AsicRevision::Kalindi:    case Pal::AsicRevision::Godavari:    case Pal::AsicRevision::Spectre:    case Pal::AsicRevision::Spooky:        pTable = timeGraphComputeBinaryTableSpectre;
+    case Pal::AsicRevision::Bonaire:
+    case Pal::AsicRevision::HawaiiPro:
+    case Pal::AsicRevision::Hawaii:
+    case Pal::AsicRevision::Kalindi:
+    case Pal::AsicRevision::Godavari:
+    case Pal::AsicRevision::Spectre:
+    case Pal::AsicRevision::Spooky:
+        pTable = timeGraphComputeBinaryTableSpectre;
         break;
 #endif
 
 #if PAL_BUILD_GFX6
-    case Pal::AsicRevision::Carrizo:    case Pal::AsicRevision::Bristol:    case Pal::AsicRevision::Stoney:    case Pal::AsicRevision::Fiji:    case Pal::AsicRevision::Polaris10:    case Pal::AsicRevision::Polaris11:    case Pal::AsicRevision::Polaris12:        pTable = timeGraphComputeBinaryTableCarrizo;
+    case Pal::AsicRevision::Carrizo:
+    case Pal::AsicRevision::Bristol:
+    case Pal::AsicRevision::Stoney:
+    case Pal::AsicRevision::Fiji:
+    case Pal::AsicRevision::Polaris10:
+    case Pal::AsicRevision::Polaris11:
+    case Pal::AsicRevision::Polaris12:
+        pTable = timeGraphComputeBinaryTableCarrizo;
         break;
 #endif
 
 #if PAL_BUILD_GFX6
-    case Pal::AsicRevision::Iceland:    case Pal::AsicRevision::TongaPro:        pTable = timeGraphComputeBinaryTableIceland;
+    case Pal::AsicRevision::Iceland:
+    case Pal::AsicRevision::TongaPro:
+        pTable = timeGraphComputeBinaryTableIceland;
         break;
 #endif
 
-    case Pal::AsicRevision::Vega10:    case Pal::AsicRevision::Raven:    case Pal::AsicRevision::Vega12:    case Pal::AsicRevision::Vega20:        pTable = timeGraphComputeBinaryTableVega10;
+    case Pal::AsicRevision::Vega10:
+    case Pal::AsicRevision::Raven:
+    case Pal::AsicRevision::Vega12:
+    case Pal::AsicRevision::Vega20:
+        pTable = timeGraphComputeBinaryTableVega10;
         break;
 
-    case Pal::AsicRevision::Raven2:    case Pal::AsicRevision::Renoir:        pTable = timeGraphComputeBinaryTableRaven2;
+    case Pal::AsicRevision::Raven2:
+    case Pal::AsicRevision::Renoir:
+        pTable = timeGraphComputeBinaryTableRaven2;
         break;
 
-    case Pal::AsicRevision::Navi10:        pTable = timeGraphComputeBinaryTableNavi10;
+    case Pal::AsicRevision::Navi10:
+        pTable = timeGraphComputeBinaryTableNavi10;
         break;
 
-    case Pal::AsicRevision::Navi14:        pTable = timeGraphComputeBinaryTableNavi14;
+    case Pal::AsicRevision::Navi14:
+        pTable = timeGraphComputeBinaryTableNavi14;
         break;
 
     default:

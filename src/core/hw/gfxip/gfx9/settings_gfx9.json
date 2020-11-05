@@ -1651,45 +1651,6 @@
       "Name": "DisableCoverageAaMask"
     },
     {
-      "ValidValues": {
-        "IsEnum": true,
-        "IsExclusive": true,
-        "Values": [
-          {
-            "Name": "Gfx9WdLoadBalancingDisabled",
-            "Value": 0,
-            "Description": "Disabled. Software load balancing."
-          },
-          {
-            "Name": "Gfx9WdLoadBalancingBasic",
-            "Value": 1,
-            "Description": "Basic. Enables small instance optimization."
-          },
-          {
-            "Name": "Gfx9WdLoadBalancingAdvanced",
-            "Value": 2,
-            "Description": "Advanced. Enabled basic mode plus small instance unrolling draws optimization."
-          }
-        ],
-        "Name": "Gfx9WdLoadBalancingMode"
-      },
-      "Description": "Setting for controlling work distributor load balancing.",
-      "Tags": [
-        "Graphics Pipelines",
-        "Gfx9"
-      ],
-      "Defaults": {
-        "Default": "Gfx9WdLoadBalancingAdvanced"
-      },
-      "Scope": "PrivatePalGfx9Key",
-      "Type": "enum",
-      "VariableName": "wdLoadBalancingMode",
-      "Name": "WdLoadBalancingMode",
-      "Flags": {
-        "IsHex": true
-      }
-    },
-    {
       "Description": "True forces a BATCH_BREAK event when a new pixel shader is bound. False by default.",
       "Tags": [
         "Graphics Pipelines"
@@ -2819,6 +2780,22 @@
       "Type": "bool",
       "VariableName": "waCeDisableIb2",
       "Name": "WaCeDisableIb2"
+    },
+    {
+      "Description": "If true, disable stencil compression for ZS images for which a stencil only depth target could be created",
+      "Tags": [
+        "Hardware Workarounds"
+      ],
+      "Defaults": {
+        "Default": false
+      },
+      "Flags": {
+        "RereadSetting": true
+      },
+      "Scope": "PrivatePalKey",
+      "Type": "bool",
+      "VariableName": "waDisableSCompressSOnly",
+      "Name": "WaDisableSCompressSOnly"
     },
     {
       "Description": "If true, prevents enabling BIG_PAGE for resources that could share a 64KiB memory region with a non-BIG_PAGE resource.",

@@ -67,7 +67,6 @@ Event::~Event()
 // userspace applications of events.  This mechanism was chosen because it is the most likely candidate for the kernel
 // graphics driver to be able to notify the UMD of event ocurrences.
 //
-// SEE: http://man7.org/linux/man-pages/man2/eventfd.2.html
 Result Event::Init(
     const EventCreateFlags& flags)
 {

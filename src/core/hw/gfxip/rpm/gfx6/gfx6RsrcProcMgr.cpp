@@ -3469,10 +3469,10 @@ uint32 RsrcProcMgr::HwlBeginGraphicsCopy(
 
     if (pGpuMem != nullptr)
     {
-        const GpuHeap firstHeap = pGpuMem->Heap(0);
+        const GpuHeap preferredHeap = pGpuMem->PreferredHeap();
 
-        if ((((firstHeap == GpuHeapGartUswc) || (firstHeap == GpuHeapGartCacheable)) ||
-             (pGpuMem->IsPeer())) &&
+        if ((((preferredHeap == GpuHeapGartUswc) || (preferredHeap == GpuHeapGartCacheable)) ||
+             pGpuMem->IsPeer()) &&
             (coreSettings.nonlocalDestGraphicsCopyRbs >= 0))
         {
             // Writes optimized PA_SC_RASTER_CONFIG registers for copy to nonlocal destination. Raster config registers

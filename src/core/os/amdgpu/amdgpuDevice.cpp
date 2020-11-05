@@ -1457,6 +1457,8 @@ Result Device::InitMemInfo()
                 m_memoryProperties.largePageSupport.minSurfaceSizeForAlignmentInBytes = deviceInfo.pte_fragment_size;
                 m_memoryProperties.largePageSupport.gpuVaAlignmentNeeded = (deviceInfo.pte_fragment_size >= 64*1024);
                 m_memoryProperties.largePageSupport.sizeAlignmentNeeded = (deviceInfo.pte_fragment_size >= 64*1024);
+
+                m_memoryProperties.flags.supportsTmz = (deviceInfo.ids_flags & AMDGPU_IDS_FLAGS_TMZ) ? 1 : 0;
             }
         }
 
@@ -1494,12 +1496,6 @@ Result Device::InitMemInfo()
             m_memoryProperties.flags.autoPrioritySupport     = 0; // Not supported
             m_memoryProperties.flags.supportsTmz             = 0; // Not supported
 
-            //Client: Only vulkan support this feature on linux. Default disable TMZ feature for other clients.
-            if (IsRavenFamily(*this) ||
-                IsNavi1x(*this))
-            {
-                m_memoryProperties.flags.supportsTmz = 1; // Supported
-            }
             // Linux don't support High Bandwidth Cache Controller (HBCC) memory segment
             m_memoryProperties.hbccSizeInBytes   = 0;
 
@@ -3472,10 +3468,6 @@ void Device::UpdateMetaData(
         AMDGPU_SWIZZLE_MODE curSwizzleMode   =
             static_cast<AMDGPU_SWIZZLE_MODE>(image.GetGfxImage()->GetSwTileMode(pSubResInfo));
 
-        // in order to sharing resource metadata with Mesa3D, the definition have to follow Mesa's way.
-        // the swizzle_info is used in Mesa to indicate whether the surface is displyable.
-        metadata.swizzle_info   = curSwizzleMode | AMDGPU_TILING_SET(SCANOUT, 1);
-
         metadata.size_metadata  = PRO_UMD_METADATA_SIZE;
 
         memset(&metadata.umd_metadata[0], 0, PRO_UMD_METADATA_OFFSET_DWORD * sizeof(metadata.umd_metadata[0]));
@@ -3490,16 +3482,30 @@ void Device::UpdateMetaData(
         pUmdMetaData->swizzleMode  = curSwizzleMode;
         pUmdMetaData->resourceType = static_cast<AMDGPU_ADDR_RESOURCE_TYPE>(imageCreateInfo.imageType);
 
+        DccState dccState = {};
+
+        // We cannot differentiate displayable DCC from standard DCC in the existing metadata. However, the control register values
+        // should match between displayable DCC and standard DCC.
         if (image.GetGfxImage()->HasDisplayDccData())
         {
-            DisplayDccState dccState = {};
             image.GetGfxImage()->GetDisplayDccState(&dccState);
-            metadata.tiling_info = 0;
-            metadata.tiling_info |= AMDGPU_TILING_SET(SWIZZLE_MODE, curSwizzleMode);
-            metadata.tiling_info |= AMDGPU_TILING_SET(DCC_OFFSET_256B, Get256BAddrLo(dccState.primaryOffset));
-            metadata.tiling_info |= AMDGPU_TILING_SET(DCC_PITCH_MAX, (dccState.pitch - 1));
-            metadata.tiling_info |= AMDGPU_TILING_SET(DCC_INDEPENDENT_64B, dccState.independentBlk64B);
         }
+        else
+        {
+            image.GetGfxImage()->GetDccState(&dccState);
+        }
+
+        metadata.tiling_info = 0;
+        metadata.tiling_info |= AMDGPU_TILING_SET(SWIZZLE_MODE, curSwizzleMode);
+        // In order to sharing resource metadata with Mesa3D, the definition have to follow Mesa's way.
+        // The swizzle_info is used in Mesa to indicate whether the surface is displyable.
+        metadata.tiling_info |= AMDGPU_TILING_SET(SCANOUT, imageCreateInfo.flags.presentable);
+        metadata.tiling_info |= AMDGPU_TILING_SET(DCC_OFFSET_256B, Get256BAddrLo(dccState.primaryOffset));
+        metadata.tiling_info |= AMDGPU_TILING_SET(DCC_PITCH_MAX, (dccState.pitch - 1));
+        metadata.tiling_info |= AMDGPU_TILING_SET(DCC_INDEPENDENT_64B, dccState.independentBlk64B);
+        metadata.tiling_info |= AMDGPU_TILING_SET(DCC_INDEPENDENT_128B, dccState.independentBlk128B);
+        metadata.tiling_info |= AMDGPU_TILING_SET(DCC_MAX_COMPRESSED_BLOCK_SIZE, dccState.maxCompressedBlockSize);
+        metadata.tiling_info |= AMDGPU_TILING_SET(DCC_MAX_UNCOMPRESSED_BLOCK_SIZE, dccState.maxUncompressedBlockSize);
     }
     else
     {

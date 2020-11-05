@@ -110,20 +110,16 @@ void SettingsLoader::SetupDefaults()
     m_settings.submitTimeCmdBufDumpStartFrame = 0;
     m_settings.submitTimeCmdBufDumpEndFrame = 0;
     m_settings.logCmdBufCommitSizes = false;
-    m_settings.logPipelines = false;
-    m_settings.pipelineLogConfig.logInternal = false;
-    m_settings.pipelineLogConfig.logExternal = false;
-    m_settings.pipelineLogConfig.logShadersSeparately = false;
-    m_settings.pipelineLogConfig.logDuplicatePipelines = true;
-    m_settings.pipelineLogConfig.embedPipelineDisassembly = false;
-    m_settings.pipelineLogConfig.pipelineTypeFilter = 0x0;
-    m_settings.pipelineLogConfig.logPipelineHash = 0x0;
+    m_settings.logPipelineElf = false;
+    m_settings.pipelineElfLogConfig.logInternal = false;
+    m_settings.pipelineElfLogConfig.logExternal = false;
+    m_settings.pipelineElfLogConfig.logHash = 0x0;
 #if   (__unix__)
-    memset(m_settings.pipelineLogConfig.pipelineLogDirectory, 0, 512);
-    strncpy(m_settings.pipelineLogConfig.pipelineLogDirectory, "amdpal/", 512);
+    memset(m_settings.pipelineElfLogConfig.logDirectory, 0, 512);
+    strncpy(m_settings.pipelineElfLogConfig.logDirectory, "amdpal/", 512);
 #else
-    memset(m_settings.pipelineLogConfig.pipelineLogDirectory, 0, 512);
-    strncpy(m_settings.pipelineLogConfig.pipelineLogDirectory, "amdpal/", 512);
+    memset(m_settings.pipelineElfLogConfig.logDirectory, 0, 512);
+    strncpy(m_settings.pipelineElfLogConfig.logDirectory, "amdpal/", 512);
 #endif
     m_settings.cmdStreamReserveLimit = 256;
     m_settings.cmdStreamEnableMemsetOnReserve = false;
@@ -158,7 +154,7 @@ void SettingsLoader::SetupDefaults()
     m_settings.debugForceSurfaceAlignment = 0;
     m_settings.debugForceResourceAdditionalPadding = 0;
     m_settings.overlayReportMes = true;
-    m_settings.mipGenUseFastPath = true;
+    m_settings.mipGenUseFastPath = false;
     m_settings.useFp16GenMips = false;
     m_settings.numSettings = g_palNumSettings;
 }
@@ -381,49 +377,29 @@ void SettingsLoader::ReadSettings()
                            &m_settings.logCmdBufCommitSizes,
                            InternalSettingScope::PrivatePalKey);
 
-    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pLogPipelineInfoStr,
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pLogPipelineElfStr,
                            Util::ValueType::Boolean,
-                           &m_settings.logPipelines,
+                           &m_settings.logPipelineElf,
                            InternalSettingScope::PrivatePalKey);
 
-    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pPipelineLogConfig_LogInternalStr,
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pPipelineElfLogConfig_LogInternalStr,
                            Util::ValueType::Boolean,
-                           &m_settings.pipelineLogConfig.logInternal,
+                           &m_settings.pipelineElfLogConfig.logInternal,
                            InternalSettingScope::PrivatePalKey);
 
-    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pPipelineLogConfig_LogExternalStr,
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pPipelineElfLogConfig_LogExternalStr,
                            Util::ValueType::Boolean,
-                           &m_settings.pipelineLogConfig.logExternal,
+                           &m_settings.pipelineElfLogConfig.logExternal,
                            InternalSettingScope::PrivatePalKey);
 
-    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pPipelineLogConfig_LogShadersSeparatelyStr,
-                           Util::ValueType::Boolean,
-                           &m_settings.pipelineLogConfig.logShadersSeparately,
-                           InternalSettingScope::PrivatePalKey);
-
-    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pPipelineLogConfig_LogDuplicatePipelinesStr,
-                           Util::ValueType::Boolean,
-                           &m_settings.pipelineLogConfig.logDuplicatePipelines,
-                           InternalSettingScope::PrivatePalKey);
-
-    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pPipelineLogConfig_EmbedPipelineDisassemblyStr,
-                           Util::ValueType::Boolean,
-                           &m_settings.pipelineLogConfig.embedPipelineDisassembly,
-                           InternalSettingScope::PrivatePalKey);
-
-    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pPipelineLogConfig_PipelineTypeFilterStr,
-                           Util::ValueType::Uint,
-                           &m_settings.pipelineLogConfig.pipelineTypeFilter,
-                           InternalSettingScope::PrivatePalKey);
-
-    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pPipelineLogConfig_LogPipelineHashStr,
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pPipelineElfLogConfig_LogHashStr,
                            Util::ValueType::Uint64,
-                           &m_settings.pipelineLogConfig.logPipelineHash,
+                           &m_settings.pipelineElfLogConfig.logHash,
                            InternalSettingScope::PrivatePalKey);
 
-    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pPipelineLogConfig_PipelineLogDirectoryStr,
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pPipelineElfLogConfig_LogDirectoryStr,
                            Util::ValueType::Str,
-                           &m_settings.pipelineLogConfig.pipelineLogDirectory,
+                           &m_settings.pipelineElfLogConfig.logDirectory,
                            InternalSettingScope::PrivatePalKey,
                            512);
 
@@ -837,49 +813,29 @@ void SettingsLoader::InitSettingsInfo()
     m_settingsInfoMap.Insert(2222002517, info);
 
     info.type      = SettingType::Boolean;
-    info.pValuePtr = &m_settings.logPipelines;
-    info.valueSize = sizeof(m_settings.logPipelines);
-    m_settingsInfoMap.Insert(835791563, info);
+    info.pValuePtr = &m_settings.logPipelineElf;
+    info.valueSize = sizeof(m_settings.logPipelineElf);
+    m_settingsInfoMap.Insert(2287487712, info);
 
     info.type      = SettingType::Boolean;
-    info.pValuePtr = &m_settings.pipelineLogConfig.logInternal;
-    info.valueSize = sizeof(m_settings.pipelineLogConfig.logInternal);
-    m_settingsInfoMap.Insert(2166447132, info);
+    info.pValuePtr = &m_settings.pipelineElfLogConfig.logInternal;
+    info.valueSize = sizeof(m_settings.pipelineElfLogConfig.logInternal);
+    m_settingsInfoMap.Insert(2576934177, info);
 
     info.type      = SettingType::Boolean;
-    info.pValuePtr = &m_settings.pipelineLogConfig.logExternal;
-    info.valueSize = sizeof(m_settings.pipelineLogConfig.logExternal);
-    m_settingsInfoMap.Insert(938415030, info);
-
-    info.type      = SettingType::Boolean;
-    info.pValuePtr = &m_settings.pipelineLogConfig.logShadersSeparately;
-    info.valueSize = sizeof(m_settings.pipelineLogConfig.logShadersSeparately);
-    m_settingsInfoMap.Insert(3953734167, info);
-
-    info.type      = SettingType::Boolean;
-    info.pValuePtr = &m_settings.pipelineLogConfig.logDuplicatePipelines;
-    info.valueSize = sizeof(m_settings.pipelineLogConfig.logDuplicatePipelines);
-    m_settingsInfoMap.Insert(3347217685, info);
-
-    info.type      = SettingType::Boolean;
-    info.pValuePtr = &m_settings.pipelineLogConfig.embedPipelineDisassembly;
-    info.valueSize = sizeof(m_settings.pipelineLogConfig.embedPipelineDisassembly);
-    m_settingsInfoMap.Insert(3171399776, info);
-
-    info.type      = SettingType::Uint;
-    info.pValuePtr = &m_settings.pipelineLogConfig.pipelineTypeFilter;
-    info.valueSize = sizeof(m_settings.pipelineLogConfig.pipelineTypeFilter);
-    m_settingsInfoMap.Insert(1737304845, info);
+    info.pValuePtr = &m_settings.pipelineElfLogConfig.logExternal;
+    info.valueSize = sizeof(m_settings.pipelineElfLogConfig.logExternal);
+    m_settingsInfoMap.Insert(3434531143, info);
 
     info.type      = SettingType::Uint64;
-    info.pValuePtr = &m_settings.pipelineLogConfig.logPipelineHash;
-    info.valueSize = sizeof(m_settings.pipelineLogConfig.logPipelineHash);
-    m_settingsInfoMap.Insert(3357782487, info);
+    info.pValuePtr = &m_settings.pipelineElfLogConfig.logHash;
+    info.valueSize = sizeof(m_settings.pipelineElfLogConfig.logHash);
+    m_settingsInfoMap.Insert(1952137328, info);
 
     info.type      = SettingType::String;
-    info.pValuePtr = &m_settings.pipelineLogConfig.pipelineLogDirectory;
-    info.valueSize = sizeof(m_settings.pipelineLogConfig.pipelineLogDirectory);
-    m_settingsInfoMap.Insert(162583946, info);
+    info.pValuePtr = &m_settings.pipelineElfLogConfig.logDirectory;
+    info.valueSize = sizeof(m_settings.pipelineElfLogConfig.logDirectory);
+    m_settingsInfoMap.Insert(1171198787, info);
 
     info.type      = SettingType::Uint;
     info.pValuePtr = &m_settings.cmdStreamReserveLimit;
@@ -1072,7 +1028,7 @@ void SettingsLoader::DevDriverRegister()
             component.pfnSetValue = ISettingsLoader::SetValue;
             component.pSettingsData = &g_palJsonData[0];
             component.settingsDataSize = sizeof(g_palJsonData);
-            component.settingsDataHash = 410878009;
+            component.settingsDataHash = 962932721;
             component.settingsDataHeader.isEncoded = true;
             component.settingsDataHeader.magicBufferId = 402778310;
             component.settingsDataHeader.magicBufferOffset = 0;

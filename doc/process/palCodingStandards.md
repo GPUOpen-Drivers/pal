@@ -135,10 +135,10 @@ General Language Restrictions
     failure. The cleanest possible fallback path ***should*** be
     implemented.
 
--   `nullptr` ***must*** be used instead of 0 or NULL when assigning or
+-   `nullptr` ***must*** be used instead of `0` or `NULL` when assigning or
     comparing null pointer values.
 
--   Pointers should be set to nullptr after deallocation. The
+-   Pointers should be set to `nullptr` after deallocation. The
     `PAL_SAFE_DELETE`, `PAL_SAFE_DELETE_ARRAY` and `PAL_SAFE_FREE`
     macros handle this automatically.
 
@@ -542,6 +542,12 @@ separate section covering specific requirements for member variables.
 -   Static variables local to a particular function ***must not*** be
     used. constexpr ***should*** be used instead.
 
+-   Static variables in header files ***must not*** be used. constexpr
+    ***should*** be used instead. If the variable cannot be constexpr
+    (e.g., the initialization expression is not constexpr),
+    `PAL_WEAK_LINK` ***should*** be used which emulates the behavior
+    of C++17 inline variables.
+
 > Including for fixed constants. If the compiler fails to identify a
 > constant accurately, then it generates initialisation code assuming
 > it is a static. The alternative is therefore less expensive and
@@ -618,17 +624,24 @@ General Functions
 ### Inline Functions
 
 -   Short functions (3-4 statements) may be defined in a header file to
-    be implicitly inlined.
+    be inlined.
 
--   The explicit `PAL_INLINE` compiler hint is ***discouraged***. In
-    general, rely on link-time code generation and the compiler to do
-    inlining, but this hint ***may*** be used when it provides a
-    benefit. It ***should not*** be used with constexpr functions
-    because constexpr implies inline.
+-   The `inline` specifier is ***required*** for functions defined in header
+    files that are not implicitly inline to avoid One-Definition Rule (ODR)
+    violations. Implicitly inline functions that ***should not*** be defined
+    with the `inline` specifier are
+        - Function templates
+        - Constexpr functions
+        - Functions defined within a class/struct/union definition
+        - Deleted functions
+        - Member functions of template classes that are not full
+          specializations
 
 -   The `PAL_FORCE_INLINE` compiler directive is ***strongly
     discouraged*** and ***should not*** be used except in cases where
-    it provably provides a significant benefit.
+    it provably provides a significant benefit. In general, rely on
+    link-time code generation and the compiler to do inlining, but this
+    hint ***may*** be used when it provides a benefit.
 
 > The engineer ***must*** be able to provide performance results, or
 > at least a demonstration that the compiler-generated object code is
@@ -644,6 +657,10 @@ General Functions
 
 -   The prototypes (declarations) of all static functions ***must*** be
     grouped together and ***must*** occur early in the source file.
+
+-   Functions declared `static` in a header are ***discouraged*** unless
+    there is a specific, documented technical reason. To avoid multiple
+    symbol defininition errors prefer the `inline` specifier.
 
 ### Formatting and Commenting
 
@@ -869,7 +886,8 @@ public:
     method is implicitly inline. Implicitly inline methods ***must
     not*** consist of more than three to four statements.
 
--   The explicit `PAL_INLINE` compiler hint is ***discouraged***.
+-   The explicit `inline` specifier ***should not*** be used unless it is
+    used to resolve One-Definition Rule (ODR) violations.
 
 -   The `PAL_FORCE_INLINE` compiler directive is ***strongly
     discouraged*** and ***should not*** be used.

@@ -257,7 +257,7 @@ void SettingsLoader::ValidateSettings(
         //                threadgroups per SPI for 3 control point patches and 64 patches per threadgroup.
         //                GE has internal FIFO limits and that prevents it from launching more work.
         //                So there is no point in increasing the size of the buffer
-        m_settings.tessFactorBufferSizePerSe = Gfx10Plus::mmVGT_TF_RING_SIZE_DEFAULT / gfx9Props.numShaderEngines;
+        m_settings.tessFactorBufferSizePerSe = Gfx10::mmVGT_TF_RING_SIZE_DEFAULT / gfx9Props.numShaderEngines;
 
         if ((m_settings.tessFactorBufferSizePerSe * gfx9Props.numShaderEngines) > Gfx09_10::VGT_TF_RING_SIZE__SIZE_MASK)
         {
@@ -303,11 +303,8 @@ void SettingsLoader::ValidateSettings(
         pPalSettings->distributionTessMode = DistributionTessTrapezoid;
     }
 
-    if (m_settings.wdLoadBalancingMode != Gfx9WdLoadBalancingDisabled)
-    {
-        // When WD load balancing flowchart optimization is enabled, the primgroup size cannot exceed 253.
-        m_settings.primGroupSize = Min(253u, m_settings.primGroupSize);
-    }
+    // When WD load balancing flowchart optimization is enabled, the primgroup size cannot exceed 253.
+    m_settings.primGroupSize = Min(253u, m_settings.primGroupSize);
 
     if (chipProps.gfxLevel == GfxIpLevel::GfxIp9)
     {
@@ -489,6 +486,8 @@ void SettingsLoader::OverrideDefaults(
         // Set this to 1 in Gfx9 to enable CU soft group for PS by default. VS soft group is turned off by default.
         m_settings.numPsWavesSoftGroupedPerCu = 1;
 
+        m_settings.waDisableSCompressSOnly = true;
+
         if (IsVega10(device) || IsRaven(device))
         {
             m_settings.waHtilePipeBankXorMustBeZero = true;
@@ -529,7 +528,6 @@ void SettingsLoader::OverrideDefaults(
         {
             SetupNavi14Workarounds(device, &m_settings, pSettings);
         }
-
         // For 4 or less RB parts, we expect some overlap for metadata requests across RBs.
         if (device.ChipProperties().gfx9.numActiveRbs <= 4)
         {
