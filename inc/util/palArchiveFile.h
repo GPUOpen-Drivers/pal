@@ -34,6 +34,9 @@
 #include "palUtil.h"
 #include "palSysMemory.h"
 
+#include <limits.h>
+#include <stdlib.h>
+
 namespace Util
 {
 
@@ -41,8 +44,24 @@ class IArchiveFile;
 class IPlatformKey;
 struct ArchiveEntryHeader;
 
-constexpr size_t MaxPathLength      = 260; ///< Maximum absolute path location for an archive file
-constexpr size_t MaxFilenameLength  = 128; ///< Maximum archive filename length excluding folder path
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 639
+constexpr size_t     MaxPathLength     = 260; ///< Maximum absolute path location for an archive file
+constexpr size_t     MaxFilenameLength = 128; ///< Maximum archive filename length excluding folder path
+#else
+// On Linux, NAME_MAX is the maximum filename length, while PATH_MAX defines the maximum path length.
+// On Windows, maximum file and path lengths are defined by _MAX_FNAME and MAX_PATH, respectively.
+// We add 1 to accommodate a null terminator.
+// Note that PathBufferLen already considers the full path length, including the file name part, so
+// there's no need to add them when creating buffers.
+#if defined(__unix__)
+static constexpr size_t     FilenameBufferLen = NAME_MAX + 1;
+static constexpr size_t     PathBufferLen     = PATH_MAX + 1;
+#else
+static constexpr size_t     FilenameBufferLen = _MAX_FNAME + 1;
+static constexpr size_t     PathBufferLen     = _MAX_PATH + 1;
+#endif
+
+#endif  // PAL_CLIENT_INTERFACE_MAJOR_VERSION
 
 /**
 ***********************************************************************************************************************
@@ -51,22 +70,27 @@ constexpr size_t MaxFilenameLength  = 128; ///< Maximum archive filename length 
 */
 struct ArchiveFileOpenInfo
 {
-    AllocCallbacks*     pMemoryCallbacks;            ///< Allocation callbacks suitable for long-term use. Must live
-                                                     ///  for the lifetime of the ArchiveFile object
+    AllocCallbacks*     pMemoryCallbacks;         ///< Allocation callbacks suitable for long-term use. Must live
+                                                  ///  for the lifetime of the ArchiveFile object
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 639
     char                filePath[MaxPathLength];     ///< Path to where the archive file can be found
     char                fileName[MaxFilenameLength]; ///< Name of the archive file to be opened
-    const IPlatformKey* pPlatformKey;                ///< Optional ID containing information about driver/platform. If
-                                                     ///  nullptr is passed the platform verification will be skipped
-    uint32              archiveType;                 ///< Optional type ID signifying the intended consumer type of
-                                                     ///  this archive. The client may use this as an extra ID check to
-                                                     ///  distinguish between valid and invalid files. A value of 0
-                                                     ///  will perform no check.
-    bool                useStrictVersionControl;     ///< Forbid minor version number differences in archive format
-    bool                allowCreateFile;             ///< Create the file if one does not exist
-    bool                allowWriteAccess;            ///< Open file with write access
-    bool                allowAsyncFileIo;            ///< Allow use of OS specific asynchronous file routines
-    bool                useBufferedReadMemory;       ///< Allow preloading/read-ahead of file into memory
-    size_t              maxReadBufferMem;            ///< Maximum size allowed for read buffer
+#else
+    const char*         pFilePath;                ///< Path to where the archive file can be found
+    const char*         pFileName;                ///< Name of the archive file to be opened
+#endif
+    const IPlatformKey* pPlatformKey;             ///< Optional ID containing information about driver/platform. If
+                                                  ///  nullptr is passed the platform verification will be skipped
+    uint32              archiveType;              ///< Optional type ID signifying the intended consumer type of
+                                                  ///  this archive. The client may use this as an extra ID check to
+                                                  ///  distinguish between valid and invalid files. A value of 0
+                                                  ///  will perform no check.
+    bool                useStrictVersionControl;  ///< Forbid minor version number differences in archive format
+    bool                allowCreateFile;          ///< Create the file if one does not exist
+    bool                allowWriteAccess;         ///< Open file with write access
+    bool                allowAsyncFileIo;         ///< Allow use of OS specific asynchronous file routines
+    bool                useBufferedReadMemory;    ///< Allow preloading/read-ahead of file into memory
+    size_t              maxReadBufferMem;         ///< Maximum size allowed for read buffer
 };
 
 /// Get the memory size needed for an archive file object
