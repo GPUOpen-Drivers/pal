@@ -208,7 +208,9 @@ namespace DevDriver
         pollfd socketPollFd;
         socketPollFd.revents = 0;
         socketPollFd.fd = m_osSocket;
-        socketPollFd.events = (((pReadState != nullptr) ? POLLIN : 0) | ((pWriteState != nullptr) ? POLLOUT : 0) | ((pExceptState != nullptr) ? POLLERR : 0));
+        socketPollFd.events = (((pReadState != nullptr) ? POLLIN : 0) |
+                               ((pWriteState != nullptr) ? POLLOUT : 0) |
+                               ((pExceptState != nullptr) ? POLLERR : 0));
 
         int eventCount = Platform::RetryTemporaryFailure(poll,
                                                          &socketPollFd,
@@ -216,17 +218,28 @@ namespace DevDriver
                                                          timeoutInMs);
 
         if (eventCount > 0)
+        {
             result = Result::Success;
-        else if (eventCount < 0)
-            result = Result::Error;
-
+        }
+        else
+        {
+            if (eventCount < 0)
+            {
+                result = Result::Error;
+            }
+        }
         if (pWriteState)
-            *pWriteState = ((socketPollFd.revents & POLLOUT) == true);
+        {
+            *pWriteState = ((socketPollFd.revents & POLLOUT) != 0);
+        }
         if (pReadState)
-            *pReadState = ((socketPollFd.revents & POLLIN) == true);
+        {
+            *pReadState = ((socketPollFd.revents & POLLIN) != 0);
+        }
         if (pExceptState)
-            *pExceptState = ((socketPollFd.revents & POLLERR) == true);
-
+        {
+            *pExceptState = ((socketPollFd.revents & POLLERR) != 0);
+        }
         return result;
     }
 
