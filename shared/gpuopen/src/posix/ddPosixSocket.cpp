@@ -45,6 +45,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
+#include <poll.h>
 #include "ddPlatform.h"
 
 namespace DevDriver
@@ -202,56 +203,30 @@ namespace DevDriver
 
     Result Socket::Select(bool* pReadState, bool* pWriteState, bool* pExceptState, uint32 timeoutInMs)
     {
-        Result result = Result::Error;
+        Result result = Result::NotReady;
 
-        fd_set readSet = {};
-        fd_set writeSet = {};
-        fd_set exceptSet = {};
+        pollfd socketPollFd;
+        socketPollFd.revents = 0;
+        socketPollFd.fd = m_osSocket;
+        socketPollFd.events = (((pReadState != nullptr) ? POLLIN : 0) | ((pWriteState != nullptr) ? POLLOUT : 0) | ((pExceptState != nullptr) ? POLLERR : 0));
 
-        FD_SET(m_osSocket, &readSet);
-        FD_SET(m_osSocket, &writeSet);
-        FD_SET(m_osSocket, &exceptSet);
+        int eventCount = Platform::RetryTemporaryFailure(poll,
+                                                         &socketPollFd,
+                                                         1,
+                                                         timeoutInMs);
 
-        timeval timeoutValue = {};
-        timeoutValue.tv_sec = static_cast<int32>(timeoutInMs) / 1000;
-        timeoutValue.tv_usec = (static_cast<int32>(timeoutInMs) % 1000) * 1000;
-
-        fd_set* pReadSet = ((pReadState != nullptr) ? &readSet : nullptr);
-        fd_set* pWriteSet = ((pWriteState != nullptr) ? &writeSet : nullptr);
-        fd_set* pExceptSet = ((pExceptState != nullptr) ? &exceptSet : nullptr);
-
-        const int retval = Platform::RetryTemporaryFailure(select,
-                                                           m_osSocket + 1,
-                                                           pReadSet,
-                                                           pWriteSet,
-                                                           pExceptSet,
-                                                           &timeoutValue);
-
-        if (retval > 0)
-        {
+        if (eventCount > 0)
             result = Result::Success;
-        }
-        else
-        {
-            result = (retval == 0) ? Result::NotReady : Result::Error;
-        }
+        else if (eventCount < 0)
+            result = Result::Error;
 
-        if (pReadState != nullptr)
-        {
-            *pReadState = (FD_ISSET(m_osSocket, pReadSet) != 0);
-        }
+        if (pWriteState)
+            *pWriteState = ((socketPollFd.revents & POLLOUT) == true);
+        if (pReadState)
+            *pReadState = ((socketPollFd.revents & POLLIN) == true);
+        if (pExceptState)
+            *pExceptState = ((socketPollFd.revents & POLLERR) == true);
 
-        if (pWriteState != nullptr)
-        {
-            *pWriteState = (FD_ISSET(m_osSocket, pWriteSet) != 0);
-        }
-
-        if (pExceptState != nullptr)
-        {
-            *pExceptState = (FD_ISSET(m_osSocket, pExceptSet) != 0);
-        }
-
-        DD_ASSERT(result != Result::Error);
         return result;
     }
 
