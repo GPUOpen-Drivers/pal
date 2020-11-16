@@ -27,6 +27,7 @@
 #include "palEvent.h"
 
 #include <errno.h>
+#include <poll.h>
 #include <unistd.h>
 #include <sys/epoll.h>
 #include <sys/eventfd.h>
@@ -165,24 +166,12 @@ Result Event::Wait(
     }
     else
     {
-        // Conversion factor to go from seconds to nanoseconds.
-        constexpr float ToNanoseconds = (1E+9);
+        pollfd socketPollFd;
+        socketPollFd.revents = 0;
+        socketPollFd.fd = m_hEvent;
+        socketPollFd.events = POLLIN;
 
-        timespec spec = { };
-        spec.tv_sec   = static_cast<uint32>(timeout);
-        spec.tv_nsec  = static_cast<uint32>((timeout - static_cast<float>(spec.tv_sec)) * ToNanoseconds);
-
-        // According to the Linux man pages for eventfd, any of the select(), poll(), or epoll() APIs will treat the
-        // eventfd object as "readable" or "ready to be read from" when the object is in the signaled state. We can
-        // therefore use any of those APIs to multiplex the set of events we need to wait on.
-
-        // Assemble an fd_set structure to pass to the pselect() system call:
-        fd_set eventSet;
-        FD_ZERO(&eventSet);
-        FD_SET(m_hEvent, &eventSet);
-
-        // According to the man pages, pselect's first argument is the maxiumum file descriptor, plus one.
-        const int32 ret = pselect(m_hEvent + 1, &eventSet, nullptr, nullptr, &spec, nullptr);
+        int ret = poll(&socketPollFd, 1, timeout * 1000);  // Timeout in mS
 
         if (ret == -1)
         {
