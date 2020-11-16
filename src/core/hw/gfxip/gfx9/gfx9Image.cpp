@@ -1555,7 +1555,8 @@ Result Image::ComputePipeBankXor(
             {
                 if (m_pImageInfo->numPlanes == 1)
                 {
-                    // If the aspect is Depth or Stencil, but "numPlanes" is only 1, using the given pipe/bank xor value.
+                    // If the aspect is Depth or Stencil, but "numPlanes" is only 1, using the given
+                    // pipe/bank xor value.
                     *pPipeBankXor = m_pImageInfo->internalCreateInfo.gfx9.sharedPipeBankXor;
                 }
                 else
@@ -1801,8 +1802,9 @@ bool Image::IsFastColorClearSupported(
             // For non-tmz image, allow fast clear if either is possible.
             // As CP doesn't support to LOAD_***REG/SET_PREDICATION/WRITE_DATA on TMZ images,
             // Only support fast clears on TMZ images if they are TC-compatible and the clear value is TC-compatible.
-            isFastClearSupported = m_pParent->IsTmz() ? tcCompatibleFastClearPossible
-                                                      : (nonTcCompatibleFastClearPossible || tcCompatibleFastClearPossible);
+            isFastClearSupported = m_pParent->IsTmz()
+                                    ? tcCompatibleFastClearPossible
+                                    : (nonTcCompatibleFastClearPossible || tcCompatibleFastClearPossible);
         }
     }
 
@@ -2378,24 +2380,29 @@ uint32* Image::UpdateColorClearMetaData(
     // Verify that we have DCC data that's requierd for handling fast-clears on gfx9
     PAL_ASSERT(HasDccData());
 
-    // Number of DWORD registers which represent the fast-clear color for a bound color target:
-    constexpr size_t MetaDataDwords = sizeof(Gfx9FastColorClearMetaData) / sizeof(uint32);
+    const gpusize metaDataAddr = FastClearMetaDataAddr(clearRange.startSubres);
 
-    // Issue a WRITE_DATA command to update the fast-clear metadata.
-    WriteDataInfo writeData = {};
-    writeData.engineType = EngineTypeUniversal;
-    writeData.dstAddr    = FastClearMetaDataAddr(clearRange.startSubres);
-    writeData.engineSel  = engine_sel__pfp_write_data__prefetch_parser;
-    writeData.dstSel     = dst_sel__pfp_write_data__memory;
-    writeData.predicate  = predicate;
+    if (metaDataAddr != 0)
+    {
+        // Number of DWORD registers which represent the fast-clear color for a bound color target:
+        constexpr size_t MetaDataDwords = sizeof(Gfx9FastColorClearMetaData) / sizeof(uint32);
 
-    PAL_ASSERT(writeData.dstAddr != 0);
+        // Issue a WRITE_DATA command to update the fast-clear metadata.
+        WriteDataInfo writeData = {};
+        writeData.engineType = EngineTypeUniversal;
+        writeData.dstAddr    = FastClearMetaDataAddr(clearRange.startSubres);
+        writeData.engineSel  = engine_sel__pfp_write_data__prefetch_parser;
+        writeData.dstSel     = dst_sel__pfp_write_data__memory;
+        writeData.predicate  = predicate;
 
-    return pCmdSpace + CmdUtil::BuildWriteDataPeriodic(writeData,
-                                                       MetaDataDwords,
-                                                       clearRange.numMips,
-                                                       packedColor,
-                                                       pCmdSpace);
+        pCmdSpace += CmdUtil::BuildWriteDataPeriodic(writeData,
+                                                     MetaDataDwords,
+                                                     clearRange.numMips,
+                                                     packedColor,
+                                                     pCmdSpace);
+    }
+
+    return pCmdSpace;
 }
 
 // =====================================================================================================================
@@ -2997,7 +3004,10 @@ void Image::InitMetadataFill(
 
         // This will initialize both the depth and stencil aspects simultaneously.  They share hTile data,
         // so it isn't practical to init them separately anyway
-        pCmdBuffer->CmdFillMemory(gpuMemObj, m_pHtile->MemoryOffset() + boundGpuMemOffset, m_pHtile->TotalSize(), initValue);
+        pCmdBuffer->CmdFillMemory(gpuMemObj,
+                                  m_pHtile->MemoryOffset() + boundGpuMemOffset,
+                                  m_pHtile->TotalSize(),
+                                  initValue);
 
         PAL_ASSERT(m_pHtile->HasMetaEqGenerator());
         m_pHtile->GetMetaEqGenerator()->UploadEq(pCmdBuffer);
@@ -3013,7 +3023,10 @@ void Image::InitMetadataFill(
 
             const Gfx9Dcc* pDcc = GetDcc(range.startSubres.aspect);
 
-            pCmdBuffer->CmdFillMemory(gpuMemObj, pDcc->MemoryOffset() + boundGpuMemOffset, pDcc->TotalSize(), DccInitValue);
+            pCmdBuffer->CmdFillMemory(gpuMemObj,
+                                      pDcc->MemoryOffset() + boundGpuMemOffset,
+                                      pDcc->TotalSize(),
+                                      DccInitValue);
 
             PAL_ASSERT(pDcc->HasMetaEqGenerator());
             pDcc->GetMetaEqGenerator()->UploadEq(pCmdBuffer);

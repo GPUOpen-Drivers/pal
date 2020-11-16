@@ -485,8 +485,14 @@ if(PAL_BUILD_CORE)
             core/layers/cmdBufferLogger/cmdBufferLoggerDevice.cpp
             core/layers/cmdBufferLogger/cmdBufferLoggerImage.cpp
             core/layers/cmdBufferLogger/cmdBufferLoggerPlatform.cpp
-            core/layers/cmdBufferLogger/cmdBufferLoggerQueue.cpp
         )
+
+        target_sources(pal PRIVATE
+            core/layers/gpuDebug/gpuDebugCmdBuffer.cpp
+            core/layers/gpuDebug/gpuDebugDevice.cpp
+            core/layers/gpuDebug/gpuDebugImage.cpp
+            core/layers/gpuDebug/gpuDebugPlatform.cpp
+            core/layers/gpuDebug/gpuDebugQueue.cpp)
 
         target_sources(pal PRIVATE
             core/layers/interfaceLogger/interfaceLoggerBorderColorPalette.cpp

@@ -49,6 +49,7 @@ ColorTargetView::ColorTargetView(
     ColorTargetViewInternalCreateInfo internalInfo)
     :
     m_pImage((createInfo.flags.isBufferView == 0) ? GetGfx9Image(createInfo.imageInfo.pImage) : nullptr),
+    m_gfxLevel(pDevice->Parent()->ChipProperties().gfxLevel),
     m_arraySize(0)
 {
     const Gfx9PalSettings& settings = pDevice->Settings();
@@ -110,7 +111,7 @@ ColorTargetView::ColorTargetView(
         {
             // YUV planar surfaces can have DCC on GFX10+ as the slices are individually addressable
             // on those platforms.
-            PAL_ASSERT(IsGfx10Plus(*(pDevice->Parent())) || (m_flags.hasDcc == 0));
+            PAL_ASSERT((IsGfx10Plus(m_gfxLevel)) || (m_flags.hasDcc == 0));
 
             // There's no reason to ever have MSAA YUV, so there won't ever be cMask or fMask surfaces.
             PAL_ASSERT(m_flags.hasCmaskFmask == 0);
@@ -164,13 +165,19 @@ uint32* ColorTargetView::WriteUpdateFastClearColor(
     uint32       slot,
     const uint32 color[4],
     CmdStream*   pCmdStream,
-    uint32*      pCmdSpace)
+    uint32*      pCmdSpace
+    ) const
 {
-    const uint32 slotOffset = (slot * CbRegsPerSlot);
-    return pCmdStream->WriteSetSeqContextRegs((mmCB_COLOR0_CLEAR_WORD0 + slotOffset),
-                                              (mmCB_COLOR0_CLEAR_WORD1 + slotOffset),
-                                              color,
-                                              pCmdSpace);
+    {
+        const uint32 slotOffset = (slot * CbRegsPerSlot);
+
+        pCmdSpace = pCmdStream->WriteSetSeqContextRegs((mmCB_COLOR0_CLEAR_WORD0 + slotOffset),
+                                                       (mmCB_COLOR0_CLEAR_WORD1 + slotOffset),
+                                                       color,
+                                                       pCmdSpace);
+    }
+
+    return pCmdSpace;
 }
 
 // =====================================================================================================================
@@ -258,6 +265,7 @@ void ColorTargetView::InitCommonImageView(
     CbColorViewType*                  pCbColorView
     ) const
 {
+    const Pal::Device&      palDevice       = *(device.Parent());
     const ImageCreateInfo&  imageCreateInfo = m_pImage->Parent()->GetImageCreateInfo();
     const ImageType         imageType       = m_pImage->GetOverrideImageType();
     const Gfx9PalSettings&  settings        = device.Settings();
@@ -290,15 +298,19 @@ void ColorTargetView::InitCommonImageView(
     {
         regCB_COLOR0_DCC_CONTROL dccControl = m_pImage->GetDcc(m_subresource.aspect)->GetControlReg();
         const SubResourceInfo*const pSubResInfo = m_pImage->Parent()->SubresourceInfo(m_subresource);
-        if (IsGfx091xPlus(*device.Parent()) &&
+        if (IsGfx091xPlus(palDevice)      &&
             (internalInfo.flags.fastClearElim || pSubResInfo->flags.supportMetaDataTexFetch))
         {
             // Without this, the CB will not expand the compress-to-register (0x20) keys.
-            dccControl.most.DISABLE_CONSTANT_ENCODE_REG = 1;
+            dccControl.gfx09_1xPlus.DISABLE_CONSTANT_ENCODE_REG = 1;
         }
 
         pRegs->cbColorDccControl.u32All = dccControl.u32All;
-        pRegs->cbColorInfo.gfx09_10.DCC_ENABLE = 1;
+
+        if (IsGfx9(palDevice) || IsGfx10(palDevice))
+        {
+            pRegs->cbColorInfo.gfx09_10.DCC_ENABLE = 1;
+        }
     }
 
     if (m_flags.hasCmaskFmask != 0)
@@ -359,11 +371,12 @@ void ColorTargetView::UpdateImageVa(
             {
                 PAL_ASSERT(IsGfx10Plus(*(m_pImage->Parent()->GetDevice())));
 
-                // Invariant: On Gfx9, if we have DCC we also have fast clear metadata.
-                PAL_ASSERT(m_pImage->HasFastClearMetaData(m_subresource.aspect));
-
-                pRegs->fastClearMetadataGpuVa = m_pImage->FastClearMetaDataAddr(m_subresource);
-                PAL_ASSERT((pRegs->fastClearMetadataGpuVa & 0x3) == 0);
+                if (m_pImage->HasFastClearMetaData(m_subresource.aspect))
+                {
+                    // Invariant: On Gfx10 (and gfx9), if we have DCC we also have fast clear metadata.
+                    pRegs->fastClearMetadataGpuVa = m_pImage->FastClearMetaDataAddr(m_subresource);
+                    PAL_ASSERT((pRegs->fastClearMetadataGpuVa & 0x3) == 0);
+                }
 
                 // We want the DCC address of the exact mip level and slice that we're looking at.
                 pRegs->cbColorDccBase.bits.BASE_256B = m_pImage->GetDcc256BAddr(m_subresource);
@@ -379,11 +392,12 @@ void ColorTargetView::UpdateImageVa(
             // indicate what the clear color is.  (See Gfx9FastColorClearMetaData in gfx9MaskRam.h).
             if (m_flags.hasDcc)
             {
-                // Invariant: On Gfx9, if we have DCC we also have fast clear metadata.
-                PAL_ASSERT(m_pImage->HasFastClearMetaData(m_subresource.aspect));
-
-                pRegs->fastClearMetadataGpuVa = m_pImage->FastClearMetaDataAddr(m_subresource);
-                PAL_ASSERT((pRegs->fastClearMetadataGpuVa & 0x3) == 0);
+                if (m_pImage->HasFastClearMetaData(m_subresource.aspect))
+                {
+                    // Invariant: On Gfx10 (and gfx9), if we have DCC we also have fast clear metadata.
+                    pRegs->fastClearMetadataGpuVa = m_pImage->FastClearMetaDataAddr(m_subresource);
+                    PAL_ASSERT((pRegs->fastClearMetadataGpuVa & 0x3) == 0);
+                }
 
                 // The m_subresource variable includes the mip level and slice that we're viewing.  However, because
                 // the CB registers are programmed with that info already, we want the address of mip 0 / slice 0 so
@@ -441,10 +455,11 @@ uint32* ColorTargetView::WriteCommandsCommon(
             if (IsGfx9(parentDev) || IsGfx10(parentDev))
             {
                 // Mask of CB_COLOR_INFO bits to clear when compressed rendering is disabled.
-                constexpr uint32 CbColorInfoDecompressedMask = (Gfx09_10::CB_COLOR0_INFO__DCC_ENABLE_MASK                |
-                                                                Gfx09_10::CB_COLOR0_INFO__COMPRESSION_MASK               |
-                                                                Gfx09_10::CB_COLOR0_INFO__FMASK_COMPRESSION_DISABLE_MASK |
-                                                                Gfx09_10::CB_COLOR0_INFO__FMASK_COMPRESS_1FRAG_ONLY_MASK);
+                constexpr uint32 CbColorInfoDecompressedMask =
+                                        (Gfx09_10::CB_COLOR0_INFO__DCC_ENABLE_MASK                |
+                                         Gfx09_10::CB_COLOR0_INFO__COMPRESSION_MASK               |
+                                         Gfx09_10::CB_COLOR0_INFO__FMASK_COMPRESSION_DISABLE_MASK |
+                                         Gfx09_10::CB_COLOR0_INFO__FMASK_COMPRESS_1FRAG_ONLY_MASK);
 
                 // For decompressed rendering to an Image, we need to override the values for CB_COLOR_CONTROL and for
                 // CB_COLOR_DCC_CONTROL.

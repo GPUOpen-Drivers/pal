@@ -248,7 +248,7 @@ uint32* Pm4Optimizer::WriteOptimizedSetSeqShRegs(
     m_dstContainsSrc = false;
 #endif
 
-    return OptimizePm4SetReg(setData, PM4_ME_SET_SH_REG_SIZEDW__CORE, pData, pCmdSpace, &m_shRegs);
+    return OptimizePm4SetReg(setData, pData, pCmdSpace, &m_shRegs);
 }
 
 // =====================================================================================================================
@@ -267,37 +267,11 @@ uint32* Pm4Optimizer::WriteOptimizedSetSeqContextRegs(
     PAL_ASSERT(pContextRollDetected != nullptr);
 
     uint32* pNewCmdSpace = OptimizePm4SetReg(setData,
-                                             PM4_PFP_SET_CONTEXT_REG_SIZEDW__CORE,
                                              pData,
                                              pCmdSpace,
                                              &m_cntxRegs);
     (*pContextRollDetected) |= ((pNewCmdSpace > pCmdSpace) != 0);
     return pNewCmdSpace;
-}
-
-// =====================================================================================================================
-// Writes an optimized version of the given SET_SH_REG_OFFSET packet into pCmdSpace
-// Returns a pointer to the next unused DWORD in pCmdSpace.
-uint32* Pm4Optimizer::WriteOptimizedSetShShRegOffset(
-    const PM4_PFP_SET_SH_REG_OFFSET& setShRegOffset,
-    size_t                          packetSize,
-    uint32*                         pCmdSpace)
-{
-    // Since this is an indirect write, we do not know the exact SH register data. Invalidate SH register so that
-    // the next SH register write will not be skipped inadvertently
-    m_shRegs.state[setShRegOffset.ordinal2.bitfields.reg_offset].flags.valid = 0;
-
-    // If the index value is set to 0, this packet actually operates on two sequential SH registers so we need to
-    // invalidate the following register as well.
-    if (setShRegOffset.ordinal2.bitfields.index == 0)
-    {
-        m_shRegs.state[setShRegOffset.ordinal2.bitfields.reg_offset + 1].flags.valid = 0;
-    }
-
-    // memcpy packet into command space
-    memcpy(pCmdSpace, &setShRegOffset, packetSize << 2);
-
-    return (pCmdSpace + packetSize);
 }
 
 // =====================================================================================================================
@@ -307,11 +281,12 @@ uint32* Pm4Optimizer::WriteOptimizedSetShShRegOffset(
 template <typename SetDataPacket, size_t RegisterCount>
 uint32* Pm4Optimizer::OptimizePm4SetReg(
     SetDataPacket                 setData,
-    uint32                        setDataSize,
     const uint32*                 pRegData,
     uint32*                       pDstCmd,
     RegGroupState<RegisterCount>* pRegState)
 {
+    constexpr uint32 SetDataSize = sizeof(SetDataPacket) / sizeof(uint32);
+
     const uint32 numRegs   = setData.ordinal1.header.count;
     const uint32 regOffset = setData.ordinal2.bitfields.reg_offset;
 
@@ -337,8 +312,8 @@ uint32* Pm4Optimizer::OptimizePm4SetReg(
     if ((keepRegCount == numRegs) || (numRegs > 32))
     {
         // No register writes can be skipped: emit all registers.
-        memcpy(pDstCmd, &setData, setDataSize * sizeof(uint32));
-        pDstCmd += setDataSize;
+        memcpy(pDstCmd, &setData, SetDataSize * sizeof(uint32));
+        pDstCmd += SetDataSize;
 
         memmove(pDstCmd, pRegData, numRegs * sizeof(uint32));
         pDstCmd += numRegs;
@@ -352,7 +327,7 @@ uint32* Pm4Optimizer::OptimizePm4SetReg(
         // using more command space than an unoptimized command while conceeding that in some cases we may write
         // redundant registers. The difference between clauseEndIdx and curRegIdx will be one greater than the gap size
         // so we need to add one to the constant below.
-        const uint32 MinClauseIdxGap = setDataSize + 1;
+        constexpr uint32 MinClauseIdxGap = SetDataSize + 1;
 
         // Since the keepRegCount is non-zero we must have at least one bit set, find it and use it to start a clause.
         uint32 curRegIdx      = 0;
@@ -375,8 +350,8 @@ uint32* Pm4Optimizer::OptimizePm4SetReg(
                 setData.ordinal1.header.count         = clauseRegCount;
                 setData.ordinal2.bitfields.reg_offset = regOffset + clauseStartIdx;
 
-                memcpy(pDstCmd, &setData, setDataSize * sizeof(uint32));
-                pDstCmd += setDataSize;
+                memcpy(pDstCmd, &setData, SetDataSize * sizeof(uint32));
+                pDstCmd += SetDataSize;
 
                 memmove(pDstCmd, pRegData + clauseStartIdx, clauseRegCount * sizeof(uint32));
                 pDstCmd += clauseRegCount;

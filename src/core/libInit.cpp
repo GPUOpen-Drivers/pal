@@ -31,6 +31,9 @@
 #if PAL_BUILD_GPU_PROFILER
 #include "core/layers/gpuProfiler/gpuProfilerPlatform.h"
 #endif
+#if PAL_BUILD_GPU_DEBUG
+#include "core/layers/gpuDebug/gpuDebugPlatform.h"
+#endif
 #if PAL_BUILD_CMD_BUFFER_LOGGER
 #include "core/layers/cmdBufferLogger/cmdBufferLoggerPlatform.h"
 #endif
@@ -96,6 +99,9 @@ size_t PAL_STDCALL GetPlatformSize()
 #endif
 #if PAL_BUILD_GPU_PROFILER
     platformSize += sizeof(GpuProfiler::Platform);
+#endif
+#if PAL_BUILD_GPU_DEBUG
+    platformSize += sizeof(GpuDebug::Platform);
 #endif
 #if PAL_BUILD_CMD_BUFFER_LOGGER
     platformSize += sizeof(CmdBufferLogger::Platform);
@@ -164,6 +170,9 @@ Result PAL_STDCALL CreatePlatform(
 #if PAL_BUILD_GPU_PROFILER
     pPlacementAddr = Util::VoidPtrInc(pPlacementAddr, sizeof(GpuProfiler::Platform));
 #endif
+#if PAL_BUILD_GPU_DEBUG
+    pPlacementAddr = Util::VoidPtrInc(pPlacementAddr, sizeof(GpuDebug::Platform));
+#endif
 #if PAL_BUILD_CMD_BUFFER_LOGGER
     pPlacementAddr = Util::VoidPtrInc(pPlacementAddr, sizeof(CmdBufferLogger::Platform));
 #endif
@@ -206,6 +215,20 @@ Result PAL_STDCALL CreatePlatform(
                                                    pCorePlatform->PlatformSettings().cmdBufferLoggerEnabled,
                                                    pPlacementAddr,
                                                    &pCurPlatform);
+    }
+#endif
+
+#if PAL_BUILD_GPU_DEBUG
+    if (result == Result::Success)
+    {
+        pPlacementAddr = Util::VoidPtrDec(pPlacementAddr, sizeof(GpuDebug::Platform));
+        pCurPlatform->SetClientData(pPlacementAddr);
+
+        result = GpuDebug::Platform::Create(allocCb,
+                                            pCurPlatform,
+                                            pCorePlatform->PlatformSettings().gpuDebugEnabled,
+                                            pPlacementAddr,
+                                            &pCurPlatform);
     }
 #endif
 

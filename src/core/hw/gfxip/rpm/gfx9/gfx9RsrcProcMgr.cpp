@@ -5592,7 +5592,7 @@ void Gfx10RsrcProcMgr::ClearDccCompute(
                               clearColor);
             }
 
-            if (clearCode == static_cast<uint8>(Gfx9DccClearColor::ClearColorCompToSingle))
+            if (clearCode == static_cast<uint8>(Gfx9DccClearColor::Gfx10ClearColorCompToSingle))
             {
                 // If this image doesn't support comp-to-single fast clears, then how did we wind up with the
                 // comp-to-single clear code???

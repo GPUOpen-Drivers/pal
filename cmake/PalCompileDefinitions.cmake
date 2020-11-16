@@ -201,6 +201,13 @@ function(pal_compile_definitions)
             >
         )
 
+        # Enable GPU debugging layer on debug configs or when the client asks for it
+        target_compile_definitions(pal PRIVATE
+            $<$<OR:$<CONFIG:Debug>,$<BOOL:${PAL_BUILD_GPU_DEBUG}>>:
+                PAL_BUILD_GPU_DEBUG=1
+            >
+        )
+
         # Enable interface logging on debug configs or when the client asks for it
         target_compile_definitions(pal PRIVATE
             $<$<OR:$<CONFIG:Debug>,$<BOOL:${PAL_BUILD_INTERFACE_LOGGER}>>:

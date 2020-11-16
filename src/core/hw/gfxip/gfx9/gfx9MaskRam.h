@@ -388,12 +388,11 @@ enum class DccClearPurpose : uint32
 // These values correspond to the various fast-clear codes for DCC memory
 enum class Gfx9DccClearColor : uint8
 {
-    ClearColor0000         = 0x00,
-    ClearColor0001         = 0x40,
-    ClearColor1110         = 0x80,
-    ClearColor1111         = 0xC0,
-    ClearColorReg          = 0x20,
-    ClearColorCompToSingle = 0x10,
+    ClearColorCompToReg         = 0x20,
+    // Used for GFX10 GPUs during fast clears where the actual clear color is written
+    // into the first pixel of each DCC block in the image data itself.
+    Gfx10ClearColorCompToSingle = 0x10,
+    ClearColorInvalid           = 0xFF,
 };
 
 // Represents an "image" of the fast-clear metadata used by Color Target Images.
@@ -445,7 +444,8 @@ public:
         const Image&       image,
         const SubresRange& clearRange,
         const uint32*      pConvertedColor,
-        bool*              pNeedFastClearElim);
+        bool*              pNeedFastClearElim,
+        bool*              pBlackOrWhite = nullptr);
 
     const ADDR2_META_MIP_INFO& GetAddrMipInfo(uint32 mipLevel) const { return m_addrMipOutput[mipLevel]; }
 
@@ -482,6 +482,12 @@ private:
     Result ComputeDccInfo(const SubresId&  subResId);
     void   SetControlReg(const SubresId&  subResId);
     uint32 GetMinCompressedBlockSize() const;
+
+    static void GetBlackOrWhiteClearCode(
+        const Pal::Image*  pImage,
+        const uint32       color[],
+        const uint32       ones[],
+        uint8*             pClearCode);
 
     // The surface associated with a DCC surface is guaranteed to be a color image
     virtual bool  IsColor() const override { return true; }

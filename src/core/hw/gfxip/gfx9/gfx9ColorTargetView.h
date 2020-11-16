@@ -72,11 +72,11 @@ public:
     const Image* GetImage() const { return m_pImage; }
     uint32 MipLevel() const { return m_subresource.mipLevel; }
 
-    static uint32* WriteUpdateFastClearColor(
+    uint32* WriteUpdateFastClearColor(
         uint32       slot,
         const uint32 color[4],
         CmdStream*   pCmdStream,
-        uint32*      pCmdSpace);
+        uint32*      pCmdSpace) const;
 
     static uint32* HandleBoundTargetsChanged(uint32* pCmdSpace);
 
@@ -168,6 +168,7 @@ protected:
     } m_flags;
 
     const Image* const  m_pImage;
+    const GfxIpLevel    m_gfxLevel;
     SubresId            m_subresource;
     uint32              m_arraySize;
     SwizzledFormat      m_swizzledFormat;

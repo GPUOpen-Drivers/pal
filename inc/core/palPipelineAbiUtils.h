@@ -155,6 +155,11 @@ PAL_INLINE void MachineTypeToGfxIpVersion(
         *pGfxIpMinorVer = 0;
         *pGfxIpStepping = 9;
         break;
+    case AmdGpuMachineType::Gfx90C:
+        *pGfxIpMajorVer = 9;
+        *pGfxIpMinorVer = 0;
+        *pGfxIpStepping = 12;
+        break;
     case AmdGpuMachineType::Gfx1010:
         *pGfxIpMajorVer = 10;
         *pGfxIpMinorVer = 1;

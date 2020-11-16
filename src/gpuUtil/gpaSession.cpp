@@ -158,7 +158,8 @@ static constexpr SqttMemoryType SqttMemoryTypeTable[] =
     SQTT_MEMORY_TYPE_HBM,     // Hbm
     SQTT_MEMORY_TYPE_HBM2,    // Hbm2
     SQTT_MEMORY_TYPE_HBM3,    // Hbm3
-    SQTT_MEMORY_TYPE_LPDDR4   // Lpddr4
+    SQTT_MEMORY_TYPE_LPDDR4,  // Lpddr4
+    SQTT_MEMORY_TYPE_LPDDR5   // Lpddr5
 };
 
 static_assert(Util::ArrayLen(SqttMemoryTypeTable) == static_cast<uint32>(Pal::LocalMemoryType::Count),

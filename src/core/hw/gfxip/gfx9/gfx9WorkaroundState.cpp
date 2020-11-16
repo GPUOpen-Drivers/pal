@@ -204,15 +204,15 @@ uint32* WorkaroundState::PreDraw(
                         pView->HasMultipleFragments()    &&
                         pView->HasDcc())
                     {
-                        cbColorDccControl.bits.OVERWRITE_COMBINER_DISABLE = 1;
+                        cbColorDccControl.gfx09_10.OVERWRITE_COMBINER_DISABLE = 1;
                     }
                     else if (pView->IsRotatedSwizzleOverwriteCombinerDisabled())
                     {
-                        cbColorDccControl.bits.OVERWRITE_COMBINER_DISABLE = 1;
+                        cbColorDccControl.gfx09_10.OVERWRITE_COMBINER_DISABLE = 1;
                     }
 
                     pCmdSpace = pDeCmdStream->WriteContextRegRmw<Pm4OptImmediate>(
-                        Gfx09_10::mmCB_COLOR0_DCC_CONTROL + (cbIdx * CbRegsPerSlot),
+                        mmCB_COLOR0_DCC_CONTROL + (cbIdx * CbRegsPerSlot),
                         Gfx09_10::CB_COLOR0_DCC_CONTROL__OVERWRITE_COMBINER_DISABLE_MASK,
                         cbColorDccControl.u32All,
                         pCmdSpace);
@@ -223,8 +223,6 @@ uint32* WorkaroundState::PreDraw(
 
     if (m_cachedSettings.waMiscPopsMissedOverlap)
     {
-        bool setPopsDrainPsOnOverlap = false;
-
         // This should be unreachable since waStalledPopsMode applies to GFX10 only and waMiscPopsMissedOverlap
         // applies to GFX9 only.
         PAL_ASSERT(m_device.Settings().waStalledPopsMode == false);
@@ -233,6 +231,8 @@ uint32* WorkaroundState::PreDraw(
             (StateDirty && (dirtyFlags.validationBits.msaaState ||
                             dirtyFlags.validationBits.depthStencilView)))
         {
+            bool setPopsDrainPsOnOverlap = false;
+
             if (pPipeline->PsUsesRovs())
             {
                 if ((pMsaaState != nullptr) && (pMsaaState->Log2NumSamples() >= 3))
@@ -250,28 +250,28 @@ uint32* WorkaroundState::PreDraw(
                     }
                 }
             }
-        }
 
-        // This WA is rarely needed - once it is applied during a CmdBuffer we need to start validating it.
-        if (setPopsDrainPsOnOverlap || pCmdBuffer->HasWaMiscPopsMissedOverlapBeenApplied())
-        {
-            regDB_DFSM_CONTROL* pPrevDbDfsmControl = pCmdBuffer->GetDbDfsmControl();
-            regDB_DFSM_CONTROL  dbDfsmControl      = *pPrevDbDfsmControl;
-
-            dbDfsmControl.most.POPS_DRAIN_PS_ON_OVERLAP = ((setPopsDrainPsOnOverlap) ? 1 : 0);
-
-            if (dbDfsmControl.u32All != pPrevDbDfsmControl->u32All)
+            // This WA is rarely needed - once it is applied during a CmdBuffer we need to start validating it.
+            if (setPopsDrainPsOnOverlap || pCmdBuffer->HasWaMiscPopsMissedOverlapBeenApplied())
             {
-                pCmdSpace = pDeCmdStream->WriteSetOneContextRegNoOpt(m_cmdUtil.GetRegInfo().mmDbDfsmControl,
-                                                                     dbDfsmControl.u32All,
-                                                                     pCmdSpace);
+                regDB_DFSM_CONTROL* pPrevDbDfsmControl = pCmdBuffer->GetDbDfsmControl();
+                regDB_DFSM_CONTROL  dbDfsmControl      = *pPrevDbDfsmControl;
 
-                pPrevDbDfsmControl->u32All = dbDfsmControl.u32All;
+                dbDfsmControl.most.POPS_DRAIN_PS_ON_OVERLAP = ((setPopsDrainPsOnOverlap) ? 1 : 0);
+
+                if (dbDfsmControl.u32All != pPrevDbDfsmControl->u32All)
+                {
+                    pCmdSpace = pDeCmdStream->WriteSetOneContextRegNoOpt(m_cmdUtil.GetRegInfo().mmDbDfsmControl,
+                                                                         dbDfsmControl.u32All,
+                                                                         pCmdSpace);
+
+                    pPrevDbDfsmControl->u32All = dbDfsmControl.u32All;
+                }
+
+                // Mark CmdBuffer bool that this WA has been applied, so we re-validate it for the remainder of the
+                // CmdBuffer disabling it as necessary.
+                pCmdBuffer->SetWaMiscPopsMissedOverlapHasBeenApplied();
             }
-
-            // Mark CmdBuffer bool that this WA has been applied, so we re-validate it for the remainder of the
-            // CmdBuffer disabling it as necessary.
-            pCmdBuffer->SetWaMiscPopsMissedOverlapHasBeenApplied();
         }
     }
 
@@ -279,12 +279,12 @@ uint32* WorkaroundState::PreDraw(
     // is disabled to avoid corruption. It is expected that we should rarely hit this case.
     // Since we should rarely hit this and to keep this "simple," we won't handle the case where a legacy tessellation
     // pipeline is bound and fillMode goes from Wireframe to NOT wireframe.
-    if ((StateDirty || PipelineDirty)                            &&
-        m_cachedSettings.waTessIncorrectRelativeIndex            &&
+    if ((StateDirty || PipelineDirty)                       &&
+        m_cachedSettings.waTessIncorrectRelativeIndex       &&
         (gfxState.pipelineState.dirtyFlags.pipelineDirty ||
-         gfxState.dirtyFlags.validationBits.triangleRasterState) &&
-        pPipeline->IsTessEnabled()                               &&
-        (pPipeline->IsNgg() == false)                            &&
+         dirtyFlags.validationBits.triangleRasterState)     &&
+        pPipeline->IsTessEnabled()                          &&
+        (pPipeline->IsNgg() == false)                       &&
         ((gfxState.triangleRasterState.frontFillMode == FillMode::Wireframe) ||
          (gfxState.triangleRasterState.backFillMode == FillMode::Wireframe)))
     {
@@ -294,7 +294,8 @@ uint32* WorkaroundState::PreDraw(
     }
 
     // This must go last in order to validate that no other context rolls can occur before the draw.
-    if (pCmdBuffer->NeedsToValidateScissorRects(Pm4OptImmediate))
+    if ((StateDirty && dirtyFlags.validationBits.scissorRects) ||
+        pCmdBuffer->NeedsToValidateScissorRectsWa(Pm4OptImmediate))
     {
         pCmdSpace = pCmdBuffer->ValidateScissorRects(pCmdSpace);
     }

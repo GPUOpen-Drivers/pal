@@ -510,6 +510,7 @@ uint8 ColorBlendState::WriteBlendOptimizations(
     CmdStream*                     pCmdStream,
     const SwizzledFormat*          pTargetFormats,     // [in] Array of pixel formats per target.
     const uint8*                   pTargetWriteMasks,  // [in] Array of 4-bit write masks for each target.
+    uint32                         numRenderTargets,
     bool                           enableOpts,
     GfxBlendOptimizer::BlendOpts*  pBlendOpts,         // [in/out] Blend optimizations
     regCB_COLOR0_INFO*             pCbColorInfoRegs    // [in/out] CB_COLORx_INFO regs from the device
@@ -520,7 +521,7 @@ uint8 ColorBlendState::WriteBlendOptimizations(
 
     uint8 blendOptDirtyMask = 0;
 
-    for (uint32 idx = 0; idx < MaxColorTargets; idx++)
+    for (uint32 idx = 0; idx < numRenderTargets; idx++)
     {
         if ((Formats::IsUndefined(pTargetFormats[idx].format) == false) && (pTargetWriteMasks[idx] != 0))
         {

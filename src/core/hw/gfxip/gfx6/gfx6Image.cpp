@@ -889,6 +889,21 @@ void Image::InitLayoutStateMasks(
 }
 
 // =====================================================================================================================
+// The CopyImageToMemory functions use the same format for the source and destination (i.e., image and buffer).
+// Not all image formats are supported as buffer formats.  If the format doesn't work for both, then we need
+// to force decompressions which will force image-replacement in the copy code.
+bool Image::DoesImageSupportCopySrcCompression() const
+{
+    const GfxIpLevel  gfxLevel            = m_device.ChipProperties().gfxLevel;
+    const ChNumFormat createFormat        = m_createInfo.swizzledFormat.format;
+
+    const auto*const      pFmtInfo        = MergedChannelFmtInfoTbl(gfxLevel);
+    const BUF_DATA_FORMAT hwBufferDataFmt = HwBufDataFmt(pFmtInfo, createFormat);
+
+    return (hwBufferDataFmt != BUF_DATA_FORMAT_INVALID);
+}
+
+// =====================================================================================================================
 // Initializes the layout-to-state masks for one mip level.
 void Image::InitLayoutStateMasksOneMip(
     bool            allowComputeDecompress,
@@ -931,7 +946,7 @@ void Image::InitLayoutStateMasksOneMip(
 
                 // Both CmdCopyImage and CmdCopyImageToMemory support Fmask based non-eqaa msaa access to CopySrc. So
                 // can keep colorCompressed for non-eqaa color msaa image if it supports supportMetaDataTexFetch.
-                if (m_createInfo.samples == m_createInfo.fragments)
+                if ((m_createInfo.samples == m_createInfo.fragments) && DoesImageSupportCopySrcCompression())
                 {
                     m_layoutToState[mip].color.compressed.usages |= LayoutCopySrc;
                 }
@@ -943,8 +958,11 @@ void Image::InitLayoutStateMasksOneMip(
             }
             else
             {
-                // Our copy path has been designed to allow compressed copy sources.
-                m_layoutToState[mip].color.compressed.usages |= LayoutCopySrc;
+                if (DoesImageSupportCopySrcCompression())
+                {
+                    // Our copy path has been designed to allow compressed copy sources.
+                    m_layoutToState[mip].color.compressed.usages |= LayoutCopySrc;
+                }
 
                 if (GetGfx6Settings(m_device).gfx8CopyDstIsCompressed)
                 {

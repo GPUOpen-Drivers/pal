@@ -314,9 +314,25 @@ static Result OpenAndInitializeDrmDevice(
     }
     else
     {
-        // Initialize the amdgpu device.
-        result = CheckResult(procs.pfnAmdgpuDeviceInitialize(fd, &majorVersion, &minorVersion, &deviceHandle),
-                             Result::ErrorInitializationFailed);
+        drmVersionPtr version = procs.pfnDrmGetVersion(fd);
+
+        // Verify the kernel module name, only support "amdgpu"
+        bool hasSupportedKmd = ((version != nullptr)    &&
+                                (version->name_len > 0) &&
+                                (strcmp(version->name, "amdgpu") == 0));
+
+        if (hasSupportedKmd)
+        {
+            // Initialize the amdgpu device.
+            result = CheckResult(procs.pfnAmdgpuDeviceInitialize(fd, &majorVersion, &minorVersion, &deviceHandle),
+                                Result::ErrorInitializationFailed);
+        }
+        else
+        {
+            result = Result::Unsupported;
+        }
+
+        procs.pfnDrmFreeVersion(version);
     }
 
     if (result == Result::Success)
@@ -669,7 +685,7 @@ Result Device::EarlyInit(
         if (result == Result::ErrorUnavailable)
         {
             // Unavailable means that the file was not found, which is an acceptable failure.
-            PAL_ALERT_ALWAYS();
+            PAL_DPINFO("No settings file loaded.");
             result = Result::Success;
         }
     }
@@ -1353,12 +1369,6 @@ static LocalMemoryType TranslateMemoryType(
     case AMDGPU_VRAM_TYPE_HBM:
         {
             result = LocalMemoryType::Hbm;
-            break;
-        }
-
-    case AMDGPU_VRAM_TYPE_LPDDR4:
-        {
-            result = LocalMemoryType::Lpddr4;
             break;
         }
 

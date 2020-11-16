@@ -567,7 +567,7 @@ void EventProvider::LogEvent(
                     delta,
                     false,   // isRemove
                     pData->gpuVirtualAddr,
-                    static_cast<uint8>(pData->queueHandle));
+                    static_cast<uint8>(pData->queueHandle) & 0x7f);
 
                 WriteTokenData(eventToken);
                 break;
@@ -581,7 +581,7 @@ void EventProvider::LogEvent(
                     delta,
                     true,   // isRemove
                     pData->gpuVirtualAddr,
-                    static_cast<uint8>(pData->queueHandle));
+                    static_cast<uint8>(pData->queueHandle) & 0x7f);
 
                 WriteTokenData(eventToken);
                 break;

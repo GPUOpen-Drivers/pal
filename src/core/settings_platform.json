@@ -1343,67 +1343,6 @@
           "Description": "Bitmask controlling which ICmdBuffer calls to annotate."
         },
         {
-          "ValidValues": {
-            "Values": [
-              {
-                "Description": "TimestampDraws",
-                "Value": 1
-              },
-              {
-                "Description": "TimestampDispatches",
-                "Value": 2
-              },
-              {
-                "Description": "TimestampBarriers",
-                "Value": 4
-              },
-              {
-                "Description": "TimestampBlts",
-                "Value": 8
-              },
-              {
-                "Description": "TimestampPipelineBinds",
-                "Value": 16
-              },
-              {
-                "Description": "WaitIdleDraws",
-                "Value": 32
-              },
-              {
-                "Description": "WaitIdleDispatches",
-                "Value": 64
-              },
-              {
-                "Description": "WaitIdleBarriers",
-                "Value": 128
-              },
-              {
-                "Description": "WaitIdleBlts",
-                "Value": 256
-              },
-              {
-                "Description": "WaitIdlePipelineBinds",
-                "Value": 512
-              }
-            ]
-          },
-          "Name": "CmdBufferLoggerSingleStep",
-          "Tags": [
-            "CmdBuffer Logger"
-          ],
-          "Flags": {
-            "IsHex": true,
-            "IsBitmask": true
-          },
-          "Defaults": {
-            "Default": 0
-          },
-          "Scope": "PrivatePalKey",
-          "Type": "uint32",
-          "VariableName": "cmdBufferLoggerSingleStep",
-          "Description": "Bitmask controlling single step behavior for ICmdBuffer calls for Draw/Dispatch/Barrier."
-        },
-        {
           "Name": "EmbedDrawDispatchInfo",
           "Tags": [
             "CmdBuffer Logger"
@@ -1653,6 +1592,174 @@
         }
       ],
       "Description": "Configuration options for the PAL Interface Logger layer."
+    },
+    {
+      "Name": "GpuDebugEnabled",
+      "Tags": [
+        "GPU Debugging"
+      ],
+      "Defaults": {
+        "Default": false
+      },
+      "Scope": "PrivatePalKey",
+      "Type": "bool",
+      "VariableName": "gpuDebugEnabled",
+      "Description": "Enables the GPU debugging layer, which provides single-step or submit-on-draw-count functionality for ICmdBuffer actions when debugging a GPU hang."
+    },
+    {
+      "Name": "GpuDebugConfig",
+      "Tags": [
+        "GPU Debugging"
+      ],
+      "DependsOn": {
+        "Settings": [
+          {
+            "Values": [
+              true
+            ],
+            "Name": "GpuDebugEnabled"
+          }
+        ]
+      },
+      "Scope": "PrivatePalKey",
+      "Type": "struct",
+      "VariableName": "gpuDebugConfig",
+      "Structure": [
+        {
+          "Name": "SubmitOnActionCount",
+          "Tags": [
+            "GPU Debugging"
+          ],
+          "Defaults": {
+            "Default": 0
+          },
+          "Scope": "PrivatePalKey",
+          "Type": "uint32",
+          "VariableName": "submitOnActionCount",
+          "Description": "Forces submission of command buffers after X amount of CmdBuffer actions (Draws, Dispatches, BLTs). 0 indicates that this setting is off. There are two restrictions on this setting: 1) We cannot break up a MultiQueue submit, and 2) BLTs that consist of multiple draws or dispatches cannot be broken up."
+        },
+        {
+          "Name": "TokenAllocatorSize",
+          "Tags": [
+            "GPU Debugging"
+          ],
+          "Defaults": {
+            "Default": "64*1024"
+          },
+          "Scope": "PrivatePalKey",
+          "Type": "size_t",
+          "VariableName": "tokenAllocatorSize",
+          "Description": "Initial batched cmd buffer token stream size. Reduce this to avoid running out of memory or increase it to avoid reallocations and memcpys."
+        },
+        {
+          "Name": "WaitIdleSleepMs",
+          "Tags": [
+            "GPU Debugging"
+          ],
+          "Defaults": {
+            "Default": "2000"
+          },
+          "Scope": "PrivatePalKey",
+          "Type": "uint32",
+          "VariableName": "waitIdleSleepMs",
+          "Description": "Time, in milliseconds, to wait-idle after submissions that require waiting."
+        },
+        {
+          "ValidValues": {
+            "IsEnum": true,
+            "Values": [
+              {
+                "Name": "TimestampAndWaitDraws",
+                "Value": 1
+              },
+              {
+                "Name": "TimestampAndWaitDispatches",
+                "Value": 2
+              },
+              {
+                "Name": "TimestampAndWaitBarriers",
+                "Value": 4
+              },
+              {
+                "Name": "TimestampAndWaitBlts",
+                "Value": 8
+              }
+            ],
+            "Name": "TimestampAndWait"
+          },
+          "Name": "SingleStep",
+          "Tags": [
+            "GPU Debugging"
+          ],
+          "Flags": {
+            "IsHex": true,
+            "IsBitmask": true
+          },
+          "Defaults": {
+            "Default": 0
+          },
+          "Scope": "PrivatePalKey",
+          "Type": "uint32",
+          "VariableName": "singleStep",
+          "Description": "Bitmask controlling single step behavior for ICmdBuffer calls for Draw/Dispatch/Barrier."
+        },
+        {
+          "ValidValues": {
+            "IsEnum": true,
+            "Values": [
+              {
+                "Name": "BeforeDraw",
+                "Value": 1
+              },
+              {
+                "Name": "AfterDraw",
+                "Value": 2
+              },
+              {
+                "Name": "BeforeDispatch",
+                "Value": 4
+              },
+              {
+                "Name": "AfterDispatch",
+                "Value": 8
+              },
+              {
+                "Name": "BeforeBarrier",
+                "Value": 16
+              },
+              {
+                "Name": "AfterBarrier",
+                "Value": 32
+              },
+              {
+                "Name": "BeforeBlt",
+                "Value": 64
+              },
+              {
+                "Name": "AfterBlt",
+                "Value": 128
+              }
+            ],
+            "Name": "BeforeAfterAction"
+          },
+          "Name": "CacheFlushInvOnAction",
+          "Tags": [
+            "Gpu Debugging"
+          ],
+          "Flags": {
+            "IsHex": true,
+            "IsBitmask": true
+          },
+          "Defaults": {
+            "Default": 0
+          },
+          "Scope": "PrivatePalKey",
+          "Type": "uint32",
+          "VariableName": "cacheFlushInvOnAction",
+          "Description": "Bitmask controlling when to perform a full cache flush and invalidation before and/or after each action (Draw/Dispatch/Barrier/Blt)."
+        }
+      ],
+      "Description": "Controls what debugging options are selected in the GPU Debug layer."
     }
   ],
   "DefinedConstants": [
@@ -1675,6 +1782,7 @@
   "Tags": [
     "Debug Print",
     "Debug Overlay",
+    "GPU Debugging",
     "GPU Profiler",
     "CmdBuffer Logger",
     "Interface Logger",

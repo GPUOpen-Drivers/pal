@@ -495,36 +495,36 @@ static constexpr uint32 MaxMiscStrLen = 61;
 /// Pal settings that are client visible and editable.
 struct PalPublicSettings
 {
-    ///  Maximum border color palette size supported by any queue.
+    /// Maximum border color palette size supported by any queue.
     uint32 borderColorPaletteSizeLimit;
-    ///  When true RPM will use the graphics fast clear path for depth stencil images if possible. When false the
-    ///  compute path will be preferred.
+    /// When true RPM will use the graphics fast clear path for depth stencil images if possible. When false the compute
+    /// path will be preferred.
     bool useGraphicsFastDepthStencilClear;
-    ///  Forces all serialized loads (LoadPipeline or LoadCompoundState) to fail.
+    /// Forces all serialized loads (LoadPipeline or LoadCompoundState) to fail.
     bool forceLoadObjectFailure;
-    ///  Controls the distribution mode for tessellation, which affects how patches are processed by different VGT
-    ///  units. 0: None - No distribution across VGTs (legacy mode). 1: Default - Optimal settings are chosen depending
-    ///  on the gfxip. 2: Patch - Individual patches are distributed to different VGTs. 3: Donut - Patches are split
-    ///  into donuts and distributed to different VGTs. 4: Trapezoid - Patches from donuts are split into trapezoids and
-    ///  distributed to different VGTs. Falls back to donut mode if HW does not support this mode. 5: Trapezoid only -
-    ///  Distribution turned off if HW does not support this mode.
+    /// Controls the distribution mode for tessellation, which affects how patches are processed by different VGT
+    /// units. 0: None - No distribution across VGTs (legacy mode). 1: Default - Optimal settings are chosen depending
+    /// on the gfxip. 2: Patch - Individual patches are distributed to different VGTs. 3: Donut - Patches are split
+    /// into donuts and distributed to different VGTs. 4: Trapezoid - Patches from donuts are split into trapezoids and
+    /// distributed to different VGTs. Falls back to donut mode if HW does not support this mode. 5: Trapezoid only -
+    /// Distribution turned off if HW does not support this mode.
     uint32 distributionTessMode;
-    ///  Flags that control PAL optimizations to reduce context rolls. 0: Optimization disabled. 1: Pad parameter cache
-    ///  space. Sets VS export count and PS interpolant number to per-command buffer maximum value. Reduces context rolls at
-    ///  the expense of parameter cache space.
+    /// Flags that control PAL optimizations to reduce context rolls. 0: Optimization disabled. 1: Pad parameter cache
+    /// space. Sets VS export count and PS interpolant number to per-command buffer maximum value. Reduces context rolls
+    /// at the expense of parameter cache space.
     uint32 contextRollOptimizationFlags;
-    ///  The number of unbound descriptor debug srds to allocate. To detect reads of unbound descriptor within arrays,
-    ///  multiple debug srds can be allocated.
+    /// The number of unbound descriptor debug srds to allocate. To detect reads of unbound descriptor within arrays,
+    /// multiple debug srds can be allocated.
     uint32 unboundDescriptorDebugSrdCount;
-    ///  Disables compilation of internal PAL shaders. It can be enabled only if a PAL client won't use any of PAL blit
-    ///  functionalities on gfx/compute engines.
+    /// Disables compilation of internal PAL shaders. It can be enabled only if a PAL client won't use any of PAL blit
+    /// functionalities on gfx/compute engines.
     bool disableResourceProcessingManager;
     /// Controls app detect and image quality altering optimizations exposed by CCC.
     uint32 catalystAI;
     /// Controls texture filtering optimizations exposed by CCC.
     uint32 textureOptLevel;
-    ///  Disables SC initialization. It can be enabled only if a PAL client won't use SC for shader compilation and
-    ///  provide direct ISA binaries(usually AQL path).
+    /// Disables SC initialization. It can be enabled only if a PAL client won't use SC for shader compilation and
+    /// provide direct ISA binaries(usually AQL path).
     bool disableScManager;
     /// Information about the client performing the rendering. For example: Rendered By PAL (0.0.1)
     char renderedByString[MaxMiscStrLen];
@@ -532,46 +532,46 @@ struct PalPublicSettings
     char miscellaneousDebugString[MaxMiscStrLen];
     /// Allows SC to make optimizations at the expense of IEEE compliance.
     bool allowNonIeeeOperations;
-    /// Controls whether or not shaders should execute one atomic instruction per wave for UAV append/consume operations.
+    /// Controls whether shaders should execute one atomic instruction per wave for UAV append/consume operations.
     /// If false, one atomic will be executed per thread.
     bool appendBufPerWaveAtomic;
-    ///  Bitmask of cases where texture compatible meta data will be used Single-sample color surface: 0x00000001 MSAA
-    ///  color surface: 0x00000002 FMask data: 0x00000004 Single-sample depth surface: 0x00000008 MSAA depth surface:
-    ///  0x00000010 Allow stencil: 0x00000020 Allow Z-16 surfs 0x00000040
+    /// Bitmask of cases where texture compatible meta data will be used Single-sample color surface: 0x00000001 MSAA
+    /// color surface: 0x00000002 FMask data: 0x00000004 Single-sample depth surface: 0x00000008 MSAA depth surface:
+    /// 0x00000010 Allow stencil: 0x00000020 Allow Z-16 surfs 0x00000040
     uint32 tcCompatibleMetaData;
-    ///  Specifies the threshold below which CmdCopyMemory() is executed via a CpDma BLT, in bytes. CPDMA copies have
-    ///  lower overhead than CS/Gfx copies, but less throughput for large copies.
+    /// Specifies the threshold below which CmdCopyMemory() is executed via a CpDma BLT, in bytes. CPDMA copies have
+    /// lower overhead than CS/Gfx copies, but less throughput for large copies.
     uint32 cpDmaCmdCopyMemoryMaxBytes;
-    ///  Forces high performance state for allocated queues. Note: currently supported in Windows only.
+    /// Forces high performance state for allocated queues. Note: currently supported in Windows only.
     bool forceHighClocks;
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 596
-    ///  Controls the size of the GFX/Compute Scratch Rings. Valid values are [1-32]. Larger values allocate larger
-    ///  Scratch Rings and allow more Waves to run in parallel.
+    /// Controls the size of the GFX/Compute Scratch Rings. Valid values are [1-32]. Larger values allocate larger
+    /// Scratch Rings and allow more Waves to run in parallel.
     uint32 numScratchWavesPerCu;
 #endif
-    ///  When submitting multiple command buffers in a single grQueueSubmit call, the ICD will patch the command streams
-    ///  so that the command buffers are chained together instead of submitting through KMD multiple times. This setting
-    ///  limits the number of command buffers that will be chained together; reduce to prevent problems due to long running
-    ///  submits.
+    /// When submitting multiple command buffers in a single grQueueSubmit call, the ICD will patch the command streams
+    /// so that the command buffers are chained together instead of submitting through KMD multiple times. This setting
+    /// limits the number of command buffers that will be chained together; reduce to prevent problems due to long
+    /// running submits.
     uint32 cmdBufBatchedSubmitChainLimit;
-    ///  Flags that control PAL's command allocator residency optimizations. If a command allocation isn't optimized PAL
-    ///  will wait for it to become resident at creation. 0x1 - Wait for command data to become resident at Submit-time. 0x2
-    ///  - Wait for embedded data to become resident at Submit-time. 0x4 - Wait for marker data to become resident at
-    ///  Submit-time.
+    /// Flags that control PAL's command allocator residency optimizations. If a command allocation isn't optimized PAL
+    /// will wait for it to become resident at creation. 0x1 - Wait for command data to become resident at Submit-time.
+    /// 0x2 - Wait for embedded data to become resident at Submit-time. 0x4 - Wait for marker data to become resident at
+    /// Submit-time.
     uint32 cmdAllocResidency;
-    ///  Overrides max queued frames allowed
+    /// Overrides max queued frames allowed
     uint32 maxQueuedFrames;
-    ///  Maximum number of presentable images per adapter(including LDA chain) which is recommended. If app exceeds the
-    ///  presentable image number threshold, awarning may be reported.
+    /// Maximum number of presentable images per adapter(including LDA chain) which is recommended. If app exceeds the
+    /// presentable image number threshold, awarning may be reported.
     uint32 presentableImageNumberThreshold;
-    ///  Provides a hint to PAL that client knows that every individual depth stencil surfaces are always cleared with
-    ///  same values.If TRUE, per-tile tracking of exp/clear will be enabled (requires HTile).
+    /// Provides a hint to PAL that client knows that every individual depth stencil surfaces are always cleared with
+    /// same values.If TRUE, per-tile tracking of exp/clear will be enabled (requires HTile).
     bool hintInvariantDepthStencilClearValues;
-    ///  Provides a hint to PAL that PAL should disable color compression on surfaces that are smaller than or equal to
-    ///  this setting (setting * setting) in size.
+    /// Provides a hint to PAL that PAL should disable color compression on surfaces that are smaller than or equal to
+    /// this setting (setting * setting) in size.
     uint32 hintDisableSmallSurfColorCompressionSize;
-    ///  Disables Escape call to KMD. This is a temporary setting for experimentation that is expected to break features
-    ///  that currently needs Escape call.
+    /// Disables Escape call to KMD. This is a temporary setting for experimentation that is expected to break features
+    /// that currently needs Escape call.
     bool disableEscapeCall;
     /// In Win7 requests an extended TDR timeout (6 seconds).
     bool longRunningSubmissions;
@@ -603,8 +603,8 @@ struct PalPublicSettings
     /// Enable multiple slots instead of single DWORD slot for GPU event. This will enable anywhere that can utilize
     /// multiple event slots for optimization or function purpose, such as AcqRelBarrier interface.
     bool enableGpuEventMultiSlot;
-    ///  Makes the unbound descriptor debug srd 0 so the hardware drops the load and ignores it instead of
-    ///  pagefaulting. Used to workaround incorrect app behavior.
+    /// Makes the unbound descriptor debug srd 0 so the hardware drops the load and ignores it instead of pagefaulting.
+    /// Used to workaround incorrect app behavior.
     bool zeroUnboundDescDebugSrd;
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
     /// Prevents PAL from uploading any of its internal and client pipelines to the local invisible heap. Default is set
@@ -636,9 +636,9 @@ struct PalPublicSettings
 /// Defines the modes that the GPU Profiling layer can use when its buffer fills.
 enum GpuProfilerStallMode : uint32
 {
-    GpuProfilerStallAlways = 0, ///< Always stall to get accurate trace data
+    GpuProfilerStallAlways = 0,     ///< Always stall to get accurate trace data
     GpuProfilerStallLoseDetail = 1, ///< Lose register-level detail if under pressure to avoid stalls
-    GpuProfilerStallNever = 2, ///< Never stall, miss trace packets
+    GpuProfilerStallNever = 2,      ///< Never stall, miss trace packets
 };
 
 /// Describes the equations needed to interpret the raw memory of a tiled texture.
@@ -717,6 +717,7 @@ enum class LocalMemoryType : uint32
     Hbm2,
     Hbm3,
     Lpddr4,
+    Lpddr5,
     Count
 };
 
@@ -965,8 +966,8 @@ struct DeviceProperties
                 /// Indiciates that the platform supports automatic GPU memory priority management.
                 uint32 autoPrioritySupport              :  1;
 
-                /// Indicates KMD has enabled HBCC(High Bandwidth Cache Controller) page migration support.
-                /// This means shaders must be compiled such that all memory clauses can be replayed in response to an XNACK.
+                /// Indicates KMD has enabled HBCC(High Bandwidth Cache Controller) page migration support.  This means
+                /// shaders must be compiled such that all memory clauses can be replayed in response to an XNACK.
                 uint32 pageMigrationEnabled             :  1;
                 /// Indicates TMZ (or HSFB) protected memory allocations are supported.
                 uint32 supportsTmz                      :  1;
@@ -1086,74 +1087,75 @@ struct DeviceProperties
         {
             struct
             {
-                uint64 support8bitIndices                  :  1; ///< Hardware natively supports 8bit indices
-                uint64 support16BitInstructions            :  1; ///< Hardware supports FP16 and INT16 instructions
-                uint64 supportDoubleRate16BitInstructions  :  1; ///< Hardware supports double rate packed math
-                uint64 supportFp16Fetch                    :  1; ///< Hardware supports FP16 texture fetches
-                uint64 supportFp16Dot2                     :  1; ///< Hardware supports a paired FP16 dot product.
-                uint64 supportConservativeRasterization    :  1; ///< Hardware supports conservative rasterization
-                uint64 supportImplicitPrimitiveShader      :  1; ///< Device supports implicit compiling of the
-                                                                 ///  hardware vertex shader as a primitive shader to
-                                                                 ///  perform culling and compaction optimizations in
-                                                                 ///  the shader.
-                uint64 placeholder7                        :  1; ///< Placeholder, do not use
-                uint64 supportPrtBlendZeroMode             :  1; ///< Blend zero mode support.
-                uint64 supports2BitSignedValues            :  1; ///< Hardware natively supports 2-bit signed values.
-                uint64 supportPrimitiveOrderedPs           :  1; ///< Hardware supports primitive ordered UAV
-                                                                 ///  accesses in the PS.
-                uint64 supportPatchTessDistribution        :  1; ///< Hardware supports patch level tessellation
-                                                                 ///  distribution among VGTs.
-                uint64 supportDonutTessDistribution        :  1; ///< Hardware supports donut granularity of
-                                                                 ///  tessellation distribution among VGTs.
-                uint64 supportTrapezoidTessDistribution    :  1; ///< Hardware supports trapezoid granularity of
-                                                                 ///  tessellation distribution among VGTs.
-                uint64 supportSingleChannelMinMaxFilter    :  1; ///< Hardware supports min/max filtering that can
-                                                                 ///  return one channel at a time.
-                uint64 supportPerChannelMinMaxFilter       :  1; ///< Hardware returns min/max value on a per-channel
-                                                                 ///  basis.
-                uint64 supportRgpTraces                    :  1; ///< Hardware supports RGP traces.
+                uint64 support8bitIndices                 :  1; ///< Hardware natively supports 8bit indices
+                uint64 support16BitInstructions           :  1; ///< Hardware supports FP16 and INT16 instructions
+                uint64 supportDoubleRate16BitInstructions :  1; ///< Hardware supports double rate packed math
+                uint64 supportFp16Fetch                   :  1; ///< Hardware supports FP16 texture fetches
+                uint64 supportFp16Dot2                    :  1; ///< Hardware supports a paired FP16 dot product.
+                uint64 supportConservativeRasterization   :  1; ///< Hardware supports conservative rasterization
+                uint64 supportImplicitPrimitiveShader     :  1; ///< Device supports implicit compiling of the
+                                                                ///  hardware vertex shader as a primitive shader to
+                                                                ///  perform culling and compaction optimizations in
+                                                                ///  the shader.
+                uint64 placeholder7                       :  1; ///< Placeholder, do not use
+                uint64 supportPrtBlendZeroMode            :  1; ///< Blend zero mode support.
+                uint64 supports2BitSignedValues           :  1; ///< Hardware natively supports 2-bit signed values.
+                uint64 supportPrimitiveOrderedPs          :  1; ///< Hardware supports primitive ordered UAV
+                                                                ///  accesses in the PS.
+                uint64 supportPatchTessDistribution       :  1; ///< Hardware supports patch level tessellation
+                                                                ///  distribution among VGTs.
+                uint64 supportDonutTessDistribution       :  1; ///< Hardware supports donut granularity of
+                                                                ///  tessellation distribution among VGTs.
+                uint64 supportTrapezoidTessDistribution   :  1; ///< Hardware supports trapezoid granularity of
+                                                                ///  tessellation distribution among VGTs.
+                uint64 supportSingleChannelMinMaxFilter   :  1; ///< Hardware supports min/max filtering that can
+                                                                ///  return one channel at a time.
+                uint64 supportPerChannelMinMaxFilter      :  1; ///< Hardware returns min/max value on a per-channel
+                                                                ///  basis.
+                uint64 supportRgpTraces                   :  1; ///< Hardware supports RGP traces.
+                uint64 supportMsaaCoverageOut             :  1; ///< Set if HW supports MSAA coverage feature
+                uint64 supportPostDepthCoverage           :  1; ///< Set if HW supports post depth coverage feature
+                uint64 supportSpiPrefPriority             :  1; ///< Set if HW supports preference priority.
+                uint64 supportWaveBreakSize               :  1; ///< The HW supports specifying the wavebreak size
+                                                                ///  in the pixel shader pipeline.
+                uint64 supportsPerShaderStageWaveSize     :  1; ///< If set, the "waveSize" setting in the
+                                                                ///  @ref PipelineShaderInfo structure is meaningful.
+                uint64 placeholder2                       :  1; ///< Reserved for future hardware.
+                uint64 supportSpp                         :  1; ///< Hardware supports Shader Profiling for Power.
+                uint64 timestampResetOnIdle               :  1; ///< GFX timestamp resets after idle between
+                                                                ///  submissions. The client cannot assume that
+                                                                ///  timestamps will increase monotonically across
+                                                                ///  command buffer submissions.
+                uint64 support1xMsaaSampleLocations       :  1; ///< HW supports 1xMSAA custom quad sample patterns
+                uint64 supportReleaseAcquireInterface     :  1; ///< Set if HW supports the basic functionalities of
+                                                                ///  acquire/release-based barrier interface. This
+                                                                ///  provides CmdReleaseThenAcquire() as a convenient
+                                                                ///  way to replace the legacy barrier interface's
+                                                                ///  CmdBarrier() to handle single point barriers.
+                uint64 supportSplitReleaseAcquire         :  1; ///< Set if HW supports additional split barrier feature
+                                                                ///  on top of basic acquire/release interface support.
+                                                                ///  This provides CmdAcquire() and CmdRelease() to
+                                                                ///  implement split barriers.
+                                                                ///  Note: supportReleaseAcquireInterface is a
+                                                                ///  prerequisite to supportSplitReleaseAcquire.
+                uint64 supportGl2Uncached                 :  1; ///< Indicates support for the allocation of GPU L2
+                                                                ///  un-cached memory. @see gl2UncachedCpuCoherency
+                uint64 supportOutOfOrderPrimitives        :  1; ///< HW supports higher throughput for out of order
 
-                uint64 supportMsaaCoverageOut              :  1; ///< Set if HW supports MSAA coverage feature
-                uint64 supportPostDepthCoverage            :  1; ///< Set if HW supports post depth coverage feature
-                uint64 supportSpiPrefPriority              :  1; ///< Set if HW supports preference priority.
-                uint64 supportWaveBreakSize                :  1; ///< The HW supports specifying the wavebreak size
-                                                                 ///  in the pixel shader pipeline.
-                uint64 supportsPerShaderStageWaveSize      :  1; ///< If set, the "waveSize" setting in the
-                                                                 ///  @ref PipelineShaderInfo structure is meaningful.
-                uint64 placeholder2                        :  1; ///< Reserved for future hardware.
-                uint64 supportSpp                          :  1; ///< Hardware supports Shader Profiling for Power.
-                uint64 timestampResetOnIdle                :  1; ///< GFX timestamp resets after idle between
-                                                                 ///  submissions. The client cannot assume that
-                                                                 ///  timestamps will increase monotonically across
-                                                                 ///  command buffer submissions.
-                uint64 support1xMsaaSampleLocations        :  1; ///< HW supports 1xMSAA custom quad sample patterns
+                uint64 placeholder5                       :  1; ///< Placeholder, do not use
 
-                uint64 supportReleaseAcquireInterface      :  1; ///< If true, ASIC supports the new barrier interface
-                                                                 ///  designed for Acquire/Released-based barrier.
-                uint64 supportSplitReleaseAcquire          :  1; ///< If true, ASIC supports split CmdRelease()
-                                                                 ///  and CmdAcquire() to express barrier conditions
-                                                                 ///  instead of CmdReleaseThenAcquire().
-                                                                 ///  Note: Only supported if
-                                                                 ///  @ref supportReleaseAcquireInterface is supported.
-                uint64 supportGl2Uncached                  :  1; ///< Indicates support for the allocation of GPU L2
-                                                                 ///  un-cached memory. @see gl2UncachedCpuCoherency
-                uint64 supportOutOfOrderPrimitives         :  1; ///< HW supports higher throughput for out of order
-
-                uint64 placeholder5                        :  1; ///< Placeholder, do not use
-
-                uint64 support64BitInstructions            :  1; ///< Hardware supports 64b instructions
-                uint64 supportShaderSubgroupClock          :  1; ///< HW supports clock functions across subgroup.
-                uint64 supportShaderDeviceClock            :  1; ///< HW supports clock functions across device.
-                uint64 supportAlphaToOne                   :  1; ///< HW supports forcing PS output alpha channel to 1
+                uint64 support64BitInstructions           :  1; ///< Hardware supports 64b instructions
+                uint64 supportShaderSubgroupClock         :  1; ///< HW supports clock functions across subgroup.
+                uint64 supportShaderDeviceClock           :  1; ///< HW supports clock functions across device.
+                uint64 supportAlphaToOne                  :  1; ///< HW supports forcing PS output alpha channel to 1
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 560
-                uint64 supportCaptureReplay                :  1; ///< HW supports captureReplay
+                uint64 supportCaptureReplay               :  1; ///< HW supports captureReplay
 #else
-                uint64 placeholder9                        :  1; ///< Placeholder, do not use
+                uint64 placeholder9                       :  1; ///< Placeholder, do not use
 #endif
-                uint64 supportSortAgnosticBarycentrics     :  1; ///< HW supports sort-agnostic Barycentrics for PS
-                uint64 placeholder10                       :  1; ///< Placeholder, do not use
-                                                                 ///  when z or stencil exports are enabled
-                uint64 reserved                            : 26; ///< Reserved for future use.
+                uint64 supportSortAgnosticBarycentrics    :  1; ///< HW supports sort-agnostic Barycentrics for PS
+                uint64 placeholder10                      :  1; ///< Placeholder, do not use
+                uint64 reserved                           : 26; ///< Reserved for future use.
             };
             uint64 u64All;           ///< Flags packed as 32-bit uint.
         } flags;                     ///< Device IP property flags.
@@ -1431,17 +1433,17 @@ struct DeviceFinalizeInfo
         uint32 u32All;                    ///< Flags packed as 32-bit uint.
     } flags;                              ///< Device finalization flags.
 
+    /// Specifies which engines of each type should be created for the device.
     struct
     {
         uint32 engines; ///< A mask of which engines are requested.
-    } requestedEngineCounts[EngineTypeCount]; /// Specifies which engines of each type should be created for the device.
+    } requestedEngineCounts[EngineTypeCount];
 
-    size_t ceRamSizeUsed[EngineTypeCount]; ///< Bytes of CE RAM to be used by the client for each engine type. This value
-                                           ///  must be <= ceRamSizeAvailable reported for that engine type. In the case
-                                           ///  where more than one engine of a given type is requested it is assumed
-                                           ///  each engine of that type will use this amount of CE RAM so the total size
-                                           ///  of (ceRamSizeUsed * queueCounts) must be <= ceRamSizeAvailable for that
-                                           ///  engine type.  Each entry must be either zero or a multiple of 32 bytes.
+    /// Bytes of CE RAM to be used by the client for each engine type. This value must be <= ceRamSizeAvailable reported
+    /// for that engine type. In the case where more than one engine of a given type is requested it is assumed each
+    /// engine of that type will use this amount of CE RAM so the total size of (ceRamSizeUsed * queueCounts) must be <=
+    /// ceRamSizeAvailable for that engine type. Each entry must be either zero or a multiple of 32 bytes.
+    size_t ceRamSizeUsed[EngineTypeCount];
 
     /// @see PrivateScreenNotifyInfo
     /// Private screen notify info, must be filled when supportPrivateScreens=1. The client pointer and callback are to
@@ -4291,7 +4293,7 @@ public:
         IImage**                            ppImage,
         IGpuMemory**                        ppGpuMemory) = 0;
 
-    /// Determines the amount of system memory required for an ISwapChain object.  An allocation of this amount of memory
+    /// Determines the amount of system memory required for an ISwapChain object. An allocation of this amount of memory
     /// must be provided in the pPlacementAddr parameter of CreateSwapChain().
     ///
     /// @param [in]  createInfo All the information related with this swap chain.
@@ -4309,8 +4311,8 @@ public:
     /// @param [in]  createInfo     All the information related with this swap chain.
     /// @param [in]  pPlacementAddr Pointer to the location where PAL should construct this object.  There must be as
     ///                             much size available here as reported by calling GetSwapChainSize().
-    /// @param [out] ppSwapChain    Constructed swapchain object.  When successful, the returned address will be the same as
-    ///                             specified in pPlacementAddr.
+    /// @param [out] ppSwapChain    Constructed swapchain object.  When successful, the returned address will be the
+    ///                             same as specified in pPlacementAddr.
     ///
     /// @returns Success if create swap chain instance successfully.  Otherwise, one of the following errors may be
     ///          returned:

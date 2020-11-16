@@ -440,6 +440,18 @@ UniversalCmdBuffer::UniversalCmdBuffer(
     m_paScAaConfigNew.u32All      = 0;
     m_paScAaConfigLast.u32All     = 0;
 
+    // GFX10 moves the RESET_EN functionality to a new register called GE_MULTI_PRIM_IB_RESET_EN.  Verify that
+    // the GFX10 register has the exact same layout as the GFX9 register to eliminate the need for run-time "if"
+    // statements to verify which Gfx level the active device uses.
+    static_assert(Gfx09_10::VGT_MULTI_PRIM_IB_RESET_EN__MATCH_ALL_BITS_MASK ==
+                  Gfx10Plus::GE_MULTI_PRIM_IB_RESET_EN__MATCH_ALL_BITS_MASK,
+                  "MATCH_ALL_BITS bits are not in the same place on GFX9 and GFX10!");
+    static_assert(Gfx09_10::VGT_MULTI_PRIM_IB_RESET_EN__RESET_EN_MASK ==
+                  Gfx10Plus::GE_MULTI_PRIM_IB_RESET_EN__RESET_EN_MASK,
+                  "RESET_EN bits are not in the same place on GFX9 and GFX10!");
+
+    m_vgtMultiPrimIbResetEn.u32All = 0;
+
     SwitchDrawFunctions(false, false
     );
 }
@@ -632,7 +644,7 @@ void UniversalCmdBuffer::ResetState()
     m_spiPsInControl.u32All   = 0;
     m_vgtLsHsConfig.u32All    = 0;
     m_geCntl.u32All           = 0;
-    m_dbDfsmControl.u32All    = m_device.GetDbDfsmControl();
+    m_dbDfsmControl.u32All    = ((m_cmdUtil.GetRegInfo().mmDbDfsmControl != 0) ? m_device.GetDbDfsmControl() : 0);
     m_paScAaConfigNew.u32All  = 0;
     m_paScAaConfigLast.u32All = 0;
 
@@ -4190,7 +4202,14 @@ uint32* UniversalCmdBuffer::ValidateDraw(
     const ValidateDrawInfo& drawInfo,
     uint32*                 pDeCmdSpace)
 {
-    if (m_graphicsState.dirtyFlags.validationBits.u16All)
+    // Strictly speaking, colorWriteMaskOverride and paScModeCntl1 are not similar dirty bits as tracked in
+    // validationBits. However for best CPU performance in <PipelineDirty=false, StateDirty=false> path, manually
+    // make the two as part of StateDirty path as they are not frequently updated.
+    const bool stateDirty = ((m_graphicsState.dirtyFlags.validationBits.u16All |
+                              m_graphicsState.colorWriteMaskOverride.enable |
+                              (m_drawTimeHwState.valid.paScModeCntl1 == 0)) != 0);
+
+    if (stateDirty)
     {
         pDeCmdSpace = ValidateDraw<Indexed, Indirect, Pm4OptImmediate, PipelineDirty, true>(drawInfo, pDeCmdSpace);
     }
@@ -4278,59 +4297,55 @@ uint32* UniversalCmdBuffer::UpdateNggCullingDataBufferWithCpu(
 {
     PAL_ASSERT(m_pSignatureGfx->nggCullingDataAddr != UserDataNotMapped);
 
-    // If nothing has changed, then there's no need to do anything...
-    if (m_nggState.flags.dirty)
+    constexpr uint32 NggStateDwords = (sizeof(Abi::PrimShaderCullingCb) / sizeof(uint32));
+    const     uint16 nggRegAddr     = m_pSignatureGfx->nggCullingDataAddr;
+
+    Abi::PrimShaderCullingCb* pPrimShaderCullingCb = &m_state.primShaderCullingCb;
+
+    // If the clients have specified a default sample layout we can use the number of samples as a multiplier.
+    // However, if custom sample positions are in use we need to assume the worst case sample count (16).
+    const float multiplier = m_graphicsState.useCustomSamplePattern
+                             ? 16.0f : static_cast<float>(m_nggState.numSamples);
+
+    // Make a local copy of the various shader state so that we can modify it as necessary.
+    Abi::PrimShaderCullingCb localCb;
+    if (multiplier > 1.0f)
     {
-        constexpr uint32 NggStateDwords = (sizeof(Abi::PrimShaderCullingCb) / sizeof(uint32));
-        const     uint16 nggRegAddr     = m_pSignatureGfx->nggCullingDataAddr;
+        memcpy(&localCb, &m_state.primShaderCullingCb, NggStateDwords * sizeof(uint32));
+        pPrimShaderCullingCb = &localCb;
 
-        Abi::PrimShaderCullingCb* pPrimShaderCullingCb = &m_state.primShaderCullingCb;
-
-        // If the clients have specified a default sample layout we can use the number of samples as a multiplier.
-        // However, if custom sample positions are in use we need to assume the worst case sample count (16).
-        const float multiplier = m_graphicsState.useCustomSamplePattern
-                                 ? 16.0f : static_cast<float>(m_nggState.numSamples);
-
-        // Make a local copy of the various shader state so that we can modify it as necessary.
-        Abi::PrimShaderCullingCb localCb;
-        if (multiplier > 1.0f)
-        {
-            memcpy(&localCb, &m_state.primShaderCullingCb, NggStateDwords * sizeof(uint32));
-            pPrimShaderCullingCb = &localCb;
-
-            UpdateMsaaForNggCullingCb(m_graphicsState.viewportState.count,
-                                      multiplier,
-                                      &m_state.primShaderCullingCb.viewports[0],
-                                      &localCb.viewports[0]);
-        }
-
-        // The alignment of the user data is dependent on the type of register used to store
-        // the address.
-        const uint32 byteAlignment = ((nggRegAddr == mmSPI_SHADER_PGM_LO_GS) ? 256 : 4);
-
-        // Copy all of NGG state into embedded data, which is pointed to by nggTable.gpuVirtAddr
-        UpdateUserDataTableCpu(&m_nggTable.state,
-                               NggStateDwords, // size
-                               0,              // offset
-                               reinterpret_cast<const uint32*>(pPrimShaderCullingCb),
-                               NumBytesToNumDwords(byteAlignment));
-
-        gpusize gpuVirtAddr = m_nggTable.state.gpuVirtAddr;
-        if (byteAlignment == 256)
-        {
-            // The address of the constant buffer is stored in the GS shader address registers, which require a
-            // 256B aligned address.
-            gpuVirtAddr = Get256BAddrLo(m_nggTable.state.gpuVirtAddr);
-        }
-
-        pDeCmdSpace = m_deCmdStream.WriteSetSeqShRegs(nggRegAddr,
-                                                      (nggRegAddr + 1),
-                                                      ShaderGraphics,
-                                                      &gpuVirtAddr,
-                                                      pDeCmdSpace);
-
-        m_nggState.flags.dirty = 0;
+        UpdateMsaaForNggCullingCb(m_graphicsState.viewportState.count,
+                                  multiplier,
+                                  &m_state.primShaderCullingCb.viewports[0],
+                                  &localCb.viewports[0]);
     }
+
+    // The alignment of the user data is dependent on the type of register used to store
+    // the address.
+    const uint32 byteAlignment = ((nggRegAddr == mmSPI_SHADER_PGM_LO_GS) ? 256 : 4);
+
+    // Copy all of NGG state into embedded data, which is pointed to by nggTable.gpuVirtAddr
+    UpdateUserDataTableCpu(&m_nggTable.state,
+                           NggStateDwords, // size
+                           0,              // offset
+                           reinterpret_cast<const uint32*>(pPrimShaderCullingCb),
+                           NumBytesToNumDwords(byteAlignment));
+
+    gpusize gpuVirtAddr = m_nggTable.state.gpuVirtAddr;
+    if (byteAlignment == 256)
+    {
+        // The address of the constant buffer is stored in the GS shader address registers, which require a
+        // 256B aligned address.
+        gpuVirtAddr = Get256BAddrLo(m_nggTable.state.gpuVirtAddr);
+    }
+
+    pDeCmdSpace = m_deCmdStream.WriteSetSeqShRegs(nggRegAddr,
+                                                  (nggRegAddr + 1),
+                                                  ShaderGraphics,
+                                                  &gpuVirtAddr,
+                                                  pDeCmdSpace);
+
+    m_nggState.flags.dirty = 0;
 
     return pDeCmdSpace;
 }
@@ -4420,7 +4435,10 @@ uint32* UniversalCmdBuffer::ValidateDraw(
         }
     }
 
-    pDeCmdSpace = ValidateCbColorInfo<Pm4OptImmediate, PipelineDirty, StateDirty>(pDeCmdSpace);
+    if (PipelineDirty || (StateDirty && (dirtyFlags.colorBlendState || dirtyFlags.colorTargetView)))
+    {
+        pDeCmdSpace = ValidateCbColorInfo<Pm4OptImmediate, PipelineDirty, StateDirty>(pDeCmdSpace);
+    }
 
     // Writing the viewport and scissor-rect state is deferred until draw-time because they depend on both the
     // viewport/scissor-rect state and the active pipeline.
@@ -4432,14 +4450,15 @@ uint32* UniversalCmdBuffer::ValidateDraw(
     regPA_SC_MODE_CNTL_1 paScModeCntl1 = m_drawTimeHwState.paScModeCntl1;
 
     // Re-calculate paScModeCntl1 value if state contributing to the register has changed.
-    if ((m_drawTimeHwState.valid.paScModeCntl1 == 0) ||
-        PipelineDirty ||
+    if (PipelineDirty ||
         (StateDirty && (dirtyFlags.depthStencilState || dirtyFlags.colorBlendState || dirtyFlags.depthStencilView ||
-                        dirtyFlags.queryState || dirtyFlags.triangleRasterState)))
+                        dirtyFlags.queryState || dirtyFlags.triangleRasterState ||
+                        (m_drawTimeHwState.valid.paScModeCntl1 == 0))))
     {
         paScModeCntl1 = pPipeline->PaScModeCntl1();
 
-        if (pPipeline->IsOutOfOrderPrimsEnabled() == false)
+        if ((m_cachedSettings.outOfOrderPrimsEnable != OutOfOrderPrimDisable) &&
+            (pPipeline->IsOutOfOrderPrimsEnabled() == false))
         {
             paScModeCntl1.bits.OUT_OF_ORDER_PRIMITIVE_ENABLE = pPipeline->CanDrawPrimsOutOfOrder(
                 pDsView,
@@ -4476,14 +4495,14 @@ uint32* UniversalCmdBuffer::ValidateDraw(
         regIA_MULTI_VGT_PARAM iaMultiVgtParam = pPipeline->IaMultiVgtParam(wdSwitchOnEop);
         regVGT_LS_HS_CONFIG   vgtLsHsConfig   = pPipeline->VgtLsHsConfig();
 
-        if (m_gfxIpLevel == GfxIpLevel::GfxIp9)
+        if (IsGfx9(m_gfxIpLevel))
         {
             pDeCmdSpace = m_deCmdStream.WriteSetOneConfigReg(Gfx09::mmIA_MULTI_VGT_PARAM,
                                                              iaMultiVgtParam.u32All,
                                                              pDeCmdSpace,
                                                              index__pfp_set_uconfig_reg_index__multi_vgt_param__GFX09);
         }
-        else if (IsGfx10Plus(m_gfxIpLevel))
+        else // For GFX10+
         {
             const bool   lineStippleEnabled = (pMsaaState != nullptr) ? pMsaaState->UsesLineStipple() : false;
             const uint32 geCntl             = CalcGeCntl<IsNgg>(lineStippleEnabled, iaMultiVgtParam);
@@ -4594,8 +4613,11 @@ uint32* UniversalCmdBuffer::ValidateDraw(
         }
     }
 
-    m_deCmdStream.CommitCommands(pDeCmdSpace);
-    pDeCmdSpace = m_deCmdStream.ReserveCommands();
+    if (PipelineDirty || StateDirty)
+    {
+        m_deCmdStream.CommitCommands(pDeCmdSpace);
+        pDeCmdSpace = m_deCmdStream.ReserveCommands();
+    }
 
     if ((PipelineDirty || (StateDirty && dirtyFlags.triangleRasterState)) && IsGfx10Plus(m_gfxIpLevel))
     {
@@ -4643,7 +4665,7 @@ uint32* UniversalCmdBuffer::ValidateDraw(
     }
 
     // Always write the value of the over-ridden mask when the enable flag is set.
-    if (m_graphicsState.colorWriteMaskOverride.enable)
+    if ((PipelineDirty || StateDirty) && m_graphicsState.colorWriteMaskOverride.enable)
     {
         //Note that only overwrite target0's regWriteMask.
         //Because this version currently only supports target0.
@@ -4656,26 +4678,12 @@ uint32* UniversalCmdBuffer::ValidateDraw(
 
     // Validate primitive restart enable.  Primitive restart should only apply for indexed draws, but on gfx9,
     // VGT also applies it to auto-generated vertex index values.
-    //
-    // GFX10 moves the RESET_EN functionality to a new register called GE_MULTI_PRIM_IB_RESET_EN.  Verify that
-    // the GFX10 register has the exact same layout as the GFX9 register to eliminate the need for run-time "if"
-    // statements to verify which Gfx level the active device uses.
-    static_assert(Gfx09_10::VGT_MULTI_PRIM_IB_RESET_EN__MATCH_ALL_BITS_MASK ==
-                  Gfx10Plus::GE_MULTI_PRIM_IB_RESET_EN__MATCH_ALL_BITS_MASK,
-                  "MATCH_ALL_BITS bits are not in the same place on GFX9 and GFX10!");
-    static_assert(Gfx09_10::VGT_MULTI_PRIM_IB_RESET_EN__RESET_EN_MASK ==
-                  Gfx10Plus::GE_MULTI_PRIM_IB_RESET_EN__RESET_EN_MASK,
-                  "RESET_EN bits are not in the same place on GFX9 and GFX10!");
-
-    regVGT_MULTI_PRIM_IB_RESET_EN vgtMultiPrimIbResetEn = {};
-
-    vgtMultiPrimIbResetEn.bits.RESET_EN =
+    m_vgtMultiPrimIbResetEn.bits.RESET_EN =
         static_cast<uint32>(Indexed && m_graphicsState.inputAssemblyState.primitiveRestartEnable);
 
     // Validate the per-draw HW state.
     pDeCmdSpace = ValidateDrawTimeHwState<Indexed, Indirect, Pm4OptImmediate>(paScModeCntl1,
                                                                               dbCountControl,
-                                                                              vgtMultiPrimIbResetEn,
                                                                               drawInfo,
                                                                               pDeCmdSpace);
 
@@ -4684,7 +4692,10 @@ uint32* UniversalCmdBuffer::ValidateDraw(
                                                                                         this,
                                                                                         pDeCmdSpace);
 
-    if (IsNgg && (m_pSignatureGfx->nggCullingDataAddr != UserDataNotMapped))
+    if (IsNgg                         &&
+        (PipelineDirty || StateDirty) &&
+        (m_nggState.flags.dirty)      &&
+        (m_pSignatureGfx->nggCullingDataAddr != UserDataNotMapped))
     {
         pDeCmdSpace = UpdateNggCullingDataBufferWithCpu(pDeCmdSpace);
     }
@@ -5458,136 +5469,130 @@ uint32* UniversalCmdBuffer::ValidateCbColorInfo(
 {
     const auto dirtyFlags = m_graphicsState.dirtyFlags.validationBits;
 
-    // If BlendOpt could have changed or color targets changed.
-    if (PipelineDirty || (StateDirty && (dirtyFlags.colorBlendState || dirtyFlags.colorTargetView)))
+    // Should only be called if pipeline is dirty or blendState/colorTarget is changed.
+    PAL_ASSERT(PipelineDirty || (StateDirty && (dirtyFlags.colorBlendState || dirtyFlags.colorTargetView)));
+
+    const auto*const pPipeline     = static_cast<const GraphicsPipeline*>(m_graphicsState.pipelineState.pPipeline);
+    const bool       blendOptDirty = (PipelineDirty || (StateDirty && dirtyFlags.colorBlendState));
+    const bool       rtvDirty      = (StateDirty && dirtyFlags.colorTargetView);
+
+    uint8 cbColorInfoDirtyBlendOpt = 0;
+
+    if ((pPipeline != nullptr) && blendOptDirty)
     {
-        const auto*const pPipeline     = static_cast<const GraphicsPipeline*>(m_graphicsState.pipelineState.pPipeline);
-        const bool       blendOptDirty = (PipelineDirty || (StateDirty && dirtyFlags.colorBlendState));
-        const bool       rtvDirty      = (StateDirty && dirtyFlags.colorTargetView);
+        const auto*const pBlendState = static_cast<const ColorBlendState*>(m_graphicsState.pColorBlendState);
 
-        uint8 cbColorInfoDirtyBlendOpt = 0;
-
-        if ((pPipeline != nullptr) && blendOptDirty)
+        // Blend state optimizations are associated with the Blend state object, but the CB state affects which
+        // optimizations are chosen. We need to make sure we have the best optimizations chosen, so we write it
+        // at draw time only if it is dirty.
+        if (pBlendState != nullptr)
         {
-            const auto*const pBlendState = static_cast<const ColorBlendState*>(m_graphicsState.pColorBlendState);
-
-            // Blend state optimizations are associated with the Blend state object, but the CB state affects which
-            // optimizations are chosen. We need to make sure we have the best optimizations chosen, so we write it
-            // at draw time only if it is dirty.
-            if (pBlendState != nullptr)
-            {
-                cbColorInfoDirtyBlendOpt = pBlendState->WriteBlendOptimizations(
-                    &m_deCmdStream,
-                    pPipeline->TargetFormats(),
-                    pPipeline->TargetWriteMasks(),
-                    m_cachedSettings.blendOptimizationsEnable,
-                    &m_blendOpts[0],
-                    m_cbColorInfo);
-            }
+            cbColorInfoDirtyBlendOpt = pBlendState->WriteBlendOptimizations(
+                &m_deCmdStream,
+                pPipeline->TargetFormats(),
+                pPipeline->TargetWriteMasks(),
+                pPipeline->NumColorTargets(),
+                m_cachedSettings.blendOptimizationsEnable,
+                &m_blendOpts[0],
+                m_cbColorInfo);
         }
+    }
 
-        if (m_state.flags.cbColorInfoDirtyRtv || cbColorInfoDirtyBlendOpt)
+    uint32 cbColorInfoCheckMask = (m_state.flags.cbColorInfoDirtyRtv | cbColorInfoDirtyBlendOpt);
+    if (cbColorInfoCheckMask != 0)
+    {
+        uint32 x;
+        while (Util::BitMaskScanForward(&x, cbColorInfoCheckMask))
         {
-            for (uint32 x = 0; x < MaxColorTargets; x++)
-            {
-                const bool slotDirtyRtv      = BitfieldIsSet(m_state.flags.cbColorInfoDirtyRtv, x);
-                const bool slotDirtyBlendOpt = BitfieldIsSet(cbColorInfoDirtyBlendOpt, x);
+            const bool slotDirtyRtv      = BitfieldIsSet(m_state.flags.cbColorInfoDirtyRtv, x);
+            const bool slotDirtyBlendOpt = BitfieldIsSet(cbColorInfoDirtyBlendOpt, x);
 
-                // If root CmdBuf or all state is has been set at some point on Nested, can simply set the register.
-                if (IsNested() == false)
+            // If root CmdBuf or all state is has been set at some point on Nested, can simply set the register.
+            if (IsNested() == false)
+            {
+                if (slotDirtyRtv || slotDirtyBlendOpt)
                 {
-                    if (slotDirtyRtv || slotDirtyBlendOpt)
-                    {
-                        pDeCmdSpace = m_deCmdStream.WriteSetOneContextReg<Pm4OptImmediate>(
-                            (mmCB_COLOR0_INFO + (x * CbRegsPerSlot)),
-                            m_cbColorInfo[x].u32All,
-                            pDeCmdSpace);
-                    }
+                    pDeCmdSpace = m_deCmdStream.WriteSetOneContextReg<Pm4OptImmediate>(
+                        (mmCB_COLOR0_INFO + (x * CbRegsPerSlot)),
+                        m_cbColorInfo[x].u32All,
+                        pDeCmdSpace);
                 }
-                // If on the NestedCmd buf and only partial state known must use RMW
-                else
+            }
+            // If on the NestedCmd buf and only partial state known must use RMW
+            else
+            {
+                if (slotDirtyRtv)
                 {
-                    if (slotDirtyRtv)
-                    {
-                        pDeCmdSpace = m_deCmdStream.WriteContextRegRmw((mmCB_COLOR0_INFO + (x * CbRegsPerSlot)),
-                                                                       ColorTargetView::CbColorInfoMask,
-                                                                       m_cbColorInfo[x].u32All,
-                                                                       pDeCmdSpace);
-                    }
-                    if (slotDirtyBlendOpt)
-                    {
-                        pDeCmdSpace = m_deCmdStream.WriteContextRegRmw((mmCB_COLOR0_INFO + (x * CbRegsPerSlot)),
-                                                                       ~ColorTargetView::CbColorInfoMask,
-                                                                       m_cbColorInfo[x].u32All,
-                                                                       pDeCmdSpace);
-                    }
+                    pDeCmdSpace = m_deCmdStream.WriteContextRegRmw((mmCB_COLOR0_INFO + (x * CbRegsPerSlot)),
+                                                                    ColorTargetView::CbColorInfoMask,
+                                                                    m_cbColorInfo[x].u32All,
+                                                                    pDeCmdSpace);
+                }
+                if (slotDirtyBlendOpt)
+                {
+                    pDeCmdSpace = m_deCmdStream.WriteContextRegRmw((mmCB_COLOR0_INFO + (x * CbRegsPerSlot)),
+                                                                    ~ColorTargetView::CbColorInfoMask,
+                                                                    m_cbColorInfo[x].u32All,
+                                                                    pDeCmdSpace);
                 }
             }
 
-            // Track state written over the course of the entire CmdBuf. Needed for Nested CmdBufs to know what
-            // state to leak back to the root CmdBuf.
-            m_leakCbColorInfoRtv   |= m_state.flags.cbColorInfoDirtyRtv;
-
-            m_state.flags.cbColorInfoDirtyRtv = 0;
+            cbColorInfoCheckMask &= ~(1u << x);
         }
+
+        // Track state written over the course of the entire CmdBuf. Needed for Nested CmdBufs to know what
+        // state to leak back to the root CmdBuf.
+        m_leakCbColorInfoRtv |= m_state.flags.cbColorInfoDirtyRtv;
+
+        m_state.flags.cbColorInfoDirtyRtv = 0;
     }
 
     return pDeCmdSpace;
 }
 
 // =====================================================================================================================
-// Wrapper for the real NeedsToValidateScissorRects() for when the caller doesn't know if the immediate mode pm4
-// optimizer is enabled.
-bool UniversalCmdBuffer::NeedsToValidateScissorRects() const
-{
-    return NeedsToValidateScissorRects(m_deCmdStream.Pm4OptimizerEnabled());
-}
-
-// =====================================================================================================================
 // Returns whether we need to validate scissor rects at draw time.
-bool UniversalCmdBuffer::NeedsToValidateScissorRects(
-    const bool pm4OptImmediate
+bool UniversalCmdBuffer::NeedsToValidateScissorRectsWa(
+    bool pm4OptImmediate
     ) const
 {
-    const auto& dirtyFlags    = m_graphicsState.dirtyFlags;
-    const auto& pipelineFlags = m_graphicsState.pipelineState.dirtyFlags;
-
     bool needsValidation = false;
 
     if (pm4OptImmediate)
     {
         // When PM4 optimizer is enabled ContextRollDetected() will detect all context rolls through the PM4
         // optimizer.
-        needsValidation = (dirtyFlags.validationBits.scissorRects ||
-                           (m_cachedSettings.scissorChangeWa && m_deCmdStream.ContextRollDetected()));
+        needsValidation = (m_cachedSettings.scissorChangeWa && m_deCmdStream.ContextRollDetected());
     }
     else
     {
+        const auto dirtyFlags    = m_graphicsState.dirtyFlags;
+        const auto pipelineFlags = m_graphicsState.pipelineState.dirtyFlags;
+
         // When PM4 optimizer is disabled ContextRollDetected() represents individual context register writes in the
         // driver. Thus, if any other graphics state is dirtied we must assume a context roll has occurred.
-        needsValidation = (dirtyFlags.validationBits.scissorRects ||
-                           (m_cachedSettings.scissorChangeWa &&
-                            (m_deCmdStream.ContextRollDetected()               ||
-                             dirtyFlags.validationBits.colorBlendState         ||
-                             dirtyFlags.validationBits.depthStencilState       ||
-                             dirtyFlags.validationBits.msaaState               ||
-                             dirtyFlags.validationBits.quadSamplePatternState  ||
-                             dirtyFlags.validationBits.viewports               ||
-                             dirtyFlags.validationBits.depthStencilView        ||
-                             dirtyFlags.validationBits.inputAssemblyState      ||
-                             dirtyFlags.validationBits.triangleRasterState     ||
-                             dirtyFlags.validationBits.colorTargetView         ||
-                             dirtyFlags.validationBits.lineStippleState        ||
-                             dirtyFlags.nonValidationBits.streamOutTargets     ||
-                             dirtyFlags.nonValidationBits.globalScissorState   ||
-                             dirtyFlags.nonValidationBits.blendConstState      ||
-                             dirtyFlags.nonValidationBits.depthBiasState       ||
-                             dirtyFlags.nonValidationBits.depthBoundsState     ||
-                             dirtyFlags.nonValidationBits.pointLineRasterState ||
-                             dirtyFlags.nonValidationBits.stencilRefMaskState  ||
-                             dirtyFlags.nonValidationBits.clipRectsState       ||
-                             pipelineFlags.borderColorPaletteDirty             ||
-                             pipelineFlags.pipelineDirty)));
+        needsValidation = (m_cachedSettings.scissorChangeWa &&
+                           (m_deCmdStream.ContextRollDetected()               ||
+                            dirtyFlags.validationBits.colorBlendState         ||
+                            dirtyFlags.validationBits.depthStencilState       ||
+                            dirtyFlags.validationBits.msaaState               ||
+                            dirtyFlags.validationBits.quadSamplePatternState  ||
+                            dirtyFlags.validationBits.viewports               ||
+                            dirtyFlags.validationBits.depthStencilView        ||
+                            dirtyFlags.validationBits.inputAssemblyState      ||
+                            dirtyFlags.validationBits.triangleRasterState     ||
+                            dirtyFlags.validationBits.colorTargetView         ||
+                            dirtyFlags.validationBits.lineStippleState        ||
+                            dirtyFlags.nonValidationBits.streamOutTargets     ||
+                            dirtyFlags.nonValidationBits.globalScissorState   ||
+                            dirtyFlags.nonValidationBits.blendConstState      ||
+                            dirtyFlags.nonValidationBits.depthBiasState       ||
+                            dirtyFlags.nonValidationBits.depthBoundsState     ||
+                            dirtyFlags.nonValidationBits.pointLineRasterState ||
+                            dirtyFlags.nonValidationBits.stencilRefMaskState  ||
+                            dirtyFlags.nonValidationBits.clipRectsState       ||
+                            pipelineFlags.borderColorPaletteDirty             ||
+                            pipelineFlags.pipelineDirty));
     }
 
     return needsValidation;
@@ -5787,24 +5792,22 @@ template <bool Indexed, bool Indirect, bool Pm4OptImmediate>
 uint32* UniversalCmdBuffer::ValidateDrawTimeHwState(
     regPA_SC_MODE_CNTL_1          paScModeCntl1,         // PA_SC_MODE_CNTL_1 register value.
     regDB_COUNT_CONTROL           dbCountControl,        // DB_COUNT_CONTROL register value.
-    regVGT_MULTI_PRIM_IB_RESET_EN vgtMultiPrimIbResetEn, // VGT_MULTI_PRIM_IB_RESET_EN register value.
     const ValidateDrawInfo&       drawInfo,              // Draw info
     uint32*                       pDeCmdSpace)           // Write new draw-engine commands here.
 {
-    if ((m_drawTimeHwState.vgtMultiPrimIbResetEn.u32All != vgtMultiPrimIbResetEn.u32All) ||
+    if ((m_drawTimeHwState.vgtMultiPrimIbResetEn.u32All != m_vgtMultiPrimIbResetEn.u32All) ||
         (m_drawTimeHwState.valid.vgtMultiPrimIbResetEn == 0))
     {
-        m_drawTimeHwState.vgtMultiPrimIbResetEn.u32All = vgtMultiPrimIbResetEn.u32All;
+        m_drawTimeHwState.vgtMultiPrimIbResetEn.u32All = m_vgtMultiPrimIbResetEn.u32All;
         m_drawTimeHwState.valid.vgtMultiPrimIbResetEn  = 1;
 
         // GFX10 moves the RESET_EN functionality into a new register that happens to exist in the same place
         // as the GFX9 register.
-        static_assert(Gfx09::mmVGT_MULTI_PRIM_IB_RESET_EN ==
-                      Gfx10Plus::mmGE_MULTI_PRIM_IB_RESET_EN,
+        static_assert(Gfx09::mmVGT_MULTI_PRIM_IB_RESET_EN == Gfx10Plus::mmGE_MULTI_PRIM_IB_RESET_EN,
                       "MULTI_PRIM_IB_RESET_EN has moved from GFX9 to GFX10!");
 
         pDeCmdSpace = m_deCmdStream.WriteSetOneConfigReg(Gfx09::mmVGT_MULTI_PRIM_IB_RESET_EN,
-                                                         vgtMultiPrimIbResetEn.u32All,
+                                                         m_vgtMultiPrimIbResetEn.u32All,
                                                          pDeCmdSpace);
     }
 
@@ -7033,7 +7036,9 @@ void UniversalCmdBuffer::CmdSetPredication(
         constexpr size_t PredicateDwordSize  = sizeof(uint64) / sizeof(uint32);
         constexpr size_t PredicateDwordAlign = 16 / sizeof(uint32);
         gpusize predicateVirtAddr            = 0;
-        uint32* pPredicate                   = CmdAllocateEmbeddedData(PredicateDwordSize, PredicateDwordAlign, &predicateVirtAddr);
+        uint32* pPredicate                   = CmdAllocateEmbeddedData(PredicateDwordSize,
+                                                                       PredicateDwordAlign,
+                                                                       &predicateVirtAddr);
         pPredicate[0] = 0;
         pPredicate[1] = 0;
         pDeCmdSpace += CmdUtil::BuildCopyDataGraphics(engine_sel__me_copy_data__micro_engine,
@@ -7194,10 +7199,11 @@ void UniversalCmdBuffer::CmdExecuteIndirectCmds(
 
             if (bindPoint == PipelineBindPoint::Graphics)
             {
-                // NOTE: If we tell ValidateDraw() that this draw call is indexed, it will validate all of the draw-time
-                // HW state related to the index buffer. However, since some indirect command generators can genrate the
-                // commands to bind their own index buffer state, our draw-time validation could be redundant. Therefore,
-                // pretend this is a non-indexed draw call if the generated command binds its own index buffer(s).
+                // NOTE: If we tell ValidateDraw() that this draw call is indexed, it will validate all of the draw
+                // time HW state related to the index buffer. However, since some indirect command generators can
+                // genrate the commands to bind their own index buffer state, our draw-time validation could be
+                // redundant. Therefore, pretend this is a non-indexed draw call if the generated command binds
+                // its own index buffer(s).
                 ValidateDrawInfo drawInfo;
                 drawInfo.vtxIdxCount   = 0;
                 drawInfo.instanceCount = 0;
@@ -7491,6 +7497,13 @@ void UniversalCmdBuffer::LeakNestedCmdBufferState(
 
     m_drawTimeHwState.valid.u32All = 0;
 
+    //Update vgtDmaIndexType register if the nested command buffer updated the graphics iaStates
+    if (m_graphicsState.dirtyFlags.nonValidationBits.iaState !=0 )
+    {
+        m_drawTimeHwState.dirty.indexType = 1;
+        m_vgtDmaIndexType.bits.INDEX_TYPE = VgtIndexTypeLookup[static_cast<uint32>(m_graphicsState.iaState.indexType)];
+    }
+
     m_vbTable.state.dirty       |= cmdBuffer.m_vbTable.modified;
     m_spillTable.stateCs.dirty  |= cmdBuffer.m_spillTable.stateCs.dirty;
     m_spillTable.stateGfx.dirty |= cmdBuffer.m_spillTable.stateGfx.dirty;
@@ -7670,10 +7683,11 @@ void UniversalCmdBuffer::CmdExecuteNestedCmdBuffers(
     // Need to validate some state as it is valid for root CmdBuf to set state, not issue a draw and expect
     // that state to inherit into the nested CmdBuf. It might be safest to just ValidateDraw here eventually.
     // That would break the assumption that the Pipeline is bound at draw-time.
-    uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
+    uint32*    pDeCmdSpace = m_deCmdStream.ReserveCommands();
+    const auto dirtyFlags  = m_graphicsState.dirtyFlags.validationBits;
     if (m_graphicsState.pipelineState.dirtyFlags.pipelineDirty)
     {
-        if (m_graphicsState.dirtyFlags.validationBits.u16All)
+        if (dirtyFlags.u16All)
         {
             pDeCmdSpace = ValidateCbColorInfo<false, true, true>(pDeCmdSpace);
         }
@@ -7684,15 +7698,12 @@ void UniversalCmdBuffer::CmdExecuteNestedCmdBuffers(
     }
     else
     {
-        if (m_graphicsState.dirtyFlags.validationBits.u16All)
+        if (dirtyFlags.colorBlendState || dirtyFlags.colorTargetView)
         {
             pDeCmdSpace = ValidateCbColorInfo<false, false, true>(pDeCmdSpace);
         }
-        else
-        {
-            pDeCmdSpace = ValidateCbColorInfo<false, false, false>(pDeCmdSpace);
-        }
     }
+
     m_deCmdStream.CommitCommands(pDeCmdSpace);
 
     for (uint32 buf = 0; buf < cmdBufferCount; ++buf)

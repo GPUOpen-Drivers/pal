@@ -617,23 +617,28 @@ union CB_COLOR0_DCC_BASE_EXT {
 
 union CB_COLOR0_DCC_CONTROL {
     struct {
-        unsigned int OVERWRITE_COMBINER_DISABLE                                   :  1;
-        unsigned int KEY_CLEAR_ENABLE                                             :  1;
+        unsigned int                                                              :  2;
         unsigned int MAX_UNCOMPRESSED_BLOCK_SIZE                                  :  2;
         unsigned int MIN_COMPRESSED_BLOCK_SIZE                                    :  1;
         unsigned int MAX_COMPRESSED_BLOCK_SIZE                                    :  2;
         unsigned int COLOR_TRANSFORM                                              :  2;
         unsigned int INDEPENDENT_64B_BLOCKS                                       :  1;
+        unsigned int                                                              : 22;
+    } bits, bitfields;
+    struct {
+        unsigned int OVERWRITE_COMBINER_DISABLE                                   :  1;
+        unsigned int KEY_CLEAR_ENABLE                                             :  1;
+        unsigned int                                                              :  8;
         unsigned int LOSSY_RGB_PRECISION                                          :  4;
         unsigned int LOSSY_ALPHA_PRECISION                                        :  4;
         unsigned int                                                              : 14;
-    } bits, bitfields;
+    } gfx09_10;
     struct {
         unsigned int                                                              : 18;
         unsigned int DISABLE_CONSTANT_ENCODE_REG                                  :  1;
         unsigned int ENABLE_CONSTANT_ENCODE_REG_WRITE                             :  1;
         unsigned int                                                              : 12;
-    } most;
+    } gfx09_1xPlus;
     struct {
         unsigned int                                                              : 20;
         unsigned int INDEPENDENT_128B_BLOCKS                                      :  1;
@@ -939,23 +944,28 @@ union CB_COLOR1_DCC_BASE_EXT {
 
 union CB_COLOR1_DCC_CONTROL {
     struct {
-        unsigned int OVERWRITE_COMBINER_DISABLE                                   :  1;
-        unsigned int KEY_CLEAR_ENABLE                                             :  1;
+        unsigned int                                                              :  2;
         unsigned int MAX_UNCOMPRESSED_BLOCK_SIZE                                  :  2;
         unsigned int MIN_COMPRESSED_BLOCK_SIZE                                    :  1;
         unsigned int MAX_COMPRESSED_BLOCK_SIZE                                    :  2;
         unsigned int COLOR_TRANSFORM                                              :  2;
         unsigned int INDEPENDENT_64B_BLOCKS                                       :  1;
+        unsigned int                                                              : 22;
+    } bits, bitfields;
+    struct {
+        unsigned int OVERWRITE_COMBINER_DISABLE                                   :  1;
+        unsigned int KEY_CLEAR_ENABLE                                             :  1;
+        unsigned int                                                              :  8;
         unsigned int LOSSY_RGB_PRECISION                                          :  4;
         unsigned int LOSSY_ALPHA_PRECISION                                        :  4;
         unsigned int                                                              : 14;
-    } bits, bitfields;
+    } gfx09_10;
     struct {
         unsigned int                                                              : 18;
         unsigned int DISABLE_CONSTANT_ENCODE_REG                                  :  1;
         unsigned int ENABLE_CONSTANT_ENCODE_REG_WRITE                             :  1;
         unsigned int                                                              : 12;
-    } most;
+    } gfx09_1xPlus;
     struct {
         unsigned int                                                              : 20;
         unsigned int INDEPENDENT_128B_BLOCKS                                      :  1;
@@ -1261,23 +1271,28 @@ union CB_COLOR2_DCC_BASE_EXT {
 
 union CB_COLOR2_DCC_CONTROL {
     struct {
-        unsigned int OVERWRITE_COMBINER_DISABLE                                   :  1;
-        unsigned int KEY_CLEAR_ENABLE                                             :  1;
+        unsigned int                                                              :  2;
         unsigned int MAX_UNCOMPRESSED_BLOCK_SIZE                                  :  2;
         unsigned int MIN_COMPRESSED_BLOCK_SIZE                                    :  1;
         unsigned int MAX_COMPRESSED_BLOCK_SIZE                                    :  2;
         unsigned int COLOR_TRANSFORM                                              :  2;
         unsigned int INDEPENDENT_64B_BLOCKS                                       :  1;
+        unsigned int                                                              : 22;
+    } bits, bitfields;
+    struct {
+        unsigned int OVERWRITE_COMBINER_DISABLE                                   :  1;
+        unsigned int KEY_CLEAR_ENABLE                                             :  1;
+        unsigned int                                                              :  8;
         unsigned int LOSSY_RGB_PRECISION                                          :  4;
         unsigned int LOSSY_ALPHA_PRECISION                                        :  4;
         unsigned int                                                              : 14;
-    } bits, bitfields;
+    } gfx09_10;
     struct {
         unsigned int                                                              : 18;
         unsigned int DISABLE_CONSTANT_ENCODE_REG                                  :  1;
         unsigned int ENABLE_CONSTANT_ENCODE_REG_WRITE                             :  1;
         unsigned int                                                              : 12;
-    } most;
+    } gfx09_1xPlus;
     struct {
         unsigned int                                                              : 20;
         unsigned int INDEPENDENT_128B_BLOCKS                                      :  1;
@@ -1583,23 +1598,28 @@ union CB_COLOR3_DCC_BASE_EXT {
 
 union CB_COLOR3_DCC_CONTROL {
     struct {
-        unsigned int OVERWRITE_COMBINER_DISABLE                                   :  1;
-        unsigned int KEY_CLEAR_ENABLE                                             :  1;
+        unsigned int                                                              :  2;
         unsigned int MAX_UNCOMPRESSED_BLOCK_SIZE                                  :  2;
         unsigned int MIN_COMPRESSED_BLOCK_SIZE                                    :  1;
         unsigned int MAX_COMPRESSED_BLOCK_SIZE                                    :  2;
         unsigned int COLOR_TRANSFORM                                              :  2;
         unsigned int INDEPENDENT_64B_BLOCKS                                       :  1;
+        unsigned int                                                              : 22;
+    } bits, bitfields;
+    struct {
+        unsigned int OVERWRITE_COMBINER_DISABLE                                   :  1;
+        unsigned int KEY_CLEAR_ENABLE                                             :  1;
+        unsigned int                                                              :  8;
         unsigned int LOSSY_RGB_PRECISION                                          :  4;
         unsigned int LOSSY_ALPHA_PRECISION                                        :  4;
         unsigned int                                                              : 14;
-    } bits, bitfields;
+    } gfx09_10;
     struct {
         unsigned int                                                              : 18;
         unsigned int DISABLE_CONSTANT_ENCODE_REG                                  :  1;
         unsigned int ENABLE_CONSTANT_ENCODE_REG_WRITE                             :  1;
         unsigned int                                                              : 12;
-    } most;
+    } gfx09_1xPlus;
     struct {
         unsigned int                                                              : 20;
         unsigned int INDEPENDENT_128B_BLOCKS                                      :  1;
@@ -1905,23 +1925,28 @@ union CB_COLOR4_DCC_BASE_EXT {
 
 union CB_COLOR4_DCC_CONTROL {
     struct {
-        unsigned int OVERWRITE_COMBINER_DISABLE                                   :  1;
-        unsigned int KEY_CLEAR_ENABLE                                             :  1;
+        unsigned int                                                              :  2;
         unsigned int MAX_UNCOMPRESSED_BLOCK_SIZE                                  :  2;
         unsigned int MIN_COMPRESSED_BLOCK_SIZE                                    :  1;
         unsigned int MAX_COMPRESSED_BLOCK_SIZE                                    :  2;
         unsigned int COLOR_TRANSFORM                                              :  2;
         unsigned int INDEPENDENT_64B_BLOCKS                                       :  1;
+        unsigned int                                                              : 22;
+    } bits, bitfields;
+    struct {
+        unsigned int OVERWRITE_COMBINER_DISABLE                                   :  1;
+        unsigned int KEY_CLEAR_ENABLE                                             :  1;
+        unsigned int                                                              :  8;
         unsigned int LOSSY_RGB_PRECISION                                          :  4;
         unsigned int LOSSY_ALPHA_PRECISION                                        :  4;
         unsigned int                                                              : 14;
-    } bits, bitfields;
+    } gfx09_10;
     struct {
         unsigned int                                                              : 18;
         unsigned int DISABLE_CONSTANT_ENCODE_REG                                  :  1;
         unsigned int ENABLE_CONSTANT_ENCODE_REG_WRITE                             :  1;
         unsigned int                                                              : 12;
-    } most;
+    } gfx09_1xPlus;
     struct {
         unsigned int                                                              : 20;
         unsigned int INDEPENDENT_128B_BLOCKS                                      :  1;
@@ -2227,23 +2252,28 @@ union CB_COLOR5_DCC_BASE_EXT {
 
 union CB_COLOR5_DCC_CONTROL {
     struct {
-        unsigned int OVERWRITE_COMBINER_DISABLE                                   :  1;
-        unsigned int KEY_CLEAR_ENABLE                                             :  1;
+        unsigned int                                                              :  2;
         unsigned int MAX_UNCOMPRESSED_BLOCK_SIZE                                  :  2;
         unsigned int MIN_COMPRESSED_BLOCK_SIZE                                    :  1;
         unsigned int MAX_COMPRESSED_BLOCK_SIZE                                    :  2;
         unsigned int COLOR_TRANSFORM                                              :  2;
         unsigned int INDEPENDENT_64B_BLOCKS                                       :  1;
+        unsigned int                                                              : 22;
+    } bits, bitfields;
+    struct {
+        unsigned int OVERWRITE_COMBINER_DISABLE                                   :  1;
+        unsigned int KEY_CLEAR_ENABLE                                             :  1;
+        unsigned int                                                              :  8;
         unsigned int LOSSY_RGB_PRECISION                                          :  4;
         unsigned int LOSSY_ALPHA_PRECISION                                        :  4;
         unsigned int                                                              : 14;
-    } bits, bitfields;
+    } gfx09_10;
     struct {
         unsigned int                                                              : 18;
         unsigned int DISABLE_CONSTANT_ENCODE_REG                                  :  1;
         unsigned int ENABLE_CONSTANT_ENCODE_REG_WRITE                             :  1;
         unsigned int                                                              : 12;
-    } most;
+    } gfx09_1xPlus;
     struct {
         unsigned int                                                              : 20;
         unsigned int INDEPENDENT_128B_BLOCKS                                      :  1;
@@ -2549,23 +2579,28 @@ union CB_COLOR6_DCC_BASE_EXT {
 
 union CB_COLOR6_DCC_CONTROL {
     struct {
-        unsigned int OVERWRITE_COMBINER_DISABLE                                   :  1;
-        unsigned int KEY_CLEAR_ENABLE                                             :  1;
+        unsigned int                                                              :  2;
         unsigned int MAX_UNCOMPRESSED_BLOCK_SIZE                                  :  2;
         unsigned int MIN_COMPRESSED_BLOCK_SIZE                                    :  1;
         unsigned int MAX_COMPRESSED_BLOCK_SIZE                                    :  2;
         unsigned int COLOR_TRANSFORM                                              :  2;
         unsigned int INDEPENDENT_64B_BLOCKS                                       :  1;
+        unsigned int                                                              : 22;
+    } bits, bitfields;
+    struct {
+        unsigned int OVERWRITE_COMBINER_DISABLE                                   :  1;
+        unsigned int KEY_CLEAR_ENABLE                                             :  1;
+        unsigned int                                                              :  8;
         unsigned int LOSSY_RGB_PRECISION                                          :  4;
         unsigned int LOSSY_ALPHA_PRECISION                                        :  4;
         unsigned int                                                              : 14;
-    } bits, bitfields;
+    } gfx09_10;
     struct {
         unsigned int                                                              : 18;
         unsigned int DISABLE_CONSTANT_ENCODE_REG                                  :  1;
         unsigned int ENABLE_CONSTANT_ENCODE_REG_WRITE                             :  1;
         unsigned int                                                              : 12;
-    } most;
+    } gfx09_1xPlus;
     struct {
         unsigned int                                                              : 20;
         unsigned int INDEPENDENT_128B_BLOCKS                                      :  1;
@@ -2871,23 +2906,28 @@ union CB_COLOR7_DCC_BASE_EXT {
 
 union CB_COLOR7_DCC_CONTROL {
     struct {
-        unsigned int OVERWRITE_COMBINER_DISABLE                                   :  1;
-        unsigned int KEY_CLEAR_ENABLE                                             :  1;
+        unsigned int                                                              :  2;
         unsigned int MAX_UNCOMPRESSED_BLOCK_SIZE                                  :  2;
         unsigned int MIN_COMPRESSED_BLOCK_SIZE                                    :  1;
         unsigned int MAX_COMPRESSED_BLOCK_SIZE                                    :  2;
         unsigned int COLOR_TRANSFORM                                              :  2;
         unsigned int INDEPENDENT_64B_BLOCKS                                       :  1;
+        unsigned int                                                              : 22;
+    } bits, bitfields;
+    struct {
+        unsigned int OVERWRITE_COMBINER_DISABLE                                   :  1;
+        unsigned int KEY_CLEAR_ENABLE                                             :  1;
+        unsigned int                                                              :  8;
         unsigned int LOSSY_RGB_PRECISION                                          :  4;
         unsigned int LOSSY_ALPHA_PRECISION                                        :  4;
         unsigned int                                                              : 14;
-    } bits, bitfields;
+    } gfx09_10;
     struct {
         unsigned int                                                              : 18;
         unsigned int DISABLE_CONSTANT_ENCODE_REG                                  :  1;
         unsigned int ENABLE_CONSTANT_ENCODE_REG_WRITE                             :  1;
         unsigned int                                                              : 12;
-    } most;
+    } gfx09_1xPlus;
     struct {
         unsigned int                                                              : 20;
         unsigned int INDEPENDENT_128B_BLOCKS                                      :  1;

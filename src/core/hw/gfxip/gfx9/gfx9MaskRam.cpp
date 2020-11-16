@@ -258,7 +258,7 @@ void Gfx9MaskRam::GetXyzInc(
     *pZinc = 1;
 }
 
-//=============== Implementation for Gfx9MetaEqGenerator: ================================================================
+//=============== Implementation for Gfx9MetaEqGenerator: ==============================================================
 
 // =====================================================================================================================
 // Constructor for the Gfx9MetaEqGenerator class
@@ -1008,11 +1008,12 @@ void Gfx9MetaEqGenerator::CalcRbEquation(
 uint32 Gfx9MetaEqGenerator::CapPipe() const
 {
     const AddrSwizzleMode  swizzleMode        = m_pParent->GetSwizzleMode();
-    const uint32           blockSizeLog2      = Log2(m_pParent->GetGfxDevice()->Parent()->GetAddrMgr()->GetBlockSize(swizzleMode));
-    const uint32           numSesLog2         = m_pParent->GetGfxDevice()->GetNumShaderEnginesLog2();
-    const uint32           pipeInterleaveLog2 = m_pParent->GetGfxDevice()->GetPipeInterleaveLog2();
+    const auto*            pGfxDevice         = m_pParent->GetGfxDevice();
+    const uint32           blockSizeLog2      = Log2(pGfxDevice->Parent()->GetAddrMgr()->GetBlockSize(swizzleMode));
+    const uint32           numSesLog2         = pGfxDevice->GetNumShaderEnginesLog2();
+    const uint32           pipeInterleaveLog2 = pGfxDevice->GetPipeInterleaveLog2();
 
-    uint32  numPipesLog2 = m_pParent->GetGfxDevice()->GetNumPipesLog2();
+    uint32  numPipesLog2 = pGfxDevice->GetNumPipesLog2();
 
     // pipes+SEs can't exceed 32 for now
     PAL_ASSERT((numPipesLog2 + numSesLog2) <= 5);
@@ -3358,7 +3359,7 @@ void Gfx9Dcc::SetControlReg(
     const DisplayDccCaps&          dispDcc      = internalInfo.displayDcc;
 
     // Setup DCC control registers with suggested value from spec
-    m_dccControl.bits.KEY_CLEAR_ENABLE = 0; // not supported on VI
+    m_dccControl.gfx09_10.KEY_CLEAR_ENABLE = 0; // not supported on VI
 
     // MAX_UNCOMPRESSED_BLOCK_SIZE 3:2 none Sets the maximum amount of data that may be compressed into one block. Some
     // other clients may not be able to handle larger sizes. CB_RESOLVEs cannot have this setting larger than the size
@@ -3383,8 +3384,8 @@ void Gfx9Dcc::SetControlReg(
 
     m_dccControl.bits.MIN_COMPRESSED_BLOCK_SIZE = GetMinCompressedBlockSize();
     m_dccControl.bits.COLOR_TRANSFORM           = DCC_CT_AUTO;
-    m_dccControl.bits.LOSSY_RGB_PRECISION       = 0;
-    m_dccControl.bits.LOSSY_ALPHA_PRECISION     = 0;
+    m_dccControl.gfx09_10.LOSSY_RGB_PRECISION   = 0;
+    m_dccControl.gfx09_10.LOSSY_ALPHA_PRECISION = 0;
 
     // If this DCC surface is potentially going to be used in texture fetches though, we need some special settings.
     if (pSubResInfo->flags.supportMetaDataTexFetch)
@@ -3397,7 +3398,10 @@ void Gfx9Dcc::SetControlReg(
         m_dccControl.bits.INDEPENDENT_64B_BLOCKS    = 1;
         m_dccControl.bits.MAX_COMPRESSED_BLOCK_SIZE = static_cast<uint32>(Gfx9DccMaxBlockSize::BlockSize64B);
 
-        if (IsGfx10(gfxLevel))
+        // In GFX10 the GEN_TWO TC-compatible DCC compression setting is
+        //   1) max_uncomp_blk_size = 256B, max_comp_blk_size = 128B, independent_blk = 128B.
+        //   2) max_uncomp_blk_size = 128B, max_comp_blk_size = 128B, independent_blk = unconstrained
+        if (IsGfx10Plus(gfxLevel))
         {
             if (dispDcc.dcc_256_64_64 == 0)
             {
@@ -3425,20 +3429,18 @@ void Gfx9Dcc::SetControlReg(
         m_dccControl.bits.MAX_COMPRESSED_BLOCK_SIZE = m_dccControl.bits.MAX_UNCOMPRESSED_BLOCK_SIZE;
     }
 
-    if (IsGfx10(gfxLevel) && m_image.Gfx10UseCompToSingleFastClears())
+    if (IsGfx10(gfxLevel)                        &&
+        m_image.Gfx10UseCompToSingleFastClears() &&
+        (TestAnyFlagSet(settings.useCompToSingle, Gfx10DisableCompToReg)))
     {
-        if (TestAnyFlagSet(settings.useCompToSingle, Gfx10DisableCompToReg))
-        {
-            // If the image was potentially fast-cleared to comp-to-single mode (i.e., no fast-clear-eliminate is
-            // required), then we can't allow the CB / DCC to render in comp-to-reg mode because that *will* require
-            // an FCE operation.
-            //
-            // The other option here is to not touch this bit at all and to allow the fast-clear-eliminate to proceed
-            // anyway.  Because CB_DCC_CONTROL.DISABLE_ELIMFC_SKIP_OF_SINGLE=0, any DCC codes left at comp-to-
-            // single will be skipped during the FCE and it will (theoretically) be a super-fast-fast-clear-eliminate.
-            // Theoretically.
-            m_dccControl.most.DISABLE_CONSTANT_ENCODE_REG = 1;
-        }
+        // required), then we can't allow the CB / DCC to render in comp-to-reg mode because that *will* require
+        // an FCE operation.
+        //
+        // The other option here is to not touch this bit at all and to allow the fast-clear-eliminate to proceed
+        // anyway.  Because CB_DCC_CONTROL.DISABLE_ELIMFC_SKIP_OF_SINGLE=0, any DCC codes left at comp-to-
+        // single will be skipped during the FCE and it will (theoretically) be a super-fast-fast-clear-eliminate.
+        // Theoretically.
+        m_dccControl.gfx09_1xPlus.DISABLE_CONSTANT_ENCODE_REG = 1;
     }
 
     if (internalInfo.flags.useSharedDccState)
@@ -3719,9 +3721,9 @@ bool Gfx9Dcc::SupportFastColorClear(
     // - The Image is a Color Target - (ensured by caller)
     // - If the image is shader write-able, it's shader-writeable in a good way
     // - The Image is not linear tiled.
-    return (fastColorClearEnable                       == true)   &&
-            allowShaderWriteableSurfaces                          &&
-            (AddrMgr2::IsLinearSwizzleMode(swizzleMode) == false) &&
+    return  fastColorClearEnable                                                     &&
+            allowShaderWriteableSurfaces                                             &&
+            (AddrMgr2::IsLinearSwizzleMode(swizzleMode) == false)                    &&
             (SupportsFastColorClear(createInfo.swizzledFormat.format));
 }
 
@@ -3763,14 +3765,16 @@ uint8 Gfx9Dcc::GetFastClearCode(
     const Image&       image,
     const SubresRange& clearRange,
     const uint32*      pConvertedColor,
-    bool*              pNeedFastClearElim) // [out] true if this surface will require a fast-clear-eliminate pass
-                                                //       before it can be used as a texture
+    bool*              pNeedFastClearElim, // [out] true if this surface will require a fast-clear-eliminate pass
+                                           //       before it can be used as a texture
+    bool*              pBlackOrWhite)      // [out] true if this clear color is either black or white and corresponds
+                                           //        to one of the "special" clear codes.
 {
     // Fast-clear code that is valid for images that won't be texture fetched.
     const Pal::Image*  const     pParent         = image.Parent();
     const Pal::Device* const     pDevice         = pParent->GetDevice();
     const ImageCreateInfo&       createInfo      = pParent->GetImageCreateInfo();
-    Gfx9DccClearColor            clearCode       = Gfx9DccClearColor::ClearColorReg;
+    Gfx9DccClearColor            clearCode       = Gfx9DccClearColor::ClearColorInvalid;
     const auto&                  settings        = GetGfx9Settings(*image.Parent()->GetDevice());
     const SubresId               baseSubResource = clearRange.startSubres;
     const SubResourceInfo* const pSubResInfo     = pParent->SubresourceInfo(baseSubResource);
@@ -3787,6 +3791,9 @@ uint8 Gfx9Dcc::GetFastClearCode(
                                      ((createInfo.swizzledFormat.format == ChNumFormat::P016) ||
                                       (createInfo.swizzledFormat.format == ChNumFormat::P010) ||
                                       (createInfo.swizzledFormat.format == ChNumFormat::P210)));
+
+    // Assume this is non-black/white clear color
+    bool  blackOrWhite = false;
 
     // If we use the MM formats, then we can't use the special clear codes. When a client clears
     // to color(0,0,0,0), it is unclear whether they want all 0s or black and it is most intuitive
@@ -3914,44 +3921,23 @@ uint8 Gfx9Dcc::GetFastClearCode(
 
         *pNeedFastClearElim = false;
 
-        if ((color[0] == 0) &&
-            (color[1] == 0) &&
-            (color[2] == 0) &&
-            (color[3] == 0))
+        static_assert(sizeof(uint8) == sizeof(clearCode),
+                      "Bad cast from clearCode to uint8. Size mismatch");
+        // The HW specically optimizes clears to black and white and assigns special clear codes to these. Check
+        // for that condition here.
+        GetBlackOrWhiteClearCode(pParent,
+                                 color,
+                                 ones,
+                                 reinterpret_cast<uint8*>(&clearCode));
+
+        if (clearCode == Gfx9DccClearColor::ClearColorInvalid)
         {
-            clearCode = Gfx9DccClearColor::ClearColor0000;
-        }
-        else if (image.Parent()->GetDccFormatEncoding() == DccFormatEncoding::SignIndependent)
-        {
-            // cant allow special clear color code because the formats do not support DCC Constant
-            // encoding. This happens when we mix signed and unsigned formats. There is no problem with
-            // clearcolor0000.The issue is only seen when there is a 1 in any of the channels
+            // Ok, it didn't find "black or white", so we'll need to do more.
             *pNeedFastClearElim = true;
-        }
-        else if ((color[0] == 0) &&
-                 (color[1] == 0) &&
-                 (color[2] == 0) &&
-                 (color[3] == ones[3]))
-        {
-            clearCode = Gfx9DccClearColor::ClearColor0001;
-        }
-        else if ((color[0] == ones[0]) &&
-                 (color[1] == ones[1]) &&
-                 (color[2] == ones[2]) &&
-                 (color[3] == 0))
-        {
-            clearCode = Gfx9DccClearColor::ClearColor1110;
-        }
-        else if ((color[0] == ones[0]) &&
-                 (color[1] == ones[1]) &&
-                 (color[2] == ones[2]) &&
-                 (color[3] == ones[3]))
-        {
-            clearCode = Gfx9DccClearColor::ClearColor1111;
         }
         else
         {
-            *pNeedFastClearElim = true;
+            blackOrWhite = true;
         }
     }
     else
@@ -3961,18 +3947,95 @@ uint8 Gfx9Dcc::GetFastClearCode(
         *pNeedFastClearElim = true;
     }
 
-    if (IsGfx10Plus(*pParent->GetDevice())              &&
-        (clearCode == Gfx9DccClearColor::ClearColorReg) &&
-        image.Gfx10UseCompToSingleFastClears())
+    // If this is *not* one of the hardcoded clear colors then we need to decide between comp-to-reg and
+    // comp-to-single modes.
+    if (blackOrWhite == false)
     {
-        // If we're going to write the clear color into the image data during the fast-clear, then we need to
-        // use a clear-code that indicates that's what we've done...  Otherwise the DCC block gets seriously
-        // confused especially if the next rendering operation happens to render constant pixel data that
-        // perfectly matches the clear color stored in the CB_COLORx_CLEAR_WORD* registers.
-        clearCode = Gfx9DccClearColor::ClearColorCompToSingle;
+        // If we support comp-to-single for this image then switch the clear color to comp-to-single.  i.e., prefer
+        // comp-to-single over comp-to-reg as the former doesn't require fast-clear-eliminate operations.
+        if (image.Gfx10UseCompToSingleFastClears())
+        {
+            // If we're going to write the clear color into the image data during the fast-clear, then we need to
+            // use a clear-code that indicates that's what we've done...  Otherwise the DCC block gets seriously
+            // confused especially if the next rendering operation happens to render constant pixel data that
+            // perfectly matches the clear color stored in the CB_COLORx_CLEAR_WORD* registers.
+            if (IsGfx10(*pDevice))
+            {
+                clearCode = Gfx9DccClearColor::Gfx10ClearColorCompToSingle;
+            }
+            else
+            {
+                // Which GPU is this?
+                PAL_ASSERT_ALWAYS();
+            }
+        }
+        else
+        {
+            // Ok, we don't support comp-to-single, this isn't one of the magic black / white colors,
+            // so we have to use comp-to-reg.
+            clearCode = Gfx9DccClearColor::ClearColorCompToReg;
+
+        }
+    }
+
+    // If the client asked, then let them know that this is a hardcoded clear color.
+    if (pBlackOrWhite != nullptr)
+    {
+        *pBlackOrWhite = blackOrWhite;
     }
 
     return static_cast<uint8>(clearCode);
+}
+
+// =====================================================================================================================
+void Gfx9Dcc::GetBlackOrWhiteClearCode(
+    const Pal::Image*  pImage,          // Image being cleared
+    const uint32       color[],         // The clear color
+    const uint32       ones[],          // "1" in the image format
+    uint8*             pClearCode)      // [in, out] the clear code corresponding to the supplied clear color if it's
+                                        //           black or white...  Othewrise unchanged from input.
+{
+    {
+        constexpr uint8 ClearColor0000 = 0x00;
+        constexpr uint8 ClearColor0001 = 0x40;
+        constexpr uint8 ClearColor1110 = 0x80;
+        constexpr uint8 ClearColor1111 = 0xC0;
+
+        if ((color[0] == 0) &&
+            (color[1] == 0) &&
+            (color[2] == 0) &&
+            (color[3] == 0))
+        {
+            *pClearCode = ClearColor0000;
+        }
+        else if (pImage->GetDccFormatEncoding() != DccFormatEncoding::SignIndependent)
+        {
+            // cant allow special clear color code because the formats do not support DCC Constant
+            // encoding. This happens when we mix signed and unsigned formats. There is no problem with
+            // clearcolor0000.The issue is only seen when there is a 1 in any of the channels
+            if ((color[0] == 0) &&
+                (color[1] == 0) &&
+                (color[2] == 0) &&
+                (color[3] == ones[3]))
+            {
+                *pClearCode = ClearColor0001;
+            }
+            else if ((color[0] == ones[0]) &&
+                     (color[1] == ones[1]) &&
+                     (color[2] == ones[2]) &&
+                     (color[3] == 0))
+            {
+                *pClearCode = ClearColor1110;
+            }
+            else if ((color[0] == ones[0]) &&
+                     (color[1] == ones[1]) &&
+                     (color[2] == ones[2]) &&
+                     (color[3] == ones[3]))
+            {
+                *pClearCode = ClearColor1111;
+            }
+        }
+    }
 }
 
 // =====================================================================================================================

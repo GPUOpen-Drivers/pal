@@ -63,26 +63,6 @@ public:
         void*                      pPlacementAddr,
         ICmdBuffer**               ppCmdBuffer) override;
 
-    virtual size_t GetQueueSize(
-        const QueueCreateInfo& createInfo,
-        Result*                pResult) const override;
-
-    virtual Result CreateQueue(
-        const QueueCreateInfo& createInfo,
-        void*                  pPlacementAddr,
-        IQueue**               ppQueue) override;
-
-    virtual size_t GetMultiQueueSize(
-        uint32                 queueCount,
-        const QueueCreateInfo* pCreateInfo,
-        Result*                pResult) const override;
-
-    virtual Result CreateMultiQueue(
-        uint32                 queueCount,
-        const QueueCreateInfo* pCreateInfo,
-        void*                  pPlacementAddr,
-        IQueue**               ppQueue) override;
-
     virtual size_t GetImageSize(
         const ImageCreateInfo& createInfo,
         Result*                pResult) const override;

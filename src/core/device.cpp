@@ -76,7 +76,8 @@ static constexpr uint32 MemoryOpsPerClockTable[static_cast<uint32>(LocalMemoryTy
     2,  // Hbm
     2,  // Hbm2
     2,  // Hbm3
-    2   // Lpddr4
+    2,  // Lpddr4
+    4   // Lpddr5
 };
 
 // =====================================================================================================================

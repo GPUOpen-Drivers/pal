@@ -2108,6 +2108,44 @@ int32 DrmLoaderFuncsProxy::pfnAmdgpuCsCtxCreate3(
 }
 
 // =====================================================================================================================
+drmVersionPtr DrmLoaderFuncsProxy::pfnDrmGetVersion(
+    int  fd
+    ) const
+{
+    const int64 begin = Util::GetPerfCpuTime();
+    drmVersionPtr ret = m_pFuncs->pfnDrmGetVersion(fd);
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
+    m_timeLogger.Printf("DrmGetVersion,%ld,%ld,%ld\n", begin, end, elapse);
+    m_timeLogger.Flush();
+
+    m_paramLogger.Printf(
+        "DrmGetVersion(%x)\n",
+        fd);
+    m_paramLogger.Flush();
+
+    return ret;
+}
+
+// =====================================================================================================================
+void DrmLoaderFuncsProxy::pfnDrmFreeVersion(
+    drmVersionPtr  v
+    ) const
+{
+    const int64 begin = Util::GetPerfCpuTime();
+    m_pFuncs->pfnDrmFreeVersion(v);
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
+    m_timeLogger.Printf("DrmFreeVersion,%ld,%ld,%ld\n", begin, end, elapse);
+    m_timeLogger.Flush();
+
+    m_paramLogger.Printf(
+        "DrmFreeVersion(%p)\n",
+        v);
+    m_paramLogger.Flush();
+}
+
+// =====================================================================================================================
 int32 DrmLoaderFuncsProxy::pfnDrmGetNodeTypeFromFd(
     int  fd
     ) const
@@ -3275,6 +3313,8 @@ Result DrmLoader::Init(
         PAL_ASSERT_MSG(result == Result::Success, "Failed to load LibDrm library");
         if (result == Result::Success)
         {
+            m_library[LibDrm].GetFunction("drmGetVersion", &m_funcs.pfnDrmGetVersion);
+            m_library[LibDrm].GetFunction("drmFreeVersion", &m_funcs.pfnDrmFreeVersion);
             m_library[LibDrm].GetFunction("drmGetNodeTypeFromFd", &m_funcs.pfnDrmGetNodeTypeFromFd);
             m_library[LibDrm].GetFunction("drmGetRenderDeviceNameFromFd", &m_funcs.pfnDrmGetRenderDeviceNameFromFd);
             m_library[LibDrm].GetFunction("drmGetDevices", &m_funcs.pfnDrmGetDevices);

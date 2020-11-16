@@ -3388,7 +3388,14 @@ uint32* UniversalCmdBuffer::ValidateDraw(
         }
     }
 
-    if (m_graphicsState.dirtyFlags.validationBits.u16All != 0)
+    // Strictly speaking, colorWriteMaskOverride and paScModeCntl1 are not similar dirty bits as tracked in
+    // validationBits. However for best CPU performance in <PipelineDirty=false, StateDirty=false> path, manually
+    // make the two as part of StateDirty path as they are not frequently updated.
+    const bool stateDirty = ((m_graphicsState.dirtyFlags.validationBits.u16All |
+                              m_graphicsState.colorWriteMaskOverride.enable |
+                              (m_drawTimeHwState.valid.paScModeCntl1 == 0)) != 0);
+
+    if (stateDirty)
     {
         pDeCmdSpace = ValidateDraw<indexed, indirect, pm4OptImmediate, pipelineDirty, true>(drawInfo, pDeCmdSpace);
     }
@@ -3466,10 +3473,10 @@ uint32* UniversalCmdBuffer::ValidateDraw(
     regPA_SC_MODE_CNTL_1 paScModeCntl1 = m_drawTimeHwState.paScModeCntl1;
 
     // Re-calculate paScModeCntl1 value if state constributing to the register has changed.
-    if ((m_drawTimeHwState.valid.paScModeCntl1 == 0) ||
-        pipelineDirty ||
+    if (pipelineDirty ||
         (stateDirty && (dirtyFlags.depthStencilState || dirtyFlags.colorBlendState || dirtyFlags.depthStencilView ||
-                        dirtyFlags.queryState || dirtyFlags.triangleRasterState)))
+                        dirtyFlags.queryState || dirtyFlags.triangleRasterState ||
+                        (m_drawTimeHwState.valid.paScModeCntl1 == 0))))
     {
         paScModeCntl1 = pPipeline->PaScModeCntl1();
 
@@ -3552,12 +3559,12 @@ uint32* UniversalCmdBuffer::ValidateDraw(
         }
     }
 
-    regCB_TARGET_MASK updatedRegWriteMask = pPipeline->CbTargetMask();
     // Always write the value of the over-ridden mask when the enable flag is set.
-    if (m_graphicsState.colorWriteMaskOverride.enable)
+    if ((pipelineDirty || stateDirty) && m_graphicsState.colorWriteMaskOverride.enable)
     {
         //Note that only overwrite target0's regWriteMask.
         //Because this version currently only supports target0.
+        regCB_TARGET_MASK updatedRegWriteMask = pPipeline->CbTargetMask();
         updatedRegWriteMask.bitfields.TARGET0_ENABLE = m_graphicsState.colorWriteMaskOverride.writeMask;
         pDeCmdSpace = m_deCmdStream.WriteSetOneContextReg(mmCB_TARGET_MASK,
                                                           updatedRegWriteMask.u32All,
@@ -5427,6 +5434,13 @@ void UniversalCmdBuffer::LeakNestedCmdBufferState(
     }
 
     m_drawTimeHwState.valid.u32All = 0;
+
+    //Update vgtDmaIndexType register if the nested command buffer updated the graphics iaStates
+    if (m_graphicsState.dirtyFlags.nonValidationBits.iaState !=0 )
+    {
+        m_drawTimeHwState.dirty.indexType = 1;
+        m_vgtDmaIndexType.bits.INDEX_TYPE = VgtIndexTypeLookup[static_cast<uint32>(m_graphicsState.iaState.indexType)];
+    }
 
     m_workaroundState.LeakNestedCmdBufferState(cmdBuffer.m_workaroundState);
 

@@ -248,31 +248,6 @@ uint32* Pm4Optimizer::WriteOptimizedSetSeqContextRegs(
 }
 
 // =====================================================================================================================
-// Writes an optimized version of the given SET_SH_REG_OFFSET packet into pCmdSpace
-// Returns a pointer to the next unused DWORD in pCmdSpace.
-uint32* Pm4Optimizer::WriteOptimizedSetShShRegOffset(
-    const PM4CMDSETSHREGOFFSET& setShRegOffset,
-    size_t                      packetSize,
-    uint32*                     pCmdSpace)
-{
-    // Since this is an indirect write, we do not know the exact SH register data. Invalidate SH register so that
-    // the next SH register write will not be skipped inadvertently
-    m_shRegs[setShRegOffset.regOffset].flags.valid = 0;
-
-    // If the index value is set to 0, this packet actually operates on two sequential SH registers so we need to
-    // invalidate the following register as well.
-    if (setShRegOffset.index__VI == 0)
-    {
-        m_shRegs[setShRegOffset.regOffset + 1].flags.valid = 0;
-    }
-
-    // memcpy packet into command space
-    memcpy(pCmdSpace, &setShRegOffset, packetSize << 2);
-
-    return (pCmdSpace + packetSize);
-}
-
-// =====================================================================================================================
 // Optimize the specified PM4 SET packet. May remove the SET packet completely, reduce the range of registers it sets,
 // break it into multiple smaller SET commands, or leave it unmodified. Returns a pointer to the next free location in
 // the optimized command stream.
