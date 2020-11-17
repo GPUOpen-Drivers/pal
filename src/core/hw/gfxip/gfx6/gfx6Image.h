@@ -454,6 +454,7 @@ private:
 
     static uint32 HwMicroTileModeFromAddrTileType(AddrTileType addrType);
     static uint32 HwArrayModeFromAddrTileMode(AddrTileMode addrMode);
+    bool DoesImageSupportCopySrcCompression() const;
 
     // These static variables ensure that we are assigning a rotating set of swizzle indices for each new image.
     static uint32  s_cbSwizzleIdx;

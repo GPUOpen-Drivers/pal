@@ -65,13 +65,13 @@ Pal::Result CreateTimeGraphComputePipelines(
 #endif
 
 #if PAL_BUILD_GFX6
-    case Pal::AsicRevision::Bonaire:
+    case Pal::AsicRevision::Spectre:
+    case Pal::AsicRevision::Spooky:
     case Pal::AsicRevision::HawaiiPro:
     case Pal::AsicRevision::Hawaii:
     case Pal::AsicRevision::Kalindi:
+    case Pal::AsicRevision::Bonaire:
     case Pal::AsicRevision::Godavari:
-    case Pal::AsicRevision::Spectre:
-    case Pal::AsicRevision::Spooky:
         pTable = timeGraphComputeBinaryTableSpectre;
         break;
 #endif
@@ -79,11 +79,11 @@ Pal::Result CreateTimeGraphComputePipelines(
 #if PAL_BUILD_GFX6
     case Pal::AsicRevision::Carrizo:
     case Pal::AsicRevision::Bristol:
-    case Pal::AsicRevision::Stoney:
     case Pal::AsicRevision::Fiji:
     case Pal::AsicRevision::Polaris10:
     case Pal::AsicRevision::Polaris11:
     case Pal::AsicRevision::Polaris12:
+    case Pal::AsicRevision::Stoney:
         pTable = timeGraphComputeBinaryTableCarrizo;
         break;
 #endif

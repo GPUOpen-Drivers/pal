@@ -106,11 +106,6 @@ public:
         const uint32*           pData,
         uint32*                 pCmdSpace);
 
-    uint32* WriteOptimizedSetShShRegOffset(
-        const PM4_PFP_SET_SH_REG_OFFSET& setShRegOffset,
-        size_t                          packetSize,
-        uint32*                         pCmdSpace);
-
     // These functions take a fully built LOAD_DATA header(s) and will update the state of the optimizer state
     // based on the packet's contents.
     void HandleLoadShRegs(const PM4_ME_LOAD_SH_REG& loadData)
@@ -127,7 +122,6 @@ private:
     template <typename SetDataPacket, size_t RegisterCount>
     uint32* OptimizePm4SetReg(
         SetDataPacket                 setData,
-        uint32                        setDataSize,
         const uint32*                 pRegData,
         uint32*                       pDstCmd,
         RegGroupState<RegisterCount>* pRegState);

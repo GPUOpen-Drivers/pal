@@ -454,6 +454,12 @@ typedef int32 (*AmdgpuCsCtxCreate3)(
             amdgpu_context_handle*    pContextHandle);
 
 // symbols from libdrm.so.2
+typedef drmVersionPtr (*DrmGetVersion)(
+            int   fd);
+
+typedef void (*DrmFreeVersion)(
+            drmVersionPtr     v);
+
 typedef int32 (*DrmGetNodeTypeFromFd)(
             int   fd);
 
@@ -1106,6 +1112,18 @@ struct DrmLoaderFuncs
     bool pfnAmdgpuCsCtxCreate3isValid() const
     {
         return (pfnAmdgpuCsCtxCreate3 != nullptr);
+    }
+
+    DrmGetVersion                     pfnDrmGetVersion;
+    bool pfnDrmGetVersionisValid() const
+    {
+        return (pfnDrmGetVersion != nullptr);
+    }
+
+    DrmFreeVersion                    pfnDrmFreeVersion;
+    bool pfnDrmFreeVersionisValid() const
+    {
+        return (pfnDrmFreeVersion != nullptr);
     }
 
     DrmGetNodeTypeFromFd              pfnDrmGetNodeTypeFromFd;
@@ -2175,6 +2193,22 @@ public:
     bool pfnAmdgpuCsCtxCreate3isValid() const
     {
         return (m_pFuncs->pfnAmdgpuCsCtxCreate3 != nullptr);
+    }
+
+    drmVersionPtr pfnDrmGetVersion(
+            int   fd) const;
+
+    bool pfnDrmGetVersionisValid() const
+    {
+        return (m_pFuncs->pfnDrmGetVersion != nullptr);
+    }
+
+    void pfnDrmFreeVersion(
+            drmVersionPtr     v) const;
+
+    bool pfnDrmFreeVersionisValid() const
+    {
+        return (m_pFuncs->pfnDrmFreeVersion != nullptr);
     }
 
     int32 pfnDrmGetNodeTypeFromFd(

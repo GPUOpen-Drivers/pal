@@ -910,21 +910,16 @@ CmdBuffer::CmdBuffer(
     CmdBufferDecorator(pNextCmdBuffer, static_cast<DeviceDecorator*>(pDevice->GetNextLayer())),
     m_pDevice(pDevice),
     m_allocator(1 * 1024 * 1024),
-    m_pTimestamp(nullptr),
-    m_timestampAddr(0),
-    m_counter(0),
     m_drawDispatchCount(0),
     m_drawDispatchInfo()
 {
     const auto& cmdBufferLoggerConfig = pDevice->GetPlatform()->PlatformSettings().cmdBufferLoggerConfig;
     m_annotations.u32All    = cmdBufferLoggerConfig.cmdBufferLoggerAnnotations;
-    m_singleStep.u32All     = cmdBufferLoggerConfig.cmdBufferLoggerSingleStep;
     m_embedDrawDispatchInfo = cmdBufferLoggerConfig.embedDrawDispatchInfo;
 
     if (m_embedDrawDispatchInfo)
     {
         m_annotations.u32All = 0;
-        m_singleStep.u32All  = 0;
     }
 
     m_funcTable.pfnCmdSetUserData[static_cast<uint32>(PipelineBindPoint::Compute)]  = &CmdBuffer::CmdSetUserDataCs;
@@ -943,111 +938,21 @@ CmdBuffer::CmdBuffer(
 // =====================================================================================================================
 Result CmdBuffer::Init()
 {
-    Result result = m_allocator.Init();
-
-    if ((result == Result::Success) && IsTimestampingActive())
-    {
-        DeviceProperties deviceProps = {};
-        result = m_pDevice->GetProperties(&deviceProps);
-
-        GpuMemoryCreateInfo createInfo = {};
-        if (result == Result::Success)
-        {
-            result = Result::ErrorOutOfMemory;
-            createInfo.size               = sizeof(CmdBufferTimestampData);
-            createInfo.alignment          = sizeof(uint64);
-            createInfo.vaRange            = VaRange::Default;
-            createInfo.priority           = GpuMemPriority::VeryLow;
-            createInfo.heapCount          = 1;
-            createInfo.heaps[0]           = GpuHeap::GpuHeapInvisible;
-            createInfo.flags.virtualAlloc = 1;
-
-            m_pTimestamp = static_cast<IGpuMemory*>(PAL_MALLOC(m_pDevice->GetGpuMemorySize(createInfo, &result),
-                                                               m_pDevice->GetPlatform(),
-                                                               AllocInternal));
-
-            if (m_pTimestamp != nullptr)
-            {
-                result = m_pDevice->CreateGpuMemory(createInfo, static_cast<void*>(m_pTimestamp), &m_pTimestamp);
-            }
-            else
-            {
-                result = Result::ErrorOutOfMemory;
-            }
-        }
-
-        if (result == Result::Success)
-        {
-            GpuMemoryRef memRef = {};
-            memRef.pGpuMemory   = m_pTimestamp;
-            result = m_pDevice->AddGpuMemoryReferences(1, &memRef, nullptr, GpuMemoryRefCantTrim);
-        }
-
-        if (result == Result::Success)
-        {
-            m_timestampAddr = m_pTimestamp->Desc().gpuVirtAddr;
-        }
-    }
-
-    return result;
+    return m_allocator.Init();
 }
 
 // =====================================================================================================================
 void CmdBuffer::Destroy()
 {
-    if (IsTimestampingActive() && (m_pTimestamp != nullptr))
-    {
-        m_pDevice->RemoveGpuMemoryReferences(1, &m_pTimestamp, nullptr);
-        m_pTimestamp->Destroy();
-        PAL_SAFE_FREE(m_pTimestamp, m_pDevice->GetPlatform());
-    }
-
     ICmdBuffer* pNextLayer = m_pNextLayer;
     this->~CmdBuffer();
     pNextLayer->Destroy();
 }
 
 // =====================================================================================================================
-void CmdBuffer::AddTimestamp()
-{
-    m_counter++;
-
-    char desc[256] = {};
-    Snprintf(&desc[0], sizeof(desc), "Incrementing counter for the next event with counter value 0x%08x.", m_counter);
-    GetNextLayer()->CmdCommentString(&desc[0]);
-
-    GetNextLayer()->CmdWriteImmediate(HwPipePoint::HwPipeTop,
-                                      m_counter,
-                                      ImmediateDataWidth::ImmediateData32Bit,
-                                      m_timestampAddr + offsetof(CmdBufferTimestampData, counter));
-}
-
-// =====================================================================================================================
-void CmdBuffer::AddSingleStepBarrier()
-{
-    BarrierInfo barrier = {};
-    barrier.waitPoint   = HwPipePoint::HwPipeTop;
-
-    constexpr HwPipePoint PipePoints[] =
-    {
-        HwPipePoint::HwPipeBottom,
-        HwPipePoint::HwPipePostCs
-    };
-    barrier.pPipePoints        = &PipePoints[0];
-    barrier.pipePointWaitCount = static_cast<uint32>(ArrayLen(PipePoints));
-
-    char desc[256] = {};
-    Snprintf(&desc[0], sizeof(desc), "Waiting for the previous event with counter value 0x%08x.", m_counter);
-    GetNextLayer()->CmdCommentString(&desc[0]);
-
-    GetNextLayer()->CmdBarrier(barrier);
-}
-
-// =====================================================================================================================
 Result CmdBuffer::Begin(
     const CmdBufferBuildInfo& info)
 {
-    m_counter           = 0;
     m_drawDispatchCount = 0;
     m_drawDispatchInfo  = { 0 };
 
@@ -1056,24 +961,6 @@ Result CmdBuffer::Begin(
     if (m_annotations.logMiscellaneous)
     {
         GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::Begin));
-    }
-
-    if (IsTimestampingActive())
-    {
-        char buffer[256] = {};
-        Snprintf(&buffer[0], sizeof(buffer), "Updating CmdBuffer Hash to 0x%016llX.", reinterpret_cast<uint64>(this));
-        GetNextLayer()->CmdCommentString(&buffer[0]);
-        Snprintf(&buffer[0], sizeof(buffer), "Resetting counter to 0.");
-        GetNextLayer()->CmdCommentString(&buffer[0]);
-
-        GetNextLayer()->CmdWriteImmediate(HwPipePoint::HwPipeTop,
-                                          reinterpret_cast<uint64>(this),
-                                          ImmediateDataWidth::ImmediateData64Bit,
-                                          m_timestampAddr + offsetof(CmdBufferTimestampData, cmdBufferHash));
-        GetNextLayer()->CmdWriteImmediate(HwPipePoint::HwPipeTop,
-                                          0,
-                                          ImmediateDataWidth::ImmediateData32Bit,
-                                          m_timestampAddr + offsetof(CmdBufferTimestampData, counter));
     }
 
     return result;
@@ -1095,7 +982,6 @@ Result CmdBuffer::Reset(
     ICmdAllocator* pCmdAllocator,
     bool           returnGpuMemory)
 {
-    m_counter           = 0;
     m_drawDispatchCount = 0;
     m_drawDispatchInfo  = { 0 };
     return GetNextLayer()->Reset(NextCmdAllocator(pCmdAllocator), returnGpuMemory);
@@ -1148,17 +1034,6 @@ void CmdBuffer::CmdBindPipeline(
     }
 
     GetNextLayer()->CmdBindPipeline(NextPipelineBindParams(params));
-
-    if (m_singleStep.waitIdlePipelineBinds)
-    {
-        AddSingleStepBarrier();
-    }
-
-    if (m_singleStep.timestampPipelineBinds)
-    {
-        AddTimestamp();
-    }
-
 }
 
 // =====================================================================================================================
@@ -2220,16 +2095,6 @@ void CmdBuffer::CmdBarrier(
 
     GetNextLayer()->CmdBarrier(nextBarrierInfo);
 
-    if (m_singleStep.waitIdleBarriers)
-    {
-        AddSingleStepBarrier();
-    }
-
-    if (m_singleStep.timestampBarriers)
-    {
-        AddTimestamp();
-    }
-
     PAL_SAFE_DELETE_ARRAY(ppGpuEvents, &allocator);
     PAL_SAFE_DELETE_ARRAY(ppTargets, &allocator);
     PAL_SAFE_DELETE_ARRAY(pTransitions, &allocator);
@@ -2454,30 +2319,6 @@ void CmdBuffer::DescribeBarrier(
             PAL_NEVER_CALLED();
         }
     }
-}
-
-// =====================================================================================================================
-// Adds single-step and timestamp logic for any internal draws/dispatches that the internal PAL core might do.
-// Also adds draw/dispatch info (shader IDs) to the command stream prior to the draw/dispatch.
-void CmdBuffer::HandleDrawDispatch(
-    Developer::DrawDispatchType drawDispatchType)
-{
-    const bool isDraw = (drawDispatchType < Developer::DrawDispatchType::FirstDispatch);
-
-    const bool timestampEvent = (isDraw) ? m_singleStep.timestampDraws : m_singleStep.timestampDispatches;
-    const bool waitIdleEvent  = (isDraw) ? m_singleStep.waitIdleDraws  : m_singleStep.waitIdleDispatches;
-
-    if (waitIdleEvent)
-    {
-        AddSingleStepBarrier();
-    }
-
-    if (timestampEvent)
-    {
-        AddTimestamp();
-    }
-
-    AddDrawDispatchInfo(drawDispatchType);
 }
 
 // =====================================================================================================================
@@ -3078,7 +2919,7 @@ void PAL_STDCALL CmdBuffer::CmdDraw(
 
     pThis->GetNextLayer()->CmdDraw(firstVertex, vertexCount, firstInstance, instanceCount, drawId);
 
-    pThis->HandleDrawDispatch(Developer::DrawDispatchType::CmdDraw);
+    pThis->AddDrawDispatchInfo(Developer::DrawDispatchType::CmdDraw);
 }
 
 // =====================================================================================================================
@@ -3100,7 +2941,7 @@ void PAL_STDCALL CmdBuffer::CmdDrawOpaque(
 
     pThis->GetNextLayer()->CmdDrawOpaque(streamOutFilledSizeVa, streamOutOffset, stride, firstInstance, instanceCount);
 
-    pThis->HandleDrawDispatch(Developer::DrawDispatchType::CmdDrawOpaque);
+    pThis->AddDrawDispatchInfo(Developer::DrawDispatchType::CmdDrawOpaque);
 }
 
 // =====================================================================================================================
@@ -3140,7 +2981,7 @@ void PAL_STDCALL CmdBuffer::CmdDrawIndexed(
 
     pThis->GetNextLayer()->CmdDrawIndexed(firstIndex, indexCount, vertexOffset, firstInstance, instanceCount, drawId);
 
-    pThis->HandleDrawDispatch(Developer::DrawDispatchType::CmdDrawIndexed);
+    pThis->AddDrawDispatchInfo(Developer::DrawDispatchType::CmdDrawIndexed);
 }
 
 // =====================================================================================================================
@@ -3163,7 +3004,7 @@ void PAL_STDCALL CmdBuffer::CmdDrawIndirectMulti(
 
     pThis->GetNextLayer()->CmdDrawIndirectMulti(*NextGpuMemory(&gpuMemory), offset, stride, maximumCount, countGpuAddr);
 
-    pThis->HandleDrawDispatch(Developer::DrawDispatchType::CmdDrawIndirectMulti);
+    pThis->AddDrawDispatchInfo(Developer::DrawDispatchType::CmdDrawIndirectMulti);
 }
 
 // =====================================================================================================================
@@ -3190,7 +3031,7 @@ void PAL_STDCALL CmdBuffer::CmdDrawIndexedIndirectMulti(
                                                        maximumCount,
                                                        countGpuAddr);
 
-    pThis->HandleDrawDispatch(Developer::DrawDispatchType::CmdDrawIndexedIndirectMulti);
+    pThis->AddDrawDispatchInfo(Developer::DrawDispatchType::CmdDrawIndexedIndirectMulti);
 }
 
 // =====================================================================================================================
@@ -3221,7 +3062,7 @@ void PAL_STDCALL CmdBuffer::CmdDispatch(
 
     pThis->GetNextLayer()->CmdDispatch(xDim, yDim, zDim);
 
-    pThis->HandleDrawDispatch(Developer::DrawDispatchType::CmdDispatch);
+    pThis->AddDrawDispatchInfo(Developer::DrawDispatchType::CmdDispatch);
 }
 
 // =====================================================================================================================
@@ -3241,7 +3082,7 @@ void PAL_STDCALL CmdBuffer::CmdDispatchIndirect(
 
     pThis->GetNextLayer()->CmdDispatchIndirect(*NextGpuMemory(&gpuMemory), offset);
 
-    pThis->HandleDrawDispatch(Developer::DrawDispatchType::CmdDispatchIndirect);
+    pThis->AddDrawDispatchInfo(Developer::DrawDispatchType::CmdDispatchIndirect);
 }
 
 // =====================================================================================================================
@@ -3265,7 +3106,7 @@ void PAL_STDCALL CmdBuffer::CmdDispatchOffset(
 
     pThis->GetNextLayer()->CmdDispatchOffset(xOffset, yOffset, zOffset, xDim, yDim, zDim);
 
-    pThis->HandleDrawDispatch(Developer::DrawDispatchType::CmdDispatchOffset);
+    pThis->AddDrawDispatchInfo(Developer::DrawDispatchType::CmdDispatchOffset);
 }
 
 // =====================================================================================================================
@@ -3290,7 +3131,7 @@ void CmdBuffer::CmdStopGpuProfilerLogging()
     GetNextLayer()->CmdStopGpuProfilerLogging();
 }
 
-// ============================
+// =====================================================================================================================
 void CmdBuffer::CmdUpdateMemory(
     const IGpuMemory& dstGpuMemory,
     gpusize           dstOffset,
@@ -3306,16 +3147,6 @@ void CmdBuffer::CmdUpdateMemory(
     }
 
     GetNextLayer()->CmdUpdateMemory(*NextGpuMemory(&dstGpuMemory), dstOffset, dataSize, pData);
-
-    if (m_singleStep.waitIdleBlts)
-    {
-        AddSingleStepBarrier();
-    }
-
-    if (m_singleStep.timestampBlts)
-    {
-        AddTimestamp();
-    }
 }
 
 // =====================================================================================================================
@@ -3333,16 +3164,6 @@ void CmdBuffer::CmdUpdateBusAddressableMemoryMarker(
     }
 
     GetNextLayer()->CmdUpdateBusAddressableMemoryMarker(*NextGpuMemory(&dstGpuMemory), offset, value);
-
-    if (m_singleStep.waitIdleBlts)
-    {
-        AddSingleStepBarrier();
-    }
-
-    if (m_singleStep.timestampBlts)
-    {
-        AddTimestamp();
-    }
 }
 
 // =====================================================================================================================
@@ -3361,16 +3182,6 @@ void CmdBuffer::CmdFillMemory(
     }
 
     GetNextLayer()->CmdFillMemory(*NextGpuMemory(&dstGpuMemory), dstOffset, fillSize, data);
-
-    if (m_singleStep.waitIdleBlts)
-    {
-        AddSingleStepBarrier();
-    }
-
-    if (m_singleStep.timestampBlts)
-    {
-        AddTimestamp();
-    }
 }
 
 // =====================================================================================================================
@@ -3393,16 +3204,6 @@ void CmdBuffer::CmdCopyTypedBuffer(
                                        *NextGpuMemory(&dstGpuMemory),
                                        regionCount,
                                        pRegions);
-
-    if (m_singleStep.waitIdleBlts)
-    {
-        AddSingleStepBarrier();
-    }
-
-    if (m_singleStep.timestampBlts)
-    {
-        AddTimestamp();
-    }
 }
 
 // =====================================================================================================================
@@ -3420,16 +3221,6 @@ void CmdBuffer::CmdCopyRegisterToMemory(
     }
 
     GetNextLayer()->CmdCopyRegisterToMemory(srcRegisterOffset, *NextGpuMemory(&dstGpuMemory), dstOffset);
-
-    if (m_singleStep.waitIdleBlts)
-    {
-        AddSingleStepBarrier();
-    }
-
-    if (m_singleStep.timestampBlts)
-    {
-        AddTimestamp();
-    }
 }
 
 // =====================================================================================================================
@@ -3629,6 +3420,7 @@ static void DumpResolveMode(
         break;
     }
     pNextCmdBuffer->CmdCommentString(pString);
+    PAL_SAFE_DELETE_ARRAY(pString, &allocator);
 }
 
 // =====================================================================================================================
@@ -3662,16 +3454,6 @@ void CmdBuffer::CmdCopyImage(
                               pRegions,
                               pScissorRect,
                               flags);
-
-    if (m_singleStep.waitIdleBlts)
-    {
-        AddSingleStepBarrier();
-    }
-
-    if (m_singleStep.timestampBlts)
-    {
-        AddTimestamp();
-    }
 }
 
 // =====================================================================================================================
@@ -3695,16 +3477,6 @@ void CmdBuffer::CmdScaledCopyImage(
     nextCopyInfo.pDstImage      = NextImage(copyInfo.pDstImage);
 
     GetNextLayer()->CmdScaledCopyImage(nextCopyInfo);
-
-    if (m_singleStep.waitIdleBlts)
-    {
-        AddSingleStepBarrier();
-    }
-
-    if (m_singleStep.timestampBlts)
-    {
-        AddTimestamp();
-    }
 }
 
 // =====================================================================================================================
@@ -3725,16 +3497,6 @@ void CmdBuffer::CmdGenerateMipmaps(
     nextGenInfo.pImage         = NextImage(genInfo.pImage);
 
     GetNextLayer()->CmdGenerateMipmaps(nextGenInfo);
-
-    if (m_singleStep.waitIdleBlts)
-    {
-        AddSingleStepBarrier();
-    }
-
-    if (m_singleStep.timestampBlts)
-    {
-        AddTimestamp();
-    }
 }
 
 // =====================================================================================================================
@@ -3767,16 +3529,6 @@ void CmdBuffer::CmdColorSpaceConversionCopy(
                                                 pRegions,
                                                 filter,
                                                 cscTable);
-
-    if (m_singleStep.waitIdleBlts)
-    {
-        AddSingleStepBarrier();
-    }
-
-    if (m_singleStep.timestampBlts)
-    {
-        AddTimestamp();
-    }
 }
 
 // =====================================================================================================================
@@ -3794,16 +3546,6 @@ void CmdBuffer::CmdCloneImageData(
     }
 
     GetNextLayer()->CmdCloneImageData(*NextImage(&srcImage), *NextImage(&dstImage));
-
-    if (m_singleStep.waitIdleBlts)
-    {
-        AddSingleStepBarrier();
-    }
-
-    if (m_singleStep.timestampBlts)
-    {
-        AddTimestamp();
-    }
 }
 
 // =====================================================================================================================
@@ -3909,16 +3651,6 @@ void CmdBuffer::CmdCopyMemoryToImage(
                                       dstImageLayout,
                                       regionCount,
                                       pRegions);
-
-    if (m_singleStep.waitIdleBlts)
-    {
-        AddSingleStepBarrier();
-    }
-
-    if (m_singleStep.timestampBlts)
-    {
-        AddTimestamp();
-    }
 }
 
 // =====================================================================================================================
@@ -3944,16 +3676,6 @@ void CmdBuffer::CmdCopyImageToMemory(
                                       *NextGpuMemory(&dstGpuMemory),
                                       regionCount,
                                       pRegions);
-
-    if (m_singleStep.waitIdleBlts)
-    {
-        AddSingleStepBarrier();
-    }
-
-    if (m_singleStep.timestampBlts)
-    {
-        AddTimestamp();
-    }
 }
 
 // =====================================================================================================================
@@ -3972,16 +3694,6 @@ void CmdBuffer::CmdCopyMemory(
     }
 
     GetNextLayer()->CmdCopyMemory(*NextGpuMemory(&srcGpuMemory), *NextGpuMemory(&dstGpuMemory), regionCount, pRegions);
-
-    if (m_singleStep.waitIdleBlts)
-    {
-        AddSingleStepBarrier();
-    }
-
-    if (m_singleStep.timestampBlts)
-    {
-        AddTimestamp();
-    }
 }
 
 // =====================================================================================================================
@@ -4054,16 +3766,6 @@ void CmdBuffer::CmdCopyMemoryToTiledImage(
                                               dstImageLayout,
                                               regionCount,
                                               pRegions);
-
-    if (m_singleStep.waitIdleBlts)
-    {
-        AddSingleStepBarrier();
-    }
-
-    if (m_singleStep.timestampBlts)
-    {
-        AddTimestamp();
-    }
 }
 
 // =====================================================================================================================
@@ -4090,16 +3792,6 @@ void CmdBuffer::CmdCopyTiledImageToMemory(
                                               *NextGpuMemory(&dstGpuMemory),
                                               regionCount,
                                               pRegions);
-
-    if (m_singleStep.waitIdleBlts)
-    {
-        AddSingleStepBarrier();
-    }
-
-    if (m_singleStep.timestampBlts)
-    {
-        AddTimestamp();
-    }
 }
 
 // =====================================================================================================================
@@ -4122,16 +3814,6 @@ void CmdBuffer::CmdCopyImageToPackedPixelImage(
                                                    regionCount,
                                                    pRegions,
                                                    packPixelType);
-
-    if (m_singleStep.waitIdleBlts)
-    {
-        AddSingleStepBarrier();
-    }
-
-    if (m_singleStep.timestampBlts)
-    {
-        AddTimestamp();
-    }
 }
 
 // =====================================================================================================================
@@ -4158,16 +3840,6 @@ void CmdBuffer::CmdClearColorBuffer(
                                      bufferExtent,
                                      rangeCount,
                                      pRanges);
-
-    if (m_singleStep.waitIdleBlts)
-    {
-        AddSingleStepBarrier();
-    }
-
-    if (m_singleStep.timestampBlts)
-    {
-        AddTimestamp();
-    }
 }
 
 // =====================================================================================================================
@@ -4188,16 +3860,6 @@ void CmdBuffer::CmdClearBoundColorTargets(
                                            pBoundColorTargets,
                                            regionCount,
                                            pClearRegions);
-
-    if (m_singleStep.waitIdleBlts)
-    {
-        AddSingleStepBarrier();
-    }
-
-    if (m_singleStep.timestampBlts)
-    {
-        AddTimestamp();
-    }
 }
 
 // =====================================================================================================================
@@ -4230,16 +3892,6 @@ void CmdBuffer::CmdClearColorImage(
                                     boxCount,
                                     pBoxes,
                                     flags);
-
-    if (m_singleStep.waitIdleBlts)
-    {
-        AddSingleStepBarrier();
-    }
-
-    if (m_singleStep.timestampBlts)
-    {
-        AddTimestamp();
-    }
 }
 
 // =====================================================================================================================
@@ -4268,16 +3920,6 @@ void CmdBuffer::CmdClearBoundDepthStencilTargets(
                                                      flag,
                                                      regionCount,
                                                      pClearRegions);
-
-    if (m_singleStep.waitIdleBlts)
-    {
-        AddSingleStepBarrier();
-    }
-
-    if (m_singleStep.timestampBlts)
-    {
-        AddTimestamp();
-    }
 }
 
 // =====================================================================================================================
@@ -4319,16 +3961,6 @@ void CmdBuffer::CmdClearDepthStencil(
                                          rectCount,
                                          pRects,
                                          flags);
-
-    if (m_singleStep.waitIdleBlts)
-    {
-        AddSingleStepBarrier();
-    }
-
-    if (m_singleStep.timestampBlts)
-    {
-        AddTimestamp();
-    }
 }
 
 // =====================================================================================================================
@@ -4353,16 +3985,6 @@ void CmdBuffer::CmdClearBufferView(
                                     pBufferViewSrd,
                                     rangeCount,
                                     pRanges);
-
-    if (m_singleStep.waitIdleBlts)
-    {
-        AddSingleStepBarrier();
-    }
-
-    if (m_singleStep.timestampBlts)
-    {
-        AddTimestamp();
-    }
 }
 
 // =====================================================================================================================
@@ -4390,16 +4012,6 @@ void CmdBuffer::CmdClearImageView(
                                    pImageViewSrd,
                                    rectCount,
                                    pRects);
-
-    if (m_singleStep.waitIdleBlts)
-    {
-        AddSingleStepBarrier();
-    }
-
-    if (m_singleStep.timestampBlts)
-    {
-        AddTimestamp();
-    }
 }
 
 // =====================================================================================================================
@@ -4432,16 +4044,6 @@ void CmdBuffer::CmdResolveImage(
                                     regionCount,
                                     pRegions,
                                     flags);
-
-    if (m_singleStep.waitIdleBlts)
-    {
-        AddSingleStepBarrier();
-    }
-
-    if (m_singleStep.timestampBlts)
-    {
-        AddTimestamp();
-    }
 }
 
 // =====================================================================================================================

@@ -881,56 +881,59 @@ struct GpuChipProperties
             struct
             {
 
-                uint64 doubleOffchipLdsBuffers                  :  1; // HW supports 2x number of offchip LDS buffers
-                                                                      // per SE
-                uint64 supportFp16Fetch                         :  1;
-                uint64 supportFp16Dot2                          :  1;
-                uint64 support16BitInstructions                 :  1;
-                uint64 support64BitInstructions                 :  1;
-                uint64 supportDoubleRate16BitInstructions       :  1;
-                uint64 rbPlus                                   :  1;
-                uint64 supportConservativeRasterization         :  1;
-                uint64 supportPrtBlendZeroMode                  :  1;
-                uint64 supports2BitSignedValues                 :  1;
-                uint64 supportPrimitiveOrderedPs                :  1;
-                uint64 lbpwEnabled                              :  1; // Indicates Load Balance Per Watt is enabled
-                uint64 supportPatchTessDistribution             :  1; // HW supports patch distribution mode.
-                uint64 supportDonutTessDistribution             :  1; // HW supports donut distribution mode.
-                uint64 supportTrapezoidTessDistribution         :  1; // HW supports trapezoidal distribution mode.
-                uint64 supportAddrOffsetDumpAndSetShPkt         :  1; // Indicates support for DUMP_CONST_RAM_OFFSET
-                                                                      // and SET_SH_REG_OFFSET indexed packet.
-                uint64 supportAddrOffsetSetSh256Pkt             :  1; // Indicates support for SET_SH_REG_OFFSET_256B
-                                                                      // indexed packet.
-                uint64 supportImplicitPrimitiveShader           :  1;
-                uint64 supportSpp                               :  1; // HW supports Shader Profiling for Power
-                uint64 validPaScTileSteeringOverride            :  1; // Value of paScTileSteeringOverride is valid
-                uint64 placeholder0                             :  1; // Placeholder. Do not use.
-                uint64 supportPerShaderStageWaveSize            :  1; // HW supports changing the wave size
-                uint64 supportCustomWaveBreakSize               :  1;
-                uint64 supportMsaaCoverageOut                   :  1; // HW supports MSAA coverage samples
-                uint64 supportPostDepthCoverage                 :  1; // HW supports post depth coverage feature
-                uint64 supportSpiPrefPriority                   :  1;
-                uint64 timestampResetOnIdle                     :  1; // GFX OFF feature causes the timestamp to reset.
-                uint64 support1xMsaaSampleLocations             :  1; // HW supports 1xMSAA custom quad sample patterns
-                uint64 supportReleaseAcquireInterface           :  1; // True when ASIC supports the new barrier
-                                                                      // interface designed for Acquire/Released-based
-                                                                      // barrier.
-                uint64 supportSplitReleaseAcquire               :  1; // If true, ASIC supports split a barrier to
-                                                                      // CmdRelease() and CmdAcquire()
-                                                                      // instead of CmdReleaseThenAcquire().
-                                                                      // Note: ReleaseAcquireInterface support is a
-                                                                      //       prerequisite.
-                uint64 eccProtectedGprs                         :  1; // Are VGPR's ECC-protected?
-                uint64 overrideDefaultSpiConfigCntl             :  1; // KMD provides default value for SPI_CONFIG_CNTL.
-                uint64 supportOutOfOrderPrimitives              :  1; // HW supports higher throughput for out of order
-                uint64 placeholder3                             :  1;
-                uint64 supportShaderSubgroupClock               :  1; // HW supports clock functions across subgroup.
-                uint64 supportShaderDeviceClock                 :  1; // HW supports clock functions across device.
-                uint64 supportAlphaToOne                        :  1; // HW supports forcing alpha channel to one
-                uint64 supportSingleChannelMinMaxFilter         :  1; // HW supports any min/max filter.
-                uint64 supportSortAgnosticBarycentrics          :  1; // HW provides provoking vertex for custom interp
-                uint64 placeholder4                             :  1;
-                uint64 reserved                                 : 24;
+                uint64 doubleOffchipLdsBuffers            :  1; // HW supports 2x number of offchip LDS buffers
+                                                                // per SE
+                uint64 supportFp16Fetch                   :  1;
+                uint64 supportFp16Dot2                    :  1;
+                uint64 support16BitInstructions           :  1;
+                uint64 support64BitInstructions           :  1;
+                uint64 supportDoubleRate16BitInstructions :  1;
+                uint64 rbPlus                             :  1;
+                uint64 supportConservativeRasterization   :  1;
+                uint64 supportPrtBlendZeroMode            :  1;
+                uint64 supports2BitSignedValues           :  1;
+                uint64 supportPrimitiveOrderedPs          :  1;
+                uint64 lbpwEnabled                        :  1; // Indicates Load Balance Per Watt is enabled
+                uint64 supportPatchTessDistribution       :  1; // HW supports patch distribution mode.
+                uint64 supportDonutTessDistribution       :  1; // HW supports donut distribution mode.
+                uint64 supportTrapezoidTessDistribution   :  1; // HW supports trapezoidal distribution mode.
+                uint64 supportAddrOffsetDumpAndSetShPkt   :  1; // Indicates support for DUMP_CONST_RAM_OFFSET
+                                                                // and SET_SH_REG_OFFSET indexed packet.
+                uint64 supportAddrOffsetSetSh256Pkt       :  1; // Indicates support for SET_SH_REG_OFFSET_256B
+                                                                // indexed packet.
+                uint64 supportImplicitPrimitiveShader     :  1;
+                uint64 supportSpp                         :  1; // HW supports Shader Profiling for Power
+                uint64 validPaScTileSteeringOverride      :  1; // Value of paScTileSteeringOverride is valid
+                uint64 placeholder0                       :  1; // Placeholder. Do not use.
+                uint64 supportPerShaderStageWaveSize      :  1; // HW supports changing the wave size
+                uint64 supportCustomWaveBreakSize         :  1;
+                uint64 supportMsaaCoverageOut             :  1; // HW supports MSAA coverage samples
+                uint64 supportPostDepthCoverage           :  1; // HW supports post depth coverage feature
+                uint64 supportSpiPrefPriority             :  1;
+                uint64 timestampResetOnIdle               :  1; // GFX OFF feature causes the timestamp to reset.
+                uint64 support1xMsaaSampleLocations       :  1; // HW supports 1xMSAA custom quad sample patterns
+                uint64 supportReleaseAcquireInterface     :  1; // Set if HW supports the basic functionalities of
+                                                                // acquire /release-based barrier interface.This
+                                                                // provides CmdReleaseThenAcquire() as a convenient
+                                                                // way to replace the legacy barrier interface's
+                                                                // CmdBarrier() to handle single point barriers.
+                uint64 supportSplitReleaseAcquire         :  1; // Set if HW supports additional split barrier feature
+                                                                // on top of basic acquire/release interface support.
+                                                                // This provides CmdAcquire() and CmdRelease() to
+                                                                // implement split barriers.
+                                                                // Note: supportReleaseAcquireInterface is a
+                                                                // prerequisite to supportSplitReleaseAcquire.
+                uint64 eccProtectedGprs                   :  1; // Are VGPR's ECC-protected?
+                uint64 overrideDefaultSpiConfigCntl       :  1; // KMD provides default value for SPI_CONFIG_CNTL.
+                uint64 supportOutOfOrderPrimitives        :  1; // HW supports higher throughput for out of order
+                uint64 placeholder3                       :  1;
+                uint64 supportShaderSubgroupClock         :  1; // HW supports clock functions across subgroup.
+                uint64 supportShaderDeviceClock           :  1; // HW supports clock functions across device.
+                uint64 supportAlphaToOne                  :  1; // HW supports forcing alpha channel to one
+                uint64 supportSingleChannelMinMaxFilter   :  1; // HW supports any min/max filter.
+                uint64 supportSortAgnosticBarycentrics    :  1; // HW provides provoking vertex for custom interp
+                uint64 placeholder4                       :  1;
+                uint64 reserved                           : 24;
             };
 
             Gfx9PerfCounterInfo perfCounterInfo; // Contains info for perf counters for a specific hardware block

@@ -74,10 +74,6 @@ public:
     // optimized version into pCmdSpace.
     uint32* WriteOptimizedSetSeqShRegs(const PM4CMDSETDATA& setData, const uint32* pData, uint32* pCmdSpace);
     uint32* WriteOptimizedSetSeqContextRegs(const PM4CMDSETDATA& setData, const uint32* pData, uint32* pCmdSpace);
-    uint32* WriteOptimizedSetShShRegOffset(
-        const PM4CMDSETSHREGOFFSET& setShRegOffset,
-        size_t                      packetSize,
-        uint32*                     pCmdSpace);
 
     // These functions take a fully built LOAD_DATA header(s) and will update the state of the optimizer state
     // based on the packet's contents.

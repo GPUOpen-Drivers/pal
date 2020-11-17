@@ -29,7 +29,6 @@
 #include "core/layers/cmdBufferLogger/cmdBufferLoggerDevice.h"
 #include "core/layers/cmdBufferLogger/cmdBufferLoggerImage.h"
 #include "core/layers/cmdBufferLogger/cmdBufferLoggerPlatform.h"
-#include "core/layers/cmdBufferLogger/cmdBufferLoggerQueue.h"
 #include "palSysUtil.h"
 
 using namespace Util;
@@ -164,121 +163,6 @@ Result Device::CreateCmdBuffer(
     {
         pNextCmdBuffer->SetClientData(pPlacementAddr);
         (*ppCmdBuffer) = pCmdBuffer;
-    }
-
-    return result;
-}
-
-// =====================================================================================================================
-size_t Device::GetQueueSize(
-    const QueueCreateInfo& createInfo,
-    Result*                pResult
-    ) const
-{
-    return m_pNextLayer->GetQueueSize(createInfo, pResult) +
-           (SupportsCommentString(createInfo.queueType) ? sizeof(Queue) : sizeof(QueueDecorator));
-}
-
-// =====================================================================================================================
-Result Device::CreateQueue(
-    const QueueCreateInfo& createInfo,
-    void*                  pPlacementAddr,
-    IQueue**               ppQueue)
-{
-    IQueue* pNextQueue = nullptr;
-    IQueue* pQueue     = nullptr;
-
-    // TODO: Some queues do not support CmdCommentString. When they do, this branch can go away.
-    const bool   supportsCommentString = SupportsCommentString(createInfo.queueType);
-    const size_t offset = (supportsCommentString) ? sizeof(Queue) : sizeof(QueueDecorator);
-
-    Result result = m_pNextLayer->CreateQueue(createInfo,
-                                              VoidPtrInc(pPlacementAddr, offset),
-                                              &pNextQueue);
-
-    if ((result == Result::Success) && supportsCommentString)
-    {
-        PAL_ASSERT(pNextQueue != nullptr);
-
-        pQueue = PAL_PLACEMENT_NEW(pPlacementAddr) Queue(pNextQueue, this, 1);
-        auto* pQ = static_cast<Queue*>(pQueue);
-        result = pQ->Init(&createInfo);
-        if (result != Result::Success)
-        {
-            pQ->Destroy();
-        }
-    }
-    else if (result == Result::Success)
-    {
-        PAL_ASSERT(pNextQueue != nullptr);
-
-        pQueue = PAL_PLACEMENT_NEW(pPlacementAddr)
-            QueueDecorator(pNextQueue, static_cast<const DeviceDecorator*>(m_pNextLayer));
-    }
-
-    if (result == Result::Success)
-    {
-        pNextQueue->SetClientData(pPlacementAddr);
-        (*ppQueue) = pQueue;
-    }
-
-    return result;
-}
-
-// =====================================================================================================================
-size_t Device::GetMultiQueueSize(
-    uint32                 queueCount,
-    const QueueCreateInfo* pCreateInfo,
-    Result*                pResult
-    ) const
-{
-    return m_pNextLayer->GetMultiQueueSize(queueCount, pCreateInfo, pResult) +
-           (SupportsCommentString(queueCount, pCreateInfo) ? sizeof(Queue) : sizeof(QueueDecorator));
-}
-
-// =====================================================================================================================
-Result Device::CreateMultiQueue(
-    uint32                 queueCount,
-    const QueueCreateInfo* pCreateInfo,
-    void*                  pPlacementAddr,
-    IQueue**               ppQueue)
-{
-    IQueue* pNextQueue = nullptr;
-    IQueue* pQueue     = nullptr;
-
-    // TODO: Some queues do not support CmdCommentString. When they do, this branch can go away.
-    const bool   supportsCommentString = SupportsCommentString(queueCount, pCreateInfo);
-    const size_t offset = (supportsCommentString) ? sizeof(Queue) : sizeof(QueueDecorator);
-
-    Result result = m_pNextLayer->CreateMultiQueue(queueCount,
-                                                   pCreateInfo,
-                                                   VoidPtrInc(pPlacementAddr, offset),
-                                                   &pNextQueue);
-
-    if ((result == Result::Success) && supportsCommentString)
-    {
-        PAL_ASSERT(pNextQueue != nullptr);
-
-        pQueue = PAL_PLACEMENT_NEW(pPlacementAddr) Queue(pNextQueue, this, queueCount);
-        auto* pQ = static_cast<Queue*>(pQueue);
-        result = pQ->Init(pCreateInfo);
-        if (result != Result::Success)
-        {
-            pQ->Destroy();
-        }
-    }
-    else if (result == Result::Success)
-    {
-        PAL_ASSERT(pNextQueue != nullptr);
-
-        pQueue = PAL_PLACEMENT_NEW(pPlacementAddr)
-            QueueDecorator(pNextQueue, static_cast<const DeviceDecorator*>(m_pNextLayer));
-    }
-
-    if (result == Result::Success)
-    {
-        pNextQueue->SetClientData(pPlacementAddr);
-        (*ppQueue) = pQueue;
     }
 
     return result;

@@ -1030,6 +1030,7 @@ void LogContext::Enum(
         nullptr,
         nullptr,
         nullptr,
+        nullptr,
 
         "Max",
         "All",

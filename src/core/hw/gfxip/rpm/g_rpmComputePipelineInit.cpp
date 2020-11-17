@@ -85,6 +85,13 @@ Result CreateRpmComputePipelines(
 #endif
 
 #if PAL_BUILD_GFX6
+    case AsicRevision::Spectre:
+    case AsicRevision::Spooky:
+        pTable = rpmComputeBinaryTableSpectre;
+        break;
+#endif
+
+#if PAL_BUILD_GFX6
     case AsicRevision::HawaiiPro:
         pTable = rpmComputeBinaryTableHawaiiPro;
         break;
@@ -97,17 +104,10 @@ Result CreateRpmComputePipelines(
 #endif
 
 #if PAL_BUILD_GFX6
-    case AsicRevision::Bonaire:
     case AsicRevision::Kalindi:
+    case AsicRevision::Bonaire:
     case AsicRevision::Godavari:
         pTable = rpmComputeBinaryTableKalindi;
-        break;
-#endif
-
-#if PAL_BUILD_GFX6
-    case AsicRevision::Spectre:
-    case AsicRevision::Spooky:
-        pTable = rpmComputeBinaryTableSpectre;
         break;
 #endif
 
@@ -123,12 +123,6 @@ Result CreateRpmComputePipelines(
 #endif
 
 #if PAL_BUILD_GFX6
-    case AsicRevision::Stoney:
-        pTable = rpmComputeBinaryTableStoney;
-        break;
-#endif
-
-#if PAL_BUILD_GFX6
     case AsicRevision::Iceland:
         pTable = rpmComputeBinaryTableIceland;
         break;
@@ -137,6 +131,12 @@ Result CreateRpmComputePipelines(
 #if PAL_BUILD_GFX6
     case AsicRevision::TongaPro:
         pTable = rpmComputeBinaryTableTongaPro;
+        break;
+#endif
+
+#if PAL_BUILD_GFX6
+    case AsicRevision::Stoney:
+        pTable = rpmComputeBinaryTableStoney;
         break;
 #endif
 

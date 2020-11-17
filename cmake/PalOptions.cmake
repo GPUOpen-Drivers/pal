@@ -108,11 +108,13 @@ macro(pal_options)
         # Because if they were cache variables either they/we would have to use the FORCE keyword
         # Either way it would be a bad interface for the client
         set(PAL_BUILD_CMD_BUFFER_LOGGER ON)
+        set(PAL_BUILD_GPU_DEBUG         ON)
         set(PAL_BUILD_INTERFACE_LOGGER  ON)
         set(PAL_BUILD_PM4_INSTRUMENTOR  ON)
     # Otherwise give them the ability to turn them on individually
     else()
         option(PAL_BUILD_CMD_BUFFER_LOGGER "Build PAL Command Buffer Logger?" OFF)
+        option(PAL_BUILD_GPU_DEBUG         "Build PAL GPU Debug layer?"       OFF)
         option(PAL_BUILD_INTERFACE_LOGGER  "Build PAL Interface Logger?"      OFF)
         option(PAL_BUILD_PM4_INSTRUMENTOR  "Build PAL PM4 Instrumentor?"      OFF)
     endif()

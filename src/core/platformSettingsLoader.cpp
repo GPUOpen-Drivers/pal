@@ -280,20 +280,6 @@ void PlatformSettingsLoader::OverrideDefaults()
 // initialized here.
 void PlatformSettingsLoader::ValidateSettings()
 {
-#if PAL_BUILD_CMD_BUFFER_LOGGER
-    if (m_settings.cmdBufferLoggerConfig.cmdBufferLoggerSingleStep != 0)
-    {
-        constexpr uint32 WaitIdleMask   = 0x3E0;
-        constexpr uint32 WaitIdleOffset = 5;
-
-        uint32* pSetting = &m_settings.cmdBufferLoggerConfig.cmdBufferLoggerSingleStep;
-        if (TestAnyFlagSet(*pSetting, WaitIdleMask))
-        {
-            *pSetting |= (*pSetting >> WaitIdleOffset);
-        }
-    }
-#endif
-
     m_state = SettingsLoaderState::Final;
 }
 

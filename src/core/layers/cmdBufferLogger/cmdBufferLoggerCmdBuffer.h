@@ -57,25 +57,6 @@ union CmdBufferLoggerAnnotations
     uint32 u32All;
 };
 
-union CmdBufferLoggerSingleStep
-{
-    struct
-    {
-        uint32 timestampDraws         :  1;
-        uint32 timestampDispatches    :  1;
-        uint32 timestampBarriers      :  1;
-        uint32 timestampBlts          :  1;
-        uint32 timestampPipelineBinds :  1;
-        uint32 waitIdleDraws          :  1;
-        uint32 waitIdleDispatches     :  1;
-        uint32 waitIdleBarriers       :  1;
-        uint32 waitIdleBlts           :  1;
-        uint32 waitIdlePipelineBinds  :  1;
-        uint32 reserved               : 22;
-    };
-    uint32 u32All;
-};
-
 // =====================================================================================================================
 // Draw/Dispatch info used by PktPlay
 struct DrawDispatchInfo
@@ -509,13 +490,9 @@ public:
         const Developer::BarrierData* pData,
         const char*                   pDescription = nullptr);
 
-    void HandleDrawDispatch(
-        Developer::DrawDispatchType drawDispatchType);
-
     Util::VirtualLinearAllocator* Allocator()    { return &m_allocator;   }
     CmdBufferLoggerAnnotations    Annotations()  { return m_annotations;  }
     const Device*                 LoggerDevice() { return m_pDevice;      }
-    IGpuMemory*                   TimestampMem() { return m_pTimestamp;   }
 
     void UpdateDrawDispatchInfo(const Pal::IPipeline* pPipeline, PipelineBindPoint bindPoint);
 
@@ -587,26 +564,12 @@ private:
         uint32      yDim,
         uint32      zDim);
 
-    bool IsTimestampingActive() const
-    {
-        return (m_singleStep.timestampBarriers   |
-                m_singleStep.timestampDispatches |
-                m_singleStep.timestampDraws      |
-                m_singleStep.timestampBlts       |
-                m_singleStep.timestampPipelineBinds); }
-    void AddTimestamp();
-    void AddSingleStepBarrier();
-
     void AddDrawDispatchInfo(
         Developer::DrawDispatchType drawDispatchType);
 
     Device*const                 m_pDevice;
     Util::VirtualLinearAllocator m_allocator;       // Temp storage for argument translation.
     CmdBufferLoggerAnnotations   m_annotations;
-    CmdBufferLoggerSingleStep    m_singleStep;
-    IGpuMemory*                  m_pTimestamp;
-    gpusize                      m_timestampAddr;
-    uint32                       m_counter;
     uint32                       m_drawDispatchCount;
     DrawDispatchInfo             m_drawDispatchInfo;
     bool                         m_embedDrawDispatchInfo;

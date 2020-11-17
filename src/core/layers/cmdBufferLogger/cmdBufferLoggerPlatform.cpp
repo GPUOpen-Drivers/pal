@@ -152,18 +152,6 @@ Result Platform::GetScreens(
 }
 
 // =====================================================================================================================
-bool Platform::IsTimestampingEnabled() const
-{
-    CmdBufferLoggerSingleStep singleStep = {};
-    singleStep.u32All = PlatformSettings().cmdBufferLoggerConfig.cmdBufferLoggerSingleStep;
-    return (singleStep.timestampDraws      |
-            singleStep.timestampDispatches |
-            singleStep.timestampBarriers   |
-            singleStep.timestampBlts       |
-            singleStep.timestampPipelineBinds);
-}
-
-// =====================================================================================================================
 void PAL_STDCALL Platform::CmdBufferLoggerCb(
     void*                   pPrivateData,
     const uint32            deviceIndex,
@@ -215,19 +203,9 @@ void PAL_STDCALL Platform::CmdBufferLoggerCb(
         break;
     }
     case Developer::CallbackType::DrawDispatch:
-    {
         PAL_ASSERT(pCbData != nullptr);
-        const bool hasValidData = TranslateDrawDispatchData(pCbData);
-
-        if (hasValidData)
-        {
-            Developer::DrawDispatchData* pData      = static_cast<Developer::DrawDispatchData*>(pCbData);
-            CmdBuffer*                   pCmdBuffer = static_cast<CmdBuffer*>(pData->pCmdBuffer);
-
-            pCmdBuffer->HandleDrawDispatch(pData->cmdType);
-        }
+        TranslateDrawDispatchData(pCbData);
         break;
-    }
     case Developer::CallbackType::BindPipeline:
     {
         PAL_ASSERT(pCbData != nullptr);

@@ -538,8 +538,7 @@ public:
     uint32* ValidateScissorRects(uint32* pDeCmdSpace);
     uint32* ValidateScissorRects(uint32* pDeCmdSpace);
 
-    bool NeedsToValidateScissorRects(const bool pm4OptImmediate) const;
-    bool NeedsToValidateScissorRects() const;
+    bool NeedsToValidateScissorRectsWa(bool pm4OptImmediate) const;
 
     virtual void CpCopyMemory(gpusize dstAddr, gpusize srcAddr, gpusize numBytes) override;
 
@@ -606,11 +605,10 @@ protected:
 
     template <bool Indexed, bool Indirect, bool Pm4OptImmediate>
     uint32* ValidateDrawTimeHwState(
-        regPA_SC_MODE_CNTL_1          paScModeCntl1,
-        regDB_COUNT_CONTROL           dbCountControl,
-        regVGT_MULTI_PRIM_IB_RESET_EN vgtMultiPrimIbResetEn,
-        const ValidateDrawInfo&       drawInfo,
-        uint32*                       pDeCmdSpace);
+        regPA_SC_MODE_CNTL_1    paScModeCntl1,
+        regDB_COUNT_CONTROL     dbCountControl,
+        const ValidateDrawInfo& drawInfo,
+        uint32*                 pDeCmdSpace);
 
     // Gets vertex offset register address
     uint16 GetVertexOffsetRegAddr() const { return m_vertexOffsetReg; }
@@ -990,8 +988,9 @@ private:
 
     regPA_SC_BINNER_CNTL_0  m_paScBinnerCntl0;
     regDB_DFSM_CONTROL      m_dbDfsmControl;
-    regDB_RENDER_OVERRIDE   m_dbRenderOverride;     // Last written value of the pipeline-owned part of
-                                                    // DB_RENDER_OVERRIDE register.
+    regDB_RENDER_OVERRIDE   m_dbRenderOverride; // Last written value of the pipeline-owned part of
+                                                // DB_RENDER_OVERRIDE register.
+    regVGT_MULTI_PRIM_IB_RESET_EN m_vgtMultiPrimIbResetEn; // Last written value of VGT_MULTI_PRIM_IB_RESET_EN register.
 
     regPA_SC_AA_CONFIG m_paScAaConfigNew;  // PA_SC_AA_CONFIG state that will be written on the next draw.
     regPA_SC_AA_CONFIG m_paScAaConfigLast; // Last written value of PA_SC_AA_CONFIG

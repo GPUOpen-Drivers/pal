@@ -238,7 +238,9 @@ void TextWriter<Allocator>::DrawDebugText(
         Pal::uint32 foregroundColor[4] = {};
         Pal::uint32 backgroundColor[4] = {};
 
-        // Convert the raw color into the destination format.
+        // Convert the raw color into the destination format. Majority of displayable formats are
+        // 8_8_8_8_unorm, 2_10_10_10_unorm, 10_10_10_2_unorm, 16_16_16_16_float. Uint/Sint formats
+        // are barely used to be presented. Keep Uint/Sint code paths for corner cases.
         if (Pal::Formats::IsUnorm(imgFormat.format)   || Pal::Formats::IsSnorm(imgFormat.format)   ||
             Pal::Formats::IsUscaled(imgFormat.format) || Pal::Formats::IsSscaled(imgFormat.format) ||
             Pal::Formats::IsFloat(imgFormat.format)   || Pal::Formats::IsSrgb(imgFormat.format))
@@ -249,8 +251,8 @@ void TextWriter<Allocator>::DrawDebugText(
                 { 0.0f, 0.0f, 0.0f, 1.0f },     // Black
             };
 
-            Pal::Formats::ConvertColor(imgFormat, &ColorTable[WhiteColor][0], &foregroundColor[0]);
-            Pal::Formats::ConvertColor(imgFormat, &ColorTable[BlackColor][0], &backgroundColor[0]);
+            memcpy(&info.foregroundColor[0], &ColorTable[WhiteColor][0], sizeof(info.foregroundColor));
+            memcpy(&info.backgroundColor[0], &ColorTable[BlackColor][0], sizeof(info.backgroundColor));
         }
         else if (Pal::Formats::IsSint(imgFormat.format))
         {
@@ -259,8 +261,8 @@ void TextWriter<Allocator>::DrawDebugText(
                 { 0x7FFFFFFF, 0x7FFFFFFF, 0x7FFFFFFF, 0x7FFFFFFF },     // White
                 { 0x00000000, 0x00000000, 0x00000000, 0xFFFFFFFF },     // Black
             };
-            memcpy(&foregroundColor[0], &ColorTable[WhiteColor][0], sizeof(foregroundColor));
-            memcpy(&backgroundColor[0], &ColorTable[BlackColor][0], sizeof(backgroundColor));
+            memcpy(&info.foregroundColor[0], &ColorTable[WhiteColor][0], sizeof(info.foregroundColor));
+            memcpy(&info.backgroundColor[0], &ColorTable[BlackColor][0], sizeof(info.backgroundColor));
         }
         else
         {
@@ -272,18 +274,9 @@ void TextWriter<Allocator>::DrawDebugText(
                 { 0x00000000, 0x00000000, 0x00000000, 0xFFFFFFFF },     // Black
             };
 
-            memcpy(&foregroundColor[0], &ColorTable[WhiteColor][0], sizeof(foregroundColor));
-            memcpy(&backgroundColor[0], &ColorTable[BlackColor][0], sizeof(backgroundColor));
+            memcpy(&info.foregroundColor[0], &ColorTable[WhiteColor][0], sizeof(info.foregroundColor));
+            memcpy(&info.backgroundColor[0], &ColorTable[BlackColor][0], sizeof(info.backgroundColor));
         }
-
-        Pal::uint32 swizzledForegroundColor[4] = {};
-        Pal::uint32 swizzledBackgroundColor[4] = {};
-
-        Pal::Formats::SwizzleColor(imgFormat, foregroundColor, swizzledForegroundColor);
-        Pal::Formats::SwizzleColor(imgFormat, backgroundColor, swizzledBackgroundColor);
-
-        Pal::Formats::PackRawClearColor(imgFormat, swizzledForegroundColor, &info.foregroundColor[0]);
-        Pal::Formats::PackRawClearColor(imgFormat, swizzledBackgroundColor, &info.backgroundColor[0]);
 
         // Get enough embedded space to store the text draw info struct and the string.
         Pal::gpusize      dataAddr   = 0;
@@ -347,7 +340,7 @@ void TextWriter<Allocator>::CreateImageView(
     imgViewInfo.pImage     = pImage;
     imgViewInfo.viewType   = Pal::ImageViewType::Tex2d;
 
-    imgViewInfo.swizzledFormat = GetRawFormat(createInfo.swizzledFormat.format);
+    imgViewInfo.swizzledFormat = createInfo.swizzledFormat;
 
     // This is only used in a compute shader write, but will probably be immediately followed by a present
     imgViewInfo.possibleLayouts.engines = Pal::EngineTypeUniversal   | Pal::EngineTypeCompute;

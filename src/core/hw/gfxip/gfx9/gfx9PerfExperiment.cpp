@@ -1069,7 +1069,7 @@ Result PerfExperiment::AddThreadTrace(
         // This hacky HW register option is only supported on gfx9.
         result = Result::ErrorInvalidValue;
     }
-    else if ((traceInfo.optionFlags.threadTraceStallBehavior != 1) &&
+    else if ((traceInfo.optionFlags.threadTraceStallBehavior != 0) &&
              (traceInfo.optionValues.threadTraceStallBehavior > GpuProfilerStallNever))
     {
         // The stall mode is invalid.
@@ -1120,7 +1120,7 @@ Result PerfExperiment::AddThreadTrace(
         m_sqtt[traceInfo.instance].grbmGfxIndex.bits.INSTANCE_BROADCAST_WRITES = 1;
 
         // By default stall always so that we get accurate data.
-        const uint32 stallMode = (traceInfo.optionFlags.threadTraceStallBehavior != 1)
+        const uint32 stallMode = (traceInfo.optionFlags.threadTraceStallBehavior != 0)
                 ? traceInfo.optionValues.threadTraceStallBehavior : GpuProfilerStallAlways;
         if (m_chipProps.gfxLevel == GfxIpLevel::GfxIp9)
         {

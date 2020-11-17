@@ -65,7 +65,7 @@ enum class AmdGpuMachineType : uint8
     GfxNone = 0x00,  ///< EF_AMDGPU_MACH_NONE
     Gfx600  = 0x20,  ///< EF_AMDGPU_MACH_AMDGCN_GFX600
     Gfx601  = 0x21,  ///< EF_AMDGPU_MACH_AMDGCN_GFX601
-    Gfx602  = 0x3A,  ///< EF_AMDGPU_MACH_AMDGCN_GFX602
+    Gfx602  = 0x3a,  ///< EF_AMDGPU_MACH_AMDGCN_GFX602
     Gfx700  = 0x22,  ///< EF_AMDGPU_MACH_AMDGCN_GFX700
     Gfx701  = 0x23,  ///< EF_AMDGPU_MACH_AMDGCN_GFX701
     Gfx702  = 0x24,  ///< EF_AMDGPU_MACH_AMDGCN_GFX702
@@ -76,13 +76,14 @@ enum class AmdGpuMachineType : uint8
     Gfx801  = 0x28,  ///< EF_AMDGPU_MACH_AMDGCN_GFX801
     Gfx802  = 0x29,  ///< EF_AMDGPU_MACH_AMDGCN_GFX802
     Gfx803  = 0x2a,  ///< EF_AMDGPU_MACH_AMDGCN_GFX803
-    Gfx805  = 0x3C,  ///< EF_AMDGPU_MACH_AMDGCN_GFX805
+    Gfx805  = 0x3c,  ///< EF_AMDGPU_MACH_AMDGCN_GFX805
     Gfx810  = 0x2b,  ///< EF_AMDGPU_MACH_AMDGCN_GFX810
     Gfx900  = 0x2c,  ///< EF_AMDGPU_MACH_AMDGCN_GFX900
     Gfx902  = 0x2d,  ///< EF_AMDGPU_MACH_AMDGCN_GFX902
     Gfx904  = 0x2e,  ///< EF_AMDGPU_MACH_AMDGCN_GFX904
     Gfx906  = 0x2f,  ///< EF_AMDGPU_MACH_AMDGCN_GFX906
     Gfx909  = 0x31,  ///< EF_AMDGPU_MACH_AMDGCN_GFX909
+    Gfx90C  = 0x32,  ///< EF_AMDGPU_MACH_AMDGCN_GFX90C
     Gfx1010 = 0x33,  ///< EF_AMDGPU_MACH_AMDGCN_GFX1010
     Gfx1012 = 0x35,  ///< EF_AMDGPU_MACH_AMDGCN_GFX1012
 };
@@ -133,7 +134,7 @@ enum GfxIpStepping : uint16
     GfxIpSteppingVega12 = 4,
     GfxIpSteppingVega20 = 6,
     GfxIpSteppingRaven2 = 9,
-    GfxIpSteppingRenoir = 9,
+    GfxIpSteppingRenoir = 12,
 
     // GFXIP 10.1.x steppings:
     GfxIpSteppingNavi10        = 0,

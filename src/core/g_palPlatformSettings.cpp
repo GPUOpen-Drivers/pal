@@ -171,7 +171,6 @@ void PlatformSettingsLoader::SetupDefaults()
     m_settings.gpuProfilerSpmConfig.spmBufferSize = 1048576;
     m_settings.cmdBufferLoggerEnabled = false;
     m_settings.cmdBufferLoggerConfig.cmdBufferLoggerAnnotations = 0x1ff;
-    m_settings.cmdBufferLoggerConfig.cmdBufferLoggerSingleStep = 0x0;
     m_settings.cmdBufferLoggerConfig.embedDrawDispatchInfo = false;
     m_settings.pm4InstrumentorEnabled = false;
 #if   (__unix__)
@@ -197,6 +196,12 @@ void PlatformSettingsLoader::SetupDefaults()
     m_settings.interfaceLoggerConfig.basePreset = 0x7;
     m_settings.interfaceLoggerConfig.elevatedPreset = 0x1f;
 
+    m_settings.gpuDebugEnabled = false;
+    m_settings.gpuDebugConfig.submitOnActionCount = 0;
+    m_settings.gpuDebugConfig.tokenAllocatorSize = 64*1024;
+    m_settings.gpuDebugConfig.waitIdleSleepMs = 2000;
+    m_settings.gpuDebugConfig.singleStep = 0x0;
+    m_settings.gpuDebugConfig.cacheFlushInvOnAction = 0x0;
     m_settings.numSettings = g_palPlatformNumSettings;
 }
 
@@ -609,11 +614,6 @@ void PlatformSettingsLoader::ReadSettings(Pal::Device* pDevice)
                            &m_settings.cmdBufferLoggerConfig.cmdBufferLoggerAnnotations,
                            InternalSettingScope::PrivatePalKey);
 
-    pDevice->ReadSetting(pCmdBufferLoggerConfig_CmdBufferLoggerSingleStepStr,
-                           Util::ValueType::Uint,
-                           &m_settings.cmdBufferLoggerConfig.cmdBufferLoggerSingleStep,
-                           InternalSettingScope::PrivatePalKey);
-
     pDevice->ReadSetting(pCmdBufferLoggerConfig_EmbedDrawDispatchInfoStr,
                            Util::ValueType::Boolean,
                            &m_settings.cmdBufferLoggerConfig.embedDrawDispatchInfo,
@@ -670,6 +670,36 @@ void PlatformSettingsLoader::ReadSettings(Pal::Device* pDevice)
     pDevice->ReadSetting(pInterfaceLoggerConfig_ElevatedPresetStr,
                            Util::ValueType::Uint,
                            &m_settings.interfaceLoggerConfig.elevatedPreset,
+                           InternalSettingScope::PrivatePalKey);
+
+    pDevice->ReadSetting(pGpuDebugEnabledStr,
+                           Util::ValueType::Boolean,
+                           &m_settings.gpuDebugEnabled,
+                           InternalSettingScope::PrivatePalKey);
+
+    pDevice->ReadSetting(pGpuDebugConfig_SubmitOnActionCountStr,
+                           Util::ValueType::Uint,
+                           &m_settings.gpuDebugConfig.submitOnActionCount,
+                           InternalSettingScope::PrivatePalKey);
+
+    pDevice->ReadSetting(pGpuDebugConfig_TokenAllocatorSizeStr,
+                           Util::ValueType::Uint64,
+                           &m_settings.gpuDebugConfig.tokenAllocatorSize,
+                           InternalSettingScope::PrivatePalKey);
+
+    pDevice->ReadSetting(pGpuDebugConfig_WaitIdleSleepMsStr,
+                           Util::ValueType::Uint,
+                           &m_settings.gpuDebugConfig.waitIdleSleepMs,
+                           InternalSettingScope::PrivatePalKey);
+
+    pDevice->ReadSetting(pGpuDebugConfig_SingleStepStr,
+                           Util::ValueType::Uint,
+                           &m_settings.gpuDebugConfig.singleStep,
+                           InternalSettingScope::PrivatePalKey);
+
+    pDevice->ReadSetting(pGpuDebugConfig_CacheFlushInvOnActionStr,
+                           Util::ValueType::Uint,
+                           &m_settings.gpuDebugConfig.cacheFlushInvOnAction,
                            InternalSettingScope::PrivatePalKey);
 
 }
@@ -1088,11 +1118,6 @@ void PlatformSettingsLoader::InitSettingsInfo()
     info.valueSize = sizeof(m_settings.cmdBufferLoggerConfig.cmdBufferLoggerAnnotations);
     m_settingsInfoMap.Insert(462141291, info);
 
-    info.type      = SettingType::Uint;
-    info.pValuePtr = &m_settings.cmdBufferLoggerConfig.cmdBufferLoggerSingleStep;
-    info.valueSize = sizeof(m_settings.cmdBufferLoggerConfig.cmdBufferLoggerSingleStep);
-    m_settingsInfoMap.Insert(2784236609, info);
-
     info.type      = SettingType::Boolean;
     info.pValuePtr = &m_settings.cmdBufferLoggerConfig.embedDrawDispatchInfo;
     info.valueSize = sizeof(m_settings.cmdBufferLoggerConfig.embedDrawDispatchInfo);
@@ -1148,6 +1173,36 @@ void PlatformSettingsLoader::InitSettingsInfo()
     info.valueSize = sizeof(m_settings.interfaceLoggerConfig.elevatedPreset);
     m_settingsInfoMap.Insert(3991423149, info);
 
+    info.type      = SettingType::Boolean;
+    info.pValuePtr = &m_settings.gpuDebugEnabled;
+    info.valueSize = sizeof(m_settings.gpuDebugEnabled);
+    m_settingsInfoMap.Insert(3844687577, info);
+
+    info.type      = SettingType::Uint;
+    info.pValuePtr = &m_settings.gpuDebugConfig.submitOnActionCount;
+    info.valueSize = sizeof(m_settings.gpuDebugConfig.submitOnActionCount);
+    m_settingsInfoMap.Insert(1833875306, info);
+
+    info.type      = SettingType::Uint64;
+    info.pValuePtr = &m_settings.gpuDebugConfig.tokenAllocatorSize;
+    info.valueSize = sizeof(m_settings.gpuDebugConfig.tokenAllocatorSize);
+    m_settingsInfoMap.Insert(673202515, info);
+
+    info.type      = SettingType::Uint;
+    info.pValuePtr = &m_settings.gpuDebugConfig.waitIdleSleepMs;
+    info.valueSize = sizeof(m_settings.gpuDebugConfig.waitIdleSleepMs);
+    m_settingsInfoMap.Insert(616327818, info);
+
+    info.type      = SettingType::Uint;
+    info.pValuePtr = &m_settings.gpuDebugConfig.singleStep;
+    info.valueSize = sizeof(m_settings.gpuDebugConfig.singleStep);
+    m_settingsInfoMap.Insert(2565248934, info);
+
+    info.type      = SettingType::Uint;
+    info.pValuePtr = &m_settings.gpuDebugConfig.cacheFlushInvOnAction;
+    info.valueSize = sizeof(m_settings.gpuDebugConfig.cacheFlushInvOnAction);
+    m_settingsInfoMap.Insert(454658208, info);
+
 }
 
 // =====================================================================================================================
@@ -1169,7 +1224,7 @@ void PlatformSettingsLoader::DevDriverRegister()
             component.pfnSetValue = ISettingsLoader::SetValue;
             component.pSettingsData = &g_palPlatformJsonData[0];
             component.settingsDataSize = sizeof(g_palPlatformJsonData);
-            component.settingsDataHash = 1364331057;
+            component.settingsDataHash = 2889407951;
             component.settingsDataHeader.isEncoded = true;
             component.settingsDataHeader.magicBufferId = 402778310;
             component.settingsDataHeader.magicBufferOffset = 0;

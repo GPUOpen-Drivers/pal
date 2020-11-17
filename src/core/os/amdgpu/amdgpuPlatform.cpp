@@ -217,9 +217,15 @@ Result Platform::ReQueryDevices()
             m_pDevice[m_deviceCount] = pDevice;
             ++m_deviceCount;
         }
+        else if (result == Result::Unsupported)
+        {
+            PAL_SAFE_DELETE(pDevice, this);
+            result = Result::Success;
+        }
         else
         {
             PAL_SAFE_DELETE(pDevice, this);
+            break;
         }
     }
 

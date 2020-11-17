@@ -389,7 +389,7 @@ Result InternalMemMgr::AllocateGpuMemNoAllocLock(
 
             // General-purpose calls to AllocateGpuMem shouldn't trigger a base mem allocation. If this alert tiggers
             // it's a sign that we might need to tune our buddy allocator.
-            PAL_ALERT_ALWAYS();
+            PAL_ALERT_ALWAYS_MSG("Memory could not be suballocated, consider tweaking pool/allocator settings.");
         }
 
         // Issue the base memory allocation.

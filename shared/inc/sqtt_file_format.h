@@ -221,6 +221,7 @@ typedef enum SqttMemoryType
     SQTT_MEMORY_TYPE_HBM2    = 0x21,
     SQTT_MEMORY_TYPE_HBM3    = 0x22,
     SQTT_MEMORY_TYPE_LPDDR4  = 0x30,
+    SQTT_MEMORY_TYPE_LPDDR5  = 0x31,
 } SqttMemoryType;
 
 const uint32_t SQTT_GPU_NAME_MAX_SIZE = 256;

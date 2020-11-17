@@ -100,6 +100,7 @@ constexpr  NullIdLookup  NullIdLookupTable[] =
     { PAL_UNDEFINED_NULL_DEVICE                                                                                       },
     { PAL_UNDEFINED_NULL_DEVICE                                                                                       },
     { PAL_UNDEFINED_NULL_DEVICE                                                                                       },
+    { PAL_UNDEFINED_NULL_DEVICE },
     { PAL_UNDEFINED_NULL_DEVICE                                                                                       },
 
     { PAL_UNDEFINED_NULL_DEVICE                                                                                       }, // All
@@ -139,12 +140,13 @@ const char* pNullGpuNames[static_cast<uint32>(Pal::NullGpuId::Max)] =
     "VEGA12:gfx904",
     "VEGA20:gfx906",
     "RAVEN2:gfx909",
-    "RENOIR:gfx909",
+    "RENOIR:gfx90C",
 
     "NAVI10:gfx1010",
     nullptr,
     nullptr,
     "NAVI14:gfx1012",
+    nullptr,
     nullptr,
     nullptr,
     nullptr,

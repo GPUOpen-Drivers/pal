@@ -994,7 +994,7 @@ Result PerfExperiment::AddThreadTrace(
         // This feels like a hack.
         result = Result::ErrorInvalidValue;
     }
-    else if ((traceInfo.optionFlags.threadTraceStallBehavior != 1) &&
+    else if ((traceInfo.optionFlags.threadTraceStallBehavior != 0) &&
              (traceInfo.optionValues.threadTraceStallBehavior > GpuProfilerStallNever))
     {
         // The stall mode is invalid.

@@ -55,6 +55,7 @@ public:
         CmdStream*                     pCmdStream,
         const SwizzledFormat*          pTargetFormats,
         const uint8*                   pTargetWriteMasks,
+        uint32                         numRenderTargets,
         bool                           enableOpts,
         GfxBlendOptimizer::BlendOpts*  pBlendOpts,
         regCB_COLOR0_INFO*             pCbColorInfoRegs) const;
