@@ -569,6 +569,8 @@ private:
     PAL_DISALLOW_COPY_AND_ASSIGN(Gfx9RsrcProcMgr);
 };
 
+class Gfx10DepthStencilView;
+
 // =====================================================================================================================
 // GFX10 specific implementation of RPM.
 class Gfx10RsrcProcMgr : public Pal::Gfx9::RsrcProcMgr
@@ -581,6 +583,24 @@ public:
         GfxCmdBuffer*      pCmdBuffer,
         const GfxImage&    image,
         const SubresRange& range) const override;
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 554
+    void CmdResolvePrtPlusImage(
+        GfxCmdBuffer*                    pCmdBuffer,
+        const IImage&                    srcImage,
+        ImageLayout                      srcImageLayout,
+        const IImage&                    dstImage,
+        ImageLayout                      dstImageLayout,
+        PrtPlusResolveType               resolveType,
+        uint32                           regionCount,
+        const PrtPlusImageResolveRegion* pRegions) const override;
+#endif
+
+    void CopyVrsIntoHtile(
+        GfxCmdBuffer*                pCmdBuffer,        // cmd buffer to receive copy commands, must support compute
+        const Gfx10DepthStencilView* pDsView,           // depth view that contains image that owns dest hTile buffer
+        const Extent3d&              depthExtent,       // extent of the depth buffers' mip level
+        const Pal::Image*            pSrcVrsImg) const; // source VRS data (can be NULL to imply 1x1)
 
 protected:
     virtual void ClearDccCompute(
@@ -626,6 +646,17 @@ protected:
         Pal::CmdStream*    pCmdStream,
         const Image&       dstImage,
         const SubresRange& clearRange) const override;
+
+    virtual ImageCopyEngine GetImageToImageCopyEngine(
+        const GfxCmdBuffer*    pCmdBuffer,
+        const Pal::Image&      srcImage,
+        const Pal::Image&      dstImage,
+        uint32                 regionCount,
+        const ImageCopyRegion* pRegions,
+        uint32                 copyFlags) const override;
+
+    virtual bool PreferComputeForNonLocalDestCopy(
+        const Pal::Image& dstImage) const override;
 
 private:
     void InitHtileData(

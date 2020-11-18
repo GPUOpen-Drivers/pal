@@ -746,6 +746,8 @@ Gfx10ColorTargetView::Gfx10ColorTargetView(
     memset(&m_uavExportSrd, 0, sizeof(m_uavExportSrd));
     InitRegisters(*pDevice, createInfo, internalInfo);
 
+    m_flags.bypassMall = createInfo.flags.bypassMall;
+
     if (m_flags.isBufferView != 0)
     {
         const auto& bufferInfo = createInfo.bufferInfo;

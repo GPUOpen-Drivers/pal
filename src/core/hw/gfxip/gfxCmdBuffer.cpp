@@ -1080,6 +1080,38 @@ void GfxCmdBuffer::CmdResolveImage(
                                            flags);
 }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 554
+// =====================================================================================================================
+void GfxCmdBuffer::CmdResolvePrtPlusImage(
+    const IImage&                    srcImage,
+    ImageLayout                      srcImageLayout,
+    const IImage&                    dstImage,
+    ImageLayout                      dstImageLayout,
+    PrtPlusResolveType               resolveType,
+    uint32                           regionCount,
+    const PrtPlusImageResolveRegion* pRegions)
+{
+    PAL_ASSERT(pRegions != nullptr);
+
+    const auto&  dstCreateInfo = dstImage.GetImageCreateInfo();
+    const auto&  srcCreateInfo = srcImage.GetImageCreateInfo();
+
+    // Either the source or destination image has to be a PRT map image
+    if (((resolveType == PrtPlusResolveType::Decode) && (srcCreateInfo.prtPlus.mapType != PrtMapType::None)) ||
+        ((resolveType == PrtPlusResolveType::Encode) && (dstCreateInfo.prtPlus.mapType != PrtMapType::None)))
+    {
+        m_device.RsrcProcMgr().CmdResolvePrtPlusImage(this,
+                                                      static_cast<const Image&>(srcImage),
+                                                      srcImageLayout,
+                                                      static_cast<const Image&>(dstImage),
+                                                      dstImageLayout,
+                                                      resolveType,
+                                                      regionCount,
+                                                      pRegions);
+    }
+}
+#endif
+
 // =====================================================================================================================
 // Copies the requested portion of the currently bound compute state to m_computeRestoreState. All active queries will
 // be disabled. This cannot be called again until CmdRestoreComputeState is called.

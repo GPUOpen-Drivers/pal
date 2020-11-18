@@ -79,6 +79,9 @@ static uint16 PalToRmtImgUsageFlags(
     rmtUsageFlags.DEPTH_AS_Z24 = palUsageFlags.depthAsZ24;
     rmtUsageFlags.FIRST_SHADER_WRITABLE_MIP = palUsageFlags.firstShaderWritableMip;
     rmtUsageFlags.CORNER_SAMPLING = palUsageFlags.cornerSampling;
+#if GPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION >= GPUOPEN_RMV_1_1_VERSION
+    rmtUsageFlags.VRS_DEPTH = palUsageFlags.vrsDepth;
+#endif
     rmtUsageFlags.RESERVED = 0;
 
     return rmtUsageFlags.u16Val;

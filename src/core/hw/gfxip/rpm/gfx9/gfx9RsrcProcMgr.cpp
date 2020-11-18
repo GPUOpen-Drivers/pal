@@ -217,6 +217,7 @@ static PAL_INLINE ColorFormat HwColorFormat(
         break;
 
     case GfxIpLevel::GfxIp10_1:
+    case GfxIpLevel::GfxIp10_3:
         hwColorFmt = HwColorFmt(MergedChannelFlatFmtInfoTbl(gfxLevel, &pDevice->GetPlatform()->PlatformSettings()),
                                 format);
         break;
@@ -3630,6 +3631,40 @@ bool RsrcProcMgr::CopyDstBoundStencilNeedsWa(
 {
     bool  copyDstIsBoundStencil = false;
 
+    const auto* pPalDevice = m_pDevice->Parent();
+    const auto& settings   = GetGfx9Settings(*pPalDevice);
+
+    // Workaround is only needed if the HW supports VRS
+    if ((pPalDevice->ChipProperties().gfxip.supportsVrs != 0) &&
+        // And this HW is affected by the bug...
+        (settings.waVrsStencilUav != WaVrsStencilUav::NoFix)  &&
+        // We only need to fix things on command buffers that support gfx.  If this is a compute-only command buffer
+        // then the VRS data will get corrupted but we'll fix it when the image is bound as a depth view in the next
+        // universal command buffer as that will trigger an RPM fixup copy of hTile's VRS.
+        pCmdBuffer->IsGraphicsSupported()                     &&
+        // If there isn't a stencil aspect to this image, then the problem can't happen
+        dstImage.IsAspectValid(ImageAspect::Stencil))
+    {
+        const auto*  pUniversalCmdBuffer = static_cast<const UniversalCmdBuffer*>(pCmdBuffer);
+        const auto&  graphicsState       = pUniversalCmdBuffer->GetGraphicsState();
+        const auto&  boundDepthTarget    = graphicsState.bindTargets.depthTarget;
+        const auto*  pBoundDepthView     = static_cast<const DepthStencilView*>(boundDepthTarget.pDepthStencilView);
+        const auto*  pBoundDepthImage    = ((pBoundDepthView != nullptr) ? pBoundDepthView->GetImage() : nullptr);
+        const auto*  pGfxDstImage        = static_cast<Image*>(dstImage.GetGfxImage());
+        const auto*  pDstHtile           = pGfxDstImage->GetHtile();
+
+        // Are we copying into the currently bound stencil image?  If not, then the copy can corrupt the VRS data as
+        // VRS will be fixed when this image is next bound as a depth view.
+        if ((pBoundDepthImage == pGfxDstImage) &&
+            // Does our destination image have hTile data with a VRS component at all?  If not, there's nothing
+            // to get corrupted.
+            (pDstHtile != nullptr)             &&
+            (pDstHtile->GetHtileUsage().vrs != 0))
+        {
+            copyDstIsBoundStencil = true;
+        }
+    }
+
     return copyDstIsBoundStencil;
 }
 
@@ -3674,6 +3709,21 @@ void RsrcProcMgr::CmdCopyMemoryToImage(
         } // end loop through copy regions
     } // end check for trivial case
 
+    // If there's no VRS support, then there's no need to check this.
+    if (CopyDstBoundStencilNeedsWa(pCmdBuffer, dstImage))
+    {
+        for (uint32 regionIdx = 0; regionIdx < regionCount; regionIdx++)
+        {
+            if (pRegions[regionIdx].imageSubres.aspect == ImageAspect::Stencil)
+            {
+                // Mark the VRS dest image as dirty to force an update of Htile on the next draw.
+                pCmdBuffer->DirtyVrsDepthImage(&dstImage);
+
+                // No need to loop through all the regions; they all affect the same image.
+                break;
+            }
+        }
+    }
 }
 
 // ====================================================================================================================
@@ -5786,6 +5836,17 @@ void Gfx10RsrcProcMgr::HwlResummarizeHtileCompute(
     const uint32 hTileValue = pHtile->GetInitialValue();
     uint32 hTileMask        = pHtile->GetAspectMask(range.startSubres.aspect);
 
+    // If this hTile uses four-bit VRS encoding, SR1 has been repurposed to reflect VRS information.
+    // If stencil is present, each HTILE is laid out as-follows, according to the DB spec:
+        // |31       12|11 10|9    8|7   6|5   4|3     0|
+        // +-----------+-----+------+-----+-----+-------+
+        // |  Z Range  |     | SMem | SR1 | SR0 | ZMask |
+    if (gfx9Image.HasVrsMetadata() &&
+        (GetGfx9Settings(*(m_pDevice->Parent())).vrsHtileEncoding == VrsHtileEncoding::Gfx10VrsHtileEncodingFourBit))
+    {
+        hTileMask &= (~Gfx9Htile::Sr1Mask);
+    }
+
     InitHtileData(pCmdBuffer, gfx9Image, range, hTileValue, hTileMask);
 }
 
@@ -5855,6 +5916,12 @@ void Gfx10RsrcProcMgr::InitHtileData(
                 hTileBufferView.swizzledFormat.format  = ChNumFormat::X32_Uint;
                 hTileBufferView.swizzledFormat.swizzle =
                     { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One };
+#if  PAL_CLIENT_INTERFACE_MAJOR_VERSION>= 558
+                hTileBufferView.flags.bypassMallRead  = TestAnyFlagSet(settings.rpmViewsBypassMall,
+                                                                       Gfx10RpmViewsBypassMallOnRead);
+                hTileBufferView.flags.bypassMallWrite = TestAnyFlagSet(settings.rpmViewsBypassMall,
+                                                                       Gfx10RpmViewsBypassMallOnWrite);
+#endif
 
                 BufferSrd srd = { };
                 m_pDevice->Parent()->CreateTypedBufferViewSrds(1, &hTileBufferView, &srd);
@@ -5932,6 +5999,12 @@ void Gfx10RsrcProcMgr::WriteHtileData(
                 hTileBufferView.swizzledFormat.format  = ChNumFormat::X32_Uint;
                 hTileBufferView.swizzledFormat.swizzle =
                     { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One };
+#if  PAL_CLIENT_INTERFACE_MAJOR_VERSION>= 558
+                hTileBufferView.flags.bypassMallRead  = TestAnyFlagSet(settings.rpmViewsBypassMall,
+                                                                       Gfx10RpmViewsBypassMallOnRead);
+                hTileBufferView.flags.bypassMallWrite = TestAnyFlagSet(settings.rpmViewsBypassMall,
+                                                                       Gfx10RpmViewsBypassMallOnWrite);
+#endif
                 BufferSrd htileSurfSrd                 = { };
                 uint32 hTileUserData[4]                = { };
                 uint32 numConstDwords                  = 4;
@@ -6027,6 +6100,12 @@ void Gfx10RsrcProcMgr::WriteHtileData(
                     metadataView.range          = dstImage.HiSPretestsMetaDataSize(1);
                     metadataView.stride         = 1;
                     metadataView.swizzledFormat = UndefinedSwizzledFormat;
+#if  PAL_CLIENT_INTERFACE_MAJOR_VERSION>= 558
+                    metadataView.flags.bypassMallRead  = TestAnyFlagSet(settings.rpmViewsBypassMall,
+                                                                        Gfx10RpmViewsBypassMallOnRead);
+                    metadataView.flags.bypassMallWrite = TestAnyFlagSet(settings.rpmViewsBypassMall,
+                                                                        Gfx10RpmViewsBypassMallOnWrite);
+#endif
                     m_pDevice->Parent()->CreateUntypedBufferViewSrds(1, &metadataView, &metadataSrd);
 
                     pCmdBuffer->CmdSetUserData(PipelineBindPoint::Compute,
@@ -6064,6 +6143,17 @@ void Gfx10RsrcProcMgr::FastDepthStencilClearCompute(
 {
     const auto* pHtile = dstImage.GetHtile();
     uint32   hTileMask = pHtile->GetAspectMask(clearMask);
+
+    // If this hTile uses four-bit VRS encoding, SR1 has been repurposed to reflect VRS information.
+    // If stencil is present, each HTILE is laid out as-follows, according to the DB spec:
+        // |31       12|11 10|9    8|7   6|5   4|3     0|
+        // +-----------+-----+------+-----+-----+-------+
+        // |  Z Range  |     | SMem | SR1 | SR0 | ZMask |
+    if (dstImage.HasVrsMetadata() &&
+        (GetGfx9Settings(*(m_pDevice->Parent())).vrsHtileEncoding == VrsHtileEncoding::Gfx10VrsHtileEncodingFourBit))
+    {
+        hTileMask &= (~Gfx9Htile::Sr1Mask);
+    }
 
     WriteHtileData(pCmdBuffer, dstImage, range, hTileValue, hTileMask, stencil);
 
@@ -6217,6 +6307,23 @@ void Gfx10RsrcProcMgr::HwlDecodeImageViewSrd(
         pSubresRange->numMips              = LowPart(pSrd->last_level - pSrd->base_level + 1);
     }
 
+    if ((pSubresRange->startSubres.mipLevel + pSubresRange->numMips) > createInfo.mipLevels)
+    {
+        // The only way that we should have an SRD that references non-existent mip-levels is with PRT+ residency
+        // maps.  The Microsoft spec creates residency maps with the same number of mip levels as the parent image
+        // which is unnecessary in our implementation.  Doing so wastes memory, so DX12 created only a single mip
+        // level residency map (i.e, ignoreed the API request).
+        //
+        // Unfortunately, the SRD created here went through DX12's "CreateSamplerFeedbackUnorderedAccessView" entry
+        // point (which in turn went into PAL's "Gfx10UpdateLinkedResourceViewSrd" function), so we have a hybrid SRD
+        // here that references both the map image and the parent image and thus has the "wrong" number of mip levels.
+        //
+        // Fix up the SRD here to reference the "correct" number of mip levels owned by the image.
+        PAL_ASSERT(createInfo.prtPlus.mapType == PrtMapType::Residency);
+
+        pSubresRange->startSubres.mipLevel = 0;
+        pSubresRange->numMips              = 1;
+    }
 }
 
 // =====================================================================================================================
@@ -6622,12 +6729,431 @@ void Gfx10RsrcProcMgr::HwlEndGraphicsCopy(
 }
 
 // =====================================================================================================================
+ImageCopyEngine Gfx10RsrcProcMgr::GetImageToImageCopyEngine(
+    const GfxCmdBuffer*    pCmdBuffer,
+    const Pal::Image&      srcImage,
+    const Pal::Image&      dstImage,
+    uint32                 regionCount,
+    const ImageCopyRegion* pRegions,
+    uint32                 copyFlags
+    ) const
+{
+    // Get the default engine type for the copy here.
+    ImageCopyEngine copyEngine = PreferComputeForNonLocalDestCopy(dstImage) ? ImageCopyEngine::Compute :
+        Pal::RsrcProcMgr::GetImageToImageCopyEngine(pCmdBuffer, srcImage, dstImage, regionCount, pRegions, copyFlags);
+
+    // If the copy will use the graphics engine anyway then there's no need to go through this as graphics
+    // copies won't corrupt the VRS encoding.
+    if ((copyEngine != ImageCopyEngine::Graphics) && CopyDstBoundStencilNeedsWa(pCmdBuffer, dstImage))
+    {
+        const auto& settings = GetGfx9Settings(*(m_pDevice->Parent()));
+
+        bool  stencilAspectFound = false;
+        for (uint32  regionIdx = 0; ((stencilAspectFound == false) && (regionIdx < regionCount)); regionIdx++)
+        {
+            const auto&  region = pRegions[regionIdx];
+
+            // Is this region affecting the stencil aspect of the destination image?
+            if (region.srcSubres.aspect == ImageAspect::Stencil)
+            {
+                // Ok, this copy will write into stencil data that has associated hTile data that in turn has
+                // associated VRS data.  (Follow all that?)
+                switch (settings.waVrsStencilUav)
+                {
+                case WaVrsStencilUav::GraphicsCopies:
+                    // Use the graphics engine to do the copy which won't corrupt the VRS data.
+                    copyEngine = ImageCopyEngine::Graphics;
+                    break;
+
+                case WaVrsStencilUav::ReCopyVrsData:
+                    // Let the copy corrupt VRS.  It is the callers responsibility to mark the command buffer
+                    // as having a dirty VRS source image.
+                    copyEngine = ImageCopyEngine::ComputeVrsDirty;
+                    break;
+
+                default:
+                    PAL_ASSERT_ALWAYS();
+                    break;
+                }
+
+                // And break out of our loop.
+                stencilAspectFound = true;
+            } // end check for stencil aspect
+        } // end loop through copy regions
+    }
+
+    return copyEngine;
+}
+
+// =====================================================================================================================
+// Use compute for all non-local copies on gfx10.2+ because graphics copies that use a single RB (see
+// HwlBeginGraphicsCopy) are no longer preferable for PCIE transfers.
+bool Gfx10RsrcProcMgr::PreferComputeForNonLocalDestCopy(
+    const Pal::Image& dstImage
+    ) const
+{
+    const auto&  createInfo = dstImage.GetImageCreateInfo();
+
+    bool preferCompute = false;
+
+    const bool isMgpu = (m_pDevice->GetPlatform()->GetDeviceCount() > 1);
+
+    if (IsGfx102Plus(*m_pDevice->Parent())                                  &&
+        m_pDevice->Settings().nonLocalDestPreferCompute                     &&
+        ((dstImage.IsDepthStencil() == false) || (createInfo.samples == 1)) &&
+        (isMgpu == false))
+    {
+        const GpuMemory* pGpuMem       = dstImage.GetBoundGpuMemory().Memory();
+        const GpuHeap    preferredHeap = pGpuMem->PreferredHeap();
+
+        if (((preferredHeap == GpuHeapGartUswc) || (preferredHeap == GpuHeapGartCacheable)) ||
+            pGpuMem->IsPeer())
+        {
+            preferCompute = true;
+        }
+    }
+
+    return preferCompute;
+}
+
+// =====================================================================================================================
+// Updates hTile memory to reflect the VRS data supplied in the source image.
+//
+// Assumptions:  It is the callers responsibility to have bound a depth view that points to the supplied depth image!
+//               This copy will work just fine if the depth image isn't bound, but the upcoming draw won't actually
+//               utilize the newly copied VRS data if depth isn't bound.
+void Gfx10RsrcProcMgr::CopyVrsIntoHtile(
+    GfxCmdBuffer*                 pCmdBuffer,
+    const Gfx10DepthStencilView*  pDsView,
+    const Extent3d&               depthExtent,
+    const Pal::Image*             pSrcVrsImg
+    ) const
+{
+    // What are we even doing here?
+    PAL_ASSERT(m_pDevice->Parent()->ChipProperties().gfxip.supportsVrs);
+
+    // If the client didn't bind a depth buffer how do they expect to use the results of this copy?
+    PAL_ASSERT((pDsView != nullptr) && (pDsView->GetImage() != nullptr));
+
+    // This function assumes it is only called on graphics command buffers.
+    PAL_ASSERT(pCmdBuffer->IsGraphicsSupported());
+
+    // This means that we either don't have hTile (so we don't have a destination for our copy) or this hTile
+    // buffer wasn't created to receive VRS data.  Both of which would be bad.
+    const Image*const          pDepthImg    = pDsView->GetImage();
+    const Gfx9Htile*const      pHtile       = pDepthImg->GetHtile();
+    PAL_ASSERT(pHtile->HasMetaEqGenerator());
+    const Gfx9MetaEqGenerator* pEqGenerator = pHtile->GetMetaEqGenerator();
+
+    PAL_ASSERT((pHtile != nullptr) && (pHtile->GetHtileUsage().vrs != 0));
+
+    const Pal::Device*const pPalDevice = m_pDevice->Parent();
+    Pal::CmdStream*const    pCmdStream = pCmdBuffer->GetCmdStreamByEngine(CmdBufferEngineSupport::Graphics);
+
+    // Step 1: The internal pre-CS barrier. The depth image is already bound as a depth view so if we just launch the
+    // shader right away we risk corrupting HTile. We need to be sure that any prior draws that reference the depth
+    // image are idle, HTile writes have been flushed down from the DB, and all stale HTile data has been invalidated
+    // in the shader caches.
+    uint32* pCmdSpace = pCmdStream->ReserveCommands();
+    pCmdSpace += CmdUtil::BuildNonSampleEventWrite(FLUSH_AND_INV_DB_META, pCmdBuffer->GetEngineType(), pCmdSpace);
+    pCmdSpace += m_cmdUtil.BuildWaitOnReleaseMemEvent(pCmdBuffer->GetEngineType(),
+                                                      BOTTOM_OF_PIPE_TS,
+                                                      TcCacheOp::InvL1,
+                                                      pCmdBuffer->TimestampGpuVirtAddr(),
+                                                      pCmdSpace);
+    pCmdStream->CommitCommands(pCmdSpace);
+
+    // The shader we're about to execute makes these assumptions in its source. If these trip we can add more support.
+    PAL_ASSERT(pHtile->PipeAligned() != 0);
+    PAL_ASSERT(pPalDevice->ChipProperties().gfx9.rbPlus != 0);
+
+    // Step 1.5: Pack the shader's user-data.
+    // This shader has a carefully packed user-data layout that keeps everything in fast user-data entires.
+    // We only have space for just two constant user-data!
+    constexpr uint32 NumUserData = 2;
+
+    // Constant buffer bit packing magic.
+    //
+    // The following constants are from GB_ADDR_CONFIG so their sizes are the same as their register fields:
+    //       pipeInterleaveLog2, packersLog2 pipesLog2.
+    //
+    // The remaining constants each have a special story for their bit counts:
+    // - capPipesLog2, metaBlkWidthLog2 and metaBlkHeightLog2: 5 bits is enough to store log2(UINT_MAX) so it's enough
+    //       space for these. We could reduce this further but it's hard to find an upper-bound for these values.
+    // - bankXor: The full pipeBankXor is mostly zeros on gfx10. The pipe and column bits are always zero, only the
+    //       first four bank bits are ever set by addrlib. We will reconstruct the full pipeBankXor from them.
+    // - pitchInMetaBlks: The HTile pitch is the width of the base resource's mip0 aligned to the meta block width.
+    //       The largest mip0 width is MaxImageWidth (16K) and the smallest meta block width is 256 (found by reading
+    //       addrlib, this occurs when we have a single pipe). Thus the largest possible pitch in units of meta block
+    //       widths is 64, which fits in seven bits.
+    // - lastHtileX and lastHtileY: The largest possible HTile x/y indices that we're writing to. These can be no
+    //       larger than MaxImageWidth/Height (16K) divided by the HTile granularity (8 pixels wide/tall) minus one
+    //       which is 2047. These can then fit in 11 bits. You can also think of this as the copy size minus one.
+    // - sliceBits: Rather than use the whole slice index we only need the bits that are XORed into the HTile meta eqs.
+    //       VRS should only be supported on RB+ ASICs and they only XOR the first two z bits. Rather than be exact
+    //       and leave the last few bits unused we'll just roll them into this field.
+    union
+    {
+        struct
+        {
+            // Constant #1
+            uint32 pipeInterleaveLog2 : 3; // These are biased by 8, so 0 means log2(256) = 8.
+            uint32 packersLog2        : 3;
+            uint32 pipesLog2          : 3;
+            uint32 capPipeLog2        : 5;
+            uint32 metaBlkWidthLog2   : 5;
+            uint32 metaBlkHeightLog2  : 5;
+            uint32 pitchInMetaBlks    : 7;
+            uint32 fourBitVrs         : 1; // A bool which tells the shader to use the four bit or two bit encodings.
+
+            // Constant #2
+            uint32 bankXor            : 4;
+            uint32 lastHtileX         : 11;
+            uint32 lastHtileY         : 11;
+            uint32 sliceBits          : 6;
+        };
+        uint32 u32All[NumUserData]; // We will write the user data as an array of uint32s.
+    } userData = {};
+
+    static_assert(sizeof(userData) == sizeof(uint32) * NumUserData, "CopyVrsIntoHtile user data packing issue.");
+
+    const ADDR2_COMPUTE_HTILE_INFO_OUTPUT& hTileAddrOutput = pHtile->GetAddrOutput();
+    const ADDR2_META_MIP_INFO&             hTileMipInfo    = pHtile->GetAddrMipInfo(pDsView->MipLevel());
+    const regGB_ADDR_CONFIG                gbAddrConfig    = m_pDevice->GetGbAddrConfig();
+
+    Gfx9MaskRamBlockSize metaBlkExtentLog2 = {};
+    const uint32         metaBlockSizeLog2 = pHtile->GetMetaBlockSize(&metaBlkExtentLog2);
+    const uint32         pipeBankXor       = pHtile->GetPipeBankXor(pDepthImg->Parent()->GetBaseSubResource().aspect);
+
+#if PAL_ENABLE_PRINTS_ASSERTS
+    // Verify that we can actually store the pitch in terms of meta blocks.
+    PAL_ASSERT(IsPow2Aligned(hTileAddrOutput.pitch, 1ull << metaBlkExtentLog2.width));
+
+    // The shader will compute the meta block size from the extents. There's a conversion to do here because the size
+    // is total bytes and the extents are in depth texels. We must multiply the size by 64 (1 << 6) and divide by 4
+    // (1 >> 2) to convert to the texel area. That's the same thing as adding four in log2 math.
+    constexpr uint32 HtileTexelsPerByteLog2 = 4;
+    PAL_ASSERT(metaBlockSizeLog2 + HtileTexelsPerByteLog2 == metaBlkExtentLog2.width + metaBlkExtentLog2.height);
+
+    // As stated above, we're only passing in the first few slice bits because we don't have enough space. This should
+    // be fine because VRS should only be supported on GPUs with RB+ support which only uses a couple of slice bits
+    // in HTile addressing. This complex assert verifies this assumption.
+    constexpr uint32 SliceBitsMustBeZero = ~((1u << 6) - 1);
+    for (uint32 eqBitPos = 0; eqBitPos < pEqGenerator->GetMetaEquation().GetNumValidBits(); eqBitPos++)
+    {
+        const uint32 eqData = pEqGenerator->GetMetaEquation().Get(eqBitPos, MetaDataAddrCompZ);
+        PAL_ASSERT(TestAnyFlagSet(eqData, SliceBitsMustBeZero) == false);
+    }
+#endif
+
+    // Extract the bankXor bits and verify that none of the other bits are set. See Gfx10Lib::HwlComputePipeBankXor.
+    constexpr uint32 ColumnBits   = 2;
+    constexpr uint32 BankXorBits  = 4;
+    const     uint32 bankXorShift = ColumnBits + gbAddrConfig.bits.NUM_PIPES;
+    const     uint32 bankXorMask  = ((1 << BankXorBits) - 1) << bankXorShift;
+    const     uint32 bankXor      = (pipeBankXor & bankXorMask) >> bankXorShift;
+
+    PAL_ASSERT((pipeBankXor & ~bankXorMask) == 0);
+
+    // The width and height of the copy area in units of HTile elements, rounded up.
+    const uint32 copyWidth  = RoundUpQuotient<uint32>(depthExtent.width,  8);
+    const uint32 copyHeight = RoundUpQuotient<uint32>(depthExtent.height, 8);
+
+    // Note that we pass our values through RpmUtil::PackBits to make sure that they actually fit.
+    // An assert will trip if one of the assumptions outlined above is actually false.
+    userData.pipeInterleaveLog2 = RpmUtil::PackBits<3>(gbAddrConfig.bits.PIPE_INTERLEAVE_SIZE);
+    userData.packersLog2        = RpmUtil::PackBits<3>(gbAddrConfig.gfx102Plus.NUM_PKRS);
+    userData.pipesLog2          = RpmUtil::PackBits<3>(gbAddrConfig.bits.NUM_PIPES);
+    userData.capPipeLog2        = RpmUtil::PackBits<5>(pEqGenerator->CapPipe());
+    userData.metaBlkWidthLog2   = RpmUtil::PackBits<5>(metaBlkExtentLog2.width);
+    userData.metaBlkHeightLog2  = RpmUtil::PackBits<5>(metaBlkExtentLog2.height);
+    userData.bankXor            = RpmUtil::PackBits<4>(bankXor);
+    userData.pitchInMetaBlks    = RpmUtil::PackBits<6>(hTileAddrOutput.pitch >> metaBlkExtentLog2.width);
+    userData.lastHtileX         = RpmUtil::PackBits<11>(copyWidth - 1);
+    userData.lastHtileY         = RpmUtil::PackBits<11>(copyHeight - 1);
+    userData.fourBitVrs         = (m_pDevice->Settings().vrsHtileEncoding ==
+                                   VrsHtileEncoding::Gfx10VrsHtileEncodingFourBit);
+
+    // Step 2: Execute the rate image to VRS copy shader.
+    const Pal::ComputePipeline*const pPipeline = GetPipeline(RpmComputePipeline::Gfx10VrsHtile);
+
+    uint32  threadsPerGroup[3] = {};
+    pPipeline->ThreadsPerGroupXyz(&threadsPerGroup[0], &threadsPerGroup[1], &threadsPerGroup[2]);
+
+    pCmdBuffer->CmdSaveComputeState(ComputeStatePipelineAndUserData);
+    pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, InternalApiPsoHash, });
+
+    // If no source image was provided we should bind a null image SRD because the shader treats out-of-bounds reads
+    // as a 1x1 shading rate.
+    uint32 rateImageSrd[8] = {};
+    static_assert(sizeof(ImageSrd) == sizeof(rateImageSrd), "We assume an image SRD is eight DWORDs.");
+
+    if (pSrcVrsImg != nullptr)
+    {
+        // The image SRD is only accessed by the shader if the extents are not zero, so create the image SRD
+        // here where we know we have a valid source image.  By API definition, the source image can only have
+        // a single slice and single mip level.
+        const SubresRange  viewRange = { pSrcVrsImg->GetBaseSubResource(), 1, 1 };
+        ImageViewInfo      imageView = {};
+        RpmUtil::BuildImageViewInfo(&imageView,
+                                    *pSrcVrsImg,
+                                    viewRange,
+                                    pSrcVrsImg->GetImageCreateInfo().swizzledFormat,
+                                    RpmUtil::DefaultRpmLayoutRead,
+                                    pPalDevice->TexOptLevel());
+        pPalDevice->CreateImageViewSrds(1, &imageView, rateImageSrd);
+    }
+    else
+    {
+        const GpuChipProperties& chipProps = pPalDevice->ChipProperties();
+        memcpy(rateImageSrd, chipProps.nullSrds.pNullImageView, chipProps.srdSizes.imageView);
+    }
+
+    pCmdBuffer->CmdSetUserData(PipelineBindPoint::Compute, 6, 8, rateImageSrd);
+
+    for (uint32 sliceOffset = 0; sliceOffset < pDsView->ArraySize(); ++sliceOffset)
+    {
+        // Update the slice user-data. No assert this time because we're purposely cutting off high slice bits.
+        const uint32 slice = pDsView->BaseArraySlice() + sliceOffset;
+        userData.sliceBits = slice & BitfieldGenMask<uint32>(10);
+
+        pCmdBuffer->CmdSetUserData(PipelineBindPoint::Compute, 0, 2, userData.u32All);
+
+        // We can save user-data if we adjust the HTile buffer view to point directly at the target subresource.
+        BufferViewInfo bufferViewHtile = {};
+        pHtile->BuildSurfBufferView(&bufferViewHtile);
+
+        const gpusize hTileOffset = hTileMipInfo.offset + slice * hTileAddrOutput.sliceSize;
+        bufferViewHtile.gpuAddr += hTileOffset;
+        bufferViewHtile.range   -= hTileOffset;
+
+        uint32 hTileSrd[4] = {};
+        static_assert(sizeof(BufferSrd) == sizeof(hTileSrd), "We assume a buffer SRD is four DWORDs.");
+
+        pPalDevice->CreateUntypedBufferViewSrds(1, &bufferViewHtile, hTileSrd);
+        pCmdBuffer->CmdSetUserData(PipelineBindPoint::Compute, 2, 4, hTileSrd);
+
+        // Launch one thread per HTile element we're copying in this slice.
+        pCmdBuffer->CmdDispatch(RpmUtil::MinThreadGroups(copyWidth,  threadsPerGroup[0]),
+                                RpmUtil::MinThreadGroups(copyHeight, threadsPerGroup[1]),
+                                1);
+    }
+
+    pCmdBuffer->CmdRestoreComputeState(ComputeStatePipelineAndUserData);
+
+    // Step 3: The internal post-CS barrier. We must wait for the copy shader to finish. We invalidated the DB's
+    // HTile cache in step 1 so we shouldn't need to touch the caches a second time.
+    pCmdSpace = pCmdStream->ReserveCommands();
+    pCmdSpace += m_cmdUtil.BuildWaitCsIdle(pCmdBuffer->GetEngineType(), pCmdBuffer->TimestampGpuVirtAddr(), pCmdSpace);
+    pCmdStream->CommitCommands(pCmdSpace);
+}
+
+// =====================================================================================================================
 // Gfx Dcc -> Display Dcc.
 void Gfx10RsrcProcMgr::HwlGfxDccToDisplayDcc(
     GfxCmdBuffer*     pCmdBuffer,
     const Pal::Image& image
     ) const
 {
+    const GfxImage* pGfxImage  = image.GetGfxImage();
+    const Image*    pGfx9Image = static_cast<const Image*>(pGfxImage);
+
+    pCmdBuffer->CmdSaveComputeState(ComputeStatePipelineAndUserData);
+
+    const auto*const pPipeline = GetPipeline(RpmComputePipeline::Gfx10GfxDccToDisplayDcc);
+
+    pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, InternalApiPsoHash, });
+
+    for (uint32  planeIdx = 0; planeIdx < image.GetImageInfo().numPlanes; planeIdx++)
+    {
+        const auto*     pSubResInfo       = image.SubresourceInfo(planeIdx);
+        const Gfx9Dcc*  pDcc              = pGfx9Image->GetDcc(pSubResInfo->subresId.aspect);
+        PAL_ASSERT(pDcc->HasMetaEqGenerator());
+        const auto*     pEqGenerator      = pDcc->GetMetaEqGenerator();
+        const Gfx9Dcc*  pDispDcc          = pGfx9Image->GetDisplayDcc(pSubResInfo->subresId.aspect);
+        PAL_ASSERT(pDispDcc->HasMetaEqGenerator());
+        const auto*     pDispEqGenerator      = pDispDcc->GetMetaEqGenerator();
+        const auto&     dccAddrOutput     = pDcc->GetAddrOutput();
+        const auto&     dispDccAddrOutput = pDispDcc->GetAddrOutput();
+
+        const uint32 xInc = dccAddrOutput.compressBlkWidth;
+        const uint32 yInc = dccAddrOutput.compressBlkHeight;
+        const uint32 zInc = dccAddrOutput.compressBlkDepth;
+
+        const uint32 inlineConstData[] =
+        {
+            // cb0[0]
+            Log2(dccAddrOutput.metaBlkSize),
+            Log2(dispDccAddrOutput.metaBlkSize),
+            dccAddrOutput.metaBlkNumPerSlice,
+            dispDccAddrOutput.metaBlkNumPerSlice,
+
+            // cb0[1]
+            Log2(dccAddrOutput.metaBlkWidth),
+            Log2(dccAddrOutput.metaBlkHeight),
+            Log2(dccAddrOutput.metaBlkDepth),
+            dccAddrOutput.pitch / dccAddrOutput.metaBlkWidth,
+
+            // cb0[2]
+            Log2(dispDccAddrOutput.metaBlkWidth),
+            Log2(dispDccAddrOutput.metaBlkHeight),
+            Log2(dispDccAddrOutput.metaBlkDepth),
+            dispDccAddrOutput.pitch / dispDccAddrOutput.metaBlkWidth,
+
+            // cb0[3]
+            Log2(xInc),
+            Log2(yInc),
+            Log2(zInc),
+            0,
+
+            // cb0[4]
+            pSubResInfo->extentTexels.width,
+            pSubResInfo->extentTexels.height,
+            1,
+            0,
+        };
+
+        constexpr uint32 BufferViewCount = 4;
+        BufferViewInfo   bufferView[BufferViewCount] = {};
+        BufferSrd        bufferSrds[BufferViewCount] = {};
+
+        pDispDcc->BuildSurfBufferView(&bufferView[0]);       // Display Dcc
+        pDcc->BuildSurfBufferView(&bufferView[1]);           // Gfx Dcc.
+        pEqGenerator->BuildEqBufferView(&bufferView[2]);     // Gfx Dcc equation.
+        pDispEqGenerator->BuildEqBufferView(&bufferView[3]); // Display Dcc equation.
+        image.GetDevice()->CreateUntypedBufferViewSrds(BufferViewCount, &bufferView[0], &bufferSrds[0]);
+
+        // Create an embedded user-data table and bind it to user data 0.
+        static const uint32 bufferSrdDwords       = NumBytesToNumDwords(sizeof(BufferSrd));
+        static const uint32 inlineConstDataDwords = NumBytesToNumDwords(sizeof(inlineConstData));
+
+        uint32* pSrdTable = RpmUtil::CreateAndBindEmbeddedUserData(
+            pCmdBuffer,
+            bufferSrdDwords * BufferViewCount + inlineConstDataDwords,
+            bufferSrdDwords,
+            PipelineBindPoint::Compute,
+            0);
+
+        memcpy(pSrdTable, &bufferSrds[0], sizeof(bufferSrds));
+        pSrdTable += bufferSrdDwords * BufferViewCount;
+        memcpy(pSrdTable, &inlineConstData[0], sizeof(inlineConstData));
+
+        uint32 threadsPerGroup[3] = {};
+        pPipeline->ThreadsPerGroupXyz(&threadsPerGroup[0], &threadsPerGroup[1], &threadsPerGroup[2]);
+
+        // How many tiles in X/Y/Z dimension. One thread for each tile.
+        const uint32 numBlockX = (pSubResInfo->extentTexels.width  + xInc - 1) / xInc;
+        const uint32 numBlockY = (pSubResInfo->extentTexels.height + yInc - 1) / yInc;
+        const uint32 numBlockZ = 1;
+
+        uint32 numThreadGroupsX = RpmUtil::MinThreadGroups(numBlockX, threadsPerGroup[0]);
+        uint32 numThreadGroupsY = RpmUtil::MinThreadGroups(numBlockY, threadsPerGroup[1]);
+        uint32 numThreadGroupsZ = RpmUtil::MinThreadGroups(numBlockZ, threadsPerGroup[2]);
+
+        pCmdBuffer->CmdDispatch(numThreadGroupsX, numThreadGroupsY, numThreadGroupsZ);
+    }
+
+    pCmdBuffer->CmdRestoreComputeState(ComputeStatePipelineAndUserData);
 }
 
 // =====================================================================================================================
@@ -6636,7 +7162,193 @@ void Gfx10RsrcProcMgr::InitDisplayDcc(
     const Pal::Image&  image
     ) const
 {
+    const GpuMemory*       pGpuMemory  = image.GetBoundGpuMemory().Memory();
+    const ImageCreateInfo& createInfo  = image.GetImageCreateInfo();
+    const Image*           pGfx9Image  = static_cast<const Image*>(image.GetGfxImage());
+    const uint32           clearValue  = ExpandClearCodeToDword(Gfx9Dcc::InitialValue);
+    const auto*            pSubResInfo = image.SubresourceInfo(0);
+    const Gfx9Dcc*         pDispDcc    = pGfx9Image->GetDisplayDcc(pSubResInfo->subresId.aspect);
+
+    const auto&            dispDccAddrOutput = pDispDcc->GetAddrOutput();
+
+    SubresRange range = { pSubResInfo->subresId, createInfo.mipLevels, createInfo.arraySize };
+
+    pCmdBuffer->CmdSaveComputeState(ComputeStatePipelineAndUserData);
+
+    for (uint32 mipIdx = 0; mipIdx < range.numMips; mipIdx++)
+    {
+        const uint32 absMipLevel = range.startSubres.mipLevel + mipIdx;
+        const auto&  displayDccMipInfo = pDispDcc->GetAddrMipInfo(absMipLevel);
+
+        if (displayDccMipInfo.sliceSize == 0)
+        {
+            // No further mip levels will have display DCC either so there's nothing left to do.
+            break;
+        }
+
+        // Initialize DCC for this mip level
+        // The number of slices for 2D images is the number of slices; for 3D images, it's the depth
+        // of the image for the current mip level.
+        const uint32 numSlices = GetClearDepth(*pGfx9Image, range, absMipLevel);
+
+        // The "metaBlkDepth" parameter is the number of slices that the "dccRamSliceSize" covers.  For non-3D
+        // images, this should always be 1 (i.e., one addrlib slice is one PAL API slice).  For 3D images, this
+        // can be way more than the number of PAL API slices.
+        const uint32 numSlicesToClear = Max(1u, numSlices / dispDccAddrOutput.metaBlkDepth);
+
+        for (uint32 sliceIdx = 0; sliceIdx < numSlicesToClear; sliceIdx++)
+        {
+            // GetMaskRamBaseAddr doesn't compute the base address of a mip level (only a slice offset), so
+            // we have to do the math here ourselves.
+            const uint32    absSlice      = range.startSubres.arraySlice + sliceIdx;
+            const gpusize   clearBaseAddr = pGfx9Image->GetMaskRamBaseAddr(pDispDcc, pSubResInfo->subresId) +
+                                            absSlice * dispDccAddrOutput.dccRamSliceSize +
+                                            displayDccMipInfo.offset;
+            const gpusize   clearOffset   = clearBaseAddr - pGpuMemory->Desc().gpuVirtAddr;
+
+            CmdFillMemory(pCmdBuffer,
+                false,            // don't save / restore the compute state
+                *pGpuMemory,
+                clearOffset,
+                displayDccMipInfo.sliceSize,
+                clearValue);
+        }
+    }
+
+    pCmdBuffer->CmdRestoreComputeState(ComputeStatePipelineAndUserData);
 }
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 554
+// =====================================================================================================================
+void Gfx10RsrcProcMgr::CmdResolvePrtPlusImage(
+    GfxCmdBuffer*                    pCmdBuffer,
+    const IImage&                    srcImage,
+    ImageLayout                      srcImageLayout,
+    const IImage&                    dstImage,
+    ImageLayout                      dstImageLayout,
+    PrtPlusResolveType               resolveType,
+    uint32                           regionCount,
+    const PrtPlusImageResolveRegion* pRegions
+    ) const
+{
+    const auto*  pPalDevice    = m_pDevice->Parent();
+    const auto&  srcPalImage   = static_cast<const Pal::Image&>(srcImage);
+    const auto&  dstPalImage   = static_cast<const Pal::Image&>(dstImage);
+    const auto&  srcCreateInfo = srcImage.GetImageCreateInfo();
+    const auto&  dstCreateInfo = dstImage.GetImageCreateInfo();
+    const auto   pipeline      = ((resolveType == PrtPlusResolveType::Decode)
+                                  ? ((srcCreateInfo.prtPlus.mapType == PrtMapType::SamplingStatus)
+                                     ? RpmComputePipeline::Gfx10PrtPlusResolveSamplingStatusMap
+                                     : RpmComputePipeline::Gfx10PrtPlusResolveResidencyMapDecode)
+                                  : ((dstCreateInfo.prtPlus.mapType == PrtMapType::SamplingStatus)
+                                     ? RpmComputePipeline::Gfx10PrtPlusResolveSamplingStatusMap
+                                     : RpmComputePipeline::Gfx10PrtPlusResolveResidencyMapEncode));
+    const auto*  pPipeline     = GetPipeline(pipeline);
+
+    // DX spec requires that resolve source and destinations be 8bpp
+    PAL_ASSERT((Formats::BitsPerPixel(dstCreateInfo.swizzledFormat.format) == 8) &&
+               (Formats::BitsPerPixel(srcCreateInfo.swizzledFormat.format) == 8));
+
+    // What are we even doing here?
+    PAL_ASSERT(TestAnyFlagSet(pPalDevice->ChipProperties().imageProperties.prtFeatures,
+                              PrtFeatureFlags::PrtFeaturePrtPlus));
+
+    pCmdBuffer->CmdSaveComputeState(ComputeStatePipelineAndUserData);
+
+    uint32  threadsPerGroup[3] = {};
+    pPipeline->ThreadsPerGroupXyz(&threadsPerGroup[0], &threadsPerGroup[1], &threadsPerGroup[2]);
+
+    // Bind compute pipeline used for the resolve.
+    pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute,
+                                  pPipeline,
+                                  InternalApiPsoHash,
+                                });
+
+    for (uint32  regionIdx = 0; regionIdx < regionCount; regionIdx++)
+    {
+        const auto&  resolveRegion = pRegions[regionIdx];
+
+        const uint32 constData[] =
+        {
+            // start cb0[0]
+            static_cast<uint32>(resolveRegion.srcOffset.x),
+            static_cast<uint32>(resolveRegion.srcOffset.y),
+            static_cast<uint32>(resolveRegion.srcOffset.z),
+            0u,
+            // start cb0[1]
+            static_cast<uint32>(resolveRegion.dstOffset.x),
+            static_cast<uint32>(resolveRegion.dstOffset.y),
+            static_cast<uint32>(resolveRegion.dstOffset.z),
+            0u,
+            // start cb0[2]
+            resolveRegion.extent.width,
+            resolveRegion.extent.height,
+            resolveRegion.extent.depth,
+            // cb0[2].w is ignored for residency maps
+            ((resolveType == PrtPlusResolveType::Decode) ? 0xFFu : 0x01u),
+        };
+
+        // Create an embedded user-data table and bind it to user data 0.
+        const uint32  sizeConstDataDwords = NumBytesToNumDwords(sizeof(constData));
+        uint32* pSrdTable = RpmUtil::CreateAndBindEmbeddedUserData(pCmdBuffer,
+                                                                    SrdDwordAlignment() * 2 + sizeConstDataDwords,
+                                                                    SrdDwordAlignment(),
+                                                                    PipelineBindPoint::Compute,
+                                                                    0);
+
+        const SubresId     srcSubResId = { ImageAspect::Color, resolveRegion.srcMipLevel, resolveRegion.srcSlice };
+        const SubresRange  srcRange    = { srcSubResId, 1, resolveRegion.numSlices };
+        const SubresId     dstSubResId = { ImageAspect::Color, resolveRegion.dstMipLevel, resolveRegion.dstSlice };
+        const SubresRange  dstRange    = { dstSubResId, 1, resolveRegion.numSlices };
+
+        // For the sampling status shader, the format doesn't matter that much as it's just doing a "0" or "1"
+        // comparison, but the residency map shader is decoding the bits, so we need the raw unfiltered data.
+        constexpr SwizzledFormat X8Uint =
+        {
+            ChNumFormat::X8_Uint,
+            {
+                ChannelSwizzle::X,
+                ChannelSwizzle::Zero,
+                ChannelSwizzle::Zero,
+                ChannelSwizzle::One
+            }
+        };
+
+        ImageViewInfo   imageView[2] = {};
+        const SwizzledFormat  srcFormat = ((resolveType == PrtPlusResolveType::Decode)
+                                           ? X8Uint
+                                           : srcCreateInfo.swizzledFormat);
+        const SwizzledFormat  dstFormat = ((resolveType == PrtPlusResolveType::Decode)
+                                           ? dstCreateInfo.swizzledFormat
+                                           : X8Uint);
+        RpmUtil::BuildImageViewInfo(&imageView[0],
+                                    srcPalImage,
+                                    srcRange,
+                                    srcFormat,
+                                    srcImageLayout,
+                                    pPalDevice->TexOptLevel());
+
+        RpmUtil::BuildImageViewInfo(&imageView[1],
+                                    dstPalImage,
+                                    dstRange,
+                                    dstFormat,
+                                    dstImageLayout,
+                                    pPalDevice->TexOptLevel());
+
+        pPalDevice->CreateImageViewSrds(2, &imageView[0], pSrdTable);
+        pSrdTable += Util::NumBytesToNumDwords(2 * sizeof(ImageSrd));
+
+        // And give the shader all kinds of useful dimension info
+        memcpy(pSrdTable, &constData[0], sizeof(constData));
+
+        pCmdBuffer->CmdDispatch(RpmUtil::MinThreadGroups(resolveRegion.extent.width,  threadsPerGroup[0]),
+                                RpmUtil::MinThreadGroups(resolveRegion.extent.height, threadsPerGroup[1]),
+                                RpmUtil::MinThreadGroups(resolveRegion.extent.depth,  threadsPerGroup[2]));
+    } // end loop through the regions
+
+    pCmdBuffer->CmdRestoreComputeState(ComputeStatePipelineAndUserData);
+}
+#endif
 
 } // Gfx9
 } // Pal

@@ -88,6 +88,12 @@ enum class InterfaceFunc : uint32
     CmdBufferCmdBindIndexData,
     CmdBufferCmdBindTargets,
     CmdBufferCmdBindStreamOutTargets,
+    CmdBufferCmdSetPerDrawVrsRate,
+    CmdBufferCmdSetVrsCenterState,
+    CmdBufferCmdBindSampleRateImage,
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 554
+    CmdBufferCmdResolvePrtPlusImage,
+#endif
     CmdBufferCmdSetBlendConst,
     CmdBufferCmdSetInputAssemblyState,
     CmdBufferCmdSetTriangleRasterState,
@@ -219,6 +225,7 @@ enum class InterfaceFunc : uint32
     DeviceCreateImageViewSrds,
     DeviceCreateFmaskViewSrds,
     DeviceCreateSamplerSrds,
+    DeviceCreateBvhSrds,
     DeviceSetSamplePatternPalette,
     DeviceCreateBorderColorPalette,
     DeviceCreateComputePipeline,
@@ -522,6 +529,9 @@ public:
     void Struct(const PresentableImageCreateInfo& value);
     void Struct(const PresentDirectInfo& value);
     void Struct(const PresentSwapChainInfo& value);
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 554
+    void Struct(const PrtPlusImageResolveRegion& value);
+#endif
     void Struct(const PrivateDisplayMode& value);
     void Struct(const PrivateDisplayTiming& value);
     void Struct(const PrivateScreenCaps& value);
@@ -541,6 +551,7 @@ public:
     void Struct(RgbFloat value);
     void Struct(const SamplePatternPalette& value);
     void Struct(const SamplerInfo& value);
+    void Struct(const BvhInfo& value);
     void Struct(SamplePos value);
     void Struct(ScaledCopyFlags value);
     void Struct(const ScaledCopyInfo& value);
@@ -571,6 +582,8 @@ public:
     void Struct(const VirtualMemoryRemapRange& value);
     void Struct(const VirtualDisplayInfo& value);
     void Struct(const VirtualDisplayProperties& value);
+    void Struct(const VrsCenterState&  centerState);
+    void Struct(const VrsRateParams&  rateParams);
     void Struct(const FenceCreateInfo& value);
     void Struct(const FenceOpenInfo& value);
 
@@ -595,6 +608,9 @@ public:
     void Enum(GpuHeap value);
     void Enum(GpuMemPriority value);
     void Enum(GpuMemPriorityOffset value);
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 554
+    void Enum(PrtPlusResolveType value);
+#endif
     void Enum(HwPipePoint value);
     void Enum(ImageAspect value);
     void Enum(ImageRotation value);
@@ -622,6 +638,8 @@ public:
     void Enum(PrivateDisplayPowerState value);
     void Enum(PrivateScreenType value);
     void Enum(ProvokingVertex value);
+    void Enum(PrtMapAccessType value);
+    void Enum(PrtMapType value);
     void Enum(QueryPoolType value);
     void Enum(QueryType value);
     void Enum(QueuePriority value);
@@ -639,6 +657,8 @@ public:
     void Enum(TilingOptMode value);
     void Enum(VaRange value);
     void Enum(VirtualGpuMemAccessMode value);
+    void Enum(VrsShadingRate value);
+    void Enum(VrsCombiner value);
     void Enum(WsiPlatform value);
     void Enum(XyFilter value);
     void Enum(ZFilter value);
@@ -689,6 +709,8 @@ public:
     // and do not modify the LogContext. They are intended to help label some PAL arrays that index using enums.
     static const char* GetQueueName(QueueType value);
     static const char* GetEngineName(EngineType value);
+    static const char* GetVrsCenterRateName(VrsCenterRates value);
+    static const char* GetVrsCombinerStageName(VrsCombinerStage value);
 
 private:
     void Object(InterfaceObject objectType, uint32 objectId);

@@ -174,10 +174,12 @@ void SettingsLoader::SetupDefaults()
     m_settings.samplerAnisoBias = 0;
     m_settings.samplerSecAnisoBias = 0;
     m_settings.waRestrictMetaDataUseInMipTail = false;
+    m_settings.waVrsStencilUav = NoFix;
 
     m_settings.waLogicOpDisablesOverwriteCombiner = false;
     m_settings.waRotatedSwizzleDisablesOverwriteCombiner = false;
     m_settings.waDisableFmaskNofetchOpOnFmaskCompressionDisable = false;
+    m_settings.waDisableVrsWithDsExports = false;
 
     m_settings.waFixPostZConservativeRasterization = false;
     m_settings.waClampQuadDistributionFactor = false;
@@ -206,6 +208,15 @@ void SettingsLoader::SetupDefaults()
     m_settings.waStalledPopsMode = false;
     m_settings.waCeDisableIb2 = false;
     m_settings.waDisableSCompressSOnly = false;
+    m_settings.vrsHtileEncoding = Gfx10VrsHtileEncodingTwoBit;
+
+    m_settings.vrsForceRateFine = false;
+
+    m_settings.privateDepthIsHtileOnly = true;
+
+    m_settings.optimizeNullSourceImage = true;
+
+    m_settings.vrsImageSize = 0x10001000;
 
     m_settings.waUtcL0InconsistentBigPage = false;
     m_settings.waTwoPlanesIterate256 = false;
@@ -213,12 +224,16 @@ void SettingsLoader::SetupDefaults()
     m_settings.waLimitLateAllocGsNggFifo = false;
     m_settings.waClampGeCntlVertGrpSize = false;
     m_settings.waLegacyGsCutModeFlush = false;
+    m_settings.sdmaBypassMall = 0x3;
 
     m_settings.depthStencilFastClearComputeThresholdSingleSampled = 2097152;
     m_settings.depthStencilFastClearComputeThresholdMultiSampled = 4194304;
     m_settings.gfx10MaxFpovsInWave = 0;
     m_settings.disableAceCsPartialFlush = false;
     m_settings.addrLibGbAddrConfigOverride = 0x0;
+    m_settings.nonLocalDestPreferCompute = true;
+
+    m_settings.gfx103DisableAsymmetricWgpForPs = false;
 
     m_settings.numSettings = g_gfx9PalNumSettings;
 }
@@ -778,6 +793,11 @@ void SettingsLoader::ReadSettings()
                            &m_settings.waRestrictMetaDataUseInMipTail,
                            InternalSettingScope::PrivatePalGfx9Key);
 
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pWaVrsStencilUavStr,
+                           Util::ValueType::Uint,
+                           &m_settings.waVrsStencilUav,
+                           InternalSettingScope::PrivatePalGfx9Key);
+
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pWaLogicOpDisablesOverwriteCombinerStr,
                            Util::ValueType::Boolean,
                            &m_settings.waLogicOpDisablesOverwriteCombiner,
@@ -791,6 +811,11 @@ void SettingsLoader::ReadSettings()
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pWaDisableFmaskNofetchOpOnFmaskCompressionDisableStr,
                            Util::ValueType::Boolean,
                            &m_settings.waDisableFmaskNofetchOpOnFmaskCompressionDisable,
+                           InternalSettingScope::PrivatePalGfx9Key);
+
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pWaDisableVrsWithDsExportsStr,
+                           Util::ValueType::Boolean,
+                           &m_settings.waDisableVrsWithDsExports,
                            InternalSettingScope::PrivatePalGfx9Key);
 
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pWaFixPostZConservativeRasterizationStr,
@@ -928,6 +953,31 @@ void SettingsLoader::ReadSettings()
                            &m_settings.waDisableSCompressSOnly,
                            InternalSettingScope::PrivatePalKey);
 
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pVrsHtileEncodingStr,
+                           Util::ValueType::Uint,
+                           &m_settings.vrsHtileEncoding,
+                           InternalSettingScope::PrivatePalGfx9Key);
+
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pVrsForceRateFineStr,
+                           Util::ValueType::Boolean,
+                           &m_settings.vrsForceRateFine,
+                           InternalSettingScope::PrivatePalGfx9Key);
+
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pPrivateDepthIsHtileOnlyStr,
+                           Util::ValueType::Boolean,
+                           &m_settings.privateDepthIsHtileOnly,
+                           InternalSettingScope::PrivatePalGfx9Key);
+
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pOptimizeNullSourceImageStr,
+                           Util::ValueType::Boolean,
+                           &m_settings.optimizeNullSourceImage,
+                           InternalSettingScope::PrivatePalGfx9Key);
+
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pVrsImageSizeStr,
+                           Util::ValueType::Uint,
+                           &m_settings.vrsImageSize,
+                           InternalSettingScope::PrivatePalGfx9Key);
+
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pWaUtcL0InconsistentBigPageStr,
                            Util::ValueType::Boolean,
                            &m_settings.waUtcL0InconsistentBigPage,
@@ -958,6 +1008,11 @@ void SettingsLoader::ReadSettings()
                            &m_settings.waLegacyGsCutModeFlush,
                            InternalSettingScope::PrivatePalGfx9Key);
 
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pSdmaBypassMallStr,
+                           Util::ValueType::Uint,
+                           &m_settings.sdmaBypassMall,
+                           InternalSettingScope::PrivatePalGfx9Key);
+
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pDepthStencilFastClearComputeThresholdSingleSampledStr,
                            Util::ValueType::Uint,
                            &m_settings.depthStencilFastClearComputeThresholdSingleSampled,
@@ -981,6 +1036,16 @@ void SettingsLoader::ReadSettings()
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pAddrLibGbAddrConfigOverrideStr,
                            Util::ValueType::Uint,
                            &m_settings.addrLibGbAddrConfigOverride,
+                           InternalSettingScope::PrivatePalGfx9Key);
+
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pGfx102NonLocalDestPreferComputeStr,
+                           Util::ValueType::Boolean,
+                           &m_settings.nonLocalDestPreferCompute,
+                           InternalSettingScope::PrivatePalGfx9Key);
+
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pGfx103DisableAsymmetricWgpForPsStr,
+                           Util::ValueType::Boolean,
+                           &m_settings.gfx103DisableAsymmetricWgpForPs,
                            InternalSettingScope::PrivatePalGfx9Key);
 
 }
@@ -1057,6 +1122,11 @@ void SettingsLoader::RereadSettings()
                            &m_settings.waRestrictMetaDataUseInMipTail,
                            InternalSettingScope::PrivatePalGfx9Key);
 
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pWaVrsStencilUavStr,
+                           Util::ValueType::Uint,
+                           &m_settings.waVrsStencilUav,
+                           InternalSettingScope::PrivatePalGfx9Key);
+
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pWaLogicOpDisablesOverwriteCombinerStr,
                            Util::ValueType::Boolean,
                            &m_settings.waLogicOpDisablesOverwriteCombiner,
@@ -1070,6 +1140,11 @@ void SettingsLoader::RereadSettings()
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pWaDisableFmaskNofetchOpOnFmaskCompressionDisableStr,
                            Util::ValueType::Boolean,
                            &m_settings.waDisableFmaskNofetchOpOnFmaskCompressionDisable,
+                           InternalSettingScope::PrivatePalGfx9Key);
+
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pWaDisableVrsWithDsExportsStr,
+                           Util::ValueType::Boolean,
+                           &m_settings.waDisableVrsWithDsExports,
                            InternalSettingScope::PrivatePalGfx9Key);
 
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pWaFixPostZConservativeRasterizationStr,
@@ -1805,6 +1880,11 @@ void SettingsLoader::InitSettingsInfo()
     info.valueSize = sizeof(m_settings.waRestrictMetaDataUseInMipTail);
     m_settingsInfoMap.Insert(599120928, info);
 
+    info.type      = SettingType::Uint;
+    info.pValuePtr = &m_settings.waVrsStencilUav;
+    info.valueSize = sizeof(m_settings.waVrsStencilUav);
+    m_settingsInfoMap.Insert(3499388342, info);
+
     info.type      = SettingType::Boolean;
     info.pValuePtr = &m_settings.waLogicOpDisablesOverwriteCombiner;
     info.valueSize = sizeof(m_settings.waLogicOpDisablesOverwriteCombiner);
@@ -1819,6 +1899,11 @@ void SettingsLoader::InitSettingsInfo()
     info.pValuePtr = &m_settings.waDisableFmaskNofetchOpOnFmaskCompressionDisable;
     info.valueSize = sizeof(m_settings.waDisableFmaskNofetchOpOnFmaskCompressionDisable);
     m_settingsInfoMap.Insert(1971936918, info);
+
+    info.type      = SettingType::Boolean;
+    info.pValuePtr = &m_settings.waDisableVrsWithDsExports;
+    info.valueSize = sizeof(m_settings.waDisableVrsWithDsExports);
+    m_settingsInfoMap.Insert(2338588964, info);
 
     info.type      = SettingType::Boolean;
     info.pValuePtr = &m_settings.waFixPostZConservativeRasterization;
@@ -1955,6 +2040,31 @@ void SettingsLoader::InitSettingsInfo()
     info.valueSize = sizeof(m_settings.waDisableSCompressSOnly);
     m_settingsInfoMap.Insert(1364141327, info);
 
+    info.type      = SettingType::Uint;
+    info.pValuePtr = &m_settings.vrsHtileEncoding;
+    info.valueSize = sizeof(m_settings.vrsHtileEncoding);
+    m_settingsInfoMap.Insert(4142650735, info);
+
+    info.type      = SettingType::Boolean;
+    info.pValuePtr = &m_settings.vrsForceRateFine;
+    info.valueSize = sizeof(m_settings.vrsForceRateFine);
+    m_settingsInfoMap.Insert(490938231, info);
+
+    info.type      = SettingType::Boolean;
+    info.pValuePtr = &m_settings.privateDepthIsHtileOnly;
+    info.valueSize = sizeof(m_settings.privateDepthIsHtileOnly);
+    m_settingsInfoMap.Insert(1433516561, info);
+
+    info.type      = SettingType::Boolean;
+    info.pValuePtr = &m_settings.optimizeNullSourceImage;
+    info.valueSize = sizeof(m_settings.optimizeNullSourceImage);
+    m_settingsInfoMap.Insert(2743300351, info);
+
+    info.type      = SettingType::Uint;
+    info.pValuePtr = &m_settings.vrsImageSize;
+    info.valueSize = sizeof(m_settings.vrsImageSize);
+    m_settingsInfoMap.Insert(2610878234, info);
+
     info.type      = SettingType::Boolean;
     info.pValuePtr = &m_settings.waUtcL0InconsistentBigPage;
     info.valueSize = sizeof(m_settings.waUtcL0InconsistentBigPage);
@@ -1986,6 +2096,11 @@ void SettingsLoader::InitSettingsInfo()
     m_settingsInfoMap.Insert(1477053247, info);
 
     info.type      = SettingType::Uint;
+    info.pValuePtr = &m_settings.sdmaBypassMall;
+    info.valueSize = sizeof(m_settings.sdmaBypassMall);
+    m_settingsInfoMap.Insert(881287982, info);
+
+    info.type      = SettingType::Uint;
     info.pValuePtr = &m_settings.depthStencilFastClearComputeThresholdSingleSampled;
     info.valueSize = sizeof(m_settings.depthStencilFastClearComputeThresholdSingleSampled);
     m_settingsInfoMap.Insert(2634603321, info);
@@ -2009,6 +2124,16 @@ void SettingsLoader::InitSettingsInfo()
     info.pValuePtr = &m_settings.addrLibGbAddrConfigOverride;
     info.valueSize = sizeof(m_settings.addrLibGbAddrConfigOverride);
     m_settingsInfoMap.Insert(4156569361, info);
+
+    info.type      = SettingType::Boolean;
+    info.pValuePtr = &m_settings.nonLocalDestPreferCompute;
+    info.valueSize = sizeof(m_settings.nonLocalDestPreferCompute);
+    m_settingsInfoMap.Insert(2724905730, info);
+
+    info.type      = SettingType::Boolean;
+    info.pValuePtr = &m_settings.gfx103DisableAsymmetricWgpForPs;
+    info.valueSize = sizeof(m_settings.gfx103DisableAsymmetricWgpForPs);
+    m_settingsInfoMap.Insert(2671208712, info);
 
 }
 

@@ -389,6 +389,11 @@ private:
         uint32             count,
         const SamplerInfo* pSamplerInfo,
         void*              pOut);
+    static void PAL_STDCALL CreateBvhSrds(
+        const IDevice*  pDevice,
+        uint32          count,
+        const BvhInfo*  pBvhInfo,
+        void*           pOut);
 
     const uint32 m_objectId;
 

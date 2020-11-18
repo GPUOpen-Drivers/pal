@@ -412,6 +412,12 @@ public:
         uint32     countSel,
         uint32     wrConfirm,
         void*      pBuffer);
+    static size_t BuildPerfmonControl(
+        uint32     perfMonCtlId,
+        bool       enable,
+        uint32     eventSelect,
+        uint32     eventUnitMask,
+        void*      pBuffer);
     template <bool dimInThreads, bool forceStartAt000>
     size_t BuildDispatchDirect(
         uint32          xDim,

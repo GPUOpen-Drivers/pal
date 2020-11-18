@@ -66,6 +66,7 @@ public:
 
     virtual bool IsColorBigPage() const { return false; };
     virtual bool IsFmaskBigPage() const { return false; }
+    virtual bool BypassMall()     const { return false; }
 
     virtual void GetImageSrd(const Device& device, void* pOut) const { PAL_NEVER_CALLED(); }
 
@@ -160,7 +161,8 @@ protected:
             uint32 fmaskBigPage           :  1; // This view supports setting CB_RMI_GLC2_CACHE_CONTROL.FMASK_BIG_PAGE.
                                                 // Only valid if viewVaLocked is set.
             uint32 hasMultipleFragments   :  1; // Is this view MSAA/EQAA?
-            uint32 placeholder1           :  1;
+            uint32 bypassMall             :  1; // Set to bypass the MALL for this surface.  Only meaningful on GPUs
+                                                // which suppport the MALL (memory access last level cache).
             uint32 reserved               : 20;
         };
 
@@ -275,6 +277,8 @@ public:
 
     virtual bool IsColorBigPage() const override;
     virtual bool IsFmaskBigPage() const override;
+
+    virtual bool BypassMall() const override { return m_flags.bypassMall; }
 
     virtual void GetImageSrd(const Device& device, void* pOut) const override;
 

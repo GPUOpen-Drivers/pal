@@ -143,6 +143,12 @@ enum class CmdBufCallId : uint32
     CmdStopGpuProfilerLogging,
     CmdSetViewInstanceMask,
     CmdUpdateHiSPretests,
+    CmdSetPerDrawVrsRate,
+    CmdSetVrsCenterState,
+    CmdBindSampleRateImage,
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 554
+    CmdResolvePrtPlusImage,
+#endif
     CmdSetClipRects,
     CmdPostProcessFrame,
     Count
@@ -259,6 +265,12 @@ static const char* CmdBufCallIdStrings[] =
     "CmdStopGpuProfilerLogging()",
     "CmdSetViewInstanceMask()",
     "CmdUpdateHiSPretests()",
+    "CmdSetPerDrawVrsRate()",
+    "CmdSetVrsCenterState()",
+    "CmdBindSampleRateImage()",
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 554
+    "CmdResolvePrtPlusImage()",
+#endif
     "CmdSetClipRects()",
     "CmdPostProcessFrame()",
 };

@@ -122,6 +122,13 @@ void SettingsLoader::OverrideDefaults()
         m_settings.preferredPipelineUploadHeap = PipelineHeapGartUswc;
     }
 
+    if (false
+        || IsNavi2x(*m_pDevice)
+        )
+    {
+        m_settings.addr2UseVarSwizzleMode = Addr2UseVarSwizzle::Addr2UseVarSwizzleDisable;
+    }
+
     m_state = SettingsLoaderState::LateInit;
 }
 

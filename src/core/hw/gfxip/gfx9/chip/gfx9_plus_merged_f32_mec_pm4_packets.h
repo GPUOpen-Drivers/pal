@@ -2688,3 +2688,51 @@ typedef struct PM4_MEC_DISPATCH_TASKMESH_INDIRECT_MULTI_ACE
 
 constexpr unsigned int PM4_MEC_DISPATCH_TASKMESH_INDIRECT_MULTI_ACE_SIZEDW__GFX10PLUS = 11;
 
+// -------------------------------- MEC_PERFMON_CONTROL_pmc_en_enum --------------------------------
+enum MEC_PERFMON_CONTROL_pmc_en_enum
+{
+    pmc_en__mec_perfmon_control__perfmon_disable__GFX103 =  0,
+    pmc_en__mec_perfmon_control__perfmon_enable__GFX103  =  1,
+};
+
+// ------------------------------------ PM4_MEC_PERFMON_CONTROL ------------------------------------
+typedef struct PM4_MEC_PERFMON_CONTROL
+{
+    union
+    {
+        PM4_MEC_TYPE_3_HEADER header;
+        uint32_t u32All;
+    } ordinal1;
+
+    union
+    {
+        union
+        {
+            struct
+            {
+                uint32_t                        pmc_id        :  3;
+                uint32_t                        reserved1     : 12;
+                MEC_PERFMON_CONTROL_pmc_en_enum pmc_en        :  1;
+                uint32_t                        pmc_unit_mask :  8;
+                uint32_t                        reserved2     :  8;
+            } gfx103;
+        } bitfields;
+        uint32_t u32All;
+    } ordinal2;
+
+    union
+    {
+        union
+        {
+            struct
+            {
+                uint32_t pmc_event  : 14;
+                uint32_t reserved1  : 18;
+            } gfx103;
+        } bitfields;
+        uint32_t u32All;
+    } ordinal3;
+} PM4_MEC_PERFMON_CONTROL;
+
+constexpr unsigned int PM4_MEC_PERFMON_CONTROL_SIZEDW__GFX103 = 3;
+

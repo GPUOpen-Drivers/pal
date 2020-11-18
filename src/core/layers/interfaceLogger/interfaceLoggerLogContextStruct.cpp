@@ -853,6 +853,10 @@ void LogContext::Struct(
     {
         Value("absoluteDepthBias");
     }
+    if (value.flags.bypassMall)
+    {
+        Value("bypassMall");
+    }
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 594
     if (value.flags.depthOnlyView)
@@ -1596,6 +1600,10 @@ void LogContext::Struct(
     KeyAndEnum("tilingOptMode", value.tilingOptMode);
     KeyAndValue("tileSwizzle", value.tileSwizzle);
     KeyAndEnum("metadataMode", value.metadataMode);
+    KeyAndBeginMap("prtPlus", false);
+    KeyAndEnum("mapType", value.prtPlus.mapType);
+    KeyAndStruct("lodRegion", value.prtPlus.lodRegion);
+    EndMap();
     KeyAndValue("maxBaseAlign", value.maxBaseAlign);
     KeyAndValue("rowPitch", value.rowPitch);
     KeyAndValue("depthPitch", value.depthPitch);
@@ -1722,6 +1730,11 @@ void LogContext::Struct(
         Value("cornerSampling");
     }
 
+    if (value.vrsDepth)
+    {
+        Value("vrsDepth");
+    }
+
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 597
     if (value.disableOptimizedDisplay)
     {
@@ -1756,6 +1769,9 @@ void LogContext::Struct(
     KeyAndStruct("zRange", value.zRange);
     KeyAndEnum("texOptLevel", value.texOptLevel);
     KeyAndStruct("possibleLayouts", value.possibleLayouts);
+
+    KeyAndObject("pPrtParentImg", value.pPrtParentImg);
+    KeyAndEnum("mapAccess", value.mapAccess);
 
     KeyAndBeginList("flags", true);
 
@@ -2548,11 +2564,22 @@ void LogContext::Struct(
     KeyAndValue("anisoThreshold", value.anisoThreshold);
     KeyAndValue("perfMip", value.perfMip);
 
+    if (value.flags.forResidencyMap != 0)
+    {
+        KeyAndStruct("uvOffset", value.uvOffset);
+        KeyAndStruct("uvSlope", value.uvSlope);
+    }
+
     KeyAndBeginList("flags", true);
 
     if (value.flags.mgpuIqMatch)
     {
         Value("mgpuIqMatch");
+    }
+
+    if (value.flags.forResidencyMap)
+    {
+        Value("forResidencyMap");
     }
 
     if (value.flags.preciseAniso)
@@ -2582,6 +2609,29 @@ void LogContext::Struct(
     if (value.flags.prtBlendZeroMode)
     {
         Value("prtBlendZeroMode");
+    }
+
+    EndList();
+    EndMap();
+}
+
+// =====================================================================================================================
+void LogContext::Struct(
+    const BvhInfo& value)
+{
+    BeginMap(false);
+    KeyAndObject("pMemory", value.pMemory);
+    KeyAndValue("offset", value.offset);
+    KeyAndValue("numNodes", value.numNodes);
+    KeyAndValue("boxGrowValue", value.boxGrowValue);
+    if (value.flags.findNearest)
+    {
+        Value("findNearest");
+    }
+
+    if (value.flags.useZeroOffset)
+    {
+        Value("useZeroOffset");
     }
 
     EndList();
@@ -3100,6 +3150,83 @@ void LogContext::Struct(
     KeyAndValue("isVirtualDisplay", value.isVirtualDisplay);
     EndMap();
 }
+
+// =====================================================================================================================
+void LogContext::Struct(
+    const VrsCenterState&  centerState)
+{
+    BeginMap(false);
+    KeyAndBeginMap("centerOffset", false);
+
+    for (uint32 idx = 0; idx < static_cast<uint32>(VrsCenterRates::Max); idx++)
+    {
+        KeyAndStruct(GetVrsCenterRateName(static_cast<VrsCenterRates>(idx)), centerState.centerOffset[idx]);
+    }
+
+    EndMap();
+    KeyAndBeginList("flags", true);
+
+    if (centerState.flags.overrideCenterSsaa)
+    {
+        Value("overrideCenterSsaa");
+    }
+
+    if (centerState.flags.overrideCentroidSsaa)
+    {
+        Value("overrideCentroidSsaa");
+    }
+
+    if (centerState.flags.alwaysComputeCentroid)
+    {
+        Value("alwaysComputeCentroid");
+    }
+
+    EndList();
+    EndMap();
+}
+
+// =====================================================================================================================
+void LogContext::Struct(
+    const VrsRateParams&  rateParams)
+{
+    BeginMap(false);
+    KeyAndEnum("shadingRate", rateParams.shadingRate);
+    KeyAndBeginMap("combinerState", false);
+
+    for (uint32 idx = 0; idx < static_cast<uint32>(VrsCombinerStage::Max); idx++)
+    {
+        KeyAndEnum(GetVrsCombinerStageName(static_cast<VrsCombinerStage>(idx)), rateParams.combinerState[idx]);
+    }
+
+    EndMap();
+    KeyAndBeginList("flags", true);
+
+    if (rateParams.flags.exposeVrsPixelsMask)
+    {
+        Value("exposeVrsPixelsMask");
+    }
+
+    EndList();
+    EndMap();
+}
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 554
+// =====================================================================================================================
+void LogContext::Struct(
+    const PrtPlusImageResolveRegion& value)
+{
+    BeginMap(false);
+    KeyAndStruct("srcOffset", value.srcOffset);
+    KeyAndValue("srcMipLevel", value.srcMipLevel);
+    KeyAndValue("srcSlice", value.srcSlice);
+    KeyAndStruct("dstOffset", value.dstOffset);
+    KeyAndValue("dstMipLevel", value.dstMipLevel);
+    KeyAndValue("dstSlice", value.dstSlice);
+    KeyAndStruct("extent", value.extent);
+    KeyAndValue("numSlices", value.numSlices);
+    EndMap();
+}
+#endif
 
 // =====================================================================================================================
 void LogContext::Struct(

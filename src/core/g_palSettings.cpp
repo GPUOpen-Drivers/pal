@@ -72,6 +72,9 @@ void SettingsLoader::SetupDefaults()
     m_settings.clearAllocatedLfb = false;
     m_settings.enableAdaptiveSync = false;
     m_settings.addr2Disable4kBSwizzleMode = 0x0;
+    m_settings.addr2UseVarSwizzleMode = 0x2;
+
+    m_settings.rpmViewsBypassMall = 0x0;
 
     m_settings.enableBigPagePreAlignment = true;
     m_settings.enableIterate256PreAlignment = true;
@@ -252,6 +255,16 @@ void SettingsLoader::ReadSettings()
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pAddr2Disable4KbSwizzleModeStr,
                            Util::ValueType::Uint,
                            &m_settings.addr2Disable4kBSwizzleMode,
+                           InternalSettingScope::PrivatePalKey);
+
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pAddr2UseVarSwizzleModeStr,
+                           Util::ValueType::Uint,
+                           &m_settings.addr2UseVarSwizzleMode,
+                           InternalSettingScope::PrivatePalKey);
+
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pRpmViewsBypassMallStr,
+                           Util::ValueType::Uint,
+                           &m_settings.rpmViewsBypassMall,
                            InternalSettingScope::PrivatePalKey);
 
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(penableBigPagePreAlignmentStr,
@@ -581,6 +594,10 @@ void SettingsLoader::ReadSettings()
 void SettingsLoader::RereadSettings()
 {
     // read from the OS adapter for each individual setting
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pAddr2UseVarSwizzleModeStr,
+                           Util::ValueType::Uint,
+                           &m_settings.addr2UseVarSwizzleMode,
+                           InternalSettingScope::PrivatePalKey);
 
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pMipGenUseFastPathStr,
                            Util::ValueType::Boolean,
@@ -689,6 +706,16 @@ void SettingsLoader::InitSettingsInfo()
     info.pValuePtr = &m_settings.addr2Disable4kBSwizzleMode;
     info.valueSize = sizeof(m_settings.addr2Disable4kBSwizzleMode);
     m_settingsInfoMap.Insert(2252676842, info);
+
+    info.type      = SettingType::Uint;
+    info.pValuePtr = &m_settings.addr2UseVarSwizzleMode;
+    info.valueSize = sizeof(m_settings.addr2UseVarSwizzleMode);
+    m_settingsInfoMap.Insert(2076875821, info);
+
+    info.type      = SettingType::Uint;
+    info.pValuePtr = &m_settings.rpmViewsBypassMall;
+    info.valueSize = sizeof(m_settings.rpmViewsBypassMall);
+    m_settingsInfoMap.Insert(2274774246, info);
 
     info.type      = SettingType::Boolean;
     info.pValuePtr = &m_settings.enableBigPagePreAlignment;

@@ -56,6 +56,7 @@ const MergedFmtInfo* MergedChannelFmtInfoTbl(
         pFmtInfo = Gfx9MergedChannelFmtInfoTbl;
         break;
     case GfxIpLevel::GfxIp10_1:
+    case GfxIpLevel::GfxIp10_3:
         // Do *not* return "Gfx10MergedChannelFmtInfoTbl" here!  That table is of a different type; GFX10
         // users need to call "Gfx10MergedChannelFmtInfoTbl" instead.
 
@@ -78,6 +79,11 @@ const MergedFlatFmtInfo* MergedChannelFlatFmtInfoTbl(
 
     const MergedFlatFmtInfo*  pFlatFmtInfo = nullptr;
 
+    if (IsGfx102Plus(gfxIpLevel))
+    {
+        pFlatFmtInfo = Gfx10_2MergedChannelFmtInfoTbl;
+    }
+    else
     {
         pFlatFmtInfo = Gfx10MergedChannelFmtInfoTbl;
     }

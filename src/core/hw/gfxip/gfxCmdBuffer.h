@@ -346,6 +346,17 @@ public:
         const ImageResolveRegion* pRegions,
         uint32                    flags) override;
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 554
+    virtual void CmdResolvePrtPlusImage(
+        const IImage&                    srcImage,
+        ImageLayout                      srcImageLayout,
+        const IImage&                    dstImage,
+        ImageLayout                      dstImageLayout,
+        PrtPlusResolveType               resolveType,
+        uint32                           regionCount,
+        const PrtPlusImageResolveRegion* pRegions) override;
+#endif
+
     void CmdCopyImageToPackedPixelImage(
         const IImage&          srcImage,
         const IImage&          dstImage,
@@ -453,6 +464,15 @@ public:
     PerfExperimentFlags PerfTracesEnabled() const { return m_cmdBufPerfExptFlags; }
 
     Result AddFceSkippedImageCounter(GfxImage* pGfxImage);
+
+    // Other Cmd* functions may call this function to notify our VRS copy state tracker of changes to VRS resources.
+    // Provide a NOP default implementation, it should only be implemented on gfx9 universal command buffers.
+    //
+    // We take care to never overwrite HTile VRS data in universal command buffers (even in InitMaskRam) so only HW
+    // bugs should overwrite the HTile VRS data. It's OK that DMA command buffers will clobber HTile VRS data on Init
+    // because we'll redo the HTile update the first time the image is bound in a universal command buffer. Thus we
+    // only need to call DirtyVrsDepthImage when a certain HW bug is triggered.
+    virtual void DirtyVrsDepthImage(const IImage* pDepthImage) { }
 
     UploadFenceToken GetMaxUploadFenceToken() const { return m_maxUploadFenceToken; }
 

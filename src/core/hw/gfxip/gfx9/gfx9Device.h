@@ -45,6 +45,9 @@ struct BarrierInfo;
 namespace Gfx9
 {
 
+// Needed only for VRS support
+class Gfx10DepthStencilView;
+
 // This value is the result Log2(MaxMsaaRasterizerSamples) + 1.
 constexpr uint32 MsaaLevelCount = 5;
 
@@ -165,6 +168,9 @@ public:
     virtual Result LateInit() override;
     virtual Result Finalize() override;
     virtual Result Cleanup() override;
+
+    virtual Result HwlValidateImageViewInfo(const ImageViewInfo& viewInfo) const override;
+    virtual Result HwlValidateSamplerInfo(const SamplerInfo& samplerInfo)  const override;
 
     //            rbAligned must be true for ASICs with > 1 RBs, otherwise there would be access violation
     //            between different RBs
@@ -450,6 +456,12 @@ public:
         const FmaskViewInfo*  pFmaskViewInfo,
         void*                 pOut);
 
+    static void PAL_STDCALL CreateBvhSrds(
+        const IDevice*  pDevice,
+        uint32          count,
+        const BvhInfo*  pBvhInfo,
+        void*           pOut);
+
     void CreateFmaskViewSrdsInternal(
         uint32                       count,
         const FmaskViewInfo*         pFmaskViewInfo,
@@ -634,6 +646,10 @@ public:
         size_t      tableBytes,
         gpusize     dataGpuVirtAddr) const override;
 
+    const Gfx10DepthStencilView*  GetVrsDepthStencilView() const { return m_pVrsDepthView; }
+
+    uint32 Gfx102PlusGetNumActiveShaderArraysLog2() const;
+
     virtual uint32 GetVarBlockSize() const override { return m_varBlockSize; }
 
 #if PAL_ENABLE_PRINTS_ASSERTS
@@ -779,6 +795,11 @@ private:
     volatile uint32         m_msaaRate;
     // Resolution will be determined at each present by examining the width and height of the presented image.
     volatile Extent2d       m_presentResolution;
+
+    Result  CreateVrsDepthView();
+    void    DestroyVrsDepthImage(Pal::Image*  pDsImage);
+
+    Gfx10DepthStencilView*  m_pVrsDepthView;
 
     // Local copy of the GB_ADDR_CONFIG register
     const uint32      m_gbAddrConfig;

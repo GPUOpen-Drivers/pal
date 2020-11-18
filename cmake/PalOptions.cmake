@@ -32,6 +32,9 @@ macro(pal_gfx9_options)
 
     pal_warn_about_default_gpu(PAL_BUILD_NAVI14 "Build PAL with Navi14 support?" ON)
 
+    pal_warn_about_default_gpu(PAL_BUILD_NAVI21 "Build PAL with Navi21 support?" ON)
+    pal_set_or(PAL_BUILD_GFX10_3 ${PAL_BUILD_NAVI21})
+
 endmacro() # gfx9
 
 # Specify GPU build options

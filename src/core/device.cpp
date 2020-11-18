@@ -578,6 +578,7 @@ Result Device::HwlEarlyInit()
 #endif
     case GfxIpLevel::GfxIp9:
     case GfxIpLevel::GfxIp10_1:
+    case GfxIpLevel::GfxIp10_3:
         result = Gfx9::CreateDevice(this, pGfxPlacementAddr, &pfnTable, &m_pGfxDevice);
         break;
     default:
@@ -648,6 +649,7 @@ Result Device::HwlEarlyInit()
         m_pfnTable.pfnCreateImageViewSrds      = pfnTable.pfnCreateImageViewSrds;
         m_pfnTable.pfnCreateFmaskViewSrds      = pfnTable.pfnCreateFmaskViewSrds;
         m_pfnTable.pfnCreateSamplerSrds        = pfnTable.pfnCreateSamplerSrds;
+        m_pfnTable.pfnCreateBvhSrds            = pfnTable.pfnCreateBvhSrds;
     }
 
     return result;
@@ -697,6 +699,7 @@ void Device::InitPerformanceRatings()
             numWavesPerSimd  = m_chipProperties.gfx9.numWavesPerSimd;
             break;
         case GfxIpLevel::GfxIp10_1:
+        case GfxIpLevel::GfxIp10_3:
             simdWidthMultiplier = 32;
             numShaderEngines    = m_chipProperties.gfx9.numShaderEngines;
             numShaderArrays     = m_chipProperties.gfx9.numShaderArrays;
@@ -842,6 +845,7 @@ void Device::GetHwIpDeviceSizes(
 #endif
     case GfxIpLevel::GfxIp9:
     case GfxIpLevel::GfxIp10_1:
+    case GfxIpLevel::GfxIp10_3:
         pHwDeviceSizes->gfx = Gfx9::GetDeviceSize(ipLevels.gfx);
         gfxAddrMgrSize      = AddrMgr2::GetSize();
         break;
@@ -1988,6 +1992,7 @@ Result Device::GetProperties(
         pInfo->gpuMemoryProperties.flags.autoPrioritySupport     = m_memoryProperties.flags.autoPrioritySupport;
         pInfo->gpuMemoryProperties.flags.pageMigrationEnabled    = m_memoryProperties.flags.intraSubmitMigration;
         pInfo->gpuMemoryProperties.flags.supportsTmz             = m_memoryProperties.flags.supportsTmz;
+        pInfo->gpuMemoryProperties.flags.supportsMall            = m_memoryProperties.flags.supportsMall;
 
         pInfo->gpuMemoryProperties.realMemAllocGranularity    = m_memoryProperties.realMemAllocGranularity;
         pInfo->gpuMemoryProperties.virtualMemAllocGranularity = m_memoryProperties.virtualMemAllocGranularity;
@@ -2030,6 +2035,7 @@ Result Device::GetProperties(
         pInfo->imageProperties.prtTileSize      = m_chipProperties.imageProperties.prtTileSize;
         pInfo->imageProperties.msaaSupport      = m_chipProperties.imageProperties.msaaSupport;
         pInfo->imageProperties.maxMsaaFragments = m_chipProperties.imageProperties.maxMsaaFragments;
+        pInfo->imageProperties.vrsTileSize      = m_chipProperties.imageProperties.vrsTileSize;
 
         pInfo->imageProperties.flags.u32All                       = 0;
         pInfo->imageProperties.flags.supportsAqbsStereoMode       =
@@ -2142,6 +2148,7 @@ Result Device::GetProperties(
 
         case GfxIpLevel::GfxIp9:
         case GfxIpLevel::GfxIp10_1:
+        case GfxIpLevel::GfxIp10_3:
         {
             const auto& gfx9Props = m_chipProperties.gfx9;
 
@@ -2208,6 +2215,10 @@ Result Device::GetProperties(
             pInfo->gfxipProperties.flags.support1xMsaaSampleLocations   = gfx9Props.support1xMsaaSampleLocations;
             pInfo->gfxipProperties.flags.supportOutOfOrderPrimitives    = gfx9Props.supportOutOfOrderPrimitives;
 
+            pInfo->gfxipProperties.flags.supportIntersectRayBarycentrics = gfx9Props.supportIntersectRayBarycentrics;
+
+            pInfo->gfxipProperties.supportedVrsRates                     = gfx9Props.gfx10.supportedVrsRates;
+            pInfo->gfxipProperties.flags.supportVrsWithDsExports         = gfx9Props.gfx10.supportVrsWithDsExports ? 1 : 0;
             pInfo->gfxipProperties.flags.supportSortAgnosticBarycentrics = gfx9Props.supportSortAgnosticBarycentrics;
 
             PAL_ASSERT((gfx9Props.numShaderEngines <= MaxShaderEngines) &&
@@ -2266,6 +2277,7 @@ Result Device::GetProperties(
         pInfo->gfxipProperties.srdSizes.imageView  = m_chipProperties.srdSizes.imageView;
         pInfo->gfxipProperties.srdSizes.fmaskView  = m_chipProperties.srdSizes.fmaskView;
         pInfo->gfxipProperties.srdSizes.sampler    = m_chipProperties.srdSizes.sampler;
+        pInfo->gfxipProperties.srdSizes.bvh        = m_chipProperties.srdSizes.bvh;
 
         pInfo->gfxipProperties.nullSrds.pNullBufferView = m_chipProperties.nullSrds.pNullBufferView;
         pInfo->gfxipProperties.nullSrds.pNullImageView  = m_chipProperties.nullSrds.pNullImageView;

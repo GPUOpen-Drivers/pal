@@ -54,7 +54,8 @@ constexpr uint32 AllDepthImageLayoutFlags = LayoutUninitializedTarget |
                                             LayoutCopySrc             |
                                             LayoutCopyDst             |
                                             LayoutResolveSrc          |
-                                            LayoutResolveDst;
+                                            LayoutResolveDst          |
+                                            LayoutSampleRate;
 
 enum UseComputeExpand : uint32
 {

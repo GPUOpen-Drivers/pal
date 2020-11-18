@@ -1269,4 +1269,28 @@ void CmdBuffer::SetCmdRecordingError(
     }
 }
 
+// =====================================================================================================================
+// Generic implementation for products or command buffers that don't support VRS.
+void CmdBuffer::CmdSetPerDrawVrsRate(
+    const VrsRateParams&  rateParams)
+{
+    PAL_NOT_IMPLEMENTED();
+}
+
+// =====================================================================================================================
+// Generic implementation for products or command buffers that don't support VRS.
+void CmdBuffer::CmdSetVrsCenterState(
+    const VrsCenterState&  centerState)
+{
+    PAL_NOT_IMPLEMENTED();
+}
+
+// =====================================================================================================================
+// Generic implementation for products or command buffers that don't support VRS.
+void CmdBuffer::CmdBindSampleRateImage(
+    const IImage*  pImage)
+{
+    PAL_NOT_IMPLEMENTED();
+}
+
 } // Pal

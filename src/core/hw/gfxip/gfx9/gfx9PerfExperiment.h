@@ -173,6 +173,20 @@ struct GlobalSelectState
                                                                  //  (for counters requiring ThreshCnt, ThreshCntEn)
     } umcch[Gfx9MaxUmcchInstances];
 
+    // There is a single DF instance that defines a set of global counters. Each pair of PerfMonCtl registers controls
+    // a single global counter.
+    struct
+    {
+        bool hasCounters;             // If any of the global counters are in use.
+        bool usePerfmonControlPacket; // CP supports PERFMON_CONTROL packet for DF config.
+        struct
+        {
+            bool   perfmonInUse;      // If this DF global counter is enabled.
+            uint32 eventSelect;       // DF subblock instance and eventId
+            uint8  eventUnitMask;     // Event specific configuration data.
+        } perfmonConfig[Gfx10MaxDfPerfMon];
+    } df;
+
     // The generic block state. These arrays are sparse in that elements can be zero or nullptr if:
     // - The block doesn't exist on our device.
     // - The block requires special handling (see above).

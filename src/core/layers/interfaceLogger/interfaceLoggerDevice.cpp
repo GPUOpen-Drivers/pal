@@ -71,6 +71,7 @@ Device::Device(
     m_pfnTable.pfnCreateImageViewSrds      = CreateImageViewSrds;
     m_pfnTable.pfnCreateFmaskViewSrds      = CreateFmaskViewSrds;
     m_pfnTable.pfnCreateSamplerSrds        = CreateSamplerSrds;
+    m_pfnTable.pfnCreateBvhSrds            = CreateBvhSrds;
 }
 
 // =====================================================================================================================
@@ -3005,6 +3006,41 @@ void PAL_STDCALL Device::CreateSamplerSrds(
         for (uint32 idx = 0; idx < count; ++idx)
         {
             pLogContext->Struct(pSamplerInfo[idx]);
+        }
+
+        pLogContext->EndList();
+        pLogContext->EndInput();
+
+        pPlatform->LogEndFunc(pLogContext);
+    }
+}
+
+// =====================================================================================================================
+void PAL_STDCALL Device::CreateBvhSrds(
+    const IDevice*  pDevice,
+    uint32          count,
+    const BvhInfo*  pBvhInfo,
+    void*           pOut)
+{
+    const auto* pThis     = static_cast<const Device*>(pDevice);
+    auto*const  pPlatform = static_cast<Platform*>(pThis->m_pPlatform);
+
+    BeginFuncInfo funcInfo = {};
+    funcInfo.funcId       = InterfaceFunc::DeviceCreateBvhSrds;
+    funcInfo.objectId     = pThis->m_objectId;
+    funcInfo.preCallTime  = pPlatform->GetTime();
+    DeviceDecorator::DecoratorCreateBvhSrds(pDevice, count, pBvhInfo, pOut);
+    funcInfo.postCallTime = pPlatform->GetTime();
+
+    LogContext* pLogContext = nullptr;
+    if (pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    {
+        pLogContext->BeginInput();
+        pLogContext->KeyAndBeginList("bvhInfo", false);
+
+        for (uint32 idx = 0; idx < count; ++idx)
+        {
+            pLogContext->Struct(pBvhInfo[idx]);
         }
 
         pLogContext->EndList();

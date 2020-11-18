@@ -504,6 +504,12 @@ void RsrcProcMgr::CmdCopyImage(
         }
     }
 
+    if (copyEngine == ImageCopyEngine::ComputeVrsDirty)
+    {
+        // This copy destroyed the VRS data associated with the destination image.  Mark it as dirty so the
+        // next draw re-issues the VRS copy.
+        pCmdBuffer->DirtyVrsDepthImage(&dstImage);
+    }
 }
 
 // =====================================================================================================================
@@ -2024,6 +2030,12 @@ void RsrcProcMgr::CopyBetweenMemoryAndImage(
                                                             viewBpp * imgCreateInfo.fragments,
                                                             copyRegion.gpuMemoryRowPitch,
                                                             copyRegion.gpuMemoryDepthPitch);
+#if  PAL_CLIENT_INTERFACE_MAJOR_VERSION>= 558
+        bufferView.flags.bypassMallRead  = TestAnyFlagSet(settings.rpmViewsBypassMall,
+                                                          Gfx10RpmViewsBypassMallOnRead);
+        bufferView.flags.bypassMallWrite = TestAnyFlagSet(settings.rpmViewsBypassMall,
+                                                          Gfx10RpmViewsBypassMallOnWrite);
+#endif
 
         device.CreateTypedBufferViewSrds(1, &bufferView, pUserData);
         pUserData += SrdDwordAlignment();
@@ -2198,6 +2210,12 @@ void RsrcProcMgr::CmdCopyTypedBuffer(
         bufferView.range          = ComputeTypedBufferRange(copyExtent, rawBpp, dstInfo.rowPitch, dstInfo.depthPitch);
         bufferView.stride         = rawBpp;
         bufferView.swizzledFormat = rawFormat;
+#if  PAL_CLIENT_INTERFACE_MAJOR_VERSION>= 558
+        bufferView.flags.bypassMallRead  = TestAnyFlagSet(settings.rpmViewsBypassMall,
+                                                          Gfx10RpmViewsBypassMallOnRead);
+        bufferView.flags.bypassMallWrite = TestAnyFlagSet(settings.rpmViewsBypassMall,
+                                                          Gfx10RpmViewsBypassMallOnWrite);
+#endif
 
         device.CreateTypedBufferViewSrds(1, &bufferView, pUserDataTable);
         pUserDataTable += SrdDwordAlignment();
@@ -2526,6 +2544,12 @@ void RsrcProcMgr::GenerateMipmapsFast(
             bufferView.stride         = 0;
             bufferView.range          = sizeof(uint32);
             bufferView.swizzledFormat = UndefinedSwizzledFormat;
+#if  PAL_CLIENT_INTERFACE_MAJOR_VERSION>= 558
+            bufferView.flags.bypassMallRead  = TestAnyFlagSet(settings.rpmViewsBypassMall,
+                                                              Gfx10RpmViewsBypassMallOnRead);
+            bufferView.flags.bypassMallWrite = TestAnyFlagSet(settings.rpmViewsBypassMall,
+                                                              Gfx10RpmViewsBypassMallOnWrite);
+#endif
 
             device.CreateUntypedBufferViewSrds(1, &bufferView, pUserData);
 
@@ -3593,6 +3617,20 @@ void RsrcProcMgr::ScaledCopyImageCompute(
         }
     }
 
+    if (CopyDstBoundStencilNeedsWa(pCmdBuffer, *pDstImage))
+    {
+        for (uint32 regionIdx = 0; regionIdx < copyInfo.regionCount; regionIdx++)
+        {
+            if (copyInfo.pRegions[regionIdx].dstSubres.aspect == ImageAspect::Stencil)
+            {
+                // Mark the VRS dest image as dirty to force an update of Htile on the next draw.
+                pCmdBuffer->DirtyVrsDepthImage(pDstImage);
+
+                // No need to loop through all the regions; they all affect the same image.
+                break;
+            }
+        }
+    }
 }
 
 // =====================================================================================================================
@@ -4040,6 +4078,12 @@ void RsrcProcMgr::CmdFillMemory(
             dstBufferView.swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One };
         }
+#if  PAL_CLIENT_INTERFACE_MAJOR_VERSION>= 558
+        dstBufferView.flags.bypassMallRead  = TestAnyFlagSet(settings.rpmViewsBypassMall,
+                                                             Gfx10RpmViewsBypassMallOnRead);
+        dstBufferView.flags.bypassMallWrite = TestAnyFlagSet(settings.rpmViewsBypassMall,
+                                                             Gfx10RpmViewsBypassMallOnWrite);
+#endif
         m_pDevice->Parent()->CreateTypedBufferViewSrds(1, &dstBufferView, &srd[0]);
 
         pCmdBuffer->CmdSetUserData(PipelineBindPoint::Compute, 0, 4, &srd[0]);
@@ -5159,6 +5203,12 @@ void RsrcProcMgr::CmdClearColorBuffer(
     dstViewInfo.range          = rawStride * bufferExtent;
     dstViewInfo.stride         = rawStride;
     dstViewInfo.swizzledFormat = rawFormat;
+#if  PAL_CLIENT_INTERFACE_MAJOR_VERSION>= 558
+    dstViewInfo.flags.bypassMallRead  = TestAnyFlagSet(settings.rpmViewsBypassMall,
+                                                       Gfx10RpmViewsBypassMallOnRead);
+    dstViewInfo.flags.bypassMallWrite = TestAnyFlagSet(settings.rpmViewsBypassMall,
+                                                       Gfx10RpmViewsBypassMallOnWrite);
+#endif
 
     uint32 dstSrd[4] = {0};
     PAL_ASSERT(m_pDevice->Parent()->ChipProperties().srdSizes.bufferView == sizeof(dstSrd));
@@ -5656,6 +5706,12 @@ void RsrcProcMgr::CmdGenerateIndirectCmds(
     viewInfo.swizzledFormat = UndefinedSwizzledFormat;
     viewInfo.range          = (generator.Properties().argBufStride * maximumCount);
     viewInfo.stride         = 1;
+#if  PAL_CLIENT_INTERFACE_MAJOR_VERSION>= 558
+    viewInfo.flags.bypassMallRead  = TestAnyFlagSet(settings.rpmViewsBypassMall,
+                                                    Gfx10RpmViewsBypassMallOnRead);
+    viewInfo.flags.bypassMallWrite = TestAnyFlagSet(settings.rpmViewsBypassMall,
+                                                    Gfx10RpmViewsBypassMallOnWrite);
+#endif
     m_pDevice->Parent()->CreateUntypedBufferViewSrds(1, &viewInfo, pTableMem);
     pTableMem += SrdDwords;
 
@@ -7748,6 +7804,23 @@ void RsrcProcMgr::BindCommonGraphicsState(
     pCmdBuffer->CmdSetClipRects(DefaultClipRectsRule, 0, nullptr);
     pCmdBuffer->CmdSetGlobalScissor(scissorParams);
 
+    // Setup register state to put VRS into 1x1 mode (i.e., essentially off).
+
+    VrsCenterState  centerState = {};
+    VrsRateParams   rateParams  = {};
+
+    rateParams.shadingRate = VrsShadingRate::_1x1;
+    rateParams.combinerState[static_cast<uint32>(VrsCombinerStage::ProvokingVertex)] = VrsCombiner::Passthrough;
+    rateParams.combinerState[static_cast<uint32>(VrsCombinerStage::Primitive)]       = VrsCombiner::Passthrough;
+    rateParams.combinerState[static_cast<uint32>(VrsCombinerStage::Image)]           = VrsCombiner::Passthrough;
+    rateParams.combinerState[static_cast<uint32>(VrsCombinerStage::PsIterSamples)]   = VrsCombiner::Min;
+
+    pCmdBuffer->CmdSetPerDrawVrsRate(rateParams);
+    pCmdBuffer->CmdSetVrsCenterState(centerState);
+
+    // Might not have a bound depth buffer here, so don't provide a source image either so the draw-time validator
+    // doesn't do an insane amount of work.
+    pCmdBuffer->CmdBindSampleRateImage(nullptr);
 }
 
 // =====================================================================================================================

@@ -123,6 +123,7 @@ enum class NullGpuId : uint32
 
     Navi10      = 0x1C,
     Navi14      = 0x1F,
+    Navi21      = 0x21,
 
     Max         = 0x2B,
     All         = 0x2C,

@@ -124,6 +124,10 @@ void Gfx9MaskRam::BuildSurfBufferView(
     pViewInfo->range          = TotalSize();
     pViewInfo->stride         = 1;
     pViewInfo->swizzledFormat = UndefinedSwizzledFormat;
+#if  PAL_CLIENT_INTERFACE_MAJOR_VERSION>= 558
+    pViewInfo->flags.bypassMallRead  = TestAnyFlagSet(settings.rpmViewsBypassMall, Gfx10RpmViewsBypassMallOnRead);
+    pViewInfo->flags.bypassMallWrite = TestAnyFlagSet(settings.rpmViewsBypassMall, Gfx10RpmViewsBypassMallOnWrite);
+#endif
 }
 
 // =====================================================================================================================
@@ -194,6 +198,9 @@ uint32 Gfx9MaskRam::GetMetaBlockSize(
     const uint32           bppLog2               = GetBytesPerPixelLog2();
     const uint32           numSamplesLog2        = GetNumSamplesLog2();
     uint32                 numPipesLog2          = m_pGfxDevice->GetNumPipesLog2();
+    const uint32           numShaderArraysLog2   = IsGfx102Plus(*pPalDevice)
+                                                   ? m_pEqGenerator->GetNumShaderArrayLog2()
+                                                   : 0;
     const uint32           effectiveNumPipesLog2 = m_pEqGenerator->GetEffectiveNumPipes();
     const uint32           pipeInterleaveLog2    = m_pGfxDevice->GetPipeInterleaveLog2();
     const uint32           maxFragsLog2          = m_pGfxDevice->GetMaxFragsLog2();
@@ -203,6 +210,14 @@ uint32 Gfx9MaskRam::GetMetaBlockSize(
     const uint32           pipeRotateAmount      = m_pEqGenerator->GetPipeRotateAmount();
     const uint32           compBlockSize         = IsColor() ? 8 : (6 + numSamplesLog2 + bppLog2);
     const uint32           samplesInMetaBlock    = IsZSwizzle(swizzleMode) ? numSamplesLog2 : maxCompFragsLog2;
+
+    if (IsGfx103(*(m_pGfxDevice->Parent()))         &&
+        pPalDevice->ChipProperties().gfx9.rbPlus    &&
+        (numPipesLog2 == (numShaderArraysLog2 + 1)) &&
+        (numPipesLog2 > 1))
+    {
+        numPipesLog2++;
+    }
 
     if (numPipesLog2 >= 4)
     {
@@ -298,6 +313,10 @@ void Gfx9MetaEqGenerator::BuildEqBufferView(
                                   MetaDataAddrCompNumTypes                      *
                                   sizeof (uint32);
     pBufferView->gpuAddr        = m_pParent->GetImage().Parent()->GetGpuVirtualAddr() + m_eqGpuAccess.offset;
+#if  PAL_CLIENT_INTERFACE_MAJOR_VERSION>= 558
+    pBufferView->flags.bypassMallRead  = TestAnyFlagSet(settings.rpmViewsBypassMall, Gfx10RpmViewsBypassMallOnRead);
+    pBufferView->flags.bypassMallWrite = TestAnyFlagSet(settings.rpmViewsBypassMall, Gfx10RpmViewsBypassMallOnWrite);
+#endif
 }
 
 // =====================================================================================================================
@@ -1274,6 +1293,7 @@ void Gfx9MetaEqGenerator::AddMetaPipeBits(
     const uint32           effectiveNumPipesLog2       = GetEffectiveNumPipes();
     const uint32           numPipesLog2                = m_pParent->GetGfxDevice()->GetNumPipesLog2();
     const uint32           numSamplesLog2              = m_pParent->GetNumSamplesLog2();
+    const uint32           numShaderArraysLog2         = IsGfx102Plus(*pPalDevice) ? GetNumShaderArrayLog2() : 0;
     const uint32           pipeInterleaveLog2          = m_pParent->GetGfxDevice()->GetPipeInterleaveLog2();
     const uint32           startBase                   = 8;
     const uint32           endBase                     = startBase + effectiveNumPipesLog2;
@@ -1282,6 +1302,375 @@ void Gfx9MetaEqGenerator::AddMetaPipeBits(
     CompPair cx = MetaDataAddrEquation::SetCompPair(MetaDataAddrCompX, microBlockLog2.width);
     CompPair cy = MetaDataAddrEquation::SetCompPair(MetaDataAddrCompY, microBlockLog2.height);
 
+    if (pPalDevice->ChipProperties().gfx9.rbPlus)
+    {
+        int32  s       = -1;
+        uint32 pos     = 0;
+        uint32 tileOrd = 4;
+        bool   xBit    = false;
+        bool   sBit    = false;
+
+        Data2dParamsNew  params = {};
+        GetData2DParamsNew(&params);
+
+        PAL_ASSERT(8 <= params.restart);
+
+        uint32 numZBits      = params.restart - startBase;
+        uint32 sampleBits    = (bppLog2 <= 2) ? 3 : numSamplesLog2;
+        uint32 zBitsToRotate = 0;
+
+        if ((numZBits + sampleBits) >= 6)
+        {
+            zBitsToRotate = numZBits + sampleBits - 6;
+
+            if ((effectiveNumPipesLog2 + sampleBits) >= 6)
+            {
+                zBitsToRotate++;
+            }
+        }
+
+        PAL_ASSERT(zBitsToRotate <= numZBits);
+        CompPair cz = MetaDataAddrEquation::SetCompPair(MetaDataAddrCompZ, numZBits - zBitsToRotate);
+
+        // This hack is to ensure that htile addressing is the same regardless of bpp
+        // without it the pipe can differ in z bits.  This only addresses bpp <= 2 (which covers all depth modes)
+        // and when pipes are less than or equal to 64 pipes.  Greater than this will mean that x/y bits can also
+        // affect the pipe, and can be different based on bpp, so we cannot make this assurance
+        uint32 maxZPos = endBase;
+        if (bppLog2 <= 2)
+        {
+            PAL_ASSERT(zBitsToRotate <= (8 + numZBits));
+
+            maxZPos = 8 + numZBits - zBitsToRotate;
+        }
+
+        uint32 ord = cx.compPos;
+        if ((ord >= tileOrd) && (ord < params.pipeAnchorWidthLog2))
+        {
+            if ((ord == 4)  ||
+                ((ord == 3) && (params.skipY3 == false)))
+            {
+                cx.compPos++;
+                ord++;
+            }
+
+            if (ord > 4)
+            {
+                cx = MetaDataAddrEquation::SetCompPair(cx.compType, params.pipeAnchorWidthLog2);
+            }
+        }
+
+        ord = cy.compPos;
+        if ((ord >= tileOrd) && (ord < params.pipeAnchorHeightLog2))
+        {
+            if ((ord == 3) && params.skipY3)
+            {
+                cy.compPos++;
+                ord++;
+            }
+
+            if (ord > 4)
+            {
+                cy = MetaDataAddrEquation::SetCompPair(cy.compType, params.pipeAnchorHeightLog2);
+            }
+        }
+
+        const uint32 tileSplitStart = endBase;
+
+        uint32 subTileXyBits = 0;
+        if ((microBlockLog2.width + microBlockLog2.height) <= 6)
+        {
+            subTileXyBits = 6 - microBlockLog2.width - microBlockLog2.height;
+        }
+
+        const uint32 maxPipeRotateBit  = ((params.pipeRotateAmount <= 1)
+                                          ? params.pipeRotateBit0
+                                          : Max(params.pipeRotateBit0, params.pipeRotateBit1))
+                                         + 1;
+
+        uint32  end     = params.tileSplitBits + Max(endBase, maxPipeRotateBit);
+        bool    pipeBit = false;
+
+        for(uint32 i = startBase; i < end; i++)
+        {
+            sBit = false;
+
+            pos = i;
+            if (pos >= (tileSplitStart + params.tileSplitBits))
+            {
+                pos -= params.tileSplitBits;
+            }
+            else if (pos >= tileSplitStart)
+            {
+                pos += blockSizeLog2 - tileSplitStart - params.tileSplitBits;
+            }
+
+            if ((params.tileSplitBits >= 2u) && (params.yBias >= params.tileSplitBits - 1))
+            {
+                // swap last 2 bits below block_size
+                if (pos == (blockSizeLog2 - 1))
+                {
+                    pos--;
+                }
+                else if (pos == (blockSizeLog2 - 2))
+                {
+                    pos++;
+                }
+            }
+
+            if (pos < endBase)
+            {
+                if (params.flipPipeFill != 0)
+                {
+                    if (pos == params.restart)
+                    {
+                        pos += params.flipPipeFill;
+                    }
+                    else if (pos == (params.restart + params.flipPipeFill))
+                    {
+                        pos -= params.flipPipeFill;
+                    }
+                }
+            }
+
+            if ((numSamplesLog2 == 3)      &&
+                (i < blockSizeLog2)        &&
+                (subTileXyBits == 3)       &&
+                (params.tileSplitBits > 0) &&
+                (params.tileSplitBits < subTileXyBits))
+            {
+                // swap the first and last bits
+                if (pos == params.restart)
+                {
+                    pos = blockSizeLog2 - 1;
+                }
+                else if (pos == (blockSizeLog2 - 1))
+                {
+                    pos = params.restart;
+                }
+            }
+
+            if (IsGfx103(*(m_pParent->GetGfxDevice()->Parent())) &&
+                (numSamplesLog2 == 3)                            &&
+                (i < blockSizeLog2)                              &&
+                (subTileXyBits == 3)                             &&
+                (numPipesLog2 == (numShaderArraysLog2 + 1))      &&
+                (params.restart < (8 + numPipesLog2 - 1)))
+            {
+                if (pos == params.restart)
+                {
+                    pos = 8 + numPipesLog2 - 1;
+                }
+                else if (pos == (8 + numPipesLog2 - 1))
+                {
+                    pos = params.restart;
+                }
+            }
+
+            const bool withinBit0 = (pos <= params.pipeRotateBit0);
+            const bool withinBit1 = (pos <= params.pipeRotateBit1);
+            const bool onBit0     = (pos == params.pipeRotateBit0);
+            const bool onBit1     = (pos == params.pipeRotateBit1);
+
+            if ((params.pipeRotateAmount > 0) &&
+                withinBit0                    &&
+                (onBit1 == false))
+            {
+                if (onBit0)
+                {
+                    pos = 8 + params.pipeRotateAmount - 1;
+                }
+                else
+                {
+                    pos++;
+                }
+            }
+
+            if ((params.pipeRotateAmount > 1) &&
+                withinBit1                    &&
+                (onBit0 == false))
+            {
+                if (onBit1)
+                {
+                    pos = 8 + params.pipeRotateAmount - 2;
+                }
+                else
+                {
+                    pos++;
+                }
+            }
+
+            pipeBit = (pos < (8 + numPipesLog2));
+            if (pipeBit)
+            {
+                pos += (pipeInterleaveLog2 - 8);
+            }
+
+            pos += offset;
+
+            if (i == endBase)
+            {
+                s = 0;
+            }
+
+            xBit = (((i - params.restart - params.yBias) & 1) == 0);
+            if (i < endBase)
+            {
+                sBit = ((i >= params.restart) && (s >= 0));
+            }
+            else
+            {
+                sBit = ((blockSizeLog2 - i) <= params.upperSampleBits);
+            }
+
+            if (i < (params.restart + params.yBias))
+            {
+                xBit = false;
+            }
+
+            // Don't do 3 y bits in a row.  Do 2 y bits, followed by a 2 y bits again
+            if ((params.yBias == 3)         &&
+                (params.tileSplitBits == 3) &&
+                ((i == params.restart + 2)  || (i == params.restart + 3)))
+            {
+                xBit = (xBit ? false : true);
+            }
+
+            if (i >= params.restart)
+            {
+                if (sBit)
+                {
+                    if (i < endBase)
+                    {
+                        s--;
+                    }
+                    else
+                    {
+                        s++;
+                    }
+                }
+                else
+                {
+                    if (xBit)
+                    {
+                        if (pipeBit && (cx.compPos >= compBlockLog2.width))
+                        {
+                            pPipe->SetBit(pos, cx);
+                        }
+
+                        cx.compPos++;
+                        ord = cx.compPos;
+                        if ((ord >= tileOrd) && (ord < params.pipeAnchorWidthLog2))
+                        {
+                            if ((ord == 4) || ((ord == 3) && (params.skipY3 == false)))
+                            {
+                                cx.compPos++;
+                                ord++;
+                            }
+
+                            if (ord > 4)
+                            {
+                                cx = MetaDataAddrEquation::SetCompPair(cx.compType, params.pipeAnchorWidthLog2);
+                            }
+                        }
+                    }
+                    else
+                    {
+                        if (pipeBit && (cy.compPos >= compBlockLog2.height))
+                        {
+                            pPipe->SetBit(pos, cy);
+                        }
+
+                        cy.compPos++;
+                        ord = cy.compPos;
+                        if ((ord >= tileOrd) && (ord < params.pipeAnchorHeightLog2))
+                        {
+                            if ((ord == 3) && params.skipY3)
+                            {
+                                cy.compPos++;
+                                ord++;
+                            }
+
+                            if (ord > 4)
+                            {
+                                cy = MetaDataAddrEquation::SetCompPair(cy.compType, params.pipeAnchorHeightLog2);
+                            }
+                        }
+                    }
+                }
+            }
+            else if (i < maxZPos)
+            {
+                if (cz.compPos > 0)
+                {
+                    cz.compPos--;
+                }
+                else
+                {
+                    cz.compPos = static_cast<uint8>(numZBits - 1);
+                }
+
+                if (pipeBit)
+                {
+                    pPipe->SetBit(pos, cz);
+                }
+            }
+
+            if (onBit0 || onBit1)
+            {
+                const uint32  pipeBlockSize = GetEffectiveNumPipes() + 4;
+
+                int32                     pipeBlockOrd  = pipeBlockSize;
+                const CompPair            firstCompPair = pPipe->GetFirst(pos);
+                MetaDataAddrComponentType compType      = firstCompPair.compType;
+
+                if (firstCompPair.compPos < 3)
+                {
+                    compType = (((numSamplesLog2 & 1) != 0) &&
+                                (numShaderArraysLog2 < ((numSamplesLog2 < 2) ? 3 : 1))
+                                ? MetaDataAddrCompY
+                                : MetaDataAddrCompX);
+
+                    if ((numSamplesLog2 == 3)  && ((blockSizeLog2 - numPipesLog2) == 11))
+                    {
+                       compType = MetaDataAddrCompY;
+                    }
+
+                    const uint32  temp = ((compType == MetaDataAddrCompY) ? 1 : 2);
+
+                    pPipe->SetBit(pos,
+                                  MetaDataAddrEquation::SetCompPair(compType,
+                                                                    ((numShaderArraysLog2 < temp) ? 5 : 6)));
+                }
+
+                if (onBit0 || pPipe->IsEmpty(pos))
+                {
+                    compType = MetaDataAddrCompZ;
+                }
+
+                if (onBit1                        &&
+                    ((numPipesLog2 == 5)          ||
+                     ((numPipesLog2 < 6)          &&
+                      ((numPipesLog2 & 1) == 0)   &&
+                      ((numSamplesLog2 & 1) != 0) &&
+                      ((10 + numPipesLog2 + numSamplesLog2) < blockSizeLog2))))
+                {
+                    pipeBlockOrd--;
+                }
+
+                if (compType != MetaDataAddrCompX)
+                {
+                    pPipe->SetBit(pos, MetaDataAddrEquation::SetCompPair(MetaDataAddrCompX, pipeBlockOrd));
+                }
+
+                if (compType != MetaDataAddrCompY)
+                {
+                    pPipe->SetBit(pos, MetaDataAddrEquation::SetCompPair(MetaDataAddrCompY, pipeBlockOrd));
+                }
+            }
+        }
+    }
+    else
     {
         Data2dParams  params = {};
         GetData2DParams(&params);
@@ -2019,12 +2408,21 @@ uint32 Gfx9MetaEqGenerator::GetPipeBlockSize() const
 uint32 Gfx9MetaEqGenerator::GetEffectiveNumPipes() const
 {
     const uint32 numPipesLog2 = m_pParent->GetGfxDevice()->GetNumPipesLog2();
+    const uint32 numSaLog2    = IsGfx102Plus(*(m_pParent->GetGfxDevice()->Parent())) ? GetNumShaderArrayLog2() : 0;
 
     uint32 effectiveNumPipes = 0;
 
     if (m_pipeDist == PipeDist8x8)
     {
         effectiveNumPipes = numPipesLog2;
+    }
+    else if(numSaLog2 >= (numPipesLog2 - 1))
+    {
+        effectiveNumPipes = numPipesLog2;
+    }
+    else
+    {
+        effectiveNumPipes = numSaLog2 + 1;
     }
 
     return effectiveNumPipes;
@@ -2112,6 +2510,13 @@ void Gfx9MetaEqGenerator::GetMicroBlockSize(
 }
 
 // =====================================================================================================================
+// Returns log2 of the total number of shader arrays on the GPU.
+uint32 Gfx9MetaEqGenerator::GetNumShaderArrayLog2() const
+{
+    return m_pParent->GetGfxDevice()->Gfx102PlusGetNumActiveShaderArraysLog2();
+}
+
+// =====================================================================================================================
 void Gfx9MetaEqGenerator::GetPipeAnchorSize(
     Extent2d*  pAnchorSize
     ) const
@@ -2153,9 +2558,30 @@ uint32 Gfx9MetaEqGenerator::GetPipeRotateAmount() const
 {
     const Pal::Device*  pPalDevice   = m_pParent->GetGfxDevice()->Parent();
     const uint32        numPipesLog2 = m_pParent->GetGfxDevice()->GetNumPipesLog2();
+    const uint32        numSaLog2    = IsGfx102Plus(*pPalDevice) ? GetNumShaderArrayLog2() : 0;
     uint32  pipeRotateAmount = 0;
 
+    if (IsGfx103(*pPalDevice))
     {
+        if ((numPipesLog2 >= (numSaLog2 + 1)) && (numPipesLog2 > 1))
+        {
+            if (numPipesLog2 == (numSaLog2 + 1))
+            {
+                pipeRotateAmount = 1;
+            }
+            else
+            {
+                pipeRotateAmount = numPipesLog2 - (numSaLog2 + 1);
+            }
+        }
+    }
+    else
+    {
+        if ((m_pipeDist == PipeDist16x16) && (numPipesLog2 >= (numSaLog2 + 1)))
+        {
+            pipeRotateAmount = numPipesLog2 - (numSaLog2 + 1);
+        }
+        else
         {
             pipeRotateAmount = 0;
         }
@@ -2176,6 +2602,7 @@ void Gfx9MetaEqGenerator::CalcMetaEquationGfx10()
     const uint32           numSamplesLog2        = m_pParent->GetNumSamplesLog2();
     const uint32           numPipesLog2          = m_pParent->GetGfxDevice()->GetNumPipesLog2();
     uint32                 modNumPipesLog2       = numPipesLog2;
+    const uint32           numShaderArraysLog2   = IsGfx102Plus(*pPalDevice) ? GetNumShaderArrayLog2() : 0;
     const uint32           effectiveNumPipesLog2 = GetEffectiveNumPipes();
     const uint32           cachelineSize         = m_pParent->GetMetaCachelineSize();
     const uint32           pipeInterleaveLog2    = m_pParent->GetGfxDevice()->GetPipeInterleaveLog2();
@@ -2267,6 +2694,13 @@ void Gfx9MetaEqGenerator::CalcMetaEquationGfx10()
 
             AddMetaPipeBits(&pipe, nibbleOffset);
 
+            if (IsGfx103(*pPalDevice)                       &&
+                (numPipesLog2 == (numShaderArraysLog2 + 1)) &&
+                (numPipesLog2 > 1))
+            {
+                modNumPipesLog2++;
+            }
+
             uint32 pos1 = pipeInterleaveLog2 + nibbleOffset;
 
             start = end;
@@ -2292,6 +2726,14 @@ void Gfx9MetaEqGenerator::CalcMetaEquationGfx10()
                 (((numSamplesLog2 == 1) && (modNumPipesLog2 >= 6)) ||
                  ((numSamplesLog2 == 2) && (modNumPipesLog2 >= 5))))
             {
+                if (IsGfx102Plus(*pPalDevice))
+                {
+                    if (blockSizeLog2 <= 16)
+                    {
+                        pipe.Remove(pipe.GetFirst(pos1), pos1);
+                    }
+                }
+                else
                 {
                     pipe.Remove(pipe.GetFirst(pos1), pos1);
                 }
@@ -2300,6 +2742,14 @@ void Gfx9MetaEqGenerator::CalcMetaEquationGfx10()
             // In 16Bpe 8xaa, we have an extra overlap bit
             if ((pipeRotateAmount > 0) && (pixelBlockLog2.width == 4))
             {
+                if (IsGfx102Plus(*pPalDevice))
+                {
+                    if (IsZSwizzle(swizzleMode) || (effectiveNumPipesLog2 > 3))
+                    {
+                        metaOverlap++;
+                    }
+                }
+                else
                 {
                     metaOverlap++;
                 }
@@ -2341,6 +2791,31 @@ void Gfx9MetaEqGenerator::CalcMetaEquationGfx10()
             if (m_pipeDist == PipeDist16x16)
             {
                 flipY1Y2 = false;
+                if (IsGfx102Plus(*pPalDevice))
+                {
+                    int32 subTileXYBits = 6 - compBlockLog2.width - compBlockLog2.height;
+                    if ((subTileXYBits < 0) || (IsZSwizzle(swizzleMode) == false))
+                    {
+                        subTileXYBits = 0;
+                    }
+
+                    int32 tileSplitBits = (3 - compBlockLog2.width ) +
+                                          (3 - compBlockLog2.height) -
+                                          metaOverlap;
+
+                    tileSplitBits = Max(0, tileSplitBits);
+
+                    tileSplitBits = Min((int32)numSamplesLog2, tileSplitBits);
+
+                    if ((numSamplesLog2  == 3)             &&
+                        (subTileXYBits   == 3)             &&
+                        (tileSplitBits   >  0)             &&
+                        (tileSplitBits   <  subTileXYBits) &&
+                        (modNumPipesLog2 <  6))
+                    {
+                        flipY1Y2 = true;
+                    }
+                }
             }
 
             uint32 tileSplitBits = 0;
@@ -2350,6 +2825,16 @@ void Gfx9MetaEqGenerator::CalcMetaEquationGfx10()
             {
                 if (static_cast<bool>((i - start) & 1) == flipXY)
                 {
+                    if (IsGfx102Plus(*pPalDevice)   &&
+                        (cx.compPos == 4)           &&
+                        (effectiveNumPipesLog2 > 0) &&
+                        (m_pipeDist == PipeDist16x16))
+                    {
+                        // use y4 instead x4
+                        m_meta.SetBit(i, cy);
+                        cy.compPos++;
+                    }
+                    else
                     {
                         if ((cx.compPos == 4)           &&
                             (effectiveNumPipesLog2 > 1) &&
@@ -2408,6 +2893,106 @@ void Gfx9MetaEqGenerator::CalcMetaEquationGfx10()
             uint32 shiftBit0 = 0;
             uint32 shiftBit1 = 0;
 
+            if (IsGfx102Plus(*pPalDevice))
+            {
+                if (IsGfx103(*pPalDevice)                                  &&
+                    (blockSizeLog2 == (pipeInterleaveLog2 + numPipesLog2)) &&
+                    ((modNumPipesLog2 - numPipesLog2) == 1))
+                {
+                    cx.compPos--;
+                    end++;
+                }
+                uint32 samples = IsRotatedSwizzle(swizzleMode) ? maxCompFragsLog2 : numSamplesLog2;
+
+                shiftBit0 = (m_pParent->IsColor() == false)
+                            ? (2 + m_metaDataWordSizeLog2 + nibbleOffset)
+                            : (bppLog2 + samples + nibbleOffset); // start + 2*(pipe_block_ord - cy.getord());
+                shiftBit1 = 0;
+
+                CompPair c = pipe.GetFirst(pos1);
+
+                if (c.compPos < 4u)
+                {
+                    if (IsZSwizzle(swizzleMode))
+                    {
+                        samples = 0;
+                    }
+
+                    const int32 compBlockOrd = (c.compType == MetaDataAddrCompX)
+                                               ? compBlockLog2.width
+                                               : compBlockLog2.height;
+
+                    shiftBit1 = 2 * (c.compPos - compBlockOrd) + samples + nibbleOffset;
+                    if (((c.compType          == MetaDataAddrCompX)     &&
+                         (compBlockLog2.width >  compBlockLog2.height)) ||
+                        ((c.compType == MetaDataAddrCompY) && (compBlockLog2.height > compBlockLog2.width)))
+                    {
+                        shiftBit1++;
+                    }
+                }
+                else
+                {
+                    int32 ord = (c.compType == MetaDataAddrCompX) ? cx.compPos : cy.compPos;
+                    if ((ord > c.compPos) && (c.compType == MetaDataAddrCompX))
+                    {
+                        ord = cy.compPos;
+                        c   = MetaDataAddrEquation::SetCompPair(MetaDataAddrCompY, ord);
+                    }
+
+                    shiftBit1 = start + 2 * (c.compPos - ord);
+                    if (c.compType == MetaDataAddrCompY)
+                    {
+                        if (cy.compPos >= cx.compPos)
+                        {
+                            shiftBit1++;
+                        }
+                    }
+                    else if (cx.compPos > cy.compPos)
+                    {
+                        shiftBit1++;
+                    }
+                }
+
+                if (end > start)
+                {
+                    if (m_pipeDist == PipeDist8x8)
+                    {
+                        if (cy.compPos < cx.compPos)
+                        {
+                            m_meta.Mort2d(m_pParent->GetGfxDevice(), &cy, &cx, start, end - 1);
+                        }
+                        else
+                        {
+                            m_meta.Mort2d(m_pParent->GetGfxDevice(), &cx, &cy, start, end - 1);
+                        }
+                    }
+                    else
+                    {
+                        if (cy.compPos < cx.compPos)
+                        {
+                            cx.compPos--;
+                            m_meta.SetBit(start, cx);
+                            cx.compPos++;
+                            cy.compPos++;
+                            start++;
+                        }
+
+                        if (IsGfx103(*pPalDevice)                   &&
+                            ((modNumPipesLog2 - numPipesLog2) == 1) &&
+                            (cx.compPos < cy.compPos))
+                        {
+                            m_meta.SetBit(start, cx);
+                            cx.compPos++;
+                            start++;
+                        }
+                        if (end > start)
+                        {
+                            m_meta.Mort2d(m_pParent->GetGfxDevice(), &cx, &cy, start, end - 1);
+                        }
+                    }
+                }
+            }
+            else
             {
                 const uint32 pipe_block_ord = GetPipeBlockSize();
                 shiftBit0 = start + 2 * (pipe_block_ord - cy.compPos); // start + 2*(pipe_block_ord - cy.getord());
@@ -2488,12 +3073,46 @@ void Gfx9MetaEqGenerator::CalcMetaEquationGfx10()
 
             start = m_metaDataWordSizeLog2 + nibbleOffset + (IsZSwizzle(swizzleMode) ? 0 : maxCompFragsLog2);
 
+            if (IsGfx102Plus(*pPalDevice) && (m_pipeDist == PipeDist16x16))
+            {
+                CompPair co = MetaDataAddrEquation::SetCompPair(MetaDataAddrCompX, 0);
+
+                const uint32  location = start + metaOverlap - 1;
+
+                if (m_meta.IsEmpty(location) == false)
+                {
+                    co = m_meta.Get(location);
+                }
+
+                const uint32              rotatedSwizzleCount = (IsRotatedSwizzle(swizzleMode) ? numSamplesLog2 : 0);
+                MetaDataAddrComponentType dim                 = ((pixelBlockLog2.width == 4) &&
+                                                                 (effectiveNumPipesLog2 & 1) &&
+                                                                 (effectiveNumPipesLog2 > 1) &&
+                                                                 ((metaOverlap + rotatedSwizzleCount) & 1) == 0)
+                                                                ? MetaDataAddrCompX
+                                                                : MetaDataAddrCompY;
+
+                if ((numSamplesLog2  == 3)  &&
+                    (metaOverlap     == 2)  &&
+                    (bppLog2         == 2)  &&
+                    (modNumPipesLog2 <  6))
+                {
+                    dim = MetaDataAddrCompX;
+                }
+
+                swapOverlapEnd = ((co.compType != dim) && (metaOverlap > 0));
+            }
             if (swapOverlapEnd)
             {
                 m_meta.Rotate(1, start + metaOverlap - 1, start + metaOverlap);
             }
 
             end = cachelineSize + metaOverlap;
+
+            if (IsGfx102Plus(*pPalDevice) && (end > (blockSizeLog2 - modNumPipesLog2)))
+            {
+                end = blockSizeLog2 - modNumPipesLog2;
+            }
 
             end += nibbleOffset;
 
@@ -2503,6 +3122,22 @@ void Gfx9MetaEqGenerator::CalcMetaEquationGfx10()
             m_meta.Shift(modNumPipesLog2, start);
 
             m_meta.XorIn(&pipe);
+            if (IsGfx102Plus(*pPalDevice))
+            {
+                if (pipeRotateAmount > 1)
+                {
+                    m_meta.AdjustPipe(modNumPipesLog2,
+                                      pipeInterleaveLog2 + nibbleOffset);
+                }
+
+                if (m_pParent->IsDepth() && IsGfx103(*pPalDevice))
+                {
+                    // for htile, move the top RB bit outside the 2KB cacheline region
+                    m_meta.Rotate(numPipesLog2 - modNumPipesLog2,
+                                  pipeInterleaveLog2 + numPipesLog2 + nibbleOffset,
+                                  -1);
+                }
+            }
         }
     }
 
@@ -2561,6 +3196,25 @@ HtileUsageFlags Gfx9Htile::UseHtileForImage(
             hTileUsage.dsMetadata = 0;
         }
 
+        if (pParent->GetImageInfo().internalCreateInfo.flags.vrsOnlyDepth == 1)
+        {
+            // If we're creating an hTile-only depth buffer, then don't allow depth-stencil metadata
+            // as there isn't any depth/stencil data to manage in this case.
+            hTileUsage.dsMetadata = 0;
+        }
+
+        // If this device supports VRS and the client has indicated that this depth image will potentially
+        // be bound during a VRS-enabled draw, then
+        // Does this device support VRS?
+        if (device.ChipProperties().gfxip.supportsVrs &&
+            // Has the client indicated that this depth image will potentially be bound during a VRS-enabled draw?
+            (createInfo.usageFlags.vrsDepth != 0))
+        {
+            // Ok, hTile memory *must* be allocated for this image so that there will ultimately be a place to store
+            // the shading-rate data...  which doesn't mean that the hTile surface will be used to store compression
+            // data.
+            hTileUsage.vrs = 1;
+        }
     }
 
     return hTileUsage;
@@ -2727,6 +3381,9 @@ Result Gfx9Htile::Init(
 
     // If the associated image is a Z-only format, then setup hTile to not include stencil data.
     m_flags.tileStencilDisable = ((m_image.IsHtileDepthOnly()
+                                  // However, if this hTile data will contain VRS information, then the stencil
+                                  // data must be included again, even if it won't be used.
+                                  && (m_hTileUsage.vrs == 0)
                                   ) ? 1 : 0);
 
     // Determine the subResource ID of the base slice and mip-map for this aspect
@@ -2822,6 +3479,26 @@ Result Gfx9Htile::ComputeHtileInfo(
             if (device.ChipProperties().gfxLevel == GfxIpLevel::GfxIp9)
             {
                 m_dbHtileSurface[mipLevel].gfx09.RB_ALIGNED = addrHtileIn.hTileFlags.rbAligned;
+            }
+            // does this device support VRS
+            else if (device.ChipProperties().gfxip.supportsVrs)
+            {
+                // If the hTile surface has VRS data (either specified by the client or an internally created
+                // "image" that has VRS data), then setup the regs to indicate VRS encoding in hTile.
+                if (m_hTileUsage.vrs != 0)
+                {
+                    const Gfx9PalSettings&  settings = GetGfx9Settings(device);
+
+                    // 1:  two bit encoding in hTile
+                    // 2:  four bit encoding in hTile
+                    //
+                    m_dbHtileSurface[mipLevel].gfx10Vrs.VRS_HTILE_ENCODING = settings.vrsHtileEncoding;
+                }
+                else if (IsGfx10(device))
+                {
+                    // This hTile buffer does not contain any VRS data.
+                    m_dbHtileSurface[mipLevel].gfx10Vrs.VRS_HTILE_ENCODING = 0;
+                }
             }
         }
 
@@ -2991,6 +3668,19 @@ uint32 Gfx9Htile::GetInitialValue() const
         //      +-----------+-----+------+-----+-----+-------+
         //      |  Z Range  |     | SMem | SR1 | SR0 | ZMask |
         //
+        // Z, stencil, 2 bit VRS encoding:
+        //      |31       12|       11     |      10      |9    8|7   6|5   4|3     0|
+        //      +-----------+--------------+--------------+------+-----+-----+-------+
+        //      |  Z Range  | VRS Y-rate 0 | VRS X-rate 0 | SMem | SR1 | SR0 | ZMask |
+        //
+        // i.e., same as Z+stencil with unused bits used to encode the LSB of the VRS X and Y rates.
+        //
+        // Z, stencil, 4 bit VRS encoding:
+        //      |31       12| 11      10 |9    8|7         6 |5   4|3     0|
+        //      +-----------+------------+------+------------+-----+-------+
+        //      |  Z Range  | VRS Y-rate | SMem | VRS X-rate | SR0 | ZMask |
+        //
+        // i.e., same as Z+stencil with SR1 overloaded bo be the VRS x-rate data.
 
         // The base value for zRange is either zMax or zMin, depending on ZRANGE_PRECISION. Currently, PAL programs
         // ZRANGE_PRECISION to 1 (zMax is the base) by default. Sometimes we switch to 0 if we detect a fast-clear to
@@ -3012,6 +3702,15 @@ uint32 Gfx9Htile::GetInitialValue() const
                         ((SR0    &     0x3) <<  4) |
                         ((ZMask  &     0xF) <<  0));
 
+        const     auto&  settings = GetGfx9Settings(*(m_pGfxDevice->Parent()));
+        // If hTile uses four-bit VRS encoding, then the init-value needs to leave the SR1 bits at zero
+        // so that VRS interprets the X-rate as 1 sample.
+        // Two-bit VRS encoding uses previously unused bits, so there's no conern in that situation.
+        if ((m_hTileUsage.vrs == 1) &&
+            (settings.vrsHtileEncoding == VrsHtileEncoding::Gfx10VrsHtileEncodingFourBit))
+        {
+            initialValue &= (~Sr1Mask);
+        }
     }
 
     return initialValue;
@@ -3569,6 +4268,13 @@ bool Gfx9Dcc::UseDccForImage(
     else if ((pParent->IsPresentable() || pParent->IsFlippable()) &&
              (pParent->GetInternalCreateInfo().displayDcc.enabled == false))
     {
+        useDcc = false;
+        mustDisableDcc = true;
+    }
+    else if (createInfo.prtPlus.mapType != PrtMapType::None)
+    {
+        // Do not allow compression on PRT+ map images.  They are expected to be tiny and they will be
+        // updated almost exclusively via shader writes anyway which are known to be problematic.
         useDcc = false;
         mustDisableDcc = true;
     }

@@ -157,7 +157,11 @@ union GpuMemoryFlags
         uint32 restrictedAccess         :  1; // GPU memory is restricted shared access resource
         uint32 crossAdapter             :  1; // GPU memory is shared cross-adapter resource
         uint32 gpuReadOnly              :  1; // GPU memory is read only.
+#if ( (PAL_CLIENT_INTERFACE_MAJOR_VERSION>= 569))
+        uint32 mallRangeActive          :  1;
+#else
         uint32 placeholder1             :  1;
+#endif
         uint32 reserved                 : 24;
     };
     uint64  u64All;
@@ -203,6 +207,12 @@ public:
     GpuMemPriority Priority() const { return m_priority; }
 
     GpuMemPriorityOffset PriorityOffset() const { return m_priorityOffset; }
+
+    GpuMemMallPolicy MallPolicy() const { return m_mallPolicy; }
+
+#if ( (PAL_CLIENT_INTERFACE_MAJOR_VERSION>= 569))
+    const GpuMemMallRange& MallRange() const { return m_mallRange; }
+#endif
 
     // NOTE: Part of the public IGpuMemory interface.
     virtual Result Map(
@@ -261,6 +271,9 @@ public:
     bool IsExecutable()          const { return (m_desc.flags.isExecutable        != 0); }
     bool IsReadOnlyOnGpu()       const { return (m_flags.gpuReadOnly              != 0); }
     bool IsAccessedPhysically()  const { return (m_flags.accessedPhysically       != 0); }
+#if ( (PAL_CLIENT_INTERFACE_MAJOR_VERSION>= 569))
+    bool IsMallRangeActive()     const { return (m_flags.mallRangeActive          != 0); }
+#endif
     void SetAccessedPhysically() { m_flags.accessedPhysically = 1; }
     void SetSurfaceBusAddr(gpusize surfaceBusAddr) { m_desc.surfaceBusAddr = surfaceBusAddr; }
     void SetMarkerBusAddr(gpusize markerBusAddr)   { m_desc.markerBusAddr  = markerBusAddr;  }
@@ -388,6 +401,11 @@ private:
 
     // Marker virtual address as returned by KMD
     gpusize m_markerVirtualAddr;
+
+    GpuMemMallPolicy  m_mallPolicy;
+#if ( (PAL_CLIENT_INTERFACE_MAJOR_VERSION>= 569))
+    GpuMemMallRange   m_mallRange;
+#endif
 
     PAL_DISALLOW_DEFAULT_CTOR(GpuMemory);
     PAL_DISALLOW_COPY_AND_ASSIGN(GpuMemory);

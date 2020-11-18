@@ -776,6 +776,21 @@ void UniversalCmdBuffer::LeakNestedCmdBufferState(
         m_graphicsState.clipRectsState = graphics.clipRectsState;
     }
 
+    if (graphics.leakFlags.validationBits.vrsRateParams != 0)
+    {
+        m_graphicsState.vrsRateState = graphics.vrsRateState;
+    }
+
+    if (graphics.leakFlags.validationBits.vrsCenterState != 0)
+    {
+        m_graphicsState.vrsCenterState = graphics.vrsCenterState;
+    }
+
+    if (graphics.leakFlags.validationBits.vrsImage != 0)
+    {
+        m_graphicsState.pVrsImage = graphics.pVrsImage;
+    }
+
     m_graphicsState.viewInstanceMask = graphics.viewInstanceMask;
 
     m_graphicsState.dirtyFlags.u32All |= graphics.leakFlags.u32All;
@@ -830,6 +845,38 @@ uint32 UniversalCmdBuffer::GetUsedSize(
     }
 
     return sizeInBytes;
+}
+
+// =====================================================================================================================
+// Record the VRS rate structure so RPM has a copy for save / restore purposes.
+void UniversalCmdBuffer::CmdSetPerDrawVrsRate(
+    const VrsRateParams&  rateParams)
+{
+    // Record the state so that we can restore it after RPM operations
+    m_graphicsState.vrsRateState = rateParams;
+    m_graphicsState.dirtyFlags.validationBits.vrsRateParams = 1;
+}
+
+// =====================================================================================================================
+// Record the VRS center state structure so RPM has a copy for save / restore purposes.
+void UniversalCmdBuffer::CmdSetVrsCenterState(
+    const VrsCenterState&  centerState)
+{
+    // Record the state so that we can restore it after RPM operations.
+    m_graphicsState.vrsCenterState = centerState;
+    m_graphicsState.dirtyFlags.validationBits.vrsCenterState = 1;
+}
+
+// =====================================================================================================================
+// Probably setup dirty state here...  indicate that draw time potentially has a lot to do.
+void UniversalCmdBuffer::CmdBindSampleRateImage(
+    const IImage*  pImage)
+{
+    // Binding a NULL image is always ok; otherwise, verify that the HW supports VRS images.
+    PAL_ASSERT((pImage == nullptr) || (m_device.Parent()->ChipProperties().imageProperties.vrsTileSize.width != 0));
+
+    m_graphicsState.pVrsImage = static_cast<const Image*>(pImage);
+    m_graphicsState.dirtyFlags.validationBits.vrsImage = 1;
 }
 
 } // Pal

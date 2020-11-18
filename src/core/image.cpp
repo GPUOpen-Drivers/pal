@@ -189,6 +189,49 @@ Result Image::ValidateCreateInfo(
     }
 #endif
 
+    if ((imageInfo.prtPlus.mapType != PrtMapType::None) &&
+        (TestAnyFlagSet(imageProperties.prtFeatures, PrtFeaturePrtPlus) == false))
+    {
+        // If PRT plus features are requested on a product that doesn't support them, then fail.
+        ret = Result::ErrorUnavailable;
+    }
+
+    if (ret == Result::Success)
+    {
+        // Dimensions related to the corresponding parent image are validated by ValidateImageViewInfo
+        switch (imageInfo.prtPlus.mapType)
+        {
+        case PrtMapType::Residency:
+            if (imageInfo.swizzledFormat.format != ChNumFormat::X8_Unorm)
+            {
+                ret = Result::ErrorInvalidFormat;
+            }
+            else if (imageInfo.mipLevels != 1)
+            {
+                ret = Result::ErrorInvalidMipCount;
+            }
+            break;
+
+        case PrtMapType::SamplingStatus:
+            if (imageInfo.swizzledFormat.format != ChNumFormat::X8_Unorm)
+            {
+                ret = Result::ErrorInvalidFormat;
+            }
+            break;
+
+        case PrtMapType::None:
+            // Nothing to validate here
+            break;
+
+        default:
+            // What is this?
+            PAL_ASSERT_ALWAYS();
+
+            ret = Result::ErrorInvalidValue;
+            break;
+        }
+    }
+
     // Check MSAA compatibility
     if (ret == Result::Success)
     {

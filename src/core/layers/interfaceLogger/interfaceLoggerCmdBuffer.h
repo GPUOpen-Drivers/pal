@@ -438,11 +438,26 @@ public:
 
     virtual void CmdSetViewInstanceMask(uint32 mask) override;
 
+    virtual void CmdSetPerDrawVrsRate(const VrsRateParams&  rateParams) override;
+    virtual void CmdSetVrsCenterState(const VrsCenterState&  centerState) override;
+    virtual void CmdBindSampleRateImage(const IImage*  pImage) override;
+
     virtual uint32 GetUsedSize(CmdAllocType type) const override
     {
         // This function is not logged because it doesn't modify the command buffer.
         return GetNextLayer()->GetUsedSize(type);
     }
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 554
+    virtual void CmdResolvePrtPlusImage(
+        const IImage&                    srcImage,
+        ImageLayout                      srcImageLayout,
+        const IImage&                    dstImage,
+        ImageLayout                      dstImageLayout,
+        PrtPlusResolveType               resolveType,
+        uint32                           regionCount,
+        const PrtPlusImageResolveRegion* pRegions) override;
+#endif
 
     // Public IDestroyable interface methods:
     virtual void Destroy() override;

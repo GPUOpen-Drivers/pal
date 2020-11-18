@@ -1512,6 +1512,33 @@ void CmdBuffer::CmdUpdateHiSPretests(
     PostCall(CmdBufCallId::CmdUpdateHiSPretests);
 }
 
+// =====================================================================================================================
+void CmdBuffer::CmdSetPerDrawVrsRate(
+    const VrsRateParams& rateParams)
+{
+    PreCall();
+    CmdBufferFwdDecorator::CmdSetPerDrawVrsRate(rateParams);
+    PostCall(CmdBufCallId::CmdSetPerDrawVrsRate);
+}
+
+// =====================================================================================================================
+void CmdBuffer::CmdSetVrsCenterState(
+    const VrsCenterState& centerState)
+{
+    PreCall();
+    CmdBufferFwdDecorator::CmdSetVrsCenterState(centerState);
+    PostCall(CmdBufCallId::CmdSetVrsCenterState);
+}
+
+// =====================================================================================================================
+void CmdBuffer::CmdBindSampleRateImage(
+    const IImage* pImage)
+{
+    PreCall();
+    CmdBufferFwdDecorator::CmdBindSampleRateImage(pImage);
+    PostCall(CmdBufCallId::CmdBindSampleRateImage);
+}
+
 } // Pm4Instrumentor
 } // Pal
 

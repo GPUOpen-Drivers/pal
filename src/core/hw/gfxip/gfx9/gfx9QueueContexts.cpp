@@ -914,6 +914,10 @@ void UniversalQueueContext::WritePerSubmitPreamble(
             {
                 InitializeContextRegistersNv10(pCmdStream, 1, &regOffset, &regValue);
             }
+            else if (IsGfx103(*m_pDevice->Parent()))
+            {
+                InitializeContextRegistersGfx103(pCmdStream, 1, &regOffset, &regValue);
+            }
             else
             {
                 PAL_ASSERT_ALWAYS_MSG("Need to update shadow memory init for new chip!");
@@ -1584,6 +1588,37 @@ uint32* UniversalQueueContext::WriteUniversalPreamble(
                                                          pCmdSpace);
 
         regPA_CL_NGG_CNTL paClNggCntl = { };
+
+        if (IsGfx102Plus(device))
+        {
+            paClNggCntl.gfx102Plus.VERTEX_REUSE_DEPTH = 30;
+
+            // Setting all these bits tells the HW to use the driver programmed setting of SX_PS_DOWNCONVERT
+            // instead of automatically calculating the value.
+            regSX_PS_DOWNCONVERT_CONTROL sxPsDownconvertControl = { };
+            sxPsDownconvertControl.u32All = (1 << MaxColorTargets) - 1;
+
+            pCmdSpace = m_deCmdStream.WriteSetOneContextReg(Gfx102Plus::mmSX_PS_DOWNCONVERT_CONTROL,
+                                                            sxPsDownconvertControl.u32All,
+                                                            pCmdSpace);
+        }
+
+        // We have to explicitly disable VRS for clients that aren't using a version of PAL which exposes the VRS
+        // interface functions.  Otherwise, clients are on their own to setup VRS state themselves.
+        if (chipProps.gfxip.supportsVrs != 0)
+        {
+            if (IsGfx10(device))
+            {
+                // This register is the master override: set this to passthrough mode or the final VRS rate becomes
+                // whatever was specified in the other fields of this register.
+                regDB_VRS_OVERRIDE_CNTL dbVrsOverrideCntl = { };
+                dbVrsOverrideCntl.bits.VRS_OVERRIDE_RATE_COMBINER_MODE = 0;
+
+                pCmdSpace = m_deCmdStream.WriteSetOneContextReg(Gfx10Vrs::mmDB_VRS_OVERRIDE_CNTL,
+                                                                dbVrsOverrideCntl.u32All,
+                                                                pCmdSpace);
+            }
+        } // if VRS is supported
 
         pCmdSpace = m_deCmdStream.WriteSetOneContextReg(mmPA_CL_NGG_CNTL, paClNggCntl.u32All, pCmdSpace);
 

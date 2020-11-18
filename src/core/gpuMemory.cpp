@@ -191,6 +191,24 @@ Result GpuMemory::ValidateCreateInfo(
         }
     }
 
+#if ( (PAL_CLIENT_INTERFACE_MAJOR_VERSION>= 569))
+    if ((result == Result::Success) && (createInfo.flags.mallRangeActive != 0))
+    {
+        // Page size for specifyng a MALL range is always in units of 4kB pages
+        constexpr uint32  PageSize = 4096;
+
+        // If the mall-range is active then the mall policy must be either "always" or "never"; the KMD
+        // ensures that the memory associated with this allocation outside the specified region gets the
+        // "opposite" mall policy.
+        if ((createInfo.mallPolicy == GpuMemMallPolicy::Default) ||
+            // Ensure that the specified range fits within the size of this allocation.
+            (((createInfo.mallRange.startPage + createInfo.mallRange.numPages) * PageSize) > createInfo.size))
+        {
+            result = Result::ErrorInvalidValue;
+        }
+    }
+#endif
+
     if ((result == Result::Success) && createInfo.flags.gl2Uncached &&
         (pDevice->ChipProperties().gfxip.supportGl2Uncached == 0))
     {
@@ -283,10 +301,15 @@ GpuMemory::GpuMemory(
     m_remoteSdiSurfaceIndex(0),
     m_remoteSdiMarkerIndex(0),
     m_markerVirtualAddr(0)
+    ,m_mallPolicy(GpuMemMallPolicy::Default)
 {
     memset(&m_desc, 0, sizeof(m_desc));
     memset(&m_heaps[0], 0, sizeof(m_heaps));
     memset(&m_typedBufferInfo, 0, sizeof(m_typedBufferInfo));
+
+#if ( (PAL_CLIENT_INTERFACE_MAJOR_VERSION>= 569))
+    memset(&m_mallRange, 0, sizeof(m_mallRange));
+#endif
 
     m_flags.u64All   = 0;
     m_pPinnedMemory  = nullptr;
@@ -353,6 +376,9 @@ Result GpuMemory::Init(
     m_flags.crossAdapter         = createInfo.flags.crossAdapter;
     m_flags.tmzProtected         = createInfo.flags.tmzProtected;
     m_flags.tmzUserQueue         = internalInfo.flags.tmzUserQueue;
+#if ( (PAL_CLIENT_INTERFACE_MAJOR_VERSION>= 569))
+    m_flags.mallRangeActive      = createInfo.flags.mallRangeActive;
+#endif
 
     m_flags.isClient             = internalInfo.flags.isClient;
     m_flags.pageDirectory        = internalInfo.flags.pageDirectory;
@@ -418,6 +444,10 @@ Result GpuMemory::Init(
     m_vaPartition    = m_pDevice->ChooseVaPartition(createInfo.vaRange, (createInfo.flags.virtualAlloc != 0));
     m_priority       = createInfo.priority;
     m_priorityOffset = createInfo.priorityOffset;
+    m_mallPolicy     = createInfo.mallPolicy;
+#if ( (PAL_CLIENT_INTERFACE_MAJOR_VERSION>= 569))
+    m_mallRange      = createInfo.mallRange;
+#endif
     m_heapCount      = createInfo.heapCount;
     m_schedulerId    = internalInfo.schedulerId;
     m_mtype          = internalInfo.mtype;
@@ -683,6 +713,10 @@ Result GpuMemory::Init(
     {
         m_mtype = MType::Uncached;
     }
+    m_mallPolicy     = createInfo.mallPolicy;
+#if ( (PAL_CLIENT_INTERFACE_MAJOR_VERSION>= 569))
+    m_mallRange      = createInfo.mallRange;
+#endif
 
     m_vaPartition    = VaPartition::Svm;
     gpusize baseVirtAddr = 0;
@@ -747,6 +781,10 @@ Result GpuMemory::Init(
     m_flags.cpuVisible   = 1; // Pinned allocations are by definition CPU visible.
 
     m_pPinnedMemory  = createInfo.pSysMem;
+    m_mallPolicy     = createInfo.mallPolicy;
+#if ( (PAL_CLIENT_INTERFACE_MAJOR_VERSION>= 569))
+    m_mallRange      = createInfo.mallRange;
+#endif
     m_desc.size      = createInfo.size;
     m_desc.alignment = (createInfo.alignment != 0) ? createInfo.alignment
                                                    : m_pDevice->MemoryProperties().realMemAllocGranularity;
@@ -791,6 +829,10 @@ Result GpuMemory::Init(
     m_vaPartition    = m_pOriginalMem->m_vaPartition;
     m_mtype          = m_pOriginalMem->m_mtype;
     m_heapCount      = m_pOriginalMem->m_heapCount;
+    m_mallPolicy     = m_pOriginalMem->MallPolicy();
+#if ( (PAL_CLIENT_INTERFACE_MAJOR_VERSION>= 569))
+    m_mallRange      = m_pOriginalMem->MallRange();
+#endif
 
     for (uint32 i = 0; i < m_heapCount; ++i)
     {
@@ -856,6 +898,10 @@ Result GpuMemory::Init(
     m_vaPartition    = m_pOriginalMem->m_vaPartition;
     m_mtype          = m_pOriginalMem->m_mtype;
     m_heapCount      = m_pOriginalMem->m_heapCount;
+    m_mallPolicy     = m_pOriginalMem->MallPolicy();
+#if ( (PAL_CLIENT_INTERFACE_MAJOR_VERSION>= 569))
+    m_mallRange      = m_pOriginalMem->MallRange();
+#endif
 
     for (uint32 i = 0; i < m_heapCount; ++i)
     {

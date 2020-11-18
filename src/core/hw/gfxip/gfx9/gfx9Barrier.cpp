@@ -36,7 +36,7 @@ namespace Gfx9
 {
 
 // The set of all cache flags that could access memory through the TC metadata cache.
-constexpr uint32 MaybeTccMdShaderMask = CoherShader | CoherCopy | CoherResolve | CoherClear;
+constexpr uint32 MaybeTccMdShaderMask = CoherShader | CoherCopy | CoherResolve | CoherClear | CoherSampleRate;
 
 // The set of all cache flags that could access memory through the L0/L1 shader caches.
 constexpr uint32 MaybeL1ShaderMask = MaybeTccMdShaderMask | CoherStreamOut;

@@ -124,7 +124,7 @@ protected:
             uint32 readOnlyStencil         :  1; // Set if the stencil aspect is present and is read-only
             uint32 depthMetadataTexFetch   :  1;
             uint32 stencilMetadataTexFetch :  1;
-            uint32 placeholder0            :  1;
+            uint32 vrsOnlyDepth            :  1; // Set if the image is used for VRS-only depth
             uint32 waitOnMetadataMipTail   :  1; // Set if the CmdBindTargets should insert a stall when binding this
                                                  // view object.
             uint32 viewVaLocked            :  1; // Whether the view's VA range is locked and won't change.

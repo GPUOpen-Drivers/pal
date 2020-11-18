@@ -327,6 +327,12 @@ public:
         const SamplerInfo*  pSamplerInfo,
         void*               pOut);
 
+    static void PAL_STDCALL CreateBvhSrds(
+        const IDevice*  pDevice,
+        uint32          count,
+        const BvhInfo*  pBvhInfo,
+        void*           pOut);
+
     void Barrier(GfxCmdBuffer* pCmdBuf, CmdStream* pCmdStream, const BarrierInfo& barrier) const;
     void IssueSyncs(
         GfxCmdBuffer*                 pCmdBuf,

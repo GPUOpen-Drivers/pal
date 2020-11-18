@@ -81,6 +81,24 @@ enum class VirtualGpuMemAccessMode : uint32
     ReadZero  = 0x2, ///< Reads of unmapped pages return zero, and writes are discarded.
 };
 
+/// Controls the behavior of this allocation with respect to the MALL.
+enum class GpuMemMallPolicy : uint32
+{
+    Default = 0x0,  ///< MALL policy is decided by the driver.
+    Never   = 0x1,  ///< This allocation is never put through the MALL.
+    Always  = 0x2,  ///< This allocation is always put through the MALL.
+};
+
+#if ( (PAL_CLIENT_INTERFACE_MAJOR_VERSION>= 569))
+/// Used for specifying a subregion of the allocation as having a different mall policy from the rest of the
+/// allocation.
+struct GpuMemMallRange
+{
+    uint32  startPage; ///< Starting 4k page that will obey the specified mallPolicy.
+    uint32  numPages;  ///< Number of 4k pages that will obey the specified mallPolicy.
+};
+#endif
+
 /// Specifies flags for @ref IGpuMemory creation.
 union GpuMemoryCreateFlags
 {
@@ -134,7 +152,13 @@ union GpuMemoryCreateFlags
                                        ///< flag is set, calls to IGpuMemory::Map() on this object will fail.
         uint32 gl2Uncached       :  1; ///< Specifies the GPU Memory is un-cached on GPU L2 cache. But the memory still
                                        ///  would be cached by other cache hierarchy like L0, RB caches, L1, and L3.
+#if ( (PAL_CLIENT_INTERFACE_MAJOR_VERSION>= 569))
+        uint32 mallRangeActive   :  1; ///< If set, then this allocation will be partially allocated in the MALL.  If
+                                       ///  this is set, then the mallPolicy enumeration must be set to either "always"
+                                       ///  or "never".
+#else
         uint32 placeholder1      :  1; ///< Reserved for future HW.
+#endif
 
         uint32 reserved          :  6; ///< Reserved for future use.
     };
@@ -187,6 +211,14 @@ struct GpuMemoryCreateInfo
     GpuMemPriorityOffset         priorityOffset;      ///< Offset from the base level priority. A higher offset means
                                                       ///  higher priority within same base Level.  Currently supported
                                                       ///  on Windows only.
+    GpuMemMallPolicy             mallPolicy;          ///< Used to control whether or not this allocation will be
+                                                      ///  accessed via the MALL (memory access last level).  Only valid
+                                                      ///  if "supportsMall" is set in DeviceProperties.
+#if ( (PAL_CLIENT_INTERFACE_MAJOR_VERSION>= 569))
+    GpuMemMallRange              mallRange;           ///< These parameters are only meaningful if flags.mallRangeActive
+                                                      ///  is set.  Any pages outside of this range will use the opposite
+                                                      ///  MALL policy from what is specified in "mallPolicy".
+#endif
     uint32                       heapCount;           ///< Number of entries in heaps[].  Must be 0 for virtual
                                                       ///  allocations.
     GpuHeap                      heaps[GpuHeapCount]; ///< List of allowed memory heaps, in order of preference.
@@ -218,6 +250,14 @@ struct PinnedGpuMemoryCreateInfo
     VaRange           vaRange;   ///< Virtual address range for the GPU memory allocation.
     gpusize           alignment; ///< Byte alignment of the allocation's GPU VA.  If zero, an alignment matching the
                                  ///  Platform's allocation granularity will be used.
+    GpuMemMallPolicy  mallPolicy; ///< Used to control whether or not this allocation will be
+                                  ///  accessed via the MALL (memory access last level).  Only valid
+                                  ///  if "supportsMall" is set in DeviceProperties.
+#if ( (PAL_CLIENT_INTERFACE_MAJOR_VERSION>= 569))
+    GpuMemMallRange   mallRange;  ///< These parameters are only meaningful if flags.mallRangeActive
+                                  ///  is set.  Any pages outside of this range will use the opposite
+                                  ///  MALL policy from what is specified in "mallPolicy".
+#endif
 };
 
 /// Specifies properties for @ref IGpuMemory creation.  Input structure to IDevice::CreateSvmGpuMemory().
@@ -235,6 +275,14 @@ struct SvmGpuMemoryCreateInfo
                                                    ///  the memory object which previously reserved the GPU VA range
                                                    ///  to be used by the new memory object.
     bool                    isUsedForKernel;       ///< Memory will be used to store kernel and execute on gpu.
+    GpuMemMallPolicy         mallPolicy;           ///< Used to control whether or not this allocation will be
+                                                   ///  accessed via the MALL (memory access last level).  Only valid
+                                                   ///  if "supportsMall" is set in DeviceProperties.
+#if ( (PAL_CLIENT_INTERFACE_MAJOR_VERSION>= 569))
+    GpuMemMallRange          mallRange;           ///< These parameters are only meaningful if flags.mallRangeActive
+                                                  ///  is set.  Any pages outside of this range will use the opposite
+                                                  ///  MALL policy from what is specified in "mallPolicy".
+#endif
 };
 
 /// Specifies parameters for opening a shared GPU memory object on another device.

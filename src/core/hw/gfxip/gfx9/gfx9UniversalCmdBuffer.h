@@ -235,7 +235,7 @@ union CachedSettings
         uint64 disableVertGrouping        :  1; // Disable VertexGrouping.
         uint64 prefetchIndexBufferForNgg  :  1; // Prefetch index buffers to workaround misses in UTCL2 with NGG
         uint64 waCeDisableIb2             :  1; // Disable IB2's on the constant engine to workaround HW bug
-        uint64 reserved2                  :  1;
+        uint64 supportsMall               :  1; // True if this device supports the MALL
         uint64 reserved3                  :  1;
         uint64 pbbMoreThanOneCtxState     :  1;
         uint64 waUtcL0InconsistentBigPage :  1;
@@ -253,14 +253,28 @@ union CachedSettings
         uint64 waIndexBufferZeroSize                     :  1;
         uint64 waLegacyGsCutModeFlush                    :  1;
 
-        uint64 reserved5                                 :  1;
-        uint64 reserved6                                 :  1;
+        uint64 supportsVrs                               :  1;
+        uint64 vrsForceRateFine                          :  1;
 
         uint64 reserved7                  :  4;
 
         uint64 reserved                   : 18;
     };
     uint64 u64All;
+};
+
+// Tracks a prior VRS rate image to HTile copy so that we can skip redundant rate image copies.
+struct VrsCopyMapping
+{
+    const Pal::Image* pRateImage;  // The source VRS rate image.
+    const Pal::Image* pDepthImage; // Contains the destination HTile.
+
+    // The original destination is always a depth stencil view but we cannot keep a pointer to it because it's legal
+    // to create it on the stack and destroy it after the view is unbound. Instead we must copy the view's mip level
+    // and slice range.
+    uint32            mipLevel;
+    uint32            baseSlice;
+    uint32            endSlice;
 };
 
 // =====================================================================================================================
@@ -545,6 +559,13 @@ public:
     virtual void PushGraphicsState() override;
     virtual void PopGraphicsState() override;
 
+    virtual void CmdSetPerDrawVrsRate(const VrsRateParams&  rateParams) override;
+    virtual void CmdSetVrsCenterState(const VrsCenterState&  centerState) override;
+    virtual void CmdBindSampleRateImage(const IImage*  pImage) override;
+
+    // See gfxCmdBuffer.h for a full description of this function.
+    virtual void DirtyVrsDepthImage(const IImage* pDepthImage) override;
+
     bool IsRasterizationKilled() const { return (m_pipelineState.flags.noRaster != 0); }
 
     regDB_DFSM_CONTROL* GetDbDfsmControl() { return &m_dbDfsmControl; }
@@ -711,6 +732,24 @@ private:
     template <bool Pm4OptImmediate, bool PipelineDirty, bool StateDirty>
     uint32* ValidateCbColorInfo(
         uint32* pDeCmdSpace);
+
+    static Offset2d GetHwShadingRate(VrsShadingRate  shadingRate);
+
+    static uint32 GetHwVrsCombinerState(VrsCombiner  combinerMode);
+
+    static uint32 GetHwVrsCombinerState(
+        const VrsRateParams&  rateParams,
+        VrsCombinerStage      combinerStage);
+
+    void ValidateVrsState();
+
+    void BarrierMightDirtyVrsRateImage(const IImage* pRateImage);
+
+    // See m_validVrsCopies for more information on what these do.
+    bool IsVrsCopyRedundant(const Gfx10DepthStencilView* pDsView, const Pal::Image* pRateImage);
+    void AddVrsCopyMapping(const Gfx10DepthStencilView* pDsView, const Pal::Image* pRateImage);
+    void EraseVrsCopiesFromRateImage(const Pal::Image* pRateImage);
+    void EraseVrsCopiesToDepthImage(const Pal::Image* pDepthImage);
 
     virtual void DeactivateQueryType(QueryPoolType queryPoolType) override;
     virtual void ActivateQueryType(QueryPoolType queryPoolType) override;
@@ -1009,6 +1048,11 @@ private:
     NggState         m_nggState;
 
     uint8 m_leakCbColorInfoRtv;   // Sticky per-MRT dirty mask of CB_COLORx_INFO state written due to RTV
+
+    // This "list" remembers draw-time VRS rate image to HTile copies that occured in this command buffer and which are
+    // still valid. We can skip future copies with the same source and destination until an external write clears a
+    // copy mapping (e.g., a CmdBarrier call on the VRS rate image).
+    Util::Vector<VrsCopyMapping, 16, Platform> m_validVrsCopies;
 
     // In order to prevent invalid query results if an app does Begin()/End(), Reset()/Begin()/End(), Resolve() on a
     // query slot in a command buffer (the first End() might overwrite values written by the Reset()), we have to

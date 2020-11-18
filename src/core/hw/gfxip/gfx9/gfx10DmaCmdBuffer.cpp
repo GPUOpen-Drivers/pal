@@ -96,6 +96,12 @@ uint32* DmaCmdBuffer::WriteWaitEventSet(
     packet.DW5_UNION.interval       = 0xA;                    // Wait 160 clocks before each retry.
     packet.DW5_UNION.retry_count    = 0xFFF;                  // Retry infinitely.
 
+    if (m_pDevice->MemoryProperties().flags.supportsMall != 0)
+    {
+        packet.HEADER_UNION.gfx103Plus.cache_policy = GetCachePolicy(Gfx10SdmaBypassMallOnRead);
+        packet.HEADER_UNION.gfx103Plus.cpv          = GetCpvFromCachePolicy(packet.HEADER_UNION.gfx103Plus.cache_policy);
+    }
+
     *pPacket = packet;
 
     return pCmdSpace + packetDwords;
@@ -121,6 +127,13 @@ void DmaCmdBuffer::WriteTimestampCmd(
     packet.HEADER_UNION.sub_op                  = SDMA_SUBOP_TIMESTAMP_GET_GLOBAL;
     packet.WRITE_ADDR_LO_UNION.DW_1_DATA        = LowPart(dstAddr);
     packet.WRITE_ADDR_HI_UNION.write_addr_63_32 = HighPart(dstAddr);
+
+    if (m_pDevice->MemoryProperties().flags.supportsMall != 0)
+    {
+        packet.HEADER_UNION.gfx103Plus.llc_policy = GetMallBypass(Gfx10SdmaBypassMallOnWrite);
+        packet.HEADER_UNION.gfx103Plus.l2_policy  = GetCachePolicy(Gfx10SdmaBypassMallOnWrite);
+        packet.HEADER_UNION.gfx103Plus.cpv        = GetCpvFromLlcPolicy(packet.HEADER_UNION.gfx103Plus.llc_policy);
+    }
 
     *pPacket = packet;
 
@@ -199,6 +212,13 @@ Result DmaCmdBuffer::AddPostamble()
         packet.HEADER_UNION.sub_op      = SDMA_SUBOP_MEM_INCR;
         packet.ADDR_LO_UNION.addr_31_0  = LowPart(gpuAddr);
         packet.ADDR_HI_UNION.addr_63_32 = HighPart(gpuAddr);
+
+        if (m_pDevice->MemoryProperties().flags.supportsMall != 0)
+        {
+            packet.HEADER_UNION.gfx103Plus.llc_policy = GetMallBypass(Gfx10SdmaBypassMallOnWrite);
+            packet.HEADER_UNION.gfx103Plus.l2_policy  = GetCachePolicy(Gfx10SdmaBypassMallOnWrite);
+            packet.HEADER_UNION.gfx103Plus.cpv        = GetCpvFromLlcPolicy(packet.HEADER_UNION.gfx103Plus.llc_policy);
+        }
 
         *pPacket  = packet;
         pCmdSpace = reinterpret_cast<uint32*>(pPacket + 1);
@@ -354,6 +374,13 @@ void DmaCmdBuffer::WriteCondExecCmd(
     packet.REFERENCE_UNION.reference   = 1;
     packet.EXEC_COUNT_UNION.DW_4_DATA  = 0;
     packet.EXEC_COUNT_UNION.exec_count = skipCountInDwords;
+    if (m_pDevice->MemoryProperties().flags.supportsMall != 0)
+    {
+        auto* pHeaderUnion         = &packet.HEADER_UNION.gfx103Plus;
+
+        pHeaderUnion->cache_policy = GetCachePolicy(Gfx10SdmaBypassMallOnRead);
+        pHeaderUnion->cpv          = GetCpvFromCachePolicy(packet.HEADER_UNION.gfx103Plus.cache_policy);
+    }
     *pPacket = packet;
 }
 
@@ -375,7 +402,95 @@ void DmaCmdBuffer::WriteFenceCmd(
     fencePacket.ADDR_LO_UNION.addr_31_0  = LowPart(fenceMemory);
     fencePacket.ADDR_HI_UNION.addr_63_32 = HighPart(fenceMemory);
     fencePacket.DATA_UNION.DW_3_DATA     = predCopyData;
+    if (m_pDevice->MemoryProperties().flags.supportsMall != 0)
+    {
+        auto* pHeaderUnion       = &fencePacket.HEADER_UNION.gfx103Plus;
+
+        pHeaderUnion->llc_policy = GetMallBypass(Gfx10SdmaBypassMallOnWrite);
+        pHeaderUnion->cpv        = GetCpvFromLlcPolicy(fencePacket.HEADER_UNION.gfx103Plus.llc_policy);
+    }
     *pFencePacket = fencePacket;
+}
+
+// =====================================================================================================================
+// See the GetMallBypass function for how the llc (last level cache) policy is determined.
+uint32 DmaCmdBuffer::GetCpvFromLlcPolicy(
+    uint32  llcPolicy) const
+{
+    // llcPolicy is a one bit field; ensure that no other bits are set
+    PAL_ASSERT((llcPolicy & 0xFFFFFFFE) == 0);
+
+    // Setting the CPV to be true if the "SdmaBypassMall" setting was not set to "Default" AND the cache-policies as provided by the KMD were valid.
+    const auto& settings   = GetGfx9Settings(*m_pDevice);
+
+    return ((settings.sdmaBypassMall != Gfx10SdmaBypassMallOnDefault) && m_pDevice->ChipProperties().gfx9.sdmaL2PolicyValid);
+}
+
+// =====================================================================================================================
+// See GetCachePolicy for details on how the cache policy is determined.
+uint32 DmaCmdBuffer::GetCpvFromCachePolicy(
+    uint32  cachePolicy) const
+{
+    // cachePolicy is a three bit field; ensure that no other bits are set
+    PAL_ASSERT((cachePolicy & 0xFFFFFFF8) == 0);
+
+    // Setting the CPV (cache policy valid) bit causes all three cachePolicy bits to be true
+    // if the "SdmaBypassMall" setting was not "Default" AND the cache-policies as provided by the KMD were valid
+    const auto& settings   = GetGfx9Settings(*m_pDevice);
+
+    return ((settings.sdmaBypassMall != Gfx10SdmaBypassMallOnDefault) && m_pDevice->ChipProperties().gfx9.sdmaL2PolicyValid);
+}
+
+// =====================================================================================================================
+// Returns true if the panel settings are enabled to bypass the MALL for the specified flag.
+bool DmaCmdBuffer::GetMallBypass(
+    Gfx10SdmaBypassMall  bypassFlag
+    ) const
+{
+    const auto& settings   = GetGfx9Settings(*m_pDevice);
+
+    // Look for products that might have a MALL and not just the products that *do* have a MALL so that (by default)
+    // we disable the MALL on products that have the control bits in the various SDMA packets.
+    const bool  bypassMall = (IsNavi2x(*m_pDevice) && TestAnyFlagSet(settings.sdmaBypassMall, bypassFlag));
+
+    return bypassMall;
+}
+
+// =====================================================================================================================
+// The SDMA mall bypass formula is:
+//    noAlloc = CMD.CPV & CMD.CACHE_POLICY[2] | PTE.Noalloc
+//
+// i.e., basically if either of these conditions is true, then this SDMA packet will not use the MALL.
+//    1) The page-table "no alloc" bit is set (determined by the GpuMemMallPolicy setting at memory
+//       allocation time)
+//    2) The MSB of the cache-policy field (determined here) along with the CPV bit is set.  CPV is "cache policy
+//       valid".
+uint32 DmaCmdBuffer::GetCachePolicy(
+    Gfx10SdmaBypassMall  bypassFlag
+    ) const
+{
+    // The various "cache-policy" fields in the SDMA packets are all three bits wide.  The MSB pertains to the MALL;
+    // setting it in conjunction with setting CPV will cause the MALL to be bypassed.
+    // [1:0] : L2 Policy
+    //          00: LRU   01: Stream
+    //          10: NOA  11: UC/BYPASS
+    // [2] : LLC_NoAlloc
+    //          0: allocate LLC
+    //          1: not allocate LLC
+    // For driving cache policy for cacheable requests (Mtype != UC) to the GL2, the SDMA would just default to CACHE_NOA for reads, and CACHE_BYPASS for writes.
+    // SDMA should default to LLC_NOALLOC == 1
+    // 110 for read, 111 for write
+    // register SDMA0_UTCL1_PAGE:
+    // .RD_L2_POLICY[12:13]
+    // .WR_L2_POLICY[14:15]
+    // .LLC_NOALLOC[24:24]
+    constexpr uint32 LlcPolicy = 4;
+    uint32 defaultRdL2Policy = m_pDevice->ChipProperties().gfx9.sdmaDefaultRdL2Policy;
+    uint32 defaultWrL2Policy = m_pDevice->ChipProperties().gfx9.sdmaDefaultWrL2Policy;
+
+    uint32 l2Policy = (bypassFlag == Gfx10SdmaBypassMallOnRead) ? defaultRdL2Policy : defaultWrL2Policy;
+
+    return (GetMallBypass(bypassFlag) ? (LlcPolicy | l2Policy) : 0);
 }
 
 // =====================================================================================================================
@@ -392,8 +507,8 @@ uint32* DmaCmdBuffer::WriteCopyGpuMemoryCmd(
     gpusize*     pBytesCopied // [out] How many bytes out of copySize this call was able to transfer.
     ) const
 {
-    // The count field of the copy packet is 22 bits wide.
-    const uint32  maxCopyBits = 22;
+    // The count field of the copy packet is 22 bits wide for all products but GFX10.3
+    const uint32  maxCopyBits = (IsGfx103(*m_pDevice) ? 30 : 22);
     const gpusize maxCopySize = (1ull << maxCopyBits);
 
     *pBytesCopied = Min(copySize, maxCopySize);
@@ -422,10 +537,25 @@ uint32* DmaCmdBuffer::WriteCopyGpuMemoryCmd(
     }
     packet.COUNT_UNION.DW_1_DATA            = 0;
 
+    if (IsGfx103(*m_pDevice))
+    {
+        packet.COUNT_UNION.gfx103Plus.count = *pBytesCopied - 1;
+    }
+    else
     {
         packet.COUNT_UNION.gfx101.count   = *pBytesCopied - 1;
     }
     packet.PARAMETER_UNION.DW_2_DATA      = 0;
+
+    if (m_pDevice->MemoryProperties().flags.supportsMall != 0)
+    {
+        auto*  pParamUnion = &packet.PARAMETER_UNION.gfx103Plus;
+
+        pParamUnion->dst_cache_policy      = GetCachePolicy(Gfx10SdmaBypassMallOnWrite);
+        pParamUnion->src_cache_policy      = GetCachePolicy(Gfx10SdmaBypassMallOnRead);
+        packet.HEADER_UNION.gfx103Plus.cpv = GetCpvFromCachePolicy(pParamUnion->dst_cache_policy) |
+                                             GetCpvFromCachePolicy(pParamUnion->src_cache_policy);
+    }
 
     packet.SRC_ADDR_LO_UNION.src_addr_31_0  = LowPart(srcGpuAddr);
     packet.SRC_ADDR_HI_UNION.src_addr_63_32 = HighPart(srcGpuAddr);
@@ -492,6 +622,16 @@ uint32* DmaCmdBuffer::WriteCopyTypedBuffer(
     packet.DW_11_UNION.rect_y         = typedBufferInfo.copyExtent.height - 1;
     packet.DW_12_UNION.DW_12_DATA     = 0;
     packet.DW_12_UNION.rect_z         = typedBufferInfo.copyExtent.depth - 1;
+
+    if (m_pDevice->MemoryProperties().flags.supportsMall != 0)
+    {
+        auto*  pCachePolicy = &packet.DW_12_UNION.gfx103Plus;
+
+        pCachePolicy->dst_cache_policy     = GetCachePolicy(Gfx10SdmaBypassMallOnWrite);
+        pCachePolicy->src_cache_policy     = GetCachePolicy(Gfx10SdmaBypassMallOnRead);
+        packet.HEADER_UNION.gfx103Plus.cpv = GetCpvFromCachePolicy(pCachePolicy->dst_cache_policy) |
+                                             GetCpvFromCachePolicy(pCachePolicy->src_cache_policy);
+    }
 
     *pPacket = packet;
 
@@ -586,6 +726,16 @@ void DmaCmdBuffer::WriteCopyImageLinearToLinearCmd(
     packet.DW_11_UNION.rect_y     = imageCopyInfo.copyExtent.height - 1;
     packet.DW_12_UNION.DW_12_DATA = 0;
     packet.DW_12_UNION.rect_z     = imageCopyInfo.copyExtent.depth  - 1;
+
+    if (m_pDevice->MemoryProperties().flags.supportsMall != 0)
+    {
+        auto*  pCachePolicy = &packet.DW_12_UNION.gfx103Plus;
+
+        pCachePolicy->dst_cache_policy     = GetCachePolicy(Gfx10SdmaBypassMallOnWrite);
+        pCachePolicy->src_cache_policy     = GetCachePolicy(Gfx10SdmaBypassMallOnRead);
+        packet.HEADER_UNION.gfx103Plus.cpv = GetCpvFromCachePolicy(pCachePolicy->dst_cache_policy) |
+                                             GetCpvFromCachePolicy(pCachePolicy->src_cache_policy);
+    }
 
     *pPacket = packet;
 
@@ -702,6 +852,16 @@ void DmaCmdBuffer::WriteCopyImageTiledToTiledCmd(
     packet.DW_13_UNION.rect_x     = imageCopyInfo.copyExtent.width - 1;
     packet.DW_13_UNION.rect_y     = imageCopyInfo.copyExtent.height - 1;
     packet.DW_14_UNION.rect_z     = imageCopyInfo.copyExtent.depth - 1;
+
+    if (m_pDevice->MemoryProperties().flags.supportsMall != 0)
+    {
+        auto*  pCachePolicy = &packet.DW_14_UNION.gfx103Plus;
+
+        pCachePolicy->dst_cache_policy     = GetCachePolicy(Gfx10SdmaBypassMallOnWrite);
+        pCachePolicy->src_cache_policy     = GetCachePolicy(Gfx10SdmaBypassMallOnRead);
+        packet.HEADER_UNION.gfx103Plus.cpv = GetCpvFromCachePolicy(pCachePolicy->dst_cache_policy) |
+                                             GetCpvFromCachePolicy(pCachePolicy->src_cache_policy);
+    }
 
     // SDMA engine can either read a compressed source or write to a compressed destination, but not both.
     const bool  srcHasMetaData = ImageHasMetaData(src);
@@ -881,6 +1041,16 @@ uint32* DmaCmdBuffer::WriteCopyMemToLinearImageCmd(
     packet.DW_12_UNION.DW_12_DATA = 0;
     packet.DW_12_UNION.rect_z     = rgn.imageExtent.depth  - 1;
 
+    if (m_pDevice->MemoryProperties().flags.supportsMall != 0)
+    {
+        auto*  pCachePolicy = &packet.DW_12_UNION.gfx103Plus;
+
+        pCachePolicy->dst_cache_policy     = GetCachePolicy(Gfx10SdmaBypassMallOnWrite);
+        pCachePolicy->src_cache_policy     = GetCachePolicy(Gfx10SdmaBypassMallOnRead);
+        packet.HEADER_UNION.gfx103Plus.cpv = GetCpvFromCachePolicy(pCachePolicy->dst_cache_policy) |
+                                             GetCpvFromCachePolicy(pCachePolicy->src_cache_policy);
+    }
+
     *pPacket = packet;
 
     return pCmdSpace + packetDwords;
@@ -943,6 +1113,16 @@ uint32* DmaCmdBuffer::WriteCopyLinearImageToMemCmd(
     packet.DW_11_UNION.rect_y     = rgn.imageExtent.height - 1;
     packet.DW_12_UNION.DW_12_DATA = 0;
     packet.DW_12_UNION.rect_z     = rgn.imageExtent.depth  - 1;
+
+    if (m_pDevice->MemoryProperties().flags.supportsMall != 0)
+    {
+        auto*  pCachePolicy = &packet.DW_12_UNION.gfx103Plus;
+
+        pCachePolicy->dst_cache_policy     = GetCachePolicy(Gfx10SdmaBypassMallOnWrite);
+        pCachePolicy->src_cache_policy     = GetCachePolicy(Gfx10SdmaBypassMallOnRead);
+        packet.HEADER_UNION.gfx103Plus.cpv = GetCpvFromCachePolicy(pCachePolicy->dst_cache_policy) |
+                                             GetCpvFromCachePolicy(pCachePolicy->src_cache_policy);
+    }
 
     *pPacket = packet;
 
@@ -1061,6 +1241,12 @@ void DmaCmdBuffer::CmdWriteImmediate(
     packet.ADDR_HI_UNION.addr_63_32 = HighPart(address);
     packet.DATA_UNION.DW_3_DATA     = LowPart(data);
 
+    if (m_pDevice->MemoryProperties().flags.supportsMall != 0)
+    {
+        packet.HEADER_UNION.gfx103Plus.llc_policy = GetMallBypass(Gfx10SdmaBypassMallOnWrite);
+        packet.HEADER_UNION.gfx103Plus.cpv        = GetCpvFromLlcPolicy(packet.HEADER_UNION.gfx103Plus.llc_policy);
+    }
+
     *pPacket = packet;
     size_t dwordsWritten = PacketDwords;
 
@@ -1111,6 +1297,12 @@ uint32* DmaCmdBuffer::WriteFillMemoryCmd(
     if (IsGfx10(*m_pDevice))
     {
         packet.COUNT_UNION.gfx10x.count     = *pBytesCopied - 1;
+    }
+
+    if (m_pDevice->MemoryProperties().flags.supportsMall != 0)
+    {
+        packet.HEADER_UNION.gfx103Plus.cache_policy = GetCachePolicy(Gfx10SdmaBypassMallOnWrite);
+        packet.HEADER_UNION.gfx103Plus.cpv          = GetCpvFromCachePolicy(packet.HEADER_UNION.gfx103Plus.cache_policy);
     }
 
     *pPacket = packet;
@@ -1377,6 +1569,19 @@ uint32* DmaCmdBuffer::CopyImageLinearTiledTransform(
     packet.DW_13_UNION.DW_13_DATA = 0;
     packet.DW_13_UNION.rect_z     = copyInfo.copyExtent.depth - 1;
 
+    if (m_pDevice->MemoryProperties().flags.supportsMall != 0)
+    {
+        const Gfx10SdmaBypassMall  tiledBypass  = deTile ? Gfx10SdmaBypassMallOnRead : Gfx10SdmaBypassMallOnWrite;
+        const Gfx10SdmaBypassMall  linearBypass = deTile ? Gfx10SdmaBypassMallOnWrite : Gfx10SdmaBypassMallOnRead;
+
+        auto*  pCachePolicy = &packet.DW_13_UNION.gfx103Plus;
+
+        pCachePolicy->linear_cache_policy     = GetCachePolicy(linearBypass);
+        pCachePolicy->tile_cache_policy       = GetCachePolicy(tiledBypass);
+        packet.HEADER_UNION.gfx103Plus.cpv    = GetCpvFromCachePolicy(pCachePolicy->linear_cache_policy) |
+                                                GetCpvFromCachePolicy(pCachePolicy->tile_cache_policy);
+    }
+
     SetupMetaData(tiledImg, &packet, (deTile == false));
 
     auto*const   pPacket = reinterpret_cast<SDMA_PKT_COPY_TILED_SUBWIN*>(pCmdSpace);
@@ -1458,6 +1663,19 @@ uint32* DmaCmdBuffer::CopyImageMemTiledTransform(
     packet.DW_12_UNION.rect_y     = rgn.imageExtent.height - 1;
     packet.DW_13_UNION.DW_13_DATA = 0;
     packet.DW_13_UNION.rect_z     = rgn.imageExtent.depth  - 1;
+
+    if (m_pDevice->MemoryProperties().flags.supportsMall != 0)
+    {
+        const Gfx10SdmaBypassMall  tiledBypass  = deTile ? Gfx10SdmaBypassMallOnRead : Gfx10SdmaBypassMallOnWrite;
+        const Gfx10SdmaBypassMall  linearBypass = deTile ? Gfx10SdmaBypassMallOnWrite : Gfx10SdmaBypassMallOnRead;
+
+        auto*  pCachePolicy = &packet.DW_13_UNION.gfx103Plus;
+
+        pCachePolicy->linear_cache_policy     = GetCachePolicy(linearBypass);
+        pCachePolicy->tile_cache_policy       = GetCachePolicy(tiledBypass);
+        packet.HEADER_UNION.gfx103Plus.cpv    = GetCpvFromCachePolicy(pCachePolicy->linear_cache_policy) |
+                                                GetCpvFromCachePolicy(pCachePolicy->tile_cache_policy);
+    }
 
     SetupMetaData(image, &packet, (deTile == false));
 

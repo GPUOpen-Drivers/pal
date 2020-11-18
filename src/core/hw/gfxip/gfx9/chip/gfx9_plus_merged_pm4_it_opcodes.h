@@ -156,6 +156,13 @@ typedef enum IT_OpCodeType {
     IT_DISPATCH_DRAW_ACE__GFX101                       = 0x0000008d,
     IT_DRAW_MULTI_PREAMBLE__GFX101                     = 0x0000008f,
     IT_AQL_PACKET__GFX101                              = 0x00000099,
+    IT_LOAD_UCONFIG_REG_INDEX__GFX102PLUS              = 0x00000064,
+    IT_WAIT_FOR_WRITE_CONFIRM__GFX102PLUS              = 0x00000092,
+    IT_CONTEXT_PUSH__GFX102PLUS                        = 0x000000ab,
+    IT_CONTEXT_POP__GFX102PLUS                         = 0x000000ac,
+    IT_DRAW_MULTI_PREAMBLE__GFX102PLUS                 = 0x000000fe,
+    IT_AQL_PACKET__GFX102PLUS                          = 0x000000ff,
+    IT_PERFMON_CONTROL__GFX103                         = 0x00000054,
     IT_DISPATCH_DRAW_PREAMBLE__NOTGFX10                = 0x0000008c,
     IT_DISPATCH_DRAW_PREAMBLE_ACE__NOTGFX10            = 0x0000008c,
     IT_DISPATCH_DRAW__NOTGFX10                         = 0x0000008d,
@@ -166,6 +173,10 @@ typedef enum IT_OpCodeType {
     IT_DISPATCH_TASK_STATE_INIT__NV10                  = 0x000000a9,
     IT_DISPATCH_TASKMESH_DIRECT_ACE__NV10              = 0x000000aa,
     IT_DISPATCH_TASKMESH_INDIRECT_MULTI_ACE__NV10      = 0x000000ad,
+    IT_DISPATCH_DRAW_PREAMBLE__NV21                    = 0x0000008c,
+    IT_DISPATCH_DRAW_PREAMBLE_ACE__NV21                = 0x0000008c,
+    IT_DISPATCH_DRAW__NV21                             = 0x0000008d,
+    IT_DISPATCH_DRAW_ACE__NV21                         = 0x0000008d,
 } IT_OpCodeType;
 
 constexpr unsigned int PM4_TYPE_0                                         = 0;

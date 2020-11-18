@@ -10829,6 +10829,2342 @@ constexpr ChNumFormat Gfx10MergedBufDataFmtTbl[] =
 
 constexpr uint32 Gfx10MergedBufDataFmtCount = sizeof(Gfx10MergedBufDataFmtTbl) / sizeof(ChNumFormat);
 
+// Lookup table for GPU access capabilities for each format/tiling-type pairing in Gfx10_2.
+constexpr MergedFormatPropertiesTable Gfx10_2MergedFormatPropertiesTable =
+{
+    {
+        // Note: Feature capabilities are listed in (linear, optimal) order.
+        { None,                           None                           }, // ChNumFormat::Undefined
+        { IrXsIflIfmm,                    IrXsIflIfmm                    }, // ChNumFormat::X1_Unorm
+        { None,                           None                           }, // ChNumFormat::X1_Uscaled
+        { IrXsIflIfmm,                    IrXsIflIfmm                    }, // ChNumFormat::X4Y4_Unorm
+        { None,                           None                           }, // ChNumFormat::X4Y4_Uscaled
+        { IrXsIflIfmm,                    IrXsIflIfmm                    }, // ChNumFormat::L4A4_Unorm
+        { IrXsIwXdIflIfmmCBXP,            IrXsIwXdIflIfmmCBMXP           }, // ChNumFormat::X4Y4Z4W4_Unorm
+        { None,                           None                           }, // ChNumFormat::X4Y4Z4W4_Uscaled
+        { IrXsIwXdIflIfmmCBXP,            IrXsIwXdIflIfmmCBMXP           }, // ChNumFormat::X5Y6Z5_Unorm
+        { None,                           None                           }, // ChNumFormat::X5Y6Z5_Uscaled
+        { IrXsIwXdIflIfmmCBXP,            IrXsIwXdIflIfmmCBMXP           }, // ChNumFormat::X5Y5Z5W1_Unorm
+        { None,                           None                           }, // ChNumFormat::X5Y5Z5W1_Uscaled
+        { IrXsIwXdIflIfmmCBX,             IrXsIwXdIflIfmmCBMX            }, // ChNumFormat::X1Y5Z5W5_Unorm
+        { None,                           None                           }, // ChNumFormat::X1Y5Z5W5_Uscaled
+        { IrXsIwXdIflIfmmTrTwCBX,         IrXsIwXdIflIfmmTrTwCBMX        }, // ChNumFormat::X8_Unorm
+        { IrXsIwXdIflIfmmTrTwCBX,         IrXsIwXdIflIfmmTrTwCBMX        }, // ChNumFormat::X8_Snorm
+        { IrXsIflTr,                      IrXsIflTrM                     }, // ChNumFormat::X8_Uscaled
+        { IrXsIflTr,                      IrXsIflTrM                     }, // ChNumFormat::X8_Sscaled
+        { IrXsIwXdIfmmTrTwCX,             IrXsIwXdIfmmTrTwCSMX           }, // ChNumFormat::X8_Uint
+        { IrXsIwXdIfmmTrTwCX,             IrXsIwXdIfmmTrTwCMX            }, // ChNumFormat::X8_Sint
+        { IrXsXdIflIfmmCBX,               IrXsXdIflIfmmCBMX              }, // ChNumFormat::X8_Srgb
+        { IrXsIwXdIflIfmmTrTwCBX,         IrXsIwXdIflIfmmTrTwCBMX        }, // ChNumFormat::A8_Unorm
+        { IrXsIwXdIflIfmmTrTwCBX,         IrXsIwXdIflIfmmTrTwCBMX        }, // ChNumFormat::L8_Unorm
+        { IrXsIwXdIflIfmmTrTwCBX,         IrXsIwXdIflIfmmTrTwCBMX        }, // ChNumFormat::P8_Unorm
+        { IrXsIwXdIflIfmmTrTwCBX,         IrXsIwXdIflIfmmTrTwCBMX        }, // ChNumFormat::X8Y8_Unorm
+        { IrXsIwXdIflIfmmTrTwCBX,         IrXsIwXdIflIfmmTrTwCBMX        }, // ChNumFormat::X8Y8_Snorm
+        { IrXsIflTr,                      IrXsIflTrM                     }, // ChNumFormat::X8Y8_Uscaled
+        { IrXsIflTr,                      IrXsIflTrM                     }, // ChNumFormat::X8Y8_Sscaled
+        { IrXsIwXdIfmmTrTwCX,             IrXsIwXdIfmmTrTwCMX            }, // ChNumFormat::X8Y8_Uint
+        { IrXsIwXdIfmmTrTwCX,             IrXsIwXdIfmmTrTwCMX            }, // ChNumFormat::X8Y8_Sint
+        { IrXsXdIflIfmmCBX,               IrXsXdIflIfmmCBMX              }, // ChNumFormat::X8Y8_Srgb
+        { IrXsIwXdIflIfmmTrTwCBX,         IrXsIwXdIflIfmmTrTwCBMX        }, // ChNumFormat::L8A8_Unorm
+        { IrXsIwXdIflIfmmTrTwCBXP,        IrXsIwXdIflIfmmTrTwCBMXP       }, // ChNumFormat::X8Y8Z8W8_Unorm
+        { IrXsIwXdIflIfmmTrTwCBXP,        IrXsIwXdIflIfmmTrTwCBMXP       }, // ChNumFormat::X8Y8Z8W8_Snorm
+        { IrXsIflTr,                      IrXsIflTrM                     }, // ChNumFormat::X8Y8Z8W8_Uscaled
+        { IrXsIflTr,                      IrXsIflTrM                     }, // ChNumFormat::X8Y8Z8W8_Sscaled
+        { IrXsIwXdIaIfmmTrTwTaCX,         IrXsIwXdIaIfmmTrTwTaCMX        }, // ChNumFormat::X8Y8Z8W8_Uint
+        { IrXsIwXdIaIfmmTrTwTaCX,         IrXsIwXdIaIfmmTrTwTaCMX        }, // ChNumFormat::X8Y8Z8W8_Sint
+        { IrXsXdIflIfmmCBXP,              IrXsXdIflIfmmCBMXP             }, // ChNumFormat::X8Y8Z8W8_Srgb
+        { IrXsIwXdIflIfmmTrTwCBXP,        IrXsIwXdIflIfmmTrTwCBMXP       }, // ChNumFormat::U8V8_Snorm_L8W8_Unorm
+        { IrXsIwXdIflIfmmTrTwCBX,         IrXsIwXdIflIfmmTrTwCBMX        }, // ChNumFormat::X10Y11Z11_Float
+        { IrXsIwXdIflIfmmTrTwCBXP,        IrXsIwXdIflIfmmTrTwCBMXP       }, // ChNumFormat::X11Y11Z10_Float
+        { IrXsIwXdIflIfmmTrTwCBXP,        IrXsIwXdIflIfmmTrTwCBMXP       }, // ChNumFormat::X10Y10Z10W2_Unorm
+        { IrXsIwXdIflIfmmTrTwCBX,         IrXsIwXdIflIfmmTrTwCBMX        }, // ChNumFormat::X10Y10Z10W2_Snorm
+        { IrXsIflTr,                      IrXsIflTrM                     }, // ChNumFormat::X10Y10Z10W2_Uscaled
+        { IrXsIflTr,                      IrXsIflTrM                     }, // ChNumFormat::X10Y10Z10W2_Sscaled
+        { IrXsIwXdIaIfmmTrTwTaCX,         IrXsIwXdIaIfmmTrTwTaCMX        }, // ChNumFormat::X10Y10Z10W2_Uint
+        { IrXsIwIaIfmmTrTwTa,             IrXsIwIaIfmmTrTwTaM            }, // ChNumFormat::X10Y10Z10W2_Sint
+        { IrXsIwXdIflIfmmTrTwCBXP,        IrXsIwXdIflIfmmTrTwCBMXP       }, // ChNumFormat::X10Y10Z10W2Bias_Unorm
+        { IrXsIwXdIflIfmmTrTwCBXP,        IrXsIwXdIflIfmmTrTwCBMXP       }, // ChNumFormat::U10V10W10_Snorm_A2_Unorm
+        { IrXsIwXdIflIfmmTrTwCBX,         IrXsIwXdIflIfmmTrTwCBDMX       }, // ChNumFormat::X16_Unorm
+        { IrXsIwXdIflIfmmTrTwCBX,         IrXsIwXdIflIfmmTrTwCBMX        }, // ChNumFormat::X16_Snorm
+        { IrXsIflTr,                      IrXsIflTrM                     }, // ChNumFormat::X16_Uscaled
+        { IrXsIflTr,                      IrXsIflTrM                     }, // ChNumFormat::X16_Sscaled
+        { IrXsIwXdIfmmTrTwCX,             IrXsIwXdIfmmTrTwCMX            }, // ChNumFormat::X16_Uint
+        { IrXsIwXdIfmmTrTwCX,             IrXsIwXdIfmmTrTwCMX            }, // ChNumFormat::X16_Sint
+        { IrXsIwXdIflIfmmTrTwCBX,         IrXsIwXdIflIfmmTrTwCBMX        }, // ChNumFormat::X16_Float
+        { IrXsIwXdIflIfmmTrTwCBX,         IrXsIwXdIflIfmmTrTwCBMX        }, // ChNumFormat::L16_Unorm
+        { IrXsIwXdIflIfmmTrTwCBX,         IrXsIwXdIflIfmmTrTwCBMX        }, // ChNumFormat::X16Y16_Unorm
+        { IrXsIwXdIflIfmmTrTwCBX,         IrXsIwXdIflIfmmTrTwCBMX        }, // ChNumFormat::X16Y16_Snorm
+        { IrXsIflTr,                      IrXsIflTrM                     }, // ChNumFormat::X16Y16_Uscaled
+        { IrXsIflTr,                      IrXsIflTrM                     }, // ChNumFormat::X16Y16_Sscaled
+        { IrXsIwXdIaIfmmTrTwTaCX,         IrXsIwXdIaIfmmTrTwTaCMX        }, // ChNumFormat::X16Y16_Uint
+        { IrXsIwXdIaIfmmTrTwTaCX,         IrXsIwXdIaIfmmTrTwTaCMX        }, // ChNumFormat::X16Y16_Sint
+        { IrXsIwXdIflIfmmTrTwCBX,         IrXsIwXdIflIfmmTrTwCBMX        }, // ChNumFormat::X16Y16_Float
+        { IrXsIwXdIflIfmmTrTwCBXP,        IrXsIwXdIflIfmmTrTwCBMXP       }, // ChNumFormat::X16Y16Z16W16_Unorm
+        { IrXsIwXdIflIfmmTrTwCBXP,        IrXsIwXdIflIfmmTrTwCBMXP       }, // ChNumFormat::X16Y16Z16W16_Snorm
+        { IrXsIflTr,                      IrXsIflTrM                     }, // ChNumFormat::X16Y16Z16W16_Uscaled
+        { IrXsIflTr,                      IrXsIflTrM                     }, // ChNumFormat::X16Y16Z16W16_Sscaled
+        { IrXsIwXdIaIfmmTrTwTaCX,         IrXsIwXdIaIfmmTrTwTaCMX        }, // ChNumFormat::X16Y16Z16W16_Uint
+        { IrXsIwXdIaIfmmTrTwTaCX,         IrXsIwXdIaIfmmTrTwTaCMX        }, // ChNumFormat::X16Y16Z16W16_Sint
+        { IrXsIwXdIflIfmmTrTwCBXP,        IrXsIwXdIflIfmmTrTwCBMXP       }, // ChNumFormat::X16Y16Z16W16_Float
+        { IrXsIwXdIaIfmmTrTwTaCX,         IrXsIwXdIaIfmmTrTwTaCMX        }, // ChNumFormat::X32_Uint
+        { IrXsIwXdIaIfmmTrTwTaCX,         IrXsIwXdIaIfmmTrTwTaCMX        }, // ChNumFormat::X32_Sint
+        { IrXsIwXdIflIfmmTrTwCBX,         IrXsIwXdIflIfmmTrTwCBDMX       }, // ChNumFormat::X32_Float
+        { IrXsIwXdIfmmTrTwCX,             IrXsIwXdIfmmTrTwCMX            }, // ChNumFormat::X32Y32_Uint
+        { IrXsIwXdIfmmTrTwCX,             IrXsIwXdIfmmTrTwCMX            }, // ChNumFormat::X32Y32_Sint
+        { IrXsIwXdIflIfmmTrTwCBX,         IrXsIwXdIflIfmmTrTwCBMX        }, // ChNumFormat::X32Y32_Float
+        { IrXsIfmmTrTw,                   None                           }, // ChNumFormat::X32Y32Z32_Uint
+        { IrXsIfmmTrTw,                   None                           }, // ChNumFormat::X32Y32Z32_Sint
+        { IrXsIflIfmmTrTw,                None                           }, // ChNumFormat::X32Y32Z32_Float
+        { IrXsIwXdIfmmTrTwCX,             IrXsIwXdIfmmTrTwCMX            }, // ChNumFormat::X32Y32Z32W32_Uint
+        { IrXsIwXdIfmmTrTwCX,             IrXsIwXdIfmmTrTwCMX            }, // ChNumFormat::X32Y32Z32W32_Sint
+        { IrXsIwXdIflIfmmTrTwCBX,         IrXsIwXdIflIfmmTrTwCBMX        }, // ChNumFormat::X32Y32Z32W32_Float
+        { None,                           IrXsDSM                        }, // ChNumFormat::D16_Unorm_S8_Uint
+        { None,                           IrXsDSM                        }, // ChNumFormat::D32_Float_S8_Uint
+        { IrXsIwXdIaIflIfmmCBX,           IrXsIwXdIaIflIfmmCBMX          }, // ChNumFormat::X9Y9Z9E5_Float
+        { Copy,                           IrXsIfl                        }, // ChNumFormat::Bc1_Unorm
+        { Copy,                           IrXsIfl                        }, // ChNumFormat::Bc1_Srgb
+        { Copy,                           IrXsIfl                        }, // ChNumFormat::Bc2_Unorm
+        { Copy,                           IrXsIfl                        }, // ChNumFormat::Bc2_Srgb
+        { Copy,                           IrXsIfl                        }, // ChNumFormat::Bc3_Unorm
+        { Copy,                           IrXsIfl                        }, // ChNumFormat::Bc3_Srgb
+        { Copy,                           IrXsIfl                        }, // ChNumFormat::Bc4_Unorm
+        { Copy,                           IrXsIfl                        }, // ChNumFormat::Bc4_Snorm
+        { Copy,                           IrXsIfl                        }, // ChNumFormat::Bc5_Unorm
+        { Copy,                           IrXsIfl                        }, // ChNumFormat::Bc5_Snorm
+        { Copy,                           IrXsIfl                        }, // ChNumFormat::Bc6_Ufloat
+        { Copy,                           IrXsIfl                        }, // ChNumFormat::Bc6_Sfloat
+        { Copy,                           IrXsIfl                        }, // ChNumFormat::Bc7_Unorm
+        { Copy,                           IrXsIfl                        }, // ChNumFormat::Bc7_Srgb
+        { None,                           None                           }, // ChNumFormat::Etc2X8Y8Z8_Unorm
+        { None,                           None                           }, // ChNumFormat::Etc2X8Y8Z8_Srgb
+        { None,                           None                           }, // ChNumFormat::Etc2X8Y8Z8W1_Unorm
+        { None,                           None                           }, // ChNumFormat::Etc2X8Y8Z8W1_Srgb
+        { None,                           None                           }, // ChNumFormat::Etc2X8Y8Z8W8_Unorm
+        { None,                           None                           }, // ChNumFormat::Etc2X8Y8Z8W8_Srgb
+        { None,                           None                           }, // ChNumFormat::Etc2X11_Unorm
+        { None,                           None                           }, // ChNumFormat::Etc2X11_Snorm
+        { None,                           None                           }, // ChNumFormat::Etc2X11Y11_Unorm
+        { None,                           None                           }, // ChNumFormat::Etc2X11Y11_Snorm
+        { None,                           None                           }, // ChNumFormat::AstcLdr4x4_Unorm
+        { None,                           None                           }, // ChNumFormat::AstcLdr4x4_Srgb
+        { None,                           None                           }, // ChNumFormat::AstcLdr5x4_Unorm
+        { None,                           None                           }, // ChNumFormat::AstcLdr5x4_Srgb
+        { None,                           None                           }, // ChNumFormat::AstcLdr5x5_Unorm
+        { None,                           None                           }, // ChNumFormat::AstcLdr5x5_Srgb
+        { None,                           None                           }, // ChNumFormat::AstcLdr6x5_Unorm
+        { None,                           None                           }, // ChNumFormat::AstcLdr6x5_Srgb
+        { None,                           None                           }, // ChNumFormat::AstcLdr6x6_Unorm
+        { None,                           None                           }, // ChNumFormat::AstcLdr6x6_Srgb
+        { None,                           None                           }, // ChNumFormat::AstcLdr8x5_Unorm
+        { None,                           None                           }, // ChNumFormat::AstcLdr8x5_Srgb
+        { None,                           None                           }, // ChNumFormat::AstcLdr8x6_Unorm
+        { None,                           None                           }, // ChNumFormat::AstcLdr8x6_Srgb
+        { None,                           None                           }, // ChNumFormat::AstcLdr8x8_Unorm
+        { None,                           None                           }, // ChNumFormat::AstcLdr8x8_Srgb
+        { None,                           None                           }, // ChNumFormat::AstcLdr10x5_Unorm
+        { None,                           None                           }, // ChNumFormat::AstcLdr10x5_Srgb
+        { None,                           None                           }, // ChNumFormat::AstcLdr10x6_Unorm
+        { None,                           None                           }, // ChNumFormat::AstcLdr10x6_Srgb
+        { None,                           None                           }, // ChNumFormat::AstcLdr10x8_Unorm
+        { None,                           None                           }, // ChNumFormat::AstcLdr10x8_Srgb
+        { None,                           None                           }, // ChNumFormat::AstcLdr10x10_Unorm
+        { None,                           None                           }, // ChNumFormat::AstcLdr10x10_Srgb
+        { None,                           None                           }, // ChNumFormat::AstcLdr12x10_Unorm
+        { None,                           None                           }, // ChNumFormat::AstcLdr12x10_Srgb
+        { None,                           None                           }, // ChNumFormat::AstcLdr12x12_Unorm
+        { None,                           None                           }, // ChNumFormat::AstcLdr12x12_Srgb
+        { None,                           None                           }, // ChNumFormat::AstcHdr4x4_Float
+        { None,                           None                           }, // ChNumFormat::AstcHdr5x4_Float
+        { None,                           None                           }, // ChNumFormat::AstcHdr5x5_Float
+        { None,                           None                           }, // ChNumFormat::AstcHdr6x5_Float
+        { None,                           None                           }, // ChNumFormat::AstcHdr6x6_Float
+        { None,                           None                           }, // ChNumFormat::AstcHdr8x5_Float
+        { None,                           None                           }, // ChNumFormat::AstcHdr8x6_Float
+        { None,                           None                           }, // ChNumFormat::AstcHdr8x8_Float
+        { None,                           None                           }, // ChNumFormat::AstcHdr10x5_Float
+        { None,                           None                           }, // ChNumFormat::AstcHdr10x6_Float
+        { None,                           None                           }, // ChNumFormat::AstcHdr10x8_Float
+        { None,                           None                           }, // ChNumFormat::AstcHdr10x10_Float
+        { None,                           None                           }, // ChNumFormat::AstcHdr12x10_Float
+        { None,                           None                           }, // ChNumFormat::AstcHdr12x12_Float
+        { IrXsIflIfmm,                    IrXsIflIfmm                    }, // ChNumFormat::X8Y8_Z8Y8_Unorm
+        { None,                           None                           }, // ChNumFormat::X8Y8_Z8Y8_Uscaled
+        { IrXsIflIfmm,                    IrXsIflIfmm                    }, // ChNumFormat::Y8X8_Y8Z8_Unorm
+        { None,                           None                           }, // ChNumFormat::Y8X8_Y8Z8_Uscaled
+        { IrXsIwXdCX,                     IrXsIwXdCX                     }, // ChNumFormat::AYUV
+        { IrXsIwXdCX,                     IrXsIwXdCX                     }, // ChNumFormat::UYVY
+        { IrXsIwXdCX,                     IrXsIwXdCX                     }, // ChNumFormat::VYUY
+        { IrXsIwXdCX,                     IrXsIwXdCX                     }, // ChNumFormat::YUY2
+        { IrXsIwXdCX,                     IrXsIwXdCX                     }, // ChNumFormat::YVY2
+        { IrXsIwXdCX,                     IrXsIwXdCX                     }, // ChNumFormat::YV12
+        { IrXsIwXdCX,                     IrXsIwXdCX                     }, // ChNumFormat::NV11
+        { IrXsIwXdCX,                     IrXsIwXdCX                     }, // ChNumFormat::NV12
+        { IrXsIwXdCX,                     IrXsIwXdCX                     }, // ChNumFormat::NV21
+        { IrXsIwXdCX,                     IrXsIwXdCX                     }, // ChNumFormat::P016
+        { IrXsIwXdCX,                     IrXsIwXdCX                     }, // ChNumFormat::P010
+        { IrXsIwXdCX,                     IrXsIwXdCX                     }, // ChNumFormat::P210
+        { IrXsIwXdIflIfmmTrTwCBX,         IrXsIwXdIflIfmmTrTwCBMX        }, // ChNumFormat::X8_MM_Unorm
+        { IrXsIwXdIfmmTrTwCX,             IrXsIwXdIfmmTrTwCMX            }, // ChNumFormat::X8_MM_Uint
+        { IrXsIwXdIflIfmmTrTwCBX,         IrXsIwXdIflIfmmTrTwCBMX        }, // ChNumFormat::X8Y8_MM_Unorm
+        { IrXsIwXdIfmmTrTwCX,             IrXsIwXdIfmmTrTwCMX            }, // ChNumFormat::X8Y8_MM_Uint
+        { IrXsIwXdIflIfmmTrTwCBX,         IrXsIwXdIflIfmmTrTwCBMX        }, // ChNumFormat::X16_MM_Unorm
+        { IrXsIwXdIfmmTrTwCX,             IrXsIwXdIfmmTrTwCMX            }, // ChNumFormat::X16_MM_Uint
+        { IrXsIwXdIflIfmmTrTwCBX,         IrXsIwXdIflIfmmTrTwCBMX        }, // ChNumFormat::X16Y16_MM_Unorm
+        { IrXsIwXdIaIfmmTrTwTaCX,         IrXsIwXdIaIfmmTrTwTaCMX        }, // ChNumFormat::X16Y16_MM_Uint
+    }
+};
+
+// Stores a ChannelFmtInfo struct for each available channel format for mapping PAL channel formats to the format values
+// for various hardware blocks.
+constexpr MergedFlatFmtInfo Gfx10_2MergedChannelFmtInfoTbl[] =
+{
+    // ChNumFormat::Undefined
+    {
+        ChNumFormat::Undefined,            // ChNumFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_FMT_INVALID,             // Image Channel Format
+        Chip::BUF_FMT_INVALID,             // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::X1_Unorm
+    {
+        ChNumFormat::X1_Unorm,             // ChNumFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_FMT_1_UNORM__GFX10CORE,  // Image Channel Format
+        Chip::BUF_FMT_INVALID,             // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::X1_Uscaled
+    {
+        ChNumFormat::X1_Uscaled,           // ChNumFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_USCALED,              // CB Numeric Format
+        Chip::IMG_FMT_INVALID,             // Image Channel Format
+        Chip::BUF_FMT_INVALID,             // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::X4Y4_Unorm
+    {
+        ChNumFormat::X4Y4_Unorm,           // ChNumFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_FMT_4_4_UNORM__GFX10CORE, // Image Channel Format
+        Chip::BUF_FMT_INVALID,             // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::X4Y4_Uscaled
+    {
+        ChNumFormat::X4Y4_Uscaled,         // ChNumFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_USCALED,              // CB Numeric Format
+        Chip::IMG_FMT_INVALID,             // Image Channel Format
+        Chip::BUF_FMT_INVALID,             // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::L4A4_Unorm
+    {
+        ChNumFormat::L4A4_Unorm,           // ChNumFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_FMT_4_4_UNORM__GFX10CORE, // Image Channel Format
+        Chip::BUF_FMT_INVALID,             // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::X4Y4Z4W4_Unorm
+    {
+        ChNumFormat::X4Y4Z4W4_Unorm,       // ChNumFormat
+        Chip::COLOR_4_4_4_4,               // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_FMT_4_4_4_4_UNORM__GFX10CORE, // Image Channel Format
+        Chip::BUF_FMT_INVALID,             // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::X4Y4Z4W4_Uscaled
+    {
+        ChNumFormat::X4Y4Z4W4_Uscaled,     // ChNumFormat
+        Chip::COLOR_4_4_4_4,               // CB Channel Format
+        Chip::NUMBER_USCALED,              // CB Numeric Format
+        Chip::IMG_FMT_INVALID,             // Image Channel Format
+        Chip::BUF_FMT_INVALID,             // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::X5Y6Z5_Unorm
+    {
+        ChNumFormat::X5Y6Z5_Unorm,         // ChNumFormat
+        Chip::COLOR_5_6_5,                 // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_FMT_5_6_5_UNORM__GFX10CORE, // Image Channel Format
+        Chip::BUF_FMT_INVALID,             // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::X5Y6Z5_Uscaled
+    {
+        ChNumFormat::X5Y6Z5_Uscaled,       // ChNumFormat
+        Chip::COLOR_5_6_5,                 // CB Channel Format
+        Chip::NUMBER_USCALED,              // CB Numeric Format
+        Chip::IMG_FMT_INVALID,             // Image Channel Format
+        Chip::BUF_FMT_INVALID,             // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::X5Y5Z5W1_Unorm
+    {
+        ChNumFormat::X5Y5Z5W1_Unorm,       // ChNumFormat
+        Chip::COLOR_1_5_5_5,               // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_FMT_1_5_5_5_UNORM__GFX10CORE, // Image Channel Format
+        Chip::BUF_FMT_INVALID,             // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::X5Y5Z5W1_Uscaled
+    {
+        ChNumFormat::X5Y5Z5W1_Uscaled,     // ChNumFormat
+        Chip::COLOR_1_5_5_5,               // CB Channel Format
+        Chip::NUMBER_USCALED,              // CB Numeric Format
+        Chip::IMG_FMT_INVALID,             // Image Channel Format
+        Chip::BUF_FMT_INVALID,             // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::X1Y5Z5W5_Unorm
+    {
+        ChNumFormat::X1Y5Z5W5_Unorm,       // ChNumFormat
+        Chip::COLOR_5_5_5_1,               // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_FMT_5_5_5_1_UNORM__GFX10CORE, // Image Channel Format
+        Chip::BUF_FMT_INVALID,             // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::X1Y5Z5W5_Uscaled
+    {
+        ChNumFormat::X1Y5Z5W5_Uscaled,     // ChNumFormat
+        Chip::COLOR_5_5_5_1,               // CB Channel Format
+        Chip::NUMBER_USCALED,              // CB Numeric Format
+        Chip::IMG_FMT_INVALID,             // Image Channel Format
+        Chip::BUF_FMT_INVALID,             // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::X8_Unorm
+    {
+        ChNumFormat::X8_Unorm,             // ChNumFormat
+        Chip::COLOR_8,                     // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_FMT_8_UNORM,             // Image Channel Format
+        Chip::BUF_FMT_8_UNORM,             // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::X8_Snorm
+    {
+        ChNumFormat::X8_Snorm,             // ChNumFormat
+        Chip::COLOR_8,                     // CB Channel Format
+        Chip::NUMBER_SNORM,                // CB Numeric Format
+        Chip::IMG_FMT_8_SNORM,             // Image Channel Format
+        Chip::BUF_FMT_8_SNORM,             // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::X8_Uscaled
+    {
+        ChNumFormat::X8_Uscaled,           // ChNumFormat
+        Chip::COLOR_8,                     // CB Channel Format
+        Chip::NUMBER_USCALED,              // CB Numeric Format
+        Chip::IMG_FMT_8_USCALED,           // Image Channel Format
+        Chip::BUF_FMT_8_USCALED,           // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::X8_Sscaled
+    {
+        ChNumFormat::X8_Sscaled,           // ChNumFormat
+        Chip::COLOR_8,                     // CB Channel Format
+        Chip::NUMBER_SSCALED,              // CB Numeric Format
+        Chip::IMG_FMT_8_SSCALED,           // Image Channel Format
+        Chip::BUF_FMT_8_SSCALED,           // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::X8_Uint
+    {
+        ChNumFormat::X8_Uint,              // ChNumFormat
+        Chip::COLOR_8,                     // CB Channel Format
+        Chip::NUMBER_UINT,                 // CB Numeric Format
+        Chip::IMG_FMT_8_UINT,              // Image Channel Format
+        Chip::BUF_FMT_8_UINT,              // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_8,                   // StencilFormat
+    },
+    // ChNumFormat::X8_Sint
+    {
+        ChNumFormat::X8_Sint,              // ChNumFormat
+        Chip::COLOR_8,                     // CB Channel Format
+        Chip::NUMBER_SINT,                 // CB Numeric Format
+        Chip::IMG_FMT_8_SINT,              // Image Channel Format
+        Chip::BUF_FMT_8_SINT,              // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::X8_Srgb
+    {
+        ChNumFormat::X8_Srgb,              // ChNumFormat
+        Chip::COLOR_8,                     // CB Channel Format
+        Chip::NUMBER_SRGB,                 // CB Numeric Format
+        Chip::IMG_FMT_8_SRGB__GFX10CORE,   // Image Channel Format
+        Chip::BUF_FMT_INVALID,             // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::A8_Unorm
+    {
+        ChNumFormat::A8_Unorm,             // ChNumFormat
+        Chip::COLOR_8,                     // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_FMT_8_UNORM,             // Image Channel Format
+        Chip::BUF_FMT_8_UNORM,             // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::L8_Unorm
+    {
+        ChNumFormat::L8_Unorm,             // ChNumFormat
+        Chip::COLOR_8,                     // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_FMT_8_UNORM,             // Image Channel Format
+        Chip::BUF_FMT_8_UNORM,             // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::P8_Unorm
+    {
+        ChNumFormat::P8_Unorm,             // ChNumFormat
+        Chip::COLOR_8,                     // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_FMT_8_UNORM,             // Image Channel Format
+        Chip::BUF_FMT_8_UNORM,             // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::X8Y8_Unorm
+    {
+        ChNumFormat::X8Y8_Unorm,           // ChNumFormat
+        Chip::COLOR_8_8,                   // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_FMT_8_8_UNORM,           // Image Channel Format
+        Chip::BUF_FMT_8_8_UNORM,           // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::X8Y8_Snorm
+    {
+        ChNumFormat::X8Y8_Snorm,           // ChNumFormat
+        Chip::COLOR_8_8,                   // CB Channel Format
+        Chip::NUMBER_SNORM,                // CB Numeric Format
+        Chip::IMG_FMT_8_8_SNORM,           // Image Channel Format
+        Chip::BUF_FMT_8_8_SNORM,           // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::X8Y8_Uscaled
+    {
+        ChNumFormat::X8Y8_Uscaled,         // ChNumFormat
+        Chip::COLOR_8_8,                   // CB Channel Format
+        Chip::NUMBER_USCALED,              // CB Numeric Format
+        Chip::IMG_FMT_8_8_USCALED,         // Image Channel Format
+        Chip::BUF_FMT_8_8_USCALED,         // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::X8Y8_Sscaled
+    {
+        ChNumFormat::X8Y8_Sscaled,         // ChNumFormat
+        Chip::COLOR_8_8,                   // CB Channel Format
+        Chip::NUMBER_SSCALED,              // CB Numeric Format
+        Chip::IMG_FMT_8_8_SSCALED,         // Image Channel Format
+        Chip::BUF_FMT_8_8_SSCALED,         // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::X8Y8_Uint
+    {
+        ChNumFormat::X8Y8_Uint,            // ChNumFormat
+        Chip::COLOR_8_8,                   // CB Channel Format
+        Chip::NUMBER_UINT,                 // CB Numeric Format
+        Chip::IMG_FMT_8_8_UINT,            // Image Channel Format
+        Chip::BUF_FMT_8_8_UINT,            // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::X8Y8_Sint
+    {
+        ChNumFormat::X8Y8_Sint,            // ChNumFormat
+        Chip::COLOR_8_8,                   // CB Channel Format
+        Chip::NUMBER_SINT,                 // CB Numeric Format
+        Chip::IMG_FMT_8_8_SINT,            // Image Channel Format
+        Chip::BUF_FMT_8_8_SINT,            // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::X8Y8_Srgb
+    {
+        ChNumFormat::X8Y8_Srgb,            // ChNumFormat
+        Chip::COLOR_8_8,                   // CB Channel Format
+        Chip::NUMBER_SRGB,                 // CB Numeric Format
+        Chip::IMG_FMT_8_8_SRGB__GFX10CORE, // Image Channel Format
+        Chip::BUF_FMT_INVALID,             // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::L8A8_Unorm
+    {
+        ChNumFormat::L8A8_Unorm,           // ChNumFormat
+        Chip::COLOR_8_8,                   // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_FMT_8_8_UNORM,           // Image Channel Format
+        Chip::BUF_FMT_8_8_UNORM,           // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::X8Y8Z8W8_Unorm
+    {
+        ChNumFormat::X8Y8Z8W8_Unorm,       // ChNumFormat
+        Chip::COLOR_8_8_8_8,               // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_FMT_8_8_8_8_UNORM__GFX10CORE, // Image Channel Format
+        Chip::BUF_FMT_8_8_8_8_UNORM__GFX10CORE, // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::X8Y8Z8W8_Snorm
+    {
+        ChNumFormat::X8Y8Z8W8_Snorm,       // ChNumFormat
+        Chip::COLOR_8_8_8_8,               // CB Channel Format
+        Chip::NUMBER_SNORM,                // CB Numeric Format
+        Chip::IMG_FMT_8_8_8_8_SNORM__GFX10CORE, // Image Channel Format
+        Chip::BUF_FMT_8_8_8_8_SNORM__GFX10CORE, // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::X8Y8Z8W8_Uscaled
+    {
+        ChNumFormat::X8Y8Z8W8_Uscaled,     // ChNumFormat
+        Chip::COLOR_8_8_8_8,               // CB Channel Format
+        Chip::NUMBER_USCALED,              // CB Numeric Format
+        Chip::IMG_FMT_8_8_8_8_USCALED__GFX10CORE, // Image Channel Format
+        Chip::BUF_FMT_8_8_8_8_USCALED__GFX10CORE, // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::X8Y8Z8W8_Sscaled
+    {
+        ChNumFormat::X8Y8Z8W8_Sscaled,     // ChNumFormat
+        Chip::COLOR_8_8_8_8,               // CB Channel Format
+        Chip::NUMBER_SSCALED,              // CB Numeric Format
+        Chip::IMG_FMT_8_8_8_8_SSCALED__GFX10CORE, // Image Channel Format
+        Chip::BUF_FMT_8_8_8_8_SSCALED__GFX10CORE, // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::X8Y8Z8W8_Uint
+    {
+        ChNumFormat::X8Y8Z8W8_Uint,        // ChNumFormat
+        Chip::COLOR_8_8_8_8,               // CB Channel Format
+        Chip::NUMBER_UINT,                 // CB Numeric Format
+        Chip::IMG_FMT_8_8_8_8_UINT__GFX10CORE, // Image Channel Format
+        Chip::BUF_FMT_8_8_8_8_UINT__GFX10CORE, // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::X8Y8Z8W8_Sint
+    {
+        ChNumFormat::X8Y8Z8W8_Sint,        // ChNumFormat
+        Chip::COLOR_8_8_8_8,               // CB Channel Format
+        Chip::NUMBER_SINT,                 // CB Numeric Format
+        Chip::IMG_FMT_8_8_8_8_SINT__GFX10CORE, // Image Channel Format
+        Chip::BUF_FMT_8_8_8_8_SINT__GFX10CORE, // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::X8Y8Z8W8_Srgb
+    {
+        ChNumFormat::X8Y8Z8W8_Srgb,        // ChNumFormat
+        Chip::COLOR_8_8_8_8,               // CB Channel Format
+        Chip::NUMBER_SRGB,                 // CB Numeric Format
+        Chip::IMG_FMT_8_8_8_8_SRGB__GFX10CORE, // Image Channel Format
+        Chip::BUF_FMT_INVALID,             // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::U8V8_Snorm_L8W8_Unorm
+    {
+        ChNumFormat::U8V8_Snorm_L8W8_Unorm, // ChNumFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_FMT_INVALID,             // Image Channel Format
+        Chip::BUF_FMT_INVALID,             // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::X10Y11Z11_Float
+    {
+        ChNumFormat::X10Y11Z11_Float,      // ChNumFormat
+        Chip::COLOR_11_11_10,              // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_FMT_11_11_10_FLOAT__GFX10CORE, // Image Channel Format
+        Chip::BUF_FMT_11_11_10_FLOAT__GFX10CORE, // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::X11Y11Z10_Float
+    {
+        ChNumFormat::X11Y11Z10_Float,      // ChNumFormat
+        Chip::COLOR_10_11_11,              // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_FMT_10_11_11_FLOAT__GFX10CORE, // Image Channel Format
+        Chip::BUF_FMT_10_11_11_FLOAT__GFX10CORE, // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::X10Y10Z10W2_Unorm
+    {
+        ChNumFormat::X10Y10Z10W2_Unorm,    // ChNumFormat
+        Chip::COLOR_2_10_10_10,            // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_FMT_2_10_10_10_UNORM__GFX10CORE, // Image Channel Format
+        Chip::BUF_FMT_2_10_10_10_UNORM__GFX10CORE, // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::X10Y10Z10W2_Snorm
+    {
+        ChNumFormat::X10Y10Z10W2_Snorm,    // ChNumFormat
+        Chip::COLOR_2_10_10_10,            // CB Channel Format
+        Chip::NUMBER_SNORM,                // CB Numeric Format
+        Chip::IMG_FMT_2_10_10_10_SNORM__GFX10CORE, // Image Channel Format
+        Chip::BUF_FMT_2_10_10_10_SNORM__GFX10CORE, // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::X10Y10Z10W2_Uscaled
+    {
+        ChNumFormat::X10Y10Z10W2_Uscaled,  // ChNumFormat
+        Chip::COLOR_2_10_10_10,            // CB Channel Format
+        Chip::NUMBER_USCALED,              // CB Numeric Format
+        Chip::IMG_FMT_2_10_10_10_USCALED__GFX10CORE, // Image Channel Format
+        Chip::BUF_FMT_2_10_10_10_USCALED__GFX10CORE, // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::X10Y10Z10W2_Sscaled
+    {
+        ChNumFormat::X10Y10Z10W2_Sscaled,  // ChNumFormat
+        Chip::COLOR_2_10_10_10,            // CB Channel Format
+        Chip::NUMBER_SSCALED,              // CB Numeric Format
+        Chip::IMG_FMT_2_10_10_10_SSCALED__GFX10CORE, // Image Channel Format
+        Chip::BUF_FMT_2_10_10_10_SSCALED__GFX10CORE, // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::X10Y10Z10W2_Uint
+    {
+        ChNumFormat::X10Y10Z10W2_Uint,     // ChNumFormat
+        Chip::COLOR_2_10_10_10,            // CB Channel Format
+        Chip::NUMBER_UINT,                 // CB Numeric Format
+        Chip::IMG_FMT_2_10_10_10_UINT__GFX10CORE, // Image Channel Format
+        Chip::BUF_FMT_2_10_10_10_UINT__GFX10CORE, // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::X10Y10Z10W2_Sint
+    {
+        ChNumFormat::X10Y10Z10W2_Sint,     // ChNumFormat
+        Chip::COLOR_2_10_10_10,            // CB Channel Format
+        Chip::NUMBER_SINT,                 // CB Numeric Format
+        Chip::IMG_FMT_2_10_10_10_SINT__GFX10CORE, // Image Channel Format
+        Chip::BUF_FMT_2_10_10_10_SINT__GFX10CORE, // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::X10Y10Z10W2Bias_Unorm
+    {
+        ChNumFormat::X10Y10Z10W2Bias_Unorm, // ChNumFormat
+        Chip::COLOR_2_10_10_10,            // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_FMT_2_10_10_10_UNORM__GFX10CORE, // Image Channel Format
+        Chip::BUF_FMT_2_10_10_10_UNORM__GFX10CORE, // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::U10V10W10_Snorm_A2_Unorm
+    {
+        ChNumFormat::U10V10W10_Snorm_A2_Unorm, // ChNumFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_FMT_INVALID,             // Image Channel Format
+        Chip::BUF_FMT_INVALID,             // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::X16_Unorm
+    {
+        ChNumFormat::X16_Unorm,            // ChNumFormat
+        Chip::COLOR_16,                    // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_FMT_16_UNORM,            // Image Channel Format
+        Chip::BUF_FMT_16_UNORM,            // Buffer Image Format
+        Chip::Z_16,                        // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::X16_Snorm
+    {
+        ChNumFormat::X16_Snorm,            // ChNumFormat
+        Chip::COLOR_16,                    // CB Channel Format
+        Chip::NUMBER_SNORM,                // CB Numeric Format
+        Chip::IMG_FMT_16_SNORM,            // Image Channel Format
+        Chip::BUF_FMT_16_SNORM,            // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::X16_Uscaled
+    {
+        ChNumFormat::X16_Uscaled,          // ChNumFormat
+        Chip::COLOR_16,                    // CB Channel Format
+        Chip::NUMBER_USCALED,              // CB Numeric Format
+        Chip::IMG_FMT_16_USCALED,          // Image Channel Format
+        Chip::BUF_FMT_16_USCALED,          // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::X16_Sscaled
+    {
+        ChNumFormat::X16_Sscaled,          // ChNumFormat
+        Chip::COLOR_16,                    // CB Channel Format
+        Chip::NUMBER_SSCALED,              // CB Numeric Format
+        Chip::IMG_FMT_16_SSCALED,          // Image Channel Format
+        Chip::BUF_FMT_16_SSCALED,          // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::X16_Uint
+    {
+        ChNumFormat::X16_Uint,             // ChNumFormat
+        Chip::COLOR_16,                    // CB Channel Format
+        Chip::NUMBER_UINT,                 // CB Numeric Format
+        Chip::IMG_FMT_16_UINT,             // Image Channel Format
+        Chip::BUF_FMT_16_UINT,             // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::X16_Sint
+    {
+        ChNumFormat::X16_Sint,             // ChNumFormat
+        Chip::COLOR_16,                    // CB Channel Format
+        Chip::NUMBER_SINT,                 // CB Numeric Format
+        Chip::IMG_FMT_16_SINT,             // Image Channel Format
+        Chip::BUF_FMT_16_SINT,             // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::X16_Float
+    {
+        ChNumFormat::X16_Float,            // ChNumFormat
+        Chip::COLOR_16,                    // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_FMT_16_FLOAT,            // Image Channel Format
+        Chip::BUF_FMT_16_FLOAT,            // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::L16_Unorm
+    {
+        ChNumFormat::L16_Unorm,            // ChNumFormat
+        Chip::COLOR_16,                    // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_FMT_16_UNORM,            // Image Channel Format
+        Chip::BUF_FMT_16_UNORM,            // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::X16Y16_Unorm
+    {
+        ChNumFormat::X16Y16_Unorm,         // ChNumFormat
+        Chip::COLOR_16_16,                 // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_FMT_16_16_UNORM,         // Image Channel Format
+        Chip::BUF_FMT_16_16_UNORM,         // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::X16Y16_Snorm
+    {
+        ChNumFormat::X16Y16_Snorm,         // ChNumFormat
+        Chip::COLOR_16_16,                 // CB Channel Format
+        Chip::NUMBER_SNORM,                // CB Numeric Format
+        Chip::IMG_FMT_16_16_SNORM,         // Image Channel Format
+        Chip::BUF_FMT_16_16_SNORM,         // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::X16Y16_Uscaled
+    {
+        ChNumFormat::X16Y16_Uscaled,       // ChNumFormat
+        Chip::COLOR_16_16,                 // CB Channel Format
+        Chip::NUMBER_USCALED,              // CB Numeric Format
+        Chip::IMG_FMT_16_16_USCALED,       // Image Channel Format
+        Chip::BUF_FMT_16_16_USCALED,       // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::X16Y16_Sscaled
+    {
+        ChNumFormat::X16Y16_Sscaled,       // ChNumFormat
+        Chip::COLOR_16_16,                 // CB Channel Format
+        Chip::NUMBER_SSCALED,              // CB Numeric Format
+        Chip::IMG_FMT_16_16_SSCALED,       // Image Channel Format
+        Chip::BUF_FMT_16_16_SSCALED,       // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::X16Y16_Uint
+    {
+        ChNumFormat::X16Y16_Uint,          // ChNumFormat
+        Chip::COLOR_16_16,                 // CB Channel Format
+        Chip::NUMBER_UINT,                 // CB Numeric Format
+        Chip::IMG_FMT_16_16_UINT,          // Image Channel Format
+        Chip::BUF_FMT_16_16_UINT,          // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::X16Y16_Sint
+    {
+        ChNumFormat::X16Y16_Sint,          // ChNumFormat
+        Chip::COLOR_16_16,                 // CB Channel Format
+        Chip::NUMBER_SINT,                 // CB Numeric Format
+        Chip::IMG_FMT_16_16_SINT,          // Image Channel Format
+        Chip::BUF_FMT_16_16_SINT,          // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::X16Y16_Float
+    {
+        ChNumFormat::X16Y16_Float,         // ChNumFormat
+        Chip::COLOR_16_16,                 // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_FMT_16_16_FLOAT,         // Image Channel Format
+        Chip::BUF_FMT_16_16_FLOAT,         // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::X16Y16Z16W16_Unorm
+    {
+        ChNumFormat::X16Y16Z16W16_Unorm,   // ChNumFormat
+        Chip::COLOR_16_16_16_16,           // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_FMT_16_16_16_16_UNORM__GFX10CORE, // Image Channel Format
+        Chip::BUF_FMT_16_16_16_16_UNORM__GFX10CORE, // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::X16Y16Z16W16_Snorm
+    {
+        ChNumFormat::X16Y16Z16W16_Snorm,   // ChNumFormat
+        Chip::COLOR_16_16_16_16,           // CB Channel Format
+        Chip::NUMBER_SNORM,                // CB Numeric Format
+        Chip::IMG_FMT_16_16_16_16_SNORM__GFX10CORE, // Image Channel Format
+        Chip::BUF_FMT_16_16_16_16_SNORM__GFX10CORE, // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::X16Y16Z16W16_Uscaled
+    {
+        ChNumFormat::X16Y16Z16W16_Uscaled, // ChNumFormat
+        Chip::COLOR_16_16_16_16,           // CB Channel Format
+        Chip::NUMBER_USCALED,              // CB Numeric Format
+        Chip::IMG_FMT_16_16_16_16_USCALED__GFX10CORE, // Image Channel Format
+        Chip::BUF_FMT_16_16_16_16_USCALED__GFX10CORE, // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::X16Y16Z16W16_Sscaled
+    {
+        ChNumFormat::X16Y16Z16W16_Sscaled, // ChNumFormat
+        Chip::COLOR_16_16_16_16,           // CB Channel Format
+        Chip::NUMBER_SSCALED,              // CB Numeric Format
+        Chip::IMG_FMT_16_16_16_16_SSCALED__GFX10CORE, // Image Channel Format
+        Chip::BUF_FMT_16_16_16_16_SSCALED__GFX10CORE, // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::X16Y16Z16W16_Uint
+    {
+        ChNumFormat::X16Y16Z16W16_Uint,    // ChNumFormat
+        Chip::COLOR_16_16_16_16,           // CB Channel Format
+        Chip::NUMBER_UINT,                 // CB Numeric Format
+        Chip::IMG_FMT_16_16_16_16_UINT__GFX10CORE, // Image Channel Format
+        Chip::BUF_FMT_16_16_16_16_UINT__GFX10CORE, // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::X16Y16Z16W16_Sint
+    {
+        ChNumFormat::X16Y16Z16W16_Sint,    // ChNumFormat
+        Chip::COLOR_16_16_16_16,           // CB Channel Format
+        Chip::NUMBER_SINT,                 // CB Numeric Format
+        Chip::IMG_FMT_16_16_16_16_SINT__GFX10CORE, // Image Channel Format
+        Chip::BUF_FMT_16_16_16_16_SINT__GFX10CORE, // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::X16Y16Z16W16_Float
+    {
+        ChNumFormat::X16Y16Z16W16_Float,   // ChNumFormat
+        Chip::COLOR_16_16_16_16,           // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_FMT_16_16_16_16_FLOAT__GFX10CORE, // Image Channel Format
+        Chip::BUF_FMT_16_16_16_16_FLOAT__GFX10CORE, // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::X32_Uint
+    {
+        ChNumFormat::X32_Uint,             // ChNumFormat
+        Chip::COLOR_32,                    // CB Channel Format
+        Chip::NUMBER_UINT,                 // CB Numeric Format
+        Chip::IMG_FMT_32_UINT,             // Image Channel Format
+        Chip::BUF_FMT_32_UINT,             // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::X32_Sint
+    {
+        ChNumFormat::X32_Sint,             // ChNumFormat
+        Chip::COLOR_32,                    // CB Channel Format
+        Chip::NUMBER_SINT,                 // CB Numeric Format
+        Chip::IMG_FMT_32_SINT,             // Image Channel Format
+        Chip::BUF_FMT_32_SINT,             // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::X32_Float
+    {
+        ChNumFormat::X32_Float,            // ChNumFormat
+        Chip::COLOR_32,                    // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_FMT_32_FLOAT,            // Image Channel Format
+        Chip::BUF_FMT_32_FLOAT,            // Buffer Image Format
+        Chip::Z_32_FLOAT,                  // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::X32Y32_Uint
+    {
+        ChNumFormat::X32Y32_Uint,          // ChNumFormat
+        Chip::COLOR_32_32,                 // CB Channel Format
+        Chip::NUMBER_UINT,                 // CB Numeric Format
+        Chip::IMG_FMT_32_32_UINT__GFX10CORE, // Image Channel Format
+        Chip::BUF_FMT_32_32_UINT__GFX10CORE, // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::X32Y32_Sint
+    {
+        ChNumFormat::X32Y32_Sint,          // ChNumFormat
+        Chip::COLOR_32_32,                 // CB Channel Format
+        Chip::NUMBER_SINT,                 // CB Numeric Format
+        Chip::IMG_FMT_32_32_SINT__GFX10CORE, // Image Channel Format
+        Chip::BUF_FMT_32_32_SINT__GFX10CORE, // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::X32Y32_Float
+    {
+        ChNumFormat::X32Y32_Float,         // ChNumFormat
+        Chip::COLOR_32_32,                 // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_FMT_32_32_FLOAT__GFX10CORE, // Image Channel Format
+        Chip::BUF_FMT_32_32_FLOAT__GFX10CORE, // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::X32Y32Z32_Uint
+    {
+        ChNumFormat::X32Y32Z32_Uint,       // ChNumFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_UINT,                 // CB Numeric Format
+        Chip::IMG_FMT_32_32_32_UINT__GFX10CORE, // Image Channel Format
+        Chip::BUF_FMT_32_32_32_UINT__GFX10CORE, // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::X32Y32Z32_Sint
+    {
+        ChNumFormat::X32Y32Z32_Sint,       // ChNumFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_SINT,                 // CB Numeric Format
+        Chip::IMG_FMT_32_32_32_SINT__GFX10CORE, // Image Channel Format
+        Chip::BUF_FMT_32_32_32_SINT__GFX10CORE, // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::X32Y32Z32_Float
+    {
+        ChNumFormat::X32Y32Z32_Float,      // ChNumFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_FMT_32_32_32_FLOAT__GFX10CORE, // Image Channel Format
+        Chip::BUF_FMT_32_32_32_FLOAT__GFX10CORE, // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::X32Y32Z32W32_Uint
+    {
+        ChNumFormat::X32Y32Z32W32_Uint,    // ChNumFormat
+        Chip::COLOR_32_32_32_32,           // CB Channel Format
+        Chip::NUMBER_UINT,                 // CB Numeric Format
+        Chip::IMG_FMT_32_32_32_32_UINT__GFX10CORE, // Image Channel Format
+        Chip::BUF_FMT_32_32_32_32_UINT__GFX10CORE, // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::X32Y32Z32W32_Sint
+    {
+        ChNumFormat::X32Y32Z32W32_Sint,    // ChNumFormat
+        Chip::COLOR_32_32_32_32,           // CB Channel Format
+        Chip::NUMBER_SINT,                 // CB Numeric Format
+        Chip::IMG_FMT_32_32_32_32_SINT__GFX10CORE, // Image Channel Format
+        Chip::BUF_FMT_32_32_32_32_SINT__GFX10CORE, // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::X32Y32Z32W32_Float
+    {
+        ChNumFormat::X32Y32Z32W32_Float,   // ChNumFormat
+        Chip::COLOR_32_32_32_32,           // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_FMT_32_32_32_32_FLOAT__GFX10CORE, // Image Channel Format
+        Chip::BUF_FMT_32_32_32_32_FLOAT__GFX10CORE, // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::D16_Unorm_S8_Uint
+    {
+        ChNumFormat::D16_Unorm_S8_Uint,    // ChNumFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_FMT_INVALID,             // Image Channel Format
+        Chip::BUF_FMT_INVALID,             // Buffer Image Format
+        Chip::Z_16,                        // ZFormat
+        Chip::STENCIL_8,                   // StencilFormat
+    },
+    // ChNumFormat::D32_Float_S8_Uint
+    {
+        ChNumFormat::D32_Float_S8_Uint,    // ChNumFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_FMT_INVALID,             // Image Channel Format
+        Chip::BUF_FMT_INVALID,             // Buffer Image Format
+        Chip::Z_32_FLOAT,                  // ZFormat
+        Chip::STENCIL_8,                   // StencilFormat
+    },
+    // ChNumFormat::X9Y9Z9E5_Float
+    {
+        ChNumFormat::X9Y9Z9E5_Float,       // ChNumFormat
+        Chip::COLOR_5_9_9_9__GFX102PLUS,   // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_FMT_5_9_9_9_FLOAT__GFX10CORE, // Image Channel Format
+        Chip::BUF_FMT_INVALID,             // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::Bc1_Unorm
+    {
+        ChNumFormat::Bc1_Unorm,            // ChNumFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_FMT_BC1_UNORM__GFX10CORE, // Image Channel Format
+        Chip::BUF_FMT_INVALID,             // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::Bc1_Srgb
+    {
+        ChNumFormat::Bc1_Srgb,             // ChNumFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_SRGB,                 // CB Numeric Format
+        Chip::IMG_FMT_BC1_SRGB__GFX10CORE, // Image Channel Format
+        Chip::BUF_FMT_INVALID,             // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::Bc2_Unorm
+    {
+        ChNumFormat::Bc2_Unorm,            // ChNumFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_FMT_BC2_UNORM__GFX10CORE, // Image Channel Format
+        Chip::BUF_FMT_INVALID,             // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::Bc2_Srgb
+    {
+        ChNumFormat::Bc2_Srgb,             // ChNumFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_SRGB,                 // CB Numeric Format
+        Chip::IMG_FMT_BC2_SRGB__GFX10CORE, // Image Channel Format
+        Chip::BUF_FMT_INVALID,             // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::Bc3_Unorm
+    {
+        ChNumFormat::Bc3_Unorm,            // ChNumFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_FMT_BC3_UNORM__GFX10CORE, // Image Channel Format
+        Chip::BUF_FMT_INVALID,             // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::Bc3_Srgb
+    {
+        ChNumFormat::Bc3_Srgb,             // ChNumFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_SRGB,                 // CB Numeric Format
+        Chip::IMG_FMT_BC3_SRGB__GFX10CORE, // Image Channel Format
+        Chip::BUF_FMT_INVALID,             // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::Bc4_Unorm
+    {
+        ChNumFormat::Bc4_Unorm,            // ChNumFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_FMT_BC4_UNORM__GFX10CORE, // Image Channel Format
+        Chip::BUF_FMT_INVALID,             // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::Bc4_Snorm
+    {
+        ChNumFormat::Bc4_Snorm,            // ChNumFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_SNORM,                // CB Numeric Format
+        Chip::IMG_FMT_BC4_SNORM__GFX10CORE, // Image Channel Format
+        Chip::BUF_FMT_INVALID,             // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::Bc5_Unorm
+    {
+        ChNumFormat::Bc5_Unorm,            // ChNumFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_FMT_BC5_UNORM__GFX10CORE, // Image Channel Format
+        Chip::BUF_FMT_INVALID,             // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::Bc5_Snorm
+    {
+        ChNumFormat::Bc5_Snorm,            // ChNumFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_SNORM,                // CB Numeric Format
+        Chip::IMG_FMT_BC5_SNORM__GFX10CORE, // Image Channel Format
+        Chip::BUF_FMT_INVALID,             // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::Bc6_Ufloat
+    {
+        ChNumFormat::Bc6_Ufloat,           // ChNumFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_FMT_BC6_UFLOAT__GFX10CORE, // Image Channel Format
+        Chip::BUF_FMT_INVALID,             // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::Bc6_Sfloat
+    {
+        ChNumFormat::Bc6_Sfloat,           // ChNumFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_FMT_BC6_SFLOAT__GFX10CORE, // Image Channel Format
+        Chip::BUF_FMT_INVALID,             // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::Bc7_Unorm
+    {
+        ChNumFormat::Bc7_Unorm,            // ChNumFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_FMT_BC7_UNORM__GFX10CORE, // Image Channel Format
+        Chip::BUF_FMT_INVALID,             // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::Bc7_Srgb
+    {
+        ChNumFormat::Bc7_Srgb,             // ChNumFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_SRGB,                 // CB Numeric Format
+        Chip::IMG_FMT_BC7_SRGB__GFX10CORE, // Image Channel Format
+        Chip::BUF_FMT_INVALID,             // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::Etc2X8Y8Z8_Unorm
+    {
+        ChNumFormat::Etc2X8Y8Z8_Unorm,     // ChNumFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_FMT_ETC2_RGB_UNORM__GFX10CORE, // Image Channel Format
+        Chip::BUF_FMT_INVALID,             // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::Etc2X8Y8Z8_Srgb
+    {
+        ChNumFormat::Etc2X8Y8Z8_Srgb,      // ChNumFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_SRGB,                 // CB Numeric Format
+        Chip::IMG_FMT_ETC2_RGB_SRGB__GFX10CORE, // Image Channel Format
+        Chip::BUF_FMT_INVALID,             // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::Etc2X8Y8Z8W1_Unorm
+    {
+        ChNumFormat::Etc2X8Y8Z8W1_Unorm,   // ChNumFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_FMT_ETC2_RGBA1_UNORM__GFX10CORE, // Image Channel Format
+        Chip::BUF_FMT_INVALID,             // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::Etc2X8Y8Z8W1_Srgb
+    {
+        ChNumFormat::Etc2X8Y8Z8W1_Srgb,    // ChNumFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_SRGB,                 // CB Numeric Format
+        Chip::IMG_FMT_ETC2_RGBA1_SRGB__GFX10CORE, // Image Channel Format
+        Chip::BUF_FMT_INVALID,             // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::Etc2X8Y8Z8W8_Unorm
+    {
+        ChNumFormat::Etc2X8Y8Z8W8_Unorm,   // ChNumFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_FMT_ETC2_RGBA_UNORM__GFX10CORE, // Image Channel Format
+        Chip::BUF_FMT_INVALID,             // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::Etc2X8Y8Z8W8_Srgb
+    {
+        ChNumFormat::Etc2X8Y8Z8W8_Srgb,    // ChNumFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_SRGB,                 // CB Numeric Format
+        Chip::IMG_FMT_ETC2_RGBA_SRGB__GFX10CORE, // Image Channel Format
+        Chip::BUF_FMT_INVALID,             // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::Etc2X11_Unorm
+    {
+        ChNumFormat::Etc2X11_Unorm,        // ChNumFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_FMT_ETC2_R_UNORM__GFX10CORE, // Image Channel Format
+        Chip::BUF_FMT_INVALID,             // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::Etc2X11_Snorm
+    {
+        ChNumFormat::Etc2X11_Snorm,        // ChNumFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_SNORM,                // CB Numeric Format
+        Chip::IMG_FMT_ETC2_R_SNORM__GFX10CORE, // Image Channel Format
+        Chip::BUF_FMT_INVALID,             // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::Etc2X11Y11_Unorm
+    {
+        ChNumFormat::Etc2X11Y11_Unorm,     // ChNumFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_FMT_ETC2_RG_UNORM__GFX10CORE, // Image Channel Format
+        Chip::BUF_FMT_INVALID,             // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::Etc2X11Y11_Snorm
+    {
+        ChNumFormat::Etc2X11Y11_Snorm,     // ChNumFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_SNORM,                // CB Numeric Format
+        Chip::IMG_FMT_ETC2_RG_SNORM__GFX10CORE, // Image Channel Format
+        Chip::BUF_FMT_INVALID,             // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::AstcLdr4x4_Unorm
+    {
+        ChNumFormat::AstcLdr4x4_Unorm,     // ChNumFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_FMT_ASTC_2D_LDR_4X4__GFX10CORE, // Image Channel Format
+        Chip::BUF_FMT_INVALID,             // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::AstcLdr4x4_Srgb
+    {
+        ChNumFormat::AstcLdr4x4_Srgb,      // ChNumFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_FMT_ASTC_2D_LDR_SRGB_4X4__GFX10CORE, // Image Channel Format
+        Chip::BUF_FMT_INVALID,             // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::AstcLdr5x4_Unorm
+    {
+        ChNumFormat::AstcLdr5x4_Unorm,     // ChNumFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_FMT_ASTC_2D_LDR_5X4__GFX10CORE, // Image Channel Format
+        Chip::BUF_FMT_INVALID,             // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::AstcLdr5x4_Srgb
+    {
+        ChNumFormat::AstcLdr5x4_Srgb,      // ChNumFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_FMT_ASTC_2D_LDR_SRGB_5X4__GFX10CORE, // Image Channel Format
+        Chip::BUF_FMT_INVALID,             // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::AstcLdr5x5_Unorm
+    {
+        ChNumFormat::AstcLdr5x5_Unorm,     // ChNumFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_FMT_ASTC_2D_LDR_5X5__GFX10CORE, // Image Channel Format
+        Chip::BUF_FMT_INVALID,             // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::AstcLdr5x5_Srgb
+    {
+        ChNumFormat::AstcLdr5x5_Srgb,      // ChNumFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_FMT_ASTC_2D_LDR_SRGB_5X5__GFX10CORE, // Image Channel Format
+        Chip::BUF_FMT_INVALID,             // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::AstcLdr6x5_Unorm
+    {
+        ChNumFormat::AstcLdr6x5_Unorm,     // ChNumFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_FMT_ASTC_2D_LDR_6X5__GFX10CORE, // Image Channel Format
+        Chip::BUF_FMT_INVALID,             // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::AstcLdr6x5_Srgb
+    {
+        ChNumFormat::AstcLdr6x5_Srgb,      // ChNumFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_FMT_ASTC_2D_LDR_SRGB_6X5__GFX10CORE, // Image Channel Format
+        Chip::BUF_FMT_INVALID,             // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::AstcLdr6x6_Unorm
+    {
+        ChNumFormat::AstcLdr6x6_Unorm,     // ChNumFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_FMT_ASTC_2D_LDR_6X6__GFX10CORE, // Image Channel Format
+        Chip::BUF_FMT_INVALID,             // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::AstcLdr6x6_Srgb
+    {
+        ChNumFormat::AstcLdr6x6_Srgb,      // ChNumFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_FMT_ASTC_2D_LDR_SRGB_6X6__GFX10CORE, // Image Channel Format
+        Chip::BUF_FMT_INVALID,             // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::AstcLdr8x5_Unorm
+    {
+        ChNumFormat::AstcLdr8x5_Unorm,     // ChNumFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_FMT_ASTC_2D_LDR_8X5__GFX10CORE, // Image Channel Format
+        Chip::BUF_FMT_INVALID,             // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::AstcLdr8x5_Srgb
+    {
+        ChNumFormat::AstcLdr8x5_Srgb,      // ChNumFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_FMT_ASTC_2D_LDR_SRGB_8X5__GFX10CORE, // Image Channel Format
+        Chip::BUF_FMT_INVALID,             // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::AstcLdr8x6_Unorm
+    {
+        ChNumFormat::AstcLdr8x6_Unorm,     // ChNumFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_FMT_ASTC_2D_LDR_8X6__GFX10CORE, // Image Channel Format
+        Chip::BUF_FMT_INVALID,             // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::AstcLdr8x6_Srgb
+    {
+        ChNumFormat::AstcLdr8x6_Srgb,      // ChNumFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_FMT_ASTC_2D_LDR_SRGB_8X6__GFX10CORE, // Image Channel Format
+        Chip::BUF_FMT_INVALID,             // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::AstcLdr8x8_Unorm
+    {
+        ChNumFormat::AstcLdr8x8_Unorm,     // ChNumFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_FMT_ASTC_2D_LDR_8X8__GFX10CORE, // Image Channel Format
+        Chip::BUF_FMT_INVALID,             // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::AstcLdr8x8_Srgb
+    {
+        ChNumFormat::AstcLdr8x8_Srgb,      // ChNumFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_FMT_ASTC_2D_LDR_SRGB_8X8__GFX10CORE, // Image Channel Format
+        Chip::BUF_FMT_INVALID,             // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::AstcLdr10x5_Unorm
+    {
+        ChNumFormat::AstcLdr10x5_Unorm,    // ChNumFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_FMT_ASTC_2D_LDR_10X5__GFX10CORE, // Image Channel Format
+        Chip::BUF_FMT_INVALID,             // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::AstcLdr10x5_Srgb
+    {
+        ChNumFormat::AstcLdr10x5_Srgb,     // ChNumFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_FMT_ASTC_2D_LDR_SRGB_10X5__GFX10CORE, // Image Channel Format
+        Chip::BUF_FMT_INVALID,             // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::AstcLdr10x6_Unorm
+    {
+        ChNumFormat::AstcLdr10x6_Unorm,    // ChNumFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_FMT_ASTC_2D_LDR_10X6__GFX10CORE, // Image Channel Format
+        Chip::BUF_FMT_INVALID,             // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::AstcLdr10x6_Srgb
+    {
+        ChNumFormat::AstcLdr10x6_Srgb,     // ChNumFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_FMT_ASTC_2D_LDR_SRGB_10X6__GFX10CORE, // Image Channel Format
+        Chip::BUF_FMT_INVALID,             // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::AstcLdr10x8_Unorm
+    {
+        ChNumFormat::AstcLdr10x8_Unorm,    // ChNumFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_FMT_ASTC_2D_LDR_10X8__GFX10CORE, // Image Channel Format
+        Chip::BUF_FMT_INVALID,             // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::AstcLdr10x8_Srgb
+    {
+        ChNumFormat::AstcLdr10x8_Srgb,     // ChNumFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_FMT_ASTC_2D_LDR_SRGB_10X8__GFX10CORE, // Image Channel Format
+        Chip::BUF_FMT_INVALID,             // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::AstcLdr10x10_Unorm
+    {
+        ChNumFormat::AstcLdr10x10_Unorm,   // ChNumFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_FMT_ASTC_2D_LDR_10X10__GFX10CORE, // Image Channel Format
+        Chip::BUF_FMT_INVALID,             // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::AstcLdr10x10_Srgb
+    {
+        ChNumFormat::AstcLdr10x10_Srgb,    // ChNumFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_FMT_ASTC_2D_LDR_SRGB_10X10__GFX10CORE, // Image Channel Format
+        Chip::BUF_FMT_INVALID,             // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::AstcLdr12x10_Unorm
+    {
+        ChNumFormat::AstcLdr12x10_Unorm,   // ChNumFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_FMT_ASTC_2D_LDR_12X10__GFX10CORE, // Image Channel Format
+        Chip::BUF_FMT_INVALID,             // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::AstcLdr12x10_Srgb
+    {
+        ChNumFormat::AstcLdr12x10_Srgb,    // ChNumFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_FMT_ASTC_2D_LDR_SRGB_12X10__GFX10CORE, // Image Channel Format
+        Chip::BUF_FMT_INVALID,             // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::AstcLdr12x12_Unorm
+    {
+        ChNumFormat::AstcLdr12x12_Unorm,   // ChNumFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_FMT_ASTC_2D_LDR_12X12__GFX10CORE, // Image Channel Format
+        Chip::BUF_FMT_INVALID,             // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::AstcLdr12x12_Srgb
+    {
+        ChNumFormat::AstcLdr12x12_Srgb,    // ChNumFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_FMT_ASTC_2D_LDR_SRGB_12X12__GFX10CORE, // Image Channel Format
+        Chip::BUF_FMT_INVALID,             // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::AstcHdr4x4_Float
+    {
+        ChNumFormat::AstcHdr4x4_Float,     // ChNumFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_FMT_ASTC_2D_HDR_4X4__GFX10CORE, // Image Channel Format
+        Chip::BUF_FMT_INVALID,             // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::AstcHdr5x4_Float
+    {
+        ChNumFormat::AstcHdr5x4_Float,     // ChNumFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_FMT_ASTC_2D_HDR_5X4__GFX10CORE, // Image Channel Format
+        Chip::BUF_FMT_INVALID,             // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::AstcHdr5x5_Float
+    {
+        ChNumFormat::AstcHdr5x5_Float,     // ChNumFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_FMT_ASTC_2D_HDR_5X5__GFX10CORE, // Image Channel Format
+        Chip::BUF_FMT_INVALID,             // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::AstcHdr6x5_Float
+    {
+        ChNumFormat::AstcHdr6x5_Float,     // ChNumFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_FMT_ASTC_2D_HDR_6X5__GFX10CORE, // Image Channel Format
+        Chip::BUF_FMT_INVALID,             // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::AstcHdr6x6_Float
+    {
+        ChNumFormat::AstcHdr6x6_Float,     // ChNumFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_FMT_ASTC_2D_HDR_6X6__GFX10CORE, // Image Channel Format
+        Chip::BUF_FMT_INVALID,             // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::AstcHdr8x5_Float
+    {
+        ChNumFormat::AstcHdr8x5_Float,     // ChNumFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_FMT_ASTC_2D_HDR_8X5__GFX10CORE, // Image Channel Format
+        Chip::BUF_FMT_INVALID,             // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::AstcHdr8x6_Float
+    {
+        ChNumFormat::AstcHdr8x6_Float,     // ChNumFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_FMT_ASTC_2D_HDR_8X6__GFX10CORE, // Image Channel Format
+        Chip::BUF_FMT_INVALID,             // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::AstcHdr8x8_Float
+    {
+        ChNumFormat::AstcHdr8x8_Float,     // ChNumFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_FMT_ASTC_2D_HDR_8X8__GFX10CORE, // Image Channel Format
+        Chip::BUF_FMT_INVALID,             // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::AstcHdr10x5_Float
+    {
+        ChNumFormat::AstcHdr10x5_Float,    // ChNumFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_FMT_ASTC_2D_HDR_10X5__GFX10CORE, // Image Channel Format
+        Chip::BUF_FMT_INVALID,             // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::AstcHdr10x6_Float
+    {
+        ChNumFormat::AstcHdr10x6_Float,    // ChNumFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_FMT_ASTC_2D_HDR_10X6__GFX10CORE, // Image Channel Format
+        Chip::BUF_FMT_INVALID,             // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::AstcHdr10x8_Float
+    {
+        ChNumFormat::AstcHdr10x8_Float,    // ChNumFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_FMT_ASTC_2D_HDR_10X8__GFX10CORE, // Image Channel Format
+        Chip::BUF_FMT_INVALID,             // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::AstcHdr10x10_Float
+    {
+        ChNumFormat::AstcHdr10x10_Float,   // ChNumFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_FMT_ASTC_2D_HDR_10X10__GFX10CORE, // Image Channel Format
+        Chip::BUF_FMT_INVALID,             // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::AstcHdr12x10_Float
+    {
+        ChNumFormat::AstcHdr12x10_Float,   // ChNumFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_FMT_ASTC_2D_HDR_12X10__GFX10CORE, // Image Channel Format
+        Chip::BUF_FMT_INVALID,             // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::AstcHdr12x12_Float
+    {
+        ChNumFormat::AstcHdr12x12_Float,   // ChNumFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_FMT_ASTC_2D_HDR_12X12__GFX10CORE, // Image Channel Format
+        Chip::BUF_FMT_INVALID,             // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::X8Y8_Z8Y8_Unorm
+    {
+        ChNumFormat::X8Y8_Z8Y8_Unorm,      // ChNumFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_FMT_GB_GR_UNORM__GFX10CORE, // Image Channel Format
+        Chip::BUF_FMT_INVALID,             // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::X8Y8_Z8Y8_Uscaled
+    {
+        ChNumFormat::X8Y8_Z8Y8_Uscaled,    // ChNumFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_USCALED,              // CB Numeric Format
+        Chip::IMG_FMT_INVALID,             // Image Channel Format
+        Chip::BUF_FMT_INVALID,             // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::Y8X8_Y8Z8_Unorm
+    {
+        ChNumFormat::Y8X8_Y8Z8_Unorm,      // ChNumFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_FMT_BG_RG_UNORM__GFX10CORE, // Image Channel Format
+        Chip::BUF_FMT_INVALID,             // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::Y8X8_Y8Z8_Uscaled
+    {
+        ChNumFormat::Y8X8_Y8Z8_Uscaled,    // ChNumFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_USCALED,              // CB Numeric Format
+        Chip::IMG_FMT_INVALID,             // Image Channel Format
+        Chip::BUF_FMT_INVALID,             // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::AYUV
+    {
+        ChNumFormat::AYUV,                 // ChNumFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_FMT_INVALID,             // Image Channel Format
+        Chip::BUF_FMT_INVALID,             // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::UYVY
+    {
+        ChNumFormat::UYVY,                 // ChNumFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_FMT_INVALID,             // Image Channel Format
+        Chip::BUF_FMT_INVALID,             // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::VYUY
+    {
+        ChNumFormat::VYUY,                 // ChNumFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_FMT_INVALID,             // Image Channel Format
+        Chip::BUF_FMT_INVALID,             // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::YUY2
+    {
+        ChNumFormat::YUY2,                 // ChNumFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_FMT_INVALID,             // Image Channel Format
+        Chip::BUF_FMT_INVALID,             // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::YVY2
+    {
+        ChNumFormat::YVY2,                 // ChNumFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_FMT_INVALID,             // Image Channel Format
+        Chip::BUF_FMT_INVALID,             // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::YV12
+    {
+        ChNumFormat::YV12,                 // ChNumFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_FMT_INVALID,             // Image Channel Format
+        Chip::BUF_FMT_INVALID,             // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::NV11
+    {
+        ChNumFormat::NV11,                 // ChNumFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_FMT_INVALID,             // Image Channel Format
+        Chip::BUF_FMT_INVALID,             // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::NV12
+    {
+        ChNumFormat::NV12,                 // ChNumFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_FMT_INVALID,             // Image Channel Format
+        Chip::BUF_FMT_INVALID,             // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::NV21
+    {
+        ChNumFormat::NV21,                 // ChNumFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_FMT_INVALID,             // Image Channel Format
+        Chip::BUF_FMT_INVALID,             // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::P016
+    {
+        ChNumFormat::P016,                 // ChNumFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_FMT_INVALID,             // Image Channel Format
+        Chip::BUF_FMT_INVALID,             // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::P010
+    {
+        ChNumFormat::P010,                 // ChNumFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_FMT_INVALID,             // Image Channel Format
+        Chip::BUF_FMT_INVALID,             // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::P210
+    {
+        ChNumFormat::P210,                 // ChNumFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_FMT_INVALID,             // Image Channel Format
+        Chip::BUF_FMT_INVALID,             // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::X8_MM_Unorm
+    {
+        ChNumFormat::X8_MM_Unorm,          // ChNumFormat
+        Chip::COLOR_8_8,                   // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_FMT_MM_8_UNORM__GFX10CORE, // Image Channel Format
+        Chip::BUF_FMT_8_UNORM,             // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::X8_MM_Uint
+    {
+        ChNumFormat::X8_MM_Uint,           // ChNumFormat
+        Chip::COLOR_8_8,                   // CB Channel Format
+        Chip::NUMBER_UINT,                 // CB Numeric Format
+        Chip::IMG_FMT_MM_8_UINT__GFX10CORE, // Image Channel Format
+        Chip::BUF_FMT_8_UINT,              // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::X8Y8_MM_Unorm
+    {
+        ChNumFormat::X8Y8_MM_Unorm,        // ChNumFormat
+        Chip::COLOR_8_8,                   // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_FMT_MM_8_8_UNORM__GFX10CORE, // Image Channel Format
+        Chip::BUF_FMT_8_8_UNORM,           // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::X8Y8_MM_Uint
+    {
+        ChNumFormat::X8Y8_MM_Uint,         // ChNumFormat
+        Chip::COLOR_8_8,                   // CB Channel Format
+        Chip::NUMBER_UINT,                 // CB Numeric Format
+        Chip::IMG_FMT_MM_8_8_UINT__GFX10CORE, // Image Channel Format
+        Chip::BUF_FMT_8_8_UINT,            // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::X16_MM_Unorm
+    {
+        ChNumFormat::X16_MM_Unorm,         // ChNumFormat
+        Chip::COLOR_16,                    // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_FMT_MM_10_IN_16_UNORM__GFX10CORE, // Image Channel Format
+        Chip::BUF_FMT_16_UNORM,            // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::X16_MM_Uint
+    {
+        ChNumFormat::X16_MM_Uint,          // ChNumFormat
+        Chip::COLOR_16,                    // CB Channel Format
+        Chip::NUMBER_UINT,                 // CB Numeric Format
+        Chip::IMG_FMT_MM_10_IN_16_UINT__GFX10CORE, // Image Channel Format
+        Chip::BUF_FMT_16_UINT,             // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::X16Y16_MM_Unorm
+    {
+        ChNumFormat::X16Y16_MM_Unorm,      // ChNumFormat
+        Chip::COLOR_16_16,                 // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_FMT_MM_10_IN_16_16_UNORM__GFX10CORE, // Image Channel Format
+        Chip::BUF_FMT_16_16_UNORM,         // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::X16Y16_MM_Uint
+    {
+        ChNumFormat::X16Y16_MM_Uint,       // ChNumFormat
+        Chip::COLOR_16_16,                 // CB Channel Format
+        Chip::NUMBER_UINT,                 // CB Numeric Format
+        Chip::IMG_FMT_MM_10_IN_16_16_UINT__GFX10CORE, // Image Channel Format
+        Chip::BUF_FMT_16_16_UINT,          // Buffer Image Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+};
+
+// Stores a ChNumFormat struct for each HW image format up to the last format known to the spreadsheet.
+constexpr ChNumFormat Gfx10_2MergedImgDataFmtTbl[] =
+{
+    ChNumFormat::Undefined,             // IMG_FMT_INVALID
+    ChNumFormat::X8_Unorm,              // IMG_FMT_8_UNORM
+    ChNumFormat::X8_Snorm,              // IMG_FMT_8_SNORM
+    ChNumFormat::X8_Uscaled,            // IMG_FMT_8_USCALED
+    ChNumFormat::X8_Sscaled,            // IMG_FMT_8_SSCALED
+    ChNumFormat::X8_Uint,               // IMG_FMT_8_UINT
+    ChNumFormat::X8_Sint,               // IMG_FMT_8_SINT
+    ChNumFormat::X16_Unorm,             // IMG_FMT_16_UNORM
+    ChNumFormat::X16_Snorm,             // IMG_FMT_16_SNORM
+    ChNumFormat::X16_Uscaled,           // IMG_FMT_16_USCALED
+    ChNumFormat::X16_Sscaled,           // IMG_FMT_16_SSCALED
+    ChNumFormat::X16_Uint,              // IMG_FMT_16_UINT
+    ChNumFormat::X16_Sint,              // IMG_FMT_16_SINT
+    ChNumFormat::X16_Float,             // IMG_FMT_16_FLOAT
+    ChNumFormat::X8Y8_Unorm,            // IMG_FMT_8_8_UNORM
+    ChNumFormat::X8Y8_Snorm,            // IMG_FMT_8_8_SNORM
+    ChNumFormat::X8Y8_Uscaled,          // IMG_FMT_8_8_USCALED
+    ChNumFormat::X8Y8_Sscaled,          // IMG_FMT_8_8_SSCALED
+    ChNumFormat::X8Y8_Uint,             // IMG_FMT_8_8_UINT
+    ChNumFormat::X8Y8_Sint,             // IMG_FMT_8_8_SINT
+    ChNumFormat::X32_Uint,              // IMG_FMT_32_UINT
+    ChNumFormat::X32_Sint,              // IMG_FMT_32_SINT
+    ChNumFormat::X32_Float,             // IMG_FMT_32_FLOAT
+    ChNumFormat::X16Y16_Unorm,          // IMG_FMT_16_16_UNORM
+    ChNumFormat::X16Y16_Snorm,          // IMG_FMT_16_16_SNORM
+    ChNumFormat::X16Y16_Uscaled,        // IMG_FMT_16_16_USCALED
+    ChNumFormat::X16Y16_Sscaled,        // IMG_FMT_16_16_SSCALED
+    ChNumFormat::X16Y16_Uint,           // IMG_FMT_16_16_UINT
+    ChNumFormat::X16Y16_Sint,           // IMG_FMT_16_16_SINT
+    ChNumFormat::X16Y16_Float,          // IMG_FMT_16_16_FLOAT
+    ChNumFormat::Undefined,             // IMG_FMT_INVALID
+    ChNumFormat::Undefined,             // IMG_FMT_INVALID
+    ChNumFormat::Undefined,             // IMG_FMT_INVALID
+    ChNumFormat::Undefined,             // IMG_FMT_INVALID
+    ChNumFormat::Undefined,             // IMG_FMT_INVALID
+    ChNumFormat::Undefined,             // IMG_FMT_INVALID
+    ChNumFormat::X11Y11Z10_Float,       // IMG_FMT_10_11_11_FLOAT__GFX10CORE
+    ChNumFormat::Undefined,             // IMG_FMT_INVALID
+    ChNumFormat::Undefined,             // IMG_FMT_INVALID
+    ChNumFormat::Undefined,             // IMG_FMT_INVALID
+    ChNumFormat::Undefined,             // IMG_FMT_INVALID
+    ChNumFormat::Undefined,             // IMG_FMT_INVALID
+    ChNumFormat::Undefined,             // IMG_FMT_INVALID
+    ChNumFormat::X10Y11Z11_Float,       // IMG_FMT_11_11_10_FLOAT__GFX10CORE
+    ChNumFormat::Undefined,             // IMG_FMT_INVALID
+    ChNumFormat::Undefined,             // IMG_FMT_INVALID
+    ChNumFormat::Undefined,             // IMG_FMT_INVALID
+    ChNumFormat::Undefined,             // IMG_FMT_INVALID
+    ChNumFormat::Undefined,             // IMG_FMT_INVALID
+    ChNumFormat::Undefined,             // IMG_FMT_INVALID
+    ChNumFormat::X10Y10Z10W2_Unorm,     // IMG_FMT_2_10_10_10_UNORM__GFX10CORE
+    ChNumFormat::X10Y10Z10W2_Snorm,     // IMG_FMT_2_10_10_10_SNORM__GFX10CORE
+    ChNumFormat::X10Y10Z10W2_Uscaled,   // IMG_FMT_2_10_10_10_USCALED__GFX10CORE
+    ChNumFormat::X10Y10Z10W2_Sscaled,   // IMG_FMT_2_10_10_10_SSCALED__GFX10CORE
+    ChNumFormat::X10Y10Z10W2_Uint,      // IMG_FMT_2_10_10_10_UINT__GFX10CORE
+    ChNumFormat::X10Y10Z10W2_Sint,      // IMG_FMT_2_10_10_10_SINT__GFX10CORE
+    ChNumFormat::X8Y8Z8W8_Unorm,        // IMG_FMT_8_8_8_8_UNORM__GFX10CORE
+    ChNumFormat::X8Y8Z8W8_Snorm,        // IMG_FMT_8_8_8_8_SNORM__GFX10CORE
+    ChNumFormat::X8Y8Z8W8_Uscaled,      // IMG_FMT_8_8_8_8_USCALED__GFX10CORE
+    ChNumFormat::X8Y8Z8W8_Sscaled,      // IMG_FMT_8_8_8_8_SSCALED__GFX10CORE
+    ChNumFormat::X8Y8Z8W8_Uint,         // IMG_FMT_8_8_8_8_UINT__GFX10CORE
+    ChNumFormat::X8Y8Z8W8_Sint,         // IMG_FMT_8_8_8_8_SINT__GFX10CORE
+    ChNumFormat::X32Y32_Uint,           // IMG_FMT_32_32_UINT__GFX10CORE
+    ChNumFormat::X32Y32_Sint,           // IMG_FMT_32_32_SINT__GFX10CORE
+    ChNumFormat::X32Y32_Float,          // IMG_FMT_32_32_FLOAT__GFX10CORE
+    ChNumFormat::X16Y16Z16W16_Unorm,    // IMG_FMT_16_16_16_16_UNORM__GFX10CORE
+    ChNumFormat::X16Y16Z16W16_Snorm,    // IMG_FMT_16_16_16_16_SNORM__GFX10CORE
+    ChNumFormat::X16Y16Z16W16_Uscaled,  // IMG_FMT_16_16_16_16_USCALED__GFX10CORE
+    ChNumFormat::X16Y16Z16W16_Sscaled,  // IMG_FMT_16_16_16_16_SSCALED__GFX10CORE
+    ChNumFormat::X16Y16Z16W16_Uint,     // IMG_FMT_16_16_16_16_UINT__GFX10CORE
+    ChNumFormat::X16Y16Z16W16_Sint,     // IMG_FMT_16_16_16_16_SINT__GFX10CORE
+    ChNumFormat::X16Y16Z16W16_Float,    // IMG_FMT_16_16_16_16_FLOAT__GFX10CORE
+    ChNumFormat::X32Y32Z32_Uint,        // IMG_FMT_32_32_32_UINT__GFX10CORE
+    ChNumFormat::X32Y32Z32_Sint,        // IMG_FMT_32_32_32_SINT__GFX10CORE
+    ChNumFormat::X32Y32Z32_Float,       // IMG_FMT_32_32_32_FLOAT__GFX10CORE
+    ChNumFormat::X32Y32Z32W32_Uint,     // IMG_FMT_32_32_32_32_UINT__GFX10CORE
+    ChNumFormat::X32Y32Z32W32_Sint,     // IMG_FMT_32_32_32_32_SINT__GFX10CORE
+    ChNumFormat::X32Y32Z32W32_Float,    // IMG_FMT_32_32_32_32_FLOAT__GFX10CORE
+    ChNumFormat::Undefined,             // IMG_FMT_INVALID
+    ChNumFormat::Undefined,             // IMG_FMT_INVALID
+    ChNumFormat::Undefined,             // IMG_FMT_INVALID
+    ChNumFormat::Undefined,             // IMG_FMT_INVALID
+    ChNumFormat::Undefined,             // IMG_FMT_INVALID
+    ChNumFormat::Undefined,             // IMG_FMT_INVALID
+    ChNumFormat::Undefined,             // IMG_FMT_INVALID
+    ChNumFormat::Undefined,             // IMG_FMT_INVALID
+    ChNumFormat::Undefined,             // IMG_FMT_INVALID
+    ChNumFormat::Undefined,             // IMG_FMT_INVALID
+    ChNumFormat::Undefined,             // IMG_FMT_INVALID
+    ChNumFormat::Undefined,             // IMG_FMT_INVALID
+    ChNumFormat::Undefined,             // IMG_FMT_INVALID
+    ChNumFormat::Undefined,             // IMG_FMT_INVALID
+    ChNumFormat::Undefined,             // IMG_FMT_INVALID
+    ChNumFormat::Undefined,             // IMG_FMT_INVALID
+    ChNumFormat::Undefined,             // IMG_FMT_INVALID
+    ChNumFormat::Undefined,             // IMG_FMT_INVALID
+    ChNumFormat::Undefined,             // IMG_FMT_INVALID
+    ChNumFormat::Undefined,             // IMG_FMT_INVALID
+    ChNumFormat::Undefined,             // IMG_FMT_INVALID
+    ChNumFormat::Undefined,             // IMG_FMT_INVALID
+    ChNumFormat::Undefined,             // IMG_FMT_INVALID
+    ChNumFormat::Undefined,             // IMG_FMT_INVALID
+    ChNumFormat::Undefined,             // IMG_FMT_INVALID
+    ChNumFormat::Undefined,             // IMG_FMT_INVALID
+    ChNumFormat::Undefined,             // IMG_FMT_INVALID
+    ChNumFormat::Undefined,             // IMG_FMT_INVALID
+    ChNumFormat::Undefined,             // IMG_FMT_INVALID
+    ChNumFormat::Undefined,             // IMG_FMT_INVALID
+    ChNumFormat::Undefined,             // IMG_FMT_INVALID
+    ChNumFormat::Undefined,             // IMG_FMT_INVALID
+    ChNumFormat::Undefined,             // IMG_FMT_INVALID
+    ChNumFormat::Undefined,             // IMG_FMT_INVALID
+    ChNumFormat::Undefined,             // IMG_FMT_INVALID
+    ChNumFormat::Undefined,             // IMG_FMT_INVALID
+    ChNumFormat::Undefined,             // IMG_FMT_INVALID
+    ChNumFormat::Undefined,             // IMG_FMT_INVALID
+    ChNumFormat::Undefined,             // IMG_FMT_INVALID
+    ChNumFormat::Undefined,             // IMG_FMT_INVALID
+    ChNumFormat::Undefined,             // IMG_FMT_INVALID
+    ChNumFormat::Undefined,             // IMG_FMT_INVALID
+    ChNumFormat::Undefined,             // IMG_FMT_INVALID
+    ChNumFormat::Undefined,             // IMG_FMT_INVALID
+    ChNumFormat::Undefined,             // IMG_FMT_INVALID
+    ChNumFormat::Undefined,             // IMG_FMT_INVALID
+    ChNumFormat::Undefined,             // IMG_FMT_INVALID
+    ChNumFormat::Undefined,             // IMG_FMT_INVALID
+    ChNumFormat::Undefined,             // IMG_FMT_INVALID
+    ChNumFormat::Undefined,             // IMG_FMT_INVALID
+    ChNumFormat::X8_Srgb,               // IMG_FMT_8_SRGB__GFX10CORE
+    ChNumFormat::X8Y8_Srgb,             // IMG_FMT_8_8_SRGB__GFX10CORE
+    ChNumFormat::X8Y8Z8W8_Srgb,         // IMG_FMT_8_8_8_8_SRGB__GFX10CORE
+    ChNumFormat::Undefined,             // IMG_FMT_INVALID
+    ChNumFormat::X9Y9Z9E5_Float,        // IMG_FMT_5_9_9_9_FLOAT__GFX10CORE
+    ChNumFormat::X5Y6Z5_Unorm,          // IMG_FMT_5_6_5_UNORM__GFX10CORE
+    ChNumFormat::X5Y5Z5W1_Unorm,        // IMG_FMT_1_5_5_5_UNORM__GFX10CORE
+    ChNumFormat::X1Y5Z5W5_Unorm,        // IMG_FMT_5_5_5_1_UNORM__GFX10CORE
+    ChNumFormat::X4Y4Z4W4_Unorm,        // IMG_FMT_4_4_4_4_UNORM__GFX10CORE
+    ChNumFormat::X4Y4_Unorm,            // IMG_FMT_4_4_UNORM__GFX10CORE
+    ChNumFormat::X1_Unorm,              // IMG_FMT_1_UNORM__GFX10CORE
+    ChNumFormat::Undefined,             // IMG_FMT_INVALID
+    ChNumFormat::Undefined,             // IMG_FMT_INVALID
+    ChNumFormat::Undefined,             // IMG_FMT_INVALID
+    ChNumFormat::Undefined,             // IMG_FMT_INVALID
+    ChNumFormat::Undefined,             // IMG_FMT_INVALID
+    ChNumFormat::Undefined,             // IMG_FMT_INVALID
+    ChNumFormat::Undefined,             // IMG_FMT_INVALID
+    ChNumFormat::Undefined,             // IMG_FMT_INVALID
+    ChNumFormat::X8Y8_Z8Y8_Unorm,       // IMG_FMT_GB_GR_UNORM__GFX10CORE
+    ChNumFormat::Undefined,             // IMG_FMT_INVALID
+    ChNumFormat::Undefined,             // IMG_FMT_INVALID
+    ChNumFormat::Undefined,             // IMG_FMT_INVALID
+    ChNumFormat::Y8X8_Y8Z8_Unorm,       // IMG_FMT_BG_RG_UNORM__GFX10CORE
+    ChNumFormat::Undefined,             // IMG_FMT_INVALID
+    ChNumFormat::Undefined,             // IMG_FMT_INVALID
+    ChNumFormat::Undefined,             // IMG_FMT_INVALID
+    ChNumFormat::Undefined,             // IMG_FMT_INVALID
+    ChNumFormat::Undefined,             // IMG_FMT_INVALID
+    ChNumFormat::Undefined,             // IMG_FMT_INVALID
+    ChNumFormat::Undefined,             // IMG_FMT_INVALID
+    ChNumFormat::Undefined,             // IMG_FMT_INVALID
+    ChNumFormat::Undefined,             // IMG_FMT_INVALID
+    ChNumFormat::Undefined,             // IMG_FMT_INVALID
+    ChNumFormat::Undefined,             // IMG_FMT_INVALID
+    ChNumFormat::Undefined,             // IMG_FMT_INVALID
+    ChNumFormat::Undefined,             // IMG_FMT_INVALID
+    ChNumFormat::Undefined,             // IMG_FMT_INVALID
+    ChNumFormat::Undefined,             // IMG_FMT_INVALID
+    ChNumFormat::Undefined,             // IMG_FMT_INVALID
+    ChNumFormat::Undefined,             // IMG_FMT_INVALID
+    ChNumFormat::Bc1_Unorm,             // IMG_FMT_BC1_UNORM__GFX10CORE
+    ChNumFormat::Bc1_Srgb,              // IMG_FMT_BC1_SRGB__GFX10CORE
+    ChNumFormat::Bc2_Unorm,             // IMG_FMT_BC2_UNORM__GFX10CORE
+    ChNumFormat::Bc2_Srgb,              // IMG_FMT_BC2_SRGB__GFX10CORE
+    ChNumFormat::Bc3_Unorm,             // IMG_FMT_BC3_UNORM__GFX10CORE
+    ChNumFormat::Bc3_Srgb,              // IMG_FMT_BC3_SRGB__GFX10CORE
+    ChNumFormat::Bc4_Unorm,             // IMG_FMT_BC4_UNORM__GFX10CORE
+    ChNumFormat::Bc4_Snorm,             // IMG_FMT_BC4_SNORM__GFX10CORE
+    ChNumFormat::Bc5_Unorm,             // IMG_FMT_BC5_UNORM__GFX10CORE
+    ChNumFormat::Bc5_Snorm,             // IMG_FMT_BC5_SNORM__GFX10CORE
+    ChNumFormat::Bc6_Ufloat,            // IMG_FMT_BC6_UFLOAT__GFX10CORE
+    ChNumFormat::Bc6_Sfloat,            // IMG_FMT_BC6_SFLOAT__GFX10CORE
+    ChNumFormat::Bc7_Unorm,             // IMG_FMT_BC7_UNORM__GFX10CORE
+    ChNumFormat::Bc7_Srgb,              // IMG_FMT_BC7_SRGB__GFX10CORE
+    ChNumFormat::Etc2X8Y8Z8_Unorm,      // IMG_FMT_ETC2_RGB_UNORM__GFX10CORE
+    ChNumFormat::Etc2X8Y8Z8_Srgb,       // IMG_FMT_ETC2_RGB_SRGB__GFX10CORE
+    ChNumFormat::Etc2X8Y8Z8W8_Unorm,    // IMG_FMT_ETC2_RGBA_UNORM__GFX10CORE
+    ChNumFormat::Etc2X8Y8Z8W8_Srgb,     // IMG_FMT_ETC2_RGBA_SRGB__GFX10CORE
+    ChNumFormat::Etc2X11_Unorm,         // IMG_FMT_ETC2_R_UNORM__GFX10CORE
+    ChNumFormat::Etc2X11_Snorm,         // IMG_FMT_ETC2_R_SNORM__GFX10CORE
+    ChNumFormat::Etc2X11Y11_Unorm,      // IMG_FMT_ETC2_RG_UNORM__GFX10CORE
+    ChNumFormat::Etc2X11Y11_Snorm,      // IMG_FMT_ETC2_RG_SNORM__GFX10CORE
+    ChNumFormat::Etc2X8Y8Z8W1_Unorm,    // IMG_FMT_ETC2_RGBA1_UNORM__GFX10CORE
+    ChNumFormat::Etc2X8Y8Z8W1_Srgb,     // IMG_FMT_ETC2_RGBA1_SRGB__GFX10CORE
+    ChNumFormat::AstcLdr4x4_Unorm,      // IMG_FMT_ASTC_2D_LDR_4X4__GFX10CORE
+    ChNumFormat::AstcLdr5x4_Unorm,      // IMG_FMT_ASTC_2D_LDR_5X4__GFX10CORE
+    ChNumFormat::AstcLdr5x5_Unorm,      // IMG_FMT_ASTC_2D_LDR_5X5__GFX10CORE
+    ChNumFormat::AstcLdr6x5_Unorm,      // IMG_FMT_ASTC_2D_LDR_6X5__GFX10CORE
+    ChNumFormat::AstcLdr6x6_Unorm,      // IMG_FMT_ASTC_2D_LDR_6X6__GFX10CORE
+    ChNumFormat::AstcLdr8x5_Unorm,      // IMG_FMT_ASTC_2D_LDR_8X5__GFX10CORE
+    ChNumFormat::AstcLdr8x6_Unorm,      // IMG_FMT_ASTC_2D_LDR_8X6__GFX10CORE
+    ChNumFormat::AstcLdr8x8_Unorm,      // IMG_FMT_ASTC_2D_LDR_8X8__GFX10CORE
+    ChNumFormat::AstcLdr10x5_Unorm,     // IMG_FMT_ASTC_2D_LDR_10X5__GFX10CORE
+    ChNumFormat::AstcLdr10x6_Unorm,     // IMG_FMT_ASTC_2D_LDR_10X6__GFX10CORE
+    ChNumFormat::AstcLdr10x8_Unorm,     // IMG_FMT_ASTC_2D_LDR_10X8__GFX10CORE
+    ChNumFormat::AstcLdr10x10_Unorm,    // IMG_FMT_ASTC_2D_LDR_10X10__GFX10CORE
+    ChNumFormat::AstcLdr12x10_Unorm,    // IMG_FMT_ASTC_2D_LDR_12X10__GFX10CORE
+    ChNumFormat::AstcLdr12x12_Unorm,    // IMG_FMT_ASTC_2D_LDR_12X12__GFX10CORE
+    ChNumFormat::AstcHdr4x4_Float,      // IMG_FMT_ASTC_2D_HDR_4X4__GFX10CORE
+    ChNumFormat::AstcHdr5x4_Float,      // IMG_FMT_ASTC_2D_HDR_5X4__GFX10CORE
+    ChNumFormat::AstcHdr5x5_Float,      // IMG_FMT_ASTC_2D_HDR_5X5__GFX10CORE
+    ChNumFormat::AstcHdr6x5_Float,      // IMG_FMT_ASTC_2D_HDR_6X5__GFX10CORE
+    ChNumFormat::AstcHdr6x6_Float,      // IMG_FMT_ASTC_2D_HDR_6X6__GFX10CORE
+    ChNumFormat::AstcHdr8x5_Float,      // IMG_FMT_ASTC_2D_HDR_8X5__GFX10CORE
+    ChNumFormat::AstcHdr8x6_Float,      // IMG_FMT_ASTC_2D_HDR_8X6__GFX10CORE
+    ChNumFormat::AstcHdr8x8_Float,      // IMG_FMT_ASTC_2D_HDR_8X8__GFX10CORE
+    ChNumFormat::AstcHdr10x5_Float,     // IMG_FMT_ASTC_2D_HDR_10X5__GFX10CORE
+    ChNumFormat::AstcHdr10x6_Float,     // IMG_FMT_ASTC_2D_HDR_10X6__GFX10CORE
+    ChNumFormat::AstcHdr10x8_Float,     // IMG_FMT_ASTC_2D_HDR_10X8__GFX10CORE
+    ChNumFormat::AstcHdr10x10_Float,    // IMG_FMT_ASTC_2D_HDR_10X10__GFX10CORE
+    ChNumFormat::AstcHdr12x10_Float,    // IMG_FMT_ASTC_2D_HDR_12X10__GFX10CORE
+    ChNumFormat::AstcHdr12x12_Float,    // IMG_FMT_ASTC_2D_HDR_12X12__GFX10CORE
+    ChNumFormat::AstcLdr4x4_Srgb,       // IMG_FMT_ASTC_2D_LDR_SRGB_4X4__GFX10CORE
+    ChNumFormat::AstcLdr5x4_Srgb,       // IMG_FMT_ASTC_2D_LDR_SRGB_5X4__GFX10CORE
+    ChNumFormat::AstcLdr5x5_Srgb,       // IMG_FMT_ASTC_2D_LDR_SRGB_5X5__GFX10CORE
+    ChNumFormat::AstcLdr6x5_Srgb,       // IMG_FMT_ASTC_2D_LDR_SRGB_6X5__GFX10CORE
+    ChNumFormat::AstcLdr6x6_Srgb,       // IMG_FMT_ASTC_2D_LDR_SRGB_6X6__GFX10CORE
+    ChNumFormat::AstcLdr8x5_Srgb,       // IMG_FMT_ASTC_2D_LDR_SRGB_8X5__GFX10CORE
+    ChNumFormat::AstcLdr8x6_Srgb,       // IMG_FMT_ASTC_2D_LDR_SRGB_8X6__GFX10CORE
+    ChNumFormat::AstcLdr8x8_Srgb,       // IMG_FMT_ASTC_2D_LDR_SRGB_8X8__GFX10CORE
+    ChNumFormat::AstcLdr10x5_Srgb,      // IMG_FMT_ASTC_2D_LDR_SRGB_10X5__GFX10CORE
+    ChNumFormat::AstcLdr10x6_Srgb,      // IMG_FMT_ASTC_2D_LDR_SRGB_10X6__GFX10CORE
+    ChNumFormat::AstcLdr10x8_Srgb,      // IMG_FMT_ASTC_2D_LDR_SRGB_10X8__GFX10CORE
+    ChNumFormat::AstcLdr10x10_Srgb,     // IMG_FMT_ASTC_2D_LDR_SRGB_10X10__GFX10CORE
+    ChNumFormat::AstcLdr12x10_Srgb,     // IMG_FMT_ASTC_2D_LDR_SRGB_12X10__GFX10CORE
+    ChNumFormat::AstcLdr12x12_Srgb,     // IMG_FMT_ASTC_2D_LDR_SRGB_12X12__GFX10CORE
+    ChNumFormat::Undefined,             // IMG_FMT_INVALID
+    ChNumFormat::Undefined,             // IMG_FMT_INVALID
+    ChNumFormat::Undefined,             // IMG_FMT_INVALID
+    ChNumFormat::Undefined,             // IMG_FMT_INVALID
+    ChNumFormat::Undefined,             // IMG_FMT_INVALID
+    ChNumFormat::Undefined,             // IMG_FMT_INVALID
+    ChNumFormat::Undefined,             // IMG_FMT_INVALID
+    ChNumFormat::Undefined,             // IMG_FMT_INVALID
+    ChNumFormat::Undefined,             // IMG_FMT_INVALID
+    ChNumFormat::Undefined,             // IMG_FMT_INVALID
+    ChNumFormat::Undefined,             // IMG_FMT_INVALID
+    ChNumFormat::Undefined,             // IMG_FMT_INVALID
+    ChNumFormat::Undefined,             // IMG_FMT_INVALID
+    ChNumFormat::Undefined,             // IMG_FMT_INVALID
+    ChNumFormat::Undefined,             // IMG_FMT_INVALID
+    ChNumFormat::Undefined,             // IMG_FMT_INVALID
+    ChNumFormat::Undefined,             // IMG_FMT_INVALID
+    ChNumFormat::Undefined,             // IMG_FMT_INVALID
+    ChNumFormat::Undefined,             // IMG_FMT_INVALID
+    ChNumFormat::Undefined,             // IMG_FMT_INVALID
+    ChNumFormat::Undefined,             // IMG_FMT_INVALID
+    ChNumFormat::Undefined,             // IMG_FMT_INVALID
+    ChNumFormat::Undefined,             // IMG_FMT_INVALID
+    ChNumFormat::Undefined,             // IMG_FMT_INVALID
+    ChNumFormat::Undefined,             // IMG_FMT_INVALID
+    ChNumFormat::Undefined,             // IMG_FMT_INVALID
+    ChNumFormat::Undefined,             // IMG_FMT_INVALID
+    ChNumFormat::Undefined,             // IMG_FMT_INVALID
+    ChNumFormat::Undefined,             // IMG_FMT_INVALID
+    ChNumFormat::Undefined,             // IMG_FMT_INVALID
+    ChNumFormat::X8_MM_Unorm,           // IMG_FMT_MM_8_UNORM__GFX10CORE
+    ChNumFormat::X8_MM_Uint,            // IMG_FMT_MM_8_UINT__GFX10CORE
+    ChNumFormat::X8Y8_MM_Unorm,         // IMG_FMT_MM_8_8_UNORM__GFX10CORE
+    ChNumFormat::X8Y8_MM_Uint,          // IMG_FMT_MM_8_8_UINT__GFX10CORE
+    ChNumFormat::Undefined,             // IMG_FMT_INVALID
+    ChNumFormat::Undefined,             // IMG_FMT_INVALID
+    ChNumFormat::Undefined,             // IMG_FMT_INVALID
+    ChNumFormat::Undefined,             // IMG_FMT_INVALID
+    ChNumFormat::Undefined,             // IMG_FMT_INVALID
+    ChNumFormat::Undefined,             // IMG_FMT_INVALID
+    ChNumFormat::Undefined,             // IMG_FMT_INVALID
+    ChNumFormat::Undefined,             // IMG_FMT_INVALID
+    ChNumFormat::Undefined,             // IMG_FMT_INVALID
+    ChNumFormat::Undefined,             // IMG_FMT_INVALID
+    ChNumFormat::X16_MM_Unorm,          // IMG_FMT_MM_10_IN_16_UNORM__GFX10CORE
+    ChNumFormat::X16_MM_Uint,           // IMG_FMT_MM_10_IN_16_UINT__GFX10CORE
+    ChNumFormat::X16Y16_MM_Unorm,       // IMG_FMT_MM_10_IN_16_16_UNORM__GFX10CORE
+    ChNumFormat::X16Y16_MM_Uint,        // IMG_FMT_MM_10_IN_16_16_UINT__GFX10CORE
+};
+
+constexpr uint32 Gfx10_2MergedImgDataFmtCount = sizeof(Gfx10_2MergedImgDataFmtTbl) / sizeof(ChNumFormat);
+
+// Stores a ChNumFormat struct for each HW buffer format up to the last format known to the spreadsheet.
+constexpr ChNumFormat Gfx10_2MergedBufDataFmtTbl[] =
+{
+    ChNumFormat::Undefined,             // BUF_FMT_INVALID
+    ChNumFormat::X8_Unorm,              // BUF_FMT_8_UNORM
+    ChNumFormat::X8_Snorm,              // BUF_FMT_8_SNORM
+    ChNumFormat::X8_Uscaled,            // BUF_FMT_8_USCALED
+    ChNumFormat::X8_Sscaled,            // BUF_FMT_8_SSCALED
+    ChNumFormat::X8_Uint,               // BUF_FMT_8_UINT
+    ChNumFormat::X8_Sint,               // BUF_FMT_8_SINT
+    ChNumFormat::X16_Unorm,             // BUF_FMT_16_UNORM
+    ChNumFormat::X16_Snorm,             // BUF_FMT_16_SNORM
+    ChNumFormat::X16_Uscaled,           // BUF_FMT_16_USCALED
+    ChNumFormat::X16_Sscaled,           // BUF_FMT_16_SSCALED
+    ChNumFormat::X16_Uint,              // BUF_FMT_16_UINT
+    ChNumFormat::X16_Sint,              // BUF_FMT_16_SINT
+    ChNumFormat::X16_Float,             // BUF_FMT_16_FLOAT
+    ChNumFormat::X8Y8_Unorm,            // BUF_FMT_8_8_UNORM
+    ChNumFormat::X8Y8_Snorm,            // BUF_FMT_8_8_SNORM
+    ChNumFormat::X8Y8_Uscaled,          // BUF_FMT_8_8_USCALED
+    ChNumFormat::X8Y8_Sscaled,          // BUF_FMT_8_8_SSCALED
+    ChNumFormat::X8Y8_Uint,             // BUF_FMT_8_8_UINT
+    ChNumFormat::X8Y8_Sint,             // BUF_FMT_8_8_SINT
+    ChNumFormat::X32_Uint,              // BUF_FMT_32_UINT
+    ChNumFormat::X32_Sint,              // BUF_FMT_32_SINT
+    ChNumFormat::X32_Float,             // BUF_FMT_32_FLOAT
+    ChNumFormat::X16Y16_Unorm,          // BUF_FMT_16_16_UNORM
+    ChNumFormat::X16Y16_Snorm,          // BUF_FMT_16_16_SNORM
+    ChNumFormat::X16Y16_Uscaled,        // BUF_FMT_16_16_USCALED
+    ChNumFormat::X16Y16_Sscaled,        // BUF_FMT_16_16_SSCALED
+    ChNumFormat::X16Y16_Uint,           // BUF_FMT_16_16_UINT
+    ChNumFormat::X16Y16_Sint,           // BUF_FMT_16_16_SINT
+    ChNumFormat::X16Y16_Float,          // BUF_FMT_16_16_FLOAT
+    ChNumFormat::Undefined,             // BUF_FMT_INVALID
+    ChNumFormat::Undefined,             // BUF_FMT_INVALID
+    ChNumFormat::Undefined,             // BUF_FMT_INVALID
+    ChNumFormat::Undefined,             // BUF_FMT_INVALID
+    ChNumFormat::Undefined,             // BUF_FMT_INVALID
+    ChNumFormat::Undefined,             // BUF_FMT_INVALID
+    ChNumFormat::X11Y11Z10_Float,       // BUF_FMT_10_11_11_FLOAT__GFX10CORE
+    ChNumFormat::Undefined,             // BUF_FMT_INVALID
+    ChNumFormat::Undefined,             // BUF_FMT_INVALID
+    ChNumFormat::Undefined,             // BUF_FMT_INVALID
+    ChNumFormat::Undefined,             // BUF_FMT_INVALID
+    ChNumFormat::Undefined,             // BUF_FMT_INVALID
+    ChNumFormat::Undefined,             // BUF_FMT_INVALID
+    ChNumFormat::X10Y11Z11_Float,       // BUF_FMT_11_11_10_FLOAT__GFX10CORE
+    ChNumFormat::Undefined,             // BUF_FMT_INVALID
+    ChNumFormat::Undefined,             // BUF_FMT_INVALID
+    ChNumFormat::Undefined,             // BUF_FMT_INVALID
+    ChNumFormat::Undefined,             // BUF_FMT_INVALID
+    ChNumFormat::Undefined,             // BUF_FMT_INVALID
+    ChNumFormat::Undefined,             // BUF_FMT_INVALID
+    ChNumFormat::X10Y10Z10W2_Unorm,     // BUF_FMT_2_10_10_10_UNORM__GFX10CORE
+    ChNumFormat::X8Y8Z8W8_Sint,         // BUF_FMT_8_8_8_8_SINT__GFX10CORE
+    ChNumFormat::X10Y10Z10W2_Uscaled,   // BUF_FMT_2_10_10_10_USCALED__GFX10CORE
+    ChNumFormat::X10Y10Z10W2_Sscaled,   // BUF_FMT_2_10_10_10_SSCALED__GFX10CORE
+    ChNumFormat::X10Y10Z10W2_Uint,      // BUF_FMT_2_10_10_10_UINT__GFX10CORE
+    ChNumFormat::X10Y10Z10W2_Sint,      // BUF_FMT_2_10_10_10_SINT__GFX10CORE
+    ChNumFormat::X8Y8Z8W8_Unorm,        // BUF_FMT_8_8_8_8_UNORM__GFX10CORE
+    ChNumFormat::X8Y8Z8W8_Snorm,        // BUF_FMT_8_8_8_8_SNORM__GFX10CORE
+    ChNumFormat::X8Y8Z8W8_Uscaled,      // BUF_FMT_8_8_8_8_USCALED__GFX10CORE
+    ChNumFormat::X8Y8Z8W8_Sscaled,      // BUF_FMT_8_8_8_8_SSCALED__GFX10CORE
+    ChNumFormat::X8Y8Z8W8_Uint,         // BUF_FMT_8_8_8_8_UINT__GFX10CORE
+    ChNumFormat::Undefined,             // BUF_FMT_INVALID
+    ChNumFormat::X32Y32_Uint,           // BUF_FMT_32_32_UINT__GFX10CORE
+    ChNumFormat::X32Y32_Sint,           // BUF_FMT_32_32_SINT__GFX10CORE
+    ChNumFormat::X32Y32_Float,          // BUF_FMT_32_32_FLOAT__GFX10CORE
+    ChNumFormat::X16Y16Z16W16_Unorm,    // BUF_FMT_16_16_16_16_UNORM__GFX10CORE
+    ChNumFormat::X16Y16Z16W16_Snorm,    // BUF_FMT_16_16_16_16_SNORM__GFX10CORE
+    ChNumFormat::X16Y16Z16W16_Uscaled,  // BUF_FMT_16_16_16_16_USCALED__GFX10CORE
+    ChNumFormat::X16Y16Z16W16_Sscaled,  // BUF_FMT_16_16_16_16_SSCALED__GFX10CORE
+    ChNumFormat::X16Y16Z16W16_Uint,     // BUF_FMT_16_16_16_16_UINT__GFX10CORE
+    ChNumFormat::X16Y16Z16W16_Sint,     // BUF_FMT_16_16_16_16_SINT__GFX10CORE
+    ChNumFormat::X16Y16Z16W16_Float,    // BUF_FMT_16_16_16_16_FLOAT__GFX10CORE
+    ChNumFormat::X32Y32Z32_Uint,        // BUF_FMT_32_32_32_UINT__GFX10CORE
+    ChNumFormat::X32Y32Z32_Sint,        // BUF_FMT_32_32_32_SINT__GFX10CORE
+    ChNumFormat::X32Y32Z32_Float,       // BUF_FMT_32_32_32_FLOAT__GFX10CORE
+    ChNumFormat::X32Y32Z32W32_Uint,     // BUF_FMT_32_32_32_32_UINT__GFX10CORE
+    ChNumFormat::X32Y32Z32W32_Sint,     // BUF_FMT_32_32_32_32_SINT__GFX10CORE
+    ChNumFormat::X32Y32Z32W32_Float,    // BUF_FMT_32_32_32_32_FLOAT__GFX10CORE
+};
+
+constexpr uint32 Gfx10_2MergedBufDataFmtCount = sizeof(Gfx10_2MergedBufDataFmtTbl) / sizeof(ChNumFormat);
+
 } // Gfx9
 } // Formats
 } // Pal

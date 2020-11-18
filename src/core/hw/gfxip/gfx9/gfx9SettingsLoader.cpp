@@ -295,6 +295,17 @@ void SettingsLoader::ValidateSettings(
             m_settings.useCompToSingle |= (Gfx10UseCompToSingle8bpp | Gfx10UseCompToSingle16bpp);
         }
 
+        // On Navi2x WGP harvesting asymmetric configuration, for pixel shader waves the extra WGP is not useful as all
+        // of Navi2x splits workloads (waves) evenly among the SE. For pixel shader workloads, the pixels are split
+        // evenly among the 2 SA within an SE as well. So for basic large uniform PS workload, the pixels are split
+        // evenly among all 8 SA of a Navi2x and the work-load will only finish as fast as the SA with the fewest # of
+        // WGP. In essence this means that a 72 CU Navi21 behaves like a 64 CU Navi21 for pixel shader workloads.
+        // We should mask off the extra WGP from PS waves on WGP harvesting asymmetric configuration.
+        // This will reduce power consumption when not needed and allow to the GPU to clock higher.
+        if (IsGfx103(*m_pDevice) && m_settings.gfx103DisableAsymmetricWgpForPs)
+        {
+            m_settings.psCuEnLimitMask = (1 << (gfx9Props.gfx10.minNumWgpPerSa * 2)) - 1;
+        }
     }
 
     if ((pPalSettings->distributionTessMode == DistributionTessTrapezoidOnly) ||
@@ -410,6 +421,23 @@ static void SetupGfx101Workarounds(
 }
 
 // =====================================================================================================================
+// Setup workarounds that are necessary for all Navi2x products.
+static void SetupNavi2xWorkarounds(
+    const Pal::Device&  device,
+    Gfx9PalSettings*    pSettings)
+{
+    pSettings->waCeDisableIb2 = true;
+
+    // This bug is caused by shader UAV writes to stencil surfaces that have associated hTile data that in turn
+    // contains VRS data.  The UAV to stencil will corrupt the VRS data.  No API that supports VRS allows for
+    // application writes to stencil UAVs; however, PAL does it internally through image-to-image copies.  Force
+    // use of graphics copies for affected surfaces.
+    pSettings->waVrsStencilUav = WaVrsStencilUav::GraphicsCopies;
+
+    pSettings->waLegacyGsCutModeFlush = true;
+}
+
+// =====================================================================================================================
 // Setup workarounds that only apply to Navi10.
 static void SetupNavi10Workarounds(
     const Pal::Device&  device,
@@ -450,6 +478,27 @@ static void SetupNavi14Workarounds(
 
     pSettings->waLateAllocGs0 = true;
     pSettings->nggSupported   = false;
+}
+
+// =====================================================================================================================
+// Setup workarounds that only apply to Navi21.
+static void SetupNavi21Workarounds(
+    const Pal::Device&  device,
+    Gfx9PalSettings*    pSettings)
+{
+    // Setup any Gfx10 workarounds.
+    SetupGfx10Workarounds(device, pSettings);
+
+    // Setup any Navi2x workarounds.
+    SetupNavi2xWorkarounds(device, pSettings);
+
+    // Setup any Navi21 workarounds.
+
+    pSettings->waDisableFmaskNofetchOpOnFmaskCompressionDisable = true;
+
+    pSettings->waVgtFlushNggToLegacy = true;
+
+    pSettings->waDisableVrsWithDsExports = true;
 }
 
 // =====================================================================================================================
@@ -528,6 +577,10 @@ void SettingsLoader::OverrideDefaults(
         {
             SetupNavi14Workarounds(device, &m_settings, pSettings);
         }
+        else if (IsNavi21(device))
+        {
+            SetupNavi21Workarounds(device, &m_settings);
+        }
         // For 4 or less RB parts, we expect some overlap for metadata requests across RBs.
         if (device.ChipProperties().gfx9.numActiveRbs <= 4)
         {
@@ -547,6 +600,11 @@ void SettingsLoader::OverrideDefaults(
 
             minBatchBinSizeWidth  = 64;
             minBatchBinSizeHeight = 64;
+        }
+
+        if (IsGfx103(device))
+        {
+            m_settings.gfx103DisableAsymmetricWgpForPs = true;
         }
 
     }

@@ -699,6 +699,24 @@ static const void PrintImageCreateInfo(
     Snprintf(pString, StringLength, "%s\t Fragments        = %u", pPrefix, createInfo.fragments);
     pNextCmdBuffer->CmdCommentString(pString);
 
+    const char* PrtMapTypeStrings[] =
+    {
+        "None",
+        "Residency",
+        "SamplingStatus",
+    };
+
+    static_assert(ArrayLen(PrtMapTypeStrings) == static_cast<size_t>(PrtMapType::Count),
+                  "PrtMapTypeStrings struct is not the same size as the PrtMapType enum!");
+
+    Snprintf(pString, StringLength, "%s\t Prt map type     = %s", pPrefix,
+             PrtMapTypeStrings[static_cast<size_t>(createInfo.prtPlus.mapType)]);
+    pNextCmdBuffer->CmdCommentString(pString);
+
+    Snprintf(pString, StringLength, "%s\t Extent           = ", pPrefix);
+    Extent3dToString(createInfo.prtPlus.lodRegion, pString);
+    pNextCmdBuffer->CmdCommentString(pString);
+
     const char* ImageTilingStrings[] =
     {
         "Linear",
@@ -1411,6 +1429,142 @@ void CmdBuffer::CmdSetVertexBuffers(
 }
 
 // =====================================================================================================================
+void CmdBuffer::CmdSetPerDrawVrsRate(
+    const VrsRateParams&  rateParams)
+{
+    if (m_annotations.logCmdSets)
+    {
+        static constexpr char const*  ShadingRateNames[] =
+        {
+            "_16xSsaa",
+            "_8xSsaa",
+            "_4xSsaa",
+            "_2xSsaa",
+            "_1x1",
+            "_1x2",
+            "_2x1",
+            "_2x2",
+        };
+
+        GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdSetPerDrawVrsRate));
+
+        LinearAllocatorAuto<VirtualLinearAllocator> allocator(Allocator(), false);
+        char*       pString   = PAL_NEW_ARRAY(char, StringLength, &allocator, AllocInternalTemp);
+
+        Snprintf(&pString[0],
+                 StringLength,
+                 "\tshading Rate:  %s",
+                 ShadingRateNames[static_cast<uint32>(rateParams.shadingRate)]);
+        GetNextLayer()->CmdCommentString(pString);
+
+        for (uint32 idx = 0; idx < static_cast<uint32>(VrsCombinerStage::Max); idx++)
+        {
+            static constexpr char const*  CombinerStageNames[] =
+            {
+                "Provoking vertex",
+                "Primitive",
+                "Image",
+                "PsIterSamples",
+            };
+
+            static constexpr char const*  CombinerNames[] =
+            {
+                "Passthrough",
+                "Override",
+                "Min",
+                "Max",
+                "Sum",
+            };
+
+            Snprintf(&pString[0],
+                     StringLength,
+                     "\tcombiner[%16s] = %s",
+                     CombinerStageNames[idx],
+                     CombinerNames[static_cast<uint32>(rateParams.combinerState[idx])]);
+            GetNextLayer()->CmdCommentString(pString);
+        }
+
+        PAL_SAFE_DELETE_ARRAY(pString, &allocator);
+    }
+
+    GetNextLayer()->CmdSetPerDrawVrsRate(rateParams);
+}
+
+// =====================================================================================================================
+void CmdBuffer::CmdSetVrsCenterState(
+    const VrsCenterState&  centerState)
+{
+    if (m_annotations.logCmdSets)
+    {
+        GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdSetVrsCenterState));
+
+        LinearAllocatorAuto<VirtualLinearAllocator> allocator(Allocator(), false);
+        char*       pString   = PAL_NEW_ARRAY(char, StringLength, &allocator, AllocInternalTemp);
+
+        Snprintf(&pString[0],
+                 StringLength,
+                 "\toverrideCenterSsaa   :  %d",
+                 centerState.flags.overrideCenterSsaa);
+        GetNextLayer()->CmdCommentString(pString);
+
+        Snprintf(&pString[0],
+                 StringLength,
+                 "\toverrideCentroidSsaa :  %d",
+                 centerState.flags.overrideCentroidSsaa);
+        GetNextLayer()->CmdCommentString(pString);
+
+        Snprintf(&pString[0],
+                 StringLength,
+                 "\talwaysComputeCentroid:  %d",
+                 centerState.flags.alwaysComputeCentroid);
+        GetNextLayer()->CmdCommentString(pString);
+
+        for (uint32  idx = 0; idx < static_cast<uint32>(VrsCenterRates::Max); idx++)
+        {
+            static constexpr char const*  Names[] =
+            {
+                "_1x1",
+                "_1x2",
+                "_2x1",
+                "_2x2",
+            };
+
+            Snprintf(&pString[0],
+                     StringLength,
+                     "\toffset[%s]:  x = %3d, y = %3d",
+                     Names[idx],
+                     centerState.centerOffset[idx].x, centerState.centerOffset[idx].y);
+            GetNextLayer()->CmdCommentString(pString);
+        }
+
+        PAL_SAFE_DELETE_ARRAY(pString, &allocator);
+    }
+
+    GetNextLayer()->CmdSetVrsCenterState(centerState);
+}
+
+// =====================================================================================================================
+void CmdBuffer::CmdBindSampleRateImage(
+    const IImage*  pImage)
+{
+    if (m_annotations.logCmdSets)
+    {
+        GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdBindSampleRateImage));
+
+        if (pImage != nullptr)
+        {
+            DumpImageInfo(this, pImage, "vrsImage", "");
+        }
+        else
+        {
+            CmdCommentString("\tpImage = 0x0000000000000000");
+        }
+    }
+
+    GetNextLayer()->CmdBindSampleRateImage(NextImage(pImage));
+}
+
+// =====================================================================================================================
 void CmdBuffer::CmdSetBlendConst(
     const BlendConstParams& params)
 {
@@ -1745,6 +1899,7 @@ static const void AppendCacheCoherencyUsageToString(
         "CoherCeDump",
         "CoherStreamOut",
         "CoherMemory",
+        "CoherSampleRate",
     };
 
     bool firstOneDumped = false;
@@ -4045,6 +4200,116 @@ void CmdBuffer::CmdResolveImage(
                                     pRegions,
                                     flags);
 }
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 554
+// =====================================================================================================================
+static void DumpImagePrtPlusResolveRegion(
+    CmdBuffer*                       pCmdBuffer,
+    uint32                           regionCount,
+    const PrtPlusImageResolveRegion* pRegions)
+{
+    LinearAllocatorAuto<VirtualLinearAllocator> allocator(pCmdBuffer->Allocator(), false);
+    char* pString = PAL_NEW_ARRAY(char, StringLength, &allocator, AllocInternalTemp);
+
+    ICmdBuffer* pNextCmdBuffer = pCmdBuffer->GetNextLayer();
+
+    for (uint32 i = 0; i < regionCount; i++)
+    {
+        const auto& region = pRegions[i];
+
+        Snprintf(pString, StringLength, "Region %u = [", i);
+        pNextCmdBuffer->CmdCommentString(pString);
+
+        Snprintf(pString, StringLength, "\t srcOffset  = ");
+        Offset3dToString(region.srcOffset, pString);
+        pNextCmdBuffer->CmdCommentString(pString);
+        pNextCmdBuffer->CmdCommentString(pString);
+
+        Snprintf(pString, StringLength, "\t srcMip     = 0x%x", region.srcMipLevel);
+        pNextCmdBuffer->CmdCommentString(pString);
+
+        Snprintf(pString, StringLength, "\t srcSlice   = 0x%x", region.srcSlice);
+        pNextCmdBuffer->CmdCommentString(pString);
+
+        Snprintf(pString, StringLength, "\t dstOffset  = ");
+        Offset3dToString(region.dstOffset, pString);
+        pNextCmdBuffer->CmdCommentString(pString);
+
+        Snprintf(pString, StringLength, "\t dstMip     = 0x%x", region.dstMipLevel);
+        pNextCmdBuffer->CmdCommentString(pString);
+
+        Snprintf(pString, StringLength, "\t dstSlice   = 0x%x", region.dstSlice);
+        pNextCmdBuffer->CmdCommentString(pString);
+
+        Snprintf(pString, StringLength, "\t extent     = ");
+        Extent3dToString(region.extent, pString);
+        pNextCmdBuffer->CmdCommentString(pString);
+
+        Snprintf(pString, StringLength, "\t numSlices  = %u", region.numSlices);
+        pNextCmdBuffer->CmdCommentString(pString);
+
+        Snprintf(pString, StringLength, "]");
+        pNextCmdBuffer->CmdCommentString(pString);
+    }
+
+    PAL_SAFE_DELETE_ARRAY(pString, &allocator);
+}
+
+// =====================================================================================================================
+static void DumpPrtPlusResolveType(
+    CmdBuffer*         pCmdBuffer,
+    PrtPlusResolveType resolveType)
+{
+    LinearAllocatorAuto<VirtualLinearAllocator> allocator(pCmdBuffer->Allocator(), false);
+    char* pString = PAL_NEW_ARRAY(char, StringLength, &allocator, AllocInternalTemp);
+    ICmdBuffer* pNextCmdBuffer = pCmdBuffer->GetNextLayer();
+
+    switch (resolveType)
+    {
+    case PrtPlusResolveType::Encode:
+        Snprintf(pString, StringLength, "PrtPlusResolveType: Encode");
+        break;
+    case PrtPlusResolveType::Decode:
+        Snprintf(pString, StringLength, "PrtPlusResolveType: Decode");
+        break;
+    default:
+        Snprintf(pString, StringLength, "PrtPlusResolveType: Unknown");
+        PAL_NEVER_CALLED();
+        break;
+    }
+    pNextCmdBuffer->CmdCommentString(pString);
+}
+
+// =====================================================================================================================
+void CmdBuffer::CmdResolvePrtPlusImage(
+    const IImage&                    srcImage,
+    ImageLayout                      srcImageLayout,
+    const IImage&                    dstImage,
+    ImageLayout                      dstImageLayout,
+    PrtPlusResolveType               resolveType,
+    uint32                           regionCount,
+    const PrtPlusImageResolveRegion* pRegions)
+{
+    if (m_annotations.logCmdSets)
+    {
+        GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdResolvePrtPlusImage));
+        DumpImageInfo(this, &srcImage, "srcImage", "");
+        DumpImageLayout(this, srcImageLayout, "srcImageLayout");
+        DumpImageInfo(this, &dstImage, "dstImage", "");
+        DumpImageLayout(this, dstImageLayout, "dstImageLayout");
+        DumpPrtPlusResolveType(this, resolveType);
+        DumpImagePrtPlusResolveRegion(this, regionCount, pRegions);
+    }
+
+    GetNextLayer()->CmdResolvePrtPlusImage(*NextImage(&srcImage),
+                                           srcImageLayout,
+                                           *NextImage(&dstImage),
+                                           dstImageLayout,
+                                           resolveType,
+                                           regionCount,
+                                           pRegions);
+}
+#endif
 
 // =====================================================================================================================
 void CmdBuffer::CmdSetEvent(

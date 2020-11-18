@@ -1242,6 +1242,23 @@ Result Queue::BuildGpaSessionSampleConfig()
                     counterInfo.block   = pCounters[i].block;
                     counterInfo.eventId = pCounters[i].eventId;
 
+                    if (pCounters[i].hasOptionalData)
+                    {
+                        if (counterInfo.block == GpuBlock::DfMall)
+                        {
+                            counterInfo.df.eventQualifier = pCounters[i].optionalData;
+                        }
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 587
+                        else if (counterInfo.block == GpuBlock::Umcch)
+                        {
+                            // Threshold   [12-bits]
+                            counterInfo.umc.eventThreshold   = pCounters[i].optionalData & 0xFFF;
+                            // ThresholdEn [2-bits] 0=disabled, 1=less than, 2=greater than
+                            counterInfo.umc.eventThresholdEn = (pCounters[i].optionalData >> 12) & 0x3;
+                        }
+#endif
+                    }
+
                     const uint64 instanceMask = pCounters[i].instanceMask;
                     for (uint32 j = 0; j < pCounters[i].instanceCount; j++)
                     {
@@ -1315,6 +1332,11 @@ Result Queue::BuildGpaSessionSampleConfig()
                         GpuUtil::PerfCounterId counterInfo = {};
                         counterInfo.block   = pStreamingCounters[counter].block;
                         counterInfo.eventId = pStreamingCounters[counter].eventId;
+
+                        if (counterInfo.block == GpuBlock::DfMall)
+                        {
+                            counterInfo.df.eventQualifier = pStreamingCounters[counter].optionalData;
+                        }
 
                         const uint64 instanceMask = pStreamingCounters[counter].instanceMask;
                         for (uint32 j = 0; j < pStreamingCounters[counter].instanceCount; j++)

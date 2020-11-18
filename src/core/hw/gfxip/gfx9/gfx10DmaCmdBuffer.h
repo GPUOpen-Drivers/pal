@@ -151,6 +151,12 @@ private:
     PAL_DISALLOW_COPY_AND_ASSIGN(DmaCmdBuffer);
     PAL_DISALLOW_DEFAULT_CTOR(DmaCmdBuffer);
 
+    uint32 GetCachePolicy(Gfx10SdmaBypassMall  bypassFlag) const;
+    bool   GetMallBypass(Gfx10SdmaBypassMall  bypassFlag) const;
+
+    uint32 GetCpvFromLlcPolicy(uint32  llcPolicy) const;
+    uint32 GetCpvFromCachePolicy(uint32  cachePolicy) const;
+
     uint32* CopyImageLinearTiledTransform(
         const DmaImageCopyInfo&  copyInfo,
         const DmaImageInfo&      linearImg,

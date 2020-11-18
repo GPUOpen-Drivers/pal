@@ -449,6 +449,13 @@ public:
         uint32             firstMip,
         uint32             numMips) override;
 
+    virtual void CmdSetPerDrawVrsRate(
+        const VrsRateParams&  rateParams) override;
+    virtual void CmdSetVrsCenterState(
+        const VrsCenterState&  centerState) override;
+    virtual void CmdBindSampleRateImage(
+        const IImage*  pImage) override;
+
     void NotifyDrawDispatchValidation(
         const Developer::DrawDispatchValidationData& data);
     void UpdateOptimizedRegisters(

@@ -114,6 +114,12 @@ static constexpr FuncFormattingEntry FuncFormattingTable[] =
     { InterfaceFunc::CmdBufferCmdBindIndexData,                                 InterfaceObject::CmdBuffer,            "CmdBindIndexData"                        },
     { InterfaceFunc::CmdBufferCmdBindTargets,                                   InterfaceObject::CmdBuffer,            "CmdBindTargets"                          },
     { InterfaceFunc::CmdBufferCmdBindStreamOutTargets,                          InterfaceObject::CmdBuffer,            "CmdBindStreamOutTargets"                 },
+    { InterfaceFunc::CmdBufferCmdSetPerDrawVrsRate,                             InterfaceObject::CmdBuffer,            "CmdSetPerDrawVrsRate"                    },
+    { InterfaceFunc::CmdBufferCmdSetVrsCenterState,                             InterfaceObject::CmdBuffer,            "CmdSetVrsCenterState"                    },
+    { InterfaceFunc::CmdBufferCmdBindSampleRateImage,                           InterfaceObject::CmdBuffer,            "CmdBindSampleRateImage"                  },
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 554
+    { InterfaceFunc::CmdBufferCmdResolvePrtPlusImage,                           InterfaceObject::CmdBuffer,            "CmdResolvePrtPlusImage"                  },
+#endif
     { InterfaceFunc::CmdBufferCmdSetBlendConst,                                 InterfaceObject::CmdBuffer,            "CmdSetBlendConst"                        },
     { InterfaceFunc::CmdBufferCmdSetInputAssemblyState,                         InterfaceObject::CmdBuffer,            "CmdSetInputAssemblyState"                },
     { InterfaceFunc::CmdBufferCmdSetTriangleRasterState,                        InterfaceObject::CmdBuffer,            "CmdSetTriangleRasterState"               },
@@ -245,6 +251,7 @@ static constexpr FuncFormattingEntry FuncFormattingTable[] =
     { InterfaceFunc::DeviceCreateImageViewSrds,                                 InterfaceObject::Device,               "CreateImageViewSrds"                     },
     { InterfaceFunc::DeviceCreateFmaskViewSrds,                                 InterfaceObject::Device,               "CreateFmaskViewSrds"                     },
     { InterfaceFunc::DeviceCreateSamplerSrds,                                   InterfaceObject::Device,               "CreateSamplerSrds"                       },
+    { InterfaceFunc::DeviceCreateBvhSrds,                                       InterfaceObject::Device,               "CreateBvhSrds"                           },
     { InterfaceFunc::DeviceSetSamplePatternPalette,                             InterfaceObject::Device,               "SetSamplePatternPalette"                 },
     { InterfaceFunc::DeviceCreateBorderColorPalette,                            InterfaceObject::Device,               "CreateBorderColorPalette"                },
     { InterfaceFunc::DeviceCreateComputePipeline,                               InterfaceObject::Device,               "CreateComputePipeline"                   },
@@ -835,6 +842,7 @@ void LogContext::CacheCoherencyUsageFlags(
         "CoherCeDump",             // 0x00001000,
         "CoherStreamOut",          // 0x00002000,
         "CoherMemory",             // 0x00004000,
+        "CoherSampleRate",         // 0x00008000,
     };
 
     BeginList(false);
@@ -1033,6 +1041,7 @@ void LogContext::ImageLayoutUsageFlags(
         "LayoutPresentWindowed",      // 0x00000400,
         "LayoutPresentFullscreen",    // 0x00000800,
         "LayoutUncompressed",         // 0x00001000,
+        "LayoutSampleRate",           // 0x00002000,
     };
 
     BeginList(false);
@@ -1249,6 +1258,48 @@ const char* LogContext::GetEngineName(
 
     const uint32 idx = static_cast<uint32>(value);
     PAL_ASSERT(idx < EngineTypeCount);
+
+    return StringTable[idx];
+}
+
+// =====================================================================================================================
+const char* LogContext::GetVrsCenterRateName(
+    VrsCenterRates value)
+{
+    const char*const StringTable[] =
+    {
+        "1x1", // _1x1
+        "1x2", // _1x2
+        "2x1", // _2x1
+        "2x2", // _2x2
+    };
+
+    static_assert(ArrayLen(StringTable) == static_cast<uint32>(VrsCenterRates::Max),
+                  "The GetVrsCenterRateName string table needs to be updated.");
+
+    const uint32 idx = static_cast<uint32>(value);
+    PAL_ASSERT(idx < static_cast<uint32>(VrsCenterRates::Max));
+
+    return StringTable[idx];
+}
+
+// =====================================================================================================================
+const char* LogContext::GetVrsCombinerStageName(
+    VrsCombinerStage value)
+{
+    const char*const StringTable[] =
+    {
+        "ProvokingVertex", // ProvokingVertex
+        "Primitive",       // Primitive
+        "Image",           // Image
+        "PsIterSamples",   // PsIterSamples
+    };
+
+    static_assert(ArrayLen(StringTable) == static_cast<uint32>(VrsCombinerStage::Max),
+                  "The GetVrsCombinerStageName string table needs to be updated.");
+
+    const uint32 idx = static_cast<uint32>(value);
+    PAL_ASSERT(idx < static_cast<uint32>(VrsCombinerStage::Max));
 
     return StringTable[idx];
 }

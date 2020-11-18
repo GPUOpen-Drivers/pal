@@ -86,6 +86,13 @@ enum class GpuBlock : uint32
     Gcr     = 0x2B,
     Ph      = 0x2C,
     UtcL1   = 0x2D,
+    Ge1     = Ge,
+    GeDist  = 0x2E,
+    GeSe    = 0x2F,
+    DfMall  = 0x30, // The DF subblocks have unique instances and event IDs but they all share the DF's perf counters.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 588
+    Df      = 0x30,
+#endif
     Count
 };
 
@@ -161,6 +168,22 @@ struct PerfCounterInfo
     uint32                       instance;    ///< Instance of that block in the device.
     uint32                       eventId;     ///< Which event ID to track.
 
+    // Some blocks have additional per-counter controls. They must be properly programmed when adding counters for
+    // the relevant blocks. It's recommended to zero them out when not in use.
+    union
+    {
+        struct
+        {
+            uint32 eventQualifier;   ///< The DF counters have an event-specific qualifier bitfield.
+        } df;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 587
+        struct
+        {
+            uint16 eventThreshold;   ///< Threshold value for those UMC counters having event-specific threshold.
+            uint8  eventThresholdEn; ///< Threshold enable (0 for disabled,1 for <threshold,2 for >threshold)
+        } umc;
+#endif
+    };
 };
 
 /// Specifies properties for setting up a streaming performance counter trace. Input structure to
