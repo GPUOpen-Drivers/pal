@@ -535,6 +535,7 @@ static void SerializeResourceDescriptionImage(
         pJsonWriter->KeyAndValue("DepthAsZ24",              static_cast<bool>(data.pCreateInfo->usageFlags.depthAsZ24));
         pJsonWriter->KeyAndValue("FirstShaderWriteableMip", static_cast<bool>(data.pCreateInfo->usageFlags.firstShaderWritableMip));
         pJsonWriter->KeyAndValue("CornerSampling", static_cast<bool>(data.pCreateInfo->usageFlags.cornerSampling));
+        pJsonWriter->KeyAndValue("VrsDepth", static_cast<bool>(data.pCreateInfo->usageFlags.vrsDepth));
         pJsonWriter->EndMap();
 
         pJsonWriter->KeyAndValue("ImageType", static_cast<uint32>(data.pCreateInfo->imageType));

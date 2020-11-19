@@ -77,6 +77,24 @@ enum Addr2Disable4kBSwizzle : uint32
     Addr2Disable4kBSwizzleColor3D = 8  //< 3D Color images
 };
 
+enum Addr2UseVarSwizzle : uint32
+{
+    Addr2UseVarSwizzleDefault = 0,
+    Addr2UseVarSwizzleFull = 1,
+    Addr2UseVarSwizzleDisable = 2,
+    Addr2UseVarSwizzleRt1xAa = 4,
+    Addr2UseVarSwizzleDs1xAa = 8,
+    Addr2UseVarSwizzleRtMsaa = 16,
+    Addr2UseVarSwizzleDsMsaa = 32,
+    Addr2UseVarSwizzleNotRtOrDs = 64
+};
+
+enum Gfx10RpmViewsBypassMall : uint32
+{
+    Gfx10RpmViewsBypassMallOnRead = 1,
+    Gfx10RpmViewsBypassMallOnWrite = 2
+};
+
 enum PreferredPipelineUploadHeap : uint32
 {
     PipelineHeapLocal = 0,  //< Local CPU visible heap.
@@ -168,6 +186,9 @@ struct PalSettings : public Pal::DriverSettings
     bool                                        clearAllocatedLfb;
     bool                                        enableAdaptiveSync;
     uint32                                      addr2Disable4kBSwizzleMode;
+    uint32                                      addr2UseVarSwizzleMode;
+
+    uint32                                      rpmViewsBypassMall;
 
     bool                                        enableBigPagePreAlignment;
     bool                                        enableIterate256PreAlignment;
@@ -257,6 +278,9 @@ static const char* pEnableNullCpuAccessFlagStr = "#3709502715";
 static const char* pClearAllocatedLfbStr = "#2657420565";
 static const char* pEnableAdaptiveSyncStr = "#1325234467";
 static const char* pAddr2Disable4KbSwizzleModeStr = "#2252676842";
+static const char* pAddr2UseVarSwizzleModeStr = "#2076875821";
+
+static const char* pRpmViewsBypassMallStr = "#2274774246";
 
 static const char* penableBigPagePreAlignmentStr = "#3301250889";
 static const char* penableIterate256PreAlignmentStr = "#2507710515";
@@ -345,6 +369,9 @@ static const SettingNameHash g_palSettingHashList[] = {
 2657420565,
 1325234467,
 2252676842,
+2076875821,
+
+2274774246,
 
 3301250889,
 2507710515,

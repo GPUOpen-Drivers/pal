@@ -1021,7 +1021,7 @@ void LogContext::Enum(
         nullptr,
         "Navi14",
         nullptr,
-        nullptr,
+        "Navi21",
         nullptr,
         nullptr,
         nullptr,
@@ -1718,6 +1718,110 @@ void LogContext::Enum(
 
     const uint32 idx = static_cast<uint32>(value);
     PAL_ASSERT(idx < static_cast<uint32>(VaRange::Count));
+
+    Value(StringTable[idx]);
+}
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 554
+// =====================================================================================================================
+void LogContext::Enum(
+    PrtPlusResolveType value)
+{
+    const char*const StringTable[] =
+    {
+        "Decode",  // 0x0,
+        "Encode",  // 0x1,
+    };
+
+    static_assert(Util::ArrayLen(StringTable) == static_cast<uint32>(PrtPlusResolveType::Count),
+                  "The PRT resolve type table needs to be updated");
+
+    const uint32 idx = static_cast<uint32>(value);
+    PAL_ASSERT(idx < ArrayLen(StringTable));
+
+    Value(StringTable[idx]);
+}
+#endif
+
+// =====================================================================================================================
+void LogContext::Enum(
+    PrtMapAccessType value)
+{
+    const char*const StringTable[] =
+    {
+        "Raw",                 // 0x0,
+        "Read",                // 0x1,
+        "WriteMin",            // 0x2,
+        "WriteMax",            // 0x3,
+        "WriteSamplingStatus", // 0x4,
+    };
+
+    static_assert(Util::ArrayLen(StringTable) == static_cast<uint32>(PrtMapAccessType::Count),
+                  "The PRT map access table needs to be updated");
+
+    const uint32 idx = static_cast<uint32>(value);
+    PAL_ASSERT(idx < ArrayLen(StringTable));
+
+    Value(StringTable[idx]);
+}
+
+// =====================================================================================================================
+void LogContext::Enum(
+    PrtMapType value)
+{
+    const char*const StringTable[] =
+    {
+        "None",               // 0x0,
+        "Residency",          // 0x1,
+        "SamplingStatus",     // 0x2,
+    };
+
+    static_assert(Util::ArrayLen(StringTable) == static_cast<uint32>(PrtMapType::Count),
+                  "The PRT map type access table needs to be updated");
+
+    const uint32 idx = static_cast<uint32>(value);
+    PAL_ASSERT(idx < ArrayLen(StringTable));
+
+    Value(StringTable[idx]);
+}
+
+// =====================================================================================================================
+void LogContext::Enum(
+    VrsShadingRate value)
+{
+    const char*const StringTable[] =
+    {
+        "16xSsaa", // 0x0,
+        "8xSsaa",  // 0x1,
+        "4xSsaa",  // 0x2,
+        "2xSsaa",  // 0x3,
+        "1x1",     // 0x4,
+        "1x2",     // 0x5,
+        "2x1",     // 0x6,
+        "2x2",     // 0x7,
+    };
+
+    const uint32 idx = static_cast<uint32>(value);
+    PAL_ASSERT(idx < ArrayLen(StringTable));
+
+    Value(StringTable[idx]);
+}
+
+// =====================================================================================================================
+void LogContext::Enum(
+    VrsCombiner value)
+{
+    const char*const StringTable[] =
+    {
+        "Passthrough", // 0
+        "Override",    // 1
+        "Min",         // 2
+        "Max",         // 3
+        "Sum",         // 4
+    };
+
+    const uint32 idx = static_cast<uint32>(value);
+    PAL_ASSERT(idx < ArrayLen(StringTable));
 
     Value(StringTable[idx]);
 }

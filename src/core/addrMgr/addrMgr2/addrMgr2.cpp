@@ -374,6 +374,14 @@ void AddrMgr2::InitTilingCaps(
     const bool             isRenderTarget = pImage->IsRenderTarget();
     const bool             isDepthStencil = pImage->IsDepthStencil();
 
+    const bool varSwizzleDefault   = settings.addr2UseVarSwizzleMode == Addr2UseVarSwizzleDefault;
+    const bool varSwizzleFull      = TestAnyFlagSet(settings.addr2UseVarSwizzleMode, Addr2UseVarSwizzleFull);
+    const bool varSwizzleRt1xAa    = TestAnyFlagSet(settings.addr2UseVarSwizzleMode, Addr2UseVarSwizzleRt1xAa);
+    const bool varSwizzleDs1xAa    = TestAnyFlagSet(settings.addr2UseVarSwizzleMode, Addr2UseVarSwizzleDs1xAa);
+    const bool varSwizzleRtMsaa    = TestAnyFlagSet(settings.addr2UseVarSwizzleMode, Addr2UseVarSwizzleRtMsaa);
+    const bool varSwizzleDsMsaa    = TestAnyFlagSet(settings.addr2UseVarSwizzleMode, Addr2UseVarSwizzleDsMsaa);
+    const bool varSwizzleNotRtOrDs = TestAnyFlagSet(settings.addr2UseVarSwizzleMode, Addr2UseVarSwizzleNotRtOrDs);
+
     pBlockSettings->value = 0; // All modes (4kb, 64kb) are valid...
     pBlockSettings->micro = 1; // but don't ever allow the 256b swizzle modes,
     pBlockSettings->var   = 1; // and don't allow variable-size block modes.
@@ -401,8 +409,31 @@ void AddrMgr2::InitTilingCaps(
         pBlockSettings->macroThick4KB = 1;
         pBlockSettings->linear        = 1;
     }
+    else if ((surfaceFlags.display == 0)                                       &&
+             (varSwizzleFull                                                   ||
+             (varSwizzleRt1xAa && isRenderTarget && (createInfo.samples == 1)) ||
+             (varSwizzleDs1xAa && isDepthStencil && (createInfo.samples == 1)) ||
+             (varSwizzleRtMsaa && isRenderTarget && (createInfo.samples > 1))  ||
+             (varSwizzleDsMsaa && isDepthStencil && (createInfo.samples > 1))  ||
+             (varSwizzleNotRtOrDs && (isDepthStencil == false) && (isRenderTarget == false))))
+    {
+        // VAR swizzle modes are not supported by display engine on GFX10 we can only force to use VAR swizzle mode for
+        // non-flippable surface...
+        pBlockSettings->var = 0;
+    }
     else
     {
+        if (varSwizzleDefault                                                 ||
+            varSwizzleFull                                                    ||
+            (varSwizzleRt1xAa && isRenderTarget && (createInfo.samples == 1)) ||
+            (varSwizzleDs1xAa && isDepthStencil && (createInfo.samples == 1)) ||
+            (varSwizzleRtMsaa && isRenderTarget && (createInfo.samples > 1))  ||
+            (varSwizzleDsMsaa && isDepthStencil && (createInfo.samples > 1))  ||
+            (varSwizzleNotRtOrDs && (isDepthStencil == false) && (isRenderTarget == false)))
+        {
+            // Allow VAR swizzle mode usage if setting allows it.
+            pBlockSettings->var = 0;
+        }
 
         // We have to allow linear as linear format is required for some format types (1D-color and 32-32-32 for
         // some examples).  Address library should guarantee that we don't actually get a linear surface unless
@@ -663,6 +694,15 @@ Result AddrMgr2::ComputePlaneSwizzleMode(
         (IsPowerOfTwo(surfSettingInput.preferredSwSet.value) == false))
     {
         surfSettingInput.preferredSwSet.sw_S = 0;
+    }
+
+    //
+    // Getting 3% better performance when "R" swizzle modes are removed. Sampler feedback operations have decreased
+    // performance for "R" swizzle modes. The hardware team isn't sure why this is the case, but see no harm in
+    // disallowing "R" swizzle modes for this use case.
+    if (createInfo.prtPlus.mapType != PrtMapType::None)
+    {
+        surfSettingInput.preferredSwSet.sw_R = 0;
     }
 
     ADDR_E_RETURNCODE addrRet = Addr2GetPreferredSurfaceSetting(AddrLibHandle(), &surfSettingInput, pOut);

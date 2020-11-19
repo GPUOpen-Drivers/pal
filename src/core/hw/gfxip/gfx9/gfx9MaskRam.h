@@ -93,7 +93,7 @@ union HtileUsageFlags
     struct
     {
         uint32  dsMetadata       :  1; // hTile reflects data stored in the parent depth/stencil image.
-        uint32  reservedFutureHw :  1;
+        uint32  vrs              :  1; // hTile contains VRS shading-rate data
         uint32  reserved         : 30;
     };
     uint32  value;
@@ -237,6 +237,7 @@ public:
     uint32 GetEffectiveNumPipes() const;
     int32  GetMetaOverlap() const;
     uint32 GetPipeRotateAmount() const;
+    uint32 GetNumShaderArrayLog2() const;
 
     PipeDist GetPipeDist()             const { return m_pipeDist; }
     int32    GetMetaDataWordSizeLog2() const { return m_metaDataWordSizeLog2; }

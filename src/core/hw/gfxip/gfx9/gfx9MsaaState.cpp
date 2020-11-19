@@ -69,6 +69,7 @@ MsaaState::MsaaState(
 
     m_flags.u32All = 0;
     m_flags.waFixPostZConservativeRasterization = device.Settings().waFixPostZConservativeRasterization;
+    m_flags.gfx10_3 = IsGfx103Plus(*device.Parent());
 
     memset(&m_regs, 0, sizeof(m_regs));
     Init(device, createInfo);

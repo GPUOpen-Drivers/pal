@@ -904,6 +904,7 @@ Result Device::InitGpuProperties()
 #endif
     case GfxIpLevel::GfxIp9:
     case GfxIpLevel::GfxIp10_1:
+    case GfxIpLevel::GfxIp10_3:
         m_chipProperties.gfxEngineId = CIASICIDGFXENGINE_ARCTICISLAND;
         m_pFormatPropertiesTable     = Gfx9::GetFormatPropertiesTable(m_chipProperties.gfxLevel,
                                                                       GetPlatform()->PlatformSettings());
@@ -2031,6 +2032,15 @@ void Device::GetDisplayDccInfo(DisplayDccCaps& displayDcc) const
     {
         displayDcc.pipeAligned = 0;
         displayDcc.rbAligned   = 0;
+        //Independent64=1, Independent128=1, maxCompress=64B
+        if ((ChipProperties().gfxLevel ==  GfxIpLevel::GfxIp10_3)
+        )
+        {
+            displayDcc.dcc_256_256_unconstrained = 0;
+            displayDcc.dcc_256_128_128           = 0;
+            displayDcc.dcc_128_128_unconstrained = 0;
+            displayDcc.dcc_256_64_64             = 1;
+        }
     }
 }
 

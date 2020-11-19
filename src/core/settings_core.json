@@ -423,6 +423,104 @@
       "Description": "Bitmask of surface types which should not allow 4kB swizzle modes for chips which use AddrMgr2."
     },
     {
+      "ValidValues": {
+        "IsEnum": true,
+        "Values": [
+          {
+            "Name": "Addr2UseVarSwizzleDefault",
+            "Value": 0,
+            "Description": "Allow VAR swizzle mode usage and use suggested swizzle mode returned by AddrLib."
+          },
+          {
+            "Name": "Addr2UseVarSwizzleFull",
+            "Value": 1,
+            "Description": "Force every resource to use VAR swizzle mode, if possible."
+          },
+          {
+            "Name": "Addr2UseVarSwizzleDisable",
+            "Value": 2,
+            "Description": "Forbid any resource to use VAR swizzle mode."
+          },
+          {
+            "Name": "Addr2UseVarSwizzleRt1xAa",
+            "Value": 4,
+            "Description": "Enable VAR swizzle mode for 1xAA render targets."
+          },
+          {
+            "Name": "Addr2UseVarSwizzleDs1xAa",
+            "Value": 8,
+            "Description": "Enable VAR swizzle mode for 1xAA depth/stencil resources."
+          },
+          {
+            "Name": "Addr2UseVarSwizzleRtMsaa",
+            "Value": 16,
+            "Description": "Enable VAR swizzle mode for MSAA render targets."
+          },
+          {
+            "Name": "Addr2UseVarSwizzleDsMsaa",
+            "Value": 32,
+            "Description": "Enable VAR swizzle mode for MSAA depth/stencil resources."
+          },
+          {
+            "Name": "Addr2UseVarSwizzleNotRtOrDs",
+            "Value": 64,
+            "Description": "Enable VAR swizzle for all resources that are not render targets or depth/stencil resources."
+          }
+        ],
+        "Name": "Addr2UseVarSwizzle"
+      },
+      "Description": "Determines how to enable VAR swizzle modes.",
+      "Tags": [
+        "General",
+        "Resource Settings"
+      ],
+      "Defaults": {
+        "Default": 2
+      },
+      "Flags": {
+        "RereadSetting": true,
+        "IsBitmask": true,
+        "IsHex": true
+      },
+      "Scope": "PrivatePalKey",
+      "Type": "uint32",
+      "VariableName": "addr2UseVarSwizzleMode",
+      "Name": "Addr2UseVarSwizzleMode"
+    },
+    {
+      "ValidValues": {
+        "IsEnum": true,
+        "Values": [
+          {
+            "Name": "Gfx10RpmViewsBypassMallOnRead",
+            "Value": 1,
+            "Description": "Skip MALL for read access of views created in RPM"
+          },
+          {
+            "Name": "Gfx10RpmViewsBypassMallOnWrite",
+            "Value": 2,
+            "Description": "Skip MALL for write access of views created in RPM"
+          }
+        ],
+        "Name": "Gfx10RpmViewsBypassMall"
+      },
+      "Description": "Bitmask of cases where RPM view memory accesses will bypass the MALL",
+      "Tags": [
+        "General"
+      ],
+      "Flags": {
+        "IsBitmask": true,
+        "IsHex": true
+      },
+      "Defaults": {
+        "Default": 0
+      },
+      "Scope": "PrivatePalKey",
+      "Type": "uint32",
+      "VariableName": "rpmViewsBypassMall",
+      "Name": "RpmViewsBypassMall"
+    },
+    {
       "Description": "Enable big-page alignment on resources which are yet to be bound",
       "Tags": [
         "General"

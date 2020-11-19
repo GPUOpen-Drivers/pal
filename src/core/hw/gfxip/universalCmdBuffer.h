@@ -58,7 +58,9 @@ union GraphicsStateFlags
                 uint16 lineStippleState       : 1; // Gfx6 & Gfx9
                 uint16 colorTargetView        : 1; // Gfx9 only
                 uint16 depthStencilView       : 1; // Gfx9 only
-                uint16 reservedForFutureHw1   : 3;
+                uint16 vrsRateParams          : 1; // GFX10.2 / 10.3 only
+                uint16 vrsCenterState         : 1; // GFX10.2 / 10.3 only
+                uint16 vrsImage               : 1; // GFX10.2 / 10.3 only
                 uint16 depthClampOverride     : 1; // All Gfx
             };
 
@@ -150,6 +152,10 @@ struct GraphicsState
     ScissorRectParams           scissorRectState;       // (CmdSetScissorRects)
     GlobalScissorParams         globalScissorState;     // (CmdSetGlobalScissor)
     MsaaQuadSamplePattern       quadSamplePatternState; // (CmdSetQuadSamplePattern)
+
+    VrsRateParams               vrsRateState;           // (CmdSetPerDrawVrsRate)
+    VrsCenterState              vrsCenterState;         // (CmdSetVrsCenterState)
+    const Image*                pVrsImage;              // (CmdBindSampleRateImage)
 
     uint32                      numSamplesPerPixel;     // (CmdSetQuadSamplePattern)
 
@@ -322,6 +328,12 @@ protected:
         { CmdBuffer::P2pBltWaCopyNextRegion(m_pDeCmdStream, chunkAddr); }
     virtual uint32* WriteNops(uint32* pCmdSpace, uint32 numDwords) const override
         { return pCmdSpace + m_pDeCmdStream->BuildNop(numDwords, pCmdSpace); }
+
+    virtual void CmdSetPerDrawVrsRate(const VrsRateParams&  rateParams) override;
+
+    virtual void CmdSetVrsCenterState(const VrsCenterState&  centerState) override;
+
+    virtual void CmdBindSampleRateImage(const IImage*  pImage) override;
 
     // Late-initialized ACE command buffer stream.
     // Ace command stream is used for ganged submit of compute workloads (task shader workloads)

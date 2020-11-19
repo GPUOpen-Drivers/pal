@@ -156,6 +156,7 @@ enum class GfxIpLevel : uint32
     GfxIp8_1  = 0x4,
     GfxIp9    = 0x5,
     GfxIp10_1 = 0x7,
+    GfxIp10_3 = 0x9,
 };
 
 /// Specifies the hardware revision.  Enumerations are in family order (Southern Islands, Sea Islands, Kaveri,
@@ -201,6 +202,7 @@ enum class AsicRevision : uint32
 
     Navi10      = 0x1F,
     Navi14      = 0x23,
+    Navi21      = 0x24,
 };
 
 /// Specifies which operating-system-support IP level (OSSIP) this device has.
@@ -671,6 +673,7 @@ enum PrtFeatureFlags : uint32
     PrtFeatureStrictNull            = 0x00000400,   ///< Indicates whether reads of unmapped tiles always return zero
     PrtFeatureNonStandardImage3D    = 0x00000800,   ///< Indicates support for sparse 3D images restricted to
                                                     ///  non-standard tile shapes that match the tile mode block depth
+    PrtFeaturePrtPlus               = 0x00001000,   ///< Indicates that this image supports use of residency maps.
 };
 
 /// Describe the settings' scope accessible by clients.
@@ -972,7 +975,9 @@ struct DeviceProperties
                 /// Indicates TMZ (or HSFB) protected memory allocations are supported.
                 uint32 supportsTmz                      :  1;
 
-                uint32 placeholder1                     : 1;
+                /// Memory allocations on this device support MALL (memory access last level); essentially
+                /// the lowest level cache possible.
+                uint32 supportsMall                     : 1;
                 /// Reserved for future use.
                 uint32 reserved                         : 20;
             };
@@ -1045,6 +1050,8 @@ struct DeviceProperties
         MsaaFlags       msaaSupport;    ///< Bitflags for MSAA sample/fragment count support.
         uint8           maxMsaaFragments; ///< Max number of MSAA fragments per pixel (may have more samples).
         uint8           numSwizzleEqs;  ///< How many swizzle equations are in pSwizzleEqs.
+        Extent2d        vrsTileSize;    ///< Pixel dimensions of a VRS tile.  0x0 indicates image-based shading rate
+                                        ///  is not supported.
         const SwizzleEquation* pSwizzleEqs; ///< These describe how to interpret device-dependent tiling modes.
 
         bool     tilingSupported[static_cast<size_t>(ImageTiling::Count)]; ///< If each image tiling is supported.
@@ -1076,6 +1083,7 @@ struct DeviceProperties
                                     ///  irrelevant to clients, but may be useful to tools.
         uint32 ceRamSize;           ///< Maximum on-chip CE RAM size in bytes.
         uint32 maxPrimgroupSize;    ///< Maximum primitive group size.
+        uint32 supportedVrsRates;   ///< Bitmask of VrsShadingRate enumerations indicating which modes are supported.
 
         uint32 gl2UncachedCpuCoherency; ///< If supportGl2Uncached is set, then this is a bitmask of all
                                         ///  CacheCoherencyUsageFlags that will be coherent with CPU reads/writes.
@@ -1142,7 +1150,8 @@ struct DeviceProperties
                                                                 ///  un-cached memory. @see gl2UncachedCpuCoherency
                 uint64 supportOutOfOrderPrimitives        :  1; ///< HW supports higher throughput for out of order
 
-                uint64 placeholder5                       :  1; ///< Placeholder, do not use
+                uint64 supportIntersectRayBarycentrics    :  1; ///< HW supports the ray intersection mode which
+                                                                ///  returns triangle barycentrics.
 
                 uint64 support64BitInstructions           :  1; ///< Hardware supports 64b instructions
                 uint64 supportShaderSubgroupClock         :  1; ///< HW supports clock functions across subgroup.
@@ -1154,7 +1163,8 @@ struct DeviceProperties
                 uint64 placeholder9                       :  1; ///< Placeholder, do not use
 #endif
                 uint64 supportSortAgnosticBarycentrics    :  1; ///< HW supports sort-agnostic Barycentrics for PS
-                uint64 placeholder10                      :  1; ///< Placeholder, do not use
+                uint64 supportVrsWithDsExports            :  1; ///< If true, asic support coarse VRS rates
+                                                                ///  when z or stencil exports are enabled
                 uint64 reserved                           : 26; ///< Reserved for future use.
             };
             uint64 u64All;           ///< Flags packed as 32-bit uint.
@@ -1171,6 +1181,9 @@ struct DeviceProperties
                                 ///  a lack of fMask support.
             uint32 sampler;     ///< Size in bytes (and required alignment) of a sampler SRD.
                                 ///  @see IDevice::CreateSamplerSrds().
+            uint32 bvh;         ///< Size in bytes (and required alignment) of a BVH SRD
+                                ///  Will be zero if HW doesn't support ray-tracing capabilities.
+                                ///  @see IDevice::CreateBvhSrds().
         } srdSizes;             ///< Sizes for various types of _shader resource descriptor_ (SRD).
 
         struct
@@ -1534,6 +1547,10 @@ struct GpuMemoryHeapProperties
 
 /// Reports properties of a specific GPU block required for interpretting performance experiment data from that block.
 /// See @ref PerfExperimentProperties.
+/// The DF subblocks have unique instances and event IDs but they all share the DF's perf counters.  Each DF subblock
+/// has its own GpuBlock enum and GpuBlockPerfProperties.  The max counter values are shared between all DF subblocks.
+/// For example, if there are only 8 DF global counters then all DF subblocks will report maxGlobalOnlyCounters = 8
+/// but you will run out of counters if you try to enable more than 8 counters across all DF subblocks.
 struct GpuBlockPerfProperties
 {
     bool     available;                ///< If performance data is available for this block.
@@ -1669,6 +1686,18 @@ enum class BorderColorType : uint32
     Count
 };
 
+/// Residency maps are helper surfaces used in conjunction with PRT+.  They reflect the resident mip levels
+/// associated with a given UV region of the parent image.
+enum class PrtMapAccessType : uint32
+{
+    Raw                 = 0x0, ///< Read / write the map image as a normal image.
+    Read                = 0x1, ///< Read the residency map as floating point data
+    WriteMin            = 0x2, ///< Write the residency map with min(existing,new)
+    WriteMax            = 0x3, ///< Write the residency map with max(existing,new)
+    WriteSamplingStatus = 0x4, ///< Write to the sampling status map.
+    Count
+};
+
 /// Specifies parameters for a buffer view descriptor that control how a range of GPU memory is viewed by a shader.
 ///
 /// Input to either CreateTypedBufferViewSrds() or CreateUntypedBufferViewSrds().  Used for any buffer descriptor,
@@ -1701,7 +1730,15 @@ struct BufferViewInfo
     {
         struct
         {
+#if ( (PAL_CLIENT_INTERFACE_MAJOR_VERSION>= 558))
+            /// Set to have this surface independently bypass the MALL for read and / or write operations.
+            /// If set, this overrides the GpuMemMallPolicy specified at memory allocation time.  Meaningful
+            /// only on GPUs that have supportsMall set in DeviceProperties.
+            uint32 bypassMallRead  : 1;
+            uint32 bypassMallWrite : 1;
+#else
             uint32 placeholder0    : 2;  ///< Reserved for future HW
+#endif
             uint32 reserved        : 30; ///< Reserved for future use
         };
         uint32 u32All;                   ///< Value of flags bitfield
@@ -1735,6 +1772,10 @@ struct ImageViewInfo
 
     ImageTexOptLevel texOptLevel;     ///< Specific the texture optimization level.
 
+    const IImage*    pPrtParentImg;   ///< Meaningful only if "mapAccess" is not "raw".
+    PrtMapAccessType mapAccess;       ///< Type of access to be done if "pImage" is a PRT+ meta-data image.
+                                      ///  See @ref ImageCreateInfo
+
     ImageLayout possibleLayouts; ///< Union of all possible layouts this view can be in while accessed by this view.
                                  ///  (ie. what can be done with this SRD without having a layout transition?)
                                  ///  In DX, for example, it's possible that a texture SRV could be accessed in a state
@@ -1748,7 +1789,11 @@ struct ImageViewInfo
     {
         struct
         {
-            uint32 placeholder1    : 2;  ///< Reserved for future HW
+            /// Set to have this surface independently bypass the MALL for read and / or write operations.
+            /// If set, this overrides the GpuMemMallPolicy specified at memory allocation time.  Meaningful
+            /// only on GPUs that have supportsMall set in DeviceProperties.
+            uint32 bypassMallRead  : 1;
+            uint32 bypassMallWrite : 1;
 
             uint32 zRangeValid     : 1;  ///< whether z offset/ range value is valid.
             uint32 includePadding  : 1;  ///< Whether internal padding should be included in the view range.
@@ -1798,6 +1843,25 @@ struct SamplerInfo
                                               ///  is set to nonzero the HW will perform an optimization and may fetch
                                               ///  from only 1 MIP.
 
+    // These values are used to define a filtering line used when sampling a residency map.  The defined
+    // slopes in both the X (U) and Y (V) directions are to avoid visible disconnects when sampling between
+    // different samples.
+    Offset2d   uvOffset;                      ///< u/v offset value selectors.  Values specified are in
+                                              ///  log2 of fractions of pixel.  i.e., 1 / (1 << x).  Not all values
+                                              ///  are supported by all HW.
+    Offset2d   uvSlope;                       ///< u/v slope value selectors.  Supported slope values are
+                                              ///  specified in degrees.  In the case of a 3D image, the supplied
+                                              ///  uvSlope.y is interpreted as wSlope.
+                                              ///      0   2.5
+                                              ///      1   3
+                                              ///      2   4
+                                              ///      3   5
+                                              ///      4   8
+                                              ///      5   16
+                                              ///      6   32
+                                              ///      7   64
+                                              ///      other values:  unsupported
+
     union
     {
         struct
@@ -1825,11 +1889,45 @@ struct SamplerInfo
             /// be ignored for such GPUs.
             uint32 disableSingleMipAnisoOverride : 1;
 
-            uint32 placeholder0        : 1;
+            uint32 forResidencyMap     : 1; ///< Set if the surface being sampled is a residency map used in PRTs.
+                                            ///  Only meaningful if the corresponding ImageView's mapAccess is set to
+                                            ///  "read". Only valid for devices that report the "PrtFeaturePrtPlus"
+                                            ///  flag.
             uint32 reserved            : 23; ///< Reserved for future use
         };
         uint32 u32All;                ///< Value of flags bitfield
     } flags;
+};
+
+/// Specifies parameter for creating a BvH (bounding volume hierarchy, used by ray-trace) descriptor
+struct BvhInfo
+{
+    const IGpuMemory*  pMemory;      ///< Memory object holding the BVH nodes
+    gpusize            offset;       ///< Offset from memory address specified by pMemory.  Combination of
+                                     ///  pMemory address and the offset must be 256 byte aligned.
+    gpusize            numNodes;     ///< Number of nodes in the view
+    uint32             boxGrowValue; ///< Number of ULPs (unit in last place) to be added during ray-box test.
+
+    union
+    {
+        struct
+        {
+            uint32    findNearest        :  1; ///< Enable sorting the box intersect results
+            uint32    useZeroOffset      :  1; ///< If set, SRD address is programmed to zero
+            uint32    returnBarycentrics :  1; ///< When enabled, ray intersection will return triangle barycentrics.
+                                               ///< Note: Only valid if @see supportIntersectRayBarycentrics is true.
+
+            /// Set to have this surface independently bypass the MALL for read and / or write operations.
+            /// If set, this overrides the GpuMemMallPolicy specified at memory allocation time.  Meaningful
+            /// only on GPUs that have supportsMall set in DeviceProperties.
+            uint32    bypassMallRead     :  1;
+            uint32    bypassMallWrite    :  1;
+
+            uint32    reserved           : 27; ///< Reserved for future HW
+        };
+
+        uint32  u32All; ///< Flags packed as 32-bit uint.
+    } flags;            ///< BVH creation flags.
 };
 
 /// Specifies parameters for an fmask view descriptor.
@@ -2205,6 +2303,22 @@ typedef void (PAL_STDCALL *CreateSamplerSrdsFunc)(
     uint32              count,
     const SamplerInfo*  pSamplerInfo,
     void*               pOut);
+
+/// Function pointer type definition for creating a ray tracing SRD.
+///
+/// @see IDevice::CreateBvhSrds().
+///
+/// @param [in]  pDevice   Pointer to the device this function is called on.
+/// @param [in]  count     Number of BVH SRDs to create; size of the pBvhInfo array.
+/// @param [in]  pBvhInfo  Array of BVH descriptions directing SRD construction.
+/// @param [out] pOut      Client-provided space where opaque, hardware-specific SRD data is written.
+///
+/// @ingroup ResourceBinding
+typedef void (PAL_STDCALL *CreateBvhSrdsFunc)(
+    const IDevice*  pDevice,
+    uint32          count,
+    const BvhInfo*  pBvhInfo,
+    void*           pOut);
 
 /// Specifies output arguments for IDevice::QueryWorkstationCaps(), returning worksation feature information
 /// on this device workstation board.
@@ -3620,6 +3734,36 @@ public:
         void*              pOut) const
         { m_pfnTable.pfnCreateSamplerSrds(this, count, pSamplerInfo, pOut); }
 
+    /// Creates one or more _BVH resource descriptors (SRDs)_ in memory provided by the client.
+    ///
+    /// The client is responsible for providing _count_ times the amount of memory reported by srdSizes.bvhInfo in
+    /// DeviceProperties, and must also ensure the provided memory is aligned to the size of one SRD.
+    ///
+    /// The SRD can be created in either system memory or pre-mapped GPU memory.  If updating GPU memory, the client
+    /// must ensure there are no GPU accesses of this memory in flight before calling this method.
+    ///
+    /// The generated BVH SRD controls execution of ray trace instructions in a shader, and should be setup as
+    /// described in @ref BvhInfo.  The client should put the resulting SRD in an appropriate location based on
+    /// the shader resource mapping specified by the bound pipeline, either directly in user data
+    /// (ICmdBuffer::CmdSetUserData()) or a table in GPU memory indirectly referenced by user data.
+    ///
+    /// @param [in]  count    Number of BVH SRDs to create; size of the pBvhInfo array.
+    /// @param [in]  pBvhInfo Array of BVH (bounding volume hierarchy) descriptions directing SRD construction.
+    /// @param [out] pOut     Client-provided space where opaque, hardware-specific SRD data is written.
+    ///
+    /// @returns Success if the sampler SRD data was successfully written to pOut.  Otherwise, one of the following
+    ///          errors may be returned:
+    ///          + ErrorInvalidPointer if pBvhInfo or pOut is null.
+    ///
+    /// @ingroup ResourceBinding
+    PAL_INLINE void CreateBvhSrds(
+        uint32         count,
+        const BvhInfo* pBvhInfo,
+        void*          pOut) const
+    {
+        m_pfnTable.pfnCreateBvhSrds(this, count, pBvhInfo, pOut);
+    }
+
     /// The MSAA sample pattern palette is a client-managed table of sample patterns that might be in use by the app.
     ///
     /// The only purpose of this palette is to implement the samplepos shader instruction.  This instruction returns the
@@ -4602,6 +4746,7 @@ protected:
         CreateImageViewSrdsFunc  pfnCreateImageViewSrds;        ///< Image view SRD creation function pointer.
         CreateFmaskViewSrdsFunc  pfnCreateFmaskViewSrds;        ///< Fmask View SRD creation function pointer.
         CreateSamplerSrdsFunc    pfnCreateSamplerSrds;          ///< Sampler SRD creation function pointer.
+        CreateBvhSrdsFunc        pfnCreateBvhSrds;              ///< BVH SRD creation function pointer.
     } m_pfnTable;                                               ///< SRD creation function pointer table.
 
 private:

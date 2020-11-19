@@ -70,6 +70,11 @@ namespace Gfx101
 {
 } // namespace Gfx101
 
+namespace Gfx103Plus
+{
+    constexpr unsigned int SDMA_SUBOP_COPY_LINEAR_SUB_WIND_LARGE    = 36;
+} // namespace Gfx103Plus
+
 namespace Gfx10x
 {
     constexpr unsigned int SDMA_SUBOP_INVALIDATION                  = 4;
@@ -89,6 +94,14 @@ typedef struct SDMA_PKT_ATOMIC_TAG
             unsigned int                                :  6;
             unsigned int atomic_op                      :  7;
         };
+        struct
+        {
+            unsigned int                                : 20;
+            unsigned int cache_policy                   :  3;
+            unsigned int                                :  1;
+            unsigned int cpv                            :  1;
+            unsigned int                                :  7;
+        } gfx103Plus;
         unsigned int DW_0_DATA;
     } HEADER_UNION;
 
@@ -168,6 +181,14 @@ typedef struct SDMA_PKT_COND_EXE_TAG
             unsigned int sub_op                         :  8;
             unsigned int                                : 16;
         };
+        struct
+        {
+            unsigned int                                : 24;
+            unsigned int cache_policy                   :  3;
+            unsigned int                                :  1;
+            unsigned int cpv                            :  1;
+            unsigned int                                :  3;
+        } gfx103Plus;
         unsigned int DW_0_DATA;
     } HEADER_UNION;
 
@@ -222,6 +243,14 @@ typedef struct SDMA_PKT_CONSTANT_FILL_TAG
             unsigned int                                : 12;
             unsigned int fillsize                       :  2;
         };
+        struct
+        {
+            unsigned int                                : 24;
+            unsigned int cache_policy                   :  3;
+            unsigned int                                :  1;
+            unsigned int cpv                            :  1;
+            unsigned int                                :  3;
+        } gfx103Plus;
         unsigned int DW_0_DATA;
     } HEADER_UNION;
 
@@ -281,6 +310,12 @@ typedef struct SDMA_PKT_COPY_BROADCAST_LINEAR_TAG
             unsigned int                                :  1;
             unsigned int                                :  1;
         };
+        struct
+        {
+            unsigned int                                : 19;
+            unsigned int cpv                            :  1;
+            unsigned int                                : 12;
+        } gfx103Plus;
         unsigned int DW_0_DATA;
     } HEADER_UNION;
 
@@ -291,6 +326,11 @@ typedef struct SDMA_PKT_COPY_BROADCAST_LINEAR_TAG
             unsigned int count                          : 22;
             unsigned int                                : 10;
         } gfx101;
+        struct
+        {
+            unsigned int count                          : 30;
+            unsigned int                                :  2;
+        } gfx103Plus;
         unsigned int DW_1_DATA;
     } COUNT_UNION;
 
@@ -306,6 +346,16 @@ typedef struct SDMA_PKT_COPY_BROADCAST_LINEAR_TAG
             unsigned int src_sw                         :  2;
             unsigned int                                :  6;
         };
+        struct
+        {
+            unsigned int                                : 10;
+            unsigned int dst2_cache_policy              :  3;
+            unsigned int                                :  5;
+            unsigned int dst1_cache_policy              :  3;
+            unsigned int                                :  5;
+            unsigned int src_cache_policy               :  3;
+            unsigned int                                :  3;
+        } gfx103Plus;
         unsigned int DW_2_DATA;
     } PARAMETER_UNION;
 
@@ -378,6 +428,12 @@ typedef struct SDMA_PKT_COPY_DIRTY_PAGE_TAG
             unsigned int                                : 12;
             unsigned int all                            :  1;
         };
+        struct
+        {
+            unsigned int                                : 19;
+            unsigned int cpv                            :  1;
+            unsigned int                                : 12;
+        } gfx103Plus;
         unsigned int DW_0_DATA;
     } HEADER_UNION;
 
@@ -420,6 +476,15 @@ typedef struct SDMA_PKT_COPY_DIRTY_PAGE_TAG
             unsigned int dst_sw                         :  2;
             unsigned int                                : 14;
         } gfx101;
+        struct
+        {
+            unsigned int                                :  8;
+            unsigned int dst_llc                        :  1;
+            unsigned int                                :  7;
+            unsigned int src_llc                        :  1;
+            unsigned int dst_sw                         :  2;
+            unsigned int                                : 13;
+        } gfx103Plus;
         unsigned int DW_2_DATA;
     } PARAMETER_UNION;
 
@@ -479,6 +544,12 @@ typedef struct SDMA_PKT_COPY_L2T_BROADCAST_TAG
             unsigned int                                :  1;
             unsigned int                                :  1;
         };
+        struct
+        {
+            unsigned int                                : 19;
+            unsigned int cpv                            :  1;
+            unsigned int                                : 12;
+        } gfx103Plus;
         unsigned int DW_0_DATA;
     } HEADER_UNION;
 
@@ -556,6 +627,12 @@ typedef struct SDMA_PKT_COPY_L2T_BROADCAST_TAG
             unsigned int mip_max                        :  4;
             unsigned int                                : 12;
         } gfx101;
+        struct
+        {
+            unsigned int                                : 16;
+            unsigned int mip_max                        :  4;
+            unsigned int                                : 12;
+        } gfx103Plus;
         unsigned int DW_7_DATA;
     } DW_7_UNION;
 
@@ -593,6 +670,16 @@ typedef struct SDMA_PKT_COPY_L2T_BROADCAST_TAG
             unsigned int tile_sw                        :  2;
             unsigned int                                :  6;
         };
+        struct
+        {
+            unsigned int                                : 10;
+            unsigned int dst2_cache_policy              :  3;
+            unsigned int                                :  5;
+            unsigned int linear_cache_policy            :  3;
+            unsigned int                                :  5;
+            unsigned int tile_cache_policy              :  3;
+            unsigned int                                :  3;
+        } gfx103Plus;
         unsigned int DW_10_DATA;
     } DW_10_UNION;
 
@@ -640,6 +727,11 @@ typedef struct SDMA_PKT_COPY_L2T_BROADCAST_TAG
             unsigned int count                          : 22;
             unsigned int                                : 10;
         } gfx101;
+        struct
+        {
+            unsigned int count                          : 30;
+            unsigned int                                :  2;
+        } gfx103Plus;
         unsigned int DW_15_DATA;
     } COUNT_UNION;
 
@@ -668,6 +760,14 @@ typedef struct SDMA_PKT_COPY_LINEAR_TAG
             unsigned int broadcast                      :  1;
             unsigned int                                :  4;
         } gfx101;
+        struct
+        {
+            unsigned int                                : 19;
+            unsigned int cpv                            :  1;
+            unsigned int                                :  7;
+            unsigned int broadcast                      :  1;
+            unsigned int                                :  4;
+        } gfx103Plus;
         unsigned int DW_0_DATA;
     } HEADER_UNION;
 
@@ -678,6 +778,11 @@ typedef struct SDMA_PKT_COPY_LINEAR_TAG
             unsigned int count                          : 22;
             unsigned int                                : 10;
         } gfx101;
+        struct
+        {
+            unsigned int count                          : 30;
+            unsigned int                                :  2;
+        } gfx103Plus;
         unsigned int DW_1_DATA;
     } COUNT_UNION;
 
@@ -691,6 +796,14 @@ typedef struct SDMA_PKT_COPY_LINEAR_TAG
             unsigned int src_sw                         :  2;
             unsigned int                                :  6;
         };
+        struct
+        {
+            unsigned int                                : 18;
+            unsigned int dst_cache_policy               :  3;
+            unsigned int                                :  5;
+            unsigned int src_cache_policy               :  3;
+            unsigned int                                :  3;
+        } gfx103Plus;
         unsigned int DW_2_DATA;
     } PARAMETER_UNION;
 
@@ -745,6 +858,12 @@ typedef struct SDMA_PKT_COPY_LINEAR_SUBWIN_TAG
             unsigned int                                : 10;
             unsigned int elementsize                    :  3;
         };
+        struct
+        {
+            unsigned int                                : 19;
+            unsigned int cpv                            :  1;
+            unsigned int                                : 12;
+        } gfx103Plus;
         unsigned int DW_0_DATA;
     } HEADER_UNION;
 
@@ -871,10 +990,214 @@ typedef struct SDMA_PKT_COPY_LINEAR_SUBWIN_TAG
             unsigned int src_sw                         :  2;
             unsigned int                                :  6;
         };
+        struct
+        {
+            unsigned int                                : 18;
+            unsigned int dst_cache_policy               :  3;
+            unsigned int                                :  5;
+            unsigned int src_cache_policy               :  3;
+            unsigned int                                :  3;
+        } gfx103Plus;
         unsigned int DW_12_DATA;
     } DW_12_UNION;
 
 } SDMA_PKT_COPY_LINEAR_SUBWIN;
+
+typedef struct SDMA_PKT_COPY_LINEAR_SUBWIN_LARGE_TAG
+{
+    union
+    {
+        struct
+        {
+            unsigned int op                             :  8;
+            unsigned int sub_op                         :  8;
+            unsigned int                                :  2;
+            unsigned int tmz                            :  1;
+            unsigned int cpv                            :  1;
+            unsigned int                                : 12;
+        };
+        unsigned int DW_0_DATA;
+    } HEADER_UNION;
+
+    union
+    {
+        struct
+        {
+            unsigned int src_addr_31_0                  : 32;
+        };
+        unsigned int DW_1_DATA;
+    } SRC_ADDR_LO_UNION;
+
+    union
+    {
+        struct
+        {
+            unsigned int src_addr_63_32                 : 32;
+        };
+        unsigned int DW_2_DATA;
+    } SRC_ADDR_HI_UNION;
+
+    union
+    {
+        struct
+        {
+            unsigned int src_x                          : 32;
+        };
+        unsigned int DW_3_DATA;
+    } DW_3_UNION;
+
+    union
+    {
+        struct
+        {
+            unsigned int src_y                          : 32;
+        };
+        unsigned int DW_4_DATA;
+    } DW_4_UNION;
+
+    union
+    {
+        struct
+        {
+            unsigned int src_z                          : 32;
+        };
+        unsigned int DW_5_DATA;
+    } DW_5_UNION;
+
+    union
+    {
+        struct
+        {
+            unsigned int src_pitch                      : 32;
+        };
+        unsigned int DW_6_DATA;
+    } DW_6_UNION;
+
+    union
+    {
+        struct
+        {
+            unsigned int src_slice_pitch_31_0           : 32;
+        };
+        unsigned int DW_7_DATA;
+    } DW_7_UNION;
+
+    union
+    {
+        struct
+        {
+            unsigned int src_slice_pitch_47_32          : 16;
+            unsigned int                                : 16;
+        };
+        unsigned int DW_8_DATA;
+    } DW_8_UNION;
+
+    union
+    {
+        struct
+        {
+            unsigned int dst_addr_31_0                  : 32;
+        };
+        unsigned int DW_9_DATA;
+    } DST_ADDR_LO_UNION;
+
+    union
+    {
+        struct
+        {
+            unsigned int dst_addr_63_32                 : 32;
+        };
+        unsigned int DW_10_DATA;
+    } DST_ADDR_HI_UNION;
+
+    union
+    {
+        struct
+        {
+            unsigned int dst_x                          : 32;
+        };
+        unsigned int DW_11_DATA;
+    } DW_11_UNION;
+
+    union
+    {
+        struct
+        {
+            unsigned int dst_y                          : 32;
+        };
+        unsigned int DW_12_DATA;
+    } DW_12_UNION;
+
+    union
+    {
+        struct
+        {
+            unsigned int dst_z                          : 32;
+        };
+        unsigned int DW_13_DATA;
+    } DW_13_UNION;
+
+    union
+    {
+        struct
+        {
+            unsigned int dst_pitch                      : 32;
+        };
+        unsigned int DW_14_DATA;
+    } DW_14_UNION;
+
+    union
+    {
+        struct
+        {
+            unsigned int dst_slice_pitch_31_0           : 32;
+        };
+        unsigned int DW_15_DATA;
+    } DW_15_UNION;
+
+    union
+    {
+        struct
+        {
+            unsigned int dst_slice_pitch_47_32          : 16;
+            unsigned int dst_sw                         :  2;
+            unsigned int dst_policy                     :  3;
+            unsigned int                                :  3;
+            unsigned int src_sw                         :  2;
+            unsigned int src_policy                     :  3;
+            unsigned int                                :  3;
+        };
+        unsigned int DW_16_DATA;
+    } DW_16_UNION;
+
+    union
+    {
+        struct
+        {
+            unsigned int rect_x                         : 32;
+        };
+        unsigned int DW_17_DATA;
+    } DW_17_UNION;
+
+    union
+    {
+        struct
+        {
+            unsigned int rect_y                         : 32;
+        };
+        unsigned int DW_18_DATA;
+    } DW_18_UNION;
+
+    union
+    {
+        struct
+        {
+            unsigned int rect_z                         : 32;
+        };
+        unsigned int DW_19_DATA;
+    } DW_19_UNION;
+
+} SDMA_PKT_COPY_LINEAR_SUBWIN_LARGE;
 
 typedef struct SDMA_PKT_COPY_PHYSICAL_LINEAR_TAG
 {
@@ -888,6 +1211,12 @@ typedef struct SDMA_PKT_COPY_PHYSICAL_LINEAR_TAG
             unsigned int tmz                            :  1;
             unsigned int                                : 13;
         };
+        struct
+        {
+            unsigned int                                : 19;
+            unsigned int cpv                            :  1;
+            unsigned int                                : 12;
+        } gfx103Plus;
         unsigned int DW_0_DATA;
     } HEADER_UNION;
 
@@ -932,6 +1261,15 @@ typedef struct SDMA_PKT_COPY_PHYSICAL_LINEAR_TAG
             unsigned int dst_sw                         :  2;
             unsigned int                                : 14;
         } gfx101;
+        struct
+        {
+            unsigned int                                :  8;
+            unsigned int dst_llc                        :  1;
+            unsigned int                                :  7;
+            unsigned int src_llc                        :  1;
+            unsigned int dst_sw                         :  2;
+            unsigned int                                : 13;
+        } gfx103Plus;
         unsigned int DW_2_DATA;
     } PARAMETER_UNION;
 
@@ -986,6 +1324,12 @@ typedef struct SDMA_PKT_COPY_STRUCT_TAG
             unsigned int                                : 12;
             unsigned int detile                         :  1;
         };
+        struct
+        {
+            unsigned int                                : 28;
+            unsigned int cpv                            :  1;
+            unsigned int                                :  3;
+        } gfx103Plus;
         unsigned int DW_0_DATA;
     } HEADER_UNION;
 
@@ -1036,6 +1380,14 @@ typedef struct SDMA_PKT_COPY_STRUCT_TAG
             unsigned int struct_sw                      :  2;
             unsigned int                                :  6;
         };
+        struct
+        {
+            unsigned int                                : 18;
+            unsigned int linear_cache_policy            :  3;
+            unsigned int                                :  5;
+            unsigned int struct_cache_policy            :  3;
+            unsigned int                                :  3;
+        } gfx103Plus;
         unsigned int DW_5_DATA;
     } DW_5_UNION;
 
@@ -1073,6 +1425,12 @@ typedef struct SDMA_PKT_COPY_T2T_TAG
             unsigned int                                : 11;
             unsigned int dcc_dir                        :  1;
         };
+        struct
+        {
+            unsigned int                                : 28;
+            unsigned int cpv                            :  1;
+            unsigned int                                :  3;
+        } gfx103Plus;
         unsigned int DW_0_DATA;
     } HEADER_UNION;
 
@@ -1239,6 +1597,14 @@ typedef struct SDMA_PKT_COPY_T2T_TAG
             unsigned int src_sw                         :  2;
             unsigned int                                :  6;
         };
+        struct
+        {
+            unsigned int                                : 18;
+            unsigned int dst_cache_policy               :  3;
+            unsigned int                                :  5;
+            unsigned int src_cache_policy               :  3;
+            unsigned int                                :  3;
+        } gfx103Plus;
         unsigned int DW_14_DATA;
     } DW_14_UNION;
 
@@ -1277,6 +1643,12 @@ typedef struct SDMA_PKT_COPY_T2T_TAG
             unsigned int                                :  1;
             unsigned int pipe_aligned                   :  1;
         };
+        struct
+        {
+            unsigned int                                : 14;
+            unsigned int meta_llc                       :  1;
+            unsigned int                                : 17;
+        } gfx103Plus;
         unsigned int DW_17_DATA;
     } META_CONFIG_UNION;
 
@@ -1297,6 +1669,12 @@ typedef struct SDMA_PKT_COPY_TILED_TAG
             unsigned int                                :  1;
             unsigned int detile                         :  1;
         };
+        struct
+        {
+            unsigned int                                : 19;
+            unsigned int cpv                            :  1;
+            unsigned int                                : 12;
+        } gfx103Plus;
         unsigned int DW_0_DATA;
     } HEADER_UNION;
 
@@ -1356,6 +1734,12 @@ typedef struct SDMA_PKT_COPY_TILED_TAG
             unsigned int mip_max                        :  4;
             unsigned int                                : 12;
         } gfx101;
+        struct
+        {
+            unsigned int                                : 16;
+            unsigned int mip_max                        :  4;
+            unsigned int                                : 12;
+        } gfx103Plus;
         unsigned int DW_5_DATA;
     } DW_5_UNION;
 
@@ -1388,6 +1772,14 @@ typedef struct SDMA_PKT_COPY_TILED_TAG
             unsigned int linear_cc                      :  1;
             unsigned int                                : 11;
         } gfx101;
+        struct
+        {
+            unsigned int                                : 18;
+            unsigned int linear_cache_policy            :  3;
+            unsigned int                                :  5;
+            unsigned int tile_cache_policy              :  3;
+            unsigned int                                :  3;
+        } gfx103Plus;
         unsigned int DW_7_DATA;
     } DW_7_UNION;
 
@@ -1435,6 +1827,11 @@ typedef struct SDMA_PKT_COPY_TILED_TAG
             unsigned int count                          : 22;
             unsigned int                                : 10;
         } gfx101;
+        struct
+        {
+            unsigned int count                          : 30;
+            unsigned int                                :  2;
+        } gfx103Plus;
         unsigned int DW_12_DATA;
     } COUNT_UNION;
 
@@ -1454,6 +1851,12 @@ typedef struct SDMA_PKT_COPY_TILED_SUBWIN_TAG
             unsigned int                                : 11;
             unsigned int detile                         :  1;
         };
+        struct
+        {
+            unsigned int                                : 28;
+            unsigned int cpv                            :  1;
+            unsigned int                                :  3;
+        } gfx103Plus;
         unsigned int DW_0_DATA;
     } HEADER_UNION;
 
@@ -1602,6 +2005,14 @@ typedef struct SDMA_PKT_COPY_TILED_SUBWIN_TAG
             unsigned int tile_sw                        :  2;
             unsigned int                                :  6;
         };
+        struct
+        {
+            unsigned int                                : 18;
+            unsigned int linear_cache_policy            :  3;
+            unsigned int                                :  5;
+            unsigned int tile_cache_policy              :  3;
+            unsigned int                                :  3;
+        } gfx103Plus;
         unsigned int DW_13_DATA;
     } DW_13_UNION;
 
@@ -1640,6 +2051,12 @@ typedef struct SDMA_PKT_COPY_TILED_SUBWIN_TAG
             unsigned int                                :  1;
             unsigned int pipe_aligned                   :  1;
         };
+        struct
+        {
+            unsigned int                                : 14;
+            unsigned int meta_llc                       :  1;
+            unsigned int                                : 17;
+        } gfx103Plus;
         unsigned int DW_16_DATA;
     } META_CONFIG_UNION;
 
@@ -1708,6 +2125,14 @@ typedef struct SDMA_PKT_DATA_FILL_MULTI_TAG
             unsigned int                                : 15;
             unsigned int memlog_clr                     :  1;
         };
+        struct
+        {
+            unsigned int                                : 24;
+            unsigned int cache_policy                   :  3;
+            unsigned int                                :  1;
+            unsigned int cpv                            :  1;
+            unsigned int                                :  3;
+        } gfx103Plus;
         unsigned int DW_0_DATA;
     } HEADER_UNION;
 
@@ -1801,6 +2226,14 @@ typedef struct SDMA_PKT_FENCE_TAG
             unsigned int l2_policy                      :  2;
             unsigned int                                :  6;
         };
+        struct
+        {
+            unsigned int                                : 26;
+            unsigned int llc_policy                     :  1;
+            unsigned int                                :  1;
+            unsigned int cpv                            :  1;
+            unsigned int                                :  3;
+        } gfx103Plus;
         unsigned int DW_0_DATA;
     } HEADER_UNION;
 
@@ -2064,6 +2497,15 @@ typedef struct SDMA_PKT_MEM_INCR_TAG
             unsigned int sub_op                         :  8;
             unsigned int                                : 16;
         };
+        struct
+        {
+            unsigned int                                : 24;
+            unsigned int l2_policy                      :  2;
+            unsigned int llc_policy                     :  1;
+            unsigned int                                :  1;
+            unsigned int cpv                            :  1;
+            unsigned int                                :  3;
+        } gfx103Plus;
         unsigned int DW_0_DATA;
     } HEADER_UNION;
 
@@ -2123,6 +2565,14 @@ typedef struct SDMA_PKT_POLL_DBIT_WRITE_MEM_TAG
             unsigned int ea                             :  2;
             unsigned int                                : 14;
         };
+        struct
+        {
+            unsigned int                                : 24;
+            unsigned int cache_policy                   :  3;
+            unsigned int                                :  1;
+            unsigned int cpv                            :  1;
+            unsigned int                                :  3;
+        } gfx103Plus;
         unsigned int DW_0_DATA;
     } HEADER_UNION;
 
@@ -2176,6 +2626,14 @@ typedef struct SDMA_PKT_POLL_MEM_VERIFY_TAG
             unsigned int                                : 15;
             unsigned int mode                           :  1;
         };
+        struct
+        {
+            unsigned int                                : 24;
+            unsigned int cache_policy                   :  3;
+            unsigned int                                :  1;
+            unsigned int cpv                            :  1;
+            unsigned int                                :  3;
+        } gfx103Plus;
         unsigned int DW_0_DATA;
     } HEADER_UNION;
 
@@ -2212,6 +2670,10 @@ typedef struct SDMA_PKT_POLL_MEM_VERIFY_TAG
         {
             unsigned int cmp1_end_31_0                  : 32;
         } gfx101;
+        struct
+        {
+            unsigned int cmp0_end_31_0                  : 32;
+        } gfx102Plus;
         unsigned int DW_4_DATA;
     } CMP0_ADDR_END_LO_UNION;
 
@@ -2221,6 +2683,10 @@ typedef struct SDMA_PKT_POLL_MEM_VERIFY_TAG
         {
             unsigned int cmp1_end_63_32                 : 32;
         } gfx101;
+        struct
+        {
+            unsigned int cmp0_end_63_32                 : 32;
+        } gfx102Plus;
         unsigned int DW_5_DATA;
     } CMP0_ADDR_END_HI_UNION;
 
@@ -2299,6 +2765,14 @@ typedef struct SDMA_PKT_POLL_REGMEM_TAG
             unsigned int func                           :  3;
             unsigned int mem_poll                       :  1;
         };
+        struct
+        {
+            unsigned int                                : 20;
+            unsigned int cache_policy                   :  3;
+            unsigned int                                :  1;
+            unsigned int cpv                            :  1;
+            unsigned int                                :  7;
+        } gfx103Plus;
         unsigned int DW_0_DATA;
     } HEADER_UNION;
 
@@ -2361,6 +2835,14 @@ typedef struct SDMA_PKT_POLL_REG_WRITE_MEM_TAG
             unsigned int sub_op                         :  8;
             unsigned int                                : 16;
         };
+        struct
+        {
+            unsigned int                                : 24;
+            unsigned int cache_policy                   :  3;
+            unsigned int                                :  1;
+            unsigned int cpv                            :  1;
+            unsigned int                                :  3;
+        } gfx103Plus;
         unsigned int DW_0_DATA;
     } HEADER_UNION;
 
@@ -2502,6 +2984,15 @@ typedef struct SDMA_PKT_TIMESTAMP_GET_TAG
             unsigned int sub_op                         :  8;
             unsigned int                                : 16;
         };
+        struct
+        {
+            unsigned int                                : 24;
+            unsigned int l2_policy                      :  2;
+            unsigned int llc_policy                     :  1;
+            unsigned int                                :  1;
+            unsigned int cpv                            :  1;
+            unsigned int                                :  3;
+        } gfx103Plus;
         unsigned int DW_0_DATA;
     } HEADER_UNION;
 
@@ -2536,6 +3027,15 @@ typedef struct SDMA_PKT_TIMESTAMP_GET_GLOBAL_TAG
             unsigned int sub_op                         :  8;
             unsigned int                                : 16;
         };
+        struct
+        {
+            unsigned int                                : 24;
+            unsigned int l2_policy                      :  2;
+            unsigned int llc_policy                     :  1;
+            unsigned int                                :  1;
+            unsigned int cpv                            :  1;
+            unsigned int                                :  3;
+        } gfx103Plus;
         unsigned int DW_0_DATA;
     } HEADER_UNION;
 
@@ -2644,6 +3144,14 @@ typedef struct SDMA_PKT_WRITE_INCR_TAG
             unsigned int sub_op                         :  8;
             unsigned int                                : 16;
         };
+        struct
+        {
+            unsigned int                                : 24;
+            unsigned int cache_policy                   :  3;
+            unsigned int                                :  1;
+            unsigned int cpv                            :  1;
+            unsigned int                                :  3;
+        } gfx103Plus;
         unsigned int DW_0_DATA;
     } HEADER_UNION;
 
@@ -2745,6 +3253,12 @@ typedef struct SDMA_PKT_WRITE_TILED_TAG
             unsigned int                                : 12;
             unsigned int                                :  1;
         };
+        struct
+        {
+            unsigned int                                : 28;
+            unsigned int cpv                            :  1;
+            unsigned int                                :  3;
+        } gfx103Plus;
         unsigned int DW_0_DATA;
     } HEADER_UNION;
 
@@ -2804,6 +3318,12 @@ typedef struct SDMA_PKT_WRITE_TILED_TAG
             unsigned int mip_max                        :  4;
             unsigned int                                : 12;
         } gfx101;
+        struct
+        {
+            unsigned int                                : 16;
+            unsigned int mip_max                        :  4;
+            unsigned int                                : 12;
+        } gfx103Plus;
         unsigned int DW_5_DATA;
     } DW_5_UNION;
 
@@ -2828,6 +3348,12 @@ typedef struct SDMA_PKT_WRITE_TILED_TAG
             unsigned int sw                             :  2;
             unsigned int                                :  6;
         };
+        struct
+        {
+            unsigned int                                : 26;
+            unsigned int cache_policy                   :  3;
+            unsigned int                                :  3;
+        } gfx103Plus;
         unsigned int DW_7_DATA;
     } DW_7_UNION;
 
@@ -2866,6 +3392,12 @@ typedef struct SDMA_PKT_WRITE_UNTILED_TAG
             unsigned int                                : 12;
             unsigned int                                :  1;
         };
+        struct
+        {
+            unsigned int                                : 28;
+            unsigned int cpv                            :  1;
+            unsigned int                                :  3;
+        } gfx103Plus;
         unsigned int DW_0_DATA;
     } HEADER_UNION;
 
@@ -2896,6 +3428,12 @@ typedef struct SDMA_PKT_WRITE_UNTILED_TAG
             unsigned int sw                             :  2;
             unsigned int                                :  6;
         };
+        struct
+        {
+            unsigned int                                : 26;
+            unsigned int cache_policy                   :  3;
+            unsigned int                                :  3;
+        } gfx103Plus;
         unsigned int DW_3_DATA;
     } DW_3_UNION;
 

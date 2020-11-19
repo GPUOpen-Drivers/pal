@@ -124,7 +124,8 @@ union InternalImageFlags
         uint32 useSharedMetadata           :  1;  // Indicate SharedMetadataInfo will be used.
         uint32 placeholder0                :  1;  // Placeholder.
         uint32 placeholder1                :  1;  // Placeholder.
-        uint32 placeholder2                :  1;  // Placeholder.
+        uint32 vrsOnlyDepth                :  1;  // Setting this causes an image to allocate memory only for its hTile.
+                                                  // Meant for use with VRS when the client hasn't bound a depth buffer.
         uint32 useSharedDccState           :  1;  // Use the shared dcc block sizing
         uint32 reserved                    : 21;
     };

@@ -284,6 +284,7 @@ DeviceDecorator::DeviceDecorator(
     m_pfnTable.pfnCreateImageViewSrds      = &DeviceDecorator::DecoratorCreateImageViewSrds;
     m_pfnTable.pfnCreateFmaskViewSrds      = &DeviceDecorator::DecoratorCreateFmaskViewSrds;
     m_pfnTable.pfnCreateSamplerSrds        = &DeviceDecorator::DecoratorCreateSamplerSrds;
+    m_pfnTable.pfnCreateBvhSrds            = &DeviceDecorator::DecoratorCreateBvhSrds;
 }
 
 // =====================================================================================================================
@@ -1025,6 +1026,35 @@ void PAL_STDCALL DeviceDecorator::DecoratorCreateSamplerSrds(
 }
 
 // =====================================================================================================================
+void PAL_STDCALL DeviceDecorator::DecoratorCreateBvhSrds(
+    const IDevice*  pDevice,
+    uint32          count,
+    const BvhInfo*  pBvhInfo,
+    void*           pOut)
+{
+    const DeviceDecorator* pDeviceDecorator = static_cast<const DeviceDecorator*>(pDevice);
+    const IDevice*         pNextDevice      = pDeviceDecorator->GetNextLayer();
+
+    AutoBuffer<BvhInfo, 16, PlatformDecorator> bvhInfo(count, pDeviceDecorator->GetPlatform());
+
+    if (bvhInfo.Capacity() < count)
+    {
+        // No way to report this error...
+        PAL_ASSERT_ALWAYS();
+    }
+    else
+    {
+        for (uint32 i = 0; i < count; i++)
+        {
+            bvhInfo[i]         = pBvhInfo[i];
+            bvhInfo[i].pMemory = NextGpuMemory(pBvhInfo[i].pMemory);
+        }
+
+        pNextDevice->CreateBvhSrds(count, pBvhInfo, pOut);
+    }
+}
+
+// =====================================================================================================================
 Result DeviceDecorator::ValidateImageViewInfo(
     const ImageViewInfo& viewInfo
     ) const
@@ -1059,6 +1089,7 @@ void DeviceDecorator::DecoratorCreateImageViewSrds(
             imageViewInfo[i]               = pImgViewInfo[i];
             imageViewInfo[i].pImage        = NextImage(pImgViewInfo[i].pImage);
 
+            imageViewInfo[i].pPrtParentImg = NextImage(pImgViewInfo[i].pPrtParentImg);
         }
 
         pNextDevice->CreateImageViewSrds(count, &imageViewInfo[0], pOut);

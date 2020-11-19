@@ -375,6 +375,120 @@ void CmdBuffer::CmdBindStreamOutTargets(
 }
 
 // =====================================================================================================================
+void CmdBuffer::CmdSetPerDrawVrsRate(
+    const VrsRateParams&  rateParams)
+{
+    BeginFuncInfo funcInfo;
+    funcInfo.funcId       = InterfaceFunc::CmdBufferCmdSetPerDrawVrsRate;
+    funcInfo.objectId     = m_objectId;
+    funcInfo.preCallTime  = m_pPlatform->GetTime();
+    m_pNextLayer->CmdSetPerDrawVrsRate(rateParams);
+    funcInfo.postCallTime = m_pPlatform->GetTime();
+
+    LogContext* pLogContext = nullptr;
+    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    {
+        pLogContext->BeginInput();
+        pLogContext->KeyAndStruct("rateParams", rateParams);
+        pLogContext->EndInput();
+
+        m_pPlatform->LogEndFunc(pLogContext);
+    }
+}
+
+// =====================================================================================================================
+void CmdBuffer::CmdSetVrsCenterState(
+    const VrsCenterState&  centerState)
+{
+    BeginFuncInfo funcInfo;
+    funcInfo.funcId       = InterfaceFunc::CmdBufferCmdSetVrsCenterState;
+    funcInfo.objectId     = m_objectId;
+    funcInfo.preCallTime  = m_pPlatform->GetTime();
+    m_pNextLayer->CmdSetVrsCenterState(centerState);
+    funcInfo.postCallTime = m_pPlatform->GetTime();
+
+    LogContext* pLogContext = nullptr;
+    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    {
+        pLogContext->BeginInput();
+        pLogContext->KeyAndStruct("centerState", centerState);
+        pLogContext->EndInput();
+
+        m_pPlatform->LogEndFunc(pLogContext);
+    }
+}
+
+// =====================================================================================================================
+void CmdBuffer::CmdBindSampleRateImage(
+    const IImage*  pImage)
+{
+    BeginFuncInfo funcInfo;
+    funcInfo.funcId       = InterfaceFunc::CmdBufferCmdBindSampleRateImage;
+    funcInfo.objectId     = m_objectId;
+    funcInfo.preCallTime  = m_pPlatform->GetTime();
+    m_pNextLayer->CmdBindSampleRateImage(NextImage(pImage));
+    funcInfo.postCallTime = m_pPlatform->GetTime();
+
+    LogContext* pLogContext = nullptr;
+    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    {
+        pLogContext->BeginInput();
+        pLogContext->KeyAndObject("image", pImage);
+        pLogContext->EndInput();
+
+        m_pPlatform->LogEndFunc(pLogContext);
+    }
+}
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 554
+// =====================================================================================================================
+void CmdBuffer::CmdResolvePrtPlusImage(
+    const IImage&                    srcImage,
+    ImageLayout                      srcImageLayout,
+    const IImage&                    dstImage,
+    ImageLayout                      dstImageLayout,
+    PrtPlusResolveType               resolveType,
+    uint32                           regionCount,
+    const PrtPlusImageResolveRegion* pRegions)
+{
+    BeginFuncInfo funcInfo;
+    funcInfo.funcId       = InterfaceFunc::CmdBufferCmdResolvePrtPlusImage;
+    funcInfo.objectId     = m_objectId;
+    funcInfo.preCallTime  = m_pPlatform->GetTime();
+    m_pNextLayer->CmdResolvePrtPlusImage(*NextImage(&srcImage),
+                                         srcImageLayout,
+                                         *NextImage(&dstImage),
+                                         dstImageLayout,
+                                         resolveType,
+                                         regionCount,
+                                         pRegions);
+    funcInfo.postCallTime = m_pPlatform->GetTime();
+
+    LogContext* pLogContext = nullptr;
+    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    {
+        pLogContext->BeginInput();
+        pLogContext->KeyAndObject("srcImage", &srcImage);
+        pLogContext->KeyAndStruct("srcImageLayout", srcImageLayout);
+        pLogContext->KeyAndObject("dstImage", &dstImage);
+        pLogContext->KeyAndStruct("dstImageLayout", dstImageLayout);
+        pLogContext->KeyAndEnum("resolveType", resolveType);
+        pLogContext->KeyAndBeginList("regions", false);
+
+        for (uint32 idx = 0; idx < regionCount; ++idx)
+        {
+            pLogContext->Struct(pRegions[idx]);
+        }
+
+        pLogContext->EndList();
+        pLogContext->EndInput();
+
+        m_pPlatform->LogEndFunc(pLogContext);
+    }
+}
+#endif
+
+// =====================================================================================================================
 void CmdBuffer::CmdSetBlendConst(
     const BlendConstParams& params)
 {

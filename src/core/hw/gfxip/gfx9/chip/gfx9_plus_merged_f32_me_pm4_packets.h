@@ -1140,12 +1140,14 @@ typedef struct PM4_ME_DRAW_INDEX_2
     union
     {
         uint32_t max_size;
+        uint32_t index_count;
         uint32_t u32All;
     } ordinal2;
 
     union
     {
         uint32_t index_base_lo;
+        uint32_t draw_initiator;
         uint32_t u32All;
     } ordinal3;
 
@@ -1207,6 +1209,7 @@ typedef struct PM4_ME_DRAW_INDEX_INDIRECT
     union
     {
         uint32_t data_offset;
+        uint32_t draw_initiator;
         uint32_t u32All;
     } ordinal2;
 
@@ -1260,6 +1263,7 @@ typedef struct PM4_ME_DRAW_INDEX_INDIRECT_MULTI
     union
     {
         uint32_t data_offset;
+        uint32_t draw_initiator;
         uint32_t u32All;
     } ordinal2;
 
@@ -1393,12 +1397,14 @@ typedef struct PM4_ME_DRAW_INDEX_OFFSET_2
     union
     {
         uint32_t max_size;
+        uint32_t index_count;
         uint32_t u32All;
     } ordinal2;
 
     union
     {
         uint32_t index_offset;
+        uint32_t draw_initiator;
         uint32_t u32All;
     } ordinal3;
 
@@ -1430,6 +1436,7 @@ typedef struct PM4_ME_DRAW_INDIRECT
     union
     {
         uint32_t data_offset;
+        uint32_t draw_initiator;
         uint32_t u32All;
     } ordinal2;
 
@@ -1481,6 +1488,7 @@ typedef struct PM4_ME_DRAW_INDIRECT_MULTI
     union
     {
         uint32_t data_offset;
+        uint32_t draw_initiator;
         uint32_t u32All;
     } ordinal2;
 

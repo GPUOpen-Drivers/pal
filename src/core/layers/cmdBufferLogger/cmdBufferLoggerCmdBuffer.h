@@ -478,10 +478,25 @@ public:
         uint32             firstMip,
         uint32             numMips) override;
 
+    virtual void CmdSetPerDrawVrsRate(const VrsRateParams&  rateParams) override;
+    virtual void CmdSetVrsCenterState(const VrsCenterState&  centerState) override;
+    virtual void CmdBindSampleRateImage(const IImage*  pImage) override;
+
     virtual uint32 GetUsedSize(CmdAllocType type) const override
     {
         return GetNextLayer()->GetUsedSize(type);
     }
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 554
+    virtual void CmdResolvePrtPlusImage(
+        const IImage&                    srcImage,
+        ImageLayout                      srcImageLayout,
+        const IImage&                    dstImage,
+        ImageLayout                      dstImageLayout,
+        PrtPlusResolveType               resolveType,
+        uint32                           regionCount,
+        const PrtPlusImageResolveRegion* pRegions) override;
+#endif
 
     // Part of the IDestroyable public interface.
     virtual void Destroy() override;

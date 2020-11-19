@@ -140,6 +140,16 @@ enum class MetadataSharingLevel : uint32
     FullOptimal = 2,    ///< The metadata can remain as-is if possible at ownership transition time.
 };
 
+/// Specifies the type of PRT map image being created.
+enum class PrtMapType : uint32
+{
+    None            = 0, ///< This is not an auxillary image used for PRT plus functionality.
+    Residency       = 1, ///< Image data is really a low-resolution map containing the finest populated LOD
+                         ///  for a particular UV space region.
+    SamplingStatus  = 2, ///< Indicates the validity of a given tile on a per-mip level basis.
+    Count,
+};
+
 /// Specifies how to interpret a clear color.
 enum class ClearColorType : uint32
 {
@@ -274,7 +284,7 @@ union ImageUsageFlags
                                             ///  which will be one more than the number of pixels.  Border color is
                                             ///  ignored when corner sampling is enabled.
 
-        uint32 placeHolder2           :  1;
+        uint32 vrsDepth               :  1; ///< Set if this depth image will be bound when VRS rendering is enabled.
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 597
         uint32 disableOptimizedDisplay:  1; ///< Do not create Display Dcc
 #else
@@ -330,6 +340,20 @@ struct ImageCreateInfo
     MetadataTcCompatMode metadataTcCompatMode; ///< TC compat mode for this image.
     uint32             maxBaseAlign;      ///< Maximum address alignment for this image or zero for an unbounded
                                           ///  alignment.
+
+    struct
+    {
+        PrtMapType         mapType;       ///< Indicates what sort of PRT meta-data is stored in this image   If
+                                          ///  this image is PRT meta-data, then it can only be associated with
+                                          ///  an image that is a power-of-two multiple bigger (or the same size).
+                                          ///  Image properties needs to include "PrtFeaturePrtPlus" to create
+                                          ///  PRT map images.  Format must be set to X8_Unorm for residency map and
+                                          ///  sampling-status map types.
+        Extent3d           lodRegion;     ///< Useful only if mapType is not "none".  Defines the region size of the
+                                          ///  parent image that one pixel of this image matches with.  The map
+                                          ///  image can only be paired with a parent image of matching dimensions.
+                                          ///  This parameter can be left at zero.
+    } prtPlus;
 
     /// The following members must be set to zero unless the client is creating a @ref ImageTiling::Linear image and
     /// wishes to directly specify the image's row and depth pitches.  In that case, they must be integer multiples of

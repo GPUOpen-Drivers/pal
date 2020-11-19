@@ -202,6 +202,7 @@ typedef enum SqttGfxIpLevel
     SQTT_GFXIP_LEVEL_GFXIP_8_1  = 0x4,
     SQTT_GFXIP_LEVEL_GFXIP_9    = 0x5,
     SQTT_GFXIP_LEVEL_GFXIP_10_1 = 0x7,
+    SQTT_GFXIP_LEVEL_GFXIP_10_3 = 0x9,
 } SqttGfxIpLevel;
 
 /** An enumeration of memory types.

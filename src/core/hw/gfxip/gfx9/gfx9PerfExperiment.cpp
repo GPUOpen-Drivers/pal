@@ -71,6 +71,10 @@ constexpr uint32  SqttGfx10TokenMaskDefault = ((1 << SQ_TT_TOKEN_EXCLUDE_VMEMEXE
                                                (1 << SQ_TT_TOKEN_EXCLUDE_ALUEXEC_SHIFT)  |
                                                (1 << SQ_TT_TOKEN_EXCLUDE_WAVERDY_SHIFT)  |
                                                (1 << SQ_TT_TOKEN_EXCLUDE_PERF_SHIFT__GFX10COREPLUS));
+// The low watermark will be set to high watermark minus low watermark offset. This is HW's recommended default.
+constexpr uint32  SqttGfx103LoWaterOffsetValue = 4;
+// For now set this to zero (disabled) because we need to update the register headers to get the new enums.
+constexpr uint32  SqttGfx103RegExcludeMaskDefault = 0x0;
 
 // The SPM ring buffer base address must be 32-byte aligned.
 constexpr uint32 SpmRingBaseAlignment = 32;
@@ -199,6 +203,10 @@ static void SetSqttTokenExclude(
     {
         pRegValue->most.TOKEN_EXCLUDE = tokenExclude;
     }
+    else if (IsGfx103Plus(device))
+    {
+        pRegValue->gfx103Plus.TOKEN_EXCLUDE = tokenExclude;
+    }
     else
     {
         // What is this?
@@ -252,6 +260,12 @@ static regSQ_THREAD_TRACE_TOKEN_MASK GetGfx10SqttTokenMask(
                              (instExclude        << SQ_TT_TOKEN_EXCLUDE_INST_SHIFT)      |
                              (PerfExclude        << SQ_TT_TOKEN_EXCLUDE_PERF_SHIFT__GFX10COREPLUS));
 
+    if (IsGfx103Plus(device))
+    {
+        // This control bit was removed. The "Immediate" flag is the only control for all IMMED instructions.
+        PAL_ALERT(immed1Exclude);
+    }
+    else
     {
 
         hwTokenExclude |= immed1Exclude << SQ_TT_TOKEN_EXCLUDE_IMMED1_SHIFT__GFX101;
@@ -298,6 +312,12 @@ static regSQ_THREAD_TRACE_TOKEN_MASK GetGfx10SqttTokenMask(
                                    (otherConfigRegs << SQ_TT_TOKEN_MASK_CONFIG_SHIFT)               |
                                    (grbmCsDataRegs  << SQ_TT_TOKEN_MASK_OTHER_SHIFT__GFX10CORE)     |
                                    (regReads        << SQ_TT_TOKEN_MASK_READS_SHIFT__GFX10));
+
+    if (IsGfx103Plus(device))
+    {
+        // We want to update REG_EXCLUDE based on the bools we computed above but can't until we fix the reg headers.
+        value.gfx103Plus.REG_EXCLUDE = SqttGfx103RegExcludeMaskDefault;
+    }
 
     return value;
 }
@@ -540,6 +560,8 @@ Result PerfExperiment::AddCounter(
                         m_select.sqg[info.instance].perfmon[idx].gfx09.SIMD_MASK       = DefaultSqSelectSimdMask;
                     }
 
+                    // The SQC bank mask was removed in gfx10.3.
+                    if (IsGfx103Plus(m_device) == false)
                     {
                         m_select.sqg[info.instance].perfmon[idx].most.SQC_BANK_MASK = DefaultSqSelectBankMask;
                     }
@@ -633,6 +655,84 @@ Result PerfExperiment::AddCounter(
                     m_select.umcch[info.instance].perfmonCntl[idx].most.EventSelect = info.eventId;
                     m_select.umcch[info.instance].perfmonCntl[idx].most.Enable = 1;
 
+#if (1 ) && (PAL_CLIENT_INTERFACE_MAJOR_VERSION>= 587)
+                    if (IsGfx103(m_device))
+                    {
+                        if ((info.eventId == UMC_PERF_SEL_DcqOccupancy__NV21) ||
+                            (info.eventId == UMC_PERF_SEL_PgtActiveBanksCnt__NV21) ||
+                            (info.eventId == UMC_PERF_SEL_TempOverThresh__NV21))
+                        {
+                            //   Set ThreshCntEn = 2 for > (1 for <).
+                            //   Set ThreshCnt to the amount to compare against.
+
+                            // "DcqOccupancy" replaces earlier asics fixed DcqOccupancy_00/25/50/75/90 buckets.
+                            // Current DCQ is 64x1 in size, so to replicate old fixed events set:
+                            //   ThreshCntEn=2 (>)
+                            //   ThreshCnt=00 to count all (>0%), 14 to count >25%, 31 to count >50%, 47 to count >75%
+
+                            if (info.umc.eventThresholdEn == 0)
+                            {
+                                // if threshold compare not specified in config, then default as 2 (greater than)
+                                m_select.umcch[info.instance].perfmonCtrHi[idx].nv21.ThreshCntEn = 2;
+                            }
+                            else
+                            {
+                                m_select.umcch[info.instance].perfmonCtrHi[idx].nv21.ThreshCntEn
+                                    = info.umc.eventThresholdEn;
+                            }
+                            m_select.umcch[info.instance].perfmonCtrHi[idx].nv21.ThreshCnt =
+                                    info.umc.eventThreshold &
+                                    (Nv21::PerfMonCtr1_Hi__ThreshCnt_MASK >> Nv21::PerfMonCtr1_Hi__ThreshCnt__SHIFT);
+                            // flag that we need to configure threshold for this event
+                            m_select.umcch[info.instance].thresholdSet[idx] = true;
+                        }
+                    }
+#endif
+
+                    mapping.counterId = idx;
+                    searching         = false;
+                }
+            }
+
+            if (searching)
+            {
+                // There are no more global counters in this instance.
+                result = Result::ErrorInvalidValue;
+            }
+        }
+        else if (info.block == GpuBlock::DfMall)
+        {
+            // The DF counters are 64-bit.
+            mapping.general.dataType = PerfCounterDataType::Uint64;
+
+            // If CP supports PERFMON_CONTROL packet then that is preferred to avoid security access issues.
+            m_select.df.usePerfmonControlPacket = (m_device.EngineProperties().cpUcodeVersion > 29);
+
+            // Find the next unused global counter in the special DF state.
+            bool searching = true;
+            for (uint32 idx = 0; searching && (idx < ArrayLen(m_select.df.perfmonConfig)); ++idx)
+            {
+                if (m_select.df.perfmonConfig[idx].perfmonInUse == false)
+                {
+                    // The DF counters are programmed differently than other blocks
+                    // using "EventSelect" which is a 14-bit two part field.
+                    //   EventSelect[13:6] specifies the DF subblock instance. There are 16 MALL instances.
+                    //   EventSelect[5:0]  specifies the subblock event ID
+                    PAL_ASSERT(info.eventId <= ((1 << 6) - 1));
+
+                    // Compute the HW event select from the DF subblock instance and subblock event ID.
+                    // The first MALL is DF subblock 0x26, the rest of them follow immediately after.
+                    constexpr uint32 FirstMallInstance = 0x26;
+
+                    const uint32 eventSelect = ((FirstMallInstance + info.instance) << 6) | info.eventId;
+
+                    // DF EventSelect fields are 14 bits (in three sections). Verify that our event select can fit.
+                    PAL_ASSERT(eventSelect <= ((1 << 14) - 1));
+
+                    m_select.df.hasCounters                           = true;
+                    m_select.df.perfmonConfig[idx].perfmonInUse       = true;
+                    m_select.df.perfmonConfig[idx].eventSelect        = eventSelect;
+                    m_select.df.perfmonConfig[idx].eventUnitMask      = info.df.eventQualifier & 0xFF;
                     mapping.counterId = idx;
                     searching         = false;
                 }
@@ -824,6 +924,8 @@ Result PerfExperiment::AddSpmCounter(
                         m_select.sqg[info.instance].perfmon[idx].gfx09.SIMD_MASK       = DefaultSqSelectSimdMask;
                     }
 
+                    // The SQC bank mask was removed in gfx10.3.
+                    if (IsGfx103Plus(m_device) == false)
                     {
                         m_select.sqg[info.instance].perfmon[idx].most.SQC_BANK_MASK = DefaultSqSelectBankMask;
                     }
@@ -947,6 +1049,13 @@ Result PerfExperiment::AddSpmCounter(
             PAL_ASSERT(spmWire < m_counterInfo.block[block].numSpmWires);
             PAL_ASSERT(subCounter < 2); // Each wire is 32 bits and each sub-counter is 16 bits.
 
+            if (info.block == GpuBlock::GeSe)
+            {
+                // The GE2_SE is odd because it has one instance per-SE, programmed in the SE_INDEX, but it's actually
+                // a global block so its SPM data goes into the global SPM data segment.
+                pMapping->segment = SpmDataSegmentType::Global;
+            }
+            else
             {
                 pMapping->segment = (m_counterInfo.block[block].distribution == PerfCounterDistribution::GlobalBlock)
                                         ? SpmDataSegmentType::Global
@@ -1211,6 +1320,11 @@ Result PerfExperiment::AddThreadTrace(
             m_sqtt[traceInfo.instance].ctrl.gfx10Plus.RT_FREQ           = SQ_TT_RT_FREQ_4096_CLK;
             m_sqtt[traceInfo.instance].ctrl.gfx10Plus.DRAW_EVENT_EN     = 1;
 
+            if (IsGfx103Plus(m_device))
+            {
+                m_sqtt[traceInfo.instance].ctrl.gfx103Plus.LOWATER_OFFSET = SqttGfx103LoWaterOffsetValue;
+            }
+
             // Enable all stalling in "always" mode, "lose detail" mode only disables register stalls.
             m_sqtt[traceInfo.instance].ctrl.gfx10.REG_STALL_EN      = (stallMode == GpuProfilerStallAlways);
             m_sqtt[traceInfo.instance].ctrl.gfx10.SPI_STALL_EN      = (stallMode != GpuProfilerStallNever);
@@ -1274,6 +1388,10 @@ Result PerfExperiment::AddThreadTrace(
                 uint32 excludeMask = SqttGfx10TokenMaskDefault;
                 SetSqttTokenExclude(m_device, &m_sqtt[traceInfo.instance].tokenMask, SqttGfx10TokenMaskDefault);
                 m_sqtt[traceInfo.instance].tokenMask.gfx10Plus.REG_INCLUDE   = SqttGfx10RegMaskDefault;
+                if (IsGfx103Plus(m_device))
+                {
+                    m_sqtt[traceInfo.instance].tokenMask.gfx103Plus.REG_EXCLUDE = SqttGfx103RegExcludeMaskDefault;
+                }
             }
         }
     }
@@ -2379,11 +2497,20 @@ MuxselEncoding PerfExperiment::BuildMuxselEncoding(
         muxsel.gfx9.block    = blockInfo.spmBlockSelect;
         muxsel.gfx9.instance = mapping.instanceIndex;
     }
+    else if (block == GpuBlock::GeSe)
+    {
+        // The GE2_SE is odd because it has one instance per-SE, programmed in the SE_INDEX, but it's actually a global
+        // block so we need to use the global muxsel encoding and pass in the SE_INDEX as the instance.
+        muxsel.gfx9.counter  = counter;
+        muxsel.gfx9.block    = blockInfo.spmBlockSelect;
+        muxsel.gfx9.instance = mapping.seIndex;
+    }
     else
     {
         uint32 counterId = counter;
 
         if (HasRmiSubInstances(block)
+            && (m_chipProps.gfxLevel < GfxIpLevel::GfxIp10_3)
             )
         {
             // Use a non-default mapping of counter select IDs for the RMI block. This changes the counter
@@ -2966,6 +3093,13 @@ uint32* PerfExperiment::WriteSelectRegisters(
                                                 m_counterInfo.umcchRegAddr[instance].perModule[idx].perfMonCtl,
                                                 m_select.umcch[instance].perfmonCntl[idx].u32All,
                                                 pCmdSpace);
+                    if (IsGfx103(m_device) && (m_select.umcch[instance].thresholdSet[idx] == true))
+                    {
+                       pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(
+                                                    m_counterInfo.umcchRegAddr[instance].perModule[idx].perfMonCtrHi,
+                                                    m_select.umcch[instance].perfmonCtrHi[idx].u32All,
+                                                    pCmdSpace);
+                    }
                 }
             }
 
@@ -2973,6 +3107,54 @@ uint32* PerfExperiment::WriteSelectRegisters(
             pCmdStream->CommitCommands(pCmdSpace);
             pCmdSpace = pCmdStream->ReserveCommands();
         }
+    }
+
+    // Program the global DF per-counter control registers.
+    if (m_select.df.hasCounters)
+    {
+        // Reset broadcast should not be needed since DF not part of graphics, but play it be safe with a known state
+        pCmdSpace = WriteGrbmGfxIndexBroadcastGlobal(pCmdStream, pCmdSpace);
+
+        const PerfCounterRegAddr& regAddr = m_counterInfo.block[static_cast<uint32>(GpuBlock::DfMall)].regAddr;
+
+        for (uint32 idx = 0; idx < ArrayLen(m_select.df.perfmonConfig); ++idx)
+        {
+            if (m_select.df.perfmonConfig[idx].perfmonInUse)
+            {
+                if (m_select.df.usePerfmonControlPacket)
+                {
+                    pCmdSpace += m_cmdUtil.BuildPerfmonControl(idx,   // perfMonCtlId (0-7)
+                                                               true,  // enable
+                                                               m_select.df.perfmonConfig[idx].eventSelect,
+                                                               m_select.df.perfmonConfig[idx].eventUnitMask,
+                                                               pCmdSpace);
+                }
+                else
+                {
+                    regDF_PIE_AON_PerfMonCtlLo0 perfmonCtlLo = {};
+                    regDF_PIE_AON_PerfMonCtlHi0 perfmonCtlHi = {};
+                    perfmonCtlLo.most.En                = 1;  // 1=enable
+                    perfmonCtlLo.most.UnitMask          = m_select.df.perfmonConfig[idx].eventUnitMask;
+                    const uint32 eventSelect            = m_select.df.perfmonConfig[idx].eventSelect;
+                    perfmonCtlLo.most.EventSelect_7_0   = BitExtract(eventSelect, 0,  7);
+                    perfmonCtlHi.most.EventSelect_11_8  = BitExtract(eventSelect, 8,  11);
+                    perfmonCtlHi.most.EventSelect_13_12 = BitExtract(eventSelect, 12, 13);
+                    // By convention we put the CtlLo in selectOrCfg and the CtlHi in select1.
+                    PAL_ASSERT((regAddr.perfcounter[idx].selectOrCfg != 0) && (regAddr.perfcounter[idx].select1 != 0));
+                    pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(regAddr.perfcounter[idx].selectOrCfg,
+                                                                  perfmonCtlLo.u32All,
+                                                                  pCmdSpace);
+
+                    pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(regAddr.perfcounter[idx].select1,
+                                                                  perfmonCtlHi.u32All,
+                                                                  pCmdSpace);
+                }
+            }
+        }
+
+        // Get fresh command space just in case we're close to running out.
+        pCmdStream->CommitCommands(pCmdSpace);
+        pCmdSpace = pCmdStream->ReserveCommands();
     }
 
     // Finally, write the generic blocks' select registers.
@@ -3297,6 +3479,16 @@ uint32* PerfExperiment::WriteStopAndSampleGlobalCounters(
                             pCmdStream,
                             pCmdSpace);
         }
+        else if (mapping.general.block == GpuBlock::DfMall)
+        {
+            // The DF is global and has registers that vary per-counter.
+            pCmdSpace = WriteGrbmGfxIndexBroadcastGlobal(pCmdStream, pCmdSpace);
+            pCmdSpace = WriteCopy64BitCounter(m_counterInfo.block[block].regAddr.perfcounter[mapping.counterId].lo,
+                                              m_counterInfo.block[block].regAddr.perfcounter[mapping.counterId].hi,
+                                              destBaseAddr + mapping.offset,
+                                              pCmdStream,
+                                              pCmdSpace);
+        }
         else if (m_select.pGeneric[block] != nullptr)
         {
             // Set GRBM_GFX_INDEX so that we're talking to the specific block instance which own the given counter.
@@ -3353,6 +3545,45 @@ uint32* PerfExperiment::WriteStopAndSampleGlobalCounters(
         {
             // We handle the SQ counters separately. What block did we forget to implement?
             PAL_ASSERT_ALWAYS();
+        }
+
+        // Get fresh command space just in case we're close to running out.
+        pCmdStream->CommitCommands(pCmdSpace);
+        pCmdSpace = pCmdStream->ReserveCommands();
+    }
+
+    // The DF doesn't listen to CP_PERFMON_CNTL and doesn't have a global cfg on/off switch which means these
+    // counters will keep going indefinitely if we leave them on. We don't do this for any other blocks, but it's
+    // probably best to break from tradition and disable(zero out) when sampling is stopped.
+    if (m_select.df.hasCounters && (isBeginSample == false))
+    {
+        // Reset broadcast should not be needed since DF not part of graphics, but play it be safe with a known state
+        pCmdSpace = WriteGrbmGfxIndexBroadcastGlobal(pCmdStream, pCmdSpace);
+
+        const PerfCounterRegAddr& regAddr = m_counterInfo.block[static_cast<uint32>(GpuBlock::DfMall)].regAddr;
+
+        for (uint32 idx = 0; idx < ArrayLen(m_select.df.perfmonConfig); ++idx)
+        {
+            if (m_select.df.perfmonConfig[idx].perfmonInUse)
+            {
+                if (m_select.df.usePerfmonControlPacket)
+                {
+                    pCmdSpace += m_cmdUtil.BuildPerfmonControl(idx,   // perfMonCtlId (0-7),
+                                                               false, // disable
+                                                               0,     // eventSelect is not applicable
+                                                               0,     // eventUnitMask is not applicable
+                                                               pCmdSpace);
+                }
+                else
+                {
+                    // Use legacy method to write CtlLo/CtlHi registers directly, which may hit security access issues.
+                    // By convention we put the CtlLo in selectOrCfg and the CtlHi in select1.
+                    PAL_ASSERT((regAddr.perfcounter[idx].selectOrCfg != 0) && (regAddr.perfcounter[idx].select1 != 0));
+
+                    pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(regAddr.perfcounter[idx].selectOrCfg, 0, pCmdSpace);
+                    pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(regAddr.perfcounter[idx].select1,     0, pCmdSpace);
+                }
+            }
         }
 
         // Get fresh command space just in case we're close to running out.
@@ -3439,6 +3670,7 @@ uint32* PerfExperiment::WriteGrbmGfxIndexBroadcastSe(
 // that most of the _UMD and _REMAP registers have the same user space address as the old user space registers.
 // If these asserts pass we can just use the Gfx09 version of these registers everywhere in our code.
 static_assert(NotGfx10::mmSPI_CONFIG_CNTL == Gfx101::mmSPI_CONFIG_CNTL_REMAP, "");
+static_assert(NotGfx10::mmSPI_CONFIG_CNTL == Nv21::mmSPI_CONFIG_CNTL_REMAP, "");
 
 // =====================================================================================================================
 // Writes a packet that updates the SQG event controls in SPI_CONFIG_CNTL.

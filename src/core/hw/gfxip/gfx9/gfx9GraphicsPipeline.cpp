@@ -1025,6 +1025,14 @@ void GraphicsPipeline::SetupCommonRegisters(
 
     registers.HasEntry(mmVGT_DRAW_PAYLOAD_CNTL, &m_regs.context.vgtDrawPayloadCntl.u32All);
 
+    if (palDevice.ChipProperties().gfxip.supportsVrs)
+    {
+        // Enable draw call VRS rate from GE_VRS_RATE.
+        //    00 - Suppress draw VRS rates
+        //    01 - Send draw VRS rates to the PA
+        m_regs.context.vgtDrawPayloadCntl.gfx102Plus.EN_VRS_RATE = 1;
+    }
+
     if (pUploader->EnableLoadIndexPath())
     {
         pUploader->AddCtxReg(mmVGT_SHADER_STAGES_EN, m_regs.context.vgtShaderStagesEn);
@@ -2071,6 +2079,13 @@ SX_DOWNCONVERT_FORMAT GraphicsPipeline::SxDownConvertFormat(
     case ChNumFormat::X32_Float:
         sxDownConvertFormat = SX_RT_EXPORT_32_R;
         break;
+    case ChNumFormat::X9Y9Z9E5_Float:
+        //  When doing 8 pixels per clock transfers (in RB+ mode) on a render target using the 999e5 format, the
+        //  SX must convert the exported data to 999e5
+        PAL_ASSERT(IsGfx102Plus(m_gfxLevel));
+
+        sxDownConvertFormat = SX_RT_EXPORT_9_9_9_E5__GFX102PLUS;
+        break;
     default:
         break;
     }
@@ -2093,6 +2108,7 @@ static uint32 SxBlendOptEpsilon(
     case SX_RT_EXPORT_16_16_GR:
     case SX_RT_EXPORT_16_16_AR:
     case SX_RT_EXPORT_10_11_11: // 1 is recommended, but doesn't provide sufficient precision
+    case SX_RT_EXPORT_9_9_9_E5__GFX102PLUS:
         sxBlendOptEpsilon = 0;
         break;
     case SX_RT_EXPORT_2_10_10_10:

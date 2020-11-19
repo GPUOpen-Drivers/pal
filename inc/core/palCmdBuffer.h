@@ -280,6 +280,7 @@ enum ImageLayoutUsageFlags : uint32
     LayoutPresentFullscreen       = 0x00000800,  ///< Fullscreen (flip) present.  Layout must be supported by the
                                                  ///  display engine.
     LayoutUncompressed            = 0x00001000,  ///< Metadata fully decompressed/expanded layout
+    LayoutSampleRate              = 0x00002000,  ///< CmdBindSampleRateImage() source.
     LayoutAllUsages               = 0x00003FFF
 };
 
@@ -321,6 +322,7 @@ enum CacheCoherencyUsageFlags : uint32
     CoherCeDump             = 0x00001000,  ///< Destination of CmdDumpCeRam() call.
     CoherStreamOut          = 0x00002000,  ///< Data written as stream output.
     CoherMemory             = 0x00004000,  ///< Data read or written directly from/to memory
+    CoherSampleRate         = 0x00008000,  ///< CmdBindSampleRateImage() source.
     CoherAllUsages          = 0x0000FFFF
 };
 
@@ -1132,6 +1134,32 @@ struct ImageResolveRegion
                                                      ///  flag set.
 };
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 554
+
+/// A list of the types of PRT+ resolves that can be performed.
+enum class PrtPlusResolveType : uint32
+{
+    Decode = 0x0, ///< Translate from AMD HW format to format of destination image.
+    Encode = 0x1, ///< Translate from source image to AMD HW format
+    Count  = 0x2,
+};
+
+/// Input structure to the CmdResolvePrtPlusImage function
+struct PrtPlusImageResolveRegion
+{
+    Offset3d  srcOffset;       ///< Offset to the start of the chosen region in the source subresource.
+    uint32    srcMipLevel;     ///< Selects source mip level
+    uint32    srcSlice;        ///< Selects the source starting slice
+
+    Offset3d  dstOffset;       ///< Offset to the start of the chosen region in the destination subresource.
+    uint32    dstMipLevel;     ///< Selects destination mip level.
+    uint32    dstSlice;        ///< Selects the destination starting slice
+
+    Extent3d  extent;          ///< Size of the resolve region in pixels.
+    uint32    numSlices;       ///< Number of slices to be resolved
+};
+#endif
+
 /// Specifies parameters for a resolve of one region in an MSAA source image to a region of the same size in a single
 /// sample destination image.  Used as an input to ICmdBuffer::CmdResolveImage().
 enum class ResolveMode : uint32
@@ -1201,6 +1229,104 @@ struct DispatchIndirectArgs
     uint32 x;  ///< Threadgroups to dispatch in the X dimension.
     uint32 y;  ///< Threadgroups to dispatch in the Y dimension.
     uint32 z;  ///< Threadgroups to dispatch in the Z dimension.
+};
+
+/// Specifies the different stages at which a combiner can choose between different shading rates.
+enum class VrsCombinerStage : uint32
+{
+    ProvokingVertex, ///< Chooses between the shading rate specified by the VrsRateParams struct and the shader
+                     ///  rate provided by the provoking vertex.
+    Primitive,       ///< Chooses between previous combiner stage and the shader rate associated with the primitive
+    Image,           ///< Chooses between previous combiner stage and the shader rate associated with an image
+    PsIterSamples,   ///< Chooses between previous combiner stage and the PS_ITER_SAMPLES rate.
+    Max
+};
+
+/// Specifies the different possible shading rates.  Not all are supported on all HW; see the supportedVrsRates
+/// entry in the gfxipProperties structure.
+enum class VrsShadingRate : uint32
+{
+    _16xSsaa  = 0x0,
+    _8xSsaa   = 0x1,
+    _4xSsaa   = 0x2,
+    _2xSsaa   = 0x3,
+    _1x1      = 0x4,
+    _1x2      = 0x5,
+    _2x1      = 0x6,
+    _2x2      = 0x7,
+};
+
+/// Indices into the centerOffset array member of the VrsCenterState structure.
+enum class VrsCenterRates : uint32
+{
+    _1x1 = 0x0,
+    _1x2 = 0x1,
+    _2x1 = 0x2,
+    _2x2 = 0x3,
+    Max  = 0x4,
+};
+
+/// Specifies the different ways in which a combiner can choose between two different shading rate inputs.
+enum class VrsCombiner : uint32
+{
+    Passthrough = 0, ///< Keep previous shading rate.
+    Override    = 1, ///< C.xy = B.xy
+    Min         = 2, ///< min(A.xy, B.xy)
+    Max         = 3, ///< max(A.xy, B.xy)
+    Sum         = 4, ///< min(maxRate, A.xy + B.xy)
+};
+
+/// Structure for defining paramters to the CmdSetPerDrawVrsRate function.
+struct VrsRateParams
+{
+    /// The shading rate to be bound to the render state.
+    VrsShadingRate  shadingRate;
+
+    /// The state of all the combiners.
+    VrsCombiner     combinerState[static_cast<uint32>(VrsCombinerStage::Max)];
+
+    union
+    {
+        struct
+        {
+            uint32  exposeVrsPixelsMask :  1; ///< Controls how the shader input mask of a coarse pixel is generated.
+                                              ///   0 : Bitwise OR of all fine pixel`s mask
+                                              ///   1 : Pack fine pixels` coverage mask into iMask.  Layout based
+                                              ///       on VRS rate
+            uint32  reserved            : 31;
+        };
+
+        uint32  u32All;   ///< Flags packed as 32-bit uint.
+    } flags;              ///< Flags controlling VRS rate parameters
+};
+
+/// Structure for defininig paramters to the CmdSetVrsCenterState function.
+struct VrsCenterState
+{
+    /// The offset is scaled by the coarse pixel size and then added to the center location
+    /// Center offsets are specified as two 4 bits signed integer value representing a location on a 16x16 grid gd.
+    /// The offset is scaled by the coarse pixel size and then added to the center location
+    /// 1x1, 1x2, 2x1 and 2x2 shading rates can all have their own unique offsets
+    Offset2d  centerOffset[static_cast<uint32>(VrsCenterRates::Max)];
+
+    union
+    {
+        struct
+        {
+            uint32  overrideCenterSsaa    :  1; ///< Override center interpolants to be evaluated at the sample
+                                                ///  position.
+            uint32  overrideCentroidSsaa  :  1; ///< Override centroid interpolants to be evaluated at the centroid
+                                                ///  of each sample group being iterated (simply the sample position
+                                                ///  in the typical case of 1-sample groups).
+            uint32  alwaysComputeCentroid :  1; ///< Don't assume the centroid of a fully covered shading region is
+                                                ///  the center.  It is possible all samples could be lit but the
+                                                ///  center is not lit for certain combinations of centerOffset[]
+                                                ///  values and programmable sample positions
+            uint32  reserved              : 29; ///< Reserved for future HW
+        };
+
+        uint32  u32All;   ///< Flags packed as 32-bit uint.
+    } flags;              ///< Flags controlling VRS center state
 };
 
 /// @internal
@@ -1882,6 +2008,28 @@ public:
     ///                        object without binding a new one.
     virtual void CmdBindMsaaState(
         const IMsaaState* pMsaaState) = 0;
+
+    /// Sets the shading rate in the command buffer along with the state of the various combiners.
+    ///
+    /// @param [in] rateParams     Nwe VRS shading rate parameters to be bound.
+    virtual void CmdSetPerDrawVrsRate(
+        const VrsRateParams&  rateParams) = 0;
+
+    /// Setup parameters regarding how pixel center will be evaluated with VRS.
+    ///
+    /// @param [in] centerState     Nwe VRS parameters to be bound that control how pixel center is defined.
+    virtual void CmdSetVrsCenterState(
+        const VrsCenterState&  centerState) = 0;
+
+    /// Binds the shading rate data in the specified image into the pipeline for use with VRS.  Only relevant if the
+    /// combiner stage for VrsCombinerStage is set to something other than Passthrough.
+    ///
+    /// For cache coherency purposes, CmdBindSampleRateImage counts as a @ref CoherSampleRate operation on the
+    /// specified image.  The image must also be in the @ref LayoutSampleRate layout.
+    ///
+    /// @param [in] pImage   Image that contains sample rate data.  Pointer can be NULL to force 1x1 shading rate.
+    virtual void CmdBindSampleRateImage(
+        const IImage*  pImage) = 0;
 
     /// Binds the specified color/blend state object to the current command buffer state.
     ///
@@ -2993,6 +3141,17 @@ public:
     {
         CmdResolveImage(srcImage, srcImageLayout, dstImage, dstImageLayout, resolveMode, regionCount, pRegions, 0);
     }
+#endif
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 554
+    virtual void CmdResolvePrtPlusImage(
+        const IImage&                    srcImage,
+        ImageLayout                      srcImageLayout,
+        const IImage&                    dstImage,
+        ImageLayout                      dstImageLayout,
+        PrtPlusResolveType               resolveType,
+        uint32                           regionCount,
+        const PrtPlusImageResolveRegion* pRegions) = 0;
 #endif
 
     /// Puts the specified GPU event into the _set_ state when all previous GPU work reaches the specified point in the

@@ -642,6 +642,100 @@ void CmdBuffer::CmdSetBlendConst(
 }
 
 // =====================================================================================================================
+void CmdBuffer::CmdSetPerDrawVrsRate(
+    const VrsRateParams& rateParams)
+{
+    InsertToken(CmdBufCallId::CmdSetPerDrawVrsRate);
+    InsertToken(rateParams);
+}
+// =====================================================================================================================
+void CmdBuffer::ReplayCmdSetPerDrawVrsRate(
+    Queue*           pQueue,
+    TargetCmdBuffer* pTgtCmdBuffer)
+{
+    pTgtCmdBuffer->CmdSetPerDrawVrsRate(ReadTokenVal<VrsRateParams>());
+}
+
+// =====================================================================================================================
+void CmdBuffer::CmdSetVrsCenterState(
+    const VrsCenterState& centerState)
+{
+    InsertToken(CmdBufCallId::CmdSetVrsCenterState);
+    InsertToken(centerState);
+}
+
+// =====================================================================================================================
+void CmdBuffer::ReplayCmdSetVrsCenterState(
+    Queue*           pQueue,
+    TargetCmdBuffer* pTgtCmdBuffer)
+{
+    pTgtCmdBuffer->CmdSetVrsCenterState(ReadTokenVal<VrsCenterState>());
+}
+
+// =====================================================================================================================
+void CmdBuffer::CmdBindSampleRateImage(
+    const IImage* pImage)
+{
+    InsertToken(CmdBufCallId::CmdBindSampleRateImage);
+    InsertToken(pImage);
+}
+
+// =====================================================================================================================
+void CmdBuffer::ReplayCmdBindSampleRateImage(
+    Queue*           pQueue,
+    TargetCmdBuffer* pTgtCmdBuffer)
+{
+    pTgtCmdBuffer->CmdBindSampleRateImage(ReadTokenVal<const IImage*>());
+}
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 554
+// =====================================================================================================================
+void CmdBuffer::CmdResolvePrtPlusImage(
+    const IImage&                    srcImage,
+    ImageLayout                      srcImageLayout,
+    const IImage&                    dstImage,
+    ImageLayout                      dstImageLayout,
+    PrtPlusResolveType               resolveType,
+    uint32                           regionCount,
+    const PrtPlusImageResolveRegion* pRegions)
+{
+    HandleBarrierBlt(false, true);
+
+    InsertToken(CmdBufCallId::CmdResolvePrtPlusImage);
+    InsertToken(&srcImage);
+    InsertToken(srcImageLayout);
+    InsertToken(&dstImage);
+    InsertToken(dstImageLayout);
+    InsertToken(resolveType);
+    InsertTokenArray(pRegions, regionCount);
+
+    HandleBarrierBlt(false, false);
+}
+
+// =====================================================================================================================
+void CmdBuffer::ReplayCmdResolvePrtPlusImage(
+    Queue*           pQueue,
+    TargetCmdBuffer* pTgtCmdBuffer)
+{
+    const IImage&                    srcImage       = *ReadTokenVal<const IImage*>();
+    ImageLayout                      srcImageLayout = ReadTokenVal<ImageLayout>();
+    const IImage&                    dstImage       = *ReadTokenVal<const IImage*>();
+    ImageLayout                      dstImageLayout = ReadTokenVal<ImageLayout>();
+    PrtPlusResolveType               resolveType    = ReadTokenVal<PrtPlusResolveType>();
+    const PrtPlusImageResolveRegion* pRegions       = nullptr;
+    uint32                           regionCount    = ReadTokenArray(&pRegions);
+
+    pTgtCmdBuffer->CmdResolvePrtPlusImage(srcImage,
+                                          srcImageLayout,
+                                          dstImage,
+                                          dstImageLayout,
+                                          resolveType,
+                                          regionCount,
+                                          pRegions);
+}
+#endif
+
+// =====================================================================================================================
 void CmdBuffer::ReplayCmdSetBlendConst(
     Queue*           pQueue,
     TargetCmdBuffer* pTgtCmdBuffer)
@@ -3498,6 +3592,12 @@ Result CmdBuffer::Replay(
         &CmdBuffer::ReplayCmdStopGpuProfilerLogging,
         &CmdBuffer::ReplayCmdSetViewInstanceMask,
         &CmdBuffer::ReplayCmdUpdateHiSPretests,
+        &CmdBuffer::ReplayCmdSetPerDrawVrsRate,
+        &CmdBuffer::ReplayCmdSetVrsCenterState,
+        &CmdBuffer::ReplayCmdBindSampleRateImage,
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 554
+        &CmdBuffer::ReplayCmdResolvePrtPlusImage,
+#endif
         &CmdBuffer::ReplayCmdSetClipRects,
         &CmdBuffer::ReplayCmdPostProcessFrame,
     };

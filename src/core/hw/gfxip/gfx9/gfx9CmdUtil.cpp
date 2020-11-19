@@ -359,6 +359,14 @@ CmdUtil::CmdUtil(
             m_registerInfo.mmRpbPerfResultCntl              = Gfx10Core::mmRPB_PERFCOUNTER_RSLT_CNTL;
 
         }
+        else if (IsGfx103(parent))
+        {
+            m_registerInfo.mmEaPerfResultCntl               = Gfx103::mmGCEA_PERFCOUNTER_RSLT_CNTL;
+            m_registerInfo.mmAtcPerfResultCntl              = Gfx103::mmATC_PERFCOUNTER_RSLT_CNTL;
+            m_registerInfo.mmAtcL2PerfResultCntl            = 0;
+            m_registerInfo.mmDbDfsmControl                  = Gfx10Core::mmDB_DFSM_CONTROL;
+            m_registerInfo.mmRpbPerfResultCntl              = Gfx10Core::mmRPB_PERFCOUNTER_RSLT_CNTL;
+        }
         else
         {
             PAL_ASSERT_ALWAYS();
@@ -398,6 +406,7 @@ bool CmdUtil::CanUseCsPartialFlush(
 
     // We will only try to disable cspf if this is an async compute engine on an ASIC that at some point had the bug.
     if ((Pal::Device::EngineSupportsGraphics(engineType) == false)
+        && (m_gfxIpLevel <= GfxIpLevel::GfxIp10_3)
         )
     {
         if (m_device.Settings().disableAceCsPartialFlush)
@@ -418,6 +427,13 @@ bool CmdUtil::CanUseCsPartialFlush(
             constexpr uint32 MinUcodeVerForCsPartialFlushGfx10_1 = 32;
 
             useCspf = (m_cpUcodeVersion >= MinUcodeVerForCsPartialFlushGfx10_1);
+        }
+        else if (m_gfxIpLevel == GfxIpLevel::GfxIp10_3)
+        {
+            // Disable ACE support on gfx10.3 if the ucode doesn't have the fix.
+            constexpr uint32 MinUcodeVerForCsPartialFlushGfx10_3 = 35;
+
+            useCspf = (m_cpUcodeVersion >= MinUcodeVerForCsPartialFlushGfx10_3);
         }
         else
         {
@@ -1176,6 +1192,33 @@ size_t CmdUtil::BuildCopyData(
         PAL_NOT_IMPLEMENTED();
         break;
     }
+
+    memcpy(pBuffer, &packetGfx, PacketSize * sizeof(uint32));
+    return PacketSize;
+}
+
+// =====================================================================================================================
+// Builds a PERFMON_CONTROL packet. Returns the size of the PM4 command assembled, in DWORDs.
+// This packet is to control Data Fabric (DF) perfmon events by writing the PerfMonCtlLo/Hi registers.
+size_t CmdUtil::BuildPerfmonControl(
+    uint32     perfMonCtlId,  // PerfMonCtl id to be configured (0-7)
+    bool       enable,        // Perfmon enabling: 0=disable, 1=enable
+    uint32     eventSelect,   // If enabling, the event selection to configure for this perfMonId
+    uint32     eventUnitMask, // If enabling, this is event specific configuration data.
+    void*      pBuffer)       // [out] Build the PM4 packet in this buffer.
+{
+    constexpr uint32       PacketSize = PM4_ME_PERFMON_CONTROL_SIZEDW__GFX10;
+    PM4_ME_PERFMON_CONTROL packetGfx;
+
+    packetGfx.ordinal1.header.u32All = Type3Header(IT_PERFMON_CONTROL__GFX103, PacketSize);
+
+    packetGfx.ordinal2.u32All                        = 0;
+    packetGfx.ordinal2.bitfields.gfx10.pmc_id        = perfMonCtlId;
+    packetGfx.ordinal2.bitfields.gfx10.pmc_en        = static_cast<ME_PERFMON_CONTROL_pmc_en_enum>(enable);
+    packetGfx.ordinal2.bitfields.gfx10.pmc_unit_mask = eventUnitMask;
+
+    packetGfx.ordinal3.u32All                        = 0;
+    packetGfx.ordinal3.bitfields.gfx10.pmc_event     = eventSelect;
 
     memcpy(pBuffer, &packetGfx, PacketSize * sizeof(uint32));
     return PacketSize;

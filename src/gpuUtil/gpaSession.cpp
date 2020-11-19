@@ -76,6 +76,9 @@ SqttGfxIpLevel GfxipToSqttGfxIpLevel(
     case Pal::GfxIpLevel::GfxIp10_1:
         sqttLevel = SQTT_GFXIP_LEVEL_GFXIP_10_1;
         break;
+    case Pal::GfxIpLevel::GfxIp10_3:
+        sqttLevel = SQTT_GFXIP_LEVEL_GFXIP_10_3;
+        break;
     default:
         PAL_ASSERT_ALWAYS_MSG("Unknown GfxIpLevel value: %u!", static_cast<uint32>(gfxIpLevel));
         break;
@@ -112,6 +115,9 @@ SqttVersion GfxipToSqttVersion(
         version = SQTT_VERSION_2_3;
         break;
     case Pal::GfxIpLevel::GfxIp10_1:
+        version = SQTT_VERSION_2_4;
+        break;
+    case Pal::GfxIpLevel::GfxIp10_3:
         version = SQTT_VERSION_2_4;
         break;
     default:
@@ -1023,6 +1029,7 @@ Pal::Result GpaSession::TimedSubmit(
                 result = AcquireGpuMem(sizeof(uint64),
                                        m_timestampAlignment,
                                        Pal::GpuHeapGartCacheable,
+                                       GpuMemMallPolicy::Default,
                                        &memoryInfo,
                                        &memoryOffset);
 
@@ -1331,6 +1338,7 @@ Pal::Result GpaSession::TimedQueuePresent(
         result = AcquireGpuMem(sizeof(uint64),
                                m_timestampAlignment,
                                Pal::GpuHeapGartCacheable,
+                               GpuMemMallPolicy::Default,
                                &timestampMemoryInfo,
                                &timestampMemoryOffset);
     }
@@ -1512,6 +1520,7 @@ Result GpaSession::Begin(
         result = AcquireGpuMem(gpuMemReqs.size,
                                gpuMemReqs.alignment,
                                gpuMemReqs.heaps[0],
+                               GpuMemMallPolicy::Default,
                                &gpuMemInfo,
                                &offset);
 
@@ -1826,6 +1835,7 @@ Result GpaSession::BeginSample(
                 result = AcquireGpuMem(m_timestampAlignment + sizeof(uint64),
                                        m_timestampAlignment,
                                        GpuHeapGartCacheable,
+                                       GpuMemMallPolicy::Default,
                                        &gpuMemInfo,
                                        &offset);
 
@@ -3012,6 +3022,7 @@ Result GpaSession::ImportSampleItem(
             result = AcquireGpuMem(gpuMemReqs.size,
                                     gpuMemReqs.alignment,
                                     GpuHeapGartCacheable,
+                                    GpuMemMallPolicy::Default,
                                     &gpuMemInfo,
                                     &offset);
 
@@ -3093,6 +3104,7 @@ Result GpaSession::ImportSampleItem(
             result = AcquireGpuMem(sizeof(uint64) + m_timestampAlignment,
                                     m_timestampAlignment,
                                     GpuHeapGartCacheable,
+                                    GpuMemMallPolicy::Default,
                                     &gpuMemInfo,
                                     &offset);
 
@@ -3185,6 +3197,7 @@ Result GpaSession::AcquireGpuMem(
     gpusize          size,
     gpusize          alignment,
     GpuHeap          heapType,
+    GpuMemMallPolicy mallPolicy,
     GpuMemoryInfo*   pGpuMem,
     gpusize*         pOffset)
 {
@@ -3253,6 +3266,8 @@ Result GpaSession::AcquireGpuMem(
             createInfo.heapCount = 1;
             createInfo.heaps[0]  = heapType;
             createInfo.priority  = (heapType == GpuHeapInvisible) ? GpuMemPriority::High : GpuMemPriority::Normal;
+
+            createInfo.mallPolicy = mallPolicy;
 
             if (heapType == GpuHeapInvisible)
             {
@@ -3449,6 +3464,7 @@ Result GpaSession::AcquirePerfExperiment(
                         counterInfo.block             = pCounters[i].block;
                         counterInfo.eventId           = pCounters[i].eventId;
                         counterInfo.instance          = pCounters[i].instance;
+                        counterInfo.df.eventQualifier = pCounters[i].df.eventQualifier;
 
                         result = pExperiment->AddCounter(counterInfo);
                     }
@@ -3574,6 +3590,7 @@ Result GpaSession::AcquirePerfExperiment(
                         pCounterInfo->block             = pCounters[i].block;
                         pCounterInfo->eventId           = pCounters[i].eventId;
                         pCounterInfo->instance          = pCounters[i].instance;
+                        pCounterInfo->df.eventQualifier = pCounters[i].df.eventQualifier;
                     }
 
                     result = pExperiment->AddSpmTrace(spmCreateInfo);
@@ -3606,10 +3623,14 @@ Result GpaSession::AcquirePerfExperiment(
 
         if (result == Result::Success)
         {
+            const GpuMemMallPolicy mallPolicy = (sampleConfig.type == GpaSampleType::Trace) ?
+                                                GpuMemMallPolicy::Never :
+                                                GpuMemMallPolicy::Default;
 
             result = AcquireGpuMem(gpuMemReqs.size,
                                    gpuMemReqs.alignment,
                                    GpuHeapGartCacheable,
+                                   mallPolicy,
                                    pGpuMem,
                                    pOffset);
         }
@@ -3631,6 +3652,7 @@ Result GpaSession::AcquirePerfExperiment(
                 result = AcquireGpuMem(gpuMemReqs.size,
                                         gpuMemReqs.alignment,
                                         GpuHeapInvisible,
+                                        GpuMemMallPolicy::Never,
                                         pGpuMem,
                                         pOffset);
             }
@@ -3693,6 +3715,7 @@ Result GpaSession::AcquirePipeStatsQuery(
         result = AcquireGpuMem(gpuMemReqs.size,
                                gpuMemReqs.alignment,
                                GpuHeapGartCacheable,
+                               GpuMemMallPolicy::Default,
                                pGpuMem,
                                pOffset);
 

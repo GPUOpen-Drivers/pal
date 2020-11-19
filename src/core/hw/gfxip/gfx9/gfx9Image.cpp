@@ -1156,7 +1156,8 @@ void Image::InitLayoutStateMasks()
                 // We can keep this layout compressed if all view formats are DCC compatible.
                 if (Parent()->GetDccFormatEncoding() != DccFormatEncoding::Incompatible)
                 {
-                    compressedLayout.usages |= LayoutShaderRead;
+                    // LayoutSampleRate just means "read from this in RPM's VRS copy shader".
+                    compressedLayout.usages |= LayoutShaderRead | LayoutSampleRate;
                 }
 
                 if (IsGfx10Plus(m_device) && (isMsaa == false) && (m_pImageInfo->resolveMethod.fixedFunc == 0))
@@ -1277,7 +1278,8 @@ void Image::InitLayoutStateMasks()
         // report them as being DB-compatible layouts.
 
         // Identify the supported shader readable usages.
-        constexpr uint32 ShaderReadUsages = LayoutCopySrc | LayoutResolveSrc | LayoutShaderRead;
+        // LayoutSampleRate just means "read from this in RPM's VRS copy shader".
+        constexpr uint32 ShaderReadUsages = LayoutCopySrc | LayoutResolveSrc | LayoutShaderRead | LayoutSampleRate;
 
         // Layouts that are decompressed (with hiz enabled) support both depth rendering and shader reads (though
         // not shader writes) in the universal queue and compute queue.
@@ -1455,6 +1457,9 @@ gpusize Image::GetMaskRamBaseAddr(
     }
 
     // Verify that the mask ram isn't thought to be in the same place as the image itself.  That would be "bad".
+    // Exception:  if the image is being created to be "mask ram only", then the offset could very well
+    //              be zero as there is no image data.
+    if (Parent()->GetInternalCreateInfo().flags.vrsOnlyDepth == 0)
     {
         PAL_ASSERT(maskRamMemOffset != 0);
     }
@@ -1733,6 +1738,7 @@ bool Image::SupportsCompToReg(
     compToRegLayout.usages &= ~(LayoutShaderRead           |
                                 LayoutShaderFmaskBasedRead |
                                 LayoutShaderWrite          |
+                                LayoutSampleRate           |
                                 LayoutCopySrc              |
                                 LayoutCopyDst);
 
@@ -1820,6 +1826,10 @@ bool Image::IsColorDataZeroOrOne(
 {
     bool  isZeroOrOne = false;
 
+    // Determining if the X9Y9Z9E5 format is one of the special colors involves looking at both the exponent
+    // and the fractional portion of the clear color, as both zero and one are represented by a fractional portion
+    // of zero.
+    if (Parent()->GetImageCreateInfo().swizzledFormat.format != ChNumFormat::X9Y9Z9E5_Float)
     {
         const uint32 one = TranslateClearCodeOneToNativeFmt(cmpIdx);
 
@@ -3219,6 +3229,10 @@ void Image::BuildMetadataLookupTableBufferView(
     pViewInfo->range          = m_metaDataLookupTableSizes[mipLevel];
     pViewInfo->stride         = 1;
     pViewInfo->swizzledFormat = UndefinedSwizzledFormat;
+#if  PAL_CLIENT_INTERFACE_MAJOR_VERSION>= 558
+    pViewInfo->flags.bypassMallRead  = TestAnyFlagSet(settings.rpmViewsBypassMall, Gfx10RpmViewsBypassMallOnRead);
+    pViewInfo->flags.bypassMallWrite = TestAnyFlagSet(settings.rpmViewsBypassMall, Gfx10RpmViewsBypassMallOnWrite);
+#endif
 }
 
 // =====================================================================================================================
@@ -3423,6 +3437,10 @@ void Image::Addr2InitSubResInfoGfx10(
         // adding the size of mip-level zero to the running GPU memory size, we can keep a running total of
         // the entire Image's size.
 
+        // If this image is being created for the purpose of VRS storage, then don't bother allocating
+        // memory for the image portion...  we only care about the hTile memory that will get ultimately
+        // be associated with this image.
+        if (pParent->GetImageInfo().internalCreateInfo.flags.vrsOnlyDepth == 0)
         {
             *pGpuMemSize += pSubRes->size;
         }
@@ -3700,6 +3718,11 @@ uint32 Image::GetPipeMisalignedMetadataFirstMip(
         const int32 log2Bpp     = Log2(baseSubRes.bitsPerTexel >> 3);
 
         int32 log2BppAndSamplesClamped = 0;
+        if (IsGfx102Plus(chipProps.gfxLevel))
+        {
+            log2BppAndSamplesClamped = (log2Bpp + log2Samples);
+        }
+        else
         {
             const int32 modifiedLog2Bpp = ((isDepth && (createInfo.arraySize >= 8)) ? 2 : log2Bpp);
             log2BppAndSamplesClamped    = Min(6, (modifiedLog2Bpp + log2Samples));

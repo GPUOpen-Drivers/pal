@@ -298,6 +298,10 @@ constexpr PrtFeatureFlags Gfx9PrtFeatures = static_cast<PrtFeatureFlags>(
     PrtFeatureTileAliasing      | // - tile aliasing (without metadata)
     PrtFeatureStrictNull);        // - returning zeros for unmapped tiles
 
+constexpr PrtFeatureFlags Gfx102PlusPrtFeatures = static_cast<PrtFeatureFlags>(
+    static_cast<uint32>(Gfx9PrtFeatures) |
+    PrtFeaturePrtPlus);
+
 // This enum defines the Shader types supported in PM4 type 3 header
 enum Pm4ShaderType : uint32
 {

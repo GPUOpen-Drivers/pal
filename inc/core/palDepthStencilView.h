@@ -54,7 +54,9 @@ struct DepthStencilViewCreateInfo
                                             ///  Absolute depth bias: depth bias will be added to z value directly.
                                             ///  Scaled depth bias: before adding to z value, depth bias will be
                                             ///  multiplied to minimum representable z value.
-            uint32 reserved0         :  1;  ///< Reserved for future HW
+            uint32 bypassMall        :  1;  ///< Set to have this surface bypass the MALL.  If zero, then this surface
+                                            ///  obeys the  GpuMemMallPolicy specified at memory allocation time.
+                                            ///  Meaningful only on GPUs that have supportsMall set in DeviceProperties.
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 594
             uint32 depthOnlyView     :  1;  ///< If set, this view will be a depth-only view of the specified Image.  It
                                             ///  is illegal to use this flag on an Image with no depth aspect. It's

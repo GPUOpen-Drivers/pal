@@ -51,6 +51,8 @@ constexpr uint32 Gfx9MaxSqgPerfmonModules = 16; // The SQG can have up to 16 cus
 
 constexpr uint32 Gfx10NumRmiSubInstances = 2; // PAL considers each RMI isntance to consist of sub-instances.
 
+constexpr uint32 Gfx10MaxDfPerfMon = 8; // The DF has 8 global perf counters.
+
 // Called during device init to populate the perf counter info.
 extern void InitPerfCtrInfo(const Pal::Device& device, GpuChipProperties* pProps);
 

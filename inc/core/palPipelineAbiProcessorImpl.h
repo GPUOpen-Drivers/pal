@@ -219,6 +219,16 @@ void PipelineAbiProcessor<Allocator>::SetGfxIpVersion(
                 break;
             }
             break;
+        case 3:
+            switch (gfxIpStepping)
+            {
+            case GfxIpSteppingNavi21:
+                m_flags.machineType = AmdGpuMachineType::Gfx1030;
+                break;
+            default:
+                PAL_ASSERT_ALWAYS();
+            }
+            break;
         }
         break;
     default:

@@ -95,6 +95,7 @@
 
 #define AMDGPU_NAVI10_RANGE        0x01, 0x0A
 #define AMDGPU_NAVI14_RANGE        0x14, 0x28
+#define AMDGPU_NAVI21_RANGE        0x28, 0x32
 
 #define AMDGPU_EXPAND_FIX(x) x
 #define AMDGPU_RANGE_HELPER(val, min, max) ((val >= min) && (val < max))
@@ -140,6 +141,7 @@
 
 #define ASICREV_IS_NAVI10(r)           ASICREV_IS(r, NAVI10)
 #define ASICREV_IS_NAVI14(r)           ASICREV_IS(r, NAVI14)
+#define ASICREV_IS_NAVI21(r)           ASICREV_IS(r, NAVI21)
 
 // AMDGPU_IS(familyId, eRevisionId, familyName, revisionName)
 #define AMDGPU_IS(f, r, fn, rn)    (FAMILY_IS(f, fn) && ASICREV_IS(r, rn))
@@ -180,6 +182,7 @@
 #define AMDGPU_IS_NAVI(f, r)          FAMILY_IS_NV(f)
 #define AMDGPU_IS_NAVI10(f, r)        AMDGPU_IS(f, r, NV, NAVI10)
 #define AMDGPU_IS_NAVI14(f, r)        AMDGPU_IS(f, r, NV, NAVI14)
+#define AMDGPU_IS_NAVI21(f, r)        AMDGPU_IS(f, r, NV, NAVI21)
 
 // Device IDs
 #define DEVICE_ID_SI_TAHITI_P_6780      0x6780
@@ -255,6 +258,7 @@
 
 #define NV_NAVI10_P_A2               3
 #define NV_NAVI14_M_A0              20
+#define NV_NAVI21_P_A0              40
 
 // PRIDs
 #define PRID_SI_TAHITI              0x00

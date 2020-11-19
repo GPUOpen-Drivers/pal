@@ -850,7 +850,8 @@ LayoutTransitionInfo Device::PrepareColorBlt(
         // the GPU side if the latest clear color was supported by the texture hardware (i.e., black or white).
         constexpr uint32 TcCompatReadFlags = LayoutShaderRead           |
                                              LayoutShaderFmaskBasedRead |
-                                             LayoutCopySrc;
+                                             LayoutCopySrc              |
+                                             LayoutSampleRate;
 
         // LayoutResolveSrc is treated as a color compressed state and if any decompression is required at resolve
         // time, @ref RsrcProcMgr::LateExpandResolveSrc will do the job.  So LayoutResolveSrc isn't added into
@@ -1043,7 +1044,7 @@ static bool WaRefreshTccToAlignMetadata(
         // Because we are not able to convert CoherCopy, CoherClear, CoherResolve to specific frontend or backend
         // coherency flags, we cannot make accurate decision here. This code works hard to not over-sync too much.
         constexpr uint32 UncertainCoherMask = CoherCopy | CoherResolve | CoherClear;
-        constexpr uint32 MaybeTextureCache  = UncertainCoherMask | CoherShader;
+        constexpr uint32 MaybeTextureCache  = UncertainCoherMask | CoherShader | CoherSampleRate;
         constexpr uint32 MaybeFixedFunction = UncertainCoherMask | CoherColorTarget | CoherDepthStencilTarget;
 
         if ((TestAnyFlagSet(srcAccessMask, MaybeFixedFunction) && TestAnyFlagSet(dstAccessMask, MaybeTextureCache)) ||
@@ -1979,7 +1980,8 @@ uint32 Device::Gfx10BuildAcquireGcrCntl(
     // GLK_INV[0] - invalidate enable for shader scalar L0 cache
     // GLV_INV[0] - invalidate enable for shader vector L0 cache
     // GL1_INV[0] - invalidate enable for GL1
-    if (TestAnyFlagSet(accessMask, CoherShader | CoherCopy | CoherResolve | CoherClear | CoherStreamOut))
+    if (TestAnyFlagSet(accessMask, CoherShader | CoherCopy | CoherResolve | CoherClear | CoherStreamOut |
+                                   CoherSampleRate))
     {
         gcrCntl.bits.glmInv = 1;
         gcrCntl.bits.glkInv = 1;

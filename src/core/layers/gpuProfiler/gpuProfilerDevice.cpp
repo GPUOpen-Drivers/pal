@@ -539,6 +539,36 @@ static void SetPerfCounterInfo(
     PerfCounter*                  pPerfCounterOut)
 {
     // block specific validations
+    if (block == GpuBlock::DfMall)
+    {
+        // Unlike other perf blocks the DF sub-blocks may not support enough counters to sample all instances.
+        const uint32 maxCounters = blockPerfProps.maxGlobalOnlyCounters;
+        if (instanceMask != 0)
+        {
+            // A mask selecting instances was specified in config.
+            // We'll only select up to the maximum number of instances possible.
+            uint32 selectedInstanceCount = 0;
+            uint64 instanceBit = 1;
+            for (uint32 i = 0; i < instanceCount; i++, instanceBit <<= 1)
+            {
+                if ((instanceMask & instanceBit) != 0)
+                {
+                    selectedInstanceCount++;
+                    if (selectedInstanceCount >= maxCounters)
+                    {
+                        // clear all higher bits for which are instances beyond the maximum
+                        instanceMask &= ((instanceBit << 1) - 1);
+                        break;
+                    }
+                }
+            }
+        }
+        else if (instanceCount > maxCounters)
+        {
+            // there are more instances than counters for capturing, so limit the count to max
+            instanceCount = maxCounters;
+        }
+    }
 
     // general validation, and construct the counter field name with appended instance identifier
     char strInstances[32] = {0};
@@ -827,7 +857,8 @@ Result Device::ExtractPerfCounterInfo(
             // The maximum number of counters depends on whether this is an SPM file or a global counters file.
             const uint32 maxCounters = isSpmConfig ? perfExpProps.blocks[blockIdx].maxSpmCounters
                                                    : perfExpProps.blocks[blockIdx].maxGlobalSharedCounters;
-            const bool   countAsGlobalOnly = false;
+            // All DF instances share same limited set of global block counters, so we need to adjust the counting
+            const bool   countAsGlobalOnly = (pPerfCounters[i].block == GpuBlock::DfMall) ? true : false;
             const uint64 instanceMask = pPerfCounters[i].instanceMask;
             for (uint32 j = 0; j < pPerfCounters[i].instanceCount; j++)
             {
@@ -1064,6 +1095,9 @@ GpuBlock StringToGpuBlock(
         "GCR",     // GpuBlock::Gcr
         "PH",      // GpuBlock::Ph
         "UTCL1",   // GpuBlock::UtcL1
+        "GE_DIST", // GpuBlock::GeDist
+        "GE_SE",   // GpuBlock::GeSe
+        "DF_MALL", // GpuBlock::DfMall
     };
 
     static_assert(ArrayLen(TranslationTbl) == static_cast<uint32>(GpuBlock::Count),

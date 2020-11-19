@@ -456,6 +456,18 @@ public:
         uint32                    flags) override
         { PAL_NEVER_CALLED(); }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 554
+    virtual void CmdResolvePrtPlusImage(
+        const IImage&                    srcImage,
+        ImageLayout                      srcImageLayout,
+        const IImage&                    dstImage,
+        ImageLayout                      dstImageLayout,
+        PrtPlusResolveType               resolveType,
+        uint32                           regionCount,
+        const PrtPlusImageResolveRegion* pRegions) override
+        { PAL_NEVER_CALLED(); }
+#endif
+
     virtual void CmdSetEvent(const IGpuEvent& gpuEvent, HwPipePoint setPoint) override
         { WriteEvent(gpuEvent, setPoint, GpuEvent::SetValue); }
 
@@ -791,6 +803,15 @@ public:
         uint32      alignmentInDwords,
         GpuMemory** ppGpuMem,
         gpusize*    pOffset);
+
+    virtual void CmdSetPerDrawVrsRate(
+        const VrsRateParams&  rateParams) override;
+
+    virtual void CmdSetVrsCenterState(
+        const VrsCenterState&  centerState) override;
+
+    virtual void CmdBindSampleRateImage(
+        const IImage*  pImage) override;
 
     // True if a Hybrid pipeline was bound to this command buffer or if any of the task/mesh draw functions were
     // invoked.

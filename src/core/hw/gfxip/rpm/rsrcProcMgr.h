@@ -65,6 +65,7 @@ enum class ImageCopyEngine : uint32
 {
     Graphics        = 0x1,
     Compute         = 0x2,
+    ComputeVrsDirty = 0x3,
 };
 
 // Specifies gpu addresses that are used as input to CmdGenerateIndirectCmds
@@ -239,6 +240,19 @@ public:
         uint32                    regionCount,
         const ImageResolveRegion* pRegions,
         uint32                    flags) const;
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 554
+    virtual void CmdResolvePrtPlusImage(
+        GfxCmdBuffer*                    pCmdBuffer,
+        const IImage&                    srcImage,
+        ImageLayout                      srcImageLayout,
+        const IImage&                    dstImage,
+        ImageLayout                      dstImageLayout,
+        PrtPlusResolveType               resolveType,
+        uint32                           regionCount,
+        const PrtPlusImageResolveRegion* pRegions) const
+        { PAL_NEVER_CALLED(); }
+#endif
 
     void CmdGenerateIndirectCmds(
         const GenerateInfo& genInfo,

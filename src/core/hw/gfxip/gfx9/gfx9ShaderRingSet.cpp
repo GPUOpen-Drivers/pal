@@ -374,6 +374,11 @@ static_assert(Gfx09::mmVGT_GSVS_RING_SIZE            == Gfx101::mmVGT_GSVS_RING_
 static_assert(NotGfx10::mmVGT_HS_OFFCHIP_PARAM       == Gfx101::mmVGT_HS_OFFCHIP_PARAM_UMD, "");
 static_assert(NotGfx10::mmVGT_TF_MEMORY_BASE         == Gfx101::mmVGT_TF_MEMORY_BASE_UMD, "");
 static_assert(NotGfx10::mmVGT_TF_RING_SIZE           == Gfx101::mmVGT_TF_RING_SIZE_UMD, "");
+static_assert(Gfx09::mmVGT_GSVS_RING_SIZE            == Nv21::mmVGT_GSVS_RING_SIZE_UMD, "");
+static_assert(NotGfx10::mmVGT_HS_OFFCHIP_PARAM       == Nv21::mmVGT_HS_OFFCHIP_PARAM_UMD, "");
+static_assert(NotGfx10::mmVGT_TF_MEMORY_BASE         == Nv21::mmVGT_TF_MEMORY_BASE_UMD, "");
+static_assert(NotGfx10::mmVGT_TF_RING_SIZE           == Nv21::mmVGT_TF_RING_SIZE_UMD, "");
+static_assert(Gfx101::mmVGT_TF_MEMORY_BASE_HI_UMD == Nv21::mmVGT_TF_MEMORY_BASE_HI_UMD, "");
 
 // =====================================================================================================================
 // Initializes this Universal-Queue shader-ring set object.
@@ -406,6 +411,10 @@ Result UniversalRingSet::Init()
            )
         {
             m_regs.vgtHsOffchipParam.most.OFFCHIP_GRANULARITY = m_pDevice->Settings().offchipLdsBufferSize;
+        }
+        else if (IsGfx103Plus(device))
+        {
+            m_regs.vgtHsOffchipParam.gfx103Plus.OFFCHIP_GRANULARITY = m_pDevice->Settings().offchipLdsBufferSize;
         }
         else
         {
@@ -499,6 +508,11 @@ Result UniversalRingSet::Validate(
             {
                 // OFFCHIP_BUFFERING setting is biased by one (i.e., 0=1, 511=512, etc.).
                 m_regs.vgtHsOffchipParam.most.OFFCHIP_BUFFERING = pOffchipLds->ItemSizeMax() - 1;
+            }
+            else if (IsGfx103Plus(device))
+            {
+                // OFFCHIP_BUFFERING setting is biased by one (i.e., 0=1, 511=512, etc.).
+                m_regs.vgtHsOffchipParam.gfx103Plus.OFFCHIP_BUFFERING = pOffchipLds->ItemSizeMax() - 1;
             }
         }
 

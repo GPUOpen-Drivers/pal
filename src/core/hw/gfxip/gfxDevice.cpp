@@ -136,6 +136,7 @@ Result GfxDevice::InitHwlSettings(
 #endif
         case GfxIpLevel::GfxIp9:
         case GfxIpLevel::GfxIp10_1:
+        case GfxIpLevel::GfxIp10_3:
             m_pSettingsLoader = Gfx9::CreateSettingsLoader(m_pParent);
             break;
         case GfxIpLevel::None:

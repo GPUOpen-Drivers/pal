@@ -130,6 +130,7 @@ Result CreateDevice(
             break;
 
         case GfxIpLevel::GfxIp10_1:
+        case GfxIpLevel::GfxIp10_3:
             pPfnTable->pfnCreateTypedBufViewSrds   = &Device::Gfx10CreateTypedBufferViewSrds;
             pPfnTable->pfnCreateUntypedBufViewSrds = &Device::Gfx10CreateUntypedBufferViewSrds;
             pPfnTable->pfnCreateImageViewSrds      = &Device::Gfx10CreateImageViewSrds;
@@ -142,6 +143,7 @@ Result CreateDevice(
         }
 
         pPfnTable->pfnCreateFmaskViewSrds = &Device::CreateFmaskViewSrds;
+        pPfnTable->pfnCreateBvhSrds       = &Device::CreateBvhSrds;
     }
 
     return result;
@@ -185,6 +187,7 @@ Device::Device(
     // The default value of MSAA rate is 1xMSAA.
     m_msaaRate(1),
     m_presentResolution({ 0,0 }),
+    m_pVrsDepthView(nullptr),
     m_gbAddrConfig(m_pParent->ChipProperties().gfx9.gbAddrConfig),
     m_gfxIpLevel(pDevice->ChipProperties().gfxLevel),
     m_varBlockSize(0)
@@ -199,6 +202,21 @@ Device::Device(
     }
     memset(const_cast<uint32*>(&m_msaaHistogram[0]), 0, sizeof(m_msaaHistogram));
 
+    if (IsGfx102Plus(*Parent())
+       )
+    {
+#if PAL_ENABLE_PRINTS_ASSERTS
+        // The packer-based number of SA's can be less than the physical number of SA's, but it better not be more.
+        const auto&  chipProps     = m_pParent->ChipProperties().gfx9;
+        const uint32 chipPropNumSa = chipProps.numShaderArrays * chipProps.numShaderEngines;
+
+        PAL_ASSERT((1u << Gfx102PlusGetNumActiveShaderArraysLog2()) <= chipPropNumSa);
+#endif
+        // Var block size = number of total pipes * 16KB
+        // This fields is filled out for all Gfx10.2+, but only used
+        // for Gfx10.2 and Gfx10.3
+        m_varBlockSize = 16384u << GetGbAddrConfig().bits.NUM_PIPES;
+    }
 }
 
 // =====================================================================================================================
@@ -230,6 +248,12 @@ Result Device::Cleanup()
     {
         result = m_pParent->MemMgr()->FreeGpuMem(m_dummyZpassDoneMem.Memory(), m_dummyZpassDoneMem.Offset());
         m_dummyZpassDoneMem.Update(nullptr, 0);
+    }
+
+    if (m_pVrsDepthView != nullptr)
+    {
+        DestroyVrsDepthImage(m_pVrsDepthView->GetImage()->Parent());
+        m_pVrsDepthView = nullptr;
     }
 
     if (result == Result::Success)
@@ -381,6 +405,7 @@ void Device::FinalizeChipProperties(
     // Now is time to update the numSlotsPerEvent based on the new enableGpuEventMultiSlot value updated by client.
     pChipProperties->gfxip.numSlotsPerEvent = useMultiSlot ? MaxSlotsPerEvent : 1;
 
+    pChipProperties->gfx9.gfx10.supportVrsWithDsExports = settings.waDisableVrsWithDsExports ? false : true;
 }
 
 // =====================================================================================================================
@@ -397,6 +422,25 @@ Result Device::Finalize()
     if (result == Result::Success)
     {
         result = InitOcclusionResetMem();
+    }
+
+    // CreateVrsDepthView dependents on GetImageSize, which isn't supported on NullDevice. Since VrsDepthView isn't used
+    // on NullDevice, so we skip it now.
+    if ((result == Result::Success) && (m_pParent->IsNull() == false))
+    {
+        const Pal::Device*  pParent  = Parent();
+        const auto&         settings = GetGfx9Settings(*pParent);
+
+        if (pParent->ChipProperties().gfxip.supportsVrs && (settings.vrsImageSize != 0))
+        {
+            if (IsGfx10(*pParent))
+            {
+                // GFX10 era-devices require a stand-alone hTile buffer to store the image-rate data when a client
+                // hTile buffer isn't bound.
+                result = CreateVrsDepthView();
+            }
+        }
+
     }
 
     return result;
@@ -1904,6 +1948,19 @@ void Device::PatchPipelineInternalSrdTable(
 }
 
 // =====================================================================================================================
+// Helper function for calculating an SRD's "llc_noalloc" field (last level cache, aka the mall).
+static uint32 CalcLlcNoalloc(
+    uint32  bypassOnRead,
+    uint32  bypassOnWrite)
+{
+    //    0 : use the LLC for read/write if enabled in Mtype (see specified GpuMemMallPolicy for underlying alloc).
+    //    1 : use the LLC for read, bypass for write / atomics (write / atomics probe - invalidate)
+    //    2 : use the LLC for write / atomics, bypass for read
+    //    3 : bypass the LLC for all ops
+    return (bypassOnRead << 1) | bypassOnWrite;
+}
+
+// =====================================================================================================================
 // Gfx9 specific function for creating typed buffer view SRDs. Installed in the function pointer table of the parent
 // device during initialization.
 void PAL_STDCALL Device::Gfx9CreateTypedBufferViewSrds(
@@ -2007,6 +2064,18 @@ void PAL_STDCALL Device::Gfx10CreateTypedBufferViewSrds(
         pOutSrd->u32All[2] = pGfxDevice->CalcNumRecords(static_cast<size_t>(pBufferViewInfo->range),
                                                         static_cast<uint32>(pBufferViewInfo->stride));
 
+#if ( (PAL_CLIENT_INTERFACE_MAJOR_VERSION>= 558))
+        uint32 llcNoalloc = 0;
+
+        if (pPalDevice->MemoryProperties().flags.supportsMall != 0)
+        {
+            // The SRD has a two-bit field where the high-bit is the control for "read" operations
+            // and the low bit is the control for bypassing the MALL on write operations.
+            llcNoalloc = CalcLlcNoalloc(pBufferViewInfo->flags.bypassMallRead,
+                                        pBufferViewInfo->flags.bypassMallWrite);
+        }
+#endif
+
         PAL_ASSERT(Formats::IsUndefined(pBufferViewInfo->swizzledFormat.format) == false);
         PAL_ASSERT(Formats::BytesPerPixel(pBufferViewInfo->swizzledFormat.format) == pBufferViewInfo->stride);
 
@@ -2027,6 +2096,9 @@ void PAL_STDCALL Device::Gfx10CreateTypedBufferViewSrds(
                               (hwBufFmt                       << Gfx10CoreSqBufRsrcTWord3FormatShift)              |
                               (pGfxDevice->BufferSrdResourceLevel() << Gfx10CoreSqBufRsrcTWord3ResourceLevelShift) |
                               (OobSelect                      << SqBufRsrcTWord3OobSelectShift)                    |
+#if ( (PAL_CLIENT_INTERFACE_MAJOR_VERSION>= 558))
+                              (llcNoalloc                     << MallSqBufRsrcTWord3LlcNoallocShift)               |
+#endif
                               (SQ_RSRC_BUF                    << SqBufRsrcTWord3TypeShift));
 
         pOutSrd++;
@@ -2111,6 +2183,18 @@ void PAL_STDCALL Device::Gfx10CreateUntypedBufferViewSrds(
 
         PAL_ASSERT(Formats::IsUndefined(pBufferViewInfo->swizzledFormat.format));
 
+#if ( (PAL_CLIENT_INTERFACE_MAJOR_VERSION>= 558))
+        uint32 llcNoalloc = 0;
+
+        if (pPalDevice->MemoryProperties().flags.supportsMall != 0)
+        {
+            // The SRD has a two-bit field where the high-bit is the control for "read" operations
+            // and the low bit is the control for bypassing the MALL on write operations.
+            llcNoalloc = CalcLlcNoalloc(pBufferViewInfo->flags.bypassMallRead,
+                                        pBufferViewInfo->flags.bypassMallWrite);
+        }
+#endif
+
         if (pBufferViewInfo->gpuAddr != 0)
         {
             const uint32 oobSelect = ((pBufferViewInfo->stride == 1) ||
@@ -2123,6 +2207,9 @@ void PAL_STDCALL Device::Gfx10CreateUntypedBufferViewSrds(
                                   (BUF_FMT_32_UINT                << Gfx10CoreSqBufRsrcTWord3FormatShift)              |
                                   (pGfxDevice->BufferSrdResourceLevel() << Gfx10CoreSqBufRsrcTWord3ResourceLevelShift) |
                                   (oobSelect                      << SqBufRsrcTWord3OobSelectShift)                    |
+#if ( (PAL_CLIENT_INTERFACE_MAJOR_VERSION>= 558))
+                                  (llcNoalloc                     << MallSqBufRsrcTWord3LlcNoallocShift)               |
+#endif
                                   (SQ_RSRC_BUF                    << SqBufRsrcTWord3TypeShift));
         }
         else
@@ -2871,6 +2958,283 @@ static void Gfx10SetImageSrdWidth(
 }
 
 // =====================================================================================================================
+// Returns true if the supplied meta-data dimension (either width, height or depth) is compatible with the supplied
+// parent image dimension of the same type.
+static bool IsPrtPlusDimensionValid(
+    uint32  parentDim,
+    uint32  metaDataDim,
+    uint32  requiredLodDim)
+{
+    const uint32  quotient = parentDim / metaDataDim;
+
+    // Is the parent image an exact multiple larger than the meta-data image?
+    return (((parentDim % metaDataDim) == 0) &&
+            // Is the meta-data image an exact power of two smaller?
+            Util::IsPowerOfTwo(quotient)     &&
+            // Will the divisor size fit in four bits? (The available size in the SRD)
+            (Util::Log2(quotient) < 4)       &&
+            // Do the image dimensions match the size specified when the map image was created?
+            ((requiredLodDim == 0) || (quotient == requiredLodDim)));
+}
+
+// =====================================================================================================================
+// Error checks ImageViewInfo parameters for an image view SRD.
+Result Device::HwlValidateImageViewInfo(
+    const ImageViewInfo& info
+    ) const
+{
+    const auto&  palDevice  = *Parent();
+    const auto&  imageProps = palDevice.ChipProperties().imageProperties;
+    const auto*  pImage     = static_cast<const Pal::Image*>(info.pImage);
+    const auto&  createInfo = pImage->GetImageCreateInfo();
+    const auto&  prtPlus    = createInfo.prtPlus;
+    Result       result     = Result::Success;
+
+    // Note that the Image::ValidateCreateInfo should have failed if this image doesn't support PRT+ features.
+    if ((prtPlus.mapType == PrtMapType::None) && (info.mapAccess != PrtMapAccessType::Raw))
+    {
+        // If the image is not a PRT+ meta-data, then the map access has to be "raw".
+        result = Result::ErrorInvalidValue;
+    }
+    else if ((TestAnyFlagSet(imageProps.prtFeatures, PrtFeatureFlags::PrtFeaturePrtPlus) == false) &&
+             (info.mapAccess != PrtMapAccessType::Raw))
+    {
+        // If this device doesn't support PRT+, then the access must be set to raw.
+        result = Result::ErrorInvalidValue;
+    }
+    else if (prtPlus.mapType != PrtMapType::None)
+    {
+        const auto* pPrtParentImg = static_cast<const Pal::Image*>(info.pPrtParentImg);
+
+        // Ok, the supplied image is a PRT+ map image.
+        if (info.mapAccess == PrtMapAccessType::Raw)
+        {
+            // If they're requesting raw access, then they should not have provided a parent image.
+            if (pPrtParentImg != nullptr)
+            {
+                result = Result::ErrorInvalidImage;
+            }
+        }
+        else if (pPrtParentImg != nullptr)
+        {
+            // They're requesting special access and we have a parent image.
+            const auto&  parentCreateInfo = pPrtParentImg->GetImageCreateInfo();
+
+            // Make sure the parent image is *not* another PRT+ meta-data surface
+            if (parentCreateInfo.prtPlus.mapType == PrtMapType::None)
+            {
+                const auto&  mapExtent    = createInfo.extent;
+                const auto&  parentExtent = parentCreateInfo.extent;
+                const auto&  lodRegion    = createInfo.prtPlus.lodRegion;
+
+                // The dimensions of the meta-data image need to be a power-of-two multiple of the parent image.
+                // Verify that equivalency here.
+                if (IsPrtPlusDimensionValid(parentExtent.width, mapExtent.width, lodRegion.width) == false)
+                {
+                    result = Result::ErrorInvalidImageWidth;
+                }
+                else if (IsPrtPlusDimensionValid(parentExtent.height, mapExtent.height, lodRegion.height) == false)
+                {
+                    result = Result::ErrorInvalidImageHeight;
+                }
+                else if (IsPrtPlusDimensionValid(parentExtent.depth, mapExtent.depth, lodRegion.depth) == false)
+                {
+                    result = Result::ErrorInvalidImageDepth;
+                }
+                else if ((createInfo.prtPlus.mapType == PrtMapType::SamplingStatus) &&
+                         (info.mapAccess != PrtMapAccessType::WriteSamplingStatus))
+                {
+                    // Sampling status images can only be accessed via "raw" (checked above) or by the
+                    // samspling-status specific access type.
+                    result = Result::ErrorInvalidValue;
+                }
+                else if ((createInfo.prtPlus.mapType == PrtMapType::Residency) &&
+                         (info.mapAccess == PrtMapAccessType::WriteSamplingStatus))
+                {
+                    // Likewise, residency map images can not be accessed via the sampling-status access type.
+                    result = Result::ErrorInvalidValue;
+                }
+            }
+            else
+            {
+                result = Result::ErrorInvalidImage;
+            }
+        }
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
+static Result VerifySlopeOffsetPair(
+    int32  slope,
+    int32  offset)
+{
+    // Valid offsets are 1/4 to 1/64.
+    constexpr int32  LowValidOffset  = 2; // Log2(4)
+    constexpr int32  HighValidOffset = 6; // Log2(64);
+
+    // Assume bad parameters
+    Result  result = Result::ErrorInvalidValue;
+
+    if (((offset >= LowValidOffset) && (offset <= HighValidOffset)) &&
+        // There are only 8 valid slope values.
+        ((slope >= 0) && (slope <= 7)))
+    {
+        constexpr int32  Log2Sixteen = 4; // Log2(16) == 4
+        constexpr int32  Log2Eight   = 3; // Log2(8) == 3
+
+        // Ok, the supplied slope and offset values are valid, but note that some combinations of small slope
+        // values with big offset values might bring discontinuity in interpolated LOD value as this combination
+        // might prevent filtering weight to reach value of 1.0 at texel sampling center. The problem-free
+        // combinations are:
+        //      Slope value     Offset value
+        //      2.5             <= 1/16
+        //      3               <= 1/8
+        //      4 or above      Any supported
+        if (((slope == 0) && (offset >= Log2Sixteen)) ||  // 2.5 degrees
+            ((slope == 1) && (offset >= Log2Eight))   ||  // 3 degrees
+            (slope >= 2))                                 // 4 degrees or above, all offsets are valid
+        {
+            result = Result::Success;
+        }
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
+Result Device::HwlValidateSamplerInfo(
+    const SamplerInfo& samplerInfo
+    )  const
+{
+    const auto*  pPalDevice      = Parent();
+    const auto&  imageProperties = pPalDevice->ChipProperties().imageProperties;
+
+    Result  result = Result::Success;
+
+    // Residency map samplers have some specific restrictions; check those here.
+    if (samplerInfo.flags.forResidencyMap != 0)
+    {
+        // Fail if the app tries to create a residency map sampler on a device that doesn't support residency maps.
+        if (TestAnyFlagSet(Parent()->ChipProperties().imageProperties.prtFeatures,
+                           PrtFeatureFlags::PrtFeaturePrtPlus) == false)
+        {
+            result = Result::ErrorUnavailable;
+        }
+        else if (samplerInfo.borderColorType == BorderColorType::PaletteIndex)
+        {
+            // Residency map samplers override the bits used for palete-index, so if both are specified then fail.
+            result = Result::ErrorUnavailable;
+        }
+
+        if (result == Result::Success)
+        {
+            result = VerifySlopeOffsetPair(samplerInfo.uvSlope.x, samplerInfo.uvOffset.x);
+        }
+
+        if (result == Result::Success)
+        {
+            result = VerifySlopeOffsetPair(samplerInfo.uvSlope.y, samplerInfo.uvOffset.y);
+        }
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
+// Update the supplied SRD to instead reflect certain parameters that are different between the "map" image and its
+// parent image.
+static void Gfx10UpdateLinkedResourceViewSrd(
+    const Pal::Image* pParentImage, // Can be NULL for read access type
+    const Image&      mapImage,
+    const SubresId&   subResId,
+    PrtMapAccessType  accessType,
+    sq_img_rsrc_t*    pSrd)
+{
+    const auto& mapCreateInfo  = mapImage.Parent()->GetImageCreateInfo();
+
+    sq_img_rsrc_linked_rsrc_t*  pLinkedRsrc      = reinterpret_cast<sq_img_rsrc_linked_rsrc_t*>(pSrd);
+
+    // Without this, the other fields setup here have very different meanings.
+    pLinkedRsrc->linked_resource = 1;
+
+    // Sanity check that our sq_img_rsrc_linked_rsrc_t and sq_img_rsrc_t definitions line up.
+    PAL_ASSERT(pSrd->prtPlus.linked_resource == 1);
+
+    // "linked_resource_type" lines up with the "bc_swizzle" field of the sq_img_rsrc_t structure.
+    if (mapCreateInfo.prtPlus.mapType == PrtMapType::Residency)
+    {
+        switch (accessType)
+        {
+        case PrtMapAccessType::Read:
+            pLinkedRsrc->linked_resource_type = 4;
+            break;
+        case PrtMapAccessType::WriteMin:
+            pLinkedRsrc->linked_resource_type = 2;
+            break;
+        case PrtMapAccessType::WriteMax:
+            pLinkedRsrc->linked_resource_type = 3;
+            break;
+        default:
+            // What is this?
+            PAL_ASSERT_ALWAYS();
+            break;
+        }
+    }
+    else if (mapCreateInfo.prtPlus.mapType == PrtMapType::SamplingStatus)
+    {
+        pLinkedRsrc->linked_resource_type = 1;
+    }
+    else
+    {
+        // What is this?
+        PAL_ASSERT_ALWAYS();
+    }
+
+    if (pParentImage != nullptr)
+    {
+        const auto* pPalDevice          = pParentImage->GetDevice();
+        const auto* pAddrMgr            = static_cast<const AddrMgr2::AddrMgr2*>(pPalDevice->GetAddrMgr());
+        const auto& parentCreateInfo    = pParentImage->GetImageCreateInfo();
+        const auto* pMapSubResInfo      = mapImage.Parent()->SubresourceInfo(subResId);
+        const auto& parentExtent        = parentCreateInfo.extent;
+        const auto& mapExtent           = mapCreateInfo.extent;
+        const auto& mapSurfSetting      = mapImage.GetAddrSettings(pMapSubResInfo);
+        constexpr uint32  BigPageShaderMask = Gfx10AllowBigPageShaderWrite | Gfx10AllowBigPageShaderRead;
+        const bool  isBigPage           = IsImageBigPageCompatible(mapImage, BigPageShaderMask);
+
+        {
+            // "big_page" was originally setup to reflect the big-page settings of the parent image, but it
+            // needs to reflect the big-page setup of the map image instead.
+            pLinkedRsrc->rdna2.big_page = isBigPage;
+
+            // The "max_mip" field reflects the number of mip levels in the map image
+            pLinkedRsrc->rdna2.max_mip  = mapCreateInfo.mipLevels - 1;
+        }
+
+        // "xxx_scale" lines up with the "min_lod_warn" field of the sq_img_rsrc_t structure.
+        pLinkedRsrc->width_scale  = Log2(parentExtent.width  / mapExtent.width);
+        pLinkedRsrc->height_scale = Log2(parentExtent.height / mapExtent.height);
+        pLinkedRsrc->depth_scale  = Log2(parentExtent.depth  / mapExtent.depth);
+
+        // Most importantly, the base address points to the map image, not the parent image.
+        pLinkedRsrc->base_address = mapImage.GetSubresource256BAddrSwizzled(subResId);
+
+        // As the linked resource image's memory is the one that is actually being accesed, the swizzle
+        // mode needs to reflect that image, not the parent.
+        pLinkedRsrc->sw_mode   = pAddrMgr->GetHwSwizzleMode(mapSurfSetting.swizzleMode);
+
+        // Map images do support DCC, but for now...  no.  The map images are anticpated to be fairly small.
+        PAL_ASSERT(mapImage.HasDccData() == false);
+
+        // Note that the "compression_en" field was originally setup above based on the DCC status of the
+        // parent image, so we need to force it off here to reflect that the map image won't have DCC.
+        pLinkedRsrc->compression_en = 0;
+    }
+}
+
+// =====================================================================================================================
 void PAL_STDCALL Device::Gfx10CreateImageViewSrds(
     const IDevice*       pDevice,
     uint32               count,
@@ -2892,7 +3256,12 @@ void PAL_STDCALL Device::Gfx10CreateImageViewSrds(
     {
         const ImageViewInfo&   viewInfo        = pImgViewInfo[i];
 
-        const auto*const       pParent         = static_cast<const Pal::Image*>(viewInfo.pImage);
+        // If the "image" is really a PRT+ mapping image, then we want to set up the majority of this
+        // SRD off of the parent image, unless the client is indicating they want raw access to the
+        // map image.
+        const auto*const       pParent         = ((viewInfo.mapAccess == PrtMapAccessType::Raw)
+                                                  ? static_cast<const Pal::Image*>(viewInfo.pImage)
+                                                  : static_cast<const Pal::Image*>(viewInfo.pPrtParentImg));
         const Image&           image           = static_cast<const Image&>(*(pParent->GetGfxImage()));
         const Gfx9MaskRam*     pMaskRam        = image.GetPrimaryMaskRam(viewInfo.subresRange.startSubres.aspect);
         const ImageInfo&       imageInfo       = pParent->GetImageInfo();
@@ -2994,6 +3363,9 @@ void PAL_STDCALL Device::Gfx10CreateImageViewSrds(
             }
         }
         else if ((pBaseSubResInfo->bitsPerTexel != Formats::BitsPerPixel(format))
+                 // For PRT+ map images, the format of the view is expected to be different
+                 // from the format of the image itself.  Don't adjust the extents for PRT+ map images!
+                 && (viewInfo.pImage->GetImageCreateInfo().prtPlus.mapType == PrtMapType::None)
                 )
         {
             // The mismatched bpp checked is intended to catch the 2nd scenario in the above comment. However, YUV422
@@ -3253,6 +3625,30 @@ void PAL_STDCALL Device::Gfx10CreateImageViewSrds(
 
         srd.depth      = ComputeImageViewDepth(viewInfo, imageInfo, *pBaseSubResInfo);
 
+        // (pitch-1)[12:0] of mip 0 for 1D, 2D and 2D MSAA in GFX10.3, if pitch > width and
+        // TA_CNTL_AUX.DEPTH_AS_WIDTH_DIS = 0
+        const uint32  bytesPerPixel = Formats::BytesPerPixel(format);
+        const uint32  pitchInPixels = imageCreateInfo.rowPitch / bytesPerPixel;
+        if (IsGfx103(*pPalDevice)                    &&
+            (pitchInPixels > programmedExtent.width) &&
+            ((srd.type == SQ_RSRC_IMG_1D) ||
+             (srd.type == SQ_RSRC_IMG_2D) ||
+             (srd.type == SQ_RSRC_IMG_2D_MSAA)))
+        {
+            srd.depth = pitchInPixels - 1;
+        }
+
+        if (pPalDevice->MemoryProperties().flags.supportsMall != 0)
+        {
+            const uint32  llcNoAlloc = CalcLlcNoalloc(viewInfo.flags.bypassMallRead,
+                                                      viewInfo.flags.bypassMallWrite);
+            {
+                // The SRD has a two-bit field where the high-bit is the control for "read" operations
+                // and the low bit is the control for bypassing the MALL on write operations.
+                srd.gfx103x.llc_noalloc = llcNoAlloc;
+            }
+        }
+
         srd.bc_swizzle = GetBcSwizzle(viewInfo);
 
         srd.base_array         = baseArraySlice;
@@ -3371,6 +3767,15 @@ void PAL_STDCALL Device::Gfx10CreateImageViewSrds(
             //   PRT unmapped returns 0.0 or 1.0 if this bit is 0 or 1 respectively
             //   Only used with image ops (sample/load)
             srd.most.prt_default = 0;
+        }
+
+        if (viewInfo.mapAccess != PrtMapAccessType::Raw)
+        {
+            Gfx10UpdateLinkedResourceViewSrd(static_cast<const Pal::Image*>(viewInfo.pPrtParentImg),
+                                             *GetGfx9Image(viewInfo.pImage),
+                                             baseSubResId,
+                                             viewInfo.mapAccess,
+                                             &srd);
         }
 
         memcpy(&pSrds[i], &srd, sizeof(srd));
@@ -3989,10 +4394,128 @@ void PAL_STDCALL Device::Gfx10CreateSamplerSrds(
             // mipmap level.
             pSrd->aniso_override = (pInfo->flags.disableSingleMipAnisoOverride == 0);
 
+            if (pInfo->flags.forResidencyMap)
+            {
+                // The u/v slope / offset fields are in the same location as the border_color_ptr field
+                // used by PaletteIndex.  Verify that both residencymap and palette-index are not set.
+                PAL_ASSERT(pInfo->borderColorType != BorderColorType::PaletteIndex);
+
+                sq_img_samp_linked_resource_res_map_t*  pLinkedRsrcSrd =
+                        reinterpret_cast<sq_img_samp_linked_resource_res_map_t*>(pSrd);
+
+                //  if (T#.linked_resource != 0)
+                //      11:9 - v_offset(w_offset for 3D texture) value selector
+                //       8:6 - v_slope(w_slope for 3D texture) value selector
+                //       5:3 - u_offset value selector
+                //       2:0 - u_slope value selector
+                //
+                // Offset values as specified by the client start at 1 / (1 << 0) = 1.  However,
+                // HW considers a programmed value of zero to represent an offset of 1/4th.  Bias
+                // the supplied value here.
+                constexpr uint32  LowValidOffset = 2; // Log2(4);
+
+                const uint32  biasedOffsetX  = pInfo->uvOffset.x - LowValidOffset;
+                const uint32  biasedOffsetY  = pInfo->uvOffset.y - LowValidOffset;
+
+                pLinkedRsrcSrd->rdna2.linked_resource_slopes = (((pInfo->uvSlope.x  & 0x7) << 0) |
+                                                                ((biasedOffsetX     & 0x7) << 3) |
+                                                                ((pInfo->uvSlope.y  & 0x7) << 6) |
+                                                                ((biasedOffsetY     & 0x7) << 9));
+
+                // Verify that the "linked_resource_slopes" lines up with the "border_color_ptr" field.
+                PAL_ASSERT(pSrd->gfx10Core.border_color_ptr == pLinkedRsrcSrd->rdna2.linked_resource_slopes);
+            }
+
         } // end loop through temp SRDs
 
         memcpy(pSrdOutput, &tempSamplerSrds[0], (currentSrdIdx * sizeof(SamplerSrd)));
     } // end loop through SRDs
+}
+
+// =====================================================================================================================
+// Gfx9+ specific function for creating ray trace SRDs. Installed in the function pointer table of the parent device
+// during initialization.
+void PAL_STDCALL Device::CreateBvhSrds(
+    const IDevice*  pDevice,
+    uint32          count,
+    const BvhInfo*  pBvhInfo,
+    void*           pOut)
+{
+    PAL_ASSERT((pDevice != nullptr) && (pOut != nullptr) && (pBvhInfo != nullptr) && (count > 0));
+
+    const Pal::Device*  pPalDevice = static_cast<const Pal::Device*>(pDevice);
+    const Device*       pGfxDevice = static_cast<const Device*>(pPalDevice->GetGfxDevice());
+
+    // If this trips, then this hardware doesn't support ray-trace.  Why are we being called?
+    PAL_ASSERT(pPalDevice->ChipProperties().srdSizes.bvh != 0);
+
+    for (uint32 idx = 0; idx < count; idx++)
+    {
+        sq_bvh_rsrc_t     bvhSrd  = {}; // create the SRD in local memory to avoid potential thrashing of GPU memory
+        const auto&       bvhInfo = pBvhInfo[idx];
+        const GpuMemory*  pMemory = static_cast<const GpuMemory*>(bvhInfo.pMemory);
+
+        // Ok, there are two modes of operation here:
+        //    1) raw VA.  The node_address is a tagged VA pointer, instead of a relative offset.  However, the
+        //                HW still needs a BVH T# to tell it to run in raw VA mode and to configure the
+        //                watertightness, box sorting, and cache behavior.
+        //    2) BVH addressing:
+        if (bvhInfo.flags.useZeroOffset == 0)
+        {
+            PAL_ASSERT(pMemory != nullptr);
+            const auto& memDesc = pMemory->Desc();
+
+            const gpusize  gpuVirtAddr = memDesc.gpuVirtAddr + bvhInfo.offset;
+
+            // Make sure the supplied memory pointer is aligned.
+            PAL_ASSERT((gpuVirtAddr & 0xFF) == 0);
+
+            bvhSrd.base_address = gpuVirtAddr >> 8;
+        }
+        else
+        {
+            // Node_pointer comes from the VGPRs when the instruction is issued (vgpr_a[0] for image_bvh*,
+            // vgpr_a[0:1] for image_bvh64*)
+            bvhSrd.base_address = 0;
+        }
+
+        // Setup common srd fields here
+        bvhSrd.size = bvhInfo.numNodes - 1;
+
+        //    Number of ULPs to be added during ray-box test, encoded as unsigned integer
+        //    A ULP is https://en.wikipedia.org/wiki/Unit_in_the_last_place
+
+        // HW only has eight bits available for this field
+        PAL_ASSERT((bvhInfo.boxGrowValue & ~0xFF) == 0);
+
+        bvhSrd.box_grow_value = bvhInfo.boxGrowValue;
+
+        if (pPalDevice->MemoryProperties().flags.supportsMall != 0)
+        {
+            bvhSrd.mall.llc_noalloc = CalcLlcNoalloc(bvhInfo.flags.bypassMallRead,
+                                                     bvhInfo.flags.bypassMallWrite);
+        }
+
+        //    0: Return data for triangle tests are
+        //    { 0: t_num, 1 : t_denom, 2 : triangle_id, 3 : hit_status}
+        //    1: Return data for triangle tests are
+        //    { 0: t_num, 1 : t_denom, 2 : I_num, 3 : J_num }
+        // This should only be set if HW supports the ray intersection mode that returns triangle barycentrics.
+        PAL_ASSERT((pPalDevice->ChipProperties().gfx9.supportIntersectRayBarycentrics == 1) ||
+                   (bvhInfo.flags.returnBarycentrics == 0));
+
+        bvhSrd.triangle_return_mode = bvhInfo.flags.returnBarycentrics;
+
+        //    boolean to enable sorting the box intersect results
+        bvhSrd.box_sort_en  = bvhInfo.flags.findNearest;
+
+        //    MSB must be set-- 0x8
+        bvhSrd.type         = 0x8;
+
+        memcpy(VoidPtrInc(pOut, idx * sizeof(sq_bvh_rsrc_t)),
+               &bvhSrd,
+               sizeof(bvhSrd));
+    }
 }
 
 // =====================================================================================================================
@@ -4021,6 +4544,10 @@ GfxIpLevel DetermineIpLevel(
             )
         {
             level = GfxIpLevel::GfxIp10_1;
+        }
+        else if (AMDGPU_IS_NAVI21(familyId, eRevId))
+        {
+            level = GfxIpLevel::GfxIp10_3;
         }
         else
         {
@@ -4052,6 +4579,10 @@ const MergedFormatPropertiesTable* GetFormatPropertiesTable(
     case GfxIpLevel::GfxIp10_1:
 
         pTable = &Gfx10MergedFormatPropertiesTable;
+        break;
+
+    case GfxIpLevel::GfxIp10_3:
+        pTable = &Gfx10_2MergedFormatPropertiesTable;
         break;
 
     default:
@@ -4109,14 +4640,38 @@ void InitializeGpuChipProperties(
     pInfo->gfxip.supportGl2Uncached      = 1;
     pInfo->gfxip.gl2UncachedCpuCoherency = (CoherCpu | CoherShader | CoherIndirectArgs | CoherIndexData |
                                             CoherQueueAtomic | CoherTimestamp | CoherCeLoad | CoherCeDump |
-                                            CoherStreamOut | CoherMemory);
+                                            CoherStreamOut | CoherMemory | CoherSampleRate);
     pInfo->gfxip.supportCaptureReplay    = 1;
 
     pInfo->gfxip.maxUserDataEntries = MaxUserDataEntries;
 
+    if (IsGfx102Plus(pInfo->gfxLevel))
+    {
+        pInfo->imageProperties.prtFeatures = Gfx102PlusPrtFeatures;
+        pInfo->imageProperties.prtTileSize = PrtTileSize;
+    }
+    else
     {
         pInfo->imageProperties.prtFeatures = Gfx9PrtFeatures;
         pInfo->imageProperties.prtTileSize = PrtTileSize;
+    }
+
+    if (IsGfx102Plus(pInfo->gfxLevel))
+    {
+        // On GFX10, VRS tiles are stored in hTile memory which always represents an 8x8 block
+        pInfo->imageProperties.vrsTileSize.width  = 8;
+        pInfo->imageProperties.vrsTileSize.height = 8;
+
+        pInfo->gfxip.supportsVrs = 1;
+
+        pInfo->gfx9.gfx10.supportedVrsRates = ((1 << static_cast<uint32>(VrsShadingRate::_16xSsaa)) |
+                                               (1 << static_cast<uint32>(VrsShadingRate::_8xSsaa))  |
+                                               (1 << static_cast<uint32>(VrsShadingRate::_4xSsaa))  |
+                                               (1 << static_cast<uint32>(VrsShadingRate::_2xSsaa))  |
+                                               (1 << static_cast<uint32>(VrsShadingRate::_1x1))     |
+                                               (1 << static_cast<uint32>(VrsShadingRate::_1x2))     |
+                                               (1 << static_cast<uint32>(VrsShadingRate::_2x1))     |
+                                               (1 << static_cast<uint32>(VrsShadingRate::_2x2)));
     }
 
     // When per-channel min/max filter operations are supported, make it clear that single channel always are as well.
@@ -4335,6 +4890,21 @@ void InitializeGpuChipProperties(
             pInfo->gfx9.gfx10.numWgpAboveSpi = 3; // GPU__GC__NUM_WGP0_PER_SA
             pInfo->gfx9.gfx10.numWgpBelowSpi = 3; // GPU__GC__NUM_WGP1_PER_SA
         }
+        else if (AMDGPU_IS_NAVI21(pInfo->familyId, pInfo->eRevId))
+        {
+            pInfo->gpuType                       = GpuType::Discrete;
+            pInfo->revision                      = AsicRevision::Navi21;
+            pInfo->gfxStepping                   = Abi::GfxIpSteppingNavi21;
+            pInfo->gfx9.numShaderEngines         = 4;
+            pInfo->gfx9.rbPlus                   = 1;
+            pInfo->gfx9.numSdpInterfaces         = 16;
+            pInfo->gfx9.maxNumCuPerSh            = 10;
+            pInfo->gfx9.maxNumRbPerSe            = 4;
+            pInfo->gfx9.numWavesPerSimd          = 16;
+            pInfo->gfx9.supportFp16Dot2          = 1;
+            pInfo->gfx9.gfx10.numWgpAboveSpi     = 5; // GPU__GC__NUM_WGP0_PER_SA
+            pInfo->gfx9.gfx10.numWgpBelowSpi     = 0; // GPU__GC__NUM_WGP1_PER_SA
+        }
         else
         {
             PAL_ASSERT_ALWAYS();
@@ -4371,11 +4941,31 @@ void InitializeGpuChipProperties(
     }
     else if (IsGfx10(pInfo->gfxLevel))
     {
+        if ((false
+             || IsGfx102Plus(pInfo->gfxLevel)
+            )
+           )
+        {
+            pInfo->srdSizes.bvh = sizeof(sq_bvh_rsrc_t);
+
+            {
+                pInfo->gfx9.supportIntersectRayBarycentrics = 1;
+            }
+        }
+        if (IsGfx102Plus(pInfo->gfxLevel))
+        {
+            pInfo->gfx9.supportSortAgnosticBarycentrics = 1;
+        }
 
         nullBufferView.gfx10.type = SQ_RSRC_BUF;
         nullImageView.gfx10.type  = SQ_RSRC_IMG_2D_ARRAY;
 
         pInfo->imageProperties.maxImageArraySize  = Gfx10MaxImageArraySlices;
+
+        if (IsGfx103Plus(pInfo->gfxLevel))
+        {
+            pInfo->imageProperties.flags.supportDisplayDcc = 1;
+        }
 
         // Programming of the various wave-size parameters started with GFX10 parts
         pInfo->gfx9.supportPerShaderStageWaveSize = 1;
@@ -4523,6 +5113,15 @@ void InitializeGpuEngineProperties(
     pUniversal->minLinearMemCopyAlignment.depth       = 1;
     pUniversal->minTimestampAlignment                 = 8; // The CP spec requires 8-byte alignment.
     pUniversal->queueSupport                          = SupportQueueTypeUniversal;
+
+    if ((IsGfx103Plus(gfxIpLevel))
+        // Support was added for 10.3-era parts with F32_ME_FEATURE_VERSION_31 but the version number
+        // wasn't bumped. Conservatively check against 32.
+        && ((IsGfx103(gfxIpLevel) == false) || (pInfo->cpUcodeVersion >= 32))
+       )
+    {
+        pUniversal->flags.memory32bPredicationSupport = 1;
+    }
 
     auto*const pCompute = &pInfo->perEngine[EngineTypeCompute];
 
@@ -5099,6 +5698,11 @@ const RegisterRange* Device::GetRegisterRange(
                 pRange         = Nv10UserConfigShadowRange;
                 *pRangeEntries = Nv10NumUserConfigShadowRanges;
             }
+            else if (IsGfx103(*Parent()))
+            {
+                pRange         = Gfx103UserConfigShadowRange;
+                *pRangeEntries = Gfx103NumUserConfigShadowRanges;
+            }
             break;
 
         case RegRangeContext:
@@ -5106,6 +5710,11 @@ const RegisterRange* Device::GetRegisterRange(
             {
                 pRange         = Nv10ContextShadowRange;
                 *pRangeEntries = Nv10NumContextShadowRanges;
+            }
+            else if (IsGfx103(*Parent()))
+            {
+                pRange         = Gfx103ContextShadowRange;
+                *pRangeEntries = Gfx103NumContextShadowRanges;
             }
             break;
 
@@ -5125,6 +5734,11 @@ const RegisterRange* Device::GetRegisterRange(
             {
                 pRange         = Navi10NonShadowedRanges;
                 *pRangeEntries = Navi10NumNonShadowedRanges;
+            }
+            else if (IsGfx103(*Parent()))
+            {
+                pRange         = Gfx103NonShadowedRanges;
+                *pRangeEntries = Gfx103NumNonShadowedRanges;
             }
             else
             {
@@ -6611,6 +7225,203 @@ bool IsFmaskBigPageCompatible(
     }
 
     return bigPage;
+}
+
+// =====================================================================================================================
+// Returns the number of shader-arrays based on the NUM_PKRS field in GB_ADDR_CONFIG
+uint32 Device::Gfx102PlusGetNumActiveShaderArraysLog2() const
+{
+    const auto&  gbAddrConfig  = GetGbAddrConfig();
+    const uint32 numPkrLog2    = gbAddrConfig.gfx102Plus.NUM_PKRS;
+
+    // Packers is a 10.2+ concept.
+    PAL_ASSERT(IsGfx102Plus(*Parent()));
+
+    // See Gfx10Lib::HwlInitGlobalParams (address library) for where this bit of non-intuitiveness comes from
+    const uint32  numSaLog2FromPkr = ((numPkrLog2 > 0) ? (numPkrLog2 - 1) : 0);
+
+    return numSaLog2FromPkr;
+}
+
+// =====================================================================================================================
+// Undoes CreateVrsDepthView.  The supplied image pointer is the VRS image belonging to this device; the view (if it
+// was ever actually created) is implicitily destroyed as well.  It is the caller's responsibility to NULL out any
+// remaining view pointer.
+void Device::DestroyVrsDepthImage(
+    Pal::Image*  pDsImage)
+{
+    if (pDsImage != nullptr)
+    {
+        auto*       pPalDevice  = Parent();
+        auto*       pMemMgr     = pPalDevice->MemMgr();
+        const auto& imageGpuMem = pDsImage->GetBoundGpuMemory();
+
+        // Destroy the backing GPU memory associated with this image.
+        if (imageGpuMem.IsBound())
+        {
+            pMemMgr->FreeGpuMem(imageGpuMem.Memory(), imageGpuMem.Offset());
+        }
+
+        // Unbind this memory from the image.
+        pDsImage->BindGpuMemory(nullptr, 0);
+
+        // Destroy the image
+        pDsImage->Destroy();
+
+        // And destroy the CPU allocation.
+        PAL_SAFE_FREE(pDsImage, pPalDevice->GetPlatform());
+    }
+}
+
+// =====================================================================================================================
+// If the application has not bound a depth image and they bind a NULL source image via CmdBindSampleRateImage then
+// we need a way to insert a 1x1 shading rate into VRS pipeline via an image.  Create a 1x1 depth buffer here that
+// consists only of hTile data.
+Result Device::CreateVrsDepthView()
+{
+    Pal::Device* pPalDevice = static_cast<Pal::Device*>(Parent());
+    const auto&  settings   = GetGfx9Settings(*pPalDevice);
+    Result       result     = Result::Success;
+
+    PAL_ASSERT(IsGfx103Plus(*pPalDevice));
+
+    // Create a stencil only image as 4096x4096.  The VRS data needs to be at least as large as the color buffer
+    // being rendered into...  Worst possible case supported by HW is 16384 x 16384.  Hope for now that 4kx4k
+    // is "large enough" to get away with it.
+    //
+    // Note that the image doesn't actually contain any stencil data. We also do not need to initialize this image's
+    // metadata in any way because the app's draws won't read or write stencil and the VRS copy shader doesn't
+    // use meta equations.
+    ImageCreateInfo  imageCreateInfo = {};
+
+    imageCreateInfo.usageFlags.u32All        = 0;
+    imageCreateInfo.usageFlags.vrsDepth      = 1;   // indicate hTile needs to support VRS
+    imageCreateInfo.usageFlags.depthStencil  = 1;
+    imageCreateInfo.imageType                = ImageType::Tex2d;
+    imageCreateInfo.extent.width             = (settings.vrsImageSize & 0xFFFF);
+    imageCreateInfo.extent.height            = (settings.vrsImageSize >> 16);
+    imageCreateInfo.extent.depth             = 1;
+    imageCreateInfo.swizzledFormat.format    = ChNumFormat::X8_Uint;
+    imageCreateInfo.swizzledFormat.swizzle.r = ChannelSwizzle::X;
+    imageCreateInfo.swizzledFormat.swizzle.g = ChannelSwizzle::Zero;
+    imageCreateInfo.swizzledFormat.swizzle.b = ChannelSwizzle::Zero;
+    imageCreateInfo.swizzledFormat.swizzle.a = ChannelSwizzle::Zero;
+    imageCreateInfo.mipLevels                = 1;
+    imageCreateInfo.arraySize                = 1;
+    imageCreateInfo.samples                  = 1;
+    imageCreateInfo.fragments                = 1;
+    imageCreateInfo.tiling                   = ImageTiling::Optimal;
+
+    const size_t imageSize  = pPalDevice->GetImageSize(imageCreateInfo, &result);
+    size_t       dsViewSize = 0;
+
+    if (result == Result::Success)
+    {
+        dsViewSize = pPalDevice->GetDepthStencilViewSize(&result);
+    }
+
+    if (result == Result::Success)
+    {
+        // Combine the allocation for the image and DS view
+        void* pPlacementAddr = PAL_MALLOC_BASE(imageSize + dsViewSize,
+                                                Pow2Pad(imageSize),
+                                                pPalDevice->GetPlatform(),
+                                                SystemAllocType::AllocInternal,
+                                                MemBlkType::Malloc);
+
+        if (pPlacementAddr != nullptr)
+        {
+            Pal::Image*              pVrsDepth          = nullptr;
+            ImageInternalCreateInfo  internalCreateInfo = {};
+            internalCreateInfo.flags.vrsOnlyDepth = (settings.privateDepthIsHtileOnly ? 1 : 0);
+
+            result = pPalDevice->CreateInternalImage(imageCreateInfo,
+                                                     internalCreateInfo,
+                                                     pPlacementAddr,
+                                                     &pVrsDepth);
+            if (result != Result::Success)
+            {
+                PAL_SAFE_FREE(pPlacementAddr, pPalDevice->GetPlatform());
+            }
+            else
+            {
+                GpuMemoryRequirements  vrsDepthMemReqs = {};
+                pVrsDepth->GetGpuMemoryRequirements(&vrsDepthMemReqs);
+
+                // Allocate GPU backing memory for this image object.
+                GpuMemoryCreateInfo srcMemCreateInfo = { };
+                srcMemCreateInfo.alignment = vrsDepthMemReqs.alignment;
+                srcMemCreateInfo.size      = vrsDepthMemReqs.size;
+                srcMemCreateInfo.priority  = GpuMemPriority::Normal;
+
+                if (m_pParent->MemoryProperties().invisibleHeapSize > 0)
+                {
+                    srcMemCreateInfo.heapCount = 3;
+                    srcMemCreateInfo.heaps[0]  = GpuHeapInvisible;
+                    srcMemCreateInfo.heaps[1]  = GpuHeapLocal;
+                    srcMemCreateInfo.heaps[2]  = GpuHeapGartUswc;
+                }
+                else
+                {
+                    srcMemCreateInfo.heapCount = 2;
+                    srcMemCreateInfo.heaps[0]  = GpuHeapLocal;
+                    srcMemCreateInfo.heaps[1]  = GpuHeapGartUswc;
+                }
+
+                GpuMemoryInternalCreateInfo internalInfo = { };
+                internalInfo.flags.alwaysResident = 1;
+
+                GpuMemory* pMemObj   = nullptr;
+                gpusize    memOffset = 0;
+
+                result = pPalDevice->MemMgr()->AllocateGpuMem(srcMemCreateInfo,
+                                                             internalInfo,
+                                                             false,    // data is written via RPM
+                                                             &pMemObj,
+                                                             &memOffset);
+
+                if (result == Result::Success)
+                {
+                    result = pVrsDepth->BindGpuMemory(pMemObj, memOffset);
+                } // end check for GPU memory allocation
+            } // end check for internal image creation
+
+            // If we've succeeded in creating a hTile-only "depth" buffer, then create the view as well.
+            if (result == Result::Success)
+            {
+                IDepthStencilView**         ppDsView     = reinterpret_cast<IDepthStencilView**>(&m_pVrsDepthView);
+                DepthStencilViewCreateInfo  dsCreateInfo = {};
+                dsCreateInfo.flags.readOnlyDepth   = 1; // Our non-existent depth and stencil buffers will never
+                dsCreateInfo.flags.readOnlyStencil = 1; //   be written...  or read for that matter.
+                dsCreateInfo.flags.imageVaLocked   = 1; // image memory is never going to move
+                dsCreateInfo.arraySize             = imageCreateInfo.arraySize;
+                dsCreateInfo.pImage                = pVrsDepth;
+
+                // Ok, we have our image, create a depth-stencil view for this image as well so we can bind our
+                // hTile memory at draw time.
+                result = pPalDevice->CreateDepthStencilView(dsCreateInfo,
+                                                            VoidPtrInc(pPlacementAddr, imageSize),
+                                                            ppDsView);
+            }
+
+            if (result != Result::Success)
+            {
+                // Ok, something went wrong and since m_pVrsDepthView was possibly never set, the "cleanup"
+                // function might not do anything with respect to cleaning up our image.  We still need to
+                // destroy whatever exists of our VRS image though to prevent memory leaks.
+                DestroyVrsDepthImage(pVrsDepth);
+
+                pVrsDepth       = nullptr;
+                m_pVrsDepthView = nullptr;
+            }
+        }
+        else
+        {
+            result = Result::ErrorOutOfMemory;
+        }
+    } // end check for getting the image size
+
+    return result;
 }
 
 #if PAL_ENABLE_PRINTS_ASSERTS

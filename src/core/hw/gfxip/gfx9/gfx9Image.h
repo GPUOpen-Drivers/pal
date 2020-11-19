@@ -236,6 +236,8 @@ public:
 
     virtual bool HasDisplayDccData() const override { return (m_pDispDcc[0] != nullptr); }
 
+    virtual bool HasVrsMetadata() const { return (GetHtileUsage().vrs != 0); }
+
     // Returns a pointer to the hTile object associated with this image
     const Gfx9Htile* GetHtile() const
         { return (HasHtileData() ? m_pHtile : nullptr); }

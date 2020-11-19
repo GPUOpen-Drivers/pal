@@ -53,6 +53,7 @@ option(ADDR_AM_BUILD         "Build support for fmask addressing and addr5Swizzl
 option(ADDR_LNX_KERNEL_BUILD "Linux kernel build?"                                  OFF                        )
 option(ADDR_RENOIR_BUILD      "Build support for RENOIR?"    OFF                                               )
 option(ADDR_NAVI14_BUILD      "Build support for NAVI14?"    OFF                                               )
+option(ADDR_NAVI21_BUILD      "Build support for NAVI21?"    OFF                                               )
 
 option(ADDR_ENABLE_WERROR    "Build with -Werror enabled"    OFF                                                )
 
@@ -149,6 +150,9 @@ if(ADDR_GFX10_BUILD)
     target_compile_definitions(addrlib PRIVATE ADDR_GFX10_BUILD)
     if(ADDR_NAVI14_BUILD)
         target_compile_definitions(addrlib PRIVATE ADDR_NAVI14_BUILD)
+    endif()
+    if(ADDR_NAVI21_BUILD)
+        target_compile_definitions(addrlib PRIVATE ADDR_NAVI21_BUILD)
     endif()
 endif()
 

@@ -106,6 +106,7 @@ struct DeviceInterfacePfnTable
     CreateImageViewSrdsFunc  pfnCreateImageViewSrds;
     CreateFmaskViewSrdsFunc  pfnCreateFmaskViewSrds;
     CreateSamplerSrdsFunc    pfnCreateSamplerSrds;
+    CreateBvhSrdsFunc        pfnCreateBvhSrds;
 };
 
 // Maximum number of excluded virtual address ranges.
@@ -322,7 +323,7 @@ struct GpuMemoryProperties
             uint32 autoPrioritySupport        :  1; // Indiciates that the platform supports automatic allocation
                                                     // priority management.
             uint32 supportsTmz                :  1; // Indicates TMZ (or HSFB) protected memory is supported.
-            uint32 placeholder1               :  1; // Placeholder
+            uint32 supportsMall               :  1; // Indicates that this device supports the MALL.
             uint32 reserved                   : 16;
         };
         uint32 u32All;
@@ -684,6 +685,8 @@ struct GpuChipProperties
         uint8                  numSwizzleEqs;
         const SwizzleEquation* pSwizzleEqs;
         bool                   tilingSupported[static_cast<size_t>(ImageTiling::Count)];
+        Extent2d               vrsTileSize;  // Pixel dimensions of a VRS tile.  0x0 indicates image-based shading
+                                             // rate is not supported.
     } imageProperties;
 
     // GFXIP specific information which is shared by all GFXIP hardware layers.
@@ -722,7 +725,7 @@ struct GpuChipProperties
         {
             uint32 supportGl2Uncached          :  1; // Indicates support for the allocation of GPU L2
                                                      // un-cached memory. See gl2UncachedCpuCoherency
-            uint32 reserved1                   :  1;
+            uint32 supportsVrs                 :  1; // Indicates support for variable rate shading
             uint32 supportCaptureReplay        :  1; // Indicates support for Capture Replay
             uint32 reserved                    : 30;
         };
@@ -873,6 +876,10 @@ struct GpuChipProperties
                 uint32  numGl2a;
                 uint32  numGl2c;
 
+                uint32  supportedVrsRates;          // Bitmask of VrsShadingRate enumerations indicating supported modes
+                bool    supportVrsWithDsExports;    // If true, asic support coarse VRS rates
+                                                    // when z or stencil exports are enabled
+
                 uint32  minNumWgpPerSa;
                 uint16  activeWgpMask  [Gfx9MaxShaderEngines] [MaxShaderArraysPerSe];
                 uint16  alwaysOnWgpMask[Gfx9MaxShaderEngines] [MaxShaderArraysPerSe];
@@ -926,7 +933,8 @@ struct GpuChipProperties
                 uint64 eccProtectedGprs                   :  1; // Are VGPR's ECC-protected?
                 uint64 overrideDefaultSpiConfigCntl       :  1; // KMD provides default value for SPI_CONFIG_CNTL.
                 uint64 supportOutOfOrderPrimitives        :  1; // HW supports higher throughput for out of order
-                uint64 placeholder3                       :  1;
+                uint64 supportIntersectRayBarycentrics    :  1; // HW supports the ray intersection mode which
+                                                                // returns triangle barycentrics.
                 uint64 supportShaderSubgroupClock         :  1; // HW supports clock functions across subgroup.
                 uint64 supportShaderDeviceClock           :  1; // HW supports clock functions across device.
                 uint64 supportAlphaToOne                  :  1; // HW supports forcing alpha channel to one
@@ -959,6 +967,7 @@ struct GpuChipProperties
         uint32 imageView;
         uint32 fmaskView;
         uint32 sampler;
+        uint32 bvh;
     } srdSizes;
 
     struct
@@ -2306,6 +2315,7 @@ PAL_INLINE bool IsGfx9(const Device& device)
 PAL_INLINE bool IsGfx10(GfxIpLevel gfxLevel)
 {
     const bool isGfx10 = ((gfxLevel == GfxIpLevel::GfxIp10_1)
+                         || (gfxLevel == GfxIpLevel::GfxIp10_3)
                          );
     return isGfx10;
 }
@@ -2472,6 +2482,40 @@ PAL_INLINE bool IsNavi1x(const Device& device)
             IsNavi10(device)
             || IsNavi14(device)
            );
+}
+PAL_INLINE bool IsNavi21(const Device& device)
+{
+    return AMDGPU_IS_NAVI21(device.ChipProperties().familyId, device.ChipProperties().eRevId);
+}
+PAL_INLINE bool IsNavi2x(const Device& device)
+{
+    return (false
+            || IsNavi21(device)
+           );
+}
+PAL_INLINE bool IsGfx102Plus(GfxIpLevel gfxLevel)
+{
+    return (gfxLevel > GfxIpLevel::GfxIp10_1);
+}
+PAL_INLINE bool IsGfx102Plus(const Device& device)
+{
+    return IsGfx102Plus(device.ChipProperties().gfxLevel);
+}
+PAL_INLINE bool IsGfx103(GfxIpLevel gfxLevel)
+{
+    return (gfxLevel == GfxIpLevel::GfxIp10_3);
+}
+PAL_INLINE bool IsGfx103(const Device& device)
+{
+    return (device.ChipProperties().gfxLevel == GfxIpLevel::GfxIp10_3);
+}
+PAL_INLINE bool IsGfx103Plus(GfxIpLevel gfxLevel)
+{
+    return (gfxLevel >= GfxIpLevel::GfxIp10_3);
+}
+PAL_INLINE bool IsGfx103Plus(const Device& device)
+{
+    return IsGfx103Plus(device.ChipProperties().gfxLevel);
 }
 PAL_INLINE bool IsGfx101(GfxIpLevel gfxLevel)
 {

@@ -771,6 +771,12 @@ public:
         const SamplerInfo* pSamplerInfo,
         void*              pOut);
 
+    static void PAL_STDCALL DecoratorCreateBvhSrds(
+        const IDevice*  pDevice,
+        uint32          count,
+        const BvhInfo*  pBvhInfo,
+        void*           pOut);
+
     virtual Result ValidateImageViewInfo(
         const ImageViewInfo& viewInfo) const override;
 
@@ -1991,10 +1997,48 @@ public:
         m_pNextLayer->CmdUpdateHiSPretests(NextImage(pImage), pretests, firstMip, numMips);
     }
 
+    virtual void CmdSetPerDrawVrsRate(
+        const VrsRateParams&  rateParams) override
+    {
+        m_pNextLayer->CmdSetPerDrawVrsRate(rateParams);
+    }
+
+    virtual void CmdSetVrsCenterState(
+        const VrsCenterState&  centerState) override
+    {
+        m_pNextLayer->CmdSetVrsCenterState(centerState);
+    }
+
+    virtual void CmdBindSampleRateImage(
+        const IImage*  pImage) override
+    {
+        m_pNextLayer->CmdBindSampleRateImage(NextImage(pImage));
+    }
+
     virtual uint32 GetUsedSize(CmdAllocType type) const override
     {
         return m_pNextLayer->GetUsedSize(type);
     }
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 554
+    virtual void CmdResolvePrtPlusImage(
+        const IImage&                    srcImage,
+        ImageLayout                      srcImageLayout,
+        const IImage&                    dstImage,
+        ImageLayout                      dstImageLayout,
+        PrtPlusResolveType               resolveType,
+        uint32                           regionCount,
+        const PrtPlusImageResolveRegion* pRegions) override
+    {
+        m_pNextLayer->CmdResolvePrtPlusImage(srcImage,
+                                             srcImageLayout,
+                                             dstImage,
+                                             dstImageLayout,
+                                             resolveType,
+                                             regionCount,
+                                             pRegions);
+    }
+#endif
 
     // Part of the IDestroyable public interface.
     virtual void Destroy() override

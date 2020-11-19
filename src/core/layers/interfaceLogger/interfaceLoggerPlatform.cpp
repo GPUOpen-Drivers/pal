@@ -73,6 +73,12 @@ static constexpr FuncLoggingTableEntry FuncLoggingTable[] =
     { InterfaceFunc::CmdBufferCmdBindIndexData,                     (CmdBuild)            },
     { InterfaceFunc::CmdBufferCmdBindTargets,                       (CmdBuild)            },
     { InterfaceFunc::CmdBufferCmdBindStreamOutTargets,              (CmdBuild)            },
+    { InterfaceFunc::CmdBufferCmdSetPerDrawVrsRate,                 (CmdBuild)            },
+    { InterfaceFunc::CmdBufferCmdSetVrsCenterState,                 (CmdBuild)            },
+    { InterfaceFunc::CmdBufferCmdBindSampleRateImage,               (CmdBuild)            },
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 554
+    { InterfaceFunc::CmdBufferCmdResolvePrtPlusImage,               (CmdBuild)            },
+#endif
     { InterfaceFunc::CmdBufferCmdSetBlendConst,                     (CmdBuild)            },
     { InterfaceFunc::CmdBufferCmdSetInputAssemblyState,             (CmdBuild)            },
     { InterfaceFunc::CmdBufferCmdSetTriangleRasterState,            (CmdBuild)            },
@@ -204,6 +210,7 @@ static constexpr FuncLoggingTableEntry FuncLoggingTable[] =
     { InterfaceFunc::DeviceCreateImageViewSrds,                     (CrtSrds)             },
     { InterfaceFunc::DeviceCreateFmaskViewSrds,                     (CrtSrds)             },
     { InterfaceFunc::DeviceCreateSamplerSrds,                       (CrtSrds)             },
+    { InterfaceFunc::DeviceCreateBvhSrds,                           (CrtSrds)             },
     { InterfaceFunc::DeviceSetSamplePatternPalette,                 (GenCalls)            },
     { InterfaceFunc::DeviceCreateBorderColorPalette,                (CrtDstry)            },
     { InterfaceFunc::DeviceCreateComputePipeline,                   (CrtDstry)            },

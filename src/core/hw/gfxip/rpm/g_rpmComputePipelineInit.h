@@ -155,6 +155,11 @@ enum class RpmComputePipeline : uint32
     Gfx10GenerateCmdDispatch              = 117,
     Gfx10GenerateCmdDispatchTaskMesh      = 118,
     Gfx10GenerateCmdDraw                  = 119,
+    Gfx10GfxDccToDisplayDcc               = 122,
+    Gfx10PrtPlusResolveResidencyMapDecode = 123,
+    Gfx10PrtPlusResolveResidencyMapEncode = 124,
+    Gfx10PrtPlusResolveSamplingStatusMap  = 125,
+    Gfx10VrsHtile                         = 126,
     Count
 };
 

@@ -291,6 +291,7 @@ UniversalCmdBuffer::UniversalCmdBuffer(
     m_customBinSizeX(0),
     m_customBinSizeY(0),
     m_leakCbColorInfoRtv(0),
+    m_validVrsCopies(m_device.GetPlatform()),
     m_activeOcclusionQueryWriteRanges(m_device.GetPlatform()),
     m_gangedCmdStreamSemAddr(0),
     m_barrierCount(0)
@@ -340,6 +341,7 @@ UniversalCmdBuffer::UniversalCmdBuffer(
 
     m_cachedSettings.prefetchIndexBufferForNgg = settings.waEnableIndexBufferPrefetchForNgg;
     m_cachedSettings.waCeDisableIb2            = settings.waCeDisableIb2;
+    m_cachedSettings.supportsMall              = m_device.Parent()->MemoryProperties().flags.supportsMall;
     m_cachedSettings.rbPlusSupported           = m_device.Parent()->ChipProperties().gfx9.rbPlus;
 
     m_cachedSettings.waUtcL0InconsistentBigPage = settings.waUtcL0InconsistentBigPage;
@@ -355,6 +357,8 @@ UniversalCmdBuffer::UniversalCmdBuffer(
     m_cachedSettings.waVgtFlushNggToLegacyGs                   = settings.waVgtFlushNggToLegacyGs;
     m_cachedSettings.waIndexBufferZeroSize                     = settings.waIndexBufferZeroSize;
     m_cachedSettings.waLegacyGsCutModeFlush                    = settings.waLegacyGsCutModeFlush;
+    m_cachedSettings.supportsVrs                               = m_device.Parent()->ChipProperties().gfxip.supportsVrs;
+    m_cachedSettings.vrsForceRateFine                          = settings.vrsForceRateFine;
 
     // Here we pre-calculate constants used in gfx10 PBB bin sizing calculations.
     // The logic is based on formulas that account for the number of RBs and Channels on the ASIC.
@@ -751,6 +755,7 @@ void UniversalCmdBuffer::ResetState()
     m_vbTable.modified  = 0;
 
     m_activeOcclusionQueryWriteRanges.Clear();
+    m_validVrsCopies.Clear();
 
     m_gangedCmdStreamSemAddr = 0;
     m_barrierCount = 0;
@@ -1345,6 +1350,16 @@ void UniversalCmdBuffer::CmdBarrier(
 
     m_gfxCmdBufState.flags.packetPredicate = packetPredicate;
 
+    for (uint32 i = 0; i < barrierInfo.transitionCount; i++)
+    {
+        if (barrierInfo.pTransitions[i].imageInfo.pImage != nullptr)
+        {
+            // We could do better here by detecting all layout/cache changes that could signal rate images
+            // transitioning from writes to reads but that's pretty tricky. If this results in too many redundant
+            // VRS HTile copies we can try to optimize it but we might need additional interface state to be safe.
+            BarrierMightDirtyVrsRateImage(barrierInfo.pTransitions[i].imageInfo.pImage);
+        }
+    }
 }
 
 // =====================================================================================================================
@@ -1365,6 +1380,17 @@ void UniversalCmdBuffer::CmdRelease(
     m_device.DescribeBarrierEnd(this, &barrierOps);
 
     m_gfxCmdBufState.flags.packetPredicate = packetPredicate;
+
+    for (uint32 i = 0; i < releaseInfo.imageBarrierCount; i++)
+    {
+        if (releaseInfo.pImageBarriers[i].pImage != nullptr)
+        {
+            // We could do better here by detecting all layout/cache changes that could signal rate images
+            // transitioning from writes to reads but that's pretty tricky. If this results in too many redundant
+            // VRS HTile copies we can try to optimize it but we might need additional interface state to be safe.
+            BarrierMightDirtyVrsRateImage(releaseInfo.pImageBarriers[i].pImage);
+        }
+    }
 
     IssueGangedBarrierIncr();
 }
@@ -1409,6 +1435,17 @@ void UniversalCmdBuffer::CmdReleaseThenAcquire(
     m_device.DescribeBarrierEnd(this, &barrierOps);
 
     m_gfxCmdBufState.flags.packetPredicate = packetPredicate;
+
+    for (uint32 i = 0; i < barrierInfo.imageBarrierCount; i++)
+    {
+        if (barrierInfo.pImageBarriers[i].pImage != nullptr)
+        {
+            // We could do better here by detecting all layout/cache changes that could signal rate images
+            // transitioning from writes to reads but that's pretty tricky. If this results in too many redundant
+            // VRS HTile copies we can try to optimize it but we might need additional interface state to be safe.
+            BarrierMightDirtyVrsRateImage(barrierInfo.pImageBarriers[i].pImage);
+        }
+    }
 
     IssueGangedBarrierIncr();
 }
@@ -1484,6 +1521,8 @@ void UniversalCmdBuffer::CmdBindTargets(
     bool   colorBigPage  = true;
     bool   fmaskBigPage  = true;
 
+    bool   bypassMall = true;
+
     bool validCbViewFound   = false;
     bool validAaCbViewFound = false;
 
@@ -1538,6 +1577,11 @@ void UniversalCmdBuffer::CmdBindTargets(
             {
                 colorBigPage = false;
                 fmaskBigPage = false;
+            }
+
+            if (m_cachedSettings.supportsMall != 0)
+            {
+                bypassMall &= pNewView->BypassMall();
             }
 
             validCbViewFound = true;
@@ -1683,6 +1727,18 @@ void UniversalCmdBuffer::CmdBindTargets(
         if (validAaCbViewFound)
         {
             m_cbRmiGl2CacheControl.gfx10.FMASK_BIG_PAGE = fmaskBigPage;
+        }
+
+        if (m_cachedSettings.supportsMall != 0)
+        {
+            if (IsNavi2x(*(m_device.Parent())))
+            {
+                m_cbRmiGl2CacheControl.nv21.CMASK_L3_BYPASS = bypassMall;
+                m_cbRmiGl2CacheControl.nv21.FMASK_L3_BYPASS = bypassMall;
+            }
+
+            m_cbRmiGl2CacheControl.mall.DCC_L3_BYPASS   = bypassMall;
+            m_cbRmiGl2CacheControl.mall.COLOR_L3_BYPASS = bypassMall;
         }
 
         pDeCmdSpace = m_deCmdStream.WriteSetOneContextReg(Gfx10Plus::mmCB_RMI_GL2_CACHE_CONTROL,
@@ -3021,6 +3077,24 @@ uint32* UniversalCmdBuffer::WriteNullDepthTarget(
                                                          &regs2,
                                                          pCmdSpace);
 
+        if (m_cachedSettings.supportsVrs)
+        {
+            if (IsGfx10(m_gfxIpLevel))
+            {
+                // If no depth buffer has been bound yet, then make sure we obey the panel setting.  This has an
+                // effect even if depth testing is disabled.
+                regs1.dbRenderOverride2.gfx10Vrs.FORCE_VRS_RATE_FINE = (m_cachedSettings.vrsForceRateFine ? 1 : 0);
+            }
+
+            if (IsGfx103Plus(m_gfxIpLevel))
+            {
+                //   For centroid computation you need to set DB_RENDER_OVERRIDE2::CENTROID_COMPUTATION_MODE to pick
+                //   correct sample for centroid, which per DX12 spec is defined as the first covered sample. This
+                //   means that it should use "2: Choose the sample with the smallest {~pixel_num, sample_id} as
+                //   centroid, for all VRS rates"
+                regs1.dbRenderOverride2.gfx103Plus.CENTROID_COMPUTATION_MODE = 2;
+            }
+        }
     }
 
     pCmdSpace = m_deCmdStream.WriteSetSeqContextRegs(mmDB_RENDER_OVERRIDE2, mmDB_HTILE_DATA_BASE, &regs1, pCmdSpace);
@@ -4093,6 +4167,16 @@ template <bool Indexed, bool Indirect, bool Pm4OptImmediate>
 void UniversalCmdBuffer::ValidateDraw(
     const ValidateDrawInfo& drawInfo)
 {
+    const auto&  dirtyFlags = m_graphicsState.dirtyFlags.validationBits;
+
+    if ((dirtyFlags.vrsRateParams || dirtyFlags.vrsImage || dirtyFlags.depthStencilView) &&
+        m_cachedSettings.supportsVrs
+        )
+    {
+        // This has the potential to write a *LOT* of PM4 so do this outside the "main" reserve / commit commands
+        // checks below.  It also has the potential to set new dirty states, so do all this stuff early.
+        ValidateVrsState();
+    }
 
 #if PAL_BUILD_PM4_INSTRUMENTOR
     uint32 startingCmdLen = GetUsedSize(CommandDataAlloc);
@@ -4372,6 +4456,208 @@ uint32* UniversalCmdBuffer::Gfx10ValidateTriangleRasterState(
     }
 
     return pDeCmdSpace;
+}
+
+// =====================================================================================================================
+// If the image we're doing a barrier on is the bound VRS rate image, assume that the rate image source has changed
+// and we need to recopy its contents into hTile memory. There's no good way to know that the source VRS image has
+// been modified.
+void UniversalCmdBuffer::BarrierMightDirtyVrsRateImage(
+    const IImage* pRateImage)
+{
+    PAL_ASSERT(pRateImage != nullptr);
+
+    const auto* pImage = static_cast<const Pal::Image*>(pRateImage);
+
+    // We only need to force VRS state validation if the image is currently bound as a VRS rate image. This covers the
+    // case where the app binds a rate image, does a draw, and then modifies the rate image before the next draw.
+    m_graphicsState.dirtyFlags.validationBits.vrsImage |= (m_graphicsState.pVrsImage == pImage);
+
+    // We must dirty all prior VRS copies that read from this image, if any.
+    EraseVrsCopiesFromRateImage(pImage);
+}
+
+// =====================================================================================================================
+// We take care to never overwrite HTile VRS data in universal command buffers (even in InitMaskRam) so only HW
+// bugs should overwrite the HTile VRS data. It's OK that DMA command buffers will clobber HTile VRS data on Init
+// because we'll redo the HTile update the first time the image is bound in a universal command buffer. Thus we
+// only need to call DirtyVrsDepthImage when a certain HW bug is triggered.
+void UniversalCmdBuffer::DirtyVrsDepthImage(
+    const IImage* pDepthImage)
+{
+    // We only need to force VRS state validation if the image is currently bound as a depth target. This covers the
+    // case where the app binds a depth target and a VRS rate image, does a draw, and then clobbers the HTile VRS data
+    // before the next draw.
+    const auto* pView = static_cast<const DepthStencilView*>(m_graphicsState.bindTargets.depthTarget.pDepthStencilView);
+    const auto* pImage = static_cast<const Pal::Image*>(pDepthImage);
+
+    m_graphicsState.dirtyFlags.validationBits.vrsImage |=
+        ((pView != nullptr) && (pView->GetImage()->Parent() == pImage));
+
+    // We must dirty all prior VRS copies that wrote to this image, if any.
+    EraseVrsCopiesToDepthImage(pImage);
+}
+
+// =====================================================================================================================
+// Primary purpose of this function is to do draw-time copying of the image data supplied via the
+// CmdBindSampleRateImage interface.
+void UniversalCmdBuffer::ValidateVrsState()
+{
+    const auto&            dirtyFlags             = m_graphicsState.dirtyFlags.validationBits;
+    const auto&            vrsRate                = m_graphicsState.vrsRateState;
+    constexpr uint32       ImageCombinerStage     = static_cast<uint32>(VrsCombinerStage::Image);
+    constexpr uint32       PrimitiveCombinerStage = static_cast<uint32>(VrsCombinerStage::Primitive);
+    constexpr uint32       VertexCombinerStage    = static_cast<uint32>(VrsCombinerStage::ProvokingVertex);
+    const VrsCombiner      imageCombiner          = vrsRate.combinerState[ImageCombinerStage];
+    const VrsCombiner      vtxCombiner            = vrsRate.combinerState[VertexCombinerStage];
+    const Gfx9PalSettings& settings               = m_device.Settings();
+    bool                   bindNewRateParams      = false;
+    VrsRateParams          newRateParams          = vrsRate;
+
+    // Make sure the panel is requesting the optimized path.
+    if (settings.optimizeNullSourceImage &&
+        // A null source image corresponds to a 1x1 input into the image combiner.  Unless the combiner state is
+        // "sum", we can fake a 1x1 input by messing around with the combiner states. Do some relatively easy fixup
+        // checks first.
+        ((m_graphicsState.pVrsImage == nullptr) && (imageCombiner != VrsCombiner::Sum)))
+    {
+        // Unless the client has changed either the rate-params or the bound image, then there's nothing to do
+        // here.  The state of the depth image doesn't matter as we're not going to change it.
+        if (dirtyFlags.vrsRateParams || dirtyFlags.vrsImage)
+        {
+            switch (imageCombiner)
+            {
+                case VrsCombiner::Min:
+                    // The result of min(A, 1x1) will always be "1x1".  Same as the "override" case;
+                    // i.e., previous combiner state will always lose
+                    //
+                    // break intentionally omitted
+                case VrsCombiner::Override:
+                    // Set register shading rate to 1x1,
+                    newRateParams.shadingRate = VrsShadingRate::_1x1;
+
+                    // Set this and all preceding combiners ("provoking", "primitive" and "image") to passthrough.
+                    for (uint32 idx = 0; idx <= static_cast<uint32>(VrsCombinerStage::Image); idx++)
+                    {
+                        newRateParams.combinerState[idx] = VrsCombiner::Passthrough;
+                    }
+
+                    bindNewRateParams = true;
+                    break;
+
+                case VrsCombiner::Max:
+                    // The result of "max(A, 1x1)" will always be "A" so the image combiner can be set to
+                    // passthrough (i.e., take the output of the previous combiner, since the image combiner
+                    // will never win).
+                    newRateParams.combinerState[static_cast<uint32>(VrsCombinerStage::Image)] =
+                            VrsCombiner::Passthrough;
+
+                    bindNewRateParams = true;
+                    break;
+
+                case VrsCombiner::Passthrough:
+                    // The image combiner is going to ignore the image data, so there's nothing to do here.
+                    break;
+
+                case VrsCombiner::Sum:
+                    // These cases should have been caught above.  What are we doing here?
+                    PAL_ASSERT_ALWAYS();
+                    break;
+
+                default:
+                    // What is this?
+                    PAL_NOT_IMPLEMENTED();
+                    break;
+            }
+        } // end dirty checks
+    }
+    // We don't care about the rate-parameters changing here as we're destined to update the depth buffer
+    // and the combiners will take care of themselves.
+    else if (dirtyFlags.depthStencilView || dirtyFlags.vrsImage)
+    {
+        // Ok, we have source image data that's going to be useful in determining the final shading rate.
+        const auto& depthTarget   = m_graphicsState.bindTargets.depthTarget;
+        const auto* pClientDsView = static_cast<const Gfx10DepthStencilView*>(depthTarget.pDepthStencilView);
+        const auto& rpm           = static_cast<const Gfx10RsrcProcMgr&>(m_device.RsrcProcMgr());
+
+        // Ok, we can't cheat our way to binding this image by modifying the combiner state.  Do we have a
+        // client-specified depth buffer into which to copy the shading-rate data?
+        if ((pClientDsView != nullptr) && (pClientDsView->GetImage() != nullptr))
+        {
+            if (IsVrsCopyRedundant(pClientDsView, m_graphicsState.pVrsImage) == false)
+            {
+                AddVrsCopyMapping(pClientDsView, m_graphicsState.pVrsImage);
+
+                const Image*    pDepthImg        = pClientDsView->GetImage();
+                const SubresId  viewBaseSubResId = {
+                                                     pDepthImg->Parent()->GetBaseSubResource().aspect,
+                                                     pClientDsView->MipLevel(),
+                                                     pClientDsView->BaseArraySlice()
+                                                   };
+                const auto*     pSubResInfo      = pDepthImg->Parent()->SubresourceInfo(viewBaseSubResId);
+
+                rpm.CopyVrsIntoHtile(this, pClientDsView, pSubResInfo->extentTexels, m_graphicsState.pVrsImage);
+            }
+        }
+        else if (m_device.GetVrsDepthStencilView() != nullptr)
+        {
+            // Ok, the client didn't provide a depth buffer :-( and we have source image data (that could be NULL)
+            // that's going to modify the final shading rate.  The device created a depth view for just this occassion,
+            // so get that pointer and bind it appropriately.
+            const auto*      pDsView         = m_device.GetVrsDepthStencilView();
+            const auto*      pDepthImg       = pDsView->GetImage();
+            const auto&      depthCreateInfo = pDepthImg->Parent()->GetImageCreateInfo();
+            BindTargetParams newBindParams   = GetGraphicsState().bindTargets;
+
+            // Worst case is that there are no bound color targets and we have to initialize the full dimensions
+            // of our hTile buffer with VRS data.
+            Extent3d  depthExtent = depthCreateInfo.extent;
+
+            // However, if there are bound color buffers, then set the depth extent to the dimensions of the last
+            // bound color target.  Each color target changed the scissor dimensions, so the last one should be
+            // the one that counts.
+            for (uint32  colorIdx = 0; colorIdx < newBindParams.colorTargetCount; colorIdx++)
+            {
+                const auto&  colorBindInfo = newBindParams.colorTargets[colorIdx];
+                const auto*  pColorView    = static_cast<const ColorTargetView*>(colorBindInfo.pColorTargetView);
+                if (pColorView != nullptr)
+                {
+                    const auto*  pColorImg = pColorView->GetImage();
+                    if (pColorImg != nullptr)
+                    {
+                        depthExtent = pColorImg->Parent()->GetImageCreateInfo().extent;
+                    } // end check for a valid image bound to this view
+                } // end check for a valid view
+            } // end loop through all bound color targets
+
+            // This would be big trouble.  The HW assumes that the depth buffer is at least as big as the color
+            // buffer being rendered into...  this tripping means that the color target is larger than the depth
+            // buffer.  We're about to page fault.  Only "cure" is to recreate the device's depth buffer with
+            // a larger size.
+            PAL_ASSERT((depthExtent.width  <= depthCreateInfo.extent.width) &&
+                       (depthExtent.height <= depthCreateInfo.extent.height));
+
+            // Point the HW's registers to our new depth buffer.  The layout shouldn't matter much as this
+            // buffer only gets used for one thing.
+            newBindParams.depthTarget.pDepthStencilView = pDsView;
+            newBindParams.depthTarget.depthLayout       = { LayoutCopyDst, LayoutUniversalEngine };
+            CmdBindTargets(newBindParams);
+
+            if (IsVrsCopyRedundant(pDsView, m_graphicsState.pVrsImage) == false)
+            {
+                AddVrsCopyMapping(pDsView, m_graphicsState.pVrsImage);
+
+                // And copy our source data into the image associated with this new view.
+                rpm.CopyVrsIntoHtile(this, pDsView, depthExtent, m_graphicsState.pVrsImage);
+            }
+        } // end check for having a client depth buffer
+    } // end check on dirty flags
+
+    // If the new rate params haven't been bound and they need to be, then bind them now.
+    if (bindNewRateParams)
+    {
+        CmdSetPerDrawVrsRate(newRateParams);
+    }
 }
 
 // =====================================================================================================================
@@ -5759,6 +6045,15 @@ uint32 UniversalCmdBuffer::CalcGeCntl(
         // Zero is a legal value for VERT_GRP_SIZE. Other low values are illegal.
         if (vertsPerSubgroup != 0)
         {
+            //  These numbers below come from the hardware restrictions.
+            if (IsGfx103Plus(m_gfxIpLevel))
+            {
+                if (vertsPerSubgroup < 29)
+                {
+                    vertsPerSubgroup = 29;
+                }
+            }
+            else
             if (IsGfx101(m_gfxIpLevel))
             {
                 if (vertsPerSubgroup < 24)
@@ -6614,6 +6909,23 @@ void UniversalCmdBuffer::SetGraphicsState(
                 restoreScissorRects.count * sizeof(restoreScissorRects.scissors[0])) != 0))
     {
         CmdSetScissorRects(restoreScissorRects);
+    }
+
+    if (memcmp(&newGraphicsState.vrsRateState, &m_graphicsState.vrsRateState, sizeof(VrsRateParams)) != 0)
+    {
+        CmdSetPerDrawVrsRate(newGraphicsState.vrsRateState);
+    }
+
+    if (memcmp(&newGraphicsState.vrsCenterState, &m_graphicsState.vrsCenterState, sizeof(VrsCenterState)) != 0)
+    {
+        CmdSetVrsCenterState(newGraphicsState.vrsCenterState);
+    }
+
+    if (newGraphicsState.pVrsImage != m_graphicsState.pVrsImage)
+    {
+        // Restore the pointer to the client's original VRS rate image.  On GFX10 products, if the bound depth stencil
+        // image has changed, this will be re-copied into hTile on the next draw.
+        CmdBindSampleRateImage(newGraphicsState.pVrsImage);
     }
 
     const auto& restoreGlobalScissor = newGraphicsState.globalScissorState.scissorRegion;
@@ -8108,6 +8420,312 @@ gpusize UniversalCmdBuffer::GangedCmdStreamSemAddr()
     }
 
     return m_gangedCmdStreamSemAddr;
+}
+
+// =====================================================================================================================
+// Returns the HW X and Y shading rate values that correspond to the supplied enumeration.
+Offset2d UniversalCmdBuffer::GetHwShadingRate(
+    VrsShadingRate  shadingRate)
+{
+    Offset2d  hwShadingRate = {};
+
+    static constexpr Offset2d  HwShadingRateTable[] =
+    {
+        { -2, -2 }, // VrsShadingRate::_16xSsaa
+        { -2, -1 }, // VrsShadingRate::_8xSsaa
+        { -2,  0 }, // VrsShadingRate::_4xSsaa
+        { -2,  1 }, // VrsShadingRate::_2xSsaa
+        {  0,  0 }, // VrsShadingRate::_1x1
+        {  0,  1 }, // VrsShadingRate::_1x2
+        {  1,  0 }, // VrsShadingRate::_2x1
+        {  1,  1 }, // VrsShadingRate::_2x2
+    };
+
+    // HW encoding is in 2's complement of the table values
+    hwShadingRate.x = HwShadingRateTable[static_cast<uint32>(shadingRate)].x;
+    hwShadingRate.y = HwShadingRateTable[static_cast<uint32>(shadingRate)].y;
+
+    return hwShadingRate;
+}
+
+// =====================================================================================================================
+// Returns the HW combiner value that corresponds to the supplied combinerMode
+uint32 UniversalCmdBuffer::GetHwVrsCombinerState(
+    VrsCombiner  combinerMode)
+{
+    constexpr VRSCombinerMode HwCombinerMode[] =
+    {
+        VRS_COMB_MODE_PASSTHRU,  // Passthrough
+        VRS_COMB_MODE_OVERRIDE,  // Override
+        VRS_COMB_MODE_MIN,       // Min
+        VRS_COMB_MODE_MAX,       // Max
+        VRS_COMB_MODE_SATURATE,  // Sum
+    };
+
+    return static_cast<uint32>(HwCombinerMode[static_cast<uint32>(combinerMode)]);
+}
+
+// =====================================================================================================================
+// Returns the HW combiner value that corresponds to rateParams.combinerState[combinerStage]
+uint32 UniversalCmdBuffer::GetHwVrsCombinerState(
+    const VrsRateParams&  rateParams,
+    VrsCombinerStage      combinerStage)
+{
+    return GetHwVrsCombinerState(rateParams.combinerState[static_cast<uint32>(combinerStage)]);
+}
+
+// =====================================================================================================================
+// Setup registers affected by the VrsRateParams struct
+void UniversalCmdBuffer::CmdSetPerDrawVrsRate(
+    const VrsRateParams&  rateParams)
+{
+    Pal::UniversalCmdBuffer::CmdSetPerDrawVrsRate(rateParams);
+
+    if (m_cachedSettings.supportsVrs)
+    {
+        regGE_VRS_RATE     geVrsRate;
+        regPA_CL_VRS_CNTL  paClVrsCntl;
+
+        // GE_VRS_RATE has an enable bit located in VGT_DRAW__PAYLOAD_CNTL.EN_VRS_RATE.  That register is owned
+        // by the pipeline, but the pipeline should be permanently enabling that bit.
+        const Offset2d  hwShadingRate = GetHwShadingRate(rateParams.shadingRate);
+
+        geVrsRate.u32All      = 0;
+        geVrsRate.bits.RATE_X = hwShadingRate.x;
+        geVrsRate.bits.RATE_Y = hwShadingRate.y;
+
+        paClVrsCntl.u32All                            = 0;
+        paClVrsCntl.bits.VERTEX_RATE_COMBINER_MODE    = GetHwVrsCombinerState(rateParams,
+                                                                              VrsCombinerStage::ProvokingVertex);
+        paClVrsCntl.bits.PRIMITIVE_RATE_COMBINER_MODE = GetHwVrsCombinerState(rateParams, VrsCombinerStage::Primitive);
+        paClVrsCntl.bits.HTILE_RATE_COMBINER_MODE     = GetHwVrsCombinerState(rateParams, VrsCombinerStage::Image);
+        paClVrsCntl.bits.SAMPLE_ITER_COMBINER_MODE    = GetHwVrsCombinerState(rateParams,
+                                                                              VrsCombinerStage::PsIterSamples);
+        paClVrsCntl.bits.EXPOSE_VRS_PIXELS_MASK       = rateParams.flags.exposeVrsPixelsMask;
+
+        // This field is related to exposing VRS info into cMask buffer as an output.  Not sure if any client is
+        // going to require this functionality at this time, so leave this off.
+        paClVrsCntl.bits.CMASK_RATE_HINT_FORCE_ZERO   = 0;
+
+        uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
+        pDeCmdSpace = m_deCmdStream.WriteSetOneConfigReg(Gfx102Plus::mmGE_VRS_RATE,
+                                                         geVrsRate.u32All,
+                                                         pDeCmdSpace);
+        pDeCmdSpace = m_deCmdStream.WriteSetOneContextReg(Gfx102Plus::mmPA_CL_VRS_CNTL,
+                                                          paClVrsCntl.u32All,
+                                                          pDeCmdSpace);
+
+        if (IsGfx103Plus(m_gfxIpLevel))
+        {
+            // The VRS rate params own SAMPLE_COVERAGE_ENCODING
+            m_paScAaConfigNew.gfx103Plus.SAMPLE_COVERAGE_ENCODING = rateParams.flags.exposeVrsPixelsMask;
+        }
+
+        m_deCmdStream.CommitCommands(pDeCmdSpace);
+    }
+}
+
+// =====================================================================================================================
+// Setup registers affected by the VrsCenterState struct
+void UniversalCmdBuffer::CmdSetVrsCenterState(
+    const VrsCenterState&  centerState)
+{
+    // Record the state so that we can restore it after RPM operations.
+    Pal::UniversalCmdBuffer::CmdSetVrsCenterState(centerState);
+
+    if (m_cachedSettings.supportsVrs)
+    {
+        const Offset2d*  pOffset = &centerState.centerOffset[0];
+        regDB_SPI_VRS_CENTER_LOCATION  dbSpiVrsCenterLocation;
+        regSPI_BARYC_SSAA_CNTL         spiBarycSsaaCntl;
+
+        dbSpiVrsCenterLocation.u32All                   = 0;
+        dbSpiVrsCenterLocation.bits.CENTER_X_OFFSET_1X1 = pOffset[static_cast<uint32>(VrsCenterRates::_1x1)].x;
+        dbSpiVrsCenterLocation.bits.CENTER_Y_OFFSET_1X1 = pOffset[static_cast<uint32>(VrsCenterRates::_1x1)].y;
+        dbSpiVrsCenterLocation.bits.CENTER_X_OFFSET_2X1 = pOffset[static_cast<uint32>(VrsCenterRates::_2x1)].x;
+        dbSpiVrsCenterLocation.bits.CENTER_Y_OFFSET_2X1 = pOffset[static_cast<uint32>(VrsCenterRates::_2x1)].y;
+        dbSpiVrsCenterLocation.bits.CENTER_X_OFFSET_1X2 = pOffset[static_cast<uint32>(VrsCenterRates::_1x2)].x;
+        dbSpiVrsCenterLocation.bits.CENTER_Y_OFFSET_1X2 = pOffset[static_cast<uint32>(VrsCenterRates::_1x2)].y;
+        dbSpiVrsCenterLocation.bits.CENTER_X_OFFSET_2X2 = pOffset[static_cast<uint32>(VrsCenterRates::_2x2)].x;
+        dbSpiVrsCenterLocation.bits.CENTER_Y_OFFSET_2X2 = pOffset[static_cast<uint32>(VrsCenterRates::_2x2)].y;
+
+        spiBarycSsaaCntl.u32All                  = 0;
+        spiBarycSsaaCntl.bits.CENTER_SSAA_MODE   = centerState.flags.overrideCenterSsaa;
+        spiBarycSsaaCntl.bits.CENTROID_SSAA_MODE = centerState.flags.overrideCentroidSsaa;
+
+        uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
+        pDeCmdSpace = m_deCmdStream.WriteSetOneContextReg(Gfx102Plus::mmDB_SPI_VRS_CENTER_LOCATION,
+                                                          dbSpiVrsCenterLocation.u32All,
+                                                          pDeCmdSpace);
+
+        pDeCmdSpace = m_deCmdStream.WriteSetOneContextReg(Gfx102Plus::mmSPI_BARYC_SSAA_CNTL,
+                                                          spiBarycSsaaCntl.u32All,
+                                                          pDeCmdSpace);
+
+        if (IsGfx103Plus(m_gfxIpLevel))
+        {
+            // The VRS center state owns COVERED_CENTROID_IS_CENTER
+            m_paScAaConfigNew.gfx103Plus.COVERED_CENTROID_IS_CENTER = (centerState.flags.alwaysComputeCentroid ? 0 : 1);
+        }
+
+        m_deCmdStream.CommitCommands(pDeCmdSpace);
+    }
+}
+
+// =====================================================================================================================
+// This implementation probably doesn't have to do a whole lot other then record the sample-rate image in use...
+// Draw time? will have the unhappy task of copying the shading-rate data in this image into the hTile buffer, or, if
+// there isn't a bound hTile buffer, creating one.
+void UniversalCmdBuffer::CmdBindSampleRateImage(
+    const IImage*  pImage)
+{
+    // If a source image was provided, verify its creation parameters here
+    if (pImage != nullptr)
+    {
+        const auto&  createInfo = pImage->GetImageCreateInfo();
+
+        PAL_ASSERT(Formats::BitsPerPixel(createInfo.swizzledFormat.format) == 8);
+        PAL_ASSERT(createInfo.mipLevels == 1);
+        PAL_ASSERT(createInfo.arraySize == 1);
+        PAL_ASSERT(createInfo.samples   == 1);
+        PAL_ASSERT(createInfo.imageType == ImageType::Tex2d);
+    }
+
+    // Independent layer records the source image and marks our command buffer state as dirty.
+    Pal::UniversalCmdBuffer::CmdBindSampleRateImage(pImage);
+
+    // Nothing else to do here; we don't know which depth buffer is going to be bound for the upcoming draw
+    // yet, so we don't have a destination for the source image data (yet).
+
+}
+
+// =====================================================================================================================
+// If we've copied VRS rate data from pRateImage into pDsView's subresource range and it hasn't been invalidated by
+// a copy, metadata init, etc., we can skip the VRS copy operation for this draw.
+bool UniversalCmdBuffer::IsVrsCopyRedundant(
+    const Gfx10DepthStencilView* pDsView,
+    const Pal::Image*            pRateImage)
+{
+    bool isRedundant = false;
+
+    const Pal::Image* pViewImage    = pDsView->GetImage()->Parent();
+    const uint32      viewMipLevel  = pDsView->MipLevel();
+    const uint32      viewBaseSlice = pDsView->BaseArraySlice();
+    const uint32      viewEndSlice  = viewBaseSlice + pDsView->ArraySize() - 1;
+
+    // For simplicity's sake, we search for a single copy mapping that contains the whole view range. This could
+    // be further optimized to OR together ranges across multiple mappings if it becomes a bottleneck.
+    for (uint32 idx = 0; idx < m_validVrsCopies.NumElements(); ++idx)
+    {
+        const VrsCopyMapping& mapping = m_validVrsCopies.At(idx);
+
+        if ((mapping.pRateImage  == pRateImage)    &&
+            (mapping.pDepthImage == pViewImage)    &&
+            (mapping.mipLevel    == viewMipLevel)  &&
+            (mapping.baseSlice   <= viewBaseSlice) &&
+            (mapping.endSlice    >= viewEndSlice))
+        {
+            isRedundant = true;
+            break;
+        }
+    }
+
+    return isRedundant;
+}
+
+// =====================================================================================================================
+// Adds a new VrsCopyMapping to our list of prior VRS rate data copies.
+void UniversalCmdBuffer::AddVrsCopyMapping(
+    const Gfx10DepthStencilView* pDsView,
+    const Pal::Image*            pRateImage)
+{
+    VrsCopyMapping newMapping = {};
+    newMapping.pRateImage  = pRateImage;
+    newMapping.pDepthImage = pDsView->GetImage()->Parent();
+    newMapping.mipLevel    = pDsView->MipLevel();
+    newMapping.baseSlice   = pDsView->BaseArraySlice();
+    newMapping.endSlice    = newMapping.baseSlice + pDsView->ArraySize() - 1;
+
+    // Walk the copy list to:
+    // 1. Try to find an empty mapping in the vector that we can reuse.
+    // 2. Mark prior copies that overlap with our new copy as invalid.
+    //
+    // We don't try to merge contiguous slice ranges and nor split ranges when overlap is detected. We could optimize
+    // these cases in the future if they become a bottleneck.
+    bool searching = true;
+
+    for (uint32 idx = 0; idx < m_validVrsCopies.NumElements(); ++idx)
+    {
+        VrsCopyMapping*const pMapping = &m_validVrsCopies.At(idx);
+
+        // By convention, setting the rate image pointer to null marks a mapping as invalid.
+        if ((pMapping->pRateImage  != nullptr)                &&
+            (pMapping->pDepthImage == newMapping.pDepthImage) &&
+            (pMapping->mipLevel    == newMapping.mipLevel)    &&
+            (pMapping->baseSlice   <= newMapping.endSlice)    &&
+            (pMapping->endSlice    >= newMapping.baseSlice))
+        {
+            // If we have an existing mapping that wrote to the same view and overlaps in at least one subresource
+            // we must mark that prior copy invalid or we could fail to recopy to the overlapped subresources.
+            pMapping->pRateImage = nullptr;
+        }
+
+        if (searching && (pMapping->pRateImage == nullptr))
+        {
+            // Write our new copy into the first invalid mapping. This might be a mapping we just invalidated above.
+            *pMapping = newMapping;
+            searching = false;
+        }
+    }
+
+    // Otherwise we need to extend the vector.
+    if (searching)
+    {
+        const Result result = m_validVrsCopies.PushBack(newMapping);
+
+        // This function should only be called during command recording so we can't return a Result to the client.
+        // Instead we should update our command recording status so it can be returned to the caller later on.
+        if (result != Result::Success)
+        {
+            SetCmdRecordingError(result);
+        }
+    }
+}
+
+// =====================================================================================================================
+// Erase any mappings that reference the dirty rate image.
+void UniversalCmdBuffer::EraseVrsCopiesFromRateImage(
+    const Pal::Image* pRateImage)
+{
+    for (uint32 idx = 0; idx < m_validVrsCopies.NumElements(); ++idx)
+    {
+        VrsCopyMapping*const pMapping = &m_validVrsCopies.At(idx);
+
+        if (pMapping->pRateImage == pRateImage)
+        {
+            // By convention, setting the rate image pointer to null marks a mapping as invalid.
+            pMapping->pRateImage = nullptr;
+        }
+    }
+}
+
+// =====================================================================================================================
+// Erase any mappings that reference the depth image. We could optimize this if this function also took a subresource
+// range but that adds a fair bit complexity that probably won't be worth it. We only expect this function to be called
+// if the VRS stencil write HW bug is triggered.
+void UniversalCmdBuffer::EraseVrsCopiesToDepthImage(
+    const Pal::Image* pDepthImage)
+{
+    for (uint32 idx = 0; idx < m_validVrsCopies.NumElements(); ++idx)
+    {
+        VrsCopyMapping*const pMapping = &m_validVrsCopies.At(idx);
+
+        if (pMapping->pDepthImage == pDepthImage)
+        {
+            // By convention, setting the rate image pointer to null marks a mapping as invalid.
+            pMapping->pRateImage = nullptr;
+        }
+    }
 }
 
 } // Gfx9

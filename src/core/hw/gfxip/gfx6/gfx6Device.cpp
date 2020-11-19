@@ -106,6 +106,7 @@ Result CreateDevice(
         pPfnTable->pfnCreateImageViewSrds      = &Device::CreateImageViewSrds;
         pPfnTable->pfnCreateFmaskViewSrds      = &Device::CreateFmaskViewSrds;
         pPfnTable->pfnCreateSamplerSrds        = &Device::CreateSamplerSrds;
+        pPfnTable->pfnCreateBvhSrds            = &Device::CreateBvhSrds;
     }
 
     return result;
@@ -2644,6 +2645,20 @@ void PAL_STDCALL Device::CreateSamplerSrds(
 
         memcpy(pSrdOutput, &tempSamplerSrds[0], (currentSrdIdx * sizeof(SamplerSrd)));
     }
+}
+
+// =====================================================================================================================
+// Gfx6+ specific function for creating BVH SRDs. Installed in the function pointer table of the parent device
+// during initialization.
+void PAL_STDCALL Device::CreateBvhSrds(
+    const IDevice*  pDevice,
+    uint32          count,
+    const BvhInfo*  pBvhInfo,
+    void*           pOut)
+{
+    // Ray trace isn't supported until GFX10; the client should never be trying this.  Function provided only to
+    // prevent null-pointer calls (and crashes).
+    PAL_NEVER_CALLED();
 }
 
 // The minimum microcode versions for all supported GFX 6-8 GPUs. These constants are expressed in decimal rather than

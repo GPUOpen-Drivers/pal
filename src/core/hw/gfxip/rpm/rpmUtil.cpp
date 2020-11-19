@@ -477,6 +477,10 @@ void BuildRawBufferViewInfo(
     pInfo->range          = bufferMemory.Desc().size - byteOffset;
     pInfo->stride         = 1;
     pInfo->swizzledFormat = UndefinedSwizzledFormat;
+#if  PAL_CLIENT_INTERFACE_MAJOR_VERSION>= 558
+    pInfo->flags.bypassMallRead  = TestAnyFlagSet(settings.rpmViewsBypassMall, Gfx10RpmViewsBypassMallOnRead);
+    pInfo->flags.bypassMallWrite = TestAnyFlagSet(settings.rpmViewsBypassMall, Gfx10RpmViewsBypassMallOnWrite);
+#endif
 }
 
 // =====================================================================================================================
@@ -494,6 +498,10 @@ void BuildRawBufferViewInfo(
     pInfo->range          = range;
     pInfo->stride         = 1;
     pInfo->swizzledFormat = UndefinedSwizzledFormat;
+#if  PAL_CLIENT_INTERFACE_MAJOR_VERSION>= 558
+    pInfo->flags.bypassMallRead  = TestAnyFlagSet(settings.rpmViewsBypassMall, Gfx10RpmViewsBypassMallOnRead);
+    pInfo->flags.bypassMallWrite = TestAnyFlagSet(settings.rpmViewsBypassMall, Gfx10RpmViewsBypassMallOnWrite);
+#endif
 }
 
 // =====================================================================================================================
@@ -526,6 +534,10 @@ void BuildImageViewInfo(
     pInfo->texOptLevel          = texOptLevel;
     pInfo->possibleLayouts      = imgLayout;
 
+#if  PAL_CLIENT_INTERFACE_MAJOR_VERSION>= 558
+    pInfo->flags.bypassMallRead  = TestAnyFlagSet(settings.rpmViewsBypassMall, Gfx10RpmViewsBypassMallOnRead);
+    pInfo->flags.bypassMallWrite = TestAnyFlagSet(settings.rpmViewsBypassMall, Gfx10RpmViewsBypassMallOnWrite);
+#endif
 }
 
 // =====================================================================================================================
@@ -624,6 +636,38 @@ uint32* CreateAndBindEmbeddedUserData(
 }
 
 // =====================================================================================================================
+// Input data is the output of the ConvertColorToX9Y9Z9E5 function; output data is the equivalent color data expressed
+// as 32-bit IEEE-1394 floating point numbers.
+void ConvertX9YZ9E5ToFloat(
+    const uint32*  pColorIn,
+    uint32*        pColorOut)
+{
+    constexpr uint32 MantissaBits = 9;  // Number of mantissa bits per component
+    constexpr uint32 ExponentBias = 15; // Exponent bias
+
+    for (uint32 i = 0; i < 3; i++) // only have RGB data
+    {
+        uint32  mantissa   = pColorIn[i];
+        float   multiplier = 0.0f;
+
+        for (uint32 bit = MantissaBits; (mantissa != 0); bit--)
+        {
+            if ((mantissa & 0x1) != 0)
+            {
+                multiplier += (1.0f / (1 << bit));
+            }
+
+            mantissa = mantissa >> 1;
+        }
+
+        float  finalVal = multiplier * (1 << (pColorIn[3] - ExponentBias));
+        pColorOut[i]    = *(reinterpret_cast<uint32*>(&finalVal));
+    }
+
+    pColorOut[3] = 0x3F800000;
+}
+
+// =====================================================================================================================
 // Converts a color from clearFormat to its native format. The color array must contain four DWORDs in RGBA order.
 void ConvertClearColorToNativeFormat(
     SwizzledFormat baseFormat,
@@ -635,6 +679,11 @@ void ConvertClearColorToNativeFormat(
     // matches the behavior of the compute path.
     const auto& formatInfo = Formats::FormatInfoTable[static_cast<uint32>(clearFormat.format)];
 
+    if (clearFormat.format == ChNumFormat::X9Y9Z9E5_Float)
+    {
+        ConvertX9YZ9E5ToFloat(pColor, pColor);
+    }
+    else
     {
         for (uint32 rgbaIdx = 0; rgbaIdx < 4; ++rgbaIdx)
         {
