@@ -47,7 +47,7 @@ public:
     VamObject(VAM_CLIENT_HANDLE hClient);
     virtual ~VamObject();
 
-    VOID* operator new(size_t size, VAM_CLIENT_HANDLE hClient);
+    VOID* operator new(size_t size, VAM_CLIENT_HANDLE hClient) noexcept;
     VOID  operator delete(VOID* pObj, VAM_CLIENT_HANDLE hClient);
     VOID  operator delete(VOID* pObj);
 
