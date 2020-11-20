@@ -44,7 +44,7 @@ class IArchiveFile;
 class IPlatformKey;
 struct ArchiveEntryHeader;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 639
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 641
 constexpr size_t     MaxPathLength     = 260; ///< Maximum absolute path location for an archive file
 constexpr size_t     MaxFilenameLength = 128; ///< Maximum archive filename length excluding folder path
 #else
@@ -72,7 +72,7 @@ struct ArchiveFileOpenInfo
 {
     AllocCallbacks*     pMemoryCallbacks;         ///< Allocation callbacks suitable for long-term use. Must live
                                                   ///  for the lifetime of the ArchiveFile object
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 639
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 641
     char                filePath[MaxPathLength];     ///< Path to where the archive file can be found
     char                fileName[MaxFilenameLength]; ///< Name of the archive file to be opened
 #else

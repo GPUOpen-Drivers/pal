@@ -58,13 +58,13 @@ static char* GenerateFullPath(
     PAL_ASSERT(pOpenInfo        != nullptr);
     PAL_ASSERT(stringBufferSize != 0);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 639
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 641
     Strncpy(pStringBuffer, pOpenInfo->filePath, stringBufferSize);
 #else
     Strncpy(pStringBuffer, pOpenInfo->pFilePath, stringBufferSize);
 #endif
     Strncat(pStringBuffer, stringBufferSize, "/");
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 639
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 641
     Strncat(pStringBuffer, stringBufferSize, pOpenInfo->fileName);
 #else
     Strncat(pStringBuffer, stringBufferSize, pOpenInfo->pFileName);
@@ -215,7 +215,7 @@ static Result CreateDir(
     const char *pPathName)
 {
     Result result = Result::Success;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 639
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 641
     char dirName[MaxPathLength];
 #else
     char dirName[PathBufferLen];
@@ -255,7 +255,7 @@ static Result CreateFileInternal(
     PAL_ASSERT(pFileName != nullptr);
     PAL_ASSERT(pOpenInfo != nullptr);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 639
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 641
     Result result = CreateDir(pOpenInfo->filePath);
 #else
     Result result = CreateDir(pOpenInfo->pFilePath);
@@ -1171,7 +1171,7 @@ Result OpenArchiveFile(
     }
 
     int32  hFile = InvalidFd;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 639
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 641
     char   stringBuffer[MaxPathLength + MaxFilenameLength + 1] = {};
 #else
     char   stringBuffer[PathBufferLen] = {};
@@ -1266,7 +1266,7 @@ Result CreateArchiveFile(
 
     if (pOpenInfo != nullptr)
     {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 639
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 641
         char stringBuffer[MaxPathLength + MaxFilenameLength + 1] = {};
 #else
         char stringBuffer[PathBufferLen] = {};
@@ -1289,7 +1289,7 @@ Result DeleteArchiveFile(
 
     if (pOpenInfo != nullptr)
     {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 639
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 641
         char stringBuffer[MaxPathLength + MaxFilenameLength + 1] = {};
 #else
         char stringBuffer[PathBufferLen] = {};
