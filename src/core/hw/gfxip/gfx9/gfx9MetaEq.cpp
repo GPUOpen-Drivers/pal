@@ -682,7 +682,7 @@ void MetaDataAddrEquation::GenerateMetaEqParamConst(
     const Pal::Device*     pDevice     = pParent->GetDevice();
     const Gfx9PalSettings& settings    = GetGfx9Settings(*pDevice);
 
-    const bool optimizedFastClearDepth = ((pParent->IsDepthStencil()) &&
+    const bool optimizedFastClearDepth = ((pParent->IsDepthStencilTarget()) &&
                                           TestAnyFlagSet(settings.optimizedFastClear,
                                                          Gfx9OptimizedFastClearDepth));
     const bool optimizedFastClearDcc   = ((pParent->IsRenderTarget()) &&

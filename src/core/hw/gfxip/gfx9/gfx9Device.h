@@ -373,10 +373,12 @@ public:
     virtual Result SetSamplePatternPalette(const SamplePatternPalette& palette) override;
     void GetSamplePatternPalette(SamplePatternPalette* pSamplePatternPalette);
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 638
     virtual uint32 GetValidFormatFeatureFlags(
         const ChNumFormat format,
         const ImageAspect aspect,
         const ImageTiling tiling) const override;
+#endif
 
     virtual Result InitAddrLibCreateInput(
         ADDR_CREATE_FLAGS*   pCreateFlags,
@@ -585,6 +587,8 @@ public:
         uint32        srcCacheMask,
         uint32        dstCacheMask,
         const IImage* pImage) const;
+
+    bool UseStateShadowing(EngineType engineType) const;
 
 #if DEBUG
     uint32* TemporarilyHangTheGpu(EngineType engineType, uint32 number, uint32* pCmdSpace) const override;

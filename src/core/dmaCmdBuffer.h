@@ -325,6 +325,8 @@ protected:
 
     virtual gpusize GetSubresourceBaseAddr(const Image& image, const SubresId& subresource) const = 0;
 
+    virtual uint32 GetLinearRowPitchAlignment(uint32 bytesPerPixel) const = 0;
+
     virtual void P2pBltWaCopyNextRegion(gpusize chunkAddr) override
         { CmdBuffer::P2pBltWaCopyNextRegion(&m_cmdStream, chunkAddr); }
 

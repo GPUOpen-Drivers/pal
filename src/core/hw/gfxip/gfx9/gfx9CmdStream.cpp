@@ -1158,5 +1158,16 @@ void CmdStream::IssueHotRegisterReport(
 }
 #endif
 
+// =====================================================================================================================
+// Allows the caller to temporarily disable the PM4 optimizer if some PM4 must be written.
+void CmdStream::TempSetPm4OptimizerMode(
+    bool isEnabled)
+{
+    if (m_pPm4Optimizer != nullptr)
+    {
+        m_pPm4Optimizer->TempSetPm4OptimizerMode(isEnabled);
+    }
+}
+
 } // Gfx9
 } // Pal

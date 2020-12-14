@@ -117,13 +117,8 @@ function(amd_target_options name)
 
         target_compile_options(${name}
             PRIVATE
-                # Specify the use of C++ Standard volatile, not the MS extension
-                # We enable warning C4746 too.
-                # See: https://docs.microsoft.com/en-us/cpp/build/reference/volatile-volatile-keyword-interpretation?view=vs-2019
                 /volatile:iso
 
-                # MSVC does not report the correct value for __cplusplus for legacy reasons
-                # This does not change the langauge standard, just makes the behavior standard
                 /Zc:__cplusplus
         )
 

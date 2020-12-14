@@ -1053,11 +1053,13 @@ public:
         PerSourceFrameMetadataControl* pFrameMetadataControl) const override
         { return m_pNextLayer->PollFullScreenFrameMetadataControl(vidPnSrcId, pFrameMetadataControl); }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 638
     virtual uint32 GetValidFormatFeatureFlags(
         const ChNumFormat format,
         const ImageAspect aspect,
         const ImageTiling tiling) const override
         { return m_pNextLayer->GetValidFormatFeatureFlags(format, aspect, tiling); }
+#endif
 
     virtual Result FlglQueryState(
        Pal::FlglState* pState) override

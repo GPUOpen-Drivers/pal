@@ -29,18 +29,18 @@ include(CheckCXXCompilerFlag)
 pal_include_guard(PalCompilerWarnings)
 
 # If the current compiler supports the flag, add it.
-function(add_flag_if_exists flag cachevarname)
+function(add_flag_if_exists TARGET flag cachevarname)
     # GCC emits no diagnostics on warning suppressions
     # So enable the warning for the feature check instead
     string(REGEX REPLACE "^-Wno-" "-W" testflag "${flag}")
     check_cxx_compiler_flag("${testflag}" ${cachevarname})
     if(${cachevarname})
-        target_compile_options(pal PRIVATE "${flag}")
+      target_compile_options(${TARGET} PRIVATE "${flag}")
     endif()
 endfunction()
 
-function(pal_compiler_warnings_gnu_or_clang)
-    target_compile_options(pal
+function(pal_compiler_warnings_gnu_or_clang TARGET)
+    target_compile_options(${TARGET}
     PRIVATE
         # This turns off a lot of warnings related to unused code
         # With PAL's heavy use of ifdefs, code will often go unused in some configurations
@@ -78,10 +78,10 @@ function(pal_compiler_warnings_gnu_or_clang)
         -fms-extensions
     )
     # Don't complain on asserts, we want to keep them
-    add_flag_if_exists(-Wno-tautological-compare HAS_WARN_TAUTOLOGICAL)
+    add_flag_if_exists(${TARGET} -Wno-tautological-compare HAS_WARN_TAUTOLOGICAL)
     # Only has false positives for computing dword sizes
-    add_flag_if_exists(-Wno-sizeof-array-div HAS_WARN_SIZEOF_DIV)
+    add_flag_if_exists(${TARGET} -Wno-sizeof-array-div HAS_WARN_SIZEOF_DIV)
     # Don't warn on double parentheses in ifs, this is PAL's coding style
-    add_flag_if_exists(-Wno-parentheses-equality HAS_WARN_PARENS)
+    add_flag_if_exists(${TARGET} -Wno-parentheses-equality HAS_WARN_PARENS)
 endfunction()
 

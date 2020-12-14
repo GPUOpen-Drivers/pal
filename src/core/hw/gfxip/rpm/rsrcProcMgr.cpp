@@ -54,8 +54,14 @@ using namespace Util;
 namespace Pal
 {
 
-static void PreComputeColorClearSync(ICmdBuffer* pCmdBuffer);
-static void PostComputeColorClearSync(ICmdBuffer* pCmdBuffer);
+static void PreComputeColorClearSync(ICmdBuffer* pCmdBuffer,
+                                     const IImage*      pImage,
+                                     const SubresRange& subres,
+                                     ImageLayout        layout);
+static void PostComputeColorClearSync(ICmdBuffer* pCmdBuffer,
+                                      const IImage*      pImage,
+                                      const SubresRange& subres,
+                                      ImageLayout        layout);
 
 // =====================================================================================================================
 // Note that this constructor is invoked before settings have been committed.
@@ -270,6 +276,10 @@ void RsrcProcMgr::CopyMemoryCs(
     // Save current command buffer state.
     pCmdBuffer->CmdSaveComputeState(ComputeStatePipelineAndUserData);
 
+    // Local to local copy prefers wide format copy for better performance. Copy to/from nonlocal heap
+    // with wide format may result in worse performance.
+    const bool preferWideFormatCopy = (srcGpuMemory.IsLocalPreferred() && dstGpuMemory.IsLocalPreferred());
+
     // Now begin processing the list of copy regions.
     for (uint32 idx = 0; idx < regionCount; ++idx)
     {
@@ -317,7 +327,8 @@ void RsrcProcMgr::CopyMemoryCs(
             uint32 numThreadGroups           = 0;
 
             constexpr uint32 DqwordSize = 4 * sizeof(uint32);
-            if (IsPow2Aligned(srcOffset + copyOffset, DqwordSize) &&
+            if (preferWideFormatCopy &&
+                IsPow2Aligned(srcOffset + copyOffset, DqwordSize) &&
                 IsPow2Aligned(dstOffset + copyOffset, DqwordSize) &&
                 IsPow2Aligned(copySectionSize, DqwordSize))
             {
@@ -373,7 +384,8 @@ ImageCopyEngine RsrcProcMgr::GetImageToImageCopyEngine(
     const ImageType  srcImageType = srcInfo.imageType;
     const ImageType  dstImageType = dstInfo.imageType;
 
-    const bool bothColor    = ((srcImage.IsDepthStencil() == false) && (dstImage.IsDepthStencil() == false) &&
+    const bool bothColor    = ((srcImage.IsDepthStencilTarget() == false) &&
+                               (dstImage.IsDepthStencilTarget() == false) &&
                                (Formats::IsDepthStencilOnly(srcInfo.swizzledFormat.format) == false) &&
                                (Formats::IsDepthStencilOnly(dstInfo.swizzledFormat.format) == false));
     const bool isCompressed = (Formats::IsBlockCompressed(srcInfo.swizzledFormat.format) ||
@@ -394,7 +406,7 @@ ImageCopyEngine RsrcProcMgr::GetImageToImageCopyEngine(
     // single-sampled non-compressed, non-YUV , non-MacroPixelPackedRgbOnly 2D or 2D color images for now.
     if ((Image::PreferGraphicsCopy && pCmdBuffer->IsGraphicsSupported()) &&
         (p2pBltWa == false) &&
-        (dstImage.IsDepthStencil() ||
+        (dstImage.IsDepthStencilTarget() ||
          ((srcImageType != ImageType::Tex1d)   &&
           (dstImageType != ImageType::Tex1d)   &&
           (dstInfo.samples == 1)               &&
@@ -441,7 +453,7 @@ void RsrcProcMgr::CmdCopyImage(
 
     if (copyEngine == ImageCopyEngine::Graphics)
     {
-        if (dstImage.IsDepthStencil())
+        if (dstImage.IsDepthStencilTarget())
         {
             CopyDepthStencilImageGraphics(pCmdBuffer,
                                           srcImage,
@@ -1187,7 +1199,7 @@ void RsrcProcMgr::CopyImageCompute(
     if (pSrcGfxImage->HasFmaskData() && (isEqaaSrc == false))
     {
         PAL_ASSERT(srcCreateInfo.fragments > 1);
-        PAL_ASSERT((srcImage.IsDepthStencil() == false) && (dstImage.IsDepthStencil() == false));
+        PAL_ASSERT((srcImage.IsDepthStencilTarget() == false) && (dstImage.IsDepthStencilTarget() == false));
 
         // Optimized image copies require a call to HwlFixupCopyDstImageMetaData...
         // Verify that any "update" operation performed is legal for the source and dest images.
@@ -1770,7 +1782,7 @@ void RsrcProcMgr::CmdCopyImageToMemory(
         }
         if (pGfxImage->HasFmaskData() && (isEqaaSrc == false))
         {
-            PAL_ASSERT((srcImage.IsDepthStencil() == false) && (createInfo.fragments > 1));
+            PAL_ASSERT((srcImage.IsDepthStencilTarget() == false) && (createInfo.fragments > 1));
             pPipeline = GetPipeline(RpmComputePipeline::MsaaFmaskCopyImgToMem);
             isFmaskCopy = true;
         }
@@ -1968,7 +1980,8 @@ void RsrcProcMgr::CopyBetweenMemoryAndImage(
             // and the compression state check above (i.e., IsFormatReplaceable()) returns false, the
             // format is still replaced but a corruption may occur. The corruption can occur if the format
             // replacement results in a change in the color channel width and the resource is compressed.
-            // Cover this with an assert for now.
+            // This should not trigger because DoesImageSupportCopyCompression() limits the LayoutCopyDst
+            // compressed usage in InitLayoutStateMasks().
             PAL_ASSERT(image.GetGfxImage()->IsFormatReplaceable(copyRegion.imageSubres, imageLayout, isImageDst)
                        == true);
         }
@@ -3315,7 +3328,7 @@ void RsrcProcMgr::ScaledCopyImageCompute(
     }
     else
     {
-        const bool isDepth = (pSrcImage->IsDepthStencil() || pDstImage->IsDepthStencil());
+        const bool isDepth = (pSrcImage->IsDepthStencilTarget() || pDstImage->IsDepthStencilTarget());
         if ((srcInfo.samples > 1) && (isDepth == false))
         {
             // EQAA images or MSAA images with FMask disabled are unsupported for scaled copy. There is no use case for
@@ -4496,9 +4509,11 @@ void RsrcProcMgr::CmdClearColorImage(
             {
                 if (needPreComputeSync)
                 {
-                    PreComputeColorClearSync(pCmdBuffer);
+                    PreComputeColorClearSync(pCmdBuffer,
+                                             &dstImage,
+                                             pRanges[rangeIdx],
+                                             dstImageLayout);
 
-                    needPreComputeSync  = false;
                     needPostComputeSync = true;
                 }
 
@@ -4534,9 +4549,11 @@ void RsrcProcMgr::CmdClearColorImage(
             {
                 if (needPreComputeSync)
                 {
-                    PreComputeColorClearSync(pCmdBuffer);
+                    PreComputeColorClearSync(pCmdBuffer,
+                                             &dstImage,
+                                             pRanges[rangeIdx],
+                                             dstImageLayout);
 
-                    needPreComputeSync  = false;
                     needPostComputeSync = true;
                 }
 
@@ -4551,11 +4568,16 @@ void RsrcProcMgr::CmdClearColorImage(
                                  pBoxes);
             }
         }
-    }
 
-    if (needPostComputeSync)
-    {
-        PostComputeColorClearSync(pCmdBuffer);
+        if (needPostComputeSync)
+        {
+            PostComputeColorClearSync(pCmdBuffer,
+                                      &dstImage,
+                                      pRanges[rangeIdx],
+                                      dstImageLayout);
+
+            needPostComputeSync = false;
+        }
     }
 }
 
@@ -6489,7 +6511,7 @@ bool RsrcProcMgr::ExpandDepthStencil(
     const SubresRange&   range
     ) const
 {
-    PAL_ASSERT(image.IsDepthStencil());
+    PAL_ASSERT(image.IsDepthStencilTarget());
     PAL_ASSERT(pCmdBuffer->IsGraphicsSupported());
     // Don't expect GFX Blts on Nested unless targets not inherited.
     PAL_ASSERT((pCmdBuffer->IsNested() == false) || (static_cast<UniversalCmdBuffer*>(
@@ -6637,7 +6659,7 @@ void RsrcProcMgr::ResummarizeDepthStencil(
     const SubresRange&   range
     ) const
 {
-    PAL_ASSERT(image.IsDepthStencil());
+    PAL_ASSERT(image.IsDepthStencilTarget());
     PAL_ASSERT(pCmdBuffer->IsGraphicsSupported());
     // Don't expect GFX Blts on Nested unless targets not inherited.
     PAL_ASSERT((pCmdBuffer->IsNested() == false) || (static_cast<UniversalCmdBuffer*>(
@@ -7184,7 +7206,7 @@ void RsrcProcMgr::ResolveImageDepthStencilCopy(
     const ImageResolveRegion* pRegions,
     uint32                    flags) const
 {
-    PAL_ASSERT(srcImage.IsDepthStencil() && dstImage.IsDepthStencil());
+    PAL_ASSERT(srcImage.IsDepthStencilTarget() && dstImage.IsDepthStencilTarget());
     PAL_ASSERT(pCmdBuffer->IsGraphicsSupported());
     // Don't expect GFX Blts on Nested unless targets not inherited.
     PAL_ASSERT((pCmdBuffer->IsNested() == false) || (static_cast<UniversalCmdBuffer*>(
@@ -7652,21 +7674,29 @@ gpusize RsrcProcMgr::ComputeTypedBufferRange(
 // Inserts barrier needed before issuing a compute clear when the target image is currently bound as a color target.
 // Only necessary when the client specifies the ColorClearAutoSync flag for a color clear.
 static void PreComputeColorClearSync(
-    ICmdBuffer* pCmdBuffer)
+    ICmdBuffer*        pCmdBuffer,
+    const IImage*      pImage,
+    const SubresRange& subres,
+    ImageLayout        layout)
 {
-    BarrierInfo preBarrier        = { };
-    preBarrier.waitPoint          = HwPipePreCs;
+    BarrierInfo preBarrier           = { };
+    preBarrier.waitPoint             = HwPipePreCs;
 
-    constexpr HwPipePoint Eop     = HwPipeBottom;
-    preBarrier.pipePointWaitCount = 1;
-    preBarrier.pPipePoints        = &Eop;
+    constexpr HwPipePoint Eop        = HwPipeBottom;
+    preBarrier.pipePointWaitCount    = 1;
+    preBarrier.pPipePoints           = &Eop;
 
-    BarrierTransition transition  = { };
-    transition.srcCacheMask       = CoherColorTarget;
-    transition.dstCacheMask       = CoherShader;
-    preBarrier.transitionCount    = 1;
-    preBarrier.pTransitions       = &transition;
-    preBarrier.reason             = Developer::BarrierReasonPreComputeColorClear;
+    BarrierTransition transition     = { };
+    transition.srcCacheMask          = CoherColorTarget;
+    transition.dstCacheMask          = CoherShader;
+    transition.imageInfo.pImage      = pImage;
+    transition.imageInfo.subresRange = subres;
+    transition.imageInfo.oldLayout   = layout;
+    transition.imageInfo.newLayout   = layout;
+
+    preBarrier.transitionCount       = 1;
+    preBarrier.pTransitions          = &transition;
+    preBarrier.reason                = Developer::BarrierReasonPreComputeColorClear;
 
     pCmdBuffer->CmdBarrier(preBarrier);
 }
@@ -7675,25 +7705,33 @@ static void PreComputeColorClearSync(
 // Inserts barrier needed after issuing a compute clear when the target image will be immediately re-bound as a
 // color target.  Only necessary when the client specifies the ColorClearAutoSync flag for a color clear.
 static void PostComputeColorClearSync(
-    ICmdBuffer* pCmdBuffer)
+    ICmdBuffer*        pCmdBuffer,
+    const IImage*      pImage,
+    const SubresRange& subres,
+    ImageLayout        layout)
 {
-    BarrierInfo postBarrier        = { };
+    BarrierInfo postBarrier          = { };
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 577
-    postBarrier.waitPoint          = HwPipePreRasterization;
+    postBarrier.waitPoint            = HwPipePreRasterization;
 #else
-    postBarrier.waitPoint          = HwPipePreColorTarget;
+    postBarrier.waitPoint            = HwPipePreColorTarget;
 #endif
 
-    constexpr HwPipePoint PostCs   = HwPipePostCs;
-    postBarrier.pipePointWaitCount = 1;
-    postBarrier.pPipePoints        = &PostCs;
+    constexpr HwPipePoint PostCs     = HwPipePostCs;
+    postBarrier.pipePointWaitCount   = 1;
+    postBarrier.pPipePoints          = &PostCs;
 
-    BarrierTransition transition   = { };
-    transition.srcCacheMask        = CoherShader;
-    transition.dstCacheMask        = CoherColorTarget;
-    postBarrier.transitionCount    = 1;
-    postBarrier.pTransitions       = &transition;
-    postBarrier.reason             = Developer::BarrierReasonPostComputeColorClear;
+    BarrierTransition transition     = { };
+    transition.srcCacheMask          = CoherShader;
+    transition.dstCacheMask          = CoherColorTarget;
+    transition.imageInfo.pImage      = pImage;
+    transition.imageInfo.subresRange = subres;
+    transition.imageInfo.oldLayout   = layout;
+    transition.imageInfo.newLayout   = layout;
+
+    postBarrier.transitionCount      = 1;
+    postBarrier.pTransitions         = &transition;
+    postBarrier.reason               = Developer::BarrierReasonPostComputeColorClear;
 
     pCmdBuffer->CmdBarrier(postBarrier);
 }
@@ -7734,21 +7772,31 @@ void PreComputeDepthStencilClearSync(
 // Inserts barrier needed after issuing a compute clear when the target image will be immediately re-bound as a
 // depth/stencil target.  Only necessary when the client specifies the DsClearAutoSync flag for a depth/stencil clear.
 void PostComputeDepthStencilClearSync(
-    ICmdBuffer* pCmdBuffer)
+    ICmdBuffer*        pCmdBuffer,
+    const GfxImage&    gfxImage,
+    const SubresRange& subres,
+    ImageLayout        layout)
 {
-    BarrierInfo postBarrier        = { };
-    postBarrier.waitPoint          = HwPipePreRasterization;
+    BarrierInfo postBarrier                = { };
+    postBarrier.waitPoint                  = HwPipePreRasterization;
 
-    constexpr HwPipePoint PostCs   = HwPipePostCs;
-    postBarrier.pipePointWaitCount = 1;
-    postBarrier.pPipePoints        = &PostCs;
+    const IImage* pImage                   = gfxImage.Parent();
 
-    BarrierTransition transition   = { };
-    transition.srcCacheMask        = CoherShader;
-    transition.dstCacheMask        = CoherDepthStencilTarget;
-    postBarrier.transitionCount    = 1;
-    postBarrier.pTransitions       = &transition;
-    postBarrier.reason             = Developer::BarrierReasonPostComputeDepthStencilClear;
+    constexpr HwPipePoint PostCs           = HwPipePostCs;
+    postBarrier.pipePointWaitCount         = 1;
+    postBarrier.pPipePoints                = &PostCs;
+
+    BarrierTransition transition           = { };
+    transition.srcCacheMask                = CoherShader;
+    transition.dstCacheMask                = CoherDepthStencilTarget;
+    transition.imageInfo.pImage            = pImage;
+    transition.imageInfo.subresRange       = subres;
+    transition.imageInfo.oldLayout         = layout;
+    transition.imageInfo.newLayout         = layout;
+
+    postBarrier.transitionCount            = 1;
+    postBarrier.pTransitions               = &transition;
+    postBarrier.reason                     = Developer::BarrierReasonPostComputeDepthStencilClear;
 
     pCmdBuffer->CmdBarrier(postBarrier);
 }

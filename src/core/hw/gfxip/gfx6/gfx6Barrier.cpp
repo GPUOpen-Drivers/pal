@@ -155,7 +155,7 @@ void Device::TransitionDepthStencil(
         uint32      blt[MaxImageMipLevels] = {};
         bool        issuedBlt              = GetDepthStencilBltPerSubres(pCmdBuf, blt, transition, earlyPhase);
 
-        PAL_ASSERT(image.IsDepthStencil());
+        PAL_ASSERT(image.IsDepthStencilTarget());
 
         const SubresRange& inputRange  = transition.imageInfo.subresRange;
         SubresRange        subresRange = inputRange;
@@ -384,7 +384,7 @@ void Device::ExpandColor(
     bool               postExpandFlush        = false;
     uint32             blt[MaxImageMipLevels] = {};
     const uint32       allBltOperations       = GetColorBltPerSubres(pCmdBuf, blt, transition, earlyPhase);
-    PAL_ASSERT(image.IsDepthStencil() == false);
+    PAL_ASSERT(image.IsDepthStencilTarget() == false);
 
     const uint32 srcCacheMask = (barrier.globalSrcCacheMask | transition.srcCacheMask);
     const uint32 dstCacheMask = (barrier.globalDstCacheMask | transition.dstCacheMask);
@@ -1052,7 +1052,7 @@ void Device::Barrier(
                 {
                     const auto& image = static_cast<const Pal::Image&>(*imageInfo.pImage);
 
-                    if (image.IsDepthStencil())
+                    if (image.IsDepthStencilTarget())
                     {
                         TransitionDepthStencil(pCmdBuf, cmdBufState, barrier, i, true, &globalSyncReqs, &barrierOps);
                     }
@@ -1461,7 +1461,7 @@ void Device::Barrier(
 
                     SyncReqs imageSyncReqs = { };
 
-                    if (image.IsDepthStencil())
+                    if (image.IsDepthStencilTarget())
                     {
                         // Issue a late-phase DB decompress, if necessary.
                         TransitionDepthStencil(pCmdBuf, cmdBufState, barrier, i, false, &imageSyncReqs, &barrierOps);

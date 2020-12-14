@@ -728,8 +728,26 @@ void LogContext::Struct(
         Value("p2pCmd");
     }
 
+    if (value.captureBegin)
+    {
+        Value("captureBegin");
+    }
+
+    if (value.captureEnd)
+    {
+        Value("captureEnd");
+    }
+
     EndList();
     KeyAndObject("primaryMemory", value.pPrimaryMemory);
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 640
+    if (value.captureBegin || value.captureEnd)
+    {
+        KeyAndObject("directCaptureMemory", value.pDirectCapMemory);
+    }
+#endif
+
     EndMap();
 }
 // =====================================================================================================================
@@ -930,6 +948,16 @@ void LogContext::Struct(
 
 // =====================================================================================================================
 void LogContext::Struct(
+    const DirectCaptureInfo& value)
+{
+    BeginMap(false);
+    KeyAndValue("gpuVirtAddr", value.gpuVirtAddr);
+    KeyAndValue("vidPnSourceId", value.vidPnSourceId);
+    EndMap();
+}
+
+// =====================================================================================================================
+void LogContext::Struct(
     const DoppDesktopInfo& value)
 {
     BeginMap(false);
@@ -1047,7 +1075,18 @@ void LogContext::Struct(
     const ExternalResourceOpenInfo& value)
 {
     BeginMap(false);
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 640
+    if (value.flags.isDopp)
+    {
+        KeyAndStruct("doppDesktopInfo", value.doppDesktopInfo);
+    }
+    else if (value.flags.isDirectCapture)
+    {
+        KeyAndStruct("directCaptureInfo", value.directCaptureInfo);
+    }
+#else
     KeyAndStruct("doppDesktopInfo", value.doppDesktopInfo);
+#endif
     EndMap();
 }
 

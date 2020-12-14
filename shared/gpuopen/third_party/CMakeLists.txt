@@ -67,7 +67,7 @@ endfunction()
 #       dd_third_party_add_lib(TARGET mpack)
 #
 #   Advanced Usage:
-#       dd_third_party_add_lib(TARGET mpack DIRECTORY git-submodules/mpack)
+#       dd_third_party_add_lib(TARGET mpack DIRECTORY submodules/mpack)
 #
 function(dd_third_party_add_lib)
 

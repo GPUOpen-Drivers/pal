@@ -1071,7 +1071,7 @@ void RsrcProcMgr::HwlFixupCopyDstImageMetaData(
     PAL_ASSERT(dstImage.GetImageCreateInfo().flags.fullCopyDstOnly != 0);
 
     // Copy to depth should go through gfx path but not here.
-    PAL_ASSERT(gfx6DstImage.Parent()->IsDepthStencil() == false);
+    PAL_ASSERT(gfx6DstImage.Parent()->IsDepthStencilTarget() == false);
 
     // If image is created with fullCopyDstOnly=1, there will be no expand when transition to "LayoutCopyDst"; since
     // gfx6/7/8 doesn't support compressed compute copy, need fix up dst metadata to uncompressed state. Otherwise if
@@ -1202,7 +1202,7 @@ void RsrcProcMgr::HwlHtileCopyAndFixUp(
     const ImageResolveRegion* pRegions,
     bool                      computeResolve) const
 {
-    PAL_ASSERT(srcImage.IsDepthStencil() && dstImage.IsDepthStencil());
+    PAL_ASSERT(srcImage.IsDepthStencilTarget() && dstImage.IsDepthStencilTarget());
 
     const Gfx6::Image& gfx6SrcImage = static_cast<const Gfx6::Image&>(*srcImage.GetGfxImage());
     const Gfx6::Image& gfx6DstImage = static_cast<const Gfx6::Image&>(*dstImage.GetGfxImage());
@@ -1524,7 +1524,7 @@ void RsrcProcMgr::HwlDepthStencilClear(
     bool needPreComputeSync  = needComputeSync;
     bool needPostComputeSync = false;
 
-    if (gfx6Image.Parent()->IsDepthStencil() &&
+    if (gfx6Image.Parent()->IsDepthStencilTarget() &&
        (fastClear || (pCmdBuffer->GetEngineType() == EngineTypeUniversal)))
     {
         // This code path is for:
@@ -1688,7 +1688,6 @@ void RsrcProcMgr::HwlDepthStencilClear(
                                                             pRanges[idx],
                                                             isDepth ? depthLayout : stencilLayout);
 
-                            needPreComputeSync  = false;
                             needPostComputeSync = true;
                         }
 
@@ -1708,6 +1707,17 @@ void RsrcProcMgr::HwlDepthStencilClear(
                                                          metaDataClearFlags,
                                                          depth,
                                                          stencil);
+                    }
+
+                    if (needPostComputeSync)
+                    {
+                        const ImageAspect aspect  = pRanges[idx].startSubres.aspect;
+                        const bool        isDepth = (aspect == ImageAspect::Depth);
+                        PostComputeDepthStencilClearSync(pCmdBuffer,
+                                                         gfx6Image,
+                                                         pRanges[idx],
+                                                         isDepth ? depthLayout : stencilLayout);
+                        needPostComputeSync = false;
                     }
                 }
 
@@ -1773,7 +1783,6 @@ void RsrcProcMgr::HwlDepthStencilClear(
                                                 pRanges[idx],
                                                 isDepth ? depthLayout : stencilLayout);
 
-                needPreComputeSync  = false;
                 needPostComputeSync = true;
             }
 
@@ -1785,12 +1794,16 @@ void RsrcProcMgr::HwlDepthStencilClear(
                              pRanges[idx],
                              boxCnt,
                              pBox);
-        }
-    }
 
-    if (needPostComputeSync)
-    {
-        PostComputeDepthStencilClearSync(pCmdBuffer);
+            if (needPostComputeSync)
+            {
+                PostComputeDepthStencilClearSync(pCmdBuffer,
+                                                 gfx6Image,
+                                                 pRanges[idx],
+                                                 isDepth ? depthLayout : stencilLayout);
+                needPostComputeSync = false;
+            }
+        }
     }
 }
 
@@ -2377,7 +2390,7 @@ void RsrcProcMgr::DepthStencilClearGraphics(
     const Box*         pBox
     ) const
 {
-    PAL_ASSERT(dstImage.Parent()->IsDepthStencil());
+    PAL_ASSERT(dstImage.Parent()->IsDepthStencilTarget());
     PAL_ASSERT((fastClear == false) || dstImage.IsFastDepthStencilClearSupported(depthLayout,
                                                                                  stencilLayout,
                                                                                  depth,

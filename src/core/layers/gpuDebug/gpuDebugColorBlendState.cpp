@@ -25,6 +25,7 @@
 
 #if PAL_BUILD_GPU_DEBUG
 
+#include "core/layers/gpuDebug/gpuDebugColorBlendState.h"
 #include "core/layers/gpuDebug/gpuDebugDevice.h"
 #include "core/layers/gpuDebug/gpuDebugImage.h"
 
@@ -34,30 +35,15 @@ namespace GpuDebug
 {
 
 // =====================================================================================================================
-Image::Image(
-    IImage*        pNextImage,
-    SwizzledFormat format,
-    Device*        pDevice)
+ColorBlendState::ColorBlendState(
+    IColorBlendState*                pNextState,
+    const ColorBlendStateCreateInfo& createInfo,
+    const Device*                    pDevice)
     :
-    ImageDecorator(pNextImage, pDevice),
-    m_pBoundMemObj(nullptr),
-    m_boundMemOffset(0),
-    m_format(format)
+    ColorBlendStateDecorator(pNextState, pDevice),
+    m_pDevice(pDevice),
+    m_createInfo(createInfo)
 {
-}
-
-// =====================================================================================================================
-Image::~Image()
-{
-}
-
-// =====================================================================================================================
-Result Image::BindGpuMemory(
-    IGpuMemory* pGpuMemory,
-    gpusize     offset)
-{
-    SetBoundGpuMemory(pGpuMemory, offset);
-    return m_pNextLayer->BindGpuMemory(NextGpuMemory(pGpuMemory), offset);
 }
 
 } // GpuDebug

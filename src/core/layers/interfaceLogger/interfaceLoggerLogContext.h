@@ -473,6 +473,7 @@ public:
     void Struct(const DepthStencilStateCreateInfo& value);
     void Struct(const DepthStencilViewCreateInfo& value);
     void Struct(const DeviceFinalizeInfo& value);
+    void Struct(const DirectCaptureInfo& value);
 
     void Struct(const DoppDesktopInfo& value);
     void Struct(const DoppRef& value);

@@ -924,10 +924,16 @@ Result PipelineAbiProcessor<Allocator>::Finalize(
         Elf::NoteProcessor<Allocator> noteProcessor(m_pNoteSection, m_pAllocator);
 
         result = noteProcessor.Init();
+
+        MsgPackWriter codeObjectMetadataWriter(m_pAllocator);
+
         if (result == Result::Success)
         {
-            MsgPackWriter codeObjectMetadataWriter(m_pAllocator);
-            codeObjectMetadataWriter.Reserve(pipelineMetadataWriter.GetSize());
+            result = codeObjectMetadataWriter.Reserve(pipelineMetadataWriter.GetSize());
+        }
+
+        if (result == Result::Success)
+        {
             codeObjectMetadataWriter.DeclareMap(2);
 
             codeObjectMetadataWriter.Pack(PalCodeObjectMetadataKey::Version);
@@ -938,15 +944,15 @@ Result PipelineAbiProcessor<Allocator>::Finalize(
             codeObjectMetadataWriter.DeclareArray(1);
             codeObjectMetadataWriter.DeclareMap(pipelineMetadataWriter.NumItems() / 2);
             result = codeObjectMetadataWriter.Append(pipelineMetadataWriter);
+        }
 
-            if ((result == Result::Success) &&
-                (noteProcessor.Add(MetadataNoteType,
-                                   AmdGpuArchName,
-                                   codeObjectMetadataWriter.GetBuffer(),
-                                   codeObjectMetadataWriter.GetSize()) == UINT_MAX))
-            {
-                result = Result::ErrorOutOfMemory;
-            }
+        if ((result == Result::Success) &&
+            (noteProcessor.Add(MetadataNoteType,
+                                AmdGpuArchName,
+                                codeObjectMetadataWriter.GetBuffer(),
+                                codeObjectMetadataWriter.GetSize()) == UINT_MAX))
+        {
+            result = Result::ErrorOutOfMemory;
         }
     }
 

@@ -26,8 +26,11 @@
 #if PAL_BUILD_GPU_DEBUG
 
 #include "core/layers/gpuDebug/gpuDebugCmdBuffer.h"
+#include "core/layers/gpuDebug/gpuDebugColorBlendState.h"
+#include "core/layers/gpuDebug/gpuDebugColorTargetView.h"
 #include "core/layers/gpuDebug/gpuDebugDevice.h"
 #include "core/layers/gpuDebug/gpuDebugImage.h"
+#include "core/layers/gpuDebug/gpuDebugPipeline.h"
 #include "core/layers/gpuDebug/gpuDebugPlatform.h"
 #include "core/layers/gpuDebug/gpuDebugQueue.h"
 #include "palSysUtil.h"
@@ -194,6 +197,40 @@ Result Device::CreateTargetCmdBuffer(
 }
 
 // =====================================================================================================================
+size_t Device::GetGraphicsPipelineSize(
+    const GraphicsPipelineCreateInfo& createInfo,
+    Result*                           pResult
+    ) const
+{
+    return m_pNextLayer->GetGraphicsPipelineSize(createInfo, pResult) + sizeof(Pipeline);
+}
+
+// =====================================================================================================================
+Result Device::CreateGraphicsPipeline(
+    const GraphicsPipelineCreateInfo& createInfo,
+    void*                             pPlacementAddr,
+    IPipeline**                       ppPipeline)
+{
+    IPipeline* pNextPipeline = nullptr;
+    Pipeline* pPipeline = nullptr;
+
+    Result result = m_pNextLayer->CreateGraphicsPipeline(createInfo,
+                                                         NextObjectAddr<Pipeline>(pPlacementAddr),
+                                                         &pNextPipeline);
+
+    if (result == Result::Success)
+    {
+        PAL_ASSERT(pNextPipeline != nullptr);
+        pNextPipeline->SetClientData(pPlacementAddr);
+
+        pPipeline = PAL_PLACEMENT_NEW(pPlacementAddr) Pipeline(pNextPipeline, createInfo, this);
+        (*ppPipeline) = pPipeline;
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
 size_t Device::GetQueueSize(
     const QueueCreateInfo& createInfo,
     Result*                pResult
@@ -308,7 +345,7 @@ Result Device::CreateImage(
         PAL_ASSERT(pNextImage != nullptr);
         pNextImage->SetClientData(pPlacementAddr);
 
-        (*ppImage) = PAL_PLACEMENT_NEW(pPlacementAddr) Image(pNextImage, this);
+        (*ppImage) = PAL_PLACEMENT_NEW(pPlacementAddr) Image(pNextImage, createInfo.swizzledFormat, this);
     }
 
     return result;
@@ -361,7 +398,7 @@ Result Device::CreatePresentableImage(
         pNextImage->SetClientData(pImagePlacementAddr);
         pNextGpuMemory->SetClientData(pGpuMemoryPlacementAddr);
 
-        Image* pImage  = PAL_PLACEMENT_NEW(pImagePlacementAddr) Image(pNextImage, this);
+        Image* pImage  = PAL_PLACEMENT_NEW(pImagePlacementAddr) Image(pNextImage, createInfo.swizzledFormat, this);
         (*ppImage)     = pImage;
         (*ppGpuMemory) = PAL_PLACEMENT_NEW(pGpuMemoryPlacementAddr) GpuMemoryDecorator(pNextGpuMemory, this);
 
@@ -415,7 +452,7 @@ Result Device::OpenExternalSharedImage(
         pNextImage->SetClientData(pImagePlacementAddr);
         pNextGpuMemory->SetClientData(pGpuMemoryPlacementAddr);
 
-        Image* pImage  = PAL_PLACEMENT_NEW(pImagePlacementAddr) Image(pNextImage, this);
+        Image* pImage  = PAL_PLACEMENT_NEW(pImagePlacementAddr) Image(pNextImage, openInfo.swizzledFormat, this);
         (*ppImage)     = pImage;
         (*ppGpuMemory) = PAL_PLACEMENT_NEW(pGpuMemoryPlacementAddr) GpuMemoryDecorator(pNextGpuMemory, this);
 
@@ -464,11 +501,87 @@ Result Device::CreatePrivateScreenImage(
     {
         pNextImage->SetClientData(pImagePlacementAddr);
         pNextGpuMemory->SetClientData(pGpuMemoryPlacementAddr);
-        Image* pImage  = PAL_PLACEMENT_NEW(pImagePlacementAddr) Image(pNextImage, this);
+        Image* pImage  = PAL_PLACEMENT_NEW(pImagePlacementAddr) Image(pNextImage, createInfo.swizzledFormat, this);
         (*ppImage)     = pImage;
         (*ppGpuMemory) = PAL_PLACEMENT_NEW(pGpuMemoryPlacementAddr) GpuMemoryDecorator(pNextGpuMemory, this);
 
         pImage->SetBoundGpuMemory(*ppGpuMemory, 0);
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
+size_t Device::GetColorTargetViewSize(
+    Result* pResult
+    ) const
+{
+    return m_pNextLayer->GetColorTargetViewSize(pResult) + sizeof(ColorTargetView);
+}
+
+// =====================================================================================================================
+Result Device::CreateColorTargetView(
+    const ColorTargetViewCreateInfo& createInfo,
+    void*                            pPlacementAddr,
+    IColorTargetView**               ppColorTargetView
+    ) const
+{
+    IColorTargetView* pNextView = nullptr;
+
+    ColorTargetViewCreateInfo nextCreateInfo = createInfo;
+
+    if (createInfo.flags.isBufferView)
+    {
+        nextCreateInfo.bufferInfo.pGpuMemory = NextGpuMemory(createInfo.bufferInfo.pGpuMemory);
+    }
+    else
+    {
+        nextCreateInfo.imageInfo.pImage      = NextImage(createInfo.imageInfo.pImage);
+    }
+
+    Result result = m_pNextLayer->CreateColorTargetView(nextCreateInfo,
+                                                        NextObjectAddr<ColorTargetView>(pPlacementAddr),
+                                                        &pNextView);
+
+    if (result == Result::Success)
+    {
+        PAL_ASSERT(pNextView != nullptr);
+        pNextView->SetClientData(pPlacementAddr);
+
+        (*ppColorTargetView) = PAL_PLACEMENT_NEW(pPlacementAddr) ColorTargetView(pNextView, createInfo, this);
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
+size_t Device::GetColorBlendStateSize(
+    const ColorBlendStateCreateInfo& createInfo,
+    Result*                          pResult
+    ) const
+{
+    return m_pNextLayer->GetColorBlendStateSize(createInfo, pResult) + sizeof(ColorBlendState);
+}
+
+// =====================================================================================================================
+Result Device::CreateColorBlendState(
+    const ColorBlendStateCreateInfo& createInfo,
+    void*                            pPlacementAddr,
+    IColorBlendState**               ppColorBlendState
+    ) const
+{
+    IColorBlendState* pState = nullptr;
+
+    Result result = m_pNextLayer->CreateColorBlendState(createInfo,
+                                                        NextObjectAddr<ColorBlendState>(pPlacementAddr),
+                                                        &pState);
+
+    if (result == Result::Success)
+    {
+        PAL_ASSERT(pState != nullptr);
+        pState->SetClientData(pPlacementAddr);
+
+        (*ppColorBlendState) = PAL_PLACEMENT_NEW(pPlacementAddr) ColorBlendState(pState, createInfo, this);
     }
 
     return result;

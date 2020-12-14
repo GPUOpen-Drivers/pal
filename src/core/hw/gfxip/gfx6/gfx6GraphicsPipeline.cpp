@@ -495,26 +495,28 @@ uint32 GraphicsPipeline::CalcMaxWavesPerSh(
     float maxWavesPerCu
     ) const
 {
+    const auto&  gfx6ChipProps         = m_pDevice->Parent()->ChipProperties().gfx6;
+    const uint32 numWavefrontsPerCu    = gfx6ChipProps.numSimdPerCu * gfx6ChipProps.numWavesPerSimd;
+    constexpr uint32 MaxWavesPerShGraphicsUnitSize = 16u;
+    const uint32 maxWavesPerShGraphics = gfx6ChipProps.maxNumCuPerSh * numWavefrontsPerCu /
+                                         MaxWavesPerShGraphicsUnitSize;
+
+    // We assume no one is trying to use more than 100% of all waves.
+    PAL_ASSERT(maxWavesPerCu <= numWavefrontsPerCu);
+
     // The maximum number of waves per SH in "register units".
-    // By default set the WAVE_LIMIT field to be unlimited.
+    // By default set the WAVE_LIMIT field to maximum (NOT unlimited (0) to avoid incorrect math for limits).
     // Limits given by the ELF will only apply if the caller doesn't set their own limit.
-    uint32 wavesPerSh = 0;
+    uint32 wavesPerSh = maxWavesPerShGraphics;
 
     // If the caller would like to override the default maxWavesPerCu
     if (maxWavesPerCu > 0)
     {
-        const auto&      gfx6ChipProps                 = m_pDevice->Parent()->ChipProperties().gfx6;
-        const uint32     numWavefrontsPerCu            = gfx6ChipProps.numSimdPerCu * gfx6ChipProps.numWavesPerSimd;
-        const uint32     maxWavesPerShGraphics         = gfx6ChipProps.maxNumCuPerSh * numWavefrontsPerCu;
-        constexpr uint32 MaxWavesPerShGraphicsUnitSize = 16u;
-
-        // We assume no one is trying to use more than 100% of all waves.
-        PAL_ASSERT(maxWavesPerCu <= numWavefrontsPerCu);
         const uint32 maxWavesPerSh = static_cast<uint32>(round(maxWavesPerCu * gfx6ChipProps.numCuPerSh));
 
-        // For graphics shaders, the WAVE_LIMIT field is in units of 16 waves and must not exceed 63. We must also clamp
-        // to one if maxWavesPerSh rounded down to zero to prevent the limit from being removed.
-        wavesPerSh = Min(maxWavesPerShGraphics, Max(1u, maxWavesPerSh / MaxWavesPerShGraphicsUnitSize));
+        // For graphics shaders, the WAVE_LIMIT field is in units of 16 waves and must not exceed 63. We must also
+        // clamp to one if maxWavesPerSh rounded down to zero to prevent the limit from being removed.
+        wavesPerSh = Min(wavesPerSh, Max(1u, maxWavesPerSh / MaxWavesPerShGraphicsUnitSize));
     }
 
     return wavesPerSh;

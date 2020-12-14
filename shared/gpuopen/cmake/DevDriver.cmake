@@ -59,9 +59,6 @@ option(
     DD_OPT_UNITY_BUILDS "Optionally build all devdriver CMake targets with unity builds. Can be overwritten with CMAKE_UNITY_BUILD."
     ${DD_OPT_UNITY_BUILDS_DEFAULT})
 
-# Configure compilation options depending on available CPU cores
-include(ProcessorCount)
-
 macro(apply_devdriver_build_flags _target)
 
     set(DD_OPT_CPP_STD "" CACHE STRING "Passed to CMake's CXX_STANDARD to define the C++ standard")
@@ -140,15 +137,10 @@ macro(apply_devdriver_build_flags _target)
 
     elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
 
-        ProcessorCount(CoreCount)
-
         target_compile_options(${_target}
             PRIVATE
                 # Additional static analysis. This can be loud, so we disable some of the warnings this enables
                 $<$<CONFIG:Debug>:/analyze>
-
-                # Be more aggressive with multi-threaded builds
-                /MP${CoreCount}
         )
 
     else()

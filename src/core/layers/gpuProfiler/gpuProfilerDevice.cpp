@@ -245,6 +245,10 @@ Result Device::CreateQueue(
                                                          queueId);
 
         result = pQueue->Init(&createInfo);
+        if (result != Result::Success)
+        {
+            pQueue->Destroy();
+        }
     }
 
     if (result == Result::Success)
@@ -300,6 +304,10 @@ Result Device::CreateMultiQueue(
                                                          masterQueueId);
 
         result = pQueue->Init(pCreateInfo);
+        if (result != Result::Success)
+        {
+            pQueue->Destroy();
+        }
     }
 
     if (result == Result::Success)
@@ -388,6 +396,10 @@ Result Device::CreateTargetCmdBuffer(
 
         pCmdBuffer = PAL_PLACEMENT_NEW(pPlacementAddr) TargetCmdBuffer(createInfo, pNextCmdBuffer, this, subQueueIdx);
         result = pCmdBuffer->Init();
+        if (result != Result::Success)
+        {
+            pCmdBuffer->Destroy();
+        }
     }
 
     if (result == Result::Success)

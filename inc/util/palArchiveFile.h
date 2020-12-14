@@ -61,7 +61,7 @@ static constexpr size_t     FilenameBufferLen = _MAX_FNAME + 1;
 static constexpr size_t     PathBufferLen     = _MAX_PATH + 1;
 #endif
 
-#endif  // PAL_CLIENT_INTERFACE_MAJOR_VERSION
+#endif
 
 /**
 ***********************************************************************************************************************

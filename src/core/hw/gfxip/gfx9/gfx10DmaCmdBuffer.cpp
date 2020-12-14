@@ -1014,6 +1014,7 @@ uint32* DmaCmdBuffer::WriteCopyMemToLinearImageCmd(
     packet.DW_4_UNION.DW_4_DATA = 0;
 
     // Setup the source surface dimensions.
+    ValidateLinearRowPitch(rgn.gpuMemoryRowPitch, rgn.imageExtent.height, dstImage.bytesPerPixel);
     packet.DW_4_UNION.src_pitch       = GetLinearRowPitch(rgn.gpuMemoryRowPitch, dstImage.bytesPerPixel);
     packet.DW_5_UNION.DW_5_DATA       = 0;
     packet.DW_5_UNION.src_slice_pitch = GetLinearDepthPitch(rgn.gpuMemoryDepthPitch, dstImage.bytesPerPixel);
@@ -1103,6 +1104,7 @@ uint32* DmaCmdBuffer::WriteCopyLinearImageToMemCmd(
     packet.DW_9_UNION.DW_9_DATA = 0;
 
     // Setup the destination surface dimensions.
+    ValidateLinearRowPitch(rgn.gpuMemoryRowPitch, rgn.imageExtent.height, srcImage.bytesPerPixel);
     packet.DW_9_UNION.dst_pitch        = GetLinearRowPitch(rgn.gpuMemoryRowPitch, srcImage.bytesPerPixel);
     packet.DW_10_UNION.DW_10_DATA      = 0;
     packet.DW_10_UNION.dst_slice_pitch = GetLinearDepthPitch(rgn.gpuMemoryDepthPitch, srcImage.bytesPerPixel);
@@ -1653,6 +1655,7 @@ uint32* DmaCmdBuffer::CopyImageMemTiledTransform(
     packet.DW_10_UNION.DW_10_DATA = 0;
 
     // Setup the linear surface dimensions.
+    ValidateLinearRowPitch(rgn.gpuMemoryRowPitch, rgn.imageExtent.height, image.bytesPerPixel);
     packet.DW_10_UNION.linear_pitch       = GetLinearRowPitch(rgn.gpuMemoryRowPitch, image.bytesPerPixel);
     packet.DW_11_UNION.DW_11_DATA         = 0;
     packet.DW_11_UNION.linear_slice_pitch = GetLinearDepthPitch(rgn.gpuMemoryDepthPitch, image.bytesPerPixel);
@@ -1718,18 +1721,36 @@ uint32 DmaCmdBuffer::GetLinearRowPitch(
     uint32   bytesPerPixel
     ) const
 {
-    PAL_ASSERT((rowPitchInBytes % bytesPerPixel) == 0);
-
     const uint32  rowPitchInPixels = static_cast<uint32>(rowPitchInBytes / bytesPerPixel);
-
-    //  The alignment restriction of linear pitch is:
-    //    Multiple of 4 for 8bpp
-    //    Multiple of 2 for 16bpp
-    //    Multiple of 1 for 32bpp
-    PAL_ASSERT((rowPitchInPixels % Util::Max(1u, (4 / bytesPerPixel))) == 0);
 
     // The unit of linear pitch ... is pixel number minus 1
     return rowPitchInPixels - 1;
+}
+
+// =====================================================================================================================
+void DmaCmdBuffer::ValidateLinearRowPitch(
+    gpusize  rowPitchInBytes,
+    gpusize  height,
+    uint32   bytesPerPixel
+    ) const
+{
+#if PAL_ENABLE_PRINTS_ASSERTS
+    PAL_ASSERT((rowPitchInBytes % bytesPerPixel) == 0);
+    // If this linear image's height is 1, no need to pad it's pitch to dword as SDMA engine
+    // doesn't need this info to calculate the next row's address.
+    if (height > 1)
+    {
+        const uint32  rowPitchInPixels = static_cast<uint32>(rowPitchInBytes / bytesPerPixel);
+        //  The alignment restriction of linear pitch is:
+        //    Multiple of 4 for 8bpp
+        //    Multiple of 2 for 16bpp
+        //    Multiple of 1 for 32bpp
+        if ((rowPitchInPixels % Util::Max(1u, (4 / bytesPerPixel))) != 0)
+        {
+            PAL_ASSERT_ALWAYS_MSG("Invalid RowPitch of linear image.");
+        }
+    }
+#endif
 }
 
 // =====================================================================================================================
@@ -1796,6 +1817,15 @@ gpusize DmaCmdBuffer::GetSubresourceBaseAddr(
     }
 
     return baseAddr;
+}
+
+// =====================================================================================================================
+// Returns the multiplier required to align the linear row pitch with Gfx10 HW requirements
+uint32 DmaCmdBuffer::GetLinearRowPitchAlignment(
+    uint32 bytesPerPixel
+    ) const
+{
+    return Util::Max(1u, (4 / bytesPerPixel));
 }
 
 // =====================================================================================================================

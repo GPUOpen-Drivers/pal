@@ -1813,6 +1813,19 @@
       "Type": "bool",
       "VariableName": "useFp16GenMips",
       "Description": "If mipGenUseFastPath == true and this is true - use the fp16 single-pass GenMips compute pass."
+    },
+    {
+      "Name": "TmzEnabled",
+      "Tags": [
+        "General"
+      ],
+      "Defaults": {
+        "Default": true
+      },
+      "Scope": "PrivatePalKey",
+      "Type": "bool",
+      "VariableName": "tmzEnabled",
+      "Description": "When true, TMZ is enabled if HW supports it. Otherwise TMZ is disabled. TMZ(trusted memory zone / protected memory)"
     }
   ],
   "DefinedConstants": [

@@ -227,6 +227,7 @@ Result CreateTrackingCacheLayer(
         }
         else
         {
+            pLayer->Destroy();
             *ppGetTrackedHashes = nullptr;
             *ppCacheLayer       = nullptr;
         }

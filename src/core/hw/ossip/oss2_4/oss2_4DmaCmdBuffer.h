@@ -134,6 +134,8 @@ protected:
 
     virtual gpusize GetSubresourceBaseAddr(const Image& image, const SubresId& subresource) const override;
 
+    virtual uint32 GetLinearRowPitchAlignment(uint32 bytesPerPixel) const override;
+
     virtual bool UseT2tScanlineCopy(const DmaImageCopyInfo& imageCopyInfo) const override;
 
     virtual DmaMemImageCopyMethod GetMemImageCopyMethod(bool                         isLinearImg,

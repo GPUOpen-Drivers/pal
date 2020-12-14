@@ -70,7 +70,7 @@ bool Gfx6Htile::UseHtileForImage(
     bool useHtile = false;
 
     // Htile will only ever be used for depth stencil images.
-    if (pParent->IsDepthStencil())
+    if (pParent->IsDepthStencilTarget())
     {
         if (pParent->GetInternalCreateInfo().flags.useSharedMetadata)
         {
@@ -1169,7 +1169,7 @@ bool Gfx6Dcc::UseDccForImage(
             useDcc = false;
             mustDisableDcc = true;
         }
-        else if (pParent->IsDepthStencil() || (pParent->IsRenderTarget() == false))
+        else if (pParent->IsDepthStencilTarget() || (pParent->IsRenderTarget() == false))
         {
             // DCC only makes sense for renderable color buffers
             useDcc = false;

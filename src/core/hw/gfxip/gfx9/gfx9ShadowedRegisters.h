@@ -42,7 +42,7 @@ const RegisterRange Gfx9UserConfigShadowRange[] =
          1,
     },
     {
-        (mmCP_COHER_START_DELAY - UCONFIG_SPACE_START),                   // 0xC07B
+        (Gfx09_10::mmCP_COHER_START_DELAY - UCONFIG_SPACE_START),         // 0xC07B
          1,
     },
     // Note: PAL should not state shadow mmVGT_INDEX_TYPE because CP will save and restore both mmVGT_INDEX_TYPE

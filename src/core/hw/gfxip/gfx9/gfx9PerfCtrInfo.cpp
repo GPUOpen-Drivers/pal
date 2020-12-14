@@ -397,9 +397,9 @@ static void Gfx10UpdateGdsBlockInfo(
 
         pInfo->regAddr = { 0, {
             { mmGDS_PERFCOUNTER0_SELECT, mmGDS_PERFCOUNTER0_SELECT1,         mmGDS_PERFCOUNTER0_LO, mmGDS_PERFCOUNTER0_HI },
-            { mmGDS_PERFCOUNTER1_SELECT, Gfx103::mmGDS_PERFCOUNTER1_SELECT1, mmGDS_PERFCOUNTER1_LO, mmGDS_PERFCOUNTER1_HI },
-            { mmGDS_PERFCOUNTER2_SELECT, Gfx103::mmGDS_PERFCOUNTER2_SELECT1, mmGDS_PERFCOUNTER2_LO, mmGDS_PERFCOUNTER2_HI },
-            { mmGDS_PERFCOUNTER3_SELECT, Gfx103::mmGDS_PERFCOUNTER3_SELECT1, mmGDS_PERFCOUNTER3_LO, mmGDS_PERFCOUNTER3_HI },
+            { mmGDS_PERFCOUNTER1_SELECT, Gfx103CorePlus::mmGDS_PERFCOUNTER1_SELECT1, mmGDS_PERFCOUNTER1_LO, mmGDS_PERFCOUNTER1_HI },
+            { mmGDS_PERFCOUNTER2_SELECT, Gfx103CorePlus::mmGDS_PERFCOUNTER2_SELECT1, mmGDS_PERFCOUNTER2_LO, mmGDS_PERFCOUNTER2_HI },
+            { mmGDS_PERFCOUNTER3_SELECT, Gfx103CorePlus::mmGDS_PERFCOUNTER3_SELECT1, mmGDS_PERFCOUNTER3_LO, mmGDS_PERFCOUNTER3_HI },
         }};
     }
     else
@@ -427,10 +427,10 @@ static void Gfx10UpdateSdmaBlockInfo(
 {
     if (IsNavi2x(device))
     {
-        pInfo->sdmaRegAddr[0][0] = { Gfx103::mmSDMA0_PERFCOUNTER0_SELECT, Gfx103::mmSDMA0_PERFCOUNTER0_SELECT1,
-                                     Gfx103::mmSDMA0_PERFCOUNTER0_LO,     Gfx103::mmSDMA0_PERFCOUNTER0_HI };
-        pInfo->sdmaRegAddr[0][1] = { Gfx103::mmSDMA0_PERFCOUNTER1_SELECT, Gfx103::mmSDMA0_PERFCOUNTER1_SELECT1,
-                                     Gfx103::mmSDMA0_PERFCOUNTER1_LO,     Gfx103::mmSDMA0_PERFCOUNTER1_HI };
+        pInfo->sdmaRegAddr[0][0] = { Gfx103CorePlus::mmSDMA0_PERFCOUNTER0_SELECT, Gfx103CorePlus::mmSDMA0_PERFCOUNTER0_SELECT1,
+                                     Gfx103CorePlus::mmSDMA0_PERFCOUNTER0_LO,     Gfx103CorePlus::mmSDMA0_PERFCOUNTER0_HI };
+        pInfo->sdmaRegAddr[0][1] = { Gfx103CorePlus::mmSDMA0_PERFCOUNTER1_SELECT, Gfx103CorePlus::mmSDMA0_PERFCOUNTER1_SELECT1,
+                                     Gfx103CorePlus::mmSDMA0_PERFCOUNTER1_LO,     Gfx103CorePlus::mmSDMA0_PERFCOUNTER1_HI };
         pInfo->sdmaRegAddr[1][0] = { Nv21::mmSDMA1_PERFCOUNTER0_SELECT,   Nv21::mmSDMA1_PERFCOUNTER0_SELECT1,
                                      Nv21::mmSDMA1_PERFCOUNTER0_LO,       Nv21::mmSDMA1_PERFCOUNTER0_HI };
         pInfo->sdmaRegAddr[1][1] = { Nv21::mmSDMA1_PERFCOUNTER1_SELECT,   Nv21::mmSDMA1_PERFCOUNTER1_SELECT1,
@@ -439,10 +439,10 @@ static void Gfx10UpdateSdmaBlockInfo(
     else
     if (IsGfx103(device))
     {
-        pInfo->sdmaRegAddr[0][0] = { Gfx103::mmSDMA0_PERFCOUNTER0_SELECT, Gfx103::mmSDMA0_PERFCOUNTER0_SELECT1,
-                                     Gfx103::mmSDMA0_PERFCOUNTER0_LO,     Gfx103::mmSDMA0_PERFCOUNTER0_HI };
-        pInfo->sdmaRegAddr[0][1] = { Gfx103::mmSDMA0_PERFCOUNTER1_SELECT, Gfx103::mmSDMA0_PERFCOUNTER1_SELECT1,
-                                     Gfx103::mmSDMA0_PERFCOUNTER1_LO,     Gfx103::mmSDMA0_PERFCOUNTER1_HI };
+        pInfo->sdmaRegAddr[0][0] = { Gfx103CorePlus::mmSDMA0_PERFCOUNTER0_SELECT, Gfx103CorePlus::mmSDMA0_PERFCOUNTER0_SELECT1,
+                                     Gfx103CorePlus::mmSDMA0_PERFCOUNTER0_LO,     Gfx103CorePlus::mmSDMA0_PERFCOUNTER0_HI };
+        pInfo->sdmaRegAddr[0][1] = { Gfx103CorePlus::mmSDMA0_PERFCOUNTER1_SELECT, Gfx103CorePlus::mmSDMA0_PERFCOUNTER1_SELECT1,
+                                     Gfx103CorePlus::mmSDMA0_PERFCOUNTER1_LO,     Gfx103CorePlus::mmSDMA0_PERFCOUNTER1_HI };
     }
     else
     {
@@ -492,9 +492,9 @@ static void Gfx10UpdateEaBlockInfo(
 {
     if (IsGfx103(device))
     {
-        pInfo->regAddr = { Gfx103::mmGCEA_PERFCOUNTER_RSLT_CNTL, {
-            { Gfx103::mmGCEA_PERFCOUNTER0_CFG,           0,                                          Gfx103::mmGCEA_PERFCOUNTER_LO,         Gfx103::mmGCEA_PERFCOUNTER_HI         },
-            { Gfx103::mmGCEA_PERFCOUNTER1_CFG,           0,                                          Gfx103::mmGCEA_PERFCOUNTER_LO,         Gfx103::mmGCEA_PERFCOUNTER_HI         },
+        pInfo->regAddr = { Gfx103CorePlus::mmGCEA_PERFCOUNTER_RSLT_CNTL, {
+            { Gfx103CorePlus::mmGCEA_PERFCOUNTER0_CFG,           0,                                          Gfx103CorePlus::mmGCEA_PERFCOUNTER_LO,         Gfx103CorePlus::mmGCEA_PERFCOUNTER_HI         },
+            { Gfx103CorePlus::mmGCEA_PERFCOUNTER1_CFG,           0,                                          Gfx103CorePlus::mmGCEA_PERFCOUNTER_LO,         Gfx103CorePlus::mmGCEA_PERFCOUNTER_HI         },
             { Gfx10CorePlus::mmGCEA_PERFCOUNTER2_SELECT, Gfx10CorePlus::mmGCEA_PERFCOUNTER2_SELECT1, Gfx10CorePlus::mmGCEA_PERFCOUNTER2_LO, Gfx10CorePlus::mmGCEA_PERFCOUNTER2_HI },
         }};
     }
@@ -1519,6 +1519,9 @@ static void Gfx10InitBasicBlockInfo(
             { mmRMI_PERFCOUNTER3_SELECT, 0,                          mmRMI_PERFCOUNTER3_LO, mmRMI_PERFCOUNTER3_HI },
     }};
 
+    // This chip uses a 3rd party memory controller, so doesn't have a UMC
+    if (true
+    )
     {
         // The UMCCH has a unique programming model. It defines a fixed number of global counters for each instance.
         PerfCounterBlockInfo*const pUmcch = &pInfo->block[static_cast<uint32>(GpuBlock::Umcch)];

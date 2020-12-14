@@ -211,7 +211,7 @@ void Device::TransitionDepthStencil(
     // early phase is intentional!
     if (earlyPhase == TestAnyFlagSet(transition.srcCacheMask, CoherDepthStencilTarget))
     {
-        PAL_ASSERT(image.IsDepthStencil());
+        PAL_ASSERT(image.IsDepthStencilTarget());
 
         const DepthStencilLayoutToState    layoutToState =
             gfx9Image.LayoutToDepthCompressionState(subresRange.startSubres);
@@ -429,7 +429,7 @@ void Device::ExpandColor(
     const uint32 dstCacheMask = (barrier.globalDstCacheMask | transition.dstCacheMask);
     const bool   noCacheFlags = ((srcCacheMask == 0) && (dstCacheMask == 0));
 
-    PAL_ASSERT(image.IsDepthStencil() == false);
+    PAL_ASSERT(image.IsDepthStencilTarget() == false);
 
     const ColorLayoutToState    layoutToState = gfx9Image.LayoutToColorCompressionState();
     const ColorCompressionState oldState      =
@@ -1099,7 +1099,7 @@ void Device::Barrier(
                 {
                     const auto& image = static_cast<const Pal::Image&>(*imageInfo.pImage);
 
-                    if (image.IsDepthStencil())
+                    if (image.IsDepthStencilTarget())
                     {
                         TransitionDepthStencil(pCmdBuf,
                                                pCmdStream,
@@ -1390,14 +1390,14 @@ void Device::Barrier(
             // the VA range of the specified image to be idle.
             for (uint32 i = 0; i < barrier.rangeCheckedTargetWaitCount; i++)
             {
-                const Pal::Image* pImage     = static_cast<const Pal::Image*>(barrier.ppTargets[i]);
-                const Image*      pGfx9Image = static_cast<const Image*>(pImage->GetGfxImage());
+                const Pal::Image* pImage = static_cast<const Pal::Image*>(barrier.ppTargets[i]);
 
                 SyncReqs targetStallSyncReqs = { };
                 targetStallSyncReqs.cpMeCoherCntl.u32All = CpMeCoherCntlStallMask;
 
                 if (pImage != nullptr)
                 {
+                    const Image* pGfx9Image = static_cast<const Image*>(pImage->GetGfxImage());
                     IssueSyncs(pCmdBuf,
                                pCmdStream,
                                targetStallSyncReqs,
@@ -1560,7 +1560,7 @@ void Device::Barrier(
 
                     SyncReqs imageSyncReqs = { };
 
-                    if (image.IsDepthStencil())
+                    if (image.IsDepthStencilTarget())
                     {
                         // Issue a late-phase DB decompress, if necessary.
                         TransitionDepthStencil(pCmdBuf,

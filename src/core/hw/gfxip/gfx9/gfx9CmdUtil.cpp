@@ -41,9 +41,9 @@ namespace Gfx9
 static constexpr ME_EVENT_WRITE_event_index_enum VgtEventIndex[]=
 {
     event_index__me_event_write__other,                                 // Reserved_0x00,
-    event_index__me_event_write__sample_streamoutstats,                 // SAMPLE_STREAMOUTSTATS1,
-    event_index__me_event_write__sample_streamoutstats,                 // SAMPLE_STREAMOUTSTATS2,
-    event_index__me_event_write__sample_streamoutstats,                 // SAMPLE_STREAMOUTSTATS3,
+    event_index__me_event_write__sample_streamoutstats__GFX09_10,       // SAMPLE_STREAMOUTSTATS1,
+    event_index__me_event_write__sample_streamoutstats__GFX09_10,       // SAMPLE_STREAMOUTSTATS2,
+    event_index__me_event_write__sample_streamoutstats__GFX09_10,       // SAMPLE_STREAMOUTSTATS3,
     event_index__me_event_write__other,                                 // CACHE_FLUSH_TS,
     event_index__me_event_write__other,                                 // CONTEXT_DONE,
     event_index__me_event_write__other,                                 // CACHE_FLUSH,
@@ -61,7 +61,7 @@ static constexpr ME_EVENT_WRITE_event_index_enum VgtEventIndex[]=
     event_index__me_event_write__other,                                 // FLUSH_DFSM,
     event_index__me_event_write__other,                                 // RESET_TO_LOWEST_VGT,
     event_index__me_event_write__other,                                 // CACHE_FLUSH_AND_INV_TS_EVENT,
-    event_index__me_event_write__zpass_pixel_pipe_stat_control_or_dump, // ZPASS_DONE,
+    event_index__me_event_write__zpass_pixel_pipe_stat_control_or_dump__GFX09_10, // ZPASS_DONE,
     event_index__me_event_write__other,                                 // CACHE_FLUSH_AND_INV_EVENT,
     event_index__me_event_write__other,                                 // PERFCOUNTER_START,
     event_index__me_event_write__other,                                 // PERFCOUNTER_STOP,
@@ -72,7 +72,7 @@ static constexpr ME_EVENT_WRITE_event_index_enum VgtEventIndex[]=
     event_index__me_event_write__other,                                 // Available_0x1d,
     event_index__me_event_write__sample_pipelinestat,                   // SAMPLE_PIPELINESTAT,
     event_index__me_event_write__other,                                 // SO_VGTSTREAMOUT_FLUSH,
-    event_index__me_event_write__sample_streamoutstats,                 // SAMPLE_STREAMOUTSTATS,
+    event_index__me_event_write__sample_streamoutstats__GFX09_10,       // SAMPLE_STREAMOUTSTATS,
     event_index__me_event_write__other,                                 // RESET_VTX_CNT,
     event_index__me_event_write__other,                                 // BLOCK_CONTEXT_DONE,
     event_index__me_event_write__other,                                 // CS_CONTEXT_DONE,
@@ -96,8 +96,8 @@ static constexpr ME_EVENT_WRITE_event_index_enum VgtEventIndex[]=
     event_index__me_event_write__other,                                 // THREAD_TRACE_MARKER,
     event_index__me_event_write__other,                                 // THREAD_TRACE_FLUSH,
     event_index__me_event_write__other,                                 // THREAD_TRACE_FINISH,
-    event_index__me_event_write__zpass_pixel_pipe_stat_control_or_dump, // PIXEL_PIPE_STAT_CONTROL,
-    event_index__me_event_write__zpass_pixel_pipe_stat_control_or_dump, // PIXEL_PIPE_STAT_DUMP,
+    event_index__me_event_write__zpass_pixel_pipe_stat_control_or_dump__GFX09_10, // PIXEL_PIPE_STAT_CONTROL,
+    event_index__me_event_write__zpass_pixel_pipe_stat_control_or_dump__GFX09_10, // PIXEL_PIPE_STAT_DUMP,
     event_index__me_event_write__other,                                 // PIXEL_PIPE_STAT_RESET,
     event_index__me_event_write__other,                                 // CONTEXT_SUSPEND,
     event_index__me_event_write__other,                                 // OFFCHIP_HS_DEALLOC,
@@ -361,7 +361,7 @@ CmdUtil::CmdUtil(
         }
         else if (IsGfx103(parent))
         {
-            m_registerInfo.mmEaPerfResultCntl               = Gfx103::mmGCEA_PERFCOUNTER_RSLT_CNTL;
+            m_registerInfo.mmEaPerfResultCntl               = Gfx103CorePlus::mmGCEA_PERFCOUNTER_RSLT_CNTL;
             m_registerInfo.mmAtcPerfResultCntl              = Gfx103::mmATC_PERFCOUNTER_RSLT_CNTL;
             m_registerInfo.mmAtcL2PerfResultCntl            = 0;
             m_registerInfo.mmDbDfsmControl                  = Gfx10Core::mmDB_DFSM_CONTROL;
@@ -372,7 +372,7 @@ CmdUtil::CmdUtil(
             PAL_ASSERT_ALWAYS();
         }
 
-        m_registerInfo.mmRlcPerfmonClkCntl              = Gfx10Plus::mmRLC_PERFMON_CLK_CNTL;
+        m_registerInfo.mmRlcPerfmonClkCntl              = Gfx10::mmRLC_PERFMON_CLK_CNTL;
         m_registerInfo.mmMcVmL2PerfResultCntl           = Gfx10::mmGCMC_VM_L2_PERFCOUNTER_RSLT_CNTL;
         m_registerInfo.mmVgtGsMaxPrimsPerSubGroup       = Gfx10Plus::mmGE_MAX_OUTPUT_PER_SUBGROUP;
         m_registerInfo.mmComputeShaderChksum            = Gfx10Plus::mmCOMPUTE_SHADER_CHKSUM;
@@ -724,13 +724,18 @@ size_t CmdUtil::ExplicitBuildAcquireMem(
     pPacket->ordinal1.header.u32All  = Type3Header(IT_ACQUIRE_MEM, packetSize);
     pPacket->ordinal2.u32All         = 0;
 
-    pPacket->ordinal2.bitfields.coher_cntl = acquireMemInfo.coherCntl;
+    const ME_ACQUIRE_MEM_engine_sel_enum  engineSel =
+                static_cast<ME_ACQUIRE_MEM_engine_sel_enum>(acquireMemInfo.flags.usePfp
+                    ? static_cast<uint32>(engine_sel__pfp_acquire_mem__prefetch_parser)
+                    : static_cast<uint32>(engine_sel__me_acquire_mem__micro_engine));
 
-    if (Pal::Device::EngineSupportsGraphics(acquireMemInfo.engineType))
     {
-        pPacket->ordinal2.bitfields.engine_sel = static_cast<ME_ACQUIRE_MEM_engine_sel_enum>(acquireMemInfo.flags.usePfp
-                                                 ? static_cast<uint32>(engine_sel__pfp_acquire_mem__prefetch_parser)
-                                                 : static_cast<uint32>(engine_sel__me_acquire_mem__micro_engine));
+        pPacket->ordinal2.bitfields.gfx09_10.coher_cntl = acquireMemInfo.coherCntl;
+
+        if (Pal::Device::EngineSupportsGraphics(acquireMemInfo.engineType))
+        {
+            pPacket->ordinal2.bitfields.gfx09_10.engine_sel = engineSel;
+        }
     }
 
     // Need to align-down the given base address and then add the difference to the size, and align that new size.
@@ -750,17 +755,18 @@ size_t CmdUtil::ExplicitBuildAcquireMem(
     pPacket->ordinal3.coher_size = LowPart(alignedSize);
     pPacket->ordinal4.u32All     = HighPart(alignedSize);
 
-    // Make sure that the size field doesn't overflow
-    PAL_ASSERT(pPacket->ordinal4.bitfields.reserved1 == 0);
-
     pPacket->ordinal5.coher_base_lo = Get256BAddrLo(alignedAddress);
     pPacket->ordinal6.u32All        = Get256BAddrHi(alignedAddress);
 
-    // Make sure that the address field doesn't overflow
-    PAL_ASSERT(pPacket->ordinal6.bitfields.reserved1 == 0);
-
     pPacket->ordinal7.u32All                  = 0;
-    pPacket->ordinal7.bitfields.poll_interval = Pal::Device::PollInterval;
+
+    // Make sure that the various size and address fields didn't overflow
+    {
+        PAL_ASSERT(pPacket->ordinal4.bitfields.gfx09_10.reserved1 == 0);
+        PAL_ASSERT(pPacket->ordinal6.bitfields.gfx09_10.reserved1 == 0);
+
+        pPacket->ordinal7.bitfields.gfx09_10.poll_interval = Pal::Device::PollInterval;
+    }
 
     if (IsGfx10Plus(m_gfxIpLevel))
     {
@@ -1007,25 +1013,25 @@ size_t CmdUtil::BuildCopyData(
     static_assert(PM4_ME_COPY_DATA_SIZEDW__CORE == PM4_MEC_COPY_DATA_SIZEDW__CORE,
                   "CopyData packet size is different between ME and MEC!");
 
-    static_assert(((static_cast<uint32>(src_sel__mec_copy_data__mem_mapped_register)     ==
-                    static_cast<uint32>(src_sel__me_copy_data__mem_mapped_register))     &&
-                   (static_cast<uint32>(src_sel__mec_copy_data__memory__GFX09)           ==
-                    static_cast<uint32>(src_sel__me_copy_data__memory__GFX09))           &&
-                   (static_cast<uint32>(src_sel__mec_copy_data__tc_l2)                   ==
-                    static_cast<uint32>(src_sel__me_copy_data__tc_l2))                   &&
-                   (static_cast<uint32>(src_sel__mec_copy_data__gds)                     ==
-                    static_cast<uint32>(src_sel__me_copy_data__gds))                     &&
-                   (static_cast<uint32>(src_sel__mec_copy_data__perfcounters)            ==
-                    static_cast<uint32>(src_sel__me_copy_data__perfcounters))            &&
-                   (static_cast<uint32>(src_sel__mec_copy_data__immediate_data)          ==
-                    static_cast<uint32>(src_sel__me_copy_data__immediate_data))          &&
-                   (static_cast<uint32>(src_sel__mec_copy_data__atomic_return_data)      ==
-                    static_cast<uint32>(src_sel__me_copy_data__atomic_return_data))      &&
-                   (static_cast<uint32>(src_sel__mec_copy_data__gds_atomic_return_data0) ==
-                    static_cast<uint32>(src_sel__me_copy_data__gds_atomic_return_data0)) &&
-                   (static_cast<uint32>(src_sel__mec_copy_data__gds_atomic_return_data1) ==
-                    static_cast<uint32>(src_sel__me_copy_data__gds_atomic_return_data1)) &&
-                   (static_cast<uint32>(src_sel__mec_copy_data__gpu_clock_count)         ==
+    static_assert(((static_cast<uint32>(src_sel__mec_copy_data__mem_mapped_register)           ==
+                    static_cast<uint32>(src_sel__me_copy_data__mem_mapped_register))           &&
+                   (static_cast<uint32>(src_sel__mec_copy_data__memory__GFX09)                 ==
+                    static_cast<uint32>(src_sel__me_copy_data__memory__GFX09))                 &&
+                   (static_cast<uint32>(src_sel__mec_copy_data__tc_l2)                         ==
+                    static_cast<uint32>(src_sel__me_copy_data__tc_l2))                         &&
+                   (static_cast<uint32>(src_sel__mec_copy_data__gds__CORE)                     ==
+                    static_cast<uint32>(src_sel__me_copy_data__gds__CORE))                     &&
+                   (static_cast<uint32>(src_sel__mec_copy_data__perfcounters)                  ==
+                    static_cast<uint32>(src_sel__me_copy_data__perfcounters))                  &&
+                   (static_cast<uint32>(src_sel__mec_copy_data__immediate_data)                ==
+                    static_cast<uint32>(src_sel__me_copy_data__immediate_data))                &&
+                   (static_cast<uint32>(src_sel__mec_copy_data__atomic_return_data)            ==
+                    static_cast<uint32>(src_sel__me_copy_data__atomic_return_data))            &&
+                   (static_cast<uint32>(src_sel__mec_copy_data__gds_atomic_return_data0__CORE) ==
+                    static_cast<uint32>(src_sel__me_copy_data__gds_atomic_return_data0__CORE)) &&
+                   (static_cast<uint32>(src_sel__mec_copy_data__gds_atomic_return_data1__CORE) ==
+                    static_cast<uint32>(src_sel__me_copy_data__gds_atomic_return_data1__CORE)) &&
+                   (static_cast<uint32>(src_sel__mec_copy_data__gpu_clock_count)               ==
                     static_cast<uint32>(src_sel__me_copy_data__gpu_clock_count))),
                   "CopyData srcSel enum is different between ME and MEC!");
 
@@ -1033,8 +1039,8 @@ size_t CmdUtil::BuildCopyData(
                     static_cast<uint32>(dst_sel__me_copy_data__mem_mapped_register)) &&
                    (static_cast<uint32>(dst_sel__mec_copy_data__tc_l2)               ==
                     static_cast<uint32>(dst_sel__me_copy_data__tc_l2))               &&
-                   (static_cast<uint32>(dst_sel__mec_copy_data__gds)                 ==
-                    static_cast<uint32>(dst_sel__me_copy_data__gds))                 &&
+                   (static_cast<uint32>(dst_sel__mec_copy_data__gds__CORE)           ==
+                    static_cast<uint32>(dst_sel__me_copy_data__gds__CORE))           &&
                    (static_cast<uint32>(dst_sel__mec_copy_data__perfcounters)        ==
                     static_cast<uint32>(dst_sel__me_copy_data__perfcounters))        &&
                    (static_cast<uint32>(dst_sel__mec_copy_data__memory__GFX09)       ==
@@ -1181,10 +1187,10 @@ size_t CmdUtil::BuildCopyData(
                      (gfxSupported && (packetGfx.ordinal5.bitfieldsB.reserved2 == 0)))));
         break;
 
-    case dst_sel__me_copy_data__gds:
+    case dst_sel__me_copy_data__gds__CORE:
         packetGfx.ordinal5.u32All = LowPart(dstAddr);
-        PAL_ASSERT((isCompute    && (pPacketCompute->ordinal5.bitfieldsD.reserved4 == 0)) ||
-                   (gfxSupported && (packetGfx.ordinal5.bitfieldsD.reserved4 == 0)));
+        PAL_ASSERT((isCompute    && (pPacketCompute->ordinal5.bitfieldsD.core.reserved4 == 0)) ||
+                   (gfxSupported && (packetGfx.ordinal5.bitfieldsD.core.reserved4 == 0)));
         break;
 
     default:
@@ -1207,18 +1213,17 @@ size_t CmdUtil::BuildPerfmonControl(
     uint32     eventUnitMask, // If enabling, this is event specific configuration data.
     void*      pBuffer)       // [out] Build the PM4 packet in this buffer.
 {
-    constexpr uint32       PacketSize = PM4_ME_PERFMON_CONTROL_SIZEDW__GFX10;
+    constexpr uint32       PacketSize = PM4_ME_PERFMON_CONTROL_SIZEDW__GFX103COREPLUS;
     PM4_ME_PERFMON_CONTROL packetGfx;
 
     packetGfx.ordinal1.header.u32All = Type3Header(IT_PERFMON_CONTROL__GFX103, PacketSize);
 
-    packetGfx.ordinal2.u32All                        = 0;
-    packetGfx.ordinal2.bitfields.gfx10.pmc_id        = perfMonCtlId;
-    packetGfx.ordinal2.bitfields.gfx10.pmc_en        = static_cast<ME_PERFMON_CONTROL_pmc_en_enum>(enable);
-    packetGfx.ordinal2.bitfields.gfx10.pmc_unit_mask = eventUnitMask;
-
-    packetGfx.ordinal3.u32All                        = 0;
-    packetGfx.ordinal3.bitfields.gfx10.pmc_event     = eventSelect;
+    packetGfx.ordinal2.u32All                                 = 0;
+    packetGfx.ordinal2.bitfields.gfx103CorePlus.pmc_id        = perfMonCtlId;
+    packetGfx.ordinal2.bitfields.gfx103CorePlus.pmc_en        = static_cast<ME_PERFMON_CONTROL_pmc_en_enum>(enable);
+    packetGfx.ordinal2.bitfields.gfx103CorePlus.pmc_unit_mask = eventUnitMask;
+    packetGfx.ordinal3.u32All                                 = 0;
+    packetGfx.ordinal3.bitfields.gfx103CorePlus.pmc_event     = eventSelect;
 
     memcpy(pBuffer, &packetGfx, PacketSize * sizeof(uint32));
     return PacketSize;
@@ -1609,8 +1614,8 @@ size_t CmdUtil::BuildDmaData(
     static_assert(
         ((static_cast<uint32>(dst_sel__mec_dma_data__dst_addr_using_das)  ==
           static_cast<uint32>(dst_sel__pfp_dma_data__dst_addr_using_das)) &&
-         (static_cast<uint32>(dst_sel__mec_dma_data__gds)                 ==
-          static_cast<uint32>(dst_sel__pfp_dma_data__gds))                &&
+         (static_cast<uint32>(dst_sel__mec_dma_data__gds__CORE)           ==
+          static_cast<uint32>(dst_sel__pfp_dma_data__gds__CORE))          &&
          (static_cast<uint32>(dst_sel__mec_dma_data__dst_nowhere)         ==
           static_cast<uint32>(dst_sel__pfp_dma_data__dst_nowhere))        &&
          (static_cast<uint32>(dst_sel__mec_dma_data__dst_addr_using_l2)   ==
@@ -1620,8 +1625,8 @@ size_t CmdUtil::BuildDmaData(
     static_assert(
         ((static_cast<uint32>(src_sel__mec_dma_data__src_addr_using_sas)  ==
           static_cast<uint32>(src_sel__pfp_dma_data__src_addr_using_sas)) &&
-         (static_cast<uint32>(src_sel__mec_dma_data__gds)                 ==
-          static_cast<uint32>(src_sel__pfp_dma_data__gds))                &&
+         (static_cast<uint32>(src_sel__mec_dma_data__gds__CORE)           ==
+          static_cast<uint32>(src_sel__pfp_dma_data__gds__CORE))          &&
          (static_cast<uint32>(src_sel__mec_dma_data__data)                ==
           static_cast<uint32>(src_sel__pfp_dma_data__data))               &&
          (static_cast<uint32>(src_sel__mec_dma_data__src_addr_using_l2)   ==
@@ -1760,7 +1765,7 @@ size_t CmdUtil::BuildNonSampleEventWrite(
                 static_cast<uint32>(event_index__mec_event_write__sample_pipelinestat)));
 
     // If this trips, the caller needs to use the BuildSampleEventWrite() routine instead.
-    PAL_ASSERT(VgtEventIndex[vgtEvent] != event_index__me_event_write__sample_streamoutstats);
+    PAL_ASSERT(VgtEventIndex[vgtEvent] != event_index__me_event_write__sample_streamoutstats__GFX09_10);
 
     // Don't use PM4_ME_EVENT_WRITE_SIZEDW__CORE here!  The official packet definition contains extra dwords
     // for functionality that is only required for "sample" type events.
@@ -1821,9 +1826,10 @@ size_t CmdUtil::BuildSampleEventWrite(
                (vgtEvent == SAMPLE_STREAMOUTSTATS3)  ||
                (vgtEvent == ZPASS_DONE__GFX09_10));
 
-    PAL_ASSERT((VgtEventIndex[vgtEvent] == event_index__me_event_write__zpass_pixel_pipe_stat_control_or_dump) ||
-               (VgtEventIndex[vgtEvent] == event_index__me_event_write__sample_pipelinestat)                  ||
-               (VgtEventIndex[vgtEvent] == event_index__me_event_write__sample_streamoutstats));
+    PAL_ASSERT(
+        (VgtEventIndex[vgtEvent] == event_index__me_event_write__zpass_pixel_pipe_stat_control_or_dump__GFX09_10) ||
+        (VgtEventIndex[vgtEvent] == event_index__me_event_write__sample_pipelinestat)                             ||
+        (VgtEventIndex[vgtEvent] == event_index__me_event_write__sample_streamoutstats__GFX09_10));
 
     // Event-write packets destined for the compute queue can only use some events.
     PAL_ASSERT((engineType != EngineTypeCompute) ||
@@ -2168,44 +2174,33 @@ size_t CmdUtil::BuildPrimeUtcL2(
     size_t  requestedPages, // Number of 4KB pages to prefetch.
     void*   pBuffer)
 {
-    static_assert(((PM4_PFP_PRIME_UTCL2_SIZEDW__CORE == PM4_ME_PRIME_UTCL2_SIZEDW__GFX09)  &&
-                   (PM4_PFP_PRIME_UTCL2_SIZEDW__CORE == PM4_MEC_PRIME_UTCL2_SIZEDW__CORE)  &&
+    static_assert(((PM4_PFP_PRIME_UTCL2_SIZEDW__CORE == PM4_MEC_PRIME_UTCL2_SIZEDW__CORE)  &&
                    (PM4_PFP_PRIME_UTCL2_SIZEDW__CORE == PM4_CE_PRIME_UTCL2_SIZEDW__HASCE)),
-                   "PRIME_UTCL2 packet is different between PFP, ME, MEC, and CE!");
+                   "PRIME_UTCL2 packet is different between PFP, MEC, and CE!");
 
     static_assert(((static_cast<uint32>(cache_perm__pfp_prime_utcl2__read)                  ==
-                    static_cast<uint32>(cache_perm__me_prime_utcl2__read__GFX09))           &&
-                   (static_cast<uint32>(cache_perm__pfp_prime_utcl2__read)                  ==
                     static_cast<uint32>(cache_perm__mec_prime_utcl2__read))                 &&
                    (static_cast<uint32>(cache_perm__pfp_prime_utcl2__read)                  ==
                     static_cast<uint32>(cache_perm__ce_prime_utcl2__read__HASCE))           &&
-                   (static_cast<uint32>(cache_perm__pfp_prime_utcl2__write)                 ==
-                    static_cast<uint32>(cache_perm__me_prime_utcl2__write__GFX09))          &&
                    (static_cast<uint32>(cache_perm__pfp_prime_utcl2__write)                 ==
                     static_cast<uint32>(cache_perm__mec_prime_utcl2__write))                &&
                    (static_cast<uint32>(cache_perm__pfp_prime_utcl2__write)                 ==
                     static_cast<uint32>(cache_perm__ce_prime_utcl2__write__HASCE))          &&
                    (static_cast<uint32>(cache_perm__pfp_prime_utcl2__execute)               ==
-                    static_cast<uint32>(cache_perm__me_prime_utcl2__execute__GFX09))        &&
-                   (static_cast<uint32>(cache_perm__pfp_prime_utcl2__execute)               ==
                     static_cast<uint32>(cache_perm__mec_prime_utcl2__execute))              &&
                    (static_cast<uint32>(cache_perm__pfp_prime_utcl2__execute)               ==
                     static_cast<uint32>(cache_perm__ce_prime_utcl2__execute__HASCE))),
-                  "Cache permissions enum is different between PFP, ME, MEC, and CE!");
+                  "Cache permissions enum is different between PFP, MEC, and CE!");
 
     static_assert(((static_cast<uint32>(prime_mode__pfp_prime_utcl2__dont_wait_for_xack)                 ==
-                    static_cast<uint32>(prime_mode__me_prime_utcl2__dont_wait_for_xack__GFX09))          &&
-                   (static_cast<uint32>(prime_mode__pfp_prime_utcl2__dont_wait_for_xack)                 ==
                     static_cast<uint32>(prime_mode__mec_prime_utcl2__dont_wait_for_xack))                &&
                    (static_cast<uint32>(prime_mode__pfp_prime_utcl2__dont_wait_for_xack)                 ==
                     static_cast<uint32>(prime_mode__ce_prime_utcl2__dont_wait_for_xack__HASCE))          &&
                    (static_cast<uint32>(prime_mode__pfp_prime_utcl2__wait_for_xack)                      ==
-                    static_cast<uint32>(prime_mode__me_prime_utcl2__wait_for_xack__GFX09))               &&
-                   (static_cast<uint32>(prime_mode__pfp_prime_utcl2__wait_for_xack)                      ==
                     static_cast<uint32>(prime_mode__mec_prime_utcl2__wait_for_xack))                     &&
                    (static_cast<uint32>(prime_mode__pfp_prime_utcl2__wait_for_xack)                      ==
                     static_cast<uint32>(prime_mode__ce_prime_utcl2__wait_for_xack__HASCE))),
-                  "Prime mode enum is different between PFP, ME, MEC, and CE!");
+                  "Prime mode enum is different between PFP, MEC, and CE!");
 
     constexpr uint32 PacketSize = PM4_PFP_PRIME_UTCL2_SIZEDW__CORE;
     auto*const       pPacket    = static_cast<PM4_PFP_PRIME_UTCL2*>(pBuffer);
@@ -2896,16 +2891,16 @@ size_t CmdUtil::ExplicitBuildReleaseMem(
                    (static_cast<uint32>(event_index__me_release_mem__shader_done)   ==
                     static_cast<uint32>(event_index__mec_release_mem__shader_done))),
                   "RELEASE_MEM event index enumerations don't match between ME and MEC!");
-    static_assert(((static_cast<uint32>(data_sel__me_release_mem__none)                        ==
-                    static_cast<uint32>(data_sel__mec_release_mem__none))                      &&
-                   (static_cast<uint32>(data_sel__me_release_mem__send_32_bit_low)             ==
-                    static_cast<uint32>(data_sel__mec_release_mem__send_32_bit_low))           &&
-                   (static_cast<uint32>(data_sel__me_release_mem__send_64_bit_data)            ==
-                    static_cast<uint32>(data_sel__mec_release_mem__send_64_bit_data))          &&
-                   (static_cast<uint32>(data_sel__me_release_mem__send_gpu_clock_counter)      ==
-                    static_cast<uint32>(data_sel__mec_release_mem__send_gpu_clock_counter))    &&
-                   (static_cast<uint32>(data_sel__me_release_mem__store_gds_data_to_memory)    ==
-                    static_cast<uint32>(data_sel__mec_release_mem__store_gds_data_to_memory))),
+    static_assert(((static_cast<uint32>(data_sel__me_release_mem__none)                           ==
+                    static_cast<uint32>(data_sel__mec_release_mem__none))                         &&
+                   (static_cast<uint32>(data_sel__me_release_mem__send_32_bit_low)                ==
+                    static_cast<uint32>(data_sel__mec_release_mem__send_32_bit_low))              &&
+                   (static_cast<uint32>(data_sel__me_release_mem__send_64_bit_data)               ==
+                    static_cast<uint32>(data_sel__mec_release_mem__send_64_bit_data))             &&
+                   (static_cast<uint32>(data_sel__me_release_mem__send_gpu_clock_counter)         ==
+                    static_cast<uint32>(data_sel__mec_release_mem__send_gpu_clock_counter))       &&
+                   (static_cast<uint32>(data_sel__me_release_mem__store_gds_data_to_memory__CORE) ==
+                    static_cast<uint32>(data_sel__mec_release_mem__store_gds_data_to_memory__CORE))),
                   "RELEASE_MEM data sel enumerations don't match between ME and MEC!");
 
     static_assert(PM4_MEC_RELEASE_MEM_SIZEDW__CORE == PM4_ME_RELEASE_MEM_SIZEDW__CORE,
@@ -2962,10 +2957,10 @@ size_t CmdUtil::ExplicitBuildReleaseMem(
                                         : int_sel__me_release_mem__send_data_and_write_confirm;
 
     // Make sure our dstAddr is properly aligned.  The alignment differs based on how much data is being written
-    if (releaseMemInfo.dataSel == data_sel__me_release_mem__store_gds_data_to_memory)
+    if (releaseMemInfo.dataSel == data_sel__me_release_mem__store_gds_data_to_memory__CORE)
     {
-        packet.ordinal6.bitfieldsC.dw_offset  = gdsAddr;
-        packet.ordinal6.bitfieldsC.num_dwords = gdsSize;
+        packet.ordinal6.bitfieldsC.core.dw_offset  = gdsAddr;
+        packet.ordinal6.bitfieldsC.core.num_dwords = gdsSize;
         packet.ordinal7.data_hi               = 0;
     }
 
@@ -2976,7 +2971,6 @@ size_t CmdUtil::ExplicitBuildReleaseMem(
         cpCoherCntl.u32All = releaseMemInfo.coherCntl;
 
         packet.ordinal2.bitfields.gfx09.tcl1_vol_action_ena = cpCoherCntl.bitfields.TCL1_VOL_ACTION_ENA;
-        packet.ordinal2.bitfields.gfx09.tc_vol_action_ena   = 0;
         packet.ordinal2.bitfields.gfx09.tc_wb_action_ena    = cpCoherCntl.bitfields.TC_WB_ACTION_ENA;
         packet.ordinal2.bitfields.gfx09.tcl1_action_ena     = cpCoherCntl.bitfields.TCL1_ACTION_ENA;
         packet.ordinal2.bitfields.gfx09.tc_action_ena       = cpCoherCntl.bitfields.TC_ACTION_ENA;
@@ -3229,7 +3223,8 @@ size_t CmdUtil::BuildSetSeqShRegsIndex(
     ) const
 {
 #if PAL_ENABLE_PRINTS_ASSERTS
-    CheckShadowedShRegs(shaderType, startRegAddr, endRegAddr);
+    CheckShadowedShRegs(shaderType, startRegAddr, endRegAddr,
+                        (index != index__pfp_set_sh_reg_index__apply_kmd_cu_and_mask));
 #endif
 
     // Minimum microcode feature version required by gfx-9 hardware to support the packet SET_SH_REG_INDEX
@@ -3373,12 +3368,12 @@ size_t CmdUtil::BuildStrmoutBufferUpdate(
     static_assert(
         ((static_cast<uint32>(source_select__pfp_strmout_buffer_update__use_buffer_offset)                   ==
           static_cast<uint32>(source_select__me_strmout_buffer_update__use_buffer_offset))                   &&
-         (static_cast<uint32>(source_select__pfp_strmout_buffer_update__read_vgt_strmout_buffer_filled_size) ==
-          static_cast<uint32>(source_select__me_strmout_buffer_update__read_vgt_strmout_buffer_filled_size)) &&
+         (static_cast<uint32>(source_select__pfp_strmout_buffer_update__read_strmout_buffer_filled_size)     ==
+          static_cast<uint32>(source_select__me_strmout_buffer_update__read_strmout_buffer_filled_size))     &&
          (static_cast<uint32>(source_select__pfp_strmout_buffer_update__from_src_address)                    ==
           static_cast<uint32>(source_select__me_strmout_buffer_update__from_src_address))                    &&
-         (static_cast<uint32>(source_select__pfp_strmout_buffer_update__none)                                ==
-          static_cast<uint32>(source_select__me_strmout_buffer_update__none))),
+         (static_cast<uint32>(source_select__pfp_strmout_buffer_update__none__GFX09_10)                      ==
+          static_cast<uint32>(source_select__me_strmout_buffer_update__none__GFX09_10))),
          "source_select enum is different between PFP and ME!");
 
     static_assert(
@@ -3401,36 +3396,38 @@ size_t CmdUtil::BuildStrmoutBufferUpdate(
     pPacket->ordinal2.bitfields.source_select = static_cast<PFP_STRMOUT_BUFFER_UPDATE_source_select_enum>(sourceSelect);
     pPacket->ordinal2.bitfields.buffer_select = static_cast<PFP_STRMOUT_BUFFER_UPDATE_buffer_select_enum>(bufferId);
     pPacket->ordinal3.u32All                  = 0;
-    pPacket->ordinal4.dst_address_hi          = 0;
-    pPacket->ordinal5.offset_or_address_lo    = 0;
-    pPacket->ordinal6.src_address_hi          = 0;
+    pPacket->ordinal4.u32All                  = 0;
+    pPacket->ordinal5.u32All                  = 0;
+    pPacket->ordinal6.u32All                  = 0;
 
     constexpr PFP_STRMOUT_BUFFER_UPDATE_data_type_enum DataType = data_type__pfp_strmout_buffer_update__bytes;
 
-    switch (sourceSelect)
     {
-    case source_select__pfp_strmout_buffer_update__use_buffer_offset:
-        pPacket->ordinal5.offset_or_address_lo = explicitOffset;
-        break;
-    case source_select__pfp_strmout_buffer_update__read_vgt_strmout_buffer_filled_size:
-        // No additional members need to be set for this operation.
-        break;
-    case source_select__pfp_strmout_buffer_update__from_src_address:
-        pPacket->ordinal5.offset_or_address_lo = LowPart(srcGpuVirtAddr);
-        pPacket->ordinal6.src_address_hi       = HighPart(srcGpuVirtAddr);
-        pPacket->ordinal2.bitfields.data_type  = DataType;
-        break;
-    case source_select__pfp_strmout_buffer_update__none:
-        pPacket->ordinal2.bitfields.update_memory =
-            update_memory__pfp_strmout_buffer_update__update_memory_at_dst_address;
-        pPacket->ordinal3.u32All                  = LowPart(dstGpuVirtAddr);
-        PAL_ASSERT(pPacket->ordinal3.bitfields.reserved1 == 0);
-        pPacket->ordinal4.dst_address_hi          = HighPart(dstGpuVirtAddr);
-        pPacket->ordinal2.bitfields.data_type     = DataType;
-        break;
-    default:
-        PAL_ASSERT_ALWAYS();
-        break;
+        switch (sourceSelect)
+        {
+        case source_select__pfp_strmout_buffer_update__use_buffer_offset:
+            pPacket->ordinal5.offset_or_address_lo = explicitOffset;
+            break;
+        case source_select__pfp_strmout_buffer_update__read_strmout_buffer_filled_size:
+            // No additional members need to be set for this operation.
+            break;
+        case source_select__pfp_strmout_buffer_update__from_src_address:
+            pPacket->ordinal5.offset_or_address_lo = LowPart(srcGpuVirtAddr);
+            pPacket->ordinal6.src_address_hi       = HighPart(srcGpuVirtAddr);
+            pPacket->ordinal2.bitfields.data_type  = DataType;
+            break;
+        case source_select__pfp_strmout_buffer_update__none__GFX09_10:
+            pPacket->ordinal2.bitfields.update_memory =
+                update_memory__pfp_strmout_buffer_update__update_memory_at_dst_address;
+            pPacket->ordinal3.u32All                  = LowPart(dstGpuVirtAddr);
+            PAL_ASSERT(pPacket->ordinal3.bitfields.gfx09_10.reserved1 == 0);
+            pPacket->ordinal4.dst_address_hi          = HighPart(dstGpuVirtAddr);
+            pPacket->ordinal2.bitfields.data_type     = DataType;
+            break;
+        default:
+            PAL_ASSERT_ALWAYS();
+            break;
+        }
     }
 
     return PacketSize;
@@ -3485,7 +3482,7 @@ size_t CmdUtil::BuildWaitOnCeCounter(
 
     pPacket->ordinal1.header.u32All                = Type3Header(IT_WAIT_ON_CE_COUNTER, PacketSize);
     pPacket->ordinal2.u32All                     = 0;
-    pPacket->ordinal2.bitfields.cond_surface_sync = invalidateKcache;
+    pPacket->ordinal2.bitfields.core.cond_surface_sync = invalidateKcache;
 
     return PacketSize;
 }
@@ -3791,8 +3788,8 @@ size_t CmdUtil::BuildWriteDataInternal(
           static_cast<uint32>(dst_sel__me_write_data__mem_mapped_register)) &&
          (static_cast<uint32>(dst_sel__mec_write_data__tc_l2)               ==
           static_cast<uint32>(dst_sel__me_write_data__tc_l2))               &&
-         (static_cast<uint32>(dst_sel__mec_write_data__gds)                 ==
-          static_cast<uint32>(dst_sel__me_write_data__gds))                 &&
+         (static_cast<uint32>(dst_sel__mec_write_data__gds__CORE)           ==
+          static_cast<uint32>(dst_sel__me_write_data__gds__CORE))           &&
          (static_cast<uint32>(dst_sel__mec_write_data__memory)              ==
           static_cast<uint32>(dst_sel__me_write_data__memory))),
         "DST_SEL enumerations don't match between MEC and ME!");
@@ -3803,9 +3800,9 @@ size_t CmdUtil::BuildWriteDataInternal(
           static_cast<uint32>(wr_confirm__me_write_data__wait_for_write_confirmation))),
          "WR_CONFIRM enumerations don't match between MEC and ME!");
     static_assert(
-        ((static_cast<uint32>(addr_incr__me_write_data__do_not_increment_address) ==
+        ((static_cast<uint32>(addr_incr__me_write_data__do_not_increment_address)   ==
           static_cast<uint32>(addr_incr__mec_write_data__do_not_increment_address)) &&
-         (static_cast<uint32>(addr_incr__me_write_data__increment_address)        ==
+         (static_cast<uint32>(addr_incr__me_write_data__increment_address)          ==
           static_cast<uint32>(addr_incr__mec_write_data__increment_address))),
          "ADDR_INCR enumerations don't match between MEC and ME!");
 
@@ -3839,11 +3836,11 @@ size_t CmdUtil::BuildWriteDataInternal(
 
     case dst_sel__me_write_data__memory:
     case dst_sel__me_write_data__tc_l2:
-        PAL_ASSERT(pPacket->ordinal3.bitfieldsC.reserved3 == 0);
+        PAL_ASSERT(pPacket->ordinal3.bitfieldsC.core.reserved4 == 0);
         break;
 
-    case dst_sel__me_write_data__gds:
-        PAL_ASSERT(pPacket->ordinal3.bitfieldsB.reserved2 == 0);
+    case dst_sel__me_write_data__gds__CORE:
+        PAL_ASSERT(pPacket->ordinal3.bitfieldsB.core.reserved2 == 0);
         break;
 
     case dst_sel__me_write_data__memory_sync_across_grbm:
@@ -4100,10 +4097,11 @@ void CmdUtil::CheckShadowedContextRegs(
 // are shadowed when mid command buffer preemption is enabled.
 void CmdUtil::CheckShadowedShReg(
     Pm4ShaderType shaderType,
-    uint32        regAddr
+    uint32        regAddr,
+    bool          shouldBeShadowed
     ) const
 {
-    CheckShadowedShRegs(shaderType, regAddr, regAddr);
+    CheckShadowedShRegs(shaderType, regAddr, regAddr, shouldBeShadowed);
 }
 
 // =====================================================================================================================
@@ -4112,7 +4110,8 @@ void CmdUtil::CheckShadowedShReg(
 void CmdUtil::CheckShadowedShRegs(
     Pm4ShaderType shaderType,
     uint32        startRegAddr,
-    uint32        endRegAddr
+    uint32        endRegAddr,
+    bool          shouldBeShadowed
     ) const
 {
     PAL_ASSERT(IsShReg(startRegAddr) && IsShReg(endRegAddr));
@@ -4131,7 +4130,7 @@ void CmdUtil::CheckShadowedShRegs(
                 PAL_ASSERT(AreRegistersInRangeList((startRegAddr - PERSISTENT_SPACE_START),
                                                    (endRegAddr - PERSISTENT_SPACE_START),
                                                    pRange,
-                                                   numEntries));
+                                                   numEntries) == shouldBeShadowed);
             }
             else
             {
@@ -4140,7 +4139,7 @@ void CmdUtil::CheckShadowedShRegs(
                 PAL_ASSERT(AreRegistersInRangeList((startRegAddr - PERSISTENT_SPACE_START),
                                                    (endRegAddr - PERSISTENT_SPACE_START),
                                                    pRange,
-                                                   numEntries));
+                                                   numEntries) == shouldBeShadowed);
             }
         }
     }

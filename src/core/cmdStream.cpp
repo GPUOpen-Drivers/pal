@@ -160,7 +160,7 @@ uint32* CmdStream::ReserveCommands()
 {
     // Why are we reserving constant engine space when we don't have a constant engine?
     PAL_ASSERT((m_subEngineType != SubEngineType::ConstantEngine) ||
-               (m_pDevice->EngineProperties().perEngine[m_engineType].flags.constantEngineSupport != 0));
+               m_pDevice->IsConstantEngineSupported(m_engineType));
 
 #if PAL_ENABLE_PRINTS_ASSERTS
     // It's not legal to call ReserveCommands twice in a row.
@@ -361,10 +361,19 @@ CmdStreamChunk* CmdStream::GetNextChunk(
         // Make sure there is only one reference of dummy chunk at back of chunk list
         if (m_chunkList.Back() == pChunk)
         {
+            pChunk->Reset(false);
+
             m_chunkList.PopBack(nullptr);
         }
+        else
+        {
+            pChunk->Reset(true);
 
-        pChunk->Reset(true);
+            // Other chunk's reference has already been added in GetNewChunk.
+            // DummyChunk's reference should be added as well,
+            // otherwise Assertion would be triggered in reset()
+            pChunk->AddCommandStreamReference();
+        }
     }
 
     // And just add this chunk to the end of our list.
@@ -489,17 +498,13 @@ void CmdStream::Reset(
 // override EndCurrentChunk.
 Result CmdStream::End()
 {
-    if (IsEmpty() == false)
+    if ((m_status == Result::Success) && (IsEmpty() == false))
     {
-        // only if no error, the command stream is valid.
-        if (m_status == Result::Success)
-        {
-            // End the last chunk in the command stream.
-            EndCurrentChunk(true);
+        // End the last chunk in the command stream.
+        EndCurrentChunk(true);
 
-            // Add in the total DWORDs allocated to compute an upper-bound on total command size.
-            m_totalChunkDwords += m_chunkList.Back()->DwordsAllocated();
-        }
+        // Add in the total DWORDs allocated to compute an upper-bound on total command size.
+        m_totalChunkDwords += m_chunkList.Back()->DwordsAllocated();
 
         CmdStreamChunk* pRootChunk = m_chunkList.Front();
 #if PAL_ENABLE_PRINTS_ASSERTS

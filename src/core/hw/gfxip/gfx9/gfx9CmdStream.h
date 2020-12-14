@@ -161,6 +161,8 @@ public:
     void IssueHotRegisterReport(GfxCmdBuffer* pCmdBuf) const;
 #endif
 
+    void TempSetPm4OptimizerMode(bool isEnabled);
+
 protected:
     virtual size_t BuildCondIndirectBuffer(
         CompareFunc compareFunc,

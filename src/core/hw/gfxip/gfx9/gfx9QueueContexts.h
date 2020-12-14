@@ -102,7 +102,7 @@ class UniversalQueueContext : public QueueContext
 public:
     UniversalQueueContext(
         Device* pDevice,
-        bool    isPreemptionSupported,
+        bool    useStateShadowing,
         uint32  persistentCeRamOffset,
         uint32  persistentCeRamSize,
         Engine* pEngine,
@@ -137,7 +137,6 @@ private:
     Device*const          m_pDevice;
     const uint32          m_persistentCeRamOffset;
     const uint32          m_persistentCeRamSize;
-    const bool            m_isPreemptionSupported;
     UniversalEngine*const m_pEngine;
     uint32                m_queueId;
     UniversalRingSet      m_ringSet;

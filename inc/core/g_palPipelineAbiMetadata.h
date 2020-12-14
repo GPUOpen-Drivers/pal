@@ -42,9 +42,12 @@ struct BinaryData
     uint32       sizeInBytes;
 };
 
+/// Per-API shader metadata.
 struct ShaderMetadata
 {
+    /// Input shader hash, typically passed in from the client.
     uint64 apiShaderHash[2];
+    /// Flags indicating the HW stages this API shader maps to.
     uint32 hardwareMapping;
 
     union
@@ -59,19 +62,31 @@ struct ShaderMetadata
     } hasEntry;
 };
 
+/// Per-hardware stage metadata.
 struct HardwareStageMetadata
 {
+    /// The ELF symbol pointing to this pipeline's stage entry point.
     PipelineSymbolType entryPoint;
+    /// Scratch memory size in bytes.
     uint32             scratchMemorySize;
+    /// Local Data Share size in bytes.
     uint32             ldsSize;
+    /// Performance data buffer size in bytes.
     uint32             perfDataBufferSize;
+    /// Number of VGPRs used.
     uint32             vgprCount;
+    /// Number of SGPRs used.
     uint32             sgprCount;
+    /// VGPR count upper limit (only set if different from HW default).
     uint32             vgprLimit;
+    /// SGPR count upper limit (only set if different from HW default).
     uint32             sgprLimit;
+    /// Compute only. Thread-group X/Y/Z dimensions.
     uint32             threadgroupDimensions[3];
+    /// Wavefront size (only set if different from HW default).
     uint32             wavefrontSize;
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 619
+    /// Deprecated, unused.
     uint32             maxPrimsPerWave;
 #endif
 
@@ -79,10 +94,15 @@ struct HardwareStageMetadata
     {
         struct
         {
+            /// The shader reads or writes UAV(s).
             uint8 usesUavs          : 1;
+            /// The shader reads or writes ROV(s).
             uint8 usesRovs          : 1;
+            /// The shader writes to one or more UAVs.
             uint8 writesUavs        : 1;
+            /// The shader writes out a depth value.
             uint8 writesDepth       : 1;
+            /// The shader uses append or consume ops.
             uint8 usesAppendConsume : 1;
             uint8 reserved          : 3;
         };
@@ -118,33 +138,59 @@ struct HardwareStageMetadata
     } hasEntry;
 };
 
+/// Per-pipeline metadata.
 struct PipelineMetadata
 {
+    /// Source name of the pipeline.
     char                  name[64];
+    /// Pipeline type, e.g. VsPs.
     PipelineType          type;
+    /// Internal compiler hash for this pipeline. Lower 64 bits is the "stable" portion of the hash, used for e.g.
+    /// shader replacement lookup. Upper 64 bits is the "unique" portion of the hash, used for e.g. pipeline cache
+    /// lookup.
     uint64                internalPipelineHash[2];
+    /// Per-API shader metadata.
     ShaderMetadata        shader[static_cast<uint32>(ApiShaderType::Count)];
+    /// Per-hardware stage metadata.
     HardwareStageMetadata hardwareStage[static_cast<uint32>(HardwareStage::Count)];
+    /// Per-shader function metadata (offset in bytes into the msgpack blob to map of map).
     MsgPackOffset         shaderFunctions;
+    /// Hardware register configuration (offset in bytes into the msgpack blob to map).
     MsgPackOffset         registers;
+    /// Number of user data entries accessed by this pipeline.
     uint32                userDataLimit;
+    /// The user data spill threshold.  0xFFFF for NoUserDataSpilling.
     uint32                spillThreshold;
+    /// Amount of LDS space used internally for handling data-passing between the ES and GS shader stages. This can be
+    /// zero if the data is passed using off-chip buffers. This value should be used to program all user-SGPRs which
+    /// have been marked with "UserDataMapping::EsGsLdsSize" (typically only the GS and VS HW stages will ever have a
+    /// user-SGPR so marked).
     uint32                esGsLdsSize;
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 619
+    /// Address of stream out table entry.
     uint32                streamOutTableAddress;
+    /// Address(es) of indirect user data tables. 3 for VK, else 1.
     uint32                indirectUserDataTableAddresses[3];
 #endif
+    /// Explicit max subgroup size for NGG shaders (max number of threads in a subgroup).
     uint32                nggSubgroupSize;
+    /// Graphics only. Number of PS interpolants.
     uint32                numInterpolants;
+    /// Name of the client graphics API.
     char                  api[16];
+    /// Graphics API shader create info binary blob.
     BinaryData            apiCreateInfo;
 
     union
     {
         struct
         {
+            /// Indicates whether or not the pipeline uses the viewport array index feature. Pipelines which use this
+            /// feature can render into all 16 viewports, whereas pipelines which don't use it are restricted to
+            /// viewport #0.
             uint8 usesViewportArrayIndex      : 1;
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 619
+            /// GFX10 only. Determines if wave break size should be calculated at draw time.
             uint8 calcWaveBreakSizeAtDrawTime : 1;
 #else
             uint8 placeholder0                : 1;
@@ -191,9 +237,12 @@ struct PipelineMetadata
     } hasEntry;
 };
 
+/// PAL code object metadata.
 struct PalCodeObjectMetadata
 {
+    /// PAL code object metadata (major, minor) version.
     uint32           version[2];
+    /// Per-pipeline metadata.
     PipelineMetadata pipeline;
 
     union

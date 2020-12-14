@@ -40,46 +40,6 @@
         "IsEnum": true,
         "Values": [
           {
-            "Name": "CopyDstComprNeverAllow",
-            "Value": 0,
-            "Description": "If set, copy-dst will never be set as a compressible layout"
-          },
-          {
-            "Name": "CopyDstComprAlwaysAllow",
-            "Value": 1,
-            "Description": "If set, copy-dst will always be set as a compressible layout"
-          },
-          {
-            "Name": "CopyDstComprAlwaysAllowGfx10",
-            "Value": 2,
-            "Description": "If set, copy-dst will always be set as a compressible layout, but only on gfx10+"
-          },
-          {
-            "Name": "CopyDstComprAllowForReadableFormatsGfx10",
-            "Value": 3,
-            "Description": "If set, copy-dst will be set as a compressible layout for shader readable image formats only, but only on gfx10+"
-          }
-        ],
-        "Name": "CopyDstCompr"
-      },
-      "Description": "Determines how the LayoutCopyDst will be set in compressed usages",
-      "Tags": [
-        "General",
-        "Gfx10"
-      ],
-      "Defaults": {
-        "Default": "CopyDstComprAlwaysAllowGfx10"
-      },
-      "Scope": "PrivatePalGfx9Key",
-      "Type": "enum",
-      "VariableName": "copyDstIsCompressed",
-      "Name": "CopyDstIsCompressed"
-    },
-    {
-      "ValidValues": {
-        "IsEnum": true,
-        "Values": [
-          {
             "Name": "Gfx10AllowBigPageRenderTarget",
             "Value": 1,
             "Description": "Color render targets"
@@ -587,33 +547,28 @@
             "Description": "EQAA render targets"
           },
           {
-            "Name": "Gfx9UseDccForNonReadableFormats",
-            "Value": 256,
-            "Description": "Non-readable but still renderable or shader-writeable formats"
-          },
-          {
             "Name": "Gfx10UseDccRenderTargetUav",
-            "Value": 512,
+            "Value": 256,
             "Description": "Shader writable surfaces(UAV) that are also render targets"
           },
           {
             "Name": "Gfx10UseDccNonRenderTargetUav",
-            "Value": 1024,
+            "Value": 512,
             "Description": "Shader writable surfaces(UAV) that are not render targets"
           },
           {
             "Name": "Gfx9UseDccAllowForceEnable",
-            "Value": 2048,
+            "Value": 1024,
             "Description": "Allows the client driver to force-enable DCC on particular images"
           },
           {
             "Name": "Gfx9UseDccMipMappedArrays",
-            "Value": 4096,
+            "Value": 2048,
             "Description": "Surfaces which have Arrays and MipMaps"
           },
           {
             "Name": "Gfx10UseDccYuvPlanar",
-            "Value": 8192,
+            "Value": 4096,
             "Description": "YUV planar surfaces"
           }
         ],
@@ -629,7 +584,7 @@
         "IsHex": true
       },
       "Defaults": {
-        "Default": 6655
+        "Default": 3327
       },
       "Scope": "PrivatePalGfx9Key",
       "Type": "uint32",

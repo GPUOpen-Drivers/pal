@@ -3827,10 +3827,10 @@ void CmdBuffer::CmdCopyImageToMemory(
     }
 
     GetNextLayer()->CmdCopyImageToMemory(*NextImage(&srcImage),
-                                      srcImageLayout,
-                                      *NextGpuMemory(&dstGpuMemory),
-                                      regionCount,
-                                      pRegions);
+                                         srcImageLayout,
+                                         *NextGpuMemory(&dstGpuMemory),
+                                         regionCount,
+                                         pRegions);
 }
 
 // =====================================================================================================================

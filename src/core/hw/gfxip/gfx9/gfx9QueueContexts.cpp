@@ -103,19 +103,26 @@ static uint32* WriteCommonPreamble(
         }
     } // if compute supported
 
-    // Give the CP_COHER register (used by acquire-mem packet) a chance to think a little bit before actually
-    // doing anything.
-    regCP_COHER_START_DELAY cpCoherStartDelay = { };
-    if (chipProps.gfxLevel == GfxIpLevel::GfxIp9)
     {
-        cpCoherStartDelay.bits.START_DELAY_COUNT = 0;
-    }
-    else if (IsGfx10Plus(chipProps.gfxLevel))
-    {
-        cpCoherStartDelay.bits.START_DELAY_COUNT = mmCP_COHER_START_DELAY_DEFAULT;
+        // Give the CP_COHER register (used by acquire-mem packet) a chance to think a little bit before actually
+        // doing anything.
+        regCP_COHER_START_DELAY cpCoherStartDelay = { };
+
+        if (chipProps.gfxLevel == GfxIpLevel::GfxIp9)
+        {
+            cpCoherStartDelay.bits.START_DELAY_COUNT = 0;
+        }
+        else if (IsGfx10(chipProps.gfxLevel))
+        {
+            cpCoherStartDelay.bits.START_DELAY_COUNT = Gfx09_10::mmCP_COHER_START_DELAY_DEFAULT;
+        }
+
+        pCmdSpace = pCmdStream->WriteSetOneConfigReg(Gfx09_10::mmCP_COHER_START_DELAY,
+                                                     cpCoherStartDelay.u32All,
+                                                     pCmdSpace);
     }
 
-    return pCmdStream->WriteSetOneConfigReg(mmCP_COHER_START_DELAY, cpCoherStartDelay.u32All, pCmdSpace);
+    return pCmdSpace;
 }
 
 // =====================================================================================================================
@@ -539,7 +546,7 @@ Result ComputeQueueContext::UpdateRingSet(
 // =====================================================================================================================
 UniversalQueueContext::UniversalQueueContext(
     Device* pDevice,
-    bool    isPreemptionSupported,
+    bool    useStateShadowing,
     uint32  persistentCeRamOffset,
     uint32  persistentCeRamSize,
     Engine* pEngine,
@@ -549,7 +556,6 @@ UniversalQueueContext::UniversalQueueContext(
     m_pDevice(pDevice),
     m_persistentCeRamOffset(persistentCeRamOffset),
     m_persistentCeRamSize(persistentCeRamSize),
-    m_isPreemptionSupported(isPreemptionSupported),
     m_pEngine(static_cast<UniversalEngine*>(pEngine)),
     m_queueId(queueId),
     m_ringSet(pDevice, false),
@@ -557,7 +563,7 @@ UniversalQueueContext::UniversalQueueContext(
     m_currentUpdateCounter(0),
     m_currentUpdateCounterTmz(0),
     m_cmdsUseTmzRing(false),
-    m_useShadowing(Device::ForceStateShadowing || isPreemptionSupported),
+    m_useShadowing(useStateShadowing),
     m_shadowGpuMemSizeInBytes(0),
     m_shadowedRegCount(0),
     m_deCmdStream(*pDevice,
@@ -1251,7 +1257,8 @@ Result UniversalQueueContext::RebuildCommandStreams(
 
     // If the client has requested that this Queue maintain persistent CE RAM contents, we need to rebuild the CE
     // preamble and postamble.
-    if ((m_persistentCeRamSize != 0) || m_useShadowing)
+    if (m_pDevice->Parent()->IsConstantEngineSupported(EngineType::EngineTypeUniversal) &&
+        ((m_persistentCeRamSize != 0) || m_useShadowing))
     {
         PAL_ASSERT(m_shadowGpuMem.IsBound());
         const gpusize gpuVirtAddr = (m_shadowGpuMem.GpuVirtAddr() + (sizeof(uint32) * m_shadowedRegCount));

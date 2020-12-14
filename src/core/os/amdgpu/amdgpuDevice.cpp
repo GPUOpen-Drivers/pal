@@ -984,6 +984,7 @@ Result Device::InitTmzHeapProperties()
     m_heapProperties[GpuHeapGartUswc].flags.supportsTmz      = 0;
     m_heapProperties[GpuHeapGartCacheable].flags.supportsTmz = 0;
 
+    m_memoryProperties.flags.supportsTmz = m_memoryProperties.flags.supportsTmz && Settings().tmzEnabled;
     // set the heap support for protected region
     if (m_memoryProperties.flags.supportsTmz)
     {
@@ -1468,7 +1469,7 @@ Result Device::InitMemInfo()
                 m_memoryProperties.largePageSupport.minSurfaceSizeForAlignmentInBytes = deviceInfo.pte_fragment_size;
                 m_memoryProperties.largePageSupport.gpuVaAlignmentNeeded = (deviceInfo.pte_fragment_size >= 64*1024);
                 m_memoryProperties.largePageSupport.sizeAlignmentNeeded = (deviceInfo.pte_fragment_size >= 64*1024);
-
+                // supportsTmz flag might be overriden by panel settings in InitTmzHeapProperties().
                 m_memoryProperties.flags.supportsTmz = (deviceInfo.ids_flags & AMDGPU_IDS_FLAGS_TMZ) ? 1 : 0;
             }
         }
@@ -1505,7 +1506,6 @@ Result Device::InitMemInfo()
             m_memoryProperties.flags.globalGpuVaSupport      = 0; // Not supported
             m_memoryProperties.flags.svmSupport              = 1; // Supported
             m_memoryProperties.flags.autoPrioritySupport     = 0; // Not supported
-            m_memoryProperties.flags.supportsTmz             = 0; // Not supported
 
             // Linux don't support High Bandwidth Cache Controller (HBCC) memory segment
             m_memoryProperties.hbccSizeInBytes   = 0;
@@ -1988,7 +1988,35 @@ Result Device::CreateImage(
 
     Pal::Image* pImage = nullptr;
 
-    constexpr ImageInternalCreateInfo internalInfo = {};
+    ImageInternalCreateInfo internalInfo = {};
+
+    // [AMDVLK-179][X-plane]Vulkan does not properly synchronize with OpenGL in X-Plane 11.50
+    // This issue root cause is AMDVLK and Mesa have different pipeBankXor for a shareable image.
+    // This image is created by AMDVLK, and export to Mesa OGL.
+    // In mesa, for a shareable image, mesa will not compute pipeBankXor, set it be zero.
+    // Different pipeBankXor cause X-plane's third_party plugin dialog corruption, with mesa stack.
+    // This fix only for Vulkan export image to other components on Linux Platform.
+    // Not impact AMDVLK import external image.
+    if (createInfo.flags.optimalShareable)
+    {
+        if (ChipProperties().gfxLevel < GfxIpLevel::GfxIp9)
+        {
+            internalInfo.flags.useSharedTilingOverrides = 1;
+            internalInfo.gfx6.sharedTileSwizzle = 0;
+            // Do not override below values
+            internalInfo.gfx6.sharedTileMode = ADDR_TM_COUNT;
+            internalInfo.gfx6.sharedTileType = TileTypeInvalid;
+            internalInfo.gfx6.sharedTileIndex = TileIndexUnused;
+        }
+        else if (ChipProperties().gfxLevel >= GfxIpLevel::GfxIp9)
+        {
+            internalInfo.flags.useSharedTilingOverrides = 1;
+            internalInfo.gfx9.sharedPipeBankXor = 0;
+            internalInfo.gfx9.sharedPipeBankXorFmask = 0;
+            // Do not override the swizzle mode value
+            internalInfo.gfx9.sharedSwizzleMode = ADDR_SW_MAX_TYPE;
+        }
+    }
 
     Result ret = CreateInternalImage(createInfo, internalInfo, pPlacementAddr, &pImage);
     if (ret == Result::Success)
@@ -2020,7 +2048,9 @@ Result Device::CreateInternalImage(
 
 // =====================================================================================================================
 //Get Display Dcc Info
-void Device::GetDisplayDccInfo(DisplayDccCaps& displayDcc) const
+void Device::GetDisplayDccInfo(
+    DisplayDccCaps& displayDcc
+    ) const
 {
     PAL_ASSERT(ChipProperties().imageProperties.flags.supportDisplayDcc == 1);
     if (m_gpuInfo.rb_pipes == 1)
@@ -2037,9 +2067,9 @@ void Device::GetDisplayDccInfo(DisplayDccCaps& displayDcc) const
         )
         {
             displayDcc.dcc_256_256_unconstrained = 0;
-            displayDcc.dcc_256_128_128           = 0;
+            displayDcc.dcc_256_128_128           = 1;
             displayDcc.dcc_128_128_unconstrained = 0;
-            displayDcc.dcc_256_64_64             = 1;
+            displayDcc.dcc_256_64_64             = 0;
         }
     }
 }
@@ -3032,185 +3062,6 @@ Result Device::DestroyResourceList(
 }
 
 // =====================================================================================================================
-// convert the surface format from PAL definition to AMDGPU definition.
-static AMDGPU_PIXEL_FORMAT PalToAmdGpuFormatConversion(
-    const SwizzledFormat format)
-{
-    // we don't support types of format other than R8G8B8A8 or B8G8R8A8 so far.
-    return AMDGPU_PIXEL_FORMAT__8_8_8_8;
-}
-
-// =====================================================================================================================
-static uint32 AmdGpuToPalTileModeConversion(
-    AMDGPU_TILE_MODE tileMode)
-{
-    uint32 palTileMode = ADDR_TM_LINEAR_GENERAL;
-    switch (tileMode)
-    {
-    case AMDGPU_TILE_MODE__LINEAR_GENERAL:
-        palTileMode = ADDR_TM_LINEAR_GENERAL;
-        break;
-    case AMDGPU_TILE_MODE__LINEAR_ALIGNED:
-        palTileMode = ADDR_TM_LINEAR_ALIGNED;
-        break;
-    case AMDGPU_TILE_MODE__1D_TILED_THIN1:
-        palTileMode = ADDR_TM_1D_TILED_THIN1;
-        break;
-    case AMDGPU_TILE_MODE__1D_TILED_THICK:
-        palTileMode = ADDR_TM_1D_TILED_THICK;
-        break;
-    case AMDGPU_TILE_MODE__2D_TILED_THIN1:
-        palTileMode = ADDR_TM_2D_TILED_THIN1;
-        break;
-    case AMDGPU_TILE_MODE__2D_TILED_THIN2:
-        palTileMode = ADDR_TM_2D_TILED_THIN2;
-        break;
-    case AMDGPU_TILE_MODE__2D_TILED_THIN4:
-        palTileMode = ADDR_TM_2D_TILED_THIN4;
-        break;
-    case AMDGPU_TILE_MODE__2D_TILED_THICK:
-        palTileMode = ADDR_TM_2D_TILED_THICK;
-        break;
-    case AMDGPU_TILE_MODE__2B_TILED_THIN1:
-        palTileMode = ADDR_TM_2B_TILED_THIN1;
-        break;
-    case AMDGPU_TILE_MODE__2B_TILED_THIN2:
-        palTileMode = ADDR_TM_2B_TILED_THIN2;
-        break;
-    case AMDGPU_TILE_MODE__2B_TILED_THIN4:
-        palTileMode = ADDR_TM_2B_TILED_THIN4;
-        break;
-    case AMDGPU_TILE_MODE__2B_TILED_THICK:
-        palTileMode = ADDR_TM_2B_TILED_THICK;
-        break;
-    case AMDGPU_TILE_MODE__3D_TILED_THIN1:
-        palTileMode = ADDR_TM_3D_TILED_THIN1;
-        break;
-    case AMDGPU_TILE_MODE__3D_TILED_THICK:
-        palTileMode = ADDR_TM_3D_TILED_THICK;
-        break;
-    case AMDGPU_TILE_MODE__3B_TILED_THIN1:
-        palTileMode = ADDR_TM_3B_TILED_THIN1;
-        break;
-    case AMDGPU_TILE_MODE__3B_TILED_THICK:
-        palTileMode = ADDR_TM_3B_TILED_THICK;
-        break;
-    case AMDGPU_TILE_MODE__2D_TILED_XTHICK:
-        palTileMode = ADDR_TM_2D_TILED_XTHICK;
-        break;
-    case AMDGPU_TILE_MODE__3D_TILED_XTHICK:
-        palTileMode = ADDR_TM_3D_TILED_XTHICK;
-        break;
-    case AMDGPU_TILE_MODE__PRT_TILED_THIN1:
-        palTileMode = ADDR_TM_PRT_TILED_THIN1;
-        break;
-    case AMDGPU_TILE_MODE__PRT_2D_TILED_THIN1:
-        palTileMode = ADDR_TM_PRT_2D_TILED_THIN1;
-        break;
-    case AMDGPU_TILE_MODE__PRT_3D_TILED_THIN1:
-        palTileMode = ADDR_TM_PRT_3D_TILED_THIN1;
-        break;
-    case AMDGPU_TILE_MODE__PRT_TILED_THICK:
-        palTileMode = ADDR_TM_PRT_TILED_THICK;
-        break;
-    case AMDGPU_TILE_MODE__PRT_2D_TILED_THICK:
-        palTileMode = ADDR_TM_PRT_2D_TILED_THICK;
-        break;
-    case AMDGPU_TILE_MODE__PRT_3D_TILED_THICK:
-        palTileMode = ADDR_TM_PRT_3D_TILED_THICK;
-        break;
-    default:
-        palTileMode = ADDR_TM_LINEAR_GENERAL;
-        break;
-    }
-
-    return palTileMode;
-}
-
-// =====================================================================================================================
-// convert the tiling mode from PAL definition to AMDGPU definition.
-static AMDGPU_TILE_MODE PalToAmdGpuTileModeConversion(
-    uint32 tileMode)
-{
-    constexpr AMDGPU_TILE_MODE TileModes[] =
-    {
-        AMDGPU_TILE_MODE__LINEAR_GENERAL,       //ADDR_TM_LINEAR_GENERAL      = 0,
-        AMDGPU_TILE_MODE__LINEAR_ALIGNED,       //ADDR_TM_LINEAR_ALIGNED      = 1,
-        AMDGPU_TILE_MODE__1D_TILED_THIN1,       //ADDR_TM_1D_TILED_THIN1      = 2,
-        AMDGPU_TILE_MODE__1D_TILED_THICK,       //ADDR_TM_1D_TILED_THICK      = 3,
-        AMDGPU_TILE_MODE__2D_TILED_THIN1,       //ADDR_TM_2D_TILED_THIN1      = 4,
-        AMDGPU_TILE_MODE__2D_TILED_THIN2,       //ADDR_TM_2D_TILED_THIN2      = 5,
-        AMDGPU_TILE_MODE__2D_TILED_THIN4,       //ADDR_TM_2D_TILED_THIN4      = 6,
-        AMDGPU_TILE_MODE__2D_TILED_THICK,       //ADDR_TM_2D_TILED_THICK      = 7,
-        AMDGPU_TILE_MODE__2B_TILED_THIN1,       //ADDR_TM_2B_TILED_THIN1      = 8,
-        AMDGPU_TILE_MODE__2B_TILED_THIN2,       //ADDR_TM_2B_TILED_THIN2      = 9,
-        AMDGPU_TILE_MODE__2B_TILED_THIN4,       //ADDR_TM_2B_TILED_THIN4      = 10,
-        AMDGPU_TILE_MODE__2B_TILED_THICK,       //ADDR_TM_2B_TILED_THICK      = 11,
-        AMDGPU_TILE_MODE__3D_TILED_THIN1,       //ADDR_TM_3D_TILED_THIN1      = 12,
-        AMDGPU_TILE_MODE__3D_TILED_THICK,       //ADDR_TM_3D_TILED_THICK      = 13,
-        AMDGPU_TILE_MODE__3B_TILED_THIN1,       //ADDR_TM_3B_TILED_THIN1      = 14,
-        AMDGPU_TILE_MODE__3B_TILED_THICK,       //ADDR_TM_3B_TILED_THICK      = 15,
-        AMDGPU_TILE_MODE__2D_TILED_XTHICK,      //ADDR_TM_2D_TILED_XTHICK     = 16,
-        AMDGPU_TILE_MODE__3D_TILED_XTHICK,      //ADDR_TM_3D_TILED_XTHICK     = 17,
-        AMDGPU_TILE_MODE__INVALID,              //ADDR_TM_POWER_SAVE          = 18,
-        AMDGPU_TILE_MODE__PRT_TILED_THIN1,      //ADDR_TM_PRT_TILED_THIN1     = 19,
-        AMDGPU_TILE_MODE__PRT_2D_TILED_THIN1,   //ADDR_TM_PRT_2D_TILED_THIN1  = 20,
-        AMDGPU_TILE_MODE__PRT_3D_TILED_THIN1,   //ADDR_TM_PRT_3D_TILED_THIN1  = 21,
-        AMDGPU_TILE_MODE__PRT_TILED_THICK,      //ADDR_TM_PRT_TILED_THICK     = 22,
-        AMDGPU_TILE_MODE__PRT_2D_TILED_THICK,   //ADDR_TM_PRT_2D_TILED_THICK  = 23,
-        AMDGPU_TILE_MODE__PRT_3D_TILED_THICK,   //ADDR_TM_PRT_3D_TILED_THICK  = 24,
-        AMDGPU_TILE_MODE__INVALID,              //ADDR_TM_COUNT               = 25,
-    };
-    return TileModes[tileMode];
-}
-
-// =====================================================================================================================
-static uint32 AmdGpuToPalTileTypeConversion(
-    AMDGPU_MICRO_TILE_MODE tileType)
-{
-    uint32 palTileType = ADDR_NON_DISPLAYABLE;
-    switch (tileType)
-    {
-    case AMDGPU_MICRO_TILE_MODE__DISPLAYABLE:
-        palTileType = ADDR_DISPLAYABLE;
-        break;
-    case AMDGPU_MICRO_TILE_MODE__NON_DISPLAYABLE:
-        palTileType = ADDR_NON_DISPLAYABLE;
-        break;
-    case AMDGPU_MICRO_TILE_MODE__DEPTH_SAMPLE_ORDER:
-        palTileType = ADDR_DEPTH_SAMPLE_ORDER;
-        break;
-    case AMDGPU_MICRO_TILE_MODE__ROTATED:
-        palTileType = ADDR_ROTATED;
-        break;
-    case AMDGPU_MICRO_TILE_MODE__THICK:
-        palTileType = ADDR_THICK;
-        break;
-    default:
-        palTileType = ADDR_NON_DISPLAYABLE;
-        break;
-    };
-
-    return palTileType;
-}
-
-// =====================================================================================================================
-// convert the micro tile mode from PAL definition to AMDGPU definition.
-static AMDGPU_MICRO_TILE_MODE PalToAmdGpuTileTypeConversion(
-    const uint32 tileType)
-{
-    constexpr AMDGPU_MICRO_TILE_MODE TileTypes[] =
-    {
-        AMDGPU_MICRO_TILE_MODE__DISPLAYABLE,        //ADDR_DISPLAYABLE        = 0,
-        AMDGPU_MICRO_TILE_MODE__NON_DISPLAYABLE,    //ADDR_NON_DISPLAYABLE    = 1,
-        AMDGPU_MICRO_TILE_MODE__DEPTH_SAMPLE_ORDER, //ADDR_DEPTH_SAMPLE_ORDER = 2,
-        AMDGPU_MICRO_TILE_MODE__ROTATED,            //ADDR_ROTATED            = 3,
-        AMDGPU_MICRO_TILE_MODE__THICK,              //ADDR_THICK              = 4,
-    };
-    return TileTypes[tileType];
-}
-
-// =====================================================================================================================
 static uint32 AmdGpuToPalPipeConfigConversion(
     AMDGPU_PIPE_CFG pipeConfig)
 {
@@ -3363,8 +3214,8 @@ void Device::UpdateImageInfo(
             pSubResInfo->rowPitch                   = pUmdMetaData->aligned_pitch_in_bytes;
             pSubResInfo->actualExtentTexels.height  = pUmdMetaData->aligned_height;
             pTileInfo->tileIndex                    = pUmdMetaData->tile_index;
-            pTileInfo->tileMode                     = AmdGpuToPalTileModeConversion(pUmdMetaData->tile_mode);
-            pTileInfo->tileType                     = AmdGpuToPalTileTypeConversion(pUmdMetaData->micro_tile_mode);
+            pTileInfo->tileMode                     = AmdGpuToAddrTileModeConversion(pUmdMetaData->tile_mode);
+            pTileInfo->tileType                     = static_cast<uint32>(pUmdMetaData->micro_tile_mode);
 
             pTileInfo->pipeConfig                   = AmdGpuToPalPipeConfigConversion(
                                                                 pUmdMetaData->tile_config.pipe_config);
@@ -3443,8 +3294,8 @@ void Device::UpdateMetaData(
         pUmdMetaData->aligned_height         = pSubResInfo->actualExtentTexels.height;
         pUmdMetaData->tile_index             = pTileInfo->tileIndex;
         pUmdMetaData->format                 = PalToAmdGpuFormatConversion(pSubResInfo->format);
-        pUmdMetaData->tile_mode              = PalToAmdGpuTileModeConversion(pTileInfo->tileMode);
-        pUmdMetaData->micro_tile_mode        = PalToAmdGpuTileTypeConversion(pTileInfo->tileType);
+        pUmdMetaData->tile_mode              = AddrToAmdGpuTileModeConversion(pTileInfo->tileMode);
+        pUmdMetaData->micro_tile_mode        = static_cast<AMDGPU_MICRO_TILE_MODE>(pTileInfo->tileType);
 
         pUmdMetaData->pipeBankXor            = pTileInfo->tileSwizzle;
 

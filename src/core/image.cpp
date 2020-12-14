@@ -98,7 +98,7 @@ Image::Image(
                                                                          createInfo.pViewFormats,
                                                                          createInfo.viewFormatCount);
 
-    if (IsDepthStencil())
+    if (IsDepthStencilTarget())
     {
         m_imageInfo.resolveMethod.shaderPs = 1;
         m_imageInfo.resolveMethod.depthStencilCopy = 1;
@@ -918,7 +918,7 @@ SubresId Image::GetBaseSubResource() const
 {
     SubresId subRes = { };
 
-    if (IsDepthStencil() ||
+    if (IsDepthStencilTarget() ||
         IsDepthStencilOnly(m_createInfo.swizzledFormat.format))
     {
         if (IsAspectValid(ImageAspect::Depth) == true)

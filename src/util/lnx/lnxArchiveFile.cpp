@@ -69,7 +69,6 @@ static char* GenerateFullPath(
 #else
     Strncat(pStringBuffer, stringBufferSize, pOpenInfo->pFileName);
 #endif
-
     return pStringBuffer;
 }
 

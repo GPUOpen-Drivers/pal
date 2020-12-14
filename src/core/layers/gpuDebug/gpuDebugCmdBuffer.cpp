@@ -26,12 +26,16 @@
 #if PAL_BUILD_GPU_DEBUG
 
 #include "core/layers/gpuDebug/gpuDebugCmdBuffer.h"
+#include "core/layers/gpuDebug/gpuDebugColorBlendState.h"
+#include "core/layers/gpuDebug/gpuDebugColorTargetView.h"
 #include "core/layers/gpuDebug/gpuDebugDevice.h"
 #include "core/layers/gpuDebug/gpuDebugImage.h"
+#include "core/layers/gpuDebug/gpuDebugPipeline.h"
 #include "core/layers/gpuDebug/gpuDebugPlatform.h"
 #include "core/layers/gpuDebug/gpuDebugQueue.h"
 #include "core/g_palPlatformSettings.h"
 #include "palAutoBuffer.h"
+#include "palFormatInfo.h"
 #include <cinttypes>
 
 // This is required because we need the definition of the D3D12DDI_PRESENT_0003 struct in order to make a copy of the
@@ -61,6 +65,10 @@ CmdBuffer::CmdBuffer(
     m_timestampAddr(0),
     m_counter(0),
     m_engineType(createInfo.engineType),
+    m_verificationOptions(m_pDevice->GetPlatform()->PlatformSettings().gpuDebugConfig.verificationOptions),
+    m_pBoundPipeline(nullptr),
+    m_boundTargets(),
+    m_pBoundBlendState(nullptr),
     m_pTokenStream(nullptr),
     m_tokenStreamSize(m_pDevice->GetPlatform()->PlatformSettings().gpuDebugConfig.tokenAllocatorSize),
     m_tokenWriteOffset(0),
@@ -279,6 +287,9 @@ Result CmdBuffer::Reset(
 {
     m_counter           = 0;
     m_pLastTgtCmdBuffer = nullptr;
+    m_pBoundPipeline    = nullptr;
+    m_pBoundBlendState  = nullptr;
+    memset(&m_boundTargets, 0, sizeof(m_boundTargets));
     memset(&m_buildInfo, 0, sizeof(m_buildInfo));
     return GetNextLayer()->Reset(NextCmdAllocator(pCmdAllocator), returnGpuMemory);
 }
@@ -429,6 +440,8 @@ void CmdBuffer::ReplayEnd(
 void CmdBuffer::CmdBindPipeline(
     const PipelineBindParams& params)
 {
+    m_pBoundPipeline = params.pPipeline;
+
     InsertToken(CmdBufCallId::CmdBindPipeline);
     InsertToken(params);
 }
@@ -462,6 +475,8 @@ void CmdBuffer::ReplayCmdBindMsaaState(
 void CmdBuffer::CmdBindColorBlendState(
     const IColorBlendState* pColorBlendState)
 {
+    m_pBoundBlendState = pColorBlendState;
+
     InsertToken(CmdBufCallId::CmdBindColorBlendState);
     InsertToken(pColorBlendState);
 }
@@ -518,6 +533,8 @@ void CmdBuffer::ReplayCmdBindIndexData(
 void CmdBuffer::CmdBindTargets(
     const BindTargetParams& params)
 {
+    m_boundTargets = params;
+
     InsertToken(CmdBufCallId::CmdBindTargets);
     InsertToken(params);
 }
@@ -1160,6 +1177,105 @@ void CmdBuffer::ReplayCmdWaitBusAddressableMemoryMarker(
 }
 
 // =====================================================================================================================
+void CmdBuffer::VerifyBoundDrawState() const
+{
+    if (TestAnyFlagSet(m_verificationOptions, VerificationBoundTargets))
+    {
+        // Some verification logic to ensure that the currently bound pipeline matches with the currently bound
+        // render targets.
+
+        // We can assume that because this is a draw that the bound pipeline is a GraphicsPipeline. Since we only
+        // decorate GraphicsPipelines with the GpuDebug::Pipeline object, we can safely make this cast.
+        const GraphicsPipelineCreateInfo& pipeInfo = static_cast<const Pipeline*>(m_pBoundPipeline)->CreateInfo();
+
+        const uint32 numBoundColorTargets = m_boundTargets.colorTargetCount;
+        for (uint32 i = 0; i < numBoundColorTargets; i++)
+        {
+            const ColorTargetView* pTarget    =
+                static_cast<const ColorTargetView*>(m_boundTargets.colorTargets[i].pColorTargetView);
+            const SwizzledFormat pipeFormat      = pipeInfo.cbState.target[i].swizzledFormat;
+            const SwizzledFormat ctvFormat       = (pTarget != nullptr) ? pTarget->Format() : UndefinedSwizzledFormat;
+
+            const bool formatsMatch = (memcmp(&pipeFormat, &ctvFormat, sizeof(SwizzledFormat)) == 0);
+
+            if (formatsMatch)
+            {
+                // If the formats already match, there is no cause for concern.
+                continue;
+            }
+
+            // This alert is for 100% compliance. The formats provided to both the Pipeline and the ColorTargetView
+            // should always match to be conformant to both API and PAL requirements. However, there are many
+            // applications that do not do this properly but get away with it because the hardware *just works*. So this
+            // is an alert because otherwise it would trigger very frequently.
+            PAL_ALERT_ALWAYS_MSG("The format provided for the bound PAL render target does not match the expected "
+                                 "format described when the pipeline was created! This is not expected, but it's not "
+                                 "a fatal error.");
+
+            // There are certain format conversions which we can consider safe when blending is enabled. If the two
+            // formats share the same number of components and the same numeric "type" (that is, a floating point type
+            // vs an integer type), and the number of bits going from Pipeline export to ColorTargetView for each
+            // channel is guaranteed to be equivalent or an up-convert, then these formats are safe.
+
+            const ChNumFormat pipeChNumFormat = pipeFormat.format;
+            const ChNumFormat ctvChNumFormat  = ctvFormat.format;
+
+            const bool formatsUndefined = (pipeChNumFormat == ChNumFormat::Undefined) ||
+                                          (ctvChNumFormat  == ChNumFormat::Undefined);
+
+            const bool pipeIsFloatType = Formats::IsUnorm(pipeChNumFormat) ||
+                                         Formats::IsSnorm(pipeChNumFormat) ||
+                                         Formats::IsFloat(pipeChNumFormat) ||
+                                         Formats::IsSrgb(pipeChNumFormat);
+            const bool ctvIsFloatType = Formats::IsUnorm(ctvChNumFormat) ||
+                                        Formats::IsSnorm(ctvChNumFormat) ||
+                                        Formats::IsFloat(ctvChNumFormat) ||
+                                        Formats::IsSrgb(ctvChNumFormat);
+
+            const bool similarNumType  = pipeIsFloatType == ctvIsFloatType;
+            const bool shareChFmt      = Formats::ShareChFmt(pipeChNumFormat, ctvChNumFormat);
+            const bool shareComponents = Formats::ComponentMask(pipeChNumFormat) ==
+                                         Formats::ComponentMask(ctvChNumFormat);
+            const bool shareNumBits    = Formats::BitsPerPixel(pipeChNumFormat) ==
+                                         Formats::BitsPerPixel(ctvChNumFormat);
+
+            const uint32* pPipeCompNumBits = Formats::ComponentBitCounts(pipeChNumFormat);
+            const uint32* pCtvCompNumBits  = Formats::ComponentBitCounts(ctvChNumFormat);
+
+            bool safeComponentUpConversion = true;
+            for (uint32 comp = 0; comp < 4; comp++)
+            {
+                safeComponentUpConversion &= (pPipeCompNumBits[comp] <= pCtvCompNumBits[comp]);
+            }
+
+            const bool blendStateBlendEnable =
+                (m_pBoundBlendState != nullptr) ?
+                static_cast<const ColorBlendState*>(m_pBoundBlendState)->CreateInfo().targets[i].blendEnable :
+                false;
+
+            // This assert here only cares about the following situations:
+            //   - When blending is enabled, and
+            //   - When the pipeline is exporting to a render target, and
+            //   - When the render target is bound, and
+            //   - The formats of the render target and pipeline's export are safe for conversion, which is defined as:
+            //   |-- The same numeric type (floating point type or integer type), and
+            //   |-- The same channel format, or the same number of components, the same pixel bit width, and that the
+            //       pipeline's components are always equal or up-converting to the render targets components.
+            PAL_ASSERT_MSG((blendStateBlendEnable == false) ||
+                           formatsUndefined                 ||
+                           (similarNumType &&
+                            (shareChFmt || (shareComponents && shareNumBits && safeComponentUpConversion))),
+                           "Blending is enabled and the format conversion between the pipeline's exports and the "
+                           "bound render target are possibly incompatible. Some hardware may see corruption with this "
+                           "combination, and the application or client driver should work to fix this illegal issue.");
+        }
+
+        // The PAL IPipeline object does not know what the DepthStencilView format is, so we cannot check it against
+        // the bound render targets.
+    }
+}
+
+// =====================================================================================================================
 // Adds single-step and timestamp logic for any internal draws/dispatches that the internal PAL core might do.
 // Also adds draw/dispatch info (shader IDs) to the command stream prior to the draw/dispatch.
 void CmdBuffer::HandleDrawDispatch(
@@ -1170,6 +1286,8 @@ void CmdBuffer::HandleDrawDispatch(
 
     if (preAction)
     {
+        VerifyBoundDrawState();
+
         const bool cacheFlushInv = (isDraw) ? TestAnyFlagSet(m_cacheFlushInvOnAction, BeforeDraw) :
                                               TestAnyFlagSet(m_cacheFlushInvOnAction, BeforeDispatch);
 

@@ -140,6 +140,8 @@ protected:
 
     virtual gpusize GetSubresourceBaseAddr(const Pal::Image& image, const SubresId& subresource) const override;
 
+    virtual uint32 GetLinearRowPitchAlignment(uint32 bytesPerPixel) const override;
+
 protected:
     virtual bool UseT2tScanlineCopy(const DmaImageCopyInfo& imageCopyInfo) const override;
 
@@ -190,6 +192,8 @@ private:
 
     uint32 GetLinearRowPitch(gpusize rowPitch, uint32 bytesPerPixel) const;
 
+    void ValidateLinearRowPitch(gpusize rowPitchInBytes, gpusize height, uint32 bytesPerPixel) const;
+
     static uint32 GetLinearDepthPitch(gpusize depthPitch, uint32 bytesPerPixel)
     {
         PAL_ASSERT(depthPitch % bytesPerPixel == 0);
@@ -199,7 +203,13 @@ private:
     }
 
     uint32 GetLinearRowPitch(const DmaImageInfo& imageInfo) const
-        { return GetLinearRowPitch(imageInfo.pSubresInfo->rowPitch, imageInfo.bytesPerPixel); }
+    {
+        ValidateLinearRowPitch(imageInfo.pSubresInfo->rowPitch,
+                               imageInfo.extent.height,
+                               imageInfo.bytesPerPixel);
+
+        return GetLinearRowPitch(imageInfo.pSubresInfo->rowPitch, imageInfo.bytesPerPixel);
+    }
 
     static uint32 GetLinearDepthPitch(const DmaImageInfo& imageInfo)
         { return GetLinearDepthPitch(imageInfo.pSubresInfo->depthPitch, imageInfo.bytesPerPixel); }

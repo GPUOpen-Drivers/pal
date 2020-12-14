@@ -124,9 +124,17 @@ private:
 
 // Converts an AMDGPU format enumeration to a PAL format.
 extern SwizzledFormat AmdgpuFormatToPalFormat(
-        AMDGPU_PIXEL_FORMAT format,
-        bool*               pFormatChange,
-        bool*               pDepthStencilUsage);
+    AMDGPU_PIXEL_FORMAT format,
+    bool*               pFormatChange,
+    bool*               pDepthStencilUsage);
 
+extern uint32 AmdGpuToAddrTileModeConversion(
+    AMDGPU_TILE_MODE tileMode);
+
+extern AMDGPU_TILE_MODE AddrToAmdGpuTileModeConversion(
+    uint32 tileMode);
+
+extern AMDGPU_PIXEL_FORMAT PalToAmdGpuFormatConversion(
+    SwizzledFormat format);
 } // Amdgpu
 } // Pal

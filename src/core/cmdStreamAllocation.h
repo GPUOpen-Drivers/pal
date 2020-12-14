@@ -304,7 +304,7 @@ public:
     // Note that this has a different return type than Vector::Back() - T vs. T&.
     T Back() const
     {
-        PAL_ASSERT(Vector::IsEmpty() == false);
+        PAL_ALERT(Vector::IsEmpty());
         return m_back;
     }
 

@@ -467,16 +467,11 @@ uint32 GraphicsPipeline::CalcMaxWavesPerSe(
     float maxWavesPerCu2
     ) const
 {
-    // The maximum number of waves per SH in "register units".
-    // By default set the WAVE_LIMIT field to be unlimited.
-    // Limits given by the ELF will only apply if the caller doesn't set their own limit.
-    uint32 wavesPerSe = 0;
-
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 630
-    const auto& gfx9ChipProps = m_pDevice->Parent()->ChipProperties().gfx9;
-    wavesPerSe = CalcMaxWavesPerSh(maxWavesPerCu1, maxWavesPerCu2) * gfx9ChipProps.numShaderArrays;
+    const auto&  gfx9ChipProps = m_pDevice->Parent()->ChipProperties().gfx9;
+    const uint32 wavesPerSe    = CalcMaxWavesPerSh(maxWavesPerCu1, maxWavesPerCu2) * gfx9ChipProps.numShaderArrays;
 #else
-    wavesPerSe = CalcMaxWavesPerSh(maxWavesPerCu1, maxWavesPerCu2);
+    const uint32 wavesPerSe = CalcMaxWavesPerSh(maxWavesPerCu1, maxWavesPerCu2);
 #endif
 
     return wavesPerSe;
@@ -495,29 +490,28 @@ uint32 GraphicsPipeline::CalcMaxWavesPerSh(
         ((maxWavesPerCu2 == 0) ? maxWavesPerCu1
                                : ((maxWavesPerCu1 == 0) ? maxWavesPerCu2
                                                         : Min(maxWavesPerCu1, maxWavesPerCu2)));
+    const     auto&  gfx9ChipProps                 = m_pDevice->Parent()->ChipProperties().gfx9;
+    const     uint32 numWavefrontsPerCu            = gfx9ChipProps.numSimdPerCu * gfx9ChipProps.numWavesPerSimd;
+    constexpr uint32 MaxWavesPerShGraphicsUnitSize = 16u;
+    const     uint32 maxWavesPerShGraphics         = (gfx9ChipProps.maxNumCuPerSh * numWavefrontsPerCu) /
+                                                     MaxWavesPerShGraphicsUnitSize;
+
+    // We assume no one is trying to use more than 100% of all waves.
+    PAL_ASSERT(maxWavesPerCu <= numWavefrontsPerCu);
 
     // The maximum number of waves per SH in "register units".
-    // By default set the WAVE_LIMIT field to be unlimited.
+    // By default set the WAVE_LIMIT field to maximum (NOT to unlimited (0) to prevent inaccurate math for limits).
     // Limits given by the ELF will only apply if the caller doesn't set their own limit.
-    uint32 wavesPerSh = 0;
+    uint32 wavesPerSh = maxWavesPerShGraphics;
 
     // If the caller would like to override the default maxWavesPerCu
     if (maxWavesPerCu > 0)
     {
-        const auto& gfx9ChipProps = m_pDevice->Parent()->ChipProperties().gfx9;
-
-        const     uint32 numWavefrontsPerCu            = gfx9ChipProps.numSimdPerCu * gfx9ChipProps.numWavesPerSimd;
-        constexpr uint32 MaxWavesPerShGraphicsUnitSize = 16u;
-        const     uint32 maxWavesPerShGraphics         = (numWavefrontsPerCu * gfx9ChipProps.maxNumCuPerSh) /
-                                                         MaxWavesPerShGraphicsUnitSize;
-
-        // We assume no one is trying to use more than 100% of all waves.
-        PAL_ASSERT(maxWavesPerCu <= numWavefrontsPerCu);
         const uint32 maxWavesPerSh = static_cast<uint32>(round(maxWavesPerCu * gfx9ChipProps.numCuPerSh));
 
         // For graphics shaders, the WAVES_PER_SH field is in units of 16 waves and must not exceed 63. We must
         // also clamp to one if maxWavesPerSh rounded down to zero to prevent the limit from being removed.
-        wavesPerSh = Min(maxWavesPerShGraphics, Max(1u, maxWavesPerSh / MaxWavesPerShGraphicsUnitSize));
+        wavesPerSh = Min(wavesPerSh, Max(1u, maxWavesPerSh / MaxWavesPerShGraphicsUnitSize));
     }
 
     return wavesPerSh;

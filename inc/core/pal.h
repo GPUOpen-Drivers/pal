@@ -358,7 +358,42 @@ struct DoppDesktopInfo
     uint32  vidPnSourceId;  ///< Display source id of the dopp desktop texture.
 };
 
+/// Specifies the Direct Capture resource information. Direct Capture is an extension that allows to access on-screen
+/// primary directly. This is only supported on Windows.
+struct DirectCaptureInfo
+{
+    gpusize gpuVirtAddr;    ///< The VA of the Direct Capture resource.
+    uint32  vidPnSourceId;  ///< VidPnSource ID of the on-screen primary.
+};
+
 /// Specifies parameters for opening a shared GPU resource from a non-PAL device or non-local process.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 640
+struct ExternalResourceOpenInfo
+{
+    OsExternalHandle hExternalResource;         ///< External GPU resource from another non-PAL device to open.
+
+    union
+    {
+        struct
+        {
+            uint32 ntHandle           :  1; ///< The provided hExternalResource is an NT handle instead of a default
+                                            ///  KMT handle.
+            uint32 androidHwBufHandle :  1; ///< The provided hExternalResource is android hardware buffer handle
+                                            ///  instead of fd.
+            uint32 isDopp             :  1; ///< This is a Dopp texture, doppDesktopInfo is in use.
+            uint32 isDirectCapture    :  1; ///< This is a Direct Capture resource, directCaptureInfo is in use.
+            uint32 reserved           : 28; ///< Reserved for future use.
+        };
+        uint32 u32All;            ///< Flags packed as 32-bit uint.
+    } flags;                      ///< External resource open flags.
+
+    union
+    {
+        DoppDesktopInfo   doppDesktopInfo;      ///< The information of dopp desktop texture.
+        DirectCaptureInfo directCaptureInfo;    ///< The information of direct capture resource.
+    };
+};
+#else
 struct ExternalResourceOpenInfo
 {
     OsExternalHandle hExternalResource;         ///< External GPU resource from another non-PAL device to open.
@@ -378,6 +413,7 @@ struct ExternalResourceOpenInfo
 
     DoppDesktopInfo  doppDesktopInfo;           ///< The information of dopp desktop texture.
 };
+#endif
 
 /// Packed pixel display enumeration.
 ///

@@ -796,7 +796,8 @@ ADDR_E_RETURNCODE Gfx9Lib::HwlComputeCmaskAddrFromCoord(
         UINT_32 sliceSizeInBlock = (output.height / output.metaBlkHeight) * pitchInBlock;
         UINT_32 blockIndex       = zb * sliceSizeInBlock + yb * pitchInBlock + xb;
 
-        UINT_64 address = pMetaEq->solve(pIn->x, pIn->y, pIn->slice, 0, blockIndex);
+        UINT_32 coords[] = {pIn->x, pIn->y, pIn->slice, 0, blockIndex};
+        UINT_64 address  = pMetaEq->solve(coords);
 
         pOut->addr = address >> 1;
         pOut->bitPosition = static_cast<UINT_32>((address & 1) << 2);
@@ -871,7 +872,8 @@ ADDR_E_RETURNCODE Gfx9Lib::HwlComputeHtileAddrFromCoord(
             UINT_32 sliceSizeInBlock = (output.height / output.metaBlkHeight) * pitchInBlock;
             UINT_32 blockIndex       = zb * sliceSizeInBlock + yb * pitchInBlock + xb;
 
-            UINT_64 address = pMetaEq->solve(pIn->x, pIn->y, pIn->slice, 0, blockIndex);
+            UINT_32 coords[] = {pIn->x, pIn->y, pIn->slice, 0, blockIndex};
+            UINT_64 address  = pMetaEq->solve(coords);
 
             pOut->addr = address >> 1;
 
@@ -947,13 +949,49 @@ ADDR_E_RETURNCODE Gfx9Lib::HwlComputeHtileCoordFromAddr(
             UINT_32 pitchInBlock     = output.pitch / output.metaBlkWidth;
             UINT_32 sliceSizeInBlock = (output.height / output.metaBlkHeight) * pitchInBlock;
 
-            UINT_32 x, y, z, s, m;
-            pMetaEq->solveAddr(nibbleAddress, sliceSizeInBlock, x, y, z, s, m);
+            UINT_32 coords[NUM_DIMS];
+            pMetaEq->solveAddr(nibbleAddress, sliceSizeInBlock, coords);
 
-            pOut->slice = m / sliceSizeInBlock;
-            pOut->y     = ((m % sliceSizeInBlock) / pitchInBlock) * output.metaBlkHeight + y;
-            pOut->x     = (m % pitchInBlock) * output.metaBlkWidth + x;
+            pOut->slice = coords[DIM_M] / sliceSizeInBlock;
+            pOut->y     = ((coords[DIM_M] % sliceSizeInBlock) / pitchInBlock) * output.metaBlkHeight + coords[DIM_Y];
+            pOut->x     = (coords[DIM_M] % pitchInBlock) * output.metaBlkWidth + coords[DIM_X];
         }
+    }
+
+    return returnCode;
+}
+
+/**
+************************************************************************************************************************
+*   Gfx9Lib::HwlSupportComputeDccAddrFromCoord
+*
+*   @brief
+*       Check whether HwlComputeDccAddrFromCoord() can be done for the input parameter
+*
+*   @return
+*       ADDR_E_RETURNCODE
+************************************************************************************************************************
+*/
+ADDR_E_RETURNCODE Gfx9Lib::HwlSupportComputeDccAddrFromCoord(
+    const ADDR2_COMPUTE_DCC_ADDRFROMCOORD_INPUT* pIn)
+{
+    ADDR_E_RETURNCODE returnCode = ADDR_OK;
+
+    if ((pIn->numMipLevels > 1) || (pIn->mipId > 1) || pIn->dccKeyFlags.linear)
+    {
+        returnCode = ADDR_NOTSUPPORTED;
+    }
+    else if ((pIn->pitch == 0)             ||
+             (pIn->height == 0)            ||
+             (pIn->compressBlkWidth == 0)  ||
+             (pIn->compressBlkHeight == 0) ||
+             (pIn->compressBlkDepth == 0)  ||
+             (pIn->metaBlkWidth == 0)      ||
+             (pIn->metaBlkHeight == 0)     ||
+             (pIn->metaBlkDepth == 0)      ||
+             (pIn->dccRamSliceSize == 0))
+    {
+        returnCode = ADDR_NOTIMPLEMENTED;
     }
 
     return returnCode;
@@ -967,79 +1005,48 @@ ADDR_E_RETURNCODE Gfx9Lib::HwlComputeHtileCoordFromAddr(
 *       Interface function stub of AddrComputeDccAddrFromCoord
 *
 *   @return
-*       ADDR_E_RETURNCODE
+*       N/A
 ************************************************************************************************************************
 */
-ADDR_E_RETURNCODE Gfx9Lib::HwlComputeDccAddrFromCoord(
+VOID Gfx9Lib::HwlComputeDccAddrFromCoord(
     const ADDR2_COMPUTE_DCC_ADDRFROMCOORD_INPUT*  pIn,
     ADDR2_COMPUTE_DCC_ADDRFROMCOORD_OUTPUT* pOut)
 {
-    ADDR_E_RETURNCODE returnCode = ADDR_OK;
+    UINT_32 elementBytesLog2  = Log2(pIn->bpp >> 3);
+    UINT_32 numSamplesLog2    = Log2(pIn->numFrags);
+    UINT_32 metaBlkWidthLog2  = Log2(pIn->metaBlkWidth);
+    UINT_32 metaBlkHeightLog2 = Log2(pIn->metaBlkHeight);
+    UINT_32 metaBlkDepthLog2  = Log2(pIn->metaBlkDepth);
+    UINT_32 compBlkWidthLog2  = Log2(pIn->compressBlkWidth);
+    UINT_32 compBlkHeightLog2 = Log2(pIn->compressBlkHeight);
+    UINT_32 compBlkDepthLog2  = Log2(pIn->compressBlkDepth);
 
-    if ((pIn->numMipLevels > 1) || (pIn->mipId > 1) || pIn->dccKeyFlags.linear)
-    {
-        returnCode = ADDR_NOTIMPLEMENTED;
-    }
-    else
-    {
-        ADDR2_COMPUTE_DCCINFO_INPUT input = {0};
-        input.size            = sizeof(input);
-        input.dccKeyFlags     = pIn->dccKeyFlags;
-        input.colorFlags      = pIn->colorFlags;
-        input.swizzleMode     = pIn->swizzleMode;
-        input.resourceType    = pIn->resourceType;
-        input.bpp             = pIn->bpp;
-        input.unalignedWidth  = Max(pIn->unalignedWidth, 1u);
-        input.unalignedHeight = Max(pIn->unalignedHeight, 1u);
-        input.numSlices       = Max(pIn->numSlices, 1u);
-        input.numFrags        = Max(pIn->numFrags, 1u);
-        input.numMipLevels    = Max(pIn->numMipLevels, 1u);
+    MetaEqParams metaEqParams = {pIn->mipId, elementBytesLog2, numSamplesLog2, pIn->dccKeyFlags,
+                                 Gfx9DataColor, pIn->swizzleMode, pIn->resourceType,
+                                 metaBlkWidthLog2, metaBlkHeightLog2, metaBlkDepthLog2,
+                                 compBlkWidthLog2, compBlkHeightLog2, compBlkDepthLog2};
 
-        ADDR2_COMPUTE_DCCINFO_OUTPUT output = {0};
-        output.size = sizeof(output);
+    const CoordEq* pMetaEq = GetMetaEquation(metaEqParams);
 
-        returnCode = ComputeDccInfo(&input, &output);
+    UINT_32 xb = pIn->x / pIn->metaBlkWidth;
+    UINT_32 yb = pIn->y / pIn->metaBlkHeight;
+    UINT_32 zb = pIn->slice / pIn->metaBlkDepth;
 
-        if (returnCode == ADDR_OK)
-        {
-            UINT_32 elementBytesLog2  = Log2(pIn->bpp >> 3);
-            UINT_32 numSamplesLog2    = Log2(pIn->numFrags);
-            UINT_32 metaBlkWidthLog2  = Log2(output.metaBlkWidth);
-            UINT_32 metaBlkHeightLog2 = Log2(output.metaBlkHeight);
-            UINT_32 metaBlkDepthLog2  = Log2(output.metaBlkDepth);
-            UINT_32 compBlkWidthLog2  = Log2(output.compressBlkWidth);
-            UINT_32 compBlkHeightLog2 = Log2(output.compressBlkHeight);
-            UINT_32 compBlkDepthLog2  = Log2(output.compressBlkDepth);
+    UINT_32 pitchInBlock     = pIn->pitch / pIn->metaBlkWidth;
+    UINT_32 sliceSizeInBlock = (pIn->height / pIn->metaBlkHeight) * pitchInBlock;
+    UINT_32 blockIndex       = zb * sliceSizeInBlock + yb * pitchInBlock + xb;
 
-            MetaEqParams metaEqParams = {pIn->mipId, elementBytesLog2, numSamplesLog2, pIn->dccKeyFlags,
-                                         Gfx9DataColor, pIn->swizzleMode, pIn->resourceType,
-                                         metaBlkWidthLog2, metaBlkHeightLog2, metaBlkDepthLog2,
-                                         compBlkWidthLog2, compBlkHeightLog2, compBlkDepthLog2};
+    UINT_32 coords[] = {pIn->x, pIn->y, pIn->slice, pIn->sample, blockIndex};
+    UINT_64 address  = pMetaEq->solve(coords);
 
-            const CoordEq* pMetaEq = GetMetaEquation(metaEqParams);
+    pOut->addr = address >> 1;
 
-            UINT_32 xb = pIn->x / output.metaBlkWidth;
-            UINT_32 yb = pIn->y / output.metaBlkHeight;
-            UINT_32 zb = pIn->slice / output.metaBlkDepth;
+    UINT_32 numPipeBits = GetPipeLog2ForMetaAddressing(pIn->dccKeyFlags.pipeAligned,
+                                                       pIn->swizzleMode);
 
-            UINT_32 pitchInBlock     = output.pitch / output.metaBlkWidth;
-            UINT_32 sliceSizeInBlock = (output.height / output.metaBlkHeight) * pitchInBlock;
-            UINT_32 blockIndex       = zb * sliceSizeInBlock + yb * pitchInBlock + xb;
+    UINT_64 pipeXor = static_cast<UINT_64>(pIn->pipeXor & ((1 << numPipeBits) - 1));
 
-            UINT_64 address = pMetaEq->solve(pIn->x, pIn->y, pIn->slice, pIn->sample, blockIndex);
-
-            pOut->addr = address >> 1;
-
-            UINT_32 numPipeBits = GetPipeLog2ForMetaAddressing(pIn->dccKeyFlags.pipeAligned,
-                                                               pIn->swizzleMode);
-
-            UINT_64 pipeXor = static_cast<UINT_64>(pIn->pipeXor & ((1 << numPipeBits) - 1));
-
-            pOut->addr ^= (pipeXor << m_pipeInterleaveLog2);
-        }
-    }
-
-    return returnCode;
+    pOut->addr ^= (pipeXor << m_pipeInterleaveLog2);
 }
 
 /**
@@ -1350,8 +1357,8 @@ VOID Gfx9Lib::GetRbEquation(
 {
     // RB's are distributed on 16x16, except when we have 1 rb per se, in which case its 32x32
     UINT_32 rbRegion = (numRbPerSeLog2 == 0) ? 5 : 4;
-    Coordinate cx('x', rbRegion);
-    Coordinate cy('y', rbRegion);
+    Coordinate cx(DIM_X, rbRegion);
+    Coordinate cy(DIM_Y, rbRegion);
 
     UINT_32 start = 0;
     UINT_32 numRbTotalLog2 = numRbPerSeLog2 + numSeLog2;
@@ -1416,10 +1423,10 @@ VOID Gfx9Lib::GetDataEquation(
     UINT_32 numSamplesLog2)         ///< [in] data surface sample count
     const
 {
-    Coordinate cx('x', 0);
-    Coordinate cy('y', 0);
-    Coordinate cz('z', 0);
-    Coordinate cs('s', 0);
+    Coordinate cx(DIM_X, 0);
+    Coordinate cy(DIM_Y, 0);
+    Coordinate cz(DIM_Z, 0);
+    Coordinate cs(DIM_S, 0);
 
     // Clear the equation
     pDataEq->resize(0);
@@ -1429,7 +1436,7 @@ VOID Gfx9Lib::GetDataEquation(
     {
         if (IsLinear(swizzleMode))
         {
-            Coordinate cm('m', 0);
+            Coordinate cm(DIM_M, 0);
 
             pDataEq->resize(49);
 
@@ -1555,7 +1562,7 @@ VOID Gfx9Lib::GetDataEquation(
             // Fill in sample bits
             for (i = 0; i < numSamplesLog2; i++)
             {
-                cs.set('s', i);
+                cs.set(DIM_S, i);
                 (*pDataEq)[tileSplitStart + i].add(cs);
             }
             // Fill in x/y bits above sample split
@@ -1582,7 +1589,7 @@ VOID Gfx9Lib::GetDataEquation(
 
         for (UINT_32 s = 0; s < numSamplesLog2; s++)
         {
-            cs.set('s', s);
+            cs.set(DIM_S, s);
             (*pDataEq)[sampleStart + s].add(cs);
         }
 
@@ -1634,7 +1641,7 @@ VOID Gfx9Lib::GetPipeEquation(
 
     if (dataSurfaceType != Gfx9DataColor)
     {
-        Coordinate tileMin('x', 3);
+        Coordinate tileMin(DIM_X, 3);
 
         while (dataEq[pipeInterleaveLog2 + pipeStart][0] < tileMin)
         {
@@ -1694,7 +1701,7 @@ VOID Gfx9Lib::GetPipeEquation(
                 xorMask2.resize(numPipeLog2);
                 for (UINT_32 pipeIdx = 0; pipeIdx < numPipeLog2; pipeIdx++)
                 {
-                    co.set('z', numPipeLog2 - 1 - pipeIdx);
+                    co.set(DIM_Z, numPipeLog2 - 1 - pipeIdx);
                     xorMask2[pipeIdx].add(co);
                 }
 
@@ -1854,9 +1861,9 @@ VOID Gfx9Lib::GenMetaEquation(
 
         if (IsThick(resourceType, swizzleMode))
         {
-            Coordinate cx('x', 0);
-            Coordinate cy('y', 0);
-            Coordinate cz('z', 0);
+            Coordinate cx(DIM_X, 0);
+            Coordinate cy(DIM_Y, 0);
+            Coordinate cz(DIM_Z, 0);
 
             if (maxMip > 0)
             {
@@ -1869,8 +1876,8 @@ VOID Gfx9Lib::GenMetaEquation(
         }
         else
         {
-            Coordinate cx('x', 0);
-            Coordinate cy('y', 0);
+            Coordinate cx(DIM_X, 0);
+            Coordinate cy(DIM_Y, 0);
             Coordinate cs;
 
             if (maxMip > 0)
@@ -1888,7 +1895,7 @@ VOID Gfx9Lib::GenMetaEquation(
             //------------------------------------------------------------------------------------------------------------------------
             for (UINT_32 s = 0; s < compFragLog2; s++)
             {
-                cs.set('s', s);
+                cs.set(DIM_S, s);
                 (*pMetaEq)[s].add(cs);
             }
         }
@@ -1899,35 +1906,35 @@ VOID Gfx9Lib::GenMetaEquation(
 
         Coordinate co;
         // filter out everything under the compressed block size
-        co.set('x', compBlkWidthLog2);
-        pMetaEq->Filter('<', co, 0, 'x');
-        co.set('y', compBlkHeightLog2);
-        pMetaEq->Filter('<', co, 0, 'y');
-        co.set('z', compBlkDepthLog2);
-        pMetaEq->Filter('<', co, 0, 'z');
+        co.set(DIM_X, compBlkWidthLog2);
+        pMetaEq->Filter('<', co, 0, DIM_X);
+        co.set(DIM_Y, compBlkHeightLog2);
+        pMetaEq->Filter('<', co, 0, DIM_Y);
+        co.set(DIM_Z, compBlkDepthLog2);
+        pMetaEq->Filter('<', co, 0, DIM_Z);
 
         // For non-color, filter out sample bits
         if (dataSurfaceType != Gfx9DataColor)
         {
-            co.set('x', 0);
-            pMetaEq->Filter('<', co, 0, 's');
+            co.set(DIM_X, 0);
+            pMetaEq->Filter('<', co, 0, DIM_S);
         }
 
         // filter out everything above the metablock size
-        co.set('x', metaBlkWidthLog2 - 1);
-        pMetaEq->Filter('>', co, 0, 'x');
-        co.set('y', metaBlkHeightLog2 - 1);
-        pMetaEq->Filter('>', co, 0, 'y');
-        co.set('z', metaBlkDepthLog2 - 1);
-        pMetaEq->Filter('>', co, 0, 'z');
+        co.set(DIM_X, metaBlkWidthLog2 - 1);
+        pMetaEq->Filter('>', co, 0, DIM_X);
+        co.set(DIM_Y, metaBlkHeightLog2 - 1);
+        pMetaEq->Filter('>', co, 0, DIM_Y);
+        co.set(DIM_Z, metaBlkDepthLog2 - 1);
+        pMetaEq->Filter('>', co, 0, DIM_Z);
 
         // filter out everything above the metablock size for the channel bits
-        co.set('x', metaBlkWidthLog2 - 1);
-        pipeEquation.Filter('>', co, 0, 'x');
-        co.set('y', metaBlkHeightLog2 - 1);
-        pipeEquation.Filter('>', co, 0, 'y');
-        co.set('z', metaBlkDepthLog2 - 1);
-        pipeEquation.Filter('>', co, 0, 'z');
+        co.set(DIM_X, metaBlkWidthLog2 - 1);
+        pipeEquation.Filter('>', co, 0, DIM_X);
+        co.set(DIM_Y, metaBlkHeightLog2 - 1);
+        pipeEquation.Filter('>', co, 0, DIM_Y);
+        co.set(DIM_Z, metaBlkDepthLog2 - 1);
+        pipeEquation.Filter('>', co, 0, DIM_Z);
 
         // Make sure we still have the same number of channel bits
         if (pipeEquation.getsize() != numPipeTotalLog2)
@@ -1970,7 +1977,7 @@ VOID Gfx9Lib::GenMetaEquation(
 
         if (m_settings.applyAliasFix)
         {
-            co.set('z', -1);
+            co.set(DIM_Z, -1);
         }
 
         // Loop through each rb id bit; if it is equal to any of the filtered channel bits, clear it
@@ -1985,7 +1992,7 @@ VOID Gfx9Lib::GenMetaEquation(
                     CoordTerm filteredPipeEq;
                     filteredPipeEq = pipeEquation[j];
 
-                    filteredPipeEq.Filter('>', co, 0, 'z');
+                    filteredPipeEq.Filter('>', co, 0, DIM_Z);
 
                     isRbEquationInPipeEquation = (rbEquation[i] == filteredPipeEq);
                 }
@@ -2088,7 +2095,7 @@ VOID Gfx9Lib::GenMetaEquation(
         // Concatenate the macro address above the current address
         for (UINT_32 i = metaSize, j = 0; i < 49; i++, j++)
         {
-            co.set('m', j);
+            co.set(DIM_M, j);
             (*pMetaEq)[i].add(co);
         }
 
@@ -2143,7 +2150,7 @@ VOID Gfx9Lib::GenMetaEquation(
         //------------------------------------------------------------------------------------------
         for (UINT_32 i = 0; i < uncompFragLog2; i++)
         {
-            co.set('s', compFragLog2 + i);
+            co.set(DIM_S, compFragLog2 + i);
             (*pMetaEq)[pipeInterleaveLog2 + 1 + numPipeTotalLog2 + rbBitsLeft + i].add(co);
         }
     }

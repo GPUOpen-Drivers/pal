@@ -514,10 +514,12 @@ public:
 
     virtual Result SetSamplePatternPalette(const SamplePatternPalette& palette) = 0;
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 638
     virtual uint32 GetValidFormatFeatureFlags(
         const ChNumFormat format,
         const ImageAspect aspect,
         const ImageTiling tiling) const = 0;
+#endif
 
     // Helper function that disables a specific CU mask within the UMD managed range.
     uint16 GetCuEnableMask(uint16 disabledCuMmask, uint32 enabledCuMaskSetting) const;

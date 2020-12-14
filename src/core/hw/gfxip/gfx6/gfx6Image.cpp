@@ -87,7 +87,7 @@ Result Image::Addr1InitSurfaceInfo(
 {
     const SubResourceInfo& subResInfo = *Parent()->SubresourceInfo(subResIdx);
 
-    if (m_pParent->IsDepthStencil())
+    if (m_pParent->IsDepthStencilTarget())
     {
         bool tcCompatibleEnabledForResolveDst = false;
 
@@ -135,7 +135,7 @@ Result Image::Addr1InitSurfaceInfo(
         {
             pSurfInfo->tileType = ADDR_NON_DISPLAYABLE;
         }
-        else if (m_pParent->IsDepthStencil())
+        else if (m_pParent->IsDepthStencilTarget())
         {
             // Override to DEPTH_SAMPLE_ORDER for depth/stencil Images.
             pSurfInfo->tileType = ADDR_DEPTH_SAMPLE_ORDER;
@@ -149,7 +149,8 @@ Result Image::Addr1InitSurfaceInfo(
             PAL_ASSERT(m_pParent->IsPresentable() && m_pParent->IsFlippable());
         }
 
-        if (m_pImageInfo->internalCreateInfo.flags.useSharedTilingOverrides)
+        if (m_pImageInfo->internalCreateInfo.flags.useSharedTilingOverrides &&
+            (m_pImageInfo->internalCreateInfo.gfx6.sharedTileType != TileTypeInvalid))
         {
             pSurfInfo->tileType = m_pImageInfo->internalCreateInfo.gfx6.sharedTileType;
         }
@@ -829,9 +830,9 @@ Result Image::Finalize(
         //    d) This image is going to be used as a texture
         //
         // Then setup memory to be used to conditionally-execute the fast-clear-eliminate pass based on the clear-color.
-        if (needsFastColorClearMetaData           &&
-            (Parent()->IsDepthStencil() == false) &&
-            ColorImageSupportsAllFastClears()     &&
+        if (needsFastColorClearMetaData                 &&
+            (Parent()->IsDepthStencilTarget() == false) &&
+            ColorImageSupportsAllFastClears()           &&
             (pBaseSubResInfo->flags.supportMetaDataTexFetch != 0))
         {
             if (useSharedMetadata)
@@ -916,7 +917,7 @@ void Image::InitLayoutStateMasksOneMip(
 
     if (HasColorMetaData())
     {
-        PAL_ASSERT(Parent()->IsDepthStencil() == false);
+        PAL_ASSERT(Parent()->IsDepthStencilTarget() == false);
 
         // Always allow compression for layouts that only support the color target usage.
         m_layoutToState[mip].color.compressed.usages  = LayoutColorTarget;
@@ -1055,7 +1056,7 @@ void Image::InitLayoutStateMasksOneMip(
     } // End check for HasColorMetadata()
     else if (m_pHtile != nullptr)
     {
-        PAL_ASSERT(Parent()->IsDepthStencil());
+        PAL_ASSERT(Parent()->IsDepthStencilTarget());
 
         // Identify usages supporting DB rendering
         constexpr uint32 DbUsages = LayoutDepthStencilTarget;
@@ -1820,7 +1821,7 @@ bool Image::SupportsMetaDataTextureFetch(
 
     // TcCompatible could be enabled for resolveDst depth-stencil in order to enhance opportunity to trigger fixed-func
     // depth-stencil resolve.
-    const bool isDepthStencilResolveDst = (m_pParent->IsResolveDst() && m_pParent->IsDepthStencil());
+    const bool isDepthStencilResolveDst = (m_pParent->IsResolveDst() && m_pParent->IsDepthStencilTarget());
     const bool isDepth                  = m_pParent->IsAspectValid(ImageAspect::Depth);
     const bool isStencil                = m_pParent->IsAspectValid(ImageAspect::Stencil);
 
@@ -1848,7 +1849,7 @@ bool Image::SupportsMetaDataTextureFetch(
         // Only 2D/3D tiled resources can use shader compatible compression
         IsMacroTiled(tileMode))
     {
-        texFetchSupported = (m_pParent->IsDepthStencil())
+        texFetchSupported = (m_pParent->IsDepthStencilTarget())
                                 ? DepthImageSupportsMetaDataTextureFetch(format, subResource)
                                 : ColorImageSupportsMetaDataTextureFetch(tileMode, tileType);
 
@@ -2043,7 +2044,7 @@ bool Image::IsFastColorClearSupported(
 {
     // This logic for fast-clearable tex-fetch images is only valid for color images; depth images have their own
     // restrictions which are implemented in IsFastDepthStencilClearSupported().
-    PAL_ASSERT(m_pParent->IsDepthStencil() == false);
+    PAL_ASSERT(m_pParent->IsDepthStencilTarget() == false);
 
     const SubresId&             subResource   = range.startSubres;
     const SubResourceInfo*const pSubResInfo   = m_pParent->SubresourceInfo(subResource);
@@ -2219,7 +2220,7 @@ bool Image::IsFormatReplaceable(
     // when all channels of the color are being written.
     if (disabledChannelMask == 0)
     {
-        if (Parent()->IsDepthStencil())
+        if (Parent()->IsDepthStencilTarget())
         {
             const auto layoutToState = LayoutToDepthCompressionState(subresId);
 
@@ -2300,7 +2301,7 @@ bool Image::ColorImageSupportsAllFastClears() const
     const Gfx6PalSettings& settings = GetGfx6Settings(m_device);
     bool allColorClearsSupported = false;
 
-    PAL_ASSERT(Parent()->IsDepthStencil() == false);
+    PAL_ASSERT(Parent()->IsDepthStencilTarget() == false);
 
     if (m_createInfo.samples > 1)
     {
@@ -2436,13 +2437,14 @@ Result Image::ComputeAddrTileMode(
     // Default to linear tiling
     *pTileMode = ADDR_TM_LINEAR_ALIGNED;
 
-    if (m_pImageInfo->internalCreateInfo.flags.useSharedTilingOverrides)
+    if (m_pImageInfo->internalCreateInfo.flags.useSharedTilingOverrides &&
+        (m_pImageInfo->internalCreateInfo.gfx6.sharedTileMode != ADDR_TM_COUNT))
     {
         *pTileMode = m_pImageInfo->internalCreateInfo.gfx6.sharedTileMode;
     }
     else if (m_createInfo.imageType == ImageType::Tex1d)
     {
-        if (Parent()->IsDepthStencil())
+        if (Parent()->IsDepthStencilTarget())
         {
             // Depth/Stencil has to be tiled
             *pTileMode = ADDR_TM_1D_TILED_THIN1;
@@ -2595,7 +2597,7 @@ Result Image::ComputeAddrTileMode(
     // In GFX6, 7, 8, the only tiling format UVD supports is 2DThin1.
 
     // Depth-stencil images must be tiled.
-    PAL_ASSERT((Parent()->IsDepthStencil() == false) || (*pTileMode != ADDR_TM_LINEAR_ALIGNED));
+    PAL_ASSERT((Parent()->IsDepthStencilTarget() == false) || (*pTileMode != ADDR_TM_LINEAR_ALIGNED));
 
     return result;
 }
@@ -2721,8 +2723,10 @@ uint32 Image::ComputeBaseTileSwizzle(
     {
         // Only compute a tile swizzle value if it's enabled for this kind of image in the settings.
         const uint32 enableFlags = m_device.Settings().tileSwizzleMode;
-        const bool   isEnabled   = ((TestAnyFlagSet(enableFlags, TileSwizzleColor) && Parent()->IsRenderTarget()) ||
-                                    (TestAnyFlagSet(enableFlags, TileSwizzleDepth) && Parent()->IsDepthStencil()) ||
+        const bool   isEnabled   = ((TestAnyFlagSet(enableFlags, TileSwizzleColor) &&
+                                     Parent()->IsRenderTarget()) ||
+                                    (TestAnyFlagSet(enableFlags, TileSwizzleDepth) &&
+                                     Parent()->IsDepthStencilTarget()) ||
                                     (TestAnyFlagSet(enableFlags, TileSwizzleShaderRes) &&
                                      (Parent()->IsShaderReadable() || Parent()->IsShaderWritable())));
 
@@ -2732,14 +2736,14 @@ uint32 Image::ComputeBaseTileSwizzle(
         // switched to 1D. Thus the HW won't support tile swizzle if TC compatible reads are enabled unless the image
         // is a non-depth-target with one mip level.
         const bool supportSwizzle = ((subResInfo.flags.supportMetaDataTexFetch == false) ||
-                                     ((Parent()->IsDepthStencil() == false) && (m_createInfo.mipLevels == 1)));
+                                     ((Parent()->IsDepthStencilTarget() == false) && (m_createInfo.mipLevels == 1)));
 
         if (isEnabled && supportSwizzle)
         {
             // We're definitely going to use tile swizzle, but now we need to come up with a surface index for Addrlib.
             uint32 surfaceIndex = 0;
 
-            if (Parent()->IsDepthStencil())
+            if (Parent()->IsDepthStencilTarget())
             {
                 // The depth-stencil index is fixed to the plane index so it's safe to use it in all cases.
                 surfaceIndex = Parent()->GetPlaneFromAspect(subResInfo.subresId.aspect);
@@ -3181,7 +3185,7 @@ bool Image::SupportsComputeDecompress(
     ) const
 {
     const auto& layoutToState = m_layoutToState[subresId.mipLevel];
-    const uint32 engines = (m_pParent->IsDepthStencil()
+    const uint32 engines = (m_pParent->IsDepthStencilTarget()
                            ? layoutToState.depthStencil[GetDepthStencilStateIndex(subresId.aspect)].compressed.engines
                            : layoutToState.color.compressed.engines);
 

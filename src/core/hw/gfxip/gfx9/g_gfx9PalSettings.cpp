@@ -59,7 +59,6 @@ void SettingsLoader::SetupDefaults()
 {
     // set setting variables to their default values...
     m_settings.enableLoadIndexForObjectBinds = true;
-    m_settings.copyDstIsCompressed = CopyDstComprAlwaysAllowGfx10;
 
     m_settings.allowBigPage = 0x3f;
     m_settings.disableBorderColorPaletteBinds = false;
@@ -79,7 +78,7 @@ void SettingsLoader::SetupDefaults()
     m_settings.fmaskCompressDisable = false;
     m_settings.fmaskAllowPipeBankXor = false;
     m_settings.dccOnComputeEnable = 0x3;
-    m_settings.useDcc = 0x19ff;
+    m_settings.useDcc = 0xcff;
     m_settings.cbDbCachePolicy = 0x0;
     m_settings.csMaxWavesPerCu = 0;
     m_settings.csLockThreshold = 0;
@@ -246,11 +245,6 @@ void SettingsLoader::ReadSettings()
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pEnableLoadIndexForObjectBindsStr,
                            Util::ValueType::Boolean,
                            &m_settings.enableLoadIndexForObjectBinds,
-                           InternalSettingScope::PrivatePalGfx9Key);
-
-    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pCopyDstIsCompressedStr,
-                           Util::ValueType::Uint,
-                           &m_settings.copyDstIsCompressed,
                            InternalSettingScope::PrivatePalGfx9Key);
 
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pAllowBigPageStr,
@@ -1336,11 +1330,6 @@ void SettingsLoader::InitSettingsInfo()
     m_settingsInfoMap.Insert(2416072074, info);
 
     info.type      = SettingType::Uint;
-    info.pValuePtr = &m_settings.copyDstIsCompressed;
-    info.valueSize = sizeof(m_settings.copyDstIsCompressed);
-    m_settingsInfoMap.Insert(3919048798, info);
-
-    info.type      = SettingType::Uint;
     info.pValuePtr = &m_settings.allowBigPage;
     info.valueSize = sizeof(m_settings.allowBigPage);
     m_settingsInfoMap.Insert(1926167631, info);
@@ -2156,7 +2145,7 @@ void SettingsLoader::DevDriverRegister()
             component.pfnSetValue = ISettingsLoader::SetValue;
             component.pSettingsData = &g_gfx9PalJsonData[0];
             component.settingsDataSize = sizeof(g_gfx9PalJsonData);
-            component.settingsDataHash = 3535011852;
+            component.settingsDataHash = 3805733751;
             component.settingsDataHeader.isEncoded = true;
             component.settingsDataHeader.magicBufferId = 402778310;
             component.settingsDataHeader.magicBufferOffset = 0;

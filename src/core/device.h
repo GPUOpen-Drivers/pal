@@ -941,7 +941,8 @@ struct GpuChipProperties
                 uint64 supportSingleChannelMinMaxFilter   :  1; // HW supports any min/max filter.
                 uint64 supportSortAgnosticBarycentrics    :  1; // HW provides provoking vertex for custom interp
                 uint64 placeholder4                       :  1;
-                uint64 reserved                           : 24;
+                uint64 placeholder5                       :  2;
+                uint64 reserved                           : 22;
             };
 
             Gfx9PerfCounterInfo perfCounterInfo; // Contains info for perf counters for a specific hardware block
@@ -1011,6 +1012,7 @@ struct GpuChipProperties
         };
         uint32 u32All;
     } p2pSupport;
+
 };
 
 // Helper function that calculates memory ops per clock for a given memory type.
@@ -1071,6 +1073,7 @@ public:
         MergedFormatPropertiesTable* pInfo
         ) const override;
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 638
     // NOTE: Part of the public IDevice interface.
     virtual uint32 GetValidFormatFeatureFlags(
         const ChNumFormat format,
@@ -1080,6 +1083,7 @@ public:
         PAL_ASSERT(m_pGfxDevice != nullptr);
         return m_pGfxDevice->GetValidFormatFeatureFlags(format, aspect, tiling);
     }
+#endif
 
     virtual Result GetPerfExperimentProperties(
         PerfExperimentProperties* pProperties) const override;
@@ -1797,6 +1801,9 @@ public:
 
     const bool IsPreemptionSupported(EngineType engineType) const
         { return m_engineProperties.perEngine[engineType].flags.supportsMidCmdBufPreemption; }
+
+    const bool IsConstantEngineSupported(EngineType engineType) const
+        { return (m_engineProperties.perEngine[engineType].flags.constantEngineSupport != 0); }
 
 #if PAL_ENABLE_PRINTS_ASSERTS
     bool IsCmdBufDumpEnabled() const { return m_cmdBufDumpEnabled; }

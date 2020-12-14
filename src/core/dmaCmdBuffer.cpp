@@ -672,29 +672,35 @@ void DmaCmdBuffer::WriteCopyImageTiledToTiledCmdChunkCopy(
     const uint32 embeddedDataLimitBytes = GetEmbeddedDataLimit() * sizeof(uint32);
 
     // How big a window can we copy given our linear data limit?
-    uint32 widthToCopy   = 1;
-    uint32 heightToCopy  = 1;
-    uint32 depthToCopy   = 1;
-    uint32 copySizeBytes = src.bytesPerPixel;
+    uint32 widthToCopyPixels      = 1;
+    uint32 heightToCopyPixels     = 1;
+    uint32 depthToCopyPixels      = 1;
+    uint32 copySizeBytes          = src.bytesPerPixel;
+    uint32 gpuMemRowPitchPixels   = 1;
+    uint32 gpuMemDepthPitchPixels = 1;
     PAL_ASSERT(copySizeBytes <= embeddedDataLimitBytes); //If we can't fit one pixel... then what?
     if (embeddedDataLimitBytes > copySizeBytes)
     {
         //Widen the copy area to possibly fit more texels.
-        widthToCopy   = Min((embeddedDataLimitBytes / copySizeBytes), imageCopyInfo.copyExtent.width);
-        copySizeBytes = widthToCopy * src.bytesPerPixel;
+        widthToCopyPixels = Min((embeddedDataLimitBytes / copySizeBytes), imageCopyInfo.copyExtent.width);
+        // row pitch must align with hardware requirements
+        gpuMemRowPitchPixels = Util::RoundUpToMultiple(widthToCopyPixels, GetLinearRowPitchAlignment(src.bytesPerPixel));
+        copySizeBytes = gpuMemRowPitchPixels * src.bytesPerPixel;
         if (embeddedDataLimitBytes > copySizeBytes)
         {
             //Heighten the copy area to possibly fit more rows.
-            heightToCopy  = Min((embeddedDataLimitBytes / copySizeBytes), imageCopyInfo.copyExtent.height);
-            copySizeBytes = widthToCopy * heightToCopy * src.bytesPerPixel;
+            heightToCopyPixels = Min((embeddedDataLimitBytes / copySizeBytes), imageCopyInfo.copyExtent.height);
+            // depth pitch must align with hardware requirements
+            gpuMemDepthPitchPixels = gpuMemRowPitchPixels * heightToCopyPixels;
+            copySizeBytes = gpuMemDepthPitchPixels * src.bytesPerPixel;
             if (embeddedDataLimitBytes > copySizeBytes)
             {
                 //Deepen the copy area to possibly fit more slices- but only if we're copying 3D textures.
                 //If either the input or output is a texture array, we have to do it one slice at a time.
                 if ((ImageType::Tex3d == srcImageType) && (ImageType::Tex3d == dstImageType))
                 {
-                    depthToCopy = Min((embeddedDataLimitBytes / copySizeBytes), imageCopyInfo.copyExtent.depth);
-                    copySizeBytes = widthToCopy * heightToCopy * depthToCopy * src.bytesPerPixel;
+                    depthToCopyPixels = Min((embeddedDataLimitBytes / copySizeBytes), imageCopyInfo.copyExtent.depth);
+                    copySizeBytes = gpuMemDepthPitchPixels * depthToCopyPixels * src.bytesPerPixel;
                 }
             }
         }
@@ -712,9 +718,9 @@ void DmaCmdBuffer::WriteCopyImageTiledToTiledCmdChunkCopy(
 
     // A lot of the parameters are a constant for each copy region, so set those up here.
     MemoryImageCopyRegion  linearDstCopyRgn = {};
-    linearDstCopyRgn.imageSubres        = src.pSubresInfo->subresId;
-    linearDstCopyRgn.gpuMemoryRowPitch   = widthToCopy * src.bytesPerPixel;
-    linearDstCopyRgn.gpuMemoryDepthPitch = widthToCopy * heightToCopy * src.bytesPerPixel;
+    linearDstCopyRgn.imageSubres         = src.pSubresInfo->subresId;
+    linearDstCopyRgn.gpuMemoryRowPitch   = gpuMemRowPitchPixels * src.bytesPerPixel;
+    linearDstCopyRgn.gpuMemoryDepthPitch = gpuMemDepthPitchPixels * src.bytesPerPixel;
     linearDstCopyRgn.gpuMemoryOffset     = m_t2tEmbeddedMemOffset;
 
     MemoryImageCopyRegion  tiledDstCopyRgn = linearDstCopyRgn;
@@ -731,7 +737,7 @@ void DmaCmdBuffer::WriteCopyImageTiledToTiledCmdChunkCopy(
 
     uint32*  pCmdSpace = nullptr;
 
-    uint32 cappedDepthToCopy = depthToCopy;
+    uint32 cappedDepthToCopy = depthToCopyPixels;
     for (uint32 sliceIdx = 0; sliceIdx < imageCopyInfo.copyExtent.depth; sliceIdx += cappedDepthToCopy)
     {
         if ((sliceIdx + cappedDepthToCopy) > imageCopyInfo.copyExtent.depth)
@@ -779,7 +785,7 @@ void DmaCmdBuffer::WriteCopyImageTiledToTiledCmdChunkCopy(
             }
         }
 
-        uint32 cappedHeightToCopy = heightToCopy;
+        uint32 cappedHeightToCopy = heightToCopyPixels;
         for (uint32  yIdx = 0; yIdx < imageCopyInfo.copyExtent.height; yIdx += cappedHeightToCopy)
         {
             if ((yIdx + cappedHeightToCopy) > imageCopyInfo.copyExtent.height)
@@ -792,7 +798,7 @@ void DmaCmdBuffer::WriteCopyImageTiledToTiledCmdChunkCopy(
             linearDstCopyRgn.imageOffset.y = src.offset.y + yIdx;
             tiledDstCopyRgn.imageOffset.y  = dst.offset.y + yIdx;
 
-            uint32 cappedWidthToCopy = widthToCopy;
+            uint32 cappedWidthToCopy = widthToCopyPixels;
             for (uint32  xIdx = 0; xIdx < imageCopyInfo.copyExtent.width; xIdx += cappedWidthToCopy)
             {
                 if ((xIdx + cappedWidthToCopy) > imageCopyInfo.copyExtent.width)

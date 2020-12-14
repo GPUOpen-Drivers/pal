@@ -1341,6 +1341,15 @@ gpusize DmaCmdBuffer::GetSubresourceBaseAddr(
 }
 
 // =====================================================================================================================
+// Returns the multiplier required to align the linear row pitch with OSS4 HW requirements
+uint32 DmaCmdBuffer::GetLinearRowPitchAlignment(
+    uint32 bytesPerPixel
+    ) const
+{
+    return (IsRavenFamily(*m_pDevice) ? bytesPerPixel : Util::Max(1u, (4 / bytesPerPixel)));
+}
+
+// =====================================================================================================================
 // OSS4 assumes that tiled images will also be programmed with the dimensions of the base mip level, so retrieve those
 // dimensions here.  It doesn't really matter for linear images since the extent information isn't used for linear
 // images.  Besides, OSS4 doesn't support linear mip-mapped images anyway.
