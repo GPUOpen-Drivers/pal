@@ -899,85 +899,88 @@ void UniversalCmdBuffer::CmdSetInputAssemblyState(
 void UniversalCmdBuffer::CmdSetStencilRefMasks(
     const StencilRefMaskParams& params)
 {
-    SetStencilRefMasksState(params, &m_graphicsState.stencilRefMaskState);
-    m_graphicsState.dirtyFlags.nonValidationBits.stencilRefMaskState = 1;
-
-    struct
+    if (params.flags.u8All != 0x0)
     {
-        regDB_STENCILREFMASK     front;
-        regDB_STENCILREFMASK_BF  back;
-    } dbStencilRefMask = { };
+        SetStencilRefMasksState(params, &m_graphicsState.stencilRefMaskState);
+        m_graphicsState.dirtyFlags.nonValidationBits.stencilRefMaskState = 1;
 
-    dbStencilRefMask.front.bits.STENCILOPVAL       = params.frontOpValue;
-    dbStencilRefMask.front.bits.STENCILTESTVAL     = params.frontRef;
-    dbStencilRefMask.front.bits.STENCILMASK        = params.frontReadMask;
-    dbStencilRefMask.front.bits.STENCILWRITEMASK   = params.frontWriteMask;
-    dbStencilRefMask.back.bits.STENCILOPVAL_BF     = params.backOpValue;
-    dbStencilRefMask.back.bits.STENCILTESTVAL_BF   = params.backRef;
-    dbStencilRefMask.back.bits.STENCILMASK_BF      = params.backReadMask;
-    dbStencilRefMask.back.bits.STENCILWRITEMASK_BF = params.backWriteMask;
+        struct
+        {
+            regDB_STENCILREFMASK     front;
+            regDB_STENCILREFMASK_BF  back;
+        } dbStencilRefMask = { };
 
-    uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
+        dbStencilRefMask.front.bits.STENCILOPVAL       = params.frontOpValue;
+        dbStencilRefMask.front.bits.STENCILTESTVAL     = params.frontRef;
+        dbStencilRefMask.front.bits.STENCILMASK        = params.frontReadMask;
+        dbStencilRefMask.front.bits.STENCILWRITEMASK   = params.frontWriteMask;
+        dbStencilRefMask.back.bits.STENCILOPVAL_BF     = params.backOpValue;
+        dbStencilRefMask.back.bits.STENCILTESTVAL_BF   = params.backRef;
+        dbStencilRefMask.back.bits.STENCILMASK_BF      = params.backReadMask;
+        dbStencilRefMask.back.bits.STENCILWRITEMASK_BF = params.backWriteMask;
 
-    if (params.flags.u8All == 0xFF)
-    {
-        pDeCmdSpace = m_deCmdStream.WriteSetSeqContextRegs(mmDB_STENCILREFMASK,
-                                                           mmDB_STENCILREFMASK_BF,
-                                                           &dbStencilRefMask,
+        uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
+
+        if (params.flags.u8All == 0xFF)
+        {
+            pDeCmdSpace = m_deCmdStream.WriteSetSeqContextRegs(mmDB_STENCILREFMASK,
+                                                               mmDB_STENCILREFMASK_BF,
+                                                               &dbStencilRefMask,
+                                                               pDeCmdSpace);
+        }
+        else
+        {
+            // Accumulate masks and shifted data based on which flags are set
+            // 1. Front-facing primitives
+            uint32 frontMask = 0;
+            if (params.flags.updateFrontRef)
+            {
+                frontMask |= DB_STENCILREFMASK__STENCILTESTVAL_MASK;
+            }
+            if (params.flags.updateFrontReadMask)
+            {
+                frontMask |= DB_STENCILREFMASK__STENCILMASK_MASK;
+            }
+            if (params.flags.updateFrontWriteMask)
+            {
+                frontMask |= DB_STENCILREFMASK__STENCILWRITEMASK_MASK;
+            }
+            if (params.flags.updateFrontOpValue)
+            {
+                frontMask |= DB_STENCILREFMASK__STENCILOPVAL_MASK;
+            }
+
+            // 2. Back-facing primitives
+            uint32 backMask = 0;
+            if (params.flags.updateBackRef)
+            {
+                backMask |= DB_STENCILREFMASK_BF__STENCILTESTVAL_BF_MASK;
+            }
+            if (params.flags.updateBackReadMask)
+            {
+                backMask |= DB_STENCILREFMASK_BF__STENCILMASK_BF_MASK;
+            }
+            if (params.flags.updateBackWriteMask)
+            {
+                backMask |= DB_STENCILREFMASK_BF__STENCILWRITEMASK_BF_MASK;
+            }
+            if (params.flags.updateBackOpValue)
+            {
+                backMask |= DB_STENCILREFMASK_BF__STENCILOPVAL_BF_MASK;
+            }
+
+            pDeCmdSpace = m_deCmdStream.WriteContextRegRmw(mmDB_STENCILREFMASK,
+                                                           frontMask,
+                                                           dbStencilRefMask.front.u32All,
                                                            pDeCmdSpace);
+            pDeCmdSpace = m_deCmdStream.WriteContextRegRmw(mmDB_STENCILREFMASK_BF,
+                                                           backMask,
+                                                           dbStencilRefMask.back.u32All,
+                                                           pDeCmdSpace);
+        }
+
+        m_deCmdStream.CommitCommands(pDeCmdSpace);
     }
-    else
-    {
-        // Accumulate masks and shifted data based on which flags are set
-        // 1. Front-facing primitives
-        uint32 frontMask = 0;
-        if (params.flags.updateFrontRef)
-        {
-            frontMask |= DB_STENCILREFMASK__STENCILTESTVAL_MASK;
-        }
-        if (params.flags.updateFrontReadMask)
-        {
-            frontMask |= DB_STENCILREFMASK__STENCILMASK_MASK;
-        }
-        if (params.flags.updateFrontWriteMask)
-        {
-            frontMask |= DB_STENCILREFMASK__STENCILWRITEMASK_MASK;
-        }
-        if (params.flags.updateFrontOpValue)
-        {
-            frontMask |= DB_STENCILREFMASK__STENCILOPVAL_MASK;
-        }
-
-        // 2. Back-facing primitives
-        uint32 backMask = 0;
-        if (params.flags.updateBackRef)
-        {
-            backMask |= DB_STENCILREFMASK_BF__STENCILTESTVAL_BF_MASK;
-        }
-        if (params.flags.updateBackReadMask)
-        {
-            backMask |= DB_STENCILREFMASK_BF__STENCILMASK_BF_MASK;
-        }
-        if (params.flags.updateBackWriteMask)
-        {
-            backMask |= DB_STENCILREFMASK_BF__STENCILWRITEMASK_BF_MASK;
-        }
-        if (params.flags.updateBackOpValue)
-        {
-            backMask |= DB_STENCILREFMASK_BF__STENCILOPVAL_BF_MASK;
-        }
-
-        pDeCmdSpace = m_deCmdStream.WriteContextRegRmw(mmDB_STENCILREFMASK,
-                                                       frontMask,
-                                                       dbStencilRefMask.front.u32All,
-                                                       pDeCmdSpace);
-        pDeCmdSpace = m_deCmdStream.WriteContextRegRmw(mmDB_STENCILREFMASK_BF,
-                                                       backMask,
-                                                       dbStencilRefMask.back.u32All,
-                                                       pDeCmdSpace);
-    }
-
-    m_deCmdStream.CommitCommands(pDeCmdSpace);
 }
 
 // =====================================================================================================================

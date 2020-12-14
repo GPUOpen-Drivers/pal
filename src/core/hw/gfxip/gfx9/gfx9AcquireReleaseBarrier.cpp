@@ -481,7 +481,7 @@ void Device::AcqRelColorTransition(
     const auto&                 gfx9Image   = static_cast<const Gfx9::Image&>(*image.GetGfxImage());
     const SubResourceInfo*const pSubresInfo = image.SubresourceInfo(imgBarrier.subresRange.startSubres);
 
-    PAL_ASSERT(image.IsDepthStencil() == false);
+    PAL_ASSERT(image.IsDepthStencilTarget() == false);
 
     if (layoutTransInfo.blt[0] == HwLayoutTransition::MsaaColorDecompress)
     {
@@ -1010,7 +1010,7 @@ LayoutTransitionInfo Device::PrepareBltInfo(
              (TestAnyFlagSet(newLayout.usages, LayoutUninitializedTarget) == false))
     {
         // Call helper function to calculate specific BLT operation(s) (can be none) for an image layout transition.
-        if (image.IsDepthStencil())
+        if (image.IsDepthStencilTarget())
         {
             layoutTransInfo = PrepareDepthStencilBlt(pCmdBuf, image, subresRange, oldLayout, newLayout);
         }
@@ -1603,7 +1603,7 @@ void Device::IssueBlt(
     else
     {
         // Image does normal BLT.
-        if (image.IsDepthStencil())
+        if (image.IsDepthStencilTarget())
         {
             AcqRelDepthStencilTransition(pCmdBuf, *pImgBarrier, layoutTransInfo);
         }

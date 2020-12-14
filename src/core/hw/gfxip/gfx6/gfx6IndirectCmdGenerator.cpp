@@ -411,7 +411,7 @@ void IndirectCmdGenerator::PopulateInvocationBuffer(
         pData->gfx6.threadsPerGroup[2] = 1;
     }
 
-	if (m_device.Parent()->ChipProperties().gfxLevel >= GfxIpLevel::GfxIp8)
+    if (m_device.Parent()->ChipProperties().gfxLevel >= GfxIpLevel::GfxIp8)
     {
         pData->gfx6.indexBufMType = MTYPE_UC;
     }

@@ -311,6 +311,7 @@ enum class VideoDecodeType : uint32
     Vp9                 = 0x8,      ///< VP9
     Hevc10Bit           = 0x9,      ///< HEVC 10bit
     Vp910Bit            = 0xa,      ///< VP9 10bit
+    Av1                 = 0xb,      ///< AV1
     Count,
 };
 
@@ -1165,7 +1166,8 @@ struct DeviceProperties
                 uint64 supportSortAgnosticBarycentrics    :  1; ///< HW supports sort-agnostic Barycentrics for PS
                 uint64 supportVrsWithDsExports            :  1; ///< If true, asic support coarse VRS rates
                                                                 ///  when z or stencil exports are enabled
-                uint64 reserved                           : 26; ///< Reserved for future use.
+                uint64 placeholder11                      :  2; ///< Placeholder, do not use
+                uint64 reserved                           : 24; ///< Reserved for future use.
             };
             uint64 u64All;           ///< Flags packed as 32-bit uint.
         } flags;                     ///< Device IP property flags.
@@ -1278,7 +1280,8 @@ struct DeviceProperties
                 uint32 requireFrameEnd            :  1;    ///< If the client must tag the last command buffer
                                                            ///  submission in each frame with a @ref CmdBufInfo with
                                                            ///  the frameEnd flag set.
-                uint32 reserved                   : 25;    ///< Reserved for future use.
+                uint32 supportDirectCapture       :  1;    ///< Whether Direct Capture is supported by KMD
+                uint32 reserved                   : 24;    ///< Reserved for future use.
             };
             uint32 u32All;                        ///< Flags packed as 32-bit uint.
         } flags;                                  ///< OS-specific property flags.
@@ -1922,8 +1925,8 @@ struct BvhInfo
             /// only on GPUs that have supportsMall set in DeviceProperties.
             uint32    bypassMallRead     :  1;
             uint32    bypassMallWrite    :  1;
-
-            uint32    reserved           : 27; ///< Reserved for future HW
+            uint32    placeholder2       :  1; ///< Reserved for future HW
+            uint32    reserved           : 26; ///< Reserved for future HW
         };
 
         uint32  u32All; ///< Flags packed as 32-bit uint.
@@ -4509,6 +4512,7 @@ public:
         uint32*                     pConnectorCount,
         DisplayConnectorProperties* pConnectors) = 0;
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 638
     /// Get the valid FormatFeatureFlags for the provided ChNumFormat, ImageAspect, and ImageTiling.
     /// Formats report all supported operations.  For certain aspects some of those operations might be unsupported.
     /// GetValidFormatFeatureFlags is a helper to return only the valid FormatFeatureFlags for a particular aspect.
@@ -4522,6 +4526,7 @@ public:
         const ChNumFormat format,
         const ImageAspect aspect,
         const ImageTiling tiling) const = 0;
+#endif
 
     /// @}
 

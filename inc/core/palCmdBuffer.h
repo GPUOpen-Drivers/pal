@@ -610,8 +610,8 @@ struct DynamicGraphicsShaderInfos
     {
         struct
         {
-            uint32 reserved0                  :  6; ///< Reserved.
-            uint32 reserved                   : 26; ///< Reserved for future use.
+            uint32 reserved0                  :  8; ///< Reserved.
+            uint32 reserved                   : 24; ///< Reserved for future use.
         };
         uint32 u32All;                   ///< Flags packed as 32-bit uint.
     } flags;                             ///< BindPipeline flags.
@@ -1748,6 +1748,11 @@ enum ComputeStateFlags : uint32
 /// - P2PCmd : Mark a P2P copy command. KMD could use this flag for adjustments for its frame time calculation.
 ///   For the current frame time algorithm, clients should only set this flag on SW compositing copy command.
 ///   But KMD may adjust their algorithm, and clients should update the flag depending on KMD needs.
+///
+/// The following flags are used for Direct Capture.
+///
+/// - captureBegin and captureEnd : Direct capture info should be filled if any of these is set. And captureEnd flag
+///   also notifies KMD that the on-screen primary is safe to release.
 struct CmdBufInfo
 {
     union
@@ -1758,7 +1763,9 @@ struct CmdBufInfo
             uint32 frameBegin   : 1;    ///< First command buffer after Queue creation or Present.
             uint32 frameEnd     : 1;    ///< Last command buffer before Present.
             uint32 p2pCmd       : 1;    ///< Is P2P copy command. See CmdBufInfo comments for details.
-            uint32 reserved     : 28;   ///< Reserved for future usage.
+            uint32 captureBegin : 1;    ///< This command buffer begins a Direct Capture frame capture.
+            uint32 captureEnd   : 1;    ///< This command buffer ends a Direct Capture frame capture.
+            uint32 reserved     : 26;   ///< Reserved for future usage.
         };
         uint32 u32All;                  ///< Flags packed as uint32.
     };
@@ -1768,6 +1775,9 @@ struct CmdBufInfo
                                         ///  specifies that primaryHandle should be sent, clients should set this to
                                         ///  current frame pending primary's IGpuMemory object on the creating GPU
                                         ///  for the frameEnd command. Otherwise set this to nullptr.
+
+    const IGpuMemory* pDirectCapMemory; ///< The Direct Capture gpu memory object. It should be set if flag
+                                        ///  captureBegin or captureEnd is set. Otherwise set this to nullptr.
 };
 
 /// Specifies rotation angle between two images.  Used as input to ICmdBuffer::CmdScaledCopyImage.

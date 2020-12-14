@@ -43,7 +43,7 @@ class Device;
 class Image : public ImageDecorator
 {
 public:
-    Image(IImage* pNextImage, Device* pDevice);
+    Image(IImage* pNextImage, SwizzledFormat format, Device* pDevice);
 
     virtual ~Image();
 
@@ -57,9 +57,12 @@ public:
         m_boundMemOffset = offset;
     }
 
+    SwizzledFormat Format() const { return m_format; }
+
 private:
     IGpuMemory*            m_pBoundMemObj;   // The memory bound to this image
     gpusize                m_boundMemOffset; // The offset into the bound memory
+    SwizzledFormat         m_format;
 
     PAL_DISALLOW_DEFAULT_CTOR(Image);
     PAL_DISALLOW_COPY_AND_ASSIGN(Image);

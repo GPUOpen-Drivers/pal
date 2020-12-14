@@ -37,6 +37,9 @@ struct  SubResourceInfo;
 namespace AddrMgr1
 {
 
+// Define a new constant which represents an invalid AddrTileType
+constexpr AddrTileType TileTypeInvalid = static_cast<AddrTileType>(0xFF);
+
 // Bitfield of caps to control supported tiling modes
 union TilingCaps
 {

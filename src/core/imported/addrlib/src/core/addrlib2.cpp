@@ -822,7 +822,46 @@ ADDR_E_RETURNCODE Lib::ComputeDccAddrFromCoord(
     }
     else
     {
-        returnCode = HwlComputeDccAddrFromCoord(pIn, pOut);
+        returnCode = HwlSupportComputeDccAddrFromCoord(pIn);
+
+        if (returnCode == ADDR_OK)
+        {
+            HwlComputeDccAddrFromCoord(pIn, pOut);
+        }
+        else if (returnCode == ADDR_NOTIMPLEMENTED)
+        {
+            ADDR2_COMPUTE_DCCINFO_INPUT input = {};
+            input.dccKeyFlags     = pIn->dccKeyFlags;
+            input.colorFlags      = pIn->colorFlags;
+            input.swizzleMode     = pIn->swizzleMode;
+            input.resourceType    = pIn->resourceType;
+            input.bpp             = pIn->bpp;
+            input.unalignedWidth  = Max(pIn->unalignedWidth,  1u);
+            input.unalignedHeight = Max(pIn->unalignedHeight, 1u);
+            input.numSlices       = Max(pIn->numSlices,       1u);
+            input.numFrags        = Max(pIn->numFrags,        1u);
+            input.numMipLevels    = Max(pIn->numMipLevels,    1u);
+
+            ADDR2_COMPUTE_DCCINFO_OUTPUT output = {};
+
+            returnCode = HwlComputeDccInfo(&input, &output);
+
+            if (returnCode == ADDR_OK)
+            {
+                ADDR2_COMPUTE_DCC_ADDRFROMCOORD_INPUT in = *pIn;
+                in.pitch             = output.pitch;
+                in.height            = output.height;
+                in.compressBlkWidth  = output.compressBlkWidth;
+                in.compressBlkHeight = output.compressBlkHeight;
+                in.compressBlkDepth  = output.compressBlkDepth;
+                in.metaBlkWidth      = output.metaBlkWidth;
+                in.metaBlkHeight     = output.metaBlkHeight;
+                in.metaBlkDepth      = output.metaBlkDepth;
+                in.dccRamSliceSize   = output.dccRamSliceSize;
+
+                HwlComputeDccAddrFromCoord(&in, pOut);
+            }
+        }
     }
 
     return returnCode;

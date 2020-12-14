@@ -592,5 +592,222 @@ SwizzledFormat AmdgpuFormatToPalFormat(
     return palFormat;
 }
 
+// =====================================================================================================================
+uint32 AmdGpuToAddrTileModeConversion(
+    AMDGPU_TILE_MODE tileMode)
+{
+    uint32 addrTileMode = ADDR_TM_LINEAR_GENERAL;
+    switch (tileMode)
+    {
+    case AMDGPU_TILE_MODE__LINEAR_GENERAL:
+        addrTileMode = ADDR_TM_LINEAR_GENERAL;
+        break;
+    case AMDGPU_TILE_MODE__LINEAR_ALIGNED:
+        addrTileMode = ADDR_TM_LINEAR_ALIGNED;
+        break;
+    case AMDGPU_TILE_MODE__1D_TILED_THIN1:
+        addrTileMode = ADDR_TM_1D_TILED_THIN1;
+        break;
+    case AMDGPU_TILE_MODE__1D_TILED_THICK:
+        addrTileMode = ADDR_TM_1D_TILED_THICK;
+        break;
+    case AMDGPU_TILE_MODE__2D_TILED_THIN1:
+        addrTileMode = ADDR_TM_2D_TILED_THIN1;
+        break;
+    case AMDGPU_TILE_MODE__2D_TILED_THIN2:
+        addrTileMode = ADDR_TM_2D_TILED_THIN2;
+        break;
+    case AMDGPU_TILE_MODE__2D_TILED_THIN4:
+        addrTileMode = ADDR_TM_2D_TILED_THIN4;
+        break;
+    case AMDGPU_TILE_MODE__2D_TILED_THICK:
+        addrTileMode = ADDR_TM_2D_TILED_THICK;
+        break;
+    case AMDGPU_TILE_MODE__2B_TILED_THIN1:
+        addrTileMode = ADDR_TM_2B_TILED_THIN1;
+        break;
+    case AMDGPU_TILE_MODE__2B_TILED_THIN2:
+        addrTileMode = ADDR_TM_2B_TILED_THIN2;
+        break;
+    case AMDGPU_TILE_MODE__2B_TILED_THIN4:
+        addrTileMode = ADDR_TM_2B_TILED_THIN4;
+        break;
+    case AMDGPU_TILE_MODE__2B_TILED_THICK:
+        addrTileMode = ADDR_TM_2B_TILED_THICK;
+        break;
+    case AMDGPU_TILE_MODE__3D_TILED_THIN1:
+        addrTileMode = ADDR_TM_3D_TILED_THIN1;
+        break;
+    case AMDGPU_TILE_MODE__3D_TILED_THICK:
+        addrTileMode = ADDR_TM_3D_TILED_THICK;
+        break;
+    case AMDGPU_TILE_MODE__3B_TILED_THIN1:
+        addrTileMode = ADDR_TM_3B_TILED_THIN1;
+        break;
+    case AMDGPU_TILE_MODE__3B_TILED_THICK:
+        addrTileMode = ADDR_TM_3B_TILED_THICK;
+        break;
+    case AMDGPU_TILE_MODE__2D_TILED_XTHICK:
+        addrTileMode = ADDR_TM_2D_TILED_XTHICK;
+        break;
+    case AMDGPU_TILE_MODE__3D_TILED_XTHICK:
+        addrTileMode = ADDR_TM_3D_TILED_XTHICK;
+        break;
+    case AMDGPU_TILE_MODE__PRT_TILED_THIN1:
+        addrTileMode = ADDR_TM_PRT_TILED_THIN1;
+        break;
+    case AMDGPU_TILE_MODE__PRT_2D_TILED_THIN1:
+        addrTileMode = ADDR_TM_PRT_2D_TILED_THIN1;
+        break;
+    case AMDGPU_TILE_MODE__PRT_3D_TILED_THIN1:
+        addrTileMode = ADDR_TM_PRT_3D_TILED_THIN1;
+        break;
+    case AMDGPU_TILE_MODE__PRT_TILED_THICK:
+        addrTileMode = ADDR_TM_PRT_TILED_THICK;
+        break;
+    case AMDGPU_TILE_MODE__PRT_2D_TILED_THICK:
+        addrTileMode = ADDR_TM_PRT_2D_TILED_THICK;
+        break;
+    case AMDGPU_TILE_MODE__PRT_3D_TILED_THICK:
+        addrTileMode = ADDR_TM_PRT_3D_TILED_THICK;
+        break;
+    default:
+        addrTileMode = ADDR_TM_LINEAR_GENERAL;
+        break;
+    }
+
+    return addrTileMode;
+}
+
+// =====================================================================================================================
+// convert the tiling mode from PAL definition to AMDGPU definition.
+AMDGPU_TILE_MODE AddrToAmdGpuTileModeConversion(
+    uint32 tileMode)
+{
+    constexpr AMDGPU_TILE_MODE AmdGpuTileModes[] =
+    {
+        AMDGPU_TILE_MODE__LINEAR_GENERAL,       //ADDR_TM_LINEAR_GENERAL      = 0,
+        AMDGPU_TILE_MODE__LINEAR_ALIGNED,       //ADDR_TM_LINEAR_ALIGNED      = 1,
+        AMDGPU_TILE_MODE__1D_TILED_THIN1,       //ADDR_TM_1D_TILED_THIN1      = 2,
+        AMDGPU_TILE_MODE__1D_TILED_THICK,       //ADDR_TM_1D_TILED_THICK      = 3,
+        AMDGPU_TILE_MODE__2D_TILED_THIN1,       //ADDR_TM_2D_TILED_THIN1      = 4,
+        AMDGPU_TILE_MODE__2D_TILED_THIN2,       //ADDR_TM_2D_TILED_THIN2      = 5,
+        AMDGPU_TILE_MODE__2D_TILED_THIN4,       //ADDR_TM_2D_TILED_THIN4      = 6,
+        AMDGPU_TILE_MODE__2D_TILED_THICK,       //ADDR_TM_2D_TILED_THICK      = 7,
+        AMDGPU_TILE_MODE__2B_TILED_THIN1,       //ADDR_TM_2B_TILED_THIN1      = 8,
+        AMDGPU_TILE_MODE__2B_TILED_THIN2,       //ADDR_TM_2B_TILED_THIN2      = 9,
+        AMDGPU_TILE_MODE__2B_TILED_THIN4,       //ADDR_TM_2B_TILED_THIN4      = 10,
+        AMDGPU_TILE_MODE__2B_TILED_THICK,       //ADDR_TM_2B_TILED_THICK      = 11,
+        AMDGPU_TILE_MODE__3D_TILED_THIN1,       //ADDR_TM_3D_TILED_THIN1      = 12,
+        AMDGPU_TILE_MODE__3D_TILED_THICK,       //ADDR_TM_3D_TILED_THICK      = 13,
+        AMDGPU_TILE_MODE__3B_TILED_THIN1,       //ADDR_TM_3B_TILED_THIN1      = 14,
+        AMDGPU_TILE_MODE__3B_TILED_THICK,       //ADDR_TM_3B_TILED_THICK      = 15,
+        AMDGPU_TILE_MODE__2D_TILED_XTHICK,      //ADDR_TM_2D_TILED_XTHICK     = 16,
+        AMDGPU_TILE_MODE__3D_TILED_XTHICK,      //ADDR_TM_3D_TILED_XTHICK     = 17,
+        AMDGPU_TILE_MODE__INVALID,              //ADDR_TM_POWER_SAVE          = 18,
+        AMDGPU_TILE_MODE__PRT_TILED_THIN1,      //ADDR_TM_PRT_TILED_THIN1     = 19,
+        AMDGPU_TILE_MODE__PRT_2D_TILED_THIN1,   //ADDR_TM_PRT_2D_TILED_THIN1  = 20,
+        AMDGPU_TILE_MODE__PRT_3D_TILED_THIN1,   //ADDR_TM_PRT_3D_TILED_THIN1  = 21,
+        AMDGPU_TILE_MODE__PRT_TILED_THICK,      //ADDR_TM_PRT_TILED_THICK     = 22,
+        AMDGPU_TILE_MODE__PRT_2D_TILED_THICK,   //ADDR_TM_PRT_2D_TILED_THICK  = 23,
+        AMDGPU_TILE_MODE__PRT_3D_TILED_THICK,   //ADDR_TM_PRT_3D_TILED_THICK  = 24,
+        AMDGPU_TILE_MODE__INVALID,              //ADDR_TM_COUNT               = 25,
+    };
+    return AmdGpuTileModes[tileMode];
+}
+
+// =====================================================================================================================
+// convert the surface format from PAL definition to AMDGPU definition.
+AMDGPU_PIXEL_FORMAT PalToAmdGpuFormatConversion(
+    SwizzledFormat format)
+{
+    // we don't support types of format other than R8G8B8A8 or B8G8R8A8 so far.
+    return AMDGPU_PIXEL_FORMAT__8_8_8_8;
+}
+
+static_assert(static_cast<uint32>(ADDR_DISPLAYABLE) ==
+              static_cast<uint32>(AMDGPU_MICRO_TILE_MODE__DISPLAYABLE),
+              "mismatched tile type enum value");
+static_assert(static_cast<uint32>(ADDR_NON_DISPLAYABLE) ==
+              static_cast<uint32>(AMDGPU_MICRO_TILE_MODE__NON_DISPLAYABLE),
+              "mismatched tile type enum value");
+static_assert(static_cast<uint32>(ADDR_DEPTH_SAMPLE_ORDER) ==
+              static_cast<uint32>(AMDGPU_MICRO_TILE_MODE__DEPTH_SAMPLE_ORDER),
+              "mismatched tile type enum value");
+static_assert(static_cast<uint32>(ADDR_ROTATED) ==
+              static_cast<uint32>(AMDGPU_MICRO_TILE_MODE__ROTATED),
+              "mismatched tile type enum value");
+static_assert(static_cast<uint32>(ADDR_THICK) ==
+              static_cast<uint32>(AMDGPU_MICRO_TILE_MODE__THICK),
+              "mismatched tile type enum value");
+static_assert(static_cast<uint32>(ADDR_SW_LINEAR)         == static_cast<uint32>(AMDGPU_SWIZZLE_MODE_LINEAR)        ,
+              "mismatched swizzle enum value");
+static_assert(static_cast<uint32>(ADDR_SW_256B_S)         == static_cast<uint32>(AMDGPU_SWIZZLE_MODE_256B_S)        ,
+              "mismatched swizzle enum value");
+static_assert(static_cast<uint32>(ADDR_SW_256B_D)         == static_cast<uint32>(AMDGPU_SWIZZLE_MODE_256B_D)        ,
+              "mismatched swizzle enum value");
+static_assert(static_cast<uint32>(ADDR_SW_256B_R)         == static_cast<uint32>(AMDGPU_SWIZZLE_MODE_256B_R)        ,
+              "mismatched swizzle enum value");
+static_assert(static_cast<uint32>(ADDR_SW_4KB_Z)          == static_cast<uint32>(AMDGPU_SWIZZLE_MODE_4KB_Z)         ,
+              "mismatched swizzle enum value");
+static_assert(static_cast<uint32>(ADDR_SW_4KB_S)          == static_cast<uint32>(AMDGPU_SWIZZLE_MODE_4KB_S)         ,
+              "mismatched swizzle enum value");
+static_assert(static_cast<uint32>(ADDR_SW_4KB_D)          == static_cast<uint32>(AMDGPU_SWIZZLE_MODE_4KB_D)         ,
+              "mismatched swizzle enum value");
+static_assert(static_cast<uint32>(ADDR_SW_4KB_R)          == static_cast<uint32>(AMDGPU_SWIZZLE_MODE_4KB_R)         ,
+              "mismatched swizzle enum value");
+static_assert(static_cast<uint32>(ADDR_SW_64KB_Z)         == static_cast<uint32>(AMDGPU_SWIZZLE_MODE_64KB_Z)        ,
+              "mismatched swizzle enum value");
+static_assert(static_cast<uint32>(ADDR_SW_64KB_S)         == static_cast<uint32>(AMDGPU_SWIZZLE_MODE_64KB_S)        ,
+              "mismatched swizzle enum value");
+static_assert(static_cast<uint32>(ADDR_SW_64KB_D)         == static_cast<uint32>(AMDGPU_SWIZZLE_MODE_64KB_D)        ,
+              "mismatched swizzle enum value");
+static_assert(static_cast<uint32>(ADDR_SW_64KB_R)         == static_cast<uint32>(AMDGPU_SWIZZLE_MODE_64KB_R)        ,
+              "mismatched swizzle enum value");
+// Make following assertions use ADDR_SW_RESERVED[0/1/2/3] after the definitions imported from SW AddrLib
+static_assert(static_cast<uint32>(ADDR_SW_64KB_R + 1)     == static_cast<uint32>(AMDGPU_SWIZZLE_MODE_VAR_Z)         ,
+              "mismatched swizzle enum value");
+static_assert(static_cast<uint32>(ADDR_SW_64KB_R + 2)     == static_cast<uint32>(AMDGPU_SWIZZLE_MODE_VAR_S)         ,
+              "mismatched swizzle enum value");
+static_assert(static_cast<uint32>(ADDR_SW_64KB_R + 3)     == static_cast<uint32>(AMDGPU_SWIZZLE_MODE_VAR_D)         ,
+              "mismatched swizzle enum value");
+static_assert(static_cast<uint32>(ADDR_SW_64KB_R + 4)     == static_cast<uint32>(AMDGPU_SWIZZLE_MODE_VAR_R)         ,
+              "mismatched swizzle enum value");
+static_assert(static_cast<uint32>(ADDR_SW_64KB_Z_T)       == static_cast<uint32>(AMDGPU_SWIZZLE_MODE_64KB_Z_T)      ,
+              "mismatched swizzle enum value");
+static_assert(static_cast<uint32>(ADDR_SW_64KB_S_T)       == static_cast<uint32>(AMDGPU_SWIZZLE_MODE_64KB_S_T)      ,
+              "mismatched swizzle enum value");
+static_assert(static_cast<uint32>(ADDR_SW_64KB_D_T)       == static_cast<uint32>(AMDGPU_SWIZZLE_MODE_64KB_D_T)      ,
+              "mismatched swizzle enum value");
+static_assert(static_cast<uint32>(ADDR_SW_64KB_R_T)       == static_cast<uint32>(AMDGPU_SWIZZLE_MODE_64KB_R_T)      ,
+              "mismatched swizzle enum value");
+static_assert(static_cast<uint32>(ADDR_SW_4KB_Z_X)        == static_cast<uint32>(AMDGPU_SWIZZLE_MODE_4KB_Z_X)       ,
+              "mismatched swizzle enum value");
+static_assert(static_cast<uint32>(ADDR_SW_4KB_S_X)        == static_cast<uint32>(AMDGPU_SWIZZLE_MODE_4KB_S_X)       ,
+              "mismatched swizzle enum value");
+static_assert(static_cast<uint32>(ADDR_SW_4KB_D_X)        == static_cast<uint32>(AMDGPU_SWIZZLE_MODE_4KB_D_X)       ,
+              "mismatched swizzle enum value");
+static_assert(static_cast<uint32>(ADDR_SW_4KB_R_X)        == static_cast<uint32>(AMDGPU_SWIZZLE_MODE_4KB_R_X)       ,
+              "mismatched swizzle enum value");
+static_assert(static_cast<uint32>(ADDR_SW_64KB_Z_X)       == static_cast<uint32>(AMDGPU_SWIZZLE_MODE_64KB_Z_X)      ,
+              "mismatched swizzle enum value");
+static_assert(static_cast<uint32>(ADDR_SW_64KB_S_X)       == static_cast<uint32>(AMDGPU_SWIZZLE_MODE_64KB_S_X)      ,
+              "mismatched swizzle enum value");
+static_assert(static_cast<uint32>(ADDR_SW_64KB_D_X)       == static_cast<uint32>(AMDGPU_SWIZZLE_MODE_64KB_D_X)      ,
+              "mismatched swizzle enum value");
+static_assert(static_cast<uint32>(ADDR_SW_64KB_R_X)       == static_cast<uint32>(AMDGPU_SWIZZLE_MODE_64KB_R_X)      ,
+              "mismatched swizzle enum value");
+static_assert(static_cast<uint32>(ADDR_SW_VAR_Z_X)        == static_cast<uint32>(AMDGPU_SWIZZLE_MODE_VAR_Z_X)       ,
+              "mismatched swizzle enum value");
+// Make following assertions use ADDR_SW_RESERVED[4/5] after the definitions imported from SW AddrLib
+static_assert(static_cast<uint32>(ADDR_SW_VAR_Z_X + 1)    == static_cast<uint32>(AMDGPU_SWIZZLE_MODE_VAR_S_X)       ,
+              "mismatched swizzle enum value");
+static_assert(static_cast<uint32>(ADDR_SW_VAR_Z_X + 2)    == static_cast<uint32>(AMDGPU_SWIZZLE_MODE_VAR_D_X)       ,
+              "mismatched swizzle enum value");
+static_assert(static_cast<uint32>(ADDR_SW_VAR_R_X)        == static_cast<uint32>(AMDGPU_SWIZZLE_MODE_VAR_R_X)       ,
+              "mismatched swizzle enum value");
+static_assert(static_cast<uint32>(ADDR_SW_LINEAR_GENERAL) == static_cast<uint32>(AMDGPU_SWIZZLE_MODE_LINEAR_GENERAL),
+              "mismatched swizzle enum value");
+
 } // Amdgpu
 } // Pal

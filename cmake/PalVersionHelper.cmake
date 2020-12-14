@@ -72,38 +72,26 @@ function(message_verbose)
     endif()
 endfunction()
 
-# Use this when you don't to create a cache variable, but still want to inform
-# the client about build options. As cache variables have downsides.
-#
-# This function is especially helpful for build options that are expected to change
-# over time. Something cache variables aren't well suited to.
-# The best example is GPU build options, this is something PAL expects it's clients to override.
-#
-# This is also really helpful when creating new GPU support, since clients are alerted about the suppport
-# programatically!
-function(pal_warn_about_default_gpu VARIABLE MESSAGE DEFAULT_VALUE)
+# Cache variables aren't ideal for customizing pal build's
+# They have serious problems. Particularly for dirty builds.
+# It's very important clients are explicitly opting in for support they desire.
+# Otherwise you get silent bugs, that no one understands.
+function(pal_build_parameter VARIABLE MESSAGE DEFAULT_VALUE MODE)
     # Ex:
     # VARIABLE = FOOBAR
     # MESSAGE = "FOORBAR is a cool idea"
     # DEFAULT_VALUE = OFF
-
-    # If PAL is being built standalone, no need to display as warnings. Since the warnings are intended
-    # for PAL clients.
-    if (PAL_IS_STANDALONE)
-        set(mode "STATUS")
-    else()
-        set(mode "AUTHOR_WARNING")
-    endif()
+    # MODE = AUTHOR_WARNING
 
     if (NOT DEFINED ${VARIABLE})
         set(${VARIABLE} ${DEFAULT_VALUE} PARENT_SCOPE)
 
-        message(${mode} "${VARIABLE} not specified. Defaulting to ${DEFAULT_VALUE}\n"
+        message(${MODE} "${VARIABLE} not specified. Defaulting to ${DEFAULT_VALUE}\n"
                         "Message: ${MESSAGE}")
     endif()
 
     # To assist in potential debugging
-    message_debug("PAL GPU SUPPORT: ${VARIABLE} set to ${${VARIABLE}}")
+    message_debug("PAL BUILD PARAMETER: ${VARIABLE} set to ${${VARIABLE}}")
 endfunction()
 
 # PAL uses specific asics, SC uses generations, Addrlib does both...

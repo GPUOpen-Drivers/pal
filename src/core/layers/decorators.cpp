@@ -2638,6 +2638,14 @@ Result QueueDecorator::Submit(
                     {
                         pNextCmdBufInfoList->pPrimaryMemory =
                             NextGpuMemory(origSubQueueInfo.pCmdBufInfoList[cmdBufIdx].pPrimaryMemory);
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 640
+                        if ((pNextCmdBufInfoList->captureBegin) || (pNextCmdBufInfoList->captureEnd))
+                        {
+                            pNextCmdBufInfoList->pDirectCapMemory =
+                                NextGpuMemory(origSubQueueInfo.pCmdBufInfoList[cmdBufIdx].pDirectCapMemory);
+                        }
+#endif
                     }
                 }
 

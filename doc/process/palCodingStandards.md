@@ -112,35 +112,8 @@ General Language Restrictions
     pointers in cases where a function argument would/should be passed
     by value if it weren't a large structure.
 
--   ***Avoid*** explicit memory management where possible. In
-    particular, ***avoid*** memory management except where there is a
-    clear path to return an error to the PAL client.
-
--   All system memory allocation and deallocation operations ***must***
-    use the PAL macros instead of the standard language allocation and
-    deallocation routines. The PAL macros are:
-
-    -   `PAL_NEW`, `PAL_DELETE`, `PAL_DELETE_THIS`, and `PAL_SAFE_DELETE`
-        in place of `new` and `delete`.
-
-    -   `PAL_NEW_ARRAY`, `PAL_DELETE_ARRAY` and `PAL_SAFE_DELETE_ARRAY`
-        in place of `new[]` and `delete[]`.
-
-    -   `PAL_MALLOC`, `PAL_CALLOC`, `PAL_FREE` and `PAL_SAFE_FREE` in place
-        of `malloc`, `calloc` and `free`.
-
-    -   `PAL_PLACEMENT_NEW` in place of placement new.
-
--   Return values from memory allocations ***must*** be checked for
-    failure. The cleanest possible fallback path ***should*** be
-    implemented.
-
 -   `nullptr` ***must*** be used instead of `0` or `NULL` when assigning or
     comparing null pointer values.
-
--   Pointers should be set to `nullptr` after deallocation. The
-    `PAL_SAFE_DELETE`, `PAL_SAFE_DELETE_ARRAY` and `PAL_SAFE_FREE`
-    macros handle this automatically.
 
 -   ***Avoid*** magic numbers; replace with predefined constants with
     meaningful names.
@@ -860,7 +833,7 @@ Token::Token(
 -   The destructor of a class that will be subclassed ***must*** be
     declared virtual. Such base class destructors ***must*** be either
     public or protected. If the base class destructor is protected, a
-    public Destroy() method must be provided for object destruction
+    public `Destroy()` method must be provided for object destruction
     instead.
 
 ```
@@ -1257,6 +1230,10 @@ if ((pResource == nullptr) &&
 }
 ```
 
+-   Yoda conditions such as `if (nullptr != x)` or `if (0 == x)` **should not** be used;
+    the constant should be on the right of the expression for readability and consistency.
+    `if (x != nullptr)` or `if (x == 0)` should be used instead.
+
 -   Prefer to break complex tests across multiple lines and / or
     introduce intermediate const booleans that are easier to
     understand.
@@ -1287,6 +1264,359 @@ Error Checking
 
 -   ***Prefer*** compile-time asserts over run-time asserts where
     possible.
+
+Memory Allocation
+-----------------------------
+
+-   ***Avoid*** explicit memory management where possible. In
+    particular, ***avoid*** memory management except where there is a
+    clear path to return an error to the PAL client.
+
+-   All system memory allocation and deallocation operations ***must***
+    use the PAL macros instead of the standard language allocation and
+    deallocation routines. The PAL macros are:
+    -   `PAL_NEW`, `PAL_DELETE`, `PAL_DELETE_THIS`, and `PAL_SAFE_DELETE`
+         in place of `new` and `delete`.
+
+    -   `PAL_NEW_ARRAY`, `PAL_DELETE_ARRAY` and `PAL_SAFE_DELETE_ARRAY`
+         in place of `new[]` and `delete[]`.
+
+    -   `PAL_MALLOC`, `PAL_CALLOC`, `PAL_FREE` and `PAL_SAFE_FREE` in
+         place of `malloc`, `calloc` and `free`.
+
+    -   `PAL_PLACEMENT_NEW` in place of placement new. It ***should*** be
+        used for objects that are created in already allocated memory
+        (e.g., objects that  implement interface objects, have the same
+        lifetime of an interface object, etc.).
+
+-   Return values from memory allocations ***must*** be checked for
+    failure. The cleanest possible fallback path ***should*** be
+    implemented.
+
+-   Pointers should be set to `nullptr` after deallocation. The
+    `PAL_SAFE_DELETE`, `PAL_SAFE_DELETE_ARRAY` and `PAL_SAFE_FREE`
+    macros handle this automatically.
+
+Construction and Destruction
+-----------------------------
+
+### Simple Construction and Initialization
+
+If initialization of an object `Object` has no observable failures, i.e.,
+either the operations in the constructor cannot fail or all failures can be
+handled in the constructor without additional handling code at the caller,
+then only the definition of constructors is ***required*** for `Object`. Asserts
+are ***allowed*** in constructors, as they guarantee pre- and post-conditions
+and if they are triggered, they halt execution.
+
+Typically, objects that have simple construction and initialization do not
+require a complex destruction mechanism. If a destructor is not performing
+any operations it can be omitted or if required, e.g., for base classes, it
+can be empty.
+
+E.g.,
+
+```c++
+class Object
+{
+public:
+    Object(int32 i)
+        :
+        m_integer(i),
+        m_double(1.0)
+    { }
+
+private:
+    int32  m_integer;
+    double m_double;
+};
+
+class BaseObject
+{
+public:
+    BaseObject(int32 i)
+        :
+        m_integer(i),
+        m_double(1.0)
+    { }
+
+    virtual BaseObject()
+    { }
+
+private:
+    PAL_DISALLOW_COPY_AND_ASSIGN(BaseObject);
+
+    int32  m_integer;
+    double m_double;
+};
+```
+
+### Generic Construction and Initialization
+
+#### Construction
+
+If an instance of a class can potentially fail during construction, then
+construction ***must*** be split into two functions. Apart from the
+constructor(s), `Init()` function(s) ***must*** be provided that return
+`Pal::Result` with the result of the initialization.
+
+The constructor(s) ***must*** perform all initialization that has no
+observable failures. The `Init()` function(s) ***must*** perform all
+initialization that may fail.
+
+Instances of a class that has `Init()` function(s) are only fully
+constructed if both the constructor and an `Init()` function are called.
+If an `Init()` function is not called, the object is in an unspecified state
+and calling any other function than `Init()` or the destructor is undefined
+behavior.
+
+-   If the `Init()` function returns `Pal::Result::Success` then the object is
+    fully constructed and in a well-defined, valid state.
+
+-   If the `Init()` function returns an error code, the object is in a invalid
+    state. The only functions that can be called are `Destroy()` or the destructor.
+
+#### Destruction
+
+If a class has an `Init()` function, it will probably need a non-trivial
+destructor. In that case, a destructor ***must*** be provided that clean ups
+everything that was setup either in the constructor(s) and/or an `Init()`
+function.
+
+If an instance of a class is expected to be constructed on preallocated memory
+(i.e., after `PAL_PLACEMENT_NEW`), a `Destroy()` function ***must*** also be
+defined that calls the destructor.
+
+E.g.,
+
+```c++
+class Object
+{
+public:
+    Object()
+    {
+        // initialization that requires no error reporting
+    }
+
+    /// Initializes this instance of Object and returns the result of
+    /// the operation.
+    Pal::Result Init(...)
+    {
+        Pal::Result result = Pal::Result::Success;
+
+        // initialization that requires error reporting in case of failure
+        result = ...
+
+        return result;
+    }
+
+    /// Destroys this instance of Object.
+    void Destroy()
+    {
+        this->~Object();
+    }
+
+private:
+    ~Object()
+    {
+        // all cleanup related operations
+        // clean-up typically does not fail
+    }
+};
+
+/// creation of object
+void* pPlacementAddr = ...;
+auto* const pObject = PAL_PLACEMENT_NEW(pPlacementAddr) Object;
+Pal::Result result = pObject->Init(...);
+if (result != Pal::Result::Success)
+{
+    pObject->Destroy();
+}
+```
+
+#### Destruction with Implicit Deallocation
+
+In general, deallocating memory as part of the object's destruction process
+(i.e., the function that cleans-up the object needs to also deallocate the
+memory it occupies) is ***discouraged***, as memory allocation for a created
+object is responsibility of the caller. However, if that need arises, a
+`DestroyInternal()` function ***must*** be provided.
+
+E.g.,
+```c++
+class MyAllocator;
+
+class Object
+{
+public:
+    Object(MyAllocator* pAllocator)
+        :
+        m_pAllocator(pAllocator)
+    {
+        // initialization that requires no error reporting
+    }
+
+    /// Initializes this instance of Object and returns the result of the
+    /// operation.
+    Pal::Result Init(...)
+    {
+        Pal::Result result = Pal::Result::Success;
+
+        // initialization that requires error reporting in case of failure
+        result = ...
+
+        return result;
+   }
+
+    /// Destroys this instance of Object.
+    void Destroy()
+    {
+        this->~Object();
+    }
+
+    /// Destroys this instance and deallocates.
+    void DestroyInternal()
+    {
+        // save allocator, as ~Object() may set m_pAllocator to nullptr
+        // (e.g., in debug)
+        MyAllocator* pAllocator = m_pAllocator;
+        Destroy();
+        PAL_FREE(this, pAllocator);
+    }
+
+private:
+    ~Object()
+    {
+        // all cleanup related operations
+    }
+
+    MyAllocator* m_pAllocator;
+};
+
+MyAllocator allocator;
+
+/// creation of object with explicit deallocation after destruction
+{
+    void* pPlacementAddr = PAL_MALLOC(sizeof(Object), &allocator, Pal::SystemAllocType::AllocInternal);
+    if (pPlacementAddr != nullptr)
+    {
+        auto* const pObject = PAL_PLACEMENT_NEW(pPlacementAddr) Object(&allocator);
+        Pal::Result result = pObject->Init(...);
+        if (result != Pal::Result::Success)
+        {
+            pObject->Destroy();
+            PAL_FREE(pPlacementAddr, &allocator);
+        }
+    }
+}
+
+/// creation of object with implicit deallocation during destruction
+{
+    void* pPlacementAddr = PAL_MALLOC(sizeof(Object), &allocator, Pal::SystemAllocType::AllocInternal);
+    if (pPlacementAddr != nullptr)
+    {
+        auto* const pObject = PAL_PLACEMENT_NEW(pPlacementAddr) Object(&allocator);
+        Pal::Result result = pObject->Init(...);
+        if (result != Pal::Result::Success)
+        {
+            pObject->DestroyInternal(); // no PAL_FREE required
+        }
+    }
+}
+```
+
+### Error Handling During Construction
+
+#### Member Variables
+
+If an object is a member variable and fails to be constructed during its `Init()`, the
+destructor of the outer object is responsible for that object clean-up.
+
+E.g.,
+
+```c++
+class MyAllocator;
+
+class OuterObject
+{
+public:
+    OuterObject()
+    { ... }
+
+    ~OuterObject()
+    {
+        PAL_DELETE(m_pObject, m_pAllocator);
+    }
+
+    Pal::Result Init()
+    {
+        Pal::Result result = Pal::Result::Success;
+
+        m_pObject = PAL_NEW(InnerObject, m_pAllocator, allocType) InnerObject;
+        if (m_pObject == nullptr)
+        {
+            result = Pal::Result::ErrorOutOfMemory;
+        }
+        else
+        {
+            result = m_pObject->Init();
+        }
+
+        // if result != Result::Success, not necessary to clean-up m_pObject
+        // ~OuterObject() is responsible for m_pObject cleanup
+        return result;
+    }
+
+private:
+   MyAllocator* m_pAllocator;
+   InnerObject* m_pObject;
+};
+```
+
+#### Factories
+
+If a factory returns an object via an out parameter, then the returned object needs to be
+properly destroyed if its construction fails inside the factory.
+
+E.g.,
+
+```c++
+class ObjectCreator
+{
+public:
+    Pal::Result CreateObject(
+        const ObjectCreateInfo& createInfo,
+        otherArgs...,
+        void* pPlacementAdr,
+        Object** ppObject)
+    {
+        // construct pObject
+        auto* const pObject = PAL_PLACEMENT_NEW(pPlacementAddr) Object(otherArgs...);
+
+        // initialize pObject
+        Result result = pObject->Init();
+
+        // do more initialization on the object
+        if (result == Result::Success)
+        {
+            result = pObject->MoreInitOperations();
+        }
+
+        if (result == Result::Success)
+        {
+            // notify caller of successful initialization
+            (*ppObject) = pObject;
+        }
+        else
+        {
+            // initialization failed, destroy object
+            pObject->Destroy();
+        }
+
+        return result;
+    }
+};
+```
 
 Concurrency and Thread Safety
 -----------------------------
@@ -1398,4 +1728,3 @@ advantages. "Clever" use of templates is not desirable.
     of a new container ***must*** follow the patterns of the
     interfaces to existing containers. (That is not to say there
     should be an interface class for them).
-

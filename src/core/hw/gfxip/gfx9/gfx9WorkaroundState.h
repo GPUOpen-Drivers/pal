@@ -77,9 +77,6 @@ public:
         UniversalCmdBuffer* pCmdBuffer,
         gpusize*            pIndexBufferAddr,
         uint32*             pIndexCount);
-    void HandleFirstIndexSmallerThanIndexCount(
-        uint32*         pFirstIndex,
-        const uint32    indexCount) const;
 
 private:
     const Device&                  m_device;

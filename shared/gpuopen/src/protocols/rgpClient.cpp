@@ -30,7 +30,7 @@
 
 #define RGP_CLIENT_MIN_VERSION 2
 #if DD_VERSION_SUPPORTS(GPUOPEN_RGP_SPM_COUNTERS_VERSION)
-    #define RGP_CLIENT_MAX_VERSION 10
+    #define RGP_CLIENT_MAX_VERSION 11
 #else
     #define RGP_CLIENT_MAX_VERSION 9
 #endif
@@ -631,9 +631,16 @@ namespace DevDriver
 
             if (IsConnected())
             {
+                ClientTraceParametersInfo mutableParams = parameters;
+                // Clients with older RGP version don't support the detailed SEMask, so we clear it from the trace parameters
+                if (GetSessionVersion() < RGP_DETAILED_SEMASK_VERSION)
+                {
+                    mutableParams.seMask = 0;
+                }
+
                 if (GetSessionVersion() >= RGP_DECOUPLED_TRACE_PARAMETERS)
                 {
-                    result = SendUpdateTraceParametersPacket(parameters);
+                    result = SendUpdateTraceParametersPacket(mutableParams);
                 }
                 else
                 {
@@ -645,7 +652,7 @@ namespace DevDriver
                 // We have to keep this copy around to handle back-compat.
                 if (result == Result::Success)
                 {
-                    m_tempTraceParameters = parameters;
+                    m_tempTraceParameters = mutableParams;
                 }
             }
 

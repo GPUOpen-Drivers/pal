@@ -29,10 +29,10 @@ include(CheckCXXCompilerFlag)
 
 pal_include_guard(PalCompilerOptions)
 
-function(pal_compiler_options)
+function(pal_compiler_options TARGET)
 
     # Set the C++ standard
-    set_target_properties(pal PROPERTIES
+    set_target_properties(${TARGET} PROPERTIES
         CXX_STANDARD 11
         CXX_STANDARD_REQUIRED ON
         CXX_EXTENSIONS OFF
@@ -50,9 +50,9 @@ function(pal_compiler_options)
 
     if(isGNU OR isClang)
         # Setup warnings
-        pal_compiler_warnings_gnu_or_clang()
+        pal_compiler_warnings_gnu_or_clang(${TARGET})
 
-        target_compile_options(pal PRIVATE
+        target_compile_options(${TARGET} PRIVATE
             # Disables exception handling
             -fno-exceptions
 
@@ -74,7 +74,7 @@ function(pal_compiler_options)
         )
 
         # TODO: Investigate why the "$<$<COMPILE_LANGUAGE:CXX>:" is neccessary
-        target_compile_options(pal PRIVATE $<$<COMPILE_LANGUAGE:CXX>:
+        target_compile_options(${TARGET} PRIVATE $<$<COMPILE_LANGUAGE:CXX>:
             # Disable run time type information
             # This means breaking dynamic_cast and typeid
             -fno-rtti
@@ -86,15 +86,15 @@ function(pal_compiler_options)
         check_cxx_compiler_flag(-mpreferred-stack-boundary=6 HAS_STACK_BOUNDARY)
         check_cxx_compiler_flag(-mstack-alignment=64 HAS_STACK_ALIGNMENT)
         if (HAS_STACK_BOUNDARY)
-            target_compile_options(pal PRIVATE -mpreferred-stack-boundary=6)
+            target_compile_options(${TARGET} PRIVATE -mpreferred-stack-boundary=6)
         elseif(HAS_STACK_ALIGNMENT)
-            target_compile_options(pal PRIVATE -mstack-alignment=64)
+            target_compile_options(${TARGET} PRIVATE -mstack-alignment=64)
         endif()
 
         # If we're using a build type that generates debug syms, compress them to save significant disk space.
         check_cxx_compiler_flag(-gz HAS_COMPRESSED_DEBUG)
         if (HAS_COMPRESSED_DEBUG)
-            target_compile_options(pal PRIVATE
+            target_compile_options(${TARGET} PRIVATE
                 $<$<OR:$<CONFIG:Debug>,$<CONFIG:RelWithDebInfo>>:
                     -gz
                 >

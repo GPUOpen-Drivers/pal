@@ -105,16 +105,16 @@ union Gfx10ReleaseMemGcrCntl
 // This table was taken from the ACQUIRE_MEM packet spec.
 static constexpr uint32 Gfx9TcCacheOpConversionTable[] =
 {
-    0,                                                                                     // Nop
-    CP_COHER_CNTL__TC_WB_ACTION_ENA_MASK | CP_COHER_CNTL__TC_ACTION_ENA_MASK,              // WbInvL1L2
-    CP_COHER_CNTL__TC_WB_ACTION_ENA_MASK | CP_COHER_CNTL__TC_ACTION_ENA_MASK
-                                         | CP_COHER_CNTL__TC_NC_ACTION_ENA_MASK,           // WbInvL2Nc
-    CP_COHER_CNTL__TC_WB_ACTION_ENA_MASK | CP_COHER_CNTL__TC_NC_ACTION_ENA_MASK,           // WbL2Nc
-    CP_COHER_CNTL__TC_WB_ACTION_ENA_MASK | CP_COHER_CNTL__TC_WC_ACTION_ENA_MASK,           // WbL2Wc
-    CP_COHER_CNTL__TC_ACTION_ENA_MASK    | CP_COHER_CNTL__TC_NC_ACTION_ENA_MASK,           // InvL2Nc
-    CP_COHER_CNTL__TC_ACTION_ENA_MASK    | CP_COHER_CNTL__TC_INV_METADATA_ACTION_ENA_MASK, // InvL2Md
-    CP_COHER_CNTL__TCL1_ACTION_ENA_MASK,                                                   // InvL1
-    CP_COHER_CNTL__TCL1_ACTION_ENA_MASK  | CP_COHER_CNTL__TCL1_VOL_ACTION_ENA_MASK,        // InvL1Vol
+    0,                                                                                                         // Nop
+    Gfx09_10::CP_COHER_CNTL__TC_WB_ACTION_ENA_MASK | Gfx09_10::CP_COHER_CNTL__TC_ACTION_ENA_MASK,              // WbInvL1L2
+    Gfx09_10::CP_COHER_CNTL__TC_WB_ACTION_ENA_MASK | Gfx09_10::CP_COHER_CNTL__TC_ACTION_ENA_MASK
+                                                   | Gfx09_10::CP_COHER_CNTL__TC_NC_ACTION_ENA_MASK,           // WbInvL2Nc
+    Gfx09_10::CP_COHER_CNTL__TC_WB_ACTION_ENA_MASK | Gfx09_10::CP_COHER_CNTL__TC_NC_ACTION_ENA_MASK,           // WbL2Nc
+    Gfx09_10::CP_COHER_CNTL__TC_WB_ACTION_ENA_MASK | Gfx09_10::CP_COHER_CNTL__TC_WC_ACTION_ENA_MASK,           // WbL2Wc
+    Gfx09_10::CP_COHER_CNTL__TC_ACTION_ENA_MASK    | Gfx09_10::CP_COHER_CNTL__TC_NC_ACTION_ENA_MASK,           // InvL2Nc
+    Gfx09_10::CP_COHER_CNTL__TC_ACTION_ENA_MASK    | Gfx09_10::CP_COHER_CNTL__TC_INV_METADATA_ACTION_ENA_MASK, // InvL2Md
+    Gfx09_10::CP_COHER_CNTL__TCL1_ACTION_ENA_MASK,                                                             // InvL1
+    Gfx09_10::CP_COHER_CNTL__TCL1_ACTION_ENA_MASK  | Gfx09_10::CP_COHER_CNTL__TCL1_VOL_ACTION_ENA_MASK,        // InvL1Vol
 };
 
 // In addition to the a TC cache op, ACQUIRE_MEM can flush or invalidate additional caches independently. It is easiest
@@ -297,11 +297,11 @@ public:
     static constexpr uint32 DrawIndexAutoSize             = PM4_PFP_DRAW_INDEX_AUTO_SIZEDW__CORE;
     static constexpr uint32 DrawIndex2Size                = PM4_PFP_DRAW_INDEX_2_SIZEDW__CORE;
     static constexpr uint32 DrawIndexOffset2Size          = PM4_PFP_DRAW_INDEX_OFFSET_2_SIZEDW__CORE;
-    static constexpr uint32 DispatchTaskMeshGfxSize       = PM4_ME_DISPATCH_TASKMESH_GFX_SIZEDW__GFX10PLUS;
+    static constexpr uint32 DispatchTaskMeshGfxSize       = PM4_ME_DISPATCH_TASKMESH_GFX_SIZEDW__GFX10COREPLUS;
     static constexpr uint32 DispatchTaskMeshDirectMecSize =
-        PM4_MEC_DISPATCH_TASKMESH_DIRECT_ACE_SIZEDW__GFX10PLUS;
+        PM4_MEC_DISPATCH_TASKMESH_DIRECT_ACE_SIZEDW__GFX10COREPLUS;
     static constexpr uint32 DispatchTaskMeshIndirectMecSize =
-        PM4_MEC_DISPATCH_TASKMESH_INDIRECT_MULTI_ACE_SIZEDW__GFX10PLUS;
+        PM4_MEC_DISPATCH_TASKMESH_INDIRECT_MULTI_ACE_SIZEDW__GFX10COREPLUS;
     static constexpr uint32 MinNopSizeInDwords      = 1; // all gfx9 HW supports 1-DW NOP packets
 
     static_assert (PM4_PFP_COND_EXEC_SIZEDW__CORE == PM4_MEC_COND_EXEC_SIZEDW__CORE,
@@ -755,8 +755,9 @@ private:
 #if PAL_ENABLE_PRINTS_ASSERTS
     void CheckShadowedContextReg(uint32 regAddr) const;
     void CheckShadowedContextRegs(uint32 startRegAddr, uint32 endRegAddr) const;
-    void CheckShadowedShReg(Pm4ShaderType shaderType, uint32 regAddr) const;
-    void CheckShadowedShRegs(Pm4ShaderType shaderType, uint32 startRegAddr, uint32 endRegAddr) const;
+    void CheckShadowedShReg(Pm4ShaderType shaderType, uint32 regAddr, bool shouldBeShadowed = true) const;
+    void CheckShadowedShRegs(Pm4ShaderType shaderType, uint32 startRegAddr,
+                             uint32 endRegAddr, bool shouldBeShadowed = true) const;
     void CheckShadowedUserConfigRegs(uint32 startRegAddr, uint32 endRegAddr) const;
 #endif
 

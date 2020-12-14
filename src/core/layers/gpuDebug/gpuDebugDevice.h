@@ -76,6 +76,15 @@ public:
         void*                      pPlacementAddr,
         TargetCmdBuffer**          ppCmdBuffer);
 
+    virtual size_t GetGraphicsPipelineSize(
+        const GraphicsPipelineCreateInfo& createInfo,
+        Result* pResult) const override;
+
+    virtual Result CreateGraphicsPipeline(
+        const GraphicsPipelineCreateInfo& createInfo,
+        void* pPlacementAddr,
+        IPipeline** ppPipeline) override;
+
     virtual size_t GetQueueSize(
         const QueueCreateInfo& createInfo,
         Result*                pResult) const override;
@@ -144,6 +153,23 @@ public:
         void*                               pGpuMemoryPlacementAddr,
         IImage**                            ppImage,
         IGpuMemory**                        ppGpuMemory) override;
+
+    virtual size_t GetColorTargetViewSize(
+        Result* pResult) const override;
+
+    virtual Result CreateColorTargetView(
+        const ColorTargetViewCreateInfo& createInfo,
+        void*                            pPlacementAddr,
+        IColorTargetView**               ppColorTargetView) const override;
+
+    virtual size_t GetColorBlendStateSize(
+        const ColorBlendStateCreateInfo& createInfo,
+        Result*                          pResult) const override;
+
+    virtual Result CreateColorBlendState(
+        const ColorBlendStateCreateInfo& createInfo,
+        void*                            pPlacementAddr,
+        IColorBlendState**               ppColorBlendState) const override;
 
     virtual Result CommitSettingsAndInit() override;
     virtual Result Finalize(const DeviceFinalizeInfo& finalizeInfo) override;

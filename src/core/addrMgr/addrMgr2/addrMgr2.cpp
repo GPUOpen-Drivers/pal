@@ -228,9 +228,16 @@ Result AddrMgr2::InitSubresourcesForImage(
                     result = InitSubresourceInfo(pImage, pSubRes, pTileInfo, surfSettingOut, surfInfoOut);
                     if (result != Result::Success)
                     {
+                        PAL_ALERT_ALWAYS();
                         break;
                     }
                 } // End loop over slices
+
+                // Stop initialize next mipLevel since error occurs
+                if (result != Result::Success)
+                {
+                    break;
+                }
 
                 // Update the memory layout's swizzle equation information. These propagate down from index 0 to index
                 // 1 so this check should skip this logic once we're found both swizzle equations.
@@ -292,6 +299,12 @@ Result AddrMgr2::InitSubresourcesForImage(
                                       : createInfo.arraySize);
 
             PAL_ASSERT(surfInfoOut.surfSize == (surfInfoOut.sliceSize * numSlices));
+        }
+
+        // Stop initialize next plane since error occurs
+        if (result != Result::Success)
+        {
+            break;
         }
 
     } // End loop over aspect planes
@@ -372,7 +385,7 @@ void AddrMgr2::InitTilingCaps(
     const PalSettings&     settings       = m_pDevice->Settings();
     const ImageCreateInfo& createInfo     = pImage->GetImageCreateInfo();
     const bool             isRenderTarget = pImage->IsRenderTarget();
-    const bool             isDepthStencil = pImage->IsDepthStencil();
+    const bool             isDepthStencil = pImage->IsDepthStencilTarget();
 
     const bool varSwizzleDefault   = settings.addr2UseVarSwizzleMode == Addr2UseVarSwizzleDefault;
     const bool varSwizzleFull      = TestAnyFlagSet(settings.addr2UseVarSwizzleMode, Addr2UseVarSwizzleFull);
@@ -731,7 +744,9 @@ Result AddrMgr2::ComputePlaneSwizzleMode(
         {
             pOut->swizzleMode = ADDR_SW_64KB_S;
         }
-        else if (imageInfo.internalCreateInfo.flags.useSharedTilingOverrides && (forFmask == false))
+        else if (imageInfo.internalCreateInfo.flags.useSharedTilingOverrides &&
+                 (imageInfo.internalCreateInfo.gfx9.sharedSwizzleMode != ADDR_SW_MAX_TYPE) &&
+                 (forFmask == false))
         {
             pOut->swizzleMode = imageInfo.internalCreateInfo.gfx9.sharedSwizzleMode;
         }

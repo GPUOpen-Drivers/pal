@@ -136,6 +136,7 @@ union GpuMemoryFlags
                                               // suballocating smaller memory blocks.
         uint32 localOnly                :  1; // GPU memory doesn't prefer nonlocal heaps.
         uint32 nonLocalOnly             :  1; // GPU memory doesn't prefer local heaps.
+        uint32 isLocalPreferred         :  1; // If GPU memory prefers local heaps as the first heap choice.
         uint32 cpuVisible               :  1; // GPU memory is CPU accessible via Map().
         uint32 privateScreen            :  1; // GPU memory is bound to a private screen image.
         uint32 isUserQueue              :  1; // GPU memory is used for an user queue.
@@ -162,7 +163,7 @@ union GpuMemoryFlags
 #else
         uint32 placeholder1             :  1;
 #endif
-        uint32 reserved                 : 24;
+        uint32 reserved                 : 23;
     };
     uint64  u64All;
 };
@@ -248,6 +249,7 @@ public:
     bool WasBuddyAllocated()     const { return (m_flags.buddyAllocated           != 0); }
     bool IsLocalOnly()           const { return (m_flags.localOnly                != 0); }
     bool IsNonLocalOnly()        const { return (m_flags.nonLocalOnly             != 0); }
+    bool IsLocalPreferred()      const { return (m_flags.isLocalPreferred         != 0); }
     bool IsCpuVisible()          const;
     bool IsPrivateScreen()       const { return (m_flags.privateScreen            != 0); }
     bool IsInterprocess()        const { return (m_flags.interprocess             != 0); }

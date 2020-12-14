@@ -301,7 +301,7 @@ static ADDR_SURFACE_FLAGS InitSurfaceInfoFlags(
 
     ADDR_SURFACE_FLAGS flags = { };
 
-    if (image.IsDepthStencil())
+    if (image.IsDepthStencilTarget())
     {
         if (subResInfo.subresId.aspect == ImageAspect::Stencil)
         {
@@ -562,9 +562,10 @@ ADDR_E_RETURNCODE AddrMgr1::CalcSurfInfoOut(
     PAL_ALERT(result != Result::Success); // This should never happen under normal circumstances.
 
     // The matchStencilTileCfg flag is only valid for depth/stencil Images!
-    PAL_ASSERT(pImage->IsDepthStencil() || (pSurfInfoInput->flags.matchStencilTileCfg == 0));
+    PAL_ASSERT(pImage->IsDepthStencilTarget() || (pSurfInfoInput->flags.matchStencilTileCfg == 0));
 
-    if (imageInfo.internalCreateInfo.flags.useSharedTilingOverrides)
+    if (imageInfo.internalCreateInfo.flags.useSharedTilingOverrides &&
+        (imageInfo.internalCreateInfo.gfx6.sharedTileIndex != TileIndexUnused))
     {
         pSurfInfoInput->tileIndex = imageInfo.internalCreateInfo.gfx6.sharedTileIndex;
     }

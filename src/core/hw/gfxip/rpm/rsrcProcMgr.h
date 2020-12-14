@@ -736,6 +736,9 @@ extern void PreComputeDepthStencilClearSync(ICmdBuffer*        pCmdBuffer,
                                             const GfxImage&    gfxImage,
                                             const SubresRange& subres,
                                             ImageLayout        layout);
-extern void PostComputeDepthStencilClearSync(ICmdBuffer* pCmdBuffer);
+extern void PostComputeDepthStencilClearSync(ICmdBuffer* pCmdBuffer,
+                                             const GfxImage&    gfxImage,
+                                             const SubresRange& subres,
+                                             ImageLayout        layout);
 
 } // Pal

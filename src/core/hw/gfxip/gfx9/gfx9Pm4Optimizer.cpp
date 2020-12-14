@@ -43,6 +43,7 @@ template <size_t RegisterCount>
 static bool UpdateRegState(
     uint32                        newRegVal,
     uint32                        regOffset,
+    bool                          tempDisableOptimizer,
     RegGroupState<RegisterCount>* pCurRegState) // [in,out] Current state of register being set, will be updated.
 {
     bool mustKeep = false;
@@ -51,9 +52,11 @@ static bool UpdateRegState(
     // - The new value is different than the old value.
     // - The previous state is invalid.
     // - We must always write this register.
+    // - Optimizer is temporarily disabled.
     if ((pCurRegState->state[regOffset].value           != newRegVal) ||
         (pCurRegState->state[regOffset].flags.valid     == 0)         ||
-        (pCurRegState->state[regOffset].flags.mustWrite == 1))
+        (pCurRegState->state[regOffset].flags.mustWrite == 1)         ||
+        tempDisableOptimizer)
     {
 #if PAL_BUILD_PM4_INSTRUMENTOR
         pCurRegState->keptSets[regOffset]++;
@@ -136,6 +139,9 @@ void Pm4Optimizer::Reset()
 
     // Always start with no context rolls
     m_contextRollDetected = false;
+
+    // Always start enabled
+    m_isTempDisabled      = false;
 }
 
 // =====================================================================================================================
@@ -147,7 +153,7 @@ bool Pm4Optimizer::MustKeepSetContextReg(
 {
     PAL_ASSERT(m_cmdUtil.IsContextReg(regAddr));
 
-    const bool mustKeep = UpdateRegState(regData, (regAddr - CONTEXT_SPACE_START), &m_cntxRegs);
+    const bool mustKeep = UpdateRegState(regData, (regAddr - CONTEXT_SPACE_START), m_isTempDisabled, &m_cntxRegs);
 
     m_contextRollDetected |= mustKeep;
 
@@ -162,7 +168,7 @@ bool Pm4Optimizer::MustKeepSetShReg(
     uint32 regData)
 {
     PAL_ASSERT(m_cmdUtil.IsShReg(regAddr));
-    return UpdateRegState(regData, (regAddr - PERSISTENT_SPACE_START), &m_shRegs);
+    return UpdateRegState(regData, (regAddr - PERSISTENT_SPACE_START), m_isTempDisabled, &m_shRegs);
 }
 
 // =====================================================================================================================
@@ -187,7 +193,7 @@ bool Pm4Optimizer::MustKeepContextRegRmw(
         // Computed according to the formula stated in the definition of CmdUtil::BuildContextRegRmw.
         const uint32 newRegVal = (m_cntxRegs.state[regOffset].value & ~regMask) | (regData & regMask);
 
-        mustKeep = UpdateRegState(newRegVal, regOffset, &m_cntxRegs);
+        mustKeep = UpdateRegState(newRegVal, regOffset, m_isTempDisabled, &m_cntxRegs);
     }
 
     m_contextRollDetected |= mustKeep;
@@ -300,7 +306,7 @@ uint32* Pm4Optimizer::OptimizePm4SetReg(
     uint32 keepRegMask  = 0;
     for (uint32 i = 0; i < numRegs; i++)
     {
-        if (UpdateRegState(pRegData[i], (regOffset + i), pRegState))
+        if (UpdateRegState(pRegData[i], (regOffset + i), m_isTempDisabled, pRegState))
         {
             keepRegCount++;
             keepRegMask |= 1 << i;

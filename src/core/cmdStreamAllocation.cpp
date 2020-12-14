@@ -98,6 +98,14 @@ Result CmdStreamAllocation::Init(
         m_pGpuMemory = pDevice->GetDummyChunkMem().Memory();
         PAL_ASSERT(m_pGpuMemory != nullptr);
 
+        // m_createInfo should be modified to DummyChunk's actually used heap.
+        // Otherwise, UsesSystemMemory() would no longer return correct information.
+        CmdStreamAllocationCreateInfo* pDummyAllocationCreateInfo =
+            const_cast<CmdStreamAllocationCreateInfo*>(&m_createInfo);
+
+        pDummyAllocationCreateInfo->memObjCreateInfo.heapCount = 1;
+        pDummyAllocationCreateInfo->memObjCreateInfo.heaps[0]  = m_pGpuMemory->PreferredHeap();
+
         result = m_pGpuMemory->Map(reinterpret_cast<void**>(&m_pCpuAddr));
     }
     else if (UsesSystemMemory())

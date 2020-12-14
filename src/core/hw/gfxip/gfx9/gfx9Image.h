@@ -318,6 +318,9 @@ public:
     bool HasHtileLookupTable() const
         { return (HasHtileData() && (m_metaDataLookupTableOffsets[0] != 0u)); }
 
+    bool HasDccLookupTable() const
+        { return (HasDccData() && (m_dccLookupTableOffset != 0u)); }
+
     bool SupportsCompToReg(ImageLayout layout, const SubresId& subResId) const;
 
     // Returns a pointer to the Gfx9Dcc object associated with a particular sub-Resource.
@@ -392,6 +395,7 @@ public:
     gpusize GetMipAddr(SubresId subresId) const;
 
     void BuildMetadataLookupTableBufferView(BufferViewInfo* pViewInfo, uint32 mipLevel) const;
+    void BuildDccLookupTableBufferView(BufferViewInfo* pViewInfo) const;
 
     bool IsInMetadataMipTail(const SubresId&  subResId) const;
     bool CanMipSupportMetaData(uint32 mip) const override;
@@ -406,8 +410,6 @@ public:
     virtual Result GetDefaultGfxLayout(SubresId subresId, ImageLayout* pLayout) const override;
 
     bool IsHtileDepthOnly() const;
-
-    bool ImageSupportsShaderReadsAndWrites() const;
 
     bool NeedFlushForMetadataPipeMisalignment(const SubresRange& range) const;
 
@@ -445,6 +447,9 @@ private:
 
     gpusize m_metaDataLookupTableOffsets[MaxImageMipLevels]; // Offset to lookup table for htile or cmask of each mip
     gpusize m_metaDataLookupTableSizes[MaxImageMipLevels];   // Size of lookup table for htile or cmask of each mip
+
+    gpusize m_dccLookupTableOffset; // Offset to lookup table for dcc.
+    gpusize m_dccLookupTableSize;   // Size of lookup table for dcc.
 
     gpusize m_gpuMemSyncSize; // Total size of the the image and metadata before any required allocation padding
 
@@ -485,6 +490,11 @@ private:
         gpusize*           pGpuMemSize);
 
     void InitHtileLookupTable(
+        ImageMemoryLayout* pGpuMemLayout,
+        gpusize*           pGpuOffset,
+        gpusize*           pGpuMemAlignment);
+
+    void InitDccLookupTable(
         ImageMemoryLayout* pGpuMemLayout,
         gpusize*           pGpuOffset,
         gpusize*           pGpuMemAlignment);
@@ -539,7 +549,7 @@ private:
     bool ColorImageSupportsMetaDataTextureFetch() const;
     bool DepthMetaDataTexFetchIsZValid(ChNumFormat format) const;
     bool DepthImageSupportsMetaDataTextureFetch(ChNumFormat format, const SubresId& subResource) const;
-    bool DoesImageSupportCopySrcCompression() const;
+    bool DoesImageSupportCopyCompression() const;
 
     // These static variables ensure that we are assigning a rotating set of swizzle indices for each new image.
     static uint32  s_cbSwizzleIdx;

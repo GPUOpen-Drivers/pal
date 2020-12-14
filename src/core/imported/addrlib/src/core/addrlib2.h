@@ -528,12 +528,18 @@ protected:
         return ADDR_NOTSUPPORTED;
     }
 
-    virtual ADDR_E_RETURNCODE HwlComputeDccAddrFromCoord(
+    virtual ADDR_E_RETURNCODE HwlSupportComputeDccAddrFromCoord(
+        const ADDR2_COMPUTE_DCC_ADDRFROMCOORD_INPUT* pIn)
+    {
+        ADDR_NOT_IMPLEMENTED();
+        return ADDR_NOTSUPPORTED;
+    }
+
+    virtual VOID HwlComputeDccAddrFromCoord(
         const ADDR2_COMPUTE_DCC_ADDRFROMCOORD_INPUT* pIn,
         ADDR2_COMPUTE_DCC_ADDRFROMCOORD_OUTPUT*      pOut)
     {
         ADDR_NOT_IMPLEMENTED();
-        return ADDR_NOTSUPPORTED;
     }
 
     virtual ADDR_E_RETURNCODE HwlComputeCmaskAddrFromCoord(

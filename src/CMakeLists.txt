@@ -489,10 +489,14 @@ if(PAL_BUILD_CORE)
 
         target_sources(pal PRIVATE
             core/layers/gpuDebug/gpuDebugCmdBuffer.cpp
+            core/layers/gpuDebug/gpuDebugColorBlendState.cpp
+            core/layers/gpuDebug/gpuDebugColorTargetView.cpp
             core/layers/gpuDebug/gpuDebugDevice.cpp
             core/layers/gpuDebug/gpuDebugImage.cpp
+            core/layers/gpuDebug/gpuDebugPipeline.cpp
             core/layers/gpuDebug/gpuDebugPlatform.cpp
-            core/layers/gpuDebug/gpuDebugQueue.cpp)
+            core/layers/gpuDebug/gpuDebugQueue.cpp
+        )
 
         target_sources(pal PRIVATE
             core/layers/interfaceLogger/interfaceLoggerBorderColorPalette.cpp

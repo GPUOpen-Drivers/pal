@@ -734,6 +734,7 @@ private:
     void AddCacheFlushInv();
     void AddTimestamp(gpusize timestampAddr, uint32* pCounter);
     void AddSingleStepBarrier(uint32 counter);
+    void VerifyBoundDrawState() const;
 
     Device*const                 m_pDevice;
     Util::VirtualLinearAllocator m_allocator;       // Temp storage for argument translation.
@@ -745,6 +746,10 @@ private:
     gpusize                      m_timestampAddr;
     uint32                       m_counter;
     const EngineType             m_engineType;
+    uint32                       m_verificationOptions;
+    const IPipeline*             m_pBoundPipeline;
+    BindTargetParams             m_boundTargets;
+    const IColorBlendState*      m_pBoundBlendState;
 
     // The token stream is a single block of memory that doubles in size each time it runs out of space.
     void*            m_pTokenStream;      // Storage for tokenized commands. Rewind here on command buffer reset.

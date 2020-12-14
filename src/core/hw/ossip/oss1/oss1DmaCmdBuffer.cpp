@@ -1194,5 +1194,14 @@ gpusize DmaCmdBuffer::GetSubresourceBaseAddr(
     return image.GetSubresourceBaseAddr(subresource) | (static_cast<gpusize>(pTileInfo->tileSwizzle) << 8);
 }
 
+// =====================================================================================================================
+// Returns the multiplier required to align the linear row pitch with OSS1 HW requirements
+uint32 DmaCmdBuffer::GetLinearRowPitchAlignment(
+    uint32 bytesPerPixel
+    ) const
+{
+    return bytesPerPixel;
+}
+
 } // Oss1
 } // Pal

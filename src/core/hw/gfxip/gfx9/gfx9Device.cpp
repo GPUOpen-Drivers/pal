@@ -633,6 +633,16 @@ void Device::BindTrapBuffer(
     m_queueContextUpdateCounter++;
 }
 
+// =====================================================================================================================
+// Returns whether or not state shadowing should be enabled.
+bool Device::UseStateShadowing(
+    EngineType engineType
+    ) const
+{
+    return ForceStateShadowing ||
+           Parent()->IsPreemptionSupported(engineType);
+}
+
 #if DEBUG
 // =====================================================================================================================
 // Useful helper function for debugging command buffers on the GPU. This adds a WAIT_REG_MEM command to the specified
@@ -740,16 +750,17 @@ Result Device::CreateDummyCommandStream(
         }
 
         pCmdStream->CommitCommands(pCmdSpace);
-        pCmdStream->End();
-    }
-    else
-    {
-        PAL_SAFE_DELETE(pCmdStream, GetPlatform());
+
+        result = pCmdStream->End();
     }
 
     if (result == Result::Success)
     {
         (*ppCmdStream) = pCmdStream;
+    }
+    else
+    {
+        PAL_SAFE_DELETE(pCmdStream, GetPlatform());
     }
 
     return result;
@@ -824,11 +835,11 @@ Result Device::CreateQueueContext(
         break;
      case QueueTypeUniversal:
         {
-            const bool isPreemptionSupported = Parent()->IsPreemptionSupported(createInfo.engineType);
+            const bool useStateShadowing = UseStateShadowing(createInfo.engineType);
             UniversalQueueContext* pContext =
                 PAL_PLACEMENT_NEW(pPlacementAddr) UniversalQueueContext(
                 this,
-                isPreemptionSupported,
+                useStateShadowing,
                 createInfo.persistentCeRamOffset,
                 createInfo.persistentCeRamSize,
                 pEngine,
@@ -1117,6 +1128,7 @@ void Device::GetSamplePatternPalette(
            sizeof(m_samplePatternPalette));
 }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 638
 // =====================================================================================================================
 // Get the valid FormatFeatureFlags for the provided ChNumFormat, ImageAspect, and ImageTiling
 uint32 Device::GetValidFormatFeatureFlags(
@@ -1163,6 +1175,7 @@ uint32 Device::GetValidFormatFeatureFlags(
     }
     return validFormatFeatureFlags;
 }
+#endif
 
 // =====================================================================================================================
 // Called during pipeline creation to notify that item-size requirements for each shader ring have changed. These
@@ -2865,7 +2878,7 @@ void PAL_STDCALL Device::Gfx9CreateImageViewSrds(
         }
 
         // Depth images obviously don't have an alpha component, so don't bother...
-        if ((pParent->IsDepthStencil() == false) && pBaseSubResInfo->flags.supportMetaDataTexFetch)
+        if ((pParent->IsDepthStencilTarget() == false) && pBaseSubResInfo->flags.supportMetaDataTexFetch)
         {
             // The setup of the compression-related fields requires knowing the bound memory and the expected
             // usage of the memory (read or write), so defer most of the setup to "WriteDescriptorSlot".
@@ -2917,7 +2930,7 @@ void PAL_STDCALL Device::Gfx9CreateImageViewSrds(
 
             if (pBaseSubResInfo->flags.supportMetaDataTexFetch)
             {
-                if (image.Parent()->IsDepthStencil())
+                if (image.Parent()->IsDepthStencilTarget())
                 {
                     if (TestAnyFlagSet(viewInfo.possibleLayouts.usages, LayoutShaderWrite | LayoutCopyDst) == false)
                     {
@@ -3353,7 +3366,27 @@ void PAL_STDCALL Device::Gfx10CreateImageViewSrds(
                                         pBaseSubResInfo->extentElements.height,
                                         pBaseSubResInfo->actualExtentElements.height);
 
-            actualExtent = pBaseSubResInfo->actualExtentElements;
+            if ((((extent.width >> firstMipLevel) < pMipSubResInfo->extentElements.width) ||
+                 ((extent.height >> firstMipLevel) < pMipSubResInfo->extentElements.height)))
+            {
+                // We need reset the base level when the block szie is larger than the mip chain, e.g:
+                // Uncompressed pixels          Compressed block sizes (astc8x8)
+                //  mip0:       604 x 604                 80 x 80
+                //  mip1:       302 x 302                 40 x 40
+                //  mip2:       151 x 151                 20 x 20
+                //  mip3:        75 x  75                 10 x 10
+                //  mip4:        37 x  37                  5 x 5
+                //  mip5:        18 x  18                  2 x 2
+                // For mip5, if we don't reset the base level, HW will get 2 according to the mip chain.
+                // In this case, the sp3 instruction image_get_resinfo will get width=2, height=2 for mip5.
+                // The right vaulue should be 3 (18 pixels should have 3 blocks).
+                // To fix it, we need set mip5 as the base level when creating srd.
+                overrideBaseResource = true;
+            }
+            else
+            {
+                actualExtent = pBaseSubResInfo->actualExtentElements;
+            }
 
             // It would appear that HW needs the actual extents to calculate the mip addresses correctly when
             // viewing more than 1 mip especially in the case of non power of two textures.
@@ -3390,51 +3423,7 @@ void PAL_STDCALL Device::Gfx10CreateImageViewSrds(
                 // shall adopt 256b address of startsubres's miplevel/arrayLevel.
                 if (pBaseSubResInfo->bitsPerTexel == 96)
                 {
-                    PAL_ASSERT(viewInfo.subresRange.numMips == 1);
-                    mipLevels             = 1;
-                    baseSubResId.mipLevel = firstMipLevel;
-                    firstMipLevel         = 0;
-
-                    // For gfx10 the baseSubResId should point to the baseArraySlice instead of setting the base_array
-                    // SRD. When baseSubResId is used to calculate the baseAddress value, the current array slice will
-                    // will be included in the equation.
-                    PAL_ASSERT(viewInfo.subresRange.numSlices == 1);
-
-                    // For gfx10 3d texture, we need to access per z slice instead subresource.
-                    // Z slices are interleaved for mipmapped 3d texture. (each DepthPitch contains all the miplevels)
-                    // example: the memory layout for a 3 miplevel WxHxD 3d texture:
-                    // baseAddress(mip2) + DepthPitch * 0: subresource(mip2)'s 0 slice
-                    // baseAddress(mip1) + DepthPitch * 0: subresource(mip1)'s 0 slice
-                    // baseAddress(mip0) + DepthPitch * 0: subresource(mip0)'s 0 slice
-                    // baseAddress(mip2) + DepthPitch * 1: subresource(mip2)'s 1 slice
-                    // baseAddress(mip1) + DepthPitch * 1: subresource(mip1)'s 1 slice
-                    // baseAddress(mip0) + DepthPitch * 1: subresource(mip0)'s 1 slice
-                    // ...
-                    // baseAddress(mip2) + DepthPitch * (D-1): subresource(mip2)'s D-1 slice
-                    // baseAddress(mip1) + DepthPitch * (D-1): subresource(mip1)'s D-1 slice
-                    // baseAddress(mip0) + DepthPitch * (D-1): subresource(mip0)'s D-1 slice
-                    // When we try to view each subresource as 1 miplevel, we can't use srd.word5.bits.BASE_ARRAY to
-                    // access each z slices since the srd for hardware can't compute the correct z slice stride.
-                    // Instead we need a view to each slice.
-                    if (imageCreateInfo.imageType == ImageType::Tex3d)
-                    {
-                        PAL_ASSERT((viewInfo.flags.zRangeValid == 1) && (viewInfo.zRange.extent == 1));
-                        PAL_ASSERT(image.IsSubResourceLinear(baseSubResId));
-
-                        baseSubResId.arraySlice = 0;
-                        overrideZRangeOffset    = viewInfo.flags.zRangeValid;
-                    }
-                    else
-                    {
-                        baseSubResId.arraySlice = baseArraySlice;
-                    }
-
-                    baseArraySlice       = 0;
                     overrideBaseResource = true;
-
-                    pBaseSubResInfo = pParent->SubresourceInfo(baseSubResId);
-                    extent          = pBaseSubResInfo->extentElements;
-                    actualExtent    = pBaseSubResInfo->actualExtentElements;
                 }
             }
 
@@ -3492,6 +3481,53 @@ void PAL_STDCALL Device::Gfx10CreateImageViewSrds(
             includePadding = true;
         }
 
+        if (overrideBaseResource)
+        {
+            PAL_ASSERT(viewInfo.subresRange.numMips == 1);
+            mipLevels             = 1;
+            baseSubResId.mipLevel = firstMipLevel;
+            firstMipLevel         = 0;
+
+            // For gfx10 the baseSubResId should point to the baseArraySlice instead of setting the base_array
+            // SRD. When baseSubResId is used to calculate the baseAddress value, the current array slice will
+            // will be included in the equation.
+            PAL_ASSERT(viewInfo.subresRange.numSlices == 1);
+
+            // For gfx10 3d texture, we need to access per z slice instead subresource.
+            // Z slices are interleaved for mipmapped 3d texture. (each DepthPitch contains all the miplevels)
+            // example: the memory layout for a 3 miplevel WxHxD 3d texture:
+            // baseAddress(mip2) + DepthPitch * 0: subresource(mip2)'s 0 slice
+            // baseAddress(mip1) + DepthPitch * 0: subresource(mip1)'s 0 slice
+            // baseAddress(mip0) + DepthPitch * 0: subresource(mip0)'s 0 slice
+            // baseAddress(mip2) + DepthPitch * 1: subresource(mip2)'s 1 slice
+            // baseAddress(mip1) + DepthPitch * 1: subresource(mip1)'s 1 slice
+            // baseAddress(mip0) + DepthPitch * 1: subresource(mip0)'s 1 slice
+            // ...
+            // baseAddress(mip2) + DepthPitch * (D-1): subresource(mip2)'s D-1 slice
+            // baseAddress(mip1) + DepthPitch * (D-1): subresource(mip1)'s D-1 slice
+            // baseAddress(mip0) + DepthPitch * (D-1): subresource(mip0)'s D-1 slice
+            // When we try to view each subresource as 1 miplevel, we can't use srd.word5.bits.BASE_ARRAY to
+            // access each z slices since the srd for hardware can't compute the correct z slice stride.
+            // Instead we need a view to each slice.
+            if (imageCreateInfo.imageType == ImageType::Tex3d)
+            {
+                PAL_ASSERT((viewInfo.flags.zRangeValid == 1) && (viewInfo.zRange.extent == 1));
+                PAL_ASSERT(image.IsSubResourceLinear(baseSubResId));
+
+                baseSubResId.arraySlice = 0;
+                overrideZRangeOffset    = viewInfo.flags.zRangeValid;
+            }
+            else
+            {
+                baseSubResId.arraySlice = baseArraySlice;
+            }
+
+            baseArraySlice       = 0;
+
+            pBaseSubResInfo = pParent->SubresourceInfo(baseSubResId);
+            extent          = pBaseSubResInfo->extentElements;
+            actualExtent    = pBaseSubResInfo->actualExtentElements;
+        }
         {
             // MIN_LOD field is unsigned
             constexpr uint32 Gfx9MinLodIntBits  = 4;
@@ -3657,7 +3693,7 @@ void PAL_STDCALL Device::Gfx10CreateImageViewSrds(
         srd.iterate_256        = image.GetIterate256(pSubResInfo);
 
         // Depth images obviously don't have an alpha component, so don't bother...
-        if ((pParent->IsDepthStencil() == false) && pBaseSubResInfo->flags.supportMetaDataTexFetch)
+        if ((pParent->IsDepthStencilTarget() == false) && pBaseSubResInfo->flags.supportMetaDataTexFetch)
         {
             // The setup of the compression-related fields requires knowing the bound memory and the expected
             // usage of the memory (read or write), so defer most of the setup to "WriteDescriptorSlot".
@@ -3694,7 +3730,7 @@ void PAL_STDCALL Device::Gfx10CreateImageViewSrds(
             {
                 const gpusize gpuVirtAddress = pParent->GetSubresourceBaseAddr(baseSubResId);
                 const auto*   pTileInfo      = AddrMgr2::GetTileInfo(pParent, baseSubResId);
-                const gpusize pipeBankXor    = pTileInfo->pipeBankXor;
+                const gpusize pipeBankXor    = imgIsBc ? 0 : pTileInfo->pipeBankXor;
                 gpusize addrWithXor          = gpuVirtAddress | (pipeBankXor << 8);
 
                 if (overrideZRangeOffset)
@@ -3713,7 +3749,7 @@ void PAL_STDCALL Device::Gfx10CreateImageViewSrds(
             {
                 srd.compression_en = 1;
 
-                if (image.Parent()->IsDepthStencil())
+                if (image.Parent()->IsDepthStencilTarget())
                 {
                     srd.meta_data_address = image.GetHtile256BAddr();
                 }
@@ -4511,7 +4547,8 @@ void PAL_STDCALL Device::CreateBvhSrds(
 
         //    MSB must be set-- 0x8
         bvhSrd.type         = 0x8;
-
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 639
+#endif
         memcpy(VoidPtrInc(pOut, idx * sizeof(sq_bvh_rsrc_t)),
                &bvhSrd,
                sizeof(bvhSrd));
@@ -5509,14 +5546,16 @@ void Device::InitBufferSrd(
         pSrd->add_tid_enable = 0;
         pSrd->oob_select     = SQ_OOB_NUM_RECORDS_0; // never check out-of-bounds
 
+        if (IsGfx10(m_gfxIpLevel))
         {
-            if (IsGfx10(m_gfxIpLevel))
-            {
-                pSrd->gfx10Core.resource_level = 1;
-                pSrd->gfx10Core.format         = BUF_FMT_32_FLOAT;
-                pSrd->gfx10.cache_swizzle      = 0;
-                pSrd->gfx10.swizzle_enable     = 0;
-            }
+            pSrd->gfx10Core.resource_level = 1;
+            pSrd->gfx10Core.format         = BUF_FMT_32_FLOAT;
+            pSrd->gfx10.cache_swizzle      = 0;
+            pSrd->gfx10.swizzle_enable     = 0;
+        }
+        else
+        {
+            PAL_ASSERT_ALWAYS();
         }
     }
     else
@@ -5761,28 +5800,28 @@ const RegisterRange* Device::GetRegisterRange(
 
 // =====================================================================================================================
 // Computes the CONTEXT_CONTROL value that should be used for universal engine submissions.  This will vary based on
-// whether preemption is enabled or not.  This exists as a helper function since there are cases where the command
-// buffer may want to temporarily override the default value written by the queue context, and it needs to be able
-// to restore it to the proper original value.
+// whether preemption is enabled or not, and the gfx ip level.  This exists as a helper function since there are cases
+// where the command buffer may want to temporarily override the default value written by the queue context, and it
+// needs to be able to restore it to the proper original value.
 PM4_PFP_CONTEXT_CONTROL Device::GetContextControl() const
 {
     PM4_PFP_CONTEXT_CONTROL contextControl = { };
 
-    // Since PAL doesn't preserve GPU state across command buffer boundaries, we don't need to enable state shadowing
-    // unless mid command buffer preemption is enabled, but we always need to enable loading context and SH registers.
+    // Since PAL doesn't preserve GPU state across command buffer boundaries, we always need to enable loading
+    // context and SH registers.
     contextControl.ordinal2.bitfields.update_load_enables    = 1;
     contextControl.ordinal2.bitfields.load_per_context_state = 1;
     contextControl.ordinal2.bitfields.load_cs_sh_regs        = 1;
     contextControl.ordinal2.bitfields.load_gfx_sh_regs       = 1;
     contextControl.ordinal3.bitfields.update_shadow_enables  = 1;
 
-    if (ForceStateShadowing || Parent()->IsPreemptionSupported(EngineType::EngineTypeUniversal))
+    if (UseStateShadowing(EngineType::EngineTypeUniversal))
     {
-        // If mid command buffer preemption is enabled, shadowing and loading must be enabled for all register types,
-        // because the GPU state needs to be properly restored when this Queue resumes execution after being preempted.
+        // If state shadowing is enabled, then we enable shadowing and loading for all register types,
+        // because if preempted the GPU state needs to be properly restored when the Queue resumes.
         // (Config registers are exempted because we don't write config registers in PAL.)
         contextControl.ordinal2.bitfields.load_global_uconfig      = 1;
-        contextControl.ordinal2.bitfields.load_ce_ram              = 1;
+        contextControl.ordinal2.bitfields.core.load_ce_ram         = 1;
         contextControl.ordinal3.bitfields.shadow_per_context_state = 1;
         contextControl.ordinal3.bitfields.shadow_cs_sh_regs        = 1;
         contextControl.ordinal3.bitfields.shadow_gfx_sh_regs       = 1;

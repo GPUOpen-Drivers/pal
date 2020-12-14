@@ -23,42 +23,40 @@
  *
  **********************************************************************************************************************/
 
+#pragma once
+
 #if PAL_BUILD_GPU_DEBUG
 
-#include "core/layers/gpuDebug/gpuDebugDevice.h"
-#include "core/layers/gpuDebug/gpuDebugImage.h"
+#include "core/layers/decorators.h"
 
 namespace Pal
 {
 namespace GpuDebug
 {
 
-// =====================================================================================================================
-Image::Image(
-    IImage*        pNextImage,
-    SwizzledFormat format,
-    Device*        pDevice)
-    :
-    ImageDecorator(pNextImage, pDevice),
-    m_pBoundMemObj(nullptr),
-    m_boundMemOffset(0),
-    m_format(format)
-{
-}
+// Forward decl's.
+class Device;
 
 // =====================================================================================================================
-Image::~Image()
+class ColorBlendState : public ColorBlendStateDecorator
 {
-}
+public:
+    ColorBlendState(
+        IColorBlendState*                pNextState,
+        const ColorBlendStateCreateInfo& createInfo,
+        const Device*                    pDevice);
 
-// =====================================================================================================================
-Result Image::BindGpuMemory(
-    IGpuMemory* pGpuMemory,
-    gpusize     offset)
-{
-    SetBoundGpuMemory(pGpuMemory, offset);
-    return m_pNextLayer->BindGpuMemory(NextGpuMemory(pGpuMemory), offset);
-}
+    const ColorBlendStateCreateInfo& CreateInfo() const { return m_createInfo; }
+
+private:
+    virtual ~ColorBlendState() { }
+
+    const Device*                   m_pDevice;
+    const ColorBlendStateCreateInfo m_createInfo;
+
+    PAL_DISALLOW_DEFAULT_CTOR(ColorBlendState);
+    PAL_DISALLOW_COPY_AND_ASSIGN(ColorBlendState);
+};
 
 } // GpuDebug
 } // Pal

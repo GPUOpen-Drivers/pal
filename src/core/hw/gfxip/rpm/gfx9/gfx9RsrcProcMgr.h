@@ -118,6 +118,11 @@ public:
         const Image&       dstImage,
         const SubresRange& range) const;
 
+    virtual void BuildDccLookupTable(
+        GfxCmdBuffer*      pCmdBuffer,
+        const Image&       srcImage,
+        const SubresRange& range) const {};
+
     bool FastClearEliminate(
         GfxCmdBuffer*                pCmdBuffer,
         Pal::CmdStream*              pCmdStream,
@@ -578,6 +583,11 @@ class Gfx10RsrcProcMgr : public Pal::Gfx9::RsrcProcMgr
 public:
     explicit Gfx10RsrcProcMgr(Device* pDevice) : Pal::Gfx9::RsrcProcMgr(pDevice) {}
     virtual ~Gfx10RsrcProcMgr() {}
+
+    void BuildDccLookupTable(
+        GfxCmdBuffer*      pCmdBuffer,
+        const Image&       srcImage,
+        const SubresRange& range) const override;
 
     virtual void HwlResummarizeHtileCompute(
         GfxCmdBuffer*      pCmdBuffer,

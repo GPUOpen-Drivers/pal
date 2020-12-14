@@ -177,6 +177,9 @@ JsonTypeToDDSettingType = { "uint32":"Uint",
 def getDevDriverType(type):
     return "SettingType::"+JsonTypeToDDSettingType[type]
 
+def getLowerCamelCase(name):
+    return name[0].lower() + name[1:]
+
 def assertExit(condition, msg):
     if not condition:
         errorExit(msg)
@@ -437,6 +440,10 @@ for setting in settingsData["Settings"]:
             settingIntSize = setting["Size"]
         else:
             settingIntSize = constantDict[setting["Size"]]
+
+    # Infer VariableName field if necessary
+    if "VariableName" not in setting:
+        setting["VariableName"] = getLowerCamelCase(setting["Name"])
 
     ###################################################################################################################
     # Setup backwards compatibility.

@@ -346,7 +346,7 @@ public:
         { return (m_createInfo.usageFlags.colorTarget != 0); }
 
     // Returns whether or not this Image can be used as a depth/stencil target.
-    bool IsDepthStencil() const
+    bool IsDepthStencilTarget() const
         { return (m_createInfo.usageFlags.depthStencil != 0); }
 
     // Returns whether or not this Image can be used for shader read access.

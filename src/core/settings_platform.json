@@ -1757,6 +1757,37 @@
           "Type": "uint32",
           "VariableName": "cacheFlushInvOnAction",
           "Description": "Bitmask controlling when to perform a full cache flush and invalidation before and/or after each action (Draw/Dispatch/Barrier/Blt)."
+        },
+        {
+          "ValidValues": {
+            "IsEnum": true,
+            "Values": [
+              {
+                "Name": "VerificationDisabled",
+                "Value": 0
+              },
+              {
+                "Name": "VerificationBoundTargets",
+                "Value": 1
+              }
+            ],
+            "Name": "DebugVerification"
+          },
+          "Name": "VerificationOptions",
+          "Tags": [
+            "GPU Debugging"
+          ],
+          "Flags": {
+            "IsHex": true,
+            "IsBitmask": true
+          },
+          "Defaults": {
+            "Default": 1
+          },
+          "Scope": "PrivatePalKey",
+          "Type": "uint32",
+          "VariableName": "verificationOptions",
+          "Description": "Bitmask controlling verification options which will assert for bad cases."
         }
       ],
       "Description": "Controls what debugging options are selected in the GPU Debug layer."

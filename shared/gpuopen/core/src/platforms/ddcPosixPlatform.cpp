@@ -283,7 +283,14 @@ namespace DevDriver
             constexpr uint32 Flags = RTLD_LAZY;
             m_hLib = dlopen(pLibraryName, Flags);
 
-            return (m_hLib == nullptr) ? Result::FileNotFound : Result::Success;
+            Result result = Result::Success;
+            if (m_hLib == nullptr)
+            {
+                result = Result::FileNotFound;
+                DD_PRINT(LogLevel::Warn, "Failed to load library \"%s\"", pLibraryName);
+            }
+
+            return result;
         }
 
         // Unloads this Shared Object if it was loaded previously.  Called automatically during the object destructor.

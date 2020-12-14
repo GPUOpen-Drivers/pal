@@ -987,6 +987,12 @@ bool RsrcProcMgr::InitMaskRam(
         usedCompute = true;
     }
 
+    if (dstImage.HasDccLookupTable())
+    {
+        BuildDccLookupTable(pCmdBuffer, dstImage, range);
+        usedCompute = true;
+    }
+
     // The metadata is used as a COND_EXEC condition, init ZRange meta data with 0(e.g, depth value is 1.0 by default)
     // to indicate DB_Z_INFO.ZRANGE_PRECISION register filed should not be overwrote via this workaround metadata.
     if (dstImage.HasWaTcCompatZRangeMetaData() && (range.startSubres.aspect == ImageAspect::Depth))
@@ -1425,23 +1431,33 @@ void RsrcProcMgr::HwlFastColorClear(
     const Pm4Predicate packetPredicate = static_cast<Pm4Predicate>(
         pCmdBuffer->GetGfxCmdBufState().flags.packetPredicate);
 
-    // Stash the clear color with the image so that it can be restored later.
-    pCmdSpace = gfx9Image.UpdateColorClearMetaData(clearRange,
-                                                   packedColor,
-                                                   packetPredicate,
-                                                   pCmdSpace);
-
-    // In case the cleared image is already bound as a color target, we need to update the color clear value
-    // registers to the newly-cleared values.
-    if (pCmdBuffer->IsGraphicsSupported())
+    // When the fast clear color depends on the clear reg, we must store the color for later FCE and update the
+    // current clear color.
+    // On GFX9, the CB will always use the value in the fast clear reg even for other clear codes. So the clear
+    // reg must always match the fast clear color.
+    // On GFX10 and later, the CB will get the fast clear value from the location indicated by the clear code.
+    // So the clear reg should only be updated when we use ClearColorReg.
+    if ((fastClearCode == static_cast<uint8>(Gfx9DccClearColor::ClearColorCompToReg)) ||
+        (IsGfx9(*m_pDevice->Parent())))
     {
-        pCmdSpace = UpdateBoundFastClearColor(pCmdBuffer,
-                                              dstImage,
-                                              clearRange.startSubres.mipLevel,
-                                              clearRange.numMips,
-                                              packedColor,
-                                              pCmdStream,
-                                              pCmdSpace);
+        // Stash the clear color with the image so that it can be restored later.
+        pCmdSpace = gfx9Image.UpdateColorClearMetaData(clearRange,
+                                                       packedColor,
+                                                       packetPredicate,
+                                                       pCmdSpace);
+
+        // In case the cleared image is already bound as a color target, we need to update the color clear value
+        // registers to the newly-cleared values.
+        if (pCmdBuffer->IsGraphicsSupported())
+        {
+            pCmdSpace = UpdateBoundFastClearColor(pCmdBuffer,
+                                                  dstImage,
+                                                  clearRange.startSubres.mipLevel,
+                                                  clearRange.numMips,
+                                                  packedColor,
+                                                  pCmdStream,
+                                                  pCmdSpace);
+        }
     }
 
     pCmdStream->CommitCommands(pCmdSpace);
@@ -1772,7 +1788,7 @@ void RsrcProcMgr::HwlDepthStencilClear(
     bool needPreComputeSync  = needComputeSync;
     bool needPostComputeSync = false;
 
-    if (gfx9Image.Parent()->IsDepthStencil() &&
+    if (gfx9Image.Parent()->IsDepthStencilTarget() &&
        (fastClear || pCmdBuffer->IsGraphicsSupported()))
     {
         // This code path is for:
@@ -1935,7 +1951,6 @@ void RsrcProcMgr::HwlDepthStencilClear(
                                                             pRanges[idx],
                                                             isDepth ? depthLayout : stencilLayout);
 
-                            needPreComputeSync  = false;
                             needPostComputeSync = true;
                         }
 
@@ -1964,6 +1979,17 @@ void RsrcProcMgr::HwlDepthStencilClear(
                                                          metaDataClearFlags,
                                                          depth,
                                                          stencil);
+                    }
+
+                    if (needPostComputeSync)
+                    {
+                        const ImageAspect aspect  = pRanges[idx].startSubres.aspect;
+                        const bool        isDepth = (aspect == ImageAspect::Depth);
+                        PostComputeDepthStencilClearSync(pCmdBuffer,
+                                                         gfx9Image,
+                                                         pRanges[idx],
+                                                         isDepth ? depthLayout : stencilLayout);
+                        needPostComputeSync = false;
                     }
                 }
             } // Range Processed AutoBuffer alloc succeeded.
@@ -2029,7 +2055,6 @@ void RsrcProcMgr::HwlDepthStencilClear(
                                                 pRanges[idx],
                                                 isDepth ? depthLayout : stencilLayout);
 
-                needPreComputeSync  = false;
                 needPostComputeSync = true;
             }
 
@@ -2041,12 +2066,16 @@ void RsrcProcMgr::HwlDepthStencilClear(
                              pRanges[idx],
                              boxCnt,
                              pBox);
-        }
-    }
 
-    if (needPostComputeSync)
-    {
-        PostComputeDepthStencilClearSync(pCmdBuffer);
+            if (needPostComputeSync)
+            {
+                PostComputeDepthStencilClearSync(pCmdBuffer,
+                                                 gfx9Image,
+                                                 pRanges[idx],
+                                                 isDepth ? depthLayout : stencilLayout);
+                needPostComputeSync = false;
+            }
+        }
     }
 }
 
@@ -2256,7 +2285,7 @@ void RsrcProcMgr::HwlFixupResolveDstImage(
     const auto&  device                         = *m_pDevice->Parent();
     bool         canDoFixupForDstImage          = true;
 
-    if (dstImage.Parent()->IsDepthStencil() == true)
+    if (dstImage.Parent()->IsDepthStencilTarget() == true)
     {
         for (uint32 i = 0; i< regionCount; i++)
         {
@@ -2450,7 +2479,7 @@ void RsrcProcMgr::DepthStencilClearGraphics(
     const Box*         pBox
     ) const
 {
-    PAL_ASSERT(dstImage.Parent()->IsDepthStencil());
+    PAL_ASSERT(dstImage.Parent()->IsDepthStencilTarget());
     PAL_ASSERT((fastClear == false) ||  dstImage.IsFastDepthStencilClearSupported(depthLayout,
                                                                                   stencilLayout,
                                                                                   depth,
@@ -3690,7 +3719,8 @@ void RsrcProcMgr::CmdCopyMemoryToImage(
     const ImageCreateInfo& createInfo = dstImage.GetImageCreateInfo();
 
     if (Formats::IsBlockCompressed(createInfo.swizzledFormat.format) &&
-        (createInfo.mipLevels > 1))
+        (createInfo.mipLevels > 1) &&
+        m_pDevice->Parent()->ChipProperties().gfxLevel == GfxIpLevel::GfxIp9)
     {
         // Unlike in the image-to-memory counterpart function, we don't have to wait for the above compute shader
         // to finish because the unaddressable image pixels can not be written, so there's no write conflicts.
@@ -5041,7 +5071,7 @@ void Gfx9RsrcProcMgr::HwlHtileCopyAndFixUp(
     const ImageResolveRegion* pRegions,
     bool                      computeResolve) const
 {
-    PAL_ASSERT(srcImage.IsDepthStencil() && dstImage.IsDepthStencil());
+    PAL_ASSERT(srcImage.IsDepthStencilTarget() && dstImage.IsDepthStencilTarget());
 
     // Merge depth and stencil regions in which htile fix up could be performed together.
     // Although depth and stencil htile fix-up could theoretically performed respectively, cs partial flush is
@@ -5546,7 +5576,7 @@ void Gfx9RsrcProcMgr::HwlFixupCopyDstImageMetaData(
     const auto& gfx9DstImage = static_cast<const Gfx9::Image&>(*dstImage.GetGfxImage());
 
     // Copy to depth should go through gfx path and not to here.
-    PAL_ASSERT(gfx9DstImage.Parent()->IsDepthStencil() == false);
+    PAL_ASSERT(gfx9DstImage.Parent()->IsDepthStencilTarget() == false);
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 562
     if (gfx9DstImage.HasDccData() && (dstImage.GetImageCreateInfo().flags.fullCopyDstOnly != 0))
@@ -6573,7 +6603,7 @@ void Gfx10RsrcProcMgr::HwlFixupCopyDstImageMetaData(
     const auto&  gfx9DstImage = static_cast<const Gfx9::Image&>(*dstImage.GetGfxImage());
 
     // Copy to depth should go through gfx path and not to here.
-    PAL_ASSERT(gfx9DstImage.Parent()->IsDepthStencil() == false);
+    PAL_ASSERT(gfx9DstImage.Parent()->IsDepthStencilTarget() == false);
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 562
     if (gfx9DstImage.HasDccData() && (dstImage.GetImageCreateInfo().flags.fullCopyDstOnly != 0))
@@ -6798,9 +6828,9 @@ bool Gfx10RsrcProcMgr::PreferComputeForNonLocalDestCopy(
 
     const bool isMgpu = (m_pDevice->GetPlatform()->GetDeviceCount() > 1);
 
-    if (IsGfx102Plus(*m_pDevice->Parent())                                  &&
-        m_pDevice->Settings().nonLocalDestPreferCompute                     &&
-        ((dstImage.IsDepthStencil() == false) || (createInfo.samples == 1)) &&
+    if (IsGfx102Plus(*m_pDevice->Parent())                                        &&
+        m_pDevice->Settings().nonLocalDestPreferCompute                           &&
+        ((dstImage.IsDepthStencilTarget() == false) || (createInfo.samples == 1)) &&
         (isMgpu == false))
     {
         const GpuMemory* pGpuMem       = dstImage.GetBoundGpuMemory().Memory();
@@ -7349,6 +7379,107 @@ void Gfx10RsrcProcMgr::CmdResolvePrtPlusImage(
     pCmdBuffer->CmdRestoreComputeState(ComputeStatePipelineAndUserData);
 }
 #endif
+
+// =====================================================================================================================
+// Generate dcc lookup table.
+void Gfx10RsrcProcMgr::BuildDccLookupTable(
+    GfxCmdBuffer*      pCmdBuffer,
+    const Image&       srcImage,
+    const SubresRange& range
+    ) const
+{
+    const Pal::Image*  pPalImage    = srcImage.Parent();
+    const GfxImage*    pSrcGfxImage = pPalImage->GetGfxImage();
+    const Pal::Device* pDevice      = pPalImage->GetDevice();
+    const auto&        createInfo   = pPalImage->GetImageCreateInfo();
+    const Image*       pGfx9Image   = static_cast<const Image*>(pSrcGfxImage);
+
+    const auto*        pBaseDcc          = pGfx9Image->GetDcc(range.startSubres.aspect);
+    PAL_ASSERT(pBaseDcc->HasMetaEqGenerator());
+    const auto*        pEqGenerator      = pBaseDcc->GetMetaEqGenerator();
+    const auto&        dccAddrOutput     = pBaseDcc->GetAddrOutput();
+    const uint32       log2MetaBlkWidth  = Log2(dccAddrOutput.metaBlkWidth);
+    const uint32       log2MetaBlkHeight = Log2(dccAddrOutput.metaBlkHeight);
+
+    uint32 xInc = dccAddrOutput.compressBlkWidth;
+    uint32 yInc = dccAddrOutput.compressBlkHeight;
+    uint32 zInc = dccAddrOutput.compressBlkDepth;
+
+    pBaseDcc->GetXyzInc(&xInc, &yInc, &zInc);
+
+    const Pal::ComputePipeline* pPipeline = GetPipeline(RpmComputePipeline::Gfx10BuildDccLookupTable);
+
+    uint32 threadsPerGroup[3] = {};
+    pPipeline->ThreadsPerGroupXyz(&threadsPerGroup[0], &threadsPerGroup[1], &threadsPerGroup[2]);
+
+    pCmdBuffer->CmdSaveComputeState(ComputeStatePipelineAndUserData);
+    pCmdBuffer->CmdBindPipeline({PipelineBindPoint::Compute, pPipeline, InternalApiPsoHash, });
+
+    constexpr uint32 BufferViewCount = 2;
+    BufferViewInfo bufferViews[BufferViewCount] = {};
+    BufferSrd      bufferSrds[BufferViewCount]  = {};
+
+    // Create a view of dcc equation.
+    pEqGenerator->BuildEqBufferView(&bufferViews[0]);
+    // Create a view of dcc lookup table buffer.
+    pGfx9Image->BuildDccLookupTableBufferView(&bufferViews[1]);
+
+    pDevice->CreateUntypedBufferViewSrds(2, &bufferViews[0], &bufferSrds[0]);
+
+    Gfx9MaskRamBlockSize log2MetaBlkExtent = {};
+    const uint32 log2MetaBlockSize = pBaseDcc->GetMetaBlockSize(&log2MetaBlkExtent);
+
+    const uint32 worksX = dccAddrOutput.metaBlkWidth  / dccAddrOutput.compressBlkWidth;
+    const uint32 worksY = dccAddrOutput.metaBlkHeight / dccAddrOutput.compressBlkHeight;
+    const uint32 worksZ = createInfo.arraySize;
+
+    const uint32 eqConstData[] =
+    {
+        // cb0[0]
+        range.startSubres.arraySlice,
+        pBaseDcc->GetNumEffectiveSamples(DccClearPurpose::FastClear),
+        worksX,
+        worksX * worksY,
+
+        // cb0[1]
+        log2MetaBlkWidth,
+        log2MetaBlkHeight,
+        Log2(dccAddrOutput.metaBlkDepth),
+        0,
+
+        // cb0[2]
+        Log2(xInc),
+        Log2(yInc),
+        Log2(zInc),
+        0,
+
+        // cb0[3]
+        dccAddrOutput.metaBlkWidth,
+        dccAddrOutput.metaBlkHeight,
+        createInfo.arraySize,
+        0
+    };
+
+    static const uint32 sizeBufferSrdDwords   = NumBytesToNumDwords(sizeof(BufferSrd));
+    static const uint32 sizeEqConstDataDwords = NumBytesToNumDwords(sizeof(eqConstData));
+
+    uint32* pSrdTable = RpmUtil::CreateAndBindEmbeddedUserData(
+                            pCmdBuffer,
+                            sizeBufferSrdDwords * BufferViewCount + sizeEqConstDataDwords,
+                            sizeBufferSrdDwords,
+                            PipelineBindPoint::Compute,
+                            0);
+
+    memcpy(pSrdTable, &bufferSrds[0], sizeof(BufferSrd) * BufferViewCount);
+    pSrdTable += sizeBufferSrdDwords * BufferViewCount;
+    memcpy(pSrdTable, &eqConstData[0], sizeof(eqConstData));
+
+    pCmdBuffer->CmdDispatch(RpmUtil::MinThreadGroups(worksX, threadsPerGroup[0]),
+                            RpmUtil::MinThreadGroups(worksY, threadsPerGroup[1]),
+                            RpmUtil::MinThreadGroups(worksZ, threadsPerGroup[2]));
+
+    pCmdBuffer->CmdRestoreComputeState(ComputeStatePipelineAndUserData);
+}
 
 } // Gfx9
 } // Pal

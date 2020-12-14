@@ -26,52 +26,52 @@ include(PalVersionHelper)
 
 pal_include_guard(PalCompilerDefinitions)
 
-function(pal_compile_definitions_gfx6)
+function(pal_compile_definitions_gfx6 TARGET)
     # Needs to be public.
     # See the following directories:
     #   inc\gpuUtil\cas\...
     #   inc\gpuUtil\mlaa\...
     #   inc\gpuUtil\textWriter\...
     #   inc\gpuUtil\timeGraphics\...
-    target_compile_definitions(pal PUBLIC PAL_BUILD_GFX6=1)
+    target_compile_definitions(${TARGET} PUBLIC PAL_BUILD_GFX6=1)
 
 endfunction()
 
-function(pal_compile_definitions_gfx9)
-    target_compile_definitions(pal PUBLIC PAL_BUILD_GFX9=1)
+function(pal_compile_definitions_gfx9 TARGET)
+    target_compile_definitions(${TARGET} PUBLIC PAL_BUILD_GFX9=1)
 
-    target_compile_definitions(pal PUBLIC PAL_BUILD_GFX10=1)
+    target_compile_definitions(${TARGET} PUBLIC PAL_BUILD_GFX10=1)
 
     if(PAL_BUILD_NAVI14)
-        target_compile_definitions(pal PUBLIC PAL_BUILD_NAVI14=1)
-        target_compile_definitions(pal PRIVATE CHIP_HDR_NAVI14=1)
+        target_compile_definitions(${TARGET} PUBLIC PAL_BUILD_NAVI14=1)
+        target_compile_definitions(${TARGET} PRIVATE CHIP_HDR_NAVI14=1)
     endif()
 
     if(PAL_BUILD_NAVI21)
-        target_compile_definitions(pal PUBLIC PAL_BUILD_NAVI21=1)
-        target_compile_definitions(pal PUBLIC PAL_BUILD_GFX103=1)
-        target_compile_definitions(pal PUBLIC PAL_BUILD_NAVI2X=1)
-        target_compile_definitions(pal PRIVATE CHIP_HDR_NAVI21=1)
+        target_compile_definitions(${TARGET} PUBLIC PAL_BUILD_NAVI21=1)
+        target_compile_definitions(${TARGET} PUBLIC PAL_BUILD_GFX103=1)
+        target_compile_definitions(${TARGET} PUBLIC PAL_BUILD_NAVI2X=1)
+        target_compile_definitions(${TARGET} PRIVATE CHIP_HDR_NAVI21=1)
     endif()
 
 endfunction()
 
-function(pal_compile_definitions_gpu)
+function(pal_compile_definitions_gpu TARGET)
     if (PAL_BUILD_CORE AND PAL_BUILD_GFX)
-        target_compile_definitions(pal PRIVATE PAL_BUILD_GFX=1)
+        target_compile_definitions(${TARGET} PRIVATE PAL_BUILD_GFX=1)
 
         if(PAL_BUILD_GFX6)
-            pal_compile_definitions_gfx6()
+            pal_compile_definitions_gfx6(${TARGET})
         endif()
 
         if(PAL_BUILD_GFX9)
-            pal_compile_definitions_gfx9()
+            pal_compile_definitions_gfx9(${TARGET})
         endif()
     endif()
 endfunction()
 
-function(pal_compile_definitions)
-    target_compile_definitions(pal PUBLIC
+function(pal_compile_definitions TARGET)
+    target_compile_definitions(${TARGET} PUBLIC
         PAL_CLIENT_INTERFACE_MAJOR_VERSION=${PAL_CLIENT_INTERFACE_MAJOR_VERSION}
 
         # Both of these macros are used to describe debug builds
@@ -83,7 +83,7 @@ function(pal_compile_definitions)
 
     )
 
-    target_compile_definitions(pal PRIVATE
+    target_compile_definitions(${TARGET} PRIVATE
         # Useful for determining determining the architecture (32 vs 64)
         PAL_COMPILE_TYPE=${TARGET_ARCHITECTURE_BITS}
 
@@ -93,38 +93,38 @@ function(pal_compile_definitions)
 
     # If this build is part of a release branch, define the variable
     if (DEFINED PAL_BUILD_BRANCH)
-        target_compile_definitions(pal PRIVATE PAL_BUILD_BRANCH=${PAL_BUILD_BRANCH})
+        target_compile_definitions(${TARGET} PRIVATE PAL_BUILD_BRANCH=${PAL_BUILD_BRANCH})
     endif()
 
     if (PAL_BUILD_GPUUTIL)
-        target_compile_definitions(pal PRIVATE PAL_BUILD_GPUUTIL=1)
+        target_compile_definitions(${TARGET} PRIVATE PAL_BUILD_GPUUTIL=1)
     endif()
 
     if(PAL_BUILD_NULL_DEVICE)
-        target_compile_definitions(pal PRIVATE PAL_BUILD_NULL_DEVICE=1)
+        target_compile_definitions(${TARGET} PRIVATE PAL_BUILD_NULL_DEVICE=1)
     endif()
 
     if(PAL_BUILD_GPUOPEN)
-        target_compile_definitions(pal PUBLIC PAL_BUILD_GPUOPEN=1)
+        target_compile_definitions(${TARGET} PUBLIC PAL_BUILD_GPUOPEN=1)
     endif()
 
     if(PAL_ENABLE_DEVDRIVER_USAGE)
-        target_compile_definitions(pal PRIVATE PAL_ENABLE_DEVDRIVER_USAGE=1)
+        target_compile_definitions(${TARGET} PRIVATE PAL_ENABLE_DEVDRIVER_USAGE=1)
     endif()
 
     if(PAL_ENABLE_PRINTS_ASSERTS)
-        target_compile_definitions(pal PUBLIC
+        target_compile_definitions(${TARGET} PUBLIC
             $<$<NOT:$<CONFIG:Debug>>:PAL_ENABLE_PRINTS_ASSERTS=1>
         )
     endif()
 
     if(PAL_ENABLE_PRINTS_ASSERTS_DEBUG)
-        target_compile_definitions(pal PUBLIC
+        target_compile_definitions(${TARGET} PUBLIC
             $<$<CONFIG:Debug>:PAL_ENABLE_PRINTS_ASSERTS=1>
         )
     endif()
 
-    target_compile_definitions(pal PUBLIC
+    target_compile_definitions(${TARGET} PUBLIC
         # Turn on memory tracking in Debug builds or when the user asks for it
         $<$<OR:$<CONFIG:Debug>,$<BOOL:${PAL_MEMTRACK}>>:
             PAL_MEMTRACK=1
@@ -133,90 +133,90 @@ function(pal_compile_definitions)
 
     if(UNIX)
         if (PAL_DISPLAY_DCC)
-            target_compile_definitions(pal PRIVATE PAL_DISPLAY_DCC=1)
+            target_compile_definitions(${TARGET} PRIVATE PAL_DISPLAY_DCC=1)
         endif()
     endif()
 
 #if PAL_DEVELOPER_BUILD
     if(PAL_DEVELOPER_BUILD)
-        target_compile_definitions(pal PUBLIC PAL_DEVELOPER_BUILD=1)
+        target_compile_definitions(${TARGET} PUBLIC PAL_DEVELOPER_BUILD=1)
     endif()
 #endif
 
     if(PAL_DBG_COMMAND_COMMENTS)
-        target_compile_definitions(pal PRIVATE PAL_DBG_COMMAND_COMMENTS=1)
+        target_compile_definitions(${TARGET} PRIVATE PAL_DBG_COMMAND_COMMENTS=1)
     endif()
 
     # Describe the client
-    target_compile_definitions(pal PUBLIC PAL_CLIENT_${PAL_CLIENT}=1)
+    target_compile_definitions(${TARGET} PUBLIC PAL_CLIENT_${PAL_CLIENT}=1)
 
-    target_compile_definitions(pal PRIVATE PAL_BUILD_CORE=1)
+    target_compile_definitions(${TARGET} PRIVATE PAL_BUILD_CORE=1)
 
     if(PAL_AMDGPU_BUILD)
         message_verbose("PAL build with amdgpu back-end enabled")
 
-        target_compile_definitions(pal PUBLIC PAL_AMDGPU_BUILD=1)
+        target_compile_definitions(${TARGET} PUBLIC PAL_AMDGPU_BUILD=1)
 
         if(PAL_BUILD_DRI3)
             message_verbose("PAL build with DRI3 enabled")
 
-            target_compile_definitions(pal PRIVATE PAL_HAVE_DRI3_PLATFORM=1)
+            target_compile_definitions(${TARGET} PRIVATE PAL_HAVE_DRI3_PLATFORM=1)
         endif()
 
         if (PAL_BUILD_WAYLAND)
             message_verbose("PAL build with Wayland enabled")
 
-            target_compile_definitions(pal PRIVATE PAL_HAVE_WAYLAND_PLATFORM=1)
+            target_compile_definitions(${TARGET} PRIVATE PAL_HAVE_WAYLAND_PLATFORM=1)
         endif()
     endif()
 
     if (PAL_BUILD_OSS)
-        target_compile_definitions(pal PRIVATE PAL_BUILD_OSS=1)
+        target_compile_definitions(${TARGET} PRIVATE PAL_BUILD_OSS=1)
 
         if(PAL_BUILD_OSS1)
-            target_compile_definitions(pal PRIVATE PAL_BUILD_OSS1=1)
+            target_compile_definitions(${TARGET} PRIVATE PAL_BUILD_OSS1=1)
         endif()
 
         if(PAL_BUILD_OSS2)
-            target_compile_definitions(pal PRIVATE PAL_BUILD_OSS2=1)
+            target_compile_definitions(${TARGET} PRIVATE PAL_BUILD_OSS2=1)
         endif()
 
         if(PAL_BUILD_OSS2_4)
-            target_compile_definitions(pal PRIVATE PAL_BUILD_OSS2_4=1)
+            target_compile_definitions(${TARGET} PRIVATE PAL_BUILD_OSS2_4=1)
         endif()
 
         if(PAL_BUILD_OSS4)
-            target_compile_definitions(pal PRIVATE PAL_BUILD_OSS4=1)
+            target_compile_definitions(${TARGET} PRIVATE PAL_BUILD_OSS4=1)
         endif()
     endif()
 
     if(PAL_BUILD_LAYERS)
-        target_compile_definitions(pal PRIVATE PAL_BUILD_LAYERS=1)
+        target_compile_definitions(${TARGET} PRIVATE PAL_BUILD_LAYERS=1)
 
         if(PAL_BUILD_DBG_OVERLAY)
-            target_compile_definitions(pal PRIVATE PAL_BUILD_DBG_OVERLAY=1)
+            target_compile_definitions(${TARGET} PRIVATE PAL_BUILD_DBG_OVERLAY=1)
         endif()
 
         if(PAL_BUILD_GPU_PROFILER)
-            target_compile_definitions(pal PRIVATE PAL_BUILD_GPU_PROFILER=1)
+            target_compile_definitions(${TARGET} PRIVATE PAL_BUILD_GPU_PROFILER=1)
         endif()
 
         # Enable cmd buffer logging on debug configs or when the client asks for it
-        target_compile_definitions(pal PRIVATE
+        target_compile_definitions(${TARGET} PRIVATE
             $<$<OR:$<CONFIG:Debug>,$<BOOL:${PAL_BUILD_CMD_BUFFER_LOGGER}>>:
                 PAL_BUILD_CMD_BUFFER_LOGGER=1
             >
         )
 
         # Enable GPU debugging layer on debug configs or when the client asks for it
-        target_compile_definitions(pal PRIVATE
+        target_compile_definitions(${TARGET} PRIVATE
             $<$<OR:$<CONFIG:Debug>,$<BOOL:${PAL_BUILD_GPU_DEBUG}>>:
                 PAL_BUILD_GPU_DEBUG=1
             >
         )
 
         # Enable interface logging on debug configs or when the client asks for it
-        target_compile_definitions(pal PRIVATE
+        target_compile_definitions(${TARGET} PRIVATE
             $<$<OR:$<CONFIG:Debug>,$<BOOL:${PAL_BUILD_INTERFACE_LOGGER}>>:
                 PAL_BUILD_INTERFACE_LOGGER=1
             >
@@ -224,13 +224,13 @@ function(pal_compile_definitions)
 
         # Enable pm4 instrumentor on debug configs or when the client asks for it
         # This needs to be public, see inc/core/palDeveloperHooks.h
-        target_compile_definitions(pal PUBLIC
+        target_compile_definitions(${TARGET} PUBLIC
             $<$<OR:$<CONFIG:Debug>,$<BOOL:${PAL_BUILD_PM4_INSTRUMENTOR}>>:
                 PAL_BUILD_PM4_INSTRUMENTOR=1
             >
         )
     endif()
 
-    pal_compile_definitions_gpu()
+    pal_compile_definitions_gpu(${TARGET})
 
 endfunction()

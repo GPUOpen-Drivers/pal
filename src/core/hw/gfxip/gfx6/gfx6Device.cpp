@@ -815,16 +815,17 @@ Result Device::CreateDummyCommandStream(
         pCmdSpace += m_cmdUtil.BuildNop(m_cmdUtil.GetMinNopSizeInDwords(), pCmdSpace);
 
         pCmdStream->CommitCommands(pCmdSpace);
-        pCmdStream->End();
-    }
-    else
-    {
-        PAL_SAFE_DELETE(pCmdStream, GetPlatform());
+
+        result = pCmdStream->End();
     }
 
     if (result == Result::Success)
     {
         (*ppCmdStream) = pCmdStream;
+    }
+    else
+    {
+        PAL_SAFE_DELETE(pCmdStream, GetPlatform());
     }
 
     return result;
@@ -1057,6 +1058,7 @@ void Device::GetSamplePatternPalette(
            sizeof(m_samplePatternPalette));
 }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 638
 // =====================================================================================================================
 // Get the valid FormatFeatureFlags for the provided ChNumFormat, ImageAspect, and ImageTiling
 uint32 Device::GetValidFormatFeatureFlags(
@@ -1103,6 +1105,7 @@ uint32 Device::GetValidFormatFeatureFlags(
     }
     return validFormatFeatureFlags;
 }
+#endif
 
 // =====================================================================================================================
 // Called during pipeline creation to notify that item-size requirements for each shader ring have changed. These
@@ -2289,7 +2292,7 @@ void PAL_STDCALL Device::CreateImageViewSrds(
         }
 
         // Depth images obviously don't have an alpha component, so don't bother...
-        if ((pParent->IsDepthStencil() == false) && (subresInfo.flags.supportMetaDataTexFetch != 0))
+        if ((pParent->IsDepthStencilTarget() == false) && (subresInfo.flags.supportMetaDataTexFetch != 0))
         {
             // The setup of the compression-related fields requires knowing the bound memory and the expected
             // usage of the memory (read or write), so defer most of the setup to "WriteDescriptorSlot".
@@ -2333,7 +2336,7 @@ void PAL_STDCALL Device::CreateImageViewSrds(
                 // is pre-condition of whether start mip supports meta data fetch.
                 const uint32 settingsCheckFromStartMip = pGfxDevice->Settings().gfx8CheckMetaDataFetchFromStartMip;
 
-                if (pParent->IsDepthStencil())
+                if (pParent->IsDepthStencilTarget())
                 {
                     if ((TestAnyFlagSet(settingsCheckFromStartMip, Gfx8CheckMetaDataFetchFromStartMipDepthStencil) ||
                          (startSubresInfo.flags.supportMetaDataTexFetch == true)) &&

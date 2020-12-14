@@ -1359,6 +1359,15 @@ Result CreateRpmComputePipelines(
         ))
     {
         result = CreateRpmComputePipeline(
+            RpmComputePipeline::Gfx10BuildDccLookupTable, pDevice, pTable, pPipelineMem);
+    }
+
+    if (result == Result::Success && (false
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
+        ))
+    {
+        result = CreateRpmComputePipeline(
             RpmComputePipeline::Gfx10ClearDccComputeSetFirstPixel, pDevice, pTable, pPipelineMem);
     }
 

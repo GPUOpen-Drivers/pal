@@ -3159,7 +3159,7 @@ HtileUsageFlags Gfx9Htile::UseHtileForImage(
     HtileUsageFlags        hTileUsage = {};
 
     // If this isn't a depth buffer, then hTile is a non-starter.
-    if (pParent->IsDepthStencil())
+    if (pParent->IsDepthStencilTarget())
     {
         const auto& settings   = GetGfx9Settings(device);
         const auto& createInfo = pParent->GetImageCreateInfo();
@@ -4105,7 +4105,10 @@ void Gfx9Dcc::SetControlReg(
             if (dispDcc.dcc_256_64_64 == 0)
             {
                 m_dccControl.bits.INDEPENDENT_64B_BLOCKS    = 0;
-                m_dccControl.bits.MAX_COMPRESSED_BLOCK_SIZE = static_cast<uint32>(Gfx9DccMaxBlockSize::BlockSize128B);
+                {
+                    m_dccControl.bits.MAX_COMPRESSED_BLOCK_SIZE =
+                        static_cast<uint32>(Gfx9DccMaxBlockSize::BlockSize128B);
+                }
             }
             m_dccControl.gfx10.INDEPENDENT_128B_BLOCKS  = 1;
 
@@ -4187,7 +4190,7 @@ bool Gfx9Dcc::UseDccForImage(
     allMipsShaderWritable = (allMipsShaderWritable && (pParent->FirstShaderWritableMip() == 0));
 
     const bool isNotARenderTarget = (pParent->IsRenderTarget() == false);
-    const bool isDepthStencil     = pParent->IsDepthStencil();
+    const bool isDepthStencil     = pParent->IsDepthStencilTarget();
     const bool isGfx9             = (pDevice->ChipProperties().gfxLevel == GfxIpLevel::GfxIp9);
 
     // GFX9+ resources have the same swizzle mode for all mip-levels and slices, so just look at the base level.
@@ -4369,15 +4372,6 @@ bool Gfx9Dcc::UseDccForImage(
         {
             // Make sure the settings allow use of DCC surfaces for single-sampled surfaces
             useDcc &= TestAnyFlagSet(settings.useDcc, Gfx9UseDccSingleSample);
-        }
-
-        if (useDcc && (TestAnyFlagSet(settings.useDcc, Gfx9UseDccForNonReadableFormats) == false))
-        {
-            // Ok, if we have a format that's renderable (or shader-writeable), but it's not readable, then this
-            // will trigger a format replacement with RPM-based copy operations which in turn cause big headaches
-            // with partial rectangles that paritally cover DCC tiles.  The exception is SRGB formats  as those
-            // are copied via UINT format anyway.
-            useDcc = image.ImageSupportsShaderReadsAndWrites();
         }
 
         if (useDcc && (createInfo.arraySize > 1) && (createInfo.mipLevels > 1) &&

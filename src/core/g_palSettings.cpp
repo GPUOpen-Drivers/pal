@@ -159,6 +159,7 @@ void SettingsLoader::SetupDefaults()
     m_settings.overlayReportMes = true;
     m_settings.mipGenUseFastPath = false;
     m_settings.useFp16GenMips = false;
+    m_settings.tmzEnabled = true;
     m_settings.numSettings = g_palNumSettings;
 }
 
@@ -584,6 +585,11 @@ void SettingsLoader::ReadSettings()
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pUseFp16GenMipsStr,
                            Util::ValueType::Boolean,
                            &m_settings.useFp16GenMips,
+                           InternalSettingScope::PrivatePalKey);
+
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pTmzEnabledStr,
+                           Util::ValueType::Boolean,
+                           &m_settings.tmzEnabled,
                            InternalSettingScope::PrivatePalKey);
 
 }
@@ -1034,6 +1040,11 @@ void SettingsLoader::InitSettingsInfo()
     info.valueSize = sizeof(m_settings.useFp16GenMips);
     m_settingsInfoMap.Insert(192229910, info);
 
+    info.type      = SettingType::Boolean;
+    info.pValuePtr = &m_settings.tmzEnabled;
+    info.valueSize = sizeof(m_settings.tmzEnabled);
+    m_settingsInfoMap.Insert(2606194033, info);
+
 }
 
 // =====================================================================================================================
@@ -1055,7 +1066,7 @@ void SettingsLoader::DevDriverRegister()
             component.pfnSetValue = ISettingsLoader::SetValue;
             component.pSettingsData = &g_palJsonData[0];
             component.settingsDataSize = sizeof(g_palJsonData);
-            component.settingsDataHash = 962932721;
+            component.settingsDataHash = 1813786297;
             component.settingsDataHeader.isEncoded = true;
             component.settingsDataHeader.magicBufferId = 402778310;
             component.settingsDataHeader.magicBufferOffset = 0;

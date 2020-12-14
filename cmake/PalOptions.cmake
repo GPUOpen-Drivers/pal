@@ -30,20 +30,28 @@ pal_include_guard(PalOptions)
 
 macro(pal_gfx9_options)
 
-    pal_warn_about_default_gpu(PAL_BUILD_NAVI14 "Build PAL with Navi14 support?" ON)
+    pal_build_parameter(PAL_BUILD_NAVI14 "Build PAL with Navi14 support?" ON ${pal_gpu_mode})
 
-    pal_warn_about_default_gpu(PAL_BUILD_NAVI21 "Build PAL with Navi21 support?" ON)
+    pal_build_parameter(PAL_BUILD_NAVI21 "Build PAL with Navi21 support?" ON ${pal_gpu_mode})
     pal_set_or(PAL_BUILD_GFX10_3 ${PAL_BUILD_NAVI21})
 
 endmacro() # gfx9
 
 # Specify GPU build options
 macro(pal_gfx_options)
-    option(PAL_BUILD_GFX "Build PAL with Graphics support?" ON)
+    pal_build_parameter(PAL_BUILD_GFX "Build PAL with Graphics support?" ON AUTHOR_WARNING)
+
+    # If PAL is being built standalone, no need to display as warnings. Since the warnings are intended
+    # for PAL clients.
+    if (PAL_IS_STANDALONE)
+        set(pal_gpu_mode "STATUS")
+    else()
+        set(pal_gpu_mode "AUTHOR_WARNING")
+    endif()
 
     if (PAL_BUILD_GFX)
-        pal_warn_about_default_gpu(PAL_BUILD_GFX6 "Build PAL with GFX6 support?" ${PAL_BUILD_GFX})
-        pal_warn_about_default_gpu(PAL_BUILD_GFX9 "Build PAL with GFX9 support?" ${PAL_BUILD_GFX})
+        pal_build_parameter(PAL_BUILD_GFX6 "Build PAL with GFX6 support?" ${PAL_BUILD_GFX} ${pal_gpu_mode})
+        pal_build_parameter(PAL_BUILD_GFX9 "Build PAL with GFX9 support?" ${PAL_BUILD_GFX} ${pal_gpu_mode})
 
         if (PAL_BUILD_GFX9)
             pal_gfx9_options()
@@ -64,16 +72,6 @@ macro(pal_options)
     option(PAL_BUILD_NULL_DEVICE "Build null device backend for offline compilation?" ON)
 
     option(PAL_BUILD_GPUOPEN "Build GPUOpen developer driver support?" OFF)
-
-    if (DEFINED PAL_ENABLE_LTO)
-        message(AUTHOR_WARNING "\nPAL_ENABLE_LTO is deprecated in favor of cmakes native support.\n"
-                               "Lookup official cmake docs for assistance.\n"
-                               "Unlike before this will support all compilers properly.\n"
-                               "And you can set it per build config (Debug, Release, etc.).\n"
-                               "Ex:\n"
-                               "\t set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE ON) \n"
-                               "Clients should also properly check for IPO support using the official cmake module: 'CheckIPOSupported' \n")
-    endif()
 
     option(PAL_ENABLE_DEVDRIVER_USAGE "Enables developer driver suppport." ON)
 
@@ -137,18 +135,12 @@ macro(pal_options)
     option(PAL_BUILD_WAYLAND "Build PAL with WAYLAND support?" OFF)
 
     # PAL Client Options ###############################################################################
-    if (NOT DEFINED PAL_CLIENT)
-        message(FATAL_ERROR "User didn't specify PAL_CLIENT")
-    endif()
+    pal_build_parameter(PAL_CLIENT "Client pal should build for" "mandatory" FATAL_ERROR)
 
     # Create a more convenient variable to avoid string comparisons.
     set(PAL_CLIENT_${PAL_CLIENT} ON)
 
-    if (DEFINED PAL_CLIENT_INTERFACE_MAJOR_VERSION)
-        message_verbose("Client configured PAL_INTERFACE_MAJOR_VERSION as " ${PAL_CLIENT_INTERFACE_MAJOR_VERSION})
-    else()
-        message(FATAL_ERROR "Client must specify PAL_CLIENT_INTERFACE_MAJOR_VERSION")
-    endif()
+    pal_build_parameter(PAL_CLIENT_INTERFACE_MAJOR_VERSION "Pal library interface value" "-1" FATAL_ERROR)
 
     if (DEFINED PAL_CLIENT_INTERFACE_MINOR_VERSION)
         message(AUTHOR_WARNING "Unneccessary to specify PAL_CLIENT_INTERFACE_MINOR_VERSION")

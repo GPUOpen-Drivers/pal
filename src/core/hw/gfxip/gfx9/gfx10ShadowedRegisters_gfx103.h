@@ -104,7 +104,7 @@ const RegisterRange Gfx103UserConfigShadowRange[] =
         1,
     },
     {
-        (mmCP_COHER_START_DELAY - UCONFIG_SPACE_START),
+        (Gfx09_10::mmCP_COHER_START_DELAY - UCONFIG_SPACE_START),
         1,
     },
     {

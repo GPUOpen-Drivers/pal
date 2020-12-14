@@ -1183,6 +1183,15 @@ gpusize DmaCmdBuffer::GetSubresourceBaseAddr(
 }
 
 // =====================================================================================================================
+// Returns the multiplier required to align the linear row pitch with OSS2 HW requirements
+uint32 DmaCmdBuffer::GetLinearRowPitchAlignment(
+    uint32 bytesPerPixel
+    ) const
+{
+    return bytesPerPixel;
+}
+
+// =====================================================================================================================
 void DmaCmdBuffer::ResetState()
 {
     CmdBuffer::ResetState();

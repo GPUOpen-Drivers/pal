@@ -64,17 +64,15 @@ Result Platform::Create(
     void*                       pPlacementAddr,
     IPlatform**                 ppPlatform)
 {
-    Result result   = Result::ErrorInitializationFailed;
     auto* pPlatform = PAL_PLACEMENT_NEW(pPlacementAddr) Platform(createInfo, allocCb, pNextPlatform, mode);
-
-    if (pPlatform != nullptr)
-    {
-        result = pPlatform->Init();
-    }
-
+    Result result   = pPlatform->Init();
     if (result == Result::Success)
     {
         (*ppPlatform) = pPlatform;
+    }
+    else
+    {
+        pPlatform->Destroy();
     }
 
     return result;

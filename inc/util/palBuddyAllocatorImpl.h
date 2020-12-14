@@ -130,14 +130,14 @@ Result BuddyAllocator<Allocator>::Init()
         block.offset = 0;
 
         result = pBlockList->PushBack(block);
-        PAL_ASSERT(result == Result::Success);
+        PAL_ALERT(result != Result::Success);
 
         block.offset = blockSize;
 
         if (result == Result::Success)
         {
             result = pBlockList->PushBack(block);
-            PAL_ASSERT(result == Result::Success);
+            PAL_ALERT(result != Result::Success);
         }
     }
 

@@ -613,6 +613,14 @@ Result Queue::Submit(
                         {
                             pNextCmdBufInfoList->pPrimaryMemory =
                                     NextGpuMemory(origSubQueueInfo.pCmdBufInfoList[i].pPrimaryMemory);
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 640
+                            if ((pNextCmdBufInfoList->captureBegin) || (pNextCmdBufInfoList->captureEnd))
+                            {
+                                pNextCmdBufInfoList->pDirectCapMemory =
+                                    NextGpuMemory(origSubQueueInfo.pCmdBufInfoList[i].pDirectCapMemory);
+                            }
+#endif
                         }
                         localCmdBufInfoIdx++;
                         nextPerSubQueueInfosBreakBatch[subQueueIdx].pCmdBufInfoList =
@@ -999,6 +1007,10 @@ Result Queue::AcquireGpaSession(
         if (*ppGpaSession != nullptr)
         {
             result = (*ppGpaSession)->Init();
+            if (result != Result::Success)
+            {
+                PAL_SAFE_DELETE(*ppGpaSession, m_pDevice->GetPlatform());
+            }
         }
         else
         {

@@ -158,6 +158,15 @@ Result GraphicsPipeline::InitFromPipelineBinary(
         m_flags.psWritesDepth       = (psStageMetadata.flags.writesDepth       != 0);
         m_flags.psUsesAppendConsume = (psStageMetadata.flags.usesAppendConsume != 0);
 
+        if ((metadata.pipeline.hardwareStage[static_cast<uint32>(Abi::HardwareStage::Ls)].flags.usesUavs) ||
+            (metadata.pipeline.hardwareStage[static_cast<uint32>(Abi::HardwareStage::Hs)].flags.usesUavs) ||
+            (metadata.pipeline.hardwareStage[static_cast<uint32>(Abi::HardwareStage::Es)].flags.usesUavs) ||
+            (metadata.pipeline.hardwareStage[static_cast<uint32>(Abi::HardwareStage::Gs)].flags.usesUavs) ||
+            (metadata.pipeline.hardwareStage[static_cast<uint32>(Abi::HardwareStage::Vs)].flags.usesUavs))
+        {
+            m_flags.nonPsShaderUsesUavs = true;
+        }
+
         result = HwlInit(createInfo, abiReader, metadata, &metadataReader);
     }
 

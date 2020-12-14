@@ -102,7 +102,7 @@ const RegisterRange Nv10UserConfigShadowRange[] =
          1,
     },
     {
-        (mmCP_COHER_START_DELAY - UCONFIG_SPACE_START),
+        (Gfx09_10::mmCP_COHER_START_DELAY - UCONFIG_SPACE_START),
          1,
     },
     {
@@ -186,6 +186,10 @@ const RegisterRange Navi10NonShadowedRanges[] =
     },
     {
         mmSPI_SHADER_PGM_RSRC4_GS,
+        1
+    },
+    {
+        mmSPI_SHADER_PGM_RSRC3_GS,
         1
     },
     {

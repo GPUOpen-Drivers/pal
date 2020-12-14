@@ -388,13 +388,6 @@ void Image::GetExternalSharedImageCreateInfo(
                         (pMetadata->swizzleMode == AMDGPU_SWIZZLE_MODE_LINEAR_GENERAL);
     }
 
-    if (isLinearTiled)
-    {
-        // Provide pitch and depth information for linear tiled images. YUV formats use linear.
-        pCreateInfo->rowPitch  = pMetadata->aligned_pitch_in_bytes;
-        pCreateInfo->depthPitch  = pCreateInfo->rowPitch * pMetadata->aligned_height;
-    }
-
     pCreateInfo->tiling = isLinearTiled ? ImageTiling::Linear : ImageTiling::Optimal;
 
     //for the bo created by other driver(display), the miplevels and
@@ -406,6 +399,13 @@ void Image::GetExternalSharedImageCreateInfo(
 
     pCreateInfo->samples   = Util::Max(1u, static_cast<uint32>(pMetadata->flags.samples));
     pCreateInfo->fragments = pCreateInfo->samples;
+
+    if (isLinearTiled && Formats::IsYuv(openInfo.swizzledFormat.format))
+    {
+        // Provide pitch and depth information for linear tiled images. YUV formats use linear.
+        pCreateInfo->rowPitch  = pMetadata->aligned_pitch_in_bytes;
+        pCreateInfo->depthPitch  = pCreateInfo->rowPitch * pMetadata->aligned_height;
+    }
 
     pCreateInfo->flags.cubemap = (pMetadata->flags.cubemap != 0);
 
@@ -446,7 +446,8 @@ Result Image::CreateExternalSharedImage(
     ImageInternalCreateInfo internalCreateInfo = {};
     if (chipProps.gfxLevel < GfxIpLevel::GfxIp9)
     {
-        internalCreateInfo.gfx6.sharedTileMode    = static_cast<AddrTileMode>(pMetadata->tile_mode);
+        internalCreateInfo.gfx6.sharedTileMode    = static_cast<AddrTileMode>
+                                                    (AmdGpuToAddrTileModeConversion(pMetadata->tile_mode));
         internalCreateInfo.gfx6.sharedTileType    = static_cast<AddrTileType>(pMetadata->micro_tile_mode);
         internalCreateInfo.gfx6.sharedTileSwizzle = pMetadata->pipeBankXor;
         internalCreateInfo.gfx6.sharedTileIndex   = pMetadata->tile_index;

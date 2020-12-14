@@ -139,9 +139,15 @@ namespace DevDriver
         bool Append(const T* pTs);
 
         // Insert elements from a buffer to the back of the Vector
+        // An empty slice (countOfTs == 0) is effectively a no-op
         bool Append(const T* pTs, size_t countOfTs)
         {
-            DD_ASSERT(pTs != nullptr);
+            // Check that we get a valid pointer. If this fires, we'll crash but this is more visible than just crashing
+            // in a memcpy below.
+            if (countOfTs != 0)
+            {
+                DD_ASSERT(pTs != nullptr);
+            }
 
             // Pre-allocate all the new elements, since we know how many there are.
             const size_t oldSize = Grow(countOfTs);

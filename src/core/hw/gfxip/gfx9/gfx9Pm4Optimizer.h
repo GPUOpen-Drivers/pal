@@ -118,6 +118,13 @@ public:
     void IssueHotRegisterReport(GfxCmdBuffer* pCmdBuf) const;
 #endif
 
+    // Allows caller to disable/re-enable PM4 optimizer dynamically.
+    void TempSetPm4OptimizerMode(bool isEnabled)
+    {
+        PAL_ASSERT(m_isTempDisabled != !isEnabled); // Not an error but unexpected.
+        m_isTempDisabled = !isEnabled;
+    }
+
 private:
     template <typename SetDataPacket, size_t RegisterCount>
     uint32* OptimizePm4SetReg(
@@ -161,6 +168,7 @@ private:
     SetBaseState  m_setBaseStateCompute;
 
     bool  m_contextRollDetected;
+    bool  m_isTempDisabled;
 };
 
 } // Gfx9

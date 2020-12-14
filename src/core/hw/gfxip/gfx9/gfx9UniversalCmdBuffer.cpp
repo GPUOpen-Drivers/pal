@@ -214,6 +214,7 @@ bool HandleCeRinging(
 // Helper function which computes the NUM_RECORDS field of a buffer SRD used for a stream-output target.
 PAL_INLINE static uint32 StreamOutNumRecords(
     const GpuChipProperties& chipProps,
+    uint32                   sizeInBytes,
     uint32                   strideInBytes)
 {
     // NOTE: As mentioned in the SC interface for GFX6+ hardware, it is SC's responsibility to handle stream output
@@ -232,8 +233,9 @@ PAL_INLINE static uint32 StreamOutNumRecords(
     // corner case when all threads are streaming out, the write_index may overflow and no clamping occurs. The
     // "workaround" for this, we account for the maximum thread_id in a wavefront when computing  the clamping value in
     // the stream-out SRD.
+    uint32 numRecords = ((UINT_MAX - chipProps.gfx9.maxWavefrontSize) + 1);
 
-    return ((UINT_MAX - chipProps.gfx9.maxWavefrontSize) + 1);
+    return numRecords;
 }
 
 // =====================================================================================================================
@@ -310,7 +312,6 @@ UniversalCmdBuffer::UniversalCmdBuffer(
     memset(&m_cachedSettings,  0, sizeof(m_cachedSettings));
     memset(&m_drawTimeHwState, 0, sizeof(m_drawTimeHwState));
     memset(&m_nggState,        0, sizeof(m_nggState));
-    memset(&m_currentBinSize,  0, sizeof(m_currentBinSize));
 
     memset(&m_pipelinePsHash, 0, sizeof(m_pipelinePsHash));
     memset(&m_pipelineState,  0, sizeof(m_pipelineState));
@@ -697,7 +698,7 @@ void UniversalCmdBuffer::ResetState()
     m_device.SetBaseAddress(&m_streamOut.srd[0], 1);
     for (uint32 i = 0; i < MaxStreamOutTargets; ++i)
     {
-        m_device.SetNumRecords(&m_streamOut.srd[i], StreamOutNumRecords(m_device.Parent()->ChipProperties(), 0));
+        m_device.SetNumRecords(&m_streamOut.srd[i], StreamOutNumRecords(m_device.Parent()->ChipProperties(), 0, 0));
     }
 
     ResetUserDataTable(&m_streamOut.state);
@@ -1092,8 +1093,6 @@ void UniversalCmdBuffer::CmdBindIndexData(
     uint32    indexCount,
     IndexType indexType)
 {
-    m_workaroundState.HandleZeroIndexBuffer(this, &gpuAddr, &indexCount);
-
     if (m_graphicsState.iaState.indexAddr != gpuAddr)
     {
         m_drawTimeHwState.dirty.indexBufferBase     = 1;
@@ -1254,86 +1253,89 @@ void UniversalCmdBuffer::CmdSetInputAssemblyState(
 void UniversalCmdBuffer::CmdSetStencilRefMasks(
     const StencilRefMaskParams& params)
 {
-    SetStencilRefMasksState(params, &m_graphicsState.stencilRefMaskState);
-    m_graphicsState.dirtyFlags.nonValidationBits.stencilRefMaskState = 1;
-
-    struct
+    if (params.flags.u8All != 0x0)
     {
-        regDB_STENCILREFMASK     front;
-        regDB_STENCILREFMASK_BF  back;
-    } dbStencilRefMask = { };
+        SetStencilRefMasksState(params, &m_graphicsState.stencilRefMaskState);
+        m_graphicsState.dirtyFlags.nonValidationBits.stencilRefMaskState = 1;
 
-    dbStencilRefMask.front.bits.STENCILOPVAL       = params.frontOpValue;
-    dbStencilRefMask.front.bits.STENCILTESTVAL     = params.frontRef;
-    dbStencilRefMask.front.bits.STENCILMASK        = params.frontReadMask;
-    dbStencilRefMask.front.bits.STENCILWRITEMASK   = params.frontWriteMask;
-    dbStencilRefMask.back.bits.STENCILOPVAL_BF     = params.backOpValue;
-    dbStencilRefMask.back.bits.STENCILTESTVAL_BF   = params.backRef;
-    dbStencilRefMask.back.bits.STENCILMASK_BF      = params.backReadMask;
-    dbStencilRefMask.back.bits.STENCILWRITEMASK_BF = params.backWriteMask;
+        struct
+        {
+            regDB_STENCILREFMASK     front;
+            regDB_STENCILREFMASK_BF  back;
+        } dbStencilRefMask = { };
 
-    uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
+        dbStencilRefMask.front.bits.STENCILOPVAL       = params.frontOpValue;
+        dbStencilRefMask.front.bits.STENCILTESTVAL     = params.frontRef;
+        dbStencilRefMask.front.bits.STENCILMASK        = params.frontReadMask;
+        dbStencilRefMask.front.bits.STENCILWRITEMASK   = params.frontWriteMask;
+        dbStencilRefMask.back.bits.STENCILOPVAL_BF     = params.backOpValue;
+        dbStencilRefMask.back.bits.STENCILTESTVAL_BF   = params.backRef;
+        dbStencilRefMask.back.bits.STENCILMASK_BF      = params.backReadMask;
+        dbStencilRefMask.back.bits.STENCILWRITEMASK_BF = params.backWriteMask;
 
-    if (params.flags.u8All == 0xFF)
-    {
-        pDeCmdSpace = m_deCmdStream.WriteSetSeqContextRegs(mmDB_STENCILREFMASK,
-                                                           mmDB_STENCILREFMASK_BF,
-                                                           &dbStencilRefMask,
+        uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
+
+        if (params.flags.u8All == 0xFF)
+        {
+            pDeCmdSpace = m_deCmdStream.WriteSetSeqContextRegs(mmDB_STENCILREFMASK,
+                                                               mmDB_STENCILREFMASK_BF,
+                                                               &dbStencilRefMask,
+                                                               pDeCmdSpace);
+        }
+        else
+        {
+            // Accumulate masks and shifted data based on which flags are set
+            // 1. Front-facing primitives
+            uint32 frontMask = 0;
+            if (params.flags.updateFrontRef)
+            {
+                frontMask |= DB_STENCILREFMASK__STENCILTESTVAL_MASK;
+            }
+            if (params.flags.updateFrontReadMask)
+            {
+                frontMask |= DB_STENCILREFMASK__STENCILMASK_MASK;
+            }
+            if (params.flags.updateFrontWriteMask)
+            {
+                frontMask |= DB_STENCILREFMASK__STENCILWRITEMASK_MASK;
+            }
+            if (params.flags.updateFrontOpValue)
+            {
+                frontMask |= DB_STENCILREFMASK__STENCILOPVAL_MASK;
+            }
+
+            // 2. Back-facing primitives
+            uint32 backMask = 0;
+            if (params.flags.updateBackRef)
+            {
+                backMask |= DB_STENCILREFMASK_BF__STENCILTESTVAL_BF_MASK;
+            }
+            if (params.flags.updateBackReadMask)
+            {
+                backMask |= DB_STENCILREFMASK_BF__STENCILMASK_BF_MASK;
+            }
+            if (params.flags.updateBackWriteMask)
+            {
+                backMask |= DB_STENCILREFMASK_BF__STENCILWRITEMASK_BF_MASK;
+            }
+            if (params.flags.updateBackOpValue)
+            {
+                backMask |= DB_STENCILREFMASK_BF__STENCILOPVAL_BF_MASK;
+            }
+
+            pDeCmdSpace = m_deCmdStream.WriteContextRegRmw(mmDB_STENCILREFMASK,
+                                                           frontMask,
+                                                           dbStencilRefMask.front.u32All,
                                                            pDeCmdSpace);
+            pDeCmdSpace = m_deCmdStream.WriteContextRegRmw(mmDB_STENCILREFMASK_BF,
+                                                           backMask,
+                                                           dbStencilRefMask.back.u32All,
+                                                           pDeCmdSpace);
+        }
+
+        m_deCmdStream.CommitCommands(pDeCmdSpace);
+        m_deCmdStream.SetContextRollDetected<true>();
     }
-    else
-    {
-        // Accumulate masks and shifted data based on which flags are set
-        // 1. Front-facing primitives
-        uint32 frontMask = 0;
-        if (params.flags.updateFrontRef)
-        {
-            frontMask |= DB_STENCILREFMASK__STENCILTESTVAL_MASK;
-        }
-        if (params.flags.updateFrontReadMask)
-        {
-            frontMask |= DB_STENCILREFMASK__STENCILMASK_MASK;
-        }
-        if (params.flags.updateFrontWriteMask)
-        {
-            frontMask |= DB_STENCILREFMASK__STENCILWRITEMASK_MASK;
-        }
-        if (params.flags.updateFrontOpValue)
-        {
-            frontMask |= DB_STENCILREFMASK__STENCILOPVAL_MASK;
-        }
-
-        // 2. Back-facing primitives
-        uint32 backMask = 0;
-        if (params.flags.updateBackRef)
-        {
-            backMask |= DB_STENCILREFMASK_BF__STENCILTESTVAL_BF_MASK;
-        }
-        if (params.flags.updateBackReadMask)
-        {
-            backMask |= DB_STENCILREFMASK_BF__STENCILMASK_BF_MASK;
-        }
-        if (params.flags.updateBackWriteMask)
-        {
-            backMask |= DB_STENCILREFMASK_BF__STENCILWRITEMASK_BF_MASK;
-        }
-        if (params.flags.updateBackOpValue)
-        {
-            backMask |= DB_STENCILREFMASK_BF__STENCILOPVAL_BF_MASK;
-        }
-
-        pDeCmdSpace = m_deCmdStream.WriteContextRegRmw(mmDB_STENCILREFMASK,
-                                                       frontMask,
-                                                       dbStencilRefMask.front.u32All,
-                                                       pDeCmdSpace);
-        pDeCmdSpace = m_deCmdStream.WriteContextRegRmw(mmDB_STENCILREFMASK_BF,
-                                                       backMask,
-                                                       dbStencilRefMask.back.u32All,
-                                                       pDeCmdSpace);
-    }
-
-    m_deCmdStream.CommitCommands(pDeCmdSpace);
-    m_deCmdStream.SetContextRollDetected<true>();
 }
 
 // =====================================================================================================================
@@ -1817,7 +1819,9 @@ void UniversalCmdBuffer::CmdBindStreamOutTargets(
             const uint32 strideInBytes =
                 ((pPipeline == nullptr) ? 0 : pPipeline->VgtStrmoutVtxStride(idx).u32All) * sizeof(uint32);
 
-            m_device.SetNumRecords(pBufferSrd, StreamOutNumRecords(chipProps, strideInBytes));
+            m_device.SetNumRecords(pBufferSrd, StreamOutNumRecords(chipProps,
+                                                                   LowPart(params.target[idx].size),
+                                                                   strideInBytes));
 
             m_device.InitBufferSrd(pBufferSrd, params.target[idx].gpuVirtAddr, strideInBytes);
             if (m_gfxIpLevel == GfxIpLevel::GfxIp9)
@@ -2109,7 +2113,8 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDraw(
     uint32      instanceCount,
     uint32      drawId)
 {
-    auto* pThis = static_cast<UniversalCmdBuffer*>(pCmdBuffer);
+    auto*  pThis    = static_cast<UniversalCmdBuffer*>(pCmdBuffer);
+    uint32 numDraws = 0;
 
     ValidateDrawInfo drawInfo;
     drawInfo.vtxIdxCount   = vertexCount;
@@ -2154,12 +2159,14 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDraw(
                                                            false,
                                                            pThis->PacketPredicate(),
                                                            pDeCmdSpace);
+                numDraws++;
             }
         }
     }
     else
     {
         pDeCmdSpace += CmdUtil::BuildDrawIndexAuto(vertexCount, false, pThis->PacketPredicate(), pDeCmdSpace);
+        numDraws++;
     }
 
     if (IssueSqttMarkerEvent)
@@ -2181,6 +2188,7 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDraw(
     // can cause hangs and rendering corruption with subsequent indexed draw commands. We must invalidate the
     // index type state so that it will be issued before the next indexed draw.
     pThis->m_drawTimeHwState.dirty.indexedIndexType = 1;
+
 }
 
 // =====================================================================================================================
@@ -2197,7 +2205,8 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawOpaque(
     uint32      firstInstance,
     uint32      instanceCount)
 {
-    auto* pThis = static_cast<UniversalCmdBuffer*>(pCmdBuffer);
+    auto*  pThis    = static_cast<UniversalCmdBuffer*>(pCmdBuffer);
+    uint32 numDraws = 0;
 
     ValidateDrawInfo drawInfo;
     drawInfo.vtxIdxCount   = 0;
@@ -2261,12 +2270,14 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawOpaque(
             {
                 pDeCmdSpace  = pThis->BuildWriteViewId(viewInstancingDesc.viewId[i], pDeCmdSpace);
                 pDeCmdSpace += CmdUtil::BuildDrawIndexAuto(0, true, pThis->PacketPredicate(), pDeCmdSpace);
+                numDraws++;
             }
         }
     }
     else
     {
         pDeCmdSpace += CmdUtil::BuildDrawIndexAuto(0, true, pThis->PacketPredicate(), pDeCmdSpace);
+        numDraws++;
     }
 
     if (IssueSqttMarkerEvent)
@@ -2288,6 +2299,7 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawOpaque(
     // can cause hangs and rendering corruption with subsequent indexed draw commands. We must invalidate the
     // index type state so that it will be issued before the next indexed draw.
     pThis->m_drawTimeHwState.dirty.indexedIndexType = 1;
+
 }
 
 // =====================================================================================================================
@@ -2306,17 +2318,8 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawIndexed(
     uint32      instanceCount,
     uint32      drawId)
 {
-    auto* pThis = static_cast<UniversalCmdBuffer*>(pCmdBuffer);
-
-    // The "validIndexCount" (set later in the code) will eventually be used to program the max_size
-    // field in the draw packet, which is used to clamp how much of the index buffer can be read.
-    //
-    // If the firstIndex parameter of the draw command is greater than the currently IB's indexCount,
-    // the validIndexCount will underflow and end up way too big.
-    pThis->m_workaroundState.HandleFirstIndexSmallerThanIndexCount(&firstIndex,
-                                                                   pThis->m_graphicsState.iaState.indexCount);
-
-    PAL_ASSERT(firstIndex <= pThis->m_graphicsState.iaState.indexCount);
+    auto*  pThis    = static_cast<UniversalCmdBuffer*>(pCmdBuffer);
+    uint32 numDraws = 0;
 
     ValidateDrawInfo drawInfo;
     drawInfo.vtxIdxCount   = indexCount;
@@ -2338,7 +2341,18 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawIndexed(
 
     uint32* pDeCmdSpace = pThis->m_deCmdStream.ReserveCommands();
 
-    const uint32 validIndexCount = pThis->m_graphicsState.iaState.indexCount - firstIndex;
+    // The "validIndexCount" (set later in the code) will eventually be used to program the max_size
+    // field in the draw packet, which is used to clamp how much of the index buffer can be read.
+    //
+    // For out-of-bounds index buffer fetches cases:
+    // - the firstIndex parameter of the draw command is greater than the currently IB's indexCount
+    // - Or binding a null IB (IB's indexCount = 0)
+    // We consider validIndexCount = 0.
+    // When validIndexCount == 0, the workaround HandleZeroIndexBuffer() is active,
+    // we bind a one index sized index buffer with value 0 to conform to that requirement.
+    uint32 validIndexCount = (firstIndex >= pThis->m_graphicsState.iaState.indexCount)
+                             ? 0
+                             : pThis->m_graphicsState.iaState.indexCount - firstIndex;
 
     pDeCmdSpace = pThis->WaitOnCeCounter(pDeCmdSpace);
 
@@ -2360,7 +2374,7 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawIndexed(
             {
                 pDeCmdSpace = pThis->BuildWriteViewId(viewInstancingDesc.viewId[i], pDeCmdSpace);
 
-                if (pThis->IsNested() && (pThis->m_graphicsState.iaState.indexAddr == 0))
+                if (pThis->IsNested() && (pThis->m_graphicsState.iaState.indexAddr == 0) && (validIndexCount > 0))
                 {
                     // If IB state is not bound, nested command buffers must use DRAW_INDEX_OFFSET_2 so that
                     // we can inherit th IB base and size from direct command buffer
@@ -2374,8 +2388,10 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawIndexed(
                 {
                     // Compute the address of the IB. We must add the index offset specified by firstIndex into
                     // our address because DRAW_INDEX_2 doesn't take an offset param.
-                    const uint32  indexSize   = 1 << static_cast<uint32>(pThis->m_graphicsState.iaState.indexType);
-                    const gpusize gpuVirtAddr = pThis->m_graphicsState.iaState.indexAddr + (indexSize * firstIndex);
+                    const uint32 indexSize   = 1 << static_cast<uint32>(pThis->m_graphicsState.iaState.indexType);
+                    gpusize      gpuVirtAddr = pThis->m_graphicsState.iaState.indexAddr + (indexSize * firstIndex);
+
+                    pThis->m_workaroundState.HandleZeroIndexBuffer(pThis, &gpuVirtAddr, &validIndexCount);
 
                     pDeCmdSpace += CmdUtil::BuildDrawIndex2(indexCount,
                                                             validIndexCount,
@@ -2383,12 +2399,14 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawIndexed(
                                                             pThis->PacketPredicate(),
                                                             pDeCmdSpace);
                 }
+
+                numDraws++;
             }
         }
     }
     else
     {
-        if (pThis->IsNested() && (pThis->m_graphicsState.iaState.indexAddr == 0))
+        if (pThis->IsNested() && (pThis->m_graphicsState.iaState.indexAddr == 0) && (validIndexCount > 0))
         {
             // If IB state is not bound, nested command buffers must use DRAW_INDEX_OFFSET_2 so that
             // we can inherit th IB base and size from direct command buffer
@@ -2402,8 +2420,10 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawIndexed(
         {
             // Compute the address of the IB. We must add the index offset specified by firstIndex into
             // our address because DRAW_INDEX_2 doesn't take an offset param.
-            const uint32  indexSize   = 1 << static_cast<uint32>(pThis->m_graphicsState.iaState.indexType);
-            const gpusize gpuVirtAddr = pThis->m_graphicsState.iaState.indexAddr + (indexSize * firstIndex);
+            const uint32 indexSize   = 1 << static_cast<uint32>(pThis->m_graphicsState.iaState.indexType);
+            gpusize      gpuVirtAddr = pThis->m_graphicsState.iaState.indexAddr + (indexSize * firstIndex);
+
+            pThis->m_workaroundState.HandleZeroIndexBuffer(pThis, &gpuVirtAddr, &validIndexCount);
 
             pDeCmdSpace += CmdUtil::BuildDrawIndex2(indexCount,
                                                     validIndexCount,
@@ -2411,6 +2431,8 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawIndexed(
                                                     pThis->PacketPredicate(),
                                                     pDeCmdSpace);
         }
+
+        numDraws++;
     }
 
     if (IssueSqttMarkerEvent)
@@ -2425,6 +2447,7 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawIndexed(
     pDeCmdSpace  = pThis->IncrementDeCounter(pDeCmdSpace);
 
     pThis->m_deCmdStream.CommitCommands(pDeCmdSpace);
+
 }
 
 // =====================================================================================================================
@@ -2439,7 +2462,8 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawIndirectMulti(
     uint32            maximumCount,
     gpusize           countGpuAddr)
 {
-    auto* pThis = static_cast<UniversalCmdBuffer*>(pCmdBuffer);
+    auto*  pThis    = static_cast<UniversalCmdBuffer*>(pCmdBuffer);
+    uint32 numDraws = 0;
 
     PAL_ASSERT(IsPow2Aligned(offset, sizeof(uint32)) && IsPow2Aligned(countGpuAddr, sizeof(uint32)));
     PAL_ASSERT((countGpuAddr != 0) ||
@@ -2504,6 +2528,7 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawIndirectMulti(
                                                                countGpuAddr,
                                                                pThis->PacketPredicate(),
                                                                pDeCmdSpace);
+                numDraws++;
             }
         }
     }
@@ -2518,6 +2543,7 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawIndirectMulti(
                                                        countGpuAddr,
                                                        pThis->PacketPredicate(),
                                                        pDeCmdSpace);
+        numDraws++;
     }
 
     if (IssueSqttMarkerEvent)
@@ -2535,6 +2561,7 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawIndirectMulti(
     // that state when executing a non-indexed indirect draw.
     // SEE: CmdDraw() for more details about why we do this.
     pThis->m_drawTimeHwState.dirty.indexedIndexType = 1;
+
 }
 
 // =====================================================================================================================
@@ -2549,7 +2576,8 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawIndexedIndirectMulti(
     uint32            maximumCount,
     gpusize           countGpuAddr)
 {
-    auto* pThis = static_cast<UniversalCmdBuffer*>(pCmdBuffer);
+    auto*  pThis    = static_cast<UniversalCmdBuffer*>(pCmdBuffer);
+    uint32 numDraws = 0;
 
     PAL_ASSERT(IsPow2Aligned(offset, sizeof(uint32)) && IsPow2Aligned(countGpuAddr, sizeof(uint32)));
     PAL_ASSERT((countGpuAddr != 0) ||
@@ -2617,6 +2645,8 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawIndexedIndirectMulti(
                                                                                 pThis->PacketPredicate(),
                                                                                 pDeCmdSpace);
                 }
+
+                numDraws++;
             }
         }
     }
@@ -2633,6 +2663,8 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawIndexedIndirectMulti(
                                                                         pThis->PacketPredicate(),
                                                                         pDeCmdSpace);
         }
+
+        numDraws++;
     }
 
     if (IssueSqttMarkerEvent)
@@ -2645,6 +2677,7 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawIndexedIndirectMulti(
     pThis->m_deCmdStream.CommitCommands(pDeCmdSpace);
 
     pThis->m_state.flags.containsDrawIndirect = 1;
+
 }
 
 // =====================================================================================================================
@@ -3224,19 +3257,6 @@ Result UniversalCmdBuffer::AddPreamble()
 
     pDeCmdSpace += CmdUtil::BuildNonSampleEventWrite(PIPELINESTAT_START, EngineTypeUniversal, pDeCmdSpace);
 
-    if ((device.GetPlatform()->IsEmulationEnabled()) && (isNested == false))
-    {
-        PAL_ASSERT(device.IsPreemptionSupported(EngineType::EngineTypeUniversal) == false);
-
-        PM4_PFP_CONTEXT_CONTROL contextControl = {};
-
-        contextControl.ordinal2.bitfields.update_load_enables    = 1;
-        contextControl.ordinal2.bitfields.load_per_context_state = 1;
-        contextControl.ordinal3.bitfields.update_shadow_enables  = 1;
-
-        pDeCmdSpace += CmdUtil::BuildContextControl(contextControl, pDeCmdSpace);
-    }
-
     // DB_RENDER_OVERRIDE bits are updated via depth-stencil view and at draw time validation based on dirty
     // depth-stencil state.
     regDB_RENDER_OVERRIDE dbRenderOverride = { };
@@ -3362,6 +3382,7 @@ Result UniversalCmdBuffer::AddPreamble()
                                                            mmPA_SC_SCREEN_SCISSOR_BR,
                                                            &paScScreenScissor,
                                                            pDeCmdSpace);
+
     }
 
     if (m_cmdUtil.GetRegInfo().mmDbDfsmControl != 0)
@@ -3865,7 +3886,7 @@ uint32* UniversalCmdBuffer::ValidateGraphicsUserData(
     } // if vertex buffer table is mapped by current pipeline
 
     const uint16 streamOutTblRegAddr = m_pSignatureGfx->streamOutTableRegAddr;
-    if (streamOutTblRegAddr != 0)
+    if (streamOutTblRegAddr != UserDataNotMapped)
     {
         // When switching to a pipeline which uses stream output, we need to update the SRD table for any
         // bound stream-output buffers because the SRD's depend on the pipeline's per-buffer vertex strides.
@@ -4167,6 +4188,7 @@ template <bool Indexed, bool Indirect, bool Pm4OptImmediate>
 void UniversalCmdBuffer::ValidateDraw(
     const ValidateDrawInfo& drawInfo)
 {
+
     const auto&  dirtyFlags = m_graphicsState.dirtyFlags.validationBits;
 
     if ((dirtyFlags.vrsRateParams || dirtyFlags.vrsImage || dirtyFlags.depthStencilView) &&
@@ -4276,6 +4298,7 @@ void UniversalCmdBuffer::ValidateDraw(
 #if PAL_ENABLE_PRINTS_ASSERTS
     m_pipelineStateValid = false;
 #endif
+
 }
 
 // =====================================================================================================================
@@ -5594,9 +5617,6 @@ uint32* UniversalCmdBuffer::ValidateBinSizes(
                                                                            pDeCmdSpace);
     }
 
-    // Update the current bin sizes chosen.
-    m_currentBinSize = binSize;
-
     return pDeCmdSpace;
 }
 
@@ -6453,7 +6473,7 @@ void UniversalCmdBuffer::CmdSaveBufferFilledSizes(
         if (gpuVirtAddr[idx] != 0)
         {
             pDeCmdSpace += CmdUtil::BuildStrmoutBufferUpdate(idx,
-                                                             source_select__pfp_strmout_buffer_update__none,
+                                                             source_select__pfp_strmout_buffer_update__none__GFX09_10,
                                                              0,
                                                              gpuVirtAddr[idx],
                                                              0uLL,
@@ -7864,7 +7884,8 @@ uint8 UniversalCmdBuffer::CheckStreamOutBufferStridesOnPipelineSwitch()
     for (uint32 idx = 0; idx < MaxStreamOutTargets; ++idx)
     {
         const uint32 strideInBytes = (sizeof(uint32) * pPipeline->VgtStrmoutVtxStride(idx).u32All);
-        const uint32 numRecords    = StreamOutNumRecords(chipProps, strideInBytes);
+        const uint32 sizeInBytes   = LowPart(m_graphicsState.bindStreamOutTargets.target[idx].size);
+        const uint32 numRecords    = StreamOutNumRecords(chipProps, sizeInBytes, strideInBytes);
 
         auto*const pBufferSrd    = &m_streamOut.srd[idx];
         uint32     srdNumRecords = 0;
@@ -7931,6 +7952,7 @@ void UniversalCmdBuffer::CmdSetUserClipPlanes(
     pDeCmdSpace = m_deCmdStream.WriteSetSeqContextRegs(startRegAddr, endRegAddr, pPlanes, pDeCmdSpace);
     m_deCmdStream.CommitCommands(pDeCmdSpace);
     m_deCmdStream.SetContextRollDetected<true>();
+
 }
 
 // =====================================================================================================================

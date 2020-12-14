@@ -1677,7 +1677,7 @@ Result Device::CreateEngine(
     EngineType engineType,
     uint32     engineIndex)
 {
-    Result result = Result::ErrorUnknown;
+    Result result = Result::Success;
 
     switch (engineType)
     {
@@ -1706,17 +1706,22 @@ Result Device::CreateEngine(
         break;
     case EngineTypeTimer:
     {
-        result = Result::ErrorOutOfMemory;
         Engine* pEngine = PAL_NEW(Engine, GetPlatform(), AllocInternal)(*this, engineType, engineIndex);
-
         if (pEngine != nullptr)
         {
             result = pEngine->Init();
+            if (result == Result::Success)
+            {
+                m_pEngines[engineType][engineIndex] = pEngine;
+            }
+            else
+            {
+                PAL_DELETE(pEngine, GetPlatform());
+            }
         }
-
-        if (result == Result::Success)
+        else
         {
-            m_pEngines[engineType][engineIndex] = pEngine;
+            result = Result::ErrorOutOfMemory;
         }
     }
     break;

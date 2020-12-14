@@ -57,7 +57,7 @@ pal_overrides()
 add_subdirectory(src)
 
 ### Build Definitions ##################################################################################################
-pal_compile_definitions()
+pal_compile_definitions(pal)
 
 ### Compiler Options ###################################################################################################
-pal_compiler_options()
+pal_compiler_options(pal)

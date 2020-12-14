@@ -119,30 +119,6 @@ void WorkaroundState::HandleZeroIndexBuffer(
 }
 
 // =====================================================================================================================
-void WorkaroundState::HandleFirstIndexSmallerThanIndexCount(
-    uint32*         pFirstIndex,
-    const uint32    indexCount
-    ) const
-{
-    if (*pFirstIndex >= indexCount)
-    {
-        // The caller (UniversalCmdBuffer::CmdDrawIndexed) request pFirstIndex to be no greater than indexCount.
-        if (m_cachedSettings.waIndexBufferZeroSize)
-        {
-            // In Gfx10 there is a hardware bug (see settings.waIndexBufferZeroSize),
-            // In the event that this workaround is active, we need to modify "pFirstIndex" as "indexCount - 1",
-            // so the caller can set the maxSize / validIndexCount to 1.
-            *pFirstIndex = indexCount - 1;
-        }
-        else
-        {
-            // Modify the "pFirstIndex" to be "indexCount", so the caller can clamp the "validIndexCount" to 0.
-            *pFirstIndex = indexCount;
-        }
-    }
-}
-
-// =====================================================================================================================
 // Performs pre-draw validation specifically for hardware workarounds which must be evaluated at draw-time.
 // Returns the next unused DWORD in pCmdSpace.
 template <bool PipelineDirty, bool StateDirty, bool Pm4OptImmediate>

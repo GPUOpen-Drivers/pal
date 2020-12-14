@@ -286,7 +286,7 @@ struct GpuClocksSample
 /// Struct for storing CPU-side allocations of Pal::IPerfExperiment's.
 struct PerfExperimentMemory
 {
-    void*  pMemory;	    // Memory allocated for an IPerfExperiment.
+    void*  pMemory;     // Memory allocated for an IPerfExperiment.
     size_t memorySize;  // Size of the memory allocated in pMemory.
 };
 

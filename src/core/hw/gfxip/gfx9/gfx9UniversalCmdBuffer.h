@@ -257,8 +257,8 @@ union CachedSettings
         uint64 vrsForceRateFine                          :  1;
 
         uint64 reserved7                  :  4;
-
-        uint64 reserved                   : 18;
+        uint64 reserved8                  :  1;
+        uint64 reserved                   : 17;
     };
     uint64 u64All;
 };
@@ -1039,8 +1039,6 @@ private:
     bool             m_enabledPbb;       // PBB is currently enabled or disabled.
     uint16           m_customBinSizeX;   // Custom bin sizes for PBB.  Zero indicates PBB is not using
     uint16           m_customBinSizeY;   // a custom bin size.
-    Extent2d         m_currentBinSize;   // Current PBB bin size that has been chosen. This could be
-                                         // equal to the custom bin size.
 
     CachedSettings   m_cachedSettings;   // Cached settings values referenced at draw-time
 

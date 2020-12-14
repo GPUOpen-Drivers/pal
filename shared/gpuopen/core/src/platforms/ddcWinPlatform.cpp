@@ -321,8 +321,7 @@ namespace DevDriver
         // Library
         /////////////////////////////////////////////////////
 
-        // Loads a DLL with the specified name into this process.  The system will search for the DLL according to the
-        // documentation available here:
+        // Loads a DLL with the specified name into this process.
         Result Library::Load(
             const char* pLibraryName)
         {
@@ -340,6 +339,7 @@ namespace DevDriver
                 if (m_hLib == nullptr)
                 {
                     result = Result::FileNotFound;
+                    DD_PRINT(LogLevel::Warn, "Failed to load library \"%s\"", pLibraryName);
                 }
             }
 

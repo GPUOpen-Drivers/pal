@@ -708,7 +708,7 @@ void CmdBuffer::CmdBarrier(
                 //     That must transition both the depth and stencil aspects on the same barrier call to be safe
                 //
                 // then we need to do a little more validation.
-                if (pImage->IsDepthStencil()                                                   &&
+                if (pImage->IsDepthStencilTarget()                                             &&
                     pImage->IsAspectValid(ImageAspect::Depth)                                  &&
                     pImage->IsAspectValid(ImageAspect::Stencil)                                &&
                     TestAnyFlagSet(transitionInfo.oldLayout.usages, LayoutUninitializedTarget) &&
@@ -1176,7 +1176,7 @@ void CmdBuffer::VerifyBarrierTransitions(
             //     That must transition both the depth and stencil aspects on the same barrier call to be safe
             //
             // then we need to do a little more validation.
-            if (pImage->IsDepthStencil()                                                   &&
+            if (pImage->IsDepthStencilTarget()                                             &&
                 pImage->IsAspectValid(ImageAspect::Depth)                                  &&
                 pImage->IsAspectValid(ImageAspect::Stencil)                                &&
                 TestAnyFlagSet(transition.oldLayout.usages, LayoutUninitializedTarget)     &&

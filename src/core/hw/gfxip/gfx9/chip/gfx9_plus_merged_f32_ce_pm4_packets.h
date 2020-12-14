@@ -667,8 +667,8 @@ constexpr unsigned int PM4_CE_INCREMENT_CE_COUNTER_SIZEDW__HASCE = 2;
 // -------------------------- CE_INDIRECT_BUFFER_CONST_cache_policy_enum --------------------------
 enum CE_INDIRECT_BUFFER_CONST_cache_policy_enum
 {
-    cache_policy__ce_indirect_buffer_const__lru__GFX10CORE    =  0,
-    cache_policy__ce_indirect_buffer_const__stream__GFX10CORE =  1,
+    cache_policy__ce_indirect_buffer_const__lru__HASCE        =  0,
+    cache_policy__ce_indirect_buffer_const__stream__HASCE     =  1,
     cache_policy__ce_indirect_buffer_const__noa__GFX10CORE    =  2,
     cache_policy__ce_indirect_buffer_const__bypass__GFX10CORE =  3,
 };
@@ -707,25 +707,13 @@ typedef struct PM4_CE_INDIRECT_BUFFER_CONST
         {
             struct
             {
-                uint32_t reserved1    : 28;
-                uint32_t cache_policy :  2;
-                uint32_t reserved2    :  2;
-            } gfx09;
-            struct
-            {
-                uint32_t                                   reserved3    : 28;
+                uint32_t                                   ib_size      : 20;
+                uint32_t                                   chain        :  1;
+                uint32_t                                   pre_ena      :  1;
+                uint32_t                                   reserved1    :  2;
+                uint32_t                                   vmid         :  4;
                 CE_INDIRECT_BUFFER_CONST_cache_policy_enum cache_policy :  2;
-                uint32_t                                   reserved4    :  2;
-            } gfx10Core;
-            struct
-            {
-                uint32_t ib_size    : 20;
-                uint32_t chain      :  1;
-                uint32_t pre_ena    :  1;
-                uint32_t reserved5  :  2;
-                uint32_t vmid       :  4;
-                uint32_t reserved6  :  2;
-                uint32_t pre_resume :  1;
+                uint32_t                                   pre_resume   :  1;
             } hasCe;
         } bitfields;
         uint32_t u32All;

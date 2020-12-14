@@ -96,6 +96,8 @@ Image::Image(
     m_pFmask(nullptr),
     m_waTcCompatZRangeMetaDataOffset(0),
     m_waTcCompatZRangeMetaDataSizePerMip(0),
+    m_dccLookupTableOffset(0),
+    m_dccLookupTableSize(0),
     m_useCompToSingleForFastClears(false)
 {
     memset(&m_layoutToState,      0, sizeof(m_layoutToState));
@@ -189,7 +191,7 @@ void Image::GetMetaEquationConstParam(
     ) const
 {
     const Gfx9PalSettings& settings    = GetGfx9Settings(m_device);
-    const bool optimizedFastClearDepth = ((Parent()->IsDepthStencil()) &&
+    const bool optimizedFastClearDepth = ((Parent()->IsDepthStencilTarget()) &&
                                           TestAnyFlagSet(settings.optimizedFastClear,
                                                          Gfx9OptimizedFastClearDepth));
     const bool optimizedFastClearDcc   = ((Parent()->IsRenderTarget()) &&
@@ -485,6 +487,7 @@ Result Image::Finalize(
     bool needsHtileLookupTable         = false;
     bool needsWaTcCompatZRangeMetaData = false;
     bool needsHiSPretestsMetaData      = false;
+    bool needsDccLookupTable           = false;
 
     // Initialize Htile:
     if (htileUsage.value != 0)
@@ -863,6 +866,15 @@ Result Image::Finalize(
             }
         }
 
+        if (needsDccLookupTable)
+        {
+            if (useSharedMetadata == false)
+            {
+                // Currently, shared dcc lookup table is not available.
+                InitDccLookupTable(pGpuMemLayout, pGpuMemSize, pGpuMemAlignment);
+            }
+        }
+
         m_gpuMemSyncSize = *pGpuMemSize;
 
         // Force its size 16 bytes aligned so it's able to go through the fastest CopyBufferDqword in
@@ -1039,7 +1051,7 @@ Result Image::CreateDccObject(
 // The CopyImageToMemory functions use the same format for the source and destination (i.e., image and buffer).
 // Not all image formats are supported as buffer formats.  If the format doesn't work for both, then we need
 // to force decompressions which will force image-replacement in the copy code.
-bool Image::DoesImageSupportCopySrcCompression() const
+bool Image::DoesImageSupportCopyCompression() const
 {
     const Platform&   platform            = *m_device.GetPlatform();
     const GfxIpLevel  gfxLevel            = m_device.ChipProperties().gfxLevel;
@@ -1076,7 +1088,7 @@ void Image::InitLayoutStateMasks()
 
     if (HasColorMetaData())
     {
-        PAL_ASSERT(Parent()->IsDepthStencil() == false);
+        PAL_ASSERT(Parent()->IsDepthStencilTarget() == false);
 
         // Always allow compression for layouts that only support the color target usage.
         ImageLayout compressedWriteLayout = {};
@@ -1101,11 +1113,9 @@ void Image::InitLayoutStateMasks()
             {
                 compressedWriteLayout.usages |= LayoutShaderWrite;
 
-                // If we don't ever want copyDst to be compressed, then we're done. Otherwise, it should be on if
-                // it's generally enabled or if it's enabled for readable formats and this image is readable.
-                if ((settings.copyDstIsCompressed  != CopyDstComprNeverAllow) &&
-                    ((settings.copyDstIsCompressed != CopyDstComprAllowForReadableFormatsGfx10) ||
-                     ImageSupportsShaderReadsAndWrites()))
+                // Ensure that images with replacable formats do not have the LayoutCopyDst compression usage. This
+                // should prevent compression corruption during memory to image copies.
+                if (DoesImageSupportCopyCompression())
                 {
                     compressedWriteLayout.usages |= LayoutCopyDst;
                 }
@@ -1128,7 +1138,7 @@ void Image::InitLayoutStateMasks()
 
                 // Both CmdCopyImage and CmdCopyImageToMemory support Fmask based non-eqaa msaa access to CopySrc. So
                 // can keep colorCompressed for non-eqaa color msaa image if it supports supportMetaDataTexFetch.
-                if (DoesImageSupportCopySrcCompression() && (m_createInfo.samples == m_createInfo.fragments))
+                if (DoesImageSupportCopyCompression() && (m_createInfo.samples == m_createInfo.fragments))
                 {
                     compressedLayout.usages |= LayoutCopySrc;
                 }
@@ -1140,17 +1150,10 @@ void Image::InitLayoutStateMasks()
             }
             else
             {
-                if (DoesImageSupportCopySrcCompression())
+                if (DoesImageSupportCopyCompression())
                 {
                     // Our copy path has been designed to allow compressed copy sources.
                     compressedLayout.usages |= LayoutCopySrc;
-                }
-
-                if (settings.copyDstIsCompressed == CopyDstComprAlwaysAllow)
-                {
-                    // Avoid DCC decompresses of copy destinations by promising to use graphics blits in RPM.
-                    // This is not fully implemented and is unsafe. It exists as a perf debug tool.
-                    compressedWriteLayout.usages |= LayoutCopyDst;
                 }
 
                 // We can keep this layout compressed if all view formats are DCC compatible.
@@ -1268,7 +1271,7 @@ void Image::InitLayoutStateMasks()
     }
     else if (HasDsMetadata())
     {
-        PAL_ASSERT(Parent()->IsDepthStencil());
+        PAL_ASSERT(Parent()->IsDepthStencilTarget());
 
         // Identify usages supporting DB rendering
         constexpr uint32 DbUsages = LayoutDepthStencilTarget;
@@ -1615,13 +1618,13 @@ Result Image::ComputePipeBankXor(
             if (supportSwizzle &&
                 // Check to see if non-zero fMask pipe-bank-xor values are allowed.
                 ((aspect != ImageAspect::Fmask) || settings.fmaskAllowPipeBankXor) &&
-                ((TestAnyFlagSet(coreSettings.tileSwizzleMode, TileSwizzleColor) && Parent()->IsRenderTarget()) ||
-                 (TestAnyFlagSet(coreSettings.tileSwizzleMode, TileSwizzleDepth) && Parent()->IsDepthStencil()) ||
+                ((TestAnyFlagSet(coreSettings.tileSwizzleMode, TileSwizzleColor) && Parent()->IsRenderTarget())       ||
+                 (TestAnyFlagSet(coreSettings.tileSwizzleMode, TileSwizzleDepth) && Parent()->IsDepthStencilTarget()) ||
                  (TestAnyFlagSet(coreSettings.tileSwizzleMode, TileSwizzleShaderRes))))
             {
                 uint32 surfaceIndex = 0;
 
-                if (Parent()->IsDepthStencil())
+                if (Parent()->IsDepthStencilTarget())
                 {
                     // The depth-stencil index is fixed to the plane index so it's safe to use it in all cases.
                     surfaceIndex = m_pParent->GetPlaneFromAspect(aspect);
@@ -1758,11 +1761,15 @@ bool Image::IsFastColorClearSupported(
 {
     const SubresId&  subResource = range.startSubres;
 
-    // We can only fast clear all arrays at once.
+    const bool        allSlices = (subResource.arraySlice == 0) && (range.numSlices == m_createInfo.arraySize);
+    const GfxIpLevel  gfxLevel  = m_device.ChipProperties().gfxLevel;
+
     bool isFastClearSupported =
         (ImageLayoutToColorCompressionState(m_layoutToState.color, colorLayout) == ColorCompressed) &&
-        (subResource.arraySlice == 0)                                                               &&
-        (range.numSlices == m_createInfo.arraySize);
+        // Allow fast clears when all array slices are contained in the clear range or the part is GFX10+
+        // Fast clears that do not contain all slices are not supported on GFX9 because the CB will always get the
+        // fast clear color value from the fast clear reg instead of the DCC key.
+        (allSlices || IsGfx10Plus(gfxLevel));
 
     // GFX9 only supports fast color clears using DCC memory; having cMask does nothing for fast-clears.
     if (HasDccData() && isFastClearSupported)
@@ -1793,7 +1800,11 @@ bool Image::IsFastColorClearSupported(
                 // If the layout supports comp-to-reg then we can do a non-TC compatible DCC fast clear.
                 SupportsCompToReg(colorLayout, subResource) &&
                 // Allow non-TC compatible clears only if there are no skipped fast clear eliminates.
-                noSkippedFastClearElim;
+                noSkippedFastClearElim &&
+                // We can only non-TC compat fast clear all arrays at once.
+                // The reason is that there is only a single fast clear color value register per render target.
+                // In order to support render target array index, the slices cannot have different fast clear values.
+                allSlices;
 
             // Figure out if we can do a TC-compatible DCC fast clear (one that requires no fast clear eliminate blt)
             const bool tcCompatibleFastClearPossible =
@@ -2043,7 +2054,7 @@ bool Image::IsFormatReplaceable(
     // when all channels of the color are being written.
     if (disabledChannelMask == 0)
     {
-        if (Parent()->IsDepthStencil())
+        if (Parent()->IsDepthStencilTarget())
         {
             const auto layoutToState = m_layoutToState.depthStencil[GetDepthStencilStateIndex(subresId.aspect)];
 
@@ -2375,6 +2386,53 @@ void Image::InitHtileLookupTable(
     }
 
     *pGpuOffset = mipLevelOffset;
+}
+
+// =====================================================================================================================
+void Image::InitDccLookupTable(
+    ImageMemoryLayout* pGpuMemLayout,
+    gpusize*           pGpuOffset,
+    gpusize*           pGpuMemAlignment)
+{
+    const auto*  pBaseDcc = GetDcc(ImageAspect::Color);
+
+    if (pBaseDcc->GetNumEffectiveSamples(DccClearPurpose::FastClear) <= 2)
+    {
+        // The current implementation of Dcc lookup table works for hardwares that compress maximum two samples.
+        // Element of dcc lookup table is uint32.
+        static constexpr uint32  ElementSize             = sizeof(uint32);
+        static constexpr gpusize DccLookupTableAlignment = ElementSize;
+
+        *pGpuMemAlignment = Max(*pGpuMemAlignment, DccLookupTableAlignment);
+
+        const auto&  dccAddrOutput     = pBaseDcc->GetAddrOutput();
+        const uint32 lookupTableWidth  = dccAddrOutput.metaBlkWidth  / dccAddrOutput.compressBlkWidth;
+        const uint32 lookupTableHeight = dccAddrOutput.metaBlkHeight / dccAddrOutput.compressBlkHeight;
+
+        m_dccLookupTableOffset = Util::Pow2Align((*pGpuOffset), DccLookupTableAlignment);
+        m_dccLookupTableSize   = lookupTableWidth * lookupTableHeight * ElementSize * m_createInfo.arraySize;
+
+        UpdateMetaDataHeaderLayout(pGpuMemLayout, m_dccLookupTableOffset, DccLookupTableAlignment);
+
+        *pGpuOffset += m_dccLookupTableSize;
+    }
+}
+
+// =====================================================================================================================
+void Image::BuildDccLookupTableBufferView(
+    BufferViewInfo* pViewInfo) const
+{
+    pViewInfo->gpuAddr        = Parent()->GetGpuVirtualAddr() + m_dccLookupTableOffset;
+    pViewInfo->range          = m_dccLookupTableSize;
+    pViewInfo->stride         = 1;
+    pViewInfo->swizzledFormat = UndefinedSwizzledFormat;
+
+#if  PAL_CLIENT_INTERFACE_MAJOR_VERSION>= 558
+    const auto& settings = m_device.Settings();
+
+    pViewInfo->flags.bypassMallRead  = TestAnyFlagSet(settings.rpmViewsBypassMall, Gfx10RpmViewsBypassMallOnRead);
+    pViewInfo->flags.bypassMallWrite = TestAnyFlagSet(settings.rpmViewsBypassMall, Gfx10RpmViewsBypassMallOnWrite);
+#endif
 }
 
 // =====================================================================================================================
@@ -2760,7 +2818,7 @@ bool Image::ColorImageSupportsAllFastClears() const
 {
     bool allColorClearsSupported = false;
 
-    PAL_ASSERT (m_pParent->IsDepthStencil() == false);
+    PAL_ASSERT (m_pParent->IsDepthStencilTarget() == false);
 
     if (m_createInfo.samples > 1)
     {
@@ -2861,7 +2919,7 @@ bool Image::SupportsMetaDataTextureFetch(
             // Linear swizzle modes don't have meta-data to be fetched
             (AddrMgr2::IsLinearSwizzleMode(swizzleMode) == false))
         {
-            if (m_pParent->IsDepthStencil())
+            if (m_pParent->IsDepthStencilTarget())
             {
                 // Check if DB resource can use shader compatible compression
                 texFetchSupported = DepthImageSupportsMetaDataTextureFetch(format, subResource);
@@ -3147,7 +3205,7 @@ bool Image::SupportsComputeDecompress(
     ) const
 {
     const auto& layoutToState = m_layoutToState;
-    const uint32 engines = (m_pParent->IsDepthStencil()
+    const uint32 engines = (m_pParent->IsDepthStencilTarget()
                            ? layoutToState.depthStencil[GetDepthStencilStateIndex(subresId.aspect)].compressed.engines
                            : layoutToState.color.compressed.engines);
 
@@ -3410,25 +3468,59 @@ void Image::Addr2InitSubResInfoGfx10(
     const Pal::Image*     pParent     = Parent();
     const auto&           createInfo  = pParent->GetImageCreateInfo();
     const bool            isYuvPlanar = Formats::IsYuvPlanar(createInfo.swizzledFormat.format);
+    const bool            IsBc = Formats::IsBlockCompressed(createInfo.swizzledFormat.format);
+
     SubResourceInfo*const pSubRes     = (pSubResInfoList + subResIt.Index());
     const auto*           pAddrOutput = GetAddrOutput(pSubRes);
     const uint32          planeIdx    = pParent->GetPlaneFromAspect(pSubRes->subresId.aspect);
     TileInfo*const        pTileInfo   = NonConstTileInfo(pSubResTileInfoList, subResIt.Index());
 
-    if (isYuvPlanar == false)
+    if ((IsBc == true) && (createInfo.mipLevels > 1))
+    {
+        const uint32 aspectIdx = GetAspectIndex(pSubRes->subresId.aspect);
+
+        ADDR2_COMPUTE_SURFACE_ADDRFROMCOORD_INPUT input = {};
+        input.size            = sizeof(ADDR2_COMPUTE_SURFACE_ADDRFROMCOORD_INPUT);
+        input.mipId           = pSubRes->subresId.mipLevel;
+        input.slice           = pSubRes->subresId.arraySlice;
+        input.x               = 0;
+        input.y               = 0;
+        input.sample          = 0;
+        input.unalignedWidth  = pSubResInfoList->extentElements.width;
+        input.unalignedHeight = pSubResInfoList->extentElements.height;
+        input.numSlices       = (createInfo.imageType == ImageType::Tex3d) ? createInfo.extent.depth: createInfo.arraySize;
+        input.numMipLevels    = createInfo.mipLevels;
+        input.numSamples      = createInfo.samples;
+        input.numFrags        = createInfo.fragments;
+        input.swizzleMode     = m_addrSurfSetting[aspectIdx].swizzleMode;
+        input.resourceType    = m_addrSurfSetting[aspectIdx].resourceType;
+        input.pipeBankXor     = pTileInfo->pipeBankXor;
+        input.bpp             = Formats::BitsPerPixel(createInfo.swizzledFormat.format);
+
+        ADDR2_COMPUTE_SURFACE_ADDRFROMCOORD_OUTPUT  output = {};
+        output.size = sizeof(ADDR2_COMPUTE_SURFACE_ADDRFROMCOORD_OUTPUT);
+
+        const ADDR_E_RETURNCODE retCode = Addr2ComputeSurfaceAddrFromCoord(
+                                                            m_device.AddrLibHandle(),
+                                                            &input,
+                                                            &output);
+        PAL_ASSERT(retCode == ADDR_OK);
+        pSubRes->offset = output.addr;
+    }
+    else if (isYuvPlanar == true)
+    {
+        // YUV planar surfaces are stored in [y] [uv] order for each slice.  i.e., the Y data across various
+        // slices is non-contiguous.  YUV surfaces can't have multiple mip levels.
+        pSubRes->offset = m_aspectOffset[planeIdx] +                        // offset within this slice
+                          pSubRes->subresId.arraySlice * m_totalAspectSize; // all previous slices
+    }
+    else
     {
         // For non-YUV planar surfaces, each aspect is stored contiguously.  i.e., all of aspect 0 data is stored
         // prior to aspect 1 data starting.
         pSubRes->offset = pSubRes->offset          + // existing offset to this miplevel within the slice
                           m_aspectOffset[planeIdx] + // offset of any previous aspects
                           pSubRes->subresId.arraySlice * pAddrOutput->sliceSize; // offset of any previous slices
-    }
-    else
-    {
-        // YUV planar surfaces are stored in [y] [uv] order for each slice.  i.e., the Y data across various
-        // slices is non-contiguous.  YUV surfaces can't have multiple mip levels.
-        pSubRes->offset = m_aspectOffset[planeIdx] +                        // offset within this slice
-                          pSubRes->subresId.arraySlice * m_totalAspectSize; // all previous slices
     }
 
     if (pSubRes->subresId.mipLevel == 0)
@@ -3573,7 +3665,7 @@ bool Image::IsHtileDepthOnly() const
 
     bool  depthOnly = false;
 
-    PAL_ASSERT(pParent->IsDepthStencil());
+    PAL_ASSERT(pParent->IsDepthStencilTarget());
 
     // Use Z-only hTile if this image's format doesn't have a stencil aspect
     if ((pDevice->SupportsStencil(createInfo.swizzledFormat.format, createInfo.tiling) == false) ||
@@ -3588,31 +3680,6 @@ bool Image::IsHtileDepthOnly() const
     }
 
     return depthOnly;
-}
-
-// =====================================================================================================================
-// Returns "true" if either:
-//   1) This image's format doesn't support rendering (or shader writes)
-//   2) This image's format supports rendering (or shader writes) and supports shader reads
-//
-// Returns "false" if this image's format supports rendering (or shader writes) but does *not* support shader read
-// operations and it is not an SRGB format as those are special-cased in RPM copy operations.
-bool Image::ImageSupportsShaderReadsAndWrites() const
-{
-    const auto&  createInfo         = Parent()->GetImageCreateInfo();
-    const auto&  formatFeatureFlags = m_device.FeatureSupportFlags(createInfo.swizzledFormat.format,
-                                                                   createInfo.tiling);
-    bool         supported          = true;
-
-    if (TestAnyFlagSet(formatFeatureFlags, (FormatFeatureColorTargetWrite |
-                                            FormatFeatureMemoryShaderWrite)) &&
-        (Formats::IsSrgb(createInfo.swizzledFormat.format) == false)         &&
-        (TestAnyFlagSet(formatFeatureFlags, FormatFeatureMemoryShaderRead) == false))
-    {
-        supported = false;
-    }
-
-    return supported;
 }
 
 // =====================================================================================================================
@@ -3656,7 +3723,7 @@ uint32 Image::GetPipeMisalignedMetadataFirstMip(
     // applied in different circumstances for each.
 
     const GpuChipProperties& chipProps = m_gfxDevice.Parent()->ChipProperties();
-    const bool               isDepth   = m_pParent->IsDepthStencil();
+    const bool               isDepth   = m_pParent->IsDepthStencilTarget();
 
     if (chipProps.gfxLevel == GfxIpLevel::GfxIp9)
     {

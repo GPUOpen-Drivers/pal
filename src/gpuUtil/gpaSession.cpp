@@ -1768,10 +1768,16 @@ Result GpaSession::BeginSample(
                                                        (m_pDevice, pPerfExperiment, m_pPlatform);
                     if (pCtrSample != nullptr)
                     {
-                        pSampleItem->pPerfSample = pCtrSample;
                         pCtrSample->SetSampleMemoryProperties(secondaryGpuMemInfo, secondaryOffset, heapSize);
-
                         result = pCtrSample->Init(pSampleItem->sampleConfig.perfCounters.numCounters);
+                        if (result == Result::Success)
+                        {
+                            pSampleItem->pPerfSample = pCtrSample;
+                        }
+                        else
+                        {
+                            PAL_DELETE(pCtrSample, m_pPlatform);
+                        }
                     }
                     else
                     {
@@ -3503,8 +3509,10 @@ Result GpaSession::AcquirePerfExperiment(
                                                                             SqttTokenConfigAllTokens;
 
                 sqttInfo.optionFlags.threadTraceTokenConfig  = 1;
-                sqttInfo.optionValues.threadTraceTokenConfig = m_flags.enableSampleUpdates ? SqttTokenConfigMinimal :
-                                                                                             tokenConfig;
+
+                sqttInfo.optionFlags.threadTraceShaderTypeMask  = 1;
+                sqttInfo.optionValues.threadTraceShaderTypeMask = PerfShaderMaskAll;
+
                 // Build a mask for active Shader Engines so we don't try trace any inactive/harvested ones
                 uint32 activeSeMask = 0;
                 for (uint32 seIndex = 0; seIndex < m_deviceProps.gfxipProperties.shaderCore.numShaderEngines; seIndex++)
@@ -3520,8 +3528,10 @@ Result GpaSession::AcquirePerfExperiment(
                         }
                     }
                 }
+
                 PAL_ASSERT(activeSeMask != 0);
                 const uint32 traceSeMask = (sampleConfig.sqtt.seMask == 0) ? activeSeMask : (sampleConfig.sqtt.seMask & activeSeMask);
+
                 for (uint32 i = 0; (i < m_perfExperimentProps.shaderEngineCount) && (result == Result::Success); i++)
                 {
                     sqttInfo.optionValues.bufferSize = alignedBufferSize;
@@ -3532,29 +3542,31 @@ Result GpaSession::AcquirePerfExperiment(
                         // Build another mask of detailed info such as instruction tracing of SEs in order for gpu
                         // profiler tools, And the shader type mask controls which shader stages emit detailed tokens
                         // Note: An SE detailed mask of 0 means that detailed tokens should be enabled for all SEs.
-                        const bool enableDetailedTokens =
-                            (Util::TestAnyFlagSet(sampleConfig.sqtt.seDetailedMask, 1 << i) ||
-                             (sampleConfig.sqtt.seDetailedMask == 0));
+                        const bool enableDetailedTokens = (Util::TestAnyFlagSet(sampleConfig.sqtt.seDetailedMask, 1 << i) ||
+                                                            (sampleConfig.sqtt.seDetailedMask == 0));
 
                         // In the case of the seDetailedMask set for this specific SE we want to increase the buffer
                         // size.
-                        if (Util::TestAnyFlagSet(sampleConfig.sqtt.seDetailedMask, 1 << i) &&
+                        if (((sampleConfig.sqtt.seDetailedMask == 0) ||
+                              Util::TestAnyFlagSet(sampleConfig.sqtt.seDetailedMask, 1 << i)) &&
                             (skipInstTokens == false))
                         {
                             constexpr size_t DetailSqttSeBufferMultiplier = 4;
                             sqttInfo.optionValues.bufferSize *= DetailSqttSeBufferMultiplier;
                         }
 
-                        // All shader types are enabled by default so we don't need to modify the shader type mask when
-                        // detailed tokens are enabled for this SE.
-                        // If the user didn't request detailed tokens for this SE, we need to override the shader type
-                        // mask to turn them off.
-                        sqttInfo.optionFlags.threadTraceShaderTypeMask = enableDetailedTokens ?
-                                                                         sqttInfo.optionFlags.threadTraceShaderTypeMask :
-                                                                         1;
-                        sqttInfo.optionValues.threadTraceShaderTypeMask = enableDetailedTokens ?
-                                                                          PerfShaderMaskAll :
-                                                                          static_cast<PerfExperimentShaderFlags>(0);
+                        if (m_flags.enableSampleUpdates == true)
+                        {
+                            sqttInfo.optionValues.threadTraceTokenConfig = SqttTokenConfigMinimal;
+                        }
+                        else if((enableDetailedTokens == false) || (skipInstTokens == true))
+                        {
+                            sqttInfo.optionValues.threadTraceTokenConfig = tokenConfig;
+                        }
+                        else
+                        {
+                            sqttInfo.optionValues.threadTraceTokenConfig = SqttTokenConfigAllTokens;
+                        }
 #endif
                         sqttInfo.instance = i;
                         result = pExperiment->AddThreadTrace(sqttInfo);

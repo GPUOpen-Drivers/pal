@@ -121,11 +121,15 @@ Result Platform::Create(
     IPlatform**                 ppPlatform)
 {
     auto*const pPlatform = PAL_PLACEMENT_NEW(pPlacementAddr) Platform(allocCb, pNextPlatform, enabled);
+    Result result        = pPlatform->Init();
 
-    Result result = pPlatform->Init();
     if (result == Result::Success)
     {
         (*ppPlatform) = pPlatform;
+    }
+    else
+    {
+        pPlatform->Destroy();
     }
 
     return result;
