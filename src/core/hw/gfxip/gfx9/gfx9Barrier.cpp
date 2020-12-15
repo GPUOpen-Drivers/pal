@@ -1515,8 +1515,7 @@ void Device::Barrier(
                                                                            pCmdStream,
                                                                            gfx9Image,
                                                                            subresRange,
-                                                                           imageInfo.newLayout,
-                                                                           nullptr);
+                                                                           imageInfo.newLayout);
 
                         // After initializing Mask RAM, we need some syncs to guarantee the initialization blts have
                         // finished, even if other Blts caused these operations to occur before any Blts were performed.

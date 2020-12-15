@@ -403,8 +403,7 @@ bool Device::AcqRelInitMaskRam(
                                                        pCmdStream,
                                                        gfx9Image,
                                                        subresRange,
-                                                       imgBarrier.newLayout,
-                                                       nullptr);
+                                                       imgBarrier.newLayout);
 
     return usedCompute;
 }
