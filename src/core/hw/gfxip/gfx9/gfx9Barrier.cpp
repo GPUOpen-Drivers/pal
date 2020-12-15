@@ -1504,12 +1504,19 @@ void Device::Barrier(
                                        image.GetGpuVirtualAddr(), gfx9Image.GetGpuMemSyncSize(), &barrierOps);
                         }
 
+                        barrierOps.layoutTransitions.initMaskRam = 1;
+                        if (gfx9Image.HasDccStateMetaData(subresRange.startSubres.aspect))
+                        {
+                            barrierOps.layoutTransitions.updateDccStateMetadata = 1;
+                        }
+                        DescribeBarrier(pCmdBuf, &barrier.pTransitions[i], &barrierOps);
+
                         const bool usedCompute = RsrcProcMgr().InitMaskRam(pCmdBuf,
                                                                            pCmdStream,
                                                                            gfx9Image,
                                                                            subresRange,
                                                                            imageInfo.newLayout,
-                                                                           &barrierOps);
+                                                                           nullptr);
 
                         // After initializing Mask RAM, we need some syncs to guarantee the initialization blts have
                         // finished, even if other Blts caused these operations to occur before any Blts were performed.
@@ -1530,8 +1537,6 @@ void Device::Barrier(
                             initSyncReqs.cacheFlags |= CacheSyncFlushTcc;
                             initSyncReqs.cacheFlags |= CacheSyncInvTcc;
                         }
-
-                        DescribeBarrier(pCmdBuf, &barrier.pTransitions[i], &barrierOps);
                     }
                 }
                 else if (TestAnyFlagSet(imageInfo.newLayout.usages, LayoutUninitializedTarget))
