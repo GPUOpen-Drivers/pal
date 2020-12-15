@@ -110,8 +110,7 @@ public:
         Pal::CmdStream*               pCmdStream,
         const Image&                  dstImage,
         const SubresRange&            range,
-        ImageLayout                   layout,
-        Developer::BarrierOperations* pBarrierOps) const;
+        ImageLayout                   layout) const;
 
     void BuildHtileLookupTable(
         GfxCmdBuffer*      pCmdBuffer,

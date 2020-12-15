@@ -863,17 +863,11 @@ bool RsrcProcMgr::InitMaskRam(
     Pal::CmdStream*               pCmdStream,
     const Image&                  dstImage,
     const SubresRange&            range,
-    ImageLayout                   layout,
-    Developer::BarrierOperations* pBarrierOps
+    ImageLayout                   layout
     ) const
 {
     const auto&       settings   = GetGfx9Settings(*dstImage.Parent()->GetDevice());
     const Pal::Image* pParentImg = dstImage.Parent();
-
-    if (pBarrierOps != nullptr)
-    {
-        pBarrierOps->layoutTransitions.initMaskRam = 1;
-    }
 
     // If we're in this function, we know this surface has meta-data.  Most of the meta-data init functions use compute
     // so assume that by default.
@@ -1011,11 +1005,6 @@ bool RsrcProcMgr::InitMaskRam(
         // We need to initialize the Image's DCC state metadata to indicate that the Image can become DCC compressed
         // (or not) in upcoming operations.
         const bool canCompress = ImageLayoutCanCompressColorData(dstImage.LayoutToColorCompressionState(), layout);
-
-        if (pBarrierOps != nullptr)
-        {
-            pBarrierOps->layoutTransitions.updateDccStateMetadata = 1;
-        }
 
         // If the new layout is one which can write compressed DCC data,  then we need to update the Image's DCC state
         // metadata to indicate that the image will become DCC compressed in upcoming operations.
