@@ -70,7 +70,7 @@ public:
         IImage**                          ppImage,
         IGpuMemory**                      ppGpuMemory);
 
-    static void GetExternalSharedImageCreateInfo(
+    static Result GetExternalSharedImageCreateInfo(
         const Device&                device,
         const ExternalImageOpenInfo& openInfo,
         const ExternalSharedInfo&    sharedInfo,

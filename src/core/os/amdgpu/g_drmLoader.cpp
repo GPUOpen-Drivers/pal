@@ -1614,12 +1614,12 @@ int32 DrmLoaderFuncsProxy::pfnAmdgpuCsSubmitRaw(
 
 // =====================================================================================================================
 int32 DrmLoaderFuncsProxy::pfnAmdgpuCsSubmitRaw2(
-    amdgpu_device_handle        dev,
-    amdgpu_context_handle       context,
-    uint32_t                    bo_list_handle,
-    int                         num_chunks,
-    struct drm_amdgpu_cs_chunk  *chunks,
-    uint64_t                    *seq_no
+    amdgpu_device_handle          dev,
+    amdgpu_context_handle         context,
+    uint32_t                      bo_list_handle,
+    int                           num_chunks,
+    struct drm_amdgpu_cs_chunk *  chunks,
+    uint64_t *                    seq_no
     ) const
 {
     const int64 begin = Util::GetPerfCpuTime();
@@ -1627,21 +1627,21 @@ int32 DrmLoaderFuncsProxy::pfnAmdgpuCsSubmitRaw2(
                                                 context,
                                                 bo_list_handle,
                                                 num_chunks,
-                                                *chunks,
-                                                *seq_no);
+                                                chunks,
+                                                seq_no);
     const int64 end = Util::GetPerfCpuTime();
     const int64 elapse = end - begin;
     m_timeLogger.Printf("AmdgpuCsSubmitRaw2,%ld,%ld,%ld\n", begin, end, elapse);
     m_timeLogger.Flush();
 
     m_paramLogger.Printf(
-        "AmdgpuCsSubmitRaw2(%p, %p, %x, %x, %x, %lx)\n",
+        "AmdgpuCsSubmitRaw2(%p, %p, %x, %x, %p, %p)\n",
         dev,
         context,
         bo_list_handle,
         num_chunks,
-        *chunks,
-        *seq_no);
+        chunks,
+        seq_no);
     m_paramLogger.Flush();
 
     return ret;
@@ -2595,15 +2595,15 @@ int32 DrmLoaderFuncsProxy::pfnDrmPrimeFDToHandle(
 
 // =====================================================================================================================
 int32 DrmLoaderFuncsProxy::pfnDrmModeAddFB2(
-    int32    fd,
-    uint32   width,
-    uint32   height,
-    uint32   pixelFormat,
-    uint32   boHandles[4],
-    uint32   pitches[4],
-    uint32   offsets[4],
-    uint32*  pBufId,
-    uint32   flags
+    int32      fd,
+    uint32     width,
+    uint32     height,
+    uint32     pixelFormat,
+    uint32     boHandles[4],
+    uint32     pitches[4],
+    uint32     offsets[4],
+    uint32*    pBufId,
+    uint32     flags
     ) const
 {
     const int64 begin = Util::GetPerfCpuTime();

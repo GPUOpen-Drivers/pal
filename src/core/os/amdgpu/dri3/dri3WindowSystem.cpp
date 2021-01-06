@@ -590,8 +590,12 @@ Result Dri3WindowSystem::CreatePresentableImage(
     Result       result     = Result::Success;
     xcb_pixmap_t pixmap     = InvalidPixmapId;
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
     const SubresId              subres      = { ImageAspect::Color, 0, 0 };
     const SubResourceInfo*const pSubResInfo = pImage->SubresourceInfo(subres);
+#else
+    const SubResourceInfo*const pSubResInfo = pImage->SubresourceInfo(0);
+#endif
 
     const uint32 width  = pSubResInfo->extentTexels.width;
     const uint32 height = pSubResInfo->extentTexels.height;

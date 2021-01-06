@@ -186,7 +186,7 @@ Section<Allocator>* Sections<Allocator>::Add(
         if (pSection != nullptr)
         {
             const uint32 nameOffset = (pSectionHdr == nullptr) ? m_pStringProcessor->Add(pName) : pSectionHdr->sh_name;
-            if (nameOffset == 0)
+            if (nameOffset == UINT_MAX)
             {
                 result = Result::ErrorOutOfMemory;
             }
@@ -269,7 +269,7 @@ Section<Allocator>* Sections<Allocator>::Add(
             if (pSection != nullptr)
             {
                 const uint32 nameOffset = m_pStringProcessor->Add(pName);
-                if (nameOffset == 0)
+                if (nameOffset == UINT_MAX)
                 {
                     result = Result::ErrorOutOfMemory;
                 }

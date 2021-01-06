@@ -77,11 +77,12 @@ struct HardwareStageMetadata
     uint32             vgprCount;
     /// Number of SGPRs used.
     uint32             sgprCount;
-    /// VGPR count upper limit (only set if different from HW default).
+    /// If non-zero, indicates the shader was compiled with a directive to instruct the compiler to limit the VGPR usage
+    /// to be less than or equal to the specified value (only set if different from HW default).
     uint32             vgprLimit;
     /// SGPR count upper limit (only set if different from HW default).
     uint32             sgprLimit;
-    /// Compute only. Thread-group X/Y/Z dimensions.
+    /// Thread-group X/Y/Z dimensions (Compute only).
     uint32             threadgroupDimensions[3];
     /// Wavefront size (only set if different from HW default).
     uint32             wavefrontSize;
@@ -94,15 +95,15 @@ struct HardwareStageMetadata
     {
         struct
         {
-            /// The shader reads or writes UAV(s).
+            /// The shader reads or writes UAVs.
             uint8 usesUavs          : 1;
-            /// The shader reads or writes ROV(s).
+            /// The shader reads or writes ROVs.
             uint8 usesRovs          : 1;
             /// The shader writes to one or more UAVs.
             uint8 writesUavs        : 1;
             /// The shader writes out a depth value.
             uint8 writesDepth       : 1;
-            /// The shader uses append or consume ops.
+            /// The shader uses append and/or consume operations, either memory or GDS.
             uint8 usesAppendConsume : 1;
             uint8 reserved          : 3;
         };
@@ -161,10 +162,10 @@ struct PipelineMetadata
     uint32                userDataLimit;
     /// The user data spill threshold.  0xFFFF for NoUserDataSpilling.
     uint32                spillThreshold;
-    /// Amount of LDS space used internally for handling data-passing between the ES and GS shader stages. This can be
-    /// zero if the data is passed using off-chip buffers. This value should be used to program all user-SGPRs which
-    /// have been marked with "UserDataMapping::EsGsLdsSize" (typically only the GS and VS HW stages will ever have a
-    /// user-SGPR so marked).
+    /// Size in bytes of LDS space used internally for handling data-passing between the ES and GS shader stages. This
+    /// can be zero if the data is passed using off-chip buffers. This value should be used to program all user-SGPRs
+    /// which have been marked with "UserDataMapping::EsGsLdsSize" (typically only the GS and VS HW stages will ever
+    /// have a user-SGPR so marked).
     uint32                esGsLdsSize;
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 619
     /// Address of stream out table entry.
@@ -172,13 +173,16 @@ struct PipelineMetadata
     /// Address(es) of indirect user data tables. 3 for VK, else 1.
     uint32                indirectUserDataTableAddresses[3];
 #endif
-    /// Explicit max subgroup size for NGG shaders (max number of threads in a subgroup).
+    /// Explicit maximum subgroup size for NGG shaders (maximum number of threads in a subgroup).
     uint32                nggSubgroupSize;
     /// Graphics only. Number of PS interpolants.
     uint32                numInterpolants;
+    /// Max mesh shader scratch memory used.
+    uint32                meshScratchMemorySize;
     /// Name of the client graphics API.
     char                  api[16];
-    /// Graphics API shader create info binary blob.
+    /// Graphics API shader create info binary blob. Can be defined by the driver using the compiler if they want to be
+    /// able to correlate API-specific information used during creation at a later time.
     BinaryData            apiCreateInfo;
 
     union
@@ -186,7 +190,7 @@ struct PipelineMetadata
         struct
         {
             /// Indicates whether or not the pipeline uses the viewport array index feature. Pipelines which use this
-            /// feature can render into all 16 viewports, whereas pipelines which don't use it are restricted to
+            /// feature can render into all 16 viewports, whereas pipelines which do not use it are restricted to
             /// viewport #0.
             uint8 usesViewportArrayIndex      : 1;
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 619
@@ -222,16 +226,17 @@ struct PipelineMetadata
 #endif
             uint32 nggSubgroupSize                : 1;
             uint32 numInterpolants                : 1;
-            uint32 placeholder2                   : 1;
+            uint32 meshScratchMemorySize          : 1;
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 619
             uint32 calcWaveBreakSizeAtDrawTime    : 1;
 #else
-            uint32 placeholder3                   : 1;
+            uint32 placeholder2                   : 1;
 #endif
+            uint32 placeholder3                   : 1;
             uint32 placeholder4                   : 1;
             uint32 api                            : 1;
             uint32 apiCreateInfo                  : 1;
-            uint32 reserved                       : 14;
+            uint32 reserved                       : 13;
         };
         uint32 uAll;
     } hasEntry;
@@ -281,6 +286,7 @@ namespace PipelineMetadataKey
 #endif
     static constexpr char NggSubgroupSize[]                = ".nggSubgroupSize";
     static constexpr char NumInterpolants[]                = ".num_interpolants";
+    static constexpr char MeshScratchMemorySize[]          = ".mesh_scratch_memory_size";
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 619
     static constexpr char CalcWaveBreakSizeAtDrawTime[]    = ".calc_wave_break_size_at_draw_time";
 #endif

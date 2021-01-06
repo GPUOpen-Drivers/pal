@@ -109,10 +109,6 @@ void SettingsLoader::ValidateSettings(
 {
     const auto& chipProps = m_pDevice->ChipProperties();
     const auto& gfx9Props = chipProps.gfx9;
-    // Some hardware can support 128 offchip buffers per SE, but most support 64.
-    const uint32 maxOffchipLdsBuffersPerSe = (gfx9Props.doubleOffchipLdsBuffers ? 128 : 64);
-    // Compute the number of offchip LDS buffers for the whole chip.
-    uint32 maxOffchipLdsBuffers = (gfx9Props.numShaderEngines * maxOffchipLdsBuffersPerSe);
 
     auto* pPalSettings = m_pDevice->GetPublicSettings();
 
@@ -158,6 +154,12 @@ void SettingsLoader::ValidateSettings(
         }
 
     }
+
+    // Some hardware can support 128 offchip buffers per SE, but most support 64.
+    const uint32 maxOffchipLdsBuffersPerSe = (gfx9Props.doubleOffchipLdsBuffers ? 128 : 64);
+
+    // Compute the number of offchip LDS buffers for the whole chip.
+    uint32 maxOffchipLdsBuffers = (gfx9Props.numShaderEngines * maxOffchipLdsBuffersPerSe);
 
     if (IsVega10(*m_pDevice))
     {
@@ -426,8 +428,6 @@ static void SetupNavi2xWorkarounds(
     const Pal::Device&  device,
     Gfx9PalSettings*    pSettings)
 {
-    pSettings->waCeDisableIb2 = true;
-
     // This bug is caused by shader UAV writes to stencil surfaces that have associated hTile data that in turn
     // contains VRS data.  The UAV to stencil will corrupt the VRS data.  No API that supports VRS allows for
     // application writes to stencil UAVs; however, PAL does it internally through image-to-image copies.  Force
@@ -493,6 +493,8 @@ static void SetupNavi21Workarounds(
     SetupNavi2xWorkarounds(device, pSettings);
 
     // Setup any Navi21 workarounds.
+
+    pSettings->waCeDisableIb2 = true;
 
     pSettings->waDisableFmaskNofetchOpOnFmaskCompressionDisable = true;
 

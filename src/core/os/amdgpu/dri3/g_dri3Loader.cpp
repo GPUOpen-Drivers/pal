@@ -571,7 +571,7 @@ xcb_void_cookie_t Dri3LoaderFuncsProxy::pfnXcbChangePropertyChecked(
     xcb_atom_t         type,
     uint8_t            format,
     uint32_t           data_len,
-    const void         *pData
+    const void *       pData
     ) const
 {
     const int64 begin = Util::GetPerfCpuTime();
@@ -582,14 +582,14 @@ xcb_void_cookie_t Dri3LoaderFuncsProxy::pfnXcbChangePropertyChecked(
                                                                   type,
                                                                   format,
                                                                   data_len,
-                                                                  *pData);
+                                                                  pData);
     const int64 end = Util::GetPerfCpuTime();
     const int64 elapse = end - begin;
     m_timeLogger.Printf("XcbChangePropertyChecked,%ld,%ld,%ld\n", begin, end, elapse);
     m_timeLogger.Flush();
 
     m_paramLogger.Printf(
-        "XcbChangePropertyChecked(%p, %x, %x, %x, %x, %x, %x, %x)\n",
+        "XcbChangePropertyChecked(%p, %x, %x, %x, %x, %x, %x, %p)\n",
         pConnection,
         mode,
         window,
@@ -597,7 +597,7 @@ xcb_void_cookie_t Dri3LoaderFuncsProxy::pfnXcbChangePropertyChecked(
         type,
         format,
         data_len,
-        *pData);
+        pData);
     m_paramLogger.Flush();
 
     return ret;
@@ -1708,25 +1708,25 @@ xcb_query_tree_cookie_t Dri3LoaderFuncsProxy::pfnXcbQueryTree(
 
 // =====================================================================================================================
 xcb_query_tree_reply_t* Dri3LoaderFuncsProxy::pfnXcbQueryTreeReply(
-    xcb_connection_t         *c,
+    xcb_connection_t *       c,
     xcb_query_tree_cookie_t  cookie,
-    xcb_generic_error_t      **e
+    xcb_generic_error_t **   e
     ) const
 {
     const int64 begin = Util::GetPerfCpuTime();
-    xcb_query_tree_reply_t* pRet = m_pFuncs->pfnXcbQueryTreeReply(*c,
+    xcb_query_tree_reply_t* pRet = m_pFuncs->pfnXcbQueryTreeReply(c,
                                                                   cookie,
-                                                                  **e);
+                                                                  e);
     const int64 end = Util::GetPerfCpuTime();
     const int64 elapse = end - begin;
     m_timeLogger.Printf("XcbQueryTreeReply,%ld,%ld,%ld\n", begin, end, elapse);
     m_timeLogger.Flush();
 
     m_paramLogger.Printf(
-        "XcbQueryTreeReply(%x, %p, %x)\n",
-        *c,
+        "XcbQueryTreeReply(%p, %p, %p)\n",
+        c,
         &cookie,
-        **e);
+        e);
     m_paramLogger.Flush();
 
     return pRet;
@@ -1734,12 +1734,12 @@ xcb_query_tree_reply_t* Dri3LoaderFuncsProxy::pfnXcbQueryTreeReply(
 
 // =====================================================================================================================
 xcb_get_window_attributes_cookie_t Dri3LoaderFuncsProxy::pfnXcbGetWindowAttributes(
-    xcb_connection_t  *c,
-    xcb_window_t      window
+    xcb_connection_t *  c,
+    xcb_window_t        window
     ) const
 {
     const int64 begin = Util::GetPerfCpuTime();
-    xcb_get_window_attributes_cookie_t ret = m_pFuncs->pfnXcbGetWindowAttributes(*c,
+    xcb_get_window_attributes_cookie_t ret = m_pFuncs->pfnXcbGetWindowAttributes(c,
                                                                                  window);
     const int64 end = Util::GetPerfCpuTime();
     const int64 elapse = end - begin;
@@ -1747,8 +1747,8 @@ xcb_get_window_attributes_cookie_t Dri3LoaderFuncsProxy::pfnXcbGetWindowAttribut
     m_timeLogger.Flush();
 
     m_paramLogger.Printf(
-        "XcbGetWindowAttributes(%x, %x)\n",
-        *c,
+        "XcbGetWindowAttributes(%p, %x)\n",
+        c,
         window);
     m_paramLogger.Flush();
 
@@ -1757,25 +1757,25 @@ xcb_get_window_attributes_cookie_t Dri3LoaderFuncsProxy::pfnXcbGetWindowAttribut
 
 // =====================================================================================================================
 xcb_get_window_attributes_reply_t* Dri3LoaderFuncsProxy::pfnXcbGetWindowAttributesReply(
-    xcb_connection_t                    *c,
+    xcb_connection_t *                  c,
     xcb_get_window_attributes_cookie_t  cookie,
-    xcb_generic_error_t                 **e
+    xcb_generic_error_t **              e
     ) const
 {
     const int64 begin = Util::GetPerfCpuTime();
-    xcb_get_window_attributes_reply_t* pRet = m_pFuncs->pfnXcbGetWindowAttributesReply(*c,
+    xcb_get_window_attributes_reply_t* pRet = m_pFuncs->pfnXcbGetWindowAttributesReply(c,
                                                                                        cookie,
-                                                                                       **e);
+                                                                                       e);
     const int64 end = Util::GetPerfCpuTime();
     const int64 elapse = end - begin;
     m_timeLogger.Printf("XcbGetWindowAttributesReply,%ld,%ld,%ld\n", begin, end, elapse);
     m_timeLogger.Flush();
 
     m_paramLogger.Printf(
-        "XcbGetWindowAttributesReply(%x, %p, %x)\n",
-        *c,
+        "XcbGetWindowAttributesReply(%p, %p, %p)\n",
+        c,
         &cookie,
-        **e);
+        e);
     m_paramLogger.Flush();
 
     return pRet;

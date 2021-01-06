@@ -354,8 +354,8 @@ typedef int32 (*AmdgpuCsSubmitRaw2)(
             amdgpu_context_handle         context,
             uint32_t                      bo_list_handle,
             int                           num_chunks,
-            struct drm_amdgpu_cs_chunk    *chunks,
-            uint64_t                      *seq_no);
+            struct drm_amdgpu_cs_chunk *  chunks,
+            uint64_t *                    seq_no);
 
 typedef void (*AmdgpuCsChunkFenceToDep)(
             struct amdgpu_cs_fence*           pFence,
@@ -538,15 +538,15 @@ typedef int32 (*DrmPrimeFDToHandle)(
             uint32*   pHandle);
 
 typedef int32 (*DrmModeAddFB2)(
-            int32     fd,
-            uint32    width,
-            uint32    height,
-            uint32    pixelFormat,
-            uint32    boHandles[4],
-            uint32    pitches[4],
-            uint32    offsets[4],
-            uint32*   pBufId,
-            uint32    flags);
+            int32         fd,
+            uint32        width,
+            uint32        height,
+            uint32        pixelFormat,
+            uint32        boHandles[4],
+            uint32        pitches[4],
+            uint32        offsets[4],
+            uint32*       pBufId,
+            uint32        flags);
 
 typedef int32 (*DrmModePageFlip)(
             int32     fd,
@@ -2011,8 +2011,8 @@ public:
             amdgpu_context_handle         context,
             uint32_t                      bo_list_handle,
             int                           num_chunks,
-            struct drm_amdgpu_cs_chunk    *chunks,
-            uint64_t                      *seq_no) const;
+            struct drm_amdgpu_cs_chunk *  chunks,
+            uint64_t *                    seq_no) const;
 
     bool pfnAmdgpuCsSubmitRaw2isValid() const
     {
@@ -2394,15 +2394,15 @@ public:
     }
 
     int32 pfnDrmModeAddFB2(
-            int32     fd,
-            uint32    width,
-            uint32    height,
-            uint32    pixelFormat,
-            uint32    boHandles[4],
-            uint32    pitches[4],
-            uint32    offsets[4],
-            uint32*   pBufId,
-            uint32    flags) const;
+            int32         fd,
+            uint32        width,
+            uint32        height,
+            uint32        pixelFormat,
+            uint32        boHandles[4],
+            uint32        pitches[4],
+            uint32        offsets[4],
+            uint32*       pBufId,
+            uint32        flags) const;
 
     bool pfnDrmModeAddFB2isValid() const
     {

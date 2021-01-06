@@ -47,7 +47,11 @@ public:
         void*                       pPlacementAddr,
         IPlatform**                 ppPlatform);
 
-    Platform(const Util::AllocCallbacks& allocCb, IPlatform* pNextPlatform, bool enabled);
+    Platform(
+        const PlatformCreateInfo&   createInfo,
+        const Util::AllocCallbacks& allocCb,
+        IPlatform*                  pNextPlatform,
+        bool                        enabled);
 
     // Public IPlatform interface methods:
     virtual Result EnumerateDevices(uint32* pDeviceCount, IDevice* pDevices[MaxDevices]) override;

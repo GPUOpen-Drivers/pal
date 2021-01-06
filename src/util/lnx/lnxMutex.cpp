@@ -32,26 +32,6 @@ namespace Util
 {
 
 // =====================================================================================================================
-// Frees the pthreads mutex this object encapsulates.
-Mutex::~Mutex()
-{
-    if (m_initialized)
-    {
-        const int ret = pthread_mutex_destroy(&m_osMutex);
-        PAL_ASSERT(ret == 0);
-    }
-}
-
-// =====================================================================================================================
-// Initializes the pthreads mutex this object encapsulates.
-Result Mutex::Init()
-{
-    m_initialized = m_initialized || (pthread_mutex_init(&m_osMutex, nullptr) == 0);
-
-    return m_initialized ? Result::Success : Result::ErrorUnknown;
-}
-
-// =====================================================================================================================
 // Acquires the mutex if it is not contended.  If it is contended, waits for the mutex to become available, then
 // acquires it.
 void Mutex::Lock()
@@ -77,26 +57,6 @@ void Mutex::Unlock()
 {
     const int ret = pthread_mutex_unlock(&m_osMutex);
     PAL_ASSERT(ret == 0);
-}
-
-// =====================================================================================================================
-// Initializes pthread rwlock.
-Result RWLock::Init()
-{
-    m_initialized = m_initialized || (pthread_rwlock_init(&m_osRWLock, nullptr) == 0);
-
-    return m_initialized ? Result::Success : Result::ErrorUnknown;
-}
-
-// =====================================================================================================================
-// Destroys pthread rwlock.
-RWLock::~RWLock()
-{
-    if (m_initialized)
-    {
-        const int ret = pthread_rwlock_destroy(&m_osRWLock);
-        PAL_ASSERT(ret == 0);
-    }
 }
 
 // =====================================================================================================================

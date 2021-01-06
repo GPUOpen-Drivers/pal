@@ -53,10 +53,12 @@ public:
         const DepthStencilViewInternalCreateInfo& internalInfo);
 
     virtual uint32* WriteCommands(
-        ImageLayout depthLayout,
-        ImageLayout stencilLayout,
-        CmdStream*  pCmdStream,
-        uint32*     pCmdSpace) const = 0;
+        ImageLayout            depthLayout,
+        ImageLayout            stencilLayout,
+        CmdStream*             pCmdStream,
+        bool                   isNested,
+        regDB_RENDER_OVERRIDE* pDbRenderOverride,
+        uint32*                pCmdSpace) const = 0;
 
     virtual uint32* UpdateZRangePrecision(
         bool       requiresCondExec,
@@ -84,6 +86,14 @@ public:
     static uint32* HandleBoundTargetChanged(uint32* pCmdSpace);
 
     TargetExtent2d GetExtent() const { return m_extent; }
+
+    static const uint32 DbRenderOverrideRmwMask = DB_RENDER_OVERRIDE__FORCE_HIZ_ENABLE_MASK        |
+                                                  DB_RENDER_OVERRIDE__FORCE_HIS_ENABLE0_MASK       |
+                                                  DB_RENDER_OVERRIDE__FORCE_HIS_ENABLE1_MASK       |
+                                                  DB_RENDER_OVERRIDE__FORCE_STENCIL_VALID_MASK     |
+                                                  DB_RENDER_OVERRIDE__FORCE_Z_VALID_MASK           |
+                                                  DB_RENDER_OVERRIDE__DISABLE_TILE_RATE_TILES_MASK |
+                                                  DB_RENDER_OVERRIDE__NOOP_CULL_DISABLE_MASK;
 
 protected:
     virtual ~DepthStencilView()
@@ -120,8 +130,8 @@ protected:
             uint32 hTile                   :  1;
             uint32 depth                   :  1;
             uint32 stencil                 :  1;
-            uint32 readOnlyDepth           :  1; // Set if the depth aspect is present and is read-only
-            uint32 readOnlyStencil         :  1; // Set if the stencil aspect is present and is read-only
+            uint32 readOnlyDepth           :  1; // Set if the depth plane is present and is read-only
+            uint32 readOnlyStencil         :  1; // Set if the stencil plane is present and is read-only
             uint32 depthMetadataTexFetch   :  1;
             uint32 stencilMetadataTexFetch :  1;
             uint32 vrsOnlyDepth            :  1; // Set if the image is used for VRS-only depth
@@ -200,10 +210,12 @@ public:
         const DepthStencilViewInternalCreateInfo& internalInfo);
 
     uint32* WriteCommands(
-        ImageLayout depthLayout,
-        ImageLayout stencilLayout,
-        CmdStream*  pCmdStream,
-        uint32*     pCmdSpace) const override;
+        ImageLayout            depthLayout,
+        ImageLayout            stencilLayout,
+        CmdStream*             pCmdStream,
+        bool                   isNested,
+        regDB_RENDER_OVERRIDE* pDbRenderOverride,
+        uint32*                pCmdSpace) const override;
 
     virtual uint32* UpdateZRangePrecision(
         bool       requiresCondExec,
@@ -266,10 +278,12 @@ public:
         const DepthStencilViewInternalCreateInfo& internalInfo);
 
     uint32* WriteCommands(
-        ImageLayout depthLayout,
-        ImageLayout stencilLayout,
-        CmdStream*  pCmdStream,
-        uint32*     pCmdSpace) const override;
+        ImageLayout            depthLayout,
+        ImageLayout            stencilLayout,
+        CmdStream*             pCmdStream,
+        bool                   isNested,
+        regDB_RENDER_OVERRIDE* pDbRenderOverride,
+        uint32*                pCmdSpace) const override;
 
     uint32 BaseArraySlice() const { return m_baseArraySlice; }
     uint32 ArraySize() const { return m_arraySize; }

@@ -103,6 +103,8 @@ static constexpr FuncLoggingTableEntry FuncLoggingTable[] =
     { InterfaceFunc::CmdBufferCmdDispatch,                          (CmdBuild)            },
     { InterfaceFunc::CmdBufferCmdDispatchIndirect,                  (CmdBuild)            },
     { InterfaceFunc::CmdBufferCmdDispatchOffset,                    (CmdBuild)            },
+    { InterfaceFunc::CmdBufferCmdDispatchMesh,                      (CmdBuild)            },
+    { InterfaceFunc::CmdBufferCmdDispatchMeshIndirectMulti,         (CmdBuild)            },
     { InterfaceFunc::CmdBufferCmdCopyMemory,                        (CmdBuild)            },
     { InterfaceFunc::CmdBufferCmdCopyImage,                         (CmdBuild)            },
     { InterfaceFunc::CmdBufferCmdCopyMemoryToImage,                 (CmdBuild)            },
@@ -307,12 +309,12 @@ static_assert(ArrayLen(FuncLoggingTable) == static_cast<size_t>(InterfaceFunc::C
 
 // =====================================================================================================================
 Platform::Platform(
-    const PlatformCreateInfo    createInfo,
+    const PlatformCreateInfo&   createInfo,
     const Util::AllocCallbacks& allocCb,
     IPlatform*                  pNextPlatform,
     bool                        enabled)
     :
-    PlatformDecorator(allocCb, InterfaceLoggerCb, enabled, enabled, pNextPlatform),
+    PlatformDecorator(createInfo, allocCb, InterfaceLoggerCb, enabled, enabled, pNextPlatform),
     m_createInfo(createInfo),
     m_pMainLog(nullptr),
     m_nextThreadId(0),
@@ -405,14 +407,9 @@ Result Platform::Init()
 
     if (m_layerEnabled && (result == Result::Success))
     {
-        result = m_platformMutex.Init();
-
-        if (result == Result::Success)
-        {
-            // Create the key we will use to manage thread-specific data.
-            result = CreateThreadLocalKey(&m_threadKey);
-            m_flags.threadKeyCreated = (result == Result::Success);
-        }
+        // Create the key we will use to manage thread-specific data.
+        result = CreateThreadLocalKey(&m_threadKey);
+        m_flags.threadKeyCreated = (result == Result::Success);
 
         // Query the timer frequency and starting time.
         uint64 timerFreq = 0;

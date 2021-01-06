@@ -1387,7 +1387,11 @@ void DmaCmdBuffer::SetupMetaData(
         const auto*const   pFmtInfo     =
             Pal::Formats::Gfx9::MergedChannelFlatFmtInfoTbl(gfxLevel, &pPalDevice->GetPlatform()->PlatformSettings());
         const Gfx9MaskRam* pMaskRam     = nullptr;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
         const SubresId     baseSubResId = { image.pSubresInfo->subresId.aspect, 0, 0 };
+#else
+        const SubresId     baseSubResId = { image.pSubresInfo->subresId.plane, 0, 0 };
+#endif
         const bool         colorMeta    = pGfxImage->HasDccData();
 
         if (colorMeta)
@@ -1398,7 +1402,11 @@ void DmaCmdBuffer::SetupMetaData(
             if (colorCompressState != ColorDecompressed)
             {
                 const ChNumFormat                format     = createInfo.swizzledFormat.format;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
                 const Gfx9Dcc*                   pDcc       = pGfxImage->GetDcc(image.pSubresInfo->subresId.aspect);
+#else
+                const Gfx9Dcc*                   pDcc       = pGfxImage->GetDcc(image.pSubresInfo->subresId.plane);
+#endif
                 const regCB_COLOR0_DCC_CONTROL&  dccControl = pDcc->GetControlReg();
                 const SurfaceSwap                surfSwap   = Formats::Gfx9::ColorCompSwap(createInfo.swizzledFormat);
 
@@ -1455,8 +1463,23 @@ void DmaCmdBuffer::SetupMetaData(
             pPacket->META_ADDR_LO_UNION.meta_addr_31_0  = LowPart(maskRam256Addr << 8);
             pPacket->META_ADDR_HI_UNION.meta_addr_63_32 = HighPart(maskRam256Addr << 8);
 
-            // In HW, "Color-0, Z-1, Stencil-2, Fmask-3", which lines up nicely with our aspect enumerations.
+            // In HW, "Color-0, Z-1, Stencil-2, Fmask-3".
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
             pPacket->META_CONFIG_UNION.surface_type = static_cast<uint32>(image.pSubresInfo->subresId.aspect);
+#else
+            if (pPalImage->IsDepthPlane(image.pSubresInfo->subresId.plane))
+            {
+                pPacket->META_CONFIG_UNION.surface_type = 1;
+            }
+            else if (pPalImage->IsStencilPlane(image.pSubresInfo->subresId.plane))
+            {
+                pPacket->META_CONFIG_UNION.surface_type = 2;
+            }
+            else
+            {
+                pPacket->META_CONFIG_UNION.surface_type = 0;
+            }
+#endif
 
             pPacket->META_CONFIG_UNION.write_compress_enable = (imageIsDst ? 1 : 0);
             pPacket->META_CONFIG_UNION.pipe_aligned          = pMaskRam->PipeAligned();
@@ -1801,7 +1824,11 @@ gpusize DmaCmdBuffer::GetSubresourceBaseAddr(
     {
         // GFX10 doesn't support mip-levels with linear surfaces.  They do, however, support slices.  We need to get
         // the starting offset of slice 0 of a given mip level.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
         const SubresId  baseSubres = { subresource.aspect, subresource.mipLevel, 0 };
+#else
+        const SubresId  baseSubres = { subresource.plane, subresource.mipLevel, 0 };
+#endif
 
         // Verify that we don't have to take into account the pipe/bank xor value here.
         PAL_ASSERT(GetPipeBankXor(image, subresource) == 0);
@@ -1813,7 +1840,11 @@ gpusize DmaCmdBuffer::GetSubresourceBaseAddr(
     {
         const GfxImage*  pGfxImage = image.GetGfxImage();
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
         baseAddr = pGfxImage->GetAspectBaseAddr(subresource.aspect);
+#else
+        baseAddr = pGfxImage->GetPlaneBaseAddr(subresource.plane);
+#endif
     }
 
     return baseAddr;
@@ -1837,8 +1868,12 @@ void DmaCmdBuffer::SetupDmaInfoExtent(
     ) const
 {
     const Pal::Image*  pImage          = reinterpret_cast<const Pal::Image*>(pImageInfo->pImage);
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
     const SubresId     baseSubResId    = { pImageInfo->pSubresInfo->subresId.aspect, 0, 0 };
     const auto*        pBaseSubResInfo = pImage->SubresourceInfo(baseSubResId);
+#else
+    const auto*        pBaseSubResInfo = pImage->SubresourceInfo(0);
+#endif
     const uint32       bytesPerPixel   = pBaseSubResInfo->bitsPerTexel / 8;
     const bool         nonPow2Bpp      = (IsPowerOfTwo(bytesPerPixel) == false);
 

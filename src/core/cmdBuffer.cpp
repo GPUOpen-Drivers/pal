@@ -145,6 +145,8 @@ CmdBuffer::CmdBuffer(
     m_funcTable.pfnCmdDispatch                  = CmdDispatchInvalid;
     m_funcTable.pfnCmdDispatchIndirect          = CmdDispatchIndirectInvalid;
     m_funcTable.pfnCmdDispatchOffset            = CmdDispatchOffsetInvalid;
+    m_funcTable.pfnCmdDispatchMesh              = CmdDispatchMeshInvalid;
+    m_funcTable.pfnCmdDispatchMeshIndirectMulti = CmdDispatchMeshIndirectMultiInvalid;
 }
 
 // =====================================================================================================================
@@ -680,7 +682,8 @@ Result CmdBuffer::AllocateAndBindGpuMemToEvent(
 }
 
 // =====================================================================================================================
-// Root level barrier function.  Currently only used for validation of depth / stencil image transitions.
+// Root level barrier function.  Currently only used for validation of depth / stencil image transitions, and range
+// validation.
 void CmdBuffer::CmdBarrier(
     const BarrierInfo& barrierInfo)
 {
@@ -700,48 +703,68 @@ void CmdBuffer::CmdBarrier(
             {
                 const ImageCreateFlags&  imageCreateFlags = pImage->GetImageCreateInfo().flags;
 
+                // Validate the range.
+                pImage->ValidateSubresRange(transitionInfo.subresRange);
+
                 // If we have (deep breath):
-                //     A depth image with both Z and stencil aspects
+                //     A depth image with both Z and stencil planes
                 //     That is coming out of uninitialized state
                 //     That we haven't seen before
                 //     That is valid for sub-resource-init
-                //     That must transition both the depth and stencil aspects on the same barrier call to be safe
+                //     That must transition both the depth and stencil planes on the same barrier call to be safe
                 //
                 // then we need to do a little more validation.
                 if (pImage->IsDepthStencilTarget()                                             &&
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
                     pImage->IsAspectValid(ImageAspect::Depth)                                  &&
                     pImage->IsAspectValid(ImageAspect::Stencil)                                &&
+#else
+                    (pImage->GetImageInfo().numPlanes == 2)                                    &&
+#endif
                     TestAnyFlagSet(transitionInfo.oldLayout.usages, LayoutUninitializedTarget) &&
                     (processed[idx] == false)                                                  &&
                     imageCreateFlags.perSubresInit                                             &&
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
                     (imageCreateFlags.separateDepthAspectInit == false))
+#else
+                    (imageCreateFlags.separateDepthPlaneInit == false))
+#endif
                 {
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
                     const ImageAspect  firstAspect = transitionInfo.subresRange.startSubres.aspect;
                     const ImageAspect  otherAspect = (firstAspect == ImageAspect::Depth)
                                                      ? ImageAspect::Stencil
                                                      : ImageAspect::Depth;
+#else
+                    const uint32 firstPlane = transitionInfo.subresRange.startSubres.plane;
+                    const uint32 otherPlane = (firstPlane == 0) ? 1 : 0;
+#endif
 
-                    bool  otherAspectFound = false;
+                    bool  otherPlaneFound = false;
                     for (uint32  innerIdx = idx + 1;
-                         ((otherAspectFound == false) && (innerIdx < barrierInfo.transitionCount));
+                         ((otherPlaneFound == false) && (innerIdx < barrierInfo.transitionCount));
                          innerIdx++)
                     {
                         const auto&  innerTransitionInfo = barrierInfo.pTransitions[innerIdx].imageInfo;
 
-                        // We found the other aspect if this transition is:
+                        // We found the other plane if this transition is:
                         //   1) Referencing the same image
                         //   2) Also coming out of uninitialized state
-                        //   3) Refers to the "other" aspect
+                        //   3) Refers to the "other" plane
                         if ((innerTransitionInfo.pImage == pImage)    &&
                             TestAnyFlagSet(innerTransitionInfo.oldLayout.usages, LayoutUninitializedTarget) &&
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
                             (innerTransitionInfo.subresRange.startSubres.aspect == otherAspect))
+#else
+                            (innerTransitionInfo.subresRange.startSubres.plane == otherPlane))
+#endif
                         {
                             processed[innerIdx] = true;
-                            otherAspectFound    = true;
+                            otherPlaneFound    = true;
                         }
                     }
 
-                    PAL_ALERT(otherAspectFound == false);
+                    PAL_ALERT(otherPlaneFound == false);
 
                     processed[idx] = true;
                 } // end check for an image that needs more validation
@@ -752,20 +775,34 @@ void CmdBuffer::CmdBarrier(
 }
 
 // =====================================================================================================================
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
+uint32 CmdBuffer::CmdRelease(
+    const AcquireReleaseInfo& releaseInfo)
+#else
 void CmdBuffer::CmdRelease(
     const AcquireReleaseInfo& releaseInfo,
     const IGpuEvent*          pGpuEvent)
+#endif
 {
 #if PAL_ENABLE_PRINTS_ASSERTS
     VerifyBarrierTransitions(releaseInfo);
+#endif
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
+    return 0;
 #endif
 }
 
 // =====================================================================================================================
 void CmdBuffer::CmdAcquire(
     const AcquireReleaseInfo& acquireInfo,
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
+    uint32                    syncTokenCount,
+    const uint32*             pSyncTokens)
+#else
     uint32                    gpuEventCount,
     const IGpuEvent*const*    ppGpuEvents)
+#endif
 {
 #if PAL_ENABLE_PRINTS_ASSERTS
     VerifyBarrierTransitions(acquireInfo);
@@ -1149,7 +1186,34 @@ void PAL_STDCALL CmdBuffer::CmdDispatchOffsetInvalid(
 }
 
 // =====================================================================================================================
-// Helper function used for validation of depth / stencil image transitions. For Release/acquire-based barrier only.
+// Default implementation of CmdDispatchMesh is unimplemented, derived CmdBuffer classes should override it if
+// supported.
+void PAL_STDCALL CmdBuffer::CmdDispatchMeshInvalid(
+    ICmdBuffer* pCmdBuffer,
+    uint32      xDim,
+    uint32      yDim,
+    uint32      zDim)
+{
+    PAL_NEVER_CALLED();
+}
+
+// =====================================================================================================================
+// Default implementation of CmdDispatchMeshIndirect is unimplemented, derived CmdBuffer classes should override it if
+// supported.
+void PAL_STDCALL CmdBuffer::CmdDispatchMeshIndirectMultiInvalid(
+    ICmdBuffer*       pCmdBuffer,
+    const IGpuMemory& gpuMemory,
+    gpusize           offset,
+    uint32            stride,
+    uint32            maximumCount,
+    gpusize           countGpuAddr)
+{
+    PAL_NEVER_CALLED();
+}
+
+// =====================================================================================================================
+// Helper function used for validation of depth / stencil image transitions, and range validation. For
+// Release/acquire-based barrier only.
 void CmdBuffer::VerifyBarrierTransitions(
     const AcquireReleaseInfo& barrierInfo
     ) const
@@ -1168,48 +1232,68 @@ void CmdBuffer::VerifyBarrierTransitions(
 
             const ImageCreateFlags&  imageCreateFlags = pImage->GetImageCreateInfo().flags;
 
+            // Validate the range.
+            pImage->ValidateSubresRange(transition.subresRange);
+
             // If we have (deep breath):
-            //     A depth image with both Z and stencil aspects
+            //     A depth image with both Z and stencil planes
             //     That is coming out of uninitialized state
             //     That we haven't seen before
             //     That is valid for sub-resource-init
-            //     That must transition both the depth and stencil aspects on the same barrier call to be safe
+            //     That must transition both the depth and stencil planes on the same barrier call to be safe
             //
             // then we need to do a little more validation.
             if (pImage->IsDepthStencilTarget()                                             &&
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
                 pImage->IsAspectValid(ImageAspect::Depth)                                  &&
                 pImage->IsAspectValid(ImageAspect::Stencil)                                &&
+#else
+                (pImage->GetImageInfo().numPlanes == 2)                                    &&
+#endif
                 TestAnyFlagSet(transition.oldLayout.usages, LayoutUninitializedTarget)     &&
                 (processed[idx] == false)                                                  &&
                 imageCreateFlags.perSubresInit                                             &&
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
                 (imageCreateFlags.separateDepthAspectInit == false))
+#else
+                (imageCreateFlags.separateDepthPlaneInit == false))
+#endif
             {
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
                 const ImageAspect  firstAspect = transition.subresRange.startSubres.aspect;
                 const ImageAspect  otherAspect = (firstAspect == ImageAspect::Depth)
                                                     ? ImageAspect::Stencil
                                                     : ImageAspect::Depth;
+#else
+                const uint32 firstPlane = transition.subresRange.startSubres.plane;
+                const uint32 otherPlane = (firstPlane == 0) ? 1 : 0;
+#endif
 
-                bool  otherAspectFound = false;
+                bool  otherPlaneFound = false;
                 for (uint32  innerIdx = idx + 1;
-                     ((otherAspectFound == false) && (innerIdx < barrierInfo.imageBarrierCount));
+                     ((otherPlaneFound == false) && (innerIdx < barrierInfo.imageBarrierCount));
                      innerIdx++)
                 {
                     const ImgBarrier& innerTransition = barrierInfo.pImageBarriers[innerIdx];
 
-                    // We found the other aspect if this transition is:
+                    // We found the other plane if this transition is:
                     //   1) Referencing the same image
                     //   2) Also coming out of uninitialized state
-                    //   3) Refers to the "other" aspect
+                    //   3) Refers to the "other" plane
                     if ((innerTransition.pImage == pImage)                                          &&
                         TestAnyFlagSet(innerTransition.oldLayout.usages, LayoutUninitializedTarget) &&
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
                         (innerTransition.subresRange.startSubres.aspect == otherAspect))
+#else
+                        (innerTransition.subresRange.startSubres.plane == otherPlane))
+#endif
                     {
                         processed[innerIdx] = true;
-                        otherAspectFound    = true;
+                        otherPlaneFound    = true;
                     }
                 }
 
-                PAL_ALERT(otherAspectFound == false);
+                PAL_ALERT(otherPlaneFound == false);
 
                 processed[idx] = true;
             } // end check for an image that needs more validation

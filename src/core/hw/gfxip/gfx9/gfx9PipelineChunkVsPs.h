@@ -79,8 +79,7 @@ public:
         CmdStream* pCmdStream,
         uint32*    pCmdSpace) const;
 
-    regVGT_STRMOUT_CONFIG VgtStrmoutConfig() const { return m_regs.context.vgtStrmoutConfig; }
-    regVGT_STRMOUT_BUFFER_CONFIG VgtStrmoutBufferConfig() const { return m_regs.context.vgtStrmoutBufferConfig; }
+    bool UsesHwStreamout() const { return (m_regs.context.vgtStrmoutConfig.u32All != 0);  }
     regVGT_STRMOUT_VTX_STRIDE_0 VgtStrmoutVtxStride(uint32 idx) const
         { return m_regs.context.vgtStrmoutVtxStride[idx]; }
 

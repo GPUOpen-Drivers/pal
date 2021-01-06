@@ -82,7 +82,7 @@ public:
         IPlatform**                 ppPlatform);
 
     Platform(
-        const PlatformCreateInfo    createInfo,
+        const PlatformCreateInfo&   createInfo,
         const Util::AllocCallbacks& allocCb,
         IPlatform*                  pNextPlatform,
         bool                        enabled);

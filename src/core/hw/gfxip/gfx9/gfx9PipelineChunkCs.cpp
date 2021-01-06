@@ -43,7 +43,6 @@ namespace Gfx9
 // Base count of SH registers which are loaded using LOAD_SH_REG_INDEX when binding to a universal command buffer.
 constexpr uint32 BaseLoadedShRegCount =
     1 + // mmCOMPUTE_PGM_LO
-    1 + // mmCOMPUTE_PGM_HI
     1 + // mmCOMPUTE_PGM_RSRC1
     0 + // mmCOMPUTE_PGM_RSRC2 is not included because it partially depends on bind-time state
     0 + // mmCOMPUTE_PGM_RSRC3 is not included because it is not present on all HW
@@ -134,7 +133,7 @@ void PipelineChunkCs::LateInit(
         PAL_ASSERT(IsPow2Aligned(symbol.gpuVirtAddr, 256u));
 
         m_regs.computePgmLo.bits.DATA = Get256BAddrLo(symbol.gpuVirtAddr);
-        m_regs.computePgmHi.bits.DATA = Get256BAddrHi(symbol.gpuVirtAddr);
+        PAL_ASSERT(Get256BAddrHi(symbol.gpuVirtAddr) == 0);
     }
 
     if (pUploader->GetPipelineGpuSymbol(Abi::PipelineSymbolType::CsShdrIntrlTblPtr, &symbol) == Result::Success)
@@ -173,7 +172,6 @@ void PipelineChunkCs::LateInit(
         m_loadPath.count       = pUploader->ShRegisterCount();
 
         pUploader->AddShReg(mmCOMPUTE_PGM_LO, m_regs.computePgmLo);
-        pUploader->AddShReg(mmCOMPUTE_PGM_HI, m_regs.computePgmHi);
 
         pUploader->AddShReg((mmCOMPUTE_USER_DATA_0 + ConstBufTblStartReg), m_regs.userDataInternalTable);
 
@@ -289,6 +287,22 @@ void PipelineChunkCs::SetupSignatureFromElf(
             else if (value == static_cast<uint32>(Abi::UserDataMapping::Workgroup))
             {
                 pSignature->numWorkGroupsRegAddr = static_cast<uint16>(offset);
+            }
+            else if (value == static_cast<uint32>(Abi::UserDataMapping::MeshTaskDispatchDims))
+            {
+                pSignature->taskDispatchDimsAddr = static_cast<uint16_t>(offset);
+            }
+            else if (value == static_cast<uint32>(Abi::UserDataMapping::MeshTaskRingIndex))
+            {
+                pSignature->taskRingIndexAddr = static_cast<uint16>(offset);
+            }
+            else if (value == static_cast<uint32>(Abi::UserDataMapping::TaskDispatchIndex))
+            {
+                pSignature->dispatchIndexRegAddr = static_cast<uint16>(offset);
+            }
+            else if (value == static_cast<uint32>(Abi::UserDataMapping::MeshPipeStatsBuf))
+            {
+                pSignature->taskPipeStatsBufRegAddr = offset;
             }
             else if (value == static_cast<uint32>(Abi::UserDataMapping::PerShaderPerfData))
             {
@@ -471,11 +485,9 @@ uint32* PipelineChunkCs::WriteShCommandsSetPath(
                                               &m_regs.computeNumThreadX,
                                               pCmdSpace);
 
-    pCmdSpace = pCmdStream->WriteSetSeqShRegs(mmCOMPUTE_PGM_LO,
-                                              mmCOMPUTE_PGM_HI,
-                                              ShaderCompute,
-                                              &m_regs.computePgmLo,
-                                              pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderCompute>(mmCOMPUTE_PGM_LO,
+                                                            m_regs.computePgmLo.u32All,
+                                                            pCmdSpace);
 
     pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderCompute>(mmCOMPUTE_PGM_RSRC1,
                                                             m_regs.computePgmRsrc1.u32All,

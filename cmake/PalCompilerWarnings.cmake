@@ -83,5 +83,8 @@ function(pal_compiler_warnings_gnu_or_clang TARGET)
     add_flag_if_exists(${TARGET} -Wno-sizeof-array-div HAS_WARN_SIZEOF_DIV)
     # Don't warn on double parentheses in ifs, this is PAL's coding style
     add_flag_if_exists(${TARGET} -Wno-parentheses-equality HAS_WARN_PARENS)
+    # Suppress anonymous struct warnings on Clang
+    add_flag_if_exists(${TARGET} -Wno-gnu-anonymous-struct HAS_WARN_ANONYMOUS_STRUCT)
+    add_flag_if_exists(${TARGET} -Wno-nested-anon-types HAS_WARN_NESTED_ANON_TYPES)
 endfunction()
 

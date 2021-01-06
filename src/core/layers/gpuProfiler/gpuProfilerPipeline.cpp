@@ -43,12 +43,12 @@ namespace GpuProfiler
 const char* ApiShaderTypeStrings[] =
 {
     "CS",
-    "RESERVED",
+    "TASK",
     "VS",
     "HS",
     "DS",
     "GS",
-    "RESERVED",
+    "MESH",
     "PS",
 };
 

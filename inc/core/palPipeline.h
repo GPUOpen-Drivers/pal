@@ -56,12 +56,12 @@ enum class PrimitiveTopology : uint32;
 enum class ShaderType : uint32
 {
     Compute = 0,
-    Reserved0,      ///< @internal Reserved for future features.  Do not use!
+    Task,
     Vertex,
     Hull,
     Domain,
     Geometry,
-    Reserved1,      ///< @internal Reserved for future features.  Do not use!
+    Mesh,
     Pixel,
 
     Count
@@ -251,7 +251,12 @@ struct ComputePipelineCreateInfo
 /// structure @ref GraphicsPipelineCreateInfo.
 struct ViewportInfo
 {
-    bool       depthClipEnable; ///< Enable clipping based on Z coordinate.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 644
+    bool       depthClipNearEnable; ///< Enable clipping based on Near Z coordinate.
+    bool       depthClipFarEnable;  ///< Enable clipping based on Far Z coordinate.
+#else
+    bool       depthClipEnable;     ///< Enable clipping based on Z coordinate.
+#endif
     DepthRange depthRange;      ///< Specifies Z dimensions of screen space (i.e., post viewport transform:
                                 ///  0 to 1 or -1 to 1).
 };
@@ -401,10 +406,12 @@ struct PipelineInfo
 enum ShaderStageFlagBits : uint32
 {
     ApiShaderStageCompute  = (1u << static_cast<uint32>(ShaderType::Compute)),
+    ApiShaderStageTask     = (1u << static_cast<uint32>(ShaderType::Task)),
     ApiShaderStageVertex   = (1u << static_cast<uint32>(ShaderType::Vertex)),
     ApiShaderStageHull     = (1u << static_cast<uint32>(ShaderType::Hull)),
     ApiShaderStageDomain   = (1u << static_cast<uint32>(ShaderType::Domain)),
     ApiShaderStageGeometry = (1u << static_cast<uint32>(ShaderType::Geometry)),
+    ApiShaderStageMesh     = (1u << static_cast<uint32>(ShaderType::Mesh)),
     ApiShaderStagePixel    = (1u << static_cast<uint32>(ShaderType::Pixel)),
 };
 

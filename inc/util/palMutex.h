@@ -52,16 +52,17 @@ class Mutex
 public:
 #if   defined(__unix__)
     /// Defines MutexData as a unix pthread_mutex_t
-    typedef pthread_mutex_t  MutexData;
+    typedef pthread_mutex_t MutexData;
+    Mutex() noexcept : m_osMutex {} { pthread_mutex_init(&m_osMutex, nullptr); }
+    ~Mutex() { pthread_mutex_destroy(&m_osMutex); };
 #endif
 
-    Mutex() : m_initialized(false) { memset(&m_osMutex, 0, sizeof(m_osMutex)); }
-    ~Mutex();
-
-    /// Initializes the mutex object.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 647
+    /// Backward compatability support for ::Init() call
     ///
-    /// @returns Success if successful, otherwise an appropriate error.
-    Result Init();
+    /// @returns Success
+    Result Init() const noexcept { return Result::Success; }
+#endif
 
     /// Enters the critical section if it is not contended.  If it is contended, wait for the critical section to become
     /// available, then enter it.
@@ -81,7 +82,6 @@ public:
 
 private:
     MutexData m_osMutex;     ///< Opaque structure to the OS-specific Mutex data
-    bool      m_initialized; ///< True indicates this mutex has been initialized
 
     PAL_DISALLOW_COPY_AND_ASSIGN(Mutex);
 };
@@ -140,6 +140,9 @@ public:
 #if   defined(__unix__)
     /// Defines RWLockData as a unix pthread_rwlock_t
     typedef pthread_rwlock_t  RWLockData;
+    /// @note pthread_rwlock_init will not fail as called
+    RWLock() noexcept : m_osRWLock {} { pthread_rwlock_init(&m_osRWLock, nullptr); }
+    ~RWLock() noexcept { pthread_rwlock_destroy(&m_osRWLock); };
 #endif
 
     /// Enumerates the lock type of RWLockAuto
@@ -149,12 +152,12 @@ public:
         ReadWrite      ///< Lock in readwrite mode, in other words exclusive mode.
     };
 
-    RWLock() : m_initialized(false) { memset(&m_osRWLock, 0, sizeof(m_osRWLock)); }
-    ~RWLock();
-
-    /// Initializes the rwlock object.
-    /// @returns Success if successful, otherwise an appropriate error.
-    Result Init();
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 649
+    /// Backward compatability support for ::Init() call
+    ///
+    /// @returns Success
+    Result Init() const noexcept { return Result::Success; }
+#endif
 
     /// Acquires a rw lock in shared mode if it is not contended in exclusive mode.
     /// If it is contended, wait for rw lock to become available, then enter it.
@@ -185,7 +188,6 @@ public:
 
 private:
     RWLockData m_osRWLock;    ///< Opaque structure to the OS-specific RWLock data
-    bool       m_initialized; ///< True indicates this RWLock has been initialized
 
     PAL_DISALLOW_COPY_AND_ASSIGN(RWLock);
 };

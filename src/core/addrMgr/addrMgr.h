@@ -89,12 +89,17 @@ protected:
 
     uint32 CalcBytesPerElement(const SubResourceInfo* pSubResInfo) const;
 
-    // Computes the size (in PRT tiles) of the mip tail for a particular Image aspect.
+    // Computes the size (in PRT tiles) of the mip tail for a particular Image plane.
     virtual void ComputeTilesInMipTail(
         const Image&       image,
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
         ImageAspect        aspect,
+#else
+        uint32             plane,
+#endif
         ImageMemoryLayout* pGpuMemLayout) const = 0;
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
     // Determine the 0-based plane index of a given aspect
     uint32 PlaneIndex(ImageAspect aspect) const
     {
@@ -102,6 +107,7 @@ protected:
                 (aspect == ImageAspect::CbCr) ||
                 (aspect == ImageAspect::Cb)) ? 1 : ((aspect == ImageAspect::Cr) ? 2 : 0);
     }
+#endif
 
     const Device*const  m_pDevice;
     const GfxIpLevel    m_gfxLevel;
@@ -131,7 +137,7 @@ public:
 
     uint32 Index() const { return m_subResIndex; }
 
-    // Subresource index for the base mipmap level within the current array slice & aspect.
+    // Subresource index for the base mipmap level within the current array slice & plane.
     uint32 BaseIndex() const { return m_baseSubResIndex; }
 
 private:

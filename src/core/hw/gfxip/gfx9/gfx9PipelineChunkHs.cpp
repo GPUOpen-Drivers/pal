@@ -40,7 +40,6 @@ namespace Gfx9
 // Base count of SH registers which are loaded using LOAD_SH_REG_INDEX when binding to a command buffer.
 static constexpr uint32 BaseLoadedShRegCount =
     1 + // mmSPI_SHADER_PGM_LO_LS
-    1 + // mmSPI_SHADER_PGM_HI_LS
     1 + // SPI_SHADER_PGM_RSRC1_HS
     1 + // SPI_SHADER_PGM_RSRC2_HS
     0 + // SPI_SHADER_PGM_CHKSUM_HS is not included because it is not present on all HW
@@ -104,7 +103,7 @@ void PipelineChunkHs::LateInit(
         PAL_ASSERT(IsPow2Aligned(symbol.gpuVirtAddr, 256));
 
         m_regs.sh.spiShaderPgmLoLs.bits.MEM_BASE = Get256BAddrLo(symbol.gpuVirtAddr);
-        m_regs.sh.spiShaderPgmHiLs.bits.MEM_BASE = Get256BAddrHi(symbol.gpuVirtAddr);
+        PAL_ASSERT(Get256BAddrHi(symbol.gpuVirtAddr) == 0);
     }
 
     regSPI_SHADER_USER_DATA_LS_0 spiShaderUserDataLoHs = { };
@@ -149,7 +148,6 @@ void PipelineChunkHs::LateInit(
     if (pUploader->EnableLoadIndexPath())
     {
         pUploader->AddShReg(mmSpiShaderPgmLoLs,        m_regs.sh.spiShaderPgmLoLs);
-        pUploader->AddShReg(mmSpiShaderPgmLoLs + 1,    m_regs.sh.spiShaderPgmHiLs);
         pUploader->AddShReg(mmSPI_SHADER_PGM_RSRC1_HS, m_regs.sh.spiShaderPgmRsrc1Hs);
         pUploader->AddShReg(mmSPI_SHADER_PGM_RSRC2_HS, m_regs.sh.spiShaderPgmRsrc2Hs);
 
@@ -184,11 +182,9 @@ uint32* PipelineChunkHs::WriteShCommands(
         const uint16 mmSpiShaderUserDataHs0 = registerInfo.mmUserDataStartHsShaderStage;
         const uint16 mmSpiShaderPgmLoLs     = registerInfo.mmSpiShaderPgmLoLs;
 
-        pCmdSpace = pCmdStream->WriteSetSeqShRegs(mmSpiShaderPgmLoLs,
-                                                  mmSpiShaderPgmLoLs + 1,
-                                                  ShaderGraphics,
-                                                  &m_regs.sh.spiShaderPgmLoLs,
-                                                  pCmdSpace);
+        pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderGraphics>(mmSpiShaderPgmLoLs,
+                                                                 m_regs.sh.spiShaderPgmLoLs.u32All,
+                                                                 pCmdSpace);
        pCmdSpace = pCmdStream->WriteSetSeqShRegs(mmSPI_SHADER_PGM_RSRC1_HS,
                                                  mmSPI_SHADER_PGM_RSRC2_HS,
                                                  ShaderGraphics,

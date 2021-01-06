@@ -54,6 +54,9 @@ const GraphicsPipelineSignature NullGfxSignature =
     UserDataNotMapped,          // NGG culling data constant buffer
     UserDataNotMapped,          // Vertex offset register address
     UserDataNotMapped,          // Draw ID register address
+    UserDataNotMapped,          // Mesh dispatch dimensions register (1st of 3)
+    UserDataNotMapped,          // Ring index for the mesh shader.
+    UserDataNotMapped,          // Mesh pipeline stats buffer register address
     NoUserDataSpilling,         // Spill threshold
     0,                          // User-data entry limit
     { UserDataNotMapped, },     // Compacted view ID register addresses
@@ -467,11 +470,16 @@ uint32 GraphicsPipeline::CalcMaxWavesPerSe(
     float maxWavesPerCu2
     ) const
 {
+    // The maximum number of waves per SH in "register units".
+    // By default set the WAVE_LIMIT field to be unlimited.
+    // Limits given by the ELF will only apply if the caller doesn't set their own limit.
+    uint32 wavesPerSe = 0;
+
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 630
-    const auto&  gfx9ChipProps = m_pDevice->Parent()->ChipProperties().gfx9;
-    const uint32 wavesPerSe    = CalcMaxWavesPerSh(maxWavesPerCu1, maxWavesPerCu2) * gfx9ChipProps.numShaderArrays;
+    const auto& gfx9ChipProps = m_pDevice->Parent()->ChipProperties().gfx9;
+    wavesPerSe = CalcMaxWavesPerSh(maxWavesPerCu1, maxWavesPerCu2) * gfx9ChipProps.numShaderArrays;
 #else
-    const uint32 wavesPerSe = CalcMaxWavesPerSh(maxWavesPerCu1, maxWavesPerCu2);
+    wavesPerSe = CalcMaxWavesPerSh(maxWavesPerCu1, maxWavesPerCu2);
 #endif
 
     return wavesPerSe;
@@ -490,28 +498,29 @@ uint32 GraphicsPipeline::CalcMaxWavesPerSh(
         ((maxWavesPerCu2 == 0) ? maxWavesPerCu1
                                : ((maxWavesPerCu1 == 0) ? maxWavesPerCu2
                                                         : Min(maxWavesPerCu1, maxWavesPerCu2)));
-    const     auto&  gfx9ChipProps                 = m_pDevice->Parent()->ChipProperties().gfx9;
-    const     uint32 numWavefrontsPerCu            = gfx9ChipProps.numSimdPerCu * gfx9ChipProps.numWavesPerSimd;
-    constexpr uint32 MaxWavesPerShGraphicsUnitSize = 16u;
-    const     uint32 maxWavesPerShGraphics         = (gfx9ChipProps.maxNumCuPerSh * numWavefrontsPerCu) /
-                                                     MaxWavesPerShGraphicsUnitSize;
-
-    // We assume no one is trying to use more than 100% of all waves.
-    PAL_ASSERT(maxWavesPerCu <= numWavefrontsPerCu);
 
     // The maximum number of waves per SH in "register units".
-    // By default set the WAVE_LIMIT field to maximum (NOT to unlimited (0) to prevent inaccurate math for limits).
+    // By default set the WAVE_LIMIT field to be unlimited.
     // Limits given by the ELF will only apply if the caller doesn't set their own limit.
-    uint32 wavesPerSh = maxWavesPerShGraphics;
+    uint32 wavesPerSh = 0;
 
     // If the caller would like to override the default maxWavesPerCu
     if (maxWavesPerCu > 0)
     {
+        const auto& gfx9ChipProps = m_pDevice->Parent()->ChipProperties().gfx9;
+
+        const     uint32 numWavefrontsPerCu            = gfx9ChipProps.numSimdPerCu * gfx9ChipProps.numWavesPerSimd;
+        constexpr uint32 MaxWavesPerShGraphicsUnitSize = 16u;
+        const     uint32 maxWavesPerShGraphics         = (numWavefrontsPerCu * gfx9ChipProps.maxNumCuPerSh) /
+                                                         MaxWavesPerShGraphicsUnitSize;
+
+        // We assume no one is trying to use more than 100% of all waves.
+        PAL_ASSERT(maxWavesPerCu <= numWavefrontsPerCu);
         const uint32 maxWavesPerSh = static_cast<uint32>(round(maxWavesPerCu * gfx9ChipProps.numCuPerSh));
 
         // For graphics shaders, the WAVES_PER_SH field is in units of 16 waves and must not exceed 63. We must
         // also clamp to one if maxWavesPerSh rounded down to zero to prevent the limit from being removed.
-        wavesPerSh = Min(wavesPerSh, Max(1u, maxWavesPerSh / MaxWavesPerShGraphicsUnitSize));
+        wavesPerSh = Min(maxWavesPerShGraphics, Max(1u, maxWavesPerSh / MaxWavesPerShGraphicsUnitSize));
     }
 
     return wavesPerSh;
@@ -596,6 +605,18 @@ void GraphicsPipeline::CalcDynamicStageInfos(
     }
     else
     {
+#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 574)
+        if (HasMeshShader())
+        {
+            // HasMeshShader(): PipelineMesh
+            // API Shader -> Hardware Stage
+            // PS -> PS
+            // MS -> GS
+
+            CalcDynamicStageInfo(graphicsInfo.ms, &pStageInfos->gs);
+        }
+        else
+#endif
         if (IsNgg() || IsGsEnabled())
         {
             // IsNgg(): PipelineNgg
@@ -872,15 +893,23 @@ void GraphicsPipeline::SetupCommonRegisters(
     m_regs.context.paSuVtxCntl.u32All  = registers.At(mmPA_SU_VTX_CNTL);
     m_regs.other.paScModeCntl1.u32All  = registers.At(mmPA_SC_MODE_CNTL_1);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 629
-
-    m_regs.context.paClClipCntl.bits.DX_CLIP_SPACE_DEF = (createInfo.viewportInfo.depthRange == DepthRange::ZeroToOne);
-    if (createInfo.viewportInfo.depthClipEnable == false)
-    {
-        m_regs.context.paClClipCntl.bits.ZCLIP_NEAR_DISABLE = 1;
-        m_regs.context.paClClipCntl.bits.ZCLIP_FAR_DISABLE = 1;
-    }
-
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 644
+        m_regs.context.paClClipCntl.bits.DX_CLIP_SPACE_DEF = (createInfo.viewportInfo.depthRange == DepthRange::ZeroToOne);
+        if (createInfo.viewportInfo.depthClipNearEnable == false)
+        {
+            m_regs.context.paClClipCntl.bits.ZCLIP_NEAR_DISABLE = 1;
+        }
+        if (createInfo.viewportInfo.depthClipFarEnable == false)
+        {
+            m_regs.context.paClClipCntl.bits.ZCLIP_FAR_DISABLE = 1;
+        }
+#elif PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 629
+        m_regs.context.paClClipCntl.bits.DX_CLIP_SPACE_DEF = (createInfo.viewportInfo.depthRange == DepthRange::ZeroToOne);
+        if (createInfo.viewportInfo.depthClipEnable == false)
+        {
+            m_regs.context.paClClipCntl.bits.ZCLIP_NEAR_DISABLE = 1;
+            m_regs.context.paClClipCntl.bits.ZCLIP_FAR_DISABLE = 1;
+        }
 #endif
 
     registers.HasEntry(mmVGT_GS_ONCHIP_CNTL, &m_regs.context.vgtGsOnchipCntl.u32All);
@@ -1146,7 +1175,7 @@ void GraphicsPipeline::SetupIaMultiVgtParam(
 
         // NOTE: The PRIMGROUP_SIZE field IA_MULTI_VGT_PARAM must be less than 256 if stream output and
         // PARTIAL_ES_WAVE_ON are both enabled on 2-SE hardware.
-        if ((VgtStrmoutConfig().u32All != 0) && (chipProps.gfx9.numShaderEngines == 2))
+        if (UsesHwStreamout() && (chipProps.gfx9.numShaderEngines == 2))
         {
             if (m_regs.other.iaMultiVgtParam[idx].bits.PARTIAL_ES_WAVE_ON == 0)
             {
@@ -1242,7 +1271,7 @@ void GraphicsPipeline::FixupIaMultiVgtParam(
     // TODO: Implement the check for instancing.  This could be done by parsing IL.
     // TODO Pipeline: Add support for VS Partial Wave with EOI Enabled.
 
-    if (VgtStrmoutConfig().u32All != 0)
+    if (UsesHwStreamout())
     {
         pIaMultiVgtParam->bits.PARTIAL_VS_WAVE_ON = 1;
     }
@@ -1637,6 +1666,14 @@ void GraphicsPipeline::UpdateRingSizes(
 
     ringSizes.itemSize[static_cast<size_t>(ShaderRingType::GfxScratch)] = ComputeScratchMemorySize(metadata);
 
+    ringSizes.itemSize[static_cast<size_t>(ShaderRingType::ComputeScratch)] =
+        Gfx9::ComputePipeline::CalcScratchMemSize(m_gfxLevel, metadata);
+
+    if (metadata.pipeline.hasEntry.meshScratchMemorySize != 0)
+    {
+        ringSizes.itemSize[static_cast<size_t>(ShaderRingType::MeshScratch)] = metadata.pipeline.meshScratchMemorySize;
+    }
+
     // Inform the device that this pipeline has some new ring-size requirements.
     m_pDevice->UpdateLargestRingSizes(&ringSizes);
 }
@@ -1663,6 +1700,11 @@ uint32 GraphicsPipeline::ComputeScratchMemorySize(
     uint32 scratchMemorySizeBytes = 0;
     for (uint32 i = 0; i < static_cast<uint32>(Abi::HardwareStage::Count); ++i)
     {
+        if (static_cast<Abi::HardwareStage>(i) == Abi::HardwareStage::Cs)
+        {
+            // We don't handle compute-scratch in this function.
+            continue;
+        }
 
         const auto& stageMetadata = metadata.pipeline.hardwareStage[i];
         if (stageMetadata.hasEntry.scratchMemorySize != 0)
@@ -1860,6 +1902,27 @@ void GraphicsPipeline::SetupSignatureForStageFromElf(
                      (pEsGsLdsSizeReg != nullptr))
             {
                 (*pEsGsLdsSizeReg) = offset;
+            }
+            else if (value == static_cast<uint32>(Abi::UserDataMapping::MeshTaskDispatchDims))
+            {
+                // There can only be one set of mesh dispatch user-SGPR per pipeline.
+                PAL_ASSERT((m_signature.meshDispatchDimsRegAddr == offset) ||
+                           (m_signature.meshDispatchDimsRegAddr == UserDataNotMapped));
+                m_signature.meshDispatchDimsRegAddr = offset;
+            }
+            else if (value == static_cast<uint32>(Abi::UserDataMapping::MeshTaskRingIndex))
+            {
+                // There can only be one set of mesh dispatch user-SGPR per pipeline.
+                PAL_ASSERT((m_signature.meshRingIndexAddr == offset) ||
+                           (m_signature.meshRingIndexAddr == UserDataNotMapped));
+                m_signature.meshRingIndexAddr = offset;
+            }
+            else if (value == static_cast<uint32>(Abi::UserDataMapping::MeshPipeStatsBuf))
+            {
+                // There can be only one pipeline stats query buffer per pipeline.
+                PAL_ASSERT((m_signature.meshPipeStatsBufRegAddr == offset) ||
+                           (m_signature.meshPipeStatsBufRegAddr == UserDataNotMapped));
+                m_signature.meshPipeStatsBufRegAddr = offset;
             }
             else if (value == static_cast<uint32>(Abi::UserDataMapping::ViewId))
             {
@@ -2186,6 +2249,20 @@ bool GraphicsPipeline::PsAllowsPunchout() const
            (dbShaderControl.bits.EXEC_ON_HIER_FAIL == 0) &&
            (dbShaderControl.bits.EXEC_ON_NOOP == 0)      &&
            (dbShaderControl.bits.Z_ORDER == EARLY_Z_THEN_LATE_Z);
+}
+
+// =====================================================================================================================
+uint32 GraphicsPipeline::StrmoutVtxStrideDw(
+    uint32 idx
+    ) const
+{
+    uint32 strideDw = 0;
+
+    {
+        strideDw = m_chunkVsPs.VgtStrmoutVtxStride(idx).u32All;
+    }
+
+    return strideDw;
 }
 
 // =====================================================================================================================

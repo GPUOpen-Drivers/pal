@@ -81,7 +81,6 @@ public:
     explicit InternalMemMgr(Device* pDevice);
     ~InternalMemMgr() { FreeAllocations(); }
 
-    Result Init();
     void FreeAllocations();
 
     Result AllocateGpuMem(

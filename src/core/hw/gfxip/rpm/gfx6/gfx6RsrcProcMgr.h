@@ -291,7 +291,7 @@ private:
         const Image&       dstImage,
         const SubresRange& range) const;
 
-    void ClearHtileAspect(
+    void ClearHtilePlane(
         GfxCmdBuffer*      pCmdBuffer,
         const Image&       dstImage,
         const SubresRange& clearRange) const;

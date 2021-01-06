@@ -683,7 +683,7 @@ ADDR_E_RETURNCODE Gfx10Lib::HwlSupportComputeDccAddrFromCoord(
              (pIn->metaBlkHeight == 0) ||
              (pIn->dccRamSliceSize == 0))
     {
-        returnCode = ADDR_NOTIMPLEMENTED;
+        returnCode = ADDR_NOTSUPPORTED;
     }
 
     return returnCode;
@@ -3010,14 +3010,12 @@ ADDR_E_RETURNCODE Gfx10Lib::HwlGetPreferredSurfaceSetting(
 */
 ADDR_E_RETURNCODE Gfx10Lib::ComputeStereoInfo(
     const ADDR2_COMPUTE_SURFACE_INFO_INPUT* pIn,        ///< Compute surface info
-    UINT_32                                 blkHeight,  ///< Block height
     UINT_32*                                pAlignY,    ///< Stereo requested additional alignment in Y
     UINT_32*                                pRightXor   ///< Right eye xor
     ) const
 {
     ADDR_E_RETURNCODE ret = ADDR_OK;
 
-    *pAlignY   = 1;
     *pRightXor = 0;
 
     if (IsNonPrtXor(pIn->swizzleMode))
@@ -3030,37 +3028,68 @@ ADDR_E_RETURNCODE Gfx10Lib::ComputeStereoInfo(
 
         if (eqIndex != ADDR_INVALID_EQUATION_INDEX)
         {
-            UINT_32 yMax = 0;
-            UINT_32 yPos = 0;
+            UINT_32 yMax     = 0;
+            UINT_32 yPosMask = 0;
 
+            // First get "max y bit"
             for (UINT_32 i = m_pipeInterleaveLog2; i < blkSizeLog2; i++)
             {
-                if (m_equationTable[eqIndex].xor1[i].value == 0)
+                ADDR_ASSERT(m_equationTable[eqIndex].addr[i].valid == 1);
+
+                if ((m_equationTable[eqIndex].addr[i].channel == 1) &&
+                    (m_equationTable[eqIndex].addr[i].index > yMax))
                 {
-                    break;
+                    yMax = m_equationTable[eqIndex].addr[i].index;
                 }
 
-                ADDR_ASSERT(m_equationTable[eqIndex].xor1[i].valid == 1);
-
-                if ((m_equationTable[eqIndex].xor1[i].channel == 1) &&
+                if ((m_equationTable[eqIndex].xor1[i].valid == 1) &&
+                    (m_equationTable[eqIndex].xor1[i].channel == 1) &&
                     (m_equationTable[eqIndex].xor1[i].index > yMax))
                 {
                     yMax = m_equationTable[eqIndex].xor1[i].index;
-                    yPos = i;
+                }
+
+                if ((m_equationTable[eqIndex].xor2[i].valid == 1) &&
+                    (m_equationTable[eqIndex].xor2[i].channel == 1) &&
+                    (m_equationTable[eqIndex].xor2[i].index > yMax))
+                {
+                    yMax = m_equationTable[eqIndex].xor2[i].index;
+                }
+            }
+
+            // Then loop again for populating a position mask of "max Y bit"
+            for (UINT_32 i = m_pipeInterleaveLog2; i < blkSizeLog2; i++)
+            {
+                if ((m_equationTable[eqIndex].addr[i].channel == 1) &&
+                    (m_equationTable[eqIndex].addr[i].index == yMax))
+                {
+                    yPosMask |= 1u << i;
+                }
+                else if ((m_equationTable[eqIndex].xor1[i].valid == 1) &&
+                         (m_equationTable[eqIndex].xor1[i].channel == 1) &&
+                         (m_equationTable[eqIndex].xor1[i].index == yMax))
+                {
+                    yPosMask |= 1u << i;
+                }
+                else if ((m_equationTable[eqIndex].xor2[i].valid == 1) &&
+                         (m_equationTable[eqIndex].xor2[i].channel == 1) &&
+                         (m_equationTable[eqIndex].xor2[i].index == yMax))
+                {
+                    yPosMask |= 1u << i;
                 }
             }
 
             const UINT_32 additionalAlign = 1 << yMax;
 
-            if (additionalAlign >= blkHeight)
+            if (additionalAlign >= *pAlignY)
             {
-                *pAlignY *= (additionalAlign / blkHeight);
+                *pAlignY = additionalAlign;
 
                 const UINT_32 alignedHeight = PowTwoAlign(pIn->height, additionalAlign);
 
                 if ((alignedHeight >> yMax) & 1)
                 {
-                    *pRightXor = 1 << (yPos - m_pipeInterleaveLog2);
+                    *pRightXor = yPosMask >> m_pipeInterleaveLog2;
                 }
             }
         }
@@ -3229,15 +3258,12 @@ ADDR_E_RETURNCODE Gfx10Lib::ComputeSurfaceInfoMacroTiled(
         if (pIn->flags.qbStereo)
         {
             UINT_32 rightXor = 0;
-            UINT_32 alignY   = 1;
 
-            returnCode = ComputeStereoInfo(pIn, heightAlign, &alignY, &rightXor);
+            returnCode = ComputeStereoInfo(pIn, &heightAlign, &rightXor);
 
             if (returnCode == ADDR_OK)
             {
                 pOut->pStereoInfo->rightSwizzle = rightXor;
-
-                heightAlign *= alignY;
             }
         }
 

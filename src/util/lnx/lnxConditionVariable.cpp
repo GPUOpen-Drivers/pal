@@ -33,28 +33,6 @@ namespace Util
 {
 
 // =====================================================================================================================
-// Frees the pthreads condition variable this object encapsulates.
-ConditionVariable::~ConditionVariable()
-{
-    pthread_cond_destroy(&m_osCondVariable);
-}
-
-// =====================================================================================================================
-// Initializes the pthreads condition variable this object encapsulates.  Returns ErrorUnknown if the pthread
-// initialization call fails.
-Result ConditionVariable::Init()
-{
-    Result result = Result::ErrorUnknown;
-
-    if (pthread_cond_init(&m_osCondVariable, nullptr) == 0)
-    {
-        result = Result::Success;
-    }
-
-    return result;
-}
-
-// =====================================================================================================================
 // Atomically releases the given mutex object and goes to sleep on the condition variable.  Once we awake from this
 // sleep, reacquire the critical section.  Returns false if the specified number of milliseconds elapse before it is
 // awoken.

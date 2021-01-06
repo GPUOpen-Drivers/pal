@@ -102,11 +102,12 @@ static void PAL_STDCALL Pm4InstrumentorCb(
 
 // =====================================================================================================================
 Platform::Platform(
+    const PlatformCreateInfo&   createInfo,
     const Util::AllocCallbacks& allocCb,
     IPlatform*                  pNextPlatform,
     bool                        enabled)
     :
-    PlatformDecorator(allocCb, Pm4InstrumentorCb, enabled, enabled, pNextPlatform),
+    PlatformDecorator(createInfo, allocCb, Pm4InstrumentorCb, enabled, enabled, pNextPlatform),
     m_frameCount(0)
 {
 }
@@ -120,7 +121,7 @@ Result Platform::Create(
     void*                       pPlacementAddr,
     IPlatform**                 ppPlatform)
 {
-    auto*const pPlatform = PAL_PLACEMENT_NEW(pPlacementAddr) Platform(allocCb, pNextPlatform, enabled);
+    auto*const pPlatform = PAL_PLACEMENT_NEW(pPlacementAddr) Platform(createInfo, allocCb, pNextPlatform, enabled);
     Result result        = pPlatform->Init();
 
     if (result == Result::Success)

@@ -665,6 +665,13 @@ union drm_amdgpu_cs {
  */
 #define AMDGPU_IB_FLAG_EMIT_MEM_SYNC  (1 << 6)
 
+/* Set Flag to 1 if perfCounter is active */
+#define AMDGPU_IB_FLAG_PERF_COUNTER (1 << 7)
+
+/* Set flag to 1 if SQTT is active */
+#define AMDGPU_IB_FLAG_SQ_THREAD_TRACE (1 << 8)
+
+
 
 struct drm_amdgpu_cs_chunk_ib {
 	__u32 _pad;

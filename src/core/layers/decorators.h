@@ -244,6 +244,7 @@ class PlatformDecorator : public IPlatform
 {
 public:
     PlatformDecorator(
+        const PlatformCreateInfo&    createInfo,
         const Util::AllocCallbacks&  allocCb,
         Developer::Callback          developerCb,
         bool                         installCallback,
@@ -368,7 +369,6 @@ protected:
     void*                  m_pClientPrivateData;
     bool                   m_installDeveloperCb;
     const bool             m_layerEnabled;
-
 private:
     bool                   m_logDirCreated;        // The log dir can only be created once.
     Util::Mutex            m_logDirMutex;          // Grants access to CreateLogDir.
@@ -1274,6 +1274,8 @@ public:
         m_funcTable.pfnCmdDispatch                  = CmdDispatchDecorator;
         m_funcTable.pfnCmdDispatchIndirect          = CmdDispatchIndirectDecorator;
         m_funcTable.pfnCmdDispatchOffset            = CmdDispatchOffsetDecorator;
+        m_funcTable.pfnCmdDispatchMesh              = CmdDispatchMeshDecorator;
+        m_funcTable.pfnCmdDispatchMeshIndirectMulti = CmdDispatchMeshIndirectMultiDecorator;
     }
 
     virtual Result Begin(const CmdBufferBuildInfo& info) override
@@ -1373,14 +1375,22 @@ public:
 
     virtual void CmdBarrier(const BarrierInfo& barrierInfo) override;
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
+    virtual uint32 CmdRelease(
+        const AcquireReleaseInfo& releaseInfo) override;
+    virtual void CmdAcquire(
+        const AcquireReleaseInfo& acquireInfo,
+        uint32                    syncTokenCount,
+        const uint32*             pSyncTokens) override;
+#else
     virtual void CmdRelease(
         const AcquireReleaseInfo& releaseInfo,
         const IGpuEvent*          pGpuEvent) override;
-
     virtual void CmdAcquire(
         const AcquireReleaseInfo& acquireInfo,
         uint32                    gpuEventCount,
         const IGpuEvent*const*    ppGpuEvents) override;
+#endif
 
     virtual void CmdReleaseThenAcquire(const AcquireReleaseInfo& barrierInfo) override;
 
@@ -2159,6 +2169,32 @@ private:
         pNextLayer->CmdDispatchOffset(xOffset, yOffset, zOffset, xDim, yDim, zDim);
     }
 
+    static void PAL_STDCALL CmdDispatchMeshDecorator(
+        ICmdBuffer* pCmdBuffer,
+        uint32      xDim,
+        uint32      yDim,
+        uint32      zDim)
+    {
+        ICmdBuffer* pNextLayer = static_cast<CmdBufferFwdDecorator*>(pCmdBuffer)->m_pNextLayer;
+        pNextLayer->CmdDispatchMesh(xDim, yDim, zDim);
+    }
+
+    static void PAL_STDCALL CmdDispatchMeshIndirectMultiDecorator(
+        ICmdBuffer*       pCmdBuffer,
+        const IGpuMemory& gpuMemory,
+        gpusize           offset,
+        uint32            stride,
+        uint32            maximumCount,
+        gpusize           countGpuAddr)
+    {
+        ICmdBuffer* pNextLayer = static_cast<CmdBufferFwdDecorator*>(pCmdBuffer)->m_pNextLayer;
+        pNextLayer->CmdDispatchMeshIndirectMulti(*NextGpuMemory(&gpuMemory),
+                                                 offset,
+                                                 stride,
+                                                 maximumCount,
+                                                 countGpuAddr);
+    }
+
     PAL_DISALLOW_DEFAULT_CTOR(CmdBufferFwdDecorator);
     PAL_DISALLOW_COPY_AND_ASSIGN(CmdBufferFwdDecorator);
 };
@@ -2427,6 +2463,12 @@ public:
 
     virtual const ImageMemoryLayout& GetMemoryLayout() const override
         { return m_pNextLayer->GetMemoryLayout(); }
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
+    virtual Result GetFullSubresourceRange(
+        SubresRange* pRange) const override
+        { return m_pNextLayer->GetFullSubresourceRange(pRange); }
+#endif
 
     virtual Result GetSubresourceLayout(
         SubresId      subresId,

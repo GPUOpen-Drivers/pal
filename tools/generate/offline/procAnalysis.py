@@ -53,13 +53,38 @@ FileHeaderCopyright = '/*\n\
 '
 
 class Param:
-    def __init__(self, ret, value):
-        self.ret = ret
-        self.value = value
+    def __init__(self, full_str):
+        self.full_str = full_str
+
+        self.type_str = None
+        self.identifier = None
+
+        self.is_variadic = False
+        self.is_array = False
+        self.is_function_pointer = False
+        self.is_pointer = False
+
+    def GetParameterStr(self, param_format_size):
+        if self.is_variadic:
+            return self.full_str
+
+        if self.is_array or self.is_function_pointer:
+            first_half, second_half = self.full_str.split(' ', 1)
+        else:
+            first_half = self.type_str
+            second_half = self.identifier
+
+        return "%s %*.s %s" % (
+                first_half,
+                param_format_size - len(first_half),
+                ' ',
+                second_half)
+
     def GetType(self):
-        return self.ret
+        return self.type_str
+
     def GetValue(self):
-        return self.value
+        return self.identifier
 
 def GetFmtType(ftype):
     if ftype.find('*') != -1:
@@ -82,6 +107,15 @@ def GetFmtType(ftype):
         return "%x"
     else:
         return "%x"
+
+def SplitTypeAndId(param_str):
+    sep_index = max(param_str.rfind(' '), param_str.rfind('*'))
+    if param_str[sep_index] == '*':
+        type_str = param_str[:sep_index + 1]
+    else:
+        type_str = param_str[:sep_index]
+    identifier = param_str[sep_index + 1:]
+    return type_str, identifier
 
 class EntryPoint:
     def __init__(
@@ -108,38 +142,41 @@ class EntryPoint:
 
         self.params = []
         params = function[2].split(',')
-        # when params is void the params list is empty.
-        if len(params) > 0:
-            for p in params:
-                p = p.strip(' ')
-                param = p.split(' ')
-                if len(param) == 2:
-                    # the temp[0] is the type of parameter
-                    # the temp[1] is the name of parameter
-                    pm = Param(param[0], param[1])
-                    self.params.append(pm)
-                elif len(param) == 3:
-                    # the param[0] and param[1] is the type of parameter
-                    # the param[2] is the name of parameter
-                    paramType = param[0] + ' ' + param[1]
-                    pm = Param(paramType, param[2])
-                    self.params.append(pm)
-                elif len(param) == 4:
-                    # the param[0] is const, param[1] is struct and param[2] is the type of parameter
-                    # the param[3] is the name of parameter
-                    # for example, const struct wl_interface* interface
-                    paramType = param[0] + ' ' + param[1] + ' ' + param[2]
-                    pm = Param(paramType, param[3])
-                    self.params.append(pm)
-                elif len(param) == 1:
-                    if param[0] == '...':
-                        pm = Param(' ', param[0])
-                        self.params.append(pm)
-                    else:
-                        param = ''
-                    # nothing need to be done here.
-                else:
-                    print "not recognized format!"
+        for p in params:
+            p = p.strip(' ')
+            if p == '' or p == 'void':
+                continue
+
+            pm = Param(p)
+            if p == '...':
+                # variadic argument
+                pm.type_str = '...'
+                pm.is_variadic = True
+
+            elif p.endswith(']'):
+                # array type, e.g. int a[], int a[10]
+                bracket_sep_index = p.rfind('[')
+                type_suffix = p[bracket_sep_index:]
+                type_prefix, id_str = SplitTypeAndId(p[:bracket_sep_index])
+                pm.type_str = type_prefix + type_suffix
+                pm.identifier = id_str
+                pm.is_array = True
+
+            elif p.endswith(')'):
+                # function pointer type, e.g. void (*foo)(int)
+                parentheses_sep_indx = p.rfind(')', 0, -1)
+                type_suffix = p[parentheses_sep_indx:]
+                type_prefix, id_str = SplitTypeAndId(p[:parentheses_sep_indx])
+                pm.type_str = type_prefix + type_suffix
+                pm.identifier = id_str
+                pm.is_function_pointer = True
+
+            else:
+                pm.type_str, pm.identifier = SplitTypeAndId(p)
+                pm.is_pointer = pm.type_str.endswith('*')
+
+            self.params.append(pm)
+
     def GetFormattedName(self):
         return self.name
     def GetFunctionName(self):
@@ -234,7 +271,7 @@ class ProcMgr:
                             index = 1
                         else:
                             fp.write(",")
-                        fp.write("\n            %s %*.s %s" %(pa.GetType(), length - len(pa.GetType()), ' ', pa.GetValue()))
+                        fp.write("\n            %s" % pa.GetParameterStr(length))
                     fp.write(");\n")
                     fp.write("\n")
     def GetFormattedLibraryName(self, name):
@@ -333,12 +370,17 @@ class ProcMgr:
                             length = len(pa.GetType())
                     dot = ""
                     for pa in params:
-                        fp.write("%s\n    %s %*.s %s"  %(dot, pa.GetType(), length - len(pa.GetType()), ' ', pa.GetValue()))
+                        fp.write("%s\n    %s"  %(dot, pa.GetParameterStr(length)))
                         dot = ','
                     fp.write("\n    ) const\n")
                 fp.write("{\n")
                 fp.write("    const int64 begin = Util::GetPerfCpuTime();\n")
                 paramIndent = 0
+
+                if len(params) > 0 and params[-1].is_variadic:
+                    fp.write("    va_list args;\n")
+                    fp.write("    va_start(args, %s);\n" % params[-2].GetValue())
+
                 if entry.GetFunctionRetType() != "void":
                     if entry.GetFunctionRetType().find('*') != -1:
                         fp.write("    " + entry.GetFunctionRetType() + " pRet = ")
@@ -357,16 +399,23 @@ class ProcMgr:
                 argument = ''
                 strfmt = ''
                 for pa in params:
-                    if '[' in pa.GetValue():
-                        pa.value = pa.GetValue()[:pa.GetValue().index('[')]
-                    argument += indent + pa.GetValue() + ",\n"
-                    indent = ' ' * paramIndent
-                    strfmt += GetFmtType(pa.GetType()) + ', '
+                    if pa.is_variadic:
+                        argument += indent + "args" + ",\n"
+                    else:
+                        if '[' in pa.GetValue():
+                            pa.value = pa.GetValue()[:pa.GetValue().index('[')]
+                        argument += indent + pa.GetValue() + ",\n"
+                        indent = ' ' * paramIndent
+                        strfmt += GetFmtType(pa.GetType()) + ', '
                 if len(params) == 0:
                     fp.write(");\n")
                     strfmt = ', '
                 else:
                     fp.write("%s);\n" %(argument[:-2]))
+
+                if len(params) > 0 and params[-1].is_variadic:
+                    fp.write("    va_end(args);\n")
+
                 fp.write("    const int64 end = Util::GetPerfCpuTime();\n")
                 fp.write("    const int64 elapse = end - begin;\n")
                 fp.write("    m_timeLogger.Printf(\"" + entry.GetFormattedName() + ",%ld,%ld,%ld\\n\", begin, end, elapse);\n")
@@ -380,6 +429,8 @@ class ProcMgr:
                     logParam = ''
                     indent = ' ' * logIndentLen
                     for pa in params:
+                        if pa.is_variadic:
+                            continue
                         if pa.GetType().find('_cookie_t') != -1:
                             logParam += indent + "&" + pa.GetValue() + ",\n"
                         else:
@@ -391,7 +442,7 @@ class ProcMgr:
                         fp.write("\n    return pRet;\n")
                     else:
                         fp.write("\n    return ret;\n")
-                fp.write("}\n");
+                fp.write("}\n")
                 fp.write("\n")
         fp.write("#endif\n\n")
     def GenerateCommentLine(self, fp):
@@ -539,7 +590,7 @@ class ProcMgr:
                             index = 1
                         else:
                             fp.write(",")
-                        fp.write("\n            %s %*.s %s" %(pa.GetType(), length - len(pa.GetType()), ' ', pa.GetValue()))
+                        fp.write("\n            %s" % pa.GetParameterStr(length))
                     fp.write(") const;\n\n")
                     fp.write("    bool pfn" + entry.GetFormattedName() + "isValid() const\n")
                     fp.write("    {\n")

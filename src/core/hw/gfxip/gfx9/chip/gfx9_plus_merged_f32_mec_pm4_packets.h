@@ -1405,6 +1405,7 @@ typedef struct PM4_MEC_INDIRECT_BUFFER
                 uint32_t                              vmid            :  4;
                 MEC_INDIRECT_BUFFER_cache_policy_enum cache_policy    :  2;
                 uint32_t                              reserved2       :  1;
+                uint32_t                              reserved3       :  1;
             };
         } bitfields;
         uint32_t u32All;
@@ -1464,6 +1465,7 @@ typedef struct PM4_MEC_INDIRECT_BUFFER_PASID
                 uint32_t                                    reserved2       :  4;
                 MEC_INDIRECT_BUFFER_PASID_cache_policy_enum cache_policy    :  2;
                 uint32_t                                    reserved3       :  1;
+                uint32_t                                    reserved4       :  1;
             } core;
         } bitfields;
         uint32_t u32All;

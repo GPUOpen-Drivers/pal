@@ -489,6 +489,19 @@ struct ComputeShaderSignature
     // the address, this is the address of the first one.
     uint16  numWorkGroupsRegAddr;
 
+    // Register address for the first user-data entry (+2) of the Task Shader threadgroup dimension values.
+    uint16  taskDispatchDimsAddr;
+
+    // Register address for the ring index for the task shader.
+    uint16  taskRingIndexAddr;
+
+    // Register address for the dispatch index of a multi-dispatch indirect task shader dispatch.
+    uint16  dispatchIndexRegAddr;
+
+    // Register address for passing the 32-bit GPU virtual address of a buffer storing the shader-emulated task+mesh
+    // pipeline stats query.
+    uint16  taskPipeStatsBufRegAddr;
+
     // First user-data entry which is spilled to GPU memory. A value of 'NoUserDataSpilling' indicates the pipeline
     // does not spill user-data entries to memory.
     uint16  spillThreshold;
@@ -546,6 +559,14 @@ struct GraphicsPipelineSignature
     // Register address for the draw index of a multi-draw. This is an optional feature of each pipeline, so it may
     // be unmapped.
     uint16  drawIndexRegAddr;
+    // Register address for the X/Y/Z dimensions of a mesh shader dispatch.  Three sequential SPI user-data registers
+    // are needed to store these data.
+    uint16  meshDispatchDimsRegAddr;
+    // Register address for the ring index for the mesh shader.
+    uint16  meshRingIndexAddr;
+    // Register address for passing the 32-bit GPU virtual address of a buffer storing the shader-emulated mesh
+    // pipeline stats query.
+    uint16  meshPipeStatsBufRegAddr;
 
     // First user-data entry which is spilled to GPU memory. A value of 'NoUserDataSpilling' indicates the pipeline
     // does not spill user-data entries to memory.

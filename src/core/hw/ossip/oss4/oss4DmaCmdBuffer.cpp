@@ -1322,7 +1322,11 @@ gpusize DmaCmdBuffer::GetSubresourceBaseAddr(
     {
         // OSS4 doesn't support mip-levels with linear surfaces.  They do, however, support slices.  We need to get
         // the starting offset of slice 0 of a given mip level.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
         const SubresId  baseSubres = { subresource.aspect, subresource.mipLevel, 0 };
+#else
+        const SubresId  baseSubres = { subresource.plane, subresource.mipLevel, 0 };
+#endif
 
         // Verify that we don't have to take into account the pipe/bank xor value here.
         PAL_ASSERT(GetPipeBankXor(image, subresource) == 0);
@@ -1334,7 +1338,11 @@ gpusize DmaCmdBuffer::GetSubresourceBaseAddr(
     {
         const GfxImage*  pGfxImage = image.GetGfxImage();
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
         baseAddr = pGfxImage->GetAspectBaseAddr(subresource.aspect);
+#else
+        baseAddr = pGfxImage->GetPlaneBaseAddr(subresource.plane);
+#endif
     }
 
     return baseAddr;
@@ -1358,7 +1366,11 @@ void DmaCmdBuffer::SetupDmaInfoExtent(
     ) const
 {
     const Pal::Image*  pImage          = reinterpret_cast<const Pal::Image*>(pImageInfo->pImage);
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
     const SubresId     baseSubResId    = { pImageInfo->pSubresInfo->subresId.aspect, 0, 0 };
+#else
+    const SubresId     baseSubResId    = { pImageInfo->pSubresInfo->subresId.plane, 0, 0 };
+#endif
     const auto*        pBaseSubResInfo = pImage->SubresourceInfo(baseSubResId);
     const uint32       bytesPerPixel   = pBaseSubResInfo->bitsPerTexel / 8;
     const bool         nonPow2Bpp      = (IsPowerOfTwo(bytesPerPixel) == false);

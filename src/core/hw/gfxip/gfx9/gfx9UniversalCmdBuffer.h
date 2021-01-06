@@ -66,7 +66,8 @@ struct UniversalCmdBufferState
             uint32 containsDrawIndirect  :  1;
             uint32 optimizeLinearGfxCpy  :  1;
             uint32 firstDrawExecuted     :  1;
-            uint32 placeholder0          :  2; // Placeholder for future feature support.
+            uint32 meshShaderEnabled     :  1;
+            uint32 taskShaderEnabled     :  1;
             uint32 cbTargetMaskChanged   :  1; // Flag setup at Pipeline bind-time informing the draw-time set
                                                // that the CB_TARGET_MASK has been changed.
             uint32 reserved0             :  6;
@@ -323,6 +324,14 @@ public:
 
     virtual void CmdBarrier(const BarrierInfo& barrierInfo) override;
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
+    virtual uint32 CmdRelease(
+        const AcquireReleaseInfo& releaseInfo) override;
+    virtual void CmdAcquire(
+        const AcquireReleaseInfo& acquireInfo,
+        uint32                    syncTokenCount,
+        const uint32*             pSyncTokens) override;
+#else
     virtual void CmdRelease(
         const AcquireReleaseInfo& releaseInfo,
         const IGpuEvent*          pGpuEvent) override;
@@ -331,6 +340,7 @@ public:
         const AcquireReleaseInfo& acquireInfo,
         uint32                    gpuEventCount,
         const IGpuEvent*const*    ppGpuEvents) override;
+#endif
 
     virtual void CmdReleaseThenAcquire(const AcquireReleaseInfo& barrierInfo) override;
 
@@ -572,6 +582,8 @@ public:
     bool HasWaMiscPopsMissedOverlapBeenApplied() const { return m_hasWaMiscPopsMissedOverlapBeenApplied; }
     void SetWaMiscPopsMissedOverlapHasBeenApplied() { m_hasWaMiscPopsMissedOverlapBeenApplied = true; }
 
+    virtual gpusize GetMeshPipeStatsGpuAddr() const override { return m_meshPipeStatsGpuAddr; }
+
 protected:
     virtual ~UniversalCmdBuffer();
 
@@ -720,6 +732,44 @@ private:
         uint32      xDim,
         uint32      yDim,
         uint32      zDim);
+    template <bool IssueSqttMarkerEvent,
+              bool HasUavExport,
+              bool ViewInstancingEnable,
+              bool DescribeDrawDispatch>
+    static void PAL_STDCALL CmdDispatchMesh(
+        ICmdBuffer* pCmdBuffer,
+        uint32      xDim,
+        uint32      yDim,
+        uint32      zDim);
+    template <bool IssueSqttMarkerEvent,
+              bool ViewInstancingEnable,
+              bool DescribeDrawDispatch>
+    static void PAL_STDCALL CmdDispatchMeshIndirectMulti(
+        ICmdBuffer*       pCmdBuffer,
+        const IGpuMemory& gpuMemory,
+        gpusize           offset,
+        uint32            stride,
+        uint32            maximumCount,
+        gpusize           countGpuAddr);
+    template <bool IssueSqttMarkerEvent,
+              bool HasUavExport,
+              bool ViewInstancingEnable,
+              bool DescribeDrawDispatch>
+    static void PAL_STDCALL CmdDispatchMeshTask(
+        ICmdBuffer* pCmdBuffer,
+        uint32      xDim,
+        uint32      yDim,
+        uint32      zDim);
+    template <bool IssueSqttMarkerEvent,
+              bool ViewInstancingEnable,
+              bool DescribeDrawDispatch>
+    static void PAL_STDCALL CmdDispatchMeshIndirectMultiTask(
+        ICmdBuffer*       pCmdBuffer,
+        const IGpuMemory& gpuMemory,
+        gpusize           offset,
+        uint32            stride,
+        uint32            maximumCount,
+        gpusize           countGpuAddr);
     template <bool IsNgg>
     uint32 CalcGeCntl(
         bool                  usesLineStipple,
@@ -731,6 +781,10 @@ private:
 
     template <bool Pm4OptImmediate, bool PipelineDirty, bool StateDirty>
     uint32* ValidateCbColorInfo(
+        uint32* pDeCmdSpace);
+
+    template <bool Pm4OptImmediate, bool PipelineDirty, bool StateDirty>
+    uint32* ValidateDbRenderOverride(
         uint32* pDeCmdSpace);
 
     static Offset2d GetHwShadingRate(VrsShadingRate  shadingRate);
@@ -861,29 +915,29 @@ private:
 
     void SwitchDrawFunctions(
         bool hasUavExport,
-        bool viewInstancingEnable
-    );
+        bool viewInstancingEnable,
+        bool hasTaskShader);
 
     template <bool IssueSqtt,
               bool DescribeDrawDispatch>
     void SwitchDrawFunctionsInternal(
         bool hasUavExport,
-        bool viewInstancingEnable
-    );
+        bool viewInstancingEnable,
+        bool hasTaskShader);
 
     template <bool ViewInstancing,
               bool IssueSqtt,
               bool DescribeDrawDispatch>
     void SwitchDrawFunctionsInternal(
-        bool hasUavExport
-    );
+        bool hasUavExport,
+        bool hasTaskShader);
 
     template <bool ViewInstancing,
               bool HasUavExport,
               bool IssueSqtt,
               bool DescribeDrawDispatch>
     void SwitchDrawFunctionsInternal(
-    );
+        bool hasTaskShader);
 
     BinningMode GetDisableBinningSetting(Extent2d* pBinSize) const;
 
@@ -1027,8 +1081,8 @@ private:
 
     regPA_SC_BINNER_CNTL_0  m_paScBinnerCntl0;
     regDB_DFSM_CONTROL      m_dbDfsmControl;
-    regDB_RENDER_OVERRIDE   m_dbRenderOverride; // Last written value of the pipeline-owned part of
-                                                // DB_RENDER_OVERRIDE register.
+    regDB_RENDER_OVERRIDE   m_dbRenderOverride;     // Current value of DB_RENDER_OVERRIDE.
+    regDB_RENDER_OVERRIDE   m_prevDbRenderOverride; // Prev value of DB_RENDER_OVERRIDE - only used on primary CmdBuf.
     regVGT_MULTI_PRIM_IB_RESET_EN m_vgtMultiPrimIbResetEn; // Last written value of VGT_MULTI_PRIM_IB_RESET_EN register.
 
     regPA_SC_AA_CONFIG m_paScAaConfigNew;  // PA_SC_AA_CONFIG state that will be written on the next draw.
@@ -1062,6 +1116,10 @@ private:
     // Used to sync the ACE and DE in a ganged submit.
     gpusize m_gangedCmdStreamSemAddr;
     uint32  m_barrierCount;
+
+    // MS/TS pipeline stats query is emulated by shader. A 6-DWORD scratch memory chunk is needed to store for shader
+    // to store the three counter values.
+    gpusize m_meshPipeStatsGpuAddr;
 
     PAL_DISALLOW_DEFAULT_CTOR(UniversalCmdBuffer);
     PAL_DISALLOW_COPY_AND_ASSIGN(UniversalCmdBuffer);

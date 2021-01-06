@@ -239,6 +239,8 @@ private:
     uint32                m_appMemRefCount;       // Store count of application's submission memory references.
     bool                  m_pendingWait;          // Queue needs a dummy submission between wait and signal.
     CmdUploadRing*        m_pCmdUploadRing;       // Uploads gfxip command streams to a large local memory buffer.
+    bool                  m_sqttWaRequired;       // if a perfCounter in any cmdBuffer is active we need to tell KMD
+    bool                  m_perfCtrWaRequired;    // if SQ Thread Trace in any cmdBuffer is active we need to tell KMD
 
     // These IBs will be sent to the kernel when SubmitIbs is called.
     uint32                m_numIbs;

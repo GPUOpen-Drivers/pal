@@ -42,7 +42,8 @@ typedef union PM4_PFP_TYPE_3_HEADER
         uint32_t predicate      :  1;
         uint32_t shaderType     :  1;
         uint32_t resetFilterCam :  1;
-        uint32_t reserved1      :  5;
+        uint32_t reserved1      :  1;
+        uint32_t reserved2      :  4;
         uint32_t opcode         :  8;
         uint32_t count          : 14;
         uint32_t type           :  2;
@@ -54,6 +55,25 @@ typedef union PM4_PFP_TYPE_3_HEADER
 enum PFP_ACQUIRE_MEM_engine_sel_enum
 {
     engine_sel__pfp_acquire_mem__prefetch_parser =  0,
+};
+
+// ------------------------------ PFP_ACQUIRE_MEM_pws_stage_sel_enum ------------------------------
+enum PFP_ACQUIRE_MEM_pws_stage_sel_enum
+{
+    pws_stage_sel__pfp_acquire_mem__pre_depth__HASPWS      =  0,
+    pws_stage_sel__pfp_acquire_mem__pre_shader__HASPWS     =  1,
+    pws_stage_sel__pfp_acquire_mem__pre_color__HASPWS      =  2,
+    pws_stage_sel__pfp_acquire_mem__pre_pix_shader__HASPWS =  3,
+    pws_stage_sel__pfp_acquire_mem__cp_pfp__HASPWS         =  4,
+    pws_stage_sel__pfp_acquire_mem__cp_me__HASPWS          =  5,
+};
+
+// ----------------------------- PFP_ACQUIRE_MEM_pws_counter_sel_enum -----------------------------
+enum PFP_ACQUIRE_MEM_pws_counter_sel_enum
+{
+    pws_counter_sel__pfp_acquire_mem__ts_select__HASPWS =  0,
+    pws_counter_sel__pfp_acquire_mem__ps_select__HASPWS =  1,
+    pws_counter_sel__pfp_acquire_mem__cs_select__HASPWS =  2,
 };
 
 // -------------------------------------- PM4_PFP_ACQUIRE_MEM --------------------------------------
@@ -73,8 +93,8 @@ typedef struct PM4_PFP_ACQUIRE_MEM
             {
                 uint32_t                        coher_cntl : 31;
                 PFP_ACQUIRE_MEM_engine_sel_enum engine_sel :  1;
-            } gfx09_10;
-        } bitfields;
+            };
+        } bitfieldsA;
         uint32_t u32All;
     } ordinal2;
 
@@ -93,7 +113,7 @@ typedef struct PM4_PFP_ACQUIRE_MEM
                 uint32_t coher_size_hi :  8;
                 uint32_t reserved1     : 24;
             } gfx09_10;
-        } bitfields;
+        } bitfieldsA;
         uint32_t u32All;
     } ordinal4;
 
@@ -111,8 +131,8 @@ typedef struct PM4_PFP_ACQUIRE_MEM
             {
                 uint32_t coher_base_hi : 24;
                 uint32_t reserved1     :  8;
-            } gfx09_10;
-        } bitfields;
+            };
+        } bitfieldsA;
         uint32_t u32All;
     } ordinal6;
 
@@ -124,8 +144,8 @@ typedef struct PM4_PFP_ACQUIRE_MEM
             {
                 uint32_t poll_interval : 16;
                 uint32_t reserved1     : 16;
-            } gfx09_10;
-        } bitfields;
+            };
+        } bitfieldsA;
         uint32_t u32All;
     } ordinal7;
 
@@ -405,10 +425,10 @@ constexpr unsigned int PM4_PFP_ATOMIC_MEM_SIZEDW__CORE = 9;
 // ----------------------------------- PFP_CLEAR_STATE_cmd_enum -----------------------------------
 enum PFP_CLEAR_STATE_cmd_enum
 {
-    cmd__pfp_clear_state__clear_state      =  0,
-    cmd__pfp_clear_state__push_state       =  1,
-    cmd__pfp_clear_state__pop_state        =  2,
-    cmd__pfp_clear_state__push_clear_state =  3,
+    cmd__pfp_clear_state__clear_state__HASCLEARSTATE      =  0,
+    cmd__pfp_clear_state__push_state__HASCLEARSTATE       =  1,
+    cmd__pfp_clear_state__pop_state__HASCLEARSTATE        =  2,
+    cmd__pfp_clear_state__push_clear_state__HASCLEARSTATE =  3,
 };
 
 // -------------------------------------- PM4_PFP_CLEAR_STATE --------------------------------------
@@ -428,13 +448,13 @@ typedef struct PM4_PFP_CLEAR_STATE
             {
                 PFP_CLEAR_STATE_cmd_enum cmd        :  4;
                 uint32_t                 reserved1  : 28;
-            };
+            } hasClearState;
         } bitfields;
         uint32_t u32All;
     } ordinal2;
 } PM4_PFP_CLEAR_STATE;
 
-constexpr unsigned int PM4_PFP_CLEAR_STATE_SIZEDW__CORE = 2;
+constexpr unsigned int PM4_PFP_CLEAR_STATE_SIZEDW__HASCLEARSTATE = 2;
 
 // --------------------------------------- PM4_PFP_COND_EXEC ---------------------------------------
 typedef struct PM4_PFP_COND_EXEC
@@ -2077,6 +2097,7 @@ typedef struct PM4_PFP_INDIRECT_BUFFER
                 uint32_t                              vmid         :  4;
                 PFP_INDIRECT_BUFFER_cache_policy_enum cache_policy :  2;
                 uint32_t                              pre_resume   :  1;
+                uint32_t                              reserved2    :  1;
             };
         } bitfields;
         uint32_t u32All;
@@ -2562,10 +2583,10 @@ constexpr unsigned int PM4_PFP_PFP_SYNC_ME_SIZEDW__CORE = 2;
 // -------------------------------- PFP_PREAMBLE_CNTL_command_enum --------------------------------
 enum PFP_PREAMBLE_CNTL_command_enum
 {
-    command__pfp_preamble_cntl__preamble_begin                      =  0,
-    command__pfp_preamble_cntl__preamble_end                        =  1,
-    command__pfp_preamble_cntl__begin_of_clear_state_initialization =  2,
-    command__pfp_preamble_cntl__end_of_clear_state_initialization   =  3,
+    command__pfp_preamble_cntl__preamble_begin                                     =  0,
+    command__pfp_preamble_cntl__preamble_end                                       =  1,
+    command__pfp_preamble_cntl__begin_of_clear_state_initialization__HASCLEARSTATE =  2,
+    command__pfp_preamble_cntl__end_of_clear_state_initialization__HASCLEARSTATE   =  3,
 };
 
 // ------------------------------------- PM4_PFP_PREAMBLE_CNTL -------------------------------------
@@ -3150,7 +3171,7 @@ typedef struct PM4_PFP_STRMOUT_BUFFER_UPDATE
             {
                 uint32_t reserved1      :  2;
                 uint32_t dst_address_lo : 30;
-            } gfx09_10;
+            } hasCe;
         } bitfields;
         uint32_t u32All;
     } ordinal3;

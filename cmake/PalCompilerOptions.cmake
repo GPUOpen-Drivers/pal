@@ -44,7 +44,7 @@ function(pal_compiler_options TARGET)
 
     if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
         set(isGNU   TRUE)
-    elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
+    elseif("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang")
         set(isClang TRUE)
     endif()
 

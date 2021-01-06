@@ -41,16 +41,19 @@ namespace GpuDebug
 
 // =====================================================================================================================
 Platform::Platform(
+    const PlatformCreateInfo&   createInfo,
     const Util::AllocCallbacks& allocCb,
     IPlatform*                  pNextPlatform,
     bool                        enabled)
     :
-    PlatformDecorator(allocCb, GpuDebugCb, enabled, enabled, pNextPlatform) // GpuDebug doesn't install callback
+    // GpuDebug doesn't install callback
+    PlatformDecorator(createInfo, allocCb, GpuDebugCb, enabled, enabled, pNextPlatform)
 {
 }
 
 // =====================================================================================================================
 Result Platform::Create(
+    const PlatformCreateInfo&   createInfo,
     const Util::AllocCallbacks& allocCb,
     IPlatform*                  pNextPlatform,
     bool                        enabled,
@@ -58,7 +61,7 @@ Result Platform::Create(
     IPlatform**                 ppPlatform)
 {
     Result result   = Result::ErrorInitializationFailed;
-    auto* pPlatform = PAL_PLACEMENT_NEW(pPlacementAddr) Platform(allocCb, pNextPlatform, enabled);
+    auto* pPlatform = PAL_PLACEMENT_NEW(pPlacementAddr) Platform(createInfo, allocCb, pNextPlatform, enabled);
 
     if (pPlatform != nullptr)
     {

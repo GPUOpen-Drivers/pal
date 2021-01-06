@@ -97,6 +97,7 @@ void GfxImage::UpdateMetaDataHeaderLayout(
 
 // =====================================================================================================================
 // Returns an index into the m_fastClearMetaData* arrays.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
 uint32 GfxImage::GetFastClearIndex(
     ImageAspect  aspect
     ) const
@@ -130,6 +131,39 @@ uint32 GfxImage::GetFastClearIndex(
 
     return aspectIdx;
 }
+#else
+uint32 GfxImage::GetFastClearIndex(
+    uint32 plane
+    ) const
+{
+    // Depth/stencil images only have one hTile allocation despite having two planes.
+    if ((plane == 1) && m_pParent->IsDepthStencilTarget())
+    {
+        plane = 0;
+    }
+
+    PAL_ASSERT (plane < MaxNumPlanes);
+
+    return plane;
+}
+#endif
+
+// =====================================================================================================================
+bool GfxImage::HasFastClearMetaData(
+    const SubresRange& range
+    ) const
+{
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
+    return HasFastClearMetaData(range.startSubres.aspect);
+#else
+    bool result = false;
+    for (uint32 plane = range.startSubres.plane; (plane < (range.startSubres.plane + range.numPlanes)); plane++)
+    {
+        result |= HasFastClearMetaData(plane);
+    }
+    return result;
+#endif
+}
 
 // =====================================================================================================================
 // Returns the GPU virtual address of the fast-clear metadata for the specified mip level.
@@ -137,13 +171,29 @@ gpusize GfxImage::FastClearMetaDataAddr(
     const SubresId&  subResId
     ) const
 {
-    const uint32  aspectIndex = GetFastClearIndex(subResId.aspect);
+    gpusize  metaDataAddr = 0;
 
-    PAL_ASSERT(HasFastClearMetaData(subResId.aspect));
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
+    if (HasFastClearMetaData(subResId.aspect))
+    {
+        const uint32  aspectIndex = GetFastClearIndex(subResId.aspect);
 
-    return Parent()->GetBoundGpuMemory().GpuVirtAddr() +
-           m_fastClearMetaDataOffset[aspectIndex]      +
-           (m_fastClearMetaDataSizePerMip[aspectIndex] * subResId.mipLevel);
+        metaDataAddr = Parent()->GetBoundGpuMemory().GpuVirtAddr() +
+                       m_fastClearMetaDataOffset[aspectIndex]      +
+                       (m_fastClearMetaDataSizePerMip[aspectIndex] * subResId.mipLevel);
+    }
+#else
+    if (HasFastClearMetaData(subResId.plane))
+    {
+        const uint32 planeIndex = GetFastClearIndex(subResId.plane);
+
+        metaDataAddr = Parent()->GetBoundGpuMemory().GpuVirtAddr() +
+                       m_fastClearMetaDataOffset[planeIndex]       +
+                       (m_fastClearMetaDataSizePerMip[planeIndex] * subResId.mipLevel);
+    }
+#endif
+
+    return metaDataAddr;
 }
 
 // =====================================================================================================================
@@ -152,17 +202,34 @@ gpusize GfxImage::FastClearMetaDataOffset(
     const SubresId&  subResId
     ) const
 {
-    const uint32  aspectIndex = GetFastClearIndex(subResId.aspect);
+    gpusize  metaDataOffset = 0;
 
-    PAL_ASSERT(HasFastClearMetaData(subResId.aspect));
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
+    if (HasFastClearMetaData(subResId.aspect))
+    {
+        const uint32  aspectIndex = GetFastClearIndex(subResId.aspect);
 
-    return Parent()->GetBoundGpuMemory().Offset() +
-           m_fastClearMetaDataOffset[aspectIndex] +
-           (m_fastClearMetaDataSizePerMip[aspectIndex] * subResId.mipLevel);
+        metaDataOffset = Parent()->GetBoundGpuMemory().Offset() +
+                         m_fastClearMetaDataOffset[aspectIndex] +
+                         (m_fastClearMetaDataSizePerMip[aspectIndex] * subResId.mipLevel);
+    }
+#else
+    if (HasFastClearMetaData(subResId.plane))
+    {
+        const uint32 planeIndex = GetFastClearIndex(subResId.plane);
+
+        metaDataOffset = Parent()->GetBoundGpuMemory().Offset() +
+                         m_fastClearMetaDataOffset[planeIndex] +
+                         (m_fastClearMetaDataSizePerMip[planeIndex] * subResId.mipLevel);
+    }
+#endif
+
+    return metaDataOffset;
 }
 
 // =====================================================================================================================
 // Returns the GPU memory size of the fast-clear metadata for the specified num mips.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
 gpusize GfxImage::FastClearMetaDataSize(
     ImageAspect  aspect,
     uint32       numMips
@@ -172,6 +239,17 @@ gpusize GfxImage::FastClearMetaDataSize(
 
     return (m_fastClearMetaDataSizePerMip[GetFastClearIndex(aspect)] * numMips);
 }
+#else
+gpusize GfxImage::FastClearMetaDataSize(
+    uint32 plane,
+    uint32 numMips
+    ) const
+{
+    PAL_ASSERT(HasFastClearMetaData(plane));
+
+    return (m_fastClearMetaDataSizePerMip[GetFastClearIndex(plane)] * numMips);
+}
+#endif
 
 // =====================================================================================================================
 // Initializes the size and GPU offset for this Image's fast-clear metadata.
@@ -253,11 +331,19 @@ void GfxImage::InitHiSPretestsMetaData(
 // Sets the clear method for all subresources associated with the specified miplevel.
 void GfxImage::UpdateClearMethod(
     SubResourceInfo* pSubResInfoList,
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
     ImageAspect      aspect,
+#else
+    uint32           plane,
+#endif
     uint32           mipLevel,
     ClearMethod      method)
 {
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
     SubresId subRes = { aspect, mipLevel, 0, };
+#else
+    SubresId subRes = { plane, mipLevel, 0, };
+#endif
 
     for (subRes.arraySlice = 0; subRes.arraySlice < m_createInfo.arraySize; ++subRes.arraySlice)
     {
@@ -336,8 +422,13 @@ void GfxImage::PadYuvPlanarViewActualExtent(
 
     // We need to compute the difference in start offsets of two consecutive array slices of whichever plane
     // the view is associated with.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
     const SubresId slice0SubRes = { subresource.aspect, 0, 0 };
     const SubresId slice1SubRes = { subresource.aspect, 0, 1 };
+#else
+    const SubresId slice0SubRes = { subresource.plane, 0, 0 };
+    const SubresId slice1SubRes = { subresource.plane, 0, 1 };
+#endif
 
     const SubResourceInfo*const pSlice0Info  = Parent()->SubresourceInfo(slice0SubRes);
     const SubResourceInfo*const pSlice1Info  = Parent()->SubresourceInfo(slice1SubRes);
@@ -398,6 +489,7 @@ void GfxImage::Destroy()
     }
 }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
 // =====================================================================================================================
 // Get the index of a specified aspect.
 uint32 GfxImage::GetDepthStencilStateIndex(
@@ -407,4 +499,10 @@ uint32 GfxImage::GetDepthStencilStateIndex(
     PAL_ASSERT(dsAspect == ImageAspect::Depth || dsAspect == ImageAspect::Stencil);
     return (m_pImageInfo->numPlanes == 1) ? 0 : static_cast<uint32>(dsAspect == ImageAspect::Stencil);
 }
+#else
+uint32 GfxImage::GetStencilPlane() const
+{
+    return ((m_pImageInfo->numPlanes == 1) ? 0 : 1);
+}
+#endif
 } // Pal

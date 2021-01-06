@@ -80,6 +80,18 @@
 constexpr int32_t InvalidFd = -1;
 #endif
 
+#if defined(__has_cpp_attribute)
+#define PAL_HAS_CPP_ATTR(attr) __has_cpp_attribute(attr)
+#else
+#define PAL_HAS_CPP_ATTR(attr) 0
+#endif
+
+#if PAL_HAS_CPP_ATTR(nodiscard)
+#define PAL_NODISCARD [[nodiscard]]
+#else
+#define PAL_NODISCARD
+#endif
+
 /// Library-wide namespace encapsulating all PAL utility collection entities.
 namespace Util
 {
@@ -328,14 +340,24 @@ enum class Result : int32
     /// Invalid image create info: Image format is incompatible with the image usage specified.
     ErrorFormatIncompatibleWithImageUsage   = -(0x00000039),
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
     /// Operation requested an image aspect that is not available on the image.
     ErrorImageAspectUnavailable             = -(0x0000003A),
+#else
+    /// Operation requested an image plane that is not available on the image.
+    ErrorImagePlaneUnavailable              = -(0x0000003A),
+#endif
 
     /// Another format is incompatible with an image's format.
     ErrorFormatIncompatibleWithImageFormat  = -(0x0000003B),
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
     /// Another format is incompatible with an image aspect's format.
     ErrorFormatIncompatibleWithImageAspect  = -(0x0000003C),
+#else
+    /// Another format is incompatible with an image plane's format.
+    ErrorFormatIncompatibleWithImagePlane   = -(0x0000003C),
+#endif
 
     /// Operation requires a shader readable or writable image usage but the image does not support it.
     ErrorImageNotShaderAccessible           = -(0x0000003D),
@@ -439,6 +461,9 @@ enum class Result : int32
 
     /// Invalid image create info: specified metadataMode is invalid for the Image.
     ErrorInvalidImageMetadataMode           = -(0x00000064),
+
+    /// Invalid external handle detected for the Image.
+    ErrorInvalidExternalHandle              = -(0x00000065),
 };
 
 /// Length of date field used in BuildUniqueId

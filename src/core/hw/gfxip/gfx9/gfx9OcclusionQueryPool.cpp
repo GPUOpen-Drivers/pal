@@ -78,10 +78,12 @@ void OcclusionQueryPool::Begin(
         pCmdBuffer->AddQuery(QueryPoolType::Occlusion, flags);
 
         uint32* pCmdSpace = pCmdStream->ReserveCommands();
-        pCmdSpace += CmdUtil::BuildSampleEventWrite(PIXEL_PIPE_STAT_DUMP,
-                                                    pCmdBuffer->GetEngineType(),
-                                                    gpuAddr + offsetof(OcclusionQueryResultPair, begin),
-                                                    pCmdSpace);
+        pCmdSpace +=
+            CmdUtil::BuildSampleEventWrite(PIXEL_PIPE_STAT_DUMP,
+                                           event_index__me_event_write__pixel_pipe_stat_control_or_dump,
+                                           pCmdBuffer->GetEngineType(),
+                                           gpuAddr + offsetof(OcclusionQueryResultPair, begin),
+                                           pCmdSpace);
         pCmdStream->CommitCommands(pCmdSpace);
     }
 }
@@ -108,10 +110,12 @@ void OcclusionQueryPool::End(
         pCmdBuffer->RemoveQuery(QueryPoolType::Occlusion);
 
         uint32* pCmdSpace = pCmdStream->ReserveCommands();
-        pCmdSpace += CmdUtil::BuildSampleEventWrite(PIXEL_PIPE_STAT_DUMP,
-                                                    engineType,
-                                                    gpuAddr + offsetof(OcclusionQueryResultPair, end),
-                                                    pCmdSpace);
+        pCmdSpace +=
+            CmdUtil::BuildSampleEventWrite(PIXEL_PIPE_STAT_DUMP,
+                                           event_index__me_event_write__pixel_pipe_stat_control_or_dump,
+                                           engineType,
+                                           gpuAddr + offsetof(OcclusionQueryResultPair, end),
+                                           pCmdSpace);
 
         pCmdStream->CommitCommands(pCmdSpace);
 

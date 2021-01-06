@@ -130,6 +130,14 @@ public:
     ///                     be from the current position
     void Seek(int32 offset, bool fromOrigin);
 
+    /// Sets the file position to the end of the file.
+    void FastForward() { Rseek(0); }
+
+    /// Sets the position indicator to a new position relative to the end of the file
+    ///
+    /// @param  offset Number of bytes to offset
+    void Rseek(int32 offset);
+
     /// Returns true if the file is presently open.
     bool IsOpen() const { return (m_pFileHandle != nullptr); }
 

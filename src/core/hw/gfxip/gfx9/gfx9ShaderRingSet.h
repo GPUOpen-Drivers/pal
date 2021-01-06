@@ -46,6 +46,10 @@ enum class ShaderRingType : uint32
     GsVs,                              // Ring for passing vertex data between the GS & VS stage
     TfBuffer,                          // Tess-Factor Buffer
     OffChipLds,                        // Off-Chip Tessellation LDS buffers
+    PayloadData,                       // Task -> GFX payload data.
+    DrawData,                          // IndirectDraw parameters from the task shader.
+    MeshScratch,                       // Mesh shader scratch ring
+    TaskMeshControl,                   // Task/Mesh shader control buffer ring.
     NumUniversal,                      // Number of Rings in a RingSet associated with a universal Queue
     NumCompute = (SamplePos + 1),      // Number of Rings in a RingSet associated with a compute Queue
 };
@@ -53,24 +57,24 @@ enum class ShaderRingType : uint32
 // Enumerates the SRD's used in the per-RingSet internal table.
 enum class ShaderRingSrd : uint32
 {
-    ScratchGraphics = 0,               // Graphics Scratch Ring
-    ScratchCompute,                    // Compute Scratch Ring
-    Reserved1,                         // Reserved for future use.
-    Reserved2,                         // Reserved for future use.
-    GsVsWrite0,                        // GS/VS Ring Write Access (Offset 0)
-    GsVsWrite1,                        // GS/VS Ring Write Access (Offset 1)
-    GsVsWrite2,                        // GS/VS Ring Write Access (Offset 2)
-    GsVsWrite3,                        // GS/VS Ring Write Access (Offset 3)
-    GsVsRead,                          // GS/VS Ring Read Access
-    TessFactorBuffer,                  // Tessellation Factor Buffer
-    OffChipLdsBuffer,                  // Off-chip Tessellation LDS buffer
-    Reserved3,                         // Reserved for future use.
-    SamplePosBuffer,                   // Sample position buffer
-    Reserved4,                         // Reserved for future use.
-    Reserved5,                         // Reserved for future use.
-    Reserved6,                         // Reserved for future use.
-    Reserved7,                         // Reserved for future use.
-    NumUniversal,                      // Number of Ring SRD's in a RingSet associated with a universal Queue
+    ScratchGraphics = 0,                // Graphics Scratch Ring
+    ScratchCompute,                     // Compute Scratch Ring
+    Reserved1,                          // Reserved for future use.
+    Reserved2,                          // Reserved for future use.
+    GsVsWrite0,                         // GS/VS Ring Write Access (Offset 0)
+    GsVsWrite1,                         // GS/VS Ring Write Access (Offset 1)
+    GsVsWrite2,                         // GS/VS Ring Write Access (Offset 2)
+    GsVsWrite3,                         // GS/VS Ring Write Access (Offset 3)
+    GsVsRead,                           // GS/VS Ring Read Access
+    TessFactorBuffer,                   // Tessellation Factor Buffer
+    OffChipLdsBuffer,                   // Off-chip Tessellation LDS buffer
+    Reserved3,                          // Reserved for future use.
+    SamplePosBuffer,                    // Sample position buffer
+    PayloadDataRing,                    // Task -> GFX payload data.
+    DrawDataRing,                       // IndirectDraw parameters from task shader.
+    MeshScratch,                        // Mesh shader scratch ring, accessible by whole threadgroup.
+    TaskMeshControl,                    // SRD for task/mesh control buffer ring.
+    NumUniversal,                       // Number of Ring SRD's in a RingSet associated with a universal Queue
     NumCompute = (SamplePosBuffer + 1), // Number of Ring SRD's in a RingSet associated with a compute Queue
 };
 

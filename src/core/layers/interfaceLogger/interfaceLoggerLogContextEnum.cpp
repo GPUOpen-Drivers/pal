@@ -627,6 +627,29 @@ void LogContext::Enum(
 
 // =====================================================================================================================
 void LogContext::Enum(
+    GpuHeapAccess value)
+{
+    const char* const StringTable[] =
+    {
+        "GpuHeapAccessExplicit",       // 0x0
+        "GpuHeapAccessCpuNoAccess",    // 0x1
+        "GpuHeapAccessGpuMostly",      // 0x2
+        "GpuHeapAccessCpuReadMostly",  // 0x3
+        "GpuHeapAccessCpuWriteMostly", // 0x4
+        "GpuHeapAccessCpuMostly",      // 0x5
+    };
+
+    static_assert(ArrayLen(StringTable) == GpuHeapAccessCount,
+                  "The GpuHeapAccess string table needs to be updated.");
+
+    const uint32 idx = static_cast<uint32>(value);
+    PAL_ASSERT(idx < GpuHeapAccessCount);
+
+    Value(StringTable[idx]);
+}
+
+// =====================================================================================================================
+void LogContext::Enum(
     GpuMemPriority value)
 {
     const char*const StringTable[] =
@@ -701,6 +724,7 @@ void LogContext::Enum(
     Value(StringTable[idx]);
 }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
 // =====================================================================================================================
 void LogContext::Enum(
     ImageAspect value)
@@ -726,6 +750,7 @@ void LogContext::Enum(
 
     Value(StringTable[idx]);
 }
+#endif
 
 // =====================================================================================================================
 void LogContext::Enum(
@@ -1001,6 +1026,7 @@ void LogContext::Enum(
         "Carrizo",
         "Bristol",
         "Iceland",
+        "Tonga",
         "TongaPro",
         "Fiji",
         "Polaris10",
@@ -1463,9 +1489,17 @@ void LogContext::Enum(
             "ErrorInvalidImageDepth",                 // -(0x00000037),
             "ErrorInvalidMipCount",                   // -(0x00000038),
             "ErrorFormatIncompatibleWithImageUsage",  // -(0x00000039),
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
             "ErrorImageAspectUnavailable",            // -(0x0000003A),
+#else
+            "ErrorImagePlaneUnavailable",             // -(0x0000003A),
+#endif
             "ErrorFormatIncompatibleWithImageFormat", // -(0x0000003B),
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
             "ErrorFormatIncompatibleWithImageAspect", // -(0x0000003C),
+#else
+            "ErrorFormatIncompatibleWithImagePlane",  // -(0x0000003C),
+#endif
             "ErrorImageNotShaderAccessible",          // -(0x0000003D),
             "ErrorInvalidFormatSwizzle",              // -(0x0000003E),
             "ErrorInvalidBaseMipLevel",               // -(0x0000003F),

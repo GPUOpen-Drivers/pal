@@ -95,14 +95,11 @@ void SettingsLoader::SetupDefaults()
     m_settings.hiStencilEnable = true;
     m_settings.dbRequestSize = 0x0;
     m_settings.dbDisableColorOnValidation = false;
-    m_settings.enableOnchipGs = true;
     m_settings.enableOutOfOrderPrimitives = OutOfOrderPrimSafe;
     m_settings.outOfOrderWatermark = 7;
     m_settings.disableGeCntlVtxGrouping = true;
     m_settings.gsCuGroupEnabled = false;
     m_settings.gsMaxLdsSize = 8192;
-    m_settings.gsOffChipThreshold = 64;
-    m_settings.idealGsPrimsPerSubGroup = 64;
     m_settings.lateAllocGs = 16;
     m_settings.lateAllocVs = LateAllocVsBehaviorLegacy;
     m_settings.maxTessFactor = 64.0;
@@ -135,15 +132,10 @@ void SettingsLoader::SetupDefaults()
     m_settings.psCuEnLimitMask = 0xffffffff;
     m_settings.csCuEnLimitMask = 0xffffffff;
 
-    m_settings.gfx9OffChipHsCopyMethod = Gfx9OffChipHsCopyAllAtEnd;
-    m_settings.gfx9OffChipHsSkipDataCopyNullPatch = true;
     m_settings.shaderPrefetchSizeBytes = 4294967295;
-    m_settings.gfx9OffChipHsMultiWavePatchDataCopy = false;
-    m_settings.gfx9OptimizeDsDataFetch = false;
-
+    m_settings.numTsMsDrawEntriesPerSe = 64;
     m_settings.nggSupported = true;
     m_settings.nggLateAllocGs = 127;
-    m_settings.nggRingSize = 32;
     m_settings.binningMode = Gfx9DeferredBatchBinAccurate;
     m_settings.customBatchBinSize = 0x800080;
     m_settings.minBatchBinSize.width = 0;
@@ -422,11 +414,6 @@ void SettingsLoader::ReadSettings()
                            &m_settings.dbDisableColorOnValidation,
                            InternalSettingScope::PrivatePalGfx9Key);
 
-    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pEnableOnchipGsStr,
-                           Util::ValueType::Boolean,
-                           &m_settings.enableOnchipGs,
-                           InternalSettingScope::PrivatePalGfx9Key);
-
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pEnableOutOfOrderPrimitivesStr,
                            Util::ValueType::Uint,
                            &m_settings.enableOutOfOrderPrimitives,
@@ -450,16 +437,6 @@ void SettingsLoader::ReadSettings()
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pGsMaxLdsSizeStr,
                            Util::ValueType::Uint,
                            &m_settings.gsMaxLdsSize,
-                           InternalSettingScope::PrivatePalGfx9Key);
-
-    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pGsOffChipThresholdStr,
-                           Util::ValueType::Uint,
-                           &m_settings.gsOffChipThreshold,
-                           InternalSettingScope::PrivatePalGfx9Key);
-
-    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pGsPrimsPerSubGroupStr,
-                           Util::ValueType::Uint,
-                           &m_settings.idealGsPrimsPerSubGroup,
                            InternalSettingScope::PrivatePalGfx9Key);
 
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pLateAllocGsStr,
@@ -617,29 +594,14 @@ void SettingsLoader::ReadSettings()
                            &m_settings.csCuEnLimitMask,
                            InternalSettingScope::PrivatePalGfx9Key);
 
-    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pOffChipHsCopyMethodStr,
-                           Util::ValueType::Uint,
-                           &m_settings.gfx9OffChipHsCopyMethod,
-                           InternalSettingScope::PrivatePalGfx9Key);
-
-    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pOffChipHsSkipDataCopyNullPatchStr,
-                           Util::ValueType::Boolean,
-                           &m_settings.gfx9OffChipHsSkipDataCopyNullPatch,
-                           InternalSettingScope::PrivatePalGfx9Key);
-
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pShaderPrefetchSizeBytesStr,
                            Util::ValueType::Uint,
                            &m_settings.shaderPrefetchSizeBytes,
                            InternalSettingScope::PrivatePalGfx9Key);
 
-    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pOffChipHsMultiWavePatchDataCopyStr,
-                           Util::ValueType::Boolean,
-                           &m_settings.gfx9OffChipHsMultiWavePatchDataCopy,
-                           InternalSettingScope::PrivatePalGfx9Key);
-
-    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pOptimizeDsDataFetchStr,
-                           Util::ValueType::Boolean,
-                           &m_settings.gfx9OptimizeDsDataFetch,
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pNumTsMsDrawEntriesPerSeStr,
+                           Util::ValueType::Uint,
+                           &m_settings.numTsMsDrawEntriesPerSe,
                            InternalSettingScope::PrivatePalGfx9Key);
 
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pNggSupportedStr,
@@ -650,11 +612,6 @@ void SettingsLoader::ReadSettings()
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pNggLateAllocGsStr,
                            Util::ValueType::Uint,
                            &m_settings.nggLateAllocGs,
-                           InternalSettingScope::PrivatePalGfx9Key);
-
-    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pNggRingSizeStr,
-                           Util::ValueType::Uint,
-                           &m_settings.nggRingSize,
                            InternalSettingScope::PrivatePalGfx9Key);
 
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pDeferredBatchBinModeStr,
@@ -1504,11 +1461,6 @@ void SettingsLoader::InitSettingsInfo()
     info.valueSize = sizeof(m_settings.dbDisableColorOnValidation);
     m_settingsInfoMap.Insert(4057416918, info);
 
-    info.type      = SettingType::Boolean;
-    info.pValuePtr = &m_settings.enableOnchipGs;
-    info.valueSize = sizeof(m_settings.enableOnchipGs);
-    m_settingsInfoMap.Insert(4034461831, info);
-
     info.type      = SettingType::Uint;
     info.pValuePtr = &m_settings.enableOutOfOrderPrimitives;
     info.valueSize = sizeof(m_settings.enableOutOfOrderPrimitives);
@@ -1533,16 +1485,6 @@ void SettingsLoader::InitSettingsInfo()
     info.pValuePtr = &m_settings.gsMaxLdsSize;
     info.valueSize = sizeof(m_settings.gsMaxLdsSize);
     m_settingsInfoMap.Insert(3033759533, info);
-
-    info.type      = SettingType::Uint;
-    info.pValuePtr = &m_settings.gsOffChipThreshold;
-    info.valueSize = sizeof(m_settings.gsOffChipThreshold);
-    m_settingsInfoMap.Insert(1659075697, info);
-
-    info.type      = SettingType::Uint;
-    info.pValuePtr = &m_settings.idealGsPrimsPerSubGroup;
-    info.valueSize = sizeof(m_settings.idealGsPrimsPerSubGroup);
-    m_settingsInfoMap.Insert(307437762, info);
 
     info.type      = SettingType::Uint;
     info.pValuePtr = &m_settings.lateAllocGs;
@@ -1700,29 +1642,14 @@ void SettingsLoader::InitSettingsInfo()
     m_settingsInfoMap.Insert(3382331351, info);
 
     info.type      = SettingType::Uint;
-    info.pValuePtr = &m_settings.gfx9OffChipHsCopyMethod;
-    info.valueSize = sizeof(m_settings.gfx9OffChipHsCopyMethod);
-    m_settingsInfoMap.Insert(1882491753, info);
-
-    info.type      = SettingType::Boolean;
-    info.pValuePtr = &m_settings.gfx9OffChipHsSkipDataCopyNullPatch;
-    info.valueSize = sizeof(m_settings.gfx9OffChipHsSkipDataCopyNullPatch);
-    m_settingsInfoMap.Insert(1952167388, info);
-
-    info.type      = SettingType::Uint;
     info.pValuePtr = &m_settings.shaderPrefetchSizeBytes;
     info.valueSize = sizeof(m_settings.shaderPrefetchSizeBytes);
     m_settingsInfoMap.Insert(2362905229, info);
 
-    info.type      = SettingType::Boolean;
-    info.pValuePtr = &m_settings.gfx9OffChipHsMultiWavePatchDataCopy;
-    info.valueSize = sizeof(m_settings.gfx9OffChipHsMultiWavePatchDataCopy);
-    m_settingsInfoMap.Insert(2396748146, info);
-
-    info.type      = SettingType::Boolean;
-    info.pValuePtr = &m_settings.gfx9OptimizeDsDataFetch;
-    info.valueSize = sizeof(m_settings.gfx9OptimizeDsDataFetch);
-    m_settingsInfoMap.Insert(2405308569, info);
+    info.type      = SettingType::Uint;
+    info.pValuePtr = &m_settings.numTsMsDrawEntriesPerSe;
+    info.valueSize = sizeof(m_settings.numTsMsDrawEntriesPerSe);
+    m_settingsInfoMap.Insert(1975499791, info);
 
     info.type      = SettingType::Boolean;
     info.pValuePtr = &m_settings.nggSupported;
@@ -1733,11 +1660,6 @@ void SettingsLoader::InitSettingsInfo()
     info.pValuePtr = &m_settings.nggLateAllocGs;
     info.valueSize = sizeof(m_settings.nggLateAllocGs);
     m_settingsInfoMap.Insert(3217915194, info);
-
-    info.type      = SettingType::Uint;
-    info.pValuePtr = &m_settings.nggRingSize;
-    info.valueSize = sizeof(m_settings.nggRingSize);
-    m_settingsInfoMap.Insert(3858230864, info);
 
     info.type      = SettingType::Uint;
     info.pValuePtr = &m_settings.binningMode;
@@ -2145,7 +2067,7 @@ void SettingsLoader::DevDriverRegister()
             component.pfnSetValue = ISettingsLoader::SetValue;
             component.pSettingsData = &g_gfx9PalJsonData[0];
             component.settingsDataSize = sizeof(g_gfx9PalJsonData);
-            component.settingsDataHash = 3805733751;
+            component.settingsDataHash = 1723253782;
             component.settingsDataHeader.isEncoded = true;
             component.settingsDataHeader.magicBufferId = 402778310;
             component.settingsDataHeader.magicBufferOffset = 0;

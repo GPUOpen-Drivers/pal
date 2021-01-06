@@ -66,13 +66,7 @@ Result MasterQueueSemaphore::Init(
 {
     m_signalCount = createInfo.initialCount;
 
-    Result result = m_queuesLock.Init();
-    if (result == Result::Success)
-    {
-        result = (m_pDevice->IsNull() ? Result::Success : OsInit(createInfo));
-    }
-
-    return result;
+    return (m_pDevice->IsNull() ? Result::Success : OsInit(createInfo));
 }
 
 // =====================================================================================================================
@@ -84,11 +78,7 @@ Result MasterQueueSemaphore::InitExternal()
     // a signal has been queued prior to wait for the semaphore to operate correctly.
     m_signalCount = 0;
 
-    // This is not really needed as the signal may be called by other APIs and we are unable to check that so the lock
-    // should never be used.
-    Result result = m_queuesLock.Init();
-
-    return result;
+    return Result::Success;
 }
 
 // =====================================================================================================================

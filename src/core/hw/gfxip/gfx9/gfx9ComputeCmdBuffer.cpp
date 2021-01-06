@@ -147,9 +147,128 @@ void ComputeCmdBuffer::CmdBarrier(
 
     m_device.Barrier(this, &m_cmdStream, barrierInfo);
 
+    bool splitMemAllocated;
+    BarrierInfo splitBarrierInfo = barrierInfo;
+    Result result = m_device.Parent()->SplitBarrierTransitions(&splitBarrierInfo, &splitMemAllocated);
+
+    if (result == Result::ErrorOutOfMemory)
+    {
+        NotifyAllocFailure();
+    }
+    else if (result == Result::Success)
+    {
+        m_device.Barrier(this, &m_cmdStream, splitBarrierInfo);
+    }
+    else
+    {
+        PAL_ASSERT_ALWAYS();
+    }
+
+    // Delete memory allocated for splitting the BarrierTransitions if necessary.
+    if (splitMemAllocated)
+    {
+        PAL_SAFE_DELETE_ARRAY(splitBarrierInfo.pTransitions, m_device.GetPlatform());
+    }
+
     m_gfxCmdBufState.flags.packetPredicate = packetPredicate;
 }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
+// =====================================================================================================================
+uint32 ComputeCmdBuffer::CmdRelease(
+    const AcquireReleaseInfo& releaseInfo)
+{
+    CmdBuffer::CmdRelease(releaseInfo);
+
+    // Barriers do not honor predication.
+    const uint32 packetPredicate = m_gfxCmdBufState.flags.packetPredicate;
+    m_gfxCmdBufState.flags.packetPredicate = 0;
+
+    // Mark these as traditional barriers in RGP
+    m_device.DescribeBarrierStart(this, releaseInfo.reason, Developer::BarrierType::Release);
+
+    bool splitMemAllocated;
+    AcquireReleaseInfo splitReleaseInfo = releaseInfo;
+    Result result = m_device.Parent()->SplitImgBarriers(&splitReleaseInfo, &splitMemAllocated);
+
+    Developer::BarrierOperations barrierOps = {};
+    AcqRelSyncToken syncToken = {};
+
+    if (result == Result::ErrorOutOfMemory)
+    {
+        NotifyAllocFailure();
+    }
+    else if (result == Result::Success)
+    {
+        syncToken = m_device.BarrierRelease(this, &m_cmdStream, releaseInfo, &barrierOps);
+    }
+    else
+    {
+        PAL_ASSERT_ALWAYS();
+    }
+
+    // Delete memory allocated for splitting ImgBarriers if necessary.
+    if (splitMemAllocated)
+    {
+        PAL_SAFE_DELETE_ARRAY(splitReleaseInfo.pImageBarriers, m_device.GetPlatform());
+    }
+
+    m_device.DescribeBarrierEnd(this, &barrierOps);
+
+    m_gfxCmdBufState.flags.packetPredicate = packetPredicate;
+
+    return syncToken.u32All;
+}
+
+// =====================================================================================================================
+void ComputeCmdBuffer::CmdAcquire(
+    const AcquireReleaseInfo& acquireInfo,
+    uint32                    syncTokenCount,
+    const uint32*             pSyncTokens)
+{
+    CmdBuffer::CmdAcquire(acquireInfo, syncTokenCount, pSyncTokens);
+
+    // Barriers do not honor predication.
+    const uint32 packetPredicate = m_gfxCmdBufState.flags.packetPredicate;
+    m_gfxCmdBufState.flags.packetPredicate = 0;
+
+    // Mark these as traditional barriers in RGP
+    m_device.DescribeBarrierStart(this, acquireInfo.reason, Developer::BarrierType::Acquire);
+
+    bool splitMemAllocated;
+    AcquireReleaseInfo splitAcquireInfo = acquireInfo;
+    Result result = m_device.Parent()->SplitImgBarriers(&splitAcquireInfo, &splitMemAllocated);
+
+    Developer::BarrierOperations barrierOps = {};
+    if (result == Result::ErrorOutOfMemory)
+    {
+        NotifyAllocFailure();
+    }
+    else if (result == Result::Success)
+    {
+        m_device.BarrierAcquire(this,
+                                &m_cmdStream,
+                                splitAcquireInfo,
+                                syncTokenCount,
+                                reinterpret_cast<const AcqRelSyncToken*>(pSyncTokens),
+                                &barrierOps);
+    }
+    else
+    {
+        PAL_ASSERT_ALWAYS();
+    }
+
+    // Delete memory allocated for splitting ImgBarriers if necessary.
+    if (splitMemAllocated)
+    {
+        PAL_SAFE_DELETE_ARRAY(splitAcquireInfo.pImageBarriers, m_device.GetPlatform());
+    }
+
+    m_device.DescribeBarrierEnd(this, &barrierOps);
+
+    m_gfxCmdBufState.flags.packetPredicate = packetPredicate;
+}
+#else
 // =====================================================================================================================
 void ComputeCmdBuffer::CmdRelease(
     const AcquireReleaseInfo& releaseInfo,
@@ -163,8 +282,31 @@ void ComputeCmdBuffer::CmdRelease(
 
     // Mark these as traditional barriers in RGP
     m_device.DescribeBarrierStart(this, releaseInfo.reason, Developer::BarrierType::Release);
+
+    bool splitMemAllocated;
+    AcquireReleaseInfo splitReleaseInfo = releaseInfo;
+    Result result = m_device.Parent()->SplitImgBarriers(&splitReleaseInfo, &splitMemAllocated);
+
     Developer::BarrierOperations barrierOps = {};
-    m_device.BarrierRelease(this, &m_cmdStream, releaseInfo, pGpuEvent, &barrierOps);
+    if (result == Result::ErrorOutOfMemory)
+    {
+        NotifyAllocFailure();
+    }
+    else if (result == Result::Success)
+    {
+        m_device.BarrierRelease(this, &m_cmdStream, splitReleaseInfo, pGpuEvent, &barrierOps);
+    }
+    else
+    {
+        PAL_ASSERT_ALWAYS();
+    }
+
+    // Delete memory allocated for splitting ImgBarriers if necessary.
+    if (splitMemAllocated)
+    {
+        PAL_SAFE_DELETE_ARRAY(splitReleaseInfo.pImageBarriers, m_device.GetPlatform());
+    }
+
     m_device.DescribeBarrierEnd(this, &barrierOps);
 
     m_gfxCmdBufState.flags.packetPredicate = packetPredicate;
@@ -184,12 +326,36 @@ void ComputeCmdBuffer::CmdAcquire(
 
     // Mark these as traditional barriers in RGP
     m_device.DescribeBarrierStart(this, acquireInfo.reason, Developer::BarrierType::Acquire);
+
+    bool splitMemAllocated;
+    AcquireReleaseInfo splitAcquireInfo = acquireInfo;
+    Result result = m_device.Parent()->SplitImgBarriers(&splitAcquireInfo, &splitMemAllocated);
+
     Developer::BarrierOperations barrierOps = {};
-    m_device.BarrierAcquire(this, &m_cmdStream, acquireInfo, gpuEventCount, ppGpuEvents, &barrierOps);
+    if (result == Result::ErrorOutOfMemory)
+    {
+        NotifyAllocFailure();
+    }
+    else if (result == Result::Success)
+    {
+        m_device.BarrierAcquire(this, &m_cmdStream, splitAcquireInfo, gpuEventCount, ppGpuEvents, &barrierOps);
+    }
+    else
+    {
+        PAL_ASSERT_ALWAYS();
+    }
+
+    // Delete memory allocated for splitting ImgBarriers if necessary.
+    if (splitMemAllocated)
+    {
+        PAL_SAFE_DELETE_ARRAY(splitAcquireInfo.pImageBarriers, m_device.GetPlatform());
+    }
+
     m_device.DescribeBarrierEnd(this, &barrierOps);
 
     m_gfxCmdBufState.flags.packetPredicate = packetPredicate;
 }
+#endif
 
 // =====================================================================================================================
 void ComputeCmdBuffer::CmdReleaseThenAcquire(
@@ -203,8 +369,31 @@ void ComputeCmdBuffer::CmdReleaseThenAcquire(
 
     // Mark these as traditional barriers in RGP
     m_device.DescribeBarrierStart(this, barrierInfo.reason, Developer::BarrierType::Full);
+
+    bool splitMemAllocated;
+    AcquireReleaseInfo splitBarrierInfo = barrierInfo;
+    Result result = m_device.Parent()->SplitImgBarriers(&splitBarrierInfo, &splitMemAllocated);
+
     Developer::BarrierOperations barrierOps = {};
-    m_device.BarrierReleaseThenAcquire(this, &m_cmdStream, barrierInfo, &barrierOps);
+    if (result == Result::ErrorOutOfMemory)
+    {
+        NotifyAllocFailure();
+    }
+    else if (result == Result::Success)
+    {
+        m_device.BarrierReleaseThenAcquire(this, &m_cmdStream, splitBarrierInfo, &barrierOps);
+    }
+    else
+    {
+        PAL_ASSERT_ALWAYS();
+    }
+
+    // Delete memory allocated for splitting ImgBarriers if necessary.
+    if (splitMemAllocated)
+    {
+        PAL_SAFE_DELETE_ARRAY(splitBarrierInfo.pImageBarriers, m_device.GetPlatform());
+    }
+
     m_device.DescribeBarrierEnd(this, &barrierOps);
 
     m_gfxCmdBufState.flags.packetPredicate = packetPredicate;
@@ -1005,6 +1194,31 @@ Result ComputeCmdBuffer::AddPreamble()
 {
     Result result = ComputeCmdBuffer::WritePreambleCommands(m_cmdUtil, &m_cmdStream);
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
+    // Initialize acquire/release fence value GPU chunk.
+    if (AcqRelFenceValBaseGpuVa() != 0)
+    {
+        uint32 data[static_cast<uint32>(AcqRelEventType::Count)] = {};
+
+        for (uint32 i = 0; i < static_cast<uint32>(AcqRelEventType::Count); i++)
+        {
+            data[i] = AcqRelFenceResetVal;
+        }
+
+        WriteDataInfo writeDataInfo = { };
+        writeDataInfo.engineType = m_engineType;
+        writeDataInfo.dstSel     = dst_sel__mec_write_data__memory;
+        writeDataInfo.dstAddr    = AcqRelFenceValBaseGpuVa();
+
+        uint32* pCmdSpace = m_cmdStream.ReserveCommands();
+        pCmdSpace += CmdUtil::BuildWriteData(writeDataInfo,
+                                             (sizeof(data) / sizeof(uint32)),
+                                             reinterpret_cast<uint32*>(&data),
+                                             pCmdSpace);
+        m_cmdStream.CommitCommands(pCmdSpace);
+    }
+#endif
+
     return result;
 }
 
@@ -1598,6 +1812,18 @@ void ComputeCmdBuffer::CpCopyMemory(
     SetGfxCmdBufCpBltState(true);
     SetGfxCmdBufCpBltWriteCacheState(true);
 }
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
+// =====================================================================================================================
+void ComputeCmdBuffer::CmdRestoreComputeState(
+    uint32 stateFlags)
+{
+    Pal::GfxCmdBuffer::CmdRestoreComputeState(stateFlags);
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
+    UpdateGfxCmdBufCsBltExecEopFence();
+#endif
+}
+#endif
 
 } // Gfx9
 } // Pal

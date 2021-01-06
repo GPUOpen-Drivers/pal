@@ -49,21 +49,5 @@ Image::~Image()
 {
 }
 
-// =====================================================================================================================
-void Image::GetFullSubresourceRange(
-    ImageAspect  aspect,
-    SubresRange* pRange
-    ) const
-{
-    if (pRange != nullptr)
-    {
-        pRange->startSubres.aspect     = aspect;
-        pRange->startSubres.arraySlice = 0;
-        pRange->startSubres.mipLevel   = 0;
-        pRange->numSlices              = m_createInfo.arraySize;
-        pRange->numMips                = m_createInfo.mipLevels;
-    }
-}
-
 } // DbgOverlay
 } // Pal

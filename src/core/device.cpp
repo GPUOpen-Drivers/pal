@@ -449,24 +449,7 @@ Result Device::Cleanup()
 Result Device::EarlyInit(
     const HwIpLevels& ipLevels)
 {
-    // NOTE: The memory manager MUST be initialized before any other child object which may attempt to allocate
-    // video memory!
-    Result result = m_memMgr.Init();
-
-    if (result == Result::Success)
-    {
-        result = m_referencedGpuMemLock.Init();
-    }
-
-    if (result == Result::Success)
-    {
-        result = m_referencedGpuMem.Init();
-    }
-
-    if (result == Result::Success)
-    {
-        result = m_queueLock.Init();
-    }
+    Result result = m_referencedGpuMem.Init();
 
     if (result == Result::Success)
     {
@@ -483,11 +466,6 @@ Result Device::EarlyInit(
         // Unlike all other properties, these must be initialized after HwlEarlyInit because they come from AddrLib.
         m_chipProperties.imageProperties.numSwizzleEqs = static_cast<uint8>(m_pAddrMgr->NumSwizzleEquations());
         m_chipProperties.imageProperties.pSwizzleEqs   = m_pAddrMgr->SwizzleEquations();
-    }
-
-    if (result == Result::Success)
-    {
-        result = m_dmaUploadRingLock.Init();
     }
 
     return result;
@@ -532,7 +510,9 @@ Result Device::SetupPublicSettingDefaults()
 #endif
     m_publicSettings.miscellaneousDebugString[0] = '\0';
     m_publicSettings.renderedByString[0] = '\0';
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 648
     m_publicSettings.enableGpuEventMultiSlot = false;
+#endif
     m_publicSettings.useAcqRelInterface = false;
     m_publicSettings.zeroUnboundDescDebugSrd = false;
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
@@ -1640,6 +1620,246 @@ Result Device::Finalize(
 }
 
 // =====================================================================================================================
+// Helper function that takes a list of SubresRanges, and splits the SubresRanges that have multiple planes specified
+// into SubresRanges with a single plane specified. If the this function allocates memory pMemAllocated is set to true
+// and the caller is responsible for deleting the memory.
+Result Device::SplitSubresRanges(
+    uint32              rangeCount,        // Number of SubresRanges in pRanges
+    const SubresRange*  pRanges,           // Array of SubresRanges that could contain multi-plane ranges.
+    uint32*             pSplitRangeCount,  // Set to number of SubresRanges in pSplitRanges
+    const SubresRange** ppSplitRanges,     // Set to point to either the original array of SubresRanges if no
+                                           // multi-plane ranges are found, or a new array of SubresRanges
+                                           // that has the same information except with the multi plane
+                                           // ranges split into single plane ranges. If a new array is
+                                           // created the function returns true (false otherwise), and the
+                                           // caller is responsible for deleting the memory.
+    bool*               pMemAllocated      // If the this function allocates memory true is set and the caller is
+                                           // responsible for deleting the memory.
+    ) const
+{
+    PAL_ASSERT((pSplitRangeCount != nullptr) && (ppSplitRanges != nullptr));
+
+    Result result = Result::Success;
+
+    *pMemAllocated = false;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
+    *pSplitRangeCount = rangeCount;
+    *ppSplitRanges    = pRanges;
+#else
+    uint32 splitCount = 0;
+
+    for (uint32 i = 0; i < rangeCount; i++)
+    {
+        splitCount += pRanges[i].numPlanes;
+    }
+
+    PAL_ASSERT(splitCount >= rangeCount);
+
+    if (splitCount <= rangeCount)
+    {
+        *ppSplitRanges    = pRanges;
+        *pSplitRangeCount = rangeCount;
+    }
+    else
+    {
+        SubresRange* pNewSplitRanges = PAL_NEW_ARRAY(SubresRange, splitCount, GetPlatform(), AllocInternalTemp);
+        if (pNewSplitRanges == nullptr)
+        {
+            result = Result::ErrorOutOfMemory;
+        }
+        else
+        {
+            *pMemAllocated = true;
+
+            // Copy the ranges to the new memory and split them when necessary.
+            uint32 newSplitCount = 0;
+            for (uint32 i = 0; i < rangeCount; i++)
+            {
+                pNewSplitRanges[newSplitCount] = pRanges[i];
+                pNewSplitRanges[newSplitCount].numPlanes = 1;
+                newSplitCount++;
+
+                for (uint32 plane = pRanges[i].startSubres.plane + 1;
+                    plane < (pRanges[i].startSubres.plane + pRanges[i].numPlanes);
+                    plane++)
+                {
+                    pNewSplitRanges[newSplitCount] = pRanges[i];
+                    pNewSplitRanges[newSplitCount].numPlanes = 1;
+                    pNewSplitRanges[newSplitCount].startSubres.plane = plane;
+                    newSplitCount++;
+                }
+            }
+
+            PAL_ASSERT(newSplitCount == splitCount);
+
+            *ppSplitRanges    = pNewSplitRanges;
+            *pSplitRangeCount = newSplitCount;
+        }
+    }
+#endif
+
+    PAL_ASSERT(*ppSplitRanges != nullptr);
+
+    return result;
+}
+
+// =====================================================================================================================
+// Helper function that takes a BarrierInfo, and splits the SubresRanges in the BarrierTransitions that have multiple
+// planes specified into BarrierTransitions with a single plane SubresRange specified. If the this function allocates
+// memory pMemAllocated is set to true and the caller is responsible for deleting the memory.
+Result Device::SplitBarrierTransitions(
+    BarrierInfo* pBarrier,      // Copy of a BarrierInfo struct that can have its pTransitions replaced.
+                                // If pTransitions contains imageInfos with SubresRanges that contain
+                                // multiple planes then a new list of transitions will be allocated,
+                                // so that the list of transitions only contain single plane ranges. If
+                                // memory is allocated for a new list of transitions true is returned
+                                // (false otherwise), and the caller is responsible for deleting the
+                                // memory.
+    bool*        pMemAllocated  // If the this function allocates memory true is set and the caller is
+                                // responsible for deleting the memory.
+    ) const
+{
+    PAL_ASSERT(pBarrier != nullptr);
+
+    Result result = Result::Success;
+
+    *pMemAllocated = false;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
+
+    uint32 splitCount = 0;
+    for (uint32 i = 0; i < pBarrier->transitionCount; i++)
+    {
+        const BarrierTransition& transition = pBarrier->pTransitions[i];
+        splitCount += (transition.imageInfo.pImage != nullptr) ? transition.imageInfo.subresRange.numPlanes : 1;
+    }
+
+    PAL_ASSERT(splitCount >= pBarrier->transitionCount);
+
+    if (splitCount > pBarrier->transitionCount)
+    {
+        BarrierTransition* pNewSplitTransitions =
+            PAL_NEW_ARRAY(BarrierTransition, splitCount, GetPlatform(), AllocInternalTemp);
+        if (pNewSplitTransitions == nullptr)
+        {
+            result = Result::ErrorOutOfMemory;
+        }
+        else
+        {
+            *pMemAllocated = true;
+
+            // Copy the transitions to the new memory and split them when necessary.
+            uint32 newSplitCount = 0;
+            for (uint32 i = 0; i < pBarrier->transitionCount; i++)
+            {
+                const BarrierTransition& transition = pBarrier->pTransitions[i];
+                pNewSplitTransitions[newSplitCount] = transition;
+                newSplitCount++;
+
+                if (transition.imageInfo.pImage != nullptr)
+                {
+                    // newSplitCount was incremented above so use - 1 here.
+                    pNewSplitTransitions[newSplitCount-1].imageInfo.subresRange.numPlanes = 1;
+
+                    const SubresRange& subresRange = pBarrier->pTransitions[i].imageInfo.subresRange;
+
+                    for (uint32 plane = subresRange.startSubres.plane + 1;
+                        plane < (subresRange.startSubres.plane + subresRange.numPlanes);
+                        plane++)
+                    {
+                        pNewSplitTransitions[newSplitCount] = pBarrier->pTransitions[i];
+                        pNewSplitTransitions[newSplitCount].imageInfo.subresRange.numPlanes = 1;
+                        pNewSplitTransitions[newSplitCount].imageInfo.subresRange.startSubres.plane = plane;
+                        newSplitCount++;
+                    }
+                }
+            }
+
+            PAL_ASSERT(newSplitCount == splitCount);
+
+            pBarrier->transitionCount = newSplitCount;
+            pBarrier->pTransitions    = pNewSplitTransitions;
+        }
+    }
+#endif
+
+    return result;
+}
+
+// =====================================================================================================================
+// Helper function that takes an AcquireReleaseInfo, and splits the SubresRanges in the ImgBarriers that have multiple
+// planes specified into ImgBarriers with a single plane SubresRanges specified. If the this function allocates memory
+// pMemAllocated is set to true and the caller is responsible for deleting the memory.
+Result Device::SplitImgBarriers(
+    AcquireReleaseInfo* pBarrier,      // Copy of a AcquireReleaseInfo struct that can have its pImageBarriers
+                                       // replaced. If pImageBarriers has SubresRanges that contain
+                                       // multiple planes then a new list of image barriers will be allocated,
+                                       // so that the list of barriers only contain single plane ranges. If
+                                       // memory is allocated for a new list of barriers true is returned
+                                       // (false otherwise), and the caller is responsible for deleting the
+                                       // memory.
+    bool*               pMemAllocated  // If the this function allocates memory true is set and the caller is
+                                       // responsible for deleting the memory.
+    ) const
+{
+    PAL_ASSERT(pBarrier != nullptr);
+
+    Result result = Result::Success;
+
+    *pMemAllocated = false;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
+
+    uint32 splitCount = 0;
+    for (uint32 i = 0; i < pBarrier->imageBarrierCount; i++)
+    {
+        splitCount += pBarrier->pImageBarriers[i].subresRange.numPlanes;
+    }
+
+    PAL_ASSERT(splitCount >= pBarrier->imageBarrierCount);
+
+    if (splitCount > pBarrier->imageBarrierCount)
+    {
+        ImgBarrier* pNewSplitTransitions = PAL_NEW_ARRAY(ImgBarrier, splitCount, GetPlatform(), AllocInternalTemp);
+        if (pNewSplitTransitions == nullptr)
+        {
+            result = Result::ErrorOutOfMemory;
+        }
+        else
+        {
+            *pMemAllocated = true;
+
+            // Copy the transitions to the new memory and split them when necessary.
+            uint32 newSplitCount = 0;
+            for (uint32 i = 0; i < pBarrier->imageBarrierCount; i++)
+            {
+                pNewSplitTransitions[newSplitCount] = pBarrier->pImageBarriers[i];
+                pNewSplitTransitions[newSplitCount].subresRange.numPlanes = 1;
+                newSplitCount++;
+
+                const SubresRange& subresRange = pBarrier->pImageBarriers[i].subresRange;
+
+                for (uint32 plane = subresRange.startSubres.plane + 1;
+                    plane < (subresRange.startSubres.plane + subresRange.numPlanes);
+                    plane++)
+                {
+                    pNewSplitTransitions[newSplitCount] = pBarrier->pImageBarriers[i];
+                    pNewSplitTransitions[newSplitCount].subresRange.numPlanes = 1;
+                    pNewSplitTransitions[newSplitCount].subresRange.startSubres.plane = plane;
+                    newSplitCount++;
+                }
+            }
+
+            PAL_ASSERT(newSplitCount == splitCount);
+
+            pBarrier->imageBarrierCount = newSplitCount;
+            pBarrier->pImageBarriers    = pNewSplitTransitions;
+        }
+    }
+#endif
+
+    return result;
+}
+
+// =====================================================================================================================
 Result Device::CreateEngines(
     const DeviceFinalizeInfo& finalizeInfo)
 {
@@ -2173,6 +2393,7 @@ Result Device::GetProperties(
             pInfo->gfxipProperties.flags.supportSingleChannelMinMaxFilter = gfx9Props.supportSingleChannelMinMaxFilter;
             pInfo->gfxipProperties.flags.supportPerChannelMinMaxFilter    = gfx9Props.supportSingleChannelMinMaxFilter;
             pInfo->gfxipProperties.flags.supportRgpTraces                 = 1;
+            pInfo->gfxipProperties.flags.supportMeshShader                = gfx9Props.supportMeshTaskShader;
             pInfo->gfxipProperties.flags.supports2BitSignedValues         = gfx9Props.supports2BitSignedValues;
             pInfo->gfxipProperties.flags.supportPrimitiveOrderedPs        = gfx9Props.supportPrimitiveOrderedPs;
             pInfo->gfxipProperties.flags.supportImplicitPrimitiveShader   = gfx9Props.supportImplicitPrimitiveShader;
@@ -3821,11 +4042,15 @@ bool Device::DetermineHwStereoRenderingSupported(
 }
 
 // =====================================================================================================================
-// Compares an image aspect's format with a view format and returns whether or not the view format is compatible
+// Compares an image plane's format with a view format and returns whether or not the view format is compatible
 // with the image.
 static Result ValidateCompatibleImageViewFormats(
     const Image& image,     // Image object
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
     ImageAspect  aspect,    // Image aspect
+#else
+    uint32       plane,     // Image plane
+#endif
     ChNumFormat  viewFmt)   // View format
 {
     Result result = Result::ErrorFormatIncompatibleWithImageFormat;
@@ -3835,15 +4060,23 @@ static Result ValidateCompatibleImageViewFormats(
 
     if (Formats::IsYuvPlanar(imageFmt))
     {
-        // YUV planar images only allow image view formats which match that of the base subresource of the view aspect.
+        // YUV planar images only allow image view formats which match that of the base subresource of the view plane.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
         const SubresId baseSubRes = { aspect, 0, 0, };
+#else
+        const SubresId baseSubRes = { plane, 0, 0, };
+#endif
         imageFmt = image.SubresourceInfo(baseSubRes)->format.format;
     }
 
     const uint32 imageBpp = Formats::BitsPerPixel(imageFmt);
     const uint32 viewBpp  = Formats::BitsPerPixel(viewFmt);
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
     if ((aspect == ImageAspect::Color) || Formats::IsYuv(imageInfo.swizzledFormat.format))
+#else
+    if (image.IsColorPlane(plane) || Formats::IsYuv(imageInfo.swizzledFormat.format))
+#endif
     {
         // Normally, YUV and color images allow any image view format which matches the bits-per-pixel of the base
         // image.
@@ -3866,7 +4099,11 @@ static Result ValidateCompatibleImageViewFormats(
     }
     // Depth/stencil images introduce some exceptions to the above, because they can have multiple planes (depth and
     // stencil), but a single image view can only access one of these planes:
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
     else if (aspect == ImageAspect::Depth)
+#else
+    else if (image.IsDepthPlane(plane))
+#endif
     {
         if ((viewBpp == 32) &&
             ((imageFmt == ChNumFormat::X32_Float) || (imageFmt == ChNumFormat::D32_Float_S8_Uint)))
@@ -3884,10 +4121,18 @@ static Result ValidateCompatibleImageViewFormats(
         }
         else
         {
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
             result = Result::ErrorFormatIncompatibleWithImageAspect;
+#else
+            result = Result::ErrorFormatIncompatibleWithImagePlane;
+#endif
         }
     }
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
     else if (aspect == ImageAspect::Stencil)
+#else
+    else if (image.IsStencilPlane(plane))
+#endif
     {
         if ((viewFmt == ChNumFormat::X8_Uint) &&
             ((imageFmt == ChNumFormat::D32_Float_S8_Uint) ||
@@ -3900,7 +4145,11 @@ static Result ValidateCompatibleImageViewFormats(
         }
         else
         {
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
             result = Result::ErrorFormatIncompatibleWithImageAspect;
+#else
+            result = Result::ErrorFormatIncompatibleWithImagePlane;
+#endif
         }
     }
 
@@ -3917,15 +4166,27 @@ Result Device::ValidateImageViewInfo(
 
     const auto*const       pImage     = static_cast<const Image*>(info.pImage);
     const ImageCreateInfo& imgInfo    = pImage->GetImageCreateInfo();
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
     const ImageAspect      viewAspect = info.subresRange.startSubres.aspect;
+#else
+    const uint32           viewPlane  = info.subresRange.startSubres.plane;
+#endif
     const SwizzledFormat   viewFmt    = info.swizzledFormat;
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
     // Verify a color image aspect is specified for non-depth/stencil image.
     // Verify a depth/stencil image aspect is specified for depth/stencil image only.
     if (!pImage->IsAspectValid(viewAspect))
     {
         result = Result::ErrorImageAspectUnavailable;
     }
+#else
+    // Verify the view plane specified is valid for the image.
+    if (viewPlane >= pImage->GetImageInfo().numPlanes)
+    {
+        result = Result::ErrorImagePlaneUnavailable;
+    }
+#endif
     // Verify the image object has read or write access flags or both set.
     else if (!pImage->IsShaderReadable() && !pImage->IsShaderWritable())
     {
@@ -3950,7 +4211,11 @@ Result Device::ValidateImageViewInfo(
     // Verify the view format is compatible with the image format
     if (result == Result::Success)
     {
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
         result = ValidateCompatibleImageViewFormats(*pImage, viewAspect, viewFmt.format);
+#else
+        result = ValidateCompatibleImageViewFormats(*pImage, viewPlane, viewFmt.format);
+#endif
     }
 
     // Check slice array and image view type

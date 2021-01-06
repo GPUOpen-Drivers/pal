@@ -77,17 +77,29 @@ DepthStencilView::DepthStencilView(
     if (m_flags.depth && m_flags.stencil)
     {
         // Depth & Stencil format.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
         m_depthSubresource.aspect       = ImageAspect::Depth;
+#else
+        m_depthSubresource.plane        = 0;
+#endif
         m_depthSubresource.mipLevel     = createInfo.mipLevel;
         m_depthSubresource.arraySlice   = 0;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
         m_stencilSubresource.aspect     = ImageAspect::Stencil;
+#else
+        m_stencilSubresource.plane      = 1;
+#endif
         m_stencilSubresource.mipLevel   = createInfo.mipLevel;
         m_stencilSubresource.arraySlice = 0;
     }
     else if (m_flags.depth)
     {
         // Depth-only format.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
         m_depthSubresource.aspect     = ImageAspect::Depth;
+#else
+        m_depthSubresource.plane      = 0;
+#endif
         m_depthSubresource.mipLevel   = createInfo.mipLevel;
         m_depthSubresource.arraySlice = 0;
         m_stencilSubresource          = m_depthSubresource;
@@ -95,7 +107,11 @@ DepthStencilView::DepthStencilView(
     else
     {
         // Stencil-only format.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
         m_stencilSubresource.aspect     = ImageAspect::Stencil;
+#else
+        m_stencilSubresource.plane      = 0;
+#endif
         m_stencilSubresource.mipLevel   = createInfo.mipLevel;
         m_stencilSubresource.arraySlice = 0;
         m_depthSubresource              = m_stencilSubresource;
@@ -564,13 +580,21 @@ uint32* DepthStencilView::WriteTcCompatFlush(
             // If the previously bound DB and the new DB have different TC-compatability states, then we need
             // to do a flush
             const Image*const           pOldImage      = pOldView->GetImage();
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
             const SubresId              oldBaseSubRes  = pOldImage->Parent()->GetBaseSubResource();
             const SubResourceInfo*const pOldSubResInfo = pOldImage->Parent()->SubresourceInfo(oldBaseSubRes);
+#else
+            const SubResourceInfo*const pOldSubResInfo = pOldImage->Parent()->SubresourceInfo(0);
+#endif
             const bool                  oldIsTcCompat  = pOldSubResInfo->flags.supportMetaDataTexFetch;
 
             const Image*const           pNewImage      = pNewView->GetImage();
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
             const SubresId              newBaseSubRes  = pNewImage->Parent()->GetBaseSubResource();
             const SubResourceInfo*const pNewSubResInfo = pNewImage->Parent()->SubresourceInfo(newBaseSubRes);
+#else
+            const SubResourceInfo*const pNewSubResInfo = pNewImage->Parent()->SubresourceInfo(0);
+#endif
             const bool                  newIsTcCompat  = pNewSubResInfo->flags.supportMetaDataTexFetch;
 
             if (oldIsTcCompat != newIsTcCompat)
@@ -632,17 +656,17 @@ uint32* DepthStencilView::WriteUpdateFastClearDepthStencilValue(
     regs.dbStencilClear.u32All     = 0;
     regs.dbStencilClear.bits.CLEAR = stencil;
 
-    if (metaDataClearFlags == (HtileAspectDepth | HtileAspectStencil))
+    if (metaDataClearFlags == (HtilePlaneDepth | HtilePlaneStencil))
     {
         pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmDB_STENCIL_CLEAR, mmDB_DEPTH_CLEAR, &regs, pCmdSpace);
     }
-    else if (metaDataClearFlags == HtileAspectDepth)
+    else if (metaDataClearFlags == HtilePlaneDepth)
     {
         pCmdSpace = pCmdStream->WriteSetOneContextReg(mmDB_DEPTH_CLEAR, regs.dbDepthClear.u32All, pCmdSpace);
     }
     else
     {
-        PAL_ASSERT(metaDataClearFlags == HtileAspectStencil);
+        PAL_ASSERT(metaDataClearFlags == HtilePlaneStencil);
 
         pCmdSpace = pCmdStream->WriteSetOneContextReg(mmDB_STENCIL_CLEAR, regs.dbStencilClear.u32All, pCmdSpace);
     }

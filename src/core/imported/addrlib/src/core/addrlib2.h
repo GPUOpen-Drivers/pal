@@ -898,6 +898,12 @@ protected:
         AddrResourceType  resourceType,
         UINT_32           elemLog2) const;
 
+#if DEBUG
+    VOID ValidateStereoInfo(
+        const ADDR2_COMPUTE_SURFACE_INFO_INPUT* pIn,
+        const ADDR2_COMPUTE_SURFACE_INFO_OUTPUT* pOut) const;
+#endif
+
     UINT_32 m_se;                       ///< Number of shader engine
     UINT_32 m_rbPerSe;                  ///< Number of render backend per shader engine
     UINT_32 m_maxCompFrag;              ///< Number of max compressed fragment

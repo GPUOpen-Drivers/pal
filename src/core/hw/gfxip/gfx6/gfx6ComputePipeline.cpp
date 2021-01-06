@@ -332,40 +332,36 @@ uint32 ComputePipeline::CalcMaxWavesPerSh(
     float maxWavesPerCu
     ) const
 {
-    const auto&  chipProps            = m_pDevice->Parent()->ChipProperties();
-    const auto&  gfx6ChipProps        = chipProps.gfx6;
-    const uint32 numWavefrontsPerCu   = gfx6ChipProps.numSimdPerCu * gfx6ChipProps.numWavesPerSimd;
-    const uint32 maxWavesPerShCompute = gfx6ChipProps.maxNumCuPerSh * numWavefrontsPerCu;
-
-    // We assume no one is trying to use more than 100% of all waves.
-    PAL_ASSERT(maxWavesPerCu <= numWavefrontsPerCu);
-
-    constexpr uint32 MaxWavesPerShGfx6ComputeUnitSize = 16u;
-    const uint32     maxWavesPerShGfx6Compute         = maxWavesPerShCompute / MaxWavesPerShGfx6ComputeUnitSize;
-
     // The maximum number of waves per SH in "register units".
-    // By default set the WAVE_LIMIT field to maximum (NOT unlimited (0) to avoid incorrect math for limits).
-    uint32 wavesPerSh = (chipProps.gfxLevel == GfxIpLevel::GfxIp6) ? maxWavesPerShGfx6Compute : maxWavesPerShCompute;
+    // By default leave the WAVES_PER_SH field unchanged (either 0 or populated from ELF).
+    uint32 wavesPerSh = m_regs.dynamic.computeResourceLimits.bits.WAVES_PER_SH;
 
     if (maxWavesPerCu > 0)
     {
+        const auto&  chipProps            = m_pDevice->Parent()->ChipProperties();
+        const auto&  gfx6ChipProps        = chipProps.gfx6;
+        const uint32 numWavefrontsPerCu   = gfx6ChipProps.numSimdPerCu * gfx6ChipProps.numWavesPerSimd;
+        const uint32 maxWavesPerShCompute = gfx6ChipProps.maxNumCuPerSh * numWavefrontsPerCu;
+
+        // We assume no one is trying to use more than 100% of all waves.
+        PAL_ASSERT(maxWavesPerCu <= numWavefrontsPerCu);
+
         const uint32 maxWavesPerSh = static_cast<uint32>(round(maxWavesPerCu * gfx6ChipProps.numCuPerSh));
 
         if (chipProps.gfxLevel == GfxIpLevel::GfxIp6)
         {
+            constexpr uint32 MaxWavesPerShGfx6ComputeUnitSize = 16u;
+            const uint32     maxWavesPerShGfx6Compute         = maxWavesPerShCompute / MaxWavesPerShGfx6ComputeUnitSize;
+
             // For Gfx6 compute shaders, the WAVES_PER_SH field is in units of 16 waves and must not exceed 63.
             // We must also clamp to one if maxWavesPerSh rounded down to zero to prevent the limit from being removed.
-            wavesPerSh = Min(wavesPerSh, Max(1u, maxWavesPerSh / MaxWavesPerShGfx6ComputeUnitSize));
+            wavesPerSh = Min(maxWavesPerShGfx6Compute, Max(1u, maxWavesPerSh / MaxWavesPerShGfx6ComputeUnitSize));
         }
         else
         {
             // For gfx7+ compute shaders, it is in units of 1 wave and must not exceed 1023.
-            wavesPerSh = Min(wavesPerSh, maxWavesPerSh);
+            wavesPerSh = Min(maxWavesPerShCompute, maxWavesPerSh);
         }
-    }
-    else if (m_regs.dynamic.computeResourceLimits.bits.WAVES_PER_SH > 0)
-    {
-        wavesPerSh = m_regs.dynamic.computeResourceLimits.bits.WAVES_PER_SH;
     }
 
     return wavesPerSh;

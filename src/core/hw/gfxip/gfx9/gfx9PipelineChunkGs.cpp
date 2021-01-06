@@ -40,7 +40,6 @@ namespace Gfx9
 // Base count of SH registers which are loaded using LOAD_SH_REG_INDEX when binding to a command buffer.
 static constexpr uint32 BaseLoadedShRegCount =
     1 + // mmSPI_SHADER_PGM_LO_ES
-    1 + // mmSPI_SHADER_PGM_HI_ES
     1 + // SPI_SHADER_PGM_RSRC1_GS
     1 + // SPI_SHADER_PGM_RSRC2_GS
     0 + // SPI_SHADER_PGM_CHKSUM_GS is not included because it is not present on all HW
@@ -89,6 +88,7 @@ void PipelineChunkGs::EarlyInit(
 
     if (settings.enableLoadIndexForObjectBinds != false)
     {
+
         {
             pInfo->loadedCtxRegCount += BaseLoadedCntxRegCount;
 
@@ -143,7 +143,7 @@ void PipelineChunkGs::LateInit(
         PAL_ASSERT(IsPow2Aligned(symbol.gpuVirtAddr, 256));
 
         m_regs.sh.spiShaderPgmLoEs.bits.MEM_BASE = Get256BAddrLo(symbol.gpuVirtAddr);
-        m_regs.sh.spiShaderPgmHiEs.bits.MEM_BASE = Get256BAddrHi(symbol.gpuVirtAddr);
+        PAL_ASSERT(Get256BAddrHi(symbol.gpuVirtAddr) == 0);
     }
 
     if (pUploader->GetPipelineGpuSymbol(Abi::PipelineSymbolType::GsShdrIntrlTblPtr, &symbol) == Result::Success)
@@ -280,9 +280,9 @@ void PipelineChunkGs::LateInit(
         m_regs.context.vgtGsVsRingOffset1.u32All  = registers.At(Gfx09_10::mmVGT_GSVS_RING_OFFSET_1);
         m_regs.context.vgtGsVsRingOffset2.u32All  = registers.At(Gfx09_10::mmVGT_GSVS_RING_OFFSET_2);
         m_regs.context.vgtGsVsRingOffset3.u32All  = registers.At(Gfx09_10::mmVGT_GSVS_RING_OFFSET_3);
+        m_regs.context.vgtGsOutPrimType.u32All    = registers.At(Gfx09_10::mmVGT_GS_OUT_PRIM_TYPE);
     }
 
-    m_regs.context.vgtGsOutPrimType.u32All    = registers.At(mmVGT_GS_OUT_PRIM_TYPE);
     m_regs.context.vgtEsGsRingItemSize.u32All = registers.At(mmVGT_ESGS_RING_ITEMSIZE);
     m_regs.context.vgtGsMaxVertOut.u32All     = registers.At(mmVGT_GS_MAX_VERT_OUT);
 
@@ -302,7 +302,6 @@ void PipelineChunkGs::LateInit(
     if (pUploader->EnableLoadIndexPath())
     {
         pUploader->AddShReg(mmSpiShaderPgmLoEs,        m_regs.sh.spiShaderPgmLoEs);
-        pUploader->AddShReg(mmSpiShaderPgmLoEs + 1,    m_regs.sh.spiShaderPgmHiEs);
         pUploader->AddShReg(mmSPI_SHADER_PGM_RSRC1_GS, m_regs.sh.spiShaderPgmRsrc1Gs);
         pUploader->AddShReg(mmSPI_SHADER_PGM_RSRC2_GS, m_regs.sh.spiShaderPgmRsrc2Gs);
 
@@ -327,6 +326,7 @@ void PipelineChunkGs::LateInit(
         }
 
         pUploader->AddCtxReg(mmVGT_GS_INSTANCE_CNT,    m_regs.context.vgtGsInstanceCnt);
+
         {
             pUploader->AddCtxReg(Gfx09_10::mmVGT_GS_PER_VS,          m_regs.context.vgtGsPerVs);
             pUploader->AddCtxReg(Gfx09_10::mmVGT_GS_VERT_ITEMSIZE,   m_regs.context.vgtGsVertItemSize0);
@@ -337,8 +337,9 @@ void PipelineChunkGs::LateInit(
             pUploader->AddCtxReg(Gfx09_10::mmVGT_GSVS_RING_OFFSET_1, m_regs.context.vgtGsVsRingOffset1);
             pUploader->AddCtxReg(Gfx09_10::mmVGT_GSVS_RING_OFFSET_2, m_regs.context.vgtGsVsRingOffset2);
             pUploader->AddCtxReg(Gfx09_10::mmVGT_GSVS_RING_OFFSET_3, m_regs.context.vgtGsVsRingOffset3);
+            pUploader->AddCtxReg(Gfx09_10::mmVGT_GS_OUT_PRIM_TYPE,   m_regs.context.vgtGsOutPrimType);
         }
-        pUploader->AddCtxReg(mmVGT_GS_OUT_PRIM_TYPE,   m_regs.context.vgtGsOutPrimType);
+
         pUploader->AddCtxReg(mmVGT_ESGS_RING_ITEMSIZE, m_regs.context.vgtEsGsRingItemSize);
         pUploader->AddCtxReg(mmVGT_GS_MAX_VERT_OUT,    m_regs.context.vgtGsMaxVertOut);
 
@@ -374,11 +375,9 @@ uint32* PipelineChunkGs::WriteShCommands(
         const uint16 mmSpiShaderUserDataGs0 = registerInfo.mmUserDataStartGsShaderStage;
         const uint16 mmSpiShaderPgmLoEs     = registerInfo.mmSpiShaderPgmLoEs;
 
-        pCmdSpace = pCmdStream->WriteSetSeqShRegs(mmSpiShaderPgmLoEs,
-                                                  mmSpiShaderPgmLoEs + 1,
-                                                  ShaderGraphics,
-                                                  &m_regs.sh.spiShaderPgmLoEs,
-                                                  pCmdSpace);
+        pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderGraphics>(mmSpiShaderPgmLoEs,
+                                                                 m_regs.sh.spiShaderPgmLoEs.u32All,
+                                                                 pCmdSpace);
 
         pCmdSpace = pCmdStream->WriteSetSeqShRegs(mmSPI_SHADER_PGM_RSRC1_GS,
                                                   mmSPI_SHADER_PGM_RSRC2_GS,
@@ -519,7 +518,7 @@ uint32* PipelineChunkGs::WriteContextCommands(
                                                        pCmdSpace);
 
         pCmdSpace = pCmdStream->WriteSetSeqContextRegs(Gfx09_10::mmVGT_GS_PER_VS,
-                                                       mmVGT_GS_OUT_PRIM_TYPE,
+                                                       Gfx09_10::mmVGT_GS_OUT_PRIM_TYPE,
                                                        &m_regs.context.vgtGsPerVs,
                                                        pCmdSpace);
 

@@ -54,7 +54,9 @@ struct Gfx9PipelineStatsData
     uint64 hsInvocations;
     uint64 dsInvocations;
     uint64 csInvocations;
-    uint64 unused[3]; // 6 DWORDs-placeholder as fixed-size structure padding for easier shader access.
+    uint64 msInvocations;
+    uint64 msPrimitives;
+    uint64 tsInvocations;
 };
 
 // Defines the structure of a begin / end pair of data.
@@ -85,6 +87,9 @@ constexpr PipelineStatsLayoutData PipelineStatsLayout[] =
     { QueryPipelineStatsHsInvocations, offsetof(Gfx9PipelineStatsData, hsInvocations) / sizeof(uint64) },
     { QueryPipelineStatsDsInvocations, offsetof(Gfx9PipelineStatsData, dsInvocations) / sizeof(uint64) },
     { QueryPipelineStatsCsInvocations, offsetof(Gfx9PipelineStatsData, csInvocations) / sizeof(uint64) },
+    { QueryPipelineStatsTsInvocations, offsetof(Gfx9PipelineStatsData, tsInvocations) / sizeof(uint64) },
+    { QueryPipelineStatsMsInvocations, offsetof(Gfx9PipelineStatsData, msInvocations) / sizeof(uint64) },
+    { QueryPipelineStatsMsPrimitives,  offsetof(Gfx9PipelineStatsData, msPrimitives)  / sizeof(uint64) }
 };
 
 constexpr size_t  PipelineStatsMaxNumCounters       = sizeof(Gfx9PipelineStatsData) / sizeof(uint64);
@@ -162,9 +167,13 @@ void PipelineStatsQueryPool::Begin(
         }
 
         pCmdSpace += CmdUtil::BuildSampleEventWrite(SAMPLE_PIPELINESTAT,
+                                                    event_index__me_event_write__sample_pipelinestat,
                                                     engineType,
                                                     gpuAddr,
                                                     pCmdSpace);
+
+        gpuAddr   = beginQueryAddr + offsetof(Gfx9PipelineStatsData, msInvocations);
+        pCmdSpace = CopyMeshPipeStatsToQuerySlots(pCmdBuffer, gpuAddr, pCmdSpace);
 
         pCmdStream->CommitCommands(pCmdSpace);
     }
@@ -219,9 +228,13 @@ void PipelineStatsQueryPool::End(
         }
 
         pCmdSpace += CmdUtil::BuildSampleEventWrite(SAMPLE_PIPELINESTAT,
+                                                    event_index__me_event_write__sample_pipelinestat,
                                                     engineType,
                                                     gpuAddr,
                                                     pCmdSpace);
+
+        gpuAddr   = endQueryAddr + offsetof(Gfx9PipelineStatsData, msInvocations);
+        pCmdSpace = CopyMeshPipeStatsToQuerySlots(pCmdBuffer, gpuAddr, pCmdSpace);
 
         ReleaseMemInfo releaseInfo = {};
         releaseInfo.engineType     = engineType;
@@ -511,6 +524,78 @@ bool PipelineStatsQueryPool::ComputeResults(
     }
 
     return allQueriesReady;
+}
+
+// =====================================================================================================================
+// Helper function that copies over shader-emulated mesh pipeline stats query to query slots. Both Begin() and End()
+// should copy the scratch buffer data to pipeline stats query slots, regardless of whether the pipeline is Ms/Ts.
+// Non-Ms/Ts pipeline should have same begin and end value for Ms/Ts-related query.
+uint32* PipelineStatsQueryPool::CopyMeshPipeStatsToQuerySlots(
+    GfxCmdBuffer* pCmdBuffer,
+    gpusize       gpuAddr,    // gpuAddr is assumed to be pointing at msInvocations
+    uint32*       pCmdSpace
+    ) const
+{
+    const EngineType engineType = pCmdBuffer->GetEngineType();
+
+    constexpr uint32 SizeOfMeshTaskQuerySlots = sizeof(PipelineStatsResetMemValue64) * PipelineStatsNumMeshCounters;
+    constexpr uint32 SizeInDwords             = SizeOfMeshTaskQuerySlots / sizeof(uint32);
+
+    if ((engineType == EngineTypeUniversal) && (pCmdBuffer->GetMeshPipeStatsGpuAddr() != 0))
+    {
+        const auto& cmdUtil = m_device.CmdUtil();
+
+        // Waits in the CP ME for all previously issued VS waves to complete. The atomics are coming out of the shaders,
+        // so we have to ensure all of the shaders have finished by the time we attempt to sample from this buffer.
+        pCmdSpace += cmdUtil.BuildNonSampleEventWrite(VS_PARTIAL_FLUSH, engineType, pCmdSpace);
+
+        const gpusize meshPipeStatsStartAddr = pCmdBuffer->GetMeshPipeStatsGpuAddr();
+
+        static_assert((offsetof(Gfx9PipelineStatsData, msInvocations) + sizeof(uint64)) ==
+                      offsetof(Gfx9PipelineStatsData, msPrimitives),
+                      "Make sure the three QWORDs are next to each other so it's safe to do 3-QWORD copy.");
+        static_assert((offsetof(Gfx9PipelineStatsData, msPrimitives) + sizeof(uint64)) ==
+                      offsetof(Gfx9PipelineStatsData, tsInvocations),
+                      "Make sure the three QWORDs are next to each other so it's safe to do 3-QWORD copy.");
+
+        // Issue a DmaData packet to zero out the memory associated with all the mesh/task-slots we're going to reset.
+        // Both the source (scratch buffer that SC writes to) and destination (internal query slots) follow CP-defined
+        // ordering for the three mesh/task counters. For performance just do a 3-QWORD copy.
+        DmaDataInfo copyInfo = {};
+        copyInfo.srcAddr      = meshPipeStatsStartAddr;
+        copyInfo.srcAddrSpace = sas__pfp_dma_data__memory;
+        copyInfo.srcSel       = src_sel__pfp_dma_data__src_addr_using_l2;
+        copyInfo.dstAddr      = gpuAddr;
+        copyInfo.dstAddrSpace = das__pfp_dma_data__memory;
+        copyInfo.dstSel       = dst_sel__pfp_dma_data__dst_addr_using_l2;
+        copyInfo.numBytes     = SizeOfMeshTaskQuerySlots;
+        copyInfo.usePfp       = false;
+        copyInfo.sync         = true;
+
+        pCmdSpace += CmdUtil::BuildDmaData(copyInfo, pCmdSpace);
+    }
+    else
+    {
+        // Must write dummy zero's to mesh/task slots if either,
+        // 1. Query event for compute engine.
+        // 2. When the first PipelineStatsQueryPool::Begin() is called, it's possible no valid Mesh-shader pipeline
+        //    is bound yet, in this case scratch buffer is not allocated, so just set the Ms/Ts-related PipeStats
+        //    query slots to zero.
+        // 3. When no mesh/task enabled pipeline bound, zero out those slots for begin and end query.
+        WriteDataInfo writeData = {};
+        writeData.engineType    = engineType;
+        writeData.dstAddr       = gpuAddr;
+        // The whole query slot memory was previously reset by CPDMA packet performed on ME, this write needs to be
+        // performed on ME too to avoid issuing a PfpSyncMe.
+        writeData.engineSel     = engine_sel__me_write_data__micro_engine;
+        writeData.dstSel        = dst_sel__me_write_data__memory;
+
+        const uint32 pResetData[SizeInDwords] = {};
+
+        pCmdSpace += CmdUtil::BuildWriteData(writeData, SizeInDwords, pResetData, pCmdSpace);
+    }
+
+    return pCmdSpace;
 }
 
 } // Gfx9

@@ -115,6 +115,10 @@ struct GfxCmdBufferState
     {
         struct
         {
+            uint32 perfCounterStarted        :  1;  // Track if perfExperiment has started with perfCounter or spmTrace
+            uint32 perfCounterStopped        :  1;  // Track if perfExperiment has stopped with perfCounter or spmTrace
+            uint32 sqttStarted               :  1;  // Track if perfExperiment has started with SQ Thread Trace enabled
+            uint32 sqttStopped               :  1;  // Track if perfExperiment has stopped with SQ Thread Trace enabled
             uint32 clientPredicate           :  1;  // Track if client is currently using predication functionality.
             uint32 packetPredicate           :  1;  // Track if command buffer packets are currently using predication.
             uint32 gfxBltActive              :  1;  // Track if there are potentially any GFX Blt in flight.
@@ -130,11 +134,21 @@ struct GfxCmdBufferState
                                                     // submitted on this queue may still be active.  This flag starts
                                                     // set and will be cleared if/when an EOP wait is inserted in this
                                                     // command buffer.
-            uint32 reserved                  : 22;
+            uint32 reserved                  : 18;
         };
 
         uint32 u32All;
     } flags;
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
+    struct
+    {
+        uint32 gfxBltExecEopFenceVal; // Earliest EOP fence value that can confirm all GFX BLTs are complete.
+        uint32 gfxBltWbEopFenceVal;   // Earliest EOP fence value that can confirm all GFX BLT destination data is
+                                      // written back to L2.
+        uint32 csBltExecEopFenceVal;  // Earliest EOP fence value that can confirm all CS BLTs are complete.
+    } fences;
+#endif
 };
 
 // Tracks the state of a user-data table stored in GPU memory.  The table's contents are managed using embedded data
@@ -153,6 +167,42 @@ struct UserDataTableState
     };
 };
 
+// Structure for getting CmdChunks for the IndirectCmdGenerator.
+struct ChunkOutput
+{
+    CmdStreamChunk* pChunk;
+    uint32          commandsInChunk;
+    gpusize         embeddedDataAddr;
+    uint32          embeddedDataSize;
+};
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
+constexpr uint32 AcqRelFenceResetVal = 0;
+
+// Acquire/release synchronization event types for supported pipeline event.
+enum class AcqRelEventType : uint32
+{
+    PsDone = 0x0,
+    CsDone = 0x1,
+    Eop    = 0x2,
+    Count
+};
+
+// Acquire/release synchronization token structure.
+struct AcqRelSyncToken
+{
+    union
+    {
+        struct
+        {
+            uint32 fenceVal : 30;
+            uint32 type     :  2;
+        };
+
+        uint32 u32All;
+    };
+};
+#else
 // Structure representing release activity hashmap entry
 struct ReleaseActivityInfo
 {
@@ -177,16 +227,8 @@ struct ReleaseActivityInfo
     uint16 csBltActiveTimestamp;
 };
 
-// Structure for getting CmdChunks for the IndirectCmdGenerator.
-struct ChunkOutput
-{
-    CmdStreamChunk* pChunk;
-    uint32          commandsInChunk;
-    gpusize         embeddedDataAddr;
-    uint32          embeddedDataSize;
-};
-
 typedef Util::HashMap<const IGpuEvent*, ReleaseActivityInfo, Platform> ReleaseActivityMap;
+#endif
 
 // =====================================================================================================================
 // Abstract class for executing basic hardware-specific functionality common to GFXIP universal and compute command
@@ -384,7 +426,20 @@ public:
     virtual void RemoveQuery(QueryPoolType queryPoolType) = 0;
 
     gpusize TimestampGpuVirtAddr() const { return m_timestampGpuVa; }
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
+    gpusize AcqRelFenceValBaseGpuVa() const { return m_acqRelFenceValGpuVa; }
+    gpusize AcqRelFenceValGpuVa(AcqRelEventType type) const
+        { return (m_acqRelFenceValGpuVa + sizeof(uint32) * static_cast<uint32>(type)); }
+
+    uint32 GetNextAcqRelFenceVal(AcqRelEventType type)
+    {
+        m_acqRelFenceVals[static_cast<uint32>(type)]++;
+        return m_acqRelFenceVals[static_cast<uint32>(type)];
+    }
+#else
     GpuEvent* GetInternalEvent() { return m_pInternalEvent; }
+#endif
 
     virtual void PushGraphicsState() = 0;
     virtual void PopGraphicsState()  = 0;
@@ -411,10 +466,28 @@ public:
     void SetGfxCmdBufCpMemoryWriteL2CacheStaleState(bool cpMemoryWriteDirty)
         { m_gfxCmdBufState.flags.cpMemoryWriteL2CacheStale = cpMemoryWriteDirty; }
     void SetPrevCmdBufInactive() { m_gfxCmdBufState.flags.prevCmdBufActive = 0; }
-
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
+    // Execution fence value is updated at every BLT. Set it to the next event because its completion indicates all
+    // prior BLTs have completed.
+    void UpdateGfxCmdBufGfxBltExecEopFence()
+    {
+        m_gfxCmdBufState.fences.gfxBltExecEopFenceVal = GetCurAcqRelFenceVal(AcqRelEventType::Eop) + 1;
+    }
+    void UpdateGfxCmdBufCsBltExecEopFence()
+    {
+        m_gfxCmdBufState.fences.csBltExecEopFenceVal = GetCurAcqRelFenceVal(AcqRelEventType::Eop) + 1;
+    }
+    // Cache write-back fence value is updated at every release event. Completion of current event indicates the cache
+    // synchronization has completed too, so set it to current event fence value.
+    void UpdateGfxCmdBufGfxBltWbEopFence(uint32 fenceVal)
+    {
+        m_gfxCmdBufState.fences.gfxBltWbEopFenceVal = fenceVal;
+    }
+#else
     void UpdateCmdBufStateFromAcquire(const IGpuEvent* pGpuEvent, const Developer::BarrierOperations& barrierOps);
     void UpdateReleaseActivityMapFromRelease(const IGpuEvent* pGpuEvent,
                                              const Developer::BarrierOperations& barrierOps);
+#endif
 
     // Obtains a fresh command stream chunk from the current command allocator, for use as the target of GPU-generated
     // commands. The chunk is inserted onto the generated-chunks list so it can be recycled by the allocator after the
@@ -463,6 +536,18 @@ public:
 
     PerfExperimentFlags PerfTracesEnabled() const { return m_cmdBufPerfExptFlags; }
 
+    bool PerfCounterStarted() const
+        { return m_gfxCmdBufState.flags.perfCounterStarted; }
+
+    bool PerfCounterClosed() const
+        { return m_gfxCmdBufState.flags.perfCounterStopped; }
+
+    bool SqttStarted() const
+        { return m_gfxCmdBufState.flags.sqttStarted; }
+
+    bool SqttClosed() const
+        { return m_gfxCmdBufState.flags.sqttStopped; }
+
     Result AddFceSkippedImageCounter(GfxImage* pGfxImage);
 
     // Other Cmd* functions may call this function to notify our VRS copy state tracker of changes to VRS resources.
@@ -475,6 +560,13 @@ public:
     virtual void DirtyVrsDepthImage(const IImage* pDepthImage) { }
 
     UploadFenceToken GetMaxUploadFenceToken() const { return m_maxUploadFenceToken; }
+
+    virtual gpusize GetMeshPipeStatsGpuAddr() const
+    {
+        // Mesh/task shader pipeline stats not supported.
+        PAL_ASSERT_ALWAYS();
+        return 0;
+    }
 
 protected:
     GfxCmdBuffer(
@@ -578,6 +670,10 @@ private:
     CmdBufferEngineSupport GetPerfExperimentEngine() const;
     void ResetFastClearReferenceCounts();
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
+    uint32 GetCurAcqRelFenceVal(AcqRelEventType type) const { return m_acqRelFenceVals[static_cast<uint32>(type)]; }
+#endif
+
     const GfxDevice&  m_device;
 
     // False if DeactivateQuery() has been called on a particular query type, true otherwise.
@@ -588,17 +684,27 @@ private:
     // Number of active queries in this command buffer.
     uint32  m_numActiveQueries[static_cast<size_t>(QueryPoolType::Count)];
 
-    GpuEvent*  m_pInternalEvent;    // Internal Event for Release/Acquire based barrier.  CPU invisible.
-    gpusize    m_timestampGpuVa;    // GPU virtual address of memory used for cache flush & inv timestamp events.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
+    gpusize m_timestampGpuVa;      // GPU virtual address of memory used for cache flush & inv timestamp events.
+    gpusize m_acqRelFenceValGpuVa; // GPU virtual address of 3-dwords memory used for acquire/release pipe event sync.
+#else
+    GpuEvent*  m_pInternalEvent;   // Internal Event for Release/Acquire based barrier.  CPU invisible.
+    gpusize    m_timestampGpuVa;   // GPU virtual address of memory used for cache flush & inv timestamp events.
+#endif
 
-    uint32  m_computeStateFlags;       // The flags that CmdSaveComputeState was called with.
+    uint32  m_computeStateFlags;   // The flags that CmdSaveComputeState was called with.
 
     FceRefCountsVector m_fceRefCountVec;
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
+    uint32 m_acqRelFenceVals[static_cast<uint32>(AcqRelEventType::Count)];
+#else
     uint16 m_gfxBltActiveCtr; // Count the number of gfx BLT that has launched.
     uint16 m_csBltActiveCtr;  // Count the number of cs BLT that has launched.
 
     ReleaseActivityMap m_releaseActivityMap; // A hashmap that tracks active releases.
+#endif
+
     PerfExperimentFlags m_cmdBufPerfExptFlags; // Flags that indicate which Performance Experiments are ongoing in
                                                // this CmdBuffer.
 

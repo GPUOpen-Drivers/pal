@@ -166,7 +166,7 @@ typedef xcb_void_cookie_t (*XcbChangePropertyChecked)(
             xcb_atom_t            type,
             uint8_t               format,
             uint32_t              data_len,
-            const void            *pData);
+            const void *          pData);
 
 typedef xcb_void_cookie_t (*XcbDeletePropertyChecked)(
             xcb_connection_t*     pConnection,
@@ -378,18 +378,18 @@ typedef xcb_query_tree_cookie_t (*XcbQueryTree)(
             xcb_window_t          window);
 
 typedef xcb_query_tree_reply_t* (*XcbQueryTreeReply)(
-            xcb_connection_t          *c,
+            xcb_connection_t *        c,
             xcb_query_tree_cookie_t   cookie,
-            xcb_generic_error_t       **e);
+            xcb_generic_error_t **    e);
 
 typedef xcb_get_window_attributes_cookie_t (*XcbGetWindowAttributes)(
-            xcb_connection_t  *c,
-            xcb_window_t      window);
+            xcb_connection_t *    c,
+            xcb_window_t          window);
 
 typedef xcb_get_window_attributes_reply_t* (*XcbGetWindowAttributesReply)(
-            xcb_connection_t                      *c,
+            xcb_connection_t *                    c,
             xcb_get_window_attributes_cookie_t    cookie,
-            xcb_generic_error_t                   **e);
+            xcb_generic_error_t **                e);
 
 // symbols from libxcb-sync.so.1
 typedef xcb_void_cookie_t (*XcbSyncTriggerFenceChecked)(
@@ -1180,7 +1180,7 @@ public:
             xcb_atom_t            type,
             uint8_t               format,
             uint32_t              data_len,
-            const void            *pData) const;
+            const void *          pData) const;
 
     bool pfnXcbChangePropertyCheckedisValid() const
     {
@@ -1613,9 +1613,9 @@ public:
     }
 
     xcb_query_tree_reply_t* pfnXcbQueryTreeReply(
-            xcb_connection_t          *c,
+            xcb_connection_t *        c,
             xcb_query_tree_cookie_t   cookie,
-            xcb_generic_error_t       **e) const;
+            xcb_generic_error_t **    e) const;
 
     bool pfnXcbQueryTreeReplyisValid() const
     {
@@ -1623,8 +1623,8 @@ public:
     }
 
     xcb_get_window_attributes_cookie_t pfnXcbGetWindowAttributes(
-            xcb_connection_t  *c,
-            xcb_window_t      window) const;
+            xcb_connection_t *    c,
+            xcb_window_t          window) const;
 
     bool pfnXcbGetWindowAttributesisValid() const
     {
@@ -1632,9 +1632,9 @@ public:
     }
 
     xcb_get_window_attributes_reply_t* pfnXcbGetWindowAttributesReply(
-            xcb_connection_t                      *c,
+            xcb_connection_t *                    c,
             xcb_get_window_attributes_cookie_t    cookie,
-            xcb_generic_error_t                   **e) const;
+            xcb_generic_error_t **                e) const;
 
     bool pfnXcbGetWindowAttributesReplyisValid() const
     {

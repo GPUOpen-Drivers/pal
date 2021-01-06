@@ -181,6 +181,26 @@ Result ShaderRingSet::Init()
                     PAL_NEW(SamplePosBuffer, m_pDevice->GetPlatform(), AllocObject)(m_pDevice, m_pSrdTable, m_tmzEnabled);
                 break;
 
+            case ShaderRingType::MeshScratch:
+                m_ppRings[idx] =
+                    PAL_NEW(MeshScratchRing, m_pDevice->GetPlatform(), AllocObject)(m_pDevice, m_pSrdTable, m_tmzEnabled);
+                break;
+
+            case ShaderRingType::PayloadData:
+                m_ppRings[idx] =
+                    PAL_NEW(PayloadDataRing, m_pDevice->GetPlatform(), AllocObject)(m_pDevice, m_pSrdTable, m_tmzEnabled);
+                break;
+
+            case ShaderRingType::DrawData:
+                m_ppRings[idx] =
+                    PAL_NEW(DrawDataRing, m_pDevice->GetPlatform(), AllocObject)(m_pDevice, m_pSrdTable, m_tmzEnabled);
+                break;
+
+            case ShaderRingType::TaskMeshControl:
+                m_ppRings[idx] =
+                    PAL_NEW(TaskMeshControlRing, m_pDevice->GetPlatform(), AllocObject)(m_pDevice, m_pSrdTable, m_tmzEnabled);
+                break;
+
             default:
                 PAL_ASSERT_ALWAYS();
                 break;
@@ -455,19 +475,42 @@ Result UniversalRingSet::Validate(
 {
     const Pal::Device&  device = *(m_pDevice->Parent());
 
+    // Check if the DrawData ring has already been initialized.
+    const bool drawDataInitialized = m_ppRings[static_cast<size_t>(ShaderRingType::DrawData)]->IsMemoryValid();
+
     // First, perform the base class' validation.
     Result result = ShaderRingSet::Validate(ringSizes, samplePatternPalette, lastTimeStamp, pReallocatedRings);
+
+    const bool drawDataReAlloc =
+        Util::TestAnyFlagSet(*pReallocatedRings, (1 << static_cast<uint32>(ShaderRingType::DrawData))) ||
+        Util::TestAnyFlagSet(*pReallocatedRings, (1 << static_cast<uint32>(ShaderRingType::PayloadData)));
+
+    // Initialize the task shader control buffer and draw ring after they have been allocated.
+    // Also, if we re-allocate the draw and/or payload data rings, we must ensure that all task shader-related
+    // rings are re-allocated at the same time and re-initialized.
+    TaskMeshControlRing* pTaskMeshControl =
+        static_cast<TaskMeshControlRing*>(m_ppRings[static_cast<size_t>(ShaderRingType::TaskMeshControl)]);
+    DrawDataRing* pDrawDataRing =
+            static_cast<DrawDataRing*>(m_ppRings[static_cast<size_t>(ShaderRingType::DrawData)]);
+
+    if (((drawDataInitialized == false) || drawDataReAlloc) && pDrawDataRing->IsMemoryValid())
+    {
+        pTaskMeshControl->InitializeControlBuffer(pDrawDataRing->GpuVirtAddr(), pDrawDataRing->GetNumEntries());
+        pDrawDataRing->Initialize();
+    }
 
     if (result == Result::Success)
     {
         // Next, update our PM4 image with the register state reflecting the validated shader Rings.
-        const ScratchRing*const pScratchRingGfx =
+        const ScratchRing*const pScratchRingGfx  =
             static_cast<ScratchRing*>(m_ppRings[static_cast<size_t>(ShaderRingType::GfxScratch)]);
-        const ScratchRing*const pScratchRingCs  =
+        const ScratchRing*const pScratchRingCs   =
             static_cast<ScratchRing*>(m_ppRings[static_cast<size_t>(ShaderRingType::ComputeScratch)]);
-        const ShaderRing*const  pGsVsRing       = m_ppRings[static_cast<size_t>(ShaderRingType::GsVs)];
-        const ShaderRing*const  pTfBuffer       = m_ppRings[static_cast<size_t>(ShaderRingType::TfBuffer)];
-        const ShaderRing*const  pOffchipLds     = m_ppRings[static_cast<size_t>(ShaderRingType::OffChipLds)];
+        const ShaderRing*const  pGsVsRing        = m_ppRings[static_cast<size_t>(ShaderRingType::GsVs)];
+        const TessFactorBuffer*const  pTfBuffer  =
+            static_cast<TessFactorBuffer*>(m_ppRings[static_cast<size_t>(ShaderRingType::TfBuffer)]);
+        const OffchipLdsBuffer*const pOffchipLds =
+            static_cast<OffchipLdsBuffer*>(m_ppRings[static_cast<size_t>(ShaderRingType::OffChipLds)]);
 
         // Scratch rings:
         m_regs.gfxScratchRingSize.bits.WAVES        = pScratchRingGfx->CalculateWaves();
@@ -482,37 +525,32 @@ Result UniversalRingSet::Validate(
         m_regs.vgtGsVsRingSize.bits.MEM_SIZE = (pGsVsRing->MemorySizeDwords() >> GsRingSizeAlignmentShift);
 
         // Tess-Factor Buffer:
-        m_regs.vgtTfRingSize.gfx09_10.SIZE = pTfBuffer->MemorySizeDwords();
         if (pTfBuffer->IsMemoryValid())
         {
             const uint32  addrLo = Get256BAddrLo(pTfBuffer->GpuVirtAddr());
             const uint32  addrHi = Get256BAddrHi(pTfBuffer->GpuVirtAddr());
 
-            if (m_gfxLevel == GfxIpLevel::GfxIp9)
+            m_regs.vgtTfMemoryBaseLo.bits.BASE    = addrLo;
+            m_regs.vgtTfMemoryBaseHi.bits.BASE_HI = addrHi;
+
             {
-                m_regs.vgtTfMemoryBaseLo.bits.BASE    = addrLo;
-                m_regs.vgtTfMemoryBaseHi.bits.BASE_HI = addrHi;
-            }
-            else if (IsGfx10Plus(m_gfxLevel))
-            {
-                m_regs.vgtTfMemoryBaseLo.u32All = addrLo;
-                m_regs.vgtTfMemoryBaseHi.u32All = addrHi;
+                m_regs.vgtTfRingSize.gfx09_10.SIZE = pTfBuffer->TfRingSize();
             }
         }
 
         // Off-chip LDS Buffers:
         if (pOffchipLds->IsMemoryValid())
         {
+            const uint32 offchipBuffering = pOffchipLds->OffchipBuffering();
+
             if (IsGfx9(device) || IsGfx10(m_gfxLevel)
                )
             {
-                // OFFCHIP_BUFFERING setting is biased by one (i.e., 0=1, 511=512, etc.).
-                m_regs.vgtHsOffchipParam.most.OFFCHIP_BUFFERING = pOffchipLds->ItemSizeMax() - 1;
+                m_regs.vgtHsOffchipParam.most.OFFCHIP_BUFFERING = offchipBuffering;
             }
             else if (IsGfx103Plus(device))
             {
-                // OFFCHIP_BUFFERING setting is biased by one (i.e., 0=1, 511=512, etc.).
-                m_regs.vgtHsOffchipParam.gfx103Plus.OFFCHIP_BUFFERING = pOffchipLds->ItemSizeMax() - 1;
+                m_regs.vgtHsOffchipParam.gfx103Plus.OFFCHIP_BUFFERING = offchipBuffering;
             }
         }
 
@@ -589,6 +627,15 @@ uint32* UniversalRingSet::WriteCommands(
         pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderGraphics>(gfxSrdTableGpuVaLo[s], srdTableBaseLo, pCmdSpace);
     }
 
+    const ShaderRing* const  pControlBuffer = m_ppRings[static_cast<size_t>(ShaderRingType::TaskMeshControl)];
+    if (pControlBuffer->IsMemoryValid())
+    {
+        pCmdSpace += CmdUtil::BuildTaskStateInit(ShaderGraphics,
+                                                 pControlBuffer->GpuVirtAddr(),
+                                                 PredDisable,
+                                                 pCmdSpace);
+    }
+
     return pCmdStream->WriteSetOneContextReg(mmSPI_TMPRING_SIZE, m_regs.gfxScratchRingSize.u32All, pCmdSpace);
 }
 
@@ -610,6 +657,14 @@ uint32* UniversalRingSet::WriteComputeCommands(
     pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderCompute>(mmCOMPUTE_TMPRING_SIZE,
                                                             m_regs.computeScratchRingSize.u32All,
                                                             pCmdSpace);
+    const ShaderRing* const  pControlBuffer = m_ppRings[static_cast<size_t>(ShaderRingType::TaskMeshControl)];
+    if (pControlBuffer->IsMemoryValid())
+    {
+        pCmdSpace += CmdUtil::BuildTaskStateInit(ShaderCompute,
+                                                 pControlBuffer->GpuVirtAddr(),
+                                                 PredDisable,
+                                                 pCmdSpace);
+    }
 
     return pCmdSpace;
 }
@@ -667,6 +722,7 @@ Result ComputeRingSet::Validate(
 
         m_regs.computeScratchRingSize.bits.WAVES    = pScratchRingCs->CalculateWaves();
         m_regs.computeScratchRingSize.bits.WAVESIZE = pScratchRingCs->CalculateWaveSize();
+
     }
 
     return result;

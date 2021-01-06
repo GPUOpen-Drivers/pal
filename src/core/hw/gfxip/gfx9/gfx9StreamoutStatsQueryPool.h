@@ -89,7 +89,8 @@ protected:
 private:
     const Device&  m_device;
 
-    static VGT_EVENT_TYPE XlateEventType(QueryType  queryType);
+    VGT_EVENT_TYPE                  XlateEventType(QueryType queryType) const;
+    ME_EVENT_WRITE_event_index_enum XlateEventIndex(QueryType queryType) const;
 
     PAL_DISALLOW_COPY_AND_ASSIGN(StreamoutStatsQueryPool);
     PAL_DISALLOW_DEFAULT_CTOR(StreamoutStatsQueryPool);

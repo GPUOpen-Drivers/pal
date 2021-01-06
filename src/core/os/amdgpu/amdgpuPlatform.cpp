@@ -809,5 +809,13 @@ static_assert(static_cast<uint32>(ADDR_SW_VAR_R_X)        == static_cast<uint32>
 static_assert(static_cast<uint32>(ADDR_SW_LINEAR_GENERAL) == static_cast<uint32>(AMDGPU_SWIZZLE_MODE_LINEAR_GENERAL),
               "mismatched swizzle enum value");
 
+static_assert(static_cast<uint32>(ImageType::Tex1d) == static_cast<uint32>(AMDGPU_ADDR_RSRC_TEX_1D),
+              "mismatched image type enum value");
+static_assert(static_cast<uint32>(ImageType::Tex2d) == static_cast<uint32>(AMDGPU_ADDR_RSRC_TEX_2D),
+              "mismatched image type enum value");
+static_assert(static_cast<uint32>(ImageType::Tex3d) == static_cast<uint32>(AMDGPU_ADDR_RSRC_TEX_3D),
+              "mismatched image type enum value");
+static_assert(static_cast<uint32>(ImageType::Count) == static_cast<uint32>(AMDGPU_ADDR_RSRC_MAX_TYPE),
+              "mismatched image type enum value");
 } // Amdgpu
 } // Pal

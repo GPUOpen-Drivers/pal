@@ -49,17 +49,21 @@ namespace Util
 class ConditionVariable
 {
 public:
-    ConditionVariable() : m_osCondVariable() { }
 
-    /// Releases any OS-specific objects if they haven't previously been released in an explicit Destroy() call.
-    ~ConditionVariable();
+#if   defined(__unix__)
+    /// Defines ConditionVariableData as a unix pthread_cond_t
+    typedef pthread_cond_t ConditionVariableData;
+    /// @note pthread_cond_init will not fail as called
+    ConditionVariable() noexcept : m_osCondVariable {} { pthread_cond_init(&m_osCondVariable, nullptr); }
+    ~ConditionVariable() noexcept { pthread_cond_destroy(&m_osCondVariable); };
+#endif
 
-    /// Allocates/initializes the OS-specific object representing the condition variable.  Clients must call this method
-    /// before using this object.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 650
+    /// Backward compatability support for ::Init() call
     ///
-    /// @returns Success if the object was successfully initialized, or ErrorOutOfMemory if allocation of the
-    ///          OS-specific object failed.
-    Result Init();
+    /// @returns Success
+    Result Init() const noexcept { return Result::Success; }
+#endif
 
     /// Atomically releases the given mutex lock and initiates a sleep waiting for WakeOne() or WakeAll() to be called
     /// on this condition variable from a different thread.
@@ -79,9 +83,7 @@ public:
     void WakeAll();
 
 private:
-#if   defined(__unix__)
-    pthread_cond_t     m_osCondVariable; // Linux-specific ConditionVariable structure.
-#endif
+    ConditionVariableData m_osCondVariable; // os-specific ConditionVariable structure.
 
     PAL_DISALLOW_COPY_AND_ASSIGN(ConditionVariable);
 };

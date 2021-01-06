@@ -176,31 +176,29 @@ public:
     /// Destroys all elements stored in the vector. All dynamically allocated memory will be saved for reuse.
     void Clear();
 
+    ///@{
     /// Returns the element at the location specified.
     ///
     /// @warning Calling this function with an out-of-bounds index will cause an access violation!
     ///
     /// @param [in] index Integer location of the element needed.
     ///
-    /// @returns The element at location specified by index.
+    /// @returns The element at location specified by index by reference
     T& At(uint32 index)
     {
         PAL_ASSERT(index < m_numElements);
         return *(m_pData + index);
     }
 
-    /// Returns the element at the location specified.
-    ///
-    /// @warning Calling this function with an out-of-bounds index will cause an access violation!
-    ///
-    /// @param [in] index Integer location of the element needed.
-    ///
-    /// @returns The element at location specified by index.
     const T& At(uint32 index) const
     {
         PAL_ASSERT(index < m_numElements);
         return *(m_pData + index);
     }
+
+    T&       operator[](uint32 index) noexcept       { return At(index); }
+    const T& operator[](uint32 index) const noexcept { return At(index); }
+    ///@}
 
     /// Returns the data at the front of the vector.
     ///
@@ -269,6 +267,29 @@ public:
     ///
     /// @returns True if the vector is empty.
     bool IsEmpty() const { return (m_numElements == 0); }
+
+    ///@{
+    /// @internal Satisfies concept `range_expression`, using T* as `iterator` and 32-bit size and difference types
+    ///
+    /// @note - These are a convenience intended to be used by c++ language features such as `range for`.
+    ///         These should not be called directly as they do not adhere to PAL coding standards.
+    using value_type      = T;
+    using reference       = T&;
+    using const_reference = const T&;
+    using iterator        = T*;
+    using const_iterator  = const T*;
+    using difference_type = int32;
+    using size_type       = uint32;
+
+    iterator           begin()  noexcept       { return m_pData; }
+    iterator           end()    noexcept       { return (m_pData + m_numElements); }
+    const_iterator     begin()  const noexcept { return m_pData; }
+    const_iterator     end()    const noexcept { return (m_pData + m_numElements); }
+    const_iterator     cbegin() const noexcept { return m_pData; }
+    const_iterator     cend()   const noexcept { return (m_pData + m_numElements); }
+    PAL_NODISCARD bool empty()  const noexcept { return IsEmpty(); }
+    size_type          size()   const noexcept { return m_numElements; }
+    ///@}
 
 private:
     // This is a POD-type that exactly fits one T value.

@@ -90,8 +90,8 @@ target_include_directories(pal
 
 set(PAL_XCB_REQUIRED ON)
 
-if(UNIX AND PAL_XCB_REQUIRED)
-    # Needed for dri3Loader.h
+if(UNIX AND NOT APPLE AND PAL_XCB_REQUIRED)
+    # Needed for dri3Loader.h. Does not exist for standalone compiler tool build on Mac.
     if(NOT DEFINED DK_X11)
         if(DEFINED GLOBAL_ROOT_DK_DIR)
             if(TARGET_ARCHITECTURE_BITS EQUAL 64)
@@ -148,6 +148,7 @@ target_sources(pal PRIVATE
     ${PAL_SOURCE_DIR}/cmake/Modules/FindWayland.cmake
     ${PAL_SOURCE_DIR}/cmake/Modules/FindXCB.cmake
     # PAL modules
+    ${PAL_SOURCE_DIR}/cmake/PalBuildParameters.cmake
     ${PAL_SOURCE_DIR}/cmake/PalCompileDefinitions.cmake
     ${PAL_SOURCE_DIR}/cmake/PalCompilerOptions.cmake
     ${PAL_SOURCE_DIR}/cmake/PalCompilerWarnings.cmake
@@ -382,6 +383,7 @@ if(PAL_BUILD_CORE)
                 core/hw/gfxip/gfx9/gfx9Device.cpp
                 core/hw/gfxip/gfx9/gfx9FormatInfo.cpp
                 core/hw/gfxip/gfx9/gfx9GraphicsPipeline.cpp
+                core/hw/gfxip/gfx9/gfx9HybridGraphicsPipeline.cpp
                 core/hw/gfxip/gfx9/gfx9Image.cpp
                 core/hw/gfxip/gfx9/gfx9IndirectCmdGenerator.cpp
                 core/hw/gfxip/gfx9/gfx9MaskRam.cpp

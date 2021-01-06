@@ -58,7 +58,11 @@ typedef int            INT;
 */
 #ifndef ADDR_CDECL
     #if defined(__GNUC__)
-        #define ADDR_CDECL __attribute__((cdecl))
+        #if defined(__i386__)
+            #define ADDR_CDECL __attribute__((cdecl))
+        #else
+            #define ADDR_CDECL
+        #endif
     #else
         #define ADDR_CDECL __cdecl
     #endif
@@ -66,10 +70,10 @@ typedef int            INT;
 
 #ifndef ADDR_STDCALL
     #if defined(__GNUC__)
-        #if defined(__amd64__) || defined(__x86_64__)
-            #define ADDR_STDCALL
-        #else
+        #if defined(__i386__)
             #define ADDR_STDCALL __attribute__((stdcall))
+        #else
+            #define ADDR_STDCALL
         #endif
     #else
         #define ADDR_STDCALL __stdcall
@@ -77,10 +81,12 @@ typedef int            INT;
 #endif
 
 #ifndef ADDR_FASTCALL
-    #if defined(BRAHMA_ARM)
-        #define ADDR_FASTCALL
-    #elif defined(__GNUC__)
-        #define ADDR_FASTCALL __attribute__((regparm(0)))
+    #if defined(__GNUC__)
+        #if defined(__i386__) || defined(__amd64__) || defined(__x86_64__)
+            #define ADDR_FASTCALL __attribute__((regparm(0)))
+        #else
+            #define ADDR_FASTCALL
+        #endif
     #else
         #define ADDR_FASTCALL __fastcall
     #endif

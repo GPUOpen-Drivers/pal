@@ -366,7 +366,6 @@ private:
 
     ADDR_E_RETURNCODE ComputeStereoInfo(
         const ADDR2_COMPUTE_SURFACE_INFO_INPUT* pIn,
-        UINT_32                                 blkHeight,
         UINT_32*                                pAlignY,
         UINT_32*                                pRightXor) const;
 

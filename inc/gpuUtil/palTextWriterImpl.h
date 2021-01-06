@@ -166,6 +166,14 @@ Pal::Result TextWriter<Allocator>::CreateDrawFontData()
 
         m_pDevice->CreateUntypedBufferViewSrds(1, &fontDataView, m_fontSrd);
     }
+    else
+    {
+        if (m_pFontData != nullptr)
+        {
+            m_pFontData->Destroy();
+            PAL_SAFE_FREE(m_pFontData, m_pAllocator);
+        }
+    }
 
     return result;
 }
@@ -347,11 +355,15 @@ void TextWriter<Allocator>::CreateImageView(
     imgViewInfo.possibleLayouts.usages  = Pal::LayoutShaderWrite     | Pal::LayoutShaderRead |
                                           Pal::LayoutPresentWindowed | Pal::LayoutPresentFullscreen;
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
     imgViewInfo.subresRange.startSubres.aspect     = Pal::ImageAspect::Color;
     imgViewInfo.subresRange.startSubres.arraySlice = 0;
     imgViewInfo.subresRange.startSubres.mipLevel   = 0;
-    imgViewInfo.subresRange.numSlices              = createInfo.arraySize;
-    imgViewInfo.subresRange.numMips                = createInfo.mipLevels;
+#else
+    imgViewInfo.subresRange.numPlanes   = 1;
+#endif
+    imgViewInfo.subresRange.numSlices   = createInfo.arraySize;
+    imgViewInfo.subresRange.numMips     = createInfo.mipLevels;
 
     m_pDevice->CreateImageViewSrds(1, &imgViewInfo, pOut);
 }

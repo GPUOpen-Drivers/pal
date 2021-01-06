@@ -985,6 +985,30 @@
           "Name": "PipelineHashAsApiPsoHash"
         },
         {
+          "Name": "TsHashHi",
+          "Flags": {
+            "IsHex": true
+          },
+          "Defaults": {
+            "Default": 0
+          },
+          "Type": "uint64",
+          "VariableName": "tsHashHi",
+          "Description": "High QWORD of the TS hash to enable SQ thread traces for."
+        },
+        {
+          "Name": "TsHashLo",
+          "Flags": {
+            "IsHex": true
+          },
+          "Defaults": {
+            "Default": 0
+          },
+          "Type": "uint64",
+          "VariableName": "tsHashLo",
+          "Description": "Low QWORD of the TS hash to enable SQ thread traces for."
+        },
+        {
           "Name": "VsHashHi",
           "Flags": {
             "IsHex": true
@@ -1079,6 +1103,30 @@
           "Type": "uint64",
           "VariableName": "gsHashLo",
           "Description": "Low QWORD of the GS hash to enable SQ thread traces for."
+        },
+        {
+          "Name": "MsHashHi",
+          "Flags": {
+            "IsHex": true
+          },
+          "Defaults": {
+            "Default": 0
+          },
+          "Type": "uint64",
+          "VariableName": "msHashHi",
+          "Description": "High QWORD of the MS hash to enable SQ thread traces for."
+        },
+        {
+          "Name": "MsHashLo",
+          "Flags": {
+            "IsHex": true
+          },
+          "Defaults": {
+            "Default": 0
+          },
+          "Type": "uint64",
+          "VariableName": "msHashLo",
+          "Description": "Low QWORD of the MS hash to enable SQ thread traces for."
         },
         {
           "Name": "PsHashHi",

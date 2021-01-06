@@ -69,9 +69,9 @@ struct ColorTargetViewCreateInfo
         {
             const IImage* pImage;          ///< Image associated with the view.
             SubresId      baseSubRes;      ///< Defines the base subresource to be associated with the view.  Most
-                                           ///  views will always use the Color aspect, except YUV Images.  Clients
-                                           ///  must specify one of the YUV Image aspects for YUV Images.  The view
-                                           ///  format must be compatible with the aspect being rendered-to.
+                                           ///  views will always use the Color plane, except YUV Images.  Clients
+                                           ///  must specify one of the YUV Image planes for YUV Images.  The view
+                                           ///  format must be compatible with the plane being rendered-to.
                                            ///  The arraySlice must be 0 for 3D images.
             uint32        arraySize;       ///< Number of slices in the view.  Must be one for 3D images.
         } imageInfo;                       ///< Information that describes a color target image view.

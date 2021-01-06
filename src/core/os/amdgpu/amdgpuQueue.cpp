@@ -194,6 +194,8 @@ Queue::Queue(
     m_appMemRefCount(0),
     m_pendingWait(false),
     m_pCmdUploadRing(nullptr),
+    m_sqttWaRequired(false),
+    m_perfCtrWaRequired(false),
     m_numIbs(0),
     m_lastSignaledSyncObject(0),
     m_waitSemList(pDevice->GetPlatform())
@@ -567,6 +569,33 @@ Result Queue::OsSubmit(
 
     Result result = Result::Success;
 
+    bool sqttActive    = m_sqttWaRequired;
+    bool sqttClosed    = (m_sqttWaRequired == false);
+    bool perfCtrActive = m_perfCtrWaRequired;
+    bool perfCtrClosed = (m_perfCtrWaRequired == false);
+    for (uint32 cmdBufferIdx = 0; (cmdBufferIdx < submitInfo.pPerSubQueueInfo[0].cmdBufferCount); ++cmdBufferIdx)
+    {
+        if ((Type() == QueueType::QueueTypeUniversal) || (Type() == QueueType::QueueTypeCompute))
+        {
+            const GfxCmdBuffer*const pGfxCmdBuffer =
+                static_cast<GfxCmdBuffer*>(submitInfo.pPerSubQueueInfo[0].ppCmdBuffers[cmdBufferIdx]);
+
+            if (pGfxCmdBuffer->SqttStarted() || pGfxCmdBuffer->SqttClosed())
+            {
+                sqttActive = true;
+                sqttClosed = pGfxCmdBuffer->SqttClosed();
+            }
+            if (pGfxCmdBuffer->PerfCounterStarted() || pGfxCmdBuffer->PerfCounterClosed())
+            {
+                perfCtrActive = true;
+                perfCtrClosed = pGfxCmdBuffer->PerfCounterClosed();
+            }
+        }
+    }
+
+    m_sqttWaRequired    = sqttActive;
+    m_perfCtrWaRequired = perfCtrActive;
+
     if (pInternalSubmitInfos->flags.isDummySubmission == false)
     {
         result = UpdateResourceList(submitInfo.pGpuMemoryRefs, submitInfo.gpuMemRefCount);
@@ -638,6 +667,9 @@ Result Queue::OsSubmit(
         DoAssociateFenceWithLastSubmit(static_cast<Pal::Fence*>(submitInfo.pFence));
     }
 #endif
+
+    m_sqttWaRequired     = (sqttClosed == false);
+    m_perfCtrWaRequired  = (perfCtrClosed == false);
 
     return result;
 }
@@ -1260,11 +1292,13 @@ Result Queue::AddIb(
         // In Linux KMD, AMDGPU_IB_FLAG_PREAMBLE simply behaves just like flag "dropIfSameCtx" in windows.
         // But we are forbidden to change the flag name because the interface was already upstreamed to
         // open source libDRM, so we have to still use it for backward compatibility.
-        m_ibs[m_numIbs].flags         = ((isConstantEngine    ? AMDGPU_IB_FLAG_CE            : 0) |
-                                         (isPreemptionEnabled ? AMDGPU_IB_FLAG_PREEMPT       : 0) |
-                                         (dropIfSameContext   ? AMDGPU_IB_FLAG_PREAMBLE      : 0) |
-                                         (m_numIbs == 0       ? AMDGPU_IB_FLAG_EMIT_MEM_SYNC : 0) |
-                                         (isTmzEnabled        ? AMDGPU_IB_FLAGS_SECURE       : 0));
+        m_ibs[m_numIbs].flags         = ((isConstantEngine       ? AMDGPU_IB_FLAG_CE              : 0) |
+                                         (isPreemptionEnabled    ? AMDGPU_IB_FLAG_PREEMPT         : 0) |
+                                         (dropIfSameContext      ? AMDGPU_IB_FLAG_PREAMBLE        : 0) |
+                                         (m_numIbs == 0          ? AMDGPU_IB_FLAG_EMIT_MEM_SYNC   : 0) |
+                                         (isTmzEnabled           ? AMDGPU_IB_FLAGS_SECURE         : 0) |
+                                         (m_perfCtrWaRequired    ? AMDGPU_IB_FLAG_PERF_COUNTER    : 0) |
+                                         (m_sqttWaRequired       ? AMDGPU_IB_FLAG_SQ_THREAD_TRACE : 0));
 
         m_numIbs++;
     }

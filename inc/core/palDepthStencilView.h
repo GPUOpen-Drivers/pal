@@ -46,8 +46,8 @@ struct DepthStencilViewCreateInfo
     {
         struct
         {
-            uint32 readOnlyDepth     :  1;  ///< Disable writes to the depth aspect.
-            uint32 readOnlyStencil   :  1;  ///< Disable writes to the stencil aspect.
+            uint32 readOnlyDepth     :  1;  ///< Disable writes to the depth plane.
+            uint32 readOnlyStencil   :  1;  ///< Disable writes to the stencil plane.
             uint32 imageVaLocked     :  1;  ///< Whether or not the image's virtual address range is locked and
                                             ///  never changes.
             uint32 absoluteDepthBias :  1;  ///< Whether or not use absolute depth bias.
@@ -59,10 +59,10 @@ struct DepthStencilViewCreateInfo
                                             ///  Meaningful only on GPUs that have supportsMall set in DeviceProperties.
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 594
             uint32 depthOnlyView     :  1;  ///< If set, this view will be a depth-only view of the specified Image.  It
-                                            ///  is illegal to use this flag on an Image with no depth aspect. It's
+                                            ///  is illegal to use this flag on an Image with no depth plane. It's
                                             ///  illegal to set both depthOnlyView and stencilOnlyView.
             uint32 stencilOnlyView   :  1;  ///< If set, this view will be a stencil-only view of the specified Image.
-                                            ///  It is illegal to use this flag on an Image with no stencil aspect. It's
+                                            ///  It is illegal to use this flag on an Image with no stencil plane. It's
                                             ///  illegal to set both depthOnlyView and stencilOnlyView.
 #else
             uint32 placeholder       :  2;  ///< Placeholder for new OGLP features.

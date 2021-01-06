@@ -179,8 +179,7 @@ void Queue::OpenLogFile(
     {
         const char* pCsvPipelineStatsHeader = "IaVertices,IaPrimitives,VsInvocations,GsInvocations,GsPrimitives,"
                                               "CInvocations,CPrimitives,PsInvocations,HsInvocations,DsInvocations,"
-                                              "CsInvocations,"
-            ;
+                                              "CsInvocations,TsInvocations,MsInvocations,MsPrimitives,";
         m_logFile.Write(pCsvPipelineStatsHeader, strlen(pCsvPipelineStatsHeader));
     }
 
@@ -230,6 +229,11 @@ void Queue::OpenSqttFile(
         else if (logItem.cmdBufCall.flags.dispatch == 1)
         {
             crcPos += Snprintf(crcInfo + crcPos, CrcInfoSize - crcPos, "_DISPATCH");
+            addPipelineHash = true;
+        }
+        else if (logItem.cmdBufCall.flags.taskmesh == 1)
+        {
+            crcPos += Snprintf(crcInfo + crcPos, CrcInfoSize - crcPos, "_TASKMESH");
             addPipelineHash = true;
         }
         if (addPipelineHash)
@@ -324,6 +328,12 @@ void Queue::OpenSpmFile(
             crcPos += Snprintf(crcInfo + crcPos, CrcInfoSize - crcPos, "_DISPATCH");
             addPipelineHash = true;
         }
+        else if (logItem.cmdBufCall.flags.taskmesh == 1)
+        {
+            crcPos += Snprintf(crcInfo + crcPos, CrcInfoSize - crcPos, "_TASKMESH");
+            addPipelineHash = true;
+        }
+
         if (addPipelineHash)
         {
             if (settings.gpuProfilerConfig.useFullPipelineHash)
@@ -425,7 +435,7 @@ void Queue::OutputQueueCallToFile(
 
     if (m_pDevice->GetPlatform()->PlatformSettings().gpuProfilerConfig.recordPipelineStats)
     {
-        m_logFile.Printf(",,,,,,,,,,,");
+        m_logFile.Printf(",,,,,,,,,,,,,,");
     }
 
     for (uint32 i = 0; i < m_numReportedPerfCounters; i++)
@@ -446,10 +456,12 @@ void Queue::OutputCmdBufCallToFile(
     PAL_ASSERT(m_logFile.IsOpen());
 
     constexpr uint32 CsIdx = static_cast<uint32>(ShaderType::Compute);
+    constexpr uint32 TsIdx = static_cast<uint32>(ShaderType::Task);
     constexpr uint32 VsIdx = static_cast<uint32>(ShaderType::Vertex);
     constexpr uint32 HsIdx = static_cast<uint32>(ShaderType::Hull);
     constexpr uint32 DsIdx = static_cast<uint32>(ShaderType::Domain);
     constexpr uint32 GsIdx = static_cast<uint32>(ShaderType::Geometry);
+    constexpr uint32 MsIdx = static_cast<uint32>(ShaderType::Mesh);
     constexpr uint32 PsIdx = static_cast<uint32>(ShaderType::Pixel);
 
     const auto& settings   = m_pDevice->GetPlatform()->PlatformSettings();
@@ -464,8 +476,7 @@ void Queue::OutputCmdBufCallToFile(
     OutputTimestampsToFile(logItem);
 
     // Print any draw/dispatch specific info (shader hashes, etc.).
-    if (cmdBufItem.flags.draw || cmdBufItem.flags.dispatch
-    )
+    if (cmdBufItem.flags.draw || cmdBufItem.flags.dispatch || cmdBufItem.flags.taskmesh)
     {
         m_logFile.Printf("0x%016llx,0x%016llx",
                          cmdBufItem.draw.apiPsoHash,
@@ -499,6 +510,17 @@ void Queue::OutputCmdBufCallToFile(
                              cmdBufItem.draw.pipelineInfo.shader[CsIdx].hash.upper,
                              cmdBufItem.draw.pipelineInfo.shader[CsIdx].hash.lower,
                              cmdBufItem.dispatch.threadGroupCount);
+        }
+        else
+        {
+            m_logFile.Printf(",0x%016llx%016llx,,,0x%016llx%016llx,0x%016llx%016llx,%u,,,",
+                             cmdBufItem.draw.pipelineInfo.shader[TsIdx].hash.upper,
+                             cmdBufItem.draw.pipelineInfo.shader[TsIdx].hash.lower,
+                             cmdBufItem.draw.pipelineInfo.shader[MsIdx].hash.upper,
+                             cmdBufItem.draw.pipelineInfo.shader[MsIdx].hash.lower,
+                             cmdBufItem.draw.pipelineInfo.shader[PsIdx].hash.upper,
+                             cmdBufItem.draw.pipelineInfo.shader[PsIdx].hash.lower,
+                             cmdBufItem.taskmesh.threadGroupCount);
         }
     }
     else if (cmdBufItem.flags.barrier)
@@ -636,14 +658,15 @@ void Queue::OutputPipelineStatsToFile(
 
         // PAL hardcodes the layout of the return pipeline stats values based on the client, leading to different
         // versions of this code to a uniform log layout.
-        m_logFile.Printf("%llu,%llu,%llu,%llu,%llu,%llu,%llu,%llu,%llu,%llu,%llu,", pipelineStats[0],
+        m_logFile.Printf("%llu,%llu,%llu,%llu,%llu,%llu,%llu,%llu,%llu,%llu,%llu,%llu,%llu,%llu,", pipelineStats[0],
                          pipelineStats[1], pipelineStats[2], pipelineStats[3], pipelineStats[4], pipelineStats[5],
-                         pipelineStats[6], pipelineStats[7], pipelineStats[8], pipelineStats[9], pipelineStats[10]);
+                         pipelineStats[6], pipelineStats[7], pipelineStats[8], pipelineStats[9], pipelineStats[10],
+                         pipelineStats[11], pipelineStats[12], pipelineStats[13]);
 
     }
     else if (m_pDevice->GetPlatform()->PlatformSettings().gpuProfilerConfig.recordPipelineStats)
     {
-        m_logFile.Printf(",,,,,,,,,,,");
+        m_logFile.Printf(",,,,,,,,,,,,,,");
     }
 }
 

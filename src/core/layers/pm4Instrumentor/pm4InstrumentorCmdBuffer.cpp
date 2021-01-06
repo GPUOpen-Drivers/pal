@@ -609,6 +609,28 @@ void CmdBuffer::CmdBarrier(
     PostCall(CmdBufCallId::CmdBarrier);
 }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
+// =====================================================================================================================
+uint32 CmdBuffer::CmdRelease(
+    const AcquireReleaseInfo& releaseInfo)
+{
+    PreCall();
+    const uint32 releaseTag = CmdBufferFwdDecorator::CmdRelease(releaseInfo);
+    PostCall(CmdBufCallId::CmdRelease);
+    return releaseTag;
+}
+
+// =====================================================================================================================
+void CmdBuffer::CmdAcquire(
+    const AcquireReleaseInfo& acquireInfo,
+    uint32                    syncTokenCount,
+    const uint32*             pSyncTokens)
+{
+    PreCall();
+    CmdBufferFwdDecorator::CmdAcquire(acquireInfo, syncTokenCount, pSyncTokens);
+    PostCall(CmdBufCallId::CmdAcquire);
+}
+#else
 // =====================================================================================================================
 void CmdBuffer::CmdRelease(
     const AcquireReleaseInfo& releaseInfo,
@@ -629,6 +651,7 @@ void CmdBuffer::CmdAcquire(
     CmdBufferFwdDecorator::CmdAcquire(acquireInfo, gpuEventCount, ppGpuEvents);
     PostCall(CmdBufCallId::CmdAcquire);
 }
+#endif
 
 // =====================================================================================================================
 void CmdBuffer::CmdReleaseThenAcquire(

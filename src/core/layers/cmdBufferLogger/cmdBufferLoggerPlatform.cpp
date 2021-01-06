@@ -41,24 +41,26 @@ namespace CmdBufferLogger
 
 // =====================================================================================================================
 Platform::Platform(
+    const PlatformCreateInfo&   createInfo,
     const Util::AllocCallbacks& allocCb,
     IPlatform*                  pNextPlatform,
     bool                        enabled)
     :
-    PlatformDecorator(allocCb, CmdBufferLoggerCb, enabled, enabled, pNextPlatform) // CmdBufferLogger doesn't install
-                                                                                   // callback
+    // CmdBufferLogger doesn't install callback
+    PlatformDecorator(createInfo, allocCb, CmdBufferLoggerCb, enabled, enabled, pNextPlatform)
 {
 }
 
 // =====================================================================================================================
 Result Platform::Create(
+    const PlatformCreateInfo&   createInfo,
     const Util::AllocCallbacks& allocCb,
     IPlatform*                  pNextPlatform,
     bool                        enabled,
     void*                       pPlacementAddr,
     IPlatform**                 ppPlatform)
 {
-    auto* pPlatform = PAL_PLACEMENT_NEW(pPlacementAddr) Platform(allocCb, pNextPlatform, enabled);
+    auto* pPlatform = PAL_PLACEMENT_NEW(pPlacementAddr) Platform(createInfo, allocCb, pNextPlatform, enabled);
     Result result   = pPlatform->Init();
     if (result == Result::Success)
     {
@@ -201,9 +203,19 @@ void PAL_STDCALL Platform::CmdBufferLoggerCb(
         break;
     }
     case Developer::CallbackType::DrawDispatch:
+    {
         PAL_ASSERT(pCbData != nullptr);
-        TranslateDrawDispatchData(pCbData);
+        const bool hasValidData = TranslateDrawDispatchData(pCbData);
+
+        if (hasValidData)
+        {
+            Developer::DrawDispatchData* pData = static_cast<Developer::DrawDispatchData*>(pCbData);
+            CmdBuffer* pCmdBuffer = static_cast<CmdBuffer*>(pData->pCmdBuffer);
+
+            pCmdBuffer->AddDrawDispatchInfo(pData->cmdType);
+        }
         break;
+    }
     case Developer::CallbackType::BindPipeline:
     {
         PAL_ASSERT(pCbData != nullptr);

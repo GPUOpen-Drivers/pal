@@ -495,28 +495,26 @@ uint32 GraphicsPipeline::CalcMaxWavesPerSh(
     float maxWavesPerCu
     ) const
 {
-    const auto&  gfx6ChipProps         = m_pDevice->Parent()->ChipProperties().gfx6;
-    const uint32 numWavefrontsPerCu    = gfx6ChipProps.numSimdPerCu * gfx6ChipProps.numWavesPerSimd;
-    constexpr uint32 MaxWavesPerShGraphicsUnitSize = 16u;
-    const uint32 maxWavesPerShGraphics = gfx6ChipProps.maxNumCuPerSh * numWavefrontsPerCu /
-                                         MaxWavesPerShGraphicsUnitSize;
-
-    // We assume no one is trying to use more than 100% of all waves.
-    PAL_ASSERT(maxWavesPerCu <= numWavefrontsPerCu);
-
     // The maximum number of waves per SH in "register units".
-    // By default set the WAVE_LIMIT field to maximum (NOT unlimited (0) to avoid incorrect math for limits).
+    // By default set the WAVE_LIMIT field to be unlimited.
     // Limits given by the ELF will only apply if the caller doesn't set their own limit.
-    uint32 wavesPerSh = maxWavesPerShGraphics;
+    uint32 wavesPerSh = 0;
 
     // If the caller would like to override the default maxWavesPerCu
     if (maxWavesPerCu > 0)
     {
+        const auto&      gfx6ChipProps                 = m_pDevice->Parent()->ChipProperties().gfx6;
+        const uint32     numWavefrontsPerCu            = gfx6ChipProps.numSimdPerCu * gfx6ChipProps.numWavesPerSimd;
+        const uint32     maxWavesPerShGraphics         = gfx6ChipProps.maxNumCuPerSh * numWavefrontsPerCu;
+        constexpr uint32 MaxWavesPerShGraphicsUnitSize = 16u;
+
+        // We assume no one is trying to use more than 100% of all waves.
+        PAL_ASSERT(maxWavesPerCu <= numWavefrontsPerCu);
         const uint32 maxWavesPerSh = static_cast<uint32>(round(maxWavesPerCu * gfx6ChipProps.numCuPerSh));
 
-        // For graphics shaders, the WAVE_LIMIT field is in units of 16 waves and must not exceed 63. We must also
-        // clamp to one if maxWavesPerSh rounded down to zero to prevent the limit from being removed.
-        wavesPerSh = Min(wavesPerSh, Max(1u, maxWavesPerSh / MaxWavesPerShGraphicsUnitSize));
+        // For graphics shaders, the WAVE_LIMIT field is in units of 16 waves and must not exceed 63. We must also clamp
+        // to one if maxWavesPerSh rounded down to zero to prevent the limit from being removed.
+        wavesPerSh = Min(maxWavesPerShGraphics, Max(1u, maxWavesPerSh / MaxWavesPerShGraphicsUnitSize));
     }
 
     return wavesPerSh;
@@ -929,14 +927,23 @@ void GraphicsPipeline::SetupCommonRegisters(
     m_regs.context.paSuVtxCntl.u32All  = registers.At(mmPA_SU_VTX_CNTL);
     m_regs.other.paScModeCntl1.u32All  = registers.At(mmPA_SC_MODE_CNTL_1);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 629
-
-    m_regs.context.paClClipCntl.bits.DX_CLIP_SPACE_DEF = (createInfo.viewportInfo.depthRange == DepthRange::ZeroToOne);
-    if (createInfo.viewportInfo.depthClipEnable == false)
-    {
-        m_regs.context.paClClipCntl.bits.ZCLIP_NEAR_DISABLE = 1;
-        m_regs.context.paClClipCntl.bits.ZCLIP_FAR_DISABLE = 1;
-    }
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 644
+        m_regs.context.paClClipCntl.bits.DX_CLIP_SPACE_DEF = (createInfo.viewportInfo.depthRange == DepthRange::ZeroToOne);
+        if (createInfo.viewportInfo.depthClipNearEnable == false)
+        {
+            m_regs.context.paClClipCntl.bits.ZCLIP_NEAR_DISABLE = 1;
+        }
+        if (createInfo.viewportInfo.depthClipFarEnable == false)
+        {
+            m_regs.context.paClClipCntl.bits.ZCLIP_FAR_DISABLE = 1;
+        }
+#elif PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 629
+        m_regs.context.paClClipCntl.bits.DX_CLIP_SPACE_DEF = (createInfo.viewportInfo.depthRange == DepthRange::ZeroToOne);
+        if (createInfo.viewportInfo.depthClipEnable == false)
+        {
+            m_regs.context.paClClipCntl.bits.ZCLIP_NEAR_DISABLE = 1;
+            m_regs.context.paClClipCntl.bits.ZCLIP_FAR_DISABLE = 1;
+        }
 
 #endif
 
@@ -1406,6 +1413,10 @@ void GraphicsPipeline::UpdateRingSizes(
     }
 
     ringSizes.itemSize[static_cast<size_t>(ShaderRingType::GfxScratch)] = ComputeScratchMemorySize(metadata);
+
+    // Mesh shaders are not supported on Gfx6/7/8.
+    PAL_ASSERT((metadata.pipeline.hasEntry.meshScratchMemorySize == 0) ||
+               (metadata.pipeline.meshScratchMemorySize == 0));
 
     // Inform the device that this pipeline has some new ring-size requirements.
     m_pDevice->UpdateLargestRingSizes(&ringSizes);

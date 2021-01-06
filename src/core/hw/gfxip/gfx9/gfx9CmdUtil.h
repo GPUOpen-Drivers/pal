@@ -152,8 +152,9 @@ struct ExplicitAcquireMemInfo
     {
         struct
         {
-            uint32 usePfp      :  1; // If true the PFP will process this packet. Only valid on the universal engine.
-            uint32 reserved    : 31;
+            uint32 usePfp           :  1; // If true the PFP will process this packet. Only valid on the universal engine.
+            uint32 reservedFutureHw :  1; // Placeholder
+            uint32 reserved         : 30;
         };
         uint32 u32All;
     } flags;
@@ -482,6 +483,45 @@ public:
         bool         useOpaque,
         Pm4Predicate predicate,
         void*        pBuffer);
+    static size_t BuildTaskStateInit(
+        Pm4ShaderType shaderType,
+        gpusize       controlBufferAddr,
+        Pm4Predicate  predicate,
+        void*         pBuffer);
+    template <bool IssueSqttMarkerEvent>
+    static size_t BuildDispatchTaskMeshGfx(
+        uint32       tgDimOffset,
+        uint32       ringEntryLoc,
+        Pm4Predicate predicate,
+        void*        pBuffer);
+    static size_t BuildDispatchMeshIndirectMulti(
+        gpusize      dataOffset,
+        uint32       xyzOffset,
+        uint32       drawIndexOffset,
+        uint32       count,
+        uint32       stride,
+        gpusize      countGpuAddr,
+        Pm4Predicate predicate,
+        void*        pBuffer);
+    static size_t BuildDispatchTaskMeshIndirectMultiAce(
+        gpusize      dataOffset,
+        uint32       ringEntryLoc,
+        uint32       xyzDimLoc,
+        uint32       dispatchIndexLoc,
+        uint32       count,
+        uint32       stride,
+        gpusize      countGpuAddr,
+        bool         isWave32,
+        Pm4Predicate predicate,
+        void*        pBuffer);
+    static size_t BuildDispatchTaskMeshDirectAce(
+        uint32          xDim,
+        uint32          yDim,
+        uint32          zDim,
+        uint32          ringEntryLoc,
+        Pm4Predicate    predicate,
+        bool            isWave32,
+        void*           pBuffer);
     static size_t BuildDmaData(
         DmaDataInfo&  dmaDataInfo,
         void*         pBuffer);
@@ -500,10 +540,11 @@ public:
         EngineType      engineType,
         void*           pBuffer);
     static size_t BuildSampleEventWrite(
-        VGT_EVENT_TYPE  vgtEvent,
-        EngineType      engineType,
-        gpusize         gpuAddr,
-        void*           pBuffer);
+        VGT_EVENT_TYPE                  vgtEvent,
+        ME_EVENT_WRITE_event_index_enum eventIndex,
+        EngineType                      engineType,
+        gpusize                         gpuAddr,
+        void*                           pBuffer);
     size_t BuildExecutionMarker(
         gpusize markerAddr,
         uint32  markerVal,

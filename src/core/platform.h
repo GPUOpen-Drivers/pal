@@ -137,7 +137,10 @@ public:
 
     const PlatformProperties& GetProperties() const { return m_properties; }
 
-    bool IsEmulationEnabled() const { return false; }
+    bool IsEmulationEnabled() const
+    {
+        return false;
+    }
 
     void DeveloperCb(
         uint32                  deviceIndex,

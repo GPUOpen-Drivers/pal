@@ -991,7 +991,7 @@ ADDR_E_RETURNCODE Gfx9Lib::HwlSupportComputeDccAddrFromCoord(
              (pIn->metaBlkDepth == 0)      ||
              (pIn->dccRamSliceSize == 0))
     {
-        returnCode = ADDR_NOTIMPLEMENTED;
+        returnCode = ADDR_NOTSUPPORTED;
     }
 
     return returnCode;

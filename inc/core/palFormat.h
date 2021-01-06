@@ -276,11 +276,14 @@ enum class ChNumFormat : Util::uint32
                                         ///  X8Y8Z8W8 Image view formats map the X,Y,Z,W channels to the Y0,V0,Y1,U0
                                         ///  channels respectively. Image views can use the { Y8X8_Y8Z8, Unorm } format
                                         ///  where the Y0,X0,Y1,Z0 channels are mapped to the Y0,V0,Y1,U0 channels.
-    YV12                     = 0xA2,    ///< YUV 4:2:0 planar format, with 8 bits per luma and chroma sample.  The Y
+    YV12                     = 0xA2,    ///< YVU 4:2:0 planar format, with 8 bits per luma and chroma sample.  The Y
                                         ///  plane is first, containg a uint8 per sample.  Next is the U plane and the V
                                         ///  plane, both of which have a uint8 per sample.  Valid Image view formats are
                                         ///  { X8, Unorm } and { X8, Uint }.  Each view only has access to one of the Y,
                                         ///  U, or V planes.
+                                        ///  @note The planes are stored logically in memory as YV12-I420 (YUV) instead
+                                        ///  of YVU order. This means that any color conversion process needs to swizzle
+                                        ///  the components accordingly.
     NV11                     = 0xA3,    ///< YUV 4:1:1 planar format, with 8 bits per luma and chroma sample.  The Y
                                         ///  plane is first, containing a uint8 per sample.  Next is a UV plane which
                                         ///  has interleaved U and V samples, each stored as a uint8.  Valid Image and

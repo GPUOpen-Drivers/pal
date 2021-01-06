@@ -56,6 +56,14 @@ public:
 
     virtual void CmdBarrier(const BarrierInfo& barrierInfo) override;
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
+    virtual uint32 CmdRelease(
+        const AcquireReleaseInfo& releaseInfo) override;
+    virtual void CmdAcquire(
+        const AcquireReleaseInfo& acquireInfo,
+        uint32                    syncTokenCount,
+        const uint32*             pSyncTokens) override;
+#else
     virtual void CmdRelease(
         const AcquireReleaseInfo& releaseInfo,
         const IGpuEvent*          pGpuEvent) override;
@@ -64,6 +72,7 @@ public:
         const AcquireReleaseInfo& acquireInfo,
         uint32                    gpuEventCount,
         const IGpuEvent*const*    ppGpuEvents) override;
+#endif
 
     virtual void CmdReleaseThenAcquire(const AcquireReleaseInfo& barrierInfo) override;
 
@@ -200,6 +209,10 @@ public:
         uint32  frameCntReg) override;
 
     virtual void CpCopyMemory(gpusize dstAddr, gpusize srcAddr, gpusize numBytes) override;
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
+    virtual void CmdRestoreComputeState(uint32 stateFlags) override;
+#endif
 
 protected:
     virtual ~ComputeCmdBuffer() {}

@@ -133,7 +133,7 @@ Result GraphicsPipeline::InitFromPipelineBinary(
 
     if (result == Result::Success)
     {
-        ExtractPipelineInfo(metadata, ShaderType::Vertex, ShaderType::Pixel);
+        ExtractPipelineInfo(metadata, ShaderType::Task, ShaderType::Pixel);
 
         DumpPipelineElf("PipelineGfx",
                         ((metadata.pipeline.hasEntry.name != 0) ? &metadata.pipeline.name[0] : nullptr));
@@ -147,6 +147,20 @@ Result GraphicsPipeline::InitFromPipelineBinary(
         {
             m_flags.tessEnabled = 1;
         }
+
+        if (ShaderHashIsNonzero(m_info.shader[static_cast<uint32>(ShaderType::Mesh)].hash))
+        {
+            m_flags.meshShader = 1;
+        }
+
+        if (ShaderHashIsNonzero(m_info.shader[static_cast<uint32>(ShaderType::Task)].hash))
+        {
+            SetTaskShaderEnabled();
+            m_flags.taskShader = 1;
+        }
+        // A task shader is not allowed unless a mesh shader is also present, but a mesh shader can be present
+        // without requiring a task shader.
+        PAL_ASSERT(HasMeshShader() || (HasTaskShader() == false));
 
         m_flags.vportArrayIdx = (metadata.pipeline.flags.usesViewportArrayIndex != 0);
 

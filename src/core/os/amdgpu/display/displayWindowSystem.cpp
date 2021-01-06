@@ -256,9 +256,13 @@ Result DisplayWindowSystem::CreatePresentableImage(
     int32 ret = m_drmProcs.pfnDrmPrimeFDToHandle(m_drmMasterFd, sharedBufferFd, &bufferHandle[0]);
     if (ret == 0)
     {
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
         const SubresId subres = { ImageAspect::Color, 0, 0 };
 
         const SubResourceInfo*const pSubResInfo = pImage->SubresourceInfo(subres);
+#else
+        const SubResourceInfo*const pSubResInfo = pImage->SubresourceInfo(0);
+#endif
 
         uint32 pitches[4]   = {};
         uint32 offset[4]    = {};
@@ -300,8 +304,12 @@ Result DisplayWindowSystem::CreatePresentableImage(
 Result DisplayWindowSystem::ModeSet(
     Image* pImage)
 {
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
     const SubresId subres = { ImageAspect::Color, 0, 0 };
     const SubResourceInfo*const pSubResInfo = pImage->SubresourceInfo(subres);
+#else
+    const SubResourceInfo*const pSubResInfo = pImage->SubresourceInfo(0);
+#endif
     const uint32 width  = pSubResInfo->extentTexels.width;
     const uint32 height = pSubResInfo->extentTexels.height;
 

@@ -28,47 +28,10 @@ include(CMakeDependentOption)
 
 pal_include_guard(PalOptions)
 
-macro(pal_gfx9_options)
-
-    pal_build_parameter(PAL_BUILD_NAVI14 "Build PAL with Navi14 support?" ON ${pal_gpu_mode})
-
-    pal_build_parameter(PAL_BUILD_NAVI21 "Build PAL with Navi21 support?" ON ${pal_gpu_mode})
-    pal_set_or(PAL_BUILD_GFX10_3 ${PAL_BUILD_NAVI21})
-
-endmacro() # gfx9
-
-# Specify GPU build options
-macro(pal_gfx_options)
-    pal_build_parameter(PAL_BUILD_GFX "Build PAL with Graphics support?" ON AUTHOR_WARNING)
-
-    # If PAL is being built standalone, no need to display as warnings. Since the warnings are intended
-    # for PAL clients.
-    if (PAL_IS_STANDALONE)
-        set(pal_gpu_mode "STATUS")
-    else()
-        set(pal_gpu_mode "AUTHOR_WARNING")
-    endif()
-
-    if (PAL_BUILD_GFX)
-        pal_build_parameter(PAL_BUILD_GFX6 "Build PAL with GFX6 support?" ${PAL_BUILD_GFX} ${pal_gpu_mode})
-        pal_build_parameter(PAL_BUILD_GFX9 "Build PAL with GFX9 support?" ${PAL_BUILD_GFX} ${pal_gpu_mode})
-
-        if (PAL_BUILD_GFX9)
-            pal_gfx9_options()
-        endif()
-
-    endif() # PAL_BUILD_GFX
-endmacro()
-
-# This macro is meant to encapsulate all the variables that PAL's clients are intended to
-# manipulate when customizing PAL for their purposes. Making it the first place cmake developers
-# for DXCP, XGL, etc. will look to when they have build problems/ideas/confusion.
-#
-# All variables should have the prefix "PAL_" this serves two main purposes
+# All options/cache variables should have the prefix "PAL_" this serves two main purposes
 #   Name collision issues
 #   Cmake-gui allows grouping of variables based on prefixes, which then makes it clear what options PAL defined
 macro(pal_options)
-
     option(PAL_BUILD_NULL_DEVICE "Build null device backend for offline compilation?" ON)
 
     option(PAL_BUILD_GPUOPEN "Build GPUOpen developer driver support?" OFF)
@@ -84,12 +47,6 @@ macro(pal_options)
 
     option(PAL_BUILD_CORE "Build PAL Core?" ON)
 
-    # If present, it specifies that the build is on a release branch (not stg) and en/disables features
-    # specific to that branch. On stg, all branch-related features are enabled.
-    if (DEFINED PAL_BUILD_BRANCH)
-        message_verbose("Client specified PAL_BUILD_BRANCH: ${PAL_BUILD_BRANCH}")
-    endif()
-
     option(PAL_BUILD_GPUUTIL "Build PAL GPU Util?" ON)
 
     cmake_dependent_option(PAL_BUILD_LAYERS "Build PAL Layers?" ON "PAL_BUILD_GPUUTIL" OFF)
@@ -104,7 +61,7 @@ macro(pal_options)
     option(PAL_DEVELOPER_BUILD "Enable developer build" OFF)
 
     # If the client turns on PAL developer build they expect these ALL these features to be turned on
-    if (${PAL_DEVELOPER_BUILD})
+    if (PAL_DEVELOPER_BUILD)
         # Notice how these aren't cache variables.
         # Because if they were cache variables either they/we would have to use the FORCE keyword
         # Either way it would be a bad interface for the client
@@ -121,30 +78,14 @@ macro(pal_options)
     endif()
 #endif
 
-    # Specify GPU build options
-    pal_gfx_options()
-
     option(PAL_BUILD_OSS  "Build PAL with Operating System support?" ON)
     cmake_dependent_option(PAL_BUILD_OSS1   "Build PAL with OSS1?"   ON "PAL_BUILD_OSS" OFF)
     cmake_dependent_option(PAL_BUILD_OSS2   "Build PAL with OSS2?"   ON "PAL_BUILD_OSS" OFF)
     cmake_dependent_option(PAL_BUILD_OSS2_4 "Build PAL with OSS2_4?" ON "PAL_BUILD_OSS" OFF)
     cmake_dependent_option(PAL_BUILD_OSS4   "Build PAL with OSS4?"   ON "PAL_BUILD_OSS" OFF)
 
-    set(PAL_AMDGPU_BUILD ${UNIX})
     option(PAL_BUILD_DRI3 "Build PAL with DRI3 support?" ON)
     option(PAL_BUILD_WAYLAND "Build PAL with WAYLAND support?" OFF)
-
-    # PAL Client Options ###############################################################################
-    pal_build_parameter(PAL_CLIENT "Client pal should build for" "mandatory" FATAL_ERROR)
-
-    # Create a more convenient variable to avoid string comparisons.
-    set(PAL_CLIENT_${PAL_CLIENT} ON)
-
-    pal_build_parameter(PAL_CLIENT_INTERFACE_MAJOR_VERSION "Pal library interface value" "-1" FATAL_ERROR)
-
-    if (DEFINED PAL_CLIENT_INTERFACE_MINOR_VERSION)
-        message(AUTHOR_WARNING "Unneccessary to specify PAL_CLIENT_INTERFACE_MINOR_VERSION")
-    endif()
 
     # Paths to PAL's dependencies
     set(PAL_METROHASH_PATH ${PROJECT_SOURCE_DIR}/src/util/imported/metrohash CACHE PATH "Specify the path to the MetroHash project.")

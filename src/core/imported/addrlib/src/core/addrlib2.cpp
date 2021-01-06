@@ -307,6 +307,9 @@ ADDR_E_RETURNCODE Lib::ComputeSurfaceInfo(
                 if (pOut->pStereoInfo != NULL)
                 {
                     ComputeQbStereoInfo(pOut);
+#if DEBUG
+                    ValidateStereoInfo(pIn, pOut);
+#endif
                 }
             }
         }
@@ -827,40 +830,6 @@ ADDR_E_RETURNCODE Lib::ComputeDccAddrFromCoord(
         if (returnCode == ADDR_OK)
         {
             HwlComputeDccAddrFromCoord(pIn, pOut);
-        }
-        else if (returnCode == ADDR_NOTIMPLEMENTED)
-        {
-            ADDR2_COMPUTE_DCCINFO_INPUT input = {};
-            input.dccKeyFlags     = pIn->dccKeyFlags;
-            input.colorFlags      = pIn->colorFlags;
-            input.swizzleMode     = pIn->swizzleMode;
-            input.resourceType    = pIn->resourceType;
-            input.bpp             = pIn->bpp;
-            input.unalignedWidth  = Max(pIn->unalignedWidth,  1u);
-            input.unalignedHeight = Max(pIn->unalignedHeight, 1u);
-            input.numSlices       = Max(pIn->numSlices,       1u);
-            input.numFrags        = Max(pIn->numFrags,        1u);
-            input.numMipLevels    = Max(pIn->numMipLevels,    1u);
-
-            ADDR2_COMPUTE_DCCINFO_OUTPUT output = {};
-
-            returnCode = HwlComputeDccInfo(&input, &output);
-
-            if (returnCode == ADDR_OK)
-            {
-                ADDR2_COMPUTE_DCC_ADDRFROMCOORD_INPUT in = *pIn;
-                in.pitch             = output.pitch;
-                in.height            = output.height;
-                in.compressBlkWidth  = output.compressBlkWidth;
-                in.compressBlkHeight = output.compressBlkHeight;
-                in.compressBlkDepth  = output.compressBlkDepth;
-                in.metaBlkWidth      = output.metaBlkWidth;
-                in.metaBlkHeight     = output.metaBlkHeight;
-                in.metaBlkDepth      = output.metaBlkDepth;
-                in.dccRamSliceSize   = output.dccRamSliceSize;
-
-                HwlComputeDccAddrFromCoord(&in, pOut);
-            }
         }
     }
 
@@ -2026,6 +1995,81 @@ VOID Lib::FilterInvalidEqSwizzleMode(
         }
     }
 }
+
+#if DEBUG
+/**
+************************************************************************************************************************
+*   Lib::ValidateStereoInfo
+*
+*   @brief
+*       Validate stereo info by checking a few typical cases
+*
+*   @return
+*       N/A
+************************************************************************************************************************
+*/
+VOID Lib::ValidateStereoInfo(
+    const ADDR2_COMPUTE_SURFACE_INFO_INPUT*  pIn,   ///< [in] input structure
+    const ADDR2_COMPUTE_SURFACE_INFO_OUTPUT* pOut   ///< [in] output structure
+    ) const
+{
+    ADDR2_COMPUTE_SURFACE_ADDRFROMCOORD_INPUT addrIn = {};
+    addrIn.size            = sizeof(addrIn);
+    addrIn.swizzleMode     = pIn->swizzleMode;
+    addrIn.flags           = pIn->flags;
+    addrIn.flags.qbStereo  = 0;
+    addrIn.resourceType    = pIn->resourceType;
+    addrIn.bpp             = pIn->bpp;
+    addrIn.unalignedWidth  = pIn->width;
+    addrIn.numSlices       = pIn->numSlices;
+    addrIn.numMipLevels    = pIn->numMipLevels;
+    addrIn.numSamples      = pIn->numSamples;
+    addrIn.numFrags        = pIn->numFrags;
+
+    // Call Addr2ComputePipeBankXor() and validate different pbXor value if necessary...
+    const UINT_32 pbXor = 0;
+
+    ADDR2_COMPUTE_SURFACE_ADDRFROMCOORD_OUTPUT addrOut = {};
+    addrOut.size = sizeof(addrOut);
+
+    // Make the array to be {0, 1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096} for full test
+    const UINT_32 TestCoord[] = {0};
+
+    for (UINT_32 xIdx = 0; xIdx < sizeof(TestCoord) / sizeof(TestCoord[0]); xIdx++)
+    {
+        if (TestCoord[xIdx] < pIn->width)
+        {
+            addrIn.x = TestCoord[xIdx];
+
+            for (UINT_32 yIdx = 0; yIdx  < sizeof(TestCoord) / sizeof(TestCoord[0]); yIdx++)
+            {
+                if (TestCoord[yIdx] < pIn->height)
+                {
+                    addrIn.y               = TestCoord[yIdx] + pOut->pStereoInfo->eyeHeight;
+                    addrIn.pipeBankXor     = pbXor ^ pOut->pStereoInfo->rightSwizzle;
+                    addrIn.unalignedHeight = pIn->height + pOut->pStereoInfo->eyeHeight;
+
+                    ADDR_E_RETURNCODE ret = ComputeSurfaceAddrFromCoord(&addrIn, &addrOut);
+                    ADDR_ASSERT(ret == ADDR_OK);
+
+                    const UINT_64 rightEyeOffsetFromBase = addrOut.addr;
+
+                    addrIn.y               = TestCoord[yIdx];
+                    addrIn.pipeBankXor     = pbXor;
+                    addrIn.unalignedHeight = pIn->height;
+
+                    ret = ComputeSurfaceAddrFromCoord(&addrIn, &addrOut);
+                    ADDR_ASSERT(ret == ADDR_OK);
+
+                    const UINT_64 rightEyeOffsetRelative = addrOut.addr;
+
+                    ADDR_ASSERT(rightEyeOffsetFromBase == rightEyeOffsetRelative + pOut->pStereoInfo->rightOffset);
+                }
+            }
+        }
+    }
+}
+#endif
 
 } // V2
 } // Addr

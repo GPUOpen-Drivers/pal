@@ -88,11 +88,11 @@ struct HtileInfo : public MaskRamInfo
                                       // for tc-compatible HTILE.
 };
 
-// Some operations need an easy way to specify which HTile aspects they will read or write to.
-enum HtileAspectMask : uint32
+// Some operations need an easy way to specify which HTile plane they will read or write to.
+enum HtilePlaneMask : uint32
 {
-    HtileAspectDepth   = 0x1,
-    HtileAspectStencil = 0x2
+    HtilePlaneDepth   = 0x1,
+    HtilePlaneStencil = 0x2
 };
 
 // Enumerates all operations that may view HTile memory as a buffer.
@@ -102,7 +102,7 @@ enum class HtileBufferUsage : uint32
     Clear = 0x1, // Used to set Htile memory to some non-initial value (e.g., a fast-clear).
 };
 
-// Specifies which HTile aspects contain meaningful data, because the image and HTile may not have the same aspects.
+// Specifies which HTile planes contain meaningful data, because the image and HTile may not have the same planes.
 // For example, a depth-only image can still have the combined depth/stencil HTile (tileStencilDisable = 0), but the
 // HTile stencil data will not be used.
 enum class HtileContents : uint32
@@ -125,8 +125,12 @@ public:
 
     uint32 GetInitialValue() const;
     uint32 GetClearValue(float depthValue) const;
-    uint32 GetAspectMask(uint32 aspectFlags) const;
-    uint32 GetAspectMask(ImageAspect aspect) const;
+    uint32 GetPlaneMask(uint32 planeFlags) const;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
+    uint32 GetPlaneMask(ImageAspect aspect) const;
+#else
+    uint32 GetPlaneMask(const Image& image, const SubresRange& range) const;
+#endif
 
     Result Init(
         const Pal::Device& device,
@@ -178,7 +182,7 @@ private:
     Gfx6HtileFlags         m_flags;             // HTile properties flags
     regDB_HTILE_SURFACE    m_dbHtileSurface;    // DB_HTILE_SURFACE register value
     regDB_PRELOAD_CONTROL  m_dbPreloadControl;  // DB_PRELOAD_CONTROL register value
-    HtileContents          m_htileContents;     // Htile aspects which contain meaningful data
+    HtileContents          m_htileContents;     // Htile planes which contain meaningful data
 
     // Each DB's HTile cache can fit 8K DWORDs. Each DWORD of HTILE data covers 64 pixels.
     static constexpr uint32 DbHtileCacheSizeInPixels = (8 * 1024 * 64);

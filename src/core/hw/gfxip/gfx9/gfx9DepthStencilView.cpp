@@ -43,14 +43,6 @@ namespace Pal
 namespace Gfx9
 {
 
-constexpr uint32 DbRenderOverrideRmwMask = DB_RENDER_OVERRIDE__FORCE_HIZ_ENABLE_MASK        |
-                                           DB_RENDER_OVERRIDE__FORCE_HIS_ENABLE0_MASK       |
-                                           DB_RENDER_OVERRIDE__FORCE_HIS_ENABLE1_MASK       |
-                                           DB_RENDER_OVERRIDE__FORCE_STENCIL_VALID_MASK     |
-                                           DB_RENDER_OVERRIDE__FORCE_Z_VALID_MASK           |
-                                           DB_RENDER_OVERRIDE__DISABLE_TILE_RATE_TILES_MASK |
-                                           DB_RENDER_OVERRIDE__NOOP_CULL_DISABLE_MASK;
-
 // =====================================================================================================================
 DepthStencilView::DepthStencilView(
     const Device*                             pDevice,
@@ -97,17 +89,29 @@ DepthStencilView::DepthStencilView(
     if (m_flags.depth && m_flags.stencil)
     {
         // Depth & Stencil format.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
         m_depthSubresource.aspect       = ImageAspect::Depth;
+#else
+        m_depthSubresource.plane        = 0;
+#endif
         m_depthSubresource.mipLevel     = createInfo.mipLevel;
         m_depthSubresource.arraySlice   = 0;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
         m_stencilSubresource.aspect     = ImageAspect::Stencil;
+#else
+        m_stencilSubresource.plane      = 1;
+#endif
         m_stencilSubresource.mipLevel   = createInfo.mipLevel;
         m_stencilSubresource.arraySlice = 0;
     }
     else if (m_flags.depth)
     {
         // Depth-only format.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
         m_depthSubresource.aspect     = ImageAspect::Depth;
+#else
+        m_depthSubresource.plane      = 0;
+#endif
         m_depthSubresource.mipLevel   = createInfo.mipLevel;
         m_depthSubresource.arraySlice = 0;
         m_stencilSubresource          = m_depthSubresource;
@@ -115,7 +119,11 @@ DepthStencilView::DepthStencilView(
     else
     {
         // Stencil-only format.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
         m_stencilSubresource.aspect     = ImageAspect::Stencil;
+#else
+        m_stencilSubresource.plane      = 0;
+#endif
         m_stencilSubresource.mipLevel   = createInfo.mipLevel;
         m_stencilSubresource.arraySlice = 0;
         m_depthSubresource              = m_stencilSubresource;
@@ -135,7 +143,7 @@ DepthStencilView::DepthStencilView(
 
     if (settings.waitOnMetadataMipTail)
     {
-        // aspect of the subresource doesn't matter for depth images.
+        // Plane of the subresource doesn't matter for depth images.
         m_flags.waitOnMetadataMipTail = m_pImage->IsInMetadataMipTail(m_depthSubresource);
     }
 }
@@ -328,7 +336,7 @@ void DepthStencilView::UpdateImageVa(
         {
             if (m_hTileUsage.dsMetadata != 0)
             {
-                // Program fast-clear metadata base address.  Aspect shouldn't matter here, just the mip level
+                // Program fast-clear metadata base address.  Plane shouldn't matter here, just the mip level
                 pRegs->fastClearMetadataGpuVa = m_pImage->FastClearMetaDataAddr(m_depthSubresource);
                 PAL_ASSERT((pRegs->fastClearMetadataGpuVa & 0x3) == 0);
             }
@@ -536,17 +544,17 @@ uint32* DepthStencilView::WriteUpdateFastClearDepthStencilValue(
     regs.dbStencilClear.u32All     = 0;
     regs.dbStencilClear.bits.CLEAR = stencil;
 
-    if (metaDataClearFlags == (HtileAspectDepth | HtileAspectStencil))
+    if (metaDataClearFlags == (HtilePlaneDepth | HtilePlaneStencil))
     {
         pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmDB_STENCIL_CLEAR, mmDB_DEPTH_CLEAR, &regs, pCmdSpace);
     }
-    else if (metaDataClearFlags == HtileAspectDepth)
+    else if (metaDataClearFlags == HtilePlaneDepth)
     {
         pCmdSpace = pCmdStream->WriteSetOneContextReg(mmDB_DEPTH_CLEAR, regs.dbDepthClear.u32All, pCmdSpace);
     }
     else
     {
-        PAL_ASSERT(metaDataClearFlags == HtileAspectStencil);
+        PAL_ASSERT(metaDataClearFlags == HtilePlaneStencil);
 
         pCmdSpace = pCmdStream->WriteSetOneContextReg(mmDB_STENCIL_CLEAR, regs.dbStencilClear.u32All, pCmdSpace);
     }
@@ -602,7 +610,11 @@ void Gfx9DepthStencilView::InitRegisters(
     const auto*                 pAddrMgr             = static_cast<const AddrMgr2::AddrMgr2*>(pPalDevice->GetAddrMgr());
     const SubResourceInfo*const pDepthSubResInfo     = pParent->SubresourceInfo(m_depthSubresource);
     const SubResourceInfo*const pStencilSubResInfo   = pParent->SubresourceInfo(m_stencilSubresource);
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
     const SubresId              baseDepthSubResId    = { m_depthSubresource.aspect, 0 , 0 };
+#else
+    const SubresId              baseDepthSubResId    = { m_depthSubresource.plane, 0 , 0 };
+#endif
     const SubResourceInfo*const pBaseDepthSubResInfo = pParent->SubresourceInfo(baseDepthSubResId);
 
     const ADDR2_COMPUTE_SURFACE_INFO_OUTPUT*const pDepthAddrInfo = m_pImage->GetAddrOutput(pDepthSubResInfo);
@@ -631,10 +643,12 @@ void Gfx9DepthStencilView::InitRegisters(
 // =====================================================================================================================
 // Writes the PM4 commands required to bind to depth/stencil slot. Returns the next unused DWORD in pCmdSpace.
 uint32* Gfx9DepthStencilView::WriteCommands(
-    ImageLayout depthLayout,   // Allowed usages/queues for the depth aspect. Implies compression state.
-    ImageLayout stencilLayout, // Allowed usages/queues for the stencil aspect. Implies compression state.
-    CmdStream*  pCmdStream,
-    uint32*     pCmdSpace
+    ImageLayout            depthLayout,   // Allowed usages/queues for the depth plane. Implies compression state.
+    ImageLayout            stencilLayout, // Allowed usages/queues for the stencil plane. Implies compression state.
+    CmdStream*             pCmdStream,
+    bool                   isNested,
+    regDB_RENDER_OVERRIDE* pDbRenderOverride,
+    uint32*                pCmdSpace
     ) const
 {
     Gfx9DepthStencilViewRegs regs = m_regs;
@@ -660,10 +674,19 @@ uint32* Gfx9DepthStencilView::WriteCommands(
                                                   regs.paSuPolyOffsetDbFmtCntl.u32All,
                                                   pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetOneContextReg(mmCOHER_DEST_BASE_0, regs.coherDestBase0.u32All, pCmdSpace);
-    return pCmdStream->WriteContextRegRmw(mmDB_RENDER_OVERRIDE,
-                                          DbRenderOverrideRmwMask,
-                                          regs.dbRenderOverride.u32All,
-                                          pCmdSpace);
+
+    // Update just the portion owned by DSV.
+    BitfieldUpdateSubfield(&(pDbRenderOverride->u32All), regs.dbRenderOverride.u32All, DbRenderOverrideRmwMask);
+
+    if (isNested)
+    {
+        pCmdSpace = pCmdStream->WriteContextRegRmw(mmDB_RENDER_OVERRIDE,
+                                                   DbRenderOverrideRmwMask,
+                                                   regs.dbRenderOverride.u32All,
+                                                   pCmdSpace);
+    }
+
+    return pCmdSpace;
 }
 
 // =====================================================================================================================
@@ -749,7 +772,11 @@ void Gfx10DepthStencilView::InitRegisters(
 
     const SubResourceInfo*const pDepthSubResInfo     = pParentImg->SubresourceInfo(m_depthSubresource);
     const SubResourceInfo*const pStencilSubResInfo   = pParentImg->SubresourceInfo(m_stencilSubresource);
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
     const SubresId              baseDepthSubResId    = { m_depthSubresource.aspect, 0 , 0 };
+#else
+    const SubresId              baseDepthSubResId    = { m_depthSubresource.plane, 0 , 0 };
+#endif
     const SubResourceInfo*const pBaseDepthSubResInfo = pParentImg->SubresourceInfo(baseDepthSubResId);
 
     InitRegistersCommon(device, createInfo, internalInfo, pFmtInfo, &m_regs);
@@ -844,10 +871,12 @@ void Gfx10DepthStencilView::InitRegisters(
 // =====================================================================================================================
 // Writes the PM4 commands required to bind to depth/stencil slot. Returns the next unused DWORD in pCmdSpace.
 uint32* Gfx10DepthStencilView::WriteCommands(
-    ImageLayout depthLayout,   // Allowed usages/queues for the depth aspect. Implies compression state.
-    ImageLayout stencilLayout, // Allowed usages/queues for the stencil aspect. Implies compression state.
-    CmdStream*  pCmdStream,
-    uint32*     pCmdSpace
+    ImageLayout            depthLayout,   // Allowed usages/queues for the depth plane. Implies compression state.
+    ImageLayout            stencilLayout, // Allowed usages/queues for the stencil plane. Implies compression state.
+    CmdStream*             pCmdStream,
+    bool                   isNested,
+    regDB_RENDER_OVERRIDE* pDbRenderOverride,
+    uint32*                pCmdSpace
     ) const
 {
     Gfx10DepthStencilViewRegs regs = m_regs;
@@ -873,10 +902,19 @@ uint32* Gfx10DepthStencilView::WriteCommands(
                                                   regs.paSuPolyOffsetDbFmtCntl.u32All,
                                                   pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetOneContextReg(mmCOHER_DEST_BASE_0, regs.coherDestBase0.u32All, pCmdSpace);
-    return pCmdStream->WriteContextRegRmw(mmDB_RENDER_OVERRIDE,
-                                          DbRenderOverrideRmwMask,
-                                          regs.dbRenderOverride.u32All,
-                                          pCmdSpace);
+
+    // Update just the portion owned by DSV.
+    BitfieldUpdateSubfield(&(pDbRenderOverride->u32All), regs.dbRenderOverride.u32All, DbRenderOverrideRmwMask);
+
+    if (isNested)
+    {
+        pCmdSpace = pCmdStream->WriteContextRegRmw(mmDB_RENDER_OVERRIDE,
+                                                   DbRenderOverrideRmwMask,
+                                                   regs.dbRenderOverride.u32All,
+                                                   pCmdSpace);
+    }
+
+    return pCmdSpace;
 }
 
 } // Gfx9

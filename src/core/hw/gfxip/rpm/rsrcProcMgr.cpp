@@ -593,7 +593,11 @@ void RsrcProcMgr::CopyColorImageGraphics(
     pCmdBuffer->CmdSetStencilRefMasks(stencilRefMasks);
 
     SubresRange viewRange = { };
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
     viewRange.startSubres = srcImage.GetBaseSubResource();
+#else
+    viewRange.numPlanes   = 1;
+#endif
     viewRange.numMips     = srcCreateInfo.mipLevels;
     // Use the depth of base subresource as the number of array slices since 3D image is viewed as 2D array
     // later. Src image view is set up as a whole rather than per mip-level, using base subresource's depth
@@ -743,6 +747,9 @@ void RsrcProcMgr::CopyColorImageGraphics(
                 const bool singlezRangeAccess = (srcCreateInfo.imageType == ImageType::Tex3d) &&
                                                 HwlNeedSinglezRangeAccess();
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
+                viewRange.numPlanes   = 1;
+#endif
                 viewRange.numMips     = 1;
                 viewRange.numSlices   = 1;
                 viewRange.startSubres = copyRegion.srcSubres;
@@ -968,8 +975,12 @@ void RsrcProcMgr::CopyDepthStencilImageGraphics(
         // Now issue fast or slow clears to all ranges, grouping identical depth/stencil pairs if possible.
         for (uint32 idx = 0; idx < regionCount; idx++)
         {
-            // Same sanity checks of the region aspects.
+            // Same sanity checks of the region planes.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
             const bool isDepth = (pRegions[idx].dstSubres.aspect == ImageAspect::Depth);
+#else
+            const bool isDepth = dstImage.IsDepthPlane(pRegions[idx].dstSubres.plane);
+#endif
             bool isDepthStencil = false;
 
             BindTargetParams bindTargetsInfo = {};
@@ -988,14 +999,19 @@ void RsrcProcMgr::CopyDepthStencilImageGraphics(
 
             uint32 secondSurface = 0;
 
-            // Search the range list to see if there is a matching range which span the other aspect.
+            // Search the range list to see if there is a matching range which span the other plane.
             for (uint32 forwardIdx = idx + 1; forwardIdx < regionCount; ++forwardIdx)
             {
                 // TODO: there is unknown corruption issue if grouping depth and stencil copy together for mipmap
                 //       image, disallow merging copy for mipmap image as a temp fix.
                 if ((dstCreateInfo.mipLevels                   == 1)                                  &&
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
                     (pRegions[forwardIdx].srcSubres.aspect     != pRegions[idx].srcSubres.aspect)     &&
                     (pRegions[forwardIdx].dstSubres.aspect     != pRegions[idx].dstSubres.aspect)     &&
+#else
+                    (pRegions[forwardIdx].srcSubres.plane      != pRegions[idx].srcSubres.plane)      &&
+                    (pRegions[forwardIdx].dstSubres.plane      != pRegions[idx].dstSubres.plane)      &&
+#endif
                     (pRegions[forwardIdx].srcSubres.mipLevel   == pRegions[idx].srcSubres.mipLevel)   &&
                     (pRegions[forwardIdx].dstSubres.mipLevel   == pRegions[idx].dstSubres.mipLevel)   &&
                     (pRegions[forwardIdx].srcSubres.arraySlice == pRegions[idx].srcSubres.arraySlice) &&
@@ -1005,7 +1021,7 @@ void RsrcProcMgr::CopyDepthStencilImageGraphics(
                     (pRegions[forwardIdx].extent.width         == pRegions[idx].extent.width)         &&
                     (pRegions[forwardIdx].numSlices            == pRegions[idx].numSlices))
                 {
-                    // We found a matching range that for the other aspect, clear them both at once.
+                    // We found a matching range for the other plane, clear them both at once.
                     isDepthStencil = true;
                     isRangeProcessed[forwardIdx] = true;
                     secondSurface = forwardIdx;
@@ -1063,7 +1079,7 @@ void RsrcProcMgr::CopyDepthStencilImageGraphics(
             {
                 LinearAllocatorAuto<VirtualLinearAllocator> sliceAlloc(pCmdBuffer->Allocator(), false);
 
-                // Create an embedded user-data table and bind it to user data 1. We need an image view for each aspect.
+                // Create an embedded user-data table and bind it to user data 1. We need an image view for each plane.
                 const uint32 numSrds = isDepthStencil ? 2 : 1;
                 uint32* pSrdTable = RpmUtil::CreateAndBindEmbeddedUserData(pCmdBuffer,
                                                                            SrdDwordAlignment() * numSrds,
@@ -1075,7 +1091,11 @@ void RsrcProcMgr::CopyDepthStencilImageGraphics(
                 {
                     // Populate the table with an image view of the source image.
                     ImageViewInfo imageView[2] = {};
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
                     SubresRange viewRange      = { pRegions[idx].srcSubres, 1, 1 };
+#else
+                    SubresRange viewRange      = { pRegions[idx].srcSubres, 1, 1, 1 };
+#endif
 
                     viewRange.startSubres.arraySlice += slice;
 
@@ -1087,7 +1107,11 @@ void RsrcProcMgr::CopyDepthStencilImageGraphics(
                                                 texOptLevel);
 
                     srcFormat.format = ChNumFormat::X8_Uint;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
                     viewRange        = { pRegions[secondSurface].srcSubres, 1, 1 };
+#else
+                    viewRange        = { pRegions[secondSurface].srcSubres, 1, 1, 1 };
+#endif
 
                     viewRange.startSubres.arraySlice += slice;
 
@@ -1103,7 +1127,11 @@ void RsrcProcMgr::CopyDepthStencilImageGraphics(
                 {
                     // Populate the table with an image view of the source image.
                     ImageViewInfo imageView = {};
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
                     SubresRange   viewRange = { pRegions[idx].srcSubres, 1, 1 };
+#else
+                    SubresRange   viewRange = { pRegions[idx].srcSubres, 1, 1, 1 };
+#endif
 
                     viewRange.startSubres.arraySlice += slice;
 
@@ -1384,7 +1412,11 @@ void RsrcProcMgr::CopyImageCompute(
         const uint32 numSlices = (imageType == ImageType::Tex3d) ? copyRegion.extent.depth : copyRegion.numSlices;
 
         ImageViewInfo imageView[2] = {};
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
         SubresRange   viewRange    = { copyRegion.dstSubres, 1, numSlices };
+#else
+        SubresRange   viewRange    = { copyRegion.dstSubres, 1, 1, numSlices };
+#endif
 
         PAL_ASSERT(TestAnyFlagSet(dstImageLayout.usages, LayoutShaderWrite | LayoutCopyDst) == true);
         RpmUtil::BuildImageViewInfo(&imageView[0],
@@ -2019,14 +2051,19 @@ void RsrcProcMgr::CopyBetweenMemoryAndImage(
             copyData[2] = imgCreateInfo.samples;
         }
 
-        // Create an embedded user-data table to contain the Image SRD's and the copy data constants. It will be bound
-        // to entry 0.
-        const uint32 DataDwords = NumBytesToNumDwords(sizeof(copyData));
-        uint32*      pUserData  = RpmUtil::CreateAndBindEmbeddedUserData(pCmdBuffer,
-                                                                         SrdDwordAlignment() * 2 + DataDwords,
-                                                                         SrdDwordAlignment(),
-                                                                         PipelineBindPoint::Compute,
-                                                                         0);
+        const uint32 firstMipLevel  = copyRegion.imageSubres.mipLevel;
+        const uint32 lastArraySlice = copyRegion.imageSubres.arraySlice + copyRegion.numSlices - 1;
+
+        // If single subres is requested for the format, iterate slice-by-slice and mip-by-mip.
+        if (singleSubres)
+        {
+            copyRegion.numSlices = 1;
+        }
+
+        if (isImageDst)
+        {
+            PAL_ASSERT(TestAnyFlagSet(imageLayout.usages, LayoutShaderWrite | LayoutCopyDst) == true);
+        }
 
         const Extent3d bufferBox =
         {
@@ -2050,30 +2087,30 @@ void RsrcProcMgr::CopyBetweenMemoryAndImage(
                                                           Gfx10RpmViewsBypassMallOnWrite);
 #endif
 
-        device.CreateTypedBufferViewSrds(1, &bufferView, pUserData);
-        pUserData += SrdDwordAlignment();
-
-        ImageViewInfo     imageView      = {};
-        const SubresRange viewRange      = { copyRegion.imageSubres, 1, copyRegion.numSlices };
-        const uint32      firstMipLevel  = copyRegion.imageSubres.mipLevel;
-        const uint32      lastArraySlice = copyRegion.imageSubres.arraySlice + copyRegion.numSlices - 1;
-
-        // If single subres is requested for the format, iterate slice-by-slice and mip-by-mip.
-        if (singleSubres)
-        {
-            copyRegion.numSlices = 1;
-        }
-
-        if (isImageDst)
-        {
-            PAL_ASSERT(TestAnyFlagSet(imageLayout.usages, LayoutShaderWrite | LayoutCopyDst) == true);
-        }
-
         for (;
             copyRegion.imageSubres.arraySlice <= lastArraySlice;
             copyRegion.imageSubres.arraySlice += copyRegion.numSlices)
         {
             copyRegion.imageSubres.mipLevel = firstMipLevel;
+
+            // Create an embedded user-data table to contain the Image SRD's and the copy data constants.
+            // It will be bound to entry 0.
+            const uint32 DataDwords = NumBytesToNumDwords(sizeof(copyData));
+            uint32*      pUserData  = RpmUtil::CreateAndBindEmbeddedUserData(pCmdBuffer,
+                                                                             SrdDwordAlignment() * 2 + DataDwords,
+                                                                             SrdDwordAlignment(),
+                                                                             PipelineBindPoint::Compute,
+                                                                             0);
+
+            device.CreateTypedBufferViewSrds(1, &bufferView, pUserData);
+            pUserData += SrdDwordAlignment();
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
+            const SubresRange viewRange = { copyRegion.imageSubres, 1, copyRegion.numSlices };
+#else
+            const SubresRange viewRange = { copyRegion.imageSubres, 1, 1, copyRegion.numSlices };
+#endif
+            ImageViewInfo     imageView = {};
 
             RpmUtil::BuildImageViewInfo(&imageView,
                                         image,
@@ -2105,6 +2142,9 @@ void RsrcProcMgr::CopyBetweenMemoryAndImage(
             pCmdBuffer->CmdDispatch(RpmUtil::MinThreadGroups(bufferBox.width,  threadsPerGroup[0]),
                                     RpmUtil::MinThreadGroups(bufferBox.height, threadsPerGroup[1]),
                                     RpmUtil::MinThreadGroups(bufferBox.depth,  threadsPerGroup[2]));
+
+            // Offset the buffer view to the next iteration's starting slice.
+            bufferView.gpuAddr += copyRegion.gpuMemoryDepthPitch;
         }
     }
 
@@ -2415,6 +2455,9 @@ void RsrcProcMgr::GenerateMipmapsFast(
 
     // We will specify the base subresource later on.
     transition.imageInfo.pImage                = genInfo.pImage;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
+    transition.imageInfo.subresRange.numPlanes = 1;
+#endif
     transition.imageInfo.subresRange.numMips   = 1;
     transition.imageInfo.subresRange.numSlices = genInfo.range.numSlices;
     transition.imageInfo.oldLayout             = genInfo.genMipLayout;
@@ -2424,9 +2467,6 @@ void RsrcProcMgr::GenerateMipmapsFast(
     barrier.pTransitions    = &transition;
 
     barrier.reason = Developer::BarrierReasonUnknown;
-
-    SubresId srcSubres = genInfo.range.startSubres;
-    --srcSubres.mipLevel;
 
     uint32 samplerType = 0; // 0 = linearSampler, 1 = pointSampler
 
@@ -2446,139 +2486,155 @@ void RsrcProcMgr::GenerateMipmapsFast(
         PAL_NOT_IMPLEMENTED();
     }
 
-    for (uint32 start = 0; start < genInfo.range.numMips; start += MaxNumMips, srcSubres.mipLevel += MaxNumMips)
-    {
-        const uint32 numMipsToGenerate = Min((genInfo.range.numMips - start), MaxNumMips);
-
-        // The shader can only handle one array slice per pass.
-        for (uint32 slice = 0; slice < genInfo.range.numSlices; ++slice, ++srcSubres.arraySlice)
-        {
-            const SubResourceInfo& subresInfo = *image.SubresourceInfo(srcSubres);
-
-            const SwizzledFormat srcFormat =
-                (genInfo.swizzledFormat.format != ChNumFormat::Undefined) ? genInfo.swizzledFormat : subresInfo.format;
-            SwizzledFormat dstFormat = srcFormat;
-
-            const uint32 numWorkGroupsPerDim[] =
-            {
-                RpmUtil::MinThreadGroups(subresInfo.extentTexels.width,  64),
-                RpmUtil::MinThreadGroups(subresInfo.extentTexels.height, 64),
-                1
-            };
-
-            const float invInputDims[] =
-            {
-                (1.0f / subresInfo.extentTexels.width),
-                (1.0f / subresInfo.extentTexels.height),
-            };
-
-            // Bind inline constants to user data 0+.
-            const uint32 copyData[] =
-            {
-                numMipsToGenerate,                                               // numMips
-                (numWorkGroupsPerDim[0] * numWorkGroupsPerDim[1] * numWorkGroupsPerDim[2]),
-                reinterpret_cast<const uint32&>(invInputDims[0]),
-                reinterpret_cast<const uint32&>(invInputDims[1]),
-                samplerType,
-            };
-            const uint32 copyDataDwords = Util::NumBytesToNumDwords(sizeof(copyData));
-
-            pCmdBuffer->CmdSetUserData(PipelineBindPoint::Compute, 0, copyDataDwords, &copyData[0]);
-
-            // Create an embedded user-data table and bind it.  We need an image view and a sampler for the src
-            // subresource, image views for MaxNumMips dst subresources, and a buffer SRD pointing to the atomic
-            // counter.
-            constexpr uint8  NumSlots   = 2 + MaxNumMips + 1;
-            uint32*          pUserData  = RpmUtil::CreateAndBindEmbeddedUserData(pCmdBuffer,
-                                                                                 SrdDwordAlignment() * NumSlots,
-                                                                                 SrdDwordAlignment(),
-                                                                                 PipelineBindPoint::Compute,
-                                                                                 copyDataDwords);
-
-            // The hardware can't handle UAV stores using sRGB num format.  The resolve shaders already contain a
-            // linear-to-gamma conversion, but in order for that to work the output UAV's num format must be patched to
-            // be simple UNORM.
-            if (Formats::IsSrgb(dstFormat.format))
-            {
-                dstFormat.format = Formats::ConvertToUnorm(dstFormat.format);
-                PAL_ASSERT(Formats::IsUndefined(dstFormat.format) == false);
-
-                PAL_NOT_IMPLEMENTED_MSG(
-                    "Gamma correction for sRGB image writes is not yet implemented in the mipgen shader.");
-            }
-
-            SubresRange viewRange = { srcSubres, 1, 1 };
-
-            ImageViewInfo srcImageView = { };
-            RpmUtil::BuildImageViewInfo(&srcImageView,
-                                        image,
-                                        viewRange,
-                                        srcFormat,
-                                        genInfo.baseMipLayout,
-                                        device.TexOptLevel());
-
-            device.CreateImageViewSrds(1, &srcImageView, pUserData);
-            pUserData += SrdDwordAlignment();
-
-            SamplerInfo samplerInfo = { };
-            samplerInfo.filter      = genInfo.filter;
-            samplerInfo.addressU    = TexAddressMode::Clamp;
-            samplerInfo.addressV    = TexAddressMode::Clamp;
-            samplerInfo.addressW    = TexAddressMode::Clamp;
-            samplerInfo.compareFunc = CompareFunc::Always;
-            device.CreateSamplerSrds(1, &samplerInfo, pUserData);
-            pUserData += SrdDwordAlignment();
-
-            ImageViewInfo dstImageView[MaxNumMips] = { };
-            for (uint32 mip = 0; mip < MaxNumMips; ++mip)
-            {
-                if (mip < numMipsToGenerate)
-                {
-                    ++viewRange.startSubres.mipLevel;
-                }
-
-                RpmUtil::BuildImageViewInfo(&dstImageView[mip],
-                                            image,
-                                            viewRange,
-                                            dstFormat,
-                                            genInfo.genMipLayout,
-                                            device.TexOptLevel());
-            }
-
-            device.CreateImageViewSrds(MaxNumMips, &dstImageView[0], pUserData);
-            pUserData += (SrdDwordAlignment() * MaxNumMips);
-
-            // Allocate scratch memory for the global atomic counter and initialize it to 0.
-            const gpusize counterVa = pCmdBuffer->AllocateGpuScratchMem(1, Util::NumBytesToNumDwords(128));
-            pCmdBuffer->CmdWriteImmediate(HwPipePoint::HwPipeTop, 0, ImmediateDataWidth::ImmediateData32Bit, counterVa);
-
-            BufferViewInfo bufferView = { };
-            bufferView.gpuAddr        = counterVa;
-            bufferView.stride         = 0;
-            bufferView.range          = sizeof(uint32);
-            bufferView.swizzledFormat = UndefinedSwizzledFormat;
-#if  PAL_CLIENT_INTERFACE_MAJOR_VERSION>= 558
-            bufferView.flags.bypassMallRead  = TestAnyFlagSet(settings.rpmViewsBypassMall,
-                                                              Gfx10RpmViewsBypassMallOnRead);
-            bufferView.flags.bypassMallWrite = TestAnyFlagSet(settings.rpmViewsBypassMall,
-                                                              Gfx10RpmViewsBypassMallOnWrite);
+    SubresId srcSubres = genInfo.range.startSubres;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
+    for (; srcSubres.plane < (genInfo.range.startSubres.plane + genInfo.range.numPlanes); srcSubres.plane++)
 #endif
-
-            device.CreateUntypedBufferViewSrds(1, &bufferView, pUserData);
-
-            // Execute the dispatch.
-            pCmdBuffer->CmdDispatch(numWorkGroupsPerDim[0], numWorkGroupsPerDim[1], numWorkGroupsPerDim[2]);
-        }
-
+    {
+        srcSubres.mipLevel   = genInfo.range.startSubres.mipLevel - 1;
         srcSubres.arraySlice = genInfo.range.startSubres.arraySlice;
 
-        if ((start + MaxNumMips) < genInfo.range.numMips)
+        for (uint32 start = 0; start < genInfo.range.numMips; start += MaxNumMips, srcSubres.mipLevel += MaxNumMips)
         {
-            // If we need to do additional dispatches to handle more mip levels, issue a barrier between each pass.
-            transition.imageInfo.subresRange.startSubres          = srcSubres;
-            transition.imageInfo.subresRange.startSubres.mipLevel = (start + numMipsToGenerate);
+            const uint32 numMipsToGenerate = Min((genInfo.range.numMips - start), MaxNumMips);
 
-            pCmdBuffer->CmdBarrier(barrier);
+            // The shader can only handle one array slice per pass.
+            for (uint32 slice = 0; slice < genInfo.range.numSlices; ++slice, ++srcSubres.arraySlice)
+            {
+                const SubResourceInfo& subresInfo = *image.SubresourceInfo(srcSubres);
+
+                const SwizzledFormat srcFormat = (genInfo.swizzledFormat.format != ChNumFormat::Undefined)
+                                                 ? genInfo.swizzledFormat : subresInfo.format;
+                SwizzledFormat dstFormat = srcFormat;
+
+                const uint32 numWorkGroupsPerDim[] =
+                {
+                    RpmUtil::MinThreadGroups(subresInfo.extentTexels.width,  64),
+                    RpmUtil::MinThreadGroups(subresInfo.extentTexels.height, 64),
+                    1
+                };
+
+                const float invInputDims[] =
+                {
+                    (1.0f / subresInfo.extentTexels.width),
+                    (1.0f / subresInfo.extentTexels.height),
+                };
+
+                // Bind inline constants to user data 0+.
+                const uint32 copyData[] =
+                {
+                    numMipsToGenerate,                                               // numMips
+                    (numWorkGroupsPerDim[0] * numWorkGroupsPerDim[1] * numWorkGroupsPerDim[2]),
+                    reinterpret_cast<const uint32&>(invInputDims[0]),
+                    reinterpret_cast<const uint32&>(invInputDims[1]),
+                    samplerType,
+                };
+                const uint32 copyDataDwords = Util::NumBytesToNumDwords(sizeof(copyData));
+
+                pCmdBuffer->CmdSetUserData(PipelineBindPoint::Compute, 0, copyDataDwords, &copyData[0]);
+
+                // Create an embedded user-data table and bind it.  We need an image view and a sampler for the src
+                // subresource, image views for MaxNumMips dst subresources, and a buffer SRD pointing to the atomic
+                // counter.
+                constexpr uint8  NumSlots   = 2 + MaxNumMips + 1;
+                uint32*          pUserData  = RpmUtil::CreateAndBindEmbeddedUserData(pCmdBuffer,
+                                                                                     SrdDwordAlignment() * NumSlots,
+                                                                                     SrdDwordAlignment(),
+                                                                                     PipelineBindPoint::Compute,
+                                                                                     copyDataDwords);
+
+                // The hardware can't handle UAV stores using sRGB num format.  The resolve shaders already contain a
+                // linear-to-gamma conversion, but in order for that to work the output UAV's num format must be
+                // patched to be simple UNORM.
+                if (Formats::IsSrgb(dstFormat.format))
+                {
+                    dstFormat.format = Formats::ConvertToUnorm(dstFormat.format);
+                    PAL_ASSERT(Formats::IsUndefined(dstFormat.format) == false);
+
+                    PAL_NOT_IMPLEMENTED_MSG(
+                        "Gamma correction for sRGB image writes is not yet implemented in the mipgen shader.");
+                }
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
+                SubresRange viewRange = { srcSubres, 1, 1 };
+#else
+                SubresRange viewRange = { srcSubres, 1, 1, 1 };
+#endif
+
+                ImageViewInfo srcImageView = { };
+                RpmUtil::BuildImageViewInfo(&srcImageView,
+                                            image,
+                                            viewRange,
+                                            srcFormat,
+                                            genInfo.baseMipLayout,
+                                            device.TexOptLevel());
+
+                device.CreateImageViewSrds(1, &srcImageView, pUserData);
+                pUserData += SrdDwordAlignment();
+
+                SamplerInfo samplerInfo = { };
+                samplerInfo.filter      = genInfo.filter;
+                samplerInfo.addressU    = TexAddressMode::Clamp;
+                samplerInfo.addressV    = TexAddressMode::Clamp;
+                samplerInfo.addressW    = TexAddressMode::Clamp;
+                samplerInfo.compareFunc = CompareFunc::Always;
+                device.CreateSamplerSrds(1, &samplerInfo, pUserData);
+                pUserData += SrdDwordAlignment();
+
+                ImageViewInfo dstImageView[MaxNumMips] = { };
+                for (uint32 mip = 0; mip < MaxNumMips; ++mip)
+                {
+                    if (mip < numMipsToGenerate)
+                    {
+                        ++viewRange.startSubres.mipLevel;
+                    }
+
+                    RpmUtil::BuildImageViewInfo(&dstImageView[mip],
+                                                image,
+                                                viewRange,
+                                                dstFormat,
+                                                genInfo.genMipLayout,
+                                                device.TexOptLevel());
+                }
+
+                device.CreateImageViewSrds(MaxNumMips, &dstImageView[0], pUserData);
+                pUserData += (SrdDwordAlignment() * MaxNumMips);
+
+                // Allocate scratch memory for the global atomic counter and initialize it to 0.
+                const gpusize counterVa = pCmdBuffer->AllocateGpuScratchMem(1, Util::NumBytesToNumDwords(128));
+                pCmdBuffer->CmdWriteImmediate(HwPipePoint::HwPipeTop,
+                                              0,
+                                              ImmediateDataWidth::ImmediateData32Bit,
+                                              counterVa);
+
+                BufferViewInfo bufferView = { };
+                bufferView.gpuAddr        = counterVa;
+                bufferView.stride         = 0;
+                bufferView.range          = sizeof(uint32);
+                bufferView.swizzledFormat = UndefinedSwizzledFormat;
+#if  PAL_CLIENT_INTERFACE_MAJOR_VERSION>= 558
+                bufferView.flags.bypassMallRead  = TestAnyFlagSet(settings.rpmViewsBypassMall,
+                                                                  Gfx10RpmViewsBypassMallOnRead);
+                bufferView.flags.bypassMallWrite = TestAnyFlagSet(settings.rpmViewsBypassMall,
+                                                                  Gfx10RpmViewsBypassMallOnWrite);
+#endif
+
+                device.CreateUntypedBufferViewSrds(1, &bufferView, pUserData);
+
+                // Execute the dispatch.
+                pCmdBuffer->CmdDispatch(numWorkGroupsPerDim[0], numWorkGroupsPerDim[1], numWorkGroupsPerDim[2]);
+            }
+
+            srcSubres.arraySlice = genInfo.range.startSubres.arraySlice;
+
+            if ((start + MaxNumMips) < genInfo.range.numMips)
+            {
+                // If we need to do additional dispatches to handle more mip levels, issue a barrier between each pass.
+                transition.imageInfo.subresRange.startSubres          = srcSubres;
+                transition.imageInfo.subresRange.startSubres.mipLevel = (start + numMipsToGenerate);
+
+                pCmdBuffer->CmdBarrier(barrier);
+            }
         }
     }
 
@@ -2597,9 +2653,13 @@ void RsrcProcMgr::GenerateMipmapsSlow(
     // We will use scaled image copies to generate each mip. Most of the copy state is identical but we must adjust the
     // copy region for each generated subresource.
     ImageScaledCopyRegion region = {};
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
     region.srcSubres.aspect     = genInfo.range.startSubres.aspect;
+#endif
     region.srcSubres.arraySlice = genInfo.range.startSubres.arraySlice;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
     region.dstSubres.aspect     = genInfo.range.startSubres.aspect;
+#endif
     region.dstSubres.arraySlice = genInfo.range.startSubres.arraySlice;
     region.numSlices            = genInfo.range.numSlices;
     region.swizzledFormat       = genInfo.swizzledFormat;
@@ -2626,6 +2686,9 @@ void RsrcProcMgr::GenerateMipmapsSlow(
 
     // We will specify the base subresource later on.
     transition.imageInfo.pImage                = pImage;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
+    transition.imageInfo.subresRange.numPlanes = 1;
+#endif
     transition.imageInfo.subresRange.numMips   = 1;
     transition.imageInfo.subresRange.numSlices = genInfo.range.numSlices;
     transition.imageInfo.oldLayout             = genInfo.genMipLayout;
@@ -2650,46 +2713,59 @@ void RsrcProcMgr::GenerateMipmapsSlow(
         pCmdBuffer->CmdSaveComputeState(ComputeStatePipelineAndUserData);
     }
 
-    // Issue one CmdScaledCopyImage for each mip in the generation range.
-    uint32       destMip = genInfo.range.startSubres.mipLevel;
-    const uint32 lastMip = destMip + genInfo.range.numMips - 1;
+    // Issue one CmdScaledCopyImage for each mip, and plane in the generation range.
+    const uint32 lastMip   = genInfo.range.startSubres.mipLevel + genInfo.range.numMips - 1;
 
-    while (destMip <= lastMip)
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
+    for (uint32 plane = genInfo.range.startSubres.plane;
+         plane < (genInfo.range.startSubres.plane + genInfo.range.numPlanes);
+         plane++)
+#endif
     {
-        region.srcSubres.mipLevel = destMip - 1;
-        region.dstSubres.mipLevel = destMip;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
+        region.srcSubres.plane = plane;
+        region.dstSubres.plane = plane;
+#endif
 
-        // We want to generate all texels in the target subresource so copy the full extent from the first array slice
-        // in the current source and destination mips.
-        const SubResourceInfo& srcSubresInfo = *pImage->SubresourceInfo(region.srcSubres);
-        const SubResourceInfo& dstSubresInfo = *pImage->SubresourceInfo(region.dstSubres);
+        uint32 destMip = genInfo.range.startSubres.mipLevel;
 
-        region.srcExtent.width  = srcSubresInfo.extentTexels.width;
-        region.srcExtent.height = srcSubresInfo.extentTexels.height;
-        region.srcExtent.depth  = srcSubresInfo.extentTexels.depth;
-        region.dstExtent.width  = dstSubresInfo.extentTexels.width;
-        region.dstExtent.height = dstSubresInfo.extentTexels.height;
-        region.dstExtent.depth  = dstSubresInfo.extentTexels.depth;
-
-        if (useGraphicsCopy)
+        while (destMip <= lastMip)
         {
-            ScaledCopyImageGraphics(pCmdBuffer, copyInfo);
-        }
-        else
-        {
-            ScaledCopyImageCompute(pCmdBuffer, copyInfo);
-        }
+            region.srcSubres.mipLevel = destMip - 1;
+            region.dstSubres.mipLevel = destMip;
 
-        // If we're going to loop again...
-        if (++destMip <= lastMip)
-        {
-            // Update the copy's source layout.
-            copyInfo.srcImageLayout = genInfo.genMipLayout;
+            // We want to generate all texels in the target subresource so copy the full extent from the first array
+            // slice in the current source and destination mips.
+            const SubResourceInfo& srcSubresInfo = *pImage->SubresourceInfo(region.srcSubres);
+            const SubResourceInfo& dstSubresInfo = *pImage->SubresourceInfo(region.dstSubres);
 
-            // Issue the barrier between this iteration's writes and the next iteration's reads.
-            transition.imageInfo.subresRange.startSubres = region.dstSubres;
+            region.srcExtent.width  = srcSubresInfo.extentTexels.width;
+            region.srcExtent.height = srcSubresInfo.extentTexels.height;
+            region.srcExtent.depth  = srcSubresInfo.extentTexels.depth;
+            region.dstExtent.width  = dstSubresInfo.extentTexels.width;
+            region.dstExtent.height = dstSubresInfo.extentTexels.height;
+            region.dstExtent.depth  = dstSubresInfo.extentTexels.depth;
 
-            pCmdBuffer->CmdBarrier(barrier);
+            if (useGraphicsCopy)
+            {
+                ScaledCopyImageGraphics(pCmdBuffer, copyInfo);
+            }
+            else
+            {
+                ScaledCopyImageCompute(pCmdBuffer, copyInfo);
+            }
+
+            // If we're going to loop again...
+            if (++destMip <= lastMip)
+            {
+                // Update the copy's source layout.
+                copyInfo.srcImageLayout = genInfo.genMipLayout;
+
+                // Issue the barrier between this iteration's writes and the next iteration's reads.
+                transition.imageInfo.subresRange.startSubres = region.dstSubres;
+
+                pCmdBuffer->CmdBarrier(barrier);
+            }
         }
     }
 
@@ -3088,7 +3164,11 @@ void RsrcProcMgr::ScaledCopyImageGraphics(
 #endif
 
         ImageViewInfo imageView[2] = {};
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
         SubresRange   viewRange    = { copyRegion.srcSubres, 1, copyRegion.numSlices };
+#else
+        SubresRange   viewRange    = { copyRegion.srcSubres, 1, 1, copyRegion.numSlices };
+#endif
 
         RpmUtil::BuildImageViewInfo(&imageView[0],
                                     *pSrcImage,
@@ -3571,7 +3651,11 @@ void RsrcProcMgr::ScaledCopyImageCompute(
 #endif
 
             ImageViewInfo imageView[2] = {};
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
             SubresRange   viewRange    = { copyRegion.dstSubres, 1, copyRegion.numSlices };
+#else
+            SubresRange   viewRange    = { copyRegion.dstSubres, 1, 1, copyRegion.numSlices };
+#endif
 
             PAL_ASSERT(TestAnyFlagSet(copyInfo.dstImageLayout.usages, LayoutShaderWrite | LayoutCopyDst) == true);
             RpmUtil::BuildImageViewInfo(&imageView[0],
@@ -3634,7 +3718,11 @@ void RsrcProcMgr::ScaledCopyImageCompute(
     {
         for (uint32 regionIdx = 0; regionIdx < copyInfo.regionCount; regionIdx++)
         {
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
             if (copyInfo.pRegions[regionIdx].dstSubres.aspect == ImageAspect::Stencil)
+#else
+            if (pDstImage->IsStencilPlane(copyInfo.pRegions[regionIdx].dstSubres.plane))
+#endif
             {
                 // Mark the VRS dest image as dirty to force an update of Htile on the next draw.
                 pCmdBuffer->DirtyVrsDepthImage(pDstImage);
@@ -3713,9 +3801,9 @@ void RsrcProcMgr::ConvertYuvToRgb(
 
     // NOTE: Each of the YUV --> RGB conversion shaders expects the following user-data layout:
     //  o RGB destination Image
-    //  o YUV source Image's Y aspect (or YCbCr aspect for RGB --> YUV-packed conversions)
-    //  o YUV source Image's Cb or CbCr aspect (unused for RGB --> YUV-packed conversions)
-    //  o YUV source Image's Cr aspect (unused unless converting between YV12 and RGB)
+    //  o YUV source Image's Y plane (or YCbCr plane for RGB --> YUV-packed conversions)
+    //  o YUV source Image's Cb or CbCr plane (unused for RGB --> YUV-packed conversions)
+    //  o YUV source Image's Cr plane (unused unless converting between YV12 and RGB)
     //  o Image sampler for scaled copies
     //  o Copy Info constant buffer
     //  o Color-space Conversion Table constant buffer
@@ -3752,7 +3840,11 @@ void RsrcProcMgr::ConvertYuvToRgb(
             continue;   // Skip empty regions.
         }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
         const SubresRange dstRange = { region.rgbSubres, 1, region.sliceCount };
+#else
+        const SubresRange dstRange = { region.rgbSubres, 1, 1, region.sliceCount };
+#endif
         RpmUtil::BuildImageViewInfo(&viewInfo[0],
                                     dstImage,
                                     dstRange,
@@ -3765,7 +3857,11 @@ void RsrcProcMgr::ConvertYuvToRgb(
             const auto&       cscViewInfo         = cscInfo.viewInfoYuvToRgb[view - 1];
             SwizzledFormat    imageViewInfoFormat = cscViewInfo.swizzledFormat;
             const SubresRange srcRange            =
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
                 { { cscViewInfo.aspect, 0, region.yuvStartSlice }, 1, region.sliceCount };
+#else
+                { { cscViewInfo.plane, 0, region.yuvStartSlice }, 1, 1, region.sliceCount };
+#endif
             // Try to use MM formats for YUV planes
             RpmUtil::SwapForMMFormat(srcImage.GetDevice(), &imageViewInfoFormat);
             RpmUtil::BuildImageViewInfo(&viewInfo[view],
@@ -3900,7 +3996,11 @@ void RsrcProcMgr::ConvertRgbToYuv(
             srcFormat.format = Formats::ConvertToUnorm(srcFormat.format);
         }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
         const SubresRange srcRange = { region.rgbSubres, 1, region.sliceCount };
+#else
+        const SubresRange srcRange = { region.rgbSubres, 1, 1, region.sliceCount };
+#endif
         RpmUtil::BuildImageViewInfo(&viewInfo[0],
                                     srcImage,
                                     srcRange,
@@ -3962,7 +4062,11 @@ void RsrcProcMgr::ConvertRgbToYuv(
             const auto&       cscViewInfo         = cscInfo.viewInfoRgbToYuv[pass];
             SwizzledFormat    imageViewInfoFormat = cscViewInfo.swizzledFormat;
             const SubresRange dstRange            =
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
                 { { cscViewInfo.aspect, 0, region.yuvStartSlice }, 1, region.sliceCount };
+#else
+                { { cscViewInfo.plane, 0, region.yuvStartSlice }, 1, 1, region.sliceCount };
+#endif
             // Try to use MM formats for YUV planes
             RpmUtil::SwapForMMFormat(dstImage.GetDevice(), &imageViewInfoFormat);
             RpmUtil::BuildImageViewInfo(&viewInfo[1],
@@ -3977,7 +4081,11 @@ void RsrcProcMgr::ConvertRgbToYuv(
 
             // The destination offset and extent need to be adjusted to account for differences in the dimensions of
             // the YUV image's planes.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
             Extent3d log2Ratio = Formats::Log2SubsamplingRatio(dstImageInfo.swizzledFormat.format, cscViewInfo.aspect);
+#else
+            Extent3d log2Ratio = Formats::Log2SubsamplingRatio(dstImageInfo.swizzledFormat.format, cscViewInfo.plane);
+#endif
             if (cscInfo.pipelineRgbToYuv == RpmComputePipeline::RgbToYuvPacked)
             {
                 // For YUV formats which are macro-pixel packed, we run a special shader which outputs two pixels
@@ -4447,6 +4555,10 @@ void RsrcProcMgr::CmdClearColorImage(
 
     for (uint32 rangeIdx = 0; rangeIdx < rangeCount; ++rangeIdx)
     {
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
+        PAL_ASSERT(pRanges[rangeIdx].numPlanes == 1);
+#endif
+
         SubresRange  minSlowClearRange = {};
         const auto*  pSlowClearRange   = &minSlowClearRange;
         const auto&  clearRange        = pRanges[rangeIdx];
@@ -4483,12 +4595,19 @@ void RsrcProcMgr::CmdClearColorImage(
 
             // Assume that no portion of the original range needs to be slow cleared.
             minSlowClearRange.startSubres = clearRange.startSubres;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
+            minSlowClearRange.numPlanes   = clearRange.numPlanes;
+#endif
             minSlowClearRange.numSlices   = clearRange.numSlices;
             minSlowClearRange.numMips     = 0;
 
             for (uint32 mipIdx = 0; mipIdx < clearRange.numMips; ++mipIdx)
             {
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
                 const SubresId    subres      = { clearRange.startSubres.aspect,
+#else
+                const SubresId    subres      = { clearRange.startSubres.plane,
+#endif
                                                   clearRange.startSubres.mipLevel + mipIdx,
                                                   0
                                                 };
@@ -4583,7 +4702,7 @@ void RsrcProcMgr::CmdClearColorImage(
 
 // =====================================================================================================================
 // Builds commands to slow clear a range of an image to the given raw color data using a pixel shader. Note that this
-// function can only clear color aspects.
+// function can only clear color planes.
 void RsrcProcMgr::SlowClearGraphics(
     GfxCmdBuffer*      pCmdBuffer,
     const Image&       dstImage,
@@ -4594,163 +4713,185 @@ void RsrcProcMgr::SlowClearGraphics(
     const Box*         pBoxes
     ) const
 {
-    // Graphics slow clears only work on color aspects.
+    // Graphics slow clears only work on color planes.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
     PAL_ASSERT((clearRange.startSubres.aspect != ImageAspect::Depth) &&
                (clearRange.startSubres.aspect != ImageAspect::Stencil));
-
-    // Get some useful information about the image.
-    const auto& createInfo = dstImage.GetImageCreateInfo();
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 592
-    bool rawFmtOk = dstImage.GetGfxImage()->IsFormatReplaceable(clearRange.startSubres,
-                                                                dstImageLayout,
-                                                                true,
-                                                                pColor->disabledChannelMask);
 #else
-    bool rawFmtOk = dstImage.GetGfxImage()->IsFormatReplaceable(clearRange.startSubres, dstImageLayout, true);
+    PAL_ASSERT(dstImage.IsDepthStencilTarget() == false);
 #endif
 
-    // Query the format of the image and determine which format to use for the color target view. If rawFmtOk is
-    // set the caller has allowed us to use a slightly more efficient raw format.
-    const SwizzledFormat baseFormat   = dstImage.SubresourceInfo(clearRange.startSubres)->format;
-    SwizzledFormat       viewFormat   = (rawFmtOk ? RpmUtil::GetRawFormat(baseFormat.format, nullptr, nullptr)
-                                                  : baseFormat);
-    uint32               xRightShift  = 0;
-    uint32               vpRightShift = 0;
-    // For packed YUV image use X32_Uint instead of X16_Uint to fill with YUYV.
-    if ((viewFormat.format == ChNumFormat::X16_Uint) && Formats::IsYuvPacked(baseFormat.format))
+    const auto& createInfo = dstImage.GetImageCreateInfo();
+
+    SubresId subresId = clearRange.startSubres;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
+    for (; subresId.plane < (clearRange.startSubres.plane + clearRange.numPlanes); subresId.plane++)
+#endif
     {
-        viewFormat.format  = ChNumFormat::X32_Uint;
-        viewFormat.swizzle = { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One };
-        rawFmtOk           = false;
-        // If clear color type isn't Yuv then the client is responsible for offset/extent adjustments.
-        xRightShift        = (pColor->type == ClearColorType::Yuv) ? 1 : 0;
-        // The viewport should always be adjusted regardless the clear color type, (however, since this is just clear,
-        // all pixels are the same and the scissor rect will clamp the rendering area, the result is still correct
-        // without this adjustment).
-        vpRightShift       = 1;
-    }
-
-    ViewportParams viewportInfo = { };
-    viewportInfo.count                 = 1;
-    viewportInfo.viewports[0].originX  = 0;
-    viewportInfo.viewports[0].originY  = 0;
-    viewportInfo.viewports[0].minDepth = 0.f;
-    viewportInfo.viewports[0].maxDepth = 1.f;
-    viewportInfo.viewports[0].origin   = PointOrigin::UpperLeft;
-    viewportInfo.horzClipRatio         = FLT_MAX;
-    viewportInfo.horzDiscardRatio      = 1.0f;
-    viewportInfo.vertClipRatio         = FLT_MAX;
-    viewportInfo.vertDiscardRatio      = 1.0f;
-    viewportInfo.depthRange            = DepthRange::ZeroToOne;
-
-    const bool  is3dImage  = (createInfo.imageType == ImageType::Tex3d);
-    ColorTargetViewCreateInfo colorViewInfo         = { };
-    colorViewInfo.swizzledFormat                    = viewFormat;
-    colorViewInfo.imageInfo.pImage                  = &dstImage;
-    colorViewInfo.imageInfo.arraySize               = (is3dImage ? 1 : clearRange.numSlices);
-    colorViewInfo.imageInfo.baseSubRes.aspect       = clearRange.startSubres.aspect;
-    colorViewInfo.imageInfo.baseSubRes.arraySlice   = clearRange.startSubres.arraySlice;
-
-    BindTargetParams bindTargetsInfo = { };
-    bindTargetsInfo.colorTargets[0].imageLayout      = dstImageLayout;
-    bindTargetsInfo.colorTargets[0].pColorTargetView = nullptr;
-
-    // Save current command buffer state and bind graphics state which is common for all mipmap levels.
-    pCmdBuffer->PushGraphicsState();
-    pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Graphics,
-                                  GetGfxPipelineByTargetIndexAndFormat(SlowColorClear0_32ABGR, 0, viewFormat),
-                                  InternalApiPsoHash, });
-    BindCommonGraphicsState(pCmdBuffer);
+        // Get some useful information about the image.
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 592
-    if (pColor->disabledChannelMask != 0)
-    {
-        // Overwrite CbTargetMask for different writeMasks.
-        pCmdBuffer->CmdOverrideColorWriteMaskForBlits(pColor->disabledChannelMask);
-    }
+        bool rawFmtOk = dstImage.GetGfxImage()->IsFormatReplaceable(subresId,
+                                                                    dstImageLayout,
+                                                                    true,
+                                                                    pColor->disabledChannelMask);
+#else
+        bool rawFmtOk = dstImage.GetGfxImage()->IsFormatReplaceable(subresId, dstImageLayout, true);
 #endif
-    pCmdBuffer->CmdOverwriteRbPlusFormatForBlits(viewFormat, 0);
-    pCmdBuffer->CmdBindColorBlendState(m_pBlendDisableState);
-    pCmdBuffer->CmdBindDepthStencilState(m_pDepthDisableState);
-    pCmdBuffer->CmdBindMsaaState(GetMsaaState(createInfo.samples, createInfo.fragments));
 
-    RpmUtil::WriteVsZOut(pCmdBuffer, 1.0f);
-    RpmUtil::WriteVsFirstSliceOffset(pCmdBuffer, 0);
-
-    uint32 packedColor[4] = {0};
-
-    if (pColor->type == ClearColorType::Yuv)
-    {
-        // If clear color type is Yuv, the image format should used to determine the clear color swizzling and packing
-        // for planar YUV formats since the baseFormat is subresource's format which is not a YUV format.
-        // NOTE: if clear color type is Uint, the client is responsible for:
-        //       1. packing and swizzling clear color for packed YUV formats (e.g. packing in YUYV order for YUY2).
-        //       2. passing correct clear color for this plane for planar YUV formats (e.g. two uint32s for U and V if
-        //          current plane is CbCr).
-        const SwizzledFormat imgFormat = createInfo.swizzledFormat;
-        Formats::ConvertYuvColor(imgFormat, clearRange.startSubres.aspect, &pColor->u32Color[0], &packedColor[0]);
-    }
-    else
-    {
-        uint32 convertedColor[4] = {0};
-
-        if (pColor->type == ClearColorType::Float)
+        // Query the format of the image and determine which format to use for the color target view. If rawFmtOk is
+        // set the caller has allowed us to use a slightly more efficient raw format.
+        const SwizzledFormat baseFormat   = dstImage.SubresourceInfo(subresId)->format;
+        SwizzledFormat       viewFormat   = (rawFmtOk ? RpmUtil::GetRawFormat(baseFormat.format, nullptr, nullptr)
+                                                      : baseFormat);
+        uint32               xRightShift  = 0;
+        uint32               vpRightShift = 0;
+        // For packed YUV image use X32_Uint instead of X16_Uint to fill with YUYV.
+        if ((viewFormat.format == ChNumFormat::X16_Uint) && Formats::IsYuvPacked(baseFormat.format))
         {
-            Formats::ConvertColor(baseFormat, &pColor->f32Color[0], &convertedColor[0]);
+            viewFormat.format  = ChNumFormat::X32_Uint;
+            viewFormat.swizzle = { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One };
+            rawFmtOk           = false;
+            // If clear color type isn't Yuv then the client is responsible for offset/extent adjustments.
+            xRightShift        = (pColor->type == ClearColorType::Yuv) ? 1 : 0;
+            // The viewport should always be adjusted regardless the clear color type, (however, since this is just clear,
+            // all pixels are the same and the scissor rect will clamp the rendering area, the result is still correct
+            // without this adjustment).
+            vpRightShift       = 1;
+        }
+
+        ViewportParams viewportInfo = { };
+        viewportInfo.count                 = 1;
+        viewportInfo.viewports[0].originX  = 0;
+        viewportInfo.viewports[0].originY  = 0;
+        viewportInfo.viewports[0].minDepth = 0.f;
+        viewportInfo.viewports[0].maxDepth = 1.f;
+        viewportInfo.viewports[0].origin   = PointOrigin::UpperLeft;
+        viewportInfo.horzClipRatio         = FLT_MAX;
+        viewportInfo.horzDiscardRatio      = 1.0f;
+        viewportInfo.vertClipRatio         = FLT_MAX;
+        viewportInfo.vertDiscardRatio      = 1.0f;
+        viewportInfo.depthRange            = DepthRange::ZeroToOne;
+
+        const bool  is3dImage  = (createInfo.imageType == ImageType::Tex3d);
+        ColorTargetViewCreateInfo colorViewInfo         = { };
+        colorViewInfo.swizzledFormat                    = viewFormat;
+        colorViewInfo.imageInfo.pImage                  = &dstImage;
+        colorViewInfo.imageInfo.arraySize               = (is3dImage ? 1 : clearRange.numSlices);
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
+        colorViewInfo.imageInfo.baseSubRes.aspect       = subresId.aspect;
+#else
+        colorViewInfo.imageInfo.baseSubRes.plane        = subresId.plane;
+#endif
+        colorViewInfo.imageInfo.baseSubRes.arraySlice   = subresId.arraySlice;
+
+        BindTargetParams bindTargetsInfo = { };
+        bindTargetsInfo.colorTargets[0].imageLayout      = dstImageLayout;
+        bindTargetsInfo.colorTargets[0].pColorTargetView = nullptr;
+
+        // Save current command buffer state and bind graphics state which is common for all mipmap levels.
+        pCmdBuffer->PushGraphicsState();
+        pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Graphics,
+                                      GetGfxPipelineByTargetIndexAndFormat(SlowColorClear0_32ABGR, 0, viewFormat),
+                                      InternalApiPsoHash, });
+        BindCommonGraphicsState(pCmdBuffer);
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 592
+        if (pColor->disabledChannelMask != 0)
+        {
+            // Overwrite CbTargetMask for different writeMasks.
+            pCmdBuffer->CmdOverrideColorWriteMaskForBlits(pColor->disabledChannelMask);
+        }
+#endif
+        pCmdBuffer->CmdOverwriteRbPlusFormatForBlits(viewFormat, 0);
+        pCmdBuffer->CmdBindColorBlendState(m_pBlendDisableState);
+        pCmdBuffer->CmdBindDepthStencilState(m_pDepthDisableState);
+        pCmdBuffer->CmdBindMsaaState(GetMsaaState(createInfo.samples, createInfo.fragments));
+
+        RpmUtil::WriteVsZOut(pCmdBuffer, 1.0f);
+        RpmUtil::WriteVsFirstSliceOffset(pCmdBuffer, 0);
+
+        uint32 packedColor[4] = {0};
+
+        if (pColor->type == ClearColorType::Yuv)
+        {
+            // If clear color type is Yuv, the image format should used to determine the clear color swizzling and packing
+            // for planar YUV formats since the baseFormat is subresource's format which is not a YUV format.
+            // NOTE: if clear color type is Uint, the client is responsible for:
+            //       1. packing and swizzling clear color for packed YUV formats (e.g. packing in YUYV order for YUY2).
+            //       2. passing correct clear color for this plane for planar YUV formats (e.g. two uint32s for U and V if
+            //          current plane is CbCr).
+            const SwizzledFormat imgFormat = createInfo.swizzledFormat;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
+            Formats::ConvertYuvColor(imgFormat, subresId.aspect, &pColor->u32Color[0], &packedColor[0]);
+#else
+            Formats::ConvertYuvColor(imgFormat, subresId.plane, &pColor->u32Color[0], &packedColor[0]);
+#endif
         }
         else
         {
-            memcpy(&convertedColor[0], &pColor->u32Color[0], sizeof(convertedColor));
+            uint32 convertedColor[4] = {0};
+
+            if (pColor->type == ClearColorType::Float)
+            {
+                Formats::ConvertColor(baseFormat, &pColor->f32Color[0], &convertedColor[0]);
+            }
+            else
+            {
+                memcpy(&convertedColor[0], &pColor->u32Color[0], sizeof(convertedColor));
+            }
+
+            RpmUtil::ConvertClearColorToNativeFormat(baseFormat, viewFormat, &convertedColor[0]);
+
+            // If we can clear with raw format replacement which is more efficient, swizzle it into the order
+            // required and then pack it.
+            if (rawFmtOk)
+            {
+                uint32 swizzledColor[4] = {0};
+                Formats::SwizzleColor(baseFormat, &convertedColor[0], &swizzledColor[0]);
+                Formats::PackRawClearColor(baseFormat, &swizzledColor[0], &packedColor[0]);
+            }
+            else
+            {
+                memcpy(&packedColor[0], &convertedColor[0], sizeof(packedColor));
+            }
         }
 
-        RpmUtil::ConvertClearColorToNativeFormat(baseFormat, viewFormat, &convertedColor[0]);
+        pCmdBuffer->CmdSetUserData(PipelineBindPoint::Graphics, RpmPsClearFirstUserData, 4, &packedColor[0]);
 
-        // If we can clear with raw format replacement which is more efficient, swizzle it into the order
-        // required and then pack it.
-        if (rawFmtOk)
+        // Each mipmap needs to be cleared individually.
+        const uint32 lastMip = (subresId.mipLevel + clearRange.numMips - 1);
+
+        // Boxes are only meaningful if we're clearing a single mip.
+        PAL_ASSERT((boxCount == 0) || ((pBoxes != nullptr) && (clearRange.numMips == 1)));
+
+        for (uint32 mip = subresId.mipLevel; mip <= lastMip; ++mip)
         {
-            uint32 swizzledColor[4] = {0};
-            Formats::SwizzleColor(baseFormat, &convertedColor[0], &swizzledColor[0]);
-            Formats::PackRawClearColor(baseFormat, &swizzledColor[0], &packedColor[0]);
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
+            const SubresId mipSubres  = { subresId.aspect, mip, 0 };
+#else
+            const SubresId mipSubres  = { subresId.plane, mip, 0 };
+#endif
+            const auto&    subResInfo = *dstImage.SubresourceInfo(mipSubres);
+
+            // All slices of the same mipmap level can re-use the same viewport state.
+            viewportInfo.viewports[0].width  = static_cast<float>(subResInfo.extentTexels.width >> vpRightShift);
+            viewportInfo.viewports[0].height = static_cast<float>(subResInfo.extentTexels.height);
+
+            pCmdBuffer->CmdSetViewports(viewportInfo);
+
+            colorViewInfo.imageInfo.baseSubRes.mipLevel = mip;
+            SlowClearGraphicsOneMip(pCmdBuffer,
+                                    dstImage,
+                                    mipSubres,
+                                    boxCount,
+                                    pBoxes,
+                                    &colorViewInfo,
+                                    &bindTargetsInfo,
+                                    xRightShift);
         }
-        else
-        {
-            memcpy(&packedColor[0], &convertedColor[0], sizeof(packedColor));
-        }
+
+        // Restore original command buffer state.
+        pCmdBuffer->PopGraphicsState();
     }
-
-    pCmdBuffer->CmdSetUserData(PipelineBindPoint::Graphics, RpmPsClearFirstUserData, 4, &packedColor[0]);
-
-    // Each mipmap needs to be cleared individually.
-    const uint32 lastMip = (clearRange.startSubres.mipLevel + clearRange.numMips - 1);
-
-    // Boxes are only meaningful if we're clearing a single mip.
-    PAL_ASSERT((boxCount == 0) || ((pBoxes != nullptr) && (clearRange.numMips == 1)));
-
-    for (uint32 mip = clearRange.startSubres.mipLevel; mip <= lastMip; ++mip)
-    {
-        const SubresId mipSubres  = { clearRange.startSubres.aspect, mip, 0 };
-        const auto&    subResInfo = *dstImage.SubresourceInfo(mipSubres);
-
-        // All slices of the same mipmap level can re-use the same viewport state.
-        viewportInfo.viewports[0].width  = static_cast<float>(subResInfo.extentTexels.width >> vpRightShift);
-        viewportInfo.viewports[0].height = static_cast<float>(subResInfo.extentTexels.height);
-
-        pCmdBuffer->CmdSetViewports(viewportInfo);
-
-        colorViewInfo.imageInfo.baseSubRes.mipLevel = mip;
-        SlowClearGraphicsOneMip(pCmdBuffer,
-                                dstImage,
-                                clearRange,
-                                boxCount,
-                                pBoxes,
-                                mip,
-                                &colorViewInfo,
-                                &bindTargetsInfo,
-                                xRightShift);
-    }
-
-    // Restore original command buffer state.
-    pCmdBuffer->PopGraphicsState();
 }
 
 // =====================================================================================================================
@@ -4758,10 +4899,9 @@ void RsrcProcMgr::SlowClearGraphics(
 void RsrcProcMgr::SlowClearGraphicsOneMip(
     GfxCmdBuffer*              pCmdBuffer,
     const Image&               dstImage,
-    const SubresRange&         clearRange,
+    const SubresId&            mipSubres,
     uint32                     boxCount,
     const Box*                 pBoxes,
-    uint32                     mip,
     ColorTargetViewCreateInfo* pColorViewInfo,
     BindTargetParams*          pBindTargetsInfo,
     uint32                     xRightShift
@@ -4776,7 +4916,6 @@ void RsrcProcMgr::SlowClearGraphicsOneMip(
     const bool  is3dImage  = (createInfo.imageType == ImageType::Tex3d);
     ColorTargetViewInternalCreateInfo colorViewInfoInternal = {};
 
-    const SubresId mipSubres  = { clearRange.startSubres.aspect, mip, 0 };
     const auto&    subResInfo = *dstImage.SubresourceInfo(mipSubres);
 
     // If rects were specified, then we'll create scissors to match the rects and do a Draw for each one. Otherwise
@@ -4921,6 +5060,9 @@ void RsrcProcMgr::SlowClearCompute(
     const Box*         pBoxes
     ) const
 {
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
+    PAL_ASSERT(clearRange.numPlanes == 1);
+#endif
     // If the image isn't in a layout that allows format replacement this clear path won't work.
     PAL_ASSERT(dstImage.GetGfxImage()->IsFormatReplaceable(clearRange.startSubres, dstImageLayout, true));
 
@@ -4997,7 +5139,11 @@ void RsrcProcMgr::SlowClearCompute(
         //       2. passing correct clear color for this plane for planar YUV formats (e.g. two uint32s for U and V if
         //          current plane is CbCr).
         const SwizzledFormat imgFormat = createInfo.swizzledFormat;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
         Formats::ConvertYuvColor(imgFormat, clearRange.startSubres.aspect, &pColor->u32Color[0], &packedColor[0]);
+#else
+        Formats::ConvertYuvColor(imgFormat, clearRange.startSubres.plane, &pColor->u32Color[0], &packedColor[0]);
+#endif
     }
     else
     {
@@ -5016,7 +5162,11 @@ void RsrcProcMgr::SlowClearCompute(
     }
 
     // Split the clear range into sections with constant mip/array levels and loop over them.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
     SubresRange  singleMipRange = { clearRange.startSubres, 1, clearRange.numSlices };
+#else
+    SubresRange  singleMipRange = { clearRange.startSubres, 1, 1, clearRange.numSlices };
+#endif
     const uint32 firstMipLevel  = clearRange.startSubres.mipLevel;
     const uint32 lastMipLevel   = clearRange.startSubres.mipLevel + clearRange.numMips - 1;
     const uint32 lastArraySlice = clearRange.startSubres.arraySlice + clearRange.numSlices - 1;
@@ -5424,9 +5574,16 @@ void RsrcProcMgr::LateExpandResolveSrcHelper(
     {
         for (uint32 i = 0; i < regionCount; i++)
         {
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
             transitions[i].imageInfo.subresRange.startSubres.aspect     = pRegions[i].srcAspect;
+#else
+            transitions[i].imageInfo.subresRange.startSubres.plane      = pRegions[i].srcPlane;
+#endif
             transitions[i].imageInfo.subresRange.startSubres.arraySlice = pRegions[i].srcSlice;
             transitions[i].imageInfo.subresRange.startSubres.mipLevel   = 0;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
+            transitions[i].imageInfo.subresRange.numPlanes              = 1;
+#endif
             transitions[i].imageInfo.subresRange.numMips                = 1;
             transitions[i].imageInfo.subresRange.numSlices              = pRegions[i].numSlices;
 
@@ -5503,6 +5660,9 @@ void RsrcProcMgr::FixupMetadataForComputeDst(
                 {
                     transitions[i].imageInfo.pImage                  = &dstImage;
                     transitions[i].imageInfo.subresRange.startSubres = pRegions[i].subres;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
+                    transitions[i].imageInfo.subresRange.numPlanes   = 1;
+#endif
                     transitions[i].imageInfo.subresRange.numMips     = 1;
                     transitions[i].imageInfo.subresRange.numSlices   = pRegions[i].numSlices;
                     transitions[i].imageInfo.oldLayout               = dstImageLayout;
@@ -5707,13 +5867,18 @@ void RsrcProcMgr::CmdGenerateIndirectCmds(
     //  + Structured-buffer SRD for the command parameter data (4 DW)
     //  + Typed buffer SRD for the user-data entry mapping table for each shader stage (4 DW)
     //  + Structured-buffer SRD for the pipeline signature (4 DW)
+    //  + Structured-buffer SRD for the second pipeline signature (4 DW)
     //  + Constant buffer SRD for the command-generator properties (4 DW)
     //  + Constant buffer SRD for the properties of the ExecuteIndirect() invocation (4 DW)
     //  + GPU address of the memory containing the count of commands to generate (2 DW)
     //  + Issue THREAD_TRACE_MARKER after draw or dispatch (1 DW)
+    //  + Task Shader Enabled flag (1 DW)
 
     constexpr uint32 SrdDwords = 4;
     PAL_ASSERT(m_pDevice->Parent()->ChipProperties().srdSizes.bufferView == (sizeof(uint32) * SrdDwords));
+
+    const bool taskShaderEnabled = ((generator.Type() == GeneratorType::DispatchMesh) &&
+                                    (static_cast<const GraphicsPipeline*>(pPipeline)->HasTaskShader()));
 
     // The generation pipelines expect the descriptor table's GPU address to be written to user-data #0-1.
     gpusize tableGpuAddr = 0uLL;
@@ -5747,6 +5912,11 @@ void RsrcProcMgr::CmdGenerateIndirectCmds(
 
     // Structured buffer SRD for the pipeline signature:
     generator.PopulateSignatureBuffer(pCmdBuffer, pPipeline, pTableMem);
+    if (generator.Type() == GeneratorType::DispatchMesh)
+    {
+        // In the case of DispatchMesh, PopulateSignatureBuffer will allocate an additional SRD hence the increment.
+        pTableMem += SrdDwords;
+    }
     pTableMem += SrdDwords;
 
     // Constant buffer SRD for the command-generator properties:
@@ -5756,6 +5926,7 @@ void RsrcProcMgr::CmdGenerateIndirectCmds(
     // Constant buffer SRD for the properties of the ExecuteIndirect() invocation:
     generator.PopulateInvocationBuffer(pCmdBuffer,
                                        pPipeline,
+                                       taskShaderEnabled,
                                        argsGpuAddr,
                                        maximumCount,
                                        indexBufSize,
@@ -5776,6 +5947,7 @@ void RsrcProcMgr::CmdGenerateIndirectCmds(
 
     // Flag to decide whether to issue THREAD_TRACE_MARKER following generated draw/dispatch commands.
     pTableMem[0] = issueSqttMarkerEvent;
+    pTableMem[1] = taskShaderEnabled;
 
     uint32 commandIdOffset = 0;
     while (commandIdOffset < maximumCount)
@@ -5784,7 +5956,7 @@ void RsrcProcMgr::CmdGenerateIndirectCmds(
         // for the chunk and determines the number of commands which will safely fit. We'll need to build a raw-
         // buffer SRD so the shader can access the command buffer as a UAV.
         ChunkOutput output[2]  = {};
-        const uint32 numChunks = 1;
+        const uint32 numChunks = (taskShaderEnabled) ? 2 : 1;
         pCmdBuffer->GetChunkForCmdGeneration(generator,
                                              *pPipeline,
                                              (maximumCount - commandIdOffset),
@@ -5837,6 +6009,40 @@ void RsrcProcMgr::CmdGenerateIndirectCmds(
         pTableMem[0] = commandIdOffset;
         // Low portion of the spill table's GPU virtual address
         pTableMem[1] = LowPart(mainChunk.embeddedDataAddr);
+
+        // The command generation pipeline also expects the following descriptor-table layout for the resources
+        // which change between each command-stream chunk being generated:
+        // + Raw buffer UAV SRD for the command-stream chunk to generate (4 DW)
+        // + Raw buffer UAV SRD for the embedded data segment to use for the spill table (4 DW)
+        if (taskShaderEnabled)
+        {
+            ChunkOutput& taskChunk          = output[1];
+            ppChunkLists[1][*pNumGenChunks] = taskChunk.pChunk;
+
+            // This assert validates that the following dispatch contains equivalent commands for both the DE and ACE
+            // engines for this DispatchMesh pipeline.
+            PAL_ASSERT(taskChunk.commandsInChunk == mainChunk.commandsInChunk);
+
+            pTableMem = pCmdBuffer->CmdAllocateEmbeddedData((2 * SrdDwords), 1, &tableGpuAddr);
+            PAL_ASSERT(pTableMem != nullptr);
+            pCmdBuffer->CmdSetUserData(PipelineBindPoint::Compute, 4, 2, reinterpret_cast<uint32*>(&tableGpuAddr));
+
+            // UAV buffer SRD for the command-stream-chunk to generate:
+            viewInfo.gpuAddr        = taskChunk.pChunk->GpuVirtAddr();
+            viewInfo.swizzledFormat = UndefinedSwizzledFormat;
+            viewInfo.range          = (taskChunk.commandsInChunk * generator.Properties().cmdBufStride);
+            viewInfo.stride         = 1;
+            m_pDevice->Parent()->CreateUntypedBufferViewSrds(1, &viewInfo, pTableMem);
+            pTableMem += SrdDwords;
+
+            // UAV buffer SRD for the embedded-data spill table:
+            viewInfo.gpuAddr        = taskChunk.embeddedDataAddr;
+            viewInfo.swizzledFormat = UndefinedSwizzledFormat;
+            viewInfo.range          = (sizeof(uint32) * taskChunk.embeddedDataSize);
+            viewInfo.stride         = 1;
+            m_pDevice->Parent()->CreateUntypedBufferViewSrds(1, &viewInfo, pTableMem);
+            pTableMem += SrdDwords;
+        }
 
         pCmdBuffer->CmdDispatch(RpmUtil::MinThreadGroups(generator.ParameterCount(), threadsPerGroup[0]),
                                 RpmUtil::MinThreadGroups(mainChunk.commandsInChunk, threadsPerGroup[1]),
@@ -5920,16 +6126,27 @@ void RsrcProcMgr::ResolveImageGraphics(
     // Each region needs to be resolved individually.
     for (uint32 idx = 0; idx < regionCount; ++idx)
     {
-        // Same sanity checks of the region aspects.
+        // Same sanity checks of the region planes.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
         const bool isDepth = (pRegions[idx].dstAspect == ImageAspect::Depth);
         PAL_ASSERT(((pRegions[idx].srcAspect == ImageAspect::Depth) ||
                     (pRegions[idx].srcAspect == ImageAspect::Stencil)) &&
                     (pRegions[idx].srcAspect == pRegions[idx].dstAspect));
+#else
+        const bool isDepth = dstImage.IsDepthPlane(pRegions[idx].dstPlane);
+        PAL_ASSERT((srcImage.IsDepthPlane(pRegions[idx].srcPlane) ||
+                    srcImage.IsStencilPlane(pRegions[idx].srcPlane)) &&
+                   (pRegions[idx].srcPlane == pRegions[idx].dstPlane));
+#endif
 
         // This path can't reinterpret the resolve format.
         const SubresId dstStartSubres =
         {
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
             pRegions[idx].dstAspect,
+#else
+            pRegions[idx].dstPlane,
+#endif
             pRegions[idx].dstMipLevel,
             pRegions[idx].dstSlice
         };
@@ -5995,6 +6212,7 @@ void RsrcProcMgr::ResolveImageGraphics(
         {
             LinearAllocatorAuto<VirtualLinearAllocator> sliceAlloc(pCmdBuffer->Allocator(), false);
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
             const SubresId srcSubres = { pRegions[idx].srcAspect, 0, pRegions[idx].srcSlice + slice };
             const SubresId dstSubres =
             {
@@ -6002,6 +6220,15 @@ void RsrcProcMgr::ResolveImageGraphics(
                 pRegions[idx].dstMipLevel,
                 pRegions[idx].dstSlice + slice
             };
+#else
+            const SubresId srcSubres = { pRegions[idx].srcPlane, 0, pRegions[idx].srcSlice + slice };
+            const SubresId dstSubres =
+            {
+                pRegions[idx].dstPlane,
+                pRegions[idx].dstMipLevel,
+                pRegions[idx].dstSlice + slice
+            };
+#endif
 
             // Create an embedded user-data table and bind it to user data 1. We only need one image view.
             uint32* pSrdTable = RpmUtil::CreateAndBindEmbeddedUserData(pCmdBuffer,
@@ -6012,7 +6239,11 @@ void RsrcProcMgr::ResolveImageGraphics(
 
             // Populate the table with an image view of the source image.
             ImageViewInfo     imageView = { };
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
             const SubresRange viewRange = { srcSubres, 1, 1 };
+#else
+            const SubresRange viewRange = { srcSubres, 1, 1, 1 };
+#endif
             RpmUtil::BuildImageViewInfo(&imageView,
                                         srcImage,
                                         viewRange,
@@ -6093,7 +6324,11 @@ void RsrcProcMgr::ResolveImageCompute(
     {
         // Select a Resolve shader based on the source Image's sample-count and resolve method.
         const ComputePipeline*const pPipeline = GetCsResolvePipeline(srcImage,
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
                                                                      pRegions[idx].srcAspect,
+#else
+                                                                     pRegions[idx].srcPlane,
+#endif
                                                                      resolveMode,
                                                                      method);
 
@@ -6104,8 +6339,13 @@ void RsrcProcMgr::ResolveImageCompute(
         pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, InternalApiPsoHash, });
 
         // Set both subresources to the first slice of the required mip level
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
         const SubresId srcSubres = { pRegions[idx].srcAspect, 0, pRegions[idx].srcSlice };
         const SubresId dstSubres = { pRegions[idx].dstAspect, pRegions[idx].dstMipLevel, pRegions[idx].dstSlice };
+#else
+        const SubresId srcSubres = { pRegions[idx].srcPlane, 0, pRegions[idx].srcSlice };
+        const SubresId dstSubres = { pRegions[idx].dstPlane, pRegions[idx].dstMipLevel, pRegions[idx].dstSlice };
+#endif
 
         SwizzledFormat srcFormat = srcImage.SubresourceInfo(srcSubres)->format;
         SwizzledFormat dstFormat = dstImage.SubresourceInfo(dstSubres)->format;
@@ -6140,9 +6380,15 @@ void RsrcProcMgr::ResolveImageCompute(
         {
             srcImage.GetImageCreateInfo().samples,
             Formats::IsSrgb(dstFormat.format),
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
             ((pRegions[idx].srcAspect == ImageAspect::Stencil) ? (resolveMode == ResolveMode::Average)
                                                                : (Formats::IsSint(srcFormat.format) ||
                                                                   Formats::IsUint(srcFormat.format))),
+#else
+            (srcImage.IsStencilPlane(pRegions[idx].srcPlane) ? (resolveMode == ResolveMode::Average)
+                                                                      : (Formats::IsSint(srcFormat.format) ||
+                                                                         Formats::IsUint(srcFormat.format))),
+#endif
             TestAnyFlagSet(flags, ImageResolveInvertY),
         };
 
@@ -6180,7 +6426,11 @@ void RsrcProcMgr::ResolveImageCompute(
                                                                          0);
 
         ImageViewInfo imageView[2] = {};
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
         SubresRange   viewRange = { dstSubres, 1, pRegions[idx].numSlices };
+#else
+        SubresRange   viewRange = { dstSubres, 1, 1, pRegions[idx].numSlices };
+#endif
 
         PAL_ASSERT(TestAnyFlagSet(dstImageLayout.usages, LayoutResolveDst) == true);
 
@@ -6238,9 +6488,16 @@ void RsrcProcMgr::ResolveImageCompute(
         {
             const ImageResolveRegion& curRegion = pRegions[i];
             SubresRange subresRange = {};
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
             subresRange.startSubres.aspect = curRegion.dstAspect;
+#else
+            subresRange.startSubres.plane = curRegion.dstPlane;
+#endif
             subresRange.startSubres.mipLevel = curRegion.dstMipLevel;
             subresRange.startSubres.arraySlice = curRegion.dstSlice;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
+            subresRange.numPlanes = 1;
+#endif
             subresRange.numMips = 1;
             subresRange.numSlices = curRegion.numSlices;
             HwlResummarizeHtileCompute(pCmdBuffer, *dstImage.GetGfxImage(), subresRange);
@@ -6252,10 +6509,10 @@ void RsrcProcMgr::ResolveImageCompute(
         if (performedResummarizeHtileCompute)
         {
             // There is a potential problem here because the htile is shared between
-            // the depth and stencil aspects, but the APIs manage the state of those
-            // aspects independently.  At this point in the code, we know the depth
-            // aspect must be in a state that supports being a resolve destination,
-            // but the stencil aspect may still be in a state that supports stencil
+            // the depth and stencil planes, but the APIs manage the state of those
+            // planes independently.  At this point in the code, we know the depth
+            // plane must be in a state that supports being a resolve destination,
+            // but the stencil plane may still be in a state that supports stencil
             // target rendering.  Since we are modifying HTILE asynchronously with
             // respect to the DB and through a different data path than the DB, we
             // need to ensure our CS won't overlap with subsequent stencil rendering
@@ -6284,14 +6541,22 @@ void RsrcProcMgr::ResolveImageCompute(
 // Selects a compute Resolve pipeline based on the properties of the given Image and resolve method.
 const ComputePipeline* RsrcProcMgr::GetCsResolvePipeline(
     const Image&  srcImage,
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
     ImageAspect   aspect,
+#else
+    uint32        plane,
+#endif
     ResolveMode   mode,
     ResolveMethod method
     ) const
 {
     const ComputePipeline* pPipeline = nullptr;
     const auto& createInfo = srcImage.GetImageCreateInfo();
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
     const bool  isStencil  = (aspect == ImageAspect::Stencil);
+#else
+    const bool  isStencil  = srcImage.IsStencilPlane(plane);
+#endif
 
     // If the sample and fragment counts are different then this must be an EQAA resolve.
     if (createInfo.samples != createInfo.fragments)
@@ -6511,6 +6776,9 @@ bool RsrcProcMgr::ExpandDepthStencil(
     const SubresRange&   range
     ) const
 {
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
+    PAL_ASSERT(range.numPlanes == 1);
+#endif
     PAL_ASSERT(image.IsDepthStencilTarget());
     PAL_ASSERT(pCmdBuffer->IsGraphicsSupported());
     // Don't expect GFX Blts on Nested unless targets not inherited.
@@ -6544,8 +6812,11 @@ bool RsrcProcMgr::ExpandDepthStencil(
     depthViewInfo.pImage    = &image;
     depthViewInfo.arraySize = 1;
 
-    // Because a subresource range can't span multiple aspects we should always mark one of them "read only".
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
     if (range.startSubres.aspect == ImageAspect::Depth)
+#else
+    if (image.IsDepthPlane(range.startSubres.plane))
+#endif
     {
         depthViewInfo.flags.readOnlyStencil = 1;
     }
@@ -6588,7 +6859,11 @@ bool RsrcProcMgr::ExpandDepthStencil(
         {
             LinearAllocatorAuto<VirtualLinearAllocator> mipAlloc(pCmdBuffer->Allocator(), false);
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
             const SubresId mipSubres  = { range.startSubres.aspect, depthViewInfo.mipLevel, 0 };
+#else
+            const SubresId mipSubres  = { range.startSubres.plane, depthViewInfo.mipLevel, 0 };
+#endif
             const auto&    subResInfo = *image.SubresourceInfo(mipSubres);
 
             // All slices of the same mipmap level can re-use the same viewport/scissor state.
@@ -6659,6 +6934,9 @@ void RsrcProcMgr::ResummarizeDepthStencil(
     const SubresRange&   range
     ) const
 {
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
+    PAL_ASSERT(range.numPlanes == 1);
+#endif
     PAL_ASSERT(image.IsDepthStencilTarget());
     PAL_ASSERT(pCmdBuffer->IsGraphicsSupported());
     // Don't expect GFX Blts on Nested unless targets not inherited.
@@ -6692,8 +6970,11 @@ void RsrcProcMgr::ResummarizeDepthStencil(
     depthViewInfo.arraySize = 1;
     depthViewInfo.flags.resummarizeHiZ = 1;
 
-    // Because a subresource range can't span multiple aspects we should always mark one of them "read only".
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
     if (range.startSubres.aspect == ImageAspect::Depth)
+#else
+    if (image.IsDepthPlane(range.startSubres.plane))
+#endif
     {
         depthViewInfo.flags.readOnlyStencil = 1;
     }
@@ -6734,7 +7015,11 @@ void RsrcProcMgr::ResummarizeDepthStencil(
         {
             LinearAllocatorAuto<VirtualLinearAllocator> mipAlloc(pCmdBuffer->Allocator(), false);
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
             const SubresId mipSubres  = { range.startSubres.aspect, depthViewInfo.mipLevel, 0 };
+#else
+            const SubresId mipSubres  = { range.startSubres.plane, depthViewInfo.mipLevel, 0 };
+#endif
             const auto&    subResInfo = *image.SubresourceInfo(mipSubres);
 
             // All slices of the same mipmap level can re-use the same viewport/scissor state.
@@ -6805,6 +7090,9 @@ void RsrcProcMgr::GenericColorBlit(
     gpusize              metaDataOffset
     ) const
 {
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
+    PAL_ASSERT(range.numPlanes == 1);
+#endif
     PAL_ASSERT(dstImage.IsRenderTarget());
     PAL_ASSERT(pCmdBuffer->IsGraphicsSupported());
     // Don't expect GFX Blts on Nested unless targets not inherited.
@@ -6844,7 +7132,11 @@ void RsrcProcMgr::GenericColorBlit(
     colorViewInfo.swizzledFormat      = imageCreateInfo.swizzledFormat;
     colorViewInfo.imageInfo.pImage    = &dstImage;
     colorViewInfo.imageInfo.arraySize = 1;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
     colorViewInfo.imageInfo.baseSubRes.aspect = range.startSubres.aspect;
+#else
+    colorViewInfo.imageInfo.baseSubRes.plane = range.startSubres.plane;
+#endif
 
     if (is3dImage)
     {
@@ -6919,7 +7211,11 @@ void RsrcProcMgr::GenericColorBlit(
                 needDisablePredication = true;
             }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
             const SubresId mipSubres  = { range.startSubres.aspect, mip, 0 };
+#else
+            const SubresId mipSubres  = { range.startSubres.plane, mip, 0 };
+#endif
             const auto&    subResInfo = *dstImage.SubresourceInfo(mipSubres);
 
             // All slices of the same mipmap level can re-use the same viewport & scissor states.
@@ -7042,12 +7338,16 @@ void RsrcProcMgr::ResolveImageFixedFunc(
 
     ColorTargetViewCreateInfo srcColorViewInfo = { };
     srcColorViewInfo.imageInfo.pImage            = &srcImage;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
     srcColorViewInfo.imageInfo.baseSubRes.aspect = ImageAspect::Color;
+#endif
     srcColorViewInfo.imageInfo.arraySize         = 1;
 
     ColorTargetViewCreateInfo dstColorViewInfo = { };
     dstColorViewInfo.imageInfo.pImage            = &dstImage;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
     dstColorViewInfo.imageInfo.baseSubRes.aspect = ImageAspect::Color;
+#endif
     dstColorViewInfo.imageInfo.arraySize         = 1;
 
     BindTargetParams bindTargetsInfo = {};
@@ -7091,8 +7391,13 @@ void RsrcProcMgr::ResolveImageFixedFunc(
             PAL_ASSERT(Formats::ShareChFmt(dstColorViewInfo.swizzledFormat.format,
                                            pRegions[idx].swizzledFormat.format));
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
             const SubresId srcSubres = { pRegions[idx].srcAspect, 0, pRegions[idx].srcSlice };
             const SubresId dstSubres = { pRegions[idx].dstAspect, pRegions[idx].dstMipLevel, pRegions[idx].dstSlice };
+#else
+            const SubresId srcSubres = { pRegions[idx].srcPlane, 0, pRegions[idx].srcSlice };
+            const SubresId dstSubres = { pRegions[idx].dstPlane, pRegions[idx].dstMipLevel, pRegions[idx].dstSlice };
+#endif
 
             // If the specified format exactly matches the image formats the resolve will always work. Otherwise, the
             // images must support format replacement.
@@ -7318,17 +7623,30 @@ void RsrcProcMgr::ResolveImageDepthStencilCopy(
             }
             else
             {
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
                 PAL_ASSERT(pRegions[idx].srcAspect == pRegions[idx].dstAspect);
                 dstColorViewInfo.imageInfo.baseSubRes.aspect = pRegions[idx].srcAspect;
+#else
+                PAL_ASSERT(pRegions[idx].srcPlane == pRegions[idx].dstPlane);
+                dstColorViewInfo.imageInfo.baseSubRes.plane = pRegions[idx].srcPlane;
+#endif
 
                 SubresId dstSubresId = {};
                 dstSubresId.mipLevel = pRegions[idx].dstMipLevel;
                 dstSubresId.arraySlice = (pRegions[idx].dstSlice + slice);
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
                 dstSubresId.aspect = pRegions[idx].dstAspect;
+#else
+                dstSubresId.plane = pRegions[idx].dstPlane;
+#endif
 
                 dstColorViewInfo.swizzledFormat.format = dstImage.SubresourceInfo(dstSubresId)->format.format;
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
                 if (pRegions[idx].dstAspect == ImageAspect::Depth)
+#else
+                if (dstImage.IsDepthPlane(pRegions[idx].dstPlane))
+#endif
                 {
                     depthViewInfoInternal.flags.isDepthCopy = 1;
 
@@ -7337,7 +7655,11 @@ void RsrcProcMgr::ResolveImageDepthStencilCopy(
                     pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Graphics, GetGfxPipeline(ResolveDepthCopy),
                                                   InternalApiPsoHash, });
                 }
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
                 else if (pRegions[idx].dstAspect == ImageAspect::Stencil)
+#else
+                else if (dstImage.IsStencilPlane(pRegions[idx].dstPlane))
+#endif
                 {
                     // Fixed-func stencil copies stencil value from db to g chanenl of cb.
                     // Swizzle the stencil plance to 0X00.
@@ -7638,6 +7960,7 @@ Result RsrcProcMgr::CreateCommonStateObjects()
     return result;
 }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
 // =====================================================================================================================
 // Returns true if the supplied aspect / mip-level supports meta-data texture fetches.  If the supplied aspect is
 // invalid for the image, then fetches are not supported.
@@ -7652,6 +7975,7 @@ bool RsrcProcMgr::GetMetaDataTexFetchSupport(
     // subresource than intended) if the aspect isn't valid, so check that first.
     return (pImage->IsAspectValid(aspect) && pImage->SubresourceInfo(subres)->flags.supportMetaDataTexFetch);
 }
+#endif
 
 // =====================================================================================================================
 // Returns the size of a typed buffer that contains a 3D block of elements with the given size and pitches.
@@ -7745,6 +8069,10 @@ void PreComputeDepthStencilClearSync(
     const SubresRange& subres,
     ImageLayout        layout)
 {
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
+    PAL_ASSERT(subres.numPlanes == 1);
+#endif
+
     BarrierInfo preBarrier                 = { };
     preBarrier.waitPoint                   = HwPipePreCs;
 
@@ -8315,7 +8643,11 @@ void RsrcProcMgr::CopyImageToPackedPixelImage(
                                                                    PipelineBindPoint::Compute,
                                                                    0);
         ImageViewInfo imageView[2] = {};
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
         SubresRange   viewRange    = { region.dstSubres, 1, 1};
+#else
+        SubresRange   viewRange    = { region.dstSubres, 1, 1, 1 };
+#endif
         RpmUtil::BuildImageViewInfo(&imageView[0],
                                     dstImage,
                                     viewRange,

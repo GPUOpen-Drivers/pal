@@ -687,6 +687,8 @@ void EventProvider::LogResourceCreateEvent(
         stages.VS_STAGE = ShaderHashIsNonzero(shaderHashes[static_cast<uint32>(ShaderType::Vertex)].hash);
         stages.GS_STAGE = ShaderHashIsNonzero(shaderHashes[static_cast<uint32>(ShaderType::Geometry)].hash);
         stages.CS_STAGE = ShaderHashIsNonzero(shaderHashes[static_cast<uint32>(ShaderType::Compute)].hash);
+        stages.TS_STAGE = ShaderHashIsNonzero(shaderHashes[static_cast<uint32>(ShaderType::Task)].hash);
+        stages.MS_STAGE = ShaderHashIsNonzero(shaderHashes[static_cast<uint32>(ShaderType::Mesh)].hash);
 
         RMT_RESOURCE_TYPE_PIPELINE_TOKEN pipelineDesc(flags, hash, stages, false);
 

@@ -162,14 +162,20 @@ void AddrMgr::ComputePackedMipInfo(
     pGpuMemLayout->prtMinPackedLod     = 0;
     pGpuMemLayout->prtMipTailTileCount = 0;
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
     const SubresId baseSubresId = image.GetBaseSubResource();
+#endif
 
     // First determine the first mip level that will be part of the mip tail.
     for (pGpuMemLayout->prtMinPackedLod = 0;
          pGpuMemLayout->prtMinPackedLod < createInfo.mipLevels;
          pGpuMemLayout->prtMinPackedLod++)
     {
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
         const SubresId              subResId    = { baseSubresId.aspect, pGpuMemLayout->prtMinPackedLod, 0 };
+#else
+        const SubresId              subResId    = { 0, pGpuMemLayout->prtMinPackedLod, 0 };
+#endif
         const SubResourceInfo*const pSubResInfo = image.SubresourceInfo(subResId);
 
         if (m_pDevice->ChipProperties().imageProperties.prtFeatures & PrtFeatureUnalignedMipSize)
@@ -197,7 +203,11 @@ void AddrMgr::ComputePackedMipInfo(
     // a mip tail, because some image may only have mip levels which are larger than a single tile.
     if (pGpuMemLayout->prtMinPackedLod < createInfo.mipLevels)
     {
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
         ComputeTilesInMipTail(image, baseSubresId.aspect, pGpuMemLayout);
+#else
+        ComputeTilesInMipTail(image, 0, pGpuMemLayout);
+#endif
     }
 }
 

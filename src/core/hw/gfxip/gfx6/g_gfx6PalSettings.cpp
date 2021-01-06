@@ -84,9 +84,6 @@ void SettingsLoader::SetupDefaults()
     m_settings.numOffchipLdsBuffers = 508;
     m_settings.useMaxOffchipLdsBuffers = true;
     m_settings.dsWavesPerSimdOverflow = 4;
-    m_settings.offchipTfDegree = 4.0;
-    m_settings.gfx6OffChipHsSkipDataCopyNullPatch = false;
-    m_settings.gfx6OffChipHsMultiWavePatchDataCopy = false;
     m_settings.lsCuEnLimitMask = 0xffffffff;
     m_settings.esCuEnLimitMask = 0xffffffff;
     m_settings.gsCuEnLimitMask = 0xffffffff;
@@ -119,7 +116,7 @@ void SettingsLoader::SetupDefaults()
     m_settings.dbRequestSize = 0x0;
     m_settings.dbAddr5SwizzleMask = 0x1;
     m_settings.dbDisableColorOnValidation = false;
-    m_settings.enableSeparateAspectMetadataInit = true;
+    m_settings.enableSeparatePlaneMetadataInit = true;
     m_settings.gfx7VsPartialWaveWithEoiEnabled = false;
     m_settings.gfx7OffchipLdsBufferSize = OffchipLdsBufferSize8192;
     m_settings.gfx7LateAllocVsOnCuAlwaysOn = false;
@@ -282,21 +279,6 @@ void SettingsLoader::ReadSettings()
                            &m_settings.dsWavesPerSimdOverflow,
                            InternalSettingScope::PrivatePalGfx6Key);
 
-    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pTessOffchipTfDegreeStr,
-                           Util::ValueType::Float,
-                           &m_settings.offchipTfDegree,
-                           InternalSettingScope::PrivatePalGfx6Key);
-
-    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pOffChipHsSkipDataCopyNullPatchStr,
-                           Util::ValueType::Boolean,
-                           &m_settings.gfx6OffChipHsSkipDataCopyNullPatch,
-                           InternalSettingScope::PrivatePalGfx6Key);
-
-    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pOffChipHsMultiWavePatchDataCopyStr,
-                           Util::ValueType::Boolean,
-                           &m_settings.gfx6OffChipHsMultiWavePatchDataCopy,
-                           InternalSettingScope::PrivatePalGfx6Key);
-
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pLsCuEnLimitMaskStr,
                            Util::ValueType::Uint,
                            &m_settings.lsCuEnLimitMask,
@@ -457,9 +439,9 @@ void SettingsLoader::ReadSettings()
                            &m_settings.dbDisableColorOnValidation,
                            InternalSettingScope::PrivatePalGfx6Key);
 
-    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pEnableSeparateAspectMetadataInitStr,
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pEnableSeparatePlaneMetadataInitStr,
                            Util::ValueType::Boolean,
-                           &m_settings.enableSeparateAspectMetadataInit,
+                           &m_settings.enableSeparatePlaneMetadataInit,
                            InternalSettingScope::PrivatePalGfx6Key);
 
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pVsPartialWaveWithEoiEnabledStr,
@@ -743,21 +725,6 @@ void SettingsLoader::InitSettingsInfo()
     info.valueSize = sizeof(m_settings.dsWavesPerSimdOverflow);
     m_settingsInfoMap.Insert(3832811323, info);
 
-    info.type      = SettingType::Float;
-    info.pValuePtr = &m_settings.offchipTfDegree;
-    info.valueSize = sizeof(m_settings.offchipTfDegree);
-    m_settingsInfoMap.Insert(3548610473, info);
-
-    info.type      = SettingType::Boolean;
-    info.pValuePtr = &m_settings.gfx6OffChipHsSkipDataCopyNullPatch;
-    info.valueSize = sizeof(m_settings.gfx6OffChipHsSkipDataCopyNullPatch);
-    m_settingsInfoMap.Insert(1952167388, info);
-
-    info.type      = SettingType::Boolean;
-    info.pValuePtr = &m_settings.gfx6OffChipHsMultiWavePatchDataCopy;
-    info.valueSize = sizeof(m_settings.gfx6OffChipHsMultiWavePatchDataCopy);
-    m_settingsInfoMap.Insert(2396748146, info);
-
     info.type      = SettingType::Uint;
     info.pValuePtr = &m_settings.lsCuEnLimitMask;
     info.valueSize = sizeof(m_settings.lsCuEnLimitMask);
@@ -919,9 +886,9 @@ void SettingsLoader::InitSettingsInfo()
     m_settingsInfoMap.Insert(4057416918, info);
 
     info.type      = SettingType::Boolean;
-    info.pValuePtr = &m_settings.enableSeparateAspectMetadataInit;
-    info.valueSize = sizeof(m_settings.enableSeparateAspectMetadataInit);
-    m_settingsInfoMap.Insert(250077184, info);
+    info.pValuePtr = &m_settings.enableSeparatePlaneMetadataInit;
+    info.valueSize = sizeof(m_settings.enableSeparatePlaneMetadataInit);
+    m_settingsInfoMap.Insert(2144505780, info);
 
     info.type      = SettingType::Boolean;
     info.pValuePtr = &m_settings.gfx7VsPartialWaveWithEoiEnabled;
@@ -1064,7 +1031,7 @@ void SettingsLoader::DevDriverRegister()
             component.pfnSetValue = ISettingsLoader::SetValue;
             component.pSettingsData = &g_gfx6PalJsonData[0];
             component.settingsDataSize = sizeof(g_gfx6PalJsonData);
-            component.settingsDataHash = 2649526908;
+            component.settingsDataHash = 95023105;
             component.settingsDataHeader.isEncoded = true;
             component.settingsDataHeader.magicBufferId = 402778310;
             component.settingsDataHeader.magicBufferOffset = 0;

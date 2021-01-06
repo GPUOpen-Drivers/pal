@@ -75,6 +75,10 @@ struct GraphicsPipelineSignatureData
     // Register address for the GPU virtual address of the vertex buffer table used by this pipeline. Zero
     // indicates that the vertex buffer table is not accessed.
     uint32  vertexBufTableRegAddr;
+    // Register address for the dispatch dimensions of mesh shaders.
+    uint32  meshDispatchDimsRegAddr;
+    // Register address for the ring index for mesh shaders.
+    uint32  meshRingIndexAddr;
 };
 
 // NOTE: The shader(s) used to generate these indirect command buffers launch one thread per command in the Y
@@ -253,12 +257,34 @@ uint32 IndirectCmdGenerator::DetermineMaxCmdBufSize(
     case IndirectOpType::Skip:
         // INDIRECT_TABLE_SRD and SKIP operations don't directly generate any PM4 packets.
         break;
+    case IndirectOpType::DispatchMesh:
+        // DISPATCH_MESH operations handle both mesh-only pipelines and task+mesh pipelines.
+        // In the case of mesh-only piplines we generate the following in the worst case:
+        //  + SET_SH_REG (3 registers)
+        //  + SET_SH_REG (1 register)
+        //  + NUM_INSTANCES
+        //  + DRAW_INDEX_AUTO
+        // For task+mesh pipelines, we generate the following on the gfx cmdStream:
+        //  + DISPATCH_TASKMESH_GFX
+        // For the ace cmdStream, we generate the following:
+        //  + SET_SH_REG (3 registers)
+        //  + DISPATCH_TASKMESH_DIRECT_ACE
+
+        size = Max((CmdUtil::ShRegSizeDwords + 3) +
+                   (CmdUtil::ShRegSizeDwords + 1) +
+                   CmdUtil::NumInstancesDwords +
+                   CmdUtil::DrawIndexAutoSize,
+                   Max((CmdUtil::ShRegSizeDwords + 3) +
+                       CmdUtil::DispatchTaskMeshDirectMecSize,
+                       CmdUtil::DispatchTaskMeshGfxSize));
+        break;
     default:
         PAL_NOT_IMPLEMENTED();
         break;
     }
 
     if ((opType == IndirectOpType::Dispatch)       ||
+        (opType == IndirectOpType::DispatchMesh)   ||
         (opType == IndirectOpType::DrawIndexAuto)  ||
         (opType == IndirectOpType::DrawIndex2)     ||
         (opType == IndirectOpType::DrawIndexOffset2))
@@ -341,6 +367,9 @@ void IndirectCmdGenerator::InitParamBuffer(
                                                                     : IndirectOpType::DrawIndexOffset2;
                 m_pParamData[p].data[0] = argBufOffsetIndices;
                 break;
+            case IndirectParamType::DispatchMesh:
+                m_pParamData[p].type = IndirectOpType::DispatchMesh;
+                break;
             case IndirectParamType::SetUserData:
                 m_pParamData[p].type    = IndirectOpType::SetUserData;
                 m_pParamData[p].data[0] = param.userData.firstEntry;
@@ -385,6 +414,7 @@ void IndirectCmdGenerator::InitParamBuffer(
 void IndirectCmdGenerator::PopulateInvocationBuffer(
     GfxCmdBuffer*   pCmdBuffer,
     const Pipeline* pPipeline,
+    bool            isTaskEnabled,
     gpusize         argsGpuAddr,
     uint32          maximumCount,
     uint32          indexBufSize,
@@ -410,8 +440,7 @@ void IndirectCmdGenerator::PopulateInvocationBuffer(
     pData->argumentBufAddr[0] = LowPart(argsGpuAddr);
     pData->argumentBufAddr[1] = HighPart(argsGpuAddr);
 
-    if ((Type() == GeneratorType::Dispatch)
-       )
+    if ((Type() == GeneratorType::Dispatch) || ((Type() == GeneratorType::DispatchMesh) && isTaskEnabled))
     {
         bool csWave32              = false;
         bool disablePartialPreempt = false;
@@ -421,6 +450,12 @@ void IndirectCmdGenerator::PopulateInvocationBuffer(
             const ComputePipeline* pCsPipeline = static_cast<const ComputePipeline*>(pPipeline);
             csWave32              = pCsPipeline->Signature().flags.isWave32;
             disablePartialPreempt = pCsPipeline->DisablePartialPreempt();
+        }
+        else
+        {
+            const HybridGraphicsPipeline* pTsMsPipeline = static_cast<const HybridGraphicsPipeline*>(pPipeline);
+            csWave32              = pTsMsPipeline->GetTaskSignature().flags.isWave32;
+            disablePartialPreempt = true;
         }
 
         regCOMPUTE_DISPATCH_INITIATOR dispatchInitiator = {};
@@ -467,6 +502,48 @@ void IndirectCmdGenerator::PopulateSignatureBuffer(
 
         pData->spillThreshold       = signature.spillThreshold;
         pData->numWorkGroupsRegAddr = signature.numWorkGroupsRegAddr;
+    }
+    else if (Type() == GeneratorType::DispatchMesh)
+    {
+        BufferViewInfo secondViewInfo = {};
+
+        // We want to set up the compute pipeline first as we don't want the gpuAddr being overwritten for the graphics
+        // pipeline.
+        secondViewInfo.stride   = sizeof(ComputePipelineSignatureData);
+        auto* const pSecondData = reinterpret_cast<ComputePipelineSignatureData*>(pCmdBuffer->CmdAllocateEmbeddedData(
+            static_cast<uint32>(secondViewInfo.stride / sizeof(uint32)),
+            1,
+            &secondViewInfo.gpuAddr));
+        PAL_ASSERT(pSecondData != nullptr);
+
+        const auto& secondSignature = static_cast<const HybridGraphicsPipeline*>(pPipeline)->GetTaskSignature();
+
+        pSecondData->spillThreshold          = secondSignature.spillThreshold;
+        pSecondData->numWorkGroupsRegAddr    = secondSignature.numWorkGroupsRegAddr;
+        pSecondData->taskDispatchDimsRegAddr = secondSignature.taskDispatchDimsAddr;
+        pSecondData->taskRingIndexAddr       = secondSignature.taskRingIndexAddr;
+
+        secondViewInfo.range          = secondViewInfo.stride;
+        secondViewInfo.swizzledFormat = UndefinedSwizzledFormat;
+
+        m_device.Parent()->CreateUntypedBufferViewSrds(1, &secondViewInfo, pSrd);
+        pSrd = VoidPtrInc(pSrd, 4 * sizeof(uint32));
+
+        viewInfo.stride   = sizeof(GraphicsPipelineSignatureData);
+        auto* const pData = reinterpret_cast<GraphicsPipelineSignatureData*>(pCmdBuffer->CmdAllocateEmbeddedData(
+            static_cast<uint32>(viewInfo.stride / sizeof(uint32)),
+            1,
+            &viewInfo.gpuAddr));
+        PAL_ASSERT(pData != nullptr);
+
+        const auto& signature = static_cast<const GraphicsPipeline*>(pPipeline)->Signature();
+
+        pData->spillThreshold          = signature.spillThreshold;
+        pData->vertexOffsetRegAddr     = signature.vertexOffsetRegAddr;
+        pData->drawIndexRegAddr        = signature.drawIndexRegAddr;
+        pData->vertexBufTableRegAddr   = signature.vertexBufTableRegAddr;
+        pData->meshDispatchDimsRegAddr = signature.meshDispatchDimsRegAddr;
+        pData->meshRingIndexAddr       = signature.meshRingIndexAddr;
     }
     else
     {

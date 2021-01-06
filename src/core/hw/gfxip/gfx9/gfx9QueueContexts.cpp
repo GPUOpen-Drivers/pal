@@ -698,7 +698,9 @@ Result UniversalQueueContext::Init()
 Result UniversalQueueContext::AllocateShadowMemory()
 {
     Pal::Device*const        pDevice   = m_pDevice->Parent();
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 652
     const GpuChipProperties& chipProps = pDevice->ChipProperties();
+#endif
 
     // Shadow memory only needs to include space for the region of CE RAM which the client requested PAL makes
     // persistent between submissions.
@@ -727,6 +729,7 @@ Result UniversalQueueContext::AllocateShadowMemory()
 
     m_shadowGpuMemSizeInBytes = createInfo.size;
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 652
     if (chipProps.gpuType == GpuType::Integrated)
     {
         createInfo.heapCount = 2;
@@ -739,6 +742,9 @@ Result UniversalQueueContext::AllocateShadowMemory()
         createInfo.heaps[0]  = GpuHeap::GpuHeapInvisible;
         createInfo.heaps[1]  = GpuHeap::GpuHeapLocal;
     }
+#else
+    createInfo.heapAccess = GpuHeapAccess::GpuHeapAccessCpuNoAccess;
+#endif
 
     GpuMemoryInternalCreateInfo internalInfo = { };
     internalInfo.flags.alwaysResident = 1;
@@ -832,7 +838,7 @@ void UniversalQueueContext::WritePerSubmitPreamble(
     }
 
     pCmdSpace += CmdUtil::BuildContextControl(m_pDevice->GetContextControl(), pCmdSpace);
-    pCmdSpace += CmdUtil::BuildClearState(cmd__pfp_clear_state__clear_state, pCmdSpace);
+    pCmdSpace += CmdUtil::BuildClearState(cmd__pfp_clear_state__clear_state__HASCLEARSTATE, pCmdSpace);
 
     if (m_useShadowing)
     {
@@ -1417,10 +1423,12 @@ uint32* UniversalQueueContext::WriteUniversalPreamble(
     pixelPipeStatControl.bits.instance_enable = (~chipProps.gfx9.backendDisableMask) &
                                                 ((1 << chipProps.gfx9.numTotalRbs) - 1);
 
-    pCmdSpace += CmdUtil::BuildSampleEventWrite(PIXEL_PIPE_STAT_CONTROL,
-                                                EngineTypeUniversal,
-                                                pixelPipeStatControl.u32All,
-                                                pCmdSpace);
+    pCmdSpace +=
+        CmdUtil::BuildSampleEventWrite(PIXEL_PIPE_STAT_CONTROL,
+                                       event_index__me_event_write__pixel_pipe_stat_control_or_dump,
+                                       EngineTypeUniversal,
+                                       pixelPipeStatControl.u32All,
+                                       pCmdSpace);
 
     // The register spec suggests these values are optimal settings for Gfx9 hardware, when VS half-pack mode is
     // disabled. If half-pack mode is active, we need to use the legacy defaults which are safer (but less optimal).
@@ -1670,6 +1678,27 @@ uint32* UniversalQueueContext::WriteUniversalPreamble(
 
         }
     } // if Gfx10.x
+
+    // All of the shader address registers actually represent 40b in the 32b LO registers since they are 256B shifted.
+    // Due to the way these are allocated we can safely assume HI portions are 0, saving some record-time SH writes.
+    // For VS/PS, only the LOAD path requires this today. The SET path would require splitting up a seq reg range.
+    if (settings.enableLoadIndexForObjectBinds)
+    {
+        pCmdSpace = m_deCmdStream.WriteSetOneShReg<ShaderGraphics>(mmSPI_SHADER_PGM_HI_PS, 0, pCmdSpace);
+        {
+            pCmdSpace = m_deCmdStream.WriteSetOneShReg<ShaderGraphics>(Gfx09_10::mmSPI_SHADER_PGM_HI_VS,
+                                                                       0,
+                                                                       pCmdSpace);
+        }
+    }
+
+    const uint32 mmSpiShaderPgmHiEs = IsGfx10Plus(device) ? Gfx10Plus::mmSPI_SHADER_PGM_HI_ES :
+                                                            Gfx09::mmSPI_SHADER_PGM_HI_ES;
+    const uint32 mmSpiShaderPgmHiLs = IsGfx10Plus(device) ? Gfx10Plus::mmSPI_SHADER_PGM_HI_LS :
+                                                            Gfx09::mmSPI_SHADER_PGM_HI_LS;
+    pCmdSpace = m_deCmdStream.WriteSetOneShReg<ShaderGraphics>(mmSpiShaderPgmHiEs, 0, pCmdSpace);
+    pCmdSpace = m_deCmdStream.WriteSetOneShReg<ShaderGraphics>(mmSpiShaderPgmHiLs, 0, pCmdSpace);
+    pCmdSpace = m_deCmdStream.WriteSetOneShReg<ShaderCompute>(mmCOMPUTE_PGM_HI,    0, pCmdSpace);
 
     return WriteCommonPreamble(*m_pDevice, EngineTypeUniversal, &m_deCmdStream, pCmdSpace);
 }

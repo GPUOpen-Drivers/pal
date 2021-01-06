@@ -480,48 +480,6 @@
       "Name": "TessDsWavesPerSimdOverflow"
     },
     {
-      "Description": "Controls the tessellation factor for writing to offchip LDS in the HS. Lower values send more data offchip. Writing to offchip data incursoverhead and is intended for higher Tess-Factors.",
-      "Tags": [
-        "Graphics Pipelines",
-        "Gfx6"
-      ],
-      "Defaults": {
-        "Default": 4.0
-      },
-      "Scope": "PrivatePalGfx6Key",
-      "Type": "float",
-      "VariableName": "offchipTfDegree",
-      "Name": "TessOffchipTfDegree"
-    },
-    {
-      "Description": "Enables SC optimization to skip copying data from HS for null patches ",
-      "Tags": [
-        "Graphics Pipelines",
-        "Gfx6"
-      ],
-      "Defaults": {
-        "Default": false
-      },
-      "Scope": "PrivatePalGfx6Key",
-      "Type": "bool",
-      "VariableName": "gfx6OffChipHsSkipDataCopyNullPatch",
-      "Name": "OffChipHsSkipDataCopyNullPatch"
-    },
-    {
-      "Description": "Enables SC optimization to perform the offchip data copy from the hull shader to the domain shader using multiple waves.",
-      "Tags": [
-        "Shader Options",
-        "Gfx6"
-      ],
-      "Defaults": {
-        "Default": false
-      },
-      "Scope": "PrivatePalGfx6Key",
-      "Type": "bool",
-      "VariableName": "gfx6OffChipHsMultiWavePatchDataCopy",
-      "Name": "OffChipHsMultiWavePatchDataCopy"
-    },
-    {
       "Description": "This mask is AND-ed with the driver-decided LS-specific CU_EN mask to further allow limiting of enabled CUs for LS waves. ",
       "Tags": [
         "Graphics Pipelines",
@@ -1132,7 +1090,7 @@
       "Name": "DbDisableColorOnValidation"
     },
     {
-      "Description": "If true, HTile for depth and stencil aspects may be initialized separately",
+      "Description": "If true, HTile for depth and stencil planes may be initialized separately",
       "Tags": [
         "Depth/Stencil",
         "Gfx6"
@@ -1142,8 +1100,8 @@
       },
       "Scope": "PrivatePalGfx6Key",
       "Type": "bool",
-      "VariableName": "enableSeparateAspectMetadataInit",
-      "Name": "EnableSeparateAspectMetadataInit"
+      "VariableName": "enableSeparatePlaneMetadataInit",
+      "Name": "EnableSeparatePlaneMetadataInit"
     },
     {
       "Description": "If true, PARTIAL_VS_WAVE_ON will be set whenever SWITCH_ON_EOI is set.",

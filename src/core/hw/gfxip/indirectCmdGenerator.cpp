@@ -46,8 +46,9 @@ Result IndirectCmdGenerator::ValidateCreateInfo(
     const IndirectParamType drawType    = createInfo.pParams[createInfo.paramCount - 1].type;
     size_t                  minimumSize = createInfo.pParams[createInfo.paramCount - 1].sizeInBytes;
 
-    if ((drawType != IndirectParamType::Draw) &&
-        (drawType != IndirectParamType::DrawIndexed) &&
+    if ((drawType != IndirectParamType::Draw)         &&
+        (drawType != IndirectParamType::DrawIndexed)  &&
+        (drawType != IndirectParamType::DispatchMesh) &&
         (drawType != IndirectParamType::Dispatch))
     {
         result = Result::ErrorInvalidValue;
@@ -62,6 +63,7 @@ Result IndirectCmdGenerator::ValidateCreateInfo(
             {
             case IndirectParamType::Draw:
             case IndirectParamType::DrawIndexed:
+            case IndirectParamType::DispatchMesh:
             case IndirectParamType::Dispatch:
                 // These must only appear as the final command parameter!
                 result = Result::ErrorInvalidValue;
@@ -106,6 +108,9 @@ static GeneratorType DetermineGeneratorType(
     {
     case IndirectParamType::Dispatch:
         type = GeneratorType::Dispatch;
+        break;
+    case IndirectParamType::DispatchMesh:
+        type = GeneratorType::DispatchMesh;
         break;
     case IndirectParamType::Draw:
         type = GeneratorType::Draw;

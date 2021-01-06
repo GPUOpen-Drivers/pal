@@ -42,6 +42,8 @@ static constexpr uint32 Fnv1aPrime  = 16777619u;
 
 /// @internal Template metafunction which can be used to generate a compile-time hash of a string literal.  This relies
 ///           on recursively applying the template to smaller and smaller subsections of the original string.
+/// @note     MSVC requires index to be provided as a template argument to avoid having the input string appear in the
+///           compiled binary.  This cannot safely be implemented as a non-templated constexpr function.
 template <size_t N, uint32 I>
 class Fnv1aHashHelper
 {
@@ -59,7 +61,7 @@ public:
 };
 
 /// @internal Partial specialization of the above template metafunction. This is needed to provide a base case which
-/// terminates further recursion.
+///           terminates further recursion.
 template <size_t N>
 class Fnv1aHashHelper<N, 1>
 {

@@ -1019,6 +1019,10 @@ void LogContext::Struct(
     KeyAndStruct("hs", value.hs);
     KeyAndStruct("ds", value.ds);
     KeyAndStruct("gs", value.gs);
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 574
+    KeyAndStruct("ts", value.ts);
+    KeyAndStruct("ms", value.ms);
+#endif
     KeyAndStruct("ps", value.ps);
     EndMap();
 }
@@ -1358,6 +1362,10 @@ void LogContext::Struct(
     KeyAndEnum("priority", value.priority);
     KeyAndEnum("priorityOffset", value.priorityOffset);
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 652
+    KeyAndEnum("heapAccess", value.heapAccess);
+#endif
+
     KeyAndBeginList("heaps", true);
     for (uint32 idx = 0; idx < value.heapCount; ++idx)
     {
@@ -1496,7 +1504,13 @@ void LogContext::Struct(
 
     KeyAndBeginMap("viewportInfo", false);
     {
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 644
+        KeyAndValue("depthClipNearEnable", value.viewportInfo.depthClipNearEnable);
+        KeyAndValue("depthClipFarEnable", value.viewportInfo.depthClipFarEnable);
+#else
         KeyAndValue("depthClipEnable", value.viewportInfo.depthClipEnable);
+#endif
+
         KeyAndEnum("depthRange", value.viewportInfo.depthRange);
     }
     EndMap();
@@ -1597,10 +1611,17 @@ void LogContext::Struct(
         Value("perSubresInit");
     }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
     if (value.separateDepthAspectInit)
     {
         Value("separateDepthAspectInit");
     }
+#else
+    if (value.separateDepthPlaneInit)
+    {
+        Value("separateDepthPlaneInit");
+    }
+#endif
 
     if (value.repetitiveResolve)
     {
@@ -1675,10 +1696,18 @@ void LogContext::Struct(
     const ImageResolveRegion& value)
 {
     BeginMap(false);
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
     KeyAndEnum("srcAspect", value.srcAspect);
+#else
+    KeyAndValue("srcPlane", value.srcPlane);
+#endif
     KeyAndValue("srcSlice", value.srcSlice);
     KeyAndStruct("srcOffset", value.srcOffset);
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
     KeyAndEnum("dstAspect", value.dstAspect);
+#else
+    KeyAndValue("dstPlane", value.dstPlane);
+#endif
     KeyAndValue("dstMipLevel", value.dstMipLevel);
     KeyAndValue("dstSlice", value.dstSlice);
     KeyAndStruct("dstOffset", value.dstOffset);
@@ -2936,7 +2965,11 @@ void LogContext::Struct(
     SubresId value)
 {
     BeginMap(true);
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
     KeyAndEnum("aspect", value.aspect);
+#else
+    KeyAndValue("plane", value.plane);
+#endif
     KeyAndValue("mipLevel", value.mipLevel);
     KeyAndValue("arraySlice", value.arraySlice);
     EndMap();
@@ -2948,6 +2981,9 @@ void LogContext::Struct(
 {
     BeginMap(false);
     KeyAndStruct("startSubres", value.startSubres);
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
+    KeyAndValue("numPlanes", value.numPlanes);
+#endif
     KeyAndValue("numMips", value.numMips);
     KeyAndValue("numSlices", value.numSlices);
     EndMap();

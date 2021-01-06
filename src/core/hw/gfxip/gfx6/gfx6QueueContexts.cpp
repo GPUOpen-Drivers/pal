@@ -527,7 +527,9 @@ Result UniversalQueueContext::Init()
 Result UniversalQueueContext::AllocateShadowMemory()
 {
     Pal::Device*const        pDevice   = m_pDevice->Parent();
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 652
     const GpuChipProperties& chipProps = pDevice->ChipProperties();
+#endif
 
     // Shadow memory only needs to include space for the region of CE RAM which the client requested PAL makes
     // persistent between submissions.
@@ -556,6 +558,7 @@ Result UniversalQueueContext::AllocateShadowMemory()
 
     m_shadowGpuMemSizeInBytes = createInfo.size;
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 652
     if (chipProps.gpuType == GpuType::Integrated)
     {
         createInfo.heapCount = 2;
@@ -568,6 +571,9 @@ Result UniversalQueueContext::AllocateShadowMemory()
         createInfo.heaps[0]  = GpuHeap::GpuHeapInvisible;
         createInfo.heaps[1]  = GpuHeap::GpuHeapLocal;
     }
+#else
+    createInfo.heapAccess = GpuHeapAccess::GpuHeapAccessCpuNoAccess;
+#endif
 
     GpuMemoryInternalCreateInfo internalInfo = { };
     internalInfo.flags.alwaysResident = 1;

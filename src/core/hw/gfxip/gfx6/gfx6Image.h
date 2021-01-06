@@ -215,7 +215,7 @@ public:
         gpusize*         pOffset,
         gpusize*         pDataSize) const;
 
-    bool RequiresSeparateAspectInit() const;
+    bool RequiresSeparateDepthPlaneInit() const;
 
     // Returns true if this Image has associated CMask data.
     bool HasCmaskData() const { return (m_pCmask == nullptr) ? false : true; }
@@ -351,7 +351,7 @@ public:
         const SubresRange& range,
         ImageLayout        layout) const override;
 
-    bool SupportsComputeDecompress(const SubresId& subresId) const;
+    bool SupportsComputeDecompress(const SubresRange& range) const;
 
     virtual Result Addr1InitSurfaceInfo(
         uint32                           subResIdx,
@@ -407,7 +407,7 @@ private:
         // For color images and their compression states
        ColorLayoutToState  color;
 
-        // For depth-stencil images and their compression states (one each for depth and stencil aspects).
+        // For depth-stencil images and their compression states (one each for depth and stencil planes).
         DepthStencilLayoutToState  depthStencil[2];
     }  m_layoutToState[MaxImageMipLevels];
 

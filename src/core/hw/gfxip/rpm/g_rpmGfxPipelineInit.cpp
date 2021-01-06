@@ -164,11 +164,16 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
 
-        pipeInfo.viewportInfo.depthClipEnable = false;
-        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp              = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable    = true;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 644
+        pipeInfo.viewportInfo.depthClipEnable     = false;
+#else
+        pipeInfo.viewportInfo.depthClipNearEnable = false;
+        pipeInfo.viewportInfo.depthClipFarEnable  = false;
+#endif
+        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp           = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -191,11 +196,16 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
 
-        pipeInfo.viewportInfo.depthClipEnable = false;
-        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp              = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable    = true;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 644
+        pipeInfo.viewportInfo.depthClipEnable     = false;
+#else
+        pipeInfo.viewportInfo.depthClipNearEnable = false;
+        pipeInfo.viewportInfo.depthClipFarEnable  = false;
+#endif
+        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp           = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -218,11 +228,16 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
 
-        pipeInfo.viewportInfo.depthClipEnable = false;
-        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp              = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable    = true;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 644
+        pipeInfo.viewportInfo.depthClipEnable     = false;
+#else
+        pipeInfo.viewportInfo.depthClipNearEnable = false;
+        pipeInfo.viewportInfo.depthClipFarEnable  = false;
+#endif
+        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp           = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -245,11 +260,16 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
 
-        pipeInfo.viewportInfo.depthClipEnable = false;
-        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp              = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable    = true;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 644
+        pipeInfo.viewportInfo.depthClipEnable     = false;
+#else
+        pipeInfo.viewportInfo.depthClipNearEnable = false;
+        pipeInfo.viewportInfo.depthClipFarEnable  = false;
+#endif
+        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp           = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -277,11 +297,16 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[0].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One };
 
-        pipeInfo.viewportInfo.depthClipEnable = false;
-        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp              = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable    = true;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 644
+        pipeInfo.viewportInfo.depthClipEnable     = false;
+#else
+        pipeInfo.viewportInfo.depthClipNearEnable = false;
+        pipeInfo.viewportInfo.depthClipFarEnable  = false;
+#endif
+        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp           = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -309,11 +334,16 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[0].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One };
 
-        pipeInfo.viewportInfo.depthClipEnable = false;
-        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp              = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable    = true;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 644
+        pipeInfo.viewportInfo.depthClipEnable     = false;
+#else
+        pipeInfo.viewportInfo.depthClipNearEnable = false;
+        pipeInfo.viewportInfo.depthClipFarEnable  = false;
+#endif
+        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp           = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -351,11 +381,16 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[0].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.viewportInfo.depthClipEnable = false;
-        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp              = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable    = true;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 644
+        pipeInfo.viewportInfo.depthClipEnable     = false;
+#else
+        pipeInfo.viewportInfo.depthClipNearEnable = false;
+        pipeInfo.viewportInfo.depthClipFarEnable  = false;
+#endif
+        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp           = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable = true;
 
         internalInfo = { };
         internalInfo.flags.dccDecompress = true;
@@ -381,11 +416,16 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
 
-        pipeInfo.viewportInfo.depthClipEnable = false;
-        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp              = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable    = true;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 644
+        pipeInfo.viewportInfo.depthClipEnable     = false;
+#else
+        pipeInfo.viewportInfo.depthClipNearEnable = false;
+        pipeInfo.viewportInfo.depthClipFarEnable  = false;
+#endif
+        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp           = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -408,11 +448,16 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
 
-        pipeInfo.viewportInfo.depthClipEnable = false;
-        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp              = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable    = true;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 644
+        pipeInfo.viewportInfo.depthClipEnable     = false;
+#else
+        pipeInfo.viewportInfo.depthClipNearEnable = false;
+        pipeInfo.viewportInfo.depthClipFarEnable  = false;
+#endif
+        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp           = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -435,11 +480,16 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
 
-        pipeInfo.viewportInfo.depthClipEnable = false;
-        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp              = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable    = true;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 644
+        pipeInfo.viewportInfo.depthClipEnable     = false;
+#else
+        pipeInfo.viewportInfo.depthClipNearEnable = false;
+        pipeInfo.viewportInfo.depthClipFarEnable  = false;
+#endif
+        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp           = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -467,11 +517,16 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[0].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.viewportInfo.depthClipEnable = false;
-        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp              = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable    = true;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 644
+        pipeInfo.viewportInfo.depthClipEnable     = false;
+#else
+        pipeInfo.viewportInfo.depthClipNearEnable = false;
+        pipeInfo.viewportInfo.depthClipFarEnable  = false;
+#endif
+        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp           = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable = true;
 
         internalInfo = { };
         internalInfo.flags.fastClearElim = true;
@@ -518,11 +573,16 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[0].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.viewportInfo.depthClipEnable = false;
-        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp              = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable    = true;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 644
+        pipeInfo.viewportInfo.depthClipEnable     = false;
+#else
+        pipeInfo.viewportInfo.depthClipNearEnable = false;
+        pipeInfo.viewportInfo.depthClipFarEnable  = false;
+#endif
+        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp           = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable = true;
 
         internalInfo = { };
         internalInfo.flags.fmaskDecompress = true;
@@ -553,11 +613,16 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[0].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.viewportInfo.depthClipEnable = false;
-        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp              = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable    = true;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 644
+        pipeInfo.viewportInfo.depthClipEnable     = false;
+#else
+        pipeInfo.viewportInfo.depthClipNearEnable = false;
+        pipeInfo.viewportInfo.depthClipFarEnable  = false;
+#endif
+        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp           = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -585,11 +650,16 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[0].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Zero, ChannelSwizzle::One };
 
-        pipeInfo.viewportInfo.depthClipEnable = false;
-        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp              = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable    = true;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 644
+        pipeInfo.viewportInfo.depthClipEnable     = false;
+#else
+        pipeInfo.viewportInfo.depthClipNearEnable = false;
+        pipeInfo.viewportInfo.depthClipFarEnable  = false;
+#endif
+        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp           = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -617,11 +687,16 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[0].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One };
 
-        pipeInfo.viewportInfo.depthClipEnable = false;
-        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp              = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable    = true;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 644
+        pipeInfo.viewportInfo.depthClipEnable     = false;
+#else
+        pipeInfo.viewportInfo.depthClipNearEnable = false;
+        pipeInfo.viewportInfo.depthClipFarEnable  = false;
+#endif
+        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp           = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -649,11 +724,16 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[0].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.viewportInfo.depthClipEnable = false;
-        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp              = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable    = true;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 644
+        pipeInfo.viewportInfo.depthClipEnable     = false;
+#else
+        pipeInfo.viewportInfo.depthClipNearEnable = false;
+        pipeInfo.viewportInfo.depthClipFarEnable  = false;
+#endif
+        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp           = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -681,11 +761,16 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[0].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.viewportInfo.depthClipEnable = false;
-        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp              = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable    = true;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 644
+        pipeInfo.viewportInfo.depthClipEnable     = false;
+#else
+        pipeInfo.viewportInfo.depthClipNearEnable = false;
+        pipeInfo.viewportInfo.depthClipFarEnable  = false;
+#endif
+        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp           = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -713,11 +798,16 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[0].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.viewportInfo.depthClipEnable = false;
-        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp              = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable    = true;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 644
+        pipeInfo.viewportInfo.depthClipEnable     = false;
+#else
+        pipeInfo.viewportInfo.depthClipNearEnable = false;
+        pipeInfo.viewportInfo.depthClipFarEnable  = false;
+#endif
+        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp           = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -745,11 +835,16 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[0].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.viewportInfo.depthClipEnable = false;
-        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp              = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable    = true;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 644
+        pipeInfo.viewportInfo.depthClipEnable     = false;
+#else
+        pipeInfo.viewportInfo.depthClipNearEnable = false;
+        pipeInfo.viewportInfo.depthClipFarEnable  = false;
+#endif
+        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp           = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -777,11 +872,16 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[0].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.viewportInfo.depthClipEnable = false;
-        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp              = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable    = true;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 644
+        pipeInfo.viewportInfo.depthClipEnable     = false;
+#else
+        pipeInfo.viewportInfo.depthClipNearEnable = false;
+        pipeInfo.viewportInfo.depthClipFarEnable  = false;
+#endif
+        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp           = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -809,11 +909,16 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[0].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.viewportInfo.depthClipEnable = false;
-        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp              = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable    = true;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 644
+        pipeInfo.viewportInfo.depthClipEnable     = false;
+#else
+        pipeInfo.viewportInfo.depthClipNearEnable = false;
+        pipeInfo.viewportInfo.depthClipFarEnable  = false;
+#endif
+        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp           = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable = true;
 
         internalInfo = { };
         internalInfo.flags.resolveFixedFunc = true;
@@ -844,11 +949,16 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[0].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Zero, ChannelSwizzle::One };
 
-        pipeInfo.viewportInfo.depthClipEnable = false;
-        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp              = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable    = true;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 644
+        pipeInfo.viewportInfo.depthClipEnable     = false;
+#else
+        pipeInfo.viewportInfo.depthClipNearEnable = false;
+        pipeInfo.viewportInfo.depthClipFarEnable  = false;
+#endif
+        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp           = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable = true;
 
         internalInfo = { };
         internalInfo.flags.resolveFixedFunc = true;
@@ -879,11 +989,16 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[0].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One };
 
-        pipeInfo.viewportInfo.depthClipEnable = false;
-        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp              = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable    = true;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 644
+        pipeInfo.viewportInfo.depthClipEnable     = false;
+#else
+        pipeInfo.viewportInfo.depthClipNearEnable = false;
+        pipeInfo.viewportInfo.depthClipFarEnable  = false;
+#endif
+        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp           = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable = true;
 
         internalInfo = { };
         internalInfo.flags.resolveFixedFunc = true;
@@ -914,11 +1029,16 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[0].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.viewportInfo.depthClipEnable = false;
-        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp              = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable    = true;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 644
+        pipeInfo.viewportInfo.depthClipEnable     = false;
+#else
+        pipeInfo.viewportInfo.depthClipNearEnable = false;
+        pipeInfo.viewportInfo.depthClipFarEnable  = false;
+#endif
+        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp           = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable = true;
 
         internalInfo = { };
         internalInfo.flags.resolveFixedFunc = true;
@@ -949,11 +1069,16 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[0].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.viewportInfo.depthClipEnable = false;
-        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp              = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable    = true;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 644
+        pipeInfo.viewportInfo.depthClipEnable     = false;
+#else
+        pipeInfo.viewportInfo.depthClipNearEnable = false;
+        pipeInfo.viewportInfo.depthClipFarEnable  = false;
+#endif
+        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp           = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable = true;
 
         internalInfo = { };
         internalInfo.flags.resolveFixedFunc = true;
@@ -984,11 +1109,16 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[0].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.viewportInfo.depthClipEnable = false;
-        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp              = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable    = true;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 644
+        pipeInfo.viewportInfo.depthClipEnable     = false;
+#else
+        pipeInfo.viewportInfo.depthClipNearEnable = false;
+        pipeInfo.viewportInfo.depthClipFarEnable  = false;
+#endif
+        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp           = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable = true;
 
         internalInfo = { };
         internalInfo.flags.resolveFixedFunc = true;
@@ -1019,11 +1149,16 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[0].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.viewportInfo.depthClipEnable = false;
-        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp              = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable    = true;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 644
+        pipeInfo.viewportInfo.depthClipEnable     = false;
+#else
+        pipeInfo.viewportInfo.depthClipNearEnable = false;
+        pipeInfo.viewportInfo.depthClipFarEnable  = false;
+#endif
+        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp           = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable = true;
 
         internalInfo = { };
         internalInfo.flags.resolveFixedFunc = true;
@@ -1054,11 +1189,16 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[0].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.viewportInfo.depthClipEnable = false;
-        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp              = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable    = true;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 644
+        pipeInfo.viewportInfo.depthClipEnable     = false;
+#else
+        pipeInfo.viewportInfo.depthClipNearEnable = false;
+        pipeInfo.viewportInfo.depthClipFarEnable  = false;
+#endif
+        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp           = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable = true;
 
         internalInfo = { };
         internalInfo.flags.resolveFixedFunc = true;
@@ -1089,11 +1229,16 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[0].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.viewportInfo.depthClipEnable = false;
-        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp              = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable    = true;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 644
+        pipeInfo.viewportInfo.depthClipEnable     = false;
+#else
+        pipeInfo.viewportInfo.depthClipNearEnable = false;
+        pipeInfo.viewportInfo.depthClipFarEnable  = false;
+#endif
+        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp           = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1121,11 +1266,16 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[0].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Zero, ChannelSwizzle::One };
 
-        pipeInfo.viewportInfo.depthClipEnable = false;
-        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp              = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable    = true;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 644
+        pipeInfo.viewportInfo.depthClipEnable     = false;
+#else
+        pipeInfo.viewportInfo.depthClipNearEnable = false;
+        pipeInfo.viewportInfo.depthClipFarEnable  = false;
+#endif
+        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp           = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1153,11 +1303,16 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[0].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One };
 
-        pipeInfo.viewportInfo.depthClipEnable = false;
-        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp              = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable    = true;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 644
+        pipeInfo.viewportInfo.depthClipEnable     = false;
+#else
+        pipeInfo.viewportInfo.depthClipNearEnable = false;
+        pipeInfo.viewportInfo.depthClipFarEnable  = false;
+#endif
+        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp           = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1185,11 +1340,16 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[0].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.viewportInfo.depthClipEnable = false;
-        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp              = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable    = true;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 644
+        pipeInfo.viewportInfo.depthClipEnable     = false;
+#else
+        pipeInfo.viewportInfo.depthClipNearEnable = false;
+        pipeInfo.viewportInfo.depthClipFarEnable  = false;
+#endif
+        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp           = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1217,11 +1377,16 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[0].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.viewportInfo.depthClipEnable = false;
-        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp              = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable    = true;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 644
+        pipeInfo.viewportInfo.depthClipEnable     = false;
+#else
+        pipeInfo.viewportInfo.depthClipNearEnable = false;
+        pipeInfo.viewportInfo.depthClipFarEnable  = false;
+#endif
+        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp           = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1249,11 +1414,16 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[0].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.viewportInfo.depthClipEnable = false;
-        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp              = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable    = true;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 644
+        pipeInfo.viewportInfo.depthClipEnable     = false;
+#else
+        pipeInfo.viewportInfo.depthClipNearEnable = false;
+        pipeInfo.viewportInfo.depthClipFarEnable  = false;
+#endif
+        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp           = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1281,11 +1451,16 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[0].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.viewportInfo.depthClipEnable = false;
-        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp              = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable    = true;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 644
+        pipeInfo.viewportInfo.depthClipEnable     = false;
+#else
+        pipeInfo.viewportInfo.depthClipNearEnable = false;
+        pipeInfo.viewportInfo.depthClipFarEnable  = false;
+#endif
+        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp           = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1313,11 +1488,16 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[0].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.viewportInfo.depthClipEnable = false;
-        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp              = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable    = true;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 644
+        pipeInfo.viewportInfo.depthClipEnable     = false;
+#else
+        pipeInfo.viewportInfo.depthClipNearEnable = false;
+        pipeInfo.viewportInfo.depthClipFarEnable  = false;
+#endif
+        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp           = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1345,11 +1525,16 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[0].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.viewportInfo.depthClipEnable = false;
-        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp              = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable    = true;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 644
+        pipeInfo.viewportInfo.depthClipEnable     = false;
+#else
+        pipeInfo.viewportInfo.depthClipNearEnable = false;
+        pipeInfo.viewportInfo.depthClipFarEnable  = false;
+#endif
+        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp           = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1377,11 +1562,16 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[0].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Zero, ChannelSwizzle::One };
 
-        pipeInfo.viewportInfo.depthClipEnable = false;
-        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp              = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable    = true;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 644
+        pipeInfo.viewportInfo.depthClipEnable     = false;
+#else
+        pipeInfo.viewportInfo.depthClipNearEnable = false;
+        pipeInfo.viewportInfo.depthClipFarEnable  = false;
+#endif
+        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp           = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1409,11 +1599,16 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[0].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One };
 
-        pipeInfo.viewportInfo.depthClipEnable = false;
-        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp              = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable    = true;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 644
+        pipeInfo.viewportInfo.depthClipEnable     = false;
+#else
+        pipeInfo.viewportInfo.depthClipNearEnable = false;
+        pipeInfo.viewportInfo.depthClipFarEnable  = false;
+#endif
+        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp           = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1441,11 +1636,16 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[0].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.viewportInfo.depthClipEnable = false;
-        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp              = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable    = true;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 644
+        pipeInfo.viewportInfo.depthClipEnable     = false;
+#else
+        pipeInfo.viewportInfo.depthClipNearEnable = false;
+        pipeInfo.viewportInfo.depthClipFarEnable  = false;
+#endif
+        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp           = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1473,11 +1673,16 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[0].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.viewportInfo.depthClipEnable = false;
-        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp              = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable    = true;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 644
+        pipeInfo.viewportInfo.depthClipEnable     = false;
+#else
+        pipeInfo.viewportInfo.depthClipNearEnable = false;
+        pipeInfo.viewportInfo.depthClipFarEnable  = false;
+#endif
+        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp           = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1505,11 +1710,16 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[0].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.viewportInfo.depthClipEnable = false;
-        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp              = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable    = true;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 644
+        pipeInfo.viewportInfo.depthClipEnable     = false;
+#else
+        pipeInfo.viewportInfo.depthClipNearEnable = false;
+        pipeInfo.viewportInfo.depthClipFarEnable  = false;
+#endif
+        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp           = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1537,11 +1747,16 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[0].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.viewportInfo.depthClipEnable = false;
-        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp              = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable    = true;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 644
+        pipeInfo.viewportInfo.depthClipEnable     = false;
+#else
+        pipeInfo.viewportInfo.depthClipNearEnable = false;
+        pipeInfo.viewportInfo.depthClipFarEnable  = false;
+#endif
+        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp           = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1569,11 +1784,16 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[0].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.viewportInfo.depthClipEnable = false;
-        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp              = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable    = true;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 644
+        pipeInfo.viewportInfo.depthClipEnable     = false;
+#else
+        pipeInfo.viewportInfo.depthClipNearEnable = false;
+        pipeInfo.viewportInfo.depthClipFarEnable  = false;
+#endif
+        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp           = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1601,11 +1821,16 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[0].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.viewportInfo.depthClipEnable = false;
-        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp              = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable    = true;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 644
+        pipeInfo.viewportInfo.depthClipEnable     = false;
+#else
+        pipeInfo.viewportInfo.depthClipNearEnable = false;
+        pipeInfo.viewportInfo.depthClipFarEnable  = false;
+#endif
+        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp           = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1633,11 +1858,16 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[0].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Zero, ChannelSwizzle::One };
 
-        pipeInfo.viewportInfo.depthClipEnable = false;
-        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp              = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable    = true;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 644
+        pipeInfo.viewportInfo.depthClipEnable     = false;
+#else
+        pipeInfo.viewportInfo.depthClipNearEnable = false;
+        pipeInfo.viewportInfo.depthClipFarEnable  = false;
+#endif
+        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp           = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1665,11 +1895,16 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[0].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One };
 
-        pipeInfo.viewportInfo.depthClipEnable = false;
-        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp              = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable    = true;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 644
+        pipeInfo.viewportInfo.depthClipEnable     = false;
+#else
+        pipeInfo.viewportInfo.depthClipNearEnable = false;
+        pipeInfo.viewportInfo.depthClipFarEnable  = false;
+#endif
+        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp           = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1697,11 +1932,16 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[0].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.viewportInfo.depthClipEnable = false;
-        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp              = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable    = true;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 644
+        pipeInfo.viewportInfo.depthClipEnable     = false;
+#else
+        pipeInfo.viewportInfo.depthClipNearEnable = false;
+        pipeInfo.viewportInfo.depthClipFarEnable  = false;
+#endif
+        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp           = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1729,11 +1969,16 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[0].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.viewportInfo.depthClipEnable = false;
-        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp              = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable    = true;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 644
+        pipeInfo.viewportInfo.depthClipEnable     = false;
+#else
+        pipeInfo.viewportInfo.depthClipNearEnable = false;
+        pipeInfo.viewportInfo.depthClipFarEnable  = false;
+#endif
+        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp           = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1761,11 +2006,16 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[0].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.viewportInfo.depthClipEnable = false;
-        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp              = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable    = true;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 644
+        pipeInfo.viewportInfo.depthClipEnable     = false;
+#else
+        pipeInfo.viewportInfo.depthClipNearEnable = false;
+        pipeInfo.viewportInfo.depthClipFarEnable  = false;
+#endif
+        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp           = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1793,11 +2043,16 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[0].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.viewportInfo.depthClipEnable = false;
-        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp              = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable    = true;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 644
+        pipeInfo.viewportInfo.depthClipEnable     = false;
+#else
+        pipeInfo.viewportInfo.depthClipNearEnable = false;
+        pipeInfo.viewportInfo.depthClipFarEnable  = false;
+#endif
+        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp           = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1825,11 +2080,16 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[0].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.viewportInfo.depthClipEnable = false;
-        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp              = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable    = true;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 644
+        pipeInfo.viewportInfo.depthClipEnable     = false;
+#else
+        pipeInfo.viewportInfo.depthClipNearEnable = false;
+        pipeInfo.viewportInfo.depthClipFarEnable  = false;
+#endif
+        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp           = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1857,11 +2117,16 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[1].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.viewportInfo.depthClipEnable = false;
-        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp              = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable    = true;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 644
+        pipeInfo.viewportInfo.depthClipEnable     = false;
+#else
+        pipeInfo.viewportInfo.depthClipNearEnable = false;
+        pipeInfo.viewportInfo.depthClipFarEnable  = false;
+#endif
+        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp           = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1889,11 +2154,16 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[1].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Zero, ChannelSwizzle::One };
 
-        pipeInfo.viewportInfo.depthClipEnable = false;
-        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp              = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable    = true;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 644
+        pipeInfo.viewportInfo.depthClipEnable     = false;
+#else
+        pipeInfo.viewportInfo.depthClipNearEnable = false;
+        pipeInfo.viewportInfo.depthClipFarEnable  = false;
+#endif
+        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp           = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1921,11 +2191,16 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[1].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One };
 
-        pipeInfo.viewportInfo.depthClipEnable = false;
-        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp              = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable    = true;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 644
+        pipeInfo.viewportInfo.depthClipEnable     = false;
+#else
+        pipeInfo.viewportInfo.depthClipNearEnable = false;
+        pipeInfo.viewportInfo.depthClipFarEnable  = false;
+#endif
+        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp           = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1953,11 +2228,16 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[1].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.viewportInfo.depthClipEnable = false;
-        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp              = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable    = true;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 644
+        pipeInfo.viewportInfo.depthClipEnable     = false;
+#else
+        pipeInfo.viewportInfo.depthClipNearEnable = false;
+        pipeInfo.viewportInfo.depthClipFarEnable  = false;
+#endif
+        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp           = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1985,11 +2265,16 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[1].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.viewportInfo.depthClipEnable = false;
-        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp              = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable    = true;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 644
+        pipeInfo.viewportInfo.depthClipEnable     = false;
+#else
+        pipeInfo.viewportInfo.depthClipNearEnable = false;
+        pipeInfo.viewportInfo.depthClipFarEnable  = false;
+#endif
+        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp           = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2017,11 +2302,16 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[1].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.viewportInfo.depthClipEnable = false;
-        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp              = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable    = true;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 644
+        pipeInfo.viewportInfo.depthClipEnable     = false;
+#else
+        pipeInfo.viewportInfo.depthClipNearEnable = false;
+        pipeInfo.viewportInfo.depthClipFarEnable  = false;
+#endif
+        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp           = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2049,11 +2339,16 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[1].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.viewportInfo.depthClipEnable = false;
-        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp              = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable    = true;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 644
+        pipeInfo.viewportInfo.depthClipEnable     = false;
+#else
+        pipeInfo.viewportInfo.depthClipNearEnable = false;
+        pipeInfo.viewportInfo.depthClipFarEnable  = false;
+#endif
+        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp           = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2081,11 +2376,16 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[1].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.viewportInfo.depthClipEnable = false;
-        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp              = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable    = true;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 644
+        pipeInfo.viewportInfo.depthClipEnable     = false;
+#else
+        pipeInfo.viewportInfo.depthClipNearEnable = false;
+        pipeInfo.viewportInfo.depthClipFarEnable  = false;
+#endif
+        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp           = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2113,11 +2413,16 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[2].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.viewportInfo.depthClipEnable = false;
-        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp              = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable    = true;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 644
+        pipeInfo.viewportInfo.depthClipEnable     = false;
+#else
+        pipeInfo.viewportInfo.depthClipNearEnable = false;
+        pipeInfo.viewportInfo.depthClipFarEnable  = false;
+#endif
+        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp           = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2145,11 +2450,16 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[2].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Zero, ChannelSwizzle::One };
 
-        pipeInfo.viewportInfo.depthClipEnable = false;
-        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp              = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable    = true;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 644
+        pipeInfo.viewportInfo.depthClipEnable     = false;
+#else
+        pipeInfo.viewportInfo.depthClipNearEnable = false;
+        pipeInfo.viewportInfo.depthClipFarEnable  = false;
+#endif
+        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp           = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2177,11 +2487,16 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[2].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One };
 
-        pipeInfo.viewportInfo.depthClipEnable = false;
-        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp              = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable    = true;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 644
+        pipeInfo.viewportInfo.depthClipEnable     = false;
+#else
+        pipeInfo.viewportInfo.depthClipNearEnable = false;
+        pipeInfo.viewportInfo.depthClipFarEnable  = false;
+#endif
+        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp           = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2209,11 +2524,16 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[2].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.viewportInfo.depthClipEnable = false;
-        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp              = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable    = true;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 644
+        pipeInfo.viewportInfo.depthClipEnable     = false;
+#else
+        pipeInfo.viewportInfo.depthClipNearEnable = false;
+        pipeInfo.viewportInfo.depthClipFarEnable  = false;
+#endif
+        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp           = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2241,11 +2561,16 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[2].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.viewportInfo.depthClipEnable = false;
-        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp              = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable    = true;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 644
+        pipeInfo.viewportInfo.depthClipEnable     = false;
+#else
+        pipeInfo.viewportInfo.depthClipNearEnable = false;
+        pipeInfo.viewportInfo.depthClipFarEnable  = false;
+#endif
+        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp           = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2273,11 +2598,16 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[2].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.viewportInfo.depthClipEnable = false;
-        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp              = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable    = true;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 644
+        pipeInfo.viewportInfo.depthClipEnable     = false;
+#else
+        pipeInfo.viewportInfo.depthClipNearEnable = false;
+        pipeInfo.viewportInfo.depthClipFarEnable  = false;
+#endif
+        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp           = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2305,11 +2635,16 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[2].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.viewportInfo.depthClipEnable = false;
-        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp              = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable    = true;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 644
+        pipeInfo.viewportInfo.depthClipEnable     = false;
+#else
+        pipeInfo.viewportInfo.depthClipNearEnable = false;
+        pipeInfo.viewportInfo.depthClipFarEnable  = false;
+#endif
+        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp           = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2337,11 +2672,16 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[2].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.viewportInfo.depthClipEnable = false;
-        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp              = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable    = true;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 644
+        pipeInfo.viewportInfo.depthClipEnable     = false;
+#else
+        pipeInfo.viewportInfo.depthClipNearEnable = false;
+        pipeInfo.viewportInfo.depthClipFarEnable  = false;
+#endif
+        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp           = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2369,11 +2709,16 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[3].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.viewportInfo.depthClipEnable = false;
-        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp              = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable    = true;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 644
+        pipeInfo.viewportInfo.depthClipEnable     = false;
+#else
+        pipeInfo.viewportInfo.depthClipNearEnable = false;
+        pipeInfo.viewportInfo.depthClipFarEnable  = false;
+#endif
+        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp           = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2401,11 +2746,16 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[3].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Zero, ChannelSwizzle::One };
 
-        pipeInfo.viewportInfo.depthClipEnable = false;
-        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp              = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable    = true;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 644
+        pipeInfo.viewportInfo.depthClipEnable     = false;
+#else
+        pipeInfo.viewportInfo.depthClipNearEnable = false;
+        pipeInfo.viewportInfo.depthClipFarEnable  = false;
+#endif
+        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp           = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2433,11 +2783,16 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[3].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One };
 
-        pipeInfo.viewportInfo.depthClipEnable = false;
-        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp              = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable    = true;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 644
+        pipeInfo.viewportInfo.depthClipEnable     = false;
+#else
+        pipeInfo.viewportInfo.depthClipNearEnable = false;
+        pipeInfo.viewportInfo.depthClipFarEnable  = false;
+#endif
+        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp           = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2465,11 +2820,16 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[3].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.viewportInfo.depthClipEnable = false;
-        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp              = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable    = true;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 644
+        pipeInfo.viewportInfo.depthClipEnable     = false;
+#else
+        pipeInfo.viewportInfo.depthClipNearEnable = false;
+        pipeInfo.viewportInfo.depthClipFarEnable  = false;
+#endif
+        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp           = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2497,11 +2857,16 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[3].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.viewportInfo.depthClipEnable = false;
-        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp              = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable    = true;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 644
+        pipeInfo.viewportInfo.depthClipEnable     = false;
+#else
+        pipeInfo.viewportInfo.depthClipNearEnable = false;
+        pipeInfo.viewportInfo.depthClipFarEnable  = false;
+#endif
+        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp           = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2529,11 +2894,16 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[3].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.viewportInfo.depthClipEnable = false;
-        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp              = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable    = true;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 644
+        pipeInfo.viewportInfo.depthClipEnable     = false;
+#else
+        pipeInfo.viewportInfo.depthClipNearEnable = false;
+        pipeInfo.viewportInfo.depthClipFarEnable  = false;
+#endif
+        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp           = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2561,11 +2931,16 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[3].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.viewportInfo.depthClipEnable = false;
-        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp              = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable    = true;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 644
+        pipeInfo.viewportInfo.depthClipEnable     = false;
+#else
+        pipeInfo.viewportInfo.depthClipNearEnable = false;
+        pipeInfo.viewportInfo.depthClipFarEnable  = false;
+#endif
+        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp           = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2593,11 +2968,16 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[3].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.viewportInfo.depthClipEnable = false;
-        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp              = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable    = true;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 644
+        pipeInfo.viewportInfo.depthClipEnable     = false;
+#else
+        pipeInfo.viewportInfo.depthClipNearEnable = false;
+        pipeInfo.viewportInfo.depthClipFarEnable  = false;
+#endif
+        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp           = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2625,11 +3005,16 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[4].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.viewportInfo.depthClipEnable = false;
-        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp              = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable    = true;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 644
+        pipeInfo.viewportInfo.depthClipEnable     = false;
+#else
+        pipeInfo.viewportInfo.depthClipNearEnable = false;
+        pipeInfo.viewportInfo.depthClipFarEnable  = false;
+#endif
+        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp           = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2657,11 +3042,16 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[4].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Zero, ChannelSwizzle::One };
 
-        pipeInfo.viewportInfo.depthClipEnable = false;
-        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp              = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable    = true;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 644
+        pipeInfo.viewportInfo.depthClipEnable     = false;
+#else
+        pipeInfo.viewportInfo.depthClipNearEnable = false;
+        pipeInfo.viewportInfo.depthClipFarEnable  = false;
+#endif
+        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp           = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2689,11 +3079,16 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[4].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One };
 
-        pipeInfo.viewportInfo.depthClipEnable = false;
-        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp              = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable    = true;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 644
+        pipeInfo.viewportInfo.depthClipEnable     = false;
+#else
+        pipeInfo.viewportInfo.depthClipNearEnable = false;
+        pipeInfo.viewportInfo.depthClipFarEnable  = false;
+#endif
+        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp           = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2721,11 +3116,16 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[4].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.viewportInfo.depthClipEnable = false;
-        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp              = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable    = true;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 644
+        pipeInfo.viewportInfo.depthClipEnable     = false;
+#else
+        pipeInfo.viewportInfo.depthClipNearEnable = false;
+        pipeInfo.viewportInfo.depthClipFarEnable  = false;
+#endif
+        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp           = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2753,11 +3153,16 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[4].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.viewportInfo.depthClipEnable = false;
-        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp              = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable    = true;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 644
+        pipeInfo.viewportInfo.depthClipEnable     = false;
+#else
+        pipeInfo.viewportInfo.depthClipNearEnable = false;
+        pipeInfo.viewportInfo.depthClipFarEnable  = false;
+#endif
+        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp           = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2785,11 +3190,16 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[4].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.viewportInfo.depthClipEnable = false;
-        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp              = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable    = true;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 644
+        pipeInfo.viewportInfo.depthClipEnable     = false;
+#else
+        pipeInfo.viewportInfo.depthClipNearEnable = false;
+        pipeInfo.viewportInfo.depthClipFarEnable  = false;
+#endif
+        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp           = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2817,11 +3227,16 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[4].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.viewportInfo.depthClipEnable = false;
-        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp              = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable    = true;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 644
+        pipeInfo.viewportInfo.depthClipEnable     = false;
+#else
+        pipeInfo.viewportInfo.depthClipNearEnable = false;
+        pipeInfo.viewportInfo.depthClipFarEnable  = false;
+#endif
+        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp           = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2849,11 +3264,16 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[4].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.viewportInfo.depthClipEnable = false;
-        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp              = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable    = true;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 644
+        pipeInfo.viewportInfo.depthClipEnable     = false;
+#else
+        pipeInfo.viewportInfo.depthClipNearEnable = false;
+        pipeInfo.viewportInfo.depthClipFarEnable  = false;
+#endif
+        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp           = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2881,11 +3301,16 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[5].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.viewportInfo.depthClipEnable = false;
-        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp              = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable    = true;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 644
+        pipeInfo.viewportInfo.depthClipEnable     = false;
+#else
+        pipeInfo.viewportInfo.depthClipNearEnable = false;
+        pipeInfo.viewportInfo.depthClipFarEnable  = false;
+#endif
+        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp           = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2913,11 +3338,16 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[5].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Zero, ChannelSwizzle::One };
 
-        pipeInfo.viewportInfo.depthClipEnable = false;
-        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp              = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable    = true;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 644
+        pipeInfo.viewportInfo.depthClipEnable     = false;
+#else
+        pipeInfo.viewportInfo.depthClipNearEnable = false;
+        pipeInfo.viewportInfo.depthClipFarEnable  = false;
+#endif
+        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp           = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2945,11 +3375,16 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[5].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One };
 
-        pipeInfo.viewportInfo.depthClipEnable = false;
-        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp              = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable    = true;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 644
+        pipeInfo.viewportInfo.depthClipEnable     = false;
+#else
+        pipeInfo.viewportInfo.depthClipNearEnable = false;
+        pipeInfo.viewportInfo.depthClipFarEnable  = false;
+#endif
+        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp           = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2977,11 +3412,16 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[5].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.viewportInfo.depthClipEnable = false;
-        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp              = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable    = true;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 644
+        pipeInfo.viewportInfo.depthClipEnable     = false;
+#else
+        pipeInfo.viewportInfo.depthClipNearEnable = false;
+        pipeInfo.viewportInfo.depthClipFarEnable  = false;
+#endif
+        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp           = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -3009,11 +3449,16 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[5].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.viewportInfo.depthClipEnable = false;
-        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp              = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable    = true;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 644
+        pipeInfo.viewportInfo.depthClipEnable     = false;
+#else
+        pipeInfo.viewportInfo.depthClipNearEnable = false;
+        pipeInfo.viewportInfo.depthClipFarEnable  = false;
+#endif
+        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp           = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -3041,11 +3486,16 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[5].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.viewportInfo.depthClipEnable = false;
-        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp              = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable    = true;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 644
+        pipeInfo.viewportInfo.depthClipEnable     = false;
+#else
+        pipeInfo.viewportInfo.depthClipNearEnable = false;
+        pipeInfo.viewportInfo.depthClipFarEnable  = false;
+#endif
+        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp           = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -3073,11 +3523,16 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[5].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.viewportInfo.depthClipEnable = false;
-        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp              = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable    = true;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 644
+        pipeInfo.viewportInfo.depthClipEnable     = false;
+#else
+        pipeInfo.viewportInfo.depthClipNearEnable = false;
+        pipeInfo.viewportInfo.depthClipFarEnable  = false;
+#endif
+        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp           = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -3105,11 +3560,16 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[5].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.viewportInfo.depthClipEnable = false;
-        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp              = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable    = true;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 644
+        pipeInfo.viewportInfo.depthClipEnable     = false;
+#else
+        pipeInfo.viewportInfo.depthClipNearEnable = false;
+        pipeInfo.viewportInfo.depthClipFarEnable  = false;
+#endif
+        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp           = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -3137,11 +3597,16 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[6].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.viewportInfo.depthClipEnable = false;
-        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp              = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable    = true;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 644
+        pipeInfo.viewportInfo.depthClipEnable     = false;
+#else
+        pipeInfo.viewportInfo.depthClipNearEnable = false;
+        pipeInfo.viewportInfo.depthClipFarEnable  = false;
+#endif
+        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp           = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -3169,11 +3634,16 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[6].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Zero, ChannelSwizzle::One };
 
-        pipeInfo.viewportInfo.depthClipEnable = false;
-        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp              = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable    = true;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 644
+        pipeInfo.viewportInfo.depthClipEnable     = false;
+#else
+        pipeInfo.viewportInfo.depthClipNearEnable = false;
+        pipeInfo.viewportInfo.depthClipFarEnable  = false;
+#endif
+        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp           = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -3201,11 +3671,16 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[6].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One };
 
-        pipeInfo.viewportInfo.depthClipEnable = false;
-        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp              = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable    = true;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 644
+        pipeInfo.viewportInfo.depthClipEnable     = false;
+#else
+        pipeInfo.viewportInfo.depthClipNearEnable = false;
+        pipeInfo.viewportInfo.depthClipFarEnable  = false;
+#endif
+        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp           = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -3233,11 +3708,16 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[6].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.viewportInfo.depthClipEnable = false;
-        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp              = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable    = true;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 644
+        pipeInfo.viewportInfo.depthClipEnable     = false;
+#else
+        pipeInfo.viewportInfo.depthClipNearEnable = false;
+        pipeInfo.viewportInfo.depthClipFarEnable  = false;
+#endif
+        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp           = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -3265,11 +3745,16 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[6].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.viewportInfo.depthClipEnable = false;
-        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp              = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable    = true;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 644
+        pipeInfo.viewportInfo.depthClipEnable     = false;
+#else
+        pipeInfo.viewportInfo.depthClipNearEnable = false;
+        pipeInfo.viewportInfo.depthClipFarEnable  = false;
+#endif
+        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp           = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -3297,11 +3782,16 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[6].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.viewportInfo.depthClipEnable = false;
-        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp              = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable    = true;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 644
+        pipeInfo.viewportInfo.depthClipEnable     = false;
+#else
+        pipeInfo.viewportInfo.depthClipNearEnable = false;
+        pipeInfo.viewportInfo.depthClipFarEnable  = false;
+#endif
+        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp           = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -3329,11 +3819,16 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[6].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.viewportInfo.depthClipEnable = false;
-        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp              = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable    = true;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 644
+        pipeInfo.viewportInfo.depthClipEnable     = false;
+#else
+        pipeInfo.viewportInfo.depthClipNearEnable = false;
+        pipeInfo.viewportInfo.depthClipFarEnable  = false;
+#endif
+        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp           = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -3361,11 +3856,16 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[6].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.viewportInfo.depthClipEnable = false;
-        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp              = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable    = true;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 644
+        pipeInfo.viewportInfo.depthClipEnable     = false;
+#else
+        pipeInfo.viewportInfo.depthClipNearEnable = false;
+        pipeInfo.viewportInfo.depthClipFarEnable  = false;
+#endif
+        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp           = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -3393,11 +3893,16 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[7].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.viewportInfo.depthClipEnable = false;
-        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp              = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable    = true;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 644
+        pipeInfo.viewportInfo.depthClipEnable     = false;
+#else
+        pipeInfo.viewportInfo.depthClipNearEnable = false;
+        pipeInfo.viewportInfo.depthClipFarEnable  = false;
+#endif
+        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp           = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -3425,11 +3930,16 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[7].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Zero, ChannelSwizzle::One };
 
-        pipeInfo.viewportInfo.depthClipEnable = false;
-        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp              = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable    = true;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 644
+        pipeInfo.viewportInfo.depthClipEnable     = false;
+#else
+        pipeInfo.viewportInfo.depthClipNearEnable = false;
+        pipeInfo.viewportInfo.depthClipFarEnable  = false;
+#endif
+        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp           = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -3457,11 +3967,16 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[7].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One };
 
-        pipeInfo.viewportInfo.depthClipEnable = false;
-        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp              = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable    = true;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 644
+        pipeInfo.viewportInfo.depthClipEnable     = false;
+#else
+        pipeInfo.viewportInfo.depthClipNearEnable = false;
+        pipeInfo.viewportInfo.depthClipFarEnable  = false;
+#endif
+        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp           = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -3489,11 +4004,16 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[7].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.viewportInfo.depthClipEnable = false;
-        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp              = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable    = true;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 644
+        pipeInfo.viewportInfo.depthClipEnable     = false;
+#else
+        pipeInfo.viewportInfo.depthClipNearEnable = false;
+        pipeInfo.viewportInfo.depthClipFarEnable  = false;
+#endif
+        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp           = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -3521,11 +4041,16 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[7].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.viewportInfo.depthClipEnable = false;
-        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp              = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable    = true;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 644
+        pipeInfo.viewportInfo.depthClipEnable     = false;
+#else
+        pipeInfo.viewportInfo.depthClipNearEnable = false;
+        pipeInfo.viewportInfo.depthClipFarEnable  = false;
+#endif
+        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp           = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -3553,11 +4078,16 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[7].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.viewportInfo.depthClipEnable = false;
-        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp              = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable    = true;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 644
+        pipeInfo.viewportInfo.depthClipEnable     = false;
+#else
+        pipeInfo.viewportInfo.depthClipNearEnable = false;
+        pipeInfo.viewportInfo.depthClipFarEnable  = false;
+#endif
+        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp           = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -3585,11 +4115,16 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[7].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.viewportInfo.depthClipEnable = false;
-        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp              = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable    = true;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 644
+        pipeInfo.viewportInfo.depthClipEnable     = false;
+#else
+        pipeInfo.viewportInfo.depthClipNearEnable = false;
+        pipeInfo.viewportInfo.depthClipFarEnable  = false;
+#endif
+        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp           = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -3617,11 +4152,16 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[7].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.viewportInfo.depthClipEnable = false;
-        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp              = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable    = true;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 644
+        pipeInfo.viewportInfo.depthClipEnable     = false;
+#else
+        pipeInfo.viewportInfo.depthClipNearEnable = false;
+        pipeInfo.viewportInfo.depthClipFarEnable  = false;
+#endif
+        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp           = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -3644,11 +4184,16 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
 
-        pipeInfo.viewportInfo.depthClipEnable = false;
-        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp              = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable    = true;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 644
+        pipeInfo.viewportInfo.depthClipEnable     = false;
+#else
+        pipeInfo.viewportInfo.depthClipNearEnable = false;
+        pipeInfo.viewportInfo.depthClipFarEnable  = false;
+#endif
+        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp           = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -3676,11 +4221,16 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[0].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One };
 
-        pipeInfo.viewportInfo.depthClipEnable = false;
-        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp              = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable    = true;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 644
+        pipeInfo.viewportInfo.depthClipEnable     = false;
+#else
+        pipeInfo.viewportInfo.depthClipNearEnable = false;
+        pipeInfo.viewportInfo.depthClipFarEnable  = false;
+#endif
+        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp           = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -3703,10 +4253,15 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
 
-        pipeInfo.viewportInfo.depthClipEnable = false;
-        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp              = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 644
+        pipeInfo.viewportInfo.depthClipEnable     = false;
+#else
+        pipeInfo.viewportInfo.depthClipNearEnable = false;
+        pipeInfo.viewportInfo.depthClipFarEnable  = false;
+#endif
+        pipeInfo.viewportInfo.depthRange = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp         = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride = BinningOverride::Disable;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -3734,10 +4289,15 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[0].swizzledFormat.swizzle =
             { ChannelSwizzle::Y, ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::One };
 
-        pipeInfo.viewportInfo.depthClipEnable = false;
-        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp              = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 644
+        pipeInfo.viewportInfo.depthClipEnable     = false;
+#else
+        pipeInfo.viewportInfo.depthClipNearEnable = false;
+        pipeInfo.viewportInfo.depthClipFarEnable  = false;
+#endif
+        pipeInfo.viewportInfo.depthRange = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp         = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride = BinningOverride::Disable;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -3765,11 +4325,16 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.cbState.target[0].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        pipeInfo.viewportInfo.depthClipEnable = false;
-        pipeInfo.viewportInfo.depthRange      = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp              = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride      = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable    = true;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 644
+        pipeInfo.viewportInfo.depthClipEnable     = false;
+#else
+        pipeInfo.viewportInfo.depthClipNearEnable = false;
+        pipeInfo.viewportInfo.depthClipFarEnable  = false;
+#endif
+        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp           = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable = true;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
