@@ -135,21 +135,6 @@ InternalMemMgr::InternalMemMgr(
 }
 
 // =====================================================================================================================
-// Initializes this InternalMemMgr object.
-Result InternalMemMgr::Init()
-{
-    // Initialize memory manager and reference list lock
-    Result result = m_allocatorLock.Init();
-
-    if (result == Result::Success)
-    {
-        result = m_referenceLock.Init();
-    }
-
-    return result;
-}
-
-// =====================================================================================================================
 // Explicitly frees all GPU memory allocations.
 void InternalMemMgr::FreeAllocations()
 {

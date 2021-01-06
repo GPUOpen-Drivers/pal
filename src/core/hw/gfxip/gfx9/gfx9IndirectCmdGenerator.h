@@ -51,6 +51,7 @@ enum class IndirectOpType : uint32
     SetUserData,        // Sets one or more consecutive virtualized user-data entries. These entries may end up
                         // being mapped to either physical SPI user-data registers or to the spill table.
     VertexBufTableSrd,  // Builds an untyped buffer SRD in the vertex buffer table.
+    DispatchMesh,       // Issue a dispatch mesh call.
 };
 
 // Contains all information the indirect command generation shader(s) need to generate a command buffer snippet for
@@ -100,6 +101,7 @@ public:
     virtual void PopulateInvocationBuffer(
         GfxCmdBuffer*   pCmdBuffer,
         const Pipeline* pPipeline,
+        bool            isTaskEnabled,
         gpusize         argsGpuAddr,
         uint32          maximumCount,
         uint32          indexBufSize,

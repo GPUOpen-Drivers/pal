@@ -1001,20 +1001,6 @@
       "Name": "DbDisableColorOnValidation"
     },
     {
-      "Description": "If true, onchip GS will be used if possible.",
-      "Tags": [
-        "Graphics Pipelines",
-        "Gfx9"
-      ],
-      "Defaults": {
-        "Default": true
-      },
-      "Scope": "PrivatePalGfx9Key",
-      "Type": "bool",
-      "VariableName": "enableOnchipGs",
-      "Name": "EnableOnchipGs"
-    },
-    {
       "ValidValues": {
         "IsExclusive": true,
         "Values": [
@@ -1127,34 +1113,6 @@
       "Type": "uint32",
       "VariableName": "gsMaxLdsSize",
       "Name": "GsMaxLdsSize"
-    },
-    {
-      "Description": "If the number of GS prims per subgroup * GS instance count is less than this threshold use off-chip GS. ",
-      "Tags": [
-        "Graphics Pipelines",
-        "Gfx9"
-      ],
-      "Defaults": {
-        "Default": 64
-      },
-      "Scope": "PrivatePalGfx9Key",
-      "Type": "uint32",
-      "VariableName": "gsOffChipThreshold",
-      "Name": "GsOffChipThreshold"
-    },
-    {
-      "Description": "Target number of GS prims per subgroup when running with on-chip GS. ",
-      "Tags": [
-        "Graphics Pipelines",
-        "Gfx9"
-      ],
-      "Defaults": {
-        "Default": 64
-      },
-      "Scope": "PrivatePalGfx9Key",
-      "Type": "uint32",
-      "VariableName": "idealGsPrimsPerSubGroup",
-      "Name": "GsPrimsPerSubGroup"
     },
     {
       "ValidValues": {
@@ -1690,56 +1648,6 @@
       }
     },
     {
-      "ValidValues": {
-        "IsEnum": true,
-        "IsExclusive": true,
-        "Values": [
-          {
-            "Name": "Gfx9OffChipHsImmediate",
-            "Value": 0,
-            "Description": "Copy HS outputs directly to off-chip memory."
-          },
-          {
-            "Name": "Gfx9OffChipHsCopyAllAtEnd",
-            "Value": 1,
-            "Description": "Write HS outputs to LDS, then at end of HS use multi-threaded loop to copy from LDS to off-chip memory."
-          },
-          {
-            "Name": "Gfx9OffChipHsCopyMultiElements",
-            "Value": 2,
-            "Description": "Writes output control points and patch constants directly to off-chip and only copy theinput control point to memory at the end."
-          }
-        ],
-        "Name": "Gfx9OffChipHsCopyMethod"
-      },
-      "Description": "Specifies to SC how to copy HS outputs to off-chip memory.",
-      "Tags": [
-        "Shader Options",
-        "Gfx9"
-      ],
-      "Defaults": {
-        "Default": "Gfx9OffChipHsCopyAllAtEnd"
-      },
-      "Scope": "PrivatePalGfx9Key",
-      "Type": "enum",
-      "VariableName": "gfx9OffChipHsCopyMethod",
-      "Name": "OffChipHsCopyMethod"
-    },
-    {
-      "Description": "Enables SC optimization to skip copying data from HS for null patches ",
-      "Tags": [
-        "Shader Options",
-        "Gfx9"
-      ],
-      "Defaults": {
-        "Default": true
-      },
-      "Scope": "PrivatePalGfx9Key",
-      "Type": "bool",
-      "VariableName": "gfx9OffChipHsSkipDataCopyNullPatch",
-      "Name": "OffChipHsSkipDataCopyNullPatch"
-    },
-    {
       "Description": "Maximum shader prefetch size in bytes.  Set arbitrarily large to use driver default.  Set to zero to disable",
       "Tags": [
         "Shader Options",
@@ -1754,32 +1662,18 @@
       "Name": "ShaderPrefetchSizeBytes"
     },
     {
-      "Description": "Enables SC optimization to perform the offchip data copy from the hull shader to the domain shader using multiple waves.",
+      "Description": "Specifies the number of entries in the DrawData and PayloadData shader rings for Task and Mesh shaders, per SE. Must be a power-of-2.",
       "Tags": [
         "Shader Options",
-        "Gfx9"
+        "Gfx10"
       ],
       "Defaults": {
-        "Default": false
+        "Default": 64
       },
       "Scope": "PrivatePalGfx9Key",
-      "Type": "bool",
-      "VariableName": "gfx9OffChipHsMultiWavePatchDataCopy",
-      "Name": "OffChipHsMultiWavePatchDataCopy"
-    },
-    {
-      "Description": "Enables SC optimization for optimized DS data fetch. ",
-      "Tags": [
-        "Shader Options",
-        "Gfx9"
-      ],
-      "Defaults": {
-        "Default": false
-      },
-      "Scope": "PrivatePalGfx9Key",
-      "Type": "bool",
-      "VariableName": "gfx9OptimizeDsDataFetch",
-      "Name": "OptimizeDsDataFetch"
+      "Type": "uint32",
+      "VariableName": "numTsMsDrawEntriesPerSe",
+      "Name": "NumTsMsDrawEntriesPerSe"
     },
     {
       "Description": "Whether or not PAL supports NGG. For quality purposes only.",
@@ -1814,20 +1708,6 @@
       "Flags": {
         "RereadSetting": true
       }
-    },
-    {
-      "Description": "Controls how many instances of the NGG shader-data tables will be contained in the ring buffer managed by Universal Command Buffers. At most, the constant engine will be able to get that many draws ahead of the draw engine. This must be either zero, or divisible by four. If zero, any pipeline which requires NGG will fail to compile because no SRD table is present.",
-      "Tags": [
-        "NGG Controls",
-        "Gfx9"
-      ],
-      "Defaults": {
-        "Default": 32
-      },
-      "Scope": "PrivatePalGfx9Key",
-      "Type": "uint32",
-      "VariableName": "nggRingSize",
-      "Name": "NggRingSize"
     },
     {
       "ValidValues": {
@@ -2850,7 +2730,7 @@
       "Name": "VrsForceRateFine"
     },
     {
-      "Description": "The device owns a depth buffer used for VRS data storage in the event of the app not binding their own depth buffer.  If this setting is true, then the depth buffer is hTile only; otherwise, it also contains a stencil aspect.",
+      "Description": "The device owns a depth buffer used for VRS data storage in the event of the app not binding their own depth buffer.  If this setting is true, then the depth buffer is hTile only; otherwise, it also contains a stencil plane.",
       "Tags": [
         "VRS",
         "Gfx10"

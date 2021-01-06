@@ -993,7 +993,28 @@ void UniversalCmdBuffer::CmdBarrier(
     const uint32 packetPredicate = PacketPredicate();
     m_gfxCmdBufState.flags.packetPredicate = 0;
 
-    m_device.Barrier(this, &m_deCmdStream, barrierInfo);
+    bool splitMemAllocated;
+    BarrierInfo splitBarrierInfo = barrierInfo;
+    Result result = m_device.Parent()->SplitBarrierTransitions(&splitBarrierInfo, &splitMemAllocated);
+
+    if (result == Result::ErrorOutOfMemory)
+    {
+        NotifyAllocFailure();
+    }
+    else if (result == Result::Success)
+    {
+        m_device.Barrier(this, &m_deCmdStream, splitBarrierInfo);
+    }
+    else
+    {
+        PAL_ASSERT_ALWAYS();
+    }
+
+    // Delete memory allocated for splitting the BarrierTransitions if necessary.
+    if (splitMemAllocated)
+    {
+        PAL_SAFE_DELETE_ARRAY(splitBarrierInfo.pTransitions, m_device.GetPlatform());
+    }
 
     m_gfxCmdBufState.flags.packetPredicate = packetPredicate;
 }
@@ -5650,7 +5671,12 @@ void UniversalCmdBuffer::CmdUpdateHiSPretests(
     if (pGfx6Image->HasHiSPretestsMetaData())
     {
         SubresRange range = { };
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
         range.startSubres = { ImageAspect::Stencil, firstMip, 0 };
+#else
+        range.startSubres = { pGfx6Image->GetStencilPlane(), firstMip, 0 };
+        range.numPlanes   = 1;
+#endif
         range.numMips     = numMips;
         range.numSlices   = pImage->GetImageCreateInfo().arraySize;
 

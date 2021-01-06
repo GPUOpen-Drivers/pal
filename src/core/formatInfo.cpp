@@ -247,7 +247,11 @@ void ConvertColor(
 // each channel based on the specified format.
 void ConvertYuvColor(
     SwizzledFormat format,
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
     ImageAspect    aspect,
+#else
+    uint32         plane,
+#endif
     const uint32*  pColorIn,
     uint32*        pColorOut)
 {
@@ -270,15 +274,27 @@ void ConvertYuvColor(
         pColorOut[0] = (pColorIn[0] | (pColorIn[2] << 8) | (pColorIn[0] << 16) | (pColorIn[1] << 24));
         break;
     case ChNumFormat::YV12:
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
         if (aspect == ImageAspect::Y)
+#else
+        if (plane == 0)
+#endif
         {
             pColorOut[0] = pColorIn[0];
         }
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
         else if (aspect == ImageAspect::Cb)
+#else
+        else if (plane == 1)
+#endif
         {
             pColorOut[0] = pColorIn[1];
         }
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
         else if (aspect == ImageAspect::Cr)
+#else
+        else if (plane == 2)
+#endif
         {
             pColorOut[0] = pColorIn[2];
         }
@@ -289,11 +305,19 @@ void ConvertYuvColor(
         break;
     case ChNumFormat::NV11:
     case ChNumFormat::NV12:
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
         if (aspect == ImageAspect::Y)
+#else
+        if (plane == 0)
+#endif
         {
             pColorOut[0] = pColorIn[0];
         }
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
         else if (aspect == ImageAspect::CbCr)
+#else
+        else if (plane == 1)
+#endif
         {
             pColorOut[0] = (pColorIn[1] | (pColorIn[2] << 8));
         }
@@ -303,11 +327,19 @@ void ConvertYuvColor(
         }
         break;
     case ChNumFormat::NV21:
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
         if (aspect == ImageAspect::Y)
+#else
+        if (plane == 0)
+#endif
         {
             pColorOut[0] = pColorIn[0];
         }
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
         else if (aspect == ImageAspect::CbCr)
+#else
+        else if (plane == 1)
+#endif
         {
             pColorOut[0] = (pColorIn[2] | (pColorIn[1] << 8));
         }
@@ -319,11 +351,19 @@ void ConvertYuvColor(
     case ChNumFormat::P016:
     case ChNumFormat::P010:
     case ChNumFormat::P210:
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
         if (aspect == ImageAspect::Y)
+#else
+        if (plane == 0)
+#endif
         {
             pColorOut[0] = pColorIn[0];
         }
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
         else if (aspect == ImageAspect::CbCr)
+#else
+        else if (plane == 1)
+#endif
         {
             pColorOut[0] = (pColorIn[1] | (pColorIn[2] << 16));
         }

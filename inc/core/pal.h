@@ -175,6 +175,18 @@ enum GpuHeap : uint32
     GpuHeapCount
 };
 
+/// Describes the desired access for a memory allocation.
+enum GpuHeapAccess : uint32
+{
+    GpuHeapAccessExplicit       = 0x0, ///< Memory access is not known. Heaps will be explicitly defined.
+    GpuHeapAccessCpuNoAccess    = 0x1, ///< Memory access from CPU not required.
+    GpuHeapAccessGpuMostly      = 0x2, ///< Memory optimized for reads/writes from GPU and accessible from CPU.
+    GpuHeapAccessCpuReadMostly  = 0x3, ///< Memory optimized for reads from CPU.
+    GpuHeapAccessCpuWriteMostly = 0x4, ///< Memory optimized for writes from CPU.
+    GpuHeapAccessCpuMostly      = 0x5, ///< Memory optimized for read/writes from CPU.
+    GpuHeapAccessCount
+};
+
 /// Comparison function determines how a pass/fail condition is determined between two values.  For depth/stencil
 /// comparison, the first value comes from source data and the second value comes from destination data.
 enum class CompareFunc : uint8

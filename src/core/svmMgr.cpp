@@ -160,11 +160,6 @@ Result SvmMgr::Init(
         }
     }
 
-    if (result == Result::Success)
-    {
-        result = m_allocFreeVaLock.Init();
-    }
-
     return result;
 }
 

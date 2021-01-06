@@ -33,8 +33,6 @@
 
 #include "palDbgPrint.h"
 
-#if   defined(__unix__)
-
 #include <signal.h>
 
 /// OS-independent macro to force a break into the debugger.
@@ -43,8 +41,6 @@
 /// OS-independent macro to direct static code analysis to assume the specified expression will always be true.  Linux
 /// compiles do not currently enable static code analysis.
 #define PAL_ANALYSIS_ASSUME(expr)
-
-#endif
 
 #if PAL_ENABLE_PRINTS_ASSERTS
 

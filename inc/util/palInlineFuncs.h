@@ -62,6 +62,16 @@ constexpr size_t ArrayLen(
     return N;
 }
 
+/// Determines the 32-bit length of an array at compile-time.
+///
+/// @returns The length of the array.
+template <typename T, uint32 N>
+constexpr uint32 ArrayLen32(
+    const T (&array)[N]) ///< The array of arbitrary type T.
+{
+    return N;
+}
+
 /// Increments a const pointer by nBytes by first casting it to a const uint8*.
 ///
 /// @returns Incremented pointer.

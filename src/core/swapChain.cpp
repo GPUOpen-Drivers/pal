@@ -114,16 +114,9 @@ SwapChain::~SwapChain()
 Result SwapChain::Init(
     void* pPlacementAddr)
 {
-    Result result = m_unusedImageMutex.Init();
+    Result result = Result::Success;
 
-    if (m_createInfo.swapChainMode == SwapChainMode::Mailbox)
-    {
-        if (result == Result::Success)
-        {
-            result = m_mailedImageMutex.Init();
-        }
-    }
-    else
+    if (m_createInfo.swapChainMode != SwapChainMode::Mailbox)
     {
         if (result == Result::Success)
         {

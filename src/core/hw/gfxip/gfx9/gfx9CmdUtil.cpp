@@ -61,7 +61,7 @@ static constexpr ME_EVENT_WRITE_event_index_enum VgtEventIndex[]=
     event_index__me_event_write__other,                                 // FLUSH_DFSM,
     event_index__me_event_write__other,                                 // RESET_TO_LOWEST_VGT,
     event_index__me_event_write__other,                                 // CACHE_FLUSH_AND_INV_TS_EVENT,
-    event_index__me_event_write__zpass_pixel_pipe_stat_control_or_dump__GFX09_10, // ZPASS_DONE,
+    event_index__me_event_write__pixel_pipe_stat_control_or_dump,       // ZPASS_DONE,
     event_index__me_event_write__other,                                 // CACHE_FLUSH_AND_INV_EVENT,
     event_index__me_event_write__other,                                 // PERFCOUNTER_START,
     event_index__me_event_write__other,                                 // PERFCOUNTER_STOP,
@@ -96,8 +96,8 @@ static constexpr ME_EVENT_WRITE_event_index_enum VgtEventIndex[]=
     event_index__me_event_write__other,                                 // THREAD_TRACE_MARKER,
     event_index__me_event_write__other,                                 // THREAD_TRACE_FLUSH,
     event_index__me_event_write__other,                                 // THREAD_TRACE_FINISH,
-    event_index__me_event_write__zpass_pixel_pipe_stat_control_or_dump__GFX09_10, // PIXEL_PIPE_STAT_CONTROL,
-    event_index__me_event_write__zpass_pixel_pipe_stat_control_or_dump__GFX09_10, // PIXEL_PIPE_STAT_DUMP,
+    event_index__me_event_write__pixel_pipe_stat_control_or_dump,       // PIXEL_PIPE_STAT_CONTROL,
+    event_index__me_event_write__pixel_pipe_stat_control_or_dump,       // PIXEL_PIPE_STAT_DUMP,
     event_index__me_event_write__other,                                 // PIXEL_PIPE_STAT_RESET,
     event_index__me_event_write__other,                                 // CONTEXT_SUSPEND,
     event_index__me_event_write__other,                                 // OFFCHIP_HS_DEALLOC,
@@ -730,11 +730,11 @@ size_t CmdUtil::ExplicitBuildAcquireMem(
                     : static_cast<uint32>(engine_sel__me_acquire_mem__micro_engine));
 
     {
-        pPacket->ordinal2.bitfields.gfx09_10.coher_cntl = acquireMemInfo.coherCntl;
+        pPacket->ordinal2.bitfieldsA.coher_cntl = acquireMemInfo.coherCntl;
 
         if (Pal::Device::EngineSupportsGraphics(acquireMemInfo.engineType))
         {
-            pPacket->ordinal2.bitfields.gfx09_10.engine_sel = engineSel;
+            pPacket->ordinal2.bitfieldsA.engine_sel = engineSel;
         }
     }
 
@@ -752,20 +752,21 @@ size_t CmdUtil::ExplicitBuildAcquireMem(
         ? FullApertureSize
         : (Pow2Align(acquireMemInfo.sizeBytes + acquireMemInfo.baseAddress - alignedAddress, Alignment) >> SizeShift);
 
-    pPacket->ordinal3.coher_size = LowPart(alignedSize);
+    // These ordinals correspond to "coher_base_lo/hi".
+    pPacket->ordinal3.u32All     = LowPart(alignedSize);
     pPacket->ordinal4.u32All     = HighPart(alignedSize);
 
-    pPacket->ordinal5.coher_base_lo = Get256BAddrLo(alignedAddress);
-    pPacket->ordinal6.u32All        = Get256BAddrHi(alignedAddress);
+    // These ordinals correspond to "coher_base_lo/hi".
+    pPacket->ordinal5.u32All     = Get256BAddrLo(alignedAddress);
+    pPacket->ordinal6.u32All     = Get256BAddrHi(alignedAddress);
 
     pPacket->ordinal7.u32All                  = 0;
 
     // Make sure that the various size and address fields didn't overflow
+    pPacket->ordinal7.bitfieldsA.poll_interval = Pal::Device::PollInterval;
     {
-        PAL_ASSERT(pPacket->ordinal4.bitfields.gfx09_10.reserved1 == 0);
-        PAL_ASSERT(pPacket->ordinal6.bitfields.gfx09_10.reserved1 == 0);
-
-        pPacket->ordinal7.bitfields.gfx09_10.poll_interval = Pal::Device::PollInterval;
+        PAL_ASSERT(pPacket->ordinal4.bitfieldsA.gfx09_10.reserved1 == 0);
+        PAL_ASSERT(pPacket->ordinal6.bitfieldsA.reserved1 == 0);
     }
 
     if (IsGfx10Plus(m_gfxIpLevel))
@@ -855,15 +856,15 @@ size_t CmdUtil::BuildClearState(
     PFP_CLEAR_STATE_cmd_enum command,
     void*                    pBuffer) // [out] Build the PM4 packet in this buffer.
 {
-    static_assert(PM4_PFP_CLEAR_STATE_SIZEDW__CORE == PM4_ME_CLEAR_STATE_SIZEDW__CORE,
+    static_assert(PM4_PFP_CLEAR_STATE_SIZEDW__HASCLEARSTATE == PM4_ME_CLEAR_STATE_SIZEDW__HASCLEARSTATE,
                   "Clear state packets don't match between PFP and ME!");
 
-    constexpr uint32 PacketSize = PM4_PFP_CLEAR_STATE_SIZEDW__CORE;
+    constexpr uint32 PacketSize = PM4_PFP_CLEAR_STATE_SIZEDW__HASCLEARSTATE;
     auto*const       pPacket    = static_cast<PM4_PFP_CLEAR_STATE*>(pBuffer);
 
     pPacket->ordinal1.header.u32All  = Type3Header(IT_CLEAR_STATE, PacketSize);
     pPacket->ordinal2.u32All         = 0;
-    pPacket->ordinal2.bitfields.cmd  = command;
+    pPacket->ordinal2.bitfields.hasClearState.cmd  = command;
 
     return PacketSize;
 }
@@ -1599,6 +1600,275 @@ size_t CmdUtil::BuildDrawIndirectMulti(
 }
 
 // =====================================================================================================================
+// Builds a DISPATCH_TASK_STATE_INIT packet for any engine (ME or MEC) which provides the virtual address with which
+// CP can access the control buffer.
+size_t CmdUtil::BuildTaskStateInit(
+    Pm4ShaderType shaderType,
+    gpusize       controlBufferAddr, // [In] Address of the control buffer.
+    Pm4Predicate  predicate,         // Predication enable control.
+    void*         pBuffer)           // [Out] Build the PM4 packet in this buffer.
+{
+    // The control buffer address must be 256-byte aligned.
+    PAL_ASSERT(IsPow2Aligned(controlBufferAddr, 256));
+
+    static_assert(PM4_MEC_DISPATCH_TASK_STATE_INIT_SIZEDW__GFX10COREPLUS ==
+                  PM4_ME_DISPATCH_TASK_STATE_INIT_SIZEDW__GFX10COREPLUS,
+                  "ME, MEC versions of PM4_ME_DISPATCH_TASK_STATE_INIT are not the same!");
+
+    constexpr uint32 PacketSize = PM4_ME_DISPATCH_TASK_STATE_INIT_SIZEDW__GFX10COREPLUS;
+    auto*const       pPacket    = static_cast<PM4_ME_DISPATCH_TASK_STATE_INIT*>(pBuffer);
+
+    pPacket->ordinal1.header.u32All = Type3Header(IT_DISPATCH_TASK_STATE_INIT__NV10,
+                                                  PacketSize,
+                                                  false,
+                                                  shaderType,
+                                                  predicate);
+
+    pPacket->ordinal2.u32All              = LowPart(controlBufferAddr);
+    PAL_ASSERT(pPacket->ordinal2.bitfields.gfx10CorePlus.reserved1 == 0);
+
+    pPacket->ordinal3.control_buf_addr_hi = HighPart(controlBufferAddr);
+
+    return PacketSize;
+}
+
+// =====================================================================================================================
+// Builds a DISPATCH_TASKMESH_GFX packet for ME & PFP engines, which consumes data produced by the CS shader and CS
+// dispatches that are launched by DISPATCH_TASKMESH_DIRECT_ACE or DISPATCH_TASKMESH_INDIRECT_MULTI_ACE packets by ACE.
+// The ME issues multiple sub-draws with the data fetched.
+template <bool IssueSqttMarkerEvent>
+size_t CmdUtil::BuildDispatchTaskMeshGfx(
+    uint32       tgDimOffset,  // First of 3 user-SGPRs where the thread group dimensions (x, y, z) are written.
+    uint32       ringEntryLoc, // User-SGPR offset for the ring entry value received for the draw.
+    Pm4Predicate predicate,    // Predication enable control.
+    void*        pBuffer)      // [out] Build the PM4 packet in this buffer.
+{
+    static_assert(PM4_ME_DISPATCH_TASKMESH_GFX_SIZEDW__GFX10COREPLUS ==
+                  PM4_PFP_DISPATCH_TASKMESH_GFX_SIZEDW__GFX10COREPLUS,
+                  "PFP, ME versions of PM4_ME_DISPATCH_TASKMESH_GFX are not the same!");
+
+    PAL_ASSERT(tgDimOffset  != UserDataNotMapped);
+    PAL_ASSERT(ringEntryLoc != UserDataNotMapped);
+
+    constexpr uint32 PacketSize = PM4_ME_DISPATCH_TASKMESH_GFX_SIZEDW__GFX10COREPLUS;
+    auto*const       pPacket    = static_cast<PM4_ME_DISPATCH_TASKMESH_GFX*>(pBuffer);
+
+    pPacket->ordinal1.header.u32All = Type3Header(IT_DISPATCH_TASKMESH_GFX__NV10,
+                                                  PacketSize,
+                                                  false,
+                                                  ShaderGraphics,
+                                                  predicate);
+
+    pPacket->ordinal2.u32All                                             = 0;
+    pPacket->ordinal2.bitfields.gfx10CorePlus.xyz_dim_loc                = tgDimOffset - PERSISTENT_SPACE_START;
+    pPacket->ordinal2.bitfields.gfx10CorePlus.ring_entry_loc             = ringEntryLoc - PERSISTENT_SPACE_START;
+    pPacket->ordinal3.u32All                                             = 0;
+    pPacket->ordinal3.bitfields.gfx10CorePlus.thread_trace_marker_enable = (IssueSqttMarkerEvent) ? 1 : 0;
+
+    regVGT_DRAW_INITIATOR drawInitiator = {};
+    drawInitiator.u32All                = 0;
+    drawInitiator.bits.SOURCE_SELECT    = DI_SRC_SEL_AUTO_INDEX;
+    drawInitiator.bits.MAJOR_MODE       = DI_MAJOR_MODE_0;
+    pPacket->ordinal4.draw_initiator    = drawInitiator.u32All;
+
+    return PacketSize;
+}
+
+template
+size_t CmdUtil::BuildDispatchTaskMeshGfx<true>(
+    uint32       tgDimOffset,
+    uint32       ringEntryLoc,
+    Pm4Predicate predicate,
+    void*        pBuffer);
+template
+size_t CmdUtil::BuildDispatchTaskMeshGfx<false>(
+    uint32       tgDimOffset,
+    uint32       ringEntryLoc,
+    Pm4Predicate predicate,
+    void*        pBuffer);
+
+// =====================================================================================================================
+// Builds a PM4_ME_DISPATCH_MESH_INDIRECT_MULTI packet for the PFP & ME engines.
+size_t CmdUtil::BuildDispatchMeshIndirectMulti(
+    gpusize      dataOffset,     // Byte offset of the indirect buffer.
+    uint32       xyzOffset,      // First of three consecutive user-SGPRs specifying the dimension.
+    uint32       drawIndexOffset,// Draw index user-SGPR offset.
+    uint32       count,          // Number of draw calls to loop through, or max draw calls if count is in GPU memory.
+    uint32       stride,         // Stride from one indirect args data structure to the next.
+    gpusize      countGpuAddr,   // GPU address containing the count.
+    Pm4Predicate predicate,      // Predication enable control.
+    void*        pBuffer)        // [out] Build the PM4 packet in this buffer.
+{
+    static_assert(PM4_ME_DISPATCH_MESH_INDIRECT_MULTI_SIZEDW__GFX10COREPLUS ==
+                  PM4_PFP_DISPATCH_MESH_INDIRECT_MULTI_SIZEDW__GFX10COREPLUS,
+                  "PFP, ME versions of PM4_ME_DISPATCH_MESH_INDIRECT_MULTI are not the same!");
+
+    // Draw argument offset in the buffer has to be 4-byte aligned.
+    PAL_ASSERT(IsPow2Aligned(dataOffset, 4));
+    // The count address must be Dword aligned.
+    PAL_ASSERT(IsPow2Aligned(countGpuAddr, 4));
+
+    constexpr uint32 PacketSize = PM4_ME_DISPATCH_MESH_INDIRECT_MULTI_SIZEDW__GFX10COREPLUS;
+    auto*const       pPacket    = static_cast<PM4_ME_DISPATCH_MESH_INDIRECT_MULTI*>(pBuffer);
+
+    pPacket->ordinal1.header.u32All = Type3Header(IT_DISPATCH_MESH_INDIRECT_MULTI__NV10,
+                                         PacketSize,
+                                         false,
+                                         ShaderGraphics,
+                                         predicate);
+
+    pPacket->ordinal2.data_offset                         = LowPart(dataOffset);
+    pPacket->ordinal3.u32All                              = 0;
+    pPacket->ordinal3.bitfields.gfx10CorePlus.xyz_dim_loc = xyzOffset - PERSISTENT_SPACE_START;
+
+    if (drawIndexOffset != UserDataNotMapped)
+    {
+        pPacket->ordinal3.bitfields.gfx10CorePlus.draw_index_loc    = drawIndexOffset - PERSISTENT_SPACE_START;
+        pPacket->ordinal4.u32All                                    = 0;
+        pPacket->ordinal4.bitfields.gfx10CorePlus.draw_index_enable = 1;
+    }
+
+    if (countGpuAddr != 0)
+    {
+        pPacket->ordinal4.bitfields.gfx10CorePlus.count_indirect_enable = 1;
+        pPacket->ordinal6.u32All                                        = LowPart(countGpuAddr);
+        PAL_ASSERT(pPacket->ordinal6.bitfields.gfx10CorePlus.reserved1 == 0);
+
+        pPacket->ordinal7.count_addr_hi = HighPart(countGpuAddr);
+    }
+    else
+    {
+        pPacket->ordinal7.count_addr_hi = 0;
+    }
+
+    pPacket->ordinal5.count  = count;
+    pPacket->ordinal8.stride = stride;
+
+    regVGT_DRAW_INITIATOR drawInitiator = {};
+    drawInitiator.bits.SOURCE_SELECT    = DI_SRC_SEL_AUTO_INDEX;
+    drawInitiator.bits.MAJOR_MODE       = DI_MAJOR_MODE_0;
+    pPacket->ordinal9.draw_initiator    = drawInitiator.u32All;
+
+    return PacketSize;
+}
+
+// =====================================================================================================================
+// Builds a PM4_ME_DISPATCH_MESH_INDIRECT_MULTI_ACE packet for the compute engine.
+size_t CmdUtil::BuildDispatchTaskMeshIndirectMultiAce(
+    gpusize      dataOffset,       // Byte offset of the indirect buffer.
+    uint32       ringEntryLoc,     // Offset of user-SGPR where the CP writes the ring entry WPTR.
+    uint32       xyzDimLoc,        // First of three consecutive user-SGPR for the compute dispatch dimensions.
+    uint32       dispatchIndexLoc, // User-SGPR offset where the dispatch index is written.
+    uint32       count,            // Number of draw calls to loop through, or max draw calls if count is in GPU memory.
+    uint32       stride,           // Stride from one indirect args data structure to the next.
+    gpusize      countGpuAddr,     // GPU address containing the count.
+    bool         isWave32,         // Meaningful for GFX10 only, set if wave-size is 32 for bound compute shader.
+    Pm4Predicate predicate,        // Predication enable control.
+    void*        pBuffer)          // [out] Build the PM4 packet in this buffer.
+{
+    // Draw argument offset in the buffer has to be 4-byte aligned.
+    PAL_ASSERT(IsPow2Aligned(dataOffset, 4));
+    // The count address must be Dword aligned.
+    PAL_ASSERT(IsPow2Aligned(countGpuAddr, 4));
+
+    constexpr uint32 PacketSize = CmdUtil::DispatchTaskMeshIndirectMecSize;
+    auto*const       pPacket    = static_cast<PM4_MEC_DISPATCH_TASKMESH_INDIRECT_MULTI_ACE*>(pBuffer);
+
+    pPacket->ordinal1.header.u32All = Type3Header(IT_DISPATCH_TASKMESH_INDIRECT_MULTI_ACE__NV10,
+                                         PacketSize,
+                                         false,
+                                         ShaderCompute,
+                                         predicate);
+
+    pPacket->ordinal2.u32All = LowPart(dataOffset);
+    PAL_ASSERT(pPacket->ordinal2.bitfields.gfx10CorePlus.reserved1 == 0);
+
+    pPacket->ordinal3.data_addr_hi                           = HighPart(dataOffset);
+    pPacket->ordinal4.u32All                                 = 0;
+    pPacket->ordinal4.bitfields.gfx10CorePlus.ring_entry_loc = ringEntryLoc - PERSISTENT_SPACE_START;
+
+    pPacket->ordinal5.u32All = 0;
+    pPacket->ordinal6.u32All = 0;
+    pPacket->ordinal8.u32All = 0;
+
+    if (dispatchIndexLoc != UserDataNotMapped)
+    {
+        pPacket->ordinal5.bitfields.gfx10CorePlus.dispatch_index_loc = dispatchIndexLoc - PERSISTENT_SPACE_START;
+        pPacket->ordinal5.bitfields.gfx10CorePlus.draw_index_enable  = 1;
+    }
+
+    if (xyzDimLoc != UserDataNotMapped)
+    {
+        pPacket->ordinal5.bitfields.gfx10CorePlus.compute_xyz_dim_enable = 1;
+        pPacket->ordinal6.bitfields.gfx10CorePlus.compute_xyz_dim_loc    = xyzDimLoc - PERSISTENT_SPACE_START;
+    }
+
+    if (countGpuAddr != 0)
+    {
+        pPacket->ordinal5.bitfields.gfx10CorePlus.count_indirect_enable = 1;
+        pPacket->ordinal8.u32All                                        = LowPart(countGpuAddr);
+        PAL_ASSERT(pPacket->ordinal6.bitfields.gfx10CorePlus.reserved1 == 0);
+
+        pPacket->ordinal9.count_addr_hi = HighPart(countGpuAddr);
+    }
+    else
+    {
+        pPacket->ordinal9.count_addr_hi = 0;
+    }
+
+    pPacket->ordinal7.count   = count;
+    pPacket->ordinal10.stride = stride;
+
+    regCOMPUTE_DISPATCH_INITIATOR  dispatchInitiator = {};
+    dispatchInitiator.bits.COMPUTE_SHADER_EN         = 1;
+    dispatchInitiator.bits.FORCE_START_AT_000        = 0;
+    dispatchInitiator.bits.ORDER_MODE                = 1;
+    dispatchInitiator.gfx10Plus.CS_W32_EN            = isWave32;
+    dispatchInitiator.u32All                        |= ComputeDispatchInitiatorDisablePartialPreemptMask;
+    pPacket->ordinal11.dispatch_initiator            = dispatchInitiator.u32All;
+
+    return PacketSize;
+}
+
+// =====================================================================================================================
+// Builds a PM4_MEC_DISPATCH_TASKMESH_DIRECT_ACE packet for the compute engine, which directly starts the task/mesh
+// workload.
+size_t CmdUtil::BuildDispatchTaskMeshDirectAce(
+    uint32          xDim,         // Thread groups (or threads) to launch (X dimension).
+    uint32          yDim,         // Thread groups (or threads) to launch (Y dimension).
+    uint32          zDim,         // Thread groups (or threads) to launch (Z dimension).
+    uint32          ringEntryLoc, // User data offset where CP writes the payload WPTR.
+    Pm4Predicate    predicate,    // Predication enable control. Must be PredDisable on the Compute Engine.
+    bool            isWave32,     // Meaningful for GFX10 only, set if wave-size is 32 for bound compute shader
+    void*           pBuffer)       // [out] Build the PM4 packet in this buffer.
+{
+    constexpr uint32 PacketSize = CmdUtil::DispatchTaskMeshDirectMecSize;
+    auto*const       pPacket    = static_cast<PM4_MEC_DISPATCH_TASKMESH_DIRECT_ACE*>(pBuffer);
+
+    pPacket->ordinal1.header.u32All = Type3Header(IT_DISPATCH_TASKMESH_DIRECT_ACE__NV10,
+                                                  PacketSize,
+                                                  false,
+                                                  ShaderCompute,
+                                                  predicate);
+
+    pPacket->ordinal2.x_dim                                  = xDim;
+    pPacket->ordinal3.y_dim                                  = yDim;
+    pPacket->ordinal4.z_dim                                  = zDim;
+    pPacket->ordinal6.u32All                                 = 0;
+    pPacket->ordinal6.bitfields.gfx10CorePlus.ring_entry_loc = ringEntryLoc - PERSISTENT_SPACE_START;
+
+    regCOMPUTE_DISPATCH_INITIATOR  dispatchInitiator = {};
+    dispatchInitiator.bits.COMPUTE_SHADER_EN         = 1;
+    dispatchInitiator.bits.FORCE_START_AT_000        = 0;
+    dispatchInitiator.bits.ORDER_MODE                = 1;
+    dispatchInitiator.gfx10Plus.CS_W32_EN            = isWave32;
+    dispatchInitiator.u32All                        |= ComputeDispatchInitiatorDisablePartialPreemptMask;
+    pPacket->ordinal5.dispatch_initiator             = dispatchInitiator.u32All;
+
+    return PacketSize;
+}
+
+// =====================================================================================================================
 // Constructs a DMA_DATA packet for any engine (PFP, ME, MEC).  Copies data from the source (can be immediate 32-bit
 // data or a memory location) to a destination (either memory or a register).
 size_t CmdUtil::BuildDmaData(
@@ -1797,10 +2067,11 @@ size_t CmdUtil::BuildNonSampleEventWrite(
 // Build an EVENT_WRITE packet.  Not to be used for any EOP or EOS type events.  Return the number of DWORDs taken up
 // by this packet.
 size_t CmdUtil::BuildSampleEventWrite(
-    VGT_EVENT_TYPE  vgtEvent,
-    EngineType      engineType,
-    gpusize         gpuAddr,
-    void*           pBuffer)    // [out] Build the PM4 packet in this buffer.
+    VGT_EVENT_TYPE                  vgtEvent,
+    ME_EVENT_WRITE_event_index_enum eventIndex,
+    EngineType                      engineType,
+    gpusize                         gpuAddr,
+    void*                           pBuffer) // [out] Build the PM4 packet in this buffer.
 {
     // Verify the event index enumerations match between the ME and MEC engines.  Note that ME (gfx) has more
     // events than MEC does.  We assert below if this packet is meant for compute and a gfx-only index is selected.
@@ -1827,13 +2098,13 @@ size_t CmdUtil::BuildSampleEventWrite(
                (vgtEvent == ZPASS_DONE__GFX09_10));
 
     PAL_ASSERT(
-        (VgtEventIndex[vgtEvent] == event_index__me_event_write__zpass_pixel_pipe_stat_control_or_dump__GFX09_10) ||
-        (VgtEventIndex[vgtEvent] == event_index__me_event_write__sample_pipelinestat)                             ||
+        (VgtEventIndex[vgtEvent] == event_index__me_event_write__pixel_pipe_stat_control_or_dump) ||
+        (VgtEventIndex[vgtEvent] == event_index__me_event_write__sample_pipelinestat)             ||
         (VgtEventIndex[vgtEvent] == event_index__me_event_write__sample_streamoutstats__GFX09_10));
 
     // Event-write packets destined for the compute queue can only use some events.
     PAL_ASSERT((engineType != EngineTypeCompute) ||
-               (static_cast<uint32>(VgtEventIndex[vgtEvent]) ==
+               (static_cast<uint32>(eventIndex) ==
                 static_cast<uint32>(event_index__mec_event_write__sample_pipelinestat)));
 
     constexpr uint32 PacketSize = PM4_ME_EVENT_WRITE_SIZEDW__CORE;
@@ -1842,7 +2113,7 @@ size_t CmdUtil::BuildSampleEventWrite(
     pPacket->ordinal1.header.u32All         = Type3Header(IT_EVENT_WRITE, PacketSize);
     pPacket->ordinal2.u32All                = 0;
     pPacket->ordinal2.bitfields.event_type  = vgtEvent;
-    pPacket->ordinal2.bitfields.event_index = VgtEventIndex[vgtEvent];
+    pPacket->ordinal2.bitfields.event_index = eventIndex;
     pPacket->ordinal3.u32All                = LowPart(gpuAddr);
     PAL_ASSERT(pPacket->ordinal3.bitfieldsA.reserved1 == 0);
     pPacket->ordinal4.address_hi            = HighPart(gpuAddr);
@@ -2669,17 +2940,17 @@ size_t CmdUtil::BuildPreambleCntl(
     ME_PREAMBLE_CNTL_command_enum command,
     void*                         pBuffer)     // [out] Build the PM4 packet in this buffer.
 {
-    PAL_ASSERT((command == command__me_preamble_cntl__preamble_begin)                      ||
-               (command == command__me_preamble_cntl__preamble_end)                        ||
-               (command == command__me_preamble_cntl__begin_of_clear_state_initialization) ||
-               (command == command__me_preamble_cntl__end_of_clear_state_initialization));
+    PAL_ASSERT((command == command__me_preamble_cntl__preamble_begin__HASCLEARSTATE)                      ||
+               (command == command__me_preamble_cntl__preamble_end__HASCLEARSTATE)                        ||
+               (command == command__me_preamble_cntl__begin_of_clear_state_initialization__HASCLEARSTATE) ||
+               (command == command__me_preamble_cntl__end_of_clear_state_initialization__HASCLEARSTATE));
 
-    constexpr size_t PacketSize = PM4_ME_PREAMBLE_CNTL_SIZEDW__CORE;
+    constexpr size_t PacketSize = PM4_ME_PREAMBLE_CNTL_SIZEDW__HASCLEARSTATE;
     auto*const       pPacket    = static_cast<PM4_ME_PREAMBLE_CNTL*>(pBuffer);
 
     pPacket->ordinal1.header.u32All      = Type3Header(IT_PREAMBLE_CNTL, PacketSize);
     pPacket->ordinal2.u32All           = 0;
-    pPacket->ordinal2.bitfields.command = command;
+    pPacket->ordinal2.bitfields.hasClearState.command = command;
 
     return PacketSize;
 }
@@ -2794,9 +3065,10 @@ size_t CmdUtil::BuildReleaseMem(
         PAL_ASSERT(dummyMemory.IsBound());
 
         totalSize += BuildSampleEventWrite(ZPASS_DONE__GFX09_10,
-                                           releaseMemInfo.engineType,
-                                           dummyMemory.GpuVirtAddr(),
-                                           VoidPtrInc(pBuffer, sizeof(uint32) * totalSize));
+                            event_index__me_event_write__pixel_pipe_stat_control_or_dump,
+                            releaseMemInfo.engineType,
+                            dummyMemory.GpuVirtAddr(),
+                            VoidPtrInc(pBuffer, sizeof(uint32) * totalSize));
     }
 
     // Translate ReleaseMemInfo to a new ReleaseMemInfo type that's more universal.
@@ -3313,23 +3585,37 @@ size_t CmdUtil::BuildSetPredication(
         (static_cast<PFP_SET_PREDICATION_pred_op_enum>(PredicateType::PrimCount) ==
                 pred_op__pfp_set_predication__set_primcount_predicate) &&
         (static_cast<PFP_SET_PREDICATION_pred_op_enum>(PredicateType::Boolean64)   ==
-                pred_op__pfp_set_predication__DX12),
+                pred_op__pfp_set_predication__DX12) &&
+        (static_cast<PFP_SET_PREDICATION_pred_op_enum>(PredicateType::Boolean32) ==
+                pred_op__pfp_set_predication__Vulkan),
         "Unexpected values for the PredicateType enum.");
 
     constexpr uint32 PacketSize = PM4_PFP_SET_PREDICATION_SIZEDW__CORE;
     auto*const       pPacket    = static_cast<PM4_PFP_SET_PREDICATION*>(pBuffer);
 
-    // The predication memory address must be 16-byte aligned, and cannot be wider than 40 bits.
-    PAL_ASSERT(((gpuVirtAddr & 0xF) == 0) && (gpuVirtAddr <= ((1uLL << 40) - 1)));
+    // The predication memory address cannot be wider than 40 bits.
+    PAL_ASSERT(gpuVirtAddr <= ((1uLL << 40) - 1));
+
+    // Verify the address meets the CP's alignment requirement for the predicate type.
+    if (predType == PredicateType::Boolean32)
+    {
+        PAL_ASSERT(IsPow2Aligned(gpuVirtAddr, 4));
+    }
+    else if (predType == PredicateType::Boolean64)
+    {
+        PAL_ASSERT(IsPow2Aligned(gpuVirtAddr, 8));
+    }
+    else
+    {
+        PAL_ASSERT(IsPow2Aligned(gpuVirtAddr, 16));
+    }
+
     // The predicate type has to be valid.
-    PAL_ASSERT(predType < PredicateType::Boolean32);
+    PAL_ASSERT(predType <= PredicateType::Boolean32);
 
     pPacket->ordinal1.header.u32All = Type3Header(IT_SET_PREDICATION, PacketSize);
     pPacket->ordinal3.u32All        = LowPart(gpuVirtAddr);
     pPacket->ordinal4.start_addr_hi = (HighPart(gpuVirtAddr) & 0xFF);
-
-    // Verify that the address is properly aligned
-    PAL_ASSERT(pPacket->ordinal3.bitfields.reserved1 == 0);
 
     const bool continueSupported = (predType == PredicateType::Zpass) || (predType == PredicateType::PrimCount);
     PAL_ASSERT(continueSupported || (continuePredicate == false));
@@ -3420,7 +3706,7 @@ size_t CmdUtil::BuildStrmoutBufferUpdate(
             pPacket->ordinal2.bitfields.update_memory =
                 update_memory__pfp_strmout_buffer_update__update_memory_at_dst_address;
             pPacket->ordinal3.u32All                  = LowPart(dstGpuVirtAddr);
-            PAL_ASSERT(pPacket->ordinal3.bitfields.gfx09_10.reserved1 == 0);
+            PAL_ASSERT(pPacket->ordinal3.bitfields.hasCe.reserved1 == 0);
             pPacket->ordinal4.dst_address_hi          = HighPart(dstGpuVirtAddr);
             pPacket->ordinal2.bitfields.data_type     = DataType;
             break;

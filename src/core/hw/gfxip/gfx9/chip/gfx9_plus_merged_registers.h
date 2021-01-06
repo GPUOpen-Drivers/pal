@@ -41659,14 +41659,17 @@ union VGT_GS_ONCHIP_CNTL {
 union VGT_GS_OUT_PRIM_TYPE {
     struct {
         unsigned int OUTPRIM_TYPE                                                 :  6;
-        unsigned int                                                              :  2;
+        unsigned int                                                              : 26;
+    } bits, bitfields;
+    struct {
+        unsigned int                                                              :  8;
         unsigned int OUTPRIM_TYPE_1                                               :  6;
         unsigned int                                                              :  2;
         unsigned int OUTPRIM_TYPE_2                                               :  6;
         unsigned int OUTPRIM_TYPE_3                                               :  6;
         unsigned int                                                              :  3;
         unsigned int UNIQUE_TYPE_PER_STREAM                                       :  1;
-    } bits, bitfields;
+    } most;
 
     unsigned int u32All;
     signed int   i32All;
@@ -42289,7 +42292,7 @@ union VGT_STRMOUT_BUFFER_CONFIG {
         unsigned int STREAM_2_BUFFER_EN                                           :  4;
         unsigned int STREAM_3_BUFFER_EN                                           :  4;
         unsigned int                                                              : 16;
-    } bits, bitfields;
+    } most;
 
     unsigned int u32All;
     signed int   i32All;
@@ -42299,7 +42302,7 @@ union VGT_STRMOUT_BUFFER_CONFIG {
 union VGT_STRMOUT_BUFFER_FILLED_SIZE_0 {
     struct {
         unsigned int SIZE                                                         : 32;
-    } bits, bitfields;
+    } most;
 
     unsigned int u32All;
     signed int   i32All;
@@ -42309,7 +42312,7 @@ union VGT_STRMOUT_BUFFER_FILLED_SIZE_0 {
 union VGT_STRMOUT_BUFFER_FILLED_SIZE_1 {
     struct {
         unsigned int SIZE                                                         : 32;
-    } bits, bitfields;
+    } most;
 
     unsigned int u32All;
     signed int   i32All;
@@ -42319,7 +42322,7 @@ union VGT_STRMOUT_BUFFER_FILLED_SIZE_1 {
 union VGT_STRMOUT_BUFFER_FILLED_SIZE_2 {
     struct {
         unsigned int SIZE                                                         : 32;
-    } bits, bitfields;
+    } most;
 
     unsigned int u32All;
     signed int   i32All;
@@ -42329,7 +42332,7 @@ union VGT_STRMOUT_BUFFER_FILLED_SIZE_2 {
 union VGT_STRMOUT_BUFFER_FILLED_SIZE_3 {
     struct {
         unsigned int SIZE                                                         : 32;
-    } bits, bitfields;
+    } most;
 
     unsigned int u32All;
     signed int   i32All;
@@ -42339,7 +42342,7 @@ union VGT_STRMOUT_BUFFER_FILLED_SIZE_3 {
 union VGT_STRMOUT_BUFFER_OFFSET_0 {
     struct {
         unsigned int OFFSET                                                       : 32;
-    } bits, bitfields;
+    } most;
 
     unsigned int u32All;
     signed int   i32All;
@@ -42349,7 +42352,7 @@ union VGT_STRMOUT_BUFFER_OFFSET_0 {
 union VGT_STRMOUT_BUFFER_OFFSET_1 {
     struct {
         unsigned int OFFSET                                                       : 32;
-    } bits, bitfields;
+    } most;
 
     unsigned int u32All;
     signed int   i32All;
@@ -42359,7 +42362,7 @@ union VGT_STRMOUT_BUFFER_OFFSET_1 {
 union VGT_STRMOUT_BUFFER_OFFSET_2 {
     struct {
         unsigned int OFFSET                                                       : 32;
-    } bits, bitfields;
+    } most;
 
     unsigned int u32All;
     signed int   i32All;
@@ -42369,7 +42372,7 @@ union VGT_STRMOUT_BUFFER_OFFSET_2 {
 union VGT_STRMOUT_BUFFER_OFFSET_3 {
     struct {
         unsigned int OFFSET                                                       : 32;
-    } bits, bitfields;
+    } most;
 
     unsigned int u32All;
     signed int   i32All;
@@ -42379,7 +42382,7 @@ union VGT_STRMOUT_BUFFER_OFFSET_3 {
 union VGT_STRMOUT_BUFFER_SIZE_0 {
     struct {
         unsigned int SIZE                                                         : 32;
-    } bits, bitfields;
+    } most;
 
     unsigned int u32All;
     signed int   i32All;
@@ -42389,7 +42392,7 @@ union VGT_STRMOUT_BUFFER_SIZE_0 {
 union VGT_STRMOUT_BUFFER_SIZE_1 {
     struct {
         unsigned int SIZE                                                         : 32;
-    } bits, bitfields;
+    } most;
 
     unsigned int u32All;
     signed int   i32All;
@@ -42399,7 +42402,7 @@ union VGT_STRMOUT_BUFFER_SIZE_1 {
 union VGT_STRMOUT_BUFFER_SIZE_2 {
     struct {
         unsigned int SIZE                                                         : 32;
-    } bits, bitfields;
+    } most;
 
     unsigned int u32All;
     signed int   i32All;
@@ -42409,7 +42412,7 @@ union VGT_STRMOUT_BUFFER_SIZE_2 {
 union VGT_STRMOUT_BUFFER_SIZE_3 {
     struct {
         unsigned int SIZE                                                         : 32;
-    } bits, bitfields;
+    } most;
 
     unsigned int u32All;
     signed int   i32All;
@@ -42427,7 +42430,7 @@ union VGT_STRMOUT_CONFIG {
         unsigned int RAST_STREAM_MASK                                             :  4;
         unsigned int                                                              : 19;
         unsigned int USE_RAST_STREAM_MASK                                         :  1;
-    } bits, bitfields;
+    } most;
 
     unsigned int u32All;
     signed int   i32All;
@@ -42484,7 +42487,7 @@ union VGT_STRMOUT_VTX_STRIDE_0 {
     struct {
         unsigned int STRIDE                                                       : 10;
         unsigned int                                                              : 22;
-    } bits, bitfields;
+    } most;
 
     unsigned int u32All;
     signed int   i32All;
@@ -42495,7 +42498,7 @@ union VGT_STRMOUT_VTX_STRIDE_1 {
     struct {
         unsigned int STRIDE                                                       : 10;
         unsigned int                                                              : 22;
-    } bits, bitfields;
+    } most;
 
     unsigned int u32All;
     signed int   i32All;
@@ -42506,7 +42509,7 @@ union VGT_STRMOUT_VTX_STRIDE_2 {
     struct {
         unsigned int STRIDE                                                       : 10;
         unsigned int                                                              : 22;
-    } bits, bitfields;
+    } most;
 
     unsigned int u32All;
     signed int   i32All;
@@ -42517,7 +42520,7 @@ union VGT_STRMOUT_VTX_STRIDE_3 {
     struct {
         unsigned int STRIDE                                                       : 10;
         unsigned int                                                              : 22;
-    } bits, bitfields;
+    } most;
 
     unsigned int u32All;
     signed int   i32All;

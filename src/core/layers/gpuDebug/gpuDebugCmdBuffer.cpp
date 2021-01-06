@@ -31,11 +31,13 @@
 #include "core/layers/gpuDebug/gpuDebugDevice.h"
 #include "core/layers/gpuDebug/gpuDebugImage.h"
 #include "core/layers/gpuDebug/gpuDebugPipeline.h"
-#include "core/layers/gpuDebug/gpuDebugPlatform.h"
 #include "core/layers/gpuDebug/gpuDebugQueue.h"
 #include "core/g_palPlatformSettings.h"
 #include "palAutoBuffer.h"
 #include "palFormatInfo.h"
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
+#include "palVectorImpl.h"
+#endif
 #include <cinttypes>
 
 // This is required because we need the definition of the D3D12DDI_PRESENT_0003 struct in order to make a copy of the
@@ -75,6 +77,11 @@ CmdBuffer::CmdBuffer(
     m_tokenReadOffset(0),
     m_tokenStreamResult(Result::Success),
     m_pLastTgtCmdBuffer(nullptr)
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
+    ,
+    m_numReleaseTokens(0),
+    m_releaseTokenList(static_cast<Platform*>(m_pDevice->GetPlatform()))
+#endif
 {
     m_funcTable.pfnCmdSetUserData[static_cast<uint32>(PipelineBindPoint::Compute)]  = &CmdBuffer::CmdSetUserDataCs;
     m_funcTable.pfnCmdSetUserData[static_cast<uint32>(PipelineBindPoint::Graphics)] = &CmdBuffer::CmdSetUserDataGfx;
@@ -87,6 +94,8 @@ CmdBuffer::CmdBuffer(
     m_funcTable.pfnCmdDispatch                  = CmdDispatch;
     m_funcTable.pfnCmdDispatchIndirect          = CmdDispatchIndirect;
     m_funcTable.pfnCmdDispatchOffset            = CmdDispatchOffset;
+    m_funcTable.pfnCmdDispatchMesh              = CmdDispatchMesh;
+    m_funcTable.pfnCmdDispatchMeshIndirectMulti = CmdDispatchMeshIndirectMulti;
 }
 
 // =====================================================================================================================
@@ -217,7 +226,7 @@ void CmdBuffer::AddTimestamp(
     gpusize     timestampAddr,
     uint32*     pCounter)
 {
-    (*pCounter++);
+    (*pCounter)++;
 
     if (m_supportsComments)
     {
@@ -291,6 +300,10 @@ Result CmdBuffer::Reset(
     m_pBoundBlendState  = nullptr;
     memset(&m_boundTargets, 0, sizeof(m_boundTargets));
     memset(&m_buildInfo, 0, sizeof(m_buildInfo));
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
+    m_releaseTokenList.Clear();
+    m_numReleaseTokens = 0;
+#endif
     return GetNextLayer()->Reset(NextCmdAllocator(pCmdAllocator), returnGpuMemory);
 }
 
@@ -432,6 +445,10 @@ void CmdBuffer::ReplayEnd(
     Queue*            pQueue,
     TargetCmdBuffer*  pTgtCmdBuffer)
 {
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
+    PAL_ASSERT(m_numReleaseTokens == m_releaseTokenList.NumElements());
+#endif
+
     Result result = pTgtCmdBuffer->End();
     pTgtCmdBuffer->SetLastResult(result);
 }
@@ -977,9 +994,14 @@ void CmdBuffer::ReplayCmdBarrier(
 }
 
 // =====================================================================================================================
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
+uint32 CmdBuffer::CmdRelease(
+    const AcquireReleaseInfo& releaseInfo)
+#else
 void CmdBuffer::CmdRelease(
     const AcquireReleaseInfo& releaseInfo,
     const IGpuEvent*          pGpuEvent)
+#endif
 {
     HandleBarrierBlt(true, true);
 
@@ -992,9 +1014,18 @@ void CmdBuffer::CmdRelease(
     InsertTokenArray(releaseInfo.pImageBarriers, releaseInfo.imageBarrierCount);
     InsertToken(releaseInfo.reason);
 
-    InsertToken(pGpuEvent);
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
+    const uint32 releaseIdx = m_numReleaseTokens++;
+    InsertToken(releaseIdx);
+#endif
 
     HandleBarrierBlt(true, false);
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
+    // If this layer is enabled, the return value from the layer is a release index generated and managed by this layer.
+    // The layer maintains an array of release tokens, and uses release index to retrieve token value from the array.
+    return releaseIdx;
+#endif
 }
 
 // =====================================================================================================================
@@ -1012,15 +1043,28 @@ void CmdBuffer::ReplayCmdRelease(
     releaseInfo.imageBarrierCount   = ReadTokenArray(&releaseInfo.pImageBarriers);
     releaseInfo.reason              = ReadTokenVal<uint32>();
 
-    auto pGpuEvent = ReadTokenVal<IGpuEvent*>();
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
+    const uint32 releaseIdx         = ReadTokenVal<uint32>();
+    PAL_ASSERT(releaseIdx == m_releaseTokenList.NumElements());
+
+    const uint32 releaseToken = pTgtCmdBuffer->CmdRelease(releaseInfo);
+    m_releaseTokenList.PushBack(releaseToken);
+#else
+    auto pGpuEvent                  = ReadTokenVal<IGpuEvent*>();
     pTgtCmdBuffer->CmdRelease(releaseInfo, pGpuEvent);
+#endif
 }
 
 // =====================================================================================================================
 void CmdBuffer::CmdAcquire(
     const AcquireReleaseInfo& acquireInfo,
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
+    uint32                    syncTokenCount,
+    const uint32*             pSyncTokens)
+#else
     uint32                    gpuEventCount,
     const IGpuEvent*const*    ppGpuEvents)
+#endif
 {
     HandleBarrierBlt(true, true);
 
@@ -1033,7 +1077,11 @@ void CmdBuffer::CmdAcquire(
     InsertTokenArray(acquireInfo.pImageBarriers, acquireInfo.imageBarrierCount);
     InsertToken(acquireInfo.reason);
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
+    InsertTokenArray(pSyncTokens, syncTokenCount);
+#else
     InsertTokenArray(ppGpuEvents, gpuEventCount);
+#endif
 
     HandleBarrierBlt(true, false);
 }
@@ -1053,10 +1101,27 @@ void CmdBuffer::ReplayCmdAcquire(
     acquireInfo.imageBarrierCount   = ReadTokenArray(&acquireInfo.pImageBarriers);
     acquireInfo.reason              = ReadTokenVal<uint32>();
 
-    IGpuEvent** ppGpuEvents   = nullptr;
-    uint32      gpuEventCount = ReadTokenArray(&ppGpuEvents);
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
+    // The release tokens this layer's CmdAcquire receives are internal release token indices. They need to be
+    // translated to the real release token values.
+    const uint32* pReleaseIndices = nullptr;
+    const uint32  syncTokenCount    = ReadTokenArray(&pReleaseIndices);
+
+    auto*const pPlatform = static_cast<Platform*>(m_pDevice->GetPlatform());
+    AutoBuffer<uint32, 1, Platform> releaseTokens(syncTokenCount, pPlatform);
+
+    for (uint32 i = 0; i < syncTokenCount; i++)
+    {
+        releaseTokens[i] = m_releaseTokenList.At(pReleaseIndices[i]);
+    }
+
+    pTgtCmdBuffer->CmdAcquire(acquireInfo, syncTokenCount, &releaseTokens[0]);
+#else
+    IGpuEvent** ppGpuEvents         = nullptr;
+    uint32      gpuEventCount       = ReadTokenArray(&ppGpuEvents);
 
     pTgtCmdBuffer->CmdAcquire(acquireInfo, gpuEventCount, ppGpuEvents);
+#endif
 }
 
 // =====================================================================================================================
@@ -1653,6 +1718,72 @@ void CmdBuffer::ReplayCmdDispatchOffset(
     auto yDim    = ReadTokenVal<uint32>();
     auto zDim    = ReadTokenVal<uint32>();
     pTgtCmdBuffer->CmdDispatchOffset(xOffset, yOffset, zOffset, xDim, yDim, zDim);
+}
+
+// =====================================================================================================================
+void CmdBuffer::CmdDispatchMesh(
+    ICmdBuffer* pCmdBuffer,
+    uint32      xDim,
+    uint32      yDim,
+    uint32      zDim)
+{
+    CmdBuffer* pThis = static_cast<CmdBuffer*>(pCmdBuffer);
+
+    pThis->HandleDrawDispatch(Developer::DrawDispatchType::CmdDispatchMesh, true);
+
+    pThis->InsertToken(CmdBufCallId::CmdDispatchMesh);
+    pThis->InsertToken(xDim);
+    pThis->InsertToken(yDim);
+    pThis->InsertToken(zDim);
+
+    pThis->HandleDrawDispatch(Developer::DrawDispatchType::CmdDispatchMesh, false);
+}
+
+// =====================================================================================================================
+void CmdBuffer::ReplayCmdDispatchMesh(
+    Queue*           pQueue,
+    TargetCmdBuffer* pTgtCmdBuffer)
+{
+    auto x = ReadTokenVal<uint32>();
+    auto y = ReadTokenVal<uint32>();
+    auto z = ReadTokenVal<uint32>();
+    pTgtCmdBuffer->CmdDispatchMesh(x, y, z);
+}
+
+// =====================================================================================================================
+void CmdBuffer::CmdDispatchMeshIndirectMulti(
+    ICmdBuffer*       pCmdBuffer,
+    const IGpuMemory& gpuMemory,
+    gpusize           offset,
+    uint32            stride,
+    uint32            maximumCount,
+    gpusize           countGpuAddr)
+{
+    CmdBuffer* pThis = static_cast<CmdBuffer*>(pCmdBuffer);
+
+    pThis->HandleDrawDispatch(Developer::DrawDispatchType::CmdDispatchMeshIndirectMulti, true);
+
+    pThis->InsertToken(CmdBufCallId::CmdDispatchMeshIndirectMulti);
+    pThis->InsertToken(&gpuMemory);
+    pThis->InsertToken(offset);
+    pThis->InsertToken(stride);
+    pThis->InsertToken(maximumCount);
+    pThis->InsertToken(countGpuAddr);
+
+    pThis->HandleDrawDispatch(Developer::DrawDispatchType::CmdDispatchMeshIndirectMulti, false);
+}
+
+// =====================================================================================================================
+void CmdBuffer::ReplayCmdDispatchMeshIndirectMulti(
+    Queue*           pQueue,
+    TargetCmdBuffer* pTgtCmdBuffer)
+{
+    auto pGpuMemory      = ReadTokenVal<IGpuMemory*>();
+    auto offset          = ReadTokenVal<gpusize>();
+    uint32  stride       = ReadTokenVal<uint32>();
+    uint32  maximumCount = ReadTokenVal<uint32>();
+    gpusize countGpuAddr = ReadTokenVal<gpusize>();
+    pTgtCmdBuffer->CmdDispatchMeshIndirectMulti(*pGpuMemory, offset, stride, maximumCount, countGpuAddr);
 }
 
 // =====================================================================================================================
@@ -3641,6 +3772,8 @@ Result CmdBuffer::Replay(
         &CmdBuffer::ReplayCmdDispatch,
         &CmdBuffer::ReplayCmdDispatchIndirect,
         &CmdBuffer::ReplayCmdDispatchOffset,
+        &CmdBuffer::ReplayCmdDispatchMesh,
+        &CmdBuffer::ReplayCmdDispatchMeshIndirectMulti,
         &CmdBuffer::ReplayCmdUpdateMemory,
         &CmdBuffer::ReplayCmdUpdateBusAddressableMemoryMarker,
         &CmdBuffer::ReplayCmdFillMemory,

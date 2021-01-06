@@ -74,7 +74,7 @@ const RegisterRange Gfx103ContextShadowRange[] =
     },
     {
         (Gfx09_10::mmVGT_GS_MODE - CONTEXT_SPACE_START),
-        (mmVGT_GS_OUT_PRIM_TYPE - Gfx09_10::mmVGT_GS_MODE + 1),
+        (Gfx09_10::mmVGT_GS_OUT_PRIM_TYPE - Gfx09_10::mmVGT_GS_MODE + 1),
     },
     {
         (mmVGT_PRIMITIVEID_EN - CONTEXT_SPACE_START),
@@ -86,7 +86,7 @@ const RegisterRange Gfx103ContextShadowRange[] =
     },
     {
         (mmVGT_DRAW_PAYLOAD_CNTL - CONTEXT_SPACE_START),
-        (mmVGT_STRMOUT_BUFFER_CONFIG - mmVGT_DRAW_PAYLOAD_CNTL + 1),
+        (Gfx09_10::mmVGT_STRMOUT_BUFFER_CONFIG - mmVGT_DRAW_PAYLOAD_CNTL + 1),
     },
     {
         (mmPA_SC_CENTROID_PRIORITY_0 - CONTEXT_SPACE_START),
@@ -160,7 +160,7 @@ const RegisterRange Gfx103NonShadowedRanges[] =
     },
     {
         mmVGT_INDEX_TYPE,
-        mmVGT_STRMOUT_BUFFER_FILLED_SIZE_3 - mmVGT_INDEX_TYPE + 1
+        Gfx09_10::mmVGT_STRMOUT_BUFFER_FILLED_SIZE_3 - mmVGT_INDEX_TYPE + 1
     },
     {
         mmVGT_DMA_NUM_INSTANCES,

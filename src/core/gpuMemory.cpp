@@ -36,6 +36,29 @@ using namespace Util;
 namespace Pal
 {
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 652
+// =====================================================================================================================
+/// Copies only the valid heaps from @p heaps to @p out. The filtering happens based on if the heap exists on the
+/// device.
+static uint32 CopyViableHeaps(
+    const GpuHeap* pHeaps,
+    uint32         heapCount,
+    const Device&  device,
+    GpuHeap*       pOutHeaps)
+{
+    uint32 outHeapsCount = 0;
+    for (uint32 heap = 0; heap < heapCount; ++heap)
+    {
+        const GpuMemoryHeapProperties& heapProps = device.HeapProperties(pHeaps[heap]);
+        if (heapProps.heapSize > 0u)
+        {
+            pOutHeaps[outHeapsCount++] = pHeaps[heap];
+        }
+    }
+    return outHeapsCount;
+}
+#endif
+
 // =====================================================================================================================
 Result GpuMemory::ValidateCreateInfo(
     const Device*              pDevice,
@@ -448,7 +471,10 @@ Result GpuMemory::Init(
 #if ( (PAL_CLIENT_INTERFACE_MAJOR_VERSION>= 569))
     m_mallRange      = createInfo.mallRange;
 #endif
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 652
     m_heapCount      = createInfo.heapCount;
+#endif
     m_schedulerId    = internalInfo.schedulerId;
     m_mtype          = internalInfo.mtype;
 
@@ -464,6 +490,85 @@ Result GpuMemory::Init(
 
     if (IsVirtual() == false)
     {
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 652
+        switch (createInfo.heapAccess)
+        {
+        case GpuHeapAccess::GpuHeapAccessExplicit:
+            // imperative heap selection; createInfo.heaps determines the heaps
+            m_heapCount = createInfo.heapCount;
+            for (uint32 heap = 0; heap < createInfo.heapCount; ++heap)
+            {
+                m_heaps[heap] = createInfo.heaps[heap];
+            }
+            break;
+        case GpuHeapAccess::GpuHeapAccessCpuNoAccess:
+        {
+            // declarative heap selection; memory does not need to be CPU accessible
+            const GpuChipProperties& chipProps = m_pDevice->ChipProperties();
+            switch (chipProps.gpuType)
+            {
+            case GpuType::Discrete:
+            {
+                // considering both invisible and local, in case the former is 0 (e.g., under Resizable BAR)
+                constexpr GpuHeap PreferredHeaps[] = {
+                    GpuHeap::GpuHeapInvisible, GpuHeap::GpuHeapLocal
+                };
+                m_heapCount = CopyViableHeaps(PreferredHeaps, ArrayLen32(PreferredHeaps), *m_pDevice, m_heaps);
+            }
+                break;
+            case GpuType::Integrated:
+            {
+                // integrated solutions seem to miss invisible and local
+                constexpr GpuHeap PreferredHeaps[] = {
+                    GpuHeap::GpuHeapGartUswc, GpuHeap::GpuHeapGartCacheable
+                };
+                m_heapCount = CopyViableHeaps(PreferredHeaps, ArrayLen32(PreferredHeaps), *m_pDevice, m_heaps);
+            }
+                break;
+            default:
+                PAL_ALERT_ALWAYS_MSG("Unexpected GPU type");
+                break;
+            }
+        }
+            break;
+        case GpuHeapAccess::GpuHeapAccessGpuMostly:
+        {
+            // declarative heap selection; optimized for GPU access
+            constexpr GpuHeap PreferredHeaps[] = {
+                GpuHeap::GpuHeapLocal, GpuHeap::GpuHeapGartUswc, GpuHeap::GpuHeapGartCacheable
+            };
+            m_heapCount = CopyViableHeaps(PreferredHeaps, ArrayLen32(PreferredHeaps), *m_pDevice, m_heaps);
+        }
+            break;
+        case GpuHeapAccess::GpuHeapAccessCpuReadMostly:
+        {
+            // declarative heap selection; CPU will mostly do reads
+            constexpr GpuHeap PreferredHeaps[] = { GpuHeap::GpuHeapGartCacheable };
+            m_heapCount = CopyViableHeaps(PreferredHeaps, ArrayLen32(PreferredHeaps), *m_pDevice, m_heaps);
+        }
+            break;
+        case GpuHeapAccess::GpuHeapAccessCpuWriteMostly:
+        {
+            // declarative heap selection; CPU will do multiple writes
+            constexpr GpuHeap PreferredHeaps[] = { GpuHeap::GpuHeapGartUswc };
+            m_heapCount = CopyViableHeaps(PreferredHeaps, ArrayLen32(PreferredHeaps), *m_pDevice, m_heaps);
+        }
+            break;
+        case GpuHeapAccess::GpuHeapAccessCpuMostly:
+        {
+            // declarative heap selection; CPU will do a mix of reads and writes
+            constexpr GpuHeap PreferredHeaps[] = { GpuHeap::GpuHeapGartUswc, GpuHeap::GpuHeapGartCacheable };
+            m_heapCount = CopyViableHeaps(PreferredHeaps, ArrayLen32(PreferredHeaps), *m_pDevice, m_heaps);
+        }
+            break;
+        default:
+            PAL_ALERT_ALWAYS_MSG("Unexpected GPU heap access type");
+            break;
+        }
+
+        PAL_ASSERT(m_heapCount > 0u);
+#endif
+
         // NOTE: Assume that the heap selection is both local-only and nonlocal-only temporarily. When we scan the
         // heap selections below, this paradoxical assumption will be corrected.
         m_flags.localOnly    = 1;
@@ -477,7 +582,9 @@ Result GpuMemory::Init(
 
         for (uint32 heap = 0; heap < m_heapCount; ++heap)
         {
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 652
             m_heaps[heap] = createInfo.heaps[heap];
+#endif
             const GpuMemoryHeapProperties& heapProps = m_pDevice->HeapProperties(m_heaps[heap]);
 
             if (heapProps.flags.cpuVisible == 0)
@@ -496,6 +603,7 @@ Result GpuMemory::Init(
                 m_flags.localOnly = 0;
                 break;
             default:
+                PAL_ALERT_ALWAYS_MSG("Unexpected GPU heap type");
                 break;
             }
         }
@@ -616,7 +724,11 @@ Result GpuMemory::Init(
                 {
                     // If the device supports iterate256 the Image should satisy some conditions so that we can
                     // justify aligning memory to make the optimization work.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
                     const SubResourceInfo* pBaseSubResInfo = m_pImage->SubresourceInfo(m_pImage->GetBaseSubResource());
+#else
+                    const SubResourceInfo* pBaseSubResInfo = m_pImage->SubresourceInfo(0);
+#endif
                     if (m_pDevice->Settings().enableIterate256PreAlignment &&
                         m_pImage->GetGfxImage()->IsIterate256Meaningful(pBaseSubResInfo) &&
                         (createInfo.size >= memoryProperties.iterate256MinAlignment))
@@ -1204,7 +1316,11 @@ gpusize GpuMemory::GetPhysicalAddressAlignment() const
                     if ((m_pImage != nullptr) &&
                         m_pDevice->GetGfxDevice()->SupportsIterate256() &&
                         (m_pImage->GetGfxImage()->IsIterate256Meaningful(
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
                             (m_pImage->SubresourceInfo(m_pImage->GetBaseSubResource())))) &&
+#else
+                            (m_pImage->SubresourceInfo(0)))) &&
+#endif
                         (m_desc.size >= memProps.iterate256MinAlignment))
                     {
                         clamp = Max(clamp, memProps.iterate256MinAlignment);

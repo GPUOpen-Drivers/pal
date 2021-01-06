@@ -2861,8 +2861,18 @@ size_t CmdUtil::BuildSetPredication(
     constexpr size_t PacketSize = PM4_CMD_SET_PREDICATION_DWORDS;
     auto*const       pPacket    = static_cast<PM4CMDSETPREDICATION*>(pBuffer);
 
-    // The predication memory address must be 16-byte aligned, and cannot be wider than 40 bits.
-    PAL_ASSERT(((gpuVirtAddr & 0xF) == 0) && (gpuVirtAddr <= ((1uLL << 40) - 1)));
+    // The predication memory address cannot be wider than 40 bits.
+    PAL_ASSERT(gpuVirtAddr <= ((1uLL << 40) - 1));
+
+    // Verify the address meets the CP's alignment requirement for the predicate type.
+    if (predType == PredicateType::Boolean64)
+    {
+        PAL_ASSERT(IsPow2Aligned(gpuVirtAddr, 8));
+    }
+    else
+    {
+        PAL_ASSERT(IsPow2Aligned(gpuVirtAddr, 16));
+    }
 
     const bool continueSupported = (predType == PredicateType::Zpass) || (predType == PredicateType::PrimCount);
     PAL_ASSERT(continueSupported || (continuePredicate == false));

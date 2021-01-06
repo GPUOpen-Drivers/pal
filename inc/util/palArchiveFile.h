@@ -115,7 +115,7 @@ size_t GetArchiveFileObjectSize(
 ///          + ErrorNotShareable if the file was found but is locked for the access requested
 ///          + ErrorInvalidPointer if pOpenInfo, pPlacementAddr, or ppArchiveFile, is nullptr.
 ///          + ErrorOutOfMemory when there is not enough system memory to open the file.
-///          + ErrorIncompatibleLibrary if the archive file found is not compatible with the current driver
+///          + ErrorIncompatibleLibrary if the archive file found is invalid or is not compatible with the current driver
 ///          + ErrorInitializationFailed if there is an internal error.
 Result OpenArchiveFile(
     const ArchiveFileOpenInfo* pOpenInfo,

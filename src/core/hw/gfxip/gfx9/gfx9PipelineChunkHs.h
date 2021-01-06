@@ -77,8 +77,7 @@ public:
 
     gpusize LsProgramGpuVa() const
     {
-        return GetOriginalAddress(m_regs.sh.spiShaderPgmLoLs.bits.MEM_BASE,
-                                  m_regs.sh.spiShaderPgmHiLs.bits.MEM_BASE);
+        return GetOriginalAddress(m_regs.sh.spiShaderPgmLoLs.bits.MEM_BASE, 0);
     }
 
     const ShaderStageInfo& StageInfo() const { return m_stageInfo; }
@@ -91,7 +90,6 @@ private:
         struct
         {
             regSPI_SHADER_PGM_LO_LS     spiShaderPgmLoLs;
-            regSPI_SHADER_PGM_HI_LS     spiShaderPgmHiLs;
             regSPI_SHADER_PGM_RSRC1_HS  spiShaderPgmRsrc1Hs;
             regSPI_SHADER_PGM_RSRC2_HS  spiShaderPgmRsrc2Hs;
             regSPI_SHADER_PGM_CHKSUM_HS spiShaderPgmChksumHs;

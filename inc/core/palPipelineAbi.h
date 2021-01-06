@@ -193,12 +193,12 @@ static const char* PipelineAbiSymbolNameStrings[] =
     "_amdgpu_cs_shdr_intrl_data",
     "_amdgpu_pipeline_intrl_data",
     "_amdgpu_cs_amdil",
-    "unknown",
+    "_amdgpu_task_amdil",
     "_amdgpu_vs_amdil",
     "_amdgpu_hs_amdil",
     "_amdgpu_ds_amdil",
     "_amdgpu_gs_amdil",
-    "unknown",
+    "_amdgpu_mesh_amdil",
     "_amdgpu_ps_amdil",
 };
 
@@ -211,10 +211,10 @@ static const char* const PipelineMetadataNameStrings[] =
     "API_CS_HASH_DWORD2",
     "API_CS_HASH_DWORD3",
 
-    "RESERVED",
-    "RESERVED",
-    "RESERVED",
-    "RESERVED",
+    "API_TASK_HASH_DWORD0",
+    "API_TASK_HASH_DWORD1",
+    "API_TASK_HASH_DWORD2",
+    "API_TASK_HASH_DWORD3",
 
     "API_VS_HASH_DWORD0",
     "API_VS_HASH_DWORD1",
@@ -236,10 +236,10 @@ static const char* const PipelineMetadataNameStrings[] =
     "API_GS_HASH_DWORD2",
     "API_GS_HASH_DWORD3",
 
-    "RESERVED",
-    "RESERVED",
-    "RESERVED",
-    "RESERVED",
+    "API_MESH_HASH_DWORD0",
+    "API_MESH_HASH_DWORD1",
+    "API_MESH_HASH_DWORD2",
+    "API_MESH_HASH_DWORD3",
 
     "API_PS_HASH_DWORD0",
     "API_PS_HASH_DWORD1",
@@ -344,6 +344,7 @@ static const char* const PipelineMetadataNameStrings[] =
 
     "CS_WAVE_FRONT_SIZE",
 
+    "MESH_SHADER_SCRATCH_BYTE_SIZE"
 };
 
 /// The pipeline ABI note types.
@@ -369,6 +370,8 @@ enum PipelineType : uint32
     Tess,
     GsTess,
     NggTess,
+    Mesh,
+    TaskMesh,
 };
 
 /// Helper enum which is used along with the @ref PipelineSymbolType and @ref PipelineMetadataType to
@@ -392,12 +395,12 @@ enum class HardwareStage : uint32
 enum class ApiShaderType : uint32
 {
     Cs = 0, ///< API compute shader
-    Reserved0,
+    Task,   ///< API task shader
     Vs,     ///< API vertex shader
     Hs,     ///< API hull shader
     Ds,     ///< API domain shader
     Gs,     ///< API geometry shader
-    Reserved1,
+    Mesh,   ///< API mesh shader
     Ps,     ///< API pixel shader
     Count
 };
@@ -406,6 +409,13 @@ enum class ApiShaderType : uint32
 enum class ApiShaderSubType : uint32
 {
     Unknown = 0,
+    Traversal,
+    RayGeneration,
+    Intersection,
+    AnyHit,
+    ClosestHit,
+    Miss,
+    Callable,
     Count
 };
 
@@ -457,7 +467,8 @@ enum class PipelineSymbolType : uint32
     PipelineIntrlData, ///< Cross-shader internal data pointer.  Optional.
     CsAmdIl,           ///< API CS shader AMDIL disassembly.  Optional.
                        ///  Associated with the .AMDGPU.comment.amdil section.
-    Reserved0,
+    TaskAmdIl,         ///< API Task shader AMDIL disassembly. Optional.
+                       ///  Associated with the .AMDGPU.commd.amdil section.
     VsAmdIl,           ///< API VS shader AMDIL disassembly.  Optional.
                        ///  Associated with the .AMDGPU.comment.amdil section.
     HsAmdIl,           ///< API HS shader AMDIL disassembly.  Optional.
@@ -466,7 +477,8 @@ enum class PipelineSymbolType : uint32
                        ///  Associated with the .AMDGPU.comment.amdil section.
     GsAmdIl,           ///< API GS shader AMDIL disassembly.  Optional.
                        ///  Associated with the .AMDGPU.comment.amdil section.
-    Reserved1,
+    MeshAmdIl,         ///< API Mesh shader AMDIL disassembly. Optional.
+                       ///  Associated with the .AMDGPU.commd.amdil section.
     PsAmdIl,           ///< API PS shader AMDIL disassembly.  Optional.
                        ///  Associated with the .AMDGPU.comment.amdil section.
     Count,
@@ -556,10 +568,10 @@ enum class PipelineMetadataType : uint32
     ApiCsHashDword2,       ///< Dword 2 of a 128-bit hash identifying the API compute shader.
     ApiCsHashDword3,       ///< Dword 3 of a 128-bit hash identifying the API compute shader.
 
-    Reserved0,
-    Reserved1,
-    Reserved2,
-    Reserved3,
+    ApiTaskHashDword0,     ///< Dword 0 of a 128-bit hash identifying the API task shader.
+    ApiTaskHashDword1,     ///< Dword 1 of a 128-bit hash identifying the API task shader.
+    ApiTaskHashDword2,     ///< Dword 2 of a 128-bit hash identifying the API task shader.
+    ApiTaskHashDword3,     ///< Dword 3 of a 128-bit hash identifying the API task shader.
 
     ApiVsHashDword0,       ///< Dword 0 of a 128-bit hash identifying the API vertex shader.
     ApiVsHashDword1,       ///< Dword 1 of a 128-bit hash identifying the API vertex shader.
@@ -581,10 +593,10 @@ enum class PipelineMetadataType : uint32
     ApiGsHashDword2,       ///< Dword 2 of a 128-bit hash identifying the API geometry shader.
     ApiGsHashDword3,       ///< Dword 3 of a 128-bit hash identifying the API geometry shader.
 
-    Reserved4,
-    Reserved5,
-    Reserved6,
-    Reserved7,
+    ApiMeshHashDword0,     ///< Dword 0 of a 128-bit hash identifying the API mesh shader.
+    ApiMeshHashDword1,     ///< Dword 1 of a 128-bit hash identifying the API mesh shader.
+    ApiMeshHashDword2,     ///< Dword 2 of a 128-bit hash identifying the API mesh shader.
+    ApiMeshHashDword3,     ///< Dword 3 of a 128-bit hash identifying the API mesh shader.
 
     ApiPsHashDword0,       ///< Dword 0 of a 128-bit hash identifying the API pixel shader.
     ApiPsHashDword1,       ///< Dword 1 of a 128-bit hash identifying the API pixel shader.
@@ -714,7 +726,7 @@ enum class PipelineMetadataType : uint32
 
     CsWaveFrontSize,              ///< Wave front size.
 
-    Reserved11,                   ///< Reserved for future use
+    MeshScratchByteSize,          ///< Amount of mesh-shader scratch space needed (bytes)
 
     Count,
 
@@ -766,19 +778,18 @@ enum class UserDataMapping : uint32
 {
     GlobalTable       = 0x10000000, ///< 32-bit pointer to GPU memory containing the global internal table.
     PerShaderTable    = 0x10000001, ///< 32-bit pointer to GPU memory containing the per-shader internal table.
-    SpillTable        = 0x10000002, ///< 32-bit pointer to GPU memory containing the user data spill table.  See User
-                                    ///  Data Spilling.
-    BaseVertex        = 0x10000003, ///< Vertex offset (32-bit unsigned integer). Only supported by the first stage in a
-                                    ///  graphics pipeline.
+    SpillTable        = 0x10000002, ///< 32-bit pointer to GPU memory containing the user data spill table.
+    BaseVertex        = 0x10000003, ///< Vertex offset (32-bit unsigned integer). Not needed if the pipeline doesn't
+                                    ///  reference the draw index in the vertex shader. Only supported by the first
+                                    ///  stage in a graphics pipeline.
     BaseInstance      = 0x10000004, ///< Instance offset (32-bit unsigned integer). Only supported by the first stage in
                                     ///  a graphics pipeline.
     DrawIndex         = 0x10000005, ///< Draw index (32-bit unsigned integer). Only supported by the first stage in a
                                     ///  graphics pipeline.
-    Workgroup         = 0x10000006, ///< Thread group count (32-bit unsigned integer). Only supported by compute
-                                    ///  pipelines.
-    BaseIndex         = 0x10000008, ///< Index offset (32-bit unsigned integer). Only supported by the first stage in a
-                                    ///  graphics pipeline.
-    Log2IndexSize     = 0x10000009, ///< Base-2 logarithm of the size of each index buffer entry.
+    Workgroup         = 0x10000006, ///< Thread group count (32-bit unsigned integer). Low half of a 64-bit address of
+                                    ///  a buffer containing the grid dimensions for a Compute dispatch operation. The
+                                    ///  high half of the address is stored in the next sequential user-SGPR. Only
+                                    ///  supported by compute pipelines.
     EsGsLdsSize       = 0x1000000A, ///< Indicates that PAL will program this user-SGPR to contain the amount of LDS
                                     ///  space used for the ES/GS pseudo-ring-buffer for passing data between shader
                                     ///  stages.
@@ -791,16 +802,29 @@ enum class UserDataMapping : uint32
                                     ///  only appear for one shader stage per pipeline.
     UavExportTable    = 0x10000010, ///< 32-bit pointer to GPU memory containing the UAV export SRD table.  This can
                                     ///  only appear for one shader stage per pipeline (PS). These replace color targets
-                                    ///  and are completely separate from any UAVs used by the shader.
+                                    ///  and are completely separate from any UAVs used by the shader. This is optional,
+                                    ///  and only used by the PS when UAV exports are used to replace color-target
+                                    ///  exports to optimize specific shaders.
     NggCullingData    = 0x10000011, ///< 64-bit pointer to GPU memory containing the hardware register data needed by
                                     ///  some NGG pipelines to perform culling.  This value contains the address of the
                                     ///  first of two consecutive registers which provide the full GPU address.
+    MeshTaskDispatchDims  = 0x10000012,  ///< Offset to three consecutive registers which indicate the number of
+                                         ///  threadgroups dispatched in the X, Y, and Z dimensions.
+    MeshTaskRingIndex     = 0x10000013,  ///< Index offset (32-bit unsigned integer). Indicates the index into the
+                                         ///  Mesh/Task shader rings for the shader to consume.
+    TaskDispatchIndex     = DrawIndex,   ///< Dispatch index (32-bit unsigned integer). Only supported by the first
+                                         ///  stage (task shader stage) in a hybrid graphics pipeline.
+    MeshPipeStatsBuf  = 0x10000014, ///< 32-bit GPU virtual address of a buffer storing the shader-emulated mesh
+                                    ///  pipeline stats query.
     FetchShaderPtr    = 0x10000015, ///< 64-bit pointer to GPU memory containing the fetch shader subroutine.
 
     /// @internal The following enum values are deprecated and only remain in the header file to avoid build errors.
 
     GdsRange          = 0x10000007, ///< GDS range (32-bit unsigned integer: gdsSizeInBytes | (gdsOffsetInBytes << 16)).
                                     ///  Only supported by compute pipelines.
+    BaseIndex         = 0x10000008, ///< Index offset (32-bit unsigned integer). Only supported by the first stage in a
+                                    ///  graphics pipeline.
+    Log2IndexSize     = 0x10000009, ///< Base-2 logarithm of the size of each index buffer entry.
     IndirectTableLow  = 0x20000000, ///< Low range of 32-bit pointer to GPU memory containing the
                                     ///  address of the indirect user data table.
                                     ///  Subtract 0x20000000.

@@ -130,13 +130,12 @@ static void RegistryHandleGlobal(
     uint32       version)
 {
     WaylandWindowSystem*       pWaylandWindowSystem = reinterpret_cast<WaylandWindowSystem*>(pData);
-    const WaylandLoaderFuncs&  waylandProcs         = pWaylandWindowSystem->GetWaylandProcs();
 
     if (strcmp(pInterface, "wl_drm") == 0)
     {
         PAL_ASSERT(version >= 2);
 
-        wl_drm* pWaylandDrm = reinterpret_cast<struct wl_drm*>(waylandProcs.pfnWlProxyMarshalConstructorVersioned(
+        wl_drm* pWaylandDrm = reinterpret_cast<struct wl_drm*>(pWaylandWindowSystem->GetWaylandProcs().pfnWlProxyMarshalConstructorVersioned(
                                                                reinterpret_cast<wl_proxy*>(pRegistry),
                                                                WL_REGISTRY_BIND,
                                                                &wl_drm_interface,
@@ -148,7 +147,7 @@ static void RegistryHandleGlobal(
 
         if (pWaylandDrm != nullptr)
         {
-            waylandProcs.pfnWlProxyAddListener(reinterpret_cast<wl_proxy*>(pWaylandDrm),
+            pWaylandWindowSystem->GetWaylandProcs().pfnWlProxyAddListener(reinterpret_cast<wl_proxy*>(pWaylandDrm),
                                                reinterpret_cast<Listener*>(const_cast<wl_drm_listener*>
                                                    (&WaylandDrmListener)),
                                                pWaylandWindowSystem);
@@ -200,12 +199,11 @@ static void FrameHandleDone(
     uint32       callbackData)
 {
     WaylandWindowSystem*       pWaylandWindowSystem = reinterpret_cast<WaylandWindowSystem*>(pData);
-    const WaylandLoaderFuncs&  waylandProcs         = pWaylandWindowSystem->GetWaylandProcs();
 
     pWaylandWindowSystem->SetFrameCallback(nullptr);
     pWaylandWindowSystem->SetFrameCompleted();
 
-    waylandProcs.pfnWlProxyDestroy(reinterpret_cast<wl_proxy*>(pCallback));
+    pWaylandWindowSystem->GetWaylandProcs().pfnWlProxyDestroy(reinterpret_cast<wl_proxy*>(pCallback));
 }
 
 // Handle the notification when it is a good time to start drawing a new frame
@@ -287,17 +285,15 @@ Result WaylandPresentFence::WaitForCompletion(
         // chance to set the idle flag for doWait=false case.
         do
         {
-            const WaylandLoaderFuncs& waylandProcs  = m_windowSystem.GetWaylandProcs();
-
             // Dispatch the event in pending status so that quick check if the present fence is signaled.
-            waylandProcs.pfnWlDisplayDispatchQueuePending(m_windowSystem.GetDisplay(), m_windowSystem.GetEventQueue());
+            m_windowSystem.GetWaylandProcs().pfnWlDisplayDispatchQueuePending(m_windowSystem.GetDisplay(), m_windowSystem.GetEventQueue());
 
             signaled = m_pImage->GetIdle();
 
             if (!signaled)
             {
                 // Block until all of the requests are processed by the server.
-                waylandProcs.pfnWlDisplayRoundtripQueue(m_windowSystem.GetDisplay(), m_windowSystem.GetEventQueue());
+                m_windowSystem.GetWaylandProcs().pfnWlDisplayRoundtripQueue(m_windowSystem.GetDisplay(), m_windowSystem.GetEventQueue());
                 signaled = m_pImage->GetIdle();
             }
 
@@ -352,7 +348,7 @@ WaylandWindowSystem::WaylandWindowSystem(
     m_pWaylandDrm(nullptr),
     m_waylandLoader(device.GetPlatform()->GetWaylandLoader()),
 #if defined(PAL_DEBUG_PRINTS)
-    m_waylandProcs(m_waylandLoader.GetProcsTableProxy())
+    m_waylandProcs(m_waylandLoader.GetProcsTableProxy()),
 #else
     m_waylandProcs(m_waylandLoader.GetProcsTable()),
 #endif

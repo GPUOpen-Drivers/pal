@@ -39,12 +39,16 @@ namespace Gfx9
 
 // Stream-out vertex stride register addresses.
 constexpr uint16 VgtStrmoutVtxStrideAddr[] =
-    { mmVGT_STRMOUT_VTX_STRIDE_0, mmVGT_STRMOUT_VTX_STRIDE_1, mmVGT_STRMOUT_VTX_STRIDE_2, mmVGT_STRMOUT_VTX_STRIDE_3, };
+{
+    Gfx09_10::mmVGT_STRMOUT_VTX_STRIDE_0,
+    Gfx09_10::mmVGT_STRMOUT_VTX_STRIDE_1,
+    Gfx09_10::mmVGT_STRMOUT_VTX_STRIDE_2,
+    Gfx09_10::mmVGT_STRMOUT_VTX_STRIDE_3
+};
 
 // Base count of PS SH registers which are loaded using LOAD_SH_REG_INDEX when binding to a command buffer.
 static constexpr uint32 BaseLoadedShRegCountPs =
     1 + // mmSPI_SHADER_PGM_LO_PS
-    1 + // mmSPI_SHADER_PGM_HI_PS
     1 + // mmSPI_SHADER_PGM_RSRC1_PS
     1 + // mmSPI_SHADER_PGM_RSRC2_PS
     0 + // SPI_SHADER_PGM_CHKSUM_PS is not included because it is not present on all HW
@@ -53,7 +57,6 @@ static constexpr uint32 BaseLoadedShRegCountPs =
 // Base count of VS SH registers which are loaded using LOAD_SH_REG_INDEX when binding to a command buffer.
 static constexpr uint32 BaseLoadedShRegCountVs =
     1 + // Gfx09_10::mmSPI_SHADER_PGM_LO_VS
-    1 + // Gfx09_10::mmSPI_SHADER_PGM_HI_VS
     1 + // Gfx09_10::mmSPI_SHADER_PGM_RSRC1_VS
     1 + // Gfx09_10::mmSPI_SHADER_PGM_RSRC2_VS
     0 + // SPI_SHADER_PGM_CHKSUM_VS is not included because it is not present on all HW
@@ -72,9 +75,13 @@ static constexpr uint32 BaseLoadedCntxRegCount =
     1 + // mmSPI_SHADER_POS_FORMAT
     1 + // mmPA_CL_VS_OUT_CNTL
     1 + // mmVGT_PRIMITIVEID_EN
-    0 + // mmSPI_PS_INPUT_CNTL_0...31 are not included because the number of interpolants depends on the pipeline
-    1 + // mmVGT_STRMOUT_CONFIG
-    1;  // mmVGT_STRMOUT_BUFFER_CONFIG
+    0;  // mmSPI_PS_INPUT_CNTL_0...31 are not included because the number of interpolants depends on the pipeline
+
+// Base count of VGT stream-out related context registers which are loaded using LOAD_CNTX_REG_INDEX when
+// binding to a command buffer.
+static constexpr uint32 BaseLoadedVgtStrmOutRegCount =
+    1 + // Gfx09_10::mmVGT_STRMOUT_CONFIG
+    1;  // Gfx09_10::mmVGT_STRMOUT_BUFFER_CONFIG
 
 // Base count of Context registers which are loaded using LOAD_CNTX_REG_INDEX when binding to a command buffer when
 // stream-out is enabled for this pipeline.
@@ -109,11 +116,16 @@ void PipelineChunkVsPs::EarlyInit(
 {
     PAL_ASSERT(pInfo != nullptr);
 
-    const Gfx9PalSettings&   settings  = m_device.Settings();
-    const GpuChipProperties& chipProps = m_device.Parent()->ChipProperties();
+    const Gfx9PalSettings&   settings        = m_device.Settings();
+    const auto&              palDevice       = *(m_device.Parent());
+    const bool               hasVgtStreamOut = (IsGfx9(palDevice) || IsGfx10(palDevice));
+    const GpuChipProperties& chipProps       = palDevice.ChipProperties();
 
     // Determine if stream-out is enabled for this pipeline.
-    registers.HasEntry(mmVGT_STRMOUT_CONFIG, &m_regs.context.vgtStrmoutConfig.u32All);
+    if (hasVgtStreamOut)
+    {
+        registers.HasEntry(Gfx09_10::mmVGT_STRMOUT_CONFIG, &m_regs.context.vgtStrmoutConfig.u32All);
+    }
 
     // Determine the number of PS interpolators and save them for LateInit to consume.
     m_regs.context.interpolatorCount = 0;
@@ -131,6 +143,11 @@ void PipelineChunkVsPs::EarlyInit(
     if (settings.enableLoadIndexForObjectBinds != false)
     {
         pInfo->loadedCtxRegCount += (BaseLoadedCntxRegCount + m_regs.context.interpolatorCount);
+        if (hasVgtStreamOut)
+        {
+            pInfo->loadedCtxRegCount += (BaseLoadedVgtStrmOutRegCount);
+        }
+
         pInfo->loadedShRegCount  += (BaseLoadedShRegCountPs + ((chipProps.gfx9.supportSpp == 1) ? 1 : 0));
 
         if (pInfo->enableNgg == false)
@@ -138,7 +155,7 @@ void PipelineChunkVsPs::EarlyInit(
             pInfo->loadedShRegCount += (BaseLoadedShRegCountVs + ((chipProps.gfx9.supportSpp == 1) ? 1 : 0));
         }
 
-        if (VgtStrmoutConfig().u32All != 0)
+        if (UsesHwStreamout())
         {
             pInfo->loadedCtxRegCount += BaseLoadedCntxRegCountStreamOut;
         }
@@ -169,6 +186,7 @@ void PipelineChunkVsPs::LateInit(
 
         m_regs.sh.spiShaderPgmLoPs.bits.MEM_BASE = Get256BAddrLo(symbol.gpuVirtAddr);
         m_regs.sh.spiShaderPgmHiPs.bits.MEM_BASE = Get256BAddrHi(symbol.gpuVirtAddr);
+        PAL_ASSERT(m_regs.sh.spiShaderPgmHiPs.u32All == 0);
     }
 
     if (pUploader->GetPipelineGpuSymbol(Abi::PipelineSymbolType::PsShdrIntrlTblPtr, &symbol) == Result::Success)
@@ -219,6 +237,7 @@ void PipelineChunkVsPs::LateInit(
 
             m_regs.sh.spiShaderPgmLoVs.bits.MEM_BASE = Get256BAddrLo(symbol.gpuVirtAddr);
             m_regs.sh.spiShaderPgmHiVs.bits.MEM_BASE = Get256BAddrHi(symbol.gpuVirtAddr);
+            PAL_ASSERT(m_regs.sh.spiShaderPgmHiVs.u32All == 0);
         }
 
         if (pUploader->GetPipelineGpuSymbol(Abi::PipelineSymbolType::VsShdrIntrlTblPtr, &symbol) == Result::Success)
@@ -273,9 +292,9 @@ void PipelineChunkVsPs::LateInit(
         }
     } // if enableNgg == false
 
-    if (VgtStrmoutConfig().u32All != 0)
+    if (UsesHwStreamout())
     {
-        m_regs.context.vgtStrmoutBufferConfig.u32All = registers.At(mmVGT_STRMOUT_BUFFER_CONFIG);
+        m_regs.context.vgtStrmoutBufferConfig.u32All = registers.At(Gfx09_10::mmVGT_STRMOUT_BUFFER_CONFIG);
 
         for (uint32 i = 0; i < MaxStreamOutTargets; ++i)
         {
@@ -339,7 +358,6 @@ void PipelineChunkVsPs::LateInit(
     if (pUploader->EnableLoadIndexPath())
     {
         pUploader->AddShReg(mmSPI_SHADER_PGM_LO_PS,    m_regs.sh.spiShaderPgmLoPs);
-        pUploader->AddShReg(mmSPI_SHADER_PGM_HI_PS,    m_regs.sh.spiShaderPgmHiPs);
         pUploader->AddShReg(mmSPI_SHADER_PGM_RSRC1_PS, m_regs.sh.spiShaderPgmRsrc1Ps);
         pUploader->AddShReg(mmSPI_SHADER_PGM_RSRC2_PS, m_regs.sh.spiShaderPgmRsrc2Ps);
 
@@ -353,7 +371,6 @@ void PipelineChunkVsPs::LateInit(
         if (loadInfo.enableNgg == false)
         {
             pUploader->AddShReg(Gfx09_10::mmSPI_SHADER_PGM_LO_VS,    m_regs.sh.spiShaderPgmLoVs);
-            pUploader->AddShReg(Gfx09_10::mmSPI_SHADER_PGM_HI_VS,    m_regs.sh.spiShaderPgmHiVs);
             pUploader->AddShReg(Gfx09_10::mmSPI_SHADER_PGM_RSRC1_VS, m_regs.sh.spiShaderPgmRsrc1Vs);
             pUploader->AddShReg(Gfx09_10::mmSPI_SHADER_PGM_RSRC2_VS, m_regs.sh.spiShaderPgmRsrc2Vs);
             pUploader->AddShReg(Gfx09_10::mmSPI_SHADER_USER_DATA_VS_0 + ConstBufTblStartReg,
@@ -376,15 +393,19 @@ void PipelineChunkVsPs::LateInit(
         pUploader->AddCtxReg(mmVGT_PRIMITIVEID_EN,        m_regs.context.vgtPrimitiveIdEn);
         pUploader->AddCtxReg(mmPA_SC_SHADER_CONTROL,      m_regs.context.paScShaderControl);
         pUploader->AddCtxReg(mmPA_SC_BINNER_CNTL_1,       m_regs.context.paScBinnerCntl1);
-        pUploader->AddCtxReg(mmVGT_STRMOUT_CONFIG,        m_regs.context.vgtStrmoutConfig);
-        pUploader->AddCtxReg(mmVGT_STRMOUT_BUFFER_CONFIG, m_regs.context.vgtStrmoutBufferConfig);
+
+        if (IsGfx9(*m_device.Parent()) || IsGfx10(*m_device.Parent()))
+        {
+            pUploader->AddCtxReg(Gfx09_10::mmVGT_STRMOUT_CONFIG,        m_regs.context.vgtStrmoutConfig);
+            pUploader->AddCtxReg(Gfx09_10::mmVGT_STRMOUT_BUFFER_CONFIG, m_regs.context.vgtStrmoutBufferConfig);
+        }
 
         for (uint16 i = 0; i < m_regs.context.interpolatorCount; ++i)
         {
             pUploader->AddCtxReg(mmSPI_PS_INPUT_CNTL_0 + i, m_regs.context.spiPsInputCntl[i]);
         }
 
-        if (VgtStrmoutConfig().u32All != 0)
+        if (UsesHwStreamout())
         {
             for (uint32 i = 0; i < MaxStreamOutTargets; ++i)
             {
@@ -559,12 +580,15 @@ uint32* PipelineChunkVsPs::WriteContextCommands(
                                                            pCmdSpace);
         }
 
-        pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmVGT_STRMOUT_CONFIG,
-                                                       mmVGT_STRMOUT_BUFFER_CONFIG,
-                                                       &m_regs.context.vgtStrmoutConfig,
-                                                       pCmdSpace);
+        if (IsGfx9(*m_device.Parent()) || IsGfx10(*m_device.Parent()))
+        {
+            pCmdSpace = pCmdStream->WriteSetSeqContextRegs(Gfx09_10::mmVGT_STRMOUT_CONFIG,
+                                                           Gfx09_10::mmVGT_STRMOUT_BUFFER_CONFIG,
+                                                           &m_regs.context.vgtStrmoutConfig,
+                                                           pCmdSpace);
+        }
 
-        if (VgtStrmoutConfig().u32All != 0)
+        if (UsesHwStreamout())
         {
             for (uint32 i = 0; i < MaxStreamOutTargets; ++i)
             {

@@ -375,7 +375,9 @@ protected:
         gpusize              metaDataOffset
     ) const;
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
     static bool GetMetaDataTexFetchSupport(const Image*  pImage, ImageAspect aspect, uint32 mipLevel);
+#endif
 
     static gpusize ComputeTypedBufferRange(
         const Extent3d& extent,
@@ -638,10 +640,9 @@ private:
     void SlowClearGraphicsOneMip(
         GfxCmdBuffer*              pCmdBuffer,
         const Image&               dstImage,
-        const SubresRange&         clearRange,
+        const SubresId&            mipSubres,
         uint32                     boxCount,
         const Box*                 pBoxes,
-        uint32                     mip,
         ColorTargetViewCreateInfo* pColorViewInfo,
         BindTargetParams*          pBindTargetsInfo,
         uint32                     xRightShift) const;
@@ -674,7 +675,11 @@ private:
 
     const ComputePipeline* GetCsResolvePipeline(
         const Image&  srcImage,
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
         ImageAspect   aspect,
+#else
+        uint32        plane,
+#endif
         ResolveMode   mode,
         ResolveMethod method) const;
 

@@ -369,6 +369,8 @@ enum class DrawDispatchType : uint32
     CmdDrawIndexed,               ///< Indexed draw
     CmdDrawIndirectMulti,         ///< (Multi) indirect draw
     CmdDrawIndexedIndirectMulti,  ///< (Multi) indirect indexed draw
+    CmdDispatchMesh,              ///< Task/Mesh shader dispatch.
+    CmdDispatchMeshIndirectMulti, ///< Indirect Task/Mesh shader dispatch.
     CmdDispatch,                  ///< Direct compute dispatch
     CmdDispatchIndirect,          ///< Indirect compute dispatch
     CmdDispatchOffset,            ///< Direct compute dispatch (offsetted start)

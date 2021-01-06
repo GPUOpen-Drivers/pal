@@ -118,6 +118,8 @@ enum class InterfaceFunc : uint32
     CmdBufferCmdDispatch,
     CmdBufferCmdDispatchIndirect,
     CmdBufferCmdDispatchOffset,
+    CmdBufferCmdDispatchMesh,
+    CmdBufferCmdDispatchMeshIndirectMulti,
     CmdBufferCmdCopyMemory,
     CmdBufferCmdCopyImage,
     CmdBufferCmdCopyMemoryToImage,
@@ -607,13 +609,16 @@ public:
     void Enum(FillMode value);
     void Enum(FlglSupport value);
     void Enum(GpuHeap value);
+    void Enum(GpuHeapAccess value);
     void Enum(GpuMemPriority value);
     void Enum(GpuMemPriorityOffset value);
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 554
     void Enum(PrtPlusResolveType value);
 #endif
     void Enum(HwPipePoint value);
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
     void Enum(ImageAspect value);
+#endif
     void Enum(ImageRotation value);
     void Enum(ImageTexOptLevel value);
     void Enum(ImageTiling value);

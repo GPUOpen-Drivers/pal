@@ -44,6 +44,7 @@ enum class GeneratorType : uint32
     Dispatch = 0,
     Draw,
     DrawIndexed,
+    DispatchMesh,
 };
 
 // Contains properties of a specific command generator.
@@ -122,6 +123,7 @@ public:
     virtual void PopulateInvocationBuffer(
         GfxCmdBuffer*   pCmdBuffer,
         const Pipeline* pPipeline,
+        bool            isTaskEnabled,
         gpusize         argsGpuAddr,
         uint32          maximumCount,
         uint32          indexBufSize,

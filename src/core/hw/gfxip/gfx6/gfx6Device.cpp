@@ -205,12 +205,7 @@ Result Device::Cleanup()
 // Performs early initialization of this device; this occurs when the device is created.
 Result Device::EarlyInit()
 {
-    Result result = m_ringSizesLock.Init();
-
-    if (result == Result::Success)
-    {
-        result = m_rsrcProcMgr.EarlyInit();
-    }
+    Result result = m_rsrcProcMgr.EarlyInit();
 
     const auto& chipProperties = m_pParent->ChipProperties();
     // The LBPW feature uses a fixed late alloc VS limit based off of the available CUs
@@ -1873,6 +1868,7 @@ void Device::PatchPipelineInternalSrdTable(
     gpusize     dataGpuVirtAddr
     ) const
 {
+    // See Pipeline::PerformRelocationsAndUploadToGpuMemory() for more information.
 
     auto*const pSrcSrd = static_cast<const BufferSrd*>(pSrcSrdTable);
     auto*const pDstSrd = static_cast<BufferSrd*>(pDstSrdTable);
@@ -2014,6 +2010,9 @@ void PAL_STDCALL Device::CreateImageViewSrds(
     for (uint32 i = 0; i < count; ++i)
     {
         const ImageViewInfo&   viewInfo        = pImgViewInfo[i];
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
+        PAL_ASSERT(viewInfo.subresRange.numPlanes == 1);
+#endif
 
         const Image&           image           = *GetGfx6Image(viewInfo.pImage);
         const auto*const       pParent         = image.Parent();
@@ -2026,7 +2025,11 @@ void PAL_STDCALL Device::CreateImageViewSrds(
 
         // Calculate the subresource ID of the first subresource in this image view.
         SubresId subresource = {};
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
         subresource.aspect = viewInfo.subresRange.startSubres.aspect;
+#else
+        subresource.plane = viewInfo.subresRange.startSubres.plane;
+#endif
 
         uint32 baseArraySlice = viewInfo.subresRange.startSubres.arraySlice;
         uint32 baseMipLevel   = viewInfo.subresRange.startSubres.mipLevel;
@@ -2056,7 +2059,11 @@ void PAL_STDCALL Device::CreateImageViewSrds(
         bool padToEvenWidth = false;
 
         if (Formats::IsDepthStencilOnly(imageCreateInfo.swizzledFormat.format) &&
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
             (viewInfo.subresRange.startSubres.aspect == ImageAspect::Depth)    &&
+#else
+            (viewInfo.subresRange.startSubres.plane == 0)                      &&
+#endif
             (viewInfo.subresRange.numMips > 1))
         {
             PAL_ASSERT_ALWAYS_MSG("See above comment#2");
@@ -2064,7 +2071,11 @@ void PAL_STDCALL Device::CreateImageViewSrds(
 
         if (viewInfo.subresRange.numMips == 1)
         {
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
             if (imgIsBc || (viewInfo.subresRange.startSubres.aspect == ImageAspect::Depth))
+#else
+            if (imgIsBc || pParent->IsDepthPlane(viewInfo.subresRange.startSubres.plane))
+#endif
             {
                 forceBaseMip = true;
             }
@@ -2407,8 +2418,12 @@ void Device::CreateFmaskViewSrds(
 
         ImageSrd srd = {};
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
         SubresId slice0Id = {};
         slice0Id.aspect = ImageAspect::Fmask;
+#else
+        constexpr SubresId slice0Id = {};
+#endif
 
         const SubResourceInfo*         pSubresInfo = image.Parent()->SubresourceInfo(slice0Id);
         const AddrMgr1::TileInfo*const pTileInfo   = AddrMgr1::GetTileInfo(image.Parent(), slice0Id);

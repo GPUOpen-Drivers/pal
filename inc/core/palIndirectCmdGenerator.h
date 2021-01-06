@@ -46,6 +46,8 @@ enum class IndirectParamType : uint32
                     ///  @ref DrawIndexedIndirectArgs structure.  This must be the last command parameter.
     Dispatch,       ///< Initiates a dispatch operation.  The contents of the arguments buffer must contain a
                     ///  @ref DispatchIndirectArgs structure.  This must be the last command parameter.
+    DispatchMesh,   ///< Initiates a dispatch mesh operation.  The contents of the arguments buffer must contain a
+                    ///  @ref DispatchMeshIndirectArgs structure.  This must be the last command parameter.
     BindIndexData,  ///< Binds a range of GPU memory for use as an index buffer.  This parameter is only allowed if
                     ///  a DrawIndex parameter is also present, and can only appear once per command generator.
     BindVertexData, ///< Binds a range of GPU memory for use as a vertex buffer.  This parameter is not allowed if
@@ -84,6 +86,7 @@ struct IndirectParam
     /// Draw           |  Must equal sizeof(DrawIndirectArgs).
     /// DrawIndexed    |  Must equal sizeof(DrawIndexedIndirectArgs).
     /// Dispatch       |  Must equal sizeof(DispatchIndirectArgs).
+    /// DispatchMesh   |  Must equal sizeof(DispatchMeshIndirectArgs).
     /// BindIndexData  |  Must equal sizeof(BindIndexDataIndirectArgs).
     /// BindVertexData |  Must equal sizeof(BindVertexDataIndirectArgs).
     /// SetUserData    |  Must equal (sizeof(uint32) * userData.entryCount).

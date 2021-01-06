@@ -140,8 +140,8 @@ private:
             uint32 hTile                   :  1;
             uint32 depth                   :  1;
             uint32 stencil                 :  1;
-            uint32 readOnlyDepth           :  1; // Set if the depth aspect is present and is read-only
-            uint32 readOnlyStencil         :  1; // Set if the stencil aspect is present and is read-only
+            uint32 readOnlyDepth           :  1; // Set if the depth plane is present and is read-only
+            uint32 readOnlyStencil         :  1; // Set if the stencil plane is present and is read-only
             uint32 waDbTcCompatFlush       :  2;
             uint32 depthMetadataTexFetch   :  1;
             uint32 stencilMetadataTexFetch :  1;

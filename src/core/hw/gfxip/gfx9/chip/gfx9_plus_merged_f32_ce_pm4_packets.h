@@ -714,6 +714,7 @@ typedef struct PM4_CE_INDIRECT_BUFFER_CONST
                 uint32_t                                   vmid         :  4;
                 CE_INDIRECT_BUFFER_CONST_cache_policy_enum cache_policy :  2;
                 uint32_t                                   pre_resume   :  1;
+                uint32_t                                   reserved2    :  1;
             } hasCe;
         } bitfields;
         uint32_t u32All;

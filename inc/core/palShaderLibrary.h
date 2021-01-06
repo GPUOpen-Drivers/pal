@@ -68,6 +68,13 @@ struct ShaderLibraryFunctionInfo
 enum class ShaderSubType : uint32
 {
     Unknown = 0,
+    Traversal,
+    RayGeneration,
+    Intersection,
+    AnyHit,
+    ClosestHit,
+    Miss,
+    Callable,
     Count
 };
 

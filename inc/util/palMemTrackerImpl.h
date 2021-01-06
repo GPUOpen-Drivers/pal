@@ -84,7 +84,7 @@ MemTracker<Allocator>::~MemTracker()
 template <typename Allocator>
 Result MemTracker<Allocator>::Init()
 {
-    return m_mutex.Init();
+    return Result::Success;
 }
 
 // =====================================================================================================================

@@ -193,10 +193,12 @@ private:
     bool                   m_sqttFilteringEnabled;
     bool                   m_sqttAddTtvHashes;
     uint64                 m_sqttCompilerHash;
+    ShaderHash             m_sqttTsHash;
     ShaderHash             m_sqttVsHash;
     ShaderHash             m_sqttHsHash;
     ShaderHash             m_sqttDsHash;
     ShaderHash             m_sqttGsHash;
+    ShaderHash             m_sqttMsHash;
     ShaderHash             m_sqttPsHash;
     ShaderHash             m_sqttCsHash;
 

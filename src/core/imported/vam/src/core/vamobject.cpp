@@ -86,8 +86,8 @@ VamObject::~VamObject()
 */
 VOID* VamObject::operator new(
     size_t              objSize,    ///< [in] Size to allocate
-    VAM_CLIENT_HANDLE   hClient)    ///< [in] Client handle
-    noexcept
+    VAM_CLIENT_HANDLE   hClient    ///< [in] Client handle
+    ) noexcept
 {
     VOID* pObjMem = NULL;
 

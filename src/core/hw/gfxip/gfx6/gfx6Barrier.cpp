@@ -127,6 +127,9 @@ void Device::TransitionDepthStencil(
 {
     const BarrierTransition& transition = barrier.pTransitions[transitionId];
     PAL_ASSERT(transition.imageInfo.pImage != nullptr);
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
+    PAL_ASSERT(transition.imageInfo.subresRange.numPlanes == 1);
+#endif
 
     uint32       srcCacheMask = (barrier.globalSrcCacheMask | transition.srcCacheMask);
     const uint32 dstCacheMask = (barrier.globalDstCacheMask | transition.dstCacheMask);
@@ -220,6 +223,10 @@ bool Device::GetDepthStencilBltPerSubres(
     bool                     earlyPhase
     ) const
 {
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
+    PAL_ASSERT(transition.imageInfo.subresRange.numPlanes == 1);
+#endif
+
     const auto& image     = static_cast<const Pal::Image&>(*transition.imageInfo.pImage);
     const auto& gfx6Image = static_cast<const Image&>(*image.GetGfxImage());
     bool        issuedBlt = false;
@@ -250,8 +257,13 @@ bool Device::GetDepthStencilBltPerSubres(
         }
         // Resummarize the htile values from the depth-stencil surface contents when transitioning from "HiZ invalid"
         // state to something that uses HiZ.
-        else if ((transition.imageInfo.subresRange.startSubres.aspect == ImageAspect::Depth) &&
-                 (oldState == DepthStencilDecomprNoHiZ) && (newState != DepthStencilDecomprNoHiZ))
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
+        else if ((subRes.aspect == ImageAspect::Depth) &&
+#else
+        else if (image.IsDepthPlane(subRes.plane) &&
+#endif
+                 (oldState == DepthStencilDecomprNoHiZ) &&
+                 (newState != DepthStencilDecomprNoHiZ))
         {
             // If we are transitioning from uninitialized, resummarization is redundant.  This is because within
             // this same barrier, we have just initialized the htile to known values.
@@ -377,6 +389,9 @@ void Device::ExpandColor(
 {
     const BarrierTransition& transition = barrier.pTransitions[transitionId];
     PAL_ASSERT(transition.imageInfo.pImage != nullptr);
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
+    PAL_ASSERT(transition.imageInfo.subresRange.numPlanes == 1);
+#endif
 
     const auto&        image                  = static_cast<const Pal::Image&>(*transition.imageInfo.pImage);
     const auto&        gfx6Image              = static_cast<const Image&>(*image.GetGfxImage());
@@ -541,6 +556,10 @@ uint32 Device::GetColorBltPerSubres(
     bool                     earlyPhase
     ) const
 {
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
+    PAL_ASSERT(transition.imageInfo.subresRange.numPlanes == 1);
+#endif
+
     const auto& image            = static_cast<const Pal::Image&>(*transition.imageInfo.pImage);
     auto&       gfx6Image        = static_cast<Image&>(*image.GetGfxImage());
     uint32      allBltOperations = 0;
@@ -1037,6 +1056,9 @@ void Device::Barrier(
 
             if (imageInfo.pImage != nullptr)
             {
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
+                PAL_ASSERT(imageInfo.subresRange.numPlanes == 1);
+#endif
                 // At least one usage must be specified for the old and new layouts.
                 PAL_ASSERT((imageInfo.oldLayout.usages != 0) && (imageInfo.newLayout.usages != 0));
 
@@ -1386,6 +1408,10 @@ void Device::Barrier(
 
             if (imageInfo.pImage != nullptr)
             {
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
+                PAL_ASSERT(imageInfo.subresRange.numPlanes == 1);
+#endif
+
                 if (TestAnyFlagSet(imageInfo.oldLayout.usages, LayoutUninitializedTarget))
                 {
                     // If the LayoutUninitializedTarget usage is set, no other usages should be set.
@@ -1396,17 +1422,17 @@ void Device::Barrier(
                     const auto& subresRange = imageInfo.subresRange;
 
 #if PAL_ENABLE_PRINTS_ASSERTS
-                    const auto& engineProps  = Parent()->EngineProperties().perEngine[pCmdBuf->GetEngineType()];
-                    const auto& createInfo   = image.GetImageCreateInfo();
-                    const bool  isWholeImage = image.IsFullSubResRange(subresRange);
+                    const auto& engineProps = Parent()->EngineProperties().perEngine[pCmdBuf->GetEngineType()];
+                    const auto& createInfo  = image.GetImageCreateInfo();
+                    const bool  isFullPlane = image.IsRangeFullPlane(subresRange);
 
                     // This queue must support this barrier transition.
                     PAL_ASSERT(engineProps.flags.supportsImageInitBarrier == 1);
 
-                    // By default, the entire image must be initialized in one go. Per-subres support can be requested
+                    // By default, the entire plane must be initialized in one go. Per-subres support can be requested
                     // using an image flag as long as the queue supports it.
-                    PAL_ASSERT(isWholeImage || ((engineProps.flags.supportsImageInitPerSubresource == 1) &&
-                                                (createInfo.flags.perSubresInit == 1)));
+                    PAL_ASSERT(isFullPlane || ((engineProps.flags.supportsImageInitPerSubresource == 1) &&
+                                               (createInfo.flags.perSubresInit == 1)));
 #endif
 
                     if (gfx6Image.HasColorMetaData() || gfx6Image.HasHtileData())
@@ -1419,8 +1445,8 @@ void Device::Barrier(
                             // If HTile encodes depth and stencil data we must idle any prior draws that bound this
                             // image as a depth-stencil target and flush/invalidate the DB caches because we always
                             // use compute to initialize HTile. That compute shader could attempt to do a read-modify-
-                            // write of HTile on one aspect (e.g., stencil) while reading in HTile values with stale
-                            // data for the other aspect (e.g., depth) which will clobber the correct values.
+                            // write of HTile on one plane (e.g., stencil) while reading in HTile values with stale
+                            // data for the other plane (e.g., depth) which will clobber the correct values.
                             SyncReqs sharedHtileSync = {};
                             sharedHtileSync.cpCoherCntl.bits.DB_DEST_BASE_ENA = 1;
                             sharedHtileSync.cpCoherCntl.bits.DEST_BASE_0_ENA  = 1;

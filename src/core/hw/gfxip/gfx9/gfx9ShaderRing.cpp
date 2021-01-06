@@ -141,8 +141,9 @@ Result ShaderRing::AllocateVideoMemory(
     createInfo.alignment = ShaderRingAlignment;
     createInfo.priority  = GpuMemPriority::Normal;
 
-    if ((m_ringType == ShaderRingType::SamplePos)
-         )
+    if ((m_ringType == ShaderRingType::SamplePos)       ||
+        (m_ringType == ShaderRingType::TaskMeshControl) ||
+        (m_ringType == ShaderRingType::DrawData))
     {
         // SamplePos doesn't need a TMZ allocation because it's updated by the CPU and only read by the GPU.
         createInfo.heaps[0]  = GpuHeapLocal;
@@ -471,6 +472,14 @@ void TessFactorBuffer::UpdateSrds() const
 }
 
 // =====================================================================================================================
+uint32 TessFactorBuffer::TfRingSize() const
+{
+    uint32 tfRingSize = static_cast<uint32>(MemorySizeDwords());
+
+    return tfRingSize;
+}
+
+// =====================================================================================================================
 OffchipLdsBuffer::OffchipLdsBuffer(
     Device*    pDevice,
     BufferSrd* pSrdTable, // Pointer to our parent ring-set's SRD table
@@ -509,6 +518,15 @@ void OffchipLdsBuffer::UpdateSrds() const
     BufferSrd*const pSrd = &m_pSrdTable[static_cast<size_t>(ShaderRingSrd::OffChipLdsBuffer)];
     m_pDevice->SetBaseAddress(pSrd, gpuVirtAddr);
     m_pDevice->SetNumRecords(pSrd, m_allocSize);
+}
+
+// =====================================================================================================================
+uint32 OffchipLdsBuffer::OffchipBuffering() const
+{
+    uint32 offchipBuffering = static_cast<uint32>(m_itemSizeMax);
+
+    // OFFCHIP_BUFFERING setting is biased by one (i.e., 0=1, 511=512, etc.).
+    return offchipBuffering - 1;
 }
 
 // =====================================================================================================================
@@ -562,6 +580,183 @@ void SamplePosBuffer::UploadSamplePatternPalette(
         {
             memcpy(pData, samplePatternPalette, sizeof(SamplePatternPalette));
             m_ringMem.Unmap();
+        }
+    }
+}
+
+// =====================================================================================================================
+MeshScratchRing::MeshScratchRing(
+    Device*       pDevice,
+    BufferSrd*    pSrdTable,
+    bool          isTmz)
+    :
+    ShaderRing(pDevice, pSrdTable, isTmz, ShaderRingType::MeshScratch),
+    m_maxThreadgroupsPerChip(1 << CountSetBits(VGT_GS_MAX_WAVE_ID__MAX_WAVE_ID_MASK))
+{
+    BufferSrd*const   pGenericSrd = &m_pSrdTable[static_cast<size_t>(ShaderRingSrd::MeshScratch)];
+
+    m_pDevice->InitBufferSrd(pGenericSrd, 0, 0);
+    AdjustRingDataFormat(m_pDevice->Parent()->ChipProperties(), pGenericSrd);
+}
+
+// =====================================================================================================================
+// Overrides the base class' method for computing the mesh shader scratch buffer size.
+gpusize MeshScratchRing::ComputeAllocationSize() const
+{
+    return m_itemSizeMax * m_maxThreadgroupsPerChip;
+}
+
+// =====================================================================================================================
+void MeshScratchRing::UpdateSrds() const
+{
+    PAL_ASSERT(m_ringMem.IsBound());
+
+    const ShaderRingSrd srdTableIndex = ShaderRingSrd::MeshScratch;
+    const gpusize       addr          = m_ringMem.GpuVirtAddr();
+    uint32*const        pData         = reinterpret_cast<uint32*>(&m_pSrdTable[static_cast<size_t>(srdTableIndex)]);
+
+    // The MeshShader scratch ring is accessed via ORDERED_WAVE_ID, which should be large enough to guarantee that no
+    // two threadgroups on the system contain the same ID.
+    // This ring is a bit special than the other shader rings. Due to the sizes required per threadgroup, the shader
+    // cannot properly index using the SRD's stride bits. In order to accommodate this, we write data into the global
+    // table in place of an SRD that SC can then use to create an SRD and properly calculate an offset into it.
+    pData[0] = LowPart(addr);
+    pData[1] = HighPart(addr);
+    pData[2] = static_cast<uint32>(MemorySizeBytes());
+    pData[3] = static_cast<uint32>(m_itemSizeMax);
+}
+
+// =====================================================================================================================
+PayloadDataRing::PayloadDataRing(
+    Device*    pDevice,
+    BufferSrd* pSrdTable,
+    bool       isTmz)
+    :
+    ShaderRing(pDevice, pSrdTable, isTmz, ShaderRingType::PayloadData),
+    m_maxNumEntries(m_pDevice->Settings().numTsMsDrawEntriesPerSe *
+                    pDevice->Parent()->ChipProperties().gfx9.numShaderEngines)
+{
+    const GpuChipProperties& chipProps   = m_pDevice->Parent()->ChipProperties();
+    BufferSrd*const          pGenericSrd = &m_pSrdTable[static_cast<size_t>(ShaderRingSrd::PayloadDataRing)];
+    m_pDevice->InitBufferSrd(pGenericSrd, 0, PayloadDataEntrySize);
+    AdjustRingDataFormat(chipProps, pGenericSrd);
+}
+
+// =====================================================================================================================
+void PayloadDataRing::UpdateSrds() const
+{
+    PAL_ASSERT(m_ringMem.IsBound());
+
+    const gpusize gpuVirtAddr = m_ringMem.GpuVirtAddr();
+
+    BufferSrd*const pSrd = &m_pSrdTable[static_cast<size_t>(ShaderRingSrd::PayloadDataRing)];
+    m_pDevice->SetBaseAddress(pSrd, gpuVirtAddr);
+    m_pDevice->SetNumRecords(pSrd, m_allocSize);
+}
+
+// =====================================================================================================================
+DrawDataRing::DrawDataRing(
+    Device*    pDevice,
+    BufferSrd* pSrdTable,
+    bool       isTmz)
+    :
+    ShaderRing(pDevice, pSrdTable, isTmz, ShaderRingType::DrawData),
+    m_maxNumEntries(m_pDevice->Settings().numTsMsDrawEntriesPerSe *
+                    pDevice->Parent()->ChipProperties().gfx9.numShaderEngines)
+{
+    const GpuChipProperties& chipProps   = m_pDevice->Parent()->ChipProperties();
+    BufferSrd*const          pGenericSrd = &m_pSrdTable[static_cast<size_t>(ShaderRingSrd::DrawDataRing)];
+    m_pDevice->InitBufferSrd(pGenericSrd, 0, DrawDataEntrySize);
+    AdjustRingDataFormat(chipProps, pGenericSrd);
+}
+
+// =====================================================================================================================
+void DrawDataRing::UpdateSrds() const
+{
+    PAL_ASSERT(m_ringMem.IsBound());
+
+    const gpusize gpuVirtAddr = m_ringMem.GpuVirtAddr();
+
+    BufferSrd*const pSrd = &m_pSrdTable[static_cast<size_t>(ShaderRingSrd::DrawDataRing)];
+    m_pDevice->SetBaseAddress(pSrd, gpuVirtAddr);
+    m_pDevice->SetNumRecords(pSrd, m_allocSize);
+}
+
+// =====================================================================================================================
+void DrawDataRing::Initialize()
+{
+    // Map and zero-initialize the draw data ring, to ensure a correct initial state of "ready" bits.
+    if (m_ringMem.IsBound())
+    {
+        void*  pData  = nullptr;
+        const Result result = m_ringMem.Map(&pData);
+        if (result == Result::Success)
+        {
+            memset(pData, 0, static_cast<size_t>(m_allocSize));
+            m_ringMem.Unmap();
+        }
+        else
+        {
+            PAL_ASSERT_ALWAYS();
+        }
+    }
+}
+
+// =====================================================================================================================
+TaskMeshControlRing::TaskMeshControlRing(
+    Device*    pDevice,
+    BufferSrd* pSrdTable,
+    bool       isTmz)
+    :
+    ShaderRing(pDevice, pSrdTable, isTmz, ShaderRingType::TaskMeshControl)
+{
+    const GpuChipProperties& chipProps   = m_pDevice->Parent()->ChipProperties();
+    BufferSrd*const          pGenericSrd = &m_pSrdTable[static_cast<size_t>(ShaderRingSrd::TaskMeshControl)];
+    m_pDevice->InitBufferSrd(pGenericSrd, 0, 0);
+    AdjustRingDataFormat(chipProps, pGenericSrd);
+}
+
+// =====================================================================================================================
+void TaskMeshControlRing::InitializeControlBuffer(
+    gpusize drawRingAddr,
+    uint32  numEntries)
+{
+    ControlBufferLayout controlBuffer = {};
+
+    // The draw ring base address must be aligned to 64-bytes.
+    PAL_ASSERT(Util::IsPow2Aligned(drawRingAddr, 64));
+
+    // NumEntries must be a power of 2.
+    PAL_ASSERT(Util::IsPowerOfTwo(numEntries));
+
+    controlBuffer.numEntries       = numEntries;
+    controlBuffer.drawRingBaseAddr = drawRingAddr;
+
+    // The first 5 bits are reserved and need to be set to 0.
+    PAL_ASSERT((controlBuffer.drawRingBaseAddr & 0x1F) == 0);
+
+    // The "ready" bit in each DrawDataRing entry toggles and hence is interpreted differently with each pass over the
+    // ring. The interpretation of the ready bit depends on the wptr/rdptr. Ex: For even numbered passes, readyBit = 1
+    // indicates ready to GFX. For odd numbered passes, readyBit = 0 indicates ready.
+    // The formula for the ready bit written by the taskshader is (readyBit = (wptr / numRingEntries) & 1).
+    // The "ready" bits in the zero-initialized draw ring are interpreted as being in "not ready" state.
+    controlBuffer.readPtr    = numEntries;
+    controlBuffer.writePtr   = numEntries;
+    controlBuffer.deallocPtr = numEntries;
+
+    // Map and upload the control buffer layout to the ring.
+    if (m_ringMem.IsBound())
+    {
+        void*  pData  = nullptr;
+        const Result result = m_ringMem.Map(&pData);
+        if (result == Result::Success)
+        {
+            memcpy(pData, &controlBuffer, sizeof(ControlBufferLayout));
+            m_ringMem.Unmap();
+        }
+        else
+        {
+            PAL_ASSERT_ALWAYS();
         }
     }
 }

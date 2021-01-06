@@ -181,6 +181,9 @@ void Device::TransitionDepthStencil(
 {
     const BarrierTransition& transition = barrier.pTransitions[transitionId];
     PAL_ASSERT(transition.imageInfo.pImage != nullptr);
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
+    PAL_ASSERT(transition.imageInfo.subresRange.numPlanes == 1);
+#endif
 
     const auto& image       = static_cast<const Pal::Image&>(*transition.imageInfo.pImage);
     const auto& gfx9Image   = static_cast<const Image&>(*image.GetGfxImage());
@@ -418,6 +421,9 @@ void Device::ExpandColor(
 {
     const BarrierTransition& transition = barrier.pTransitions[transitionId];
     PAL_ASSERT(transition.imageInfo.pImage != nullptr);
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
+    PAL_ASSERT(transition.imageInfo.subresRange.numPlanes == 1);
+#endif
 
     const EngineType            engineType  = pCmdBuf->GetEngineType();
     const auto&                 image       = static_cast<const Pal::Image&>(*transition.imageInfo.pImage);
@@ -742,7 +748,7 @@ void Device::ExpandColor(
             pSyncReqs->cacheFlags |= (CacheSyncFlushTcc | CacheSyncInvTcc);
         }
 
-        if (gfx9Image.HasDccStateMetaData(subresRange.startSubres.aspect))
+        if (gfx9Image.HasDccStateMetaData(subresRange))
         {
             // If the previous layout was not one which can write compressed DCC data, but the new layout is,
             // then we need to update the Image's DCC state metadata to indicate that the image is (probably)
@@ -1471,17 +1477,17 @@ void Device::Barrier(
                     const auto& subresRange = imageInfo.subresRange;
 
 #if PAL_ENABLE_PRINTS_ASSERTS
-                    const auto& engineProps  = Parent()->EngineProperties().perEngine[engineType];
-                    const auto& createInfo   = image.GetImageCreateInfo();
-                    const bool  isWholeImage = image.IsFullSubResRange(subresRange);
+                    const auto& engineProps = Parent()->EngineProperties().perEngine[engineType];
+                    const auto& createInfo  = image.GetImageCreateInfo();
+                    const bool  isFullPlane = image.IsRangeFullPlane(subresRange);
 
                     // This queue must support this barrier transition.
                     PAL_ASSERT(engineProps.flags.supportsImageInitBarrier == 1);
 
-                    // By default, the entire image must be initialized in one go. Per-subres support can be requested
+                    // By default, the entire plane must be initialized in one go. Per-subres support can be requested
                     // using an image flag as long as the queue supports it.
-                    PAL_ASSERT(isWholeImage || ((engineProps.flags.supportsImageInitPerSubresource == 1) &&
-                                                (createInfo.flags.perSubresInit == 1)));
+                    PAL_ASSERT(isFullPlane || ((engineProps.flags.supportsImageInitPerSubresource == 1) &&
+                                               (createInfo.flags.perSubresInit == 1)));
 #endif
 
                     if (gfx9Image.HasColorMetaData() || gfx9Image.HasHtileData())
@@ -1493,8 +1499,8 @@ void Device::Barrier(
                             // If HTile encodes depth and stencil data we must idle any prior draws that bound this
                             // image as a depth-stencil target and flush/invalidate the DB caches because we always
                             // use compute to initialize HTile. That compute shader could attempt to do a read-modify-
-                            // write of HTile on one aspect (e.g., stencil) while reading in HTile values with stale
-                            // data for the other aspect (e.g., depth) which will clobber the correct values.
+                            // write of HTile on one plane (e.g., stencil) while reading in HTile values with stale
+                            // data for the other plane (e.g., depth) which will clobber the correct values.
                             SyncReqs sharedHtileSync = {};
                             sharedHtileSync.cpMeCoherCntl.bits.DB_DEST_BASE_ENA = 1;
                             sharedHtileSync.cpMeCoherCntl.bits.DEST_BASE_0_ENA  = 1;
@@ -1503,9 +1509,8 @@ void Device::Barrier(
                             IssueSyncs(pCmdBuf, pCmdStream, sharedHtileSync, barrier.waitPoint,
                                        image.GetGpuVirtualAddr(), gfx9Image.GetGpuMemSyncSize(), &barrierOps);
                         }
-
                         barrierOps.layoutTransitions.initMaskRam = 1;
-                        if (gfx9Image.HasDccStateMetaData(subresRange.startSubres.aspect))
+                        if (gfx9Image.HasDccStateMetaData(subresRange))
                         {
                             barrierOps.layoutTransitions.updateDccStateMetadata = 1;
                         }
@@ -1515,8 +1520,7 @@ void Device::Barrier(
                                                                            pCmdStream,
                                                                            gfx9Image,
                                                                            subresRange,
-                                                                           imageInfo.newLayout,
-                                                                           nullptr);
+                                                                           imageInfo.newLayout);
 
                         // After initializing Mask RAM, we need some syncs to guarantee the initialization blts have
                         // finished, even if other Blts caused these operations to occur before any Blts were performed.

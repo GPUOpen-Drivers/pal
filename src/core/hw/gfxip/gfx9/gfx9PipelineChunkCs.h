@@ -48,7 +48,6 @@ struct HwRegInfo
     regCOMPUTE_NUM_THREAD_Y  computeNumThreadY;
     regCOMPUTE_NUM_THREAD_Z  computeNumThreadZ;
     regCOMPUTE_PGM_LO        computePgmLo;
-    regCOMPUTE_PGM_HI        computePgmHi;
     regCOMPUTE_PGM_RSRC1     computePgmRsrc1;
     regCOMPUTE_PGM_RSRC3     computePgmRsrc3;
     regCOMPUTE_USER_DATA_0   userDataInternalTable;
@@ -122,7 +121,7 @@ public:
         bool                            prefetch) const;
 
     gpusize CsProgramGpuVa() const
-        { return GetOriginalAddress(m_regs.computePgmLo.bits.DATA, m_regs.computePgmHi.bits.DATA); }
+        { return GetOriginalAddress(m_regs.computePgmLo.bits.DATA, 0); }
 
     const HwRegInfo HWInfo() const { return m_regs; }
 

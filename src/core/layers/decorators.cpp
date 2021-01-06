@@ -2103,13 +2103,22 @@ void CmdBufferFwdDecorator::CmdBarrier(
 }
 
 // =====================================================================================================================
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
+uint32 CmdBufferFwdDecorator::CmdRelease(
+    const AcquireReleaseInfo& releaseInfo)
+#else
 void CmdBufferFwdDecorator::CmdRelease(
     const AcquireReleaseInfo& releaseInfo,
     const IGpuEvent*          pGpuEvent)
+#endif
 {
     PlatformDecorator*const pPlatform = m_pDevice->GetPlatform();
     AutoBuffer<MemBarrier, 32, PlatformDecorator> memoryBarriers(releaseInfo.memoryBarrierCount, pPlatform);
     AutoBuffer<ImgBarrier, 32, PlatformDecorator> imageBarriers(releaseInfo.imageBarrierCount, pPlatform);
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
+    uint32 syncToken = 0;
+#endif
 
     if ((memoryBarriers.Capacity() < releaseInfo.memoryBarrierCount) ||
         (imageBarriers.Capacity() < releaseInfo.imageBarrierCount))
@@ -2135,24 +2144,44 @@ void CmdBufferFwdDecorator::CmdRelease(
         }
         nextReleaseInfo.pImageBarriers = &imageBarriers[0];
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
+        syncToken = m_pNextLayer->CmdRelease(nextReleaseInfo);
+#else
         m_pNextLayer->CmdRelease(nextReleaseInfo, NextGpuEvent(pGpuEvent));
+#endif
     }
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
+    return syncToken;
+#endif
 }
 
 // =====================================================================================================================
 void CmdBufferFwdDecorator::CmdAcquire(
     const AcquireReleaseInfo& acquireInfo,
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
+    uint32                    syncTokenCount,
+    const uint32*             pSyncTokens)
+#else
     uint32                    gpuEventCount,
     const IGpuEvent*const*    ppGpuEvents)
+#endif
 {
     PlatformDecorator*const pPlatform = m_pDevice->GetPlatform();
     AutoBuffer<MemBarrier, 32, PlatformDecorator> memoryBarriers(acquireInfo.memoryBarrierCount, pPlatform);
     AutoBuffer<ImgBarrier, 32, PlatformDecorator> imageBarriers(acquireInfo.imageBarrierCount, pPlatform);
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 648
     AutoBuffer<const IGpuEvent*, 16, PlatformDecorator> nextGpuEvents(gpuEventCount, pPlatform);
+#endif
 
     if ((memoryBarriers.Capacity() < acquireInfo.memoryBarrierCount) ||
-        (imageBarriers.Capacity() < acquireInfo.imageBarrierCount) ||
-        (nextGpuEvents.Capacity() < gpuEventCount))
+        (imageBarriers.Capacity() < acquireInfo.imageBarrierCount)
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 648
+        ||
+        (nextGpuEvents.Capacity() < gpuEventCount)
+#endif
+        )
     {
         // If the layers become production code, we must set a flag here and return out of memory on End().
         PAL_ASSERT_ALWAYS();
@@ -2175,12 +2204,16 @@ void CmdBufferFwdDecorator::CmdAcquire(
         }
         nextAcquireInfo.pImageBarriers = &imageBarriers[0];
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
+        m_pNextLayer->CmdAcquire(nextAcquireInfo, syncTokenCount, pSyncTokens);
+#else
         for (uint32 i = 0; i < gpuEventCount; i++)
         {
             nextGpuEvents[i] = NextGpuEvent(ppGpuEvents[i]);
         }
 
         m_pNextLayer->CmdAcquire(nextAcquireInfo, gpuEventCount, &nextGpuEvents[0]);
+#endif
     }
 }
 
@@ -2279,6 +2312,7 @@ GpuMemoryDecorator::GpuMemoryDecorator(
 
 // =====================================================================================================================
 PlatformDecorator::PlatformDecorator(
+    const PlatformCreateInfo&    createInfo,
     const AllocCallbacks&        allocCb,
     Developer::Callback          pfnDeveloperCb,
     bool                         installDeveloperCb,
@@ -2312,14 +2346,7 @@ PlatformDecorator::~PlatformDecorator()
 // =====================================================================================================================
 Result PlatformDecorator::Init()
 {
-    Result result = IPlatform::Init();
-
-    if (result == Result::Success)
-    {
-        result = m_logDirMutex.Init();
-    }
-
-    return result;
+    return IPlatform::Init();
 }
 
 // =====================================================================================================================

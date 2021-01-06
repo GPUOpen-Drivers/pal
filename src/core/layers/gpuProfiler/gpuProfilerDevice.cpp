@@ -72,10 +72,12 @@ Device::Device(
 {
     memset(m_queueIds, 0, sizeof(m_queueIds));
 
+    m_sqttTsHash = ZeroShaderHash;
     m_sqttVsHash = ZeroShaderHash;
     m_sqttHsHash = ZeroShaderHash;
     m_sqttDsHash = ZeroShaderHash;
     m_sqttGsHash = ZeroShaderHash;
+    m_sqttMsHash = ZeroShaderHash;
     m_sqttPsHash = ZeroShaderHash;
     m_sqttCsHash = ZeroShaderHash;
 }
@@ -143,6 +145,8 @@ Result Device::CommitSettingsAndInit()
         m_seMask               = settings.gpuProfilerSqttConfig.seMask & maxSeMask;
 
         m_stallMode           = settings.gpuProfilerSqttConfig.stallBehavior;
+        m_sqttTsHash.upper = settings.gpuProfilerSqttConfig.tsHashHi;
+        m_sqttTsHash.lower = settings.gpuProfilerSqttConfig.tsHashLo;
         m_sqttVsHash.upper = settings.gpuProfilerSqttConfig.vsHashHi;
         m_sqttVsHash.lower = settings.gpuProfilerSqttConfig.vsHashLo;
         m_sqttHsHash.upper = settings.gpuProfilerSqttConfig.hsHashHi;
@@ -151,16 +155,20 @@ Result Device::CommitSettingsAndInit()
         m_sqttDsHash.lower = settings.gpuProfilerSqttConfig.dsHashLo;
         m_sqttGsHash.upper = settings.gpuProfilerSqttConfig.gsHashHi;
         m_sqttGsHash.lower = settings.gpuProfilerSqttConfig.gsHashLo;
+        m_sqttMsHash.upper = settings.gpuProfilerSqttConfig.msHashHi;
+        m_sqttMsHash.lower = settings.gpuProfilerSqttConfig.msHashLo;
         m_sqttPsHash.upper = settings.gpuProfilerSqttConfig.psHashHi;
         m_sqttPsHash.lower = settings.gpuProfilerSqttConfig.psHashLo;
         m_sqttCsHash.upper = settings.gpuProfilerSqttConfig.csHashHi;
         m_sqttCsHash.lower = settings.gpuProfilerSqttConfig.csHashLo;
 
         m_sqttFilteringEnabled = ((m_sqttCompilerHash != 0)         ||
+                                  ShaderHashIsNonzero(m_sqttTsHash) ||
                                   ShaderHashIsNonzero(m_sqttVsHash) ||
                                   ShaderHashIsNonzero(m_sqttHsHash) ||
                                   ShaderHashIsNonzero(m_sqttDsHash) ||
                                   ShaderHashIsNonzero(m_sqttGsHash) ||
+                                  ShaderHashIsNonzero(m_sqttMsHash) ||
                                   ShaderHashIsNonzero(m_sqttPsHash) ||
                                   ShaderHashIsNonzero(m_sqttCsHash));
         m_sqttAddTtvHashes     = settings.gpuProfilerSqttConfig.addTtvHashes;
@@ -1140,10 +1148,12 @@ bool Device::SqttEnabledForPipeline(
     if (m_sqttFilteringEnabled)
     {
         constexpr uint32 CsIdx = static_cast<uint32>(ShaderType::Compute);
+        constexpr uint32 TsIdx = static_cast<uint32>(ShaderType::Task);
         constexpr uint32 VsIdx = static_cast<uint32>(ShaderType::Vertex);
         constexpr uint32 HsIdx = static_cast<uint32>(ShaderType::Hull);
         constexpr uint32 DsIdx = static_cast<uint32>(ShaderType::Domain);
         constexpr uint32 GsIdx = static_cast<uint32>(ShaderType::Geometry);
+        constexpr uint32 MsIdx = static_cast<uint32>(ShaderType::Mesh);
         constexpr uint32 PsIdx = static_cast<uint32>(ShaderType::Pixel);
 
         const auto& settings = GetPlatform()->PlatformSettings();
@@ -1182,6 +1192,8 @@ bool Device::SqttEnabledForPipeline(
                  (ShaderHashIsNonzero(m_sqttHsHash) && ShaderHashesEqual(m_sqttHsHash, info.shader[HsIdx].hash)) ||
                  (ShaderHashIsNonzero(m_sqttDsHash) && ShaderHashesEqual(m_sqttDsHash, info.shader[DsIdx].hash)) ||
                  (ShaderHashIsNonzero(m_sqttGsHash) && ShaderHashesEqual(m_sqttGsHash, info.shader[GsIdx].hash)) ||
+                 (ShaderHashIsNonzero(m_sqttTsHash) && ShaderHashesEqual(m_sqttTsHash, info.shader[TsIdx].hash)) ||
+                 (ShaderHashIsNonzero(m_sqttMsHash) && ShaderHashesEqual(m_sqttMsHash, info.shader[MsIdx].hash)) ||
                  (ShaderHashIsNonzero(m_sqttPsHash) && ShaderHashesEqual(m_sqttPsHash, info.shader[PsIdx].hash)));
         }
     }

@@ -136,6 +136,8 @@ public:
     TessFactorBuffer(Device* pDevice, BufferSrd* pSrdTable, bool isTmz);
     virtual ~TessFactorBuffer() {}
 
+    uint32 TfRingSize() const;
+
 protected:
     virtual gpusize ComputeAllocationSize() const override;
     virtual void UpdateSrds() const override;
@@ -152,6 +154,8 @@ class OffchipLdsBuffer : public ShaderRing
 public:
     OffchipLdsBuffer(Device* pDevice, BufferSrd* pSrdTable, bool isTmz);
     virtual ~OffchipLdsBuffer() {}
+
+    uint32 OffchipBuffering() const;
 
 protected:
     virtual gpusize ComputeAllocationSize() const override;
@@ -179,6 +183,121 @@ protected:
 private:
     PAL_DISALLOW_DEFAULT_CTOR(SamplePosBuffer);
     PAL_DISALLOW_COPY_AND_ASSIGN(SamplePosBuffer);
+};
+
+// =====================================================================================================================
+// Implements shader-ring functionality specific for shader scratch memory.
+class MeshScratchRing : public ShaderRing
+{
+public:
+    MeshScratchRing(Device* pDevice, BufferSrd* pSrdTable, bool isTmz);
+    virtual ~MeshScratchRing() {}
+
+protected:
+    virtual gpusize ComputeAllocationSize() const override;
+    virtual void UpdateSrds() const override;
+
+private:
+    uint32 m_maxThreadgroupsPerChip;
+
+    PAL_DISALLOW_DEFAULT_CTOR(MeshScratchRing);
+    PAL_DISALLOW_COPY_AND_ASSIGN(MeshScratchRing);
+};
+
+// =====================================================================================================================
+// Implement shader-ring functionality specific to the PayloadData buffer required for Task -> GFX shader functionality.
+class PayloadDataRing : public ShaderRing
+{
+public:
+    PayloadDataRing(Device* pDevice, BufferSrd* pSrdTable, bool isTmz);
+    virtual ~PayloadDataRing() {}
+
+protected:
+    virtual gpusize ComputeAllocationSize() const override
+        { return m_maxNumEntries * PayloadDataEntrySize; }
+    virtual void UpdateSrds() const override;
+
+private:
+    static constexpr uint32 PayloadDataEntrySize = 16 * 1024;  // This is the expected maximum size by the APIs.
+    const uint32 m_maxNumEntries;
+
+    PAL_DISALLOW_DEFAULT_CTOR(PayloadDataRing);
+    PAL_DISALLOW_COPY_AND_ASSIGN(PayloadDataRing);
+};
+
+// =====================================================================================================================
+// Implement shader-ring functionality specific to the IndirectDraw arguments necessary to launch GFX shaders after a
+// Task shader dispatch.
+class DrawDataRing : public ShaderRing
+{
+public:
+    DrawDataRing(Device* pDevice, BufferSrd* pSrdTable, bool isTmz);
+    virtual ~DrawDataRing() {}
+
+    uint32 GetNumEntries() const { return m_maxNumEntries; }
+    void Initialize();
+
+protected:
+    virtual gpusize ComputeAllocationSize() const override
+        { return m_maxNumEntries * DrawDataEntrySize; }
+    virtual void UpdateSrds() const override;
+
+    struct DrawDataRingLayout
+    {
+        uint32 xDim;
+        uint32 yDim;
+        uint32 zDim;
+        union
+        {
+            struct
+            {
+                uint32 drawReady : 1;
+                uint32 packetEnd : 1;
+                uint32 reserved0 : 30;
+            };
+
+            uint32 u32All;
+        };
+    };
+
+private:
+    // This is the expected size of this data by the CP.
+    static constexpr uint32 DrawDataEntrySize = sizeof(DrawDataRingLayout);
+    const uint32 m_maxNumEntries;
+
+    PAL_DISALLOW_DEFAULT_CTOR(DrawDataRing);
+    PAL_DISALLOW_COPY_AND_ASSIGN(DrawDataRing);
+};
+
+// =====================================================================================================================
+// Implements shader-ring functionality specific to the TASKMESH control buffer.
+class TaskMeshControlRing : public ShaderRing
+{
+public:
+    TaskMeshControlRing(Device* pDevice, BufferSrd* pSrdTable, bool isTmz);
+    virtual ~TaskMeshControlRing() {}
+    void InitializeControlBuffer(gpusize drawRingAddr, uint32 numEntries);
+
+protected:
+#pragma pack(push, 1)
+    struct ControlBufferLayout
+    {
+        uint64 writePtr;
+        uint64 readPtr;
+        uint64 deallocPtr;
+        uint32 numEntries;
+        uint64 drawRingBaseAddr;
+    };
+#pragma pack(pop)
+    static_assert(sizeof(ControlBufferLayout) == sizeof(uint32) * 9,
+                  "Control buffer is a different size than expected!");
+
+    virtual gpusize ComputeAllocationSize() const override { return sizeof(ControlBufferLayout); }
+    virtual void UpdateSrds() const override {};
+
+private:
+    PAL_DISALLOW_DEFAULT_CTOR(TaskMeshControlRing);
+    PAL_DISALLOW_COPY_AND_ASSIGN(TaskMeshControlRing);
 };
 
 } // Gfx9

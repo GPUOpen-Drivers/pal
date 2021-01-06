@@ -36,13 +36,14 @@ namespace DbgOverlay
 
 // =====================================================================================================================
 Result Platform::Create(
+    const PlatformCreateInfo&   createInfo,
     const Util::AllocCallbacks& allocCb,
     IPlatform*                  pNextPlatform,
     bool                        enabled,
     void*                       pPlacementAddr,
     IPlatform**                 ppPlatform)
 {
-    auto* pPlatform = PAL_PLACEMENT_NEW(pPlacementAddr) Platform(allocCb, pNextPlatform, enabled);
+    auto* pPlatform = PAL_PLACEMENT_NEW(pPlacementAddr) Platform(createInfo, allocCb, pNextPlatform, enabled);
     Result result   = pPlatform->Init();
 
     if (result == Result::Success)

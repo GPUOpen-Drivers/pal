@@ -365,14 +365,27 @@ void File::Rewind()
 }
 
 // =====================================================================================================================
-// Sets the file position to the beginning of the file.
+// Sets the position indicator to a new position.
 void File::Seek(
     int32 offset,
-    bool   fromOrigin)
+    bool  fromOrigin)
 {
     if (m_pFileHandle != nullptr)
     {
         int32 ret = fseek(m_pFileHandle, offset, fromOrigin ? SEEK_SET : SEEK_CUR);
+
+        PAL_ASSERT(ret == 0);
+    }
+}
+
+// =====================================================================================================================
+// Sets the position indicator to a new position relative to the end of the file.
+void File::Rseek(
+    int32 offset)
+{
+    if (m_pFileHandle != nullptr)
+    {
+        int32 ret = fseek(m_pFileHandle, offset, SEEK_END);
 
         PAL_ASSERT(ret == 0);
     }

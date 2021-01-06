@@ -192,7 +192,7 @@ int WaylandLoaderFuncsProxy::pfnWlProxyAddListener(
 {
     const int64 begin = Util::GetPerfCpuTime();
     int ret = m_pFuncs->pfnWlProxyAddListener(proxy,
-                                              (**implementation)(void),
+                                              implementation,
                                               data);
     const int64 end = Util::GetPerfCpuTime();
     const int64 elapse = end - begin;
@@ -200,9 +200,9 @@ int WaylandLoaderFuncsProxy::pfnWlProxyAddListener(
     m_timeLogger.Flush();
 
     m_paramLogger.Printf(
-        "WlProxyAddListener(%p, %x, %p)\n",
+        "WlProxyAddListener(%p, %p, %p)\n",
         proxy,
-        (**implementation)(void),
+        implementation,
         data);
     m_paramLogger.Flush();
 
@@ -271,23 +271,25 @@ uint32 WaylandLoaderFuncsProxy::pfnWlProxyGetVersion(
 void WaylandLoaderFuncsProxy::pfnWlProxyMarshal(
     struct wl_proxy*  p,
     uint32            opcode,
-                      ...
+    ...
     ) const
 {
     const int64 begin = Util::GetPerfCpuTime();
+    va_list args;
+    va_start(args, opcode);
     m_pFuncs->pfnWlProxyMarshal(p,
                                 opcode,
-                                ...);
+                                args);
+    va_end(args);
     const int64 end = Util::GetPerfCpuTime();
     const int64 elapse = end - begin;
     m_timeLogger.Printf("WlProxyMarshal,%ld,%ld,%ld\n", begin, end, elapse);
     m_timeLogger.Flush();
 
     m_paramLogger.Printf(
-        "WlProxyMarshal(%p, %x, %x)\n",
+        "WlProxyMarshal(%p, %x)\n",
         p,
-        opcode,
-        ...);
+        opcode);
     m_paramLogger.Flush();
 }
 
@@ -296,25 +298,27 @@ wl_proxy* WaylandLoaderFuncsProxy::pfnWlProxyMarshalConstructor(
     struct wl_proxy*            proxy,
     uint32                      opcode,
     const struct wl_interface*  interface,
-                                ...
+    ...
     ) const
 {
     const int64 begin = Util::GetPerfCpuTime();
+    va_list args;
+    va_start(args, interface);
     wl_proxy* pRet = m_pFuncs->pfnWlProxyMarshalConstructor(proxy,
                                                             opcode,
                                                             interface,
-                                                            ...);
+                                                            args);
+    va_end(args);
     const int64 end = Util::GetPerfCpuTime();
     const int64 elapse = end - begin;
     m_timeLogger.Printf("WlProxyMarshalConstructor,%ld,%ld,%ld\n", begin, end, elapse);
     m_timeLogger.Flush();
 
     m_paramLogger.Printf(
-        "WlProxyMarshalConstructor(%p, %x, %p, %x)\n",
+        "WlProxyMarshalConstructor(%p, %x, %p)\n",
         proxy,
         opcode,
-        interface,
-        ...);
+        interface);
     m_paramLogger.Flush();
 
     return pRet;
@@ -326,27 +330,29 @@ wl_proxy* WaylandLoaderFuncsProxy::pfnWlProxyMarshalConstructorVersioned(
     uint32                      opcode,
     const struct wl_interface*  interface,
     uint32                      version,
-                                ...
+    ...
     ) const
 {
     const int64 begin = Util::GetPerfCpuTime();
+    va_list args;
+    va_start(args, version);
     wl_proxy* pRet = m_pFuncs->pfnWlProxyMarshalConstructorVersioned(proxy,
                                                                      opcode,
                                                                      interface,
                                                                      version,
-                                                                     ...);
+                                                                     args);
+    va_end(args);
     const int64 end = Util::GetPerfCpuTime();
     const int64 elapse = end - begin;
     m_timeLogger.Printf("WlProxyMarshalConstructorVersioned,%ld,%ld,%ld\n", begin, end, elapse);
     m_timeLogger.Flush();
 
     m_paramLogger.Printf(
-        "WlProxyMarshalConstructorVersioned(%p, %x, %p, %x, %x)\n",
+        "WlProxyMarshalConstructorVersioned(%p, %x, %p, %x)\n",
         proxy,
         opcode,
         interface,
-        version,
-        ...);
+        version);
     m_paramLogger.Flush();
 
     return pRet;
@@ -436,11 +442,11 @@ Result WaylandLoader::Init(
     char LibNames[WaylandLoaderLibrariesCount][LibNameSize] = {
         "libwayland-client.so.0",
     };
-
     if (m_initialized == false)
     {
         // resolve symbols from libwayland-client.so.0
         result = m_library[LibWaylandClient].Load(LibNames[LibWaylandClient]);
+        PAL_ASSERT_MSG(result == Result::Success, "Failed to load LibWaylandClient library");
         if (result == Result::Success)
         {
             m_library[LibWaylandClient].GetFunction("wl_display_create_queue", &m_funcs.pfnWlDisplayCreateQueue);

@@ -268,7 +268,11 @@ public:
 protected:
     virtual void ComputeTilesInMipTail(
         const Image&       image,
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
         ImageAspect        aspect,
+#else
+        uint32             plane,
+#endif
         ImageMemoryLayout* pGpuMemLayout) const override;
 
 private:

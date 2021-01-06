@@ -93,9 +93,9 @@ AddrSwizzleMode Gfx9MaskRam::GetSwizzleMode() const
 {
     // We always want to use the swizzle mode associated with the first sub-resource.
     //   1) For color images, the swizzle mode is constant across all sub-resources.
-    //   2) For depth+stencil images, the meta equation is generated based on the swizzle mode of the depth aspect
-    //      (which will always be the first aspect).
-    //   3) For stencil-only or Z-only images, there is only one aspect, so it will be first.
+    //   2) For depth+stencil images, the meta equation is generated based on the swizzle mode of the depth plane
+    //      (which will always be the first plane).
+    //   3) For stencil-only or Z-only images, there is only one plane, so it will be first.
     const SubResourceInfo*const pBaseSubResInfo = m_image.Parent()->SubresourceInfo(0);
 
     return m_image.GetAddrSettings(pBaseSubResInfo).swizzleMode;
@@ -133,16 +133,24 @@ void Gfx9MaskRam::BuildSurfBufferView(
 // =====================================================================================================================
 // Retrieves the pipe-bank xor setting for the image associated with this mask ram.
 uint32 Gfx9MaskRam::GetPipeBankXor(
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
     ImageAspect aspect
+#else
+    uint32 plane
+#endif
     ) const
 {
     // Check for cMask; cMask can't be here as the pipe-bank xor setting for cMask is the pipe-bank xor setting
     // associated with the fMask surface.  cMask needs to override this function.
     PAL_ASSERT (IsColor() || IsDepth());
 
-    // The pipeBankXor setting for an image is expected to be a constant across all mips / slices of one aspect.
+    // The pipeBankXor setting for an image is expected to be a constant across all mips / slices of one plane.
     const auto*    pParent      = m_image.Parent();
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
     const SubresId baseSubResId = { aspect, 0, 0 };
+#else
+    const SubresId baseSubResId = { plane, 0, 0 };
+#endif
 
     const uint32   pipeBankXor  = AddrMgr2::GetTileInfo(pParent, baseSubResId)->pipeBankXor;
 
@@ -604,12 +612,20 @@ void Gfx9MetaEqGenerator::CalcPipeEquation(
 // =====================================================================================================================
 // Calculate the pipe-bank XOR value as used by the meta-data equation.
 uint32 Gfx9MetaEqGenerator::CalcPipeXorMask(
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
     ImageAspect   aspect
+#else
+    uint32 plane
+#endif
     ) const
 {
     const uint32  pipeInterleaveLog2 = m_pParent->GetGfxDevice()->GetPipeInterleaveLog2();
     const uint32  numPipesLog2       = CapPipe();
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
     const uint32  pipeBankXor        = m_pParent->GetPipeBankXor(aspect);
+#else
+    const uint32  pipeBankXor        = m_pParent->GetPipeBankXor(plane);
+#endif
 
     const uint32 pipeXorMaskNibble = (pipeBankXor & ((1 << numPipesLog2) - 1)) << (pipeInterleaveLog2 + 1);
 
@@ -1304,7 +1320,7 @@ void Gfx9MetaEqGenerator::AddMetaPipeBits(
 
     if (pPalDevice->ChipProperties().gfx9.rbPlus)
     {
-        int32  s       = -1;
+        int32  s       = (IsZSwizzle(swizzleMode) ? 0 : numSamplesLog2) - 1;
         uint32 pos     = 0;
         uint32 tileOrd = 4;
         bool   xBit    = false;
@@ -1316,20 +1332,17 @@ void Gfx9MetaEqGenerator::AddMetaPipeBits(
         PAL_ASSERT(8 <= params.restart);
 
         uint32 numZBits      = params.restart - startBase;
-        uint32 sampleBits    = (bppLog2 <= 2) ? 3 : numSamplesLog2;
-        uint32 zBitsToRotate = 0;
+        uint32 sampleBits    = (IsZSwizzle(swizzleMode) && (bppLog2 <= 2)) ? 3 : numSamplesLog2;
+        int32  zBitsToRotate = static_cast<int32>(numZBits + sampleBits) - 6;
 
-        if ((numZBits + sampleBits) >= 6)
+        if ((effectiveNumPipesLog2 + sampleBits) >= 6)
         {
-            zBitsToRotate = numZBits + sampleBits - 6;
-
-            if ((effectiveNumPipesLog2 + sampleBits) >= 6)
-            {
-                zBitsToRotate++;
-            }
+            zBitsToRotate++;
         }
 
-        PAL_ASSERT(zBitsToRotate <= numZBits);
+        zBitsToRotate = Max(0, zBitsToRotate);
+
+        PAL_ASSERT(zBitsToRotate <= static_cast<int32>(numZBits));
         CompPair cz = MetaDataAddrEquation::SetCompPair(MetaDataAddrCompZ, numZBits - zBitsToRotate);
 
         // This hack is to ensure that htile addressing is the same regardless of bpp
@@ -1337,9 +1350,10 @@ void Gfx9MetaEqGenerator::AddMetaPipeBits(
         // and when pipes are less than or equal to 64 pipes.  Greater than this will mean that x/y bits can also
         // affect the pipe, and can be different based on bpp, so we cannot make this assurance
         uint32 maxZPos = endBase;
-        if (bppLog2 <= 2)
+        if (IsZSwizzle(swizzleMode) &&
+            (bppLog2 <= 2))
         {
-            PAL_ASSERT(zBitsToRotate <= (8 + numZBits));
+            PAL_ASSERT(zBitsToRotate <= static_cast<int32>(8 + numZBits));
 
             maxZPos = 8 + numZBits - zBitsToRotate;
         }
@@ -1378,7 +1392,8 @@ void Gfx9MetaEqGenerator::AddMetaPipeBits(
         const uint32 tileSplitStart = endBase;
 
         uint32 subTileXyBits = 0;
-        if ((microBlockLog2.width + microBlockLog2.height) <= 6)
+        if (IsZSwizzle(swizzleMode) &&
+            ((microBlockLog2.width + microBlockLog2.height) <= 6))
         {
             subTileXyBits = 6 - microBlockLog2.width - microBlockLog2.height;
         }
@@ -1624,7 +1639,8 @@ void Gfx9MetaEqGenerator::AddMetaPipeBits(
                 const CompPair            firstCompPair = pPipe->GetFirst(pos);
                 MetaDataAddrComponentType compType      = firstCompPair.compType;
 
-                if (firstCompPair.compPos < 3)
+                if (IsZSwizzle(swizzleMode) &&
+                    (firstCompPair.compPos < 3))
                 {
                     compType = (((numSamplesLog2 & 1) != 0) &&
                                 (numShaderArraysLog2 < ((numSamplesLog2 < 2) ? 3 : 1))
@@ -1648,14 +1664,24 @@ void Gfx9MetaEqGenerator::AddMetaPipeBits(
                     compType = MetaDataAddrCompZ;
                 }
 
-                if (onBit1                        &&
-                    ((numPipesLog2 == 5)          ||
-                     ((numPipesLog2 < 6)          &&
-                      ((numPipesLog2 & 1) == 0)   &&
-                      ((numSamplesLog2 & 1) != 0) &&
-                      ((10 + numPipesLog2 + numSamplesLog2) < blockSizeLog2))))
+                if (onBit1)
                 {
-                    pipeBlockOrd--;
+                    if (IsZSwizzle(swizzleMode))
+                    {
+                        if ((numPipesLog2 == 5)          ||
+                            ((numPipesLog2 < 6)          &&
+                             ((numPipesLog2 & 1) == 0)   &&
+                             ((numSamplesLog2 & 1) != 0) &&
+                             ((10 + numPipesLog2 + numSamplesLog2) < blockSizeLog2)))
+                        {
+                            pipeBlockOrd--;
+                        }
+                    }
+                    else
+                    {
+                        pipeBlockOrd++;
+                        compType = MetaDataAddrCompZ;
+                    }
                 }
 
                 if (compType != MetaDataAddrCompX)
@@ -1940,15 +1966,9 @@ static uint32 CalcBitsToFill(
     uint32  pipeAnchorLog2,
     uint32  microBlockLog2)
 {
-    uint32  bitsToFill = 0;
-    if (pixelBlockLog2 >= pipeAnchorLog2)
-    {
-        PAL_ASSERT((4 + pixelBlockLog2) >= (pipeAnchorLog2 + microBlockLog2));
+    PAL_ASSERT(microBlockLog2 <= 4);
 
-        bitsToFill = pixelBlockLog2 - pipeAnchorLog2 - microBlockLog2 + 4;
-    }
-
-    return bitsToFill;
+    return ((pixelBlockLog2 < pipeAnchorLog2) ? 0 : pixelBlockLog2 - pipeAnchorLog2) - microBlockLog2 + 4;
 }
 
 // =====================================================================================================================
@@ -3245,7 +3265,11 @@ Gfx9Htile::Gfx9Htile(
 // =====================================================================================================================
 // Returns the pipe-bank xor setting for this hTile sruface.
 uint32 Gfx9Htile::GetPipeBankXor(
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
     ImageAspect aspect
+#else
+    uint32 plane
+#endif
     ) const
 {
     const Pal::Device*     pDevice  = m_pGfxDevice->Parent();
@@ -3254,7 +3278,11 @@ uint32 Gfx9Htile::GetPipeBankXor(
     // Due to a HW bug, some GPU's don't support the use of a pipe-bank xor value for hTile surfaces.
     return (settings.waHtilePipeBankXorMustBeZero
             ? 0
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
             : Gfx9MaskRam::GetPipeBankXor(aspect));
+#else
+            : Gfx9MaskRam::GetPipeBankXor(plane));
+#endif
 }
 
 // =====================================================================================================================
@@ -3271,7 +3299,9 @@ void Gfx9Htile::SetupHtilePreload(
     const  Pal::Image*       pParent         = m_image.Parent();
     const  Pal::Device*      pDevice         = m_pGfxDevice->Parent();
     const  Gfx9PalSettings&  settings        = GetGfx9Settings(*pDevice);
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
     const  SubresId          baseSubResource = pParent->GetBaseSubResource();
+#endif
 
     m_dbHtileSurface[mipLevel].most.PREFETCH_WIDTH  = 0;
     m_dbHtileSurface[mipLevel].most.PREFETCH_HEIGHT = 0;
@@ -3279,7 +3309,11 @@ void Gfx9Htile::SetupHtilePreload(
     if (settings.dbPreloadEnable && (settings.waDisableHtilePrefetch == 0))
     {
         const uint32            activeRbCount     = pDevice->ChipProperties().gfx9.numActiveRbs;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
         const SubresId          subResId          = { baseSubResource.aspect, mipLevel, 0 };
+#else
+        const SubresId          subResId          = { 0, mipLevel, 0 };
+#endif
         const SubResourceInfo*  pSubResInfo       = pParent->SubresourceInfo(subResId);
         const uint32            imageSizeInPixels = (pSubResInfo->actualExtentTexels.width *
                                                      pSubResInfo->actualExtentTexels.height);
@@ -3367,7 +3401,11 @@ Result Gfx9Htile::Init(
     // Some HW has a problem with S compression on ZS images that use stencil only targets
     if (settings.waDisableSCompressSOnly &&
         imageCreateInfo.usageFlags.stencilOnlyTarget &&
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
         pParent->IsAspectValid(ImageAspect::Depth))
+#else
+        pParent->HasDepthPlane())
+#endif
     {
         m_flags.compressS = false;
     }
@@ -3386,13 +3424,19 @@ Result Gfx9Htile::Init(
                                   && (m_hTileUsage.vrs == 0)
                                   ) ? 1 : 0);
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
     // Determine the subResource ID of the base slice and mip-map for this aspect
     const SubresId  baseSubResource = pParent->GetBaseSubResource();
+#endif
 
     // Htile control registers vary per mip-level.  Compute those here.
     for (uint32  mipLevel = 0; mipLevel < imageCreateInfo.mipLevels; mipLevel++)
     {
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
         const SubresId              subResId          = { baseSubResource.aspect, mipLevel, 0 };
+#else
+        const SubresId              subResId          = { 0, mipLevel, 0 };
+#endif
         const SubResourceInfo*const pSubResInfo       = pParent->SubresourceInfo(subResId);
         const uint32                imageSizeInPixels = (pSubResInfo->actualExtentTexels.width *
                                                          pSubResInfo->actualExtentTexels.height);
@@ -3418,7 +3462,11 @@ Result Gfx9Htile::Init(
     }
 
     // Call the address library to compute the HTile properties.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
     const SubResourceInfo*  pBaseSubResInfo = pParent->SubresourceInfo(baseSubResource);
+#else
+    const SubResourceInfo*  pBaseSubResInfo = pParent->SubresourceInfo(0);
+#endif
     Result                  result          = ComputeHtileInfo(pBaseSubResInfo);
     if (result == Result::Success)
     {
@@ -3462,7 +3510,11 @@ Result Gfx9Htile::ComputeHtileInfo(
     addrHtileIn.unalignedHeight   = imageCreateInfo.extent.height;
     addrHtileIn.numSlices         = imageCreateInfo.arraySize;
     addrHtileIn.numMipLevels      = imageCreateInfo.mipLevels;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
     addrHtileIn.depthFlags        = pAddrMgr->DetermineSurfaceFlags(*pParent, pSubResInfo->subresId.aspect);
+#else
+    addrHtileIn.depthFlags        = pAddrMgr->DetermineSurfaceFlags(*pParent, pSubResInfo->subresId.plane, false);
+#endif
     addrHtileIn.hTileFlags        = GetMetaFlags();
     addrHtileIn.firstMipIdInTail  = pParentSurfAddrOut->firstMipIdInTail;
 
@@ -3596,25 +3648,25 @@ uint32 Gfx9Htile::GetClearValue(
 }
 
 // =====================================================================================================================
-// Computes a mask for updating the specified aspects of the HTile buffer
-uint32 Gfx9Htile::GetAspectMask(
-    uint32  aspectFlags
+// Computes a mask for updating the specified planes of the HTile buffer
+uint32 Gfx9Htile::GetPlaneMask(
+    uint32  planeFlags
     ) const
 {
     uint32 mask = 0;
 
     if (TileStencilDisabled() == false)
     {
-        if (TestAnyFlagSet(aspectFlags, HtileAspectDepth))
+        if (TestAnyFlagSet(planeFlags, HtilePlaneDepth))
         {
             mask |= Gfx9HtileDepthMask;
         }
-        if (TestAnyFlagSet(aspectFlags, HtileAspectStencil))
+        if (TestAnyFlagSet(planeFlags, HtilePlaneStencil))
         {
             mask |= Gfx9HtileStencilMask;
         }
     }
-    else if (TestAnyFlagSet(aspectFlags, HtileAspectDepth))
+    else if (TestAnyFlagSet(planeFlags, HtilePlaneDepth))
     {
         // All bits are used for depth when tile stencil is disabled
         mask = UINT_MAX;
@@ -3624,15 +3676,35 @@ uint32 Gfx9Htile::GetAspectMask(
 }
 
 // =====================================================================================================================
-// A helper function for when the caller just wants the aspect mask for a single image aspect.
-uint32 Gfx9Htile::GetAspectMask(
+// A helper function for when the caller just wants the plane mask for an entire subresource range.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
+uint32 Gfx9Htile::GetPlaneMask(
     ImageAspect aspect
     ) const
 {
     PAL_ASSERT((aspect == ImageAspect::Depth) || (aspect == ImageAspect::Stencil));
 
-    return GetAspectMask((aspect == ImageAspect::Depth) ? HtileAspectDepth : HtileAspectStencil);
+    return GetPlaneMask((aspect == ImageAspect::Depth) ? HtilePlaneDepth : HtilePlaneStencil);
 }
+#else
+uint32 Gfx9Htile::GetPlaneMask(
+    const SubresRange& range
+    ) const
+{
+    uint32 htileMask = 0;
+
+    if (range.numPlanes == 2)
+    {
+        htileMask = (HtilePlaneDepth | HtilePlaneStencil);
+    }
+    else
+    {
+        htileMask = m_image.Parent()->IsDepthPlane(range.startSubres.plane) ? HtilePlaneDepth : HtilePlaneStencil;
+    }
+
+    return GetPlaneMask(htileMask);
+}
+#endif
 
 // =====================================================================================================================
 // Computes the initial value of the htile which depends on whether or not tile stencil is disabled. We want this
@@ -3992,7 +4064,11 @@ Result Gfx9Dcc::ComputeDccInfo(
 
     dccInfoInput.size             = sizeof(dccInfoInput);
     dccInfoInput.dccKeyFlags      = GetMetaFlags();
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
     dccInfoInput.colorFlags       = pAddrMgr->DetermineSurfaceFlags(*pParent, subResId.aspect);
+#else
+    dccInfoInput.colorFlags       = pAddrMgr->DetermineSurfaceFlags(*pParent, subResId.plane, false);
+#endif
     dccInfoInput.resourceType     = m_image.GetAddrSettings(pSubResInfo).resourceType;
     dccInfoInput.swizzleMode      = surfSettings.swizzleMode;
     dccInfoInput.bpp              = BitsPerPixel(pSubResInfo->format.format);
@@ -4135,6 +4211,7 @@ void Gfx9Dcc::SetControlReg(
         m_image.Gfx10UseCompToSingleFastClears() &&
         (TestAnyFlagSet(settings.useCompToSingle, Gfx10DisableCompToReg)))
     {
+        // If the image was potentially fast-cleared to comp-to-single mode (i.e., no fast-clear-eliminate is
         // required), then we can't allow the CB / DCC to render in comp-to-reg mode because that *will* require
         // an FCE operation.
         //
@@ -4194,7 +4271,11 @@ bool Gfx9Dcc::UseDccForImage(
     const bool isGfx9             = (pDevice->ChipProperties().gfxLevel == GfxIpLevel::GfxIp9);
 
     // GFX9+ resources have the same swizzle mode for all mip-levels and slices, so just look at the base level.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
     const SubResourceInfo*const pSubResInfo = pParent->SubresourceInfo(pParent->GetBaseSubResource());
+#else
+    const SubResourceInfo*const pSubResInfo = pParent->SubresourceInfo(0);
+#endif
     const AddrSwizzleMode       swizzleMode = image.GetAddrSettings(pSubResInfo).swizzleMode;
 
     if (pParent->IsMetadataDisabledByClient())
@@ -4219,6 +4300,14 @@ bool Gfx9Dcc::UseDccForImage(
         useDcc = false;
         mustDisableDcc = true;
     }
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 646
+    else if (createInfo.usageFlags.vrsRateImage != 0)
+    {
+        // The HW has no ability to handle compression on VRS source rate images.
+        useDcc = false;
+        mustDisableDcc = true;
+    }
+#endif
     else if (AddrMgr2::IsLinearSwizzleMode(swizzleMode))
     {
         // If the tile-mode is linear, then this surface has no chance of using DCC memory.
@@ -4470,6 +4559,10 @@ uint8 Gfx9Dcc::GetFastClearCode(
     bool*              pBlackOrWhite)      // [out] true if this clear color is either black or white and corresponds
                                            //        to one of the "special" clear codes.
 {
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
+    PAL_ASSERT(clearRange.numPlanes == 1);
+#endif
+
     // Fast-clear code that is valid for images that won't be texture fetched.
     const Pal::Image*  const     pParent         = image.Parent();
     const Pal::Device* const     pDevice         = pParent->GetDevice();
@@ -4806,9 +4899,13 @@ Result Gfx9Cmask::ComputeCmaskInfo()
     const ImageCreateInfo&  createInfo = pParent->GetImageCreateInfo();
     const auto*const        pAddrMgr   = static_cast<const AddrMgr2::AddrMgr2*>(pDevice->GetAddrMgr());
 
-    // Only need the sub-res info for the aspect...
+    // Only need the sub-res info for the plane...
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
     const SubresId              subResId    = { ImageAspect::Color, 0, 0 };
     const SubResourceInfo*const pSubResInfo = pParent->SubresourceInfo(subResId);
+#else
+    const SubResourceInfo*const pSubResInfo = pParent->SubresourceInfo(0);
+#endif
 
     const auto*                     pFmask     = m_image.GetFmask();
     ADDR2_COMPUTE_CMASK_INFO_INPUT  cMaskInput = {};
@@ -4819,7 +4916,11 @@ Result Gfx9Cmask::ComputeCmaskInfo()
     cMaskInput.unalignedHeight = createInfo.extent.height;
     cMaskInput.numSlices       = createInfo.arraySize;
     cMaskInput.resourceType    = m_image.GetAddrSettings(pSubResInfo).resourceType;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
     cMaskInput.colorFlags      = pAddrMgr->DetermineSurfaceFlags(*pParent, subResId.aspect);
+#else
+    cMaskInput.colorFlags      = pAddrMgr->DetermineSurfaceFlags(*pParent, pSubResInfo->subresId.plane, false);
+#endif
     cMaskInput.swizzleMode     = pFmask->GetSwizzleMode();
     cMaskInput.cMaskFlags      = GetMetaFlags();
 
@@ -4849,10 +4950,18 @@ uint32 Gfx9Cmask::GetBytesPerPixelLog2() const
 // Gets the pipe-bank xor value for the data surface associated with this meta surface.  For a cMask meta surface, the
 // associated data surface is fMask.
 uint32 Gfx9Cmask::GetPipeBankXor(
-    ImageAspect aspect
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
+    ImageAspect   aspect
+#else
+    uint32 plane
+#endif
     ) const
 {
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
     PAL_ASSERT(aspect == ImageAspect::Fmask);
+#else
+    PAL_ASSERT(plane == 0);
+#endif
 
     const uint32 pipeBankXor = m_image.GetFmask()->GetPipeBankXor();
 
@@ -5133,9 +5242,13 @@ Result Gfx9Fmask::Init(
     if (result == Result::Success)
     {
         // fMask surfaces have a pipe/bank xor value which is independent of the image's pipe-bank xor value.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
         result = image.ComputePipeBankXor(ImageAspect::Fmask,
                                           &m_surfSettings,
                                           &m_pipeBankXor);
+#else
+        result = image.ComputePipeBankXor(0, true, &m_surfSettings, &m_pipeBankXor);
+#endif
     }
 
     if (result == Result::Success)

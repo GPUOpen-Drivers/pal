@@ -117,7 +117,11 @@ public:
     virtual Result WaitForLastImagePresented() override;
 
     const WaylandLoader&      GetWaylandLoader() const                      { return m_waylandLoader; }
+#if defined(PAL_DEBUG_PRINTS)
+    const WaylandLoaderFuncsProxy& GetWaylandProcs()  const                 { return m_waylandProcs; }
+#else
     const WaylandLoaderFuncs& GetWaylandProcs()  const                      { return m_waylandProcs; }
+#endif
     wl_display*               GetDisplay() const                            { return m_pDisplay; }
     wl_event_queue*           GetEventQueue() const                         { return m_pEventQueue; }
     wl_surface*               GetSurfaceWrapper() const                     { return m_pSurfaceWrapper; }
@@ -139,7 +143,11 @@ private:
     wl_surface*               m_pSurface;
     wl_drm*                   m_pWaylandDrm;
     const WaylandLoader&      m_waylandLoader;
-    const WaylandLoaderFuncs& m_waylandProcs;
+#if defined(PAL_DEBUG_PRINTS)
+    const WaylandLoaderFuncsProxy& m_waylandProcs;
+#else
+    const WaylandLoaderFuncs&      m_waylandProcs;
+#endif
 
     // PAL present buffers with multi-threads (two threads, one is main thread and another is present thread), in order
     // to avoid dead lock with shared queue, two queues are introduced for buffer idle and frame complete respectively.

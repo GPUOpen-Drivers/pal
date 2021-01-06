@@ -210,7 +210,8 @@ Result PAL_STDCALL CreatePlatform(
         pPlacementAddr = Util::VoidPtrDec(pPlacementAddr, sizeof(CmdBufferLogger::Platform));
         pCurPlatform->SetClientData(pPlacementAddr);
 
-        result = CmdBufferLogger::Platform::Create(allocCb,
+        result = CmdBufferLogger::Platform::Create(createInfo,
+                                                   allocCb,
                                                    pCurPlatform,
                                                    pCorePlatform->PlatformSettings().cmdBufferLoggerEnabled,
                                                    pPlacementAddr,
@@ -224,7 +225,8 @@ Result PAL_STDCALL CreatePlatform(
         pPlacementAddr = Util::VoidPtrDec(pPlacementAddr, sizeof(GpuDebug::Platform));
         pCurPlatform->SetClientData(pPlacementAddr);
 
-        result = GpuDebug::Platform::Create(allocCb,
+        result = GpuDebug::Platform::Create(createInfo,
+                                            allocCb,
                                             pCurPlatform,
                                             pCorePlatform->PlatformSettings().gpuDebugEnabled,
                                             pPlacementAddr,
@@ -253,7 +255,8 @@ Result PAL_STDCALL CreatePlatform(
         pPlacementAddr = Util::VoidPtrDec(pPlacementAddr, sizeof(DbgOverlay::Platform));
         pCurPlatform->SetClientData(pPlacementAddr);
 
-        result = DbgOverlay::Platform::Create(allocCb,
+        result = DbgOverlay::Platform::Create(createInfo,
+                                              allocCb,
                                               pCurPlatform,
                                               pCorePlatform->PlatformSettings().debugOverlayEnabled,
                                               pPlacementAddr,

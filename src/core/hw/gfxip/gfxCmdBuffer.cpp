@@ -61,13 +61,21 @@ GfxCmdBuffer::GfxCmdBuffer(
     m_gfxIpLevel(device.Parent()->ChipProperties().gfxLevel),
     m_maxUploadFenceToken(0),
     m_device(device),
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 648
     m_pInternalEvent(nullptr),
+#endif
     m_timestampGpuVa(0),
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
+    m_acqRelFenceValGpuVa(0),
+#endif
     m_computeStateFlags(0),
-    m_fceRefCountVec(device.GetPlatform()),
+    m_fceRefCountVec(device.GetPlatform())
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 648
+    ,
     m_gfxBltActiveCtr(0),
     m_csBltActiveCtr(0),
     m_releaseActivityMap(128, device.GetPlatform())
+#endif
 {
     PAL_ASSERT((createInfo.queueType == QueueTypeUniversal) || (createInfo.queueType == QueueTypeCompute));
 
@@ -81,7 +89,17 @@ GfxCmdBuffer::GfxCmdBuffer(
     }
 
     m_cmdBufPerfExptFlags.u32All  = 0;
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
+    memset(&m_gfxCmdBufState, 0, sizeof(m_gfxCmdBufState));
+
+    for (uint32 i = 0; i < static_cast<uint32>(AcqRelEventType::Count); i++)
+    {
+        m_acqRelFenceVals[i] = AcqRelFenceResetVal;
+    }
+#else
     m_gfxCmdBufState.flags.u32All = 0;
+#endif
 
 }
 
@@ -91,6 +109,7 @@ GfxCmdBuffer::~GfxCmdBuffer()
     ReturnGeneratedCommandChunks(true);
     ResetFastClearReferenceCounts();
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 648
     Device* device = m_device.Parent();
 
     if (m_pInternalEvent != nullptr)
@@ -98,6 +117,7 @@ GfxCmdBuffer::~GfxCmdBuffer()
         m_pInternalEvent->Destroy();
         PAL_SAFE_FREE(m_pInternalEvent, device->GetPlatform());
     }
+#endif
 }
 
 // =====================================================================================================================
@@ -106,6 +126,7 @@ Result GfxCmdBuffer::Init(
 {
     Result result = CmdBuffer::Init(internalInfo);
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 648
     Device* pDevice = m_device.Parent();
 
     if (result == Result::Success)
@@ -138,6 +159,7 @@ Result GfxCmdBuffer::Init(
     {
         result = m_releaseActivityMap.Init();
     }
+#endif
 
     return result;
 }
@@ -215,12 +237,14 @@ Result GfxCmdBuffer::Reset(
 
     ResetFastClearReferenceCounts();
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 648
     // Current release tracking design could add lots of releases entries but never clear then until reset. This could
     // cause large CPU overhead. Alert if this does happen.
     PAL_ALERT(m_releaseActivityMap.GetNumEntries() >= 1024);
 
     // Reset auto-release activity list
     m_releaseActivityMap.Reset();
+#endif
 
     return CmdBuffer::Reset(pCmdAllocator, returnGpuMemory);
 }
@@ -270,8 +294,15 @@ void GfxCmdBuffer::ResetState()
         m_gfxCmdBufState.flags.cpMemoryWriteL2CacheStale = IsCpDmaSupported();
     }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
+    for (uint32 i = 0; i < static_cast<uint32>(AcqRelEventType::Count); i++)
+    {
+        m_acqRelFenceVals[i] = AcqRelFenceResetVal;
+    }
+#else
     m_gfxBltActiveCtr = 0;
     m_csBltActiveCtr  = 0;
+#endif
 
 }
 
@@ -285,16 +316,12 @@ Result GfxCmdBuffer::BeginCommandStreams(
     {
         ReturnGeneratedCommandChunks(true);
         ResetFastClearReferenceCounts();
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 648
         m_releaseActivityMap.Reset();
+#endif
     }
 
     Result result = CmdBuffer::BeginCommandStreams(cmdStreamFlags, doReset);
-
-    if (result == Result::Success)
-    {
-        // Allocate GPU memory for the internal event from the command allocator.
-        result = AllocateAndBindGpuMemToEvent(m_pInternalEvent);
-    }
 
     if (result == Result::Success)
     {
@@ -304,6 +331,21 @@ Result GfxCmdBuffer::BeginCommandStreams(
         // to access, and sets m_status to a failure code.
         m_timestampGpuVa = AllocateGpuScratchMem(sizeof(uint32), sizeof(uint32));
         result = m_status;
+    }
+
+    if (result == Result::Success)
+    {
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
+        // Allocate acquire/release synchronization fence value GPU memory from the command allocator.
+        // AllocateGpuScratchMem() always returns a valid GPU address, even if we fail to obtain memory from the
+        // allocator.  In that scenario, the allocator returns a dummy chunk so we can always have a valid object
+        // to access, and sets m_status to a failure code.
+        m_acqRelFenceValGpuVa = AllocateGpuScratchMem(static_cast<uint32>(AcqRelEventType::Count), sizeof(uint32));
+        result = m_status;
+#else
+        // Allocate GPU memory for the internal event from the command allocator.
+        result = AllocateAndBindGpuMemToEvent(m_pInternalEvent);
+#endif
     }
 
     return result;
@@ -425,7 +467,7 @@ void GfxCmdBuffer::OptimizePipeAndCacheMaskForRelease(
         // - If a CP L2 BLT occured, alias these srcCaches to CoherTimestamp (this isn't good but we have no CoherL2).
         // - If a CP direct-to-memory write occured, alias these srcCaches to CoherMemory.
         // Clear the original srcCaches from the srcCache mask for the rest of this scope.
-        GfxCmdBufferState cmdBufState = GetGfxCmdBufState();
+        const GfxCmdBufferState cmdBufState = GetGfxCmdBufState();
         localAccessMask &= ~(CoherCopy | CoherClear | CoherResolve);
 
         localAccessMask |= cmdBufState.flags.gfxWriteCachesDirty       ? CoherColorTarget : 0;
@@ -444,11 +486,13 @@ void GfxCmdBuffer::SetGfxCmdBufGfxBltState(
 {
     m_gfxCmdBufState.flags.gfxBltActive = gfxBltActive;
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 648
     if (gfxBltActive)
     {
         m_gfxBltActiveCtr++;
         PAL_ASSERT(m_gfxBltActiveCtr < 0xffff);
     }
+#endif
 }
 
 // =====================================================================================================================
@@ -457,13 +501,16 @@ void GfxCmdBuffer::SetGfxCmdBufCsBltState(
 {
     m_gfxCmdBufState.flags.csBltActive = csBltActive;
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 648
     if (csBltActive)
     {
         m_csBltActiveCtr++;
         PAL_ASSERT(m_csBltActiveCtr < 0xffff);
     }
+#endif
 }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 648
 // =====================================================================================================================
 // This is only for the acquire/release barrier interface. Add the current release info to the release activity hashmap.
 void GfxCmdBuffer::UpdateReleaseActivityMapFromRelease(
@@ -552,6 +599,7 @@ void GfxCmdBuffer::UpdateCmdBufStateFromAcquire(
         m_releaseActivityMap.Erase(pGpuEvent);
     }
 }
+#endif
 
 // =====================================================================================================================
 void GfxCmdBuffer::CmdCopyImage(
@@ -814,6 +862,9 @@ void GfxCmdBuffer::CmdPostProcessFrame(
                                                              LayoutUniversalEngine : LayoutComputeEngine;
                 transition.imageInfo.newLayout.usages      = LayoutShaderRead | LayoutUncompressed;
                 transition.imageInfo.newLayout.engines     = transition.imageInfo.oldLayout.engines;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
+                transition.imageInfo.subresRange.numPlanes = 1;
+#endif
                 transition.imageInfo.subresRange.numMips   = 1;
                 transition.imageInfo.subresRange.numSlices = 1;
 
@@ -856,7 +907,9 @@ void GfxCmdBuffer::CmdPresentBlt(
     const IImage&   dstImage,
     const Offset3d& dstOffset)
 {
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
     constexpr SubresId subres = { ImageAspect::Color, 0, 0, };
+#endif
     const auto& srcImageInfo  = srcImage.GetImageCreateInfo();
 
     ImageScaledCopyRegion region = {};
@@ -865,8 +918,10 @@ void GfxCmdBuffer::CmdPresentBlt(
     region.srcExtent.depth  = 1;
     region.dstExtent        = region.srcExtent;
     region.dstOffset        = dstOffset;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
     region.srcSubres        = subres;
     region.dstSubres        = subres;
+#endif
     region.numSlices        = 1;
 
     const ImageLayout srcLayout =
@@ -964,15 +1019,42 @@ void GfxCmdBuffer::CmdClearColorImage(
     uint32             flags)
 {
     PAL_ASSERT(pRanges != nullptr);
-    m_device.RsrcProcMgr().CmdClearColorImage(this,
-                                              static_cast<const Image&>(image),
-                                              imageLayout,
-                                              color,
-                                              rangeCount,
-                                              pRanges,
-                                              boxCount,
-                                              pBoxes,
-                                              flags);
+
+    uint32 splitRangeCount;
+    bool splitMemAllocated          = false;
+    const SubresRange* pSplitRanges = nullptr;
+    Result result = m_device.Parent()->SplitSubresRanges(rangeCount,
+                                                         pRanges,
+                                                         &splitRangeCount,
+                                                         &pSplitRanges,
+                                                         &splitMemAllocated);
+
+    if (result == Result::ErrorOutOfMemory)
+    {
+        NotifyAllocFailure();
+    }
+    else if (result == Result::Success)
+    {
+        m_device.RsrcProcMgr().CmdClearColorImage(this,
+                                                  static_cast<const Image&>(image),
+                                                  imageLayout,
+                                                  color,
+                                                  splitRangeCount,
+                                                  pSplitRanges,
+                                                  boxCount,
+                                                  pBoxes,
+                                                  flags);
+    }
+    else
+    {
+        PAL_ASSERT_ALWAYS();
+    }
+
+    // Delete memory allocated for splitting the BarrierTransitions if necessary.
+    if (splitMemAllocated)
+    {
+        PAL_SAFE_DELETE_ARRAY(pSplitRanges, m_device.GetPlatform());
+    }
 }
 
 // =====================================================================================================================
@@ -1012,18 +1094,45 @@ void GfxCmdBuffer::CmdClearDepthStencil(
     uint32             flags)
 {
     PAL_ASSERT(pRanges != nullptr);
-    m_device.RsrcProcMgr().CmdClearDepthStencil(this,
-                                                static_cast<const Image&>(image),
-                                                depthLayout,
-                                                stencilLayout,
-                                                depth,
-                                                stencil,
-                                                stencilWriteMask,
-                                                rangeCount,
-                                                pRanges,
-                                                rectCount,
-                                                pRects,
-                                                flags);
+
+    uint32 splitRangeCount;
+    bool splitMemAllocated          = false;
+    const SubresRange* pSplitRanges = nullptr;
+    Result result = m_device.Parent()->SplitSubresRanges(rangeCount,
+                                                         pRanges,
+                                                         &splitRangeCount,
+                                                         &pSplitRanges,
+                                                         &splitMemAllocated);
+
+    if (result == Result::ErrorOutOfMemory)
+    {
+        NotifyAllocFailure();
+    }
+    else if (result == Result::Success)
+    {
+        m_device.RsrcProcMgr().CmdClearDepthStencil(this,
+                                                    static_cast<const Image&>(image),
+                                                    depthLayout,
+                                                    stencilLayout,
+                                                    depth,
+                                                    stencil,
+                                                    stencilWriteMask,
+                                                    splitRangeCount,
+                                                    pSplitRanges,
+                                                    rectCount,
+                                                    pRects,
+                                                    flags);
+    }
+    else
+    {
+        PAL_ASSERT_ALWAYS();
+    }
+
+    // Delete memory allocated for splitting the BarrierTransitions if necessary.
+    if (splitMemAllocated)
+    {
+        PAL_SAFE_DELETE_ARRAY(pSplitRanges, m_device.GetPlatform());
+    }
 }
 
 // =====================================================================================================================
@@ -1389,9 +1498,21 @@ void GfxCmdBuffer::CmdBeginPerfExperiment(
 
     // Indicates that this command buffer is used for enabling a perf experiment. This is used to write any VCOPs that
     // may be needed during submit time.
-    m_cmdBufPerfExptFlags.u32All |= pExperiment->TracesEnabled().u32All;
+    const PerfExperimentFlags tracesEnabled = pExperiment->TracesEnabled();
+    m_cmdBufPerfExptFlags.u32All |= tracesEnabled.u32All;
 
     pExperiment->IssueBegin(this, pCmdStream);
+    if (tracesEnabled.perfCtrsEnabled || tracesEnabled.spmTraceEnabled)
+    {
+        m_gfxCmdBufState.flags.perfCounterStarted = 1;
+        m_gfxCmdBufState.flags.perfCounterStopped = 0;
+    }
+    if (tracesEnabled.sqtTraceEnabled)
+    {
+        m_gfxCmdBufState.flags.sqttStarted = 1;
+        m_gfxCmdBufState.flags.sqttStopped = 0;
+    }
+
     m_pCurrentExperiment = pExperiment;
 }
 
@@ -1420,6 +1541,16 @@ void GfxCmdBuffer::CmdEndPerfExperiment(
     PAL_ASSERT((pPerfExperiment == m_pCurrentExperiment) || (m_pCurrentExperiment == nullptr));
 
     pExperiment->IssueEnd(this, pCmdStream);
+
+    const PerfExperimentFlags tracesEnabled = pExperiment->TracesEnabled();
+    if (tracesEnabled.perfCtrsEnabled || tracesEnabled.spmTraceEnabled)
+    {
+        m_gfxCmdBufState.flags.perfCounterStopped = 1;
+    }
+    if (tracesEnabled.sqtTraceEnabled)
+    {
+        m_gfxCmdBufState.flags.sqttStopped = 1;
+    }
 
     m_pCurrentExperiment = nullptr;
 }

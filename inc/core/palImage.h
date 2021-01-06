@@ -87,6 +87,7 @@ enum class TilingOptMode : uint32
     Count
 };
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
 /// Specifies an aspect of an image.  Aspect is mostly used to distinguish between depth and stencil subresources, since
 /// they are logically separate in GCN hardware.  It is also used to distinguish between the luma and chroma planes of
 /// multimedia formats.
@@ -107,6 +108,7 @@ enum class ImageAspect : uint32
                     ///  (Such as @ref ChNumFormat::UYVY.)
     Count
 };
+#endif
 
 /// Image metadata modes.
 enum class MetadataMode : uint16
@@ -203,10 +205,15 @@ union ImageCreateFlags
         uint32 needSwizzleEqs          :  1; ///< Image requires valid swizzle equations.
         uint32 perSubresInit           :  1; ///< The image may have its subresources initialized independently using
                                              ///  CmdBarrier calls out of the uninitialized layout.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
         uint32 separateDepthAspectInit :  1; ///< If set, the caller may transition the stencil and depth aspects from
                                              ///  "Uninitialized" state at any time.  Otherwise, both aspects must be
+#else
+        uint32 separateDepthPlaneInit  :  1; ///< If set, the caller may transition the stencil and depth planes from
+                                             ///  "Uninitialized" state at any time.  Otherwise, both planes must be
+#endif
                                              ///  transitioned in the same barrier call.  Only meaningful if
-                                             /// "perSubresInit" is set
+                                             /// "perSubresInit" is set.
         uint32 repetitiveResolve       :  1; ///< Optimization: Is this image resolved multiple times to an image which
                                              ///  is mostly similar to this image?
         uint32 preferSwizzleEqs        :  1; ///< Image prefers valid swizzle equations, but an invalid swizzle
@@ -263,7 +270,7 @@ union ImageUsageFlags
         uint32 resolveDst             :  1; ///< Image will be used as resolve dst image
         uint32 colorTarget            :  1; ///< Image will be bound as a color target.
         uint32 depthStencil           :  1; ///< Image will be bound as a depth/stencil target.
-        uint32 noStencilShaderRead    :  1; ///< Image will be neither read as stencil nor resolved on stencil aspect.
+        uint32 noStencilShaderRead    :  1; ///< Image will be neither read as stencil nor resolved on stencil plane.
                                             ///  Note that if resolveSrc bit has been set to indicate that the image
                                             ///  could be adopted as a resolveSrc image and there could be stencil
                                             ///  resolve, noStencilShaderRead must be set to 0, since shader-read
@@ -300,6 +307,11 @@ union ImageUsageFlags
                                             ///< for this image.
 #else
         uint32 reserved636            :  1;
+#endif
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 646
+        uint32 vrsRateImage           :  1; ///< This image is potentially used with CmdBindSampleRateImage
+#else
+        uint32 reserved646            :  1;
 #endif
         uint32 reserved               : 14; ///< Reserved for future use.
     };
@@ -468,6 +480,11 @@ struct PeerImageOpenInfo
 struct ExternalImageOpenInfo
 {
     ExternalResourceOpenInfo resourceInfo;   ///< Information describing the external image.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 645
+    Extent3d                 extent;         ///< Expected extent for the external image. This reference value would be
+                                             ///  ignored and use extents from shared metadata if any dimension of the
+                                             ///  reference extent is zero.
+#endif
     SwizzledFormat           swizzledFormat; ///< Pixel format and channel swizzle. Or UndefinedFormat to infer the
                                              ///  format internally.
     ImageCreateFlags         flags;          ///< Image Creation flags.
@@ -546,6 +563,7 @@ struct SubresLayout
     ImageLayout defaultGfxLayout;
 };
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
 /// Selects a specific subresource of an image resource.
 struct SubresId
 {
@@ -561,6 +579,33 @@ struct SubresRange
     uint32   numMips;      ///< Number of mip levels in the range.
     uint32   numSlices;    ///< Number of slices in the range.
 };
+#else
+/// Selects a specific subresource of an image resource.
+///
+/// Most images only have a single data plane but in some cases conceptually related data will be stored in physically
+/// separate locations which we call planes.  If an image only has a single plane it will always be plane 0.
+/// We define the following fixed mappings for all multi-plane formats.
+///       + Depth-stencil: if the image format contains depth and stencil data, plane 0 is depth and plane 1 is stencil.
+///       + YUV-planar: if the image format is @ref YuvPlanar it has either two or three planes.  The luma plane
+///         is always plane 0. If the format is @ref ChNumFormat::YV12 it has three planes where plane 1 is the
+///         blue-difference chrominance plane and plane 2 is the red-difference chrominance plane. Otherwise, plane 1
+///         interleaves blue-difference and red-difference chrominance values.
+struct SubresId
+{
+    uint32 plane;      ///< Selects a data plane.
+    uint32 mipLevel;   ///< Selects a mip level.
+    uint32 arraySlice; ///< Selects an array slice.
+};
+
+/// Defines a range of subresources.
+struct SubresRange
+{
+    SubresId startSubres;  ///< First subresource in the range.
+    uint32   numPlanes;    ///< Number of planes in the range.
+    uint32   numMips;      ///< Number of mip levels in the range.
+    uint32   numSlices;    ///< Number of slices in the range.
+};
+#endif
 
 /**
  ***********************************************************************************************************************
@@ -578,6 +623,18 @@ public:
     ///
     /// @returns the reference to ImageCreateInfo
     virtual const ImageMemoryLayout& GetMemoryLayout() const = 0;
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
+    /// Reports information on the full range of the image's subresources.
+    ///
+    /// @param [out] pRange  Reports info on the full range of the image's subresources such as number of mips and
+    ///                      planes.
+    ///
+    /// @returns Success if the layout was successfully reported.  Otherwise, one of the following error codes may be
+    ///          returned:
+    ///          + ErrorInvalidPointer if pRange is null.
+    virtual Result GetFullSubresourceRange(SubresRange* pRange) const = 0;
+#endif
 
     /// Reports information on the layout of the specified subresource in memory.
     ///

@@ -142,7 +142,28 @@ void ComputeCmdBuffer::CmdBarrier(
     const uint32 packetPredicate = m_gfxCmdBufState.flags.packetPredicate;
     m_gfxCmdBufState.flags.packetPredicate = 0;
 
-    m_device.Barrier(this, &m_cmdStream, barrierInfo);
+    bool splitMemAllocated;
+    BarrierInfo splitBarrierInfo = barrierInfo;
+    Result result = m_device.Parent()->SplitBarrierTransitions(&splitBarrierInfo, &splitMemAllocated);
+
+    if (result == Result::ErrorOutOfMemory)
+    {
+        NotifyAllocFailure();
+    }
+    else if (result == Result::Success)
+    {
+        m_device.Barrier(this, &m_cmdStream, splitBarrierInfo);
+    }
+    else
+    {
+        PAL_ASSERT_ALWAYS();
+    }
+
+    // Delete memory allocated for splitting the BarrierTransitions if necessary.
+    if (splitMemAllocated)
+    {
+        PAL_SAFE_DELETE_ARRAY(splitBarrierInfo.pTransitions, m_device.GetPlatform());
+    }
 
     m_gfxCmdBufState.flags.packetPredicate = packetPredicate;
 }

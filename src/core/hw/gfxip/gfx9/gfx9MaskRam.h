@@ -71,11 +71,11 @@ struct MetaEqGpuAccess
     gpusize  size;
 };
 
-// Some operations need an easy way to specify which HTile aspects they will read or write to.
-enum HtileAspectMask : uint32
+// Some operations need an easy way to specify which HTile planes they will read or write to.
+enum HtilePlaneMask : uint32
 {
-    HtileAspectDepth   = 0x1,
-    HtileAspectStencil = 0x2
+    HtilePlaneDepth   = 0x1,
+    HtilePlaneStencil = 0x2
 };
 
 // GFX9 hw has three metadata types cmask is metadata for fmask, Dcc for color surface and
@@ -159,7 +159,11 @@ public:
     virtual AddrSwizzleMode GetSwizzleMode() const;
     ADDR2_META_FLAGS GetMetaFlags() const;
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
     virtual uint32 GetPipeBankXor(ImageAspect aspect) const;
+#else
+    virtual uint32 GetPipeBankXor(uint32 plane) const;
+#endif
     virtual uint32 GetBytesPerPixelLog2() const;
     virtual uint32 GetMetaBlockSize(Gfx9MaskRamBlockSize* pExtent) const;
     virtual uint32 GetNumSamplesLog2() const = 0;
@@ -215,7 +219,11 @@ public:
     void BuildEqBufferView(
         BufferViewInfo*  pBufferView) const;
     uint32 CalcPipeXorMask(
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
         ImageAspect   aspect) const;
+#else
+        uint32 plane) const;
+#endif
     const MetaDataAddrEquation&  GetMetaEquation() const { return m_meta; }
     const MetaEquationParam& GetMetaEquationParam() const { return m_metaEqParam; }
     void CpuUploadEq(void*  pCpuMem) const;
@@ -299,8 +307,12 @@ public:
 
     uint32 GetInitialValue() const;
     uint32 GetClearValue(float depthValue) const;
-    uint32 GetAspectMask(uint32 aspectFlags) const;
-    uint32 GetAspectMask(ImageAspect aspect) const;
+    uint32 GetPlaneMask(uint32 planeFlags) const;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
+    uint32 GetPlaneMask(ImageAspect aspect) const;
+#else
+    uint32 GetPlaneMask(const SubresRange& range) const;
+#endif
 
     Result Init(
         gpusize*  pGpuOffset,
@@ -319,7 +331,11 @@ public:
 
     static constexpr uint32 Sr1Mask = (3u << 6);
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
     uint32 GetPipeBankXor(ImageAspect aspect) const override;
+#else
+    uint32 GetPipeBankXor(uint32 plane) const override;
+#endif
     uint32 GetMetaBlockSize(Gfx9MaskRamBlockSize* pExtent) const override;
     uint32 GetNumSamplesLog2() const override;
     uint32 GetMetaCachelineSize() const override { return 8; }
@@ -520,7 +536,11 @@ public:
     // 'not fast cleared' and bits 1:0 being 2'b00 to mean all FMask pointers are zero for the entire tile.
     static constexpr uint8 FastClearValueDcc = 0xCC;
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
     uint32 GetPipeBankXor(ImageAspect aspect) const override;
+#else
+    uint32 GetPipeBankXor(uint32 plane) const override;
+#endif
     uint32 GetBytesPerPixelLog2() const override;
     // FMASK always treated as 1xAA for Cmask addressing
     uint32 GetNumSamplesLog2() const override { return 0; }

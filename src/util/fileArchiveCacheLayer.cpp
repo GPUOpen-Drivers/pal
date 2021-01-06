@@ -71,21 +71,6 @@ Result FileArchiveCacheLayer::Init()
 
     if (result == Result::Success)
     {
-        result = m_archiveFileMutex.Init();
-    }
-
-    if (result == Result::Success)
-    {
-        result = m_hashContextMutex.Init();
-    }
-
-    if (result == Result::Success)
-    {
-        result = m_entryMapLock.Init();
-    }
-
-    if (result == Result::Success)
-    {
         result = m_entries.Init();
     }
 

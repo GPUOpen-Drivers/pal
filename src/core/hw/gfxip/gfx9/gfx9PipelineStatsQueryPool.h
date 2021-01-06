@@ -36,6 +36,7 @@ namespace Gfx9
 class Device;
 
 constexpr uint64  PipelineStatsResetMemValue64 = 0xFFFFFFFFFFFFFFFF;
+constexpr uint32  PipelineStatsNumMeshCounters = 3; // MsInvocations, MsPrimitives, TsInvocations.
 
 // =====================================================================================================================
 // Query pool for retrieving shader execution status, as well as the number of invocations of some other fixed
@@ -90,6 +91,10 @@ protected:
         void*            pData) override;
 
 private:
+    uint32* CopyMeshPipeStatsToQuerySlots(
+        GfxCmdBuffer* pCmdBuffer,
+        gpusize       gpuAddr,
+        uint32*       pCmdSpace) const;
 
     const Device& m_device;
     uint32        m_numEnabledStats;

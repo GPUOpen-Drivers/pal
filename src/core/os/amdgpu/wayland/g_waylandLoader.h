@@ -95,20 +95,20 @@ typedef uint32 (*WlProxyGetVersion)(
 typedef void (*WlProxyMarshal)(
             struct wl_proxy*  p,
             uint32            opcode,
-                              ...);
+            ...);
 
 typedef wl_proxy* (*WlProxyMarshalConstructor)(
             struct wl_proxy*              proxy,
             uint32                        opcode,
             const struct wl_interface*    interface,
-                                          ...);
+            ...);
 
 typedef wl_proxy* (*WlProxyMarshalConstructorVersioned)(
             struct wl_proxy*              proxy,
             uint32                        opcode,
             const struct wl_interface*    interface,
             uint32                        version,
-                                          ...);
+            ...);
 
 typedef void (*WlProxySetQueue)(
             struct wl_proxy*          proxy,
@@ -318,7 +318,7 @@ public:
     void pfnWlProxyMarshal(
             struct wl_proxy*  p,
             uint32            opcode,
-                              ...) const;
+            ...) const;
 
     bool pfnWlProxyMarshalisValid() const
     {
@@ -329,7 +329,7 @@ public:
             struct wl_proxy*              proxy,
             uint32                        opcode,
             const struct wl_interface*    interface,
-                                          ...) const;
+            ...) const;
 
     bool pfnWlProxyMarshalConstructorisValid() const
     {
@@ -341,7 +341,7 @@ public:
             uint32                        opcode,
             const struct wl_interface*    interface,
             uint32                        version,
-                                          ...) const;
+            ...) const;
 
     bool pfnWlProxyMarshalConstructorVersionedisValid() const
     {

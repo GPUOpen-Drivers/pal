@@ -181,12 +181,7 @@ Result PresentScheduler::Init(
     IDevice*const pSlaveDevices[],
     void*         pPlacementAddr)
 {
-    Result result = m_idleJobMutex.Init();
-
-    if (result == Result::Success)
-    {
-        result = m_activeJobMutex.Init();
-    }
+    Result result = Result::Success;
 
     if (result == Result::Success)
     {

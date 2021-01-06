@@ -278,7 +278,12 @@ public:
 
     ADDR2_SURFACE_FLAGS DetermineSurfaceFlags(
         const Image& image,
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
         ImageAspect  aspect) const;
+#else
+        uint32       plane,
+        bool         forFmask) const;
+#endif
 
     static bool IsValidToOverride(AddrSwizzleMode primarySwMode, ADDR2_SWMODE_SET validSwModeSet);
 
@@ -287,7 +292,11 @@ public:
 protected:
     virtual void ComputeTilesInMipTail(
         const Image&       image,
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
         ImageAspect        aspect,
+#else
+        uint32             plane,
+#endif
         ImageMemoryLayout* pGpuMemLayout) const override;
 
 private:

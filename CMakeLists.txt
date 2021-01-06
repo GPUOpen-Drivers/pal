@@ -24,11 +24,19 @@
  #######################################################################################################################
 cmake_minimum_required(VERSION 3.9...3.16)
 
+### Define Project #####################################################################################################
+project(PAL
+    # While PAL is primarily a C++ library, it also has some C files.
+    # TestBigEndian called from AmdCmakeHelper requires C or CXX language to be enabled.
+    LANGUAGES CXX C
+)
+
 ### CMake Includes #####################################################################################################
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake/Modules)
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake/)
 include(AmdCmakeHelper)
 include(PalVersionHelper)
+include(PalBuildParameters)
 include(PalOptions)
 include(PalOverrides)
 include(PalCompileDefinitions)
@@ -41,11 +49,8 @@ if (${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_CURRENT_SOURCE_DIR})
     set(PAL_IS_STANDALONE ON)
 endif()
 
-### Define Project #####################################################################################################
-project(PAL
-    # While PAL is primarily a C++ library, it also has some C files.
-    LANGUAGES CXX C
-)
+### Build Parameters ###################################################################################################
+pals_build_parameters()
 
 ### Project Options ####################################################################################################
 pal_options()

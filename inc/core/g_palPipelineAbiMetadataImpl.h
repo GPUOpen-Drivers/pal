@@ -71,6 +71,12 @@ PAL_INLINE Result DeserializeEnum(
         case HashLiteralString("NggTess"):
             *pValue = PipelineType::NggTess;
             break;
+        case HashLiteralString("Mesh"):
+            *pValue = PipelineType::Mesh;
+            break;
+        case HashLiteralString("TaskMesh"):
+            *pValue = PipelineType::TaskMesh;
+            break;
         default:
             result = Result::NotFound;
             break;
@@ -110,6 +116,12 @@ PAL_INLINE Result SerializeEnum(
     case PipelineType::NggTess:
         result = pWriter->Pack("NggTess");
         break;
+    case PipelineType::Mesh:
+        result = pWriter->Pack("Mesh");
+        break;
+    case PipelineType::TaskMesh:
+        result = pWriter->Pack("TaskMesh");
+        break;
     default:
         break;
     }
@@ -134,6 +146,9 @@ PAL_INLINE Result DeserializeEnum(
         case HashLiteralString(".compute"):
             *pValue = ApiShaderType::Cs;
             break;
+        case HashLiteralString(".task"):
+            *pValue = ApiShaderType::Task;
+            break;
         case HashLiteralString(".vertex"):
             *pValue = ApiShaderType::Vs;
             break;
@@ -145,6 +160,9 @@ PAL_INLINE Result DeserializeEnum(
             break;
         case HashLiteralString(".geometry"):
             *pValue = ApiShaderType::Gs;
+            break;
+        case HashLiteralString(".mesh"):
+            *pValue = ApiShaderType::Mesh;
             break;
         case HashLiteralString(".pixel"):
             *pValue = ApiShaderType::Ps;
@@ -170,6 +188,9 @@ PAL_INLINE Result SerializeEnum(
     case ApiShaderType::Cs:
         result = pWriter->Pack(".compute");
         break;
+    case ApiShaderType::Task:
+        result = pWriter->Pack(".task");
+        break;
     case ApiShaderType::Vs:
         result = pWriter->Pack(".vertex");
         break;
@@ -181,6 +202,9 @@ PAL_INLINE Result SerializeEnum(
         break;
     case ApiShaderType::Gs:
         result = pWriter->Pack(".geometry");
+        break;
+    case ApiShaderType::Mesh:
+        result = pWriter->Pack(".mesh");
         break;
     case ApiShaderType::Ps:
         result = pWriter->Pack(".pixel");
@@ -209,6 +233,27 @@ PAL_INLINE Result DeserializeEnum(
         case HashLiteralString("Unknown"):
             *pValue = ApiShaderSubType::Unknown;
             break;
+        case HashLiteralString("Traversal"):
+            *pValue = ApiShaderSubType::Traversal;
+            break;
+        case HashLiteralString("RayGeneration"):
+            *pValue = ApiShaderSubType::RayGeneration;
+            break;
+        case HashLiteralString("Intersection"):
+            *pValue = ApiShaderSubType::Intersection;
+            break;
+        case HashLiteralString("AnyHit"):
+            *pValue = ApiShaderSubType::AnyHit;
+            break;
+        case HashLiteralString("ClosestHit"):
+            *pValue = ApiShaderSubType::ClosestHit;
+            break;
+        case HashLiteralString("Miss"):
+            *pValue = ApiShaderSubType::Miss;
+            break;
+        case HashLiteralString("Callable"):
+            *pValue = ApiShaderSubType::Callable;
+            break;
         default:
             result = Result::NotFound;
             break;
@@ -229,6 +274,27 @@ PAL_INLINE Result SerializeEnum(
     {
     case ApiShaderSubType::Unknown:
         result = pWriter->Pack("Unknown");
+        break;
+    case ApiShaderSubType::Traversal:
+        result = pWriter->Pack("Traversal");
+        break;
+    case ApiShaderSubType::RayGeneration:
+        result = pWriter->Pack("RayGeneration");
+        break;
+    case ApiShaderSubType::Intersection:
+        result = pWriter->Pack("Intersection");
+        break;
+    case ApiShaderSubType::AnyHit:
+        result = pWriter->Pack("AnyHit");
+        break;
+    case ApiShaderSubType::ClosestHit:
+        result = pWriter->Pack("ClosestHit");
+        break;
+    case ApiShaderSubType::Miss:
+        result = pWriter->Pack("Miss");
+        break;
+    case ApiShaderSubType::Callable:
+        result = pWriter->Pack("Callable");
         break;
     default:
         break;
@@ -983,6 +1049,12 @@ PAL_INLINE Result DeserializePipelineMetadata(
                 PAL_ASSERT(pMetadata->hasEntry.numInterpolants == 0);
                 result = pReader->UnpackNext(&pMetadata->numInterpolants);
                 pMetadata->hasEntry.numInterpolants = (result == Result::Success);
+                break;
+
+            case HashLiteralString(PipelineMetadataKey::MeshScratchMemorySize):
+                PAL_ASSERT(pMetadata->hasEntry.meshScratchMemorySize == 0);
+                result = pReader->UnpackNext(&pMetadata->meshScratchMemorySize);
+                pMetadata->hasEntry.meshScratchMemorySize = (result == Result::Success);
                 break;
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 619

@@ -219,9 +219,19 @@ struct GpuMemoryCreateInfo
                                                       ///  is set.  Any pages outside of this range will use the opposite
                                                       ///  MALL policy from what is specified in "mallPolicy".
 #endif
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 652
+    GpuHeapAccess                heapAccess;          ///< Describes how the allocation will be accessed. If set to
+                                                      ///  something other than
+                                                      ///  @ref GpuHeapAccess::GpuHeapAccessExplicit, then PAL decides
+                                                      ///  the appropriate heap to allocate memory from based on this
+                                                      ///  member, and @ref heaps is ignored. Otherwise heap selection
+                                                      ///  respects the selection in @ref heaps.
+#endif
     uint32                       heapCount;           ///< Number of entries in heaps[].  Must be 0 for virtual
                                                       ///  allocations.
-    GpuHeap                      heaps[GpuHeapCount]; ///< List of allowed memory heaps, in order of preference.
+    GpuHeap                      heaps[GpuHeapCount]; ///< List of allowed memory heaps, in order of preference. It will
+                                                      ///  be ignored if @ref heapAccess is to something other than
+                                                      ///  @ref GpuHeapAccess::GpuHeapAccessExplicit.
     IImage*                      pImage;              ///< The pointer to an Image object the memory object will be
                                                       ///  bound to.  It must only be used in special cases where a
                                                       ///  memory object is permanently linked to an Image such as

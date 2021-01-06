@@ -63,10 +63,6 @@ public:
     // (or if memory was bound and has since been unbound).
     gpusize GetBoundMemOffset() const { return m_boundMemOffset; }
 
-    void GetFullSubresourceRange(ImageAspect aspect, SubresRange* pRange) const;
-
-    bool IsAspectValid(ImageAspect aspect) const;
-
 private:
     const ImageCreateInfo  m_createInfo;     // The create info used to create this image
     IGpuMemory*            m_pBoundMemObj;   // The memory bound to this image

@@ -1144,6 +1144,8 @@ void Queue::AddLogItem(
         case CmdBufCallId::CmdDispatch:
         case CmdBufCallId::CmdDispatchIndirect:
         case CmdBufCallId::CmdDispatchOffset:
+        case CmdBufCallId::CmdDispatchMesh:
+        case CmdBufCallId::CmdDispatchMeshIndirectMulti:
         case CmdBufCallId::CmdExecuteIndirectCmds:
         {
             m_nextSubmitInfo.hasDrawOrDispatch = true;

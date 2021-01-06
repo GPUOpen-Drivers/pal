@@ -25,3 +25,60 @@
 
 #pragma once
 
+#include "core/hw/gfxip/gfx9/gfx9GraphicsPipeline.h"
+#include "core/hw/gfxip/gfx9/gfx9PipelineChunkCs.h"
+
+namespace Pal
+{
+namespace Gfx9
+{
+
+// =====================================================================================================================
+// GFX9 hybrid graphics pipeline class: implements common GFX9-specific funcionality for the GraphicsPipeline class and
+// adds support for a supplemental task shader that will launch the graphics workload.  Details specific to a particular
+// pipeline configuration (GS-enabled, tessellation-enabled, etc) are offloaded to appropriate subclasses.
+class HybridGraphicsPipeline : public GraphicsPipeline
+{
+public:
+    explicit HybridGraphicsPipeline(Device* pDevice);
+
+    virtual Result GetShaderStats(
+        ShaderType   shaderType,
+        ShaderStats* pShaderStats,
+        bool         getDisassemblySize) const override;
+
+    uint32* WriteTaskCommands(
+        CmdStream*                      pCmdStream,
+        uint32*                         pCmdSpace,
+        const DynamicComputeShaderInfo& info,
+        bool                            prefetch) const;
+
+    const ComputeShaderSignature& GetTaskSignature() const { return m_taskSignature; }
+
+protected:
+    virtual ~HybridGraphicsPipeline() { }
+
+    virtual Result HwlInit(
+        const GraphicsPipelineCreateInfo& createInfo,
+        const AbiReader&                  abiReader,
+        const CodeObjectMetadata&         metadata,
+        Util::MsgPackReader*              pMetadataReader) override;
+
+    virtual const ShaderStageInfo* GetShaderStageInfo(ShaderType shaderType) const override;
+
+private:
+    PipelineChunkCs        m_task;
+    ShaderStageInfo        m_taskStageInfo;
+    ComputeShaderSignature m_taskSignature;
+
+    // Number of threads per threadgroup in each dimension as determined by parsing the input IL.
+    uint32  m_threadsPerTgX;
+    uint32  m_threadsPerTgY;
+    uint32  m_threadsPerTgZ;
+
+    PAL_DISALLOW_DEFAULT_CTOR(HybridGraphicsPipeline);
+    PAL_DISALLOW_COPY_AND_ASSIGN(HybridGraphicsPipeline);
+};
+
+} // Gfx9
+} // Pal

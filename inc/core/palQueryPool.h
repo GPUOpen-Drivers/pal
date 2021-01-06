@@ -75,7 +75,14 @@ enum QueryPipelineStatsFlags : uint32
     QueryPipelineStatsHsInvocations = 0x100,  ///< Hull shader invocations.
     QueryPipelineStatsDsInvocations = 0x200,  ///< Domain shader invocations.
     QueryPipelineStatsCsInvocations = 0x400,  ///< Compute shader invocations.
+    QueryPipelineStatsTsInvocations = 0x800,  ///< Task shader invocations.
+    QueryPipelineStatsMsInvocations = 0x1000, ///< Mesh shader invocations.
+    QueryPipelineStatsMsPrimitives  = 0x2000, ///< Mesh shader primitives.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 635
+    QueryPipelineStatsAll           = 0x3FFF  ///< All of the above stats.
+#else
     QueryPipelineStatsAll           = 0x7FF   ///< All of the above stats.
+#endif
 };
 
 /// Specifies properties for @ref IQueryPool creation.  Input structure to IDevice::CreateQueryPool().

@@ -100,6 +100,7 @@ public:
     virtual void PopulateInvocationBuffer(
         GfxCmdBuffer*   pCmdBuffer,
         const Pipeline* pPipeline,
+        bool            isTaskEnabled,
         gpusize         argsGpuAddr,
         uint32          maximumCount,
         uint32          indexBufSize,

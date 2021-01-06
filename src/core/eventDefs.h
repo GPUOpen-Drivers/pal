@@ -513,7 +513,11 @@ static void SerializeResourceDescriptionImage(
         pJsonWriter->KeyAndValue("PartiallyResidentTexture",       static_cast<bool>(data.pCreateInfo->flags.prt));
         pJsonWriter->KeyAndValue("NeedsSwizzleEquations",          static_cast<bool>(data.pCreateInfo->flags.needSwizzleEqs));
         pJsonWriter->KeyAndValue("PerSubresourceInit",             static_cast<bool>(data.pCreateInfo->flags.perSubresInit));
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
         pJsonWriter->KeyAndValue("SeparateDepthStencilAspectInit", static_cast<bool>(data.pCreateInfo->flags.separateDepthAspectInit));
+#else
+        pJsonWriter->KeyAndValue("SeparateDepthStencilPlaneInit",  static_cast<bool>(data.pCreateInfo->flags.separateDepthPlaneInit));
+#endif
         pJsonWriter->KeyAndValue("RepetitiveResolve",              static_cast<bool>(data.pCreateInfo->flags.repetitiveResolve));
         pJsonWriter->KeyAndValue("PreferSwizzleEquations",         static_cast<bool>(data.pCreateInfo->flags.preferSwizzleEqs));
         pJsonWriter->KeyAndValue("FixedTileSwizzle",               static_cast<bool>(data.pCreateInfo->flags.fixedTileSwizzle));
@@ -668,6 +672,8 @@ static void SerializeResourceDescriptionPipeline(
         pJsonWriter->KeyAndValue("VS", ShaderHashIsNonzero(shaderHashes[static_cast<uint32>(ShaderType::Vertex)].hash));
         pJsonWriter->KeyAndValue("GS", ShaderHashIsNonzero(shaderHashes[static_cast<uint32>(ShaderType::Geometry)].hash));
         pJsonWriter->KeyAndValue("CS", ShaderHashIsNonzero(shaderHashes[static_cast<uint32>(ShaderType::Compute)].hash));
+        pJsonWriter->KeyAndValue("TS", ShaderHashIsNonzero(shaderHashes[static_cast<uint32>(ShaderType::Task)].hash));
+        pJsonWriter->KeyAndValue("MS", ShaderHashIsNonzero(shaderHashes[static_cast<uint32>(ShaderType::Mesh)].hash));
         pJsonWriter->EndMap();
     }
     else

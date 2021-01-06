@@ -288,12 +288,7 @@ Result Device::EarlyInit()
         PAL_ASSERT_ALWAYS();
     }
 
-    Result result = m_ringSizesLock.Init();
-
-    if (result == Result::Success)
-    {
-        result = m_pRsrcProcMgr->EarlyInit();
-    }
+    Result result = m_pRsrcProcMgr->EarlyInit();
 
     SetupWorkarounds();
 
@@ -398,12 +393,14 @@ void Device::FinalizeChipProperties(
 
     pChipProperties->gfxip.tessFactorBufferSizePerSe = settings.tessFactorBufferSizePerSe;
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 648
     const PalPublicSettings* pPublicSettings = Parent()->GetPublicSettings();
     const bool               useMultiSlot    = pPublicSettings->enableGpuEventMultiSlot &&
                                                pPublicSettings->useAcqRelInterface;
 
     // Now is time to update the numSlotsPerEvent based on the new enableGpuEventMultiSlot value updated by client.
     pChipProperties->gfxip.numSlotsPerEvent = useMultiSlot ? MaxSlotsPerEvent : 1;
+#endif
 
     pChipProperties->gfx9.gfx10.supportVrsWithDsExports = settings.waDisableVrsWithDsExports ? false : true;
 }
@@ -958,7 +955,7 @@ size_t Device::GetGraphicsPipelineSize(
     Result*                           pResult
     ) const
 {
-    const size_t pipelineSize = sizeof(GraphicsPipeline);
+    const size_t pipelineSize = Max(sizeof(GraphicsPipeline), sizeof(HybridGraphicsPipeline));
 
     if (pResult != nullptr)
     {
@@ -981,7 +978,25 @@ Result Device::CreateGraphicsPipeline(
     AbiReader abiReader(GetPlatform(), createInfo.pPipelineBinary);
     Result result = abiReader.Init();
 
-    PAL_PLACEMENT_NEW(pPlacementAddr) GraphicsPipeline(this, isInternal);
+    CodeObjectMetadata metadata = {};
+    if (result == Result::Success)
+    {
+        MsgPackReader metadataReader;
+        result = abiReader.GetMetadata(&metadataReader, &metadata);
+    }
+
+    if (result == Result::Success)
+    {
+        const auto& shaderMetadata = metadata.pipeline.shader[static_cast<uint32>(Abi::ApiShaderType::Task)];
+        if (ShaderHashIsNonzero({ shaderMetadata.apiShaderHash[0], shaderMetadata.apiShaderHash[1] }))
+        {
+            PAL_PLACEMENT_NEW(pPlacementAddr) HybridGraphicsPipeline(this);
+        }
+        else
+        {
+            PAL_PLACEMENT_NEW(pPlacementAddr) GraphicsPipeline(this, isInternal);
+        }
+    }
 
     if (result == Result::Success)
     {
@@ -1943,6 +1958,7 @@ void Device::PatchPipelineInternalSrdTable(
     gpusize     dataGpuVirtAddr
     ) const
 {
+    // See Pipeline::PerformRelocationsAndUploadToGpuMemory() for more information.
 
     auto*const pSrcSrd = static_cast<const BufferSrd*>(pSrcSrdTable);
     auto*const pDstSrd = static_cast<BufferSrd*>(pDstSrdTable);
@@ -2454,8 +2470,16 @@ void PAL_STDCALL Device::Gfx9CreateImageViewSrds(
     for (uint32 i = 0; i < count; ++i)
     {
         const ImageViewInfo&   viewInfo        = pImgViewInfo[i];
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
+        PAL_ASSERT(viewInfo.subresRange.numPlanes == 1);
+#endif
+
         const Image&           image           = *GetGfx9Image(viewInfo.pImage);
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
         const Gfx9MaskRam*     pMaskRam        = image.GetPrimaryMaskRam(viewInfo.subresRange.startSubres.aspect);
+#else
+        const Gfx9MaskRam*     pMaskRam        = image.GetPrimaryMaskRam(viewInfo.subresRange.startSubres.plane);
+#endif
         const auto*const       pParent         = static_cast<const Pal::Image*>(viewInfo.pImage);
         const ImageInfo&       imageInfo       = pParent->GetImageInfo();
         const ImageCreateInfo& imageCreateInfo = pParent->GetImageCreateInfo();
@@ -2467,7 +2491,11 @@ void PAL_STDCALL Device::Gfx9CreateImageViewSrds(
         Gfx9ImageSrd srd    = {};
         ChNumFormat  format = viewInfo.swizzledFormat.format;
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
         SubresId     baseSubResId   = { viewInfo.subresRange.startSubres.aspect, 0, 0 };
+#else
+        SubresId     baseSubResId   = { viewInfo.subresRange.startSubres.plane, 0, 0 };
+#endif
         uint32       baseArraySlice = viewInfo.subresRange.startSubres.arraySlice;
         uint32       firstMipLevel  = viewInfo.subresRange.startSubres.mipLevel;
         uint32       mipLevels      = imageCreateInfo.mipLevels;
@@ -2578,7 +2606,11 @@ void PAL_STDCALL Device::Gfx9CreateImageViewSrds(
                 // there is no suitable width or height, the actualExtentElements is chosen.  The application is in
                 // charge of making sure the math works out properly if they do this (allowed by Vulkan), otherwise we
                 // assume it's an internal view and the copy shaders will prevent accessing out-of-bounds pixels.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
                 SubresId               mipSubResId    = { viewInfo.subresRange.startSubres.aspect, firstMipLevel, 0 };
+#else
+                SubresId               mipSubResId    = { viewInfo.subresRange.startSubres.plane, firstMipLevel, 0 };
+#endif
                 const SubResourceInfo* pMipSubResInfo = pParent->SubresourceInfo(mipSubResId);
 
                 extent.width  = Util::Clamp((pMipSubResInfo->extentElements.width  << firstMipLevel),
@@ -2728,8 +2760,12 @@ void PAL_STDCALL Device::Gfx9CreateImageViewSrds(
             srd.word1.bits.DATA_FORMAT = IMG_DATA_FORMAT_8_24;
             srd.word1.bits.NUM_FORMAT  = IMG_NUM_FORMAT_FLOAT;
         }
-        else if ((Formats::BytesPerPixel(format) == 1)      &&
+        else if ((Formats::BytesPerPixel(format) == 1) &&
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
                  pParent->IsAspectValid(ImageAspect::Depth) &&
+#else
+                 pParent->HasDepthPlane()              &&
+#endif
                  image.HasDsMetadata())
         {
             // If they're requesting the stencil plane (i.e., an 8bpp view)       -and-
@@ -2737,7 +2773,7 @@ void PAL_STDCALL Device::Gfx9CreateImageViewSrds(
             // this surface has hTile data
             //
             // then we have to program the data-format of the stencil surface to match the bpp of the Z surface.
-            // i.e., if we setup the stencil aspect with an 8bpp format, then the HW will address into hTile
+            // i.e., if we setup the stencil plane with an 8bpp format, then the HW will address into hTile
             // data as if it was laid out as 8bpp, when it reality, it's laid out with the bpp of the associated
             // Z surface.
             //
@@ -3176,6 +3212,7 @@ static void Gfx10UpdateLinkedResourceViewSrd(
     PAL_ASSERT(pSrd->prtPlus.linked_resource == 1);
 
     // "linked_resource_type" lines up with the "bc_swizzle" field of the sq_img_rsrc_t structure.
+    // There are no enums for these values
     if (mapCreateInfo.prtPlus.mapType == PrtMapType::Residency)
     {
         switch (accessType)
@@ -3268,6 +3305,9 @@ void PAL_STDCALL Device::Gfx10CreateImageViewSrds(
     for (uint32 i = 0; i < count; ++i)
     {
         const ImageViewInfo&   viewInfo        = pImgViewInfo[i];
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
+        PAL_ASSERT(viewInfo.subresRange.numPlanes == 1);
+#endif
 
         // If the "image" is really a PRT+ mapping image, then we want to set up the majority of this
         // SRD off of the parent image, unless the client is indicating they want raw access to the
@@ -3276,7 +3316,11 @@ void PAL_STDCALL Device::Gfx10CreateImageViewSrds(
                                                   ? static_cast<const Pal::Image*>(viewInfo.pImage)
                                                   : static_cast<const Pal::Image*>(viewInfo.pPrtParentImg));
         const Image&           image           = static_cast<const Image&>(*(pParent->GetGfxImage()));
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
         const Gfx9MaskRam*     pMaskRam        = image.GetPrimaryMaskRam(viewInfo.subresRange.startSubres.aspect);
+#else
+        const Gfx9MaskRam*     pMaskRam        = image.GetPrimaryMaskRam(viewInfo.subresRange.startSubres.plane);
+#endif
         const ImageInfo&       imageInfo       = pParent->GetImageInfo();
         const ImageCreateInfo& imageCreateInfo = pParent->GetImageCreateInfo();
         const ImageUsageFlags& imageUsageFlags = imageCreateInfo.usageFlags;
@@ -3287,7 +3331,11 @@ void PAL_STDCALL Device::Gfx10CreateImageViewSrds(
         const auto&            boundMem        = pParent->GetBoundGpuMemory();
         ChNumFormat            format          = viewInfo.swizzledFormat.format;
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
         SubresId     baseSubResId   = { viewInfo.subresRange.startSubres.aspect, 0, 0 };
+#else
+        SubresId     baseSubResId   = { viewInfo.subresRange.startSubres.plane, 0, 0 };
+#endif
         uint32       baseArraySlice = viewInfo.subresRange.startSubres.arraySlice;
         uint32       firstMipLevel  = viewInfo.subresRange.startSubres.mipLevel;
         uint32       mipLevels      = imageCreateInfo.mipLevels;
@@ -3356,7 +3404,11 @@ void PAL_STDCALL Device::Gfx10CreateImageViewSrds(
             // there is no suitable width or height, the actualExtentElements is chosen.  The application is in
             // charge of making sure the math works out properly if they do this (allowed by Vulkan), otherwise we
             // assume it's an internal view and the copy shaders will prevent accessing out-of-bounds pixels.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
             SubresId               mipSubResId    = { viewInfo.subresRange.startSubres.aspect, firstMipLevel, 0 };
+#else
+            SubresId               mipSubResId    = { viewInfo.subresRange.startSubres.plane, firstMipLevel, 0 };
+#endif
             const SubResourceInfo* pMipSubResInfo = pParent->SubresourceInfo(mipSubResId);
 
             extent.width  = Util::Clamp((pMipSubResInfo->extentElements.width  << firstMipLevel),
@@ -3366,27 +3418,7 @@ void PAL_STDCALL Device::Gfx10CreateImageViewSrds(
                                         pBaseSubResInfo->extentElements.height,
                                         pBaseSubResInfo->actualExtentElements.height);
 
-            if ((((extent.width >> firstMipLevel) < pMipSubResInfo->extentElements.width) ||
-                 ((extent.height >> firstMipLevel) < pMipSubResInfo->extentElements.height)))
-            {
-                // We need reset the base level when the block szie is larger than the mip chain, e.g:
-                // Uncompressed pixels          Compressed block sizes (astc8x8)
-                //  mip0:       604 x 604                 80 x 80
-                //  mip1:       302 x 302                 40 x 40
-                //  mip2:       151 x 151                 20 x 20
-                //  mip3:        75 x  75                 10 x 10
-                //  mip4:        37 x  37                  5 x 5
-                //  mip5:        18 x  18                  2 x 2
-                // For mip5, if we don't reset the base level, HW will get 2 according to the mip chain.
-                // In this case, the sp3 instruction image_get_resinfo will get width=2, height=2 for mip5.
-                // The right vaulue should be 3 (18 pixels should have 3 blocks).
-                // To fix it, we need set mip5 as the base level when creating srd.
-                overrideBaseResource = true;
-            }
-            else
-            {
-                actualExtent = pBaseSubResInfo->actualExtentElements;
-            }
+            actualExtent = pBaseSubResInfo->actualExtentElements;
 
             // It would appear that HW needs the actual extents to calculate the mip addresses correctly when
             // viewing more than 1 mip especially in the case of non power of two textures.
@@ -3423,7 +3455,51 @@ void PAL_STDCALL Device::Gfx10CreateImageViewSrds(
                 // shall adopt 256b address of startsubres's miplevel/arrayLevel.
                 if (pBaseSubResInfo->bitsPerTexel == 96)
                 {
+                    PAL_ASSERT(viewInfo.subresRange.numMips == 1);
+                    mipLevels             = 1;
+                    baseSubResId.mipLevel = firstMipLevel;
+                    firstMipLevel         = 0;
+
+                    // For gfx10 the baseSubResId should point to the baseArraySlice instead of setting the base_array
+                    // SRD. When baseSubResId is used to calculate the baseAddress value, the current array slice will
+                    // will be included in the equation.
+                    PAL_ASSERT(viewInfo.subresRange.numSlices == 1);
+
+                    // For gfx10 3d texture, we need to access per z slice instead subresource.
+                    // Z slices are interleaved for mipmapped 3d texture. (each DepthPitch contains all the miplevels)
+                    // example: the memory layout for a 3 miplevel WxHxD 3d texture:
+                    // baseAddress(mip2) + DepthPitch * 0: subresource(mip2)'s 0 slice
+                    // baseAddress(mip1) + DepthPitch * 0: subresource(mip1)'s 0 slice
+                    // baseAddress(mip0) + DepthPitch * 0: subresource(mip0)'s 0 slice
+                    // baseAddress(mip2) + DepthPitch * 1: subresource(mip2)'s 1 slice
+                    // baseAddress(mip1) + DepthPitch * 1: subresource(mip1)'s 1 slice
+                    // baseAddress(mip0) + DepthPitch * 1: subresource(mip0)'s 1 slice
+                    // ...
+                    // baseAddress(mip2) + DepthPitch * (D-1): subresource(mip2)'s D-1 slice
+                    // baseAddress(mip1) + DepthPitch * (D-1): subresource(mip1)'s D-1 slice
+                    // baseAddress(mip0) + DepthPitch * (D-1): subresource(mip0)'s D-1 slice
+                    // When we try to view each subresource as 1 miplevel, we can't use srd.word5.bits.BASE_ARRAY to
+                    // access each z slices since the srd for hardware can't compute the correct z slice stride.
+                    // Instead we need a view to each slice.
+                    if (imageCreateInfo.imageType == ImageType::Tex3d)
+                    {
+                        PAL_ASSERT((viewInfo.flags.zRangeValid == 1) && (viewInfo.zRange.extent == 1));
+                        PAL_ASSERT(image.IsSubResourceLinear(baseSubResId));
+
+                        baseSubResId.arraySlice = 0;
+                        overrideZRangeOffset    = viewInfo.flags.zRangeValid;
+                    }
+                    else
+                    {
+                        baseSubResId.arraySlice = baseArraySlice;
+                    }
+
+                    baseArraySlice       = 0;
                     overrideBaseResource = true;
+
+                    pBaseSubResInfo = pParent->SubresourceInfo(baseSubResId);
+                    extent          = pBaseSubResInfo->extentElements;
+                    actualExtent    = pBaseSubResInfo->actualExtentElements;
                 }
             }
 
@@ -3481,53 +3557,6 @@ void PAL_STDCALL Device::Gfx10CreateImageViewSrds(
             includePadding = true;
         }
 
-        if (overrideBaseResource)
-        {
-            PAL_ASSERT(viewInfo.subresRange.numMips == 1);
-            mipLevels             = 1;
-            baseSubResId.mipLevel = firstMipLevel;
-            firstMipLevel         = 0;
-
-            // For gfx10 the baseSubResId should point to the baseArraySlice instead of setting the base_array
-            // SRD. When baseSubResId is used to calculate the baseAddress value, the current array slice will
-            // will be included in the equation.
-            PAL_ASSERT(viewInfo.subresRange.numSlices == 1);
-
-            // For gfx10 3d texture, we need to access per z slice instead subresource.
-            // Z slices are interleaved for mipmapped 3d texture. (each DepthPitch contains all the miplevels)
-            // example: the memory layout for a 3 miplevel WxHxD 3d texture:
-            // baseAddress(mip2) + DepthPitch * 0: subresource(mip2)'s 0 slice
-            // baseAddress(mip1) + DepthPitch * 0: subresource(mip1)'s 0 slice
-            // baseAddress(mip0) + DepthPitch * 0: subresource(mip0)'s 0 slice
-            // baseAddress(mip2) + DepthPitch * 1: subresource(mip2)'s 1 slice
-            // baseAddress(mip1) + DepthPitch * 1: subresource(mip1)'s 1 slice
-            // baseAddress(mip0) + DepthPitch * 1: subresource(mip0)'s 1 slice
-            // ...
-            // baseAddress(mip2) + DepthPitch * (D-1): subresource(mip2)'s D-1 slice
-            // baseAddress(mip1) + DepthPitch * (D-1): subresource(mip1)'s D-1 slice
-            // baseAddress(mip0) + DepthPitch * (D-1): subresource(mip0)'s D-1 slice
-            // When we try to view each subresource as 1 miplevel, we can't use srd.word5.bits.BASE_ARRAY to
-            // access each z slices since the srd for hardware can't compute the correct z slice stride.
-            // Instead we need a view to each slice.
-            if (imageCreateInfo.imageType == ImageType::Tex3d)
-            {
-                PAL_ASSERT((viewInfo.flags.zRangeValid == 1) && (viewInfo.zRange.extent == 1));
-                PAL_ASSERT(image.IsSubResourceLinear(baseSubResId));
-
-                baseSubResId.arraySlice = 0;
-                overrideZRangeOffset    = viewInfo.flags.zRangeValid;
-            }
-            else
-            {
-                baseSubResId.arraySlice = baseArraySlice;
-            }
-
-            baseArraySlice       = 0;
-
-            pBaseSubResInfo = pParent->SubresourceInfo(baseSubResId);
-            extent          = pBaseSubResInfo->extentElements;
-            actualExtent    = pBaseSubResInfo->actualExtentElements;
-        }
         {
             // MIN_LOD field is unsigned
             constexpr uint32 Gfx9MinLodIntBits  = 4;
@@ -3730,7 +3759,7 @@ void PAL_STDCALL Device::Gfx10CreateImageViewSrds(
             {
                 const gpusize gpuVirtAddress = pParent->GetSubresourceBaseAddr(baseSubResId);
                 const auto*   pTileInfo      = AddrMgr2::GetTileInfo(pParent, baseSubResId);
-                const gpusize pipeBankXor    = imgIsBc ? 0 : pTileInfo->pipeBankXor;
+                const gpusize pipeBankXor    = pTileInfo->pipeBankXor;
                 gpusize addrWithXor          = gpuVirtAddress | (pipeBankXor << 8);
 
                 if (overrideZRangeOffset)
@@ -3755,7 +3784,11 @@ void PAL_STDCALL Device::Gfx10CreateImageViewSrds(
                 }
                 else
                 {
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
                     const auto& dccControl = image.GetDcc(viewInfo.subresRange.startSubres.aspect)->GetControlReg();
+#else
+                    const auto& dccControl = image.GetDcc(viewInfo.subresRange.startSubres.plane)->GetControlReg();
+#endif
 
                     // The color image's meta-data always points at the DCC surface.  Any existing cMask or fMask
                     // meta-data is only required for compressed texture fetches of MSAA surfaces, and that feature
@@ -3854,7 +3887,11 @@ void Device::Gfx9CreateFmaskViewSrdsInternal(
     ) const
 {
     const bool             hasInternalInfo = (pFmaskViewInternalInfo != nullptr);
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
     const SubresId         slice0Id        = { ImageAspect::Fmask, 0, 0 };
+#else
+    const SubresId         slice0Id        = {};
+#endif
     const Image&           image           = *GetGfx9Image(viewInfo.pImage);
     const Gfx9Fmask*const  pFmask          = image.GetFmask();
     const auto*const       pParent         = static_cast<const Pal::Image*>(viewInfo.pImage);
@@ -3935,7 +3972,11 @@ void Device::Gfx10CreateFmaskViewSrdsInternal(
     ) const
 {
     const bool             hasInternalInfo = (pFmaskViewInternalInfo != nullptr);
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
     const SubresId         slice0Id        = { ImageAspect::Fmask, 0, 0 };
+#else
+    const SubresId         slice0Id        = {};
+#endif
     const Image&           image           = *GetGfx9Image(viewInfo.pImage);
     const Gfx9Fmask*const  pFmask          = image.GetFmask();
     const Gfx9Cmask*       pCmask          = image.GetCmask();

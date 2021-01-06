@@ -504,7 +504,9 @@ Result ArchiveFile::Init(
     // Read the footer of the file directly
     if (result == Result::Success)
     {
-        if (IsErrorResult(RefreshFile(true)))
+        result = RefreshFile(true);
+        if ((result != Result::ErrorIncompatibleLibrary) &&
+            (IsErrorResult(result)))
         {
             result = Result::ErrorInitializationFailed;
         }
@@ -638,9 +640,7 @@ Result ArchiveFile::Read(
         {
             PAL_ALERT_ALWAYS();
 
-            // eventually will use Result::ErrorIncompatible
-            // since that does not exist use Result::ErrorUnknown to denote an internal error
-            result = Result::ErrorUnknown;
+            result = Result::ErrorIncompatibleLibrary;
         }
     }
 
@@ -772,9 +772,7 @@ Result ArchiveFile::RefreshFile(
                     }
                     else
                     {
-                        // eventually will use Result::ErrorIncompatible
-                        // since that does not exist use Result::ErrorUnknown instead
-                        result = Result::ErrorUnknown;
+                        result = Result::ErrorIncompatibleLibrary;
                     }
                 }
             }
@@ -1243,8 +1241,9 @@ Result OpenArchiveFile(
             *ppArchiveFile = nullptr;;
             pArchiveFile->Destroy();
 
-            // If the result is anything other than out of memory, simplify it to an Init failure
-            if (result != Result::ErrorOutOfMemory)
+            // If the result is anything other than out of memory and incompatible library, simplify it to an Init failure
+            if ((result != Result::ErrorOutOfMemory) &&
+                (result != Result::ErrorIncompatibleLibrary))
             {
                 result = Result::ErrorInitializationFailed;
             }
@@ -1288,6 +1287,7 @@ Result DeleteArchiveFile(
 
     if (pOpenInfo != nullptr)
     {
+        result = Result::Success;
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 641
         char stringBuffer[MaxPathLength + MaxFilenameLength + 1] = {};
 #else

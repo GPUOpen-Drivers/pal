@@ -51,18 +51,22 @@ class Platform : public PlatformDecorator
 {
 public:
     static Result Create(
+        const PlatformCreateInfo&   createInfo,
         const Util::AllocCallbacks& allocCb,
         IPlatform*                  pNextPlatform,
         bool                        enabled,
         void*                       pPlacementAddr,
         IPlatform**                 ppPlatform);
 
-    Platform(const Util::AllocCallbacks& allocCb, IPlatform* pNextPlatform, bool dbgOverlayEnabled)
+    Platform(
+        const PlatformCreateInfo&   createInfo,
+        const Util::AllocCallbacks& allocCb,
+        IPlatform*                  pNextPlatform,
+        bool                        dbgOverlayEnabled)
         :
-        PlatformDecorator(allocCb, DbgOverlayCb, dbgOverlayEnabled, dbgOverlayEnabled, pNextPlatform),
+        PlatformDecorator(createInfo, allocCb, DbgOverlayCb, dbgOverlayEnabled, dbgOverlayEnabled, pNextPlatform),
         m_pFpsMgr(nullptr)
     {
-        m_gpuWorkLock.Init();
         ResetGpuWork();
     }
 

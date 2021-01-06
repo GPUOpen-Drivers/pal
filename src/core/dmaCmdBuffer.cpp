@@ -259,17 +259,17 @@ bool DmaCmdBuffer::HandleImageTransition(
         PAL_ASSERT(TestAnyFlagSet(oldLayout.usages, ~LayoutUninitializedTarget) == false);
 
 #if PAL_ENABLE_PRINTS_ASSERTS
-        const auto& engineProps  = m_pDevice->EngineProperties().perEngine[EngineTypeDma];
-        const bool  isWholeImage = pPalImage->IsFullSubResRange(subresRange);
+        const auto& engineProps = m_pDevice->EngineProperties().perEngine[EngineTypeDma];
+        const bool  isFullPlane = pPalImage->IsRangeFullPlane(subresRange);
 
         // DMA must support this barrier transition.
         PAL_ASSERT(engineProps.flags.supportsImageInitBarrier == 1);
 
-        // By default, the entire image must be initialized in one go. Per-subres support can be requested using
+        // By default, the entire plane must be initialized in one go. Per-subres support can be requested using
         // an image flag as long as the queue supports it.
         const auto& createInfo = pImage->GetImageCreateInfo();
-        PAL_ASSERT(isWholeImage || ((engineProps.flags.supportsImageInitPerSubresource == 1) &&
-                                    (createInfo.flags.perSubresInit == 1)));
+        PAL_ASSERT(isFullPlane || ((engineProps.flags.supportsImageInitPerSubresource == 1) &&
+                                   (createInfo.flags.perSubresInit == 1)));
 #endif
 
         const auto*const pGfxImage = pPalImage->GetGfxImage();
@@ -349,16 +349,25 @@ void DmaCmdBuffer::CmdBarrier(
 // or decompress images before further, dependent work can continue in this command buffer.
 //
 // There's no real benefit to splitting up barriers on the DMA engine. Ergo, this is a thin wrapper over full barriers.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
+uint32 DmaCmdBuffer::CmdRelease(
+    const AcquireReleaseInfo& releaseInfo)
+#else
 void DmaCmdBuffer::CmdRelease(
     const AcquireReleaseInfo& releaseInfo,
     const IGpuEvent*          pGpuEvent)
+#endif
 {
     PAL_NOT_TESTED();
     CmdReleaseThenAcquire(releaseInfo);
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
+    return 0;
+#else
     if (pGpuEvent != nullptr)
     {
         CmdSetEvent(*pGpuEvent, HwPipeBottom);
     }
+#endif
 }
 
 // =====================================================================================================================
@@ -368,10 +377,16 @@ void DmaCmdBuffer::CmdRelease(
 // There's no real benefit to splitting up barriers on the DMA engine. Ergo, this is a thin wrapper over full barriers.
 void DmaCmdBuffer::CmdAcquire(
     const AcquireReleaseInfo& acquireInfo,
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
+    uint32                    syncTokenCount,
+    const uint32*             pSyncTokens)
+#else
     uint32                    gpuEventCount,
     const IGpuEvent*const*    ppGpuEvents)
+#endif
 {
     PAL_NOT_TESTED();
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 648
     if (gpuEventCount != 0)
     {
         uint32* pCmdSpace = m_cmdStream.ReserveCommands();
@@ -381,6 +396,7 @@ void DmaCmdBuffer::CmdAcquire(
         }
         m_cmdStream.CommitCommands(pCmdSpace);
     }
+#endif
     CmdReleaseThenAcquire(acquireInfo);
 }
 
@@ -957,7 +973,11 @@ void DmaCmdBuffer::CmdCopyImage(
             (pSrcSubresInfo->extentElements.width  == pDstSubresInfo->extentElements.width)  &&
             (pSrcSubresInfo->extentElements.height == pDstSubresInfo->extentElements.height) &&
             (pSrcSubresInfo->extentElements.depth  == pDstSubresInfo->extentElements.depth)  &&
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
             (pSrcSubresInfo->subresId.aspect == pDstSubresInfo->subresId.aspect)             &&
+#else
+            (pSrcSubresInfo->subresId.plane == pDstSubresInfo->subresId.plane)               &&
+#endif
             (pSrcSubresInfo->subresId.mipLevel == pDstSubresInfo->subresId.mipLevel)         &&
             (pSrcSubresInfo->subresId.arraySlice == pDstSubresInfo->subresId.arraySlice))
         {

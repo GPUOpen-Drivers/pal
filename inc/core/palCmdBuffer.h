@@ -603,6 +603,10 @@ struct DynamicGraphicsShaderInfos
     DynamicGraphicsShaderInfo hs;  ///< Dynamic Hull shader information.
     DynamicGraphicsShaderInfo ds;  ///< Dynamic Domain shader information.
     DynamicGraphicsShaderInfo gs;  ///< Dynamic Geometry shader information.
+#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 574)
+    DynamicGraphicsShaderInfo ts;  ///< Dynamic Task shader information.
+    DynamicGraphicsShaderInfo ms;  ///< Dynamic Mesh shader information.
+#endif
     DynamicGraphicsShaderInfo ps;  ///< Dynamic Pixel shader information.
 
 #if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 579)
@@ -645,23 +649,23 @@ struct ColorTargetBindInfo
                                                ///  LayoutUniversalEngine engine flag must be set.
 };
 
-/// Specifies depth/stencil view and current image state of the depth and stencil aspects.  Used as input to
+/// Specifies depth/stencil view and current image state of the depth and stencil planes.  Used as input to
 /// ICmdBuffer::CmdBindTargets().
 struct DepthStencilBindInfo
 {
     const IDepthStencilView* pDepthStencilView;  ///< Depth/stencil target view to bind.
-    ImageLayout              depthLayout;        ///< Specifies the current image layout of the depth aspect based on
+    ImageLayout              depthLayout;        ///< Specifies the current image layout of the depth plane based on
                                                  ///  bitmasks of currently allowed operations and engines that may
                                                  ///  perform those operations.  At minimum, the
                                                  ///  LayoutDepthStencilTarget usage flag and LayoutUniversalEngine
                                                  ///  engine flag must be set.  Ignored if the specified view does not
-                                                 ///  have a depth aspect.
-    ImageLayout              stencilLayout;      ///< Specifies the current image layout of the stencil aspect based on
+                                                 ///  have a depth plane.
+    ImageLayout              stencilLayout;      ///< Specifies the current image layout of the stencil plane based on
                                                  ///  bitmasks of currently allowed operations and engines that may
                                                  ///  perform those operations.  At minimum, the
                                                  ///  LayoutDepthStencilTarget usage flag and LayoutUniversalEngine
                                                  ///  engine flag must be set.  Ignored if the specified view does not
-                                                 ///  have a stencil aspect.
+                                                 ///  have a stencil plane.
 };
 
 /// Represents a GPU memory or image transition as part of a barrier.
@@ -855,7 +859,7 @@ struct MemBarrier
 struct ImgBarrier
 {
     const IImage* pImage;        ///< Relevant image resource for this barrier.
-    SubresRange   subresRange;   ///< Selects a range of aspects/slices/mips the barrier affects.  If newLayout
+    SubresRange   subresRange;   ///< Selects a range of planes/slices/mips the barrier affects.  If newLayout
                                  ///  includes @ref LayoutUninitializedTarget this range must cover all subresources of
                                  ///  pImage unless the perSubresInit image create flag was specified.
 
@@ -1068,7 +1072,7 @@ struct ColorSpaceConversionRegion
     SubresId        rgbSubres;      ///< Selects the first subresource of the RGB image where the copy will begin.  This
                                     ///  can either be the source or destination of the copy, depending on whether the
                                     ///  copy is performing an RGB->YUV or YUV->RGB conversion.
-    uint32          yuvStartSlice;  ///< Array slice of the YUV image where the copy will begin.  All aspects of planar
+    uint32          yuvStartSlice;  ///< Array slice of the YUV image where the copy will begin.  All planes of planar
                                     ///  YUV images will be implicitly involved in the copy.  This can either be the
                                     ///  source or destination of the copy, depending on whether the copy is performing
                                     ///  an RGB->YUV or YUV->RGB conversion.
@@ -1117,10 +1121,18 @@ enum CopyControlFlags : uint32
 /// sample destination image.  Used as an input to ICmdBuffer::CmdResolveImage().
 struct ImageResolveRegion
 {
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
     ImageAspect    srcAspect;       ///< Selects the source color, depth, or stencil plane.
+#else
+    uint32         srcPlane;        ///< The source color, depth, or stencil plane.
+#endif
     uint32         srcSlice;        ///< Selects the source starting slice
     Offset3d       srcOffset;       ///< Offset to the start of the chosen region in the source subresource.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
     ImageAspect    dstAspect;       ///< Selects the destination color, depth, or stencil plane.
+#else
+    uint32         dstPlane;        ///< The destination color, depth, or stencil plane.
+#endif
     uint32         dstMipLevel;     ///< Selects destination mip level.
     uint32         dstSlice;        ///< Selects the destination starting slice
     Offset3d       dstOffset;       ///< Offset to the start of the chosen region in the destination subresource.
@@ -1230,6 +1242,9 @@ struct DispatchIndirectArgs
     uint32 y;  ///< Threadgroups to dispatch in the Y dimension.
     uint32 z;  ///< Threadgroups to dispatch in the Z dimension.
 };
+
+/// Specifies layout of GPU memory used as an input to CmdDispatchMeshIndirect.
+using DispatchMeshIndirectArgs = DispatchIndirectArgs;
 
 /// Specifies the different stages at which a combiner can choose between different shading rates.
 enum class VrsCombinerStage : uint32
@@ -1425,6 +1440,26 @@ typedef void (PAL_STDCALL *CmdDispatchOffsetFunc)(
     uint32      yDim,
     uint32      zDim);
 
+/// @internal Function pointer type definition for issuing direct mesh dispatches.
+///
+/// @see ICmdBuffer::CmdDispatchMesh().
+typedef void (PAL_STDCALL *CmdDispatchMeshFunc)(
+    ICmdBuffer* pCmdBuffer,
+    uint32      xDim,
+    uint32      yDim,
+    uint32      zDim);
+
+/// @internal Function pointer type definition for issuing indirect mesh dispatches.
+///
+/// @see ICmdBuffer::CmdDispatchMeshIndirectMulti().
+typedef void (PAL_STDCALL *CmdDispatchMeshIndirectMultiFunc)(
+    ICmdBuffer*       pCmdBuffer,
+    const IGpuMemory& gpuMemory,
+    gpusize           offset,
+    uint32            stride,
+    uint32            maximumCount,
+    gpusize           countGpuAddr);
+
 /// Specifies input assembler state for draws.
 /// @see ICmdBuffer::CmdSetInputAssemblyState
 struct InputAssemblyStateParams
@@ -1550,7 +1585,7 @@ constexpr uint32 NumHiSPretests = 2;
 /// the hardware may be able to discard whole tiles early based on what it can glean from the HiS pretest states.
 ///
 /// Each stencil image has two pretest slots per mip level.  Pretest slots are reset when an initialization barrier
-/// targets their mip level on the stencil aspect.  The client can then pass this struct to @ref CmdUpdateHiSPretests
+/// targets their mip level on the stencil plane.  The client can then pass this struct to @ref CmdUpdateHiSPretests
 /// to bind one or more valid pretests.  It is legal to bind a pretest over a reset slot at any point.
 ///
 /// @warning Except in special cases, it is illegal to bind a pretest on top of an existing pretest.
@@ -1687,7 +1722,7 @@ enum class PredicateType : uint32
     Boolean32 = 4, ///< CP PFP treats memory as a 32bit integer which is either false (0) or true, Vulkan style.
 };
 
-/// Bitfield structure used to specify masks for functions that operate on depth and/or stencil aspects of an image.
+/// Bitfield structure used to specify masks for functions that operate on depth and/or stencil planes of an image.
 union DepthStencilSelectFlags
 {
     struct
@@ -2262,13 +2297,27 @@ public:
     ///     write-back caches to the last-level-cache.
     ///   - Perform any requested layout transitions.
     ///
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
+    /// Once all of these operations are complete, the release issues a timestamp event that signals the operation
+    /// completion.  The event type and timestamp value is returned to caller in a packed uint32 token.  A corresponding
+    /// CmdAcquire() call is expected to wait on one or a list of such synchronization tokens and perform any necessary
+    /// visibility operations and/or layout transitions that could not be predicted at release-time.
+#else
     /// Once all of these operations are complete, the specified IGpuEvent object will be signaled.  A corresponding
     /// CmdAcquire() call is expected to wait on this event and perform any necessary visibility operations and/or
     /// layout transitions that could not be predicted at release-time.
+#endif
     ///
     /// @note Not all hardware can support the acquire/release mechanism with good performance.  This call is only
     ///       valid if supportAcquireReleaseInterface is set in the GFXIP properties section of @ref DeviceProperties.
     ///
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
+    /// @param [in]  releaseInfo  Describes the synchronization scope, availability operations, and required layout
+    ///                           transitions.
+    /// @returns Synchronization token for the release operation.  Pass this token to CmdAcquire to confirm completion.
+    virtual uint32 CmdRelease(
+        const AcquireReleaseInfo& releaseInfo) = 0;
+#else
     /// @param [in] releaseInfo Describes the synchronization scope, availability operations, and required layout
     ///                         transitions.
     /// @param [in] pGpuEvent   Event to be signaled once the release has completed.  Can be null, in which case
@@ -2276,13 +2325,18 @@ public:
     virtual void CmdRelease(
         const AcquireReleaseInfo& releaseInfo,
         const IGpuEvent*          pGpuEvent) = 0;
+#endif
 
     /// Performs the acquire portion of an acquire/release-based barrier.  This acquire a set of resources for a new
     /// set of usages, assuming CmdRelease() was called to release access for the resource's past usage.
     ///
     /// Conceptually, this method will:
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
+    ///   - Ensure the release(s) have completed by waiting on the synchronization token of the release operation.
+#else
     ///   - Ensure the release(s) have completed by waiting for the specified IGpuEvent early enough in the pipeline to
     ///     support the specified destination synchronization scope.
+#endif
     ///   - Ensure all specified resources are visible in memory.  The visibility operation will invalidate all
     ///     relevant caches above the last-level-cache.
     ///   - Perform any requested layout transitions.
@@ -2292,6 +2346,16 @@ public:
     ///
     /// @param [in] acquireInfo    Describes the synchronization scope, visibility operations, and the required layout
     ///                            layout transitions.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
+    /// @param [in] syncTokenCount Number of entries in pSyncTokens.
+    /// @param [in] pSyncTokens    Array of synchronization tokens, as returned from CmdRelease, to confirm completion.
+    ///                            The token value(s) must have been returned by a CmdRelease call in the same command
+    ///                            buffer.
+    virtual void CmdAcquire(
+        const AcquireReleaseInfo& acquireInfo,
+        uint32                    syncTokenCount,
+        const uint32*             pSyncTokens) = 0;
+#else
     /// @param [in] gpuEventCount  Number of entries in pGpuEvents.
     /// @param [in] pGpuEvents     One or more events to wait on.  Typically these will be set via CmdRelease(), but
     ///                            it is valid to wait on an event set through a different means, like CmdSetEvent().
@@ -2301,6 +2365,7 @@ public:
         const AcquireReleaseInfo& acquireInfo,
         uint32                    gpuEventCount,
         const IGpuEvent*const*    ppGpuEvents) = 0;
+#endif
 
     /// Conceptually equivalent to calling CmdRelease() followed immediately by CmdAcquire().  Can be called in cases
     /// where the client/application cannot detect separate release and acquire points for a transition.
@@ -2318,6 +2383,7 @@ public:
     /// Issues an instanced, non-indexed draw call using the command buffer's currently bound graphics state.  Results
     /// in instanceCount * vertexCount vertices being processed.
     ///
+    /// It is an error if the currently bound pipeline contains a mesh and/or task shader.
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 632
     ///
     /// @param [in] firstVertex   Starting index value for the draw.  Indices passed to the vertex shader will range
@@ -2357,6 +2423,7 @@ public:
     /// Uses the stream-out target of a previous draw as the input vertex data.
     /// the number of vertices = (streamOutFilledSize (value of streamOutFilledSizeVa) - streamOutOffset) / stride
     ///
+    /// It is an error if the currently bound pipeline contains a mesh and/or task shader.
     ///
     /// @param [in] streamOutFilledSizeVa gpuAddress of streamOut filled size for streamOut buffer.
     /// @param [in] streamOutOffset       the offset of begin of streamOut as vertex.
@@ -2382,6 +2449,7 @@ public:
     /// Issues an instanced, indexed draw call using the command buffer's currently bound graphics state.  Results in
     /// instanceCount * indexCount vertices being processed.
     ///
+    /// It is an error if the currently bound pipeline contains a mesh and/or task shader.
     ///
     /// Indices passed to the vertex shader will be:
     ///
@@ -2437,6 +2505,7 @@ public:
     /// the DrawIndirectArgs structure.  Coherency of the indirect argument GPU memory is controlled by setting
     /// @ref CoherIndirectArgs in the inputCachesMask field of @ref BarrierTransition in a call to CmdBarrier().
     ///
+    /// It is an error if the currently bound pipeline contains a mesh and/or task shader.
     ///
     /// @see CmdDraw
     /// @see DrawIndirectArgs
@@ -2468,6 +2537,7 @@ public:
     /// the DrawIndexedIndirectArgs structure.  Coherency of the indirect argument GPU memory is controlled by setting
     /// @ref CoherIndirectArgs in the inputCachesMask field of @ref BarrierTransition in a call to CmdBarrier().
     ///
+    /// It is an error if the currently bound pipeline contains a mesh and/or task shader.
     ///
     /// @see CmdDrawIndexed
     /// @see DrawIndexedIndirectArgs.
@@ -2545,6 +2615,51 @@ public:
         uint32 zDim)
     {
         m_funcTable.pfnCmdDispatchOffset(this, xOffset, yOffset, zOffset, xDim, yDim, zDim);
+    }
+
+    /// Dispatches a mesh shader workload using the command buffer's currently bound graphics state.  It is an error if
+    /// the currently bound graphics pipeline does not contain a mesh and/or task shader.
+    ///
+    /// The thread group size is defined in the mesh shader or task shader.
+    ///
+    /// @param [in] xDim Thread groups to dispatch in the x dimension.  If zero, the dispatch will be discarded.
+    /// @param [in] yDim Thread groups to dispatch in the y dimension.  If zero, the dispatch will be discarded.
+    /// @param [in] zDim Thread groups to dispatch in the z dimension.  If zero, the dispatch will be discarded.
+    PAL_INLINE void CmdDispatchMesh(
+        uint32 xDim,
+        uint32 yDim,
+        uint32 zDim)
+    {
+        m_funcTable.pfnCmdDispatchMesh(this, xDim, yDim, zDim);
+    }
+
+    /// Dispatches a mesh shader workload using the command buffer's currently bound graphics state.  It is an error if
+    /// the currently bound graphics pipeline does not contain a mesh shader.  The dimensions of the workload come from
+    /// GPU memory.  The dispatch will be discarded if any of its dimensions are zero.
+    ///
+    /// The dispatch argument data offset in memory must be 4-byte aligned.  The layout of the argument data is defined
+    /// in the @ref DispatchMeshIndirectArgs structure.  Coherency of the indirect argument GPU memory is controlled by
+    /// setting @ref CoherIndirectArgs in the inputCachesMask field of @ref BarrierTransition in a call to CmdBarrier().
+    ///
+    /// @see CmdDispatchMesh
+    /// @see DispatchMeshIndirectArgs
+    ///
+    /// @param [in] gpuMemory     GPU memory object where the indirect argument data is located.
+    /// @param [in] offset        Offset in bytes into the GPU memory object where the indirect argument data is
+    ///                           located.
+    /// @param [in] stride        Stride in memory from one data structure to the next.
+    /// @param [in] maximumCount  Maximum count of data structures to loop through.  If countGpuAddr is nonzero, the
+    ///                           value at that memory location is clamped to this maximum. If countGpuAddr is zero,
+    ///                           Then the number of draws issued exactly matches this number.
+    /// @param [in] countGpuAddr  GPU virtual address where the number of draws is stored.  Must be 4-byte aligned.
+    PAL_INLINE void CmdDispatchMeshIndirectMulti(
+        const IGpuMemory& gpuMemory,
+        gpusize           offset,
+        uint32            stride,
+        uint32            maximumCount,
+        gpusize           countGpuAddr)
+    {
+        m_funcTable.pfnCmdDispatchMeshIndirectMulti(this, gpuMemory, offset, stride, maximumCount, countGpuAddr);
     }
 
     /// Copies multiple regions from one GPU memory allocation to another.
@@ -3015,10 +3130,10 @@ public:
     ///
     /// @param [in] image            Image to be cleared.
     /// @param [in] depth            Depth clear value.
-    /// @param [in] depthLayout      Current allowed usages and engines for the depth aspect.
+    /// @param [in] depthLayout      Current allowed usages and engines for the depth plane.
     /// @param [in] stencil          Stencil clear value.
     /// @param [in] stencilWriteMask Write-mask to apply to the stencil subresource ranges during the clear.
-    /// @param [in] stencilLayout    Current allowed usages and engines for the stencil aspect.
+    /// @param [in] stencilLayout    Current allowed usages and engines for the stencil plane.
     /// @param [in] rangeCount       Number of subresource ranges to clear; size of the pRanges array.
     /// @param [in] pRanges          Array of subresource ranges to clear.
     /// @param [in] rectCount        Number of areas within the image to clear; size of the pRects array.  If zero,
@@ -3870,6 +3985,8 @@ protected:
         CmdDispatchFunc                  pfnCmdDispatch;                  ///< CmdDispatch function pointer.
         CmdDispatchIndirectFunc          pfnCmdDispatchIndirect;          ///< CmdDispatchIndirect function pointer.
         CmdDispatchOffsetFunc            pfnCmdDispatchOffset;            ///< CmdDispatchOffset function pointer.
+        CmdDispatchMeshFunc              pfnCmdDispatchMesh;              ///< CmdDispatchmesh function pointer.
+        CmdDispatchMeshIndirectMultiFunc pfnCmdDispatchMeshIndirectMulti; ///< CmdDispatchMeshIndirect function pointer.
     } m_funcTable;     ///< Function pointer table for Cmd* functions.
 
 private:

@@ -694,26 +694,6 @@ Result GpaSession::Init()
 
     if (result == Result::Success)
     {
-        result = m_gartGpuMemLock.Init();
-    }
-    if (result == Result::Success)
-    {
-        result = m_localInvisGpuMemLock.Init();
-    }
-    if (result == Result::Success)
-    {
-        result = m_queueEventsLock.Init();
-    }
-    if (result == Result::Success)
-    {
-        result = m_timedQueuesArrayLock.Init();
-    }
-    if (result == Result::Success)
-    {
-        result = m_registerPipelineLock.Init();
-    }
-    if (result == Result::Success)
-    {
         result = m_registeredPipelines.Init();
     }
     if (result == Result::Success)
@@ -3269,16 +3249,20 @@ Result GpaSession::AcquireGpuMem(
             createInfo.size      = gpuMemoryRaftSize;
             createInfo.alignment = pageSize;
             createInfo.vaRange   = VaRange::Default;
-            createInfo.heapCount = 1;
-            createInfo.heaps[0]  = heapType;
             createInfo.priority  = (heapType == GpuHeapInvisible) ? GpuMemPriority::High : GpuMemPriority::Normal;
 
             createInfo.mallPolicy = mallPolicy;
+
+            createInfo.heapCount = 0;
+            createInfo.heaps[createInfo.heapCount++] = heapType;
 
             if (heapType == GpuHeapInvisible)
             {
                 // Having perf data in caches thrashes more for the real GPU work, and it won't be read back till later.
                 createInfo.flags.gl2Uncached = 1;
+
+                // Ensure a fall back to local is available in case there is no Invisible Memory.
+                createInfo.heaps[createInfo.heapCount++] = GpuHeapLocal;
             }
 
             void* pMemory = PAL_MALLOC(m_pDevice->GetGpuMemorySize(createInfo, nullptr),

@@ -43,6 +43,10 @@ const ComputePipelineSignature NullCsSignature =
 {
     { 0, },                     // User-data mapping for each shader stage
     UserDataNotMapped,          // Register address for numWorkGroups
+    UserDataNotMapped,          // Register address for Task Shader threadgroup dimension values.
+    UserDataNotMapped,          // Register address for the ring index for the task shader.
+    UserDataNotMapped,          // Register address for the dispatch index of a multi-draw indirect task shader dispatch
+    UserDataNotMapped,          // Task+Mesh pipeline stats buffer register address
     NoUserDataSpilling,         // Spill threshold
     0,                          // User-data entry limit
     UserDataNotMapped,          // Register address for performance data buffer
@@ -169,12 +173,21 @@ uint32 ComputePipeline::CalcMaxWavesPerSe(
     const GpuChipProperties& chipProps,
     float                    maxWavesPerCu)
 {
+    // The maximum number of waves per SH in "register units".
+    // By default set the WAVE_LIMIT field to be unlimited.
+    // Limits given by the ELF will only apply if the caller doesn't set their own limit.
+    uint32 wavesPerSe = 0;
+
+    if (maxWavesPerCu > 0)
+    {
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 630
-    const auto&  gfx9ChipProps = chipProps.gfx9;
-    const uint32 wavesPerSe    = CalcMaxWavesPerSh(chipProps, maxWavesPerCu) * gfx9ChipProps.numShaderArrays;
+        const auto&  gfx9ChipProps        = chipProps.gfx9;
+        wavesPerSe = CalcMaxWavesPerSh(chipProps, maxWavesPerCu) * gfx9ChipProps.numShaderArrays;
 #else
-    const uint32 wavesPerSe = CalcMaxWavesPerSh(chipProps, maxWavesPerCu);
+        wavesPerSe = CalcMaxWavesPerSh(chipProps, maxWavesPerCu);
 #endif
+    }
+
     return wavesPerSe;
 }
 
@@ -183,24 +196,24 @@ uint32 ComputePipeline::CalcMaxWavesPerSh(
     const GpuChipProperties& chipProps,
     float                    maxWavesPerCu)
 {
-    const auto&  gfx9ChipProps        = chipProps.gfx9;
-    const uint32 numWavefrontsPerCu   = (gfx9ChipProps.numSimdPerCu * gfx9ChipProps.numWavesPerSimd);
-    const uint32 maxWavesPerShCompute = numWavefrontsPerCu * gfx9ChipProps.maxNumCuPerSh;
-
-    // We assume no one is trying to use more than 100% of all waves.
-    PAL_ASSERT(maxWavesPerCu <= numWavefrontsPerCu);
-
     // The maximum number of waves per SH in "register units".
-    // By default set the WAVE_LIMIT field to maximum (NOT to unlimited (0) to prevent inaccurate math for limits).
+    // By default set the WAVE_LIMIT field to be unlimited.
     // Limits given by the ELF will only apply if the caller doesn't set their own limit.
-    uint32 wavesPerSh = maxWavesPerShCompute;
+    uint32 wavesPerSh = 0;
 
     if (maxWavesPerCu > 0)
     {
+        const auto&  gfx9ChipProps        = chipProps.gfx9;
+        const uint32 numWavefrontsPerCu   = (gfx9ChipProps.numSimdPerCu * gfx9ChipProps.numWavesPerSimd);
+        const uint32 maxWavesPerShCompute = numWavefrontsPerCu * gfx9ChipProps.maxNumCuPerSh;
+
+        // We assume no one is trying to use more than 100% of all waves.
+        PAL_ASSERT(maxWavesPerCu <= numWavefrontsPerCu);
+
         const uint32 maxWavesPerSh = static_cast<uint32>(round(maxWavesPerCu * gfx9ChipProps.numCuPerSh));
 
         // For compute shaders, it is in units of 1 wave and must not exceed the max.
-        wavesPerSh = Min(wavesPerSh, maxWavesPerSh);
+        wavesPerSh = Min(maxWavesPerShCompute, maxWavesPerSh);
     }
 
     return wavesPerSh;

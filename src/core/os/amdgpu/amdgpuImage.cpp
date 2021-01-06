@@ -340,12 +340,14 @@ Result Image::CreatePresentableMemoryObject(
 // =====================================================================================================================
 // Fills out pCreateInfo according to the information in openInfo and sharedInfo. Assumes the contents of pCreateInfo
 // are zeroed.
-void Image::GetExternalSharedImageCreateInfo(
+Result Image::GetExternalSharedImageCreateInfo(
     const Device&                device,
     const ExternalImageOpenInfo& openInfo,
     const ExternalSharedInfo&    sharedInfo,
     ImageCreateInfo*             pCreateInfo)
 {
+    Result result = Result::Success;
+
     // Start with the caller's flags, we'll add some more later on.
     pCreateInfo->flags      = openInfo.flags;
     pCreateInfo->usageFlags = openInfo.usage;
@@ -353,11 +355,6 @@ void Image::GetExternalSharedImageCreateInfo(
     // Most information will come directly from the base subresource's surface description.
     const auto* pMetadata = reinterpret_cast<const amdgpu_bo_umd_metadata*>(
         &sharedInfo.info.metadata.umd_metadata[PRO_UMD_METADATA_OFFSET_DWORD]);
-
-    pCreateInfo->extent.width  = pMetadata->width_in_pixels;
-    pCreateInfo->extent.height = pMetadata->height;
-    pCreateInfo->extent.depth  = pMetadata->depth;
-    pCreateInfo->imageType     = static_cast<ImageType>(pMetadata->flags.resource_type);
 
     if (Formats::IsUndefined(openInfo.swizzledFormat.format))
     {
@@ -376,50 +373,87 @@ void Image::GetExternalSharedImageCreateInfo(
         pCreateInfo->swizzledFormat = openInfo.swizzledFormat;
     }
 
-    bool isLinearTiled = false;
-    if (device.ChipProperties().gfxLevel < GfxIpLevel::GfxIp9)
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 645
+    // If the width and height passed by pMetadata is not the same as expected, the buffer may still be valid:
+    // E.g. Planar YUV images are allocated as a single block of memory and passed in by one handle. We can not
+    //      figure out the width and height settled in Metadata points to which plane or maybe it just means the
+    //      whole image size. A more robost method is to use the dedicated image's extent from client side as
+    //      createinfo to initialize the subresources for each plane.
+    if ((openInfo.extent.width != 0) && (openInfo.extent.height != 0) && (openInfo.extent.depth != 0) &&
+        ((openInfo.extent.width != pMetadata->width_in_pixels) || (openInfo.extent.height != pMetadata->height)))
     {
-        isLinearTiled = (pMetadata->tile_mode == AMDGPU_TILE_MODE__LINEAR_GENERAL) ||
-                        (pMetadata->tile_mode == AMDGPU_TILE_MODE__LINEAR_ALIGNED);
+        if (Formats::IsYuv(pCreateInfo->swizzledFormat.format))
+        {
+            pCreateInfo->extent.width = openInfo.extent.width;
+            pCreateInfo->extent.height = openInfo.extent.height;
+            pCreateInfo->extent.depth  = openInfo.extent.depth;
+        }
+        else
+        {
+            // The dimensions of imported image is smaller than the internal one.
+            // Reject this import as it may leads to unexpected results.
+            result = Result::ErrorInvalidExternalHandle;
+        }
     }
     else
+#endif
     {
-        isLinearTiled = (pMetadata->swizzleMode == AMDGPU_SWIZZLE_MODE_LINEAR) ||
-                        (pMetadata->swizzleMode == AMDGPU_SWIZZLE_MODE_LINEAR_GENERAL);
+        pCreateInfo->extent.width  = pMetadata->width_in_pixels;
+        pCreateInfo->extent.height = pMetadata->height;
+        pCreateInfo->extent.depth  = pMetadata->depth;
     }
 
-    pCreateInfo->tiling = isLinearTiled ? ImageTiling::Linear : ImageTiling::Optimal;
-
-    //for the bo created by other driver(display), the miplevels and
-    //arraySize might not be initialized as 1, which will cause seqfault,
-    //set the default value as 1 here to provide the robustness when mipLevels and
-    //arraySize are zero
-    pCreateInfo->mipLevels = Util::Max(1u, static_cast<uint32>(pMetadata->flags.mip_levels));
-    pCreateInfo->arraySize = Util::Max(1u, static_cast<uint32>(pMetadata->array_size));
-
-    pCreateInfo->samples   = Util::Max(1u, static_cast<uint32>(pMetadata->flags.samples));
-    pCreateInfo->fragments = pCreateInfo->samples;
-
-    if (isLinearTiled && Formats::IsYuv(openInfo.swizzledFormat.format))
+    if (result == Result::Success)
     {
-        // Provide pitch and depth information for linear tiled images. YUV formats use linear.
-        pCreateInfo->rowPitch  = pMetadata->aligned_pitch_in_bytes;
-        pCreateInfo->depthPitch  = pCreateInfo->rowPitch * pMetadata->aligned_height;
+        pCreateInfo->imageType = static_cast<ImageType>(pMetadata->flags.resource_type);
+
+        bool isLinearTiled = false;
+        if (device.ChipProperties().gfxLevel < GfxIpLevel::GfxIp9)
+        {
+            isLinearTiled = (pMetadata->tile_mode == AMDGPU_TILE_MODE__LINEAR_GENERAL) ||
+                            (pMetadata->tile_mode == AMDGPU_TILE_MODE__LINEAR_ALIGNED);
+        }
+        else
+        {
+            isLinearTiled = (pMetadata->swizzleMode == AMDGPU_SWIZZLE_MODE_LINEAR) ||
+                            (pMetadata->swizzleMode == AMDGPU_SWIZZLE_MODE_LINEAR_GENERAL);
+        }
+
+        pCreateInfo->tiling = isLinearTiled ? ImageTiling::Linear : ImageTiling::Optimal;
+
+        //for the bo created by other driver(display), the miplevels and
+        //arraySize might not be initialized as 1, which will cause seqfault,
+        //set the default value as 1 here to provide the robustness when mipLevels and
+        //arraySize are zero
+        pCreateInfo->mipLevels = Util::Max(1u, static_cast<uint32>(pMetadata->flags.mip_levels));
+        pCreateInfo->arraySize = Util::Max(1u, static_cast<uint32>(pMetadata->array_size));
+
+        pCreateInfo->samples   = Util::Max(1u, static_cast<uint32>(pMetadata->flags.samples));
+        pCreateInfo->fragments = pCreateInfo->samples;
+
+        if (isLinearTiled && Formats::IsYuv(pCreateInfo->swizzledFormat.format))
+        {
+            // Provide pitch and depth information for linear tiled images. YUV formats use linear.
+            pCreateInfo->rowPitch  = pMetadata->aligned_pitch_in_bytes;
+            pCreateInfo->depthPitch  = pCreateInfo->rowPitch * pMetadata->aligned_height;
+        }
+
+        pCreateInfo->flags.cubemap = (pMetadata->flags.cubemap != 0);
+
+        // OR-in some additional usage flags.
+        pCreateInfo->usageFlags.shaderRead   |= pMetadata->flags.texture;
+        pCreateInfo->usageFlags.shaderWrite  |= pMetadata->flags.unodered_access;
+        pCreateInfo->usageFlags.colorTarget  |= pMetadata->flags.render_target;
+        pCreateInfo->usageFlags.depthStencil |= pMetadata->flags.depth_stencil;
+
+        pCreateInfo->flags.optimalShareable = pMetadata->flags.optimal_shareable;
+        // This image must be shareable (as it has already been shared); request view format change as well to be safe.
+        pCreateInfo->flags.shareable       = 1;
+        pCreateInfo->viewFormatCount       = AllCompatibleFormats;
+        pCreateInfo->flags.flippable       = false;
     }
 
-    pCreateInfo->flags.cubemap = (pMetadata->flags.cubemap != 0);
-
-    // OR-in some additional usage flags.
-    pCreateInfo->usageFlags.shaderRead   |= pMetadata->flags.texture;
-    pCreateInfo->usageFlags.shaderWrite  |= pMetadata->flags.unodered_access;
-    pCreateInfo->usageFlags.colorTarget  |= pMetadata->flags.render_target;
-    pCreateInfo->usageFlags.depthStencil |= pMetadata->flags.depth_stencil;
-
-    pCreateInfo->flags.optimalShareable = pMetadata->flags.optimal_shareable;
-    // This image must be shareable (as it has already been shared); request view format change as well to be safe.
-    pCreateInfo->flags.shareable       = 1;
-    pCreateInfo->viewFormatCount       = AllCompatibleFormats;
-    pCreateInfo->flags.flippable       = false;
+    return result;
 }
 
 // =====================================================================================================================
@@ -439,9 +473,6 @@ Result Image::CreateExternalSharedImage(
     auto*const  pPrivateScreen = static_cast<PrivateScreen*>(openInfo.pScreen);
     const auto* pMetadata = reinterpret_cast<const amdgpu_bo_umd_metadata*>(
         &sharedInfo.info.metadata.umd_metadata[PRO_UMD_METADATA_OFFSET_DWORD]);
-
-    ImageCreateInfo createInfo = {};
-    GetExternalSharedImageCreateInfo(*pDevice, openInfo, sharedInfo, &createInfo);
 
     ImageInternalCreateInfo internalCreateInfo = {};
     if (chipProps.gfxLevel < GfxIpLevel::GfxIp9)
@@ -485,73 +516,83 @@ Result Image::CreateExternalSharedImage(
     internalCreateInfo.flags.privateScreenPresent     = (pPrivateScreen != nullptr);
     internalCreateInfo.flags.useSharedTilingOverrides = 1;
 
-    if (pMetadata->flags.optimal_shareable)
+    ImageCreateInfo createInfo = {};
+    Result result = GetExternalSharedImageCreateInfo(*pDevice, openInfo, sharedInfo, &createInfo);
+
+    if (result == Result::Success)
     {
-        auto*const pUmdSharedMetadata =
-            reinterpret_cast<const amdgpu_shared_metadata_info*>
-            (&pMetadata->shared_metadata_info);
-        internalCreateInfo.flags.useSharedMetadata = 1;
 
-        internalCreateInfo.sharedMetadata.numPlanes = 1;
-
-        internalCreateInfo.sharedMetadata.dccOffset[0] = pUmdSharedMetadata->dcc_offset;
-        internalCreateInfo.sharedMetadata.cmaskOffset = pUmdSharedMetadata->cmask_offset;
-        internalCreateInfo.sharedMetadata.fmaskOffset = pUmdSharedMetadata->fmask_offset;
-        internalCreateInfo.sharedMetadata.htileOffset = pUmdSharedMetadata->htile_offset;
-
-        internalCreateInfo.sharedMetadata.flags.shaderFetchable =
-            pUmdSharedMetadata->flags.shader_fetchable;
-        internalCreateInfo.sharedMetadata.flags.shaderFetchableFmask =
-            pUmdSharedMetadata->flags.shader_fetchable_fmask;
-        internalCreateInfo.sharedMetadata.flags.hasWaTcCompatZRange =
-            pUmdSharedMetadata->flags.has_wa_tc_compat_z_range;
-        internalCreateInfo.sharedMetadata.flags.hasEqGpuAccess =
-            pUmdSharedMetadata->flags.has_eq_gpu_access;
-        internalCreateInfo.sharedMetadata.flags.hasHtileLookupTable =
-            pUmdSharedMetadata->flags.has_htile_lookup_table;
-
-        internalCreateInfo.sharedMetadata.fastClearMetaDataOffset[0] =
-            pUmdSharedMetadata->fast_clear_value_offset;
-        internalCreateInfo.sharedMetadata.fastClearEliminateMetaDataOffset[0] =
-            pUmdSharedMetadata->fce_state_offset;
-
-        // The offset here will be updated once change of amdgpu_shared_metadata_info is done.
-        internalCreateInfo.sharedMetadata.hisPretestMetaDataOffset = 0;
-
-        if (pUmdSharedMetadata->dcc_offset != 0)
+        if (pMetadata->flags.optimal_shareable)
         {
-            internalCreateInfo.sharedMetadata.dccStateMetaDataOffset[0] =
-                pUmdSharedMetadata->dcc_state_offset;
-        }
-        else if (pUmdSharedMetadata->flags.has_htile_lookup_table)
-        {
-            internalCreateInfo.sharedMetadata.htileLookupTableOffset =
-                pUmdSharedMetadata->htile_lookup_table_offset;
-        }
+            auto*const pUmdSharedMetadata =
+                reinterpret_cast<const amdgpu_shared_metadata_info*>
+                (&pMetadata->shared_metadata_info);
+            internalCreateInfo.flags.useSharedMetadata = 1;
 
-        if (pUmdSharedMetadata->flags.htile_as_fmask_xor)
-        {
-            PAL_ASSERT(pDevice->ChipProperties().gfxLevel >= GfxIpLevel::GfxIp9);
-            internalCreateInfo.gfx9.sharedPipeBankXorFmask =
-                LowPart(internalCreateInfo.sharedMetadata.htileOffset);
-            internalCreateInfo.sharedMetadata.htileOffset = 0;
-        }
+            internalCreateInfo.sharedMetadata.numPlanes = 1;
 
-        internalCreateInfo.sharedMetadata.resourceId = pUmdSharedMetadata->resource_id;
-        createInfo.flags.optimalShareable = 1;
-    }
-    else
-    {
-        createInfo.flags.optimalShareable = 0;
-        createInfo.metadataMode           = MetadataMode::Disabled;
-        createInfo.metadataTcCompatMode   = MetadataTcCompatMode::Disabled;
+            internalCreateInfo.sharedMetadata.dccOffset[0] = pUmdSharedMetadata->dcc_offset;
+            internalCreateInfo.sharedMetadata.cmaskOffset = pUmdSharedMetadata->cmask_offset;
+            internalCreateInfo.sharedMetadata.fmaskOffset = pUmdSharedMetadata->fmask_offset;
+            internalCreateInfo.sharedMetadata.htileOffset = pUmdSharedMetadata->htile_offset;
+
+            internalCreateInfo.sharedMetadata.flags.shaderFetchable =
+                pUmdSharedMetadata->flags.shader_fetchable;
+            internalCreateInfo.sharedMetadata.flags.shaderFetchableFmask =
+                pUmdSharedMetadata->flags.shader_fetchable_fmask;
+            internalCreateInfo.sharedMetadata.flags.hasWaTcCompatZRange =
+                pUmdSharedMetadata->flags.has_wa_tc_compat_z_range;
+            internalCreateInfo.sharedMetadata.flags.hasEqGpuAccess =
+                pUmdSharedMetadata->flags.has_eq_gpu_access;
+            internalCreateInfo.sharedMetadata.flags.hasHtileLookupTable =
+                pUmdSharedMetadata->flags.has_htile_lookup_table;
+
+            internalCreateInfo.sharedMetadata.fastClearMetaDataOffset[0] =
+                pUmdSharedMetadata->fast_clear_value_offset;
+            internalCreateInfo.sharedMetadata.fastClearEliminateMetaDataOffset[0] =
+                pUmdSharedMetadata->fce_state_offset;
+
+            // The offset here will be updated once change of amdgpu_shared_metadata_info is done.
+            internalCreateInfo.sharedMetadata.hisPretestMetaDataOffset = 0;
+
+            if (pUmdSharedMetadata->dcc_offset != 0)
+            {
+                internalCreateInfo.sharedMetadata.dccStateMetaDataOffset[0] =
+                    pUmdSharedMetadata->dcc_state_offset;
+            }
+            else if (pUmdSharedMetadata->flags.has_htile_lookup_table)
+            {
+                internalCreateInfo.sharedMetadata.htileLookupTableOffset =
+                    pUmdSharedMetadata->htile_lookup_table_offset;
+            }
+
+            if (pUmdSharedMetadata->flags.htile_as_fmask_xor)
+            {
+                PAL_ASSERT(pDevice->ChipProperties().gfxLevel >= GfxIpLevel::GfxIp9);
+                internalCreateInfo.gfx9.sharedPipeBankXorFmask =
+                    LowPart(internalCreateInfo.sharedMetadata.htileOffset);
+                internalCreateInfo.sharedMetadata.htileOffset = 0;
+            }
+
+            internalCreateInfo.sharedMetadata.resourceId = pUmdSharedMetadata->resource_id;
+            createInfo.flags.optimalShareable = 1;
+        }
+        else
+        {
+            createInfo.flags.optimalShareable = 0;
+            createInfo.metadataMode           = MetadataMode::Disabled;
+            createInfo.metadataTcCompatMode   = MetadataTcCompatMode::Disabled;
+        }
     }
 
     Pal::Image* pImage = nullptr;
-    Result result = pDevice->CreateInternalImage(createInfo,
-                                                 internalCreateInfo,
-                                                 pImagePlacementAddr,
-                                                 &pImage);
+    if (result == Result::Success)
+    {
+        result = pDevice->CreateInternalImage(createInfo,
+                                             internalCreateInfo,
+                                             pImagePlacementAddr,
+                                             &pImage);
+    }
 
     uint32 imageId = 0;
     if ((result == Result::Success) && (pPrivateScreen != nullptr))

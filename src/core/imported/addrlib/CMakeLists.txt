@@ -29,6 +29,10 @@ project(AddrLib VERSION 4.4.0 LANGUAGES CXX)
 include(CMakeDependentOption)
 include(TestBigEndian)
 
+if (${CMAKE_CURRENT_SOURCE_DIR} STREQUAL ${CMAKE_SOURCE_DIR})
+    set(ADDRLIB_IS_TOP_LEVEL ON)
+endif()
+
 function(get_cpu_endianness CPU_ENDIANNESS)
     test_big_endian(isBigEndianCpu)
 
@@ -212,14 +216,18 @@ if((CMAKE_CXX_COMPILER_ID MATCHES "GNU|[Cc]lang")
         -Wno-implicit-fallthrough)
 
 elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    # Turns on static analysis only if addrlib is the top level project
+    # This allows addrlib developers to fix the problem without impacting clients.
+    if (ADDRLIB_IS_TOP_LEVEL)
+        target_compile_options(addrlib PRIVATE /analyze)
+    endif()
 
     target_compile_options(addrlib PRIVATE
-        $<$<CONFIG:Debug>:/analyze>
-              # Turns on static analysis for debug build.
         /EHsc # Catches only C++ exceptions and assumes
               # functions declared as extern "C" never throw a C++ exception.
         /GR-  # Disables run-time type information.
-        /GS-) # Disables detection of buffer overruns.
+        /GS-  # Disables detection of buffer overruns.
+    )
 
     target_compile_options(addrlib PRIVATE
         /W4      # Enable warning level 4.
@@ -232,8 +240,8 @@ elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
         /wd4201  # nonstandard extension used : nameless struct/union
         /wd4244  # conversion from 'type1' to 'type2', possible loss of data
         /wd4701  # potentially uninitialized local variable
-        /wd6297) # arithmetic overflow: 32-bit value is shifted, then cast to 64-bit value
-
+        /wd6297  # arithmetic overflow: 32-bit value is shifted, then cast to 64-bit value
+    )
 else()
     message(FATAL_ERROR "Compiler ${CMAKE_CXX_COMPILER_ID} is not supported!")
 endif()

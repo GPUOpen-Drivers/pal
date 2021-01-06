@@ -62,6 +62,8 @@ CmdBuffer::CmdBuffer(
     m_funcTable.pfnCmdDispatch                  = CmdDispatch;
     m_funcTable.pfnCmdDispatchIndirect          = CmdDispatchIndirect;
     m_funcTable.pfnCmdDispatchOffset            = CmdDispatchOffset;
+    m_funcTable.pfnCmdDispatchMesh              = CmdDispatchMesh;
+    m_funcTable.pfnCmdDispatchMeshIndirectMulti = CmdDispatchMeshIndirectMulti;
 }
 
 // =====================================================================================================================
@@ -856,6 +858,122 @@ void CmdBuffer::CmdBarrier(
     }
 }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
+// =====================================================================================================================
+uint32 CmdBuffer::CmdRelease(
+    const AcquireReleaseInfo& releaseInfo)
+{
+    AutoBuffer<MemBarrier, 32, Platform> memoryBarriers(releaseInfo.memoryBarrierCount, m_pPlatform);
+    AutoBuffer<ImgBarrier, 32, Platform> imageBarriers(releaseInfo.imageBarrierCount, m_pPlatform);
+
+    uint32 syncToken = 0;
+
+    if ((memoryBarriers.Capacity() < releaseInfo.memoryBarrierCount) ||
+        (imageBarriers.Capacity() < releaseInfo.imageBarrierCount))
+    {
+        // If the layers become production code, we must set a flag here and return out of memory on End().
+        PAL_ASSERT_ALWAYS();
+    }
+    else
+    {
+        AcquireReleaseInfo nextReleaseInfo = releaseInfo;
+
+        for (uint32 i = 0; i < releaseInfo.memoryBarrierCount; i++)
+        {
+            memoryBarriers[i]                   = releaseInfo.pMemoryBarriers[i];
+            memoryBarriers[i].memory.pGpuMemory = NextGpuMemory(releaseInfo.pMemoryBarriers[i].memory.pGpuMemory);
+        }
+        nextReleaseInfo.pMemoryBarriers = &memoryBarriers[0];
+
+        for (uint32 i = 0; i < releaseInfo.imageBarrierCount; i++)
+        {
+            imageBarriers[i]        = releaseInfo.pImageBarriers[i];
+            imageBarriers[i].pImage = NextImage(releaseInfo.pImageBarriers[i].pImage);
+        }
+        nextReleaseInfo.pImageBarriers = &imageBarriers[0];
+
+        BeginFuncInfo funcInfo;
+        funcInfo.funcId       = InterfaceFunc::CmdBufferCmdRelease;
+        funcInfo.objectId     = m_objectId;
+        funcInfo.preCallTime  = m_pPlatform->GetTime();
+        syncToken = m_pNextLayer->CmdRelease(nextReleaseInfo);
+        funcInfo.postCallTime = m_pPlatform->GetTime();
+
+        LogContext* pLogContext = nullptr;
+        if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+        {
+            pLogContext->BeginInput();
+            pLogContext->KeyAndStruct("releaseInfo", releaseInfo);
+            pLogContext->KeyAndValue("syncToken", syncToken);
+            pLogContext->EndInput();
+
+            m_pPlatform->LogEndFunc(pLogContext);
+        }
+    }
+
+    return syncToken;
+}
+
+// =====================================================================================================================
+void CmdBuffer::CmdAcquire(
+    const AcquireReleaseInfo& acquireInfo,
+    uint32                    syncTokenCount,
+    const uint32*             pSyncTokens)
+{
+    AutoBuffer<MemBarrier, 32, Platform> memoryBarriers(acquireInfo.memoryBarrierCount, m_pPlatform);
+    AutoBuffer<ImgBarrier, 32, Platform> imageBarriers(acquireInfo.imageBarrierCount, m_pPlatform);
+
+    if ((memoryBarriers.Capacity() < acquireInfo.memoryBarrierCount) ||
+        (imageBarriers.Capacity() < acquireInfo.imageBarrierCount))
+    {
+        // If the layers become production code, we must set a flag here and return out of memory on End().
+        PAL_ASSERT_ALWAYS();
+    }
+    else
+    {
+        AcquireReleaseInfo nextAcquireInfo = acquireInfo;
+
+        for (uint32 i = 0; i < acquireInfo.memoryBarrierCount; i++)
+        {
+            memoryBarriers[i]                   = acquireInfo.pMemoryBarriers[i];
+            memoryBarriers[i].memory.pGpuMemory = NextGpuMemory(acquireInfo.pMemoryBarriers[i].memory.pGpuMemory);
+        }
+        nextAcquireInfo.pMemoryBarriers = &memoryBarriers[0];
+
+        for (uint32 i = 0; i < acquireInfo.imageBarrierCount; i++)
+        {
+            imageBarriers[i]        = acquireInfo.pImageBarriers[i];
+            imageBarriers[i].pImage = NextImage(acquireInfo.pImageBarriers[i].pImage);
+        }
+        nextAcquireInfo.pImageBarriers = &imageBarriers[0];
+
+        BeginFuncInfo funcInfo;
+        funcInfo.funcId       = InterfaceFunc::CmdBufferCmdAcquire;
+        funcInfo.objectId     = m_objectId;
+        funcInfo.preCallTime  = m_pPlatform->GetTime();
+        m_pNextLayer->CmdAcquire(nextAcquireInfo, syncTokenCount, pSyncTokens);
+        funcInfo.postCallTime = m_pPlatform->GetTime();
+
+        LogContext* pLogContext = nullptr;
+        if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+        {
+            pLogContext->BeginInput();
+            pLogContext->KeyAndStruct("acquireInfo", acquireInfo);
+            pLogContext->KeyAndBeginList("SyncTokens", false);
+
+            for (uint32 idx = 0; idx < syncTokenCount; ++idx)
+            {
+                pLogContext->Value(pSyncTokens[idx]);
+            }
+
+            pLogContext->EndList();
+            pLogContext->EndInput();
+
+            m_pPlatform->LogEndFunc(pLogContext);
+        }
+    }
+}
+#else
 // =====================================================================================================================
 void CmdBuffer::CmdRelease(
     const AcquireReleaseInfo& releaseInfo,
@@ -974,6 +1092,7 @@ void CmdBuffer::CmdAcquire(
         }
     }
 }
+#endif
 
 // =====================================================================================================================
 void CmdBuffer::CmdReleaseThenAcquire(
@@ -3452,6 +3571,73 @@ void PAL_STDCALL CmdBuffer::CmdDispatchOffset(
         pLogContext->KeyAndValue("xDim", xDim);
         pLogContext->KeyAndValue("yDim", yDim);
         pLogContext->KeyAndValue("zDim", zDim);
+        pLogContext->EndInput();
+
+        pThis->m_pPlatform->LogEndFunc(pLogContext);
+    }
+}
+
+// =====================================================================================================================
+void CmdBuffer::CmdDispatchMesh(
+    ICmdBuffer* pCmdBuffer,
+    uint32      xDim,
+    uint32      yDim,
+    uint32      zDim)
+{
+    auto*const pThis = static_cast<CmdBuffer*>(pCmdBuffer);
+
+    BeginFuncInfo funcInfo = {};
+    funcInfo.funcId        = InterfaceFunc::CmdBufferCmdDispatchMesh;
+    funcInfo.objectId      = pThis->m_objectId;
+    funcInfo.preCallTime   = pThis->m_pPlatform->GetTime();
+
+    pThis->m_pNextLayer->CmdDispatchMesh(xDim, yDim, zDim);
+    funcInfo.postCallTime = pThis->m_pPlatform->GetTime();
+
+    LogContext* pLogContext = nullptr;
+    if (pThis->m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    {
+        pLogContext->BeginInput();
+        pLogContext->KeyAndValue("xDim", xDim);
+        pLogContext->KeyAndValue("yDim", yDim);
+        pLogContext->KeyAndValue("zDim", zDim);
+        pLogContext->EndInput();
+
+        pThis->m_pPlatform->LogEndFunc(pLogContext);
+    }
+}
+
+// =====================================================================================================================
+void CmdBuffer::CmdDispatchMeshIndirectMulti(
+    ICmdBuffer*       pCmdBuffer,
+    const IGpuMemory& gpuMemory,
+    gpusize           offset,
+    uint32            stride,
+    uint32            maximumCount,
+    gpusize           countGpuAddr)
+{
+    auto*const pThis = static_cast<CmdBuffer*>(pCmdBuffer);
+
+    BeginFuncInfo funcInfo = {};
+    funcInfo.funcId        = InterfaceFunc::CmdBufferCmdDispatchMeshIndirectMulti;
+    funcInfo.objectId      = pThis->m_objectId;
+    funcInfo.preCallTime   = pThis->m_pPlatform->GetTime();
+    pThis->m_pNextLayer->CmdDispatchMeshIndirectMulti(*NextGpuMemory(&gpuMemory),
+                                                      offset,
+                                                      stride,
+                                                      maximumCount,
+                                                      countGpuAddr);
+    funcInfo.postCallTime = pThis->m_pPlatform->GetTime();
+
+    LogContext* pLogContext = nullptr;
+    if (pThis->m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    {
+        pLogContext->BeginInput();
+        pLogContext->KeyAndObject("gpuMemory", &gpuMemory);
+        pLogContext->KeyAndValue("offset", offset);
+        pLogContext->KeyAndValue("stride", stride);
+        pLogContext->KeyAndValue("maximumCount", maximumCount);
+        pLogContext->KeyAndValue("countGpuAddr", countGpuAddr);
         pLogContext->EndInput();
 
         pThis->m_pPlatform->LogEndFunc(pLogContext);

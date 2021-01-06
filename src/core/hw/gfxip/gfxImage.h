@@ -167,12 +167,22 @@ public:
     // would return true if we promised that CopyDst would be compressed but tried to use a compute copy path.
     virtual bool ShaderWriteIncompatibleWithLayout(const SubresId& subresId, ImageLayout layout) const = 0;
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
     bool HasFastClearMetaData(ImageAspect  aspect) const
         { return m_fastClearMetaDataOffset[GetFastClearIndex(aspect)] != 0; }
+#else
+    bool HasFastClearMetaData(uint32 plane) const
+        { return m_fastClearMetaDataOffset[GetFastClearIndex(plane)] != 0; }
+#endif
+    bool HasFastClearMetaData(const SubresRange& range) const;
 
     gpusize FastClearMetaDataAddr(const SubresId&  subResId) const;
     gpusize FastClearMetaDataOffset(const SubresId&  subResId) const;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
     gpusize FastClearMetaDataSize(ImageAspect  aspect, uint32 numMips) const;
+#else
+    gpusize FastClearMetaDataSize(uint32 plane, uint32 numMips) const;
+#endif
 
     bool HasHiSPretestsMetaData() const { return m_hiSPretestsMetaDataOffset != 0; }
     gpusize HiSPretestsMetaDataAddr(uint32 mipLevel) const;
@@ -183,12 +193,20 @@ public:
     virtual void GetDisplayDccState(DccState* pState) const { PAL_NEVER_CALLED(); }
     virtual void GetDccState(DccState* pState) const { PAL_NEVER_CALLED(); }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
     virtual gpusize GetAspectBaseAddr(ImageAspect  aspect) const { PAL_NEVER_CALLED(); return 0; }
+#else
+    virtual gpusize GetPlaneBaseAddr(uint32 plane) const { PAL_NEVER_CALLED(); return 0; }
+#endif
 
     uint32 TranslateClearCodeOneToNativeFmt(uint32 cmpIdx) const;
 
     // Returns an integer that represents the tiling mode associated with the specified subresource.
     virtual uint32 GetSwTileMode(const SubResourceInfo* pSubResInfo) const = 0;
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
+    uint32 GetStencilPlane() const;
+#endif
 
     // Initializes the metadata in the given subresource range using CmdFillMemory calls. It may not be possible
     // for some gfxip layers to implement this function.
@@ -216,7 +234,7 @@ public:
         void*                  pSubResTileInfoList,
         gpusize*               pGpuMemSize) { PAL_NEVER_CALLED(); }
 
-    // Helper function for AddrMgr2 to finalize the addressing information for an aspect plane.
+    // Helper function for AddrMgr2 to finalize the addressing information for a plane.
     virtual Result Addr2FinalizePlane(
         SubResourceInfo*                               pBaseSubRes,
         void*                                          pBaseTileInfo,
@@ -259,7 +277,9 @@ protected:
         ImageInfo*    pImageInfo,
         const Device& device);
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
     uint32 GetDepthStencilStateIndex(ImageAspect dsAspect) const;
+#endif
 
     static void UpdateMetaDataLayout(
         ImageMemoryLayout* pGpuMemLayout,
@@ -284,11 +304,19 @@ protected:
 
     void UpdateClearMethod(
         SubResourceInfo* pSubResInfoList,
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
         ImageAspect      aspect,
+#else
+        uint32           plane,
+#endif
         uint32           mipLevel,
         ClearMethod      method);
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
     uint32 GetFastClearIndex(ImageAspect  aspect) const;
+#else
+    uint32 GetFastClearIndex(uint32 plane) const;
+#endif
 
     void Destroy();
 

@@ -158,6 +158,8 @@ public:
     UploadFenceToken GetUploadFenceToken() const { return m_uploadFenceToken; }
     uint64 GetPagingFenceVal() const { return m_pagingFenceVal; }
 
+    bool IsTaskShaderEnabled() const { return (m_flags.taskShaderEnabled != 0); }
+
 protected:
     Pipeline(Device* pDevice, bool isInternal);
 
@@ -189,6 +191,8 @@ protected:
     size_t PerformanceDataSize(
         const CodeObjectMetadata& metadata) const;
 
+    void SetTaskShaderEnabled() { m_flags.taskShaderEnabled = 1; }
+
     Device*const  m_pDevice;
 
     PipelineInfo    m_info;             // Public info structure available to the client.
@@ -212,7 +216,7 @@ private:
         struct
         {
             uint32  isInternal        :  1;  // True if this Pipeline object was created internally by PAL.
-            uint32  reserved0         :  1;
+            uint32  taskShaderEnabled :  1;
             uint32  reserved          : 30;
         };
         uint32  value;  // Flags packed as a uint32.

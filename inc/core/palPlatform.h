@@ -40,7 +40,7 @@
 // DevDriver forward declarations.
 namespace DevDriver
 {
-    class DevDriverServer;
+class DevDriverServer;
 }
 
 namespace Pal

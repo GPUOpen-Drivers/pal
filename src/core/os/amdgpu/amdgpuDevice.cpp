@@ -4952,14 +4952,17 @@ Result Device::GetExternalSharedImageSizes(
         if (result == Result::Success)
         {
             ImageCreateInfo createInfo = {};
-            Image::GetExternalSharedImageCreateInfo(*this, openInfo, sharedInfo, &createInfo);
+            result = Image::GetExternalSharedImageCreateInfo(*this, openInfo, sharedInfo, &createInfo);
 
-            (*pImageSize)     = GetImageSize(createInfo, nullptr);
-            (*pGpuMemorySize) = GetExternalSharedGpuMemorySize(nullptr);
-
-            if (pImgCreateInfo != nullptr)
+            if (result == Result::Success)
             {
-                memcpy(pImgCreateInfo, &createInfo, sizeof(createInfo));
+                (*pImageSize)     = GetImageSize(createInfo, nullptr);
+                (*pGpuMemorySize) = GetExternalSharedGpuMemorySize(nullptr);
+
+                if (pImgCreateInfo != nullptr)
+                {
+                    memcpy(pImgCreateInfo, &createInfo, sizeof(createInfo));
+                }
             }
 
             // We don't need to keep the reference to the BO anymore.

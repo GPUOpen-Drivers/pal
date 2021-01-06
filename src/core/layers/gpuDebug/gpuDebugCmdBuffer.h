@@ -27,11 +27,15 @@
 
 #if PAL_BUILD_GPU_DEBUG
 
-#include "palCmdBuffer.h"
-#include "palPipeline.h"
-#include "palLinearAllocator.h"
 #include "core/layers/decorators.h"
 #include "core/layers/functionIds.h"
+#include "core/layers/gpuDebug/gpuDebugPlatform.h"
+#include "palCmdBuffer.h"
+#include "palLinearAllocator.h"
+#include "palPipeline.h"
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
+#include "palVector.h"
+#endif
 
 namespace Pal
 {
@@ -113,6 +117,14 @@ public:
         const GlobalScissorParams& params) override;
     virtual void CmdBarrier(
         const BarrierInfo& barrierInfo) override;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
+    virtual uint32 CmdRelease(
+        const AcquireReleaseInfo& releaseInfo) override;
+    virtual void CmdAcquire(
+        const AcquireReleaseInfo& acquireInfo,
+        uint32                    syncTokenCount,
+        const uint32*             pSyncTokens) override;
+#else
     virtual void CmdRelease(
         const AcquireReleaseInfo& releaseInfo,
         const IGpuEvent*          pGpuEvent) override;
@@ -120,6 +132,7 @@ public:
         const AcquireReleaseInfo& acquireInfo,
         uint32                    gpuEventCount,
         const IGpuEvent*const*    ppGpuEvents) override;
+#endif
     virtual void CmdReleaseThenAcquire(
         const AcquireReleaseInfo& barrierInfo) override;
     virtual void CmdWaitRegisterValue(
@@ -555,6 +568,18 @@ private:
         uint32      xDim,
         uint32      yDim,
         uint32      zDim);
+    static void PAL_STDCALL CmdDispatchMesh(
+        ICmdBuffer* pCmdBuffer,
+        uint32      xDim,
+        uint32      yDim,
+        uint32      zDim);
+    static void PAL_STDCALL CmdDispatchMeshIndirectMulti(
+        ICmdBuffer*       pCmdBuffer,
+        const IGpuMemory& gpuMemory,
+        gpusize           offset,
+        uint32            stride,
+        uint32            maximumCount,
+        gpusize           countGpuAddr);
 
     void* AllocTokenSpace(size_t numBytes, size_t alignment);
 
@@ -658,6 +683,8 @@ private:
     void ReplayCmdDispatch(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdDispatchIndirect(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdDispatchOffset(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
+    void ReplayCmdDispatchMesh(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
+    void ReplayCmdDispatchMeshIndirectMulti(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdUpdateMemory(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdUpdateBusAddressableMemoryMarker(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdFillMemory(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
@@ -760,6 +787,12 @@ private:
 
     CmdBufferBuildInfo m_buildInfo;
     TargetCmdBuffer*   m_pLastTgtCmdBuffer;
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
+    // List of release tokens that are used to handle acquire/release interface through this layer's replay mechanism.
+    uint32                             m_numReleaseTokens;
+    Util::Vector<uint32, 16, Platform> m_releaseTokenList;
+#endif
 
     PAL_DISALLOW_DEFAULT_CTOR(CmdBuffer);
     PAL_DISALLOW_COPY_AND_ASSIGN(CmdBuffer);

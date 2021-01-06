@@ -109,6 +109,14 @@ public:
         const GlobalScissorParams& params) override;
     virtual void CmdBarrier(
         const BarrierInfo& barrierInfo) override;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
+    virtual uint32 CmdRelease(
+        const AcquireReleaseInfo& releaseInfo) override;
+    virtual void CmdAcquire(
+        const AcquireReleaseInfo& acquireInfo,
+        uint32                    syncTokenCount,
+        const uint32*             pSyncTokens) override;
+#else
     virtual void CmdRelease(
         const AcquireReleaseInfo& releaseInfo,
         const IGpuEvent*          pGpuEvent) override;
@@ -116,6 +124,7 @@ public:
         const AcquireReleaseInfo& acquireInfo,
         uint32                    gpuEventCount,
         const IGpuEvent*const*    ppGpuEvents) override;
+#endif
     virtual void CmdReleaseThenAcquire(
         const AcquireReleaseInfo& barrierInfo) override;
     virtual void CmdCopyMemory(
@@ -528,6 +537,18 @@ private:
         uint32      xDim,
         uint32      yDim,
         uint32      zDim);
+    static void PAL_STDCALL CmdDispatchMesh(
+        ICmdBuffer* pCmdBuffer,
+        uint32      xDim,
+        uint32      yDim,
+        uint32      zDim);
+    static void PAL_STDCALL CmdDispatchMeshIndirectMulti(
+        ICmdBuffer*       pCmdBuffer,
+        const IGpuMemory& gpuMemory,
+        gpusize           offset,
+        uint32            stride,
+        uint32            maximumCount,
+        gpusize           countGpuAddr);
 
     Platform*const m_pPlatform;
     const uint32   m_objectId;

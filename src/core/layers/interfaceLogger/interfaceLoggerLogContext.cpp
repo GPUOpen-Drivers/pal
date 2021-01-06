@@ -144,6 +144,8 @@ static constexpr FuncFormattingEntry FuncFormattingTable[] =
     { InterfaceFunc::CmdBufferCmdDispatch,                                      InterfaceObject::CmdBuffer,            "CmdDispatch"                             },
     { InterfaceFunc::CmdBufferCmdDispatchIndirect,                              InterfaceObject::CmdBuffer,            "CmdDispatchIndirect"                     },
     { InterfaceFunc::CmdBufferCmdDispatchOffset,                                InterfaceObject::CmdBuffer,            "CmdDispatchOffset"                       },
+    { InterfaceFunc::CmdBufferCmdDispatchMesh,                                  InterfaceObject::CmdBuffer,            "CmdDispatchMesh"                         },
+    { InterfaceFunc::CmdBufferCmdDispatchMeshIndirectMulti,                     InterfaceObject::CmdBuffer,            "CmdDispatchMeshIndirectMulti",           },
     { InterfaceFunc::CmdBufferCmdCopyMemory,                                    InterfaceObject::CmdBuffer,            "CmdCopyMemory"                           },
     { InterfaceFunc::CmdBufferCmdCopyImage,                                     InterfaceObject::CmdBuffer,            "CmdCopyImage"                            },
     { InterfaceFunc::CmdBufferCmdCopyMemoryToImage,                             InterfaceObject::CmdBuffer,            "CmdCopyMemoryToImage"                    },

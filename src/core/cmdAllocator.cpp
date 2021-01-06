@@ -357,13 +357,7 @@ Result CmdAllocator::Init(
     if (createInfo.flags.threadSafe)
     {
         m_pChunkLock = PAL_PLACEMENT_NEW(pPlacementAddr) Mutex();
-        result       = m_pChunkLock->Init();
-
-        if (result == Result::Success)
-        {
-            m_pLinearAllocLock = PAL_PLACEMENT_NEW(m_pChunkLock + 1) Mutex();
-            result             = m_pLinearAllocLock->Init();
-        }
+        m_pLinearAllocLock = PAL_PLACEMENT_NEW(m_pChunkLock + 1) Mutex();
     }
 
 #if PAL_ENABLE_PRINTS_ASSERTS

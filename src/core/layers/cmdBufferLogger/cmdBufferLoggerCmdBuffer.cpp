@@ -51,6 +51,7 @@ static const char* GetCmdBufCallIdString(
     return CmdBufCallIdStrings[static_cast<size_t>(id)];
 }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
 // =====================================================================================================================
 static const char* ImageAspectToString(
     ImageAspect aspect)
@@ -71,6 +72,7 @@ static const char* ImageAspectToString(
 
     return AspectNames[static_cast<size_t>(aspect)];
 }
+#endif
 
 // =====================================================================================================================
 static void SubresIdToString(
@@ -79,8 +81,13 @@ static void SubresIdToString(
 {
     const size_t currentLength = strlen(string);
     Snprintf(&string[0] + currentLength, StringLength - currentLength,
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
         "{ aspect: %s, mipLevel: 0x%x, arraySlice: 0x%x }",
         ImageAspectToString(subresId.aspect), subresId.mipLevel, subresId.arraySlice);
+#else
+        "{ plane: 0x%x, mipLevel: 0x%x, arraySlice: 0x%x }",
+        subresId.plane, subresId.mipLevel, subresId.arraySlice);
+#endif
 }
 
 // =====================================================================================================================
@@ -107,8 +114,13 @@ static void SubresRangeToString(
 
     Snprintf(pString, StringLength, "");
     SubresIdToString(subresRange.startSubres, pString);
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
     Snprintf(&string[0], StringLength, "{ startSubres: %s, numMips: 0x%x, numSlices: 0x%x }",
         pString, subresRange.numMips, subresRange.numSlices);
+#else
+    Snprintf(&string[0], StringLength, "{ startSubres: %s, numMips: 0x%x, numSlices: 0x%x, numPlanes: 0x%x }",
+        pString, subresRange.numMips, subresRange.numSlices, subresRange.numPlanes);
+#endif
 
     PAL_SAFE_DELETE_ARRAY(pString, &allocator);
 }
@@ -951,6 +963,8 @@ CmdBuffer::CmdBuffer(
     m_funcTable.pfnCmdDispatch                  = CmdDispatch;
     m_funcTable.pfnCmdDispatchIndirect          = CmdDispatchIndirect;
     m_funcTable.pfnCmdDispatchOffset            = CmdDispatchOffset;
+    m_funcTable.pfnCmdDispatchMesh              = CmdDispatchMesh;
+    m_funcTable.pfnCmdDispatchMeshIndirectMulti = CmdDispatchMeshIndirectMulti;
 }
 
 // =====================================================================================================================
@@ -2269,24 +2283,46 @@ void CmdBuffer::DescribeBarrier(
             GetNextLayer()->CmdCommentString(pDescription);
         }
 
-        if (pData->hasTransition)
+        switch (pData->type)
         {
-            LinearAllocatorAuto<VirtualLinearAllocator> allocator(Allocator(), false);
-
-            const auto& imageInfo = pData->transition.imageInfo.pImage->GetImageCreateInfo();
-            char*       pString   = PAL_NEW_ARRAY(char, StringLength, &allocator, AllocInternalTemp);
-
-            Snprintf(&pString[0], StringLength,
-                "ImageInfo: %ux%u %s - %s",
-                imageInfo.extent.width, imageInfo.extent.height,
-                FormatToString(imageInfo.swizzledFormat.format),
-                ImageAspectToString(pData->transition.imageInfo.subresRange.startSubres.aspect));
-
-            GetNextLayer()->CmdCommentString(pString);
-
-            PAL_SAFE_DELETE_ARRAY(pString, &allocator);
+        case Developer::BarrierType::Full:
+            GetNextLayer()->CmdCommentString("Type = Full");
+            break;
+        case Developer::BarrierType::Release:
+            GetNextLayer()->CmdCommentString("Type = Release");
+            break;
+        case Developer::BarrierType::Acquire:
+            GetNextLayer()->CmdCommentString("Type = Acquire");
+            break;
+        default:
+            PAL_NEVER_CALLED();
         }
 
+        LinearAllocatorAuto<VirtualLinearAllocator> allocator(Allocator(), false);
+        char* pString = PAL_NEW_ARRAY(char, StringLength, &allocator, AllocInternalTemp);
+
+        if (pData->hasTransition)
+        {
+            const auto& imageInfo = pData->transition.imageInfo.pImage->GetImageCreateInfo();
+
+            Snprintf(&pString[0], StringLength,
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
+                "ImageInfo: %ux%u %s - %s",
+#else
+                "ImageInfo: %ux%u %s - plane: 0x%x",
+#endif
+                imageInfo.extent.width, imageInfo.extent.height,
+                FormatToString(imageInfo.swizzledFormat.format),
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
+                ImageAspectToString(pData->transition.imageInfo.subresRange.startSubres.aspect));
+#else
+                pData->transition.imageInfo.subresRange.startSubres.plane);
+#endif
+
+            GetNextLayer()->CmdCommentString(pString);
+        }
+
+        // Pipeline events and stalls.
         GetNextLayer()->CmdCommentString("PipelineStalls = {");
 
         if (pData->operations.pipelineStalls.eopTsBottomOfPipe)
@@ -2336,6 +2372,9 @@ void CmdBuffer::DescribeBarrier(
 
         GetNextLayer()->CmdCommentString("}");
 
+        PAL_SAFE_DELETE_ARRAY(pString, &allocator);
+
+        // Layout transitions.
         GetNextLayer()->CmdCommentString("LayoutTransitions = {");
 
         if (pData->operations.layoutTransitions.depthStencilExpand)
@@ -2458,21 +2497,6 @@ void CmdBuffer::DescribeBarrier(
         }
 
         GetNextLayer()->CmdCommentString("}");
-
-        switch (pData->type)
-        {
-        case Developer::BarrierType::Full:
-            GetNextLayer()->CmdCommentString("Type = Full");
-            break;
-        case Developer::BarrierType::Release:
-            GetNextLayer()->CmdCommentString("Type = Release");
-            break;
-        case Developer::BarrierType::Acquire:
-            GetNextLayer()->CmdCommentString("Type = Acquire");
-            break;
-        default:
-            PAL_NEVER_CALLED();
-        }
     }
 }
 
@@ -2518,10 +2542,12 @@ void CmdBuffer::UpdateDrawDispatchInfo(
         {
             const PipelineInfo& pipelineInfo = pPipeline->GetInfo();
 
+            const ShaderHash& hashTs = pipelineInfo.shader[static_cast<int>(ShaderType::Task)].hash;
             const ShaderHash& hashVs = pipelineInfo.shader[static_cast<int>(ShaderType::Vertex)].hash;
             const ShaderHash& hashHs = pipelineInfo.shader[static_cast<int>(ShaderType::Hull)].hash;
             const ShaderHash& hashDs = pipelineInfo.shader[static_cast<int>(ShaderType::Domain)].hash;
             const ShaderHash& hashGs = pipelineInfo.shader[static_cast<int>(ShaderType::Geometry)].hash;
+            const ShaderHash& hashMs = pipelineInfo.shader[static_cast<int>(ShaderType::Mesh)].hash;
             const ShaderHash& hashPs = pipelineInfo.shader[static_cast<int>(ShaderType::Pixel)].hash;
             const ShaderHash& hashCs = pipelineInfo.shader[static_cast<int>(ShaderType::Compute)].hash;
 
@@ -2529,6 +2555,8 @@ void CmdBuffer::UpdateDrawDispatchInfo(
                                             Pal::ShaderHashIsNonzero(hashHs) ||
                                             Pal::ShaderHashIsNonzero(hashDs) ||
                                             Pal::ShaderHashIsNonzero(hashGs) ||
+                                            Pal::ShaderHashIsNonzero(hashTs) ||
+                                            Pal::ShaderHashIsNonzero(hashMs) ||
                                             Pal::ShaderHashIsNonzero(hashPs));
             const bool computeHashValid = Pal::ShaderHashIsNonzero(hashCs);
 
@@ -2536,10 +2564,12 @@ void CmdBuffer::UpdateDrawDispatchInfo(
             {
                 if (bindPoint == PipelineBindPoint::Graphics)
                 {
+                    m_drawDispatchInfo.hashTs = hashTs;
                     m_drawDispatchInfo.hashVs = hashVs;
                     m_drawDispatchInfo.hashHs = hashHs;
                     m_drawDispatchInfo.hashDs = hashDs;
                     m_drawDispatchInfo.hashGs = hashGs;
+                    m_drawDispatchInfo.hashMs = hashMs;
                     m_drawDispatchInfo.hashPs = hashPs;
                 }
                 else if (bindPoint == PipelineBindPoint::Compute)
@@ -2657,8 +2687,12 @@ static void ImageBarrierTransitionToString(
 // =====================================================================================================================
 static void CmdReleaseToString(
     CmdBuffer*                pCmdBuffer,
-    const AcquireReleaseInfo& barrierInfo,
-    const IGpuEvent*          pGpuEvent)
+    const AcquireReleaseInfo& barrierInfo
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 648
+    ,
+    const IGpuEvent*          pGpuEvent
+#endif
+)
 {
     ICmdBuffer* pNextCmdBuffer = pCmdBuffer->GetNextLayer();
     pNextCmdBuffer->CmdCommentString("ReleaseInfo:");
@@ -2690,10 +2724,12 @@ static void CmdReleaseToString(
         ImageBarrierTransitionToString(pCmdBuffer, i, barrierInfo.pImageBarriers[i], pString);
     }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 648
     pNextCmdBuffer->CmdCommentString("IGpuEvent:");
     Snprintf(pString, StringLength,
         "pGpuEvent = 0x%016" PRIXPTR, pGpuEvent);
     pNextCmdBuffer->CmdCommentString(pString);
+#endif
 
     const char* pReasonStr = BarrierReasonToString(barrierInfo.reason);
     if (pReasonStr != nullptr)
@@ -2704,7 +2740,7 @@ static void CmdReleaseToString(
     {
         Snprintf(pString, StringLength, "releaseInfo.reason = 0x%08X (client-defined reason)", barrierInfo.reason);
     }
-    pCmdBuffer->GetNextLayer()->CmdCommentString(pString);
+    pNextCmdBuffer->CmdCommentString(pString);
 
     PAL_SAFE_DELETE_ARRAY(pString, &allocator);
 }
@@ -2713,8 +2749,13 @@ static void CmdReleaseToString(
 static void CmdAcquireToString(
     CmdBuffer*                pCmdBuffer,
     const AcquireReleaseInfo& barrierInfo,
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
+    uint32                    syncTokenCount,
+    const uint32*             pSyncTokens)
+#else
     uint32                    gpuEventCount,
     const IGpuEvent*const*    ppGpuEvents)
+#endif
 {
     ICmdBuffer* pNextCmdBuffer = pCmdBuffer->GetNextLayer();
     pNextCmdBuffer->CmdCommentString("AcquireInfo:");
@@ -2746,9 +2787,22 @@ static void CmdAcquireToString(
         ImageBarrierTransitionToString(pCmdBuffer, i, barrierInfo.pImageBarriers[i], pString);
     }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
+    Snprintf(pString, StringLength, "syncTokenCount = %u", syncTokenCount);
+#else
     Snprintf(pString, StringLength, "gpuEventCount = %u", gpuEventCount);
+#endif
+
     pNextCmdBuffer->CmdCommentString(pString);
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
+    pNextCmdBuffer->CmdCommentString("syncToken:");
+    for (uint32 i = 0; i < syncTokenCount; i++)
+    {
+        Snprintf(pString, StringLength, "\t{ id: %u }", pSyncTokens[i]);
+        pNextCmdBuffer->CmdCommentString(pString);
+    }
+#else
     for (uint32 i = 0; i < gpuEventCount; i++)
     {
         pNextCmdBuffer->CmdCommentString("IGpuEvent:");
@@ -2756,6 +2810,7 @@ static void CmdAcquireToString(
             "pGpuEvent = 0x%016" PRIXPTR, ppGpuEvents[i]);
         pNextCmdBuffer->CmdCommentString(pString);
     }
+#endif
 
     const char* pReasonStr = BarrierReasonToString(barrierInfo.reason);
     if (pReasonStr != nullptr)
@@ -2829,22 +2884,33 @@ static void CmdAcquireReleaseToString(
 }
 
 // =====================================================================================================================
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
+uint32 CmdBuffer::CmdRelease(
+    const AcquireReleaseInfo& releaseInfo)
+#else
 void CmdBuffer::CmdRelease(
     const AcquireReleaseInfo& releaseInfo,
     const IGpuEvent*          pGpuEvent)
+#endif
 {
     if (m_annotations.logCmdBarrier)
     {
         GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdRelease));
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
+        CmdReleaseToString(this, releaseInfo);
+#else
         CmdReleaseToString(this, releaseInfo, pGpuEvent);
+#endif
     }
 
     LinearAllocatorAuto<VirtualLinearAllocator> allocator(&m_allocator, false);
     AcquireReleaseInfo nextReleaseInfo = releaseInfo;
     MemBarrier*        pMemoryBarriers = nullptr;
     ImgBarrier*        pImageBarriers  = nullptr;
-    const IGpuEvent*   pNextGpuEvent   = NextGpuEvent(pGpuEvent);
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 648
+    const IGpuEvent*   pNextGpuEvent = NextGpuEvent(pGpuEvent);
+#endif
 
     if (releaseInfo.memoryBarrierCount > 0)
     {
@@ -2872,23 +2938,46 @@ void CmdBuffer::CmdRelease(
         nextReleaseInfo.pImageBarriers = pImageBarriers;
     }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
+    const uint32 syncToken = GetNextLayer()->CmdRelease(nextReleaseInfo);
+
+    char* pString = PAL_NEW_ARRAY(char, StringLength, &allocator, AllocInternalTemp);
+    GetNextLayer()->CmdCommentString("Release SyncToken:");
+    Snprintf(pString, StringLength, "SyncToken = %u" PRIXPTR, syncToken);
+    GetNextLayer()->CmdCommentString(pString);
+    PAL_SAFE_DELETE_ARRAY(pString, &allocator);
+#else
     GetNextLayer()->CmdRelease(nextReleaseInfo, pNextGpuEvent);
+#endif
 
     PAL_SAFE_DELETE_ARRAY(pMemoryBarriers, &allocator);
     PAL_SAFE_DELETE_ARRAY(pImageBarriers, &allocator);
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
+    return syncToken;
+#endif
 }
 
 // =====================================================================================================================
 void CmdBuffer::CmdAcquire(
     const AcquireReleaseInfo& acquireInfo,
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
+    uint32                    syncTokenCount,
+    const uint32*             pSyncTokens)
+#else
     uint32                    gpuEventCount,
     const IGpuEvent*const*    ppGpuEvents)
+#endif
 {
     if (m_annotations.logCmdBarrier)
     {
         GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdAcquire));
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
+        CmdAcquireToString(this, acquireInfo, syncTokenCount, pSyncTokens);
+#else
         CmdAcquireToString(this, acquireInfo, gpuEventCount, ppGpuEvents);
+#endif
     }
 
     LinearAllocatorAuto<VirtualLinearAllocator> allocator(&m_allocator, false);
@@ -2923,6 +3012,9 @@ void CmdBuffer::CmdAcquire(
         nextAcquireInfo.pImageBarriers = pImageBarriers;
     }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
+    GetNextLayer()->CmdAcquire(nextAcquireInfo, syncTokenCount, pSyncTokens);
+#else
     if (gpuEventCount > 0)
     {
         ppNextGpuEvents = PAL_NEW_ARRAY(const IGpuEvent*, gpuEventCount, &allocator, AllocInternalTemp);
@@ -2934,6 +3026,7 @@ void CmdBuffer::CmdAcquire(
     }
 
     GetNextLayer()->CmdAcquire(nextAcquireInfo, gpuEventCount, ppNextGpuEvents);
+#endif
 
     PAL_SAFE_DELETE_ARRAY(pMemoryBarriers, &allocator);
     PAL_SAFE_DELETE_ARRAY(pImageBarriers, &allocator);
@@ -3265,6 +3358,64 @@ void PAL_STDCALL CmdBuffer::CmdDispatchOffset(
 }
 
 // =====================================================================================================================
+void CmdBuffer::CmdDispatchMesh(
+    ICmdBuffer* pCmdBuffer,
+    uint32      xDim,
+    uint32      yDim,
+    uint32      zDim)
+{
+    auto pThis = static_cast<CmdBuffer*>(pCmdBuffer);
+
+    if (pThis->m_annotations.logCmdDraws)
+    {
+        pThis->GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdDispatchMesh));
+
+        LinearAllocatorAuto<VirtualLinearAllocator> allocator(pThis->Allocator(), false);
+        char* pString = PAL_NEW_ARRAY(char, StringLength, &allocator, AllocInternalTemp);
+
+        Snprintf(pString, StringLength, "XDim = 0x%08x", xDim);
+        pThis->GetNextLayer()->CmdCommentString(pString);
+        Snprintf(pString, StringLength, "YDim = 0x%08x", yDim);
+        pThis->GetNextLayer()->CmdCommentString(pString);
+        Snprintf(pString, StringLength, "ZDim = 0x%08x", zDim);
+        pThis->GetNextLayer()->CmdCommentString(pString);
+
+        PAL_SAFE_DELETE_ARRAY(pString, &allocator);
+    }
+
+    pThis->GetNextLayer()->CmdDispatchMesh(xDim, yDim, zDim);
+
+    pThis->AddDrawDispatchInfo(Developer::DrawDispatchType::CmdDispatchMesh);
+}
+
+// =====================================================================================================================
+void CmdBuffer::CmdDispatchMeshIndirectMulti(
+    ICmdBuffer*       pCmdBuffer,
+    const IGpuMemory& gpuMemory,
+    gpusize           offset,
+    uint32            stride,
+    uint32            maximumCount,
+    gpusize           countGpuAddr)
+{
+    auto pThis = static_cast<CmdBuffer*>(pCmdBuffer);
+
+    if (pThis->m_annotations.logCmdDraws)
+    {
+        pThis->GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdDispatchMeshIndirectMulti));
+
+        // TODO: Add comment string.
+    }
+
+    pThis->GetNextLayer()->CmdDispatchMeshIndirectMulti(*NextGpuMemory(&gpuMemory),
+                                                        offset,
+                                                        stride,
+                                                        maximumCount,
+                                                        countGpuAddr);
+
+    pThis->AddDrawDispatchInfo(Developer::DrawDispatchType::CmdDispatchMeshIndirectMulti);
+}
+
+// =====================================================================================================================
 void CmdBuffer::CmdStartGpuProfilerLogging()
 {
     if (m_annotations.logCmdDispatchs)
@@ -3501,7 +3652,11 @@ static void DumpImageResolveRegion(
         Snprintf(pString, StringLength, "Region %u = [", i);
         pNextCmdBuffer->CmdCommentString(pString);
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
         Snprintf(pString, StringLength, "\t srcAspect  = %s", ImageAspectToString(region.srcAspect));
+#else
+        Snprintf(pString, StringLength, "\t srcPlane   = 0x%x", region.srcPlane);
+#endif
         pNextCmdBuffer->CmdCommentString(pString);
 
         Snprintf(pString, StringLength, "\t srcSlice   = 0x%x", region.srcSlice);
@@ -3512,7 +3667,11 @@ static void DumpImageResolveRegion(
         pNextCmdBuffer->CmdCommentString(pString);
         pNextCmdBuffer->CmdCommentString(pString);
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
         Snprintf(pString, StringLength, "\t dstAspect  = %s", ImageAspectToString(region.dstAspect));
+#else
+        Snprintf(pString, StringLength, "\t dstPlane   = 0x%x", region.dstPlane);
+#endif
         pNextCmdBuffer->CmdCommentString(pString);
 
         Snprintf(pString, StringLength, "\t dstSlice   = 0x%x", region.dstSlice);

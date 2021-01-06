@@ -74,16 +74,39 @@ StreamoutStatsQueryPool::StreamoutStatsQueryPool(
 // =====================================================================================================================
 // Translates between an API event type an the corresponding VGT event type
 VGT_EVENT_TYPE StreamoutStatsQueryPool::XlateEventType(
-    QueryType  queryType)
+    QueryType  queryType
+    ) const
 {
     PAL_ASSERT((queryType == QueryType::StreamoutStats)  ||
                (queryType == QueryType::StreamoutStats1) ||
                (queryType == QueryType::StreamoutStats2) ||
                (queryType == QueryType::StreamoutStats3));
 
-    return ((queryType == QueryType::StreamoutStats)  ? SAMPLE_STREAMOUTSTATS  :
-            (queryType == QueryType::StreamoutStats1) ? SAMPLE_STREAMOUTSTATS1 :
-            (queryType == QueryType::StreamoutStats2) ? SAMPLE_STREAMOUTSTATS2 : SAMPLE_STREAMOUTSTATS3);
+    VGT_EVENT_TYPE eventType = SAMPLE_STREAMOUTSTATS;
+
+    {
+        eventType = (queryType == QueryType::StreamoutStats)  ? SAMPLE_STREAMOUTSTATS  :
+                    (queryType == QueryType::StreamoutStats1) ? SAMPLE_STREAMOUTSTATS1 :
+                    (queryType == QueryType::StreamoutStats2) ? SAMPLE_STREAMOUTSTATS2 : SAMPLE_STREAMOUTSTATS3;
+    }
+
+    return eventType;
+}
+
+// =====================================================================================================================
+// Translates between an API event type an the corresponding CP event index.
+ME_EVENT_WRITE_event_index_enum StreamoutStatsQueryPool::XlateEventIndex(
+    QueryType  queryType
+    ) const
+{
+    PAL_ASSERT((queryType == QueryType::StreamoutStats)  ||
+               (queryType == QueryType::StreamoutStats1) ||
+               (queryType == QueryType::StreamoutStats2) ||
+               (queryType == QueryType::StreamoutStats3));
+
+    ME_EVENT_WRITE_event_index_enum eventIndex = event_index__me_event_write__sample_streamoutstats__GFX09_10;
+
+    return eventIndex;
 }
 
 // =====================================================================================================================
@@ -108,6 +131,7 @@ void StreamoutStatsQueryPool::Begin(
         uint32* pCmdSpace = pCmdStream->ReserveCommands();
 
         pCmdSpace += CmdUtil::BuildSampleEventWrite(XlateEventType(queryType),
+                                                    XlateEventIndex(queryType),
                                                     pCmdBuffer->GetEngineType(),
                                                     gpuAddr,
                                                     pCmdSpace);
@@ -139,9 +163,10 @@ void StreamoutStatsQueryPool::End(
 
         uint32* pCmdSpace = pCmdStream->ReserveCommands();
         pCmdSpace += CmdUtil::BuildSampleEventWrite(XlateEventType(queryType),
-                                                              pCmdBuffer->GetEngineType(),
-                                                              gpuAddr + sizeof(StreamoutStatsData),
-                                                              pCmdSpace);
+                                                    XlateEventIndex(queryType),
+                                                    pCmdBuffer->GetEngineType(),
+                                                    gpuAddr + sizeof(StreamoutStatsData),
+                                                    pCmdSpace);
 
         ReleaseMemInfo releaseInfo = {};
         releaseInfo.engineType     = pCmdBuffer->GetEngineType();

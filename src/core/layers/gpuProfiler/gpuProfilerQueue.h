@@ -81,7 +81,7 @@ struct LogItem
             {
                 uint32 draw        :  1;      // Draw call (should track graphics shaders, vertex/instance count, etc.).
                 uint32 dispatch    :  1;      // Dispatch call (should track compute shader, thread group count, etc.).
-                uint32 placeHolder :  1;
+                uint32 taskmesh    :  1;      // Indicates that this dispatch has a task/mesh shader workload.
                 uint32 barrier     :  1;      // Barrier (should track before state, after state, etc.).
                 uint32 comment     :  1;      // A CmdCommentString call (should track the comment text).
                 uint32 reserved    : 27;
@@ -105,6 +105,13 @@ struct LogItem
                     uint64       apiPsoHash;       // ApiPsoHash of the bound pipeline provided by client.
                     uint32       threadGroupCount; // Threadgroups launched, if known (i.e., non-indirect calls).
                 } dispatch;
+
+                struct
+                {
+                    PipelineInfo pipelineInfo;     // Bound pipeline info.
+                    uint64       apiPsoHash;       // ApiPsoHash of the bound pipeline provided by client.
+                    uint32       threadGroupCount; // Threadgroups launched, if known (i.e., non-indirect calls).
+                } taskmesh;
 
                 // Log data only interesting for barrier calls (i.e., flags.barrier == 1).
                 struct

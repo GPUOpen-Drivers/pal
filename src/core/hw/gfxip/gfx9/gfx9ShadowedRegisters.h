@@ -129,7 +129,7 @@ const RegisterRange Gfx9ContextShadowRange[] =
     },
     {
         (Gfx09_10::mmVGT_GS_MODE - CONTEXT_SPACE_START),                        // 0xA290 - 0xA29B
-        (mmVGT_GS_OUT_PRIM_TYPE - Gfx09_10::mmVGT_GS_MODE + 1),
+        (Gfx09_10::mmVGT_GS_OUT_PRIM_TYPE - Gfx09_10::mmVGT_GS_MODE + 1),
     },
     {
         (mmVGT_PRIMITIVEID_EN - CONTEXT_SPACE_START),                           // 0xA2A1
@@ -141,19 +141,19 @@ const RegisterRange Gfx9ContextShadowRange[] =
     },
     {
         (Gfx09::mmVGT_GS_MAX_PRIMS_PER_SUBGROUP - CONTEXT_SPACE_START),         // 0xA2A5 - 0xA2B5
-        (mmVGT_STRMOUT_VTX_STRIDE_0 - Gfx09::mmVGT_GS_MAX_PRIMS_PER_SUBGROUP + 1),
+        (Gfx09_10::mmVGT_STRMOUT_VTX_STRIDE_0 - Gfx09::mmVGT_GS_MAX_PRIMS_PER_SUBGROUP + 1),
     },
     {
-        (mmVGT_STRMOUT_BUFFER_SIZE_1 - CONTEXT_SPACE_START),                    // 0xA2B8 - 0xA2B9
-        (mmVGT_STRMOUT_VTX_STRIDE_1 - mmVGT_STRMOUT_BUFFER_SIZE_1 + 1),
+        (Gfx09_10::mmVGT_STRMOUT_BUFFER_SIZE_1 - CONTEXT_SPACE_START),          // 0xA2B8 - 0xA2B9
+        (Gfx09_10::mmVGT_STRMOUT_VTX_STRIDE_1 - Gfx09_10::mmVGT_STRMOUT_BUFFER_SIZE_1 + 1),
     },
     {
-        (mmVGT_STRMOUT_BUFFER_SIZE_2 - CONTEXT_SPACE_START),                    // 0xA2BC - 0xA2BD
-        (mmVGT_STRMOUT_VTX_STRIDE_2 - mmVGT_STRMOUT_BUFFER_SIZE_2 + 1),
+        (Gfx09_10::mmVGT_STRMOUT_BUFFER_SIZE_2 - CONTEXT_SPACE_START),          // 0xA2BC - 0xA2BD
+        (Gfx09_10::mmVGT_STRMOUT_VTX_STRIDE_2 - Gfx09_10::mmVGT_STRMOUT_BUFFER_SIZE_2 + 1),
     },
     {
-        (mmVGT_STRMOUT_BUFFER_SIZE_3 - CONTEXT_SPACE_START),                    // 0xA2C0 - 0xA2C1
-        (mmVGT_STRMOUT_VTX_STRIDE_3 - mmVGT_STRMOUT_BUFFER_SIZE_3 + 1),
+        (Gfx09_10::mmVGT_STRMOUT_BUFFER_SIZE_3 - CONTEXT_SPACE_START),         // 0xA2C0 - 0xA2C1
+        (Gfx09_10::mmVGT_STRMOUT_VTX_STRIDE_3 - Gfx09_10::mmVGT_STRMOUT_BUFFER_SIZE_3 + 1),
     },
     {
         (mmVGT_STRMOUT_DRAW_OPAQUE_OFFSET - CONTEXT_SPACE_START),               // 0xA2CA - 0xA2CC
@@ -161,7 +161,7 @@ const RegisterRange Gfx9ContextShadowRange[] =
     },
     {
         (mmVGT_GS_MAX_VERT_OUT - CONTEXT_SPACE_START),                          // 0xA2CE - 0xA2E6
-        (mmVGT_STRMOUT_BUFFER_CONFIG - mmVGT_GS_MAX_VERT_OUT + 1),
+        (Gfx09_10::mmVGT_STRMOUT_BUFFER_CONFIG - mmVGT_GS_MAX_VERT_OUT + 1),
     },
     {
         (mmPA_SC_CENTROID_PRIORITY_0 - CONTEXT_SPACE_START),                    // 0xA2F5 - 0xA38F
@@ -345,19 +345,19 @@ const RegisterRange Gfx90NonShadowedRanges[] =
         1
     },
     {
-        mmVGT_STRMOUT_BUFFER_OFFSET_0,
+        Gfx09_10::mmVGT_STRMOUT_BUFFER_OFFSET_0,
         1
     },
     {
-        mmVGT_STRMOUT_BUFFER_OFFSET_1,
+        Gfx09_10::mmVGT_STRMOUT_BUFFER_OFFSET_1,
         1
     },
     {
-        mmVGT_STRMOUT_BUFFER_OFFSET_2,
+        Gfx09_10::mmVGT_STRMOUT_BUFFER_OFFSET_2,
         1
     },
     {
-        mmVGT_STRMOUT_BUFFER_OFFSET_3,
+        Gfx09_10::mmVGT_STRMOUT_BUFFER_OFFSET_3,
         1
     },
     {
@@ -382,7 +382,7 @@ const RegisterRange Gfx90NonShadowedRanges[] =
     },
     {
         mmVGT_INDEX_TYPE,
-        mmVGT_STRMOUT_BUFFER_FILLED_SIZE_3 - mmVGT_INDEX_TYPE + 1
+        Gfx09_10::mmVGT_STRMOUT_BUFFER_FILLED_SIZE_3 - mmVGT_INDEX_TYPE + 1
     },
     {
         mmDB_OCCLUSION_COUNT0_LOW,
@@ -480,19 +480,19 @@ const RegisterRange Gfx91NonShadowedRanges[] =
         1
     },
     {
-        mmVGT_STRMOUT_BUFFER_OFFSET_0,
+        Gfx09_10::mmVGT_STRMOUT_BUFFER_OFFSET_0,
         1
     },
     {
-        mmVGT_STRMOUT_BUFFER_OFFSET_1,
+        Gfx09_10::mmVGT_STRMOUT_BUFFER_OFFSET_1,
         1
     },
     {
-        mmVGT_STRMOUT_BUFFER_OFFSET_2,
+        Gfx09_10::mmVGT_STRMOUT_BUFFER_OFFSET_2,
         1
     },
     {
-        mmVGT_STRMOUT_BUFFER_OFFSET_3,
+        Gfx09_10::mmVGT_STRMOUT_BUFFER_OFFSET_3,
         1
     },
     {
@@ -517,7 +517,7 @@ const RegisterRange Gfx91NonShadowedRanges[] =
     },
     {
         mmVGT_INDEX_TYPE,
-        mmVGT_STRMOUT_BUFFER_FILLED_SIZE_3 - mmVGT_INDEX_TYPE + 1
+        Gfx09_10::mmVGT_STRMOUT_BUFFER_FILLED_SIZE_3 - mmVGT_INDEX_TYPE + 1
     },
     {
         mmDB_OCCLUSION_COUNT0_LOW,

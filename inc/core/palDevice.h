@@ -603,9 +603,11 @@ struct PalPublicSettings
 #endif
     /// The acquire/release-based barrier interface is enabled.
     bool useAcqRelInterface;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 648
     /// Enable multiple slots instead of single DWORD slot for GPU event. This will enable anywhere that can utilize
     /// multiple event slots for optimization or function purpose, such as AcqRelBarrier interface.
     bool enableGpuEventMultiSlot;
+#endif
     /// Makes the unbound descriptor debug srd 0 so the hardware drops the load and ignores it instead of pagefaulting.
     /// Used to workaround incorrect app behavior.
     bool zeroUnboundDescDebugSrd;
@@ -1106,7 +1108,7 @@ struct DeviceProperties
                                                                 ///  hardware vertex shader as a primitive shader to
                                                                 ///  perform culling and compaction optimizations in
                                                                 ///  the shader.
-                uint64 placeholder7                       :  1; ///< Placeholder, do not use
+                uint64 supportMeshShader                  :  1; ///< Indicates support for mesh shaders.
                 uint64 supportPrtBlendZeroMode            :  1; ///< Blend zero mode support.
                 uint64 supports2BitSignedValues           :  1; ///< Hardware natively supports 2-bit signed values.
                 uint64 supportPrimitiveOrderedPs          :  1; ///< Hardware supports primitive ordered UAV
@@ -3592,7 +3594,7 @@ public:
     /// @param [in] viewInfo        Input image view SRD parameter info.
     ///
     /// @returns Success if the parameters pass validation.  Otherwise, one of the following errors may be returned:
-    ///     + ErrorImageAspectUnavailable if the requested image aspect specified in the view is not available on
+    ///     + ErrorImagePlaneUnavailable if the requested image plane specified in the view is not available on
     ///       the image.
     ///     + ErrorImageNotShaderAccessible if the image does not have a shader-readable or shader-writable usage.
     ///     + ErrorInvalidFormatSwizzle if the view's channel swizzle specifies components not available in the view
@@ -3601,12 +3603,12 @@ public:
     ///       of available mip levels.
     ///     + ErrorFormatIncompatibleWithImageFormat if the view's format is not compatible with the image's format.
     ///       This can happen if:
-    ///         - For color aspect views, the bit-depths of the two formats are not equal.
-    ///     + ErrorFormatIncompatibleWithImageAspect if the view's format is not compatible with the image's aspect.
+    ///         - For color plane views, the bit-depths of the two formats are not equal.
+    ///     + ErrorFormatIncompatibleWithImagePlane if the view's format is not compatible with the image's plane.
     ///       This can happen if:
-    ///         - For depth aspect views, the bit-depths of the view format and the depth component of the image
+    ///         - For depth plane views, the bit-depths of the view format and the depth component of the image
     ///           are not equal.
-    ///         - For stencil aspect views, the bit-depths of the view format and the stencil component of the image
+    ///         - For stencil plane views, the bit-depths of the view format and the stencil component of the image
     ///           are not equal.
     ///     + ErrorInvalidViewArraySize if:
     ///         - The view array size is 0.

@@ -276,6 +276,9 @@ void MlaaUtil<Allocator>::BuildImageViewInfo(
     pInfo->pImage   = pImage;
     pInfo->viewType = static_cast<Pal::ImageViewType>(imageType);
     pInfo->subresRange.startSubres = subresId;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
+    pInfo->subresRange.numPlanes   = 1;
+#endif
     pInfo->subresRange.numMips     = 1;
     pInfo->subresRange.numSlices   = 1;
     pInfo->swizzledFormat          = pImage->GetImageCreateInfo().swizzledFormat;
@@ -372,7 +375,7 @@ void MlaaUtil<Allocator>::FindSepEdge(
     Pal::uint32* pUserData = CreateAndBindEmbeddedUserData(pCmdBuffer, srdDwords + dataDwords);
 
     const Pal::IImage*  pDstImage = m_pAuxImages[static_cast<Pal::uint32>(MlaaAuxImage::SepEdge)];
-    const Pal::SubresId dstSubres = { Pal::ImageAspect::Color, 0, 0 };
+    const Pal::SubresId dstSubres = {};
 
     Pal::ImageViewInfo imageView[2] = {};
     BuildImageViewInfo(&imageView[0], pDstImage, dstSubres, true);
@@ -433,7 +436,7 @@ void MlaaUtil<Allocator>::CalcSepEdgeLength(
         pDstImage1 = m_pAuxImages[static_cast<Pal::uint32>(MlaaAuxImage::VertEdgeCountA)];
     }
 
-    const Pal::SubresId subres = { Pal::ImageAspect::Color, 0, 0 };
+    const Pal::SubresId subres = {};
 
     Pal::ImageViewInfo imageView[5] = {};
     BuildImageViewInfo(&imageView[0], pDstImage0, subres, true);
@@ -480,7 +483,7 @@ void MlaaUtil<Allocator>::CalcSepEdgeLengthFast(
 
     const Pal::IImage* pSrcImage = m_pAuxImages[static_cast<Pal::uint32>(MlaaAuxImage::SepEdge)];
     const Pal::IImage* pDstImage = m_pAuxImages[static_cast<Pal::uint32>(MlaaAuxImage::EdgeCountFast)];
-    const Pal::SubresId subres   = { Pal::ImageAspect::Color, 0, 0 };
+    const Pal::SubresId subres   = {};
 
     Pal::ImageViewInfo imageView[2] = {};
     BuildImageViewInfo(&imageView[0], pDstImage, subres, true);
@@ -531,7 +534,7 @@ void MlaaUtil<Allocator>::FinalBlend(
     const Pal::IImage* pSrcImage2 = (maxIterationDepth % 2 != 0) ?
         m_pAuxImages[static_cast<Pal::uint32>(MlaaAuxImage::VertEdgeCountA)] :
         m_pAuxImages[static_cast<Pal::uint32>(MlaaAuxImage::VertEdgeCountB)];
-    const Pal::SubresId subres = { Pal::ImageAspect::Color, 0, 0 };
+    const Pal::SubresId subres = {};
 
     Pal::ImageViewInfo imageView[4] = {};
     BuildImageViewInfo(&imageView[0], &dstImage, dstSubres, true);
@@ -578,7 +581,7 @@ void MlaaUtil<Allocator>::FinalBlendFast(
     Pal::uint32* pUserData = CreateAndBindEmbeddedUserData(pCmdBuffer, srdDwords + dataDwords);
 
     const Pal::IImage* pSrcImage1 = m_pAuxImages[static_cast<Pal::uint32>(MlaaAuxImage::EdgeCountFast)];
-    const Pal::SubresId subres = { Pal::ImageAspect::Color, 0, 0 };
+    const Pal::SubresId subres = {};
 
     Pal::ImageViewInfo imageView[3] = {};
     BuildImageViewInfo(&imageView[0], &dstImage, dstSubres, true);

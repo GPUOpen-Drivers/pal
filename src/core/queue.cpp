@@ -403,11 +403,6 @@ Result Queue::Init(
 
     if (result == Result::Success)
     {
-        result = m_batchedCmdsLock.Init();
-    }
-
-    if (result == Result::Success)
-    {
         GfxDevice*  pGfxDevice = m_pDevice->GetGfxDevice();
         void* pNextQueueContextPlacementAddr = pContextPlacementAddr;
         // NOTE: OSSIP hardware is used for DMA Queues, GFXIP hardware is used for Compute & Universal Queues, and

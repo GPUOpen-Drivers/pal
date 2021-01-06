@@ -42,7 +42,8 @@ Platform::Platform(
     IPlatform*                  pNextPlatform,
     GpuProfilerMode             mode)
     :
-    PlatformDecorator(allocCb,
+    PlatformDecorator(createInfo,
+                      allocCb,
                       GpuProfilerCb,
                       (mode != GpuProfilerDisabled),
                       (mode != GpuProfilerDisabled),
@@ -81,14 +82,7 @@ Result Platform::Create(
 // =====================================================================================================================
 Result Platform::Init()
 {
-    Result result = PlatformDecorator::Init();
-
-    if (result == Result::Success)
-    {
-        result = m_pipelinePerfDataLock.Init();
-    }
-
-    return result;
+    return PlatformDecorator::Init();
 }
 
 // =====================================================================================================================

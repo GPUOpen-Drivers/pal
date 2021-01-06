@@ -46,6 +46,8 @@ public:
     bool IsGsEnabled() const { return m_flags.gsEnabled; }
     bool IsGsOnChip() const { return m_flags.isGsOnchip; }
     bool IsTessEnabled() const { return m_flags.tessEnabled; }
+    bool HasMeshShader() const { return m_flags.meshShader; }
+    bool HasTaskShader() const { return m_flags.taskShader; }
     bool NonPsShaderUsesUavs() const { return m_flags.nonPsShaderUsesUavs; }
     bool PsUsesUavs() const { return m_flags.psUsesUavs; }
     bool PsWritesUavs() const { return m_flags.psWritesUavs; }
@@ -98,7 +100,8 @@ private:
         {
             uint32 gsEnabled             :  1; // Geometry shader is active.
             uint32 tessEnabled           :  1; // Tessellation shaders (HS/DS) are active.
-            uint32 placeholder0          :  2; // Placeholder for future features.
+            uint32 meshShader            :  1; // Mesh shader is active.
+            uint32 taskShader            :  1; // Task shader is active.
             uint32 vportArrayIdx         :  1; // GS outputs a viewport array index parameter.
             uint32 nonPsShaderUsesUavs   :  1; // Any shader other than PS reads/writes at least one UAV.
             uint32 psUsesUavs            :  1; // PS reads/writes at least one UAV.

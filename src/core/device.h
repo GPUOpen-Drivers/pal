@@ -940,7 +940,7 @@ struct GpuChipProperties
                 uint64 supportAlphaToOne                  :  1; // HW supports forcing alpha channel to one
                 uint64 supportSingleChannelMinMaxFilter   :  1; // HW supports any min/max filter.
                 uint64 supportSortAgnosticBarycentrics    :  1; // HW provides provoking vertex for custom interp
-                uint64 placeholder4                       :  1;
+                uint64 supportMeshTaskShader              :  1;
                 uint64 placeholder5                       :  2;
                 uint64 reserved                           : 22;
             };
@@ -1122,6 +1122,21 @@ public:
     virtual PalPublicSettings* GetPublicSettings() override;
     virtual Result CommitSettingsAndInit() override;
     virtual Result Finalize(const DeviceFinalizeInfo& finalizeInfo) override;
+
+    Result SplitSubresRanges(
+        uint32              rangeCount,
+        const SubresRange*  pRanges,
+        uint32*             pSplitRangeCount,
+        const SubresRange** ppSplitRanges,
+        bool*               pMemAllocated) const;
+
+    Result SplitBarrierTransitions(
+        BarrierInfo* pBarrier,
+        bool*        pMemAllocated) const;
+
+    Result SplitImgBarriers(
+        AcquireReleaseInfo* pBarrier,
+        bool*               pMemAllocated) const;
 
     // Queries a PX application profile for the specified application filename and pathname.
     virtual Result QueryApplicationProfile(

@@ -73,21 +73,6 @@ Result MemoryCacheLayer::Init()
 
     if (result == Result::Success)
     {
-        result = m_conditionMutex.Init();
-    }
-
-    if (result == Result::Success)
-    {
-        result = m_conditionVariable.Init();
-    }
-
-    if (result == Result::Success)
-    {
-        result = m_lock.Init();
-    }
-
-    if (result == Result::Success)
-    {
         result = m_entryLookup.Init();
     }
 

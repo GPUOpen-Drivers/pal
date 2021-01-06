@@ -113,9 +113,8 @@ public:
 
     const GraphicsPipelineSignature& Signature() const { return m_signature; }
 
-    regVGT_STRMOUT_CONFIG VgtStrmoutConfig() const { return m_chunkVsPs.VgtStrmoutConfig(); }
-    regVGT_STRMOUT_BUFFER_CONFIG VgtStrmoutBufferConfig() const { return m_chunkVsPs.VgtStrmoutBufferConfig(); }
-    regVGT_STRMOUT_VTX_STRIDE_0 VgtStrmoutVtxStride(uint32 idx) const { return m_chunkVsPs.VgtStrmoutVtxStride(idx); }
+    bool UsesHwStreamout() const { return m_chunkVsPs.UsesHwStreamout(); }
+    uint32 StrmoutVtxStrideDw(uint32 idx) const;
     regPA_SC_AA_CONFIG PaScAaConfig() const { return m_chunkVsPs.PaScAaConfig(); }
 
     regVGT_GS_ONCHIP_CNTL VgtGsOnchipCntl() const { return m_regs.context.vgtGsOnchipCntl; }
@@ -342,9 +341,10 @@ private:
 
         struct
         {
-            regGE_STEREO_CNTL   geStereoCntl;
-            regGE_PC_ALLOC      gePcAlloc;
-            regGE_USER_VGPR_EN  geUserVgprEn;
+            regGE_STEREO_CNTL        geStereoCntl;
+            regGE_PC_ALLOC           gePcAlloc;
+            regGE_USER_VGPR_EN       geUserVgprEn;
+            regVGT_GS_OUT_PRIM_TYPE  vgtGsOutPrimType;
         } uconfig;
     }  m_regs;
 
