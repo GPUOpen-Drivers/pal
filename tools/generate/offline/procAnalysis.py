@@ -1,7 +1,7 @@
 ##
  #######################################################################################################################
  #
- #  Copyright (c) 2017-2020 Advanced Micro Devices, Inc. All Rights Reserved.
+ #  Copyright (c) 2017-2021 Advanced Micro Devices, Inc. All Rights Reserved.
  #
  #  Permission is hereby granted, free of charge, to any person obtaining a copy
  #  of this software and associated documentation files (the "Software"), to deal
@@ -22,6 +22,8 @@
  #  SOFTWARE.
  #
  #######################################################################################################################
+
+from __future__ import print_function
 
 import re
 import os,sys
@@ -232,7 +234,7 @@ class ProcMgr:
                     )
                     self.add(ep, library)
     def add(self, entry, library):
-        if self.libraries.has_key(library):
+        if library in self.libraries:
             self.libraries[library].append(entry)
         else:
             self.libraries[library] = [entry]
@@ -276,7 +278,7 @@ class ProcMgr:
                     fp.write("\n")
     def GetFormattedLibraryName(self, name):
         ret = ''
-        if self.libraryDict.has_key(name):
+        if name in self.libraryDict:
             ret = self.libraryDict[name]
         else:
             if name.find('^lib') != -1:
@@ -483,7 +485,7 @@ class ProcMgr:
             if key.find("libdrm") >= 0:
                 # Get the base name and append ".so" to generate the library name without version.
                 androidLibdrm.append(key.split('.')[0] + '.so');
-                print key.split('.')[0]
+                print(key.split('.')[0])
 
         if len(androidLibdrm) > 0:
             fp.write("#if PAL_BUILD_ANDROID\n")
@@ -626,7 +628,7 @@ class ProcMgr:
 
     def printEntryList(self):
         for key in self.libraries.keys():
-            print "in library %s" %(key)
+            print("in library %s" % (key))
             for entry in self.libraries[key]:
                 params = entry.GetFunctionParams()
                 if len(params) == 0:
@@ -636,4 +638,4 @@ class ProcMgr:
                     for pa in params:
                         param += pa.GetType() + ' ' + pa.GetValue()
                         param += ','
-                print "ret = %s, func = %s, param = %s" %(entry.GetFunctionRetType(), entry.GetFunctionName(), param[:-1])
+                print("ret = %s, func = %s, param = %s" % (entry.GetFunctionRetType(), entry.GetFunctionName(), param[:-1]))

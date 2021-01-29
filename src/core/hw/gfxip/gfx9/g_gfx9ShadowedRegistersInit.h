@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2017-2020 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2017-2021 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -409,6 +409,8 @@ void InitializeContextRegistersGfx9(
         0x4       ,
         0x0       ,
         0x0       ,
+        0x0       ,
+        0x0       ,
         0x0
     };
     constexpr uint32 PaSuSmallPrimFilterCntlGfx9[] = {
@@ -677,7 +679,7 @@ void InitializeContextRegistersGfx9(
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmCB_BLEND_RED, mmPA_CL_UCP_5_W, CbBlendRedGfx9, pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmSPI_PS_INPUT_CNTL_0, mmSPI_SHADER_COL_FORMAT, SpiPsInputCntl0Gfx9, pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmSX_PS_DOWNCONVERT, Gfx09::mmCB_MRT7_EPITCH, SxPsDownconvertGfx9, pCmdSpace);
-    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmDB_DEPTH_CONTROL, mmPA_CL_NANINF_CNTL, DbDepthControlGfx9, pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmDB_DEPTH_CONTROL, mmPA_SU_LINE_STIPPLE_SCALE, DbDepthControlGfx9, pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmPA_SU_SMALL_PRIM_FILTER_CNTL, Vg12_Vg20::mmPA_STEREO_CNTL, PaSuSmallPrimFilterCntlGfx9, pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmPA_SU_POINT_SIZE, mmPA_SC_LINE_STIPPLE, PaSuPointSizeGfx9, pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmVGT_HOS_MAX_TESS_LEVEL, mmVGT_HOS_MIN_TESS_LEVEL, VgtHosMaxTessLevelGfx9, pCmdSpace);
@@ -1053,6 +1055,12 @@ void InitializeContextRegistersNv10(
         0x0       ,
         0x0
     };
+    constexpr uint32 PaClPointXRadNv10[] = {
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0
+    };
     constexpr uint32 GeMaxOutputPerSubgroupNv10[] = {
         0x0       ,
         0x0       ,
@@ -1063,9 +1071,10 @@ void InitializeContextRegistersNv10(
         0x4       ,
         0x0       ,
         0x0       ,
-        0x0
-    };
-    constexpr uint32 PaSuSmallPrimFilterCntlNv10[] = {
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
         0x0       ,
         0x0       ,
         0x0       ,
@@ -1383,13 +1392,13 @@ void InitializeContextRegistersNv10(
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmVGT_MULTI_PRIM_IB_RESET_INDX, mmPA_CL_UCP_5_W, VgtMultiPrimIbResetIndxNv10, pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmSPI_PS_INPUT_CNTL_0, mmSPI_SHADER_COL_FORMAT, SpiPsInputCntl0Nv10, pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmSX_PS_DOWNCONVERT, mmCB_BLEND7_CONTROL, SxPsDownconvertNv10, pCmdSpace);
-    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(Gfx10Plus::mmGE_MAX_OUTPUT_PER_SUBGROUP, mmPA_CL_NANINF_CNTL, GeMaxOutputPerSubgroupNv10, pCmdSpace);
-    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmPA_SU_SMALL_PRIM_FILTER_CNTL, Gfx10Plus::mmPA_STATE_STEREO_X, PaSuSmallPrimFilterCntlNv10, pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmPA_CL_POINT_X_RAD, mmPA_CL_POINT_CULL_RAD, PaClPointXRadNv10, pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(Gfx10Plus::mmGE_MAX_OUTPUT_PER_SUBGROUP, Gfx10Plus::mmPA_STATE_STEREO_X, GeMaxOutputPerSubgroupNv10, pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmPA_SU_POINT_SIZE, mmPA_SC_LINE_STIPPLE, PaSuPointSizeNv10, pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmVGT_HOS_MAX_TESS_LEVEL, mmVGT_HOS_MIN_TESS_LEVEL, VgtHosMaxTessLevelNv10, pCmdSpace);
-    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(Gfx09_10::mmVGT_GS_MODE, Gfx09_10::mmVGT_GS_OUT_PRIM_TYPE, VgtGsModeNv10, pCmdSpace);
     pCmdStream->CommitCommands(pCmdSpace);
     pCmdSpace = pCmdStream->ReserveCommands();
+    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(Gfx09_10::mmVGT_GS_MODE, Gfx09_10::mmVGT_GS_OUT_PRIM_TYPE, VgtGsModeNv10, pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmVGT_PRIMITIVEID_EN, mmVGT_PRIMITIVEID_EN, VgtPrimitiveidEnNv10, pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmVGT_PRIMITIVEID_RESET, mmVGT_PRIMITIVEID_RESET, VgtPrimitiveidResetNv10, pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmVGT_DRAW_PAYLOAD_CNTL, Gfx09_10::mmVGT_STRMOUT_BUFFER_CONFIG, VgtDrawPayloadCntlNv10, pCmdSpace);
@@ -1757,6 +1766,12 @@ void InitializeContextRegistersGfx103(
         0x0       ,
         0x0
     };
+    constexpr uint32 PaClPointXRadGfx103[] = {
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0
+    };
     constexpr uint32 GeMaxOutputPerSubgroupGfx103[] = {
         0x0       ,
         0x0       ,
@@ -1767,9 +1782,10 @@ void InitializeContextRegistersGfx103(
         0x4       ,
         0x0       ,
         0x0       ,
-        0x0
-    };
-    constexpr uint32 PaSuSmallPrimFilterCntlGfx103[] = {
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
         0x0       ,
         0x0       ,
         0x0       ,
@@ -2087,14 +2103,14 @@ void InitializeContextRegistersGfx103(
     pCmdSpace = pCmdStream->ReserveCommands();
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmVGT_MULTI_PRIM_IB_RESET_INDX, mmPA_CL_UCP_5_W, VgtMultiPrimIbResetIndxGfx103, pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmSPI_PS_INPUT_CNTL_0, mmSPI_SHADER_COL_FORMAT, SpiPsInputCntl0Gfx103, pCmdSpace);
-    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(Gfx102Plus::mmSX_PS_DOWNCONVERT_CONTROL, mmCB_BLEND7_CONTROL, SxPsDownconvertControlGfx103, pCmdSpace);
-    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(Gfx10Plus::mmGE_MAX_OUTPUT_PER_SUBGROUP, mmPA_CL_NANINF_CNTL, GeMaxOutputPerSubgroupGfx103, pCmdSpace);
-    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmPA_SU_SMALL_PRIM_FILTER_CNTL, Gfx102Plus::mmPA_CL_VRS_CNTL, PaSuSmallPrimFilterCntlGfx103, pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(Gfx103Plus::mmSX_PS_DOWNCONVERT_CONTROL, mmCB_BLEND7_CONTROL, SxPsDownconvertControlGfx103, pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmPA_CL_POINT_X_RAD, mmPA_CL_POINT_CULL_RAD, PaClPointXRadGfx103, pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(Gfx10Plus::mmGE_MAX_OUTPUT_PER_SUBGROUP, Gfx103Plus::mmPA_CL_VRS_CNTL, GeMaxOutputPerSubgroupGfx103, pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmPA_SU_POINT_SIZE, mmPA_SC_LINE_STIPPLE, PaSuPointSizeGfx103, pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmVGT_HOS_MAX_TESS_LEVEL, mmVGT_HOS_MIN_TESS_LEVEL, VgtHosMaxTessLevelGfx103, pCmdSpace);
-    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(Gfx09_10::mmVGT_GS_MODE, Gfx09_10::mmVGT_GS_OUT_PRIM_TYPE, VgtGsModeGfx103, pCmdSpace);
     pCmdStream->CommitCommands(pCmdSpace);
     pCmdSpace = pCmdStream->ReserveCommands();
+    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(Gfx09_10::mmVGT_GS_MODE, Gfx09_10::mmVGT_GS_OUT_PRIM_TYPE, VgtGsModeGfx103, pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmVGT_PRIMITIVEID_EN, mmVGT_PRIMITIVEID_EN, VgtPrimitiveidEnGfx103, pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmVGT_PRIMITIVEID_RESET, mmVGT_PRIMITIVEID_RESET, VgtPrimitiveidResetGfx103, pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmVGT_DRAW_PAYLOAD_CNTL, Gfx09_10::mmVGT_STRMOUT_BUFFER_CONFIG, VgtDrawPayloadCntlGfx103, pCmdSpace);

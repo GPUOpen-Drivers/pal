@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2016-2020 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2016-2021 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -38,7 +38,7 @@ class Device;
 
 // =====================================================================================================================
 // The Null SubmissionContext should always say submissions are idle.
-class SubmissionContext : public Pal::SubmissionContext
+class SubmissionContext final : public Pal::SubmissionContext
 {
 public:
     static Result Create(Pal::Platform* pPlatform, Pal::SubmissionContext** ppContext);
@@ -55,7 +55,7 @@ private:
 
 // =====================================================================================================================
 // Null device flavor of the Queue class.
-class Queue : public Pal::Queue
+class Queue final : public Pal::Queue
 {
 public:
     Queue(uint32 qCount, Device* pDevice, const QueueCreateInfo* pCreateInfo);

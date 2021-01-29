@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2020 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2021 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -296,7 +296,7 @@ private:
 
 // =====================================================================================================================
 // Manages the HTile state for all slices of a single mipmap level of an Image resource.
-class Gfx9Htile : public Gfx9MaskRam
+class Gfx9Htile final : public Gfx9MaskRam
 {
 public:
     Gfx9Htile(const Image&  image, void*  pPlacementAddr, HtileUsageFlags  htileUsage);
@@ -437,7 +437,7 @@ struct MipDccStateMetaData
 
 // =====================================================================================================================
 // Manages the DCC state for all slices / miplevels of an Image resource.
-class Gfx9Dcc : public Gfx9MaskRam
+class Gfx9Dcc final : public Gfx9MaskRam
 {
 public:
     Gfx9Dcc(const Image&  image, void*  pPlacementAddr, bool  displayDcc);
@@ -514,7 +514,7 @@ private:
 
 // =====================================================================================================================
 // Manages the cMask state for all slices and miplevels of an Image resource.
-class Gfx9Cmask : public Gfx9MaskRam
+class Gfx9Cmask final : public Gfx9MaskRam
 {
 public:
     Gfx9Cmask(const Image&  image, void*  pPlacementAddr);
@@ -563,7 +563,7 @@ private:
 // =====================================================================================================================
 // Manages the fMask state for all slices and miplevels of an Image resource.  Note that fMask is not considered
 // a meta-equation capable surface, so it derives from MaskRam, not Gfx9MaskRam.
-class Gfx9Fmask : public MaskRam
+class Gfx9Fmask final : public MaskRam
 {
 public:
     Gfx9Fmask();

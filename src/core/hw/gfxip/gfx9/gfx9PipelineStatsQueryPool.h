@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2020 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2021 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -41,7 +41,7 @@ constexpr uint32  PipelineStatsNumMeshCounters = 3; // MsInvocations, MsPrimitiv
 // =====================================================================================================================
 // Query pool for retrieving shader execution status, as well as the number of invocations of some other fixed
 // function parts of the geometry pipeline.
-class PipelineStatsQueryPool : public QueryPool
+class PipelineStatsQueryPool final : public QueryPool
 {
 public:
     PipelineStatsQueryPool(const Device& device, const QueryPoolCreateInfo& createInfo);

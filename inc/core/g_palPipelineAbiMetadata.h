@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2018-2020 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2021 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -143,7 +143,7 @@ struct HardwareStageMetadata
 struct PipelineMetadata
 {
     /// Source name of the pipeline.
-    char                  name[64];
+    char                  name[256];
     /// Pipeline type, e.g. VsPs.
     PipelineType          type;
     /// Internal compiler hash for this pipeline. Lower 64 bits is the "stable" portion of the hash, used for e.g.

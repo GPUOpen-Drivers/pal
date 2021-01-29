@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2017-2020 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2017-2021 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -543,7 +543,7 @@ uint32* DmaCmdBuffer::WriteCopyGpuMemoryCmd(
     }
     else
     {
-        packet.COUNT_UNION.gfx101.count   = *pBytesCopied - 1;
+        packet.COUNT_UNION.nv10.count   = *pBytesCopied - 1;
     }
     packet.PARAMETER_UNION.DW_2_DATA      = 0;
 

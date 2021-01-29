@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2020 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2021 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -252,7 +252,7 @@ static uint32 CalcEpitch(
 // =====================================================================================================================
 // Responsible for implementing address and tiling code that is specific to "version 1" of the address library
 // interface.  Corresponds to ASICs starting with GFX9
-class AddrMgr2 : public AddrMgr
+class AddrMgr2 final : public AddrMgr
 {
 public:
     explicit AddrMgr2(const Device*  pDevice);

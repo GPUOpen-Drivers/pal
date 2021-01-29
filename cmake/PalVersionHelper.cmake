@@ -1,7 +1,7 @@
 ##
  #######################################################################################################################
  #
- #  Copyright (c) 2020 Advanced Micro Devices, Inc. All Rights Reserved.
+ #  Copyright (c) 2020-2021 Advanced Micro Devices, Inc. All Rights Reserved.
  #
  #  Permission is hereby granted, free of charge, to any person obtaining a copy
  #  of this software and associated documentation files (the "Software"), to deal
@@ -26,6 +26,9 @@ if (DEFINED PalVersionHelper_pal_include_guard)
     return()
 endif()
 set(PalVersionHelper_pal_include_guard ON)
+
+# Store the file's location for relative paths used in the functions.
+set(PAL_VERSION_HELPER_DIR ${CMAKE_CURRENT_LIST_DIR})
 
 # A helper macro to have include guards with pre 3.10 compatibility
 # See the documentation on include guards for more info (IE the "#pragma once" of cmake)
@@ -122,4 +125,49 @@ function(pal_override VARIABLE VALUE)
     # 'type' is only used for gui presentation. Everything in cmake is really a string.
     set(${VARIABLE} ${VALUE} CACHE STRING "PAL OVERRIDE" FORCE)
     mark_as_advanced(${VARIABLE})
+endfunction()
+
+# Helper function that sets the value of the variable passed in to the current value of
+# PAL_INTERFACE_MAJOR_VERSION defined in palLib.h.
+function(pal_get_current_pal_interface_major_version VARIABLE)
+    # Relative path to palLib.h from this file.
+    set(LIB_H_PATH ${PAL_VERSION_HELPER_DIR}/../inc/core/palLib.h)
+    if(NOT EXISTS ${LIB_H_PATH})
+        message(FATAL_ERROR "Could not find palLib.h at \"${LIB_H_PATH}\"")
+    endif()
+    # Read the line from the file where the version is defined.
+    file(STRINGS
+        ${LIB_H_PATH}
+        PAL_INTERFACE_MAJOR_VERSION
+        REGEX "^#define PAL_INTERFACE_MAJOR_VERSION [0-9]+$"
+    )
+    # Validate the version was found.
+    if(NOT PAL_INTERFACE_MAJOR_VERSION)
+        message(FATAL_ERROR "Could not find PAL_INTERFACE_MAJOR_VERSION in \"${LIB_H_PATH}\"")
+    endif()
+    # Read the version from the line.
+    string(REGEX REPLACE
+        "#define PAL_INTERFACE_MAJOR_VERSION " ""
+        PAL_INTERFACE_MAJOR_VERSIONX ${PAL_INTERFACE_MAJOR_VERSION}
+    )
+    # Set the value of VARIABLE to the version.
+    set(${VARIABLE} ${PAL_INTERFACE_MAJOR_VERSIONX} PARENT_SCOPE)
+endfunction()
+
+# Source Groups Helper #############################################################################
+# This helper creates source groups for generators that support them. This is primarily for MSVC,
+# but there are other generators that support IDE project files.
+#
+# Note: this only adds files that have been added to the target's SOURCES property. To add headers
+# to this list, be sure that you call target_find_headers before you call target_source_groups.
+function(pal_target_source_groups _target)
+    get_target_property(${_target}_SOURCES ${_target} SOURCES)
+    foreach(_source IN ITEMS ${${_target}_SOURCES})
+        set(_source ${_source})
+        get_filename_component(_source_path "${_source}" ABSOLUTE)
+        file(RELATIVE_PATH _source_path_rel "${PROJECT_SOURCE_DIR}" "${_source_path}")
+        get_filename_component(_source_path_rel "${_source_path_rel}" DIRECTORY)
+        string(REPLACE "/" "\\" _group_path "${_source_path_rel}")
+        source_group("${_group_path}" FILES "${_source}")
+    endforeach()
 endfunction()

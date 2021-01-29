@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2020 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2021 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -83,7 +83,7 @@ private:
 
 // =====================================================================================================================
 // Implements shader-ring functionality specific for shader scratch memory.
-class ScratchRing : public ShaderRing
+class ScratchRing final : public ShaderRing
 {
 public:
     ScratchRing(Device* pDevice, BufferSrd* pSrdTable, Pm4ShaderType shaderType, bool isTmz);
@@ -106,7 +106,7 @@ private:
 
 // =====================================================================================================================
 // Implements shader-ring functionality specific to the GS/VS shader ring required to support normal (i.e. off-chip) GS.
-class GsVsRing : public ShaderRing
+class GsVsRing final : public ShaderRing
 {
 public:
     GsVsRing(Device* pDevice, BufferSrd* pSrdTable, bool isTmz);
@@ -130,7 +130,7 @@ private:
 
 // =====================================================================================================================
 // Implements shader-ring functionality specific to the Tess-Factor Buffer required to support tessellation.
-class TessFactorBuffer : public ShaderRing
+class TessFactorBuffer final : public ShaderRing
 {
 public:
     TessFactorBuffer(Device* pDevice, BufferSrd* pSrdTable, bool isTmz);
@@ -149,7 +149,7 @@ private:
 
 // =====================================================================================================================
 // Implements shader-ring functionality specific to the Offchip LDS Buffers required for offchip tessellation.
-class OffchipLdsBuffer : public ShaderRing
+class OffchipLdsBuffer final : public ShaderRing
 {
 public:
     OffchipLdsBuffer(Device* pDevice, BufferSrd* pSrdTable, bool isTmz);
@@ -168,7 +168,7 @@ private:
 
 // =====================================================================================================================
 // Implements shader-ring functionality specific to the sample position buffer required for AMDIL samplepos.
-class SamplePosBuffer : public ShaderRing
+class SamplePosBuffer final : public ShaderRing
 {
 public:
     SamplePosBuffer(Device* pDevice, BufferSrd* pSrdTable, bool isTmz);
@@ -187,7 +187,7 @@ private:
 
 // =====================================================================================================================
 // Implements shader-ring functionality specific for shader scratch memory.
-class MeshScratchRing : public ShaderRing
+class MeshScratchRing final : public ShaderRing
 {
 public:
     MeshScratchRing(Device* pDevice, BufferSrd* pSrdTable, bool isTmz);
@@ -206,7 +206,7 @@ private:
 
 // =====================================================================================================================
 // Implement shader-ring functionality specific to the PayloadData buffer required for Task -> GFX shader functionality.
-class PayloadDataRing : public ShaderRing
+class PayloadDataRing final : public ShaderRing
 {
 public:
     PayloadDataRing(Device* pDevice, BufferSrd* pSrdTable, bool isTmz);
@@ -228,7 +228,7 @@ private:
 // =====================================================================================================================
 // Implement shader-ring functionality specific to the IndirectDraw arguments necessary to launch GFX shaders after a
 // Task shader dispatch.
-class DrawDataRing : public ShaderRing
+class DrawDataRing final : public ShaderRing
 {
 public:
     DrawDataRing(Device* pDevice, BufferSrd* pSrdTable, bool isTmz);
@@ -271,7 +271,7 @@ private:
 
 // =====================================================================================================================
 // Implements shader-ring functionality specific to the TASKMESH control buffer.
-class TaskMeshControlRing : public ShaderRing
+class TaskMeshControlRing final : public ShaderRing
 {
 public:
     TaskMeshControlRing(Device* pDevice, BufferSrd* pSrdTable, bool isTmz);

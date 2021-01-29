@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2020 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2021 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -39,7 +39,7 @@ class Device;
 
 // =====================================================================================================================
 // GFX6-specific color blend  state implementation.  See IColorBlendState documentation for more details.
-class ColorBlendState : public Pal::ColorBlendState
+class ColorBlendState final : public Pal::ColorBlendState
 {
 public:
     ColorBlendState(const Device& device, const ColorBlendStateCreateInfo& createInfo);

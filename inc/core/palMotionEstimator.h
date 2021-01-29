@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2019-2020 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2019-2021 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -51,19 +51,34 @@ enum class MeOutputFormat :uint32
 /// Defines creation info for an IMotionEstimator object.
 struct MotionEstimatorCreateInfo
 {
-    EngineType              engineType;          ///< Engine type to run ME
-    SwizzledFormat          inputFormat;         ///< The format of Input frame and reference frame
-    MeBlockSizeType         meBlockSizeType;     ///< Block size type supported by encoder
-    MePrecisionType         precision;           ///< Precision mode set by the application.
-    MeSizeRange             sizeRange;           ///< Size range set by application.
-    MeOutputFormat          outputFormat;        ///< Output format specified by application
+    EngineType              engineType;             ///< Engine type to run ME
+    SwizzledFormat          inputFormat;            ///< The format of Input frame and reference frame
+    MeBlockSizeType         meBlockSizeType;        ///< Block size type supported by encoder
+    MePrecisionType         precision;              ///< Precision mode set by the application.
+    MeSizeRange             sizeRange;              ///< Size range set by application.
+    MeOutputFormat          outputFormat;           ///< Output format specified by application
+#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 654)
+    VideoEncodeCodec        codecType;              ///< Codec type H264 or HEVC specified by the application
+    uint32                  outputAswBufferType;    ///< Asw Output BufferType
+
+    /// Below paramerers are exclusively for HEVC.
+    uint32                  log2MinLumaCodingBlockSizeMinus3; ///< Parameter for Coding Block Size
+    uint32                  constrainedIntraPredFlag;         ///< Parameter for Constrained Intra Prediction
+#endif
 
     union
     {
         struct
         {
-            uint32  protectedSession : 1; ///< Indicator set by Dx12 Motion Estimator to enable IP TMZ mode
-            uint32  reserved         : 31;
+            uint32  protectedSession            : 1; ///< Indicator set by Dx12 Motion Estimator to enable IP TMZ mode
+#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 654)
+            uint32  ampEnabled                  : 1; ///< Indicator set to Enable Assymetric Partiton (AMP) for Interprediction
+            uint32  strongIntraSmoothingEnabled : 1; ///< Indicator set to Enable Strong Intra Smoothing/Deblocking Filter
+            uint32  reserved                    : 29;
+#else
+            uint32  reserved                    : 31;
+#endif
+
         };
         uint32  u32All;
     } flags;

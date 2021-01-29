@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2020 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2021 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -277,13 +277,10 @@ enum class ChNumFormat : Util::uint32
                                         ///  channels respectively. Image views can use the { Y8X8_Y8Z8, Unorm } format
                                         ///  where the Y0,X0,Y1,Z0 channels are mapped to the Y0,V0,Y1,U0 channels.
     YV12                     = 0xA2,    ///< YVU 4:2:0 planar format, with 8 bits per luma and chroma sample.  The Y
-                                        ///  plane is first, containg a uint8 per sample.  Next is the U plane and the V
+                                        ///  plane is first, containg a uint8 per sample.  Next is the V plane and the U
                                         ///  plane, both of which have a uint8 per sample.  Valid Image view formats are
                                         ///  { X8, Unorm } and { X8, Uint }.  Each view only has access to one of the Y,
-                                        ///  U, or V planes.
-                                        ///  @note The planes are stored logically in memory as YV12-I420 (YUV) instead
-                                        ///  of YVU order. This means that any color conversion process needs to swizzle
-                                        ///  the components accordingly.
+                                        ///  V, or U planes.
     NV11                     = 0xA3,    ///< YUV 4:1:1 planar format, with 8 bits per luma and chroma sample.  The Y
                                         ///  plane is first, containing a uint8 per sample.  Next is a UV plane which
                                         ///  has interleaved U and V samples, each stored as a uint8.  Valid Image and
@@ -332,7 +329,10 @@ enum class ChNumFormat : Util::uint32
                                         ///  surfaces.
     X16Y16_MM_Uint           = 0xB0,    ///< Multi-media format used with DCC for the interleaved UV plane in YUV planar
                                         ///  surfaces.
-
+    P208                     = 0xB1,    ///< YUV 4:2:2 planar format, with 8 bits per luma and chroma sample. This is
+                                        ///  similar to @ref ChNumFormat::NV12, except that the UV planes are sub-sampled
+                                        ///  only in the horizontal direction, but still by a factor of 2 so the UV plane
+                                        ///  ends up having the same number of lines as the Y plane.
     Count,
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 601

@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2020 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2021 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -204,7 +204,7 @@ struct Gfx9ColorTargetViewRegs
 
 // =====================================================================================================================
 // Gfx9 specific extension of the base Pal::Gfx9::ColorTargetView class
-class Gfx9ColorTargetView : public ColorTargetView
+class Gfx9ColorTargetView final : public ColorTargetView
 {
 public:
     Gfx9ColorTargetView(
@@ -260,7 +260,7 @@ struct Gfx10ColorTargetViewRegs
 
 // =====================================================================================================================
 // Gfx10 specific extension of the base Pal::Gfx9::ColorTargetView class
-class Gfx10ColorTargetView : public ColorTargetView
+class Gfx10ColorTargetView final : public ColorTargetView
 {
 public:
     Gfx10ColorTargetView(

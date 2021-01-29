@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2016-2020 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2016-2021 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -102,7 +102,8 @@ size_t IndirectCmdGenerator::GetSize(
     // The required size of a command generator is the object size plus space for the parameter buffer data and the
     // client data buffer. The client data buffer and the param buffer data will immediately follow the object in
     // system memory.
-    return (sizeof(IndirectCmdGenerator) + (sizeof(IndirectParamData) * PaddedParamCount(createInfo.paramCount)));
+    return (sizeof(IndirectCmdGenerator) + (sizeof(IndirectParamData) * PaddedParamCount(createInfo.paramCount)) +
+            (sizeof(IndirectParam) * createInfo.paramCount));
 }
 
 // =====================================================================================================================
@@ -112,14 +113,18 @@ IndirectCmdGenerator::IndirectCmdGenerator(
     :
     Pal::IndirectCmdGenerator(device, createInfo),
     m_bindsIndexBuffer(false),
-    m_pParamData(reinterpret_cast<IndirectParamData*>(this + 1))
+    m_pParamData(reinterpret_cast<IndirectParamData*>(this + 1)),
+    m_pCreationParam(reinterpret_cast<IndirectParam*>(m_pParamData+PaddedParamCount(createInfo.paramCount))),
+    m_cmdSizeNeedPipeline(false)
 {
     m_properties.maxUserDataEntries = device.Parent()->ChipProperties().gfxip.maxUserDataEntries;
     memcpy(&m_properties.indexTypeTokens[0], &createInfo.indexTypeTokens[0], sizeof(createInfo.indexTypeTokens));
+    memcpy(m_pCreationParam, createInfo.pParams, sizeof(IndirectParam)*createInfo.paramCount);
 
     InitParamBuffer(createInfo);
 
-    m_gpuMemSize = (sizeof(m_properties) + (sizeof(IndirectParamData) * PaddedParamCount(ParameterCount())));
+    m_gpuMemSize = m_cmdSizeNeedPipeline ?
+        8 : (sizeof(m_properties) + (sizeof(IndirectParamData) * PaddedParamCount(ParameterCount())));
 }
 
 // =====================================================================================================================
@@ -128,7 +133,7 @@ Result IndirectCmdGenerator::BindGpuMemory(
     gpusize     offset)
 {
     Result result = Pal::IndirectCmdGenerator::BindGpuMemory(pGpuMemory, offset);
-    if (result == Result::Success)
+    if ((result == Result::Success) && (m_cmdSizeNeedPipeline == false))
     {
         const uint32 paddedParamCount = PaddedParamCount(ParameterCount());
 
@@ -176,24 +181,21 @@ uint32 IndirectCmdGenerator::DetermineMaxCmdBufSize(
     //       which has the worst case total count of HW shader stages
 
     uint32 numHwStages = 0;
-    // In all cases, API geometry shader stage is merged with API VS/DS except in VS only case. Thus, the presence of
-    // VS/GS enables one HW shader stage. We do not expect user data to be bound to the copy shader other than the
-    // streamout SRD table. Streamout targets cannot be changed by an indirect command generator, so we don't need
-    // to flag this stage.
-    if (TestAnyFlagSet(param.userDataShaderUsage, ApiShaderStageVertex | ApiShaderStageGeometry))
-    {
-        numHwStages++;
-    }
-    // API hull shader accounts for one HW shader stage whenever active.
-    if (TestAllFlagsSet(param.userDataShaderUsage, ApiShaderStageHull))
-    {
-        numHwStages++;
-    }
-    // API domain shader accounts for one HW shader stage when active.
-    if (TestAllFlagsSet(param.userDataShaderUsage, ApiShaderStageDomain))
-    {
-        numHwStages++;
-    }
+    // For pre-PS API shaders, due to shader merge there are 5 possible HW shader stage combinations
+    // (1) HW      VS   : API Tess off GS off
+    // (2) HW      GS   : API Tess off GS on, or API Mesh shader
+    // (3) HW HS + VS   : API Tess on  GS off
+    // (4) HW HS + GS   : API Tess on  GS on
+    // (5) HW CS + GS   : API Task + Mesh shader
+    // We do not expect user data to be bound to the copy shader other than the streamout SRD table.
+    // Streamout targets cannot be changed by an indirect command generator, so we don't need to flag this stage.
+
+    const uint32 hwHsCsEnable = TestAnyFlagSet(param.userDataShaderUsage,
+        ApiShaderStageVertex | ApiShaderStageHull | ApiShaderStageTask) ? 1 : 0;
+    const uint32 hwGsVsEnable = TestAnyFlagSet(param.userDataShaderUsage,
+        ApiShaderStageVertex | ApiShaderStageDomain | ApiShaderStageGeometry | ApiShaderStageMesh) ? 1 : 0;
+    numHwStages += hwHsCsEnable + hwGsVsEnable;
+
     // API pixel shader stage accounts for one HW shader stage
     if (TestAllFlagsSet(param.userDataShaderUsage, ApiShaderStagePixel))
     {
@@ -383,6 +385,10 @@ void IndirectCmdGenerator::InitParamBuffer(
                 {
                     WideBitfieldSetBit(m_touchedUserData, (e + param.userData.firstEntry));
                 }
+                if (Type() != GeneratorType::Dispatch)
+                {
+                    m_cmdSizeNeedPipeline = true;
+                }
                 break;
             case IndirectParamType::BindVertexData:
                 m_pParamData[p].type    = IndirectOpType::VertexBufTableSrd;
@@ -406,8 +412,150 @@ void IndirectCmdGenerator::InitParamBuffer(
         argBufOffset += param.sizeInBytes;
     }
 
-    m_properties.cmdBufStride = cmdBufOffset;
+    m_properties.cmdBufStride = m_cmdSizeNeedPipeline ? 0 : cmdBufOffset;
     m_properties.argBufStride = Max(argBufOffset, createInfo.strideInBytes);
+}
+
+// =====================================================================================================================
+void IndirectCmdGenerator::PopulateParameterBuffer(
+    GfxCmdBuffer*   pCmdBuffer,
+    const Pipeline* pPipeline,
+    void*           pSrd
+    ) const
+{
+    if (m_cmdSizeNeedPipeline)
+    {
+        PAL_ASSERT(Type() != GeneratorType::Dispatch);
+        const auto& signature = static_cast<const GraphicsPipeline*>(pPipeline)->Signature();
+        const uint32 paddedParamCount = PaddedParamCount(ParameterCount());
+
+        BufferViewInfo viewInfo = { };
+        viewInfo.swizzledFormat = UndefinedSwizzledFormat;
+        viewInfo.range          = (sizeof(IndirectParamData) * paddedParamCount);
+        viewInfo.stride         = sizeof(IndirectParamData);
+
+        IndirectParamData* pData = reinterpret_cast<IndirectParamData*>(pCmdBuffer->CmdAllocateEmbeddedData(
+            sizeof(IndirectParamData) * paddedParamCount / sizeof(uint32), 1, &viewInfo.gpuAddr));
+
+        PAL_ASSERT(pData != nullptr);
+        memcpy(pData, m_pParamData, sizeof(IndirectParamData) * paddedParamCount);
+
+        uint32 cmdBufOffset = 0;
+
+        for (uint32 p = 0; ((m_pCreationParam != nullptr) && (p < ParameterCount())); ++p)
+        {
+            const IndirectParam& param = m_pCreationParam[p];
+
+            if (param.type == IndirectParamType::SetUserData)
+            {
+                const UserDataEntryMap* pStage = &signature.stage[0];
+                uint32 numHwStages = 0;
+
+                for (uint32 stage = 0; stage < NumHwShaderStagesGfx; ++stage)
+                {
+                    for (uint32 i = 0; i < pStage->userSgprCount; ++i)
+                    {
+                        if (pStage->mappedEntry[i] == param.userData.firstEntry)
+                        {
+                            numHwStages++;
+                            break;
+                        }
+                    }
+                    ++pStage;
+                }
+                uint32 size = (CmdUtil::ShRegSizeDwords + param.userData.entryCount) * numHwStages;
+                pData[p].cmdBufSize = sizeof(uint32) * size;
+            }
+            pData[p].cmdBufOffset = cmdBufOffset;
+            cmdBufOffset += pData[p].cmdBufSize;
+        }
+
+        m_device.Parent()->CreateUntypedBufferViewSrds(1, &viewInfo, pSrd);
+    }
+    else
+    {
+        memcpy(pSrd, ParamBufferSrd(), sizeof(BufferSrd));
+    }
+}
+
+// =====================================================================================================================
+uint32 IndirectCmdGenerator::CmdBufStride(
+    const Pipeline* pPipeline
+    ) const
+{
+    uint32  cmdBufStride = 0;
+
+    if (m_cmdSizeNeedPipeline)
+    {
+        const auto& signature = static_cast<const GraphicsPipeline*>(pPipeline)->Signature();
+
+        for (uint32 p = 0; ((m_pCreationParam != nullptr) && (p < ParameterCount())); ++p)
+        {
+            const IndirectParam& param = m_pCreationParam[p];
+            uint32 cmdSize = 0;
+
+            if (param.type == IndirectParamType::SetUserData)
+            {
+                const UserDataEntryMap* pStage = &signature.stage[0];
+                uint32 numHwStages = 0;
+
+                for (uint32 stage = 0; stage < NumHwShaderStagesGfx; ++stage)
+                {
+                    for (uint32 i = 0; i < pStage->userSgprCount; ++i)
+                    {
+                        if (pStage->mappedEntry[i] == param.userData.firstEntry)
+                        {
+                            numHwStages++;
+                            break;
+                        }
+                    }
+                    ++pStage;
+                }
+                uint32 size = (CmdUtil::ShRegSizeDwords + param.userData.entryCount) * numHwStages;
+                cmdSize = sizeof(uint32) * size;
+            }
+            else
+            {
+                cmdSize = m_pParamData[p].cmdBufSize;
+            }
+            cmdBufStride += cmdSize;
+        }
+    }
+    else
+    {
+        cmdBufStride = m_properties.cmdBufStride;
+    }
+
+    return (cmdBufStride);
+}
+
+// =====================================================================================================================
+void IndirectCmdGenerator::PopulatePropertyBuffer(
+    GfxCmdBuffer*   pCmdBuffer,
+    const Pipeline* pPipeline,
+    void*           pSrd
+    ) const
+{
+    if (m_cmdSizeNeedPipeline)
+    {
+        BufferViewInfo viewInfo = { };
+        viewInfo.stride        = (sizeof(uint32) * 4);
+        viewInfo.range         = Util::RoundUpToMultiple<gpusize>(sizeof(m_properties), viewInfo.stride);
+        viewInfo.swizzledFormat.format  = ChNumFormat::X32Y32Z32W32_Uint;
+        viewInfo.swizzledFormat.swizzle =
+            { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
+
+        GeneratorProperties* pData = reinterpret_cast<GeneratorProperties*>(pCmdBuffer->CmdAllocateEmbeddedData(
+            static_cast<uint32>(viewInfo.range) / sizeof(uint32), 1, &viewInfo.gpuAddr));
+        memcpy(pData, &m_properties, sizeof(m_properties));
+        pData->cmdBufStride = CmdBufStride(pPipeline);
+
+        m_device.Parent()->CreateTypedBufferViewSrds(1, &viewInfo, pSrd);
+    }
+    else
+    {
+        memcpy(pSrd, PropertiesSrd(), sizeof(BufferSrd));
+    }
 }
 
 // =====================================================================================================================

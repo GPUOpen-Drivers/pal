@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2020 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2021 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -2533,7 +2533,7 @@ void Gfx9MetaEqGenerator::GetMicroBlockSize(
 // Returns log2 of the total number of shader arrays on the GPU.
 uint32 Gfx9MetaEqGenerator::GetNumShaderArrayLog2() const
 {
-    return m_pParent->GetGfxDevice()->Gfx102PlusGetNumActiveShaderArraysLog2();
+    return m_pParent->GetGfxDevice()->Gfx103PlusGetNumActiveShaderArraysLog2();
 }
 
 // =====================================================================================================================
@@ -3303,8 +3303,8 @@ void Gfx9Htile::SetupHtilePreload(
     const  SubresId          baseSubResource = pParent->GetBaseSubResource();
 #endif
 
-    m_dbHtileSurface[mipLevel].most.PREFETCH_WIDTH  = 0;
-    m_dbHtileSurface[mipLevel].most.PREFETCH_HEIGHT = 0;
+    m_dbHtileSurface[mipLevel].gfx09.PREFETCH_WIDTH  = 0;
+    m_dbHtileSurface[mipLevel].gfx09.PREFETCH_HEIGHT = 0;
 
     if (settings.dbPreloadEnable && (settings.waDisableHtilePrefetch == 0))
     {
@@ -3331,8 +3331,8 @@ void Gfx9Htile::SetupHtilePreload(
 
         regDB_PRELOAD_CONTROL*  pPreloadControl = &m_dbPreloadControl[mipLevel];
 
-        m_dbHtileSurface[mipLevel].most.HTILE_USES_PRELOAD_WIN = settings.dbPreloadWinEnable;
-        m_dbHtileSurface[mipLevel].most.PRELOAD                = 1;
+        m_dbHtileSurface[mipLevel].gfx09.HTILE_USES_PRELOAD_WIN = settings.dbPreloadWinEnable;
+        m_dbHtileSurface[mipLevel].gfx09.PRELOAD                = 1;
 
         if (imageSizeInPixels <= cacheSizeInPixels)
         {

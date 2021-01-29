@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2020 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2021 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -41,7 +41,7 @@ static constexpr uint32 TilePixels = 64;
 // =====================================================================================================================
 // OSS1 hardware layer implementation of OssDevice. Responsible for creating HW-specific objects such as Queue
 // contexts.
-class Device : public OssDevice
+class Device final : public OssDevice
 {
 public:
     Device(Pal::Device* pDevice) : OssDevice(pDevice) { }

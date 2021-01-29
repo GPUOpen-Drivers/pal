@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2020 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2021 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -201,7 +201,7 @@ struct Gfx9DepthStencilViewRegs
 
 // =====================================================================================================================
 // Gfx9 HW-specific implementation of the Pal::IDepthStencilView interface
-class Gfx9DepthStencilView : public DepthStencilView
+class Gfx9DepthStencilView final : public DepthStencilView
 {
 public:
     Gfx9DepthStencilView(
@@ -269,7 +269,7 @@ struct Gfx10DepthStencilViewRegs
 
 // =====================================================================================================================
 // Gfx10 HW-specific implementation of the Pal::IDepthStencilView interface
-class Gfx10DepthStencilView : public DepthStencilView
+class Gfx10DepthStencilView final : public DepthStencilView
 {
 public:
     Gfx10DepthStencilView(

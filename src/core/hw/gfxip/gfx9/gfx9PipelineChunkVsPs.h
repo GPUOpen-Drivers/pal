@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2020 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2021 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -87,6 +87,7 @@ public:
     regDB_SHADER_CONTROL DbShaderControl() const { return m_regs.context.dbShaderControl; }
     regPA_CL_VS_OUT_CNTL PaClVsOutCntl() const { return m_regs.context.paClVsOutCntl; }
     regPA_SC_AA_CONFIG PaScAaConfig() const { return m_paScAaConfig; }
+    regSPI_PS_INPUT_ENA SpiPsInputEna() const { return m_regs.context.spiPsInputEna; }
 
     // Shortcut for checking if the shader has enabled INNER_COVERAGE mode.
     bool UsesInnerCoverage() const
@@ -143,7 +144,6 @@ private:
             regSPI_PS_INPUT_ADDR      spiPsInputAddr;
             regDB_SHADER_CONTROL      dbShaderControl;
             regPA_SC_SHADER_CONTROL   paScShaderControl;
-            regPA_SC_BINNER_CNTL_1    paScBinnerCntl1;
             regPA_CL_VS_OUT_CNTL      paClVsOutCntl;
             regVGT_PRIMITIVEID_EN     vgtPrimitiveIdEn;
 

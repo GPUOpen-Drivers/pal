@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2016-2020 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2016-2021 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -214,6 +214,7 @@ typedef enum SqttMemoryType
     SQTT_MEMORY_TYPE_DDR2    = 0x2,
     SQTT_MEMORY_TYPE_DDR3    = 0x3,
     SQTT_MEMORY_TYPE_DDR4    = 0x4,
+    SQTT_MEMORY_TYPE_DDR5    = 0x5,
     SQTT_MEMORY_TYPE_GDDR3   = 0x10,
     SQTT_MEMORY_TYPE_GDDR4   = 0x11,
     SQTT_MEMORY_TYPE_GDDR5   = 0x12,

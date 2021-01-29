@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2020 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2021 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -588,7 +588,7 @@ struct SubresRange
 ///       + Depth-stencil: if the image format contains depth and stencil data, plane 0 is depth and plane 1 is stencil.
 ///       + YUV-planar: if the image format is @ref YuvPlanar it has either two or three planes.  The luma plane
 ///         is always plane 0. If the format is @ref ChNumFormat::YV12 it has three planes where plane 1 is the
-///         blue-difference chrominance plane and plane 2 is the red-difference chrominance plane. Otherwise, plane 1
+///         red-difference chrominance plane and plane 2 is the blue-difference chrominance plane. Otherwise, plane 1
 ///         interleaves blue-difference and red-difference chrominance values.
 struct SubresId
 {

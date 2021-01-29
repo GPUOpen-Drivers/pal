@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2020 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2021 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -67,9 +67,10 @@ enum class FenceType : uint32
 // information from OpenExternalResource().
 struct ExternalSharedInfo
 {
-    Pal::OsExternalHandle   hExternalResource;  // External resource handle
-    amdgpu_bo_import_result importResult;       // Status of the shared resource import.
-    amdgpu_bo_info          info;               // DRM's internal allocation info.
+    Pal::OsExternalHandle   hExternalResource;     // External resource handle.
+    amdgpu_bo_import_result importResult;          // Status of the shared resource import.
+    amdgpu_bo_info          info;                  // DRM's internal allocation info.
+    amdgpu_bo_handle_type   handleType;            // Type of the external resource handle.
 };
 
 // All of the parameters for Pal::Amdgpu::Device constructor.

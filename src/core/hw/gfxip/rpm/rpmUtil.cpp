@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2020 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2021 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -240,6 +240,13 @@ const ColorSpaceConversionInfo CscInfoTable[YuvFormatCount] =
     },
     // YV12 (4:2:0 planar)
     {
+        // YV12 has three planes in YVU (YCrCb) order. Our yuv to rgb conversion tables are expected to be in the
+        // format YUV -> RGB, so the planes of the source image must be swizzled to produce the following
+        // conversion:
+        //         src                                          dst
+        //   dot( [plane#0 Y plane#2 V plane#1 U], [row#0] ) = [plane#0 R]
+        //   dot( [plane#0 Y plane#2 V plane#1 U], [row#1] ) = [plane#0 G]
+        //   dot( [plane#0 Y plane#2 V plane#1 U], [row#2] ) = [plane#0 B]
         RpmComputePipeline::YuvToRgb,
         {
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
@@ -252,24 +259,31 @@ const ColorSpaceConversionInfo CscInfoTable[YuvFormatCount] =
                 },
             },
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-            {   ImageAspect::Cb,            // Cb plane
+            {   ImageAspect::Cr,            // Cr plane
 #else
-            {   1,                          // Cb plane
+            {   2,                          // Cb plane
 #endif
                 { ChNumFormat::X8_Unorm,
                   { ChannelSwizzle::Zero, ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::One },
                 },
             },
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-            {   ImageAspect::Cr,            // Cr plane
+            {   ImageAspect::Cb,            // Cb plane
 #else
-            {   2,                          // Cr plane
+            {   1,                          // Cr plane
 #endif
                 { ChNumFormat::X8_Unorm,
                   { ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::X, ChannelSwizzle::One },
                 },
             },
         },
+        // YV12 has three planes in YVU (YCrCb) order. Our rgb to yuv conversion tables are expected to be in the
+        // format RGB -> YUV, so the planes of the destination image must be swizzled to produce the following
+        // conversion:
+        //         src                     dst
+        //   dot( [plane#0 R plane#0 G plane#0 B], [row#0] ) = [plane#0 Y]
+        //   dot( [plane#0 R plane#0 G plane#0 B], [row#1] ) = [plane#2 U]
+        //   dot( [plane#0 R plane#0 G plane#0 B], [row#2] ) = [plane#1 V]
         RpmComputePipeline::RgbToYuvPlanar,
         {
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
@@ -283,9 +297,9 @@ const ColorSpaceConversionInfo CscInfoTable[YuvFormatCount] =
                 { 0, USHRT_MAX, USHRT_MAX, },
             },
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-            {   ImageAspect::Cb,            // Cb plane
+            {   ImageAspect::Cr,            // Cr plane
 #else
-            {   1,                          // Cb plane
+            {   2,                          // Cb plane
 #endif
                 { ChNumFormat::X8_Unorm,
                   { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::Zero }, },
@@ -293,9 +307,9 @@ const ColorSpaceConversionInfo CscInfoTable[YuvFormatCount] =
                 { 1, USHRT_MAX, USHRT_MAX, },
             },
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-            {   ImageAspect::Cr,            // Cr plane
+            {   ImageAspect::Cb,            // Cb plane
 #else
-            {   2,                          // Cr plane
+            {   1,                          // Cr plane
 #endif
                 { ChNumFormat::X8_Unorm,
                   { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::Zero }, },
@@ -583,6 +597,53 @@ const ColorSpaceConversionInfo CscInfoTable[YuvFormatCount] =
                   { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Zero, ChannelSwizzle::Zero }, },
                 0.5f, 0.5f,                 // Mpeg-2 chroma subsampling location
                 { 1, 2, USHRT_MAX, },
+            },
+        },
+    },
+    // P208 (4:2:2 planar)
+    {
+        RpmComputePipeline::YuvIntToRgb,
+        {
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
+            {   ImageAspect::Y,             // Y plane
+#else
+            {   0,                          // Y plane
+#endif
+                { ChNumFormat::X8_Unorm,
+                  { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One },
+                },
+            },
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
+            {   ImageAspect::CbCr,          // CbCr plane
+#else
+            {   1,                          // CbCr plane
+#endif
+                { ChNumFormat::X8Y8_Unorm,
+                  { ChannelSwizzle::Zero, ChannelSwizzle::Y, ChannelSwizzle::X, ChannelSwizzle::One },
+                }
+            },
+        },
+        RpmComputePipeline::RgbToYuvPlanar,
+        {
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
+            {   ImageAspect::Y,             // Y plane
+#else
+            {   0,                          // Y plane
+#endif
+                { ChNumFormat::X8_Unorm,
+                  { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::Zero }, },
+                0.5f, 0.5f,
+                { 0, USHRT_MAX, USHRT_MAX, },
+            },
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
+            {   ImageAspect::CbCr,          // CbCr plane
+#else
+            {   1,                          // CbCr plane
+#endif
+                { ChNumFormat::X8Y8_Unorm,
+                  { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Zero, ChannelSwizzle::Zero }, },
+                0.25f, 0.5f,                // Mpeg-2 chroma subsampling location
+                { 2, 1, USHRT_MAX, },
             },
         },
     },

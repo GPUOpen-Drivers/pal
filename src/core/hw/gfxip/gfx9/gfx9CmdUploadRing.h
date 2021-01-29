@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2017-2020 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2017-2021 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -35,7 +35,7 @@ class Device;
 
 // =====================================================================================================================
 // Contains packet-specific knowledge needed to upload command streams.
-class CmdUploadRing : public Pal::CmdUploadRing
+class CmdUploadRing final : public Pal::CmdUploadRing
 {
 public:
     static Result CreateInternal(

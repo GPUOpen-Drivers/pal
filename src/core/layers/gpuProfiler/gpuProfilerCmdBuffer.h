@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2020 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2021 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -61,7 +61,7 @@ struct PipelineState
 // instrumentation required for GPU profiling.  By this process, the same command buffer from the client/app perspective
 // can be in flight multiple times simultanesouly while counters for the separate invocations are collected in
 // difference sections of memory.
-class CmdBuffer: public CmdBufferDecorator
+class CmdBuffer final : public CmdBufferDecorator
 {
 public:
     CmdBuffer(ICmdBuffer*                pNextCmdBuffer,

@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2016-2020 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2016-2021 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -331,16 +331,14 @@ static void Gfx10UpdateSxBlockInfo(
     const Pal::Device&    device,
     PerfCounterBlockInfo* pInfo)
 {
-    {
-        pInfo->numGenericLegacyModules = 2; // SX_PERFCOUNTER2-3
+    pInfo->numGenericLegacyModules = 2; // SX_PERFCOUNTER2-3
 
-        pInfo->regAddr = { 0, {
-            { mmSX_PERFCOUNTER0_SELECT, mmSX_PERFCOUNTER0_SELECT1, mmSX_PERFCOUNTER0_LO, mmSX_PERFCOUNTER0_HI },
-            { mmSX_PERFCOUNTER1_SELECT, mmSX_PERFCOUNTER1_SELECT1, mmSX_PERFCOUNTER1_LO, mmSX_PERFCOUNTER1_HI },
-            { mmSX_PERFCOUNTER2_SELECT, 0,                         mmSX_PERFCOUNTER2_LO, mmSX_PERFCOUNTER2_HI },
-            { mmSX_PERFCOUNTER3_SELECT, 0,                         mmSX_PERFCOUNTER3_LO, mmSX_PERFCOUNTER3_HI },
-        }};
-    }
+    pInfo->regAddr = { 0, {
+        { mmSX_PERFCOUNTER0_SELECT, mmSX_PERFCOUNTER0_SELECT1, mmSX_PERFCOUNTER0_LO, mmSX_PERFCOUNTER0_HI },
+        { mmSX_PERFCOUNTER1_SELECT, mmSX_PERFCOUNTER1_SELECT1, mmSX_PERFCOUNTER1_LO, mmSX_PERFCOUNTER1_HI },
+        { mmSX_PERFCOUNTER2_SELECT, 0,                         mmSX_PERFCOUNTER2_LO, mmSX_PERFCOUNTER2_HI },
+        { mmSX_PERFCOUNTER3_SELECT, 0,                         mmSX_PERFCOUNTER3_LO, mmSX_PERFCOUNTER3_HI },
+    }};
 }
 
 // =====================================================================================================================
@@ -349,14 +347,12 @@ static void Gfx10UpdateTaBlockInfo(
     const Pal::Device&    device,
     PerfCounterBlockInfo* pInfo)
 {
-    {
-        pInfo->numGenericLegacyModules = 1; // TA_PERFCOUNTER1
+    pInfo->numGenericLegacyModules = 1; // TA_PERFCOUNTER1
 
-        pInfo->regAddr = { 0, {
-            { mmTA_PERFCOUNTER0_SELECT, mmTA_PERFCOUNTER0_SELECT1, mmTA_PERFCOUNTER0_LO, mmTA_PERFCOUNTER0_HI },
-            { mmTA_PERFCOUNTER1_SELECT, 0,                         mmTA_PERFCOUNTER1_LO, mmTA_PERFCOUNTER1_HI },
-        }};
-    }
+    pInfo->regAddr = { 0, {
+        { mmTA_PERFCOUNTER0_SELECT, mmTA_PERFCOUNTER0_SELECT1, mmTA_PERFCOUNTER0_LO, mmTA_PERFCOUNTER0_HI },
+        { mmTA_PERFCOUNTER1_SELECT, 0,                         mmTA_PERFCOUNTER1_LO, mmTA_PERFCOUNTER1_HI },
+    }};
 }
 
 // =====================================================================================================================
@@ -365,19 +361,14 @@ static void Gfx10UpdateTcpBlockInfo(
     const Pal::Device&    device,
     PerfCounterBlockInfo* pInfo)
 {
-    {
-        static_assert(Gfx103::mmTCP_PERFCOUNTER2_SELECT == Gfx101::mmTCP_PERFCOUNTER2_SELECT,
-                      "Must fix TCP registers!");
+    pInfo->numGenericLegacyModules = 2; // TCP_PERFCOUNTER2-3
 
-        pInfo->numGenericLegacyModules = 2; // TCP_PERFCOUNTER2-3
-
-        pInfo->regAddr = { 0, {
-            { mmTCP_PERFCOUNTER0_SELECT,         mmTCP_PERFCOUNTER0_SELECT1, mmTCP_PERFCOUNTER0_LO, mmTCP_PERFCOUNTER0_HI },
-            { mmTCP_PERFCOUNTER1_SELECT,         mmTCP_PERFCOUNTER1_SELECT1, mmTCP_PERFCOUNTER1_LO, mmTCP_PERFCOUNTER1_HI },
-            { Gfx101::mmTCP_PERFCOUNTER2_SELECT, 0,                          mmTCP_PERFCOUNTER2_LO, mmTCP_PERFCOUNTER2_HI },
-            { Gfx101::mmTCP_PERFCOUNTER3_SELECT, 0,                          mmTCP_PERFCOUNTER3_LO, mmTCP_PERFCOUNTER3_HI },
-        }};
-    }
+    pInfo->regAddr = { 0, {
+        { mmTCP_PERFCOUNTER0_SELECT, mmTCP_PERFCOUNTER0_SELECT1, mmTCP_PERFCOUNTER0_LO, mmTCP_PERFCOUNTER0_HI },
+        { mmTCP_PERFCOUNTER1_SELECT, mmTCP_PERFCOUNTER1_SELECT1, mmTCP_PERFCOUNTER1_LO, mmTCP_PERFCOUNTER1_HI },
+        { mmTCP_PERFCOUNTER2_SELECT, 0,                          mmTCP_PERFCOUNTER2_LO, mmTCP_PERFCOUNTER2_HI },
+        { mmTCP_PERFCOUNTER3_SELECT, 0,                          mmTCP_PERFCOUNTER3_LO, mmTCP_PERFCOUNTER3_HI },
+    }};
 }
 
 // =====================================================================================================================
@@ -675,14 +666,14 @@ static void Gfx9InitBasicBlockInfo(
     pSq->maxEventId                = MaxSqPerfSelGfx09;
 
     pSq->regAddr = { 0, {
-        { mmSQ_PERFCOUNTER0_SELECT, 0, mmSQ_PERFCOUNTER0_LO, mmSQ_PERFCOUNTER0_HI },
-        { mmSQ_PERFCOUNTER1_SELECT, 0, mmSQ_PERFCOUNTER1_LO, mmSQ_PERFCOUNTER1_HI },
-        { mmSQ_PERFCOUNTER2_SELECT, 0, mmSQ_PERFCOUNTER2_LO, mmSQ_PERFCOUNTER2_HI },
-        { mmSQ_PERFCOUNTER3_SELECT, 0, mmSQ_PERFCOUNTER3_LO, mmSQ_PERFCOUNTER3_HI },
-        { mmSQ_PERFCOUNTER4_SELECT, 0, mmSQ_PERFCOUNTER4_LO, mmSQ_PERFCOUNTER4_HI },
-        { mmSQ_PERFCOUNTER5_SELECT, 0, mmSQ_PERFCOUNTER5_LO, mmSQ_PERFCOUNTER5_HI },
-        { mmSQ_PERFCOUNTER6_SELECT, 0, mmSQ_PERFCOUNTER6_LO, mmSQ_PERFCOUNTER6_HI },
-        { mmSQ_PERFCOUNTER7_SELECT, 0, mmSQ_PERFCOUNTER7_LO, mmSQ_PERFCOUNTER7_HI },
+        { mmSQ_PERFCOUNTER0_SELECT, 0, mmSQ_PERFCOUNTER0_LO, Gfx09_10::mmSQ_PERFCOUNTER0_HI },
+        { mmSQ_PERFCOUNTER1_SELECT, 0, mmSQ_PERFCOUNTER1_LO, Gfx09_10::mmSQ_PERFCOUNTER1_HI },
+        { mmSQ_PERFCOUNTER2_SELECT, 0, mmSQ_PERFCOUNTER2_LO, Gfx09_10::mmSQ_PERFCOUNTER2_HI },
+        { mmSQ_PERFCOUNTER3_SELECT, 0, mmSQ_PERFCOUNTER3_LO, Gfx09_10::mmSQ_PERFCOUNTER3_HI },
+        { mmSQ_PERFCOUNTER4_SELECT, 0, mmSQ_PERFCOUNTER4_LO, Gfx09_10::mmSQ_PERFCOUNTER4_HI },
+        { mmSQ_PERFCOUNTER5_SELECT, 0, mmSQ_PERFCOUNTER5_LO, Gfx09_10::mmSQ_PERFCOUNTER5_HI },
+        { mmSQ_PERFCOUNTER6_SELECT, 0, mmSQ_PERFCOUNTER6_LO, Gfx09_10::mmSQ_PERFCOUNTER6_HI },
+        { mmSQ_PERFCOUNTER7_SELECT, 0, mmSQ_PERFCOUNTER7_LO, Gfx09_10::mmSQ_PERFCOUNTER7_HI },
     }};
 
     // Note that between gfx6 and now the SX switched to per-shader-engine.
@@ -740,10 +731,10 @@ static void Gfx9InitBasicBlockInfo(
     pTcp->maxEventId                = MaxTcpPerfcountSelectGfx09;
 
     pTcp->regAddr = { 0, {
-        { mmTCP_PERFCOUNTER0_SELECT,           mmTCP_PERFCOUNTER0_SELECT1, mmTCP_PERFCOUNTER0_LO, mmTCP_PERFCOUNTER0_HI },
-        { mmTCP_PERFCOUNTER1_SELECT,           mmTCP_PERFCOUNTER1_SELECT1, mmTCP_PERFCOUNTER1_LO, mmTCP_PERFCOUNTER1_HI },
-        { NotGfx10::mmTCP_PERFCOUNTER2_SELECT, 0,                          mmTCP_PERFCOUNTER2_LO, mmTCP_PERFCOUNTER2_HI },
-        { NotGfx10::mmTCP_PERFCOUNTER3_SELECT, 0,                          mmTCP_PERFCOUNTER3_LO, mmTCP_PERFCOUNTER3_HI },
+        { mmTCP_PERFCOUNTER0_SELECT, mmTCP_PERFCOUNTER0_SELECT1, mmTCP_PERFCOUNTER0_LO, mmTCP_PERFCOUNTER0_HI },
+        { mmTCP_PERFCOUNTER1_SELECT, mmTCP_PERFCOUNTER1_SELECT1, mmTCP_PERFCOUNTER1_LO, mmTCP_PERFCOUNTER1_HI },
+        { mmTCP_PERFCOUNTER2_SELECT, 0,                          mmTCP_PERFCOUNTER2_LO, mmTCP_PERFCOUNTER2_HI },
+        { mmTCP_PERFCOUNTER3_SELECT, 0,                          mmTCP_PERFCOUNTER3_LO, mmTCP_PERFCOUNTER3_HI },
     }};
 
     PerfCounterBlockInfo*const pTcc = &pInfo->block[static_cast<uint32>(GpuBlock::Tcc)];
@@ -1182,22 +1173,22 @@ static void Gfx10InitBasicBlockInfo(
     pSq->maxEventId                = maxIds[SqPerfSelId];
 
     pSq->regAddr = { 0, {
-        { mmSQ_PERFCOUNTER0_SELECT,  0, mmSQ_PERFCOUNTER0_LO,  mmSQ_PERFCOUNTER0_HI  },
-        { mmSQ_PERFCOUNTER1_SELECT,  0, mmSQ_PERFCOUNTER1_LO,  mmSQ_PERFCOUNTER1_HI  },
-        { mmSQ_PERFCOUNTER2_SELECT,  0, mmSQ_PERFCOUNTER2_LO,  mmSQ_PERFCOUNTER2_HI  },
-        { mmSQ_PERFCOUNTER3_SELECT,  0, mmSQ_PERFCOUNTER3_LO,  mmSQ_PERFCOUNTER3_HI  },
-        { mmSQ_PERFCOUNTER4_SELECT,  0, mmSQ_PERFCOUNTER4_LO,  mmSQ_PERFCOUNTER4_HI  },
-        { mmSQ_PERFCOUNTER5_SELECT,  0, mmSQ_PERFCOUNTER5_LO,  mmSQ_PERFCOUNTER5_HI  },
-        { mmSQ_PERFCOUNTER6_SELECT,  0, mmSQ_PERFCOUNTER6_LO,  mmSQ_PERFCOUNTER6_HI  },
-        { mmSQ_PERFCOUNTER7_SELECT,  0, mmSQ_PERFCOUNTER7_LO,  mmSQ_PERFCOUNTER7_HI  },
-        { mmSQ_PERFCOUNTER8_SELECT,  0, mmSQ_PERFCOUNTER8_LO,  mmSQ_PERFCOUNTER8_HI  },
-        { mmSQ_PERFCOUNTER9_SELECT,  0, mmSQ_PERFCOUNTER9_LO,  mmSQ_PERFCOUNTER9_HI  },
-        { mmSQ_PERFCOUNTER10_SELECT, 0, mmSQ_PERFCOUNTER10_LO, mmSQ_PERFCOUNTER10_HI },
-        { mmSQ_PERFCOUNTER11_SELECT, 0, mmSQ_PERFCOUNTER11_LO, mmSQ_PERFCOUNTER11_HI },
-        { mmSQ_PERFCOUNTER12_SELECT, 0, mmSQ_PERFCOUNTER12_LO, mmSQ_PERFCOUNTER12_HI },
-        { mmSQ_PERFCOUNTER13_SELECT, 0, mmSQ_PERFCOUNTER13_LO, mmSQ_PERFCOUNTER13_HI },
-        { mmSQ_PERFCOUNTER14_SELECT, 0, mmSQ_PERFCOUNTER14_LO, mmSQ_PERFCOUNTER14_HI },
-        { mmSQ_PERFCOUNTER15_SELECT, 0, mmSQ_PERFCOUNTER15_LO, mmSQ_PERFCOUNTER15_HI },
+        { mmSQ_PERFCOUNTER0_SELECT,  0, mmSQ_PERFCOUNTER0_LO,            Gfx09_10::mmSQ_PERFCOUNTER0_HI  },
+        { mmSQ_PERFCOUNTER1_SELECT,  0, mmSQ_PERFCOUNTER1_LO,            Gfx09_10::mmSQ_PERFCOUNTER1_HI  },
+        { mmSQ_PERFCOUNTER2_SELECT,  0, mmSQ_PERFCOUNTER2_LO,            Gfx09_10::mmSQ_PERFCOUNTER2_HI  },
+        { mmSQ_PERFCOUNTER3_SELECT,  0, mmSQ_PERFCOUNTER3_LO,            Gfx09_10::mmSQ_PERFCOUNTER3_HI  },
+        { mmSQ_PERFCOUNTER4_SELECT,  0, mmSQ_PERFCOUNTER4_LO,            Gfx09_10::mmSQ_PERFCOUNTER4_HI  },
+        { mmSQ_PERFCOUNTER5_SELECT,  0, mmSQ_PERFCOUNTER5_LO,            Gfx09_10::mmSQ_PERFCOUNTER5_HI  },
+        { mmSQ_PERFCOUNTER6_SELECT,  0, mmSQ_PERFCOUNTER6_LO,            Gfx09_10::mmSQ_PERFCOUNTER6_HI  },
+        { mmSQ_PERFCOUNTER7_SELECT,  0, mmSQ_PERFCOUNTER7_LO,            Gfx09_10::mmSQ_PERFCOUNTER7_HI  },
+        { mmSQ_PERFCOUNTER8_SELECT,  0, Gfx09_10::mmSQ_PERFCOUNTER8_LO,  Gfx09_10::mmSQ_PERFCOUNTER8_HI  },
+        { mmSQ_PERFCOUNTER9_SELECT,  0, Gfx09_10::mmSQ_PERFCOUNTER9_LO,  Gfx09_10::mmSQ_PERFCOUNTER9_HI  },
+        { mmSQ_PERFCOUNTER10_SELECT, 0, Gfx09_10::mmSQ_PERFCOUNTER10_LO, Gfx09_10::mmSQ_PERFCOUNTER10_HI },
+        { mmSQ_PERFCOUNTER11_SELECT, 0, Gfx09_10::mmSQ_PERFCOUNTER11_LO, Gfx09_10::mmSQ_PERFCOUNTER11_HI },
+        { mmSQ_PERFCOUNTER12_SELECT, 0, Gfx09_10::mmSQ_PERFCOUNTER12_LO, Gfx09_10::mmSQ_PERFCOUNTER12_HI },
+        { mmSQ_PERFCOUNTER13_SELECT, 0, Gfx09_10::mmSQ_PERFCOUNTER13_LO, Gfx09_10::mmSQ_PERFCOUNTER13_HI },
+        { mmSQ_PERFCOUNTER14_SELECT, 0, Gfx09_10::mmSQ_PERFCOUNTER14_LO, Gfx09_10::mmSQ_PERFCOUNTER14_HI },
+        { mmSQ_PERFCOUNTER15_SELECT, 0, Gfx09_10::mmSQ_PERFCOUNTER15_LO, Gfx09_10::mmSQ_PERFCOUNTER15_HI },
     }};
 
     // The SX not a single block and thus has per-SE and per-SA qualities. For example, the SX crossbar routes requests
@@ -1814,7 +1805,6 @@ static void Gfx10InitBasicBlockInfo(
 
         // Sets the register addresses.
         Gfx10UpdateGusBlockInfo(device, pGus);
-
     }
 
     // The DF counters should be accessible in earlier hardware but gfx10.3 is when the UMD was given permission

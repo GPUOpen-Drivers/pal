@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2017-2020 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2017-2021 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -112,8 +112,8 @@ const RegisterRange Gfx9ContextShadowRange[] =
         (Gfx09::mmCB_MRT7_EPITCH - mmSX_PS_DOWNCONVERT + 1),
     },
     {
-        (mmDB_DEPTH_CONTROL - CONTEXT_SPACE_START),                             // 0xA200 - 0xA208
-        (mmPA_CL_NANINF_CNTL - mmDB_DEPTH_CONTROL + 1),
+        (mmDB_DEPTH_CONTROL - CONTEXT_SPACE_START),                             // 0xA200 - 0xA20A
+        (mmPA_SU_LINE_STIPPLE_SCALE - mmDB_DEPTH_CONTROL + 1),
     },
     {
         (mmPA_SU_SMALL_PRIM_FILTER_CNTL - CONTEXT_SPACE_START),

@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2020 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2021 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -157,7 +157,7 @@ private:
 // which setup the hardware library stage.
 // This is sort of a PM4 "image" of the commands which write these registers, but with some intelligence so that the
 // code used to setup the commands can be reused.
-class LibraryChunkCs : PipelineChunkCs
+class LibraryChunkCs final : PipelineChunkCs
 {
 public:
     explicit LibraryChunkCs(const Device& device);

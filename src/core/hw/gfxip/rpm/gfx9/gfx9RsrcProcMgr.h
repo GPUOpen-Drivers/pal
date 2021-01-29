@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2020 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2021 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -444,7 +444,7 @@ private:
 
 // =====================================================================================================================
 // GFX9 specific implementation of RPM.
-class Gfx9RsrcProcMgr : public Pal::Gfx9::RsrcProcMgr
+class Gfx9RsrcProcMgr final : public Pal::Gfx9::RsrcProcMgr
 {
 public:
     explicit Gfx9RsrcProcMgr(Device* pDevice) : Pal::Gfx9::RsrcProcMgr(pDevice) {}
@@ -588,7 +588,7 @@ class Gfx10DepthStencilView;
 
 // =====================================================================================================================
 // GFX10 specific implementation of RPM.
-class Gfx10RsrcProcMgr : public Pal::Gfx9::RsrcProcMgr
+class Gfx10RsrcProcMgr final : public Pal::Gfx9::RsrcProcMgr
 {
 public:
     explicit Gfx10RsrcProcMgr(Device* pDevice) : Pal::Gfx9::RsrcProcMgr(pDevice) {}

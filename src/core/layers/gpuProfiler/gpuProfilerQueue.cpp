@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2020 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2021 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -58,7 +58,6 @@ Queue::Queue(
     m_numReportedPerfCounters(0),
     m_availableFences(static_cast<Platform*>(pDevice->GetPlatform())),
     m_pendingSubmits(static_cast<Platform*>(pDevice->GetPlatform())),
-    m_profilingModeEnabled(false),
     m_logItems(static_cast<Platform*>(pDevice->GetPlatform())),
     m_curLogFrame(0),
     m_curLogCmdBufIdx(0),
@@ -356,64 +355,75 @@ Result Queue::InternalSubmit(
 // =====================================================================================================================
 // Processes previous submits, sets/resets the device clock mode for all granularity. Inserts cmd buffer to start thread
 // trace for per-frame granularity if tracing is enabled. Shared implementation between the DX and normal present paths.
-void Queue::BeginNextFrame(
+Result Queue::BeginNextFrame(
     bool samplingEnabled)
 {
+    Result result = Result::Success;
+
     ProcessIdleSubmits();
 
     if (samplingEnabled)
     {
         // Change device clock mode to profiling mode if not already enabled.
         // Clock mode is set for the whole frame regardless of the granularity.
-        if (m_profilingModeEnabled == false)
-        {
-            ProfilingClockMode(true);
-        }
+        result = m_pDevice->ProfilingClockMode(true);
 
-        if (m_pDevice->LoggingEnabled(GpuProfilerGranularityFrame))
+        if ((result == Result::Success) && m_pDevice->LoggingEnabled(GpuProfilerGranularityFrame))
         {
             // Insert a command buffer that has commands to start the thread trace for this frame.
             TargetCmdBuffer*const pStartFrameTgtCmdBuf = AcquireCmdBuf(0);
 
             CmdBufferBuildInfo buildInfo = {};
-            pStartFrameTgtCmdBuf->Begin(NextCmdBufferBuildInfo(buildInfo));
+            result = pStartFrameTgtCmdBuf->Begin(NextCmdBufferBuildInfo(buildInfo));
 
-            // Clear the per frame LogItem
-            memset(&m_perFrameLogItem, 0, sizeof(m_perFrameLogItem));
-            m_perFrameLogItem.type    = Frame;
-            m_perFrameLogItem.frameId = static_cast<Platform*>(m_pDevice->GetPlatform())->FrameId();
+            if (result == Result::Success)
+            {
+                // Clear the per frame LogItem
+                memset(&m_perFrameLogItem, 0, sizeof(m_perFrameLogItem));
+                m_perFrameLogItem.type    = Frame;
+                m_perFrameLogItem.frameId = static_cast<Platform*>(m_pDevice->GetPlatform())->FrameId();
 
-            // Begin a GPA session.
-            pStartFrameTgtCmdBuf->BeginGpaSession(this);
+                // Begin a GPA session.
+                result = pStartFrameTgtCmdBuf->BeginGpaSession(this);
+            }
 
-            const bool perfExp = (m_pDevice->NumGlobalPerfCounters() > 0)    ||
-                                 (m_pDevice->NumStreamingPerfCounters() > 0) ||
-                                 (m_pDevice->IsThreadTraceEnabled());
+            if (result == Result::Success)
+            {
+                const bool perfExp = (m_pDevice->NumGlobalPerfCounters() > 0)    ||
+                                     (m_pDevice->NumStreamingPerfCounters() > 0) ||
+                                     (m_pDevice->IsThreadTraceEnabled());
 
-            pStartFrameTgtCmdBuf->BeginSample(this, &m_perFrameLogItem, false, perfExp);
-            pStartFrameTgtCmdBuf->End();
+                pStartFrameTgtCmdBuf->BeginSample(this, &m_perFrameLogItem, false, perfExp);
 
-            ICmdBuffer* pNextCmdBuf = NextCmdBuffer(pStartFrameTgtCmdBuf);
-            PerSubQueueSubmitInfo perSubQueueInfo = {};
-            perSubQueueInfo.cmdBufferCount        = 1;
-            perSubQueueInfo.ppCmdBuffers          = &pNextCmdBuf;
-            MultiSubmitInfo nextSubmitInfo        = {};
-            nextSubmitInfo.perSubQueueInfoCount   = 1;
-            nextSubmitInfo.pPerSubQueueInfo       = &perSubQueueInfo;
+                result = pStartFrameTgtCmdBuf->End();
+            }
 
-            InternalSubmit(nextSubmitInfo, false);
+            if (result == Result::Success)
+            {
+                ICmdBuffer* pNextCmdBuf = NextCmdBuffer(pStartFrameTgtCmdBuf);
+                PerSubQueueSubmitInfo perSubQueueInfo = {};
+                perSubQueueInfo.cmdBufferCount        = 1;
+                perSubQueueInfo.ppCmdBuffers          = &pNextCmdBuf;
+                MultiSubmitInfo nextSubmitInfo        = {};
+                nextSubmitInfo.perSubQueueInfoCount   = 1;
+                nextSubmitInfo.pPerSubQueueInfo       = &perSubQueueInfo;
+
+                result = InternalSubmit(nextSubmitInfo, false);
+            }
         }
 
     }
-    else if (m_profilingModeEnabled) // Sampling is disabled for all granularity - we must reset the clock mode.
+    else
     {
         // Make sure that all the log items have been logged before resetting the device clock mode. Resetting the clock
         // mode before all gpu workload has been finished results in incorrect perf counter results in gfx-9 and above.
         if (m_logItems.NumElements() == 0)
         {
-            ProfilingClockMode(false);
+            result = m_pDevice->ProfilingClockMode(false);
         }
     }
+
+    return result;
 }
 
 // =====================================================================================================================
@@ -688,15 +698,16 @@ Result Queue::Submit(
 
     if (beginNewFrame)
     {
-        // Begin sampling setup work for next frame for dx path only.
-        BeginNextFrame(m_pDevice->LoggingEnabled(GpuProfilerGranularityDraw)   ||
-                       m_pDevice->LoggingEnabled(GpuProfilerGranularityCmdBuf) ||
-                       m_pDevice->LoggingEnabled(GpuProfilerGranularityFrame));
+        if (result == Result::Success)
+        {
+            // Begin sampling setup work for next frame for dx path only.
+            result = BeginNextFrame(m_pDevice->LoggingEnabled());
+        }
     }
     else if (m_pDevice->LoggingEnabled(GpuProfilerGranularityFrame) == false)
     {
-        // Try to reclaim any newly idle allocations on each submit, unless we're doing a per-frame trace,  in which
-        // case we don't want to let CPU utilization, disk I/O, etc. of this process to lead to the GPU being starved.
+        // Try to reclaim any newly idle allocations on each submit, unless we're doing a per-frame trace, in which
+        // case we don't want to let CPU utilization, disk I/O, etc. of this to starve the GPU.
         ProcessIdleSubmits();
     }
 
@@ -744,34 +755,51 @@ Result Queue::PresentDirect(
     // Do the present before ending any per-frame experiments so that they will capture any present-time GPU work.
     Result result = QueueDecorator::PresentDirect(presentInfo);
 
-    if (m_pDevice->LoggingEnabled(GpuProfilerGranularityFrame) && (m_perFrameLogItem.pGpaSession != nullptr))
+    if ((result == Result::Success)                            &&
+        m_pDevice->LoggingEnabled(GpuProfilerGranularityFrame) &&
+        (m_perFrameLogItem.pGpaSession != nullptr))
     {
         // Submit an internal command buffer to end the current frame-long performance experiment.
         TargetCmdBuffer*const pEndFrameTgtCmdBuf = AcquireCmdBuf(0);
+        CmdBufferBuildInfo    buildInfo = {};
 
-        CmdBufferBuildInfo buildInfo = { };
-        pEndFrameTgtCmdBuf->Begin(NextCmdBufferBuildInfo(buildInfo));
-        pEndFrameTgtCmdBuf->EndSample(this, &m_perFrameLogItem);
-        pEndFrameTgtCmdBuf->EndGpaSession(&m_perFrameLogItem);
-        pEndFrameTgtCmdBuf->End();
+        result = pEndFrameTgtCmdBuf->Begin(NextCmdBufferBuildInfo(buildInfo));
 
-        ICmdBuffer* pNextCmdBuf = NextCmdBuffer(pEndFrameTgtCmdBuf);
-        PerSubQueueSubmitInfo perSubQueueInfo = {};
-        perSubQueueInfo.cmdBufferCount        = 1;
-        perSubQueueInfo.ppCmdBuffers          = &pNextCmdBuf;
-        MultiSubmitInfo nextSubmitInfo        = {};
-        nextSubmitInfo.perSubQueueInfoCount   = 1;
-        nextSubmitInfo.pPerSubQueueInfo       = &perSubQueueInfo;
-        AddLogItem(m_perFrameLogItem);
-        InternalSubmit(nextSubmitInfo, true);
+        if (result == Result::Success)
+        {
+            pEndFrameTgtCmdBuf->EndSample(this, &m_perFrameLogItem);
+
+            result = pEndFrameTgtCmdBuf->EndGpaSession(&m_perFrameLogItem);
+        }
+
+        if (result == Result::Success)
+        {
+            result = pEndFrameTgtCmdBuf->End();
+        }
+
+        if (result == Result::Success)
+        {
+            ICmdBuffer* pNextCmdBuf = NextCmdBuffer(pEndFrameTgtCmdBuf);
+            PerSubQueueSubmitInfo perSubQueueInfo = {};
+            perSubQueueInfo.cmdBufferCount        = 1;
+            perSubQueueInfo.ppCmdBuffers          = &pNextCmdBuf;
+            MultiSubmitInfo nextSubmitInfo        = {};
+            nextSubmitInfo.perSubQueueInfoCount   = 1;
+            nextSubmitInfo.pPerSubQueueInfo       = &perSubQueueInfo;
+
+            AddLogItem(m_perFrameLogItem);
+
+            result = InternalSubmit(nextSubmitInfo, true);
+        }
     }
 
     static_cast<Platform*>(m_pDevice->GetPlatform())->IncrementFrameId();
 
     // Begin sampling setup for next frame.
-    BeginNextFrame(m_pDevice->LoggingEnabled(GpuProfilerGranularityDraw)   ||
-                   m_pDevice->LoggingEnabled(GpuProfilerGranularityCmdBuf) ||
-                   m_pDevice->LoggingEnabled(GpuProfilerGranularityFrame));
+    if (result == Result::Success)
+    {
+        result = BeginNextFrame(m_pDevice->LoggingEnabled());
+    }
 
     return result;
 }
@@ -787,36 +815,52 @@ Result Queue::PresentSwapChain(
     // Note: We must always call down to the next layer because we must release ownership of the image index.
     Result result = QueueDecorator::PresentSwapChain(presentInfo);
 
-    if (m_pDevice->LoggingEnabled(GpuProfilerGranularityFrame) && (m_perFrameLogItem.pGpaSession != nullptr))
+    if ((result == Result::Success)                            &&
+        m_pDevice->LoggingEnabled(GpuProfilerGranularityFrame) &&
+        (m_perFrameLogItem.pGpaSession != nullptr))
     {
         // Submit an internal command buffer to end the current frame-long performance experiment.
         TargetCmdBuffer*const pEndFrameTgtCmdBuf = AcquireCmdBuf(0);
+        CmdBufferBuildInfo    buildInfo = {};
 
-        CmdBufferBuildInfo buildInfo = { };
-        pEndFrameTgtCmdBuf->Begin(NextCmdBufferBuildInfo(buildInfo));
-        pEndFrameTgtCmdBuf->EndSample(this, &m_perFrameLogItem);
-        pEndFrameTgtCmdBuf->EndGpaSession(&m_perFrameLogItem);
-        pEndFrameTgtCmdBuf->End();
+        result = pEndFrameTgtCmdBuf->Begin(NextCmdBufferBuildInfo(buildInfo));
 
-        ICmdBuffer* pNextCmdBuf        = NextCmdBuffer(pEndFrameTgtCmdBuf);
+        if (result == Result::Success)
+        {
+            pEndFrameTgtCmdBuf->EndSample(this, &m_perFrameLogItem);
 
-        PerSubQueueSubmitInfo perSubQueueInfo = {};
-        perSubQueueInfo.cmdBufferCount        = 1;
-        perSubQueueInfo.ppCmdBuffers          = &pNextCmdBuf;
-        MultiSubmitInfo nextSubmitInfo        = {};
-        nextSubmitInfo.perSubQueueInfoCount   = 1;
-        nextSubmitInfo.pPerSubQueueInfo       = &perSubQueueInfo;
+            result = pEndFrameTgtCmdBuf->EndGpaSession(&m_perFrameLogItem);
+        }
 
-        AddLogItem(m_perFrameLogItem);
-        InternalSubmit(nextSubmitInfo, true);
+        if (result == Result::Success)
+        {
+            result = pEndFrameTgtCmdBuf->End();
+        }
+
+        if (result == Result::Success)
+        {
+            ICmdBuffer* pNextCmdBuf        = NextCmdBuffer(pEndFrameTgtCmdBuf);
+
+            PerSubQueueSubmitInfo perSubQueueInfo = {};
+            perSubQueueInfo.cmdBufferCount        = 1;
+            perSubQueueInfo.ppCmdBuffers          = &pNextCmdBuf;
+            MultiSubmitInfo nextSubmitInfo        = {};
+            nextSubmitInfo.perSubQueueInfoCount   = 1;
+            nextSubmitInfo.pPerSubQueueInfo       = &perSubQueueInfo;
+
+            AddLogItem(m_perFrameLogItem);
+
+            result = InternalSubmit(nextSubmitInfo, true);
+        }
     }
 
     static_cast<Platform*>(m_pDevice->GetPlatform())->IncrementFrameId();
 
     // Begin sampling setup for next frame.
-    BeginNextFrame(m_pDevice->LoggingEnabled(GpuProfilerGranularityDraw)   ||
-                   m_pDevice->LoggingEnabled(GpuProfilerGranularityCmdBuf) ||
-                   m_pDevice->LoggingEnabled(GpuProfilerGranularityFrame));
+    if (result == Result::Success)
+    {
+        result = BeginNextFrame(m_pDevice->LoggingEnabled());
+    }
 
     return result;
 }
@@ -1171,19 +1215,6 @@ void Queue::LogQueueCall(
         logItem.queueCall.callId = callId;
         AddLogItem(logItem);
     }
-}
-
-// =====================================================================================================================
-// If true is passed it sets the device engine and memory clocks to the stable "profiling mode". Restored on false.
-void Queue::ProfilingClockMode(
-    bool enable)
-{
-    m_profilingModeEnabled = enable;
-
-    SetClockModeInput clockModeInput = {};
-    clockModeInput.clockMode = enable ? DeviceClockMode::Profiling: DeviceClockMode::Default;
-
-    m_pDevice->SetClockMode(clockModeInput, nullptr);
 }
 
 // =====================================================================================================================

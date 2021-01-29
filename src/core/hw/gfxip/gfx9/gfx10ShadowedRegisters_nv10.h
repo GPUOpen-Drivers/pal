@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2018-2020 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2018-2021 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -53,43 +53,43 @@ const RegisterRange Nv10ContextShadowRange[] =
         (mmSPI_SHADER_COL_FORMAT - mmSPI_PS_INPUT_CNTL_0 + 1),
     },
     {
-        (mmSX_PS_DOWNCONVERT - CONTEXT_SPACE_START),
+        (mmSX_PS_DOWNCONVERT - CONTEXT_SPACE_START),                            // 0xA1D5 - 0xA1E7
         (mmCB_BLEND7_CONTROL - mmSX_PS_DOWNCONVERT + 1),
     },
     {
-        (Gfx10Plus::mmGE_MAX_OUTPUT_PER_SUBGROUP - CONTEXT_SPACE_START),
-        (mmPA_CL_NANINF_CNTL - Gfx10Plus::mmGE_MAX_OUTPUT_PER_SUBGROUP + 1),
+        (mmPA_CL_POINT_X_RAD - CONTEXT_SPACE_START),                            // 0xA1F5 - 0xA1F8
+        (mmPA_CL_POINT_CULL_RAD - mmPA_CL_POINT_X_RAD + 1),
     },
     {
-        (mmPA_SU_SMALL_PRIM_FILTER_CNTL - CONTEXT_SPACE_START),
-        (Gfx10Plus::mmPA_STATE_STEREO_X - mmPA_SU_SMALL_PRIM_FILTER_CNTL + 1),
+        (Gfx10Plus::mmGE_MAX_OUTPUT_PER_SUBGROUP - CONTEXT_SPACE_START),        // 0xA1FF - 0xA211
+        (Gfx10Plus::mmPA_STATE_STEREO_X - Gfx10Plus::mmGE_MAX_OUTPUT_PER_SUBGROUP + 1),
     },
     {
-        (mmPA_SU_POINT_SIZE - CONTEXT_SPACE_START),
+        (mmPA_SU_POINT_SIZE - CONTEXT_SPACE_START),                             // 0xA280 - 0xA283
         (mmPA_SC_LINE_STIPPLE - mmPA_SU_POINT_SIZE + 1),
     },
     {
-        (mmVGT_HOS_MAX_TESS_LEVEL - CONTEXT_SPACE_START),
+        (mmVGT_HOS_MAX_TESS_LEVEL - CONTEXT_SPACE_START),                       // 0xA286 - 0xA287
         (mmVGT_HOS_MIN_TESS_LEVEL - mmVGT_HOS_MAX_TESS_LEVEL + 1),
     },
     {
-        (Gfx09_10::mmVGT_GS_MODE - CONTEXT_SPACE_START),
+        (Gfx09_10::mmVGT_GS_MODE - CONTEXT_SPACE_START),                        // 0xA290 - 0xA29B
         (Gfx09_10::mmVGT_GS_OUT_PRIM_TYPE - Gfx09_10::mmVGT_GS_MODE + 1),
     },
     {
-        (mmVGT_PRIMITIVEID_EN - CONTEXT_SPACE_START),
+        (mmVGT_PRIMITIVEID_EN - CONTEXT_SPACE_START),                           // 0xA2A1
         1,
     },
     {
-        (mmVGT_PRIMITIVEID_RESET - CONTEXT_SPACE_START),
+        (mmVGT_PRIMITIVEID_RESET - CONTEXT_SPACE_START),                        // 0xA2A3
         1,
     },
     {
-        (mmVGT_DRAW_PAYLOAD_CNTL - CONTEXT_SPACE_START),
+        (mmVGT_DRAW_PAYLOAD_CNTL - CONTEXT_SPACE_START),                        // 0xA2A6 - 0xA2E6
         (Gfx09_10::mmVGT_STRMOUT_BUFFER_CONFIG - mmVGT_DRAW_PAYLOAD_CNTL + 1),
     },
     {
-        (mmPA_SC_CENTROID_PRIORITY_0 - CONTEXT_SPACE_START),
+        (mmPA_SC_CENTROID_PRIORITY_0 - CONTEXT_SPACE_START),                    // 0xA2F5 - 0xA3BF
         (Gfx10Plus::mmCB_COLOR7_ATTRIB3 - mmPA_SC_CENTROID_PRIORITY_0 + 1),
     },
 };

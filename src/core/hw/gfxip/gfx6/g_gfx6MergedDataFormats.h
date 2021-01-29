@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2020 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2021 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -200,6 +200,13 @@ constexpr FormatFeatureFlags IrXsIwXdTrTwCX           = static_cast<FormatFeatur
 constexpr FormatFeatureFlags IrXsIwXdIfmmTrTwCX       = static_cast<FormatFeatureFlags>(IrXsIwXdTrTwCX | Ifmm);
 constexpr FormatFeatureFlags IrXsIwXdCX               = static_cast<FormatFeatureFlags>(IrXsIw | Xd | FormatFeatureColorTargetWrite |
                                                                                         FormatFeatureFormatConversion);
+constexpr FormatFeatureFlags IrXsIwXdIfmmCX           = static_cast<FormatFeatureFlags>(IrXsIwXdCX | Ifmm);
+constexpr FormatFeatureFlags IrXsIwXdCMX              = static_cast<FormatFeatureFlags>(IrXsIwXdCX | FormatFeatureMsaaTarget);
+constexpr FormatFeatureFlags IrXsIwXdIaCMX            = static_cast<FormatFeatureFlags>(IrXsIwXdCMX | Ia);
+constexpr FormatFeatureFlags IrXsIwXdIaCX             = static_cast<FormatFeatureFlags>(IrXsIwXdCX | Ia);
+constexpr FormatFeatureFlags IrXsIwXdIfmmCMX          = static_cast<FormatFeatureFlags>(IrXsIwXdIfmmCX | FormatFeatureMsaaTarget);
+constexpr FormatFeatureFlags IrXsIwXdIaIfmmCX         = static_cast<FormatFeatureFlags>(IrXsIwXdIfmmCX | Ia);
+constexpr FormatFeatureFlags IrXsIwXdIaIfmmCMX        = static_cast<FormatFeatureFlags>(IrXsIwXdIfmmCMX | Ia);
 constexpr FormatFeatureFlags IrXsIwXdIflTrTwCX        = static_cast<FormatFeatureFlags>(IrXsIwIflTrTw | Xd            |
                                                                                         FormatFeatureColorTargetWrite |
                                                                                         FormatFeatureFormatConversion);
@@ -462,6 +469,7 @@ constexpr MergedFormatPropertiesTable Gfx6MergedFormatPropertiesTable =
         { None,                           None                           }, // ChNumFormat::X16_MM_Uint
         { None,                           None                           }, // ChNumFormat::X16Y16_MM_Unorm
         { None,                           None                           }, // ChNumFormat::X16Y16_MM_Uint
+        { IrXsIwXdCX,                     IrXsIwXdCX                     }, // ChNumFormat::P208
     }
 };
 
@@ -2590,6 +2598,18 @@ constexpr MergedFmtInfo Gfx6MergedChannelFmtInfoTbl[] =
         Chip::IMG_NUM_FORMAT_UINT,         // Image Numeric Format
         Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
         Chip::BUF_NUM_FORMAT_UINT,         // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::P208
+    {
+        ChNumFormat::P208,                 // ChNumFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
         Chip::Z_INVALID,                   // ZFormat
         Chip::STENCIL_INVALID,             // StencilFormat
     },
@@ -7411,6 +7431,7 @@ constexpr MergedFormatPropertiesTable Gfx7MergedFormatPropertiesTable =
         { None,                           None                           }, // ChNumFormat::X16_MM_Uint
         { None,                           None                           }, // ChNumFormat::X16Y16_MM_Unorm
         { None,                           None                           }, // ChNumFormat::X16Y16_MM_Uint
+        { IrXsIwXdCX,                     IrXsIwXdCX                     }, // ChNumFormat::P208
     }
 };
 
@@ -9539,6 +9560,18 @@ constexpr MergedFmtInfo Gfx7MergedChannelFmtInfoTbl[] =
         Chip::IMG_NUM_FORMAT_UINT,         // Image Numeric Format
         Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
         Chip::BUF_NUM_FORMAT_UINT,         // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::P208
+    {
+        ChNumFormat::P208,                 // ChNumFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
         Chip::Z_INVALID,                   // ZFormat
         Chip::STENCIL_INVALID,             // StencilFormat
     },
@@ -14360,6 +14393,7 @@ constexpr MergedFormatPropertiesTable Gfx8MergedFormatPropertiesTable =
         { None,                           None                           }, // ChNumFormat::X16_MM_Uint
         { None,                           None                           }, // ChNumFormat::X16Y16_MM_Unorm
         { None,                           None                           }, // ChNumFormat::X16Y16_MM_Uint
+        { IrXsIwXdCX,                     IrXsIwXdCX                     }, // ChNumFormat::P208
     }
 };
 
@@ -16488,6 +16522,18 @@ constexpr MergedFmtInfo Gfx8MergedChannelFmtInfoTbl[] =
         Chip::IMG_NUM_FORMAT_UINT,         // Image Numeric Format
         Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
         Chip::BUF_NUM_FORMAT_UINT,         // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::P208
+    {
+        ChNumFormat::P208,                 // ChNumFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
         Chip::Z_INVALID,                   // ZFormat
         Chip::STENCIL_INVALID,             // StencilFormat
     },
@@ -21309,6 +21355,7 @@ constexpr MergedFormatPropertiesTable Gfx8_1MergedFormatPropertiesTable =
         { None,                           None                           }, // ChNumFormat::X16_MM_Uint
         { None,                           None                           }, // ChNumFormat::X16Y16_MM_Unorm
         { None,                           None                           }, // ChNumFormat::X16Y16_MM_Uint
+        { IrXsIwXdCX,                     IrXsIwXdCX                     }, // ChNumFormat::P208
     }
 };
 
@@ -23437,6 +23484,18 @@ constexpr MergedFmtInfo Gfx8_1MergedChannelFmtInfoTbl[] =
         Chip::IMG_NUM_FORMAT_UINT,         // Image Numeric Format
         Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
         Chip::BUF_NUM_FORMAT_UINT,         // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
+    // ChNumFormat::P208
+    {
+        ChNumFormat::P208,                 // ChNumFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
         Chip::Z_INVALID,                   // ZFormat
         Chip::STENCIL_INVALID,             // StencilFormat
     },

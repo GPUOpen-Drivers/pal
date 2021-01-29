@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2020 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2021 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -179,7 +179,7 @@ typedef Util::Deque<NestedInfo, Platform> NestedCmdBufDeque;
 // =====================================================================================================================
 // GpuProfiler implementation of the IQueue interface.  Resposible for generating instrumented versions of the
 // recorded ICmdBuffer objects the client submits and gathering/reporting performance data.
-class Queue : public QueueDecorator
+class Queue final : public QueueDecorator
 {
 public:
     Queue(IQueue*    pNextQueue,
@@ -244,7 +244,7 @@ private:
         const MultiSubmitInfo& submitInfo,
         bool                   releaseObjects);
 
-    void BeginNextFrame(bool samplingEnabled);
+    Result BeginNextFrame(bool samplingEnabled);
 
     void LogQueueCall(QueueCallId callId);
 
@@ -266,8 +266,6 @@ private:
     void OutputPipelineStatsToFile(const LogItem& logItem);
     void OutputGlobalPerfCountersToFile(const LogItem& logItem);
     void OutputTraceDataToFile(const LogItem& logItem);
-
-    void ProfilingClockMode(bool enable);
 
     Device*const     m_pDevice;
 
@@ -323,8 +321,6 @@ private:
     // Tracks resources that have been acquired and log items that have been added since the last tracked submit.  This
     // structure will be pushed onto the back of m_pendingSubmits on the next tracked submit.
     PendingSubmitInfo                 m_nextSubmitInfo;
-
-    bool                              m_profilingModeEnabled;
 
     Util::Deque<LogItem, Platform>    m_logItems;         // List of outstanding calls waiting to be logged.
     Util::File                        m_logFile;          // File logging is currently outputted to (changes per frame).

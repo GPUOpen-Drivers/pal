@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2020 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2021 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -178,7 +178,7 @@ Result Image::Addr2FinalizePlane(
     for (uint32 mip = 0; mip < m_createInfo.mipLevels; ++mip)
     {
         memcpy(&m_addrMipOutput[plane][mip], (surfaceInfo.pMipInfo + mip), sizeof(m_addrMipOutput[0][0]));
-    }
+}
 
     auto*const pTileInfo = static_cast<AddrMgr2::TileInfo*>(pBaseTileInfo);
 
@@ -1407,26 +1407,25 @@ void Image::InitLayoutStateMasks()
             compressedLayouts.usages |= ShaderReadUsages;
 
             const bool supportsDepth = m_device.SupportsDepth(m_createInfo.swizzledFormat.format,
-                                                              m_createInfo.tiling);
+                m_createInfo.tiling);
             const bool supportsStencil = m_device.SupportsStencil(m_createInfo.swizzledFormat.format,
-                                                                  m_createInfo.tiling);
+                m_createInfo.tiling);
 
-            // Our compute-based hTile expand option can only operate on one plane (depth or stencil) at a
+            // On Gfx9 our compute-based hTile expand option can only operate on one plane (depth or stencil) at a
             // time, but it will overwrite hTile data for both planes once it's done.  :-(  So we can only
             // use the compute path for images with a single plane.
-            if (supportsDepth ^ supportsStencil)
+            // On Gfx10+ hTile data should stay in sync the whole time so we can allow depth+stencil exapnds.
+            if (((IsGfx9(m_device) && (supportsDepth ^ supportsStencil)) || IsGfx10Plus(m_device)) &&
+                TestAnyFlagSet(UseComputeExpand, (isMsaa ? UseComputeExpandMsaaDepth : UseComputeExpandDepth)))
             {
-                if (TestAnyFlagSet(UseComputeExpand, (isMsaa ? UseComputeExpandMsaaDepth : UseComputeExpandDepth)))
-                {
-                    compressedLayouts.engines |= LayoutComputeEngine;
-                }
+                compressedLayouts.engines |= LayoutComputeEngine;
+            }
 
-                if (IsGfx10Plus(m_device))
-                {
-                    // GFX10 supports compressed writes to HTILE, so it should be safe to add ShaderWrite to the
-                    // compressed usages (LayoutCopyDst was already added as above).
-                    compressedLayouts.usages |= LayoutShaderWrite;
-                }
+            if (IsGfx10Plus(m_device) && (supportsDepth ^ supportsStencil) && (isMsaa == false))
+            {
+                // GFX10 supports compressed writes to HTILE, so it should be safe to add ShaderWrite to the
+                // compressed usages (LayoutCopyDst was already added as above).
+                compressedLayouts.usages |= LayoutShaderWrite;
             }
         }
 
@@ -1696,6 +1695,12 @@ Result Image::ComputePipeBankXor(
                     *pPipeBankXor = 0;
                 }
             }
+            else if (Formats::IsYuv(m_createInfo.swizzledFormat.format))
+            {
+                // If this is a shared Yuv image, then the pipe/bank xor value has been given to us. Just take that.
+                *pPipeBankXor = m_pImageInfo->internalCreateInfo.gfx9.sharedPipeBankXor;
+                PAL_ALERT_ALWAYS_MSG("Shared YUV image with PipeBankXor enabled may result in unexpected behavior.");
+            }
             else
             {
                 PAL_NOT_IMPLEMENTED();
@@ -1753,7 +1758,7 @@ Result Image::ComputePipeBankXor(
 #else
                 ((forFmask == false) || settings.fmaskAllowPipeBankXor) &&
 #endif
-                ((TestAnyFlagSet(coreSettings.tileSwizzleMode, TileSwizzleColor) && Parent()->IsRenderTarget()) ||
+                ((TestAnyFlagSet(coreSettings.tileSwizzleMode, TileSwizzleColor) && Parent()->IsRenderTarget())       ||
                  (TestAnyFlagSet(coreSettings.tileSwizzleMode, TileSwizzleDepth) && isDepthStencil) ||
                  (TestAnyFlagSet(coreSettings.tileSwizzleMode, TileSwizzleShaderRes))))
             {
@@ -2122,7 +2127,7 @@ bool Image::IsFastDepthStencilClearSupported(
     PAL_ASSERT(range.numPlanes == 1);
 #endif
 
-    const SubresId& subResource    = range.startSubres;
+    const SubresId& subResource = range.startSubres;
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
     const bool      isDepthPlane   = Parent()->IsDepthPlane(subResource.plane);
     const bool      isStencilPlane = Parent()->IsStencilPlane(subResource.plane);
@@ -2723,15 +2728,15 @@ uint32* Image::UpdateColorClearMetaData(
     // Verify that we have DCC data that's requierd for handling fast-clears on gfx9
     PAL_ASSERT(HasDccData());
 
-    // Number of DWORD registers which represent the fast-clear color for a bound color target:
-    constexpr size_t MetaDataDwords = sizeof(Gfx9FastColorClearMetaData) / sizeof(uint32);
+        // Number of DWORD registers which represent the fast-clear color for a bound color target:
+        constexpr size_t MetaDataDwords = sizeof(Gfx9FastColorClearMetaData) / sizeof(uint32);
 
-    // Issue a WRITE_DATA command to update the fast-clear metadata.
-    WriteDataInfo writeData = {};
-    writeData.engineType = EngineTypeUniversal;
-    writeData.engineSel  = engine_sel__pfp_write_data__prefetch_parser;
-    writeData.dstSel     = dst_sel__pfp_write_data__memory;
-    writeData.predicate  = predicate;
+        // Issue a WRITE_DATA command to update the fast-clear metadata.
+        WriteDataInfo writeData = {};
+        writeData.engineType = EngineTypeUniversal;
+        writeData.engineSel  = engine_sel__pfp_write_data__prefetch_parser;
+        writeData.dstSel     = dst_sel__pfp_write_data__memory;
+        writeData.predicate  = predicate;
 
     uint32* pSpace = pCmdSpace;
     SubresId subresId = clearRange.startSubres;
@@ -2744,11 +2749,11 @@ uint32* Image::UpdateColorClearMetaData(
         if (writeData.dstAddr != 0)
         {
             pSpace += CmdUtil::BuildWriteDataPeriodic(writeData,
-                                                      MetaDataDwords,
-                                                      clearRange.numMips,
-                                                      packedColor,
+                                                     MetaDataDwords,
+                                                     clearRange.numMips,
+                                                     packedColor,
                                                       pSpace);
-        }
+    }
     }
 
     return pSpace;
@@ -2798,27 +2803,27 @@ void Image::UpdateDccStateMetaData(
         for (; subresId.plane < (range.startSubres.plane + range.numPlanes); subresId.plane++)
 #endif
         {
-            for (uint32 mipLevelIdx = mipBegin; mipLevelIdx < mipEnd; mipLevelIdx++)
+        for (uint32 mipLevelIdx = mipBegin; mipLevelIdx < mipEnd; mipLevelIdx++)
+        {
+            for (uint32 sliceIdx = sliceBegin; sliceIdx < sliceEnd; sliceIdx += maxSlicesPerPacket)
             {
-                for (uint32 sliceIdx = sliceBegin; sliceIdx < sliceEnd; sliceIdx += maxSlicesPerPacket)
-                {
-                    uint32 periodsToWrite = (sliceIdx + maxSlicesPerPacket <= sliceEnd) ? maxSlicesPerPacket :
-                                                                                          sliceEnd - sliceIdx;
+                uint32 periodsToWrite = (sliceIdx + maxSlicesPerPacket <= sliceEnd) ? maxSlicesPerPacket :
+                                                                                      sliceEnd - sliceIdx;
 
                     writeData.dstAddr = GetDccStateMetaDataAddr(subresId);
-                    PAL_ASSERT(writeData.dstAddr != 0);
+                PAL_ASSERT(writeData.dstAddr != 0);
 
-                    uint32* pCmdSpace = pCmdStream->ReserveCommands();
-                    pCmdSpace += CmdUtil::BuildWriteDataPeriodic(writeData,
-                                                                 DwordsPerSlice,
-                                                                 periodsToWrite,
-                                                                 reinterpret_cast<uint32*>(&metaData),
-                                                                 pCmdSpace);
-                    pCmdStream->CommitCommands(pCmdSpace);
-                }
+                uint32* pCmdSpace = pCmdStream->ReserveCommands();
+                pCmdSpace += CmdUtil::BuildWriteDataPeriodic(writeData,
+                                                             DwordsPerSlice,
+                                                             periodsToWrite,
+                                                             reinterpret_cast<uint32*>(&metaData),
+                                                             pCmdSpace);
+                pCmdStream->CommitCommands(pCmdSpace);
             }
         }
     }
+}
 }
 
 // =====================================================================================================================
@@ -3294,7 +3299,7 @@ bool Image::DepthImageSupportsMetaDataTextureFetch(
     const SubresId& subResource
     ) const
 {
-    bool         isFmtLegal     = true;
+    bool         isFmtLegal = true;
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
     const bool   isStencilPlane = m_pParent->IsStencilPlane(subResource.plane);
 #endif
@@ -3429,26 +3434,26 @@ void Image::InitMetadataFill(
                 const Gfx9Dcc* pDcc = GetDcc(subresId.plane);
 #endif
 
-                pCmdBuffer->CmdFillMemory(gpuMemObj,
-                                          pDcc->MemoryOffset() + boundGpuMemOffset,
-                                          pDcc->TotalSize(),
-                                          DccInitValue);
+            pCmdBuffer->CmdFillMemory(gpuMemObj,
+                                      pDcc->MemoryOffset() + boundGpuMemOffset,
+                                      pDcc->TotalSize(),
+                                      DccInitValue);
 
-                PAL_ASSERT(pDcc->HasMetaEqGenerator());
-                pDcc->GetMetaEqGenerator()->UploadEq(pCmdBuffer);
+            PAL_ASSERT(pDcc->HasMetaEqGenerator());
+            pDcc->GetMetaEqGenerator()->UploadEq(pCmdBuffer);
 
-                if (HasDisplayDccData())
-                {
+            if (HasDisplayDccData())
+            {
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
                     const Gfx9Dcc* pDispDcc = GetDisplayDcc(subresId.aspect);
 #else
                     const Gfx9Dcc* pDispDcc = GetDisplayDcc(subresId.plane);
 #endif
 
-                    PAL_ASSERT(pDispDcc->HasMetaEqGenerator());
-                    pDispDcc->GetMetaEqGenerator()->UploadEq(pCmdBuffer);
-                }
+                PAL_ASSERT(pDispDcc->HasMetaEqGenerator());
+                pDispDcc->GetMetaEqGenerator()->UploadEq(pCmdBuffer);
             }
+        }
         }
 
         // If we have fMask then we also have cMask.
@@ -3486,15 +3491,15 @@ void Image::InitMetadataFill(
         for (; subresId.plane < (range.startSubres.plane + range.numPlanes); subresId.plane++)
     #endif
         {
-            pCmdBuffer->CmdFillMemory(gpuMemObj,
+        pCmdBuffer->CmdFillMemory(gpuMemObj,
                                       FastClearMetaDataOffset(subresId),
     #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
                                       FastClearMetaDataSize(subresId.aspect, range.numMips),
     #else
                                       FastClearMetaDataSize(subresId.plane, range.numMips),
     #endif
-                                      0);
-        }
+                                  0);
+    }
     }
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
@@ -3533,12 +3538,12 @@ void Image::InitMetadataFill(
         for (; subresId.plane < (range.startSubres.plane + range.numPlanes); subresId.plane++)
 #endif
         {
-            pCmdBuffer->CmdFillMemory(gpuMemObj,
+        pCmdBuffer->CmdFillMemory(gpuMemObj,
                                       GetDccStateMetaDataOffset(subresId),
                                       GetDccStateMetaDataSize(subresId, range.numMips),
-                                      dccStateInitValue);
-        }
+                                  dccStateInitValue);
     }
+}
 }
 
 // =====================================================================================================================
@@ -3580,13 +3585,13 @@ bool Image::SupportsComputeDecompress(
     for (; subresId.plane < (range.startSubres.plane + range.numPlanes); subresId.plane++)
 #endif
     {
-        const uint32 engines = (m_pParent->IsDepthStencilTarget()
+    const uint32 engines = (m_pParent->IsDepthStencilTarget()
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
                            ? layoutToState.depthStencil[GetDepthStencilStateIndex(subresId.aspect)].compressed.engines
 #else
                                ? layoutToState.depthStencil[subresId.plane].compressed.engines
 #endif
-                               : layoutToState.color.compressed.engines);
+                           : layoutToState.color.compressed.engines);
 
         supportsCompression &= TestAnyFlagSet(engines, LayoutComputeEngine);
     }
@@ -4085,7 +4090,7 @@ bool Image::NeedFlushForMetadataPipeMisalignment(
          plane++)
     {
         result |= ((range.startSubres.mipLevel + range.numMips - 1) >= m_firstMipMetadataPipeMisaligned[plane]);
-    }
+}
 
     return result;
 #endif
@@ -4218,7 +4223,7 @@ uint32 Image::GetPipeMisalignedMetadataFirstMip(
         else
         {
             const int32 log2SamplesFragsDiff = Max<int32>(0, (log2Samples - gbAddrConfig.bits.MAX_COMPRESSED_FRAGS));
-            if (isNonPow2Vram || (samplesOverlap > log2SamplesFragsDiff))
+        if (isNonPow2Vram || (samplesOverlap > log2SamplesFragsDiff))
             {
                 if ( (HasDccData() && (baseSubRes.flags.supportMetaDataTexFetch != 0)) ||
                      (HasFmaskData() && (HasDccData() == false) && IsComprFmaskShaderReadable(baseSubRes.subresId)) )

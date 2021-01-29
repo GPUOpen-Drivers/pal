@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2020 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2021 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -430,14 +430,6 @@ Result Image::GetExternalSharedImageCreateInfo(
 
         pCreateInfo->samples   = Util::Max(1u, static_cast<uint32>(pMetadata->flags.samples));
         pCreateInfo->fragments = pCreateInfo->samples;
-
-        if (isLinearTiled && Formats::IsYuv(pCreateInfo->swizzledFormat.format))
-        {
-            // Provide pitch and depth information for linear tiled images. YUV formats use linear.
-            pCreateInfo->rowPitch  = pMetadata->aligned_pitch_in_bytes;
-            pCreateInfo->depthPitch  = pCreateInfo->rowPitch * pMetadata->aligned_height;
-        }
-
         pCreateInfo->flags.cubemap = (pMetadata->flags.cubemap != 0);
 
         // OR-in some additional usage flags.

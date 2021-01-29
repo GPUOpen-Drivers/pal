@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2020 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2021 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -79,6 +79,7 @@ constexpr uint32 MaxStreamOutTargets      = 4;   ///< Maximum number of stream o
 constexpr uint32 MaxDescriptorSets        = 2;   ///< Maximum number of descriptor sets.
 constexpr uint32 MaxMsaaRasterizerSamples = 16;  ///< Maximum number of MSAA samples supported by the rasterizer.
 constexpr uint32 MaxAvailableEngines      = 12;  ///< Maximum number of engines for a particular engine type.
+constexpr uint32 MaxNumPlanes             = 3;   ///< Maximum number of format planes.
 
 constexpr uint64 InternalApiPsoHash       = UINT64_MAX;  ///< Default Hash for PAL internal pipelines.
 
@@ -186,6 +187,17 @@ enum GpuHeapAccess : uint32
     GpuHeapAccessCpuMostly      = 0x5, ///< Memory optimized for read/writes from CPU.
     GpuHeapAccessCount
 };
+
+#if defined(__unix__)
+/// Describes possible handle types.
+enum class HandleType : uint32
+{
+    GemFlinkName      = 0x0, ///< GEM flink name (needs DRM authentication, used by DRI2)
+    Kms               = 0x1, ///< KMS handle which is used by all driver ioctls
+    DmaBufFd          = 0x2, ///< DMA-buf fd handle
+    KmsNoImport       = 0x3, ///< Deprecated in favour of and same behaviour as HandleTypeDmaBufFd, use that instead of this
+};
+#endif
 
 /// Comparison function determines how a pass/fail condition is determined between two values.  For depth/stencil
 /// comparison, the first value comes from source data and the second value comes from destination data.
@@ -383,6 +395,9 @@ struct DirectCaptureInfo
 struct ExternalResourceOpenInfo
 {
     OsExternalHandle hExternalResource;         ///< External GPU resource from another non-PAL device to open.
+#if defined(__unix__)
+    HandleType       handleType;                ///< Type of the external GPU resource to be opened.
+#endif
 
     union
     {

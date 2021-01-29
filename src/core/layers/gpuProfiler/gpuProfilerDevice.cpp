@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2020 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2021 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -61,6 +61,7 @@ Device::Device(
     m_sqttCompilerHash(0),
     m_maxDrawsForThreadTrace(0),
     m_curDrawsForThreadTrace(0),
+    m_profilingModeEnabled(false),
     m_profilerGranularity(GpuProfilerGranularityDraw),
     m_stallMode(GpuProfilerStallAlways),
     m_startFrame(0),
@@ -83,28 +84,36 @@ Device::Device(
 }
 
 // =====================================================================================================================
-Device::~Device()
+Result Device::Cleanup()
 {
     PAL_SAFE_DELETE_ARRAY(m_pGlobalPerfCounters, GetPlatform());
+    PAL_SAFE_DELETE_ARRAY(m_pStreamingPerfCounters, GetPlatform());
 
-    if (m_pStreamingPerfCounters != nullptr)
-    {
-        PAL_SAFE_DELETE_ARRAY(m_pStreamingPerfCounters, GetPlatform());
-    }
+    // Try to leave profiling mode if we're still in it.
+    Result result = ProfilingClockMode(false);
+
+    // We should probably clean up the next layer even if we failed above.
+    return CollapseResults(result, m_pNextLayer->Cleanup());
 }
 
 // =====================================================================================================================
-// Determines if logging is currently enabled for the specified granularity, either due to the current frame range or
-// because the user hit Shift-F11 to force this frame to be captured.
+// Determines if logging is currently enabled, either due to the current frame range or because the user hit Shift-F11
+// to force this frame to be captured.
+bool Device::LoggingEnabled() const
+{
+    const Platform& platform = *static_cast<const Platform*>(m_pPlatform);
+    const uint32    frameId  = platform.FrameId();
+
+    return (platform.IsLoggingForced() || ((frameId >= m_startFrame) && (frameId < m_endFrame)));
+}
+
+// =====================================================================================================================
+// Determines if logging is currently enabled for the specified granularity.
 bool Device::LoggingEnabled(
     GpuProfilerGranularity granularity
     ) const
 {
-    const Platform& platform = *static_cast<const Platform*>(m_pPlatform);
-
-    return ((m_profilerGranularity == granularity) &&
-            (platform.IsLoggingForced() ||
-             ((platform.FrameId() >= m_startFrame) && (platform.FrameId() < m_endFrame))));
+    return ((m_profilerGranularity == granularity) && LoggingEnabled());
 }
 
 // =====================================================================================================================
@@ -211,6 +220,43 @@ Result Device::CommitSettingsAndInit()
     {
         result = InitSpmTraceCounterState();
         PAL_ASSERT(result == Result::Success);
+    }
+
+    if ((result == Result::Success) && LoggingEnabled())
+    {
+        // Start out in profiling mode if the user has already enabled logging. This is probably because they set
+        // the start frame to 0. This is expected if we're profiling an application with no present calls.
+        result = ProfilingClockMode(true);
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
+// Sets the device engine and memory clocks to the stable "profiling mode". Restored on false.
+Result Device::ProfilingClockMode(
+    bool enable)
+{
+    Result result = Result::Success;
+
+    MutexAuto lock(&m_mutex);
+
+    if (m_profilingModeEnabled != enable)
+    {
+        m_profilingModeEnabled = enable;
+
+        SetClockModeInput clockModeInput = {};
+        clockModeInput.clockMode = enable ? DeviceClockMode::Profiling : DeviceClockMode::Default;
+
+        result = SetClockMode(clockModeInput, nullptr);
+
+        // If the user sets the NeverChangeClockMode setting we'll get ErrorUnavailable. We shouldn't treat this as
+        // an actual error so that profiling can continue. It would be better to check the setting directly but it's
+        // an internal setting so we can't read it in the layer code.
+        if (result == Result::ErrorUnavailable)
+        {
+            result = Result::Success;
+        }
     }
 
     return result;

@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2020 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2021 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -1053,7 +1053,7 @@ void GraphicsPipeline::SetupCommonRegisters(
         // Enable draw call VRS rate from GE_VRS_RATE.
         //    00 - Suppress draw VRS rates
         //    01 - Send draw VRS rates to the PA
-        m_regs.context.vgtDrawPayloadCntl.gfx102Plus.EN_VRS_RATE = 1;
+        m_regs.context.vgtDrawPayloadCntl.gfx103Plus.EN_VRS_RATE = 1;
     }
 
     if (pUploader->EnableLoadIndexPath())
@@ -2141,7 +2141,7 @@ SX_DOWNCONVERT_FORMAT GraphicsPipeline::SxDownConvertFormat(
         //  SX must convert the exported data to 999e5
         PAL_ASSERT(IsGfx102Plus(m_gfxLevel));
 
-        sxDownConvertFormat = SX_RT_EXPORT_9_9_9_E5__GFX102PLUS;
+        sxDownConvertFormat = SX_RT_EXPORT_9_9_9_E5__GFX103PLUS;
         break;
     default:
         break;
@@ -2165,7 +2165,7 @@ static uint32 SxBlendOptEpsilon(
     case SX_RT_EXPORT_16_16_GR:
     case SX_RT_EXPORT_16_16_AR:
     case SX_RT_EXPORT_10_11_11: // 1 is recommended, but doesn't provide sufficient precision
-    case SX_RT_EXPORT_9_9_9_E5__GFX102PLUS:
+    case SX_RT_EXPORT_9_9_9_E5__GFX103PLUS:
         sxBlendOptEpsilon = 0;
         break;
     case SX_RT_EXPORT_2_10_10_10:

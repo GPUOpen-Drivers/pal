@@ -1,7 +1,7 @@
-﻿/*
+/*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2020 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2021 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -726,8 +726,9 @@ struct GpuChipProperties
             uint32 supportGl2Uncached          :  1; // Indicates support for the allocation of GPU L2
                                                      // un-cached memory. See gl2UncachedCpuCoherency
             uint32 supportsVrs                 :  1; // Indicates support for variable rate shading
+            uint32 reserved2                   :  1;
             uint32 supportCaptureReplay        :  1; // Indicates support for Capture Replay
-            uint32 reserved                    : 30;
+            uint32 reserved                    : 29;
         };
     } gfxip;
 #endif

@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2020 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2021 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -33,6 +33,7 @@
 
 #include "palAssert.h"
 #include "palStringUtil.h"
+#include <cctype>
 #include <cstdlib>
 #include <cstring>
 #include <cwchar>
@@ -757,6 +758,110 @@ PAL_INLINE void StringToValueType(
         Strncpy(static_cast<char*>(pValue), pStrValue, valueSize);
         break;
     }
+}
+
+/// Converts a raw string value to the correct data type, returning 'true' if parsed correctly.
+/// When not parsed correctly, the value will be unchanged.
+///
+/// @note: A numeric value that does not fit in the destination type returns true and will be represented by the
+///        closest value (eg, UINT_MAX). A string that is truncated returns false.
+PAL_NODISCARD PAL_INLINE bool StringToValueTypeChecked(
+    const char* pStrValue,  ///< [in] Setting value in string form.
+    ValueType   type,       ///< Data type of the value being converted.
+    size_t      valueSize,  ///< Size of pValue buffer.
+    void*       pValue)     ///< [out] Converted setting value buffer.
+{
+    const size_t len = strlen(pStrValue);
+    const char* pTerminator = pStrValue + len;
+    char* endptr = nullptr;
+    bool valid = false;
+
+    switch (type)
+    {
+    case ValueType::Boolean:
+        {
+            bool value = (strtol(pStrValue, &endptr, 10) != 0);
+            while ((endptr < pTerminator) && isspace(*endptr))
+            {
+                // ignore trailing whitespace. strtoX handles leading whitespace
+                endptr++;
+            }
+            if (endptr == pTerminator)
+            {
+                valid = true;
+                *(static_cast<bool*>(pValue)) = value;
+            }
+        }
+        break;
+    case ValueType::Int:
+        {
+            int32 value = static_cast<int32>(strtol(pStrValue, &endptr, 0));
+            while ((endptr < pTerminator) && isspace(*endptr))
+            {
+                // ignore trailing whitespace. strtoX handles leading whitespace
+                endptr++;
+            }
+            if (endptr == pTerminator)
+            {
+                valid = true;
+                *(static_cast<int32*>(pValue)) = value;
+            }
+        }
+        break;
+    case ValueType::Uint:
+        {
+            uint32 value = static_cast<uint32>(strtoul(pStrValue, &endptr, 0));
+            while ((endptr < pTerminator) && isspace(*endptr))
+            {
+                // ignore trailing whitespace. strtoX handles leading whitespace
+                endptr++;
+            }
+            if (endptr == pTerminator)
+            {
+                valid = true;
+                *(static_cast<uint32*>(pValue)) = value;
+            }
+        }
+        break;
+    case ValueType::Uint64:
+        {
+            uint64 value = static_cast<uint64>(strtoull(pStrValue, &endptr, 0));
+            while ((endptr < pTerminator) && isspace(*endptr))
+            {
+                // ignore trailing whitespace. strtoX handles leading whitespace
+                endptr++;
+            }
+            if (endptr == pTerminator)
+            {
+                valid = true;
+                *(static_cast<uint64*>(pValue)) = value;
+            }
+        }
+        break;
+    case ValueType::Float:
+        {
+            float value = static_cast<float>(strtof(pStrValue, &endptr));
+            while ((endptr < pTerminator) && isspace(*endptr))
+            {
+                // ignore trailing whitespace. strtoX handles leading whitespace
+                endptr++;
+            }
+            if (endptr == pTerminator)
+            {
+                valid = true;
+                *(static_cast<float*>(pValue)) = value;
+            }
+        }
+        break;
+    case ValueType::Str:
+        if (len + 1 <= valueSize)
+        {
+            valid = true;
+            Strncpy(static_cast<char*>(pValue), pStrValue, valueSize);
+        }
+        break;
+    }
+    return valid;
 }
 
 /// Hashes the provided string using FNV1a hashing (http://www.isthe.com/chongo/tech/comp/fnv/) algorithm.

@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2018-2020 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2018-2021 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -46,7 +46,7 @@ class SubmissionContext;
 // SyncObjFences is implemented on Sync Object.  Instead using timestamp to reference the underlying dma-fence,
 // Sync Object contains the pointer to the fence.  Beyond the ordinary fence wait operation, Fence import/export
 // are supported with sync object.
-class SyncobjFence : public Fence
+class SyncobjFence final : public Fence
 {
 public:
     SyncobjFence(const Device& device);

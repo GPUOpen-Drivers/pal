@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2017-2020 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2017-2021 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -70,7 +70,7 @@ struct SharedBoInfo
 //     - PTB: Page table block
 //     - PTE: Page table entry
 //     - UIB: Unmap info buffer
-class VamMgr : public Pal::VamMgr
+class VamMgr final : public Pal::VamMgr
 {
 public:
     VamMgr();

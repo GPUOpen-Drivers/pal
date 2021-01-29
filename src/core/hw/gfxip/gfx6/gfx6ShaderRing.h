@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2020 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2021 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -43,7 +43,7 @@ class ShaderRing
 public:
     virtual ~ShaderRing();
 
-    Result Validate(size_t itemSize, ShaderRingType ringType);
+    Result Validate(size_t itemSize, ShaderRingMemory* pDeferredMem);
 
     bool IsMemoryValid() const { return m_ringMem.IsBound(); }
 
@@ -57,7 +57,7 @@ public:
     size_t ItemSizeMax() const { return m_itemSizeMax; }
 
 protected:
-    ShaderRing(Device* pDevice, BufferSrd* pSrdTable, bool isTmz);
+    ShaderRing(Device* pDevice, BufferSrd* pSrdTable, bool isTmz, ShaderRingType type);
 
     virtual gpusize ComputeAllocationSize() const;
 
@@ -74,8 +74,11 @@ protected:
     size_t   m_numMaxWaves; // Max. number of waves allowed to execute in parallel
     size_t   m_itemSizeMax; // Highest item size this Ring has needed so far
 
+    const ShaderRingType m_ringType;
+    const GfxIpLevel     m_gfxLevel;
+
 private:
-    Result AllocateVideoMemory(gpusize memorySizeBytes, bool cpuVisible);
+    Result AllocateVideoMemory(gpusize memorySizeBytes, ShaderRingMemory* pDeferredMem);
 
     PAL_DISALLOW_DEFAULT_CTOR(ShaderRing);
     PAL_DISALLOW_COPY_AND_ASSIGN(ShaderRing);
@@ -83,7 +86,7 @@ private:
 
 // =====================================================================================================================
 // Implements shader-ring functionality specific for shader scratch memory.
-class ScratchRing : public ShaderRing
+class ScratchRing final : public ShaderRing
 {
 public:
     ScratchRing(Device* pDevice, BufferSrd* pSrdTable, PM4ShaderType shaderType, bool isTmz);
@@ -106,7 +109,7 @@ private:
 
 // =====================================================================================================================
 // Implements shader-ring functionality specific to the ES/GS shader ring required to support normal (i.e. off-chip) GS.
-class EsGsRing : public ShaderRing
+class EsGsRing final : public ShaderRing
 {
 public:
     EsGsRing(Device* pDevice, BufferSrd* pSrdTable, bool isTmz);
@@ -125,7 +128,7 @@ private:
 
 // =====================================================================================================================
 // Implements shader-ring functionality specific to the GS/VS shader ring required to support normal (i.e. off-chip) GS.
-class GsVsRing : public ShaderRing
+class GsVsRing final : public ShaderRing
 {
 public:
     GsVsRing(Device* pDevice, BufferSrd* pSrdTable, bool isTmz);
@@ -149,7 +152,7 @@ private:
 
 // =====================================================================================================================
 // Implements shader-ring functionality specific to the Tess-Factor Buffer required to support tessellation.
-class TessFactorBuffer : public ShaderRing
+class TessFactorBuffer final : public ShaderRing
 {
 public:
     TessFactorBuffer(Device* pDevice, BufferSrd* pSrdTable, bool isTmz);
@@ -166,7 +169,7 @@ private:
 
 // =====================================================================================================================
 // Implements shader-ring functionality specific to the Offchip LDS Buffers required for offchip tessellation.
-class OffchipLdsBuffer : public ShaderRing
+class OffchipLdsBuffer final : public ShaderRing
 {
 public:
     OffchipLdsBuffer(Device* pDevice, BufferSrd* pSrdTable, bool isTmz);
@@ -183,7 +186,7 @@ private:
 
 // =====================================================================================================================
 // Implements shader-ring functionality specific to the sample position buffer required for AMDIL samplepos.
-class SamplePosBuffer : public ShaderRing
+class SamplePosBuffer final : public ShaderRing
 {
 public:
     SamplePosBuffer(Device* pDevice, BufferSrd* pSrdTable, bool isTmz);

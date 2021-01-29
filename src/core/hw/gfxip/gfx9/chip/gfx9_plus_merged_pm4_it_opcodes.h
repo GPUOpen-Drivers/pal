@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2020 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2021 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -154,29 +154,28 @@ typedef enum IT_OpCodeType {
     IT_GET_LOD_STATS__GFX09                            = 0x0000008e,
     IT_DRAW_MULTI_PREAMBLE__GFX09                      = 0x0000008f,
     IT_AQL_PACKET__GFX09                               = 0x00000099,
+    IT_DISPATCH_MESH_INDIRECT_MULTI__GFX101            = 0x0000004c,
+    IT_DISPATCH_TASKMESH_GFX__GFX101                   = 0x0000004d,
     IT_DISPATCH_DRAW_PREAMBLE__GFX101                  = 0x0000008c,
     IT_DISPATCH_DRAW_PREAMBLE_ACE__GFX101              = 0x0000008c,
     IT_DISPATCH_DRAW__GFX101                           = 0x0000008d,
     IT_DISPATCH_DRAW_ACE__GFX101                       = 0x0000008d,
     IT_DRAW_MULTI_PREAMBLE__GFX101                     = 0x0000008f,
     IT_AQL_PACKET__GFX101                              = 0x00000099,
-    IT_LOAD_UCONFIG_REG_INDEX__GFX102PLUS              = 0x00000064,
-    IT_WAIT_FOR_WRITE_CONFIRM__GFX102PLUS              = 0x00000092,
-    IT_CONTEXT_PUSH__GFX102PLUS                        = 0x000000ab,
-    IT_CONTEXT_POP__GFX102PLUS                         = 0x000000ac,
-    IT_DRAW_MULTI_PREAMBLE__GFX102PLUS                 = 0x000000fe,
-    IT_AQL_PACKET__GFX102PLUS                          = 0x000000ff,
+    IT_DISPATCH_TASK_STATE_INIT__GFX101                = 0x000000a9,
+    IT_DISPATCH_TASKMESH_DIRECT_ACE__GFX101            = 0x000000aa,
+    IT_DISPATCH_TASKMESH_INDIRECT_MULTI_ACE__GFX101    = 0x000000ad,
     IT_PERFMON_CONTROL__GFX103                         = 0x00000054,
+    IT_WAIT_FOR_WRITE_CONFIRM__GFX103PLUS              = 0x00000092,
+    IT_CONTEXT_PUSH__GFX103PLUS                        = 0x000000ab,
+    IT_CONTEXT_POP__GFX103PLUS                         = 0x000000ac,
+    IT_DRAW_MULTI_PREAMBLE__GFX103PLUS                 = 0x000000fe,
+    IT_AQL_PACKET__GFX103PLUS                          = 0x000000ff,
     IT_DRAW_RESERVED0__GFX10CORE                       = 0x0000004c,
     IT_DRAW_RESERVED1__GFX10CORE                       = 0x0000004d,
     IT_DRAW_RESERVED2__GFX10CORE                       = 0x0000004e,
     IT_DRAW_RESERVED3__GFX10CORE                       = 0x0000004f,
-    IT_DISPATCH_MESH_INDIRECT_MULTI__NV10              = 0x0000004c,
-    IT_DISPATCH_TASKMESH_GFX__NV10                     = 0x0000004d,
-    IT_LOAD_UCONFIG_REG_INDEX__NV10                    = 0x00000064,
-    IT_DISPATCH_TASK_STATE_INIT__NV10                  = 0x000000a9,
-    IT_DISPATCH_TASKMESH_DIRECT_ACE__NV10              = 0x000000aa,
-    IT_DISPATCH_TASKMESH_INDIRECT_MULTI_ACE__NV10      = 0x000000ad,
+    IT_LOAD_UCONFIG_REG_INDEX__GFX10PLUS               = 0x00000064,
     IT_DISPATCH_DRAW_PREAMBLE__NV21                    = 0x0000008c,
     IT_DISPATCH_DRAW_PREAMBLE_ACE__NV21                = 0x0000008c,
     IT_DISPATCH_DRAW__NV21                             = 0x0000008d,

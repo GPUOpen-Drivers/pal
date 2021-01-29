@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2020 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2021 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -92,8 +92,8 @@ uint32* MsaaState::WriteCommands(
 
     if (m_flags.waFixPostZConservativeRasterization != 0)
     {
-        pCmdSpace = pCmdStream->WriteContextRegRmw(Nv10::mmDB_RESERVED_REG_2,
-                                                   static_cast<uint32>(~Nv10::DB_RESERVED_REG_2__FIELD_1_MASK),
+        pCmdSpace = pCmdStream->WriteContextRegRmw(Gfx10Plus::mmDB_RESERVED_REG_2,
+                                                   static_cast<uint32>(~Gfx10Plus::DB_RESERVED_REG_2__FIELD_1_MASK),
                                                    m_regs.dbReservedReg2,
                                                    pCmdSpace);
     }
@@ -242,7 +242,7 @@ void MsaaState::Init(
         //    lit.  The SWA would require that when PA_SC_AA_MASK_AA_MASK is partially lit with the number of
         //    samples defined by PA_SC_AA_CONFIG_MSAA_EXPOSED_SAMPLES, software would need to write the corresponding
         //    "PARTIALLY LIT" bit for that context.
-        m_regs.dbReservedReg2 = Nv10::DB_RESERVED_REG_2__FIELD_1_MASK & 0x1;
+        m_regs.dbReservedReg2 = Gfx10Plus::DB_RESERVED_REG_2__FIELD_1_MASK & 0x1;
     }
 
     if (settings.waWrite1xAASampleLocationsToZero && (m_log2Samples == 0) && (usedMask != 0))

@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2020 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2021 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -44,7 +44,7 @@ enum class DccClearPurpose : uint32;
 // =====================================================================================================================
 // GFX6 hardware layer implementation of the Resource Processing Manager. It is most known for handling GFX6-specific
 // resource operations like DCC decompression.
-class RsrcProcMgr : public Pal::RsrcProcMgr
+class RsrcProcMgr final : public Pal::RsrcProcMgr
 {
 public:
     explicit RsrcProcMgr(Device* pDevice);

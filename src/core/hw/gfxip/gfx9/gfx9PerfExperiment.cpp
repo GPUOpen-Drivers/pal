@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2016-2020 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2016-2021 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -198,10 +198,9 @@ static void SetSqttTokenExclude(
     regSQ_THREAD_TRACE_TOKEN_MASK* pRegValue,
     uint32                         tokenExclude)
 {
-    if (IsGfx101(device)
-    )
+    if (IsGfx101(device))
     {
-        pRegValue->most.TOKEN_EXCLUDE = tokenExclude;
+        pRegValue->gfx101.TOKEN_EXCLUDE = tokenExclude;
     }
     else if (IsGfx103Plus(device))
     {
@@ -267,7 +266,6 @@ static regSQ_THREAD_TRACE_TOKEN_MASK GetGfx10SqttTokenMask(
     }
     else
     {
-
         hwTokenExclude |= immed1Exclude << SQ_TT_TOKEN_EXCLUDE_IMMED1_SHIFT__GFX101;
     }
 
@@ -1934,8 +1932,8 @@ void PerfExperiment::IssueBegin(
                 sqPerfCounterCtrl.bits.HS_EN     = ((m_createInfo.optionValues.sqShaderMask & PerfShaderMaskHs) != 0);
                 sqPerfCounterCtrl.bits.CS_EN     = ((m_createInfo.optionValues.sqShaderMask & PerfShaderMaskCs) != 0);
                 {
-                    sqPerfCounterCtrl.most.LS_EN = ((m_createInfo.optionValues.sqShaderMask & PerfShaderMaskLs) != 0);
-                    sqPerfCounterCtrl.most.ES_EN = ((m_createInfo.optionValues.sqShaderMask & PerfShaderMaskEs) != 0);
+                    sqPerfCounterCtrl.gfx10Core.LS_EN = ((m_createInfo.optionValues.sqShaderMask & PerfShaderMaskLs) != 0);
+                    sqPerfCounterCtrl.gfx10Core.ES_EN = ((m_createInfo.optionValues.sqShaderMask & PerfShaderMaskEs) != 0);
                 }
             }
             else
@@ -1947,8 +1945,8 @@ void PerfExperiment::IssueBegin(
                 sqPerfCounterCtrl.bits.HS_EN     = 1;
                 sqPerfCounterCtrl.bits.CS_EN     = 1;
                 {
-                    sqPerfCounterCtrl.most.LS_EN = 1;
-                    sqPerfCounterCtrl.most.ES_EN = 1;
+                    sqPerfCounterCtrl.gfx10Core.LS_EN = 1;
+                    sqPerfCounterCtrl.gfx10Core.ES_EN = 1;
                 }
             }
 
@@ -2535,7 +2533,7 @@ MuxselEncoding PerfExperiment::BuildMuxselEncoding(
 uint32* PerfExperiment::WriteSpmSetup(
     CmdStream* pCmdStream,
     uint32*    pCmdSpace
-    ) const
+) const
 {
     // Configure the RLC state that controls SPM.
     struct
@@ -2573,6 +2571,15 @@ uint32* PerfExperiment::WriteSpmSetup(
     {
         over31Lines = over31Lines || (m_numMuxselLines[idx] > 31);
         totalLines += m_numMuxselLines[idx];
+    }
+
+    if (IsGfx10Plus(m_chipProps.gfxLevel))
+    {
+        // RLC_SPM_ACCUM_MODE needs its state reset as we've disabled GPO when entering stable pstate.
+        constexpr regRLC_SPM_ACCUM_MODE rlcSpmAccumMode = {};
+        pCmdSpace = pCmdStream->WriteSetOneConfigReg(Gfx10Plus::mmRLC_SPM_ACCUM_MODE,
+                                                     rlcSpmAccumMode.u32All,
+                                                     pCmdSpace);
     }
 
     {

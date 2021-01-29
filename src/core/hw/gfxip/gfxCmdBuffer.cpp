@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2020 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2021 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -1354,9 +1354,43 @@ void GfxCmdBuffer::UpdateUserDataTableCpu(
     // the portion of the user-data table inside that window.
     PAL_ASSERT((dwordsNeeded + offsetInDwords) <= pTable->sizeInDwords);
 
+    // User-data can contain inline constant buffers which, for historical reasons, are defined in 4x32-bit chunks in
+    // HLSL but are only DWORD size-aligned in the user-data layout. This means the following can occur:
+    // 1. The app compiles a shader with 2 DWORDs in a constant buffer. The HLSL compiler implicitly pads the size
+    //    of the constant buffer out to 4 DWORDs to meet the constant buffer size alignment rule. It also emits DXIL
+    //    instructions which load a vector of 4 DWORDs from the constant buffer even though it will only use 2 values.
+    // 2. The app defines a root signature which only contains 2 constants. The app is not required to add padding to
+    //    the root signature. Accessing past the end of the root constants is defined to be undefined behavior.
+    // Given that the input DXIL code instructs us to load 4 DWORDs, our compiled shader will do just that if the root
+    // constants are spilled to memory. The values of those extra 2 DWORDs will be ignored but they are still read.
+    // This can cause a GPU page fault if we get unlucky and the constant buffer padding falls in unmapped GPU memory.
+    //
+    // Page faulting is legal in this case but it's not at all user-friendly. We can avoid the page fault if we align
+    // our table's base address to a multiple of 4 DWORDs. If each 4x32-bit load occurs on a 4x32-bit aligned address
+    // it's impossible for part of that load to address unmapped memory.
+    //
+    // Aligning all tables to 4 DWORDs isn't expected to waste much memory so for simplictly we do it for all clients.
+    // It should only matter if we interleave 1-3 DWORD embedded data allocations with table allocations many times,
+    // such that this command buffer must allocate an additional embedded data chunk.
+    const uint32 cbAlignment = Max(alignmentInDwords, 4u);
+
     gpusize gpuVirtAddr  = 0uLL;
-    pTable->pCpuVirtAddr = (CmdAllocateEmbeddedData(dwordsNeeded, alignmentInDwords, &gpuVirtAddr) - offsetInDwords);
+    pTable->pCpuVirtAddr = (CmdAllocateEmbeddedData(dwordsNeeded, cbAlignment, &gpuVirtAddr) - offsetInDwords);
     pTable->gpuVirtAddr  = (gpuVirtAddr - (sizeof(uint32) * offsetInDwords));
+
+    // There's technically a bug in the above table address calculation. We only write the low 32-bits of the table
+    // address to user-data and assume the high bits are always the same. This is usually the case because we allocate
+    // embedded data from a single 4GB virtual address range, but because we subtract the table offset from the real
+    // vitual address we could underflow out of our fixed 4GB address range. This wouldn't be a problem if we sent the
+    // full address to the GPU, but because the shader code infers the top 32 bits we can accidentally round up by 4GB.
+    // This assert exists to detect this case at runtime.
+    //
+    // It's not that easy to fix this issue, we have two routes and neither seem attractive:
+    // 1. Stop computing invalid pointers. This is probably the most correct solution but it's also the most difficult
+    //    because we have an implicit contract with multiple compilers that the table pointer starts at offset zero.
+    // 2. Define a maximum offset value and reserve enough VA space at the beginning of the VA range to ensure that we
+    //    can never allocate embeded data in the range that can underflow. This will waste VA space and seems hacky.
+    PAL_ASSERT(HighPart(gpuVirtAddr) == HighPart(pTable->gpuVirtAddr));
 
     uint32* pDstData = (pTable->pCpuVirtAddr + offsetInDwords);
     pSrcData += offsetInDwords;

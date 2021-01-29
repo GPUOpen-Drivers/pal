@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2020 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2021 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -625,6 +625,12 @@ void SettingsLoader::OverrideDefaults(
     if ((m_settings.binningContextStatesPerBin > 1) || (m_settings.binningPersistentStatesPerBin > 1))
     {
         m_settings.batchBreakOnNewPixelShader = true;
+    }
+
+    // Disable using the CLEAR_STATE packet and instead write missing register values explicitly.
+    if (IsGfx10Plus(device))
+    {
+        m_settings.useClearStateToInitialize = false;
     }
 
     m_state = SettingsLoaderState::LateInit;

@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2020 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2021 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -210,7 +210,7 @@ Device::Device(
         const auto&  chipProps     = m_pParent->ChipProperties().gfx9;
         const uint32 chipPropNumSa = chipProps.numShaderArrays * chipProps.numShaderEngines;
 
-        PAL_ASSERT((1u << Gfx102PlusGetNumActiveShaderArraysLog2()) <= chipPropNumSa);
+        PAL_ASSERT((1u << Gfx103PlusGetNumActiveShaderArraysLog2()) <= chipPropNumSa);
 #endif
         // Var block size = number of total pipes * 16KB
         // This fields is filled out for all Gfx10.2+, but only used
@@ -3710,7 +3710,7 @@ void PAL_STDCALL Device::Gfx10CreateImageViewSrds(
             {
                 // The SRD has a two-bit field where the high-bit is the control for "read" operations
                 // and the low bit is the control for bypassing the MALL on write operations.
-                srd.gfx103x.llc_noalloc = llcNoAlloc;
+                srd.rdna2.llc_noalloc = llcNoAlloc;
             }
         }
 
@@ -4569,8 +4569,8 @@ void PAL_STDCALL Device::CreateBvhSrds(
 
         if (pPalDevice->MemoryProperties().flags.supportsMall != 0)
         {
-            bvhSrd.mall.llc_noalloc = CalcLlcNoalloc(bvhInfo.flags.bypassMallRead,
-                                                     bvhInfo.flags.bypassMallWrite);
+            bvhSrd.llc_noalloc = CalcLlcNoalloc(bvhInfo.flags.bypassMallRead,
+                                                bvhInfo.flags.bypassMallWrite);
         }
 
         //    0: Return data for triangle tests are
@@ -4660,7 +4660,7 @@ const MergedFormatPropertiesTable* GetFormatPropertiesTable(
         break;
 
     case GfxIpLevel::GfxIp10_3:
-        pTable = &Gfx10_2MergedFormatPropertiesTable;
+        pTable = &Gfx10_3MergedFormatPropertiesTable;
         break;
 
     default:
@@ -5019,10 +5019,9 @@ void InitializeGpuChipProperties(
     }
     else if (IsGfx10(pInfo->gfxLevel))
     {
-        if ((false
+        if (false
              || IsGfx102Plus(pInfo->gfxLevel)
             )
-           )
         {
             pInfo->srdSizes.bvh = sizeof(sq_bvh_rsrc_t);
 
@@ -5783,6 +5782,11 @@ const RegisterRange* Device::GetRegisterRange(
                 pRange         = Gfx103UserConfigShadowRange;
                 *pRangeEntries = Gfx103NumUserConfigShadowRanges;
             }
+            else
+            {
+                // Need to add UserConfigShadowRange for new ASIC here.
+                PAL_ASSERT_ALWAYS();
+            }
             break;
 
         case RegRangeContext:
@@ -5796,16 +5800,25 @@ const RegisterRange* Device::GetRegisterRange(
                 pRange         = Gfx103ContextShadowRange;
                 *pRangeEntries = Gfx103NumContextShadowRanges;
             }
+            else
+            {
+                // Need to add ContextShadowRange for new ASIC here.
+                PAL_ASSERT_ALWAYS();
+            }
             break;
 
         case RegRangeSh:
-            pRange         = Gfx10ShShadowRange;
-            *pRangeEntries = Gfx10NumShShadowRanges;
+            {
+                pRange         = Gfx10ShShadowRange;
+                *pRangeEntries = Gfx10NumShShadowRanges;
+            }
             break;
 
         case RegRangeCsSh:
-            pRange         = Gfx10CsShShadowRange;
-            *pRangeEntries = Gfx10NumCsShShadowRanges;
+            {
+                pRange         = Gfx10CsShShadowRange;
+                *pRangeEntries = Gfx10NumCsShShadowRanges;
+            }
             break;
 
 #if PAL_ENABLE_PRINTS_ASSERTS
@@ -5822,6 +5835,7 @@ const RegisterRange* Device::GetRegisterRange(
             }
             else
             {
+                // Need to add NonShadowedRanges for new ASIC here.
                 PAL_ASSERT_ALWAYS();
             }
             break;
@@ -7309,10 +7323,10 @@ bool IsFmaskBigPageCompatible(
 
 // =====================================================================================================================
 // Returns the number of shader-arrays based on the NUM_PKRS field in GB_ADDR_CONFIG
-uint32 Device::Gfx102PlusGetNumActiveShaderArraysLog2() const
+uint32 Device::Gfx103PlusGetNumActiveShaderArraysLog2() const
 {
     const auto&  gbAddrConfig  = GetGbAddrConfig();
-    const uint32 numPkrLog2    = gbAddrConfig.gfx102Plus.NUM_PKRS;
+    const uint32 numPkrLog2    = gbAddrConfig.gfx103Plus.NUM_PKRS;
 
     // Packers is a 10.2+ concept.
     PAL_ASSERT(IsGfx102Plus(*Parent()));

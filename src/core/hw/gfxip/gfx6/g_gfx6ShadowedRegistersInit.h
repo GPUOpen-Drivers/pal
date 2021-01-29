@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2017-2020 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2017-2021 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -399,6 +399,8 @@ void InitializeContextRegistersGfx6(
         0x4       ,
         0x0       ,
         0x0       ,
+        0x0       ,
+        0x0       ,
         0x0
     };
     constexpr uint32 PaSuSmallPrimFilterCntlViGfx6[] = {
@@ -662,7 +664,7 @@ void InitializeContextRegistersGfx6(
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmVGT_MAX_VTX_INDX, mmPA_CL_UCP_5_W, VgtMaxVtxIndxGfx6, pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmSPI_PS_INPUT_CNTL_0, mmSPI_SHADER_COL_FORMAT, SpiPsInputCntl0Gfx6, pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmSX_PS_DOWNCONVERT__VI, mmCB_BLEND7_CONTROL, SxPsDownconvertViGfx6, pCmdSpace);
-    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmDB_DEPTH_CONTROL, mmPA_CL_NANINF_CNTL, DbDepthControlGfx6, pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmDB_DEPTH_CONTROL, mmPA_SU_LINE_STIPPLE_SCALE, DbDepthControlGfx6, pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmPA_SU_SMALL_PRIM_FILTER_CNTL__VI, mmPA_SU_SMALL_PRIM_FILTER_CNTL__VI, PaSuSmallPrimFilterCntlViGfx6, pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmPA_SU_POINT_SIZE, mmPA_SC_LINE_STIPPLE, PaSuPointSizeGfx6, pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmVGT_HOS_MAX_TESS_LEVEL, mmVGT_HOS_MIN_TESS_LEVEL, VgtHosMaxTessLevelGfx6, pCmdSpace);
@@ -1046,6 +1048,8 @@ void InitializeContextRegistersGfx7(
         0x4       ,
         0x0       ,
         0x0       ,
+        0x0       ,
+        0x0       ,
         0x0
     };
     constexpr uint32 PaSuSmallPrimFilterCntlViGfx7[] = {
@@ -1309,7 +1313,7 @@ void InitializeContextRegistersGfx7(
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmVGT_MAX_VTX_INDX, mmPA_CL_UCP_5_W, VgtMaxVtxIndxGfx7, pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmSPI_PS_INPUT_CNTL_0, mmSPI_SHADER_COL_FORMAT, SpiPsInputCntl0Gfx7, pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmSX_PS_DOWNCONVERT__VI, mmCB_BLEND7_CONTROL, SxPsDownconvertViGfx7, pCmdSpace);
-    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmDB_DEPTH_CONTROL, mmPA_CL_NANINF_CNTL, DbDepthControlGfx7, pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmDB_DEPTH_CONTROL, mmPA_SU_LINE_STIPPLE_SCALE, DbDepthControlGfx7, pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmPA_SU_SMALL_PRIM_FILTER_CNTL__VI, mmPA_SU_SMALL_PRIM_FILTER_CNTL__VI, PaSuSmallPrimFilterCntlViGfx7, pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmPA_SU_POINT_SIZE, mmPA_SC_LINE_STIPPLE, PaSuPointSizeGfx7, pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmVGT_HOS_MAX_TESS_LEVEL, mmVGT_HOS_MIN_TESS_LEVEL, VgtHosMaxTessLevelGfx7, pCmdSpace);
@@ -1693,6 +1697,8 @@ void InitializeContextRegistersGfx8(
         0x4       ,
         0x0       ,
         0x0       ,
+        0x0       ,
+        0x0       ,
         0x0
     };
     constexpr uint32 PaSuSmallPrimFilterCntlViGfx8[] = {
@@ -1956,7 +1962,7 @@ void InitializeContextRegistersGfx8(
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmVGT_MAX_VTX_INDX, mmPA_CL_UCP_5_W, VgtMaxVtxIndxGfx8, pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmSPI_PS_INPUT_CNTL_0, mmSPI_SHADER_COL_FORMAT, SpiPsInputCntl0Gfx8, pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmSX_PS_DOWNCONVERT__VI, mmCB_BLEND7_CONTROL, SxPsDownconvertViGfx8, pCmdSpace);
-    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmDB_DEPTH_CONTROL, mmPA_CL_NANINF_CNTL, DbDepthControlGfx8, pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmDB_DEPTH_CONTROL, mmPA_SU_LINE_STIPPLE_SCALE, DbDepthControlGfx8, pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmPA_SU_SMALL_PRIM_FILTER_CNTL__VI, mmPA_SU_SMALL_PRIM_FILTER_CNTL__VI, PaSuSmallPrimFilterCntlViGfx8, pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmPA_SU_POINT_SIZE, mmPA_SC_LINE_STIPPLE, PaSuPointSizeGfx8, pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmVGT_HOS_MAX_TESS_LEVEL, mmVGT_HOS_MIN_TESS_LEVEL, VgtHosMaxTessLevelGfx8, pCmdSpace);

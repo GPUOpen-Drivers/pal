@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2020 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2021 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -55,25 +55,6 @@ typedef union PM4_PFP_TYPE_3_HEADER
 enum PFP_ACQUIRE_MEM_engine_sel_enum
 {
     engine_sel__pfp_acquire_mem__prefetch_parser =  0,
-};
-
-// ------------------------------ PFP_ACQUIRE_MEM_pws_stage_sel_enum ------------------------------
-enum PFP_ACQUIRE_MEM_pws_stage_sel_enum
-{
-    pws_stage_sel__pfp_acquire_mem__pre_depth__HASPWS      =  0,
-    pws_stage_sel__pfp_acquire_mem__pre_shader__HASPWS     =  1,
-    pws_stage_sel__pfp_acquire_mem__pre_color__HASPWS      =  2,
-    pws_stage_sel__pfp_acquire_mem__pre_pix_shader__HASPWS =  3,
-    pws_stage_sel__pfp_acquire_mem__cp_pfp__HASPWS         =  4,
-    pws_stage_sel__pfp_acquire_mem__cp_me__HASPWS          =  5,
-};
-
-// ----------------------------- PFP_ACQUIRE_MEM_pws_counter_sel_enum -----------------------------
-enum PFP_ACQUIRE_MEM_pws_counter_sel_enum
-{
-    pws_counter_sel__pfp_acquire_mem__ts_select__HASPWS =  0,
-    pws_counter_sel__pfp_acquire_mem__ps_select__HASPWS =  1,
-    pws_counter_sel__pfp_acquire_mem__cs_select__HASPWS =  2,
 };
 
 // -------------------------------------- PM4_PFP_ACQUIRE_MEM --------------------------------------
@@ -1039,8 +1020,8 @@ constexpr unsigned int PM4_PFP_DISPATCH_DRAW_SIZEDW__HASCE = 6;
 // ---------------------------- PFP_DISPATCH_DRAW_PREAMBLE_not_eop_enum ----------------------------
 enum PFP_DISPATCH_DRAW_PREAMBLE_not_eop_enum
 {
-    not_eop__pfp_dispatch_draw_preamble__normal_eop__GFX10CORE_GFX09   =  0,
-    not_eop__pfp_dispatch_draw_preamble__suppress_eop__GFX10CORE_GFX09 =  1,
+    not_eop__pfp_dispatch_draw_preamble__normal_eop__GFX09_GFX10CORE   =  0,
+    not_eop__pfp_dispatch_draw_preamble__suppress_eop__GFX09_GFX10CORE =  1,
 };
 
 // --------------------------- PFP_DISPATCH_DRAW_PREAMBLE_req_path_enum ---------------------------
@@ -3833,7 +3814,7 @@ typedef struct PM4_PFP_DRAW_INDEX_MULTI_INST
     } ordinal9;
 } PM4_PFP_DRAW_INDEX_MULTI_INST;
 
-constexpr unsigned int PM4_PFP_DRAW_INDEX_MULTI_INST_SIZEDW__GFX101   = 9;
+constexpr unsigned int PM4_PFP_DRAW_INDEX_MULTI_INST_SIZEDW__GFX101 = 9;
 
 // ----------------------------- PFP_LOAD_UCONFIG_REG_INDEX_index_enum -----------------------------
 enum PFP_LOAD_UCONFIG_REG_INDEX_index_enum

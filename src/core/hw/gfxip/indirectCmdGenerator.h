@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2020 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2021 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -118,6 +118,9 @@ public:
         IGpuMemory* pGpuMemory,
         gpusize     offset) override;
 
+    virtual uint32 CmdBufStride(
+        const Pipeline* pPipeline) const = 0;
+
     // Helper method for RPM to populate an embedded-data constant buffer with the InvocationProperties associated
     // with this command-generator and the given Pipeline object.
     virtual void PopulateInvocationBuffer(
@@ -127,6 +130,20 @@ public:
         gpusize         argsGpuAddr,
         uint32          maximumCount,
         uint32          indexBufSize,
+        void*           pSrd) const = 0;
+
+    // Helper method for RPM to populate an embedded data constant buffer with the parameter data
+    // for the currently bound compute or graphics pipeline (depending on the value of m_drawType).
+    virtual void PopulateParameterBuffer(
+        GfxCmdBuffer*   pCmdBuffer,
+        const Pipeline* pPipeline,
+        void*           pSrd) const = 0;
+
+    // Helper method for RPM to populate an embedded data constant buffer with the generator property
+    // for the currently bound compute or graphics pipeline (depending on the value of m_drawType).
+    virtual void PopulatePropertyBuffer(
+        GfxCmdBuffer*   pCmdBuffer,
+        const Pipeline* pPipeline,
         void*           pSrd) const = 0;
 
     // Helper method for RPM to populate an embedded data constant buffer with the hardware layer's pipeline signature

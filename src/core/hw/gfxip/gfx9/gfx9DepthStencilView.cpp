@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2020 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2021 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -88,7 +88,7 @@ DepthStencilView::DepthStencilView(
 
     if (m_flags.depth && m_flags.stencil)
     {
-        // Depth & Stencil format.
+        // Depth & Stencil view.
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
         m_depthSubresource.aspect       = ImageAspect::Depth;
 #else
@@ -106,7 +106,7 @@ DepthStencilView::DepthStencilView(
     }
     else if (m_flags.depth)
     {
-        // Depth-only format.
+        // Depth-only view.
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
         m_depthSubresource.aspect     = ImageAspect::Depth;
 #else
@@ -118,11 +118,12 @@ DepthStencilView::DepthStencilView(
     }
     else
     {
-        // Stencil-only format.
+        // Stencil-only view.
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
         m_stencilSubresource.aspect     = ImageAspect::Stencil;
 #else
-        m_stencilSubresource.plane      = 0;
+        m_stencilSubresource.plane      =
+            parent.SupportsDepth(imageInfo.swizzledFormat.format, imageInfo.tiling) ? 1 : 0;
 #endif
         m_stencilSubresource.mipLevel   = createInfo.mipLevel;
         m_stencilSubresource.arraySlice = 0;
@@ -624,8 +625,8 @@ void Gfx9DepthStencilView::InitRegisters(
     const auto& stencilAddrSettings = m_pImage->GetAddrSettings(pStencilSubResInfo);
 
     // Setup the size
-    m_regs.dbDepthSize.gfx09.X_MAX = (pBaseDepthSubResInfo->extentTexels.width  - 1);
-    m_regs.dbDepthSize.gfx09.Y_MAX = (pBaseDepthSubResInfo->extentTexels.height - 1);
+    m_regs.dbDepthSize.bits.X_MAX = (pBaseDepthSubResInfo->extentTexels.width  - 1);
+    m_regs.dbDepthSize.bits.Y_MAX = (pBaseDepthSubResInfo->extentTexels.height - 1);
 
     // From the reg-spec:  Indicates that compressed data must be iterated on flush every pipe interleave bytes in
     //                     order to be readable by TC

@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2020 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2021 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -7534,7 +7534,7 @@ void Gfx10RsrcProcMgr::CopyVrsIntoHtile(
     // Note that we pass our values through RpmUtil::PackBits to make sure that they actually fit.
     // An assert will trip if one of the assumptions outlined above is actually false.
     userData.pipeInterleaveLog2 = RpmUtil::PackBits<3>(gbAddrConfig.bits.PIPE_INTERLEAVE_SIZE);
-    userData.packersLog2        = RpmUtil::PackBits<3>(gbAddrConfig.gfx102Plus.NUM_PKRS);
+    userData.packersLog2        = RpmUtil::PackBits<3>(gbAddrConfig.gfx103Plus.NUM_PKRS);
     userData.pipesLog2          = RpmUtil::PackBits<3>(gbAddrConfig.bits.NUM_PIPES);
     userData.capPipeLog2        = RpmUtil::PackBits<5>(pEqGenerator->CapPipe());
     userData.metaBlkWidthLog2   = RpmUtil::PackBits<5>(metaBlkExtentLog2.width);
@@ -8006,9 +8006,6 @@ void Gfx10RsrcProcMgr::BuildDccLookupTable(
     pGfx9Image->BuildDccLookupTableBufferView(&bufferViews[1]);
 
     pDevice->CreateUntypedBufferViewSrds(2, &bufferViews[0], &bufferSrds[0]);
-
-    Gfx9MaskRamBlockSize log2MetaBlkExtent = {};
-    const uint32 log2MetaBlockSize = pBaseDcc->GetMetaBlockSize(&log2MetaBlkExtent);
 
     const uint32 worksX = dccAddrOutput.metaBlkWidth  / dccAddrOutput.compressBlkWidth;
     const uint32 worksY = dccAddrOutput.metaBlkHeight / dccAddrOutput.compressBlkHeight;

@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2020 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2021 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -30,6 +30,8 @@
 #include "core/hw/gfxip/gfx6/gfx6Device.h"
 #include "core/hw/gfxip/gfx6/gfx6ShaderRing.h"
 #include "core/hw/gfxip/gfx6/gfx6ShaderRingSet.h"
+#include "core/queue.h"
+#include "palVectorImpl.h"
 
 using namespace Util;
 
@@ -50,7 +52,8 @@ ShaderRingSet::ShaderRingSet(
     m_numSrds(numSrds),
     m_tmzEnabled(isTmz),
     m_ppRings(nullptr),
-    m_pSrdTable(nullptr)
+    m_pSrdTable(nullptr),
+    m_deferredFreeMemList(pDevice->GetPlatform())
 {
 }
 
@@ -208,11 +211,14 @@ Result ShaderRingSet::Init()
 // Queue is not busy using this RingSet (i.e., the Queue is idle), so that it is safe to map the SRD table memory.
 Result ShaderRingSet::Validate(
     const ShaderRingItemSizes&  ringSizes,
-    const SamplePatternPalette& samplePatternPalette)
+    const SamplePatternPalette& samplePatternPalette,
+    uint64                      lastTimeStamp,
+    uint32*                     pReallocatedRings)
 {
     Result result = Result::Success;
 
-    bool updateSrdTable = false;
+    bool updateSrdTable    = false;
+    bool deferFreeSrdTable = false;
 
     for (size_t ring = 0; (result == Result::Success) && (ring < NumRings()); ++ring)
     {
@@ -228,13 +234,77 @@ Result ShaderRingSet::Validate(
                 updateSrdTable = true;
             }
 
+            ShaderRingMemory deferredMem = {nullptr, 0, lastTimeStamp};
             result = m_ppRings[ring]->Validate(ringSizes.itemSize[ring],
-                                               static_cast<ShaderRingType>(ring));
+                                               &deferredMem);
+
+            if (deferredMem.pGpuMemory != nullptr)
+            {
+                // If any shaderRing needs to defer free ring memory,
+                // the current shadertable map/unmap needs to be deferred also
+                deferFreeSrdTable = true;
+                m_deferredFreeMemList.PushBack(deferredMem);
+                updateSrdTable = true;
+            }
+
+            if (updateSrdTable && deferFreeSrdTable)
+            {
+                (*pReallocatedRings) |= (1 << ring);
+            }
         }
     }
 
     if ((result == Result::Success) && updateSrdTable)
     {
+        if (deferFreeSrdTable)
+        {
+            // save the current shardTable, since it might still be needed
+            ShaderRingMemory ringMem = {m_srdTableMem.Memory(),
+                                        m_srdTableMem.Offset(),
+                                        lastTimeStamp};
+            m_deferredFreeMemList.PushBack(ringMem);
+            m_srdTableMem.Update(nullptr, 0);
+
+            // Allocate a new shaderTable
+            GpuMemoryCreateInfo srdMemCreateInfo = { };
+            srdMemCreateInfo.size      = TotalMemSize();
+            srdMemCreateInfo.priority  = GpuMemPriority::Normal;
+            srdMemCreateInfo.vaRange   = VaRange::DescriptorTable;
+
+            if (m_pDevice->Parent()->LocalInvDropCpuWrites() == false)
+            {
+                srdMemCreateInfo.heaps[0]  = GpuHeapLocal;
+                srdMemCreateInfo.heaps[1]  = GpuHeapGartUswc;
+                srdMemCreateInfo.heaps[2]  = GpuHeapGartCacheable;
+                srdMemCreateInfo.heapCount = 3;
+            }
+            else
+            {
+                srdMemCreateInfo.heaps[0]  = GpuHeapGartUswc;
+                srdMemCreateInfo.heaps[1]  = GpuHeapGartCacheable;
+                srdMemCreateInfo.heapCount = 2;
+            }
+
+            GpuMemoryInternalCreateInfo internalInfo = { };
+            internalInfo.flags.alwaysResident = 1;
+
+            GpuMemory* pGpuMemory = nullptr;
+            gpusize    memOffset  = 0;
+
+            // Allocate the memory object for each ring-set's SRD table.
+            result = m_pDevice->Parent()->MemMgr()->AllocateGpuMem(srdMemCreateInfo,
+                                                                   internalInfo,
+                                                                   0,
+                                                                   &pGpuMemory,
+                                                                   &memOffset);
+
+            if (result == Result::Success)
+            {
+                // Update the video memory binding for our internal SRD table.
+                m_srdTableMem.Update(pGpuMemory, memOffset);
+            }
+        }
+
         // Need to upload our CPU copy of the SRD table into the SRD table video memory because we validated the TF
         // Buffer up-front, so its SRD needs to be uploaded now.
         void* pData = nullptr;
@@ -259,6 +329,33 @@ Result ShaderRingSet::Validate(
     }
 
     return result;
+}
+
+// =====================================================================================================================
+void ShaderRingSet::ClearDeferredFreeMemory(
+    SubmissionContext* pSubmissionCtx)
+{
+    if (m_deferredFreeMemList.NumElements() > 0)
+    {
+        ShaderRingMemory latestRingMem = m_deferredFreeMemList.Back();
+
+        // If the latest ShaderRingMemory's timestamp is retired, then any ShaderRingMemory in the list more recent than
+        // this must also be retired. So, it is safe to free all GPU memorys in this list.
+        if (pSubmissionCtx->IsTimestampRetired(latestRingMem.timestamp))
+        {
+            InternalMemMgr*const pMemMgr = m_pDevice->Parent()->MemMgr();
+
+            for (uint32 i = 0; i < m_deferredFreeMemList.NumElements(); i++)
+            {
+                ShaderRingMemory ringMem = m_deferredFreeMemList.At(i);
+                if (ringMem.pGpuMemory != nullptr)
+                {
+                    pMemMgr->FreeGpuMem(ringMem.pGpuMemory, ringMem.offset);
+                }
+            }
+            m_deferredFreeMemList.Clear();
+        }
+    }
 }
 
 // =====================================================================================================================
@@ -310,10 +407,13 @@ Result UniversalRingSet::Init()
 // Queue is not busy using this RingSet (i.e., the Queue is idle), so that it is safe to map the SRD table memory.
 Result UniversalRingSet::Validate(
     const ShaderRingItemSizes&  ringSizes,
-    const SamplePatternPalette& samplePatternPalette)
+    const SamplePatternPalette& samplePatternPalette,
+    uint64                      lastTimeStamp,
+    uint32*                     pReallocatedRings)
+
 {
     // First, perform the base class' validation.
-    Result result = ShaderRingSet::Validate(ringSizes, samplePatternPalette);
+    Result result = ShaderRingSet::Validate(ringSizes, samplePatternPalette, lastTimeStamp, pReallocatedRings);
 
     // PM4 image update if this is not sample position buffer udpate
     if (result == Result::Success)
@@ -498,10 +598,12 @@ Result ComputeRingSet::Init()
 // Queue is not busy using this RingSet (i.e., the Queue is idle), so that it is safe to map the SRD table memory.
 Result ComputeRingSet::Validate(
     const ShaderRingItemSizes&  ringSizes,
-    const SamplePatternPalette& samplePatternPalette)
+    const SamplePatternPalette& SamplePatternPalette,
+    uint64                      lastTimeStamp,
+    uint32*                     pReallocatedRings)
 {
     // First, perform the base class' validation.
-    Result result = ShaderRingSet::Validate(ringSizes, samplePatternPalette);
+    Result result = ShaderRingSet::Validate(ringSizes, SamplePatternPalette, lastTimeStamp, pReallocatedRings);
 
     if (result == Result::Success)
     {

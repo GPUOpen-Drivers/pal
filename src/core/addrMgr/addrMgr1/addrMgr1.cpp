@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2020 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2021 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -363,7 +363,7 @@ static ADDR_SURFACE_FLAGS InitSurfaceInfoFlags(
     flags.volume  = (createInfo.imageType == ImageType::Tex3d);
     flags.cube    = createInfo.flags.cubemap;
     flags.pow2Pad = (createInfo.mipLevels > 1);
-    flags.display = createInfo.flags.flippable;
+    flags.display = createInfo.flags.flippable | createInfo.flags.pipSwapChain;
 
     // The following four flags have the given effects. They are applied to the surface in the order
     // they are listed. We shouldn't set any of them for shared surfaces because the tiling mode is already defined.
@@ -662,49 +662,7 @@ ADDR_E_RETURNCODE AddrMgr1::CalcSurfInfoOut(
         PAL_ASSERT((imageCreateInfo.depthPitch % imageCreateInfo.rowPitch) == 0);
 
         pSurfInfoInput->pitchAlign = imageCreateInfo.rowPitch / bytesPerElement;
-
-        gpusize planeSize = imageCreateInfo.depthPitch;
-        if (isYuvPlanar)
-        {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-            if (pSubResInfo->subresId.aspect == ImageAspect::Y)
-#else
-            if (pSubResInfo->subresId.plane == 0) // Y
-#endif
-            {
-                planeSize = imageInfo.internalCreateInfo.chromaPlaneOffset[0];
-            }
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-            else if (pSubResInfo->subresId.aspect == ImageAspect::CbCr)
-#else
-            else if ((pSubResInfo->subresId.plane == 1) && (imageInfo.numPlanes == 2)) // CbCr
-#endif
-            {
-                planeSize -= imageInfo.internalCreateInfo.chromaPlaneOffset[0];
-            }
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-            else if (pSubResInfo->subresId.aspect == ImageAspect::Cb)
-#else
-            else if ((pSubResInfo->subresId.plane == 1) && (imageInfo.numPlanes == 3)) // Cb
-#endif
-            {
-                planeSize = (imageInfo.internalCreateInfo.chromaPlaneOffset[1] -
-                             imageInfo.internalCreateInfo.chromaPlaneOffset[0]);
-            }
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-            else if (pSubResInfo->subresId.aspect == ImageAspect::Cr)
-#else
-            else if (pSubResInfo->subresId.plane == 2) // Cr
-#endif
-            {
-                planeSize -= imageInfo.internalCreateInfo.chromaPlaneOffset[1];
-            }
-
-            PAL_ASSERT(imageInfo.internalCreateInfo.chromaPlaneOffset[0] != 0);
-            PAL_ASSERT((imageInfo.numPlanes != 3) || (imageInfo.internalCreateInfo.chromaPlaneOffset[1] != 0));
-        }
-
-        pSurfInfoInput->heightAlign = static_cast<uint32>(planeSize / imageCreateInfo.rowPitch);
+        pSurfInfoInput->heightAlign = imageCreateInfo.depthPitch / imageCreateInfo.rowPitch;
     }
 
     pSurfInfoOutput->size = sizeof(*pSurfInfoOutput);

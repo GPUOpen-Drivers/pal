@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2020 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2021 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -174,7 +174,7 @@ struct LoadDataIndexPm4Img
 
 // =====================================================================================================================
 // GFX6 universal command buffer class: implements GFX6 specific functionality for the UniversalCmdBuffer class.
-class UniversalCmdBuffer : public Pal::UniversalCmdBuffer
+class UniversalCmdBuffer final : public Pal::UniversalCmdBuffer
 {
     // Shorthand for function pointers which validate graphics user-data at draw-time.
     typedef uint32* (UniversalCmdBuffer::*ValidateUserDataGfxFunc)(const GraphicsPipelineSignature*, uint32*);
@@ -693,7 +693,8 @@ private:
 
     regDB_RENDER_OVERRIDE        m_dbRenderOverride;    // Last written value of the pipeline-owned part of
                                                         // DB_RENDER_OVERRIDE register.
-
+    regPA_SU_LINE_STIPPLE_CNTL  m_paSuLineStippleCntl;  // Last written value of PA_SU_LINE_STIPPLE_CNTL
+    regPA_SC_LINE_STIPPLE       m_paScLineStipple;      // Last written value of PA_SC_LINE_STIPPLE
     WorkaroundState  m_workaroundState;  // Manages several hardware workarounds whose states change between draws.
     DrawTimeHwState  m_drawTimeHwState;  // Tracks certain bits of HW-state that might need to be updated per draw.
 

@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2016-2020 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2016-2021 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -34,7 +34,7 @@ namespace Pal
 namespace Gfx6
 {
 
-class UniversalEngine : public Engine
+class UniversalEngine final : public Engine
 {
 public:
     UniversalEngine(
@@ -43,20 +43,8 @@ public:
         uint32     index);
     virtual ~UniversalEngine() {};
 
-    virtual Result Init() override;
-
-    UniversalRingSet* RingSet() { return &m_ringSet; }
-    UniversalRingSet* TmzRingSet() { return &m_tmzRingSet; }
-
-    Result UpdateRingSet(bool isTmz, uint32* pCounterVal, bool* pHasChanged);
-
 private:
     Device*          m_pDevice;
-    UniversalRingSet m_ringSet;
-    UniversalRingSet m_tmzRingSet;
-    uint32           m_currentUpdateCounter;  // Current watermark for the device-initiated context updates that have
-                                              // been processed by this engine.
-    uint32           m_currentUpdateCounterTmz;
 
     PAL_DISALLOW_COPY_AND_ASSIGN(UniversalEngine);
     PAL_DISALLOW_DEFAULT_CTOR(UniversalEngine);

@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2018-2020 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2018-2021 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -40,7 +40,7 @@ namespace Amdgpu
 // =====================================================================================================================
 // This version of Fence is based on timestamp only. It cannot be shared among processes. This Fence is for legacy
 // Linux only.
-class TimestampFence : public Pal::Fence
+class TimestampFence final : public Pal::Fence
 {
 public:
     TimestampFence();

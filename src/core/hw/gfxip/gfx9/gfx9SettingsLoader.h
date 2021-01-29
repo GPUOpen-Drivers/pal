@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2020 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2021 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -41,7 +41,7 @@ namespace Gfx9
 // This class is responsible for loading the Gfx9-specific portion of the PalSettings
 // structure specified in the constructor.  This is a helper class that only exists for a short
 // time while the settings are initialized.
-class SettingsLoader : public Pal::ISettingsLoader
+class SettingsLoader final : public Pal::ISettingsLoader
 {
 public:
     explicit SettingsLoader(Pal::Device* pDevice);

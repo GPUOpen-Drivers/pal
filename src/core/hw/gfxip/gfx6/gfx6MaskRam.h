@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2020 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2021 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -114,7 +114,7 @@ enum class HtileContents : uint32
 
 // =====================================================================================================================
 // Manages the HTile state for all slices of a single mipmap level of an Image resource.
-class Gfx6Htile : public MaskRam
+class Gfx6Htile final : public MaskRam
 {
 public:
     Gfx6Htile();
@@ -204,7 +204,7 @@ struct Gfx6FastColorClearMetaData
 
 // =====================================================================================================================
 // Manages the CMask state for all slices of a single mipmap level of an Image resource.
-class Gfx6Cmask : public MaskRam
+class Gfx6Cmask final : public MaskRam
 {
 public:
     Gfx6Cmask();
@@ -277,7 +277,7 @@ private:
 
 // =====================================================================================================================
 // Manages the FMask state for all slices of a single mipmap level of an Image resource.
-class Gfx6Fmask : public MaskRam
+class Gfx6Fmask final : public MaskRam
 {
 public:
     Gfx6Fmask();
@@ -396,7 +396,7 @@ struct MipDccStateMetaData
 
 // =====================================================================================================================
 // Manages the DCC state for all slices of a single mipmap level of an Image resource.
-class Gfx6Dcc : public MaskRam
+class Gfx6Dcc final : public MaskRam
 {
 public:
     Gfx6Dcc();

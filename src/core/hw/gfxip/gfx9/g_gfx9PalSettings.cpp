@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2018-2020 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2021 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -127,13 +127,14 @@ void SettingsLoader::SetupDefaults()
     m_settings.vsForcePartialWave = false;
     m_settings.disableCoverageAaMask = true;
     m_settings.batchBreakOnNewPixelShader = false;
+    m_settings.useClearStateToInitialize = true;
     m_settings.gsCuEnLimitMask = 0xffffffff;
     m_settings.vsCuEnLimitMask = 0xffffffff;
     m_settings.psCuEnLimitMask = 0xffffffff;
     m_settings.csCuEnLimitMask = 0xffffffff;
 
     m_settings.shaderPrefetchSizeBytes = 4294967295;
-    m_settings.numTsMsDrawEntriesPerSe = 64;
+    m_settings.numTsMsDrawEntriesPerSe = 256;
     m_settings.nggSupported = true;
     m_settings.nggLateAllocGs = 127;
     m_settings.binningMode = Gfx9DeferredBatchBinAccurate;
@@ -142,8 +143,6 @@ void SettingsLoader::SetupDefaults()
     m_settings.minBatchBinSize.height = 0;
     m_settings.ignoreDepthForBinSizeIfColorBound = false;
     m_settings.disableBinningPsKill = true;
-    m_settings.disableBinningNoDb = false;
-    m_settings.disableBinningBlendingOff = false;
     m_settings.binningMaxAllocCountLegacy = 0;
     m_settings.binningMaxAllocCountNggOnChip = 0;
     m_settings.binningMaxPrimPerBatch = 1024;
@@ -574,6 +573,11 @@ void SettingsLoader::ReadSettings()
                            &m_settings.batchBreakOnNewPixelShader,
                            InternalSettingScope::PrivatePalGfx9Key);
 
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pUseClearStateToInitializeStr,
+                           Util::ValueType::Boolean,
+                           &m_settings.useClearStateToInitialize,
+                           InternalSettingScope::PrivatePalGfx9Key);
+
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pGsCuEnLimitMaskStr,
                            Util::ValueType::Uint,
                            &m_settings.gsCuEnLimitMask,
@@ -642,16 +646,6 @@ void SettingsLoader::ReadSettings()
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pDisableBinningPsKillStr,
                            Util::ValueType::Boolean,
                            &m_settings.disableBinningPsKill,
-                           InternalSettingScope::PrivatePalGfx9Key);
-
-    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pDisableBinningNoDbStr,
-                           Util::ValueType::Boolean,
-                           &m_settings.disableBinningNoDb,
-                           InternalSettingScope::PrivatePalGfx9Key);
-
-    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pDisableBinningBlendingOffStr,
-                           Util::ValueType::Boolean,
-                           &m_settings.disableBinningBlendingOff,
                            InternalSettingScope::PrivatePalGfx9Key);
 
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pBinningMaxAllocCountLegacyStr,
@@ -1036,6 +1030,11 @@ void SettingsLoader::RereadSettings()
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pBatchBreakOnNewPixelShaderStr,
                            Util::ValueType::Boolean,
                            &m_settings.batchBreakOnNewPixelShader,
+                           InternalSettingScope::PrivatePalGfx9Key);
+
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pUseClearStateToInitializeStr,
+                           Util::ValueType::Boolean,
+                           &m_settings.useClearStateToInitialize,
                            InternalSettingScope::PrivatePalGfx9Key);
 
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pNggSupportedStr,
@@ -1621,6 +1620,11 @@ void SettingsLoader::InitSettingsInfo()
     info.valueSize = sizeof(m_settings.batchBreakOnNewPixelShader);
     m_settingsInfoMap.Insert(3367458304, info);
 
+    info.type      = SettingType::Boolean;
+    info.pValuePtr = &m_settings.useClearStateToInitialize;
+    info.valueSize = sizeof(m_settings.useClearStateToInitialize);
+    m_settingsInfoMap.Insert(1269810789, info);
+
     info.type      = SettingType::Uint;
     info.pValuePtr = &m_settings.gsCuEnLimitMask;
     info.valueSize = sizeof(m_settings.gsCuEnLimitMask);
@@ -1690,16 +1694,6 @@ void SettingsLoader::InitSettingsInfo()
     info.pValuePtr = &m_settings.disableBinningPsKill;
     info.valueSize = sizeof(m_settings.disableBinningPsKill);
     m_settingsInfoMap.Insert(1197165395, info);
-
-    info.type      = SettingType::Boolean;
-    info.pValuePtr = &m_settings.disableBinningNoDb;
-    info.valueSize = sizeof(m_settings.disableBinningNoDb);
-    m_settingsInfoMap.Insert(2139865571, info);
-
-    info.type      = SettingType::Boolean;
-    info.pValuePtr = &m_settings.disableBinningBlendingOff;
-    info.valueSize = sizeof(m_settings.disableBinningBlendingOff);
-    m_settingsInfoMap.Insert(3568835784, info);
 
     info.type      = SettingType::Uint;
     info.pValuePtr = &m_settings.binningMaxAllocCountLegacy;
@@ -2067,7 +2061,7 @@ void SettingsLoader::DevDriverRegister()
             component.pfnSetValue = ISettingsLoader::SetValue;
             component.pSettingsData = &g_gfx9PalJsonData[0];
             component.settingsDataSize = sizeof(g_gfx9PalJsonData);
-            component.settingsDataHash = 1723253782;
+            component.settingsDataHash = 644038798;
             component.settingsDataHeader.isEncoded = true;
             component.settingsDataHeader.magicBufferId = 402778310;
             component.settingsDataHeader.magicBufferOffset = 0;

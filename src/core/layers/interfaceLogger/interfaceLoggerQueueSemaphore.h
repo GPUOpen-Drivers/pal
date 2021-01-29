@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2016-2020 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2016-2021 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -38,7 +38,7 @@ class Device;
 class Platform;
 
 // =====================================================================================================================
-class QueueSemaphore : public QueueSemaphoreDecorator
+class QueueSemaphore final : public QueueSemaphoreDecorator
 {
 public:
     QueueSemaphore(IQueueSemaphore* pNextQueueSemaphore, const Device* pDevice, uint32 objectId);

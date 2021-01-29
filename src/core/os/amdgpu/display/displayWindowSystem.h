@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2018-2020 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2018-2021 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -58,7 +58,7 @@ enum class PresentState : uint32
 // =====================================================================================================================
 // The definition of Present fence for DirectDisplay platform. The fence will be unsignaled when call WaitForCompletion
 // to wait, and will be signaled when the next Vsync happened.
-class DisplayPresentFence : public PresentFence
+class DisplayPresentFence final : public PresentFence
 {
 public:
     static size_t GetSize() { return sizeof(DisplayPresentFence); }
@@ -100,7 +100,7 @@ private:
 // DisplayWindowSystem can directly render to a display without using intermediate window system (X or Wayland), and it
 // can directly manipulate DRM commands/interfaces. It's most useful for console, embedded and virtual reality
 // applications.
-class DisplayWindowSystem : public WindowSystem
+class DisplayWindowSystem final : public WindowSystem
 {
 public:
     // The WindowSystem class is designed to be placed into other PAL objects which requires the Create/Destroy pattern.

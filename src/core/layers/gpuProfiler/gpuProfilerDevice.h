@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2020 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2021 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -67,10 +67,12 @@ struct PerfCounter
 };
 
 // =====================================================================================================================
-class Device : public DeviceDecorator
+class Device final : public DeviceDecorator
 {
 public:
     Device(PlatformDecorator* pPlatform, IDevice* pNextDevice, uint32 id);
+
+    Result ProfilingClockMode(bool enable);
 
     uint32 Id() const { return m_id; }
 
@@ -92,12 +94,15 @@ public:
     void   AddSqttCurDraws() { Util::AtomicIncrement(&m_curDrawsForThreadTrace); }
     bool   GetSqttAddTtvHashes() const { return m_sqttAddTtvHashes; }
 
+    bool LoggingEnabled() const;
     bool LoggingEnabled(GpuProfilerGranularity granularity) const;
 
     bool SqttEnabledForPipeline(const PipelineState& state, PipelineBindPoint bindPoint) const;
 
     // Public IDevice interface methods:
     virtual Result CommitSettingsAndInit() override;
+    virtual Result Cleanup() override;
+
     virtual size_t GetQueueSize(
         const QueueCreateInfo& createInfo,
         Result*                pResult) const override;
@@ -164,7 +169,7 @@ public:
     }
 
 private:
-    virtual ~Device();
+    virtual ~Device() {}
 
     Result InitGlobalPerfCounterState();
     Result CountPerfCounters(
@@ -180,7 +185,8 @@ private:
         uint32                          numPerfCounter,
         PerfCounter*                    pPerfCounters);
 
-    const uint32 m_id;  // Unique ID for this device for reporting purposes.
+    const uint32 m_id;    // Unique ID for this device for reporting purposes.
+    Util::Mutex  m_mutex; // A general purpose mutex for any muti-threaded non-const functions.
 
     // Properties captured from the core's DeviceProperties or PalPublicSettings structure.  These are cached here to
     // avoid calling the overly expensive IDevice::GetProperties() in high frequency code paths.
@@ -205,6 +211,7 @@ private:
     uint32                 m_maxDrawsForThreadTrace;
     uint32                 m_curDrawsForThreadTrace;
 
+    bool                   m_profilingModeEnabled;
     GpuProfilerGranularity m_profilerGranularity;
     GpuProfilerStallMode   m_stallMode;
     uint32                 m_startFrame;

@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2020 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2021 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -24,7 +24,7 @@
  **********************************************************************************************************************/
 
 // Bump up after each promotion from stg/pal to stg/pal_prm
-#define PAL_VERSION_NUMBER_MAJOR        288
+#define PAL_VERSION_NUMBER_MAJOR        294
 
 // Bump up after each cherry-up from stg/pal to stg/pal_prm
 #define PAL_VERSION_NUMBER_MINOR        0

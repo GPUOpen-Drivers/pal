@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2016-2020 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2016-2021 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -165,7 +165,8 @@ static constexpr SqttMemoryType SqttMemoryTypeTable[] =
     SQTT_MEMORY_TYPE_HBM2,    // Hbm2
     SQTT_MEMORY_TYPE_HBM3,    // Hbm3
     SQTT_MEMORY_TYPE_LPDDR4,  // Lpddr4
-    SQTT_MEMORY_TYPE_LPDDR5   // Lpddr5
+    SQTT_MEMORY_TYPE_LPDDR5,  // Lpddr5
+    SQTT_MEMORY_TYPE_DDR5     // Ddr5
 };
 
 static_assert(Util::ArrayLen(SqttMemoryTypeTable) == static_cast<uint32>(Pal::LocalMemoryType::Count),

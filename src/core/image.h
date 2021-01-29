@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2020 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2021 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -178,7 +178,6 @@ struct ImageInternalCreateInfo
 
     const Image*       pOriginalImage;       // Original image (peer image)
     InternalImageFlags flags;                // Flags to create an internal image object
-    gpusize            chromaPlaneOffset[2]; // The offset of chroma planes
     SharedMetadataInfo sharedMetadata;       // Shared metadata info
 };
 
@@ -366,7 +365,10 @@ public:
 
     // Returns whether or not this Image has a depth plane.
     bool HasDepthPlane() const
-        { return (IsDepthStencilTarget() && (m_createInfo.swizzledFormat.format != ChNumFormat::X8_Uint)); }
+    {
+        return ((IsDepthStencilTarget() || Formats::IsDepthStencilOnly(m_createInfo.swizzledFormat.format)) &&
+                (m_createInfo.swizzledFormat.format != ChNumFormat::X8_Uint));
+    }
 
     // Returns whether or not this Image has depth data in the specified plane.
     bool IsDepthPlane(uint32 plane) const
@@ -381,7 +383,7 @@ public:
     // Returns whether or not this Image has stencil data in the specified plane.
     bool IsStencilPlane(uint32 plane) const
     {
-        return (IsDepthStencilTarget() &&
+        return ((IsDepthStencilTarget() || Formats::IsDepthStencilOnly(m_createInfo.swizzledFormat.format)) &&
                 ((plane == 1) ||
                 ((plane == 0) && (m_createInfo.swizzledFormat.format == ChNumFormat::X8_Uint))));
     }

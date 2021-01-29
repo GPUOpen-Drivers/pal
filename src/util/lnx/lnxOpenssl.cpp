@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2019-2020 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2019-2021 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -81,55 +81,52 @@ OpenSslLib::~OpenSslLib()
 // Thread-safe Init function
 Result OpenSslLib::Init()
 {
-    Result result = m_mutex.Init();
+    Result result = Result::Success;
 
-    if (result == Result::Success)
+    MutexAuto lock { &m_mutex };
+
+    if (Valid() == false)
     {
-        MutexAuto lock { &m_mutex };
-
-        if (Valid() == false)
+        Library library;
+        if (library.Load("libssl.so") != Result::Success)
         {
-            Library library;
-            if (library.Load("libssl.so") != Result::Success)
-            {
-                // Note: If OS doesn't install libssl-dev, there could be no libssl.so link.
-                // Try and open libssl.so.1.1 directly.
-                library.Load("libssl.so.1.1");
-            }
+            // Note: If OS doesn't install libssl-dev, there could be no libssl.so link.
+            // Try and open libssl.so.1.1 directly.
+            library.Load("libssl.so.1.1");
+        }
 
-            if (library.IsLoaded())
+        if (library.IsLoaded())
+        {
+            if (library.GetFunction("MD5_Init",      &hashFuncs.pfnMd5Init)      &&
+                library.GetFunction("MD5_Update",    &hashFuncs.pfnMd5Update)    &&
+                library.GetFunction("MD5_Final",     &hashFuncs.pfnMd5Final)     &&
+                library.GetFunction("SHA1_Init",     &hashFuncs.pfnSha1Init)     &&
+                library.GetFunction("SHA1_Update",   &hashFuncs.pfnSha1Update)   &&
+                library.GetFunction("SHA1_Final",    &hashFuncs.pfnSha1Final)    &&
+                library.GetFunction("SHA224_Init",   &hashFuncs.pfnSha224Init)   &&
+                library.GetFunction("SHA224_Update", &hashFuncs.pfnSha224Update) &&
+                library.GetFunction("SHA224_Final",  &hashFuncs.pfnSha224Final)  &&
+                library.GetFunction("SHA256_Init",   &hashFuncs.pfnSha256Init)   &&
+                library.GetFunction("SHA256_Update", &hashFuncs.pfnSha256Update) &&
+                library.GetFunction("SHA256_Final",  &hashFuncs.pfnSha256Final)  &&
+                library.GetFunction("SHA384_Init",   &hashFuncs.pfnSha384Init)   &&
+                library.GetFunction("SHA384_Update", &hashFuncs.pfnSha384Update) &&
+                library.GetFunction("SHA384_Final",  &hashFuncs.pfnSha384Final)  &&
+                library.GetFunction("SHA512_Init",   &hashFuncs.pfnSha512Init)   &&
+                library.GetFunction("SHA512_Update", &hashFuncs.pfnSha512Update) &&
+                library.GetFunction("SHA512_Final",  &hashFuncs.pfnSha512Final))
             {
-                if (library.GetFunction("MD5_Init",      &hashFuncs.pfnMd5Init)      &&
-                    library.GetFunction("MD5_Update",    &hashFuncs.pfnMd5Update)    &&
-                    library.GetFunction("MD5_Final",     &hashFuncs.pfnMd5Final)     &&
-                    library.GetFunction("SHA1_Init",     &hashFuncs.pfnSha1Init)     &&
-                    library.GetFunction("SHA1_Update",   &hashFuncs.pfnSha1Update)   &&
-                    library.GetFunction("SHA1_Final",    &hashFuncs.pfnSha1Final)    &&
-                    library.GetFunction("SHA224_Init",   &hashFuncs.pfnSha224Init)   &&
-                    library.GetFunction("SHA224_Update", &hashFuncs.pfnSha224Update) &&
-                    library.GetFunction("SHA224_Final",  &hashFuncs.pfnSha224Final)  &&
-                    library.GetFunction("SHA256_Init",   &hashFuncs.pfnSha256Init)   &&
-                    library.GetFunction("SHA256_Update", &hashFuncs.pfnSha256Update) &&
-                    library.GetFunction("SHA256_Final",  &hashFuncs.pfnSha256Final)  &&
-                    library.GetFunction("SHA384_Init",   &hashFuncs.pfnSha384Init)   &&
-                    library.GetFunction("SHA384_Update", &hashFuncs.pfnSha384Update) &&
-                    library.GetFunction("SHA384_Final",  &hashFuncs.pfnSha384Final)  &&
-                    library.GetFunction("SHA512_Init",   &hashFuncs.pfnSha512Init)   &&
-                    library.GetFunction("SHA512_Update", &hashFuncs.pfnSha512Update) &&
-                    library.GetFunction("SHA512_Final",  &hashFuncs.pfnSha512Final))
-                {
-                    m_lib.Swap(&library);
-                }
-                else
-                {
-                    PAL_ALERT_ALWAYS_MSG("One or more function lookups in libssl.so failed");
-                    result = Result::ErrorInitializationFailed;
-                }
+                m_lib.Swap(&library);
             }
             else
             {
-                result =  Result::ErrorUnavailable;
+                PAL_ALERT_ALWAYS_MSG("One or more function lookups in libssl.so failed");
+                result = Result::ErrorInitializationFailed;
             }
+        }
+        else
+        {
+            result =  Result::ErrorUnavailable;
         }
     }
 

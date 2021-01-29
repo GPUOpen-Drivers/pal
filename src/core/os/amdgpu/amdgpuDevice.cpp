@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2020 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2021 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -96,6 +96,9 @@ static PAL_INLINE Result CheckResult(
         break;
     case -ECANCELED:
         retValue = Result::ErrorDeviceLost;
+        break;
+    case -EACCES:
+        retValue = Result::ErrorPermissionDenied;
         break;
     default:
         retValue = defaultValue;
@@ -508,11 +511,6 @@ Result Device::Cleanup()
 Result Device::OsEarlyInit()
 {
     Result result = m_globalRefMap.Init();
-
-    if (result == Result::Success)
-    {
-        result = m_globalRefLock.Init();
-    }
 
     if (result == Result::Success)
     {
@@ -1353,6 +1351,12 @@ static LocalMemoryType TranslateMemoryType(
     case AMDGPU_VRAM_TYPE_DDR4:
         {
             result = LocalMemoryType::Ddr4;
+            break;
+        }
+
+    case AMDGPU_VRAM_TYPE_DDR5:
+        {
+            result = LocalMemoryType::Ddr5;
             break;
         }
 
@@ -2635,22 +2639,18 @@ Result Device::CreateCommandSubmissionContext(
             if (m_featureState.supportQueueIfhKmd != 0)
             {
                 const uint32 flags = (Settings().ifh == IfhModeKmd) ? AMDGPU_CTX_FLAGS_IFH : 0;
-                if(m_drmProcs.pfnAmdgpuCsCtxCreate3(m_hDevice,
-                                                 QueuePriorityToAmdgpuPriority[static_cast<uint32>(priority)],
-                                                 flags,
-                                                 pContextHandle) != 0)
-                {
-                    result = Result::ErrorInvalidValue;
-                }
+                result = CheckResult(m_drmProcs.pfnAmdgpuCsCtxCreate3(m_hDevice,
+                                                        QueuePriorityToAmdgpuPriority[static_cast<uint32>(priority)],
+                                                        flags,
+                                                        pContextHandle),
+                                     Result::ErrorInvalidValue);
             }
             else
             {
-                if (m_drmProcs.pfnAmdgpuCsCtxCreate2(m_hDevice,
-                                                    QueuePriorityToAmdgpuPriority[static_cast<uint32>(priority)],
-                                                    pContextHandle) != 0)
-                {
-                    result = Result::ErrorInvalidValue;
-                }
+                result = CheckResult(m_drmProcs.pfnAmdgpuCsCtxCreate2(m_hDevice,
+                                                        QueuePriorityToAmdgpuPriority[static_cast<uint32>(priority)],
+                                                        pContextHandle),
+                                     Result::ErrorInvalidValue);
             }
         }
         // just ignore the priority.
@@ -4913,9 +4913,12 @@ Result Device::OpenExternalResource(
     ExternalSharedInfo*             pSharedInfo
     ) const
 {
-    // hard code the amdgpu_bo_handle_type_dma_buf_fd.
-    // this can be extended later in case pal need to support more types.
-    Result result = ImportBuffer(amdgpu_bo_handle_type_dma_buf_fd,
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 655
+    const auto handleType = static_cast<amdgpu_bo_handle_type>(openInfo.handleType);
+#else
+    const amdgpu_bo_handle_type handleType = amdgpu_bo_handle_type_dma_buf_fd;
+#endif
+    Result result = ImportBuffer(handleType,
                                  openInfo.hExternalResource,
                                  &pSharedInfo->importResult);
 
@@ -4926,7 +4929,8 @@ Result Device::OpenExternalResource(
 
     if (result == Result::Success)
     {
-        pSharedInfo->hExternalResource = openInfo.hExternalResource;
+        pSharedInfo->hExternalResource     = openInfo.hExternalResource;
+        pSharedInfo->handleType            = handleType;
         PAL_ASSERT(pSharedInfo->importResult.alloc_size == pSharedInfo->info.alloc_size);
     }
 
@@ -5066,7 +5070,7 @@ Result Device::CreateGpuMemoryFromExternalShare(
     GpuMemoryInternalCreateInfo internalInfo = {};
     internalInfo.flags.isExternal   = 1;
     internalInfo.hExternalResource  = sharedInfo.hExternalResource;
-    internalInfo.externalHandleType = amdgpu_bo_handle_type_dma_buf_fd;
+    internalInfo.externalHandleType = sharedInfo.handleType;
 
     if (pTypedBufferCreateInfo != nullptr)
     {

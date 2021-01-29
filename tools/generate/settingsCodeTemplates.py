@@ -1,7 +1,7 @@
 ##
  #######################################################################################################################
  #
- #  Copyright (c) 2017-2020 Advanced Micro Devices, Inc. All Rights Reserved.
+ #  Copyright (c) 2017-2021 Advanced Micro Devices, Inc. All Rights Reserved.
  #
  #  Permission is hereby granted, free of charge, to any person obtaining a copy
  #  of this software and associated documentation files (the "Software"), to deal
@@ -25,7 +25,7 @@
 
 import os
 CopyrightFilePath = os.path.dirname(os.path.realpath(__file__)) + "/../pal-copyright-template.txt"
-FileHeaderCopyright = open(CopyrightFilePath, 'r').read()
+FileHeaderCopyright = open(CopyrightFilePath, 'r').read().replace("2018", "%Year%")
 
 FileHeaderWarning = """
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

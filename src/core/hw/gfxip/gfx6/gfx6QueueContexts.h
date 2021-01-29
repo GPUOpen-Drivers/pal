@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2020 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2021 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -38,6 +38,22 @@ class ComputeEngine;
 class Device;
 class UniversalEngine;
 
+// Structure to pair command stream with the corresponding LastSubmissionTimeStamp from submissionContext
+template <size_t NumStreams>
+struct DeferFreeListItem
+{
+   CmdStreamChunk* pChunk[NumStreams];
+   uint64          timestamp;
+};
+
+// ComputeQueue has 3 comamnd streams that will be reset when ringSet got resized.
+static const uint32 ComputeQueueCmdStreamNum = 3;
+using ComputeQueueDeferFreeList = DeferFreeListItem<ComputeQueueCmdStreamNum>;
+
+// UniversalQueue has 5 comamnd streams that will be reset when ringSet got resized.
+static const uint32 UniversalQueueCmdStreamNum = 5;
+using UniversalQueueDeferFreeList = DeferFreeListItem<UniversalQueueCmdStreamNum>;
+
 // =====================================================================================================================
 // GFX6+ hardware requires an internal scratch ring of memory to be used for register spilling if a shader uses too many
 // temp registers. This scratch ring can be dynamically resized based on the highest scratch memory needs of any Compute
@@ -46,7 +62,7 @@ class UniversalEngine;
 // guaranteeing that the scratch ring is in a valid state before launching GPU work.
 //
 // SEE: Gfx6::ShaderRingMgr, ShaderRingSet and ShaderRing.
-class ComputeQueueContext : public QueueContext
+class ComputeQueueContext final : public QueueContext
 {
 public:
     ComputeQueueContext(Device* pDevice, Engine* pEngine, uint32 queueId, bool isTmz);
@@ -54,16 +70,28 @@ public:
 
     Result Init();
 
+    Result UpdateRingSet(bool isTmz, bool* pHasChanged, uint64  lastTimeStamp);
     virtual Result PreProcessSubmit(InternalSubmitInfo* pSubmitInfo, uint32 cmdBufferCount) override;
     virtual void PostProcessSubmit() override;
 
 private:
-    Result RebuildCommandStream(bool isTmz);
+    Result RebuildCommandStreams(bool isTmz, uint64 lastTimeStamp);
+
+    void ResetCommandStream(
+        CmdStream*                 pCmdStream,
+        ComputeQueueDeferFreeList* pList,
+        uint32*                    pIndex,
+        uint64                     lastTimeStamp);
+
+    void ClearDeferredMemory();
 
     Device*const        m_pDevice;
     ComputeEngine*const m_pEngine;
     uint32              m_queueId;
     bool                m_queueUseTmzRing;
+
+    ComputeRingSet      m_ringSet;
+    ComputeRingSet      m_tmzRingSet;
 
     // Current watermark for the device-initiated context updates which have been processed by this queue context.
     uint32  m_currentUpdateCounter;
@@ -72,6 +100,8 @@ private:
     CmdStream  m_cmdStream;
     CmdStream  m_perSubmitCmdStream;
     CmdStream  m_postambleCmdStream;
+
+    Util::Deque<ComputeQueueDeferFreeList, Platform> m_deferCmdStreamChunks;
 
     PAL_DISALLOW_DEFAULT_CTOR(ComputeQueueContext);
     PAL_DISALLOW_COPY_AND_ASSIGN(ComputeQueueContext);
@@ -106,9 +136,18 @@ public:
     virtual void PostProcessSubmit() override;
     virtual Result ProcessInitialSubmit(InternalSubmitInfo* pSubmitInfo) override;
 
+    Result UpdateRingSet(bool isTmz, bool* pHasChanged, uint64 lastTimeStamp);
+
 private:
     Result BuildShadowPreamble();
-    Result RebuildCommandStreams(bool isTmz);
+    void ResetCommandStream(CmdStream*                   pCmdStream,
+                            UniversalQueueDeferFreeList* pList,
+                            uint32*                      pIndex,
+                            uint64                       lastTimeStamp);
+
+    Result RebuildCommandStreams(bool isTmz, uint64 lastTimeStamp);
+
+    void ClearDeferredMemory();
 
     Result AllocateShadowMemory();
 
@@ -121,6 +160,9 @@ private:
     uint32                m_queueId;
     const uint32          m_persistentCeRamOffset;
     const uint32          m_persistentCeRamSize;
+
+    UniversalRingSet m_ringSet;
+    UniversalRingSet m_tmzRingSet;
 
     // Current watermark for the device-initiated context updates which have been processed by this queue context.
     uint32  m_currentUpdateCounter;
@@ -140,6 +182,8 @@ private:
     CmdStream  m_cePreambleCmdStream;
     CmdStream  m_cePostambleCmdStream;
     CmdStream  m_dePostambleCmdStream;
+
+    Util::Deque<UniversalQueueDeferFreeList, Platform> m_deferCmdStreamChunks;
 
     PAL_DISALLOW_DEFAULT_CTOR(UniversalQueueContext);
     PAL_DISALLOW_COPY_AND_ASSIGN(UniversalQueueContext);

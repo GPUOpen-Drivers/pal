@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2020 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2021 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -176,6 +176,13 @@ struct ScissorRectPm4Img
     regPA_SC_VPORT_SCISSOR_0_BR br;
 };
 
+// Register state for PA SC Binner Cntl
+struct PaScBinnerCntlRegs
+{
+    regPA_SC_BINNER_CNTL_0 paScBinnerCntl0;
+    regPA_SC_BINNER_CNTL_1 paScBinnerCntl1;
+};
+
 // PM4 image for loading context registers from memory
 struct LoadDataIndexPm4Img
 {
@@ -215,8 +222,6 @@ union CachedSettings
         uint64 hiStencilDisabled          :  1; // True if Hi-Stencil is disabled by settings
         uint64 disableBatchBinning        :  1; // True if binningMode is disabled.
         uint64 disablePbbPsKill           :  1; // True if PBB should be disabled for pipelines using PS Kill
-        uint64 disablePbbNoDb             :  1; // True if PBB should be disabled for pipelines with no DB
-        uint64 disablePbbBlendingOff      :  1; // True if PBB should be disabled for pipelines with no blending
         uint64 disablePbbAppendConsume    :  1; // True if PBB should be disabled for pipelines with append/consume
         uint64 ignoreCsBorderColorPalette :  1; // True if compute border-color palettes should be ignored
         uint64 blendOptimizationsEnable   :  1; // A copy of the blendOptimizationsEnable setting.
@@ -256,10 +261,10 @@ union CachedSettings
 
         uint64 supportsVrs                               :  1;
         uint64 vrsForceRateFine                          :  1;
-
-        uint64 reserved7                  :  4;
-        uint64 reserved8                  :  1;
-        uint64 reserved                   : 17;
+        uint64 reserved7                                 :  1;
+        uint64 reserved8                  :  4;
+        uint64 reserved9                  :  1;
+        uint64 reserved                   : 18;
     };
     uint64 u64All;
 };
@@ -280,7 +285,7 @@ struct VrsCopyMapping
 
 // =====================================================================================================================
 // GFX9 universal command buffer class: implements GFX9 specific functionality for the UniversalCmdBuffer class.
-class UniversalCmdBuffer : public Pal::UniversalCmdBuffer
+class UniversalCmdBuffer final : public Pal::UniversalCmdBuffer
 {
     // Shorthand for function pointers which validate graphics user-data at Draw-time.
     typedef uint32* (UniversalCmdBuffer::*ValidateUserDataGfxFunc)(const GraphicsPipelineSignature*, uint32*);
@@ -603,15 +608,11 @@ protected:
 
     virtual void InheritStateFromCmdBuf(const GfxCmdBuffer* pCmdBuffer) override;
 
-    template <bool Pm4OptImmediate>
-    uint32* ValidateBinSizes(
-        const GraphicsPipeline&  pipeline,
-        const ColorBlendState*   pColorBlendState,
-        uint32*                  pDeCmdSpace);
+    template <bool Pm4OptImmediate, bool IsNgg>
+    uint32* ValidateBinSizes(uint32* pDeCmdSpace);
 
     bool ShouldEnablePbb(
         const GraphicsPipeline&  pipeline,
-        const ColorBlendState*   pColorBlendState,
         const DepthStencilState* pDepthStencilState,
         const MsaaState*         pMsaaState) const;
 
@@ -894,9 +895,9 @@ private:
     void Gfx9GetDepthBinSize(Extent2d* pBinSize) const;
     void Gfx10GetColorBinSize(Extent2d* pBinSize) const;
     void Gfx10GetDepthBinSize(Extent2d* pBinSize) const;
-    bool SetPaScBinnerCntl0(const GraphicsPipeline&  pipeline,
-                            const ColorBlendState*   pColorBlendState,
-                            Extent2d*                pBinSize);
+    template <bool IsNgg>
+    bool SetPaScBinnerCntl01(
+                             Extent2d* pBinSize);
 
     void SendFlglSyncCommands(FlglRegSeqType type);
 
@@ -1079,7 +1080,19 @@ private:
 
     regCB_RMI_GL2_CACHE_CONTROL m_cbRmiGl2CacheControl; // Control CB cache policy and big page
 
-    regPA_SC_BINNER_CNTL_0  m_paScBinnerCntl0;
+    union
+    {
+        struct
+        {
+            uint64 maxAllocCountNgg       : 16;
+            uint64 maxAllocCountLegacy    : 16;
+            uint64 maxPrimPerBatch        : 16;
+            uint64 persistentStatesPerBin : 16;
+        };
+        uint64 u64All;
+    } m_cachedPbbSettings;
+
+    PaScBinnerCntlRegs      m_pbbCntlRegs;
     regDB_DFSM_CONTROL      m_dbDfsmControl;
     regDB_RENDER_OVERRIDE   m_dbRenderOverride;     // Current value of DB_RENDER_OVERRIDE.
     regDB_RENDER_OVERRIDE   m_prevDbRenderOverride; // Prev value of DB_RENDER_OVERRIDE - only used on primary CmdBuf.
@@ -1087,6 +1100,9 @@ private:
 
     regPA_SC_AA_CONFIG m_paScAaConfigNew;  // PA_SC_AA_CONFIG state that will be written on the next draw.
     regPA_SC_AA_CONFIG m_paScAaConfigLast; // Last written value of PA_SC_AA_CONFIG
+
+    regPA_SU_LINE_STIPPLE_CNTL  m_paSuLineStippleCntl; // Last written value of PA_SU_LINE_STIPPLE_CNTL
+    regPA_SC_LINE_STIPPLE       m_paScLineStipple;     // Last written value of PA_SC_LINE_STIPPLE
 
     bool             m_hasWaMiscPopsMissedOverlapBeenApplied;
     BinningOverride  m_pbbStateOverride; // Sets PBB on/off as per dictated by the new bound pipeline.

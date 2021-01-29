@@ -23,10 +23,6 @@ function(dd_third_party_disable_warnings name)
 
     elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
 
-        #if DD_ACCESS_INTERNAL
-        # [MSVC] Warning Level
-        #   https://docs.microsoft.com/en-us/cpp/build/reference/compiler-option-warning-level
-        #endif
         target_compile_options(${name}
             PRIVATE
                 /W0
@@ -195,7 +191,6 @@ if (NOT TARGET cwalk)
     )
 
 endif()
-
 
 ### C++ Unit Tests ###
 # WA: Check that these targets haven't already been added (Only until we have a global CMake context)

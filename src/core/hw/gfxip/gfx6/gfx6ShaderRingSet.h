@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2020 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2021 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -80,6 +80,15 @@ struct ShaderRingItemSizes
                   "The compute ring set must be a subset of the universal ring set.");
 };
 
+struct ShaderRingMemory
+{
+    GpuMemory*  pGpuMemory;
+    gpusize     offset;
+    uint64      timestamp; // last submitted timestamp value
+};
+
+typedef Util::Vector<ShaderRingMemory, 8, Platform> ShaderRingMemList;
+
 // =====================================================================================================================
 // A ShaderRingSet object contains all of the shader Rings used by command buffers which run on a particular Queue.
 // Additionally, each Ring Set also manages the PM4 image of commands which write the ring state to hardware.
@@ -89,14 +98,18 @@ public:
     virtual ~ShaderRingSet();
 
     virtual Result Init();
-    virtual Result Validate(const ShaderRingItemSizes&  ringSizes,
-                            const SamplePatternPalette& samplePatternPalette);
+    virtual Result Validate(const ShaderRingItemSizes&    ringSizes,
+                              const SamplePatternPalette& samplePatternPalette,
+                              uint64                      lastTimeStamp,
+                              uint32*                     pReallocatedRings);
 
     // Writes the per-Ring-Set register state into the specified command stream.
     virtual uint32* WriteCommands(CmdStream* pCmdStream, uint32* pCmdSpace) const = 0;
 
     // Write affected registers not in the Rlc save/restore list.
     virtual uint32* WriteNonRlcRestoredRegs(CmdStream* pCmdStream, uint32* pCmdSpace) const = 0;
+
+    void ClearDeferredFreeMemory(SubmissionContext* pSubmissionCtx);
 
     size_t NumRings() const { return m_numRings; }
 
@@ -116,6 +129,8 @@ protected:
 
     BoundGpuMemory  m_srdTableMem;
 
+    ShaderRingMemList m_deferredFreeMemList;
+
 private:
     PAL_DISALLOW_DEFAULT_CTOR(ShaderRingSet);
     PAL_DISALLOW_COPY_AND_ASSIGN(ShaderRingSet);
@@ -123,7 +138,7 @@ private:
 
 // =====================================================================================================================
 // Implements a ShaderRingSet for a Universal Queue.
-class UniversalRingSet : public ShaderRingSet
+class UniversalRingSet final : public ShaderRingSet
 {
 public:
     explicit UniversalRingSet(Device* pDevice, bool isTmz);
@@ -131,7 +146,9 @@ public:
 
     virtual Result Init() override;
     virtual Result Validate(const ShaderRingItemSizes&  ringSizes,
-                            const SamplePatternPalette& samplePatternPalette) override;
+                            const SamplePatternPalette& samplePatternPalette,
+                            uint64                      lastTimeStamp,
+                            uint32*                     pReallocatedRings) override;
 
     virtual uint32* WriteCommands(CmdStream* pCmdStream, uint32* pCmdSpace) const override;
     virtual uint32* WriteNonRlcRestoredRegs(CmdStream* pCmdStream, uint32* pCmdSpace) const override;
@@ -156,7 +173,7 @@ private:
 
 // =====================================================================================================================
 // Implements a ShaderRingSet for a Compute-only Queue.
-class ComputeRingSet : public ShaderRingSet
+class ComputeRingSet final : public ShaderRingSet
 {
 public:
     explicit ComputeRingSet(Device* pDevice, bool isTmz);
@@ -164,7 +181,9 @@ public:
 
     virtual Result Init() override;
     virtual Result Validate(const ShaderRingItemSizes&  ringSizes,
-                            const SamplePatternPalette& samplePatternPalette) override;
+                            const SamplePatternPalette& samplePatternPalette,
+                            uint64                      lastTimeStamp,
+                            uint32*                     pReallocatedRings) override;
 
     virtual uint32* WriteCommands(CmdStream* pCmdStream, uint32* pCmdSpace) const override;
 

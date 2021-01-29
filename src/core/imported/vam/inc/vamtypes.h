@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2017-2020 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2017-2021 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -54,10 +54,10 @@
 */
 #ifndef VAM_STDCALL
     #if defined(__GNUC__)
-        #if defined(__amd64__) || defined(__x86_64__)
-            #define VAM_STDCALL
-        #else
+        #if defined(__i386__)
             #define VAM_STDCALL __attribute__((stdcall))
+        #else
+            #define VAM_STDCALL
         #endif
     #else
         #define VAM_STDCALL __stdcall
@@ -66,7 +66,11 @@
 
 #ifndef VAM_FASTCALL
     #if defined(__GNUC__)
-        #define VAM_FASTCALL __attribute__((regparm(0)))
+        #if defined(__i386__) || defined(__amd64__) || defined(__x86_64__)
+            #define VAM_FASTCALL __attribute__((regparm(0)))
+        #else
+            #define VAM_FASTCALL
+        #endif
     #else
         #define VAM_FASTCALL __fastcall
     #endif

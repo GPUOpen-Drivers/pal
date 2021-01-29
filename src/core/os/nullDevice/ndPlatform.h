@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2020 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2021 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -41,7 +41,7 @@ namespace NullDevice
 // Windows flavor of the Platform singleton. The responsibilities of the OS-specific Platform classes are interacting
 // with the OS and kernel-mode drivers. On Windows, this includes managing access to the thunk calls as well as managing
 // any/all LDA chains which the active devices can belong to.
-class Platform : public Pal::Platform
+class Platform final : public Pal::Platform
 {
 public:
     Platform(const PlatformCreateInfo& createInfo, const Util::AllocCallbacks& allocCb);

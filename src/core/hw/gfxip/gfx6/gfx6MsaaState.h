@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2020 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2021 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -39,7 +39,7 @@ class Device;
 // =====================================================================================================================
 // Gfx6 hardware layer MSAA State class: implements GFX6 specific functionality for the ApiStateObject class,
 // specifically for MSAA state.
-class MsaaState : public Pal::MsaaState
+class MsaaState final : public Pal::MsaaState
 {
 public:
     MsaaState(const Device& device, const MsaaStateCreateInfo& msaaState);

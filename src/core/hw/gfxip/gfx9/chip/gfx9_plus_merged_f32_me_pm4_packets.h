@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2020 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2021 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -55,25 +55,6 @@ typedef union PM4_ME_TYPE_3_HEADER
 enum ME_ACQUIRE_MEM_engine_sel_enum
 {
     engine_sel__me_acquire_mem__micro_engine =  1,
-};
-
-// ------------------------------- ME_ACQUIRE_MEM_pws_stage_sel_enum -------------------------------
-enum ME_ACQUIRE_MEM_pws_stage_sel_enum
-{
-    pws_stage_sel__me_acquire_mem__pre_depth__HASPWS      =  0,
-    pws_stage_sel__me_acquire_mem__pre_shader__HASPWS     =  1,
-    pws_stage_sel__me_acquire_mem__pre_color__HASPWS      =  2,
-    pws_stage_sel__me_acquire_mem__pre_pix_shader__HASPWS =  3,
-    pws_stage_sel__me_acquire_mem__cp_pfp__HASPWS         =  4,
-    pws_stage_sel__me_acquire_mem__cp_me__HASPWS          =  5,
-};
-
-// ------------------------------ ME_ACQUIRE_MEM_pws_counter_sel_enum ------------------------------
-enum ME_ACQUIRE_MEM_pws_counter_sel_enum
-{
-    pws_counter_sel__me_acquire_mem__ts_select__HASPWS =  0,
-    pws_counter_sel__me_acquire_mem__ps_select__HASPWS =  1,
-    pws_counter_sel__me_acquire_mem__cs_select__HASPWS =  2,
 };
 
 // -------------------------------------- PM4_ME_ACQUIRE_MEM --------------------------------------
@@ -3302,7 +3283,7 @@ typedef struct PM4_ME_DRAW_INDEX_MULTI_INST
     } ordinal4;
 } PM4_ME_DRAW_INDEX_MULTI_INST;
 
-constexpr unsigned int PM4_ME_DRAW_INDEX_MULTI_INST_SIZEDW__GFX101   = 4;
+constexpr unsigned int PM4_ME_DRAW_INDEX_MULTI_INST_SIZEDW__GFX101 = 4;
 
 // ------------------------------------- PM4_ME_GFX_PIPE_LOCK -------------------------------------
 typedef struct PM4_ME_GFX_PIPE_LOCK

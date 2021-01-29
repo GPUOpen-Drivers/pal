@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2020 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2021 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -83,7 +83,7 @@ struct IndirectParamData
 // snippets corresponding to different operations which can be done in an indirect command (e.g., draw, bind index data,
 // etc.). Contains the indirect parameter data and populates the buffers used to communicate the pipeline signature and
 // properties of the CmdExecuteIndirectCommands() call.
-class IndirectCmdGenerator : public Pal::IndirectCmdGenerator
+class IndirectCmdGenerator final : public Pal::IndirectCmdGenerator
 {
 public:
     static size_t GetSize(
@@ -97,6 +97,8 @@ public:
         IGpuMemory* pGpuMemory,
         gpusize     offset) override;
 
+    virtual uint32 CmdBufStride(const Pipeline* pPipeline) const { return Properties().cmdBufStride; }
+
     virtual void PopulateInvocationBuffer(
         GfxCmdBuffer*   pCmdBuffer,
         const Pipeline* pPipeline,
@@ -104,6 +106,16 @@ public:
         gpusize         argsGpuAddr,
         uint32          maximumCount,
         uint32          indexBufSize,
+        void*           pSrd) const override;
+
+    virtual void PopulateParameterBuffer(
+        GfxCmdBuffer*   pCmdBuffer,
+        const Pipeline* pPipeline,
+        void*           pSrd) const override;
+
+    virtual void PopulatePropertyBuffer(
+        GfxCmdBuffer*   pCmdBuffer,
+        const Pipeline* pPipeline,
         void*           pSrd) const override;
 
     virtual void PopulateSignatureBuffer(

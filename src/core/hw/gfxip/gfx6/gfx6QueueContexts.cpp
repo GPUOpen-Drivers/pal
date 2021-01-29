@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2020 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2021 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -24,6 +24,8 @@
  **********************************************************************************************************************/
 
 #include "core/cmdAllocator.h"
+#include "core/cmdStream.h"
+#include "core/engine.h"
 #include "core/platform.h"
 #include "core/queue.h"
 #include "core/hw/gfxip/gfx6/gfx6CmdUtil.h"
@@ -36,6 +38,8 @@
 #include "core/hw/gfxip/gfx6/g_gfx6ShadowedRegistersInit.h"
 #include "core/hw/gfxip/universalCmdBuffer.h"
 #include "palAssert.h"
+#include "palDequeImpl.h"
+#include "palVectorImpl.h"
 
 #include <limits.h>
 
@@ -115,6 +119,8 @@ ComputeQueueContext::ComputeQueueContext(
     m_pEngine(static_cast<ComputeEngine*>(pEngine)),
     m_queueId(queueId),
     m_queueUseTmzRing(isTmz),
+    m_ringSet(pDevice, false),
+    m_tmzRingSet(pDevice, true),
     m_currentUpdateCounter(0),
     m_currentUpdateCounterTmz(0),
     m_cmdStream(*pDevice,
@@ -134,7 +140,8 @@ ComputeQueueContext::ComputeQueueContext(
                          EngineTypeCompute,
                          SubEngineType::Primary,
                          CmdStreamUsage::Postamble,
-                         false)
+                         false),
+    m_deferCmdStreamChunks(pDevice->GetPlatform())
 {
 }
 
@@ -142,7 +149,17 @@ ComputeQueueContext::ComputeQueueContext(
 // Initializes this QueueContext by creating its internal command stream and rebuilding the command stream's contents.
 Result ComputeQueueContext::Init()
 {
-    Result result = m_cmdStream.Init();
+    Result result = m_ringSet.Init();
+
+    if (result == Result::Success)
+    {
+        result = m_tmzRingSet.Init();
+    }
+
+    if (result == Result::Success)
+    {
+        result = m_cmdStream.Init();
+    }
 
     if (result == Result::Success)
     {
@@ -162,7 +179,58 @@ Result ComputeQueueContext::Init()
 
     if (result == Result::Success)
     {
-        result = RebuildCommandStream(m_queueUseTmzRing);
+        result = RebuildCommandStreams(m_queueUseTmzRing, 0);
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
+Result ComputeQueueContext::UpdateRingSet(
+    bool    isTmz,         // [in]      Whether or not the ring set is tmz protected.
+    bool*   pHasChanged,   // [out]     Whether or not the ring set has updated. If true the ring set must rewrite its
+                           //           registers.
+    uint64  lastTimeStamp) // [in]      The LastTimeStamp associated with the ringSet
+{
+    PAL_ASSERT(m_pParentQueue != nullptr);
+
+    Result result = Result::Success;
+
+    // Check if the queue context associated with this Queue is dirty, and obtain the ring item-sizes to validate
+    // against.
+    const uint32 currentCounter = m_pDevice->QueueContextUpdateCounter();
+    uint32* pCurrentUpdateCounter = isTmz ? &m_currentUpdateCounterTmz : &m_currentUpdateCounter;
+
+    if (currentCounter > *pCurrentUpdateCounter)
+    {
+        *pCurrentUpdateCounter = currentCounter;
+
+        ShaderRingItemSizes ringSizes = {};
+        m_pDevice->GetLargestRingSizes(&ringSizes);
+
+        SamplePatternPalette samplePatternPalette;
+        m_pDevice->GetSamplePatternPalette(&samplePatternPalette);
+
+        if (m_needWaitIdleOnRingResize)
+        {
+            m_pParentQueue->WaitIdle();
+        }
+
+        ComputeRingSet* pRingSet = isTmz ? &m_tmzRingSet : &m_ringSet;
+        uint32 reallocatedRings = 0;
+        result = pRingSet->Validate(ringSizes, samplePatternPalette, lastTimeStamp, &reallocatedRings);
+
+        if (pHasChanged != nullptr)
+        {
+            *pHasChanged = true;
+        }
+    }
+    else
+    {
+        if (pHasChanged != nullptr)
+        {
+            *pHasChanged = false;
+        }
     }
 
     return result;
@@ -176,16 +244,17 @@ Result ComputeQueueContext::PreProcessSubmit(
     InternalSubmitInfo* pSubmitInfo,
     uint32              cmdBufferCount)
 {
-    bool   hasUpdated = false;
+    bool hasUpdated = false;
     const bool isTmz = (pSubmitInfo->flags.isTmzEnabled != 0);
+    const uint64 lastTimestamp = m_pParentQueue->GetSubmissionContext()->LastTimestamp();
 
-    Result result     = m_pEngine->UpdateRingSet(isTmz, &m_currentUpdateCounter, &hasUpdated);
+    Result result = UpdateRingSet(isTmz, &hasUpdated, lastTimestamp);
 
     if ((result == Result::Success) && hasUpdated)
     {
         // isTmz won't change, because TMZ submission can only be submitted to a tmz only queue.
         PAL_ASSERT(m_queueUseTmzRing == isTmz);
-        result = RebuildCommandStream(isTmz);
+        result = RebuildCommandStreams(isTmz, lastTimestamp);
     }
     m_queueUseTmzRing = isTmz;
 
@@ -215,12 +284,94 @@ void ComputeQueueContext::PostProcessSubmit()
         // the GPU already has received the latest updates.
         m_cmdStream.EnableDropIfSameContext(true);
     }
+    ClearDeferredMemory();
+}
+
+// =====================================================================================================================
+void ComputeQueueContext::ClearDeferredMemory()
+{
+    PAL_ASSERT(m_pParentQueue != nullptr);
+
+    SubmissionContext* pSubContext = m_pParentQueue->GetSubmissionContext();
+
+    if (pSubContext != nullptr)
+    {
+        // Time to free the deferred memory
+        m_tmzRingSet.ClearDeferredFreeMemory(pSubContext);
+        m_ringSet.ClearDeferredFreeMemory(pSubContext);
+
+        ChunkRefList chunksToReturn(m_pDevice->GetPlatform());
+
+        for (uint32 i = 0; i < m_deferCmdStreamChunks.NumElements(); i++)
+        {
+            ComputeQueueDeferFreeList item = m_deferCmdStreamChunks.Front();
+            const uint64 ts = item.timestamp;
+            if (pSubContext->IsTimestampRetired(ts) == false)
+            {
+                // Any timestamp in the list more recent than this must also still be in-flight, so end the search.
+                break;
+            }
+
+            ComputeQueueDeferFreeList list = {};
+            m_deferCmdStreamChunks.PopFront(&list);
+
+            for (uint32 idx = 0; idx < Util::ArrayLen(list.pChunk); ++idx)
+            {
+                if (list.pChunk[idx] != nullptr)
+                {
+                    chunksToReturn.PushBack(list.pChunk[idx]);
+                }
+            }
+        }
+
+        // Now return the chunks to command allocator
+        if (chunksToReturn.IsEmpty() == false)
+        {
+            m_pDevice->Parent()->InternalUntrackedCmdAllocator()->ReuseChunks(
+                CommandDataAlloc, false, chunksToReturn.Begin());
+        }
+    }
+}
+
+// =====================================================================================================================
+void ComputeQueueContext::ResetCommandStream(
+    CmdStream*                 pCmdStream,
+    ComputeQueueDeferFreeList* pList,
+    uint32*                    pIndex,
+    uint64                     lastTimeStamp)
+{
+    if (lastTimeStamp == 0)
+    {
+        // the very first submission to the Queue.
+        pCmdStream->Reset(nullptr, true);
+    }
+    else
+    {
+        pCmdStream->Reset(nullptr, false);
+
+        Pal::ChunkRefList deferList(m_pDevice->GetPlatform());
+        Result result = pCmdStream->TransferRetainedChunks(&deferList);
+
+        // PushBack used in TransferRetainedChunks should never fail,
+        // since here only require at most 3 entries,
+        // and by default the Vector used in ChunkRefList has 16 entried
+        PAL_ASSERT(result == Result::Success);
+
+        // the command streams in the queue context should only have 1 chunk each.
+        PAL_ASSERT(deferList.NumElements() <= 1);
+        if (deferList.NumElements() == 1)
+        {
+            deferList.PopBack(&pList->pChunk[*pIndex]);
+            *pIndex = *pIndex + 1;
+        }
+    }
 }
 
 // =====================================================================================================================
 // Regenerates the contents of this context's internal command stream.
-Result ComputeQueueContext::RebuildCommandStream(
-    bool isTmz)
+Result ComputeQueueContext::RebuildCommandStreams(
+    bool   isTmz,
+    uint64 lastTimeStamp)
 {
     /*
      * There are two preambles which PAL submits with every set of command buffers: one which executes as a preamble
@@ -241,10 +392,20 @@ Result ComputeQueueContext::RebuildCommandStream(
 
     const CmdUtil& cmdUtil = m_pDevice->CmdUtil();
 
+    uint32 chunkIdx = 0;
+    ComputeQueueDeferFreeList deferFreeChunkList;
+
+    // Empty deferFreeChunkList at beginning.
+    deferFreeChunkList.timestamp = lastTimeStamp;
+    for (uint32_t idx = 0; idx < ComputeQueueCmdStreamNum; ++idx)
+    {
+        deferFreeChunkList.pChunk[idx] = nullptr;
+    }
+
     // The drop-if-same-context queue preamble.
     //==================================================================================================================
 
-    m_cmdStream.Reset(nullptr, true);
+    ResetCommandStream(&m_cmdStream, &deferFreeChunkList, &chunkIdx, lastTimeStamp);
     Result result = m_cmdStream.Begin({}, nullptr);
 
     if (result == Result::Success)
@@ -255,11 +416,11 @@ Result ComputeQueueContext::RebuildCommandStream(
         // changed, the hardware requires a CS idle to operate properly.
         if (isTmz)
         {
-            pCmdSpace = m_pEngine->TmzRingSet()->WriteCommands(&m_cmdStream, pCmdSpace);
+            pCmdSpace = m_tmzRingSet.WriteCommands(&m_cmdStream, pCmdSpace);
         }
         else
         {
-            pCmdSpace = m_pEngine->RingSet()->WriteCommands(&m_cmdStream, pCmdSpace);
+            pCmdSpace = m_ringSet.WriteCommands(&m_cmdStream, pCmdSpace);
         }
 
         const gpusize waitTsGpuVa = (m_waitForIdleTs.IsBound() ? m_waitForIdleTs.GpuVirtAddr() : 0);
@@ -277,7 +438,7 @@ Result ComputeQueueContext::RebuildCommandStream(
 
     if (result == Result::Success)
     {
-        m_perSubmitCmdStream.Reset(nullptr, true);
+        ResetCommandStream(&m_perSubmitCmdStream, &deferFreeChunkList, &chunkIdx, lastTimeStamp);
         result = m_perSubmitCmdStream.Begin({}, nullptr);
     }
 
@@ -325,7 +486,7 @@ Result ComputeQueueContext::RebuildCommandStream(
 
     if (result == Result::Success)
     {
-        m_postambleCmdStream.Reset(nullptr, true);
+        ResetCommandStream(&m_postambleCmdStream, &deferFreeChunkList, &chunkIdx, lastTimeStamp);
         result = m_postambleCmdStream.Begin({}, nullptr);
     }
 
@@ -391,6 +552,13 @@ Result ComputeQueueContext::RebuildCommandStream(
     m_perSubmitCmdStream.EnableDropIfSameContext(false);
     m_postambleCmdStream.EnableDropIfSameContext(false);
 
+    if (chunkIdx > 0)
+    {
+        // Should have a valid timestamp if there are commnd chunks saved for later to return
+        PAL_ASSERT(deferFreeChunkList.timestamp > 0);
+        result = m_deferCmdStreamChunks.PushBack(deferFreeChunkList);
+    }
+
     return result;
 }
 
@@ -409,6 +577,8 @@ UniversalQueueContext::UniversalQueueContext(
     m_queueId(queueId),
     m_persistentCeRamOffset(persistentCeRamOffset),
     m_persistentCeRamSize(persistentCeRamSize),
+    m_ringSet(pDevice, false),
+    m_tmzRingSet(pDevice, true),
     m_currentUpdateCounter(0),
     m_currentUpdateCounterTmz(0),
     m_cmdsUseTmzRing(false),
@@ -452,7 +622,8 @@ UniversalQueueContext::UniversalQueueContext(
                            EngineTypeUniversal,
                            SubEngineType::Primary,
                            CmdStreamUsage::Postamble,
-                           false)
+                           false),
+    m_deferCmdStreamChunks(pDevice->GetPlatform())
 {
 }
 
@@ -470,7 +641,17 @@ UniversalQueueContext::~UniversalQueueContext()
 // Initializes this QueueContext by creating its internal command streams and rebuilding the command streams' contents.
 Result UniversalQueueContext::Init()
 {
-    Result result = m_deCmdStream.Init();
+    Result result = m_ringSet.Init();
+
+    if (result == Result::Success)
+    {
+        result = m_tmzRingSet.Init();
+    }
+
+    if (result == Result::Success)
+    {
+        result = m_deCmdStream.Init();
+    }
 
     if (result == Result::Success)
     {
@@ -515,7 +696,62 @@ Result UniversalQueueContext::Init()
 
     if (result == Result::Success)
     {
-        result = RebuildCommandStreams(m_cmdsUseTmzRing);
+        result = RebuildCommandStreams(m_cmdsUseTmzRing, 0);
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
+Result UniversalQueueContext::UpdateRingSet(
+    bool    isTmz,        // [in]      whether or not the ring set is tmz protected or not.
+    bool*   pHasChanged,  // [out]     Whether or not the ring set has updated. If true the ring set must rewrite its
+                          //           registers.
+    uint64  lastTimeStamp)// [in]      The LastTimeStamp associated with the ringSet
+
+{
+    PAL_ASSERT(m_pParentQueue != nullptr);
+
+    Result result = Result::Success;
+
+    // Check if the queue context associated with this Queue is dirty, and obtain the ring item-sizes to validate
+    // against.
+    const uint32 currentCounter = m_pDevice->QueueContextUpdateCounter();
+    uint32* pCurrentUpdateCounter = isTmz ? &m_currentUpdateCounterTmz : &m_currentUpdateCounter;
+
+    if (currentCounter > *pCurrentUpdateCounter)
+    {
+        *pCurrentUpdateCounter = currentCounter;
+
+        ShaderRingItemSizes ringSizes = {};
+        m_pDevice->GetLargestRingSizes(&ringSizes);
+
+        SamplePatternPalette samplePatternPalette;
+        m_pDevice->GetSamplePatternPalette(&samplePatternPalette);
+
+        if (m_needWaitIdleOnRingResize)
+        {
+            m_pParentQueue->WaitIdle();
+        }
+
+        UniversalRingSet* pRingSet = isTmz ? &m_tmzRingSet : &m_ringSet;
+        uint32 reallocatedRings = 0;
+
+        result = pRingSet->Validate(ringSizes,
+                                    samplePatternPalette,
+                                    lastTimeStamp,
+                                    &reallocatedRings);
+        if (pHasChanged != nullptr)
+        {
+            *pHasChanged = true;
+        }
+    }
+    else
+    {
+        if (pHasChanged != nullptr)
+        {
+            *pHasChanged = false;
+        }
     }
 
     return result;
@@ -748,7 +984,7 @@ void UniversalQueueContext::WritePerSubmitPreamble(
         // restore those registers *every* submission, rather than just the ones following a ring resize event or
         // after a context switch between applications
         pCmdSpace = pCmdStream->ReserveCommands();
-        pCmdSpace = m_pEngine->RingSet()->WriteNonRlcRestoredRegs(pCmdStream, pCmdSpace);
+        pCmdSpace = m_ringSet.WriteNonRlcRestoredRegs(pCmdStream, pCmdSpace);
         pCmdStream->CommitCommands(pCmdSpace);
     }
 }
@@ -764,14 +1000,15 @@ Result UniversalQueueContext::PreProcessSubmit(
     InternalSubmitInfo* pSubmitInfo,
     uint32              cmdBufferCount)
 {
-    bool   hasUpdated = false;
-    Result result     = Result::Success;
+    bool   hasUpdated    = false;
+    Result result        = Result::Success;
+    uint64 lastTimeStamp = m_pParentQueue->GetSubmissionContext()->LastTimestamp();
 
     // We only need to rebuild the command stream if the user submits at least one command buffer.
     if (cmdBufferCount != 0)
     {
         const bool isTmz = (pSubmitInfo->flags.isTmzEnabled != 0);
-        result = m_pEngine->UpdateRingSet(isTmz, &m_currentUpdateCounter, &hasUpdated);
+        result = UpdateRingSet(isTmz, &hasUpdated, lastTimeStamp);
 
         if ((result == Result::Success) && (hasUpdated == false) && (m_cmdsUseTmzRing != isTmz))
         {
@@ -781,7 +1018,7 @@ Result UniversalQueueContext::PreProcessSubmit(
 
         if ((result == Result::Success) && hasUpdated)
         {
-            result = RebuildCommandStreams(isTmz);
+            result = RebuildCommandStreams(isTmz, lastTimeStamp);
         }
         m_cmdsUseTmzRing = isTmz;
     }
@@ -845,6 +1082,54 @@ void UniversalQueueContext::PostProcessSubmit()
         // On gfx8 this is just an optimization.
         m_cePreambleCmdStream.EnableDropIfSameContext(true);
     }
+
+    ClearDeferredMemory();
+}
+
+// =====================================================================================================================
+void UniversalQueueContext::ClearDeferredMemory()
+{
+    PAL_ASSERT(m_pParentQueue != nullptr);
+
+    SubmissionContext* pSubContext = m_pParentQueue->GetSubmissionContext();
+
+    if (pSubContext != nullptr)
+    {
+        // Time to free the deferred memory
+        m_tmzRingSet.ClearDeferredFreeMemory(pSubContext);
+        m_ringSet.ClearDeferredFreeMemory(pSubContext);
+
+        ChunkRefList chunksToReturn(m_pDevice->GetPlatform());
+
+        for (uint32 i = 0; i < m_deferCmdStreamChunks.NumElements(); i++)
+        {
+            UniversalQueueDeferFreeList item = m_deferCmdStreamChunks.Front();
+            const uint64 ts = item.timestamp;
+            if (pSubContext->IsTimestampRetired(ts) == false)
+            {
+                // Any timestamp in the list more recent than this must also still be in-flight, so end the search.
+                break;
+            }
+
+            UniversalQueueDeferFreeList list = {};
+            m_deferCmdStreamChunks.PopFront(&list);
+
+            for (uint32 idx = 0; idx < Util::ArrayLen(list.pChunk); ++idx)
+            {
+                if (list.pChunk[idx] != nullptr)
+                {
+                    chunksToReturn.PushBack(list.pChunk[idx]);
+                }
+            }
+        }
+
+        // Now return the chunks to command allocator
+        if (chunksToReturn.IsEmpty() == false)
+        {
+            m_pDevice->Parent()->InternalUntrackedCmdAllocator()->ReuseChunks(
+                CommandDataAlloc, false, chunksToReturn.Begin());
+        }
+    }
 }
 
 // =====================================================================================================================
@@ -876,9 +1161,44 @@ Result UniversalQueueContext::ProcessInitialSubmit(
 }
 
 // =====================================================================================================================
+void UniversalQueueContext::ResetCommandStream(
+    CmdStream*                   pCmdStream,
+    UniversalQueueDeferFreeList* pList,
+    uint32*                      pIndex,
+    uint64                       lastTimeStamp)
+{
+    if (lastTimeStamp == 0)
+    {
+        // the very first submission to the Queue.
+        pCmdStream->Reset(nullptr, true);
+    }
+    else
+    {
+        pCmdStream->Reset(nullptr, false);
+
+        Pal::ChunkRefList deferList(m_pDevice->GetPlatform());
+        Result result = pCmdStream->TransferRetainedChunks(&deferList);
+
+        // PushBack used in TransferRetainedChunks should never fail,
+        // since here only require at most 5 entries,
+        // and by default the Vector used in ChunkRefList has 16 entried
+        PAL_ASSERT(result == Result::Success);
+
+        // the command streams in the queue context should only have 1 chunk each.
+        PAL_ASSERT(deferList.NumElements() <= 1);
+        if (deferList.NumElements() == 1)
+        {
+            deferList.PopBack(&pList->pChunk[*pIndex]);
+            *pIndex = *pIndex + 1;
+        }
+    }
+}
+
+// =====================================================================================================================
 // Regenerates the contents of this context's internal command streams.
 Result UniversalQueueContext::RebuildCommandStreams(
-    bool isTmz)
+    bool   isTmz,
+    uint64 lastTimeStamp)
 {
     /*
      * There are two DE preambles which PAL submits with every set of command buffers: one which executes as a preamble
@@ -914,10 +1234,19 @@ Result UniversalQueueContext::RebuildCommandStreams(
 
     const CmdUtil& cmdUtil = m_pDevice->CmdUtil();
 
+    UniversalQueueDeferFreeList deferFreeChunkList;
+    uint32                      deferChunkIndex = 0;
+
+    // Empty deferFreeChunkList at beginning.
+    deferFreeChunkList.timestamp = lastTimeStamp;
+    for (uint32_t idx = 0; idx < UniversalQueueCmdStreamNum; ++idx)
+    {
+        deferFreeChunkList.pChunk[idx] = nullptr;
+    }
+
     // The drop-if-same-context DE preamble.
     //==================================================================================================================
-
-    m_deCmdStream.Reset(nullptr, true);
+    ResetCommandStream(&m_deCmdStream, &deferFreeChunkList, &deferChunkIndex, lastTimeStamp);
     Result result = m_deCmdStream.Begin({}, nullptr);
 
     if (result == Result::Success)
@@ -926,18 +1255,15 @@ Result UniversalQueueContext::RebuildCommandStreams(
 
         pCmdSpace = WriteUniversalPreamble(pCmdSpace);
 
-        const auto* pRingSet = m_pEngine->RingSet();
-        const auto* ptmzRingSet = m_pEngine->TmzRingSet();
-
         // Write the shader ring-set's commands after the command stream's normal preamble. If the ring sizes have changed,
         // the hardware requires a CS/VS/PS partial flush to operate properly.
         if (isTmz)
         {
-            pCmdSpace = ptmzRingSet->WriteCommands(&m_deCmdStream, pCmdSpace);
+            pCmdSpace = m_tmzRingSet.WriteCommands(&m_deCmdStream, pCmdSpace);
         }
         else
         {
-            pCmdSpace = pRingSet->WriteCommands(&m_deCmdStream, pCmdSpace);
+            pCmdSpace = m_ringSet.WriteCommands(&m_deCmdStream, pCmdSpace);
         }
         pCmdSpace += cmdUtil.BuildEventWrite(CS_PARTIAL_FLUSH, pCmdSpace);
         pCmdSpace += cmdUtil.BuildEventWrite(VS_PARTIAL_FLUSH, pCmdSpace);
@@ -960,7 +1286,7 @@ Result UniversalQueueContext::RebuildCommandStreams(
         {
             // If the workaround is disabled, we only need to restore the non-RLC registers whenever the ring sizes
             // are changed or after a context switch between applications.
-            pCmdSpace = pRingSet->WriteNonRlcRestoredRegs(&m_deCmdStream, pCmdSpace);
+            pCmdSpace = m_ringSet.WriteNonRlcRestoredRegs(&m_deCmdStream, pCmdSpace);
         }
 
         pCmdSpace = WriteTrapInstallCmds(m_pDevice, &m_deCmdStream, PipelineBindPoint::Graphics, pCmdSpace);
@@ -975,7 +1301,7 @@ Result UniversalQueueContext::RebuildCommandStreams(
 
     if (result == Result::Success)
     {
-        m_perSubmitCmdStream.Reset(nullptr, true);
+        ResetCommandStream(&m_perSubmitCmdStream, &deferFreeChunkList, &deferChunkIndex, lastTimeStamp);
         result = m_perSubmitCmdStream.Begin({}, nullptr);
     }
 
@@ -999,7 +1325,7 @@ Result UniversalQueueContext::RebuildCommandStreams(
     if (result == Result::Success)
     {
         // The DE postamble is always built. The CE preamble and postamble may not be needed.
-        m_dePostambleCmdStream.Reset(nullptr, true);
+        ResetCommandStream(&m_dePostambleCmdStream, &deferFreeChunkList, &deferChunkIndex, lastTimeStamp);
         result = m_dePostambleCmdStream.Begin({}, nullptr);
     }
 
@@ -1023,7 +1349,7 @@ Result UniversalQueueContext::RebuildCommandStreams(
 
         if (result == Result::Success)
         {
-            m_cePreambleCmdStream.Reset(nullptr, true);
+            ResetCommandStream(&m_cePreambleCmdStream, &deferFreeChunkList, &deferChunkIndex, lastTimeStamp);
             result = m_cePreambleCmdStream.Begin({}, nullptr);
         }
 
@@ -1053,7 +1379,7 @@ Result UniversalQueueContext::RebuildCommandStreams(
 
             if (result == Result::Success)
             {
-                m_cePostambleCmdStream.Reset(nullptr, true);
+                ResetCommandStream(&m_cePostambleCmdStream, &deferFreeChunkList, &deferChunkIndex, lastTimeStamp);
                 result = m_cePostambleCmdStream.Begin({}, nullptr);
             }
 
@@ -1128,6 +1454,13 @@ Result UniversalQueueContext::RebuildCommandStreams(
                (m_cePostambleCmdStream.GetNumChunks() <= 1) &&
                (m_dePostambleCmdStream.GetNumChunks() <= 1));
 
+    if (deferChunkIndex > 0)
+    {
+        // Should have a valid timestamp if there are commnd chunks saved for later to return
+        PAL_ASSERT(deferFreeChunkList.timestamp > 0);
+        result = m_deferCmdStreamChunks.PushBack(deferFreeChunkList);
+    }
+
     return result;
 }
 
@@ -1170,6 +1503,14 @@ uint32* UniversalQueueContext::WriteUniversalPreamble(
                                                      mmVGT_INDX_OFFSET,
                                                      &vgt,
                                                      pCmdSpace);
+
+    // Force line stipple scale to 1.0f
+    regPA_SU_LINE_STIPPLE_SCALE paSuLineStippleScale = {};
+    constexpr uint32 FloatOne = 0x3F800000;
+    paSuLineStippleScale.bits.LINE_STIPPLE_SCALE = FloatOne;
+    pCmdSpace = m_deCmdStream.WriteSetOneContextReg(mmPA_SU_LINE_STIPPLE_SCALE,
+                                                    paSuLineStippleScale.u32All,
+                                                    pCmdSpace);
 
     if (chipProps.gfxLevel == GfxIpLevel::GfxIp6)
     {

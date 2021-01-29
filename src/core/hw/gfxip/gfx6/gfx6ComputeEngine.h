@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2016-2020 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2016-2021 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -34,7 +34,7 @@ namespace Pal
 namespace Gfx6
 {
 
-class ComputeEngine : public Engine
+class ComputeEngine final : public Engine
 {
 public:
     ComputeEngine(
@@ -43,22 +43,8 @@ public:
         uint32     index);
     virtual ~ComputeEngine() {};
 
-    virtual Result Init() override;
-
-    ComputeRingSet* RingSet() { return &m_ringSet; }
-
-    ComputeRingSet* TmzRingSet() { return &m_tmzRingSet; }
-
-    Result UpdateRingSet(bool isTmz, uint32* pCounterVal, bool* pHasChanged);
-
 private:
     Device*        m_pDevice;
-    ComputeRingSet m_ringSet;
-    ComputeRingSet m_tmzRingSet;
-    uint32         m_currentUpdateCounter;  // Current watermark for the device-initiated context updates that have been
-                                            // processed by this engine.
-    uint32         m_currentUpdateCounterTmz;
-    bool           m_tmzEnabled;
 
     PAL_DISALLOW_COPY_AND_ASSIGN(ComputeEngine);
     PAL_DISALLOW_DEFAULT_CTOR(ComputeEngine);

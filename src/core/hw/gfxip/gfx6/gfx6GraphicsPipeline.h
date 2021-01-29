@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2020 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2021 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -75,7 +75,7 @@ struct DynamicStageInfos
 // GFX6 graphics pipeline class: implements common GFX6-specific funcionality for the GraphicsPipeline class.  Details
 // specific to a particular pipeline configuration (GS-enabled, tessellation-enabled, etc) are offloaded to appropriate
 // subclasses.
-class GraphicsPipeline : public Pal::GraphicsPipeline
+class GraphicsPipeline final : public Pal::GraphicsPipeline
 {
 public:
     GraphicsPipeline(Device* pDevice, bool isInternal);
@@ -126,6 +126,7 @@ public:
     const GraphicsPipelineSignature& Signature() const { return m_signature; }
 
     bool UsesViewInstancing() const { return (m_signature.viewIdRegAddr[0] != UserDataNotMapped); }
+    bool IsLineStippleTexEnabled() const { return m_chunkVsPs.SpiPsInputEna().bits.LINE_STIPPLE_TEX_ENA != 0; }
 
     uint32* WriteShCommands(
         CmdStream*                        pCmdStream,
@@ -300,7 +301,7 @@ private:
 
 // =====================================================================================================================
 // Extension of the PipelineUploader helper class for Gfx9+ graphics pipelines.
-class GraphicsPipelineUploader : public Pal::PipelineUploader
+class GraphicsPipelineUploader final : public Pal::PipelineUploader
 {
 public:
     explicit GraphicsPipelineUploader(

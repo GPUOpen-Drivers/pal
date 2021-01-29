@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2018-2020 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2018-2021 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -65,16 +65,20 @@ BestFitAllocator<Allocator>::BestFitAllocator(
 template<typename Allocator>
 BestFitAllocator<Allocator>::~BestFitAllocator()
 {
-    SanityCheck();
-
-    auto block = m_blockList.Begin();
-    // If we don't have a single block that isn't busy, then the user didn't free all of the memory
-    PAL_ALERT(!((m_blockList.NumElements() == 1) && (block.Get()->isBusy == false)));
-
-    // Clear out the list so that Util::List doesn't complain
-    while(block.Get() != nullptr)
+    // Prevent access violation in the case that init is failed
+    if (m_blockList.NumElements() > 0)
     {
-        m_blockList.Erase(&block);
+        SanityCheck();
+
+        auto block = m_blockList.Begin();
+        // If we don't have a single block that isn't busy, then the user didn't free all of the memory
+        PAL_ALERT(!((m_blockList.NumElements() == 1) && (block.Get()->isBusy == false)));
+
+        // Clear out the list so that Util::List doesn't complain
+        while (block.Get() != nullptr)
+        {
+            m_blockList.Erase(&block);
+        }
     }
 }
 

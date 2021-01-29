@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2020 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2021 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -41,7 +41,7 @@ class Device;
 // =====================================================================================================================
 // Gfx9 hardware layer BorderColorPalette class: responsible for binding the address of the border color palette in
 // memory.
-class BorderColorPalette : public Pal::BorderColorPalette
+class BorderColorPalette final : public Pal::BorderColorPalette
 {
 public:
     BorderColorPalette(const Device& device, const BorderColorPaletteCreateInfo& createInfo);

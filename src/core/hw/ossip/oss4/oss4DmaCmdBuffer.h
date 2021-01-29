@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2020 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2021 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -35,7 +35,7 @@ namespace Oss4
 
 // =====================================================================================================================
 // OSS4 hardware-specific functionality for DMA command buffer execution.
-class DmaCmdBuffer : public Pal::DmaCmdBuffer
+class DmaCmdBuffer final : public Pal::DmaCmdBuffer
 {
 public:
     DmaCmdBuffer(Device* pDevice, const CmdBufferCreateInfo& createInfo);

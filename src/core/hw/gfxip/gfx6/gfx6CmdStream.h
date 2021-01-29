@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2020 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2021 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -49,7 +49,7 @@ struct UserDataEntryMap;
 // class has no command block concept, it simply doles out command space; however it must notify its subclasses when it
 // switches to a new command chunk so that they have a chance to chain the old chunk's final command block to the first
 // block of the new chunk.
-class CmdStream : public Pal::GfxCmdStream
+class CmdStream final : public Pal::GfxCmdStream
 {
 public:
     CmdStream(

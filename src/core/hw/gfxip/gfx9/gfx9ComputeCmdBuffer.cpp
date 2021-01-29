@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2020 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2021 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -144,8 +144,6 @@ void ComputeCmdBuffer::CmdBarrier(
     // Barriers do not honor predication.
     const uint32 packetPredicate = m_gfxCmdBufState.flags.packetPredicate;
     m_gfxCmdBufState.flags.packetPredicate = 0;
-
-    m_device.Barrier(this, &m_cmdStream, barrierInfo);
 
     bool splitMemAllocated;
     BarrierInfo splitBarrierInfo = barrierInfo;
@@ -1779,7 +1777,6 @@ void ComputeCmdBuffer::AddPerPresentCommands(
 void ComputeCmdBuffer::InheritStateFromCmdBuf(
     const GfxCmdBuffer* pCmdBuffer)
 {
-    const ComputeCmdBuffer* pComputeCmdBuffer = static_cast<const ComputeCmdBuffer*>(pCmdBuffer);
     SetComputeState(pCmdBuffer->GetComputeState(), ComputeStateAll);
 }
 

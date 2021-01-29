@@ -1,5 +1,5 @@
 ```
-Copyright (c) 2019 Advanced Micro Devices, Inc.  All rights reserved.
+Copyright (c) 2019-2021 Advanced Micro Devices, Inc. All rights reserved.
 ```
 
 <!--
@@ -310,8 +310,6 @@ Namespaces
 
 -   The using namespace keyword ***must not*** precede a `#include`
     directive.
-
--   Unnamed (i.e. anonymous) namespaces ***must not*** be used.
 
 -   Contents of a namespace ***must not*** be indented.
 
@@ -760,6 +758,9 @@ private:
 
 -   All destructors throughout an inheritance hierarchy ***must*** be
     declared virtual.
+
+-   Derived classes which have no child classes ***must*** be
+    declared using the "final" keyword.
 
 ### Constructors
 

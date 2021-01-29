@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2020 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2021 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -612,7 +612,10 @@ ADDR2_SURFACE_FLAGS AddrMgr2::DetermineSurfaceFlags(
     // packed and/or YUV planar formats.
     flags.interleaved = Formats::IsYuv(createInfo.swizzledFormat.format);
 
-    flags.display = createInfo.flags.flippable | image.IsPrivateScreenPresent() | image.IsTurboSyncSurface();
+    flags.display = createInfo.flags.flippable     |
+                    image.IsPrivateScreenPresent() |
+                    image.IsTurboSyncSurface()     |
+                    createInfo.flags.pipSwapChain;
 
     if (IsGfx10(m_gfxLevel) && ((flags.depth == 1) || (createInfo.samples > 1)))
     {
@@ -687,7 +690,13 @@ Result AddrMgr2::ComputePlaneSwizzleMode(
 #endif
     surfSettingInput.resourceType    = GetAddrResourceType(pImage);
     surfSettingInput.resourceLoction = ADDR_RSRC_LOC_UNDEF;
-    surfSettingInput.noXor           = settings.addr2DisableXorTileMode;
+
+    // Starting from gfx10, depth-stencil target image only supports xor swizzle modes,
+    // so addr2DisableXorTileMode cannot apply here.
+    if ((createInfo.usageFlags.depthStencil == 0) || (IsGfx10(*m_pDevice) == false))
+    {
+        surfSettingInput.noXor = settings.addr2DisableXorTileMode;
+    }
 
     // Note: This is used by the AddrLib as an additional clamp on 4kB vs. 64kB swizzle modes. It can be set to zero
     // to force the AddrLib to chose the most optimal mode.
@@ -938,56 +947,13 @@ Result AddrMgr2::ComputeAlignedPlaneDimensions(
     // bitsPerTexel is already the size of an element. The exception is 96-bit formats which have three 32-bit element
     // per texel.
     const uint32 bytesPerElement = CalcBytesPerElement(pBaseSubRes);
-    const bool   isYuvPlanar     = Formats::IsYuvPlanar(createInfo.swizzledFormat.format);
 
     if ((createInfo.rowPitch > 0) && (createInfo.depthPitch > 0))
     {
         PAL_ASSERT((createInfo.rowPitch % bytesPerElement) == 0);
 
         surfInfoIn.pitchInElement = createInfo.rowPitch / bytesPerElement;
-
-        gpusize planeSize = createInfo.depthPitch;
-        if (isYuvPlanar)
-        {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-            if (pBaseSubRes->subresId.aspect == ImageAspect::Y)
-#else
-            if (pBaseSubRes->subresId.plane == 0) // Y
-#endif
-            {
-                planeSize = imageInfo.internalCreateInfo.chromaPlaneOffset[0];
-            }
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-            else if (pBaseSubRes->subresId.aspect == ImageAspect::CbCr)
-#else
-            else if ((pBaseSubRes->subresId.plane == 1) && (imageInfo.numPlanes == 2)) // CbCr
-#endif
-            {
-                planeSize -= imageInfo.internalCreateInfo.chromaPlaneOffset[0];
-            }
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-            else if (pBaseSubRes->subresId.aspect == ImageAspect::Cb)
-#else
-            else if ((pBaseSubRes->subresId.plane == 1) && (imageInfo.numPlanes == 3)) // Cb
-#endif
-            {
-                planeSize = (imageInfo.internalCreateInfo.chromaPlaneOffset[1] -
-                    imageInfo.internalCreateInfo.chromaPlaneOffset[0]);
-            }
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-            else if (pBaseSubRes->subresId.aspect == ImageAspect::Cr)
-#else
-            else if (pBaseSubRes->subresId.plane == 2) // Cr
-#endif
-            {
-                planeSize -= imageInfo.internalCreateInfo.chromaPlaneOffset[1];
-            }
-
-            PAL_ASSERT(imageInfo.internalCreateInfo.chromaPlaneOffset[0] != 0);
-            PAL_ASSERT((imageInfo.numPlanes != 3) || (imageInfo.internalCreateInfo.chromaPlaneOffset[1] != 0));
-        }
-
-        surfInfoIn.sliceAlign = static_cast<uint32>(planeSize);
+        surfInfoIn.sliceAlign     = createInfo.depthPitch;
     }
     else if ((IsGfx9(*m_pDevice) == true) &&
              (createInfo.swizzledFormat.format == ChNumFormat::YV12) &&
@@ -1271,16 +1237,9 @@ Result AddrMgr2::InitSubresourceInfo(
             {
                 result = Result::ErrorMismatchedImageRowPitch;
             }
-            else if (createInfo.depthPitch != 0)
+            else if ((createInfo.depthPitch != 0) && (pSubResInfo->depthPitch != createInfo.depthPitch))
             {
-                const bool isYuvPlanar = Formats::IsYuvPlanar(createInfo.swizzledFormat.format);
-                // For YUV image, imageCreateInfo.depthPitch includes both the Y and UV planes, while the
-                // pSubResInfo->depthPitch is only covering either the Y or UV planes.
-                if (((isYuvPlanar == true)  && (pSubResInfo->depthPitch >= createInfo.depthPitch)) ||
-                    ((isYuvPlanar == false) && (pSubResInfo->depthPitch != createInfo.depthPitch)))
-                {
-                    result = Result::ErrorMismatchedImageDepthPitch;
-                }
+                result = Result::ErrorMismatchedImageDepthPitch;
             }
         }
     }

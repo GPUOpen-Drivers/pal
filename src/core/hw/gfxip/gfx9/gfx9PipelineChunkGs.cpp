@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2020 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2021 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -249,7 +249,7 @@ void PipelineChunkGs::LateInit(
 
         if (IsGfx10(chipProps.gfxLevel))
         {
-            m_regs.dynamic.spiShaderPgmRsrc4Gs.gfx10.CU_EN = m_device.GetCuEnableMaskHi(GsCuDisableMaskHi,
+            m_regs.dynamic.spiShaderPgmRsrc4Gs.most.CU_EN = m_device.GetCuEnableMaskHi(GsCuDisableMaskHi,
                                                                                         settings.gsCuEnLimitMask);
         }
     }
@@ -423,8 +423,8 @@ uint32* PipelineChunkGs::WriteShCommands(
 
         if (IsGfx10(chipProps.gfxLevel))
         {
-            dynamic.spiShaderPgmRsrc4Gs.gfx10.CU_EN =
-                Device::AdjustCuEnHi(dynamic.spiShaderPgmRsrc4Gs.gfx10.CU_EN, gsStageInfo.cuEnableMask);
+            dynamic.spiShaderPgmRsrc4Gs.most.CU_EN =
+                Device::AdjustCuEnHi(dynamic.spiShaderPgmRsrc4Gs.most.CU_EN, gsStageInfo.cuEnableMask);
         }
     }
 

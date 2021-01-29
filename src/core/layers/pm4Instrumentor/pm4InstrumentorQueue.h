@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2019-2020 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2019-2021 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -92,7 +92,7 @@ typedef Util::Vector<RegisterInfo, 1u, Platform>  RegisterInfoVector;
 // =====================================================================================================================
 // Pm4Instrumentor layer implementation of IQueue.  Accumulates stats from each submitted command buffer and dumps them
 // to a log file.
-class Queue : public QueueDecorator
+class Queue final : public QueueDecorator
 {
 public:
     Queue(IQueue*  pNextQueue,

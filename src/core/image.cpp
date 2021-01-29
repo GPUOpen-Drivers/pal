@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2020 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2021 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -561,6 +561,7 @@ void Image::DetermineFormatForPlane(
             case ChNumFormat::NV11:
             case ChNumFormat::NV12:
             case ChNumFormat::NV21:
+            case ChNumFormat::P208:
                 pFormat->format  = supportsX8Y8Mm ? ChNumFormat::X8Y8_MM_Uint : ChNumFormat::X8Y8_Uint;
                 pFormat->swizzle =
                     { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Zero, ChannelSwizzle::One };

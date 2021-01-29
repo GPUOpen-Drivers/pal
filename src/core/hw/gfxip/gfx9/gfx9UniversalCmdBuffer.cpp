@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2020 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2021 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -328,8 +328,6 @@ UniversalCmdBuffer::UniversalCmdBuffer(
     m_cachedSettings.hiStencilDisabled          = !settings.hiStencilEnable;
     m_cachedSettings.disableBatchBinning        = (settings.binningMode == Gfx9DeferredBatchBinDisabled);
     m_cachedSettings.disablePbbPsKill           = settings.disableBinningPsKill;
-    m_cachedSettings.disablePbbNoDb             = settings.disableBinningNoDb;
-    m_cachedSettings.disablePbbBlendingOff      = settings.disableBinningBlendingOff;
     m_cachedSettings.disablePbbAppendConsume    = settings.disableBinningAppendConsume;
     m_cachedSettings.ignoreCsBorderColorPalette = settings.disableBorderColorPaletteBinds;
     m_cachedSettings.blendOptimizationsEnable   = settings.blendOptimizationsEnable;
@@ -421,18 +419,28 @@ UniversalCmdBuffer::UniversalCmdBuffer(
 #endif
 
     // Initialize defaults for some of the fields in PA_SC_BINNER_CNTL_0.
-    m_paScBinnerCntl0.u32All                         = 0;
-    m_paScBinnerCntl0.bits.CONTEXT_STATES_PER_BIN    = (settings.binningContextStatesPerBin - 1);
-    m_paScBinnerCntl0.bits.PERSISTENT_STATES_PER_BIN = (settings.binningPersistentStatesPerBin - 1);
-    m_paScBinnerCntl0.bits.FPOVS_PER_BATCH           = settings.binningFpovsPerBatch;
-    m_paScBinnerCntl0.bits.OPTIMAL_BIN_SELECTION     = settings.binningOptimalBinSelection;
+    m_pbbCntlRegs.paScBinnerCntl0.u32All                         = 0;
+    m_pbbCntlRegs.paScBinnerCntl0.bits.CONTEXT_STATES_PER_BIN    = (settings.binningContextStatesPerBin - 1);
+    m_pbbCntlRegs.paScBinnerCntl0.bits.FPOVS_PER_BATCH           = settings.binningFpovsPerBatch;
+    m_pbbCntlRegs.paScBinnerCntl0.bits.OPTIMAL_BIN_SELECTION     = settings.binningOptimalBinSelection;
 
     // Hardware detects binning transitions when this is set so SW can hardcode it.
     // This has no effect unless the KMD has also set PA_SC_ENHANCE_1.FLUSH_ON_BINNING_TRANSITION=1
     if (IsGfx091xPlus(palDevice))
     {
-        m_paScBinnerCntl0.gfx09_1xPlus.FLUSH_ON_BINNING_TRANSITION = 1;
+        m_pbbCntlRegs.paScBinnerCntl0.gfx09_1xPlus.FLUSH_ON_BINNING_TRANSITION = 1;
     }
+
+    m_pbbCntlRegs.paScBinnerCntl1.u32All       = 0;
+    m_cachedPbbSettings.maxAllocCountNgg       = (settings.binningMaxAllocCountNggOnChip - 1);
+    m_cachedPbbSettings.maxAllocCountLegacy    = (settings.binningMaxAllocCountLegacy    - 1);
+    m_cachedPbbSettings.maxPrimPerBatch        = (settings.binningMaxPrimPerBatch        - 1);
+    m_cachedPbbSettings.persistentStatesPerBin = (settings.binningPersistentStatesPerBin - 1);
+    PAL_ASSERT(m_cachedPbbSettings.maxAllocCountNgg    == (settings.binningMaxAllocCountNggOnChip - 1));
+    PAL_ASSERT(m_cachedPbbSettings.maxAllocCountLegacy == (settings.binningMaxAllocCountLegacy    - 1));
+    PAL_ASSERT(m_cachedPbbSettings.maxPrimPerBatch     == (settings.binningMaxPrimPerBatch        - 1));
+
+    m_pbbCntlRegs.paScBinnerCntl0.bits.PERSISTENT_STATES_PER_BIN = m_cachedPbbSettings.persistentStatesPerBin;
 
     // Initialize to the common value for most pipelines (no conservative rast).
     m_paScConsRastCntl.u32All                         = 0;
@@ -446,6 +454,8 @@ UniversalCmdBuffer::UniversalCmdBuffer(
     m_prevDbRenderOverride.u32All = 0;
     m_paScAaConfigNew.u32All      = 0;
     m_paScAaConfigLast.u32All     = 0;
+    m_paSuLineStippleCntl.u32All  = 0;
+    m_paScLineStipple.u32All      = 0;
 
     // GFX10 moves the RESET_EN functionality to a new register called GE_MULTI_PRIM_IB_RESET_EN.  Verify that
     // the GFX10 register has the exact same layout as the GFX9 register to eliminate the need for run-time "if"
@@ -652,38 +662,40 @@ void UniversalCmdBuffer::ResetState()
     m_dbDfsmControl.u32All    = ((m_cmdUtil.GetRegInfo().mmDbDfsmControl != 0) ? m_device.GetDbDfsmControl() : 0);
     m_paScAaConfigNew.u32All  = 0;
     m_paScAaConfigLast.u32All = 0;
+    m_paSuLineStippleCntl.u32All = 0;
+    m_paScLineStipple.u32All = 0;
 
     // Disable PBB at the start of each command buffer unconditionally. Each draw can set the appropriate
     // PBB state at validate time.
     m_enabledPbb = false;
 
     Extent2d binSize = {};
-    m_paScBinnerCntl0.bits.BINNING_MODE = GetDisableBinningSetting(&binSize);
+    m_pbbCntlRegs.paScBinnerCntl0.bits.BINNING_MODE = GetDisableBinningSetting(&binSize);
     if ((binSize.width != 0) && (binSize.height != 0))
     {
         if (binSize.width == 16)
         {
-            m_paScBinnerCntl0.bits.BIN_SIZE_X        = 1;
-            m_paScBinnerCntl0.bits.BIN_SIZE_X_EXTEND = 0;
+            m_pbbCntlRegs.paScBinnerCntl0.bits.BIN_SIZE_X        = 1;
+            m_pbbCntlRegs.paScBinnerCntl0.bits.BIN_SIZE_X_EXTEND = 0;
         }
         else
         {
-            m_paScBinnerCntl0.bits.BIN_SIZE_X        = 0;
-            m_paScBinnerCntl0.bits.BIN_SIZE_X_EXTEND = Device::GetBinSizeEnum(binSize.width);
+            m_pbbCntlRegs.paScBinnerCntl0.bits.BIN_SIZE_X        = 0;
+            m_pbbCntlRegs.paScBinnerCntl0.bits.BIN_SIZE_X_EXTEND = Device::GetBinSizeEnum(binSize.width);
         }
 
         if (binSize.height == 16)
         {
-            m_paScBinnerCntl0.bits.BIN_SIZE_Y        = 1;
-            m_paScBinnerCntl0.bits.BIN_SIZE_Y_EXTEND = 0;
+            m_pbbCntlRegs.paScBinnerCntl0.bits.BIN_SIZE_Y        = 1;
+            m_pbbCntlRegs.paScBinnerCntl0.bits.BIN_SIZE_Y_EXTEND = 0;
         }
         else
         {
-            m_paScBinnerCntl0.bits.BIN_SIZE_Y        = 0;
-            m_paScBinnerCntl0.bits.BIN_SIZE_Y_EXTEND = Device::GetBinSizeEnum(binSize.height);
+            m_pbbCntlRegs.paScBinnerCntl0.bits.BIN_SIZE_Y        = 0;
+            m_pbbCntlRegs.paScBinnerCntl0.bits.BIN_SIZE_Y_EXTEND = Device::GetBinSizeEnum(binSize.height);
         }
     }
-    m_paScBinnerCntl0.bits.DISABLE_START_OF_PRIM = 1;
+    m_pbbCntlRegs.paScBinnerCntl0.bits.DISABLE_START_OF_PRIM = 1;
 
     // Reset the command buffer's HWL state tracking
     m_state.flags.u32All                                  = 0;
@@ -4090,7 +4102,10 @@ Result UniversalCmdBuffer::AddPreamble()
         }
     }
 
-    pDeCmdSpace = m_deCmdStream.WriteSetOneContextReg(mmPA_SC_BINNER_CNTL_0, m_paScBinnerCntl0.u32All, pDeCmdSpace);
+    pDeCmdSpace = m_deCmdStream.WriteSetSeqContextRegs(mmPA_SC_BINNER_CNTL_0,
+                                                       mmPA_SC_BINNER_CNTL_1,
+                                                       &m_pbbCntlRegs,
+                                                       pDeCmdSpace);
 
     if (isNested == false)
     {
@@ -5688,7 +5703,7 @@ uint32* UniversalCmdBuffer::ValidateDraw(
 
         if (m_pbbStateOverride == BinningOverride::Default)
         {
-            shouldEnablePbb = ShouldEnablePbb(*pPipeline, pBlendState, pDepthState, pMsaaState);
+            shouldEnablePbb = ShouldEnablePbb(*pPipeline, pDepthState, pMsaaState);
         }
 
         // Reset binner state unless it used to be off and remains off.  If it was on and remains on, it is possible
@@ -5699,7 +5714,7 @@ uint32* UniversalCmdBuffer::ValidateDraw(
             )
         {
             m_enabledPbb = shouldEnablePbb;
-            pDeCmdSpace  = ValidateBinSizes<Pm4OptImmediate>(*pPipeline, pBlendState, pDeCmdSpace);
+            pDeCmdSpace  = ValidateBinSizes<Pm4OptImmediate, IsNgg>(pDeCmdSpace);
         }
     }
 
@@ -5714,7 +5729,8 @@ uint32* UniversalCmdBuffer::ValidateDraw(
         pDeCmdSpace = Gfx10ValidateTriangleRasterState(pPipeline, pDeCmdSpace);
     }
 
-    if (StateDirty && (dirtyFlags.lineStippleState || dirtyFlags.inputAssemblyState))
+    const bool lineStippleStateDirty = StateDirty && (dirtyFlags.lineStippleState || dirtyFlags.inputAssemblyState);
+    if (lineStippleStateDirty)
     {
         regPA_SC_LINE_STIPPLE paScLineStipple  = {};
         paScLineStipple.bits.REPEAT_COUNT      = m_graphicsState.lineStippleState.lineStippleScale;
@@ -5722,12 +5738,41 @@ uint32* UniversalCmdBuffer::ValidateDraw(
 #if BIGENDIAN_CPU
         paScLineStipple.bits.PATTERN_BIT_ORDER = 1;
 #endif
+        // 1: Reset pattern count at each primitive
+        // 2: Reset pattern count at each packet
         paScLineStipple.bits.AUTO_RESET_CNTL   =
-            (m_graphicsState.inputAssemblyState.topology == PrimitiveTopology::LineStrip) ? 2 : 1;
+            (m_graphicsState.inputAssemblyState.topology == PrimitiveTopology::LineList) ? 1 : 2;
 
-        pDeCmdSpace = m_deCmdStream.WriteSetOneContextReg<Pm4OptImmediate>(mmPA_SC_LINE_STIPPLE,
-                                                                           paScLineStipple.u32All,
-                                                                           pDeCmdSpace);
+        if (paScLineStipple.u32All != m_paScLineStipple.u32All)
+        {
+            pDeCmdSpace = m_deCmdStream.WriteSetOneContextRegNoOpt(mmPA_SC_LINE_STIPPLE,
+                                                                   paScLineStipple.u32All,
+                                                                   pDeCmdSpace);
+            m_paScLineStipple = paScLineStipple;
+        }
+    }
+
+    if (PipelineDirty || lineStippleStateDirty)
+    {
+        regPA_SU_LINE_STIPPLE_CNTL paSuLineStippleCntl = {};
+
+        if (pPipeline->IsLineStippleTexEnabled())
+        {
+            // Line stipple tex is only used by line stipple with wide antialiased line. so we need always
+            // enable FRACTIONAL_ACCUM and EXPAND_FULL_LENGT.
+            paSuLineStippleCntl.bits.LINE_STIPPLE_RESET =
+                (m_graphicsState.inputAssemblyState.topology == PrimitiveTopology::LineList) ? 1 : 2;
+            paSuLineStippleCntl.bits.FRACTIONAL_ACCUM = 1;
+            paSuLineStippleCntl.bits.EXPAND_FULL_LENGTH = 1;
+        }
+
+        if (paSuLineStippleCntl.u32All != m_paSuLineStippleCntl.u32All)
+        {
+            pDeCmdSpace = m_deCmdStream.WriteSetOneContextRegNoOpt(mmPA_SU_LINE_STIPPLE_CNTL,
+                                                                   paSuLineStippleCntl.u32All,
+                                                                   pDeCmdSpace);
+            m_paSuLineStippleCntl = paSuLineStippleCntl;
+        }
     }
 
     if (PipelineDirty || (StateDirty && (dirtyFlags.depthClampOverride ||
@@ -6222,26 +6267,36 @@ void UniversalCmdBuffer::Gfx10GetDepthBinSize(
 }
 
 // =====================================================================================================================
-// Fills in m_paScBinnerCntl0(PA_SC_BINNER_CNTL_0 register) with values that corresponds to the
+// Fills in paScBinnerCntl0/1(PA_SC_BINNER_CNTL_0/1 registers) with values that corresponds to the
 // specified binning mode and sizes.   For disabled binning the caller should pass a bin size of zero(0x0).
 // 'pBinSize' will be updated with the actual bin size configured.
-// Returns: True if PA_SC_BINNER_CNTL_0 changed value, False otherwise.
-bool UniversalCmdBuffer::SetPaScBinnerCntl0(
-    const GraphicsPipeline&  pipeline,
-    const ColorBlendState*   pColorBlendState,
-    Extent2d*                pBinSize)
+// Returns: True if PA_SC_BINNER_CNTL_0/1 changed value, False otherwise.
+template <bool IsNgg>
+bool UniversalCmdBuffer::SetPaScBinnerCntl01(
+    Extent2d* pBinSize)
 {
-    const regPA_SC_BINNER_CNTL_0 prevPaScBinnerCntl0 = m_paScBinnerCntl0;
+    const regPA_SC_BINNER_CNTL_0 prevPaScBinnerCntl0 = m_pbbCntlRegs.paScBinnerCntl0;
+    const regPA_SC_BINNER_CNTL_1 prevPaScBinnerCntl1 = m_pbbCntlRegs.paScBinnerCntl1;
+
+    // Binner_cntl1:
+    // 16 bits: Maximum amount of parameter storage allowed per batch.
+    // - Legacy: param cache lines/2 (groups of 16 vert-attributes) (0 means 1 encoding)
+    // - NGG: number of vert-attributes (0 means 1 encoding)
+    // - NGG + PC: param cache lines/2 (groups of 16 vert-attributes) (0 means 1 encoding)
+    // 16 bits: Max number of primitives in batch
+    m_pbbCntlRegs.paScBinnerCntl1.bits.MAX_ALLOC_COUNT    = (IsNgg ? m_cachedPbbSettings.maxAllocCountNgg :
+                                                                     m_cachedPbbSettings.maxAllocCountLegacy);
+    m_pbbCntlRegs.paScBinnerCntl1.bits.MAX_PRIM_PER_BATCH = m_cachedPbbSettings.maxPrimPerBatch;
 
     // If the reported bin sizes are zero, then disable binning
     if ((pBinSize->width == 0) || (pBinSize->height == 0))
     {
         // Note, GetDisableBinningSetting() will update pBinSize if required for binning mode
-        m_paScBinnerCntl0.bits.BINNING_MODE = GetDisableBinningSetting(pBinSize);
+        m_pbbCntlRegs.paScBinnerCntl0.bits.BINNING_MODE = GetDisableBinningSetting(pBinSize);
     }
     else
     {
-        m_paScBinnerCntl0.bits.BINNING_MODE = BINNING_ALLOWED;
+        m_pbbCntlRegs.paScBinnerCntl0.bits.BINNING_MODE = BINNING_ALLOWED;
     }
 
     // If bin size is non-zero, then set the size properties
@@ -6249,34 +6304,34 @@ bool UniversalCmdBuffer::SetPaScBinnerCntl0(
     {
         if (pBinSize->width == 16)
         {
-            m_paScBinnerCntl0.bits.BIN_SIZE_X        = 1;
-            m_paScBinnerCntl0.bits.BIN_SIZE_X_EXTEND = 0;
+            m_pbbCntlRegs.paScBinnerCntl0.bits.BIN_SIZE_X        = 1;
+            m_pbbCntlRegs.paScBinnerCntl0.bits.BIN_SIZE_X_EXTEND = 0;
         }
         else
         {
-            m_paScBinnerCntl0.bits.BIN_SIZE_X        = 0;
-            m_paScBinnerCntl0.bits.BIN_SIZE_X_EXTEND = Device::GetBinSizeEnum(pBinSize->width);
+            m_pbbCntlRegs.paScBinnerCntl0.bits.BIN_SIZE_X        = 0;
+            m_pbbCntlRegs.paScBinnerCntl0.bits.BIN_SIZE_X_EXTEND = Device::GetBinSizeEnum(pBinSize->width);
         }
 
         if (pBinSize->height == 16)
         {
-            m_paScBinnerCntl0.bits.BIN_SIZE_Y        = 1;
-            m_paScBinnerCntl0.bits.BIN_SIZE_Y_EXTEND = 0;
+            m_pbbCntlRegs.paScBinnerCntl0.bits.BIN_SIZE_Y        = 1;
+            m_pbbCntlRegs.paScBinnerCntl0.bits.BIN_SIZE_Y_EXTEND = 0;
         }
         else
         {
-            m_paScBinnerCntl0.bits.BIN_SIZE_Y        = 0;
-            m_paScBinnerCntl0.bits.BIN_SIZE_Y_EXTEND = Device::GetBinSizeEnum(pBinSize->height);
+            m_pbbCntlRegs.paScBinnerCntl0.bits.BIN_SIZE_Y        = 0;
+            m_pbbCntlRegs.paScBinnerCntl0.bits.BIN_SIZE_Y_EXTEND = Device::GetBinSizeEnum(pBinSize->height);
         }
     }
 
-    return (prevPaScBinnerCntl0.u32All != m_paScBinnerCntl0.u32All);
+    return ((prevPaScBinnerCntl0.u32All != m_pbbCntlRegs.paScBinnerCntl0.u32All) ||
+            (prevPaScBinnerCntl1.u32All != m_pbbCntlRegs.paScBinnerCntl1.u32All));
 }
 
 // =====================================================================================================================
 bool UniversalCmdBuffer::ShouldEnablePbb(
     const GraphicsPipeline&  pipeline,
-    const ColorBlendState*   pColorBlendState,
     const DepthStencilState* pDepthState,
     const MsaaState*         pMsaaState
     ) const
@@ -6303,27 +6358,12 @@ bool UniversalCmdBuffer::ShouldEnablePbb(
 
         const bool psKill       = (m_cachedSettings.disablePbbPsKill && canKill && canReject && isWriteBound);
 
-        // Whether we can disable binning based on the depth stencil state.
-        const bool depthUnbound = ((m_graphicsState.bindTargets.depthTarget.pDepthStencilView == nullptr) &&
-                                   (pDepthState == nullptr));
-        const bool noDepthWrite = ((pDepthState != nullptr)                      &&
-                                   (pDepthState->IsDepthWriteEnabled() == false) &&
-                                   (pDepthState->IsStencilWriteEnabled() == false));
-        const bool dbDisabled   = (m_cachedSettings.disablePbbNoDb && (depthUnbound || noDepthWrite));
-
-        // Whether we can disable binning based on the color blend state.
-        const uint32 boundRenderTargetMask = (1 << m_graphicsState.bindTargets.colorTargetCount) - 1;
-        const bool blendOff     = m_cachedSettings.disablePbbBlendingOff &&
-                                  ((pColorBlendState == nullptr) ||
-                                   ((boundRenderTargetMask & pColorBlendState->BlendEnableMask()) == 0) ||
-                                    ((boundRenderTargetMask & pColorBlendState->BlendReadsDestMask()) == 0));
-
         // Whether we can disable binning based on if PS uses append and consume. Performance investigation has
         // found that the way binning affects the append/consume ordering hurts performance a lot.
         const bool appendConsumeEnabled = m_cachedSettings.disablePbbAppendConsume &&
                                           (pipeline.PsUsesAppendConsume() == 1);
 
-        disableBinning = psKill || dbDisabled || blendOff || appendConsumeEnabled;
+        disableBinning = psKill || appendConsumeEnabled;
     }
 
     return (disableBinning == false);
@@ -6331,11 +6371,9 @@ bool UniversalCmdBuffer::ShouldEnablePbb(
 
 // =====================================================================================================================
 // Updates the bin sizes and writes to the register.
-template <bool Pm4OptImmediate>
+template <bool Pm4OptImmediate, bool IsNgg>
 uint32* UniversalCmdBuffer::ValidateBinSizes(
-    const GraphicsPipeline&  pipeline,
-    const ColorBlendState*   pColorBlendState,
-    uint32*                  pDeCmdSpace)
+    uint32* pDeCmdSpace)
 {
     // Default to a zero-sized bin to disable binning.
     Extent2d binSize = {};
@@ -6372,12 +6410,14 @@ uint32* UniversalCmdBuffer::ValidateBinSizes(
         }
     }
 
-    // Update our copy of m_paScBinnerCntl0 and write it out.
-    if (SetPaScBinnerCntl0(pipeline, pColorBlendState, &binSize))
+    // Update our copy of m_pbbCntlRegs.paScBinnerCntl0/1 and write it out.
+    if (SetPaScBinnerCntl01<IsNgg>(
+                                   &binSize))
     {
-        pDeCmdSpace = m_deCmdStream.WriteSetOneContextReg<Pm4OptImmediate>(mmPA_SC_BINNER_CNTL_0,
-                                                                           m_paScBinnerCntl0.u32All,
-                                                                           pDeCmdSpace);
+        pDeCmdSpace = m_deCmdStream.WriteSetSeqContextRegs<Pm4OptImmediate>(mmPA_SC_BINNER_CNTL_0,
+                                                                            mmPA_SC_BINNER_CNTL_1,
+                                                                            &m_pbbCntlRegs,
+                                                                            pDeCmdSpace);
     }
 
     return pDeCmdSpace;
@@ -7337,6 +7377,7 @@ void UniversalCmdBuffer::CmdSaveBufferFilledSizes(
     {
         if (gpuVirtAddr[idx] != 0)
         {
+
             pDeCmdSpace += CmdUtil::BuildStrmoutBufferUpdate(idx,
                                                              source_select__pfp_strmout_buffer_update__none__GFX09_10,
                                                              0,
@@ -8631,7 +8672,7 @@ void UniversalCmdBuffer::GetChunkForCmdGeneration(
             embeddedDwords      += vertexBufTableDwords;
         }
 
-        const uint32 commandDwords = (properties.cmdBufStride / sizeof(uint32));
+        const uint32 commandDwords = generator.CmdBufStride(&pipeline) / sizeof(uint32);
         // There are three possibilities when determining how much spill-table space a generated command will need:
         //  (1) The active pipeline doesn't spill at all. This requires no spill-table space.
         //  (2) The active pipeline spills, but the generator doesn't update the any user-data entries beyond the
@@ -9499,10 +9540,10 @@ void UniversalCmdBuffer::CmdSetPerDrawVrsRate(
         paClVrsCntl.bits.CMASK_RATE_HINT_FORCE_ZERO   = 0;
 
         uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
-        pDeCmdSpace = m_deCmdStream.WriteSetOneConfigReg(Gfx102Plus::mmGE_VRS_RATE,
+        pDeCmdSpace = m_deCmdStream.WriteSetOneConfigReg(Gfx103Plus::mmGE_VRS_RATE,
                                                          geVrsRate.u32All,
                                                          pDeCmdSpace);
-        pDeCmdSpace = m_deCmdStream.WriteSetOneContextReg(Gfx102Plus::mmPA_CL_VRS_CNTL,
+        pDeCmdSpace = m_deCmdStream.WriteSetOneContextReg(Gfx103Plus::mmPA_CL_VRS_CNTL,
                                                           paClVrsCntl.u32All,
                                                           pDeCmdSpace);
 
@@ -9545,11 +9586,11 @@ void UniversalCmdBuffer::CmdSetVrsCenterState(
         spiBarycSsaaCntl.bits.CENTROID_SSAA_MODE = centerState.flags.overrideCentroidSsaa;
 
         uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
-        pDeCmdSpace = m_deCmdStream.WriteSetOneContextReg(Gfx102Plus::mmDB_SPI_VRS_CENTER_LOCATION,
+        pDeCmdSpace = m_deCmdStream.WriteSetOneContextReg(Gfx103Plus::mmDB_SPI_VRS_CENTER_LOCATION,
                                                           dbSpiVrsCenterLocation.u32All,
                                                           pDeCmdSpace);
 
-        pDeCmdSpace = m_deCmdStream.WriteSetOneContextReg(Gfx102Plus::mmSPI_BARYC_SSAA_CNTL,
+        pDeCmdSpace = m_deCmdStream.WriteSetOneContextReg(Gfx103Plus::mmSPI_BARYC_SSAA_CNTL,
                                                           spiBarycSsaaCntl.u32All,
                                                           pDeCmdSpace);
 

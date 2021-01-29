@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2020 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2021 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -273,10 +273,12 @@ UniversalCmdBuffer::UniversalCmdBuffer(
     m_cachedSettings.enablePm4Instrumentation = platformSettings.pm4InstrumentorEnabled;
 #endif
 
-    m_sxPsDownconvert.u32All   = 0;
-    m_sxBlendOptEpsilon.u32All = 0;
-    m_sxBlendOptControl.u32All = 0;
-    m_dbRenderOverride.u32All  = 0;
+    m_sxPsDownconvert.u32All     = 0;
+    m_sxBlendOptEpsilon.u32All   = 0;
+    m_sxBlendOptControl.u32All   = 0;
+    m_dbRenderOverride.u32All    = 0;
+    m_paSuLineStippleCntl.u32All = 0;
+    m_paScLineStipple.u32All     = 0;
 
     SwitchDrawFunctions(false);
 }
@@ -453,6 +455,8 @@ void UniversalCmdBuffer::ResetState()
 
     m_spiVsOutConfig.u32All = 0;
     m_spiPsInControl.u32All = 0;
+    m_paSuLineStippleCntl.u32All = 0;
+    m_paScLineStipple.u32All = 0;
 
     // Reset the command buffer's HWL state tracking
     m_state.flags.u32All   = 0;
@@ -3543,7 +3547,8 @@ uint32* UniversalCmdBuffer::ValidateDraw(
         iaMultiVgtParam.bits.PRIMGROUP_SIZE = m_primGroupOpt.optimalSize - 1;
     }
 
-    if (stateDirty && (dirtyFlags.lineStippleState || dirtyFlags.inputAssemblyState))
+    const bool lineStippleStateDirty = stateDirty && (dirtyFlags.lineStippleState || dirtyFlags.inputAssemblyState);
+    if (lineStippleStateDirty)
     {
         regPA_SC_LINE_STIPPLE paScLineStipple  = {};
         paScLineStipple.bits.REPEAT_COUNT      = m_graphicsState.lineStippleState.lineStippleScale;
@@ -3551,12 +3556,40 @@ uint32* UniversalCmdBuffer::ValidateDraw(
 #if BIGENDIAN_CPU
         paScLineStipple.bits.PATTERN_BIT_ORDER = 1;
 #endif
+        // 1: Reset pattern count at each primitive
+        // 2: Reset pattern count at each packet
         paScLineStipple.bits.AUTO_RESET_CNTL   =
-            (m_graphicsState.inputAssemblyState.topology == PrimitiveTopology::LineStrip) ? 2 : 1;
+            (m_graphicsState.inputAssemblyState.topology == PrimitiveTopology::LineList) ? 1 : 2;
 
-        pDeCmdSpace = m_deCmdStream.WriteSetOneContextReg<pm4OptImmediate>(mmPA_SC_LINE_STIPPLE,
-                                                                           paScLineStipple.u32All,
-                                                                           pDeCmdSpace);
+        if (paScLineStipple.u32All != m_paScLineStipple.u32All)
+        {
+            pDeCmdSpace = m_deCmdStream.WriteSetOneContextRegNoOpt(mmPA_SC_LINE_STIPPLE,
+                                                                   paScLineStipple.u32All,
+                                                                   pDeCmdSpace);
+            m_paScLineStipple = paScLineStipple;
+        }
+    }
+
+    if (pipelineDirty || lineStippleStateDirty)
+    {
+        regPA_SU_LINE_STIPPLE_CNTL paSuLineStippleCntl = {};
+
+        if (pPipeline->IsLineStippleTexEnabled())
+        {
+            // Line stipple tex is only used by line stipple with wide antialiased line. so we need always
+            // enable FRACTIONAL_ACCUM and EXPAND_FULL_LENGT.
+            paSuLineStippleCntl.bits.LINE_STIPPLE_RESET =
+                (m_graphicsState.inputAssemblyState.topology == PrimitiveTopology::LineList) ? 1 : 2;
+            paSuLineStippleCntl.bits.FRACTIONAL_ACCUM = 1;
+            paSuLineStippleCntl.bits.EXPAND_FULL_LENGTH = 1;
+        }
+        if (paSuLineStippleCntl.u32All != m_paSuLineStippleCntl.u32All)
+        {
+            pDeCmdSpace = m_deCmdStream.WriteSetOneContextRegNoOpt(mmPA_SU_LINE_STIPPLE_CNTL,
+                                                                   paSuLineStippleCntl.u32All,
+                                                                   pDeCmdSpace);
+            m_paSuLineStippleCntl = paSuLineStippleCntl;
+        }
     }
 
     if (pipelineDirty || (stateDirty && dirtyFlags.depthClampOverride))

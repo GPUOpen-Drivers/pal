@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2020 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2021 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -43,7 +43,7 @@ class CmdStream;
 
 // =====================================================================================================================
 // GFX9 compute pipeline class: implements GFX9 specific functionality for the ComputePipeline class.
-class ComputePipeline : public Pal::ComputePipeline
+class ComputePipeline final : public Pal::ComputePipeline
 {
 public:
     ComputePipeline(Device* pDevice, bool isInternal);
@@ -119,7 +119,7 @@ private:
 
 // =====================================================================================================================
 // Extension of the PipelineUploader helper class for Gfx9+ compute pipelines.
-class ComputePipelineUploader : public Pal::PipelineUploader
+class ComputePipelineUploader final : public Pal::PipelineUploader
 {
 public:
     explicit ComputePipelineUploader(

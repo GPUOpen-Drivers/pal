@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2020 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2021 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -175,8 +175,8 @@ uint32* ColorTargetView::WriteUpdateFastClearColor(
     {
         const uint32 slotOffset = (slot * CbRegsPerSlot);
 
-        pCmdSpace = pCmdStream->WriteSetSeqContextRegs((mmCB_COLOR0_CLEAR_WORD0 + slotOffset),
-                                                       (mmCB_COLOR0_CLEAR_WORD1 + slotOffset),
+        pCmdSpace = pCmdStream->WriteSetSeqContextRegs((Gfx09_10::mmCB_COLOR0_CLEAR_WORD0 + slotOffset),
+                                                       (Gfx09_10::mmCB_COLOR0_CLEAR_WORD1 + slotOffset),
                                                        color,
                                                        pCmdSpace);
     }
@@ -357,6 +357,8 @@ void ColorTargetView::UpdateImageVa(
     RegistersType* pRegs
     ) const
 {
+    const Pal::Device&  palDevice = *(m_pImage->Parent()->GetDevice());
+
     // The "GetSubresource256BAddrSwizzled" function will crash if no memory has been bound to
     // the associated image yet, so don't do anything if it's not safe
     if (m_pImage->Parent()->GetBoundGpuMemory().IsBound())
@@ -377,7 +379,7 @@ void ColorTargetView::UpdateImageVa(
             // indicate what the clear color is.  (See Gfx9FastColorClearMetaData in gfx9MaskRam.h).
             if (m_flags.hasDcc)
             {
-                PAL_ASSERT(IsGfx10Plus(*(m_pImage->Parent()->GetDevice())));
+                PAL_ASSERT(IsGfx10Plus(palDevice));
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
                 if (m_pImage->HasFastClearMetaData(m_subresource.aspect))
@@ -385,6 +387,7 @@ void ColorTargetView::UpdateImageVa(
                 if (m_pImage->HasFastClearMetaData(m_subresource.plane))
 #endif
                 {
+
                     // Invariant: On Gfx10 (and gfx9), if we have DCC we also have fast clear metadata.
                     pRegs->fastClearMetadataGpuVa = m_pImage->FastClearMetaDataAddr(m_subresource);
                     PAL_ASSERT((pRegs->fastClearMetadataGpuVa & 0x3) == 0);
@@ -410,6 +413,7 @@ void ColorTargetView::UpdateImageVa(
                 if (m_pImage->HasFastClearMetaData(m_subresource.plane))
 #endif
                 {
+
                     // Invariant: On Gfx10 (and gfx9), if we have DCC we also have fast clear metadata.
                     pRegs->fastClearMetadataGpuVa = m_pImage->FastClearMetaDataAddr(m_subresource);
                     PAL_ASSERT((pRegs->fastClearMetadataGpuVa & 0x3) == 0);
@@ -456,8 +460,10 @@ uint32* ColorTargetView::WriteCommandsCommon(
             if (pRegs->fastClearMetadataGpuVa != 0)
             {
                 // Load the context registers which store the fast-clear color from GPU memory.
-                constexpr uint32 RegisterCount = (mmCB_COLOR0_CLEAR_WORD1 - mmCB_COLOR0_CLEAR_WORD0 + 1);
-                pCmdSpace = pCmdStream->WriteLoadSeqContextRegs((mmCB_COLOR0_CLEAR_WORD0 + slotOffset),
+                constexpr uint32 RegisterCount = (Gfx09_10::mmCB_COLOR0_CLEAR_WORD1 -
+                                                  Gfx09_10::mmCB_COLOR0_CLEAR_WORD0 + 1);
+
+                pCmdSpace = pCmdStream->WriteLoadSeqContextRegs((Gfx09_10::mmCB_COLOR0_CLEAR_WORD0 + slotOffset),
                                                                 RegisterCount,
                                                                 pRegs->fastClearMetadataGpuVa,
                                                                 pCmdSpace);

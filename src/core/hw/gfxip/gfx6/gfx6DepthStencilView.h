@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2020 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2021 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -69,7 +69,7 @@ struct DepthStencilViewRegs
 
 // =====================================================================================================================
 // Gfx6 HW-specific implementation of the Pal::IDepthStencilView interface
-class DepthStencilView : public IDepthStencilView
+class DepthStencilView final : public IDepthStencilView
 {
 public:
     static const uint32 DbRenderOverrideRmwMask = (DB_RENDER_OVERRIDE__FORCE_HIZ_ENABLE_MASK        |

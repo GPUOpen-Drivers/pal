@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2020 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2021 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -92,16 +92,10 @@ union sq_bvh_rsrc_t {
         uint64_t size                                                         : 42;
         uint64_t                                                              : 14;
         uint64_t triangle_return_mode                                         :  1;
-        uint64_t                                                              :  2;
+        uint64_t llc_noalloc                                                  :  2;
         uint64_t big_page                                                     :  1;
         uint64_t type                                                         :  4;
     };
-    struct {
-        uint64_t                                                              : 64;
-        uint64_t                                                              : 57;
-        uint64_t llc_noalloc                                                  :  2;
-        uint64_t                                                              :  5;
-    } mall;
     uint64_t u64All[2];
     uint32_t u32All[4];
 };
@@ -111,9 +105,9 @@ constexpr uint32_t SqBvhRsrcTWord1BoxGrowValueShift                             
 constexpr uint32_t SqBvhRsrcTWord1BoxSortEnShift                                            = 31;
 constexpr uint32_t SqBvhRsrcTWord2SizeShift                                                 =  0;
 constexpr uint32_t SqBvhRsrcTWord3TriangleReturnModeShift                                   = 24;
+constexpr uint32_t SqBvhRsrcTWord3LlcNoallocShift                                           = 25;
 constexpr uint32_t SqBvhRsrcTWord3BigPageShift                                              = 27;
 constexpr uint32_t SqBvhRsrcTWord3TypeShift                                                 = 28;
-constexpr uint32_t MallSqBvhRsrcTWord3LlcNoallocShift                                       = 25;
 
 union sq_img_rsrc_linked_rsrc_t {
     struct {
@@ -158,14 +152,6 @@ union sq_img_rsrc_linked_rsrc_t {
         uint64_t meta_data_address                                            : 40;
     };
     struct {
-        uint64_t                                                              : 64;
-        uint64_t                                                              : 64;
-        uint64_t                                                              : 64;
-        uint64_t                                                              :  8;
-        uint64_t llc_noalloc                                                  :  2;
-        uint64_t                                                              : 54;
-    } gfx103x;
-    struct {
         uint64_t                                                              : 40;
         uint64_t min_lod                                                      : 12;
         uint64_t format                                                       :  9;
@@ -180,7 +166,8 @@ union sq_img_rsrc_linked_rsrc_t {
         uint64_t                                                              :  5;
         uint64_t big_page                                                     :  1;
         uint64_t counter_bank_id                                              :  8;
-        uint64_t                                                              : 56;
+        uint64_t llc_noalloc                                                  :  2;
+        uint64_t                                                              : 54;
     } rdna2;
     uint64_t u64All[4];
     uint32_t u32All[8];
@@ -218,7 +205,6 @@ constexpr uint32_t SqImgRsrcLinkedRsrcTWord6CompressionEnShift                  
 constexpr uint32_t SqImgRsrcLinkedRsrcTWord6AlphaIsOnMsbShift                               = 22;
 constexpr uint32_t SqImgRsrcLinkedRsrcTWord6ColorTransformShift                             = 23;
 constexpr uint32_t SqImgRsrcLinkedRsrcTWord6MetaDataAddressShift                            = 24;
-constexpr uint32_t Gfx103xSqImgRsrcLinkedRsrcTWord6LlcNoallocShift                          =  8;
 constexpr uint32_t Rdna2SqImgRsrcLinkedRsrcTWord1MinLodShift                                =  8;
 constexpr uint32_t Rdna2SqImgRsrcLinkedRsrcTWord1FormatShift                                = 20;
 constexpr uint32_t Rdna2SqImgRsrcLinkedRsrcTWord2ResourceLevelShift                         = 31;
@@ -226,6 +212,7 @@ constexpr uint32_t Rdna2SqImgRsrcLinkedRsrcTWord5MaxMipShift                    
 constexpr uint32_t Rdna2SqImgRsrcLinkedRsrcTWord5LodHdwCntEnShift                           = 25;
 constexpr uint32_t Rdna2SqImgRsrcLinkedRsrcTWord5BigPageShift                               = 31;
 constexpr uint32_t Rdna2SqImgRsrcLinkedRsrcTWord6CounterBankIdShift                         =  0;
+constexpr uint32_t Rdna2SqImgRsrcLinkedRsrcTWord6LlcNoallocShift                            =  8;
 
 union sq_img_rsrc_t {
     struct {
@@ -263,14 +250,6 @@ union sq_img_rsrc_t {
         uint64_t meta_data_address                                            : 40;
     };
     struct {
-        uint64_t                                                              : 64;
-        uint64_t                                                              : 64;
-        uint64_t                                                              : 64;
-        uint64_t                                                              :  8;
-        uint64_t llc_noalloc                                                  :  2;
-        uint64_t                                                              : 54;
-    } gfx103x;
-    struct {
         uint64_t                                                              : 40;
         uint64_t min_lod                                                      : 12;
         uint64_t format                                                       :  9;
@@ -307,6 +286,14 @@ union sq_img_rsrc_t {
         uint64_t                                                              :  7;
         uint64_t                                                              : 64;
     } prtPlus;
+    struct {
+        uint64_t                                                              : 64;
+        uint64_t                                                              : 64;
+        uint64_t                                                              : 64;
+        uint64_t                                                              :  8;
+        uint64_t llc_noalloc                                                  :  2;
+        uint64_t                                                              : 54;
+    } rdna2;
     uint64_t u64All[4];
     uint32_t u32All[8];
 };
@@ -337,7 +324,6 @@ constexpr uint32_t SqImgRsrcTWord6CompressionEnShift                            
 constexpr uint32_t SqImgRsrcTWord6AlphaIsOnMsbShift                                         = 22;
 constexpr uint32_t SqImgRsrcTWord6ColorTransformShift                                       = 23;
 constexpr uint32_t SqImgRsrcTWord6MetaDataAddressShift                                      = 24;
-constexpr uint32_t Gfx103xSqImgRsrcTWord6LlcNoallocShift                                    =  8;
 constexpr uint32_t Gfx10CoreSqImgRsrcTWord1MinLodShift                                      =  8;
 constexpr uint32_t Gfx10CoreSqImgRsrcTWord1FormatShift                                      = 20;
 constexpr uint32_t Gfx10CoreSqImgRsrcTWord2ResourceLevelShift                               = 31;
@@ -349,6 +335,7 @@ constexpr uint32_t MostSqImgRsrcTWord5ArrayPitchShift                           
 constexpr uint32_t MostSqImgRsrcTWord5MinLodWarnShift                                       =  8;
 constexpr uint32_t MostSqImgRsrcTWord5PrtDefaultShift                                       = 26;
 constexpr uint32_t PrtPlusSqImgRsrcTWord5LinkedResourceShift                                = 24;
+constexpr uint32_t Rdna2SqImgRsrcTWord6LlcNoallocShift                                      =  8;
 
 union sq_img_samp_deriv_adjust_linked_resource_res_map_t {
     struct {
@@ -521,15 +508,10 @@ union sq_img_samp_linked_resource_res_map_t {
     };
     struct {
         uint64_t                                                              : 64;
-        uint64_t                                                              : 44;
-        uint64_t                                                              : 16;
-        uint64_t                                                              :  4;
-    } gfx103x;
-    struct {
-        uint64_t                                                              : 64;
         uint64_t                                                              : 32;
         uint64_t linked_resource_slopes                                       : 12;
-        uint64_t                                                              : 20;
+        uint64_t                                                              : 16;
+        uint64_t                                                              :  4;
     } rdna2;
     uint64_t u64All[2];
     uint32_t u32All[4];
@@ -599,15 +581,10 @@ union sq_img_samp_t {
     };
     struct {
         uint64_t                                                              : 64;
-        uint64_t                                                              : 44;
-        uint64_t                                                              : 16;
-        uint64_t                                                              :  4;
-    } gfx103x;
-    struct {
-        uint64_t                                                              : 64;
         uint64_t                                                              : 32;
         uint64_t border_color_ptr                                             : 12;
-        uint64_t                                                              : 20;
+        uint64_t                                                              : 16;
+        uint64_t                                                              :  4;
     } gfx10Core;
     struct {
         uint64_t                                                              : 29;
@@ -620,12 +597,6 @@ union sq_img_samp_t {
         uint64_t deriv_adjust_en                                              :  1;
         uint64_t                                                              : 32;
     } most;
-    struct {
-        uint64_t                                                              : 64;
-        uint64_t                                                              : 44;
-        uint64_t                                                              : 16;
-        uint64_t                                                              :  4;
-    } nv10;
     uint64_t u64All[2];
     uint32_t u32All[4];
 };

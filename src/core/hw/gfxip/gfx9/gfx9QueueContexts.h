@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2020 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2021 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -56,7 +56,7 @@ static const uint32 UniversalQueueCmdStreamNum = 5;
 using UniversalQueueDeferFreeList = DeferFreeListItem<UniversalQueueCmdStreamNum>;
 
 // =====================================================================================================================
-class ComputeQueueContext : public QueueContext
+class ComputeQueueContext final : public QueueContext
 {
 public:
     ComputeQueueContext(Device* pDevice, Engine* pEngine, uint32 queueId, bool isTmz);
@@ -97,7 +97,7 @@ private:
 };
 
 // =====================================================================================================================
-class UniversalQueueContext : public QueueContext
+class UniversalQueueContext final : public QueueContext
 {
 public:
     UniversalQueueContext(

@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2020 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2021 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -724,6 +724,7 @@ enum class LocalMemoryType : uint32
     Hbm3,
     Lpddr4,
     Lpddr5,
+    Ddr5,
     Count
 };
 
@@ -1396,7 +1397,9 @@ union FullScreenFrameMetadataControlFlags
                                                ///  It's only valid when timerNodeSubmission is also set.
         uint32 useHp3dForDwm             :  1; ///< KMD Informs (DX11) UMD to use HP3D for DWM or not (Output only).
         uint32 expandDcc                 :  1; ///< KMD notifies UMD to expand DCC (Output only).
-        uint32 reserved                  : 23; ///< Reserved for future use.
+        uint32 enableTurboSyncForDwm     :  1; ///< Indicates DWM should turn on TurboSync(Output only).
+        uint32 enableDwmFrameMetadata    :  1; ///< When cleared, no frame metadata should be sent for DWM(Output only).
+        uint32 reserved                  : 21; ///< Reserved for future use.
     };
     uint32 u32All;    ///< Flags packed as 32-bit uint.
 };

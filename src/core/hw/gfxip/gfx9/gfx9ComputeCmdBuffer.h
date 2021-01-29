@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2020 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2021 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -39,7 +39,7 @@ class Device;
 
 // =====================================================================================================================
 // GFX9 compute command buffer class: implements GFX9 specific functionality for the ComputeCmdBuffer class.
-class ComputeCmdBuffer : public Pal::ComputeCmdBuffer
+class ComputeCmdBuffer final : public Pal::ComputeCmdBuffer
 {
 public:
     ComputeCmdBuffer(const Device& device, const CmdBufferCreateInfo& createInfo);

@@ -1580,6 +1580,22 @@
       "Name": "BatchBreakOnNewPixelShader"
     },
     {
+      "Description": "True forces a 'clear_state' command to initialize the context registers to a known state. False will only write the essential subset of registers.",
+      "Tags": [
+        "Graphics Pipelines"
+      ],
+      "Defaults": {
+        "Default": true
+      },
+      "Flags": {
+        "RereadSetting": true
+      },
+      "Scope": "PrivatePalGfx9Key",
+      "Type": "bool",
+      "VariableName": "useClearStateToInitialize",
+      "Name": "UseClearStateToInitialize"
+    },
+    {
       "Description": "This mask is AND-ed with the driver-decided GS-specific CU_EN mask to further allow limiting of enabled CUs for GS waves. ",
       "Tags": [
         "Graphics Pipelines",
@@ -1668,7 +1684,7 @@
         "Gfx10"
       ],
       "Defaults": {
-        "Default": 64
+        "Default": 256
       },
       "Scope": "PrivatePalGfx9Key",
       "Type": "uint32",
@@ -1830,34 +1846,6 @@
       "Type": "bool",
       "VariableName": "disableBinningPsKill",
       "Name": "DisableBinningPsKill"
-    },
-    {
-      "Description": "If true, binning is disabled if there is no depth buffer bound.",
-      "Tags": [
-        "PBB and DFSM",
-        "Gfx9"
-      ],
-      "Defaults": {
-        "Default": false
-      },
-      "Scope": "PrivatePalGfx9Key",
-      "Type": "bool",
-      "VariableName": "disableBinningNoDb",
-      "Name": "DisableBinningNoDb"
-    },
-    {
-      "Description": "If true, binning is disabled if blending is disabled or blending does not require the destination color to be read.",
-      "Tags": [
-        "PBB and DFSM",
-        "Gfx9"
-      ],
-      "Defaults": {
-        "Default": false
-      },
-      "Scope": "PrivatePalGfx9Key",
-      "Type": "bool",
-      "VariableName": "disableBinningBlendingOff",
-      "Name": "DisableBinningBlendingOff"
     },
     {
       "Description": "Maximum amount of parameter storage per batch when not using NGG. The maximum is value 128. Zero means calculate an optimal value based on the hardware configuration. On GFX9, this value is in units of 2 param cache lines..",

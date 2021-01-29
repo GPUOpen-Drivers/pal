@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2020 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2021 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -132,7 +132,7 @@ public:
     bool UsesViewInstancing() const { return (m_signature.viewIdRegAddr[0] != UserDataNotMapped); }
     bool UsesUavExport() const { return (m_signature.uavExportTableAddr != UserDataNotMapped); }
     bool NeedsUavExportFlush() const { return m_uavExportRequiresFlush; }
-
+    bool IsLineStippleTexEnabled() const { return m_chunkVsPs.SpiPsInputEna().bits.LINE_STIPPLE_TEX_ENA != 0; }
     uint32* WriteShCommands(
         CmdStream*                        pCmdStream,
         uint32*                           pCmdSpace,
@@ -372,7 +372,7 @@ private:
 
 // =====================================================================================================================
 // Extension of the PipelineUploader helper class for Gfx9+ graphics pipelines.
-class GraphicsPipelineUploader : public Pal::PipelineUploader
+class GraphicsPipelineUploader final : public Pal::PipelineUploader
 {
 public:
     explicit GraphicsPipelineUploader(

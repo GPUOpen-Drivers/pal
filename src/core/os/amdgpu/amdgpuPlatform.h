@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2020 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2021 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -45,7 +45,7 @@ namespace Amdgpu
 // AMDGPU flavor of the Platform singleton. The responsibilities of the OS-specific Platform classes are interacting
 // with the OS and kernel-mode drivers. On Linux/AMDGPU, this includes managing access to the X server powered by the
 // GPU's in the system, as well as interfacing with the components of Linux driver stack.
-class Platform : public Pal::Platform
+class Platform final : public Pal::Platform
 {
 public:
     Platform(

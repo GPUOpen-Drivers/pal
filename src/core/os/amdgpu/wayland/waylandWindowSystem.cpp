@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2018-2020 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2018-2021 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -522,8 +522,12 @@ Result WaylandWindowSystem::CreatePresentableImage(
     int32      sharedBufferFd)
 {
     Result                      result      = Result::Success;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
     const SubresId              subres      = { ImageAspect::Color, 0, 0 };
     const SubResourceInfo*const pSubResInfo = pImage->SubresourceInfo(subres);
+#else
+    const SubResourceInfo*const pSubResInfo = pImage->SubresourceInfo(0);
+#endif
     wl_buffer*                  pBuffer     = nullptr;
 
     const uint32 width  = pSubResInfo->extentTexels.width;

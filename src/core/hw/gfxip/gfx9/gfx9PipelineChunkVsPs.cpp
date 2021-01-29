@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2020 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2021 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -71,7 +71,6 @@ static constexpr uint32 BaseLoadedCntxRegCount =
     1 + // mmSPI_PS_INPUT_ADDR
     1 + // mmDB_SHADER_CONTROL
     1 + // mmPA_SC_SHADER_CONTROL
-    1 + // mmPA_SC_BINNER_CNTL_1
     1 + // mmSPI_SHADER_POS_FORMAT
     1 + // mmPA_CL_VS_OUT_CNTL
     1 + // mmVGT_PRIMITIVEID_EN
@@ -335,24 +334,6 @@ void PipelineChunkVsPs::LateInit(
             static_cast<uint32>(settings.forceWaveBreakSize);
     }
 
-    // Binner_cntl1:
-    // 16 bits: Maximum amount of parameter storage allowed per batch.
-    // - Legacy: param cache lines/2 (groups of 16 vert-attributes) (0 means 1 encoding)
-    // - NGG: number of vert-attributes (0 means 1 encoding)
-    // - NGG + PC: param cache lines/2 (groups of 16 vert-attributes) (0 means 1 encoding)
-    // 16 bits: Max number of primitives in batch
-    m_regs.context.paScBinnerCntl1.u32All = 0;
-    m_regs.context.paScBinnerCntl1.bits.MAX_PRIM_PER_BATCH = settings.binningMaxPrimPerBatch - 1;
-
-    if (loadInfo.enableNgg)
-    {
-        m_regs.context.paScBinnerCntl1.bits.MAX_ALLOC_COUNT = settings.binningMaxAllocCountNggOnChip - 1;
-    }
-    else
-    {
-        m_regs.context.paScBinnerCntl1.bits.MAX_ALLOC_COUNT = settings.binningMaxAllocCountLegacy - 1;
-    }
-
     pHasher->Update(m_regs.context);
 
     if (pUploader->EnableLoadIndexPath())
@@ -392,7 +373,6 @@ void PipelineChunkVsPs::LateInit(
         pUploader->AddCtxReg(mmPA_CL_VS_OUT_CNTL,         m_regs.context.paClVsOutCntl);
         pUploader->AddCtxReg(mmVGT_PRIMITIVEID_EN,        m_regs.context.vgtPrimitiveIdEn);
         pUploader->AddCtxReg(mmPA_SC_SHADER_CONTROL,      m_regs.context.paScShaderControl);
-        pUploader->AddCtxReg(mmPA_SC_BINNER_CNTL_1,       m_regs.context.paScBinnerCntl1);
 
         if (IsGfx9(*m_device.Parent()) || IsGfx10(*m_device.Parent()))
         {
@@ -558,9 +538,6 @@ uint32* PipelineChunkVsPs::WriteContextCommands(
                                                       pCmdSpace);
         pCmdSpace = pCmdStream->WriteSetOneContextReg(mmPA_SC_SHADER_CONTROL,
                                                       m_regs.context.paScShaderControl.u32All,
-                                                      pCmdSpace);
-        pCmdSpace = pCmdStream->WriteSetOneContextReg(mmPA_SC_BINNER_CNTL_1,
-                                                      m_regs.context.paScBinnerCntl1.u32All,
                                                       pCmdSpace);
         pCmdSpace = pCmdStream->WriteSetOneContextReg(mmPA_CL_VS_OUT_CNTL,
                                                       m_regs.context.paClVsOutCntl.u32All,

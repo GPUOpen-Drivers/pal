@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2020 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2021 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -38,7 +38,7 @@ class WindowSystem;
 
 // =====================================================================================================================
 // The Linux SwapChain creates a WindowSystem which is necessary to create the swap chain's presentable images.
-class SwapChain : public Pal::SwapChain
+class SwapChain final : public Pal::SwapChain
 {
 public:
     // The swap chain is a PAL interface object so it requires the Create/Destroy pattern.

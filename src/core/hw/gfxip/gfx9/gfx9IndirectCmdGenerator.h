@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2016-2020 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2016-2021 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -84,7 +84,7 @@ struct IndirectParamData
 // snippets corresponding to different operations which can be done in an indirect command (e.g., draw, bind index data,
 // etc.). Contains the indirect parameter data and populates the buffers used to communicate the pipeline signature and
 // properties of the CmdExecuteIndirectCommands() call.
-class IndirectCmdGenerator : public Pal::IndirectCmdGenerator
+class IndirectCmdGenerator final : public Pal::IndirectCmdGenerator
 {
 public:
     static size_t GetSize(
@@ -98,6 +98,9 @@ public:
         IGpuMemory* pGpuMemory,
         gpusize     offset) override;
 
+    uint32 CmdBufStride(
+        const Pipeline* pPipeline) const;
+
     virtual void PopulateInvocationBuffer(
         GfxCmdBuffer*   pCmdBuffer,
         const Pipeline* pPipeline,
@@ -105,6 +108,16 @@ public:
         gpusize         argsGpuAddr,
         uint32          maximumCount,
         uint32          indexBufSize,
+        void*           pSrd) const override;
+
+    virtual void PopulateParameterBuffer(
+        GfxCmdBuffer*   pCmdBuffer,
+        const Pipeline* pPipeline,
+        void*           pSrd) const override;
+
+    virtual void PopulatePropertyBuffer(
+        GfxCmdBuffer*   pCmdBuffer,
+        const Pipeline* pPipeline,
         void*           pSrd) const override;
 
     virtual void PopulateSignatureBuffer(
@@ -137,6 +150,12 @@ private:
     // Array of IndirectParamData structures. These items are used to communicate how the RPM shader(s) for command
     // generation should interpret the application's indirect-argument buffer contents.
     IndirectParamData*const  m_pParamData;
+
+    IndirectParam*const      m_pCreationParam;
+
+    bool    m_cmdSizeNeedPipeline;  // Specifies whether command sizes and command buffer stride can be determined
+                                    // at IndirectCmdGenerator creation time
+                                    // If not, they will depend on pipeline object
 
     PAL_DISALLOW_DEFAULT_CTOR(IndirectCmdGenerator);
     PAL_DISALLOW_COPY_AND_ASSIGN(IndirectCmdGenerator);

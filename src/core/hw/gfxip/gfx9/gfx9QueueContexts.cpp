@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2020 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2021 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -838,7 +838,10 @@ void UniversalQueueContext::WritePerSubmitPreamble(
     }
 
     pCmdSpace += CmdUtil::BuildContextControl(m_pDevice->GetContextControl(), pCmdSpace);
-    pCmdSpace += CmdUtil::BuildClearState(cmd__pfp_clear_state__clear_state__HASCLEARSTATE, pCmdSpace);
+    if (m_pDevice->Settings().useClearStateToInitialize)
+    {
+        pCmdSpace += CmdUtil::BuildClearState(cmd__pfp_clear_state__clear_state__HASCLEARSTATE, pCmdSpace);
+    }
 
     if (m_useShadowing)
     {
@@ -847,17 +850,19 @@ void UniversalQueueContext::WritePerSubmitPreamble(
         const gpusize shRegGpuAddr      = (contextRegGpuAddr + (sizeof(uint32) * CntxRegCount));
 
         uint32      numEntries = 0;
-        const auto* pRegRange  = m_pDevice->GetRegisterRange(RegRangeUserConfig, &numEntries);
-        pCmdSpace += CmdUtil::BuildLoadUserConfigRegs(userCfgRegGpuAddr, pRegRange, numEntries, pCmdSpace);
+        {
+            const auto* pRegRange  = m_pDevice->GetRegisterRange(RegRangeUserConfig, &numEntries);
+            pCmdSpace += CmdUtil::BuildLoadUserConfigRegs(userCfgRegGpuAddr, pRegRange, numEntries, pCmdSpace);
 
-        pRegRange  = m_pDevice->GetRegisterRange(RegRangeContext, &numEntries);
-        pCmdSpace += CmdUtil::BuildLoadContextRegs(contextRegGpuAddr, pRegRange, numEntries, pCmdSpace);
+            pRegRange  = m_pDevice->GetRegisterRange(RegRangeContext, &numEntries);
+            pCmdSpace += CmdUtil::BuildLoadContextRegs(contextRegGpuAddr, pRegRange, numEntries, pCmdSpace);
 
-        pRegRange  = m_pDevice->GetRegisterRange(RegRangeSh, &numEntries);
-        pCmdSpace += CmdUtil::BuildLoadShRegs(shRegGpuAddr, pRegRange, numEntries, ShaderGraphics, pCmdSpace);
+            pRegRange  = m_pDevice->GetRegisterRange(RegRangeSh, &numEntries);
+            pCmdSpace += CmdUtil::BuildLoadShRegs(shRegGpuAddr, pRegRange, numEntries, ShaderGraphics, pCmdSpace);
 
-        pRegRange  = m_pDevice->GetRegisterRange(RegRangeCsSh, &numEntries);
-        pCmdSpace += CmdUtil::BuildLoadShRegs(shRegGpuAddr, pRegRange, numEntries, ShaderCompute, pCmdSpace);
+            pRegRange  = m_pDevice->GetRegisterRange(RegRangeCsSh, &numEntries);
+            pCmdSpace += CmdUtil::BuildLoadShRegs(shRegGpuAddr, pRegRange, numEntries, ShaderCompute, pCmdSpace);
+        }
     }
 
     pCmdStream->CommitCommands(pCmdSpace);
@@ -870,30 +875,32 @@ void UniversalQueueContext::WritePerSubmitPreamble(
 
         pCmdSpace = pCmdStream->ReserveCommands();
 
-        // Use a DMA_DATA packet to initialize all shadow memory to 0s explicitely.
-        DmaDataInfo dmaData  = {};
-        dmaData.dstSel       = dst_sel__pfp_dma_data__dst_addr_using_l2;
-        dmaData.dstAddr      = m_shadowGpuMem.GpuVirtAddr();
-        dmaData.dstAddrSpace = das__pfp_dma_data__memory;
-        dmaData.srcSel       = src_sel__pfp_dma_data__data;
-        dmaData.srcData      = 0;
-        dmaData.numBytes     = static_cast<uint32>(m_shadowGpuMemSizeInBytes);
-        dmaData.sync         = true;
-        dmaData.usePfp       = true;
-        pCmdSpace += CmdUtil::BuildDmaData(dmaData, pCmdSpace);
+        {
+            // Use a DMA_DATA packet to initialize all shadow memory to 0s explicitely.
+            DmaDataInfo dmaData  = {};
+            dmaData.dstSel       = dst_sel__pfp_dma_data__dst_addr_using_l2;
+            dmaData.dstAddr      = m_shadowGpuMem.GpuVirtAddr();
+            dmaData.dstAddrSpace = das__pfp_dma_data__memory;
+            dmaData.srcSel       = src_sel__pfp_dma_data__data;
+            dmaData.srcData      = 0;
+            dmaData.numBytes     = static_cast<uint32>(m_shadowGpuMemSizeInBytes);
+            dmaData.sync         = true;
+            dmaData.usePfp       = true;
+            pCmdSpace += CmdUtil::BuildDmaData(dmaData, pCmdSpace);
 
-        // After initializing shadow memory to 0, load user config and sh register again, otherwise the registers
-        // might contain invalid value. We don't need to load context register again because in the
-        // InitializeContextRegisters() we will set the contexts that we can load.
-        uint32      numEntries = 0;
-        const auto* pRegRange  = m_pDevice->GetRegisterRange(RegRangeUserConfig, &numEntries);
-        pCmdSpace += CmdUtil::BuildLoadUserConfigRegs(userCfgRegGpuAddr, pRegRange, numEntries, pCmdSpace);
+            // After initializing shadow memory to 0, load user config and sh register again, otherwise the registers
+            // might contain invalid value. We don't need to load context register again because in the
+            // InitializeContextRegisters() we will set the contexts that we can load.
+            uint32      numEntries = 0;
+            const auto* pRegRange  = m_pDevice->GetRegisterRange(RegRangeUserConfig, &numEntries);
+            pCmdSpace += CmdUtil::BuildLoadUserConfigRegs(userCfgRegGpuAddr, pRegRange, numEntries, pCmdSpace);
 
-        pRegRange = m_pDevice->GetRegisterRange(RegRangeSh, &numEntries);
-        pCmdSpace += CmdUtil::BuildLoadShRegs(shRegGpuAddr, pRegRange, numEntries, ShaderGraphics, pCmdSpace);
+            pRegRange = m_pDevice->GetRegisterRange(RegRangeSh, &numEntries);
+            pCmdSpace += CmdUtil::BuildLoadShRegs(shRegGpuAddr, pRegRange, numEntries, ShaderGraphics, pCmdSpace);
 
-        pRegRange = m_pDevice->GetRegisterRange(RegRangeCsSh, &numEntries);
-        pCmdSpace += CmdUtil::BuildLoadShRegs(shRegGpuAddr, pRegRange, numEntries, ShaderCompute, pCmdSpace);
+            pRegRange = m_pDevice->GetRegisterRange(RegRangeCsSh, &numEntries);
+            pCmdSpace += CmdUtil::BuildLoadShRegs(shRegGpuAddr, pRegRange, numEntries, ShaderCompute, pCmdSpace);
+        }
 
         // If SPM interval spans across gfx and ace, we need to manually set COMPUTE_PERFCOUNT_ENABLE for the pipes.
         // Set this register to correct value instead of loading with zero.
@@ -1444,6 +1451,14 @@ uint32* UniversalQueueContext::WriteUniversalPreamble(
     vgtTessDistribution.bits.DONUT_SPLIT   = settings.donutDistributionFactor;
     vgtTessDistribution.bits.TRAP_SPLIT    = settings.trapezoidDistributionFactor;
 
+    // Force line stipple scale to 1.0f
+    regPA_SU_LINE_STIPPLE_SCALE paSuLineStippleScale = {};
+    constexpr uint32 FloatOne = 0x3F800000;
+    paSuLineStippleScale.bits.LINE_STIPPLE_SCALE = FloatOne;
+    pCmdSpace = m_deCmdStream.WriteSetOneContextReg(mmPA_SU_LINE_STIPPLE_SCALE,
+                                                    paSuLineStippleScale.u32All,
+                                                    pCmdSpace);
+
     // Set-and-forget DCC register:
     //  This will stop compression to one of the four "magic" clear colors.
     regCB_DCC_CONTROL cbDccControl = { };
@@ -1604,16 +1619,16 @@ uint32* UniversalQueueContext::WriteUniversalPreamble(
 
         regPA_CL_NGG_CNTL paClNggCntl = { };
 
-        if (IsGfx102Plus(device))
+        if (IsGfx103Plus(device))
         {
-            paClNggCntl.gfx102Plus.VERTEX_REUSE_DEPTH = 30;
+            paClNggCntl.gfx103Plus.VERTEX_REUSE_DEPTH = 30;
 
             // Setting all these bits tells the HW to use the driver programmed setting of SX_PS_DOWNCONVERT
             // instead of automatically calculating the value.
             regSX_PS_DOWNCONVERT_CONTROL sxPsDownconvertControl = { };
             sxPsDownconvertControl.u32All = (1 << MaxColorTargets) - 1;
 
-            pCmdSpace = m_deCmdStream.WriteSetOneContextReg(Gfx102Plus::mmSX_PS_DOWNCONVERT_CONTROL,
+            pCmdSpace = m_deCmdStream.WriteSetOneContextReg(Gfx103Plus::mmSX_PS_DOWNCONVERT_CONTROL,
                                                             sxPsDownconvertControl.u32All,
                                                             pCmdSpace);
         }
@@ -1698,7 +1713,51 @@ uint32* UniversalQueueContext::WriteUniversalPreamble(
                                                             Gfx09::mmSPI_SHADER_PGM_HI_LS;
     pCmdSpace = m_deCmdStream.WriteSetOneShReg<ShaderGraphics>(mmSpiShaderPgmHiEs, 0, pCmdSpace);
     pCmdSpace = m_deCmdStream.WriteSetOneShReg<ShaderGraphics>(mmSpiShaderPgmHiLs, 0, pCmdSpace);
-    pCmdSpace = m_deCmdStream.WriteSetOneShReg<ShaderCompute>(mmCOMPUTE_PGM_HI,    0, pCmdSpace);
+    pCmdSpace = m_deCmdStream.WriteSetOneShReg<ShaderCompute>(mmCOMPUTE_PGM_HI, 0, pCmdSpace);
+
+    if (m_pDevice->Settings().useClearStateToInitialize == false)
+    {
+        uint32 PaRegisters1[2] = { static_cast<uint32>(0xaa99aaaa), static_cast<uint32>(0x00000000) };
+        m_deCmdStream.WriteSetSeqContextRegs(mmPA_SC_EDGERULE,
+                                             mmPA_SU_HARDWARE_SCREEN_OFFSET,
+                                             &PaRegisters1,
+                                             pCmdSpace);
+        constexpr struct
+        {
+            regPA_CL_POINT_X_RAD    paClPointXRad;
+            regPA_CL_POINT_Y_RAD    paClPointYRad;
+            regPA_CL_POINT_SIZE     paClPointSize;
+            regPA_CL_POINT_CULL_RAD paClPointCullRad;
+        } PaRegisters2 = { };
+        m_deCmdStream.WriteSetSeqContextRegs(mmPA_CL_POINT_X_RAD,
+                                             mmPA_CL_POINT_CULL_RAD,
+                                             &PaRegisters2,
+                                             pCmdSpace);
+        constexpr struct
+        {
+            regPA_CL_NANINF_CNTL        paClNanifCntl;
+            regPA_SU_LINE_STIPPLE_CNTL  paSuLineStippleCntl;
+            regPA_SU_LINE_STIPPLE_SCALE paSuLineStippleScale;
+            regPA_SU_PRIM_FILTER_CNTL   paSuPrimFilterCntl;
+        } PaRegisters3 = { };
+        m_deCmdStream.WriteSetSeqContextRegs(mmPA_CL_NANINF_CNTL,
+                                             mmPA_SU_PRIM_FILTER_CNTL,
+                                             &PaRegisters3,
+                                             pCmdSpace);
+        constexpr struct
+        {
+            regPA_CL_NGG_CNTL                paClNggCntl;
+            regPA_SU_OVER_RASTERIZATION_CNTL paSuOverRasterizationCntl;
+        } PaRegisters4 = { };
+        m_deCmdStream.WriteSetSeqContextRegs(mmPA_CL_NGG_CNTL,
+                                             mmPA_SU_OVER_RASTERIZATION_CNTL,
+                                             &PaRegisters4,
+                                             pCmdSpace);
+
+        pCmdSpace = m_deCmdStream.WriteSetOneContextReg(mmVGT_PRIMITIVEID_RESET, 0x00000000, pCmdSpace);
+        pCmdSpace = m_deCmdStream.WriteSetOneContextReg(mmPA_SC_CLIPRECT_RULE,   0x0000ffff, pCmdSpace);
+
+    }
 
     return WriteCommonPreamble(*m_pDevice, EngineTypeUniversal, &m_deCmdStream, pCmdSpace);
 }

@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2020 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2021 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -1893,6 +1893,17 @@ const FormatInfo FormatInfoTable[] =
          ChannelFlags::Y),                  // Channel Mask: XY--
         0,                                  // Format Properties
         NumericSupportFlags::Uint,
+    },
+    // P208
+    {
+        12,  3,                             // 12 bpp, 3 components
+        {  8,  8,  8,  0, },                // # of bits-per-component
+        (ChannelFlags::X |
+         ChannelFlags::Y |
+         ChannelFlags::Z),                  // Channel Mask: XYZ-
+        (YuvPlanar |
+         BitCountInaccurate),               // Format Properties
+        NumericSupportFlags::Yuv,
     },
 };
 

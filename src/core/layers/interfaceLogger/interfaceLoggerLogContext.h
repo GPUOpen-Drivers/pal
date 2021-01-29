@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2016-2020 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2016-2021 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -332,7 +332,7 @@ struct BeginFuncInfo
 // =====================================================================================================================
 // JSON stream that records the text stream using a staging buffer and a log file. WriteFile must be called explicitly
 // to flush all buffered text. Note that this makes it possible to generate JSON text before OpenFile has been called.
-class LogStream : public Util::JsonStream
+class LogStream final : public Util::JsonStream
 {
 public:
     explicit LogStream(Platform* pPlatform);

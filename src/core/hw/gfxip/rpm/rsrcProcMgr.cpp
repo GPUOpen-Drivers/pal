@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2020 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2021 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -5603,6 +5603,7 @@ void RsrcProcMgr::LateExpandResolveSrcHelper(
         barrierInfo.pTransitions    = &transitions[0];
         barrierInfo.transitionCount = regionCount;
         barrierInfo.waitPoint       = waitPoint;
+        barrierInfo.reason          = Developer::BarrierReasonUnknown;
 
         const HwPipePoint releasePipePoint = Pal::HwPipeBottom;
         barrierInfo.pipePointWaitCount = 1;
@@ -5903,7 +5904,7 @@ void RsrcProcMgr::CmdGenerateIndirectCmds(
     pTableMem += SrdDwords;
 
     // Structured-buffer SRD for the command parameter data:
-    memcpy(pTableMem, generator.ParamBufferSrd(), (sizeof(uint32) * SrdDwords));
+    generator.PopulateParameterBuffer(pCmdBuffer, pPipeline, pTableMem);
     pTableMem += SrdDwords;
 
     // Typed-buffer SRD for the user-data entry mappings:
@@ -5920,7 +5921,7 @@ void RsrcProcMgr::CmdGenerateIndirectCmds(
     pTableMem += SrdDwords;
 
     // Constant buffer SRD for the command-generator properties:
-    memcpy(pTableMem, generator.PropertiesSrd(), (sizeof(uint32) * SrdDwords));
+    generator.PopulatePropertyBuffer(pCmdBuffer, pPipeline, pTableMem);
     pTableMem += SrdDwords;
 
     // Constant buffer SRD for the properties of the ExecuteIndirect() invocation:
@@ -5982,7 +5983,7 @@ void RsrcProcMgr::CmdGenerateIndirectCmds(
         // UAV buffer SRD for the command-stream-chunk to generate:
         viewInfo.gpuAddr        = mainChunk.pChunk->GpuVirtAddr();
         viewInfo.swizzledFormat = UndefinedSwizzledFormat;
-        viewInfo.range          = (mainChunk.commandsInChunk * generator.Properties().cmdBufStride);
+        viewInfo.range          = (mainChunk.commandsInChunk * generator.CmdBufStride(pPipeline));
         viewInfo.stride         = 1;
         m_pDevice->Parent()->CreateUntypedBufferViewSrds(1, &viewInfo, pTableMem);
         pTableMem += SrdDwords;
@@ -6030,7 +6031,7 @@ void RsrcProcMgr::CmdGenerateIndirectCmds(
             // UAV buffer SRD for the command-stream-chunk to generate:
             viewInfo.gpuAddr        = taskChunk.pChunk->GpuVirtAddr();
             viewInfo.swizzledFormat = UndefinedSwizzledFormat;
-            viewInfo.range          = (taskChunk.commandsInChunk * generator.Properties().cmdBufStride);
+            viewInfo.range          = (taskChunk.commandsInChunk * generator.CmdBufStride(pPipeline));
             viewInfo.stride         = 1;
             m_pDevice->Parent()->CreateUntypedBufferViewSrds(1, &viewInfo, pTableMem);
             pTableMem += SrdDwords;

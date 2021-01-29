@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2016-2020 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2016-2021 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -44,7 +44,7 @@ class WindowSystem;
 
 // =====================================================================================================================
 // On Linux, the present scheduler's core logic implements all presents using the native WindowSystem.
-class PresentScheduler : public Pal::PresentScheduler
+class PresentScheduler final : public Pal::PresentScheduler
 {
 public:
     // The present scheduler is designed to be placed into other PAL objects which requires the Create/Destroy pattern.

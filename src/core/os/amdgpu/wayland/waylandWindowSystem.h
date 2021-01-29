@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2018-2020 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2018-2021 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -44,7 +44,7 @@ class WaylandWindowSystem;
 // There is no present fence on Wayland platform yet, a listener function registered will be called once the present
 // buffer is released by Wayland Server. Then the m_idle will be set true to indicate that the present fence
 // of the image is signaled.
-class WaylandPresentFence : public PresentFence
+class WaylandPresentFence final : public PresentFence
 {
 public:
     static size_t GetSize() { return sizeof(WaylandPresentFence); }
@@ -79,7 +79,7 @@ private:
 // =====================================================================================================================
 // WaylandWindowSystem is responsible for creating Wayland presentable image, presenting image to Wayland server,
 // waiting for Wayland server present done, etc.
-class WaylandWindowSystem : public WindowSystem
+class WaylandWindowSystem final : public WindowSystem
 {
 public:
     static size_t GetSize() { return sizeof(WaylandWindowSystem); }

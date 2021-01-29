@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2020 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2021 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -40,7 +40,7 @@ class Platform;
 // =====================================================================================================================
 // Specialization of QueueSemaphore to handle Semaphores for single-GPU scenarios or the "master" Semaphore for multi-
 // GPU shared Semaphore objects.
-class MasterQueueSemaphore : public QueueSemaphore
+class MasterQueueSemaphore final : public QueueSemaphore
 {
 public:
     explicit MasterQueueSemaphore(Device* pDevice);
