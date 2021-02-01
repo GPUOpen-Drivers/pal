@@ -627,12 +627,6 @@ void SettingsLoader::OverrideDefaults(
         m_settings.batchBreakOnNewPixelShader = true;
     }
 
-    // Disable using the CLEAR_STATE packet and instead write missing register values explicitly.
-    if (IsGfx10Plus(device))
-    {
-        m_settings.useClearStateToInitialize = false;
-    }
-
     m_state = SettingsLoaderState::LateInit;
 }
 
