@@ -657,7 +657,7 @@ public:
     virtual uint32* CmdAllocateEmbeddedData(
         uint32   sizeInDwords,
         uint32   alignmentInDwords,
-        gpusize* pGpuAddress) override;
+        gpusize* pGpuAddress) override final;
 
     virtual Result AllocateAndBindGpuMemToEvent(
         IGpuEvent* pGpuEvent) override;

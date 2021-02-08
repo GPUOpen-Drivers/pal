@@ -441,7 +441,8 @@ public:
     Pal::Result Init();
 
     /// Registers a queue with the GpaSession that will be submitted to using TimedSubmit. This must be called on any
-    /// queues that are submitted to via the Timed* functions.
+    /// queues that are submitted to via the Timed* functions. For Timed* signal and wait queue semaphore events, a
+    /// valid queueContext will be required (queueContext not equal to 0).
     Pal::Result RegisterTimedQueue(Pal::IQueue* pQueue,
                                    Pal::uint64 queueId,
                                    Pal::uint64 queueContext);
@@ -482,12 +483,14 @@ public:
                                   const TimedQueuePresentInfo& timedPresentInfo);
 
     /// Injects a timed wait queue semaphore event using information supplied by an external source.
+    /// A valid queueContext (queueContext not equal to 0) is needed for this function.
     Pal::Result ExternalTimedWaitQueueSemaphore(Pal::uint64 queueContext,
                                                 Pal::uint64 cpuSubmissionTimestamp,
                                                 Pal::uint64 cpuCompletionTimestamp,
                                                 const TimedQueueSemaphoreInfo& timedWaitInfo);
 
     /// Injects a timed signal queue semaphore event using information supplied by an external source.
+    /// A valid queueContext (queueContext not equal to 0) is needed for this function.
     Pal::Result ExternalTimedSignalQueueSemaphore(Pal::uint64 queueContext,
                                                   Pal::uint64 cpuSubmissionTimestamp,
                                                   Pal::uint64 cpuCompletionTimestamp,

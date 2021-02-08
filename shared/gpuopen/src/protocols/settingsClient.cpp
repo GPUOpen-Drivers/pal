@@ -35,7 +35,7 @@ namespace DevDriver
     {
 
         SettingsClient::SettingsClient(IMsgChannel* pMsgChannel)
-            : BaseProtocolClient(pMsgChannel, Protocol::Settings, SETTINGS_CLIENT_MIN_VERSION, SETTINGS_CLIENT_MAX_VERSION)
+            : LegacyProtocolClient(pMsgChannel, Protocol::Settings, SETTINGS_CLIENT_MIN_VERSION, SETTINGS_CLIENT_MAX_VERSION)
 
         {
         }

@@ -31,7 +31,7 @@ namespace DevDriver
     namespace ETWProtocol
     {
         ETWClient::ETWClient(IMsgChannel* pMsgChannel)
-            : BaseProtocolClient(pMsgChannel, Protocol::ETW, kVersion, kVersion)
+            : LegacyProtocolClient(pMsgChannel, Protocol::ETW, kVersion, kVersion)
             , m_sessionState(SessionState::Idle)
         {
         }

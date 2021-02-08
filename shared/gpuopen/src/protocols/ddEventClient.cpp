@@ -43,7 +43,7 @@ namespace EventProtocol
 
 // =====================================================================================================================
 EventClient::EventClient(IMsgChannel* pMsgChannel)
-    : BaseProtocolClient(pMsgChannel, Protocol::Event, EVENT_CLIENT_MIN_VERSION, EVENT_CLIENT_MAX_VERSION)
+    : LegacyProtocolClient(pMsgChannel, Protocol::Event, EVENT_CLIENT_MIN_VERSION, EVENT_CLIENT_MAX_VERSION)
 {
 }
 
@@ -81,7 +81,7 @@ Result EventClient::QueryProviders(EventProvidersDescription** ppProvidersDescri
 
             if (result == Result::Success)
             {
-                pPullBlock = transferManager.OpenPullBlock(m_pSession->GetDestinationClientId(),
+                pPullBlock = transferManager.OpenPullBlock(GetRemoteClientId(),
                                                             response.blockId);
 
                 result = (pPullBlock != nullptr) ? Result::Success : Result::Error;
@@ -171,7 +171,7 @@ Result EventClient::UpdateProviders(
                 const BlockId blockId = container.GetPayload<AllocateProviderUpdatesResponse>().blockId;
                 pPushBlock =
                     transferManager.OpenPushBlock(
-                        m_pSession->GetDestinationClientId(),
+                        GetRemoteClientId(),
                         blockId,
                         updateDataSize);
 

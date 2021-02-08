@@ -31,6 +31,18 @@ cmake_minimum_required(VERSION 3.10..3.16)
 # Users of this file should only `include(DevDriver)`
 include(AMD)
 
+# A helper function to allow usage of DEBUG mode introduced in CMake 3.15.
+#
+# This function is intended to prevent printing out everything to STATUS.
+# If using CMake older than 3.15, this function is a no-op. Developers who
+# wish to see debug messages should update their CMake install.
+function(devdriver_message_debug)
+    # DEBUG mode was introduced in 3.15
+    if(${CMAKE_VERSION} VERSION_GREATER_EQUAL "3.15")
+        message(DEBUG ${ARGV})
+    endif()
+endfunction()
+
 option(DD_OPT_FORCE_COLOR_OUPUT "Force colored diagnostic messages (Clang/gcc only)"
     ON)
 

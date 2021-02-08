@@ -31,7 +31,7 @@
 
 #pragma once
 
-#include "baseProtocolClient.h"
+#include "legacyProtocolClient.h"
 #include "protocols/ddGpuCrashDumpProtocol.h"
 
 namespace DevDriver
@@ -45,7 +45,7 @@ namespace DevDriver
 
     namespace GpuCrashDumpProtocol
     {
-        class GpuCrashDumpClient : public BaseProtocolClient
+        class GpuCrashDumpClient : public LegacyProtocolClient
         {
         public:
             explicit GpuCrashDumpClient(IMsgChannel* pMsgChannel);

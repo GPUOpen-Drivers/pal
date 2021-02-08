@@ -31,7 +31,7 @@
 
 #pragma once
 
-#include "baseProtocolClient.h"
+#include "legacyProtocolClient.h"
 #include "protocols/ddTransferProtocol.h"
 
 namespace DevDriver
@@ -40,7 +40,7 @@ namespace DevDriver
 
     namespace TransferProtocol
     {
-        class TransferClient final : public BaseProtocolClient
+        class TransferClient final : public LegacyProtocolClient
         {
         public:
             explicit TransferClient(IMsgChannel* pMsgChannel);

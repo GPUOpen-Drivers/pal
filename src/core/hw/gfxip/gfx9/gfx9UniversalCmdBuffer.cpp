@@ -980,7 +980,6 @@ uint32* UniversalCmdBuffer::SwitchGraphicsPipeline(
     }
 
     bool breakBatch = ((m_cachedSettings.pbbMoreThanOneCtxState) && (m_state.flags.cbTargetMaskChanged));
-    m_state.flags.cbTargetMaskChanged = false;
 
     if ((m_cachedSettings.batchBreakOnNewPs) && (breakBatch == false)
         )
@@ -996,6 +995,7 @@ uint32* UniversalCmdBuffer::SwitchGraphicsPipeline(
     if (breakBatch)
     {
         pDeCmdSpace += CmdUtil::BuildNonSampleEventWrite(BREAK_BATCH, EngineTypeUniversal, pDeCmdSpace);
+
     }
 
     // Get new pipeline state VS/PS registers
@@ -1103,6 +1103,8 @@ uint32* UniversalCmdBuffer::SwitchGraphicsPipeline(
     m_pipelineState.flags.usesGs    = gsEnabled;
     m_pipelineState.flags.noRaster  = isRasterKilled;
     m_pipelineState.flags.gsCutMode = pCurrPipeline->VgtGsMode().bits.CUT_MODE;
+
+    m_state.flags.cbTargetMaskChanged = false;
 
     return pDeCmdSpace;
 }
@@ -2874,7 +2876,6 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawIndirectMulti(
     // that state when executing a non-indexed indirect draw.
     // SEE: CmdDraw() for more details about why we do this.
     pThis->m_drawTimeHwState.dirty.indexedIndexType = 1;
-
 }
 
 // =====================================================================================================================
@@ -2990,7 +2991,6 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawIndexedIndirectMulti(
     pThis->m_deCmdStream.CommitCommands(pDeCmdSpace);
 
     pThis->m_state.flags.containsDrawIndirect = 1;
-
 }
 
 // =====================================================================================================================

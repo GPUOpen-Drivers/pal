@@ -36,7 +36,7 @@ class Device;
 // =====================================================================================================================
 // Represents an event object can be set or reset by both the CPU and GPU, and its status can be queried by the CPU.
 // See IGpuEvent documentation for more details.
-class GpuEvent : public IGpuEvent
+class GpuEvent final : public IGpuEvent
 {
 public:
     GpuEvent(const GpuEventCreateInfo& createInfo, Device* pDevice);

@@ -32,6 +32,7 @@
 #include "core/hw/gfxip/gfx6/gfx6UniversalCmdBuffer.h"
 #include "palCmdBuffer.h"
 #include "palIntervalTreeImpl.h"
+#include "palSysUtil.h"
 
 using namespace Util;
 
@@ -537,6 +538,32 @@ size_t OcclusionQueryPool::GetResultSizeForOneSlot(
 }
 
 // =====================================================================================================================
+// Helper function to check if the query data is valid. For disabled RBs, the check should always pass but just with a
+// memory barrier inserted.
+static bool IsQueryDataValid(
+    volatile const uint64* pData)
+{
+    bool result = false;
+
+    volatile const uint32* pData32 = reinterpret_cast<volatile const uint32*>(pData);
+
+    if ((pData32[0] != 0) || (pData32[1] != 0))
+    {
+        // The write from the HW isn't atomic at the host/CPU level so we can
+        // end up with half the data.
+        if ((pData32[0] == 0) || (pData32[1] == 0))
+        {
+            // One of the halves appears unwritten. Use memory barrier here to
+            // make sure all writes to this memory from other threads/devices visible to this thread.
+            Util::MemoryBarrier();
+        }
+        result = true;
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
 // Helper function for ComputeResults. It computes the result data according to the given flags, storing all data in
 // integers of type ResultUint. Returns true if all counters were ready. Note that the counters pointer is volatile
 // because the GPU could write them at any time (and if QueryResultWait is set we expect it to do so).
@@ -561,7 +588,9 @@ static bool ComputeResultsForOneSlot(
             // The RBs will set the valid bits when they have written their data. We do not need to skip disabled RBs
             // because they are initialized to valid with zPassData equal to zero. We will loop here for as long as
             // necessary if the caller has requested it.
-            countersReady = (pRbCounters[idx].begin.bits.valid == 1) && (pRbCounters[idx].end.bits.valid == 1);
+            countersReady = IsQueryDataValid(&pRbCounters[idx].begin.data) &&
+                            IsQueryDataValid(&pRbCounters[idx].end.data)   &&
+                            ((pRbCounters[idx].begin.bits.valid == 1) && (pRbCounters[idx].end.bits.valid == 1));
         }
         while ((countersReady == false) && TestAnyFlagSet(flags, QueryResultWait));
 

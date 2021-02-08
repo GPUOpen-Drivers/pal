@@ -254,7 +254,7 @@ namespace DevDriver
 
             default:
             {
-                DD_WARN_REASON("Registered protocol server for unknown protocol");
+                // Do nothing since we don't track custom protocol usage in our enabled protocols flags
                 break;
             }
             }

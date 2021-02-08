@@ -61,6 +61,7 @@ static constexpr uint32 IntelPentium4Family          = 0xF;           ///< Penti
 void QueryAMDCpuType(
     SystemInfo* pSystemInfo)
 {
+#if PAL_HAS_CPUID
     uint32 reg[4] = {};
 
     CpuId(reg, 1);
@@ -137,6 +138,9 @@ void QueryAMDCpuType(
             pSystemInfo->cpuType = CpuType::Unknown;
             break;
     }
+#else
+    pSystemInfo->cpuType = CpuType::Unknown;
+#endif
 }
 
 // =====================================================================================================================
@@ -144,6 +148,7 @@ void QueryAMDCpuType(
 void QueryIntelCpuType(
     SystemInfo* pSystemInfo)
 {
+#if PAL_HAS_CPUID
     uint32 reg[4] = {};
 
     CpuId(reg, 1);
@@ -206,6 +211,9 @@ void QueryIntelCpuType(
             pSystemInfo->cpuType = CpuType::Unknown;
             break;
     }
+#else
+    pSystemInfo->cpuType = CpuType::Unknown;
+#endif
 }
 
 } // Util

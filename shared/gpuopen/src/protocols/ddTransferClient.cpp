@@ -34,7 +34,7 @@ namespace DevDriver
     {
         // ============================================================================================================
         TransferClient::TransferClient(IMsgChannel* pMsgChannel)
-            : BaseProtocolClient(pMsgChannel,
+            : LegacyProtocolClient(pMsgChannel,
                                  Protocol::Transfer,
                                  TRANSFER_CLIENT_MIN_VERSION,
                                  TRANSFER_CLIENT_MAX_VERSION)
@@ -64,7 +64,7 @@ namespace DevDriver
                     (container.GetPayload<TransferHeader>().command == TransferMessage::TransferDataHeader))
                 {
                     // We've successfully received the transfer data header. Check if the transfer request was successful.
-                    if (m_pSession->GetVersion() >= TRANSFER_REFACTOR_VERSION)
+                    if (GetSessionVersion() >= TRANSFER_REFACTOR_VERSION)
                     {
                         const TransferDataHeaderV2& receivedHeader = container.GetPayload<TransferDataHeaderV2>();
                         m_transferContext.state = TransferState::TransferInProgress;
@@ -211,7 +211,7 @@ namespace DevDriver
                                     else
                                     {
                                         // Check CRC
-                                        if ((m_pSession->GetVersion() >= TRANSFER_REFACTOR_VERSION) &&
+                                        if ((GetSessionVersion() >= TRANSFER_REFACTOR_VERSION) &&
                                             (sentinel.crc32 != m_transferContext.crc32))
                                         {
                                             m_transferContext.state = TransferState::Error;
@@ -245,7 +245,7 @@ namespace DevDriver
         {
             Result result = Result::Error;
             if ((m_transferContext.state == TransferState::Idle) &&
-                (m_pSession->GetVersion() >= TRANSFER_REFACTOR_VERSION) &&
+                (GetSessionVersion() >= TRANSFER_REFACTOR_VERSION) &&
                 (blockId != kInvalidBlockId) &&
                 (transferSizeInBytes != 0))
             {
@@ -396,8 +396,7 @@ namespace DevDriver
             uint32 retryInMs)
         {
             // Use the legacy size for the container if we're connected to an older client, otherwise use the real size.
-            const Version sessionVersion = (m_pSession.IsNull() == false) ? m_pSession->GetVersion() : 0;
-            const uint32 payloadSize = (sessionVersion >= TRANSFER_REFACTOR_VERSION) ? container.payloadSize : kMaxPayloadSizeInBytes;
+            const uint32 payloadSize = (GetSessionVersion() >= TRANSFER_REFACTOR_VERSION) ? container.payloadSize : kMaxPayloadSizeInBytes;
 
             return SendSizedPayload(container.payload,
                                     payloadSize,

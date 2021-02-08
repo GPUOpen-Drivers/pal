@@ -89,6 +89,7 @@ public:
 
     bool AutomaticMemoryReuse() const { return (m_flags.autoMemoryReuse != 0); }
     bool TrackBusyChunks() const      { return (m_flags.trackBusyChunks != 0); }
+    bool LocalCommandData() const     { return (m_flags.localCmdData    != 0); }
 
     uint64 LastPagingFence() const { return m_lastPagingFence; }
 
@@ -131,7 +132,8 @@ private:
             uint32 autoMemoryReuse :  1; // Indicates that the allocator will automatically recycle idle chunks.
             uint32 trackBusyChunks :  1; // Indicates that the allocator will track which chunks are idle (for debugging
                                          // purposes, or for supporting 'autoMemoryReuse').
-            uint32 reserved        : 30;
+            uint32 localCmdData    :  1; // If CommandDataAlloc memory is allocated from the CPU-visible local heap.
+            uint32 reserved        : 29;
         };
         uint32 u32All;
     }  m_flags;

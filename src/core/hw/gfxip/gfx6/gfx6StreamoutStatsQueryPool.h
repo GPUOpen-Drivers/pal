@@ -89,6 +89,8 @@ protected:
 private:
     const Device&  m_device;
 
+    bool IsQueryDataValid(volatile const uint64* pData) const;
+
     PAL_DISALLOW_COPY_AND_ASSIGN(StreamoutStatsQueryPool);
     PAL_DISALLOW_DEFAULT_CTOR(StreamoutStatsQueryPool);
 };

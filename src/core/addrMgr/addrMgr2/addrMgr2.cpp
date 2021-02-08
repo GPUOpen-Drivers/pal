@@ -943,13 +943,13 @@ Result AddrMgr2::ComputeAlignedPlaneDimensions(
     surfInfoIn.flags        = DetermineSurfaceFlags(*pImage, pBaseSubRes->subresId.plane, false);
 #endif
 
-    // We must convert our byte pitches into units of elements. For most formats (including BC formats) the subresource
-    // bitsPerTexel is already the size of an element. The exception is 96-bit formats which have three 32-bit element
-    // per texel.
-    const uint32 bytesPerElement = CalcBytesPerElement(pBaseSubRes);
-
     if ((createInfo.rowPitch > 0) && (createInfo.depthPitch > 0))
     {
+        // We must convert our byte pitches into units of elements. For most formats (including BC formats) the subresource
+        // bitsPerTexel is already the size of an element. The exception is 96-bit formats which have three 32-bit element
+        // per texel.
+        const uint32 bytesPerElement = CalcBytesPerElement(pBaseSubRes);
+
         PAL_ASSERT((createInfo.rowPitch % bytesPerElement) == 0);
 
         surfInfoIn.pitchInElement = createInfo.rowPitch / bytesPerElement;

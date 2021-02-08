@@ -72,7 +72,7 @@ CPPFILES += ddVersion.cpp             \
             sessionManager.cpp        \
             messageChannel.cpp        \
             baseProtocolServer.cpp    \
-            baseProtocolClient.cpp    \
+            legacyProtocolClient.cpp  \
             ddTransferManager.cpp     \
             ddClientURIService.cpp    \
             ddURIRequestContext.cpp

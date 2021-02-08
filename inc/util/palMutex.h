@@ -33,11 +33,8 @@
 
 #include "palAssert.h"
 
-#if   defined(__unix__)
 #include <pthread.h>
 #include <string.h>
-
-#endif
 
 namespace Util
 {
@@ -50,12 +47,10 @@ namespace Util
 class Mutex
 {
 public:
-#if   defined(__unix__)
     /// Defines MutexData as a unix pthread_mutex_t
     typedef pthread_mutex_t MutexData;
     Mutex() noexcept : m_osMutex {} { pthread_mutex_init(&m_osMutex, nullptr); }
     ~Mutex() { pthread_mutex_destroy(&m_osMutex); };
-#endif
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 647
     /// Backward compatability support for ::Init() call
@@ -137,13 +132,11 @@ private:
 class RWLock
 {
 public:
-#if   defined(__unix__)
     /// Defines RWLockData as a unix pthread_rwlock_t
     typedef pthread_rwlock_t  RWLockData;
     /// @note pthread_rwlock_init will not fail as called
     RWLock() noexcept : m_osRWLock {} { pthread_rwlock_init(&m_osRWLock, nullptr); }
     ~RWLock() noexcept { pthread_rwlock_destroy(&m_osRWLock); };
-#endif
 
     /// Enumerates the lock type of RWLockAuto
     enum LockType

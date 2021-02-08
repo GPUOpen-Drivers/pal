@@ -172,6 +172,7 @@ constexpr KeyCode KeyLookupTable[] =
 static_assert(KeyLookupTable[KEY_BACKSLASH] == KeyCode::Backslash, "Wrong KeyLookupTable");
 static_assert(KeyLookupTable[KEY_DELETE]    == KeyCode::Delete,    "Wrong KeyLookupTable");
 
+#if PAL_HAS_CPUID
 // =====================================================================================================================
 // Get affinity mask of each core complex for AMD processor
 static Result GetCcxMask(
@@ -215,6 +216,7 @@ static Result GetCcxMask(
 
     return Result::Success;
 }
+#endif
 
 // =====================================================================================================================
 // Queries system information.
@@ -225,6 +227,9 @@ Result QuerySystemInfo(
 
     if (pSystemInfo != nullptr)
     {
+        // Null-terminate the string. The returned vendor string is always 12 bytes and does not include a terminator.
+        pSystemInfo->cpuVendorString[12] = '\0';
+#if PAL_HAS_CPUID
         uint32 regValues[4] = {};
 
         // Query the vendor string
@@ -233,9 +238,6 @@ Result QuerySystemInfo(
         *reinterpret_cast<uint32*>(&pSystemInfo->cpuVendorString[0]) = regValues[1]; // EBX
         *reinterpret_cast<uint32*>(&pSystemInfo->cpuVendorString[4]) = regValues[3]; // EDX
         *reinterpret_cast<uint32*>(&pSystemInfo->cpuVendorString[8]) = regValues[2]; // ECX
-
-        // Null-terminate the string. The returned vendor string is always 12 bytes and does not include a terminator.
-        pSystemInfo->cpuVendorString[12] = '\0';
 
         // CPUID instruction constants
         constexpr uint32 BrandStringFunctionId      = 0x80000000;
@@ -279,10 +281,12 @@ Result QuerySystemInfo(
                 pSystemInfo->cpuType = CpuType::Unknown;
             }
         }
+#endif
 
         pSystemInfo->cpuLogicalCoreCount  = 0;
         pSystemInfo->cpuPhysicalCoreCount = 0;
         pSystemInfo->cpuFrequency = 0;
+        uint32 cpuClockSpeedTotal = 0;
 
         // parse /proc/cpuinfo to get logical and physical core info
         File cpuInfoFile;
@@ -302,7 +306,6 @@ Result QuerySystemInfo(
             CpuCoreCount*        pCoreCount         = nullptr;
             bool                 coreCountPopulated = false;
             GenericAllocatorAuto allocator;
-            uint32               cpuClockSpeedTotal = 0;
 
             auto pBuf = static_cast<char* const>(PAL_CALLOC(BufSize, &allocator, AllocInternalTemp));
             PhysicalPackageCoreCountMap coreCountPerPhysicalId(MaxSocketsHint, &allocator);
@@ -389,22 +392,35 @@ Result QuerySystemInfo(
                     pSystemInfo->cpuLogicalCoreCount  += coreCount.logicalCoreCount;
                     pSystemInfo->cpuPhysicalCoreCount += coreCount.physicalCoreCount;
                 }
-                pSystemInfo->cpuFrequency = cpuClockSpeedTotal / pSystemInfo->cpuLogicalCoreCount;
             }
         }
 
         cpuInfoFile.Close();
 
+#if PAL_HAS_CPUID
         // GetCcxMask() should be called only for Ryzen for now.
         if ((result == Result::Success) && (pSystemInfo->cpuType == CpuType::AmdRyzen))
         {
             result = GetCcxMask(pSystemInfo, pSystemInfo->cpuLogicalCoreCount);
         }
+#endif
 
         if (result == Result::Success)
         {
              uint64 totalMemByteSize = sysconf( _SC_PHYS_PAGES ) * sysconf( _SC_PAGESIZE );
              pSystemInfo->totalSysMemSize = static_cast<uint32>(totalMemByteSize / 1024 / 1024);
+
+             // /proc/cpuinfo varies by arch, so we might have got no data at all.
+             // Have a robust but less-detailed fallback
+             if (pSystemInfo->cpuPhysicalCoreCount == 0)
+             {
+                 pSystemInfo->cpuPhysicalCoreCount = sysconf(_SC_NPROCESSORS_ONLN);
+             }
+             if (pSystemInfo->cpuLogicalCoreCount == 0)
+             {
+                 pSystemInfo->cpuLogicalCoreCount = pSystemInfo->cpuPhysicalCoreCount;
+             }
+             pSystemInfo->cpuFrequency = cpuClockSpeedTotal / pSystemInfo->cpuLogicalCoreCount;
         }
     }
 

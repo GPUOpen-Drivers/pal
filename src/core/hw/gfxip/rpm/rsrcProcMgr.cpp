@@ -1106,7 +1106,12 @@ void RsrcProcMgr::CopyDepthStencilImageGraphics(
                                                 srcImageLayout,
                                                 texOptLevel);
 
-                    srcFormat.format = ChNumFormat::X8_Uint;
+                    constexpr SwizzledFormat StencilSrcFormat =
+                    {
+                        ChNumFormat::X8_Uint,
+                        { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One },
+                    };
+
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
                     viewRange        = { pRegions[secondSurface].srcSubres, 1, 1 };
 #else
@@ -1118,7 +1123,7 @@ void RsrcProcMgr::CopyDepthStencilImageGraphics(
                     RpmUtil::BuildImageViewInfo(&imageView[1],
                                                 srcImage,
                                                 viewRange,
-                                                srcFormat,
+                                                StencilSrcFormat,
                                                 srcImageLayout,
                                                 texOptLevel);
                     device.CreateImageViewSrds(2, &imageView[0], pSrdTable);

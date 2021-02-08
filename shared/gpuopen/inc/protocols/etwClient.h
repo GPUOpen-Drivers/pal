@@ -31,7 +31,7 @@
 
 #pragma once
 
-#include "baseProtocolClient.h"
+#include "legacyProtocolClient.h"
 #include "protocols/etwProtocol.h"
 
 namespace DevDriver
@@ -40,7 +40,7 @@ namespace DevDriver
 
     namespace ETWProtocol
     {
-        class ETWClient : public BaseProtocolClient
+        class ETWClient : public LegacyProtocolClient
         {
         public:
             explicit ETWClient(IMsgChannel* pMsgChannel);

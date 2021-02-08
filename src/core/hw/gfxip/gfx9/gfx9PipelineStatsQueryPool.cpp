@@ -30,6 +30,7 @@
 #include "core/hw/gfxip/gfx9/gfx9Device.h"
 #include "core/hw/gfxip/gfx9/gfx9PipelineStatsQueryPool.h"
 #include "palCmdBuffer.h"
+#include "palSysUtil.h"
 
 using namespace Util;
 
@@ -417,6 +418,31 @@ size_t PipelineStatsQueryPool::GetResultSizeForOneSlot(
 }
 
 // =====================================================================================================================
+// Helper function to check if the query data is valid.
+static bool IsQueryDataValid(
+    volatile const uint64* pData)
+{
+    bool result = false;
+
+    volatile const uint32* pData32 = reinterpret_cast<volatile const uint32*>(pData);
+
+    if ((pData32[0] != PipelineStatsResetMemValue32) || (pData32[1] != PipelineStatsResetMemValue32))
+    {
+        // The write from the HW isn't atomic at the host/CPU level so we can
+        // end up with half the data.
+        if ((pData32[0] == PipelineStatsResetMemValue32) || (pData32[1] == PipelineStatsResetMemValue32))
+        {
+            // One of the halves appears unwritten. Use memory barrier here to
+            // make sure all writes to this memory from other threads/devices visible to this thread.
+            Util::MemoryBarrier();
+        }
+        result = true;
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
 // Helper function for ComputeResults. It computes the result data according to the given flags, storing all data in
 // integers of type ResultUint. Returns true if all counters were ready. Note that the counter pointers are volatile
 // because the GPU could write them at any time (and if QueryResultWait is set we expect it to do so).
@@ -446,7 +472,9 @@ static bool ComputeResultsForOneSlot(
             {
                 // If the initial value is still in one of the counters it implies that the query hasn't finished yet.
                 // We will loop here for as long as necessary if the caller has requested it.
-                countersReady = ((pBeginCounters[counterOffset] != PipelineStatsResetMemValue64) &&
+                countersReady = IsQueryDataValid(&pBeginCounters[counterOffset]) &&
+                                IsQueryDataValid(&pEndCounters[counterOffset])   &&
+                                ((pBeginCounters[counterOffset] != PipelineStatsResetMemValue64) &&
                                  (pEndCounters[counterOffset]   != PipelineStatsResetMemValue64));
             }
             while ((countersReady == false) && TestAnyFlagSet(resultFlags, QueryResultWait));

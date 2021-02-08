@@ -32,13 +32,13 @@
 #pragma once
 
 #include "settingsProtocol.h"
-#include "baseProtocolClient.h"
+#include "legacyProtocolClient.h"
 
 namespace DevDriver
 {
     namespace SettingsProtocol
     {
-        class SettingsClient : public BaseProtocolClient
+        class SettingsClient : public LegacyProtocolClient
         {
         public:
             explicit SettingsClient(IMsgChannel* pMsgChannel);

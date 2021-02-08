@@ -34,7 +34,7 @@ namespace DevDriver
     namespace LoggingProtocol
     {
         LoggingClient::LoggingClient(IMsgChannel* pMsgChannel)
-            : BaseProtocolClient(pMsgChannel, Protocol::Logging, LOGGING_CLIENT_MIN_VERSION, LOGGING_CLIENT_MAX_VERSION)
+            : LegacyProtocolClient(pMsgChannel, Protocol::Logging, LOGGING_CLIENT_MIN_VERSION, LOGGING_CLIENT_MAX_VERSION)
 #if !DD_VERSION_SUPPORTS(GPUOPEN_SIMPLER_LOGGING_VERSION)
 #if DD_ENABLE_32
             , _padding(0)
@@ -111,8 +111,6 @@ namespace DevDriver
                         const LogMessagePayload* pPayload = reinterpret_cast<const LogMessagePayload*>(container.payload);
                         if (pPayload->header.command == LoggingMessage::LogMessageSentinel)
                         {
-                            DD_PRINT(LogLevel::Debug, "Received Logging Sentinel From Session %d!", m_pSession->GetSessionId());
-
                             foundSentinel = true;
                             break;
                         }
@@ -334,8 +332,7 @@ namespace DevDriver
             uint32 retryInMs)
         {
             // Use the legacy size for the payload if we're connected to an older client, otherwise use the real size.
-            const Version sessionVersion = (m_pSession.IsNull() == false) ? m_pSession->GetVersion() : 0;
-            const uint32 payloadSize = (sessionVersion >= LOGGING_LARGE_MESSAGES_VERSION) ? container.payloadSize : kLegacyLoggingPayloadSize;
+            const uint32 payloadSize = (GetSessionVersion() >= LOGGING_LARGE_MESSAGES_VERSION) ? container.payloadSize : kLegacyLoggingPayloadSize;
 
             return SendSizedPayload(container.payload, payloadSize, timeoutInMs, retryInMs);
         }

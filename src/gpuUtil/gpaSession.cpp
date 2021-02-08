@@ -2298,9 +2298,9 @@ Pal::Result GpaSession::FindTimedQueueByContext(
     TimedQueueState** ppQueueState,
     Pal::uint32*      pQueueIndex)
 {
-    Pal::Result result = Pal::Result::ErrorInvalidPointer;
+    Pal::Result result = (queueContext == 0) ? Pal::Result::ErrorIncompatibleQueue : Pal::Result::ErrorInvalidPointer;
 
-    if ((ppQueueState != nullptr) & (pQueueIndex != nullptr))
+    if ((ppQueueState != nullptr) & (pQueueIndex != nullptr) & (result != Pal::Result::ErrorIncompatibleQueue))
     {
         const Util::RWLockAuto<Util::RWLock::LockType::ReadOnly> lock(&m_timedQueuesArrayLock);
         for (Pal::uint32 queueIndex = 0; queueIndex < m_timedQueuesArray.NumElements(); ++queueIndex)

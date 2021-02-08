@@ -31,7 +31,7 @@
 
 #pragma once
 
-#include "baseProtocolClient.h"
+#include "legacyProtocolClient.h"
 #include "protocols/driverControlProtocol.h"
 
 namespace DevDriver
@@ -40,7 +40,7 @@ namespace DevDriver
 
     namespace DriverControlProtocol
     {
-        class DriverControlClient : public BaseProtocolClient
+        class DriverControlClient : public LegacyProtocolClient
         {
         public:
             explicit DriverControlClient(IMsgChannel* pMsgChannel);

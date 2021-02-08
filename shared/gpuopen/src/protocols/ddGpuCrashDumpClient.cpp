@@ -35,7 +35,7 @@ namespace DevDriver
     namespace GpuCrashDumpProtocol
     {
         GpuCrashDumpClient::GpuCrashDumpClient(IMsgChannel* pMsgChannel)
-            : BaseProtocolClient(pMsgChannel, Protocol::GpuCrashDump, GPUCRASHDUMP_CLIENT_MIN_VERSION, GPUCRASHDUMP_CLIENT_MAX_VERSION)
+            : LegacyProtocolClient(pMsgChannel, Protocol::GpuCrashDump, GPUCRASHDUMP_CLIENT_MIN_VERSION, GPUCRASHDUMP_CLIENT_MAX_VERSION)
             , m_pCrashDump(nullptr)
             , m_crashDumpSize(0)
             , m_crashDumpBytesSent(0)

@@ -31,7 +31,7 @@
 
 #pragma once
 
-#include <baseProtocolClient.h>
+#include <legacyProtocolClient.h>
 #include <protocols/ddEventProtocol.h>
 #include <util/vector.h>
 #include <util/ddByteWriter.h>
@@ -188,7 +188,7 @@ namespace EventProtocol
         size_t eventDataSize;
     };
 
-    class EventClient : public BaseProtocolClient
+    class EventClient : public LegacyProtocolClient
     {
     public:
         explicit EventClient(IMsgChannel* pMsgChannel);

@@ -79,6 +79,7 @@ void SettingsLoader::SetupDefaults()
     m_settings.enableBigPagePreAlignment = true;
     m_settings.enableIterate256PreAlignment = true;
     m_settings.addr2DisableXorTileMode = false;
+
     m_settings.addr2DisableSModes8BppColor = false;
 #if   (__unix__)
     m_settings.disableOptimizedDisplay = true;
@@ -1066,9 +1067,9 @@ void SettingsLoader::DevDriverRegister()
             component.pfnSetValue = ISettingsLoader::SetValue;
             component.pSettingsData = &g_palJsonData[0];
             component.settingsDataSize = sizeof(g_palJsonData);
-            component.settingsDataHash = 1813786297;
-            component.settingsDataHeader.isEncoded = true;
-            component.settingsDataHeader.magicBufferId = 402778310;
+            component.settingsDataHash = 0;
+            component.settingsDataHeader.isEncoded = false;
+            component.settingsDataHeader.magicBufferId = 0;
             component.settingsDataHeader.magicBufferOffset = 0;
 
             pSettingsService->RegisterComponent(component);

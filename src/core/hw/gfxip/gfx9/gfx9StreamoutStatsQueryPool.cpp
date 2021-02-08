@@ -30,6 +30,7 @@
 #include "core/hw/gfxip/gfx9/gfx9Device.h"
 #include "core/hw/gfxip/gfx9/gfx9StreamoutStatsQueryPool.h"
 #include "palCmdBuffer.h"
+#include "palSysUtil.h"
 
 using namespace Util;
 
@@ -54,7 +55,7 @@ struct StreamoutStatsDataPair
 
 static constexpr gpusize StreamoutStatsQueryMemoryAlignment = 32;
 
-static constexpr uint64  StreamoutStatsResetMemValue32 = 0;
+static constexpr uint32  StreamoutStatsResetMemValue32 = 0;
 static constexpr uint64  StreamoutStatsResultValidMask = 0x8000000000000000ull;
 
 // =====================================================================================================================
@@ -351,6 +352,32 @@ size_t StreamoutStatsQueryPool::GetResultSizeForOneSlot(
 }
 
 // =====================================================================================================================
+// Check if the query data is valid.
+bool StreamoutStatsQueryPool::IsQueryDataValid(
+    volatile const uint64* pData
+    ) const
+{
+    bool result = false;
+
+    volatile const uint32* pData32 = reinterpret_cast<volatile const uint32*>(pData);
+
+    if ((pData32[0] != StreamoutStatsResetMemValue32) || (pData32[1] != StreamoutStatsResetMemValue32))
+    {
+        // The write from the HW isn't atomic at the host/CPU level so we can
+        // end up with half the data.
+        if ((pData32[0] == StreamoutStatsResetMemValue32) || (pData32[1] == StreamoutStatsResetMemValue32))
+        {
+            // One of the halves appears unwritten. Use memory barrier here to
+            // make sure all writes to this memory from other threads/devices visible to this thread.
+            Util::MemoryBarrier();
+        }
+        result = true;
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
 // Computes 'queryCount' slots of StreamoutStats and puts the result in the memory pointed to in pData. This is required
 // by DX11 API.
 bool StreamoutStatsQueryPool::ComputeResults(
@@ -370,11 +397,16 @@ bool StreamoutStatsQueryPool::ComputeResults(
         bool countersReady = false;
         do
         {
-            // AND all 4 counters together and check whether the 63rd bit is 1 or not
-            countersReady = ((pDataPair->end.primCountWritten   &
-                              pDataPair->begin.primCountWritten &
-                              pDataPair->end.primStorageNeeded  &
-                              pDataPair->begin.primStorageNeeded) & StreamoutStatsResultValidMask) != 0;
+            // Check if 64bit data is valid first,
+            // then AND all 4 counters together and check whether the 63rd bit is 1 or not
+            countersReady = IsQueryDataValid(&pDataPair->end.primCountWritten)    &&
+                            IsQueryDataValid(&pDataPair->begin.primCountWritten)  &&
+                            IsQueryDataValid(&pDataPair->end.primStorageNeeded)   &&
+                            IsQueryDataValid(&pDataPair->begin.primStorageNeeded) &&
+                            (((pDataPair->end.primCountWritten     &
+                               pDataPair->begin.primCountWritten   &
+                               pDataPair->end.primStorageNeeded    &
+                               pDataPair->begin.primStorageNeeded) & StreamoutStatsResultValidMask) != 0);
         } while ((countersReady == false) && TestAnyFlagSet(flags, QueryResultWait));
 
         if (countersReady)

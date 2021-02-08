@@ -342,10 +342,16 @@ Result Queue::Init(
             const EngineType curEngineType = m_pQueueInfos[qIndex].createInfo.engineType;
             const uint32 curEngineId       = m_pQueueInfos[qIndex].createInfo.engineIndex;
 
+            static_assert(((static_cast<uint32>(SubmitOptMode::Default)           == 0) &&
+                           (static_cast<uint32>(SubmitOptMode::Disabled)          == 1) &&
+                           (static_cast<uint32>(SubmitOptMode::MinKernelSubmits)  == 2) &&
+                           (static_cast<uint32>(SubmitOptMode::MinGpuCmdOverhead) == 3)),
+                          "The setting submitOptModeOverride no longer matches the SubmitOptMode enum!");
+
             m_pQueueInfos[qIndex].createInfo.submitOptMode =
                                  ((m_pDevice->Settings().submitOptModeOverride == 0) ?
                                    pCreateInfo[qIndex].submitOptMode                 :
-                                   static_cast<SubmitOptMode>(m_pDevice->Settings().submitOptModeOverride - 1));
+                                   static_cast<SubmitOptMode>(m_pDevice->Settings().submitOptModeOverride));
 
             m_pQueueInfos[qIndex].pEngine = m_pDevice->GetEngine(curEngineType, curEngineId);
 

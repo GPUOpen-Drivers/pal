@@ -173,11 +173,28 @@ CmdAllocator::CmdAllocator(
 
         if (i == CommandDataAlloc)
         {
+            // There are a couple of places where we'd like to know if command data is in local memory.
+            const GpuHeap preferredHeap = m_gpuAllocInfo[i].allocCreateInfo.memObjCreateInfo.heaps[0];
+
+            m_flags.localCmdData = ((preferredHeap == GpuHeapLocal) || (preferredHeap == GpuHeapInvisible));
+
+            // Command data is by definition resident in UDMA buffers.
             m_gpuAllocInfo[i].allocCreateInfo.memObjInternalInfo.flags.udmaBuffer = 1;
+
             // Command chunks are never written from the gpu, except for the busy tracker fence.
             // We can set read-only if the busy-tracker is disabled or forced read-only (moves the tracker to a RW page)
             m_gpuAllocInfo[i].allocCreateInfo.memObjInternalInfo.flags.gpuReadOnly =
                 m_pDevice->Settings().cmdStreamReadOnly;
+
+            // Local memory is low latency and high bandwidth so we don't need to pollute the L2 cache with commands.
+            // We still need to use the cache if the commands are in system memory, it's too slow without it.
+            //
+            // Note that we must also use the cache if we require busy tracking because some queues use L2 atomics
+            // to increment the busy tracker counters.
+            if ((m_flags.localCmdData == 1) && (m_flags.trackBusyChunks == 0))
+            {
+                m_gpuAllocInfo[i].allocCreateInfo.memObjInternalInfo.mtype = MType::Uncached;
+            }
         }
         else if ((i == EmbeddedDataAlloc) || (i == GpuScratchMemAlloc))
         {

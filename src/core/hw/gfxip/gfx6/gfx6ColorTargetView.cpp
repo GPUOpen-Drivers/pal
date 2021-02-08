@@ -545,6 +545,14 @@ uint32* ColorTargetView::WriteCommands(
                                                    (mmCB_COLOR0_FMASK_SLICE + slotOffset),
                                                    &regs.cbColorAttrib,
                                                    pCmdSpace);
+
+#if PAL_DEVELOPER_BUILD
+    Developer::SurfRegDataInfo data = {};
+    data.type    = Developer::SurfRegDataType::RenderTargetView;
+    data.regData = regs.cbColorBase.u32All;
+    m_pImage->Parent()->GetDevice()->DeveloperCb(Developer::CallbackType::SurfRegData, &data);
+#endif
+
     // Note: This register is an unused location on pre-Gfx8 ASICs; writing to it doesn't do anything on those GPUs.
     return pCmdStream->WriteSetOneContextReg((mmCB_COLOR0_DCC_BASE__VI + slotOffset),
                                              regs.cbColorDccBase.u32All,

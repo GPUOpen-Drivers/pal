@@ -122,7 +122,7 @@ namespace DevDriver
         }
 
         RGPClient::RGPClient(IMsgChannel* pMsgChannel)
-            : BaseProtocolClient(pMsgChannel, Protocol::RGP, RGP_CLIENT_MIN_VERSION, RGP_CLIENT_MAX_VERSION)
+            : LegacyProtocolClient(pMsgChannel, Protocol::RGP, RGP_CLIENT_MIN_VERSION, RGP_CLIENT_MAX_VERSION)
         {
             memset(&m_traceContext, 0, sizeof(m_traceContext));
 #if DD_VERSION_SUPPORTS(GPUOPEN_DECOUPLED_RGP_PARAMETERS_VERSION)

@@ -35,7 +35,10 @@
 #include <atomic>
 
 #if   defined(__unix__)
+#define PAL_HAS_CPUID (__i386__ || __x86_64__)
+#if PAL_HAS_CPUID
 #include <cpuid.h>
+#endif
 #endif
 
 namespace Util
@@ -454,6 +457,7 @@ PAL_INLINE bool IsComboKey(KeyCode key, KeyCode* pKeys)
     return ret;
 }
 
+#if PAL_HAS_CPUID
 /// Issue the cpuid instruction.
 ///
 /// @param [out]  pRegValues  EAX/EBX/ECX/EDX values
@@ -485,6 +489,7 @@ PAL_INLINE void CpuId(
 #error "Not implemented for the current platform"
 #endif
 }
+#endif
 
 /// Play beep sound. Currently function implemented only for WIN platform.
 ///

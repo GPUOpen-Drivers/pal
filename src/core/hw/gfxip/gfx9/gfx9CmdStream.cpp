@@ -109,7 +109,16 @@ Result CmdStream::Begin(
             break;
 
         case Gfx9PrefetchCommandsBuildInfo:
-            // Don't modify the prefetchCommands flag, it came from the command buffer build info.
+            // The prefetchCommands flag was set according to the client's command buffer build info.
+            // However, we really should force prefetching off if the command data is in local memory because:
+            // 1. Local memory is fast enough that cold reads are no problem. Prefetching the whole command chunk
+            //    ahead of time might evict things from the L2 cache that we need right now, hurting performance.
+            // 2. We try to use the uncached MTYPE when allocating local memory for command data. This avoids any
+            //    L2 cache pollution but also makes prefetching completely useless because it only prefetches to L2.
+            if (m_pCmdAllocator->LocalCommandData())
+            {
+                flags.prefetchCommands = false;
+            }
             break;
 
         case Gfx9PrefetchCommandsForceAllDe:

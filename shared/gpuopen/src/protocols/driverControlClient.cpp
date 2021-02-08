@@ -34,7 +34,7 @@ namespace DevDriver
     namespace DriverControlProtocol
     {
         DriverControlClient::DriverControlClient(IMsgChannel* pMsgChannel)
-            : BaseProtocolClient(pMsgChannel, Protocol::DriverControl, DRIVERCONTROL_CLIENT_MIN_VERSION, DRIVERCONTROL_CLIENT_MAX_VERSION)
+            : LegacyProtocolClient(pMsgChannel, Protocol::DriverControl, DRIVERCONTROL_CLIENT_MIN_VERSION, DRIVERCONTROL_CLIENT_MAX_VERSION)
         {
         }
 
@@ -112,7 +112,7 @@ namespace DevDriver
                 result = TransactDriverControlPayload(&container);
                 if (result == Result::Success)
                 {
-                    if (m_pSession->GetVersion() >= DRIVERCONTROL_STEP_RETURN_STATUS_VERSION)
+                    if (GetSessionVersion() >= DRIVERCONTROL_STEP_RETURN_STATUS_VERSION)
                     {
                         const StepDriverResponsePayloadV2& response =
                             container.GetPayload<StepDriverResponsePayloadV2>();
@@ -152,7 +152,7 @@ namespace DevDriver
             {
                 if (pNewState != nullptr)
                 {
-                    if (m_pSession->GetVersion() >= DRIVERCONTROL_STEP_RETURN_STATUS_VERSION)
+                    if (GetSessionVersion() >= DRIVERCONTROL_STEP_RETURN_STATUS_VERSION)
                     {
                         SizedPayloadContainer container = {};
                         container.CreatePayload<StepDriverRequestPayload>(1);
@@ -265,7 +265,7 @@ namespace DevDriver
         {
             Result result = Result::Error;
 
-            if (IsConnected() && (pClientInfo != nullptr) && (m_pSession->GetVersion() >= DRIVERCONTROL_QUERYCLIENTINFO_VERSION))
+            if (IsConnected() && (pClientInfo != nullptr) && (GetSessionVersion() >= DRIVERCONTROL_QUERYCLIENTINFO_VERSION))
             {
                 SizedPayloadContainer container = {};
                 container.CreatePayload<QueryClientInfoRequestPayload>();
@@ -328,7 +328,7 @@ namespace DevDriver
 
             if (IsConnected() && (pGpuClock != nullptr) && (pMemClock != nullptr))
             {
-                if (m_pSession->GetVersion() >= DRIVERCONTROL_QUERY_BY_MODE_BACK_COMPAT_VERSION)
+                if (GetSessionVersion() >= DRIVERCONTROL_QUERY_BY_MODE_BACK_COMPAT_VERSION)
                 {
                     SizedPayloadContainer container = {};
                     container.CreatePayload<QueryDeviceClockByModeRequestPayload>(gpuIndex, clockMode);
@@ -515,10 +515,9 @@ namespace DevDriver
             uint32 retryInMs)
         {
             // Use the legacy size for the payload if we're connected to an older client, otherwise use the real size.
-            const Version sessionVersion = (m_pSession.IsNull() == false) ? m_pSession->GetVersion() : 0;
             const uint32 payloadSize =
-                (sessionVersion >= DRIVERCONTROL_QUERYCLIENTINFO_VERSION) ? container.payloadSize
-                                                                          : kLegacyDriverControlPayloadSize;
+                (GetSessionVersion() >= DRIVERCONTROL_QUERYCLIENTINFO_VERSION) ? container.payloadSize
+                                                                               : kLegacyDriverControlPayloadSize;
 
             return SendSizedPayload(container.payload, payloadSize, timeoutInMs, retryInMs);
         }

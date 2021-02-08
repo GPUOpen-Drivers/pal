@@ -25,7 +25,7 @@
 
 #pragma once
 
-#include "baseProtocolClient.h"
+#include "legacyProtocolClient.h"
 #include "loggingProtocol.h"
 #include "util/queue.h"
 #include "util/vector.h"
@@ -42,7 +42,7 @@ namespace DevDriver
         // Default value for the maximum number of messages to return from a single call to ReadLogMessages
         constexpr uint32 kDefaultMaxLogMessages = 4096;
 
-        class LoggingClient : public BaseProtocolClient
+        class LoggingClient : public LegacyProtocolClient
         {
         public:
             explicit LoggingClient(IMsgChannel* pMsgChannel);

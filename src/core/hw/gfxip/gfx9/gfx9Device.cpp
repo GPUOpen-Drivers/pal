@@ -4623,7 +4623,9 @@ GfxIpLevel DetermineIpLevel(
         {
             level = GfxIpLevel::GfxIp10_1;
         }
-        else if (AMDGPU_IS_NAVI21(familyId, eRevId))
+        else if (false
+                 || AMDGPU_IS_NAVI21(familyId, eRevId)
+                 )
         {
             level = GfxIpLevel::GfxIp10_3;
         }

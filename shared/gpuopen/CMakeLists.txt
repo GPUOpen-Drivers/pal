@@ -54,14 +54,14 @@ if(NOT DEFINED GPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION)
     file(STRINGS inc/gpuopen.h GPUOPEN_MAJOR_VERSION REGEX "^#define GPUOPEN_INTERFACE_MAJOR_VERSION [0-9]+")
 
     if(GPUOPEN_MAJOR_VERSION STREQUAL "")
-        message(STATUS "Failed to find GPUOPEN_INTERFACE_MAJOR_VERSION")
+        message(FATAL_ERROR "Failed to automatically extract GPUOPEN_INTERFACE_MAJOR_VERSION and GPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION was not manually specified. Configuration cannot continue.")
     else()
         string(REGEX REPLACE "^#define GPUOPEN_INTERFACE_MAJOR_VERSION " "" GPUOPEN_MAJOR_VERSION ${GPUOPEN_MAJOR_VERSION})
-        message(STATUS "Detected GPUOPEN_INTERFACE_MAJOR_VERSION is " ${GPUOPEN_MAJOR_VERSION})
+        devdriver_message_debug("Extracted GPUOPEN_INTERFACE_MAJOR_VERSION from header as " ${GPUOPEN_MAJOR_VERSION})
     endif()
     set(GPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION ${GPUOPEN_MAJOR_VERSION} CACHE STRING "Interface version for gpuopen")
 endif()
-message(STATUS "Building gpuopen lib as ${GPUOPEN_LIB_NAME} GPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION=${GPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION}")
+devdriver_message_debug("Building gpuopen lib as ${GPUOPEN_LIB_NAME} GPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION=${GPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION}")
 
 ### Core Component #####################################################################################################
 # WA: Check that this target hasn't already been added (Only until we have a global CMake context)
@@ -104,7 +104,7 @@ target_sources(${GPUOPEN_LIB_NAME} PRIVATE
     src/messageChannel.inl
     src/messageChannel.cpp
     src/baseProtocolServer.cpp
-    src/baseProtocolClient.cpp
+    src/legacyProtocolClient.cpp
     src/ddTransferManager.cpp
     src/ddClientURIService.cpp
     src/ddURIRequestContext.cpp

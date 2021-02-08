@@ -2598,16 +2598,16 @@ ADDR_E_RETURNCODE Gfx10Lib::HwlGetPreferredSurfaceSetting(
             allowedSwModeSet.value |= pIn->forbiddenBlock.micro  ? 0 : Gfx10Blk256BSwModeMask;
             allowedSwModeSet.value |=
                 pIn->forbiddenBlock.macroThin4KB ? 0 :
-                ((pOut->resourceType == ADDR_RSRC_TEX_3D) ? 0 : Gfx10Blk4KBSwModeMask);
+                ((pIn->resourceType == ADDR_RSRC_TEX_3D) ? 0 : Gfx10Blk4KBSwModeMask);
             allowedSwModeSet.value |=
                 pIn->forbiddenBlock.macroThick4KB ? 0 :
-                ((pOut->resourceType == ADDR_RSRC_TEX_3D) ? Gfx10Rsrc3dThick4KBSwModeMask : 0);
+                ((pIn->resourceType == ADDR_RSRC_TEX_3D) ? Gfx10Rsrc3dThick4KBSwModeMask : 0);
             allowedSwModeSet.value |=
                 pIn->forbiddenBlock.macroThin64KB ? 0 :
-                ((pOut->resourceType == ADDR_RSRC_TEX_3D) ? Gfx10Rsrc3dThin64KBSwModeMask : Gfx10Blk64KBSwModeMask);
+                ((pIn->resourceType == ADDR_RSRC_TEX_3D) ? Gfx10Rsrc3dThin64KBSwModeMask : Gfx10Blk64KBSwModeMask);
             allowedSwModeSet.value |=
                 pIn->forbiddenBlock.macroThick64KB ? 0 :
-                ((pOut->resourceType == ADDR_RSRC_TEX_3D) ? Gfx10Rsrc3dThick64KBSwModeMask : 0);
+                ((pIn->resourceType == ADDR_RSRC_TEX_3D) ? Gfx10Rsrc3dThick64KBSwModeMask : 0);
             allowedSwModeSet.value |=
                 pIn->forbiddenBlock.var ? 0 : (m_blockVarSizeLog2 ? Gfx10BlkVarSwModeMask : 0);
 
@@ -2853,35 +2853,49 @@ ADDR_E_RETURNCODE Gfx10Lib::HwlGetPreferredSurfaceSetting(
                             minSizeBlk = AddrBlockMicro;
                         }
 
-                        if (minSizeBlk == AddrBlockMicro)
+                        switch (minSizeBlk)
                         {
-                            ADDR_ASSERT(pOut->resourceType != ADDR_RSRC_TEX_3D);
-                            allowedSwModeSet.value &= Gfx10Blk256BSwModeMask;
-                        }
-                        else if (minSizeBlk == AddrBlockThick4KB)
-                        {
-                            ADDR_ASSERT(pOut->resourceType == ADDR_RSRC_TEX_3D);
-                            allowedSwModeSet.value &= Gfx10Rsrc3dThick4KBSwModeMask;
-                        }
-                        else if (minSizeBlk == AddrBlockThin4KB)
-                        {
-                            ADDR_ASSERT(pOut->resourceType != ADDR_RSRC_TEX_3D);
-                            allowedSwModeSet.value &= Gfx10Blk4KBSwModeMask;
-                        }
-                        else if (minSizeBlk == AddrBlockThick64KB)
-                        {
-                            ADDR_ASSERT(pOut->resourceType == ADDR_RSRC_TEX_3D);
-                            allowedSwModeSet.value &= Gfx10Rsrc3dThick64KBSwModeMask;
-                        }
-                        else if (minSizeBlk == AddrBlockThin64KB)
-                        {
-                            allowedSwModeSet.value &= (pOut->resourceType == ADDR_RSRC_TEX_3D) ?
-                                                      Gfx10Rsrc3dThin64KBSwModeMask : Gfx10Blk64KBSwModeMask;
-                        }
-                        else
-                        {
-                            ADDR_ASSERT(minSizeBlk == AddrBlockThinVar);
-                            allowedSwModeSet.value &= Gfx10BlkVarSwModeMask;
+                            case AddrBlockMicro:
+                            {
+                                ADDR_ASSERT(pOut->resourceType != ADDR_RSRC_TEX_3D);
+                                allowedSwModeSet.value &= Gfx10Blk256BSwModeMask;
+                                break;
+                            }
+                            case AddrBlockThick4KB:
+                            {
+                                ADDR_ASSERT(pOut->resourceType == ADDR_RSRC_TEX_3D);
+                                allowedSwModeSet.value &= Gfx10Rsrc3dThick4KBSwModeMask;
+                                break;
+                            }
+                            case AddrBlockThin4KB:
+                            {
+                                ADDR_ASSERT(pOut->resourceType != ADDR_RSRC_TEX_3D);
+                                allowedSwModeSet.value &= Gfx10Blk4KBSwModeMask;
+                                break;
+                            }
+                            case AddrBlockThick64KB:
+                            {
+                                ADDR_ASSERT(pOut->resourceType == ADDR_RSRC_TEX_3D);
+                                allowedSwModeSet.value &= Gfx10Rsrc3dThick64KBSwModeMask;
+                                break;
+                            }
+                            case AddrBlockThin64KB:
+                            {
+                                allowedSwModeSet.value &= (pOut->resourceType == ADDR_RSRC_TEX_3D) ?
+                                                          Gfx10Rsrc3dThin64KBSwModeMask : Gfx10Blk64KBSwModeMask;
+                                break;
+                            }
+                            case AddrBlockThinVar:
+                            {
+                                allowedSwModeSet.value &= Gfx10BlkVarSwModeMask;
+                                break;
+                            }
+                            default:
+                            {
+                                ADDR_ASSERT_ALWAYS();
+                                allowedSwModeSet.value = 0;
+                                break;
+                            }
                         }
                     }
 

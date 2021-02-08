@@ -149,7 +149,7 @@ Result URIClient::TransactURIRequestV(
 
 // =====================================================================================================================
 URIClient::URIClient(IMsgChannel* pMsgChannel)
-    : BaseProtocolClient(pMsgChannel, Protocol::URI, URI_CLIENT_MIN_VERSION, URI_CLIENT_MAX_VERSION)
+    : LegacyProtocolClient(pMsgChannel, Protocol::URI, URI_CLIENT_MIN_VERSION, URI_CLIENT_MAX_VERSION)
     , m_requestStringBuffer(pMsgChannel->GetAllocCb())
 {
     // Make sure our buffer always has some space
@@ -224,7 +224,7 @@ Result URIClient::RequestURI(
                     {
                         // Open the indicated block and send our data
                         TransferProtocol::PushBlock* pPostBlock = m_pMsgChannel->GetTransferManager().OpenPushBlock(
-                            m_pSession->GetDestinationClientId(),
+                            GetRemoteClientId(),
                             pushBlockId,
                             postDataSize);
 
@@ -295,7 +295,7 @@ Result URIClient::RequestURI(
                             {
                                 // Set up some defaults for the response fields.
                                 URIDataFormat responseDataFormat = URIDataFormat::Text;
-                                if (m_pSession->GetVersion() >= URI_RESPONSE_FORMATS_VERSION)
+                                if (GetSessionVersion() >= URI_RESPONSE_FORMATS_VERSION)
                                 {
                                     responseDataFormat = ResponseFormatToUriFormat(responsePayload.format);
                                 }
@@ -419,9 +419,8 @@ Result URIClient::SendURIPayload(
     uint32 retryInMs)
 {
     // Use the legacy size for the container if we're connected to an older client, otherwise use the real size.
-    const Version sessionVersion = (m_pSession.IsNull() == false) ? m_pSession->GetVersion() : 0;
-    const uint32 payloadSize = (sessionVersion >= URI_POST_PROTOCOL_VERSION) ? container.payloadSize
-                                                                                : kLegacyMaxSize;
+    const uint32 payloadSize = (GetSessionVersion() >= URI_POST_PROTOCOL_VERSION) ? container.payloadSize
+                                                                                  : kLegacyMaxSize;
 
     return SendSizedPayload(container.payload,
                             payloadSize,

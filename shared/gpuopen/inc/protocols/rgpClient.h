@@ -31,7 +31,7 @@
 
 #pragma once
 
-#include "baseProtocolClient.h"
+#include "legacyProtocolClient.h"
 
 #include "protocols/rgpProtocol.h"
 
@@ -108,7 +108,7 @@ namespace DevDriver
             const ClientSpmCounterId* pCounters;
         };
 
-        class RGPClient : public BaseProtocolClient
+        class RGPClient : public LegacyProtocolClient
         {
         public:
             explicit RGPClient(IMsgChannel* pMsgChannel);

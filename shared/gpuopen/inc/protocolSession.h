@@ -173,9 +173,6 @@ namespace DevDriver
         virtual Version GetMinVersion() const = 0;
         virtual Version GetMaxVersion() const = 0;
 
-        virtual void SessionEstablished(const SharedPointer<ISession> &pSession) = 0;
-        virtual void UpdateSession(const SharedPointer<ISession> &pSession) = 0;
-        virtual void SessionTerminated(const SharedPointer<ISession> &pSession, Result terminationReason) = 0;
     protected:
         IProtocolSession() {}
     };

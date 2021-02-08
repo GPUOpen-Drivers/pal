@@ -31,7 +31,7 @@
 
 #pragma once
 
-#include "baseProtocolClient.h"
+#include "legacyProtocolClient.h"
 #include "ddUriInterface.h"
 #include <util/vector.h>
 #include <stdarg.h>
@@ -50,7 +50,7 @@ namespace DevDriver
         // We alias these types for backwards compatibility
         using ResponseHeader = DevDriver::URIResponseHeader;
 
-        class URIClient final : public BaseProtocolClient
+        class URIClient final : public LegacyProtocolClient
         {
         public:
             explicit URIClient(IMsgChannel* pMsgChannel);

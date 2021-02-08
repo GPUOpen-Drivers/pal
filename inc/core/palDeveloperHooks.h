@@ -59,6 +59,7 @@ enum class CallbackType : uint32
     BarrierEnd,             ///< This callback is to inform that a barrier is done being executed.
     DrawDispatch,           ///< This callback is to inform that a draw or dispatch command is being recorded.
     BindPipeline,           ///< This callback is to inform that a pipeline (client or internal) has been bound.
+    SurfRegData,            ///< This callback is to inform tools of the register state of a surface.
 #if PAL_BUILD_PM4_INSTRUMENTOR
     DrawDispatchValidation, ///< This callback is to describe the state validation needed by a draw or dispatch.
     OptimizedRegisters,     ///< This callback is to describe the PM4 optimizer's removal of redundant register
@@ -359,6 +360,19 @@ struct ImageDataAddrMgrSurfInfo
     uint32 width;               ///< Width.
     uint32 height;              ///< Height.
     uint32 depth;               ///< Depth.
+};
+
+/// Type of surface for which the register data is being provided
+enum class SurfRegDataType : uint32
+{
+    RenderTargetView,   ///< Render Target View information.
+};
+
+/// Information for surface addresses for a SurfRegData callback
+struct SurfRegDataInfo
+{
+    SurfRegDataType type;    ///< Type of surface to which the register data corresponds.
+    uint32          regData; ///< Hardware-specific register data for the specific surface type.
 };
 
 /// Type of draw or dispatch operation for a DrawDispatch callback
