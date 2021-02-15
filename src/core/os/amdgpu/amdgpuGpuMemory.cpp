@@ -360,7 +360,6 @@ Result GpuMemory::AllocateOrPinMemory(
                     m_isVmAlwaysValid = true;
                 }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 657
                 if (IsExplicitSync() &&
                    ((m_flags.interprocess == 1) ||
                     (m_desc.flags.isExternal == 1) ||
@@ -368,7 +367,6 @@ Result GpuMemory::AllocateOrPinMemory(
                 {
                     allocRequest.flags |= AMDGPU_GEM_CREATE_EXPLICIT_SYNC;
                 }
-#endif
                 allocRequest.alloc_size     = m_desc.size;
                 allocRequest.phys_alignment = GetPhysicalAddressAlignment();
 
@@ -628,12 +626,10 @@ Result GpuMemory::OpenSharedMemory(
                     break;
             }
         }
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 657
         if (bufferInfo.alloc_flags & AMDGPU_GEM_CREATE_EXPLICIT_SYNC)
         {
             m_flags.explicitSync = 1;
         }
-#endif
     }
     // handle should be closed here otherwise, the memory would never be freed since it takes one extra refcount.
     close(handle);

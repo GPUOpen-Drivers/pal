@@ -163,11 +163,7 @@ union GpuMemoryFlags
 #else
         uint32 placeholder1             :  1;
 #endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 657
         uint32 explicitSync             :  1;
-#else
-        uint32 placeholder657           :  1;
-#endif
         uint32 reserved                 : 22;
     };
     uint64  u64All;
@@ -281,9 +277,7 @@ public:
 #if ( (PAL_CLIENT_INTERFACE_MAJOR_VERSION>= 569))
     bool IsMallRangeActive()     const { return (m_flags.mallRangeActive          != 0); }
 #endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 657
     bool IsExplicitSync()        const { return (m_flags.explicitSync             != 0); }
-#endif
     void SetAccessedPhysically() { m_flags.accessedPhysically = 1; }
     void SetSurfaceBusAddr(gpusize surfaceBusAddr) { m_desc.surfaceBusAddr = surfaceBusAddr; }
     void SetMarkerBusAddr(gpusize markerBusAddr)   { m_desc.markerBusAddr  = markerBusAddr;  }
