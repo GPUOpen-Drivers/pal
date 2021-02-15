@@ -159,8 +159,13 @@ union GpuMemoryCreateFlags
 #else
         uint32 placeholder1      :  1; ///< Reserved for future HW.
 #endif
-
-        uint32 reserved          :  6; ///< Reserved for future use.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 657
+        uint32 explicitSync      :  1; ///< If set, shared memory will skip syncs in the kernel and all drivers
+                                       ///  that use this memory must handle syncs explicitly.
+#else
+        uint32 placeholder657    :  1;
+#endif
+        uint32 reserved          :  5; ///< Reserved for future use.
     };
     uint32     u32All;                 ///< Flags packed as 32-bit uint.
 };

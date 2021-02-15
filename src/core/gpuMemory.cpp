@@ -402,6 +402,9 @@ Result GpuMemory::Init(
 #if ( (PAL_CLIENT_INTERFACE_MAJOR_VERSION>= 569))
     m_flags.mallRangeActive      = createInfo.flags.mallRangeActive;
 #endif
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 657
+    m_flags.explicitSync         = createInfo.flags.explicitSync;
+#endif
 
     m_flags.isClient             = internalInfo.flags.isClient;
     m_flags.pageDirectory        = internalInfo.flags.pageDirectory;
