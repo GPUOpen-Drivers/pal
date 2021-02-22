@@ -70,6 +70,10 @@ static uint32 PalToDrmFormat(
 
             break;
 
+        case ChNumFormat::X16Y16Z16W16_Unorm:
+            drmFormat = DRM_FORMAT_XBGR16161616;
+            break;
+
         case ChNumFormat::X16Y16Z16W16_Float:
             drmFormat = DRM_FORMAT_XBGR16161616F;
             break;
