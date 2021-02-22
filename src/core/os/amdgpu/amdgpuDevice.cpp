@@ -142,6 +142,10 @@ constexpr SwizzledFormat Presentable16BitSwizzledFormat[] =
         ChNumFormat::X16Y16Z16W16_Float,
         { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W }
     },
+    {
+        ChNumFormat::X16Y16Z16W16_Unorm,
+        { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W }
+    },
 };
 
 // The amdgpu queue semaphores are binary semaphores so their counts are always either zero or one.
@@ -2095,8 +2099,9 @@ void Device::GetDisplayDccInfo(
     }
 }
 
+// =====================================================================================================================
 // Returns true if gpu + amdgpu kms driver do support 16 bit floating point display.
-bool Device::HasFp16DisplaySupport()
+bool Device::HasFp16DisplaySupport() const
 {
     bool supported = false;
 
@@ -2114,6 +2119,24 @@ bool Device::HasFp16DisplaySupport()
     // on all display engines since DCE 8.0, ie. additionally on Gfx7-DCE 8.x, Gfx8-10.0/11.0.
     if ((IsDrmVersionOrGreater(3, 41) || IsKernelVersionEqualOrGreater(5, 12)) &&
         (IsGfx8(*this) || IsGfx7(*this)))
+    {
+        supported = true;
+    }
+
+    return supported;
+}
+
+// =====================================================================================================================
+// Returns true if gpu + amdgpu kms driver do support 16 bit unorm fixed point display.
+bool Device::HasRgba16DisplaySupport() const
+{
+    bool supported = false;
+
+    // On Linux 5.14 (DRM 3.42) and later we also have the 64 bpp rgba16 unorm fixed point format
+    // on display engines of generation DCE 8.0 - DCE 12, and on all DCN engines, iow. Sea Islands
+    // and later. However, current pal no longer supports Sea Islands, so check for gfxLevel >= 8.
+    if ((IsDrmVersionOrGreater(3, 42) || IsKernelVersionEqualOrGreater(5, 14)) &&
+        (m_chipProperties.gfxLevel >= GfxIpLevel::GfxIp8))
     {
         supported = true;
     }
@@ -2158,6 +2181,15 @@ Result Device::GetSwapChainInfo(
 
         // fp16 is first slot in Presentable16BitSwizzledFormat[].
         pSwapChainProperties->imageFormatCount++;
+
+        // All gpu's which support fp16 do also support rgba16 unorm with recent amdgpu kms.
+        if (HasRgba16DisplaySupport())
+        {
+            PAL_ASSERT(pSwapChainProperties->imageFormatCount < MaxPresentableImageFormat);
+
+            // rgba16 unorm is the second slot in Presentable16BitSwizzledFormat[].
+            pSwapChainProperties->imageFormatCount++;
+        }
     }
 
     for (uint32 i = 0; i < pSwapChainProperties->imageFormatCount; i++)

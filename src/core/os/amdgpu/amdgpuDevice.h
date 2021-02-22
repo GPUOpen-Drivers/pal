@@ -881,7 +881,9 @@ private:
         uint32    kernelMinorVer
         ) const;
 
-    bool HasFp16DisplaySupport();
+    bool HasFp16DisplaySupport() const;
+
+    bool HasRgba16DisplaySupport() const;
 
     void CheckSyncObjectSupportStatus();
 
