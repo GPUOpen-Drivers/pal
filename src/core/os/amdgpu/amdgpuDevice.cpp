@@ -2093,6 +2093,14 @@ bool Device::HasFp16DisplaySupport()
         supported = true;
     }
 
+    // On Linux 5.12 and later or DRM 3.41 and later we also have the fp16 floating point format
+    // on all display engines since DCE 8.0, ie. additionally on Gfx7-DCE 8.x, Gfx8-10.0/11.0.
+    if ((IsDrmVersionOrGreater(3, 41) || IsKernelVersionEqualOrGreater(5, 12)) &&
+        (IsGfx8(*this) || IsGfx7(*this)))
+    {
+        supported = true;
+    }
+
     return supported;
 }
 
