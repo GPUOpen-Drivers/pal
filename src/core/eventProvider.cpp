@@ -71,7 +71,7 @@ EventProvider::EventProvider(Platform* pPlatform)
         ),
         m_pPlatform(pPlatform),
         m_eventService({ pPlatform, DevDriverAlloc, DevDriverFree }),
-        m_eventTimer()
+        m_logRmtVersion(false)
         {}
 
 // =====================================================================================================================
@@ -397,11 +397,32 @@ void EventProvider::LogGpuMemorySnapshotEvent(
 }
 
 // =====================================================================================================================
+// Logs an event when a driver wants to correlate internal driver information with the equivalent resource ID.
+// Allows the client to correlate PAL resources with arbitrary data, such as data provided by the
+// driver, runtime, or application.
+void EventProvider::LogResourceCorrelationEvent(
+    const ResourceCorrelationEventData& eventData)
+{
+    static constexpr PalEvent eventId = PalEvent::ResourceCorrelation;
+
+    if (ShouldLog(eventId))
+    {
+        ResourceCorrelationData data = {};
+        data.handle       = reinterpret_cast<ResourceHandle>(eventData.pObj);
+        data.driverHandle = reinterpret_cast<ResourceHandle>(eventData.pDriverPrivate);
+
+        LogEvent(eventId, &data, sizeof(data));
+    }
+}
+
+// =====================================================================================================================
 void EventProvider::LogEvent(
     PalEvent    eventId,
     const void* pEventData,
     size_t      eventDataSize)
 {
+    static_assert(static_cast<uint32>(PalEvent::Count) == 16, "Write support for new event!");
+
     if (ShouldLog(eventId))
     {
         // The RMT format requires that certain tokens strictly follow each other (e.g. resource create + description),
@@ -443,6 +464,17 @@ void EventProvider::LogEvent(
 
         switch (eventId)
         {
+            case PalEvent::ResourceCorrelation:
+            {
+                const ResourceCorrelationData* pData = reinterpret_cast<const ResourceCorrelationData*>(pEventData);
+
+                const uint32 handle       = LowPart(pData->handle);
+                const uint32 driverHandle = LowPart(pData->driverHandle);
+
+                RMT_MSG_USERDATA_RSRC_CORRELATION eventToken(delta, handle, driverHandle);
+                WriteTokenData(eventToken);
+                break;
+            }
             case PalEvent::Count:
             case PalEvent::Invalid:
             {
@@ -501,9 +533,10 @@ void EventProvider::LogEvent(
             case PalEvent::GpuMemoryResourceDestroy:
             {
                 PAL_ASSERT(sizeof(GpuMemoryResourceDestroyData) == eventDataSize);
-                const GpuMemoryResourceDestroyData* pData = reinterpret_cast<const GpuMemoryResourceDestroyData*>(pEventData);
+                const GpuMemoryResourceDestroyData* pData =
+                    reinterpret_cast<const GpuMemoryResourceDestroyData*>(pEventData);
 
-                RMT_MSG_RESOURCE_DESTROY eventToken(delta, static_cast<uint32>(pData->handle));
+                RMT_MSG_RESOURCE_DESTROY eventToken(delta, LowPart(pData->handle));
 
                 WriteTokenData(eventToken);
 
@@ -540,7 +573,7 @@ void EventProvider::LogEvent(
                 RMT_MSG_USERDATA_DEBUG_NAME eventToken(
                     delta,
                     pData->pDebugName,
-                    static_cast<uint32>(pData->handle));
+                    LowPart(pData->handle));
 
                 WriteTokenData(eventToken);
                 break;
@@ -555,7 +588,7 @@ void EventProvider::LogEvent(
                     delta,
                     pData->gpuVirtualAddr + pData->offset,
                     pData->requiredSize,
-                    static_cast<uint32>(pData->resourceHandle),
+                    LowPart(pData->resourceHandle),
                     pData->isSystemMemory);
 
                 WriteTokenData(eventToken);
@@ -634,7 +667,7 @@ void EventProvider::LogResourceCreateEvent(
 
     RMT_MSG_RESOURCE_CREATE rsrcCreateToken(
         delta,
-        static_cast<uint32>(pRsrcCreateData->handle),
+        LowPart(pRsrcCreateData->handle),
         RMT_OWNER_KMD,
         0,
         RMT_COMMIT_TYPE_COMMITTED,

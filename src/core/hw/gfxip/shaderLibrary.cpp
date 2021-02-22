@@ -99,8 +99,8 @@ Result ShaderLibrary::InitFromCodeObjectBinary(
     AbiReader abiReader(m_pDevice->GetPlatform(), m_pCodeObjectBinary);
     Result result = abiReader.Init();
 
-    MsgPackReader      metadataReader;
-    CodeObjectMetadata metadata;
+    MsgPackReader              metadataReader;
+    PalAbi::CodeObjectMetadata metadata;
 
     if (result == Result::Success)
     {
@@ -130,7 +130,7 @@ Result ShaderLibrary::InitFromCodeObjectBinary(
 // =====================================================================================================================
 // Helper function for extracting the pipeline hash and per-shader hashes from pipeline metadata.
 void ShaderLibrary::ExtractLibraryInfo(
-    const CodeObjectMetadata& metadata)
+    const PalAbi::CodeObjectMetadata& metadata)
 {
     m_info.internalLibraryHash =
         { metadata.pipeline.internalPipelineHash[0], metadata.pipeline.internalPipelineHash[1] };
@@ -203,9 +203,9 @@ Result ShaderLibrary::ExtractShaderFunctions(
 // Allocates GPU memory for this library and uploads the code and data contain in the ELF binary to it.
 // Any ELF relocations are also applied to the memory during this operation.
 Result ShaderLibrary::PerformRelocationsAndUploadToGpuMemory(
-    const CodeObjectMetadata& metadata,
-    const GpuHeap&            clientPreferredHeap,
-    PipelineUploader*         pUploader)
+    const PalAbi::CodeObjectMetadata& metadata,
+    const GpuHeap&                    clientPreferredHeap,
+    PipelineUploader*                 pUploader)
 {
     PAL_ASSERT(pUploader != nullptr);
 
@@ -214,7 +214,7 @@ Result ShaderLibrary::PerformRelocationsAndUploadToGpuMemory(
     m_perfDataGpuMemSize = performanceDataOffset;
     Result result        = Result::Success;
 
-    result = pUploader->Begin(metadata, clientPreferredHeap);
+    result = pUploader->Begin(clientPreferredHeap);
 
     if (result == Result::Success)
     {

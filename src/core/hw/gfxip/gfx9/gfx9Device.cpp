@@ -25,6 +25,7 @@
 
 #include "core/device.h"
 #include "core/queue.h"
+#include "core/hw/amdgpu_asic.h"
 #include "core/hw/gfxip/gfx9/g_gfx9MergedDataFormats.h"
 #include "core/hw/gfxip/gfx9/gfx9BorderColorPalette.h"
 #include "core/hw/gfxip/gfx9/gfx9CmdStream.h"
@@ -59,10 +60,7 @@
 #include "palAssert.h"
 #include "palAutoBuffer.h"
 #include "palDequeImpl.h"
-
 #include "palFormatInfo.h"
-
-#include "core/hw/amdgpu_asic.h"
 
 using namespace Util;
 using namespace Pal::Formats::Gfx9;
@@ -961,7 +959,8 @@ Result Device::CreateGraphicsPipeline(
     AbiReader abiReader(GetPlatform(), createInfo.pPipelineBinary);
     Result result = abiReader.Init();
 
-    CodeObjectMetadata metadata = {};
+    PalAbi::CodeObjectMetadata metadata = {};
+
     if (result == Result::Success)
     {
         MsgPackReader metadataReader;
@@ -2941,11 +2940,11 @@ void PAL_STDCALL Device::Gfx9CreateImageViewSrds(
                 }
                 else
                 {
-                    srd.word0.bits.BASE_ADDRESS  = image.GetSubresource256BAddrSwizzledLow(baseSubResId);
+                    srd.word0.bits.BASE_ADDRESS = LowPart(image.GetSubresource256BAddr(baseSubResId));
                 }
                 // Usually, we'll never have an image address that extends into 40 bits.
                 // However, when svm is enabled, The bit 39 of an image address is 1 if the address is gpuvm.
-                srd.word1.bits.BASE_ADDRESS_HI = image.GetSubresource256BAddrSwizzledHi(baseSubResId);
+                srd.word1.bits.BASE_ADDRESS_HI = HighPart(image.GetSubresource256BAddr(baseSubResId));
             }
 
             if (pBaseSubResInfo->flags.supportMetaDataTexFetch)
@@ -2955,7 +2954,10 @@ void PAL_STDCALL Device::Gfx9CreateImageViewSrds(
                     if (TestAnyFlagSet(viewInfo.possibleLayouts.usages, LayoutShaderWrite | LayoutCopyDst) == false)
                     {
                         srd.word6.bits.COMPRESSION_EN = 1;
-                        srd.word7.bits.META_DATA_ADDRESS = image.GetHtile256BAddr();
+                        const gpusize htile256BAddrSwizzled = image.GetHtile256BAddrSwizzled();
+                        srd.word7.bits.META_DATA_ADDRESS = LowPart(htile256BAddrSwizzled);
+                        // This generation of HW didn't support > 40 bit addressing.
+                        PAL_ASSERT(HighPart(htile256BAddrSwizzled) == 0);
                     }
                 }
                 else
@@ -2966,7 +2968,10 @@ void PAL_STDCALL Device::Gfx9CreateImageViewSrds(
                         // The color image's meta-data always points at the DCC surface.  Any existing cMask or fMask
                         // meta-data is only required for compressed texture fetches of MSAA surfaces, and that feature
                         // requires enabling an extension and use of an fMask image view.
-                        srd.word7.bits.META_DATA_ADDRESS = image.GetDcc256BAddr(baseSubResId);
+                        const gpusize dcc256BAddrSwizzled = image.GetDcc256BAddrSwizzled(baseSubResId);
+                        srd.word7.bits.META_DATA_ADDRESS  = LowPart(dcc256BAddrSwizzled);
+                        // This generation of HW didn't support > 40 bit addressing.
+                        PAL_ASSERT(HighPart(dcc256BAddrSwizzled) == 0);
                     }
                 }
             } // end check for image supporting meta-data tex fetches
@@ -3259,7 +3264,7 @@ static void Gfx10UpdateLinkedResourceViewSrd(
         pLinkedRsrc->depth_scale  = Log2(parentExtent.depth  / mapExtent.depth);
 
         // Most importantly, the base address points to the map image, not the parent image.
-        pLinkedRsrc->base_address = mapImage.GetFullSubresource256BAddr(subResId);
+        pLinkedRsrc->base_address = mapImage.GetSubresource256BAddr(subResId);
 
         // As the linked resource image's memory is the one that is actually being accesed, the swizzle
         // mode needs to reflect that image, not the parent.
@@ -3421,11 +3426,10 @@ void PAL_STDCALL Device::Gfx10CreateImageViewSrds(
                 includePadding = true;
             }
         }
-        else if ((pBaseSubResInfo->bitsPerTexel != Formats::BitsPerPixel(format))
+        else if ((pBaseSubResInfo->bitsPerTexel != Formats::BitsPerPixel(format)) &&
                  // For PRT+ map images, the format of the view is expected to be different
                  // from the format of the image itself.  Don't adjust the extents for PRT+ map images!
-                 && (viewInfo.pImage->GetImageCreateInfo().prtPlus.mapType == PrtMapType::None)
-                )
+                 (viewInfo.pImage->GetImageCreateInfo().prtPlus.mapType == PrtMapType::None))
         {
             // The mismatched bpp checked is intended to catch the 2nd scenario in the above comment. However, YUV422
             // format also hit this. For YUV422 case, we need to apply widthScaleFactor to extent and acutalExtent.
@@ -3782,7 +3786,7 @@ void PAL_STDCALL Device::Gfx10CreateImageViewSrds(
             }
             else if (srd.base_address == 0)
             {
-                srd.base_address = image.GetFullSubresource256BAddr(baseSubResId);
+                srd.base_address = image.GetSubresource256BAddr(baseSubResId);
             }
 
             if (pBaseSubResInfo->flags.supportMetaDataTexFetch)
@@ -3945,8 +3949,9 @@ void Device::Gfx9CreateFmaskViewSrdsInternal(
     if (image.Parent()->GetBoundGpuMemory().IsBound())
     {
         // Need to grab the most up-to-date GPU virtual address for the underlying FMask object.
-        pSrd->word0.bits.BASE_ADDRESS    = image.GetFmask256BAddr();
-        pSrd->word1.bits.BASE_ADDRESS_HI = 0; // base_addr is bits 8-39, we'll never have a bit 40
+        const gpusize fmask256BAddrSwizzled = image.GetFmask256BAddrSwizzled();
+        pSrd->word0.bits.BASE_ADDRESS       = LowPart(fmask256BAddrSwizzled);
+        pSrd->word1.bits.BASE_ADDRESS_HI    = HighPart(fmask256BAddrSwizzled);
 
         // Does this image has an associated FMask which is shader Readable? if FMask needs to be
         // read in the shader CMask has to be read as FMask meta data
@@ -3957,9 +3962,10 @@ void Device::Gfx9CreateFmaskViewSrdsInternal(
             if (viewInfo.flags.shaderWritable == 0)
             {
                 // word7 contains bits 8-39 of the meta-data surface.  For fMask,the meta-surface is cMask.
-                // We'll never have bits 40-47 set as we limit th possible VA addresses.
-                pSrd->word7.bits.META_DATA_ADDRESS = image.GetCmask256BAddr();
-                pSrd->word5.bits.META_DATA_ADDRESS = 0;
+                // word5 contains bits 40-47.
+                const gpusize cmask256BAddrSwizzled = image.GetCmask256BAddrSwizzled();
+                pSrd->word7.bits.META_DATA_ADDRESS  = LowPart(cmask256BAddrSwizzled);
+                pSrd->word5.bits.META_DATA_ADDRESS  = HighPart(cmask256BAddrSwizzled);
             }
         }
     }
@@ -4504,7 +4510,6 @@ void PAL_STDCALL Device::Gfx10CreateSamplerSrds(
 
                 }
             }
-
         } // end loop through temp SRDs
 
         memcpy(pSrdOutput, &tempSamplerSrds[0], (currentSrdIdx * sizeof(SamplerSrd)));
@@ -4636,8 +4641,7 @@ GfxIpLevel DetermineIpLevel(
         {
             level = GfxIpLevel::GfxIp10_1;
         }
-        else if (false
-                 || AMDGPU_IS_NAVI21(familyId, eRevId)
+        else if (AMDGPU_IS_NAVI21(familyId, eRevId)
                  )
         {
             level = GfxIpLevel::GfxIp10_3;
@@ -4741,9 +4745,7 @@ void InitializeGpuChipProperties(
     pInfo->gfxip.supportGl2Uncached      = 1;
     pInfo->gfxip.gl2UncachedCpuCoherency = (CoherCpu | CoherShader | CoherIndirectArgs | CoherIndexData |
                                             CoherQueueAtomic | CoherTimestamp | CoherCeLoad | CoherCeDump |
-                                            CoherStreamOut | CoherMemory | CoherCp
-                                            | CoherSampleRate
-                                           );
+                                            CoherStreamOut | CoherMemory | CoherCp | CoherSampleRate);
 
     pInfo->gfxip.supportCaptureReplay    = 1;
 
@@ -4781,10 +4783,18 @@ void InitializeGpuChipProperties(
                                                (1 << static_cast<uint32>(VrsShadingRate::_2x1))     |
                                                (1 << static_cast<uint32>(VrsShadingRate::_2x2)));
 
-        if (cpUcodeVersion >= Gfx10UcodeVersionLoadShRegIndexIndirectAddr)
+        if (cpUcodeVersion >= Gfx103UcodeVersionLoadShRegIndexIndirectAddr)
         {
             pInfo->gfxip.dynamicLaunchDescSize = sizeof(DynamicCsLaunchDescLayout);
         }
+    }
+
+    if (IsGfx103(pInfo->gfxLevel) && (cpUcodeVersion >= Gfx103UcodeVersionLoadShRegIndexIndirectAddr))
+    {
+        // PAL implements almost all of its HSA ABI support in a generic gfx9-10.3 way but we require LOAD_SH_REG_INDEX
+        // packet support on compute queues. That was only implemented on gfx10.3+ for dynamic launch support.
+        // If CP ever expands support to earlier HW we can expand HSA support too.
+        pInfo->gfxip.supportHsaAbi = 1;
     }
 
     // When per-channel min/max filter operations are supported, make it clear that single channel always are as well.
@@ -4798,6 +4808,7 @@ void InitializeGpuChipProperties(
     pInfo->gfx9.supportFp16Fetch                   = 1;
     pInfo->gfx9.support16BitInstructions           = 1;
     pInfo->gfx9.support64BitInstructions           = 1;
+    pInfo->gfx9.supportFloatAtomics                = 1;
     pInfo->gfx9.supportDoubleRate16BitInstructions = 1;
 
     // Support PrimitiveTopology::TwoDRectList for GfxIp9 and onwards.
@@ -5112,8 +5123,7 @@ void InitializeGpuChipProperties(
     }
     else if (IsGfx10(pInfo->gfxLevel))
     {
-        if (false
-             || IsGfx103Plus(pInfo->gfxLevel)
+        if (IsGfx103Plus(pInfo->gfxLevel)
             )
         {
             pInfo->srdSizes.bvh = sizeof(sq_bvh_rsrc_t);
@@ -5289,12 +5299,9 @@ void InitializeGpuEngineProperties(
     pUniversal->minTimestampAlignment                 = 8; // The CP spec requires 8-byte alignment.
     pUniversal->queueSupport                          = SupportQueueTypeUniversal;
 
-    if ((IsGfx9(gfxIpLevel) && (pInfo->cpUcodeVersion >= 52)) ||
+    if ((IsGfx9(gfxIpLevel) && (pInfo->cpUcodeVersion >= 52))      ||
         (IsGfx10Plus(gfxIpLevel) && (pInfo->cpUcodeVersion >= 32))
-        || (IsGfx103Plus(gfxIpLevel)
-        && (IsGfx103(gfxIpLevel) == false)
         )
-       )
     {
         pUniversal->flags.memory32bPredicationSupport = 1;
     }

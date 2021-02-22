@@ -1477,7 +1477,6 @@ Result Device::InitMemoryProperties()
 
     m_memoryProperties.flags.virtualRemappingSupport = 1;
     m_memoryProperties.flags.pinningSupport          = 1;
-    m_memoryProperties.flags.supportPerSubmitMemRefs = false;
     m_memoryProperties.flags.globalGpuVaSupport      = false;
     m_memoryProperties.flags.svmSupport              = 0;
     m_memoryProperties.flags.autoPrioritySupport     = 0;
@@ -1576,17 +1575,6 @@ Result Device::QueryWorkStationCaps(
     ) const
 {
     return Result::Success;
-}
-
-// =====================================================================================================================
-// Application profiles?  Null devices?  I don't think so.
-Result Device::QueryApplicationProfile(
-    const char*         pFilename,
-    const char*         pPathname,  // This parameter is optional and may be null!
-    ApplicationProfile* pOut
-    ) const
-{
-    return Result::Unsupported;
 }
 
 // =====================================================================================================================

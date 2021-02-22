@@ -165,7 +165,8 @@ typedef enum IT_OpCodeType {
     IT_DISPATCH_TASK_STATE_INIT__GFX101                = 0x000000a9,
     IT_DISPATCH_TASKMESH_DIRECT_ACE__GFX101            = 0x000000aa,
     IT_DISPATCH_TASKMESH_INDIRECT_MULTI_ACE__GFX101    = 0x000000ad,
-    IT_PERFMON_CONTROL__GFX103                         = 0x00000054,
+    IT_EXECUTE_INDIRECT__GFX101                        = 0x000000ae,
+    IT_PERFMON_CONTROL__GFX103COREPLUS                 = 0x00000054,
     IT_WAIT_FOR_WRITE_CONFIRM__GFX103PLUS              = 0x00000092,
     IT_CONTEXT_PUSH__GFX103PLUS                        = 0x000000ab,
     IT_CONTEXT_POP__GFX103PLUS                         = 0x000000ac,
@@ -180,14 +181,18 @@ typedef enum IT_OpCodeType {
     IT_DISPATCH_DRAW_PREAMBLE_ACE__NV21                = 0x0000008c,
     IT_DISPATCH_DRAW__NV21                             = 0x0000008d,
     IT_DISPATCH_DRAW_ACE__NV21                         = 0x0000008d,
+    IT_EXECUTE_INDIRECT__NV21                          = 0x000000ae,
     IT_DISPATCH_DRAW_PREAMBLE__NV22                    = 0x0000008c,
     IT_DISPATCH_DRAW_PREAMBLE_ACE__NV22                = 0x0000008c,
     IT_DISPATCH_DRAW__NV22                             = 0x0000008d,
     IT_DISPATCH_DRAW_ACE__NV22                         = 0x0000008d,
+    IT_EXECUTE_INDIRECT__NV22                          = 0x000000ae,
     IT_DISPATCH_DRAW_PREAMBLE__NV23                    = 0x0000008c,
     IT_DISPATCH_DRAW_PREAMBLE_ACE__NV23                = 0x0000008c,
     IT_DISPATCH_DRAW__NV23                             = 0x0000008d,
     IT_DISPATCH_DRAW_ACE__NV23                         = 0x0000008d,
+    IT_EXECUTE_INDIRECT__NV23                          = 0x000000ae,
+    IT_EXECUTE_INDIRECT__VEGA                          = 0x000000ae,
 } IT_OpCodeType;
 
 constexpr unsigned int PM4_TYPE_0                                         = 0;

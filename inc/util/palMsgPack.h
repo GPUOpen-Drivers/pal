@@ -260,6 +260,14 @@ public:
               size_t GroupSize>
     Result Pack(const HashMap<Key, Value, Allocator, HashFunc, EqualFunc, AllocFunc, GroupSize>& map);
 
+    /// Creates a map from the contents of an existing MsgPack token stream which was created by another
+    /// MsgPackWriter object.
+    ///
+    /// @param [in] src  Reference to the other MsgPackWriter to copy from.
+    ///
+    /// @returns Success if successful, ErrorOutOfMemory if memory allocation fails.
+    Result AppendMap(const MsgPackWriter& src);
+
     /// Convenience function that combines two Pack() calls. Useful for manually packing a map.
     ///
     /// @param [in] first   First element to pack (key).

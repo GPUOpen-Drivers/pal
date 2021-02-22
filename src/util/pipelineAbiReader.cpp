@@ -25,10 +25,11 @@
 
 #include "palAssert.h"
 #include "palHashLiteralString.h"
+#include "palHashMapImpl.h"
+#include "palHsaAbiMetadata.h"
 #include "palMsgPackImpl.h"
 #include "palPipelineAbiReader.h"
 #include "palPipelineAbiUtils.h"
-#include "palHashMapImpl.h"
 
 #include <climits>
 #include <cstdint>
@@ -41,13 +42,31 @@ namespace Abi
 {
 
 // =====================================================================================================================
+static bool MatchesAnySupportedAbi(
+    uint8 osAbi,
+    uint8 version)
+{
+    bool result = false;
+
+    if (osAbi == ElfOsAbiAmdgpuPal)
+    {
+        result = (version == ElfAbiVersionAmdgpuPal);
+    }
+    else if (osAbi == ElfOsAbiAmdgpuHsa)
+    {
+        result = (version == ElfAbiVersionAmdgpuHsaV3) || (version == ElfAbiVersionAmdgpuHsaV4);
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
 Result PipelineAbiReader::Init()
 {
     Result result = Result::Success;
 
-    if ((m_elfReader.GetHeader().ei_osabi != ElfOsAbiAmdgpuPal) ||
-        (m_elfReader.GetTargetMachine() != Elf::MachineType::AmdGpu) ||
-        (m_elfReader.GetHeader().ei_abiversion != ElfAbiVersionAmdgpuPal))
+    if ((MatchesAnySupportedAbi(GetOsAbi(), GetAbiVersion()) == false) ||
+        (m_elfReader.GetTargetMachine() != Elf::MachineType::AmdGpu))
     {
         result = Result::ErrorInvalidPipelineElf;
     }
@@ -76,22 +95,41 @@ Result PipelineAbiReader::Init()
                     continue;
                 }
 
-                const char* pName = symbols.GetSymbolName(symbolIndex);
-                PipelineSymbolType pipelineSymbolType = GetSymbolTypeFromName(pName);
+                const char*const   pName = symbols.GetSymbolName(symbolIndex);
+                PipelineSymbolType pipelineSymbolType = PipelineSymbolType::Unknown;
+
+                if (GetOsAbi() == ElfOsAbiAmdgpuHsa)
+                {
+                    // This table assumes the PAl ABI. That's not a big deal though if we assume there's a single
+                    // function symbol in each HSA ABI elf that corresonds to the main function.
+                    if (symbols.GetSymbolType(symbolIndex) == Elf::SymbolTableEntryType::Func)
+                    {
+                        pipelineSymbolType = PipelineSymbolType::CsMainEntry;
+                    }
+                }
+                else
+                {
+                    pipelineSymbolType = GetSymbolTypeFromName(pName);
+                }
 
                 if (pipelineSymbolType != PipelineSymbolType::Unknown)
                 {
+                    // This will trigger if we try to map more than one symbol to the same spot in this table.
+                    PAL_ASSERT(m_pipelineSymbols[static_cast<uint32>(pipelineSymbolType)].m_index == 0);
+
                     m_pipelineSymbols[static_cast<uint32>(pipelineSymbolType)] = {sectionIndex, symbolIndex};
                 }
                 else
                 {
                     result = m_genericSymbolsMap.Insert(pName, {sectionIndex, symbolIndex});
+
                     if (result != Result::Success)
                     {
                         break;
                     }
                 }
             }
+
             if (result != Result::Success)
             {
                 break;
@@ -165,6 +203,78 @@ Result PipelineAbiReader::GetMetadata(
     }
 
     if (result == Result::Success && !foundMetadata)
+    {
+        result = Result::ErrorInvalidPipelineElf;
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
+Result PipelineAbiReader::GetMetadata(
+    MsgPackReader*              pReader,
+    HsaAbi::CodeObjectMetadata* pMetadata
+    ) const
+{
+    Result result = Result::Success;
+    bool   foundMetadata = false;
+
+    for (ElfReader::SectionId sectionIndex = 0; sectionIndex < m_elfReader.GetNumSections(); sectionIndex++)
+    {
+        // Only the .note section has the right format
+        if ((m_elfReader.GetSectionType(sectionIndex) != Elf::SectionHeaderType::Note) ||
+            !StringEqualFunc<const char*>()(m_elfReader.GetSectionName(sectionIndex), ".note"))
+        {
+            continue;
+        }
+
+        uint32 metadataMajorVer = 0;
+        uint32 metadataMinorVer = 0;
+
+        const void* pRawMetadata = nullptr;
+        uint32      metadataSize = 0;
+
+        ElfReader::Notes notes(m_elfReader, sectionIndex);
+
+        for (ElfReader::NoteIterator note = notes.Begin(); note.IsValid(); note.Next())
+        {
+            const void* pDesc    = note.GetDescriptor();
+            uint32      descSize = note.GetHeader().n_descsz;
+
+            switch (note.GetHeader().n_type)
+            {
+            case MetadataNoteType:
+            {
+                pRawMetadata = pDesc;
+                metadataSize = descSize;
+
+                result = GetMetadataVersion(pReader, pDesc, descSize,
+                                            HashLiteralString(HsaAbi::PipelineMetadataKey::Version),
+                                            &metadataMajorVer, &metadataMinorVer);
+                break;
+            }
+            default:
+                // Unknown note type.
+                break;
+            }
+        }
+
+        if (result == Result::Success)
+        {
+            result = pMetadata->SetVersion(metadataMajorVer, metadataMinorVer);
+        }
+
+        if (result == Result::Success)
+        {
+            result = pMetadata->DeserializeNote(pReader, pRawMetadata, metadataSize);
+        }
+
+        // Quit after the first .note section.
+        foundMetadata = true;
+        break;
+    }
+
+    if ((result == Result::Success) && (foundMetadata == false))
     {
         result = Result::ErrorInvalidPipelineElf;
     }

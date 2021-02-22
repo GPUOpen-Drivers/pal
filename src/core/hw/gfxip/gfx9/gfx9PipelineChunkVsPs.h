@@ -57,13 +57,13 @@ public:
         GraphicsPipelineLoadInfo* pInfo);
 
     void LateInit(
-        const AbiReader&                    abiReader,
-        const CodeObjectMetadata&           metadata,
-        const RegisterVector&               registers,
-        const GraphicsPipelineLoadInfo&     loadInfo,
-        const GraphicsPipelineCreateInfo&   createInfo,
-        PipelineUploader*                   pUploader,
-        Util::MetroHash64*                  pHasher);
+        const AbiReader&                        abiReader,
+        const Util::PalAbi::CodeObjectMetadata& metadata,
+        const RegisterVector&                   registers,
+        const GraphicsPipelineLoadInfo&         loadInfo,
+        const GraphicsPipelineCreateInfo&       createInfo,
+        PipelineUploader*                       pUploader,
+        Util::MetroHash64*                      pHasher);
 
     uint32* WriteShCommands(
         CmdStream*              pCmdStream,

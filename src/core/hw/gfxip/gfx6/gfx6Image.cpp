@@ -1342,7 +1342,7 @@ uint32 Image::GetCmask256BAddr(
         tileSwizzle = AddrMgr1::GetTileInfo(Parent(), subresource)->tileSwizzle;
     }
 
-    return Get256BAddrSwizzled(cMaskBaseAddr, tileSwizzle);
+    return Get256BAddrLoSwizzled(cMaskBaseAddr, tileSwizzle);
 }
 
 // =====================================================================================================================
@@ -1355,7 +1355,7 @@ uint32 Image::GetDcc256BAddr(
                                                   GetDcc(subresource)->MemoryOffset());
     const AddrMgr1::TileInfo*const pTileInfo   = AddrMgr1::GetTileInfo(Parent(), subresource);
 
-    return Get256BAddrSwizzled(dccBaseAddr, pTileInfo->tileSwizzle);
+    return Get256BAddrLoSwizzled(dccBaseAddr, pTileInfo->tileSwizzle);
 }
 
 // =====================================================================================================================
@@ -1460,7 +1460,7 @@ uint32 Image::GetFmask256BAddrSwizzled(
 {
     const AddrMgr1::TileInfo*const pTileInfo = AddrMgr1::GetTileInfo(Parent(), subresource);
 
-    return Get256BAddrSwizzled(GetFmaskBaseAddr(subresource), pTileInfo->tileSwizzle);
+    return Get256BAddrLoSwizzled(GetFmaskBaseAddr(subresource), pTileInfo->tileSwizzle);
 }
 
 // =====================================================================================================================
@@ -3052,7 +3052,7 @@ uint32 Image::GetSubresource256BAddrSwizzled(
     ) const
 {
     const AddrMgr1::TileInfo*const pTileInfo = AddrMgr1::GetTileInfo(Parent(), subresource);
-    return Get256BAddrSwizzled(Parent()->GetSubresourceBaseAddr(subresource), pTileInfo->tileSwizzle);
+    return Get256BAddrLoSwizzled(Parent()->GetSubresourceBaseAddr(subresource), pTileInfo->tileSwizzle);
 }
 
 // =====================================================================================================================

@@ -29,6 +29,8 @@
 #include "core/layers/cmdBufferLogger/cmdBufferLoggerDevice.h"
 #include "core/layers/cmdBufferLogger/cmdBufferLoggerImage.h"
 #include "core/layers/cmdBufferLogger/cmdBufferLoggerPlatform.h"
+#include "palHsaAbiMetadata.h"
+#include "palStringUtil.h"
 #include <cinttypes>
 
 // This is required because we need the definition of the D3D12DDI_PRESENT_0003 struct in order to make a copy of the
@@ -936,7 +938,8 @@ CmdBuffer::CmdBuffer(
     m_pDevice(pDevice),
     m_allocator(1 * 1024 * 1024),
     m_drawDispatchCount(0),
-    m_drawDispatchInfo()
+    m_drawDispatchInfo(),
+    m_pBoundPipelines{}
 {
     const auto& cmdBufferLoggerConfig = pDevice->GetPlatform()->PlatformSettings().cmdBufferLoggerConfig;
     m_annotations.u32All              = cmdBufferLoggerConfig.cmdBufferLoggerAnnotations;
@@ -981,8 +984,14 @@ void CmdBuffer::Destroy()
 Result CmdBuffer::Begin(
     const CmdBufferBuildInfo& info)
 {
+    // Reset all tracked state.
     m_drawDispatchCount = 0;
     m_drawDispatchInfo  = { 0 };
+
+    for (uint32 idx = 0; idx < static_cast<uint32>(PipelineBindPoint::Count); ++idx)
+    {
+        m_pBoundPipelines[idx] = nullptr;
+    }
 
     Result result = GetNextLayer()->Begin(NextCmdBufferBuildInfo(info));
 
@@ -1062,6 +1071,9 @@ void CmdBuffer::CmdBindPipeline(
     }
 
     GetNextLayer()->CmdBindPipeline(NextPipelineBindParams(params));
+
+    // We may need this pipeline in a later function call.
+    m_pBoundPipelines[static_cast<uint32>(params.pipelineBindPoint)] = params.pPipeline;
 }
 
 // =====================================================================================================================
@@ -1401,6 +1413,66 @@ void PAL_STDCALL CmdBuffer::CmdSetUserDataGfx(
     }
 
     pCmdBuf->GetNextLayer()->CmdSetUserData(PipelineBindPoint::Graphics, firstEntry, entryCount, pEntryValues);
+}
+
+// =====================================================================================================================
+void CmdBuffer::CmdSetKernelArguments(
+    uint32            firstArg,
+    uint32            argCount,
+    const void*const* ppValues)
+{
+    if (m_annotations.logCmdSets)
+    {
+        GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdSetKernelArguments));
+
+        LinearAllocatorAuto<VirtualLinearAllocator> allocator(Allocator(), false);
+        char* pString = PAL_NEW_ARRAY(char, StringLength, &allocator, AllocInternalTemp);
+
+        Snprintf(pString, StringLength, "First Argument = %u", firstArg);
+        GetNextLayer()->CmdCommentString(pString);
+
+        Snprintf(pString, StringLength, "Argument Count = %u", argCount);
+        GetNextLayer()->CmdCommentString(pString);
+
+        // There must be an HSA ABI pipeline bound if you call this function.
+        const IPipeline*const pPipeline = m_pBoundPipelines[static_cast<uint32>(PipelineBindPoint::Compute)];
+        PAL_ASSERT((pPipeline != nullptr) && (pPipeline->GetInfo().flags.hsaAbi == 1));
+
+        for (uint32 idx = 0; idx < argCount; ++idx)
+        {
+            const size_t strOffset = static_cast<size_t>(Snprintf(pString, StringLength, "\tvalue[%u] = ", idx));
+            const auto*  pArgument = pPipeline->GetKernelArgument(firstArg + idx);
+            PAL_ASSERT(pArgument != nullptr);
+
+            const size_t valueSize = pArgument->size;
+            PAL_ASSERT(valueSize > 0);
+
+            // Convert the value to strings of hexadecimal values. If the value size matches a fundemental type use
+            // that block size, otherwise default to DWORDs.
+            const size_t blockSize = (valueSize == 1) ? 1 : (valueSize == 2) ? 2 : (valueSize == 8) ? 8 : 4;
+            const uint8* pBytes = static_cast<const uint8*>(ppValues[idx]);
+            size_t valueOffset = 0;
+
+            valueOffset += BytesToStr(pString + strOffset, StringLength - strOffset,
+                                      pBytes + valueOffset, valueSize - valueOffset, blockSize);
+            GetNextLayer()->CmdCommentString(pString);
+
+            while (valueOffset < valueSize)
+            {
+                // This is a big value, we couldn't fit it in one line. Space out a new line and continue.
+                pString[0] = '\t';
+                memset(pString + 1, ' ', strOffset - 1);
+
+                valueOffset += BytesToStr(pString + strOffset, StringLength - strOffset,
+                                          pBytes + valueOffset, valueSize - valueOffset, blockSize);
+                GetNextLayer()->CmdCommentString(pString);
+            }
+        }
+
+        PAL_SAFE_DELETE_ARRAY(pString, &allocator);
+    }
+
+    GetNextLayer()->CmdSetKernelArguments(firstArg, argCount, ppValues);
 }
 
 // =====================================================================================================================

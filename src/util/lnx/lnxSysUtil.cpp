@@ -823,18 +823,7 @@ Result MkDir(
 
     if (lnxResult != 0)
     {
-        switch (errno)
-        {
-            case EEXIST:
-                result = Result::AlreadyExists;
-                break;
-            case ENOTDIR:
-                result = Result::ErrorInvalidValue;
-                break;
-            default:
-                result = Result::ErrorUnknown;
-                break;
-        }
+        result = ConvertErrno(errno);
     }
 
     return result;

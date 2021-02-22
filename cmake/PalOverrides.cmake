@@ -22,6 +22,7 @@
  #  SOFTWARE.
  #
  #######################################################################################################################
+
 include_guard()
 include(PalVersionHelper)
 
@@ -34,8 +35,6 @@ set(ADDR_VI_BUILD ON)
 
 # PAL override for ADDRLIB SI/CI/VI register chip headers
 set(ADDR_SI_CHIP_DIR "${PROJECT_SOURCE_DIR}/src/core/hw/gfxip/gfx6/chip")
-
-# VAM
 
 # GPUOPEN
 

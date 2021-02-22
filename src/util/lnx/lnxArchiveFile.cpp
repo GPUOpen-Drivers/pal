@@ -142,7 +142,7 @@ static Result ReadDirect(
     {
         if (lseek(fd, fileOffset, SEEK_SET) == InvalidSysCall)
         {
-            result = Result::ErrorUnknown;
+            result = ConvertErrno(errno);
         }
 
     }
@@ -154,13 +154,14 @@ static Result ReadDirect(
     {
         alreadyReadSize = read(fd, pBuffer, exactSize);
     }
+
     if (alreadyReadSize == exactSize)
     {
         result = Result::Success;
     }
     else
     {
-        result = Result::ErrorUnknown;
+        result = ConvertErrno(errno);
         PAL_ALERT_ALWAYS();
     }
 
@@ -182,7 +183,7 @@ static Result WriteDirect(
 
     if (lseek(fd, fileOffset, SEEK_SET) == InvalidSysCall)
     {
-        result = Result::ErrorUnknown;
+        result = ConvertErrno(errno);
         PAL_ALERT_ALWAYS();
         return result;
     }
@@ -195,7 +196,7 @@ static Result WriteDirect(
     }
     else
     {
-        result = Result::ErrorUnknown;
+        result = ConvertErrno(errno);
         PAL_ALERT_ALWAYS();
     }
 
@@ -224,7 +225,7 @@ static Result CreateDir(
             {
                 if (mkdir(dirName, 0755) == InvalidSysCall)
                 {
-                    result = Result::ErrorUnknown;
+                    result = ConvertErrno(errno);
                     break;
                 }
             }
@@ -259,7 +260,7 @@ static Result CreateFileInternal(
 
         if (fd == InvalidFd)
         {
-            result = Result::ErrorUnavailable;
+            result = ConvertErrno(errno);
         }
         // The lock will prevent the file from being opened by multiple instances simultaneously.
         // It will be automatically released when we close the file handle.
@@ -302,8 +303,8 @@ static Result CreateFileInternal(
         }
         else
         {
+            result = ConvertErrno(errno);
             close(fd);
-            result = Result::ErrorUnavailable;
         }
     }
 
@@ -349,7 +350,7 @@ static Result OpenFileInternal(
     else
     {
         PAL_ALERT_ALWAYS();
-        result = Result::ErrorUnknown;
+        result = ConvertErrno(errno);
     }
 
     return result;
@@ -1271,7 +1272,7 @@ Result DeleteArchiveFile(
         GenerateFullPath(stringBuffer, sizeof(stringBuffer), pOpenInfo);
         if (remove(stringBuffer) == InvalidSysCall)
         {
-            result = Result::ErrorUnknown;
+            result = ConvertErrno(errno);
         }
     }
 

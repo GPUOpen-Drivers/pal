@@ -362,6 +362,9 @@ static void SetupGfx10Workarounds(
     // GCR ranged sync operations cause page faults for Cmask without the uCode fix that properly converts the
     // ACQUIRE_MEM packet's COHER_SIZE to the correct GCR_DATA_INDEX.
     pSettings->waCmaskImageSyncs = (device.EngineProperties().cpUcodeVersion < 28);
+
+    // We can't use CP_PERFMON_STATE_STOP_COUNTING when using an SQ counters or they can get stuck off until we reboot.
+    pSettings->waNeverStopSqCounters = true;
 }
 
 // =====================================================================================================================

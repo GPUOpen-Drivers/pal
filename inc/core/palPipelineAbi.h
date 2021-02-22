@@ -458,6 +458,8 @@ enum class UserDataMapping : uint32
     MeshPipeStatsBuf      = 0x10000014,  ///< 32-bit GPU virtual address of a buffer storing the shader-emulated mesh
                                          ///  pipeline stats query.
     FetchShaderPtr        = 0x10000015,  ///< 64-bit pointer to GPU memory containing the fetch shader subroutine.
+    EnPrimsNeededCnt  = 0x10000017,  ///< Address of userdata register that will be used to dynamically enable/disable
+                                     ///  extra shader work for generated prim counts in PipelineStats queries
 
     /// @internal The following enum values are deprecated and only remain in the header file to avoid build errors.
 

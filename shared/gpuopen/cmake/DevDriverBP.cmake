@@ -1,4 +1,5 @@
 ## Copyright (c) 2021 Advanced Micro Devices, Inc. All rights reserved. ##
+
 include_guard(GLOBAL)
 
 cmake_minimum_required(VERSION 3.13...3.20)

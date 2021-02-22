@@ -45,6 +45,18 @@ class IGpuMemory;
 /// requirements to the @ref IGpuMemoryBindable object using IGpuMemoryBindable::BindGpuMemory().
 struct GpuMemoryRequirements
 {
+    union
+    {
+        struct
+        {
+            uint32 cpuAccess : 1;  ///< CPU access is required. If set, the client must not set cpuInvisible in
+                                   ///  GpuMemoryCreateFlags and must provide CPU visible heaps or CPU visible heap
+                                   ///  access mode. If not set, it's strongly recommended to set cpuInvisible.
+            uint32 reserved : 31;  ///< Reserved for future use.
+        };
+        uint32 u32All;             ///< Flags packed as 32-bit uint.
+    } flags;                       ///< Flags specifying required GPU memory properties.
+
     gpusize size;                  ///< Amount of GPU memory required, in bytes.
     gpusize alignment;             ///< Required GPU memory virtual address alignment, in bytes.
     uint32  heapCount;             ///< Number of valid entries in heaps[].

@@ -139,6 +139,11 @@ void SettingsLoader::OverrideDefaults()
         m_settings.useDcc = DccEnables;
     }
 
+    if (gfxLevel >= GfxIpLevel::GfxIp9)
+    {
+        m_settings.useExecuteIndirectPacket = UseExecuteIndirectPacketForDraw;
+    }
+
     if (m_pDevice->PhysicalEnginesAvailable())
     {
         // prevent exhausting invisible video memory due to excessive physical alignment for small allocations
@@ -152,9 +157,8 @@ void SettingsLoader::OverrideDefaults()
         m_settings.preferredPipelineUploadHeap = PipelineHeapGartUswc;
     }
 
-    if (false
-        || IsNavi2x(*m_pDevice)
-        )
+    if (IsNavi2x(*m_pDevice)
+       )
     {
         m_settings.addr2UseVarSwizzleMode = Addr2UseVarSwizzle::Addr2UseVarSwizzleDisable;
     }

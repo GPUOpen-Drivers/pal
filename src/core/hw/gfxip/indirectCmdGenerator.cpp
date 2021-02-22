@@ -171,6 +171,10 @@ void IndirectCmdGenerator::GetGpuMemoryRequirements(
 
     pGpuMemReqs->alignment = GpuMemoryAlignment;
     pGpuMemReqs->size      = m_gpuMemSize;
+
+    pGpuMemReqs->flags.u32All    = 0;
+    pGpuMemReqs->flags.cpuAccess = 1;
+
     pGpuMemReqs->heapCount = 2;
     pGpuMemReqs->heaps[0]  = GpuHeap::GpuHeapGartUswc;
     pGpuMemReqs->heaps[1]  = GpuHeap::GpuHeapGartCacheable;

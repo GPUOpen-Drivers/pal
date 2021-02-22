@@ -87,15 +87,9 @@ Pal::Result CreateTimeGraphComputePipelines(
         break;
 
     case Pal::AsicRevision::Navi21:
-        pTable = timeGraphComputeBinaryTableNavi21;
-        break;
-
     case Pal::AsicRevision::Navi22:
-        pTable = timeGraphComputeBinaryTableNavi22;
-        break;
-
     case Pal::AsicRevision::Navi23:
-        pTable = timeGraphComputeBinaryTableNavi23;
+        pTable = timeGraphComputeBinaryTableNavi21;
         break;
 
     default:

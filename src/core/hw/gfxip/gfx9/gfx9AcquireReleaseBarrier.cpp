@@ -530,19 +530,22 @@ AcqRelSyncToken Device::IssueReleaseSync(
     // OptimizePipeAndCacheMaskForRelease() has converted these BLT coherency flags to more specific ones.
     PAL_ASSERT(TestAnyFlagSet(accessMask, CacheCoherencyBlt) == false);
 
-    AcqRelSyncToken syncToken = {};
-
-    bool issueRbCacheSyncEvent = false;
+    AcqRelSyncToken syncToken             = {};
+    bool            issueSyncEvent        = false;
+    bool            issueRbCacheSyncEvent = false; // If set, this EOP event is CACHE_FLUSH_AND_INV_TS, not
+                                                   // the pipeline stall-only version BOTTOM_OF_PIPE.
 
     const bool requiresEop    = TestAnyFlagSet(stageMask, PipelineStageEarlyDsTarget |
                                                           PipelineStageLateDsTarget  |
                                                           PipelineStageColorTarget   |
                                                           PipelineStageBottomOfPipe);
-    const bool requiresVsDone = TestAnyFlagSet(stageMask, PipelineStageVs |
+    const bool requiresPsDone = TestAnyFlagSet(stageMask, PipelineStagePs);
+    // If no ps wave, PS_DONE doesn't safely ensures the completion of VS and prior stage waves.
+    const bool requiresVsDone = (requiresPsDone == false) &&
+                                TestAnyFlagSet(stageMask, PipelineStageVs |
                                                           PipelineStageHs |
                                                           PipelineStageDs |
                                                           PipelineStageGs);
-    const bool requiresPsDone = TestAnyFlagSet(stageMask, PipelineStagePs);
     const bool requiresCsDone = TestAnyFlagSet(stageMask, PipelineStageCs);
 
     // If any of the access mask bits that could result in RB sync are set, use CACHE_FLUSH_AND_INV_TS.
@@ -552,11 +555,10 @@ AcqRelSyncToken Device::IssueReleaseSync(
     if (TestAnyFlagSet(accessMask, CoherColorTarget | CoherDepthStencilTarget))
     {
         // Issue a pipelined EOP event that writes timestamp to a GpuEvent slot when all prior GPU work completes.
-        syncToken.type     = static_cast<uint32>(AcqRelEventType::Eop);
-        syncToken.fenceVal = pCmdBuf->GetNextAcqRelFenceVal(AcqRelEventType::Eop);
-
-        // An end-of-pipe event already carries out RB cache flush, clear the specific request in access mask.
+        syncToken.type        = static_cast<uint32>(AcqRelEventType::Eop);
+        issueSyncEvent        = true;
         issueRbCacheSyncEvent = true;
+
         accessMask &= ~(CoherColorTarget | CoherDepthStencilTarget);
 
         pBarrierOps->caches.flushCb         = 1;
@@ -569,32 +571,31 @@ AcqRelSyncToken Device::IssueReleaseSync(
         pBarrierOps->caches.flushDbMetadata = 1;
         pBarrierOps->caches.invalDbMetadata = 1;
     }
-    else if (requiresEop || (requiresCsDone && requiresPsDone) || requiresVsDone)
+    else if (requiresEop || requiresVsDone || (requiresCsDone && requiresPsDone))
     {
         // Implement set with an EOP event written when all prior GPU work completes if either:
         // 1. End of RB or end of whole pipe is required,
-        // 2. Both graphics and compute events are required,
-        // 3. Graphics event required but no ps wave. In this case PS_DONE doesn't safely ensures VS waves completion.
-        //    And because there is no VS_DONE event, we have to conservatively use an EOP event.
+        // 2. There are Vs/Hs/Ds/Gs that require a graphics pipe done event, but there is no PS wave. Since there is no
+        //    VS_DONE event, we have to conservatively use an EOP event,
+        // 3. Both graphics and compute events are required.
         syncToken.type     = static_cast<uint32>(AcqRelEventType::Eop);
-        syncToken.fenceVal = pCmdBuf->GetNextAcqRelFenceVal(AcqRelEventType::Eop);
+        issueSyncEvent     = true;
     }
     else if (requiresCsDone)
     {
         // Implement set with an EOS event waiting for CS waves to complete.
         syncToken.type     = static_cast<uint32>(AcqRelEventType::CsDone);
-        syncToken.fenceVal = pCmdBuf->GetNextAcqRelFenceVal(AcqRelEventType::CsDone);
+        issueSyncEvent     = true;
     }
     else if (requiresPsDone)
     {
         // Implement set with an EOS event waiting for PS waves to complete.
         syncToken.type     = static_cast<uint32>(AcqRelEventType::PsDone);
-        syncToken.fenceVal = pCmdBuf->GetNextAcqRelFenceVal(AcqRelEventType::PsDone);
+        issueSyncEvent     = true;
     }
 
-    // Create info for RELEASE_MEM. Initialize common part at here.
-    ExplicitReleaseMemInfo releaseMemInfo = {};
-    releaseMemInfo.engineType = engineType;
+    uint32 coherCntl = 0;
+    uint32 gcrCntl   = 0;
 
     if (IsGfx9(m_gfxIpLevel))
     {
@@ -605,49 +606,54 @@ AcqRelSyncToken Device::IssueReleaseSync(
         // The cache sync requests can be cleared by single release pass.
         PAL_ASSERT(cacheSyncFlags == 0);
 
-        releaseMemInfo.coherCntl = Gfx9TcCacheOpConversionTable[tcCacheOp];
+        coherCntl = Gfx9TcCacheOpConversionTable[tcCacheOp];
     }
     else
     {
         PAL_ASSERT(IsGfx10Plus(m_gfxIpLevel));
-        releaseMemInfo.gcrCntl = Gfx10BuildReleaseGcrCntl(accessMask, flushLlc, pBarrierOps);
+        gcrCntl = Gfx10BuildReleaseGcrCntl(accessMask, flushLlc, pBarrierOps);
     }
-
-    // If the release stage mask isn't specified or doesn't require a pipelined release sync, just don't issue any VGT
-    // event.
-    bool issueReleaseSync = (syncToken.fenceVal != AcqRelFenceResetVal);
 
     // If we have cache sync request yet don't assign any VGT event, we need to issue a dummy one.
-    if ((issueReleaseSync == false) && ((releaseMemInfo.coherCntl != 0) || (releaseMemInfo.gcrCntl != 0)))
+    if ((issueSyncEvent == false) && ((coherCntl != 0) || (gcrCntl != 0)))
     {
         // Flush at earliest supported pipe point for RELEASE_MEM (CS_DONE always works).
-        syncToken.type     = static_cast<uint32>(AcqRelEventType::CsDone);
-        syncToken.fenceVal = pCmdBuf->GetNextAcqRelFenceVal(AcqRelEventType::CsDone);
-
-        issueReleaseSync = true;
+        syncToken.type = static_cast<uint32>(AcqRelEventType::CsDone);
+        issueSyncEvent = true;
     }
 
-    // Issue RELEASE_MEM packets to issue necessary pipeline events, and flush caches (optional).
-    if (issueReleaseSync)
+    // Pick EOP event if GCR cache sync is requested, EOS event is not supported.
+    if (issueSyncEvent && (syncToken.type != static_cast<uint32>(AcqRelEventType::Eop)) && (gcrCntl != 0))
     {
+        syncToken.type = static_cast<uint32>(AcqRelEventType::Eop);
+    }
+
+    // Issue RELEASE_MEM packet
+    if (issueSyncEvent)
+    {
+        ExplicitReleaseMemInfo releaseMemInfo = {};
+        releaseMemInfo.engineType = engineType;
+        releaseMemInfo.coherCntl  = coherCntl;
+        releaseMemInfo.gcrCntl    = gcrCntl;
+
         if (syncToken.type == static_cast<uint32>(AcqRelEventType::Eop))
         {
             releaseMemInfo.vgtEvent = issueRbCacheSyncEvent ? CACHE_FLUSH_AND_INV_TS_EVENT : BOTTOM_OF_PIPE_TS;
-
             pBarrierOps->pipelineStalls.eopTsBottomOfPipe = 1;
         }
         else if (syncToken.type == static_cast<uint32>(AcqRelEventType::PsDone))
         {
             releaseMemInfo.vgtEvent = PS_DONE;
-
             pBarrierOps->pipelineStalls.eosTsPsDone = 1;
         }
         else if (syncToken.type == static_cast<uint32>(AcqRelEventType::CsDone))
         {
             releaseMemInfo.vgtEvent = CS_DONE;
-
             pBarrierOps->pipelineStalls.eosTsCsDone = 1;
         }
+
+        // Request sync fence value after VGT event type is finalized.
+        syncToken.fenceVal = pCmdBuf->GetNextAcqRelFenceVal(static_cast<AcqRelEventType>(syncToken.type));
 
         {
             releaseMemInfo.dstAddr = pCmdBuf->AcqRelFenceValGpuVa(static_cast<AcqRelEventType>(syncToken.type));
@@ -656,6 +662,10 @@ AcqRelSyncToken Device::IssueReleaseSync(
         }
 
         pCmdSpace += m_cmdUtil.ExplicitBuildReleaseMem(releaseMemInfo, pCmdSpace, 0, 0);
+    }
+    else
+    {
+        PAL_ALERT_ALWAYS_MSG("Barrier-release does nothing, need to validate the correctness of this barrier call.");
     }
 
     // Update command buffer state value which will be used for optimization.
@@ -2076,8 +2086,23 @@ void Device::IssueReleaseSyncEvent(
     PAL_ASSERT(gpuEventBoundMemObj.IsBound());
     const gpusize         gpuEventStartVa             = gpuEventBoundMemObj.GpuVirtAddr();
 
-    VGT_EVENT_TYPE        vgtEvents[MaxSlotsPerEvent] = {}; // Always create the max size.
-    uint32                vgtEventCount               = 0;
+    AcqRelEventType syncEventType[MaxSlotsPerEvent] = {};
+    uint32          syncEventCount                  = 0;
+    bool            issueRbCacheSyncEvent           = false; // If set, this EOP event is CACHE_FLUSH_AND_INV_TS, not
+                                                             // the pipeline stall-only version BOTTOM_OF_PIPE.
+
+    const bool requiresEop    = TestAnyFlagSet(stageMask, PipelineStageEarlyDsTarget |
+                                                          PipelineStageLateDsTarget  |
+                                                          PipelineStageColorTarget   |
+                                                          PipelineStageBottomOfPipe);
+    const bool requiresPsDone = TestAnyFlagSet(stageMask, PipelineStagePs);
+    // If no ps wave, PS_DONE doesn't safely ensures the completion of VS and prior stage waves.
+    const bool requiresVsDone = (requiresPsDone == false) &&
+                                TestAnyFlagSet(stageMask, PipelineStageVs |
+                                                          PipelineStageHs |
+                                                          PipelineStageDs |
+                                                          PipelineStageGs);
+    const bool requiresCsDone = TestAnyFlagSet(stageMask, PipelineStageCs);
 
     // If any of the access mask bits that could result in RB sync are set, use CACHE_FLUSH_AND_INV_TS.
     // There is no way to INV the CB metadata caches during acquire. So at release always also invalidate if we are to
@@ -2086,8 +2111,8 @@ void Device::IssueReleaseSyncEvent(
     if (TestAnyFlagSet(accessMask, CoherColorTarget | CoherDepthStencilTarget))
     {
         // Issue a pipelined EOP event that writes timestamp to a GpuEvent slot when all prior GPU work completes.
-        vgtEvents[vgtEventCount++]                    = CACHE_FLUSH_AND_INV_TS_EVENT;
-        pBarrierOps->pipelineStalls.eopTsBottomOfPipe = 1;
+        syncEventType[syncEventCount++] = AcqRelEventType::Eop;
+        issueRbCacheSyncEvent         = true;
 
         // Clear up CB/DB request
         accessMask &= ~(CoherColorTarget | CoherDepthStencilTarget);
@@ -2102,59 +2127,40 @@ void Device::IssueReleaseSyncEvent(
         pBarrierOps->caches.flushDbMetadata = 1;
         pBarrierOps->caches.invalDbMetadata = 1;
     }
-    else if (TestAnyFlagSet(stageMask, PipelineStageEarlyDsTarget |
-                                       PipelineStageLateDsTarget  |
-                                       PipelineStageColorTarget   |
-                                       PipelineStageBottomOfPipe))
+    else if (requiresEop || requiresVsDone)
     {
-        // Implement set with an EOP event written when all prior GPU work completes.
-        vgtEvents[vgtEventCount++]                    = BOTTOM_OF_PIPE_TS;
-        pBarrierOps->pipelineStalls.eopTsBottomOfPipe = 1;
-    }
-    else if (TestAnyFlagSet(stageMask, PipelineStageVs | PipelineStageHs | PipelineStageDs | PipelineStageGs) &&
-        (TestAnyFlagSet(stageMask, PipelineStagePs) == false))
-    {
-        // Unfortunately, there is no VS_DONE event with which to implement PipelineStageVs/Hs/Ds/Gs, so it has to
-        // conservatively use BottomOfPipe.
-        vgtEvents[vgtEventCount++]                    = BOTTOM_OF_PIPE_TS;
-        pBarrierOps->pipelineStalls.eopTsBottomOfPipe = 1;
+        // Implement set with an EOP event written when all prior GPU work completes if either:
+        // 1. End of RB or end of whole pipe is required,
+        // 2. There are Vs/Hs/Ds/Gs that require a graphics pipe done event, but there is no PS wave. Since there is no
+        //    VS_DONE event, we have to conservatively use an EOP event.
+        syncEventType[syncEventCount++] = AcqRelEventType::Eop;
     }
     else
     {
         // The signal/wait event may have multiple slots, we can utilize it to issue separate EOS event for PS and CS
         // waves.
-        if (TestAnyFlagSet(stageMask, PipelineStageCs))
+        if (requiresCsDone)
         {
             // Implement set/reset with an EOS event waiting for CS waves to complete.
-            vgtEvents[vgtEventCount++]              = CS_DONE;
-            pBarrierOps->pipelineStalls.eosTsCsDone = 1;
+            syncEventType[syncEventCount++] = AcqRelEventType::CsDone;
         }
 
-        if (TestAnyFlagSet(stageMask, PipelineStageVs |
-                                      PipelineStageHs |
-                                      PipelineStageDs |
-                                      PipelineStageGs |
-                                      PipelineStagePs))
+        if (requiresPsDone)
         {
             // Implement set with an EOS event waiting for PS waves to complete.
-            vgtEvents[vgtEventCount++]              = PS_DONE;
-            pBarrierOps->pipelineStalls.eosTsPsDone = 1;
+            syncEventType[syncEventCount++] = AcqRelEventType::PsDone;
         }
 
-        if (vgtEventCount > numEventSlots)
+        if (syncEventCount > numEventSlots)
         {
             // Fall back to single EOP pipe point if available event slots are not sufficient for multiple pipe points.
-            vgtEvents[0]                                  = BOTTOM_OF_PIPE_TS;
-            vgtEventCount                                 = 1;
-            pBarrierOps->pipelineStalls.eosTsCsDone       = 0;
-            pBarrierOps->pipelineStalls.eosTsPsDone       = 0;
-            pBarrierOps->pipelineStalls.eopTsBottomOfPipe = 1;
+            syncEventType[0] = AcqRelEventType::Eop;
+            syncEventCount   = 1;
         }
     }
 
-    // Create info for RELEASE_MEM. Initialize common part at here.
-    ExplicitReleaseMemInfo releaseMemInfo = {};
-    releaseMemInfo.engineType = engineType;
+    uint32 coherCntl = 0;
+    uint32 gcrCntl   = 0;
 
     if (IsGfx9(m_gfxIpLevel))
     {
@@ -2165,26 +2171,37 @@ void Device::IssueReleaseSyncEvent(
         // The cache sync requests can be cleared by single release pass.
         PAL_ASSERT(cacheSyncFlags == 0);
 
-        releaseMemInfo.coherCntl = Gfx9TcCacheOpConversionTable[tcCacheOp];
+        coherCntl = Gfx9TcCacheOpConversionTable[tcCacheOp];
     }
     else
     {
         PAL_ASSERT(IsGfx10Plus(m_gfxIpLevel));
-        releaseMemInfo.gcrCntl = Gfx10BuildReleaseGcrCntl(accessMask, flushLlc, pBarrierOps);
+        gcrCntl = Gfx10BuildReleaseGcrCntl(accessMask, flushLlc, pBarrierOps);
     }
 
     // If we have cache sync request yet don't assign any VGT event, we need to issue a dummy one.
-    if (((releaseMemInfo.coherCntl != 0) || (releaseMemInfo.gcrCntl != 0)) && (vgtEventCount == 0))
+    if ((syncEventCount == 0) && ((coherCntl != 0) || (gcrCntl != 0)))
     {
         // Flush at earliest supported pipe point for RELEASE_MEM (CS_DONE always works).
-        vgtEvents[vgtEventCount++]              = CS_DONE;
-        pBarrierOps->pipelineStalls.eosTsCsDone = 1;
+        syncEventType[syncEventCount++] = AcqRelEventType::CsDone;
     }
 
-    PAL_ASSERT(vgtEventCount <= numEventSlots);
+    // Pick EOP event if GCR cache sync is requested, EOS event is not supported.
+    if ((syncEventCount > 0) && (gcrCntl != 0))
+    {
+        for (uint32 i = 0; i < syncEventCount; i++)
+        {
+            if (syncEventType[i] != AcqRelEventType::Eop)
+            {
+                syncEventType[0] = AcqRelEventType::Eop;
+                syncEventCount   = 1;
+                break;
+            }
+        }
+    }
 
     // Issue releases with the requested eop/eos
-    if (vgtEventCount > 0)
+    if (syncEventCount > 0)
     {
         // Build a WRITE_DATA command to first RESET event slots that will be set by event later on.
         WriteDataInfo writeData = {};
@@ -2195,15 +2212,34 @@ void Device::IssueReleaseSyncEvent(
 
         const uint32 dword = GpuEvent::ResetValue;
 
-        pCmdSpace += CmdUtil::BuildWriteDataPeriodic(writeData, 1, vgtEventCount, &dword, pCmdSpace);
+        pCmdSpace += CmdUtil::BuildWriteDataPeriodic(writeData, 1, syncEventCount, &dword, pCmdSpace);
 
-        // Build release packets with requested eop/eos events on ME engine.
-        for (uint32 i = 0; i < vgtEventCount; i++)
+        // Build RELEASE_MEM packet with requested eop/eos events at ME engine.
+        ExplicitReleaseMemInfo releaseMemInfo = {};
+        releaseMemInfo.engineType = engineType;
+        releaseMemInfo.coherCntl  = coherCntl;
+        releaseMemInfo.gcrCntl    = gcrCntl;
+
+        for (uint32 i = 0; i < syncEventCount; i++)
         {
-            const gpusize gpuEventSlotVa = gpuEventStartVa + (i * sizeof(uint32));
+            VGT_EVENT_TYPE event = {};
+            if (syncEventType[i] == AcqRelEventType::Eop)
+            {
+                releaseMemInfo.vgtEvent = issueRbCacheSyncEvent ? CACHE_FLUSH_AND_INV_TS_EVENT : BOTTOM_OF_PIPE_TS;
+                pBarrierOps->pipelineStalls.eopTsBottomOfPipe = 1;
+            }
+            else if (syncEventType[i] == AcqRelEventType::PsDone)
+            {
+                releaseMemInfo.vgtEvent = PS_DONE;
+                pBarrierOps->pipelineStalls.eosTsPsDone = 1;
+            }
+            else if (syncEventType[i] == AcqRelEventType::CsDone)
+            {
+                releaseMemInfo.vgtEvent = CS_DONE;
+                pBarrierOps->pipelineStalls.eosTsCsDone = 1;
+            }
 
-            releaseMemInfo.vgtEvent = vgtEvents[i];
-            releaseMemInfo.dstAddr  = gpuEventSlotVa;
+            releaseMemInfo.dstAddr  = gpuEventStartVa + (i * sizeof(uint32));
             releaseMemInfo.dataSel  = data_sel__me_release_mem__send_32_bit_low;
             releaseMemInfo.data     = GpuEvent::SetValue;
 
@@ -2212,17 +2248,17 @@ void Device::IssueReleaseSyncEvent(
     }
 
     // Issue a WRITE_DATA command to SET the remaining (unused) event slots as early as possible.
-    if (vgtEventCount < numEventSlots)
+    if (syncEventCount < numEventSlots)
     {
         WriteDataInfo writeData = {};
         writeData.engineType    = engineType;
         writeData.engineSel     = engine_sel__me_write_data__micro_engine;
         writeData.dstSel        = dst_sel__me_write_data__memory;
-        writeData.dstAddr       = gpuEventStartVa + (sizeof(uint32) * vgtEventCount);
+        writeData.dstAddr       = gpuEventStartVa + (sizeof(uint32) * syncEventCount);
 
         const uint32 dword      = GpuEvent::SetValue;
 
-        pCmdSpace += CmdUtil::BuildWriteDataPeriodic(writeData, 1, numEventSlots - vgtEventCount, &dword, pCmdSpace);
+        pCmdSpace += CmdUtil::BuildWriteDataPeriodic(writeData, 1, numEventSlots - syncEventCount, &dword, pCmdSpace);
     }
 
     pCmdStream->CommitCommands(pCmdSpace);
@@ -2629,6 +2665,7 @@ void Device::BarrierAcquireEvent(
 
         const IGpuEvent* const* ppActiveEvents = ppGpuEvents;
         uint32 activeEventCount                = gpuEventCount;
+        const IGpuEvent* pEvent                = nullptr;
 
         if (bltTransitionCount > 0)
         {
@@ -2698,7 +2735,7 @@ void Device::BarrierAcquireEvent(
             }
 
             // We have internal BLT(s), enable internal event to signal/wait.
-            const IGpuEvent* pEvent = pCmdBuf->GetInternalEvent();
+            pEvent = pCmdBuf->GetInternalEvent();
 
             // Release from BLTs.
             IssueReleaseSyncEvent(pCmdBuf,

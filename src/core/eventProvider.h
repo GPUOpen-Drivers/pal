@@ -100,6 +100,8 @@ public:
 
     void LogGpuMemorySnapshotEvent(const GpuMemorySnapshotEventData& eventData);
 
+    void LogResourceCorrelationEvent(const ResourceCorrelationEventData& eventData);
+
     // End of Event Log Functions
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 

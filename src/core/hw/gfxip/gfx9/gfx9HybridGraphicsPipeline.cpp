@@ -27,6 +27,8 @@
 #include "core/hw/gfxip/gfx9/gfx9HybridGraphicsPipeline.h"
 #include "palPipelineAbi.h"
 
+using namespace Util;
+
 namespace Pal
 {
 namespace Gfx9
@@ -37,7 +39,7 @@ HybridGraphicsPipeline::HybridGraphicsPipeline(
     Device* pDevice)
     :
     GraphicsPipeline(pDevice, false),
-    m_task(*pDevice, &m_taskStageInfo, &m_perfDataInfo[static_cast<uint32>(Util::Abi::HardwareStage::Cs)]),
+    m_task(*pDevice, &m_taskStageInfo, &m_perfDataInfo[static_cast<uint32>(Abi::HardwareStage::Cs)]),
     m_taskStageInfo(),
     m_taskSignature{NullCsSignature}
 {
@@ -47,8 +49,8 @@ HybridGraphicsPipeline::HybridGraphicsPipeline(
 Result HybridGraphicsPipeline::HwlInit(
     const GraphicsPipelineCreateInfo& createInfo,
     const AbiReader&                  abiReader,
-    const CodeObjectMetadata&         metadata,
-    Util::MsgPackReader*              pMetadataReader)
+    const PalAbi::CodeObjectMetadata& metadata,
+    MsgPackReader*                    pMetadataReader)
 {
     RegisterVector registers(m_pDevice->GetPlatform());
     Result result = pMetadataReader->Seek(metadata.pipeline.registers);
@@ -86,8 +88,8 @@ Result HybridGraphicsPipeline::HwlInit(
                             &m_threadsPerTgZ,
                             &uploader);
 
-            const Util::Elf::SymbolTableEntry* pElfSymbol =
-                abiReader.GetPipelineSymbol(Util::Abi::PipelineSymbolType::CsDisassembly);
+            const auto* pElfSymbol = abiReader.GetPipelineSymbol(Abi::PipelineSymbolType::CsDisassembly);
+
             if (pElfSymbol != nullptr)
             {
                 m_taskStageInfo.disassemblyLength = static_cast<size_t>(pElfSymbol->st_size);

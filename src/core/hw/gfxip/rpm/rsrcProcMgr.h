@@ -94,8 +94,8 @@ public:
     virtual ~RsrcProcMgr();
 
     Result EarlyInit();
-    Result LateInit();
-    void Cleanup();
+    virtual Result LateInit();
+    virtual void Cleanup();
 
     void CmdCopyImage(
         GfxCmdBuffer*          pCmdBuffer,
@@ -349,6 +349,9 @@ protected:
         uint32         targetIndex,
         SwizzledFormat format) const = 0;
 
+    virtual const bool IsGfxPipelineForFormatSupported(
+        SwizzledFormat format) const = 0;
+
     // Generating indirect commands needs to choose different shaders based on the GFXIP version.
     virtual const ComputePipeline* GetCmdGenerationPipeline(
         const IndirectCmdGenerator& generator,
@@ -592,7 +595,7 @@ private:
         const MemoryImageCopyRegion* pRegions,
         bool                         includePadding) const;
 
-    void ResolveImageGraphics(
+    void ResolveImageDepthStencilGraphics(
         GfxCmdBuffer*             pCmdBuffer,
         const Image&              srcImage,
         ImageLayout               srcImageLayout,
@@ -676,27 +679,30 @@ private:
         ResolveMode   mode,
         ResolveMethod method) const;
 
-    void LateExpandResolveSrc(
+    void LateExpandShaderResolveSrc(
         GfxCmdBuffer*             pCmdBuffer,
         const Image&              srcImage,
         ImageLayout               srcImageLayout,
         const ImageResolveRegion* pRegions,
         uint32                    regionCount,
-        ResolveMethod             method) const;
+        ResolveMethod             method,
+        bool                      isCsResolve) const;
 
-    void FixupLateExpandResolveSrc(
+    void FixupLateExpandShaderResolveSrc(
         GfxCmdBuffer*             pCmdBuffer,
         const Image&              srcImage,
         ImageLayout               srcImageLayout,
         const ImageResolveRegion* pRegions,
         uint32                    regionCount,
-        ResolveMethod             method) const;
+        ResolveMethod             method,
+        bool                      isCsResolve) const;
 
-    void LateExpandResolveSrcHelper(
+    void LateExpandShaderResolveSrcHelper(
         GfxCmdBuffer*             pCmdBuffer,
         const ImageResolveRegion* pRegions,
         uint32                    regionCount,
         const BarrierTransition&  transition,
+        HwPipePoint               pipePoint,
         HwPipePoint               waitPoint) const;
 
     void FixupMetadataForComputeDst(

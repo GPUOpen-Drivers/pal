@@ -305,10 +305,10 @@ void DepthStencilView::UpdateImageVa(
             pGfx10->dbRmiL2CacheControl.bits.S_BIG_PAGE = isBigPage;
         }
 
-        uint32 zReadBase        = m_pImage->GetSubresource256BAddrSwizzledLow(m_depthSubresource);
-        uint32 zWriteBase       = zReadBase;
-        uint32 stencilReadBase  = m_pImage->GetSubresource256BAddrSwizzledLow(m_stencilSubresource);
-        uint32 stencilWriteBase = stencilReadBase;
+        gpusize zReadBase        = m_pImage->GetSubresourceAddr(m_depthSubresource);
+        gpusize zWriteBase       = zReadBase;
+        gpusize stencilReadBase  = m_pImage->GetSubresourceAddr(m_stencilSubresource);
+        gpusize stencilWriteBase = stencilReadBase;
 
         if (m_flags.hTile)
         {
@@ -318,8 +318,9 @@ void DepthStencilView::UpdateImageVa(
                 pRegs->fastClearMetadataGpuVa = m_pImage->FastClearMetaDataAddr(m_depthSubresource);
                 PAL_ASSERT((pRegs->fastClearMetadataGpuVa & 0x3) == 0);
             }
-
-            pRegs->dbHtileDataBase.bits.BASE_256B = m_pImage->GetHtile256BAddr();
+            const gpusize htile256BAddrSwizzled   = m_pImage->GetHtile256BAddrSwizzled();
+            pRegs->dbHtileDataBase.bits.BASE_256B = LowPart(htile256BAddrSwizzled);
+            pRegs->dbHtileDataBaseHi.bits.BASE_HI = HighPart(htile256BAddrSwizzled);
 
             // If this image was created without Z or stencil data, then the HW requires that the Z or
             // stencil base addresses are still set.  With depth-testing disabled, the HW should never
@@ -347,18 +348,18 @@ void DepthStencilView::UpdateImageVa(
 
         if (m_flags.depth)
         {
-            PAL_ASSERT(m_pImage->GetSubresource256BAddrSwizzledHi(m_depthSubresource) == 0);
-
-            pRegs->dbZReadBase.u32All  = zReadBase;
-            pRegs->dbZWriteBase.u32All = zWriteBase;
+            pRegs->dbZReadBase.u32All    = Get256BAddrLo(zReadBase);
+            pRegs->dbZWriteBase.u32All   = Get256BAddrLo(zWriteBase);
+            pRegs->dbZReadBaseHi.u32All  = Get256BAddrHi(zReadBase);
+            pRegs->dbZWriteBaseHi.u32All = Get256BAddrHi(zWriteBase);
         }
 
         if (m_flags.stencil)
         {
-            PAL_ASSERT(m_pImage->GetSubresource256BAddrSwizzledHi(m_stencilSubresource) == 0);
-
-            pRegs->dbStencilReadBase.u32All  = stencilReadBase;
-            pRegs->dbStencilWriteBase.u32All = stencilWriteBase;
+            pRegs->dbStencilReadBase.u32All    = Get256BAddrLo(stencilReadBase);
+            pRegs->dbStencilWriteBase.u32All   = Get256BAddrLo(stencilWriteBase);
+            pRegs->dbStencilReadBaseHi.u32All  = Get256BAddrHi(stencilReadBase);
+            pRegs->dbStencilWriteBaseHi.u32All = Get256BAddrHi(stencilWriteBase);
 
             pRegs->coherDestBase0.bits.DEST_BASE_256B = pRegs->dbStencilWriteBase.bits.BASE_256B;
         }
@@ -391,10 +392,9 @@ uint32* DepthStencilView::WriteCommandsCommon(
     {
         // For decompressed rendering to an Image, we need to override the values of DB_DEPTH_CONTROL and
         // DB_RENDER_OVERRIDE, depending on the compression states for depth and stencil.
-        if ((m_flags.dbRenderControlLocked == 0)
+        if ((m_flags.dbRenderControlLocked == 0) &&
             // If this is an hTile only VRS-storage surface then don't set the COMPRESS_DISABLE flags.
-            && (m_flags.vrsOnlyDepth == 0)
-           )
+            (m_flags.vrsOnlyDepth == 0))
         {
             pRegs->dbRenderControl.bits.DEPTH_COMPRESS_DISABLE   = (depthState   != DepthStencilCompressed);
             pRegs->dbRenderControl.bits.STENCIL_COMPRESS_DISABLE = (stencilState != DepthStencilCompressed);
@@ -544,12 +544,24 @@ uint32* DepthStencilView::WriteUpdateFastClearDepthStencilValue(
 // Helper function which adds commands into the command stream when the currently-bound depth target is changing.
 // Returns the address to where future commands will be written.
 uint32* DepthStencilView::HandleBoundTargetChanged(
-    uint32* pCmdSpace)
+    const UniversalCmdBuffer*  pCmdBuffer,
+    uint32*                    pCmdSpace
+    ) const
 {
+    const Pal::Device&  palDevice  = *(m_pImage->Parent()->GetDevice());
+    const Device*       pGfxDevice = static_cast<Device*>(palDevice.GetGfxDevice());
+    const auto&         cmdUtil    = pGfxDevice->CmdUtil();
+
     // If you change the mips of a resource being used as a depth/stencil target, we need to flush the DB metadata
     // cache. This protects against the case where an Htile cacheline can contain data from two different mip levels
     // in different RB's.
-    return (pCmdSpace + CmdUtil::BuildNonSampleEventWrite(FLUSH_AND_INV_DB_META, EngineTypeUniversal, pCmdSpace));
+    size_t  packetSize = 0;
+
+    {
+        packetSize = cmdUtil.BuildNonSampleEventWrite(FLUSH_AND_INV_DB_META, EngineTypeUniversal, pCmdSpace);
+    }
+
+    return (pCmdSpace + packetSize);
 }
 
 // =====================================================================================================================
@@ -643,6 +655,12 @@ uint32* Gfx9DepthStencilView::WriteCommands(
                                                    pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetOneContextReg(mmDB_HTILE_SURFACE, regs.dbHtileSurface.u32All, pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetOneContextReg(mmDB_RENDER_CONTROL, regs.dbRenderControl.u32All, pCmdSpace);
+
+    // We need to write dbHtileDataBaseHi to support PAL's hi-address bit on gfx9 DB
+    pCmdSpace = pCmdStream->WriteSetOneContextReg(Gfx09::mmDB_HTILE_DATA_BASE_HI,
+                                                  regs.dbHtileDataBaseHi.u32All,
+                                                  pCmdSpace);
+
     pCmdSpace = pCmdStream->WriteSetOneContextReg(mmPA_SU_POLY_OFFSET_DB_FMT_CNTL,
                                                   regs.paSuPolyOffsetDbFmtCntl.u32All,
                                                   pCmdSpace);
@@ -870,6 +888,21 @@ uint32* Gfx10DepthStencilView::WriteCommands(
                                                   regs.paSuPolyOffsetDbFmtCntl.u32All,
                                                   pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetOneContextReg(mmCOHER_DEST_BASE_0, regs.coherDestBase0.u32All, pCmdSpace);
+
+    // We need to write all the five hi-registers to support PAL's hi-address bit on gfx10
+    pCmdSpace = pCmdStream->WriteSetOneContextReg(Gfx10Plus::mmDB_Z_READ_BASE_HI, regs.dbZReadBaseHi.u32All, pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetOneContextReg(Gfx10Plus::mmDB_Z_WRITE_BASE_HI,
+                                                  regs.dbZWriteBaseHi.u32All,
+                                                  pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetOneContextReg(Gfx10Plus::mmDB_STENCIL_READ_BASE_HI,
+                                                  regs.dbStencilReadBaseHi.u32All,
+                                                  pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetOneContextReg(Gfx10Plus::mmDB_STENCIL_WRITE_BASE_HI,
+                                                  regs.dbStencilWriteBaseHi.u32All,
+                                                  pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetOneContextReg(Gfx10Plus::mmDB_HTILE_DATA_BASE_HI,
+                                                  regs.dbHtileDataBaseHi.u32All,
+                                                  pCmdSpace);
 
     // Update just the portion owned by DSV.
     BitfieldUpdateSubfield(&(pDbRenderOverride->u32All), regs.dbRenderOverride.u32All, DbRenderOverrideRmwMask);

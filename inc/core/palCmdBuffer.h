@@ -1716,8 +1716,9 @@ struct ClearBoundTargetRegion
 /// requires that the caller leak the given state to the callee, PAL will not support saving and restoring that state.
 enum ComputeStateFlags : uint32
 {
-    ComputeStatePipelineAndUserData = 0x1, ///< Selects the bound compute pipeline and all non-indirect user data. Note
-                                           ///  that the current user data will be invalidated on CmdSaveComputeState.
+    ComputeStatePipelineAndUserData = 0x1, ///< Selects the bound compute pipeline, all non-indirect user data, and all
+                                           ///  kernel arguments (if applicable). Note that the current user data will
+                                           ///  be invalidated on CmdSaveComputeState.
     ComputeStateBorderColorPalette  = 0x2, ///< Selects the bound border color pallete that affects compute pipelines.
     ComputeStateAll                 = 0x3, ///< Selects all state
 };
@@ -2007,6 +2008,14 @@ public:
 
     /// Binds a graphics or compute pipeline to the current command buffer state.
     ///
+    /// Graphics pipelines must be compiled for the PAL ABI. Compute pipelines must either be compiled for the PAL ABI
+    /// or the HSA ABI, if it's supported. HSA ABI support is indicated by supportHsaAbi in @ref DeviceProperties.
+    ///
+    /// PAL ABI pipelines and HSA ABI pipelines use different mechanisms to bind inputs and outputs. PAL ABI pipelines
+    /// use user data entries set by @ref CmdSetUserData. HSA ABI pipelines use kernel arguments set by @ref
+    /// CmdSetKernelArguments. Binding or unbinding a compute pipeline can implicitly modify the user data and kernel
+    /// argument state, please read the @ref CmdSetUserData and @ref CmdSetKernelArguments documentation for details.
+    ///
     /// @param [in] params Parameters necessary to manage dynamic pipeline shader information.
     virtual void CmdBindPipeline(
         const PipelineBindParams& params) = 0;
@@ -2071,6 +2080,17 @@ public:
     /// SRDs, immediate SRDs that can be loaded without an indirection, or even a small number of immediate ALU
     /// constants.
     ///
+    /// The user data values are only used by PAL ABI pipelines. Almost all pipelines used by PAL clients are compiled
+    /// for the PAL ABI, but PAL also supports HSA ABI compute pipelines which use @ref CmdSetKernelArguments instead.
+    /// When an HSA ABI pipeline is bound the current compute user data entries are saved and will be restored if the
+    /// client later binds a PAL ABI compute pipeline.
+    ///
+    /// @warning It's illegal to set compute user data if an HSA ABI pipeline is currently bound.
+    ///
+    /// If no compute pipeline is currently bound PAL assumes the client will bind a PAL ABI pipeline and thus accepts
+    /// user data bindings. Graphics user data are unaffected by all of this because graphics pipelines can only use
+    /// the PAL ABI.
+    ///
     /// @see PipelineShaderInfo
     /// @see ResourceMappingNode
     /// @ingroup ResourceBinding
@@ -2086,6 +2106,29 @@ public:
         uint32            entryCount,
         const uint32*     pEntryValues)
     { (m_funcTable.pfnCmdSetUserData[static_cast<uint32>(bindPoint)])(this, firstEntry, entryCount, pEntryValues); }
+
+    /// Sets one or more HSA code object kernel argument values.
+    ///
+    /// If the currently bound compute pipeline was compiled using the HSA compute ABI this function must be used to
+    /// bind that pipeline's arguments. The argument position and value types are static properties of the pipeline
+    /// and must be known by the client.
+    ///
+    /// @note Calling @ref CmdBindPipeline invalidates all prior kernel argument bindings, even if the new pipeline
+    ///       also uses the HSA ABI. Any kernel arguments that the client intends to share between pipelines must
+    ///       be manually rebound.
+    ///
+    /// @warning It's illegal to call this function if no compute pipeline is bound or if the bound compute pipeline
+    ///          uses a different ABI (e.g., the PAL compute ABI).
+    ///
+    /// @ingroup ResourceBinding
+    ///
+    /// @param [in] firstArg  The zero-based position of the first kernel argument to bind.
+    /// @param [in] argCount  Number of kernel arguments this call binds.
+    /// @param [in] ppValues  Array of pointers to kernel argument values.
+    virtual void CmdSetKernelArguments(
+        uint32            firstArg,
+        uint32            argCount,
+        const void*const* ppValues) = 0;
 
     /// Changes one or more of the command buffer's active vertex buffers.
     ///
@@ -2551,6 +2594,8 @@ public:
     ///
     /// The thread group size is defined in the compute shader.
     ///
+    /// Supports PAL ABI and HSA ABI pipelines.
+    ///
     /// @param [in] xDim Thread groups to dispatch in the X dimension.  If zero, the dispatch will be discarded.
     /// @param [in] yDim Thread groups to dispatch in the Y dimension.  If zero, the dispatch will be discarded.
     /// @param [in] zDim Thread groups to dispatch in the Z dimension.  If zero, the dispatch will be discarded.
@@ -2569,6 +2614,8 @@ public:
     /// in the @ref DispatchIndirectArgs structure.  Coherency of the indirect argument GPU memory is controlled by
     /// setting @ref CoherIndirectArgs in the inputCachesMask field of @ref BarrierTransition in a call to CmdBarrier().
     ///
+    /// @warning Does not support HSA ABI pipelines.
+    ///
     /// @see CmdDispatch
     /// @see DispatchIndirectArgs
     ///
@@ -2586,6 +2633,8 @@ public:
     /// the shader.
     ///
     /// The thread group size is defined in the compute shader.
+    ///
+    /// Supports PAL ABI and HSA ABI pipelines.
     ///
     /// @param [in] xOffset Thread groups offset in X direction.
     /// @param [in] yOffset Thread groups offset in Y direction.
@@ -2610,6 +2659,8 @@ public:
     /// that supports dynamic dispatch (@see PipelineCreateFlags)
     ///
     /// The thread group size is defined in the compute shader.
+    ///
+    /// @warning Does not support HSA ABI pipelines.
     ///
     /// @note DynamicComputeShaderInfo.ldsBytesPerTg is not applicable to dynamic launch descriptors.
     ///

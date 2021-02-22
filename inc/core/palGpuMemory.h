@@ -323,6 +323,7 @@ struct GpuMemoryDesc
 {
     gpusize gpuVirtAddr;            ///< GPU virtual address of the GPU memory allocation.
     gpusize size;                   ///< Size of the GPU memory allocation, in bytes.
+    gpusize clientSize;             ///< Size of the client requested GPU memory allocation, in bytes.
     gpusize alignment;              ///< Required GPU virtual address alignment, in bytes.
     uint32  heapCount;              ///< Number of entries in heaps[].  Must be 0 for virtual allocations.
     GpuHeap heaps[GpuHeapCount];    ///< List of preferred memory heaps, in order of preference.

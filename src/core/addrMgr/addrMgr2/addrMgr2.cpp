@@ -651,6 +651,13 @@ Result AddrMgr2::ComputePlaneSwizzleMode(
     // to force the AddrLib to chose the most optimal mode.
     surfSettingInput.maxAlign = createInfo.maxBaseAlign;
 
+    // The image height is padded to the stride between slices in pixels divided by the actualPitch of each row when
+    // the image format is yuv planar image array. Which would leads to sample incorrect address with XOR operations.
+    if (Formats::IsYuvPlanar(createInfo.swizzledFormat.format) && (surfSettingInput.numSlices > 1))
+    {
+        surfSettingInput.noXor = true;
+    }
+
     InitTilingCaps(pImage, surfSettingInput.flags, &surfSettingInput.forbiddenBlock);
 
     // Enable gfx9 to handle 2d sampling on 3d despite its hardware always interpreting as 3d
@@ -728,6 +735,18 @@ Result AddrMgr2::ComputePlaneSwizzleMode(
     if (createInfo.prtPlus.mapType != PrtMapType::None)
     {
         surfSettingInput.preferredSwSet.sw_R = 0;
+    }
+
+    // The D swizzle mode for the texture with RBPlus and BC feature is currently not supported.
+    // Further supports need to be added in the GetSwizzlePatternInfo(...) called in the Gfx10Lib::InitEquationTable().
+    // So, here, we disable the D swizzle mode for the described situation.
+    // For BCn textures, they have >= 64bpp, which is what really matters when we are doing the address equation.
+    // So, here, instead of checking for BC<n>, we check for 3D resource and >=64bpp.
+    if ((createInfo.imageType == ImageType::Tex3d)  &&
+        (surfSettingInput.bpp >= 64)                &&
+        pImage->GetDevice()->ChipProperties().gfx9.rbPlus)
+    {
+        surfSettingInput.preferredSwSet.sw_D = 0;
     }
 
     ADDR_E_RETURNCODE addrRet = Addr2GetPreferredSurfaceSetting(AddrLibHandle(), &surfSettingInput, pOut);

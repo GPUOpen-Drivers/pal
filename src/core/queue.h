@@ -87,8 +87,6 @@ struct InternalSubmitInfo
     // Paging fence value associated with any internal allocations or command streams managed by the QueueContext.
     uint64  pagingFence;
 
-    MgpuSlsInfo mgpuSlsInfo;
-
     InternalSubmitFlags flags;
 
     uint32 stackSizeInDwords;               // Frame stack size for indirect shaders

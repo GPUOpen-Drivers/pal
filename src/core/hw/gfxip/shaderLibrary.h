@@ -36,9 +36,6 @@ class ShaderLibraryUploader;
 // Shorthand for a pipeline ABI reader.
 using AbiReader = Util::Abi::PipelineAbiReader;
 
-// Shorthand for the PAL code object metadata structure.
-using CodeObjectMetadata = Util::PalAbi::CodeObjectMetadata;
-
 // Structure describing the shader function statistics.
 struct ShaderFuncStats
 {
@@ -103,18 +100,18 @@ protected:
     }
 
     virtual Result HwlInit(
-        const ShaderLibraryCreateInfo& createInfo,
-        const AbiReader&               abiReader,
-        const CodeObjectMetadata&      metadata,
-        Util::MsgPackReader*           pMetadataReader) = 0;
+        const ShaderLibraryCreateInfo&          createInfo,
+        const AbiReader&                        abiReader,
+        const Util::PalAbi::CodeObjectMetadata& metadata,
+        Util::MsgPackReader*                    pMetadataReader) = 0;
 
     Result PerformRelocationsAndUploadToGpuMemory(
-        const CodeObjectMetadata& metadata,
-        const GpuHeap&            clientPreferredHeap,
-        PipelineUploader*         pUploader);
+        const Util::PalAbi::CodeObjectMetadata& metadata,
+        const GpuHeap&                          clientPreferredHeap,
+        PipelineUploader*                       pUploader);
 
     void ExtractLibraryInfo(
-        const CodeObjectMetadata& metadata);
+        const Util::PalAbi::CodeObjectMetadata& metadata);
 
     Result ExtractShaderFunctions(
         Util::MsgPackReader* pReader);

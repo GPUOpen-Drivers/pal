@@ -56,6 +56,7 @@ MemoryCacheLayer::MemoryCacheLayer(
 // =====================================================================================================================
 MemoryCacheLayer::~MemoryCacheLayer()
 {
+    RWLockAuto<RWLock::ReadWrite> lock { &m_lock };
     while (m_recentEntryList.IsEmpty() == false)
     {
         Entry* pEntry = m_recentEntryList.Front();
@@ -295,15 +296,15 @@ Result MemoryCacheLayer::ReleaseCacheRef(
     {
         Entry** ppFound = nullptr;
 
-        RWLockAuto<RWLock::ReadOnly> lock { &m_lock };
-
+        RWLockAuto<RWLock::ReadWrite> writeLock { &m_lock };
         ppFound = m_entryLookup.FindKey(pQuery->hashId);
         if (ppFound != nullptr)
         {
             (*ppFound)->DecreaseRef();
             if ((*ppFound)->IsBad())
             {
-                Evict(&pQuery->hashId);
+                result = EvictEntryFromCache(*ppFound);
+                m_conditionVariable.WakeAll();
             }
         }
         else
@@ -417,11 +418,12 @@ Result MemoryCacheLayer::Evict(
     {
         Entry** ppFound = nullptr;
 
-        RWLockAuto<RWLock::ReadOnly> lock { &m_lock };
+        RWLockAuto<RWLock::ReadWrite> writeLock{ &m_lock };
         ppFound = m_entryLookup.FindKey(*pHashId);
         if (ppFound != nullptr)
         {
             result = EvictEntryFromCache(*ppFound);
+            m_conditionVariable.WakeAll();
         }
         else
         {
@@ -447,7 +449,7 @@ Result MemoryCacheLayer::MarkEntryBad(
     {
         Entry** ppFound = nullptr;
 
-        RWLockAuto<RWLock::ReadOnly> lock { &m_lock };
+        RWLockAuto<RWLock::ReadWrite> writeLock{ &m_lock };
         ppFound = m_entryLookup.FindKey(*pHashId);
         if (ppFound != nullptr)
         {
@@ -493,6 +495,11 @@ Result MemoryCacheLayer::EvictEntryByCount(
         }
     }
 
+    if (numEvicted > 0)
+    {
+        m_conditionVariable.WakeAll();
+    }
+
     return result;
 }
 
@@ -525,6 +532,11 @@ Result MemoryCacheLayer::EvictEntryBySize(
         {
             result = Result::ErrorShaderCacheFull;
         }
+    }
+
+    if (evictedSize > 0)
+    {
+        m_conditionVariable.WakeAll();
     }
 
     return result;

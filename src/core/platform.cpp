@@ -31,11 +31,7 @@
 #include "palDbgPrint.h"
 #include "palSysUtil.h"
 #include "palSysMemory.h"
-
-#if PAL_BUILD_LAYERS
 #include "core/layers/decorators.h"
-#endif
-
 #if PAL_AMDGPU_BUILD
 #include "core/os/amdgpu/amdgpuHeaders.h"
 #else
@@ -230,29 +226,6 @@ Result Platform::GetScreens(
     if (m_deviceCount >= 1)
     {
         result = ReQueryScreens(pScreenCount, pStorage, pScreens);
-    }
-
-    return result;
-}
-
-// =====================================================================================================================
-// Queries the kernel-mode driver to determine if there is a platform-wide profile for a specific application that the
-// client would like to honor.
-Result Platform::QueryApplicationProfile(
-    const char*         pFilename,
-    const char*         pPathname,
-    ApplicationProfile* pOut)
-{
-    PAL_ASSERT((pFilename != nullptr) && (pOut != nullptr));
-
-    Result result = Result::ErrorUnavailable;
-
-    if (m_deviceCount >= 1)
-    {
-        // NOTE: These application profiles are meant to be interpreted at system-wide scope. We'll only query the
-        // first discovered physical GPU under the assumption that all GPU's would return the same profile (or none
-        // at all, as the case may be).
-        result = m_pDevice[0]->QueryApplicationProfile(pFilename, pPathname, pOut);
     }
 
     return result;
@@ -625,6 +598,10 @@ void Platform::LogEvent(
     const void* pEventData,
     uint32      eventDataSize)
 {
+    static_assert(static_cast<uint32>(PalEvent::Count) == 16, "Write support for new event!");
+
+    PAL_ASSERT(pEventData != nullptr);
+
     switch(eventId)
     {
     case PalEvent::CreateGpuMemory:
@@ -637,28 +614,32 @@ void Platform::LogEvent(
         PAL_ASSERT_ALWAYS();
         break;
     case PalEvent::GpuMemoryResourceBind:
-        PAL_ASSERT((pEventData != nullptr) && (eventDataSize == sizeof(GpuMemoryResourceBindEventData)));
+        PAL_ASSERT(eventDataSize == sizeof(GpuMemoryResourceBindEventData));
         m_eventProvider.LogGpuMemoryResourceBindEvent(*(static_cast<const GpuMemoryResourceBindEventData*>(pEventData)));
         break;
     case PalEvent::GpuMemoryResourceCreate:
-        PAL_ASSERT((pEventData != nullptr) && (eventDataSize == sizeof(ResourceCreateEventData)));
+        PAL_ASSERT(eventDataSize == sizeof(ResourceCreateEventData));
         m_eventProvider.LogGpuMemoryResourceCreateEvent(*(static_cast<const ResourceCreateEventData*>(pEventData)));
         break;
     case PalEvent::GpuMemoryResourceDestroy:
-        PAL_ASSERT((pEventData != nullptr) && (eventDataSize == sizeof(ResourceDestroyEventData)));
+        PAL_ASSERT(eventDataSize == sizeof(ResourceDestroyEventData));
         m_eventProvider.LogGpuMemoryResourceDestroyEvent(*(static_cast<const ResourceDestroyEventData*>(pEventData)));
         break;
     case PalEvent::GpuMemoryMisc:
-        PAL_ASSERT((pEventData != nullptr) && (eventDataSize == sizeof(MiscEventData)));
+        PAL_ASSERT(eventDataSize == sizeof(MiscEventData));
         m_eventProvider.LogGpuMemoryMiscEvent(*(static_cast<const MiscEventData*>(pEventData)));
         break;
     case PalEvent::GpuMemorySnapshot:
-        PAL_ASSERT((pEventData != nullptr) && (eventDataSize == sizeof(GpuMemorySnapshotEventData)));
+        PAL_ASSERT(eventDataSize == sizeof(GpuMemorySnapshotEventData));
         m_eventProvider.LogGpuMemorySnapshotEvent(*(static_cast<const GpuMemorySnapshotEventData*>(pEventData)));
         break;
     case PalEvent::DebugName:
-        PAL_ASSERT((pEventData != nullptr) && (eventDataSize == sizeof(DebugNameEventData)));
+        PAL_ASSERT(eventDataSize == sizeof(DebugNameEventData));
         m_eventProvider.LogDebugNameEvent(*(static_cast<const DebugNameEventData*>(pEventData)));
+        break;
+    case PalEvent::ResourceCorrelation:
+        PAL_ASSERT(eventDataSize == sizeof(ResourceCorrelationEventData));
+        m_eventProvider.LogResourceCorrelationEvent(*(static_cast<const ResourceCorrelationEventData*>(pEventData)));
         break;
     default:
         PAL_ASSERT_ALWAYS_MSG("Unhandled PalEvent type");

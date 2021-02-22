@@ -75,6 +75,7 @@ libxcb-randr.so.0   @proc xcb_randr_get_crtc_info_cookie_t xcb_randr_get_crtc_in
 libxcb-randr.so.0   @proc xcb_randr_get_crtc_info_reply_t* xcb_randr_get_crtc_info_reply (xcb_connection_t* pConnection, xcb_randr_get_crtc_info_cookie_t cookie, xcb_generic_error_t** ppError)
 libxcb-randr.so.0   @proc xcb_randr_get_output_info_cookie_t xcb_randr_get_output_info (xcb_connection_t* pConnection, xcb_randr_output_t output, xcb_timestamp_t configTimestamp)
 libxcb-randr.so.0   @proc xcb_randr_get_output_info_reply_t* xcb_randr_get_output_info_reply (xcb_connection_t* pConnection, xcb_randr_get_output_info_cookie_t cookie, xcb_generic_error_t** ppError)
+libxcb-randr.so.0   @proc uint8_t* xcb_randr_get_output_info_name (const xcb_randr_get_output_info_reply_t* pOutReply)
 libxcb-randr.so.0   @proc xcb_randr_output_t* xcb_randr_get_crtc_info_outputs (xcb_randr_get_crtc_info_reply_t* pCrtcInfoReply)
 libxcb-randr.so.0   @proc xcb_randr_output_t* xcb_randr_get_crtc_info_possible (xcb_randr_get_crtc_info_reply_t* pCrtcInfoReply)
 libxcb-randr.so.0   @proc xcb_randr_get_output_property_cookie_t xcb_randr_get_output_property (xcb_connection_t* pConnection, xcb_randr_output_t output, xcb_atom_t property, xcb_atom_t type, uint32_t offset, uint32_t length, uint8_t _delete, uint8_t pending)

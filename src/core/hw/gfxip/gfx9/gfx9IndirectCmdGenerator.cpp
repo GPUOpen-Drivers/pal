@@ -113,6 +113,7 @@ IndirectCmdGenerator::IndirectCmdGenerator(
     :
     Pal::IndirectCmdGenerator(device, createInfo),
     m_bindsIndexBuffer(false),
+    m_usingExecuteIndirectPacket(false),
     m_pParamData(reinterpret_cast<IndirectParamData*>(this + 1)),
     m_pCreationParam(reinterpret_cast<IndirectParam*>(m_pParamData+PaddedParamCount(createInfo.paramCount))),
     m_cmdSizeNeedPipeline(false)
@@ -121,10 +122,68 @@ IndirectCmdGenerator::IndirectCmdGenerator(
     memcpy(&m_properties.indexTypeTokens[0], &createInfo.indexTypeTokens[0], sizeof(createInfo.indexTypeTokens));
     memcpy(m_pCreationParam, createInfo.pParams, sizeof(IndirectParam)*createInfo.paramCount);
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 680
+    const auto& settings = m_device.CoreSettings();
+    bool canUseExecuteIndirectPacket = true;
+
+    if (m_device.Parent()->GetPublicSettings()->enableExecuteIndirectPacket)
+    {
+        for (uint32_t i = 0; i < createInfo.paramCount; i++)
+        {
+            IndirectParam* pCheckParam = m_pCreationParam + i;
+            if ((pCheckParam->type == IndirectParamType::Dispatch) ||
+                (pCheckParam->type == IndirectParamType::DispatchMesh) ||
+                (pCheckParam->type == IndirectParamType::BindVertexData))
+            {
+                canUseExecuteIndirectPacket = false;
+                break;
+            }
+        }
+
+        constexpr uint32 PfpUcodeVersionNativeExecuteIndirectGfx9    = 192;
+        constexpr uint32 PfpUcodeVersionNativeExecuteIndirectGfx10_1 = 151;
+        constexpr uint32 PfpUcodeVersionNativeExecuteIndirectGfx10_3 = 88;
+
+        if ((settings.useExecuteIndirectPacket == UseExecuteIndirectPacketForDraw) &&
+            (canUseExecuteIndirectPacket == true)                                  &&
+            (((device.Parent()->ChipProperties().gfxLevel == GfxIpLevel::GfxIp9) &&
+              (device.Parent()->ChipProperties().pfpUcodeVersion >= PfpUcodeVersionNativeExecuteIndirectGfx9))    ||
+             ((device.Parent()->ChipProperties().gfxLevel == GfxIpLevel::GfxIp10_1) &&
+              (device.Parent()->ChipProperties().pfpUcodeVersion >= PfpUcodeVersionNativeExecuteIndirectGfx10_1)) ||
+             ((device.Parent()->ChipProperties().gfxLevel == GfxIpLevel::GfxIp10_3) &&
+              (device.Parent()->ChipProperties().pfpUcodeVersion >= PfpUcodeVersionNativeExecuteIndirectGfx10_3))))
+        {
+            m_usingExecuteIndirectPacket = true;
+        }
+    }
+#endif
+
     InitParamBuffer(createInfo);
 
-    m_gpuMemSize = m_cmdSizeNeedPipeline ?
-        8 : (sizeof(m_properties) + (sizeof(IndirectParamData) * PaddedParamCount(ParameterCount())));
+    if (m_usingExecuteIndirectPacket)
+    {
+        // we use the generator binding memory to store the PM4 in ib2
+        uint32 cmdSize         = 0;
+        uint32 sizeAlignDwords = device.Parent()->EngineProperties().perEngine[EngineTypeUniversal].sizeAlignInDwords;
+        uint32 cmdCount        = ParameterCount();
+
+        for (uint32 indx = 0; indx < cmdCount; indx++)
+        {
+            if (&m_pParamData[indx] != nullptr)
+            {
+                cmdSize += m_pParamData[indx].cmdBufSize;
+            }
+        }
+        uint32 cmdDwords = cmdSize / sizeof(uint32);
+        m_paddingDwords = Pow2Align(cmdDwords, sizeAlignDwords) - cmdDwords;
+
+        m_gpuMemSize = (cmdDwords + m_paddingDwords) * sizeof(uint32);
+    }
+    else
+    {
+        m_gpuMemSize = m_cmdSizeNeedPipeline ?
+            8 : (sizeof(m_properties) + (sizeof(IndirectParamData) * PaddedParamCount(ParameterCount())));
+    }
 }
 
 // =====================================================================================================================
@@ -209,39 +268,60 @@ uint32 IndirectCmdGenerator::DetermineMaxCmdBufSize(
     switch (opType)
     {
     case IndirectOpType::DrawIndexAuto:
-        // DRAW_INDEX_AUTO operations generate the following PM4 packets in the worst case:
-        //  + SET_SH_REG (2 registers)
-        //  + SET_SH_REG (1 register)
-        //  + NUM_INSTANCES
-        //  + DRAW_INDEX_AUTO
-        size = (CmdUtil::ShRegSizeDwords + 2) +
-               (CmdUtil::ShRegSizeDwords + 1) +
-                CmdUtil::NumInstancesDwords   +
-                CmdUtil::DrawIndexAutoSize;
+        if (m_usingExecuteIndirectPacket)
+        {
+            size = CmdUtil::DrawIndirectSize;
+        }
+        else
+        {
+            // DRAW_INDEX_AUTO operations generate the following PM4 packets in the worst case:
+            //  + SET_SH_REG (2 registers)
+            //  + SET_SH_REG (1 register)
+            //  + NUM_INSTANCES
+            //  + DRAW_INDEX_AUTO
+            size = (CmdUtil::ShRegSizeDwords + 2) +
+                   (CmdUtil::ShRegSizeDwords + 1) +
+                   CmdUtil::NumInstancesDwords    +
+                   CmdUtil::DrawIndexAutoSize;
+        }
         break;
     case IndirectOpType::DrawIndex2:
-        // DRAW_INDEX_2 operations generate the following PM4 packets in the worst case:
-        //  + SET_SH_REG (2 registers)
-        //  + SET_SH_REG (1 register)
-        //  + NUM_INSTANCES
-        //  + INDEX_TYPE
-        //  + DRAW_INDEX_2
-        size = (CmdUtil::ShRegSizeDwords + 2)     +
-               (CmdUtil::ShRegSizeDwords + 1)     +
-                CmdUtil::NumInstancesDwords       +
-               (CmdUtil::ConfigRegSizeDwords + 1) +
-                CmdUtil::DrawIndex2Size;
+        if (m_usingExecuteIndirectPacket)
+        {
+            size = CmdUtil::DrawIndirectSize + CmdUtil::SetIndexAttributesSize;
+        }
+        else
+        {
+            // DRAW_INDEX_2 operations generate the following PM4 packets in the worst case:
+            //  + SET_SH_REG (2 registers)
+            //  + SET_SH_REG (1 register)
+            //  + NUM_INSTANCES
+            //  + INDEX_TYPE
+            //  + DRAW_INDEX_2
+            size = (CmdUtil::ShRegSizeDwords + 2)     +
+                   (CmdUtil::ShRegSizeDwords + 1)     +
+                   CmdUtil::NumInstancesDwords        +
+                   (CmdUtil::ConfigRegSizeDwords + 1) +
+                   CmdUtil::DrawIndex2Size;
+        }
         break;
     case IndirectOpType::DrawIndexOffset2:
-        // DRAW_INDEX_OFFSET_2 operations generate the following PM4 packets in the worst case:
-        //  + SET_SH_REG (2 registers)
-        //  + SET_SH_REG (1 register)
-        //  + NUM_INSTANCES
-        //  + DRAW_INDEX_OFFSET_2
-        size = (CmdUtil::ShRegSizeDwords + 2) +
-               (CmdUtil::ShRegSizeDwords + 1) +
-                CmdUtil::NumInstancesDwords   +
-                CmdUtil::DrawIndexOffset2Size;
+        if (m_usingExecuteIndirectPacket)
+        {
+            size = CmdUtil::DrawIndirectSize;
+        }
+        else
+        {
+            // DRAW_INDEX_OFFSET_2 operations generate the following PM4 packets in the worst case:
+            //  + SET_SH_REG (2 registers)
+            //  + SET_SH_REG (1 register)
+            //  + NUM_INSTANCES
+            //  + DRAW_INDEX_OFFSET_2
+            size = (CmdUtil::ShRegSizeDwords + 2) +
+                   (CmdUtil::ShRegSizeDwords + 1) +
+                   CmdUtil::NumInstancesDwords    +
+                   CmdUtil::DrawIndexOffset2Size;
+        }
         break;
     case IndirectOpType::Dispatch:
         // DISPATCH operations generate the following PM4 packets in the worst case:
@@ -251,9 +331,16 @@ uint32 IndirectCmdGenerator::DetermineMaxCmdBufSize(
                 CmdUtil::DispatchDirectSize;
         break;
     case IndirectOpType::SetUserData:
-        // SETUSERDATA operations generate the following PM4 packets in the worst case:
-        //  + SET_SH_REG (N registers; one packet per shader stage)
-        size = ((CmdUtil::ShRegSizeDwords + param.userData.entryCount) * shaderStageCount);
+        if (m_usingExecuteIndirectPacket)
+        {
+            size = CmdUtil::SetUserDataIndirectSize * NumHwShaderStagesGfx;
+        }
+        else
+        {
+            // SETUSERDATA operations generate the following PM4 packets in the worst case:
+            //  + SET_SH_REG (N registers; one packet per shader stage)
+            size = ((CmdUtil::ShRegSizeDwords + param.userData.entryCount) * shaderStageCount);
+        }
         break;
     case IndirectOpType::VertexBufTableSrd:
     case IndirectOpType::Skip:
@@ -274,7 +361,7 @@ uint32 IndirectCmdGenerator::DetermineMaxCmdBufSize(
 
         size = Max((CmdUtil::ShRegSizeDwords + 3) +
                    (CmdUtil::ShRegSizeDwords + 1) +
-                   CmdUtil::NumInstancesDwords +
+                   CmdUtil::NumInstancesDwords    +
                    CmdUtil::DrawIndexAutoSize,
                    Max((CmdUtil::ShRegSizeDwords + 3) +
                        CmdUtil::DispatchTaskMeshDirectMecSize,
@@ -299,7 +386,6 @@ uint32 IndirectCmdGenerator::DetermineMaxCmdBufSize(
         {
             // Spill table applies to all HW shader stages if any user data spilled.
             const uint32 spillTableShaderStageCount = (opType == IndirectOpType::Dispatch) ? 1 : NumHwShaderStagesGfx;
-
             size += ((CmdUtil::ShRegSizeDwords + 1) * spillTableShaderStageCount);
         }
 
@@ -307,11 +393,11 @@ uint32 IndirectCmdGenerator::DetermineMaxCmdBufSize(
         {
             size += (CmdUtil::ShRegSizeDwords + 1);
         }
+    }
 
-        if (m_device.Parent()->IssueSqttMarkerEvents())
-        {
-            size += CmdUtil::WriteNonSampleEventDwords;
-        }
+    if (m_device.Parent()->IssueSqttMarkerEvents())
+    {
+        size += CmdUtil::WriteNonSampleEventDwords;
     }
 
     static_assert(CmdUtil::MinNopSizeInDwords == 1,

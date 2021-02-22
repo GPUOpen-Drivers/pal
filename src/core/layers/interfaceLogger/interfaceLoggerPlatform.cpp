@@ -70,6 +70,7 @@ static constexpr FuncLoggingTableEntry FuncLoggingTable[] =
     { InterfaceFunc::CmdBufferCmdBindDepthStencilState,             (CmdBuild)            },
     { InterfaceFunc::CmdBufferCmdSetDepthBounds,                    (CmdBuild)            },
     { InterfaceFunc::CmdBufferCmdSetUserData,                       (CmdBuild)            },
+    { InterfaceFunc::CmdBufferCmdSetKernelArguments,                (CmdBuild)            },
     { InterfaceFunc::CmdBufferCmdSetVertexBuffers,                  (CmdBuild)            },
     { InterfaceFunc::CmdBufferCmdBindIndexData,                     (CmdBuild)            },
     { InterfaceFunc::CmdBufferCmdBindTargets,                       (CmdBuild)            },

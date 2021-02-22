@@ -2791,13 +2791,6 @@ Result QueueDecorator::PresentDirect(
         nextPresentInfo.pDstImage = NextImage(presentInfo.pDstImage);
     }
 
-    PAL_ASSERT(presentInfo.mgpuSlsInfo.imageCount <= MaxMgpuSlsImageCount);
-
-    for (uint32 i = 0; i < presentInfo.mgpuSlsInfo.imageCount; i++)
-    {
-        nextPresentInfo.mgpuSlsInfo.pImage[i] = NextImage(presentInfo.mgpuSlsInfo.pImage[i]);
-    }
-
     return m_pNextLayer->PresentDirect(nextPresentInfo);
 }
 

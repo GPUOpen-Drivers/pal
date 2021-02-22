@@ -480,6 +480,17 @@ void CmdBuffer::CmdBindIndexData(
 }
 
 // =====================================================================================================================
+void CmdBuffer::CmdSetKernelArguments(
+    uint32            firstArg,
+    uint32            argCount,
+    const void*const* ppValues)
+{
+    PreCall();
+    CmdBufferFwdDecorator::CmdSetKernelArguments(firstArg, argCount, ppValues);
+    PostCall(CmdBufCallId::CmdSetKernelArguments);
+}
+
+// =====================================================================================================================
 void CmdBuffer::CmdSetVertexBuffers(
     uint32                firstBuffer,
     uint32                bufferCount,

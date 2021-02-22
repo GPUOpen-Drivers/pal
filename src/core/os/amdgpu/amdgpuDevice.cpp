@@ -88,7 +88,7 @@ static Result CheckResult(
         retValue = Result::ErrorOutOfMemory;
         break;
     case -ENOSPC:
-        retValue = Result::OutOfSpec;
+        retValue = Result::ErrorOutOfGpuMemory;
         break;
     case -ETIMEDOUT:
     case -ETIME:
@@ -140,6 +140,10 @@ constexpr SwizzledFormat Presentable16BitSwizzledFormat[] =
 {
     {
         ChNumFormat::X16Y16Z16W16_Float,
+        { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W }
+    },
+    {
+        ChNumFormat::X16Y16Z16W16_Unorm,
         { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W }
     },
 };
@@ -1589,6 +1593,11 @@ Result Device::InitMemInfo()
 Result Device::InitQueueInfo()
 {
     Result result = Result::Success;
+    constexpr QueuePrioritySupport AnyPriority = static_cast<QueuePrioritySupport>(SupportQueuePriorityIdle   |
+                                                                                   SupportQueuePriorityNormal |
+                                                                                   SupportQueuePriorityMedium |
+                                                                                   SupportQueuePriorityHigh   |
+                                                                                   SupportQueuePriorityRealtime);
 
     for (uint32 i = 0; i < EngineTypeCount; ++i)
     {
@@ -1608,6 +1617,11 @@ Result Device::InitQueueInfo()
                     pEngineInfo->startAlign        = engineInfo.ib_start_alignment;
                     pEngineInfo->sizeAlignInDwords = Pow2Align(engineInfo.ib_size_alignment,
                                                                sizeof(uint32)) / sizeof(uint32);
+                    for (uint32 engineIdx = 0; engineIdx < pEngineInfo->numAvailable; engineIdx++)
+                    {
+                        pEngineInfo->capabilities[engineIdx].queuePrioritySupport = AnyPriority;
+                        pEngineInfo->capabilities[engineIdx].maxFrontEndPipes     = 1;
+                    }
                 }
                 break;
 
@@ -1622,6 +1636,17 @@ Result Device::InitQueueInfo()
                     pEngineInfo->startAlign        = engineInfo.ib_start_alignment;
                     pEngineInfo->sizeAlignInDwords = Pow2Align(engineInfo.ib_size_alignment,
                                                                sizeof(uint32)) / sizeof(uint32);
+
+                    uint32 engineIdx          = 0;
+                    uint32 normalQueueSupport = AnyPriority;
+
+                    for (; engineIdx < pEngineInfo->numAvailable; engineIdx++)
+                    {
+                        pEngineInfo->capabilities[engineIdx].queuePrioritySupport = normalQueueSupport;
+
+                        // Kernel doesn't expose this info.
+                        pEngineInfo->capabilities[engineIdx].maxFrontEndPipes = 1;
+                    }
                 }
                 break;
 
@@ -1656,6 +1681,16 @@ Result Device::InitQueueInfo()
             default:
                 PAL_ASSERT_ALWAYS();
                 break;
+        }
+
+        if ((pEngineInfo->numAvailable > 0) && (pEngineInfo->capabilities[0].queuePrioritySupport == 0))
+        {
+            // Give a default priority if there's not a more specific one provided.
+            for (uint32 engineIdx = 0; engineIdx < pEngineInfo->numAvailable; engineIdx++)
+            {
+                pEngineInfo->capabilities[engineIdx].queuePrioritySupport = SupportQueuePriorityNormal;
+                pEngineInfo->capabilities[engineIdx].maxFrontEndPipes     = 1;
+            }
         }
     }
 
@@ -2083,20 +2118,24 @@ void Device::GetDisplayDccInfo(
     {
         displayDcc.pipeAligned = 0;
         displayDcc.rbAligned   = 0;
-        //Independent64=1, Independent128=1, maxCompress=64B
-        if ((ChipProperties().gfxLevel ==  GfxIpLevel::GfxIp10_3)
-        )
         {
-            displayDcc.dcc_256_256_unconstrained = 0;
-            displayDcc.dcc_256_128_128           = 1;
-            displayDcc.dcc_128_128_unconstrained = 0;
-            displayDcc.dcc_256_64_64             = 0;
+            // Refer to gfx9_compute_surface function of Mesa3d,if gfxLevel greater or equal to GfxIp10_3,
+            // displaydcc parameter should be set to "Independent64=1, Independent128=1, maxCompress=64B"
+            // to meet DCN requirements, therefore here dcc_256_64_64 should be set to 1.
+            if (ChipProperties().gfxLevel >= GfxIpLevel::GfxIp10_3)
+            {
+                displayDcc.dcc_256_256_unconstrained = 0;
+                displayDcc.dcc_256_128_128           = 0;
+                displayDcc.dcc_128_128_unconstrained = 0;
+                displayDcc.dcc_256_64_64             = 1;
+            }
         }
     }
 }
 
+// =====================================================================================================================
 // Returns true if gpu + amdgpu kms driver do support 16 bit floating point display.
-bool Device::HasFp16DisplaySupport()
+bool Device::HasFp16DisplaySupport() const
 {
     bool supported = false;
 
@@ -2114,6 +2153,24 @@ bool Device::HasFp16DisplaySupport()
     // on all display engines since DCE 8.0, ie. additionally on Gfx7-DCE 8.x, Gfx8-10.0/11.0.
     if ((IsDrmVersionOrGreater(3, 41) || IsKernelVersionEqualOrGreater(5, 12)) &&
         (IsGfx8(*this) || IsGfx7(*this)))
+    {
+        supported = true;
+    }
+
+    return supported;
+}
+
+// =====================================================================================================================
+// Returns true if gpu + amdgpu kms driver do support 16 bit unorm fixed point display.
+bool Device::HasRgba16DisplaySupport() const
+{
+    bool supported = false;
+
+    // On Linux 5.14 (DRM 3.42) and later we also have the 64 bpp rgba16 unorm fixed point format
+    // on display engines of generation DCE 8.0 - DCE 12, and on all DCN engines, iow. Sea Islands
+    // and later0. However, current pal no longer supports Sea Islands, so check for gfxLevel >= 8.
+    if ((IsDrmVersionOrGreater(3, 42) || IsKernelVersionEqualOrGreater(5, 14)) &&
+        (m_chipProperties.gfxLevel >= GfxIpLevel::GfxIp8))
     {
         supported = true;
     }
@@ -2148,6 +2205,9 @@ Result Device::GetSwapChainInfo(
     pSwapChainProperties->supportedUsageFlags.shaderRead    = 1;
     pSwapChainProperties->supportedUsageFlags.shaderWrite   = 1;
 
+    // ISwapChain::SetHdrMetData interface is not supported
+    pSwapChainProperties->colorSpaceCount = 0;
+
     // Get formats supported by swap chain. We have at least the 32 bpp formats.
     pSwapChainProperties->imageFormatCount = baseFormatCount;
 
@@ -2158,6 +2218,15 @@ Result Device::GetSwapChainInfo(
 
         // fp16 is first slot in Presentable16BitSwizzledFormat[].
         pSwapChainProperties->imageFormatCount++;
+
+        // All gpu's which support fp16 do also support rgba16 unorm with recent amdgpu kms.
+        if (HasRgba16DisplaySupport())
+        {
+            PAL_ASSERT(pSwapChainProperties->imageFormatCount < MaxPresentableImageFormat);
+
+            // rgba16 unorm is the second slot in Presentable16BitSwizzledFormat[].
+            pSwapChainProperties->imageFormatCount++;
+        }
     }
 
     for (uint32 i = 0; i < pSwapChainProperties->imageFormatCount; i++)
@@ -3298,59 +3367,88 @@ void Device::UpdateImageInfo(
     // (i.e., each plane has only one subresource)
     PAL_ASSERT(subResPerPlane == 1);
 
-    if ((m_drmProcs.pfnAmdgpuBoQueryInfo(hBuffer, &info) == 0) &&
-        (info.metadata.size_metadata >= PRO_UMD_METADATA_SIZE))
+    if(m_drmProcs.pfnAmdgpuBoQueryInfo(hBuffer, &info) == 0)
     {
-        if (ChipProperties().gfxLevel < GfxIpLevel::GfxIp9)
+        if (info.metadata.size_metadata >= PRO_UMD_METADATA_SIZE)
         {
-            AddrMgr1::TileInfo*const pTileInfo = static_cast<AddrMgr1::TileInfo*>(pImage->GetSubresourceTileInfo(0));
-            auto*const pUmdMetaData = reinterpret_cast<amdgpu_bo_umd_metadata*>
-                                      (&info.metadata.umd_metadata[PRO_UMD_METADATA_OFFSET_DWORD]);
-            auto*const pSubResInfo  = pImage->GetSubresourceInfo(0);
-
-            pSubResInfo->extentTexels.width         = pUmdMetaData->width_in_pixels;
-            pSubResInfo->extentTexels.height        = pUmdMetaData->height;
-            pSubResInfo->rowPitch                   = pUmdMetaData->aligned_pitch_in_bytes;
-            pSubResInfo->actualExtentTexels.height  = pUmdMetaData->aligned_height;
-            pTileInfo->tileIndex                    = pUmdMetaData->tile_index;
-            pTileInfo->tileMode                     = AmdGpuToAddrTileModeConversion(pUmdMetaData->tile_mode);
-            pTileInfo->tileType                     = static_cast<uint32>(pUmdMetaData->micro_tile_mode);
-
-            pTileInfo->pipeConfig                   = AmdGpuToPalPipeConfigConversion(
-                                                                pUmdMetaData->tile_config.pipe_config);
-
-            pTileInfo->banks                        = pUmdMetaData->tile_config.banks;
-            pTileInfo->bankWidth                    = pUmdMetaData->tile_config.bank_width;
-            pTileInfo->bankHeight                   = pUmdMetaData->tile_config.bank_height;
-            pTileInfo->macroAspectRatio             = pUmdMetaData->tile_config.macro_aspect_ratio;
-            pTileInfo->tileSplitBytes               = pUmdMetaData->tile_config.tile_split_bytes;
-            pTileInfo->tileSwizzle                  = pUmdMetaData->pipeBankXor;
-
-            for (uint32 plane = 1; plane < numPlanes; plane++)
+            if (ChipProperties().gfxLevel < GfxIpLevel::GfxIp9)
             {
-                AddrMgr1::TileInfo*const pPlaneTileInfo = static_cast<AddrMgr1::TileInfo*>
-                                                          (pImage->GetSubresourceTileInfo(subResPerPlane * plane));
-                pPlaneTileInfo->tileSwizzle             = pUmdMetaData->additionalPipeBankXor[plane - 1];
+                AddrMgr1::TileInfo *const pTileInfo = static_cast<AddrMgr1::TileInfo*>
+                                                        (pImage->GetSubresourceTileInfo(0));
+                auto*const pUmdMetaData             = reinterpret_cast<amdgpu_bo_umd_metadata*>
+                                                        (&info.metadata.umd_metadata[PRO_UMD_METADATA_OFFSET_DWORD]);
+
+                pSubResInfo->extentTexels.width        = pUmdMetaData->width_in_pixels;
+                pSubResInfo->extentTexels.height       = pUmdMetaData->height;
+                pSubResInfo->rowPitch                  = pUmdMetaData->aligned_pitch_in_bytes;
+                pSubResInfo->actualExtentTexels.height = pUmdMetaData->aligned_height;
+
+                pTileInfo->tileIndex                   = pUmdMetaData->tile_index;
+                pTileInfo->tileMode                    = AmdGpuToAddrTileModeConversion(pUmdMetaData->tile_mode);
+                pTileInfo->tileType                    = static_cast<uint32>(pUmdMetaData->micro_tile_mode);
+                pTileInfo->pipeConfig                  = AmdGpuToPalPipeConfigConversion(
+                                                         pUmdMetaData->tile_config.pipe_config);
+                pTileInfo->banks                       = pUmdMetaData->tile_config.banks;
+                pTileInfo->bankWidth                   = pUmdMetaData->tile_config.bank_width;
+                pTileInfo->bankHeight                  = pUmdMetaData->tile_config.bank_height;
+                pTileInfo->macroAspectRatio            = pUmdMetaData->tile_config.macro_aspect_ratio;
+                pTileInfo->tileSplitBytes              = pUmdMetaData->tile_config.tile_split_bytes;
+                pTileInfo->tileSwizzle                 = pUmdMetaData->pipeBankXor;
+
+                for (uint32 plane = 1; plane < numPlanes; plane++)
+                {
+                    AddrMgr1::TileInfo *const pPlaneTileInfo = static_cast<AddrMgr1::TileInfo *>
+                                                               (pImage->GetSubresourceTileInfo(subResPerPlane * plane));
+                    pPlaneTileInfo->tileSwizzle              = pUmdMetaData->additionalPipeBankXor[plane - 1];
+                }
+            }
+            else if (ChipProperties().gfxLevel >= GfxIpLevel::GfxIp9)
+            {
+                AddrMgr2::TileInfo *const pTileInfo = static_cast<AddrMgr2::TileInfo*>
+                                                           (pImage->GetSubresourceTileInfo(0));
+                auto*const pUmdMetaData             = reinterpret_cast<amdgpu_bo_umd_metadata*>
+                                                           (&info.metadata.umd_metadata[PRO_UMD_METADATA_OFFSET_DWORD]);
+                pTileInfo->pipeBankXor              = pUmdMetaData->pipeBankXor;
+
+                for (uint32 plane = 1; plane < numPlanes; plane++)
+                {
+                    AddrMgr2::TileInfo *const pPlaneTileInfo = static_cast<AddrMgr2::TileInfo*>
+                                                               (pImage->GetSubresourceTileInfo(subResPerPlane * plane));
+                    pPlaneTileInfo->pipeBankXor              = pUmdMetaData->additionalPipeBankXor[plane - 1];
+                }
+            }
+            else
+            {
+                PAL_NOT_IMPLEMENTED();
             }
         }
-        else if (ChipProperties().gfxLevel >= GfxIpLevel::GfxIp9)
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 681
+        else if (IsMesaMetadata(info.metadata))
         {
-            AddrMgr2::TileInfo*const pTileInfo   = static_cast<AddrMgr2::TileInfo*>(pImage->GetSubresourceTileInfo(0));
-            auto*const pUmdMetaData = reinterpret_cast<amdgpu_bo_umd_metadata*>
-                                      (&info.metadata.umd_metadata[PRO_UMD_METADATA_OFFSET_DWORD]);
-            pTileInfo->pipeBankXor = pUmdMetaData->pipeBankXor;
-
-            for (uint32 plane = 1; plane < numPlanes; plane++)
+            if (ChipProperties().gfxLevel < GfxIpLevel::GfxIp9)
             {
-                AddrMgr2::TileInfo*const pPlaneTileInfo = static_cast<AddrMgr2::TileInfo*>
-                                                          (pImage->GetSubresourceTileInfo(subResPerPlane * plane));
-                pPlaneTileInfo->pipeBankXor             = pUmdMetaData->additionalPipeBankXor[plane - 1];
+                AmdGpuTilingFlags tilingFlags;
+                tilingFlags.u64All      = info.metadata.tiling_info;
+                auto*const pMetaData    = reinterpret_cast<const amdgpu_bo_umd_metadata*>(&info.metadata.umd_metadata);
+                auto*const pRawMetaData = reinterpret_cast<const uint32*>(pMetaData);
+                auto*const pTileInfo    = static_cast<AddrMgr1::TileInfo*>(pImage->GetSubresourceTileInfo(0));
+
+                pSubResInfo->extentTexels.width        = imageCreateInfo.extent.width;
+                pSubResInfo->extentTexels.height       = imageCreateInfo.extent.height;
+                pSubResInfo->actualExtentTexels.height = imageCreateInfo.extent.height;
+                pSubResInfo->format                    = imageCreateInfo.swizzledFormat;
+
+                pTileInfo->tileIndex        = (pRawMetaData[5] >> 20) & 0x1F;
+                pTileInfo->tileType         = tilingFlags.microTileMode;
+                pTileInfo->pipeConfig       = tilingFlags.pipeConfig;
+                pTileInfo->banks            = tilingFlags.numBanks;
+                pTileInfo->bankWidth        = tilingFlags.bankWidth;
+                pTileInfo->bankHeight       = tilingFlags.bankHeight;
+                pTileInfo->macroAspectRatio = tilingFlags.macroTileAspect;
+                pTileInfo->tileSplitBytes   = tilingFlags.tileSplit;
             }
         }
-        else
-        {
-            PAL_NOT_IMPLEMENTED();
-        }
+#endif
     }
 }
 
@@ -3574,6 +3672,25 @@ void Device::UpdateMetaData(
         }
         //linux don't need use this value to pass extra information for now
         pUmdSharedMetadata->resource_id = 0;
+
+        // In order to support displayable dcc in linux window mode,
+        // it's needed to share standard dcc metadata with Mesa3D when displayable DCC has enabled.
+        // According to Mesa3D metadata parsing function ac_surface_set_umd_metadata,
+        // Mesa3D share standard dcc metadata though first 10 dwords of umd_metadata of struct amdgpu_bo_metadata.
+        if ((ChipProperties().gfxLevel >= GfxIpLevel::GfxIp10_3) &&
+            image.GetGfxImage()->HasDisplayDccData() &&
+            (pUmdSharedMetadata->dcc_offset != 0))
+        {
+            auto*const pMesaUmdMetaData = reinterpret_cast<MesaUmdMetaData*>(&metadata.umd_metadata[0]);
+            // Metadata image format format version 1
+            pMesaUmdMetaData->header.version                        = 1;
+            pMesaUmdMetaData->header.vendorId                       = ATI_VENDOR_ID;
+            pMesaUmdMetaData->header.asicId                         = m_gpuInfo.asic_id;
+            pMesaUmdMetaData->imageSrd.gfx10.metaPipeAligned        = sharedMetadataInfo.pipeAligned[0];
+            // both displayable dcc and standard dcc is enbaled,compression must be enabled.
+            pMesaUmdMetaData->imageSrd.gfx10.compressionEnable      = 1;
+            pMesaUmdMetaData->imageSrd.gfx10.metaDataOffset         = pUmdSharedMetadata->dcc_offset >> 8;
+        }
     }
 
     m_drmProcs.pfnAmdgpuBoSetMetadata(hBuffer, &metadata);
@@ -5184,6 +5301,8 @@ Result Device::CreateGpuMemoryFromExternalShare(
         }
     }
 
+    const auto& imageCreateInfo = pImage->GetImageCreateInfo();
+
     if (sharedInfo.info.preferred_heap & AMDGPU_GEM_DOMAIN_VRAM)
     {
         if (sharedInfo.info.alloc_flags & AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED)
@@ -5194,6 +5313,12 @@ Result Device::CreateGpuMemoryFromExternalShare(
         {
             pCreateInfo->heaps[pCreateInfo->heapCount++] = GpuHeapInvisible;
         }
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 681
+        else if (imageCreateInfo.flags.sharedWithMesa != 0)
+        {
+            pCreateInfo->heaps[pCreateInfo->heapCount++] = GpuHeapLocal;
+        }
+#endif
     }
 
     if (pCreateInfo->heapCount == 0)
@@ -5911,7 +6036,8 @@ Result Device::IsSameGpu(
 {
     Result result                   = Result::Success;
 
-    *pIsSame = (Util::Strcasecmp(&m_primaryNodeName[0], pDeviceName) == 0);
+    *pIsSame = (Util::Strcasecmp(&m_primaryNodeName[0], pDeviceName) == 0) ||
+               (Util::Strcasecmp(&m_renderNodeName[0], pDeviceName) == 0);
 
     return result;
 }

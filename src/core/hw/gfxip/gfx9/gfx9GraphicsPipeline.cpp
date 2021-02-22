@@ -207,9 +207,9 @@ GraphicsPipeline::GraphicsPipeline(
 // loaded using LOAD_SH_REG_INDEX and LOAD_CONTEXT_REG_INDEX, as well as determining things like which shader stages are
 // active.
 void GraphicsPipeline::EarlyInit(
-    const CodeObjectMetadata& metadata,
-    const RegisterVector&     registers,
-    GraphicsPipelineLoadInfo* pInfo)
+    const PalAbi::CodeObjectMetadata& metadata,
+    const RegisterVector&             registers,
+    GraphicsPipelineLoadInfo*         pInfo)
 {
     const RegisterInfo& regInfo = m_pDevice->CmdUtil().GetRegInfo();
 
@@ -249,7 +249,7 @@ void GraphicsPipeline::EarlyInit(
 Result GraphicsPipeline::HwlInit(
     const GraphicsPipelineCreateInfo& createInfo,
     const AbiReader&                  abiReader,
-    const CodeObjectMetadata&         metadata,
+    const PalAbi::CodeObjectMetadata& metadata,
     MsgPackReader*                    pMetadataReader)
 {
     RegisterVector registers(m_pDevice->GetPlatform());
@@ -287,7 +287,7 @@ Result GraphicsPipeline::HwlInit(
 void GraphicsPipeline::LateInit(
     const GraphicsPipelineCreateInfo& createInfo,
     const AbiReader&                  abiReader,
-    const CodeObjectMetadata&         metadata,
+    const PalAbi::CodeObjectMetadata& metadata,
     const RegisterVector&             registers,
     const GraphicsPipelineLoadInfo&   loadInfo,
     PipelineUploader*                 pUploader)
@@ -311,8 +311,7 @@ void GraphicsPipeline::LateInit(
     SetupFetchShaderInfo(pUploader);
 
     if ((settings.rbPlusOptimizeDepthOnlyExportRate) &&
-        (NumColorTargets() == 0) &&
-        (m_regs.context.cbColorControl.bits.MODE == CB_DISABLE))
+        CanRbPlusOptimizeDepthOnly())
     {
         m_regs.other.sxPsDownconvert.bits.MRT0                    = SX_RT_EXPORT_32_R;
         m_regs.context.spiShaderColFormat.bits.COL0_EXPORT_FORMAT = SPI_SHADER_32_R;
@@ -724,10 +723,20 @@ uint32* GraphicsPipeline::WriteContextCommandsSetPath(
                                                   m_regs.context.spiInterpControl0.u32All,
                                                   pCmdSpace);
 
-    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmSPI_SHADER_POS_FORMAT,
-                                                   mmSPI_SHADER_COL_FORMAT,
-                                                   &m_regs.context.spiShaderPosFormat,
-                                                   pCmdSpace);
+    if (IsGfx9(m_gfxLevel) || ((IsGsEnabled() == false) && (IsNgg() == false)))
+    {
+        pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmSPI_SHADER_POS_FORMAT,
+                                                       mmSPI_SHADER_COL_FORMAT,
+                                                       &m_regs.context.spiShaderPosFormat,
+                                                       pCmdSpace);
+    }
+    else
+    {
+        pCmdSpace = pCmdStream->WriteSetSeqContextRegs(Gfx10Plus::mmSPI_SHADER_IDX_FORMAT,
+                                                       mmSPI_SHADER_COL_FORMAT,
+                                                       &m_regs.context.spiShaderIdxFormat,
+                                                       pCmdSpace);
+    }
 
     if (m_pDevice->Parent()->ChipProperties().gfxip.supportsHwVs)
     {
@@ -811,6 +820,10 @@ void GraphicsPipeline::SetupCommonRegisters(
     m_regs.context.paSuVtxCntl.u32All  = registers.At(mmPA_SU_VTX_CNTL);
     m_regs.other.paScModeCntl1.u32All  = registers.At(mmPA_SC_MODE_CNTL_1);
 
+    if (IsGfx10Plus(m_gfxLevel))
+    {
+        m_regs.context.spiShaderIdxFormat.u32All = registers.At(Gfx10Plus::mmSPI_SHADER_IDX_FORMAT);
+    }
     m_regs.context.spiShaderColFormat.u32All = registers.At(mmSPI_SHADER_COL_FORMAT);
     m_regs.context.spiShaderPosFormat.u32All = registers.At(mmSPI_SHADER_POS_FORMAT);
     m_regs.context.spiShaderZFormat.u32All   = registers.At(mmSPI_SHADER_Z_FORMAT);
@@ -1508,7 +1521,7 @@ uint32 GraphicsPipeline::CalcMaxLateAllocLimit(
 // =====================================================================================================================
 // Updates the device that this pipeline has some new ring-size requirements.
 void GraphicsPipeline::UpdateRingSizes(
-    const CodeObjectMetadata& metadata)
+    const PalAbi::CodeObjectMetadata& metadata)
 {
     const Gfx9PalSettings& settings = m_pDevice->Settings();
 
@@ -1547,7 +1560,7 @@ void GraphicsPipeline::UpdateRingSizes(
 // =====================================================================================================================
 // Calculates the maximum scratch memory in dwords necessary by checking the scratch memory needed for each shader.
 uint32 GraphicsPipeline::ComputeScratchMemorySize(
-    const CodeObjectMetadata& metadata
+    const PalAbi::CodeObjectMetadata& metadata
     ) const
 {
     const bool isGfx10Plus   = IsGfx10Plus(m_gfxLevel);
@@ -1684,10 +1697,10 @@ uint32 GraphicsPipeline::GetVsUserDataBaseOffset() const
 // =====================================================================================================================
 // Initializes the signature for a single stage within a graphics pipeline using a pipeline ELF.
 void GraphicsPipeline::SetupSignatureForStageFromElf(
-    const CodeObjectMetadata& metadata,
-    const RegisterVector&     registers,
-    HwShaderStage             stage,
-    uint16*                   pEsGsLdsSizeReg)
+    const PalAbi::CodeObjectMetadata& metadata,
+    const RegisterVector&             registers,
+    HwShaderStage                     stage,
+    uint16*                           pEsGsLdsSizeReg)
 {
     const uint16 baseRegAddr = m_pDevice->GetBaseUserDataReg(stage);
     const uint16 lastRegAddr = (baseRegAddr + 31);
@@ -1861,10 +1874,10 @@ void GraphicsPipeline::SetupSignatureForStageFromElf(
 // =====================================================================================================================
 // Initializes the signature of a graphics pipeline using a pipeline ELF.
 void GraphicsPipeline::SetupSignatureFromElf(
-    const CodeObjectMetadata& metadata,
-    const RegisterVector&     registers,
-    uint16*                   pEsGsLdsSizeRegGs,
-    uint16*                   pEsGsLdsSizeRegVs)
+    const PalAbi::CodeObjectMetadata& metadata,
+    const RegisterVector&             registers,
+    uint16*                           pEsGsLdsSizeRegGs,
+    uint16*                           pEsGsLdsSizeRegVs)
 {
     if (metadata.pipeline.hasEntry.spillThreshold != 0)
     {
@@ -1921,6 +1934,17 @@ static uint8 Rop3(
     };
 
     return Rop3Codes[static_cast<uint32>(logicOp)];
+}
+
+// =====================================================================================================================
+// Returns true if no color buffers and oDepth/discard
+bool GraphicsPipeline::CanRbPlusOptimizeDepthOnly() const
+{
+    const bool zExportEnable = m_chunkVsPs.DbShaderControl().bits.Z_EXPORT_ENABLE;
+    const bool killEnable = m_chunkVsPs.DbShaderControl().bits.KILL_ENABLE;
+    return ((NumColorTargets() == 0) &&
+            (m_regs.context.cbColorControl.bits.MODE == CB_DISABLE) &&
+            (zExportEnable || killEnable));
 }
 
 // =====================================================================================================================
@@ -2145,8 +2169,7 @@ void GraphicsPipeline::OverrideRbPlusRegistersForRpm(
     {
         // This logic should not clash with the logic for rbPlusOptimizeDepthOnlyExportRate.
         PAL_ASSERT(((m_pDevice->Settings().rbPlusOptimizeDepthOnlyExportRate) &&
-                    (NumColorTargets() == 0) &&
-                    (m_regs.context.cbColorControl.bits.MODE == CB_DISABLE)) == false);
+                    CanRbPlusOptimizeDepthOnly()) == false);
 
         regSX_PS_DOWNCONVERT    sxPsDownconvert   = { };
         regSX_BLEND_OPT_EPSILON sxBlendOptEpsilon = { };

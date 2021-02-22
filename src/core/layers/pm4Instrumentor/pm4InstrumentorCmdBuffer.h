@@ -53,23 +53,24 @@ public:
 
     virtual void CmdBindPipeline(
         const PipelineBindParams& params) override;
-
     virtual void CmdBindMsaaState(
         const IMsaaState* pMsaaState) override;
     virtual void CmdBindColorBlendState(
         const IColorBlendState* pColorBlendState) override;
     virtual void CmdBindDepthStencilState(
         const IDepthStencilState* pDepthStencilState) override;
-
     virtual void CmdBindIndexData(
         gpusize   gpuAddr,
         uint32    indexCount,
         IndexType indexType) override;
+    virtual void CmdSetKernelArguments(
+        uint32            firstArg,
+        uint32            argCount,
+        const void*const* ppValues) override;
     virtual void CmdSetVertexBuffers(
         uint32                firstBuffer,
         uint32                bufferCount,
         const BufferViewInfo* pBuffers) override;
-
     virtual void CmdBindTargets(
         const BindTargetParams& params) override;
     virtual void CmdBindStreamOutTargets(

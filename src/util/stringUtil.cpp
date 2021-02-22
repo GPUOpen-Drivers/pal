@@ -137,4 +137,67 @@ void CopyUtf16String(
     memcpy(pDst, pSrc, Util::Min(dstSize*sizeof(char16_t), sizeof(char16_t)*(PalWcslen(pSrc)+1)));
 }
 
+// =====================================================================================================================
+// This was originally going to just call Snprintf but a custom implementation ended up being easier to write.
+size_t BytesToStr(
+    char*       pDst,
+    size_t      dstSize,
+    const void* pBuffer,
+    size_t      bufferSize,
+    size_t      blockSize)
+{
+    size_t bufferOffset = 0;
+
+    if ((pDst != nullptr) && (dstSize > 0) && (pBuffer != nullptr) && (blockSize > 0))
+    {
+        // Start out with a null terminator just in case we don't have space for anything else.
+        *pDst = '\0';
+
+        const uint8* pBytes = static_cast<const uint8*>(pBuffer);
+        bool wroteBlock = false;
+
+        while (bufferOffset < bufferSize)
+        {
+            const size_t curBlockSize = Min(blockSize, bufferSize - bufferOffset);
+            const size_t blockStrLen  = 3 + curBlockSize * 2; // "0x" + 2 hex chars per byte + a space or null.
+
+            if (blockStrLen > dstSize)
+            {
+                // No more space for a full block.
+                break;
+            }
+
+            if (wroteBlock)
+            {
+                // If we wrote a block previously we should look back and replace the null with a space.
+                *(pDst - 1) = ' ';
+            }
+
+            *(pDst++) = '0';
+            *(pDst++) = 'x';
+
+            // This assumes little endian.
+            for (size_t remaining = curBlockSize; remaining > 0;)
+            {
+                const uint32 byte = pBytes[--remaining];
+                const uint32 low  = byte & 0xF;
+                const uint32 high = byte >> 4;
+
+                *(pDst++) = (high > 9) ? ('A' + high - 10) : ('0' + high);
+                *(pDst++) = (low  > 9) ? ('A' + low - 10)  : ('0' + low);
+            }
+
+            // Assume this is the last block we can fit in the string.
+            *(pDst++)  = '\0';
+            wroteBlock = true;
+
+            dstSize      -= blockStrLen;
+            pBytes       += curBlockSize;
+            bufferOffset += curBlockSize;
+        }
+    }
+
+    return bufferOffset;
+}
+
 } // Util

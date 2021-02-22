@@ -129,7 +129,7 @@ struct GpuMemoryRemoveReferenceData
 
 struct GpuMemoryResourceCreateData
 {
-    ResourceHandle handle;
+    ResourceHandle   handle;
     ResourceType     type;
     uint32           descriptionSize;
     const void*      pDescription;
@@ -145,6 +145,12 @@ struct DebugNameData
     ResourceHandle handle;
     uint32         nameSize;
     const char*    pDebugName;
+};
+
+struct ResourceCorrelationData
+{
+    ResourceHandle handle;
+    ResourceHandle driverHandle;
 };
 
 struct GpuMemoryMiscData
@@ -244,6 +250,8 @@ static const char* ResourceCategoryToStr(
 static const char* PalEventToStr(
     PalEvent eventId)
 {
+    static_assert(static_cast<uint32>(PalEvent::Count) == 16, "Write support for new event!");
+
     const char* pRet = "Unknown";
     switch (eventId)
     {
@@ -259,6 +267,7 @@ static const char* PalEventToStr(
     case PalEvent::DebugName:                pRet = "DebugName";                break;
     case PalEvent::GpuMemorySnapshot:        pRet = "GpuMemorySnapshot";        break;
     case PalEvent::GpuMemoryMisc:            pRet = "GpuMemoryMisc";            break;
+    case PalEvent::ResourceCorrelation:      pRet = "ResourceCorrelation";      break;
     default:
         PAL_ASSERT_ALWAYS();
         break;

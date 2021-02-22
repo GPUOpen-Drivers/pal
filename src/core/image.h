@@ -76,7 +76,7 @@ constexpr gpusize GetOriginalAddress(
 // a 32-bit base address.
 //
 // The maximum number of address bits which GFXIP 6+ supports is 48. Some parts are limited to 40 bits.
-inline uint32 Get256BAddrSwizzled(
+inline uint32 Get256BAddrLoSwizzled(
     gpusize virtAddr,
     uint32  swizzle)
 {
@@ -123,7 +123,7 @@ union InternalImageFlags
                                                   // external shared images.
         uint32 turbosync                   :  1;  // Image supports turbosync flip.
         uint32 useSharedMetadata           :  1;  // Indicate SharedMetadataInfo will be used.
-        uint32 placeholder0                :  1;  // Placeholder.
+        uint32 crossAdapter                :  1;  // The image is an opened cross-adapter shared image
         uint32 placeholder1                :  1;  // Placeholder.
         uint32 vrsOnlyDepth                :  1;  // Setting this causes an image to allocate memory only for its hTile.
                                                   // Meant for use with VRS when the client hasn't bound a depth buffer.
@@ -259,7 +259,6 @@ struct ImageInfo
 class Image : public IImage
 {
 public:
-
     static constexpr ClearMethod DefaultSlowClearMethod = ClearMethod::NormalGraphics;
     static constexpr bool PreferGraphicsCopy = true;
     static constexpr bool ForceExpandHiZRangeForResummarize = false;
@@ -306,6 +305,8 @@ public:
 
     const void* SubresourceTileInfo(uint32 subResId) const
         { return Util::VoidPtrInc(m_pTileInfoList, (subResId * m_tileInfoBytes)); }
+
+    virtual const void* GetResourceId() const override { return this; }
 
     virtual const ImageMemoryLayout& GetMemoryLayout() const override
         { return m_gpuMemLayout; }

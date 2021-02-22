@@ -623,6 +623,19 @@
       "Name": "DisableOptimizedDisplay"
     },
     {
+      "Description": "(DEBUG ONLY) Skip the GFX DCC to Display DCC retile shader.",
+      "Tags": [
+        "General"
+      ],
+      "Defaults": {
+        "Default": false
+      },
+      "Scope": "PrivatePalKey",
+      "Type": "bool",
+      "VariableName": "displayDccSkipRetileBlt",
+      "Name": "DisplayDccSkipRetileBlt"
+    },
+    {
       "Name": "OverlayReportHDR",
       "Tags": [
         "General",
@@ -1946,6 +1959,52 @@
       "Type": "uint64",
       "VariableName": "dbgHelperBits",
       "Description": "Debug helper bitmask for debugging and experiments. Driver developers can use this setting to configure personal experiments. Requires PAL_DEVELOPER_BUILD."
+    },
+    {
+      "ValidValues": {
+        "IsEnum": true,
+        "IsExclusive": true,
+        "Values": [
+          {
+            "Name": "UseExecuteIndirectShaders",
+            "Value": 0,
+            "Description": "ExecuteIndirect packet is not supported, so use the RPM IndirectCmdGen shaders."
+          },
+          {
+            "Name": "UseExecuteIndirectPacketForDraw",
+            "Value": 1,
+            "Description": "IndirectDraw functionality is supported by the new ExecuteIndirect Packet."
+          },
+          {
+            "Name": "UseExecuteIndirectPacketForDrawSpillTable",
+            "Value": 2,
+            "Description": "Spill table for user data is supported with DMA_DATA_INDIRECT."
+          },
+          {
+            "Name": "UseExecuteIndirectPacketForDrawDispatch",
+            "Value": 3,
+            "Description": "Dispatch functionality on compute queue is now supported."
+          },
+          {
+            "Name": "UseExecuteIndirectPacketDefault",
+            "Value": 4,
+            "Description": "Packet feature is completely functional and can be used in place of the CmdGen shaders."
+          }
+        ],
+        "Name": "UseExecuteIndirectPacket"
+      },
+      "Description": "Use the ExecuteIndirect packet in place of the IndirectCmdGen shaders as and when supported.",
+      "Tags": [
+        "Shader Options",
+        "Gfx9"
+      ],
+      "Defaults": {
+        "Default": "UseExecuteIndirectShaders"
+      },
+      "Scope": "PrivatePalKey",
+      "Type": "enum",
+      "VariableName": "useExecuteIndirectPacket",
+      "Name": "UseExecuteIndirectPacket"
     },
     {
       "ValidValues": {

@@ -32,12 +32,14 @@
 
 #pragma once
 
+#include "g_palPipelineAbiMetadataImpl.h"
 #include "palElfReader.h"
 #include "palPipelineAbi.h"
-#include "g_palPipelineAbiMetadataImpl.h"
 
 namespace Util
 {
+
+namespace HsaAbi { class  CodeObjectMetadata; }
 
 namespace Abi
 {
@@ -63,6 +65,7 @@ typedef HashMap<const char*,
                 PAL_CACHE_LINE_BYTES * 2> GenericSymbolMap;
 
 public:
+
     template <typename Allocator>
     PipelineAbiReader(Allocator* const pAllocator, const void* pData);
     Result Init();
@@ -80,6 +83,27 @@ public:
     /// @returns Success if successful, ErrorInvalidValue, ErrorUnknown or ErrorUnsupportedPipelineElfAbiVersion
     ///          if a parser error occurred, ErrorInvalidPipelineElf if there is no metadata.
     Result GetMetadata(MsgPackReader* pReader, PalAbi::CodeObjectMetadata* pMetadata) const;
+
+    /// Get the Pipeline Metadata as a deserialized class using the given MsgPackReader instance. If successful,
+    /// the reader's position will then be moved to either the start of the registers map, or to EOF if there are
+    /// no registers.
+    ///
+    /// @param [in/out] pReader    Pointer to the MsgPackReader to use and (re)init with the metadata blob.
+    /// @param [out]    pMetadata  Pointer to where to store the deserialized metadata.
+    ///
+    /// @returns Success if successful, ErrorInvalidValue, ErrorUnknown or ErrorUnsupportedPipelineElfAbiVersion
+    ///          if a parser error occurred, ErrorInvalidPipelineElf if there is no metadata.
+    Result GetMetadata(MsgPackReader* pReader, HsaAbi::CodeObjectMetadata* pMetadata) const;
+
+    /// Gets the high-level OS ABI required by this ELF (e.g., ElfOsAbiAmdgpuHsa, ElfOsAbiAmdgpuPal).
+    ///
+    /// @returns This ELF's OS ABI enum.
+    uint8 GetOsAbi() const { return m_elfReader.GetHeader().ei_osabi; }
+
+    /// Gets the ABI specific version number (e.g., ElfAbiVersionAmdgpuHsaV2, ElfAbiVersionAmdgpuHsaV3).
+    ///
+    /// @returns This ELF's ABI version.
+    uint8 GetAbiVersion() const { return m_elfReader.GetHeader().ei_abiversion; }
 
     /// Get the GFXIP version.
     ///
@@ -122,7 +146,7 @@ PipelineAbiReader::PipelineAbiReader(Allocator* const pAllocator, const void* pD
     m_elfReader(pData),
     m_genericSymbolsMap(16u, &m_allocator)
 {
-    PAL_ASSERT(pAllocator);
+    PAL_ASSERT(pAllocator != nullptr);
 
 #if PAL_ENABLE_PRINTS_ASSERTS
     // Required sections

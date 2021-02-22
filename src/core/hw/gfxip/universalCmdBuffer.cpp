@@ -259,7 +259,6 @@ void UniversalCmdBuffer::ResetState()
 {
     GfxCmdBuffer::ResetState();
 
-    memset(&m_computeState,  0, sizeof(m_computeState));
     memset(&m_graphicsState, 0, sizeof(m_graphicsState));
 
     // Clear the pointer to the performance experiment object currently used by this command buffer.
@@ -292,32 +291,18 @@ void UniversalCmdBuffer::ResetState()
 void UniversalCmdBuffer::CmdBindPipeline(
     const PipelineBindParams& params)
 {
-    const Pipeline*const pPipeline = static_cast<const Pipeline*>(params.pPipeline);
-
-    if (params.pipelineBindPoint == PipelineBindPoint::Compute)
-    {
-        m_computeState.dynamicCsInfo            = params.cs;
-        m_computeState.pipelineState.pPipeline  = pPipeline;
-        m_computeState.pipelineState.apiPsoHash = params.apiPsoHash;
-        m_computeState.pipelineState.dirtyFlags.pipelineDirty = 1;
-    }
-    else
+    if (params.pipelineBindPoint == PipelineBindPoint::Graphics)
     {
         m_graphicsState.dynamicGraphicsInfo      = params.graphics;
-        m_graphicsState.pipelineState.pPipeline  = pPipeline;
+        m_graphicsState.pipelineState.pPipeline  = static_cast<const Pipeline*>(params.pPipeline);
         m_graphicsState.pipelineState.apiPsoHash = params.apiPsoHash;
         m_graphicsState.colorWriteMask           = UINT_MAX;
         m_graphicsState.pipelineState.dirtyFlags.pipelineDirty = 1;
         m_graphicsState.rasterizerDiscardEnable  = false;
     }
 
-    m_device.DescribeBindPipeline(this, pPipeline, params.apiPsoHash, params.pipelineBindPoint);
-
-    if (pPipeline != nullptr)
-    {
-        m_maxUploadFenceToken = Max(m_maxUploadFenceToken, pPipeline->GetUploadFenceToken());
-        m_lastPagingFence     = Max(m_lastPagingFence,     pPipeline->GetPagingFenceVal());
-    }
+    // Compute state and some additional generic support is handled by the GfxCmdBuffer.
+    GfxCmdBuffer::CmdBindPipeline(params);
 }
 
 // =====================================================================================================================
@@ -585,7 +570,7 @@ void UniversalCmdBuffer::CmdSetRasterizerDiscardEnable(
     if (pPipeline != nullptr)
     {
         m_graphicsState.rasterizerDiscardEnable = rasterizerDiscardEnable;
-	m_graphicsState.dirtyFlags.validationBits.rasterizerDiscardEnable = 1;
+        m_graphicsState.dirtyFlags.validationBits.rasterizerDiscardEnable = 1;
     }
 }
 
@@ -928,5 +913,4 @@ void UniversalCmdBuffer::CmdBindSampleRateImage(
     m_graphicsState.pVrsImage = static_cast<const Image*>(pImage);
     m_graphicsState.dirtyFlags.validationBits.vrsImage = 1;
 }
-
 } // Pal

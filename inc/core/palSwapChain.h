@@ -35,16 +35,17 @@
 #include "palDestroyable.h"
 #include "palImage.h"
 #include "palQueue.h"
+#include "palScreen.h"
 
 namespace Pal
 {
 // Forward declarations.
 class IQueueSemaphore;
 class IFence;
-class IScreen;
 
 /// Maximum number of format supported by presentable image. @see SwapChainProperties
-constexpr uint32 MaxPresentableImageFormat = 16;
+constexpr uint32 MaxPresentableImageFormat  = 16;
+constexpr uint32 MaxNativeColorSpaceSupport = 16;
 
 /// Swap chain mode which determines how to process and queue incoming present requests.
 enum class SwapChainMode : uint32
@@ -79,6 +80,7 @@ enum WsiPlatform : uint32
     DirectDisplay               = 0x00000020,  ///< DirectDisplay platform, which can render and present directly to
                                                ///  display without using an intermediate window system.
     Android                     = 0x00000040,  ///< Android platform which is supported platform for Android OS.
+    Dxgi                        = 0x00000080,  ///< DXGI platform for Win32/Windows.
 };
 
 /// Describe the surface transform capability or status.
@@ -114,6 +116,18 @@ enum class CompositeAlphaMode : uint32
                            ///  system commands.
 };
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 684
+/// Defines flag for the preferred present modes of the swap chain.
+enum class PreferredPresentModeFlags : uint32
+{
+    NoPreference                = 0x0,  ///< No preference present mode for the swap chain from Pal,
+                                        ///< Client can choose what they want to use.
+    PreferWindowedPresentMode   = 0x1,  ///< Preferred Windowed mode for the swap chain, which means
+                                        ///< the compositor does the BLT during the composite.
+    PreferFullscreenPresentMode = 0x2,  ///< Preferred FullScreen mode for the swap chain.
+};
+#endif
+
 /// This structure specifies the information needed by client to create swap chain and to present an image. Surface
 /// here is an abstraction for a window and a physical output device.
 struct SwapChainProperties
@@ -129,9 +143,14 @@ struct SwapChainProperties
     uint32                maxImageArraySize;   ///< Supported maximum number of image layers for the swap chain.
     ImageUsageFlags       supportedUsageFlags; ///< Supported image usage flags for the swap chain.
     uint32                imageFormatCount;    ///< Supported image format count for the swap chain.
+    uint32                colorSpaceCount;     ///< Supported color space count for the swap chain.
 
     SwizzledFormat        imageFormat[MaxPresentableImageFormat];  ///< Supported image formats for the swap chain.
+    ScreenColorSpace      colorSpace[MaxNativeColorSpaceSupport];  ///< Supported native colorspaces.
     uint32                compositeAlphaMode;  ///< Supported composite alpha mode for the swap chain.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 684
+    uint32                preferredPresentModes; ///< Set of preferred present modes for the swap chain.
+#endif
 };
 
 /// Specifies all the information needed by local window system to present. Input structure to IDevice::CreateSwapChain
@@ -146,7 +165,19 @@ struct SwapChainCreateInfo
                                                    ///  the client's sync objects.  This can improve performance but
                                                    ///  may trigger queue batching on internal and client queues.
             uint32 tmzProtected              :  1; ///< If this swapchain is TMZ protected.
-            uint32 reserved                  : 30; ///< Reserved for future use.
+            uint32 swapEffectDiscard         :  1; ///< DXGI only, discard backbuffer contents after presenting.
+                                                   ///  Clients may use this if they know backbuffer contents
+                                                   ///  will not be read after a present is queued. Using this
+                                                   ///  allows DWM to enable 'Reverse Composition' mode when
+                                                   ///  flipping for better performance.
+            uint32 blockOnPresent            :  1; ///< DXGI only, disable waitable swapchains.
+                                                   ///  This will make the swapchain block in ISwapChain::Present
+                                                   ///  as opposed to ISwapChain::AcquireImage
+            uint32 intermediateCopy          :  1; ///< DXGI only, an intermediate render target is used as the
+                                                   ///  swapchain backbuffer which is then copied into the DXGI
+                                                   ///  backbuffer. Use in the event of any unforseen compataibility
+                                                   ///  issues with writing directly to the DXGI backbuffer.
+            uint32 reserved                  : 26; ///< Reserved for future use.
         };
         uint32 u32All;                         ///< Flags packed as 32-bit uint.
     } flags;                                   ///< Swap chain flags.
@@ -168,6 +199,7 @@ struct SwapChainCreateInfo
                                                ///  creating a swap chain on DirectDisplay platform, and exclusive
                                                ///  access to the IScreen is required, that is the IScreen needs to call
                                                ///  AcquireScreenAccess before swap chain creation.
+    ScreenColorSpace      colorSpace;          ///< Colorspace to create the swapchain in.
 
     IDevice*              pSlaveDevices[XdmaMaxDevices - 1]; ///< Array of up to XdmaMaxDevices minus one for the device
                                                              ///  that is creating this swap chain. These are additional
@@ -232,6 +264,16 @@ public:
     ///
     /// @returns True if window size is possibly changed.
     virtual bool NeedWindowSizeChangedCheck() const = 0;
+
+    /// Set HDR meta data for swapchain. This interface is only supported on DXGI swapchains at the moment
+    /// @see SwapChainProperties colorSpace for supported colorspaces.
+    ///
+    /// @param [in]  colorConfig Screen Color Information to set HDR meta data
+    ///
+    /// @returns Success, if HDR meta data was set correctly. Otherwise an error code may be returned
+    ///          + ErrorUnknown when something unexpected went wrong
+    ///          + Unsupported Swapchain does not support setting metadata through this interface
+    virtual Result SetHdrMetaData(const ScreenColorConfig& colorConfig) = 0;
 
     /// Returns the value of the associated arbitrary client data pointer.
     /// Can be used to associate arbitrary data with a particular PAL object.

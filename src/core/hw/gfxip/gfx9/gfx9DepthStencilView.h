@@ -83,7 +83,7 @@ public:
         CmdStream* pCmdStream,
         uint32*    pCmdSpace);
 
-    static uint32* HandleBoundTargetChanged(uint32* pCmdSpace);
+    uint32* HandleBoundTargetChanged(const UniversalCmdBuffer*  pCmdBuffer, uint32* pCmdSpace) const;
 
     TargetExtent2d GetExtent() const { return m_extent; }
 
@@ -260,6 +260,13 @@ struct Gfx10DepthStencilViewRegs
     regCOHER_DEST_BASE_0             coherDestBase0;
     regDB_RENDER_OVERRIDE            dbRenderOverride;
     regDB_RMI_L2_CACHE_CONTROL       dbRmiL2CacheControl;
+
+    // Add these five registers to support PAL's high-address bits on GFX10 DB
+    regDB_Z_READ_BASE_HI             dbZReadBaseHi;
+    regDB_Z_WRITE_BASE_HI            dbZWriteBaseHi;
+    regDB_STENCIL_READ_BASE_HI       dbStencilReadBaseHi;
+    regDB_STENCIL_WRITE_BASE_HI      dbStencilWriteBaseHi;
+    regDB_HTILE_DATA_BASE_HI         dbHtileDataBaseHi;
 
     gpusize  fastClearMetadataGpuVa;
     gpusize  hiSPretestMetadataGpuVa;

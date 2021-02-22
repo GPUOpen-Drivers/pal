@@ -178,8 +178,11 @@ void GpuEvent::GetGpuMemoryRequirements(
 {
     pGpuMemReqs->size      = GpuRequiredMemSizePerSlotInBytes * m_numSlotsPerEvent;
     pGpuMemReqs->alignment = GpuRequiredMemAlignment;
+    pGpuMemReqs->flags.u32All = 0;
+    pGpuMemReqs->flags.cpuAccess = (m_createInfo.flags.gpuAccessOnly == 0);
 
-    if (m_createInfo.flags.gpuAccessOnly == 1)
+    const bool haveInvisibleMem = (m_pDevice->MemoryProperties().invisibleHeapSize > 0);
+    if (haveInvisibleMem && (m_createInfo.flags.gpuAccessOnly == 1))
     {
         pGpuMemReqs->heapCount = 4;
         pGpuMemReqs->heaps[0]  = GpuHeapInvisible;

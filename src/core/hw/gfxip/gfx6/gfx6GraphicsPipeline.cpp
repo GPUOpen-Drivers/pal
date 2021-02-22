@@ -238,9 +238,9 @@ GraphicsPipeline::GraphicsPipeline(
 // loaded using LOAD_SH_REG_INDEX and LOAD_CONTEXT_REG_INDEX, as well as determining things like which shader stages are
 // active.
 void GraphicsPipeline::EarlyInit(
-    const CodeObjectMetadata& metadata,
-    const RegisterVector&     registers,
-    GraphicsPipelineLoadInfo* pInfo)
+    const PalAbi::CodeObjectMetadata& metadata,
+    const RegisterVector&             registers,
+    GraphicsPipelineLoadInfo*         pInfo)
 {
     // VGT_SHADER_STAGES_EN and must be read first, since it determines which HW stages are active!
     m_regs.context.vgtShaderStagesEn.u32All = registers.At(mmVGT_SHADER_STAGES_EN);
@@ -279,7 +279,7 @@ void GraphicsPipeline::EarlyInit(
 Result GraphicsPipeline::HwlInit(
     const GraphicsPipelineCreateInfo& createInfo,
     const AbiReader&                  abiReader,
-    const CodeObjectMetadata&         metadata,
+    const PalAbi::CodeObjectMetadata& metadata,
     MsgPackReader*                    pMetadataReader)
 {
     RegisterVector registers(m_pDevice->GetPlatform());
@@ -1234,7 +1234,7 @@ void GraphicsPipeline::SetupLateAllocVs(
 // =====================================================================================================================
 // Updates the device that this pipeline has some new ring-size requirements.
 void GraphicsPipeline::UpdateRingSizes(
-    const CodeObjectMetadata& metadata)
+    const PalAbi::CodeObjectMetadata& metadata)
 {
     const Gfx6PalSettings& settings = m_pDevice->Settings();
 
@@ -1270,7 +1270,7 @@ void GraphicsPipeline::UpdateRingSizes(
 // =====================================================================================================================
 // Calculates the maximum scratch memory in dwords necessary by checking the scratch memory needed for each shader.
 uint32 GraphicsPipeline::ComputeScratchMemorySize(
-    const CodeObjectMetadata& metadata
+    const PalAbi::CodeObjectMetadata& metadata
     ) const
 {
     uint32 scratchMemorySizeBytes = 0;
@@ -1372,10 +1372,10 @@ uint32 GraphicsPipeline::GetVsUserDataBaseOffset() const
 // =====================================================================================================================
 // Initializes the signature for a single stage within a graphics pipeline using a pipeline ELF.
 void GraphicsPipeline::SetupSignatureForStageFromElf(
-    const CodeObjectMetadata& metadata,
-    const RegisterVector&     registers,
-    HwShaderStage             stage,
-    uint16*                   pEsGsLdsSizeReg)
+    const PalAbi::CodeObjectMetadata& metadata,
+    const RegisterVector&             registers,
+    HwShaderStage                     stage,
+    uint16*                           pEsGsLdsSizeReg)
 {
     constexpr uint16 BaseRegAddr[] =
     {
@@ -1502,10 +1502,10 @@ void GraphicsPipeline::SetupSignatureForStageFromElf(
 // =====================================================================================================================
 // Initializes the signature of a graphics pipeline using a pipeline ELF.
 void GraphicsPipeline::SetupSignatureFromElf(
-    const CodeObjectMetadata& metadata,
-    const RegisterVector&     registers,
-    uint16*                   pEsGsLdsSizeRegGs,
-    uint16*                   pEsGsLdsSizeRegVs)
+    const PalAbi::CodeObjectMetadata& metadata,
+    const RegisterVector&             registers,
+    uint16*                           pEsGsLdsSizeRegGs,
+    uint16*                           pEsGsLdsSizeRegVs)
 {
     if (metadata.pipeline.hasEntry.spillThreshold != 0)
     {

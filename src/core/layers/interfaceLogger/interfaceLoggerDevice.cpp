@@ -48,6 +48,7 @@
 #include "core/layers/interfaceLogger/interfaceLoggerScreen.h"
 #include "core/layers/interfaceLogger/interfaceLoggerShaderLibrary.h"
 #include "core/layers/interfaceLogger/interfaceLoggerSwapChain.h"
+#include "core/g_palPlatformSettings.h"
 #include "palSysUtil.h"
 
 using namespace Util;
@@ -89,7 +90,15 @@ Result Device::CommitSettingsAndInit()
     if (result == Result::Success)
     {
         // We must initialize logging here, now that we finally have our settings.
-        result = pPlatform->CommitLoggingSettings();
+        // But don't fail init.
+        Result layerResult = pPlatform->CommitLoggingSettings();
+        PAL_ALERT_MSG(layerResult != Result::Success, "Failed to initialize interface logger");
+        if ((layerResult == Result::ErrorPermissionDenied) ||
+            (layerResult == Result::NotFound))
+        {
+            PAL_DPINFO("Check permissions on '%s' or change logDirectory/AMD_DEBUG_DIR.",
+                       pPlatform->PlatformSettings().interfaceLoggerConfig.logDirectory);
+        }
     }
 
     LogContext* pLogContext = nullptr;

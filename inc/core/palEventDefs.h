@@ -71,7 +71,9 @@ enum class PalEvent : uint32
     // Sends the RMT major/minor version used for RMT token output
     RmtVersion               = 14,
 
-    Count                    = 15
+    ResourceCorrelation      = 15,
+
+    Count                    = 16
 };
 
 typedef uint64 GpuMemHandle;
@@ -151,6 +153,13 @@ struct MiscEventData
 {
     MiscEventType eventType;  ///< Type of miscellaneous event being logged
     EngineType    engine;     ///< Engine associated with the event, can be EngineTypeCount if not applicable.
+};
+
+/// Event data for a ResourceCorrelation event
+struct ResourceCorrelationEventData
+{
+    const void* pObj;           ///< Opaque pointer to the object that was created
+    const void* pDriverPrivate; ///< Opaque pointer to the internal driver pointer we are correlating.
 };
 
 /// Event data for a GPU Memory Snapshot event, this adds a named marker to the GPU Memory event stream.

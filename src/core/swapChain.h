@@ -58,9 +58,14 @@ public:
 
     virtual bool NeedWindowSizeChangedCheck() const override { return true; }
 
+    virtual Result SetHdrMetaData(const ScreenColorConfig& colorConfig) { return Result::Unsupported; }
+
     // These begin and end a swap chain present. The present scheduler must call PresentComplete once it has scheduled
     // the present and all necessary synchronization.
-    Result Present(const PresentSwapChainInfo& presentInfo, IQueue* pQueue);
+    // Note that the DXGI swapchain is an exception to the above rule and all necessary functionality is self
+    // contained in it's own class implementation.
+    virtual Result Present(const PresentSwapChainInfo& presentInfo, IQueue* pQueue);
+
     Result PresentComplete(IQueue* pQueue, uint32 imageIndex);
 
     // the function to wait for image idle in the acquire time.

@@ -1941,6 +1941,13 @@ typedef struct PM4_PFP_GEN_PDEPTE
 
 constexpr unsigned int PM4_PFP_GEN_PDEPTE_SIZEDW__CORE = 10;
 
+// ---------------------------- PFP_INDEX_ATTRIBUTES_INDIRECT_mode_enum ----------------------------
+enum PFP_INDEX_ATTRIBUTES_INDIRECT_mode_enum
+{
+    mode__pfp_index_attributes_indirect_direct_addr__GFX09_GFX10CORE     =  0,
+    mode__pfp_index_attributes_indirect_indirect_offset__GFX09_GFX10CORE =  1,
+};
+
 // ------------------------------- PM4_PFP_INDEX_ATTRIBUTES_INDIRECT -------------------------------
 typedef struct PM4_PFP_INDEX_ATTRIBUTES_INDIRECT
 {
@@ -1959,6 +1966,11 @@ typedef struct PM4_PFP_INDEX_ATTRIBUTES_INDIRECT
                 uint32_t reserved1         :  4;
                 uint32_t attribute_base_lo : 28;
             };
+            struct
+            {
+                PFP_INDEX_ATTRIBUTES_INDIRECT_mode_enum indirect_mode :  1;
+                uint32_t                                reserved2     : 31;
+            } hasCe;
         } bitfields;
         uint32_t u32All;
     } ordinal2;
@@ -1966,6 +1978,7 @@ typedef struct PM4_PFP_INDEX_ATTRIBUTES_INDIRECT
     union
     {
         uint32_t attribute_base_hi;
+        uint32_t addr_offset;
         uint32_t u32All;
     } ordinal3;
 
@@ -3198,6 +3211,158 @@ typedef struct PM4_PFP_STRMOUT_BUFFER_UPDATE
 } PM4_PFP_STRMOUT_BUFFER_UPDATE;
 
 constexpr unsigned int PM4_PFP_STRMOUT_BUFFER_UPDATE_SIZEDW__CORE = 6;
+
+// ----------------------------------- PM4_PFP_EXECUTE_INDIRECT -----------------------------------
+typedef struct PM4_PFP_EXECUTE_INDIRECT
+{
+    union
+    {
+        PM4_PFP_TYPE_3_HEADER header;
+        uint32_t u32All;
+    } ordinal1;
+
+    union
+    {
+        union
+        {
+            struct
+            {
+                uint32_t reserved1   :  2;
+                uint32_t cmd_base_lo : 30;
+            } hasCe;
+        } bitfields;
+        uint32_t u32All;
+    } ordinal2;
+
+    union
+    {
+        uint32_t cmd_base_hi;
+        uint32_t u32All;
+    } ordinal3;
+
+    union
+    {
+        union
+        {
+            struct
+            {
+                uint32_t                              ib_size               : 20;
+                uint32_t                              chain                 :  1;
+                uint32_t                              pre_ena               :  1;
+                uint32_t                              reserved1             :  1;
+                uint32_t                              count_indirect_enable :  1;
+                uint32_t                              vmid                  :  4;
+                PFP_INDIRECT_BUFFER_cache_policy_enum cache_policy          :  2;
+                uint32_t                              pre_resume            :  1;
+                uint32_t                              reserved2             :  1;
+            } hasCe;
+        } bitfields;
+        uint32_t u32All;
+    } ordinal4;
+
+    union
+    {
+        uint32_t count;
+        uint32_t u32All;
+    } ordinal5;
+
+    union
+    {
+        union
+        {
+            struct
+            {
+                uint32_t reserved1     :  2;
+                uint32_t count_addr_lo : 30;
+            } hasCe;
+        } bitfields;
+        uint32_t u32All;
+    } ordinal6;
+
+    union
+    {
+        uint32_t count_addr_hi;
+        uint32_t u32All;
+    } ordinal7;
+
+    union
+    {
+        uint32_t stride;
+        uint32_t u32All;
+    } ordinal8;
+
+    union
+    {
+        uint32_t data_addr_lo;
+        uint32_t u32All;
+    } ordinal9;
+
+    union
+    {
+        union
+        {
+            struct
+            {
+                uint32_t data_addr_hi       : 16;
+                uint32_t spill_table_stride : 16;
+            } hasCe;
+        } bitfields;
+        uint32_t u32All;
+    } ordinal10;
+
+    union
+    {
+        uint32_t spill_table_addr_lo;
+        uint32_t u32All;
+    } ordinal11;
+
+    union
+    {
+        union
+        {
+            struct
+            {
+                uint32_t spill_table_addr_hi     : 16;
+                uint32_t spill_table_reg_offset0 : 16;
+            } hasCe;
+        } bitfields;
+        uint32_t u32All;
+    } ordinal12;
+
+    union
+    {
+        union
+        {
+            struct
+            {
+                uint32_t spill_table_reg_offset1 : 16;
+                uint32_t spill_table_reg_offset2 : 16;
+            } hasCe;
+        } bitfields;
+        uint32_t u32All;
+    } ordinal13;
+
+    union
+    {
+        union
+        {
+            struct
+            {
+                uint32_t spill_table_reg_offset3 : 16;
+                uint32_t reserved1               : 16;
+            } hasCe;
+        } bitfields;
+        uint32_t u32All;
+    } ordinal14;
+
+    union
+    {
+        uint32_t untyped_srd_dword3;
+        uint32_t u32All;
+    } ordinal15;
+} PM4_PFP_EXECUTE_INDIRECT;
+
+constexpr unsigned int PM4_PFP_EXECUTE_INDIRECT_SIZEDW__HASCE = 15;
 
 // -------------------------------- PFP_WAIT_REG_MEM_function_enum --------------------------------
 enum PFP_WAIT_REG_MEM_function_enum

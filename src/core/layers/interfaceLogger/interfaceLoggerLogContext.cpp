@@ -111,6 +111,7 @@ static constexpr FuncFormattingEntry FuncFormattingTable[] =
     { InterfaceFunc::CmdBufferCmdBindDepthStencilState,                         InterfaceObject::CmdBuffer,            "CmdBindDepthStencilState"                },
     { InterfaceFunc::CmdBufferCmdSetDepthBounds,                                InterfaceObject::CmdBuffer,            "CmdSetDepthBounds"                       },
     { InterfaceFunc::CmdBufferCmdSetUserData,                                   InterfaceObject::CmdBuffer,            "CmdSetUserData"                          },
+    { InterfaceFunc::CmdBufferCmdSetKernelArguments,                            InterfaceObject::CmdBuffer,            "CmdSetKernelArguments"                   },
     { InterfaceFunc::CmdBufferCmdSetVertexBuffers,                              InterfaceObject::CmdBuffer,            "CmdSetVertexBuffers"                     },
     { InterfaceFunc::CmdBufferCmdBindIndexData,                                 InterfaceObject::CmdBuffer,            "CmdBindIndexData"                        },
     { InterfaceFunc::CmdBufferCmdBindTargets,                                   InterfaceObject::CmdBuffer,            "CmdBindTargets"                          },

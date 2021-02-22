@@ -145,18 +145,18 @@ protected:
     virtual ~GraphicsPipeline() { }
 
     virtual Result HwlInit(
-        const GraphicsPipelineCreateInfo& createInfo,
-        const AbiReader&                  abiReader,
-        const CodeObjectMetadata&         metadata,
-        Util::MsgPackReader*              pMetadataReader) override;
+        const GraphicsPipelineCreateInfo&       createInfo,
+        const AbiReader&                        abiReader,
+        const Util::PalAbi::CodeObjectMetadata& metadata,
+        Util::MsgPackReader*                    pMetadataReader) override;
 
     virtual const ShaderStageInfo* GetShaderStageInfo(ShaderType shaderType) const override;
 
 private:
     void EarlyInit(
-        const CodeObjectMetadata& metadata,
-        const RegisterVector&     registers,
-        GraphicsPipelineLoadInfo* pInfo);
+        const Util::PalAbi::CodeObjectMetadata& metadata,
+        const RegisterVector&                   registers,
+        GraphicsPipelineLoadInfo*               pInfo);
 
     uint32 CalcMaxWavesPerSh(float maxWavesPerCu) const;
 
@@ -170,20 +170,20 @@ private:
     uint32* WriteContextCommandsSetPath(CmdStream* pCmdStream, uint32* pCmdSpace) const;
 
     void UpdateRingSizes(
-        const CodeObjectMetadata& metadata);
+        const Util::PalAbi::CodeObjectMetadata& metadata);
     uint32 ComputeScratchMemorySize(
-        const CodeObjectMetadata& metadata) const;
+        const Util::PalAbi::CodeObjectMetadata& metadata) const;
 
     void SetupSignatureFromElf(
-        const CodeObjectMetadata& metadata,
-        const RegisterVector&     registers,
-        uint16*                   pEsGsLdsSizeRegGs,
-        uint16*                   pEsGsLdsSizeRegVs);
+        const Util::PalAbi::CodeObjectMetadata& metadata,
+        const RegisterVector&                   registers,
+        uint16*                                 pEsGsLdsSizeRegGs,
+        uint16*                                 pEsGsLdsSizeRegVs);
     void SetupSignatureForStageFromElf(
-        const CodeObjectMetadata& metadata,
-        const RegisterVector&     registers,
-        HwShaderStage             stage,
-        uint16*                   pEsGsLdsSizeReg);
+        const Util::PalAbi::CodeObjectMetadata& metadata,
+        const RegisterVector&                   registers,
+        HwShaderStage                           stage,
+        uint16*                                 pEsGsLdsSizeReg);
 
     void SetupCommonRegisters(
         const GraphicsPipelineCreateInfo& createInfo,

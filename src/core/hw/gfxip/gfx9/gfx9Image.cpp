@@ -163,7 +163,7 @@ Result Image::Addr2FinalizePlane(
     for (uint32 mip = 0; mip < m_createInfo.mipLevels; ++mip)
     {
         memcpy(&m_addrMipOutput[plane][mip], (surfaceInfo.pMipInfo + mip), sizeof(m_addrMipOutput[0][0]));
-}
+    }
 
     auto*const pTileInfo = static_cast<AddrMgr2::TileInfo*>(pBaseTileInfo);
 
@@ -1482,49 +1482,7 @@ gpusize Image::GetMaskRamBaseAddr(
 
     const  gpusize  baseAddr = m_pParent->GetBoundGpuMemory().GpuVirtAddr() + maskRamMemOffset;
 
-    // PAL doesn't respect the high-address programming fields (i.e., they're always set to zero).  Ensure that
-    // they're not supposed to be set.  :-)  If this trips, we have a big problem.
-    PAL_ASSERT(Get256BAddrHi(baseAddr) == 0);
-
     return baseAddr;
-}
-
-// =====================================================================================================================
-// Calculates the shifted base address for the specified mask-ram.  Returned address includes the pipe/bank xor
-// value associated with the specified plane.
-uint32 Image::GetMaskRam256BAddr(
-    const Gfx9MaskRam*  pMaskRam,
-    const SubresId&     subResId
-    ) const
-{
-    return Get256BAddrSwizzled(GetMaskRamBaseAddr(pMaskRam, subResId.arraySlice),
-                               pMaskRam->GetPipeBankXor(subResId.plane));
-}
-
-// =====================================================================================================================
-uint32 Image::GetHtile256BAddr() const
-{
-    // Need to obtain the address off of the base mip-level / slice.  The HW is responsible for determining the
-    // address of the requeusted mip-level / slice based on the information provided to the SRD.
-    const SubresId  baseSubres = {};
-
-    return GetMaskRam256BAddr(GetHtile(), baseSubres);
-}
-
-// =====================================================================================================================
-uint32 Image::GetCmask256BAddr() const
-{
-    return GetMaskRam256BAddr(GetCmask(), SubresId{});
-}
-
-// =====================================================================================================================
-// Calculates the shifted base address for fMask, including the pipe/bank xor
-uint32 Image::GetFmask256BAddr() const
-{
-    const Gfx9Fmask*const pFmask   = GetFmask();
-
-    // fMask surfaces have a pipe/bank xor value which is independent of the main image's pipe/bank xor value
-    return Get256BAddrSwizzled(GetMaskRamBaseAddr(pFmask, 0), pFmask->GetPipeBankXor());
 }
 
 // =====================================================================================================================
@@ -2181,37 +2139,11 @@ uint32 Image::GetTileSwizzle(
 }
 
 // =====================================================================================================================
-gpusize Image::GetFullSubresourceAddr(
+gpusize Image::GetSubresourceAddr(
     SubresId  subResId
     ) const
 {
     return GetPlaneBaseAddr(subResId.plane);
-}
-
-// =====================================================================================================================
-gpusize Image::GetFullSubresource256BAddr(
-    SubresId  subResId
-    ) const
-{
-    return GetFullSubresourceAddr(subResId) >> 8;
-}
-
-// =====================================================================================================================
-// Calculates a base_256b address for this image with the subresource's pipe-bank-xor OR'ed in.
-uint32 Image::GetSubresource256BAddrSwizzledLow(
-    SubresId subresource
-    ) const
-{
-    return Get256BAddrLo(GetFullSubresourceAddr(subresource));
-}
-
-// =====================================================================================================================
-// Calculates a base_256b address for this image with the subresource's pipe-bank-xor OR'ed in.
-uint32 Image::GetSubresource256BAddrSwizzledHi(
-    SubresId subresource
-    ) const
-{
-    return Get256BAddrHi(GetFullSubresourceAddr(subresource));
 }
 
 // =====================================================================================================================
@@ -3577,6 +3509,7 @@ void Image::GetSharedMetadataInfo(
     for (uint32  dccPlane = 0; dccPlane < m_numDccPlanes; dccPlane++)
     {
         pMetadataInfo->dccOffset[dccPlane]                        = m_pDcc[dccPlane]->MemoryOffset();
+        pMetadataInfo->pipeAligned[dccPlane]                      = m_pDcc[dccPlane]->PipeAligned();
         pMetadataInfo->dccStateMetaDataOffset[dccPlane]           = m_dccStateMetaDataOffset[dccPlane];
         pMetadataInfo->fastClearEliminateMetaDataOffset[dccPlane] = m_fastClearEliminateMetaDataOffset[dccPlane];
         pMetadataInfo->fastClearMetaDataOffset[dccPlane]          = m_fastClearMetaDataOffset[dccPlane];

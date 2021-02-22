@@ -172,22 +172,22 @@ protected:
     virtual ~GraphicsPipeline() { }
 
     virtual Result HwlInit(
-        const GraphicsPipelineCreateInfo& createInfo,
-        const AbiReader&                  abiReader,
-        const CodeObjectMetadata&         metadata,
-        Util::MsgPackReader*              pMetadataReader) override;
+        const GraphicsPipelineCreateInfo&       createInfo,
+        const AbiReader&                        abiReader,
+        const Util::PalAbi::CodeObjectMetadata& metadata,
+        Util::MsgPackReader*                    pMetadataReader) override;
 
     virtual const ShaderStageInfo* GetShaderStageInfo(ShaderType shaderType) const override;
-    void EarlyInit(const CodeObjectMetadata& metadata,
-                   const RegisterVector&     registers,
-                   GraphicsPipelineLoadInfo* pInfo);
+    void EarlyInit(const Util::PalAbi::CodeObjectMetadata& metadata,
+                   const RegisterVector&                   registers,
+                   GraphicsPipelineLoadInfo*               pInfo);
     void LateInit(
-        const GraphicsPipelineCreateInfo& createInfo,
-        const AbiReader&                  abiReader,
-        const CodeObjectMetadata&         metadata,
-        const RegisterVector&             registers,
-        const GraphicsPipelineLoadInfo&   loadInfo,
-        PipelineUploader*                 pUploader);
+        const GraphicsPipelineCreateInfo&       createInfo,
+        const AbiReader&                        abiReader,
+        const Util::PalAbi::CodeObjectMetadata& metadata,
+        const RegisterVector&                   registers,
+        const GraphicsPipelineLoadInfo&         loadInfo,
+        PipelineUploader*                       pUploader);
 
     Device*const m_pDevice;
 
@@ -214,20 +214,20 @@ private:
     uint32* WriteContextCommandsSetPath(CmdStream* pCmdStream, uint32* pCmdSpace) const;
 
     void UpdateRingSizes(
-        const CodeObjectMetadata& metadata);
+        const Util::PalAbi::CodeObjectMetadata& metadata);
     uint32 ComputeScratchMemorySize(
-        const CodeObjectMetadata& metadata) const;
+        const Util::PalAbi::CodeObjectMetadata& metadata) const;
 
     void SetupSignatureFromElf(
-        const CodeObjectMetadata& metadata,
-        const RegisterVector&     registers,
-        uint16*                   pEsGsLdsSizeRegGs,
-        uint16*                   pEsGsLdsSizeRegVs);
+        const Util::PalAbi::CodeObjectMetadata& metadata,
+        const RegisterVector&                   registers,
+        uint16*                                 pEsGsLdsSizeRegGs,
+        uint16*                                 pEsGsLdsSizeRegVs);
     void SetupSignatureForStageFromElf(
-        const CodeObjectMetadata& metadata,
-        const RegisterVector&     registers,
-        HwShaderStage             stage,
-        uint16*                   pEsGsLdsSizeReg);
+        const Util::PalAbi::CodeObjectMetadata& metadata,
+        const RegisterVector&                   registers,
+        HwShaderStage                           stage,
+        uint16*                                 pEsGsLdsSizeReg);
 
     void SetupCommonRegisters(
         const GraphicsPipelineCreateInfo& createInfo,
@@ -260,6 +260,8 @@ private:
 
     SX_DOWNCONVERT_FORMAT SxDownConvertFormat(ChNumFormat format) const;
     void DetermineBinningOnOff();
+
+    bool CanRbPlusOptimizeDepthOnly() const;
 
     const GfxIpLevel  m_gfxLevel;
     uint32            m_contextRegHash;
@@ -311,6 +313,7 @@ private:
             regCB_COVERAGE_OUT_CONTROL      cbCoverageOutCntl;
             regVGT_GS_ONCHIP_CNTL           vgtGsOnchipCntl;
             regVGT_DRAW_PAYLOAD_CNTL        vgtDrawPayloadCntl;
+            regSPI_SHADER_IDX_FORMAT        spiShaderIdxFormat;
             regSPI_SHADER_POS_FORMAT        spiShaderPosFormat;
             regSPI_SHADER_Z_FORMAT          spiShaderZFormat;
             regSPI_SHADER_COL_FORMAT        spiShaderColFormat;

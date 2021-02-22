@@ -88,15 +88,9 @@ Result CreateRpmGraphicsPipelines(
         break;
 
     case AsicRevision::Navi21:
-        pTable = rpmGfxBinaryTableNavi21;
-        break;
-
     case AsicRevision::Navi22:
-        pTable = rpmGfxBinaryTableNavi22;
-        break;
-
     case AsicRevision::Navi23:
-        pTable = rpmGfxBinaryTableNavi23;
+        pTable = rpmGfxBinaryTableNavi21;
         break;
 
     default:

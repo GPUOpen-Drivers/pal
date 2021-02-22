@@ -202,7 +202,6 @@ static constexpr ThreadTraceTokenConfig SqttTokenConfigNoInst    =
     TokenType::EventCs   |
     TokenType::EventGfx1 |
     TokenType::RegCs     |
-    TokenType::WaveRdy   |
     TokenType::UtilCounter,
     RegType::AllRegWrites
 };
@@ -2738,6 +2737,114 @@ Result GpaSession::UnregisterLibrary(
 }
 
 // =====================================================================================================================
+// Registers a library with the GpaSession.
+Result GpaSession::RegisterElfBinary(
+    const ElfBinaryInfo& elfBinaryInfo)
+{
+    PAL_ASSERT(elfBinaryInfo.pBinary != nullptr);
+
+    // Even if the library was already previously encountered, we still want to record every time it gets loaded.
+    Result result = AddCodeObjectLoadEvent(elfBinaryInfo, CodeObjectLoadEventType::LoadToGpuMemory);
+
+    m_registerPipelineLock.LockForWrite();
+
+    if ((result == Result::Success) && (elfBinaryInfo.originalHash != 0))
+    {
+        Util::MetroHash::Hash tempHash = {};
+
+        Util::MetroHash128 hasher;
+        hasher.Update(elfBinaryInfo.originalHash);
+        hasher.Update(elfBinaryInfo.compiledHash);
+        hasher.Finalize(tempHash.bytes);
+
+        const uint64 uniqueHash = Util::MetroHash::Compact64(&tempHash);
+
+        if (m_registeredApiHashes.Contains(uniqueHash) == false)
+        {
+            // Record a mapping of API hash -> internal library hash so they can be correlated.
+            PsoCorrelationRecord record = { };
+            record.apiPsoHash           = elfBinaryInfo.originalHash;
+            record.internalPipelineHash.stable = elfBinaryInfo.compiledHash;
+            record.internalPipelineHash.unique = uniqueHash;
+
+            result = m_psoCorrelationRecordsCache.PushBack(record);
+
+            if (result == Result::Success)
+            {
+                result = m_registeredApiHashes.Insert(uniqueHash);
+            }
+        }
+    }
+
+    if (result == Result::Success)
+    {
+        result = m_registeredPipelines.Contains(elfBinaryInfo.compiledHash) ? Result::AlreadyExists :
+                 m_registeredPipelines.Insert(elfBinaryInfo.compiledHash);
+    }
+
+    m_registerPipelineLock.UnlockForWrite();
+
+    if (result == Result::Success)
+    {
+        // Cache the code object binary in GpaSession-owned memory.
+        SqttCodeObjectDatabaseRecord record = {};
+
+        void* pCodeObjectRecord = nullptr;
+
+        record.recordSize = elfBinaryInfo.binarySize;
+
+        if (result == Result::Success)
+        {
+            PAL_ASSERT(record.recordSize != 0);
+
+            // Pad the record size to the nearest multiple of 4 bytes per the RGP file format spec.
+            record.recordSize = Util::RoundUpToMultiple(record.recordSize, 4U);
+
+            // Allocate space to store all the information for one record.
+            pCodeObjectRecord = PAL_MALLOC((sizeof(SqttCodeObjectDatabaseRecord) + record.recordSize),
+                                           m_pPlatform,
+                                           Util::SystemAllocType::AllocInternal);
+
+            if (pCodeObjectRecord != nullptr)
+            {
+                // Write the record header.
+                memcpy(pCodeObjectRecord, &record, sizeof(record));
+
+                // Write the code object binary.
+                memcpy(Util::VoidPtrInc(pCodeObjectRecord,
+                                        sizeof(record)),
+                                        elfBinaryInfo.pBinary,
+                                        record.recordSize);
+
+            }
+            else
+            {
+                result = Result::ErrorOutOfMemory;
+            }
+        }
+
+        if (result == Result::Success)
+        {
+            m_registerPipelineLock.LockForWrite();
+
+            m_codeObjectRecordsCache.PushBack(static_cast<SqttCodeObjectDatabaseRecord*>(pCodeObjectRecord));
+
+            m_registerPipelineLock.UnlockForWrite();
+        }
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
+// Unregisters a library from the GpaSession.
+Result GpaSession::UnregisterElfBinary(
+    const ElfBinaryInfo& elfBinaryInfo)
+{
+    return AddCodeObjectLoadEvent(elfBinaryInfo, CodeObjectLoadEventType::UnloadFromGpuMemory);
+}
+
+// =====================================================================================================================
 // Validate a list of perfcounters.
 Result GpaSession::ValidatePerfCounters(
     Pal::IDevice*        pDevice,
@@ -2866,6 +2973,28 @@ Result GpaSession::AddCodeObjectLoadEvent(
         result = m_codeObjectLoadEventRecordsCache.PushBack(record);
         m_registerPipelineLock.UnlockForWrite();
     }
+
+    return result;
+}
+
+// =====================================================================================================================
+// Helper function to add a new code object load event record.
+Result GpaSession::AddCodeObjectLoadEvent(
+    const ElfBinaryInfo&     elfBinaryInfo,
+    CodeObjectLoadEventType  eventType)
+{
+    PAL_ASSERT(elfBinaryInfo.pBinary != nullptr);
+    PAL_ASSERT(elfBinaryInfo.pGpuMemory != nullptr);
+
+    CodeObjectLoadEventRecord record = { };
+    record.eventType      = eventType;
+    record.baseAddress    = elfBinaryInfo.pGpuMemory->Desc().gpuVirtAddr + elfBinaryInfo.offset;
+    record.codeObjectHash = { elfBinaryInfo.originalHash, elfBinaryInfo.compiledHash };
+    record.timestamp      = static_cast<uint64>(Util::GetPerfCpuTime());
+
+    m_registerPipelineLock.LockForWrite();
+    Result result = m_codeObjectLoadEventRecordsCache.PushBack(record);
+    m_registerPipelineLock.UnlockForWrite();
 
     return result;
 }
@@ -3151,9 +3280,7 @@ Result GpaSession::AcquireGpuMem(
             createInfo.alignment = pageSize;
             createInfo.vaRange   = VaRange::Default;
             createInfo.priority  = (heapType == GpuHeapInvisible) ? GpuMemPriority::High : GpuMemPriority::Normal;
-
             createInfo.mallPolicy = mallPolicy;
-
             createInfo.heapCount = 0;
             createInfo.heaps[createInfo.heapCount++] = heapType;
 

@@ -100,6 +100,7 @@ struct PlatformProperties
     };
 };
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 682
 /// Enumerates the GPU affinity modes which can be selected by an application profile. This determines the preference
 /// of which Device(s) an application profile would like us to use for a specific application.
 ///
@@ -137,6 +138,7 @@ struct ApplicationProfile
     PxPowerState   powerState;  ///< Global Power Express power state. This is used in combination with the profile's
                                 ///  GPU affinity to determine which GPU's should be utilized by an application.
 };
+#endif
 
 /// The client that Pal may query profile for. the order is the same as SHARED_AP_AREA in KMD escape interface
 enum class ApplicationProfileClient : uint32
@@ -146,8 +148,10 @@ enum class ApplicationProfileClient : uint32
     Udx,
     Cfx,
     Ogl,
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 682
     Px,
     PxDynamic,
+#endif
     User3D,
     Ocl,
     Mmd,
@@ -299,6 +303,7 @@ public:
         void*    pStorage[MaxScreens],
         IScreen* pScreens[MaxScreens]) = 0;
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 682
     /// Queries an application-specific profile for Power Express configurations.
     ///
     /// This function queries the kernel-mode driver to determine if there is a platform-wide profile for a specific
@@ -323,10 +328,12 @@ public:
     ///          + ErrorInvalidPointer will be returned if pFilename or pOut is null.
     ///          + ErrorUnavailable if this is called before IPlatform::EnumerateDevices(), or if there were no Devices
     ///            discovered.
-    virtual Result QueryApplicationProfile(
+    Result QueryApplicationProfile(
         const char*         pFilename,
         const char*         pPathname,
-        ApplicationProfile* pOut) = 0;
+        ApplicationProfile* pOut)
+        { return Result::Unsupported; }
+#endif
 
     /// Queries a client specified application profile in raw format.
     ///
@@ -529,6 +536,11 @@ public:
         va_end(args);
     }
 
+    /// Logs an event using the DevDriver protocol.
+    ///
+    /// @param [in] eventId       The type of event you want to log.
+    /// @param [in] pEventData    A pointer to the struct corresponding to the event id.
+    /// @param [in] eventDataSize The size of the event data struct.
     virtual void LogEvent(
         PalEvent    eventId,
         const void* pEventData,

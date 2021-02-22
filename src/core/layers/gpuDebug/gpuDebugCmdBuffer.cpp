@@ -37,6 +37,7 @@
 #include "palAutoBuffer.h"
 #include "palFile.h"
 #include "palFormatInfo.h"
+#include "palHsaAbiMetadata.h"
 #include "palSysUtil.h"
 #include "palVectorImpl.h"
 #include "util/directDrawSurface.h"
@@ -72,7 +73,7 @@ CmdBuffer::CmdBuffer(
     m_counter(0),
     m_engineType(createInfo.engineType),
     m_verificationOptions(m_pDevice->GetPlatform()->PlatformSettings().gpuDebugConfig.verificationOptions),
-    m_pBoundPipeline(nullptr),
+    m_pBoundPipelines{},
     m_boundTargets(),
     m_pBoundBlendState(nullptr),
     m_pTokenStream(nullptr),
@@ -383,9 +384,9 @@ void CmdBuffer::SurfaceCaptureHashMatch()
     m_surfaceCapture.pipelineMatch = false;
 
     if (IsSurfaceCaptureEnabled() &&
-        (m_pBoundPipeline != nullptr))
+        (m_pBoundPipelines[static_cast<uint32>(PipelineBindPoint::Graphics)] != nullptr))
     {
-        const PipelineInfo& pipeInfo = m_pBoundPipeline->GetInfo();
+        const PipelineInfo& pipeInfo = m_pBoundPipelines[static_cast<uint32>(PipelineBindPoint::Graphics)]->GetInfo();
 
         m_surfaceCapture.pipelineMatch =
             (m_surfaceCapture.hash == 0) ||
@@ -1038,17 +1039,9 @@ Result CmdBuffer::Reset(
     ICmdAllocator* pCmdAllocator,
     bool           returnGpuMemory)
 {
-    m_counter           = 0;
-    m_pLastTgtCmdBuffer = nullptr;
-    m_pBoundPipeline    = nullptr;
-    m_pBoundBlendState  = nullptr;
-    memset(&m_boundTargets, 0, sizeof(m_boundTargets));
-    memset(&m_buildInfo, 0, sizeof(m_buildInfo));
-    m_releaseTokenList.Clear();
-    m_numReleaseTokens = 0;
-
+    // Reset is an optional call, if the app calls it we might as well clean up some of our heavier state objects.
+    // Note that we'll do a full reset when they call Begin later on.
     m_surfaceCapture.actionId = 0;
-
     DestroySurfaceCaptureData();
 
     return GetNextLayer()->Reset(NextCmdAllocator(pCmdAllocator), returnGpuMemory);
@@ -1058,8 +1051,23 @@ Result CmdBuffer::Reset(
 Result CmdBuffer::Begin(
     const CmdBufferBuildInfo& info)
 {
-    m_pLastTgtCmdBuffer = nullptr;
+    // Reset any API state tracking.
     m_counter           = 0;
+    m_pLastTgtCmdBuffer = nullptr;
+    m_pBoundBlendState  = nullptr;
+
+    for (uint32 idx = 0; idx < static_cast<uint32>(PipelineBindPoint::Count); ++idx)
+    {
+        m_pBoundPipelines[idx] = nullptr;
+    }
+
+    memset(&m_boundTargets, 0, sizeof(m_boundTargets));
+
+    m_releaseTokenList.Clear();
+    m_numReleaseTokens = 0;
+
+    m_surfaceCapture.actionId = 0;
+    DestroySurfaceCaptureData();
 
     // Reset the token stream state so that we can reuse our old token stream buffer.
     m_tokenWriteOffset = 0;
@@ -1204,7 +1212,7 @@ void CmdBuffer::ReplayEnd(
 void CmdBuffer::CmdBindPipeline(
     const PipelineBindParams& params)
 {
-    m_pBoundPipeline = params.pPipeline;
+    m_pBoundPipelines[static_cast<uint32>(params.pipelineBindPoint)] = params.pPipeline;
 
     SurfaceCaptureHashMatch();
 
@@ -1411,6 +1419,58 @@ void CmdBuffer::ReplayCmdSetUserData(
     auto          entryCount        = ReadTokenArray(&pEntryValues);
 
     pTgtCmdBuffer->CmdSetUserData(pipelineBindPoint, firstEntry, entryCount, pEntryValues);
+}
+
+// =====================================================================================================================
+void CmdBuffer::CmdSetKernelArguments(
+    uint32            firstArg,
+    uint32            argCount,
+    const void*const* ppValues)
+{
+    InsertToken(CmdBufCallId::CmdSetKernelArguments);
+    InsertToken(firstArg);
+    InsertToken(argCount);
+
+    // There must be an HSA ABI pipeline bound if you call this function.
+    const IPipeline*const pPipeline = m_pBoundPipelines[static_cast<uint32>(PipelineBindPoint::Compute)];
+    PAL_ASSERT((pPipeline != nullptr) && (pPipeline->GetInfo().flags.hsaAbi == 1));
+
+    for (uint32 idx = 0; idx < argCount; ++idx)
+    {
+        const auto* pArgument = pPipeline->GetKernelArgument(firstArg + idx);
+        PAL_ASSERT(pArgument != nullptr);
+
+        const size_t valueSize = pArgument->size;
+        PAL_ASSERT(valueSize > 0);
+
+        InsertTokenArray(static_cast<const uint8*>(ppValues[idx]), static_cast<uint32>(valueSize));
+    }
+}
+
+// =====================================================================================================================
+void CmdBuffer::ReplayCmdSetKernelArguments(
+    Queue*           pQueue,
+    TargetCmdBuffer* pTgtCmdBuffer)
+{
+    const uint32 firstArg = ReadTokenVal<uint32>();
+    const uint32 argCount = ReadTokenVal<uint32>();
+    AutoBuffer<const void*, 16, Platform> values(argCount, static_cast<Platform*>(m_pDevice->GetPlatform()));
+
+    if (values.Capacity() < argCount)
+    {
+        pTgtCmdBuffer->SetLastResult(Result::ErrorOutOfMemory);
+    }
+    else
+    {
+        for (uint32 idx = 0; idx < argCount; ++idx)
+        {
+            const uint8* pArray;
+            ReadTokenArray(&pArray);
+            values[idx] = pArray;
+        }
+
+        pTgtCmdBuffer->CmdSetKernelArguments(firstArg, argCount, values.Data());
+    }
 }
 
 // =====================================================================================================================
@@ -2100,7 +2160,8 @@ void CmdBuffer::VerifyBoundDrawState() const
 
         // We can assume that because this is a draw that the bound pipeline is a GraphicsPipeline. Since we only
         // decorate GraphicsPipelines with the GpuDebug::Pipeline object, we can safely make this cast.
-        const GraphicsPipelineCreateInfo& pipeInfo = static_cast<const Pipeline*>(m_pBoundPipeline)->CreateInfo();
+        const IPipeline*const pPipeline = m_pBoundPipelines[static_cast<uint32>(PipelineBindPoint::Graphics)];
+        const GraphicsPipelineCreateInfo& pipeInfo = static_cast<const Pipeline*>(pPipeline)->CreateInfo();
 
         const uint32 numBoundColorTargets = m_boundTargets.colorTargetCount;
         for (uint32 i = 0; i < numBoundColorTargets; i++)
@@ -2200,7 +2261,10 @@ void CmdBuffer::HandleDrawDispatch(
 
     if (preAction)
     {
-        VerifyBoundDrawState();
+        if (isDraw)
+        {
+            VerifyBoundDrawState();
+        }
 
         const bool cacheFlushInv = (isDraw) ? TestAnyFlagSet(m_cacheFlushInvOnAction, BeforeDraw) :
                                               TestAnyFlagSet(m_cacheFlushInvOnAction, BeforeDispatch);
@@ -4679,6 +4743,7 @@ Result CmdBuffer::Replay(
         &CmdBuffer::ReplayCmdBindStreamOutTargets,
         &CmdBuffer::ReplayCmdBindBorderColorPalette,
         &CmdBuffer::ReplayCmdSetUserData,
+        &CmdBuffer::ReplayCmdSetKernelArguments,
         &CmdBuffer::ReplayCmdSetVertexBuffers,
         &CmdBuffer::ReplayCmdSetBlendConst,
         &CmdBuffer::ReplayCmdSetInputAssemblyState,

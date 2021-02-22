@@ -161,6 +161,7 @@ public:
         void*           pSrd) const = 0;
 
     const BoundGpuMemory& Memory() const { return m_gpuMemory; }
+    const gpusize MemorySize() const { return m_gpuMemSize; }
 
     GeneratorType Type() const { return m_type; }
     uint32 ParameterCount() const { return m_paramCount; }
@@ -184,6 +185,7 @@ protected:
 
     BoundGpuMemory  m_gpuMemory;
     gpusize         m_gpuMemSize;
+    gpusize         m_paddingDwords;
 
     uint32  m_propertiesSrd[4]; // Buffer SRD for the GeneratorProperties structure
     uint32  m_paramBufSrd[4];   // Buffer SRD for the Indirect-Parameter array

@@ -200,6 +200,64 @@ inline void MachineTypeToGfxIpVersion(
     }
 }
 
+/// Helper function to parse the Metadata section of a pipeline ELF.
+///
+/// @param [in] pReader            The message pack reader.
+/// @param [in] pDesc              The content of the metadata note section.
+/// @param [in] descSize           The length of the note section.
+/// @param [in] versionType        the hash of the metadata version identifier
+/// @param [out] pMetadataMajorVer The major metadata version.
+/// @param [out] pMetadataMinorVer The minor metadata version.
+///
+/// @returns Success if successful, ErrorInvalidValue, ErrorUnknown or ErrorInvalidPipelineElf if
+///          the metadata could not be parsed.
+inline Result GetMetadataVersion(
+    MsgPackReader* pReader,
+    const void*    pDesc,
+    uint32         descSize,
+    uint32         versionType,
+    uint32*        pMetadataMajorVer,
+    uint32*        pMetadataMinorVer)
+{
+    // We need to retrieve version info from the msgpack blob.
+    Result result = pReader->InitFromBuffer(pDesc, descSize);
+
+    if ((result == Result::Success) && (pReader->Type() != CWP_ITEM_MAP))
+    {
+        result = Result::ErrorInvalidPipelineElf;
+    }
+
+    for (uint32 j = pReader->Get().as.map.size; ((result == Result::Success) && (j > 0)); --j)
+    {
+        result = pReader->Next(CWP_ITEM_STR);
+
+        if (result == Result::Success)
+        {
+            const auto&  str     = pReader->Get().as.str;
+            const uint32 keyHash = HashString(static_cast<const char*>(str.start), str.length);
+            if (keyHash == versionType)
+            {
+                result = pReader->Next(CWP_ITEM_ARRAY);
+                if ((result == Result::Success) && (pReader->Get().as.array.size >= 2))
+                {
+                    result = pReader->UnpackNext(pMetadataMajorVer);
+                }
+                if (result == Result::Success)
+                {
+                    result = pReader->UnpackNext(pMetadataMinorVer);
+                }
+                break;
+            }
+            else
+            {
+                // Ideally, the version is the first field written so we don't reach here.
+                result = pReader->Skip(1);
+            }
+        }
+    }
+    return result;
+}
+
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 676
 } //Abi
 
@@ -224,43 +282,12 @@ inline Result GetPalMetadataVersion(
     uint32*        pMetadataMajorVer,
     uint32*        pMetadataMinorVer)
 {
-    // We need to retrieve version info from the msgpack blob.
-    Result result = pReader->InitFromBuffer(pDesc, descSize);
-
-    if ((result == Result::Success) && (pReader->Type() != CWP_ITEM_MAP))
-    {
-        result = Result::ErrorInvalidPipelineElf;
-    }
-
-    for (uint32 j = pReader->Get().as.map.size; ((result == Result::Success) && (j > 0)); --j)
-    {
-        result = pReader->Next(CWP_ITEM_STR);
-
-        if (result == Result::Success)
-        {
-            const auto&  str     = pReader->Get().as.str;
-            const uint32 keyHash = HashString(static_cast<const char*>(str.start), str.length);
-            if (keyHash == HashLiteralString(CodeObjectMetadataKey::Version))
-            {
-                result = pReader->Next(CWP_ITEM_ARRAY);
-                if ((result == Result::Success) && (pReader->Get().as.array.size >= 2))
-                {
-                    result = pReader->UnpackNext(pMetadataMajorVer);
-                }
-                if (result == Result::Success)
-                {
-                    result = pReader->UnpackNext(pMetadataMinorVer);
-                }
-                break;
-            }
-            else
-            {
-                // Ideally, the version is the first field written so we don't reach here.
-                result = pReader->Skip(1);
-            }
-        }
-    }
-    return result;
+    return Abi::GetMetadataVersion(pReader,
+                                   pDesc,
+                                   descSize,
+                                   HashLiteralString(CodeObjectMetadataKey::Version),
+                                   pMetadataMajorVer,
+                                   pMetadataMinorVer);
 }
 
 /// Helper function to parse the PalMetadata section of a pipeline ELF.

@@ -119,3 +119,5 @@ PAL contains code written by third parties:
 * rapidjson is distributed under the terms of MIT License, see shared/gpuopen/third_party/rapidjson/license.txt
 * tiny_printf is distributed under the terms of MIT License, see shared/gpuopen/third_party/tiny_printf/LICENSE
 * dds is distributed under the terms of MIT License, see src/util/imported/dds/dds-license
+* hsa.h and amd_hsa_*.h are distributed under the terms of the University of Illinois/NCSA Open Source License, see the license embedded into src/core/imported/hsa/hsa.h
+* AMDHSAKernelDescriptor.h is distributed under the terms of Apache License 2.0 with LLVM Exceptions, see https://llvm.org/LICENSE.txt

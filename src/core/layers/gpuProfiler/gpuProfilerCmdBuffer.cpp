@@ -29,6 +29,7 @@
 #include "core/g_palPlatformSettings.h"
 #include "palAutoBuffer.h"
 #include "palGpaSession.h"
+#include "palHsaAbiMetadata.h"
 #include "palVectorImpl.h"
 
 // This is required because we need the definition of the D3D12DDI_PRESENT_0003 struct in order to make a copy of the
@@ -58,6 +59,7 @@ CmdBuffer::CmdBuffer(
     m_tokenWriteOffset(0),
     m_tokenReadOffset(0),
     m_tokenStreamResult(Result::Success),
+    m_pBoundPipelines{},
     m_disableDataGathering(false),
     m_forceDrawGranularityLogging(false),
     m_curLogFrame(0),
@@ -154,7 +156,13 @@ void* CmdBuffer::AllocTokenSpace(
 Result CmdBuffer::Begin(
     const CmdBufferBuildInfo& info)
 {
+    // Reset state tracked during recording.
     m_flags.containsPresent = 0;
+
+    for (uint32 idx = 0; idx < static_cast<uint32>(PipelineBindPoint::Count); ++idx)
+    {
+        m_pBoundPipelines[idx] = nullptr;
+    }
 
     // Reset the token stream state so that we can reuse our old token stream buffer.
     m_tokenWriteOffset  = 0;
@@ -336,6 +344,9 @@ void CmdBuffer::CmdBindPipeline(
 {
     InsertToken(CmdBufCallId::CmdBindPipeline);
     InsertToken(params);
+
+    // We may need this pipeline in a later recording function call.
+    m_pBoundPipelines[static_cast<uint32>(params.pipelineBindPoint)] = params.pPipeline;
 }
 
 // =====================================================================================================================
@@ -554,6 +565,58 @@ void CmdBuffer::ReplayCmdSetUserData(
     auto          entryCount        = ReadTokenArray(&pEntryValues);
 
     pTgtCmdBuffer->CmdSetUserData(pipelineBindPoint, firstEntry, entryCount, pEntryValues);
+}
+
+// =====================================================================================================================
+void CmdBuffer::CmdSetKernelArguments(
+    uint32            firstArg,
+    uint32            argCount,
+    const void*const* ppValues)
+{
+    InsertToken(CmdBufCallId::CmdSetKernelArguments);
+    InsertToken(firstArg);
+    InsertToken(argCount);
+
+    // There must be an HSA ABI pipeline bound if you call this function.
+    const IPipeline*const pPipeline = m_pBoundPipelines[static_cast<uint32>(PipelineBindPoint::Compute)];
+    PAL_ASSERT((pPipeline != nullptr) && (pPipeline->GetInfo().flags.hsaAbi == 1));
+
+    for (uint32 idx = 0; idx < argCount; ++idx)
+    {
+        const auto* pArgument = pPipeline->GetKernelArgument(firstArg + idx);
+        PAL_ASSERT(pArgument != nullptr);
+
+        const size_t valueSize = pArgument->size;
+        PAL_ASSERT(valueSize > 0);
+
+        InsertTokenArray(static_cast<const uint8*>(ppValues[idx]), static_cast<uint32>(valueSize));
+    }
+}
+
+// =====================================================================================================================
+void CmdBuffer::ReplayCmdSetKernelArguments(
+    Queue*           pQueue,
+    TargetCmdBuffer* pTgtCmdBuffer)
+{
+    const uint32 firstArg = ReadTokenVal<uint32>();
+    const uint32 argCount = ReadTokenVal<uint32>();
+    AutoBuffer<const void*, 16, Platform> values(argCount, static_cast<Platform*>(m_pDevice->GetPlatform()));
+
+    if (values.Capacity() < argCount)
+    {
+        pTgtCmdBuffer->SetLastResult(Result::ErrorOutOfMemory);
+    }
+    else
+    {
+        for (uint32 idx = 0; idx < argCount; ++idx)
+        {
+            const uint8* pArray;
+            ReadTokenArray(&pArray);
+            values[idx] = pArray;
+        }
+
+        pTgtCmdBuffer->CmdSetKernelArguments(firstArg, argCount, values.Data());
+    }
 }
 
 // =====================================================================================================================
@@ -3904,6 +3967,7 @@ Result CmdBuffer::Replay(
         &CmdBuffer::ReplayCmdBindStreamOutTargets,
         &CmdBuffer::ReplayCmdBindBorderColorPalette,
         &CmdBuffer::ReplayCmdSetUserData,
+        &CmdBuffer::ReplayCmdSetKernelArguments,
         &CmdBuffer::ReplayCmdSetVertexBuffers,
         &CmdBuffer::ReplayCmdSetBlendConst,
         &CmdBuffer::ReplayCmdSetInputAssemblyState,

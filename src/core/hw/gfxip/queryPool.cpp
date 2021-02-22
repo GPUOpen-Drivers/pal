@@ -76,24 +76,37 @@ void QueryPool::GetGpuMemoryRequirements(
     GpuMemoryRequirements* pGpuMemReqs
     ) const
 {
-    pGpuMemReqs->size      = m_boundSizeInBytes;
-    pGpuMemReqs->alignment = m_alignmentInBytes;
+    pGpuMemReqs->size            = m_boundSizeInBytes;
+    pGpuMemReqs->alignment       = m_alignmentInBytes;
+    pGpuMemReqs->flags.u32All    = 0;
 
     if (m_createInfo.flags.enableCpuAccess)
     {
         // If a query pool will have its results read back using the CPU, then GartCacheable is the only preferable
         // heap for efficiency.
+        pGpuMemReqs->flags.cpuAccess = 1;
         pGpuMemReqs->heapCount = 1;
         pGpuMemReqs->heaps[0]  = GpuHeapGartCacheable;
     }
     else
     {
+        const bool noInvisibleMem = (m_device.MemoryProperties().invisibleHeapSize == 0);
+
         // Otherwise, the other heaps prefer query pools to reside in GPU memory, but safely get evicted back to
         // nonlocal memory in high memory-pressure situations.
-        pGpuMemReqs->heapCount = 3;
-        pGpuMemReqs->heaps[0]  = GpuHeapInvisible;
-        pGpuMemReqs->heaps[1]  = GpuHeapLocal;
-        pGpuMemReqs->heaps[2]  = GpuHeapGartUswc;
+        if (noInvisibleMem)
+        {
+            pGpuMemReqs->heapCount = 2;
+            pGpuMemReqs->heaps[0] = GpuHeapLocal;
+            pGpuMemReqs->heaps[1] = GpuHeapGartUswc;
+        }
+        else
+        {
+            pGpuMemReqs->heapCount = 3;
+            pGpuMemReqs->heaps[0] = GpuHeapInvisible;
+            pGpuMemReqs->heaps[1] = GpuHeapLocal;
+            pGpuMemReqs->heaps[2] = GpuHeapGartUswc;
+        }
     }
 }
 
@@ -128,7 +141,7 @@ Result QueryPool::GetResults(
             result = Result::ErrorInvalidMemorySize;
         }
 
-        if(m_device.GetIfhMode() == IfhModeDisabled)
+        if (m_device.GetIfhMode() == IfhModeDisabled)
         {
             void* pGpuData = nullptr;
             if (result == Result::Success)

@@ -51,9 +51,9 @@ public:
         CmdStream*         pCmdStream);
 
     virtual Result Init(const CmdBufferInternalCreateInfo& internalInfo) override;
-
     virtual Result Begin(const CmdBufferBuildInfo& info) override;
 
+    virtual void CmdBindPipeline(const PipelineBindParams& params) override;
     virtual void CmdBarrier(const BarrierInfo& barrierInfo) override;
 
     virtual void OptimizePipeAndCacheMaskForRelease(
@@ -233,18 +233,22 @@ protected:
     virtual void InheritStateFromCmdBuf(const GfxCmdBuffer* pCmdBuffer) override;
 
 private:
-    template <bool issueSqttMarkerEvent>
+    template <bool HsaAbi, bool IssueSqttMarkerEvent>
+    void SetDispatchFunctions();
+    void SetDispatchFunctions(bool hsaAbi);
+
+    template <bool HsaAbi, bool IssueSqttMarkerEvent>
     static void PAL_STDCALL CmdDispatch(
         ICmdBuffer* pCmdBuffer,
         uint32      x,
         uint32      y,
         uint32      z);
-    template <bool issueSqttMarkerEvent>
+    template <bool IssueSqttMarkerEvent>
     static void PAL_STDCALL CmdDispatchIndirect(
         ICmdBuffer*       pCmdBuffer,
         const IGpuMemory& gpuMemory,
         gpusize           offset);
-    template <bool issueSqttMarkerEvent>
+    template <bool HsaAbi, bool IssueSqttMarkerEvent>
     static void PAL_STDCALL CmdDispatchOffset(
         ICmdBuffer* pCmdBuffer,
         uint32      xOffset,
@@ -253,7 +257,7 @@ private:
         uint32      xDim,
         uint32      yDim,
         uint32      zDim);
-    template <bool issueSqttMarkerEvent>
+    template <bool IssueSqttMarkerEvent>
     static void PAL_STDCALL CmdDispatchDynamic(
         ICmdBuffer* pCmdBuffer,
         gpusize     gpuVa,
@@ -264,9 +268,18 @@ private:
     virtual void ActivateQueryType(QueryPoolType queryPoolType) override;
     virtual void DeactivateQueryType(QueryPoolType queryPoolType) override;
 
-    uint32* ValidateDispatch(
+    uint32* ValidateDispatchPalAbi(
         gpusize indirectGpuVirtAddr,
         gpusize launchDescGpuVirtAddr,
+        uint32  xDim,
+        uint32  yDim,
+        uint32  zDim,
+        uint32* pCmdSpace);
+
+    uint32* ValidateDispatchHsaAbi(
+        uint32  xOffset,
+        uint32  yOffset,
+        uint32  zOffset,
         uint32  xDim,
         uint32  yDim,
         uint32  zDim,
@@ -291,6 +304,7 @@ private:
 
     const Device&   m_device;
     const CmdUtil&  m_cmdUtil;
+    const bool      m_issueSqttMarkerEvent;
     CmdStream       m_cmdStream;
 
     // Tracks the user-data signature of the currently active compute pipeline.
@@ -304,6 +318,8 @@ private:
     //
     gpusize  m_predGpuAddr;
     bool     m_inheritedPredication; // True if the predicate packet is inherited from the root-level command buffer.
+
+    gpusize m_globalInternalTableAddr; // If non-zero, the low 32-bits of the global internal table were written here.
 
     PAL_DISALLOW_DEFAULT_CTOR(ComputeCmdBuffer);
     PAL_DISALLOW_COPY_AND_ASSIGN(ComputeCmdBuffer);

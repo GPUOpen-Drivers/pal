@@ -54,11 +54,6 @@ EventTimestamp EventTimer::CreateTimestamp()
         eventTimestamp.largeDelta.delta = deltaSinceLastToken;
 
         // Count the number of bytes in the delta
-        // TODO: Replace this with lzcnt and some arithmetic
-        //      [C++]
-        //      [MSVC]
-        //          https://github.com/MicrosoftDocs/cpp-docs/blob/master/docs/intrinsics/lzcnt16-lzcnt-lzcnt64.md
-        //      [GCC/Clang] See __builtin_ia32_lzcnt_u64
         uint64 numBytes = 1;
         while (((1ull << (numBytes * 8)) - 1) < deltaSinceLastToken)
         {

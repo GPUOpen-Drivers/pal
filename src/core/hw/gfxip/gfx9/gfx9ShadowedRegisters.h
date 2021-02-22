@@ -603,11 +603,11 @@ constexpr uint32 Gfx91NumNonShadowedRanges = static_cast<uint32>(Util::ArrayLen(
 constexpr uint32 Gfx10NumShShadowRanges    = static_cast<uint32>(Util::ArrayLen(Gfx10ShShadowRange));
 constexpr uint32 Gfx10NumCsShShadowRanges  = static_cast<uint32>(Util::ArrayLen(Gfx10CsShShadowRange));
 
-constexpr uint32 Gfx10NumUserConfigShadowRanges = Util::Max(Nv10NumUserConfigShadowRanges
-                                                            , Gfx103NumUserConfigShadowRanges
+constexpr uint32 Gfx10NumUserConfigShadowRanges = Util::Max(Nv10NumUserConfigShadowRanges,
+                                                            Gfx103NumUserConfigShadowRanges
                                                             , 0u);
-constexpr uint32 Gfx10NumContextShadowRanges    = Util::Max(Nv10NumContextShadowRanges
-                                                            , Gfx103NumContextShadowRanges
+constexpr uint32 Gfx10NumContextShadowRanges    = Util::Max(Nv10NumContextShadowRanges,
+                                                            Gfx103NumContextShadowRanges
                                                             , 0u);
 
 constexpr uint32 MaxNumUserConfigRanges  = Util::Max(Gfx9NumUserConfigShadowRanges, Gfx10NumUserConfigShadowRanges);

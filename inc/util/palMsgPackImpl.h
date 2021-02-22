@@ -252,6 +252,19 @@ inline Result MsgPackWriter::DeclareMap(
 }
 
 // =====================================================================================================================
+inline Result MsgPackWriter::AppendMap(
+    const MsgPackWriter& src)
+{
+    Result result = DeclareMap(src.NumItems() / 2);
+    if (result == Result::Success)
+    {
+        result = Append(src);
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
 inline Result MsgPackReader::Seek(
     uint32 offset)
 {

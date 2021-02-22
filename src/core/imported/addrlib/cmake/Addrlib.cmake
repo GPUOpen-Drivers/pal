@@ -23,6 +23,8 @@
  #
  #######################################################################################################################
 
+# This file is dedicate to helper function to assist in writing the cmake build
+
 include(TestBigEndian)
 
 function(addr_get_cpu_endianness CPU_ENDIANNESS)

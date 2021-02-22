@@ -22,6 +22,7 @@
  #  SOFTWARE.
  #
  #######################################################################################################################
+
 include_guard()
 
 include(PalVersionHelper)
@@ -29,8 +30,6 @@ include(PalCompilerWarnings)
 include(CheckCXXCompilerFlag)
 
 function(pal_compiler_options TARGET)
-
-    # Set the C++ standard
     set_target_properties(${TARGET} PROPERTIES
         CXX_STANDARD 11
         CXX_STANDARD_REQUIRED ON
@@ -55,6 +54,10 @@ function(pal_compiler_options TARGET)
             # Disables exception handling
             -fno-exceptions
 
+            # Disable run time type information
+            # This means breaking dynamic_cast and typeid
+            -fno-rtti
+
             # Disable optimizations that assume strict aliasing rules
             -fno-strict-aliasing
 
@@ -64,20 +67,17 @@ function(pal_compiler_options TARGET)
             # so we need to enable this switch to have GCC include that if-check.
             -fcheck-new
 
+            # fseeko64() is limited to seeking ~2GB at a time without this.
+            -D_FILE_OFFSET_BITS=64
+            # stat64 is undefined in glibc unless this is defined.
+            -D_LARGEFILE64_SOURCE=1
+
             # Having simple optimization on results in dramatically smaller debug builds (and they actually build faster).
             # This is mostly due to constant-folding and dead-code-elimination of registers.
             $<$<CONFIG:Debug>:
                 -Og
             >
-
         )
-
-        # TODO: Investigate why the "$<$<COMPILE_LANGUAGE:CXX>:" is neccessary
-        target_compile_options(${TARGET} PRIVATE $<$<COMPILE_LANGUAGE:CXX>:
-            # Disable run time type information
-            # This means breaking dynamic_cast and typeid
-            -fno-rtti
-        >)
 
         # If we're using a build type that generates debug syms, compress them to save significant disk space.
         check_cxx_compiler_flag(-gz HAS_COMPRESSED_DEBUG)

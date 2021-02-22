@@ -143,17 +143,18 @@ ColorTargetView::ColorTargetView(
 // Helper function which adds commands into the command stream when the currently-bound color targets are changing.
 // Returns the address to where future commands will be written.
 uint32* ColorTargetView::HandleBoundTargetsChanged(
-    uint32* pCmdSpace)
+    const CmdUtil&  cmdUtil,
+    uint32*         pCmdSpace)
 {
     // If you change the mips of a resource being rendered-to, regardless of which MRT slot it is bound to, we need
     // to flush the CB metadata caches (DCC, Fmask, Cmask). This protects against the case where a DCC, Fmask or Cmask
     // cacheline can contain data from two different mip levels in different RB's.
-    pCmdSpace += CmdUtil::BuildNonSampleEventWrite(FLUSH_AND_INV_CB_META, EngineTypeUniversal, pCmdSpace);
+    pCmdSpace += cmdUtil.BuildNonSampleEventWrite(FLUSH_AND_INV_CB_META, EngineTypeUniversal, pCmdSpace);
 
     // Unfortunately, the FLUSH_AND_INV_CB_META event doesn't actually flush the DCC cache. Instead, it only flushes the
     // Fmask and Cmask caches, along with the overwrite combiner. So we also need to issue another event to flush the CB
     // pixel data caches, which will also flush the DCC cache.
-    pCmdSpace += CmdUtil::BuildNonSampleEventWrite(FLUSH_AND_INV_CB_PIXEL_DATA, EngineTypeUniversal, pCmdSpace);
+    pCmdSpace += cmdUtil.BuildNonSampleEventWrite(FLUSH_AND_INV_CB_PIXEL_DATA, EngineTypeUniversal, pCmdSpace);
 
     return pCmdSpace;
 }
@@ -200,7 +201,8 @@ void ColorTargetView::InitCommonBufferView(
     const gpusize baseOffset = bufferAddr & 0xFF;
     const gpusize baseAddr   = bufferAddr & (~0xFF);
 
-    pRegs->cbColorBase.bits.BASE_256B = Get256BAddrLo(baseAddr);
+    pRegs->cbColorBase.bits.BASE_256B    = Get256BAddrLo(baseAddr);
+    pRegs->cbColorBaseExt.bits.BASE_256B = Get256BAddrHi(baseAddr);
 
     // The view slice_start is overloaded to specify the base offset.
     pCbColorView->SLICE_START = baseOffset;
@@ -364,8 +366,8 @@ void ColorTargetView::UpdateImageVa(
             const gpusize pipeBankXor = pTileInfo->pipeBankXor;
             const gpusize addrWithXor = subresBaseAddr | (pipeBankXor << 8);
 
-            pRegs->cbColorBase.bits.BASE_256B = Get256BAddrLo(addrWithXor);
-            PAL_ASSERT(Get256BAddrHi(addrWithXor) == 0);
+            pRegs->cbColorBase.bits.BASE_256B    = Get256BAddrLo(addrWithXor);
+            pRegs->cbColorBaseExt.bits.BASE_256B = Get256BAddrHi(addrWithXor);
 
             // On GFX9, only DCC can be used for fast clears.  The load-meta-data packet updates the cb color regs to
             // indicate what the clear color is.  (See Gfx9FastColorClearMetaData in gfx9MaskRam.h).
@@ -382,14 +384,17 @@ void ColorTargetView::UpdateImageVa(
                 }
 
                 // We want the DCC address of the exact mip level and slice that we're looking at.
-                pRegs->cbColorDccBase.bits.BASE_256B = m_pImage->GetDcc256BAddr(m_subresource);
+                const gpusize dcc256BAddrSwizzled       = m_pImage->GetDcc256BAddrSwizzled(m_subresource);
+                pRegs->cbColorDccBase.bits.BASE_256B    = LowPart(dcc256BAddrSwizzled);
+                pRegs->cbColorDccBaseExt.bits.BASE_256B = HighPart(dcc256BAddrSwizzled);
             }
         }
         else
         {
             // The GetSubresource256BAddrSwizzled* functions only care about the plane.
-            pRegs->cbColorBase.bits.BASE_256B = m_pImage->GetSubresource256BAddrSwizzledLow(m_subresource);
-            PAL_ASSERT(m_pImage->GetSubresource256BAddrSwizzledHi(m_subresource) == 0);
+            const gpusize subresource256BAddr    = m_pImage->GetSubresource256BAddr(m_subresource);
+            pRegs->cbColorBase.bits.BASE_256B    = LowPart(subresource256BAddr);
+            pRegs->cbColorBaseExt.bits.BASE_256B = HighPart(subresource256BAddr);
 
             // On GFX9, only DCC can be used for fast clears.  The load-meta-data packet updates the cb color regs to
             // indicate what the clear color is.  (See Gfx9FastColorClearMetaData in gfx9MaskRam.h).
@@ -407,8 +412,9 @@ void ColorTargetView::UpdateImageVa(
                 // the CB registers are programmed with that info already, we want the address of mip 0 / slice 0 so
                 // the HW can find the proper subresource on its own.
                 const SubresId  baseSubResId = { m_subresource.plane, 0, 0 };
-
-                pRegs->cbColorDccBase.bits.BASE_256B = m_pImage->GetDcc256BAddr(baseSubResId);
+                const gpusize dcc256BAddrSwizzled       = m_pImage->GetDcc256BAddrSwizzled(baseSubResId);
+                pRegs->cbColorDccBase.bits.BASE_256B    = LowPart(dcc256BAddrSwizzled);
+                pRegs->cbColorDccBaseExt.bits.BASE_256B = HighPart(dcc256BAddrSwizzled);
             }
         }
     }
@@ -588,8 +594,13 @@ Gfx9ColorTargetView::Gfx9ColorTargetView(
         if (m_pImage->Parent()->GetBoundGpuMemory().IsBound() &&
             m_flags.hasCmaskFmask)
         {
-            m_regs.cbColorCmask.bits.BASE_256B = m_pImage->GetCmask256BAddr();
-            m_regs.cbColorFmask.bits.BASE_256B = m_pImage->GetFmask256BAddr();
+            const gpusize cmask256BAddrSwizzled       = m_pImage->GetCmask256BAddrSwizzled();
+            const gpusize fmask256BAddrSwizzled       = m_pImage->GetFmask256BAddrSwizzled();
+
+            m_regs.cbColorCmask.bits.BASE_256B        = LowPart(cmask256BAddrSwizzled);
+            m_regs.cbColorFmask.bits.BASE_256B        = LowPart(fmask256BAddrSwizzled);
+            m_regs.cbColorCmaskBaseExt.bits.BASE_256B = HighPart(cmask256BAddrSwizzled);
+            m_regs.cbColorFmaskBaseExt.bits.BASE_256B = HighPart(fmask256BAddrSwizzled);
         }
     }
 }
@@ -708,8 +719,13 @@ uint32* Gfx9ColorTargetView::WriteCommands(
         m_pImage->Parent()->GetBoundGpuMemory().IsBound() &&
         m_flags.hasCmaskFmask)
     {
-        regs.cbColorCmask.bits.BASE_256B = m_pImage->GetCmask256BAddr();
-        regs.cbColorFmask.bits.BASE_256B = m_pImage->GetFmask256BAddr();
+        const gpusize cmask256BAddrSwizzled     = m_pImage->GetCmask256BAddrSwizzled();
+        const gpusize fmask256BAddrSwizzled     = m_pImage->GetFmask256BAddrSwizzled();
+
+        regs.cbColorCmask.bits.BASE_256B        = LowPart(cmask256BAddrSwizzled);
+        regs.cbColorFmask.bits.BASE_256B        = LowPart(fmask256BAddrSwizzled);
+        regs.cbColorCmaskBaseExt.bits.BASE_256B = HighPart(cmask256BAddrSwizzled);
+        regs.cbColorFmaskBaseExt.bits.BASE_256B = HighPart(fmask256BAddrSwizzled);
     }
 
     const uint32 slotOffset = (slot * CbRegsPerSlot);
@@ -781,8 +797,13 @@ Gfx10ColorTargetView::Gfx10ColorTargetView(
         if (m_pImage->Parent()->GetBoundGpuMemory().IsBound() &&
             m_flags.hasCmaskFmask)
         {
-            m_regs.cbColorCmask.bits.BASE_256B = m_pImage->GetCmask256BAddr();
-            m_regs.cbColorFmask.bits.BASE_256B = m_pImage->GetFmask256BAddr();
+            const gpusize cmask256BAddrSwizzled       = m_pImage->GetCmask256BAddrSwizzled();
+            const gpusize fmask256BAddrSwizzled       = m_pImage->GetFmask256BAddrSwizzled();
+
+            m_regs.cbColorCmask.bits.BASE_256B        = LowPart(cmask256BAddrSwizzled);
+            m_regs.cbColorFmask.bits.BASE_256B        = LowPart(fmask256BAddrSwizzled);
+            m_regs.cbColorCmaskBaseExt.bits.BASE_256B = HighPart(cmask256BAddrSwizzled);
+            m_regs.cbColorFmaskBaseExt.bits.BASE_256B = HighPart(fmask256BAddrSwizzled);
         }
         if (m_pImage->Parent()->GetImageCreateInfo().imageType == ImageType::Tex2d)
         {
@@ -930,8 +951,13 @@ uint32* Gfx10ColorTargetView::WriteCommands(
         m_pImage->Parent()->GetBoundGpuMemory().IsBound() &&
         m_flags.hasCmaskFmask)
     {
-        regs.cbColorCmask.bits.BASE_256B = m_pImage->GetCmask256BAddr();
-        regs.cbColorFmask.bits.BASE_256B = m_pImage->GetFmask256BAddr();
+        const gpusize cmask256BAddrSwizzled     = m_pImage->GetCmask256BAddrSwizzled();
+        const gpusize fmask256BAddrSwizzled     = m_pImage->GetFmask256BAddrSwizzled();
+
+        regs.cbColorCmask.bits.BASE_256B        = LowPart(cmask256BAddrSwizzled);
+        regs.cbColorFmask.bits.BASE_256B        = LowPart(fmask256BAddrSwizzled);
+        regs.cbColorCmaskBaseExt.bits.BASE_256B = HighPart(cmask256BAddrSwizzled);
+        regs.cbColorFmaskBaseExt.bits.BASE_256B = HighPart(fmask256BAddrSwizzled);
     }
 
     const uint32 slotOffset = (slot * CbRegsPerSlot);
@@ -951,12 +977,24 @@ uint32* Gfx10ColorTargetView::WriteCommands(
     // Registers above this point are grouped by slot index (e.g., all of slot0 then all of slot1, etc.).  Registers
     // below this point are grouped by register (e.g., all of CB_COLOR*_ATTRIB2, and so on).
 
+    pCmdSpace = pCmdStream->WriteSetOneContextReg((Gfx10Plus::mmCB_COLOR0_BASE_EXT + slot),
+                                                  regs.cbColorBaseExt.u32All,
+                                                  pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetOneContextReg((Gfx10Plus::mmCB_COLOR0_DCC_BASE_EXT + slot),
+                                                  regs.cbColorDccBaseExt.u32All,
+                                                  pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetOneContextReg((Gfx10::mmCB_COLOR0_FMASK_BASE_EXT + slot),
+                                                  regs.cbColorFmaskBaseExt.u32All,
+                                                  pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetOneContextReg((Gfx10::mmCB_COLOR0_CMASK_BASE_EXT + slot),
+                                                  regs.cbColorCmaskBaseExt.u32All,
+                                                  pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetOneContextReg((Gfx10Plus::mmCB_COLOR0_ATTRIB2 + slot),
                                                   regs.cbColorAttrib2.u32All,
                                                   pCmdSpace);
-    pCmdSpace =  pCmdStream->WriteSetOneContextReg((Gfx10Plus::mmCB_COLOR0_ATTRIB3 + slot),
-                                                   regs.cbColorAttrib3.u32All,
-                                                   pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetOneContextReg((Gfx10Plus::mmCB_COLOR0_ATTRIB3 + slot),
+                                                  regs.cbColorAttrib3.u32All,
+                                                  pCmdSpace);
 
     // Update just the portion owned by RTV.
     BitfieldUpdateSubfield(&(pCbColorInfo->u32All), regs.cbColorInfo.u32All, CbColorInfoMask);

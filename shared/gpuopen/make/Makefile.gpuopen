@@ -1,4 +1,6 @@
 ## Copyright (c) 2021 Advanced Micro Devices, Inc. All rights reserved. ##
+
+# Alias devdriver as gpuopen until we move to a devdriver subfolder
 DEVDRIVER_DEPTH = $(GPUOPEN_DEPTH)
 
 # Propagate the AMD branch definition string from the higher level makefiles

@@ -66,9 +66,19 @@ void PerfExperiment::GetGpuMemoryRequirements(
 
     if (m_perfExperimentFlags.sqtTraceEnabled || m_perfExperimentFlags.spmTraceEnabled)
     {
-        pGpuMemReqs->heapCount = 2;
-        pGpuMemReqs->heaps[0]  = Pal::GpuHeapInvisible;
-        pGpuMemReqs->heaps[1]  = Pal::GpuHeapLocal;
+        const bool noInvisibleMem = (m_device.MemoryProperties().invisibleHeapSize == 0);
+
+        if (noInvisibleMem)
+        {
+            pGpuMemReqs->heapCount = 1;
+            pGpuMemReqs->heaps[0] = Pal::GpuHeapLocal;
+        }
+        else
+        {
+            pGpuMemReqs->heapCount = 2;
+            pGpuMemReqs->heaps[0] = Pal::GpuHeapInvisible;
+            pGpuMemReqs->heaps[1] = Pal::GpuHeapLocal;
+        }
     }
     else
     {
@@ -76,8 +86,9 @@ void PerfExperiment::GetGpuMemoryRequirements(
         pGpuMemReqs->heaps[0]  = Pal::GpuHeapGartUswc;
     }
 
-    pGpuMemReqs->size      = m_totalMemSize;
-    pGpuMemReqs->alignment = m_memAlignment;
+    pGpuMemReqs->size         = m_totalMemSize;
+    pGpuMemReqs->alignment    = m_memAlignment;
+    pGpuMemReqs->flags.u32All = 0;
 }
 
 // =====================================================================================================================

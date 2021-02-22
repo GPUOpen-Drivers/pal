@@ -109,9 +109,6 @@ struct PerfDataInfo
 // Shorthand for a pipeline ABI reader.
 using AbiReader = Util::Abi::PipelineAbiReader;
 
-// Shorthand for the PAL code object metadata structure.
-using CodeObjectMetadata = Util::PalAbi::CodeObjectMetadata;
-
 // =====================================================================================================================
 // Monolithic object containing all shaders and a large amount of "shader adjacent" state.  Separate concrete
 // implementations will support compute or graphics pipelines.
@@ -157,6 +154,9 @@ public:
     virtual Util::Abi::ApiHwShaderMapping ApiHwShaderMapping() const override
         { return m_apiHwMapping; }
 
+    // Unsupported in general, only compute currently has support.
+    virtual const Util::HsaAbi::KernelArgument* GetKernelArgument(uint32 index) const override { return nullptr; }
+
     UploadFenceToken GetUploadFenceToken() const { return m_uploadFenceToken; }
     uint64 GetPagingFenceVal() const { return m_pagingFenceVal; }
 
@@ -164,20 +164,25 @@ public:
 
     bool SupportDynamicDispatch() const { return (m_flags.supportDynamicDispatch != 0); }
 
+    bool IsInternal() const { return m_flags.isInternal != 0; }
+
 protected:
     Pipeline(Device* pDevice, bool isInternal);
 
-    bool IsInternal() const { return m_flags.isInternal != 0; }
+    Result PerformRelocationsAndUploadToGpuMemory(
+        const gpusize     performanceDataOffset,
+        const GpuHeap&    clientPreferredHeap,
+        PipelineUploader* pUploader);
 
     Result PerformRelocationsAndUploadToGpuMemory(
-        const CodeObjectMetadata& metadata,
-        const GpuHeap&            clientPreferredHeap,
-        PipelineUploader*         pUploader);
+        const Util::PalAbi::CodeObjectMetadata& metadata,
+        const GpuHeap&                          clientPreferredHeap,
+        PipelineUploader*                       pUploader);
 
     void ExtractPipelineInfo(
-        const CodeObjectMetadata& metadata,
-        ShaderType                firstShader,
-        ShaderType                lastShader);
+        const Util::PalAbi::CodeObjectMetadata& metadata,
+        ShaderType                              firstShader,
+        ShaderType                              lastShader);
 
     // Obtains a structure describing the traits of the hardware shader stage associated with a particular API shader
     // type.  Returns nullptr if the shader type is not present for the current pipeline.
@@ -193,7 +198,7 @@ protected:
         const char*         pName) const;
 
     size_t PerformanceDataSize(
-        const CodeObjectMetadata& metadata) const;
+        const Util::PalAbi::CodeObjectMetadata& metadata) const;
 
     void SetTaskShaderEnabled() { m_flags.taskShaderEnabled = 1; }
     void SetDynamicDispatchSupported() { m_flags.supportDynamicDispatch = 1; }
@@ -376,7 +381,7 @@ public:
         const AbiReader& abiReader);
     virtual ~PipelineUploader();
 
-    Result Begin(const CodeObjectMetadata& metadata, GpuHeap heap);
+    Result Begin(GpuHeap heap);
 
     Result ApplyRelocations();
 

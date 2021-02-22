@@ -129,7 +129,7 @@ public:
     /// @param [in] vector Reference to a dying vector, from which resources will be stolen.
     Vector(Vector&& vector);
 
-    /// Increases maximal capacity to value grater or equal to the newCapacity.
+    /// Increases maximal capacity to value greater or equal to the newCapacity.
     /// If newCapacity is greater than the maximal capacity, new storage is allocated,
     /// otherwise the method does nothing.
     ///

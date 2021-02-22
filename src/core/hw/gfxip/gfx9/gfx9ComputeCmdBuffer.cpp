@@ -31,10 +31,13 @@
 #include "core/hw/gfxip/gfx9/gfx9IndirectCmdGenerator.h"
 #include "core/hw/gfxip/gfx9/gfx9PerfExperiment.h"
 #include "core/hw/gfxip/queryPool.h"
+#include "core/imported/hsa/AMDHSAKernelDescriptor.h"
+#include "core/imported/hsa/amd_hsa_kernel_code.h"
 #include "core/cmdAllocator.h"
 #include "core/g_palPlatformSettings.h"
 #include "core/settingsLoader.h"
 #include "marker_payload.h"
+#include "palHsaAbiMetadata.h"
 #include "palInlineFuncs.h"
 #include "palVectorImpl.h"
 
@@ -53,6 +56,7 @@ ComputeCmdBuffer::ComputeCmdBuffer(
     Pal::ComputeCmdBuffer(device, createInfo, &m_cmdStream),
     m_device(device),
     m_cmdUtil(device.CmdUtil()),
+    m_issueSqttMarkerEvent(device.Parent()->IssueSqttMarkerEvents()),
     m_cmdStream(device,
                 createInfo.pCmdAllocator,
                 EngineTypeCompute,
@@ -61,25 +65,14 @@ ComputeCmdBuffer::ComputeCmdBuffer(
                 IsNested()),
     m_pSignatureCs(&NullCsSignature),
     m_predGpuAddr(0),
-    m_inheritedPredication(false)
+    m_inheritedPredication(false),
+    m_globalInternalTableAddr(0)
 {
     // Compute command buffers suppors compute ops and CP DMA.
     m_engineSupport = CmdBufferEngineSupport::Compute | CmdBufferEngineSupport::CpDma;
 
-    if (device.Parent()->IssueSqttMarkerEvents())
-    {
-        m_funcTable.pfnCmdDispatch          = CmdDispatch<true>;
-        m_funcTable.pfnCmdDispatchIndirect  = CmdDispatchIndirect<true>;
-        m_funcTable.pfnCmdDispatchOffset    = CmdDispatchOffset<true>;
-        m_funcTable.pfnCmdDispatchDynamic   = CmdDispatchDynamic<true>;
-    }
-    else
-    {
-        m_funcTable.pfnCmdDispatch          = CmdDispatch<false>;
-        m_funcTable.pfnCmdDispatchIndirect  = CmdDispatchIndirect<false>;
-        m_funcTable.pfnCmdDispatchOffset    = CmdDispatchOffset<false>;
-        m_funcTable.pfnCmdDispatchDynamic   = CmdDispatchDynamic<false>;
-    }
+    // Assume PAL ABI compute pipelines by default.
+    SetDispatchFunctions(false);
 }
 
 // =====================================================================================================================
@@ -102,12 +95,15 @@ void ComputeCmdBuffer::ResetState()
 {
     Pal::ComputeCmdBuffer::ResetState();
 
+    // Assume PAL ABI compute pipelines by default.
+    SetDispatchFunctions(false);
+
     m_pSignatureCs = &NullCsSignature;
 
     // Command buffers start without a valid predicate GPU address.
     m_predGpuAddr = 0;
-
     m_inheritedPredication = false;
+    m_globalInternalTableAddr = 0;
 }
 
 // =====================================================================================================================
@@ -129,6 +125,45 @@ Result ComputeCmdBuffer::Begin(
     }
 
     return result;
+}
+
+// =====================================================================================================================
+// Binds a graphics or compute pipeline to this command buffer.
+void ComputeCmdBuffer::CmdBindPipeline(
+    const PipelineBindParams& params)
+{
+    auto* const pNewPipeline = static_cast<const ComputePipeline*>(params.pPipeline);
+    auto* const pOldPipeline = static_cast<const ComputePipeline*>(m_computeState.pipelineState.pPipeline);
+
+    const bool newUsesHsaAbi = (pNewPipeline != nullptr) && (pNewPipeline->GetInfo().flags.hsaAbi == 1u);
+    const bool oldUsesHsaAbi = (pOldPipeline != nullptr) && (pOldPipeline->GetInfo().flags.hsaAbi == 1u);
+
+    if (oldUsesHsaAbi != newUsesHsaAbi)
+    {
+        // The HSA abi can clobber USER_DATA_0, which holds the global internal table address for PAL ABI, so we must
+        // save the address to memory before switching to an HSA ABI or restore it when switching back to PAL ABI.
+        if (newUsesHsaAbi && (m_globalInternalTableAddr == 0))
+        {
+            m_globalInternalTableAddr = AllocateGpuScratchMem(1, 1);
+            m_device.RsrcProcMgr().EchoGlobalInternalTableAddr(this, m_globalInternalTableAddr);
+        }
+        else if (newUsesHsaAbi == false)
+        {
+            uint32* pCmdSpace = m_cmdStream.ReserveCommands();
+            pCmdSpace += m_cmdUtil.BuildLoadShRegsIndex(index__pfp_load_sh_reg_index__direct_addr,
+                                                        data_format__pfp_load_sh_reg_index__offset_and_size,
+                                                        m_globalInternalTableAddr,
+                                                        mmCOMPUTE_USER_DATA_0,
+                                                        1,
+                                                        Pm4ShaderType::ShaderCompute,
+                                                        pCmdSpace);
+            m_cmdStream.CommitCommands(pCmdSpace);
+        }
+
+        SetDispatchFunctions(newUsesHsaAbi);
+    }
+
+    Pal::GfxCmdBuffer::CmdBindPipeline(params);
 }
 
 // =====================================================================================================================
@@ -412,9 +447,60 @@ void ComputeCmdBuffer::CmdReleaseThenAcquire(
 }
 
 // =====================================================================================================================
+// Sets-up function pointers for the Dispatch entrypoint and all variants using template parameters.
+template <bool HsaAbi, bool IssueSqttMarkerEvent>
+void ComputeCmdBuffer::SetDispatchFunctions()
+{
+    m_funcTable.pfnCmdDispatch       = CmdDispatch<HsaAbi, IssueSqttMarkerEvent>;
+    m_funcTable.pfnCmdDispatchOffset = CmdDispatchOffset<HsaAbi, IssueSqttMarkerEvent>;
+
+    if (HsaAbi)
+    {
+        // Note that CmdDispatchIndirect and CmdDispatchDynamic do not support the HSA ABI.
+        m_funcTable.pfnCmdDispatchIndirect = nullptr;
+        m_funcTable.pfnCmdDispatchDynamic  = nullptr;
+    }
+    else
+    {
+        m_funcTable.pfnCmdDispatchIndirect = CmdDispatchIndirect<IssueSqttMarkerEvent>;
+        m_funcTable.pfnCmdDispatchDynamic  = CmdDispatchDynamic<IssueSqttMarkerEvent>;
+    }
+
+}
+
+// =====================================================================================================================
+// Sets-up function pointers for the Dispatch entrypoint and all variants.
+void ComputeCmdBuffer::SetDispatchFunctions(
+    bool hsaAbi)
+{
+    if (hsaAbi)
+    {
+        if (m_issueSqttMarkerEvent)
+        {
+            SetDispatchFunctions<true, true>();
+        }
+        else
+        {
+            SetDispatchFunctions<true, false>();
+        }
+    }
+    else
+    {
+        if (m_issueSqttMarkerEvent)
+        {
+            SetDispatchFunctions<false, true>();
+        }
+        else
+        {
+            SetDispatchFunctions<false, false>();
+        }
+    }
+}
+
+// =====================================================================================================================
 // Issues a direct dispatch command. X, Y, and Z are in numbers of thread groups. We must discard the dispatch if x, y,
 // or z are zero. To avoid branching, we will rely on the HW to discard the dispatch for us.
-template <bool issueSqttMarkerEvent>
+template <bool HsaAbi, bool IssueSqttMarkerEvent>
 void PAL_STDCALL ComputeCmdBuffer::CmdDispatch(
     ICmdBuffer* pCmdBuffer,
     uint32      x,
@@ -423,14 +509,21 @@ void PAL_STDCALL ComputeCmdBuffer::CmdDispatch(
 {
     auto* pThis = static_cast<ComputeCmdBuffer*>(pCmdBuffer);
 
-    if (issueSqttMarkerEvent)
+    if (IssueSqttMarkerEvent)
     {
         pThis->m_device.DescribeDispatch(pThis, Developer::DrawDispatchType::CmdDispatch, 0, 0, 0, x, y, z);
     }
 
     uint32* pCmdSpace = pThis->m_cmdStream.ReserveCommands();
 
-    pCmdSpace = pThis->ValidateDispatch(0uLL, 0uLL, x, y, z, pCmdSpace);
+    if (HsaAbi)
+    {
+        pCmdSpace = pThis->ValidateDispatchHsaAbi(0, 0, 0, x, y, z, pCmdSpace);
+    }
+    else
+    {
+        pCmdSpace = pThis->ValidateDispatchPalAbi(0uLL, 0uLL, x, y, z, pCmdSpace);
+    }
 
     if (pThis->m_gfxCmdBufState.flags.packetPredicate != 0)
     {
@@ -444,7 +537,7 @@ void PAL_STDCALL ComputeCmdBuffer::CmdDispatch(
                                                                    pThis->DisablePartialPreempt(),
                                                                    pCmdSpace);
 
-    if (issueSqttMarkerEvent)
+    if (IssueSqttMarkerEvent)
     {
         pCmdSpace += pThis->m_cmdUtil.BuildNonSampleEventWrite(THREAD_TRACE_MARKER, EngineTypeCompute, pCmdSpace);
     }
@@ -455,7 +548,7 @@ void PAL_STDCALL ComputeCmdBuffer::CmdDispatch(
 // =====================================================================================================================
 // Issues an indirect dispatch command. We must discard the dispatch if x, y, or z are zero. We will rely on the HW to
 // discard the dispatch for us.
-template <bool issueSqttMarkerEvent>
+template <bool IssueSqttMarkerEvent>
 void PAL_STDCALL ComputeCmdBuffer::CmdDispatchIndirect(
     ICmdBuffer*       pCmdBuffer,
     const IGpuMemory& gpuMemory,
@@ -463,7 +556,7 @@ void PAL_STDCALL ComputeCmdBuffer::CmdDispatchIndirect(
 {
     auto* pThis = static_cast<ComputeCmdBuffer*>(pCmdBuffer);
 
-    if (issueSqttMarkerEvent)
+    if (IssueSqttMarkerEvent)
     {
         pThis->m_device.DescribeDispatch(pThis, Developer::DrawDispatchType::CmdDispatchIndirect, 0, 0, 0, 0, 0, 0);
     }
@@ -474,7 +567,8 @@ void PAL_STDCALL ComputeCmdBuffer::CmdDispatchIndirect(
     uint32* pCmdSpace = pThis->m_cmdStream.ReserveCommands();
 
     const gpusize gpuVirtAddr = (gpuMemory.Desc().gpuVirtAddr + offset);
-    pCmdSpace = pThis->ValidateDispatch(gpuVirtAddr, 0uLL, 0, 0, 0, pCmdSpace);
+
+    pCmdSpace = pThis->ValidateDispatchPalAbi(gpuVirtAddr, 0uLL, 0, 0, 0, pCmdSpace);
 
     if (pThis->m_gfxCmdBufState.flags.packetPredicate != 0)
     {
@@ -487,7 +581,7 @@ void PAL_STDCALL ComputeCmdBuffer::CmdDispatchIndirect(
                                                            pThis->DisablePartialPreempt(),
                                                            pCmdSpace);
 
-    if (issueSqttMarkerEvent)
+    if (IssueSqttMarkerEvent)
     {
         pCmdSpace += pThis->m_cmdUtil.BuildNonSampleEventWrite(THREAD_TRACE_MARKER, EngineTypeCompute, pCmdSpace);
     }
@@ -498,7 +592,7 @@ void PAL_STDCALL ComputeCmdBuffer::CmdDispatchIndirect(
 // =====================================================================================================================
 // Issues an direct dispatch command with immediate threadgroup offsets. We must discard the dispatch if x, y, or z are
 // zero. To avoid branching, we will rely on the HW to discard the dispatch for us.
-template <bool issueSqttMarkerEvent>
+template <bool HsaAbi, bool IssueSqttMarkerEvent>
 void PAL_STDCALL ComputeCmdBuffer::CmdDispatchOffset(
     ICmdBuffer* pCmdBuffer,
     uint32      xOffset,
@@ -510,7 +604,7 @@ void PAL_STDCALL ComputeCmdBuffer::CmdDispatchOffset(
 {
     auto* pThis = static_cast<ComputeCmdBuffer*>(pCmdBuffer);
 
-    if (issueSqttMarkerEvent)
+    if (IssueSqttMarkerEvent)
     {
         pThis->m_device.DescribeDispatch(pThis, Developer::DrawDispatchType::CmdDispatchOffset,
             xOffset, yOffset, zOffset, xDim, yDim, zDim);
@@ -521,7 +615,14 @@ void PAL_STDCALL ComputeCmdBuffer::CmdDispatchOffset(
 
     uint32* pCmdSpace = pThis->m_cmdStream.ReserveCommands();
 
-    pCmdSpace = pThis->ValidateDispatch(0uLL, 0uLL, xDim, yDim, zDim, pCmdSpace);
+    if (HsaAbi)
+    {
+        pCmdSpace = pThis->ValidateDispatchHsaAbi(xOffset, yOffset, zOffset, xDim, yDim, zDim, pCmdSpace);
+    }
+    else
+    {
+        pCmdSpace = pThis->ValidateDispatchPalAbi(0uLL, 0uLL, xDim, yDim, zDim, pCmdSpace);
+    }
 
     pCmdSpace = pThis->m_cmdStream.WriteSetSeqShRegs(mmCOMPUTE_START_X,
                                                      mmCOMPUTE_START_Z,
@@ -543,7 +644,7 @@ void PAL_STDCALL ComputeCmdBuffer::CmdDispatchOffset(
                                                                     pThis->DisablePartialPreempt(),
                                                                     pCmdSpace);
 
-    if (issueSqttMarkerEvent)
+    if (IssueSqttMarkerEvent)
     {
         pCmdSpace += pThis->m_cmdUtil.BuildNonSampleEventWrite(THREAD_TRACE_MARKER, EngineTypeCompute, pCmdSpace);
     }
@@ -552,7 +653,7 @@ void PAL_STDCALL ComputeCmdBuffer::CmdDispatchOffset(
 }
 
 // =====================================================================================================================
-template <bool issueSqttMarkerEvent>
+template <bool IssueSqttMarkerEvent>
 void PAL_STDCALL ComputeCmdBuffer::CmdDispatchDynamic(
     ICmdBuffer* pCmdBuffer,
     gpusize     gpuVa,
@@ -562,18 +663,16 @@ void PAL_STDCALL ComputeCmdBuffer::CmdDispatchDynamic(
 {
     auto* pThis = static_cast<ComputeCmdBuffer*>(pCmdBuffer);
 
-    const auto& parent = *pThis->m_device.Parent();
-    PAL_ASSERT(IsGfx103Plus(parent) &&
-        (parent.EngineProperties().cpUcodeVersion >= Gfx10UcodeVersionLoadShRegIndexIndirectAddr));
+    PAL_ASSERT(pThis->m_cmdUtil.HasEnhancedLoadShRegIndex());
 
-    if (issueSqttMarkerEvent)
+    if (IssueSqttMarkerEvent)
     {
         pThis->m_device.DescribeDispatch(pThis, Developer::DrawDispatchType::CmdDispatchDynamic, 0, 0, 0, x, y, z);
     }
 
     uint32* pCmdSpace = pThis->m_cmdStream.ReserveCommands();
 
-    pCmdSpace = pThis->ValidateDispatch(0uLL, gpuVa, x, y, z, pCmdSpace);
+    pCmdSpace = pThis->ValidateDispatchPalAbi(0uLL, gpuVa, x, y, z, pCmdSpace);
 
     if (pThis->m_gfxCmdBufState.flags.packetPredicate != 0)
     {
@@ -587,7 +686,7 @@ void PAL_STDCALL ComputeCmdBuffer::CmdDispatchDynamic(
                                                                    pThis->DisablePartialPreempt(),
                                                                    pCmdSpace);
 
-    if (issueSqttMarkerEvent)
+    if (IssueSqttMarkerEvent)
     {
         pCmdSpace += pThis->m_cmdUtil.BuildNonSampleEventWrite(THREAD_TRACE_MARKER, EngineTypeCompute, pCmdSpace);
     }
@@ -890,8 +989,8 @@ uint32* ComputeCmdBuffer::ValidateUserData(
 }
 
 // =====================================================================================================================
-// Performs dispatch-time validation.
-uint32* ComputeCmdBuffer::ValidateDispatch(
+// Performs PAL ABI dispatch-time validation.
+uint32* ComputeCmdBuffer::ValidateDispatchPalAbi(
     gpusize indirectGpuVirtAddr,
     gpusize launchDescGpuVirtAddr,
     uint32  xDim,
@@ -943,6 +1042,14 @@ uint32* ComputeCmdBuffer::ValidateDispatch(
                                                          pCmdSpace,
                                                          m_computeState.dynamicCsInfo,
                                                          launchDescGpuVirtAddr);
+
+#if PAL_BUILD_PM4_INSTRUMENTOR
+            if (enablePm4Instrumentation)
+            {
+                pipelineCmdLen    = (static_cast<uint32>(pCmdSpace - pStartingCmdSpace) * sizeof(uint32));
+                pStartingCmdSpace = pCmdSpace;
+            }
+#endif
         } // if Launch Descriptor is changing
 
         pCmdSpace = ValidateUserData<false>(nullptr, pCmdSpace);
@@ -978,6 +1085,175 @@ uint32* ComputeCmdBuffer::ValidateDispatch(
                                                   &indirectGpuVirtAddr,
                                                   pCmdSpace);
     }
+
+#if PAL_BUILD_PM4_INSTRUMENTOR
+    if (enablePm4Instrumentation)
+    {
+        const uint32 miscCmdLen = (static_cast<uint32>(pCmdSpace - pStartingCmdSpace) * sizeof(uint32));
+        m_device.DescribeDrawDispatchValidation(this, userDataCmdLen, pipelineCmdLen, miscCmdLen);
+    }
+#endif
+
+    return pCmdSpace;
+}
+
+// =====================================================================================================================
+// Performs PAL ABI dispatch-time validation.
+uint32* ComputeCmdBuffer::ValidateDispatchHsaAbi(
+    uint32  xOffset,
+    uint32  yOffset,
+    uint32  zOffset,
+    uint32  xDim,
+    uint32  yDim,
+    uint32  zDim,
+    uint32* pCmdSpace)
+{
+#if PAL_BUILD_PM4_INSTRUMENTOR
+    const bool enablePm4Instrumentation = m_device.GetPlatform()->PlatformSettings().pm4InstrumentorEnabled;
+
+    uint32* pStartingCmdSpace = pCmdSpace;
+    uint32  pipelineCmdLen    = 0;
+    uint32  userDataCmdLen    = 0;
+#endif
+
+    const auto*const pPipeline = static_cast<const ComputePipeline*>(m_computeState.pipelineState.pPipeline);
+
+    // We didn't implement support for dynamic dispatch.
+    PAL_ASSERT(pPipeline->SupportDynamicDispatch() == false);
+
+    if (m_computeState.pipelineState.dirtyFlags.pipelineDirty)
+    {
+        pCmdSpace = pPipeline->WriteCommands(&m_cmdStream,
+                                             pCmdSpace,
+                                             m_computeState.dynamicCsInfo,
+                                             0,
+                                             m_buildFlags.prefetchShaders);
+
+        m_pSignatureCs = &pPipeline->Signature();
+    }
+
+#if PAL_BUILD_PM4_INSTRUMENTOR
+    if (enablePm4Instrumentation)
+    {
+        pipelineCmdLen    = (static_cast<uint32>(pCmdSpace - pStartingCmdSpace) * sizeof(uint32));
+        pStartingCmdSpace = pCmdSpace;
+    }
+#endif
+
+    // PAL thinks in terms of threadgroups but the HSA ABI thinks in terms of global threads, we need to convert.
+    uint32 xThreads, yThreads, zThreads;
+    pPipeline->ThreadsPerGroupXyz(&xThreads, &yThreads, &zThreads);
+
+    xOffset *= xThreads;
+    yOffset *= yThreads;
+    zOffset *= zThreads;
+    xDim    *= xThreads;
+    yDim    *= yThreads;
+    zDim    *= zThreads;
+
+    // Now we write the required SGPRs. These depend on per-dispatch state so we don't have dirty bit tracking.
+    const HsaAbi::CodeObjectMetadata&        metadata = pPipeline->HsaMetadata();
+    const llvm::amdhsa::kernel_descriptor_t& desc     = pPipeline->KernelDescriptor();
+
+    uint32 startReg = mmCOMPUTE_USER_DATA_0;
+
+    // Many HSA ELFs request private segment buffer registers, but never actually use them. Space is reserved to
+    // adhere to initialization order but will be unset as we do not support scratch space in this execution path.
+    if (TestAnyFlagSet(desc.kernel_code_properties, AMD_KERNEL_CODE_PROPERTIES_ENABLE_SGPR_PRIVATE_SEGMENT_BUFFER))
+    {
+        startReg += 4;
+    }
+
+    if (TestAnyFlagSet(desc.kernel_code_properties, AMD_KERNEL_CODE_PROPERTIES_ENABLE_SGPR_DISPATCH_PTR))
+    {
+        // Fake an AQL dispatch packet for the shader to read.
+        gpusize aqlPacketGpu  = 0;
+        auto*const pAqlPacket = reinterpret_cast<hsa_kernel_dispatch_packet_t*>(
+                                CmdAllocateEmbeddedData(sizeof(hsa_kernel_dispatch_packet_t) / sizeof(uint32),
+                                                        1,
+                                                        &aqlPacketGpu));
+
+        // Zero everything out then fill in certain fields the shader is likely to read.
+        memset(pAqlPacket, 0, sizeof(sizeof(hsa_kernel_dispatch_packet_t)));
+
+        pAqlPacket->workgroup_size_x     = zThreads;
+        pAqlPacket->workgroup_size_y     = yThreads;
+        pAqlPacket->workgroup_size_z     = zThreads;
+        pAqlPacket->grid_size_x          = xDim;
+        pAqlPacket->grid_size_y          = yDim;
+        pAqlPacket->grid_size_z          = zDim;
+        pAqlPacket->private_segment_size = metadata.PrivateSegmentFixedSize();
+        pAqlPacket->group_segment_size   = ((m_computeState.dynamicCsInfo.ldsBytesPerTg > 0)
+                                                ? m_computeState.dynamicCsInfo.ldsBytesPerTg
+                                                : metadata.GroupSegmentFixedSize());
+
+        pCmdSpace = m_cmdStream.WriteSetSeqShRegs(startReg,
+                                                  startReg + 1,
+                                                  ShaderCompute,
+                                                  &aqlPacketGpu,
+                                                  pCmdSpace);
+        startReg += 2;
+    }
+
+    if (TestAnyFlagSet(desc.kernel_code_properties, AMD_KERNEL_CODE_PROPERTIES_ENABLE_SGPR_KERNARG_SEGMENT_PTR))
+    {
+        // Copy the kernel argument buffer into GPU memory.
+        gpusize      gpuVa      = 0;
+        const uint32 allocSize  = NumBytesToNumDwords(metadata.KernargSegmentSize());
+        const uint32 allocAlign = NumBytesToNumDwords(metadata.KernargSegmentAlign());
+        uint8*const  pParams    = reinterpret_cast<uint8*>(CmdAllocateEmbeddedData(allocSize, allocAlign, &gpuVa));
+
+        memcpy(pParams, m_computeState.pKernelArguments, metadata.KernargSegmentSize());
+
+        // The global offsets are always zero, except in CmdDispatchOffset where they are dispatch-time values.
+        // This could be moved out into CmdDispatchOffset if the overhead is too much but we'd have to return
+        // out some extra state to make that work.
+        for (uint32 idx = 0; idx < metadata.NumArguments(); ++idx)
+        {
+            const HsaAbi::KernelArgument& arg = metadata.Arguments()[idx];
+
+            if (arg.valueKind == HsaAbi::ValueKind::HiddenGlobalOffsetX)
+            {
+                memcpy(pParams + arg.offset, &xOffset, Min<size_t>(sizeof(xOffset), arg.size));
+            }
+            else if (arg.valueKind == HsaAbi::ValueKind::HiddenGlobalOffsetY)
+            {
+                memcpy(pParams + arg.offset, &yOffset, Min<size_t>(sizeof(yOffset), arg.size));
+            }
+            else if (arg.valueKind == HsaAbi::ValueKind::HiddenGlobalOffsetZ)
+            {
+                memcpy(pParams + arg.offset, &zOffset, Min<size_t>(sizeof(zOffset), arg.size));
+            }
+        }
+
+        pCmdSpace = m_cmdStream.WriteSetSeqShRegs(startReg,
+                                                  startReg + 1,
+                                                  ShaderCompute,
+                                                  &gpuVa,
+                                                  pCmdSpace);
+        startReg += 2;
+    }
+
+#if PAL_ENABLE_PRINTS_ASSERTS
+    regCOMPUTE_PGM_RSRC2 computePgmRsrc2 = {};
+    computePgmRsrc2.u32All = desc.compute_pgm_rsrc2;
+
+    PAL_ASSERT((startReg - mmCOMPUTE_USER_DATA_0) == computePgmRsrc2.bitfields.USER_SGPR);
+#endif
+
+#if PAL_BUILD_PM4_INSTRUMENTOR
+    if (enablePm4Instrumentation)
+    {
+        userDataCmdLen    = (static_cast<uint32>(pCmdSpace - pStartingCmdSpace) * sizeof(uint32));
+        pStartingCmdSpace = pCmdSpace;
+    }
+#endif
+
+    m_computeState.pipelineState.dirtyFlags.u32All = 0;
+    m_computeState.dynamicLaunchGpuVa = 0;
+
+    // We don't expect HSA ABI pipelines to use these.
+    PAL_ASSERT(m_pSignatureCs->numWorkGroupsRegAddr == UserDataNotMapped);
 
 #if PAL_BUILD_PM4_INSTRUMENTOR
     if (enablePm4Instrumentation)
@@ -1645,7 +1921,7 @@ void ComputeCmdBuffer::CmdExecuteIndirectCmds(
 
         // Just like a normal direct/indirect dispatch, we need to perform state validation before executing the
         // generated command chunks.
-        pCmdSpace = ValidateDispatch(0uLL, 0uLL, 0, 0, 0, pCmdSpace);
+        pCmdSpace = ValidateDispatchPalAbi(0uLL, 0uLL, 0, 0, 0, pCmdSpace);
         m_cmdStream.CommitCommands(pCmdSpace);
 
         CommandGeneratorTouchedUserData(m_computeState.csUserDataEntries.touched, gfx9Generator, *m_pSignatureCs);

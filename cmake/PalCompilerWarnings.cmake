@@ -22,6 +22,7 @@
  #  SOFTWARE.
  #
  #######################################################################################################################
+
 include_guard()
 
 include(PalVersionHelper)
@@ -75,7 +76,11 @@ function(pal_compiler_warnings_gnu_or_clang TARGET)
         # Ignore warnings issues about strict ISO C/C++ related to MFC
         # Allow usage of nameless struct/union
         -fms-extensions
+
+        # Suppress warning for offsetof of field in struct/class with parent struct/class.
+        -Wno-invalid-offsetof
     )
+
     # Don't complain on asserts, we want to keep them
     add_flag_if_exists(${TARGET} -Wno-tautological-compare HAS_WARN_TAUTOLOGICAL)
     # Only has false positives for computing dword sizes

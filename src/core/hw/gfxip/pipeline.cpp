@@ -23,6 +23,7 @@
  *
  **********************************************************************************************************************/
 
+#include "core/devDriverUtil.h"
 #include "core/device.h"
 #include "core/dmaUploadRing.h"
 #include "core/g_palSettings.h"
@@ -32,8 +33,6 @@
 #include "palFile.h"
 #include "palEventDefs.h"
 #include "palSysUtil.h"
-
-#include "core/devDriverUtil.h"
 
 using namespace Util;
 
@@ -117,26 +116,11 @@ void Pipeline::DestroyInternal()
 // Allocates GPU memory for this pipeline and uploads the code and data contain in the ELF binary to it.  Any ELF
 // relocations are also applied to the memory during this operation.
 Result Pipeline::PerformRelocationsAndUploadToGpuMemory(
-    const CodeObjectMetadata& metadata,
+    const gpusize             performanceDataOffset,
     const GpuHeap&            clientPreferredHeap,
     PipelineUploader*         pUploader)
 {
     PAL_ASSERT(pUploader != nullptr);
-
-    // Compute the total size of all shader stages' performance data buffers.
-    gpusize performanceDataOffset = 0;
-    for (uint32 s = 0; s < static_cast<uint32>(Abi::HardwareStage::Count); ++s)
-    {
-        const uint32 performanceDataBytes = metadata.pipeline.hardwareStage[s].perfDataBufferSize;
-        if (performanceDataBytes != 0)
-        {
-            m_perfDataInfo[s].sizeInBytes = performanceDataBytes;
-            m_perfDataInfo[s].cpuOffset   = static_cast<size_t>(performanceDataOffset);
-
-            performanceDataOffset += performanceDataBytes;
-        }
-    } // for each hardware stage
-
     m_perfDataGpuMemSize = performanceDataOffset;
     Result result        = Result::Success;
 
@@ -193,8 +177,7 @@ Result Pipeline::PerformRelocationsAndUploadToGpuMemory(
 
     if (result == Result::Success)
     {
-        result = pUploader->Begin(metadata, clientPreferredHeap);
-
+        result = pUploader->Begin(clientPreferredHeap);
     }
 
     if (result == Result::Success)
@@ -213,11 +196,36 @@ Result Pipeline::PerformRelocationsAndUploadToGpuMemory(
 }
 
 // =====================================================================================================================
+// Allocates GPU memory for this pipeline and uploads the code and data contain in the ELF binary to it.  Any ELF
+// relocations are also applied to the memory during this operation.
+Result Pipeline::PerformRelocationsAndUploadToGpuMemory(
+    const PalAbi::CodeObjectMetadata& metadata,
+    const GpuHeap&                    clientPreferredHeap,
+    PipelineUploader*                 pUploader)
+{
+    // Compute the total size of all shader stages' performance data buffers.
+    gpusize performanceDataOffset = 0;
+    for (uint32 s = 0; s < static_cast<uint32>(Abi::HardwareStage::Count); ++s)
+    {
+        const uint32 performanceDataBytes = metadata.pipeline.hardwareStage[s].perfDataBufferSize;
+        if (performanceDataBytes != 0)
+        {
+            m_perfDataInfo[s].sizeInBytes = performanceDataBytes;
+            m_perfDataInfo[s].cpuOffset   = static_cast<size_t>(performanceDataOffset);
+
+            performanceDataOffset += performanceDataBytes;
+        }
+    } // for each hardware stage
+
+    return PerformRelocationsAndUploadToGpuMemory(performanceDataOffset, clientPreferredHeap, pUploader);
+}
+
+// =====================================================================================================================
 // Helper function for extracting the pipeline hash and per-shader hashes from pipeline metadata.
 void Pipeline::ExtractPipelineInfo(
-    const CodeObjectMetadata& metadata,
-    ShaderType                firstShader,
-    ShaderType                lastShader)
+    const PalAbi::CodeObjectMetadata& metadata,
+    ShaderType                        firstShader,
+    ShaderType                        lastShader)
 {
     m_info.internalPipelineHash =
         { metadata.pipeline.internalPipelineHash[0], metadata.pipeline.internalPipelineHash[1] };
@@ -410,11 +418,11 @@ Result Pipeline::GetShaderStatsForStage(
     AbiReader abiReader(m_pDevice->GetPlatform(), m_pPipelineBinary);
     Result result = abiReader.Init();
 
-    MsgPackReader      metadataReader;
-    CodeObjectMetadata metadata;
+    PalAbi::CodeObjectMetadata metadata;
 
     if (result == Result::Success)
     {
+        MsgPackReader metadataReader;
         result = abiReader.GetMetadata(&metadataReader, &metadata);
     }
 
@@ -478,7 +486,7 @@ Result Pipeline::GetShaderStatsForStage(
 // =====================================================================================================================
 // Calculates the size, in bytes, of the performance data buffers needed total for the entire pipeline.
 size_t Pipeline::PerformanceDataSize(
-    const CodeObjectMetadata& metadata
+    const PalAbi::CodeObjectMetadata& metadata
     ) const
 {
     size_t dataSize = 0;
@@ -514,24 +522,48 @@ void Pipeline::DumpPipelineElf(
         // Create the directory. We don't care if it fails (existing is fine, failure is caught when opening the file).
         MkDir(pLogDir);
 
-        char fileName[512] = { };
-        if ((pName == nullptr) || (pName[0] == '\0'))
+        // This Snprintf has been split into pieces to try to handle pipelines with extremely long names.
+        // We will truncate the name string if necessary, preserving the path, prefix, and suffix.
+        constexpr int32 MaxLen = 260; // Util::File has an implicit 260 char limit on Windows.
+        char  fileName[MaxLen] = {};
+        int32 offset = Snprintf(fileName, MaxLen, "%s/%s_", pLogDir, pPrefix);
+
+        if (offset < 0)
         {
-            Snprintf(&fileName[0],
-                     sizeof(fileName),
-                     "%s/%s_0x%016llX.elf",
-                     pLogDir,
-                     pPrefix,
-                     m_info.internalPipelineHash.stable);
+            // Offset will be -1 if not even the path and prefix fit.
+            PAL_ASSERT_ALWAYS();
         }
         else
         {
-            Snprintf(&fileName[0], sizeof(fileName), "%s/%s_%s.elf", pLogDir, pPrefix, pName);
-        }
+            char*  pNextChar = fileName + offset;
+            size_t remaining = MaxLen - offset;
 
-        File file;
-        file.Open(fileName, FileAccessWrite | FileAccessBinary);
-        file.Write(m_pPipelineBinary, m_pipelineBinaryLen);
+            if ((pName == nullptr) || (pName[0] == '\0'))
+            {
+                Snprintf(pNextChar, remaining, "0x%016llX.elf", m_info.internalPipelineHash.stable);
+            }
+            else
+            {
+                const size_t nameLen = strlen(pName);
+                const size_t copyLen = Min(strlen(pName), remaining - 5);
+
+                memcpy(pNextChar, pName, copyLen);
+                pNextChar += copyLen;
+                remaining -= copyLen;
+
+                Strncpy(pNextChar, ".elf", remaining);
+            }
+
+            File file;
+            Result result = file.Open(fileName, FileAccessWrite | FileAccessBinary);
+
+            if (result == Result::Success)
+            {
+                result = file.Write(m_pPipelineBinary, m_pipelineBinaryLen);
+            }
+
+            PAL_ASSERT(result == Result::Success);
+        }
     }
 #endif
 }
@@ -736,8 +768,7 @@ GpuHeap PipelineUploader::SelectUploadHeap(
 // and data.  The GPU virtual addresses for the code, data, and register segments are also computed.  The caller is
 // responsible for calling End() which unmaps the GPU memory.
 Result PipelineUploader::Begin(
-    const CodeObjectMetadata& metadata,
-    GpuHeap                   heap)
+    GpuHeap heap)
 {
     const PalSettings& settings = m_pDevice->Settings();
     Result result = Result::Success;

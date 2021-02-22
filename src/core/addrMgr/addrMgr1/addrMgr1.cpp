@@ -333,7 +333,12 @@ static ADDR_SURFACE_FLAGS InitSurfaceInfoFlags(
 
     // The interleaved flag informs the address library that there is extra padding between subresources due to YUV
     // packed and/or YUV planar formats.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 681
+    // This needs to be done for Images opened from Mesa shared Images, too.
+    flags.interleaved = Formats::IsYuv(createInfo.swizzledFormat.format) || createInfo.flags.sharedWithMesa;
+#else
     flags.interleaved = Formats::IsYuv(createInfo.swizzledFormat.format);
+#endif
 
     flags.volume  = (createInfo.imageType == ImageType::Tex3d);
     flags.cube    = createInfo.flags.cubemap;

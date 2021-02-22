@@ -28,6 +28,9 @@ target_sources(pal PRIVATE CMakeLists.txt)
 add_subdirectory(inc)
 
 ### GPUOPEN ####################################################################
+
+enable_language(C)
+
 if (${PAL_GPUOPEN_PATH} STREQUAL "default")
     add_subdirectory(gpuopen)
 else()

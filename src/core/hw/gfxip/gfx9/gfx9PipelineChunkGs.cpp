@@ -66,12 +66,12 @@ void PipelineChunkGs::EarlyInit(
 // Late initialization for this pipeline chunk.  Responsible for fetching register values from the pipeline binary and
 // determining the values of other registers.
 void PipelineChunkGs::LateInit(
-    const AbiReader&                abiReader,
-    const CodeObjectMetadata&       metadata,
-    const RegisterVector&           registers,
-    const GraphicsPipelineLoadInfo& loadInfo,
-    PipelineUploader*               pUploader,
-    MetroHash64*                    pHasher)
+    const AbiReader&                  abiReader,
+    const PalAbi::CodeObjectMetadata& metadata,
+    const RegisterVector&             registers,
+    const GraphicsPipelineLoadInfo&   loadInfo,
+    PipelineUploader*                 pUploader,
+    MetroHash64*                      pHasher)
 {
     const Gfx9PalSettings&   settings     = m_device.Settings();
     const GpuChipProperties& chipProps    = m_device.Parent()->ChipProperties();
@@ -87,7 +87,6 @@ void PipelineChunkGs::LateInit(
         PAL_ASSERT(IsPow2Aligned(symbol.gpuVirtAddr, 256));
 
         m_regs.sh.spiShaderPgmLoEs.bits.MEM_BASE = Get256BAddrLo(symbol.gpuVirtAddr);
-        PAL_ASSERT(Get256BAddrHi(symbol.gpuVirtAddr) == 0);
     }
 
     if (pUploader->GetPipelineGpuSymbol(Abi::PipelineSymbolType::GsShdrIntrlTblPtr, &symbol) == Result::Success)
@@ -240,7 +239,6 @@ void PipelineChunkGs::LateInit(
     else
     {
         m_regs.context.geMaxOutputPerSubgroup.u32All = registers.At(Gfx10Plus::mmGE_MAX_OUTPUT_PER_SUBGROUP);
-        m_regs.context.spiShaderIdxFormat.u32All     = registers.At(Gfx10Plus::mmSPI_SHADER_IDX_FORMAT);
         m_regs.context.geNggSubgrpCntl.u32All        = registers.At(Gfx10Plus::mmGE_NGG_SUBGRP_CNTL);
     }
 
@@ -372,9 +370,6 @@ uint32* PipelineChunkGs::WriteContextCommands(
     {
         pCmdSpace = pCmdStream->WriteSetOneContextReg(Gfx10Plus::mmGE_MAX_OUTPUT_PER_SUBGROUP,
                                                       m_regs.context.geMaxOutputPerSubgroup.u32All,
-                                                      pCmdSpace);
-        pCmdSpace = pCmdStream->WriteSetOneContextReg(Gfx10Plus::mmSPI_SHADER_IDX_FORMAT,
-                                                      m_regs.context.spiShaderIdxFormat.u32All,
                                                       pCmdSpace);
         pCmdSpace = pCmdStream->WriteSetOneContextReg(Gfx10Plus::mmGE_NGG_SUBGRP_CNTL,
                                                       m_regs.context.geNggSubgrpCntl.u32All,

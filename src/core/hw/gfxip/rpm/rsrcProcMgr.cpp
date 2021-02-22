@@ -297,32 +297,6 @@ void RsrcProcMgr::CopyMemoryCs(
         {
             const uint32 copySectionSize = static_cast<uint32>(Min(CopySizeLimit, copySize - copyOffset));
 
-            // Create an embedded user-data table and bind it to user data. We need buffer views for the source and
-            // destination.
-            uint32* pSrdTable = RpmUtil::CreateAndBindEmbeddedUserData(pCmdBuffer,
-                                                                       SrdDwordAlignment() * NumGpuMemory,
-                                                                       SrdDwordAlignment(),
-                                                                       PipelineBindPoint::Compute,
-                                                                       0);
-
-            // Populate the table with raw buffer views, by convention the destination is placed before the source.
-            BufferViewInfo rawBufferView = {};
-            RpmUtil::BuildRawBufferViewInfo(&rawBufferView,
-                                            dstGpuMemory,
-                                            dstOffset + copyOffset,
-                                            copySectionSize);
-            m_pDevice->Parent()->CreateUntypedBufferViewSrds(1, &rawBufferView, pSrdTable);
-            pSrdTable += SrdDwordAlignment();
-
-            RpmUtil::BuildRawBufferViewInfo(&rawBufferView,
-                                            srcGpuMemory,
-                                            srcOffset + copyOffset,
-                                            copySectionSize);
-            m_pDevice->Parent()->CreateUntypedBufferViewSrds(1, &rawBufferView, pSrdTable);
-
-            const uint32 regionUserData[3] = { 0, 0, copySectionSize };
-            pCmdBuffer->CmdSetUserData(PipelineBindPoint::Compute, 1, 3, regionUserData);
-
             // Get the pipeline object and number of thread groups.
             const ComputePipeline* pPipeline = nullptr;
             uint32 numThreadGroups           = 0;
@@ -354,8 +328,33 @@ void RsrcProcMgr::CopyMemoryCs(
                 numThreadGroups = RpmUtil::MinThreadGroups(copySectionSize, pPipeline->ThreadsPerGroup());
             }
 
-            // Bind pipeline and dispatch.
             pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, InternalApiPsoHash, });
+
+            // Create an embedded user-data table and bind it to user data. We need buffer views for the source and
+            // destination.
+            uint32* pSrdTable = RpmUtil::CreateAndBindEmbeddedUserData(pCmdBuffer,
+                                                                       SrdDwordAlignment() * NumGpuMemory,
+                                                                       SrdDwordAlignment(),
+                                                                       PipelineBindPoint::Compute,
+                                                                       0);
+
+            // Populate the table with raw buffer views, by convention the destination is placed before the source.
+            BufferViewInfo rawBufferView = {};
+            RpmUtil::BuildRawBufferViewInfo(&rawBufferView,
+                                            dstGpuMemory,
+                                            dstOffset + copyOffset,
+                                            copySectionSize);
+            m_pDevice->Parent()->CreateUntypedBufferViewSrds(1, &rawBufferView, pSrdTable);
+            pSrdTable += SrdDwordAlignment();
+
+            RpmUtil::BuildRawBufferViewInfo(&rawBufferView,
+                                            srcGpuMemory,
+                                            srcOffset + copyOffset,
+                                            copySectionSize);
+            m_pDevice->Parent()->CreateUntypedBufferViewSrds(1, &rawBufferView, pSrdTable);
+
+            const uint32 regionUserData[3] = { 0, 0, copySectionSize };
+            pCmdBuffer->CmdSetUserData(PipelineBindPoint::Compute, 1, 3, regionUserData);
             pCmdBuffer->CmdDispatch(numThreadGroups, 1, 1);
         }
     }
@@ -2285,6 +2284,9 @@ bool RsrcProcMgr::ScaledCopyImageUseGraphics(
     const bool preferGraphicsCopy = Image::PreferGraphicsCopy &&
                                     (PreferComputeForNonLocalDestCopy(*pDstImage) == false);
 
+    // IsGfxPipelineForFormatSupported is only relevant for non depth formats
+    const auto isSupported = isDepth || IsGfxPipelineForFormatSupported(dstInfo.swizzledFormat);
+
     // We need to decide between the graphics copy path and the compute copy path. The graphics path only supports
     // single-sampled non-compressed, non-YUV 2D or 2D color images for now.
     const bool useGraphicsCopy = ((preferGraphicsCopy && pCmdBuffer->IsGraphicsSupported()) &&
@@ -2292,7 +2294,8 @@ bool RsrcProcMgr::ScaledCopyImageUseGraphics(
                                    (dstImageType != ImageType::Tex1d) &&
                                    (isCompressed == false)            &&
                                    (isYuv == false)                   &&
-                                   (p2pBltWa == false)));
+                                   (p2pBltWa == false)                &&
+                                   (isSupported)));
 
     // Scissor-enabled blit for OGLP is only supported on graphics path.
     PAL_ASSERT(useGraphicsCopy || (copyInfo.flags.scissorTest == 0));
@@ -5535,21 +5538,23 @@ void RsrcProcMgr::CmdClearImageView(
 }
 
 // =====================================================================================================================
-// Expand DCC/Fmask/HTile and sync before resolve image.
-void RsrcProcMgr::LateExpandResolveSrc(
+// Expand DCC/Fmask/HTile and sync before shader-based (PS draw/CS dispatch) resolve image.
+void RsrcProcMgr::LateExpandShaderResolveSrc(
     GfxCmdBuffer*             pCmdBuffer,
     const Image&              srcImage,
     ImageLayout               srcImageLayout,
     const ImageResolveRegion* pRegions,
     uint32                    regionCount,
-    ResolveMethod             method
+    ResolveMethod             method,
+    bool                      isCsResolve
     ) const
 {
+    PAL_ASSERT((method.shaderCsFmask != 0) || (method.shaderCs != 0) | (method.shaderPs != 0));
+
     const ImageLayoutUsageFlags shaderUsage =
         (method.shaderCsFmask ? Pal::LayoutShaderFmaskBasedRead : Pal::LayoutShaderRead);
 
-    if (((method.shaderCsFmask != 0) || (method.shaderCs != 0)) &&
-        (TestAnyFlagSet(srcImageLayout.usages, shaderUsage) == false))
+    if (TestAnyFlagSet(srcImageLayout.usages, shaderUsage) == false)
     {
         BarrierTransition transition = { };
         transition.imageInfo.pImage            = &srcImage;
@@ -5560,27 +5565,32 @@ void RsrcProcMgr::LateExpandResolveSrc(
         transition.srcCacheMask                = Pal::CoherResolve;
         transition.dstCacheMask                = Pal::CoherShader;
 
-        LateExpandResolveSrcHelper(pCmdBuffer, pRegions, regionCount, transition, HwPipePreBlt);
+        // The destination operation for the image expand is either a CS read or PS read for the upcoming resolve.
+        const HwPipePoint waitPoint = isCsResolve ? HwPipePreCs : HwPipePreRasterization;
+
+        LateExpandShaderResolveSrcHelper(pCmdBuffer, pRegions, regionCount, transition, HwPipePostBlt, waitPoint);
     }
 }
 
 // =====================================================================================================================
-// Inserts a barrier after a compute resolve for a color image.  Returns the image to the ResolveSrc layout after the
-// internal compute shader runs.
-void RsrcProcMgr::FixupLateExpandResolveSrc(
+// Inserts a barrier after a shader-based (PS draw/CS dispatch) resolve for the source color/depth-stencil image.
+// Returns the image to the ResolveSrc layout after the draw/dispatch.
+void RsrcProcMgr::FixupLateExpandShaderResolveSrc(
     GfxCmdBuffer*             pCmdBuffer,
     const Image&              srcImage,
     ImageLayout               srcImageLayout,
     const ImageResolveRegion* pRegions,
     uint32                    regionCount,
-    ResolveMethod             method
+    ResolveMethod             method,
+    bool                      isCsResolve
     ) const
 {
+    PAL_ASSERT((method.shaderCsFmask != 0) || (method.shaderCs != 0) | (method.shaderPs != 0));
+
     const ImageLayoutUsageFlags shaderUsage =
         (method.shaderCsFmask ? Pal::LayoutShaderFmaskBasedRead : Pal::LayoutShaderRead);
 
-    if (((method.shaderCsFmask != 0) || (method.shaderCs != 0)) &&
-        (TestAnyFlagSet(srcImageLayout.usages, shaderUsage) == false))
+    if (TestAnyFlagSet(srcImageLayout.usages, shaderUsage) == false)
     {
         BarrierTransition transition = { };
         transition.imageInfo.pImage             = &srcImage;
@@ -5592,17 +5602,21 @@ void RsrcProcMgr::FixupLateExpandResolveSrc(
         transition.srcCacheMask = Pal::CoherShader;
         transition.dstCacheMask = Pal::CoherResolve;
 
-        LateExpandResolveSrcHelper(pCmdBuffer, pRegions, regionCount, transition, HwPipePostBlt);
+        // The source operation for the image expand is either a CS read or PS read for the past resolve.
+        const HwPipePoint pipePoint = isCsResolve ? HwPipePostCs : HwPipePostPs;
+
+        LateExpandShaderResolveSrcHelper(pCmdBuffer, pRegions, regionCount, transition, pipePoint, HwPipePreBlt);
     }
 }
 
 // =====================================================================================================================
-// Helper function for setting up a barrier used before and after a compute shader resolve.
-void RsrcProcMgr::LateExpandResolveSrcHelper(
+// Helper function for setting up a barrier used before and after a shader-based resolve.
+void RsrcProcMgr::LateExpandShaderResolveSrcHelper(
     GfxCmdBuffer*             pCmdBuffer,
     const ImageResolveRegion* pRegions,
     uint32                    regionCount,
     const BarrierTransition&  transition,
+    HwPipePoint               pipePoint,
     HwPipePoint               waitPoint
     ) const
 {
@@ -5639,7 +5653,7 @@ void RsrcProcMgr::LateExpandResolveSrcHelper(
         barrierInfo.waitPoint       = waitPoint;
         barrierInfo.reason          = Developer::BarrierReasonUnknown;
 
-        const HwPipePoint releasePipePoint = Pal::HwPipeBottom;
+        const HwPipePoint releasePipePoint = pipePoint;
         barrierInfo.pipePointWaitCount = 1;
         barrierInfo.pPipePoints        = &releasePipePoint;
 
@@ -5833,7 +5847,14 @@ void RsrcProcMgr::CmdResolveImage(
         else if (dstMethod.shaderPs && (resolveMode == ResolveMode::Average))
         {
             // this only supports Depth/Stencil resolves.
-            ResolveImageGraphics(pCmdBuffer, srcImage, srcImageLayout, dstImage, dstImageLayout, regionCount, pRegions, flags);
+            ResolveImageDepthStencilGraphics(pCmdBuffer,
+                                             srcImage,
+                                             srcImageLayout,
+                                             dstImage,
+                                             dstImageLayout,
+                                             regionCount,
+                                             pRegions,
+                                             flags);
         }
         else if (pCmdBuffer->IsComputeSupported() &&
                  ((srcMethod.shaderCsFmask == 1) ||
@@ -6179,7 +6200,7 @@ void RsrcProcMgr::CmdGenerateIndirectCmds(
 
 // =====================================================================================================================
 // Resolves a multisampled depth-stencil source Image into the single-sampled destination Image using a pixel shader.
-void RsrcProcMgr::ResolveImageGraphics(
+void RsrcProcMgr::ResolveImageDepthStencilGraphics(
     GfxCmdBuffer*             pCmdBuffer,
     const Image&              srcImage,
     ImageLayout               srcImageLayout,
@@ -6200,7 +6221,13 @@ void RsrcProcMgr::ResolveImageGraphics(
     const auto& srcCreateInfo = srcImage.GetImageCreateInfo();
     const auto& srcImageInfo  = srcImage.GetImageInfo();
 
-    LateExpandResolveSrc(pCmdBuffer, srcImage, srcImageLayout, pRegions, regionCount, srcImageInfo.resolveMethod);
+    LateExpandShaderResolveSrc(pCmdBuffer,
+                               srcImage,
+                               srcImageLayout,
+                               pRegions,
+                               regionCount,
+                               srcImageInfo.resolveMethod,
+                               false);
 
     // This path only works on depth-stencil images.
     PAL_ASSERT((srcCreateInfo.usageFlags.depthStencil && dstCreateInfo.usageFlags.depthStencil) ||
@@ -6387,7 +6414,13 @@ void RsrcProcMgr::ResolveImageGraphics(
     // Restore original command buffer state.
     pCmdBuffer->PopGraphicsState();
 
-    FixupLateExpandResolveSrc(pCmdBuffer, srcImage, srcImageLayout, pRegions, regionCount, srcImageInfo.resolveMethod);
+    FixupLateExpandShaderResolveSrc(pCmdBuffer,
+                                    srcImage,
+                                    srcImageLayout,
+                                    pRegions,
+                                    regionCount,
+                                    srcImageInfo.resolveMethod,
+                                    false);
 }
 
 // =====================================================================================================================
@@ -6407,7 +6440,7 @@ void RsrcProcMgr::ResolveImageCompute(
 {
     const auto& device   = *m_pDevice->Parent();
 
-    LateExpandResolveSrc(pCmdBuffer, srcImage, srcImageLayout, pRegions, regionCount, method);
+    LateExpandShaderResolveSrc(pCmdBuffer, srcImage, srcImageLayout, pRegions, regionCount, method, true);
 
     // Save the command buffer's state.
     pCmdBuffer->CmdSaveComputeState(ComputeStatePipelineAndUserData);
@@ -6605,7 +6638,7 @@ void RsrcProcMgr::ResolveImageCompute(
         }
     }
 
-    FixupLateExpandResolveSrc(pCmdBuffer, srcImage, srcImageLayout, pRegions, regionCount, method);
+    FixupLateExpandShaderResolveSrc(pCmdBuffer, srcImage, srcImageLayout, pRegions, regionCount, method, true);
 }
 
 // =====================================================================================================================

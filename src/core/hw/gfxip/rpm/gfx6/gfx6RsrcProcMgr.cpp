@@ -336,6 +336,21 @@ const Pal::GraphicsPipeline* RsrcProcMgr::GetGfxPipelineByTargetIndexAndFormat(
 }
 
 // =====================================================================================================================
+// Returns true if there is graphics pipeline that can copy specified format.
+const bool RsrcProcMgr::IsGfxPipelineForFormatSupported(
+    SwizzledFormat format
+    ) const
+{
+    const SPI_SHADER_EX_FORMAT exportFormat = DeterminePsExportFmt(format,
+                                                                   false,  // Blend disabled
+                                                                   true,   // Alpha is exported
+                                                                   false,  // Blend Source Alpha disabled
+                                                                   false); // Alpha-to-Coverage disabled
+
+    return ExportStateMapping[exportFormat] >= 0;
+}
+
+// =====================================================================================================================
 const Pal::ComputePipeline* RsrcProcMgr::GetCmdGenerationPipeline(
     const Pal::IndirectCmdGenerator& generator,
     const CmdBuffer&                 cmdBuffer
@@ -3790,8 +3805,8 @@ void RsrcProcMgr::HwlDecodeImageViewSrd(
                 const auto*    pTileInfo   = AddrMgr1::GetTileInfo(&dstImage, i);
                 const auto     srdBaseAddr = (static_cast<gpusize>(srd.word1.bits.BASE_ADDRESS_HI) << 32ull) +
                                               srd.word0.bits.BASE_ADDRESS;
-                const gpusize  subResAddr  = Get256BAddrSwizzled(dstImage.GetSubresourceBaseAddr(i),
-                                                                 pTileInfo->tileSwizzle);
+                const gpusize  subResAddr  = Get256BAddrLoSwizzled(dstImage.GetSubresourceBaseAddr(i),
+                                                                   pTileInfo->tileSwizzle);
 
                 if (srdBaseAddr == subResAddr)
                 {
@@ -3874,6 +3889,17 @@ void RsrcProcMgr::HwlDecodeBufferViewSrd(
 
     // Verify that we have a valid format.
     PAL_ASSERT(pViewInfo->swizzledFormat.format != ChNumFormat::Undefined);
+}
+
+void RsrcProcMgr::HwlImageToImageMissingPixelCopy(
+    GfxCmdBuffer*           pCmdBuffer,
+    const Pal::Image&       srcImage,
+    const Pal::Image&       dstImage,
+    const ImageCopyRegion&  region
+    ) const
+{
+    // This method is unnecesarry on Gfx8 hardware as the problem it solves is related to
+    // memory layout of width/fmt/mip on Gfx9+ hardware.
 }
 
 } // Gfx6

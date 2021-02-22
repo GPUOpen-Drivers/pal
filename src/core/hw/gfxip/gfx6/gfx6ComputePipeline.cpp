@@ -64,8 +64,8 @@ ComputePipeline::ComputePipeline(
 // =====================================================================================================================
 // Initializes the signature of a compute pipeline using a pipeline ELF.
 void ComputePipeline::SetupSignatureFromElf(
-    const CodeObjectMetadata& metadata,
-    const RegisterVector&     registers)
+    const PalAbi::CodeObjectMetadata& metadata,
+    const RegisterVector&             registers)
 {
     uint16  entryToRegAddr[MaxUserDataEntries] = { };
 
@@ -139,10 +139,10 @@ void ComputePipeline::SetupSignatureFromElf(
 // Initializes HW-specific state related to this compute pipeline (register values, user-data mapping, etc.) using the
 // specified Pipeline ABI processor.
 Result ComputePipeline::HwlInit(
-    const ComputePipelineCreateInfo& createInfo,
-    const AbiReader&                 abiReader,
-    const CodeObjectMetadata&        metadata,
-    MsgPackReader*                   pMetadataReader)
+    const ComputePipelineCreateInfo&  createInfo,
+    const AbiReader&                  abiReader,
+    const PalAbi::CodeObjectMetadata& metadata,
+    MsgPackReader*                    pMetadataReader)
 {
     const Gfx6PalSettings&   settings  = m_pDevice->Settings();
     const GpuChipProperties& chipProps = m_pDevice->Parent()->ChipProperties();
@@ -412,17 +412,6 @@ Result ComputePipeline::GetShaderStats(
                                                                       m_regs.computePgmHi.bits.DATA);
 
             pShaderStats->common.ldsSizePerThreadGroup = chipProps.gfxip.ldsSizePerThreadGroup;
-
-            AbiReader abiReader(m_pDevice->GetPlatform(), m_pPipelineBinary);
-            result = abiReader.Init();
-
-            MsgPackReader      metadataReader;
-            CodeObjectMetadata metadata;
-
-            if (result == Result::Success)
-            {
-                result = abiReader.GetMetadata(&metadataReader, &metadata);
-            }
         }
     }
 

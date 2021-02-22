@@ -33,6 +33,8 @@
 #include "core/layers/interfaceLogger/interfaceLoggerImage.h"
 #include "core/layers/interfaceLogger/interfaceLoggerPlatform.h"
 #include "palAutoBuffer.h"
+#include "palHsaAbiMetadata.h"
+#include "palStringUtil.h"
 
 using namespace Util;
 
@@ -49,7 +51,8 @@ CmdBuffer::CmdBuffer(
     :
     CmdBufferDecorator(pNextCmdBuffer, pDevice),
     m_pPlatform(static_cast<Platform*>(pDevice->GetPlatform())),
-    m_objectId(objectId)
+    m_objectId(objectId),
+    m_pBoundPipelines{}
 {
     m_funcTable.pfnCmdSetUserData[static_cast<uint32>(PipelineBindPoint::Compute)]  = CmdSetUserDataCs;
     m_funcTable.pfnCmdSetUserData[static_cast<uint32>(PipelineBindPoint::Graphics)] = CmdSetUserDataGfx;
@@ -90,6 +93,12 @@ Result CmdBuffer::Begin(
         pLogContext->EndOutput();
 
         m_pPlatform->LogEndFunc(pLogContext);
+    }
+
+    // Reset our internal state tracking.
+    for (uint32 idx = 0; idx < static_cast<uint32>(PipelineBindPoint::Count); ++idx)
+    {
+        m_pBoundPipelines[idx] = nullptr;
     }
 
     return result;
@@ -175,6 +184,9 @@ void CmdBuffer::CmdBindPipeline(
 
         m_pPlatform->LogEndFunc(pLogContext);
     }
+
+    // We may need this pipeline in a later function call.
+    m_pBoundPipelines[static_cast<uint32>(params.pipelineBindPoint)] = params.pPipeline;
 }
 
 // =====================================================================================================================
@@ -290,6 +302,58 @@ void CmdBuffer::CmdSetDepthBounds(
     {
         pLogContext->BeginInput();
         pLogContext->KeyAndStruct("params", params);
+        pLogContext->EndInput();
+
+        m_pPlatform->LogEndFunc(pLogContext);
+    }
+}
+
+// =====================================================================================================================
+void CmdBuffer::CmdSetKernelArguments(
+    uint32            firstArg,
+    uint32            argCount,
+    const void*const* ppValues)
+{
+    BeginFuncInfo funcInfo;
+    funcInfo.funcId       = InterfaceFunc::CmdBufferCmdSetKernelArguments;
+    funcInfo.objectId     = m_objectId;
+    funcInfo.preCallTime  = m_pPlatform->GetTime();
+    m_pNextLayer->CmdSetKernelArguments(firstArg, argCount, ppValues);
+    funcInfo.postCallTime = m_pPlatform->GetTime();
+
+    LogContext* pLogContext = nullptr;
+    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    {
+        pLogContext->BeginInput();
+        pLogContext->KeyAndValue("firstArg", firstArg);
+        pLogContext->KeyAndValue("argCount", argCount);
+        pLogContext->KeyAndBeginList("values", false);
+
+        // There must be an HSA ABI pipeline bound if you call this function.
+        const IPipeline*const pPipeline = m_pBoundPipelines[static_cast<uint32>(PipelineBindPoint::Compute)];
+        PAL_ASSERT((pPipeline != nullptr) && (pPipeline->GetInfo().flags.hsaAbi == 1));
+
+        for (uint32 idx = 0; idx < argCount; ++idx)
+        {
+            const auto*  pArgument = pPipeline->GetKernelArgument(firstArg + idx);
+            PAL_ASSERT(pArgument != nullptr);
+
+            const size_t valueSize = pArgument->size;
+            PAL_ASSERT(valueSize > 0);
+
+            // Convert the value to one long string of hexadecimal values. If the value size matches a fundemental
+            // type use that block size, otherwise default to DWORDs.
+            const size_t blockSize = (valueSize == 1) ? 1 : (valueSize == 2) ? 2 : (valueSize == 8) ? 8 : 4;
+            const size_t blockLen  = 3 + blockSize * 2; // "0x" + 2 chars per byte + a null or space.
+            const size_t numBlocks = RoundUpQuotient<size_t>(valueSize, blockSize);
+
+            AutoBuffer<char, 256, Platform> string(numBlocks * blockLen, m_pPlatform);
+            BytesToStr(string.Data(), string.Capacity(), ppValues[idx], valueSize, blockSize);
+
+            pLogContext->Value(string.Data());
+        }
+
+        pLogContext->EndList();
         pLogContext->EndInput();
 
         m_pPlatform->LogEndFunc(pLogContext);
@@ -3217,8 +3281,15 @@ void CmdBuffer::CmdNop(
     LogContext* pLogContext = nullptr;
     if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
     {
+        // Convert the payload to one long string of hexadecimal values.
+        const uint32 blockLen  = 3 + sizeof(uint32) * 2; // "0x" + 2 chars per byte + a null or space.
+        const uint32 numBlocks = RoundUpQuotient<uint32>(payloadSize, sizeof(uint32));
+
+        AutoBuffer<char, 256, Platform> string(numBlocks * blockLen, m_pPlatform);
+        BytesToStr(string.Data(), string.Capacity(), pPayload, payloadSize * sizeof(uint32), sizeof(uint32));
+
         pLogContext->BeginInput();
-        pLogContext->KeyAndValue("payload", pPayload);
+        pLogContext->KeyAndValue("payload", string.Data());
         pLogContext->KeyAndValue("payloadSize", payloadSize);
         pLogContext->EndInput();
 

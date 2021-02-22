@@ -2265,7 +2265,7 @@ void PAL_STDCALL Device::CreateImageViewSrds(
 
             const uint32 swizzle = pTileInfo->tileSwizzle;
 
-            srd.word0.bits.BASE_ADDRESS    = Get256BAddrSwizzled(gpuVirtAddress, swizzle);
+            srd.word0.bits.BASE_ADDRESS    = Get256BAddrLoSwizzled(gpuVirtAddress, swizzle);
             srd.word1.bits.BASE_ADDRESS_HI = Get256BAddrHi(gpuVirtAddress);
             if (static_cast<const Pal::Device*>(pDevice)->MemoryProperties().flags.iommuv2Support)
             {
@@ -2392,7 +2392,7 @@ void Device::CreateFmaskViewSrds(
             const gpusize gpuVirtAddress = image.GetFmaskBaseAddr(slice0Id);
             const uint32 swizzle         = pTileInfo->tileSwizzle;
 
-            srd.word0.bits.BASE_ADDRESS    = Get256BAddrSwizzled(gpuVirtAddress, swizzle);
+            srd.word0.bits.BASE_ADDRESS    = Get256BAddrLoSwizzled(gpuVirtAddress, swizzle);
             srd.word1.bits.BASE_ADDRESS_HI = Get256BAddrHi(gpuVirtAddress);
 
             // Does this image has an associated FMask which is shader Readable? if FMask needs to be
@@ -2744,6 +2744,7 @@ void InitializeGpuChipProperties(
     // All GFXIP 6-8 hardware cannot support 2-bit signed values.
     pInfo->gfx6.supports2BitSignedValues = 0;
     pInfo->gfx6.support64BitInstructions = 1;
+    pInfo->gfx6.supportFloatAtomics      = 1;
 
     // Out of order primitives was added in Hawaii, but it has a hardware bug where the hardware can hang when a
     // multi-cycle primitive is processed when out of order is enabled. This is fixed for GFXIP 8.

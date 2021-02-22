@@ -97,15 +97,23 @@ public:
 
     // Returns the scratch memory size in dwords
     static uint32 CalcScratchMemSize(
-        GfxIpLevel                gfxIpLevel,
-        const CodeObjectMetadata& metadata);
+        GfxIpLevel                              gfxIpLevel,
+        const Util::PalAbi::CodeObjectMetadata& metadata);
+
+    const void* pipeBinary() const {return m_pPipelineBinary;}
 
 protected:
     virtual Result HwlInit(
-        const ComputePipelineCreateInfo& createInfo,
-        const AbiReader&                 abiReader,
-        const CodeObjectMetadata&        metadata,
-        Util::MsgPackReader*             pMetadataReader) override;
+        const ComputePipelineCreateInfo&        createInfo,
+        const AbiReader&                        abiReader,
+        const Util::PalAbi::CodeObjectMetadata& metadata,
+        Util::MsgPackReader*                    pMetadataReader) override;
+
+    virtual Result HwlInit(
+        const ComputePipelineCreateInfo&        createInfo,
+        const AbiReader&                        abiReader,
+        const Util::HsaAbi::CodeObjectMetadata& metadata,
+        Util::MsgPackReader*                    pMetadataReader) override;
 
 private:
     void UpdateRingSizes(uint32 scratchMemorySize);

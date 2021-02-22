@@ -233,6 +233,7 @@ namespace DevDriver
 
                     const size_t len = Min(ArraySize(wThreadName), strlen(pThreadName));
 
+                    // This function converts a multibyte character string to its wide character representation
                     const size_t converted = mbstowcs(wThreadName, pThreadName, len);
 
                     HRESULT hResult = E_FAIL;

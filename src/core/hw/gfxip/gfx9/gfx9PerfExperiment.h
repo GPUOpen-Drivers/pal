@@ -391,6 +391,10 @@ private:
     // A big struct that lists every block's PERFCOUNTER#_SELECT registers.
     GlobalSelectState m_select;
 
+    // If this is true we can never set CP_PERFMON_CNTL's PERFMON_STATE and SPM_PERFMON_STATE to STOP_COUNTING.
+    // If global or SPM counters are active we must always leave them running until we set DISABLE_AND_RESET.
+    bool m_neverStopCounters;
+
     PAL_DISALLOW_DEFAULT_CTOR(PerfExperiment);
     PAL_DISALLOW_COPY_AND_ASSIGN(PerfExperiment);
 };

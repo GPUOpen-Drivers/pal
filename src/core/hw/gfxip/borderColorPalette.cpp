@@ -73,6 +73,9 @@ void BorderColorPalette::GetGpuMemoryRequirements(
     pGpuMemReqs->size      = m_gpuMemSize;
     pGpuMemReqs->alignment = m_gpuMemAlignment;
 
+    pGpuMemReqs->flags.u32All    = 0;
+    pGpuMemReqs->flags.cpuAccess = 1;
+
     pGpuMemReqs->heapCount = 3;
     pGpuMemReqs->heaps[0]  = GpuHeapLocal;
     pGpuMemReqs->heaps[1]  = GpuHeapGartUswc;

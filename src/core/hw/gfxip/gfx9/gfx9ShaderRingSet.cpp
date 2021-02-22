@@ -435,8 +435,7 @@ Result UniversalRingSet::Init()
         {
             m_regs.vgtHsOffchipParam.gfx103Plus.OFFCHIP_GRANULARITY = m_pDevice->Settings().offchipLdsBufferSize;
         }
-        else
-        if (IsGfx9(device) || IsGfx101(device)
+        else if (IsGfx9(device) || IsGfx101(device)
            )
         {
             m_regs.vgtHsOffchipParam.most.OFFCHIP_GRANULARITY = m_pDevice->Settings().offchipLdsBufferSize;
@@ -556,8 +555,7 @@ Result UniversalRingSet::Validate(
             {
                 m_regs.vgtHsOffchipParam.gfx103Plus.OFFCHIP_BUFFERING = offchipBuffering;
             }
-            else
-            if (IsGfx9(device) || IsGfx10(m_gfxLevel)
+            else if (IsGfx9(device) || IsGfx10(m_gfxLevel)
                )
             {
                 m_regs.vgtHsOffchipParam.most.OFFCHIP_BUFFERING = offchipBuffering;

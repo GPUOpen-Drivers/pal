@@ -42,9 +42,6 @@ public:
     virtual Result End() override;
     virtual Result Reset(ICmdAllocator* pCmdAllocator, bool returnGpuMemory) override;
 
-    virtual void CmdBindPipeline(
-        const PipelineBindParams& params) override;
-
 #if PAL_ENABLE_PRINTS_ASSERTS
     // This function allows us to dump the contents of this command buffer to a file at submission time.
     virtual void DumpCmdStreamsToFile(Util::File* pFile, CmdBufDumpFormat mode) const override;

@@ -22,6 +22,7 @@
  #  SOFTWARE.
  #
  #######################################################################################################################
+
 include_guard()
 
 include(PalVersionHelper)
@@ -30,21 +31,14 @@ include(PalVersionHelper)
 # - Name collision issues
 # - cmake-gui allows grouping of variables based on prefixes, which then makes it clear what options PAL defined
 
-option(PAL_DBG_COMMAND_COMMENTS "Command with comments" OFF)
-
 option(PAL_ENABLE_PRINTS_ASSERTS "Enable print assertions?" OFF)
 option(PAL_ENABLE_PRINTS_ASSERTS_DEBUG "Enable print assertions on debug builds?" ON)
 
 option(PAL_MEMTRACK "Enable PAL memory tracker?" OFF)
 
-option(PAL_BUILD_DBG_OVERLAY "Build PAL Debug Overlay?" ON)
-
-option(PAL_BUILD_GPU_PROFILER "Build PAL GPU Profiler?" ON)
-
 # Paths to PAL's dependencies
 set(PAL_METROHASH_PATH ${PROJECT_SOURCE_DIR}/src/util/imported/metrohash      CACHE PATH "Specify the path to the MetroHash project.")
 set(   PAL_CWPACK_PATH ${PROJECT_SOURCE_DIR}/src/util/imported/cwpack         CACHE PATH "Specify the path to the CWPack project.")
-set(      PAL_VAM_PATH ${PROJECT_SOURCE_DIR}/src/core/imported/vam            CACHE PATH "Specify the path to the VAM project.")
 set(     PAL_ADDR_PATH ${PROJECT_SOURCE_DIR}/src/core/imported/addrlib        CACHE PATH "Specify the path to the ADDRLIB project.")
 set(      PAL_SWD_PATH ${PROJECT_SOURCE_DIR}/src/core/imported/SwWarDetection CACHE PATH "Specify the path to the SwWarDetection project.")
 

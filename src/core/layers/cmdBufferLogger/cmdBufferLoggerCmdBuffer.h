@@ -117,6 +117,10 @@ public:
     virtual void CmdPrimeGpuCaches(
         uint32                    rangeCount,
         const PrimeGpuCacheRange* pRanges) override;
+    virtual void CmdSetKernelArguments(
+        uint32            firstArg,
+        uint32            argCount,
+        const void*const* ppValues) override;
     virtual void CmdSetVertexBuffers(
         uint32                firstBuffer,
         uint32                bufferCount,
@@ -639,6 +643,7 @@ private:
     DrawDispatchInfo             m_drawDispatchInfo;
     CblEmbedDrawDispatchMode     m_embedDrawDispatchInfo;
     uint64                       m_apiPsoHash;
+    const IPipeline*             m_pBoundPipelines[static_cast<uint32>(PipelineBindPoint::Count)];
 
     PAL_DISALLOW_DEFAULT_CTOR(CmdBuffer);
     PAL_DISALLOW_COPY_AND_ASSIGN(CmdBuffer);

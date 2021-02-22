@@ -127,6 +127,9 @@ protected:
         uint32         targetIndex,
         SwizzledFormat format) const override;
 
+    virtual const bool IsGfxPipelineForFormatSupported(
+        SwizzledFormat format) const override;
+
     virtual const Pal::ComputePipeline* GetCmdGenerationPipeline(
         const Pal::IndirectCmdGenerator& generator,
         const CmdBuffer&                 cmdBuffer) const override;
@@ -216,10 +219,7 @@ private:
         const Pal::Image&      srcImage,
         const Pal::Image&      dstImage,
         const ImageCopyRegion& region
-        ) const override
-    {
-        PAL_NOT_IMPLEMENTED();
-    }
+        ) const override;
 
     void FastDepthStencilClearCompute(
         GfxCmdBuffer*      pCmdBuffer,

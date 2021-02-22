@@ -27,6 +27,14 @@
 
 #include "core/hw/gfxip/pipeline.h"
 
+namespace llvm
+{
+namespace amdhsa
+{
+    struct kernel_descriptor_t;
+}
+}
+
 namespace Pal
 {
 
@@ -36,7 +44,7 @@ namespace Pal
 class ComputePipeline : public Pipeline
 {
 public:
-    virtual ~ComputePipeline() { }
+    virtual ~ComputePipeline();
 
     virtual Result Init(const ComputePipelineCreateInfo& createInfo);
 
@@ -49,6 +57,11 @@ public:
         *pNumThreadsZ = m_threadsPerTgZ;
     }
 
+    virtual const Util::HsaAbi::KernelArgument* GetKernelArgument(uint32 index) const override;
+
+    const Util::HsaAbi::CodeObjectMetadata& HsaMetadata() const;
+    const llvm::amdhsa::kernel_descriptor_t& KernelDescriptor() const;
+
 protected:
     ComputePipeline(Device* pDevice, bool isInternal);
 
@@ -56,24 +69,42 @@ protected:
         { return (shaderType == ShaderType::Compute) ? &m_stageInfo : nullptr; }
 
     virtual Result HwlInit(
-        const ComputePipelineCreateInfo& createInfo,
-        const AbiReader&                 abiReader,
-        const CodeObjectMetadata&        metadata,
-        Util::MsgPackReader*             pMetadataReader) = 0;
+        const ComputePipelineCreateInfo&        createInfo,
+        const AbiReader&                        abiReader,
+        const Util::PalAbi::CodeObjectMetadata& metadata,
+        Util::MsgPackReader*                    pMetadataReader) = 0;
+
+    virtual Result HwlInit(
+        const ComputePipelineCreateInfo&        createInfo,
+        const AbiReader&                        abiReader,
+        const Util::HsaAbi::CodeObjectMetadata& metadata,
+        Util::MsgPackReader*                    pMetadataReader) { return Result::Unsupported; }
+
+    // We need a copy of the HSA metadata for future reference. We also keep a pointer to the HSA metadata's kernel
+    // descriptor object. The descriptor is in the pipeline binary, it's not independently allocated!
+    Util::HsaAbi::CodeObjectMetadata*        m_pHsaMeta;
+    const llvm::amdhsa::kernel_descriptor_t* m_pKernelDescriptor;
 
     // Number of threads per threadgroup in each dimension as determined by parsing the input IL.
     uint32  m_threadsPerTgX;
     uint32  m_threadsPerTgY;
     uint32  m_threadsPerTgZ;
 
-    uint32  m_maxFunctionCallDepth;  ///< Maximum depth for indirect function calls
-    uint32  m_stackSizeInBytes;      ///< Total stack size for indirect functions
+    uint32  m_maxFunctionCallDepth;  // Maximum depth for indirect function calls
+    uint32  m_stackSizeInBytes;      // Total stack size for indirect functions
 
     ShaderStageInfo  m_stageInfo;
 
 private:
-    Result InitFromPipelineBinary(
-        const ComputePipelineCreateInfo& createInfo);
+    Result InitFromPalAbiBinary(
+        const ComputePipelineCreateInfo& createInfo,
+        const AbiReader&                 abiReader,
+        Util::MsgPackReader*             pMetadataReader);
+
+    Result InitFromHsaAbiBinary(
+        const ComputePipelineCreateInfo& createInfo,
+        const AbiReader&                 abiReader,
+        Util::MsgPackReader*             pMetadataReader);
 
     PAL_DISALLOW_COPY_AND_ASSIGN(ComputePipeline);
 };
