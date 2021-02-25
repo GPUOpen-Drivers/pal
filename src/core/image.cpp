@@ -742,6 +742,9 @@ Result Image::Init()
                 {
                     m_gpuMemAlignment = Pow2Align(m_gpuMemAlignment, memoryProps.dcnPrimarySurfaceVaStartAlign);
                 }
+
+                // Save off the cursor cache size to the hwl image
+                GetGfxImage()->SetMallCursorCacheSize(m_imageInfo.internalCreateInfo.mallCursorCacheSize);
             }
 
             // PRT images need to have their data size aligned, otherwise mapping/unmapping the last PRT tile might

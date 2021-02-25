@@ -79,7 +79,7 @@ const MergedFlatFmtInfo* MergedChannelFlatFmtInfoTbl(
 
     const MergedFlatFmtInfo*  pFlatFmtInfo = nullptr;
 
-    if (IsGfx102Plus(gfxIpLevel))
+    if (IsGfx103Plus(gfxIpLevel))
     {
         pFlatFmtInfo = Gfx10_3MergedChannelFmtInfoTbl;
     }

@@ -10621,11 +10621,15 @@ union GE_PERFCOUNTER11_SELECT {
 
 union GE_PRIV_CONTROL {
     struct {
-        unsigned int DISCARD_LEGACY                                               :  1;
+        unsigned int                                                              :  1;
         unsigned int CLAMP_PRIMGRP_SIZE                                           :  9;
         unsigned int RESET_ON_PIPELINE_CHANGE                                     :  1;
         unsigned int                                                              : 21;
     } bits, bitfields;
+    struct {
+        unsigned int DISCARD_LEGACY                                               :  1;
+        unsigned int                                                              : 31;
+    } most;
     struct {
         unsigned int                                                              : 15;
         unsigned int FGCG_OVERRIDE                                                :  1;
@@ -14767,7 +14771,7 @@ union PA_SC_BINNER_EVENT_CNTL_1 {
         unsigned int FLUSH_DFSM                                                   :  2;
         unsigned int RESET_TO_LOWEST_VGT                                          :  2;
         unsigned int CACHE_FLUSH_AND_INV_TS_EVENT                                 :  2;
-        unsigned int ZPASS_DONE                                                   :  2;
+        unsigned int                                                              :  2;
         unsigned int CACHE_FLUSH_AND_INV_EVENT                                    :  2;
         unsigned int PERFCOUNTER_START                                            :  2;
         unsigned int PERFCOUNTER_STOP                                             :  2;
@@ -14779,6 +14783,11 @@ union PA_SC_BINNER_EVENT_CNTL_1 {
         unsigned int SAMPLE_PIPELINESTAT                                          :  2;
         unsigned int SO_VGTSTREAMOUT_FLUSH                                        :  2;
     } bits, bitfields;
+    struct {
+        unsigned int                                                              : 10;
+        unsigned int ZPASS_DONE                                                   :  2;
+        unsigned int                                                              : 20;
+    } most;
     struct {
         unsigned int                                                              : 26;
         unsigned int FLUSH_GS_OUTPUT                                              :  2;
@@ -15199,7 +15208,7 @@ union PA_SC_ENHANCE_1 {
         unsigned int DISABLE_PBB_SCISSOR_OPT                                      :  1;
         unsigned int                                                              :  3;
         unsigned int DISABLE_SC_DB_TILE_INTF_FINE_CLOCK_GATE                      :  1;
-        unsigned int DISABLE_SC_PIPELINE_RESET_LEGACY_MODE_TRANSITION             :  1;
+        unsigned int                                                              :  1;
         unsigned int DISABLE_PACKER_ODC_ENHANCE                                   :  1;
         unsigned int                                                              :  1;
         unsigned int OPTIMAL_BIN_SELECTION                                        :  1;
@@ -15210,11 +15219,9 @@ union PA_SC_ENHANCE_1 {
         unsigned int                                                              :  9;
     } bits, bitfields;
     struct {
-        unsigned int                                                              : 12;
-        unsigned int DEBUG_PIXEL_PICKER_XY_UNPACK                                 :  1;
-        unsigned int                                                              :  4;
-        unsigned int ALLOW_SCALE_LINE_WIDTH_PAD_WITH_BINNING                      :  1;
-        unsigned int                                                              : 14;
+        unsigned int                                                              : 15;
+        unsigned int DISABLE_SC_PIPELINE_RESET_LEGACY_MODE_TRANSITION             :  1;
+        unsigned int                                                              : 16;
     } most;
     struct {
         unsigned int                                                              : 11;
@@ -15224,9 +15231,12 @@ union PA_SC_ENHANCE_1 {
         unsigned int                                                              : 12;
     } core;
     struct {
-        unsigned int                                                              : 13;
+        unsigned int                                                              : 12;
+        unsigned int DEBUG_PIXEL_PICKER_XY_UNPACK                                 :  1;
         unsigned int DISABLE_PACKER_GRAD_FDCE_ENHANCE                             :  1;
-        unsigned int                                                              : 18;
+        unsigned int                                                              :  3;
+        unsigned int ALLOW_SCALE_LINE_WIDTH_PAD_WITH_BINNING                      :  1;
+        unsigned int                                                              : 14;
     } gfx09;
     struct {
         unsigned int                                                              : 23;
@@ -15253,6 +15263,13 @@ union PA_SC_ENHANCE_1 {
         unsigned int PASS_VPZ_EVENT_TO_SPI                                        :  1;
         unsigned int                                                              :  1;
     } gfx09_1xPlus;
+    struct {
+        unsigned int                                                              : 12;
+        unsigned int DEBUG_PIXEL_PICKER_XY_UNPACK                                 :  1;
+        unsigned int                                                              :  4;
+        unsigned int ALLOW_SCALE_LINE_WIDTH_PAD_WITH_BINNING                      :  1;
+        unsigned int                                                              : 14;
+    } gfx101;
     struct {
         unsigned int                                                              : 13;
         unsigned int DEBUG_PIXEL_PICKER_COUNT_PIXELS                              :  1;
@@ -15291,7 +15308,7 @@ union PA_SC_ENHANCE_2 {
         unsigned int                                                              : 20;
         unsigned int ENABLE_BLOCKING_WRITES_OF_GEN2_REG                           :  1;
         unsigned int                                                              : 11;
-    } gfx10CorePlus;
+    } gfx10Core;
     struct {
         unsigned int                                                              :  4;
         unsigned int ENABLE_LPOV_WAVE_BREAK                                       :  1;
@@ -15369,7 +15386,7 @@ union PA_SC_ENHANCE_3 {
 union PA_SC_ENHANCE_INTERNAL {
     struct {
         unsigned int RESERVED                                                     : 32;
-    } gfx103CorePlus;
+    } gfx103;
 
     unsigned int u32All;
     signed int   i32All;
@@ -18190,7 +18207,7 @@ union RLC_SPM_ACCUM_MODE {
         unsigned int EnableSpmWithAccumMode                                       :  1;
         unsigned int EnableSPPMode                                                :  1;
         unsigned int AutoResetPerfmonDisable                                      :  1;
-        unsigned int SwaAutoResetPerfmonDisable                                   :  1;
+        unsigned int                                                              :  1;
         unsigned int AutoAccumEn                                                  :  1;
         unsigned int SwaAutoAccumEn                                               :  1;
         unsigned int AutoSpmEn                                                    :  1;
@@ -18201,6 +18218,11 @@ union RLC_SPM_ACCUM_MODE {
         unsigned int SE0_SwaLoadOverride                                          :  1;
         unsigned int                                                              : 19;
     } gfx103Plus;
+    struct {
+        unsigned int                                                              :  4;
+        unsigned int SwaAutoResetPerfmonDisable                                   :  1;
+        unsigned int                                                              : 27;
+    } gfx10Vrs;
     struct {
         unsigned int                                                              : 13;
         unsigned int SE1_LoadOverride                                             :  1;
@@ -18684,7 +18706,12 @@ union RLC_SPM_PERFMON_CNTL {
         unsigned int                                                              : 14;
         unsigned int RESERVED                                                     :  2;
         unsigned int                                                              : 16;
-    } core;
+    } gfx09;
+    struct {
+        unsigned int                                                              : 14;
+        unsigned int RESERVED                                                     :  2;
+        unsigned int                                                              : 16;
+    } gfx10Core;
     struct {
         unsigned int RESERVED1                                                    : 12;
         unsigned int                                                              : 20;
@@ -20419,7 +20446,7 @@ union SPI_CONFIG_CNTL {
         unsigned int                                                              : 26;
         unsigned int FORCE_HALF_RATE_PC_EXP                                       :  1;
         unsigned int                                                              :  5;
-    } gfx103Plus;
+    } gfx10Vrs;
 
     unsigned int u32All;
     signed int   i32All;
@@ -20756,6 +20783,10 @@ union SPI_EXP_THROTTLE_CTRL {
 
 union SPI_FEATURE_CTRL {
     struct {
+        unsigned int                                                              : 28;
+        unsigned int TUNNELING_WAVE_LIMIT                                         :  4;
+    } most;
+    struct {
         unsigned int CU_LOCKING_FAIRNESS_DISABLE                                  :  1;
         unsigned int                                                              :  1;
         unsigned int ALLOCATION_RATE_THROTTLE_THRESHOLD                           :  5;
@@ -20764,8 +20795,19 @@ union SPI_FEATURE_CTRL {
         unsigned int RA_PIPE_DEPTH_THRESHOLD_ALLOC_STALL_EN                       :  1;
         unsigned int BUS_ACTIVITY_THRESHOLD_ALLOC_STALL_EN                        :  1;
         unsigned int BUS_ACTIVITY_THRESHOLD                                       :  8;
-        unsigned int TUNNELING_WAVE_LIMIT                                         :  4;
-    } most;
+        unsigned int                                                              :  4;
+    } gfx101;
+    struct {
+        unsigned int CU_LOCKING_FAIRNESS_DISABLE                                  :  1;
+        unsigned int                                                              :  1;
+        unsigned int ALLOCATION_RATE_THROTTLE_THRESHOLD                           :  5;
+        unsigned int ACTIVE_HARD_LOCK_LIMIT                                       :  5;
+        unsigned int LR_IMBALANCE_THRESHOLD                                       :  6;
+        unsigned int RA_PIPE_DEPTH_THRESHOLD_ALLOC_STALL_EN                       :  1;
+        unsigned int BUS_ACTIVITY_THRESHOLD_ALLOC_STALL_EN                        :  1;
+        unsigned int BUS_ACTIVITY_THRESHOLD                                       :  8;
+        unsigned int                                                              :  4;
+    } nv21;
 
     unsigned int u32All;
     signed int   i32All;
@@ -41555,7 +41597,7 @@ union VGT_GS_ONCHIP_CNTL {
         unsigned int ES_VERTS_PER_SUBGRP                                          : 11;
         unsigned int GS_PRIMS_PER_SUBGRP                                          : 11;
         unsigned int GS_INST_PRIMS_IN_SUBGRP                                      : 10;
-    } bits, bitfields;
+    } most;
 
     unsigned int u32All;
     signed int   i32All;
@@ -42513,13 +42555,17 @@ union VGT_TF_PARAM {
         unsigned int PARTITIONING                                                 :  3;
         unsigned int TOPOLOGY                                                     :  3;
         unsigned int RESERVED_REDUC_AXIS                                          :  1;
-        unsigned int DEPRECATED                                                   :  1;
-        unsigned int                                                              :  4;
+        unsigned int                                                              :  5;
         unsigned int DISABLE_DONUTS                                               :  1;
         unsigned int                                                              :  2;
         unsigned int DISTRIBUTION_MODE                                            :  2;
         unsigned int                                                              : 13;
     } bits, bitfields;
+    struct {
+        unsigned int                                                              :  9;
+        unsigned int DEPRECATED                                                   :  1;
+        unsigned int                                                              : 22;
+    } most;
     struct {
         unsigned int                                                              : 15;
         unsigned int RDREQ_POLICY                                                 :  1;
@@ -42691,7 +42737,7 @@ union WD_CNTL_STATUS {
         unsigned int TE1_BUSY                                                     :  1;
         unsigned int TE0_BUSY                                                     :  1;
         unsigned int                                                              :  4;
-    } gfx103Plus;
+    } gfx10Vrs;
     struct {
         unsigned int                                                              : 18;
         unsigned int WD_TE11_BUSY                                                 :  1;

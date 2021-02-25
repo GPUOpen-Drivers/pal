@@ -913,7 +913,7 @@ static inline UINT_32 GetCoordActiveMask(
 *   ShiftCeil
 *
 *   @brief
-*       Apply righ-shift with ceiling
+*       Apply right-shift with ceiling
 ****************************************************************************************************
 */
 static inline UINT_32 ShiftCeil(
@@ -921,6 +921,21 @@ static inline UINT_32 ShiftCeil(
     UINT_32 b)  ///< [in] number of bits to shift
 {
     return (a >> b) + (((a & ((1 << b) - 1)) != 0) ? 1 : 0);
+}
+
+/**
+****************************************************************************************************
+*   ShiftRight
+*
+*   @brief
+*       Return right-shift value and minimum is 1
+****************************************************************************************************
+*/
+static inline UINT_32 ShiftRight(
+    UINT_32 a,  ///< [in] value to be right-shifted
+    UINT_32 b)  ///< [in] number of bits to shift
+{
+    return Max(a >> b, 1u);
 }
 
 } // Addr

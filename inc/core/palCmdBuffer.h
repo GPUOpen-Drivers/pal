@@ -3025,12 +3025,13 @@ public:
     ///
     /// The maximum clear range is determined by the buffer offset and buffer extent; if any Ranges are specified they
     /// must be specified in texels with respect to the beginning of the buffer and must not exceed its extent.
+    /// With 96-bit formats, bufferOffset must be specified in bytes.
     /// For cache coherency purposes, this counts as a @ref CoherShader operation on the specified GPU memory.
     ///
     /// @param [in] gpuMemory     GPU memory to be cleared.
     /// @param [in] color         Specifies the clear color data and how to interpret it.
     /// @param [in] bufferFormat  The format of the color data in the buffer.
-    /// @param [in] bufferOffset  The offset to the beginning of the buffer, in units of texels.
+    /// @param [in] bufferOffset  The offset to the beginning of the buffer, in units of texels (or bytes for 96-bit texels).
     /// @param [in] bufferExtent  The extent of the buffer, in units of texels.
     /// @param [in] rangeCount    Number of ranges within the buffer to clear; size of the pRanges array.
     ///                           If zero, the entire view will be cleared and pRanges will be ignored.

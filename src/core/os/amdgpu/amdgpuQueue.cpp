@@ -254,11 +254,6 @@ Result Queue::Init(
         result = m_globalRefMap.Init();
     }
 
-    if (result == Result::Success)
-    {
-        result = m_globalRefLock.Init();
-    }
-
     // Note that the presence of the command upload ring will be used later to determine if these conditions are true.
     if ((result == Result::Success)                                              &&
         (m_device.EngineProperties().perEngine[EngineTypeDma].numAvailable != 0) &&

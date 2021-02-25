@@ -106,7 +106,7 @@ void SettingsLoader::SetupDefaults()
     m_settings.numOffchipLdsBuffers = 508;
     m_settings.numTessPatchesPerTg = 0;
     m_settings.offchipLdsBufferSize = OffchipLdsBufferSize8192;
-    m_settings.isolineDistributionFactor = 40;
+    m_settings.isolineDistributionFactor = 12;
     m_settings.triDistributionFactor = 30;
     m_settings.quadDistributionFactor = 24;
     m_settings.donutDistributionFactor = 24;
@@ -198,6 +198,8 @@ void SettingsLoader::SetupDefaults()
     m_settings.waStalledPopsMode = false;
     m_settings.waCeDisableIb2 = false;
     m_settings.waDisableSCompressSOnly = false;
+    m_settings.waDisableInstancePacking = false;
+
     m_settings.vrsHtileEncoding = Gfx10VrsHtileEncodingTwoBit;
 
     m_settings.vrsForceRateFine = false;
@@ -215,6 +217,8 @@ void SettingsLoader::SetupDefaults()
     m_settings.waClampGeCntlVertGrpSize = false;
     m_settings.waLegacyGsCutModeFlush = false;
     m_settings.sdmaBypassMall = 0x3;
+
+    m_settings.enableMallCursorCache = false;
 
     m_settings.depthStencilFastClearComputeThresholdSingleSampled = 2097152;
     m_settings.depthStencilFastClearComputeThresholdMultiSampled = 4194304;
@@ -898,6 +902,11 @@ void SettingsLoader::ReadSettings()
                            &m_settings.waDisableSCompressSOnly,
                            InternalSettingScope::PrivatePalKey);
 
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pWaDisableInstancePackingStr,
+                           Util::ValueType::Boolean,
+                           &m_settings.waDisableInstancePacking,
+                           InternalSettingScope::PrivatePalGfx9Key);
+
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pVrsHtileEncodingStr,
                            Util::ValueType::Uint,
                            &m_settings.vrsHtileEncoding,
@@ -956,6 +965,11 @@ void SettingsLoader::ReadSettings()
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pSdmaBypassMallStr,
                            Util::ValueType::Uint,
                            &m_settings.sdmaBypassMall,
+                           InternalSettingScope::PrivatePalGfx9Key);
+
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pEnableMallCursorCacheStr,
+                           Util::ValueType::Boolean,
+                           &m_settings.enableMallCursorCache,
                            InternalSettingScope::PrivatePalGfx9Key);
 
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pDepthStencilFastClearComputeThresholdSingleSampledStr,
@@ -1226,6 +1240,11 @@ void SettingsLoader::RereadSettings()
                            Util::ValueType::Boolean,
                            &m_settings.waDisableSCompressSOnly,
                            InternalSettingScope::PrivatePalKey);
+
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pWaDisableInstancePackingStr,
+                           Util::ValueType::Boolean,
+                           &m_settings.waDisableInstancePacking,
+                           InternalSettingScope::PrivatePalGfx9Key);
 
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pWaUtcL0InconsistentBigPageStr,
                            Util::ValueType::Boolean,
@@ -1945,6 +1964,11 @@ void SettingsLoader::InitSettingsInfo()
     info.valueSize = sizeof(m_settings.waDisableSCompressSOnly);
     m_settingsInfoMap.Insert(1364141327, info);
 
+    info.type      = SettingType::Boolean;
+    info.pValuePtr = &m_settings.waDisableInstancePacking;
+    info.valueSize = sizeof(m_settings.waDisableInstancePacking);
+    m_settingsInfoMap.Insert(2220232767, info);
+
     info.type      = SettingType::Uint;
     info.pValuePtr = &m_settings.vrsHtileEncoding;
     info.valueSize = sizeof(m_settings.vrsHtileEncoding);
@@ -2005,6 +2029,11 @@ void SettingsLoader::InitSettingsInfo()
     info.valueSize = sizeof(m_settings.sdmaBypassMall);
     m_settingsInfoMap.Insert(881287982, info);
 
+    info.type      = SettingType::Boolean;
+    info.pValuePtr = &m_settings.enableMallCursorCache;
+    info.valueSize = sizeof(m_settings.enableMallCursorCache);
+    m_settingsInfoMap.Insert(2467252640, info);
+
     info.type      = SettingType::Uint;
     info.pValuePtr = &m_settings.depthStencilFastClearComputeThresholdSingleSampled;
     info.valueSize = sizeof(m_settings.depthStencilFastClearComputeThresholdSingleSampled);
@@ -2061,7 +2090,7 @@ void SettingsLoader::DevDriverRegister()
             component.pfnSetValue = ISettingsLoader::SetValue;
             component.pSettingsData = &g_gfx9PalJsonData[0];
             component.settingsDataSize = sizeof(g_gfx9PalJsonData);
-            component.settingsDataHash = 644038798;
+            component.settingsDataHash = 2748562206;
             component.settingsDataHeader.isEncoded = true;
             component.settingsDataHeader.magicBufferId = 402778310;
             component.settingsDataHeader.magicBufferOffset = 0;

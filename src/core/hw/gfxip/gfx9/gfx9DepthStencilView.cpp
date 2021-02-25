@@ -800,12 +800,12 @@ void Gfx10DepthStencilView::InitRegisters(
 
     if (depthAddrSettings.swizzleMode != ADDR_SW_64KB_Z_X)
     {
-        PAL_ASSERT(IsGfx102Plus(palDevice) && (depthAddrSettings.swizzleMode == ADDR_SW_VAR_Z_X));
+        PAL_ASSERT(IsGfx103Plus(palDevice) && (depthAddrSettings.swizzleMode == ADDR_SW_VAR_Z_X));
     }
 
     if (stencilAddrSettings.swizzleMode != ADDR_SW_64KB_Z_X)
     {
-        PAL_ASSERT(IsGfx102Plus(palDevice) && (stencilAddrSettings.swizzleMode == ADDR_SW_VAR_Z_X));
+        PAL_ASSERT(IsGfx103Plus(palDevice) && (stencilAddrSettings.swizzleMode == ADDR_SW_VAR_Z_X));
     }
 
     m_regs.dbZInfo.bits.SW_MODE       = pAddrMgr->GetHwSwizzleMode(depthAddrSettings.swizzleMode);

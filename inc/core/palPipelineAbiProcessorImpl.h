@@ -989,11 +989,7 @@ Result PipelineAbiProcessor<Allocator>::LoadFromBuffer(
     {
         m_flags.u32All = m_elfProcessor.GetFileHeader()->e_flags;
 
-        if ((m_elfProcessor.GetFileHeader()->ei_osabi != ElfOsAbiVersion)                  ||
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 634
-            (GetXnackFeatureV4()                      == AmdGpuFeatureV4Type::Unsupported) ||
-            (GetSramEccFeatureV4()                    == AmdGpuFeatureV4Type::Unsupported) ||
-#endif
+        if ((m_elfProcessor.GetFileHeader()->ei_osabi != ElfOsAbiVersion) ||
             (m_elfProcessor.GetTargetMachine()        != Elf::MachineType::AmdGpu))
         {
             result = Result::ErrorInvalidPipelineElf;

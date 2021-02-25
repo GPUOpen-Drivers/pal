@@ -191,6 +191,10 @@ public:
     virtual void GetDisplayDccState(DccState* pState) const { PAL_NEVER_CALLED(); }
     virtual void GetDccState(DccState* pState) const { PAL_NEVER_CALLED(); }
 
+    // Mall only exists on Gfx9+ hardware, so base functions should do nothing
+    virtual void SetMallCursorCacheSize(uint32 cursorSize) { }
+    virtual gpusize GetMallCursorCacheOffset() { return 0; }
+
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
     virtual gpusize GetAspectBaseAddr(ImageAspect  aspect) const { PAL_NEVER_CALLED(); return 0; }
 #else

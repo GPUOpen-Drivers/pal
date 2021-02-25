@@ -1826,6 +1826,22 @@
       "Type": "bool",
       "VariableName": "tmzEnabled",
       "Description": "When true, TMZ is enabled if HW supports it. Otherwise TMZ is disabled. TMZ(trusted memory zone / protected memory)"
+    },
+    {
+      "Name": "DbgHelperBits",
+      "Tags": [
+        "General"
+      ],
+      "Flags": {
+        "IsHex": true
+      },
+      "Defaults": {
+        "Default": 0
+      },
+      "Scope": "PrivatePalKey",
+      "Type": "uint64",
+      "VariableName": "dbgHelperBits",
+      "Description": "Debug helper bitmask for debugging and experiments. Driver developers can use this setting to configure personal experiments. Requires PAL_DEVELOPER_BUILD."
     }
   ],
   "DefinedConstants": [

@@ -1218,7 +1218,6 @@ constexpr unsigned int PA_SC_BINNER_EVENT_CNTL_1__PS_PARTIAL_FLUSH__SHIFT = 0x00
 constexpr unsigned int PA_SC_BINNER_EVENT_CNTL_1__RESET_TO_LOWEST_VGT__SHIFT = 0x00000006;
 constexpr unsigned int PA_SC_BINNER_EVENT_CNTL_1__SAMPLE_PIPELINESTAT__SHIFT = 0x0000001c;
 constexpr unsigned int PA_SC_BINNER_EVENT_CNTL_1__SO_VGTSTREAMOUT_FLUSH__SHIFT = 0x0000001e;
-constexpr unsigned int PA_SC_BINNER_EVENT_CNTL_1__ZPASS_DONE__SHIFT       = 0x0000000a;
 constexpr unsigned int PA_SC_BINNER_EVENT_CNTL_2__BLOCK_CONTEXT_DONE__SHIFT = 0x00000004;
 constexpr unsigned int PA_SC_BINNER_EVENT_CNTL_2__BOTTOM_OF_PIPE_TS__SHIFT = 0x00000010;
 constexpr unsigned int PA_SC_BINNER_EVENT_CNTL_2__CS_DONE__SHIFT          = 0x0000001e;
@@ -1325,7 +1324,6 @@ constexpr unsigned int PA_SC_ENHANCE_1__DISABLE_PBB_SCISSOR_CLK_OPTIMIZATION__SH
 constexpr unsigned int PA_SC_ENHANCE_1__DISABLE_PBB_SCISSOR_OPT__SHIFT    = 0x0000000a;
 constexpr unsigned int PA_SC_ENHANCE_1__DISABLE_SC_BINNING__SHIFT         = 0x00000003;
 constexpr unsigned int PA_SC_ENHANCE_1__DISABLE_SC_DB_TILE_INTF_FINE_CLOCK_GATE__SHIFT = 0x0000000e;
-constexpr unsigned int PA_SC_ENHANCE_1__DISABLE_SC_PIPELINE_RESET_LEGACY_MODE_TRANSITION__SHIFT = 0x0000000f;
 constexpr unsigned int PA_SC_ENHANCE_1__DISABLE_SC_PROCESS_RESET_PBB__SHIFT = 0x00000009;
 constexpr unsigned int PA_SC_ENHANCE_1__ECO_SPARE1__SHIFT                 = 0x00000006;
 constexpr unsigned int PA_SC_ENHANCE_1__ECO_SPARE2__SHIFT                 = 0x00000007;
@@ -1710,7 +1708,6 @@ constexpr unsigned int RLC_SPM_MC_CNTL__RLC_SPM_POLICY__SHIFT             = 0x00
 constexpr unsigned int RLC_SPM_MC_CNTL__RLC_SPM_VMID__SHIFT               = 0x00000000;
 constexpr unsigned int RLC_SPM_PERFMON_CNTL__PERFMON_RING_MODE__SHIFT     = 0x0000000c;
 constexpr unsigned int RLC_SPM_PERFMON_CNTL__PERFMON_SAMPLE_INTERVAL__SHIFT = 0x00000010;
-constexpr unsigned int RLC_SPM_PERFMON_CNTL__RESERVED__SHIFT              = 0x0000000e;
 constexpr unsigned int RLC_SPM_PERFMON_RING_BASE_HI__RESERVED__SHIFT      = 0x00000010;
 constexpr unsigned int RLC_SPM_PERFMON_RING_BASE_HI__RING_BASE_HI__SHIFT  = 0x00000000;
 constexpr unsigned int RLC_SPM_PERFMON_RING_BASE_LO__RING_BASE_LO__SHIFT  = 0x00000000;
@@ -2616,7 +2613,6 @@ constexpr unsigned int SQ_WAVE_EXEC_HI__EXEC_HI__SHIFT                    = 0x00
 constexpr unsigned int SQ_WAVE_EXEC_LO__EXEC_LO__SHIFT                    = 0x00000000;
 constexpr unsigned int SQ_WAVE_FLUSH_IB__UNUSED__SHIFT                    = 0x00000000;
 constexpr unsigned int SQ_WAVE_GPR_ALLOC__VGPR_BASE__SHIFT                = 0x00000000;
-constexpr unsigned int SQ_WAVE_GPR_ALLOC__VGPR_SIZE__SHIFT                = 0x00000008;
 constexpr unsigned int SQ_WAVE_LDS_ALLOC__LDS_BASE__SHIFT                 = 0x00000000;
 constexpr unsigned int SQ_WAVE_LDS_ALLOC__LDS_SIZE__SHIFT                 = 0x0000000c;
 constexpr unsigned int SQ_WAVE_M0__M0__SHIFT                              = 0x00000000;
@@ -2914,9 +2910,6 @@ constexpr unsigned int VGT_GS_INSTANCE_CNT__CNT__SHIFT                    = 0x00
 constexpr unsigned int VGT_GS_INSTANCE_CNT__ENABLE__SHIFT                 = 0x00000000;
 constexpr unsigned int VGT_GS_MAX_VERT_OUT__MAX_VERT_OUT__SHIFT           = 0x00000000;
 constexpr unsigned int VGT_GS_MAX_WAVE_ID__MAX_WAVE_ID__SHIFT             = 0x00000000;
-constexpr unsigned int VGT_GS_ONCHIP_CNTL__ES_VERTS_PER_SUBGRP__SHIFT     = 0x00000000;
-constexpr unsigned int VGT_GS_ONCHIP_CNTL__GS_INST_PRIMS_IN_SUBGRP__SHIFT = 0x00000016;
-constexpr unsigned int VGT_GS_ONCHIP_CNTL__GS_PRIMS_PER_SUBGRP__SHIFT     = 0x0000000b;
 constexpr unsigned int VGT_GS_OUT_PRIM_TYPE__OUTPRIM_TYPE__SHIFT          = 0x00000000;
 constexpr unsigned int VGT_HOS_MAX_TESS_LEVEL__MAX_TESS__SHIFT            = 0x00000000;
 constexpr unsigned int VGT_HOS_MIN_TESS_LEVEL__MIN_TESS__SHIFT            = 0x00000000;
@@ -2959,7 +2952,6 @@ constexpr unsigned int VGT_TESS_DISTRIBUTION__DONUT_SPLIT__SHIFT          = 0x00
 constexpr unsigned int VGT_TESS_DISTRIBUTION__TRAP_SPLIT__SHIFT           = 0x0000001d;
 constexpr unsigned int VGT_TF_MEMORY_BASE_HI__BASE_HI__SHIFT              = 0x00000000;
 constexpr unsigned int VGT_TF_MEMORY_BASE__BASE__SHIFT                    = 0x00000000;
-constexpr unsigned int VGT_TF_PARAM__DEPRECATED__SHIFT                    = 0x00000009;
 constexpr unsigned int VGT_TF_PARAM__DISABLE_DONUTS__SHIFT                = 0x0000000e;
 constexpr unsigned int VGT_TF_PARAM__DISTRIBUTION_MODE__SHIFT             = 0x00000011;
 constexpr unsigned int VGT_TF_PARAM__PARTITIONING__SHIFT                  = 0x00000002;
@@ -5056,6 +5048,8 @@ namespace Gfx09_10
     constexpr unsigned int IA_MULTI_VGT_PARAM__SWITCH_ON_EOI__SHIFT           = 0x00000013;
     constexpr unsigned int IA_MULTI_VGT_PARAM__SWITCH_ON_EOP__SHIFT           = 0x00000011;
     constexpr unsigned int IA_MULTI_VGT_PARAM__WD_SWITCH_ON_EOP__SHIFT        = 0x00000014;
+    constexpr unsigned int PA_SC_BINNER_EVENT_CNTL_1__ZPASS_DONE__SHIFT       = 0x0000000a;
+    constexpr unsigned int PA_SC_ENHANCE_1__DISABLE_SC_PIPELINE_RESET_LEGACY_MODE_TRANSITION__SHIFT = 0x0000000f;
     constexpr unsigned int PA_SC_ENHANCE_1__ECO_SPARE0__SHIFT                 = 0x00000005;
     constexpr unsigned int PA_SIDEBAND_REQUEST_DELAYS__INITIAL_DELAY__SHIFT   = 0x00000010;
     constexpr unsigned int PA_SIDEBAND_REQUEST_DELAYS__RETRY_DELAY__SHIFT     = 0x00000000;
@@ -5063,6 +5057,7 @@ namespace Gfx09_10
     constexpr unsigned int RLC_PERFMON_CLK_CNTL__PERFMON_CLOCK_STATE__SHIFT   = 0x00000000;
     constexpr unsigned int RLC_SPM_GLOBAL_MUXSEL_ADDR__PERFMON_SEL_ADDR__SHIFT = 0x00000000;
     constexpr unsigned int RLC_SPM_GLOBAL_MUXSEL_DATA__PERFMON_SEL_DATA__SHIFT = 0x00000000;
+    constexpr unsigned int RLC_SPM_PERFMON_CNTL__RESERVED__SHIFT              = 0x0000000e;
     constexpr unsigned int RLC_SPM_PERFMON_SEGMENT_SIZE__GLOBAL_NUM_LINE__SHIFT = 0x0000000b;
     constexpr unsigned int RLC_SPM_PERFMON_SEGMENT_SIZE__PERFMON_SEGMENT_SIZE__SHIFT = 0x00000000;
     constexpr unsigned int RLC_SPM_PERFMON_SEGMENT_SIZE__RESERVED1__SHIFT     = 0x00000008;
@@ -5185,6 +5180,7 @@ namespace Gfx09_10
     constexpr unsigned int SQ_PERFCOUNTER_CTRL__CNTR_RATE__SHIFT              = 0x00000008;
     constexpr unsigned int SQ_PERFCOUNTER_CTRL__DISABLE_FLUSH__SHIFT          = 0x0000000d;
     constexpr unsigned int SQ_PERFCOUNTER_CTRL__VS_EN__SHIFT                  = 0x00000001;
+    constexpr unsigned int SQ_WAVE_GPR_ALLOC__VGPR_SIZE__SHIFT                = 0x00000008;
     constexpr unsigned int VGT_CACHE_INVALIDATION__AUTO_INVLD_EN__SHIFT       = 0x00000006;
     constexpr unsigned int VGT_CACHE_INVALIDATION__CACHE_INVALIDATION__SHIFT  = 0x00000000;
     constexpr unsigned int VGT_CACHE_INVALIDATION__DIS_INSTANCING_OPT__SHIFT  = 0x00000004;
@@ -5263,6 +5259,9 @@ namespace Gfx09_10
     constexpr unsigned int VGT_GS_MODE__RESERVED_1__SHIFT                     = 0x00000006;
     constexpr unsigned int VGT_GS_MODE__RESERVED_2__SHIFT                     = 0x0000000c;
     constexpr unsigned int VGT_GS_MODE__SUPPRESS_CUTS__SHIFT                  = 0x00000012;
+    constexpr unsigned int VGT_GS_ONCHIP_CNTL__ES_VERTS_PER_SUBGRP__SHIFT     = 0x00000000;
+    constexpr unsigned int VGT_GS_ONCHIP_CNTL__GS_INST_PRIMS_IN_SUBGRP__SHIFT = 0x00000016;
+    constexpr unsigned int VGT_GS_ONCHIP_CNTL__GS_PRIMS_PER_SUBGRP__SHIFT     = 0x0000000b;
     constexpr unsigned int VGT_GS_OUT_PRIM_TYPE__OUTPRIM_TYPE_1__SHIFT        = 0x00000008;
     constexpr unsigned int VGT_GS_OUT_PRIM_TYPE__OUTPRIM_TYPE_2__SHIFT        = 0x00000010;
     constexpr unsigned int VGT_GS_OUT_PRIM_TYPE__OUTPRIM_TYPE_3__SHIFT        = 0x00000016;
@@ -5321,6 +5320,7 @@ namespace Gfx09_10
     constexpr unsigned int VGT_STRMOUT_VTX_STRIDE_1__STRIDE__SHIFT            = 0x00000000;
     constexpr unsigned int VGT_STRMOUT_VTX_STRIDE_2__STRIDE__SHIFT            = 0x00000000;
     constexpr unsigned int VGT_STRMOUT_VTX_STRIDE_3__STRIDE__SHIFT            = 0x00000000;
+    constexpr unsigned int VGT_TF_PARAM__DEPRECATED__SHIFT                    = 0x00000009;
     constexpr unsigned int VGT_VERTEX_REUSE_BLOCK_CNTL__VTX_REUSE_DEPTH__SHIFT = 0x00000000;
     constexpr unsigned int VGT_VS_MAX_WAVE_ID__MAX_WAVE_ID__SHIFT             = 0x00000000;
     constexpr unsigned int VGT_VTX_CNT_EN__VTX_CNT_EN__SHIFT                  = 0x00000000;
@@ -5522,6 +5522,7 @@ namespace Gfx10
     constexpr unsigned int GE_CNTL__PRIM_GRP_SIZE__SHIFT                      = 0x00000000;
     constexpr unsigned int GE_CNTL__VERT_GRP_SIZE__SHIFT                      = 0x00000009;
     constexpr unsigned int GE_DMA_FIRST_INDEX__FIRST_INDEX__SHIFT             = 0x00000000;
+    constexpr unsigned int GE_PRIV_CONTROL__DISCARD_LEGACY__SHIFT             = 0x00000000;
     constexpr unsigned int IA_MULTI_VGT_PARAM_PIPED__EN_INST_OPT_ADV__SHIFT   = 0x00000016;
     constexpr unsigned int IA_MULTI_VGT_PARAM_PIPED__EN_INST_OPT_BASIC__SHIFT = 0x00000015;
     constexpr unsigned int IA_MULTI_VGT_PARAM_PIPED__HW_USE_ONLY__SHIFT       = 0x00000017;
@@ -6770,7 +6771,6 @@ namespace Gfx103Plus
     constexpr unsigned int RLC_SPM_ACCUM_MODE__SE0_LoadOverride__SHIFT        = 0x0000000b;
     constexpr unsigned int RLC_SPM_ACCUM_MODE__SE0_SwaLoadOverride__SHIFT     = 0x0000000c;
     constexpr unsigned int RLC_SPM_ACCUM_MODE__SwaAutoAccumEn__SHIFT          = 0x00000006;
-    constexpr unsigned int RLC_SPM_ACCUM_MODE__SwaAutoResetPerfmonDisable__SHIFT = 0x00000004;
     constexpr unsigned int RLC_SPM_ACCUM_MODE__SwaAutoSpmEn__SHIFT            = 0x00000008;
     constexpr unsigned int RLC_SPM_ACCUM_STATUS__SwaAccumArmed__SHIFT         = 0x00000013;
     constexpr unsigned int RLC_SPM_ACCUM_STATUS__SwaAccumDone__SHIFT          = 0x00000010;
@@ -6785,7 +6785,6 @@ namespace Gfx103Plus
     constexpr unsigned int SPI_BARYC_SSAA_CNTL__CENTER_SSAA_MODE__SHIFT       = 0x00000000;
     constexpr unsigned int SPI_BARYC_SSAA_CNTL__CENTROID_SSAA_MODE__SHIFT     = 0x00000001;
     constexpr unsigned int SPI_CONFIG_CNTL_1__SA_SCREEN_MAP__SHIFT            = 0x00000016;
-    constexpr unsigned int SPI_CONFIG_CNTL__FORCE_HALF_RATE_PC_EXP__SHIFT     = 0x0000001a;
     constexpr unsigned int SPI_CS_CRAWLER_CONFIG__CSC_DEPTH__SHIFT            = 0x00000006;
     constexpr unsigned int SPI_CS_CRAWLER_CONFIG__CSG_DEPTH__SHIFT            = 0x00000000;
     constexpr unsigned int SPI_EXP_THROTTLE_CTRL__DOWNSTEP__SHIFT             = 0x00000009;
@@ -6909,28 +6908,6 @@ namespace Gfx103Plus
     constexpr unsigned int VGT_HS_OFFCHIP_PARAM__OFFCHIP_GRANULARITY__SHIFT   = 0x0000000a;
     constexpr unsigned int VGT_INDEX_TYPE__DISABLE_INSTANCE_PACKING__SHIFT    = 0x0000000e;
     constexpr unsigned int VGT_SYS_CONFIG__NUM_SUBGROUPS_IN_FLIGHT__SHIFT     = 0x00000008;
-    constexpr unsigned int WD_CNTL_STATUS__DIST_BE_BUSY__SHIFT                = 0x00000011;
-    constexpr unsigned int WD_CNTL_STATUS__DIST_BUSY__SHIFT                   = 0x00000010;
-    constexpr unsigned int WD_CNTL_STATUS__GS0_BUSY__SHIFT                    = 0x0000000b;
-    constexpr unsigned int WD_CNTL_STATUS__GS1_BUSY__SHIFT                    = 0x0000000a;
-    constexpr unsigned int WD_CNTL_STATUS__GS2_BUSY__SHIFT                    = 0x00000009;
-    constexpr unsigned int WD_CNTL_STATUS__GS3_BUSY__SHIFT                    = 0x00000008;
-    constexpr unsigned int WD_CNTL_STATUS__HS0_BUSY__SHIFT                    = 0x00000007;
-    constexpr unsigned int WD_CNTL_STATUS__HS1_BUSY__SHIFT                    = 0x00000006;
-    constexpr unsigned int WD_CNTL_STATUS__HS2_BUSY__SHIFT                    = 0x00000005;
-    constexpr unsigned int WD_CNTL_STATUS__HS3_BUSY__SHIFT                    = 0x00000004;
-    constexpr unsigned int WD_CNTL_STATUS__NGG0_BUSY__SHIFT                   = 0x0000000f;
-    constexpr unsigned int WD_CNTL_STATUS__NGG1_BUSY__SHIFT                   = 0x0000000e;
-    constexpr unsigned int WD_CNTL_STATUS__NGG2_BUSY__SHIFT                   = 0x0000000d;
-    constexpr unsigned int WD_CNTL_STATUS__NGG3_BUSY__SHIFT                   = 0x0000000c;
-    constexpr unsigned int WD_CNTL_STATUS__TE0_BUSY__SHIFT                    = 0x0000001b;
-    constexpr unsigned int WD_CNTL_STATUS__TE1_BUSY__SHIFT                    = 0x0000001a;
-    constexpr unsigned int WD_CNTL_STATUS__TE2_BUSY__SHIFT                    = 0x00000019;
-    constexpr unsigned int WD_CNTL_STATUS__TE3_BUSY__SHIFT                    = 0x00000018;
-    constexpr unsigned int WD_CNTL_STATUS__VR0_BUSY__SHIFT                    = 0x00000003;
-    constexpr unsigned int WD_CNTL_STATUS__VR1_BUSY__SHIFT                    = 0x00000002;
-    constexpr unsigned int WD_CNTL_STATUS__VR2_BUSY__SHIFT                    = 0x00000001;
-    constexpr unsigned int WD_CNTL_STATUS__VR3_BUSY__SHIFT                    = 0x00000000;
 } // namespace Gfx103Plus
 
 namespace Gfx10Core
@@ -7132,6 +7109,7 @@ namespace Gfx10Core
     constexpr unsigned int DB_RMI_BC_GL2_CACHE_CONTROL__ZPCPSD_WR_POLICY__SHIFT = 0x00000006;
     constexpr unsigned int DB_RMI_BC_GL2_CACHE_CONTROL__Z_RD_POLICY__SHIFT    = 0x00000010;
     constexpr unsigned int DB_RMI_BC_GL2_CACHE_CONTROL__Z_WR_POLICY__SHIFT    = 0x00000000;
+    constexpr unsigned int PA_SC_ENHANCE_2__ENABLE_BLOCKING_WRITES_OF_GEN2_REG__SHIFT = 0x00000014;
     constexpr unsigned int PA_SC_TILE_STEERING_OVERRIDE__NUM_RB_PER_SE__SHIFT = 0x00000005;
     constexpr unsigned int PA_SC_TILE_STEERING_OVERRIDE__NUM_SE__SHIFT        = 0x00000001;
     constexpr unsigned int SPI_CONFIG_CNTL_1__CRC_SIMD_ID_WADDR_DISABLE__SHIFT = 0x00000008;
@@ -7308,7 +7286,6 @@ namespace Gfx10CorePlus
     constexpr unsigned int IA_UTCL1_STATUS_2__RETRY_DETECTED__SHIFT           = 0x00000006;
     constexpr unsigned int IA_UTCL1_STATUS_2__RETRY_UTCL1ID__SHIFT            = 0x00000010;
     constexpr unsigned int PA_SC_ENHANCE_1__DEBUG_PIXEL_PICKER_COUNT_PIXELS__SHIFT = 0x0000000d;
-    constexpr unsigned int PA_SC_ENHANCE_2__ENABLE_BLOCKING_WRITES_OF_GEN2_REG__SHIFT = 0x00000014;
     constexpr unsigned int RLC_SPM_MC_CNTL__RLC_SPM_BC__SHIFT                 = 0x0000000c;
     constexpr unsigned int RLC_SPM_MC_CNTL__RLC_SPM_VOL__SHIFT                = 0x0000000e;
     constexpr unsigned int SDMA0_PERFCOUNTER0_HI__PERFCOUNTER_HI__SHIFT       = 0x00000000;
@@ -7728,7 +7705,6 @@ namespace Gfx10Plus
     constexpr unsigned int GE_PC_ALLOC__OVERSUB_EN__SHIFT                     = 0x00000000;
     constexpr unsigned int GE_PC_CNTL__PC_SIZE__SHIFT                         = 0x00000000;
     constexpr unsigned int GE_PRIV_CONTROL__CLAMP_PRIMGRP_SIZE__SHIFT         = 0x00000001;
-    constexpr unsigned int GE_PRIV_CONTROL__DISCARD_LEGACY__SHIFT             = 0x00000000;
     constexpr unsigned int GE_PRIV_CONTROL__RESET_ON_PIPELINE_CHANGE__SHIFT   = 0x0000000a;
     constexpr unsigned int GE_STATUS__PERFCOUNTER_STATUS__SHIFT               = 0x00000000;
     constexpr unsigned int GE_STATUS__THREAD_TRACE_STATUS__SHIFT              = 0x00000001;
@@ -8366,6 +8342,7 @@ namespace Gfx10Vrs
     constexpr unsigned int DB_VRS_OVERRIDE_CNTL__VRS_OVERRIDE_RATE_Y__SHIFT   = 0x00000006;
     constexpr unsigned int PA_CL_ENHANCE__CLAMP_NEGATIVE_BB_TO_ZERO__SHIFT    = 0x00000018;
     constexpr unsigned int PA_SC_ENHANCE_3__DISABLE_RB_MASK_COPY_FOR_NONP2_SA_HARVEST__SHIFT = 0x00000002;
+    constexpr unsigned int RLC_SPM_ACCUM_MODE__SwaAutoResetPerfmonDisable__SHIFT = 0x00000004;
     constexpr unsigned int RLC_SPM_GLOBAL_MUXSEL_ADDR_OFFSET__OFFSET__SHIFT   = 0x00000000;
     constexpr unsigned int RLC_SPM_GLOBAL_MUXSEL_ADDR_OFFSET__RESERVED__SHIFT = 0x00000010;
     constexpr unsigned int RLC_SPM_PERFMON_SWA_GLB_SEGMENT_SIZE__GLOBAL_NUM_LINE__SHIFT = 0x00000008;
@@ -8384,12 +8361,35 @@ namespace Gfx10Vrs
     constexpr unsigned int RLC_SPM_PERFMON_SWA_SEGMENT_SIZE__SE2_NUM_LINE__SHIFT = 0x0000001a;
     constexpr unsigned int RLC_SPM_SE_MUXSEL_ADDR_OFFSET__OFFSET__SHIFT       = 0x00000000;
     constexpr unsigned int RLC_SPM_SE_MUXSEL_ADDR_OFFSET__RESERVED__SHIFT     = 0x00000010;
+    constexpr unsigned int SPI_CONFIG_CNTL__FORCE_HALF_RATE_PC_EXP__SHIFT     = 0x0000001a;
     constexpr unsigned int SPI_GFX_CRAWLER_CONFIG__VS_DEPTH__SHIFT            = 0x00000011;
     constexpr unsigned int SPI_IND_DATA__DATA__SHIFT                          = 0x00000000;
     constexpr unsigned int SPI_IND_INDEX__INDEX__SHIFT                        = 0x00000000;
     constexpr unsigned int SQ_CLK_CTRL__WCLK2DCLK_OVERRIDE__SHIFT             = 0x00000000;
     constexpr unsigned int SQ_CONFIG__CHICKEN_BIT_DEGGIGXX0_8637__SHIFT       = 0x00000005;
     constexpr unsigned int SQ_CONFIG__UNUSED_6__SHIFT                         = 0x00000006;
+    constexpr unsigned int WD_CNTL_STATUS__DIST_BE_BUSY__SHIFT                = 0x00000011;
+    constexpr unsigned int WD_CNTL_STATUS__DIST_BUSY__SHIFT                   = 0x00000010;
+    constexpr unsigned int WD_CNTL_STATUS__GS0_BUSY__SHIFT                    = 0x0000000b;
+    constexpr unsigned int WD_CNTL_STATUS__GS1_BUSY__SHIFT                    = 0x0000000a;
+    constexpr unsigned int WD_CNTL_STATUS__GS2_BUSY__SHIFT                    = 0x00000009;
+    constexpr unsigned int WD_CNTL_STATUS__GS3_BUSY__SHIFT                    = 0x00000008;
+    constexpr unsigned int WD_CNTL_STATUS__HS0_BUSY__SHIFT                    = 0x00000007;
+    constexpr unsigned int WD_CNTL_STATUS__HS1_BUSY__SHIFT                    = 0x00000006;
+    constexpr unsigned int WD_CNTL_STATUS__HS2_BUSY__SHIFT                    = 0x00000005;
+    constexpr unsigned int WD_CNTL_STATUS__HS3_BUSY__SHIFT                    = 0x00000004;
+    constexpr unsigned int WD_CNTL_STATUS__NGG0_BUSY__SHIFT                   = 0x0000000f;
+    constexpr unsigned int WD_CNTL_STATUS__NGG1_BUSY__SHIFT                   = 0x0000000e;
+    constexpr unsigned int WD_CNTL_STATUS__NGG2_BUSY__SHIFT                   = 0x0000000d;
+    constexpr unsigned int WD_CNTL_STATUS__NGG3_BUSY__SHIFT                   = 0x0000000c;
+    constexpr unsigned int WD_CNTL_STATUS__TE0_BUSY__SHIFT                    = 0x0000001b;
+    constexpr unsigned int WD_CNTL_STATUS__TE1_BUSY__SHIFT                    = 0x0000001a;
+    constexpr unsigned int WD_CNTL_STATUS__TE2_BUSY__SHIFT                    = 0x00000019;
+    constexpr unsigned int WD_CNTL_STATUS__TE3_BUSY__SHIFT                    = 0x00000018;
+    constexpr unsigned int WD_CNTL_STATUS__VR0_BUSY__SHIFT                    = 0x00000003;
+    constexpr unsigned int WD_CNTL_STATUS__VR1_BUSY__SHIFT                    = 0x00000002;
+    constexpr unsigned int WD_CNTL_STATUS__VR2_BUSY__SHIFT                    = 0x00000001;
+    constexpr unsigned int WD_CNTL_STATUS__VR3_BUSY__SHIFT                    = 0x00000000;
 } // namespace Gfx10Vrs
 
 namespace NotGfx10

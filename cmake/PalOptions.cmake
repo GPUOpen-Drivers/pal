@@ -57,27 +57,6 @@ macro(pal_options)
 
     option(PAL_DISPLAY_DCC "Enable DISPLAY DCC?" ON)
 
-#if PAL_DEVELOPER_BUILD
-    option(PAL_DEVELOPER_BUILD "Enable developer build" OFF)
-
-    # If the client turns on PAL developer build they expect these ALL these features to be turned on
-    if (PAL_DEVELOPER_BUILD)
-        # Notice how these aren't cache variables.
-        # Because if they were cache variables either they/we would have to use the FORCE keyword
-        # Either way it would be a bad interface for the client
-        set(PAL_BUILD_CMD_BUFFER_LOGGER ON)
-        set(PAL_BUILD_GPU_DEBUG         ON)
-        set(PAL_BUILD_INTERFACE_LOGGER  ON)
-        set(PAL_BUILD_PM4_INSTRUMENTOR  ON)
-    # Otherwise give them the ability to turn them on individually
-    else()
-        option(PAL_BUILD_CMD_BUFFER_LOGGER "Build PAL Command Buffer Logger?" OFF)
-        option(PAL_BUILD_GPU_DEBUG         "Build PAL GPU Debug layer?"       OFF)
-        option(PAL_BUILD_INTERFACE_LOGGER  "Build PAL Interface Logger?"      OFF)
-        option(PAL_BUILD_PM4_INSTRUMENTOR  "Build PAL PM4 Instrumentor?"      OFF)
-    endif()
-#endif
-
     option(PAL_BUILD_OSS  "Build PAL with Operating System support?" ON)
     cmake_dependent_option(PAL_BUILD_OSS1   "Build PAL with OSS1?"   ON "PAL_BUILD_OSS" OFF)
     cmake_dependent_option(PAL_BUILD_OSS2   "Build PAL with OSS2?"   ON "PAL_BUILD_OSS" OFF)

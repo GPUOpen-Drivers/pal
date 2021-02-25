@@ -58,9 +58,9 @@ union GraphicsStateFlags
                 uint16 lineStippleState       : 1; // Gfx6 & Gfx9
                 uint16 colorTargetView        : 1; // Gfx9 only
                 uint16 depthStencilView       : 1; // Gfx9 only
-                uint16 vrsRateParams          : 1; // GFX10.2 / 10.3 only
-                uint16 vrsCenterState         : 1; // GFX10.2 / 10.3 only
-                uint16 vrsImage               : 1; // GFX10.2 / 10.3 only
+                uint16 vrsRateParams          : 1; // 10.3 only
+                uint16 vrsCenterState         : 1; // 10.3 only
+                uint16 vrsImage               : 1; // 10.3 only
                 uint16 depthClampOverride     : 1; // All Gfx
             };
 

@@ -19,6 +19,9 @@
     "Hardware Workarounds",
     "RPM",
     "Gfx9",
+    {
+      "Name": "Vrs"
+    },
     "Gfx10"
   ],
   "Settings": [
@@ -1269,7 +1272,7 @@
         "Gfx9"
       ],
       "Defaults": {
-        "Default": 40
+        "Default": 12
       },
       "Scope": "PrivatePalGfx9Key",
       "Type": "uint32",
@@ -2674,6 +2677,22 @@
       "Name": "WaDisableSCompressSOnly"
     },
     {
+      "Description": "If true, instance packing will be disabled when query pipeline statistics  using *_ADJACENCY primitive and instance > 1.",
+      "Tags": [
+        "Hardware Workarounds"
+      ],
+      "Defaults": {
+        "Default": false
+      },
+      "Flags": {
+        "RereadSetting": true
+      },
+      "Scope": "PrivatePalGfx9Key",
+      "Type": "bool",
+      "VariableName": "waDisableInstancePacking",
+      "Name": "WaDisableInstancePacking"
+    },
+    {
       "ValidValues": {
         "IsEnum": true,
         "Values": [
@@ -2896,6 +2915,20 @@
       "Type": "uint32",
       "VariableName": "sdmaBypassMall",
       "Name": "SdmaBypassMall"
+    },
+    {
+      "Description": "Enables the mall cursor cache option",
+      "Tags": [
+        "General",
+        "Gfx9"
+      ],
+      "Defaults": {
+        "Default": false
+      },
+      "Scope": "PrivatePalGfx9Key",
+      "Type": "bool",
+      "VariableName": "enableMallCursorCache",
+      "Name": "EnableMallCursorCache"
     },
     {
       "Description": "Determines if GFX or Compute is used to fast clear SingleSampled DepthStencil surfaces. Value is in units of (pix width x height x depth). Values <= this will take GFX else Compute.",

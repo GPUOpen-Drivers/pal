@@ -3553,6 +3553,62 @@ ADDR_E_RETURNCODE ADDR_API Addr2ComputeSubResourceOffsetForSwizzlePattern(
 
 /**
 ****************************************************************************************************
+*   ADDR2_COMPUTE_NONBLOCKCOMPRESSEDVIEW_INPUT
+*
+*   @brief
+*       Input structure of Addr2ComputeNonBlockCompressedView
+****************************************************************************************************
+*/
+typedef struct _ADDR2_COMPUTE_NONBLOCKCOMPRESSEDVIEW_INPUT
+{
+    UINT_32               size;              ///< Size of this structure in bytes
+    ADDR2_SURFACE_FLAGS   flags;             ///< Surface flags
+    AddrSwizzleMode       swizzleMode;       ///< Swizzle Mode for Gfx9
+    AddrResourceType      resourceType;      ///< Surface type
+    AddrFormat            format;            ///< Surface format
+    UINT_32               width;             ///< Width of mip0 in texels (not in compressed block)
+    UINT_32               height;            ///< Height of mip0 in texels (not in compressed block)
+    UINT_32               numSlices;         ///< Number surface slice/depth of mip0
+    UINT_32               numMipLevels;      ///< Total mipmap levels.
+    UINT_32               pipeBankXor;       ///< Combined swizzle used to do bank/pipe rotation
+    UINT_32               slice;             ///< Index of slice to view
+    UINT_32               mipId;             ///< Id of mip to view
+} ADDR2_COMPUTE_NONBLOCKCOMPRESSEDVIEW_INPUT;
+
+/**
+****************************************************************************************************
+*   ADDR2_COMPUTE_NONBLOCKCOMPRESSEDVIEW_OUTPUT
+*
+*   @brief
+*       Output structure of Addr2ComputeNonBlockCompressedView
+****************************************************************************************************
+*/
+typedef struct _ADDR2_COMPUTE_NONBLOCKCOMPRESSEDVIEW_OUTPUT
+{
+    UINT_32             size;               ///< Size of this structure in bytes
+    UINT_64             offset;             ///< Offset shifted from resource base for the view
+    UINT_32             pipeBankXor;        ///< Pipe bank xor for the view
+    UINT_32             unalignedWidth;     ///< Mip0 width (in element) for the view
+    UINT_32             unalignedHeight;    ///< Mip0 height (in element) for the view
+    UINT_32             numMipLevels;       ///< Total mipmap levels for the view
+    UINT_32             mipId;              ///< Mip ID for the view
+} ADDR2_COMPUTE_NONBLOCKCOMPRESSEDVIEW_OUTPUT;
+
+/**
+****************************************************************************************************
+*   Addr2ComputeNonBlockCompressedView
+*
+*   @brief
+*       Compute non-block-compressed view for a given mipmap level/slice
+****************************************************************************************************
+*/
+ADDR_E_RETURNCODE ADDR_API Addr2ComputeNonBlockCompressedView(
+    ADDR_HANDLE                                       hLib,
+    const ADDR2_COMPUTE_NONBLOCKCOMPRESSEDVIEW_INPUT* pIn,
+    ADDR2_COMPUTE_NONBLOCKCOMPRESSEDVIEW_OUTPUT*      pOut);
+
+/**
+****************************************************************************************************
 *   ADDR2_BLOCK_SET
 *
 *   @brief

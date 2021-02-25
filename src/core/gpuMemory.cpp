@@ -38,8 +38,8 @@ namespace Pal
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 652
 // =====================================================================================================================
-/// Copies only the valid heaps from @p heaps to @p out. The filtering happens based on if the heap exists on the
-/// device.
+// Copies only the valid heaps from pHeaps to pOutHeaps. The filtering happens based on if the heap exists on the
+// device.
 static uint32 CopyViableHeaps(
     const GpuHeap* pHeaps,
     uint32         heapCount,

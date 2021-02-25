@@ -877,6 +877,20 @@ PAL_INLINE Result DeserializeHardwareStageMetadata(
                 break;
 
 #endif
+            case HashLiteralString(HardwareStageMetadataKey::UsesPrimId):
+            {
+                PAL_ASSERT(pMetadata->hasEntry.usesPrimId == 0);
+                bool value = false;
+                result = pReader->UnpackNext(&value);
+
+                if (result == Result::Success)
+                {
+                    pMetadata->flags.usesPrimId = value;
+                }
+                pMetadata->hasEntry.usesPrimId = (result == Result::Success);
+                break;
+            }
+
             default:
                 result = pReader->Skip(1);
                 break;
