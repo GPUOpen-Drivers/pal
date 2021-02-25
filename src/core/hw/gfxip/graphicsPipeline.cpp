@@ -181,6 +181,22 @@ Result GraphicsPipeline::InitFromPipelineBinary(
             m_flags.nonPsShaderUsesUavs = true;
         }
 
+        if (((metadata.pipeline.hardwareStage[static_cast<uint32>(Abi::HardwareStage::Ls)].hasEntry.usesPrimId) &&
+             (metadata.pipeline.hardwareStage[static_cast<uint32>(Abi::HardwareStage::Ls)].flags.usesPrimId)) ||
+            ((metadata.pipeline.hardwareStage[static_cast<uint32>(Abi::HardwareStage::Hs)].hasEntry.usesPrimId) &&
+             (metadata.pipeline.hardwareStage[static_cast<uint32>(Abi::HardwareStage::Hs)].flags.usesPrimId)) ||
+            ((metadata.pipeline.hardwareStage[static_cast<uint32>(Abi::HardwareStage::Es)].hasEntry.usesPrimId) &&
+             (metadata.pipeline.hardwareStage[static_cast<uint32>(Abi::HardwareStage::Es)].flags.usesPrimId)) ||
+            ((metadata.pipeline.hardwareStage[static_cast<uint32>(Abi::HardwareStage::Gs)].hasEntry.usesPrimId) &&
+             (metadata.pipeline.hardwareStage[static_cast<uint32>(Abi::HardwareStage::Gs)].flags.usesPrimId)) ||
+            ((metadata.pipeline.hardwareStage[static_cast<uint32>(Abi::HardwareStage::Vs)].hasEntry.usesPrimId) &&
+             (metadata.pipeline.hardwareStage[static_cast<uint32>(Abi::HardwareStage::Vs)].flags.usesPrimId)) ||
+            ((metadata.pipeline.hardwareStage[static_cast<uint32>(Abi::HardwareStage::Ps)].hasEntry.usesPrimId) &&
+             (metadata.pipeline.hardwareStage[static_cast<uint32>(Abi::HardwareStage::Ps)].flags.usesPrimId)))
+        {
+            m_flags.primIdUsed = true;
+        }
+
         result = HwlInit(createInfo, abiReader, metadata, &metadataReader);
     }
 

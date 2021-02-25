@@ -5737,41 +5737,27 @@ Result Device::IsSameGpu(
     char   busId[MaxBusIdStringLen] = {};
 
     *pIsSame = false;
+     drmDevicePtr presentDevice = nullptr;
 
-    const char* pPresentDeviceBusId = m_drmProcs.pfnDrmGetBusid(presentDeviceFd);
+     int32 ret = m_drmProcs.pfnDrmGetDevice2(presentDeviceFd, 0, &presentDevice);
+     if (ret)
+      {
+         result = Result::ErrorUnknown;
+      }
+      else
+      {
+         PAL_ASSERT(presentDevice->bustype == DRM_BUS_PCI);
 
-    if (pPresentDeviceBusId == nullptr)
-    {
-        // Try other ways to get the bus id.
-        drmDevicePtr presentDevice = nullptr;
+         Util::Snprintf(busId,
+                        MaxBusIdStringLen,
+                        "pci:%04x:%02x:%02x.%d",
+                        presentDevice->businfo.pci->domain,
+                        presentDevice->businfo.pci->bus,
+                        presentDevice->businfo.pci->dev,
+                        presentDevice->businfo.pci->func);
 
-        int32 ret = m_drmProcs.pfnDrmGetDevice2(presentDeviceFd, 0, &presentDevice);
-
-        if (ret)
-        {
-            result = Result::ErrorUnknown;
+         m_drmProcs.pfnDrmFreeDevice(&presentDevice);
         }
-        else
-        {
-            PAL_ASSERT(presentDevice->bustype == DRM_BUS_PCI);
-
-            Util::Snprintf(busId,
-                           MaxBusIdStringLen,
-                           "pci:%04x:%02x:%02x.%d",
-                           presentDevice->businfo.pci->domain,
-                           presentDevice->businfo.pci->bus,
-                           presentDevice->businfo.pci->dev,
-                           presentDevice->businfo.pci->func);
-
-            m_drmProcs.pfnDrmFreeDevice(&presentDevice);
-        }
-    }
-    else
-    {
-        strcpy(busId, pPresentDeviceBusId);
-
-        m_drmProcs.pfnDrmFreeBusid(pPresentDeviceBusId);
-    }
 
     if (result == Result::Success)
     {

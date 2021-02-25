@@ -202,7 +202,7 @@ Device::Device(
     }
     memset(const_cast<uint32*>(&m_msaaHistogram[0]), 0, sizeof(m_msaaHistogram));
 
-    if (IsGfx102Plus(*Parent())
+    if (IsGfx103Plus(*Parent())
        )
     {
 #if PAL_ENABLE_PRINTS_ASSERTS
@@ -4725,7 +4725,7 @@ void InitializeGpuChipProperties(
 
     pInfo->gfxip.maxUserDataEntries = MaxUserDataEntries;
 
-    if (IsGfx102Plus(pInfo->gfxLevel))
+    if (IsGfx103Plus(pInfo->gfxLevel))
     {
         pInfo->imageProperties.prtFeatures = Gfx102PlusPrtFeatures;
         pInfo->imageProperties.prtTileSize = PrtTileSize;
@@ -4736,7 +4736,7 @@ void InitializeGpuChipProperties(
         pInfo->imageProperties.prtTileSize = PrtTileSize;
     }
 
-    if (IsGfx102Plus(pInfo->gfxLevel))
+    if (IsGfx103Plus(pInfo->gfxLevel))
     {
         // On GFX10, VRS tiles are stored in hTile memory which always represents an 8x8 block
         pInfo->imageProperties.vrsTileSize.width  = 8;
@@ -5022,7 +5022,7 @@ void InitializeGpuChipProperties(
     else if (IsGfx10(pInfo->gfxLevel))
     {
         if (false
-             || IsGfx102Plus(pInfo->gfxLevel)
+             || IsGfx103Plus(pInfo->gfxLevel)
             )
         {
             pInfo->srdSizes.bvh = sizeof(sq_bvh_rsrc_t);
@@ -5031,7 +5031,7 @@ void InitializeGpuChipProperties(
                 pInfo->gfx9.supportIntersectRayBarycentrics = 1;
             }
         }
-        if (IsGfx102Plus(pInfo->gfxLevel))
+        if (IsGfx103Plus(pInfo->gfxLevel))
         {
             pInfo->gfx9.supportSortAgnosticBarycentrics = 1;
         }
@@ -5156,7 +5156,7 @@ void InitializePerfExperimentProperties(
 }
 
 // =====================================================================================================================
-// Initialize default values for the GPU engine properties for GFXIP 6/7/8 hardware.
+// Initialize default values for the GPU engine properties.
 void InitializeGpuEngineProperties(
     const GpuChipProperties&  chipProps,
     GpuEngineProperties*      pInfo)
@@ -5193,10 +5193,11 @@ void InitializeGpuEngineProperties(
     pUniversal->minTimestampAlignment                 = 8; // The CP spec requires 8-byte alignment.
     pUniversal->queueSupport                          = SupportQueueTypeUniversal;
 
-    if ((IsGfx103Plus(gfxIpLevel))
-        // Support was added for 10.3-era parts with F32_ME_FEATURE_VERSION_31 but the version number
-        // wasn't bumped. Conservatively check against 32.
-        && ((IsGfx103(gfxIpLevel) == false) || (pInfo->cpUcodeVersion >= 32))
+    if ((IsGfx9(gfxIpLevel) && (pInfo->cpUcodeVersion >= 52)) ||
+        (IsGfx10Plus(gfxIpLevel) && (pInfo->cpUcodeVersion >= 32))
+        || (IsGfx103Plus(gfxIpLevel)
+        && (IsGfx103(gfxIpLevel) == false)
+        )
        )
     {
         pUniversal->flags.memory32bPredicationSupport = 1;
@@ -7330,8 +7331,8 @@ uint32 Device::Gfx103PlusGetNumActiveShaderArraysLog2() const
     const auto&  gbAddrConfig  = GetGbAddrConfig();
     const uint32 numPkrLog2    = gbAddrConfig.gfx103Plus.NUM_PKRS;
 
-    // Packers is a 10.2+ concept.
-    PAL_ASSERT(IsGfx102Plus(*Parent()));
+    // Packers is a 10.3+ concept.
+    PAL_ASSERT(IsGfx103Plus(*Parent()));
 
     // See Gfx10Lib::HwlInitGlobalParams (address library) for where this bit of non-intuitiveness comes from
     const uint32  numSaLog2FromPkr = ((numPkrLog2 > 0) ? (numPkrLog2 - 1) : 0);

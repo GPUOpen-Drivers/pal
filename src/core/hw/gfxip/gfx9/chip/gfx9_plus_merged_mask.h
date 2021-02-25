@@ -1189,7 +1189,6 @@ constexpr unsigned int PA_SC_BINNER_EVENT_CNTL_1__PS_PARTIAL_FLUSH_MASK   = 0x00
 constexpr unsigned int PA_SC_BINNER_EVENT_CNTL_1__RESET_TO_LOWEST_VGT_MASK = 0x000000c0L;
 constexpr unsigned int PA_SC_BINNER_EVENT_CNTL_1__SAMPLE_PIPELINESTAT_MASK = 0x30000000L;
 constexpr unsigned int PA_SC_BINNER_EVENT_CNTL_1__SO_VGTSTREAMOUT_FLUSH_MASK = 0xc0000000L;
-constexpr unsigned int PA_SC_BINNER_EVENT_CNTL_1__ZPASS_DONE_MASK         = 0x00000c00L;
 constexpr unsigned int PA_SC_BINNER_EVENT_CNTL_2__BLOCK_CONTEXT_DONE_MASK = 0x00000030L;
 constexpr unsigned int PA_SC_BINNER_EVENT_CNTL_2__BOTTOM_OF_PIPE_TS_MASK  = 0x00030000L;
 constexpr unsigned int PA_SC_BINNER_EVENT_CNTL_2__CS_DONE_MASK            = 0xc0000000L;
@@ -1296,7 +1295,6 @@ constexpr unsigned int PA_SC_ENHANCE_1__DISABLE_PBB_SCISSOR_CLK_OPTIMIZATION_MAS
 constexpr unsigned int PA_SC_ENHANCE_1__DISABLE_PBB_SCISSOR_OPT_MASK      = 0x00000400L;
 constexpr unsigned int PA_SC_ENHANCE_1__DISABLE_SC_BINNING_MASK           = 0x00000008L;
 constexpr unsigned int PA_SC_ENHANCE_1__DISABLE_SC_DB_TILE_INTF_FINE_CLOCK_GATE_MASK = 0x00004000L;
-constexpr unsigned int PA_SC_ENHANCE_1__DISABLE_SC_PIPELINE_RESET_LEGACY_MODE_TRANSITION_MASK = 0x00008000L;
 constexpr unsigned int PA_SC_ENHANCE_1__DISABLE_SC_PROCESS_RESET_PBB_MASK = 0x00000200L;
 constexpr unsigned int PA_SC_ENHANCE_1__ECO_SPARE1_MASK                   = 0x00000040L;
 constexpr unsigned int PA_SC_ENHANCE_1__ECO_SPARE2_MASK                   = 0x00000080L;
@@ -2840,9 +2838,6 @@ constexpr unsigned int VGT_GS_INSTANCE_CNT__CNT_MASK                      = 0x00
 constexpr unsigned int VGT_GS_INSTANCE_CNT__ENABLE_MASK                   = 0x00000001L;
 constexpr unsigned int VGT_GS_MAX_VERT_OUT__MAX_VERT_OUT_MASK             = 0x000007ffL;
 constexpr unsigned int VGT_GS_MAX_WAVE_ID__MAX_WAVE_ID_MASK               = 0x00000fffL;
-constexpr unsigned int VGT_GS_ONCHIP_CNTL__ES_VERTS_PER_SUBGRP_MASK       = 0x000007ffL;
-constexpr unsigned int VGT_GS_ONCHIP_CNTL__GS_INST_PRIMS_IN_SUBGRP_MASK   = 0xffc00000L;
-constexpr unsigned int VGT_GS_ONCHIP_CNTL__GS_PRIMS_PER_SUBGRP_MASK       = 0x003ff800L;
 constexpr unsigned int VGT_GS_OUT_PRIM_TYPE__OUTPRIM_TYPE_MASK            = 0x0000003fL;
 constexpr unsigned int VGT_HOS_MAX_TESS_LEVEL__MAX_TESS_MASK              = 0xffffffffL;
 constexpr unsigned int VGT_HOS_MIN_TESS_LEVEL__MIN_TESS_MASK              = 0xffffffffL;
@@ -2883,7 +2878,6 @@ constexpr unsigned int VGT_TESS_DISTRIBUTION__DONUT_SPLIT_MASK            = 0x1f
 constexpr unsigned int VGT_TESS_DISTRIBUTION__TRAP_SPLIT_MASK             = 0xe0000000L;
 constexpr unsigned int VGT_TF_MEMORY_BASE_HI__BASE_HI_MASK                = 0x000000ffL;
 constexpr unsigned int VGT_TF_MEMORY_BASE__BASE_MASK                      = 0xffffffffL;
-constexpr unsigned int VGT_TF_PARAM__DEPRECATED_MASK                      = 0x00000200L;
 constexpr unsigned int VGT_TF_PARAM__DISABLE_DONUTS_MASK                  = 0x00004000L;
 constexpr unsigned int VGT_TF_PARAM__DISTRIBUTION_MODE_MASK               = 0x00060000L;
 constexpr unsigned int VGT_TF_PARAM__PARTITIONING_MASK                    = 0x0000001cL;
@@ -3066,7 +3060,6 @@ namespace Core
     constexpr unsigned int PA_SC_MODE_CNTL_0__ALTERNATE_RBS_PER_TILE_MASK     = 0x00000020L;
     constexpr unsigned int PA_SC_SHADER_CONTROL__LOAD_COLLISION_WAVEID_MASK   = 0x00000004L;
     constexpr unsigned int PA_SC_SHADER_CONTROL__LOAD_INTRAWAVE_COLLISION_MASK = 0x00000008L;
-    constexpr unsigned int RLC_SPM_PERFMON_CNTL__RESERVED_MASK                = 0x0000c000L;
     constexpr unsigned int RPB_PERFCOUNTER0_CFG__CLEAR_MASK                   = 0x20000000L;
     constexpr unsigned int RPB_PERFCOUNTER0_CFG__ENABLE_MASK                  = 0x10000000L;
     constexpr unsigned int RPB_PERFCOUNTER0_CFG__PERF_MODE_MASK               = 0x0f000000L;
@@ -3603,6 +3596,7 @@ namespace Gfx09
     constexpr unsigned int RLC_SPM_MC_CNTL__RLC_SPM_POLICY_MASK               = 0x00000010L;
     constexpr unsigned int RLC_SPM_PA_PERFMON_SAMPLE_DELAY__PERFMON_SAMPLE_DELAY_MASK = 0x000000ffL;
     constexpr unsigned int RLC_SPM_PA_PERFMON_SAMPLE_DELAY__RESERVED_MASK     = 0xffffff00L;
+    constexpr unsigned int RLC_SPM_PERFMON_CNTL__RESERVED_MASK                = 0x0000c000L;
     constexpr unsigned int RLC_SPM_RMI_PERFMON_SAMPLE_DELAY__PERFMON_SAMPLE_DELAY_MASK = 0x000000ffL;
     constexpr unsigned int RLC_SPM_RMI_PERFMON_SAMPLE_DELAY__RESERVED_MASK    = 0xffffff00L;
     constexpr unsigned int RLC_SPM_SC_PERFMON_SAMPLE_DELAY__PERFMON_SAMPLE_DELAY_MASK = 0x000000ffL;
@@ -5058,6 +5052,8 @@ namespace Gfx09_10
     constexpr unsigned int IA_MULTI_VGT_PARAM__SWITCH_ON_EOI_MASK             = 0x00080000L;
     constexpr unsigned int IA_MULTI_VGT_PARAM__SWITCH_ON_EOP_MASK             = 0x00020000L;
     constexpr unsigned int IA_MULTI_VGT_PARAM__WD_SWITCH_ON_EOP_MASK          = 0x00100000L;
+    constexpr unsigned int PA_SC_BINNER_EVENT_CNTL_1__ZPASS_DONE_MASK         = 0x00000c00L;
+    constexpr unsigned int PA_SC_ENHANCE_1__DISABLE_SC_PIPELINE_RESET_LEGACY_MODE_TRANSITION_MASK = 0x00008000L;
     constexpr unsigned int PA_SC_ENHANCE_1__ECO_SPARE0_MASK                   = 0x00000020L;
     constexpr unsigned int PA_SIDEBAND_REQUEST_DELAYS__INITIAL_DELAY_MASK     = 0xffff0000L;
     constexpr unsigned int PA_SIDEBAND_REQUEST_DELAYS__RETRY_DELAY_MASK       = 0x0000ffffL;
@@ -5262,6 +5258,9 @@ namespace Gfx09_10
     constexpr unsigned int VGT_GS_MODE__RESERVED_1_MASK                       = 0x000007c0L;
     constexpr unsigned int VGT_GS_MODE__RESERVED_2_MASK                       = 0x00001000L;
     constexpr unsigned int VGT_GS_MODE__SUPPRESS_CUTS_MASK                    = 0x00040000L;
+    constexpr unsigned int VGT_GS_ONCHIP_CNTL__ES_VERTS_PER_SUBGRP_MASK       = 0x000007ffL;
+    constexpr unsigned int VGT_GS_ONCHIP_CNTL__GS_INST_PRIMS_IN_SUBGRP_MASK   = 0xffc00000L;
+    constexpr unsigned int VGT_GS_ONCHIP_CNTL__GS_PRIMS_PER_SUBGRP_MASK       = 0x003ff800L;
     constexpr unsigned int VGT_GS_OUT_PRIM_TYPE__OUTPRIM_TYPE_1_MASK          = 0x00003f00L;
     constexpr unsigned int VGT_GS_OUT_PRIM_TYPE__OUTPRIM_TYPE_2_MASK          = 0x003f0000L;
     constexpr unsigned int VGT_GS_OUT_PRIM_TYPE__OUTPRIM_TYPE_3_MASK          = 0x0fc00000L;
@@ -5320,6 +5319,7 @@ namespace Gfx09_10
     constexpr unsigned int VGT_STRMOUT_VTX_STRIDE_1__STRIDE_MASK              = 0x000003ffL;
     constexpr unsigned int VGT_STRMOUT_VTX_STRIDE_2__STRIDE_MASK              = 0x000003ffL;
     constexpr unsigned int VGT_STRMOUT_VTX_STRIDE_3__STRIDE_MASK              = 0x000003ffL;
+    constexpr unsigned int VGT_TF_PARAM__DEPRECATED_MASK                      = 0x00000200L;
     constexpr unsigned int VGT_TF_RING_SIZE__SIZE_MASK                        = 0x0000ffffL;
     constexpr unsigned int VGT_VERTEX_REUSE_BLOCK_CNTL__VTX_REUSE_DEPTH_MASK  = 0x000000ffL;
     constexpr unsigned int VGT_VS_MAX_WAVE_ID__MAX_WAVE_ID_MASK               = 0x00000fffL;
@@ -5523,6 +5523,7 @@ namespace Gfx10
     constexpr unsigned int GE_CNTL__PRIM_GRP_SIZE_MASK                        = 0x000001ffL;
     constexpr unsigned int GE_CNTL__VERT_GRP_SIZE_MASK                        = 0x0003fe00L;
     constexpr unsigned int GE_DMA_FIRST_INDEX__FIRST_INDEX_MASK               = 0xffffffffL;
+    constexpr unsigned int GE_PRIV_CONTROL__DISCARD_LEGACY_MASK               = 0x00000001L;
     constexpr unsigned int IA_MULTI_VGT_PARAM_PIPED__EN_INST_OPT_ADV_MASK     = 0x00400000L;
     constexpr unsigned int IA_MULTI_VGT_PARAM_PIPED__EN_INST_OPT_BASIC_MASK   = 0x00200000L;
     constexpr unsigned int IA_MULTI_VGT_PARAM_PIPED__HW_USE_ONLY_MASK         = 0x00800000L;
@@ -5614,6 +5615,8 @@ namespace Gfx10
     constexpr unsigned int SQ_THREAD_TRACE_CTRL__SPI_STALL_EN_MASK            = 0x00000400L;
     constexpr unsigned int SQ_THREAD_TRACE_CTRL__SQ_STALL_EN_MASK             = 0x00000800L;
     constexpr unsigned int SQ_THREAD_TRACE_STATUS__UTC_ERR_MASK               = 0x01000000L;
+    constexpr unsigned int SQ_WAVE_GPR_ALLOC__VGPR_BASE_MASK                  = 0x000000ffL;
+    constexpr unsigned int SQ_WAVE_GPR_ALLOC__VGPR_SIZE_MASK                  = 0x0000ff00L;
     constexpr unsigned int SQ_WAVE_HW_ID1__SE_ID_MASK                         = 0x000c0000L;
     constexpr unsigned int VGT_ESGS_RING_SIZE__MEM_SIZE_MASK                  = 0xffffffffL;
     constexpr unsigned int VGT_FIFO_DEPTHS__HSINPUT_FIFO_DEPTH_MASK           = 0x1f800000L;
@@ -6804,7 +6807,6 @@ namespace Gfx103Plus
     constexpr unsigned int RLC_SPM_ACCUM_MODE__SE0_LoadOverride_MASK          = 0x00000800L;
     constexpr unsigned int RLC_SPM_ACCUM_MODE__SE0_SwaLoadOverride_MASK       = 0x00001000L;
     constexpr unsigned int RLC_SPM_ACCUM_MODE__SwaAutoAccumEn_MASK            = 0x00000040L;
-    constexpr unsigned int RLC_SPM_ACCUM_MODE__SwaAutoResetPerfmonDisable_MASK = 0x00000010L;
     constexpr unsigned int RLC_SPM_ACCUM_MODE__SwaAutoSpmEn_MASK              = 0x00000100L;
     constexpr unsigned int RLC_SPM_ACCUM_STATUS__SwaAccumArmed_MASK           = 0x00080000L;
     constexpr unsigned int RLC_SPM_ACCUM_STATUS__SwaAccumDone_MASK            = 0x00010000L;
@@ -6819,7 +6821,6 @@ namespace Gfx103Plus
     constexpr unsigned int SPI_BARYC_SSAA_CNTL__CENTER_SSAA_MODE_MASK         = 0x00000001L;
     constexpr unsigned int SPI_BARYC_SSAA_CNTL__CENTROID_SSAA_MODE_MASK       = 0x00000002L;
     constexpr unsigned int SPI_CONFIG_CNTL_1__SA_SCREEN_MAP_MASK              = 0x00400000L;
-    constexpr unsigned int SPI_CONFIG_CNTL__FORCE_HALF_RATE_PC_EXP_MASK       = 0x04000000L;
     constexpr unsigned int SPI_CS_CRAWLER_CONFIG__CSC_DEPTH_MASK              = 0x00000fc0L;
     constexpr unsigned int SPI_CS_CRAWLER_CONFIG__CSG_DEPTH_MASK              = 0x0000003fL;
     constexpr unsigned int SPI_EXP_THROTTLE_CTRL__DOWNSTEP_MASK               = 0x00001e00L;
@@ -6955,28 +6956,6 @@ namespace Gfx103Plus
     constexpr unsigned int VGT_HS_OFFCHIP_PARAM__OFFCHIP_GRANULARITY_MASK     = 0x00000c00L;
     constexpr unsigned int VGT_INDEX_TYPE__DISABLE_INSTANCE_PACKING_MASK      = 0x00004000L;
     constexpr unsigned int VGT_SYS_CONFIG__NUM_SUBGROUPS_IN_FLIGHT_MASK       = 0x0007ff00L;
-    constexpr unsigned int WD_CNTL_STATUS__DIST_BE_BUSY_MASK                  = 0x00020000L;
-    constexpr unsigned int WD_CNTL_STATUS__DIST_BUSY_MASK                     = 0x00010000L;
-    constexpr unsigned int WD_CNTL_STATUS__GS0_BUSY_MASK                      = 0x00000800L;
-    constexpr unsigned int WD_CNTL_STATUS__GS1_BUSY_MASK                      = 0x00000400L;
-    constexpr unsigned int WD_CNTL_STATUS__GS2_BUSY_MASK                      = 0x00000200L;
-    constexpr unsigned int WD_CNTL_STATUS__GS3_BUSY_MASK                      = 0x00000100L;
-    constexpr unsigned int WD_CNTL_STATUS__HS0_BUSY_MASK                      = 0x00000080L;
-    constexpr unsigned int WD_CNTL_STATUS__HS1_BUSY_MASK                      = 0x00000040L;
-    constexpr unsigned int WD_CNTL_STATUS__HS2_BUSY_MASK                      = 0x00000020L;
-    constexpr unsigned int WD_CNTL_STATUS__HS3_BUSY_MASK                      = 0x00000010L;
-    constexpr unsigned int WD_CNTL_STATUS__NGG0_BUSY_MASK                     = 0x00008000L;
-    constexpr unsigned int WD_CNTL_STATUS__NGG1_BUSY_MASK                     = 0x00004000L;
-    constexpr unsigned int WD_CNTL_STATUS__NGG2_BUSY_MASK                     = 0x00002000L;
-    constexpr unsigned int WD_CNTL_STATUS__NGG3_BUSY_MASK                     = 0x00001000L;
-    constexpr unsigned int WD_CNTL_STATUS__TE0_BUSY_MASK                      = 0x08000000L;
-    constexpr unsigned int WD_CNTL_STATUS__TE1_BUSY_MASK                      = 0x04000000L;
-    constexpr unsigned int WD_CNTL_STATUS__TE2_BUSY_MASK                      = 0x02000000L;
-    constexpr unsigned int WD_CNTL_STATUS__TE3_BUSY_MASK                      = 0x01000000L;
-    constexpr unsigned int WD_CNTL_STATUS__VR0_BUSY_MASK                      = 0x00000008L;
-    constexpr unsigned int WD_CNTL_STATUS__VR1_BUSY_MASK                      = 0x00000004L;
-    constexpr unsigned int WD_CNTL_STATUS__VR2_BUSY_MASK                      = 0x00000002L;
-    constexpr unsigned int WD_CNTL_STATUS__VR3_BUSY_MASK                      = 0x00000001L;
 } // namespace Gfx103Plus
 
 namespace Gfx10Core
@@ -7177,8 +7156,10 @@ namespace Gfx10Core
     constexpr unsigned int DB_RMI_BC_GL2_CACHE_CONTROL__ZPCPSD_WR_POLICY_MASK = 0x000000c0L;
     constexpr unsigned int DB_RMI_BC_GL2_CACHE_CONTROL__Z_RD_POLICY_MASK      = 0x00030000L;
     constexpr unsigned int DB_RMI_BC_GL2_CACHE_CONTROL__Z_WR_POLICY_MASK      = 0x00000003L;
+    constexpr unsigned int PA_SC_ENHANCE_2__ENABLE_BLOCKING_WRITES_OF_GEN2_REG_MASK = 0x00100000L;
     constexpr unsigned int PA_SC_TILE_STEERING_OVERRIDE__NUM_RB_PER_SE_MASK   = 0x00000060L;
     constexpr unsigned int PA_SC_TILE_STEERING_OVERRIDE__NUM_SE_MASK          = 0x00000006L;
+    constexpr unsigned int RLC_SPM_PERFMON_CNTL__RESERVED_MASK                = 0x0000c000L;
     constexpr unsigned int RMI_PERFCOUNTER0_SELECT1__PERF_SEL2_MASK           = 0x000001ffL;
     constexpr unsigned int RMI_PERFCOUNTER0_SELECT1__PERF_SEL3_MASK           = 0x0007fc00L;
     constexpr unsigned int RMI_PERFCOUNTER0_SELECT__PERF_SEL1_MASK            = 0x0007fc00L;
@@ -7366,7 +7347,6 @@ namespace Gfx10CorePlus
     constexpr unsigned int IA_UTCL1_STATUS_2__RETRY_DETECTED_MASK             = 0x00000040L;
     constexpr unsigned int IA_UTCL1_STATUS_2__RETRY_UTCL1ID_MASK              = 0x003f0000L;
     constexpr unsigned int PA_SC_ENHANCE_1__DEBUG_PIXEL_PICKER_COUNT_PIXELS_MASK = 0x00002000L;
-    constexpr unsigned int PA_SC_ENHANCE_2__ENABLE_BLOCKING_WRITES_OF_GEN2_REG_MASK = 0x00100000L;
     constexpr unsigned int RLC_SPM_MC_CNTL__RLC_SPM_BC_MASK                   = 0x00001000L;
     constexpr unsigned int RLC_SPM_MC_CNTL__RLC_SPM_VOL_MASK                  = 0x00004000L;
     constexpr unsigned int SDMA0_PERFCOUNTER0_HI__PERFCOUNTER_HI_MASK         = 0xffffffffL;
@@ -7805,7 +7785,6 @@ namespace Gfx10Plus
     constexpr unsigned int GE_PC_ALLOC__OVERSUB_EN_MASK                       = 0x00000001L;
     constexpr unsigned int GE_PC_CNTL__PC_SIZE_MASK                           = 0x0000ffffL;
     constexpr unsigned int GE_PRIV_CONTROL__CLAMP_PRIMGRP_SIZE_MASK           = 0x000003feL;
-    constexpr unsigned int GE_PRIV_CONTROL__DISCARD_LEGACY_MASK               = 0x00000001L;
     constexpr unsigned int GE_PRIV_CONTROL__RESET_ON_PIPELINE_CHANGE_MASK     = 0x00000400L;
     constexpr unsigned int GE_STATUS__PERFCOUNTER_STATUS_MASK                 = 0x00000001L;
     constexpr unsigned int GE_STATUS__THREAD_TRACE_STATUS_MASK                = 0x00000002L;
@@ -8345,8 +8324,6 @@ namespace Gfx10Plus
     constexpr unsigned int SQ_WATCH3_CNTL__VMID_MASK                          = 0x0f000000L;
     constexpr unsigned int SQ_WAVE_FLAT_SCRATCH_HI__DATA_MASK                 = 0xffffffffL;
     constexpr unsigned int SQ_WAVE_FLAT_SCRATCH_LO__DATA_MASK                 = 0xffffffffL;
-    constexpr unsigned int SQ_WAVE_GPR_ALLOC__VGPR_BASE_MASK                  = 0x000000ffL;
-    constexpr unsigned int SQ_WAVE_GPR_ALLOC__VGPR_SIZE_MASK                  = 0x0000ff00L;
     constexpr unsigned int SQ_WAVE_HW_ID1__SA_ID_MASK                         = 0x00010000L;
     constexpr unsigned int SQ_WAVE_HW_ID1__SIMD_ID_MASK                       = 0x00000300L;
     constexpr unsigned int SQ_WAVE_HW_ID1__WAVE_ID_MASK                       = 0x0000001fL;
@@ -8458,6 +8435,7 @@ namespace Gfx10Vrs
     constexpr unsigned int DB_VRS_OVERRIDE_CNTL__VRS_OVERRIDE_RATE_Y_MASK     = 0x000000c0L;
     constexpr unsigned int PA_CL_ENHANCE__CLAMP_NEGATIVE_BB_TO_ZERO_MASK      = 0x01000000L;
     constexpr unsigned int PA_SC_ENHANCE_3__DISABLE_RB_MASK_COPY_FOR_NONP2_SA_HARVEST_MASK = 0x00000004L;
+    constexpr unsigned int RLC_SPM_ACCUM_MODE__SwaAutoResetPerfmonDisable_MASK = 0x00000010L;
     constexpr unsigned int RLC_SPM_GLOBAL_MUXSEL_ADDR_OFFSET__OFFSET_MASK     = 0x0000ffffL;
     constexpr unsigned int RLC_SPM_GLOBAL_MUXSEL_ADDR_OFFSET__RESERVED_MASK   = 0xffff0000L;
     constexpr unsigned int RLC_SPM_PERFMON_SWA_GLB_SEGMENT_SIZE__GLOBAL_NUM_LINE_MASK = 0x0000ff00L;
@@ -8476,6 +8454,7 @@ namespace Gfx10Vrs
     constexpr unsigned int RLC_SPM_PERFMON_SWA_SEGMENT_SIZE__SE2_NUM_LINE_MASK = 0x7c000000L;
     constexpr unsigned int RLC_SPM_SE_MUXSEL_ADDR_OFFSET__OFFSET_MASK         = 0x0000ffffL;
     constexpr unsigned int RLC_SPM_SE_MUXSEL_ADDR_OFFSET__RESERVED_MASK       = 0xffff0000L;
+    constexpr unsigned int SPI_CONFIG_CNTL__FORCE_HALF_RATE_PC_EXP_MASK       = 0x04000000L;
     constexpr unsigned int SPI_GFX_CRAWLER_CONFIG__VS_DEPTH_MASK              = 0x003e0000L;
     constexpr unsigned int SPI_IND_DATA__DATA_MASK                            = 0xffffffffL;
     constexpr unsigned int SPI_IND_INDEX__INDEX_MASK                          = 0xffffffffL;
@@ -8483,6 +8462,28 @@ namespace Gfx10Vrs
     constexpr unsigned int SQ_CONFIG__CHICKEN_BIT_DEGGIGXX0_8637_MASK         = 0x00000020L;
     constexpr unsigned int SQ_CONFIG__UNUSED_6_MASK                           = 0x00000040L;
     constexpr unsigned int SQ_CONFIG__UNUSED_MASK                             = 0x0000001fL;
+    constexpr unsigned int WD_CNTL_STATUS__DIST_BE_BUSY_MASK                  = 0x00020000L;
+    constexpr unsigned int WD_CNTL_STATUS__DIST_BUSY_MASK                     = 0x00010000L;
+    constexpr unsigned int WD_CNTL_STATUS__GS0_BUSY_MASK                      = 0x00000800L;
+    constexpr unsigned int WD_CNTL_STATUS__GS1_BUSY_MASK                      = 0x00000400L;
+    constexpr unsigned int WD_CNTL_STATUS__GS2_BUSY_MASK                      = 0x00000200L;
+    constexpr unsigned int WD_CNTL_STATUS__GS3_BUSY_MASK                      = 0x00000100L;
+    constexpr unsigned int WD_CNTL_STATUS__HS0_BUSY_MASK                      = 0x00000080L;
+    constexpr unsigned int WD_CNTL_STATUS__HS1_BUSY_MASK                      = 0x00000040L;
+    constexpr unsigned int WD_CNTL_STATUS__HS2_BUSY_MASK                      = 0x00000020L;
+    constexpr unsigned int WD_CNTL_STATUS__HS3_BUSY_MASK                      = 0x00000010L;
+    constexpr unsigned int WD_CNTL_STATUS__NGG0_BUSY_MASK                     = 0x00008000L;
+    constexpr unsigned int WD_CNTL_STATUS__NGG1_BUSY_MASK                     = 0x00004000L;
+    constexpr unsigned int WD_CNTL_STATUS__NGG2_BUSY_MASK                     = 0x00002000L;
+    constexpr unsigned int WD_CNTL_STATUS__NGG3_BUSY_MASK                     = 0x00001000L;
+    constexpr unsigned int WD_CNTL_STATUS__TE0_BUSY_MASK                      = 0x08000000L;
+    constexpr unsigned int WD_CNTL_STATUS__TE1_BUSY_MASK                      = 0x04000000L;
+    constexpr unsigned int WD_CNTL_STATUS__TE2_BUSY_MASK                      = 0x02000000L;
+    constexpr unsigned int WD_CNTL_STATUS__TE3_BUSY_MASK                      = 0x01000000L;
+    constexpr unsigned int WD_CNTL_STATUS__VR0_BUSY_MASK                      = 0x00000008L;
+    constexpr unsigned int WD_CNTL_STATUS__VR1_BUSY_MASK                      = 0x00000004L;
+    constexpr unsigned int WD_CNTL_STATUS__VR2_BUSY_MASK                      = 0x00000002L;
+    constexpr unsigned int WD_CNTL_STATUS__VR3_BUSY_MASK                      = 0x00000001L;
 } // namespace Gfx10Vrs
 
 namespace NotGfx10

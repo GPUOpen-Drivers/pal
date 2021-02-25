@@ -1405,21 +1405,21 @@ uint32* UniversalQueueContext::WriteUniversalPreamble(
 
     // Occlusion query control event, specifies that we want one counter to dump out every 128 bits for every
     // DB that the HW supports.
-    //
-    // NOTE: Despite the structure definition in the HW doc, the instance_enable variable is 16 bits long, not 8.
+
+    // NOTE: Despite the structure definition in the HW doc, the instance_enable variable is 24 bits long, not 8.
     union PixelPipeStatControl
     {
         struct
         {
-            uint32 reserved1       :  3;
-            uint32 counter_id      :  6;    // Mask of which counts to dump
-            uint32 stride          :  2;    // PixelPipeStride enum
+            uint64 reserved1       :  3;
+            uint64 counter_id      :  6;    // Mask of which counts to dump
+            uint64 stride          :  2;    // PixelPipeStride enum
                                             // (how far apart each enabled instance must dump from each other)
-            uint32 instance_enable : 16;    // Mask of which of the RBs must dump the data.
-            uint32 reserved2       :  5;
+            uint64 instance_enable : 24;    // Mask of which of the RBs must dump the data.
+            uint64 reserved2       : 29;
         } bits;
 
-        uint32 u32All;
+        uint64 u64All;
     };
 
     // Our occlusion query data is in pairs of [begin, end], each pair being 128 bits.
@@ -1434,7 +1434,7 @@ uint32* UniversalQueueContext::WriteUniversalPreamble(
         CmdUtil::BuildSampleEventWrite(PIXEL_PIPE_STAT_CONTROL,
                                        event_index__me_event_write__pixel_pipe_stat_control_or_dump,
                                        EngineTypeUniversal,
-                                       pixelPipeStatControl.u32All,
+                                       pixelPipeStatControl.u64All,
                                        pCmdSpace);
 
     // The register spec suggests these values are optimal settings for Gfx9 hardware, when VS half-pack mode is
@@ -1718,10 +1718,10 @@ uint32* UniversalQueueContext::WriteUniversalPreamble(
     if (m_pDevice->Settings().useClearStateToInitialize == false)
     {
         uint32 PaRegisters1[2] = { static_cast<uint32>(0xaa99aaaa), static_cast<uint32>(0x00000000) };
-        m_deCmdStream.WriteSetSeqContextRegs(mmPA_SC_EDGERULE,
-                                             mmPA_SU_HARDWARE_SCREEN_OFFSET,
-                                             &PaRegisters1,
-                                             pCmdSpace);
+        pCmdSpace = m_deCmdStream.WriteSetSeqContextRegs(mmPA_SC_EDGERULE,
+                                                         mmPA_SU_HARDWARE_SCREEN_OFFSET,
+                                                         &PaRegisters1,
+                                                         pCmdSpace);
         constexpr struct
         {
             regPA_CL_POINT_X_RAD    paClPointXRad;
@@ -1729,10 +1729,10 @@ uint32* UniversalQueueContext::WriteUniversalPreamble(
             regPA_CL_POINT_SIZE     paClPointSize;
             regPA_CL_POINT_CULL_RAD paClPointCullRad;
         } PaRegisters2 = { };
-        m_deCmdStream.WriteSetSeqContextRegs(mmPA_CL_POINT_X_RAD,
-                                             mmPA_CL_POINT_CULL_RAD,
-                                             &PaRegisters2,
-                                             pCmdSpace);
+        pCmdSpace = m_deCmdStream.WriteSetSeqContextRegs(mmPA_CL_POINT_X_RAD,
+                                                         mmPA_CL_POINT_CULL_RAD,
+                                                         &PaRegisters2,
+                                                         pCmdSpace);
         constexpr struct
         {
             regPA_CL_NANINF_CNTL        paClNanifCntl;
@@ -1740,19 +1740,19 @@ uint32* UniversalQueueContext::WriteUniversalPreamble(
             regPA_SU_LINE_STIPPLE_SCALE paSuLineStippleScale;
             regPA_SU_PRIM_FILTER_CNTL   paSuPrimFilterCntl;
         } PaRegisters3 = { };
-        m_deCmdStream.WriteSetSeqContextRegs(mmPA_CL_NANINF_CNTL,
-                                             mmPA_SU_PRIM_FILTER_CNTL,
-                                             &PaRegisters3,
-                                             pCmdSpace);
+        pCmdSpace = m_deCmdStream.WriteSetSeqContextRegs(mmPA_CL_NANINF_CNTL,
+                                                         mmPA_SU_PRIM_FILTER_CNTL,
+                                                         &PaRegisters3,
+                                                         pCmdSpace);
         constexpr struct
         {
             regPA_CL_NGG_CNTL                paClNggCntl;
             regPA_SU_OVER_RASTERIZATION_CNTL paSuOverRasterizationCntl;
         } PaRegisters4 = { };
-        m_deCmdStream.WriteSetSeqContextRegs(mmPA_CL_NGG_CNTL,
-                                             mmPA_SU_OVER_RASTERIZATION_CNTL,
-                                             &PaRegisters4,
-                                             pCmdSpace);
+        pCmdSpace = m_deCmdStream.WriteSetSeqContextRegs(mmPA_CL_NGG_CNTL,
+                                                         mmPA_SU_OVER_RASTERIZATION_CNTL,
+                                                         &PaRegisters4,
+                                                         pCmdSpace);
 
         pCmdSpace = m_deCmdStream.WriteSetOneContextReg(mmVGT_PRIMITIVEID_RESET, 0x00000000, pCmdSpace);
         pCmdSpace = m_deCmdStream.WriteSetOneContextReg(mmPA_SC_CLIPRECT_RULE,   0x0000ffff, pCmdSpace);

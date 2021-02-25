@@ -560,11 +560,11 @@ ADDR2_SURFACE_FLAGS AddrMgr2::DetermineSurfaceFlags(
     }
     else if (image.IsStencilPlane(plane))
     {
-        flags.stencil = 1;
+        flags.stencil = image.IsDepthStencilTarget();
     }
     else if (image.IsDepthPlane(plane))
     {
-        flags.depth = 1;
+        flags.depth = image.IsDepthStencilTarget();
     }
     else if (image.IsColorPlane(plane))
     {

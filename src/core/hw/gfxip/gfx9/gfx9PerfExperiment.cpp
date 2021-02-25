@@ -653,7 +653,7 @@ Result PerfExperiment::AddCounter(
                     m_select.umcch[info.instance].perfmonCntl[idx].most.EventSelect = info.eventId;
                     m_select.umcch[info.instance].perfmonCntl[idx].most.Enable = 1;
 
-#if (1 ) && (PAL_CLIENT_INTERFACE_MAJOR_VERSION>= 587)
+#if (1  ) && (PAL_CLIENT_INTERFACE_MAJOR_VERSION>= 587)
                     if (IsGfx103(m_device))
                     {
                         if ((info.eventId == UMC_PERF_SEL_DcqOccupancy__NV21) ||

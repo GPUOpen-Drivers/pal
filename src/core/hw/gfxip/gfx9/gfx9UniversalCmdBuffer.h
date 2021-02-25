@@ -242,6 +242,7 @@ union CachedSettings
         uint64 prefetchIndexBufferForNgg  :  1; // Prefetch index buffers to workaround misses in UTCL2 with NGG
         uint64 waCeDisableIb2             :  1; // Disable IB2's on the constant engine to workaround HW bug
         uint64 supportsMall               :  1; // True if this device supports the MALL
+        uint64 waDisableInstancePacking   :  1;
         uint64 reserved3                  :  1;
         uint64 pbbMoreThanOneCtxState     :  1;
         uint64 waUtcL0InconsistentBigPage :  1;
@@ -264,7 +265,7 @@ union CachedSettings
         uint64 reserved7                                 :  1;
         uint64 reserved8                  :  4;
         uint64 reserved9                  :  1;
-        uint64 reserved                   : 18;
+        uint64 reserved                   : 17;
     };
     uint64 u64All;
 };

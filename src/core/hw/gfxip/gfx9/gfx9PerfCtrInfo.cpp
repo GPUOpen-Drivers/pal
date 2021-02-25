@@ -177,33 +177,39 @@ static void UpdateUmcchBlockInfo(
     {
         SET_UMCCH_INSTANCE_REGS(Core,          0);
         SET_UMCCH_INSTANCE_REGS(Gfx10CorePlus, 2);
-        SET_UMCCH_INSTANCE_REGS(Gfx10CorePlus, 4);
-        SET_UMCCH_INSTANCE_REGS(Gfx10CorePlus, 6);
-        SET_UMCCH_INSTANCE_REGS(Gfx10CorePlus, 8);
-        SET_UMCCH_INSTANCE_REGS(Gfx10CorePlus, 10);
-        SET_UMCCH_INSTANCE_REGS(Gfx10CorePlus, 12);
-        SET_UMCCH_INSTANCE_REGS(Gfx10CorePlus, 14);
 
         if (IsNavi21(device))
         {
             SET_UMCCH_INSTANCE_REGS(Nv21, 1);
             SET_UMCCH_INSTANCE_REGS(Nv21, 3);
+            SET_UMCCH_INSTANCE_REGS(Nv21, 4);
             SET_UMCCH_INSTANCE_REGS(Nv21, 5);
+            SET_UMCCH_INSTANCE_REGS(Nv21, 6);
             SET_UMCCH_INSTANCE_REGS(Nv21, 7);
+            SET_UMCCH_INSTANCE_REGS(Nv21, 8);
             SET_UMCCH_INSTANCE_REGS(Nv21, 9);
+            SET_UMCCH_INSTANCE_REGS(Nv21, 10);
             SET_UMCCH_INSTANCE_REGS(Nv21, 11);
+            SET_UMCCH_INSTANCE_REGS(Nv21, 12);
             SET_UMCCH_INSTANCE_REGS(Nv21, 13);
+            SET_UMCCH_INSTANCE_REGS(Nv21, 14);
             SET_UMCCH_INSTANCE_REGS(Nv21, 15);
         }
         else
         {
             SET_UMCCH_INSTANCE_REGS(Gfx101, 1);
             SET_UMCCH_INSTANCE_REGS(Gfx101, 3);
+            SET_UMCCH_INSTANCE_REGS(Gfx101, 4);
             SET_UMCCH_INSTANCE_REGS(Gfx101, 5);
+            SET_UMCCH_INSTANCE_REGS(Gfx101, 6);
             SET_UMCCH_INSTANCE_REGS(Gfx101, 7);
+            SET_UMCCH_INSTANCE_REGS(Gfx101, 8);
             SET_UMCCH_INSTANCE_REGS(Gfx101, 9);
+            SET_UMCCH_INSTANCE_REGS(Gfx101, 10);
             SET_UMCCH_INSTANCE_REGS(Gfx101, 11);
+            SET_UMCCH_INSTANCE_REGS(Gfx101, 12);
             SET_UMCCH_INSTANCE_REGS(Gfx101, 13);
+            SET_UMCCH_INSTANCE_REGS(Gfx101, 14);
             SET_UMCCH_INSTANCE_REGS(Gfx101, 15);
         }
     }
@@ -238,7 +244,7 @@ static void UpdateUmcchBlockInfo(
     }
 
     // Due to missing headers for some asics, we'll be selective here populating the max counts.
-    if (IsNavi2x(device))
+    if (IsGfx103(device))
     {
         pBlockInfo->maxEventId = Nv21MaxPerfEventIds[UmcPerfcountSelectId];
     }
@@ -1422,7 +1428,7 @@ static void Gfx10InitBasicBlockInfo(
     pMcVmL2->numGenericLegacyModules   = 8; // GCMC_VM_L2_PERFCOUNTER0-7
     pMcVmL2->numSpmWires               = 4;
     pMcVmL2->spmBlockSelect            = Gfx10SpmGlobalBlockSelectGpuvmVml2;
-    pMcVmL2->maxEventId                = 20; // Number of l2 cache invalidations
+    pMcVmL2->maxEventId                = 90; // Number of l2 cache invalidations
     pMcVmL2->isCfgStyle                = true;
 
     pMcVmL2->regAddr = { Gfx10::mmGCMC_VM_L2_PERFCOUNTER_RSLT_CNTL, {
@@ -1476,7 +1482,7 @@ static void Gfx10InitBasicBlockInfo(
     pRmi->spmBlockSelect            = Gfx10SpmSeBlockSelectRmi;
     pRmi->maxEventId                = maxIds[RMIPerfSelId];
 
-    if (IsGfx102Plus(device))
+    if (IsGfx103Plus(device))
     {
         // In gfx10.2+ there is only one RMI per RB. The RMI_PERFCOUNTER0/1 is only for read pipeline related counters
         // and RMI_PERCOUNTER2/3 is for write pipeline related counters. So in RMI_PERFCOUNTER0/1 all write related
@@ -1770,7 +1776,7 @@ static void Gfx10InitBasicBlockInfo(
     // The GUS and the blocks that exist to service it should exist as a unit. They are present on all gfx10.1 ASICs.
     if (IsGfx101(device)
         // Since gfx10.2, only dGPUs have a GUS.
-        || (IsGfx102Plus(device) && (pProps->gpuType == GpuType::Discrete))
+        || (IsGfx103Plus(device) && (pProps->gpuType == GpuType::Discrete))
         )
     {
         // The CHCG connects the CH to the GUS, similar to how the CHC connects the CH to the GL2.
@@ -1827,7 +1833,7 @@ static void Gfx10InitBasicBlockInfo(
         pDfMall->numGenericSpmModules      = 0;
         pDfMall->numGenericLegacyModules   = 0;
         pDfMall->numSpmWires               = 0;
-        pDfMall->maxEventId                = MaxDfMallPerfSel;
+        pDfMall->maxEventId                = MaxDfMallPerfSelNv21;
 
         // Note that the DF isn't perfmon-style or cfg-style; it has a unique programming model.
         pDfMall->regAddr = { 0, {

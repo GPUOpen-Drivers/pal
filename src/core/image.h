@@ -155,8 +155,9 @@ union DisplayDccCaps
 // PAL internal-only creation info for an image object.
 struct ImageInternalCreateInfo
 {
-    DisplayDccCaps     displayDcc;         // DisplayDcc parameters
-    uint32             primaryTilingCaps;  // tiling caps for primaries(flippable images)
+    DisplayDccCaps     displayDcc;            // DisplayDcc parameters
+    uint32             primaryTilingCaps;     // tiling caps for primaries(flippable images)
+    uint32             mallCursorCacheSize;   // Size of the MALL cursor cache in bytes
     union
     {
         struct

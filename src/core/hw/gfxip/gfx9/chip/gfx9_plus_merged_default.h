@@ -566,6 +566,7 @@ namespace Gfx09
     constexpr unsigned int mmSDMA0_PERFCOUNTER_TAG_DELAY_RANGE_DEFAULT        = 0x640000;
     constexpr unsigned int mmSDMA0_PERFMON_CNTL_DEFAULT                       = 0xFF7FD;
     constexpr unsigned int mmSPI_CONFIG_CNTL_DEFAULT                          = 0x62C688;
+    constexpr unsigned int mmSPI_CONFIG_PS_CU_EN_DEFAULT                      = 0x0000;
     constexpr unsigned int mmSPI_CSQ_WF_ACTIVE_COUNT_4_DEFAULT                = 0x0000;
     constexpr unsigned int mmSPI_CSQ_WF_ACTIVE_COUNT_5_DEFAULT                = 0x0000;
     constexpr unsigned int mmSPI_CSQ_WF_ACTIVE_COUNT_6_DEFAULT                = 0x0000;
@@ -1013,6 +1014,7 @@ namespace Gfx09
     constexpr unsigned int mmVGT_GS_INSTANCE_CNT_DEFAULT                      = 0x01CD;
     constexpr unsigned int mmVGT_GS_MAX_PRIMS_PER_SUBGROUP_DEFAULT            = 0x0000;
     constexpr unsigned int mmVGT_GS_MODE_DEFAULT                              = 0x4DCDCD;
+    constexpr unsigned int mmVGT_GS_ONCHIP_CNTL_DEFAULT                       = 0xCDCDCDCD;
     constexpr unsigned int mmVGT_GS_PER_ES_DEFAULT                            = 0x05CD;
     constexpr unsigned int mmVGT_GS_PER_VS_DEFAULT                            = 0x000D;
     constexpr unsigned int mmVGT_GS_VERT_ITEMSIZE_1_DEFAULT                   = 0x4DCD;
@@ -1244,10 +1246,12 @@ namespace Gfx10
     constexpr unsigned int mmCOMPUTE_USER_ACCUM_1_DEFAULT                     = 0x0000;
     constexpr unsigned int mmCOMPUTE_USER_ACCUM_2_DEFAULT                     = 0x0000;
     constexpr unsigned int mmCOMPUTE_USER_ACCUM_3_DEFAULT                     = 0x0000;
+    constexpr unsigned int mmDB_WATERMARKS_DEFAULT                            = 0xA040A04;
     constexpr unsigned int mmGE_DMA_FIRST_INDEX_DEFAULT                       = 0x0000;
     constexpr unsigned int mmIA_MULTI_VGT_PARAM_DEFAULT                       = 0x00FF;
     constexpr unsigned int mmIA_MULTI_VGT_PARAM_PIPED_DEFAULT                 = 0x6000FF;
     constexpr unsigned int mmPA_SC_BC_WAVE_BREAK_DEFAULT                      = 0x360040;
+    constexpr unsigned int mmPA_SC_BINNER_EVENT_CNTL_2_DEFAULT                = 0x9118AAB8;
     constexpr unsigned int mmPA_SC_ENHANCE_2_DEFAULT                          = 0x0020;
     constexpr unsigned int mmRLC_SPM_DESER_START_SKEW_DEFAULT                 = 0x0000;
     constexpr unsigned int mmRLC_SPM_GLB_SAMPLEDELAY_IND_ADDR_DEFAULT         = 0x0000;
@@ -3007,6 +3011,7 @@ namespace Gfx103Plus
     constexpr unsigned int mmRLC_SPM_ACCUM_SWA_DATARAM_DATA_DEFAULT           = 0x0000;
     constexpr unsigned int mmRLC_SPM_GFXCLOCK_HIGHCOUNT_DEFAULT               = 0x0000;
     constexpr unsigned int mmRLC_SPM_GFXCLOCK_LOWCOUNT_DEFAULT                = 0x0000;
+    constexpr unsigned int mmSPI_CONFIG_PS_CU_EN_DEFAULT                      = 0x0000;
     constexpr unsigned int mmSPI_CS_CRAWLER_CONFIG_DEFAULT                    = 0x0000;
     constexpr unsigned int mmSPI_EXP_THROTTLE_CTRL_DEFAULT                    = 0x8782E2E;
     constexpr unsigned int mmSPI_GFX_CRAWLER_CONFIG_DEFAULT                   = 0x0000;
@@ -3043,6 +3048,7 @@ namespace Gfx10Core
     constexpr unsigned int mmDB_DFSM_TILES_IN_FLIGHT_DEFAULT                  = 0x03E8;
     constexpr unsigned int mmDB_DFSM_WATCHDOG_DEFAULT                         = 0xF4240;
     constexpr unsigned int mmDB_RMI_BC_GL2_CACHE_CONTROL_DEFAULT              = 0x150055;
+    constexpr unsigned int mmPA_SC_ENHANCE_INTERNAL_DEFAULT                   = 0x0000;
     constexpr unsigned int mmRMI_PERFCOUNTER0_SELECT1_DEFAULT                 = 0x0000;
     constexpr unsigned int mmRMI_PERFCOUNTER0_SELECT_DEFAULT                  = 0x0000;
     constexpr unsigned int mmRMI_PERFCOUNTER1_SELECT_DEFAULT                  = 0x0000;
@@ -3077,7 +3083,6 @@ namespace Gfx10CorePlus
     constexpr unsigned int mmGCR_PERFCOUNTER0_SELECT1_DEFAULT                 = 0x0000;
     constexpr unsigned int mmGCR_PERFCOUNTER0_SELECT_DEFAULT                  = 0x0000;
     constexpr unsigned int mmGCR_PERFCOUNTER1_SELECT_DEFAULT                  = 0x0000;
-    constexpr unsigned int mmPA_SC_ENHANCE_INTERNAL_DEFAULT                   = 0x0000;
     constexpr unsigned int mmSDMA0_PERFCOUNTER0_HI_DEFAULT                    = 0x0000;
     constexpr unsigned int mmSDMA0_PERFCOUNTER0_LO_DEFAULT                    = 0x0000;
     constexpr unsigned int mmSDMA0_PERFCOUNTER0_SELECT1_DEFAULT               = 0xFFFFF;
@@ -3132,7 +3137,6 @@ namespace Gfx10Plus
     constexpr unsigned int mmDB_FIFO_DEPTH3_DEFAULT                           = 0x0000;
     constexpr unsigned int mmDB_LQUAD_STUTTER_CONTROL_DEFAULT                 = 0x0000;
     constexpr unsigned int mmDB_LTILE_STUTTER_CONTROL_DEFAULT                 = 0x0000;
-    constexpr unsigned int mmDB_WATERMARKS_DEFAULT                            = 0xA040A04;
     constexpr unsigned int mmGCMC_VM_L2_PERFCOUNTER0_CFG_DEFAULT              = 0x0000;
     constexpr unsigned int mmGCMC_VM_L2_PERFCOUNTER1_CFG_DEFAULT              = 0x0000;
     constexpr unsigned int mmGCMC_VM_L2_PERFCOUNTER2_CFG_DEFAULT              = 0x0000;
@@ -3223,7 +3227,6 @@ namespace Gfx10Plus
     constexpr unsigned int mmPA_PH_ENHANCE_DEFAULT                            = 0x1000;
     constexpr unsigned int mmPA_SC_BINNER_CNTL_OVERRIDE_DEFAULT               = 0x8000000;
     constexpr unsigned int mmPA_SC_BINNER_EVENT_CNTL_1_DEFAULT                = 0x82000008;
-    constexpr unsigned int mmPA_SC_BINNER_EVENT_CNTL_2_DEFAULT                = 0x9118AAB8;
     constexpr unsigned int mmPA_SC_BINNER_EVENT_CNTL_3_DEFAULT                = 0xC2400024;
     constexpr unsigned int mmPA_SC_PBB_OVERRIDE_FLAG_DEFAULT                  = 0x0000;
     constexpr unsigned int mmRLC_PERFMON_CNTL_DEFAULT                         = 0x0000;
@@ -3275,13 +3278,11 @@ namespace Gfx10Vrs
     constexpr unsigned int mmCB_HW_CONTROL_4_DEFAULT                          = 0x3C0014;
     constexpr unsigned int mmDB_LAST_OF_BURST_CONFIG_DEFAULT                  = 0x1C28210;
     constexpr unsigned int mmPA_CL_ENHANCE_DEFAULT                            = 0x200007;
-    constexpr unsigned int mmPA_SC_ENHANCE_3_DEFAULT                          = 0x0000;
     constexpr unsigned int mmRLC_SPM_GLOBAL_MUXSEL_ADDR_OFFSET_DEFAULT        = 0x0000;
     constexpr unsigned int mmRLC_SPM_PERFMON_SWA_GLB_SEGMENT_SIZE_DEFAULT     = 0x0000;
     constexpr unsigned int mmRLC_SPM_PERFMON_SWA_SE3TO0_SEGMENT_SIZE_DEFAULT  = 0x0000;
     constexpr unsigned int mmRLC_SPM_PERFMON_SWA_SEGMENT_SIZE_DEFAULT         = 0x0000;
     constexpr unsigned int mmRLC_SPM_SE_MUXSEL_ADDR_OFFSET_DEFAULT            = 0x0000;
-    constexpr unsigned int mmSPI_CONFIG_PS_CU_EN_DEFAULT                      = 0x0000;
     constexpr unsigned int mmSPI_GDS_CREDITS_DEFAULT                          = 0x403C;
     constexpr unsigned int mmSPI_IND_DATA_DEFAULT                             = 0x0000;
     constexpr unsigned int mmSPI_IND_INDEX_DEFAULT                            = 0x0000;
@@ -3710,7 +3711,6 @@ namespace NotGfx10
     constexpr unsigned int mmPA_SU_VTX_CNTL_DEFAULT                           = 0x000D;
     constexpr unsigned int mmSPI_BARYC_CNTL_DEFAULT                           = 0x1010101;
     constexpr unsigned int mmSPI_COMPUTE_QUEUE_RESET_DEFAULT                  = 0x0001;
-    constexpr unsigned int mmSPI_CONFIG_PS_CU_EN_DEFAULT                      = 0x0000;
     constexpr unsigned int mmSPI_INTERP_CONTROL_0_DEFAULT                     = 0x4DCD;
     constexpr unsigned int mmSPI_PERFCOUNTER0_HI_DEFAULT                      = 0xCDCDCDCD;
     constexpr unsigned int mmSPI_PERFCOUNTER0_LO_DEFAULT                      = 0xCDCDCDCD;
@@ -3823,7 +3823,6 @@ namespace NotGfx10
     constexpr unsigned int mmVGT_EVENT_ADDRESS_REG_DEFAULT                    = 0xDCDCDCD;
     constexpr unsigned int mmVGT_EVENT_INITIATOR_DEFAULT                      = 0xDCDCC0D;
     constexpr unsigned int mmVGT_GS_MAX_VERT_OUT_DEFAULT                      = 0x05CD;
-    constexpr unsigned int mmVGT_GS_ONCHIP_CNTL_DEFAULT                       = 0xCDCDCDCD;
     constexpr unsigned int mmVGT_HOS_MAX_TESS_LEVEL_DEFAULT                   = 0xCDCDCDCD;
     constexpr unsigned int mmVGT_HOS_MIN_TESS_LEVEL_DEFAULT                   = 0xCDCDCDCD;
     constexpr unsigned int mmVGT_LS_HS_CONFIG_DEFAULT                         = 0xDCDCD;
@@ -4475,6 +4474,7 @@ namespace Nv21
     constexpr unsigned int mmPA_SC_CLIPRECT_RULE_DEFAULT                      = 0xCDCD;
     constexpr unsigned int mmPA_SC_CONSERVATIVE_RASTERIZATION_CNTL_DEFAULT    = 0xDCDCDCD;
     constexpr unsigned int mmPA_SC_EDGERULE_DEFAULT                           = 0xCDCDCDCD;
+    constexpr unsigned int mmPA_SC_ENHANCE_3_DEFAULT                          = 0x0000;
     constexpr unsigned int mmPA_SC_FIFO_DEPTH_CNTL_DEFAULT                    = 0x0100;
     constexpr unsigned int mmPA_SC_GENERIC_SCISSOR_BR_DEFAULT                 = 0x4DCD4DCD;
     constexpr unsigned int mmPA_SC_GENERIC_SCISSOR_TL_DEFAULT                 = 0xCDCD4DCD;

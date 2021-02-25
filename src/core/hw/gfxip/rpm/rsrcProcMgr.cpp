@@ -502,8 +502,22 @@ void RsrcProcMgr::CmdCopyImage(
                 ((Formats::IsBlockCompressed(dstInfo.swizzledFormat.format) ||
                   Formats::IsMacroPixelPackedRgbOnly(dstInfo.swizzledFormat.format)) && (dstInfo.mipLevels > 1)))
             {
-                // Assume the missing pixel copy will no overwritten any pixel copied in normal path.
-                // Or a cs done barrier is need to be inserted here.
+                // Insert a generic barrier to prevent write-after-write hazard between CS copy and per-pixel copy
+                BarrierInfo barrier = {};
+                barrier.waitPoint = HwPipePreCs;
+                barrier.reason = Developer::BarrierReasonUnknown;
+
+                constexpr HwPipePoint PostCs = HwPipePostCs;
+                barrier.pipePointWaitCount = 1;
+                barrier.pPipePoints = &PostCs;
+
+                BarrierTransition transition = {};
+                transition.srcCacheMask = CoherShader;
+                transition.dstCacheMask = CoherShader;
+                barrier.pTransitions = &transition;
+
+                pCmdBuffer->CmdBarrier(barrier);
+
                 for (uint32 regionIdx = 0; regionIdx < regionCount; regionIdx++)
                 {
                     HwlImageToImageMissingPixelCopy(pCmdBuffer, srcImage, dstImage, pRegions[regionIdx]);
@@ -5371,73 +5385,87 @@ void RsrcProcMgr::CmdClearColorBuffer(
     Formats::PackRawClearColor(bufferFormat, &convertedColor[0], &packedColor[0]);
 
     // This is the raw format that we will be writing.
-    const SwizzledFormat rawFormat = RpmUtil::GetRawFormat(bufferFormat.format, nullptr, nullptr);
-    const uint32         rawStride = Formats::BytesPerPixel(rawFormat.format);
-
-    // Build an SRD we can use to write to any texel within the buffer using our raw format.
-    BufferViewInfo dstViewInfo = {};
-    dstViewInfo.gpuAddr        = dstGpuMemory.Desc().gpuVirtAddr + rawStride * bufferOffset;
-    dstViewInfo.range          = rawStride * bufferExtent;
-    dstViewInfo.stride         = rawStride;
-    dstViewInfo.swizzledFormat = rawFormat;
-#if  PAL_CLIENT_INTERFACE_MAJOR_VERSION>= 558
-    dstViewInfo.flags.bypassMallRead  = TestAnyFlagSet(settings.rpmViewsBypassMall,
-                                                       Gfx10RpmViewsBypassMallOnRead);
-    dstViewInfo.flags.bypassMallWrite = TestAnyFlagSet(settings.rpmViewsBypassMall,
-                                                       Gfx10RpmViewsBypassMallOnWrite);
-#endif
-
-    uint32 dstSrd[4] = {0};
-    PAL_ASSERT(m_pDevice->Parent()->ChipProperties().srdSizes.bufferView == sizeof(dstSrd));
-
-    m_pDevice->Parent()->CreateTypedBufferViewSrds(1, &dstViewInfo, dstSrd);
+    uint32 texelScale = 0;
+    const SwizzledFormat rawFormat = RpmUtil::GetRawFormat(bufferFormat.format, &texelScale, nullptr);
+    const uint32         bpp = Formats::BytesPerPixel(rawFormat.format);
 
     // Get the appropriate pipeline.
-    const auto*const pPipeline       = GetPipeline(RpmComputePipeline::ClearBuffer);
+    const auto*const pPipeline = GetPipeline(RpmComputePipeline::ClearBuffer);
     const uint32     threadsPerGroup = pPipeline->ThreadsPerGroup();
 
     // Save current command buffer state and bind the pipeline.
     pCmdBuffer->CmdSaveComputeState(ComputeStatePipelineAndUserData);
     pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, InternalApiPsoHash, });
 
-    // We will do a dispatch for every range. If no ranges are specified then we will do a single full buffer dispatch.
-    const Range defaultRange = { 0, bufferExtent };
-
-    const bool   hasRanges       = (rangeCount > 0);
-    const uint32 dispatchCount   = hasRanges ? rangeCount : 1;
-    const Range* pDispatchRanges = hasRanges ? pRanges    : &defaultRange;
-
-    for (uint32 i = 0; i < dispatchCount; i++)
+    // some formats (notably RGB32) require multiple passes, e.g. we cannot write 12b texels (see RpmUtil::GetRawFormat)
+    // for all other formats this loop will run a single iteration
+    for (uint32 channel = 0; channel < texelScale; channel++)
     {
-        // Create an embedded SRD table and bind it to user data 0-1. We only need a single buffer view.
-        // Populate the table with a buffer view and the necessary embedded user data (clear color, offset, and extent).
-        constexpr uint32 DataDwords = PackedColorDwords + 2;
-        uint32*          pSrdTable  = RpmUtil::CreateAndBindEmbeddedUserData(pCmdBuffer,
-                                                                             SrdDwordAlignment() + DataDwords,
-                                                                             SrdDwordAlignment(),
-                                                                             PipelineBindPoint::Compute,
-                                                                             0);
+        // Build an SRD we can use to write to any texel within the buffer using our raw format.
+        BufferViewInfo dstViewInfo = {};
+        dstViewInfo.gpuAddr        = dstGpuMemory.Desc().gpuVirtAddr + (texelScale == 1 ? bpp : 1) * (bufferOffset) + channel * bpp;
+        dstViewInfo.range          = bpp * texelScale * bufferExtent;
+        dstViewInfo.stride         = bpp * texelScale;
+        dstViewInfo.swizzledFormat = texelScale == 1 ? rawFormat : UndefinedSwizzledFormat;
+#if  PAL_CLIENT_INTERFACE_MAJOR_VERSION>= 558
+        dstViewInfo.flags.bypassMallRead  = TestAnyFlagSet(settings.rpmViewsBypassMall,
+                                                           Gfx10RpmViewsBypassMallOnRead);
+        dstViewInfo.flags.bypassMallWrite = TestAnyFlagSet(settings.rpmViewsBypassMall,
+                                                           Gfx10RpmViewsBypassMallOnWrite);
+#endif
 
-        // Copy in the raw buffer view.
-        memcpy(pSrdTable, dstSrd, sizeof(dstSrd));
-        pSrdTable += SrdDwordAlignment();
+        uint32 dstSrd[4] = {0};
+        PAL_ASSERT(m_pDevice->Parent()->ChipProperties().srdSizes.bufferView == sizeof(dstSrd));
 
-        // Copy in the packed clear color.
-        memcpy(pSrdTable, packedColor, sizeof(packedColor));
-        pSrdTable += PackedColorDwords;
+        if (texelScale == 1)
+        {
+            m_pDevice->Parent()->CreateTypedBufferViewSrds(1, &dstViewInfo, dstSrd);
+        }
+        else
+        {
+            // we have to use non-standard stride, which is incompatible with TypedBufferViewSrd contract
+            m_pDevice->Parent()->CreateUntypedBufferViewSrds(1, &dstViewInfo, dstSrd);
+        }
 
-        // The final two entries in the table are the range offset and range extent.
-        pSrdTable[0] = pDispatchRanges[i].offset;
-        pSrdTable[1] = pDispatchRanges[i].extent;
+        // We will do a dispatch for every range. If no ranges are specified then we will do a single full buffer dispatch.
+        const Range defaultRange = { 0, bufferExtent };
 
-        // Verify that the range is contained within the view.
-        PAL_ASSERT((pDispatchRanges[i].offset >= 0) &&
-                   (pDispatchRanges[i].offset + pDispatchRanges[i].extent <= bufferExtent));
+        const bool   hasRanges       = (rangeCount > 0);
+        const uint32 dispatchCount   = hasRanges ? rangeCount : 1;
+        const Range* pDispatchRanges = hasRanges ? pRanges    : &defaultRange;
 
-        // Execute the dispatch.
-        const uint32 numThreadGroups = RpmUtil::MinThreadGroups(pDispatchRanges[i].extent, threadsPerGroup);
+        for (uint32 i = 0; i < dispatchCount; i++)
+        {
+            // Create an embedded SRD table and bind it to user data 0-1. We only need a single buffer view.
+            // Populate the table with a buffer view and the necessary embedded user data (clear color, offset, and extent).
+            constexpr uint32 DataDwords = PackedColorDwords + 2;
+            uint32*          pSrdTable  = RpmUtil::CreateAndBindEmbeddedUserData(pCmdBuffer,
+                                                                                 SrdDwordAlignment() + DataDwords,
+                                                                                 SrdDwordAlignment(),
+                                                                                 PipelineBindPoint::Compute,
+                                                                                 0);
 
-        pCmdBuffer->CmdDispatch(numThreadGroups, 1, 1);
+            // Copy in the raw buffer view.
+            memcpy(pSrdTable, dstSrd, sizeof(dstSrd));
+            pSrdTable += SrdDwordAlignment();
+
+            // Copy in the packed clear color.
+            memcpy(pSrdTable, packedColor + channel, sizeof(packedColor) - channel * sizeof(uint32));
+            pSrdTable += PackedColorDwords;
+
+            // The final two entries in the table are the range offset and range extent.
+            pSrdTable[0] = pDispatchRanges[i].offset;
+            pSrdTable[1] = pDispatchRanges[i].extent;
+
+            // Verify that the range is contained within the view.
+            PAL_ASSERT((pDispatchRanges[i].offset >= 0) &&
+                       (pDispatchRanges[i].offset + pDispatchRanges[i].extent <= bufferExtent));
+
+            // Execute the dispatch.
+            const uint32 numThreadGroups = RpmUtil::MinThreadGroups(pDispatchRanges[i].extent, threadsPerGroup);
+
+            pCmdBuffer->CmdDispatch(numThreadGroups, 1, 1);
+        }
     }
 
     // Restore original command buffer state.

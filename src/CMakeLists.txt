@@ -559,7 +559,6 @@ target_sources(pal PRIVATE
     util/fileArchiveCacheLayer.cpp
     util/jsonWriter.cpp
     util/math.cpp
-    util/md5.cpp
     util/memMapFile.cpp
     util/memoryCacheLayer.cpp
     util/pipelineAbiReader.cpp

@@ -105,7 +105,9 @@ struct HardwareStageMetadata
             uint8 writesDepth       : 1;
             /// The shader uses append and/or consume operations, either memory or GDS.
             uint8 usesAppendConsume : 1;
-            uint8 reserved          : 3;
+            /// The shader uses PrimID.
+            uint8 usesPrimId        : 1;
+            uint8 reserved          : 2;
         };
         uint8 uAll;
     } flags;
@@ -114,28 +116,30 @@ struct HardwareStageMetadata
     {
         struct
         {
-            uint16 entryPoint            : 1;
-            uint16 scratchMemorySize     : 1;
-            uint16 ldsSize               : 1;
-            uint16 perfDataBufferSize    : 1;
-            uint16 vgprCount             : 1;
-            uint16 sgprCount             : 1;
-            uint16 vgprLimit             : 1;
-            uint16 sgprLimit             : 1;
-            uint16 threadgroupDimensions : 1;
-            uint16 wavefrontSize         : 1;
-            uint16 usesUavs              : 1;
-            uint16 usesRovs              : 1;
-            uint16 writesUavs            : 1;
-            uint16 writesDepth           : 1;
-            uint16 usesAppendConsume     : 1;
+            uint32 entryPoint            : 1;
+            uint32 scratchMemorySize     : 1;
+            uint32 ldsSize               : 1;
+            uint32 perfDataBufferSize    : 1;
+            uint32 vgprCount             : 1;
+            uint32 sgprCount             : 1;
+            uint32 vgprLimit             : 1;
+            uint32 sgprLimit             : 1;
+            uint32 threadgroupDimensions : 1;
+            uint32 wavefrontSize         : 1;
+            uint32 usesUavs              : 1;
+            uint32 usesRovs              : 1;
+            uint32 writesUavs            : 1;
+            uint32 writesDepth           : 1;
+            uint32 usesAppendConsume     : 1;
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 619
-            uint16 maxPrimsPerWave       : 1;
+            uint32 maxPrimsPerWave       : 1;
 #else
-            uint16 placeholder0          : 1;
+            uint32 placeholder0          : 1;
 #endif
+            uint32 usesPrimId            : 1;
+            uint32 reserved              : 15;
         };
-        uint16 uAll;
+        uint32 uAll;
     } hasEntry;
 };
 
@@ -314,6 +318,7 @@ namespace HardwareStageMetadataKey
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 619
     static constexpr char MaxPrimsPerWave[]       = ".max_prims_per_wave";
 #endif
+    static constexpr char UsesPrimId[]            = ".uses_prim_id";
 };
 
 namespace ShaderMetadataKey

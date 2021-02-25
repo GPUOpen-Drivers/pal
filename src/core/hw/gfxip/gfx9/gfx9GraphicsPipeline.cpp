@@ -266,7 +266,8 @@ void GraphicsPipeline::EarlyInit(
             IsGfx10Plus(m_gfxLevel)                                + // mmVGT_DRAW_PAYLOAD_CNTL
             IsGfx10Plus(m_gfxLevel)                                + // mmCB_COVERAGE_OUT_CONTROL
             (regInfo.mmPaStereoCntl != 0)                          + // mmPA_STEREO_CNTL
-            (IsGsEnabled() || IsNgg() || IsTessEnabled())          + // mmVGT_GS_ONCHIP_CNTL
+            ((IsGsEnabled() || IsNgg() || IsTessEnabled())           // mmVGT_GS_ONCHIP_CNTL
+            )                                                      +
 
             BaseLoadedCntxRegCount;
     }
@@ -835,9 +836,10 @@ uint32* GraphicsPipeline::WriteContextCommandsSetPath(
                                                       pCmdSpace);
     }
 
-    if (IsGsEnabled() || IsNgg() || IsTessEnabled())
+    if ((IsGsEnabled() || IsNgg() || IsTessEnabled())
+       )
     {
-        pCmdSpace = pCmdStream->WriteSetOneContextReg(mmVGT_GS_ONCHIP_CNTL,
+        pCmdSpace = pCmdStream->WriteSetOneContextReg(Gfx09_10::mmVGT_GS_ONCHIP_CNTL,
                                                       m_regs.context.vgtGsOnchipCntl.u32All,
                                                       pCmdSpace);
     }
@@ -912,7 +914,7 @@ void GraphicsPipeline::SetupCommonRegisters(
         }
 #endif
 
-    registers.HasEntry(mmVGT_GS_ONCHIP_CNTL, &m_regs.context.vgtGsOnchipCntl.u32All);
+    registers.HasEntry(Gfx09_10::mmVGT_GS_ONCHIP_CNTL, &m_regs.context.vgtGsOnchipCntl.u32All);
 
     // Overrides some of the fields in PA_SC_MODE_CNTL1 to account for GPU pipe config and features like out-of-order
     // rasterization.
@@ -1538,9 +1540,10 @@ void GraphicsPipeline::SetupNonShaderRegisters(
         pUploader->AddCtxReg(mmCB_COLOR_CONTROL, m_regs.context.cbColorControl);
         pUploader->AddCtxReg(mmCB_SHADER_MASK,   m_regs.context.cbShaderMask);
         pUploader->AddCtxReg(mmCB_TARGET_MASK,   m_regs.context.cbTargetMask);
-        if (IsGsEnabled() || IsNgg() || IsTessEnabled())
+        if ((IsGsEnabled() || IsNgg() || IsTessEnabled())
+           )
         {
-            pUploader->AddCtxReg(mmVGT_GS_ONCHIP_CNTL, m_regs.context.vgtGsOnchipCntl);
+            pUploader->AddCtxReg(Gfx09_10::mmVGT_GS_ONCHIP_CNTL, m_regs.context.vgtGsOnchipCntl);
         }
 
         if (IsGfx10Plus(m_gfxLevel))
@@ -2139,7 +2142,7 @@ SX_DOWNCONVERT_FORMAT GraphicsPipeline::SxDownConvertFormat(
     case ChNumFormat::X9Y9Z9E5_Float:
         //  When doing 8 pixels per clock transfers (in RB+ mode) on a render target using the 999e5 format, the
         //  SX must convert the exported data to 999e5
-        PAL_ASSERT(IsGfx102Plus(m_gfxLevel));
+        PAL_ASSERT(IsGfx103Plus(m_gfxLevel));
 
         sxDownConvertFormat = SX_RT_EXPORT_9_9_9_E5__GFX103PLUS;
         break;

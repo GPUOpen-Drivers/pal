@@ -2516,14 +2516,6 @@ PAL_INLINE bool IsNavi2x(const Device& device)
             || IsNavi21(device)
            );
 }
-PAL_INLINE bool IsGfx102Plus(GfxIpLevel gfxLevel)
-{
-    return (gfxLevel > GfxIpLevel::GfxIp10_1);
-}
-PAL_INLINE bool IsGfx102Plus(const Device& device)
-{
-    return IsGfx102Plus(device.ChipProperties().gfxLevel);
-}
 PAL_INLINE bool IsGfx103(GfxIpLevel gfxLevel)
 {
     return (gfxLevel == GfxIpLevel::GfxIp10_3);
@@ -2534,7 +2526,7 @@ PAL_INLINE bool IsGfx103(const Device& device)
 }
 PAL_INLINE bool IsGfx103Plus(GfxIpLevel gfxLevel)
 {
-    return (gfxLevel >= GfxIpLevel::GfxIp10_3);
+    return (gfxLevel > GfxIpLevel::GfxIp10_1);
 }
 PAL_INLINE bool IsGfx103Plus(const Device& device)
 {
@@ -2547,6 +2539,11 @@ PAL_INLINE bool IsGfx101(GfxIpLevel gfxLevel)
 PAL_INLINE bool IsGfx101(const Device& device)
 {
     return IsGfx101(device.ChipProperties().gfxLevel);
+}
+PAL_INLINE bool IsGfx10Bard(const Device& device)
+{
+    return (false
+            );
 }
 
 PAL_INLINE bool IsGfx091xPlus(const Device& device)

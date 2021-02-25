@@ -77,6 +77,11 @@ public:
         UniversalCmdBuffer* pCmdBuffer,
         gpusize*            pIndexBufferAddr,
         uint32*             pIndexCount);
+    template <bool Indirect>
+    bool DisableInstancePacking(
+        PrimitiveTopology   topology,
+        uint32              instanceCount,
+        uint32              numActiveQueries) const;
 
 private:
     const Device&                  m_device;

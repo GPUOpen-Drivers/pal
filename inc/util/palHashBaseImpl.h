@@ -438,10 +438,7 @@ PAL_INLINE Entry* HashBase<Key, Entry, Allocator, HashFunc, EqualFunc, AllocFunc
     ) const
 {
     const uint32 bucket = m_hashFunc(&key, sizeof(key)) & (m_numBuckets - 1);
-
-    PAL_ASSERT(m_pMemory != nullptr);
-    void*const pBucket = VoidPtrInc(m_pMemory, bucket * GroupSize);
-    return static_cast<Entry*>(pBucket);
+    return (m_pMemory != nullptr) ? static_cast<Entry*>(VoidPtrInc(m_pMemory, bucket * GroupSize)) : nullptr;
 }
 
 // =====================================================================================================================

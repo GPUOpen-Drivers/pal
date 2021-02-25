@@ -7366,7 +7366,7 @@ bool Gfx10RsrcProcMgr::PreferComputeForNonLocalDestCopy(
 
     const bool isMgpu = (m_pDevice->GetPlatform()->GetDeviceCount() > 1);
 
-    if (IsGfx102Plus(*m_pDevice->Parent())                                        &&
+    if (IsGfx103Plus(*m_pDevice->Parent())                                        &&
         m_pDevice->Settings().nonLocalDestPreferCompute                           &&
         ((dstImage.IsDepthStencilTarget() == false) || (createInfo.samples == 1)) &&
         (isMgpu == false))

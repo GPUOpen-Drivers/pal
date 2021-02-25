@@ -161,6 +161,10 @@ void SettingsLoader::SetupDefaults()
     m_settings.mipGenUseFastPath = false;
     m_settings.useFp16GenMips = false;
     m_settings.tmzEnabled = true;
+#if PAL_DEVELOPER_BUILD
+    m_settings.dbgHelperBits = 0x0;
+#endif
+
     m_settings.numSettings = g_palNumSettings;
 }
 
@@ -592,6 +596,13 @@ void SettingsLoader::ReadSettings()
                            Util::ValueType::Boolean,
                            &m_settings.tmzEnabled,
                            InternalSettingScope::PrivatePalKey);
+
+#if PAL_DEVELOPER_BUILD
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pDbgHelperBitsStr,
+                           Util::ValueType::Uint64,
+                           &m_settings.dbgHelperBits,
+                           InternalSettingScope::PrivatePalKey);
+#endif
 
 }
 
@@ -1045,6 +1056,13 @@ void SettingsLoader::InitSettingsInfo()
     info.pValuePtr = &m_settings.tmzEnabled;
     info.valueSize = sizeof(m_settings.tmzEnabled);
     m_settingsInfoMap.Insert(2606194033, info);
+#if PAL_DEVELOPER_BUILD
+
+    info.type      = SettingType::Uint64;
+    info.pValuePtr = &m_settings.dbgHelperBits;
+    info.valueSize = sizeof(m_settings.dbgHelperBits);
+    m_settingsInfoMap.Insert(3894710420, info);
+#endif
 
 }
 
@@ -1067,9 +1085,9 @@ void SettingsLoader::DevDriverRegister()
             component.pfnSetValue = ISettingsLoader::SetValue;
             component.pSettingsData = &g_palJsonData[0];
             component.settingsDataSize = sizeof(g_palJsonData);
-            component.settingsDataHash = 0;
-            component.settingsDataHeader.isEncoded = false;
-            component.settingsDataHeader.magicBufferId = 0;
+            component.settingsDataHash = 294070961;
+            component.settingsDataHeader.isEncoded = true;
+            component.settingsDataHeader.magicBufferId = 402778310;
             component.settingsDataHeader.magicBufferOffset = 0;
 
             pSettingsService->RegisterComponent(component);

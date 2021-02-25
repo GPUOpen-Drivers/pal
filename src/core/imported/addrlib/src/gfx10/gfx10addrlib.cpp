@@ -2171,6 +2171,190 @@ ADDR_E_RETURNCODE Gfx10Lib::HwlComputeSubResourceOffsetForSwizzlePattern(
 
 /**
 ************************************************************************************************************************
+*   Gfx10Lib::HwlComputeNonBlockCompressedView
+*
+*   @brief
+*       Compute non-block-compressed view for a given mipmap level/slice.
+*
+*   @return
+*       ADDR_E_RETURNCODE
+************************************************************************************************************************
+*/
+ADDR_E_RETURNCODE Gfx10Lib::HwlComputeNonBlockCompressedView(
+    const ADDR2_COMPUTE_NONBLOCKCOMPRESSEDVIEW_INPUT* pIn,    ///< [in] input structure
+    ADDR2_COMPUTE_NONBLOCKCOMPRESSEDVIEW_OUTPUT*      pOut    ///< [out] output structure
+    ) const
+{
+    ADDR_E_RETURNCODE returnCode = ADDR_OK;
+
+    if (pIn->resourceType != ADDR_RSRC_TEX_2D)
+    {
+        // Only 2D resource can have a NonBC view...
+        returnCode = ADDR_INVALIDPARAMS;
+    }
+    else if ((pIn->format != ADDR_FMT_ASTC_8x8) &&
+             ((pIn->format < ADDR_FMT_BC1) || (pIn->format > ADDR_FMT_BC7)))
+    {
+        // Only support BC1~BC7 or ASTC_8x8 for now...
+        returnCode = ADDR_NOTSUPPORTED;
+    }
+    else
+    {
+        UINT_32 bcWidth, bcHeight;
+        UINT_32 bpp = GetElemLib()->GetBitsPerPixel(pIn->format, NULL, &bcWidth, &bcHeight);
+
+        ADDR2_COMPUTE_SURFACE_INFO_INPUT infoIn = {};
+        infoIn.flags        = pIn->flags;
+        infoIn.swizzleMode  = pIn->swizzleMode;
+        infoIn.resourceType = pIn->resourceType;
+        infoIn.bpp          = bpp;
+        infoIn.width        = PowTwoAlign(pIn->width, bcWidth) / bcWidth;
+        infoIn.height       = PowTwoAlign(pIn->height, bcHeight) / bcHeight;
+        infoIn.numSlices    = pIn->numSlices;
+        infoIn.numMipLevels = pIn->numMipLevels;
+        infoIn.numSamples   = 1;
+        infoIn.numFrags     = 1;
+
+        ADDR2_MIP_INFO mipInfo[MaxMipLevels] = {};
+
+        ADDR2_COMPUTE_SURFACE_INFO_OUTPUT infoOut = {};
+        infoOut.pMipInfo = mipInfo;
+
+        const BOOL_32 tiled = (pIn->swizzleMode != ADDR_SW_LINEAR) ? TRUE : FALSE;
+
+        if (tiled)
+        {
+            returnCode = HwlComputeSurfaceInfoTiled(&infoIn, &infoOut);
+        }
+        else
+        {
+            returnCode = HwlComputeSurfaceInfoLinear(&infoIn, &infoOut);
+        }
+
+        if (returnCode == ADDR_OK)
+        {
+            ADDR2_COMPUTE_SUBRESOURCE_OFFSET_FORSWIZZLEPATTERN_INPUT subOffIn = {};
+            subOffIn.swizzleMode      = infoIn.swizzleMode;
+            subOffIn.resourceType     = infoIn.resourceType;
+            subOffIn.slice            = pIn->slice;
+            subOffIn.sliceSize        = infoOut.sliceSize;
+            subOffIn.macroBlockOffset = mipInfo[pIn->mipId].macroBlockOffset;
+            subOffIn.mipTailOffset    = mipInfo[pIn->mipId].mipTailOffset;
+
+            ADDR2_COMPUTE_SUBRESOURCE_OFFSET_FORSWIZZLEPATTERN_OUTPUT subOffOut = {};
+
+            // For any mipmap level, move nonBc view base address by offset
+            HwlComputeSubResourceOffsetForSwizzlePattern(&subOffIn, &subOffOut);
+            pOut->offset = subOffOut.offset;
+
+            ADDR2_COMPUTE_SLICE_PIPEBANKXOR_INPUT slicePbXorIn = {};
+            slicePbXorIn.bpe             = infoIn.bpp;
+            slicePbXorIn.swizzleMode     = infoIn.swizzleMode;
+            slicePbXorIn.resourceType    = infoIn.resourceType;
+            slicePbXorIn.basePipeBankXor = pIn->pipeBankXor;
+            slicePbXorIn.slice           = pIn->slice;
+
+            ADDR2_COMPUTE_SLICE_PIPEBANKXOR_OUTPUT slicePbXorOut = {};
+
+            // For any mipmap level, nonBc view should use computed pbXor
+            HwlComputeSlicePipeBankXor(&slicePbXorIn, &slicePbXorOut);
+            pOut->pipeBankXor = slicePbXorOut.pipeBankXor;
+
+            const BOOL_32 inTail           = tiled && (pIn->mipId >= infoOut.firstMipIdInTail) ? TRUE : FALSE;
+            const UINT_32 requestMipWidth  = PowTwoAlign(Max(pIn->width >> pIn->mipId, 1u), bcWidth) / bcWidth;
+            const UINT_32 requestMipHeight = PowTwoAlign(Max(pIn->height >> pIn->mipId, 1u), bcHeight) / bcHeight;
+
+            if (inTail)
+            {
+                // For mipmap level that is in mip tail block, hack a lot of things...
+                // Basically all mipmap levels in tail block will be viewed as a small mipmap chain that all levels
+                // are fit in tail block:
+
+                // - mipId = relative mip id (which is counted from first mip ID in tail in original mip chain)
+                pOut->mipId = pIn->mipId - infoOut.firstMipIdInTail;
+
+                // - at least 2 mipmap levels (since only 1 mipmap level will not be viewed as mipmap!)
+                pOut->numMipLevels = Max(infoIn.numMipLevels - infoOut.firstMipIdInTail, 2u);
+
+                // - (mip0) width = requestMipWidth << mipId, the value can't exceed mip tail dimension threshold
+                pOut->unalignedWidth = Min(requestMipWidth << pOut->mipId, infoOut.blockWidth / 2);
+
+                // - (mip0) height = requestMipHeight << mipId, the value can't exceed mip tail dimension threshold
+                pOut->unalignedHeight = Min(requestMipHeight << pOut->mipId, infoOut.blockHeight);
+            }
+            // This check should cover at least mipId == 0
+            else if (requestMipWidth << pIn->mipId == infoIn.width)
+            {
+                // For mipmap level [N] that is not in mip tail block and downgraded without losing element:
+                // - only one mipmap level and mipId = 0
+                pOut->mipId        = 0;
+                pOut->numMipLevels = 1;
+
+                // (mip0) width = requestMipWidth
+                pOut->unalignedWidth = requestMipWidth;
+
+                // (mip0) height = requestMipHeight
+                pOut->unalignedHeight = requestMipHeight;
+            }
+            else
+            {
+                // For mipmap level [N] that is not in mip tail block and downgraded with element losing,
+                // We have to make it a multiple mipmap view (2 levels view here), add one extra element if needed,
+                // because single mip view may have different pitch value than original (multiple) mip view...
+                // A simple case would be:
+                // - 64KB block swizzle mode, 8 Bytes-Per-Element. Block dim = [0x80, 0x40]
+                // - 2 mipmap levels with API mip0 width = 0x401/mip1 width = 0x200 and non-BC view
+                //   mip0 width = 0x101/mip1 width = 0x80
+                // By multiple mip view, the pitch for mip level 1 would be 0x100 bytes, due to rounding up logic in
+                // GetMipSize(), and by single mip level view the pitch will only be 0x80 bytes.
+
+                // - 2 levels and mipId = 1
+                pOut->mipId        = 1;
+                pOut->numMipLevels = 2;
+
+                const UINT_32 upperMipWidth  =
+                    PowTwoAlign(Max(pIn->width >> (pIn->mipId - 1), 1u), bcWidth) / bcWidth;
+                const UINT_32 upperMipHeight =
+                    PowTwoAlign(Max(pIn->height >> (pIn->mipId - 1), 1u), bcHeight) / bcHeight;
+
+                const BOOL_32 needToAvoidInTail =
+                    tiled && (requestMipWidth <= infoOut.blockWidth / 2) && (requestMipHeight <= infoOut.blockHeight) ?
+                    TRUE : FALSE;
+
+                const UINT_32 hwMipWidth  = PowTwoAlign(ShiftCeil(infoIn.width, pIn->mipId), infoOut.blockWidth);
+                const UINT_32 hwMipHeight = PowTwoAlign(ShiftCeil(infoIn.height, pIn->mipId), infoOut.blockHeight);
+
+                const BOOL_32 needExtraWidth =
+                    ((upperMipWidth < requestMipWidth * 2) ||
+                     ((upperMipWidth == requestMipWidth * 2) &&
+                      ((needToAvoidInTail == TRUE) ||
+                       (hwMipWidth > PowTwoAlign(requestMipWidth, infoOut.blockWidth))))) ? TRUE : FALSE;
+
+                const BOOL_32 needExtraHeight =
+                    ((upperMipHeight < requestMipHeight * 2) ||
+                     ((upperMipHeight == requestMipHeight * 2) &&
+                      ((needToAvoidInTail == TRUE) ||
+                       (hwMipHeight > PowTwoAlign(requestMipHeight, infoOut.blockHeight))))) ? TRUE : FALSE;
+
+                // (mip0) width = requestLastMipLevelWidth
+                pOut->unalignedWidth  = upperMipWidth + (needExtraWidth ? 1: 0);
+
+                // (mip0) height = requestLastMipLevelHeight
+                pOut->unalignedHeight = upperMipHeight + (needExtraHeight ? 1: 0);
+            }
+
+            // Assert the downgrading from this mip[0] width would still generate correct mip[N] width
+            ADDR_ASSERT(ShiftRight(pOut->unalignedWidth, pOut->mipId) == requestMipWidth);
+            // Assert the downgrading from this mip[0] height would still generate correct mip[N] height
+            ADDR_ASSERT(ShiftRight(pOut->unalignedHeight, pOut->mipId) == requestMipHeight);
+        }
+    }
+
+    return returnCode;
+}
+
+/**
+************************************************************************************************************************
 *   Gfx10Lib::ValidateNonSwModeParams
 *
 *   @brief

@@ -279,6 +279,43 @@ uint32* WorkaroundState::PreDraw(
     return pCmdSpace;
 }
 
+// =====================================================================================================================
+// Disable instance packing while query pipeline statistics with *_ADJACENCY primitive and instance > 1.
+template <bool Indirect>
+bool WorkaroundState::DisableInstancePacking(
+    PrimitiveTopology   topology,
+    uint32              instanceCount,
+    uint32              numActiveQueries
+    ) const
+{
+    bool disableInstancePacking = false;
+
+    if (m_cachedSettings.waDisableInstancePacking           &&
+        (numActiveQueries != 0)                             &&
+        ((instanceCount > 1) || Indirect)                   &&
+        ((topology == PrimitiveTopology::LineListAdj)       ||
+         (topology == PrimitiveTopology::LineStripAdj)      ||
+         (topology == PrimitiveTopology::TriangleListAdj)   ||
+         (topology == PrimitiveTopology::TriangleStripAdj)))
+    {
+        disableInstancePacking = true;
+    }
+
+    return disableInstancePacking;
+}
+
+template
+bool WorkaroundState::DisableInstancePacking<true>(
+    PrimitiveTopology   topology,
+    uint32              instanceCount,
+    uint32              numActiveQueries) const;
+
+template
+bool WorkaroundState::DisableInstancePacking <false>(
+    PrimitiveTopology   topology,
+    uint32              instanceCount,
+    uint32              numActiveQueries) const;
+
 // Instantiate the template for the linker.
 template
 uint32* WorkaroundState::PreDraw<false, false, false>(

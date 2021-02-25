@@ -56,6 +56,7 @@ public:
     bool UsesViewportArrayIndex() const { return m_flags.vportArrayIdx; }
     bool IsPerpEndCapsEnabled() const { return m_flags.perpLineEndCapsEnable; }
     LogicOp GetLogicOp() const { return m_logicOp; }
+    bool PrimIdUsed() const { return m_flags.primIdUsed; }
 
     BinningOverride GetBinningOverride() const { return m_binningOverride; }
 
@@ -117,7 +118,8 @@ private:
             uint32 perpLineEndCapsEnable :  1; // use perpendicular line end caps instead of axis-aligned end caps
             uint32 placeholder1          :  1;
             uint32 psWritesUavs          :  1; // PS writes at least one UAV.
-            uint32 reserved              : 13;
+            uint32 primIdUsed            :  1; // One shader in this pipeline uses PrimID.
+            uint32 reserved              : 12;
         };
         uint32 u32All;
     } m_flags;

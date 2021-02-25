@@ -206,7 +206,7 @@ uint32 Gfx9MaskRam::GetMetaBlockSize(
     const uint32           bppLog2               = GetBytesPerPixelLog2();
     const uint32           numSamplesLog2        = GetNumSamplesLog2();
     uint32                 numPipesLog2          = m_pGfxDevice->GetNumPipesLog2();
-    const uint32           numShaderArraysLog2   = IsGfx102Plus(*pPalDevice)
+    const uint32           numShaderArraysLog2   = IsGfx103Plus(*pPalDevice)
                                                    ? m_pEqGenerator->GetNumShaderArrayLog2()
                                                    : 0;
     const uint32           effectiveNumPipesLog2 = m_pEqGenerator->GetEffectiveNumPipes();
@@ -1309,7 +1309,7 @@ void Gfx9MetaEqGenerator::AddMetaPipeBits(
     const uint32           effectiveNumPipesLog2       = GetEffectiveNumPipes();
     const uint32           numPipesLog2                = m_pParent->GetGfxDevice()->GetNumPipesLog2();
     const uint32           numSamplesLog2              = m_pParent->GetNumSamplesLog2();
-    const uint32           numShaderArraysLog2         = IsGfx102Plus(*pPalDevice) ? GetNumShaderArrayLog2() : 0;
+    const uint32           numShaderArraysLog2         = IsGfx103Plus(*pPalDevice) ? GetNumShaderArrayLog2() : 0;
     const uint32           pipeInterleaveLog2          = m_pParent->GetGfxDevice()->GetPipeInterleaveLog2();
     const uint32           startBase                   = 8;
     const uint32           endBase                     = startBase + effectiveNumPipesLog2;
@@ -2428,7 +2428,7 @@ uint32 Gfx9MetaEqGenerator::GetPipeBlockSize() const
 uint32 Gfx9MetaEqGenerator::GetEffectiveNumPipes() const
 {
     const uint32 numPipesLog2 = m_pParent->GetGfxDevice()->GetNumPipesLog2();
-    const uint32 numSaLog2    = IsGfx102Plus(*(m_pParent->GetGfxDevice()->Parent())) ? GetNumShaderArrayLog2() : 0;
+    const uint32 numSaLog2    = IsGfx103Plus(*(m_pParent->GetGfxDevice()->Parent())) ? GetNumShaderArrayLog2() : 0;
 
     uint32 effectiveNumPipes = 0;
 
@@ -2578,7 +2578,7 @@ uint32 Gfx9MetaEqGenerator::GetPipeRotateAmount() const
 {
     const Pal::Device*  pPalDevice   = m_pParent->GetGfxDevice()->Parent();
     const uint32        numPipesLog2 = m_pParent->GetGfxDevice()->GetNumPipesLog2();
-    const uint32        numSaLog2    = IsGfx102Plus(*pPalDevice) ? GetNumShaderArrayLog2() : 0;
+    const uint32        numSaLog2    = IsGfx103Plus(*pPalDevice) ? GetNumShaderArrayLog2() : 0;
     uint32  pipeRotateAmount = 0;
 
     if (IsGfx103(*pPalDevice))
@@ -2622,7 +2622,7 @@ void Gfx9MetaEqGenerator::CalcMetaEquationGfx10()
     const uint32           numSamplesLog2        = m_pParent->GetNumSamplesLog2();
     const uint32           numPipesLog2          = m_pParent->GetGfxDevice()->GetNumPipesLog2();
     uint32                 modNumPipesLog2       = numPipesLog2;
-    const uint32           numShaderArraysLog2   = IsGfx102Plus(*pPalDevice) ? GetNumShaderArrayLog2() : 0;
+    const uint32           numShaderArraysLog2   = IsGfx103Plus(*pPalDevice) ? GetNumShaderArrayLog2() : 0;
     const uint32           effectiveNumPipesLog2 = GetEffectiveNumPipes();
     const uint32           cachelineSize         = m_pParent->GetMetaCachelineSize();
     const uint32           pipeInterleaveLog2    = m_pParent->GetGfxDevice()->GetPipeInterleaveLog2();
@@ -2746,7 +2746,7 @@ void Gfx9MetaEqGenerator::CalcMetaEquationGfx10()
                 (((numSamplesLog2 == 1) && (modNumPipesLog2 >= 6)) ||
                  ((numSamplesLog2 == 2) && (modNumPipesLog2 >= 5))))
             {
-                if (IsGfx102Plus(*pPalDevice))
+                if (IsGfx103Plus(*pPalDevice))
                 {
                     if (blockSizeLog2 <= 16)
                     {
@@ -2762,7 +2762,7 @@ void Gfx9MetaEqGenerator::CalcMetaEquationGfx10()
             // In 16Bpe 8xaa, we have an extra overlap bit
             if ((pipeRotateAmount > 0) && (pixelBlockLog2.width == 4))
             {
-                if (IsGfx102Plus(*pPalDevice))
+                if (IsGfx103Plus(*pPalDevice))
                 {
                     if (IsZSwizzle(swizzleMode) || (effectiveNumPipesLog2 > 3))
                     {
@@ -2811,7 +2811,7 @@ void Gfx9MetaEqGenerator::CalcMetaEquationGfx10()
             if (m_pipeDist == PipeDist16x16)
             {
                 flipY1Y2 = false;
-                if (IsGfx102Plus(*pPalDevice))
+                if (IsGfx103Plus(*pPalDevice))
                 {
                     int32 subTileXYBits = 6 - compBlockLog2.width - compBlockLog2.height;
                     if ((subTileXYBits < 0) || (IsZSwizzle(swizzleMode) == false))
@@ -2845,7 +2845,7 @@ void Gfx9MetaEqGenerator::CalcMetaEquationGfx10()
             {
                 if (static_cast<bool>((i - start) & 1) == flipXY)
                 {
-                    if (IsGfx102Plus(*pPalDevice)   &&
+                    if (IsGfx103Plus(*pPalDevice)   &&
                         (cx.compPos == 4)           &&
                         (effectiveNumPipesLog2 > 0) &&
                         (m_pipeDist == PipeDist16x16))
@@ -2913,7 +2913,7 @@ void Gfx9MetaEqGenerator::CalcMetaEquationGfx10()
             uint32 shiftBit0 = 0;
             uint32 shiftBit1 = 0;
 
-            if (IsGfx102Plus(*pPalDevice))
+            if (IsGfx103Plus(*pPalDevice))
             {
                 if (IsGfx103(*pPalDevice)                                  &&
                     (blockSizeLog2 == (pipeInterleaveLog2 + numPipesLog2)) &&
@@ -3093,7 +3093,7 @@ void Gfx9MetaEqGenerator::CalcMetaEquationGfx10()
 
             start = m_metaDataWordSizeLog2 + nibbleOffset + (IsZSwizzle(swizzleMode) ? 0 : maxCompFragsLog2);
 
-            if (IsGfx102Plus(*pPalDevice) && (m_pipeDist == PipeDist16x16))
+            if (IsGfx103Plus(*pPalDevice) && (m_pipeDist == PipeDist16x16))
             {
                 CompPair co = MetaDataAddrEquation::SetCompPair(MetaDataAddrCompX, 0);
 
@@ -3129,7 +3129,7 @@ void Gfx9MetaEqGenerator::CalcMetaEquationGfx10()
 
             end = cachelineSize + metaOverlap;
 
-            if (IsGfx102Plus(*pPalDevice) && (end > (blockSizeLog2 - modNumPipesLog2)))
+            if (IsGfx103Plus(*pPalDevice) && (end > (blockSizeLog2 - modNumPipesLog2)))
             {
                 end = blockSizeLog2 - modNumPipesLog2;
             }
@@ -3142,7 +3142,7 @@ void Gfx9MetaEqGenerator::CalcMetaEquationGfx10()
             m_meta.Shift(modNumPipesLog2, start);
 
             m_meta.XorIn(&pipe);
-            if (IsGfx102Plus(*pPalDevice))
+            if (IsGfx103Plus(*pPalDevice))
             {
                 if (pipeRotateAmount > 1)
                 {

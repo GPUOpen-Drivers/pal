@@ -89,8 +89,16 @@ function(pal_build_parameter VARIABLE MESSAGE DEFAULT_VALUE MODE)
     if (NOT DEFINED ${VARIABLE})
         set(${VARIABLE} ${DEFAULT_VALUE} PARENT_SCOPE)
 
-        message(${MODE} "${VARIABLE} not specified. Defaulting to ${DEFAULT_VALUE}\n"
-                        "Message: ${MESSAGE}")
+        set(msg "${VARIABLE} not specified. Defaulting to ${DEFAULT_VALUE}. ${MESSAGE}")
+
+        # Support debug/verbose modes (cmake 3.15+ users)
+        if (${MODE} STREQUAL "DEBUG")
+            message_debug(${msg})
+        elseif (${MODE} STREQUAL "VERBOSE")
+            message_verbose(${msg})
+        else()
+            message(${MODE} ${msg})
+        endif()
     endif()
 
     # To assist in potential debugging

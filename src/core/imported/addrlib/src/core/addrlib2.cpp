@@ -946,6 +946,37 @@ ADDR_E_RETURNCODE Lib::ComputeSubResourceOffsetForSwizzlePattern(
 
 /**
 ************************************************************************************************************************
+*   Lib::ComputeNonBlockCompressedView
+*
+*   @brief
+*       Interface function stub of Addr2ComputeNonBlockCompressedView.
+*
+*   @return
+*       ADDR_E_RETURNCODE
+************************************************************************************************************************
+*/
+ADDR_E_RETURNCODE Lib::ComputeNonBlockCompressedView(
+    const ADDR2_COMPUTE_NONBLOCKCOMPRESSEDVIEW_INPUT* pIn,
+    ADDR2_COMPUTE_NONBLOCKCOMPRESSEDVIEW_OUTPUT*      pOut)
+{
+    ADDR_E_RETURNCODE returnCode;
+
+    if ((GetFillSizeFieldsFlags() == TRUE) &&
+        ((pIn->size != sizeof(ADDR2_COMPUTE_NONBLOCKCOMPRESSEDVIEW_INPUT)) ||
+         (pOut->size != sizeof(ADDR2_COMPUTE_NONBLOCKCOMPRESSEDVIEW_OUTPUT))))
+    {
+        returnCode = ADDR_INVALIDPARAMS;
+    }
+    else
+    {
+        returnCode = HwlComputeNonBlockCompressedView(pIn, pOut);
+    }
+
+    return returnCode;
+}
+
+/**
+************************************************************************************************************************
 *   Lib::ExtractPipeBankXor
 *
 *   @brief

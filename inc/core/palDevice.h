@@ -2119,6 +2119,7 @@ struct GetPrimaryInfoOutput
 {
     uint32          tilingCaps;                ///< Tiling caps supported by this primary surface.
     StereoMode      stereoMode;                ///< Stereo mode supported by this primary surface.
+    uint32          mallCursorCacheSize;       ///< Size of the mall cursor cache in bytes
     union
     {
         struct

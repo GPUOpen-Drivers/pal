@@ -247,11 +247,6 @@ Result ShaderLibrary::GetShaderFunctionStats(
     PAL_ASSERT(pShaderStats != nullptr);
     memset(pShaderStats, 0, sizeof(ShaderLibStats));
 
-    const auto&  gpuInfo       = m_pDevice->Parent()->ChipProperties();
-
-    pShaderStats->common.numUsedSgprs          = m_hwInfo.libRegs.computePgmRsrc1.bits.SGPRS;
-    pShaderStats->common.numUsedVgprs          = m_hwInfo.libRegs.computePgmRsrc1.bits.VGPRS;
-    pShaderStats->common.ldsUsageSizeInBytes   = m_hwInfo.libRegs.computePgmRsrc2.bits.LDS_SIZE;
     pShaderStats->palInternalLibraryHash       = m_info.internalLibraryHash;
     pShaderStats->common.ldsSizePerThreadGroup = chipProps.gfxip.ldsSizePerThreadGroup;
     pShaderStats->common.flags.isWave32        = m_hwInfo.flags.isWave32;
@@ -279,6 +274,8 @@ Result ShaderLibrary::GetShaderFunctionStats(
     if (result == Result::Success)
     {
         const auto&  stageMetadata = metadata.pipeline.hardwareStage[static_cast<uint32>(Abi::HardwareStage::Cs)];
+
+        const auto& gpuInfo = m_pDevice->Parent()->ChipProperties();
 
         pShaderStats->numAvailableSgprs = (stageMetadata.hasEntry.sgprLimit != 0)
                                             ? stageMetadata.sgprLimit
@@ -355,6 +352,21 @@ Result ShaderLibrary::UnpackShaderFunctionStats(
                             Util::Abi::ApiShaderSubType shaderSubType;
                             Util::Abi::Metadata::DeserializeEnum(pMetadataReader, &shaderSubType);
                             stats.shaderSubType = static_cast<Pal::ShaderSubType>(shaderSubType);
+                        }
+                        break;
+                        case HashLiteralString(Util::Abi::HardwareStageMetadataKey::VgprCount):
+                        {
+                            result = pMetadataReader->UnpackNext(&pShaderStats->common.numUsedVgprs);
+                        }
+                        break;
+                        case HashLiteralString(Util::Abi::HardwareStageMetadataKey::SgprCount):
+                        {
+                            result = pMetadataReader->UnpackNext(&pShaderStats->common.numUsedSgprs);
+                        }
+                        break;
+                        case HashLiteralString(Util::Abi::HardwareStageMetadataKey::LdsSize):
+                        {
+                            result = pMetadataReader->UnpackNext(&pShaderStats->common.ldsUsageSizeInBytes);
                         }
                         break;
                         default:

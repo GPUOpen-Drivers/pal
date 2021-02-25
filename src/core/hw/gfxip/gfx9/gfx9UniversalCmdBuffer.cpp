@@ -342,6 +342,7 @@ UniversalCmdBuffer::UniversalCmdBuffer(
     m_cachedSettings.prefetchIndexBufferForNgg = settings.waEnableIndexBufferPrefetchForNgg;
     m_cachedSettings.waCeDisableIb2            = settings.waCeDisableIb2;
     m_cachedSettings.supportsMall              = m_device.Parent()->MemoryProperties().flags.supportsMall;
+    m_cachedSettings.waDisableInstancePacking  = settings.waDisableInstancePacking;
     m_cachedSettings.rbPlusSupported           = m_device.Parent()->ChipProperties().gfx9.rbPlus;
 
     m_cachedSettings.waUtcL0InconsistentBigPage = settings.waUtcL0InconsistentBigPage;
@@ -6904,18 +6905,18 @@ uint32 UniversalCmdBuffer::CalcGeCntl(
     {
         const regVGT_GS_ONCHIP_CNTL vgtGsOnchipCntl = pPipeline->VgtGsOnchipCntl();
 
-        primsPerSubgroup = vgtGsOnchipCntl.bits.GS_PRIMS_PER_SUBGRP;
-        vertsPerSubgroup = vgtGsOnchipCntl.bits.ES_VERTS_PER_SUBGRP;
+        primsPerSubgroup = vgtGsOnchipCntl.most.GS_PRIMS_PER_SUBGRP;
+        vertsPerSubgroup = vgtGsOnchipCntl.most.ES_VERTS_PER_SUBGRP;
     }
     else
     {
         const regVGT_GS_ONCHIP_CNTL vgtGsOnchipCntl = pPipeline->VgtGsOnchipCntl();
 
-        primsPerSubgroup = vgtGsOnchipCntl.bits.GS_PRIMS_PER_SUBGRP;
+        primsPerSubgroup = vgtGsOnchipCntl.most.GS_PRIMS_PER_SUBGRP;
         vertsPerSubgroup =
             (disableVertGrouping)                       ? VertGroupingDisabled :
-            (m_cachedSettings.waClampGeCntlVertGrpSize) ? vgtGsOnchipCntl.bits.ES_VERTS_PER_SUBGRP - 5 :
-                                                          vgtGsOnchipCntl.bits.ES_VERTS_PER_SUBGRP;
+            (m_cachedSettings.waClampGeCntlVertGrpSize) ? vgtGsOnchipCntl.most.ES_VERTS_PER_SUBGRP - 5 :
+                                                          vgtGsOnchipCntl.most.ES_VERTS_PER_SUBGRP;
 
         // Zero is a legal value for VERT_GRP_SIZE. Other low values are illegal.
         if (vertsPerSubgroup != 0)
@@ -7020,12 +7021,26 @@ uint32* UniversalCmdBuffer::ValidateDrawTimeHwState(
                                                                                           pDeCmdSpace);
         }
     }
+
+    const bool disableInstancePacking =
+        m_workaroundState.DisableInstancePacking<Indirect>(m_graphicsState.inputAssemblyState.topology,
+                                                           drawInfo.instanceCount,
+                                                           NumActiveQueries(QueryPoolType::PipelineStats));
+
     // Write the INDEX_TYPE packet.
     // We might need to write this outside of indexed draws (for instance, on a change of NGG <-> Legacy pipeline).
-    if ((m_drawTimeHwState.dirty.indexType != 0) || (Indexed && (m_drawTimeHwState.dirty.indexedIndexType != 0)))
+    if ((m_drawTimeHwState.dirty.indexType != 0)                                                               ||
+        (m_vgtDmaIndexType.gfx103Plus.DISABLE_INSTANCE_PACKING != static_cast<uint32>(disableInstancePacking)) ||
+        (Indexed && (m_drawTimeHwState.dirty.indexedIndexType != 0)))
     {
         m_drawTimeHwState.dirty.indexType        = 0;
         m_drawTimeHwState.dirty.indexedIndexType = 0;
+
+        if (IsGfx103(*(m_device.Parent())))
+        {
+            m_vgtDmaIndexType.gfx103Plus.DISABLE_INSTANCE_PACKING = disableInstancePacking;
+        }
+
         pDeCmdSpace += m_cmdUtil.BuildIndexType(m_vgtDmaIndexType.u32All, pDeCmdSpace);
     }
 

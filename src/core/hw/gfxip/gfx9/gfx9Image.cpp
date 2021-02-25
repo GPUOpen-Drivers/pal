@@ -98,6 +98,8 @@ Image::Image(
     m_waTcCompatZRangeMetaDataSizePerMip(0),
     m_dccLookupTableOffset(0),
     m_dccLookupTableSize(0),
+    m_mallCursorCacheSize(0),
+    m_mallCursorCacheOffset(0),
     m_useCompToSingleForFastClears(false)
 {
     memset(&m_layoutToState,      0, sizeof(m_layoutToState));
@@ -892,6 +894,14 @@ Result Image::Finalize(
 #endif
                 }
             }
+        }
+
+        if ((settings.enableMallCursorCache == true) && (m_mallCursorCacheSize > 0))
+        {
+            // Add the size of the mall cursor cache to the allocation size and save the original value off
+            // in order to inform the KMD of the offset to the cursor cache.
+            m_mallCursorCacheOffset = *pGpuMemSize;
+            *pGpuMemSize += m_mallCursorCacheSize;
         }
 
         // NOTE: We're done adding bits of GPU memory to our image; its GPU memory size is now final.
@@ -4198,7 +4208,7 @@ uint32 Image::GetPipeMisalignedMetadataFirstMip(
         const int32 log2Bpp     = Log2(baseSubRes.bitsPerTexel >> 3);
 
         int32 log2BppAndSamplesClamped = 0;
-        if (IsGfx102Plus(chipProps.gfxLevel))
+        if (IsGfx103Plus(chipProps.gfxLevel))
         {
             log2BppAndSamplesClamped = (log2Bpp + log2Samples);
         }

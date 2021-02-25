@@ -1020,8 +1020,8 @@ constexpr unsigned int PM4_PFP_DISPATCH_DRAW_SIZEDW__HASCE = 6;
 // ---------------------------- PFP_DISPATCH_DRAW_PREAMBLE_not_eop_enum ----------------------------
 enum PFP_DISPATCH_DRAW_PREAMBLE_not_eop_enum
 {
-    not_eop__pfp_dispatch_draw_preamble__normal_eop__GFX09_GFX10CORE   =  0,
-    not_eop__pfp_dispatch_draw_preamble__suppress_eop__GFX09_GFX10CORE =  1,
+    not_eop__pfp_dispatch_draw_preamble__normal_eop__GFX10CORE_GFX09   =  0,
+    not_eop__pfp_dispatch_draw_preamble__suppress_eop__GFX10CORE_GFX09 =  1,
 };
 
 // --------------------------- PFP_DISPATCH_DRAW_PREAMBLE_req_path_enum ---------------------------

@@ -456,6 +456,9 @@ public:
     virtual void GetDisplayDccState(DccState* pState) const override;
     virtual void GetDccState(DccState* pState) const override;
 
+    virtual void SetMallCursorCacheSize(uint32 cursorSize) { m_mallCursorCacheSize = cursorSize; }
+    virtual gpusize GetMallCursorCacheOffset() { return m_mallCursorCacheOffset; }
+
     gpusize GetMipAddr(SubresId subresId) const;
 
     void BuildMetadataLookupTableBufferView(BufferViewInfo* pViewInfo, uint32 mipLevel) const;
@@ -516,6 +519,9 @@ private:
     gpusize m_dccLookupTableSize;   // Size of lookup table for dcc.
 
     gpusize m_gpuMemSyncSize; // Total size of the the image and metadata before any required allocation padding
+
+    uint32  m_mallCursorCacheSize;   // Size of the MALL cursor cache in bytes
+    gpusize m_mallCursorCacheOffset; // Offset to the MALL cursor cache allocation in bytes
 
     union
     {

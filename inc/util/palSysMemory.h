@@ -395,6 +395,49 @@ private:
 
 /**
 ***********************************************************************************************************************
+* @brief A wrapper for Trackable (using MemTracker) memory allocator that wraps ForwardAllocator.
+***********************************************************************************************************************
+*/
+#if PAL_MEMTRACK
+class ForwardAllocatorTracked
+{
+public:
+    /// Constructor
+    ForwardAllocatorTracked(const AllocCallbacks& callbacks)
+        :
+    m_allocator(callbacks),
+    m_memTracker(&m_allocator)
+    {
+    }
+
+    /// Allocates a block of memory.
+    ///
+    /// @param [in] allocInfo Contains information about the requested allocation.
+    ///
+    /// @returns Pointer to the allocated memory, nullptr if the allocation failed.
+    void* Alloc(const AllocInfo& allocInfo)
+    {
+        return m_memTracker.Alloc(allocInfo);
+    }
+
+    /// Frees a block of memory.
+    ///
+    /// @param [in] freeInfo Contains information about the requested free.
+    void  Free(const FreeInfo& freeInfo)
+    {
+        m_memTracker.Free(freeInfo);
+    }
+
+private:
+    Util::ForwardAllocator       m_allocator;  ///< The ForwardAllocator which this object wraps.
+    MemTracker<ForwardAllocator> m_memTracker; ///< Memory tracker for this ForwardAllocator.
+};
+#else
+using ForwardAllocatorTracked = ForwardAllocator;
+#endif
+
+/**
+***********************************************************************************************************************
 * @brief Non-templated wrapper class around a templated Allocator. More indirect than encapsulating a typed Allocator
 * directly, but is useful for simplifying the implementation details of certain utilities.
 ***********************************************************************************************************************

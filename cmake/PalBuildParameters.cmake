@@ -73,6 +73,16 @@ macro(pals_build_parameters)
 
     pal_build_parameter(PAL_CLIENT "Client pal should build for" "mandatory" FATAL_ERROR)
 
+#if PAL_DEVELOPER_BUILD
+    pal_build_parameter(PAL_DEVELOPER_BUILD "Enable developer build" OFF AUTHOR_WARNING)
+
+    # Enable these developer layers based on the PAL_DEVELOPER_BUILD value. This is a nice quality of life for developer builds.
+    pal_build_parameter(PAL_BUILD_CMD_BUFFER_LOGGER "Enable cmd buffer layer"       ${PAL_DEVELOPER_BUILD} VERBOSE)
+    pal_build_parameter(PAL_BUILD_GPU_DEBUG         "Enable GPU debug layer"        ${PAL_DEVELOPER_BUILD} VERBOSE)
+    pal_build_parameter(PAL_BUILD_INTERFACE_LOGGER  "Enable interface logger layer" ${PAL_DEVELOPER_BUILD} VERBOSE)
+    pal_build_parameter(PAL_BUILD_PM4_INSTRUMENTOR  "Enable PM4 instrumentor layer" ${PAL_DEVELOPER_BUILD} VERBOSE)
+#endif
+
     # Create a more convenient variable to avoid string comparisons.
     set(PAL_CLIENT_${PAL_CLIENT} ON)
 
