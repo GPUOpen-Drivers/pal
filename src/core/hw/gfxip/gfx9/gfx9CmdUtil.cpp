@@ -357,7 +357,6 @@ CmdUtil::CmdUtil(
             m_registerInfo.mmAtcL2PerfResultCntl            = Gfx101::mmGC_ATC_L2_PERFCOUNTER_RSLT_CNTL;
             m_registerInfo.mmDbDfsmControl                  = Gfx10Core::mmDB_DFSM_CONTROL;
             m_registerInfo.mmRpbPerfResultCntl              = Gfx10Core::mmRPB_PERFCOUNTER_RSLT_CNTL;
-
         }
         else if (IsGfx103(parent))
         {
@@ -689,7 +688,7 @@ size_t CmdUtil::BuildAcquireMem(
 
         explicitAcquireMemInfo.coherCntl = cpCoherCntl.u32All | acquireMemInfo.cpMeCoherCntl.u32All;
     }
-    else if (IsGfx10(m_gfxIpLevel))
+    else if (IsGfx10Plus(m_gfxIpLevel))
     {
         if (Pal::Device::EngineSupportsGraphics(acquireMemInfo.engineType))
         {
@@ -707,22 +706,23 @@ size_t CmdUtil::BuildAcquireMem(
 
         explicitAcquireMemInfo.gcrCntl.u32All = Gfx10CalcAcquireMemGcrCntl(acquireMemInfo);
     }
+
     // Call a more explicit function.
     return ExplicitBuildAcquireMem(explicitAcquireMemInfo, pBuffer);
 }
 
 // =====================================================================================================================
-// Builds the the ACQUIRE_MEM command.  Returns the size, in DWORDs, of the assembled PM4 command
+// Builds the ACQUIRE_MEM command.  Returns the size, in DWORDs, of the assembled PM4 command
 size_t CmdUtil::ExplicitBuildAcquireMem(
     const ExplicitAcquireMemInfo& acquireMemInfo,
     void*                         pBuffer         // [out] Build the PM4 packet in this buffer.
     ) const
 {
-    auto* const  pPacket    = static_cast<PM4_ME_ACQUIRE_MEM*>(pBuffer);
     const uint32 packetSize = IsGfx10Plus(m_gfxIpLevel) ? PM4_ME_ACQUIRE_MEM_SIZEDW__GFX10PLUS :
                                                           PM4_ME_ACQUIRE_MEM_SIZEDW__CORE;
-    pPacket->ordinal1.header.u32All  = Type3Header(IT_ACQUIRE_MEM, packetSize);
-    pPacket->ordinal2.u32All         = 0;
+
+    PM4_ME_ACQUIRE_MEM packet = {};
+    packet.ordinal1.header.u32All = Type3Header(IT_ACQUIRE_MEM, packetSize);
 
     const ME_ACQUIRE_MEM_engine_sel_enum  engineSel =
                 static_cast<ME_ACQUIRE_MEM_engine_sel_enum>(acquireMemInfo.flags.usePfp
@@ -730,43 +730,39 @@ size_t CmdUtil::ExplicitBuildAcquireMem(
                     : static_cast<uint32>(engine_sel__me_acquire_mem__micro_engine));
 
     {
-        pPacket->ordinal2.bitfieldsA.coher_cntl = acquireMemInfo.coherCntl;
+        packet.ordinal2.bitfieldsA.coher_cntl = acquireMemInfo.coherCntl;
 
         if (Pal::Device::EngineSupportsGraphics(acquireMemInfo.engineType))
         {
-            pPacket->ordinal2.bitfieldsA.engine_sel = engineSel;
+            packet.ordinal2.bitfieldsA.engine_sel = engineSel;
         }
     }
 
     // Need to align-down the given base address and then add the difference to the size, and align that new size.
     // Note that if sizeBytes is equal to FullSyncSize we should clamp it to the max virtual address.
     constexpr gpusize Alignment = 256;
-    constexpr gpusize SizeShift = 8;
+
     // For a full aperture invalidation we need to set all the bits of coher_size and coher_size_hi to 1.
     // In total that's 32 + 8 == 40 bits.
-    constexpr gpusize FullApertureSize = (1ull << 40ull) - 1ull;
+    constexpr gpusize CoherFullApertureSize = (1ull << 40ull) - 1ull;
+    constexpr gpusize CoherSizeShift = 8;
 
     const gpusize alignedAddress = Pow2AlignDown(acquireMemInfo.baseAddress, Alignment);
-    const gpusize alignedSize =
-        (acquireMemInfo.sizeBytes == FullSyncSize)
-        ? FullApertureSize
-        : (Pow2Align(acquireMemInfo.sizeBytes + acquireMemInfo.baseAddress - alignedAddress, Alignment) >> SizeShift);
 
-    // These ordinals correspond to "coher_base_lo/hi".
-    pPacket->ordinal3.u32All     = LowPart(alignedSize);
-    pPacket->ordinal4.u32All     = HighPart(alignedSize);
-
-    // These ordinals correspond to "coher_base_lo/hi".
-    pPacket->ordinal5.u32All     = Get256BAddrLo(alignedAddress);
-    pPacket->ordinal6.u32All     = Get256BAddrHi(alignedAddress);
-
-    pPacket->ordinal7.u32All                  = 0;
-
-    // Make sure that the various size and address fields didn't overflow
-    pPacket->ordinal7.bitfieldsA.poll_interval = Pal::Device::PollInterval;
     {
-        PAL_ASSERT(pPacket->ordinal4.bitfieldsA.gfx09_10.reserved1 == 0);
-        PAL_ASSERT(pPacket->ordinal6.bitfieldsA.reserved1 == 0);
+        const gpusize alignedSize = (acquireMemInfo.sizeBytes == FullSyncSize) ? CoherFullApertureSize :
+            (Pow2Align(acquireMemInfo.sizeBytes + acquireMemInfo.baseAddress - alignedAddress, Alignment)
+                >> CoherSizeShift);
+
+        packet.ordinal3.coher_size                        = LowPart(alignedSize);
+        packet.ordinal4.bitfieldsA.gfx09_10.coher_size_hi = HighPart(alignedSize);
+        packet.ordinal5.coher_base_lo                     = Get256BAddrLo(alignedAddress);
+        packet.ordinal6.bitfieldsA.coher_base_hi          = Get256BAddrHi(alignedAddress);
+        packet.ordinal7.bitfieldsA.poll_interval          = Pal::Device::PollInterval;
+
+        PAL_ASSERT(packet.ordinal4.bitfieldsA.gfx09_10.reserved1 == 0);
+        PAL_ASSERT(packet.ordinal6.bitfieldsA.reserved1 == 0);
+        PAL_ASSERT(packet.ordinal7.bitfieldsA.reserved1 == 0);
     }
 
     if (IsGfx10Plus(m_gfxIpLevel))
@@ -775,9 +771,8 @@ size_t CmdUtil::ExplicitBuildAcquireMem(
                       "GFX10: ACQUIRE_MEM packet size is different between ME compute and ME graphics!");
 
         // Handle the GFX-specific aspects of a release-mem packet.
-        pPacket->ordinal8.u32All = 0;
-        pPacket->ordinal8.bitfields.gfx10Plus.gcr_cntl = acquireMemInfo.gcrCntl.u32All;
-        PAL_ASSERT(pPacket->ordinal8.bitfields.gfx10Plus.reserved1 == 0);
+        packet.ordinal8.bitfields.gfx10Plus.gcr_cntl = acquireMemInfo.gcrCntl.u32All;
+        PAL_ASSERT(packet.ordinal8.bitfields.gfx10Plus.reserved1 == 0);
     }
     else
     {
@@ -785,6 +780,8 @@ size_t CmdUtil::ExplicitBuildAcquireMem(
                       "GFX9:  ACQUIRE_MEM packet size is different between ME compute and ME graphics!");
 
     }
+
+    memcpy(pBuffer, &packet, packetSize * sizeof(uint32));
 
     return packetSize;
 }
@@ -3077,7 +3074,7 @@ size_t CmdUtil::BuildReleaseMem(
     }
 
     // Translate ReleaseMemInfo to a new ReleaseMemInfo type that's more universal.
-    ExplicitReleaseMemInfo explicitReleaseMemInfo;
+    ExplicitReleaseMemInfo explicitReleaseMemInfo = {};
     explicitReleaseMemInfo.engineType = releaseMemInfo.engineType;
     explicitReleaseMemInfo.vgtEvent   = releaseMemInfo.vgtEvent;
     explicitReleaseMemInfo.dstAddr    = releaseMemInfo.dstAddr;
@@ -3137,7 +3134,7 @@ size_t CmdUtil::BuildReleaseMem(
 
         explicitReleaseMemInfo.coherCntl = cpCoherCntl.u32All;
     }
-    else if (IsGfx10(m_gfxIpLevel))
+    else if (IsGfx10Plus(m_gfxIpLevel))
     {
         explicitReleaseMemInfo.coherCntl = 0;
         explicitReleaseMemInfo.gcrCntl   = Gfx10CalcReleaseMemGcrCntl(releaseMemInfo);
@@ -3261,6 +3258,7 @@ size_t CmdUtil::ExplicitBuildReleaseMem(
         // Handle the GFX-specific aspects of a release-mem packet.
         packet.ordinal2.bitfields.gfx10Plus.gcr_cntl  = releaseMemInfo.gcrCntl;
         packet.ordinal8.bitfields.gfx10Plus.int_ctxid = 0;
+
     }
 
     memcpy(pBuffer, &packet, PacketSize * sizeof(uint32));
@@ -3737,7 +3735,7 @@ size_t CmdUtil::BuildWaitCsIdle(
     // Fall back to a EOP TS wait-for-idle if we can't safely use a CS_PARTIAL_FLUSH.
     return CanUseCsPartialFlush(engineType)
             ? BuildNonSampleEventWrite(CS_PARTIAL_FLUSH, engineType, pBuffer)
-            : BuildWaitOnReleaseMemEvent(engineType, BOTTOM_OF_PIPE_TS, TcCacheOp::Nop, timestampGpuAddr, pBuffer);
+            : BuildWaitOnReleaseMemEventTs(engineType, BOTTOM_OF_PIPE_TS, TcCacheOp::Nop, timestampGpuAddr, pBuffer);
 }
 
 // =====================================================================================================================
@@ -3798,7 +3796,7 @@ size_t CmdUtil::BuildWaitOnDeCounterDiff(
 // Builds a set of PM4 commands that update a timestamp value to a known value, writes an EOP timestamp event with a
 // known different value then waits for the timestamp value to update. Returns the size of the PM4 command built, in
 // DWORDs.
-size_t CmdUtil::BuildWaitOnReleaseMemEvent(
+size_t CmdUtil::BuildWaitOnReleaseMemEventTs(
     EngineType     engineType,
     VGT_EVENT_TYPE vgtEvent,
     TcCacheOp      tcCacheOp,

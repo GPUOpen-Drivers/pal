@@ -715,8 +715,8 @@ Result GetExecutableName(
 
     PAL_ASSERT((pBuffer != nullptr) && (ppFilename != nullptr));
 
-    const ssize_t count = readlink("/proc/self/exe", pBuffer, bufferLength - sizeof(char));
-    if (count >= 0)
+    const ssize_t count = readlink("/proc/self/exe", pBuffer, bufferLength);
+    if ((count >= 0) && (static_cast<size_t>(count) < bufferLength))
     {
         // readlink() doesn't append a null terminator, so we must do this ourselves!
         pBuffer[count] = '\0';
@@ -749,20 +749,15 @@ Result GetExecutableName(
 
     char buffer[PATH_MAX];
 
-    const ssize_t count = readlink("/proc/self/exe", &buffer[0], Min(bufferLength, sizeof(buffer)) - sizeof(char));
+    const ssize_t count = readlink("/proc/self/exe", &buffer[0], sizeof(buffer));
 
     // Convert to wide char
-    if (count >= 0)
+    if ((count >= 0) &&
+        (static_cast<size_t>(count) < sizeof(buffer)) &&
+        (static_cast<size_t>(count) < bufferLength))
     {
-#if defined(PAL_SHORT_WCHAR)
         buffer[count] = '\0';
-
         Mbstowcs(pWcBuffer, buffer, bufferLength);
-#else
-        // According to MSDN, if mbstowcs encounters an invalid multibyte character, it returns -1
-        int success = (int)mbstowcs(pWcBuffer, static_cast<char *>(buffer), count);
-        PAL_ASSERT(success > 0);
-#endif
 
         // readlink() doesn't append a null terminator, so we must do this ourselves!
         pWcBuffer[count] = L'\0';

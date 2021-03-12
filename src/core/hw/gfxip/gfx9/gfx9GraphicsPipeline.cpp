@@ -258,6 +258,7 @@ void GraphicsPipeline::EarlyInit(
     const Gfx9PalSettings& settings = m_pDevice->Settings();
     if (settings.enableLoadIndexForObjectBinds != false)
     {
+        const GpuChipProperties& chipProps = m_pDevice->Parent()->ChipProperties();
         // Add mmSPI_SHADER_LATE_ALLOC_VS if we don't use NGG
         pInfo->loadedShRegCount  = BaseLoadedShRegCount + (IsNgg() == false);
 
@@ -1067,6 +1068,7 @@ void GraphicsPipeline::SetupCommonRegisters(
         pUploader->AddCtxReg(mmPA_SU_VTX_CNTL,       m_regs.context.paSuVtxCntl);
         pUploader->AddCtxReg(mmPA_CL_VTE_CNTL,       m_regs.context.paClVteCntl);
         pUploader->AddCtxReg(mmSPI_INTERP_CONTROL_0, m_regs.context.spiInterpControl0);
+
         {
             pUploader->AddCtxReg(Gfx09_10::mmVGT_GS_MODE,                 m_regs.context.vgtGsMode);
             pUploader->AddCtxReg(Gfx09_10::mmVGT_VERTEX_REUSE_BLOCK_CNTL, m_regs.context.vgtVertexReuseBlockCntl);

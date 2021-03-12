@@ -88,7 +88,6 @@ public:
         GfxCmdBuffer*                pCmdBuffer,
         Pal::CmdStream*              pCmdStream,
         const Image&                 image,
-        const IMsaaState*            pMsaaState,
         const MsaaQuadSamplePattern* pQuadSamplePattern,
         const SubresRange&           range) const;
 
@@ -101,7 +100,6 @@ public:
         GfxCmdBuffer*                pCmdBuffer,
         Pal::CmdStream*              pCmdStream,
         const Image&                 image,
-        const IMsaaState*            pMsaaState,
         const MsaaQuadSamplePattern* pQuadSamplePattern,
         const SubresRange&           range) const;
 
@@ -126,14 +124,12 @@ public:
         GfxCmdBuffer*                pCmdBuffer,
         Pal::CmdStream*              pCmdStream,
         const Image&                 image,
-        const IMsaaState*            pMsaaState,
         const MsaaQuadSamplePattern* pQuadSamplePattern,
         const SubresRange&           range) const;
 
     virtual bool ExpandDepthStencil(
         GfxCmdBuffer*                pCmdBuffer,
         const Pal::Image&            image,
-        const IMsaaState*            pMsaaState,
         const MsaaQuadSamplePattern* pQuadSamplePattern,
         const SubresRange&           range) const override;
 

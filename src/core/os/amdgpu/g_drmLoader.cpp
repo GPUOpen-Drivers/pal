@@ -544,6 +544,52 @@ int32 DrmLoaderFuncsProxy::pfnAmdgpuVaRangeAlloc(
 }
 
 // =====================================================================================================================
+int32 DrmLoaderFuncsProxy::pfnAmdgpuVmReserveVmid(
+    amdgpu_device_handle  hDevice,
+    uint32                flags
+    ) const
+{
+    const int64 begin = Util::GetPerfCpuTime();
+    int32 ret = m_pFuncs->pfnAmdgpuVmReserveVmid(hDevice,
+                                                 flags);
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
+    m_timeLogger.Printf("AmdgpuVmReserveVmid,%ld,%ld,%ld\n", begin, end, elapse);
+    m_timeLogger.Flush();
+
+    m_paramLogger.Printf(
+        "AmdgpuVmReserveVmid(%p, %x)\n",
+        hDevice,
+        flags);
+    m_paramLogger.Flush();
+
+    return ret;
+}
+
+// =====================================================================================================================
+int32 DrmLoaderFuncsProxy::pfnAmdgpuVmUnreserveVmid(
+    amdgpu_device_handle  hDevice,
+    uint32                flags
+    ) const
+{
+    const int64 begin = Util::GetPerfCpuTime();
+    int32 ret = m_pFuncs->pfnAmdgpuVmUnreserveVmid(hDevice,
+                                                   flags);
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
+    m_timeLogger.Printf("AmdgpuVmUnreserveVmid,%ld,%ld,%ld\n", begin, end, elapse);
+    m_timeLogger.Flush();
+
+    m_paramLogger.Printf(
+        "AmdgpuVmUnreserveVmid(%p, %x)\n",
+        hDevice,
+        flags);
+    m_paramLogger.Flush();
+
+    return ret;
+}
+
+// =====================================================================================================================
 int32 DrmLoaderFuncsProxy::pfnAmdgpuReadMmRegisters(
     amdgpu_device_handle  hDevice,
     uint32                dwordOffset,
@@ -3248,6 +3294,8 @@ Result DrmLoader::Init(
             m_library[LibDrmAmdgpu].GetFunction("amdgpu_va_range_free", &m_funcs.pfnAmdgpuVaRangeFree);
             m_library[LibDrmAmdgpu].GetFunction("amdgpu_va_range_query", &m_funcs.pfnAmdgpuVaRangeQuery);
             m_library[LibDrmAmdgpu].GetFunction("amdgpu_va_range_alloc", &m_funcs.pfnAmdgpuVaRangeAlloc);
+            m_library[LibDrmAmdgpu].GetFunction("amdgpu_vm_reserve_vmid", &m_funcs.pfnAmdgpuVmReserveVmid);
+            m_library[LibDrmAmdgpu].GetFunction("amdgpu_vm_unreserve_vmid", &m_funcs.pfnAmdgpuVmUnreserveVmid);
             m_library[LibDrmAmdgpu].GetFunction("amdgpu_read_mm_registers", &m_funcs.pfnAmdgpuReadMmRegisters);
             m_library[LibDrmAmdgpu].GetFunction("amdgpu_device_initialize", &m_funcs.pfnAmdgpuDeviceInitialize);
             m_library[LibDrmAmdgpu].GetFunction("amdgpu_device_deinitialize", &m_funcs.pfnAmdgpuDeviceDeinitialize);

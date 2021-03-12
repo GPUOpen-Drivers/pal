@@ -264,7 +264,6 @@ public:
     virtual bool ExpandDepthStencil(
         GfxCmdBuffer*        pCmdBuffer,
         const Image&         image,
-        const IMsaaState*    pMsaaState,
         const MsaaQuadSamplePattern* pQuadSamplePattern,
         const SubresRange&   range
         ) const;
@@ -273,7 +272,6 @@ public:
         GfxCmdBuffer*        pCmdBuffer,
         const Image&         image,
         ImageLayout          imageLayout,
-        const IMsaaState*    pMsaaState,
         const MsaaQuadSamplePattern* pQuadSamplePattern,
         const SubresRange&   range
     ) const;
@@ -368,7 +366,6 @@ protected:
         GfxCmdBuffer*        pCmdBuffer,
         const Image&         dstImage,
         const SubresRange&   range,
-        const IMsaaState&    msaaState,
         const MsaaQuadSamplePattern* pQuadSamplePattern,
         RpmGfxPipeline       pipeline,
         const GpuMemory*     pGpuMemory,

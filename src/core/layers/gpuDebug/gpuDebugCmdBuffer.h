@@ -43,6 +43,7 @@ namespace GpuDebug
 {
 
 class Device;
+class Image;
 class Queue;
 class TargetCmdBuffer;
 
@@ -492,6 +493,11 @@ public:
     Util::VirtualLinearAllocator* Allocator()    { return &m_allocator;   }
     IGpuMemory*                   TimestampMem() { return m_pTimestamp;   }
 
+    void                          OutputSurfaceCapture();
+
+    IGpuMemory**                  GetSurfaceCaptureGpuMems() const { return m_surfaceCapture.ppGpuMem; }
+    uint32                        GetSurfaceCaptureGpuMemCount() const { return m_surfaceCapture.gpuMemObjsCount; }
+
 private:
     virtual ~CmdBuffer();
 
@@ -763,6 +769,12 @@ private:
     void AddSingleStepBarrier(uint32 counter);
     void VerifyBoundDrawState() const;
 
+    bool IsSurfaceCaptureEnabled() const { return m_surfaceCapture.actionIdCount > 0; }
+    bool IsSurfaceCaptureActive() const;
+    void SurfaceCaptureHashMatch();
+    void CaptureSurfaces();
+    void DestroySurfaceCaptureData();
+
     Device*const                 m_pDevice;
     Util::VirtualLinearAllocator m_allocator;       // Temp storage for argument translation.
     bool                         m_supportsComments;
@@ -777,6 +789,21 @@ private:
     const IPipeline*             m_pBoundPipeline;
     BindTargetParams             m_boundTargets;
     const IColorBlendState*      m_pBoundBlendState;
+
+    struct
+    {
+        uint32          actionId;           // Count of the number of actions seen
+        bool            pipelineMatch;      // true if the current pipeline matches the surface capture hash
+        uint32          actionIdStart;      // First action to capture results
+        uint32          actionIdCount;      // Number of action to capture results
+        uint64          hash;               // value of shader and pipeline hashes that enable surface capture
+        Image**         ppColorTargetDsts;  // Array of Image*s of color target copy destinations
+                                            // There are (MaxColorTargets * m_actionCount) elements
+                                            // This is arranged such that the pointers are grouped by draw ID.
+                                            // Draw0Mrt0, Draw0Mrt1, ..., Draw0Mrt7, Draw1Mrt0, ...
+        IGpuMemory**    ppGpuMem;           // Gpu memory to make resident for this command buffer's surface capture
+        uint32          gpuMemObjsCount;    // Number of gpu memory objects in the ppGpuMem list
+    } m_surfaceCapture;
 
     // The token stream is a single block of memory that doubles in size each time it runs out of space.
     void*            m_pTokenStream;      // Storage for tokenized commands. Rewind here on command buffer reset.

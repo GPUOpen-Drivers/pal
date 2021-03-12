@@ -567,7 +567,11 @@ target_sources(pal PRIVATE
     util/sysUtil.cpp
     util/trackingCacheLayer.cpp
     util/platformKey.cpp
+    util/uuid.cpp
 )
+
+add_library(libuuid_static STATIC util/imported/libuuid/libuuid.cpp)
+target_link_libraries(pal PRIVATE libuuid_static)
 
 if(UNIX)
 ### PAL util/lnx ###############################################################
@@ -585,7 +589,11 @@ if(UNIX)
         util/lnx/lnxSysUtil.cpp
         util/lnx/lnxThread.cpp
         util/lnx/lnxTimeout.cpp
+        util/lnx/lnxUuid.cpp
     )
+
+    target_sources(libuuid_static PRIVATE util/imported/libuuid/lnxLibuuid.cpp)
+
 endif()
 
 ### Find headers and build source groups ###############################################################################

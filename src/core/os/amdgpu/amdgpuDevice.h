@@ -523,7 +523,7 @@ public:
         struct amdgpu_cs_fence* pFence,
         uint64                  timeoutNs) const;
 
-    Result WaitForFences(
+    Result WaitForOsFences(
         amdgpu_cs_fence* pFences,
         uint32           fenceCount,
         bool             waitAll,
@@ -769,7 +769,8 @@ public:
         int32 presentDeviceFd,
         bool* pIsSame) const;
 
-    Result ReserveVmid() const;
+    Result ReserveVmid();
+    Result UnReserveVmid();
 
     void GetDisplayDccInfo(DisplayDccCaps& displayDcc) const;
 

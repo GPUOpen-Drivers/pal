@@ -240,6 +240,7 @@ void PAL_STDCALL Platform::DbgOverlayCb(
         TranslateBarrierEventData(pCbData);
         break;
     case Developer::CallbackType::CreateImage:
+    case Developer::CallbackType::SurfRegData:
         break;
     case Developer::CallbackType::DrawDispatch:
         PAL_ASSERT(pCbData != nullptr);

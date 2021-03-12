@@ -143,6 +143,14 @@ typedef int32 (*AmdgpuVaRangeAlloc)(
             amdgpu_va_handle*         pVaRange,
             uint64                    flags);
 
+typedef int32 (*AmdgpuVmReserveVmid)(
+            amdgpu_device_handle  hDevice,
+            uint32                flags);
+
+typedef int32 (*AmdgpuVmUnreserveVmid)(
+            amdgpu_device_handle  hDevice,
+            uint32                flags);
+
 typedef int32 (*AmdgpuReadMmRegisters)(
             amdgpu_device_handle  hDevice,
             uint32                dwordOffset,
@@ -764,6 +772,18 @@ struct DrmLoaderFuncs
     bool pfnAmdgpuVaRangeAllocisValid() const
     {
         return (pfnAmdgpuVaRangeAlloc != nullptr);
+    }
+
+    AmdgpuVmReserveVmid               pfnAmdgpuVmReserveVmid;
+    bool pfnAmdgpuVmReserveVmidisValid() const
+    {
+        return (pfnAmdgpuVmReserveVmid != nullptr);
+    }
+
+    AmdgpuVmUnreserveVmid             pfnAmdgpuVmUnreserveVmid;
+    bool pfnAmdgpuVmUnreserveVmidisValid() const
+    {
+        return (pfnAmdgpuVmUnreserveVmid != nullptr);
     }
 
     AmdgpuReadMmRegisters             pfnAmdgpuReadMmRegisters;
@@ -1593,6 +1613,24 @@ public:
     bool pfnAmdgpuVaRangeAllocisValid() const
     {
         return (m_pFuncs->pfnAmdgpuVaRangeAlloc != nullptr);
+    }
+
+    int32 pfnAmdgpuVmReserveVmid(
+            amdgpu_device_handle  hDevice,
+            uint32                flags) const;
+
+    bool pfnAmdgpuVmReserveVmidisValid() const
+    {
+        return (m_pFuncs->pfnAmdgpuVmReserveVmid != nullptr);
+    }
+
+    int32 pfnAmdgpuVmUnreserveVmid(
+            amdgpu_device_handle  hDevice,
+            uint32                flags) const;
+
+    bool pfnAmdgpuVmUnreserveVmidisValid() const
+    {
+        return (m_pFuncs->pfnAmdgpuVmUnreserveVmid != nullptr);
     }
 
     int32 pfnAmdgpuReadMmRegisters(

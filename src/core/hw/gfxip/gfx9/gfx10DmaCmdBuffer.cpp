@@ -1872,7 +1872,8 @@ void DmaCmdBuffer::SetupDmaInfoExtent(
     const SubresId     baseSubResId    = { pImageInfo->pSubresInfo->subresId.aspect, 0, 0 };
     const auto*        pBaseSubResInfo = pImage->SubresourceInfo(baseSubResId);
 #else
-    const auto*        pBaseSubResInfo = pImage->SubresourceInfo(0);
+    const SubresId     baseSubResId    = { pImageInfo->pSubresInfo->subresId.plane, 0, 0 };
+    const auto*        pBaseSubResInfo = pImage->SubresourceInfo(baseSubResId);
 #endif
     const uint32       bytesPerPixel   = pBaseSubResInfo->bitsPerTexel / 8;
     const bool         nonPow2Bpp      = (IsPowerOfTwo(bytesPerPixel) == false);

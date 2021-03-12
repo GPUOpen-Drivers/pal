@@ -42,10 +42,52 @@
 /// compiles do not currently enable static code analysis.
 #define PAL_ANALYSIS_ASSUME(expr)
 
-#if PAL_ENABLE_PRINTS_ASSERTS
-
 namespace Util
 {
+
+/// A helper function to check the size-in-bits of a 'reserved' member in a bitfield.
+/// This is intended for use with static_asserts to ensure things don't go out-of-sync.
+///
+/// @param [in] expectedTotalBitWidth  Number of bits expected in the whole type
+/// @param [in] expectedReservedBits   Number of bits in the 'reserved' field
+///
+/// @return true if the bit lengths of the type T match the values in the args.
+///         true if the compiler lacks support to do this at compile time.
+///
+/// @note This may not work properly with old compilers, but this is meant for linting anyhow.
+template <typename T>
+constexpr bool CheckReservedBits(
+    uint32 expectedTotalBitWidth,
+    uint32 expectedReservedBits)
+{
+#if __cplusplus>= 201402|| (defined(__cpp_constexpr) && (__cpp_constexpr>= 201304))  >= 1910
+    bool match = false;
+
+    // Fail if the whole size is different
+    if (sizeof(T) * 8 == expectedTotalBitWidth)
+    {
+        // Get the width of the reserved field by detecting when it stops filling bits
+        T      sample       = {};
+        uint64 mask         = 0;
+        uint32 reservedBits = 0;
+        do
+        {
+            sample = {};
+            mask   = (mask << 1) | 1;
+            reservedBits++;
+            sample.reserved = mask;
+        } while ((sample.reserved == mask) && (reservedBits < sizeof(T) * 8));
+        // when the loop terminates, it's one past the size of the field.
+        match = (reservedBits - 1) == expectedReservedBits;
+    }
+    return match;
+#else
+    // C++11 lacks support for doing anything useful with constexpr
+    return true;
+#endif
+}
+
+#if PAL_ENABLE_PRINTS_ASSERTS
 
 /// Specifies how severe an triggered assert (or alert) is.
 ///
@@ -75,8 +117,12 @@ extern void EnableAssertMode(
 /// @param [in] category  Assert category to check
 extern bool IsAssertCategoryEnabled(
     AssertCategory category);
-}
 
+#endif
+
+} // namespace Util
+
+#if PAL_ENABLE_PRINTS_ASSERTS
 /// If the expression evaluates to false, then an error message with the specified reason will be printed via the
 /// debug print system. A debug break will also be triggered if they're currently enabled for asserts.
 ///

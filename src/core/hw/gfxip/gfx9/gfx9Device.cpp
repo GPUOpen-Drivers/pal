@@ -3405,20 +3405,36 @@ void PAL_STDCALL Device::Gfx10CreateImageViewSrds(
             // charge of making sure the math works out properly if they do this (allowed by Vulkan), otherwise we
             // assume it's an internal view and the copy shaders will prevent accessing out-of-bounds pixels.
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-            SubresId               mipSubResId    = { viewInfo.subresRange.startSubres.aspect, firstMipLevel, 0 };
+            SubresId               mipSubResId    = { viewInfo.subresRange.startSubres.aspect, firstMipLevel, baseArraySlice };
 #else
-            SubresId               mipSubResId    = { viewInfo.subresRange.startSubres.plane, firstMipLevel, 0 };
+            SubresId               mipSubResId    = { viewInfo.subresRange.startSubres.plane, firstMipLevel, baseArraySlice };
 #endif
             const SubResourceInfo* pMipSubResInfo = pParent->SubresourceInfo(mipSubResId);
 
-            extent.width  = Util::Clamp((pMipSubResInfo->extentElements.width  << firstMipLevel),
-                                        pBaseSubResInfo->extentElements.width,
-                                        pBaseSubResInfo->actualExtentElements.width);
-            extent.height = Util::Clamp((pMipSubResInfo->extentElements.height << firstMipLevel),
-                                        pBaseSubResInfo->extentElements.height,
-                                        pBaseSubResInfo->actualExtentElements.height);
+            extent.width  = Clamp((pMipSubResInfo->extentElements.width  << firstMipLevel),
+                                  pBaseSubResInfo->extentElements.width,
+                                  pBaseSubResInfo->actualExtentElements.width);
+            extent.height = Clamp((pMipSubResInfo->extentElements.height << firstMipLevel),
+                                  pBaseSubResInfo->extentElements.height,
+                                  pBaseSubResInfo->actualExtentElements.height);
+            if ((imageCreateInfo.imageType == ImageType::Tex2d) &&
+                (viewInfo.subresRange.numMips == 1) &&
+                (viewInfo.subresRange.numSlices == 1) &&
+                ((Max(1u, extent.width >> firstMipLevel) < pMipSubResInfo->extentElements.width) ||
+                 (Max(1u, extent.height >> firstMipLevel) < pMipSubResInfo->extentElements.height)))
 
-            actualExtent = pBaseSubResInfo->actualExtentElements;
+            {
+                srd.base_address = image.ComputeNonBlockCompressedView(pBaseSubResInfo,
+                                                                       pMipSubResInfo,
+                                                                       &mipLevels,
+                                                                       &firstMipLevel,
+                                                                       &extent);
+                baseArraySlice   = 0;
+            }
+            else
+            {
+                actualExtent = pBaseSubResInfo->actualExtentElements;
+            }
 
             // It would appear that HW needs the actual extents to calculate the mip addresses correctly when
             // viewing more than 1 mip especially in the case of non power of two textures.
@@ -3769,7 +3785,7 @@ void PAL_STDCALL Device::Gfx10CreateImageViewSrds(
 
                 srd.base_address = addrWithXor >> 8;
             }
-            else
+            else if (srd.base_address == 0)
             {
                 srd.base_address = image.GetSubresource256BAddrSwizzled(baseSubResId);
             }
@@ -4723,7 +4739,7 @@ void InitializeGpuChipProperties(
                                             CoherStreamOut | CoherMemory | CoherSampleRate);
     pInfo->gfxip.supportCaptureReplay    = 1;
 
-    pInfo->gfxip.maxUserDataEntries = MaxUserDataEntries;
+    pInfo->gfxip.maxUserDataEntries      = MaxUserDataEntries;
 
     if (IsGfx103Plus(pInfo->gfxLevel))
     {

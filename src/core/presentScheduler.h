@@ -145,6 +145,8 @@ private:
     Util::Thread    m_workerThread;       // The driver thread that executes presents later on.
     volatile bool   m_workerActive;       // If the driver thread has been created.
 
+    volatile Result m_previousPresentResult; // Result of the last presentation that took place.
+
     PAL_DISALLOW_DEFAULT_CTOR(PresentScheduler);
     PAL_DISALLOW_COPY_AND_ASSIGN(PresentScheduler);
 };

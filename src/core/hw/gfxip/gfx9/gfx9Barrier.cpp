@@ -53,46 +53,6 @@ constexpr uint32 AlwaysL2Mask = (MaybeL1ShaderMask       |
                                  CoherCeDump);
 
 // =====================================================================================================================
-// Creates an MSAA state with the sample positions specified by the client for the given transition.
-// The caller of this function must destroy the MSAA state object and free the memory associated with it.
-static IMsaaState* BarrierMsaaState(
-    const Device*                                pDevice,
-    GfxCmdBuffer*                                pCmdBuf,
-    LinearAllocatorAuto<VirtualLinearAllocator>* pAllocator,
-    const BarrierTransition&                     transition)
-{
-    const auto& imageCreateInfo = transition.imageInfo.pImage->GetImageCreateInfo();
-
-    MsaaStateCreateInfo msaaInfo    = {};
-    msaaInfo.sampleMask             = 0xFFFF;
-    msaaInfo.coverageSamples        = imageCreateInfo.samples;
-    msaaInfo.alphaToCoverageSamples = imageCreateInfo.samples;
-
-    // The following parameters should never be higher than the max number of msaa fragments ( 8 ).
-    // All MSAA graphics barrier operations performed by PAL work on a per fragment basis.
-    msaaInfo.exposedSamples          = imageCreateInfo.fragments;
-    msaaInfo.pixelShaderSamples      = imageCreateInfo.fragments;
-    msaaInfo.depthStencilSamples     = imageCreateInfo.fragments;
-    msaaInfo.shaderExportMaskSamples = imageCreateInfo.fragments;
-    msaaInfo.sampleClusters          = imageCreateInfo.fragments;
-    msaaInfo.occlusionQuerySamples   = imageCreateInfo.fragments;
-
-    IMsaaState* pMsaaState = nullptr;
-    void*       pMemory    = PAL_MALLOC(pDevice->GetMsaaStateSize(msaaInfo, nullptr), pAllocator, AllocInternalTemp);
-    if (pMemory == nullptr)
-    {
-        pCmdBuf->NotifyAllocFailure();
-    }
-    else
-    {
-        Result result = pDevice->CreateMsaaState(msaaInfo, pMemory, &pMsaaState);
-        PAL_ASSERT(result == Result::Success);
-    }
-
-    return pMsaaState;
-}
-
-// =====================================================================================================================
 // Make sure we handle L2 cache coherency properly because there are 2 categories of L2 access which use slightly
 // different addressing schemes.
 //
@@ -233,22 +193,12 @@ void Device::TransitionDepthStencil(
             pOperations->layoutTransitions.depthStencilExpand = 1;
             DescribeBarrier(pCmdBuf, &transition, pOperations);
 
-            LinearAllocatorAuto<VirtualLinearAllocator> allocator(pCmdBuf->Allocator(), false);
-            IMsaaState* pMsaaState = BarrierMsaaState(this, pCmdBuf, &allocator, transition);
+            FlushAndInvL2IfNeeded(pCmdBuf, pCmdStream, barrier, transitionId, pOperations);
 
-            if (pMsaaState != nullptr)
-            {
-                FlushAndInvL2IfNeeded(pCmdBuf, pCmdStream, barrier, transitionId, pOperations);
-
-                issuedComputeBlt = RsrcProcMgr().ExpandDepthStencil(pCmdBuf,
-                                                                    image,
-                                                                    pMsaaState,
-                                                                    transition.imageInfo.pQuadSamplePattern,
-                                                                    subresRange);
-
-                pMsaaState->Destroy();
-                PAL_SAFE_FREE(pMsaaState, &allocator);
-            }
+            issuedComputeBlt = RsrcProcMgr().ExpandDepthStencil(pCmdBuf,
+                                                                image,
+                                                                transition.imageInfo.pQuadSamplePattern,
+                                                                subresRange);
 
             issuedBlt = true;
         }
@@ -299,24 +249,14 @@ void Device::TransitionDepthStencil(
                     pOperations->layoutTransitions.depthStencilResummarize = 1;
                     DescribeBarrier(pCmdBuf, &transition, pOperations);
 
-                    LinearAllocatorAuto<VirtualLinearAllocator> allocator(pCmdBuf->Allocator(), false);
-                    IMsaaState* pMsaaState = BarrierMsaaState(this, pCmdBuf, &allocator, transition);
+                    FlushAndInvL2IfNeeded(pCmdBuf, pCmdStream, barrier, transitionId, pOperations);
 
-                    if (pMsaaState != nullptr)
-                    {
-                        FlushAndInvL2IfNeeded(pCmdBuf, pCmdStream, barrier, transitionId, pOperations);
-
-                        // DB blit to resummarize.
-                        RsrcProcMgr().ResummarizeDepthStencil(pCmdBuf,
-                                                              image,
-                                                              transition.imageInfo.newLayout,
-                                                              pMsaaState,
-                                                              transition.imageInfo.pQuadSamplePattern,
-                                                              subresRange);
-
-                        pMsaaState->Destroy();
-                        PAL_SAFE_FREE(pMsaaState, &allocator);
-                    }
+                    // DB blit to resummarize.
+                    RsrcProcMgr().ResummarizeDepthStencil(pCmdBuf,
+                                                          image,
+                                                          transition.imageInfo.newLayout,
+                                                          transition.imageInfo.pQuadSamplePattern,
+                                                          subresRange);
 
                     issuedBlt = true;
                 }
@@ -571,21 +511,12 @@ void Device::ExpandColor(
             pOperations->layoutTransitions.dccDecompress = 1;
             DescribeBarrier(pCmdBuf, &transition, pOperations);
 
-            LinearAllocatorAuto<VirtualLinearAllocator> allocator(pCmdBuf->Allocator(), false);
-            IMsaaState* pMsaaState = BarrierMsaaState(this, pCmdBuf, &allocator, transition);
+            RsrcProcMgr().DccDecompress(pCmdBuf,
+                                        pCmdStream,
+                                        gfx9Image,
+                                        transition.imageInfo.pQuadSamplePattern,
+                                        subresRange);
 
-            if (pMsaaState != nullptr)
-            {
-                RsrcProcMgr().DccDecompress(pCmdBuf,
-                                            pCmdStream,
-                                            gfx9Image,
-                                            pMsaaState,
-                                            transition.imageInfo.pQuadSamplePattern,
-                                            subresRange);
-
-                pMsaaState->Destroy();
-                PAL_SAFE_FREE(pMsaaState, &allocator);
-            }
         }
         else if (fmaskDecompress)
         {
@@ -613,21 +544,11 @@ void Device::ExpandColor(
             pOperations->layoutTransitions.fmaskDecompress = 1;
             DescribeBarrier(pCmdBuf, &transition, pOperations);
 
-            LinearAllocatorAuto<VirtualLinearAllocator> allocator(pCmdBuf->Allocator(), false);
-            IMsaaState* pMsaaState = BarrierMsaaState(this, pCmdBuf, &allocator, transition);
-
-            if (pMsaaState != nullptr)
-            {
-                RsrcProcMgr().FmaskDecompress(pCmdBuf,
-                                              pCmdStream,
-                                              gfx9Image,
-                                              pMsaaState,
-                                              transition.imageInfo.pQuadSamplePattern,
-                                              subresRange);
-
-                pMsaaState->Destroy();
-                PAL_SAFE_FREE(pMsaaState, &allocator);
-            }
+            RsrcProcMgr().FmaskDecompress(pCmdBuf,
+                                          pCmdStream,
+                                          gfx9Image,
+                                          transition.imageInfo.pQuadSamplePattern,
+                                          subresRange);
         }
         else if (fastClearEliminate)
         {
@@ -641,22 +562,13 @@ void Device::ExpandColor(
             pOperations->layoutTransitions.fastClearEliminate = 1;
             DescribeBarrier(pCmdBuf, &transition, pOperations);
 
-            LinearAllocatorAuto<VirtualLinearAllocator> allocator(pCmdBuf->Allocator(), false);
-            IMsaaState* pMsaaState = BarrierMsaaState(this, pCmdBuf, &allocator, transition);
+            // Note: if FCE is not submitted to GPU, we don't need to update cache flags.
+            fastClearEliminate = RsrcProcMgr().FastClearEliminate(pCmdBuf,
+                                                                  pCmdStream,
+                                                                  gfx9Image,
+                                                                  transition.imageInfo.pQuadSamplePattern,
+                                                                  subresRange);
 
-            if (pMsaaState != nullptr)
-            {
-                // Note: if FCE is not submitted to GPU, we don't need to update cache flags.
-                fastClearEliminate = RsrcProcMgr().FastClearEliminate(pCmdBuf,
-                                                                      pCmdStream,
-                                                                      gfx9Image,
-                                                                      pMsaaState,
-                                                                      transition.imageInfo.pQuadSamplePattern,
-                                                                      subresRange);
-
-                pMsaaState->Destroy();
-                PAL_SAFE_FREE(pMsaaState, &allocator);
-            }
         }
     }
 
@@ -679,11 +591,14 @@ void Device::ExpandColor(
             PAL_ASSERT(pCmdBuf->IsGraphicsSupported());
 
             uint32* pCmdSpace = pCmdStream->ReserveCommands();
-            pCmdSpace += m_cmdUtil.BuildWaitOnReleaseMemEvent(engineType,
-                                                              CACHE_FLUSH_AND_INV_TS_EVENT,
-                                                              TcCacheOp::Nop,
-                                                              pCmdBuf->TimestampGpuVirtAddr(),
-                                                              pCmdSpace);
+
+            {
+                pCmdSpace += m_cmdUtil.BuildWaitOnReleaseMemEventTs(engineType,
+                                                                    CACHE_FLUSH_AND_INV_TS_EVENT,
+                                                                    TcCacheOp::Nop,
+                                                                    pCmdBuf->TimestampGpuVirtAddr(),
+                                                                    pCmdSpace);
+            }
             pCmdStream->CommitCommands(pCmdSpace);
         }
 
@@ -867,15 +782,19 @@ void Device::IssueSyncs(
         }
         pOperations->pipelineStalls.eopTsBottomOfPipe       = 1;
         pOperations->pipelineStalls.waitOnTs                = 1;
-        pCmdSpace += m_cmdUtil.BuildWaitOnReleaseMemEvent(engineType,
-                                                          eopEvent,
-                                                          SelectTcCacheOp(&syncReqs.cacheFlags),
-                                                          pCmdBuf->TimestampGpuVirtAddr(),
-                                                          pCmdSpace);
-        pCmdBuf->SetPrevCmdBufInactive();
 
-        // WriteWaitOnEopEvent waits in the ME, if the waitPoint needs to stall at the PFP request a PFP/ME sync.
-        syncReqs.pfpSyncMe = (waitPoint == HwPipeTop);
+        {
+            pCmdSpace += m_cmdUtil.BuildWaitOnReleaseMemEventTs(engineType,
+                                                                eopEvent,
+                                                                SelectTcCacheOp(&syncReqs.cacheFlags),
+                                                                pCmdBuf->TimestampGpuVirtAddr(),
+                                                                pCmdSpace);
+
+            // WriteWaitOnEopEvent waits in the ME, if the waitPoint needs to stall at the PFP request a PFP/ME sync.
+            syncReqs.pfpSyncMe = (waitPoint == HwPipeTop);
+        }
+
+        pCmdBuf->SetPrevCmdBufInactive();
 
         // The previous sync has already ensured that the graphics contexts are idle and all CS waves have completed.
         syncReqs.cpMeCoherCntl.u32All &= ~CpMeCoherCntlStallMask;
@@ -900,7 +819,10 @@ void Device::IssueSyncs(
             if (syncReqs.psPartialFlush)
             {
                 // Waits in the CP ME for all previously issued PS waves to complete.
-                pCmdSpace += m_cmdUtil.BuildNonSampleEventWrite(PS_PARTIAL_FLUSH, engineType, pCmdSpace);
+                {
+                    pCmdSpace += m_cmdUtil.BuildNonSampleEventWrite(PS_PARTIAL_FLUSH, engineType, pCmdSpace);
+                }
+
                 pOperations->pipelineStalls.psPartialFlush = 1;
             }
         }
@@ -908,7 +830,10 @@ void Device::IssueSyncs(
         if (syncReqs.csPartialFlush)
         {
             // Waits in the CP ME for all previously issued CS waves to complete.
-            pCmdSpace += m_cmdUtil.BuildWaitCsIdle(engineType, pCmdBuf->TimestampGpuVirtAddr(), pCmdSpace);
+            {
+                pCmdSpace += m_cmdUtil.BuildWaitCsIdle(engineType, pCmdBuf->TimestampGpuVirtAddr(), pCmdSpace);
+            }
+
             pOperations->pipelineStalls.csPartialFlush = 1;
         }
     }

@@ -244,6 +244,7 @@ Result PAL_STDCALL CreatePlatform(
                                                allocCb,
                                                pCurPlatform,
                                                pCorePlatform->PlatformSettings().gpuProfilerMode,
+                                               pCorePlatform->PlatformSettings().gpuProfilerConfig.targetApplication,
                                                pPlacementAddr,
                                                &pCurPlatform);
     }

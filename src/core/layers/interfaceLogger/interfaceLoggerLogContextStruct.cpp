@@ -25,6 +25,7 @@
 
 #if PAL_BUILD_INTERFACE_LOGGER
 
+#include "palAssert.h"
 #include "core/layers/interfaceLogger/interfaceLoggerLogContext.h"
 
 using namespace Util;
@@ -566,6 +567,8 @@ void LogContext::Struct(
         Value("disableBusyChunkTracking");
     }
 
+    static_assert(CheckReservedBits<decltype(value.flags)>(32, 29), "Update interfaceLogger!");
+
     EndList();
     KeyAndBeginMap("allocInfo", false);
 
@@ -651,6 +654,12 @@ void LogContext::Struct(
         Value("enableTmz");
     }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 621
+    static_assert(CheckReservedBits<decltype(value.flags)>(32, 21), "Update interfaceLogger!");
+#else
+    static_assert(CheckReservedBits<decltype(value.flags)>(32, 22), "Update interfaceLogger!");
+#endif
+
     EndList();
 
     if (value.pInheritedState != nullptr)
@@ -692,6 +701,13 @@ void LogContext::Struct(
     {
         Value("realtimeComputeUnits");
     }
+
+    if (value.flags.realtimeComputeUnits)
+    {
+        Value("realtimeComputeUnits");
+    }
+
+    static_assert(CheckReservedBits<decltype(value.flags)>(32, 29), "Update interfaceLogger!");
 
     EndList();
     KeyAndObject("cmdAllocator", value.pCmdAllocator);
@@ -984,6 +1000,8 @@ void LogContext::Struct(
         Value("lastPfpaCmd");
     }
 
+    static_assert(CheckReservedBits<decltype(value.flags)>(32, 30), "Update interfaceLogger!");
+
     EndList();
     EndMap();
 }
@@ -1024,6 +1042,14 @@ void LogContext::Struct(
     KeyAndStruct("ms", value.ms);
 #endif
     KeyAndStruct("ps", value.ps);
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 579
+    KeyAndBeginList("flags", true);
+
+    EndList();
+#endif
+    static_assert(CheckReservedBits<decltype(value.flags)>(32, 24), "Update interfaceLogger!");
+
     EndMap();
 }
 
@@ -1037,6 +1063,7 @@ void LogContext::Struct(
     {
         KeyAndStruct("typedBufferInfo", value.typedBufferInfo);
     }
+    static_assert(CheckReservedBits<decltype(value.flags)>(32, 31), "Update interfaceLogger!");
     EndMap();
 }
 
@@ -1291,11 +1318,6 @@ void LogContext::Struct(
         Value("globallyCoherent");
     }
 
-    if (value.gl2Uncached)
-    {
-        Value("gl2Uncached");
-    }
-
     if (value.xdmaBuffer)
     {
         Value("xdmaBuffer");
@@ -1331,10 +1353,71 @@ void LogContext::Struct(
         Value("busAddressable");
     }
 
+    if (value.sdiExternal)
+    {
+        Value("sdiExternal");
+    }
+
+    if (value.sharedViaNtHandle)
+    {
+        Value("sharedViaNtHandle");
+    }
+
+    if (value.peerWritable)
+    {
+        Value("peerWritable");
+    }
+
     if (value.tmzProtected)
     {
         Value("tmzProtected");
     }
+
+    if (value.externalOpened)
+    {
+        Value("externalOpened");
+    }
+
+    if (value.restrictedContent)
+    {
+        Value("restrictedContent");
+    }
+
+    if (value.restrictedAccess)
+    {
+        Value("restrictedAccess");
+    }
+
+    if (value.crossAdapter)
+    {
+        Value("crossAdapter");
+    }
+
+    if (value.cpuInvisible)
+    {
+        Value("cpuInvisible");
+    }
+
+    if (value.gl2Uncached)
+    {
+        Value("gl2Uncached");
+    }
+
+#if ( (PAL_CLIENT_INTERFACE_MAJOR_VERSION>= 569))
+    if (value.mallRangeActive)
+    {
+        Value("mallRangeActive");
+    }
+#endif
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 657
+    if (value.explicitSync)
+    {
+        Value("explicitSync");
+    }
+#endif
+
+    static_assert(CheckReservedBits<GpuMemoryCreateFlags>(32, 5), "Need to update interfaceLogger!");
 
     EndList();
 }
@@ -1416,6 +1499,8 @@ void LogContext::Struct(
     {
         Value("readOnly");
     }
+
+    static_assert(CheckReservedBits<decltype(value.flags)>(32, 31), "Update interfaceLogger!");
 
     EndList();
     EndMap();
@@ -1917,6 +2002,12 @@ void LogContext::Struct(
     {
         Value("occlusionQuery");
     }
+
+    if (value.stateFlags.predication)
+    {
+        Value("predication");
+    }
+    static_assert(CheckReservedBits<decltype(value.stateFlags)>(32, 29), "Update interfaceLogger!");
 
     EndList();
     KeyAndBeginList("colorTargets", false);
@@ -2692,6 +2783,9 @@ void LogContext::Struct(
     KeyAndValue("offset", value.offset);
     KeyAndValue("numNodes", value.numNodes);
     KeyAndValue("boxGrowValue", value.boxGrowValue);
+
+    KeyAndBeginList("flags", true);
+
     if (value.flags.findNearest)
     {
         Value("findNearest");

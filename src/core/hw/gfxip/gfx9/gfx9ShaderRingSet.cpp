@@ -602,9 +602,11 @@ uint32* UniversalRingSet::WriteCommands(
                                                  m_regs.vgtHsOffchipParam.u32All,
                                                  pCmdSpace);
 
-    pCmdSpace = pCmdStream->WriteSetOneConfigReg(Gfx09::mmVGT_GSVS_RING_SIZE,
-                                                 m_regs.vgtGsVsRingSize.u32All,
-                                                 pCmdSpace);
+    {
+        pCmdSpace = pCmdStream->WriteSetOneConfigReg(Gfx09::mmVGT_GSVS_RING_SIZE,
+                                                    m_regs.vgtGsVsRingSize.u32All,
+                                                    pCmdSpace);
+    }
 
     pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderCompute>(mmCOMPUTE_USER_DATA_0 + InternalTblStartReg,
                                                            srdTableBaseLo,

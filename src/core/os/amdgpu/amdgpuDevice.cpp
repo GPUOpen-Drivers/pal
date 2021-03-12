@@ -455,7 +455,7 @@ Device::~Device()
 
     if (m_useDedicatedVmid)
     {
-        m_drmProcs.pfnAmdgpuCsUnreservedVmid(m_hDevice);
+        UnReserveVmid();
     }
 
     if (m_pVamMgr != nullptr)
@@ -526,17 +526,10 @@ Result Device::OsEarlyInit()
 Result Device::OsLateInit()
 {
     Result result = Result::Success;
-    // if we need to require dedicated per-process VMID
-    if (Settings().requestDebugVmid && m_drmProcs.pfnAmdgpuCsReservedVmidisValid())
+    // if we need to require dedicated per-process VMID, do so now
+    if (Settings().requestDebugVmid)
     {
-        if (m_drmProcs.pfnAmdgpuCsReservedVmid(m_hDevice) != 0)
-        {
-            result = Result::ErrorInvalidValue;
-        }
-        else
-        {
-            m_useDedicatedVmid = true;
-        }
+        result = ReserveVmid();
     }
 
     if (static_cast<Platform*>(m_pPlatform)->IsProSemaphoreSupported())
@@ -1113,8 +1106,6 @@ void Device::InitGfx6ChipProperties()
         (m_gpuInfo.ids_flags & AMDGPU_IDS_FLAGS_PREEMPTION) ? 1 : 0;
     m_engineProperties.perEngine[EngineTypeDma].contextSaveAreaSize                     = 0;
     m_engineProperties.perEngine[EngineTypeDma].contextSaveAreaAlignment                = 0;
-
-    m_chipProperties.gfxip.supportCaptureReplay = true;
 }
 
 // =====================================================================================================================
@@ -1236,8 +1227,6 @@ void Device::InitGfx9ChipProperties()
         (m_gpuInfo.ids_flags & AMDGPU_IDS_FLAGS_PREEMPTION) ? 1 : 0;
     m_engineProperties.perEngine[EngineTypeDma].contextSaveAreaSize                     = 0;
     m_engineProperties.perEngine[EngineTypeDma].contextSaveAreaAlignment                = 0;
-
-    m_chipProperties.gfxip.supportCaptureReplay = true;
 }
 
 // =====================================================================================================================
@@ -2287,10 +2276,66 @@ Result Device::FreeBuffer(
 // =====================================================================================================================
 // Call amdgpu to reserve vmid. The SPM_VMID will be updated right before any job is submitted to GPU if there is any
 // VMID reserved.
-Result Device::ReserveVmid() const
+Result Device::ReserveVmid()
 {
-    Result result = CheckResult(m_drmProcs.pfnAmdgpuCsReservedVmid(m_hDevice),
-                                Result::ErrorOutOfMemory);
+    Result result = Result::Unsupported;
+
+    if (m_useDedicatedVmid)
+    {
+        result = Result::Success;
+    }
+    else if (m_drmProcs.pfnAmdgpuVmReserveVmidisValid())
+    {
+        result = CheckResult(m_drmProcs.pfnAmdgpuVmReserveVmid(m_hDevice, /* flags = */ 0),
+                             Result::ErrorOutOfMemory);
+    }
+    else if (m_drmProcs.pfnAmdgpuCsReservedVmidisValid())
+    {
+        result = CheckResult(m_drmProcs.pfnAmdgpuCsReservedVmid(m_hDevice),
+                             Result::ErrorOutOfMemory);
+    }
+    else
+    {
+        PAL_ASSERT_ALWAYS_MSG("No method to reserve vmid");
+    }
+
+    if (result == Result::Success)
+    {
+        m_useDedicatedVmid = true;
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
+// Call amdgpu to unreserve vmid.
+Result Device::UnReserveVmid()
+{
+    Result result = Result::Unsupported;
+
+    if (m_useDedicatedVmid == false)
+    {
+        result = Result::Success;
+    }
+    else if (m_drmProcs.pfnAmdgpuVmUnreserveVmidisValid())
+    {
+        result = CheckResult(m_drmProcs.pfnAmdgpuVmUnreserveVmid(m_hDevice, /* flags = */ 0),
+                             Result::ErrorOutOfMemory);
+    }
+    else if (m_drmProcs.pfnAmdgpuCsUnreservedVmidisValid())
+    {
+        result = CheckResult(m_drmProcs.pfnAmdgpuCsUnreservedVmid(m_hDevice),
+                             Result::ErrorOutOfMemory);
+    }
+    else
+    {
+        PAL_ASSERT_ALWAYS_MSG("No method to unreserve vmid");
+    }
+
+    if (result == Result::Success)
+    {
+        m_useDedicatedVmid = false;
+    }
 
     return result;
 }
@@ -2850,7 +2895,7 @@ Result Device::QueryFenceStatus(
 
 // =====================================================================================================================
 // Call amdgpu to wait for multiple fences
-Result Device::WaitForFences(
+Result Device::WaitForOsFences(
     amdgpu_cs_fence* pFences,
     uint32           fenceCount,
     bool             waitAll,

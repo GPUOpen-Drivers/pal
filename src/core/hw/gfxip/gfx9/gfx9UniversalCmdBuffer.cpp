@@ -909,11 +909,11 @@ void UniversalCmdBuffer::CmdBindPipeline(
             {
                 // Invalidate color caches so upcoming uav exports don't overlap previous normal exports
                 uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
-                pDeCmdSpace += m_cmdUtil.BuildWaitOnReleaseMemEvent(EngineTypeUniversal,
-                                                                    CACHE_FLUSH_AND_INV_TS_EVENT,
-                                                                    TcCacheOp::Nop,
-                                                                    TimestampGpuVirtAddr(),
-                                                                    pDeCmdSpace);
+                pDeCmdSpace += m_cmdUtil.BuildWaitOnReleaseMemEventTs(EngineTypeUniversal,
+                                                                      CACHE_FLUSH_AND_INV_TS_EVENT,
+                                                                      TcCacheOp::Nop,
+                                                                      TimestampGpuVirtAddr(),
+                                                                      pDeCmdSpace);
                 m_deCmdStream.CommitCommands(pDeCmdSpace);
             }
         }
@@ -1990,11 +1990,11 @@ void UniversalCmdBuffer::CmdBindTargets(
 
     if (waitOnMetadataMipTail)
     {
-        pDeCmdSpace += m_cmdUtil.BuildWaitOnReleaseMemEvent(EngineTypeUniversal,
-                                                            BOTTOM_OF_PIPE_TS,
-                                                            TcCacheOp::Nop,
-                                                            TimestampGpuVirtAddr(),
-                                                            pDeCmdSpace);
+        pDeCmdSpace += m_cmdUtil.BuildWaitOnReleaseMemEventTs(EngineTypeUniversal,
+                                                              BOTTOM_OF_PIPE_TS,
+                                                              TcCacheOp::Nop,
+                                                              TimestampGpuVirtAddr(),
+                                                              pDeCmdSpace);
     }
 
     // If next draw(s) that only change D/S targets, don't program CB_RMI_GL2_CACHE_CONTROL and let the state remains.
@@ -4208,11 +4208,11 @@ Result UniversalCmdBuffer::AddPostamble()
         // by draws or dispatches. If we don't wait for idle then the driver might reset and write over that memory
         // before the shaders are done executing.
         didWaitForIdle = true;
-        pDeCmdSpace += m_cmdUtil.BuildWaitOnReleaseMemEvent(GetEngineType(),
-                                                            BOTTOM_OF_PIPE_TS,
-                                                            TcCacheOp::Nop,
-                                                            TimestampGpuVirtAddr(),
-                                                            pDeCmdSpace);
+        pDeCmdSpace += m_cmdUtil.BuildWaitOnReleaseMemEventTs(GetEngineType(),
+                                                              BOTTOM_OF_PIPE_TS,
+                                                              TcCacheOp::Nop,
+                                                              TimestampGpuVirtAddr(),
+                                                              pDeCmdSpace);
 
         // The following ATOMIC_MEM packet increments the done-count for the CE command stream, so that we can probe
         // when the command buffer has completed execution on the GPU.
@@ -4235,11 +4235,11 @@ Result UniversalCmdBuffer::AddPostamble()
         // If we didn't have a CE tracker we still need this wait-for-idle. See the comment above for the reason.
         if (didWaitForIdle == false)
         {
-            pDeCmdSpace += m_cmdUtil.BuildWaitOnReleaseMemEvent(GetEngineType(),
-                                                                BOTTOM_OF_PIPE_TS,
-                                                                TcCacheOp::Nop,
-                                                                TimestampGpuVirtAddr(),
-                                                                pDeCmdSpace);
+            pDeCmdSpace += m_cmdUtil.BuildWaitOnReleaseMemEventTs(GetEngineType(),
+                                                                  BOTTOM_OF_PIPE_TS,
+                                                                  TcCacheOp::Nop,
+                                                                  TimestampGpuVirtAddr(),
+                                                                  pDeCmdSpace);
         }
 
         pDeCmdSpace += CmdUtil::BuildAtomicMem(AtomicOp::AddInt32,
@@ -6127,7 +6127,7 @@ void UniversalCmdBuffer::Gfx10GetColorBinSize(
     Extent2d* pBinSize
     ) const
 {
-    PAL_ASSERT(IsGfx10(m_gfxIpLevel));
+    PAL_ASSERT(IsGfx10Plus(m_gfxIpLevel));
 
     // TODO: This function needs to be updated to look at the pixel shader and determine which outputs are valid in
     //       addition to looking at the bound render targets. Bound render targets may not necessarily get a pixel
@@ -6222,7 +6222,7 @@ void UniversalCmdBuffer::Gfx10GetDepthBinSize(
     Extent2d* pBinSize
     ) const
 {
-    PAL_ASSERT(IsGfx10(m_gfxIpLevel));
+    PAL_ASSERT(IsGfx10Plus(m_gfxIpLevel));
 
     const auto*  pDepthTargetView =
             static_cast<const DepthStencilView*>(m_graphicsState.bindTargets.depthTarget.pDepthStencilView);
@@ -6392,7 +6392,7 @@ uint32* UniversalCmdBuffer::ValidateBinSizes(
             // Go through all the bound color targets and the depth target.
             Extent2d colorBinSize = {};
             Extent2d depthBinSize = {};
-            if (IsGfx10(m_gfxIpLevel))
+            if (IsGfx10Plus(m_gfxIpLevel))
             {
                 // Final bin size is choosen from minimum between Depth, Color and Fmask.
                 Gfx10GetColorBinSize(&colorBinSize); // returns minimum of Color and Fmask

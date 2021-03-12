@@ -256,11 +256,11 @@ void OcclusionQueryPool::OptimizedReset(
 
         if (pCmdBuffer->GetGfxCmdBufState().flags.prevCmdBufActive || pActiveRanges->Overlap(&interval))
         {
-            pCmdSpace += cmdUtil.BuildWaitOnReleaseMemEvent(pCmdBuffer->GetEngineType(),
-                                                            BOTTOM_OF_PIPE_TS,
-                                                            TcCacheOp::Nop,
-                                                            pCmdBuffer->TimestampGpuVirtAddr(),
-                                                            pCmdSpace);
+            pCmdSpace += cmdUtil.BuildWaitOnReleaseMemEventTs(pCmdBuffer->GetEngineType(),
+                                                              BOTTOM_OF_PIPE_TS,
+                                                              TcCacheOp::Nop,
+                                                              pCmdBuffer->TimestampGpuVirtAddr(),
+                                                              pCmdSpace);
 
             // The previous EOP event and wait mean that anything prior to this point, including previous command
             // buffers on this queue, have completed.

@@ -865,7 +865,6 @@ namespace Gfx09
     constexpr unsigned int mmSQ_PERFCOUNTER15_HI_DEFAULT                      = 0xCDCDCDCD;
     constexpr unsigned int mmSQ_PERFCOUNTER15_LO_DEFAULT                      = 0xCDCDCDCD;
     constexpr unsigned int mmSQ_PERFCOUNTER15_SELECT_DEFAULT                  = 0xF0FF000;
-    constexpr unsigned int mmSQ_PERFCOUNTER_CTRL_DEFAULT                      = 0x0000;
     constexpr unsigned int mmSQ_PERFCOUNTER_MASK_DEFAULT                      = 0xFFFFFFFF;
     constexpr unsigned int mmSQ_POWER_THROTTLE2_DEFAULT                       = 0x18800004;
     constexpr unsigned int mmSQ_POWER_THROTTLE_DEFAULT                        = 0x3FFF3FFF;
@@ -3798,6 +3797,7 @@ namespace NotGfx10
     constexpr unsigned int mmSPI_WCL_PIPE_PERCENT_CS6_DEFAULT                 = 0x007F;
     constexpr unsigned int mmSPI_WCL_PIPE_PERCENT_CS7_DEFAULT                 = 0x007F;
     constexpr unsigned int mmSQ_IND_DATA_DEFAULT                              = 0xCDCDCDCD;
+    constexpr unsigned int mmSQ_PERFCOUNTER_CTRL_DEFAULT                      = 0x0000;
     constexpr unsigned int mmSQ_THREAD_TRACE_USERDATA_0_DEFAULT               = 0xCDCDCDCD;
     constexpr unsigned int mmSQ_THREAD_TRACE_USERDATA_1_DEFAULT               = 0xCDCDCDCD;
     constexpr unsigned int mmSQ_THREAD_TRACE_USERDATA_2_DEFAULT               = 0xCDCDCDCD;

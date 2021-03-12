@@ -1125,20 +1125,20 @@ bool Image::DoesImageSupportCopyCompression() const
 {
     const Platform&   platform            = *m_device.GetPlatform();
     const GfxIpLevel  gfxLevel            = m_device.ChipProperties().gfxLevel;
-    const ChNumFormat createFormat        = m_createInfo.swizzledFormat.format;
+    ChNumFormat       copyFormat          = m_createInfo.swizzledFormat.format;
     bool              supportsCompression = true;
 
     if (gfxLevel == GfxIpLevel::GfxIp9)
     {
         const auto*const      pFmtInfo        = MergedChannelFmtInfoTbl(gfxLevel, &platform.PlatformSettings());
-        const BUF_DATA_FORMAT hwBufferDataFmt = HwBufDataFmt(pFmtInfo, createFormat);
+        const BUF_DATA_FORMAT hwBufferDataFmt = HwBufDataFmt(pFmtInfo, copyFormat);
 
         supportsCompression = (hwBufferDataFmt != BUF_DATA_FORMAT_INVALID);
     }
     else
     {
         const auto*const pFmtInfo       = MergedChannelFlatFmtInfoTbl(gfxLevel, &platform.PlatformSettings());
-        const BUF_FMT    hwBufferFormat = HwBufFmt(pFmtInfo, createFormat);
+        const BUF_FMT    hwBufferFormat = HwBufFmt(pFmtInfo, copyFormat);
 
         supportsCompression = (hwBufferFormat != BUF_FMT_INVALID);
     }
@@ -4104,6 +4104,66 @@ bool Image::NeedFlushForMetadataPipeMisalignment(
 
     return result;
 #endif
+}
+
+// =====================================================================================================================
+// We need reset the base level when the block szie is larger than the mip chain, e.g:
+// Uncompressed pixels          Compressed block sizes (astc8x8)
+//  mip0:       604 x 604                 80 x 80
+//  mip1:       302 x 302                 40 x 40
+//  mip2:       151 x 151                 20 x 20
+//  mip3:        75 x  75                 10 x 10
+//  mip4:        37 x  37                  5 x 5
+//  mip5:        18 x  18                  2 x 2
+// For mip5, if we don't compute the non-BC view, HW will get 2 according to the mip chain.
+// To fix it, we need call Addr2ComputeNonBlockCompressedView for it.
+gpusize Image::ComputeNonBlockCompressedView(
+    const SubResourceInfo* pBaseSubResInfo,
+    const SubResourceInfo* pMipSubResInfo,
+    uint32*                pMipLevels,  // Out: Number of mips in the view
+    uint32*                pMipId,      // Out: First mip in the view
+    Extent3d*              pExtent      // Out: width/height of the first mip in the view
+    )const
+{
+    ADDR2_COMPUTE_SLICE_PIPEBANKXOR_INPUT  inSliceXor      = { 0 };
+    ADDR2_COMPUTE_SLICE_PIPEBANKXOR_OUTPUT outSliceXor     = { 0 };
+    const auto*const                       pParent         = Parent();
+    const ImageCreateInfo&                 imageCreateInfo = pParent->GetImageCreateInfo();
+    Pal::Device*                           pDevice         = pParent->GetDevice();
+    const auto*const                       pAddrOutput     = GetAddrOutput(pBaseSubResInfo);
+    const auto&                            surfSetting     = GetAddrSettings(pBaseSubResInfo);
+    // 2D image only
+    PAL_ASSERT(surfSetting.resourceType == ADDR_RSRC_TEX_2D);
+
+    ADDR2_COMPUTE_NONBLOCKCOMPRESSEDVIEW_INPUT nbcIn = {};
+    nbcIn.size         = sizeof(nbcIn);
+
+    nbcIn.swizzleMode  = surfSetting.swizzleMode;
+    nbcIn.resourceType = surfSetting.resourceType;
+    nbcIn.format       = Pal::Image::GetAddrFormat(imageCreateInfo.swizzledFormat.format);
+    nbcIn.width        = pBaseSubResInfo->extentTexels.width;
+    nbcIn.height       = pBaseSubResInfo->extentTexels.height;
+    nbcIn.numSlices    = imageCreateInfo.arraySize;
+    nbcIn.numMipLevels = imageCreateInfo.mipLevels;
+    nbcIn.slice        = pMipSubResInfo->subresId.arraySlice;
+    nbcIn.mipId        = pMipSubResInfo->subresId.mipLevel;
+
+    ADDR2_COMPUTE_NONBLOCKCOMPRESSEDVIEW_OUTPUT nbcOut = {};
+    nbcOut.size = sizeof(nbcOut);
+
+    ADDR_E_RETURNCODE addrResult = Addr2ComputeNonBlockCompressedView(pDevice->AddrLibHandle(), &nbcIn, &nbcOut);
+    PAL_ASSERT(addrResult == ADDR_OK);
+
+    pExtent->width = nbcOut.unalignedWidth;
+    pExtent->height = nbcOut.unalignedHeight;
+    *pMipLevels  = nbcOut.numMipLevels;
+    *pMipId = nbcOut.mipId;
+
+    const gpusize gpuVirtAddress = pParent->GetGpuVirtualAddr() + nbcOut.offset;
+    const gpusize pipeBankXor    = nbcOut.pipeBankXor;
+    const gpusize addrWithXor    = gpuVirtAddress | (pipeBankXor<< 8);
+
+    return (addrWithXor >> 8);
 }
 
 // =====================================================================================================================

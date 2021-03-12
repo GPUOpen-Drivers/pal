@@ -115,7 +115,8 @@ PresentScheduler::PresentScheduler(
     :
     m_pDevice(pDevice),
     m_pSignalQueue(nullptr),
-    m_workerActive(false)
+    m_workerActive(false),
+    m_previousPresentResult(Result::Success)
 {
     for (uint32 deviceIndex = 0; deviceIndex < XdmaMaxDevices; deviceIndex++)
     {
@@ -369,6 +370,12 @@ Result PresentScheduler::Present(
             const Result cleanupResult = FailedToQueuePresentJob(presentInfo, pQueue);
             result = CollapseResults(result, cleanupResult);
         }
+        else
+        {
+            // If we succesfully queued the job, report the result of previous job to the client so they can
+            // handle any presentation errors.
+            result = m_previousPresentResult;
+        }
     }
 
     return result;
@@ -496,6 +503,7 @@ void PresentScheduler::RunWorkerThread()
                     PAL_ALERT(IsErrorResult(waitResult) || (waitResult == Result::Timeout));
 #endif
                     const Result presentResult = ProcessPresent(pJob->GetPresentInfo(), pJob->GetQueue(), false);
+                    m_previousPresentResult    = presentResult;
                     PAL_ALERT(IsErrorResult(presentResult));
                 }
 

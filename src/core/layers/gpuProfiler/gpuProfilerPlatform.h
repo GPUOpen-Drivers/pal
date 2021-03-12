@@ -49,6 +49,7 @@ public:
         const Util::AllocCallbacks& allocCb,
         IPlatform*                  pNextPlatform,
         GpuProfilerMode             mode,
+        const char*                 pTargetApp,
         void*                       pPlacementAddr,
         IPlatform**                 ppPlatform);
 

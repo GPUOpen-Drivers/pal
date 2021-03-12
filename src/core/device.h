@@ -414,7 +414,8 @@ struct GpuEngineProperties
                 uint32 supportsTrackBusyChunks         :  1;
                 uint32 supportsUnmappedPrtPageAccess   :  1;
                 uint32 memory32bPredicationEmulated    :  1;
-                uint32 reserved                        :  8;
+                uint32 reserved1                       :  1;
+                uint32 reserved                        :  7;
             };
             uint32 u32All;
         } flags;
@@ -726,9 +727,9 @@ struct GpuChipProperties
             uint32 supportGl2Uncached          :  1; // Indicates support for the allocation of GPU L2
                                                      // un-cached memory. See gl2UncachedCpuCoherency
             uint32 supportsVrs                 :  1; // Indicates support for variable rate shading
-            uint32 reserved2                   :  1;
+            uint32 reserved2                   :  2;
             uint32 supportCaptureReplay        :  1; // Indicates support for Capture Replay
-            uint32 reserved                    : 29;
+            uint32 reserved                    : 28;
         };
     } gfxip;
 #endif
@@ -2495,6 +2496,9 @@ PAL_INLINE bool IsNavi10(const Device& device)
 {
     return AMDGPU_IS_NAVI10(device.ChipProperties().familyId, device.ChipProperties().eRevId);
 }
+
+// The ASICs for are still referred within the interface and null backend.
+// So we still keep identification suppport for them though they're no longer supported
 PAL_INLINE bool IsNavi14(const Device& device)
 {
     return AMDGPU_IS_NAVI14(device.ChipProperties().familyId, device.ChipProperties().eRevId);
@@ -2516,6 +2520,10 @@ PAL_INLINE bool IsNavi2x(const Device& device)
             || IsNavi21(device)
            );
 }
+
+// The ASICs are still referred within the interface and null backend.
+// So we still keep identification suppport for them though they're no longer supported.
+
 PAL_INLINE bool IsGfx103(GfxIpLevel gfxLevel)
 {
     return (gfxLevel == GfxIpLevel::GfxIp10_3);

@@ -244,7 +244,7 @@ Result TimestampFence::WaitForFences(
 
         if (count > 0)
         {
-            result = amdgpuDevice.WaitForFences(&fenceList[0], count, waitAll, timeout);
+            result = amdgpuDevice.WaitForOsFences(&fenceList[0], count, waitAll, timeout);
         }
         else
         {

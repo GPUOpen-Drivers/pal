@@ -374,7 +374,9 @@ void PipelineChunkVsPs::LateInit(
         pUploader->AddCtxReg(mmVGT_PRIMITIVEID_EN,        m_regs.context.vgtPrimitiveIdEn);
         pUploader->AddCtxReg(mmPA_SC_SHADER_CONTROL,      m_regs.context.paScShaderControl);
 
-        if (IsGfx9(*m_device.Parent()) || IsGfx10(*m_device.Parent()))
+        const auto& palDevice = *(m_device.Parent());
+        const bool hasVgtStreamOut = (IsGfx9(palDevice) || IsGfx10(palDevice));
+        if (hasVgtStreamOut)
         {
             pUploader->AddCtxReg(Gfx09_10::mmVGT_STRMOUT_CONFIG,        m_regs.context.vgtStrmoutConfig);
             pUploader->AddCtxReg(Gfx09_10::mmVGT_STRMOUT_BUFFER_CONFIG, m_regs.context.vgtStrmoutBufferConfig);
@@ -557,7 +559,9 @@ uint32* PipelineChunkVsPs::WriteContextCommands(
                                                            pCmdSpace);
         }
 
-        if (IsGfx9(*m_device.Parent()) || IsGfx10(*m_device.Parent()))
+        const auto& palDevice = *(m_device.Parent());
+        const bool hasVgtStreamOut = (IsGfx9(palDevice) || IsGfx10(palDevice));
+        if (hasVgtStreamOut)
         {
             pCmdSpace = pCmdStream->WriteSetSeqContextRegs(Gfx09_10::mmVGT_STRMOUT_CONFIG,
                                                            Gfx09_10::mmVGT_STRMOUT_BUFFER_CONFIG,

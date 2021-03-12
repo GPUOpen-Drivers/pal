@@ -117,8 +117,6 @@ protected:
 
     const CmdUploadRingCreateInfo m_createInfo;
 
-    static constexpr GpuHeap CmdUploadRaftHeap = GpuHeap::GpuHeapInvisible;
-
     const bool    m_trackMemoryRefs;   // True if we must track per-submit memory references while uploading.
     const uint32  m_addrAlignBytes;    // Required command stream address alignment.
     const uint32  m_sizeAlignBytes;    // Required command stream size alignment.

@@ -167,6 +167,7 @@ void PAL_STDCALL Platform::CmdBufferLoggerCb(
     case Developer::CallbackType::FreeGpuMemory:
     case Developer::CallbackType::PresentConcluded:
     case Developer::CallbackType::CreateImage:
+    case Developer::CallbackType::SurfRegData:
         break;
     case Developer::CallbackType::BarrierBegin:
         PAL_ASSERT(pCbData != nullptr);

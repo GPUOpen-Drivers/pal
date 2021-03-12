@@ -34,10 +34,12 @@
 #include "core/layers/gpuDebug/gpuDebugQueue.h"
 #include "core/g_palPlatformSettings.h"
 #include "palAutoBuffer.h"
+#include "palFile.h"
 #include "palFormatInfo.h"
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
 #include "palVectorImpl.h"
 #endif
+#include "palSysUtil.h"
 #include <cinttypes>
 
 // This is required because we need the definition of the D3D12DDI_PRESENT_0003 struct in order to make a copy of the
@@ -96,12 +98,29 @@ CmdBuffer::CmdBuffer(
     m_funcTable.pfnCmdDispatchOffset            = CmdDispatchOffset;
     m_funcTable.pfnCmdDispatchMesh              = CmdDispatchMesh;
     m_funcTable.pfnCmdDispatchMeshIndirectMulti = CmdDispatchMeshIndirectMulti;
+
+    memset(&m_surfaceCapture, 0, sizeof(m_surfaceCapture));
+    m_surfaceCapture.actionIdStart = pDevice->GetPlatform()->PlatformSettings().gpuDebugConfig.surfaceCaptureDrawStart;
+    m_surfaceCapture.actionIdCount = pDevice->GetPlatform()->PlatformSettings().gpuDebugConfig.surfaceCaptureDrawCount;
+    m_surfaceCapture.hash          = pDevice->GetPlatform()->PlatformSettings().gpuDebugConfig.surfaceCaptureHash;
 }
 
 // =====================================================================================================================
 CmdBuffer::~CmdBuffer()
 {
     PAL_FREE(m_pTokenStream, m_pDevice->GetPlatform());
+
+    DestroySurfaceCaptureData();
+
+    if (m_surfaceCapture.ppColorTargetDsts != nullptr)
+    {
+        PAL_SAFE_FREE(m_surfaceCapture.ppColorTargetDsts, m_pDevice->GetPlatform());
+    }
+
+    if (m_surfaceCapture.ppGpuMem != nullptr)
+    {
+        PAL_SAFE_FREE(m_surfaceCapture.ppGpuMem, m_pDevice->GetPlatform());
+    }
 }
 
 // =====================================================================================================================
@@ -203,6 +222,36 @@ Result CmdBuffer::Init()
         }
     }
 
+    if (IsSurfaceCaptureEnabled())
+    {
+        const uint32 colorSurfCount = m_surfaceCapture.actionIdCount * MaxColorTargets;
+        if (result == Result::Success)
+        {
+            m_surfaceCapture.ppColorTargetDsts = static_cast<Image**>(
+                PAL_CALLOC(sizeof(Image*) * colorSurfCount,
+                           m_pDevice->GetPlatform(),
+                           AllocInternal));
+
+            if (m_surfaceCapture.ppColorTargetDsts == nullptr)
+            {
+                result = Result::ErrorOutOfMemory;
+            }
+        }
+
+        if (result == Result::Success)
+        {
+            m_surfaceCapture.ppGpuMem = static_cast<IGpuMemory**>(
+                PAL_CALLOC(sizeof(IGpuMemory*) * colorSurfCount,
+                           m_pDevice->GetPlatform(),
+                           AllocInternal));
+
+            if (m_surfaceCapture.ppGpuMem == nullptr)
+            {
+                result = Result::ErrorOutOfMemory;
+            }
+        }
+    }
+
     return result;
 }
 
@@ -290,6 +339,286 @@ void CmdBuffer::AddCacheFlushInv()
 }
 
 // =====================================================================================================================
+// Returns true if surface capture is active at the current point of recording in this command buffer
+bool CmdBuffer::IsSurfaceCaptureActive() const
+{
+    return ((m_surfaceCapture.actionId >= m_surfaceCapture.actionIdStart) &&
+            (m_surfaceCapture.actionId < (m_surfaceCapture.actionIdStart + m_surfaceCapture.actionIdCount)) &&
+            m_surfaceCapture.pipelineMatch);
+}
+
+// =====================================================================================================================
+// Determines if the current pipeline hash matches the surface capture hash
+void CmdBuffer::SurfaceCaptureHashMatch()
+{
+    m_surfaceCapture.pipelineMatch = false;
+
+    if (IsSurfaceCaptureEnabled() &&
+        (m_pBoundPipeline != nullptr))
+    {
+        const PipelineInfo& pipeInfo = m_pBoundPipeline->GetInfo();
+
+        m_surfaceCapture.pipelineMatch =
+            (m_surfaceCapture.hash == 0) ||
+            (pipeInfo.internalPipelineHash.stable == m_surfaceCapture.hash) ||
+            (pipeInfo.internalPipelineHash.unique == m_surfaceCapture.hash);
+
+        for (uint32 i = 0; i < NumShaderTypes; i++)
+        {
+            m_surfaceCapture.pipelineMatch |= (pipeInfo.shader[0].hash.lower == m_surfaceCapture.hash);
+            m_surfaceCapture.pipelineMatch |= (pipeInfo.shader[0].hash.upper == m_surfaceCapture.hash);
+        }
+    }
+}
+
+// =====================================================================================================================
+// Creates images and memory for surface capture and copies data to those images
+void CmdBuffer::CaptureSurfaces()
+{
+    for (uint32 mrt = 0; mrt < m_boundTargets.colorTargetCount; mrt++)
+    {
+        const ColorTargetView* pCtv =
+            static_cast<const ColorTargetView*>(m_boundTargets.colorTargets[mrt].pColorTargetView);
+
+        if (pCtv != nullptr)
+        {
+            const ColorTargetViewCreateInfo& ctvCreateInfo = pCtv->GetCreateInfo();
+
+            if (ctvCreateInfo.flags.isBufferView == false)
+            {
+                const IImage* pSrcImage = ctvCreateInfo.imageInfo.pImage;
+
+                // Create the image object which will hold our captured data
+                ImageCreateInfo imageCreateInfo         = pSrcImage->GetImageCreateInfo();
+                imageCreateInfo.flags.u32All            = 0;
+                imageCreateInfo.usageFlags.u32All       = 0;
+                imageCreateInfo.usageFlags.colorTarget  = 1;
+                imageCreateInfo.tiling                  = ImageTiling::Linear;
+                imageCreateInfo.viewFormatCount         = AllCompatibleFormats;
+                imageCreateInfo.pViewFormats            = nullptr;
+
+                Result result = Result::Success;
+
+                const size_t imageSize = m_pDevice->GetImageSize(imageCreateInfo, &result);
+
+                void* pDstImageMem = nullptr;
+
+                if (result == Result::Success)
+                {
+                    pDstImageMem = PAL_MALLOC(imageSize, m_pDevice->GetPlatform(), AllocInternal);
+
+                    if (pDstImageMem == nullptr)
+                    {
+                        result = Result::ErrorOutOfMemory;
+                    }
+                }
+
+                IImage* pDstImage = nullptr;
+
+                if (result == Result::Success)
+                {
+                    result = m_pDevice->CreateImage(imageCreateInfo, pDstImageMem, &pDstImage);
+                }
+
+                if (result == Result::Success)
+                {
+                    // Create the backing memory for our image and attach it
+                    PAL_ASSERT(pDstImageMem == pDstImage);
+
+                    GpuMemoryRequirements gpuMemReqs = { 0 };
+                    pDstImage->GetGpuMemoryRequirements(&gpuMemReqs);
+
+                    GpuMemoryCreateInfo gpuMemCreateInfo = { 0 };
+                    gpuMemCreateInfo.size       = gpuMemReqs.size;
+                    gpuMemCreateInfo.alignment  = gpuMemReqs.alignment;
+                    gpuMemCreateInfo.vaRange    = VaRange::Default;
+                    gpuMemCreateInfo.priority   = GpuMemPriority::Normal;
+                    gpuMemCreateInfo.heapCount  = 3;
+                    gpuMemCreateInfo.heaps[0]   = GpuHeap::GpuHeapLocal;
+                    gpuMemCreateInfo.heaps[1]   = GpuHeap::GpuHeapGartUswc;
+                    gpuMemCreateInfo.heaps[2]   = GpuHeap::GpuHeapGartCacheable;
+                    const size_t gpuMemSize = m_pDevice->GetGpuMemorySize(gpuMemCreateInfo, &result);
+
+                    void* pGpuMemMem = nullptr;
+                    pGpuMemMem = PAL_MALLOC(gpuMemSize, m_pDevice->GetPlatform(), AllocInternal);
+
+                    if (pGpuMemMem == nullptr)
+                    {
+                        result = Result::ErrorOutOfMemory;
+                    }
+
+                    if (result == Result::Success)
+                    {
+                        IGpuMemory* pGpuMem = nullptr;
+                        result = m_pDevice->CreateGpuMemory(gpuMemCreateInfo, pGpuMemMem, &pGpuMem);
+
+                        if (result == Result::Success)
+                        {
+                            result = pDstImage->BindGpuMemory(pGpuMem, 0);
+
+                            if (result == Result::Success)
+                            {
+                                m_surfaceCapture.ppGpuMem[m_surfaceCapture.gpuMemObjsCount] = pGpuMem;
+                                m_surfaceCapture.gpuMemObjsCount++;
+                            }
+                        }
+                    }
+                }
+
+                // Store the image object pointer in our array of capture data
+                PAL_ASSERT(m_surfaceCapture.actionId > m_surfaceCapture.actionIdStart);
+                const uint32 actionIndex = m_surfaceCapture.actionId - m_surfaceCapture.actionIdStart;
+                PAL_ASSERT(actionIndex < m_surfaceCapture.actionIdCount);
+
+                const uint32 idx = (actionIndex * MaxColorTargets) + mrt;
+
+                PAL_ASSERT(m_surfaceCapture.ppColorTargetDsts[idx] == nullptr);
+                m_surfaceCapture.ppColorTargetDsts[idx] = static_cast<Image*>(pDstImage);
+
+                // Copy
+                if (result == Result::Success)
+                {
+                    ImageLayout srcLayout = { 0 };
+                    srcLayout.usages  = LayoutColorTarget | LayoutCopySrc;
+                    srcLayout.engines = LayoutUniversalEngine;
+
+                    ImageLayout dstLayout = { 0 };
+                    dstLayout.usages  = LayoutCopyDst;
+                    dstLayout.engines = LayoutUniversalEngine;
+
+                    ImageCopyRegion region;
+                    memset(&region, 0, sizeof(region));
+                    region.srcSubres = ctvCreateInfo.imageInfo.baseSubRes;
+                    region.numSlices = ctvCreateInfo.imageInfo.arraySize;
+
+                    const uint32 mipDivisor = (1 << ctvCreateInfo.imageInfo.baseSubRes.mipLevel);
+
+                    region.extent.width  = imageCreateInfo.extent.width / mipDivisor;
+                    region.extent.height = imageCreateInfo.extent.height / mipDivisor;
+                    region.extent.depth  = imageCreateInfo.extent.depth / mipDivisor;
+
+                    CmdCopyImage(*pSrcImage,
+                                 srcLayout,
+                                 *pDstImage,
+                                 dstLayout,
+                                 1,
+                                 &region,
+                                 nullptr,
+                                 0);
+                }
+
+                if (result != Result::Success)
+                {
+                    PAL_DPWARN("Failed to capture RT%d, Error:0x%x", mrt, result);
+                }
+            }
+            else
+            {
+                // Buffer view of RTV
+                PAL_DPWARN("Failed to capture RT%d. Capture of buffer views of RTs is not supported", mrt);
+            }
+        }
+    }
+}
+
+// =====================================================================================================================
+// Writes the data for surface capture to disk.
+// This function must be called only after this command buffer has finished execution.
+void CmdBuffer::OutputSurfaceCapture()
+{
+    Result result = Result::Success;
+    char fileName[512] = {};
+
+    result = m_pDevice->GetPlatform()->CreateLogDir(
+        m_pDevice->GetPlatform()->PlatformSettings().gpuDebugConfig.surfaceCaptureLogDirectory);
+
+    if (result == Result::Success)
+    {
+        Snprintf(fileName, sizeof(fileName), "%s", m_pDevice->GetPlatform()->LogDirPath());
+
+        result = MkDir(&fileName[0]);
+    }
+
+    const size_t endOfString = strlen(&fileName[0]);
+
+    if ((result == Result::Success) || (result == Result::AlreadyExists))
+    {
+        if (m_surfaceCapture.ppColorTargetDsts != nullptr)
+        {
+            for (uint32 action = 0; action < m_surfaceCapture.actionIdCount; action++)
+            {
+                for (uint32 mrt = 0; mrt < MaxColorTargets; mrt++)
+                {
+                    const uint32 idx = (action * MaxColorTargets) + mrt;
+                    Image* pImage    = m_surfaceCapture.ppColorTargetDsts[idx];
+
+                    if (pImage != nullptr)
+                    {
+                        void*  pImageMap = nullptr;
+                        result = pImage->GetBoundMemory()->Map(&pImageMap);
+
+                        if (result == Result::Success)
+                        {
+                            Snprintf(&fileName[endOfString],
+                                sizeof(fileName) - endOfString,
+                                "/Draw%d_RT%d__TS0x%llx.%s",
+                                m_surfaceCapture.actionIdStart + action,
+                                mrt,
+                                GetPerfCpuTime(),
+                                "bin");
+
+                            File outFile;
+                            result = outFile.Open(&(fileName[0]), FileAccessBinary | FileAccessWrite);
+
+                            if ((result == Result::Success) && outFile.IsOpen())
+                            {
+                                outFile.Write(pImageMap, static_cast<size_t>(pImage->GetMemoryLayout().dataSize));
+
+                                outFile.Flush();
+                                outFile.Close();
+                            }
+
+                            pImage->GetBoundMemory()->Unmap();
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+// =====================================================================================================================
+// Deallocates the memory created to hold captured surfaces
+void CmdBuffer::DestroySurfaceCaptureData()
+{
+    if (m_surfaceCapture.ppColorTargetDsts != nullptr)
+    {
+        for (uint32 i = 0; i < (m_surfaceCapture.actionIdCount * MaxColorTargets); i++)
+        {
+            if (m_surfaceCapture.ppColorTargetDsts[i] != nullptr)
+            {
+                m_surfaceCapture.ppColorTargetDsts[i]->Destroy();
+                PAL_SAFE_FREE(m_surfaceCapture.ppColorTargetDsts[i], m_pDevice->GetPlatform());
+            }
+        }
+    }
+
+    if (m_surfaceCapture.ppGpuMem != nullptr)
+    {
+        for (uint32 i = 0; i < m_surfaceCapture.gpuMemObjsCount; i++)
+        {
+            if (m_surfaceCapture.ppGpuMem[i] != nullptr)
+            {
+                m_surfaceCapture.ppGpuMem[i]->Destroy();
+                PAL_SAFE_FREE(m_surfaceCapture.ppGpuMem[i], m_pDevice->GetPlatform());
+            }
+        }
+
+        m_surfaceCapture.gpuMemObjsCount = 0;
+    }
+}
+
+// =====================================================================================================================
 Result CmdBuffer::Reset(
     ICmdAllocator* pCmdAllocator,
     bool           returnGpuMemory)
@@ -304,6 +633,11 @@ Result CmdBuffer::Reset(
     m_releaseTokenList.Clear();
     m_numReleaseTokens = 0;
 #endif
+
+    m_surfaceCapture.actionId = 0;
+
+    DestroySurfaceCaptureData();
+
     return GetNextLayer()->Reset(NextCmdAllocator(pCmdAllocator), returnGpuMemory);
 }
 
@@ -458,6 +792,8 @@ void CmdBuffer::CmdBindPipeline(
     const PipelineBindParams& params)
 {
     m_pBoundPipeline = params.pPipeline;
+
+    SurfaceCaptureHashMatch();
 
     InsertToken(CmdBufCallId::CmdBindPipeline);
     InsertToken(params);
@@ -1363,17 +1699,35 @@ void CmdBuffer::HandleDrawDispatch(
     }
     else
     {
+        bool cacheFlushInv = (isDraw) ? TestAnyFlagSet(m_cacheFlushInvOnAction, AfterDraw) :
+                                        TestAnyFlagSet(m_cacheFlushInvOnAction, AfterDispatch);
 
-        const bool cacheFlushInv = (isDraw) ? TestAnyFlagSet(m_cacheFlushInvOnAction, AfterDraw) :
-                                              TestAnyFlagSet(m_cacheFlushInvOnAction, AfterDispatch);
+        if (isDraw)
+        {
+            if (IsSurfaceCaptureActive())
+            {
+                cacheFlushInv = true;
+            }
+        }
 
         if (cacheFlushInv)
         {
             AddCacheFlushInv();
         }
 
+        if (IsSurfaceCaptureActive())
+        {
+            CaptureSurfaces();
+        }
+
+        if (isDraw && m_surfaceCapture.pipelineMatch)
+        {
+            m_surfaceCapture.actionId++;
+        }
+
         const bool timestampAndWait = (isDraw) ? TestAnyFlagSet(m_singleStep, TimestampAndWaitDraws) :
                                                  TestAnyFlagSet(m_singleStep, TimestampAndWaitDispatches);
+
         if (timestampAndWait)
         {
             AddSingleStepBarrier(m_counter);

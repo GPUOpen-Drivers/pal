@@ -214,6 +214,7 @@ public:
         const PresentDirectInfo& presentInfo) override;
     virtual Result PresentSwapChain(
         const PresentSwapChainInfo& presentInfo) override;
+
     virtual Result Delay(
         float delay) override;
     virtual Result RemapVirtualMemoryPages(

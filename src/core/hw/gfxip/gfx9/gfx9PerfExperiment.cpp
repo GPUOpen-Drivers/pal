@@ -1932,8 +1932,8 @@ void PerfExperiment::IssueBegin(
                 sqPerfCounterCtrl.bits.HS_EN     = ((m_createInfo.optionValues.sqShaderMask & PerfShaderMaskHs) != 0);
                 sqPerfCounterCtrl.bits.CS_EN     = ((m_createInfo.optionValues.sqShaderMask & PerfShaderMaskCs) != 0);
                 {
-                    sqPerfCounterCtrl.gfx10Core.LS_EN = ((m_createInfo.optionValues.sqShaderMask & PerfShaderMaskLs) != 0);
-                    sqPerfCounterCtrl.gfx10Core.ES_EN = ((m_createInfo.optionValues.sqShaderMask & PerfShaderMaskEs) != 0);
+                    sqPerfCounterCtrl.most.LS_EN = ((m_createInfo.optionValues.sqShaderMask & PerfShaderMaskLs) != 0);
+                    sqPerfCounterCtrl.most.ES_EN = ((m_createInfo.optionValues.sqShaderMask & PerfShaderMaskEs) != 0);
                 }
             }
             else
@@ -1945,8 +1945,8 @@ void PerfExperiment::IssueBegin(
                 sqPerfCounterCtrl.bits.HS_EN     = 1;
                 sqPerfCounterCtrl.bits.CS_EN     = 1;
                 {
-                    sqPerfCounterCtrl.gfx10Core.LS_EN = 1;
-                    sqPerfCounterCtrl.gfx10Core.ES_EN = 1;
+                    sqPerfCounterCtrl.most.LS_EN = 1;
+                    sqPerfCounterCtrl.most.ES_EN = 1;
                 }
             }
 

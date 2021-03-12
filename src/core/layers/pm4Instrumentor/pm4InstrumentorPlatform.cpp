@@ -52,6 +52,7 @@ static void PAL_STDCALL Pm4InstrumentorCb(
     {
     case Developer::CallbackType::AllocGpuMemory:
     case Developer::CallbackType::FreeGpuMemory:
+    case Developer::CallbackType::SurfRegData:
         break;
     case Developer::CallbackType::PresentConcluded:
         pThis->NotifyPresentOcurred();

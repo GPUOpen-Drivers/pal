@@ -1299,7 +1299,6 @@ uint32 RsrcProcMgr::DecodeImageViewSrdPlane(
 bool RsrcProcMgr::ExpandDepthStencil(
     GfxCmdBuffer*                pCmdBuffer,
     const Pal::Image&            image,
-    const IMsaaState*            pMsaaState,
     const MsaaQuadSamplePattern* pQuadSamplePattern,
     const SubresRange&           range
     ) const
@@ -1458,7 +1457,7 @@ bool RsrcProcMgr::ExpandDepthStencil(
         }
 #endif
         // Do the expand the legacy way.
-        Pal::RsrcProcMgr::ExpandDepthStencil(pCmdBuffer, image, pMsaaState, pQuadSamplePattern, range);
+        Pal::RsrcProcMgr::ExpandDepthStencil(pCmdBuffer, image, pQuadSamplePattern, range);
     }
 
     return usedCompute;
@@ -2178,8 +2177,7 @@ void RsrcProcMgr::HwlDepthStencilClear(
                 // Expand first if depth plane is not fully expanded.
                 if (ImageLayoutToDepthCompressionState(layoutToState, depthLayout) != DepthStencilDecomprNoHiZ)
                 {
-                    // No MSAA state is necessary here because this is a compute path.
-                    ExpandDepthStencil(pCmdBuffer, *pParent, nullptr, nullptr, pRanges[idx]);
+                    ExpandDepthStencil(pCmdBuffer, *pParent, nullptr, pRanges[idx]);
                 }
 
                 // For Depth slow clears, we use a float clear color.
@@ -2197,8 +2195,7 @@ void RsrcProcMgr::HwlDepthStencilClear(
                 // Expand first if stencil plane is not fully expanded.
                 if (ImageLayoutToDepthCompressionState(layoutToState, stencilLayout) != DepthStencilDecomprNoHiZ)
                 {
-                    // No MSAA state is necessary here because this is a compute path.
-                    ExpandDepthStencil(pCmdBuffer, *pParent, nullptr, nullptr, pRanges[idx]);
+                    ExpandDepthStencil(pCmdBuffer, *pParent, nullptr, pRanges[idx]);
                 }
 
                 // For Stencil plane we use the stencil value directly.
@@ -3087,7 +3084,6 @@ void RsrcProcMgr::DccDecompress(
     GfxCmdBuffer*                pCmdBuffer,
     Pal::CmdStream*              pCmdStream,
     const Image&                 image,
-    const IMsaaState*            pMsaaState,
     const MsaaQuadSamplePattern* pQuadSamplePattern,
     const SubresRange&           range
     ) const
@@ -3134,7 +3130,6 @@ void RsrcProcMgr::DccDecompress(
             GenericColorBlit(pCmdBuffer,
                              *image.Parent(),
                              range,
-                             *pMsaaState,
                              pQuadSamplePattern,
                              RpmGfxPipeline::DccDecompress,
                              pGpuMem,
@@ -3164,7 +3159,6 @@ bool RsrcProcMgr::FastClearEliminate(
     GfxCmdBuffer*                pCmdBuffer,
     Pal::CmdStream*              pCmdStream,
     const Image&                 image,
-    const IMsaaState*            pMsaaState,
     const MsaaQuadSamplePattern* pQuadSamplePattern,
     const SubresRange&           range
     ) const
@@ -3184,7 +3178,7 @@ bool RsrcProcMgr::FastClearEliminate(
     }
 
     // Execute a generic CB blit using the fast-clear Eliminate pipeline.
-    GenericColorBlit(pCmdBuffer, *image.Parent(), range, *pMsaaState,
+    GenericColorBlit(pCmdBuffer, *image.Parent(), range,
                      pQuadSamplePattern, RpmGfxPipeline::FastClearElim, pGpuMem, metaDataOffset);
     // Clear the FCE meta data over the given range because those mips must now be FCEd.
     if (image.GetFastClearEliminateMetaDataAddr(range.startSubres) != 0)
@@ -3414,7 +3408,6 @@ void RsrcProcMgr::FmaskDecompress(
     GfxCmdBuffer*                pCmdBuffer,
     Pal::CmdStream*              pCmdStream,
     const Image&                 image,
-    const IMsaaState*            pMsaaState,
     const MsaaQuadSamplePattern* pQuadSamplePattern,
     const SubresRange&           range
     ) const
@@ -3426,7 +3419,7 @@ void RsrcProcMgr::FmaskDecompress(
     PAL_ASSERT((range.startSubres.mipLevel == 0) && (range.numMips == 1));
 
     // Execute a generic CB blit using the appropriate FMask Decompress pipeline.
-    GenericColorBlit(pCmdBuffer, *image.Parent(), range, *pMsaaState,
+    GenericColorBlit(pCmdBuffer, *image.Parent(), range,
                      pQuadSamplePattern, RpmGfxPipeline::FmaskDecompress, nullptr, 0);
 
     // Clear the FCE meta data over the given range because an FMask decompress implies a FCE.
@@ -4000,7 +3993,8 @@ void RsrcProcMgr::CmdCopyMemoryToImage(
     const ImageCreateInfo& createInfo = dstImage.GetImageCreateInfo();
 
     if (Formats::IsBlockCompressed(createInfo.swizzledFormat.format) &&
-        (createInfo.mipLevels > 1))
+        (createInfo.mipLevels > 1) &&
+        ((m_pDevice->Parent()->ChipProperties().gfxLevel == GfxIpLevel::GfxIp9) || (createInfo.imageType !=  ImageType::Tex2d)))
     {
         // Unlike in the image-to-memory counterpart function, we don't have to wait for the above compute shader
         // to finish because the unaddressable image pixels can not be written, so there's no write conflicts.
@@ -7424,11 +7418,11 @@ void Gfx10RsrcProcMgr::CopyVrsIntoHtile(
     // in the shader caches.
     uint32* pCmdSpace = pCmdStream->ReserveCommands();
     pCmdSpace += CmdUtil::BuildNonSampleEventWrite(FLUSH_AND_INV_DB_META, pCmdBuffer->GetEngineType(), pCmdSpace);
-    pCmdSpace += m_cmdUtil.BuildWaitOnReleaseMemEvent(pCmdBuffer->GetEngineType(),
-                                                      BOTTOM_OF_PIPE_TS,
-                                                      TcCacheOp::InvL1,
-                                                      pCmdBuffer->TimestampGpuVirtAddr(),
-                                                      pCmdSpace);
+    pCmdSpace += m_cmdUtil.BuildWaitOnReleaseMemEventTs(pCmdBuffer->GetEngineType(),
+                                                        BOTTOM_OF_PIPE_TS,
+                                                        TcCacheOp::InvL1,
+                                                        pCmdBuffer->TimestampGpuVirtAddr(),
+                                                        pCmdSpace);
     pCmdStream->CommitCommands(pCmdSpace);
 
     // The shader we're about to execute makes these assumptions in its source. If these trip we can add more support.

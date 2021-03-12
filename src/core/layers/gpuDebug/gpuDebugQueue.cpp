@@ -477,6 +477,24 @@ Result Queue::Submit(
                 const CmdBufInfo* pCmdBufInfo =
                     (subQueueInfo.pCmdBufInfoList != nullptr) ? &subQueueInfo.pCmdBufInfoList[cmdBufIdx] : nullptr;
                 result = pCmdBuffer->Replay(this, pCmdBufInfo, subQueueIdx);
+
+                const uint32 sufaceCaptureMemCount = pCmdBuffer->GetSurfaceCaptureGpuMemCount();
+                if (sufaceCaptureMemCount > 0)
+                {
+                    AutoBuffer<GpuMemoryRef, 32, Platform> memRefs(sufaceCaptureMemCount, pPlatform);
+
+                    for(uint32 i = 0; i < sufaceCaptureMemCount; i++)
+                    {
+                        memRefs[i].pGpuMemory   = pCmdBuffer->GetSurfaceCaptureGpuMems()[i];
+                        memRefs[i].flags.u32All = 0;
+                    }
+
+                    m_pDevice->AddGpuMemoryReferences(
+                        sufaceCaptureMemCount,
+                        memRefs.Data(),
+                        this,
+                        0);
+                }
             }
 
             totalCmdBufferCount += m_pQueueInfos[subQueueIdx].pNextSubmitCmdBufs->NumElements();
@@ -527,6 +545,39 @@ Result Queue::Submit(
                                      cmdBuffers.Data(),
                                      cmdBufInfoList.Data(),
                                      totalCmdBufferCount);
+            }
+        }
+
+        if (result == Result::Success)
+        {
+            bool idle = false;
+
+            for (uint32 subQueueIdx = 0; subQueueIdx < submitInfo.perSubQueueInfoCount; subQueueIdx++)
+            {
+                const auto& subQueueInfo = submitInfo.pPerSubQueueInfo[subQueueIdx];
+                for (uint32 cmdBufIdx = 0; cmdBufIdx < subQueueInfo.cmdBufferCount; cmdBufIdx++)
+                {
+                    CmdBuffer* pCmdBuffer = static_cast<CmdBuffer*>(subQueueInfo.ppCmdBuffers[cmdBufIdx]);
+
+                    const uint32 sufaceCaptureMemCount = pCmdBuffer->GetSurfaceCaptureGpuMemCount();
+                    if (sufaceCaptureMemCount > 0)
+                    {
+                        if (idle == false)
+                        {
+                            WaitIdle();
+                            idle = true;
+                        }
+                        pCmdBuffer->OutputSurfaceCapture();
+
+                        if (sufaceCaptureMemCount > 0)
+                        {
+                            m_pDevice->RemoveGpuMemoryReferences(
+                                pCmdBuffer->GetSurfaceCaptureGpuMemCount(),
+                                pCmdBuffer->GetSurfaceCaptureGpuMems(),
+                                this);
+                        }
+                    }
+                }
             }
         }
     }

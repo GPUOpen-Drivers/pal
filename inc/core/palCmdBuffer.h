@@ -716,7 +716,7 @@ struct BarrierTransition
         /// grid where the pixel center is <0,0>, the top left corner of the pixel is <-8,-8>, and <7,7> is the maximum
         /// valid position (not quite to the bottom/right border of the pixel).
         /// Specifies a custom sample pattern over a 2x2 pixel quad. Can be left null for non-MSAA images or when
-        /// a valid IMsaaState is bound prior to the CmdBarrier call.
+        /// a valid MsaaQuadSamplePattern is bound prior to the CmdBarrier call.
         const MsaaQuadSamplePattern* pQuadSamplePattern;
     } imageInfo;                      ///< Image-specific transition information.
 };

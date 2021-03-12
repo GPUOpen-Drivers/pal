@@ -130,6 +130,8 @@ void PlatformSettingsLoader::SetupDefaults()
     memset(m_settings.gpuProfilerConfig.logDirectory, 0, 512);
     strncpy(m_settings.gpuProfilerConfig.logDirectory, "amdpal/", 512);
 #endif
+    memset(m_settings.gpuProfilerConfig.targetApplication, 0, 256);
+    strncpy(m_settings.gpuProfilerConfig.targetApplication, "", 256);
     m_settings.gpuProfilerConfig.startFrame = 0;
     m_settings.gpuProfilerConfig.frameCount = 0;
     m_settings.gpuProfilerConfig.recordPipelineStats = false;
@@ -203,6 +205,16 @@ void PlatformSettingsLoader::SetupDefaults()
     m_settings.gpuDebugConfig.singleStep = 0x0;
     m_settings.gpuDebugConfig.cacheFlushInvOnAction = 0x0;
     m_settings.gpuDebugConfig.verificationOptions = 0x1;
+    m_settings.gpuDebugConfig.surfaceCaptureHash = 0;
+    m_settings.gpuDebugConfig.surfaceCaptureDrawStart = 0;
+    m_settings.gpuDebugConfig.surfaceCaptureDrawCount = 0;
+#if   (__unix__)
+    memset(m_settings.gpuDebugConfig.surfaceCaptureLogDirectory, 0, 512);
+    strncpy(m_settings.gpuDebugConfig.surfaceCaptureLogDirectory, "amdpal/", 512);
+#else
+    memset(m_settings.gpuDebugConfig.surfaceCaptureLogDirectory, 0, 512);
+    strncpy(m_settings.gpuDebugConfig.surfaceCaptureLogDirectory, "amdpal/", 512);
+#endif
     m_settings.numSettings = g_palPlatformNumSettings;
 }
 
@@ -417,6 +429,12 @@ void PlatformSettingsLoader::ReadSettings(Pal::Device* pDevice)
                            &m_settings.gpuProfilerConfig.logDirectory,
                            InternalSettingScope::PrivatePalKey,
                            512);
+
+    pDevice->ReadSetting(pGpuProfilerConfig_TargetApplicationStr,
+                           Util::ValueType::Str,
+                           &m_settings.gpuProfilerConfig.targetApplication,
+                           InternalSettingScope::PrivatePalKey,
+                           256);
 
     pDevice->ReadSetting(pGpuProfilerConfig_StartFrameStr,
                            Util::ValueType::Uint,
@@ -708,6 +726,27 @@ void PlatformSettingsLoader::ReadSettings(Pal::Device* pDevice)
                            &m_settings.gpuDebugConfig.verificationOptions,
                            InternalSettingScope::PrivatePalKey);
 
+    pDevice->ReadSetting(pGpuDebugConfig_SurfaceCaptureHashStr,
+                           Util::ValueType::Uint64,
+                           &m_settings.gpuDebugConfig.surfaceCaptureHash,
+                           InternalSettingScope::PrivatePalKey);
+
+    pDevice->ReadSetting(pGpuDebugConfig_SurfaceCaptureDrawStartStr,
+                           Util::ValueType::Uint,
+                           &m_settings.gpuDebugConfig.surfaceCaptureDrawStart,
+                           InternalSettingScope::PrivatePalKey);
+
+    pDevice->ReadSetting(pGpuDebugConfig_SurfaceCaptureDrawCountStr,
+                           Util::ValueType::Uint,
+                           &m_settings.gpuDebugConfig.surfaceCaptureDrawCount,
+                           InternalSettingScope::PrivatePalKey);
+
+    pDevice->ReadSetting(pGpuDebugConfig_SurfaceCaptureLogDirectoryStr,
+                           Util::ValueType::Str,
+                           &m_settings.gpuDebugConfig.surfaceCaptureLogDirectory,
+                           InternalSettingScope::PrivatePalKey,
+                           512);
+
 }
 
 // =====================================================================================================================
@@ -928,6 +967,11 @@ void PlatformSettingsLoader::InitSettingsInfo()
     info.pValuePtr = &m_settings.gpuProfilerConfig.logDirectory;
     info.valueSize = sizeof(m_settings.gpuProfilerConfig.logDirectory);
     m_settingsInfoMap.Insert(602986973, info);
+
+    info.type      = SettingType::String;
+    info.pValuePtr = &m_settings.gpuProfilerConfig.targetApplication;
+    info.valueSize = sizeof(m_settings.gpuProfilerConfig.targetApplication);
+    m_settingsInfoMap.Insert(716949517, info);
 
     info.type      = SettingType::Uint;
     info.pValuePtr = &m_settings.gpuProfilerConfig.startFrame;
@@ -1214,6 +1258,26 @@ void PlatformSettingsLoader::InitSettingsInfo()
     info.valueSize = sizeof(m_settings.gpuDebugConfig.verificationOptions);
     m_settingsInfoMap.Insert(3198774615, info);
 
+    info.type      = SettingType::Uint64;
+    info.pValuePtr = &m_settings.gpuDebugConfig.surfaceCaptureHash;
+    info.valueSize = sizeof(m_settings.gpuDebugConfig.surfaceCaptureHash);
+    m_settingsInfoMap.Insert(2803473291, info);
+
+    info.type      = SettingType::Uint;
+    info.pValuePtr = &m_settings.gpuDebugConfig.surfaceCaptureDrawStart;
+    info.valueSize = sizeof(m_settings.gpuDebugConfig.surfaceCaptureDrawStart);
+    m_settingsInfoMap.Insert(2313928635, info);
+
+    info.type      = SettingType::Uint;
+    info.pValuePtr = &m_settings.gpuDebugConfig.surfaceCaptureDrawCount;
+    info.valueSize = sizeof(m_settings.gpuDebugConfig.surfaceCaptureDrawCount);
+    m_settingsInfoMap.Insert(3264482272, info);
+
+    info.type      = SettingType::String;
+    info.pValuePtr = &m_settings.gpuDebugConfig.surfaceCaptureLogDirectory;
+    info.valueSize = sizeof(m_settings.gpuDebugConfig.surfaceCaptureLogDirectory);
+    m_settingsInfoMap.Insert(1085905498, info);
+
 }
 
 // =====================================================================================================================
@@ -1235,7 +1299,7 @@ void PlatformSettingsLoader::DevDriverRegister()
             component.pfnSetValue = ISettingsLoader::SetValue;
             component.pSettingsData = &g_palPlatformJsonData[0];
             component.settingsDataSize = sizeof(g_palPlatformJsonData);
-            component.settingsDataHash = 3452585443;
+            component.settingsDataHash = 2715351281;
             component.settingsDataHeader.isEncoded = true;
             component.settingsDataHeader.magicBufferId = 402778310;
             component.settingsDataHeader.magicBufferOffset = 0;

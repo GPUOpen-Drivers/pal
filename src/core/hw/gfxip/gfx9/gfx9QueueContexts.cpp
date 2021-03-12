@@ -1540,9 +1540,11 @@ uint32* UniversalQueueContext::WriteUniversalPreamble(
     }
 
     {
-        pCmdSpace = m_deCmdStream.WriteSetOneContextReg(Gfx09_10::mmVGT_OUT_DEALLOC_CNTL,
-                                                        vgtOutDeallocCntl.u32All,
-                                                        pCmdSpace);
+        {
+            pCmdSpace = m_deCmdStream.WriteSetOneContextReg(Gfx09_10::mmVGT_OUT_DEALLOC_CNTL,
+                                                            vgtOutDeallocCntl.u32All,
+                                                            pCmdSpace);
+        }
         pCmdSpace = m_deCmdStream.WriteSetOneContextReg(Gfx09_10::mmCB_DCC_CONTROL,
                                                         cbDccControl.u32All,
                                                         pCmdSpace);
@@ -1557,6 +1559,8 @@ uint32* UniversalQueueContext::WriteUniversalPreamble(
                                                      &paScGenericScissor,
                                                      pCmdSpace);
     pCmdSpace = m_deCmdStream.WriteSetOneContextReg(mmPA_SC_NGG_MODE_CNTL, paScNggModeCntl.u32All, pCmdSpace);
+
+    regPA_CL_NGG_CNTL paClNggCntl = { };
 
     if (chipProps.gfxLevel == GfxIpLevel::GfxIp9)
     {
@@ -1617,8 +1621,6 @@ uint32* UniversalQueueContext::WriteUniversalPreamble(
                                                          &DbBaseHi,
                                                          pCmdSpace);
 
-        regPA_CL_NGG_CNTL paClNggCntl = { };
-
         if (IsGfx103Plus(device))
         {
             paClNggCntl.gfx103Plus.VERTEX_REUSE_DEPTH = 30;
@@ -1649,8 +1651,6 @@ uint32* UniversalQueueContext::WriteUniversalPreamble(
                                                                 pCmdSpace);
             }
         } // if VRS is supported
-
-        pCmdSpace = m_deCmdStream.WriteSetOneContextReg(mmPA_CL_NGG_CNTL, paClNggCntl.u32All, pCmdSpace);
 
         // We use the same programming for VS and PS.
         regSPI_SHADER_REQ_CTRL_VS spiShaderReqCtrl = {};
@@ -1694,6 +1694,8 @@ uint32* UniversalQueueContext::WriteUniversalPreamble(
         }
     } // if Gfx10.x
 
+    pCmdSpace = m_deCmdStream.WriteSetOneContextReg(mmPA_CL_NGG_CNTL, paClNggCntl.u32All, pCmdSpace);
+
     // All of the shader address registers actually represent 40b in the 32b LO registers since they are 256B shifted.
     // Due to the way these are allocated we can safely assume HI portions are 0, saving some record-time SH writes.
     // For VS/PS, only the LOAD path requires this today. The SET path would require splitting up a seq reg range.
@@ -1717,7 +1719,7 @@ uint32* UniversalQueueContext::WriteUniversalPreamble(
 
     if (m_pDevice->Settings().useClearStateToInitialize == false)
     {
-        uint32 PaRegisters1[2] = { static_cast<uint32>(0xaa99aaaa), static_cast<uint32>(0x00000000) };
+        constexpr uint32 PaRegisters1[2] = { 0xaa99aaaa, 0x00000000 };
         pCmdSpace = m_deCmdStream.WriteSetSeqContextRegs(mmPA_SC_EDGERULE,
                                                          mmPA_SU_HARDWARE_SCREEN_OFFSET,
                                                          &PaRegisters1,
@@ -1744,15 +1746,8 @@ uint32* UniversalQueueContext::WriteUniversalPreamble(
                                                          mmPA_SU_PRIM_FILTER_CNTL,
                                                          &PaRegisters3,
                                                          pCmdSpace);
-        constexpr struct
-        {
-            regPA_CL_NGG_CNTL                paClNggCntl;
-            regPA_SU_OVER_RASTERIZATION_CNTL paSuOverRasterizationCntl;
-        } PaRegisters4 = { };
-        pCmdSpace = m_deCmdStream.WriteSetSeqContextRegs(mmPA_CL_NGG_CNTL,
-                                                         mmPA_SU_OVER_RASTERIZATION_CNTL,
-                                                         &PaRegisters4,
-                                                         pCmdSpace);
+
+        pCmdSpace = m_deCmdStream.WriteSetOneContextReg(mmPA_SU_OVER_RASTERIZATION_CNTL, 0x00000000, pCmdSpace);
 
         pCmdSpace = m_deCmdStream.WriteSetOneContextReg(mmVGT_PRIMITIVEID_RESET, 0x00000000, pCmdSpace);
         pCmdSpace = m_deCmdStream.WriteSetOneContextReg(mmPA_SC_CLIPRECT_RULE,   0x0000ffff, pCmdSpace);

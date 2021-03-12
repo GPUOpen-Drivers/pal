@@ -3488,11 +3488,6 @@ Result GpaSession::AcquirePerfExperiment(
                 sqttInfo.optionFlags.threadTraceStallBehavior  = 1;
                 sqttInfo.optionValues.threadTraceStallBehavior = sampleConfig.sqtt.flags.stallMode;
 
-                // Set up the thread trace token mask. Use the minimal mask if queue timing is enabled. The mask will be
-                // updated to a different value at a later time when sample updates are enabled.
-                const ThreadTraceTokenConfig tokenConfig = skipInstTokens ? SqttTokenConfigNoInst :
-                                                                            SqttTokenConfigAllTokens;
-
                 sqttInfo.optionFlags.threadTraceTokenConfig  = 1;
 
                 sqttInfo.optionFlags.threadTraceShaderTypeMask  = 1;
@@ -3546,7 +3541,7 @@ Result GpaSession::AcquirePerfExperiment(
                         }
                         else if((enableDetailedTokens == false) || (skipInstTokens == true))
                         {
-                            sqttInfo.optionValues.threadTraceTokenConfig = tokenConfig;
+                            sqttInfo.optionValues.threadTraceTokenConfig = SqttTokenConfigNoInst;
                         }
                         else
                         {

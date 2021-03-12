@@ -292,11 +292,11 @@ void StreamoutStatsQueryPool::OptimizedReset(
         // Before we initialize out the GPU's destination memory, make sure the ASIC has finished any previous reading
         // and writing of streamout stat data. Command buffers that do not support stats queries do not need to issue
         // this wait because the caller must use semaphores to make sure all queries are complete.
-        pCmdSpace += cmdUtil.BuildWaitOnReleaseMemEvent(pCmdBuffer->GetEngineType(),
-                                                        BOTTOM_OF_PIPE_TS,
-                                                        TcCacheOp::Nop,
-                                                        pCmdBuffer->TimestampGpuVirtAddr(),
-                                                        pCmdSpace);
+        pCmdSpace += cmdUtil.BuildWaitOnReleaseMemEventTs(pCmdBuffer->GetEngineType(),
+                                                          BOTTOM_OF_PIPE_TS,
+                                                          TcCacheOp::Nop,
+                                                          pCmdBuffer->TimestampGpuVirtAddr(),
+                                                          pCmdSpace);
     }
 
     gpusize gpuAddr          = 0;

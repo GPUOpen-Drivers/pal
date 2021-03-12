@@ -835,7 +835,6 @@ void RsrcProcMgr::CmdResolveQueryComputeShader(
 bool RsrcProcMgr::ExpandDepthStencil(
     GfxCmdBuffer*                pCmdBuffer,
     const Pal::Image&            image,
-    const IMsaaState*            pMsaaState,
     const MsaaQuadSamplePattern* pQuadSamplePattern,
     const SubresRange&           range
     ) const
@@ -981,7 +980,7 @@ bool RsrcProcMgr::ExpandDepthStencil(
         }
 #endif
         // Do the expand the legacy way.
-        Pal::RsrcProcMgr::ExpandDepthStencil(pCmdBuffer, image, pMsaaState, pQuadSamplePattern, range);
+        Pal::RsrcProcMgr::ExpandDepthStencil(pCmdBuffer, image, pQuadSamplePattern, range);
     }
 
     return usedCompute;
@@ -1887,8 +1886,7 @@ void RsrcProcMgr::HwlDepthStencilClear(
                 // Expand first if depth plane is not fully expanded.
                 if (ImageLayoutToDepthCompressionState(layoutToState, depthLayout) != DepthStencilDecomprNoHiZ)
                 {
-                    // MSAA state is unnecessary because this is a compute expand.
-                    ExpandDepthStencil(pCmdBuffer, *pParent, nullptr, nullptr, pRanges[idx]);
+                    ExpandDepthStencil(pCmdBuffer, *pParent, nullptr, pRanges[idx]);
                 }
 
                 // For Depth slow clears, we use a float clear color.
@@ -1907,8 +1905,7 @@ void RsrcProcMgr::HwlDepthStencilClear(
                 // Expand first if stencil plane is not fully expanded.
                 if (ImageLayoutToDepthCompressionState(layoutToState, stencilLayout) != DepthStencilDecomprNoHiZ)
                 {
-                    // MSAA state is unnecessary because this is a compute expand.
-                    ExpandDepthStencil(pCmdBuffer, *pParent, nullptr, nullptr, pRanges[idx]);
+                    ExpandDepthStencil(pCmdBuffer, *pParent, nullptr, pRanges[idx]);
                 }
 
                 // For the stencil plane we use the stencil value directly.
@@ -3331,7 +3328,6 @@ void RsrcProcMgr::FastClearEliminate(
     GfxCmdBuffer*                pCmdBuffer,
     Pal::CmdStream*              pCmdStream,
     const Image&                 image,
-    const IMsaaState*            pMsaaState,
     const MsaaQuadSamplePattern* pQuadSamplePattern,
     const SubresRange&           range
     ) const
@@ -3351,7 +3347,7 @@ void RsrcProcMgr::FastClearEliminate(
     }
 
     // Execute a generic CB blit using the fast-clear Eliminate pipeline.
-    GenericColorBlit(pCmdBuffer, *image.Parent(), range, *pMsaaState,
+    GenericColorBlit(pCmdBuffer, *image.Parent(), range,
                      pQuadSamplePattern, RpmGfxPipeline::FastClearElim, pGpuMem, metaDataOffset);
 
     // Clear the FCE meta data over the given range because those mips must now be FCEd.
@@ -3372,7 +3368,6 @@ void RsrcProcMgr::FmaskDecompress(
     GfxCmdBuffer*                pCmdBuffer,
     Pal::CmdStream*              pCmdStream,
     const Image&                 image,
-    const IMsaaState*            pMsaaState,
     const MsaaQuadSamplePattern* pQuadSamplePattern,
     const SubresRange&           range
     ) const
@@ -3384,7 +3379,7 @@ void RsrcProcMgr::FmaskDecompress(
     PAL_ASSERT((range.startSubres.mipLevel == 0) && (range.numMips == 1));
 
     // Execute a generic CB blit using the appropriate FMask Decompress pipeline.
-    GenericColorBlit(pCmdBuffer, *image.Parent(), range, *pMsaaState,
+    GenericColorBlit(pCmdBuffer, *image.Parent(), range,
                      pQuadSamplePattern, RpmGfxPipeline::FmaskDecompress, nullptr, 0);
 
     // Clear the FCE meta data over the given range because an FMask decompress implies a FCE.
@@ -3541,7 +3536,6 @@ void RsrcProcMgr::DccDecompress(
     GfxCmdBuffer*                pCmdBuffer,
     Pal::CmdStream*              pCmdStream,
     const Image&                 image,
-    const IMsaaState*            pMsaaState,
     const MsaaQuadSamplePattern* pQuadSamplePattern,
     const SubresRange&           range
     ) const
@@ -3601,7 +3595,7 @@ void RsrcProcMgr::DccDecompress(
             }
 
             // Execute a generic CB blit using the appropriate DCC decompress pipeline.
-            GenericColorBlit(pCmdBuffer, *pParentImg, decompressRange, *pMsaaState,
+            GenericColorBlit(pCmdBuffer, *pParentImg, decompressRange,
                              pQuadSamplePattern, RpmGfxPipeline::DccDecompress, pGpuMem, metaDataOffset);
 
             // Clear the FCE meta data over the given range because a DCC decompress implies a FCE. Note that it doesn't

@@ -730,6 +730,16 @@
           "Name": "LogDirectory"
         },
         {
+          "Description": "Application name for which the GpuProfiler layer will be enabled. Leaving this value empty will enable the GpuProfiler for any application.",
+          "Defaults": {
+            "Default": ""
+          },
+          "Size": "MaxFileNameStrLen",
+          "Type": "string",
+          "VariableName": "targetApplication",
+          "Name": "TargetApplication"
+        },
+        {
           "Description": "Frame number to begin performance data collection. Currently Gpu Profiler doesn't support profiling frame 0",
           "Defaults": {
             "Default": 0
@@ -1836,6 +1846,67 @@
           "Type": "uint32",
           "VariableName": "verificationOptions",
           "Description": "Bitmask controlling verification options which will assert for bad cases."
+        },
+        {
+          "Name": "SurfaceCaptureHash",
+          "Flags": {
+            "IsHex": true
+          },
+          "Tags": [
+            "GPU Debugging"
+          ],
+          "Defaults": {
+            "Default": "0"
+          },
+          "Scope": "PrivatePalKey",
+          "Type": "uint64",
+          "VariableName": "surfaceCaptureHash",
+          "Description": "Indicates the hash of the pipeline or shader to capture. If this is zero, then all pipelines will be captured. This value is checked against both the shader and pipeline hash upper and lower portions."
+        },
+        {
+          "Name": "SurfaceCaptureDrawStart",
+          "Tags": [
+            "GPU Debugging"
+          ],
+          "Defaults": {
+            "Default": "0"
+          },
+          "Scope": "PrivatePalKey",
+          "Type": "uint32",
+          "VariableName": "surfaceCaptureDrawStart",
+          "Description": "First draw call in the selected command buffer from which to capture output surfaces"
+        },
+        {
+          "Name": "SurfaceCaptureDrawCount",
+          "Tags": [
+            "GPU Debugging"
+          ],
+          "Defaults": {
+            "Default": "0"
+          },
+          "Scope": "PrivatePalKey",
+          "Type": "uint32",
+          "VariableName": "surfaceCaptureDrawCount",
+          "Description": "Number of draw calls in the selected command buffer from which to capture output surfaces"
+        },
+        {
+          "Name": "SurfaceCaptureLogDirectory",
+          "Tags": [
+            "GPU Debugging"
+          ],
+          "Flags": {
+            "IsPath": true
+          },
+          "Defaults": {
+            "Default": "amdpal/",
+            "WinDefault": "PalLog\\",
+            "LnxDefault": "amdpal/"
+          },
+          "Scope": "PrivatePalKey",
+          "Type": "string",
+          "VariableName": "surfaceCaptureLogDirectory",
+          "Description": "Relative directory where the captured surfaces will be written. Relative to the path in the AMD_DEBUG_DIR environment variable. If that env var isn't set, the location is platform dependent.",
+          "Size": "MaxPathStrLen"
         }
       ],
       "Description": "Controls what debugging options are selected in the GPU Debug layer."

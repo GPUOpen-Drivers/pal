@@ -179,6 +179,7 @@ void PAL_STDCALL Platform::GpuDebugCb(
     case Developer::CallbackType::FreeGpuMemory:
     case Developer::CallbackType::PresentConcluded:
     case Developer::CallbackType::CreateImage:
+    case Developer::CallbackType::SurfRegData:
         break;
     case Developer::CallbackType::BarrierBegin:
         PAL_ASSERT(pCbData != nullptr);

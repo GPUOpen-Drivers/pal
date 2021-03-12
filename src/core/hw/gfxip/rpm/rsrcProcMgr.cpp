@@ -6805,7 +6805,6 @@ const ComputePipeline* RsrcProcMgr::GetCsResolvePipeline(
 bool RsrcProcMgr::ExpandDepthStencil(
     GfxCmdBuffer*        pCmdBuffer,
     const Image&         image,
-    const IMsaaState*    pMsaaState,
     const MsaaQuadSamplePattern* pQuadSamplePattern,
     const SubresRange&   range
     ) const
@@ -6871,7 +6870,8 @@ bool RsrcProcMgr::ExpandDepthStencil(
     pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Graphics, GetGfxPipeline(DepthExpand), InternalApiPsoHash, });
     BindCommonGraphicsState(pCmdBuffer);
     pCmdBuffer->CmdBindDepthStencilState(m_pDepthExpandState);
-    pCmdBuffer->CmdBindMsaaState(pMsaaState);
+    pCmdBuffer->CmdBindMsaaState(GetMsaaState(image.GetImageCreateInfo().samples,
+                                              image.GetImageCreateInfo().fragments));
 
     if (pQuadSamplePattern != nullptr)
     {
@@ -6963,7 +6963,6 @@ void RsrcProcMgr::ResummarizeDepthStencil(
     GfxCmdBuffer*        pCmdBuffer,
     const Image&         image,
     ImageLayout          imageLayout,
-    const IMsaaState*    pMsaaState,
     const MsaaQuadSamplePattern* pQuadSamplePattern,
     const SubresRange&   range
     ) const
@@ -7027,7 +7026,8 @@ void RsrcProcMgr::ResummarizeDepthStencil(
     pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Graphics, GetGfxPipeline(DepthResummarize), InternalApiPsoHash, });
     BindCommonGraphicsState(pCmdBuffer);
     pCmdBuffer->CmdBindDepthStencilState(m_pDepthResummarizeState);
-    pCmdBuffer->CmdBindMsaaState(pMsaaState);
+    pCmdBuffer->CmdBindMsaaState(GetMsaaState(image.GetImageCreateInfo().samples,
+                                              image.GetImageCreateInfo().fragments));
 
     if (pQuadSamplePattern != nullptr)
     {
@@ -7117,7 +7117,6 @@ void RsrcProcMgr::GenericColorBlit(
     GfxCmdBuffer*        pCmdBuffer,
     const Image&         dstImage,
     const SubresRange&   range,
-    const IMsaaState&    msaaState,
     const MsaaQuadSamplePattern* pQuadSamplePattern,
     RpmGfxPipeline       pipeline,
     const GpuMemory*     pGpuMemory,
@@ -7205,7 +7204,8 @@ void RsrcProcMgr::GenericColorBlit(
 
     pCmdBuffer->CmdBindColorBlendState(m_pBlendDisableState);
     pCmdBuffer->CmdBindDepthStencilState(m_pDepthDisableState);
-    pCmdBuffer->CmdBindMsaaState(&msaaState);
+    pCmdBuffer->CmdBindMsaaState(GetMsaaState(dstImage.GetImageCreateInfo().samples,
+                                              dstImage.GetImageCreateInfo().fragments));
 
     if (pQuadSamplePattern != nullptr)
     {

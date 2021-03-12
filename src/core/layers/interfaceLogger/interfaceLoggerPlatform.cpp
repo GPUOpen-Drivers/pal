@@ -837,6 +837,7 @@ void PAL_STDCALL Platform::InterfaceLoggerCb(
     case Developer::CallbackType::FreeGpuMemory:
     case Developer::CallbackType::PresentConcluded:
     case Developer::CallbackType::CreateImage:
+    case Developer::CallbackType::SurfRegData:
         break;
     case Developer::CallbackType::BarrierBegin:
     case Developer::CallbackType::BarrierEnd:

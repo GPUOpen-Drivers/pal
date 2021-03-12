@@ -360,13 +360,15 @@ Result GpuMemory::AllocateOrPinMemory(
                     m_isVmAlwaysValid = true;
                 }
 
+                // Use explicit sync for multi process memory and assume external synchronization
                 if (IsExplicitSync() &&
-                   ((m_flags.interprocess == 1) ||
-                    (m_desc.flags.isExternal == 1) ||
-                    (m_flags.isShareable == 1)))
+                    ((m_flags.interprocess == 1)    ||
+                     (m_desc.flags.isExternal == 1) ||
+                     (m_flags.isShareable == 1)))
                 {
                     allocRequest.flags |= AMDGPU_GEM_CREATE_EXPLICIT_SYNC;
                 }
+
                 allocRequest.alloc_size     = m_desc.size;
                 allocRequest.phys_alignment = GetPhysicalAddressAlignment();
 

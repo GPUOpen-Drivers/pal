@@ -480,6 +480,13 @@ public:
 
     bool NeedFlushForMetadataPipeMisalignment(const SubresRange& range) const;
 
+    gpusize ComputeNonBlockCompressedView(
+        const SubResourceInfo* pBaseSubResInfo,
+        const SubResourceInfo* pMipSubResInfo,
+        uint32*                pMipLevels,
+        uint32*                pMipId,
+        Extent3d*              pExtent) const;
+
 private:
     // Address dimensions are calculated on a per-plane basis
     ADDR2_COMPUTE_SURFACE_INFO_OUTPUT        m_addrSurfOutput[MaxNumPlanes];

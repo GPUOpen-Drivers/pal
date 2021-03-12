@@ -28,6 +28,8 @@
 #include "core/layers/gpuProfiler/gpuProfilerPlatform.h"
 #include "palSysUtil.h"
 
+#include <cstring>
+
 using namespace Util;
 
 namespace Pal
@@ -62,11 +64,32 @@ Result Platform::Create(
     const Util::AllocCallbacks& allocCb,
     IPlatform*                  pNextPlatform,
     GpuProfilerMode             mode,
+    const char*                 pTargetApp,
     void*                       pPlacementAddr,
     IPlatform**                 ppPlatform)
 {
-    auto* pPlatform = PAL_PLACEMENT_NEW(pPlacementAddr) Platform(createInfo, allocCb, pNextPlatform, mode);
-    Result result   = pPlatform->Init();
+    if (strlen(pTargetApp) > 0)
+    {
+        char  executableNameBuffer[256] = {};
+        char* pExecutableName = nullptr;
+
+        if (GetExecutableName(executableNameBuffer, &pExecutableName, sizeof(executableNameBuffer)) == Result::Success)
+        {
+            if (strcmp(pExecutableName, pTargetApp) != 0)
+            {
+                mode = GpuProfilerDisabled;
+            }
+        }
+        else
+        {
+            PAL_ASSERT_ALWAYS_MSG("Unable to retrieve executable name to match against the Gpu Profiler target "
+                                  "application name.");
+        }
+    }
+
+    Platform* pPlatform = PAL_PLACEMENT_NEW(pPlacementAddr) Platform(createInfo, allocCb, pNextPlatform, mode);
+    Result result = pPlatform->Init();
+
     if (result == Result::Success)
     {
         (*ppPlatform) = pPlatform;
@@ -195,6 +218,7 @@ void PAL_STDCALL Platform::GpuProfilerCb(
     case Developer::CallbackType::FreeGpuMemory:
     case Developer::CallbackType::PresentConcluded:
     case Developer::CallbackType::CreateImage:
+    case Developer::CallbackType::SurfRegData:
         break;
     case Developer::CallbackType::BarrierBegin:
     case Developer::CallbackType::BarrierEnd:

@@ -192,7 +192,8 @@ Result CmdUploadRing::Init(
             createInfo.vaRange   = VaRange::Default;
             createInfo.priority  = GpuMemPriority::High;
             createInfo.heapCount = 2;
-            createInfo.heaps[0]  = CmdUploadRaftHeap;
+            createInfo.heaps[0]  = (m_pDevice->MemoryProperties().invisibleHeapSize != 0) ? GpuHeapInvisible
+                                                                                          : GpuHeapLocal;
             createInfo.heaps[1]  = GpuHeapGartUswc;
 
             GpuMemoryInternalCreateInfo internalInfo = {};

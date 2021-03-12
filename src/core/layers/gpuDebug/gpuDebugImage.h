@@ -58,6 +58,7 @@ public:
     }
 
     SwizzledFormat Format() const { return m_format; }
+    IGpuMemory* GetBoundMemory() { return m_pBoundMemObj; }
 
 private:
     IGpuMemory*            m_pBoundMemObj;   // The memory bound to this image

@@ -362,11 +362,11 @@ void PipelineStatsQueryPool::OptimizedReset(
         // because the caller must use semaphores to make sure all queries are complete.
         //
         // TODO: Investigate if we can optimize this, we might just need a VS/PS/CS_PARTIAL_FLUSH on universal queue.
-        pCmdSpace += cmdUtil.BuildWaitOnReleaseMemEvent(pCmdBuffer->GetEngineType(),
-                                                        BOTTOM_OF_PIPE_TS,
-                                                        TcCacheOp::Nop,
-                                                        pCmdBuffer->TimestampGpuVirtAddr(),
-                                                        pCmdSpace);
+        pCmdSpace += cmdUtil.BuildWaitOnReleaseMemEventTs(pCmdBuffer->GetEngineType(),
+                                                          BOTTOM_OF_PIPE_TS,
+                                                          TcCacheOp::Nop,
+                                                          pCmdBuffer->TimestampGpuVirtAddr(),
+                                                          pCmdSpace);
     }
 
     gpusize gpuAddr          = 0;

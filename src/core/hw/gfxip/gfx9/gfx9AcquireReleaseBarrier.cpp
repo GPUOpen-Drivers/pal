@@ -57,44 +57,6 @@ struct AcqRelTransitionInfo
 };
 
 // =====================================================================================================================
-static IMsaaState* AcqRelBarrierMsaaState(
-    const Device*                                pDevice,
-    GfxCmdBuffer*                                pCmdBuf,
-    LinearAllocatorAuto<VirtualLinearAllocator>* pAllocator,
-    const ImgBarrier&                            imgBarrier)
-{
-    const auto& imageCreateInfo = imgBarrier.pImage->GetImageCreateInfo();
-
-    MsaaStateCreateInfo msaaInfo    = {};
-    msaaInfo.sampleMask             = 0xFFFF;
-    msaaInfo.coverageSamples        = imageCreateInfo.samples;
-    msaaInfo.alphaToCoverageSamples = imageCreateInfo.samples;
-
-    // The following parameters should never be higher than the max number of msaa fragments ( 8 ).
-    // All MSAA graphics barrier operations performed by PAL work on a per fragment basis.
-    msaaInfo.exposedSamples          = imageCreateInfo.fragments;
-    msaaInfo.pixelShaderSamples      = imageCreateInfo.fragments;
-    msaaInfo.depthStencilSamples     = imageCreateInfo.fragments;
-    msaaInfo.shaderExportMaskSamples = imageCreateInfo.fragments;
-    msaaInfo.sampleClusters          = imageCreateInfo.fragments;
-    msaaInfo.occlusionQuerySamples   = imageCreateInfo.fragments;
-
-    IMsaaState* pMsaaState = nullptr;
-    void*       pMemory    = PAL_MALLOC(pDevice->GetMsaaStateSize(msaaInfo, nullptr), pAllocator, AllocInternalTemp);
-    if (pMemory == nullptr)
-    {
-        pCmdBuf->NotifyAllocFailure();
-    }
-    else
-    {
-        Result result = pDevice->CreateMsaaState(msaaInfo, pMemory, &pMsaaState);
-        PAL_ASSERT(result == Result::Success);
-    }
-
-    return pMsaaState;
-}
-
-// =====================================================================================================================
 // Translate acquire's accessMask (CacheCoherencyUsageFlags type) to cacheSyncFlags (CacheSyncFlags type)
 // This function is GFX9-ONLY.
 static uint32 Gfx9ConvertToAcquireSyncFlags(
@@ -442,34 +404,23 @@ void Device::AcqRelDepthStencilTransition(
     }
     else
     {
-        LinearAllocatorAuto<VirtualLinearAllocator> allocator(pCmdBuf->Allocator(), false);
-        IMsaaState* pMsaaState = AcqRelBarrierMsaaState(this, pCmdBuf, &allocator, imgBarrier);
-
-        if (pMsaaState != nullptr)
+        if (layoutTransInfo.blt[0] == HwLayoutTransition::ExpandDepthStencil)
         {
-            if (layoutTransInfo.blt[0] == HwLayoutTransition::ExpandDepthStencil)
-            {
-                RsrcProcMgr().ExpandDepthStencil(pCmdBuf,
-                                                 image,
-                                                 pMsaaState,
-                                                 imgBarrier.pQuadSamplePattern,
-                                                 imgBarrier.subresRange);
-            }
-            else
-            {
-                PAL_ASSERT(layoutTransInfo.blt[0] == HwLayoutTransition::ResummarizeDepthStencil);
+            RsrcProcMgr().ExpandDepthStencil(pCmdBuf,
+                                             image,
+                                             imgBarrier.pQuadSamplePattern,
+                                             imgBarrier.subresRange);
+        }
+        else
+        {
+            PAL_ASSERT(layoutTransInfo.blt[0] == HwLayoutTransition::ResummarizeDepthStencil);
 
-                // DB blit to resummarize.
-                RsrcProcMgr().ResummarizeDepthStencil(pCmdBuf,
-                                                      image,
-                                                      imgBarrier.newLayout,
-                                                      pMsaaState,
-                                                      imgBarrier.pQuadSamplePattern,
-                                                      imgBarrier.subresRange);
-            }
-
-            pMsaaState->Destroy();
-            PAL_SAFE_FREE(pMsaaState, &allocator);
+            // DB blit to resummarize.
+            RsrcProcMgr().ResummarizeDepthStencil(pCmdBuf,
+                                                  image,
+                                                  imgBarrier.newLayout,
+                                                  imgBarrier.pQuadSamplePattern,
+                                                  imgBarrier.subresRange);
         }
     }
 }
@@ -502,45 +453,33 @@ void Device::AcqRelColorTransition(
     }
     else
     {
-        LinearAllocatorAuto<VirtualLinearAllocator> allocator(pCmdBuf->Allocator(), false);
-        IMsaaState* pMsaaState = AcqRelBarrierMsaaState(this, pCmdBuf, &allocator, imgBarrier);
-
-        if (pMsaaState != nullptr)
+        if (layoutTransInfo.blt[0] == HwLayoutTransition::DccDecompress)
         {
-            if (layoutTransInfo.blt[0] == HwLayoutTransition::DccDecompress)
-            {
-                RsrcProcMgr().DccDecompress(pCmdBuf,
-                                            pCmdStream,
-                                            gfx9Image,
-                                            pMsaaState,
-                                            imgBarrier.pQuadSamplePattern,
-                                            imgBarrier.subresRange);
-            }
-            else if (layoutTransInfo.blt[0] == HwLayoutTransition::FmaskDecompress)
-            {
-                RsrcProcMgr().FmaskDecompress(pCmdBuf,
-                                              pCmdStream,
-                                              gfx9Image,
-                                              pMsaaState,
-                                              imgBarrier.pQuadSamplePattern,
-                                              imgBarrier.subresRange);
-            }
-            else
-            {
-                PAL_ASSERT(layoutTransInfo.blt[0] == HwLayoutTransition::FastClearEliminate);
+            RsrcProcMgr().DccDecompress(pCmdBuf,
+                                        pCmdStream,
+                                        gfx9Image,
+                                        imgBarrier.pQuadSamplePattern,
+                                        imgBarrier.subresRange);
+        }
+        else if (layoutTransInfo.blt[0] == HwLayoutTransition::FmaskDecompress)
+        {
+            RsrcProcMgr().FmaskDecompress(pCmdBuf,
+                                          pCmdStream,
+                                          gfx9Image,
+                                          imgBarrier.pQuadSamplePattern,
+                                          imgBarrier.subresRange);
+        }
+        else
+        {
+            PAL_ASSERT(layoutTransInfo.blt[0] == HwLayoutTransition::FastClearEliminate);
 
-                // Note: if FCE is not submitted to GPU, we don't need to update cache flags.
-                const bool isSubmitted = RsrcProcMgr().FastClearEliminate(pCmdBuf,
-                                                                          pCmdStream,
-                                                                          gfx9Image,
-                                                                          pMsaaState,
-                                                                          imgBarrier.pQuadSamplePattern,
-                                                                          imgBarrier.subresRange);
-                layoutTransInfo.flags.fceIsSkipped = (isSubmitted == false);
-            }
-
-            pMsaaState->Destroy();
-            PAL_SAFE_FREE(pMsaaState, &allocator);
+            // Note: if FCE is not submitted to GPU, we don't need to update cache flags.
+            const bool isSubmitted = RsrcProcMgr().FastClearEliminate(pCmdBuf,
+                                                                      pCmdStream,
+                                                                      gfx9Image,
+                                                                      imgBarrier.pQuadSamplePattern,
+                                                                      imgBarrier.subresRange);
+            layoutTransInfo.flags.fceIsSkipped = (isSubmitted == false);
         }
 
         // Handle corner cases where it needs a second pass.

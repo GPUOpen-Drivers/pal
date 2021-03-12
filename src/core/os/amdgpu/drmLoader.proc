@@ -22,6 +22,8 @@ libdrm_amdgpu.so.1 @proc  const char* amdgpu_get_marketing_name (amdgpu_device_h
 libdrm_amdgpu.so.1 @proc  int32 amdgpu_va_range_free (amdgpu_va_handle hVaRange)
 libdrm_amdgpu.so.1 @proc  int32 amdgpu_va_range_query (amdgpu_device_handle hDevice, enum amdgpu_gpu_va_range type, uint64* pStart, uint64* pEnd)
 libdrm_amdgpu.so.1 @proc  int32 amdgpu_va_range_alloc (amdgpu_device_handle hDevice, enum amdgpu_gpu_va_range vaRangeType, uint64 size, uint64 vaBaseAlignment, uint64 vaBaseRequired, uint64* pVaAllocated, amdgpu_va_handle* pVaRange, uint64 flags)
+libdrm_amdgpu.so.1 @proc  int32 amdgpu_vm_reserve_vmid (amdgpu_device_handle hDevice, uint32 flags)
+libdrm_amdgpu.so.1 @proc  int32 amdgpu_vm_unreserve_vmid (amdgpu_device_handle hDevice, uint32 flags)
 libdrm_amdgpu.so.1 @proc  int32 amdgpu_read_mm_registers (amdgpu_device_handle hDevice, uint32 dwordOffset, uint32 count, uint32 instance, uint32 flags, uint32* pValues)
 libdrm_amdgpu.so.1 @proc  int32 amdgpu_device_initialize (int fd, uint32* pMajorVersion, uint32* pMinorVersion, amdgpu_device_handle* pDeviceHandle)
 libdrm_amdgpu.so.1 @proc  int32 amdgpu_device_deinitialize (amdgpu_device_handle hDevice)

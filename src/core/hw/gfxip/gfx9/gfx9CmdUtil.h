@@ -729,7 +729,7 @@ public:
     static size_t BuildWaitDmaData(void* pBuffer);
     static size_t BuildWaitOnCeCounter(bool invalidateKcache, void* pBuffer);
     static size_t BuildWaitOnDeCounterDiff(uint32 counterDiff, void* pBuffer);
-    size_t BuildWaitOnReleaseMemEvent(
+    size_t BuildWaitOnReleaseMemEventTs(
         EngineType     engineType,
         VGT_EVENT_TYPE vgtEvent,
         TcCacheOp      tcCacheOp,

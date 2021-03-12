@@ -415,7 +415,8 @@ Result DisplayWindowSystem::Present(
             if (swapChainMode == SwapChainMode::Mailbox)
             {
                 pFence->SetPresentState(PresentState::Idle);
-                pFence->Trigger();
+                result = pFence->Trigger();
+
                 break;
             }
             // For aync mode, it's possible that the old pageflip request is not handled by the KMD yet. It gets EBUSY

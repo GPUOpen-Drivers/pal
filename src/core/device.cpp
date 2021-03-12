@@ -1085,15 +1085,19 @@ Result Device::FixupUsableGpuVirtualAddressRange(
 
         baseVirtAddr += _4GB;
 
-        result = FindGpuVaRange(&baseVirtAddr, usableVaEnd, _4GB, _4GB, VaPartition::ShadowDescriptorTable);
-
-        if (result == Result::Success)
+        // Reserve VA range for ShadowDescriptorTable only if fmask SRDs are supported
+        if (m_chipProperties.srdSizes.fmaskView > 0)
         {
-            pVaRange[static_cast<uint32>(VaPartition::ShadowDescriptorTable)].baseVirtAddr = baseVirtAddr;
-            pVaRange[static_cast<uint32>(VaPartition::ShadowDescriptorTable)].size = _4GB;
-        }
+            result = FindGpuVaRange(&baseVirtAddr, usableVaEnd, _4GB, _4GB, VaPartition::ShadowDescriptorTable);
 
-        baseVirtAddr += _4GB;
+            if (result == Result::Success)
+            {
+                pVaRange[static_cast<uint32>(VaPartition::ShadowDescriptorTable)].baseVirtAddr = baseVirtAddr;
+                pVaRange[static_cast<uint32>(VaPartition::ShadowDescriptorTable)].size = _4GB;
+            }
+
+            baseVirtAddr += _4GB;
+        }
 
         if (result == Result::Success)
         {
@@ -1156,10 +1160,11 @@ Result Device::FixupUsableGpuVirtualAddressRange(
 
         m_memoryProperties.flags.multipleVaRangeSupport = 1;
 
-        // Enable support for shadow desc VA range.
-        m_memoryProperties.flags.shadowDescVaSupport = 1;
+        // Enable support for shadow desc VA range if fmask SRDs are supported
+        m_memoryProperties.flags.shadowDescVaSupport = (m_chipProperties.srdSizes.fmaskView > 0);
     }
-    else if ((usableVaEnd - usableVaStart) >= (5uLL * _1GB))
+    else if (((usableVaEnd - usableVaStart) >= (5uLL * _1GB)) &&
+             (m_chipProperties.srdSizes.fmaskView > 0))
     {
         // Case #2:
         // This is not quite ideal, but still workable: we have more than 5 GB of address space, so we can use two
