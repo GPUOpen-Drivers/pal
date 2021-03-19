@@ -968,6 +968,12 @@ ChipFamily Gfx10Lib::HwlConvertChipFamily(
                 m_settings.dccUnsup3DSwDis = 0;
             }
 
+            if (ASICREV_IS_NAVI22_P(chipRevision))
+            {
+                m_settings.supportRbPlus   = 1;
+                m_settings.dccUnsup3DSwDis = 0;
+            }
+
             break;
 
         default:

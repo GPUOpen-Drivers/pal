@@ -119,6 +119,10 @@ Pal::Result CreateTimeGraphComputePipelines(
         pTable = timeGraphComputeBinaryTableNavi21;
         break;
 
+    case Pal::AsicRevision::Navi22:
+        pTable = timeGraphComputeBinaryTableNavi22;
+        break;
+
     default:
         result = Pal::Result::ErrorUnknown;
         PAL_NOT_IMPLEMENTED();

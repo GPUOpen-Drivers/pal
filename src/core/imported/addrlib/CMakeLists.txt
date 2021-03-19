@@ -58,6 +58,7 @@ option(ADDR_LNX_KERNEL_BUILD "Linux kernel build?"                              
 option(ADDR_RENOIR_BUILD      "Build support for RENOIR?"    OFF                                               )
 option(ADDR_NAVI14_BUILD      "Build support for NAVI14?"    OFF                                               )
 option(ADDR_NAVI21_BUILD      "Build support for NAVI21?"    OFF                                               )
+option(ADDR_NAVI22_BUILD      "Build support for NAVI22?"    OFF                                               )
 
 option(ADDR_ENABLE_WERROR    "Build with -Werror enabled"    OFF                                                )
 
@@ -157,6 +158,9 @@ if(ADDR_GFX10_BUILD)
     endif()
     if(ADDR_NAVI21_BUILD)
         target_compile_definitions(addrlib PRIVATE ADDR_NAVI21_BUILD)
+    endif()
+    if(ADDR_NAVI22_BUILD)
+        target_compile_definitions(addrlib PRIVATE ADDR_NAVI22_BUILD)
     endif()
 endif()
 

@@ -113,6 +113,8 @@
 
 #define AMDGPU_NAVI21_RANGE     0x28, 0x32
 
+#define AMDGPU_NAVI22_RANGE     0x32, 0x3C
+
 #define AMDGPU_EXPAND_FIX(x) x
 #define AMDGPU_RANGE_HELPER(val, min, max) ((val >= min) && (val < max))
 #define AMDGPU_IN_RANGE(val, ...)   AMDGPU_EXPAND_FIX(AMDGPU_RANGE_HELPER(val, __VA_ARGS__))
@@ -166,5 +168,7 @@
 #define ASICREV_IS_NAVI14_M(r)         ASICREV_IS(r, NAVI14)
 
 #define ASICREV_IS_NAVI21_M(r)         ASICREV_IS(r, NAVI21)
+
+#define ASICREV_IS_NAVI22_P(r)         ASICREV_IS(r, NAVI22)
 
 #endif

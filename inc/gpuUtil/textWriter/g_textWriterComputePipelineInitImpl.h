@@ -124,6 +124,10 @@ Pal::Result CreateTextWriterComputePipelines(
         pTable = textWriterComputeBinaryTableNavi21;
         break;
 
+    case Pal::AsicRevision::Navi22:
+        pTable = textWriterComputeBinaryTableNavi22;
+        break;
+
     default:
         result = Pal::Result::ErrorUnknown;
         PAL_NOT_IMPLEMENTED();

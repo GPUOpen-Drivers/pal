@@ -203,6 +203,7 @@ enum class AsicRevision : uint32
     Navi10      = 0x1F,
     Navi14      = 0x23,
     Navi21      = 0x24,
+    Navi22      = 0x25,
 };
 
 /// Specifies which operating-system-support IP level (OSSIP) this device has.

@@ -43,6 +43,8 @@ macro(pal_overrides_gpu_gfx9)
 
     pal_override(ADDR_NAVI21_BUILD ${PAL_BUILD_NAVI21})
 
+    pal_override(ADDR_NAVI22_BUILD ${PAL_BUILD_NAVI22})
+
 endmacro()
 
 macro(pal_overrides_gpu)

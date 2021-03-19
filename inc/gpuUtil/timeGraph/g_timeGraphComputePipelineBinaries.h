@@ -1054,5 +1054,11 @@ constexpr PipelineBinary timeGraphComputeBinaryTableNavi21[] =
     {TimeGraph_Cs_1D32F7A1,  sizeof(TimeGraph_Cs_1D32F7A1)},
 };
 
+// Table of compute pipeline binaries for Navi22
+constexpr PipelineBinary timeGraphComputeBinaryTableNavi22[] =
+{
+    {TimeGraph_Cs_1D32F7A1,  sizeof(TimeGraph_Cs_1D32F7A1)},
+};
+
 } // TimeGraphDraw
 } // GpuUtil

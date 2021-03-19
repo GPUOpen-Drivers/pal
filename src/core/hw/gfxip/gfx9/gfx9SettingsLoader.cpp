@@ -509,6 +509,25 @@ static void SetupNavi21Workarounds(
 }
 
 // =====================================================================================================================
+// Setup workarounds that only apply to Navi22.
+static void SetupNavi22Workarounds(
+    const Pal::Device&  device,
+    Gfx9PalSettings*    pSettings)
+{
+    // Setup any Gfx10 workarounds.
+    SetupGfx10Workarounds(device, pSettings);
+
+    // Setup any Navi2x workarounds.
+    SetupNavi2xWorkarounds(device, pSettings);
+
+    // Setup any Navi22 workarounds.
+
+    pSettings->waCeDisableIb2 = true;
+
+    pSettings->waDisableVrsWithDsExports = true;
+}
+
+// =====================================================================================================================
 // Override Gfx9 layer settings. This also includes setting up the workaround flags stored in the settings structure
 // based on chip Family & ID.
 //
@@ -587,6 +606,10 @@ void SettingsLoader::OverrideDefaults(
         else if (IsNavi21(device))
         {
             SetupNavi21Workarounds(device, &m_settings);
+        }
+        else if (IsNavi22(device))
+        {
+            SetupNavi22Workarounds(device, &m_settings);
         }
         // For 4 or less RB parts, we expect some overlap for metadata requests across RBs.
         if (device.ChipProperties().gfx9.numActiveRbs <= 4)

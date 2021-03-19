@@ -34,6 +34,9 @@ macro(pal_gfx9_options)
     pal_build_parameter(PAL_BUILD_NAVI21 "Build PAL with Navi21 support?" ON ${pal_gpu_mode})
     pal_set_or(PAL_BUILD_GFX10_3 ${PAL_BUILD_NAVI21})
 
+    pal_build_parameter(PAL_BUILD_NAVI22 "Build PAL with Navi22 support?" ON ${pal_gpu_mode})
+    pal_set_or(PAL_BUILD_GFX10_3 ${PAL_BUILD_NAVI22})
+
 endmacro() # gfx9
 
 # Specify GPU build options

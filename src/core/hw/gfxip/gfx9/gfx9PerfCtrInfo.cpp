@@ -196,6 +196,20 @@ static void UpdateUmcchBlockInfo(
             SET_UMCCH_INSTANCE_REGS(Nv21, 15);
         }
         else
+        if (IsNavi22(device))
+        {
+            SET_UMCCH_INSTANCE_REGS(Nv22, 1);
+            SET_UMCCH_INSTANCE_REGS(Nv22, 3);
+            SET_UMCCH_INSTANCE_REGS(Nv22, 4);
+            SET_UMCCH_INSTANCE_REGS(Nv22, 5);
+            SET_UMCCH_INSTANCE_REGS(Nv22, 6);
+            SET_UMCCH_INSTANCE_REGS(Nv22, 7);
+            SET_UMCCH_INSTANCE_REGS(Nv22, 8);
+            SET_UMCCH_INSTANCE_REGS(Nv22, 9);
+            SET_UMCCH_INSTANCE_REGS(Nv22, 10);
+            SET_UMCCH_INSTANCE_REGS(Nv22, 11);
+        }
+        else
         {
             SET_UMCCH_INSTANCE_REGS(Gfx101, 1);
             SET_UMCCH_INSTANCE_REGS(Gfx101, 3);
@@ -295,6 +309,9 @@ static const MaxEventIds& GetEventLimits(
         break;
     case Pal::AsicRevision::Navi21:
         pOut = &Nv21MaxPerfEventIds;
+        break;
+    case Pal::AsicRevision::Navi22:
+        pOut = &Nv22MaxPerfEventIds;
         break;
     default:
         PAL_ASSERT_ALWAYS(); // What chip is this?
