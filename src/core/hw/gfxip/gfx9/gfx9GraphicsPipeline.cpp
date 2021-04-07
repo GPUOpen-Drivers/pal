@@ -509,20 +509,17 @@ uint32 GraphicsPipeline::CalcMaxWavesPerSh(
     // If the caller would like to override the default maxWavesPerCu
     if (maxWavesPerCu > 0)
     {
-        const auto& gfx9ChipProps = m_pDevice->Parent()->ChipProperties().gfx9;
-
-        const     uint32 numWavefrontsPerCu            = gfx9ChipProps.numSimdPerCu * gfx9ChipProps.numWavesPerSimd;
-        constexpr uint32 MaxWavesPerShGraphicsUnitSize = 16u;
-        const     uint32 maxWavesPerShGraphics         = (numWavefrontsPerCu * gfx9ChipProps.maxNumCuPerSh) /
-                                                         MaxWavesPerShGraphicsUnitSize;
+        const GpuChipProperties& chipProps          = m_pDevice->Parent()->ChipProperties();
+        const uint32             numWavefrontsPerCu = chipProps.gfx9.numSimdPerCu * chipProps.gfx9.numWavesPerSimd;
 
         // We assume no one is trying to use more than 100% of all waves.
         PAL_ASSERT(maxWavesPerCu <= numWavefrontsPerCu);
-        const uint32 maxWavesPerSh = static_cast<uint32>(round(maxWavesPerCu * gfx9ChipProps.numCuPerSh));
+        const uint32 maxWavesPerSh = static_cast<uint32>(round(maxWavesPerCu * chipProps.gfx9.numCuPerSh));
 
         // For graphics shaders, the WAVES_PER_SH field is in units of 16 waves and must not exceed 63. We must
         // also clamp to one if maxWavesPerSh rounded down to zero to prevent the limit from being removed.
-        wavesPerSh = Min(maxWavesPerShGraphics, Max(1u, maxWavesPerSh / MaxWavesPerShGraphicsUnitSize));
+        wavesPerSh = Min(
+            m_pDevice->GetMaxWavesPerSh(chipProps, false), Max(1u, maxWavesPerSh / Gfx9MaxWavesPerShGraphicsUnitSize));
     }
 
     return wavesPerSh;

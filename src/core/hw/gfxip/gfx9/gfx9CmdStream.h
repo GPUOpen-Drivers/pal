@@ -57,6 +57,8 @@ public:
     virtual Result Begin(CmdStreamBeginFlags flags, Util::VirtualLinearAllocator* pMemAllocator) override;
     virtual void   Reset(CmdAllocator* pNewAllocator, bool returnGpuMemory) override;
 
+    uint32 GetChainSizeInDwords(const Device& device, EngineType engineType, bool isNested) const;
+
     template <bool pm4OptImmediate>
     uint32* WriteContextRegRmw(uint32 regAddr, uint32 regMask, uint32 regData, uint32* pCmdSpace);
     uint32* WriteContextRegRmw(uint32 regAddr, uint32 regMask, uint32 regData, uint32* pCmdSpace);

@@ -1470,8 +1470,18 @@ static void Gfx10InitBasicBlockInfo(
         pEa->numGenericLegacyModules   = 2;  // EA_PERFCOUNTER0-1
         pEa->numSpmWires               = 2;
         pEa->spmBlockSelect            = Gfx10SpmGlobalBlockSelectEa;
-        pEa->maxEventId                = 86; // | wgmi | (burst_length) & (4(reqeob )) | Request chains per burst length
         pEa->isCfgStyle                = true;
+
+        if (IsGfx103(device))
+        {
+            pEa->maxEventId            = 89; // | sarb | (size_p1 ) & (4(reqcoherent )) |
+                                             // Coherent sized (in 32 byte increments) requests
+        }
+        else
+        {
+            pEa->maxEventId            = 88; // | mam | (3`b0, dbit_req_vld) |
+                                             // Request considered valid by DBIT Memory sub-module
+        }
 
         // Sets the register addresses.
         Gfx10UpdateEaBlockInfo(device, pEa);

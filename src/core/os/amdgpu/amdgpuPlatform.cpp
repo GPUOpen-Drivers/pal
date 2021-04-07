@@ -183,6 +183,10 @@ Result Platform::ReQueryDevices()
     {
         // If libdrm.so.2 is not successfully resolved, the deviceCount will always be 0.
         deviceCount = drmProcs.pfnDrmGetDevices(pDevices, MaxDevices);
+        if (deviceCount < 0)
+        {
+            result = Result::ErrorInitializationFailed;
+        }
     }
 
     for (int32 i = 0; i < deviceCount; i++)

@@ -2102,23 +2102,16 @@ void CmdBufferFwdDecorator::CmdBarrier(
     }
 }
 
-// =====================================================================================================================
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
+// =====================================================================================================================
 uint32 CmdBufferFwdDecorator::CmdRelease(
     const AcquireReleaseInfo& releaseInfo)
-#else
-void CmdBufferFwdDecorator::CmdRelease(
-    const AcquireReleaseInfo& releaseInfo,
-    const IGpuEvent*          pGpuEvent)
-#endif
 {
     PlatformDecorator*const pPlatform = m_pDevice->GetPlatform();
     AutoBuffer<MemBarrier, 32, PlatformDecorator> memoryBarriers(releaseInfo.memoryBarrierCount, pPlatform);
     AutoBuffer<ImgBarrier, 32, PlatformDecorator> imageBarriers(releaseInfo.imageBarrierCount, pPlatform);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
     uint32 syncToken = 0;
-#endif
 
     if ((memoryBarriers.Capacity() < releaseInfo.memoryBarrierCount) ||
         (imageBarriers.Capacity() < releaseInfo.imageBarrierCount))
@@ -2144,43 +2137,24 @@ void CmdBufferFwdDecorator::CmdRelease(
         }
         nextReleaseInfo.pImageBarriers = &imageBarriers[0];
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
         syncToken = m_pNextLayer->CmdRelease(nextReleaseInfo);
-#else
-        m_pNextLayer->CmdRelease(nextReleaseInfo, NextGpuEvent(pGpuEvent));
-#endif
     }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
     return syncToken;
-#endif
 }
 
 // =====================================================================================================================
 void CmdBufferFwdDecorator::CmdAcquire(
     const AcquireReleaseInfo& acquireInfo,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
     uint32                    syncTokenCount,
     const uint32*             pSyncTokens)
-#else
-    uint32                    gpuEventCount,
-    const IGpuEvent*const*    ppGpuEvents)
-#endif
 {
     PlatformDecorator*const pPlatform = m_pDevice->GetPlatform();
     AutoBuffer<MemBarrier, 32, PlatformDecorator> memoryBarriers(acquireInfo.memoryBarrierCount, pPlatform);
     AutoBuffer<ImgBarrier, 32, PlatformDecorator> imageBarriers(acquireInfo.imageBarrierCount, pPlatform);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 648
-    AutoBuffer<const IGpuEvent*, 16, PlatformDecorator> nextGpuEvents(gpuEventCount, pPlatform);
-#endif
-
     if ((memoryBarriers.Capacity() < acquireInfo.memoryBarrierCount) ||
         (imageBarriers.Capacity() < acquireInfo.imageBarrierCount)
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 648
-        ||
-        (nextGpuEvents.Capacity() < gpuEventCount)
-#endif
         )
     {
         // If the layers become production code, we must set a flag here and return out of memory on End().
@@ -2204,16 +2178,92 @@ void CmdBufferFwdDecorator::CmdAcquire(
         }
         nextAcquireInfo.pImageBarriers = &imageBarriers[0];
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
         m_pNextLayer->CmdAcquire(nextAcquireInfo, syncTokenCount, pSyncTokens);
-#else
+    }
+}
+#endif
+
+// =====================================================================================================================
+void CmdBufferFwdDecorator::CmdReleaseEvent(
+    const AcquireReleaseInfo& releaseInfo,
+    const IGpuEvent*          pGpuEvent)
+{
+    PlatformDecorator* const pPlatform = m_pDevice->GetPlatform();
+    AutoBuffer<MemBarrier, 32, PlatformDecorator> memoryBarriers(releaseInfo.memoryBarrierCount, pPlatform);
+    AutoBuffer<ImgBarrier, 32, PlatformDecorator> imageBarriers(releaseInfo.imageBarrierCount, pPlatform);
+
+    if ((memoryBarriers.Capacity() < releaseInfo.memoryBarrierCount) ||
+        (imageBarriers.Capacity() < releaseInfo.imageBarrierCount))
+    {
+        // If the layers become production code, we must set a flag here and return out of memory on End().
+        PAL_ASSERT_ALWAYS();
+    }
+    else
+    {
+        AcquireReleaseInfo nextReleaseInfo = releaseInfo;
+
+        for (uint32 i = 0; i < releaseInfo.memoryBarrierCount; i++)
+        {
+            memoryBarriers[i]                   = releaseInfo.pMemoryBarriers[i];
+            memoryBarriers[i].memory.pGpuMemory = NextGpuMemory(releaseInfo.pMemoryBarriers[i].memory.pGpuMemory);
+        }
+        nextReleaseInfo.pMemoryBarriers = &memoryBarriers[0];
+
+        for (uint32 i = 0; i < releaseInfo.imageBarrierCount; i++)
+        {
+            imageBarriers[i]        = releaseInfo.pImageBarriers[i];
+            imageBarriers[i].pImage = NextImage(releaseInfo.pImageBarriers[i].pImage);
+        }
+        nextReleaseInfo.pImageBarriers = &imageBarriers[0];
+
+        m_pNextLayer->CmdReleaseEvent(nextReleaseInfo, NextGpuEvent(pGpuEvent));
+    }
+}
+
+// =====================================================================================================================
+void CmdBufferFwdDecorator::CmdAcquireEvent(
+    const AcquireReleaseInfo& acquireInfo,
+    uint32                    gpuEventCount,
+    const IGpuEvent* const*   ppGpuEvents)
+{
+    PlatformDecorator* const pPlatform = m_pDevice->GetPlatform();
+    AutoBuffer<MemBarrier, 32, PlatformDecorator> memoryBarriers(acquireInfo.memoryBarrierCount, pPlatform);
+    AutoBuffer<ImgBarrier, 32, PlatformDecorator> imageBarriers(acquireInfo.imageBarrierCount, pPlatform);
+
+    AutoBuffer<const IGpuEvent*, 16, PlatformDecorator> nextGpuEvents(gpuEventCount, pPlatform);
+
+    if ((memoryBarriers.Capacity() < acquireInfo.memoryBarrierCount) ||
+        (imageBarriers.Capacity() < acquireInfo.imageBarrierCount)   ||
+        (nextGpuEvents.Capacity() < gpuEventCount)
+        )
+    {
+        // If the layers become production code, we must set a flag here and return out of memory on End().
+        PAL_ASSERT_ALWAYS();
+    }
+    else
+    {
+        AcquireReleaseInfo nextAcquireInfo = acquireInfo;
+
+        for (uint32 i = 0; i < acquireInfo.memoryBarrierCount; i++)
+        {
+            memoryBarriers[i]                   = acquireInfo.pMemoryBarriers[i];
+            memoryBarriers[i].memory.pGpuMemory = NextGpuMemory(acquireInfo.pMemoryBarriers[i].memory.pGpuMemory);
+        }
+        nextAcquireInfo.pMemoryBarriers = &memoryBarriers[0];
+
+        for (uint32 i = 0; i < acquireInfo.imageBarrierCount; i++)
+        {
+            imageBarriers[i]        = acquireInfo.pImageBarriers[i];
+            imageBarriers[i].pImage = NextImage(acquireInfo.pImageBarriers[i].pImage);
+        }
+        nextAcquireInfo.pImageBarriers = &imageBarriers[0];
+
         for (uint32 i = 0; i < gpuEventCount; i++)
         {
             nextGpuEvents[i] = NextGpuEvent(ppGpuEvents[i]);
         }
 
-        m_pNextLayer->CmdAcquire(nextAcquireInfo, gpuEventCount, &nextGpuEvents[0]);
-#endif
+        m_pNextLayer->CmdAcquireEvent(nextAcquireInfo, gpuEventCount, &nextGpuEvents[0]);
     }
 }
 

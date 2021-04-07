@@ -198,13 +198,14 @@ struct GraphicsState
 
 struct ValidateDrawInfo
 {
-    uint32 vtxIdxCount;   // Vertex or index count for the draw (depending on if the it is indexed).
-    uint32 instanceCount; // Instance count for the draw. A count of zero indicates draw-indirect.
-    uint32 firstVertex;   // First vertex
-    uint32 firstInstance; // First instance
-    uint32 firstIndex;    // First index
-    uint32 drawIndex;     // draw index
-    bool   useOpaque;     // if draw opaque
+    uint32 vtxIdxCount;       // Vertex or index count for the draw (depending on if the it is indexed).
+    uint32 instanceCount;     // Instance count for the draw. A count of zero indicates draw-indirect.
+    uint32 firstVertex;       // First vertex
+    uint32 firstInstance;     // First instance
+    uint32 firstIndex;        // First index
+    uint32 drawIndex;         // draw index
+    bool   useOpaque;         // If draw opaque
+    bool   multiIndirectDraw; // Is multi indirect draw?
 };
 
 // =====================================================================================================================

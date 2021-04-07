@@ -521,20 +521,17 @@ public:
 * @brief A wrapper for Trackable (using MemTracker) memory allocator that wraps GenericAllocator.
 ***********************************************************************************************************************
 */
-class GenericAllocatorAuto
+#if PAL_MEMTRACK
+class GenericAllocatorTracked
 {
 public:
     /// Constructor
-    GenericAllocatorAuto()
-#if PAL_MEMTRACK
+    GenericAllocatorTracked()
         :
         m_memTracker(&m_allocator)
-#endif
     {
-#if PAL_MEMTRACK
         Result result = m_memTracker.Init();
         PAL_ASSERT(result == Result::_Success);
-#endif
     }
 
     /// Allocates a block of memory.
@@ -544,12 +541,7 @@ public:
     /// @returns Pointer to the allocated memory, nullptr if the allocation failed.
     void* Alloc(const AllocInfo& allocInfo)
     {
-        void* pMemory = nullptr;
-#if PAL_MEMTRACK
-        pMemory = m_memTracker.Alloc(allocInfo);
-#else
-        pMemory = m_allocator.Alloc(allocInfo);
-#endif
+        void* pMemory = m_memTracker.Alloc(allocInfo);
         return pMemory;
     }
 
@@ -558,20 +550,21 @@ public:
     /// @param [in] freeInfo Contains information about the requested free.
     void  Free(const FreeInfo& freeInfo)
     {
-#if PAL_MEMTRACK
         m_memTracker.Free(freeInfo);
-#else
-        m_allocator.Free(freeInfo);
-#endif
     }
 
 private:
-    Util::GenericAllocator       m_allocator;  ///< The GenericAllocator which this object wraps.
+    GenericAllocator             m_allocator;  ///< The GenericAllocator which this object wraps.
 
-#if PAL_MEMTRACK
     MemTracker<GenericAllocator> m_memTracker; ///< Memory tracker for this GenericAllocator.
-#endif
 };
+#else
+using GenericAllocatorTracked = GenericAllocator;
+#endif
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 660
+using GenericAllocatorAuto = GenericAllocatorTracked;
+#endif
 
 /// Returns the OS-specific page size.
 ///

@@ -393,14 +393,7 @@ void Device::FinalizeChipProperties(
 
     pChipProperties->gfxip.tessFactorBufferSizePerSe = settings.tessFactorBufferSizePerSe;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 648
-    const PalPublicSettings* pPublicSettings = Parent()->GetPublicSettings();
-    const bool               useMultiSlot    = pPublicSettings->enableGpuEventMultiSlot &&
-                                               pPublicSettings->useAcqRelInterface;
-
-    // Now is time to update the numSlotsPerEvent based on the new enableGpuEventMultiSlot value updated by client.
-    pChipProperties->gfxip.numSlotsPerEvent = useMultiSlot ? MaxSlotsPerEvent : 1;
-#endif
+    pChipProperties->gfxip.numSlotsPerEvent = 1;
 
     pChipProperties->gfx9.gfx10.supportVrsWithDsExports = settings.waDisableVrsWithDsExports ? false : true;
 }
@@ -4808,10 +4801,10 @@ void InitializeGpuChipProperties(
         pInfo->gfx9.numShaderVisibleSgprs   = MaxSgprsAvailable;
         pInfo->gfx9.numPhysicalSgprs        = Gfx10PhysicalSgprsPerSimd;
         pInfo->gfx9.sgprAllocGranularity    = 128;
-        pInfo->gfx9.minSgprAlloc            = 128;
+        pInfo->gfx9.minSgprAlloc            = pInfo->gfx9.sgprAllocGranularity;
         pInfo->gfx9.numPhysicalVgprs        = 1024;
-        pInfo->gfx9.vgprAllocGranularity    = 8;
-        pInfo->gfx9.minVgprAlloc            = 4;
+        pInfo->gfx9.vgprAllocGranularity    = IsGfx103Plus(pInfo->gfxLevel) ? 16: 8;
+        pInfo->gfx9.minVgprAlloc            = pInfo->gfx9.vgprAllocGranularity;
         pInfo->gfxip.shaderPrefetchBytes    = 3 * ShaderICacheLineSize;
     }
     else if (pInfo->gfxLevel == GfxIpLevel::GfxIp9)
@@ -4828,10 +4821,10 @@ void InitializeGpuChipProperties(
         pInfo->gfx9.numShaderVisibleSgprs   = MaxSgprsAvailable;
         pInfo->gfx9.numPhysicalSgprs        = Gfx9PhysicalSgprsPerSimd;
         pInfo->gfx9.sgprAllocGranularity    = 16;
-        pInfo->gfx9.minSgprAlloc            = 16;
+        pInfo->gfx9.minSgprAlloc            = pInfo->gfx9.sgprAllocGranularity;
         pInfo->gfx9.numPhysicalVgprs        = 256;
         pInfo->gfx9.vgprAllocGranularity    = 4;
-        pInfo->gfx9.minVgprAlloc            = 4;
+        pInfo->gfx9.minVgprAlloc            = pInfo->gfx9.vgprAllocGranularity;
         pInfo->gfxip.shaderPrefetchBytes    = 2 * ShaderICacheLineSize;
     }
 
@@ -5307,6 +5300,17 @@ uint32 Device::GetDbDfsmControl() const
     dbDfsmControl.most.PUNCHOUT_MODE = DfsmPunchoutModeForceOff;
 
     return dbDfsmControl.u32All;
+}
+
+// =====================================================================================================================
+// Returns the hardware's maximum possible value for HW shader stage WAVE_LIMIT/WAVES_PER_SH register settings.
+uint32 Device::GetMaxWavesPerSh(
+    const GpuChipProperties& chipProps,
+    bool                     isCompute)
+{
+    const uint32 numWavefrontsPerCu    = (chipProps.gfx9.numSimdPerCu * chipProps.gfx9.numWavesPerSimd);
+    const uint32 maxWavesPerShUnitSize = isCompute ? 1 : Gfx9MaxWavesPerShGraphicsUnitSize;
+    return (numWavefrontsPerCu * chipProps.gfx9.maxNumCuPerSh) / maxWavesPerShUnitSize;
 }
 
 // =====================================================================================================================
@@ -7288,28 +7292,31 @@ bool IsBufferBigPageCompatible(
     const Gfx9PalSettings& settings = GetGfx9Settings(*gpuMemory.GetDevice());
     bool bigPageCompatibility       = false;
 
-    // Minimum page size required to support BigPage optimization supplied by KMD.
-    gpusize bigPageSize = gpuMemory.GetDevice()->MemoryProperties().bigPageMinAlignment;
+    // Minimum allocation size required to support BigPage optimization supplied by KMD.
+    gpusize bigPageAlignment = gpuMemory.GetDevice()->MemoryProperties().bigPageMinAlignment;
 
-    // The hardware BIG_PAGE optimization always requires >= bigPageMinAlignment.
+    // The hardware BIG_PAGE optimization always requires allocation >= bigPageMinAlignment.
     // Also if bigPageMinAlignment == 0, BigPage optimization is not supported
     if ((TestAllFlagsSet(settings.allowBigPage, bigPageUsageMask)) &&
-        (bigPageSize > 0) &&
-        (gpuMemory.MinPageSize() >= bigPageSize))
+        (bigPageAlignment > 0) && gpuMemory.IsLocalOnly() &&
+        (gpuMemory.Desc().size >= bigPageAlignment))
     {
-        gpusize bigPageLargeSize = gpuMemory.GetDevice()->MemoryProperties().bigPageLargeAlignment;
+        gpusize bigPageLargeAlignment = gpuMemory.GetDevice()->MemoryProperties().bigPageLargeAlignment;
 
-        // Increase alignment requirements to bigPageLargeAlignment if the buffer's page size is larger and KMD
+        // Increase alignment requirements to bigPageLargeAlignment if the buffer's allocation is larger and KMD
         // supports it.
-        if ((gpuMemory.MinPageSize() >= bigPageLargeSize) && (bigPageLargeSize > 0))
+        if ((bigPageLargeAlignment > 0) &&
+            (gpuMemory.Desc().size >= bigPageLargeAlignment))
         {
-            bigPageSize = bigPageLargeSize;
+            bigPageAlignment = bigPageLargeAlignment;
         }
 
         // KMD defined alignment requirements for BIG_PAGE optimization.
-        bigPageCompatibility = IsPow2Aligned(gpuMemory.MinPageSize(), bigPageSize) &&
+        bigPageCompatibility = IsPow2Aligned(gpuMemory.Desc().alignment, bigPageAlignment) &&
+                               IsPow2Aligned(gpuMemory.Desc().size, bigPageAlignment) &&
+                               IsPow2Aligned(gpuMemory.GetPhysicalAddressAlignment(), bigPageAlignment) &&
                                ((settings.waUtcL0InconsistentBigPage == false) ||
-                                (IsPow2Aligned(offset, bigPageSize) && IsPow2Aligned(extent, bigPageSize)));
+                                (IsPow2Aligned(offset, bigPageAlignment) && IsPow2Aligned(extent, bigPageAlignment)));
     }
     return bigPageCompatibility;
 }

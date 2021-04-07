@@ -187,16 +187,16 @@ public:
         const AcquireReleaseInfo& acquireInfo,
         uint32                    syncTokenCount,
         const uint32*             pSyncTokens) override;
-#else
-    virtual void CmdRelease(
+#endif
+
+    virtual void CmdReleaseEvent(
         const AcquireReleaseInfo& releaseInfo,
         const IGpuEvent*          pGpuEvent) override;
 
-    virtual void CmdAcquire(
+    virtual void CmdAcquireEvent(
         const AcquireReleaseInfo& acquireInfo,
         uint32                    gpuEventCount,
-        const IGpuEvent*const*    ppGpuEvents) override;
-#endif
+        const IGpuEvent* const*   ppGpuEvents) override;
 
     virtual void CmdReleaseThenAcquire(const AcquireReleaseInfo& barrierInfo) override;
 
@@ -661,6 +661,10 @@ public:
 
     virtual Result AllocateAndBindGpuMemToEvent(
         IGpuEvent* pGpuEvent) override;
+
+    virtual void CmdPrimeGpuCaches(
+        uint32                    rangeCount,
+        const PrimeGpuCacheRange* pRanges) override { PAL_NEVER_CALLED(); }
 
     virtual void CmdExecuteNestedCmdBuffers(
         uint32            cmdBufferCount,

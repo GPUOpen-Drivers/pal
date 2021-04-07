@@ -31,6 +31,7 @@
 #include "core/hw/gfxip/depthStencilState.h"
 #include "core/hw/gfxip/graphicsPipeline.h"
 #include "core/hw/gfxip/gfxCmdBuffer.h"
+#include "core/hw/gfxip/gfxCmdStream.h"
 #include "core/hw/gfxip/gfxDevice.h"
 #include "core/hw/gfxip/indirectCmdGenerator.h"
 #include "core/hw/gfxip/msaaState.h"
@@ -1572,6 +1573,10 @@ void RsrcProcMgr::GetCopyImageFormats(
                                                                                     dstImageLayout,
                                                                                     true);
 
+    const bool isDccFormatEncodingMatch = m_pDevice->ComputeDccFormatEncoding(srcFormat,
+                                                                              &dstFormat,
+                                                                              1) == DccFormatEncoding::Optimal;
+
     const bool chFmtsMatch    = Formats::ShareChFmt(srcFormat.format, dstFormat.format);
     const bool formatsMatch   = (srcFormat.format == dstFormat.format) &&
                                 (srcFormat.swizzle.swizzleValue == dstFormat.swizzle.swizzleValue);
@@ -1666,10 +1671,10 @@ void RsrcProcMgr::GetCopyImageFormats(
         // If one format is deemed "not replaceable" that means it may possibly be compressed. However,
         // if it is compressed, it doesn't necessarily mean it's not replaceable. If we don't do a replacement,
         // copying from one format to another may cause corruption, so we will arbitrarily choose to replace
-        // the source if the channels within the format match and it is not an MM format. MM formats cannot be
+        // the source if DCC format encoding is compatible and it is not an MM format. MM formats cannot be
         // replaced or HW will convert the data to the format's black or white which is different for MM formats.
         else if ((isSrcFormatReplaceable && (isDstFormatReplaceable == false)) ||
-                 (chFmtsMatch && (isMmFormatUsed == false)))
+                 (isDccFormatEncodingMatch && (isMmFormatUsed == false)))
         {
             // We can replace the source format but not the destination format. This means that we must interpret
             // the source subresource using the destination numeric format. We should keep the original source
@@ -3570,8 +3575,11 @@ void RsrcProcMgr::ScaledCopyImageCompute(
             const uint32 minfilter = copyInfo.filter.minification;
 
             float zOffset = 0.0f;
-
-            if (zfilter == ZFilterNone)
+            if (is3d)
+            {
+                zOffset = 0.5f;
+            }
+            else if (zfilter == ZFilterNone)
             {
                 if ((magfilter != XyFilterPoint) || (minfilter != XyFilterPoint))
                 {
@@ -3613,7 +3621,7 @@ void RsrcProcMgr::ScaledCopyImageCompute(
             {
                 reinterpret_cast<const uint32&>(srcLeft),
                 reinterpret_cast<const uint32&>(srcTop),
-                static_cast<uint32>(copyRegion.srcOffset.z),
+                reinterpret_cast<const uint32&>(srcSlice),
                 dstExtentW,
                 static_cast<uint32>(copyRegion.dstOffset.x),
                 static_cast<uint32>(copyRegion.dstOffset.y),
@@ -5916,7 +5924,9 @@ void RsrcProcMgr::CmdGenerateIndirectCmds(
 
     // The generation pipelines expect the descriptor table's GPU address to be written to user-data #0-1.
     gpusize tableGpuAddr = 0uLL;
+
     uint32* pTableMem = pCmdBuffer->CmdAllocateEmbeddedData(((7 * SrdDwords) + 4), 1, &tableGpuAddr);
+
     PAL_ASSERT(pTableMem != nullptr);
 
     pCmdBuffer->CmdSetUserData(PipelineBindPoint::Compute, 0, 2, reinterpret_cast<uint32*>(&tableGpuAddr));
@@ -6059,7 +6069,6 @@ void RsrcProcMgr::CmdGenerateIndirectCmds(
 
             pTableMem = pCmdBuffer->CmdAllocateEmbeddedData((2 * SrdDwords), 1, &tableGpuAddr);
             PAL_ASSERT(pTableMem != nullptr);
-            pCmdBuffer->CmdSetUserData(PipelineBindPoint::Compute, 4, 2, reinterpret_cast<uint32*>(&tableGpuAddr));
 
             // UAV buffer SRD for the command-stream-chunk to generate:
             viewInfo.gpuAddr        = taskChunk.pChunk->GpuVirtAddr();
@@ -6075,7 +6084,6 @@ void RsrcProcMgr::CmdGenerateIndirectCmds(
             viewInfo.range          = (sizeof(uint32) * taskChunk.embeddedDataSize);
             viewInfo.stride         = 1;
             m_pDevice->Parent()->CreateUntypedBufferViewSrds(1, &viewInfo, pTableMem);
-            pTableMem += SrdDwords;
         }
 
         pCmdBuffer->CmdDispatch(RpmUtil::MinThreadGroups(generator.ParameterCount(), threadsPerGroup[0]),

@@ -620,9 +620,9 @@ private:
         const GraphicsPipelineSignature* pPrevSignature,
         uint32**                         ppDeCmdSpace);
 
-    uint32* FixupUserSgprsOnPipelineSwitchCs(
+    bool FixupUserSgprsOnPipelineSwitchCs(
         const ComputePipelineSignature* pPrevSignature,
-        uint32*                         pDeCmdSpace);
+        uint32**                        ppDeCmdSpace);
 
     void LeakNestedCmdBufferState(
         const UniversalCmdBuffer& cmdBuffer);

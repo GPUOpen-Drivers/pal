@@ -78,6 +78,9 @@ public:
         const IColorBlendState* pColorBlendState) override;
     virtual void CmdBindDepthStencilState(
         const IDepthStencilState* pDepthStencilState) override;
+    virtual void CmdPrimeGpuCaches(
+        uint32                    rangeCount,
+        const PrimeGpuCacheRange* pRanges) override;
     virtual void CmdBindIndexData(
         gpusize gpuAddr, uint32 indexCount, IndexType indexType) override;
     virtual void CmdBindTargets(
@@ -125,15 +128,16 @@ public:
         const AcquireReleaseInfo& acquireInfo,
         uint32                    syncTokenCount,
         const uint32*             pSyncTokens) override;
-#else
-    virtual void CmdRelease(
+#endif
+
+    virtual void CmdReleaseEvent(
         const AcquireReleaseInfo& releaseInfo,
         const IGpuEvent*          pGpuEvent) override;
-    virtual void CmdAcquire(
+    virtual void CmdAcquireEvent(
         const AcquireReleaseInfo& acquireInfo,
         uint32                    gpuEventCount,
-        const IGpuEvent*const*    ppGpuEvents) override;
-#endif
+        const IGpuEvent* const*   ppGpuEvents) override;
+
     virtual void CmdReleaseThenAcquire(
         const AcquireReleaseInfo& barrierInfo) override;
     virtual void CmdWaitRegisterValue(
@@ -654,6 +658,7 @@ private:
     void ReplayCmdBindTargets(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdBindStreamOutTargets(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdBindBorderColorPalette(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
+    void ReplayCmdPrimeGpuCaches(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdSetUserData(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdSetVertexBuffers(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdSetPerDrawVrsRate(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
@@ -675,8 +680,12 @@ private:
     void ReplayCmdSetScissorRects(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdSetGlobalScissor(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdBarrier(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
     void ReplayCmdRelease(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdAcquire(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
+#endif
+    void ReplayCmdReleaseEvent(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
+    void ReplayCmdAcquireEvent(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdReleaseThenAcquire(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdWaitRegisterValue(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdWaitMemoryValue(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);

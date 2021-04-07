@@ -71,7 +71,17 @@ endif()
 target_link_libraries(${GPUOPEN_LIB_NAME} PUBLIC ddCore)
 
 ### Third Party Components #############################################################################################
-add_subdirectory(third_party)
+if (DEFINED DEVDRIVER_FOLDER_ROOT)
+    # Save the current folder and force third_party under "/DevDriver/"
+    set(DEVDRIVER_FOLDER_BAK ${CMAKE_FOLDER})
+    set(CMAKE_FOLDER ${DEVDRIVER_FOLDER_ROOT})
+
+    add_subdirectory(third_party)
+
+    set(CMAKE_FOLDER ${DEVDRIVER_FOLDER_BAK})
+else()
+    add_subdirectory(third_party)
+endif()
 
 target_link_libraries(${GPUOPEN_LIB_NAME} PRIVATE mpack)
 target_link_libraries(${GPUOPEN_LIB_NAME} PUBLIC  metrohash)

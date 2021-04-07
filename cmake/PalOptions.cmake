@@ -22,11 +22,10 @@
  #  SOFTWARE.
  #
  #######################################################################################################################
+include_guard()
 
 include(PalVersionHelper)
 include(CMakeDependentOption)
-
-pal_include_guard(PalOptions)
 
 # All options/cache variables should have the prefix "PAL_" this serves two main purposes
 #   Name collision issues

@@ -392,6 +392,8 @@ uint32* PipelineChunkCs::WriteShCommands(
     bool                            prefetch
     ) const
 {
+    const GpuChipProperties& chipProps = m_device.Parent()->ChipProperties();
+
     // Disable the LOAD_INDEX path if the PM4 optimizer is enabled or for compute command buffers.  The optimizer cannot
     // optimize these load packets because the register values are in GPU memory.  Additionally, any client requesting
     // PM4 optimization is trading CPU cycles for GPU performance, so the savings of using LOAD_INDEX is not important.
@@ -415,17 +417,18 @@ uint32* PipelineChunkCs::WriteShCommands(
     dynamic.computeResourceLimits.bits.TG_PER_CU = Min(csInfo.maxThreadGroupsPerCu, Gfx9MaxTgPerCu);
     if (csInfo.maxWavesPerCu > 0)
     {
-        if (IsGfx10Plus(m_device.Parent()->ChipProperties().gfxLevel))
-        {
-            dynamic.computeResourceLimits.bits.WAVES_PER_SH =
-                Gfx9::ComputePipeline::CalcMaxWavesPerSe(m_device.Parent()->ChipProperties(), csInfo.maxWavesPerCu);
-        }
-        else
-        {
-            dynamic.computeResourceLimits.bits.WAVES_PER_SH =
-                Gfx9::ComputePipeline::CalcMaxWavesPerSh(m_device.Parent()->ChipProperties(), csInfo.maxWavesPerCu);
-        }
+        dynamic.computeResourceLimits.bits.WAVES_PER_SH = IsGfx10Plus(chipProps.gfxLevel) ?
+            ComputePipeline::CalcMaxWavesPerSe(chipProps, csInfo.maxWavesPerCu) :
+            ComputePipeline::CalcMaxWavesPerSh(chipProps, csInfo.maxWavesPerCu);
     }
+#if PAL_AMDGPU_BUILD
+    else if (IsGfx9(chipProps.gfxLevel) && (dynamic.computeResourceLimits.bits.WAVES_PER_SH == 0))
+    {
+        // GFX9 GPUs have a HW bug where a wave limit size of 0 does not correctly map to "no limit",
+        // potentially breaking high-priority compute.
+        dynamic.computeResourceLimits.bits.WAVES_PER_SH = m_device.GetMaxWavesPerSh(chipProps, true);
+    }
+#endif
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 628
     // CU_GROUP_COUNT: Sets the number of CS threadgroups to attempt to send to a single CU before moving to the next CU.

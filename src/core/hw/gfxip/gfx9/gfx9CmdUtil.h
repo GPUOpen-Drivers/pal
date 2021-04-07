@@ -161,7 +161,7 @@ struct ExplicitAcquireMemInfo
 
     EngineType engineType;
     uint32     coherCntl;
-    Gfx10AcquireMemGcrCntl gcrCntl;
+    uint32     gcrCntl;
 
     // These define the address range being acquired. Use FullSyncBaseAddr and FullSyncSize for a global acquire.
     gpusize    baseAddress;
@@ -539,12 +539,12 @@ public:
         VGT_EVENT_TYPE  vgtEvent,
         EngineType      engineType,
         void*           pBuffer);
-    static size_t BuildSampleEventWrite(
+    size_t BuildSampleEventWrite(
         VGT_EVENT_TYPE                  vgtEvent,
         ME_EVENT_WRITE_event_index_enum eventIndex,
         EngineType                      engineType,
         gpusize                         gpuAddr,
-        void*                           pBuffer);
+        void*                           pBuffer) const;
     size_t BuildExecutionMarker(
         gpusize markerAddr,
         uint32  markerVal,
@@ -780,6 +780,10 @@ public:
     size_t BuildNopPayload(const void* pPayload, uint32 payloadSize, void* pBuffer) const;
 
     void BuildPipelinePrefetchPm4(const PipelineUploader& uploader, PipelinePrefetchPm4* pOutput) const;
+
+    size_t BuildPrimeGpuCaches(
+        const PrimeGpuCacheRange& primeGpuCacheRange,
+        void*                     pBuffer) const;
 
     // Returns the register information for registers which have differing addresses between hardware families.
     const RegisterInfo& GetRegInfo() const { return m_registerInfo; }

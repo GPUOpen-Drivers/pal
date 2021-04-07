@@ -612,6 +612,7 @@ Result Image::CreateExternalSharedImage(
     {
         result = pDevice->CreateGpuMemoryFromExternalShare(nullptr,
                                                            pImage,
+                                                           openInfo,
                                                            sharedInfo,
                                                            pGpuMemoryPlacementAddr,
                                                            &memCreateInfo,

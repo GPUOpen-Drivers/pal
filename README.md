@@ -106,7 +106,15 @@ In addition to its GPU-specific core functionality, PAL provides a lot of generi
 In addition to the generic, OS-abstracted software utilities, PAL provides GPU-specific utilities in the `GpuUtil` namespace. These utilities provide common, useful functionality that build on top of the core `Pal` interfaces.  Some examples include an interface for writing text with the GPU, an MLAA implementation, and a wrapper on top of `Pal::IPerfExperiment` to simplify performance data gathering.
 
 ## Third Party Software
-PAL contains code written by third parties. Such libraries have their own individual LICENSE files in the directory they appear:
-* jemalloc: see src/util/imported/jemalloc/jemalloc-license
-* Metrohash: see src/util/imported/metrohash/metrohash-license
-* rapidjson: see shared/gpuopen/inc/imported/rapidjson/license.txt
+PAL contains code written by third parties:
+* libuuid, see license in files under src/util/imported/libuuid
+* md5, see license in src/util/imported/md5.hpp
+* TinySHA1, see license in src/util/imported/TinySHA1.hpp
+* gtest, see license in shared/gpuopen/third_party/gtest/LICENSE
+* lz4, see license in shared/gpuopen/third_party/lz4/LICENSE
+* whereami, see license in shared/gpuopen/third_party/whereami/LICENSE.MIT
+* cwalk is distributed under the terms of MIT License, see shared/gpuopen/third_party/cwalk/LICENSE.md
+* flatbuffers is distributed under the terms of Apache License 2.0, see shared/gpuopen/third_party/flatbuffers/LICENSE.txt
+* mpack is distributed under the terms of MIT License, see shared/gpuopen/third_party/mpack/LICENSE
+* rapidjson is distributed under the terms of MIT License, see shared/gpuopen/third_party/rapidjson/license.txt
+* tiny_printf is distributed under the terms of MIT License, see shared/gpuopen/third_party/tiny_printf/LICENSE

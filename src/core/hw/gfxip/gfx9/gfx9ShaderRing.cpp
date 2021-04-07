@@ -66,8 +66,18 @@ static PAL_INLINE size_t AdjustScratchWaveSize(
     // of number of waves below will not exceed what SPI can actually generate.
     constexpr size_t MaxWaveSize        = ((1 << 21) - ScratchWaveSizeGranularity);
     const     size_t minWaveSize        = (scratchWaveSize > 0) ? ScratchWaveSizeGranularity : 0;
-    const     size_t adjScratchWaveSize =
+    size_t           adjScratchWaveSize =
         (scratchWaveSize > 0) ? RoundUpToMultiple(scratchWaveSize, ScratchWaveSizeGranularity) : scratchWaveSize;
+
+    // If the size per wave is sufficiently large, and the access pattern of scratch memory only uses a very small,
+    // upfront portion of the total amount allocated, we run into an issue where accesses to this scratch memory across
+    // all waves fall into the same memory channels, since the memory channels are based on bits [11:8] of the full byte
+    // address. Unfortunately, since scratch wave allocation is based on units of 256DW (1KB), this means that that only
+    // bits [11:10] really impact the memory channels, and of those we only really care about bit 10.
+    // In order to fix this, we try to bump the allocation up by a single unit (256DW) to make each wave more likely to
+    // access disparate memory channels.
+    // NOTE: For use cases that use low amounts of scratch, this may increase the size of the scratch ring by 50%.
+    adjScratchWaveSize |= minWaveSize;
 
     return Max(Min(MaxWaveSize, adjScratchWaveSize), minWaveSize);
 }
@@ -282,7 +292,10 @@ size_t ScratchRing::CalculateWaves() const
 
         // Attempt to allow as many waves in parallel as possible, but make sure we don't launch more waves than we
         // can handle in the scratch ring.
-        numWaves = Min(static_cast<size_t>(m_allocSize) / (waveSize * sizeof(uint32)), m_numMaxWaves);
+        size_t allocSize   = static_cast<size_t>(m_allocSize);
+        size_t numMaxWaves = m_numMaxWaves;
+
+        numWaves = Min(static_cast<size_t>(allocSize) / (waveSize * sizeof(uint32)), numMaxWaves);
     }
 
     // Max bits allowed in reg field, should never hit this.

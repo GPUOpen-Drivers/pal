@@ -42,8 +42,7 @@ GpuMemory::GpuMemory(
     m_hSurface(nullptr),
     m_hVaRange(nullptr),
     m_offset(0),
-    m_isVmAlwaysValid(false),
-    m_shared(false),
+    m_amdgpuFlags{},
     m_externalHandleType(amdgpu_bo_handle_type_dma_buf_fd)
 {
 }
@@ -69,7 +68,7 @@ GpuMemory::~GpuMemory()
     // Unmap the buffer object and free its virtual address.
     if (m_desc.gpuVirtAddr != 0)
     {
-        const bool freeVirtAddr = m_shared ? pDevice->RemoveFromSharedBoMap(m_hSurface) : true;
+        const bool freeVirtAddr = m_amdgpuFlags.isShared ? pDevice->RemoveFromSharedBoMap(m_hSurface) : true;
 
         if (IsVirtual() == false)
         {
@@ -357,7 +356,7 @@ Result GpuMemory::AllocateOrPinMemory(
                 {
                     // VM always valid guarantees VM addresses are always valid within local VM context.
                     allocRequest.flags |= AMDGPU_GEM_CREATE_VM_ALWAYS_VALID;
-                    m_isVmAlwaysValid = true;
+                    m_amdgpuFlags.isVmAlwaysValid = true;
                 }
 
                 // Use explicit sync for multi process memory and assume external synchronization
@@ -383,7 +382,7 @@ Result GpuMemory::AllocateOrPinMemory(
 
             // Add internal memory to the global list, all of the internal memory are alwaysResident memory.
             // When alwaysResident enabled by settings, resource list is not necessary.
-            if ((result == Result::Success) && (m_isVmAlwaysValid == false) && IsAlwaysResident() &&
+            if ((result == Result::Success) && (m_amdgpuFlags.isVmAlwaysValid == false) && IsAlwaysResident() &&
                 (pDevice->Settings().alwaysResident == false))
             {
                 GpuMemoryRef memRef = {};
@@ -529,7 +528,7 @@ Result GpuMemory::ImportMemory(
 
                 if (m_hVaRange != nullptr)
                 {
-                    m_shared = true;
+                    m_amdgpuFlags.isShared = true;
                 }
                 else
                 {
@@ -539,7 +538,7 @@ Result GpuMemory::ImportMemory(
         }
     }
 
-    if ((result == Result::Success) && (m_shared == false))
+    if ((result == Result::Success) && (m_amdgpuFlags.isShared == 0))
     {
         result = pDevice->MapVirtualAddress(m_hSurface, 0, m_desc.size, m_desc.gpuVirtAddr, m_mtype);
 
@@ -633,8 +632,13 @@ Result GpuMemory::OpenSharedMemory(
             m_flags.explicitSync = 1;
         }
     }
-    // handle should be closed here otherwise, the memory would never be freed since it takes one extra refcount.
-    close(handle);
+
+    // On native Linux, handle should be closed here if it's a DMA buf fd. Otherwise, the memory would never be freed
+    // since it takes one extra refcount.
+    if (m_externalHandleType == amdgpu_bo_handle_type_dma_buf_fd)
+    {
+        close(handle);
+    }
     return result;
 }
 
@@ -700,9 +704,9 @@ OsExternalHandle GpuMemory::ExportExternalHandle(
                                               type,
                                               reinterpret_cast<uint32*>(&fd));
 
-        if ((result == Result::Success) && (m_shared == false))
+        if ((result == Result::Success) && (m_amdgpuFlags.isShared == false))
         {
-            m_shared = pDevice->AddToSharedBoMap(m_hSurface, m_hVaRange, m_desc.gpuVirtAddr);
+            m_amdgpuFlags.isShared = pDevice->AddToSharedBoMap(m_hSurface, m_hVaRange, m_desc.gpuVirtAddr);
         }
     }
 

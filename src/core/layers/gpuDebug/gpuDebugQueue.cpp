@@ -141,6 +141,22 @@ Result Queue::Init(
                     result = m_pDevice->CreateGpuMemory(createInfo,
                                                         static_cast<void*>(m_ppTimestamp[i]),
                                                         &m_ppTimestamp[i]);
+
+                    if (result != Result::Success)
+                    {
+                        uint32 j = i;
+
+                        PAL_SAFE_FREE(m_ppTimestamp[j], pPlatform);
+
+                        while (j > 0)
+                        {
+                            j--;
+                            m_ppTimestamp[j]->Destroy();
+                            PAL_SAFE_FREE(m_ppTimestamp[j], pPlatform);
+                        }
+
+                        PAL_SAFE_FREE(m_ppTimestamp, pPlatform);
+                    }
                 }
 
                 if (result == Result::Success)
@@ -169,32 +185,36 @@ Result Queue::InitCmdAllocator()
     // We need a command allocator for the per-queue command buffer which contains information as to
     // where the timestamp data lives. This command buffer will be used for comments so we can get away
     // with small allocations and suballocations.
-    constexpr uint32 CommandDataSuballocSize = (1024 * 4);
-    constexpr uint32 EmbeddedDataSuballocSize = (1024 * 4);
-    constexpr uint32 GpuScratchMemSuballocSize = (1024 * 4);
+    constexpr uint32 AllocSize      = (2 * 1024 * 1024);
+    constexpr uint32 SuballocSize   = (64 * 1024);
 
-    CmdAllocatorCreateInfo cmdAllocCreateInfo = { };
-    cmdAllocCreateInfo.flags.threadSafe      = 1;
-    cmdAllocCreateInfo.flags.autoMemoryReuse = 1;
-    cmdAllocCreateInfo.allocInfo[CommandDataAlloc].allocHeap      = GpuHeapGartCacheable;
-    cmdAllocCreateInfo.allocInfo[CommandDataAlloc].suballocSize   = CommandDataSuballocSize;
-    cmdAllocCreateInfo.allocInfo[CommandDataAlloc].allocSize      = CommandDataSuballocSize;
-    cmdAllocCreateInfo.allocInfo[EmbeddedDataAlloc].allocHeap     = GpuHeapGartCacheable;
-    cmdAllocCreateInfo.allocInfo[EmbeddedDataAlloc].suballocSize  = EmbeddedDataSuballocSize;
-    cmdAllocCreateInfo.allocInfo[EmbeddedDataAlloc].allocSize     = EmbeddedDataSuballocSize;
-    cmdAllocCreateInfo.allocInfo[GpuScratchMemAlloc].allocHeap    = GpuHeapInvisible;
-    cmdAllocCreateInfo.allocInfo[GpuScratchMemAlloc].suballocSize = GpuScratchMemSuballocSize;
-    cmdAllocCreateInfo.allocInfo[GpuScratchMemAlloc].allocSize    = GpuScratchMemSuballocSize;
+    CmdAllocatorCreateInfo createInfo = { };
+    createInfo.flags.threadSafe      = 1;
+    createInfo.flags.autoMemoryReuse = 1;
+    createInfo.allocInfo[CommandDataAlloc].allocHeap      = GpuHeapGartCacheable;
+    createInfo.allocInfo[CommandDataAlloc].suballocSize   = SuballocSize;
+    createInfo.allocInfo[CommandDataAlloc].allocSize      = AllocSize;
+    createInfo.allocInfo[EmbeddedDataAlloc].allocHeap     = GpuHeapGartCacheable;
+    createInfo.allocInfo[EmbeddedDataAlloc].suballocSize  = SuballocSize;
+    createInfo.allocInfo[EmbeddedDataAlloc].allocSize     = AllocSize;
+    createInfo.allocInfo[GpuScratchMemAlloc].allocHeap    = GpuHeapInvisible;
+    createInfo.allocInfo[GpuScratchMemAlloc].suballocSize = SuballocSize;
+    createInfo.allocInfo[GpuScratchMemAlloc].allocSize    = AllocSize;
 
     m_pCmdAllocator =
-        static_cast<ICmdAllocator*>(PAL_MALLOC(m_pDevice->GetCmdAllocatorSize(cmdAllocCreateInfo, nullptr),
+        static_cast<ICmdAllocator*>(PAL_MALLOC(m_pDevice->GetCmdAllocatorSize(createInfo, nullptr),
                                                pPlatform,
                                                AllocInternal));
 
     Result result = Result::ErrorOutOfMemory;
     if (m_pCmdAllocator != nullptr)
     {
-        result = m_pDevice->CreateCmdAllocator(cmdAllocCreateInfo, m_pCmdAllocator, &m_pCmdAllocator);
+        result = m_pDevice->CreateCmdAllocator(createInfo, m_pCmdAllocator, &m_pCmdAllocator);
+
+        if (result != Result::Success)
+        {
+            PAL_SAFE_FREE(m_pCmdAllocator, pPlatform);
+        }
     }
 
     return result;
@@ -234,6 +254,12 @@ Result Queue::InitCmdBuffers(
             result = m_pDevice->CreateCmdBuffer(cmdBufferCreateInfo,
                                                 m_ppCmdBuffer[i],
                                                 reinterpret_cast<ICmdBuffer**>(&m_ppCmdBuffer[i]));
+
+            if (result != Result::Success)
+            {
+                // Any other command buffers will be cleaned up in Destroy().
+                PAL_SAFE_FREE(m_ppCmdBuffer[i], pPlatform);
+            }
         }
 
         if (result == Result::Success)

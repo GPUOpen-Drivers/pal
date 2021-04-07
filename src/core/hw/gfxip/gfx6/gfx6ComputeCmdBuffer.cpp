@@ -557,14 +557,19 @@ uint32* ComputeCmdBuffer::ValidateUserData(
     // Write all dirty user-data entries to their mapped user SGPR's and check if the spill table needs updating.
     // If the pipeline has changed we must also fixup the dirty bits because the prior compute pipeline could use
     // fewer fast sgprs than the current pipeline.
+
+    bool alreadyWritten = false;
     if (HasPipelineChanged)
     {
-        pCmdSpace = FixupUserSgprsOnPipelineSwitch(pPrevSignature, pCmdSpace);
+        alreadyWritten = FixupUserSgprsOnPipelineSwitch(pPrevSignature, &pCmdSpace);
     }
 
-    pCmdSpace = m_cmdStream.WriteUserDataEntriesToSgprs<false, ShaderCompute>(m_pSignatureCs->stage,
-                                                                              m_computeState.csUserDataEntries,
-                                                                              pCmdSpace);
+    if (alreadyWritten == false)
+    {
+        pCmdSpace = m_cmdStream.WriteUserDataEntriesToSgprs<false, ShaderCompute>(m_pSignatureCs->stage,
+                                                                                  m_computeState.csUserDataEntries,
+                                                                                  pCmdSpace);
+    }
 
     const uint16 spillThreshold = m_pSignatureCs->spillThreshold;
     if (spillThreshold != NoUserDataSpilling)
@@ -731,9 +736,9 @@ uint32* ComputeCmdBuffer::ValidateDispatch(
 // Helper function responsible for handling user-SGPR updates during Dispatch-time validation when the active pipeline
 // has changed since the previous Dispathc operation.  It is expected that this will be called only when the pipeline
 // is changing and immediately before a call to WriteUserDataEntriesToSgprs<false, ..>().
-uint32* ComputeCmdBuffer::FixupUserSgprsOnPipelineSwitch(
+bool ComputeCmdBuffer::FixupUserSgprsOnPipelineSwitch(
     const ComputePipelineSignature* pPrevSignature,
-    uint32*                         pCmdSpace)
+    uint32**                        ppCmdSpace)
 {
     PAL_ASSERT(pPrevSignature != nullptr);
 
@@ -743,13 +748,18 @@ uint32* ComputeCmdBuffer::FixupUserSgprsOnPipelineSwitch(
     // all mapped user-SGPR's whose mappings are changing.  If mappings are not changing it will be handled through
     // the normal "pipeline not changing" path.
 
+    bool written = false;
+    uint32* pCmdSpace = (*ppCmdSpace);
+
     if (m_pSignatureCs->userDataHash != pPrevSignature->userDataHash)
     {
         pCmdSpace = m_cmdStream.WriteUserDataEntriesToSgprs<true, ShaderCompute>(m_pSignatureCs->stage,
                                                                                  m_computeState.csUserDataEntries,
                                                                                  pCmdSpace);
+        written = true;
+        (*ppCmdSpace) = pCmdSpace;
     }
-    return pCmdSpace;
+    return written;
 }
 
 // =====================================================================================================================
@@ -1150,6 +1160,9 @@ void ComputeCmdBuffer::GetChunkForCmdGeneration(
                                                                                  embeddedDwords,
                                                                                  maxCommands);
     (pChunkOutputs->embeddedDataSize) = ((pChunkOutputs->commandsInChunk) * embeddedDwords);
+
+    // Populate command buffer chain size required later for an indirect command generation optimization.
+    (pChunkOutputs->chainSizeInDwords) = m_cmdStream.GetChainSizeInDwords(m_device, IsNested());
 
     if (spillDwords > 0)
     {

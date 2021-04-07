@@ -61,21 +61,13 @@ GfxCmdBuffer::GfxCmdBuffer(
     m_gfxIpLevel(device.Parent()->ChipProperties().gfxLevel),
     m_maxUploadFenceToken(0),
     m_device(device),
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 648
-    m_pInternalEvent(nullptr),
-#endif
-    m_timestampGpuVa(0),
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
     m_acqRelFenceValGpuVa(0),
 #endif
+    m_pInternalEvent(nullptr),
+    m_timestampGpuVa(0),
     m_computeStateFlags(0),
     m_fceRefCountVec(device.GetPlatform())
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 648
-    ,
-    m_gfxBltActiveCtr(0),
-    m_csBltActiveCtr(0),
-    m_releaseActivityMap(128, device.GetPlatform())
-#endif
 {
     PAL_ASSERT((createInfo.queueType == QueueTypeUniversal) || (createInfo.queueType == QueueTypeCompute));
 
@@ -109,7 +101,6 @@ GfxCmdBuffer::~GfxCmdBuffer()
     ReturnGeneratedCommandChunks(true);
     ResetFastClearReferenceCounts();
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 648
     Device* device = m_device.Parent();
 
     if (m_pInternalEvent != nullptr)
@@ -117,7 +108,6 @@ GfxCmdBuffer::~GfxCmdBuffer()
         m_pInternalEvent->Destroy();
         PAL_SAFE_FREE(m_pInternalEvent, device->GetPlatform());
     }
-#endif
 }
 
 // =====================================================================================================================
@@ -126,7 +116,6 @@ Result GfxCmdBuffer::Init(
 {
     Result result = CmdBuffer::Init(internalInfo);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 648
     Device* pDevice = m_device.Parent();
 
     if (result == Result::Success)
@@ -154,12 +143,6 @@ Result GfxCmdBuffer::Init(
             }
         }
     }
-
-    if (result == Pal::Result::Success)
-    {
-        result = m_releaseActivityMap.Init();
-    }
-#endif
 
     return result;
 }
@@ -237,15 +220,6 @@ Result GfxCmdBuffer::Reset(
 
     ResetFastClearReferenceCounts();
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 648
-    // Current release tracking design could add lots of releases entries but never clear then until reset. This could
-    // cause large CPU overhead. Alert if this does happen.
-    PAL_ALERT(m_releaseActivityMap.GetNumEntries() >= 1024);
-
-    // Reset auto-release activity list
-    m_releaseActivityMap.Reset();
-#endif
-
     return CmdBuffer::Reset(pCmdAllocator, returnGpuMemory);
 }
 
@@ -299,9 +273,6 @@ void GfxCmdBuffer::ResetState()
     {
         m_acqRelFenceVals[i] = AcqRelFenceResetVal;
     }
-#else
-    m_gfxBltActiveCtr = 0;
-    m_csBltActiveCtr  = 0;
 #endif
 
 }
@@ -316,9 +287,6 @@ Result GfxCmdBuffer::BeginCommandStreams(
     {
         ReturnGeneratedCommandChunks(true);
         ResetFastClearReferenceCounts();
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 648
-        m_releaseActivityMap.Reset();
-#endif
     }
 
     Result result = CmdBuffer::BeginCommandStreams(cmdStreamFlags, doReset);
@@ -485,14 +453,6 @@ void GfxCmdBuffer::SetGfxCmdBufGfxBltState(
     bool gfxBltActive)
 {
     m_gfxCmdBufState.flags.gfxBltActive = gfxBltActive;
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 648
-    if (gfxBltActive)
-    {
-        m_gfxBltActiveCtr++;
-        PAL_ASSERT(m_gfxBltActiveCtr < 0xffff);
-    }
-#endif
 }
 
 // =====================================================================================================================
@@ -500,106 +460,7 @@ void GfxCmdBuffer::SetGfxCmdBufCsBltState(
     bool csBltActive)
 {
     m_gfxCmdBufState.flags.csBltActive = csBltActive;
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 648
-    if (csBltActive)
-    {
-        m_csBltActiveCtr++;
-        PAL_ASSERT(m_csBltActiveCtr < 0xffff);
-    }
-#endif
 }
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 648
-// =====================================================================================================================
-// This is only for the acquire/release barrier interface. Add the current release info to the release activity hashmap.
-void GfxCmdBuffer::UpdateReleaseActivityMapFromRelease(
-    const IGpuEvent*                    pGpuEvent,
-    const Developer::BarrierOperations& barrierOps)
-{
-    PAL_ASSERT(pGpuEvent != nullptr);
-
-    ReleaseActivityInfo value = {};
-
-    value.pipelineStalls.eosTsPsDone       = barrierOps.pipelineStalls.eosTsPsDone;
-    value.pipelineStalls.eosTsCsDone       = barrierOps.pipelineStalls.eosTsCsDone;
-    value.pipelineStalls.eopTsBottomOfPipe = barrierOps.pipelineStalls.eopTsBottomOfPipe;
-
-    // Log any cache operation that a release could issue.
-    value.caches.gfxBltCacheSync = (barrierOps.caches.flushCb         || barrierOps.caches.invalCb         ||
-                                    barrierOps.caches.flushCbMetadata || barrierOps.caches.invalCbMetadata ||
-                                    barrierOps.caches.flushDb         || barrierOps.caches.invalDb         ||
-                                    barrierOps.caches.flushDbMetadata || barrierOps.caches.invalDbMetadata);
-
-    value.caches.invalTcc = barrierOps.caches.invalTcc; // This is marked if it's releasing from "CpDma write to memory"
-    value.caches.flushTcc = barrierOps.caches.flushTcc; // This is marked if there is an explicit request to flush LLC.
-
-    // Log timestamp from gfx/cs activity counter.
-    value.gfxBltActiveTimestamp = m_gfxBltActiveCtr;
-    value.csBltActiveTimestamp  = m_csBltActiveCtr;
-
-    Result result = m_releaseActivityMap.Insert(pGpuEvent, value);
-    PAL_ASSERT(result == Result::Success);
-}
-
-// =====================================================================================================================
-// This is only for the acquire/release barrier interface. Find the associated release this acquire is waiting on, and
-// use the release info to update command buffer state flags. Then remove the release entry from hashmap.
-void GfxCmdBuffer::UpdateCmdBufStateFromAcquire(
-    const IGpuEvent*                    pGpuEvent,
-    const Developer::BarrierOperations& barrierOps)
-{
-    ReleaseActivityInfo* pValue = m_releaseActivityMap.FindKey(pGpuEvent);
-
-    if (pValue != nullptr)
-    {
-        // If the current m_gfxBltActiveCtr is equal to the value it was when the release we're waiting on was queued,
-        // then there have been no graphics BLTs since that release. Therefore we can cleanup some of the BLT state
-        // tracking.
-        if ((pValue->pipelineStalls.eopTsBottomOfPipe != 0) && (pValue->gfxBltActiveTimestamp == m_gfxBltActiveCtr))
-        {
-            SetGfxCmdBufGfxBltState(false);
-
-            if (pValue->caches.gfxBltCacheSync != 0)
-            {
-                SetGfxCmdBufGfxBltWriteCacheState(false);
-            }
-        }
-
-        // Same for m_csBltActiveCtr.
-        if (((pValue->pipelineStalls.eosTsCsDone != 0) || (pValue->pipelineStalls.eopTsBottomOfPipe != 0)) &&
-            (pValue->csBltActiveTimestamp == m_csBltActiveCtr))
-        {
-            SetGfxCmdBufCsBltState(false);
-
-            if((barrierOps.caches.invalTcp         != 0) &&
-               (barrierOps.caches.invalSqK$        != 0) &&
-               (barrierOps.caches.invalTccMetadata != 0))
-            {
-                SetGfxCmdBufCsBltWriteCacheState(false);
-            }
-        }
-
-        // CP BLT relies on BuildWaitDmaData which stalls the CP, so it doesn't need to check a counter like gfx and cs
-        // paths.
-        if (GetGfxCmdBufState().flags.cpBltActive == false)
-        {
-            if (pValue->caches.flushTcc != 0)
-            {
-                SetGfxCmdBufCpBltWriteCacheState(false);
-            }
-            if ((pValue->caches.invalTcc != 0) || (barrierOps.caches.invalTcc != 0))
-            {
-                SetGfxCmdBufCpMemoryWriteL2CacheStaleState(false);
-            }
-        }
-
-        // The associated release is guaranteed completed by the acquire, and we've updated the BLT state tracking based
-        // on the release's operations. It's safe to remove this entry from the hashmap.
-        m_releaseActivityMap.Erase(pGpuEvent);
-    }
-}
-#endif
 
 // =====================================================================================================================
 void GfxCmdBuffer::CmdCopyImage(

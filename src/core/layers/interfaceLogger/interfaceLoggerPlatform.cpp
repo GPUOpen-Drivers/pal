@@ -64,6 +64,7 @@ static constexpr FuncLoggingTableEntry FuncLoggingTable[] =
     { InterfaceFunc::CmdBufferEnd,                                  (CmdBuild)            },
     { InterfaceFunc::CmdBufferReset,                                (CmdBuild)            },
     { InterfaceFunc::CmdBufferCmdBindPipeline,                      (CmdBuild)            },
+    { InterfaceFunc::CmdBufferCmdPrimeGpuCaches,                    (CmdBuild)            },
     { InterfaceFunc::CmdBufferCmdBindMsaaState,                     (CmdBuild)            },
     { InterfaceFunc::CmdBufferCmdBindColorBlendState,               (CmdBuild)            },
     { InterfaceFunc::CmdBufferCmdBindDepthStencilState,             (CmdBuild)            },
@@ -92,8 +93,12 @@ static constexpr FuncLoggingTableEntry FuncLoggingTable[] =
     { InterfaceFunc::CmdBufferCmdSetScissorRects,                   (CmdBuild)            },
     { InterfaceFunc::CmdBufferCmdSetGlobalScissor,                  (CmdBuild)            },
     { InterfaceFunc::CmdBufferCmdBarrier,                           (CmdBuild)            },
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
     { InterfaceFunc::CmdBufferCmdRelease,                           (CmdBuild)            },
     { InterfaceFunc::CmdBufferCmdAcquire,                           (CmdBuild)            },
+#endif
+    { InterfaceFunc::CmdBufferCmdReleaseEvent,                      (CmdBuild)            },
+    { InterfaceFunc::CmdBufferCmdAcquireEvent,                      (CmdBuild)            },
     { InterfaceFunc::CmdBufferCmdReleaseThenAcquire,                (CmdBuild)            },
     { InterfaceFunc::CmdBufferCmdDraw,                              (CmdBuild)            },
     { InterfaceFunc::CmdBufferCmdDrawOpaque,                        (CmdBuild)            },

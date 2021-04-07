@@ -22,10 +22,9 @@
  #  SOFTWARE.
  #
  #######################################################################################################################
+include_guard()
 
 include(PalVersionHelper)
-
-pal_include_guard(PalBuildParameters)
 
 macro(pal_gfx9_options)
 
@@ -89,6 +88,7 @@ macro(pals_build_parameters)
     # Create a more convenient variable to avoid string comparisons.
     set(PAL_CLIENT_${PAL_CLIENT} ON)
 
+    # This variable controls wether PAL is built with an amdgpu back-end
     set(PAL_AMDGPU_BUILD ${UNIX})
 
     # If present, it specifies that the build is on a release branch (not stg) and en/disables features

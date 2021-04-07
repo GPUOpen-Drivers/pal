@@ -107,7 +107,8 @@ size_t Device::GetCmdBufferSize(
     CmdBufferCreateInfo nextCreateInfo = createInfo;
     nextCreateInfo.pCmdAllocator = NextCmdAllocator(createInfo.pCmdAllocator);
 
-    return m_pNextLayer->GetCmdBufferSize(nextCreateInfo, pResult) + sizeof(CmdBuffer);
+    return m_pNextLayer->GetCmdBufferSize(nextCreateInfo, pResult) +
+           ((createInfo.flags.nested == 0) ? sizeof(CmdBuffer) : sizeof(CmdBufferFwdDecorator));
 }
 
 // =====================================================================================================================
@@ -130,8 +131,16 @@ Result Device::CreateCmdBuffer(
     {
         PAL_ASSERT(pNextCmdBuffer != nullptr);
 
-        pCmdBuffer = PAL_PLACEMENT_NEW(pPlacementAddr) CmdBuffer(pNextCmdBuffer, this, createInfo);
-        result     = static_cast<CmdBuffer*>(pCmdBuffer)->Init();
+        if (createInfo.flags.nested == 0)
+        {
+            pCmdBuffer = PAL_PLACEMENT_NEW(pPlacementAddr) CmdBuffer(pNextCmdBuffer, this, createInfo);
+            result     = static_cast<CmdBuffer*>(pCmdBuffer)->Init();
+        }
+        else
+        {
+            PAL_NOT_IMPLEMENTED_MSG("Nested CmdBuffers not 100% supported by GpuDebug layer features.");
+            pCmdBuffer = PAL_PLACEMENT_NEW(pPlacementAddr) CmdBufferFwdDecorator(pNextCmdBuffer, this);
+        }
 
         if (result == Result::Success)
         {

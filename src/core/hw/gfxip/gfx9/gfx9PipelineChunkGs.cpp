@@ -416,6 +416,14 @@ uint32* PipelineChunkGs::WriteShCommands(
     {
         dynamic.spiShaderPgmRsrc3Gs.bits.WAVE_LIMIT = gsStageInfo.wavesPerSh;
     }
+#if PAL_AMDGPU_BUILD
+    else if (IsGfx9(chipProps.gfxLevel) && (dynamic.spiShaderPgmRsrc3Gs.bits.WAVE_LIMIT == 0))
+    {
+        // GFX9 GPUs have a HW bug where a wave limit size of 0 does not correctly map to "no limit",
+        // potentially breaking high-priority compute.
+        dynamic.spiShaderPgmRsrc3Gs.bits.WAVE_LIMIT = m_device.GetMaxWavesPerSh(chipProps, false);
+    }
+#endif
 
     if (gsStageInfo.cuEnableMask != 0)
     {

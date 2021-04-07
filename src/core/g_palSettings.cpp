@@ -79,7 +79,6 @@ void SettingsLoader::SetupDefaults()
     m_settings.enableBigPagePreAlignment = true;
     m_settings.enableIterate256PreAlignment = true;
     m_settings.addr2DisableXorTileMode = false;
-
     m_settings.addr2DisableSModes8BppColor = false;
 #if   (__unix__)
     m_settings.disableOptimizedDisplay = true;
@@ -129,6 +128,7 @@ void SettingsLoader::SetupDefaults()
     m_settings.cmdStreamEnableMemsetOnReserve = false;
     m_settings.cmdStreamMemsetValue = 4294967295;
     m_settings.cmdBufChunkEnableStagingBuffer = false;
+    m_settings.cmdBufDisallowNestedLaunchViaIb2 = false;
     m_settings.cmdAllocatorFreeOnReset = false;
     m_settings.cmdBufOptimizePm4 = Pm4OptDefaultEnable;
     m_settings.cmdBufForceOneTimeSubmit = CmdBufForceOneTimeSubmitDefault;
@@ -440,6 +440,11 @@ void SettingsLoader::ReadSettings()
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pCmdBufChunkEnableStagingBufferStr,
                            Util::ValueType::Boolean,
                            &m_settings.cmdBufChunkEnableStagingBuffer,
+                           InternalSettingScope::PrivatePalKey);
+
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pCmdBufDisallowNestedLaunchViaIb2Str,
+                           Util::ValueType::Boolean,
+                           &m_settings.cmdBufDisallowNestedLaunchViaIb2,
                            InternalSettingScope::PrivatePalKey);
 
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pCmdAllocatorFreeOnResetStr,
@@ -903,6 +908,11 @@ void SettingsLoader::InitSettingsInfo()
     m_settingsInfoMap.Insert(169161685, info);
 
     info.type      = SettingType::Boolean;
+    info.pValuePtr = &m_settings.cmdBufDisallowNestedLaunchViaIb2;
+    info.valueSize = sizeof(m_settings.cmdBufDisallowNestedLaunchViaIb2);
+    m_settingsInfoMap.Insert(459136606, info);
+
+    info.type      = SettingType::Boolean;
     info.pValuePtr = &m_settings.cmdAllocatorFreeOnReset;
     info.valueSize = sizeof(m_settings.cmdAllocatorFreeOnReset);
     m_settingsInfoMap.Insert(1461164706, info);
@@ -1085,7 +1095,7 @@ void SettingsLoader::DevDriverRegister()
             component.pfnSetValue = ISettingsLoader::SetValue;
             component.pSettingsData = &g_palJsonData[0];
             component.settingsDataSize = sizeof(g_palJsonData);
-            component.settingsDataHash = 294070961;
+            component.settingsDataHash = 2137042651;
             component.settingsDataHeader.isEncoded = true;
             component.settingsDataHeader.magicBufferId = 402778310;
             component.settingsDataHeader.magicBufferOffset = 0;

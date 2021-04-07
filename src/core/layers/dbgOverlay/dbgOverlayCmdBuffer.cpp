@@ -191,7 +191,11 @@ void CmdBuffer::CmdPostProcessFrame(
     bool*                          pAddedGpuWork)
 {
     // Only an Image supports visual confirm
-    if ((postProcessInfo.flags.srcIsTypedBuffer == 0) && Device::DetermineDbgOverlaySupport(m_queueType))
+    if ((postProcessInfo.flags.srcIsTypedBuffer == 0) &&
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 662
+        (m_device.GetSettings()->disableDebugOverlayVisualConfirm == false) &&
+#endif
+        Device::DetermineDbgOverlaySupport(m_queueType))
     {
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 561
         DrawOverlay(postProcessInfo.pSrcImage, postProcessInfo.presentMode);

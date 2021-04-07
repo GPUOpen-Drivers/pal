@@ -2703,19 +2703,14 @@ ADDR_E_RETURNCODE Gfx10Lib::HwlGetPreferredSurfaceSetting(
                     padSize[i] = PowTwoAlign(padSize[i], sizeAlignInElement);
                 }
 
-                if (GetBlockSizeLog2(swMode[1]) >= GetBlockSizeLog2(swMode[0]))
+                if (BlockTypeWithinMemoryBudget(padSize[0],
+                                                padSize[1],
+                                                ratioLow,
+                                                ratioHi,
+                                                pIn->memoryBudget,
+                                                GetBlockSizeLog2(swMode[1]) >= GetBlockSizeLog2(swMode[0])))
                 {
-                    if ((padSize[1] * ratioHi) <= (padSize[0] * ratioLow))
-                    {
-                        use64KbBlockType = FALSE;
-                    }
-                }
-                else
-                {
-                    if ((padSize[1] * ratioLow) < (padSize[0] * ratioHi))
-                    {
-                        use64KbBlockType = FALSE;
-                    }
+                    use64KbBlockType = FALSE;
                 }
             }
             else if (forbidVarBlockType)
@@ -2951,8 +2946,15 @@ ADDR_E_RETURNCODE Gfx10Lib::HwlGetPreferredSurfaceSetting(
                 }
                 else
                 {
-                    // Always ignore linear swizzle mode if there is other choice.
-                    allowedSwModeSet.swLinear = 0;
+                    const BOOL_32 computeMinSize = (pIn->flags.minimizeAlign == 1) || (pIn->memoryBudget >= 1.0);
+
+                    if ((height > 1) && (computeMinSize == FALSE))
+                    {
+                        // Always ignore linear swizzle mode if:
+                        // 1. This is a (2D/3D) resource with height > 1
+                        // 2. Client doesn't require computing minimize size
+                        allowedSwModeSet.swLinear = 0;
+                    }
 
                     ADDR2_BLOCK_SET allowedBlockSet = GetAllowedBlockSet(allowedSwModeSet, pOut->resourceType);
 
@@ -2960,6 +2962,8 @@ ADDR_E_RETURNCODE Gfx10Lib::HwlGetPreferredSurfaceSetting(
                     if (IsPow2(allowedBlockSet.value) == FALSE)
                     {
                         AddrSwizzleMode swMode[AddrBlockMaxTiledType] = {};
+
+                        swMode[AddrBlockLinear] = ADDR_SW_LINEAR;
 
                         if (m_blockVarSizeLog2 != 0)
                         {
@@ -2979,113 +2983,167 @@ ADDR_E_RETURNCODE Gfx10Lib::HwlGetPreferredSurfaceSetting(
                             swMode[AddrBlockThin64KB] = ADDR_SW_64KB_S;
                         }
 
-                        Dim3d   blkDim[AddrBlockMaxTiledType]  = {};
-                        Dim3d   padDim[AddrBlockMaxTiledType]  = {};
                         UINT_64 padSize[AddrBlockMaxTiledType] = {};
 
-                        const UINT_32 ratioLow           = pIn->flags.minimizeAlign ? 1 : (pIn->flags.opt4space ? 3 : 2);
-                        const UINT_32 ratioHi            = pIn->flags.minimizeAlign ? 1 : (pIn->flags.opt4space ? 2 : 1);
+                        const UINT_32 ratioLow           = computeMinSize ? 1 : (pIn->flags.opt4space ? 3 : 2);
+                        const UINT_32 ratioHi            = computeMinSize ? 1 : (pIn->flags.opt4space ? 2 : 1);
                         const UINT_64 sizeAlignInElement = Max(NextPow2(pIn->minSizeAlign) / (bpp >> 3), 1u);
                         UINT_32       minSizeBlk         = AddrBlockMicro;
                         UINT_64       minSize            = 0;
 
-                        for (UINT_32 i = AddrBlockMicro; i < AddrBlockMaxTiledType; i++)
+                        ADDR2_COMPUTE_SURFACE_INFO_OUTPUT localOut = {};
+
+                        for (UINT_32 i = AddrBlockLinear; i < AddrBlockMaxTiledType; i++)
                         {
-                            if (allowedBlockSet.value & (1 << i))
+                            if (IsBlockTypeAvaiable(allowedBlockSet, static_cast<AddrBlockType>(i)))
                             {
-                                ComputeBlockDimensionForSurf(&blkDim[i].w,
-                                                             &blkDim[i].h,
-                                                             &blkDim[i].d,
-                                                             bpp,
-                                                             numFrags,
-                                                             pOut->resourceType,
-                                                             swMode[i]);
+                                localIn.swizzleMode = swMode[i];
 
-                                padSize[i] = ComputePadSize(&blkDim[i], width, height, numSlices, &padDim[i]);
-                                padSize[i] = PowTwoAlign(padSize[i] * numFrags, sizeAlignInElement);
-
-                                if (minSize == 0)
+                                if (localIn.swizzleMode == ADDR_SW_LINEAR)
                                 {
-                                    minSize    = padSize[i];
-                                    minSizeBlk = i;
+                                    returnCode = HwlComputeSurfaceInfoLinear(&localIn, &localOut);
                                 }
                                 else
                                 {
-                                    // Due to the fact that VAR block size = 16KB * m_pipes, it is possible that VAR
-                                    // block size < 64KB. And ratio[Hi/Low] logic implicitly requires iterating from
-                                    // smaller block type to bigger block type. So we have to correct comparing logic
-                                    // according to the size of existing "minimun block" and size of coming/comparing
-                                    // block. The new logic can also be useful to any future change about AddrBlockType.
-                                    if (GetBlockSizeLog2(swMode[i]) >= GetBlockSizeLog2(swMode[minSizeBlk]))
+                                    returnCode = HwlComputeSurfaceInfoTiled(&localIn, &localOut);
+                                }
+
+                                if (returnCode == ADDR_OK)
+                                {
+                                    padSize[i] = localOut.surfSize;
+
+                                    if (minSize == 0)
                                     {
-                                        if ((padSize[i] * ratioHi) <= (minSize * ratioLow))
-                                        {
-                                            minSize    = padSize[i];
-                                            minSizeBlk = i;
-                                        }
+                                        minSize    = padSize[i];
+                                        minSizeBlk = i;
                                     }
                                     else
                                     {
-                                        if ((padSize[i] * ratioLow) < (minSize * ratioHi))
+                                        if (BlockTypeWithinMemoryBudget(
+                                                minSize,
+                                                padSize[i],
+                                                ratioLow,
+                                                ratioHi,
+                                                0.0,
+                                                GetBlockSizeLog2(swMode[i]) >= GetBlockSizeLog2(swMode[minSizeBlk])))
                                         {
                                             minSize    = padSize[i];
                                             minSizeBlk = i;
                                         }
                                     }
+                                }
+                                else
+                                {
+                                    ADDR_ASSERT_ALWAYS();
+                                    break;
                                 }
                             }
                         }
 
-                        if ((allowedBlockSet.micro == TRUE)      &&
-                            (width  <= blkDim[AddrBlockMicro].w) &&
-                            (height <= blkDim[AddrBlockMicro].h))
+                        if (pIn->memoryBudget > 1.0)
                         {
-                            minSizeBlk = AddrBlockMicro;
+                            // If minimum size is given by swizzle mode with bigger-block type, then don't ever check
+                            // smaller-block type again in coming loop
+                            switch (minSizeBlk)
+                            {
+                                case AddrBlockThick64KB:
+                                    allowedBlockSet.macroThin64KB = 0;
+                                case AddrBlockThinVar:
+                                case AddrBlockThin64KB:
+                                    allowedBlockSet.macroThick4KB = 0;
+                                case AddrBlockThick4KB:
+                                    allowedBlockSet.macroThin4KB = 0;
+                                case AddrBlockThin4KB:
+                                    allowedBlockSet.micro  = 0;
+                                case AddrBlockMicro:
+                                    allowedBlockSet.linear = 0;
+                                case AddrBlockLinear:
+                                    break;
+
+                                default:
+                                    ADDR_ASSERT_ALWAYS();
+                                    break;
+                            }
+
+                            for (UINT_32 i = AddrBlockMicro; i < AddrBlockMaxTiledType; i++)
+                            {
+                                if ((i != minSizeBlk) &&
+                                    IsBlockTypeAvaiable(allowedBlockSet, static_cast<AddrBlockType>(i)))
+                                {
+                                    if (BlockTypeWithinMemoryBudget(
+                                            minSize,
+                                            padSize[i],
+                                            0,
+                                            0,
+                                            pIn->memoryBudget,
+                                            GetBlockSizeLog2(swMode[i]) >= GetBlockSizeLog2(swMode[minSizeBlk])) == FALSE)
+                                    {
+                                        // Clear the block type if the memory waste is unacceptable
+                                        allowedBlockSet.value &= ~(1u << (i - 1));
+                                    }
+                                }
+                            }
+
+                            // Remove VAR block type if bigger block type is allowed
+                            if (GetBlockSizeLog2(swMode[AddrBlockThinVar]) < GetBlockSizeLog2(ADDR_SW_64KB_R_X))
+                            {
+                                if (allowedBlockSet.macroThick64KB || allowedBlockSet.macroThin64KB)
+                                {
+                                    allowedBlockSet.var = 0;
+                                }
+                            }
+
+                            // Remove linear block type if 2 or more block types are allowed
+                            if (IsPow2(allowedBlockSet.value) == FALSE)
+                            {
+                                allowedBlockSet.linear = 0;
+                            }
+
+                            // Select the biggest allowed block type
+                            minSizeBlk = Log2NonPow2(allowedBlockSet.value) + 1;
+
+                            minSizeBlk = (minSizeBlk == AddrBlockMaxTiledType) ? AddrBlockLinear : minSizeBlk;
                         }
 
                         switch (minSizeBlk)
                         {
+                            case AddrBlockLinear:
+                                allowedSwModeSet.value &= Gfx10LinearSwModeMask;
+                                break;
+
                             case AddrBlockMicro:
-                            {
                                 ADDR_ASSERT(pOut->resourceType != ADDR_RSRC_TEX_3D);
                                 allowedSwModeSet.value &= Gfx10Blk256BSwModeMask;
                                 break;
-                            }
-                            case AddrBlockThick4KB:
-                            {
-                                ADDR_ASSERT(pOut->resourceType == ADDR_RSRC_TEX_3D);
-                                allowedSwModeSet.value &= Gfx10Rsrc3dThick4KBSwModeMask;
-                                break;
-                            }
+
                             case AddrBlockThin4KB:
-                            {
                                 ADDR_ASSERT(pOut->resourceType != ADDR_RSRC_TEX_3D);
                                 allowedSwModeSet.value &= Gfx10Blk4KBSwModeMask;
                                 break;
-                            }
-                            case AddrBlockThick64KB:
-                            {
+
+                            case AddrBlockThick4KB:
                                 ADDR_ASSERT(pOut->resourceType == ADDR_RSRC_TEX_3D);
-                                allowedSwModeSet.value &= Gfx10Rsrc3dThick64KBSwModeMask;
+                                allowedSwModeSet.value &= Gfx10Rsrc3dThick4KBSwModeMask;
                                 break;
-                            }
+
                             case AddrBlockThin64KB:
-                            {
                                 allowedSwModeSet.value &= (pOut->resourceType == ADDR_RSRC_TEX_3D) ?
                                                           Gfx10Rsrc3dThin64KBSwModeMask : Gfx10Blk64KBSwModeMask;
                                 break;
-                            }
+
+                            case AddrBlockThick64KB:
+                                ADDR_ASSERT(pOut->resourceType == ADDR_RSRC_TEX_3D);
+                                allowedSwModeSet.value &= Gfx10Rsrc3dThick64KBSwModeMask;
+                                break;
+
                             case AddrBlockThinVar:
-                            {
                                 allowedSwModeSet.value &= Gfx10BlkVarSwModeMask;
                                 break;
-                            }
+
                             default:
-                            {
                                 ADDR_ASSERT_ALWAYS();
                                 allowedSwModeSet.value = 0;
                                 break;
-                            }
                         }
                     }
 
@@ -3095,7 +3153,7 @@ ADDR_E_RETURNCODE Gfx10Lib::HwlGetPreferredSurfaceSetting(
                     ADDR2_SWTYPE_SET allowedSwSet = GetAllowedSwSet(allowedSwModeSet);
 
                     // Determine swizzle type if there are 2 or more swizzle type candidates
-                    if (IsPow2(allowedSwSet.value) == FALSE)
+                    if ((allowedSwSet.value != 0) && (IsPow2(allowedSwSet.value) == FALSE))
                     {
                         if (ElemLib::IsBlockCompressed(pIn->format))
                         {
@@ -3171,10 +3229,10 @@ ADDR_E_RETURNCODE Gfx10Lib::HwlGetPreferredSurfaceSetting(
                                 allowedSwModeSet.value &= Gfx10ZSwModeMask;
                             }
                         }
-                    }
 
-                    // Swizzle type should be determined.
-                    ADDR_ASSERT(IsPow2(GetAllowedSwSet(allowedSwModeSet).value));
+                        // Swizzle type should be determined.
+                        ADDR_ASSERT(IsPow2(GetAllowedSwSet(allowedSwModeSet).value));
+                    }
 
                     // Determine swizzle mode now. Always select the "largest" swizzle mode for a given block type +
                     // swizzle type combination. E.g, for AddrBlockThin64KB + ADDR_SW_S, select SW_64KB_S_X(25) if it's

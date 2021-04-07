@@ -146,6 +146,7 @@ void PipelineStatsQueryPool::Begin(
 
         uint32* pCmdSpace = pCmdStream->ReserveCommands();
 
+        const CmdUtil&   cmdUtil        = m_device.CmdUtil();
         const EngineType engineType     = pCmdBuffer->GetEngineType();
         const gpusize    beginQueryAddr = gpuAddr;
 
@@ -167,11 +168,11 @@ void PipelineStatsQueryPool::Begin(
             gpuAddr += offsetof(Gfx9PipelineStatsData, csInvocations);
         }
 
-        pCmdSpace += CmdUtil::BuildSampleEventWrite(SAMPLE_PIPELINESTAT,
-                                                    event_index__me_event_write__sample_pipelinestat,
-                                                    engineType,
-                                                    gpuAddr,
-                                                    pCmdSpace);
+        pCmdSpace += cmdUtil.BuildSampleEventWrite(SAMPLE_PIPELINESTAT,
+                                                   event_index__me_event_write__sample_pipelinestat,
+                                                   engineType,
+                                                   gpuAddr,
+                                                   pCmdSpace);
 
         gpuAddr   = beginQueryAddr + offsetof(Gfx9PipelineStatsData, msInvocations);
         pCmdSpace = CopyMeshPipeStatsToQuerySlots(pCmdBuffer, gpuAddr, pCmdSpace);
@@ -207,6 +208,7 @@ void PipelineStatsQueryPool::End(
 
         uint32* pCmdSpace = pCmdStream->ReserveCommands();
 
+        const CmdUtil&   cmdUtil      = m_device.CmdUtil();
         const EngineType engineType   = pCmdBuffer->GetEngineType();
         const gpusize    endQueryAddr = gpuAddr;
 
@@ -228,11 +230,11 @@ void PipelineStatsQueryPool::End(
             gpuAddr += offsetof(Gfx9PipelineStatsData, csInvocations);
         }
 
-        pCmdSpace += CmdUtil::BuildSampleEventWrite(SAMPLE_PIPELINESTAT,
-                                                    event_index__me_event_write__sample_pipelinestat,
-                                                    engineType,
-                                                    gpuAddr,
-                                                    pCmdSpace);
+        pCmdSpace += cmdUtil.BuildSampleEventWrite(SAMPLE_PIPELINESTAT,
+                                                   event_index__me_event_write__sample_pipelinestat,
+                                                   engineType,
+                                                   gpuAddr,
+                                                   pCmdSpace);
 
         gpuAddr   = endQueryAddr + offsetof(Gfx9PipelineStatsData, msInvocations);
         pCmdSpace = CopyMeshPipeStatsToQuerySlots(pCmdBuffer, gpuAddr, pCmdSpace);

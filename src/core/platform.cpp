@@ -413,6 +413,7 @@ Result Platform::EarlyInitDevDriver()
     DevDriver::Result devDriverResult = DevDriver::Result::Success;
     if (isConnectionAvailable)
     {
+        // OGL apps can only be captured when the client id is "Vulkan".
         static const char* pClientStr = "AMD Vulkan Driver";
 
         // Configure the developer driver server for driver usage
@@ -428,9 +429,7 @@ Result Platform::EarlyInitDevDriver()
         allocCb.pfnFree = &DevDriverFree;
 
         // Copy the client string into the description field
-        Util::Strncpy(createInfo.clientDescription,
-            pClientStr,
-            sizeof(createInfo.clientDescription));
+        Util::Strncpy(createInfo.clientDescription, pClientStr, sizeof(createInfo.clientDescription));
 
         // Enable all supported protocols
         createInfo.servers.logging       = true;

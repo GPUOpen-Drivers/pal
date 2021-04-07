@@ -763,10 +763,13 @@ uint32* Gfx9ColorTargetView::WriteCommands(
     BitfieldUpdateSubfield(&(pCbColorInfo->u32All), regs.cbColorInfo.u32All, CbColorInfoMask);
 
 #if PAL_DEVELOPER_BUILD
-    Developer::SurfRegDataInfo data = {};
-    data.type    = Developer::SurfRegDataType::RenderTargetView;
-    data.regData = regs.cbColorBase.u32All;
-    m_pImage->Parent()->GetDevice()->DeveloperCb(Developer::CallbackType::SurfRegData, &data);
+    if (m_pImage != nullptr)
+    {
+        Developer::SurfRegDataInfo data = {};
+        data.type    = Developer::SurfRegDataType::RenderTargetView;
+        data.regData = regs.cbColorBase.u32All;
+        m_pImage->Parent()->GetDevice()->DeveloperCb(Developer::CallbackType::SurfRegData, &data);
+    }
 #endif
 
     return pCmdSpace;
@@ -989,10 +992,13 @@ uint32* Gfx10ColorTargetView::WriteCommands(
     BitfieldUpdateSubfield(&(pCbColorInfo->u32All), regs.cbColorInfo.u32All, CbColorInfoMask);
 
 #if PAL_DEVELOPER_BUILD
-    Developer::SurfRegDataInfo data = {};
-    data.type    = Developer::SurfRegDataType::RenderTargetView;
-    data.regData = regs.cbColorBase.u32All;
-    m_pImage->Parent()->GetDevice()->DeveloperCb(Developer::CallbackType::SurfRegData, &data);
+    if (m_pImage != nullptr)
+    {
+        Developer::SurfRegDataInfo data = {};
+        data.type    = Developer::SurfRegDataType::RenderTargetView;
+        data.regData = regs.cbColorBase.u32All;
+        m_pImage->Parent()->GetDevice()->DeveloperCb(Developer::CallbackType::SurfRegData, &data);
+    }
 #endif
 
     return pCmdSpace;

@@ -181,8 +181,7 @@ uint32 ComputePipeline::CalcMaxWavesPerSe(
     if (maxWavesPerCu > 0)
     {
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 630
-        const auto&  gfx9ChipProps        = chipProps.gfx9;
-        wavesPerSe = CalcMaxWavesPerSh(chipProps, maxWavesPerCu) * gfx9ChipProps.numShaderArrays;
+        wavesPerSe = CalcMaxWavesPerSh(chipProps, maxWavesPerCu) * chipProps.gfx9.numShaderArrays;
 #else
         wavesPerSe = CalcMaxWavesPerSh(chipProps, maxWavesPerCu);
 #endif
@@ -203,14 +202,12 @@ uint32 ComputePipeline::CalcMaxWavesPerSh(
 
     if (maxWavesPerCu > 0)
     {
-        const auto&  gfx9ChipProps        = chipProps.gfx9;
-        const uint32 numWavefrontsPerCu   = (gfx9ChipProps.numSimdPerCu * gfx9ChipProps.numWavesPerSimd);
-        const uint32 maxWavesPerShCompute = numWavefrontsPerCu * gfx9ChipProps.maxNumCuPerSh;
+        const uint32 maxWavesPerShCompute = Device::GetMaxWavesPerSh(chipProps, true);
 
         // We assume no one is trying to use more than 100% of all waves.
-        PAL_ASSERT(maxWavesPerCu <= numWavefrontsPerCu);
+        PAL_ASSERT(maxWavesPerCu <= (maxWavesPerShCompute / chipProps.gfx9.maxNumCuPerSh));
 
-        const uint32 maxWavesPerSh = static_cast<uint32>(round(maxWavesPerCu * gfx9ChipProps.numCuPerSh));
+        const uint32 maxWavesPerSh = static_cast<uint32>(round(maxWavesPerCu * chipProps.gfx9.numCuPerSh));
 
         // For compute shaders, it is in units of 1 wave and must not exceed the max.
         wavesPerSh = Min(maxWavesPerShCompute, maxWavesPerSh);

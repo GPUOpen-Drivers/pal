@@ -898,6 +898,9 @@ Result Image::Finalize(
 
         if ((settings.enableMallCursorCache == true) && (m_mallCursorCacheSize > 0))
         {
+            // Mall cursor cache has a requirement from DAL that the cursor cache starts on a 2KB aligned
+            // address. Adjust the original allocation size accordingly before saving off our offset.
+            *pGpuMemSize = Pow2Align(*pGpuMemSize, 2048);
             // Add the size of the mall cursor cache to the allocation size and save the original value off
             // in order to inform the KMD of the offset to the cursor cache.
             m_mallCursorCacheOffset = *pGpuMemSize;
@@ -2359,6 +2362,7 @@ bool Image::IsIterate256Meaningful(
     return ((Parent()->GetImageCreateInfo().samples > 1) &&
             Parent()->GetImageCreateInfo().usageFlags.depthStencil &&
             subResInfo->flags.supportMetaDataTexFetch &&
+           !(IsNavi21(*(Parent()->GetDevice())) && (Parent()->GetImageCreateInfo().samples >= 4)) &&
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
             Parent()->IsAspectValid(subResInfo->subresId.aspect));
 #else
@@ -3854,19 +3858,26 @@ uint32 Image::GetIterate256(
         const bool  isShared  = pParent->IsShared();
         const auto& boundMem  = pParent->GetBoundGpuMemory();
 
-        if ((isShared == false) && boundMem.IsBound())
+        if ((isShared == false) && boundMem.IsBound() && boundMem.Memory()->IsLocalOnly())
         {
-            const gpusize minPageSize = boundMem.Memory()->MinPageSize();
+            const gpusize allocSize     = boundMem.Memory()->Desc().size;
+            const gpusize alignment     = boundMem.Memory()->Desc().alignment;
+            const gpusize physAlignment = boundMem.Memory()->GetPhysicalAddressAlignment();
+
             // Iterate256 is not supported for allocations < iterate256MinAlignment.
-            if ((minPageSize >= memoryProperties.iterate256LargeAlignment) &&
+            if ((allocSize >= memoryProperties.iterate256LargeAlignment) &&
                 (memoryProperties.iterate256LargeAlignment > 0) &&
-                IsPow2Aligned(minPageSize, memoryProperties.iterate256LargeAlignment))
+                IsPow2Aligned(allocSize, memoryProperties.iterate256LargeAlignment) &&
+                IsPow2Aligned(alignment, memoryProperties.iterate256LargeAlignment) &&
+                IsPow2Aligned(physAlignment, memoryProperties.iterate256LargeAlignment))
             {
                 iterate256 = 0;
             }
-            else if ((minPageSize >= memoryProperties.iterate256MinAlignment) &&
+            else if ((allocSize >= memoryProperties.iterate256MinAlignment) &&
                      (memoryProperties.iterate256MinAlignment > 0) &&
-                     IsPow2Aligned(minPageSize, memoryProperties.iterate256MinAlignment))
+                     IsPow2Aligned(allocSize, memoryProperties.iterate256MinAlignment) &&
+                     IsPow2Aligned(alignment, memoryProperties.iterate256MinAlignment) &&
+                     IsPow2Aligned(physAlignment, memoryProperties.iterate256MinAlignment))
             {
                 iterate256 = 0;
             }

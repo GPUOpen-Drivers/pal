@@ -329,7 +329,7 @@ Uuid Uuid3(
 Uuid Uuid4()
 {
     // ensure threads have divergent generators
-    thread_local ::std::mt19937_64 generator(::std::random_device{}() ^ Os::GetSequenceStart());
+    thread_local ::std::mt19937_64 generator(Os::GetSequenceStart());
 
     Uuid uuid = {};
 

@@ -149,9 +149,10 @@ void Device::TransitionDepthStencil(
     const auto& gfx9Image   = static_cast<const Image&>(*image.GetGfxImage());
     const auto& subresRange = transition.imageInfo.subresRange;
 
-    uint32       srcCacheMask = (barrier.globalSrcCacheMask | transition.srcCacheMask);
-    const uint32 dstCacheMask = (barrier.globalDstCacheMask | transition.dstCacheMask);
+    uint32       srcCacheMask     = (barrier.globalSrcCacheMask | transition.srcCacheMask);
+    const uint32 dstCacheMask     = (barrier.globalDstCacheMask | transition.dstCacheMask);
     const bool   noCacheFlags     = ((srcCacheMask == 0) && (dstCacheMask == 0));
+    const bool   isGfxSupported   = pCmdBuf->IsGraphicsSupported();
     bool         issuedBlt        = false;
     bool         issuedComputeBlt = false;
 
@@ -172,7 +173,7 @@ void Device::TransitionDepthStencil(
     //
     // Note: Looking at this transition's cache mask in isolation to determine if the transition can be done during the
     // early phase is intentional!
-    if (earlyPhase == TestAnyFlagSet(transition.srcCacheMask, CoherDepthStencilTarget))
+    if (earlyPhase == (isGfxSupported && TestAnyFlagSet(transition.srcCacheMask, CoherDepthStencilTarget)))
     {
         PAL_ASSERT(image.IsDepthStencilTarget());
 
@@ -309,7 +310,8 @@ void Device::TransitionDepthStencil(
             srcCacheMask |= cmdBufState.flags.csWriteCachesDirty  ? CoherShader             : 0;
         }
 
-        if (TestAnyFlagSet(srcCacheMask, CoherDepthStencilTarget) &&
+        if (isGfxSupported &&
+            TestAnyFlagSet(srcCacheMask, CoherDepthStencilTarget) &&
             TestAnyFlagSet(dstCacheMask, ~CoherDepthStencilTarget))
         {
             // Issue ACQUIRE_MEM stalls on depth/stencil surface writes and flush DB caches
@@ -371,9 +373,10 @@ void Device::ExpandColor(
     const auto&                 subresRange = transition.imageInfo.subresRange;
     const SubResourceInfo*const pSubresInfo = image.SubresourceInfo(subresRange.startSubres);
 
-    const uint32 srcCacheMask = (barrier.globalSrcCacheMask | transition.srcCacheMask);
-    const uint32 dstCacheMask = (barrier.globalDstCacheMask | transition.dstCacheMask);
-    const bool   noCacheFlags = ((srcCacheMask == 0) && (dstCacheMask == 0));
+    const uint32 srcCacheMask   = (barrier.globalSrcCacheMask | transition.srcCacheMask);
+    const uint32 dstCacheMask   = (barrier.globalDstCacheMask | transition.dstCacheMask);
+    const bool   noCacheFlags   = ((srcCacheMask == 0) && (dstCacheMask == 0));
+    const bool   isGfxSupported = pCmdBuf->IsGraphicsSupported();
 
     PAL_ASSERT(image.IsDepthStencilTarget() == false);
 
@@ -400,8 +403,7 @@ void Device::ExpandColor(
     // this fact (based on layout), and prohibit us from getting to a situation where one is needed but has not been
     // performed yet.
     const bool fastClearEliminateSupported =
-        (pCmdBuf->IsGraphicsSupported() &&
-         (gfx9Image.GetFastClearEliminateMetaDataAddr(subresRange.startSubres) != 0));
+        (isGfxSupported && (gfx9Image.GetFastClearEliminateMetaDataAddr(subresRange.startSubres) != 0));
 
     // The "earlyPhase" for decompress BLTs is before any waits and/or cache flushes have been inserted.  It is safe to
     // perform a color expand in the early phase if the client reports there is dirty data in the CB caches.  This
@@ -491,8 +493,7 @@ void Device::ExpandColor(
         }
 
         // These CB decompress operations can only be performed on queues that support graphics
-        const bool willDoGfxBlt = (pCmdBuf->IsGraphicsSupported() &&
-                                   (dccDecompress || fastClearEliminate || fmaskDecompress));
+        const bool willDoGfxBlt = (isGfxSupported && (dccDecompress || fastClearEliminate || fmaskDecompress));
 
         if ((earlyPhase == false) && willDoGfxBlt)
         {
@@ -588,7 +589,7 @@ void Device::ExpandColor(
         if (fmaskDecompress || dccDecompress)
         {
             // This must execute on a queue that supports graphics operations
-            PAL_ASSERT(pCmdBuf->IsGraphicsSupported());
+            PAL_ASSERT(isGfxSupported);
 
             uint32* pCmdSpace = pCmdStream->ReserveCommands();
 
@@ -609,8 +610,8 @@ void Device::ExpandColor(
     }
 
     // These CB decompress operations can only be performed on queues that support graphics
-    const bool didGfxBlt = (pCmdBuf->IsGraphicsSupported() &&
-                            (dccDecompress || fastClearEliminate || fmaskDecompress || msaaColorDecompress));
+    const bool didGfxBlt =
+        (isGfxSupported && (dccDecompress || fastClearEliminate || fmaskDecompress || msaaColorDecompress));
 
     if (didGfxBlt)
     {
@@ -729,6 +730,9 @@ void Device::IssueSyncs(
     const bool       isGfxSupported = pCmdBuf->IsGraphicsSupported();
     const uint32     origCacheFlags = syncReqs.cacheFlags;
     uint32*          pCmdSpace      = pCmdStream->ReserveCommands();
+
+    // We shouldn't ask ACE to flush GFX-only caches, nor set undefined bits.
+    PAL_ASSERT(TestAnyFlagSet(syncReqs.cacheFlags, isGfxSupported ? ~CacheSyncAll : ~CacheSyncAllCompute) == false);
 
     FillCacheOperations(syncReqs, pOperations);
 
@@ -1000,7 +1004,9 @@ void Device::Barrier(
 {
     SyncReqs globalSyncReqs = {};
     Developer::BarrierOperations barrierOps = {};
-    GfxCmdBufferState cmdBufState = pCmdBuf->GetGfxCmdBufState();
+
+    const GfxCmdBufferState cmdBufState    = pCmdBuf->GetGfxCmdBufState();
+    const bool              isGfxSupported = pCmdBuf->IsGraphicsSupported();
 
     // -----------------------------------------------------------------------------------------------------------------
     // -- Early image layout transitions.
@@ -1181,7 +1187,8 @@ void Device::Barrier(
             globalSyncReqs.cacheFlags |= CacheSyncInvSqK$;
         }
 
-        if (TestAnyFlagSet(srcCacheMask, CoherColorTarget) &&
+        if (isGfxSupported &&
+            TestAnyFlagSet(srcCacheMask, CoherColorTarget) &&
             (TestAnyFlagSet(srcCacheMask, ~CoherColorTarget) || TestAnyFlagSet(dstCacheMask, ~CoherColorTarget)))
         {
             globalSyncReqs.cacheFlags |= CacheSyncFlushAndInvRb;
@@ -1417,8 +1424,8 @@ void Device::Barrier(
 
                     if (gfx9Image.HasColorMetaData() || gfx9Image.HasHtileData())
                     {
-                        if (pCmdBuf->IsGraphicsSupported() &&
-                            gfx9Image.HasHtileData()       &&
+                        if (isGfxSupported           &&
+                            gfx9Image.HasHtileData() &&
                             (gfx9Image.GetHtile()->TileStencilDisabled() == false))
                         {
                             // If HTile encodes depth and stencil data we must idle any prior draws that bound this
@@ -1434,11 +1441,14 @@ void Device::Barrier(
                             IssueSyncs(pCmdBuf, pCmdStream, sharedHtileSync, barrier.waitPoint,
                                        image.GetGpuVirtualAddr(), gfx9Image.GetGpuMemSyncSize(), &barrierOps);
                         }
+
                         barrierOps.layoutTransitions.initMaskRam = 1;
+
                         if (gfx9Image.HasDccStateMetaData(subresRange))
                         {
                             barrierOps.layoutTransitions.updateDccStateMetadata = 1;
                         }
+
                         DescribeBarrier(pCmdBuf, &barrier.pTransitions[i], &barrierOps);
 
                         const bool usedCompute = RsrcProcMgr().InitMaskRam(pCmdBuf,

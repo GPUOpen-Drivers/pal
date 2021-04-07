@@ -344,7 +344,7 @@ bool PresentScheduler::CanInlinePresent(
     SwapChain*const     pSwapChain    = static_cast<SwapChain*>(presentInfo.pSwapChain);
     const SwapChainMode swapChainMode = pSwapChain->CreateInfo().swapChainMode;
 
-    const bool canInline = (swapChainMode == SwapChainMode::Immediate);
+    bool canInline = (swapChainMode == SwapChainMode::Immediate);
 
     return canInline;
 }

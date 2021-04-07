@@ -143,14 +143,14 @@ protected:
     PAL_DISALLOW_COPY_AND_ASSIGN(VamMgr);
 
 protected:
-    typedef Util::HashMap<amdgpu_bo_handle, SharedBoInfo, Util::GenericAllocatorAuto> SharedBoMap;
+    typedef Util::HashMap<amdgpu_bo_handle, SharedBoInfo, Util::GenericAllocatorTracked> SharedBoMap;
 
-    ReservedVaRangeInfo        m_vaRangeInfo[static_cast<uint32>(VaPartition::Count)];
-    Util::Mutex                m_mutex;
-    Util::GenericAllocatorAuto m_mapAllocator;
-    SharedBoMap                m_sharedBoMap;
+    ReservedVaRangeInfo           m_vaRangeInfo[static_cast<uint32>(VaPartition::Count)];
+    Util::Mutex                   m_mutex;
+    Util::GenericAllocatorTracked m_mapAllocator;
+    SharedBoMap                   m_sharedBoMap;
 
-    static constexpr uint32    InitialBoCount = 8;
+    static constexpr uint32 InitialBoCount = 8;
 };
 
 // =====================================================================================================================
@@ -186,11 +186,11 @@ public:
 private:
     VamMgrSingleton();
 
-    typedef Util::HashMap<amdgpu_device_handle, VamMgrInfo, Util::GenericAllocatorAuto> VamMgrMap;
+    typedef Util::HashMap<amdgpu_device_handle, VamMgrInfo, Util::GenericAllocatorTracked> VamMgrMap;
 
-    Util::GenericAllocatorAuto m_mapAllocator;
-    VamMgrMap                  m_vamMgrMap;
-    Util::Mutex                m_mutex;
+    Util::GenericAllocatorTracked m_mapAllocator;
+    VamMgrMap                     m_vamMgrMap;
+    Util::Mutex                   m_mutex;
 
     PAL_DISALLOW_COPY_AND_ASSIGN(VamMgrSingleton);
 };

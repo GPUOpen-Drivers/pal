@@ -22,12 +22,10 @@
  #  SOFTWARE.
  #
  #######################################################################################################################
-include(CMakeDependentOption)
+include_guard()
 
-if (DEFINED AmdCmakeHelper_pal_include_guard)
-    return()
-endif()
-set(AmdCmakeHelper_pal_include_guard ON)
+# Include Frequently Used Modules ##################################################################
+include(CMakeDependentOption)
 
 # Build Type Helper ################################################################################
 if (CMAKE_CONFIGURATION_TYPES)
@@ -107,20 +105,24 @@ endif()
 
 # Find Headers Helper ##############################################################################
 macro(target_find_headers _target)
-    get_target_property(${_target}_INCLUDES_DIRS ${_target} INCLUDE_DIRECTORIES)
+    # This logic slows down configuration speed particularly on WSL builds.
+    # So only do it when neccessary. Globbing is just really slow.
+    if (MSVC_IDE)
+        get_target_property(${_target}_INCLUDES_DIRS ${_target} INCLUDE_DIRECTORIES)
 
-    if(${_target}_INCLUDES_DIRS)
-        foreach(_include_dir IN ITEMS ${${_target}_INCLUDES_DIRS})
-            file(GLOB_RECURSE _include_files
-                LIST_DIRECTORIES false
-                "${_include_dir}/*.h"
-                "${_include_dir}/*.hpp"
-            )
+        if(${_target}_INCLUDES_DIRS)
+            foreach(_include_dir IN ITEMS ${${_target}_INCLUDES_DIRS})
+                file(GLOB_RECURSE _include_files
+                    LIST_DIRECTORIES false
+                    "${_include_dir}/*.h"
+                    "${_include_dir}/*.hpp"
+                )
 
-            list(APPEND ${_target}_INCLUDES ${_include_files})
-        endforeach()
+                list(APPEND ${_target}_INCLUDES ${_include_files})
+            endforeach()
 
-        target_sources(${_target} PRIVATE ${${_target}_INCLUDES})
+            target_sources(${_target} PRIVATE ${${_target}_INCLUDES})
+        endif()
     endif()
 endmacro()
 
@@ -131,22 +133,28 @@ endmacro()
 # Note: this only adds files that have been added to the target's SOURCES property. To add headers
 # to this list, be sure that you call target_find_headers before you call target_source_groups.
 macro(target_source_groups _target)
-    get_target_property(${_target}_SOURCES ${_target} SOURCES)
-    foreach(_source IN ITEMS ${${_target}_SOURCES})
-        set(_source ${_source})
-        get_filename_component(_source_path "${_source}" ABSOLUTE)
-        file(RELATIVE_PATH _source_path_rel "${PROJECT_SOURCE_DIR}" "${_source_path}")
-        get_filename_component(_source_path_rel "${_source_path_rel}" DIRECTORY)
-        string(REPLACE "/" "\\" _group_path "${_source_path_rel}")
-        source_group("${_group_path}" FILES "${_source}")
-    endforeach()
+    # This logic slows down configuration speed particularly on WSL builds.
+    # So only do it when neccessary. Globbing is just really slow.
+    if (MSVC_IDE)
+        get_target_property(${_target}_SOURCES ${_target} SOURCES)
+        foreach(_source IN ITEMS ${${_target}_SOURCES})
+            set(_source ${_source})
+            get_filename_component(_source_path "${_source}" ABSOLUTE)
+            file(RELATIVE_PATH _source_path_rel "${PROJECT_SOURCE_DIR}" "${_source_path}")
+            get_filename_component(_source_path_rel "${_source_path_rel}" DIRECTORY)
+            string(REPLACE "/" "\\" _group_path "${_source_path_rel}")
+            source_group("${_group_path}" FILES "${_source}")
+        endforeach()
+    endif()
 endmacro()
 
 # Deprecated Visual Studio Filter Helper ###########################################################
 macro(target_vs_filters _target)
-    message(DEPRECATION "target_vs_filters is deprecated. use 'target_find_headers' and 'target_source_groups' instead.")
-    target_find_headers(${_target})
-    if(MSVC)
+    # This logic slows down configuration speed particularly on WSL builds.
+    # So only do it when neccessary. Globbing is just really slow.
+    if (MSVC_IDE)
+        message(DEPRECATION "target_vs_filters is deprecated. use 'target_find_headers' and 'target_source_groups' instead.")
+        target_find_headers(${_target})
         target_source_groups(${_target})
     endif()
 endmacro()

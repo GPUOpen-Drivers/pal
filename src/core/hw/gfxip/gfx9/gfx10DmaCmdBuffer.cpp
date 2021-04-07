@@ -1901,7 +1901,9 @@ DmaCmdBuffer::DmaMemImageCopyMethod DmaCmdBuffer::GetMemImageCopyMethod(
 
     // Before OSS-4.0, the x, rect_x, src/dst_pitch and src/dst_slice_pitch must be dword-aligned when
     // expressed in units of bytes on L2T copies only.
-    if ((isLinearImg == false) && AreMemImageXParamsDwordAligned(imageInfo, region) == false)
+    // See comments in function DmaCmdBuffer::ValidateLinearRowPitch.
+    if (((isLinearImg == false) && (AreMemImageXParamsDwordAligned(imageInfo, region) == false)) ||
+        (((region.gpuMemoryRowPitch & 0x3) != 0) && (region.imageExtent.height > 1)))
     {
         copyMethod = DmaMemImageCopyMethod::DwordUnaligned;
     }

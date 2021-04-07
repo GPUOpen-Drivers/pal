@@ -79,6 +79,7 @@ enum class InterfaceFunc : uint32
     CmdBufferEnd,
     CmdBufferReset,
     CmdBufferCmdBindPipeline,
+    CmdBufferCmdPrimeGpuCaches,
     CmdBufferCmdBindMsaaState,
     CmdBufferCmdBindColorBlendState,
     CmdBufferCmdBindDepthStencilState,
@@ -107,8 +108,12 @@ enum class InterfaceFunc : uint32
     CmdBufferCmdSetScissorRects,
     CmdBufferCmdSetGlobalScissor,
     CmdBufferCmdBarrier,
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
     CmdBufferCmdRelease,
     CmdBufferCmdAcquire,
+#endif
+    CmdBufferCmdReleaseEvent,
+    CmdBufferCmdAcquireEvent,
     CmdBufferCmdReleaseThenAcquire,
     CmdBufferCmdDraw,
     CmdBufferCmdDrawOpaque,
@@ -446,6 +451,7 @@ public:
     // These functions create a list or map that represents a PAL interface structure.
     void Struct(const AcquireNextImageInfo& value);
     void Struct(const BarrierInfo& value);
+    void Struct(const PrimeGpuCacheRange& value);
     void Struct(const AcquireReleaseInfo& value);
     void Struct(const BindStreamOutTargetParams& value);
     void Struct(const BindTargetParams& value);

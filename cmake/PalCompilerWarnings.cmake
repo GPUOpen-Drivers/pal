@@ -22,11 +22,10 @@
  #  SOFTWARE.
  #
  #######################################################################################################################
+include_guard()
 
 include(PalVersionHelper)
 include(CheckCXXCompilerFlag)
-
-pal_include_guard(PalCompilerWarnings)
 
 # If the current compiler supports the flag, add it.
 function(add_flag_if_exists TARGET flag cachevarname)

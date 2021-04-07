@@ -1297,6 +1297,7 @@ public:
     virtual void CmdBindMsaaState(
         const IMsaaState* pMsaaState) override
         { m_pNextLayer->CmdBindMsaaState(NextMsaaState(pMsaaState)); }
+
     virtual void CmdBindColorBlendState(
         const IColorBlendState* pColorBlendState) override
         { m_pNextLayer->CmdBindColorBlendState(NextColorBlendState(pColorBlendState)); }
@@ -1319,6 +1320,11 @@ public:
 
     virtual void CmdBindTargets(
         const BindTargetParams& params) override;
+
+    virtual void CmdPrimeGpuCaches(
+        uint32                    rangeCount,
+        const PrimeGpuCacheRange* pRanges) override
+        { m_pNextLayer->CmdPrimeGpuCaches(rangeCount, pRanges); }
 
     virtual void CmdBindStreamOutTargets(
         const BindStreamOutTargetParams& params) override
@@ -1382,15 +1388,15 @@ public:
         const AcquireReleaseInfo& acquireInfo,
         uint32                    syncTokenCount,
         const uint32*             pSyncTokens) override;
-#else
-    virtual void CmdRelease(
+#endif
+
+    virtual void CmdReleaseEvent(
         const AcquireReleaseInfo& releaseInfo,
         const IGpuEvent*          pGpuEvent) override;
-    virtual void CmdAcquire(
+    virtual void CmdAcquireEvent(
         const AcquireReleaseInfo& acquireInfo,
         uint32                    gpuEventCount,
-        const IGpuEvent*const*    ppGpuEvents) override;
-#endif
+        const IGpuEvent* const*   ppGpuEvents) override;
 
     virtual void CmdReleaseThenAcquire(const AcquireReleaseInfo& barrierInfo) override;
 

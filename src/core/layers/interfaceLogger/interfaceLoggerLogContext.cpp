@@ -105,6 +105,7 @@ static constexpr FuncFormattingEntry FuncFormattingTable[] =
     { InterfaceFunc::CmdBufferEnd,                                              InterfaceObject::CmdBuffer,            "End"                                     },
     { InterfaceFunc::CmdBufferReset,                                            InterfaceObject::CmdBuffer,            "Reset"                                   },
     { InterfaceFunc::CmdBufferCmdBindPipeline,                                  InterfaceObject::CmdBuffer,            "CmdBindPipeline"                         },
+    { InterfaceFunc::CmdBufferCmdPrimeGpuCaches,                                InterfaceObject::CmdBuffer,            "CmdPrimeGpuCaches"                       },
     { InterfaceFunc::CmdBufferCmdBindMsaaState,                                 InterfaceObject::CmdBuffer,            "CmdBindMsaaState"                        },
     { InterfaceFunc::CmdBufferCmdBindColorBlendState,                           InterfaceObject::CmdBuffer,            "CmdBindColorBlendState"                  },
     { InterfaceFunc::CmdBufferCmdBindDepthStencilState,                         InterfaceObject::CmdBuffer,            "CmdBindDepthStencilState"                },
@@ -133,8 +134,12 @@ static constexpr FuncFormattingEntry FuncFormattingTable[] =
     { InterfaceFunc::CmdBufferCmdSetScissorRects,                               InterfaceObject::CmdBuffer,            "CmdSetScissorRects"                      },
     { InterfaceFunc::CmdBufferCmdSetGlobalScissor,                              InterfaceObject::CmdBuffer,            "CmdSetGlobalScissor"                     },
     { InterfaceFunc::CmdBufferCmdBarrier,                                       InterfaceObject::CmdBuffer,            "CmdBarrier"                              },
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
     { InterfaceFunc::CmdBufferCmdRelease,                                       InterfaceObject::CmdBuffer,            "CmdRelease"                              },
     { InterfaceFunc::CmdBufferCmdAcquire,                                       InterfaceObject::CmdBuffer,            "CmdAcquire"                              },
+#endif
+    { InterfaceFunc::CmdBufferCmdReleaseEvent,                                  InterfaceObject::CmdBuffer,            "CmdReleaseEvent"                         },
+    { InterfaceFunc::CmdBufferCmdAcquireEvent,                                  InterfaceObject::CmdBuffer,            "CmdAcquireEvent"                         },
     { InterfaceFunc::CmdBufferCmdReleaseThenAcquire,                            InterfaceObject::CmdBuffer,            "CmdReleaseThenAcquire"                   },
     { InterfaceFunc::CmdBufferCmdDraw,                                          InterfaceObject::CmdBuffer,            "CmdDraw"                                 },
     { InterfaceFunc::CmdBufferCmdDrawOpaque,                                    InterfaceObject::CmdBuffer,            "CmdDrawOpaque"                           },

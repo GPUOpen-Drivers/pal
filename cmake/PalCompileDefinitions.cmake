@@ -22,9 +22,9 @@
  #  SOFTWARE.
  #
  #######################################################################################################################
-include(PalVersionHelper)
+include_guard()
 
-pal_include_guard(PalCompilerDefinitions)
+include(PalVersionHelper)
 
 function(pal_compile_definitions_gfx6 TARGET)
     # Needs to be public.

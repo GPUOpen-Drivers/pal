@@ -156,13 +156,18 @@ Result Queue::CreateCmdBuffer(
 {
     Result result = Result::ErrorOutOfMemory;
 
-    void*const pMemory = PAL_MALLOC(m_pDevice->GetCmdBufferSize(createInfo, nullptr),
-                                    m_pDevice->GetPlatform(),
-                                    AllocInternal);
+    void* pMemory = PAL_MALLOC(m_pDevice->GetCmdBufferSize(createInfo, nullptr),
+                               m_pDevice->GetPlatform(),
+                               AllocInternal);
 
     if (pMemory != nullptr)
     {
         result = m_pDevice->CreateCmdBuffer(createInfo, pMemory, ppCmdBuffer);
+
+        if (result != Result::Success)
+        {
+            PAL_SAFE_FREE(pMemory, m_pDevice->GetPlatform());
+        }
     }
 
     return result;
@@ -175,11 +180,16 @@ Result Queue::CreateFence(
 {
     Result result = Result::ErrorOutOfMemory;
 
-    void*const pMemory = PAL_MALLOC(m_pDevice->GetFenceSize(nullptr), m_pDevice->GetPlatform(), AllocInternal);
+    void* pMemory = PAL_MALLOC(m_pDevice->GetFenceSize(nullptr), m_pDevice->GetPlatform(), AllocInternal);
 
     if (pMemory != nullptr)
     {
         result = m_pDevice->CreateFence(createInfo, pMemory, ppFence);
+
+        if (result != Result::Success)
+        {
+            PAL_SAFE_FREE(pMemory, m_pDevice->GetPlatform());
+        }
     }
 
     return result;
@@ -201,13 +211,18 @@ Result Queue::CreateGpuTimestampPairMemory(
     gpuMemoryCreateInfo.priorityOffset = GpuMemPriorityOffset::Offset0;
     gpuMemoryCreateInfo.heaps[0]       = GpuHeapGartUswc;
 
-    void*const pMemory = PAL_MALLOC(m_pDevice->GetGpuMemorySize(gpuMemoryCreateInfo, nullptr),
-                                    m_pDevice->GetPlatform(),
-                                    AllocInternal);
+    void* pMemory = PAL_MALLOC(m_pDevice->GetGpuMemorySize(gpuMemoryCreateInfo, nullptr),
+                               m_pDevice->GetPlatform(),
+                               AllocInternal);
 
     if (pMemory != nullptr)
     {
         result = m_pDevice->CreateGpuMemory(gpuMemoryCreateInfo, pMemory, &pSubQueueInfo->pTimestampMemory);
+
+        if (result != Result::Success)
+        {
+            PAL_SAFE_FREE(pMemory, m_pDevice->GetPlatform());
+        }
     }
     else
     {

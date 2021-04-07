@@ -90,7 +90,7 @@ target_include_directories(pal
 
 set(PAL_XCB_REQUIRED ON)
 
-if(UNIX AND NOT APPLE AND PAL_XCB_REQUIRED)
+if(PAL_AMDGPU_BUILD AND NOT APPLE AND PAL_XCB_REQUIRED)
     # Needed for dri3Loader.h. Does not exist for standalone compiler tool build on Mac.
     if(NOT DEFINED DK_X11)
         if(DEFINED GLOBAL_ROOT_DK_DIR)

@@ -32,6 +32,7 @@
 #include "palLinearAllocator.h"
 #include "core/layers/decorators.h"
 #include "core/layers/functionIds.h"
+#include "core/g_palPlatformSettings.h"
 
 namespace Pal
 {
@@ -113,6 +114,9 @@ public:
     virtual void CmdBindBorderColorPalette(
         PipelineBindPoint          pipelineBindPoint,
         const IBorderColorPalette* pPalette) override;
+    virtual void CmdPrimeGpuCaches(
+        uint32                    rangeCount,
+        const PrimeGpuCacheRange* pRanges) override;
     virtual void CmdSetVertexBuffers(
         uint32                firstBuffer,
         uint32                bufferCount,
@@ -151,15 +155,16 @@ public:
         const AcquireReleaseInfo& acquireInfo,
         uint32                    syncTokenCount,
         const uint32*             pSyncTokens) override;
-#else
-    virtual void CmdRelease(
+#endif
+
+    virtual void CmdReleaseEvent(
         const AcquireReleaseInfo& releaseInfo,
         const IGpuEvent*          pGpuEvent) override;
-    virtual void CmdAcquire(
+    virtual void CmdAcquireEvent(
         const AcquireReleaseInfo& acquireInfo,
         uint32                    gpuEventCount,
-        const IGpuEvent*const*    ppGpuEvents) override;
-#endif
+        const IGpuEvent* const*   ppGpuEvents) override;
+
     virtual void CmdReleaseThenAcquire(
         const AcquireReleaseInfo& barrierInfo) override;
     virtual void CmdWaitRegisterValue(
@@ -523,7 +528,10 @@ public:
     CmdBufferLoggerAnnotations    Annotations()  { return m_annotations;  }
     const Device*                 LoggerDevice() { return m_pDevice;      }
 
-    void UpdateDrawDispatchInfo(const Pal::IPipeline* pPipeline, PipelineBindPoint bindPoint);
+    void UpdateDrawDispatchInfo(
+        const Pal::IPipeline* pPipeline,
+        PipelineBindPoint     bindPoint,
+        const uint64          apiPsoHash);
 
 private:
     virtual ~CmdBuffer() { }
@@ -610,7 +618,8 @@ private:
     CmdBufferLoggerAnnotations   m_annotations;
     uint32                       m_drawDispatchCount;
     DrawDispatchInfo             m_drawDispatchInfo;
-    bool                         m_embedDrawDispatchInfo;
+    CblEmbedDrawDispatchMode     m_embedDrawDispatchInfo;
+    uint64                       m_apiPsoHash;
 
     PAL_DISALLOW_DEFAULT_CTOR(CmdBuffer);
     PAL_DISALLOW_COPY_AND_ASSIGN(CmdBuffer);

@@ -111,6 +111,11 @@ Result Queue::Submit(
 #else
         pLogContext->KeyAndObject("fence", submitInfo.pFence);
 #endif
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 663
+        pLogContext->KeyAndValue("stackSizeInDwords", submitInfo.stackSizeInDwords);
+#endif
+
         pLogContext->EndMap();
         pLogContext->EndInput();
 

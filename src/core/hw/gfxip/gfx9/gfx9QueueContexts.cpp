@@ -138,6 +138,7 @@ ComputeQueueContext::ComputeQueueContext(
     m_queueId(queueId),
     m_ringSet(pDevice, isTmz),
     m_currentUpdateCounter(0),
+    m_currentStackSizeDw(0),
     m_cmdStream(*pDevice,
                 pDevice->Parent()->InternalUntrackedCmdAllocator(),
                 EngineTypeCompute,
@@ -207,7 +208,7 @@ Result ComputeQueueContext::PreProcessSubmit(
     PAL_ASSERT(m_pParentQueue != nullptr);
     uint64 lastTimeStamp   = m_pParentQueue->GetSubmissionContext()->LastTimestamp();
 
-    Result result = UpdateRingSet(&hasUpdated, lastTimeStamp);
+    Result result = UpdateRingSet(&hasUpdated, pSubmitInfo->stackSizeInDwords, lastTimeStamp);
 
     if ((result == Result::Success) && hasUpdated)
     {
@@ -496,9 +497,10 @@ Result ComputeQueueContext::RebuildCommandStreams(
 
 // =====================================================================================================================
 Result ComputeQueueContext::UpdateRingSet(
-    bool*   pHasChanged,  // [out]     Whether or not the ring set has updated. If true the ring set must rewrite its
-                          //           registers.
-    uint64  lastTimeStamp)// [in]      The LastTimeStamp associated with the ringSet
+    bool*   pHasChanged,        // [out]    Whether or not the ring set has updated. If true the ring set must rewrite its
+                                //          registers.
+    uint32  overrideStackSize,  // [in]     The stack size required by the subsequent submission.
+    uint64  lastTimeStamp)      // [in]     The LastTimeStamp associated with the ringSet
 {
     PAL_ALERT(pHasChanged == nullptr);
 
@@ -508,12 +510,22 @@ Result ComputeQueueContext::UpdateRingSet(
     // against.
     const uint32 currentCounter = m_pDevice->QueueContextUpdateCounter();
 
-    if (currentCounter > m_currentUpdateCounter)
+    // Check whether the stack size is required to be overridden
+    const bool needStackSizeOverride = (m_currentStackSizeDw < overrideStackSize);
+    m_currentStackSizeDw             = needStackSizeOverride ? overrideStackSize : m_currentStackSizeDw;
+
+    if ((currentCounter > m_currentUpdateCounter) || needStackSizeOverride)
     {
         m_currentUpdateCounter = currentCounter;
 
         ShaderRingItemSizes ringSizes = {};
         m_pDevice->GetLargestRingSizes(&ringSizes);
+
+        // We only want the size of scratch ring is grown locally. So that Device::UpdateLargestRingSizes() isn't
+        // needed here.
+        ringSizes.itemSize[static_cast<size_t>(ShaderRingType::ComputeScratch)] =
+            Util::Max(static_cast<size_t>(m_currentStackSizeDw),
+                      ringSizes.itemSize[static_cast<size_t>(ShaderRingType::ComputeScratch)]);
 
         SamplePatternPalette samplePatternPalette;
         m_pDevice->GetSamplePatternPalette(&samplePatternPalette);
@@ -562,6 +574,7 @@ UniversalQueueContext::UniversalQueueContext(
     m_tmzRingSet(pDevice, true),
     m_currentUpdateCounter(0),
     m_currentUpdateCounterTmz(0),
+    m_currentStackSizeDw(0),
     m_cmdsUseTmzRing(false),
     m_useShadowing(useStateShadowing),
     m_shadowGpuMemSizeInBytes(0),
@@ -967,7 +980,7 @@ Result UniversalQueueContext::PreProcessSubmit(
     {
         const bool isTmz = (pSubmitInfo->flags.isTmzEnabled != 0);
 
-        result = UpdateRingSet(isTmz, &hasUpdated, lastTimeStamp);
+        result = UpdateRingSet(&hasUpdated, isTmz, pSubmitInfo->stackSizeInDwords, lastTimeStamp);
 
         if ((result == Result::Success) && (hasUpdated || (m_cmdsUseTmzRing != isTmz)))
         {
@@ -1201,7 +1214,7 @@ Result UniversalQueueContext::RebuildCommandStreams(
     {
         uint32* pCmdSpace = m_deCmdStream.ReserveCommands();
 
-        pCmdSpace = WriteUniversalPreamble(pCmdSpace);
+        pCmdSpace = WriteUniversalPreamble(&m_deCmdStream, pCmdSpace);
 
         // Write the shader ring-set's commands after the command stream's normal preamble.  If the ring sizes have
         // changed, the hardware requires a CS/VS/PS partial flush to operate properly.
@@ -1397,11 +1410,13 @@ Result UniversalQueueContext::RebuildCommandStreams(
 // =====================================================================================================================
 // Writes commands needed for the "Drop if same context" DE preamble.
 uint32* UniversalQueueContext::WriteUniversalPreamble(
-    uint32* pCmdSpace)
+    CmdStream*  pCmdStream,
+    uint32*     pCmdSpace)
 {
     const Pal::Device&       device    = *(m_pDevice->Parent());
     const GpuChipProperties& chipProps = device.ChipProperties();
     const Gfx9PalSettings&   settings  = m_pDevice->Settings();
+    const CmdUtil&           cmdUtil   = m_pDevice->CmdUtil();
 
     // Occlusion query control event, specifies that we want one counter to dump out every 128 bits for every
     // DB that the HW supports.
@@ -1431,11 +1446,11 @@ uint32* UniversalQueueContext::WriteUniversalPreamble(
                                                 ((1 << chipProps.gfx9.numTotalRbs) - 1);
 
     pCmdSpace +=
-        CmdUtil::BuildSampleEventWrite(PIXEL_PIPE_STAT_CONTROL,
-                                       event_index__me_event_write__pixel_pipe_stat_control_or_dump,
-                                       EngineTypeUniversal,
-                                       pixelPipeStatControl.u64All,
-                                       pCmdSpace);
+        cmdUtil.BuildSampleEventWrite(PIXEL_PIPE_STAT_CONTROL,
+                                      event_index__me_event_write__pixel_pipe_stat_control_or_dump,
+                                      EngineTypeUniversal,
+                                      pixelPipeStatControl.u64All,
+                                      pCmdSpace);
 
     // The register spec suggests these values are optimal settings for Gfx9 hardware, when VS half-pack mode is
     // disabled. If half-pack mode is active, we need to use the legacy defaults which are safer (but less optimal).
@@ -1559,6 +1574,9 @@ uint32* UniversalQueueContext::WriteUniversalPreamble(
                                                      &paScGenericScissor,
                                                      pCmdSpace);
     pCmdSpace = m_deCmdStream.WriteSetOneContextReg(mmPA_SC_NGG_MODE_CNTL, paScNggModeCntl.u32All, pCmdSpace);
+
+    pCmdStream->CommitCommands(pCmdSpace);
+    pCmdSpace = pCmdStream->ReserveCommands();
 
     regPA_CL_NGG_CNTL paClNggCntl = { };
 
@@ -1739,18 +1757,16 @@ uint32* UniversalQueueContext::WriteUniversalPreamble(
         {
             regPA_CL_NANINF_CNTL        paClNanifCntl;
             regPA_SU_LINE_STIPPLE_CNTL  paSuLineStippleCntl;
-            regPA_SU_LINE_STIPPLE_SCALE paSuLineStippleScale;
-            regPA_SU_PRIM_FILTER_CNTL   paSuPrimFilterCntl;
         } PaRegisters3 = { };
         pCmdSpace = m_deCmdStream.WriteSetSeqContextRegs(mmPA_CL_NANINF_CNTL,
-                                                         mmPA_SU_PRIM_FILTER_CNTL,
+                                                         mmPA_SU_LINE_STIPPLE_CNTL,
                                                          &PaRegisters3,
                                                          pCmdSpace);
 
+        pCmdSpace = m_deCmdStream.WriteSetOneContextReg(mmPA_SU_PRIM_FILTER_CNTL,        0x00000000, pCmdSpace);
         pCmdSpace = m_deCmdStream.WriteSetOneContextReg(mmPA_SU_OVER_RASTERIZATION_CNTL, 0x00000000, pCmdSpace);
-
-        pCmdSpace = m_deCmdStream.WriteSetOneContextReg(mmVGT_PRIMITIVEID_RESET, 0x00000000, pCmdSpace);
-        pCmdSpace = m_deCmdStream.WriteSetOneContextReg(mmPA_SC_CLIPRECT_RULE,   0x0000ffff, pCmdSpace);
+        pCmdSpace = m_deCmdStream.WriteSetOneContextReg(mmVGT_PRIMITIVEID_RESET,         0x00000000, pCmdSpace);
+        pCmdSpace = m_deCmdStream.WriteSetOneContextReg(mmPA_SC_CLIPRECT_RULE,           0x0000ffff, pCmdSpace);
 
     }
 
@@ -1759,10 +1775,11 @@ uint32* UniversalQueueContext::WriteUniversalPreamble(
 
 // =====================================================================================================================
 Result UniversalQueueContext::UpdateRingSet(
-    bool    isTmz,        // [in]      whether or not the ring set is tmz protected or not.
-    bool*   pHasChanged,  // [out]     Whether or not the ring set has updated. If true the ring set must rewrite its
-                          //           registers.
-    uint64  lastTimeStamp)// [in]      The LastTimeStamp associated with the ringSet
+    bool*   pHasChanged,        // [out]    Whether or not the ring set has updated. If true the ring set must rewrite its
+                                //          registers.
+    bool    isTmz,              // [in]     whether or not the ring set is tmz protected or not.
+    uint32  overrideStackSize,  // [in]     The stack size required by the subsequent submission.
+    uint64  lastTimeStamp)      // [in]     The LastTimeStamp associated with the ringSet
 {
     PAL_ALERT(pHasChanged == nullptr);
     PAL_ASSERT(m_pParentQueue != nullptr);
@@ -1774,12 +1791,22 @@ Result UniversalQueueContext::UpdateRingSet(
     const uint32 currentCounter = m_pDevice->QueueContextUpdateCounter();
     uint32* pCurrentUpdateCounter = isTmz ? &m_currentUpdateCounterTmz : &m_currentUpdateCounter;
 
-    if (currentCounter > *pCurrentUpdateCounter)
+    // Check whether the stack size is required to be overridden
+    const bool needStackSizeOverride = (m_currentStackSizeDw < overrideStackSize);
+    m_currentStackSizeDw             = needStackSizeOverride ? overrideStackSize : m_currentStackSizeDw;
+
+    if ((currentCounter > *pCurrentUpdateCounter) || needStackSizeOverride)
     {
         *pCurrentUpdateCounter = currentCounter;
 
         ShaderRingItemSizes ringSizes = {};
         m_pDevice->GetLargestRingSizes(&ringSizes);
+
+        // We only want the size of scratch ring is grown locally. So that Device::UpdateLargestRingSizes() isn't
+        // needed here.
+        ringSizes.itemSize[static_cast<size_t>(ShaderRingType::ComputeScratch)] =
+            Util::Max(static_cast<size_t>(m_currentStackSizeDw),
+                      ringSizes.itemSize[static_cast<size_t>(ShaderRingType::ComputeScratch)]);
 
         SamplePatternPalette samplePatternPalette;
         m_pDevice->GetSamplePatternPalette(&samplePatternPalette);

@@ -35,6 +35,18 @@ namespace Amdgpu
 
 class Device;
 
+// All of the flags supplementally describe the traits of an amdgpu GPU memory.
+union GpuMemoryFlags
+{
+    struct
+    {
+        uint32 isVmAlwaysValid     :  1; // If the virtual memory is always valid.
+        uint32 isShared            :  1; // If this gpu memory object has been added into shared bo map.
+        uint32 reserved            : 30;
+    };
+    uint32 u32All;
+};
+
 // =====================================================================================================================
 // Unmaps the allocation out of CPU address space.
 class GpuMemory : public Pal::GpuMemory
@@ -70,7 +82,7 @@ public:
 
     void GetHeapsInfo(uint32* pHeapCount, GpuHeap** ppHeaps) const;
 
-    bool IsVmAlwaysValid() const { return m_isVmAlwaysValid; }
+    bool IsVmAlwaysValid() const { return m_amdgpuFlags.isVmAlwaysValid; }
 
     Result QuerySdiBusAddress();
 
@@ -105,8 +117,7 @@ private:
 
     uint64           m_offset;    // Offset in buffer object bound. It's only meaningful when it's a virtual gpu memroy.
 
-    bool             m_isVmAlwaysValid; // If the virtual memory is always valid.
-    mutable bool     m_shared;          // If this gpu memory object has been added into shared bo map
+    mutable Amdgpu::GpuMemoryFlags m_amdgpuFlags; // amdgpu specific flags
 
     enum amdgpu_bo_handle_type  m_externalHandleType; // Handle type such as GEM global names or dma-buf fd.
 

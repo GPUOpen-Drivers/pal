@@ -362,7 +362,9 @@ void AddrMgr2::ComputeTilesInMipTail(
     ) const
 {
     const ImageCreateInfo& createInfo = image.GetImageCreateInfo();
-
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
+    const SubresId baseSubresId       = image.GetBaseSubResource();
+#endif
     // This function is only supposed to be called for PRT Images which have a mip tail.
     PAL_ASSERT((createInfo.flags.prt != 0) && (pGpuMemLayout->prtMinPackedLod < createInfo.mipLevels));
 
@@ -370,9 +372,24 @@ void AddrMgr2::ComputeTilesInMipTail(
     const auto& imageProperties = GetDevice()->ChipProperties().imageProperties;
     PAL_ASSERT((imageProperties.prtFeatures & PrtFeaturePerSliceMipTail) != 0);
 
-    // The GPU addressing document states that if a mip tail is present, it is always exactly one tile block per
-    // array slice.
-    pGpuMemLayout->prtMipTailTileCount = 1;
+    // 3D image may need one more tiles for mip tail considering depth.
+    if (createInfo.imageType == ImageType::Tex3d)
+    {
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
+        const SubresId              subResId    = { baseSubresId.aspect, pGpuMemLayout->prtMinPackedLod, 0 };
+#else
+        const SubresId              subResId    = { 0, pGpuMemLayout->prtMinPackedLod, 0 };
+#endif
+        const SubResourceInfo*const pSubResInfo = image.SubresourceInfo(subResId);
+        pGpuMemLayout->prtMipTailTileCount      =
+            static_cast<uint32>(RoundUpQuotient(pSubResInfo->extentElements.depth, pGpuMemLayout->prtTileDepth));
+    }
+    else
+    {
+        // The GPU addressing document states that if a mip tail is present, it is always exactly one tile block per
+        // array slice.
+        pGpuMemLayout->prtMipTailTileCount = 1;
+    }
 }
 
 // =====================================================================================================================
@@ -818,35 +835,18 @@ Result AddrMgr2::ComputePlaneSwizzleMode(
         else if (pImage->GetGfxImage()->IsRestrictedTiledMultiMediaSurface() &&
                  (createInfo.tiling == ImageTiling::Optimal))
         {
-            if (IsVega10(*m_pDevice) || IsVega12(*m_pDevice) || IsVega20(*m_pDevice))
+            if (createInfo.flags.videoReferenceOnly)
             {
-                if (createInfo.flags.videoReferenceOnly)
-                {
-                    pOut->swizzleMode = ADDR_SW_256B_D;
-                }
-                else
-                {
-                    pOut->swizzleMode = ADDR_SW_64KB_D;
-                }
+                pOut->swizzleMode = ADDR_SW_256B_D;
             }
+            else if (IsVega10(*m_pDevice) || IsVega12(*m_pDevice) || IsVega20(*m_pDevice))
+            {
+                pOut->swizzleMode = ADDR_SW_64KB_D;
+            }
+            // Use linear swizzle mode if it's a render target.
             else
             {
-                if (createInfo.flags.videoReferenceOnly)
-                {
-                    pOut->swizzleMode = ADDR_SW_256B_D;
-                }
-                else
-                {
-                    // Use linear swizzle mode if it's a render target.
-                    if (disableSModes8BppColor)
-                    {
-                        pOut->swizzleMode = ADDR_SW_LINEAR;
-                    }
-                    else
-                    {
-                        pOut->swizzleMode = ADDR_SW_64KB_S;
-                    }
-                }
+                pOut->swizzleMode = (disableSModes8BppColor) ? ADDR_SW_LINEAR : ADDR_SW_64KB_S;
             }
         }
         else if (pImage->IsFlippable())

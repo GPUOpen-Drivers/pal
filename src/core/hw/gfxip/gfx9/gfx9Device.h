@@ -70,6 +70,7 @@ enum CacheSyncFlags : uint32
     CacheSyncInvDbMd     = 0x1000, // Invalidate DB meta-data cache.
     CacheSyncFlushDbData = 0x2000, // Flush DB data cache.
     CacheSyncFlushDbMd   = 0x4000, // Flush DB meta-data cache.
+    CacheSyncAll         = 0x7fff, // All of the above flags.
 
     // Some helper masks to flush and invalidate various combinations of the back-end caches.
     CacheSyncFlushAndInvCbData = CacheSyncInvCbData         | CacheSyncFlushCbData,
@@ -87,6 +88,9 @@ enum CacheSyncFlags : uint32
     CacheSyncInvDb   = CacheSyncInvDbData   | CacheSyncInvDbMd,
     CacheSyncFlushRb = CacheSyncFlushCb     | CacheSyncFlushDb,
     CacheSyncInvRb   = CacheSyncInvCb       | CacheSyncInvDb,
+
+    // The ACE queues can't flush or invalidate the RB caches. (And why would they need to?)
+    CacheSyncAllCompute = CacheSyncAll & ~CacheSyncFlushAndInvRb,
 };
 
 enum RegisterRangeType : uint32
@@ -495,24 +499,24 @@ public:
         const AcqRelSyncToken*        pSyncTokens,
         Developer::BarrierOperations* pBarrierOps,
         bool                          waMetaMisalignNeedRefreshLlc = false) const;
-#else
-    void BarrierRelease(
+#endif
+
+    void BarrierReleaseEvent(
         GfxCmdBuffer*                 pCmdBuf,
         CmdStream*                    pCmdStream,
         const AcquireReleaseInfo&     barrierReleaseInfo,
-        const IGpuEvent*              pGpuEvent,
+        const IGpuEvent*              pClientEvent,
         Developer::BarrierOperations* pBarrierOps,
         bool                          waMetaMisalignNeedRefreshLlc = false) const;
 
-    void BarrierAcquire(
+    void BarrierAcquireEvent(
         GfxCmdBuffer*                 pCmdBuf,
         CmdStream*                    pCmdStream,
         const AcquireReleaseInfo&     barrierAcquireInfo,
         uint32                        gpuEventCount,
-        const IGpuEvent*const*        ppGpuEvents,
+        const IGpuEvent* const*       ppGpuEvents,
         Developer::BarrierOperations* pBarrierOps,
         bool                          waMetaMisalignNeedRefreshLlc = false) const;
-#endif
 
     void BarrierReleaseThenAcquire(
         GfxCmdBuffer*                 pCmdBuf,
@@ -559,6 +563,14 @@ public:
         const ImgBarrier&             imgBarrier,
         LayoutTransitionInfo          layoutTransInfo,
         Developer::BarrierOperations* pBarrierOps) const;
+
+    void AcqRelColorTransitionEvent(
+        GfxCmdBuffer*                 pCmdBuf,
+        CmdStream*                    pCmdStream,
+        const ImgBarrier&             imgBarrier,
+        LayoutTransitionInfo          layoutTransInfo,
+        Developer::BarrierOperations* pBarrierOps) const;
+
     void AcqRelDepthStencilTransition(
         GfxCmdBuffer*                 pCmdBuf,
         const ImgBarrier&             imgBarrier,
@@ -583,6 +595,8 @@ public:
     uint32 GetPipeInterleaveLog2() const;
 
     uint32 GetDbDfsmControl() const;
+
+    static uint32 GetMaxWavesPerSh(const GpuChipProperties& chipProps, bool isCompute);
 
     const BoundGpuMemory& TrapHandler(PipelineBindPoint pipelineType) const override
         { return (pipelineType == PipelineBindPoint::Graphics) ? m_graphicsTrapHandler : m_computeTrapHandler; }
@@ -726,19 +740,24 @@ private:
         CmdStream*         pCmdStream,
         const ImgBarrier&  imgBarrier) const;
 
-    size_t BuildReleaseSyncPackets(
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
+    size_t BuildReleaseSyncPackets(
         GfxCmdBuffer*                 pCmdBuf,
-#endif
         EngineType                    engineType,
         uint32                        stageMask,
         uint32                        accessMask,
         bool                          flushLlc,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
         AcqRelSyncToken*              pSyncTokenOut,
-#else
-        const IGpuEvent*              pGpuEventToSignal,
+        void*                         pBuffer,
+        Developer::BarrierOperations* pBarrierOps) const;
 #endif
+
+    size_t BuildReleaseSyncPacketsEvent(
+        EngineType                    engineType,
+        uint32                        stageMask,
+        uint32                        accessMask,
+        bool                          flushLlc,
+        const IGpuEvent*              pGpuEventToSignal,
         void*                         pBuffer,
         Developer::BarrierOperations* pBarrierOps) const;
 
@@ -754,19 +773,24 @@ private:
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
     AcqRelSyncToken IssueReleaseSync(
-#else
-    void IssueReleaseSync(
-#endif
         GfxCmdBuffer*                 pCmdBuf,
         CmdStream*                    pCmdStream,
         uint32                        stageMask,
         uint32                        accessMask,
         bool                          flushLlc,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 648
-        const IGpuEvent*              pGpuEvent,
+        Developer::BarrierOperations* pBarrierOps) const;
 #endif
+
+    void IssueReleaseSyncEvent(
+        GfxCmdBuffer*                 pCmdBuf,
+        CmdStream*                    pCmdStream,
+        uint32                        stageMask,
+        uint32                        accessMask,
+        bool                          flushLlc,
+        const IGpuEvent*              pGpuEvent,
         Developer::BarrierOperations* pBarrierOps) const;
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
     void IssueAcquireSync(
         GfxCmdBuffer*                 pCmdBuf,
         CmdStream*                    pCmdStream,
@@ -775,13 +799,21 @@ private:
         bool                          invalidateLlc,
         gpusize                       rangeStartAddr,
         gpusize                       rangeSize,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
         uint32                        syncTokenCount,
         const AcqRelSyncToken*        pSyncTokens,
-#else
-        uint32                        gpuEventCount,
-        const IGpuEvent*const*        ppGpuEvents,
+        Developer::BarrierOperations* pBarrierOps) const;
 #endif
+
+    void IssueAcquireSyncEvent(
+        GfxCmdBuffer*                 pCmdBuf,
+        CmdStream*                    pCmdStream,
+        uint32                        stageMask,
+        uint32                        accessMask,
+        bool                          invalidateLlc,
+        gpusize                       rangeStartAddr,
+        gpusize                       rangeSize,
+        uint32                        gpuEventCount,
+        const IGpuEvent* const*       ppGpuEvents,
         Developer::BarrierOperations* pBarrierOps) const;
 
     uint32 Gfx10BuildReleaseGcrCntl(

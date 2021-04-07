@@ -41,6 +41,10 @@ typedef void           VOID;
 typedef float          FLOAT;
 #endif
 
+#if !defined(DOUBLE)
+typedef double         DOUBLE;
+#endif
+
 #if !defined(CHAR)
 typedef char           CHAR;
 #endif

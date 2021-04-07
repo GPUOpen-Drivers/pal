@@ -637,6 +637,12 @@ struct PalPublicSettings
     /// inserted. It is default to false, but client drivers may choose to app-detect to enable if see corruption.
     bool forceWaitPointPreColorToPostIndexFetch;
 #endif
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 662
+    /// Allows the client to disable debug overlay visual confirm after DebugOverlay::Platform is created when the
+    /// panel setting DebugOverlayEnabled is globally set but a certain application might need to turn off visual
+    /// confirm to make the screen not too noisy.
+    bool disableDebugOverlayVisualConfirm;
+#endif
 };
 
 /// Defines the modes that the GPU Profiling layer can use when its buffer fills.
@@ -1245,7 +1251,10 @@ struct DeviceProperties
             uint32 minVgprAlloc;            ///< Minimum number of VGPRs that can be allocated by a wave.
             uint32 vgprAllocGranularity;    ///< VGPRs are allocated in groups of this size.  Meaning, if your shader
                                             ///  only uses 1 VGPR, you will still end up reserving this number of
-                                            ///  VGPRs.
+                                            ///  VGPRs. On hardware where wave32 is available, the granularity for a
+                                            ///  wave64 shader is half of this value, but the VGPR allocation is
+                                            ///  double. The same number of total physical registers is allocated for
+                                            ///  each unit of allocation with either wave size.
             uint32 ldsSizePerCu;            ///< Local Data Store size available in bytes per CU.
             uint32 ldsSizePerThreadGroup;   ///< Local Data Store size available in bytes per thread-group.
             uint32 ldsGranularity;          ///< Local Data Store allocation granularity expressed in bytes.

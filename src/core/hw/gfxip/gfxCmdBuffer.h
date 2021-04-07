@@ -174,6 +174,7 @@ struct ChunkOutput
     uint32          commandsInChunk;
     gpusize         embeddedDataAddr;
     uint32          embeddedDataSize;
+    uint32          chainSizeInDwords;
 };
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
@@ -202,32 +203,6 @@ struct AcqRelSyncToken
         uint32 u32All;
     };
 };
-#else
-// Structure representing release activity hashmap entry
-struct ReleaseActivityInfo
-{
-    struct
-    {
-        uint8 eosTsPsDone       : 1;
-        uint8 eosTsCsDone       : 1;
-        uint8 eopTsBottomOfPipe : 1;
-        uint8 reserved          : 5;
-    } pipelineStalls;
-
-    // We don't need csBltCacheSync because shader caches are read-only/write-through, there is no action at release.
-    struct
-    {
-        uint8 gfxBltCacheSync : 1;
-        uint8 flushTcc        : 1;
-        uint8 invalTcc        : 1;
-        uint8 reserved        : 5;
-    } caches;
-
-    uint16 gfxBltActiveTimestamp;
-    uint16 csBltActiveTimestamp;
-};
-
-typedef Util::HashMap<const IGpuEvent*, ReleaseActivityInfo, Platform> ReleaseActivityMap;
 #endif
 
 // =====================================================================================================================
@@ -437,9 +412,9 @@ public:
         m_acqRelFenceVals[static_cast<uint32>(type)]++;
         return m_acqRelFenceVals[static_cast<uint32>(type)];
     }
-#else
-    GpuEvent* GetInternalEvent() { return m_pInternalEvent; }
 #endif
+
+    GpuEvent* GetInternalEvent() { return m_pInternalEvent; }
 
     virtual void PushGraphicsState() = 0;
     virtual void PopGraphicsState()  = 0;
@@ -483,10 +458,6 @@ public:
     {
         m_gfxCmdBufState.fences.gfxBltWbEopFenceVal = fenceVal;
     }
-#else
-    void UpdateCmdBufStateFromAcquire(const IGpuEvent* pGpuEvent, const Developer::BarrierOperations& barrierOps);
-    void UpdateReleaseActivityMapFromRelease(const IGpuEvent* pGpuEvent,
-                                             const Developer::BarrierOperations& barrierOps);
 #endif
 
     // Obtains a fresh command stream chunk from the current command allocator, for use as the target of GPU-generated
@@ -685,25 +656,17 @@ private:
     uint32  m_numActiveQueries[static_cast<size_t>(QueryPoolType::Count)];
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
-    gpusize m_timestampGpuVa;      // GPU virtual address of memory used for cache flush & inv timestamp events.
     gpusize m_acqRelFenceValGpuVa; // GPU virtual address of 3-dwords memory used for acquire/release pipe event sync.
-#else
-    GpuEvent*  m_pInternalEvent;   // Internal Event for Release/Acquire based barrier.  CPU invisible.
-    gpusize    m_timestampGpuVa;   // GPU virtual address of memory used for cache flush & inv timestamp events.
+    uint32 m_acqRelFenceVals[static_cast<uint32>(AcqRelEventType::Count)];
 #endif
+
+    GpuEvent*  m_pInternalEvent;   // Internal Event for Release/Acquire based barrier.  CPU invisible.
+
+    gpusize    m_timestampGpuVa;   // GPU virtual address of memory used for cache flush & inv timestamp events.
 
     uint32  m_computeStateFlags;   // The flags that CmdSaveComputeState was called with.
 
     FceRefCountsVector m_fceRefCountVec;
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
-    uint32 m_acqRelFenceVals[static_cast<uint32>(AcqRelEventType::Count)];
-#else
-    uint16 m_gfxBltActiveCtr; // Count the number of gfx BLT that has launched.
-    uint16 m_csBltActiveCtr;  // Count the number of cs BLT that has launched.
-
-    ReleaseActivityMap m_releaseActivityMap; // A hashmap that tracks active releases.
-#endif
 
     PerfExperimentFlags m_cmdBufPerfExptFlags; // Flags that indicate which Performance Experiments are ongoing in
                                                // this CmdBuffer.

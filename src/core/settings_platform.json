@@ -1401,15 +1401,38 @@
           "Description": "Bitmask controlling which ICmdBuffer calls to annotate."
         },
         {
+          "ValidValues": {
+            "IsEnum": true,
+            "IsExclusive": true,
+            "Values": [
+              {
+                "Name": "CblEmbedDrawDispatchNone",
+                "Value": 0,
+                "Description": "Do not embed draw and dispatch shader IDs."
+              },
+              {
+                "Name": "CblEmbedDrawDispatchAll",
+                "Value": 1,
+                "Description": "Embed all draw and dispatch shader IDs."
+              },
+              {
+                "Name": "ClbEmbedDrawDispatchApp",
+                "Value": 2,
+                "Description": "Only embed application draws and dispatches."
+              }
+            ],
+            "Name": "CblEmbedDrawDispatchMode",
+            "Description": "Which draw and dispatch shader IDs to embed in the command stream."
+          },
           "Name": "EmbedDrawDispatchInfo",
           "Tags": [
             "CmdBuffer Logger"
           ],
           "Defaults": {
-            "Default": false
+            "Default": "CblEmbedDrawDispatchNone"
           },
           "Scope": "PrivatePalKey",
-          "Type": "bool",
+          "Type": "enum",
           "VariableName": "embedDrawDispatchInfo",
           "Description": "Enables the embedding of draw/dispatch shader IDs within the cmd-stream.  Annotations and single-step options will be disabled."
         }

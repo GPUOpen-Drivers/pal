@@ -704,7 +704,7 @@ size_t CmdUtil::BuildAcquireMem(
             explicitAcquireMemInfo.coherCntl = cpCoherCntl.u32All | acquireMemInfo.cpMeCoherCntl.u32All;
         }
 
-        explicitAcquireMemInfo.gcrCntl.u32All = Gfx10CalcAcquireMemGcrCntl(acquireMemInfo);
+        explicitAcquireMemInfo.gcrCntl = Gfx10CalcAcquireMemGcrCntl(acquireMemInfo);
     }
 
     // Call a more explicit function.
@@ -771,7 +771,7 @@ size_t CmdUtil::ExplicitBuildAcquireMem(
                       "GFX10: ACQUIRE_MEM packet size is different between ME compute and ME graphics!");
 
         // Handle the GFX-specific aspects of a release-mem packet.
-        packet.ordinal8.bitfields.gfx10Plus.gcr_cntl = acquireMemInfo.gcrCntl.u32All;
+        packet.ordinal8.bitfields.gfx10Plus.gcr_cntl = acquireMemInfo.gcrCntl;
         PAL_ASSERT(packet.ordinal8.bitfields.gfx10Plus.reserved1 == 0);
     }
     else
@@ -1908,36 +1908,39 @@ size_t CmdUtil::BuildDmaData(
 
     constexpr uint32 PacketSize = PM4_PFP_DMA_DATA_SIZEDW__CORE;
     auto*const       pPacket    = static_cast<PM4_PFP_DMA_DATA*>(pBuffer);
+    PM4_PFP_DMA_DATA packet     = { 0 };
 
-    pPacket->ordinal1.header.u32All        =
+    packet.ordinal1.header.u32All        =
         Type3Header(IT_DMA_DATA, PacketSize, false, ShaderGraphics, dmaDataInfo.predicate);
-    pPacket->ordinal2.u32All               = 0;
-    pPacket->ordinal2.bitfields.engine_sel = static_cast<PFP_DMA_DATA_engine_sel_enum>(dmaDataInfo.usePfp
+    packet.ordinal2.u32All               = 0;
+    packet.ordinal2.bitfields.engine_sel = static_cast<PFP_DMA_DATA_engine_sel_enum>(dmaDataInfo.usePfp
                                               ? static_cast<uint32>(engine_sel__pfp_dma_data__prefetch_parser)
                                               : static_cast<uint32>(engine_sel__me_dma_data__micro_engine));
-    pPacket->ordinal2.bitfields.dst_sel    = dmaDataInfo.dstSel;
-    pPacket->ordinal2.bitfields.src_sel    = dmaDataInfo.srcSel;
-    pPacket->ordinal2.bitfields.cp_sync    = (dmaDataInfo.sync ? 1 : 0);
+    packet.ordinal2.bitfields.dst_sel    = dmaDataInfo.dstSel;
+    packet.ordinal2.bitfields.src_sel    = dmaDataInfo.srcSel;
+    packet.ordinal2.bitfields.cp_sync    = (dmaDataInfo.sync ? 1 : 0);
 
     if (dmaDataInfo.srcSel == src_sel__pfp_dma_data__data)
     {
-        pPacket->ordinal3.src_addr_lo_or_data = dmaDataInfo.srcData;
-        pPacket->ordinal4.src_addr_hi         = 0; // ignored for data
+        packet.ordinal3.src_addr_lo_or_data = dmaDataInfo.srcData;
+        packet.ordinal4.src_addr_hi         = 0; // ignored for data
     }
     else
     {
-        pPacket->ordinal3.src_addr_lo_or_data = LowPart(dmaDataInfo.srcAddr);
-        pPacket->ordinal4.src_addr_hi         = HighPart(dmaDataInfo.srcAddr);
+        packet.ordinal3.src_addr_lo_or_data = LowPart(dmaDataInfo.srcAddr);
+        packet.ordinal4.src_addr_hi         = HighPart(dmaDataInfo.srcAddr);
     }
 
-    pPacket->ordinal5.dst_addr_lo          = LowPart(dmaDataInfo.dstAddr);
-    pPacket->ordinal6.dst_addr_hi          = HighPart(dmaDataInfo.dstAddr);
-    pPacket->ordinal7.u32All               = 0;
-    pPacket->ordinal7.bitfields.byte_count = dmaDataInfo.numBytes;
-    pPacket->ordinal7.bitfields.sas        = dmaDataInfo.srcAddrSpace;
-    pPacket->ordinal7.bitfields.das        = dmaDataInfo.dstAddrSpace;
-    pPacket->ordinal7.bitfields.raw_wait   = (dmaDataInfo.rawWait ? 1 : 0);
-    pPacket->ordinal7.bitfields.dis_wc     = (dmaDataInfo.disWc   ? 1 : 0);
+    packet.ordinal5.dst_addr_lo          = LowPart(dmaDataInfo.dstAddr);
+    packet.ordinal6.dst_addr_hi          = HighPart(dmaDataInfo.dstAddr);
+    packet.ordinal7.u32All               = 0;
+    packet.ordinal7.bitfields.byte_count = dmaDataInfo.numBytes;
+    packet.ordinal7.bitfields.sas        = dmaDataInfo.srcAddrSpace;
+    packet.ordinal7.bitfields.das        = dmaDataInfo.dstAddrSpace;
+    packet.ordinal7.bitfields.raw_wait   = (dmaDataInfo.rawWait ? 1 : 0);
+    packet.ordinal7.bitfields.dis_wc     = (dmaDataInfo.disWc   ? 1 : 0);
+
+    *pPacket = packet;
 
     return PacketSize;
 }
@@ -2068,8 +2071,11 @@ size_t CmdUtil::BuildSampleEventWrite(
     ME_EVENT_WRITE_event_index_enum eventIndex,
     EngineType                      engineType,
     gpusize                         gpuAddr,
-    void*                           pBuffer) // [out] Build the PM4 packet in this buffer.
+    void*                           pBuffer     // [out] Build the PM4 packet in this buffer.
+    ) const
 {
+    const GpuChipProperties& chipProps = m_device.Parent()->ChipProperties();
+
     // Verify the event index enumerations match between the ME and MEC engines.  Note that ME (gfx) has more
     // events than MEC does.  We assert below if this packet is meant for compute and a gfx-only index is selected.
     static_assert(
@@ -2084,6 +2090,8 @@ size_t CmdUtil::BuildSampleEventWrite(
     // Make sure the supplied VGT event is legal.
     PAL_ASSERT(vgtEvent < (sizeof(VgtEventIndex) / sizeof(VGT_EVENT_TYPE)));
 
+    const bool vsPartialFlushValid = false;
+
     // Note that ZPASS_DONE is marked as deprecated in gfx9 but still works and is required for at least one workaround.
     PAL_ASSERT((vgtEvent == PIXEL_PIPE_STAT_CONTROL) ||
                (vgtEvent == PIXEL_PIPE_STAT_DUMP)    ||
@@ -2093,15 +2101,19 @@ size_t CmdUtil::BuildSampleEventWrite(
                (vgtEvent == SAMPLE_STREAMOUTSTATS2)  ||
                (vgtEvent == SAMPLE_STREAMOUTSTATS3)  ||
                (vgtEvent == ZPASS_DONE__GFX09)       ||
-               (vgtEvent == 0x9));
+               (vgtEvent == 0x9)                     ||
+               vsPartialFlushValid);
 
     static_assert(ZPASS_DONE__GFX09 == ZPASS_DONE__GFX10CORE, "VGT event enums don't match!");
     PAL_ASSERT(vgtEvent != 0x9);
 
+    const bool vsPartialFlushEventIndexValid = false;
+
     PAL_ASSERT(
         (VgtEventIndex[vgtEvent] == event_index__me_event_write__pixel_pipe_stat_control_or_dump) ||
         (VgtEventIndex[vgtEvent] == event_index__me_event_write__sample_pipelinestat)             ||
-        (VgtEventIndex[vgtEvent] == event_index__me_event_write__sample_streamoutstats__GFX09_10));
+        (VgtEventIndex[vgtEvent] == event_index__me_event_write__sample_streamoutstats__GFX09_10) ||
+        vsPartialFlushEventIndexValid);
 
     // Event-write packets destined for the compute queue can only use some events.
     PAL_ASSERT((engineType != EngineTypeCompute) ||
@@ -2660,17 +2672,18 @@ size_t CmdUtil::BuildLoadContextRegsIndex(
 
     constexpr uint32 PacketSize = PM4_PFP_LOAD_CONTEXT_REG_INDEX_SIZEDW__CORE;
     auto*const       pPacket    = static_cast<PM4_PFP_LOAD_CONTEXT_REG_INDEX*>(pBuffer);
+    PM4_PFP_LOAD_CONTEXT_REG_INDEX packet = { 0 };
 
-    pPacket->ordinal1.header.u32All = Type3Header(IT_LOAD_CONTEXT_REG_INDEX, PacketSize);
-    pPacket->ordinal2.u32All        = 0;
+    packet.ordinal1.header.u32All = Type3Header(IT_LOAD_CONTEXT_REG_INDEX, PacketSize);
+    packet.ordinal2.u32All        = 0;
     if (directAddress)
     {
         // Only the low 16 bits of addrOffset are honored for the high portion of the GPU virtual address!
         PAL_ASSERT((HighPart(gpuVirtAddrOrAddrOffset) & 0xFFFF0000) == 0);
 
-        pPacket->ordinal2.bitfields.index       = index__pfp_load_context_reg_index__direct_addr;
-        pPacket->ordinal2.bitfields.mem_addr_lo = (LowPart(gpuVirtAddrOrAddrOffset) >> 2);
-        pPacket->ordinal3.mem_addr_hi           = HighPart(gpuVirtAddrOrAddrOffset);
+        packet.ordinal2.bitfields.index       = index__pfp_load_context_reg_index__direct_addr;
+        packet.ordinal2.bitfields.mem_addr_lo = (LowPart(gpuVirtAddrOrAddrOffset) >> 2);
+        packet.ordinal3.mem_addr_hi           = HighPart(gpuVirtAddrOrAddrOffset);
     }
     else
     {
@@ -2678,14 +2691,16 @@ size_t CmdUtil::BuildLoadContextRegsIndex(
         // specified to the packet using 32 bits.
         PAL_ASSERT(HighPart(gpuVirtAddrOrAddrOffset) == 0);
 
-        pPacket->ordinal2.bitfields.index       = index__pfp_load_context_reg_index__offset;
-        pPacket->ordinal3.addr_offset           = LowPart(gpuVirtAddrOrAddrOffset);
+        packet.ordinal2.bitfields.index       = index__pfp_load_context_reg_index__offset;
+        packet.ordinal3.addr_offset           = LowPart(gpuVirtAddrOrAddrOffset);
     }
-    pPacket->ordinal4.u32All                = 0;
-    pPacket->ordinal4.bitfields.reg_offset  = (startRegAddr - CONTEXT_SPACE_START);
-    pPacket->ordinal4.bitfields.data_format = data_format__pfp_load_context_reg_index__offset_and_size;
-    pPacket->ordinal5.u32All                = 0;
-    pPacket->ordinal5.bitfields.num_dwords  = count;
+    packet.ordinal4.u32All                = 0;
+    packet.ordinal4.bitfields.reg_offset  = (startRegAddr - CONTEXT_SPACE_START);
+    packet.ordinal4.bitfields.data_format = data_format__pfp_load_context_reg_index__offset_and_size;
+    packet.ordinal5.u32All                = 0;
+    packet.ordinal5.bitfields.num_dwords  = count;
+
+    *pPacket = packet;
 
     return PacketSize;
 }
@@ -2716,21 +2731,24 @@ size_t CmdUtil::BuildLoadContextRegsIndex(
 {
     constexpr uint32 PacketSize = PM4_PFP_LOAD_CONTEXT_REG_INDEX_SIZEDW__CORE;
     auto*const       pPacket    = static_cast<PM4_PFP_LOAD_CONTEXT_REG_INDEX*>(pBuffer);
+    PM4_PFP_LOAD_CONTEXT_REG_INDEX packet = { 0 };
 
-    pPacket->ordinal1.header.u32All = Type3Header(IT_LOAD_CONTEXT_REG_INDEX, PacketSize);
+    packet.ordinal1.header.u32All = Type3Header(IT_LOAD_CONTEXT_REG_INDEX, PacketSize);
 
-    pPacket->ordinal2.u32All                = 0;
-    pPacket->ordinal2.bitfields.index       = index__pfp_load_context_reg_index__direct_addr;
-    pPacket->ordinal2.bitfields.mem_addr_lo = LowPart(gpuVirtAddr) >> 2;
-    pPacket->ordinal3.mem_addr_hi           = HighPart(gpuVirtAddr);
+    packet.ordinal2.u32All                = 0;
+    packet.ordinal2.bitfields.index       = index__pfp_load_context_reg_index__direct_addr;
+    packet.ordinal2.bitfields.mem_addr_lo = LowPart(gpuVirtAddr) >> 2;
+    packet.ordinal3.mem_addr_hi           = HighPart(gpuVirtAddr);
     // Only the low 16 bits are honored for the high portion of the GPU virtual address!
     PAL_ASSERT((HighPart(gpuVirtAddr) & 0xFFFF0000) == 0);
 
-    pPacket->ordinal4.u32All                = 0;
-    pPacket->ordinal4.bitfields.data_format = data_format__pfp_load_context_reg_index__offset_and_data;
+    packet.ordinal4.u32All                = 0;
+    packet.ordinal4.bitfields.data_format = data_format__pfp_load_context_reg_index__offset_and_data;
 
-    pPacket->ordinal5.u32All                = 0;
-    pPacket->ordinal5.bitfields.num_dwords  = count;
+    packet.ordinal5.u32All                = 0;
+    packet.ordinal5.bitfields.num_dwords  = count;
+
+    *pPacket = packet;
 
     return PacketSize;
 }
@@ -2869,21 +2887,24 @@ size_t CmdUtil::BuildLoadShRegsIndex(
 {
     constexpr uint32 PacketSize = PM4_PFP_LOAD_SH_REG_INDEX_SIZEDW__CORE;
     auto*const       pPacket    = static_cast<PM4_PFP_LOAD_SH_REG_INDEX*>(pBuffer);
+    PM4_PFP_LOAD_SH_REG_INDEX packet = { 0 };
 
-    pPacket->ordinal1.header.u32All = Type3Header(IT_LOAD_SH_REG_INDEX, PacketSize, false, shaderType);
+    packet.ordinal1.header.u32All = Type3Header(IT_LOAD_SH_REG_INDEX, PacketSize, false, shaderType);
 
-    pPacket->ordinal2.u32All                = 0;
-    pPacket->ordinal2.bitfields.index       = index__pfp_load_sh_reg_index__direct_addr;
-    pPacket->ordinal2.bitfields.mem_addr_lo = LowPart(gpuVirtAddr) >> 2;
-    pPacket->ordinal3.mem_addr_hi           = HighPart(gpuVirtAddr);
+    packet.ordinal2.u32All                = 0;
+    packet.ordinal2.bitfields.index       = index__pfp_load_sh_reg_index__direct_addr;
+    packet.ordinal2.bitfields.mem_addr_lo = LowPart(gpuVirtAddr) >> 2;
+    packet.ordinal3.mem_addr_hi           = HighPart(gpuVirtAddr);
     // Only the low 16 bits are honored for the high portion of the GPU virtual address!
     PAL_ASSERT((HighPart(gpuVirtAddr) & 0xFFFF0000) == 0);
 
-    pPacket->ordinal4.u32All                = 0;
-    pPacket->ordinal4.bitfields.data_format = data_format__pfp_load_sh_reg_index__offset_and_data;
+    packet.ordinal4.u32All                = 0;
+    packet.ordinal4.bitfields.data_format = data_format__pfp_load_sh_reg_index__offset_and_data;
 
-    pPacket->ordinal5.u32All                = 0;
-    pPacket->ordinal5.bitfields.num_dwords  = count;
+    packet.ordinal5.u32All                = 0;
+    packet.ordinal5.bitfields.num_dwords  = count;
+
+    *pPacket = packet;
 
     return PacketSize;
 }
@@ -3891,37 +3912,41 @@ size_t CmdUtil::BuildWaitRegMem(
     constexpr uint32 PacketSize           = PM4_ME_WAIT_REG_MEM_SIZEDW__CORE;
     auto*const pPacket                    = static_cast<PM4_ME_WAIT_REG_MEM*>(pBuffer);
     auto*const pPacketMecOnly             = static_cast<PM4_MEC_WAIT_REG_MEM*>(pBuffer);
+    PM4_ME_WAIT_REG_MEM packet            = { 0 };
+    PM4_MEC_WAIT_REG_MEM* pMecPkt         = reinterpret_cast<PM4_MEC_WAIT_REG_MEM*>(&packet);
 
-    pPacket->ordinal1.header.u32All       = Type3Header(IT_WAIT_REG_MEM, PacketSize);
-    pPacket->ordinal2.u32All              = 0;
-    pPacket->ordinal2.bitfields.function  = static_cast<ME_WAIT_REG_MEM_function_enum>(function);
-    pPacket->ordinal2.bitfields.mem_space = static_cast<ME_WAIT_REG_MEM_mem_space_enum>(memSpace);
-    pPacket->ordinal2.bitfields.operation = static_cast<ME_WAIT_REG_MEM_operation_enum>(operation);
-    pPacket->ordinal3.u32All              = LowPart(addr);
+    packet.ordinal1.header.u32All       = Type3Header(IT_WAIT_REG_MEM, PacketSize);
+    packet.ordinal2.u32All              = 0;
+    packet.ordinal2.bitfields.function  = static_cast<ME_WAIT_REG_MEM_function_enum>(function);
+    packet.ordinal2.bitfields.mem_space = static_cast<ME_WAIT_REG_MEM_mem_space_enum>(memSpace);
+    packet.ordinal2.bitfields.operation = static_cast<ME_WAIT_REG_MEM_operation_enum>(operation);
+    packet.ordinal3.u32All              = LowPart(addr);
 
     if (memSpace == mem_space__me_wait_reg_mem__memory_space)
     {
-        PAL_ASSERT(pPacket->ordinal3.bitfieldsA.reserved1 == 0);
+        PAL_ASSERT(packet.ordinal3.bitfieldsA.reserved1 == 0);
     }
     else if (memSpace == mem_space__mec_wait_reg_mem__register_space)
     {
-        PAL_ASSERT(pPacket->ordinal3.bitfieldsB.reserved2 == 0);
+        PAL_ASSERT(packet.ordinal3.bitfieldsB.reserved2 == 0);
     }
 
-    pPacket->ordinal4.mem_poll_addr_hi        = HighPart(addr);
-    pPacket->ordinal5.reference               = reference;
-    pPacket->ordinal6.mask                    = mask;
-    pPacket->ordinal7.u32All                  = 0;
-    pPacket->ordinal7.bitfields.poll_interval = Pal::Device::PollInterval;
+    packet.ordinal4.mem_poll_addr_hi        = HighPart(addr);
+    packet.ordinal5.reference               = reference;
+    packet.ordinal6.mask                    = mask;
+    packet.ordinal7.u32All                  = 0;
+    packet.ordinal7.bitfields.poll_interval = Pal::Device::PollInterval;
 
     if (Pal::Device::EngineSupportsGraphics(engineType))
     {
-        pPacket->ordinal2.bitfields.engine_sel = static_cast<ME_WAIT_REG_MEM_engine_sel_enum>(engine);
+        packet.ordinal2.bitfields.engine_sel = static_cast<ME_WAIT_REG_MEM_engine_sel_enum>(engine);
+        *pPacket = packet;
     }
     else
     {
         // Similarily to engine_sel in ME, this ACE offload optimization is only for MEC and a reserved bit for ME.
-        pPacketMecOnly->ordinal7.bitfields.optimize_ace_offload_mode = 1;
+        pMecPkt->ordinal7.bitfields.optimize_ace_offload_mode = 1;
+        *pPacketMecOnly = *pMecPkt;
     }
 
     return PacketSize;
@@ -4098,38 +4123,39 @@ size_t CmdUtil::BuildWriteDataInternal(
     // We build the packet with the ME definition, but the MEC definition is identical, so it should work...
     const uint32 packetSize = PM4_ME_WRITE_DATA_SIZEDW__CORE + static_cast<uint32>(dwordsToWrite);
     auto*const   pPacket    = static_cast<PM4_ME_WRITE_DATA*>(pBuffer);
+    PM4_ME_WRITE_DATA packet = { 0 };
 
-    pPacket->ordinal1.header.u32All = Type3Header(IT_WRITE_DATA,
+    packet.ordinal1.header.u32All = Type3Header(IT_WRITE_DATA,
                                                   packetSize,
                                                   false,
                                                   ShaderGraphics,
                                                   info.predicate);
-    pPacket->ordinal2.u32All                 = 0;
-    pPacket->ordinal2.bitfields.addr_incr    = info.dontIncrementAddr
+    packet.ordinal2.u32All                 = 0;
+    packet.ordinal2.bitfields.addr_incr    = info.dontIncrementAddr
                                                ? addr_incr__me_write_data__do_not_increment_address
                                                : addr_incr__me_write_data__increment_address;
-    pPacket->ordinal2.bitfields.cache_policy = cache_policy__me_write_data__lru;
-    pPacket->ordinal2.bitfields.dst_sel      = static_cast<ME_WRITE_DATA_dst_sel_enum>(info.dstSel);
-    pPacket->ordinal2.bitfields.wr_confirm   = info.dontWriteConfirm
+    packet.ordinal2.bitfields.cache_policy = cache_policy__me_write_data__lru;
+    packet.ordinal2.bitfields.dst_sel      = static_cast<ME_WRITE_DATA_dst_sel_enum>(info.dstSel);
+    packet.ordinal2.bitfields.wr_confirm   = info.dontWriteConfirm
                                                ? wr_confirm__me_write_data__do_not_wait_for_write_confirmation
                                                : wr_confirm__me_write_data__wait_for_write_confirmation;
-    pPacket->ordinal2.bitfields.engine_sel   = static_cast<ME_WRITE_DATA_engine_sel_enum>(info.engineSel);
-    pPacket->ordinal3.u32All                 = LowPart(info.dstAddr);
-    pPacket->ordinal4.dst_mem_addr_hi        = HighPart(info.dstAddr);
+    packet.ordinal2.bitfields.engine_sel   = static_cast<ME_WRITE_DATA_engine_sel_enum>(info.engineSel);
+    packet.ordinal3.u32All                 = LowPart(info.dstAddr);
+    packet.ordinal4.dst_mem_addr_hi        = HighPart(info.dstAddr);
 
     switch (info.dstSel)
     {
     case dst_sel__me_write_data__mem_mapped_register:
-        PAL_ASSERT(pPacket->ordinal3.bitfieldsA.reserved1 == 0);
+        PAL_ASSERT(packet.ordinal3.bitfieldsA.reserved1 == 0);
         break;
 
     case dst_sel__me_write_data__memory:
     case dst_sel__me_write_data__tc_l2:
-        PAL_ASSERT(pPacket->ordinal3.bitfieldsC.core.reserved4 == 0);
+        PAL_ASSERT(packet.ordinal3.bitfieldsC.core.reserved4 == 0);
         break;
 
     case dst_sel__me_write_data__gds__CORE:
-        PAL_ASSERT(pPacket->ordinal3.bitfieldsB.core.reserved2 == 0);
+        PAL_ASSERT(packet.ordinal3.bitfieldsB.core.reserved2 == 0);
         break;
 
     case dst_sel__me_write_data__memory_sync_across_grbm:
@@ -4146,6 +4172,8 @@ size_t CmdUtil::BuildWriteDataInternal(
         PAL_NOT_IMPLEMENTED();
         break;
     }
+
+    *pPacket = packet;
 
     return packetSize;
 }
@@ -4286,6 +4314,63 @@ void CmdUtil::BuildPipelinePrefetchPm4(
     {
         pOutput->spaceNeeded = 0;
     }
+}
+
+// =====================================================================================================================
+size_t CmdUtil::BuildPrimeGpuCaches(
+    const PrimeGpuCacheRange& primeGpuCacheRange,
+    void*                     pBuffer
+    ) const
+{
+    const PalSettings&     coreSettings = m_device.Parent()->Settings();
+    const Gfx9PalSettings& hwlSettings  = m_device.Settings();
+    uint32                 prefetchSize = static_cast<uint32>(primeGpuCacheRange.size);
+    if (coreSettings.shaderPrefetchClampSize != 0)
+    {
+        prefetchSize = Min(prefetchSize, coreSettings.shaderPrefetchClampSize);
+    }
+
+    size_t packetSize = 0;
+
+    // examine the usageFlags to determine if GL2 is relevant to that usage's data path, and addrTranslationOnly
+    // is false
+    // DDN said, the mask of GL2 usages for GFX9 should be everything but CoherCpu and CoherMemory.
+    if ((TestAnyFlagSet(primeGpuCacheRange.usageMask, CoherCpu) == false)    &&
+        (TestAnyFlagSet(primeGpuCacheRange.usageMask, CoherMemory) == false) &&
+        (primeGpuCacheRange.addrTranslationOnly == false)                    &&
+        (hwlSettings.shaderPrefetchMethod == PrefetchCpDma))
+    {
+        // DMA DATA to "nowhere" should be performed
+        DmaDataInfo dmaDataInfo  = { };
+        dmaDataInfo.dstAddr      = 0;
+        dmaDataInfo.dstAddrSpace = das__pfp_dma_data__memory;
+        dmaDataInfo.dstSel       = dst_sel__pfp_dma_data__dst_nowhere;
+        dmaDataInfo.srcAddr      = primeGpuCacheRange.gpuVirtAddr;
+        dmaDataInfo.srcAddrSpace = sas__pfp_dma_data__memory;
+        dmaDataInfo.srcSel       = src_sel__pfp_dma_data__src_addr_using_l2;
+        dmaDataInfo.numBytes     = prefetchSize;
+        dmaDataInfo.disWc        = true;
+
+        packetSize = BuildDmaData(dmaDataInfo, pBuffer);
+    }
+    else
+    {
+        // a PRIME_UTCL2 should be performed
+        const gpusize firstPage = Pow2AlignDown(primeGpuCacheRange.gpuVirtAddr, PrimeUtcL2MemAlignment);
+        const gpusize lastPage  = Pow2AlignDown(primeGpuCacheRange.gpuVirtAddr + prefetchSize - 1,
+                                                PrimeUtcL2MemAlignment);
+
+        const size_t  numPages  = 1 + static_cast<size_t>((lastPage - firstPage) / PrimeUtcL2MemAlignment);
+
+        packetSize = BuildPrimeUtcL2(firstPage,
+                                     cache_perm__pfp_prime_utcl2__execute,
+                                     prime_mode__pfp_prime_utcl2__dont_wait_for_xack,
+                                     engine_sel__pfp_prime_utcl2__prefetch_parser,
+                                     numPages,
+                                     pBuffer);
+    }
+
+    return packetSize;
 }
 
 // =====================================================================================================================

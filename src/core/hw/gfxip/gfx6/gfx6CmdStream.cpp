@@ -37,27 +37,6 @@ namespace Gfx6
 {
 
 // =====================================================================================================================
-// Helper function for determining the command buffer chain size (in DWORD's). This value can be affected by workarounds
-// for hardware issues.
-static PAL_INLINE uint32 GetChainSizeInDwords(
-    const Device& device,
-    bool          isNested)
-{
-    uint32 chainSize = CmdUtil::GetChainSizeInDwords();
-
-    if (isNested && (device.WaCpIb2ChainingUnsupported() != false))
-    {
-        // Some GPU's do not support chaining between the chunks of an IB2. This means that we cannot use chaining
-        // for nested command buffers on these chips.  When executing a nested command buffer using IB2's on these
-        // GPU's, we will use a separate IB2 packet for each chunk rather than issuing a single IB2 for the head
-        // chunk.
-        chainSize = 0;
-    }
-
-    return chainSize;
-}
-
-// =====================================================================================================================
 CmdStream::CmdStream(
     const Device&  device,
     ICmdAllocator* pCmdAllocator,
@@ -103,6 +82,27 @@ Result CmdStream::Begin(
     }
 
     return result;
+}
+
+// =====================================================================================================================
+// Helper function for determining the command buffer chain size (in DWORD's). This value can be affected by workarounds
+// for hardware issues.
+uint32 CmdStream::GetChainSizeInDwords(
+    const Device& device,
+    bool          isNested) const
+{
+    uint32 chainSize = CmdUtil::GetChainSizeInDwords();
+
+    if (isNested && (device.WaCpIb2ChainingUnsupported() != false))
+    {
+        // Some GPU's do not support chaining between the chunks of an IB2. This means that we cannot use chaining
+        // for nested command buffers on these chips.  When executing a nested command buffer using IB2's on these
+        // GPU's, we will use a separate IB2 packet for each chunk rather than issuing a single IB2 for the head
+        // chunk.
+        chainSize = 0;
+    }
+
+    return chainSize;
 }
 
 // =====================================================================================================================

@@ -1344,7 +1344,11 @@ bool RsrcProcMgr::ExpandDepthStencil(
 #endif
             const auto*     pBaseSubResInfo = image.SubresourceInfo(mipBaseSubResId);
 
-            PAL_ASSERT(pBaseSubResInfo->flags.supportMetaDataTexFetch);
+            // a mip level may not have metadata thus supportMetaDataTexFetch is 0 and expand is not necessary at all
+            if (pBaseSubResInfo->flags.supportMetaDataTexFetch == 0)
+            {
+                break;
+            }
 
             const uint32  threadGroupsX = RpmUtil::MinThreadGroups(pBaseSubResInfo->extentElements.width,
                                                                    threadsPerGroup[0]);
@@ -1429,9 +1433,9 @@ bool RsrcProcMgr::ExpandDepthStencil(
                                                           pCmdBuffer->TimestampGpuVirtAddr(),
                                                           pComputeCmdSpace);
             pComputeCmdStream->CommitCommands(pComputeCmdSpace);
-
-            usedCompute = true;
         }
+
+        usedCompute = true;
     }
     else
     {

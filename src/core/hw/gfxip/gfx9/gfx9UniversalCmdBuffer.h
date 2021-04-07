@@ -321,6 +321,8 @@ public:
     virtual void CmdSetUserClipPlanes(uint32               firstPlane,
                                       uint32               planeCount,
                                       const UserClipPlane* pPlanes) override;
+    virtual void CmdPrimeGpuCaches(uint32                    rangeCount,
+                                   const PrimeGpuCacheRange* pRanges) override;
     virtual void CmdSetClipRects(uint16      clipRule,
                                  uint32      rectCount,
                                  const Rect* pRectList) override;
@@ -337,16 +339,15 @@ public:
         const AcquireReleaseInfo& acquireInfo,
         uint32                    syncTokenCount,
         const uint32*             pSyncTokens) override;
-#else
-    virtual void CmdRelease(
+#endif
+
+    virtual void CmdReleaseEvent(
         const AcquireReleaseInfo& releaseInfo,
         const IGpuEvent*          pGpuEvent) override;
-
-    virtual void CmdAcquire(
+    virtual void CmdAcquireEvent(
         const AcquireReleaseInfo& acquireInfo,
         uint32                    gpuEventCount,
-        const IGpuEvent*const*    ppGpuEvents) override;
-#endif
+        const IGpuEvent* const*   ppGpuEvents) override;
 
     virtual void CmdReleaseThenAcquire(const AcquireReleaseInfo& barrierInfo) override;
 
@@ -881,11 +882,11 @@ private:
         const GraphicsPipelineSignature* pPrevSignature,
         uint32**                         ppDeCmdSpace);
 
-    uint32* FixupUserSgprsOnPipelineSwitchCs(
+    bool FixupUserSgprsOnPipelineSwitchCs(
         ComputeState*                   pComputeState,
         const ComputePipelineSignature* pCurrSignature,
         const ComputePipelineSignature* pPrevSignature,
-        uint32*                         pDeCmdSpace);
+        uint32**                        ppDeCmdSpace);
 
     void LeakNestedCmdBufferState(
         const UniversalCmdBuffer& cmdBuffer);

@@ -2183,6 +2183,11 @@ void Queue::SubmitConfig(
 
         pInternalSubmitInfos->flags.isTmzEnabled      = isTmzEnabled;
         pInternalSubmitInfos->flags.hasHybridPipeline = hasHybridPipeline;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 663
+        pInternalSubmitInfos->stackSizeInDwords       = submitInfo.stackSizeInDwords;
+#else
+        pInternalSubmitInfos->stackSizeInDwords       = 0;
+#endif
     }
 }
 } // Pal

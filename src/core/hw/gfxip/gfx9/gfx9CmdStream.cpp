@@ -38,29 +38,6 @@ namespace Gfx9
 {
 
 // =====================================================================================================================
-// Helper function for determining the command buffer chain size (in DWORD's). Early versions of the CP microcode did
-// not properly support IB2 chaining, so we need to check the ucode version before enabling chaining for IB2's.
-static PAL_INLINE uint32 GetChainSizeInDwords(
-    const Device& device,
-    EngineType    engineType,
-    bool          isNested)
-{
-    const Pal::Device*  pPalDevice = device.Parent();
-    uint32              chainSize  = CmdUtil::ChainSizeInDwords(engineType);
-
-    constexpr uint32 UcodeVersionWithIb2ChainingFix = 31;
-    if (isNested                                                      &&
-        (pPalDevice->ChipProperties().gfxLevel == GfxIpLevel::GfxIp9) &&
-        (pPalDevice->EngineProperties().cpUcodeVersion < UcodeVersionWithIb2ChainingFix))
-    {
-        // Disable chaining for nested command buffers if the microcode version does not support the IB2 chaining fix.
-        chainSize = 0;
-    }
-
-    return chainSize;
-}
-
-// =====================================================================================================================
 CmdStream::CmdStream(
     const Device&  device,
     ICmdAllocator* pCmdAllocator,
@@ -161,6 +138,29 @@ void CmdStream::Reset(
     m_contextRollDetected = false;
 
     GfxCmdStream::Reset(pNewAllocator, returnGpuMemory);
+}
+
+// =====================================================================================================================
+// Helper function for determining the command buffer chain size (in DWORD's). Early versions of the CP microcode did
+// not properly support IB2 chaining, so we need to check the ucode version before enabling chaining for IB2's.
+uint32 CmdStream::GetChainSizeInDwords(
+    const Device& device,
+    EngineType    engineType,
+    bool          isNested) const
+{
+    const Pal::Device* pPalDevice = device.Parent();
+    uint32              chainSize = CmdUtil::ChainSizeInDwords(engineType);
+
+    constexpr uint32 UcodeVersionWithIb2ChainingFix = 31;
+    if (isNested &&
+        (pPalDevice->ChipProperties().gfxLevel == GfxIpLevel::GfxIp9) &&
+        (pPalDevice->EngineProperties().cpUcodeVersion < UcodeVersionWithIb2ChainingFix))
+    {
+        // Disable chaining for nested command buffers if the microcode version does not support the IB2 chaining fix.
+        chainSize = 0;
+    }
+
+    return chainSize;
 }
 
 // =====================================================================================================================

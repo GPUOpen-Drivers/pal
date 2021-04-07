@@ -329,16 +329,18 @@ namespace DevDriver
         }
 
         // Get a pointer to the beginning of the data
+        //
+        // Returns nullptr if there is no data available
         const T* Data() const
         {
-            DD_ASSERT(Size() != 0);
             return (Size() != 0) ? m_pData : nullptr;
         }
 
         // Get a pointer to the beginning of the data
+        //
+        // Returns nullptr if there is no data available
         T* Data()
         {
-            DD_ASSERT(Size() != 0);
             return (Size() != 0) ? m_pData : nullptr;
         }
 

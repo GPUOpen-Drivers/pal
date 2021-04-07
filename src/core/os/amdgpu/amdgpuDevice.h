@@ -668,6 +668,7 @@ public:
     Result CreateGpuMemoryFromExternalShare(
         const TypedBufferCreateInfo* pTypedBufferCreateInfo,
         Pal::Image*                  pImage,
+        const ExternalImageOpenInfo& openInfo,
         const ExternalSharedInfo&    sharedInfo,
         void*                        pPlacementAddr,
         GpuMemoryCreateInfo*         pCreateInfo,
@@ -930,9 +931,9 @@ private:
         gpusize size;
         amdgpu_va_handle vaHandle;
     };
-    typedef Util::HashMap<gpusize, ReservedVaRangeInfo, Util::GenericAllocatorAuto> ReservedVaMap;
-    Util::GenericAllocatorAuto  m_mapAllocator;
-    ReservedVaMap               m_reservedVaMap;
+    typedef Util::HashMap<gpusize, ReservedVaRangeInfo, Util::GenericAllocatorTracked> ReservedVaMap;
+    Util::GenericAllocatorTracked m_mapAllocator;
+    ReservedVaMap                 m_reservedVaMap;
 
     // Store information of shader and memory clock.
     // For example(cat /sys/class/drm/card0/device/pp_dpm_mclk):

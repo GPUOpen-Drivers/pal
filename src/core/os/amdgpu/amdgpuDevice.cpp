@@ -4500,6 +4500,7 @@ Result Device::OpenExternalSharedGpuMemory(
         internalInfo.externalHandleType = amdgpu_bo_handle_type_dma_buf_fd;
 
         Pal::GpuMemory* pGpuMemory = ConstructGpuMemoryObject(pPlacementAddr);
+
         result = pGpuMemory->Init(createInfo, internalInfo);
         if (IsErrorResult(result))
         {
@@ -5074,6 +5075,7 @@ Result Device::OpenExternalSharedImage(
 Result Device::CreateGpuMemoryFromExternalShare(
     const TypedBufferCreateInfo* pTypedBufferCreateInfo,
     Pal::Image*                  pImage,
+    const ExternalImageOpenInfo& openInfo,
     const ExternalSharedInfo&    sharedInfo,
     void*                        pPlacementAddr,
     GpuMemoryCreateInfo*         pCreateInfo,
@@ -5141,7 +5143,8 @@ Result Device::CreateGpuMemoryFromExternalShare(
     }
 
     GpuMemory* pGpuMemory = static_cast<GpuMemory*>(ConstructGpuMemoryObject(pPlacementAddr));
-    Result     result     = pGpuMemory->Init(*pCreateInfo, internalInfo);
+
+    Result result = pGpuMemory->Init(*pCreateInfo, internalInfo);
 
     if (result != Result::Success)
     {

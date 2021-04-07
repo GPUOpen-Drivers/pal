@@ -243,6 +243,10 @@ Result CmdBuffer::Begin(
             {
                 m_buildFlags.disallowNestedLaunchViaIb2 = 0;
             }
+            else if (settings.cmdBufDisallowNestedLaunchViaIb2)
+            {
+                m_buildFlags.disallowNestedLaunchViaIb2 = 1;
+            }
 
             // Obtain a linear allocator for this command building session. It should be impossible for us to have a
             // non-null linear allocator at this time.
@@ -774,35 +778,45 @@ void CmdBuffer::CmdBarrier(
 #endif
 }
 
-// =====================================================================================================================
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
+// =====================================================================================================================
 uint32 CmdBuffer::CmdRelease(
     const AcquireReleaseInfo& releaseInfo)
-#else
-void CmdBuffer::CmdRelease(
-    const AcquireReleaseInfo& releaseInfo,
-    const IGpuEvent*          pGpuEvent)
-#endif
 {
 #if PAL_ENABLE_PRINTS_ASSERTS
     VerifyBarrierTransitions(releaseInfo);
 #endif
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
     return 0;
-#endif
 }
 
 // =====================================================================================================================
 void CmdBuffer::CmdAcquire(
     const AcquireReleaseInfo& acquireInfo,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
     uint32                    syncTokenCount,
     const uint32*             pSyncTokens)
-#else
+{
+#if PAL_ENABLE_PRINTS_ASSERTS
+    VerifyBarrierTransitions(acquireInfo);
+#endif
+}
+#endif
+
+// =====================================================================================================================
+void CmdBuffer::CmdReleaseEvent(
+    const AcquireReleaseInfo& releaseInfo,
+    const IGpuEvent*          pGpuEvent)
+{
+#if PAL_ENABLE_PRINTS_ASSERTS
+    VerifyBarrierTransitions(releaseInfo);
+#endif
+}
+
+// =====================================================================================================================
+void CmdBuffer::CmdAcquireEvent(
+    const AcquireReleaseInfo& acquireInfo,
     uint32                    gpuEventCount,
     const IGpuEvent*const*    ppGpuEvents)
-#endif
 {
 #if PAL_ENABLE_PRINTS_ASSERTS
     VerifyBarrierTransitions(acquireInfo);

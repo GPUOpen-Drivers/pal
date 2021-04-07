@@ -3744,6 +3744,8 @@ typedef struct _ADDR2_GET_PREFERRED_SURF_SETTING_INPUT
     UINT_32               maxAlign;          ///< maximum base/size alignment requested by client
     UINT_32               minSizeAlign;      ///< memory allocated for surface in client driver will
                                              ///  be padded to multiple of this value (in bytes)
+    DOUBLE                memoryBudget;      ///< Memory consumption ratio based on minimum possible
+                                             ///  size.
 } ADDR2_GET_PREFERRED_SURF_SETTING_INPUT;
 
 /**

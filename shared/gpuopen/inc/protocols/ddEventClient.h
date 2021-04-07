@@ -76,6 +76,11 @@ namespace EventProtocol
             return GetHeader().providerId;
         }
 
+        bool IsEnabled() const
+        {
+            return GetHeader().isEnabled;
+        }
+
         uint32 GetNumEvents() const
         {
             return GetHeader().numEvents;
@@ -213,7 +218,7 @@ namespace EventProtocol
         Result ReadEventData(uint32 timeoutInMs = kDefaultCommunicationTimeoutInMs);
 
         // Frees the memory allocated as part of a previous event provider query operation
-        Result FreeProvidersDescription(EventProvidersDescription** ppProvidersDescription);
+        void FreeProvidersDescription(EventProvidersDescription* pProvidersDescription);
 
     private:
         void EmitEventData(const void* pEventData, size_t eventDataSize);

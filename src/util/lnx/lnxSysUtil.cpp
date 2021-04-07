@@ -299,13 +299,13 @@ Result QuerySystemInfo(
                 uint32 logicalCoreCount;
                 uint32 physicalCoreCount;
             };
-            typedef Util::HashMap<uint32, CpuCoreCount, GenericAllocatorAuto> PhysicalPackageCoreCountMap;
+            typedef Util::HashMap<uint32, CpuCoreCount, GenericAllocatorTracked> PhysicalPackageCoreCountMap;
 
-            constexpr size_t     BufSize            = 8*1024;
-            constexpr uint32     MaxSocketsHint     = 4;
-            CpuCoreCount*        pCoreCount         = nullptr;
-            bool                 coreCountPopulated = false;
-            GenericAllocatorAuto allocator;
+            constexpr size_t        BufSize            = 8*1024;
+            constexpr uint32        MaxSocketsHint     = 4;
+            CpuCoreCount*           pCoreCount         = nullptr;
+            bool                    coreCountPopulated = false;
+            GenericAllocatorTracked allocator;
 
             auto pBuf = static_cast<char* const>(PAL_CALLOC(BufSize, &allocator, AllocInternalTemp));
             PhysicalPackageCoreCountMap coreCountPerPhysicalId(MaxSocketsHint, &allocator);

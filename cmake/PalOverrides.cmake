@@ -22,9 +22,11 @@
  #  SOFTWARE.
  #
  #######################################################################################################################
-include(PalVersionHelper)
+include_guard()
 
-pal_include_guard(PalOverrides)
+# This file is dedicated to overriding PAL subproject options.
+# When overriding a cache variable use pal_override to simplify the code
+include(PalVersionHelper)
 
 macro(pal_overrides_gpu_gfx9)
     # Generic support for GFX9 cards

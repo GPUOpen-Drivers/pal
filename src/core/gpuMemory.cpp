@@ -320,7 +320,6 @@ GpuMemory::GpuMemory(
     m_priorityOffset(GpuMemPriorityOffset::Offset0),
     m_pImage(nullptr),
     m_mtype(MType::Default),
-    m_minPageSize(PAL_PAGE_BYTES),
     m_remoteSdiSurfaceIndex(0),
     m_remoteSdiMarkerIndex(0),
     m_markerVirtualAddr(0)
@@ -780,23 +779,6 @@ Result GpuMemory::Init(
                                          0,
                                          nullptr,
                                          nullptr);
-
-            if (IsVirtual() == false)
-            {
-                const gpusize fragmentSize = m_pDevice->MemoryProperties().fragmentSize;
-
-                // All currently supported OSes manage local framebuffer memory as physically contiguous allocations.
-                // This means that if the assigned VA, the requested PA alignment, and allocation size are all
-                // fragment aligned, we know that various "big page" hardware features are valid if the required
-                // big page size is compatible with the KMD-reported fragment size.
-                if (IsLocalOnly() &&
-                    IsPow2Aligned(m_desc.gpuVirtAddr, fragmentSize) &&
-                    IsPow2Aligned(GetPhysicalAddressAlignment(), fragmentSize) &&
-                    IsPow2Aligned(m_desc.size, fragmentSize))
-                {
-                    m_minPageSize = fragmentSize;
-                }
-            }
         }
 
         if (IsErrorResult(result) == false)
@@ -1069,17 +1051,6 @@ Result GpuMemory::Init(
                (m_pOriginalMem->m_flags.buddyAllocated == 0));
 
     const Result result = OpenPeerMemory();
-
-    if (result == Result::Success)
-    {
-        // If this object's VA is aligned to the source object's minimum page size, inherit its minimum page size.
-        // Otherwise, stick with 4KiB default and we will have to potentially lose out on some big page optimizations.
-        const gpusize origMinPageSize = m_pOriginalMem->MinPageSize();
-        if (IsPow2Aligned(m_desc.gpuVirtAddr, origMinPageSize))
-        {
-            m_minPageSize = origMinPageSize;
-        }
-    }
 
     if (IsErrorResult(result) == false)
     {

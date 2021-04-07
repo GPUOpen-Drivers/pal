@@ -862,7 +862,6 @@ static inline void MarkUnhandledResultImpl(
             pExpr,
             ResultToString(result),
             result);
-        DD_ASSERT_DEBUG_BREAK();
     }
 #else
     DD_UNUSED(result);

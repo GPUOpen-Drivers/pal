@@ -227,7 +227,7 @@ void PAL_STDCALL Platform::CmdBufferLoggerCb(
             Developer::BindPipelineData* pData      = static_cast<Developer::BindPipelineData*>(pCbData);
             CmdBuffer*                   pCmdBuffer = static_cast<CmdBuffer*>(pData->pCmdBuffer);
 
-            pCmdBuffer->UpdateDrawDispatchInfo(pData->pPipeline, pData->bindPoint);
+            pCmdBuffer->UpdateDrawDispatchInfo(pData->pPipeline, pData->bindPoint, pData->apiPsoHash);
         }
         break;
     }

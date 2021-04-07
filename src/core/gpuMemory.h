@@ -288,13 +288,13 @@ public:
     void SetRemoteSdiMarkerIndex(gpusize index)  { m_remoteSdiMarkerIndex  = index;    }
     void SetBusAddrMarkerVa(gpusize markerVa)    { m_markerVirtualAddr     = markerVa; }
 
-    gpusize MinPageSize() const { return m_minPageSize; }
-
     bool IsByteRangeValid(gpusize startOffset, gpusize size) const { return ((startOffset + size) <= m_desc.size); }
 
     Image* GetImage() const { return m_pImage; }
 
     Device* GetDevice() const { return m_pDevice; }
+
+    gpusize GetPhysicalAddressAlignment() const;
 
     GpuMemory* OriginalGpuMem() const { return (IsPeer() ? m_pOriginalMem : nullptr); }
 
@@ -342,8 +342,6 @@ protected:
 
     virtual void DescribeGpuMemory(Developer::GpuMemoryAllocationMethod allocMethod) const;
 
-    gpusize GetPhysicalAddressAlignment() const;
-
     Device*const   m_pDevice;
     VaPartition    m_vaPartition;
     size_t         m_heapCount;
@@ -388,10 +386,6 @@ protected:
     GpuMemoryFlags          m_flags;
 
     MType                   m_mtype;
-
-    // Minimum guaranteed page size for this allocation.  This will vary based on OS restrictions, heap selection,
-    // etc.  Can be used by HWLs to enable optimizations that require big (e.g., 64KiB) pages.
-    gpusize                 m_minPageSize;
 
     // SDI External Physical Memory PTE index for surface and marker
     gpusize m_remoteSdiSurfaceIndex;

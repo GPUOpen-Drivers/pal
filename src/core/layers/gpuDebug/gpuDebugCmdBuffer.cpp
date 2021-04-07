@@ -202,6 +202,11 @@ Result CmdBuffer::Init()
             if (m_pTimestamp != nullptr)
             {
                 result = m_pDevice->CreateGpuMemory(createInfo, static_cast<void*>(m_pTimestamp), &m_pTimestamp);
+
+                if (result != Result::Success)
+                {
+                    PAL_SAFE_FREE(m_pTimestamp, m_pDevice->GetPlatform());
+                }
             }
             else
             {
@@ -418,6 +423,11 @@ void CmdBuffer::CaptureSurfaces()
                 if (result == Result::Success)
                 {
                     result = m_pDevice->CreateImage(imageCreateInfo, pDstImageMem, &pDstImage);
+
+                    if (result != Result::Success)
+                    {
+                        PAL_SAFE_FREE(pDstImageMem, m_pDevice->GetPlatform());
+                    }
                 }
 
                 if (result == Result::Success)
@@ -461,6 +471,10 @@ void CmdBuffer::CaptureSurfaces()
                                 m_surfaceCapture.ppGpuMem[m_surfaceCapture.gpuMemObjsCount] = pGpuMem;
                                 m_surfaceCapture.gpuMemObjsCount++;
                             }
+                        }
+                        else
+                        {
+                            PAL_SAFE_FREE(pGpuMemMem, m_pDevice->GetPlatform());
                         }
                     }
                 }
@@ -938,6 +952,26 @@ void CmdBuffer::ReplayCmdBindBorderColorPalette(
 }
 
 // =====================================================================================================================
+void CmdBuffer::CmdPrimeGpuCaches(
+    uint32                    rangeCount,
+    const PrimeGpuCacheRange* pRanges)
+{
+    InsertToken(CmdBufCallId::CmdPrimeGpuCaches);
+    InsertTokenArray(pRanges, rangeCount);
+}
+
+// =====================================================================================================================
+void CmdBuffer::ReplayCmdPrimeGpuCaches(
+    Queue*           pQueue,
+    TargetCmdBuffer* pTgtCmdBuffer)
+{
+    const PrimeGpuCacheRange* pRanges    = nullptr;
+    const auto                rangeCount = ReadTokenArray(&pRanges);
+
+    pTgtCmdBuffer->CmdPrimeGpuCaches(rangeCount, pRanges);
+}
+
+// =====================================================================================================================
 void PAL_STDCALL CmdBuffer::CmdSetUserDataCs(
     ICmdBuffer*   pCmdBuffer,
     uint32        firstEntry,
@@ -1329,15 +1363,10 @@ void CmdBuffer::ReplayCmdBarrier(
     pTgtCmdBuffer->CmdBarrier(barrierInfo);
 }
 
-// =====================================================================================================================
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
+// =====================================================================================================================
 uint32 CmdBuffer::CmdRelease(
     const AcquireReleaseInfo& releaseInfo)
-#else
-void CmdBuffer::CmdRelease(
-    const AcquireReleaseInfo& releaseInfo,
-    const IGpuEvent*          pGpuEvent)
-#endif
 {
     HandleBarrierBlt(true, true);
 
@@ -1350,20 +1379,18 @@ void CmdBuffer::CmdRelease(
     InsertTokenArray(releaseInfo.pImageBarriers, releaseInfo.imageBarrierCount);
     InsertToken(releaseInfo.reason);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
     const uint32 releaseIdx = m_numReleaseTokens++;
     InsertToken(releaseIdx);
-#endif
 
     HandleBarrierBlt(true, false);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
     // If this layer is enabled, the return value from the layer is a release index generated and managed by this layer.
     // The layer maintains an array of release tokens, and uses release index to retrieve token value from the array.
     return releaseIdx;
-#endif
 }
+#endif
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
 // =====================================================================================================================
 void CmdBuffer::ReplayCmdRelease(
     Queue*           pQueue,
@@ -1379,28 +1406,20 @@ void CmdBuffer::ReplayCmdRelease(
     releaseInfo.imageBarrierCount   = ReadTokenArray(&releaseInfo.pImageBarriers);
     releaseInfo.reason              = ReadTokenVal<uint32>();
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
     const uint32 releaseIdx         = ReadTokenVal<uint32>();
     PAL_ASSERT(releaseIdx == m_releaseTokenList.NumElements());
 
     const uint32 releaseToken = pTgtCmdBuffer->CmdRelease(releaseInfo);
     m_releaseTokenList.PushBack(releaseToken);
-#else
-    auto pGpuEvent                  = ReadTokenVal<IGpuEvent*>();
-    pTgtCmdBuffer->CmdRelease(releaseInfo, pGpuEvent);
-#endif
 }
+#endif
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
 // =====================================================================================================================
 void CmdBuffer::CmdAcquire(
     const AcquireReleaseInfo& acquireInfo,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
     uint32                    syncTokenCount,
     const uint32*             pSyncTokens)
-#else
-    uint32                    gpuEventCount,
-    const IGpuEvent*const*    ppGpuEvents)
-#endif
 {
     HandleBarrierBlt(true, true);
 
@@ -1413,15 +1432,13 @@ void CmdBuffer::CmdAcquire(
     InsertTokenArray(acquireInfo.pImageBarriers, acquireInfo.imageBarrierCount);
     InsertToken(acquireInfo.reason);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
     InsertTokenArray(pSyncTokens, syncTokenCount);
-#else
-    InsertTokenArray(ppGpuEvents, gpuEventCount);
-#endif
 
     HandleBarrierBlt(true, false);
 }
+#endif
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
 // =====================================================================================================================
 void CmdBuffer::ReplayCmdAcquire(
     Queue*           pQueue,
@@ -1437,7 +1454,6 @@ void CmdBuffer::ReplayCmdAcquire(
     acquireInfo.imageBarrierCount   = ReadTokenArray(&acquireInfo.pImageBarriers);
     acquireInfo.reason              = ReadTokenVal<uint32>();
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
     // The release tokens this layer's CmdAcquire receives are internal release token indices. They need to be
     // translated to the real release token values.
     const uint32* pReleaseIndices = nullptr;
@@ -1452,12 +1468,88 @@ void CmdBuffer::ReplayCmdAcquire(
     }
 
     pTgtCmdBuffer->CmdAcquire(acquireInfo, syncTokenCount, &releaseTokens[0]);
-#else
+}
+#endif
+
+// =====================================================================================================================
+void CmdBuffer::CmdReleaseEvent(
+    const AcquireReleaseInfo& releaseInfo,
+    const IGpuEvent*          pGpuEvent)
+{
+    HandleBarrierBlt(true, true);
+
+    InsertToken(CmdBufCallId::CmdReleaseEvent);
+    InsertToken(releaseInfo.srcStageMask);
+    InsertToken(releaseInfo.dstStageMask);
+    InsertToken(releaseInfo.srcGlobalAccessMask);
+    InsertToken(releaseInfo.dstGlobalAccessMask);
+    InsertTokenArray(releaseInfo.pMemoryBarriers, releaseInfo.memoryBarrierCount);
+    InsertTokenArray(releaseInfo.pImageBarriers, releaseInfo.imageBarrierCount);
+    InsertToken(releaseInfo.reason);
+
+    HandleBarrierBlt(true, false);
+}
+
+// =====================================================================================================================
+void CmdBuffer::CmdAcquireEvent(
+    const AcquireReleaseInfo& acquireInfo,
+    uint32                    gpuEventCount,
+    const IGpuEvent* const*   ppGpuEvents)
+{
+    HandleBarrierBlt(true, true);
+
+    InsertToken(CmdBufCallId::CmdAcquireEvent);
+    InsertToken(acquireInfo.srcStageMask);
+    InsertToken(acquireInfo.dstStageMask);
+    InsertToken(acquireInfo.srcGlobalAccessMask);
+    InsertToken(acquireInfo.dstGlobalAccessMask);
+    InsertTokenArray(acquireInfo.pMemoryBarriers, acquireInfo.memoryBarrierCount);
+    InsertTokenArray(acquireInfo.pImageBarriers, acquireInfo.imageBarrierCount);
+    InsertToken(acquireInfo.reason);
+
+    InsertTokenArray(ppGpuEvents, gpuEventCount);
+
+    HandleBarrierBlt(true, false);
+}
+
+// =====================================================================================================================
+void CmdBuffer::ReplayCmdReleaseEvent(
+    Queue*           pQueue,
+    TargetCmdBuffer* pTgtCmdBuffer)
+{
+    AcquireReleaseInfo releaseInfo;
+
+    releaseInfo.srcStageMask        = ReadTokenVal<uint32>();
+    releaseInfo.dstStageMask        = ReadTokenVal<uint32>();
+    releaseInfo.srcGlobalAccessMask = ReadTokenVal<uint32>();
+    releaseInfo.dstGlobalAccessMask = ReadTokenVal<uint32>();
+    releaseInfo.memoryBarrierCount  = ReadTokenArray(&releaseInfo.pMemoryBarriers);
+    releaseInfo.imageBarrierCount   = ReadTokenArray(&releaseInfo.pImageBarriers);
+    releaseInfo.reason              = ReadTokenVal<uint32>();
+
+    auto pGpuEvent                  = ReadTokenVal<IGpuEvent*>();
+    pTgtCmdBuffer->CmdReleaseEvent(releaseInfo, pGpuEvent);
+}
+
+// =====================================================================================================================
+void CmdBuffer::ReplayCmdAcquireEvent(
+    Queue*           pQueue,
+    TargetCmdBuffer* pTgtCmdBuffer)
+{
+    AcquireReleaseInfo acquireInfo;
+
+    acquireInfo.srcStageMask        = ReadTokenVal<uint32>();
+    acquireInfo.dstStageMask        = ReadTokenVal<uint32>();
+    acquireInfo.srcGlobalAccessMask = ReadTokenVal<uint32>();
+    acquireInfo.dstGlobalAccessMask = ReadTokenVal<uint32>();
+    acquireInfo.memoryBarrierCount  = ReadTokenArray(&acquireInfo.pMemoryBarriers);
+    acquireInfo.imageBarrierCount   = ReadTokenArray(&acquireInfo.pImageBarriers);
+    acquireInfo.reason              = ReadTokenVal<uint32>();
+
     IGpuEvent** ppGpuEvents         = nullptr;
     uint32      gpuEventCount       = ReadTokenArray(&ppGpuEvents);
 
-    pTgtCmdBuffer->CmdAcquire(acquireInfo, gpuEventCount, ppGpuEvents);
-#endif
+    pTgtCmdBuffer->CmdAcquireEvent(acquireInfo, gpuEventCount, ppGpuEvents);
 }
 
 // =====================================================================================================================
@@ -3491,6 +3583,7 @@ void CmdBuffer::CmdExecuteNestedCmdBuffers(
     uint32            cmdBufferCount,
     ICmdBuffer*const* ppCmdBuffers)
 {
+    PAL_NOT_IMPLEMENTED_MSG("Nested CmdBuffers not 100% supported by GpuDebug layer features.");
     InsertToken(CmdBufCallId::CmdExecuteNestedCmdBuffers);
     InsertTokenArray(ppCmdBuffers, cmdBufferCount);
 }
@@ -4090,6 +4183,7 @@ Result CmdBuffer::Replay(
         &CmdBuffer::ReplayBegin,
         &CmdBuffer::ReplayEnd,
         &CmdBuffer::ReplayCmdBindPipeline,
+        &CmdBuffer::ReplayCmdPrimeGpuCaches,
         &CmdBuffer::ReplayCmdBindMsaaState,
         &CmdBuffer::ReplayCmdBindColorBlendState,
         &CmdBuffer::ReplayCmdBindDepthStencilState,
@@ -4112,8 +4206,12 @@ Result CmdBuffer::Replay(
         &CmdBuffer::ReplayCmdSetScissorRects,
         &CmdBuffer::ReplayCmdSetGlobalScissor,
         &CmdBuffer::ReplayCmdBarrier,
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
         &CmdBuffer::ReplayCmdRelease,
         &CmdBuffer::ReplayCmdAcquire,
+#endif
+        &CmdBuffer::ReplayCmdReleaseEvent,
+        &CmdBuffer::ReplayCmdAcquireEvent,
         &CmdBuffer::ReplayCmdReleaseThenAcquire,
         &CmdBuffer::ReplayCmdWaitRegisterValue,
         &CmdBuffer::ReplayCmdWaitMemoryValue,

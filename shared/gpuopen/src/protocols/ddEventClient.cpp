@@ -264,19 +264,9 @@ Result EventClient::ReadEventData(uint32 timeoutInMs)
 }
 
 // =====================================================================================================================
-Result EventClient::FreeProvidersDescription(EventProvidersDescription** ppProvidersDescription)
+void EventClient::FreeProvidersDescription(EventProvidersDescription* pProvidersDescription)
 {
-    Result result = Result::UriInvalidParameters;
-
-    if (ppProvidersDescription != nullptr)
-    {
-        DD_DELETE(*ppProvidersDescription, m_pMsgChannel->GetAllocCb());
-        *ppProvidersDescription = nullptr;
-
-        result = Result::Success;
-    }
-
-    return result;
+    DD_DELETE(pProvidersDescription, m_pMsgChannel->GetAllocCb());
 }
 
 // =====================================================================================================================

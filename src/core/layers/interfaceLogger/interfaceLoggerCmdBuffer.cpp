@@ -199,6 +199,37 @@ void CmdBuffer::CmdBindMsaaState(
 }
 
 // =====================================================================================================================
+void CmdBuffer::CmdPrimeGpuCaches(
+    uint32                    rangeCount,
+    const PrimeGpuCacheRange* pRanges)
+{
+    BeginFuncInfo funcInfo;
+    funcInfo.funcId       = InterfaceFunc::CmdBufferCmdPrimeGpuCaches;
+    funcInfo.objectId     = m_objectId;
+    funcInfo.preCallTime  = m_pPlatform->GetTime();
+    m_pNextLayer->CmdPrimeGpuCaches(rangeCount, pRanges);
+    funcInfo.postCallTime = m_pPlatform->GetTime();
+
+    LogContext* pLogContext = nullptr;
+    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    {
+        pLogContext->BeginInput();
+        pLogContext->KeyAndBeginList("primeGpuCacheRange", false);
+
+        for (uint32 idx = 0; idx < rangeCount; ++idx)
+        {
+            pLogContext->Struct(pRanges[idx]);
+        }
+
+        pLogContext->EndList();
+
+        pLogContext->EndInput();
+
+        m_pPlatform->LogEndFunc(pLogContext);
+    }
+}
+
+// =====================================================================================================================
 void CmdBuffer::CmdBindColorBlendState(
     const IColorBlendState* pColorBlendState)
 {
@@ -973,9 +1004,10 @@ void CmdBuffer::CmdAcquire(
         }
     }
 }
-#else
+#endif
+
 // =====================================================================================================================
-void CmdBuffer::CmdRelease(
+void CmdBuffer::CmdReleaseEvent(
     const AcquireReleaseInfo& releaseInfo,
     const IGpuEvent*          pGpuEvent)
 {
@@ -1007,10 +1039,10 @@ void CmdBuffer::CmdRelease(
         nextReleaseInfo.pImageBarriers = &imageBarriers[0];
 
         BeginFuncInfo funcInfo;
-        funcInfo.funcId       = InterfaceFunc::CmdBufferCmdRelease;
+        funcInfo.funcId       = InterfaceFunc::CmdBufferCmdReleaseEvent;
         funcInfo.objectId     = m_objectId;
         funcInfo.preCallTime  = m_pPlatform->GetTime();
-        m_pNextLayer->CmdRelease(nextReleaseInfo, NextGpuEvent(pGpuEvent));
+        m_pNextLayer->CmdReleaseEvent(nextReleaseInfo, NextGpuEvent(pGpuEvent));
         funcInfo.postCallTime = m_pPlatform->GetTime();
 
         LogContext* pLogContext = nullptr;
@@ -1027,7 +1059,7 @@ void CmdBuffer::CmdRelease(
 }
 
 // =====================================================================================================================
-void CmdBuffer::CmdAcquire(
+void CmdBuffer::CmdAcquireEvent(
     const AcquireReleaseInfo& acquireInfo,
     uint32                    gpuEventCount,
     const IGpuEvent*const*    ppGpuEvents)
@@ -1067,10 +1099,10 @@ void CmdBuffer::CmdAcquire(
         }
 
         BeginFuncInfo funcInfo;
-        funcInfo.funcId       = InterfaceFunc::CmdBufferCmdAcquire;
+        funcInfo.funcId       = InterfaceFunc::CmdBufferCmdAcquireEvent;
         funcInfo.objectId     = m_objectId;
         funcInfo.preCallTime  = m_pPlatform->GetTime();
-        m_pNextLayer->CmdAcquire(nextAcquireInfo, gpuEventCount, &nextGpuEvents[0]);
+        m_pNextLayer->CmdAcquireEvent(nextAcquireInfo, gpuEventCount, &nextGpuEvents[0]);
         funcInfo.postCallTime = m_pPlatform->GetTime();
 
         LogContext* pLogContext = nullptr;
@@ -1092,7 +1124,6 @@ void CmdBuffer::CmdAcquire(
         }
     }
 }
-#endif
 
 // =====================================================================================================================
 void CmdBuffer::CmdReleaseThenAcquire(

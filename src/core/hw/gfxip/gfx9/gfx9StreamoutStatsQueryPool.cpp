@@ -127,15 +127,17 @@ void StreamoutStatsQueryPool::Begin(
 
     if ((result == Result::Success) && pCmdBuffer->IsQueryAllowed(QueryPoolType::StreamoutStats))
     {
+        const CmdUtil& cmdUtil = m_device.CmdUtil();
+
         pCmdBuffer->AddQuery(QueryPoolType::StreamoutStats, flags);
 
         uint32* pCmdSpace = pCmdStream->ReserveCommands();
 
-        pCmdSpace += CmdUtil::BuildSampleEventWrite(XlateEventType(queryType),
-                                                    XlateEventIndex(queryType),
-                                                    pCmdBuffer->GetEngineType(),
-                                                    gpuAddr,
-                                                    pCmdSpace);
+        pCmdSpace += cmdUtil.BuildSampleEventWrite(XlateEventType(queryType),
+                                                   XlateEventIndex(queryType),
+                                                   pCmdBuffer->GetEngineType(),
+                                                   gpuAddr,
+                                                   pCmdSpace);
         pCmdStream->CommitCommands(pCmdSpace);
     }
 }
@@ -160,14 +162,16 @@ void StreamoutStatsQueryPool::End(
 
     if ((result == Result::Success) && pCmdBuffer->IsQueryAllowed(QueryPoolType::StreamoutStats))
     {
+        const CmdUtil& cmdUtil = m_device.CmdUtil();
+
         pCmdBuffer->RemoveQuery(QueryPoolType::StreamoutStats);
 
         uint32* pCmdSpace = pCmdStream->ReserveCommands();
-        pCmdSpace += CmdUtil::BuildSampleEventWrite(XlateEventType(queryType),
-                                                    XlateEventIndex(queryType),
-                                                    pCmdBuffer->GetEngineType(),
-                                                    gpuAddr + sizeof(StreamoutStatsData),
-                                                    pCmdSpace);
+        pCmdSpace += cmdUtil.BuildSampleEventWrite(XlateEventType(queryType),
+                                                   XlateEventIndex(queryType),
+                                                   pCmdBuffer->GetEngineType(),
+                                                   gpuAddr + sizeof(StreamoutStatsData),
+                                                   pCmdSpace);
 
         ReleaseMemInfo releaseInfo = {};
         releaseInfo.engineType     = pCmdBuffer->GetEngineType();

@@ -547,10 +547,13 @@ uint32* ColorTargetView::WriteCommands(
                                                    pCmdSpace);
 
 #if PAL_DEVELOPER_BUILD
-    Developer::SurfRegDataInfo data = {};
-    data.type    = Developer::SurfRegDataType::RenderTargetView;
-    data.regData = regs.cbColorBase.u32All;
-    m_pImage->Parent()->GetDevice()->DeveloperCb(Developer::CallbackType::SurfRegData, &data);
+    if (m_pImage != nullptr)
+    {
+        Developer::SurfRegDataInfo data = {};
+        data.type    = Developer::SurfRegDataType::RenderTargetView;
+        data.regData = regs.cbColorBase.u32All;
+        m_pImage->Parent()->GetDevice()->DeveloperCb(Developer::CallbackType::SurfRegData, &data);
+    }
 #endif
 
     // Note: This register is an unused location on pre-Gfx8 ASICs; writing to it doesn't do anything on those GPUs.

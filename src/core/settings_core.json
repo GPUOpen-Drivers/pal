@@ -1187,6 +1187,19 @@
       "Description": "If true, each command chunk will allocate a system memory staging buffer. Commands will be stored in this buffer until the chunk is finalized."
     },
     {
+      "Name": "CmdBufDisallowNestedLaunchViaIb2",
+      "Tags": [
+        "Command Buffer"
+      ],
+      "Defaults": {
+        "Default": false
+      },
+      "Scope": "PrivatePalKey",
+      "Type": "bool",
+      "VariableName": "cmdBufDisallowNestedLaunchViaIb2",
+      "Description": "If true, nested command buffers will not be launched using an IB2 packet. This setting forces the Pal::CmdBufferBuildFlags::disallowNestedLaunchViaIb2 flag on. (Useful for logging nested command buffers at submit time)"
+    },
+    {
       "Name": "CmdAllocatorFreeOnReset",
       "Tags": [
         "Command Buffer"

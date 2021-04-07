@@ -1583,16 +1583,17 @@ void UniversalCmdBuffer::CmdAcquire(
 
     IssueGangedBarrierIncr();
 }
-#else
+#endif
+
 // =====================================================================================================================
-void UniversalCmdBuffer::CmdRelease(
+void UniversalCmdBuffer::CmdReleaseEvent(
     const AcquireReleaseInfo& releaseInfo,
     const IGpuEvent*          pGpuEvent)
 {
-    CmdBuffer::CmdRelease(releaseInfo, pGpuEvent);
+    CmdBuffer::CmdReleaseEvent(releaseInfo, pGpuEvent);
 
     // Barriers do not honor predication.
-    const uint32 packetPredicate = m_gfxCmdBufState.flags.packetPredicate;
+    const uint32 packetPredicate           = m_gfxCmdBufState.flags.packetPredicate;
     m_gfxCmdBufState.flags.packetPredicate = 0;
 
     // Mark these as traditional barriers in RGP
@@ -1609,7 +1610,7 @@ void UniversalCmdBuffer::CmdRelease(
     }
     else if (result == Result::Success)
     {
-        m_device.BarrierRelease(this, &m_deCmdStream, splitReleaseInfo, pGpuEvent, &barrierOps);
+        m_device.BarrierReleaseEvent(this, &m_deCmdStream, splitReleaseInfo, pGpuEvent, &barrierOps);
     }
     else
     {
@@ -1641,12 +1642,12 @@ void UniversalCmdBuffer::CmdRelease(
 }
 
 // =====================================================================================================================
-void UniversalCmdBuffer::CmdAcquire(
+void UniversalCmdBuffer::CmdAcquireEvent(
     const AcquireReleaseInfo& acquireInfo,
     uint32                    gpuEventCount,
-    const IGpuEvent*const*    ppGpuEvents)
+    const IGpuEvent* const*   ppGpuEvents)
 {
-    CmdBuffer::CmdAcquire(acquireInfo, gpuEventCount, ppGpuEvents);
+    CmdBuffer::CmdAcquireEvent(acquireInfo, gpuEventCount, ppGpuEvents);
 
     // Barriers do not honor predication.
     const uint32 packetPredicate = m_gfxCmdBufState.flags.packetPredicate;
@@ -1666,7 +1667,7 @@ void UniversalCmdBuffer::CmdAcquire(
     }
     else if (result == Result::Success)
     {
-        m_device.BarrierAcquire(this, &m_deCmdStream, splitAcquireInfo, gpuEventCount, ppGpuEvents, &barrierOps);
+        m_device.BarrierAcquireEvent(this, &m_deCmdStream, splitAcquireInfo, gpuEventCount, ppGpuEvents, &barrierOps);
     }
     else
     {
@@ -1685,7 +1686,6 @@ void UniversalCmdBuffer::CmdAcquire(
 
     IssueGangedBarrierIncr();
 }
-#endif
 
 // =====================================================================================================================
 void UniversalCmdBuffer::CmdReleaseThenAcquire(
@@ -2433,13 +2433,14 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDraw(
     uint32 numDraws = 0;
 
     ValidateDrawInfo drawInfo;
-    drawInfo.vtxIdxCount   = vertexCount;
-    drawInfo.instanceCount = instanceCount;
-    drawInfo.firstVertex   = firstVertex;
-    drawInfo.firstInstance = firstInstance;
-    drawInfo.firstIndex    = 0;
-    drawInfo.drawIndex     = drawId;
-    drawInfo.useOpaque     = false;
+    drawInfo.vtxIdxCount       = vertexCount;
+    drawInfo.instanceCount     = instanceCount;
+    drawInfo.firstVertex       = firstVertex;
+    drawInfo.firstInstance     = firstInstance;
+    drawInfo.firstIndex        = 0;
+    drawInfo.drawIndex         = drawId;
+    drawInfo.useOpaque         = false;
+    drawInfo.multiIndirectDraw = false;
 
     pThis->ValidateDraw<false, false>(drawInfo);
 
@@ -2525,13 +2526,14 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawOpaque(
     uint32 numDraws = 0;
 
     ValidateDrawInfo drawInfo;
-    drawInfo.vtxIdxCount   = 0;
-    drawInfo.instanceCount = instanceCount;
-    drawInfo.firstVertex   = 0;
-    drawInfo.firstInstance = firstInstance;
-    drawInfo.firstIndex    = 0;
-    drawInfo.drawIndex     = 0;
-    drawInfo.useOpaque     = true;
+    drawInfo.vtxIdxCount       = 0;
+    drawInfo.instanceCount     = instanceCount;
+    drawInfo.firstVertex       = 0;
+    drawInfo.firstInstance     = firstInstance;
+    drawInfo.firstIndex        = 0;
+    drawInfo.drawIndex         = 0;
+    drawInfo.useOpaque         = true;
+    drawInfo.multiIndirectDraw = false;
 
     pThis->ValidateDraw<false, false>(drawInfo);
 
@@ -2638,13 +2640,14 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawIndexed(
     uint32 numDraws = 0;
 
     ValidateDrawInfo drawInfo;
-    drawInfo.vtxIdxCount   = indexCount;
-    drawInfo.instanceCount = instanceCount;
-    drawInfo.firstVertex   = vertexOffset;
-    drawInfo.firstInstance = firstInstance;
-    drawInfo.firstIndex    = firstIndex;
-    drawInfo.drawIndex     = drawId;
-    drawInfo.useOpaque     = false;
+    drawInfo.vtxIdxCount       = indexCount;
+    drawInfo.instanceCount     = instanceCount;
+    drawInfo.firstVertex       = vertexOffset;
+    drawInfo.firstInstance     = firstInstance;
+    drawInfo.firstIndex        = firstIndex;
+    drawInfo.drawIndex         = drawId;
+    drawInfo.useOpaque         = false;
+    drawInfo.multiIndirectDraw = false;
 
     pThis->ValidateDraw<true, false>(drawInfo);
 
@@ -2786,13 +2789,14 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawIndirectMulti(
                (offset + (sizeof(DrawIndirectArgs) * maximumCount) <= gpuMemory.Desc().size));
 
     ValidateDrawInfo drawInfo;
-    drawInfo.vtxIdxCount   = 0;
-    drawInfo.instanceCount = 0;
-    drawInfo.firstVertex   = 0;
-    drawInfo.firstInstance = 0;
-    drawInfo.firstIndex    = 0;
-    drawInfo.drawIndex     = 0;
-    drawInfo.useOpaque     = false;
+    drawInfo.vtxIdxCount       = 0;
+    drawInfo.instanceCount     = 0;
+    drawInfo.firstVertex       = 0;
+    drawInfo.firstInstance     = 0;
+    drawInfo.firstIndex        = 0;
+    drawInfo.drawIndex         = 0;
+    drawInfo.useOpaque         = false;
+    drawInfo.multiIndirectDraw = (maximumCount > 1) || (countGpuAddr != 0uLL);
 
     pThis->ValidateDraw<false, true>(drawInfo);
 
@@ -2899,13 +2903,14 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawIndexedIndirectMulti(
                (offset + (sizeof(DrawIndexedIndirectArgs) * maximumCount) <= gpuMemory.Desc().size));
 
     ValidateDrawInfo drawInfo;
-    drawInfo.vtxIdxCount   = 0;
-    drawInfo.instanceCount = 0;
-    drawInfo.firstVertex   = 0;
-    drawInfo.firstInstance = 0;
-    drawInfo.firstIndex    = 0;
-    drawInfo.drawIndex     = 0;
-    drawInfo.useOpaque     = false;
+    drawInfo.vtxIdxCount       = 0;
+    drawInfo.instanceCount     = 0;
+    drawInfo.firstVertex       = 0;
+    drawInfo.firstInstance     = 0;
+    drawInfo.firstIndex        = 0;
+    drawInfo.drawIndex         = 0;
+    drawInfo.useOpaque         = false;
+    drawInfo.multiIndirectDraw = (maximumCount > 1) || (countGpuAddr != 0uLL);
 
     pThis->ValidateDraw<true, true>(drawInfo);
 
@@ -3146,13 +3151,14 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDispatchMesh(
     auto*const pThis = static_cast<UniversalCmdBuffer*>(pCmdBuffer);
 
     ValidateDrawInfo drawInfo;
-    drawInfo.vtxIdxCount   = 0;
-    drawInfo.instanceCount = 1;
-    drawInfo.firstVertex   = 0;
-    drawInfo.firstInstance = 0;
-    drawInfo.firstIndex    = 0;
-    drawInfo.drawIndex     = 0;
-    drawInfo.useOpaque     = false;
+    drawInfo.vtxIdxCount       = 0;
+    drawInfo.instanceCount     = 1;
+    drawInfo.firstVertex       = 0;
+    drawInfo.firstInstance     = 0;
+    drawInfo.firstIndex        = 0;
+    drawInfo.drawIndex         = 0;
+    drawInfo.useOpaque         = false;
+    drawInfo.multiIndirectDraw = false;
     pThis->ValidateDraw<false, false>(drawInfo);
 
     // Issue the DescribeDraw here, after ValidateDraw so that the user data locations are mapped, as they are
@@ -4470,7 +4476,7 @@ uint8 UniversalCmdBuffer::FixupUserSgprsOnPipelineSwitch(
 {
     PAL_ASSERT(pPrevSignature != nullptr);
 
-    // The WriteDirtyUserDataEntriesToSgprsGfx() method only writes entries which are mapped to user-SGPR's and have
+    // The WriteDirtyUserDataEntriesToSgprs() method only writes entries which are mapped to user-SGPR's and have
     // been marked dirty.  When the active pipeline is changing, the set of entries mapped to user-SGPR's can change
     // per shader stage, and which entries are mapped to which registers can also change.  The simplest way to handle
     // this is to write all mapped user-SGPR's for any stage whose mappings are changing.  Any stage whose mappings
@@ -4566,11 +4572,11 @@ uint32* UniversalCmdBuffer::WriteDirtyUserDataEntriesToSgprsGfx(
 // Helper function responsible for handling user-SGPR updates during Dispatch-time validation when the active pipeline
 // has changed since the previous Dispatch operation.  It is expected that this will be called only when the pipeline
 // is changing and immediately before a call to WriteUserDataEntriesToSgprs<false, ...>().
-uint32* UniversalCmdBuffer::FixupUserSgprsOnPipelineSwitchCs(
+bool UniversalCmdBuffer::FixupUserSgprsOnPipelineSwitchCs(
     ComputeState*                   pComputeState,
     const ComputePipelineSignature* pCurrSignature,
     const ComputePipelineSignature* pPrevSignature,
-    uint32*                         pDeCmdSpace)
+    uint32**                        ppDeCmdSpace)
 {
     PAL_ASSERT(pPrevSignature != nullptr);
 
@@ -4580,13 +4586,18 @@ uint32* UniversalCmdBuffer::FixupUserSgprsOnPipelineSwitchCs(
     // this is to write all mapped user-SGPR's whose mappings are changing.
     // These functions are only called when the pipeline has changed.
 
+    bool written = false;
+    uint32* pDeCmdSpace = (*ppDeCmdSpace);
+
     if (pCurrSignature->userDataHash != pPrevSignature->userDataHash)
     {
         pDeCmdSpace = m_deCmdStream.WriteUserDataEntriesToSgprs<true, ShaderCompute>(pCurrSignature->stage,
                                                                                      pComputeState->csUserDataEntries,
                                                                                      pDeCmdSpace);
+        written = true;
+        (*ppDeCmdSpace) = pDeCmdSpace;
     }
-    return pDeCmdSpace;
+    return written;
 }
 
 // =====================================================================================================================
@@ -4851,14 +4862,20 @@ uint32* UniversalCmdBuffer::ValidateComputeUserData(
     // Step #1:
     // Write all dirty user-data entries to their mapped user SGPR's. If the pipeline has changed we must also fixup
     // the dirty bits because the prior compute pipeline could use fewer fast sgprs than the current pipeline.
+
+    bool alreadyWritten = false;
     if (HasPipelineChanged)
     {
-        pCmdSpace = pThis->FixupUserSgprsOnPipelineSwitchCs(pComputeState, pCurrSignature, pPrevSignature, pCmdSpace);
+        alreadyWritten = pThis->FixupUserSgprsOnPipelineSwitchCs(
+            pComputeState, pCurrSignature, pPrevSignature, &pCmdSpace);
     }
 
-    pCmdSpace = pCmdStream->WriteUserDataEntriesToSgprs<false, ShaderCompute>(pCurrSignature->stage,
-                                                                              pComputeState->csUserDataEntries,
-                                                                              pCmdSpace);
+    if (alreadyWritten == false)
+    {
+        pCmdSpace = pCmdStream->WriteUserDataEntriesToSgprs<false, ShaderCompute>(pCurrSignature->stage,
+                                                                                  pComputeState->csUserDataEntries,
+                                                                                  pCmdSpace);
+    }
 
     const uint16 spillThreshold = pCurrSignature->spillThreshold;
     if (spillThreshold != NoUserDataSpilling)
@@ -6893,7 +6910,9 @@ uint32 UniversalCmdBuffer::CalcGeCntl(
     uint32 primsPerSubgroup = 0;
     uint32 vertsPerSubgroup = 0;
 
-    if ((IsNgg == false) || isTess)
+    // For legacy GS on gfx10, GE_CNTL.PRIM_GRP_SIZE should match the programming of
+    // VGT_GS_ONCHIP_CNTL.GS_PRIMS_PER_SUBGRP.
+    if (((IsNgg == false) && (IsGsEnabled() == false)) || isTess)
     {
         // PRIMGROUP_SIZE is zero-based (i.e., zero means one) but PRIM_GRP_SIZE is one based (i.e., one means one).
         primsPerSubgroup = iaMultiVgtParam.bits.PRIMGROUP_SIZE + 1;
@@ -7006,7 +7025,7 @@ uint32* UniversalCmdBuffer::ValidateDrawTimeHwState(
 
     if (m_drawIndexReg != UserDataNotMapped)
     {
-        if (Indirect)
+        if (Indirect && drawInfo.multiIndirectDraw)
         {
             // If the active pipeline uses the draw index VS input value, then the PM4 draw packet to issue the multi
             // draw will blow-away the SPI user-data register used to pass that value to the shader.
@@ -8413,11 +8432,6 @@ void UniversalCmdBuffer::CmdExecuteIndirectCmds(
             UpdateTaskMeshRingSize();
         }
 
-        // There is a lot of logic necessary to support NGG pipelines with indirect command generation that would cause
-        // indirect command generation to suffer more of a performance hit.
-        PAL_ASSERT((bindPoint == PipelineBindPoint::Compute) ||
-            (static_cast<const GraphicsPipeline*>(PipelineState(bindPoint)->pPipeline)->IsNggFastLaunch() == false));
-
         for (uint32 i = 0; mask != 0; ++i, mask >>= 1)
         {
             if (TestAnyFlagSet(mask, 1) == false)
@@ -8704,6 +8718,9 @@ void UniversalCmdBuffer::GetChunkForCmdGeneration(
                                                                          maxCommands);
         pOutput->embeddedDataSize = (pOutput->commandsInChunk * embeddedDwords);
 
+        // Populate command buffer chain size required later for an indirect command generation optimization.
+        pOutput->chainSizeInDwords = m_deCmdStream.GetChainSizeInDwords(m_device, EngineTypeUniversal, IsNested());
+
         if (embeddedDwords > 0)
         {
             // If each generated command requires some amount of spill-table space, then we need to allocate embeded
@@ -8932,6 +8949,23 @@ uint8 UniversalCmdBuffer::CheckStreamOutBufferStridesOnPipelineSwitch()
     }
 
     return dirtySlotMask;
+}
+
+// =====================================================================================================================
+void UniversalCmdBuffer::CmdPrimeGpuCaches(
+    uint32                    rangeCount,
+    const PrimeGpuCacheRange* pRanges)
+{
+    PAL_ASSERT((rangeCount == 0) || (pRanges != nullptr));
+
+    for (uint32 i = 0; i < rangeCount; ++i)
+    {
+        uint32* pCmdSpace = m_deCmdStream.ReserveCommands();
+
+        pCmdSpace += m_cmdUtil.BuildPrimeGpuCaches(pRanges[i], pCmdSpace);
+
+        m_deCmdStream.CommitCommands(pCmdSpace);
+    }
 }
 
 // =====================================================================================================================

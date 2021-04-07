@@ -2923,7 +2923,7 @@
         "Gfx9"
       ],
       "Defaults": {
-        "Default": false
+        "Default": true
       },
       "Scope": "PrivatePalGfx9Key",
       "Type": "bool",

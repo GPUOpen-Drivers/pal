@@ -442,7 +442,8 @@ void EventProvider::LogEvent(
                     PalToRmtHeapType(pData->preferredHeap),
                     RMT_HEAP_TYPE_LOCAL,
                     RMT_HEAP_TYPE_LOCAL,
-                    RMT_HEAP_TYPE_LOCAL);
+                    RMT_HEAP_TYPE_LOCAL,
+                    1);     //< For now we hard code a single heap until the event data can be updated.
 
                 WriteTokenData(eventToken);
 

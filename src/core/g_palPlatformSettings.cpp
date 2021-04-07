@@ -173,7 +173,7 @@ void PlatformSettingsLoader::SetupDefaults()
     m_settings.gpuProfilerSpmConfig.spmBufferSize = 1048576;
     m_settings.cmdBufferLoggerEnabled = false;
     m_settings.cmdBufferLoggerConfig.cmdBufferLoggerAnnotations = 0x1ff;
-    m_settings.cmdBufferLoggerConfig.embedDrawDispatchInfo = false;
+    m_settings.cmdBufferLoggerConfig.embedDrawDispatchInfo = CblEmbedDrawDispatchNone;
     m_settings.pm4InstrumentorEnabled = false;
 #if   (__unix__)
     memset(m_settings.pm4InstrumentorConfig.logDirectory, 0, 512);
@@ -634,7 +634,7 @@ void PlatformSettingsLoader::ReadSettings(Pal::Device* pDevice)
                            InternalSettingScope::PrivatePalKey);
 
     pDevice->ReadSetting(pCmdBufferLoggerConfig_EmbedDrawDispatchInfoStr,
-                           Util::ValueType::Boolean,
+                           Util::ValueType::Uint,
                            &m_settings.cmdBufferLoggerConfig.embedDrawDispatchInfo,
                            InternalSettingScope::PrivatePalKey);
 
@@ -1168,7 +1168,7 @@ void PlatformSettingsLoader::InitSettingsInfo()
     info.valueSize = sizeof(m_settings.cmdBufferLoggerConfig.cmdBufferLoggerAnnotations);
     m_settingsInfoMap.Insert(462141291, info);
 
-    info.type      = SettingType::Boolean;
+    info.type      = SettingType::Uint;
     info.pValuePtr = &m_settings.cmdBufferLoggerConfig.embedDrawDispatchInfo;
     info.valueSize = sizeof(m_settings.cmdBufferLoggerConfig.embedDrawDispatchInfo);
     m_settingsInfoMap.Insert(1801313176, info);
@@ -1299,7 +1299,7 @@ void PlatformSettingsLoader::DevDriverRegister()
             component.pfnSetValue = ISettingsLoader::SetValue;
             component.pSettingsData = &g_palPlatformJsonData[0];
             component.settingsDataSize = sizeof(g_palPlatformJsonData);
-            component.settingsDataHash = 2715351281;
+            component.settingsDataHash = 190730314;
             component.settingsDataHeader.isEncoded = true;
             component.settingsDataHeader.magicBufferId = 402778310;
             component.settingsDataHeader.magicBufferOffset = 0;

@@ -268,6 +268,9 @@ constexpr uint32 NumSampleQuadRegs = 4;
 constexpr uint32 Gfx9LdsDwGranularity      = 128;
 constexpr uint32 Gfx9LdsDwGranularityShift = 7;
 
+// The WAVE_LIMIT register setting for graphics hardware stages is defined in units of this many waves per SH.
+constexpr uint32 Gfx9MaxWavesPerShGraphicsUnitSize = 16;
+
 // The maximum number of waves per SH.
 constexpr uint32 Gfx9MaxWavesPerShCompute = (COMPUTE_RESOURCE_LIMITS__WAVES_PER_SH_MASK >>
                                              COMPUTE_RESOURCE_LIMITS__WAVES_PER_SH__SHIFT);

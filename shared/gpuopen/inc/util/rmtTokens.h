@@ -667,7 +667,8 @@ struct RMT_MSG_VIRTUAL_ALLOCATE : RMT_TOKEN_DATA
         RMT_HEAP_TYPE heapImportance0,
         RMT_HEAP_TYPE heapImportance1,
         RMT_HEAP_TYPE heapImportance2,
-        RMT_HEAP_TYPE heapImportance3)
+        RMT_HEAP_TYPE heapImportance3,
+        uint8         heapImportanceCount)
     {
         sizeInBytes = sizeof(bytes);
         pByteData = &bytes[0];
@@ -699,8 +700,11 @@ struct RMT_MSG_VIRTUAL_ALLOCATE : RMT_TOKEN_DATA
         // HEAP_IMPORTANCE_3 [89:88] The lowest priority heap for this allocation, encoded as RMT_HEAP_TYPE.
         SetBits(heapImportance3, 89, 88);
 
-        // RESERVED [95:90] Reserved for future expansion. Should be set to 0.
-        SetBits(0, 95, 90);
+        // HEAP_IMPORTANCE_COUNT [92:90] The number of heap importance fields that are in use.
+        SetBits(heapImportanceCount, 92, 90);
+
+        // RESERVED [95:93] Reserved for future expansion. Should be set to 0.
+        SetBits(0, 95, 93);
     }
 };
 

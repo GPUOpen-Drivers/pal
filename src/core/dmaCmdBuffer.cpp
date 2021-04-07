@@ -344,30 +344,19 @@ void DmaCmdBuffer::CmdBarrier(
     }
 }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
 // =====================================================================================================================
 // Inserts a barrier in the current command stream that can pipeline a stall in GPU execution, flush/invalidate caches,
 // or decompress images before further, dependent work can continue in this command buffer.
 //
 // There's no real benefit to splitting up barriers on the DMA engine. Ergo, this is a thin wrapper over full barriers.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
 uint32 DmaCmdBuffer::CmdRelease(
     const AcquireReleaseInfo& releaseInfo)
-#else
-void DmaCmdBuffer::CmdRelease(
-    const AcquireReleaseInfo& releaseInfo,
-    const IGpuEvent*          pGpuEvent)
-#endif
 {
     PAL_NOT_TESTED();
     CmdReleaseThenAcquire(releaseInfo);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
+
     return 0;
-#else
-    if (pGpuEvent != nullptr)
-    {
-        CmdSetEvent(*pGpuEvent, HwPipeBottom);
-    }
-#endif
 }
 
 // =====================================================================================================================
@@ -377,16 +366,43 @@ void DmaCmdBuffer::CmdRelease(
 // There's no real benefit to splitting up barriers on the DMA engine. Ergo, this is a thin wrapper over full barriers.
 void DmaCmdBuffer::CmdAcquire(
     const AcquireReleaseInfo& acquireInfo,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
     uint32                    syncTokenCount,
     const uint32*             pSyncTokens)
-#else
-    uint32                    gpuEventCount,
-    const IGpuEvent*const*    ppGpuEvents)
-#endif
 {
     PAL_NOT_TESTED();
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 648
+
+    CmdReleaseThenAcquire(acquireInfo);
+}
+#endif
+
+// =====================================================================================================================
+// Inserts a barrier in the current command stream that can pipeline a stall in GPU execution, flush/invalidate caches,
+// or decompress images before further, dependent work can continue in this command buffer.
+//
+// There's no real benefit to splitting up barriers on the DMA engine. Ergo, this is a thin wrapper over full barriers.
+void DmaCmdBuffer::CmdReleaseEvent(
+    const AcquireReleaseInfo& releaseInfo,
+    const IGpuEvent*          pGpuEvent)
+{
+    PAL_NOT_TESTED();
+    CmdReleaseThenAcquire(releaseInfo);
+    if (pGpuEvent != nullptr)
+    {
+        CmdSetEvent(*pGpuEvent, HwPipeBottom);
+    }
+}
+
+// =====================================================================================================================
+// Inserts a barrier in the current command stream that can wait on a pipelined stall, flush/invalidate caches,
+// or decompress images before further, dependent work can continue in this command buffer.
+//
+// There's no real benefit to splitting up barriers on the DMA engine. Ergo, this is a thin wrapper over full barriers.
+void DmaCmdBuffer::CmdAcquireEvent(
+    const AcquireReleaseInfo& acquireInfo,
+    uint32                    gpuEventCount,
+    const IGpuEvent* const*   ppGpuEvents)
+{
+    PAL_NOT_TESTED();
     if (gpuEventCount != 0)
     {
         uint32* pCmdSpace = m_cmdStream.ReserveCommands();
@@ -396,7 +412,6 @@ void DmaCmdBuffer::CmdAcquire(
         }
         m_cmdStream.CommitCommands(pCmdSpace);
     }
-#endif
     CmdReleaseThenAcquire(acquireInfo);
 }
 
@@ -1610,8 +1625,8 @@ bool DmaCmdBuffer::AreMemImageXParamsDwordAligned(
     // L2L copy packets.
     if ((((region.imageOffset.x       * imageInfo.bytesPerPixel) & 0x3) != 0) ||
         (((region.imageExtent.width   * imageInfo.bytesPerPixel) & 0x3) != 0) ||
-        (((region.gpuMemoryRowPitch   * imageInfo.bytesPerPixel) & 0x3) != 0) ||
-        (((region.gpuMemoryDepthPitch * imageInfo.bytesPerPixel) & 0x3) != 0))
+        ((region.gpuMemoryRowPitch   & 0x3) != 0)                             ||
+        ((region.gpuMemoryDepthPitch & 0x3) != 0))
     {
         aligned = false;
     }

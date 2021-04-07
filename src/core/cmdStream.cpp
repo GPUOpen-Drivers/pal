@@ -668,15 +668,14 @@ void CmdStream::ResetNestedChunks()
 {
     if (m_nestedChunks.GetNumEntries() != 0)
     {
-        // NOTE: On DX12 builds it is unsafe for us to release our references on nested command-stream chunks, so we
-        // have to just drop the contents of the nested-chunk table on the floor. See CmdStreamChunk::ResetBusyTracker()
-        // for more details.
-        for (auto iter = m_nestedChunks.Begin(); iter.Get() != nullptr; iter.Next())
         {
-            CmdStreamChunk*const pChunk = iter.Get()->key;
-            PAL_ASSERT(pChunk != nullptr);
+            for (auto iter = m_nestedChunks.Begin(); iter.Get() != nullptr; iter.Next())
+            {
+                CmdStreamChunk*const pChunk = iter.Get()->key;
+                PAL_ASSERT(pChunk != nullptr);
 
-            pChunk->RemoveCommandStreamReference();
+                pChunk->RemoveCommandStreamReference();
+            }
         }
 
         m_nestedChunks.Reset();

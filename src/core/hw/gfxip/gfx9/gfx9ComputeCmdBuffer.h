@@ -63,16 +63,16 @@ public:
         const AcquireReleaseInfo& acquireInfo,
         uint32                    syncTokenCount,
         const uint32*             pSyncTokens) override;
-#else
-    virtual void CmdRelease(
+#endif
+
+    virtual void CmdReleaseEvent(
         const AcquireReleaseInfo& releaseInfo,
         const IGpuEvent*          pGpuEvent) override;
 
-    virtual void CmdAcquire(
+    virtual void CmdAcquireEvent(
         const AcquireReleaseInfo& acquireInfo,
         uint32                    gpuEventCount,
-        const IGpuEvent*const*    ppGpuEvents) override;
-#endif
+        const IGpuEvent* const*   ppGpuEvents) override;
 
     virtual void CmdReleaseThenAcquire(const AcquireReleaseInfo& barrierInfo) override;
 
@@ -172,6 +172,9 @@ public:
         uint32                       maximumCount,
         gpusize                      countGpuAddr) override;
 
+    virtual void CmdPrimeGpuCaches(
+        uint32                    rangeCount,
+        const PrimeGpuCacheRange* pRanges) override;
     virtual void CmdCommentString(
         const char* pComment) override;
     virtual void CmdNop(
@@ -210,9 +213,7 @@ public:
 
     virtual void CpCopyMemory(gpusize dstAddr, gpusize srcAddr, gpusize numBytes) override;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
     virtual void CmdRestoreComputeState(uint32 stateFlags) override;
-#endif
 
 protected:
     virtual ~ComputeCmdBuffer() {}
@@ -266,9 +267,9 @@ private:
         const ComputePipelineSignature* pPrevSignature,
         uint32*                         pCmdSpace);
 
-    uint32* FixupUserSgprsOnPipelineSwitch(
+    bool FixupUserSgprsOnPipelineSwitch(
         const ComputePipelineSignature* pPrevSignature,
-        uint32*                         pCmdSpace);
+        uint32**                        ppCmdSpace);
 
     void LeakNestedCmdBufferState(
         const ComputeCmdBuffer& cmdBuffer);

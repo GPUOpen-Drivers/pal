@@ -91,6 +91,8 @@ struct InternalSubmitInfo
 
     InternalSubmitFlags flags;
 
+    uint32 stackSizeInDwords;               // Frame stack size for indirect shaders
+
     // The semaphore arrays are only used by Linux backend to better align with u/k interface
     uint32                  signalSemaphoreCount; // The count of semaphores that have to signal after the submission.
     uint32                  waitSemaphoreCount;   // The count of semaphores that have to wait before the submission.
@@ -318,7 +320,7 @@ public:
 
     Util::IntrusiveListNode<Queue>* DeviceMembershipNode() { return &m_deviceMembershipNode; }
 
-    Device*const GetDevice() { return m_pDevice; }
+    Device* GetDevice() const { return m_pDevice; }
 
     bool IsStalled() const { return m_stalled; }
 

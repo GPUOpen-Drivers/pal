@@ -50,11 +50,11 @@ namespace DevDriver
 
         if (pPipeErrorString != nullptr)
         {
-            DD_PRINT(LogLevel::Warn, "Pipe Error: %s", pPipeErrorString);
+            DD_PRINT(LogLevel::Info, "Pipe Error: %s", pPipeErrorString);
         }
         else
         {
-            DD_PRINT(LogLevel::Warn, "Pipe Error: Unknown (0x%x)", pipeErrorCode);
+            DD_PRINT(LogLevel::Info, "Pipe Error: Unknown (0x%x)", pipeErrorCode);
         }
     }
 }

@@ -248,6 +248,14 @@ struct MultiSubmitInfo
                                                   ///  command buffers used in this submit.
     void*                   pUserData;            ///< Client provided data to be passed to callback.
 #endif
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 663
+    uint32                  stackSizeInDwords;    ///< 0, or the max of stack frame size for indirect shaders of the
+                                                  ///  pipelines referenced in the command buffers of this submission.
+                                                  ///  The size is per native thread. So that the client will have to
+                                                  ///  multiply by 2 if a Wave64 shader that needs scratch is used.
+                                                  ///  Note that the size will not shrink for the lifetime of the queue
+                                                  ///  once it is grown and only affects compute scratch ring.
+#endif
 };
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 572

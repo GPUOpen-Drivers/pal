@@ -630,28 +630,28 @@ void CmdBuffer::CmdAcquire(
     CmdBufferFwdDecorator::CmdAcquire(acquireInfo, syncTokenCount, pSyncTokens);
     PostCall(CmdBufCallId::CmdAcquire);
 }
-#else
+#endif
+
 // =====================================================================================================================
-void CmdBuffer::CmdRelease(
+void CmdBuffer::CmdReleaseEvent(
     const AcquireReleaseInfo& releaseInfo,
     const IGpuEvent*          pGpuEvent)
 {
     PreCall();
-    CmdBufferFwdDecorator::CmdRelease(releaseInfo, pGpuEvent);
-    PostCall(CmdBufCallId::CmdRelease);
+    CmdBufferFwdDecorator::CmdReleaseEvent(releaseInfo, pGpuEvent);
+    PostCall(CmdBufCallId::CmdReleaseEvent);
 }
 
 // =====================================================================================================================
-void CmdBuffer::CmdAcquire(
+void CmdBuffer::CmdAcquireEvent(
     const AcquireReleaseInfo& acquireInfo,
     uint32                    gpuEventCount,
-    const IGpuEvent*const*    ppGpuEvents)
+    const IGpuEvent* const*   ppGpuEvents)
 {
     PreCall();
-    CmdBufferFwdDecorator::CmdAcquire(acquireInfo, gpuEventCount, ppGpuEvents);
-    PostCall(CmdBufCallId::CmdAcquire);
+    CmdBufferFwdDecorator::CmdAcquireEvent(acquireInfo, gpuEventCount, ppGpuEvents);
+    PostCall(CmdBufCallId::CmdAcquireEvent);
 }
-#endif
 
 // =====================================================================================================================
 void CmdBuffer::CmdReleaseThenAcquire(

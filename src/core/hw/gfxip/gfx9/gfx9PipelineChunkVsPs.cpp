@@ -422,6 +422,14 @@ uint32* PipelineChunkVsPs::WriteShCommands(
     {
         dynamic.spiShaderPgmRsrc3Ps.bits.WAVE_LIMIT = psStageInfo.wavesPerSh;
     }
+#if PAL_AMDGPU_BUILD
+    else if (IsGfx9(chipProps.gfxLevel) && (dynamic.spiShaderPgmRsrc3Ps.bits.WAVE_LIMIT == 0))
+    {
+        // GFX9 GPUs have a HW bug where a wave limit size of 0 does not correctly map to "no limit",
+        // potentially breaking high-priority compute.
+        dynamic.spiShaderPgmRsrc3Ps.bits.WAVE_LIMIT = m_device.GetMaxWavesPerSh(chipProps, false);
+    }
+#endif
 
     if (psStageInfo.cuEnableMask != 0)
     {
@@ -463,6 +471,14 @@ uint32* PipelineChunkVsPs::WriteShCommands(
         {
             dynamic.spiShaderPgmRsrc3Vs.bits.WAVE_LIMIT = vsStageInfo.wavesPerSh;
         }
+#if PAL_AMDGPU_BUILD
+        else if (IsGfx9(chipProps.gfxLevel) && (dynamic.spiShaderPgmRsrc3Vs.bits.WAVE_LIMIT == 0))
+        {
+            // GFX9 GPUs have a HW bug where a wave limit size of 0 does not correctly map to "no limit",
+            // potentially breaking high-priority compute.
+            dynamic.spiShaderPgmRsrc3Vs.bits.WAVE_LIMIT = m_device.GetMaxWavesPerSh(chipProps, false);
+        }
+#endif
 
         if (vsStageInfo.cuEnableMask != 0)
         {

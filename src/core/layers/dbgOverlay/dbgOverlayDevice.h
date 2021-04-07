@@ -184,7 +184,6 @@ public:
         { return (queueType == QueueTypeUniversal) || (queueType == QueueTypeCompute); }
 
 private:
-    Result UpdateSettings();
 
     const PalPublicSettings*  m_pSettings;
     CmdAllocatorDecorator*    m_pCmdAllocator;

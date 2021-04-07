@@ -120,18 +120,40 @@ Result EventParser::Parse(const void* pEventData, size_t eventDataSize)
 
                     if (m_eventTokenBufferSize == (tokenSize + sizeof(EventTokenHeader)))
                     {
-                        if ((pTokenHeader->id == static_cast<uint8>(EventTokenType::Data)) ||
-                            (pTokenHeader->id == static_cast<uint8>(EventTokenType::TimeDelta)))
+                        if (pTokenHeader->id == static_cast<uint8>(EventTokenType::Data))
                         {
-                            if (pTokenHeader->id == static_cast<uint8>(EventTokenType::Data))
+                            const EventDataToken* pDataToken =
+                                reinterpret_cast<const EventDataToken*>(m_eventTokenBuffer + sizeof(EventTokenHeader));
+
+                            result = EmitEventReceived(pDataToken);
+
+                            if (result == Result::Success)
                             {
-                                const EventDataToken* pDataToken =
-                                    reinterpret_cast<const EventDataToken*>(m_eventTokenBuffer + sizeof(EventTokenHeader));
-
-                                result = EmitEventReceived(pDataToken);
+                                if (pDataToken->size != 0)
+                                {
+                                    m_eventDataState = EventDataState::WaitingForPayload;
+                                }
+                                else
+                                {
+                                    // There's no payload associated with this event so we should move onto the next token
+                                    ResetEventDataBufferState();
+                                }
                             }
+                        }
+                        else if (pTokenHeader->id == static_cast<uint8>(EventTokenType::TimeDelta))
+                        {
+                            const EventTimeDeltaToken* pDeltaToken =
+                                reinterpret_cast<const EventTimeDeltaToken*>(m_eventTokenBuffer + sizeof(EventTokenHeader));
 
-                            m_eventDataState = EventDataState::WaitingForPayload;
+                            if (pDeltaToken->numBytes > 0)
+                            {
+                                m_eventDataState = EventDataState::WaitingForPayload;
+                            }
+                            else
+                            {
+                                // A delta token with no payload bytes is considered invalid
+                                result = Result::Error;
+                            }
                         }
                         else
                         {

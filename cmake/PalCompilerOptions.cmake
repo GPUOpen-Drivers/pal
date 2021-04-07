@@ -22,12 +22,11 @@
  #  SOFTWARE.
  #
  #######################################################################################################################
+include_guard()
 
 include(PalVersionHelper)
 include(PalCompilerWarnings)
 include(CheckCXXCompilerFlag)
-
-pal_include_guard(PalCompilerOptions)
 
 function(pal_compiler_options TARGET)
 

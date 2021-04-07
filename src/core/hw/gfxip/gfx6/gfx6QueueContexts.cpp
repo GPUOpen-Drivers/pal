@@ -244,6 +244,8 @@ Result ComputeQueueContext::PreProcessSubmit(
     InternalSubmitInfo* pSubmitInfo,
     uint32              cmdBufferCount)
 {
+    PAL_ASSERT(pSubmitInfo->stackSizeInDwords == 0);
+
     bool hasUpdated = false;
     const bool isTmz = (pSubmitInfo->flags.isTmzEnabled != 0);
     const uint64 lastTimestamp = m_pParentQueue->GetSubmissionContext()->LastTimestamp();
@@ -1000,6 +1002,8 @@ Result UniversalQueueContext::PreProcessSubmit(
     InternalSubmitInfo* pSubmitInfo,
     uint32              cmdBufferCount)
 {
+    PAL_ASSERT(pSubmitInfo->stackSizeInDwords == 0);
+
     bool   hasUpdated    = false;
     Result result        = Result::Success;
     uint64 lastTimeStamp = m_pParentQueue->GetSubmissionContext()->LastTimestamp();

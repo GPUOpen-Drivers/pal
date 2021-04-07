@@ -67,8 +67,6 @@ public:
     virtual Result PreProcessSubmit(InternalSubmitInfo* pSubmitInfo, uint32 cmdBufferCount) override;
     virtual void PostProcessSubmit() override;
 
-    Result UpdateRingSet(bool* pHasChanged, uint64 lastTimeStamp);
-
 private:
     Result RebuildCommandStreams(uint64 lastTimeStamp);
     void ResetCommandStream(CmdStream*                 pCmdStream,
@@ -78,6 +76,8 @@ private:
 
     void ClearDeferredMemory();
 
+    Result UpdateRingSet(bool* pHasChanged, uint32 overrideStackSize, uint64 lastTimeStamp);
+
     Device*const        m_pDevice;
     ComputeEngine*const m_pEngine;
     uint32              m_queueId;
@@ -85,6 +85,8 @@ private:
 
     // Current watermark for the device-initiated context updates which have been processed by this queue context.
     uint32  m_currentUpdateCounter;
+
+    uint32  m_currentStackSizeDw;
 
     CmdStream  m_cmdStream;
     CmdStream  m_perSubmitCmdStream;
@@ -115,8 +117,6 @@ public:
     virtual void PostProcessSubmit() override;
     virtual Result ProcessInitialSubmit(InternalSubmitInfo* pSubmitInfo) override;
 
-    Result UpdateRingSet(bool isTmz, bool* pHasChanged, uint64 lastTimeStamp);
-
 private:
     Result BuildShadowPreamble();
 
@@ -130,9 +130,11 @@ private:
     Result AllocateShadowMemory();
 
     void WritePerSubmitPreamble(CmdStream* pCmdStream, bool initShadowMemory);
-    uint32* WriteUniversalPreamble(uint32* pCmdSpace);
+    uint32* WriteUniversalPreamble(CmdStream* pCmdStream, uint32* pCmdSpace);
 
     void ClearDeferredMemory();
+
+    Result UpdateRingSet(bool* pHasChanged, bool isTmz, uint32 overrideStackSize, uint64 lastTimeStamp);
 
     Device*const          m_pDevice;
     const uint32          m_persistentCeRamOffset;
@@ -146,6 +148,8 @@ private:
     uint32  m_currentUpdateCounter;
 
     uint32  m_currentUpdateCounterTmz;
+
+    uint32  m_currentStackSizeDw;
 
     // Indicates whether the current command streams use TMZ protected ring sets.
     bool    m_cmdsUseTmzRing;

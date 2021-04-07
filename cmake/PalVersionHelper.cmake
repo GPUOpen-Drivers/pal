@@ -22,34 +22,10 @@
  #  SOFTWARE.
  #
  #######################################################################################################################
-if (DEFINED PalVersionHelper_pal_include_guard)
-    return()
-endif()
-set(PalVersionHelper_pal_include_guard ON)
+include_guard()
 
 # Store the file's location for relative paths used in the functions.
 set(PAL_VERSION_HELPER_DIR ${CMAKE_CURRENT_LIST_DIR})
-
-# A helper macro to have include guards with pre 3.10 compatibility
-# See the documentation on include guards for more info (IE the "#pragma once" of cmake)
-# https://cmake.org/cmake/help/latest/command/include_guard.html
-#
-# This needs to be a macro to allow include_guard() to work. Include guard cannot be called
-# from inside a function.
-macro(pal_include_guard client_var)
-    # If you can use 3.10 functionality then use the standard include guard
-    if(${CMAKE_VERSION} VERSION_GREATER_EQUAL "3.10")
-        include_guard()
-    else()
-        # Return if the variable already exists to not waste time
-        if (DEFINED ${client_var}_pal_include_guard)
-            return()
-        endif()
-
-        # Otherwise create the variable
-        set(${client_var}_pal_include_guard ON)
-    endif()
-endmacro()
 
 # A helper function to allow usage of DEBUG mode introduced in cmake 3.15
 # This function is intended to prevent printing out everything to STATUS,

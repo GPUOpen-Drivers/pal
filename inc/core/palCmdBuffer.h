@@ -537,6 +537,9 @@ struct CmdBufferBuildInfo
     ///   before calling Begin() or PAL will accidentally free it.
     Util::VirtualLinearAllocator* pMemAllocator;
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 661
+#endif
+
     uint64 execMarkerClientHandle; ///< Client/app data handle. This can have an arbitrary value and is used to uniquely
                                    ///  identify this command buffer.
 };
@@ -1930,6 +1933,25 @@ struct GenMipmapsInfo
                                    ///  specified at image-creation time, otherwise the result might be incorrect.
 };
 
+/// Defines a single memory range to prefetch using CmdPrimeGpuCaches.
+struct PrimeGpuCacheRange
+{
+    gpusize gpuVirtAddr;          ///< Base GPU virtual address to be prefetched.
+    gpusize size;                 ///< Number of bytes to prefetch.  Clients should keep range sizes small relative
+                                  ///  to the GPU caches (e.g., tccSizeInBytes); the PAL implementation may clamp
+                                  ///  prefetched ranges if they are too large for the cache being prefetched.
+    uint32  usageMask;            ///< Bitmask of CacheCoherencyUsageFlags defining the usage to prefetch for.
+                                  ///  E.g., if the mask includes CoherShader, then PAL will attempt to prefetch
+                                  ///  into caches that are on the shader core's data path.  This mask must be a
+                                  ///  subset of the dstCacheMask specified in the last barrier operation executed
+                                  ///  on this memory range.  Performing the cache prefetch is considered a read
+                                  ///  operation of the specified usage, and so must be properly accounted for
+                                  ///  in future barrier memory dependencies for this range.
+    bool    addrTranslationOnly;  ///< If set, only the address translation caches (i.e., TLB) will be primed;
+                                  ///  no data caches will be affected.  If this is set, the prefetch operation
+                                  ///  has no bearing on barrier execution or memory dependencies.
+};
+
 /// Magic number tag for payloads in command buffer dumps
 constexpr uint32 CmdBufferPayloadSignature = 0x1337F77D;
 
@@ -2302,51 +2324,48 @@ public:
     /// completion.  The event type and timestamp value is returned to caller in a packed uint32 token.  A corresponding
     /// CmdAcquire() call is expected to wait on one or a list of such synchronization tokens and perform any necessary
     /// visibility operations and/or layout transitions that could not be predicted at release-time.
-#else
-    /// Once all of these operations are complete, the specified IGpuEvent object will be signaled.  A corresponding
-    /// CmdAcquire() call is expected to wait on this event and perform any necessary visibility operations and/or
-    /// layout transitions that could not be predicted at release-time.
-#endif
     ///
     /// @note Not all hardware can support the acquire/release mechanism with good performance.  This call is only
     ///       valid if supportAcquireReleaseInterface is set in the GFXIP properties section of @ref DeviceProperties.
     ///
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
     /// @param [in]  releaseInfo  Describes the synchronization scope, availability operations, and required layout
     ///                           transitions.
     /// @returns Synchronization token for the release operation.  Pass this token to CmdAcquire to confirm completion.
     virtual uint32 CmdRelease(
         const AcquireReleaseInfo& releaseInfo) = 0;
 #else
+    /// Once all of these operations are complete, the specified IGpuEvent object will be signaled.  A corresponding
+    /// CmdAcquire() call is expected to wait on this event and perform any necessary visibility operations and/or
+    /// layout transitions that could not be predicted at release-time.
+    ///
+    /// @note Not all hardware can support the acquire/release mechanism with good performance.  This call is only
+    ///       valid if supportAcquireReleaseInterface is set in the GFXIP properties section of @ref DeviceProperties.
+    ///
     /// @param [in] releaseInfo Describes the synchronization scope, availability operations, and required layout
     ///                         transitions.
     /// @param [in] pGpuEvent   Event to be signaled once the release has completed.  Can be null, in which case
     ///                         no event will be signaled.
     virtual void CmdRelease(
         const AcquireReleaseInfo& releaseInfo,
-        const IGpuEvent*          pGpuEvent) = 0;
+        const IGpuEvent*          pGpuEvent)
+        { CmdReleaseEvent(releaseInfo, pGpuEvent); }
 #endif
 
     /// Performs the acquire portion of an acquire/release-based barrier.  This acquire a set of resources for a new
     /// set of usages, assuming CmdRelease() was called to release access for the resource's past usage.
     ///
-    /// Conceptually, this method will:
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
-    ///   - Ensure the release(s) have completed by waiting on the synchronization token of the release operation.
-#else
-    ///   - Ensure the release(s) have completed by waiting for the specified IGpuEvent early enough in the pipeline to
-    ///     support the specified destination synchronization scope.
-#endif
-    ///   - Ensure all specified resources are visible in memory.  The visibility operation will invalidate all
-    ///     relevant caches above the last-level-cache.
-    ///   - Perform any requested layout transitions.
-    ///
     /// @note Not all hardware can support the acquire/release mechanism with good performance.  This call is only
     ///       valid if supportAcquireReleaseInterface is set in the GFXIP properties section of @ref DeviceProperties.
     ///
+    /// Conceptually, this method will:
+    ///   - Ensure all specified resources are visible in memory.  The visibility operation will invalidate all
+    ///     relevant caches above the last-level-cache.
+    ///   - Perform any requested layout transitions.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
+    ///   - Ensure the release(s) have completed by waiting on the synchronization token of the release operation.
+    ///
     /// @param [in] acquireInfo    Describes the synchronization scope, visibility operations, and the required layout
     ///                            layout transitions.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
     /// @param [in] syncTokenCount Number of entries in pSyncTokens.
     /// @param [in] pSyncTokens    Array of synchronization tokens, as returned from CmdRelease, to confirm completion.
     ///                            The token value(s) must have been returned by a CmdRelease call in the same command
@@ -2356,16 +2375,72 @@ public:
         uint32                    syncTokenCount,
         const uint32*             pSyncTokens) = 0;
 #else
+    ///   - Ensure the release(s) have completed by waiting for the specified IGpuEvent early enough in the pipeline to
+    ///     support the specified destination synchronization scope.
+    ///
+    /// @param [in] acquireInfo    Describes the synchronization scope, visibility operations, and the required layout
+    ///                            layout transitions.
     /// @param [in] gpuEventCount  Number of entries in pGpuEvents.
-    /// @param [in] pGpuEvents     One or more events to wait on.  Typically these will be set via CmdRelease(), but
+    /// @param [in] ppGpuEvents    One or more events to wait on.  Typically these will be set via CmdRelease(), but
     ///                            it is valid to wait on an event set through a different means, like CmdSetEvent().
     ///                            If null, the implementation will automatically wait for all prior GPU work on this
     ///                            queue to complete before allowing future work specified in dstStageMask.
     virtual void CmdAcquire(
         const AcquireReleaseInfo& acquireInfo,
         uint32                    gpuEventCount,
-        const IGpuEvent*const*    ppGpuEvents) = 0;
+        const IGpuEvent* const*   ppGpuEvents)
+        { CmdAcquireEvent(acquireInfo, gpuEventCount, ppGpuEvents);}
 #endif
+
+    /// Performs the release portion of an acquire/release-based barrier.  This releases a set of resources from their
+    /// current usage, while CmdAcquire() is expected to be called to acquire access to the resources for future,
+    /// different usage.
+    ///
+    /// Conceptually, this method will:
+    ///   - Ensure the specified source synchronization scope has completed.
+    ///   - Ensure all specified resources are available in memory.  The availability operation will flush all
+    ///     write-back caches to the last-level-cache.
+    ///   - Perform any requested layout transitions.
+    ///
+    /// Once all of these operations are complete, the specified IGpuEvent object will be signaled.  A corresponding
+    /// CmdAcquire() call is expected to wait on this event and perform any necessary visibility operations and/or
+    /// layout transitions that could not be predicted at release-time.
+    ///
+    /// @note Not all hardware can support the acquire/release mechanism with good performance.  This call is only
+    ///       valid if supportAcquireReleaseInterface is set in the GFXIP properties section of @ref DeviceProperties.
+    ///
+    /// @param [in] releaseInfo Describes the synchronization scope, availability operations, and required layout
+    ///                         transitions.
+    /// @param [in] pGpuEvent   Event to be signaled once the release has completed.  Can be null, in which case
+    ///                         no event will be signaled.
+    virtual void CmdReleaseEvent(
+        const AcquireReleaseInfo& releaseInfo,
+        const IGpuEvent*          pGpuEvent) = 0;
+
+    /// Performs the acquire portion of an acquire/release-based barrier.  This acquire a set of resources for a new
+    /// set of usages, assuming CmdRelease() was called to release access for the resource's past usage.
+    ///
+    /// Conceptually, this method will:
+    ///   - Ensure the release(s) have completed by waiting for the specified IGpuEvent early enough in the pipeline to
+    ///     support the specified destination synchronization scope.
+    ///   - Ensure all specified resources are visible in memory.  The visibility operation will invalidate all
+    ///     relevant caches above the last-level-cache.
+    ///   - Perform any requested layout transitions.
+    ///
+    /// @note Not all hardware can support the acquire/release mechanism with good performance.  This call is only
+    ///       valid if supportAcquireReleaseInterface is set in the GFXIP properties section of @ref DeviceProperties.
+    ///
+    /// @param [in] acquireInfo    Describes the synchronization scope, visibility operations, and the required layout
+    ///                            layout transitions.
+    /// @param [in] gpuEventCount  Number of entries in pGpuEvents.
+    /// @param [in] ppGpuEvents    One or more events to wait on.  Typically these will be set via CmdRelease(), but
+    ///                            it is valid to wait on an event set through a different means, like CmdSetEvent().
+    ///                            If null, the implementation will automatically wait for all prior GPU work on this
+    ///                            queue to complete before allowing future work specified in dstStageMask.
+    virtual void CmdAcquireEvent(
+        const AcquireReleaseInfo& acquireInfo,
+        uint32                    gpuEventCount,
+        const IGpuEvent* const*   ppGpuEvents) = 0;
 
     /// Conceptually equivalent to calling CmdRelease() followed immediately by CmdAcquire().  Can be called in cases
     /// where the client/application cannot detect separate release and acquire points for a transition.
@@ -3743,6 +3818,20 @@ public:
     ///          + ErrorUnknown if an internal PAL error occurs.
     virtual Result AllocateAndBindGpuMemToEvent(
         IGpuEvent* pGpuEvent) = 0;
+
+    /// Issues commands to prime GPU caches shortly before accessing the specified GPU address range(s).  The benefit of
+    /// this prefetching is likely to be platform-dependent based on the GPU's cache hierarchy, memory subsystem,
+    /// available prefetching tools in hardware, etc., so caller beware.
+    ///
+    /// This operation may read data from memory into caches and therefore counts as a general BLT SRC operation with
+    /// regard to barrier execution and memory dependencies.
+    ///
+    /// @param [in] rangeCount  Number of entries in pRanges.
+    /// @param [in] pRanges     Array of structs defining a memory range and properties controlling prefetching of that
+    ///                         range.
+    virtual void CmdPrimeGpuCaches(
+        uint32                    rangeCount,
+        const PrimeGpuCacheRange* pRanges) = 0;
 
     /// Issues commands which execute the specified group of nested command buffers.  The observable behavior of this
     /// operation should be indiscernible from directly recording the nested command buffers' commands directly into

@@ -516,6 +516,7 @@ void UniversalCmdBuffer::ResetState()
     m_vbTable.modified  = 0;
 
     m_activeOcclusionQueryWriteRanges.Clear();
+
 }
 
 // =====================================================================================================================
@@ -1471,13 +1472,14 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDraw(
         auto* pThis = static_cast<UniversalCmdBuffer*>(pCmdBuffer);
 
         ValidateDrawInfo drawInfo;
-        drawInfo.vtxIdxCount   = vertexCount;
-        drawInfo.instanceCount = instanceCount;
-        drawInfo.firstVertex   = firstVertex;
-        drawInfo.firstInstance = firstInstance;
-        drawInfo.firstIndex    = 0;
-        drawInfo.drawIndex     = drawId;
-        drawInfo.useOpaque     = false;
+        drawInfo.vtxIdxCount       = vertexCount;
+        drawInfo.instanceCount     = instanceCount;
+        drawInfo.firstVertex       = firstVertex;
+        drawInfo.firstInstance     = firstInstance;
+        drawInfo.firstIndex        = 0;
+        drawInfo.drawIndex         = drawId;
+        drawInfo.useOpaque         = false;
+        drawInfo.multiIndirectDraw = false;
 
         pThis->ValidateDraw<false, false>(drawInfo);
 
@@ -1564,13 +1566,14 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawOpaque(
         auto* pThis = static_cast<UniversalCmdBuffer*>(pCmdBuffer);
 
         ValidateDrawInfo drawInfo;
-        drawInfo.vtxIdxCount   = 0;
-        drawInfo.instanceCount = instanceCount;
-        drawInfo.firstVertex   = 0;
-        drawInfo.firstInstance = firstInstance;
-        drawInfo.firstIndex    = 0;
-        drawInfo.drawIndex     = 0;
-        drawInfo.useOpaque     = true;
+        drawInfo.vtxIdxCount       = 0;
+        drawInfo.instanceCount     = instanceCount;
+        drawInfo.firstVertex       = 0;
+        drawInfo.firstInstance     = firstInstance;
+        drawInfo.firstIndex        = 0;
+        drawInfo.drawIndex         = 0;
+        drawInfo.useOpaque         = true;
+        drawInfo.multiIndirectDraw = false;
 
         pThis->ValidateDraw<false, false>(drawInfo);
 
@@ -1708,13 +1711,14 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawIndexed(
         PAL_ASSERT(firstIndex <= pThis->m_graphicsState.iaState.indexCount);
 
         ValidateDrawInfo drawInfo;
-        drawInfo.vtxIdxCount   = indexCount;
-        drawInfo.instanceCount = instanceCount;
-        drawInfo.firstVertex   = vertexOffset;
-        drawInfo.firstInstance = firstInstance;
-        drawInfo.firstIndex    = firstIndex;
-        drawInfo.drawIndex     = drawId;
-        drawInfo.useOpaque     = false;
+        drawInfo.vtxIdxCount       = indexCount;
+        drawInfo.instanceCount     = instanceCount;
+        drawInfo.firstVertex       = vertexOffset;
+        drawInfo.firstInstance     = firstInstance;
+        drawInfo.firstIndex        = firstIndex;
+        drawInfo.drawIndex         = drawId;
+        drawInfo.useOpaque         = false;
+        drawInfo.multiIndirectDraw = false;
 
         pThis->ValidateDraw<true, false>(drawInfo);
 
@@ -1834,13 +1838,14 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawIndirectMulti(
     auto* pThis = static_cast<UniversalCmdBuffer*>(pCmdBuffer);
 
     ValidateDrawInfo drawInfo;
-    drawInfo.vtxIdxCount   = 0;
-    drawInfo.instanceCount = 0;
-    drawInfo.firstVertex   = 0;
-    drawInfo.firstInstance = 0;
-    drawInfo.firstIndex    = 0;
-    drawInfo.drawIndex     = 0;
-    drawInfo.useOpaque     = false;
+    drawInfo.vtxIdxCount       = 0;
+    drawInfo.instanceCount     = 0;
+    drawInfo.firstVertex       = 0;
+    drawInfo.firstInstance     = 0;
+    drawInfo.firstIndex        = 0;
+    drawInfo.drawIndex         = 0;
+    drawInfo.useOpaque         = false;
+    drawInfo.multiIndirectDraw = (maximumCount > 1) || (countGpuAddr != 0uLL);
 
     pThis->ValidateDraw<false, true>(drawInfo);
 
@@ -1946,13 +1951,14 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawIndexedIndirectMulti(
     auto* pThis = static_cast<UniversalCmdBuffer*>(pCmdBuffer);
 
     ValidateDrawInfo drawInfo;
-    drawInfo.vtxIdxCount   = 0;
-    drawInfo.instanceCount = 0;
-    drawInfo.firstVertex   = 0;
-    drawInfo.firstInstance = 0;
-    drawInfo.firstIndex    = 0;
-    drawInfo.drawIndex     = 0;
-    drawInfo.useOpaque     = false;
+    drawInfo.vtxIdxCount       = 0;
+    drawInfo.instanceCount     = 0;
+    drawInfo.firstVertex       = 0;
+    drawInfo.firstInstance     = 0;
+    drawInfo.firstIndex        = 0;
+    drawInfo.drawIndex         = 0;
+    drawInfo.useOpaque         = false;
+    drawInfo.multiIndirectDraw = (maximumCount > 1) || (countGpuAddr != 0uLL);
 
     pThis->ValidateDraw<true, true>(drawInfo);
 
@@ -2966,9 +2972,9 @@ uint32* UniversalCmdBuffer::WriteDirtyUserDataEntriesToSgprsGfx(
 // Helper function responsible for handling user-SGPR updates during Dispatch-time validation when the active pipeline
 // has changed since the previous Dispatch operation.  It is expected that this will be called only when the pipeline
 // is changing and immediately before a call to WriteUserDataEntriesToSgprs<false, ..>().
-uint32* UniversalCmdBuffer::FixupUserSgprsOnPipelineSwitchCs(
+bool UniversalCmdBuffer::FixupUserSgprsOnPipelineSwitchCs(
     const ComputePipelineSignature* pPrevSignature,
-    uint32*                         pDeCmdSpace)
+    uint32**                        ppDeCmdSpace)
 {
     PAL_ASSERT(pPrevSignature != nullptr);
 
@@ -2978,13 +2984,19 @@ uint32* UniversalCmdBuffer::FixupUserSgprsOnPipelineSwitchCs(
     // this is to write all mapped user-SGPR's whose mappings are changing.
     // These functions are only called when the pipeline has changed.
 
+    bool written = false;
+    uint32* pDeCmdSpace = (*ppDeCmdSpace);
+
     if (m_pSignatureCs->userDataHash != pPrevSignature->userDataHash)
     {
         pDeCmdSpace = m_deCmdStream.WriteUserDataEntriesToSgprs<true, ShaderCompute>(m_pSignatureCs->stage,
                                                                                      m_computeState.csUserDataEntries,
                                                                                      pDeCmdSpace);
+
+        written = true;
+        (*ppDeCmdSpace) = pDeCmdSpace;
     }
-    return pDeCmdSpace;
+    return written;
 }
 
 // =====================================================================================================================
@@ -3186,14 +3198,18 @@ uint32* UniversalCmdBuffer::ValidateComputeUserData(
     // Step #1:
     // Write all dirty user-data entries to their mapped user SGPR's. If the pipeline has changed we must also fixup
     // the dirty bits because the prior compute pipeline could use fewer fast sgprs than the current pipeline.
+    bool alreadyWritten = false;
     if (HasPipelineChanged)
     {
-        pDeCmdSpace = FixupUserSgprsOnPipelineSwitchCs(pPrevSignature, pDeCmdSpace);
+        alreadyWritten = FixupUserSgprsOnPipelineSwitchCs(pPrevSignature, &pDeCmdSpace);
     }
 
-    pDeCmdSpace = m_deCmdStream.WriteUserDataEntriesToSgprs<false, ShaderCompute>(m_pSignatureCs->stage,
-                                                                                  m_computeState.csUserDataEntries,
-                                                                                  pDeCmdSpace);
+    if (alreadyWritten == false)
+    {
+        pDeCmdSpace = m_deCmdStream.WriteUserDataEntriesToSgprs<false, ShaderCompute>(m_pSignatureCs->stage,
+                                                                                      m_computeState.csUserDataEntries,
+                                                                                      pDeCmdSpace);
+    }
 
     const uint16 spillThreshold = m_pSignatureCs->spillThreshold;
     if (spillThreshold != NoUserDataSpilling)
@@ -3938,7 +3954,7 @@ uint32* UniversalCmdBuffer::ValidateDrawTimeHwState(
 
     if (m_drawIndexReg != UserDataNotMapped)
     {
-        if (indirect)
+        if (indirect && drawInfo.multiIndirectDraw)
         {
             // If the active pipeline uses the draw index VS input value, then the PM4 draw packet to issue the multi
             // draw will blow-away the SPI user-data register used to pass that value to the shader.
@@ -5422,6 +5438,9 @@ void UniversalCmdBuffer::GetChunkForCmdGeneration(
     (pChunkOutputs->commandsInChunk) =
         m_deCmdStream.PrepareChunkForCmdGeneration(pChunk, commandDwords, embeddedDwords, maxCommands);
     (pChunkOutputs->embeddedDataSize) = ((pChunkOutputs->commandsInChunk) * embeddedDwords);
+
+    // Populate command buffer chain size required later for an indirect command generation optimization.
+    (pChunkOutputs->chainSizeInDwords) = m_deCmdStream.GetChainSizeInDwords(m_device, IsNested());
 
     if (embeddedDwords > 0)
     {

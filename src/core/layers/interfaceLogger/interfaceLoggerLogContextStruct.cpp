@@ -133,6 +133,18 @@ void LogContext::Struct(
 
 // =====================================================================================================================
 void LogContext::Struct(
+    const PrimeGpuCacheRange& value)
+{
+    BeginMap(false);
+    KeyAndValue("gpuVirtAddr", value.gpuVirtAddr);
+    KeyAndValue("size", value.size);
+    KeyAndValue("usageMask", value.usageMask);
+    KeyAndValue("addrTranslationOnly", value.addrTranslationOnly);
+    EndMap();
+}
+
+// =====================================================================================================================
+void LogContext::Struct(
     const AcquireReleaseInfo& value)
 {
     BeginMap(false);
@@ -679,6 +691,9 @@ void LogContext::Struct(
     {
         KeyAndNullValue("stateInheritCmdBuffer");
     }
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 661
+#endif
 
     KeyAndValue("execMarkerClientHandle", value.execMarkerClientHandle);
 

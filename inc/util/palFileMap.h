@@ -133,13 +133,11 @@ private:
 * @note WARNING ABOUT READING/WRITING TO MEMORY CONTROLLED BY FileView -
 *
 *   Reading from or writing to a file view of a file other than the page file can cause an
-*   EXCEPTION_IN_PAGE_ERROR exception. For example, accessing a mapped file that resides on a
-*   remote server can generate an exception if the connection to the server is lost. Exceptions
-*   can also occur because of a full disk, an underlying device failure, or a memory allocation
-*   failure. When writing to a file view, exceptions can also occur because the file is shared
-*   and a different process has locked a byte range. To guard against exceptions due to input
-*   and output (I/O) errors, all attempts to access memory mapped files should be wrapped in
+*   EXCEPTION_IN_PAGE_ERROR exception. To guard against exceptions due to input and output
+*   (I/O) errors, all attempts to access memory mapped files should be wrapped in
 *   structured exception handlers.
+*
+* SEE: https://github.com/MicrosoftDocs/win32/blob/docs/desktop-src/Memory/reading-and-writing-from-a-file-view.md
 *
 * Helper macros are provided below.
 ***********************************************************************************************************************

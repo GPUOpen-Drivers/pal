@@ -111,12 +111,17 @@ Result Device::Finalize(
 
         if (result == Result::Success)
         {
-            void*const pAllocatorMem = PAL_MALLOC(allocatorSize, m_pPlatform, AllocInternal);
+            void* pAllocatorMem = PAL_MALLOC(allocatorSize, m_pPlatform, AllocInternal);
             if (pAllocatorMem != nullptr)
             {
                 result = CreateCmdAllocator(createInfo,
                                             pAllocatorMem,
                                             reinterpret_cast<ICmdAllocator**>(&m_pCmdAllocator));
+
+                if (result != Result::Success)
+                {
+                    PAL_SAFE_FREE(pAllocatorMem, m_pPlatform);
+                }
             }
             else
             {

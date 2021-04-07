@@ -38,6 +38,7 @@ enum class CmdBufCallId : uint32
     Begin,
     End,
     CmdBindPipeline,
+    CmdPrimeGpuCaches,
     CmdBindMsaaState,
     CmdBindColorBlendState,
     CmdBindDepthStencilState,
@@ -60,8 +61,12 @@ enum class CmdBufCallId : uint32
     CmdSetScissorRects,
     CmdSetGlobalScissor,
     CmdBarrier,
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
     CmdRelease,
     CmdAcquire,
+#endif
+    CmdReleaseEvent,
+    CmdAcquireEvent,
     CmdReleaseThenAcquire,
     CmdWaitRegisterValue,
     CmdWaitMemoryValue,
@@ -162,6 +167,7 @@ static const char* CmdBufCallIdStrings[] =
     "Begin()",
     "End()",
     "CmdBindPipeline()",
+    "CmdPrimeGpuCaches()",
     "CmdBindMsaaState()",
     "CmdBindColorBlendState()",
     "CmdBindDepthStencilState()",
@@ -184,8 +190,12 @@ static const char* CmdBufCallIdStrings[] =
     "CmdSetScissorRects()",
     "CmdSetGlobalScissor()",
     "CmdBarrier()",
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
     "CmdRelease()",
     "CmdAcquire()",
+#endif
+    "CmdReleaseEvent()",
+    "CmdAcquireEvent()",
     "CmdReleaseThenAcquire()",
     "CmdWaitRegisterValue()",
     "CmdWaitMemoryValue()",

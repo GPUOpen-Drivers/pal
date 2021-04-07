@@ -185,11 +185,11 @@ uint32* PipelineChunkHs::WriteShCommands(
         pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderGraphics>(mmSpiShaderPgmLoLs,
                                                                  m_regs.sh.spiShaderPgmLoLs.u32All,
                                                                  pCmdSpace);
-       pCmdSpace = pCmdStream->WriteSetSeqShRegs(mmSPI_SHADER_PGM_RSRC1_HS,
-                                                 mmSPI_SHADER_PGM_RSRC2_HS,
-                                                 ShaderGraphics,
-                                                 &m_regs.sh.spiShaderPgmRsrc1Hs,
-                                                 pCmdSpace);
+        pCmdSpace = pCmdStream->WriteSetSeqShRegs(mmSPI_SHADER_PGM_RSRC1_HS,
+                                                  mmSPI_SHADER_PGM_RSRC2_HS,
+                                                  ShaderGraphics,
+                                                  &m_regs.sh.spiShaderPgmRsrc1Hs,
+                                                  pCmdSpace);
 
         pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderGraphics>(mmSpiShaderUserDataHs0 + ConstBufTblStartReg,
                                                                  m_regs.sh.userDataInternalTable,
@@ -209,6 +209,14 @@ uint32* PipelineChunkHs::WriteShCommands(
     {
         dynamic.spiShaderPgmRsrc3Hs.bits.WAVE_LIMIT = hsStageInfo.wavesPerSh;
     }
+#if PAL_AMDGPU_BUILD
+    else if (IsGfx9(chipProps.gfxLevel) && (dynamic.spiShaderPgmRsrc3Hs.bits.WAVE_LIMIT == 0))
+    {
+        // GFX9 GPUs have a HW bug where a wave limit size of 0 does not correctly map to "no limit",
+        // potentially breaking high-priority compute.
+        dynamic.spiShaderPgmRsrc3Hs.bits.WAVE_LIMIT = m_device.GetMaxWavesPerSh(chipProps, false);
+    }
+#endif
 
     if (hsStageInfo.cuEnableMask != 0)
     {
