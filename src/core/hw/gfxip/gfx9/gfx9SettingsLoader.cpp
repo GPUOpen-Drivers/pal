@@ -486,6 +486,22 @@ static void SetupNavi14Workarounds(
 }
 
 // =====================================================================================================================
+// Setup workarounds that only apply to Navi12.
+static void SetupNavi12Workarounds(
+    const Pal::Device&  device,
+    Gfx9PalSettings*    pSettings,
+    PalSettings*        pCoreSettings)
+{
+    // Setup any Gfx10 workarounds.
+    SetupGfx10Workarounds(device, pSettings);
+
+    // Setup any Gfx10.1 workarounds.
+    SetupGfx101Workarounds(device, pSettings, pCoreSettings);
+
+    // Setup any Navi12 workarounds.
+}
+
+// =====================================================================================================================
 // Setup workarounds that only apply to Navi21.
 static void SetupNavi21Workarounds(
     const Pal::Device&  device,
@@ -602,6 +618,10 @@ void SettingsLoader::OverrideDefaults(
         else if (IsNavi14(device))
         {
             SetupNavi14Workarounds(device, &m_settings, pSettings);
+        }
+        else if (IsNavi12(device))
+        {
+            SetupNavi12Workarounds(device, &m_settings, pSettings);
         }
         else if (IsNavi21(device))
         {

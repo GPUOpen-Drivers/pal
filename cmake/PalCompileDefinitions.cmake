@@ -42,6 +42,11 @@ function(pal_compile_definitions_gfx9 TARGET)
 
     target_compile_definitions(${TARGET} PUBLIC PAL_BUILD_GFX10=1)
 
+    if(PAL_BUILD_NAVI12)
+        target_compile_definitions(${TARGET} PUBLIC PAL_BUILD_NAVI12=1)
+        target_compile_definitions(${TARGET} PRIVATE CHIP_HDR_NAVI12=1)
+    endif()
+
     if(PAL_BUILD_NAVI14)
         target_compile_definitions(${TARGET} PUBLIC PAL_BUILD_NAVI14=1)
         target_compile_definitions(${TARGET} PRIVATE CHIP_HDR_NAVI14=1)

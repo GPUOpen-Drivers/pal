@@ -111,6 +111,10 @@ Pal::Result CreateTimeGraphComputePipelines(
         pTable = timeGraphComputeBinaryTableNavi10;
         break;
 
+    case Pal::AsicRevision::Navi12:
+        pTable = timeGraphComputeBinaryTableNavi12;
+        break;
+
     case Pal::AsicRevision::Navi14:
         pTable = timeGraphComputeBinaryTableNavi14;
         break;

@@ -136,6 +136,10 @@ Result CreateRpmGraphicsPipelines(
         pTable = rpmGfxBinaryTableNavi10;
         break;
 
+    case AsicRevision::Navi12:
+        pTable = rpmGfxBinaryTableNavi12;
+        break;
+
     case AsicRevision::Navi14:
         pTable = rpmGfxBinaryTableNavi14;
         break;

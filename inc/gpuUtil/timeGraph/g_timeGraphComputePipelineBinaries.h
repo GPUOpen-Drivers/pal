@@ -1042,6 +1042,12 @@ constexpr PipelineBinary timeGraphComputeBinaryTableNavi10[] =
     {TimeGraph_Cs_91ECA425,  sizeof(TimeGraph_Cs_91ECA425)},
 };
 
+// Table of compute pipeline binaries for Navi12
+constexpr PipelineBinary timeGraphComputeBinaryTableNavi12[] =
+{
+    {TimeGraph_Cs_91ECA425,  sizeof(TimeGraph_Cs_91ECA425)},
+};
+
 // Table of compute pipeline binaries for Navi14
 constexpr PipelineBinary timeGraphComputeBinaryTableNavi14[] =
 {

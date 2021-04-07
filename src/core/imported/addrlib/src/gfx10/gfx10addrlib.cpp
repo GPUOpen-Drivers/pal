@@ -957,6 +957,11 @@ ChipFamily Gfx10Lib::HwlConvertChipFamily(
                 m_settings.isDcn20          = 1;
             }
 
+            if (ASICREV_IS_NAVI12_P(chipRevision))
+            {
+                m_settings.isDcn20 = 1;
+            }
+
             if (ASICREV_IS_NAVI14_M(chipRevision))
             {
                 m_settings.isDcn20 = 1;

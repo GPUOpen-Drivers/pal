@@ -41,6 +41,8 @@ macro(pal_overrides_gpu_gfx9)
 
     pal_override(ADDR_GFX10_BUILD ON)
 
+    pal_override(ADDR_NAVI12_BUILD ${PAL_BUILD_NAVI12})
+
     pal_override(ADDR_NAVI14_BUILD ${PAL_BUILD_NAVI14})
 
     pal_override(ADDR_NAVI21_BUILD ${PAL_BUILD_NAVI21})

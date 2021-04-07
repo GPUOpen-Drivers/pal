@@ -27,6 +27,7 @@ include_guard()
 include(PalVersionHelper)
 
 macro(pal_gfx9_options)
+    pal_build_parameter(PAL_BUILD_NAVI12 "Build PAL with Navi12 support?" ON ${pal_gpu_mode})
 
     pal_build_parameter(PAL_BUILD_NAVI14 "Build PAL with Navi14 support?" ON ${pal_gpu_mode})
 

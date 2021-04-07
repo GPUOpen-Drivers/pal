@@ -4627,6 +4627,7 @@ GfxIpLevel DetermineIpLevel(
     // GFX10 GPU's (Navi family)
     case FAMILY_NV:
         if (AMDGPU_IS_NAVI10(familyId, eRevId)
+            || AMDGPU_IS_NAVI12(familyId, eRevId)
             || AMDGPU_IS_NAVI14(familyId, eRevId)
             )
         {
@@ -4963,6 +4964,17 @@ void InitializeGpuChipProperties(
             pInfo->gfx9.maxNumCuPerSh    = 10;
             pInfo->gfx9.maxNumRbPerSe    = 8;
             pInfo->gfx9.numSdpInterfaces = 16;
+        }
+        else if (AMDGPU_IS_NAVI12(pInfo->familyId, pInfo->eRevId))
+        {
+            pInfo->gpuType               = GpuType::Discrete;
+            pInfo->revision              = AsicRevision::Navi12;
+            pInfo->gfxStepping           = Abi::GfxIpSteppingNavi12;
+            pInfo->gfx9.numShaderEngines = 2;
+            pInfo->gfx9.maxNumCuPerSh    = 10;
+            pInfo->gfx9.maxNumRbPerSe    = 8;
+            pInfo->gfx9.numSdpInterfaces = 16;
+            pInfo->gfx9.supportFp16Dot2  = 1;
         }
         else if (AMDGPU_IS_NAVI14(pInfo->familyId, pInfo->eRevId))
         {

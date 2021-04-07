@@ -303,6 +303,7 @@ static const MaxEventIds& GetEventLimits(
     case Pal::AsicRevision::Renoir:
         pOut = &RnMaxPerfEventIds;
         break;
+    case Pal::AsicRevision::Navi12:
     case Pal::AsicRevision::Navi14:
     case Pal::AsicRevision::Navi10:
         pOut = &Nv10MaxPerfEventIds;

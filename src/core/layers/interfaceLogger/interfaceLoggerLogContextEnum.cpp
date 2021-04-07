@@ -1044,7 +1044,7 @@ void LogContext::Enum(
         "Renoir",
 
         "Navi10",
-        nullptr,
+        "Navi12",
         nullptr,
         "Navi14",
         nullptr,

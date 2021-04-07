@@ -109,6 +109,8 @@
 
 #define AMDGPU_NAVI10_RANGE     0x01, 0x0A
 
+#define AMDGPU_NAVI12_RANGE     0x0A, 0x14
+
 #define AMDGPU_NAVI14_RANGE     0x14, 0x28
 
 #define AMDGPU_NAVI21_RANGE     0x28, 0x32
@@ -164,6 +166,8 @@
 #define ASICREV_IS_RENOIR(r)           ASICREV_IS(r, RENOIR)
 
 #define ASICREV_IS_NAVI10_P(r)         ASICREV_IS(r, NAVI10)
+
+#define ASICREV_IS_NAVI12_P(r)         ASICREV_IS(r, NAVI12)
 
 #define ASICREV_IS_NAVI14_M(r)         ASICREV_IS(r, NAVI14)
 

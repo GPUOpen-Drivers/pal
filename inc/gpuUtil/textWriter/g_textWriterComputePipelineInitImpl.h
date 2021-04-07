@@ -116,6 +116,10 @@ Pal::Result CreateTextWriterComputePipelines(
         pTable = textWriterComputeBinaryTableNavi10;
         break;
 
+    case Pal::AsicRevision::Navi12:
+        pTable = textWriterComputeBinaryTableNavi12;
+        break;
+
     case Pal::AsicRevision::Navi14:
         pTable = textWriterComputeBinaryTableNavi14;
         break;

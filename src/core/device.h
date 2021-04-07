@@ -2496,6 +2496,10 @@ PAL_INLINE bool IsNavi10(const Device& device)
 {
     return AMDGPU_IS_NAVI10(device.ChipProperties().familyId, device.ChipProperties().eRevId);
 }
+PAL_INLINE bool IsNavi12(const Device& device)
+{
+    return AMDGPU_IS_NAVI12(device.ChipProperties().familyId, device.ChipProperties().eRevId);
+}
 
 // The ASICs for are still referred within the interface and null backend.
 // So we still keep identification suppport for them though they're no longer supported
@@ -2507,6 +2511,7 @@ PAL_INLINE bool IsNavi1x(const Device& device)
 {
         return (
             IsNavi10(device)
+            || IsNavi12(device)
             || IsNavi14(device)
            );
 }

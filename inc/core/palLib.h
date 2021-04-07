@@ -123,6 +123,7 @@ enum class NullGpuId : uint32
     Renoir      = 0x1C,
 
     Navi10      = 0x1D,
+    Navi12      = 0x1E,
     Navi14      = 0x20,
     Navi21      = 0x22,
     Navi22      = 0x23,

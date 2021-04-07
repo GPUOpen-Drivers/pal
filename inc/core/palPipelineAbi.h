@@ -85,6 +85,7 @@ enum class AmdGpuMachineType : uint8
     Gfx909  = 0x31,  ///< EF_AMDGPU_MACH_AMDGCN_GFX909
     Gfx90C  = 0x32,  ///< EF_AMDGPU_MACH_AMDGCN_GFX90C
     Gfx1010 = 0x33,  ///< EF_AMDGPU_MACH_AMDGCN_GFX1010
+    Gfx1011 = 0x34,  ///< EF_AMDGPU_MACH_AMDGCN_GFX1011
     Gfx1012 = 0x35,  ///< EF_AMDGPU_MACH_AMDGCN_GFX1012
     Gfx1030 = 0x36,  ///< EF_AMDGPU_MACH_AMDGCN_GFX1030
     Gfx1031 = 0x37,  ///< EF_AMDGPU_MACH_AMDGCN_GFX1031
@@ -140,6 +141,7 @@ enum GfxIpStepping : uint16
 
     // GFXIP 10.1.x steppings:
     GfxIpSteppingNavi10        = 0,
+    GfxIpSteppingNavi12        = 1,
     GfxIpSteppingNavi14        = 2,
 
     // GFXIP 10.3.x steppings:

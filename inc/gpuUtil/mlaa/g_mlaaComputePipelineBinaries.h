@@ -6305,6 +6305,17 @@ constexpr PipelineBinary mlaaComputeBinaryTableNavi10[] =
     {MlaaFindSepEdge_Cs_91ECA425,               sizeof(MlaaFindSepEdge_Cs_91ECA425)},
 };
 
+// Table of compute pipeline binaries for Navi12
+constexpr PipelineBinary mlaaComputeBinaryTableNavi12[] =
+{
+    {MlaaCalcSepEdgeLength_Cs_91ECA425,         sizeof(MlaaCalcSepEdgeLength_Cs_91ECA425)},
+    {MlaaCalcSepEdgeLengthFast_Cs_91ECA425,     sizeof(MlaaCalcSepEdgeLengthFast_Cs_91ECA425)},
+    {MlaaCalcSepEdgeLengthInitial_Cs_91ECA425,  sizeof(MlaaCalcSepEdgeLengthInitial_Cs_91ECA425)},
+    {MlaaFinalBlend_Cs_91ECA425,                sizeof(MlaaFinalBlend_Cs_91ECA425)},
+    {MlaaFinalBlendFast_Cs_91ECA425,            sizeof(MlaaFinalBlendFast_Cs_91ECA425)},
+    {MlaaFindSepEdge_Cs_91ECA425,               sizeof(MlaaFindSepEdge_Cs_91ECA425)},
+};
+
 // Table of compute pipeline binaries for Navi14
 constexpr PipelineBinary mlaaComputeBinaryTableNavi14[] =
 {

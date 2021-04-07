@@ -214,6 +214,9 @@ void PipelineAbiProcessor<Allocator>::SetGfxIpVersion(
             case GfxIpSteppingNavi10:
                 m_flags.machineType = AmdGpuMachineType::Gfx1010;
                 break;
+            case GfxIpSteppingNavi12:
+                m_flags.machineType = AmdGpuMachineType::Gfx1011;
+                break;
             case GfxIpSteppingNavi14:
                 m_flags.machineType = AmdGpuMachineType::Gfx1012;
                 break;

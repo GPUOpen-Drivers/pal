@@ -201,6 +201,7 @@ enum class AsicRevision : uint32
     Renoir      = 0x1D,
 
     Navi10      = 0x1F,
+    Navi12      = 0x21,
     Navi14      = 0x23,
     Navi21      = 0x24,
     Navi22      = 0x25,
