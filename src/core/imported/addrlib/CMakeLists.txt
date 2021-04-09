@@ -217,6 +217,27 @@ if((CMAKE_CXX_COMPILER_ID MATCHES "GNU|[Cc]lang")
         -Wextra
         -Wno-unused
         -Wno-unused-parameter
+        -Wno-ignored-qualifiers
+        -Wno-missing-field-initializers
+        -Wno-implicit-fallthrough)
+
+elseif(CMAKE_CXX_COMPILER_ID STREQUAL "[Cc]lang")
+    if(ADDR_ENABLE_WERROR)
+        target_compile_options(addrlib PRIVATE -Werror)
+    endif()
+
+    target_compile_options(addrlib PRIVATE
+        -fno-strict-aliasing    # Disable optimizations that assume strict aliasing rules
+        -fno-exceptions  # Disable exception handling support.
+        -fno-rtti        # Disable run-time type information support.
+        -fcheck-new      # Check if pointer returned by operator new is non-null.
+        -fno-math-errno) # Single instruction math operations do not set ERRNO.
+
+    target_compile_options(addrlib PRIVATE
+        -Wall
+        -Wextra
+        -Wno-unused
+        -Wno-unused-parameter
         -Wno-unused-command-line-argument
         -Wno-ignored-qualifiers
         -Wno-missing-field-initializers
