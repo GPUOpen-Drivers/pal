@@ -3765,7 +3765,10 @@ ADDR_E_RETURNCODE Gfx9Lib::HwlGetPreferredSurfaceSetting(
                         // Select the biggest allowed block type
                         minSizeBlk = Log2NonPow2(allowedBlockSet.value) + 1;
 
-                        minSizeBlk = (minSizeBlk == AddrBlockMaxTiledType) ? AddrBlockLinear : minSizeBlk;
+                        if (minSizeBlk == static_cast<UINT_32>(AddrBlockMaxTiledType))
+                        {
+                            minSizeBlk = AddrBlockLinear;
+                        }
                     }
 
                     switch (minSizeBlk)
