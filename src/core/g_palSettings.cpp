@@ -99,6 +99,7 @@ void SettingsLoader::SetupDefaults()
     m_settings.alwaysResident = false;
     m_settings.disableSyncobjFence = false;
     m_settings.disableSdmaEngine = false;
+    m_settings.forceT2tScanlineCopies = false;
     m_settings.enableVmAlwaysValid = VmAlwaysValidDefaultEnable;
     m_settings.disableSyncObject = false;
     m_settings.cmdBufDumpMode = CmdBufDumpModeDisabled;
@@ -165,6 +166,7 @@ void SettingsLoader::SetupDefaults()
     m_settings.dbgHelperBits = 0x0;
 #endif
 
+    m_settings.useDcc = 0x0;
     m_settings.numSettings = g_palNumSettings;
 }
 
@@ -353,6 +355,11 @@ void SettingsLoader::ReadSettings()
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pDisableSdmaEngineStr,
                            Util::ValueType::Boolean,
                            &m_settings.disableSdmaEngine,
+                           InternalSettingScope::PrivatePalKey);
+
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pForceT2tScanlineCopiesStr,
+                           Util::ValueType::Boolean,
+                           &m_settings.forceT2tScanlineCopies,
                            InternalSettingScope::PrivatePalKey);
 
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pEnableVmAlwaysValidStr,
@@ -609,6 +616,11 @@ void SettingsLoader::ReadSettings()
                            InternalSettingScope::PrivatePalKey);
 #endif
 
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pUseDccStr,
+                           Util::ValueType::Uint,
+                           &m_settings.useDcc,
+                           InternalSettingScope::PrivatePalKey);
+
 }
 
 // =====================================================================================================================
@@ -630,6 +642,11 @@ void SettingsLoader::RereadSettings()
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pUseFp16GenMipsStr,
                            Util::ValueType::Boolean,
                            &m_settings.useFp16GenMips,
+                           InternalSettingScope::PrivatePalKey);
+
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pUseDccStr,
+                           Util::ValueType::Uint,
+                           &m_settings.useDcc,
                            InternalSettingScope::PrivatePalKey);
 
 }
@@ -821,6 +838,11 @@ void SettingsLoader::InitSettingsInfo()
     info.pValuePtr = &m_settings.disableSdmaEngine;
     info.valueSize = sizeof(m_settings.disableSdmaEngine);
     m_settingsInfoMap.Insert(2254617940, info);
+
+    info.type      = SettingType::Boolean;
+    info.pValuePtr = &m_settings.forceT2tScanlineCopies;
+    info.valueSize = sizeof(m_settings.forceT2tScanlineCopies);
+    m_settingsInfoMap.Insert(2746133908, info);
 
     info.type      = SettingType::Uint;
     info.pValuePtr = &m_settings.enableVmAlwaysValid;
@@ -1074,6 +1096,11 @@ void SettingsLoader::InitSettingsInfo()
     m_settingsInfoMap.Insert(3894710420, info);
 #endif
 
+    info.type      = SettingType::Uint;
+    info.pValuePtr = &m_settings.useDcc;
+    info.valueSize = sizeof(m_settings.useDcc);
+    m_settingsInfoMap.Insert(4029518654, info);
+
 }
 
 // =====================================================================================================================
@@ -1095,7 +1122,7 @@ void SettingsLoader::DevDriverRegister()
             component.pfnSetValue = ISettingsLoader::SetValue;
             component.pSettingsData = &g_palJsonData[0];
             component.settingsDataSize = sizeof(g_palJsonData);
-            component.settingsDataHash = 2137042651;
+            component.settingsDataHash = 437791580;
             component.settingsDataHeader.isEncoded = true;
             component.settingsDataHeader.magicBufferId = 402778310;
             component.settingsDataHeader.magicBufferOffset = 0;

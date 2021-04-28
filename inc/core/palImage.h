@@ -313,7 +313,7 @@ union ImageUsageFlags
 #else
         uint32 reserved646            :  1;
 #endif
-        uint32 reserved               : 14; ///< Reserved for future use.
+        uint32 reserved               : 13; ///< Reserved for future use.
     };
     uint32 u32All;                          ///< Flags packed as 32-bit uint.
 };

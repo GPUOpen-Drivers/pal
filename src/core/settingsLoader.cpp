@@ -109,6 +109,35 @@ void SettingsLoader::OverrideDefaults()
 {
     m_pDevice->OverrideDefaultSettings(&m_settings);
 
+    const GfxIpLevel gfxLevel = m_pDevice->ChipProperties().gfxLevel;
+
+    if (gfxLevel >= GfxIpLevel::GfxIp9)
+    {
+        // Setup default DCC enables.
+        constexpr uint32 DccEnables = UseDccSingleSample          |
+                                      UseDccSrgb                  |
+                                      UseDccNonTcCompatShaderRead |
+                                      UseDccPrt                   |
+                                      UseDccMultiSample2x         |
+                                      UseDccMultiSample4x         |
+                                      UseDccMultiSample8x         |
+                                      UseDccEqaa                  |
+                                      UseDccAllowForceEnable      |
+                                      UseDccMipMappedArrays;
+        m_settings.useDcc = DccEnables;
+    }
+    else if (gfxLevel >= GfxIpLevel::GfxIp8)
+    {
+        // Setup default DCC enables.
+        constexpr uint32 DccEnables = UseDccSingleSample          |
+                                      UseDccSrgb                  |
+                                      UseDccMultiSample2x         |
+                                      UseDccMultiSample4x         |
+                                      UseDccMultiSample8x         |
+                                      UseDccEqaa;
+        m_settings.useDcc = DccEnables;
+    }
+
     if (m_pDevice->PhysicalEnginesAvailable())
     {
         // prevent exhausting invisible video memory due to excessive physical alignment for small allocations

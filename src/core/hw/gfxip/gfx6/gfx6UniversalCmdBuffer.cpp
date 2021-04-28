@@ -567,6 +567,13 @@ void UniversalCmdBuffer::CmdBindPipeline(
         }
 
         m_vbTable.watermark = vbTableDwords;
+
+        // Changes to CB_TARGET_MASK due to colorWriteMask must be checked before the call to CmdBindPipeline because
+        // CmdBindPipeline does not always restore CB_TARGET_MASK, but it does always reset colorWriteMask
+        if (m_graphicsState.colorWriteMask != UINT_MAX)
+        {
+            m_graphicsState.dirtyFlags.validationBits.colorWriteMask = 1;
+        }
     }
 
     Pal::UniversalCmdBuffer::CmdBindPipeline(params);
@@ -3432,11 +3439,10 @@ uint32* UniversalCmdBuffer::ValidateDraw(
         }
     }
 
-    // Strictly speaking, colorWriteMaskOverride and paScModeCntl1 are not similar dirty bits as tracked in
-    // validationBits. However for best CPU performance in <PipelineDirty=false, StateDirty=false> path, manually
-    // make the two as part of StateDirty path as they are not frequently updated.
-    const bool stateDirty = ((m_graphicsState.dirtyFlags.validationBits.u16All |
-                              m_graphicsState.colorWriteMaskOverride.enable |
+    // Strictly speaking, paScModeCntl1 is not similar dirty bits as tracked in validationBits. However for best CPU
+    // performance in <PipelineDirty=false, StateDirty=false> path, manually make it as part of StateDirty path as
+    // it is not frequently updated.
+    const bool stateDirty = ((m_graphicsState.dirtyFlags.validationBits.u32All |
                               (m_drawTimeHwState.valid.paScModeCntl1 == 0)) != 0);
 
     if (stateDirty)
@@ -3471,7 +3477,7 @@ uint32* UniversalCmdBuffer::ValidateDraw(
     PAL_ASSERT(pPipeline != nullptr);
 
     // All of our dirty state will leak to the caller.
-    m_graphicsState.leakFlags.u32All |= m_graphicsState.dirtyFlags.u32All;
+    m_graphicsState.leakFlags.u64All |= m_graphicsState.dirtyFlags.u64All;
 
     if (pipelineDirty ||
         (stateDirty && (dirtyFlags.depthStencilState || dirtyFlags.msaaState)))
@@ -3632,13 +3638,10 @@ uint32* UniversalCmdBuffer::ValidateDraw(
         }
     }
 
-    // Always write the value of the over-ridden mask when the enable flag is set.
-    if ((pipelineDirty || stateDirty) && m_graphicsState.colorWriteMaskOverride.enable)
+    if (stateDirty && dirtyFlags.colorWriteMask)
     {
-        //Note that only overwrite target0's regWriteMask.
-        //Because this version currently only supports target0.
         regCB_TARGET_MASK updatedRegWriteMask = pPipeline->CbTargetMask();
-        updatedRegWriteMask.bitfields.TARGET0_ENABLE = m_graphicsState.colorWriteMaskOverride.writeMask;
+        updatedRegWriteMask.u32All &= m_graphicsState.colorWriteMask;
         pDeCmdSpace = m_deCmdStream.WriteSetOneContextReg(mmCB_TARGET_MASK,
                                                           updatedRegWriteMask.u32All,
                                                           pDeCmdSpace);
@@ -3661,7 +3664,7 @@ uint32* UniversalCmdBuffer::ValidateDraw(
                                             pDeCmdSpace);
 
     // Clear the dirty-state flags.
-    m_graphicsState.dirtyFlags.u32All = 0;
+    m_graphicsState.dirtyFlags.u64All = 0;
     m_graphicsState.pipelineState.dirtyFlags.u32All = 0;
 
     return pDeCmdSpace;
@@ -4598,22 +4601,12 @@ uint32* UniversalCmdBuffer::FlushStreamOut(
 void UniversalCmdBuffer::SetGraphicsState(
     const GraphicsState& newGraphicsState)
 {
-    // Restore the original value of CB_TARGET_MASK if the mask was overridden.
-    if (m_graphicsState.colorWriteMaskOverride.enable)
-    {
-        const auto*const pPipeline = static_cast<const GraphicsPipeline*>(m_graphicsState.pipelineState.pPipeline);
-        if (pPipeline != nullptr)
-        {
-            regCB_TARGET_MASK updatedRegWriteMask = pPipeline->CbTargetMask();
-            uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
-            pDeCmdSpace = m_deCmdStream.WriteSetOneContextReg(mmCB_TARGET_MASK,
-                                                              updatedRegWriteMask.u32All,
-                                                              pDeCmdSpace);
-            m_deCmdStream.CommitCommands(pDeCmdSpace);
-        }
-    }
-
     Pal::UniversalCmdBuffer::SetGraphicsState(newGraphicsState);
+
+    if (newGraphicsState.colorWriteMask != UINT_MAX)
+    {
+        m_graphicsState.dirtyFlags.validationBits.colorWriteMask = 1;
+    }
 
     // The target state that we would restore is invalid if this is a nested command buffer that inherits target
     // view state. The only allowed BLTs in a nested command buffer are CmdClearBoundColorTargets and
@@ -5331,7 +5324,8 @@ void UniversalCmdBuffer::CmdExecuteIndirectCmds(
             {
                 pDeCmdSpace = m_workaroundState.PostDraw(m_graphicsState, pDeCmdSpace);
 
-                if (gfx6Generator.Type() == GeneratorType::Draw)
+                if ((gfx6Generator.Type() == GeneratorType::Draw) ||
+                    (gfx6Generator.Type() == GeneratorType::DrawIndexed))
                 {
                     // Command generators which issue non-indexed draws generate DRAW_INDEX_AUTO packets, which will
                     // invalidate some of our draw-time HW state. SEE: CmdDraw() for more details.

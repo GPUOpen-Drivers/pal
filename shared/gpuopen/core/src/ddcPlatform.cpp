@@ -151,7 +151,7 @@ namespace DevDriver
             va_end(args);
 
             // Append a newline - This keeps consecutive messages clearly delimited.
-            Platform::Strcat(buffer.Data(), "\n", buffer.Size());
+            Platform::Strncat(buffer.Data(), "\n", buffer.Size());
 
             printf("[DevDriver] %s", buffer.Data());
 

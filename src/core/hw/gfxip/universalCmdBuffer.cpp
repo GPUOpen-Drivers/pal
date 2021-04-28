@@ -169,7 +169,7 @@ Result UniversalCmdBuffer::End()
     if (result == Result::Success)
     {
 
-        m_graphicsState.leakFlags.u32All |= m_graphicsState.dirtyFlags.u32All;
+        m_graphicsState.leakFlags.u64All |= m_graphicsState.dirtyFlags.u64All;
 
 #if PAL_ENABLE_PRINTS_ASSERTS
         if (IsDumpingEnabled() && DumpFile()->IsOpen())
@@ -278,6 +278,7 @@ void UniversalCmdBuffer::ResetState()
     }
 
     m_graphicsState.clipRectsState.clipRule = DefaultClipRectsRule;
+    m_graphicsState.colorWriteMask          = UINT_MAX;
 }
 
 // =====================================================================================================================
@@ -298,6 +299,7 @@ void UniversalCmdBuffer::CmdBindPipeline(
         m_graphicsState.dynamicGraphicsInfo      = params.graphics;
         m_graphicsState.pipelineState.pPipeline  = pPipeline;
         m_graphicsState.pipelineState.apiPsoHash = params.apiPsoHash;
+        m_graphicsState.colorWriteMask           = UINT_MAX;
         m_graphicsState.pipelineState.dirtyFlags.pipelineDirty = 1;
     }
 
@@ -533,13 +535,36 @@ void UniversalCmdBuffer::CmdOverwriteDisableViewportClampForBlits(
 }
 
 // =====================================================================================================================
-// Override the CB_TARGET_MASK.TARGET0_ENABLE bit at draw-time validation. It persists until the graphics
-// state is reset.
-void UniversalCmdBuffer::CmdOverrideColorWriteMaskForBlits(
-    uint8 disabledChannelMask)
+// Sets color write mask params
+void UniversalCmdBuffer::CmdSetColorWriteMask(
+    const ColorWriteMaskParams& params)
 {
-    m_graphicsState.colorWriteMaskOverride.enable = 1;
-    m_graphicsState.colorWriteMaskOverride.writeMask = ~disabledChannelMask;
+    const auto*const pPipeline = static_cast<const GraphicsPipeline*>(m_graphicsState.pipelineState.pPipeline);
+
+    if (pPipeline != nullptr)
+    {
+        uint32 updatedColorWriteMask      = 0;
+        const uint8*const targetWriteMask = pPipeline->TargetWriteMasks();
+        const uint32 maskShift            = 0x4;
+
+        for (uint32 i = 0; i < pPipeline->NumColorTargets(); ++i)
+        {
+            if (i < params.count)
+            {
+                // The new color write mask must be a subset of the currently bound pipeline's color write mask.  Use
+                // bitwise & to clear any bits not set in the pipeline's original mask.
+                updatedColorWriteMask |= (params.colorWriteMask[i] & targetWriteMask[i]) << (i * maskShift);
+            }
+            else
+            {
+                // Enable any targets of the pipeline that are not specified in params.
+                updatedColorWriteMask |= targetWriteMask[i] << (i * maskShift);
+            }
+        }
+
+        m_graphicsState.colorWriteMask = updatedColorWriteMask;
+        m_graphicsState.dirtyFlags.validationBits.colorWriteMask = 1;
+    }
 }
 
 #if PAL_ENABLE_PRINTS_ASSERTS
@@ -601,11 +626,6 @@ void UniversalCmdBuffer::PopGraphicsState()
     m_graphicsState.depthClampOverride.enabled              = 0;
     m_graphicsState.depthClampOverride.disableViewportClamp = 0;
 
-    // This is expected to hold if the override is only used by RPM.
-    PAL_ASSERT(m_graphicsRestoreState.colorWriteMaskOverride.enable == 0);
-    m_graphicsState.colorWriteMaskOverride.enable    = 0;
-    m_graphicsState.colorWriteMaskOverride.writeMask = 0;
-
     // All RMP GFX Blts should push/pop command buffer's graphics state,
     // so this is a safe opprotunity to mark that a GFX Blt is active
     SetGfxCmdBufGfxBltState(true);
@@ -646,6 +666,8 @@ void UniversalCmdBuffer::SetGraphicsState(
     {
         m_graphicsState.gfxUserDataEntries.dirty[i] |= newGraphicsState.gfxUserDataEntries.touched[i];
     }
+
+    m_graphicsState.colorWriteMask = newGraphicsState.colorWriteMask;
 }
 
 // =====================================================================================================================
@@ -793,7 +815,7 @@ void UniversalCmdBuffer::LeakNestedCmdBufferState(
 
     m_graphicsState.viewInstanceMask = graphics.viewInstanceMask;
 
-    m_graphicsState.dirtyFlags.u32All |= graphics.leakFlags.u32All;
+    m_graphicsState.dirtyFlags.u64All |= graphics.leakFlags.u64All;
 
     memcpy(&m_blendOpts[0], &cmdBuffer.m_blendOpts[0], sizeof(m_blendOpts));
 

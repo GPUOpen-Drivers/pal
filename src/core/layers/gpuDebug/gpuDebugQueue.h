@@ -39,15 +39,7 @@ namespace GpuDebug
 class CmdBuffer;
 class Device;
 
-struct NextSubmitCmdBuf
-{
-    TargetCmdBuffer*  pTgtCmdBuffer;
-    const CmdBufInfo* pCmdBufInfo;
-};
-
 typedef Util::Deque<TargetCmdBuffer*, Platform> CmdBufDeque;
-typedef Util::Deque<NextSubmitCmdBuf, Platform> NextSubmitCmdBufDeque;
-typedef Util::Deque<TargetCmdBuffer*, Platform> BusyCmdBufDeque;
 
 // This struct tracks per subQueue info when we do gang submission.
 struct SubQueueInfo
@@ -60,10 +52,14 @@ struct SubQueueInfo
     //   1. CmdBuffers that are available (not-busy) for use in the next submit.
     //   2. CmdBuffers that are tracked as part of the next submit. These CmdBuffers are moved to the busy list once
     //      the submit is done.
-    //   3. CmdBuffers that are may be executing on the GPU.
-    CmdBufDeque*           pAvailableCmdBufs;
-    NextSubmitCmdBufDeque* pNextSubmitCmdBufs;
-    BusyCmdBufDeque*       pBusyCmdBufs;
+    //   3. CmdBuffers that may be executing on the GPU.
+    CmdBufDeque* pAvailableCmdBufs;
+    CmdBufDeque* pNextSubmitCmdBufs;
+    CmdBufDeque* pBusyCmdBufs;
+
+    CmdBufDeque* pAvailableNestedCmdBufs;
+    CmdBufDeque* pNextSubmitNestedCmdBufs;
+    CmdBufDeque* pBusyNestedCmdBufs;
 };
 
 // =====================================================================================================================
@@ -78,7 +74,7 @@ public:
 
     // Acquire methods return corresponding objects for use by a command buffer being replayed from reusable pools
     // managed by the Queue.
-    TargetCmdBuffer* AcquireCmdBuf(const CmdBufInfo* pCmdBufInfo, uint32 subQueueIdx);
+    TargetCmdBuffer* AcquireCmdBuf(const CmdBufInfo* pCmdBufInfo, uint32 subQueueIdx, bool nested);
 
     // Public IQueue interface methods:
     virtual Result Submit(
@@ -109,6 +105,7 @@ private:
         size_t                 totalCmdBufferCount);
 
     Result InitCmdAllocator();
+    Result InitNestedCmdAllocator();
     Result InitCmdBuffers(
         const QueueCreateInfo* pCreateInfo);
     void AddRemapRange(
@@ -125,6 +122,7 @@ private:
 
     bool           m_timestampingActive;
     ICmdAllocator* m_pCmdAllocator;
+    ICmdAllocator* m_pNestedCmdAllocator;
     CmdBuffer**    m_ppCmdBuffer;
     IGpuMemory**   m_ppTimestamp;
 
@@ -136,6 +134,7 @@ private:
     {
         IFence* pFence;
         uint32* pCmdBufCount;
+        uint32* pNestedCmdBufCount;
     };
     Util::Deque<PendingSubmitInfo, Platform> m_pendingSubmits;
 

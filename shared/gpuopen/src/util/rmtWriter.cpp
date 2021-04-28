@@ -305,8 +305,8 @@ void RmtWriter::WriteDataChunkHeader(uint64 processId, uint64 threadId, size_t d
     RmtFileChunkRmtData chunkHeader = {};
     chunkHeader.header.chunkIdentifier.chunkType  = RMT_FILE_CHUNK_TYPE_RMT_DATA;
     chunkHeader.header.chunkIdentifier.chunkIndex = chunkIndex;
-    chunkHeader.header.versionMinor               = 1;
-    chunkHeader.header.versionMajor               = 0;
+    chunkHeader.header.versionMinor               = RMT_FILE_DATA_CHUNK_MAJOR_VERSION;
+    chunkHeader.header.versionMajor               = RMT_FILE_DATA_CHUNK_MINOR_VERSION;
     chunkHeader.header.sizeInBytes                = static_cast<int32>(dataSize) + sizeof(chunkHeader);
     chunkHeader.header.padding                    = 0;
     chunkHeader.processId                         = processId;

@@ -2575,7 +2575,7 @@ void RsrcProcMgr::GenerateMipmapsFast(
                     dstFormat.format = Formats::ConvertToUnorm(dstFormat.format);
                     PAL_ASSERT(Formats::IsUndefined(dstFormat.format) == false);
 
-                    PAL_NOT_IMPLEMENTED_MSG(
+                    PAL_NOT_IMPLEMENTED_MSG("%s",
                         "Gamma correction for sRGB image writes is not yet implemented in the mipgen shader.");
                 }
 
@@ -4825,7 +4825,10 @@ void RsrcProcMgr::SlowClearGraphics(
         if (pColor->disabledChannelMask != 0)
         {
             // Overwrite CbTargetMask for different writeMasks.
-            pCmdBuffer->CmdOverrideColorWriteMaskForBlits(pColor->disabledChannelMask);
+            ColorWriteMaskParams params = {};
+            params.count = 1;
+            params.colorWriteMask[0] = ~pColor->disabledChannelMask;
+            pCmdBuffer->CmdSetColorWriteMask(params);
         }
 #endif
         pCmdBuffer->CmdOverwriteRbPlusFormatForBlits(viewFormat, 0);

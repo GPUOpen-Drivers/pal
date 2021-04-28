@@ -32,12 +32,13 @@
 #ifndef __ADDR_INTERFACE_H__
 #define __ADDR_INTERFACE_H__
 
+// Includes should be before extern "C"
+#include "addrtypes.h"
+
 #if defined(__cplusplus)
 extern "C"
 {
 #endif
-
-#include "addrtypes.h"
 
 #define ADDRLIB_VERSION_MAJOR 6
 #define ADDRLIB_VERSION_MINOR 2
@@ -2270,17 +2271,17 @@ ADDR_E_RETURNCODE ADDR_API AddrComputeDccInfo(
 
 /**
 ****************************************************************************************************
-*   ADDR_GET_MAX_ALINGMENTS_OUTPUT
+*   ADDR_GET_MAX_ALIGNMENTS_OUTPUT
 *
 *   @brief
 *       Output structure of AddrGetMaxAlignments
 ****************************************************************************************************
 */
-typedef struct _ADDR_GET_MAX_ALINGMENTS_OUTPUT
+typedef struct ADDR_GET_MAX_ALINGMENTS_OUTPUT
 {
     UINT_32 size;                   ///< Size of this structure in bytes
     UINT_32 baseAlign;              ///< Maximum base alignment in bytes
-} ADDR_GET_MAX_ALINGMENTS_OUTPUT;
+} ADDR_GET_MAX_ALIGNMENTS_OUTPUT;
 
 /**
 ****************************************************************************************************
@@ -2292,7 +2293,7 @@ typedef struct _ADDR_GET_MAX_ALINGMENTS_OUTPUT
 */
 ADDR_E_RETURNCODE ADDR_API AddrGetMaxAlignments(
     ADDR_HANDLE                     hLib,
-    ADDR_GET_MAX_ALINGMENTS_OUTPUT* pOut);
+    ADDR_GET_MAX_ALIGNMENTS_OUTPUT* pOut);
 
 /**
 ****************************************************************************************************
@@ -2304,7 +2305,7 @@ ADDR_E_RETURNCODE ADDR_API AddrGetMaxAlignments(
 */
 ADDR_E_RETURNCODE ADDR_API AddrGetMaxMetaAlignments(
     ADDR_HANDLE                     hLib,
-    ADDR_GET_MAX_ALINGMENTS_OUTPUT* pOut);
+    ADDR_GET_MAX_ALIGNMENTS_OUTPUT* pOut);
 
 /**
 ****************************************************************************************************
@@ -3782,6 +3783,20 @@ ADDR_E_RETURNCODE ADDR_API Addr2GetPreferredSurfaceSetting(
     ADDR_HANDLE                                   hLib,
     const ADDR2_GET_PREFERRED_SURF_SETTING_INPUT* pIn,
     ADDR2_GET_PREFERRED_SURF_SETTING_OUTPUT*      pOut);
+
+/**
+****************************************************************************************************
+*   Addr2IsValidDisplaySwizzleMode
+*
+*   @brief
+*       Return whether the swizzle mode is supported by display engine
+****************************************************************************************************
+*/
+ADDR_E_RETURNCODE ADDR_API Addr2IsValidDisplaySwizzleMode(
+    ADDR_HANDLE     hLib,
+    AddrSwizzleMode swizzleMode,
+    UINT_32         bpp,
+    BOOL_32         *pResult);
 
 #if defined(__cplusplus)
 }

@@ -131,7 +131,8 @@ ifeq ($(PLATFORM_FLAVOR), win)
         # WA: Support both of these flags until we fully remove GPUOPEN_UWP_SUPPORT
         LCXXDEFS += -DGPUOPEN_UWP_SUPPORT=1
         LCXXDEFS += -DDD_ENABLE_UWP_TRANSPORT=1
-        LCXXINCS += -I$(DEVDRIVER_DEPTH)/message/inc
+        LCXXINCS += -I$(DEVDRIVER_DEPTH)/message/inc  \
+                    -I$(DEVDRIVER_DEPTH)/message/src
 
         ifeq ($(GPUOPEN_USE_MESSAGE_LIB),)
             # Build local message support as well
@@ -140,6 +141,7 @@ ifeq ($(PLATFORM_FLAVOR), win)
 
             vpath %.cpp $(DEVDRIVER_DEPTH)/message/src
             CPPFILES += kmdEscapeProxy.cpp      \
+                        escape.cpp              \
                         message.cpp             \
                         localMsgTransport.cpp
 

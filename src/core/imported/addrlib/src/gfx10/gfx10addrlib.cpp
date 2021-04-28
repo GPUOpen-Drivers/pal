@@ -124,6 +124,8 @@ const Dim3d Gfx10Lib::Block4K_Log2_3d[]  = {{4, 4, 4}, {3, 4, 4}, {3, 4, 3}, {3,
 Gfx10Lib::Gfx10Lib(const Client* pClient)
     :
     Lib(pClient),
+    m_numPkrLog2(0),
+    m_numSaLog2(0),
     m_colorBaseIndex(0),
     m_xmaskBaseIndex(0),
     m_dccBaseIndex(0)
@@ -783,8 +785,8 @@ VOID Gfx10Lib::HwlComputeDccAddrFromCoord(
 BOOL_32 Gfx10Lib::HwlInitGlobalParams(
     const ADDR_CREATE_INPUT* pCreateIn) ///< [in] create input
 {
-    BOOL_32        valid = TRUE;
-    GB_ADDR_CONFIG gbAddrConfig;
+    BOOL_32              valid = TRUE;
+    GB_ADDR_CONFIG_GFX10 gbAddrConfig;
 
     gbAddrConfig.u32All = pCreateIn->regValue.gbAddrConfig;
 

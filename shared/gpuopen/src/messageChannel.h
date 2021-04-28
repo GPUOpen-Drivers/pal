@@ -73,6 +73,8 @@ namespace DevDriver
         void Unregister() override final;
         bool IsConnected() override final;
 
+        void SetBusEventCallback(const BusEventCallback& callback) override final;
+
         Result SetStatusFlags(StatusFlags flags) override final;
         StatusFlags GetStatusFlags() const override final;
 
@@ -255,6 +257,8 @@ namespace DevDriver
         URIProtocol::URIServer*           m_pURIServer;
         ClientURIService                  m_clientURIService;
         InfoURIService::InfoService       m_infoService;
+        Platform::AtomicLock              m_busEventLock;
+        BusEventCallback                  m_busEventCb;
     };
 
 } // DevDriver

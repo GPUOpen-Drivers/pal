@@ -430,7 +430,11 @@ void CmdStream::Reset(
 
     ResetNestedChunks();
 
-    if (returnGpuMemory)
+    if (m_pDevice->Settings().cmdAllocatorFreeOnReset)
+    {
+        m_retainedChunkList.Clear();
+    }
+    else if (returnGpuMemory)
     {
         // The client requested that we return all chunks, add any remaining retained chunks to the chunk list so they
         // can be returned to the allocator with the rest.
@@ -442,7 +446,7 @@ void CmdStream::Reset(
         }
 
         // Return all remaining chunks to the command allocator.
-        if (m_chunkList.IsEmpty() == false)
+        if ((m_chunkList.IsEmpty() == false) && m_pCmdAllocator->AutomaticMemoryReuse())
         {
             for (auto iter = m_chunkList.Begin(); iter.IsValid(); iter.Next())
             {

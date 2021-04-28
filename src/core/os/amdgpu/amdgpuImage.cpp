@@ -538,6 +538,8 @@ Result Image::CreateExternalSharedImage(
                 pUmdSharedMetadata->flags.has_eq_gpu_access;
             internalCreateInfo.sharedMetadata.flags.hasHtileLookupTable =
                 pUmdSharedMetadata->flags.has_htile_lookup_table;
+            internalCreateInfo.sharedMetadata.flags.htileHasDsMetadata =
+                pUmdSharedMetadata->flags.htile_has_ds_metadata;
 
             internalCreateInfo.sharedMetadata.fastClearMetaDataOffset[0] =
                 pUmdSharedMetadata->fast_clear_value_offset;

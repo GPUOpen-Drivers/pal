@@ -107,6 +107,7 @@ enum class InterfaceFunc : uint32
     CmdBufferCmdSetViewports,
     CmdBufferCmdSetScissorRects,
     CmdBufferCmdSetGlobalScissor,
+    CmdBufferCmdSetColorWriteMask,
     CmdBufferCmdBarrier,
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
     CmdBufferCmdRelease,
@@ -499,6 +500,7 @@ public:
     void Struct(const FullScreenFrameMetadataControlFlags& value);
     void Struct(const GammaRamp& value);
     void Struct(const GlobalScissorParams& value);
+    void Struct(const ColorWriteMaskParams& value);
     void Struct(const GpuEventCreateInfo& value);
     void Struct(GpuMemoryCreateFlags value);
     void Struct(const GpuMemoryCreateInfo& value);

@@ -69,6 +69,9 @@ namespace DevDriver
         class HashBase
     {
     public:
+        /// Returns the internal allocator
+        const AllocCb& GetAllocCb() const { return m_allocCb; }
+
         /// Returns number of entries in the container.
         size_t Size() const { return m_numEntries; }
 
@@ -579,6 +582,7 @@ namespace DevDriver
         }
 
         DD_STATIC_CONST size_t kPaddedNumBuckets = Platform::ConstPow2Pad(NumBuckets);
+
     private:
         struct Bucket;
         struct Footer

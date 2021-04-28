@@ -861,6 +861,22 @@ void CmdBuffer::ReplayCmdSetGlobalScissor(
 }
 
 // =====================================================================================================================
+void CmdBuffer::CmdSetColorWriteMask(
+    const ColorWriteMaskParams& params)
+{
+    InsertToken(CmdBufCallId::CmdSetColorWriteMask);
+    InsertToken(params);
+}
+
+// =====================================================================================================================
+void CmdBuffer::ReplayCmdSetColorWriteMask(
+    Queue*           pQueue,
+    TargetCmdBuffer* pTgtCmdBuffer)
+{
+    pTgtCmdBuffer->CmdSetColorWriteMask(ReadTokenVal<ColorWriteMaskParams>());
+}
+
+// =====================================================================================================================
 void CmdBuffer::CmdBarrier(
     const BarrierInfo& barrierInfo)
 {
@@ -3274,7 +3290,7 @@ void CmdBuffer::ReplayCmdExecuteNestedCmdBuffers(
         for (uint32 i = 0; i < cmdBufferCount; i++)
         {
             auto*const pNestedCmdBuffer    = static_cast<CmdBuffer*>(ppCmdBuffers[i]);
-            auto*const pNestedTgtCmdBuffer = pQueue->AcquireNestedCmdBuf(pTgtCmdBuffer->GetSubQueueIdx());
+            auto*const pNestedTgtCmdBuffer = pQueue->AcquireCmdBuf(pTgtCmdBuffer->GetSubQueueIdx(), true);
             tgtCmdBuffers[i]               = pNestedTgtCmdBuffer;
             pNestedCmdBuffer->Replay(pQueue, pNestedTgtCmdBuffer, m_curLogFrame);
         }
@@ -3868,6 +3884,7 @@ Result CmdBuffer::Replay(
         &CmdBuffer::ReplayCmdSetViewports,
         &CmdBuffer::ReplayCmdSetScissorRects,
         &CmdBuffer::ReplayCmdSetGlobalScissor,
+        &CmdBuffer::ReplayCmdSetColorWriteMask,
         &CmdBuffer::ReplayCmdBarrier,
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
         &CmdBuffer::ReplayCmdRelease,

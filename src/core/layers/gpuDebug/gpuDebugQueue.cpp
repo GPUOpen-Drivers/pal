@@ -57,6 +57,7 @@ Queue::Queue(
     m_pQueueInfos(nullptr),
     m_timestampingActive(pDevice->GetPlatform()->PlatformSettings().gpuDebugConfig.singleStep != 0),
     m_pCmdAllocator(nullptr),
+    m_pNestedCmdAllocator(nullptr),
     m_ppCmdBuffer(nullptr),
     m_ppTimestamp(nullptr),
     m_pendingSubmits(static_cast<Platform*>(pDevice->GetPlatform())),
@@ -78,17 +79,23 @@ Result Queue::Init(
 
     for (uint32 i = 0; (result == Result::Success) && (i < m_queueCount); i++)
     {
-        m_pQueueInfos[i].engineType         = pCreateInfo[i].engineType;
-        m_pQueueInfos[i].engineIndex        = pCreateInfo[i].engineIndex;
-        m_pQueueInfos[i].queueType          = pCreateInfo[i].queueType;
-        m_pQueueInfos[i].commentsSupported  = Device::SupportsCommentString(pCreateInfo[i].queueType);
-        m_pQueueInfos[i].pAvailableCmdBufs  = PAL_NEW(CmdBufDeque,           pPlatform, AllocInternal)(pPlatform);
-        m_pQueueInfos[i].pNextSubmitCmdBufs = PAL_NEW(NextSubmitCmdBufDeque, pPlatform, AllocInternal)(pPlatform);
-        m_pQueueInfos[i].pBusyCmdBufs       = PAL_NEW(BusyCmdBufDeque,       pPlatform, AllocInternal)(pPlatform);
+        m_pQueueInfos[i].engineType               = pCreateInfo[i].engineType;
+        m_pQueueInfos[i].engineIndex              = pCreateInfo[i].engineIndex;
+        m_pQueueInfos[i].queueType                = pCreateInfo[i].queueType;
+        m_pQueueInfos[i].commentsSupported        = Device::SupportsCommentString(pCreateInfo[i].queueType);
+        m_pQueueInfos[i].pAvailableCmdBufs        = PAL_NEW(CmdBufDeque, pPlatform, AllocInternal)(pPlatform);
+        m_pQueueInfos[i].pNextSubmitCmdBufs       = PAL_NEW(CmdBufDeque, pPlatform, AllocInternal)(pPlatform);
+        m_pQueueInfos[i].pBusyCmdBufs             = PAL_NEW(CmdBufDeque, pPlatform, AllocInternal)(pPlatform);
+        m_pQueueInfos[i].pAvailableNestedCmdBufs  = PAL_NEW(CmdBufDeque, pPlatform, AllocInternal)(pPlatform);
+        m_pQueueInfos[i].pNextSubmitNestedCmdBufs = PAL_NEW(CmdBufDeque, pPlatform, AllocInternal)(pPlatform);
+        m_pQueueInfos[i].pBusyNestedCmdBufs       = PAL_NEW(CmdBufDeque, pPlatform, AllocInternal)(pPlatform);
 
-        if ((m_pQueueInfos[i].pAvailableCmdBufs  == nullptr) ||
-            (m_pQueueInfos[i].pNextSubmitCmdBufs == nullptr) ||
-            (m_pQueueInfos[i].pBusyCmdBufs       == nullptr))
+        if ((m_pQueueInfos[i].pAvailableCmdBufs        == nullptr) ||
+            (m_pQueueInfos[i].pNextSubmitCmdBufs       == nullptr) ||
+            (m_pQueueInfos[i].pBusyCmdBufs             == nullptr) ||
+            (m_pQueueInfos[i].pAvailableNestedCmdBufs  == nullptr) ||
+            (m_pQueueInfos[i].pNextSubmitNestedCmdBufs == nullptr) ||
+            (m_pQueueInfos[i].pBusyNestedCmdBufs       == nullptr))
         {
             result = Result::ErrorOutOfMemory;
         }
@@ -102,6 +109,11 @@ Result Queue::Init(
     if (result == Result::Success)
     {
         result = InitCmdAllocator();
+    }
+
+    if (result == Result::Success)
+    {
+        result = InitNestedCmdAllocator();
     }
 
     if ((result == Result::Success) && m_timestampingActive)
@@ -189,8 +201,9 @@ Result Queue::InitCmdAllocator()
     constexpr uint32 SuballocSize   = (64 * 1024);
 
     CmdAllocatorCreateInfo createInfo = { };
-    createInfo.flags.threadSafe      = 1;
-    createInfo.flags.autoMemoryReuse = 1;
+    createInfo.flags.threadSafe               = 1;
+    createInfo.flags.autoMemoryReuse          = 1;
+    createInfo.flags.disableBusyChunkTracking = 1;
     createInfo.allocInfo[CommandDataAlloc].allocHeap      = GpuHeapGartCacheable;
     createInfo.allocInfo[CommandDataAlloc].suballocSize   = SuballocSize;
     createInfo.allocInfo[CommandDataAlloc].allocSize      = AllocSize;
@@ -201,19 +214,62 @@ Result Queue::InitCmdAllocator()
     createInfo.allocInfo[GpuScratchMemAlloc].suballocSize = SuballocSize;
     createInfo.allocInfo[GpuScratchMemAlloc].allocSize    = AllocSize;
 
+    Result result = Result::Success;
+
     m_pCmdAllocator =
-        static_cast<ICmdAllocator*>(PAL_MALLOC(m_pDevice->GetCmdAllocatorSize(createInfo, nullptr),
+        static_cast<ICmdAllocator*>(PAL_MALLOC(m_pDevice->GetCmdAllocatorSize(createInfo, &result),
                                                pPlatform,
                                                AllocInternal));
 
-    Result result = Result::ErrorOutOfMemory;
-    if (m_pCmdAllocator != nullptr)
+    if ((result == Result::Success) && (m_pCmdAllocator != nullptr))
     {
         result = m_pDevice->CreateCmdAllocator(createInfo, m_pCmdAllocator, &m_pCmdAllocator);
 
         if (result != Result::Success)
         {
             PAL_SAFE_FREE(m_pCmdAllocator, pPlatform);
+        }
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
+Result Queue::InitNestedCmdAllocator()
+{
+    Platform* pPlatform = static_cast<Platform*>(m_pDevice->GetPlatform());
+
+    CmdAllocatorCreateInfo createInfo = { };
+    createInfo.flags.threadSafe               = 1;
+    createInfo.flags.autoMemoryReuse          = 1;
+    createInfo.flags.disableBusyChunkTracking = 1;
+    // All nested allocations are set the the minimum size (4KB) because applications that submit hundreds of nested
+    // command buffers can potentially exhaust the GPU VA range by simply playing back too many nested command buffers.
+    // This will have a small performance impact on large nested command buffers but we have little choice for now.
+    createInfo.allocInfo[CommandDataAlloc].allocHeap      = GpuHeapGartUswc;
+    createInfo.allocInfo[CommandDataAlloc].allocSize      = 4 * 1024;
+    createInfo.allocInfo[CommandDataAlloc].suballocSize   = 4 * 1024;
+    createInfo.allocInfo[EmbeddedDataAlloc].allocHeap     = GpuHeapGartUswc;
+    createInfo.allocInfo[EmbeddedDataAlloc].allocSize     = 4 * 1024;
+    createInfo.allocInfo[EmbeddedDataAlloc].suballocSize  = 4 * 1024;
+    createInfo.allocInfo[GpuScratchMemAlloc].allocHeap    = GpuHeapGartUswc;
+    createInfo.allocInfo[GpuScratchMemAlloc].allocSize    = 4 * 1024;
+    createInfo.allocInfo[GpuScratchMemAlloc].suballocSize = 4 * 1024;
+
+    Result result = Result::Success;
+
+    m_pNestedCmdAllocator =
+        static_cast<ICmdAllocator*>(PAL_MALLOC(m_pDevice->GetCmdAllocatorSize(createInfo, &result),
+                                               pPlatform,
+                                               AllocInternal));
+
+    if ((result == Result::Success) && (m_pNestedCmdAllocator != nullptr))
+    {
+        result = m_pDevice->CreateCmdAllocator(createInfo, m_pNestedCmdAllocator, &m_pNestedCmdAllocator);
+
+        if (result != Result::Success)
+        {
+            PAL_SAFE_FREE(m_pNestedCmdAllocator, pPlatform);
         }
     }
 
@@ -294,28 +350,40 @@ Result Queue::InitCmdBuffers(
 // managed by the Queue.
 TargetCmdBuffer* Queue::AcquireCmdBuf(
     const CmdBufInfo* pCmdBufInfo,
-    uint32            subQueueIdx)
+    uint32            subQueueIdx,
+    bool              nested)
 {
+    const SubQueueInfo& subQueueInfo = m_pQueueInfos[subQueueIdx];
+
+    CmdBufDeque* pAvailable  = nested ? subQueueInfo.pAvailableNestedCmdBufs  : subQueueInfo.pAvailableCmdBufs;
+    CmdBufDeque* pNextSubmit = nested ? subQueueInfo.pNextSubmitNestedCmdBufs : subQueueInfo.pNextSubmitCmdBufs;
+
     TargetCmdBuffer* pCmdBuffer = nullptr;
 
-    if (m_pQueueInfos[subQueueIdx].pAvailableCmdBufs->NumElements() > 0)
+    if (pAvailable->NumElements() > 0)
     {
         // Use an idle command buffer from the pool if available.
-        m_pQueueInfos[subQueueIdx].pAvailableCmdBufs->PopFront(&pCmdBuffer);
+        pAvailable->PopFront(&pCmdBuffer);
+
+        // Check if the per-acquire state has been reset.
+        PAL_ASSERT((pCmdBuffer->GetNestedCmdBufCount() == 0)        &&
+                   (pCmdBuffer->GetSubQueueIdx() == BadSubQueueIdx) &&
+                   (pCmdBuffer->GetCmdBufInfo() == nullptr));
     }
     else
     {
         // No command buffers are currently idle (or possibly none exist at all) - allocate a new command buffer.  Note
-        // that we create a GpuProfiler::TargetCmdBuffer here, not a GpuProfiler::CmdBuffer which would just record our
+        // that we create a GpuDebug::TargetCmdBuffer here, not a GpuDebug::CmdBuffer which would just record our
         // commands again!
         CmdBufferCreateInfo createInfo = { };
-        createInfo.pCmdAllocator = m_pCmdAllocator;
-        createInfo.queueType     = m_pQueueInfos[subQueueIdx].queueType;
-        createInfo.engineType    = m_pQueueInfos[subQueueIdx].engineType;
+        createInfo.pCmdAllocator = nested ? m_pNestedCmdAllocator : m_pCmdAllocator;
+        createInfo.queueType     = subQueueInfo.queueType;
+        createInfo.engineType    = subQueueInfo.engineType;
+        createInfo.flags.nested  = nested;
 
         void* pMemory = PAL_MALLOC(m_pDevice->GetTargetCmdBufferSize(createInfo, nullptr),
-            m_pDevice->GetPlatform(),
-            AllocInternal);
+                                   m_pDevice->GetPlatform(),
+                                   AllocInternal);
 
         if (pMemory != nullptr)
         {
@@ -328,16 +396,15 @@ TargetCmdBuffer* Queue::AcquireCmdBuf(
         }
     }
 
-    // We always submit command buffers in the order they are acquired, so we can go ahead and add this to the busy
-    // queue immediately.
     PAL_ASSERT(pCmdBuffer != nullptr);
-    NextSubmitCmdBuf nextSubmitCmdBuf = {};
-    nextSubmitCmdBuf.pCmdBufInfo      = pCmdBufInfo;
-    nextSubmitCmdBuf.pTgtCmdBuffer    = pCmdBuffer;
-    m_pQueueInfos[subQueueIdx].pNextSubmitCmdBufs->PushBack(nextSubmitCmdBuf);
 
-    Result result = pCmdBuffer->Reset(nullptr, true);
-    PAL_ASSERT(result == Result::Success);
+    // Set per-acquire state.
+    pCmdBuffer->SetCmdBufInfo(pCmdBufInfo);
+    pCmdBuffer->SetSubQueueIdx(subQueueIdx);
+
+    // We always submit command buffers in the order they are acquired, so we can go ahead and add this to the next
+    // submit queue immediately.
+    pNextSubmit->PushBack(pCmdBuffer);
 
     return pCmdBuffer;
 }
@@ -391,6 +458,8 @@ void Queue::Destroy()
     {
         PAL_ASSERT(m_pQueueInfos[qIdx].pBusyCmdBufs->NumElements() == 0);
         PAL_ASSERT(m_pQueueInfos[qIdx].pNextSubmitCmdBufs->NumElements() == 0);
+        PAL_ASSERT(m_pQueueInfos[qIdx].pBusyNestedCmdBufs->NumElements() == 0);
+        PAL_ASSERT(m_pQueueInfos[qIdx].pNextSubmitNestedCmdBufs->NumElements() == 0);
 
         while (m_pQueueInfos[qIdx].pAvailableCmdBufs->NumElements() > 0)
         {
@@ -401,9 +470,21 @@ void Queue::Destroy()
             PAL_SAFE_FREE(pCmdBuf, m_pDevice->GetPlatform());
         }
 
-        PAL_SAFE_DELETE(m_pQueueInfos[qIdx].pAvailableCmdBufs,  pPlatform);
-        PAL_SAFE_DELETE(m_pQueueInfos[qIdx].pBusyCmdBufs,       pPlatform);
-        PAL_SAFE_DELETE(m_pQueueInfos[qIdx].pNextSubmitCmdBufs, pPlatform);
+        while (m_pQueueInfos[qIdx].pAvailableNestedCmdBufs->NumElements() > 0)
+        {
+            TargetCmdBuffer* pCmdBuf = nullptr;
+            m_pQueueInfos[qIdx].pAvailableNestedCmdBufs->PopFront(&pCmdBuf);
+
+            pCmdBuf->Destroy();
+            PAL_SAFE_FREE(pCmdBuf, m_pDevice->GetPlatform());
+        }
+
+        PAL_SAFE_DELETE(m_pQueueInfos[qIdx].pAvailableCmdBufs,        pPlatform);
+        PAL_SAFE_DELETE(m_pQueueInfos[qIdx].pBusyCmdBufs,             pPlatform);
+        PAL_SAFE_DELETE(m_pQueueInfos[qIdx].pNextSubmitCmdBufs,       pPlatform);
+        PAL_SAFE_DELETE(m_pQueueInfos[qIdx].pAvailableNestedCmdBufs,  pPlatform);
+        PAL_SAFE_DELETE(m_pQueueInfos[qIdx].pBusyNestedCmdBufs,       pPlatform);
+        PAL_SAFE_DELETE(m_pQueueInfos[qIdx].pNextSubmitNestedCmdBufs, pPlatform);
     }
     PAL_SAFE_DELETE_ARRAY(m_pQueueInfos, pPlatform);
 
@@ -437,6 +518,12 @@ void Queue::Destroy()
     {
         m_pCmdAllocator->Destroy();
         PAL_SAFE_FREE(m_pCmdAllocator, pPlatform);
+    }
+
+    if (m_pNestedCmdAllocator != nullptr)
+    {
+        m_pNestedCmdAllocator->Destroy();
+        PAL_SAFE_FREE(m_pNestedCmdAllocator, pPlatform);
     }
 
     while (m_availableFences.NumElements() > 0)
@@ -502,7 +589,7 @@ Result Queue::Submit(
                 CmdBuffer*        pCmdBuffer  = static_cast<CmdBuffer*>(subQueueInfo.ppCmdBuffers[cmdBufIdx]);
                 const CmdBufInfo* pCmdBufInfo =
                     (subQueueInfo.pCmdBufInfoList != nullptr) ? &subQueueInfo.pCmdBufInfoList[cmdBufIdx] : nullptr;
-                result = pCmdBuffer->Replay(this, pCmdBufInfo, subQueueIdx);
+                result = pCmdBuffer->Replay(this, pCmdBufInfo, subQueueIdx, nullptr);
 
                 const uint32 sufaceCaptureMemCount = pCmdBuffer->GetSurfaceCaptureGpuMemCount();
                 if (sufaceCaptureMemCount > 0)
@@ -697,6 +784,17 @@ Result Queue::SubmitAll(
         memset(pendingInfo.pCmdBufCount, 0, sizeof(uint32) * m_queueCount);
     }
 
+    if (result == Result::Success)
+    {
+        pendingInfo.pNestedCmdBufCount = PAL_NEW_ARRAY(uint32, m_queueCount, pPlatform, AllocInternal);
+        result = (pendingInfo.pNestedCmdBufCount != nullptr) ? Result::Success : Result::ErrorOutOfMemory;
+    }
+
+    if (result == Result::Success)
+    {
+        memset(pendingInfo.pNestedCmdBufCount, 0, sizeof(uint32) * m_queueCount);
+    }
+
     MultiSubmitInfo newSubmitInfo      = submitInfo;
     newSubmitInfo.perSubQueueInfoCount = 0;
     newSubmitInfo.pPerSubQueueInfo     = pPerSubQueueInfos;
@@ -735,24 +833,56 @@ Result Queue::SubmitAll(
 
         while ((result == Result::Success) && (subQueueInfo.pNextSubmitCmdBufs->NumElements() > 0))
         {
-            NextSubmitCmdBuf front = {};
-            result = subQueueInfo.pNextSubmitCmdBufs->PopFront(&front);
+            TargetCmdBuffer* pCmdBuffer = nullptr;
+            result = subQueueInfo.pNextSubmitCmdBufs->PopFront(&pCmdBuffer);
 
             if (result == Result::Success)
             {
-                ppCmdBuffers[newCmdBufIdx++] = front.pTgtCmdBuffer;
+                ppCmdBuffers[newCmdBufIdx++] = pCmdBuffer;
                 if (containsCmdBufInfo)
                 {
-                    pCmdBufInfos[newCmdBufInfoIdx++] =
-                        (front.pCmdBufInfo != nullptr) ? (*front.pCmdBufInfo) : CmdBufInfo{};
+                    pCmdBufInfos[newCmdBufInfoIdx++] = (pCmdBuffer->GetCmdBufInfo() != nullptr) ?
+                                                        (*pCmdBuffer->GetCmdBufInfo()) : CmdBufInfo{};
                 }
 
                 // Add it to the list of busy command buffers for tracking.
-                subQueueInfo.pBusyCmdBufs->PushBack(front.pTgtCmdBuffer);
+                subQueueInfo.pBusyCmdBufs->PushBack(pCmdBuffer);
 
                 pendingInfo.pCmdBufCount[subQueueIdx]++;
             }
+
+            // Add the current CmdBuffer's tracked nested CmdBuffers to the nested CmdBuffer busy list.
+            const uint32 currentCmdBufferNestedCount =
+                (pCmdBuffer != nullptr) ? pCmdBuffer->GetNestedCmdBufCount() : 0;
+
+            // All of the CmdBuffers' nested CmdBuffers are tracked in pNextSubmitNestedCmdBufs - we're only
+            // interested in those tracked by the current command buffer.
+
+            // We're using a for loop here because we need to only pull as many items off of the
+            // pNextSubmitNestedCmdBufs list as there are currently tracked in the current CmdBuffer.
+            for (uint32 nestedCount = 0; (nestedCount < currentCmdBufferNestedCount); ++nestedCount)
+            {
+                TargetCmdBuffer* pNextNestedCmdBuffer = nullptr;
+                result = subQueueInfo.pNextSubmitNestedCmdBufs->PopFront(&pNextNestedCmdBuffer);
+                if (result == Result::Success)
+                {
+                    // Add it to the list of busy nested command buffers for tracking.
+                    subQueueInfo.pBusyNestedCmdBufs->PushBack(pNextNestedCmdBuffer);
+
+                    pendingInfo.pNestedCmdBufCount[subQueueIdx]++;
+                }
+                else
+                {
+                    // If popping a command buffer off of the "next submit" deque fails then there is probably
+                    // an issue with how primary command buffers track nested executes.
+                    PAL_ASSERT_ALWAYS();
+                    break;
+                }
+            }
         }
+
+        // All nested command buffers should have been tracked as busy with their parents.
+        PAL_ASSERT(subQueueInfo.pNextSubmitNestedCmdBufs->NumElements() == 0);
 
         newSubmitInfo.perSubQueueInfoCount++;
     }
@@ -802,6 +932,12 @@ Result Queue::SubmitSplit(
     Result          result          = Result::Success;
     MultiSubmitInfo splitSubmitInfo = submitInfo;
 
+    const uint32 fenceCount = submitInfo.fenceCount;
+    IFence**     ppFences   = submitInfo.ppFences;
+
+    splitSubmitInfo.fenceCount = 0;
+    splitSubmitInfo.ppFences   = nullptr;
+
     const auto& subQueueInfo       = m_pQueueInfos[0];
     const auto& oldPerSubmitInfo   = submitInfo.pPerSubQueueInfo[0];
     const bool  containsCmdBufInfo = (oldPerSubmitInfo.pCmdBufInfoList != nullptr);
@@ -845,32 +981,79 @@ Result Queue::SubmitSplit(
             memset(pendingInfo.pCmdBufCount, 0, sizeof(uint32) * m_queueCount);
         }
 
+        if (result == Result::Success)
+        {
+            pendingInfo.pNestedCmdBufCount = PAL_NEW_ARRAY(uint32, m_queueCount, pPlatform, AllocInternal);
+            result = (pendingInfo.pNestedCmdBufCount != nullptr) ? Result::Success : Result::ErrorOutOfMemory;
+        }
+
+        if (result == Result::Success)
+        {
+            memset(pendingInfo.pNestedCmdBufCount, 0, sizeof(uint32) * m_queueCount);
+        }
+
         for (uint32 cmdBufIdx = 0;
             ((result == Result::Success) &&
                 (cmdBufIdx < m_submitOnActionCount) &&
                 (subQueueInfo.pNextSubmitCmdBufs->NumElements() > 0));
             cmdBufIdx++)
         {
-            NextSubmitCmdBuf front = {};
-            result = subQueueInfo.pNextSubmitCmdBufs->PopFront(&front);
+            TargetCmdBuffer* pCmdBuffer = nullptr;
+            result = subQueueInfo.pNextSubmitCmdBufs->PopFront(&pCmdBuffer);
 
             if (result == Result::Success)
             {
-                ppCmdBuffers[newCmdBufIdx++] = front.pTgtCmdBuffer;
+                ppCmdBuffers[newCmdBufIdx++] = pCmdBuffer;
                 if (containsCmdBufInfo)
                 {
-                    pCmdBufInfos[newCmdBufInfoIdx++] =
-                        (front.pCmdBufInfo != nullptr) ? (*front.pCmdBufInfo) : CmdBufInfo{};
+                    pCmdBufInfos[newCmdBufInfoIdx++] = (pCmdBuffer->GetCmdBufInfo() != nullptr) ?
+                                                        (*pCmdBuffer->GetCmdBufInfo()) : CmdBufInfo{};
                 }
 
                 // Add it to the list of busy command buffers for tracking.
-                subQueueInfo.pBusyCmdBufs->PushBack(front.pTgtCmdBuffer);
+                subQueueInfo.pBusyCmdBufs->PushBack(pCmdBuffer);
 
                 // Increment the number of command buffers for this submit.
                 perSubQueueSubmitInfo.cmdBufferCount++;
 
                 pendingInfo.pCmdBufCount[0]++;
             }
+
+            // Add the current CmdBuffer's tracked nested CmdBuffers to the nested CmdBuffer busy list.
+            const uint32 currentCmdBufferNestedCount =
+                (pCmdBuffer != nullptr) ? pCmdBuffer->GetNestedCmdBufCount() : 0;
+
+            // All of the CmdBuffers' nested CmdBuffers are tracked in pNextSubmitNestedCmdBufs - we're only
+            // interested in those tracked by the current command buffer.
+
+            // We're using a for loop here because we need to only pull as many items off of the
+            // pNextSubmitNestedCmdBufs list as there are currently tracked in the current CmdBuffer.
+            for (uint32 nestedCount = 0; (nestedCount < currentCmdBufferNestedCount); ++nestedCount)
+            {
+                TargetCmdBuffer* pNextNestedCmdBuffer = nullptr;
+                result = subQueueInfo.pNextSubmitNestedCmdBufs->PopFront(&pNextNestedCmdBuffer);
+                if (result == Result::Success)
+                {
+                    // Add it to the list of busy nested command buffers for tracking.
+                    subQueueInfo.pBusyNestedCmdBufs->PushBack(pNextNestedCmdBuffer);
+
+                    pendingInfo.pNestedCmdBufCount[0]++;
+                }
+                else
+                {
+                    // If popping a command buffer off of the "next submit" deque fails then there is probably
+                    // an issue with how primary command buffers track nested executes.
+                    PAL_ASSERT_ALWAYS();
+                    break;
+                }
+            }
+        }
+
+        // Only use the client's fences for the last submit we issue.
+        if ((result == Result::Success) && (subQueueInfo.pNextSubmitCmdBufs->NumElements() == 0))
+        {
+            splitSubmitInfo.fenceCount = fenceCount;
+            splitSubmitInfo.ppFences   = ppFences;
         }
 
         if (result == Result::Success)
@@ -898,6 +1081,9 @@ Result Queue::SubmitSplit(
         }
     }
 
+    // All nested command buffers should have been tracked as busy with their parents.
+    PAL_ASSERT(subQueueInfo.pNextSubmitNestedCmdBufs->NumElements() == 0);
+
     return result;
 }
 
@@ -909,26 +1095,45 @@ void Queue::ProcessIdleSubmits()
     {
         PendingSubmitInfo submitInfo = { };
         m_pendingSubmits.PopFront(&submitInfo);
-        PAL_ASSERT(submitInfo.pFence       != nullptr);
-        PAL_ASSERT(submitInfo.pCmdBufCount != nullptr);
+        PAL_ASSERT(submitInfo.pFence             != nullptr);
+        PAL_ASSERT(submitInfo.pCmdBufCount       != nullptr);
+        PAL_ASSERT(submitInfo.pNestedCmdBufCount != nullptr);
 
         for (uint32 subQueueIdx = 0; subQueueIdx < m_queueCount; subQueueIdx++)
         {
-            const SubQueueInfo& queueInfo = m_pQueueInfos[subQueueIdx];
-            const uint32        cmdBufCnt = submitInfo.pCmdBufCount[subQueueIdx];
+            const SubQueueInfo& queueInfo       = m_pQueueInfos[subQueueIdx];
+            const uint32        cmdBufCnt       = submitInfo.pCmdBufCount[subQueueIdx];
+            const uint32        nestedCmdBufCnt = submitInfo.pNestedCmdBufCount[subQueueIdx];
 
             for (uint32 i = 0; i < cmdBufCnt; i++)
             {
                 TargetCmdBuffer* pCmdBuffer = nullptr;
                 queueInfo.pBusyCmdBufs->PopFront(&pCmdBuffer);
+
                 pCmdBuffer->SetClientData(nullptr);
+                Result result = pCmdBuffer->Reset(nullptr, true);
+                PAL_ASSERT(result == Result::Success);
+
                 queueInfo.pAvailableCmdBufs->PushBack(pCmdBuffer);
+            }
+
+            for (uint32 i = 0; i < nestedCmdBufCnt; i++)
+            {
+                TargetCmdBuffer* pCmdBuffer = nullptr;
+                queueInfo.pBusyNestedCmdBufs->PopFront(&pCmdBuffer);
+
+                pCmdBuffer->SetClientData(nullptr);
+                Result result = pCmdBuffer->Reset(nullptr, true);
+                PAL_ASSERT(result == Result::Success);
+
+                queueInfo.pAvailableNestedCmdBufs->PushBack(pCmdBuffer);
             }
         }
 
         m_availableFences.PushBack(submitInfo.pFence);
 
         PAL_SAFE_DELETE_ARRAY(submitInfo.pCmdBufCount, pPlatform);
+        PAL_SAFE_DELETE_ARRAY(submitInfo.pNestedCmdBufCount, pPlatform);
     }
 }
 

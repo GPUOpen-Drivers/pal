@@ -4241,7 +4241,7 @@ bool Gfx9Dcc::UseDccForImage(
     const Pal::Image*const  pParent      = image.Parent();
     const auto&             createInfo   = pParent->GetImageCreateInfo();
     const Pal::Device*const pDevice      = pParent->GetDevice();
-    const Gfx9PalSettings&  settings     = GetGfx9Settings(*pDevice);
+    const PalSettings&      settings     = pDevice->Settings();
     const auto              pPalSettings = pDevice->GetPublicSettings();
 
     // Assume that DCC is available; check for conditions where it won't work.
@@ -4344,7 +4344,7 @@ bool Gfx9Dcc::UseDccForImage(
              // from DCC compression.
              // Also disable DCC if this image does not use X8_MM/X8Y8_MM and it does not use X16_MM/X16Y16_MM formats.
              ((Formats::IsYuvPlanar(createInfo.swizzledFormat.format) == false) ||
-              (TestAnyFlagSet(settings.useDcc, Gfx10UseDccYuvPlanar)  == false) ||
+              (TestAnyFlagSet(settings.useDcc, UseDccYuvPlanar)       == false) ||
               ((uses8BitMmFormats == false) && (uses16BitMmFormats == false))))
     {
         // DCC should always be off for a resource that is not a UAV and is not a render target.
@@ -4383,7 +4383,7 @@ bool Gfx9Dcc::UseDccForImage(
     else if ((pParent->IsShaderReadable() ||
               (pParent->IsResolveSrc() && (pParent->PreferCbResolve() == false))) &&
              (metaDataTexFetchSupported == false) &&
-             (TestAnyFlagSet(settings.useDcc, Gfx9UseDccNonTcCompatShaderRead) == false))
+             (TestAnyFlagSet(settings.useDcc, UseDccNonTcCompatShaderRead) == false))
     {
         // Disable DCC for shader read resource that cannot be made TC compat, this avoids DCC decompress
         // for RT->SR barrier.
@@ -4409,18 +4409,18 @@ bool Gfx9Dcc::UseDccForImage(
             if (isNotARenderTarget)
             {
                 // If we are a UAV and not a render target, check our setting
-                useDcc = TestAnyFlagSet(settings.useDcc, Gfx10UseDccNonRenderTargetUav);
+                useDcc = TestAnyFlagSet(settings.useDcc, UseDccNonRenderTargetUav);
             }
             else
             {
                 // If we are a UAV and a render target, check our other setting.
-                useDcc = TestAnyFlagSet(settings.useDcc, Gfx10UseDccRenderTargetUav);
+                useDcc = TestAnyFlagSet(settings.useDcc, UseDccRenderTargetUav);
             }
         }
 
         // Make sure the settings allow use of DCC surfaces for sRGB Images.
         if (Formats::IsSrgb(createInfo.swizzledFormat.format) &&
-            (TestAnyFlagSet(settings.useDcc, Gfx9UseDccSrgb) == false))
+            (TestAnyFlagSet(settings.useDcc, UseDccSrgb) == false))
         {
             useDcc = false;
         }
@@ -4431,7 +4431,7 @@ bool Gfx9Dcc::UseDccForImage(
             useDcc = false;
             mustDisableDcc = true;
         }
-        else if ((createInfo.flags.prt == 1) && (TestAnyFlagSet(settings.useDcc, Gfx9UseDccPrt) == false))
+        else if ((createInfo.flags.prt == 1) && (TestAnyFlagSet(settings.useDcc, UseDccPrt) == false))
         {
             // Make sure the settings allow use of DCC surfaces for PRT.
             useDcc = false;
@@ -4441,37 +4441,37 @@ bool Gfx9Dcc::UseDccForImage(
             // Make sure the settings allow use of DCC surfaces for MSAA.
             if (createInfo.samples == 2)
             {
-                useDcc &= TestAnyFlagSet(settings.useDcc, Gfx9UseDccMultiSample2x);
+                useDcc &= TestAnyFlagSet(settings.useDcc, UseDccMultiSample2x);
             }
             else if (createInfo.samples == 4)
             {
-                useDcc &= TestAnyFlagSet(settings.useDcc, Gfx9UseDccMultiSample4x);
+                useDcc &= TestAnyFlagSet(settings.useDcc, UseDccMultiSample4x);
             }
             else if (createInfo.samples == 8)
             {
-                useDcc &= TestAnyFlagSet(settings.useDcc, Gfx9UseDccMultiSample8x);
+                useDcc &= TestAnyFlagSet(settings.useDcc, UseDccMultiSample8x);
             }
 
             if (createInfo.samples != createInfo.fragments)
             {
-                useDcc &= TestAnyFlagSet(settings.useDcc, Gfx9UseDccEqaa);
+                useDcc &= TestAnyFlagSet(settings.useDcc, UseDccEqaa);
             }
         }
         else
         {
             // Make sure the settings allow use of DCC surfaces for single-sampled surfaces
-            useDcc &= TestAnyFlagSet(settings.useDcc, Gfx9UseDccSingleSample);
+            useDcc &= TestAnyFlagSet(settings.useDcc, UseDccSingleSample);
         }
 
         if (useDcc && (createInfo.arraySize > 1) && (createInfo.mipLevels > 1) &&
-            (TestAnyFlagSet(settings.useDcc, Gfx9UseDccMipMappedArrays) == false))
+            (TestAnyFlagSet(settings.useDcc, UseDccMipMappedArrays) == false))
         {
             useDcc = false;
         }
     }
 
     if ((mustDisableDcc == false) &&
-        (TestAnyFlagSet(settings.useDcc, Gfx9UseDccAllowForceEnable)) &&
+        (TestAnyFlagSet(settings.useDcc, UseDccAllowForceEnable)) &&
         (createInfo.metadataMode == MetadataMode::ForceEnabled))
     {
         useDcc = true;
@@ -4598,10 +4598,10 @@ uint8 Gfx9Dcc::GetFastClearCode(
         (uses16BitMmFormats == false))
     {
         // Surfaces that are fast cleared to one of the following colors may be texture fetched:
-        //      1) ARGB(0, 0, 0, 0)
-        //      2) ARGB(1, 0, 0, 0)
-        //      3) ARGB(0, 1, 1, 1)
-        //      4) ARGB(1, 1, 1, 1)
+        //      1) AC00 : Alpha     0, Color     0
+        //      2) AC01 : Alpha "one", Color     0
+        //      3) AC10 : Alpha     0, Color "one"
+        //      4) AC11 : Alpha "one", Color "one"
         //
         // If the clear-color is *not* one of those colors, then this routine will produce the "default"
         // clear-code.  The default clear-code is not understood by the TC and a fast-clear-eliminate pass must be
@@ -4609,6 +4609,16 @@ uint8 Gfx9Dcc::GetFastClearCode(
         const uint32           numComponents = NumComponents(createInfo.swizzledFormat.format);
         const SurfaceSwap      surfSwap      = Formats::Gfx9::ColorCompSwap(createInfo.swizzledFormat);
         const ChannelSwizzle*  pSwizzle      = &createInfo.swizzledFormat.swizzle.swizzle[0];
+        bool                   alphaOnMsb    = false;
+
+        if (numComponents == 1)
+        {
+            alphaOnMsb = (surfSwap == SWAP_ALT_REV) != (IsRaven2(*pDevice) || IsRenoir(*pDevice));
+        }
+        else if ((surfSwap != SWAP_STD_REV) && (surfSwap != SWAP_ALT_REV))
+        {
+            alphaOnMsb = true;
+        }
 
         uint32                 color[4] = {};
         uint32                 ones[4]  = {};
@@ -4618,6 +4628,9 @@ uint8 Gfx9Dcc::GetFastClearCode(
         switch(numComponents)
         {
         case 1:
+            // For most gfx9 and gfx10 asic and for single-component format:
+            // alpha_is_on_msbs == 1, the component is alpha.
+            // alpha_is_on_msbs == 0, the component is color.
             while ((pSwizzle[rgbaIdx] != ChannelSwizzle::X) && (rgbaIdx < 4))
             {
                 rgbaIdx++;
@@ -4627,50 +4640,38 @@ uint8 Gfx9Dcc::GetFastClearCode(
 
             color[0] =
             color[1] =
-            color[2] =
-            color[3] = pConvertedColor[rgbaIdx];
+            color[2] = alphaOnMsb ? 0 : pConvertedColor[rgbaIdx];
+            color[3] = alphaOnMsb ? pConvertedColor[rgbaIdx] : 0;
 
             ones[0] =
             ones[1] =
             ones[2] =
             ones[3] = image.TranslateClearCodeOneToNativeFmt(0);
             break;
-
-        // Formats with two channels are special. Value from X channel represents color in clear code,
-        // and value from Y channel represents alpha in clear code.
         case 2:
-            color[0] =
-            color[1] =
-            color[2] = pConvertedColor[0];
-
-            PAL_ASSERT(pSwizzle[0] >= ChannelSwizzle::X);
-
-            cmpIdx  = static_cast<uint32>(pSwizzle[0]) - static_cast<uint32>(ChannelSwizzle::X);
-            ones[0] =
-            ones[1] =
-            ones[2] = image.TranslateClearCodeOneToNativeFmt(cmpIdx);
-
-            // In SWAP_STD case, clear color (in RGBA) has swizzle format of XY--. Clear code is RRRG.
-            // In SWAP_STD_REV case, clear color (in RGBA) has swizzle format of YX--. Clear code is GGGR.
-            if ((surfSwap == SWAP_STD) || (surfSwap == SWAP_STD_REV))
+            // alpha_is_on_msbs decides whether last or first component represents alpha,
+            // alpha_is_on_msbs == 1, Y component is alpha, X component is color.
+            // alpha_is_on_msbs == 0, X component is alpha, Y component is color.
+            for (rgbaIdx = 0; rgbaIdx < 4; rgbaIdx++)
             {
-                color[3] = pConvertedColor[1];
+                if (pSwizzle[rgbaIdx] == (alphaOnMsb ? ChannelSwizzle::Y : ChannelSwizzle::X))
+                {
+                    cmpIdx   = static_cast<uint32>(pSwizzle[0]) - static_cast<uint32>(ChannelSwizzle::X);
+                    ones[3]  = image.TranslateClearCodeOneToNativeFmt(cmpIdx);
+                    color[3] = pConvertedColor[rgbaIdx];
+                }
+                else if (pSwizzle[rgbaIdx] == (alphaOnMsb ? ChannelSwizzle::X : ChannelSwizzle::Y))
+                {
+                    cmpIdx  = static_cast<uint32>(pSwizzle[0]) - static_cast<uint32>(ChannelSwizzle::X);
 
-                PAL_ASSERT(pSwizzle[1] >= ChannelSwizzle::X);
+                    color[0] =
+                    color[1] =
+                    color[2] = pConvertedColor[rgbaIdx];
 
-                cmpIdx   = static_cast<uint32>(pSwizzle[1]) - static_cast<uint32>(ChannelSwizzle::X);
-                ones[3]  = image.TranslateClearCodeOneToNativeFmt(cmpIdx);
-            }
-            // In SWAP_ALT case, clear color (in RGBA) has swizzle format of X--Y. Clear code is RRRA.
-            // In SWAP_ALT_REV case, clear color (in RGBA) has swizzle format of Y--X. Clear code is AAAR.
-            else if ((surfSwap == SWAP_ALT) || (surfSwap == SWAP_ALT_REV))
-            {
-                color[3] = pConvertedColor[3];
-
-                PAL_ASSERT(pSwizzle[3] >= ChannelSwizzle::X);
-
-                cmpIdx   = static_cast<uint32>(pSwizzle[3]) - static_cast<uint32>(ChannelSwizzle::X);
-                ones[3]  = image.TranslateClearCodeOneToNativeFmt(cmpIdx);
+                    ones[0] =
+                    ones[1] =
+                    ones[2] = image.TranslateClearCodeOneToNativeFmt(cmpIdx);
+                }
             }
             break;
         case 3:

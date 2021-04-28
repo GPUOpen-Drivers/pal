@@ -94,8 +94,7 @@ static_assert(false, "This header is for user mode windows, and it does not work
 // do that validation in a Debug build and behave like DD_ASSUME() in Release build.
 //
 // [MSVC] __assume()
-//
-// [C++] Contracts: expects, ensures, assert, axiom
+//  ~ https://github.com/MicrosoftDocs/cpp-docs/blob/master/docs/intrinsics/assume.md
 #define DD_ASSUME(expression) __assume((expression))
 
 namespace DevDriver
@@ -151,6 +150,7 @@ namespace DevDriver
             void UnmapBufferView(Handle hSharedBuffer, Handle hSharedBufferView);
 
             // Whether or not the user has enabled Windows Developer Mode on their system
+            // See: https://github.com/MicrosoftDocs/windows-uwp/blob/docs/hub/apps/get-started/enable-your-device-for-development.md
             bool IsWin10DeveloperModeEnabled();
         }
     }

@@ -101,6 +101,7 @@ namespace DevDriver
         m_clientURIService(),
         m_infoService(allocCb)
     {
+        memset(&m_busEventCb, 0, sizeof(m_busEventCb));
     }
 
     template <class MsgTransport>
@@ -471,38 +472,43 @@ namespace DevDriver
                 {
                     bool shouldRespond = true;
 
-                    // If we have an event handler callback installed, give the application a chance to
-                    // decide if we should respond to this message.
-                    if (m_createInfo.pfnEventCallback != nullptr)
                     {
-                        const ClientInfoStruct* pClientInfo = nullptr;
+                        // Synchronize access to the bus event callback
+                        Platform::LockGuard<Platform::AtomicLock> lock(m_busEventLock);
 
-                        if (messageBuffer.header.payloadSize == 0)
+                        // If we have an event handler callback installed, give the application a chance to
+                        // decide if we should respond to this message.
+                        if (m_busEventCb.IsValid())
                         {
-                            // Older versions of the ping packet didn't include the client info structure so
-                            // it may not always be available.
-                        }
-                        else if (messageBuffer.header.payloadSize == sizeof(ClientInfoStruct))
-                        {
-                            // Valid, but this new version includes client info to aid discovery.
-                            // Grab a pointer to it, only if the sizes match exactly.
-                            pClientInfo = reinterpret_cast<const ClientInfoStruct*>(messageBuffer.payload);
-                        }
-                        else
-                        {
-                            DD_ASSERT_REASON("Ping packet with wrong size");
-                        }
+                            const ClientInfoStruct* pClientInfo = nullptr;
 
-                        BusEventPongRequest pongRequest = {};
+                            if (messageBuffer.header.payloadSize == 0)
+                            {
+                                // Older versions of the ping packet didn't include the client info structure so
+                                // it may not always be available.
+                            }
+                            else if (messageBuffer.header.payloadSize == sizeof(ClientInfoStruct))
+                            {
+                                // Valid, but this new version includes client info to aid discovery.
+                                // Grab a pointer to it, only if the sizes match exactly.
+                                pClientInfo = reinterpret_cast<const ClientInfoStruct*>(messageBuffer.payload);
+                            }
+                            else
+                            {
+                                DD_ASSERT_REASON("Ping packet with wrong size");
+                            }
 
-                        pongRequest.clientId       = srcClientId;
-                        pongRequest.pClientInfo    = pClientInfo;
-                        pongRequest.pShouldRespond = &shouldRespond;
+                            BusEventPongRequest pongRequest = {};
 
-                        m_createInfo.pfnEventCallback(m_createInfo.pUserdata,
-                                                      BusEventType::PongRequest,
-                                                      &pongRequest,
-                                                      sizeof(pongRequest));
+                            pongRequest.clientId = srcClientId;
+                            pongRequest.pClientInfo = pClientInfo;
+                            pongRequest.pShouldRespond = &shouldRespond;
+
+                            m_busEventCb(
+                                BusEventType::PongRequest,
+                                &pongRequest,
+                                sizeof(pongRequest));
+                        }
                     }
 
                     // Send a response if necessary
@@ -581,8 +587,11 @@ namespace DevDriver
                 }
                 case SystemMessage::Halted:
                 {
+                    // Synchronize access to the bus event callback
+                    Platform::LockGuard<Platform::AtomicLock> lock(m_busEventLock);
+
                     // Forward this message to the installed event handler if we have one
-                    if (m_createInfo.pfnEventCallback != nullptr)
+                    if (m_busEventCb.IsValid())
                     {
                         const ClientInfoStruct& clientInfo = *reinterpret_cast<const ClientInfoStruct*>(messageBuffer.payload);
 
@@ -591,10 +600,9 @@ namespace DevDriver
                         clientHalted.clientId   = srcClientId;
                         clientHalted.clientInfo = clientInfo;
 
-                        m_createInfo.pfnEventCallback(m_createInfo.pUserdata,
-                                                      BusEventType::ClientHalted,
-                                                      &clientHalted,
-                                                      sizeof(clientHalted));
+                        m_busEventCb(BusEventType::ClientHalted,
+                                     &clientHalted,
+                                     sizeof(clientHalted));
                     }
 
                     break;
@@ -850,6 +858,16 @@ namespace DevDriver
     inline bool MessageChannel<MsgTransport>::IsConnected()
     {
         return (m_clientId != kBroadcastClientId);
+    }
+
+    template<class MsgTransport>
+    inline void MessageChannel<MsgTransport>::SetBusEventCallback(
+        const BusEventCallback& callback)
+    {
+        // Synchronize access to the bus event callback
+        Platform::LockGuard<Platform::AtomicLock> lock(m_busEventLock);
+
+        m_busEventCb = callback;
     }
 
     template <class MsgTransport>

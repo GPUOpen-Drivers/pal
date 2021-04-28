@@ -114,28 +114,6 @@ CombFunc ColorBlendState::HwBlendFunc(
 }
 
 // =====================================================================================================================
-// Detects dual-source blend modes.
-bool ColorBlendState::IsDualSrcBlendOption(
-    Blend blend)
-{
-    bool isDualSrcBlendOption = false;
-
-    switch (blend)
-    {
-    case Blend::Src1Color:
-    case Blend::OneMinusSrc1Color:
-    case Blend::Src1Alpha:
-    case Blend::OneMinusSrc1Alpha:
-        isDualSrcBlendOption = true;
-        break;
-    default:
-        break;
-    }
-
-    return isDualSrcBlendOption;
-}
-
-// =====================================================================================================================
 // Get the sx-blend-opt with respect to the blend opt
 // This feature is identical to the gfx8.1 implementation.
 SX_BLEND_OPT GetSxBlendOptColor(
@@ -331,10 +309,7 @@ void ColorBlendState::Init(
         }
     }
 
-    m_flags.dualSourceBlend = (IsDualSrcBlendOption(blend.targets[0].srcBlendColor) |
-                               IsDualSrcBlendOption(blend.targets[0].dstBlendColor) |
-                               IsDualSrcBlendOption(blend.targets[0].srcBlendAlpha) |
-                               IsDualSrcBlendOption(blend.targets[0].dstBlendAlpha));
+    m_flags.dualSourceBlend = m_device.CanEnableDualSourceBlend(blend);
 
     // CB_BLEND1_CONTROL.ENABLE must be 1 for dual source blending.
     m_cbBlendControl[1].bits.ENABLE |= m_flags.dualSourceBlend;

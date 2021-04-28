@@ -1077,6 +1077,16 @@ void Image::GetGpuMemoryRequirements(
     GetGfxImage()->OverrideGpuMemHeaps(pMemReqs);
 }
 
+// =====================================================================================================================
+gpusize Image::GetSubresourceBaseAddrSwizzled(
+    const SubresId& subresource
+    ) const
+{
+    const gpusize baseAddr = GetSubresourceBaseAddr(subresource);
+    const uint32  swizzle  = GetGfxImage()->GetTileSwizzle(subresource);
+    return baseAddr | (static_cast<gpusize>(swizzle) << 8);
+}
+
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
 // =====================================================================================================================
 // Determines which plane in the Image is associated with the specified image aspect.

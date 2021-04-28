@@ -646,7 +646,7 @@ typedef enum _AddrTileType
 #endif
 
 #ifndef INT_8
-#define INT_8   char
+#define INT_8   signed char // signed must be used because of aarch64
 #endif
 
 #ifndef UINT_8

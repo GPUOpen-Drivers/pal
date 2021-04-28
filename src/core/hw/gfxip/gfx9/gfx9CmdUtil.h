@@ -96,7 +96,9 @@ union Gfx10ReleaseMemGcrCntl
         uint32  gl2Inv     :  1;
         uint32  gl2Wb      :  1;
         uint32  seq        :  2;
-        uint32             : 20;
+        uint32  reserved1  :  1;
+        uint32             : 18;
+        uint32  reserved2  :  1;
     } bits;
 
     uint32  u32All;

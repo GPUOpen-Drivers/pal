@@ -40,6 +40,7 @@
 #include "palVectorImpl.h"
 #endif
 #include "palSysUtil.h"
+#include "util/directDrawSurface.h"
 #include <cinttypes>
 
 // This is required because we need the definition of the D3D12DDI_PRESENT_0003 struct in order to make a copy of the
@@ -78,6 +79,7 @@ CmdBuffer::CmdBuffer(
     m_tokenWriteOffset(0),
     m_tokenReadOffset(0),
     m_tokenStreamResult(Result::Success),
+    m_buildInfo(),
     m_pLastTgtCmdBuffer(nullptr)
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
     ,
@@ -98,6 +100,9 @@ CmdBuffer::CmdBuffer(
     m_funcTable.pfnCmdDispatchOffset            = CmdDispatchOffset;
     m_funcTable.pfnCmdDispatchMesh              = CmdDispatchMesh;
     m_funcTable.pfnCmdDispatchMeshIndirectMulti = CmdDispatchMeshIndirectMulti;
+
+    memset(&m_flags, 0, sizeof(m_flags));
+    m_flags.nested = createInfo.flags.nested;
 
     memset(&m_surfaceCapture, 0, sizeof(m_surfaceCapture));
     m_surfaceCapture.actionIdStart = pDevice->GetPlatform()->PlatformSettings().gpuDebugConfig.surfaceCaptureDrawStart;
@@ -370,8 +375,8 @@ void CmdBuffer::SurfaceCaptureHashMatch()
 
         for (uint32 i = 0; i < NumShaderTypes; i++)
         {
-            m_surfaceCapture.pipelineMatch |= (pipeInfo.shader[0].hash.lower == m_surfaceCapture.hash);
-            m_surfaceCapture.pipelineMatch |= (pipeInfo.shader[0].hash.upper == m_surfaceCapture.hash);
+            m_surfaceCapture.pipelineMatch |= (pipeInfo.shader[i].hash.lower == m_surfaceCapture.hash);
+            m_surfaceCapture.pipelineMatch |= (pipeInfo.shader[i].hash.upper == m_surfaceCapture.hash);
         }
     }
 }
@@ -480,7 +485,7 @@ void CmdBuffer::CaptureSurfaces()
                 }
 
                 // Store the image object pointer in our array of capture data
-                PAL_ASSERT(m_surfaceCapture.actionId > m_surfaceCapture.actionIdStart);
+                PAL_ASSERT(m_surfaceCapture.actionId >= m_surfaceCapture.actionIdStart);
                 const uint32 actionIndex = m_surfaceCapture.actionId - m_surfaceCapture.actionIdStart;
                 PAL_ASSERT(actionIndex < m_surfaceCapture.actionIdCount);
 
@@ -573,19 +578,58 @@ void CmdBuffer::OutputSurfaceCapture()
 
                         if (result == Result::Success)
                         {
+
+                            ImageCreateInfo imageInfo = pImage->GetImageCreateInfo();
+
+                            bool            canUseDds = false;
+                            DdsHeaderFull   ddsHeader  = {0};
+                            size_t          ddsHeaderSize = 0;
+
+                            if (imageInfo.mipLevels == 1)
+                            {
+                                SubresId subresId = { };
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
+                                subresId.aspect     = ImageAspect::Color;
+#else
+                                subresId.plane      = 0;
+#endif
+                                subresId.mipLevel   = 0;
+                                subresId.arraySlice = 0;
+
+                                SubresLayout subresLayout = {0};
+                                pImage->GetSubresourceLayout(subresId, &subresLayout);
+
+                                Result ddsResult = GetDdsHeader(&ddsHeader,
+                                                                &ddsHeaderSize,
+                                                                imageInfo.imageType,
+                                                                imageInfo.swizzledFormat,
+                                                                imageInfo.arraySize,
+                                                                &subresLayout);
+
+                                if (ddsResult == Result::Success)
+                                {
+                                    canUseDds = true;
+                                }
+                            }
+
                             Snprintf(&fileName[endOfString],
                                 sizeof(fileName) - endOfString,
                                 "/Draw%d_RT%d__TS0x%llx.%s",
                                 m_surfaceCapture.actionIdStart + action,
                                 mrt,
                                 GetPerfCpuTime(),
-                                "bin");
+                                canUseDds ? "dds" : "bin");
 
                             File outFile;
                             result = outFile.Open(&(fileName[0]), FileAccessBinary | FileAccessWrite);
 
                             if ((result == Result::Success) && outFile.IsOpen())
                             {
+                                if (canUseDds)
+                                {
+                                    outFile.Write(&ddsHeader, ddsHeaderSize);
+                                }
+
                                 outFile.Write(pImageMap, static_cast<size_t>(pImage->GetMemoryLayout().dataSize));
 
                                 outFile.Flush();
@@ -1329,6 +1373,22 @@ void CmdBuffer::ReplayCmdSetGlobalScissor(
 }
 
 // =====================================================================================================================
+void CmdBuffer::CmdSetColorWriteMask(
+    const ColorWriteMaskParams& params)
+{
+    InsertToken(CmdBufCallId::CmdSetColorWriteMask);
+    InsertToken(params);
+}
+
+// =====================================================================================================================
+void CmdBuffer::ReplayCmdSetColorWriteMask(
+    Queue*           pQueue,
+    TargetCmdBuffer* pTgtCmdBuffer)
+{
+    pTgtCmdBuffer->CmdSetColorWriteMask(ReadTokenVal<ColorWriteMaskParams>());
+}
+
+// =====================================================================================================================
 void CmdBuffer::CmdBarrierInternal(
     const BarrierInfo& barrierInfo)
 {
@@ -1758,8 +1818,8 @@ void CmdBuffer::VerifyBoundDrawState() const
                            formatsUndefined                 ||
                            (similarNumType &&
                             (shareChFmt || (shareComponents && shareNumBits && safeComponentUpConversion))),
-                           "Blending is enabled and the format conversion between the pipeline's exports and the "
-                           "bound render target are possibly incompatible. Some hardware may see corruption with this "
+                           "Blending is enabled and the format conversion between the pipeline's exports and the " \
+                           "bound render target are possibly incompatible. Some hardware may see corruption with this " \
                            "combination, and the application or client driver should work to fix this illegal issue.");
         }
 
@@ -1827,10 +1887,18 @@ void CmdBuffer::HandleDrawDispatch(
 
         if ((m_breakOnDrawDispatchCount > 0) && ((m_counter % m_breakOnDrawDispatchCount) == 0))
         {
-            InsertToken(CmdBufCallId::End);
+            if (m_flags.nested == 0)
+            {
+                InsertToken(CmdBufCallId::End);
 
-            InsertToken(CmdBufCallId::Begin);
-            InsertToken(m_buildInfo);
+                InsertToken(CmdBufCallId::Begin);
+                InsertToken(m_buildInfo);
+            }
+            else
+            {
+                PAL_ALERT_ALWAYS_MSG("%s", "Nested CmdBuffers \"split on action count\" is not supported by " \
+                                           "GpuDebug layer features.");
+            }
         }
 
         if (timestampAndWait)
@@ -1874,10 +1942,18 @@ void CmdBuffer::HandleBarrierBlt(
 
         if ((m_breakOnDrawDispatchCount > 0) && ((m_counter % m_breakOnDrawDispatchCount) == 0))
         {
-            InsertToken(CmdBufCallId::End);
+            if (m_flags.nested == 0)
+            {
+                InsertToken(CmdBufCallId::End);
 
-            InsertToken(CmdBufCallId::Begin);
-            InsertToken(m_buildInfo);
+                InsertToken(CmdBufCallId::Begin);
+                InsertToken(m_buildInfo);
+            }
+            else
+            {
+                PAL_ALERT_ALWAYS_MSG("%s", "Nested CmdBuffers \"split on action count\" is not supported by " \
+                                           "GpuDebug layer features.");
+            }
         }
 
         if (timestampAndWait)
@@ -3583,14 +3659,14 @@ void CmdBuffer::CmdExecuteNestedCmdBuffers(
     uint32            cmdBufferCount,
     ICmdBuffer*const* ppCmdBuffers)
 {
-    PAL_NOT_IMPLEMENTED_MSG("Nested CmdBuffers not 100% supported by GpuDebug layer features.");
     InsertToken(CmdBufCallId::CmdExecuteNestedCmdBuffers);
     InsertTokenArray(ppCmdBuffers, cmdBufferCount);
 }
 
 // =====================================================================================================================
-// For the time being, we just pass the nested command buffers directly to the root-level command buffer.
-// In the future, we could replay these into their own separate command buffers as support breaking them apart as well.
+// Nested command buffers are treated similarly to root-level command buffers.  The recorded commands are replayed
+// with instrumentation into queue-owned command buffers and those command buffers are the ones inserted into the final
+// command stream. In the future, we could support breaking them apart as well.
 void CmdBuffer::ReplayCmdExecuteNestedCmdBuffers(
     Queue*           pQueue,
     TargetCmdBuffer* pTgtCmdBuffer)
@@ -3599,7 +3675,25 @@ void CmdBuffer::ReplayCmdExecuteNestedCmdBuffers(
     const uint32      cmdBufferCount = ReadTokenArray(&ppCmdBuffers);
     auto*const        pPlatform      = static_cast<Platform*>(m_pDevice->GetPlatform());
 
-    pTgtCmdBuffer->CmdExecuteNestedCmdBuffers(cmdBufferCount, ppCmdBuffers);
+    AutoBuffer<ICmdBuffer*, 32, Platform> tgtCmdBuffers(cmdBufferCount, pPlatform);
+
+    if (tgtCmdBuffers.Capacity() < cmdBufferCount)
+    {
+        // If the layers become production code, we must set a flag here and return out of memory on End().
+        PAL_ASSERT_ALWAYS();
+    }
+    else
+    {
+        for (uint32 i = 0; i < cmdBufferCount; i++)
+        {
+            auto*const pNestedCmdBuffer    = static_cast<CmdBuffer*>(ppCmdBuffers[i]);
+            auto*const pNestedTgtCmdBuffer = pQueue->AcquireCmdBuf(nullptr, pTgtCmdBuffer->GetSubQueueIdx(), true);
+            tgtCmdBuffers[i]               = pNestedTgtCmdBuffer;
+            pNestedCmdBuffer->Replay(pQueue, nullptr, 0, pNestedTgtCmdBuffer);
+        }
+
+        pTgtCmdBuffer->CmdExecuteNestedCmdBuffers(cmdBufferCount, &tgtCmdBuffers[0]);
+    }
 }
 
 // =====================================================================================================================
@@ -4174,7 +4268,8 @@ void CmdBuffer::ReplayCmdXdmaWaitFlipPending(
 Result CmdBuffer::Replay(
     Queue*            pQueue,
     const CmdBufInfo* pCmdBufInfo,
-    uint32            subQueueIdx)
+    uint32            subQueueIdx,
+    TargetCmdBuffer*  pNestedTgtCmdBuffer)
 {
     typedef void (CmdBuffer::* ReplayFunc)(Queue*, TargetCmdBuffer*);
 
@@ -4205,6 +4300,7 @@ Result CmdBuffer::Replay(
         &CmdBuffer::ReplayCmdSetViewports,
         &CmdBuffer::ReplayCmdSetScissorRects,
         &CmdBuffer::ReplayCmdSetGlobalScissor,
+        &CmdBuffer::ReplayCmdSetColorWriteMask,
         &CmdBuffer::ReplayCmdBarrier,
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
         &CmdBuffer::ReplayCmdRelease,
@@ -4317,15 +4413,18 @@ Result CmdBuffer::Replay(
         m_tokenReadOffset = 0;
 
         CmdBufCallId     callId;
-        TargetCmdBuffer* pTgtCmdBuffer = nullptr;
+        TargetCmdBuffer* pTgtCmdBuffer = pNestedTgtCmdBuffer;
 
         do
         {
             callId = ReadTokenVal<CmdBufCallId>();
 
-            if (callId == CmdBufCallId::Begin)
+            // If pNestedTgtCmdBuffer is non-null then this replay is for a nested execute, and no splitting
+            // tokens have been inserted into the token stream. Otherwise, aquire a non-nested target command
+            // buffer for replay on seeing a Begin token, which are used to split primary command buffers here.
+            if ((pNestedTgtCmdBuffer == nullptr) && (callId == CmdBufCallId::Begin))
             {
-                pTgtCmdBuffer = pQueue->AcquireCmdBuf(pCmdBufInfo, subQueueIdx);
+                pTgtCmdBuffer = pQueue->AcquireCmdBuf(pCmdBufInfo, subQueueIdx, false);
             }
 
             PAL_ASSERT(pTgtCmdBuffer != nullptr);
@@ -4336,14 +4435,17 @@ Result CmdBuffer::Replay(
         } while ((m_tokenReadOffset != m_tokenWriteOffset) && (result == Result::Success));
     }
 
+    // In the event that the command buffer is replayed multiple times, we have to reset the inherited state here.
+    m_pLastTgtCmdBuffer = nullptr;
+
     return result;
 }
 
 // =====================================================================================================================
 TargetCmdBuffer::TargetCmdBuffer(
     const CmdBufferCreateInfo& createInfo,
-    ICmdBuffer* pNextCmdBuffer,
-    const DeviceDecorator* pNextDevice)
+    ICmdBuffer*                pNextCmdBuffer,
+    const DeviceDecorator*     pNextDevice)
     :
     CmdBufferFwdDecorator(pNextCmdBuffer, pNextDevice),
 #if (PAL_COMPILE_TYPE == 32)
@@ -4355,7 +4457,10 @@ TargetCmdBuffer::TargetCmdBuffer(
     m_queueType(createInfo.queueType),
     m_engineType(createInfo.engineType),
     m_supportTimestamps(false),
-    m_result(Result::Success)
+    m_result(Result::Success),
+    m_nestedCmdBufCount(0),
+    m_subQueueIdx(BadSubQueueIdx),
+    m_pCmdBufInfo(nullptr)
 {
 }
 
@@ -4404,6 +4509,28 @@ void TargetCmdBuffer::SetLastResult(
     {
         m_result = result;
     }
+}
+
+// =====================================================================================================================
+void TargetCmdBuffer::CmdExecuteNestedCmdBuffers(
+    uint32            cmdBufferCount,
+    ICmdBuffer*const* ppCmdBuffers)
+{
+    m_nestedCmdBufCount += cmdBufferCount;
+
+    CmdBufferFwdDecorator::CmdExecuteNestedCmdBuffers(cmdBufferCount, ppCmdBuffers);
+}
+
+// =====================================================================================================================
+Result TargetCmdBuffer::Reset(
+    ICmdAllocator* pCmdAllocator,
+    bool           returnGpuMemory)
+{
+    m_nestedCmdBufCount = 0;
+    m_subQueueIdx       = BadSubQueueIdx;
+    m_pCmdBufInfo       = nullptr;
+
+    return CmdBufferFwdDecorator::Reset(pCmdAllocator, returnGpuMemory);
 }
 
 } // GpuDebug

@@ -408,7 +408,7 @@ void SettingsLoader::OverrideDefaults(
     // keys should not do be used without verifying that the installed device is Gfx8 (or newer), but just in case...
     if (IsGfx6(*m_pDevice) || IsGfx7(*m_pDevice))
     {
-        m_settings.gfx8UseDcc                            = 0;
+        pSettings->useDcc                                    = 0;
         m_pDevice->GetPublicSettings()->tcCompatibleMetaData = 0;
     }
 

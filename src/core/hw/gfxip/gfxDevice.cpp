@@ -42,6 +42,28 @@ namespace Pal
 {
 
 // =====================================================================================================================
+// Detects dual-source blend modes.
+static bool IsDualSrcBlendOption(
+    Blend blend)
+{
+    bool isDualSrcBlendOption = false;
+
+    switch (blend)
+    {
+    case Blend::Src1Color:
+    case Blend::OneMinusSrc1Color:
+    case Blend::Src1Alpha:
+    case Blend::OneMinusSrc1Alpha:
+        isDualSrcBlendOption = true;
+        break;
+    default:
+        break;
+    }
+
+    return isDualSrcBlendOption;
+}
+
+// =====================================================================================================================
 GfxDevice::GfxDevice(
     Device*           pDevice,
     Pal::RsrcProcMgr* pRsrcProcMgr,
@@ -699,6 +721,41 @@ void GfxDevice::InitAddrLibChipId(
     pInput->chipEngine   = chipProps.gfxEngineId;
     pInput->chipRevision = chipProps.eRevId;
     pInput->chipFamily   = chipProps.familyId;
+}
+
+// =====================================================================================================================
+// Tells whether our dual-source blend ops will be overwritten
+bool GfxDevice::CanEnableDualSourceBlend(
+    const ColorBlendStateCreateInfo& createInfo) const
+{
+    bool dualSourceBlendEnable = (IsDualSrcBlendOption(createInfo.targets[0].srcBlendColor) |
+                                  IsDualSrcBlendOption(createInfo.targets[0].dstBlendColor) |
+                                  IsDualSrcBlendOption(createInfo.targets[0].srcBlendAlpha) |
+                                  IsDualSrcBlendOption(createInfo.targets[0].dstBlendAlpha));
+
+    bool funcColorIsMinMax = (createInfo.targets[0].blendFuncColor == BlendFunc::Min ||
+                              createInfo.targets[0].blendFuncColor == BlendFunc::Max);
+    bool funcAlphaIsMinMax = (createInfo.targets[0].blendFuncAlpha == BlendFunc::Min ||
+                              createInfo.targets[0].blendFuncAlpha == BlendFunc::Max);
+
+    if (funcColorIsMinMax && funcAlphaIsMinMax)
+    {
+        dualSourceBlendEnable = false;
+    }
+    else if ((IsDualSrcBlendOption(createInfo.targets[0].srcBlendAlpha) == false) &&
+             (IsDualSrcBlendOption(createInfo.targets[0].dstBlendAlpha) == false) &&
+             funcColorIsMinMax)
+    {
+        dualSourceBlendEnable = false;
+    }
+    else if ((IsDualSrcBlendOption(createInfo.targets[0].srcBlendColor) == false) &&
+             (IsDualSrcBlendOption(createInfo.targets[0].dstBlendColor) == false) &&
+             funcAlphaIsMinMax)
+    {
+        dualSourceBlendEnable = false;
+    }
+
+    return dualSourceBlendEnable;
 }
 
 // =====================================================================================================================

@@ -406,10 +406,10 @@ constexpr unsigned int PM4_PFP_ATOMIC_MEM_SIZEDW__CORE = 9;
 // ----------------------------------- PFP_CLEAR_STATE_cmd_enum -----------------------------------
 enum PFP_CLEAR_STATE_cmd_enum
 {
-    cmd__pfp_clear_state__clear_state__HASCLEARSTATE      =  0,
-    cmd__pfp_clear_state__push_state__HASCLEARSTATE       =  1,
-    cmd__pfp_clear_state__pop_state__HASCLEARSTATE        =  2,
-    cmd__pfp_clear_state__push_clear_state__HASCLEARSTATE =  3,
+    cmd__pfp_clear_state__clear_state      =  0,
+    cmd__pfp_clear_state__push_state       =  1,
+    cmd__pfp_clear_state__pop_state        =  2,
+    cmd__pfp_clear_state__push_clear_state =  3,
 };
 
 // -------------------------------------- PM4_PFP_CLEAR_STATE --------------------------------------
@@ -429,13 +429,13 @@ typedef struct PM4_PFP_CLEAR_STATE
             {
                 PFP_CLEAR_STATE_cmd_enum cmd        :  4;
                 uint32_t                 reserved1  : 28;
-            } hasClearState;
+            };
         } bitfields;
         uint32_t u32All;
     } ordinal2;
 } PM4_PFP_CLEAR_STATE;
 
-constexpr unsigned int PM4_PFP_CLEAR_STATE_SIZEDW__HASCLEARSTATE = 2;
+constexpr unsigned int PM4_PFP_CLEAR_STATE_SIZEDW__CORE = 2;
 
 // --------------------------------------- PM4_PFP_COND_EXEC ---------------------------------------
 typedef struct PM4_PFP_COND_EXEC
@@ -455,7 +455,7 @@ typedef struct PM4_PFP_COND_EXEC
                 uint32_t reserved1  :  2;
                 uint32_t addr_lo    : 30;
             };
-        } bitfields;
+        } bitfieldsA;
         uint32_t u32All;
     } ordinal2;
 
@@ -1020,8 +1020,8 @@ constexpr unsigned int PM4_PFP_DISPATCH_DRAW_SIZEDW__HASCE = 6;
 // ---------------------------- PFP_DISPATCH_DRAW_PREAMBLE_not_eop_enum ----------------------------
 enum PFP_DISPATCH_DRAW_PREAMBLE_not_eop_enum
 {
-    not_eop__pfp_dispatch_draw_preamble__normal_eop__GFX10CORE_GFX09   =  0,
-    not_eop__pfp_dispatch_draw_preamble__suppress_eop__GFX10CORE_GFX09 =  1,
+    not_eop__pfp_dispatch_draw_preamble__normal_eop__GFX09_GFX10CORE   =  0,
+    not_eop__pfp_dispatch_draw_preamble__suppress_eop__GFX09_GFX10CORE =  1,
 };
 
 // --------------------------- PFP_DISPATCH_DRAW_PREAMBLE_req_path_enum ---------------------------

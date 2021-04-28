@@ -40,70 +40,70 @@ namespace Gfx9
 
 static constexpr ME_EVENT_WRITE_event_index_enum VgtEventIndex[]=
 {
-    event_index__me_event_write__other,                                 // 0x0: Reserved_0x00,
-    event_index__me_event_write__sample_streamoutstats__GFX09_10,       // 0x1: SAMPLE_STREAMOUTSTATS1,
-    event_index__me_event_write__sample_streamoutstats__GFX09_10,       // 0x2: SAMPLE_STREAMOUTSTATS2,
-    event_index__me_event_write__sample_streamoutstats__GFX09_10,       // 0x3: SAMPLE_STREAMOUTSTATS3,
-    event_index__me_event_write__other,                                 // 0x4: CACHE_FLUSH_TS,
-    event_index__me_event_write__other,                                 // 0x5: CONTEXT_DONE,
-    event_index__me_event_write__other,                                 // 0x6: CACHE_FLUSH,
-    event_index__me_event_write__cs_vs_ps_partial_flush,                // 0x7: CS_PARTIAL_FLUSH,
-    event_index__me_event_write__other,                                 // 0x8: VGT_STREAMOUT_SYNC,
-    event_index__me_event_write__other,                                 // 0x9: Reserved_0x09,
-    event_index__me_event_write__other,                                 // 0xa: VGT_STREAMOUT_RESET,
-    event_index__me_event_write__other,                                 // 0xb: END_OF_PIPE_INCR_DE,
-    event_index__me_event_write__other,                                 // 0xc: END_OF_PIPE_IB_END,
-    event_index__me_event_write__other,                                 // 0xd: RST_PIX_CNT,
-    event_index__me_event_write__other,                                 // 0xe: BREAK_BATCH,
-    event_index__me_event_write__cs_vs_ps_partial_flush,                // 0xf: VS_PARTIAL_FLUSH,
-    event_index__me_event_write__cs_vs_ps_partial_flush,                // 0x10: PS_PARTIAL_FLUSH,
-    event_index__me_event_write__other,                                 // 0x11: FLUSH_HS_OUTPUT,
-    event_index__me_event_write__other,                                 // 0x12: FLUSH_DFSM,
-    event_index__me_event_write__other,                                 // 0x13: RESET_TO_LOWEST_VGT,
-    event_index__me_event_write__other,                                 // 0x14: CACHE_FLUSH_AND_INV_TS_EVENT,
-    event_index__me_event_write__pixel_pipe_stat_control_or_dump,       // 0x15: ZPASS_DONE,
-    event_index__me_event_write__other,                                 // 0x16: CACHE_FLUSH_AND_INV_EVENT,
-    event_index__me_event_write__other,                                 // 0x17: PERFCOUNTER_START,
-    event_index__me_event_write__other,                                 // 0x18: PERFCOUNTER_STOP,
-    event_index__me_event_write__other,                                 // 0x19: PIPELINESTAT_START,
-    event_index__me_event_write__other,                                 // 0x1a: PIPELINESTAT_STOP,
-    event_index__me_event_write__other,                                 // 0x1b: PERFCOUNTER_SAMPLE,
-    event_index__me_event_write__other,                                 // 0x1c: FLUSH_ES_OUTPUT,
-    event_index__me_event_write__other,                                 // 0x1d: BIN_CONF_OVERRIDE_CHECK,
-    event_index__me_event_write__sample_pipelinestat,                   // 0x1e: SAMPLE_PIPELINESTAT,
-    event_index__me_event_write__other,                                 // 0x1f: SO_VGTSTREAMOUT_FLUSH,
-    event_index__me_event_write__sample_streamoutstats__GFX09_10,       // 0x20: SAMPLE_STREAMOUTSTATS,
-    event_index__me_event_write__other,                                 // 0x21: RESET_VTX_CNT,
-    event_index__me_event_write__other,                                 // 0x22: BLOCK_CONTEXT_DONE,
-    event_index__me_event_write__other,                                 // 0x23: CS_CONTEXT_DONE,
-    event_index__me_event_write__other,                                 // 0x24: VGT_FLUSH,
-    event_index__me_event_write__other,                                 // 0x25: TGID_ROLLOVER,
-    event_index__me_event_write__other,                                 // 0x26: SQ_NON_EVENT,
-    event_index__me_event_write__other,                                 // 0x27: SC_SEND_DB_VPZ,
-    event_index__me_event_write__other,                                 // 0x28: BOTTOM_OF_PIPE_TS,
-    event_index__me_event_write__other,                                 // 0x29: FLUSH_SX_TS,
-    event_index__me_event_write__other,                                 // 0x2a: DB_CACHE_FLUSH_AND_INV,
-    event_index__me_event_write__other,                                 // 0x2b: FLUSH_AND_INV_DB_DATA_TS,
-    event_index__me_event_write__other,                                 // 0x2c: FLUSH_AND_INV_DB_META,
-    event_index__me_event_write__other,                                 // 0x2d: FLUSH_AND_INV_CB_DATA_TS,
-    event_index__me_event_write__other,                                 // 0x2e: FLUSH_AND_INV_CB_META,
-    event_index__me_event_write__other,                                 // 0x2f: CS_DONE,
-    event_index__me_event_write__other,                                 // 0x30: PS_DONE,
-    event_index__me_event_write__other,                                 // 0x31: FLUSH_AND_INV_CB_PIXEL_DATA,
-    event_index__me_event_write__other,                                 // 0x32: SX_CB_RAT_ACK_REQUEST,
-    event_index__me_event_write__other,                                 // 0x33: THREAD_TRACE_START,
-    event_index__me_event_write__other,                                 // 0x34: THREAD_TRACE_STOP,
-    event_index__me_event_write__other,                                 // 0x35: THREAD_TRACE_MARKER,
-    event_index__me_event_write__other,                                 // 0x36: THREAD_TRACE_FLUSH/DRAW,
-    event_index__me_event_write__other,                                 // 0x37: THREAD_TRACE_FINISH,
-    event_index__me_event_write__pixel_pipe_stat_control_or_dump,       // 0x38: PIXEL_PIPE_STAT_CONTROL,
-    event_index__me_event_write__pixel_pipe_stat_control_or_dump,       // 0x39: PIXEL_PIPE_STAT_DUMP,
-    event_index__me_event_write__other,                                 // 0x3a: PIXEL_PIPE_STAT_RESET,
-    event_index__me_event_write__other,                                 // 0x3b: CONTEXT_SUSPEND,
-    event_index__me_event_write__other,                                 // 0x3c: OFFCHIP_HS_DEALLOC,
-    event_index__me_event_write__other,                                 // 0x3d: ENABLE_NGG_PIPELINE,
-    event_index__me_event_write__other,                                 // 0x3e: ENABLE_LEGACY_PIPELINE,
-    event_index__me_event_write__other,                                 // 0x3f: DRAW_DONE,
+    event_index__me_event_write__other,                                  // 0x0: Reserved_0x00,
+    event_index__me_event_write__sample_streamoutstats__GFX09_GFX10CORE, // 0x1: SAMPLE_STREAMOUTSTATS1,
+    event_index__me_event_write__sample_streamoutstats__GFX09_GFX10CORE, // 0x2: SAMPLE_STREAMOUTSTATS2,
+    event_index__me_event_write__sample_streamoutstats__GFX09_GFX10CORE, // 0x3: SAMPLE_STREAMOUTSTATS3,
+    event_index__me_event_write__other,                                  // 0x4: CACHE_FLUSH_TS,
+    event_index__me_event_write__other,                                  // 0x5: CONTEXT_DONE,
+    event_index__me_event_write__other,                                  // 0x6: CACHE_FLUSH,
+    event_index__me_event_write__cs_vs_ps_partial_flush,                 // 0x7: CS_PARTIAL_FLUSH,
+    event_index__me_event_write__other,                                  // 0x8: VGT_STREAMOUT_SYNC,
+    event_index__me_event_write__other,                                  // 0x9: Reserved_0x09,
+    event_index__me_event_write__other,                                  // 0xa: VGT_STREAMOUT_RESET,
+    event_index__me_event_write__other,                                  // 0xb: END_OF_PIPE_INCR_DE,
+    event_index__me_event_write__other,                                  // 0xc: END_OF_PIPE_IB_END,
+    event_index__me_event_write__other,                                  // 0xd: RST_PIX_CNT,
+    event_index__me_event_write__other,                                  // 0xe: BREAK_BATCH,
+    event_index__me_event_write__cs_vs_ps_partial_flush,                 // 0xf: VS_PARTIAL_FLUSH,
+    event_index__me_event_write__cs_vs_ps_partial_flush,                 // 0x10: PS_PARTIAL_FLUSH,
+    event_index__me_event_write__other,                                  // 0x11: FLUSH_HS_OUTPUT,
+    event_index__me_event_write__other,                                  // 0x12: FLUSH_DFSM,
+    event_index__me_event_write__other,                                  // 0x13: RESET_TO_LOWEST_VGT,
+    event_index__me_event_write__other,                                  // 0x14: CACHE_FLUSH_AND_INV_TS_EVENT,
+    event_index__me_event_write__pixel_pipe_stat_control_or_dump,        // 0x15: ZPASS_DONE,
+    event_index__me_event_write__other,                                  // 0x16: CACHE_FLUSH_AND_INV_EVENT,
+    event_index__me_event_write__other,                                  // 0x17: PERFCOUNTER_START,
+    event_index__me_event_write__other,                                  // 0x18: PERFCOUNTER_STOP,
+    event_index__me_event_write__other,                                  // 0x19: PIPELINESTAT_START,
+    event_index__me_event_write__other,                                  // 0x1a: PIPELINESTAT_STOP,
+    event_index__me_event_write__other,                                  // 0x1b: PERFCOUNTER_SAMPLE,
+    event_index__me_event_write__other,                                  // 0x1c: FLUSH_ES_OUTPUT,
+    event_index__me_event_write__other,                                  // 0x1d: BIN_CONF_OVERRIDE_CHECK,
+    event_index__me_event_write__sample_pipelinestat,                    // 0x1e: SAMPLE_PIPELINESTAT,
+    event_index__me_event_write__other,                                  // 0x1f: SO_VGTSTREAMOUT_FLUSH,
+    event_index__me_event_write__sample_streamoutstats__GFX09_GFX10CORE, // 0x20: SAMPLE_STREAMOUTSTATS,
+    event_index__me_event_write__other,                                  // 0x21: RESET_VTX_CNT,
+    event_index__me_event_write__other,                                  // 0x22: BLOCK_CONTEXT_DONE,
+    event_index__me_event_write__other,                                  // 0x23: CS_CONTEXT_DONE,
+    event_index__me_event_write__other,                                  // 0x24: VGT_FLUSH,
+    event_index__me_event_write__other,                                  // 0x25: TGID_ROLLOVER,
+    event_index__me_event_write__other,                                  // 0x26: SQ_NON_EVENT,
+    event_index__me_event_write__other,                                  // 0x27: SC_SEND_DB_VPZ,
+    event_index__me_event_write__other,                                  // 0x28: BOTTOM_OF_PIPE_TS,
+    event_index__me_event_write__other,                                  // 0x29: FLUSH_SX_TS,
+    event_index__me_event_write__other,                                  // 0x2a: DB_CACHE_FLUSH_AND_INV,
+    event_index__me_event_write__other,                                  // 0x2b: FLUSH_AND_INV_DB_DATA_TS,
+    event_index__me_event_write__other,                                  // 0x2c: FLUSH_AND_INV_DB_META,
+    event_index__me_event_write__other,                                  // 0x2d: FLUSH_AND_INV_CB_DATA_TS,
+    event_index__me_event_write__other,                                  // 0x2e: FLUSH_AND_INV_CB_META,
+    event_index__me_event_write__other,                                  // 0x2f: CS_DONE,
+    event_index__me_event_write__other,                                  // 0x30: PS_DONE,
+    event_index__me_event_write__other,                                  // 0x31: FLUSH_AND_INV_CB_PIXEL_DATA,
+    event_index__me_event_write__other,                                  // 0x32: SX_CB_RAT_ACK_REQUEST,
+    event_index__me_event_write__other,                                  // 0x33: THREAD_TRACE_START,
+    event_index__me_event_write__other,                                  // 0x34: THREAD_TRACE_STOP,
+    event_index__me_event_write__other,                                  // 0x35: THREAD_TRACE_MARKER,
+    event_index__me_event_write__other,                                  // 0x36: THREAD_TRACE_FLUSH/DRAW,
+    event_index__me_event_write__other,                                  // 0x37: THREAD_TRACE_FINISH,
+    event_index__me_event_write__pixel_pipe_stat_control_or_dump,        // 0x38: PIXEL_PIPE_STAT_CONTROL,
+    event_index__me_event_write__pixel_pipe_stat_control_or_dump,        // 0x39: PIXEL_PIPE_STAT_DUMP,
+    event_index__me_event_write__other,                                  // 0x3a: PIXEL_PIPE_STAT_RESET,
+    event_index__me_event_write__other,                                  // 0x3b: CONTEXT_SUSPEND,
+    event_index__me_event_write__other,                                  // 0x3c: OFFCHIP_HS_DEALLOC,
+    event_index__me_event_write__other,                                  // 0x3d: ENABLE_NGG_PIPELINE,
+    event_index__me_event_write__other,                                  // 0x3e: ENABLE_LEGACY_PIPELINE,
+    event_index__me_event_write__other,                                  // 0x3f: DRAW_DONE,
 };
 
 static constexpr bool VgtEventHasTs[]=
@@ -853,15 +853,15 @@ size_t CmdUtil::BuildClearState(
     PFP_CLEAR_STATE_cmd_enum command,
     void*                    pBuffer) // [out] Build the PM4 packet in this buffer.
 {
-    static_assert(PM4_PFP_CLEAR_STATE_SIZEDW__HASCLEARSTATE == PM4_ME_CLEAR_STATE_SIZEDW__HASCLEARSTATE,
+    static_assert(PM4_PFP_CLEAR_STATE_SIZEDW__CORE == PM4_ME_CLEAR_STATE_SIZEDW__CORE,
                   "Clear state packets don't match between PFP and ME!");
 
-    constexpr uint32 PacketSize = PM4_PFP_CLEAR_STATE_SIZEDW__HASCLEARSTATE;
+    constexpr uint32 PacketSize = PM4_PFP_CLEAR_STATE_SIZEDW__CORE;
     auto*const       pPacket    = static_cast<PM4_PFP_CLEAR_STATE*>(pBuffer);
 
     pPacket->ordinal1.header.u32All  = Type3Header(IT_CLEAR_STATE, PacketSize);
     pPacket->ordinal2.u32All         = 0;
-    pPacket->ordinal2.bitfields.hasClearState.cmd  = command;
+    pPacket->ordinal2.bitfields.cmd  = command;
 
     return PacketSize;
 }
@@ -2035,7 +2035,7 @@ size_t CmdUtil::BuildNonSampleEventWrite(
                 static_cast<uint32>(event_index__mec_event_write__sample_pipelinestat)));
 
     // If this trips, the caller needs to use the BuildSampleEventWrite() routine instead.
-    PAL_ASSERT(VgtEventIndex[vgtEvent] != event_index__me_event_write__sample_streamoutstats__GFX09_10);
+    PAL_ASSERT(VgtEventIndex[vgtEvent] != event_index__me_event_write__sample_streamoutstats__GFX09_GFX10CORE);
 
     // Don't use PM4_ME_EVENT_WRITE_SIZEDW__CORE here!  The official packet definition contains extra dwords
     // for functionality that is only required for "sample" type events.
@@ -2110,9 +2110,9 @@ size_t CmdUtil::BuildSampleEventWrite(
     const bool vsPartialFlushEventIndexValid = false;
 
     PAL_ASSERT(
-        (VgtEventIndex[vgtEvent] == event_index__me_event_write__pixel_pipe_stat_control_or_dump) ||
-        (VgtEventIndex[vgtEvent] == event_index__me_event_write__sample_pipelinestat)             ||
-        (VgtEventIndex[vgtEvent] == event_index__me_event_write__sample_streamoutstats__GFX09_10) ||
+        (VgtEventIndex[vgtEvent] == event_index__me_event_write__pixel_pipe_stat_control_or_dump)        ||
+        (VgtEventIndex[vgtEvent] == event_index__me_event_write__sample_pipelinestat)                    ||
+        (VgtEventIndex[vgtEvent] == event_index__me_event_write__sample_streamoutstats__GFX09_GFX10CORE) ||
         vsPartialFlushEventIndexValid);
 
     // Event-write packets destined for the compute queue can only use some events.
@@ -3277,7 +3277,7 @@ size_t CmdUtil::ExplicitBuildReleaseMem(
     else if (IsGfx10Plus(m_gfxIpLevel))
     {
         // Handle the GFX-specific aspects of a release-mem packet.
-        packet.ordinal2.bitfields.gfx10Plus.gcr_cntl  = releaseMemInfo.gcrCntl;
+        packet.ordinal2.bitfields.gfx10CorePlus.gcr_cntl  = releaseMemInfo.gcrCntl;
         packet.ordinal8.bitfields.gfx10Plus.int_ctxid = 0;
 
     }

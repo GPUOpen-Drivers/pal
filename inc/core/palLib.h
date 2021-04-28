@@ -43,7 +43,7 @@
 ///            compatible, it is not assumed that the client will initialize all input structs to 0.
 ///
 /// @ingroup LibInit
-#define PAL_INTERFACE_MAJOR_VERSION 664
+#define PAL_INTERFACE_MAJOR_VERSION 665
 
 /// Minor interface version.  Note that the interface version is distinct from the PAL version itself, which is returned
 /// in @ref Pal::PlatformProperties.
@@ -53,7 +53,7 @@
 /// of the existing enum values will change.  This number will be reset to 0 when the major version is incremented.
 ///
 /// @ingroup LibInit
-#define PAL_INTERFACE_MINOR_VERSION 0
+#define PAL_INTERFACE_MINOR_VERSION 3
 
 /// Minimum major interface version. This is the minimum interface version PAL supports in order to support backward
 /// compatibility. When it is equal to PAL_INTERFACE_MAJOR_VERSION, only the latest interface version is supported.
@@ -90,46 +90,46 @@ class      IPlatform;
 /// This is a list of GPUs that the NULL OS layer can compile shaders to in offline mode.
 enum class NullGpuId : uint32
 {
-    Tahiti      = 0x00,
-    Pitcairn    = 0x01,
-    Capeverde   = 0x02,
-    Oland       = 0x03,
-    Hainan      = 0x04,
+    Tahiti    = 0x00,
+    Pitcairn  = 0x01,
+    Capeverde = 0x02,
+    Oland     = 0x03,
+    Hainan    = 0x04,
 
-    Spectre     = 0x05,
-    Spooky      = 0x06,
-    HawaiiPro   = 0x07,
-    Hawaii      = 0x08,
-    Kalindi     = 0x09,
-    Godavari    = 0x0A,
-    Bonaire     = 0x0B,
+    Spectre   = 0x05,
+    Spooky    = 0x06,
+    HawaiiPro = 0x07,
+    Hawaii    = 0x08,
+    Kalindi   = 0x09,
+    Godavari  = 0x0A,
+    Bonaire   = 0x0B,
 
-    Carrizo     = 0x0C,
-    Bristol     = 0x0D,
-    Iceland     = 0x0E,
-    Tonga       = 0x0F,
-    TongaPro    = 0x10,
-    Fiji        = 0x11,
-    Polaris10   = 0x12,
-    Polaris11   = 0x13,
-    Polaris12   = 0x14,
-    Stoney      = 0x16,
+    Carrizo   = 0x0C,
+    Bristol   = 0x0D,
+    Iceland   = 0x0E,
+    Tonga     = 0x0F,
+    TongaPro  = 0x10,
+    Fiji      = 0x11,
+    Polaris10 = 0x12,
+    Polaris11 = 0x13,
+    Polaris12 = 0x14,
+    Stoney    = 0x16,
 
-    Vega10      = 0x17,
-    Raven       = 0x18,
-    Vega12      = 0x19,
-    Vega20      = 0x1A,
-    Raven2      = 0x1B,
-    Renoir      = 0x1C,
+    Vega10 = 0x17,
+    Raven  = 0x18,
+    Vega12 = 0x19,
+    Vega20 = 0x1A,
+    Raven2 = 0x1B,
+    Renoir = 0x1C,
 
-    Navi10      = 0x1D,
-    Navi12      = 0x1E,
-    Navi14      = 0x20,
-    Navi21      = 0x22,
-    Navi22      = 0x23,
+    Navi10           = 0x1D,
+    Navi12           = 0x1E,
+    Navi14           = 0x20,
+    Navi21           = 0x22,
+    Navi22           = 0x23,
 
-    Max         = 0x2C,
-    All         = 0x2D,
+    Max = 0x2D,
+    All = 0x2E,
 };
 
 /// Maps a null GPU ID to its associated text name.

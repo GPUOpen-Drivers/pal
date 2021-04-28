@@ -301,19 +301,21 @@ Result GfxCmdBuffer::BeginCommandStreams(
         result = m_status;
     }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
     if (result == Result::Success)
     {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
         // Allocate acquire/release synchronization fence value GPU memory from the command allocator.
         // AllocateGpuScratchMem() always returns a valid GPU address, even if we fail to obtain memory from the
         // allocator.  In that scenario, the allocator returns a dummy chunk so we can always have a valid object
         // to access, and sets m_status to a failure code.
         m_acqRelFenceValGpuVa = AllocateGpuScratchMem(static_cast<uint32>(AcqRelEventType::Count), sizeof(uint32));
         result = m_status;
-#else
+    }
+#endif
+    if (result == Result::Success)
+    {
         // Allocate GPU memory for the internal event from the command allocator.
         result = AllocateAndBindGpuMemToEvent(m_pInternalEvent);
-#endif
     }
 
     return result;
@@ -324,7 +326,11 @@ Result GfxCmdBuffer::BeginCommandStreams(
 void GfxCmdBuffer::ReturnGeneratedCommandChunks(
     bool returnGpuMemory)
 {
-    if (returnGpuMemory)
+    if (m_device.CoreSettings().cmdAllocatorFreeOnReset)
+    {
+        m_retainedGeneratedChunkList.Clear();
+    }
+    else if (returnGpuMemory)
     {
         // The client requested that we return all chunks, add any remaining retained chunks to the chunk list so they
         // can be returned to the allocator with the rest.
@@ -336,7 +342,7 @@ void GfxCmdBuffer::ReturnGeneratedCommandChunks(
         }
 
         // Return all chunks containing GPU-generated commands to the allocator.
-        if (m_generatedChunkList.IsEmpty() == false)
+        if ((m_generatedChunkList.IsEmpty() == false) && m_pCmdAllocator->AutomaticMemoryReuse())
         {
             for (auto iter = m_generatedChunkList.Begin(); iter.IsValid(); iter.Next())
             {

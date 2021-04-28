@@ -510,95 +510,6 @@
         "IsEnum": true,
         "Values": [
           {
-            "Name": "Gfx9UseDccSingleSample",
-            "Value": 1,
-            "Description": "Single sample render targets"
-          },
-          {
-            "Name": "Gfx9UseDccSrgb",
-            "Value": 2,
-            "Description": "SRGB numeric format images"
-          },
-          {
-            "Name": "Gfx9UseDccNonTcCompatShaderRead",
-            "Value": 4,
-            "Description": "Non-TC compatible shader read"
-          },
-          {
-            "Name": "Gfx9UseDccPrt",
-            "Value": 8,
-            "Description": "Partially resident textures"
-          },
-          {
-            "Name": "Gfx9UseDccMultiSample2x",
-            "Value": 16,
-            "Description": "2x multisample render targets"
-          },
-          {
-            "Name": "Gfx9UseDccMultiSample4x",
-            "Value": 32,
-            "Description": "4x multisample render targets"
-          },
-          {
-            "Name": "Gfx9UseDccMultiSample8x",
-            "Value": 64,
-            "Description": "8x multisample render targets"
-          },
-          {
-            "Name": "Gfx9UseDccEqaa",
-            "Value": 128,
-            "Description": "EQAA render targets"
-          },
-          {
-            "Name": "Gfx10UseDccRenderTargetUav",
-            "Value": 256,
-            "Description": "Shader writable surfaces(UAV) that are also render targets"
-          },
-          {
-            "Name": "Gfx10UseDccNonRenderTargetUav",
-            "Value": 512,
-            "Description": "Shader writable surfaces(UAV) that are not render targets"
-          },
-          {
-            "Name": "Gfx9UseDccAllowForceEnable",
-            "Value": 1024,
-            "Description": "Allows the client driver to force-enable DCC on particular images"
-          },
-          {
-            "Name": "Gfx9UseDccMipMappedArrays",
-            "Value": 2048,
-            "Description": "Surfaces which have Arrays and MipMaps"
-          },
-          {
-            "Name": "Gfx10UseDccYuvPlanar",
-            "Value": 4096,
-            "Description": "YUV planar surfaces"
-          }
-        ],
-        "Name": "Gfx9UseDcc"
-      },
-      "Description": "Bitmask of cases where DCC (delta color compression) surfaces will be used",
-      "Tags": [
-        "Color Targets",
-        "Gfx9"
-      ],
-      "Flags": {
-        "IsBitmask": true,
-        "IsHex": true
-      },
-      "Defaults": {
-        "Default": 3327
-      },
-      "Scope": "PrivatePalGfx9Key",
-      "Type": "uint32",
-      "VariableName": "useDcc",
-      "Name": "Gfx9UseDcc"
-    },
-    {
-      "ValidValues": {
-        "IsEnum": true,
-        "Values": [
-          {
             "Name": "Gfx10CbDbCachePolicyLruCmask",
             "Value": 1,
             "Description": "Use cache policy LRU for CMASK"
@@ -2771,7 +2682,7 @@
         "Gfx10"
       ],
       "Defaults": {
-        "Default": 268439552
+        "Default": 1073758208
       },
       "Scope": "PrivatePalGfx9Key",
       "Type": "uint32",

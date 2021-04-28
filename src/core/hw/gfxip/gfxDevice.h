@@ -107,6 +107,7 @@ struct     ViewportStateCreateInfo;
 enum class PipelineBindPoint : uint32;
 enum class ShaderType : uint32;
 enum class DccFormatEncoding : uint32;
+enum class Blend : uint32;
 
 // Additional information for creating PAL-internal color target views.
 struct ColorTargetViewInternalCreateInfo
@@ -668,6 +669,8 @@ public:
     }
 
     virtual void InitAddrLibChipId(ADDR_CREATE_INPUT*  pInput) const;
+
+    bool CanEnableDualSourceBlend(const ColorBlendStateCreateInfo& createInfo) const;
 
     static const MsaaQuadSamplePattern DefaultSamplePattern[];
 

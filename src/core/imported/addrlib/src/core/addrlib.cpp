@@ -60,6 +60,8 @@ Lib::Lib() :
     m_rowSize(0),
     m_minPitchAlignPixels(1),
     m_maxSamples(8),
+    m_maxBaseAlign(0),
+    m_maxMetaBaseAlign(0),
     m_pElemLib(NULL)
 {
     m_configFlags.value = 0;
@@ -85,6 +87,8 @@ Lib::Lib(const Client* pClient) :
     m_rowSize(0),
     m_minPitchAlignPixels(1),
     m_maxSamples(8),
+    m_maxBaseAlign(0),
+    m_maxMetaBaseAlign(0),
     m_pElemLib(NULL)
 {
     m_configFlags.value = 0;
@@ -353,14 +357,14 @@ Lib* Lib::GetLib(
 ****************************************************************************************************
 */
 ADDR_E_RETURNCODE Lib::GetMaxAlignments(
-    ADDR_GET_MAX_ALINGMENTS_OUTPUT* pOut    ///< [out] output structure
+    ADDR_GET_MAX_ALIGNMENTS_OUTPUT* pOut    ///< [out] output structure
     ) const
 {
     ADDR_E_RETURNCODE returnCode = ADDR_OK;
 
     if (GetFillSizeFieldsFlags() == TRUE)
     {
-        if (pOut->size != sizeof(ADDR_GET_MAX_ALINGMENTS_OUTPUT))
+        if (pOut->size != sizeof(ADDR_GET_MAX_ALIGNMENTS_OUTPUT))
         {
             returnCode = ADDR_PARAMSIZEMISMATCH;
         }
@@ -393,14 +397,14 @@ ADDR_E_RETURNCODE Lib::GetMaxAlignments(
 ****************************************************************************************************
 */
 ADDR_E_RETURNCODE Lib::GetMaxMetaAlignments(
-    ADDR_GET_MAX_ALINGMENTS_OUTPUT* pOut    ///< [out] output structure
+    ADDR_GET_MAX_ALIGNMENTS_OUTPUT* pOut    ///< [out] output structure
     ) const
 {
     ADDR_E_RETURNCODE returnCode = ADDR_OK;
 
     if (GetFillSizeFieldsFlags() == TRUE)
     {
-        if (pOut->size != sizeof(ADDR_GET_MAX_ALINGMENTS_OUTPUT))
+        if (pOut->size != sizeof(ADDR_GET_MAX_ALIGNMENTS_OUTPUT))
         {
             returnCode = ADDR_PARAMSIZEMISMATCH;
         }

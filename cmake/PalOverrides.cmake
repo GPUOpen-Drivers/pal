@@ -23,12 +23,39 @@
  #
  #######################################################################################################################
 include_guard()
+include(PalVersionHelper)
 
 # This file is dedicated to overriding PAL subproject options.
 # When overriding a cache variable use pal_override to simplify the code
-include(PalVersionHelper)
 
-macro(pal_overrides_gpu_gfx9)
+# ADDRLIB
+pal_override(ADDR_SI_BUILD ON)
+pal_override(ADDR_CI_BUILD ON)
+pal_override(ADDR_VI_BUILD ON)
+
+# PAL override for ADDRLIB SI/CI/VI register chip headers
+pal_override(ADDR_SI_CHIP_DIR "${PROJECT_SOURCE_DIR}/src/core/hw/gfxip/gfx6/chip")
+
+# VAM
+
+# GPUOPEN
+if(PAL_BUILD_GPUOPEN)
+    # PAL override to build GPUOpen without the Metrohash library since PAL has its own.
+    pal_override(GPUOPEN_BUILD_METROHASH OFF)
+
+    # PAL override to specify the path to the MetroHash module.
+    pal_override(METROHASH_PATH "${PAL_METROHASH_PATH}/src")
+
+    # PAL override to build GPUOpen with server helper classes
+    pal_override(GPUOPEN_BUILD_SERVER_HELPERS ON)
+
+    # PAL override to build GPUOpen with support for the standard driver protocols
+    pal_override(GPUOPEN_BUILD_STANDARD_DRIVER_PROTOCOLS ON)
+endif()
+
+# GPU Overrides
+
+if(PAL_BUILD_GFX9)
     # Generic support for GFX9 cards
     pal_override(ADDR_GFX9_BUILD ON)
     pal_override(ADDR_VEGA12_BUILD ON)
@@ -49,42 +76,5 @@ macro(pal_overrides_gpu_gfx9)
 
     pal_override(ADDR_NAVI22_BUILD ${PAL_BUILD_NAVI22})
 
-endmacro()
+endif() # PAL_BUILD_GFX9
 
-macro(pal_overrides_gpu)
-
-    if(PAL_BUILD_GFX9)
-        pal_overrides_gpu_gfx9()
-    endif() # PAL_BUILD_GFX9
-endmacro()
-
-macro(pal_overrides)
-
-    # ADDRLIB
-    pal_override(ADDR_SI_BUILD ON)
-    pal_override(ADDR_CI_BUILD ON)
-    pal_override(ADDR_VI_BUILD ON)
-
-    # PAL override for ADDRLIB SI/CI/VI register chip headers
-    pal_override(ADDR_SI_CHIP_DIR "${PROJECT_SOURCE_DIR}/src/core/hw/gfxip/gfx6/chip")
-
-    # VAM
-
-    # GPUOPEN
-    if(PAL_BUILD_GPUOPEN)
-        # PAL override to build GPUOpen without the Metrohash library since PAL has its own.
-        pal_override(GPUOPEN_BUILD_METROHASH OFF)
-
-        # PAL override to specify the path to the MetroHash module.
-        pal_override(METROHASH_PATH "${PAL_METROHASH_PATH}/src")
-
-        # PAL override to build GPUOpen with server helper classes
-        pal_override(GPUOPEN_BUILD_SERVER_HELPERS ON)
-
-        # PAL override to build GPUOpen with support for the standard driver protocols
-        pal_override(GPUOPEN_BUILD_STANDARD_DRIVER_PROTOCOLS ON)
-    endif()
-
-    # GPU Overrides
-    pal_overrides_gpu()
-endmacro()

@@ -76,6 +76,7 @@ public:
     bool  IsQueueIfhKmdSupported()   const { return m_features.supportQueueIfhKmd   == 1; }
     bool  IsProSemaphoreSupported()  const { return m_features.supportProSemaphore  == 1; }
     bool  IsSyncObjectSupported()    const { return m_features.supportSyncObj       == 1; }
+    bool  IsRaw2SubmitSupported()    const { return m_features.supportRaw2SubmitRoutine == 1; }
     bool  IsCreateSignaledSyncObjectSupported() const { return m_features.supportCreateSignaledSyncobj == 1; }
     bool  IsSyncobjFenceSupported()  const { return m_features.supportSyncobjFence  == 1; }
     bool  IsHostMappedForeignMemorySupported() const { return m_features.suportHostMappedForeignMemory == 1; }
@@ -107,7 +108,7 @@ protected:
         {
             uint32 supportProSemaphore          :  1;    // Support Pro stack Semaphore
             uint32 supportSyncObj               :  1;    // Support Sync Object Interface
-            uint32 supportRawSubmitRoutine      :  1;    // Support raw submit routine
+            uint32 supportRaw2SubmitRoutine     :  1;    // Support raw2 submit routine
             uint32 supportQueuePriority         :  1;    // Support creating queue with priority
             uint32 supportCreateSignaledSyncobj :  1;    // Support creating initial signaled syncobj.
             uint32 supportSyncobjFence          :  1;    // Support fence based on sync object.

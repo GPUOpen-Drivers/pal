@@ -1631,7 +1631,12 @@ void Device::IssueBlt(
         }
         else
         {
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
             AcqRelColorTransition(pCmdBuf, pCmdStream, *pImgBarrier, layoutTransInfo, pBarrierOps);
+#else
+            AcqRelColorTransitionEvent(pCmdBuf, pCmdStream, *pImgBarrier, layoutTransInfo, pBarrierOps);
+#endif
         }
     }
 }

@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.10..3.16)
 project(DevDriverThirdParty CXX)
 
-set(CMAKE_FOLDER "${CMAKE_FOLDER}/Third Party")
+devdriver_push_scope("Third Party")
 
 # We cannot fix warnings in third-party code, so we silence them instead.
 # This should never be used on code you can easily modify.

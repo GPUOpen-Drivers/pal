@@ -603,12 +603,12 @@ void Strncpy(char(&dst)[DstSize], const char* pSrc)
 
 char* Strtok(char* pDst, const char* pDelimiter, char** ppContext);
 
-void Strcat(char* pDst, const char* pSrc, size_t dstSize);
+void Strncat(char* pDst, const char* pSrc, size_t dstSize);
 
 template <size_t DstSize>
-void Strcat(char(&dst)[DstSize], const char* pSrc)
+void Strncat(char(&dst)[DstSize], const char* pSrc)
 {
-    Strcat(dst, pSrc, DstSize);
+    Strncat(dst, pSrc, DstSize);
 }
 
 int32 Strcmpi(const char* pSrc1, const char* pSrc2);

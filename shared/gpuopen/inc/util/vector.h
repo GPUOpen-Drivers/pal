@@ -483,7 +483,9 @@ namespace DevDriver
             return End();
         }
 
+        /// Returns the internal allocator
         const AllocCb& GetAllocCb() const { return m_allocCb; }
+
     private:
         // Disallow copy construct.
         Vector(Vector& rhs) = delete;

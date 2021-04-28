@@ -29,7 +29,7 @@
 ***********************************************************************************************************************
 */
 
-#include "ddSocket.h"
+#include <ddAbstractSocket.h>
 
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -46,7 +46,6 @@
 #include <string.h>
 #include <errno.h>
 #include <poll.h>
-#include "ddPlatform.h"
 
 namespace DevDriver
 {
@@ -81,6 +80,59 @@ namespace DevDriver
     bool IsRWOperationPending()
     {
         return ((errno == EAGAIN) || (errno == EWOULDBLOCK));
+    }
+
+    // =====================================================================================================================
+    // Construct the domain socket address name with a user-supplied suffix.
+    // Return `Result::Success` if the constructed name fits the size provided,
+    // otherwise `Result::InvalidParameter`.
+    template <size_t bufSize>
+    Result MakeDomainSocketAddress(char (&addrBuf)[bufSize], const char* pAddrSuffix)
+    {
+        Result result = Result::InvalidParameter;
+
+        char*  pAddrBuf    = &addrBuf[0];
+        size_t addrBufSize = bufSize;
+
+        char transformedSuffix[bufSize] = {'\0'};
+        const int32 lenCopied = Platform::Snprintf(transformedSuffix, bufSize, "%s", pAddrSuffix);
+        // Make sure `pAddrSuffix` was not truncated.
+        if ((lenCopied > 0) && (static_cast<size_t>(lenCopied) <= bufSize))
+        {
+#if defined(DD_PLATFORM_DARWIN_UM)
+            const char* kFormatString = "/tmp/com.amd.%s";
+
+            // When used as a filename based domain socket, the address cannot
+            // contain non-existent components in its prefix. For example,
+            // '/tmp/BasicTest/SocketName' would return ENOENT because the
+            // sub-directory 'BasicTest' doesn't exist.
+            for (size_t i = 0; (i < kMaxStringLength) && (transformedSuffix[i] != '\0'); ++i)
+            {
+                if (transformedSuffix[i] == '/')
+                {
+                    transformedSuffix[i] = '.';
+                }
+            }
+#else
+            // We use the Windows pipe name format to preserve backward compatibility.
+            const char* kFormatString = "\\\\.\\pipe\\%s";
+
+            // Start the path with a null byte to bind as an abstract socket.
+            pAddrBuf[0] = '\0';
+            pAddrBuf += 1;
+
+            DD_ASSERT(bufSize > 0);
+            addrBufSize = bufSize - 1;
+#endif
+
+            const int32 len = Platform::Snprintf(pAddrBuf, addrBufSize, kFormatString, transformedSuffix);
+            if ((len > 0) && (static_cast<size_t>(len) <= addrBufSize))
+            {
+                result = Result::Success;
+            }
+        }
+
+        return result;
     }
 
     // =====================================================================================================================
@@ -152,29 +204,13 @@ namespace DevDriver
             }
         }
 
-#if defined(DD_PLATFORM_DARWIN_UM)
-        // On macOS we have to deliberately adjust the send/receive buffer sizes with AF_UNIX sockets for best performance
-        if ((result == Result::Success) & (socketType == SocketType::Local)) {
-            // This is a bit of a magic number. Initial testing shows that having enough space for 16 messages provided
-            // good performance, but there is likely room to optimize it
-            DD_STATIC_CONST int kNumberOfMessagesInBuffer = 16;
-            DD_STATIC_CONST int kBufferSize = sizeof(MessageBuffer) * kNumberOfMessagesInBuffer;
-
-            if ((setsockopt(m_osSocket, SOL_SOCKET, SO_SNDBUF, &kBufferSize, sizeof(kBufferSize)) != 0) ||
-                (setsockopt(m_osSocket, SOL_SOCKET, SO_RCVBUF, &kBufferSize, sizeof(kBufferSize)) != 0))
-            {
-                result = Result::Error;
-            }
-        }
-#endif
-
         DD_ASSERT(result != Result::Error);
         return result;
     }
 
     Result Socket::Connect(const char* pAddress, uint32 port)
     {
-        char sockAddress[kMaxStringLength] = {};
+        char sockAddress[128] = {};
         size_t addressSize = 0;
         Result result = LookupAddressInfo(pAddress, port, sizeof(sockAddress), &sockAddress[0], &addressSize);
         if (result == Result::Success)
@@ -245,7 +281,7 @@ namespace DevDriver
 
     Result Socket::Bind(const char* pAddress, uint32 port)
     {
-        Result result = Result::Error;
+        Result result = Result::Success;
 
         if (m_socketType == SocketType::Local)
         {
@@ -255,23 +291,10 @@ namespace DevDriver
 
             sockaddr_un* DD_RESTRICT pAddr = reinterpret_cast<sockaddr_un *>(&m_address[0]);
             pAddr->sun_family = AF_UNIX;
-            pAddr->sun_path[0] = '\0';
 
-#if defined(DD_PLATFORM_LINUX_UM)
             if (pAddress != nullptr)
             {
-                // Start the path with a null byte to bind as an abstract socket.
-                Platform::Strncpy(pAddr->sun_path + 1, pAddress, sizeof(pAddr->sun_path) - 2);
-                m_addressSize = sizeof(sockaddr_un);
-            }
-            else
-            {
-                m_addressSize = sizeof(sa_family_t);
-            }
-#else
-            if (pAddress != nullptr)
-            {
-                Platform::Strncpy(pAddr->sun_path, pAddress, sizeof(pAddr->sun_path) - 1);
+                result = MakeDomainSocketAddress(pAddr->sun_path, pAddress);
             }
             else
             {
@@ -282,28 +305,27 @@ namespace DevDriver
                 DD_ASSERT(pPath != nullptr);
                 DD_UNUSED(pPath);
             }
-            m_addressSize = SUN_LEN(pAddr);
-#endif
+            m_addressSize = sizeof(*pAddr);
 
-            // As a precaution, we unlink the address before we attempt to bind to it
-            // We have to do this because we have no way of determining whether or not the file has been orphaned
-            // by another process or not. It is *extremely* important to ensure that the bind address passed into
-            // the socket is not a file as this can cause data loss.
-            if (pAddr->sun_path[0] != 0)
+            if (result == Result::Success)
             {
-                 unlink(&pAddr->sun_path[0]);
-            }
+                // As a precaution, we unlink the address before we attempt to bind to it
+                // We have to do this because we have no way of determining whether or not the file has been orphaned
+                // by another process or not. It is *extremely* important to ensure that the bind address passed into
+                // the socket is not a file as this can cause data loss.
+                if (pAddr->sun_path[0] != 0)
+                {
+                     unlink(&pAddr->sun_path[0]);
+                }
 
-            // We bind the socket to the address that was either provided or generated.
-            if (bind(m_osSocket, reinterpret_cast<sockaddr*>(pAddr), m_addressSize) != -1)
-            {
-                result = Result::Success;
-            }
-            else
-            {
-                const int err = errno;
-                DD_UNUSED(err);
-                DD_ASSERT_REASON("Bind failed");
+                // We bind the socket to the address that was either provided or generated.
+                if (bind(m_osSocket, reinterpret_cast<sockaddr*>(pAddr), m_addressSize) == -1)
+                {
+                    result = Result::Error;
+                    const int err = errno;
+                    DD_UNUSED(err);
+                    DD_ASSERT_REASON("Bind failed");
+                }
             }
         }
         else
@@ -322,16 +344,16 @@ namespace DevDriver
                 sockaddr* addr = pResult->ai_addr;
                 size_t addrSize = pResult->ai_addrlen;
 
-                if (bind(m_osSocket, addr, static_cast<int>(addrSize)) != -1)
+                if (bind(m_osSocket, addr, static_cast<int>(addrSize)) == -1)
                 {
-                    result = Result::Success;
+                    result = Result::Error;
                 }
 
                 freeaddrinfo(pResult);
             }
         }
 
-        DD_ASSERT(result != Result::Error);
+        DD_ASSERT(result == Result::Success);
         return result;
     }
 
@@ -416,24 +438,16 @@ namespace DevDriver
                 sockaddr_un* DD_RESTRICT pAddr = reinterpret_cast<sockaddr_un *>(pAddressInfo);
                 pAddr->sun_family = AF_UNIX;
 
-#if defined(DD_PLATFORM_DARWIN_UM)
                 // Copy the path into the address info struct
-                Platform::Strncpy(pAddr->sun_path, pAddress, sizeof(pAddr->sun_path) - 1);
-                *pAddressSize = SUN_LEN(pAddr);
-#else
-                // Start the path with a null byte to bind as an abstract socket.
-                pAddr->sun_path[0] = '\0';
-                Platform::Strncpy(pAddr->sun_path + 1, pAddress, sizeof(pAddr->sun_path) - 2);
-                *pAddressSize = sizeof(sockaddr_un);
-#endif
-                result = Result::Success;
+                result = MakeDomainSocketAddress(pAddr->sun_path, pAddress);
+                *pAddressSize = sizeof(*pAddr);
                 break;
             }
             default:
                 DD_UNREACHABLE();
                 break;
         }
-        DD_ASSERT(result != Result::Error);
+        DD_ASSERT(result == Result::Success);
         return result;
     }
 

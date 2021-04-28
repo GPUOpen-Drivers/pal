@@ -554,6 +554,7 @@ target_sources(pal PRIVATE
     util/assert.cpp
     util/dbgPrint.cpp
     util/cacheLayerBase.cpp
+    util/directDrawSurface.cpp
     util/elfReader.cpp
     util/file.cpp
     util/fileArchiveCacheLayer.cpp

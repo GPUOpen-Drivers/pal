@@ -118,3 +118,4 @@ PAL contains code written by third parties:
 * mpack is distributed under the terms of MIT License, see shared/gpuopen/third_party/mpack/LICENSE
 * rapidjson is distributed under the terms of MIT License, see shared/gpuopen/third_party/rapidjson/license.txt
 * tiny_printf is distributed under the terms of MIT License, see shared/gpuopen/third_party/tiny_printf/LICENSE
+* dds is distributed under the terms of MIT License, see src/util/imported/dds/dds-license

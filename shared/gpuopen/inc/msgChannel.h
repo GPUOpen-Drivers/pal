@@ -87,7 +87,25 @@ namespace DevDriver
     };
 
     // Callback function used to handle bus events
-    typedef void (*BusEventCallback)(void* pUserdata, BusEventType type, const void* pEventData, size_t eventDataSize);
+    typedef void (*PFN_BusEventCallback)(void* pUserdata, BusEventType type, const void* pEventData, size_t eventDataSize);
+
+    // Helper structure used to contain a bus event callback
+    struct BusEventCallback
+    {
+        PFN_BusEventCallback pfnEventCallback; // Message bus event callback function
+        void*                pUserdata;        // Message bus event callback userdata
+
+        /// Returns true if this callback contains a valid function
+        bool IsValid() const { return (pfnEventCallback != nullptr); }
+
+        /// Executes the function stored within the callback
+        void operator()(BusEventType type, const void* pEventData, size_t eventDataSize)
+        {
+            DD_ASSERT(IsValid());
+
+            pfnEventCallback(pUserdata, type, pEventData, eventDataSize);
+        }
+    };
 
     // Struct of information required to initialize an IMsgChannel instance
     struct MessageChannelCreateInfo
@@ -100,8 +118,6 @@ namespace DevDriver
                                                               // at least once per frame.
         char             clientDescription[kMaxStringLength]; // Description of the client provided to other clients on
                                                               // the message bus.
-        BusEventCallback pfnEventCallback;                    // Message bus event callback function
-        void*            pUserdata;                           // Message bus event callback userdata
     };
 
     // Information required to establish a new session
@@ -152,9 +168,6 @@ namespace DevDriver
     // Create a new message channel object
     Result CreateMessageChannel(const MessageChannelCreateInfo2& createInfo, IMsgChannel** ppMessageChannel);
 
-    // Tests for the presence of a connection using the specified parameters
-    Result QueryConnectionAvailable(const HostInfo& hostInfo, uint32 timeoutInMs);
-
     class IMsgChannel
     {
     public:
@@ -164,6 +177,8 @@ namespace DevDriver
         virtual Result Register(uint32 timeoutInMs = ~(0u)) = 0;
         virtual void Unregister() = 0;
         virtual bool IsConnected() = 0;
+
+        virtual void SetBusEventCallback(const BusEventCallback& callback) = 0;
 
         // Send, receive, and forward messages
         virtual Result Send(ClientId dstClientId,

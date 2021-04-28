@@ -46,25 +46,27 @@ union GraphicsStateFlags
             // These bits are tested in ValidateDraw() (in Gfx6 or Gfx9)
             struct
             {
-                uint16 colorBlendState        : 1; // Gfx6 & Gfx9
-                uint16 depthStencilState      : 1; // Gfx6 & Gfx9
-                uint16 msaaState              : 1; // Gfx6 & Gfx9
-                uint16 quadSamplePatternState : 1; // Gfx6 & Gfx9
-                uint16 viewports              : 1; // Gfx6 & Gfx9
-                uint16 scissorRects           : 1; // Gfx6 & Gfx9
-                uint16 inputAssemblyState     : 1; // Gfx6 & Gfx9
-                uint16 triangleRasterState    : 1; // Gfx6 & Gfx9
-                uint16 queryState             : 1; // Gfx6 & Gfx9
-                uint16 lineStippleState       : 1; // Gfx6 & Gfx9
-                uint16 colorTargetView        : 1; // Gfx9 only
-                uint16 depthStencilView       : 1; // Gfx9 only
-                uint16 vrsRateParams          : 1; // 10.3 only
-                uint16 vrsCenterState         : 1; // 10.3 only
-                uint16 vrsImage               : 1; // 10.3 only
-                uint16 depthClampOverride     : 1; // All Gfx
+                uint32 colorBlendState        :  1; // Gfx6 & Gfx9
+                uint32 depthStencilState      :  1; // Gfx6 & Gfx9
+                uint32 msaaState              :  1; // Gfx6 & Gfx9
+                uint32 quadSamplePatternState :  1; // Gfx6 & Gfx9
+                uint32 viewports              :  1; // Gfx6 & Gfx9
+                uint32 scissorRects           :  1; // Gfx6 & Gfx9
+                uint32 inputAssemblyState     :  1; // Gfx6 & Gfx9
+                uint32 triangleRasterState    :  1; // Gfx6 & Gfx9
+                uint32 queryState             :  1; // Gfx6 & Gfx9
+                uint32 lineStippleState       :  1; // Gfx6 & Gfx9
+                uint32 colorTargetView        :  1; // Gfx9 only
+                uint32 depthStencilView       :  1; // Gfx9 only
+                uint32 vrsRateParams          :  1; // 10.3 only
+                uint32 vrsCenterState         :  1; // 10.3 only
+                uint32 vrsImage               :  1; // 10.3 only
+                uint32 depthClampOverride     :  1; // All Gfx
+                uint32 colorWriteMask         :  1; // All Gfx
+                uint32 reserved               : 15;
             };
 
-            uint16 u16All;
+            uint32 u32All;
 
         } validationBits;
 
@@ -73,26 +75,26 @@ union GraphicsStateFlags
             // These bits are not tested in ValidateDraw()
             struct
             {
-                uint16 streamOutTargets          : 1;
-                uint16 iaState                   : 1;
-                uint16 blendConstState           : 1;
-                uint16 depthBiasState            : 1;
-                uint16 depthBoundsState          : 1;
-                uint16 pointLineRasterState      : 1;
-                uint16 stencilRefMaskState       : 1;
-                uint16 globalScissorState        : 1;
-                uint16 clipRectsState            : 1;
-                uint16 reservedNonValidationBits : 7;
+                uint32 streamOutTargets          : 1;
+                uint32 iaState                   : 1;
+                uint32 blendConstState           : 1;
+                uint32 depthBiasState            : 1;
+                uint32 depthBoundsState          : 1;
+                uint32 pointLineRasterState      : 1;
+                uint32 stencilRefMaskState       : 1;
+                uint32 globalScissorState        : 1;
+                uint32 clipRectsState            : 1;
+                uint32 reservedNonValidationBits : 23;
             };
 
-            uint16 u16All;
+            uint32 u32All;
         } nonValidationBits;
     };
 
-    uint32 u32All;
+    uint64 u64All;
 };
 
-static_assert(sizeof(GraphicsStateFlags) == sizeof(uint32), "Bad bitfield size.");
+static_assert(sizeof(GraphicsStateFlags) == sizeof(uint64), "Bad bitfield size.");
 
 union TargetExtent2d
 {
@@ -160,6 +162,7 @@ struct GraphicsState
     uint32                      numSamplesPerPixel;     // (CmdSetQuadSamplePattern)
 
     uint32                      viewInstanceMask;       // (CmdSetViewInstanceMask)
+    uint32                      colorWriteMask;         // (CmdSetColorWriteMask)
 
     struct
     {
@@ -184,13 +187,6 @@ struct GraphicsState
         uint32 enabled              : 1; // Are we going to use the override?
         uint32 disableViewportClamp : 1; // The value to write, if used.
     } depthClampOverride;
-
-    // Overrides the value of CB_TARGET_MASK.TARGET0_ENABLE at draw-time validation.
-    struct
-    {
-        uint32 enable               : 1; // Are we going to use the override?
-        uint32 writeMask            : 4; // The value to write, if used.
-    } colorWriteMaskOverride;
 
     GraphicsStateFlags   dirtyFlags;
     GraphicsStateFlags   leakFlags;      // Graphics state which a nested command buffer "leaks" back to its caller.
@@ -233,8 +229,7 @@ public:
     virtual void CmdOverwriteDisableViewportClampForBlits(
         bool disableViewportClamp) override;
 
-    virtual void CmdOverrideColorWriteMaskForBlits(
-        uint8 disabledChannelMask) override;
+    virtual void CmdSetColorWriteMask(const ColorWriteMaskParams& params) override;
 
 #if PAL_ENABLE_PRINTS_ASSERTS
     // This function allows us to dump the contents of this command buffer to a file at submission time.

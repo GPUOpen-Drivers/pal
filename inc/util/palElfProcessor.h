@@ -239,12 +239,12 @@ public:
     /// Gets the index of the section.
     ///
     /// @returns Returns the index of the section.
-    const uint32 GetIndex() const { return m_index; }
+    uint32 GetIndex() const { return m_index; }
 
     /// Gets the section header type (sh_type)
     ///
     /// @return The SectionHeaderType.
-    const SectionHeaderType GetType() const { return static_cast<SectionHeaderType>(m_sectionHeader.sh_type); }
+    SectionHeaderType GetType() const { return static_cast<SectionHeaderType>(m_sectionHeader.sh_type); }
 
     /// Gets the link section of the section.
     ///
@@ -260,7 +260,7 @@ public:
     /// Finalize on the ElfProcessor.
     ///
     /// @returns Returns the offset of the section.
-    const uint64 GetOffset() const { return m_sectionHeader.sh_offset; }
+    uint64 GetOffset() const { return m_sectionHeader.sh_offset; }
 
     /// Gets a pointer to the data of the section.
     ///
@@ -275,7 +275,7 @@ public:
     /// Gets the name offset of the section.
     ///
     /// @returns Returns the name offset of the section.
-    const uint32 GetNameOffset() const { return m_sectionHeader.sh_name; }
+    uint32 GetNameOffset() const { return m_sectionHeader.sh_name; }
 
     /// Gets the SectionHeader of the section.
     ///
@@ -430,12 +430,12 @@ public:
     /// Gets the offset of the segment.
     ///
     /// @returns Returns the offset of the segment.
-    const uint64 GetOffset() const { return m_programHeader.p_offset; }
+    uint64 GetOffset() const { return m_programHeader.p_offset; }
 
     /// Gets the size of the segment.
     ///
     /// @returns Returns the size of the segment.
-    const uint64 GetSize() const { return m_programHeader.p_filesz; }
+    uint64 GetSize() const { return m_programHeader.p_filesz; }
 
     /// Gets the ProgramHeader of the segment.
     ///
@@ -519,7 +519,7 @@ public:
     /// Gets the number of notes in the NoteSection.
     ///
     /// @returns Returns the number of notes added.
-    const uint32 GetNumNotes() const { return m_noteVector.NumElements(); }
+    uint32 GetNumNotes() const { return m_noteVector.NumElements(); }
 
 private:
     Section<Allocator>*          m_pNoteSection;
@@ -591,7 +591,7 @@ public:
     /// Gets the number of symbols in the SymbolSection.
     ///
     /// @returns Returns the number of symbols added.
-    const uint32 GetNumSymbols() const
+    uint32 GetNumSymbols() const
         { return static_cast<uint32>(m_pSymbolSection->GetDataSize() / SymbolTableEntrySize); }
 
 private:
@@ -663,7 +663,7 @@ public:
     /// Gets the number of relocations in the RelocationSection.
     ///
     /// @returns Returns the number of relocations.
-    const uint32 GetNumRelocations() const;
+    uint32 GetNumRelocations() const;
 
 private:
     void GetRelEntry(
@@ -718,7 +718,7 @@ public:
     /// Gets the number of strings in the StrTabSection.
     ///
     /// @returns Returns the number of strings added.
-    const uint32 GetNumStrings() const;
+    uint32 GetNumStrings() const;
 
 private:
     Section<Allocator>*const  m_pStrTabSection;
@@ -796,25 +796,25 @@ public:
     /// Gets the ELF Class.
     ///
     /// @returns Returns the Elf::IdentClass.
-    const Elf::IdentClass GetClass() const
+    Elf::IdentClass GetClass() const
         { return static_cast<Elf::IdentClass>(m_fileHeader.ei_class); }
 
     /// Gets the ELF Endianness.
     ///
     /// @returns Returns the Elf::IdentEndianness.
-    const Elf::IdentEndianness GetEndianness() const
+    Elf::IdentEndianness GetEndianness() const
         { return static_cast<Elf::IdentEndianness>(m_fileHeader.ei_data); }
 
     /// Gets the ELF object file type.
     ///
     /// @returns Returns the ELF ObjectFileType.
-    const ObjectFileType GetObjectFileType() const
+    ObjectFileType GetObjectFileType() const
         { return static_cast<ObjectFileType>(m_fileHeader.e_type); }
 
     /// Gets the ELF target machine.
     ///
     /// @returns Returns the ELF MachineType.
-    const MachineType GetTargetMachine() const
+    MachineType GetTargetMachine() const
         { return static_cast<MachineType>(m_fileHeader.e_machine); }
 
     /// Gets the FileHeader of the ELF file.

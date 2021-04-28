@@ -281,9 +281,9 @@ public:
 
     BOOL_32 GetExportNorm(const ELEM_GETEXPORTNORM_INPUT* pIn) const;
 
-    ADDR_E_RETURNCODE GetMaxAlignments(ADDR_GET_MAX_ALINGMENTS_OUTPUT* pOut) const;
+    ADDR_E_RETURNCODE GetMaxAlignments(ADDR_GET_MAX_ALIGNMENTS_OUTPUT* pOut) const;
 
-    ADDR_E_RETURNCODE GetMaxMetaAlignments(ADDR_GET_MAX_ALINGMENTS_OUTPUT* pOut) const;
+    ADDR_E_RETURNCODE GetMaxMetaAlignments(ADDR_GET_MAX_ALIGNMENTS_OUTPUT* pOut) const;
 
     UINT_32 GetBpe(AddrFormat format) const;
 

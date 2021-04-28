@@ -39,7 +39,8 @@ typedef union PM4_MEC_TYPE_3_HEADER
 {
     struct
     {
-        uint32_t reserved1 :  8;
+        uint32_t reserved1 :  1;
+        uint32_t reserved2 :  7;
         uint32_t opcode    :  8;
         uint32_t count     : 14;
         uint32_t type      :  2;

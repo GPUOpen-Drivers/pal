@@ -1055,6 +1055,58 @@ int32 DrmLoaderFuncsProxy::pfnAmdgpuBoListDestroy(
 }
 
 // =====================================================================================================================
+int32 DrmLoaderFuncsProxy::pfnAmdgpuBoListCreateRaw(
+    amdgpu_device_handle              hDevice,
+    uint32                            numberOfResources,
+    struct drm_amdgpu_bo_list_entry*  pBoListEntry,
+    uint32*                           pBoListHandle
+    ) const
+{
+    const int64 begin = Util::GetPerfCpuTime();
+    int32 ret = m_pFuncs->pfnAmdgpuBoListCreateRaw(hDevice,
+                                                   numberOfResources,
+                                                   pBoListEntry,
+                                                   pBoListHandle);
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
+    m_timeLogger.Printf("AmdgpuBoListCreateRaw,%ld,%ld,%ld\n", begin, end, elapse);
+    m_timeLogger.Flush();
+
+    m_paramLogger.Printf(
+        "AmdgpuBoListCreateRaw(%p, %x, %p, %p)\n",
+        hDevice,
+        numberOfResources,
+        pBoListEntry,
+        pBoListHandle);
+    m_paramLogger.Flush();
+
+    return ret;
+}
+
+// =====================================================================================================================
+int32 DrmLoaderFuncsProxy::pfnAmdgpuBoListDestroyRaw(
+    amdgpu_device_handle  hDevice,
+    uint32                boListHandle
+    ) const
+{
+    const int64 begin = Util::GetPerfCpuTime();
+    int32 ret = m_pFuncs->pfnAmdgpuBoListDestroyRaw(hDevice,
+                                                    boListHandle);
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
+    m_timeLogger.Printf("AmdgpuBoListDestroyRaw,%ld,%ld,%ld\n", begin, end, elapse);
+    m_timeLogger.Flush();
+
+    m_paramLogger.Printf(
+        "AmdgpuBoListDestroyRaw(%p, %x)\n",
+        hDevice,
+        boListHandle);
+    m_paramLogger.Flush();
+
+    return ret;
+}
+
+// =====================================================================================================================
 int32 DrmLoaderFuncsProxy::pfnAmdgpuCsCtxCreate(
     amdgpu_device_handle    hDevice,
     amdgpu_context_handle*  pContextHandle
@@ -1618,41 +1670,6 @@ int32 DrmLoaderFuncsProxy::pfnAmdgpuCsImportSyncobj(
         hDevice,
         sharedFd,
         pSyncObj);
-    m_paramLogger.Flush();
-
-    return ret;
-}
-
-// =====================================================================================================================
-int32 DrmLoaderFuncsProxy::pfnAmdgpuCsSubmitRaw(
-    amdgpu_device_handle         hDevice,
-    amdgpu_context_handle        hContext,
-    amdgpu_bo_list_handle        hBuffer,
-    int32                        numChunks,
-    struct drm_amdgpu_cs_chunk*  pChunks,
-    uint64*                      pSeqNo
-    ) const
-{
-    const int64 begin = Util::GetPerfCpuTime();
-    int32 ret = m_pFuncs->pfnAmdgpuCsSubmitRaw(hDevice,
-                                               hContext,
-                                               hBuffer,
-                                               numChunks,
-                                               pChunks,
-                                               pSeqNo);
-    const int64 end = Util::GetPerfCpuTime();
-    const int64 elapse = end - begin;
-    m_timeLogger.Printf("AmdgpuCsSubmitRaw,%ld,%ld,%ld\n", begin, end, elapse);
-    m_timeLogger.Flush();
-
-    m_paramLogger.Printf(
-        "AmdgpuCsSubmitRaw(%p, %p, %p, %x, %p, %p)\n",
-        hDevice,
-        hContext,
-        hBuffer,
-        numChunks,
-        pChunks,
-        pSeqNo);
     m_paramLogger.Flush();
 
     return ret;
@@ -3314,6 +3331,8 @@ Result DrmLoader::Init(
             m_library[LibDrmAmdgpu].GetFunction("amdgpu_bo_wait_for_idle", &m_funcs.pfnAmdgpuBoWaitForIdle);
             m_library[LibDrmAmdgpu].GetFunction("amdgpu_bo_list_create", &m_funcs.pfnAmdgpuBoListCreate);
             m_library[LibDrmAmdgpu].GetFunction("amdgpu_bo_list_destroy", &m_funcs.pfnAmdgpuBoListDestroy);
+            m_library[LibDrmAmdgpu].GetFunction("amdgpu_bo_list_create_raw", &m_funcs.pfnAmdgpuBoListCreateRaw);
+            m_library[LibDrmAmdgpu].GetFunction("amdgpu_bo_list_destroy_raw", &m_funcs.pfnAmdgpuBoListDestroyRaw);
             m_library[LibDrmAmdgpu].GetFunction("amdgpu_cs_ctx_create", &m_funcs.pfnAmdgpuCsCtxCreate);
             m_library[LibDrmAmdgpu].GetFunction("amdgpu_cs_ctx_free", &m_funcs.pfnAmdgpuCsCtxFree);
             m_library[LibDrmAmdgpu].GetFunction("amdgpu_cs_submit", &m_funcs.pfnAmdgpuCsSubmit);
@@ -3336,7 +3355,6 @@ Result DrmLoader::Init(
             m_library[LibDrmAmdgpu].GetFunction("amdgpu_cs_destroy_syncobj", &m_funcs.pfnAmdgpuCsDestroySyncobj);
             m_library[LibDrmAmdgpu].GetFunction("amdgpu_cs_export_syncobj", &m_funcs.pfnAmdgpuCsExportSyncobj);
             m_library[LibDrmAmdgpu].GetFunction("amdgpu_cs_import_syncobj", &m_funcs.pfnAmdgpuCsImportSyncobj);
-            m_library[LibDrmAmdgpu].GetFunction("amdgpu_cs_submit_raw", &m_funcs.pfnAmdgpuCsSubmitRaw);
             m_library[LibDrmAmdgpu].GetFunction("amdgpu_cs_submit_raw2", &m_funcs.pfnAmdgpuCsSubmitRaw2);
             m_library[LibDrmAmdgpu].GetFunction("amdgpu_cs_chunk_fence_to_dep", &m_funcs.pfnAmdgpuCsChunkFenceToDep);
             m_library[LibDrmAmdgpu].GetFunction("amdgpu_cs_chunk_fence_info_to_data", &m_funcs.pfnAmdgpuCsChunkFenceInfoToData);

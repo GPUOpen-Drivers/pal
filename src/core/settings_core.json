@@ -3,6 +3,36 @@
   "DriverState": [
     "HaltedOnDeviceInit"
   ],
+  "Tags": [
+    "Public CCC Options",
+    "General",
+    "GPU Info",
+    "Performance",
+    "Printing and Logging",
+    "Command Buffer",
+    "Resource Settings",
+    "Prefetching (L2 Cache Warming)",
+    "Shader Options",
+    "MGPU",
+    "WSI",
+    "Debug Overlay",
+    "GPU Profiler",
+    "CmdBuffer Logger",
+    "Interface Logger",
+    "Debug",
+    "SafeSetting",
+    "DevMode",
+    "HDR",
+    "Profiling",
+    "Bringup",
+    "Emulation",
+    "RIS",
+    "Gfx6",
+    "Gfx7",
+    "Gfx8",
+    "Gfx9",
+    "Gfx10"
+  ],
   "Settings": [
     {
       "Name": "TFQ",
@@ -788,7 +818,20 @@
       "Scope": "PrivatePalKey",
       "Type": "bool",
       "VariableName": "disableSdmaEngine",
-      "Description": "Disable SDMA engine in UMD driver."
+      "Description": "Disable entire SDMA engine in UMD driver."
+    },
+    {
+      "Name": "ForceT2tScanlineCopies",
+      "Tags": [
+        "Performance"
+      ],
+      "Defaults": {
+        "Default": false
+      },
+      "Scope": "PrivatePalKey",
+      "Type": "bool",
+      "VariableName": "forceT2tScanlineCopies",
+      "Description": "Forces all Tile2Tile sDMA SubWindow copies to be done piecewise by scanline."
     },
     {
       "ValidValues": {
@@ -1855,6 +1898,97 @@
       "Type": "uint64",
       "VariableName": "dbgHelperBits",
       "Description": "Debug helper bitmask for debugging and experiments. Driver developers can use this setting to configure personal experiments. Requires PAL_DEVELOPER_BUILD."
+    },
+    {
+      "ValidValues": {
+        "IsEnum": true,
+        "Values": [
+          {
+            "Name": "UseDccSingleSample",
+            "Value": 1,
+            "Description": "Single sample render targets."
+          },
+          {
+            "Name": "UseDccSrgb",
+            "Value": 2,
+            "Description": "SRGB numeric format images."
+          },
+          {
+            "Name": "UseDccNonTcCompatShaderRead",
+            "Value": 4,
+            "Description": "Non-TC compatible shader read."
+          },
+          {
+            "Name": "UseDccPrt",
+            "Value": 8,
+            "Description": "Partially resident textures."
+          },
+          {
+            "Name": "UseDccMultiSample2x",
+            "Value": 16,
+            "Description": "2x multisample render targets."
+          },
+          {
+            "Name": "UseDccMultiSample4x",
+            "Value": 32,
+            "Description": "4x multisample render targets."
+          },
+          {
+            "Name": "UseDccMultiSample8x",
+            "Value": 64,
+            "Description": "8x multisample render targets."
+          },
+          {
+            "Name": "UseDccEqaa",
+            "Value": 128,
+            "Description": "EQAA render targets."
+          },
+          {
+            "Name": "UseDccRenderTargetUav",
+            "Value": 256,
+            "Description": "Shader writable surfaces(UAV) that are also render targets. Gfx10+."
+          },
+          {
+            "Name": "UseDccNonRenderTargetUav",
+            "Value": 512,
+            "Description": "Shader writable surfaces(UAV) that are not render targets. Gfx10+."
+          },
+          {
+            "Name": "UseDccAllowForceEnable",
+            "Value": 1024,
+            "Description": "Allows the client driver to force-enable DCC on particular images. Gfx9+."
+          },
+          {
+            "Name": "UseDccMipMappedArrays",
+            "Value": 2048,
+            "Description": "Surfaces which have Arrays and MipMaps. Gfx9+."
+          },
+          {
+            "Name": "UseDccYuvPlanar",
+            "Value": 4096,
+            "Description": "YUV planar surfaces. Gfx10+."
+          }
+        ],
+        "Name": "UseDcc"
+      },
+      "Description": "Bitmask of cases where DCC (delta color compression) surfaces will be used.",
+      "Tags": [
+        "Gfx8",
+        "Gfx9",
+        "Gfx10"
+      ],
+      "Flags": {
+        "IsBitmask": true,
+        "IsHex": true,
+        "RereadSetting": true
+      },
+      "Defaults": {
+        "Default": 0
+      },
+      "Scope": "PrivatePalKey",
+      "Type": "uint32",
+      "VariableName": "useDcc",
+      "Name": "UseDcc"
     }
   ],
   "DefinedConstants": [
@@ -1873,30 +2007,5 @@
       "Value": 61,
       "Description": "Maximum string length for a miscellaneous string setting"
     }
-  ],
-  "Tags": [
-    "Public CCC Options",
-    "General",
-    "GPU Info",
-    "Performance",
-    "Printing and Logging",
-    "Command Buffer",
-    "Resource Settings",
-    "Prefetching (L2 Cache Warming)",
-    "Shader Options",
-    "MGPU",
-    "WSI",
-    "Debug Overlay",
-    "GPU Profiler",
-    "CmdBuffer Logger",
-    "Interface Logger",
-    "Debug",
-    "SafeSetting",
-    "DevMode",
-    "HDR",
-    "Profiling",
-    "Bringup",
-    "Emulation",
-    "RIS"
   ]
 }

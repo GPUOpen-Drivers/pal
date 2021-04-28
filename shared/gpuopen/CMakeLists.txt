@@ -72,6 +72,10 @@ target_link_libraries(${GPUOPEN_LIB_NAME} PUBLIC ddCore)
 
 ### Third Party Components #############################################################################################
 if (DEFINED DEVDRIVER_FOLDER_ROOT)
+    ## WA: This does not use the devdriver_scope_* functionality. We're side-stepping it here.
+    ## In the future, the driver can include the top-level repo and we can remove this work around.
+    ## We do this to place Third Party at the top of the IDE Folder tree, but source-wise it's nested
+    ## under ddLegacy for use in the driver.
     # Save the current folder and force third_party under "/DevDriver/"
     set(DEVDRIVER_FOLDER_BAK ${CMAKE_FOLDER})
     set(CMAKE_FOLDER ${DEVDRIVER_FOLDER_ROOT})
@@ -109,35 +113,98 @@ target_include_directories(${GPUOPEN_LIB_NAME} PRIVATE src)
 target_sources(${GPUOPEN_LIB_NAME} PRIVATE
     ## Core files
     src/ddVersion.cpp
+
+    src/session.h
     src/session.cpp
+
+    src/sessionManager.h
     src/sessionManager.cpp
+
+    src/messageChannel.h
     src/messageChannel.inl
     src/messageChannel.cpp
+
+    inc/baseProtocolServer.h
     src/baseProtocolServer.cpp
+
+    inc/legacyProtocolClient.h
     src/legacyProtocolClient.cpp
+
+    inc/ddTransferManager.h
     src/ddTransferManager.cpp
+
+    src/ddClientURIService.h
     src/ddClientURIService.cpp
+
+    inc/ddURIRequestContext.h
     src/ddURIRequestContext.cpp
 
     ## Protocols
+    inc/protocols/ddTransferServer.h
     src/protocols/ddTransferServer.cpp
+
+    inc/protocols/ddTransferClient.h
     src/protocols/ddTransferClient.cpp
+
+    src/protocols/ddURIServer.h
     src/protocols/ddURIServer.cpp
+
+    inc/protocols/ddEventClient.h
     src/protocols/ddEventClient.cpp
+
+    inc/protocols/ddEventParser.h
     src/protocols/ddEventParser.cpp
+
+    inc/protocols/ddEventServer.h
     src/protocols/ddEventServer.cpp
+
+    inc/protocols/ddEventProvider.h
     src/protocols/ddEventProvider.cpp
+
+    src/protocols/ddEventServerSession.h
     src/protocols/ddEventServerSession.cpp
+
+    src/protocols/ddInternalService.h
     src/protocols/ddInternalService.cpp
 
     ## Utility functions and classes
-    src/util/ddTextWriter.cpp
-    src/util/ddStructuredReader.cpp
-    src/util/rmtWriter.cpp
+    inc/util/ddBitSet.h
+
+    inc/util/ddByteReader.h
+
+    inc/util/ddByteWriter.h
+
+    inc/util/ddEventTimer.h
     src/util/ddEventTimer.cpp
+
+    inc/util/ddMetroHash.h
+
+    inc/util/ddStructuredReader.h
+    src/util/ddStructuredReader.cpp
+
+    inc/util/ddTextWriter.h
+    src/util/ddTextWriter.cpp
+
+    inc/util/hashBase.h
+    inc/util/hashFunc.h
+    inc/util/hashMap.h
+    inc/util/hashSet.h
+
+    inc/util/rmtCommon.h
+    inc/util/rmtFileFormat.h
+    inc/util/rmtResourceDescriptions.h
+    inc/util/rmtTokens.h
+    inc/util/rmtWriter.h
+    src/util/rmtWriter.cpp
+
+    inc/util/queue.h
+    inc/util/sharedptr.h
+    inc/util/string.h
+    inc/util/vector.h
 )
 
     target_sources(${GPUOPEN_LIB_NAME} PRIVATE
+        inc/util/ddJsonWriter.h
         src/util/ddJsonWriter.cpp
     )
 
@@ -197,48 +264,6 @@ if(GPUOPEN_BUILD_STANDARD_TOOL_PROTOCOLS)
     set(GPUOPEN_BUILD_PROTOCOL_CRASHDUMP_SERVER     ON)
 endif()
 
-### Standard Listener Protocols ###
-if(GPUOPEN_BUILD_STANDARD_LISTENER_PROTOCOLS)
-    set(GPUOPEN_BUILD_PROTOCOL_LOGGING_SERVER ON)
-    if(WIN32)
-        # The ETW protocol is only available on Windows
-        set(GPUOPEN_BUILD_PROTOCOL_ETW_SERVER ON)
-    endif()
-endif()
-
-### Listener Components ###
-if(GPUOPEN_BUILD_LISTENER_CORE)
-    target_sources(${GPUOPEN_LIB_NAME} PRIVATE
-        src/listener.cpp
-        listener/listenerCore.cpp
-        listener/routerCore.cpp
-        listener/transportThread.cpp
-        listener/hostMsgTransport.cpp
-        listener/listenerServer.cpp
-        listener/ddListenerURIService.cpp
-        listener/transports/hostTransport.cpp
-        listener/transports/socketTransport.cpp
-        listener/clientmanagers/listenerClientManager.cpp
-    )
-
-    # The listener core requires a special pipe transport implementation on Windows
-    if(WIN32)
-        target_sources(${GPUOPEN_LIB_NAME} PRIVATE
-            listener/transports/winPipeTransport.cpp
-
-        )
-    endif()
-
-    # We have special code to query information about Amd gpus. This changes per platform and is only built in the Listener.
-    add_subdirectory(../gpuinfo gpuinfo)
-    target_link_libraries(${GPUOPEN_LIB_NAME}
-        PUBLIC
-            devdriver_gpuinfo
-    )
-
-    target_include_directories(${GPUOPEN_LIB_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/listener)
-endif()
-
 #################
 ### Protocols ###
 #################
@@ -288,22 +313,6 @@ if(GPUOPEN_BUILD_PROTOCOL_URI_CLIENT)
     target_sources(${GPUOPEN_LIB_NAME} PRIVATE src/protocols/ddURIClient.cpp)
 endif()
 
-### ETW Protocol ###
-if(WIN32 AND GPUOPEN_BUILD_PROTOCOL_ETW_SERVER)
-    # ETW Server is only available on Windows
-
-    target_sources(${GPUOPEN_LIB_NAME} PRIVATE
-        src/protocols/etwServer.cpp
-        src/win/traceSession.cpp
-    )
-
-    # Libraries required for ETW support
-    target_link_libraries(${GPUOPEN_LIB_NAME} INTERFACE ${GPUOPEN_LIB_NAME} advapi32.lib)
-    target_link_libraries(${GPUOPEN_LIB_NAME} INTERFACE ${GPUOPEN_LIB_NAME} Tdh.lib)
-    target_link_libraries(${GPUOPEN_LIB_NAME} INTERFACE ${GPUOPEN_LIB_NAME} Ole32.lib)
-
-endif()
-
 if(GPUOPEN_BUILD_PROTOCOL_ETW_CLIENT)
     target_sources(${GPUOPEN_LIB_NAME} PRIVATE src/protocols/etwClient.cpp)
 endif()
@@ -316,44 +325,3 @@ endif()
         src/protocols/ddPipelineUriService.cpp
         src/protocols/ddInfoService.cpp
     )
-
-# Find Headers Helper ##############################################################################
-macro(target_find_headers _target)
-    get_target_property(${_target}_INCLUDES_DIRS ${_target} INCLUDE_DIRECTORIES)
-
-    if(${_target}_INCLUDES_DIRS)
-        foreach(_include_dir IN ITEMS ${${_target}_INCLUDES_DIRS})
-            file(GLOB_RECURSE _include_files
-                LIST_DIRECTORIES false
-                "${_include_dir}/*.h"
-                "${_include_dir}/*.hpp"
-            )
-
-            list(APPEND ${_target}_INCLUDES ${_include_files})
-        endforeach()
-
-        target_sources(${_target} PRIVATE ${${_target}_INCLUDES})
-    endif()
-endmacro()
-
-target_find_headers(${GPUOPEN_LIB_NAME})
-
-# Source Groups Helper #############################################################################
-# This helper creates source groups for generators that support them. This is primarily MSVC and
-# XCode, but there are other generators that support IDE project files.
-#
-# Note: this only adds files that have been added to the target's SOURCES property. To add headers
-# to this list, be sure that you call target_find_headers before you call target_source_groups.
-macro(target_source_groups _target)
-    get_target_property(${_target}_SOURCES ${_target} SOURCES)
-    foreach(_source IN ITEMS ${${_target}_SOURCES})
-        set(_source ${_source})
-        get_filename_component(_source_path "${_source}" ABSOLUTE)
-        file(RELATIVE_PATH _source_path_rel "${PROJECT_SOURCE_DIR}" "${_source_path}")
-        get_filename_component(_source_path_rel "${_source_path_rel}" DIRECTORY)
-        string(REPLACE "/" "\\" _group_path "${_source_path_rel}")
-        source_group("${_group_path}" FILES "${_source}")
-    endforeach()
-endmacro()
-
-target_source_groups(${GPUOPEN_LIB_NAME})

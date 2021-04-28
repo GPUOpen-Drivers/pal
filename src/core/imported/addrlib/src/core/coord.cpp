@@ -544,7 +544,7 @@ VOID CoordEq::mort2d(Coordinate& c0, Coordinate& c1, UINT_32 start, UINT_32 end)
 {
     if (end == 0)
     {
-        ADDR_ASSERT(m_numBits > 0)
+        ADDR_ASSERT(m_numBits > 0);
         end = m_numBits - 1;
     }
     for (UINT_32 i = start; i <= end; i++)
@@ -560,7 +560,7 @@ VOID CoordEq::mort3d(Coordinate& c0, Coordinate& c1, Coordinate& c2, UINT_32 sta
 {
     if (end == 0)
     {
-        ADDR_ASSERT(m_numBits > 0)
+        ADDR_ASSERT(m_numBits > 0);
         end = m_numBits - 1;
     }
     for (UINT_32 i = start; i <= end; i++)

@@ -304,6 +304,7 @@ UniversalCmdBuffer::UniversalCmdBuffer(
     const PalSettings&         coreSettings     = m_device.Parent()->Settings();
     const Gfx9PalSettings&     settings         = m_device.Settings();
     const auto*const           pPublicSettings  = m_device.Parent()->GetPublicSettings();
+    const GpuChipProperties&   chipProps        = m_device.Parent()->ChipProperties();
 
     memset(&m_vbTable,         0, sizeof(m_vbTable));
     memset(&m_spillTable,      0, sizeof(m_spillTable));
@@ -343,7 +344,7 @@ UniversalCmdBuffer::UniversalCmdBuffer(
     m_cachedSettings.waCeDisableIb2            = settings.waCeDisableIb2;
     m_cachedSettings.supportsMall              = m_device.Parent()->MemoryProperties().flags.supportsMall;
     m_cachedSettings.waDisableInstancePacking  = settings.waDisableInstancePacking;
-    m_cachedSettings.rbPlusSupported           = m_device.Parent()->ChipProperties().gfx9.rbPlus;
+    m_cachedSettings.rbPlusSupported           = chipProps.gfx9.rbPlus;
 
     m_cachedSettings.waUtcL0InconsistentBigPage = settings.waUtcL0InconsistentBigPage;
     m_cachedSettings.waClampGeCntlVertGrpSize   = settings.waClampGeCntlVertGrpSize;
@@ -358,15 +359,15 @@ UniversalCmdBuffer::UniversalCmdBuffer(
     m_cachedSettings.waVgtFlushNggToLegacyGs                   = settings.waVgtFlushNggToLegacyGs;
     m_cachedSettings.waIndexBufferZeroSize                     = settings.waIndexBufferZeroSize;
     m_cachedSettings.waLegacyGsCutModeFlush                    = settings.waLegacyGsCutModeFlush;
-    m_cachedSettings.supportsVrs                               = m_device.Parent()->ChipProperties().gfxip.supportsVrs;
+    m_cachedSettings.supportsVrs                               = chipProps.gfxip.supportsVrs;
     m_cachedSettings.vrsForceRateFine                          = settings.vrsForceRateFine;
 
     // Here we pre-calculate constants used in gfx10 PBB bin sizing calculations.
     // The logic is based on formulas that account for the number of RBs and Channels on the ASIC.
     // The bin size is choosen from the minimum size for Depth, Color and Fmask.
     // See usage in Gfx10GetDepthBinSize() and Gfx10GetColorBinSize() for further details.
-    uint32 totalNumRbs   = m_device.Parent()->ChipProperties().gfx9.numActiveRbs;
-    uint32 totalNumPipes = Max(totalNumRbs, m_device.Parent()->ChipProperties().gfx9.numSdpInterfaces);
+    uint32 totalNumRbs   = chipProps.gfx9.numActiveRbs;
+    uint32 totalNumPipes = Max(totalNumRbs, chipProps.gfx9.numSdpInterfaces);
 
     constexpr uint32 ZsTagSize  = 64;
     constexpr uint32 ZsNumTags  = 312;
@@ -919,9 +920,17 @@ void UniversalCmdBuffer::CmdBindPipeline(
         }
 
         if ((pNewPipeline == nullptr) || (pOldPipeline == nullptr) ||
-            (pNewPipeline->CbTargetMask().u32All != pOldPipeline->CbTargetMask().u32All))
+            (pNewPipeline->CbTargetMask().u32All !=
+             (pOldPipeline->CbTargetMask().u32All & m_graphicsState.colorWriteMask)))
         {
             m_state.flags.cbTargetMaskChanged = true;
+        }
+
+        // Changes to CB_TARGET_MASK due to colorWriteMask must be checked before the call to CmdBindPipeline because
+        // CmdBindPipeline does not always restore CB_TARGET_MASK, but it does always reset colorWriteMask
+        if (m_graphicsState.colorWriteMask != UINT_MAX)
+        {
+            m_graphicsState.dirtyFlags.validationBits.colorWriteMask = 1;
         }
 
         // Pipeline owns COVERAGE_TO_SHADER_SELECT
@@ -3912,7 +3921,7 @@ BinningMode UniversalCmdBuffer::GetDisableBinningSetting(
     Extent2d* pBinSize
     ) const
 {
-    BinningMode  binningMode = DISABLE_BINNING_USE_LEGACY_SC;
+    BinningMode  binningMode = DISABLE_BINNING_USE_LEGACY_SC__GFX09_10;
 
     if (IsGfx10(m_gfxIpLevel))
     {
@@ -3923,7 +3932,7 @@ BinningMode UniversalCmdBuffer::GetDisableBinningSetting(
         //
         //  Because we want to maintain the same performance characteristics, we want to use the
         //  second setting on GFX10: DISABLE_BINNING_USE_NEW_SC
-        binningMode = DISABLE_BINNING_USE_NEW_SC;
+        binningMode = DISABLE_BINNING_USE_NEW_SC__GFX09_10;
 
         // when using "New" SC (PA_SC_BINNER_CNTL_0.BINNING_MODE = 2)
         //     If <= 4BPE render-target -> 128x128
@@ -5119,11 +5128,10 @@ uint32* UniversalCmdBuffer::ValidateDraw(
     const ValidateDrawInfo& drawInfo,
     uint32*                 pDeCmdSpace)
 {
-    // Strictly speaking, colorWriteMaskOverride and paScModeCntl1 are not similar dirty bits as tracked in
-    // validationBits. However for best CPU performance in <PipelineDirty=false, StateDirty=false> path, manually
-    // make the two as part of StateDirty path as they are not frequently updated.
-    const bool stateDirty = ((m_graphicsState.dirtyFlags.validationBits.u16All |
-                              m_graphicsState.colorWriteMaskOverride.enable |
+    // Strictly speaking, paScModeCntl1 is not similar dirty bits as tracked in validationBits. However for best CPU
+    // performance in <PipelineDirty=false, StateDirty=false> path, manually make it as part of StateDirty path as
+    // it is not frequently updated.
+     const bool stateDirty = ((m_graphicsState.dirtyFlags.validationBits.u32All |
                               (m_drawTimeHwState.valid.paScModeCntl1 == 0)) != 0);
 
     if (stateDirty)
@@ -5239,7 +5247,10 @@ uint32* UniversalCmdBuffer::UpdateNggCullingDataBufferWithCpu(
 
     // The alignment of the user data is dependent on the type of register used to store
     // the address.
-    const uint32 byteAlignment = ((nggRegAddr == mmSPI_SHADER_PGM_LO_GS) ? 256 : 4);
+    const bool always4ByteAligned = (false
+                                    );
+
+    const uint32 byteAlignment = ((always4ByteAligned == false) & (nggRegAddr == mmSPI_SHADER_PGM_LO_GS)) ? 256 : 4;
 
     // Copy all of NGG state into embedded data, which is pointed to by nggTable.gpuVirtAddr
     UpdateUserDataTableCpu(&m_nggTable.state,
@@ -5522,7 +5533,7 @@ uint32* UniversalCmdBuffer::ValidateDraw(
     PAL_ASSERT(pPipeline != nullptr);
 
     // All of our dirty state will leak to the caller.
-    m_graphicsState.leakFlags.u32All |= m_graphicsState.dirtyFlags.u32All;
+    m_graphicsState.leakFlags.u64All |= m_graphicsState.dirtyFlags.u64All;
     if (Indexed                                                 &&
         IsNgg                                                   &&
         (Indirect == false)                                     &&
@@ -5799,16 +5810,17 @@ uint32* UniversalCmdBuffer::ValidateDraw(
         pDeCmdSpace = ValidateDbRenderOverride<Pm4OptImmediate, PipelineDirty, StateDirty>(pDeCmdSpace);
     }
 
-    // Always write the value of the over-ridden mask when the enable flag is set.
-    if ((PipelineDirty || StateDirty) && m_graphicsState.colorWriteMaskOverride.enable)
+    if (StateDirty && dirtyFlags.colorWriteMask)
     {
-        //Note that only overwrite target0's regWriteMask.
-        //Because this version currently only supports target0.
         regCB_TARGET_MASK updatedRegWriteMask = pPipeline->CbTargetMask();
-        updatedRegWriteMask.bitfields.TARGET0_ENABLE = m_graphicsState.colorWriteMaskOverride.writeMask;
+        updatedRegWriteMask.u32All &= m_graphicsState.colorWriteMask;
         pDeCmdSpace = m_deCmdStream.WriteSetOneContextReg(mmCB_TARGET_MASK,
                                                           updatedRegWriteMask.u32All,
                                                           pDeCmdSpace);
+        if (m_cachedSettings.pbbMoreThanOneCtxState)
+        {
+            pDeCmdSpace += CmdUtil::BuildNonSampleEventWrite(BREAK_BATCH, EngineTypeUniversal, pDeCmdSpace);
+        }
     }
 
     // Validate primitive restart enable.  Primitive restart should only apply for indexed draws, but on gfx9,
@@ -5836,7 +5848,7 @@ uint32* UniversalCmdBuffer::ValidateDraw(
     }
 
     // Clear the dirty-state flags.
-    m_graphicsState.dirtyFlags.u32All               = 0;
+    m_graphicsState.dirtyFlags.u64All               = 0;
     m_graphicsState.pipelineState.dirtyFlags.u32All = 0;
     m_deCmdStream.ResetDrawTimeState();
 
@@ -7726,22 +7738,12 @@ uint32* UniversalCmdBuffer::FlushStreamOut(
 void UniversalCmdBuffer::SetGraphicsState(
     const GraphicsState& newGraphicsState)
 {
-    // Restore the original value of CB_TARGET_MASK if the mask was overridden.
-    if (m_graphicsState.colorWriteMaskOverride.enable)
-    {
-        const auto*const pPipeline = static_cast<const GraphicsPipeline*>(m_graphicsState.pipelineState.pPipeline);
-        if (pPipeline != nullptr)
-        {
-            regCB_TARGET_MASK updatedRegWriteMask = pPipeline->CbTargetMask();
-            uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
-            pDeCmdSpace = m_deCmdStream.WriteSetOneContextReg(mmCB_TARGET_MASK,
-                                                              updatedRegWriteMask.u32All,
-                                                              pDeCmdSpace);
-            m_deCmdStream.CommitCommands(pDeCmdSpace);
-        }
-    }
-
     Pal::UniversalCmdBuffer::SetGraphicsState(newGraphicsState);
+
+    if (newGraphicsState.colorWriteMask != UINT_MAX)
+    {
+        m_graphicsState.dirtyFlags.validationBits.colorWriteMask = 1;
+    }
 
     // The target state that we would restore is invalid if this is a nested command buffer that inherits target
     // view state.  The only allowed BLTs in a nested command buffer are CmdClearBoundColorTargets and
@@ -8528,7 +8530,7 @@ void UniversalCmdBuffer::CmdExecuteIndirectCmds(
             {
                 // NOTE: If we tell ValidateDraw() that this draw call is indexed, it will validate all of the draw
                 // time HW state related to the index buffer. However, since some indirect command generators can
-                // genrate the commands to bind their own index buffer state, our draw-time validation could be
+                // generate the commands to bind their own index buffer state, our draw-time validation could be
                 // redundant. Therefore, pretend this is a non-indexed draw call if the generated command binds
                 // its own index buffer(s).
                 ValidateDrawInfo drawInfo;
@@ -8581,6 +8583,7 @@ void UniversalCmdBuffer::CmdExecuteIndirectCmds(
             if (bindPoint == PipelineBindPoint::Graphics)
             {
                 if ((gfx9Generator.Type() == GeneratorType::Draw) ||
+                    (gfx9Generator.Type() == GeneratorType::DrawIndexed) ||
                     ((gfx9Generator.Type() == GeneratorType::DispatchMesh) && (isTaskEnabled == false)))
                 {
                     // Command generators which issue non-indexed draws generate DRAW_INDEX_AUTO packets, which will
@@ -9062,7 +9065,7 @@ void UniversalCmdBuffer::CmdExecuteNestedCmdBuffers(
     const auto dirtyFlags  = m_graphicsState.dirtyFlags.validationBits;
     if (m_graphicsState.pipelineState.dirtyFlags.pipelineDirty)
     {
-        if (dirtyFlags.u16All)
+        if (dirtyFlags.u32All)
         {
             pDeCmdSpace = ValidateCbColorInfo<false, true, true>(pDeCmdSpace);
             pDeCmdSpace = ValidateDbRenderOverride<false, true, true>(pDeCmdSpace);

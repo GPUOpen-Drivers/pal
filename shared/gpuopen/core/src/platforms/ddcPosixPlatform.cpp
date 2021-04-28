@@ -706,13 +706,14 @@ namespace DevDriver
             return strtok_r(pDst, pDelimiter, ppContext);
         }
 
-        void Strcat(char* pDst, const char* pSrc, size_t dstSize)
+        void Strncat(char* pDst, const char* pSrc, size_t dstSize)
         {
             DD_ASSERT(pDst != nullptr);
             DD_ASSERT(pSrc != nullptr);
-            DD_UNUSED(dstSize);
 
-            strcat(pDst, pSrc);
+            // Compute the length of the destination string to prevent buffer overruns.
+            const size_t dstLength = strlen(pDst);
+            strncat(pDst, pSrc, (dstSize - dstLength - 1));
         }
 
         int32 Strcmpi(const char* pSrc1, const char* pSrc2)

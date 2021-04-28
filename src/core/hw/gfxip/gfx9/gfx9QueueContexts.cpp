@@ -577,6 +577,7 @@ UniversalQueueContext::UniversalQueueContext(
     m_currentStackSizeDw(0),
     m_cmdsUseTmzRing(false),
     m_useShadowing(useStateShadowing),
+    m_shadowGpuMem(),
     m_shadowGpuMemSizeInBytes(0),
     m_shadowedRegCount(0),
     m_deCmdStream(*pDevice,
@@ -853,7 +854,7 @@ void UniversalQueueContext::WritePerSubmitPreamble(
     pCmdSpace += CmdUtil::BuildContextControl(m_pDevice->GetContextControl(), pCmdSpace);
     if (m_pDevice->Settings().useClearStateToInitialize)
     {
-        pCmdSpace += CmdUtil::BuildClearState(cmd__pfp_clear_state__clear_state__HASCLEARSTATE, pCmdSpace);
+        pCmdSpace += CmdUtil::BuildClearState(cmd__pfp_clear_state__clear_state, pCmdSpace);
     }
 
     if (m_useShadowing)

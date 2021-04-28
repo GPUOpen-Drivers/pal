@@ -921,7 +921,9 @@ bool DmaCmdBuffer::UseT2tScanlineCopy(
     else
     {
         // The alignment requirements for the offsets / rectangle sizes are format and image type dependent.
-        static constexpr Extent3d  CopyAlignmentsFor2d[] =
+        // In some 3D transfer cases, the hardware will need to split the transfers into muliple planar copies
+        // in which case the 3D alignment table can not be used. Variable name was updated to reflect this.
+        static constexpr Extent3d  CopyAlignmentsFor2dAndPlanarCopy3d[] =
         {
             { 16, 16, 1 }, // 1bpp
             { 16,  8, 1 }, // 2bpp
@@ -932,11 +934,11 @@ bool DmaCmdBuffer::UseT2tScanlineCopy(
 
         static constexpr Extent3d  CopyAlignmentsFor3d[] =
         {
-            { 16, 8, 8 }, // 1bpp
-            {  8, 8, 8 }, // 2bpp
-            {  8, 8, 4 }, // 4bpp
-            {  8, 4, 4 }, // 8bpp
-            {  4, 4, 4 }, // 16bpp
+            {  8, 4, 8 }, // 1bpp
+            {  4, 4, 8 }, // 2bpp
+            {  4, 4, 4 }, // 4bpp
+            {  4, 2, 4 }, // 8bpp
+            {  2, 2, 4 }, // 16bpp
         };
 
         const Pal::Image*  pPalSrcImg = static_cast<const Pal::Image*>(src.pImage);
@@ -952,13 +954,14 @@ bool DmaCmdBuffer::UseT2tScanlineCopy(
         // SDMA engine can't do format conversions.
         PAL_ASSERT(src.bytesPerPixel == dst.bytesPerPixel);
 
-        // 3D displayable swizzles map to the 2D tiling types, so use those copy alignments.
-        const bool      is3d           = (srcCreateInfo.imageType == ImageType::Tex3d);
+        // 3D StandardSwizzle and 3D DisplayableSwizzle are aligned using the 3D alignment table
+        // Otherwise the alignment table for 2D and PlanarCopy 3D is used
         const uint32    log2Bpp        = Util::Log2(src.bytesPerPixel);
-        const Extent3d& copyAlignments = (((srcCreateInfo.imageType == ImageType::Tex2d) ||
-                                          (is3d && AddrMgr2::IsDisplayableSwizzle(srcSwizzle)))
-                                           ? CopyAlignmentsFor2d[log2Bpp]
-                                           : CopyAlignmentsFor3d[log2Bpp]);
+        const Extent3d& copyAlignments = ((srcCreateInfo.imageType == ImageType::Tex3d)	&&
+                                          ((AddrMgr2::IsDisplayableSwizzle(srcSwizzle)) ||
+                                           (AddrMgr2::IsStandardSwzzle(srcSwizzle)))
+                                           ? CopyAlignmentsFor3d[log2Bpp]
+                                           : CopyAlignmentsFor2dAndPlanarCopy3d[log2Bpp]);
 
         // Have to use scanline copies unless the copy region and the src / dst offsets are properly aligned.
         useScanlineCopy = ((IsAlignedForT2t(imageCopyInfo.copyExtent, copyAlignments) == false) ||

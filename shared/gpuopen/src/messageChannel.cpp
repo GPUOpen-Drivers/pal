@@ -45,41 +45,6 @@
 namespace DevDriver
 {
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    // Tests for the presence of a connection using the specified parameters
-    Result QueryConnectionAvailable(const HostInfo& hostInfo, uint32 timeoutInMs)
-    {
-        Result result = Result::Unavailable;
-
-#if defined(DD_PLATFORM_WINDOWS_UM)
-        if (hostInfo.type == TransportType::Local)
-        {
-            result = WinPipeMsgTransport::TestConnection(hostInfo, timeoutInMs);
-        }
-        else if (hostInfo.type == TransportType::Remote)
-        {
-#if DD_SUPPORT_SOCKET_TRANSPORT
-            result = SocketMsgTransport::TestConnection(hostInfo, timeoutInMs);
-#endif
-        }
-#elif DD_PLATFORM_IS_POSIX
-        if ((hostInfo.type == TransportType::Remote) |
-            (hostInfo.type == TransportType::Local))
-        {
-#if DD_SUPPORT_SOCKET_TRANSPORT
-            result = SocketMsgTransport::TestConnection(hostInfo, timeoutInMs);
-#endif
-        }
-#endif
-        else
-        {
-            // Invalid transport type
-            DD_WARN_REASON("Invalid transport type specified");
-        }
-
-        return result;
-    }
-
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // Create a new message channel object
     Result CreateMessageChannel(const MessageChannelCreateInfo2& createInfo, IMsgChannel** ppMessageChannel)
     {

@@ -1066,7 +1066,7 @@ ADDR_E_RETURNCODE ADDR_API AddrComputePrtInfo(
 */
 ADDR_E_RETURNCODE ADDR_API AddrGetMaxAlignments(
     ADDR_HANDLE                     hLib, ///< address lib handle
-    ADDR_GET_MAX_ALINGMENTS_OUTPUT* pOut) ///< [out] output structure
+    ADDR_GET_MAX_ALIGNMENTS_OUTPUT* pOut) ///< [out] output structure
 {
     Addr::Lib* pLib = Lib::GetLib(hLib);
 
@@ -1097,7 +1097,7 @@ ADDR_E_RETURNCODE ADDR_API AddrGetMaxAlignments(
 */
 ADDR_E_RETURNCODE ADDR_API AddrGetMaxMetaAlignments(
     ADDR_HANDLE                     hLib, ///< address lib handle
-    ADDR_GET_MAX_ALINGMENTS_OUTPUT* pOut) ///< [out] output structure
+    ADDR_GET_MAX_ALIGNMENTS_OUTPUT* pOut) ///< [out] output structure
 {
     Addr::Lib* pLib = Lib::GetLib(hLib);
 
@@ -1729,3 +1729,38 @@ ADDR_E_RETURNCODE ADDR_API Addr2GetPreferredSurfaceSetting(
     return returnCode;
 }
 
+/**
+****************************************************************************************************
+*   Addr2IsValidDisplaySwizzleMode
+*
+*   @brief
+*       Return whether the swizzle mode is supported by display engine
+****************************************************************************************************
+*/
+ADDR_E_RETURNCODE ADDR_API Addr2IsValidDisplaySwizzleMode(
+    ADDR_HANDLE     hLib,
+    AddrSwizzleMode swizzleMode,
+    UINT_32         bpp,
+    BOOL_32         *pResult)
+{
+    ADDR_E_RETURNCODE returnCode;
+
+    V2::Lib* pLib = V2::Lib::GetLib(hLib);
+
+    if (pLib != NULL)
+    {
+        ADDR2_COMPUTE_SURFACE_INFO_INPUT in = {};
+        in.resourceType = ADDR_RSRC_TEX_2D;
+        in.swizzleMode  = swizzleMode;
+        in.bpp          = bpp;
+
+        *pResult   = pLib->IsValidDisplaySwizzleMode(&in);
+        returnCode = ADDR_OK;
+    }
+    else
+    {
+        returnCode = ADDR_ERROR;
+    }
+
+    return returnCode;
+}

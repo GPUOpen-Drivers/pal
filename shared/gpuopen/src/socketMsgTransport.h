@@ -31,8 +31,8 @@
 
 #pragma once
 
-#include "msgTransport.h"
-#include "ddSocket.h"
+#include <msgTransport.h>
+#include <ddAbstractSocket.h>
 
 namespace DevDriver
 {

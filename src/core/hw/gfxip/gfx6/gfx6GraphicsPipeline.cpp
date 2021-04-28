@@ -794,7 +794,11 @@ void GraphicsPipeline::SetupNonShaderRegisters(
     const Gfx6PalSettings&   settings  = m_pDevice->Settings();
 
     m_regs.context.paScLineCntl.bits.EXPAND_LINE_WIDTH        = createInfo.rsState.expandLineWidth;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 665
+    m_regs.context.paScLineCntl.bits.DX10_DIAMOND_TEST_ENA    = createInfo.rsState.dx10DiamondTestDisable ? 0 : 1;
+#else
     m_regs.context.paScLineCntl.bits.DX10_DIAMOND_TEST_ENA    = 1;
+#endif
     m_regs.context.paScLineCntl.bits.LAST_PIXEL               = createInfo.rsState.rasterizeLastLinePixel;
     m_regs.context.paScLineCntl.bits.PERPENDICULAR_ENDCAP_ENA = createInfo.rsState.perpLineEndCapsEnable;
 

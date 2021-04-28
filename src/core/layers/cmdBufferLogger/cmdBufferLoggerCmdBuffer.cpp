@@ -1806,6 +1806,34 @@ void CmdBuffer::CmdSetGlobalScissor(
 }
 
 // =====================================================================================================================
+void CmdBuffer::CmdSetColorWriteMask(
+    const ColorWriteMaskParams& params)
+{
+    if (m_annotations.logCmdSets)
+    {
+        GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdSetColorWriteMask));
+
+        LinearAllocatorAuto<VirtualLinearAllocator> allocator(Allocator(), false);
+        char* pString = PAL_NEW_ARRAY(char, StringLength, &allocator, AllocInternalTemp);
+
+        Snprintf(pString, StringLength, "count = %u", params.count);
+        GetNextLayer()->CmdCommentString(pString);
+
+        for (uint32 i = 0; i < MaxColorTargets; ++i)
+        {
+            Snprintf(pString, StringLength, "colorWriteMask[%u] = %u",
+                     i,
+                     params.colorWriteMask[i]);
+            GetNextLayer()->CmdCommentString(pString);
+        }
+
+        PAL_SAFE_DELETE_ARRAY(pString, &allocator);
+    }
+
+    GetNextLayer()->CmdSetColorWriteMask(params);
+}
+
+// =====================================================================================================================
 static const char* HwPipePointToString(
     HwPipePoint pipePoint)
 {

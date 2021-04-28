@@ -393,6 +393,10 @@ static DevDriver::RMT_VIDEO_DECODER_TYPE PalToRmtDecoderType(
         retType = DevDriver::RMT_VIDEO_DECODER_TYPE_AV1;
         break;
 
+    case VideoDecodeType::Av112Bit:
+        retType = DevDriver::RMT_VIDEO_DECODER_TYPE_AV112BIT;
+        break;
+
     default:
         PAL_ASSERT_ALWAYS();
         break;

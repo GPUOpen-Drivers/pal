@@ -283,12 +283,6 @@ namespace Apu09_1xPlus
 namespace Core
 {
     constexpr unsigned int mmCB_CGTT_SCLK_CTRL_DEFAULT                        = 0x0100;
-    constexpr unsigned int mmCB_PERFCOUNTER0_SELECT1_DEFAULT                  = 0x0000;
-    constexpr unsigned int mmCB_PERFCOUNTER0_SELECT_DEFAULT                   = 0x0000;
-    constexpr unsigned int mmCB_PERFCOUNTER1_SELECT_DEFAULT                   = 0x0000;
-    constexpr unsigned int mmCB_PERFCOUNTER2_SELECT_DEFAULT                   = 0x0000;
-    constexpr unsigned int mmCB_PERFCOUNTER3_SELECT_DEFAULT                   = 0x0000;
-    constexpr unsigned int mmDB_CGTT_CLK_CTRL_0_DEFAULT                       = 0x0100;
     constexpr unsigned int mmDB_RING_CONTROL_DEFAULT                          = 0x0001;
     constexpr unsigned int mmGCEA_PERFCOUNTER0_CFG_DEFAULT                    = 0x0000;
     constexpr unsigned int mmGCEA_PERFCOUNTER1_CFG_DEFAULT                    = 0x0000;
@@ -333,6 +327,14 @@ namespace Gfx09
     constexpr unsigned int mmATC_PERFCOUNTER_HI_DEFAULT                       = 0x0000;
     constexpr unsigned int mmATC_PERFCOUNTER_LO_DEFAULT                       = 0x0000;
     constexpr unsigned int mmATC_PERFCOUNTER_RSLT_CNTL_DEFAULT                = 0x4000000;
+    constexpr unsigned int mmCB_BLEND0_CONTROL_DEFAULT                        = 0x4DCD0DCD;
+    constexpr unsigned int mmCB_BLEND1_CONTROL_DEFAULT                        = 0x4DCD0DCD;
+    constexpr unsigned int mmCB_BLEND2_CONTROL_DEFAULT                        = 0x4DCD0DCD;
+    constexpr unsigned int mmCB_BLEND3_CONTROL_DEFAULT                        = 0x4DCD0DCD;
+    constexpr unsigned int mmCB_BLEND4_CONTROL_DEFAULT                        = 0x4DCD0DCD;
+    constexpr unsigned int mmCB_BLEND5_CONTROL_DEFAULT                        = 0x4DCD0DCD;
+    constexpr unsigned int mmCB_BLEND6_CONTROL_DEFAULT                        = 0x4DCD0DCD;
+    constexpr unsigned int mmCB_BLEND7_CONTROL_DEFAULT                        = 0x4DCD0DCD;
     constexpr unsigned int mmCB_COLOR0_ATTRIB_DEFAULT                         = 0xCDCDCDCD;
     constexpr unsigned int mmCB_COLOR0_CLEAR_WORD0_DEFAULT                    = 0xCDCDCDCD;
     constexpr unsigned int mmCB_COLOR0_CLEAR_WORD1_DEFAULT                    = 0xCDCDCDCD;
@@ -417,6 +419,11 @@ namespace Gfx09
     constexpr unsigned int mmCB_MRT5_EPITCH_DEFAULT                           = 0xCDCD;
     constexpr unsigned int mmCB_MRT6_EPITCH_DEFAULT                           = 0xCDCD;
     constexpr unsigned int mmCB_MRT7_EPITCH_DEFAULT                           = 0xCDCD;
+    constexpr unsigned int mmCB_PERFCOUNTER0_SELECT1_DEFAULT                  = 0x0000;
+    constexpr unsigned int mmCB_PERFCOUNTER0_SELECT_DEFAULT                   = 0x0000;
+    constexpr unsigned int mmCB_PERFCOUNTER1_SELECT_DEFAULT                   = 0x0000;
+    constexpr unsigned int mmCB_PERFCOUNTER2_SELECT_DEFAULT                   = 0x0000;
+    constexpr unsigned int mmCB_PERFCOUNTER3_SELECT_DEFAULT                   = 0x0000;
     constexpr unsigned int mmCB_SHADER_MASK_DEFAULT                           = 0xCDCDCDCD;
     constexpr unsigned int mmCOMPUTE_DIM_X_DEFAULT                            = 0xCDCDCDCD;
     constexpr unsigned int mmCOMPUTE_DIM_Y_DEFAULT                            = 0xCDCDCDCD;
@@ -440,6 +447,7 @@ namespace Gfx09
     constexpr unsigned int mmCPG_PERFCOUNTER0_SELECT1_DEFAULT                 = 0x11000401;
     constexpr unsigned int mmCPG_PERFCOUNTER0_SELECT_DEFAULT                  = 0x11000401;
     constexpr unsigned int mmCPG_PERFCOUNTER1_SELECT_DEFAULT                  = 0x11000401;
+    constexpr unsigned int mmDB_CGTT_CLK_CTRL_0_DEFAULT                       = 0x0100;
     constexpr unsigned int mmDB_DEPTH_SIZE_DEFAULT                            = 0xDCD0DCD;
     constexpr unsigned int mmDB_DEPTH_VIEW_DEFAULT                            = 0xDCDC5CD;
     constexpr unsigned int mmDB_DFSM_CONFIG_DEFAULT                           = 0x7F00;
@@ -454,14 +462,21 @@ namespace Gfx09
     constexpr unsigned int mmDB_HTILE_SURFACE_DEFAULT                         = 0xDCDCC;
     constexpr unsigned int mmDB_PERFCOUNTER0_HI_DEFAULT                       = 0xCDCDCDCD;
     constexpr unsigned int mmDB_PERFCOUNTER0_LO_DEFAULT                       = 0xCDCDCDCD;
+    constexpr unsigned int mmDB_PERFCOUNTER0_SELECT1_DEFAULT                  = 0xCD0DCDCD;
+    constexpr unsigned int mmDB_PERFCOUNTER0_SELECT_DEFAULT                   = 0xCD0DCDCD;
     constexpr unsigned int mmDB_PERFCOUNTER1_HI_DEFAULT                       = 0xCDCDCDCD;
     constexpr unsigned int mmDB_PERFCOUNTER1_LO_DEFAULT                       = 0xCDCDCDCD;
+    constexpr unsigned int mmDB_PERFCOUNTER1_SELECT1_DEFAULT                  = 0xCD0DCDCD;
+    constexpr unsigned int mmDB_PERFCOUNTER1_SELECT_DEFAULT                   = 0xCD0DCDCD;
     constexpr unsigned int mmDB_PERFCOUNTER2_HI_DEFAULT                       = 0xCDCDCDCD;
     constexpr unsigned int mmDB_PERFCOUNTER2_LO_DEFAULT                       = 0xCDCDCDCD;
+    constexpr unsigned int mmDB_PERFCOUNTER2_SELECT_DEFAULT                   = 0xCD0DCDCD;
     constexpr unsigned int mmDB_PERFCOUNTER3_HI_DEFAULT                       = 0xCDCDCDCD;
     constexpr unsigned int mmDB_PERFCOUNTER3_LO_DEFAULT                       = 0xCDCDCDCD;
+    constexpr unsigned int mmDB_PERFCOUNTER3_SELECT_DEFAULT                   = 0xCD0DCDCD;
     constexpr unsigned int mmDB_RENDER_CONTROL_DEFAULT                        = 0x0DCD;
     constexpr unsigned int mmDB_RENDER_OVERRIDE2_DEFAULT                      = 0xCDCDCD;
+    constexpr unsigned int mmDB_RENDER_OVERRIDE_DEFAULT                       = 0xC80DCDCD;
     constexpr unsigned int mmDB_RMI_CACHE_POLICY_DEFAULT                      = 0xF0F0F07;
     constexpr unsigned int mmDB_SHADER_CONTROL_DEFAULT                        = 0x41CDC5;
     constexpr unsigned int mmDB_STENCIL_INFO2_DEFAULT                         = 0x0000;
@@ -524,6 +539,7 @@ namespace Gfx09
     constexpr unsigned int mmPA_SC_RASTER_CONFIG_1_DEFAULT                    = 0x00CD;
     constexpr unsigned int mmPA_SC_RASTER_CONFIG_DEFAULT                      = 0xCD0DCDCD;
     constexpr unsigned int mmPA_SC_TILE_STEERING_OVERRIDE_DEFAULT             = 0x0145;
+    constexpr unsigned int mmPA_SU_LINE_STIPPLE_VALUE_DEFAULT                 = 0xCDCDCD;
     constexpr unsigned int mmPA_SU_PERFCOUNTER0_HI_DEFAULT                    = 0xCDCD;
     constexpr unsigned int mmPA_SU_PERFCOUNTER1_HI_DEFAULT                    = 0xCDCD;
     constexpr unsigned int mmPA_SU_PERFCOUNTER2_HI_DEFAULT                    = 0xCDCD;
@@ -3039,14 +3055,23 @@ namespace Gfx10Core
     constexpr unsigned int mmATC_PERFCOUNTER_HI_DEFAULT                       = 0x0000;
     constexpr unsigned int mmATC_PERFCOUNTER_LO_DEFAULT                       = 0x0000;
     constexpr unsigned int mmATC_PERFCOUNTER_RSLT_CNTL_DEFAULT                = 0x4000000;
+    constexpr unsigned int mmCB_PERFCOUNTER0_SELECT1_DEFAULT                  = 0x0000;
+    constexpr unsigned int mmCB_PERFCOUNTER0_SELECT_DEFAULT                   = 0x0000;
+    constexpr unsigned int mmCB_PERFCOUNTER1_SELECT_DEFAULT                   = 0x0000;
+    constexpr unsigned int mmCB_PERFCOUNTER2_SELECT_DEFAULT                   = 0x0000;
+    constexpr unsigned int mmCB_PERFCOUNTER3_SELECT_DEFAULT                   = 0x0000;
     constexpr unsigned int mmCB_RMI_BC_GL2_CACHE_CONTROL_DEFAULT              = 0x550055;
     constexpr unsigned int mmCB_STUTTER_CONTROL_CMASK_RDLAT_DEFAULT           = 0x0000;
     constexpr unsigned int mmCB_STUTTER_CONTROL_FMASK_RDLAT_DEFAULT           = 0x0000;
+    constexpr unsigned int mmDB_CGTT_CLK_CTRL_0_DEFAULT                       = 0x0100;
     constexpr unsigned int mmDB_DFSM_FLUSH_ENABLE_DEFAULT                     = 0x07FF;
     constexpr unsigned int mmDB_DFSM_PRIMS_IN_FLIGHT_DEFAULT                  = 0x00C8;
     constexpr unsigned int mmDB_DFSM_TILES_IN_FLIGHT_DEFAULT                  = 0x03E8;
     constexpr unsigned int mmDB_DFSM_WATCHDOG_DEFAULT                         = 0xF4240;
     constexpr unsigned int mmDB_RMI_BC_GL2_CACHE_CONTROL_DEFAULT              = 0x150055;
+    constexpr unsigned int mmGCR_PERFCOUNTER0_SELECT1_DEFAULT                 = 0x0000;
+    constexpr unsigned int mmGCR_PERFCOUNTER0_SELECT_DEFAULT                  = 0x0000;
+    constexpr unsigned int mmGCR_PERFCOUNTER1_SELECT_DEFAULT                  = 0x0000;
     constexpr unsigned int mmPA_SC_ENHANCE_INTERNAL_DEFAULT                   = 0x0000;
     constexpr unsigned int mmRMI_PERFCOUNTER0_SELECT1_DEFAULT                 = 0x0000;
     constexpr unsigned int mmRMI_PERFCOUNTER0_SELECT_DEFAULT                  = 0x0000;
@@ -3060,6 +3085,8 @@ namespace Gfx10Core
     constexpr unsigned int mmSQ_TIME_HI_DEFAULT                               = 0x0000;
     constexpr unsigned int mmSQ_TIME_LO_DEFAULT                               = 0x0000;
     constexpr unsigned int mmTA_RESERVED_010C_DEFAULT                         = 0x0000;
+    constexpr unsigned int mmUTCL1_PERFCOUNTER0_SELECT_DEFAULT                = 0x0000;
+    constexpr unsigned int mmUTCL1_PERFCOUNTER1_SELECT_DEFAULT                = 0x0000;
     constexpr unsigned int mmWD_CNTL_SB_BUF_BASE_DEFAULT                      = 0x0000;
     constexpr unsigned int mmWD_CNTL_SB_BUF_BASE_HI_DEFAULT                   = 0x0000;
     constexpr unsigned int mmWD_INDEX_BUF_BASE_DEFAULT                        = 0x0000;
@@ -3079,9 +3106,6 @@ namespace Gfx10CorePlus
     constexpr unsigned int mmGCEA_PERFCOUNTER2_MODE_DEFAULT                   = 0x0000;
     constexpr unsigned int mmGCEA_PERFCOUNTER2_SELECT1_DEFAULT                = 0xFFFFF;
     constexpr unsigned int mmGCEA_PERFCOUNTER2_SELECT_DEFAULT                 = 0xFFFFF;
-    constexpr unsigned int mmGCR_PERFCOUNTER0_SELECT1_DEFAULT                 = 0x0000;
-    constexpr unsigned int mmGCR_PERFCOUNTER0_SELECT_DEFAULT                  = 0x0000;
-    constexpr unsigned int mmGCR_PERFCOUNTER1_SELECT_DEFAULT                  = 0x0000;
     constexpr unsigned int mmSDMA0_PERFCOUNTER0_HI_DEFAULT                    = 0x0000;
     constexpr unsigned int mmSDMA0_PERFCOUNTER0_LO_DEFAULT                    = 0x0000;
     constexpr unsigned int mmSDMA0_PERFCOUNTER0_SELECT1_DEFAULT               = 0xFFFFF;
@@ -3090,8 +3114,6 @@ namespace Gfx10CorePlus
     constexpr unsigned int mmSDMA0_PERFCOUNTER1_LO_DEFAULT                    = 0x0000;
     constexpr unsigned int mmSDMA0_PERFCOUNTER1_SELECT1_DEFAULT               = 0xFFFFF;
     constexpr unsigned int mmSDMA0_PERFCOUNTER1_SELECT_DEFAULT                = 0xFFFFF;
-    constexpr unsigned int mmUTCL1_PERFCOUNTER0_SELECT_DEFAULT                = 0x0000;
-    constexpr unsigned int mmUTCL1_PERFCOUNTER1_SELECT_DEFAULT                = 0x0000;
 } // namespace Gfx10CorePlus
 
 namespace Gfx10Plus
@@ -3290,14 +3312,6 @@ namespace Gfx10Vrs
 
 namespace NotGfx10
 {
-    constexpr unsigned int mmCB_BLEND0_CONTROL_DEFAULT                        = 0x4DCD0DCD;
-    constexpr unsigned int mmCB_BLEND1_CONTROL_DEFAULT                        = 0x4DCD0DCD;
-    constexpr unsigned int mmCB_BLEND2_CONTROL_DEFAULT                        = 0x4DCD0DCD;
-    constexpr unsigned int mmCB_BLEND3_CONTROL_DEFAULT                        = 0x4DCD0DCD;
-    constexpr unsigned int mmCB_BLEND4_CONTROL_DEFAULT                        = 0x4DCD0DCD;
-    constexpr unsigned int mmCB_BLEND5_CONTROL_DEFAULT                        = 0x4DCD0DCD;
-    constexpr unsigned int mmCB_BLEND6_CONTROL_DEFAULT                        = 0x4DCD0DCD;
-    constexpr unsigned int mmCB_BLEND7_CONTROL_DEFAULT                        = 0x4DCD0DCD;
     constexpr unsigned int mmCB_BLEND_ALPHA_DEFAULT                           = 0xCDCDCDCD;
     constexpr unsigned int mmCB_BLEND_BLUE_DEFAULT                            = 0xCDCDCDCD;
     constexpr unsigned int mmCB_BLEND_GREEN_DEFAULT                           = 0xCDCDCDCD;
@@ -3398,14 +3412,7 @@ namespace NotGfx10
     constexpr unsigned int mmDB_OCCLUSION_COUNT2_LOW_DEFAULT                  = 0xCDCDCDCD;
     constexpr unsigned int mmDB_OCCLUSION_COUNT3_HI_DEFAULT                   = 0x4DCDCDCD;
     constexpr unsigned int mmDB_OCCLUSION_COUNT3_LOW_DEFAULT                  = 0xCDCDCDCD;
-    constexpr unsigned int mmDB_PERFCOUNTER0_SELECT1_DEFAULT                  = 0xCD0DCDCD;
-    constexpr unsigned int mmDB_PERFCOUNTER0_SELECT_DEFAULT                   = 0xCD0DCDCD;
-    constexpr unsigned int mmDB_PERFCOUNTER1_SELECT1_DEFAULT                  = 0xCD0DCDCD;
-    constexpr unsigned int mmDB_PERFCOUNTER1_SELECT_DEFAULT                   = 0xCD0DCDCD;
-    constexpr unsigned int mmDB_PERFCOUNTER2_SELECT_DEFAULT                   = 0xCD0DCDCD;
-    constexpr unsigned int mmDB_PERFCOUNTER3_SELECT_DEFAULT                   = 0xCD0DCDCD;
     constexpr unsigned int mmDB_PRELOAD_CONTROL_DEFAULT                       = 0xCDCDCDCD;
-    constexpr unsigned int mmDB_RENDER_OVERRIDE_DEFAULT                       = 0xC80DCDCD;
     constexpr unsigned int mmDB_SRESULTS_COMPARE_STATE0_DEFAULT               = 0x10DCDC5;
     constexpr unsigned int mmDB_SRESULTS_COMPARE_STATE1_DEFAULT               = 0x10DCDC5;
     constexpr unsigned int mmDB_STENCILREFMASK_BF_DEFAULT                     = 0xCDCDCDCD;
@@ -3692,7 +3699,6 @@ namespace NotGfx10
     constexpr unsigned int mmPA_SU_LINE_CNTL_DEFAULT                          = 0xCDCD;
     constexpr unsigned int mmPA_SU_LINE_STIPPLE_CNTL_DEFAULT                  = 0x000D;
     constexpr unsigned int mmPA_SU_LINE_STIPPLE_SCALE_DEFAULT                 = 0xCDCDCDCD;
-    constexpr unsigned int mmPA_SU_LINE_STIPPLE_VALUE_DEFAULT                 = 0xCDCDCD;
     constexpr unsigned int mmPA_SU_OVER_RASTERIZATION_CNTL_DEFAULT            = 0x000D;
     constexpr unsigned int mmPA_SU_PERFCOUNTER0_LO_DEFAULT                    = 0xCDCDCDCD;
     constexpr unsigned int mmPA_SU_PERFCOUNTER1_LO_DEFAULT                    = 0xCDCDCDCD;

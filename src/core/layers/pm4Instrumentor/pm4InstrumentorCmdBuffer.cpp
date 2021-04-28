@@ -599,6 +599,14 @@ void CmdBuffer::CmdSetGlobalScissor(
     CmdBufferFwdDecorator::CmdSetGlobalScissor(params);
     PostCall(CmdBufCallId::CmdSetGlobalScissor);
 }
+// =====================================================================================================================
+void CmdBuffer::CmdSetColorWriteMask(
+    const ColorWriteMaskParams& params)
+{
+    PreCall();
+    CmdBufferFwdDecorator::CmdSetColorWriteMask(params);
+    PostCall(CmdBufCallId::CmdSetColorWriteMask);
+}
 
 // =====================================================================================================================
 void CmdBuffer::CmdBarrier(

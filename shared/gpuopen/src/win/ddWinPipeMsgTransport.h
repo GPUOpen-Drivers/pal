@@ -67,6 +67,7 @@ namespace DevDriver
     private:
         HostInfo        m_hostInfo;
         HANDLE          m_pipeHandle;
+        char            m_pipeName[kMaxStringLength];
 
         struct PendingTransaction
         {

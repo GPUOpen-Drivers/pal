@@ -26,6 +26,8 @@
 
 cmake_minimum_required(VERSION 3.10..3.16)
 
+include_guard()
+
 # DevDriver.cmake adds project-specific options and warnings.
 # It does this while depending on the base AMD-wide configurations defined here.
 # Users of this file should only `include(DevDriver)`
@@ -328,4 +330,87 @@ function(devdriver_library name type)
     endif()
     #endif
 
+endfunction()
+
+## Introduce a new scope for various CMake project settings
+#
+# This introduces a new "scope" for CMake projects. Scopes function like a stack, so when this
+# scope is "popped", the previous scope is restored.
+#
+# Currently, scopes include the following:
+#   - CMAKE_FOLDER management of new targets. (targets can still override their property to opt-out)
+#   - CMAKE_MESSAGE_CONTEXT for message() calls in this scope. This functionality is enabled with
+#       CMAKE_MESSAGE_CONTEXT_SHOW=ON, or --log-context starting in CMake 3.17.
+#       Before CMake 3.17, this functionality is ignored.
+#
+# This scope is "popped" automatically at the end of a CMake scope. Most commonly, this occurs
+# at the end of a file.
+# e.g. You can include `devdriver_push_scope("My Cool Folder") at the top of a CMakeLists.txt,
+# and it will automatically pop the scope before "returning" to the previous CMakeLists.txt.
+function(devdriver_push_scope name)
+    list(LENGTH devdriver_cmake_folder_stack length_folder)
+    list(LENGTH CMAKE_MESSAGE_CONTEXT length_ctx)
+
+    ## Save the current CMAKE_FOLDER onto our own stack, and overwrite the current value
+    # CMake does not provide a folder stack, so we maintain one ourselves.
+    set(CMAKE_FOLDER "${CMAKE_FOLDER}/${name}")
+    list(APPEND devdriver_cmake_folder_stack "${CMAKE_FOLDER}")
+
+    ## Append the next CMAKE_MESSAGE_CONTEXT to our stack
+    # CMake already treats CMAKE_MESSAGE_CONTEXT like a stack, so we just use it directly.
+    # Contexts must be valid CMake identifiers, which are roughly valid C identifiers
+    string(MAKE_C_IDENTIFIER ${name} name_as_ident)
+    # Use our scope name for the next context
+    list(APPEND CMAKE_MESSAGE_CONTEXT ${name_as_ident})
+
+    ## Note: We have to use PARENT_SCOPE to propagate anything to the PARENT_SCOPE
+
+    # Save the CMAKE_FOLDER variable and its stack back into the parent scope
+    set(CMAKE_FOLDER                 ${CMAKE_FOLDER}                 PARENT_SCOPE)
+    set(devdriver_cmake_folder_stack ${devdriver_cmake_folder_stack} PARENT_SCOPE)
+    # Save the CMAKE_MESSAGE_CONTEXT list back into the parent scope
+    set(CMAKE_MESSAGE_CONTEXT        ${CMAKE_MESSAGE_CONTEXT}        PARENT_SCOPE)
+endfunction()
+
+## Remove a previously popped scope
+#
+# This removes the most recently pushed scope from `devdriver_push_scope`. This is not necessary for
+# a correct program, but may be useful for direct control over the scope stack.
+#
+# Typical usage should probably let the CMake file scoping rules clear the scope on file exit.
+function(devdriver_pop_scope)
+    list(LENGTH devdriver_cmake_folder_stack length_folder)
+    list(LENGTH CMAKE_MESSAGE_CONTEXT length_ctx)
+
+    # CMake 3.15 introduced list(POP_BACK), but we need to handle previous versions.
+    # In the future, when we require CMake >= 3.15, we can delete this check.
+    if (CMAKE_VERSION LESS "3.15")
+        ## Remove the last CMAKE_FOLDER that we saved
+        if (devdriver_cmake_folder_stack)
+            list(LENGTH devdriver_cmake_folder_stack folder_stack_length)
+            math(EXPR CMAKE_FOLDER "${folder_stack_length} - 1")
+            list(REMOVE_AT devdriver_cmake_folder_stack folder_stack_length)
+        endif()
+
+        ## Remove the last CMAKE_MESSAGE_CONTEXT that we saved
+        if (CMAKE_MESSAGE_CONTEXT)
+            list(LENGTH CMAKE_MESSAGE_CONTEXT context_stack_length)
+            math(EXPR last_context "${context_stack_length} - 1")
+            list(REMOVE_AT CMAKE_MESSAGE_CONTEXT context_stack_length)
+        endif()
+    else()
+        ## Remove the last CMAKE_FOLDER that we saved
+        list(POP_BACK devdriver_cmake_folder_stack CMAKE_FOLDER)
+
+        ## Remove the last CMAKE_MESSAGE_CONTEXT that we saved
+        list(POP_BACK CMAKE_MESSAGE_CONTEXT)
+    endif()
+
+    ## Note: We have to use PARENT_SCOPE to propagate anything to the PARENT_SCOPE
+
+    # Save the CMAKE_FOLDER variable and its stack back into the parent scope
+    set(CMAKE_FOLDER                 ${CMAKE_FOLDER}                 PARENT_SCOPE)
+    set(devdriver_cmake_folder_stack ${devdriver_cmake_folder_stack} PARENT_SCOPE)
+    # Save the CMAKE_MESSAGE_CONTEXT list back into the parent scope
+    set(CMAKE_MESSAGE_CONTEXT        ${CMAKE_MESSAGE_CONTEXT}        PARENT_SCOPE)
 endfunction()

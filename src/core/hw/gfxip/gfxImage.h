@@ -79,7 +79,8 @@ union SharedMetadataFlags
                                          // CS-based fast-clear is disabled w/o this on GFX9.
         uint32 hasHtileLookupTable  : 1; // Htile look-up table for each mip and slice - DB fixed-func resolve is
                                          // disabled w/o this.
-        uint32 reserved             : 27;
+        uint32 htileHasDsMetadata   : 1; // Whether htile has depth/stencil metadata.
+        uint32 reserved             : 26;
     };
     uint32 value;
 };
@@ -205,6 +206,8 @@ public:
 
     // Returns an integer that represents the tiling mode associated with the specified subresource.
     virtual uint32 GetSwTileMode(const SubResourceInfo* pSubResInfo) const = 0;
+
+    virtual uint32 GetTileSwizzle(const SubresId& subResId) const = 0;
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
     uint32 GetStencilPlane() const;

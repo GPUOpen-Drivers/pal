@@ -60,6 +60,7 @@ enum class CmdBufCallId : uint32
     CmdSetViewports,
     CmdSetScissorRects,
     CmdSetGlobalScissor,
+    CmdSetColorWriteMask,
     CmdBarrier,
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
     CmdRelease,
@@ -189,6 +190,7 @@ static const char* CmdBufCallIdStrings[] =
     "CmdSetViewports()",
     "CmdSetScissorRects()",
     "CmdSetGlobalScissor()",
+    "CmdSetColorWriteMask()",
     "CmdBarrier()",
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
     "CmdRelease()",

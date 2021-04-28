@@ -92,6 +92,7 @@ static constexpr FuncLoggingTableEntry FuncLoggingTable[] =
     { InterfaceFunc::CmdBufferCmdSetViewports,                      (CmdBuild)            },
     { InterfaceFunc::CmdBufferCmdSetScissorRects,                   (CmdBuild)            },
     { InterfaceFunc::CmdBufferCmdSetGlobalScissor,                  (CmdBuild)            },
+    { InterfaceFunc::CmdBufferCmdSetColorWriteMask,                 (CmdBuild)            },
     { InterfaceFunc::CmdBufferCmdBarrier,                           (CmdBuild)            },
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
     { InterfaceFunc::CmdBufferCmdRelease,                           (CmdBuild)            },

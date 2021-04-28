@@ -193,7 +193,6 @@ inline uint8 HexDigitToValue(char c)
 {
     // We use a switch case here to get the point across
     // gcc9, clang8, and MSVC all turn this into a lookup table indexing with c (sometimes subtracting from it first)
-    // There are some neat bit-hacks that could speed this up (e.g. by doing 4 or 8 characters at a time)
 
     switch (c)
     {

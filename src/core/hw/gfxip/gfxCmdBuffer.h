@@ -500,9 +500,6 @@ public:
     virtual void CmdOverwriteDisableViewportClampForBlits(
         bool disableViewportClamp) = 0;
 
-    virtual void CmdOverrideColorWriteMaskForBlits(
-        uint8 disabledChannelMask) { }
-
     virtual uint32 GetUsedSize(CmdAllocType type) const override;
 
     PerfExperimentFlags PerfTracesEnabled() const { return m_cmdBufPerfExptFlags; }

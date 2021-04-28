@@ -116,9 +116,14 @@ endfunction()
 function(pal_get_current_pal_interface_major_version VARIABLE)
     # Relative path to palLib.h from this file.
     set(LIB_H_PATH ${PAL_VERSION_HELPER_DIR}/../inc/core/palLib.h)
+
     if(NOT EXISTS ${LIB_H_PATH})
         message(FATAL_ERROR "Could not find palLib.h at \"${LIB_H_PATH}\"")
     endif()
+
+    # When the header file changes re-run the configure step
+    set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${LIB_H_PATH})
+
     # Read the line from the file where the version is defined.
     file(STRINGS
         ${LIB_H_PATH}

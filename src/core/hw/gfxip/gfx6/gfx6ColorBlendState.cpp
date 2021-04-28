@@ -41,7 +41,8 @@ ColorBlendState::ColorBlendState(
     const Device&                    device,
     const ColorBlendStateCreateInfo& createInfo)
     :
-    Pal::ColorBlendState()
+    Pal::ColorBlendState(),
+    m_device(device)
 {
     m_flags.u32All = 0;
     m_flags.rbPlus = device.Settings().gfx8RbPlusEnable;
@@ -101,28 +102,6 @@ CombFunc ColorBlendState::HwBlendFunc(
     };
 
     return blendFuncTbl[static_cast<size_t>(blendFunc)];
-}
-
-// =====================================================================================================================
-// Detects dual-source blend modes.
-bool ColorBlendState::IsDualSrcBlendOption(
-    Blend blend)
-{
-    bool isDualSrcBlendOption = false;
-
-    switch (blend)
-    {
-    case Blend::Src1Color:
-    case Blend::OneMinusSrc1Color:
-    case Blend::Src1Alpha:
-    case Blend::OneMinusSrc1Alpha:
-        isDualSrcBlendOption = true;
-        break;
-    default:
-        break;
-    }
-
-    return isDualSrcBlendOption;
 }
 
 // =====================================================================================================================
@@ -323,10 +302,7 @@ void ColorBlendState::Init(
         }
     }
 
-    m_flags.dualSourceBlend = (IsDualSrcBlendOption(blend.targets[0].srcBlendColor) |
-                               IsDualSrcBlendOption(blend.targets[0].dstBlendColor) |
-                               IsDualSrcBlendOption(blend.targets[0].srcBlendAlpha) |
-                               IsDualSrcBlendOption(blend.targets[0].dstBlendAlpha));
+    m_flags.dualSourceBlend = m_device.CanEnableDualSourceBlend(blend);
 
     // CB_BLEND1_CONTROL.ENABLE must be 1 for dual source blending.
     m_cbBlendControl[1].bits.ENABLE |= m_flags.dualSourceBlend;

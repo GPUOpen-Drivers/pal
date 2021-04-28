@@ -1039,14 +1039,15 @@ void DmaCmdBuffer::CmdCopyImage(
             else
             {
                 // The built-in packets for tiled copies have some restrictions on their use.  Determine if this
-                // copy is natively supported or if it needs to be done piecemeal.
-                if (UseT2tScanlineCopy(imageCopyInfo) == false)
+                // copy is natively supported or if it needs to be done piecemeal. First check to see if there is
+                // a DXC Panel setting that force all transfers to use scanline copy. Very useful in diagnosing sDMA issues
+                if ((m_pDevice->Settings().forceT2tScanlineCopies) || (UseT2tScanlineCopy(imageCopyInfo)))
                 {
-                    WriteCopyImageTiledToTiledCmd(imageCopyInfo);
+                    WriteCopyImageTiledToTiledCmdChunkCopy(imageCopyInfo);
                 }
                 else
                 {
-                    WriteCopyImageTiledToTiledCmdChunkCopy(imageCopyInfo);
+                    WriteCopyImageTiledToTiledCmd(imageCopyInfo);
                 }
             }
         }
@@ -1795,8 +1796,15 @@ void DmaCmdBuffer::WriteCopyMemImageDwordUnalignedCmd(
             passRgn.imageOffset.y = alignedRgn.imageOffset.y + yIdx;
 
             // Copy the scanline in contiguous pieces, as much as we can fit in embedded data at once
-            for (uint32 xIdx = 0; xIdx < alignedRgn.imageExtent.width; xIdx += copySizePixels)
+            uint32 cappedWidthToCopy = copySizePixels;
+            for (uint32 xIdx = 0; xIdx < alignedRgn.imageExtent.width; xIdx += cappedWidthToCopy)
             {
+                if ((xIdx + cappedWidthToCopy) > alignedRgn.imageExtent.width)
+                {
+                    cappedWidthToCopy = (alignedRgn.imageExtent.width - xIdx);
+                }
+
+                passRgn.imageExtent.width = cappedWidthToCopy;
                 passRgn.imageOffset.x = alignedRgn.imageOffset.x + xIdx;
 
                 // If this pass's piece of the scanline intersects the true copy region

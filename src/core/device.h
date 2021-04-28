@@ -728,8 +728,9 @@ struct GpuChipProperties
                                                      // un-cached memory. See gl2UncachedCpuCoherency
             uint32 supportsVrs                 :  1; // Indicates support for variable rate shading
             uint32 reserved2                   :  2;
+            uint32 reserved3                   :  1;
             uint32 supportCaptureReplay        :  1; // Indicates support for Capture Replay
-            uint32 reserved                    : 28;
+            uint32 reserved                    : 27;
         };
     } gfxip;
 #endif
@@ -944,7 +945,10 @@ struct GpuChipProperties
                 uint64 supportSortAgnosticBarycentrics    :  1; // HW provides provoking vertex for custom interp
                 uint64 supportMeshTaskShader              :  1;
                 uint64 placeholder5                       :  2;
-                uint64 reserved                           : 22;
+                uint64 supportTextureGatherBiasLod        :  1; // HW supports SQ_IMAGE_GATHER4_L_O
+                uint64 supportInt8Dot                     :  1; // HW supports a dot product 8bit.
+                uint64 supportInt4Dot                     :  1; // HW supports a dot product 4bit.
+                uint64 reserved                           : 19;
             };
 
             Gfx9PerfCounterInfo perfCounterInfo; // Contains info for perf counters for a specific hardware block
@@ -1424,6 +1428,13 @@ public:
         Result*                          pResult) const override
     {
         return (m_pGfxDevice == nullptr) ? 0 : m_pGfxDevice->GetColorBlendStateSize(createInfo, pResult);
+    }
+
+    // NOTE: Part of the public IDevice interface.
+    virtual bool CanEnableDualSourceBlend(
+        const ColorBlendStateCreateInfo& createInfo) const override
+    {
+        return (m_pGfxDevice == nullptr) ? false : m_pGfxDevice->CanEnableDualSourceBlend(createInfo);
     }
 
     // NOTE: Part of the public IDevice interface.

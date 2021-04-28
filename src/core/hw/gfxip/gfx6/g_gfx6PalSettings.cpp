@@ -130,7 +130,6 @@ void SettingsLoader::SetupDefaults()
     m_settings.gfx8PatchDistributionFactor = 8;
     m_settings.gfx8DonutDistributionFactor = 8;
     m_settings.gfx8TrapezoidDistributionFactor = 8;
-    m_settings.gfx8UseDcc = 0xf3;
     m_settings.gfx8AlwaysDecompress = 0x0;
     m_settings.gfx8RbPlusEnable = true;
     m_settings.gfx8FastClearAllTcCompatColorSurfs = 3;
@@ -507,11 +506,6 @@ void SettingsLoader::ReadSettings()
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pTrapezoidDistributionFactorStr,
                            Util::ValueType::Uint,
                            &m_settings.gfx8TrapezoidDistributionFactor,
-                           InternalSettingScope::PrivatePalGfx6Key);
-
-    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pGfx8UseDccStr,
-                           Util::ValueType::Uint,
-                           &m_settings.gfx8UseDcc,
                            InternalSettingScope::PrivatePalGfx6Key);
 
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pAlwaysDecompressStr,
@@ -956,11 +950,6 @@ void SettingsLoader::InitSettingsInfo()
     m_settingsInfoMap.Insert(674984646, info);
 
     info.type      = SettingType::Uint;
-    info.pValuePtr = &m_settings.gfx8UseDcc;
-    info.valueSize = sizeof(m_settings.gfx8UseDcc);
-    m_settingsInfoMap.Insert(3691235539, info);
-
-    info.type      = SettingType::Uint;
     info.pValuePtr = &m_settings.gfx8AlwaysDecompress;
     info.valueSize = sizeof(m_settings.gfx8AlwaysDecompress);
     m_settingsInfoMap.Insert(2887583419, info);
@@ -1031,7 +1020,7 @@ void SettingsLoader::DevDriverRegister()
             component.pfnSetValue = ISettingsLoader::SetValue;
             component.pSettingsData = &g_gfx6PalJsonData[0];
             component.settingsDataSize = sizeof(g_gfx6PalJsonData);
-            component.settingsDataHash = 2981264729;
+            component.settingsDataHash = 1300263404;
             component.settingsDataHeader.isEncoded = true;
             component.settingsDataHeader.magicBufferId = 402778310;
             component.settingsDataHeader.magicBufferOffset = 0;

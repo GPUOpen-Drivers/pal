@@ -47,6 +47,8 @@ class Image;
 class Queue;
 class TargetCmdBuffer;
 
+constexpr uint32 BadSubQueueIdx = UINT32_MAX;
+
 // =====================================================================================================================
 // GpuDebug implementation of the ICmdBuffer interface. This will follow similar record/playback functionality seen in
 // the GpuProfiler layer in order to provide additional control over the contents submitted.
@@ -63,7 +65,11 @@ public:
     Result Init();
 
     // This function will playback the commands recorded by this command buffer into various command buffers.
-    Result Replay(Queue* pQueue, const CmdBufInfo* pCmdBufInfo, uint32 subQueueIdx);
+    Result Replay(
+        Queue*            pQueue,
+        const CmdBufInfo* pCmdBufInfo,
+        uint32            subQueueIdx,
+        TargetCmdBuffer*  pNestedTgtCmdBuffer);
 
     // Public ICmdBuffer interface methods.  Each one tokenizes the call and returns immediately.
     virtual Result Begin(
@@ -119,6 +125,8 @@ public:
         const ScissorRectParams& params) override;
     virtual void CmdSetGlobalScissor(
         const GlobalScissorParams& params) override;
+    virtual void CmdSetColorWriteMask(
+        const ColorWriteMaskParams& params) override;
     virtual void CmdBarrier(
         const BarrierInfo& barrierInfo) override;
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
@@ -679,6 +687,7 @@ private:
     void ReplayCmdSetViewports(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdSetScissorRects(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdSetGlobalScissor(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
+    void ReplayCmdSetColorWriteMask(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdBarrier(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
     void ReplayCmdRelease(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
@@ -801,6 +810,12 @@ private:
 
     struct
     {
+        uint32 nested     :  1;  // This is a nested command buffer.
+        uint32 reserved   : 31;
+    } m_flags;
+
+    struct
+    {
         uint32          actionId;           // Count of the number of actions seen
         bool            pipelineMatch;      // true if the current pipeline matches the surface capture hash
         uint32          actionIdStart;      // First action to capture results
@@ -851,8 +866,23 @@ public:
     virtual Result Begin(const CmdBufferBuildInfo& info) override;
     void SetRecordingCmdBuffer(CmdBuffer* pCmdBuffer) { m_pRecordingCmdBuffer = pCmdBuffer; }
 
+    void CmdExecuteNestedCmdBuffers(
+        uint32            cmdBufferCount,
+        ICmdBuffer*const* ppCmdBuffers) override;
+    Result Reset(
+        ICmdAllocator* pCmdAllocator,
+        bool returnGpuMemory) override;
+
     Result GetLastResult() const { return m_result; }
     void SetLastResult(Result result);
+
+    uint32 GetNestedCmdBufCount() const { return m_nestedCmdBufCount; }
+
+    void SetSubQueueIdx(uint32 subQueuedIdx) { m_subQueueIdx = subQueuedIdx; }
+    uint32 GetSubQueueIdx() const { return m_subQueueIdx; }
+
+    void SetCmdBufInfo(const CmdBufInfo* pCmdBufInfo) { m_pCmdBufInfo = pCmdBufInfo; }
+    const CmdBufInfo* GetCmdBufInfo() { return m_pCmdBufInfo; }
 
 protected:
     virtual ~TargetCmdBuffer() {}
@@ -866,6 +896,13 @@ private:
     const EngineType             m_engineType;
     bool                         m_supportTimestamps; // This command buffer (based on engine type) supports timestamps.
     Result                       m_result;            // Result from attempted operations.
+
+    uint32                       m_nestedCmdBufCount; // Tracks the number of nested command buffers executed during
+                                                      // replay.
+    int                          m_subQueueIdx;       // The subQueue to which this tgtCmdBuf belongs. Set during
+                                                      // acquire.
+    const CmdBufInfo*            m_pCmdBufInfo;       // The CmdBufInfo from the command buffer targeted. Set during
+                                                      // acquire.
 
     PAL_DISALLOW_DEFAULT_CTOR(TargetCmdBuffer);
     PAL_DISALLOW_COPY_AND_ASSIGN(TargetCmdBuffer);

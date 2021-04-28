@@ -88,6 +88,7 @@ private:
         uint32  u32All;
     } m_flags;
 
+    const Device&             m_device;
     regCB_BLEND0_CONTROL      m_cbBlendControl[MaxColorTargets];
     regSX_MRT0_BLEND_OPT__VI  m_sxMrtBlendOpt[MaxColorTargets];
 

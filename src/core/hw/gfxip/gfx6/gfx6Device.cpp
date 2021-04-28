@@ -1680,6 +1680,7 @@ DccFormatEncoding Device::ComputeDccFormatEncoding(
                 (Formats::ShareChFmt(swizzledFormat.format, pFormats[i].format) == false) ||
                 (swizzledFormat.swizzle.swizzleValue != pFormats[i].swizzle.swizzleValue))
             {
+                // If any format is incompatible fallback to non DCC.
                 dccFormatEncoding = DccFormatEncoding::Incompatible;
                 break;
             }
@@ -1688,7 +1689,6 @@ DccFormatEncoding Device::ComputeDccFormatEncoding(
             {
                 //dont have to turn off DCC entirely only Constant Encoding
                 dccFormatEncoding = DccFormatEncoding::SignIndependent;
-                break;
             }
         }
     }

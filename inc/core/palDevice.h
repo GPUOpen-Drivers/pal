@@ -200,11 +200,11 @@ enum class AsicRevision : uint32
     Raven2      = 0x1C,
     Renoir      = 0x1D,
 
-    Navi10      = 0x1F,
-    Navi12      = 0x21,
-    Navi14      = 0x23,
-    Navi21      = 0x24,
-    Navi22      = 0x25,
+    Navi10           = 0x1F,
+    Navi12           = 0x21,
+    Navi14           = 0x23,
+    Navi21           = 0x24,
+    Navi22           = 0x25,
 };
 
 /// Specifies which operating-system-support IP level (OSSIP) this device has.
@@ -313,7 +313,8 @@ enum class VideoDecodeType : uint32
     Vp9                 = 0x8,      ///< VP9
     Hevc10Bit           = 0x9,      ///< HEVC 10bit
     Vp910Bit            = 0xa,      ///< VP9 10bit
-    Av1                 = 0xb,      ///< AV1
+    Av1                 = 0xb,      ///< AV1 8/10bit
+    Av112Bit            = 0xc,      ///< AV1 12bit
     Count,
 };
 
@@ -1178,7 +1179,10 @@ struct DeviceProperties
                 uint64 supportVrsWithDsExports            :  1; ///< If true, asic support coarse VRS rates
                                                                 ///  when z or stencil exports are enabled
                 uint64 placeholder11                      :  2; ///< Placeholder, do not use
-                uint64 reserved                           : 24; ///< Reserved for future use.
+                uint64 supportTextureGatherBiasLod        :  1; ///< HW supports SQ_IMAGE_GATHER4_L_O
+                uint64 supportInt8Dot                     :  1; ///< Hardware supports a dot product 8bit.
+                uint64 supportInt4Dot                     :  1; ///< Hardware supports a dot product 4bit.
+                uint64 reserved                           : 21; ///< Reserved for future use.
             };
             uint64 u64All;           ///< Flags packed as 32-bit uint.
         } flags;                     ///< Device IP property flags.
@@ -2533,6 +2537,17 @@ public:
     ///
     /// @returns Success if no errors occurred.
     virtual Result Cleanup() = 0;
+
+    /// Returns if dual-source blending can be enabled. It checks the ColorBlendStateCreateInfo for any src1 blending
+    /// options. Then it checks if we are going to override those src1 options because the blend func is
+    /// min or max.
+    ///
+    /// @param [in] createInfo The ColorBlendStateCreateInfo that is checked for conditions that call for dual-source
+    ///                        blending.
+    ///
+    /// @returns true if the blend state calls for dual-source blending to be enabled.
+    virtual bool CanEnableDualSourceBlend(
+        const ColorBlendStateCreateInfo& createInfo) const = 0;
 
     /// Specifies how many frames can be placed in the presentation queue.  This limits how many frames the CPU can get
     /// in front of the device.

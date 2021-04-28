@@ -240,6 +240,16 @@ typedef int32 (*AmdgpuBoListCreate)(
 typedef int32 (*AmdgpuBoListDestroy)(
             amdgpu_bo_list_handle     hBoList);
 
+typedef int32 (*AmdgpuBoListCreateRaw)(
+            amdgpu_device_handle              hDevice,
+            uint32                            numberOfResources,
+            struct drm_amdgpu_bo_list_entry*  pBoListEntry,
+            uint32*                           pBoListHandle);
+
+typedef int32 (*AmdgpuBoListDestroyRaw)(
+            amdgpu_device_handle  hDevice,
+            uint32                boListHandle);
+
 typedef int32 (*AmdgpuCsCtxCreate)(
             amdgpu_device_handle      hDevice,
             amdgpu_context_handle*    pContextHandle);
@@ -348,14 +358,6 @@ typedef int32 (*AmdgpuCsImportSyncobj)(
             amdgpu_device_handle  hDevice,
             int32                 sharedFd,
             uint32*               pSyncObj);
-
-typedef int32 (*AmdgpuCsSubmitRaw)(
-            amdgpu_device_handle          hDevice,
-            amdgpu_context_handle         hContext,
-            amdgpu_bo_list_handle         hBuffer,
-            int32                         numChunks,
-            struct drm_amdgpu_cs_chunk*   pChunks,
-            uint64*                       pSeqNo);
 
 typedef int32 (*AmdgpuCsSubmitRaw2)(
             amdgpu_device_handle          dev,
@@ -894,6 +896,18 @@ struct DrmLoaderFuncs
         return (pfnAmdgpuBoListDestroy != nullptr);
     }
 
+    AmdgpuBoListCreateRaw             pfnAmdgpuBoListCreateRaw;
+    bool pfnAmdgpuBoListCreateRawisValid() const
+    {
+        return (pfnAmdgpuBoListCreateRaw != nullptr);
+    }
+
+    AmdgpuBoListDestroyRaw            pfnAmdgpuBoListDestroyRaw;
+    bool pfnAmdgpuBoListDestroyRawisValid() const
+    {
+        return (pfnAmdgpuBoListDestroyRaw != nullptr);
+    }
+
     AmdgpuCsCtxCreate                 pfnAmdgpuCsCtxCreate;
     bool pfnAmdgpuCsCtxCreateisValid() const
     {
@@ -1024,12 +1038,6 @@ struct DrmLoaderFuncs
     bool pfnAmdgpuCsImportSyncobjisValid() const
     {
         return (pfnAmdgpuCsImportSyncobj != nullptr);
-    }
-
-    AmdgpuCsSubmitRaw                 pfnAmdgpuCsSubmitRaw;
-    bool pfnAmdgpuCsSubmitRawisValid() const
-    {
-        return (pfnAmdgpuCsSubmitRaw != nullptr);
     }
 
     AmdgpuCsSubmitRaw2                pfnAmdgpuCsSubmitRaw2;
@@ -1812,6 +1820,26 @@ public:
         return (m_pFuncs->pfnAmdgpuBoListDestroy != nullptr);
     }
 
+    int32 pfnAmdgpuBoListCreateRaw(
+            amdgpu_device_handle              hDevice,
+            uint32                            numberOfResources,
+            struct drm_amdgpu_bo_list_entry*  pBoListEntry,
+            uint32*                           pBoListHandle) const;
+
+    bool pfnAmdgpuBoListCreateRawisValid() const
+    {
+        return (m_pFuncs->pfnAmdgpuBoListCreateRaw != nullptr);
+    }
+
+    int32 pfnAmdgpuBoListDestroyRaw(
+            amdgpu_device_handle  hDevice,
+            uint32                boListHandle) const;
+
+    bool pfnAmdgpuBoListDestroyRawisValid() const
+    {
+        return (m_pFuncs->pfnAmdgpuBoListDestroyRaw != nullptr);
+    }
+
     int32 pfnAmdgpuCsCtxCreate(
             amdgpu_device_handle      hDevice,
             amdgpu_context_handle*    pContextHandle) const;
@@ -2029,19 +2057,6 @@ public:
     bool pfnAmdgpuCsImportSyncobjisValid() const
     {
         return (m_pFuncs->pfnAmdgpuCsImportSyncobj != nullptr);
-    }
-
-    int32 pfnAmdgpuCsSubmitRaw(
-            amdgpu_device_handle          hDevice,
-            amdgpu_context_handle         hContext,
-            amdgpu_bo_list_handle         hBuffer,
-            int32                         numChunks,
-            struct drm_amdgpu_cs_chunk*   pChunks,
-            uint64*                       pSeqNo) const;
-
-    bool pfnAmdgpuCsSubmitRawisValid() const
-    {
-        return (m_pFuncs->pfnAmdgpuCsSubmitRaw != nullptr);
     }
 
     int32 pfnAmdgpuCsSubmitRaw2(

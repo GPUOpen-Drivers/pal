@@ -517,6 +517,10 @@ public:
     virtual Result Cleanup() override
         { return m_pNextLayer->Cleanup(); }
 
+    virtual bool CanEnableDualSourceBlend(
+        const ColorBlendStateCreateInfo& createInfo) const override
+    { return m_pNextLayer->CanEnableDualSourceBlend(createInfo); }
+
     virtual bool ReadSetting(
         const char*     pSettingName,
         SettingScope    settingScope,
@@ -1378,6 +1382,10 @@ public:
     virtual void CmdSetGlobalScissor(
         const GlobalScissorParams& params) override
         { m_pNextLayer->CmdSetGlobalScissor(params); }
+
+    virtual void CmdSetColorWriteMask(
+        const ColorWriteMaskParams& params) override
+        { m_pNextLayer->CmdSetColorWriteMask(params); }
 
     virtual void CmdBarrier(const BarrierInfo& barrierInfo) override;
 

@@ -278,6 +278,10 @@ public:
         const GlobalScissorParams& params) override
         { PAL_NEVER_CALLED(); }
 
+    virtual void CmdSetColorWriteMask(
+        const ColorWriteMaskParams& params) override
+        { PAL_NEVER_CALLED(); }
+
     virtual void CmdCopyMemory(
         const IGpuMemory&       srcGpuMemory,
         const IGpuMemory&       dstGpuMemory,

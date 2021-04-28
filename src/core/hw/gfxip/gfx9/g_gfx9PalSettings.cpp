@@ -78,7 +78,6 @@ void SettingsLoader::SetupDefaults()
     m_settings.fmaskCompressDisable = false;
     m_settings.fmaskAllowPipeBankXor = false;
     m_settings.dccOnComputeEnable = 0x3;
-    m_settings.useDcc = 0xcff;
     m_settings.cbDbCachePolicy = 0x0;
     m_settings.csMaxWavesPerCu = 0;
     m_settings.csLockThreshold = 0;
@@ -208,7 +207,7 @@ void SettingsLoader::SetupDefaults()
 
     m_settings.optimizeNullSourceImage = true;
 
-    m_settings.vrsImageSize = 0x10001000;
+    m_settings.vrsImageSize = 0x40004000;
 
     m_settings.waUtcL0InconsistentBigPage = false;
     m_settings.waTwoPlanesIterate256 = false;
@@ -218,7 +217,7 @@ void SettingsLoader::SetupDefaults()
     m_settings.waLegacyGsCutModeFlush = false;
     m_settings.sdmaBypassMall = 0x3;
 
-    m_settings.enableMallCursorCache = false;
+    m_settings.enableMallCursorCache = true;
 
     m_settings.depthStencilFastClearComputeThresholdSingleSampled = 2097152;
     m_settings.depthStencilFastClearComputeThresholdMultiSampled = 4194304;
@@ -330,11 +329,6 @@ void SettingsLoader::ReadSettings()
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pDccOnComputeEnableStr,
                            Util::ValueType::Uint,
                            &m_settings.dccOnComputeEnable,
-                           InternalSettingScope::PrivatePalGfx9Key);
-
-    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pGfx9UseDccStr,
-                           Util::ValueType::Uint,
-                           &m_settings.useDcc,
                            InternalSettingScope::PrivatePalGfx9Key);
 
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pCbDbCachePolicyStr,
@@ -1395,11 +1389,6 @@ void SettingsLoader::InitSettingsInfo()
     m_settingsInfoMap.Insert(950561670, info);
 
     info.type      = SettingType::Uint;
-    info.pValuePtr = &m_settings.useDcc;
-    info.valueSize = sizeof(m_settings.useDcc);
-    m_settingsInfoMap.Insert(562025936, info);
-
-    info.type      = SettingType::Uint;
     info.pValuePtr = &m_settings.cbDbCachePolicy;
     info.valueSize = sizeof(m_settings.cbDbCachePolicy);
     m_settingsInfoMap.Insert(4090628834, info);
@@ -2090,7 +2079,7 @@ void SettingsLoader::DevDriverRegister()
             component.pfnSetValue = ISettingsLoader::SetValue;
             component.pSettingsData = &g_gfx9PalJsonData[0];
             component.settingsDataSize = sizeof(g_gfx9PalJsonData);
-            component.settingsDataHash = 4129440010;
+            component.settingsDataHash = 3113252140;
             component.settingsDataHeader.isEncoded = true;
             component.settingsDataHeader.magicBufferId = 402778310;
             component.settingsDataHeader.magicBufferOffset = 0;

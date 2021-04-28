@@ -49,6 +49,9 @@ namespace DevDriver
         case ERROR_FILE_NOT_FOUND:
             result = Result::Unavailable;
             break;
+        case ERROR_ACCESS_DENIED:
+            result = Result::FileAccessError;
+            break;
         }
         return result;
     }
@@ -82,6 +85,7 @@ namespace DevDriver
                         // This can happen when a read operation is queued from one thread and then accessed from a new one.
                         // We return Aborted to inform the calling code about this situation.
                         // Some documentation about ERROR_OPERATION_ABORTED can be found here:
+                        // https://github.com/MicrosoftDocs/win32/blob/docs/desktop-src/FileIO/canceling-pending-i-o-operations.md
                         result = Result::Aborted;
                     }
                     else
@@ -103,7 +107,12 @@ namespace DevDriver
         m_pipeHandle(INVALID_HANDLE_VALUE),
         m_readTransaction(),
         m_writeTransaction()
-    {}
+    {
+        if (MakePipeName(m_pipeName, m_hostInfo.hostname) != Result::Success)
+        {
+            m_pipeName[0] = '\0';
+        }
+    }
 
     WinPipeMsgTransport::~WinPipeMsgTransport()
     {
@@ -116,55 +125,61 @@ namespace DevDriver
     Result WinPipeMsgTransport::Connect(ClientId* pClientId, uint32 timeoutInMs)
     {
         DD_UNUSED(pClientId);
-        DD_UNUSED(timeoutInMs);
 
         Result result = Result::Error;
 
-        if (m_pipeHandle == INVALID_HANDLE_VALUE && WaitNamedPipe(m_hostInfo.hostname, timeoutInMs))
+        if (IsValidPipeName(m_pipeName))
         {
-            m_pipeHandle = CreateFileA(m_hostInfo.hostname,          // Pipe name
-                                       GENERIC_READ | GENERIC_WRITE, // Read and write access
-                                       0,                            // No sharing
-                                       nullptr,                      // Default security attributes
-                                       OPEN_EXISTING,                // Opens existing pipe
-                                       FILE_FLAG_OVERLAPPED,         // Default attributes
-                                       nullptr);                     // No template file
-
-            // CreateFile returns INVALID_HANDLE_VALUE on failure
-            if (m_pipeHandle != INVALID_HANDLE_VALUE)
+            if (m_pipeHandle == INVALID_HANDLE_VALUE && WaitNamedPipe(m_pipeName, timeoutInMs))
             {
-                DWORD dwMode = PIPE_READMODE_MESSAGE | PIPE_WAIT;
-                BOOL success = SetNamedPipeHandleState(
-                    m_pipeHandle,    // pipe handle
-                    &dwMode,  // new pipe mode
-                    nullptr,     // don't set maximum bytes
-                    nullptr);    // don't set maximum time
-                DD_ASSERT(success == TRUE);
-                if (success == TRUE)
+                m_pipeHandle = CreateFileA(m_pipeName,                   // Pipe name
+                                           GENERIC_READ | GENERIC_WRITE, // Read and write access
+                                           0,                            // No sharing
+                                           nullptr,                      // Default security attributes
+                                           OPEN_EXISTING,                // Opens existing pipe
+                                           FILE_FLAG_OVERLAPPED,         // Default attributes
+                                           nullptr);                     // No template file
+
+                // CreateFile returns INVALID_HANDLE_VALUE on failure
+                if (m_pipeHandle != INVALID_HANDLE_VALUE)
                 {
-                    m_readTransaction.oOverlap.Offset = 0;
-                    m_readTransaction.oOverlap.OffsetHigh = 0;
-                    m_readTransaction.oOverlap.hEvent = CreateEvent(
-                        nullptr,    // default security attribute
-                        TRUE,    // manual-reset event
-                        FALSE,    // initial state = unsignaled
-                        nullptr);   // unnamed event object
-
-                    m_writeTransaction.oOverlap.Offset = 0;
-                    m_writeTransaction.oOverlap.OffsetHigh = 0;
-                    m_writeTransaction.oOverlap.hEvent = CreateEvent(
-                        nullptr,    // default security attribute
-                        TRUE,    // manual-reset event
-                        FALSE,    // initial state = unsignaled
-                        nullptr);   // unnamed event object
-
-                    // CreateFile returns NULL on failure
-                    DD_ASSERT((m_readTransaction.oOverlap.hEvent != NULL) && (m_writeTransaction.oOverlap.hEvent != NULL));
-
-                    if ((m_readTransaction.oOverlap.hEvent != NULL) & (m_writeTransaction.oOverlap.hEvent != NULL))
+                    DWORD dwMode = PIPE_READMODE_MESSAGE | PIPE_WAIT;
+                    BOOL success = SetNamedPipeHandleState(
+                        m_pipeHandle,    // pipe handle
+                        &dwMode,  // new pipe mode
+                        nullptr,     // don't set maximum bytes
+                        nullptr);    // don't set maximum time
+                    DD_ASSERT(success == TRUE);
+                    if (success == TRUE)
                     {
-                        result = Result::Success;
+                        m_readTransaction.oOverlap.Offset = 0;
+                        m_readTransaction.oOverlap.OffsetHigh = 0;
+                        m_readTransaction.oOverlap.hEvent = CreateEvent(
+                            nullptr,    // default security attribute
+                            TRUE,    // manual-reset event
+                            FALSE,    // initial state = unsignaled
+                            nullptr);   // unnamed event object
+
+                        m_writeTransaction.oOverlap.Offset = 0;
+                        m_writeTransaction.oOverlap.OffsetHigh = 0;
+                        m_writeTransaction.oOverlap.hEvent = CreateEvent(
+                            nullptr,    // default security attribute
+                            TRUE,    // manual-reset event
+                            FALSE,    // initial state = unsignaled
+                            nullptr);   // unnamed event object
+
+                        // CreateFile returns NULL on failure
+                        DD_ASSERT((m_readTransaction.oOverlap.hEvent != NULL) && (m_writeTransaction.oOverlap.hEvent != NULL));
+
+                        if ((m_readTransaction.oOverlap.hEvent != NULL) & (m_writeTransaction.oOverlap.hEvent != NULL))
+                        {
+                            result = Result::Success;
+                        }
                     }
+                }
+                else
+                {
+                    result = GetLastConnectError();
                 }
             }
             else
@@ -172,10 +187,7 @@ namespace DevDriver
                 result = GetLastConnectError();
             }
         }
-        else
-        {
-            result = GetLastConnectError();
-        }
+
         return result;
     }
 
@@ -298,36 +310,41 @@ namespace DevDriver
 
         MessageBuffer responseMessage = {};
 
-        // Use CallNamedPipe to connect, send, receive, and disconnect to the named pipe
-        DWORD bytesRead = 0;
-        const BOOL success = CallNamedPipe(hostInfo.hostname,
-                                           &message,
-                                           sizeof(message.header),
-                                           &responseMessage,
-                                           sizeof(responseMessage),
-                                           &bytesRead,
-                                           timeoutInMs);
-        // Check to make sure we got the response + that the response is the expected size
-        // KeepAlive is defined as having no additional payload, so it will only ever be the size of a header
-        if ((success != FALSE) & (bytesRead == sizeof(responseMessage.header)))
+        char fullPipeName[kMaxStringLength] = {'\0'};
+        result = MakePipeName(fullPipeName, hostInfo.hostname);
+        if (result == Result::Success)
         {
-            // Since we received a response, we know there is a server. An invalid packet here means that either
-            // the remote server didn't understand the request or that there was a logical bug on the server.
-            // In either case we treat this as a version mismatch since we can't tell the difference.
-            result = Result::VersionMismatch;
-
-            // check packet validity and set success if true
-            if (IsOutOfBandMessage(responseMessage) &
-                IsValidOutOfBandMessage(responseMessage) &
-                (responseMessage.header.messageId == static_cast<MessageCode>(ManagementMessage::KeepAlive)))
+            // Use CallNamedPipe to connect, send, receive, and disconnect to the named pipe
+            DWORD bytesRead = 0;
+            const BOOL success = CallNamedPipe(fullPipeName,
+                                               &message,
+                                               sizeof(message.header),
+                                               &responseMessage,
+                                               sizeof(responseMessage),
+                                               &bytesRead,
+                                               timeoutInMs);
+            // Check to make sure we got the response + that the response is the expected size
+            // KeepAlive is defined as having no additional payload, so it will only ever be the size of a header
+            if ((success != FALSE) & (bytesRead == sizeof(responseMessage.header)))
             {
-                result = Result::Success;
+                // Since we received a response, we know there is a server. An invalid packet here means that either
+                // the remote server didn't understand the request or that there was a logical bug on the server.
+                // In either case we treat this as a version mismatch since we can't tell the difference.
+                result = Result::VersionMismatch;
+
+                // check packet validity and set success if true
+                if (IsOutOfBandMessage(responseMessage) &
+                    IsValidOutOfBandMessage(responseMessage) &
+                    (responseMessage.header.messageId == static_cast<MessageCode>(ManagementMessage::KeepAlive)))
+                {
+                    result = Result::Success;
+                }
             }
-        }
-        else
-        {
-            // if the call failed, try to return a meaningful status result
-            result = GetLastConnectError();
+            else
+            {
+                // if the call failed, try to return a meaningful status result
+                result = GetLastConnectError();
+            }
         }
 
         return result;

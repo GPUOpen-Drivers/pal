@@ -264,7 +264,8 @@ typedef union _amdgpu_shared_metadata_flags
         uint32_t has_eq_gpu_access:             1; ///< Metadata equation for GPU access following main metadata (DCC or HTILE)
         uint32_t has_htile_lookup_table:        1; ///< Htile look-up table for each mip and slice
         uint32_t htile_as_fmask_xor:            1; ///< Indicate htileOffset is used as Fmask Xor Setting.
-        uint32_t reserved:                     26;
+        uint32_t htile_has_ds_metadata:         1; ///< Whether htile has depth/stencil metadata.
+        uint32_t reserved:                     25;
     };
     uint32_t all32;
 } amdgpu_shared_metadata_flags;

@@ -2446,6 +2446,7 @@ Result Device::GetProperties(
 
             pInfo->gfxipProperties.flags.support1xMsaaSampleLocations   = gfx9Props.support1xMsaaSampleLocations;
             pInfo->gfxipProperties.flags.supportOutOfOrderPrimitives    = gfx9Props.supportOutOfOrderPrimitives;
+            pInfo->gfxipProperties.flags.supportTextureGatherBiasLod    = gfx9Props.supportTextureGatherBiasLod;
 
             pInfo->gfxipProperties.flags.supportIntersectRayBarycentrics = gfx9Props.supportIntersectRayBarycentrics;
 
@@ -2464,6 +2465,8 @@ Result Device::GetProperties(
                 }
             }
 
+            pInfo->gfxipProperties.flags.supportInt8Dot = gfx9Props.supportInt8Dot;
+            pInfo->gfxipProperties.flags.supportInt4Dot = gfx9Props.supportInt4Dot;
             break;
         }
 
@@ -2826,7 +2829,7 @@ gpusize Device::GetMaxGpuMemoryAlignment() const
 {
     gpusize maxAlignment = MemoryProperties().fragmentSize;
 
-    ADDR_GET_MAX_ALINGMENTS_OUTPUT addrLibOutput = { };
+    ADDR_GET_MAX_ALIGNMENTS_OUTPUT addrLibOutput = { };
     ADDR_HANDLE                    addrHandle    = m_pAddrMgr->AddrLibHandle();
 
     if (AddrGetMaxAlignments(addrHandle, &addrLibOutput) == ADDR_OK)
@@ -2838,7 +2841,7 @@ gpusize Device::GetMaxGpuMemoryAlignment() const
         PAL_ASSERT_ALWAYS();
     }
 
-    ADDR_GET_MAX_ALINGMENTS_OUTPUT addrLibMetaOutput = {};
+    ADDR_GET_MAX_ALIGNMENTS_OUTPUT addrLibMetaOutput = {};
 
     if (AddrGetMaxMetaAlignments(addrHandle, &addrLibMetaOutput) == ADDR_OK)
     {

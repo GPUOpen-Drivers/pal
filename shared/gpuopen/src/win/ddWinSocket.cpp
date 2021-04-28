@@ -23,13 +23,13 @@
  *
  **********************************************************************************************************************/
 
-#include "ddSocket.h"
+#include <ddAbstractSocket.h>
 
 #include <ws2tcpip.h>
 #include <stdlib.h>
-#include "ddPlatform.h"
+#include <ddPlatform.h>
 
-#include "session.h"
+#include <session.h>
 
 namespace DevDriver
 {

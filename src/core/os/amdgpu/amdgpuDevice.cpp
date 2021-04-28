@@ -600,6 +600,26 @@ Result Device::OsLateInit()
         m_featureState.requirePrtReserveVaWa = 1;
     }
 
+    if ((static_cast<Platform*>(m_pPlatform)->IsRaw2SubmitSupported()) && (m_semType == SemaphoreType::SyncObj))
+    {
+        m_featureState.supportRaw2Submit = 1;
+    }
+
+    // When using amdgpu_cs_submit_raw to submit raw IBs, amdgpu_bo_list_handle will be directly passed to DRM.
+    // After switching to amdgpu_cs_submit_raw2, amdgpu_bo_handles will be passed to DRM with one of amdgpu_cs_chunks.
+    // The field to save amdgpu_bo_list_handle in the old interface amdgpu_cs_submit_raw is updated to a uint value in
+    // amdgpu_cs_submit_raw2, which is supposed to be 0 and never initialized.
+    // Unless DRM version is under 3.27, that uint value will be re-enabled. In this case, amdgpu_bo_list_create_raw
+    // will be used to convert the amdgpu_bo_handles to a uint handle.
+    if (IsDrmVersionOrGreater(3,27))
+    {
+        m_featureState.useBoListCreate = 0;
+    }
+    else
+    {
+        m_featureState.useBoListCreate = 1;
+    }
+
     return result;
 }
 
@@ -1830,8 +1850,8 @@ size_t Device::QueueObjectSize(
     case QueueTypeCompute:
     case QueueTypeUniversal:
     case QueueTypeDma:
-        // Add the size of Amdgpu::Queue::m_pResourceList
-        size = sizeof(Amdgpu::Queue) + CmdBufMemReferenceLimit * sizeof(amdgpu_bo_handle);
+        // Add the size of Amdgpu::Queue::m_pResourceList or m_pResourceObjectList
+        size = sizeof(Amdgpu::Queue) + CmdBufMemReferenceLimit * sizeof(this);
 
         if (createInfo.enableGpuMemoryPriorities)
         {
@@ -2744,17 +2764,17 @@ Result Device::DestroyCommandSubmissionContext(
 }
 
 // =====================================================================================================================
-// Call amdgpu to submit the commands through amdgpu_cs_submit_raw, which requires caller to setup the cs_chunks
-Result Device::SubmitRaw(
+// Call amdgpu to submit the commands through amdgpu_cs_submit_raw2, which requires caller to setup the cs_chunks
+Result Device::SubmitRaw2(
     amdgpu_context_handle           hContext,
-    amdgpu_bo_list_handle           boList,
+    uint32                          bo_handle_list,
     uint32                          chunkCount,
     struct drm_amdgpu_cs_chunk *    pChunks,
     uint64*                         pFence
     ) const
 {
     Result result = Result::Success;
-    result = CheckResult(m_drmProcs.pfnAmdgpuCsSubmitRaw(m_hDevice, hContext, boList, chunkCount, pChunks, pFence),
+    result = CheckResult(m_drmProcs.pfnAmdgpuCsSubmitRaw2(m_hDevice, hContext, bo_handle_list, chunkCount, pChunks, pFence),
                          Result::ErrorInvalidValue);
 
     return result;
@@ -3082,18 +3102,12 @@ Result Device::CreateResourceList(
     amdgpu_bo_list_handle* pListHandle
     ) const
 {
-    Result result = Result::Success;
-
-    const int listCreateRetVal = m_drmProcs.pfnAmdgpuBoListCreate(m_hDevice,
-                                                                  numberOfResources,
-                                                                  pResources,
-                                                                  pResourcePriorities,
-                                                                  pListHandle);
-
-    if (listCreateRetVal != 0)
-    {
-        result = Result::ErrorOutOfGpuMemory;
-    }
+    Result result = CheckResult(m_drmProcs.pfnAmdgpuBoListCreate(m_hDevice,
+                                                          numberOfResources,
+                                                          pResources,
+                                                          pResourcePriorities,
+                                                          pListHandle),
+                                Result::ErrorOutOfGpuMemory);
 
     return result;
 }
@@ -3104,12 +3118,37 @@ Result Device::DestroyResourceList(
     amdgpu_bo_list_handle handle
     ) const
 {
-    Result result = Result::Success;
+    Result result = CheckResult(m_drmProcs.pfnAmdgpuBoListDestroy(handle),
+                                Result::ErrorInvalidValue);
 
-    if (m_drmProcs.pfnAmdgpuBoListDestroy(handle) != 0)
-    {
-        result = Result::ErrorInvalidValue;
-    }
+    return result;
+}
+
+// =====================================================================================================================
+// Call amdgpu to create a list of buffer objects which are referenced by the commands submit.
+Result Device::CreateResourceListRaw(
+    uint32                           numberOfResources,
+    struct drm_amdgpu_bo_list_entry* pBoListEntry,
+    uint32*                          pListHandle
+    ) const
+{
+    Result result = CheckResult(m_drmProcs.pfnAmdgpuBoListCreateRaw(m_hDevice,
+                                                             numberOfResources,
+                                                             pBoListEntry,
+                                                             pListHandle),
+                                Result::ErrorOutOfGpuMemory);
+
+    return result;
+}
+
+// =====================================================================================================================
+// Call amdgpu to destroy a bo list.
+Result Device::DestroyResourceListRaw(
+    uint32 handle
+    ) const
+{
+    Result result = CheckResult(m_drmProcs.pfnAmdgpuBoListDestroyRaw(m_hDevice, handle),
+                                Result::ErrorInvalidValue);
 
     return result;
 }
@@ -3472,6 +3511,8 @@ void Device::UpdateMetaData(
             sharedMetadataInfo.flags.hasEqGpuAccess;
         pUmdSharedMetadata->flags.has_htile_lookup_table =
             sharedMetadataInfo.flags.hasHtileLookupTable;
+        pUmdSharedMetadata->flags.htile_has_ds_metadata =
+            sharedMetadataInfo.flags.htileHasDsMetadata;
 
         pUmdSharedMetadata->dcc_state_offset =
             sharedMetadataInfo.dccStateMetaDataOffset[0];

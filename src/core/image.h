@@ -317,6 +317,8 @@ public:
     gpusize GetSubresourceBaseAddr(uint32 subresId) const
         { return (m_vidMem.GpuVirtAddr() + m_pSubResInfoList[subresId].offset); }
 
+    gpusize GetSubresourceBaseAddrSwizzled(const SubresId& subresource) const;
+
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
     // Determine which subresource plane is tied to the specified image aspect.
     uint32 GetPlaneFromAspect(ImageAspect aspect) const;

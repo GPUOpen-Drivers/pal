@@ -406,6 +406,10 @@ public:
 
     bool IsVmAlwaysValidSupported() const { return (m_featureState.supportVmAlwaysValid != 0); }
 
+    bool IsRaw2SubmitSupported() const { return (m_featureState.supportRaw2Submit != 0); }
+
+    bool UseBoListCreate() const { return (m_featureState.useBoListCreate != 0); }
+
     // Access KMD interfaces
     Result AllocBuffer(
         struct amdgpu_bo_alloc_request* pAllocRequest,
@@ -482,9 +486,9 @@ public:
     Result DestroyCommandSubmissionContext(
         amdgpu_context_handle hContext) const;
 
-    Result SubmitRaw(
+    Result SubmitRaw2(
         amdgpu_context_handle           hContext,
-        amdgpu_bo_list_handle           boList,
+        uint32                          bo_list_handle,
         uint32                          chunkCount,
         struct drm_amdgpu_cs_chunk*     pChunks,
         uint64*                         pFence) const;
@@ -561,6 +565,14 @@ public:
 
     Result DestroyResourceList(
         amdgpu_bo_list_handle handle) const;
+
+    Result CreateResourceListRaw(
+        uint32                           numberOfResources,
+        struct drm_amdgpu_bo_list_entry* pBoListEntry,
+        uint32*                          pListHandle) const;
+
+    Result DestroyResourceListRaw(
+        uint32 handle) const;
 
     Result CreateSyncObject(
         uint32                    flags,
@@ -708,9 +720,9 @@ public:
 
     bool SemWaitRequiresSubmission() const { return m_semType != SemaphoreType::ProOnly; }
 
-    bool SupportRawSubmit() const
+    bool SupportRaw2Submit() const
     {
-        return m_drmProcs.pfnAmdgpuCsSubmitRawisValid();
+        return m_drmProcs.pfnAmdgpuCsSubmitRaw2isValid();
     }
 
     SemaphoreType GetSemaphoreType() const { return m_semType; }
@@ -990,7 +1002,9 @@ private:
             uint32 supportVmAlwaysValid                : 1;     // Support creating bo that is always resident in current VM.
             uint32 supportQuerySensorInfo              : 1;
             uint32 requirePrtReserveVaWa               : 1;     // Indicate whether kernel has the fix for PRT va range handling.
-            uint32 reserved                            : 27;
+            uint32 supportRaw2Submit                   : 1;     // Support amdgpu_cs_submit_raw2.
+            uint32 useBoListCreate                     : 1;     // Indicate whether legacy path is needed for raw IBs submission.
+            uint32 reserved                            : 25;
         };
         uint32 flags;
     } m_featureState;

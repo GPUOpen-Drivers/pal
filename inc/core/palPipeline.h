@@ -325,6 +325,10 @@ struct GraphicsPipelineCreateInfo
 #else
         bool            forceSampleRateShading;    ///< Force per sample shading
 #endif
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 665
+        bool            dx10DiamondTestDisable;     ///< Disable DX10 diamond test during line rasterization.
+#endif
     } rsState;             ///< Rasterizer state.
 
     struct

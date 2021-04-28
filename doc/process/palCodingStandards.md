@@ -754,13 +754,21 @@ private:
 -   Multiple inheritance ***must not*** be used.
 
 -   All virtual functions declared in the base class ***must*** be
-    declared virtual throughout the inheritance hierarchy.
+    declared `virtual` throughout the inheritance hierarchy.
+
+-   Overridden base class `virtual` functions in derived classes ***must***
+    be declared with the `override` keyword.
+
+-   If a function overrides a base class virtual function and does not need to
+    be further overriden down in the hierarchy tree, then it ***can*** be declared final.
+    Thus, the `final` keyword ***should not*** be used unless there is an `override`
+    keyword.
 
 -   All destructors throughout an inheritance hierarchy ***must*** be
     declared virtual.
 
 -   Derived classes which have no child classes ***must*** be
-    declared using the "final" keyword.
+    declared using the `final` keyword.
 
 ### Constructors
 

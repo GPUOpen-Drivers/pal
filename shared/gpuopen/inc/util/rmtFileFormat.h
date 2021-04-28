@@ -39,8 +39,8 @@ namespace DevDriver
 /// Magic number for all RMT files.
 #define RMT_FILE_MAGIC_NUMBER (0x494e494d)
 
-#define RMT_FILE_MAJOR_VERSION 1;
-#define RMT_FILE_MINOR_VERSION 0;
+#define RMT_FILE_MAJOR_VERSION 1
+#define RMT_FILE_MINOR_VERSION 0
 
 /// The maximum number of separate RMT streams in a file.
 #define RMT_MAXIMUM_STREAMS  (256)
@@ -141,6 +141,10 @@ typedef struct RmtFileChunkHeader
     int32                  sizeInBytes;      ///< The size of the chunk in bytes.
     int32                  padding;          ///< Reserved padding dword.
 } RmtFileChunkHeader;
+
+// This version number matches the spec revision version
+#define RMT_FILE_DATA_CHUNK_MAJOR_VERSION 1
+#define RMT_FILE_DATA_CHUNK_MINOR_VERSION 6
 
 /// A structure encapsulating information about the location of the RMT data within the RMT file itself.
 typedef struct RmtFileChunkRmtData

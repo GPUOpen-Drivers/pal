@@ -487,7 +487,7 @@ Result Image::Finalize(
         PAL_ASSERT(sharedMetadata.numPlanes == 1);
 
         useDcc                = (sharedMetadata.dccOffset[0] != 0);
-        htileUsage.dsMetadata = (sharedMetadata.htileOffset  != 0);
+        htileUsage.dsMetadata = (sharedMetadata.flags.htileHasDsMetadata != 0);
         useCmask              = (sharedMetadata.cmaskOffset  != 0) && (sharedMetadata.fmaskOffset != 0);
 
         // Fast-clear metadata is a must for shared DCC and HTILE. Sharing is disabled if it is not provided.
@@ -1677,22 +1677,22 @@ Result Image::ComputePipeBankXor(
         if (m_pImageInfo->internalCreateInfo.flags.useSharedTilingOverrides)
         {
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-            if (aspect == ImageAspect::Color)
+            if (aspect == ImageAspect::Fmask)
 #else
-            if (isColorPlane)
-#endif
-            {
-                // If this is a shared image, then the pipe/bank xor value has been given to us. Just take that.
-                *pPipeBankXor = m_pImageInfo->internalCreateInfo.gfx9.sharedPipeBankXor;
-            }
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-            else if (aspect == ImageAspect::Fmask)
-#else
-            else if (forFmask)
+            if (forFmask)
 #endif
             {
                 // If this is a shared image, then the pipe/bank xor value has been given to us. Just take that.
                 *pPipeBankXor = m_pImageInfo->internalCreateInfo.gfx9.sharedPipeBankXorFmask;
+            }
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
+            else if (aspect == ImageAspect::Color)
+#else
+            else if (isColorPlane)
+#endif
+            {
+                // If this is a shared image, then the pipe/bank xor value has been given to us. Just take that.
+                *pPipeBankXor = m_pImageInfo->internalCreateInfo.gfx9.sharedPipeBankXor;
             }
             else if (isDepthStencil)
             {
@@ -1718,7 +1718,6 @@ Result Image::ComputePipeBankXor(
             {
                 PAL_NOT_IMPLEMENTED();
             }
-
         }
         else if (Parent()->IsPeer())
         {
@@ -2430,6 +2429,14 @@ const ADDR2_COMPUTE_SURFACE_INFO_OUTPUT* Image::GetAddrOutput(
 #else
     return &m_addrSurfOutput[pSubResInfo->subresId.plane];
 #endif
+}
+
+// =====================================================================================================================
+uint32 Image::GetTileSwizzle(
+    const SubresId& subresId
+    ) const
+{
+    return AddrMgr2::GetTileInfo(m_pParent, subresId)->pipeBankXor;
 }
 
 // =====================================================================================================================
@@ -3991,6 +3998,7 @@ void Image::GetSharedMetadataInfo(
         pMetadataInfo->htileOffset                = m_pHtile->MemoryOffset();
         pMetadataInfo->flags.hasWaTcCompatZRange  = HasWaTcCompatZRangeMetaData();
         pMetadataInfo->flags.hasHtileLookupTable  = HasHtileLookupTable();
+        pMetadataInfo->flags.htileHasDsMetadata   = HasDsMetadata();
 
         PAL_ASSERT(m_pHtile->HasMetaEqGenerator());
         pMetadataInfo->flags.hasEqGpuAccess       = m_pHtile->GetMetaEqGenerator()->HasEqGpuAccess();

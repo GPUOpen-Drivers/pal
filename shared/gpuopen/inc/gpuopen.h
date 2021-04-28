@@ -458,24 +458,7 @@ namespace DevDriver
     {
         TransportType::Local,
         0,
-
-        // Note: Changing this default value will break old drivers and new tool pairings.
-        // Be thoughtful when changing this.
-#if defined(DD_PLATFORM_WINDOWS_UM)
-        // On Windows, use a named pipe
-        "\\\\.\\pipe\\AMD-Developer-Service"
-#elif defined(DD_PLATFORM_LINUX_UM)
-        // On Linux, we use an abstract path witih a unix domain socket
-        // This string is not backed in the filesystem, and can be pretty free-form.
-        // We reuse the same path from Windows for historical reasons.
-        "\\\\.\\pipe\\AMD-Developer-Service",
-#elif defined(DD_PLATFORM_DARWIN_UM)
-        // On Darwin, use a unix domain socket backed by a file
-        "/tmp/com.amd.AMD-Developer-Service",
-#else
-        #error "Unsupported platform cannot select default pipe name"
-#endif
-
+        "AMD-Developer-Service"
     };
 
     ////////////////////////////

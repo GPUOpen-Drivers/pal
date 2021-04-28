@@ -998,7 +998,7 @@ void RelocationProcessor<Allocator>::Get(
 
 // =====================================================================================================================
 template <typename Allocator>
-const uint32 RelocationProcessor<Allocator>::GetNumRelocations() const
+uint32 RelocationProcessor<Allocator>::GetNumRelocations() const
 {
     uint32 numRelocations = 0;
 
@@ -1069,7 +1069,7 @@ const char* StringProcessor<Allocator>::Get(
 
 // =====================================================================================================================
 template <typename Allocator>
-const uint32 StringProcessor<Allocator>::GetNumStrings() const
+uint32 StringProcessor<Allocator>::GetNumStrings() const
 {
     const char* ch = static_cast<const char*>(m_pStrTabSection->GetData());
 

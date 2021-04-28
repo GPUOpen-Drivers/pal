@@ -160,12 +160,8 @@ constexpr uint32 Gfx9NumWavesPerCu   = Gfx9NumWavesPerSimd * Gfx9NumSimdPerCu;
 // Number of SIMDs per Compute Unit
 constexpr uint32 Gfx10NumSimdPerCu = 2;
 
-// The maximum number of waves per SIMD and Compute Unit.
-constexpr uint32 Gfx10NumWavesPerSimd = 20;
-constexpr uint32 Gfx10NumWavesPerCu   = Gfx10NumWavesPerSimd * Gfx10NumSimdPerCu;
-
-// Number of SGPRs physically present per SIMD
-constexpr uint32 Gfx10PhysicalSgprsPerSimd = 128 * Gfx10NumWavesPerSimd;
+// Number of SGPRs per wave
+constexpr uint32 Gfx10NumSgprsPerWave = 128;
 
 // The hardware can only support a limited number of scratch waves per CU.
 constexpr uint32 MaxScratchWavesPerCu = 32;

@@ -3199,6 +3199,14 @@ bool Image::IsFastClearColorMetaFetchable(
 }
 
 // =====================================================================================================================
+uint32 Image::GetTileSwizzle(
+    const SubresId& subresId
+    ) const
+{
+    return AddrMgr1::GetTileInfo(m_pParent, subresId)->tileSwizzle;
+}
+
+// =====================================================================================================================
 // Calculates a base_256b address for a subresource with swizzle OR'ed
 uint32 Image::GetSubresource256BAddrSwizzled(
     SubresId subresource

@@ -36,9 +36,6 @@ list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake/Modules)
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake/)
 include(AmdCmakeHelper)
 include(PalVersionHelper)
-include(PalBuildParameters)
-include(PalOptions)
-include(PalOverrides)
 include(PalCompileDefinitions)
 include(PalCompilerOptions)
 
@@ -50,13 +47,13 @@ if (${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_CURRENT_SOURCE_DIR})
 endif()
 
 ### Build Parameters ###################################################################################################
-pals_build_parameters()
+include(PalBuildParameters)
 
 ### Project Options ####################################################################################################
-pal_options()
+include(PalOptions)
 
 ### Option Overrides ###################################################################################################
-pal_overrides()
+include(PalOverrides)
 
 ### Add Subdirectories #################################################################################################
 add_subdirectory(src)

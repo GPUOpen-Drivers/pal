@@ -42,7 +42,7 @@
 #error "BIGENDIAN_CPU or LITTLEENDIAN_CPU must be defined"
 #endif
 
-union GB_ADDR_CONFIG {
+union GB_ADDR_CONFIG_GFX9 {
     struct {
 #if        defined(LITTLEENDIAN_CPU)
         unsigned int                       NUM_PIPES : 3;

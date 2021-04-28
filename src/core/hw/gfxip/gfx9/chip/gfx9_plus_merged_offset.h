@@ -1803,6 +1803,7 @@ namespace Gfx10
     constexpr unsigned int mmGCVML2_PERFCOUNTER2_1_SELECT                     = 0xDD3D;
     constexpr unsigned int mmGCVML2_PERFCOUNTER2_1_SELECT1                    = 0xDD3F;
     constexpr unsigned int mmGE_DMA_FIRST_INDEX                               = 0xC251;
+    constexpr unsigned int mmGE_PC_CNTL                                       = 0x2245;
     constexpr unsigned int mmIA_MULTI_VGT_PARAM                               = 0xA2AA;
     constexpr unsigned int mmIA_MULTI_VGT_PARAM_PIPED                         = 0xC258;
     constexpr unsigned int mmPA_PH_ENHANCE                                    = 0x22E1;
@@ -2716,7 +2717,6 @@ namespace Gfx10Plus
     constexpr unsigned int mmGE_MULTI_PRIM_IB_RESET_EN                        = 0xC24B;
     constexpr unsigned int mmGE_NGG_SUBGRP_CNTL                               = 0xA2D3;
     constexpr unsigned int mmGE_PC_ALLOC                                      = 0xC260;
-    constexpr unsigned int mmGE_PC_CNTL                                       = 0x2245;
     constexpr unsigned int mmGE_PRIV_CONTROL                                  = 0x2264;
     constexpr unsigned int mmGE_STATUS                                        = 0x2265;
     constexpr unsigned int mmGE_STEREO_CNTL                                   = 0xC25F;

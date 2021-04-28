@@ -150,13 +150,7 @@ struct GpuMemoryInfo
     void*       pCpuAddr;
 };
 
-// Each nested command buffer execution must be played back with its own command allocator because one client cannot
-// support automatic memory reuse of nested command memory.
-struct NestedInfo
-{
-    TargetCmdBuffer* pCmdBuffer;
-    ICmdAllocator*   pCmdAllocator; // This is a GpuProfiler CmdAllocator.
-};
+typedef Util::Deque<TargetCmdBuffer*, Platform> CmdBufDeque;
 
 // This struct tracks per subQueue info when we do gang submission.
 struct SubQueueInfo
@@ -166,15 +160,12 @@ struct SubQueueInfo
     uint32     engineIndex;
     // For each subQueue, track 2 lists of various objects.  Objects that may still be queued for hardware access are
     // in the busy list, others are in the available list.
-    Util::Deque<TargetCmdBuffer*, Platform>* pAvailableCmdBufs;
-    Util::Deque<TargetCmdBuffer*, Platform>* pBusyCmdBufs;
+    CmdBufDeque* pAvailableCmdBufs;
+    CmdBufDeque* pBusyCmdBufs;
 
-    Util::Deque<NestedInfo, Platform>* pAvailableNestedCmdBufs;
-    Util::Deque<NestedInfo, Platform>* pBusyNestedCmdBufs;
+    CmdBufDeque* pAvailableNestedCmdBufs;
+    CmdBufDeque* pBusyNestedCmdBufs;
 };
-
-typedef Util::Deque<TargetCmdBuffer*, Platform> CmdBufDeque;
-typedef Util::Deque<NestedInfo, Platform> NestedCmdBufDeque;
 
 // =====================================================================================================================
 // GpuProfiler implementation of the IQueue interface.  Resposible for generating instrumented versions of the
@@ -191,8 +182,7 @@ public:
 
     // Acquire methods return corresponding objects for use by a command buffer being replayed from reusable pools
     // managed by the Queue.
-    TargetCmdBuffer* AcquireCmdBuf(uint32 subQueueIdx);
-    TargetCmdBuffer* AcquireNestedCmdBuf(uint32 subQueueIdx);
+    TargetCmdBuffer* AcquireCmdBuf(uint32 subQueueIdx, bool nested);
     Result AcquireGpaSession(GpuUtil::GpaSession** ppGpaSession);
 
     void AddLogItem(const LogItem& logItem);
@@ -278,13 +268,12 @@ private:
 
     uint32           m_shaderEngineCount;
 
-    ICmdAllocator*   m_pCmdAllocator;  // Allocator for the instrumented version of the non-nested command buffers this
-                                       // queue will generate at submit time.
+    ICmdAllocator*   m_pCmdAllocator;        // Allocator for the instrumented version of the non-nested command
+                                             // buffers this queue will generate at submit time.
+    ICmdAllocator*   m_pNestedCmdAllocator;  // Allocator for the instrumented version of the nested command
+                                             // buffers this queue will generate at submit time.
 
     Util::VirtualLinearAllocator m_replayAllocator; // Used to allocate temporary memory during command buffer replay.
-
-    // Each replayed nested command buffer needs its own allocator which will be created from this create info.
-    CmdAllocatorCreateInfo m_nestedAllocatorCreateInfo;
 
     // GpaSession config info for the queue
     GpuUtil::GpaSampleConfig                    m_gpaSessionSampleConfig;

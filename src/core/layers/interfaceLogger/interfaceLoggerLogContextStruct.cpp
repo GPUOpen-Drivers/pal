@@ -1276,6 +1276,26 @@ void LogContext::Struct(
 
 // =====================================================================================================================
 void LogContext::Struct(
+    const ColorWriteMaskParams& value)
+{
+    BeginMap(false);
+
+    KeyAndValue("count", value.count);
+
+    KeyAndValue("colorWriteMask[0]", value.colorWriteMask[0]);
+    KeyAndValue("colorWriteMask[1]", value.colorWriteMask[1]);
+    KeyAndValue("colorWriteMask[2]", value.colorWriteMask[2]);
+    KeyAndValue("colorWriteMask[3]", value.colorWriteMask[3]);
+    KeyAndValue("colorWriteMask[4]", value.colorWriteMask[4]);
+    KeyAndValue("colorWriteMask[5]", value.colorWriteMask[5]);
+    KeyAndValue("colorWriteMask[6]", value.colorWriteMask[6]);
+    KeyAndValue("colorWriteMask[7]", value.colorWriteMask[7]);
+
+    EndMap();
+}
+
+// =====================================================================================================================
+void LogContext::Struct(
     const GpuEventCreateInfo& value)
 {
     BeginMap(false);

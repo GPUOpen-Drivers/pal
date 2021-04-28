@@ -51,6 +51,7 @@ Queue::Queue(
     m_queueId(masterQueueId),
     m_shaderEngineCount(0),
     m_pCmdAllocator(nullptr),
+    m_pNestedCmdAllocator(nullptr),
     m_replayAllocator(64 * 1024),
     m_availableGpaSessions(static_cast<Platform*>(pDevice->GetPlatform())),
     m_busyGpaSessions(static_cast<Platform*>(pDevice->GetPlatform())),
@@ -63,23 +64,9 @@ Queue::Queue(
     m_curLogCmdBufIdx(0),
     m_curLogSqttIdx(0)
 {
-    memset(&m_nestedAllocatorCreateInfo, 0, sizeof(m_nestedAllocatorCreateInfo));
     memset(&m_gpaSessionSampleConfig,    0, sizeof(m_gpaSessionSampleConfig));
     memset(&m_nextSubmitInfo,            0, sizeof(m_nextSubmitInfo));
     memset(&m_perFrameLogItem,           0, sizeof(m_perFrameLogItem));
-
-    // All nested allocations are set the the minimum size (4KB) because applications that submit hundreds of nested
-    // command buffers can potentially exhaust the GPU VA range by simply playing back too many nested command buffers.
-    // This will have a small performance impact on large nested command buffers but we have little choice for now.
-    m_nestedAllocatorCreateInfo.allocInfo[CommandDataAlloc].allocHeap      = GpuHeapGartUswc;
-    m_nestedAllocatorCreateInfo.allocInfo[CommandDataAlloc].allocSize      = 4 * 1024;
-    m_nestedAllocatorCreateInfo.allocInfo[CommandDataAlloc].suballocSize   = 4 * 1024;
-    m_nestedAllocatorCreateInfo.allocInfo[EmbeddedDataAlloc].allocHeap     = GpuHeapGartUswc;
-    m_nestedAllocatorCreateInfo.allocInfo[EmbeddedDataAlloc].allocSize     = 4 * 1024;
-    m_nestedAllocatorCreateInfo.allocInfo[EmbeddedDataAlloc].suballocSize  = 4 * 1024;
-    m_nestedAllocatorCreateInfo.allocInfo[GpuScratchMemAlloc].allocHeap    = GpuHeapGartUswc;
-    m_nestedAllocatorCreateInfo.allocInfo[GpuScratchMemAlloc].allocSize    = 4 * 1024;
-    m_nestedAllocatorCreateInfo.allocInfo[GpuScratchMemAlloc].suballocSize = 4 * 1024;
 }
 
 // =====================================================================================================================
@@ -117,14 +104,11 @@ Queue::~Queue()
 
         while (m_pQueueInfos[qIdx].pAvailableNestedCmdBufs->NumElements() > 0)
         {
-            NestedInfo info = {};
-            m_pQueueInfos[qIdx].pAvailableNestedCmdBufs->PopFront(&info);
+            TargetCmdBuffer* pCmdBuf = nullptr;
+            m_pQueueInfos[qIdx].pAvailableNestedCmdBufs->PopFront(&pCmdBuf);
 
-            info.pCmdBuffer->Destroy();
-            PAL_SAFE_FREE(info.pCmdBuffer, m_pDevice->GetPlatform());
-
-            info.pCmdAllocator->Destroy();
-            PAL_SAFE_FREE(info.pCmdAllocator, m_pDevice->GetPlatform());
+            pCmdBuf->Destroy();
+            PAL_SAFE_FREE(pCmdBuf, m_pDevice->GetPlatform());
         }
 
         PAL_SAFE_DELETE(m_pQueueInfos[qIdx].pAvailableCmdBufs, pPlatform);
@@ -164,6 +148,12 @@ Queue::~Queue()
     {
         m_pCmdAllocator->Destroy();
         PAL_SAFE_FREE(m_pCmdAllocator, m_pDevice->GetPlatform());
+    }
+
+    if (m_pNestedCmdAllocator != nullptr)
+    {
+        m_pNestedCmdAllocator->Destroy();
+        PAL_SAFE_FREE(m_pNestedCmdAllocator, m_pDevice->GetPlatform());
     }
 
     DestroyGpaSessionSampleConfig();
@@ -222,8 +212,8 @@ Result Queue::Init(
             m_pQueueInfos[i].queueType               = pCreateInfo[i].queueType;
             m_pQueueInfos[i].pAvailableCmdBufs       = PAL_NEW(CmdBufDeque, pPlatform, AllocInternal)(pPlatform);
             m_pQueueInfos[i].pBusyCmdBufs            = PAL_NEW(CmdBufDeque, pPlatform, AllocInternal)(pPlatform);
-            m_pQueueInfos[i].pAvailableNestedCmdBufs = PAL_NEW(NestedCmdBufDeque, pPlatform, AllocInternal)(pPlatform);
-            m_pQueueInfos[i].pBusyNestedCmdBufs      = PAL_NEW(NestedCmdBufDeque, pPlatform, AllocInternal)(pPlatform);
+            m_pQueueInfos[i].pAvailableNestedCmdBufs = PAL_NEW(CmdBufDeque, pPlatform, AllocInternal)(pPlatform);
+            m_pQueueInfos[i].pBusyNestedCmdBufs      = PAL_NEW(CmdBufDeque, pPlatform, AllocInternal)(pPlatform);
             if ((m_pQueueInfos[i].pAvailableCmdBufs == nullptr)       ||
                 (m_pQueueInfos[i].pBusyCmdBufs == nullptr)            ||
                 (m_pQueueInfos[i].pAvailableNestedCmdBufs == nullptr) ||
@@ -243,6 +233,7 @@ Result Queue::Init(
     {
         CmdAllocatorCreateInfo createInfo = { };
         createInfo.flags.autoMemoryReuse                      = 1;
+        createInfo.flags.disableBusyChunkTracking             = 1;
         createInfo.allocInfo[CommandDataAlloc].allocHeap      = GpuHeapGartUswc;
         createInfo.allocInfo[CommandDataAlloc].allocSize      = 2 * 1024 * 1024;
         createInfo.allocInfo[CommandDataAlloc].suballocSize   = 64 * 1024;
@@ -266,6 +257,46 @@ Result Queue::Init(
             else
             {
                 result = m_pDevice->CreateCmdAllocator(createInfo, pMemory, &m_pCmdAllocator);
+
+                if (result != Result::Success)
+                {
+                    PAL_SAFE_FREE(pMemory, m_pDevice->GetPlatform());
+                }
+            }
+        }
+    }
+
+    if (result == Result::Success)
+    {
+        CmdAllocatorCreateInfo createInfo = { };
+        createInfo.flags.autoMemoryReuse                      = 1;
+        createInfo.flags.disableBusyChunkTracking             = 1;
+        // All nested allocations are set the the minimum size (4KB) because applications that submit hundreds of nested
+        // command buffers can potentially exhaust the GPU VA range by simply playing back too many nested command buffers.
+        // This will have a small performance impact on large nested command buffers but we have little choice for now.
+        createInfo.allocInfo[CommandDataAlloc].allocHeap      = GpuHeapGartUswc;
+        createInfo.allocInfo[CommandDataAlloc].allocSize      = 4 * 1024;
+        createInfo.allocInfo[CommandDataAlloc].suballocSize   = 4 * 1024;
+        createInfo.allocInfo[EmbeddedDataAlloc].allocHeap     = GpuHeapGartUswc;
+        createInfo.allocInfo[EmbeddedDataAlloc].allocSize     = 4 * 1024;
+        createInfo.allocInfo[EmbeddedDataAlloc].suballocSize  = 4 * 1024;
+        createInfo.allocInfo[GpuScratchMemAlloc].allocHeap    = GpuHeapGartUswc;
+        createInfo.allocInfo[GpuScratchMemAlloc].allocSize    = 4 * 1024;
+        createInfo.allocInfo[GpuScratchMemAlloc].suballocSize = 4 * 1024;
+
+        void* pMemory = PAL_MALLOC(m_pDevice->GetCmdAllocatorSize(createInfo, &result),
+                                   m_pDevice->GetPlatform(),
+                                   AllocInternal);
+
+        if (result == Result::Success)
+        {
+            if (pMemory == nullptr)
+            {
+                result = Result::ErrorOutOfMemory;
+            }
+            else
+            {
+                result = m_pDevice->CreateCmdAllocator(createInfo, pMemory, &m_pNestedCmdAllocator);
 
                 if (result != Result::Success)
                 {
@@ -371,7 +402,7 @@ Result Queue::BeginNextFrame(
         if ((result == Result::Success) && m_pDevice->LoggingEnabled(GpuProfilerGranularityFrame))
         {
             // Insert a command buffer that has commands to start the thread trace for this frame.
-            TargetCmdBuffer*const pStartFrameTgtCmdBuf = AcquireCmdBuf(0);
+            TargetCmdBuffer*const pStartFrameTgtCmdBuf = AcquireCmdBuf(0, false);
 
             CmdBufferBuildInfo buildInfo = {};
             result = pStartFrameTgtCmdBuf->Begin(NextCmdBufferBuildInfo(buildInfo));
@@ -573,7 +604,7 @@ Result Queue::Submit(
                         (m_perFrameLogItem.pGpaSession != nullptr))
                     {
                         // Submit an internal command buffer to end the current frame-long performance experiment.
-                        TargetCmdBuffer*const pEndFrameTgtCmdBuf = AcquireCmdBuf(0);
+                        TargetCmdBuffer*const pEndFrameTgtCmdBuf = AcquireCmdBuf(0, false);
 
                         CmdBufferBuildInfo buildInfo = { };
                         pEndFrameTgtCmdBuf->Begin(NextCmdBufferBuildInfo(buildInfo));
@@ -597,7 +628,7 @@ Result Queue::Submit(
                         needPresent    = true;
                     }
 
-                    TargetCmdBuffer*const pTargetCmdBuffer = AcquireCmdBuf(subQueueIdx);
+                    TargetCmdBuffer*const pTargetCmdBuffer = AcquireCmdBuf(subQueueIdx, false);
                     pTargetCmdBuffer->SetClientData(pRecordedCmdBuffer->GetClientData());
 
                     // For the submit call, we need to make sure this array entry points to the next level ICmdBuffer.
@@ -760,7 +791,7 @@ Result Queue::PresentDirect(
         (m_perFrameLogItem.pGpaSession != nullptr))
     {
         // Submit an internal command buffer to end the current frame-long performance experiment.
-        TargetCmdBuffer*const pEndFrameTgtCmdBuf = AcquireCmdBuf(0);
+        TargetCmdBuffer*const pEndFrameTgtCmdBuf = AcquireCmdBuf(0, false);
         CmdBufferBuildInfo    buildInfo = {};
 
         result = pEndFrameTgtCmdBuf->Begin(NextCmdBufferBuildInfo(buildInfo));
@@ -820,7 +851,7 @@ Result Queue::PresentSwapChain(
         (m_perFrameLogItem.pGpaSession != nullptr))
     {
         // Submit an internal command buffer to end the current frame-long performance experiment.
-        TargetCmdBuffer*const pEndFrameTgtCmdBuf = AcquireCmdBuf(0);
+        TargetCmdBuffer*const pEndFrameTgtCmdBuf = AcquireCmdBuf(0, false);
         CmdBufferBuildInfo    buildInfo = {};
 
         result = pEndFrameTgtCmdBuf->Begin(NextCmdBufferBuildInfo(buildInfo));
@@ -903,14 +934,20 @@ Result Queue::CopyVirtualMemoryPageMappings(
 // =====================================================================================================================
 // Acquires a queue-owned command buffer for submission of a replayed client command buffer.
 TargetCmdBuffer* Queue::AcquireCmdBuf(
-    uint32 subQueueIdx)
+    uint32 subQueueIdx,
+    bool   nested)
 {
+    const SubQueueInfo& subQueueInfo = m_pQueueInfos[subQueueIdx];
+
+    CmdBufDeque* pAvailable = nested ? subQueueInfo.pAvailableNestedCmdBufs : subQueueInfo.pAvailableCmdBufs;
+    CmdBufDeque* pBusy      = nested ? subQueueInfo.pBusyNestedCmdBufs      : subQueueInfo.pBusyCmdBufs;
+
     TargetCmdBuffer* pCmdBuffer = nullptr;
 
-    if (m_pQueueInfos[subQueueIdx].pAvailableCmdBufs->NumElements() > 0)
+    if (pAvailable->NumElements() > 0)
     {
         // Use an idle command buffer from the pool if available.
-        m_pQueueInfos[subQueueIdx].pAvailableCmdBufs->PopFront(&pCmdBuffer);
+        pAvailable->PopFront(&pCmdBuffer);
     }
     else
     {
@@ -918,9 +955,10 @@ TargetCmdBuffer* Queue::AcquireCmdBuf(
         // that we create a GpuProfiler::TargetCmdBuffer here, not a GpuProfiler::CmdBuffer which would just record our
         // commands again!
         CmdBufferCreateInfo createInfo = { };
-        createInfo.pCmdAllocator = m_pCmdAllocator;
-        createInfo.queueType     = m_pQueueInfos[subQueueIdx].queueType;
-        createInfo.engineType    = m_pQueueInfos[subQueueIdx].engineType;
+        createInfo.pCmdAllocator = nested ? m_pNestedCmdAllocator : m_pCmdAllocator;
+        createInfo.queueType     = subQueueInfo.queueType;
+        createInfo.engineType    = subQueueInfo.engineType;
+        createInfo.flags.nested  = nested;
 
         void* pMemory = PAL_MALLOC(m_pDevice->GetTargetCmdBufferSize(createInfo, nullptr),
                                    m_pDevice->GetPlatform(),
@@ -940,82 +978,17 @@ TargetCmdBuffer* Queue::AcquireCmdBuf(
     // We always submit command buffers in the order they are acquired, so we can go ahead and add this to the busy
     // queue immediately.
     PAL_ASSERT(pCmdBuffer != nullptr);
-    m_pQueueInfos[subQueueIdx].pBusyCmdBufs->PushBack(pCmdBuffer);
-    m_nextSubmitInfo.pCmdBufCount[subQueueIdx]++;
-
-    return pCmdBuffer;
-}
-
-// =====================================================================================================================
-// Acquires a queue-owned nested command buffer for execution of a replayed client nested command buffer.
-TargetCmdBuffer* Queue::AcquireNestedCmdBuf(
-    uint32 subQueueIdx)
-{
-    NestedInfo info = {};
-
-    if (m_pQueueInfos[subQueueIdx].pAvailableNestedCmdBufs->NumElements() > 0)
+    pBusy->PushBack(pCmdBuffer);
+    if (nested)
     {
-        // Use an idle command buffer from the pool if available.
-        m_pQueueInfos[subQueueIdx].pAvailableNestedCmdBufs->PopFront(&info);
+        m_nextSubmitInfo.pNestedCmdBufCount[subQueueIdx]++;
     }
     else
     {
-        Result result = Result::Success;
-
-        // No command buffers are currently idle (or possibly none exist at all) - allocate a new command allocator and
-        // command buffer.
-        void* pMemory = PAL_MALLOC(m_pDevice->GetCmdAllocatorSize(m_nestedAllocatorCreateInfo, &result),
-                                   m_pDevice->GetPlatform(),
-                                   AllocInternal);
-
-        if ((result == Result::Success) && (pMemory != nullptr))
-        {
-            result = m_pDevice->CreateCmdAllocator(m_nestedAllocatorCreateInfo, pMemory, &info.pCmdAllocator);
-
-            if (result != Result::Success)
-            {
-                PAL_SAFE_FREE(pMemory, m_pDevice->GetPlatform());
-            }
-        }
-        else
-        {
-            result = Result::ErrorOutOfMemory;
-        }
-
-        if (result == Result::Success)
-        {
-            // Note that we create a GpuProfiler::TargetCmdBuffer here, not a GpuProfiler::CmdBuffer which would just
-            // record our commands again!
-            CmdBufferCreateInfo createInfo = {};
-            createInfo.pCmdAllocator = info.pCmdAllocator;
-            createInfo.queueType     = m_pQueueInfos[subQueueIdx].queueType;
-            createInfo.engineType    = m_pQueueInfos[subQueueIdx].engineType;
-            createInfo.flags.nested  = 1;
-
-            pMemory = PAL_MALLOC(m_pDevice->GetTargetCmdBufferSize(createInfo, &result),
-                                 m_pDevice->GetPlatform(),
-                                 AllocInternal);
-
-            if (pMemory != nullptr)
-            {
-                result = m_pDevice->CreateTargetCmdBuffer(createInfo, pMemory, &info.pCmdBuffer, subQueueIdx);
-
-                if (result != Result::Success)
-                {
-                    PAL_SAFE_FREE(pMemory, m_pDevice->GetPlatform());
-                }
-            }
-        }
-
-        PAL_ASSERT(result == Result::Success);
+        m_nextSubmitInfo.pCmdBufCount[subQueueIdx]++;
     }
 
-    // We always submit command buffers in the order they are acquired, so we can go ahead and add this to the busy
-    // queue immediately.
-    m_pQueueInfos[subQueueIdx].pBusyNestedCmdBufs->PushBack(info);
-    m_nextSubmitInfo.pNestedCmdBufCount[subQueueIdx]++;
-
-    return info.pCmdBuffer;
+    return pCmdBuffer;
 }
 
 // =====================================================================================================================
@@ -1129,26 +1102,24 @@ void Queue::ProcessIdleSubmits()
             {
                 TargetCmdBuffer* pCmdBuffer = nullptr;
                 m_pQueueInfos[qIdx].pBusyCmdBufs->PopFront(&pCmdBuffer);
+
                 pCmdBuffer->SetClientData(nullptr);
+                Result result = pCmdBuffer->Reset(nullptr, true);
+                PAL_ASSERT(result == Result::Success);
+
                 m_pQueueInfos[qIdx].pAvailableCmdBufs->PushBack(pCmdBuffer);
             }
 
             for (uint32 i = 0; i < submitInfo.pNestedCmdBufCount[qIdx]; i++)
             {
-                NestedInfo info = {};
-                m_pQueueInfos[qIdx].pBusyNestedCmdBufs->PopFront(&info);
+                TargetCmdBuffer* pCmdBuffer = nullptr;
+                m_pQueueInfos[qIdx].pBusyNestedCmdBufs->PopFront(&pCmdBuffer);
 
-                // Automatic memory reuse is not enabled so we must manually reset the command buffer and allocator.
-                Result result = info.pCmdBuffer->Reset(nullptr, true);
-
-                if (result == Result::Success)
-                {
-                    result = info.pCmdAllocator->Reset();
-                }
-
+                pCmdBuffer->SetClientData(nullptr);
+                Result result = pCmdBuffer->Reset(nullptr, true);
                 PAL_ASSERT(result == Result::Success);
 
-                m_pQueueInfos[qIdx].pAvailableNestedCmdBufs->PushBack(info);
+                m_pQueueInfos[qIdx].pAvailableNestedCmdBufs->PushBack(pCmdBuffer);
             }
         }
         PAL_SAFE_DELETE_ARRAY(submitInfo.pCmdBufCount, pPlatform);

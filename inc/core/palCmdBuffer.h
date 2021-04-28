@@ -1695,6 +1695,14 @@ struct GlobalScissorParams
     Rect scissorRegion; ///< Rectangle of the global scissor window.
 };
 
+/// Specifies parameters for dynamically setting color write mask.
+/// @see ICmdBuffer::CmdSetColorWriteMask
+struct ColorWriteMaskParams
+{
+    uint32 count;                           ///< Number of dynamic color write masks to write
+    uint8  colorWriteMask[MaxColorTargets]; ///< Color write mask values, populated from 0 to count - 1, no gaps allowed
+};
+
 /// Specifies parameters for binding the color targets and depth target.
 /// @see ICmdBuffer::CmdBindTargets
 struct BindTargetParams
@@ -2299,6 +2307,15 @@ public:
     ///                     coordinate.
     virtual void CmdSetGlobalScissor(
         const GlobalScissorParams& params) = 0;
+
+    /// Sets color write mask.  The color write mask must be a subset of the currently bound pipeline's color write
+    /// mask.  This ensures that CmdSetColorWriteMask will only turn off (and not turn on) writes after the pipeline
+    /// is bound.  The updated color write mask is overwritten when binding a new pipeline.  Also, if you pass in a
+    /// count of 0, then colorWriteMask will be updated to match the full cb target mask.
+    ///
+    /// @param [in] params  Parameters for dynamically setting color write mask for multiple color targets
+    virtual void CmdSetColorWriteMask(
+        const ColorWriteMaskParams& params) = 0;
 
     /// Inserts a barrier in the current command stream that can stall GPU execution, flush/invalidate caches, or
     /// decompress images before further, dependent work can continue in this command buffer.

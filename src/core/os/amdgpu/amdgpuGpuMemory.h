@@ -72,6 +72,9 @@ public:
     void             SetVaRangeHandle(amdgpu_va_handle hVaRange) { m_hVaRange = hVaRange; }
     amdgpu_va_handle VaRangeHandle() const { return m_hVaRange; }
 
+    void             SetSurfaceKmsHandle(uint32 hBufferKms) { m_hSurfaceKms = hBufferKms; }
+    uint32           SurfaceKmsHandle() const { return m_hSurfaceKms; }
+
     void             SetMarkerHandle(amdgpu_bo_handle hBuffer) { m_hMarker = hBuffer; }
     amdgpu_bo_handle MarkerHandle() const { return m_hMarker; }
     void             SetMarkerVaRangeHandle(amdgpu_va_handle hVaRange) { m_hMarkerVa = hVaRange; }
@@ -111,6 +114,8 @@ protected:
 private:
     amdgpu_bo_handle m_hSurface;  // Handle of allocated memory.
     amdgpu_va_handle m_hVaRange;  // Handle of allocated va range.
+
+    uint32           m_hSurfaceKms; // KMS handle of allocated memory.
 
     amdgpu_bo_handle m_hMarker;   // Handle of marker.
     amdgpu_va_handle m_hMarkerVa; // Handle of marker va range.

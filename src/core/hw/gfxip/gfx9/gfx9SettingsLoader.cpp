@@ -117,7 +117,7 @@ void SettingsLoader::ValidateSettings(
         // YUV planar surfaces require the ability to modify the base address to point to individual slices.  Due
         // to DCC addressing that interleaves slices on GFX9 platforms, we can't accurately point to the start
         // of a slice in DCC, which makes supporting DCC for YUV planar surfaces impossible.
-        m_settings.useDcc &= ~Gfx10UseDccYuvPlanar;
+        pSettings->useDcc &= ~UseDccYuvPlanar;
     }
 
     if (m_settings.binningMaxAllocCountLegacy == 0)

@@ -244,6 +244,7 @@ namespace DevDriver
             Result result = Result::Unavailable;
 
             // SetThreadDescription is only available on Windows 10 and above.
+            // See: https://github.com/MicrosoftDocs/sdk-api/blob/docs/sdk-api-src/content/processthreadsapi/nf-processthreadsapi-setthreaddescription.md
 
             // We load the thread naming function dynamically to avoid issues when the current OS doesn't have
             // support for the function.
@@ -322,6 +323,8 @@ namespace DevDriver
         /////////////////////////////////////////////////////
 
         // Loads a DLL with the specified name into this process.
+        // The system will search for the DLL according to the documentation available here:
+        // https://github.com/MicrosoftDocs/sdk-api/blob/docs/sdk-api-src/content/libloaderapi/nf-libloaderapi-loadlibrarya.md
         Result Library::Load(
             const char* pLibraryName)
         {
@@ -331,6 +334,7 @@ namespace DevDriver
             // friendly to UWP applications).
             // Note: GetModuleHandleEx is used instead of GetModuleHandle because that allows us to avoid a race condition, as
             // well as increment the DLL's reference count.  See the documentation here:
+            // https://github.com/MicrosoftDocs/sdk-api/blob/docs/sdk-api-src/content/libloaderapi/nf-libloaderapi-getmodulehandleexa.md
 
             constexpr uint32 Flags = 0;
             if (GetModuleHandleExA(Flags, pLibraryName, &m_hLib) == FALSE)
@@ -603,7 +607,9 @@ namespace DevDriver
             DD_WARN(strlen(pSrc) < dstSize);
 
             // Clamp the copy to the size of the dst buffer (1 char reserved for the null terminator).
-            strcpy_s(pDst, dstSize, pSrc);
+            // MS compilers provide strncpy_s, which will truncate the copy to prevent buffer overruns and always
+            // guarantee that pDst is null-terminated.
+            strncpy_s(pDst, dstSize, pSrc, _TRUNCATE);
         }
 
         char* Strtok(char* pDst, const char* pDelimiter, char** ppContext)
@@ -613,12 +619,14 @@ namespace DevDriver
             return strtok_s(pDst, pDelimiter, ppContext);
         }
 
-        void Strcat(char* pDst, const char* pSrc, size_t dstSize)
+        void Strncat(char* pDst, const char* pSrc, size_t dstSize)
         {
             DD_ASSERT(pDst != nullptr);
             DD_ASSERT(pSrc != nullptr);
 
-            strcat_s(pDst, dstSize, pSrc);
+            // MS compilers provide strncat_s, which will truncate the copy to prevent buffer overruns and always
+            // guarantee that pDst is null-terminated.
+            strncat_s(pDst, dstSize, pSrc, _TRUNCATE);
         }
 
         int32 Strcmpi(const char* pSrc1, const char* pSrc2)

@@ -178,15 +178,15 @@ Queue::Queue(
     :
     Pal::Queue(qCount, pDevice, pCreateInfo),
     m_device(*pDevice),
-    m_pResourceList(reinterpret_cast<amdgpu_bo_handle*>(this + 1)),
-    m_pResourcePriorityList(pCreateInfo[0].enableGpuMemoryPriorities ?
-        reinterpret_cast<uint8*>(m_pResourceList + Pal::Device::CmdBufMemReferenceLimit) : nullptr),
     m_resourceListSize(Pal::Device::CmdBufMemReferenceLimit),
     m_numResourcesInList(0),
+    m_numDummyResourcesInList(0),
     m_memListResourcesInList(0),
     m_memMgrResourcesInList(0),
     m_hResourceList(nullptr),
     m_hDummyResourceList(nullptr),
+    m_dummyResourceList(0),
+    m_dummyResourceEntryList(pDevice->GetPlatform()),
     m_pDummyCmdStream(nullptr),
     m_globalRefMap(static_cast<Device*>(m_pDevice)->IsVmAlwaysValidSupported() ? MemoryRefMapElementsPerVmBo :
                    MemoryRefMapElements, m_pDevice->GetPlatform()),
@@ -200,6 +200,22 @@ Queue::Queue(
     m_lastSignaledSyncObject(0),
     m_waitSemList(pDevice->GetPlatform())
 {
+    // The space allocated will be used to save either the handle of each command or the pointer of the command
+    // itself. When raw2 submit is supported, we save the pointer.
+    if (pDevice->IsRaw2SubmitSupported())
+    {
+        m_pResourceList = nullptr;
+        m_pResourceObjectList = reinterpret_cast<GpuMemory**>(this + 1);
+        m_pResourcePriorityList = pCreateInfo[0].enableGpuMemoryPriorities ?
+            reinterpret_cast<uint8*>(m_pResourceObjectList + Pal::Device::CmdBufMemReferenceLimit) : nullptr;
+    }
+    else
+    {
+        m_pResourceList = reinterpret_cast<amdgpu_bo_handle*>(this + 1);
+        m_pResourceObjectList = nullptr;
+        m_pResourcePriorityList = pCreateInfo[0].enableGpuMemoryPriorities ?
+            reinterpret_cast<uint8*>(m_pResourceList + Pal::Device::CmdBufMemReferenceLimit) : nullptr;
+    }
     memset(m_ibs, 0, sizeof(m_ibs));
 }
 
@@ -211,14 +227,21 @@ Queue::~Queue()
         m_pCmdUploadRing->DestroyInternal();
     }
 
+    Device* pDevice = static_cast<Device*>(m_pDevice);
+
     if (m_hResourceList != nullptr)
     {
-        static_cast<Device*>(m_pDevice)->DestroyResourceList(m_hResourceList);
+        pDevice->DestroyResourceList(m_hResourceList);
     }
 
     if (m_hDummyResourceList != nullptr)
     {
-        static_cast<Device*>(m_pDevice)->DestroyResourceList(m_hDummyResourceList);
+        pDevice->DestroyResourceList(m_hDummyResourceList);
+    }
+
+    if (m_dummyResourceList != 0)
+    {
+        pDevice->DestroyResourceListRaw(m_dummyResourceList);
     }
 
     if (m_pDummyCmdStream != nullptr)
@@ -228,7 +251,7 @@ Queue::~Queue()
 
     if (m_lastSignaledSyncObject > 0)
     {
-        static_cast<Device*>(m_pDevice)->DestroySyncObject(m_lastSignaledSyncObject);
+        pDevice->DestroySyncObject(m_lastSignaledSyncObject);
     }
 }
 
@@ -285,10 +308,26 @@ Result Queue::Init(
 
         if (m_pDummyCmdStream != nullptr)
         {
-            for (auto iter = m_pDummyCmdStream->GetFwdIterator(); iter.IsValid(); iter.Next())
+            for (auto iter = m_pDummyCmdStream->GetFwdIterator();
+                    (iter.IsValid()) && (result == Result::Success); iter.Next())
             {
-                const CmdStreamChunk*const pChunk = iter.Get();
-                dummyResourceList.PushBack(static_cast<GpuMemory*>(pChunk->GpuMemory())->SurfaceHandle());
+                m_numDummyResourcesInList++;
+                GpuMemory* pGpuMemory = static_cast<GpuMemory*>(iter.Get()->GpuMemory());
+                dummyResourceList.PushBack(pGpuMemory->SurfaceHandle());
+
+                // For GpuMemory to be submitted in list, export and save its KMS handle.
+                uint32 kmsHandle = pGpuMemory->SurfaceKmsHandle();
+                if (kmsHandle == 0)
+                {
+                    result = pDevice->ExportBuffer(pGpuMemory->SurfaceHandle(),
+                                                   amdgpu_bo_handle_type_kms,
+                                                   &kmsHandle);
+                    if (result == Result::Success)
+                    {
+                        pGpuMemory->SetSurfaceKmsHandle(kmsHandle);
+                    }
+                }
+                result = m_dummyResourceEntryList.PushBack({kmsHandle, 0});
             }
         }
         else
@@ -302,6 +341,12 @@ Result Queue::Init(
                                                  &(dummyResourceList.Front()),
                                                  nullptr,
                                                  &m_hDummyResourceList);
+        }
+        if (result == Result::Success && pDevice->UseBoListCreate())
+        {
+            result = pDevice->CreateResourceListRaw(dummyResourceList.NumElements(),
+                                                    m_dummyResourceEntryList.Data(),
+                                                    &m_dummyResourceList);
         }
     }
 
@@ -1157,7 +1202,7 @@ Result Queue::UpdateResourceList(
 
                     for (auto iter = m_globalRefMap.Begin(); iter.Get() != nullptr; iter.Next())
                     {
-                        const auto*const pGpuMemory = static_cast<const GpuMemory*>(iter.Get()->key);
+                        auto*const pGpuMemory = static_cast<GpuMemory*>(iter.Get()->key);
 
                         result = AppendResourceToList(pGpuMemory);
 
@@ -1183,12 +1228,17 @@ Result Queue::UpdateResourceList(
                 }
             }
 
-            if ((result == Result::Success) && (m_numResourcesInList > 0))
+            auto*const pDevice  = static_cast<Device*>(m_pDevice);
+            // raw2 submit not supported.
+            if (!(pDevice->IsRaw2SubmitSupported()))
             {
-                result = static_cast<Device*>(m_pDevice)->CreateResourceList(m_numResourcesInList,
-                                                                             m_pResourceList,
-                                                                             m_pResourcePriorityList,
-                                                                             &m_hResourceList);
+                if ((result == Result::Success) && (m_numResourcesInList > 0))
+                {
+                    result = static_cast<Device*>(m_pDevice)->CreateResourceList(m_numResourcesInList,
+                                                                                m_pResourceList,
+                                                                                m_pResourcePriorityList,
+                                                                                &m_hResourceList);
+                }
             }
         }
     }
@@ -1198,7 +1248,7 @@ Result Queue::UpdateResourceList(
 // =====================================================================================================================
 // Appends a bo to the list of buffer objects which get submitted with a set of command buffers.
 Result Queue::AppendResourceToList(
-    const GpuMemory* pGpuMemory)
+    GpuMemory* pGpuMemory)
 {
     PAL_ASSERT(pGpuMemory != nullptr);
 
@@ -1213,7 +1263,28 @@ Result Queue::AppendResourceToList(
         if ((pGpuMemory->IsVmAlwaysValid() == false) &&
             ((pImage == nullptr) || (pImage->IsPresentable() == false) || pImage->GetIdle()))
         {
-            m_pResourceList[m_numResourcesInList] = pGpuMemory->SurfaceHandle();
+            auto*const pDevice  = static_cast<Device*>(m_pDevice);
+            // Use raw2 submit.
+            if (pDevice->IsRaw2SubmitSupported())
+            {
+                // For GpuMemory to be submitted in list, export and save its KMS handle.
+                uint32 kmsHandle = pGpuMemory->SurfaceKmsHandle();
+                if (kmsHandle == 0)
+                {
+                    result = pDevice->ExportBuffer(pGpuMemory->SurfaceHandle(),
+                                                   amdgpu_bo_handle_type_kms,
+                                                   &kmsHandle);
+                    if (result == Result::Success)
+                    {
+                        pGpuMemory->SetSurfaceKmsHandle(kmsHandle);
+                    }
+                }
+                m_pResourceObjectList[m_numResourcesInList] = pGpuMemory;
+            }
+            else
+            {
+                m_pResourceList[m_numResourcesInList] = pGpuMemory->SurfaceHandle();
+            }
 
             if (m_pResourcePriorityList != nullptr)
             {
@@ -1315,10 +1386,14 @@ Result Queue::SubmitIbsRaw(
     uint32  waitCount = m_waitSemList.NumElements() + internalSubmitInfo.waitSemaphoreCount;
     // Each queue manages one sync object which refers to the fence of last submission.
     uint32  signalCount = internalSubmitInfo.signalSemaphoreCount + 1;
+
     // all semaphores supposed to be waited before submission need one chunk
     totalChunk += waitCount > 0 ? 1 : 0;
     // all semaphores supposed to be signaled after submission need one chunk
     totalChunk += 1;
+
+    // to use raw2 submit with DRM >= 3.27, amdgpu_bo_handles will be submitted with an extra chunk
+    totalChunk += pDevice->UseBoListCreate() ? 0 : 1;
 
     AutoBuffer<struct drm_amdgpu_cs_chunk, 8, Pal::Platform>
                         chunkArray(totalChunk, m_pDevice->GetPlatform());
@@ -1477,13 +1552,83 @@ Result Queue::SubmitIbsRaw(
                 pSignalChunkArray[internalSubmitInfo.signalSemaphoreCount].handle = m_lastSignaledSyncObject;
             }
         }
-        result = pDevice->SubmitRaw(pContext->Handle(),
-                internalSubmitInfo.flags.isDummySubmission ? m_hDummyResourceList : m_hResourceList,
+
+	// Serialize access to internalMgr and queue memory list
+	RWLockAuto<RWLock::ReadWrite> lockMgr(m_pDevice->MemMgr()->GetRefListLock());
+
+        // Prepare the resourceListEntry for non-dummy submission.
+        Vector<drm_amdgpu_bo_list_entry, 1, Platform> resourceEntryList(pDevice->GetPlatform());
+        if (!internalSubmitInfo.flags.isDummySubmission)
+        {
+            result = resourceEntryList.Reserve(m_numResourcesInList);
+            if (result == Result::Success)
+            {
+                for (uint32 index = 0; index < m_numResourcesInList; ++index)
+                {
+                    if (m_pResourcePriorityList != nullptr)
+                    {
+                        resourceEntryList.PushBack({(*(m_pResourceObjectList + index))->SurfaceKmsHandle(),
+                                                    *(m_pResourcePriorityList + index)});
+                    }
+                    else
+                    {
+                        resourceEntryList.PushBack({(*(m_pResourceObjectList + index))->SurfaceKmsHandle(), 0});
+                    }
+                }
+            }
+        }
+
+        uint32 boList = 0;
+        drm_amdgpu_bo_list_in boListIn = {};
+        if (pDevice->UseBoListCreate())
+        {
+            // Legacy path, using the buffer list handle (uint) and passing it to the CS ioctl.
+            if (internalSubmitInfo.flags.isDummySubmission)
+            {
+                boList = m_dummyResourceList;
+            }
+            else
+            {
+                result = pDevice->CreateResourceListRaw(m_numResourcesInList,
+                                                        resourceEntryList.Data(),
+                                                        &boList);
+            }
+        }
+        else
+        {
+            // Standard path, passing the buffer list via the CS ioctl.
+            boListIn.operation = UINT_MAX;
+            boListIn.list_handle = UINT_MAX;
+            boListIn.bo_number = internalSubmitInfo.flags.isDummySubmission ?
+                                 m_numDummyResourcesInList :
+                                 m_numResourcesInList;
+            boListIn.bo_info_size = sizeof(struct drm_amdgpu_bo_list_entry);
+            // The pointer needs to be reinterpreted as unsigned 64-bit value in DRM.
+            boListIn.bo_info_ptr = static_cast<uint64>(reinterpret_cast<uintptr_t>(
+                                            internalSubmitInfo.flags.isDummySubmission ?
+                                            m_dummyResourceEntryList.Data() :
+                                            resourceEntryList.Data()));
+
+            currentChunk ++;
+            chunkArray[currentChunk].chunk_id = AMDGPU_CHUNK_ID_BO_HANDLES;
+            chunkArray[currentChunk].length_dw = sizeof(struct drm_amdgpu_bo_list_in) / 4;
+            // The pointer needs to be reinterpreted as unsigned 64-bit value in DRM.
+            chunkArray[currentChunk].chunk_data = static_cast<uint64>(reinterpret_cast<uintptr_t>(&boListIn));
+        }
+
+        result = pDevice->SubmitRaw2(pContext->Handle(),
+                boList,
                 totalChunk,
                 &chunkArray[0],
                 pContext->LastTimestampPtr());
 
         pContext->SetLastSignaledSyncObj(m_lastSignaledSyncObject);
+
+        if (boList != 0 && boList != m_dummyResourceList)
+        {
+            // m_dummyResourceList will be destroyed in destructor.
+            pDevice->DestroyResourceListRaw(boList);
+        }
 
         PAL_FREE(pMemory, m_pDevice->GetPlatform());
         // all pending waited semaphore has been poped already.
@@ -1502,8 +1647,8 @@ Result Queue::SubmitIbs(
     auto*const pContext = static_cast<SubmissionContext*>(m_pSubmissionContext);
     Result result = Result::Success;
 
-    // we should only use new submit routine when sync object is supported in the kenrel as well as u/k interfaces.
-    if (pDevice->GetSemaphoreType() == SemaphoreType::SyncObj)
+    // we should only use new submit routine when sync object is supported in the kenrel as well as raw2 submit.
+    if (pDevice->IsRaw2SubmitSupported())
     {
         result = SubmitIbsRaw(internalSubmitInfo);
     }

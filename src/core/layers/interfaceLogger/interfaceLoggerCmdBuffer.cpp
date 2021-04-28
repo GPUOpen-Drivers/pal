@@ -831,6 +831,28 @@ void CmdBuffer::CmdSetGlobalScissor(
 }
 
 // =====================================================================================================================
+void CmdBuffer::CmdSetColorWriteMask(
+    const ColorWriteMaskParams& params)
+{
+    BeginFuncInfo funcInfo;
+    funcInfo.funcId       = InterfaceFunc::CmdBufferCmdSetColorWriteMask;
+    funcInfo.objectId     = m_objectId;
+    funcInfo.preCallTime  = m_pPlatform->GetTime();
+    m_pNextLayer->CmdSetColorWriteMask(params);
+    funcInfo.postCallTime = m_pPlatform->GetTime();
+
+    LogContext* pLogContext = nullptr;
+    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    {
+        pLogContext->BeginInput();
+        pLogContext->KeyAndStruct("params", params);
+        pLogContext->EndInput();
+
+        m_pPlatform->LogEndFunc(pLogContext);
+    }
+}
+
+// =====================================================================================================================
 void CmdBuffer::CmdBarrier(
     const BarrierInfo& barrierInfo)
 {

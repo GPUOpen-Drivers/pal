@@ -41,6 +41,7 @@ GpuMemory::GpuMemory(
     Pal::GpuMemory(pDevice),
     m_hSurface(nullptr),
     m_hVaRange(nullptr),
+    m_hSurfaceKms(0),
     m_offset(0),
     m_amdgpuFlags{},
     m_externalHandleType(amdgpu_bo_handle_type_dma_buf_fd)

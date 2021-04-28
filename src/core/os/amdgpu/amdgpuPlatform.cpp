@@ -130,7 +130,7 @@ Result Platform::ConnectToOsInterface()
         drmProcs.pfnAmdgpuCsImportSyncobjisValid()  &&
         drmProcs.pfnAmdgpuCsSyncobjExportSyncFileisValid() &&
         drmProcs.pfnAmdgpuCsSyncobjImportSyncFileisValid() &&
-        drmProcs.pfnAmdgpuCsSubmitRawisValid())
+        drmProcs.pfnAmdgpuCsSubmitRaw2isValid())
     {
         m_features.supportSyncObj = 1;
     }
@@ -147,9 +147,11 @@ Result Platform::ConnectToOsInterface()
         m_features.supportSyncobjFence = 1;
     }
 
-    if (drmProcs.pfnAmdgpuCsSubmitRawisValid())
+    if (drmProcs.pfnAmdgpuCsSubmitRaw2isValid()    &&
+        drmProcs.pfnAmdgpuBoListCreateRawisValid() &&
+        drmProcs.pfnAmdgpuBoListDestroyRawisValid())
     {
-        m_features.supportRawSubmitRoutine = 1;
+        m_features.supportRaw2SubmitRoutine = 1;
     }
 
     if (drmProcs.pfnAmdgpuCsCtxCreate2isValid())
@@ -178,6 +180,7 @@ Result Platform::ReQueryDevices()
     drmDevicePtr pDevices[MaxDevices] = { };
 
     int32 deviceCount = 0;
+    int32 notAmdDeviceCount = 0;
 
     if (drmProcs.pfnDrmGetDevicesisValid() && drmProcs.pfnDrmFreeDevicesisValid())
     {
@@ -197,6 +200,13 @@ Result Platform::ReQueryDevices()
         // Check if the device vendor is AMD
         if (!AMDGPU_VENDOR_IS_AMD(pDevices[i]->deviceinfo.pci->vendor_id))
         {
+            ++notAmdDeviceCount;
+
+            if (notAmdDeviceCount == deviceCount)
+            {
+                result = Result::ErrorIncompatibleDevice;
+            }
+
             continue;
         }
 

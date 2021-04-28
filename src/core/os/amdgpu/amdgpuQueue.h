@@ -52,6 +52,7 @@ namespace Amdgpu
 class Device;
 class GpuMemory;
 class SwapChain;
+class Platform;
 
 enum class CommandListType : uint32
 {
@@ -168,10 +169,12 @@ protected:
     Result DoAssociateFenceWithLastSubmit(Pal::Fence* pFence) override;
 
     const Device&          m_device;
-    amdgpu_bo_handle*const m_pResourceList;
-    uint8*const            m_pResourcePriorityList;
+    amdgpu_bo_handle*      m_pResourceList;
+    GpuMemory**            m_pResourceObjectList;
+    uint8*                 m_pResourcePriorityList;
     const size_t           m_resourceListSize;
     size_t                 m_numResourcesInList;
+    size_t                 m_numDummyResourcesInList;
     size_t                 m_memListResourcesInList; // The number of resources added from global memory list
     size_t                 m_memMgrResourcesInList;  // The number of resources added from internal memory manager
 
@@ -181,7 +184,7 @@ private:
         size_t                 memRefCount);
 
     Result AppendResourceToList(
-        const GpuMemory* pGpuMemory);
+        GpuMemory* pGpuMemory);
 
     Result AddCmdStream(
         const CmdStream& cmdStream,
@@ -231,16 +234,19 @@ private:
     // Stored as a member variable to prevent re-creating the kernel object on every submit
     // in the common case where the set of resident allocations doesn't change.
     amdgpu_bo_list_handle m_hResourceList;
-    amdgpu_bo_list_handle m_hDummyResourceList;   // The dummy resource list used by dummy submission.
-    Pal::CmdStream*       m_pDummyCmdStream;      // The dummy command stream used by dummy submission.
-    MemoryRefMap          m_globalRefMap;         // A hashmap acting as a refcounted list of memory references.
-    bool                  m_globalRefDirty;       // Indicates m_globalRefMap has changed since the last submit.
-    Util::RWLock          m_globalRefLock;        // Protect m_globalRefMap from muli-thread access.
-    uint32                m_appMemRefCount;       // Store count of application's submission memory references.
-    bool                  m_pendingWait;          // Queue needs a dummy submission between wait and signal.
-    CmdUploadRing*        m_pCmdUploadRing;       // Uploads gfxip command streams to a large local memory buffer.
-    bool                  m_sqttWaRequired;       // if a perfCounter in any cmdBuffer is active we need to tell KMD
-    bool                  m_perfCtrWaRequired;    // if SQ Thread Trace in any cmdBuffer is active we need to tell KMD
+    amdgpu_bo_list_handle m_hDummyResourceList;    // The dummy resource list used by dummy submission.
+    uint32                m_dummyResourceList;     // The dummy resource list handle used by raw2 submission.
+    Util::Vector<drm_amdgpu_bo_list_entry, 1, Platform> m_dummyResourceEntryList;
+                                                   // Used by amdgpu_cs_submit_raw2, saves kms_handle and priority
+    Pal::CmdStream*    m_pDummyCmdStream;          // The dummy command stream used by dummy submission.
+    MemoryRefMap       m_globalRefMap;             // A hashmap acting as a refcounted list of memory references.
+    bool               m_globalRefDirty;           // Indicates m_globalRefMap has changed since the last submit.
+    Util::RWLock       m_globalRefLock;            // Protect m_globalRefMap from muli-thread access.
+    uint32             m_appMemRefCount;           // Store count of application's submission memory references.
+    bool               m_pendingWait;              // Queue needs a dummy submission between wait and signal.
+    CmdUploadRing*     m_pCmdUploadRing;           // Uploads gfxip command streams to a large local memory buffer.
+    bool               m_sqttWaRequired;           // if a perfCounter in any cmdBuffer is active we need to tell KMD
+    bool               m_perfCtrWaRequired;        // if SQ Thread Trace in any cmdBuffer is active we need to tell KMD
 
     // These IBs will be sent to the kernel when SubmitIbs is called.
     uint32                m_numIbs;

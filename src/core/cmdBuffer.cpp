@@ -864,48 +864,55 @@ void CmdBuffer::ReturnDataChunks(
     CmdAllocType type,
     bool         returnGpuMemory)
 {
-    if ((m_status != Result::Success) && (pData->chunkList.IsEmpty() == false))
+    if (m_device.Settings().cmdAllocatorFreeOnReset)
     {
-        // If something went wrong in the previous recording, then our chunk list may have the allocator's dummy chunk
-        // at the back of the list.  Since no chunk list truly owns the dummy chunk, we must pop it off the list before
-        // proceeding.
-        if (pData->chunkList.Back() == m_pCmdAllocator->GetDummyChunk())
-        {
-            CmdStreamChunk* pChunk = nullptr;
-            pData->chunkList.PopBack(&pChunk);
-            pChunk->Reset(true);
-        }
-    }
-
-    if (returnGpuMemory)
-    {
-        // The client requested that we return all chunks, add any remaining retained chunks to the chunk list so they
-        // can be returned to the allocator with the rest.
-        while (pData->retainedChunks.IsEmpty() == false)
-        {
-            CmdStreamChunk* pChunk = nullptr;
-            pData->retainedChunks.PopBack(&pChunk);
-            pData->chunkList.PushBack(pChunk);
-        }
-
-        // Return all chunks to the command allocator.
-        if (pData->chunkList.IsEmpty() == false)
-        {
-            for (auto iter = pData->chunkList.Begin(); iter.IsValid(); iter.Next())
-            {
-                iter.Get()->RemoveCommandStreamReference();
-            }
-
-            m_pCmdAllocator->ReuseChunks(type, false, pData->chunkList.Begin());
-        }
+        pData->retainedChunks.Clear();
     }
     else
     {
-        // Reset the chunks to be retained and add them to the retained list
-        for (auto iter = pData->chunkList.Begin(); iter.IsValid(); iter.Next())
+        if ((m_status != Result::Success) && (pData->chunkList.IsEmpty() == false))
         {
-            iter.Get()->Reset(false);
-            pData->retainedChunks.PushBack(iter.Get());
+            // If something went wrong in the previous recording, then our chunk list may have the allocator's dummy chunk
+            // at the back of the list.  Since no chunk list truly owns the dummy chunk, we must pop it off the list before
+            // proceeding.
+            if (pData->chunkList.Back() == m_pCmdAllocator->GetDummyChunk())
+            {
+                CmdStreamChunk* pChunk = nullptr;
+                pData->chunkList.PopBack(&pChunk);
+                pChunk->Reset(true);
+            }
+        }
+
+        if (returnGpuMemory)
+        {
+            // The client requested that we return all chunks, add any remaining retained chunks to the chunk list so they
+            // can be returned to the allocator with the rest.
+            while (pData->retainedChunks.IsEmpty() == false)
+            {
+                CmdStreamChunk* pChunk = nullptr;
+                pData->retainedChunks.PopBack(&pChunk);
+                pData->chunkList.PushBack(pChunk);
+            }
+
+            // Return all chunks to the command allocator.
+            if ((pData->chunkList.IsEmpty() == false) && m_pCmdAllocator->AutomaticMemoryReuse())
+            {
+                for (auto iter = pData->chunkList.Begin(); iter.IsValid(); iter.Next())
+                {
+                    iter.Get()->RemoveCommandStreamReference();
+                }
+
+                m_pCmdAllocator->ReuseChunks(type, false, pData->chunkList.Begin());
+            }
+        }
+        else
+        {
+            // Reset the chunks to be retained and add them to the retained list
+            for (auto iter = pData->chunkList.Begin(); iter.IsValid(); iter.Next())
+            {
+                iter.Get()->Reset(false);
+                pData->retainedChunks.PushBack(iter.Get());
+            }
         }
     }
 

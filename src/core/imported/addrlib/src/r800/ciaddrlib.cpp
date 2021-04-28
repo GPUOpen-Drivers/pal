@@ -439,7 +439,6 @@ BOOL_32 CiLib::HwlInitGlobalParams(
     // read the correct pipes from tile mode table
     if (m_settings.isHawaii)
     {
-        // Hawaii and Maui have 16-pipe, see GFXIP_Config_Summary.xls
         m_pipes = 16;
     }
     else if (m_settings.isBonaire || m_settings.isSpectre)

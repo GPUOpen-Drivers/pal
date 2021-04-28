@@ -346,6 +346,8 @@ public:
     virtual uint32 GetSwTileMode(const SubResourceInfo*  pSubResInfo) const override
         { return GetSubResourceTileMode(pSubResInfo->subresId); }
 
+    virtual uint32 GetTileSwizzle(const SubresId& subresId) const override;
+
     virtual void InitMetadataFill(
         Pal::CmdBuffer*    pCmdBuffer,
         const SubresRange& range,

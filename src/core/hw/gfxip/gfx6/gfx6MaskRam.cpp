@@ -1140,7 +1140,7 @@ bool Gfx6Dcc::UseDccForImage(
 {
     const Pal::Image*const pParent      = image.Parent();
     const auto&            createInfo   = pParent->GetImageCreateInfo();
-    const auto&            settings     = GetGfx6Settings(device);
+    const auto&            settings     = device.Settings();
     const auto             pPalSettings = device.GetPublicSettings();
 
     // Assume that DCC is available; check for conditions where it won't work.
@@ -1246,7 +1246,7 @@ bool Gfx6Dcc::UseDccForImage(
         else if ((pParent->IsShaderReadable() ||
                   (pParent->IsResolveSrc() && (pParent->PreferCbResolve() == false))) &&
                  (metaDataTexFetchSupported == false) &&
-                 (TestAnyFlagSet(settings.gfx8UseDcc, Gfx8UseDccNonTcCompatShaderRead) == false))
+                 (TestAnyFlagSet(settings.useDcc, UseDccNonTcCompatShaderRead) == false))
         {
             // Disable DCC for shader read resource that cannot be made TC compat, this avoids DCC decompress
             // for RT->SR barrier.
@@ -1270,11 +1270,11 @@ bool Gfx6Dcc::UseDccForImage(
             const ChNumFormat format = createInfo.swizzledFormat.format;
 
             // Make sure the settings allow use of DCC surfaces for sRGB Images.
-            if (IsSrgb(format) && (TestAnyFlagSet(settings.gfx8UseDcc, Gfx8UseDccSrgb) == false))
+            if (IsSrgb(format) && (TestAnyFlagSet(settings.useDcc, UseDccSrgb) == false))
             {
                 useDcc = false;
             }
-            else if ((createInfo.flags.prt == 1) && (TestAnyFlagSet(settings.gfx8UseDcc, Gfx8UseDccPrt) == false))
+            else if ((createInfo.flags.prt == 1) && (TestAnyFlagSet(settings.useDcc, UseDccPrt) == false))
             {
                 // Disable DCC for PRT if the settings don't allow it.
                 useDcc = false;
@@ -1284,26 +1284,26 @@ bool Gfx6Dcc::UseDccForImage(
                 // Make sure the settings allow use of DCC surfaces for MSAA.
                 if (createInfo.samples == 2)
                 {
-                    useDcc = useDcc && TestAnyFlagSet(settings.gfx8UseDcc, Gfx8UseDccMultiSample2x);
+                    useDcc = useDcc && TestAnyFlagSet(settings.useDcc, UseDccMultiSample2x);
                 }
                 else if (createInfo.samples == 4)
                 {
-                    useDcc = useDcc && TestAnyFlagSet(settings.gfx8UseDcc, Gfx8UseDccMultiSample4x);
+                    useDcc = useDcc && TestAnyFlagSet(settings.useDcc, UseDccMultiSample4x);
                 }
                 else if (createInfo.samples == 8)
                 {
-                    useDcc = useDcc && TestAnyFlagSet(settings.gfx8UseDcc, Gfx8UseDccMultiSample8x);
+                    useDcc = useDcc && TestAnyFlagSet(settings.useDcc, UseDccMultiSample8x);
                 }
 
                 if (createInfo.samples != createInfo.fragments)
                 {
-                    useDcc = useDcc && TestAnyFlagSet(settings.gfx8UseDcc, Gfx8UseDccEqaa);
+                    useDcc = useDcc && TestAnyFlagSet(settings.useDcc, UseDccEqaa);
                 }
             }
             else
             {
                 // Make sure the settings allow use of DCC surfaces for single-sampled surfaces
-                useDcc = useDcc && TestAnyFlagSet(settings.gfx8UseDcc, Gfx8UseDccSingleSample);
+                useDcc = useDcc && TestAnyFlagSet(settings.useDcc, UseDccSingleSample);
             }
 
             // According to DXX engineers, using DCC for mipmapped arrays has worse performance, so just disable it.

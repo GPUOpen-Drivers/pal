@@ -93,7 +93,6 @@
 // do that validation in a Debug build and behave like DD_ASSUME() in Release build.
 //
 //
-// [C++] Contracts: expects, ensures, assert, axiom
 #define DD_ASSUME(expression) do \
 {                                \
     if (!(expression))           \

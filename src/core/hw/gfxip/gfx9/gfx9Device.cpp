@@ -1757,6 +1757,7 @@ DccFormatEncoding Device::ComputeDccFormatEncoding(
                 (Formats::ShareChFmt(swizzledFormat.format, pFormats[i].format) == false) ||
                 (swizzledFormat.swizzle.swizzleValue != pFormats[i].swizzle.swizzleValue))
             {
+                // If any format is incompatible fallback to non DCC.
                 dccFormatEncoding = DccFormatEncoding::Incompatible;
                 break;
             }
@@ -1765,7 +1766,6 @@ DccFormatEncoding Device::ComputeDccFormatEncoding(
             {
                 //dont have to turn off DCC entirely only Constant Encoding
                 dccFormatEncoding = DccFormatEncoding::SignIndependent;
-                break;
             }
         }
     }
@@ -2918,10 +2918,14 @@ void PAL_STDCALL Device::Gfx9CreateImageViewSrds(
             // Theratically, ALPHA_IS_ON_MSB should be set to 1 for all single-channel formats only if
             // swap is SWAP_ALT_REV as gfx6 implementation; however, there is a new CB feature - to compress to AC01
             // during CB rendering/draw on gfx9.2, which requires special handling.
-
             const SurfaceSwap surfSwap = Formats::Gfx9::ColorCompSwap(viewInfo.swizzledFormat);
 
-            if ((surfSwap != SWAP_STD_REV) && (surfSwap != SWAP_ALT_REV))
+            if (Formats::NumComponents(viewInfo.swizzledFormat.format) == 1)
+            {
+                srd.word6.bits.ALPHA_IS_ON_MSB =
+                    (surfSwap == SWAP_ALT_REV) != (IsRaven2(*pPalDevice) || IsRenoir(*pPalDevice));
+            }
+            else if ((surfSwap != SWAP_STD_REV) && (surfSwap != SWAP_ALT_REV))
             {
                 srd.word6.bits.ALPHA_IS_ON_MSB = 1;
             }
@@ -4769,8 +4773,7 @@ void InitializeGpuChipProperties(
     }
 
     // When per-channel min/max filter operations are supported, make it clear that single channel always are as well.
-    pInfo->gfx9.supportSingleChannelMinMaxFilter =
-        1;
+    pInfo->gfx9.supportSingleChannelMinMaxFilter = 1;
 
     pInfo->gfx9.supports2BitSignedValues           = 1;
     pInfo->gfx9.supportConservativeRasterization   = 1;
@@ -4779,13 +4782,14 @@ void InitializeGpuChipProperties(
     pInfo->gfx9.supportImplicitPrimitiveShader     = 1;
     pInfo->gfx9.supportFp16Fetch                   = 1;
     pInfo->gfx9.support16BitInstructions           = 1;
-    pInfo->gfx9.support64BitInstructions =
-        1;
+    pInfo->gfx9.support64BitInstructions           = 1;
     pInfo->gfx9.supportDoubleRate16BitInstructions = 1;
 
     // All gfx9+ hardware can support subgroup/device clocks
     pInfo->gfx9.supportShaderSubgroupClock = 1;
     pInfo->gfx9.supportShaderDeviceClock   = 1;
+
+    pInfo->gfx9.supportTextureGatherBiasLod = 1;
 
     if (IsGfx10(pInfo->gfxLevel))
     {
@@ -4795,13 +4799,13 @@ void InitializeGpuChipProperties(
 
         pInfo->gfx9.numShaderArrays         = 2;
         pInfo->gfx9.numSimdPerCu            = Gfx10NumSimdPerCu;
-        pInfo->gfx9.numWavesPerSimd         = Gfx10NumWavesPerSimd;
+        pInfo->gfx9.numWavesPerSimd         = IsGfx103Plus(pInfo->gfxLevel) ? 16 : 20;
         pInfo->gfx9.nativeWavefrontSize     = 32;
         pInfo->gfx9.minWavefrontSize        = 32;
         pInfo->gfx9.maxWavefrontSize        = 64;
         pInfo->gfx9.numShaderVisibleSgprs   = MaxSgprsAvailable;
-        pInfo->gfx9.numPhysicalSgprs        = Gfx10PhysicalSgprsPerSimd;
-        pInfo->gfx9.sgprAllocGranularity    = 128;
+        pInfo->gfx9.numPhysicalSgprs        = pInfo->gfx9.numWavesPerSimd * Gfx10NumSgprsPerWave;
+        pInfo->gfx9.sgprAllocGranularity    = Gfx10NumSgprsPerWave;
         pInfo->gfx9.minSgprAlloc            = pInfo->gfx9.sgprAllocGranularity;
         pInfo->gfx9.numPhysicalVgprs        = 1024;
         pInfo->gfx9.vgprAllocGranularity    = IsGfx103Plus(pInfo->gfxLevel) ? 16: 8;
@@ -4928,6 +4932,8 @@ void InitializeGpuChipProperties(
             pInfo->gfx9.numSdpInterfaces     = 32;
             pInfo->gfx9.eccProtectedGprs     = 1;
             pInfo->gfx9.supportFp16Dot2      = 1;
+            pInfo->gfx9.supportInt8Dot       = 1;
+            pInfo->gfx9.supportInt4Dot       = 1;
         }
         else
         {
@@ -4975,6 +4981,8 @@ void InitializeGpuChipProperties(
             pInfo->gfx9.maxNumRbPerSe    = 8;
             pInfo->gfx9.numSdpInterfaces = 16;
             pInfo->gfx9.supportFp16Dot2  = 1;
+            pInfo->gfx9.supportInt8Dot   = 1;
+            pInfo->gfx9.supportInt4Dot   = 1;
         }
         else if (AMDGPU_IS_NAVI14(pInfo->familyId, pInfo->eRevId))
         {
@@ -4994,6 +5002,8 @@ void InitializeGpuChipProperties(
             pInfo->gfx9.gfx10.numGl2c        = 8;
             pInfo->gfx9.gfx10.numWgpAboveSpi = 3; // GPU__GC__NUM_WGP0_PER_SA
             pInfo->gfx9.gfx10.numWgpBelowSpi = 3; // GPU__GC__NUM_WGP1_PER_SA
+            pInfo->gfx9.supportInt8Dot       = 1;
+            pInfo->gfx9.supportInt4Dot       = 1;
         }
         else if (AMDGPU_IS_NAVI21(pInfo->familyId, pInfo->eRevId))
         {
@@ -5005,10 +5015,11 @@ void InitializeGpuChipProperties(
             pInfo->gfx9.numSdpInterfaces         = 16;
             pInfo->gfx9.maxNumCuPerSh            = 10;
             pInfo->gfx9.maxNumRbPerSe            = 4;
-            pInfo->gfx9.numWavesPerSimd          = 16;
             pInfo->gfx9.supportFp16Dot2          = 1;
             pInfo->gfx9.gfx10.numWgpAboveSpi     = 5; // GPU__GC__NUM_WGP0_PER_SA
             pInfo->gfx9.gfx10.numWgpBelowSpi     = 0; // GPU__GC__NUM_WGP1_PER_SA
+            pInfo->gfx9.supportInt8Dot           = 1;
+            pInfo->gfx9.supportInt4Dot           = 1;
         }
         else if (AMDGPU_IS_NAVI22(pInfo->familyId, pInfo->eRevId))
         {
@@ -5020,12 +5031,13 @@ void InitializeGpuChipProperties(
             pInfo->gfx9.numSdpInterfaces         = 16;
             pInfo->gfx9.maxNumCuPerSh            = 10;
             pInfo->gfx9.maxNumRbPerSe            = 4;
-            pInfo->gfx9.numWavesPerSimd          = 16;
             pInfo->gfx9.supportFp16Dot2          = 1;
             pInfo->gfx9.gfx10.numGl2a            = 2;
             pInfo->gfx9.gfx10.numGl2c            = 12;
             pInfo->gfx9.gfx10.numWgpAboveSpi     = 5; // GPU__GC__NUM_WGP0_PER_SA
             pInfo->gfx9.gfx10.numWgpBelowSpi     = 0; // GPU__GC__NUM_WGP1_PER_SA
+            pInfo->gfx9.supportInt8Dot           = 1;
+            pInfo->gfx9.supportInt4Dot           = 1;
         }
         else
         {
@@ -7438,9 +7450,11 @@ Result Device::CreateVrsDepthView()
 
     PAL_ASSERT(IsGfx103Plus(*pPalDevice));
 
-    // Create a stencil only image as 4096x4096.  The VRS data needs to be at least as large as the color buffer
-    // being rendered into...  Worst possible case supported by HW is 16384 x 16384.  Hope for now that 4kx4k
-    // is "large enough" to get away with it.
+    // Create a stencil only image that can support VRS up to the size set in vrsImageSize. The worst-case size is
+    // 16k by 16k (the largest possible target size) and we expect to use that size by default. In general, clients
+    // don't know how big their render targets will be so we're more or less forced into the max size. 16k by 16k
+    // seems huge, but the prior limit of 4k by 4k was too small, you can reach that threshold by enabling super
+    // sampling on a 4K monitor.
     //
     // Note that the image doesn't actually contain any stencil data. We also do not need to initialize this image's
     // metadata in any way because the app's draws won't read or write stencil and the VRS copy shader doesn't
