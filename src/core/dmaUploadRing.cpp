@@ -270,12 +270,8 @@ Result DmaUploadRing::Submit(
         MultiSubmitInfo submitInfo      = {};
         submitInfo.perSubQueueInfoCount = 1;
         submitInfo.pPerSubQueueInfo     = &perSubQueueInfo;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 568
-        submitInfo.fenceCount = 1;
-        submitInfo.ppFences   = &m_pRing[slotId].pFence;
-#else
-        submitInfo.pFence = m_pRing[slotId].pFence;
-#endif
+        submitInfo.fenceCount           = 1;
+        submitInfo.ppFences             = &m_pRing[slotId].pFence;
 
         result = m_pDmaQueue->SubmitInternal(submitInfo, false);
         *pCompletionFence = m_pDmaQueue->GetSubmissionContext()->LastTimestamp();

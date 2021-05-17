@@ -130,7 +130,7 @@ void SettingsLoader::ValidateSettings(
             m_settings.binningMaxAllocCountLegacy =
                 Min(128u, gfx9Props.parameterCacheLines / (4u * gfx9Props.numShaderEngines));
         }
-        else
+        else if (IsGfx10(*m_pDevice))
         {
             // In Gfx10 there is a single view of the PC rather than a division per SE.
             // The recommended value for this is to allow a single batch to consume at
@@ -141,10 +141,13 @@ void SettingsLoader::ValidateSettings(
 
     if (m_settings.binningMaxAllocCountNggOnChip == 0)
     {
-        // With NGG + on chip PC there is a single view of the PC rather than a
-        // division per SE. The recommended value for this is to allow a single batch to
-        // consume at most 1/3 of the parameter cache lines.
-        m_settings.binningMaxAllocCountNggOnChip = gfx9Props.parameterCacheLines / 3;
+        {
+            // With NGG + on chip PC there is a single view of the PC rather than a
+            // division per SE. The recommended value for this is to allow a single batch to
+            // consume at most 1/3 of the parameter cache lines.
+            // This applies to all of Gfx10, as the PC only has a single view for both legacy and NGG.
+            m_settings.binningMaxAllocCountNggOnChip = gfx9Props.parameterCacheLines / 3;
+        }
 
         if (IsGfx9(*m_pDevice))
         {

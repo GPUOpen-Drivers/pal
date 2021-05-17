@@ -277,19 +277,8 @@ PAL_INLINE Result DeserializePalCodeObjectMetadata(
 
         if (result == Result::Success)
         {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 580
-            result = Metadata::DeserializePalCodeObjectMetadata(pReader, pMetadata, &registersOffset);
-#else
             result = Metadata::DeserializePalCodeObjectMetadata(pReader, pMetadata);
-#endif
         }
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 580
-        if (result == Result::Success)
-        {
-            result = pReader->Seek(registersOffset);
-        }
-#endif
     }
 
     return result;

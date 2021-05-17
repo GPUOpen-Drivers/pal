@@ -296,10 +296,6 @@ Result ComputePipeline::HwlInit(
 
             // Finally, update the pipeline signature with user-mapping data contained in the ELF:
             SetupSignatureFromElf(metadata, registers);
-
- #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 556
-           GetFunctionGpuVirtAddrs(uploader, createInfo.pIndirectFuncList, createInfo.indirectFuncCount);
-#endif
         }
     }
 
@@ -532,7 +528,6 @@ uint32* ComputePipeline::WriteShCommandsSetPath(
                                                        pCmdSpace);
 }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 580
 // =====================================================================================================================
 // Sets the total stack frame size for indirect shaders in the pipeline
 void ComputePipeline::SetStackSizeInBytes(
@@ -541,7 +536,6 @@ void ComputePipeline::SetStackSizeInBytes(
     m_stackSizeInBytes = stackSizeInBytes;
     UpdateRingSizes(stackSizeInBytes);
 }
-#endif
 
 // =====================================================================================================================
 // Update the device that this compute pipeline has some new ring-size requirements.

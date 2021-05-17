@@ -1,33 +1,4 @@
-/*
- ***********************************************************************************************************************
- *
- *  Copyright (c) 2019-2021 Advanced Micro Devices, Inc. All Rights Reserved.
- *
- *  Permission is hereby granted, free of charge, to any person obtaining a copy
- *  of this software and associated documentation files (the "Software"), to deal
- *  in the Software without restriction, including without limitation the rights
- *  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- *  copies of the Software, and to permit persons to whom the Software is
- *  furnished to do so, subject to the following conditions:
- *
- *  The above copyright notice and this permission notice shall be included in all
- *  copies or substantial portions of the Software.
- *
- *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- *  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- *  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- *  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- *  SOFTWARE.
- *
- **********************************************************************************************************************/
-/**
-***********************************************************************************************************************
-* @file  ddPosixSocket.cpp
-* @brief POSIX socket implementation
-***********************************************************************************************************************
-*/
+/* Copyright (c) 2021 Advanced Micro Devices, Inc. All rights reserved. */
 
 #include <ddAbstractSocket.h>
 
@@ -83,49 +54,59 @@ namespace DevDriver
     }
 
     // =====================================================================================================================
-    // Construct the domain socket address name with a user-supplied suffix.
-    // Return `Result::Success` if the constructed name fits the size provided,
-    // otherwise `Result::InvalidParameter`.
-    template <size_t bufSize>
-    Result MakeDomainSocketAddress(char (&addrBuf)[bufSize], const char* pAddrSuffix)
+    // Construct the domain socket address name with a user-supplied suffix and port.
+    // Returns `Result::Success` when the constructed name fits the size provided otherwise `Result::InvalidParameter`.
+    template <size_t BufSize>
+    Result MakeDomainSocketAddress(char (&addrBuf)[BufSize], const char* pAddrSuffix, uint16_t port)
     {
         Result result = Result::InvalidParameter;
 
-        char*  pAddrBuf    = &addrBuf[0];
-        size_t addrBufSize = bufSize;
+        const bool hasPort = (port != 0);
 
-        char transformedSuffix[bufSize] = {'\0'};
-        const int32 lenCopied = Platform::Snprintf(transformedSuffix, bufSize, "%s", pAddrSuffix);
+        char*  pAddrBuf    = &addrBuf[0];
+        size_t addrBufSize = BufSize;
+
+        char transformedSuffix[BufSize] = {'\0'};
+        const int32 lenCopied = Platform::Snprintf(transformedSuffix, BufSize, "%s", pAddrSuffix);
         // Make sure `pAddrSuffix` was not truncated.
-        if ((lenCopied > 0) && (static_cast<size_t>(lenCopied) <= bufSize))
+        if ((lenCopied > 0) && (static_cast<size_t>(lenCopied) <= BufSize))
         {
-#if defined(DD_PLATFORM_DARWIN_UM)
-            const char* kFormatString = "/tmp/com.amd.%s";
+#if defined(DD_PLATFORM_LINUX_UM)
+            // We use the Windows pipe name format to preserve backward compatibility.
+            const char* kFormatString = hasPort ? "\\\\.\\pipe\\%s-%hu" : "\\\\.\\pipe\\%s";
+
+            // Start the path with a null byte to bind as an abstract socket.
+            pAddrBuf[0] = '\0';
+            pAddrBuf += 1;
+
+            DD_ASSERT(BufSize > 0);
+            addrBufSize = BufSize - 1;
+#else
+            const char* kFormatString = hasPort ? "/tmp/com.amd.%s-%hu" : "/tmp/com.amd.%s";
 
             // When used as a filename based domain socket, the address cannot
             // contain non-existent components in its prefix. For example,
             // '/tmp/BasicTest/SocketName' would return ENOENT because the
             // sub-directory 'BasicTest' doesn't exist.
-            for (size_t i = 0; (i < kMaxStringLength) && (transformedSuffix[i] != '\0'); ++i)
+            for (size_t i = 0; (i < BufSize) && (transformedSuffix[i] != '\0'); ++i)
             {
                 if (transformedSuffix[i] == '/')
                 {
                     transformedSuffix[i] = '.';
                 }
             }
-#else
-            // We use the Windows pipe name format to preserve backward compatibility.
-            const char* kFormatString = "\\\\.\\pipe\\%s";
-
-            // Start the path with a null byte to bind as an abstract socket.
-            pAddrBuf[0] = '\0';
-            pAddrBuf += 1;
-
-            DD_ASSERT(bufSize > 0);
-            addrBufSize = bufSize - 1;
 #endif
 
-            const int32 len = Platform::Snprintf(pAddrBuf, addrBufSize, kFormatString, transformedSuffix);
+            int32 len = 0;
+            if (hasPort)
+            {
+                len = Platform::Snprintf(pAddrBuf, addrBufSize, kFormatString, transformedSuffix, port);
+            }
+            else
+            {
+                len = Platform::Snprintf(pAddrBuf, addrBufSize, kFormatString, transformedSuffix);
+            }
+
             if ((len > 0) && (static_cast<size_t>(len) <= addrBufSize))
             {
                 result = Result::Success;
@@ -208,7 +189,7 @@ namespace DevDriver
         return result;
     }
 
-    Result Socket::Connect(const char* pAddress, uint32 port)
+    Result Socket::Connect(const char* pAddress, uint16 port)
     {
         char sockAddress[128] = {};
         size_t addressSize = 0;
@@ -279,7 +260,7 @@ namespace DevDriver
         return result;
     }
 
-    Result Socket::Bind(const char* pAddress, uint32 port)
+    Result Socket::Bind(const char* pAddress, uint16 port)
     {
         Result result = Result::Success;
 
@@ -292,20 +273,32 @@ namespace DevDriver
             sockaddr_un* DD_RESTRICT pAddr = reinterpret_cast<sockaddr_un *>(&m_address[0]);
             pAddr->sun_family = AF_UNIX;
 
+            // Default the address size to the full size of a unix domain socket structure
+            // The only time we use a unique address size is when we're using the Linux autobind feature and the
+            // code for handling that overrides this value.
+            m_addressSize = sizeof(*pAddr);
+
             if (pAddress != nullptr)
             {
-                result = MakeDomainSocketAddress(pAddr->sun_path, pAddress);
+                result = MakeDomainSocketAddress(pAddr->sun_path, pAddress, port);
             }
             else
             {
-                // If pAddress is null we attempt to generate a random filesystem path to bind to
-                DD_STATIC_CONST char kUnixSocketTemplate[] =  "/tmp/com.amd.gpuopen-XXXXXX";
+#if defined(DD_PLATFORM_LINUX_UM)
+                // On Linux, we use the autobind socket feature when the caller specifies a nullptr address
+                // This is indicated by setting the address size to sizeof(sa_family_t)
+                m_addressSize = sizeof(sa_family_t);
+#else
+                // On other platforms, we have to attempt to generate our own unique socket path since the
+                // abstract socket autobind feature is not available.
+                // Attempt to generate a random filesystem path to bind to
+                DD_STATIC_CONST char kUnixSocketTemplate[] =  "/tmp/com.amd.AMD-Developer-Service-XXXXXX";
                 Platform::Strncpy(pAddr->sun_path, kUnixSocketTemplate, sizeof(pAddr->sun_path) - 1);
                 const char* pPath = mktemp(pAddr->sun_path);
                 DD_ASSERT(pPath != nullptr);
                 DD_UNUSED(pPath);
+#endif
             }
-            m_addressSize = sizeof(*pAddr);
 
             if (result == Result::Success)
             {
@@ -334,7 +327,7 @@ namespace DevDriver
             hints.ai_flags = AI_PASSIVE;
 
             char portBuffer[16];
-            snprintf(portBuffer, sizeof(portBuffer), "%d", port);
+            snprintf(portBuffer, sizeof(portBuffer), "%hu", port);
 
             addrinfo* pResult = nullptr;
             int retVal = getaddrinfo(pAddress, portBuffer, &hints, &pResult);
@@ -386,21 +379,13 @@ namespace DevDriver
                                                                  &addrSize);
         if (clientSocket != -1)
         {
-            sockaddr_in* pSocket = reinterpret_cast<sockaddr_in*>(&addr);
-
-            const unsigned int addressBufSize = 256;
-            char addressBuf[addressBufSize];
-            const char* pAddress = inet_ntop(AF_INET, reinterpret_cast<void*>(&pSocket->sin_addr), addressBuf, addressBufSize);
-
-            unsigned int port = ntohs(pSocket->sin_port);
-
-            result = pClientSocket->InitAsClient(clientSocket, pAddress, port, m_isNonBlocking);
+            result = pClientSocket->InitAsClient(clientSocket, m_isNonBlocking);
         }
 
         return result;
     }
 
-    Result Socket::LookupAddressInfo(const char* pAddress, uint32 port, size_t addressInfoSize, char* pAddressInfo, size_t *pAddressSize)
+    Result Socket::LookupAddressInfo(const char* pAddress, uint16_t port, size_t addressInfoSize, char* pAddressInfo, size_t *pAddressSize)
     {
         Result result = Result::Error;
         switch (m_socketType)
@@ -411,7 +396,7 @@ namespace DevDriver
                 DD_ASSERT(addressInfoSize >= sizeof(sockaddr));
 
                 char portBuffer[16];
-                snprintf(portBuffer, sizeof(portBuffer), "%d", port);
+                snprintf(portBuffer, sizeof(portBuffer), "%hu", port);
 
                 addrinfo* pResult = nullptr;
                 int retVal = getaddrinfo(pAddress, portBuffer, &m_hints, &pResult);
@@ -439,7 +424,7 @@ namespace DevDriver
                 pAddr->sun_family = AF_UNIX;
 
                 // Copy the path into the address info struct
-                result = MakeDomainSocketAddress(pAddr->sun_path, pAddress);
+                result = MakeDomainSocketAddress(pAddr->sun_path, pAddress, port);
                 *pAddressSize = sizeof(*pAddr);
                 break;
             }
@@ -614,7 +599,7 @@ namespace DevDriver
         return result;
     }
 
-    Result Socket::GetSocketName(char *pAddress, size_t addrLen, uint32 *pPort)
+    Result Socket::GetSocketName(char *pAddress, size_t addrLen, uint16* pPort)
     {
         Result result = Result::Error;
         socklen_t len = static_cast<socklen_t>(sizeof(sockaddr));
@@ -626,7 +611,7 @@ namespace DevDriver
 
             if (pResult != NULL)
             {
-                unsigned int port = ntohs(pAddr->sin_port);
+                const uint16 port = ntohs(pAddr->sin_port);
                 *pPort = port;
                 result = Result::Success;
             }
@@ -634,12 +619,9 @@ namespace DevDriver
         return result;
     }
 
-    Result Socket::InitAsClient(OsSocketType socket, const char* pAddress, uint32 port, bool isNonBlocking)
+    Result Socket::InitAsClient(OsSocketType socket, bool isNonBlocking)
     {
-
         DD_ASSERT(m_socketType == SocketType::Tcp);
-        DD_UNUSED(pAddress);
-        DD_UNUSED(port);
 
         Result result = Result::Success;
 

@@ -412,7 +412,6 @@ private:
         const InternalSubmitInfo& internalSubmitInfo);
 #endif
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 555
 #if PAL_ENABLE_PRINTS_ASSERTS
     bool IsCmdDumpEnabled() const;
     Result OpenCommandDumpFile(
@@ -429,7 +428,6 @@ private:
         const CmdStream*         pCmdStream,
         CmdDumpCallback          pCmdDumpCallback,
         void*                    pUserData) const;
-#endif
 
     // Tracks whether or not this Queue is stalled by a Queue Semaphore, and if so, the Semaphore which is blocking
     // this Queue.

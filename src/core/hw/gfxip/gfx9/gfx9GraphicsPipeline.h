@@ -103,9 +103,6 @@ public:
                                 const ColorBlendState*   pBlendState,
                                 uint32                   hasActiveQueries,
                                 OutOfOrderPrimMode       gfx9EnableOutOfOrderPrimitives) const;
-    bool PsTexKill() const;
-    bool IsAlphaToMaskEnable() const;
-    bool PsCanTriviallyReject() const;
     bool PsAllowsPunchout() const;
 
     bool IsOutOfOrderPrimsEnabled() const
@@ -113,6 +110,7 @@ public:
 
     const GraphicsPipelineSignature& Signature() const { return m_signature; }
 
+    bool UsesStreamout() const { return (m_signature.streamOutTableRegAddr != UserDataNotMapped); }
     bool UsesHwStreamout() const { return m_chunkVsPs.UsesHwStreamout(); }
     uint32 StrmoutVtxStrideDw(uint32 idx) const;
     regPA_SC_AA_CONFIG PaScAaConfig() const { return m_chunkVsPs.PaScAaConfig(); }
@@ -163,6 +161,8 @@ public:
         uint32                 targetLateAllocLimit);
 
     bool IsRasterizationKilled() const { return (m_regs.context.paClClipCntl.bits.DX_RASTERIZATION_KILL != 0); }
+
+    bool BinningAllowed() const { return m_binningAllowed; }
 
 protected:
     virtual ~GraphicsPipeline() { }
@@ -267,6 +267,7 @@ private:
         regSX_BLEND_OPT_CONTROL* pSxBlendOptControl) const;
 
     SX_DOWNCONVERT_FORMAT SxDownConvertFormat(ChNumFormat format) const;
+    void DetermineBinningOnOff();
 
     const GfxIpLevel  m_gfxLevel;
     uint32            m_contextRegHash;
@@ -275,6 +276,7 @@ private:
     bool              m_isNggFastLaunch; ///< Is NGG fast launch enabled?
     uint32            m_nggSubgroupSize;
     bool              m_uavExportRequiresFlush; // If false, must flush after each draw when UAV export is enabled
+    bool              m_binningAllowed;
 
     uint16            m_fetchShaderRegAddr; // The user data register which fetch shader address will be writen to.
     gpusize           m_fetchShaderPgm;     // The GPU virtual address of fetch shader entry.

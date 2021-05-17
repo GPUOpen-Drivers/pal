@@ -94,12 +94,7 @@ void CmdBuffer::CmdColorSpaceConversionCopy(
             barrier.pTransitions = &transition;
 
             m_device.GetTextWriter().WriteVisualConfirm(static_cast<const Image&>(srcImage),
-                this,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 561
-                PresentMode::Unknown);
-#else
-                PresentMode::Count);
-#endif
+                                                        this, PresentMode::Unknown);
 
             barrier.reason = Developer::BarrierReasonDebugOverlayText;
 
@@ -155,13 +150,7 @@ void CmdBuffer::DrawOverlay(
     {
         const PlatformProperties& properties   = static_cast<Platform*>(m_pDevice->GetPlatform())->Properties();
         const PresentMode expectedMode         =
-            ((properties.explicitPresentModes == 0) ?
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 561
-             PresentMode::Unknown
-#else
-             PresentMode::Count
-#endif
-             : presentMode);
+            ((properties.explicitPresentModes == 0) ? PresentMode::Unknown : presentMode);
 
         // Draw the debug overlay using this command buffer. Note that the DX runtime controls whether the
         // present will be windowed or fullscreen. We have no reliable way to detect the chosen present mode.
@@ -197,11 +186,8 @@ void CmdBuffer::CmdPostProcessFrame(
 #endif
         Device::DetermineDbgOverlaySupport(m_queueType))
     {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 561
         DrawOverlay(postProcessInfo.pSrcImage, postProcessInfo.presentMode);
-#else
-        DrawOverlay(postProcessInfo.pSrcImage, PresentMode::Count);
-#endif
+
         if (pAddedGpuWork != nullptr)
         {
             *pAddedGpuWork = true;

@@ -124,10 +124,8 @@ void Gfx9MaskRam::BuildSurfBufferView(
     pViewInfo->range          = TotalSize();
     pViewInfo->stride         = 1;
     pViewInfo->swizzledFormat = UndefinedSwizzledFormat;
-#if  PAL_CLIENT_INTERFACE_MAJOR_VERSION>= 558
     pViewInfo->flags.bypassMallRead  = TestAnyFlagSet(settings.rpmViewsBypassMall, Gfx10RpmViewsBypassMallOnRead);
     pViewInfo->flags.bypassMallWrite = TestAnyFlagSet(settings.rpmViewsBypassMall, Gfx10RpmViewsBypassMallOnWrite);
-#endif
 }
 
 // =====================================================================================================================
@@ -321,10 +319,8 @@ void Gfx9MetaEqGenerator::BuildEqBufferView(
                                   MetaDataAddrCompNumTypes                      *
                                   sizeof (uint32);
     pBufferView->gpuAddr        = m_pParent->GetImage().Parent()->GetGpuVirtualAddr() + m_eqGpuAccess.offset;
-#if  PAL_CLIENT_INTERFACE_MAJOR_VERSION>= 558
     pBufferView->flags.bypassMallRead  = TestAnyFlagSet(settings.rpmViewsBypassMall, Gfx10RpmViewsBypassMallOnRead);
     pBufferView->flags.bypassMallWrite = TestAnyFlagSet(settings.rpmViewsBypassMall, Gfx10RpmViewsBypassMallOnWrite);
-#endif
 }
 
 // =====================================================================================================================
@@ -3972,6 +3968,7 @@ void Gfx9Dcc::GetXyzInc(
             *pXinc = XyzIncSizes[bppLog2][0];
             *pYinc = XyzIncSizes[bppLog2][1];
             *pZinc = XyzIncSizes[bppLog2][2];
+
         }
     }
     else if (imageType == ImageType::Tex3d)
@@ -4186,7 +4183,11 @@ void Gfx9Dcc::SetControlReg(
                         static_cast<uint32>(Gfx9DccMaxBlockSize::BlockSize128B);
                 }
             }
-            m_dccControl.gfx10.INDEPENDENT_128B_BLOCKS  = 1;
+
+            if (IsGfx10(gfxLevel))
+            {
+                m_dccControl.gfx10.INDEPENDENT_128B_BLOCKS  = 1;
+            }
 
             PAL_ASSERT(m_dccControl.bits.MAX_COMPRESSED_BLOCK_SIZE <= m_dccControl.bits.MAX_UNCOMPRESSED_BLOCK_SIZE);
 
@@ -4284,7 +4285,6 @@ bool Gfx9Dcc::UseDccForImage(
         useDcc = false;
         mustDisableDcc = true;
     }
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 564
     else if ((createInfo.metadataMode == MetadataMode::FmaskOnly) &&
              (createInfo.samples > 1) &&
              (pParent->IsRenderTarget() == true))
@@ -4293,7 +4293,6 @@ bool Gfx9Dcc::UseDccForImage(
         useDcc = false;
         mustDisableDcc = true;
     }
-#endif
     else if (pParent->GetDccFormatEncoding() == DccFormatEncoding::Incompatible)
     {
         // Don't use DCC if the caller can switch between view formats that are not DCC compatible with each other.
@@ -4308,6 +4307,12 @@ bool Gfx9Dcc::UseDccForImage(
         mustDisableDcc = true;
     }
 #endif
+    else if (Is256BSwizzle(swizzleMode))
+    {
+        // If using 256B swizzle, don't use DCC as perf hit is too great.
+        useDcc = false;
+        mustDisableDcc = true;
+    }
     else if (AddrMgr2::IsLinearSwizzleMode(swizzleMode))
     {
         // If the tile-mode is linear, then this surface has no chance of using DCC memory.

@@ -600,7 +600,6 @@ public:
         const GfxImage&    image,
         const SubresRange& range) const override;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 554
     void CmdResolvePrtPlusImage(
         GfxCmdBuffer*                    pCmdBuffer,
         const IImage&                    srcImage,
@@ -610,7 +609,6 @@ public:
         PrtPlusResolveType               resolveType,
         uint32                           regionCount,
         const PrtPlusImageResolveRegion* pRegions) const override;
-#endif
 
     void CopyVrsIntoHtile(
         GfxCmdBuffer*                pCmdBuffer,        // cmd buffer to receive copy commands, must support compute

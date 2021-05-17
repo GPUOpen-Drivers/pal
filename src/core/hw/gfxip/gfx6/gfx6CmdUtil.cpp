@@ -2439,29 +2439,6 @@ size_t CmdUtil::BuildPfpSyncMe(
 }
 
 // =====================================================================================================================
-// Builds a PM4 packet which marks the beginning or end of either a draw-engine preamble or the initialization of
-// clear-state memory. Returns the size of the PM4 command build, in DWORDs.
-size_t CmdUtil::BuildPreambleCntl(
-    uint32 command,
-    void*  pBuffer      // [out] Build the PM4 packet in this buffer.
-    ) const
-{
-    PAL_ASSERT((command == PREAMBLE_CNTL_PREAMBLE_BEGIN)    ||
-               (command == PREAMBLE_CNTL_PREAMBLE_END)      ||
-               (command == PREAMBLE_CNTL_CLEAR_STATE_BEGIN) ||
-               (command == PREAMBLE_CNTL_CLEAR_STATE_END));
-
-    constexpr size_t PacketSize = (sizeof(PM4CMDPREAMBLECNTL) / sizeof(uint32));
-    auto*const       pPacket    = static_cast<PM4CMDPREAMBLECNTL*>(pBuffer);
-
-    pPacket->header.u32All = Type3Header(IT_PREAMBLE_CNTL, PacketSize);
-    pPacket->ordinal2      = 0;
-    pPacket->command       = command;
-
-    return PacketSize;
-}
-
-// =====================================================================================================================
 // Builds a release_mem packet to the specified stream.  This packet is only usable on compute queues on Gfx7 or newer
 // ASICs. Returns the size of the PM4 command built, in DWORDs.
 size_t CmdUtil::BuildReleaseMem(

@@ -705,15 +705,9 @@ void LogContext::Enum(
     {
         "HwPipeTop",              // 0x0,
         "HwPipePostIndexFetch",   // 0x1,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 577
-        "",
-        "HwPipePreRasterization", // 0x3,
-        "HwPipePostPs",           // 0x4,
-#else
         "HwPipePreRasterization", // 0x2,
         "HwPipePostPs",           // 0x3,
         "HwPipePreColorTarget",   // 0x4,
-#endif
         "HwPipePostCs",           // 0x5,
         "HwPipePostBlt",          // 0x6,
         "HwPipeBottom",           // 0x7,
@@ -1150,14 +1144,9 @@ void LogContext::Enum(
 {
     const char*const StringTable[] =
     {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 561
         "Unknown",   // 0x0,
         "Windowed",  // 0x1,
         "Fullscreen" // 0x2,
-#else
-        "Windowed",  // 0x0,
-        "Fullscreen" // 0x1,
-#endif
     };
 
     static_assert(ArrayLen(StringTable) == static_cast<uint32>(PresentMode::Count),
@@ -1209,10 +1198,8 @@ void LogContext::Enum(
         "TriangleStripAdj", // 0xB,
         "Patch",            // 0xC,
         "TriangleFan",      // 0xD,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 557
         "LineLoop",         // 0xE,
         "Polygon",          // 0xF,
-#endif
     };
 
     const uint32 idx = static_cast<uint32>(value);
@@ -1758,7 +1745,6 @@ void LogContext::Enum(
     Value(StringTable[idx]);
 }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 554
 // =====================================================================================================================
 void LogContext::Enum(
     PrtPlusResolveType value)
@@ -1777,7 +1763,6 @@ void LogContext::Enum(
 
     Value(StringTable[idx]);
 }
-#endif
 
 // =====================================================================================================================
 void LogContext::Enum(

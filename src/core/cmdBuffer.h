@@ -470,7 +470,6 @@ public:
         uint32                    flags) override
         { PAL_NEVER_CALLED(); }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 554
     virtual void CmdResolvePrtPlusImage(
         const IImage&                    srcImage,
         ImageLayout                      srcImageLayout,
@@ -480,7 +479,6 @@ public:
         uint32                           regionCount,
         const PrtPlusImageResolveRegion* pRegions) override
         { PAL_NEVER_CALLED(); }
-#endif
 
     virtual void CmdSetEvent(const IGpuEvent& gpuEvent, HwPipePoint setPoint) override
         { WriteEvent(gpuEvent, setPoint, GpuEvent::SetValue); }

@@ -71,6 +71,7 @@ void SettingsLoader::SetupDefaults()
     m_settings.enableNullCpuAccessFlag = false;
     m_settings.clearAllocatedLfb = false;
     m_settings.enableAdaptiveSync = false;
+    m_settings.addr2Disable256BSwizzleMode = false;
     m_settings.addr2Disable4kBSwizzleMode = 0x0;
     m_settings.addr2UseVarSwizzleMode = 0x2;
 
@@ -153,7 +154,7 @@ void SettingsLoader::SetupDefaults()
     m_settings.hwCompositingEnabled = true;
     m_settings.mgpuCompatibilityEnabled = true;
     m_settings.peerMemoryEnabled = true;
-    m_settings.forcePresentViaGdi = false;
+    m_settings.forcePresentViaCpuBlt = false;
     m_settings.presentViaOglRuntime = true;
 
     m_settings.debugForceSurfaceAlignment = 0;
@@ -258,6 +259,11 @@ void SettingsLoader::ReadSettings()
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pEnableAdaptiveSyncStr,
                            Util::ValueType::Boolean,
                            &m_settings.enableAdaptiveSync,
+                           InternalSettingScope::PrivatePalKey);
+
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pAddr2Disable256BSwizzleModeStr,
+                           Util::ValueType::Boolean,
+                           &m_settings.addr2Disable256BSwizzleMode,
                            InternalSettingScope::PrivatePalKey);
 
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pAddr2Disable4KbSwizzleModeStr,
@@ -569,9 +575,9 @@ void SettingsLoader::ReadSettings()
                            &m_settings.peerMemoryEnabled,
                            InternalSettingScope::PrivatePalKey);
 
-    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pForcePresentViaGdiStr,
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pForcePresentViaCpuBltStr,
                            Util::ValueType::Boolean,
-                           &m_settings.forcePresentViaGdi,
+                           &m_settings.forcePresentViaCpuBlt,
                            InternalSettingScope::PrivatePalKey);
 
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pPresentViaOglRuntimeStr,
@@ -741,6 +747,11 @@ void SettingsLoader::InitSettingsInfo()
     info.pValuePtr = &m_settings.enableAdaptiveSync;
     info.valueSize = sizeof(m_settings.enableAdaptiveSync);
     m_settingsInfoMap.Insert(1325234467, info);
+
+    info.type      = SettingType::Boolean;
+    info.pValuePtr = &m_settings.addr2Disable256BSwizzleMode;
+    info.valueSize = sizeof(m_settings.addr2Disable256BSwizzleMode);
+    m_settingsInfoMap.Insert(2981505442, info);
 
     info.type      = SettingType::Uint;
     info.pValuePtr = &m_settings.addr2Disable4kBSwizzleMode;
@@ -1050,9 +1061,9 @@ void SettingsLoader::InitSettingsInfo()
     m_settingsInfoMap.Insert(259362511, info);
 
     info.type      = SettingType::Boolean;
-    info.pValuePtr = &m_settings.forcePresentViaGdi;
-    info.valueSize = sizeof(m_settings.forcePresentViaGdi);
-    m_settingsInfoMap.Insert(2607871653, info);
+    info.pValuePtr = &m_settings.forcePresentViaCpuBlt;
+    info.valueSize = sizeof(m_settings.forcePresentViaCpuBlt);
+    m_settingsInfoMap.Insert(2055732513, info);
 
     info.type      = SettingType::Boolean;
     info.pValuePtr = &m_settings.presentViaOglRuntime;
@@ -1122,7 +1133,7 @@ void SettingsLoader::DevDriverRegister()
             component.pfnSetValue = ISettingsLoader::SetValue;
             component.pSettingsData = &g_palJsonData[0];
             component.settingsDataSize = sizeof(g_palJsonData);
-            component.settingsDataHash = 437791580;
+            component.settingsDataHash = 2387638308;
             component.settingsDataHeader.isEncoded = true;
             component.settingsDataHeader.magicBufferId = 402778310;
             component.settingsDataHeader.magicBufferOffset = 0;

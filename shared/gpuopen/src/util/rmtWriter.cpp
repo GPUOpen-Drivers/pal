@@ -1,27 +1,4 @@
-/*
- ***********************************************************************************************************************
- *
- *  Copyright (c) 2019-2021 Advanced Micro Devices, Inc. All Rights Reserved.
- *
- *  Permission is hereby granted, free of charge, to any person obtaining a copy
- *  of this software and associated documentation files (the "Software"), to deal
- *  in the Software without restriction, including without limitation the rights
- *  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- *  copies of the Software, and to permit persons to whom the Software is
- *  furnished to do so, subject to the following conditions:
- *
- *  The above copyright notice and this permission notice shall be included in all
- *  copies or substantial portions of the Software.
- *
- *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- *  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- *  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- *  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- *  SOFTWARE.
- *
- **********************************************************************************************************************/
+/* Copyright (c) 2021 Advanced Micro Devices, Inc. All rights reserved. */
 
 #include <util/rmtWriter.h>
 
@@ -207,7 +184,13 @@ void RmtWriter::BeginDataChunk(
     m_dataChunkHeaderOffset = m_rmtFileData.Size();
 
     // Create the chunk header with a zero byte size and add it to the stream
-    WriteDataChunkHeader(processId, threadId, 0, 0);
+    WriteDataChunkHeader(
+        processId,
+        threadId,
+        0,
+        0,
+        RMT_FILE_DATA_CHUNK_MAJOR_VERSION,
+        RMT_FILE_DATA_CHUNK_MINOR_VERSION);
 
     m_state = RmtWriterState::WritingDataChunk;
 }
@@ -297,7 +280,13 @@ void RmtWriter::WriteDataChunk(const void* pData, size_t dataSize)
 }
 
 //=====================================================================================================================
-void RmtWriter::WriteDataChunkHeader(uint64 processId, uint64 threadId, size_t dataSize, uint32 chunkIndex)
+void RmtWriter::WriteDataChunkHeader(
+    uint64 processId,
+    uint64 threadId,
+    size_t dataSize,
+    uint32 chunkIndex,
+    uint16 rmtMajorVersion,
+    uint16 rmtMinorVersion)
 {
     DD_ASSERT(m_state == RmtWriterState::Initialized);
 
@@ -305,8 +294,8 @@ void RmtWriter::WriteDataChunkHeader(uint64 processId, uint64 threadId, size_t d
     RmtFileChunkRmtData chunkHeader = {};
     chunkHeader.header.chunkIdentifier.chunkType  = RMT_FILE_CHUNK_TYPE_RMT_DATA;
     chunkHeader.header.chunkIdentifier.chunkIndex = chunkIndex;
-    chunkHeader.header.versionMinor               = RMT_FILE_DATA_CHUNK_MAJOR_VERSION;
-    chunkHeader.header.versionMajor               = RMT_FILE_DATA_CHUNK_MINOR_VERSION;
+    chunkHeader.header.versionMinor               = rmtMajorVersion;
+    chunkHeader.header.versionMajor               = rmtMinorVersion;
     chunkHeader.header.sizeInBytes                = static_cast<int32>(dataSize) + sizeof(chunkHeader);
     chunkHeader.header.padding                    = 0;
     chunkHeader.processId                         = processId;

@@ -220,9 +220,6 @@ union CachedSettings
         uint64 tossPointMode              :  3; // The currently enabled "TossPointMode" global setting
         uint64 hiDepthDisabled            :  1; // True if Hi-Depth is disabled by settings
         uint64 hiStencilDisabled          :  1; // True if Hi-Stencil is disabled by settings
-        uint64 disableBatchBinning        :  1; // True if binningMode is disabled.
-        uint64 disablePbbPsKill           :  1; // True if PBB should be disabled for pipelines using PS Kill
-        uint64 disablePbbAppendConsume    :  1; // True if PBB should be disabled for pipelines with append/consume
         uint64 ignoreCsBorderColorPalette :  1; // True if compute border-color palettes should be ignored
         uint64 blendOptimizationsEnable   :  1; // A copy of the blendOptimizationsEnable setting.
         uint64 outOfOrderPrimsEnable      :  2; // The out-of-order primitive rendering mode allowed by settings
@@ -263,9 +260,9 @@ union CachedSettings
         uint64 supportsVrs                               :  1;
         uint64 vrsForceRateFine                          :  1;
         uint64 reserved7                                 :  1;
-        uint64 reserved8                  :  4;
+        uint64 reserved8                  :  9;
         uint64 reserved9                  :  1;
-        uint64 reserved                   : 17;
+        uint64 reserved                   : 15;
     };
     uint64 u64All;
 };
@@ -612,11 +609,6 @@ protected:
 
     template <bool Pm4OptImmediate, bool IsNgg>
     uint32* ValidateBinSizes(uint32* pDeCmdSpace);
-
-    bool ShouldEnablePbb(
-        const GraphicsPipeline&  pipeline,
-        const DepthStencilState* pDepthStencilState,
-        const MsaaState*         pMsaaState) const;
 
     template <bool Indexed, bool Indirect>
     void ValidateDraw(const ValidateDrawInfo& drawInfo);
@@ -1107,7 +1099,6 @@ private:
     regPA_SC_LINE_STIPPLE       m_paScLineStipple;     // Last written value of PA_SC_LINE_STIPPLE
 
     bool             m_hasWaMiscPopsMissedOverlapBeenApplied;
-    BinningOverride  m_pbbStateOverride; // Sets PBB on/off as per dictated by the new bound pipeline.
     bool             m_enabledPbb;       // PBB is currently enabled or disabled.
     uint16           m_customBinSizeX;   // Custom bin sizes for PBB.  Zero indicates PBB is not using
     uint16           m_customBinSizeY;   // a custom bin size.

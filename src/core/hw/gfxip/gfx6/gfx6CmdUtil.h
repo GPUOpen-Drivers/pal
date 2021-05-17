@@ -398,8 +398,6 @@ public:
 
     size_t BuildPfpSyncMe(void* pBuffer) const;
 
-    size_t BuildPreambleCntl(uint32 command, void* pBuffer) const;
-
     size_t BuildReleaseMem(
         VGT_EVENT_TYPE eventType,
         gpusize        gpuAddress,

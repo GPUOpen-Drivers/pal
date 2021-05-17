@@ -30,6 +30,7 @@
 #include "core/os/amdgpu/amdgpuWindowSystem.h"
 #include "g_waylandLoader.h"
 #include "palFile.h"
+#include "palHashSet.h"
 
 namespace Pal
 {
@@ -132,6 +133,8 @@ public:
     void                      SetFrameCompleted()                           { m_frameCompleted = true; }
     void                      SetFrameCallback(wl_callback* pFrameCallback) { m_pFrameCallback = pFrameCallback; }
 
+    Result                    AddFormat(wl_drm_format fmt)                  { return m_validFormats.Insert(fmt); }
+
 private:
     WaylandWindowSystem(const Device& device, const WindowSystemCreateInfo& createInfo);
     virtual ~WaylandWindowSystem();
@@ -148,6 +151,8 @@ private:
 #else
     const WaylandLoaderFuncs&      m_waylandProcs;
 #endif
+
+    HashSet<wl_drm_format, Platform> m_validFormats;
 
     // PAL present buffers with multi-threads (two threads, one is main thread and another is present thread), in order
     // to avoid dead lock with shared queue, two queues are introduced for buffer idle and frame complete respectively.

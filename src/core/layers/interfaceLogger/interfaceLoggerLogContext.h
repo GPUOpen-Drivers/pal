@@ -92,9 +92,7 @@ enum class InterfaceFunc : uint32
     CmdBufferCmdSetPerDrawVrsRate,
     CmdBufferCmdSetVrsCenterState,
     CmdBufferCmdBindSampleRateImage,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 554
     CmdBufferCmdResolvePrtPlusImage,
-#endif
     CmdBufferCmdSetBlendConst,
     CmdBufferCmdSetInputAssemblyState,
     CmdBufferCmdSetTriangleRasterState,
@@ -540,9 +538,7 @@ public:
     void Struct(const PresentableImageCreateInfo& value);
     void Struct(const PresentDirectInfo& value);
     void Struct(const PresentSwapChainInfo& value);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 554
     void Struct(const PrtPlusImageResolveRegion& value);
-#endif
     void Struct(const PrivateDisplayMode& value);
     void Struct(const PrivateDisplayTiming& value);
     void Struct(const PrivateScreenCaps& value);
@@ -620,9 +616,7 @@ public:
     void Enum(GpuHeapAccess value);
     void Enum(GpuMemPriority value);
     void Enum(GpuMemPriorityOffset value);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 554
     void Enum(PrtPlusResolveType value);
-#endif
     void Enum(HwPipePoint value);
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
     void Enum(ImageAspect value);

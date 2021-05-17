@@ -64,11 +64,18 @@ struct PalEventHeader
 
 // =====================================================================================================================
 // Event Data Structures
+struct RmtDataVersion
+{
+    uint16 major;
+    uint16 minor;
+};
+
 struct CreateGpuMemoryData
 {
     gpusize       size;
     gpusize       alignment;
-    GpuHeap       preferredHeap;
+    uint32        heapCount;
+    GpuHeap       heaps[GpuHeapCount];
     bool          isVirtual;
     bool          isInternal;
     bool          isExternalShared;
@@ -369,7 +376,16 @@ static void SerializeCreateGpuMemoryData(
     pJsonWriter->KeyAndValue("GpuMemHandle", data.handle);
     pJsonWriter->KeyAndValue("Size", data.size);
     pJsonWriter->KeyAndValue("Alignment", data.alignment);
-    pJsonWriter->KeyAndValue("PreferredHeap", data.preferredHeap);
+#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 667)
+    pJsonWriter->KeyAndValue("PreferredHeap", data.heaps[0]);
+#endif
+    pJsonWriter->KeyAndValue("HeapCount", data.heapCount);
+    pJsonWriter->KeyAndBeginList("Heaps", false);
+    for (uint32 i = 0; i < static_cast<uint32>(data.heapCount); i++)
+    {
+        pJsonWriter->Value(data.heaps[i]);
+    }
+    pJsonWriter->EndList();
     pJsonWriter->KeyAndValue("GpuVirtualAddress", data.gpuVirtualAddr);
     pJsonWriter->KeyAndValue("IsVirtual", data.isVirtual);
     pJsonWriter->KeyAndValue("IsInternal", data.isInternal);

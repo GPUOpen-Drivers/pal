@@ -82,23 +82,6 @@ Result ComputePipeline::Init(
 }
 
 // =====================================================================================================================
-// Computes the GPU virtual address of each of the indirect functions specified by the client.
-void ComputePipeline::GetFunctionGpuVirtAddrs(
-    const PipelineUploader&          uploader,
-    ComputePipelineIndirectFuncInfo* pFuncInfoList,
-    uint32                           funcCount)
-{
-    for (uint32 i = 0; i < funcCount; ++i)
-    {
-        GpuSymbol symbol = { };
-        if (uploader.GetGenericGpuSymbol(pFuncInfoList[i].pSymbolName, &symbol) == Result::Success)
-        {
-            pFuncInfoList[i].gpuVirtAddr = symbol.gpuVirtAddr;
-        }
-    }
-}
-
-// =====================================================================================================================
 // Initializes this pipeline from the pipeline binary data stored in this object.
 Result ComputePipeline::InitFromPipelineBinary(
     const ComputePipelineCreateInfo& createInfo)
@@ -129,9 +112,7 @@ Result ComputePipeline::InitFromPipelineBinary(
             m_stageInfo.disassemblyLength = static_cast<size_t>(pSymbol->st_size);
         }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 580
         m_maxFunctionCallDepth = createInfo.maxFunctionCallDepth;
-#endif
         const auto& csStageMetadata = metadata.pipeline.hardwareStage[static_cast<uint32>(Abi::HardwareStage::Cs)];
         if (csStageMetadata.hasEntry.scratchMemorySize != 0)
         {

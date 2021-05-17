@@ -1175,7 +1175,6 @@ bool Gfx6Dcc::UseDccForImage(
             useDcc = false;
             mustDisableDcc = true;
         }
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 564
         else if ((createInfo.metadataMode == MetadataMode::FmaskOnly) &&
                  (createInfo.samples > 1) &&
                  (pParent->IsRenderTarget() == true))
@@ -1184,7 +1183,6 @@ bool Gfx6Dcc::UseDccForImage(
             useDcc = false;
             mustDisableDcc = true;
         }
-#endif
         else if (pParent->GetDccFormatEncoding() == DccFormatEncoding::Incompatible)
         {
             // Don't use DCC if the caller can switch between color target formats.

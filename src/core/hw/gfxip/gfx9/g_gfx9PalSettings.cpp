@@ -70,6 +70,7 @@ void SettingsLoader::SetupDefaults()
     m_settings.sdmaPreferCompressedSource = true;
     m_settings.useCompToSingle = 0x1f;
     m_settings.forceRegularClearCode = false;
+
     m_settings.forceGraphicsFillMemoryPath = false;
     m_settings.waitOnMetadataMipTail = false;
     m_settings.blendOptimizationsEnable = true;
@@ -82,8 +83,9 @@ void SettingsLoader::SetupDefaults()
     m_settings.csMaxWavesPerCu = 0;
     m_settings.csLockThreshold = 0;
     m_settings.csSimdDestCntl = CsSimdDestCntlDefault;
+
     m_settings.htileEnable = true;
-    m_settings.forceEnableIterate256 = false;
+    m_settings.disableIterate256Opt = false;
     m_settings.allowDepthCopyResolve = true;
     m_settings.depthCompressEnable = true;
     m_settings.stencilCompressEnable = true;
@@ -356,9 +358,9 @@ void SettingsLoader::ReadSettings()
                            &m_settings.htileEnable,
                            InternalSettingScope::PrivatePalGfx9Key);
 
-    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pForceEnableIterate256Str,
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pDisableIterate256OptStr,
                            Util::ValueType::Boolean,
-                           &m_settings.forceEnableIterate256,
+                           &m_settings.disableIterate256Opt,
                            InternalSettingScope::PrivatePalGfx9Key);
 
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pAllowDepthCopyResolveStr,
@@ -1414,9 +1416,9 @@ void SettingsLoader::InitSettingsInfo()
     m_settingsInfoMap.Insert(2379988876, info);
 
     info.type      = SettingType::Boolean;
-    info.pValuePtr = &m_settings.forceEnableIterate256;
-    info.valueSize = sizeof(m_settings.forceEnableIterate256);
-    m_settingsInfoMap.Insert(3775486764, info);
+    info.pValuePtr = &m_settings.disableIterate256Opt;
+    info.valueSize = sizeof(m_settings.disableIterate256Opt);
+    m_settingsInfoMap.Insert(3148646221, info);
 
     info.type      = SettingType::Boolean;
     info.pValuePtr = &m_settings.allowDepthCopyResolve;
@@ -2079,7 +2081,7 @@ void SettingsLoader::DevDriverRegister()
             component.pfnSetValue = ISettingsLoader::SetValue;
             component.pSettingsData = &g_gfx9PalJsonData[0];
             component.settingsDataSize = sizeof(g_gfx9PalJsonData);
-            component.settingsDataHash = 3113252140;
+            component.settingsDataHash = 410664453;
             component.settingsDataHeader.isEncoded = true;
             component.settingsDataHeader.magicBufferId = 402778310;
             component.settingsDataHeader.magicBufferOffset = 0;

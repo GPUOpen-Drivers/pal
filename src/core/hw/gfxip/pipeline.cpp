@@ -389,7 +389,6 @@ Result Pipeline::LinkWithLibraries(
     return Result::Unsupported;
 }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 580
 // =====================================================================================================================
 // Sets the total stack size for indirect shaders in the pipeline
 void Pipeline::SetStackSizeInBytes(
@@ -398,7 +397,6 @@ void Pipeline::SetStackSizeInBytes(
     // To be Implemented in needed Pipeline classes
     PAL_ASSERT_ALWAYS();
 }
-#endif
 
 // =====================================================================================================================
 // Helper method which extracts shader statistics from the pipeline ELF binary for a particular hardware stage.

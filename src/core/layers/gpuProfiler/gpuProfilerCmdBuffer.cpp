@@ -608,7 +608,6 @@ void CmdBuffer::CmdBindSampleRateImage(
     InsertToken(pImage);
 }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 554
 // =====================================================================================================================
 void CmdBuffer::CmdResolvePrtPlusImage(
     const IImage&                    srcImage,
@@ -627,7 +626,6 @@ void CmdBuffer::CmdResolvePrtPlusImage(
     InsertToken(resolveType);
     InsertTokenArray(pRegions, regionCount);
 }
-#endif
 
 // =====================================================================================================================
 void CmdBuffer::CmdSetBlendConst(
@@ -661,7 +659,6 @@ void CmdBuffer::ReplayCmdBindSampleRateImage(
     pTgtCmdBuffer->CmdBindSampleRateImage(ReadTokenVal<const IImage*>());
 }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 554
 // =====================================================================================================================
 void CmdBuffer::ReplayCmdResolvePrtPlusImage(
     Queue*           pQueue,
@@ -669,7 +666,6 @@ void CmdBuffer::ReplayCmdResolvePrtPlusImage(
 {
     PAL_NOT_IMPLEMENTED();
 }
-#endif
 
 // =====================================================================================================================
 void CmdBuffer::ReplayCmdSetBlendConst(
@@ -2516,9 +2512,7 @@ void CmdBuffer::CmdClearBoundDepthStencilTargets(
     InsertToken(CmdBufCallId::CmdClearBoundDepthStencilTargets);
     InsertToken(depth);
     InsertToken(stencil);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 587
     InsertToken(stencilWriteMask);
-#endif
     InsertToken(samples);
     InsertToken(fragments);
     InsertToken(flag);
@@ -3978,9 +3972,7 @@ Result CmdBuffer::Replay(
         &CmdBuffer::ReplayCmdSetPerDrawVrsRate,
         &CmdBuffer::ReplayCmdSetVrsCenterState,
         &CmdBuffer::ReplayCmdBindSampleRateImage,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 554
         &CmdBuffer::ReplayCmdResolvePrtPlusImage,
-#endif
         &CmdBuffer::ReplayCmdSetClipRects,
         &CmdBuffer::ReplayCmdPostProcessFrame,
     };

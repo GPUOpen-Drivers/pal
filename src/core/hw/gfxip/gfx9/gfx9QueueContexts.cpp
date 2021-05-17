@@ -1548,21 +1548,25 @@ uint32* UniversalQueueContext::WriteUniversalPreamble(
     paScGenericScissor.br.bits.BR_Y = ScissorMaxBR;
 
     regPA_SC_NGG_MODE_CNTL paScNggModeCntl = {};
-    // The recommended value for this is half the PC size. The register field granularity is 2.
-    paScNggModeCntl.bits.MAX_DEALLOCS_IN_WAVE = chipProps.gfx9.parameterCacheLines / 4;
+
+    {
+        // The recommended value for this is half the PC size. The register field granularity is 2.
+        paScNggModeCntl.bits.MAX_DEALLOCS_IN_WAVE = chipProps.gfx9.parameterCacheLines / 4;
+    }
     if (IsGfx10Plus(device))
     {
         paScNggModeCntl.gfx10Plus.MAX_FPOVS_IN_WAVE = settings.gfx10MaxFpovsInWave;
     }
 
     {
-        {
-            pCmdSpace = m_deCmdStream.WriteSetOneContextReg(Gfx09_10::mmVGT_OUT_DEALLOC_CNTL,
-                                                            vgtOutDeallocCntl.u32All,
-                                                            pCmdSpace);
-        }
         pCmdSpace = m_deCmdStream.WriteSetOneContextReg(Gfx09_10::mmCB_DCC_CONTROL,
                                                         cbDccControl.u32All,
+                                                        pCmdSpace);
+    }
+    if (chipProps.gfxip.supportsHwVs)
+    {
+        pCmdSpace = m_deCmdStream.WriteSetOneContextReg(HasHwVs::mmVGT_OUT_DEALLOC_CNTL,
+                                                        vgtOutDeallocCntl.u32All,
                                                         pCmdSpace);
     }
     pCmdSpace = m_deCmdStream.WriteSetOneContextReg(mmVGT_TESS_DISTRIBUTION, vgtTessDistribution.u32All, pCmdSpace);
@@ -1589,7 +1593,7 @@ uint32* UniversalQueueContext::WriteUniversalPreamble(
             regVGT_MIN_VTX_INDX  minVtxIndx;
             regVGT_INDX_OFFSET   indxOffset;
         } vgt = { };
-        vgt.maxVtxIndx.bits.MAX_INDX = UINT_MAX;
+        vgt.maxVtxIndx.most.MAX_INDX = UINT_MAX;
 
         pCmdSpace = m_deCmdStream.WriteSetSeqConfigRegs(Gfx09::mmVGT_MAX_VTX_INDX,
                                                         Gfx09::mmVGT_INDX_OFFSET,
@@ -1676,12 +1680,13 @@ uint32* UniversalQueueContext::WriteUniversalPreamble(
 
         if (settings.numPsWavesSoftGroupedPerCu > 0)
         {
-            spiShaderReqCtrl.bits.SOFT_GROUPING_EN = 1;
-            spiShaderReqCtrl.bits.NUMBER_OF_REQUESTS_PER_CU = settings.numPsWavesSoftGroupedPerCu - 1;
+            spiShaderReqCtrl.most.SOFT_GROUPING_EN = 1;
+            spiShaderReqCtrl.most.NUMBER_OF_REQUESTS_PER_CU = settings.numPsWavesSoftGroupedPerCu - 1;
         }
 
+        if (chipProps.gfxip.supportsHwVs)
         {
-            pCmdSpace = m_deCmdStream.WriteSetOneShReg<ShaderGraphics>(Gfx10::mmSPI_SHADER_REQ_CTRL_VS,
+            pCmdSpace = m_deCmdStream.WriteSetOneShReg<ShaderGraphics>(Gfx10Core::mmSPI_SHADER_REQ_CTRL_VS,
                                                                        spiShaderReqCtrl.u32All,
                                                                        pCmdSpace);
         }
@@ -1710,6 +1715,14 @@ uint32* UniversalQueueContext::WriteUniversalPreamble(
                                                         &FourZeros,
                                                         pCmdSpace);
 
+            if (chipProps.gfxip.supportsHwVs)
+            {
+                pCmdSpace = m_deCmdStream.WriteSetSeqShRegs(Gfx10Core::mmSPI_SHADER_USER_ACCUM_VS_0,
+                                                            Gfx10Core::mmSPI_SHADER_USER_ACCUM_VS_3,
+                                                            ShaderGraphics,
+                                                            &FourZeros,
+                                                            pCmdSpace);
+            }
         }
     } // if Gfx10.x
 
@@ -1721,8 +1734,9 @@ uint32* UniversalQueueContext::WriteUniversalPreamble(
     if (settings.enableLoadIndexForObjectBinds)
     {
         pCmdSpace = m_deCmdStream.WriteSetOneShReg<ShaderGraphics>(mmSPI_SHADER_PGM_HI_PS, 0, pCmdSpace);
+        if (chipProps.gfxip.supportsHwVs)
         {
-            pCmdSpace = m_deCmdStream.WriteSetOneShReg<ShaderGraphics>(Gfx09_10::mmSPI_SHADER_PGM_HI_VS,
+            pCmdSpace = m_deCmdStream.WriteSetOneShReg<ShaderGraphics>(HasHwVs::mmSPI_SHADER_PGM_HI_VS,
                                                                        0,
                                                                        pCmdSpace);
         }
@@ -1736,7 +1750,7 @@ uint32* UniversalQueueContext::WriteUniversalPreamble(
     pCmdSpace = m_deCmdStream.WriteSetOneShReg<ShaderGraphics>(mmSpiShaderPgmHiLs, 0, pCmdSpace);
     pCmdSpace = m_deCmdStream.WriteSetOneShReg<ShaderCompute>(mmCOMPUTE_PGM_HI, 0, pCmdSpace);
 
-    if (m_pDevice->Settings().useClearStateToInitialize == false)
+    if (settings.useClearStateToInitialize == false)
     {
         constexpr uint32 PaRegisters1[2] = { 0xaa99aaaa, 0x00000000 };
         pCmdSpace = m_deCmdStream.WriteSetSeqContextRegs(mmPA_SC_EDGERULE,

@@ -29,14 +29,25 @@
 #include "core/os/amdgpu/amdgpuSwapChain.h"
 #include "core/os/amdgpu/wayland/waylandWindowSystem.h"
 #include "palFormatInfo.h"
+#include "palHashSetImpl.h"
 
 using namespace Util;
 
-// Because the buffer sharing depends on wl_drm interface, which relies on wl_buffer_interface. However,
-// wl_buffer_interface can't be located because libwayland-client.so is not linked directly. To solve this issue,
-// wl_buffer_interface is replaced by wlBufferInterface using a macro, and wlBufferInterface is set to the dlsym-ed
-// wl_buffer_interface symbol in WaylandWindowSystem::Init().
-wl_interface wlBufferInterface = {};
+extern "C" {
+// The buffer sharing depends on wl_drm interface, which relies on wl_buffer_interface.
+// However, wl_buffer_interface can't be located because libwayland-client.so is not linked directly. To solve this,
+// wl_buffer_interface is replaced by a different variable here, which is set to a valid value in Init().
+
+#define WL_BUFFER_INTERFACE
+#define wl_buffer_interface wlBufferInterface
+static struct wl_interface wlBufferInterface = {};
+
+// Also remove any symbol exports
+#undef WL_EXPORT
+#define WL_EXPORT
+
+#include "core/os/amdgpu/wayland/mesa/wayland-drm-protocol.inc"
+}
 
 namespace Pal
 {
@@ -46,24 +57,129 @@ namespace Amdgpu
 // Define a function type for listeners to be added to proxy
 typedef void (*Listener)(void);
 
+struct WlFormatMapping
+{
+    wl_drm_format  wlFormat;
+    SwizzledFormat palFormat;
+};
+
+// Mapping table between wayland and PAL formats.
+// There can be duplicates for unorm vs sgrb, so this table always assumes unorm.
+constexpr WlFormatMapping WlFormatMappings[] = {
+    { WL_DRM_FORMAT_ARGB8888,
+      {
+         ChNumFormat::X8Y8Z8W8_Unorm,
+         {{{ ChannelSwizzle::Z, ChannelSwizzle::Y, ChannelSwizzle::X, ChannelSwizzle::W }}}
+      } },
+    { WL_DRM_FORMAT_XRGB8888,
+      {
+         ChNumFormat::X8Y8Z8W8_Unorm,
+         {{{ ChannelSwizzle::Z, ChannelSwizzle::Y, ChannelSwizzle::X, ChannelSwizzle::One }}}
+      } },
+    { WL_DRM_FORMAT_ABGR8888,
+      {
+         ChNumFormat::X8Y8Z8W8_Unorm,
+         {{{ ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W }}}
+      } },
+    { WL_DRM_FORMAT_XBGR8888,
+      {
+         ChNumFormat::X8Y8Z8W8_Unorm,
+         {{{ ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::One }}}
+      } },
+    { WL_DRM_FORMAT_ARGB2101010,
+      {
+         ChNumFormat::X10Y10Z10W2_Unorm,
+         {{{ ChannelSwizzle::Z, ChannelSwizzle::Y, ChannelSwizzle::X, ChannelSwizzle::W }}}
+      } },
+    { WL_DRM_FORMAT_XRGB2101010,
+      {
+         ChNumFormat::X10Y10Z10W2_Unorm,
+         {{{ ChannelSwizzle::Z, ChannelSwizzle::Y, ChannelSwizzle::X, ChannelSwizzle::One }}}
+      } },
+    { WL_DRM_FORMAT_ABGR2101010,
+      {
+         ChNumFormat::X10Y10Z10W2_Unorm,
+         {{{ ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W }}}
+      } },
+    { WL_DRM_FORMAT_XBGR2101010,
+      {
+         ChNumFormat::X10Y10Z10W2_Unorm,
+         {{{ ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::One }}}
+      } },
+    { WL_DRM_FORMAT_RGB565,
+      {
+         ChNumFormat::X5Y6Z5_Unorm,
+         {{{ ChannelSwizzle::Z, ChannelSwizzle::Y, ChannelSwizzle::X, ChannelSwizzle::One }}}
+      } },
+    { WL_DRM_FORMAT_BGR565,
+      {
+         ChNumFormat::X5Y6Z5_Unorm,
+         {{{ ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::One }}}
+      } },
+    { WL_DRM_FORMAT_ABGR16F,
+      {
+         ChNumFormat::X16Y16Z16W16_Float,
+         {{{ ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W }}}
+      } },
+    { WL_DRM_FORMAT_XBGR16F,
+      {
+         ChNumFormat::X16Y16Z16W16_Float,
+         {{{ ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::One }}}
+      } },
+};
+
+// ====================================================================================================================a
+static SwizzledFormat WlDrmToPalFormat(
+    wl_drm_format  format)
+{
+    SwizzledFormat outFormat = UndefinedSwizzledFormat;
+
+    for (const auto& fmtPair : WlFormatMappings)
+    {
+        if (fmtPair.wlFormat == format)
+        {
+            outFormat = fmtPair.palFormat;
+            break;
+        }
+    }
+
+    return outFormat;
+}
+
 // ====================================================================================================================a
 // Convert PAL format to Wayland Drm format
 static wl_drm_format PalToWlDrmFormat(
-    ChNumFormat format,
-    bool        alpha)
+    SwizzledFormat format,
+    bool           alpha)
 {
     wl_drm_format waylandDrmFormat = WL_DRM_FORMAT_XRGB8888;
 
-    switch (format)
+    if (alpha == false)
     {
-        case ChNumFormat::X8Y8Z8W8_Unorm:
-        case ChNumFormat::X8Y8Z8W8_Srgb:
-            waylandDrmFormat = alpha ? WL_DRM_FORMAT_ARGB8888 : WL_DRM_FORMAT_XRGB8888;
-            break;
+        format.swizzle.a = ChannelSwizzle::One;
+    }
 
-        default:
-            PAL_ASSERT(!"Not supported format!");
+    if (Formats::IsSrgb(format.format))
+    {
+        // Wayland has no difference between srgb and unorm; our mapping table uses unorm
+        format.format = Formats::ConvertToUnorm(format.format);
+    }
+
+    bool found = false;
+    for (const auto& fmtPair : WlFormatMappings)
+    {
+        if (Formats::IsSameFormat(fmtPair.palFormat, format))
+        {
+            waylandDrmFormat = fmtPair.wlFormat;
+            found = true;
             break;
+        }
+    }
+
+    if (found == false)
+    {
+        PAL_ASSERT_ALWAYS_MSG("No wayland format mapping for PAL format %u with swizzle 0x%08x!",
+                              format.format, format.swizzle);
     }
 
     return waylandDrmFormat;
@@ -87,7 +203,9 @@ static void DrmHandleFormat(
     wl_drm* pDrm,
     uint32  wl_format)
 {
+    WaylandWindowSystem* pWaylandWindowSystem = static_cast<WaylandWindowSystem*>(pData);
 
+    pWaylandWindowSystem->AddFormat(static_cast<wl_drm_format>(wl_format));
 }
 
 // =====================================================================================================================
@@ -106,7 +224,7 @@ static void DrmHandleCapabilities(
     wl_drm* pDrm,
     uint32  capabilities)
 {
-    WaylandWindowSystem* pWaylandWindowSystem = reinterpret_cast<WaylandWindowSystem*>(pData);
+    WaylandWindowSystem* pWaylandWindowSystem = static_cast<WaylandWindowSystem*>(pData);
 
     pWaylandWindowSystem->SetCapabilities(capabilities);
 }
@@ -129,7 +247,7 @@ static void RegistryHandleGlobal(
     const char*  pInterface,
     uint32       version)
 {
-    WaylandWindowSystem*       pWaylandWindowSystem = reinterpret_cast<WaylandWindowSystem*>(pData);
+    WaylandWindowSystem* pWaylandWindowSystem = static_cast<WaylandWindowSystem*>(pData);
 
     if (strcmp(pInterface, "wl_drm") == 0)
     {
@@ -180,7 +298,7 @@ static void BufferHandleRelease(
     void*      pData,
     wl_buffer* pBuffer)
 {
-    Image* pImage = reinterpret_cast<Image*>(pData);
+    Image* pImage = static_cast<Image*>(pData);
 
     pImage->SetIdle(true);
 }
@@ -198,7 +316,7 @@ static void FrameHandleDone(
     wl_callback* pCallback,
     uint32       callbackData)
 {
-    WaylandWindowSystem*       pWaylandWindowSystem = reinterpret_cast<WaylandWindowSystem*>(pData);
+    WaylandWindowSystem* pWaylandWindowSystem = static_cast<WaylandWindowSystem*>(pData);
 
     pWaylandWindowSystem->SetFrameCallback(nullptr);
     pWaylandWindowSystem->SetFrameCompleted();
@@ -352,6 +470,7 @@ WaylandWindowSystem::WaylandWindowSystem(
 #else
     m_waylandProcs(m_waylandLoader.GetProcsTable()),
 #endif
+    m_validFormats(8, device.GetPlatform()),
     m_pEventQueue(nullptr),
     m_pSurfaceEventQueue(nullptr),
     m_pDisplayWrapper(nullptr),
@@ -419,6 +538,11 @@ Result WaylandWindowSystem::Init()
     if (m_pEventQueue == nullptr)
     {
         result = Result::ErrorInitializationFailed;
+    }
+
+    if (result == Result::Success)
+    {
+        result = m_validFormats.Init();
     }
 
     if (result == Result::Success)
@@ -536,7 +660,8 @@ Result WaylandWindowSystem::CreatePresentableImage(
     const uint32 bpp    = pSubResInfo->bitsPerTexel;
     const bool   alpha  = pSwapChain->CreateInfo().compositeAlpha == CompositeAlphaMode::PostMultiplied;
 
-    wl_drm_format format = PalToWlDrmFormat(pSubResInfo->format.format, alpha);
+    wl_drm_format format = PalToWlDrmFormat(pSubResInfo->format, alpha);
+    PAL_ASSERT(m_validFormats.Contains(format));
 
     if ((width == 0) || (height == 0) || (stride == 0) || (bpp == 0) || (sharedBufferFd == InvalidFd))
     {
@@ -628,7 +753,6 @@ Result WaylandWindowSystem::Present(
                                      0,
                                      0);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 578
     if ((m_surfaceVersion >= WL_SURFACE_DAMAGE_BUFFER_SINCE_VERSION) &&
         (presentInfo.rectangleCount > 0) &&
         (presentInfo.pRectangles != nullptr))
@@ -645,7 +769,6 @@ Result WaylandWindowSystem::Present(
         }
     }
     else
-#endif
     {
         m_waylandProcs.pfnWlProxyMarshal(reinterpret_cast<wl_proxy*>(m_pSurfaceWrapper),
                                          WL_SURFACE_DAMAGE,
@@ -658,7 +781,8 @@ Result WaylandWindowSystem::Present(
     m_waylandProcs.pfnWlProxyMarshal(reinterpret_cast<wl_proxy*>(m_pSurfaceWrapper), WL_SURFACE_COMMIT);
     m_waylandProcs.pfnWlDisplayFlush(m_pDisplay);
 
-    m_device.DeveloperCb(Developer::CallbackType::PresentConcluded, nullptr);
+    Developer::PresentationModeData data = {};
+    m_device.DeveloperCb(Developer::CallbackType::PresentConcluded, &data);
 
     return Result::Success;
 }
@@ -706,17 +830,53 @@ Result WaylandWindowSystem::GetWindowProperties(
 {
     Result result = Result::Success;
 
-    // UINT32_MAX indicates that the surface size will be determined by the extent of a swapchain
-    // targeting the surface.
-    pSwapChainProperties->currentExtent.width  = UINT32_MAX;
-    pSwapChainProperties->currentExtent.height = UINT32_MAX;
-
-    pSwapChainProperties->minImageCount        = 2;
-
+    pSwapChainProperties->currentExtent = { UINT32_MAX, UINT32_MAX };
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 610
     pSwapChainProperties->compositeAlphaMode = static_cast<uint32>(CompositeAlphaMode::PostMultiplied) |
                                                static_cast<uint32>(CompositeAlphaMode::Opaque);
 #endif
+
+    WindowSystemCreateInfo createInfo = {};
+    createInfo.platform = Wayland;
+    createInfo.hDisplay = hDisplay;
+    createInfo.hWindow  = hWindow;
+    createInfo.format   = UndefinedSwizzledFormat; // Meaningless on Wayland.
+    // Other fields don't matter if we are only querying info.
+
+    WaylandWindowSystem wsi(*pDevice, createInfo);
+    result = wsi.Init();
+    // Wayland will happily tell us all sorts of things... but we need to make an event loop and init first.
+    // After init, all properties should be available.
+
+    if ((result == Result::Success) && (wsi.m_validFormats.GetNumEntries() != 0))
+    {
+        pSwapChainProperties->imageFormatCount = 0;
+        for (auto fmtIter = wsi.m_validFormats.Begin(); fmtIter.Get() != nullptr; fmtIter.Next())
+        {
+            if (pSwapChainProperties->imageFormatCount >= MaxPresentableImageFormat)
+            {
+                PAL_ALERT_ALWAYS_MSG("Could not fit all presentable formats in window properties");
+                break;
+            }
+
+            SwizzledFormat palFormat = WlDrmToPalFormat(fmtIter.Get()->key);
+            if (palFormat.format != UndefinedSwizzledFormat.format)
+            {
+                pSwapChainProperties->imageFormat[pSwapChainProperties->imageFormatCount] = palFormat;
+                pSwapChainProperties->imageFormatCount++;
+
+                // Wayland treats SRGB vs unorm identically, so if we support one, we support both
+                // Our mapping tables use unorm, so convert.
+                palFormat.format = Formats::ConvertToSrgb(palFormat.format);
+                if ((palFormat.format != UndefinedSwizzledFormat.format) &&
+                    (pSwapChainProperties->imageFormatCount < MaxPresentableImageFormat))
+                {
+                    pSwapChainProperties->imageFormat[pSwapChainProperties->imageFormatCount] = palFormat;
+                    pSwapChainProperties->imageFormatCount++;
+                }
+            }
+        }
+    }
 
     return result;
 }

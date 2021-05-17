@@ -42,6 +42,28 @@ namespace CmdBufferLogger
 {
 
 static constexpr size_t StringLength = 512;
+static constexpr size_t SafeFallbackStringLength = 24; // Can fit the bad format string with UINT_MAX
+
+// =====================================================================================================================
+template <uint32 TblSize, uint32 BufferSize>
+static const char* GetStringFromTable(
+    const char*const (&table)[TblSize],
+    uint32           index,
+    char             (*ppFallbackBuffer)[BufferSize])
+{
+    const char* pOutStr;
+    static_assert(BufferSize >= SafeFallbackStringLength, "Fallback buffer is too small!");
+    if (index < TblSize)
+    {
+        pOutStr = table[index];
+    }
+    else
+    {
+        Snprintf(*ppFallbackBuffer, BufferSize, "Invalid (%u)", index);
+        pOutStr = *ppFallbackBuffer;
+    }
+    return pOutStr;
+}
 
 // =====================================================================================================================
 static const char* GetCmdBufCallIdString(
@@ -68,8 +90,9 @@ static const char* ImageAspectToString(
         "YCbCr",
     };
     static_assert((ArrayLen(AspectNames) == static_cast<size_t>(ImageAspect::Count)), "");
+    const uint32 aspect_idx = static_cast<uint32>(aspect);
 
-    return AspectNames[static_cast<size_t>(aspect)];
+    return (aspect_idx < ArrayLen(AspectNames)) ? AspectNames[aspect_idx] : "Invalid";
 }
 #endif
 
@@ -375,8 +398,9 @@ static const char* FormatToString(
 
     static_assert(ArrayLen(FormatStrings) == static_cast<size_t>(ChNumFormat::Count),
                   "The number of formats has changed!");
+    const uint32 format_idx = static_cast<uint32>(format);
 
-    return FormatStrings[static_cast<size_t>(format)];
+    return (format_idx < ArrayLen(FormatStrings)) ? FormatStrings[format_idx] : "Invalid";
 }
 
 // =====================================================================================================================
@@ -393,6 +417,7 @@ static void SwizzleToString(
         "Z",
         "W",
     };
+    char swizzleFallbacks[4][SafeFallbackStringLength];
 
     static_assert(ArrayLen(SwizzleStrings) == static_cast<size_t>(ChannelSwizzle::Count),
                   "The number of swizzles has changed!");
@@ -400,10 +425,10 @@ static void SwizzleToString(
     const size_t currentLength = strlen(pString);
 
     Snprintf(pString + currentLength, StringLength - currentLength, "{ R = %s, G = %s, B = %s, A = %s }",
-             SwizzleStrings[static_cast<size_t>(swizzle.r)],
-             SwizzleStrings[static_cast<size_t>(swizzle.g)],
-             SwizzleStrings[static_cast<size_t>(swizzle.b)],
-             SwizzleStrings[static_cast<size_t>(swizzle.a)]);
+             GetStringFromTable(SwizzleStrings, static_cast<size_t>(swizzle.r), &swizzleFallbacks[0]),
+             GetStringFromTable(SwizzleStrings, static_cast<size_t>(swizzle.g), &swizzleFallbacks[1]),
+             GetStringFromTable(SwizzleStrings, static_cast<size_t>(swizzle.b), &swizzleFallbacks[2]),
+             GetStringFromTable(SwizzleStrings, static_cast<size_t>(swizzle.a), &swizzleFallbacks[3]));
 }
 
 // =====================================================================================================================
@@ -635,10 +660,12 @@ static const void DumpClearColor(
         "Sint",
         "Float",
     };
+    char fallback[SafeFallbackStringLength];
 
     Snprintf(pString, StringLength, "%s = {", pTitle);
     pNextCmdBuffer->CmdCommentString(pString);
-    Snprintf(pString, StringLength, "\ttype = %s", ClearColorTypesStrings[static_cast<uint32>(color.type)]);
+    Snprintf(pString, StringLength, "\ttype = %s",
+             GetStringFromTable(ClearColorTypesStrings, static_cast<uint32>(color.type), &fallback));
     pNextCmdBuffer->CmdCommentString(pString);
 
     if (color.type == ClearColorType::Float)
@@ -692,11 +719,12 @@ static const void PrintImageCreateInfo(
         "Tex2D",
         "Tex3D",
     };
+    char imageTypeFb[SafeFallbackStringLength];
     static_assert(ArrayLen(ImageTypeStrings) == static_cast<size_t>(ImageType::Count),
                   "The number of ImageType's has changed!");
 
     Snprintf(pString, StringLength, "%s\t Image Type       = %s", pPrefix,
-             ImageTypeStrings[static_cast<size_t>(createInfo.imageType)]);
+             GetStringFromTable(ImageTypeStrings, static_cast<size_t>(createInfo.imageType), &imageTypeFb));
     pNextCmdBuffer->CmdCommentString(pString);
 
     Snprintf(pString, StringLength, "%s\t Mip Levels       = %u", pPrefix, createInfo.mipLevels);
@@ -717,12 +745,13 @@ static const void PrintImageCreateInfo(
         "Residency",
         "SamplingStatus",
     };
+    char prtFb[SafeFallbackStringLength];
 
     static_assert(ArrayLen(PrtMapTypeStrings) == static_cast<size_t>(PrtMapType::Count),
                   "PrtMapTypeStrings struct is not the same size as the PrtMapType enum!");
 
     Snprintf(pString, StringLength, "%s\t Prt map type     = %s", pPrefix,
-             PrtMapTypeStrings[static_cast<size_t>(createInfo.prtPlus.mapType)]);
+             GetStringFromTable(PrtMapTypeStrings, static_cast<size_t>(createInfo.prtPlus.mapType), &prtFb));
     pNextCmdBuffer->CmdCommentString(pString);
 
     Snprintf(pString, StringLength, "%s\t Extent           = ", pPrefix);
@@ -1459,6 +1488,7 @@ void CmdBuffer::CmdSetPerDrawVrsRate(
             "_2x1",
             "_2x2",
         };
+        char shadingRateFb[SafeFallbackStringLength];
 
         GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdSetPerDrawVrsRate));
 
@@ -1468,7 +1498,7 @@ void CmdBuffer::CmdSetPerDrawVrsRate(
         Snprintf(&pString[0],
                  StringLength,
                  "\tshading Rate:  %s",
-                 ShadingRateNames[static_cast<uint32>(rateParams.shadingRate)]);
+                 GetStringFromTable(ShadingRateNames, static_cast<uint32>(rateParams.shadingRate), &shadingRateFb));
         GetNextLayer()->CmdCommentString(pString);
 
         for (uint32 idx = 0; idx < static_cast<uint32>(VrsCombinerStage::Max); idx++)
@@ -1480,6 +1510,7 @@ void CmdBuffer::CmdSetPerDrawVrsRate(
                 "Image",
                 "PsIterSamples",
             };
+            char combinerStageFb[SafeFallbackStringLength];
 
             static constexpr char const*  CombinerNames[] =
             {
@@ -1489,12 +1520,13 @@ void CmdBuffer::CmdSetPerDrawVrsRate(
                 "Max",
                 "Sum",
             };
+            char combinerFb[SafeFallbackStringLength];
 
             Snprintf(&pString[0],
                      StringLength,
                      "\tcombiner[%16s] = %s",
-                     CombinerStageNames[idx],
-                     CombinerNames[static_cast<uint32>(rateParams.combinerState[idx])]);
+                     GetStringFromTable(CombinerStageNames, idx, &combinerStageFb),
+                     GetStringFromTable(CombinerNames, static_cast<uint32>(rateParams.combinerState[idx]), &combinerFb));
             GetNextLayer()->CmdCommentString(pString);
         }
 
@@ -1542,11 +1574,12 @@ void CmdBuffer::CmdSetVrsCenterState(
                 "_2x1",
                 "_2x2",
             };
+            char fallback[SafeFallbackStringLength];
 
             Snprintf(&pString[0],
                      StringLength,
                      "\toffset[%s]:  x = %3d, y = %3d",
-                     Names[idx],
+                     GetStringFromTable(Names, idx, &fallback),
                      centerState.centerOffset[idx].x, centerState.centerOffset[idx].y);
             GetNextLayer()->CmdCommentString(pString);
         }
@@ -1855,11 +1888,9 @@ static const char* HwPipePointToString(
     case HwPipePostPs:
         pString = "HwPipePostPs";
         break;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 577
     case HwPipePreColorTarget:
         pString = "HwPipePreColorTarget";
         break;
-#endif
     case HwPipeBottom:
         pString = "HwPipeBottom";
         break;
@@ -4628,7 +4659,6 @@ void CmdBuffer::CmdResolveImage(
                                     flags);
 }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 554
 // =====================================================================================================================
 static void DumpImagePrtPlusResolveRegion(
     CmdBuffer*                       pCmdBuffer,
@@ -4736,7 +4766,6 @@ void CmdBuffer::CmdResolvePrtPlusImage(
                                            regionCount,
                                            pRegions);
 }
-#endif
 
 // =====================================================================================================================
 void CmdBuffer::CmdSetEvent(

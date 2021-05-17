@@ -103,8 +103,10 @@ if(NOT DEFINED TARGET_ARCHITECTURE_BITS)
     mark_as_advanced(TARGET_ARCHITECTURE_BITS)
 endif()
 
-# Find Headers Helper ##############################################################################
+# Deprecated Visual Studio Filter Helper ###########################################################
 macro(target_find_headers _target)
+    message(AUTHOR_WARNING "This function has been deprecated because it is so slow. Use source_group TREE functionality added in cmake 3.8")
+
     # This logic slows down configuration speed particularly on WSL builds.
     # So only do it when neccessary. Globbing is just really slow.
     if (MSVC_IDE)
@@ -126,13 +128,10 @@ macro(target_find_headers _target)
     endif()
 endmacro()
 
-# Source Groups Helper #############################################################################
-# This helper creates source groups for generators that support them. This is primarily MSVC and
-# XCode, but there are other generators that support IDE project files.
-#
-# Note: this only adds files that have been added to the target's SOURCES property. To add headers
-# to this list, be sure that you call target_find_headers before you call target_source_groups.
+# Deprecated Visual Studio Filter Helper ###########################################################
 macro(target_source_groups _target)
+    message(AUTHOR_WARNING "This function has been deprecated because it is so slow. Use source_group TREE functionality added in cmake 3.8")
+
     # This logic slows down configuration speed particularly on WSL builds.
     # So only do it when neccessary. Globbing is just really slow.
     if (MSVC_IDE)
@@ -150,17 +149,18 @@ endmacro()
 
 # Deprecated Visual Studio Filter Helper ###########################################################
 macro(target_vs_filters _target)
+    message(AUTHOR_WARNING "This function has been deprecated because it is so slow. Use source_group TREE functionality added in cmake 3.8")
+
     # This logic slows down configuration speed particularly on WSL builds.
     # So only do it when neccessary. Globbing is just really slow.
     if (MSVC_IDE)
-        message(DEPRECATION "target_vs_filters is deprecated. use 'target_find_headers' and 'target_source_groups' instead.")
         target_find_headers(${_target})
         target_source_groups(${_target})
     endif()
 endmacro()
 
 # Visual Studio Specific Options ###################################################################
-if(CMAKE_GENERATOR MATCHES "Visual Studio")
+if(MSVC_IDE)
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /MP")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /MP")
 endif()

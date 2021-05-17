@@ -386,9 +386,7 @@ void LogContext::Struct(
 {
     BeginMap(false);
     KeyAndEnum("type", value.type);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 592
     KeyAndValue("disabledChannelMask", value.disabledChannelMask);
-#endif
     KeyAndBeginList("color", true);
 
     if (value.type == ClearColorType::Float)
@@ -907,7 +905,6 @@ void LogContext::Struct(
         Value("bypassMall");
     }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 594
     if (value.flags.depthOnlyView)
     {
         Value("depthOnlyView");
@@ -917,7 +914,6 @@ void LogContext::Struct(
     {
         Value("stencilOnlyView");
     }
-#endif
 
     EndList();
     KeyAndObject("image", value.pImage);
@@ -1052,17 +1048,13 @@ void LogContext::Struct(
     KeyAndStruct("hs", value.hs);
     KeyAndStruct("ds", value.ds);
     KeyAndStruct("gs", value.gs);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 574
     KeyAndStruct("ts", value.ts);
     KeyAndStruct("ms", value.ms);
-#endif
     KeyAndStruct("ps", value.ps);
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 579
     KeyAndBeginList("flags", true);
 
     EndList();
-#endif
+
     static_assert(CheckReservedBits<decltype(value.flags)>(32, 24), "Update interfaceLogger!");
 
     EndMap();
@@ -1331,12 +1323,10 @@ void LogContext::Struct(
         Value("interprocess");
     }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 585
     if (value.presentable)
     {
         Value("presentable");
     }
-#endif
 
     if (value.flippable)
     {
@@ -1438,12 +1428,10 @@ void LogContext::Struct(
         Value("gl2Uncached");
     }
 
-#if ( (PAL_CLIENT_INTERFACE_MAJOR_VERSION>= 569))
     if (value.mallRangeActive)
     {
         Value("mallRangeActive");
     }
-#endif
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 657
     if (value.explicitSync)
@@ -1694,12 +1682,10 @@ void LogContext::Struct(
         Value("shareable");
     }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 585
     if (value.presentable)
     {
         Value("presentable");
     }
-#endif
 
     if (value.flippable)
     {
@@ -1923,12 +1909,10 @@ void LogContext::Struct(
         Value("vrsDepth");
     }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 597
     if (value.disableOptimizedDisplay)
     {
         Value("disableOptimizedDisplay");
     }
-#endif
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 602
     if (value.useLossy)
@@ -3414,7 +3398,6 @@ void LogContext::Struct(
     EndMap();
 }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 554
 // =====================================================================================================================
 void LogContext::Struct(
     const PrtPlusImageResolveRegion& value)
@@ -3430,7 +3413,6 @@ void LogContext::Struct(
     KeyAndValue("numSlices", value.numSlices);
     EndMap();
 }
-#endif
 
 // =====================================================================================================================
 void LogContext::Struct(

@@ -1,0 +1,93 @@
+##
+ #######################################################################################################################
+ #
+ #  Copyright (c) 2021 Advanced Micro Devices, Inc. All Rights Reserved.
+ #
+ #  Permission is hereby granted, free of charge, to any person obtaining a copy
+ #  of this software and associated documentation files (the "Software"), to deal
+ #  in the Software without restriction, including without limitation the rights
+ #  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ #  copies of the Software, and to permit persons to whom the Software is
+ #  furnished to do so, subject to the following conditions:
+ #
+ #  The above copyright notice and this permission notice shall be included in all
+ #  copies or substantial portions of the Software.
+ #
+ #  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ #  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ #  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ #  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ #  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ #  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ #  SOFTWARE.
+ #
+ #######################################################################################################################
+include_guard()
+
+# NOTE: Just like function parameters it's best for a library to reduce the amount of
+# build parameters/customization they offer to clients.
+# Offering more than 5+ introduces a lot of complexity for clients to deal with.
+# Addrlib developers should strive to reduce the amount of build parameters.
+
+include(Addrlib)
+
+if (NOT DEFINED ADDRLIB_IS_TOP_LEVEL)
+    message(FATAL_ERROR "ADDRLIB_IS_TOP_LEVEL not defined")
+endif()
+
+# NOTE:
+# By using ADDRLIB_IS_TOP_LEVEL as the default values of the build parameters
+# addrlib builds as much code as possible when building standalone.
+#
+# However, when being consumed by a add_subdirectory call ADDRLIB_IS_TOP_LEVEL will be OFF
+# So the clients have to opt into the functionality they want/need.
+
+if((CMAKE_CXX_COMPILER_ID MATCHES "GNU|[Cc]lang")
+)
+    addrlib_bp(ADDR_ENABLE_WERROR ${ADDRLIB_IS_TOP_LEVEL})
+endif()
+
+set(addrlib_is_linux OFF)
+if (CMAKE_SYSTEM_NAME MATCHES "Linux")
+    set(addrlib_is_linux ON)
+endif()
+
+addrlib_bp(ADDR_LNX_KERNEL_BUILD ${addrlib_is_linux} MSG "Linux kernel build?" DEPENDS_ON ${addrlib_is_linux})
+
+# Build the SI HWL lib
+addrlib_bp(ADDR_SI_BUILD ON)
+
+# Build the CI HWL lib
+addrlib_bp(ADDR_CI_BUILD ON)
+
+# Build support for fmask addressing and addr5Swizzle
+addrlib_bp(ADDR_AM_BUILD ${ADDRLIB_IS_TOP_LEVEL} MSG "Build support for fmask addressing and addr5Swizzle?")
+
+# TODO: Fully deprecate this support.
+set(ADDR_R800_BUILD OFF)
+
+# GFX9 CARDS ######################################
+
+addrlib_bp(ADDR_GFX9_BUILD ON)
+
+# TODO: All these gfx9 cards are public. We don't need to sanitize them anymore.
+# pal updated this a while ago.
+addrlib_bp(ADDR_VEGA20_BUILD ON DEPENDS_ON ${ADDR_GFX9_BUILD})
+addrlib_bp(ADDR_RAVEN1_BUILD ON DEPENDS_ON ${ADDR_GFX9_BUILD})
+addrlib_bp(ADDR_VEGA12_BUILD ON DEPENDS_ON ${ADDR_GFX9_BUILD})
+addrlib_bp(ADDR_RAVEN2_BUILD ON DEPENDS_ON ${ADDR_GFX9_BUILD})
+
+# GFX10 CARDS ######################################
+
+addrlib_bp(ADDR_GFX10_BUILD ON)
+
+addrlib_bp(ADDR_RENOIR_BUILD ON DEPENDS_ON ${ADDR_GFX10_BUILD})
+
+addrlib_bp(ADDR_NAVI12_BUILD ON DEPENDS_ON ${ADDR_GFX10_BUILD})
+
+addrlib_bp(ADDR_NAVI14_BUILD ON DEPENDS_ON ${ADDR_GFX10_BUILD})
+
+addrlib_bp(ADDR_NAVI21_BUILD ON DEPENDS_ON ${ADDR_GFX10_BUILD})
+
+addrlib_bp(ADDR_NAVI22_BUILD ON DEPENDS_ON ${ADDR_GFX10_BUILD})
+

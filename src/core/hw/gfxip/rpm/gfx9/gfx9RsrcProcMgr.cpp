@@ -1719,7 +1719,6 @@ void RsrcProcMgr::HwlFixupCopyDstImageMetaData(
             // Do the copy
             pCmdBuffer->CmdCopyMemory(*pSrcMemory, *pDstMemory, 1, &memcpyRegion);
         }
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 562
         else
         {
             auto*const pStream = pCmdBuffer->GetCmdStreamByEngine(CmdBufferEngineSupport::Compute);
@@ -1756,7 +1755,6 @@ void RsrcProcMgr::HwlFixupCopyDstImageMetaData(
                 pCmdBuffer->CmdRestoreComputeState(ComputeStatePipelineAndUserData);
             }
         }
-#endif
     }
 }
 
@@ -3997,8 +3995,9 @@ void RsrcProcMgr::CmdCopyMemoryToImage(
     const ImageCreateInfo& createInfo = dstImage.GetImageCreateInfo();
 
     if (Formats::IsBlockCompressed(createInfo.swizzledFormat.format) &&
-        (createInfo.mipLevels > 1) &&
-        ((m_pDevice->Parent()->ChipProperties().gfxLevel == GfxIpLevel::GfxIp9) || (createInfo.imageType !=  ImageType::Tex2d)))
+        (createInfo.mipLevels > 1)                                   &&
+        ((m_pDevice->Parent()->ChipProperties().gfxLevel == GfxIpLevel::GfxIp9) ||
+         (createInfo.imageType !=  ImageType::Tex2d)))
     {
         // Unlike in the image-to-memory counterpart function, we don't have to wait for the above compute shader
         // to finish because the unaddressable image pixels can not be written, so there's no write conflicts.
@@ -6011,7 +6010,6 @@ void Gfx9RsrcProcMgr::HwlFixupCopyDstImageMetaData(
     // Copy to depth should go through gfx path and not to here.
     PAL_ASSERT(gfx9DstImage.Parent()->IsDepthStencilTarget() == false);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 562
     if (gfx9DstImage.HasDccData() && (dstImage.GetImageCreateInfo().flags.fullCopyDstOnly != 0))
     {
         auto*const pStream = pCmdBuffer->GetCmdStreamByEngine(CmdBufferEngineSupport::Compute);
@@ -6039,7 +6037,6 @@ void Gfx9RsrcProcMgr::HwlFixupCopyDstImageMetaData(
             ClearDcc(pCmdBuffer, pStream, gfx9DstImage, range, Gfx9Dcc::InitialValue, DccClearPurpose::FastClear);
         }
     }
-#endif
 
     RsrcProcMgr::HwlFixupCopyDstImageMetaData(pCmdBuffer, pSrcImage, dstImage, dstImageLayout,
                                               pRegions, regionCount, isFmaskCopyOptimized);
@@ -6191,6 +6188,7 @@ void Gfx10RsrcProcMgr::ClearDccComputeSetFirstPixelOfBlock(
     const uint32*      pPackedClearColor
     ) const
 {
+
     PAL_ASSERT(pPackedClearColor != nullptr);
     const Pal::Image*        pPalImage  = dstImage.Parent();
     const auto&              createInfo = pPalImage->GetImageCreateInfo();
@@ -6199,7 +6197,8 @@ void Gfx10RsrcProcMgr::ClearDccComputeSetFirstPixelOfBlock(
 #else
     const auto*              pDcc       = dstImage.GetDcc(plane);
 #endif
-    const RpmComputePipeline pipeline   = ((createInfo.samples == 1)
+    const RpmComputePipeline pipeline   = (((createInfo.samples == 1)
+                                            )
                                             ? RpmComputePipeline::Gfx10ClearDccComputeSetFirstPixel
                                             : RpmComputePipeline::Gfx10ClearDccComputeSetFirstPixelMsaa);
     const auto*const         pPipeline  = GetPipeline(pipeline);
@@ -6437,12 +6436,10 @@ void Gfx10RsrcProcMgr::InitHtileData(
                 hTileBufferView.swizzledFormat.format  = ChNumFormat::X32_Uint;
                 hTileBufferView.swizzledFormat.swizzle =
                     { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One };
-#if  PAL_CLIENT_INTERFACE_MAJOR_VERSION>= 558
                 hTileBufferView.flags.bypassMallRead  = TestAnyFlagSet(settings.rpmViewsBypassMall,
                                                                        Gfx10RpmViewsBypassMallOnRead);
                 hTileBufferView.flags.bypassMallWrite = TestAnyFlagSet(settings.rpmViewsBypassMall,
                                                                        Gfx10RpmViewsBypassMallOnWrite);
-#endif
 
                 BufferSrd srd = { };
                 m_pDevice->Parent()->CreateTypedBufferViewSrds(1, &hTileBufferView, &srd);
@@ -6524,12 +6521,10 @@ void Gfx10RsrcProcMgr::WriteHtileData(
                 hTileBufferView.swizzledFormat.format  = ChNumFormat::X32_Uint;
                 hTileBufferView.swizzledFormat.swizzle =
                     { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One };
-#if  PAL_CLIENT_INTERFACE_MAJOR_VERSION>= 558
                 hTileBufferView.flags.bypassMallRead  = TestAnyFlagSet(settings.rpmViewsBypassMall,
                                                                        Gfx10RpmViewsBypassMallOnRead);
                 hTileBufferView.flags.bypassMallWrite = TestAnyFlagSet(settings.rpmViewsBypassMall,
                                                                        Gfx10RpmViewsBypassMallOnWrite);
-#endif
                 BufferSrd htileSurfSrd                 = { };
                 uint32 hTileUserData[4]                = { };
                 uint32 numConstDwords                  = 4;
@@ -6625,12 +6620,10 @@ void Gfx10RsrcProcMgr::WriteHtileData(
                     metadataView.range          = dstImage.HiSPretestsMetaDataSize(1);
                     metadataView.stride         = 1;
                     metadataView.swizzledFormat = UndefinedSwizzledFormat;
-#if  PAL_CLIENT_INTERFACE_MAJOR_VERSION>= 558
                     metadataView.flags.bypassMallRead  = TestAnyFlagSet(settings.rpmViewsBypassMall,
                                                                         Gfx10RpmViewsBypassMallOnRead);
                     metadataView.flags.bypassMallWrite = TestAnyFlagSet(settings.rpmViewsBypassMall,
                                                                         Gfx10RpmViewsBypassMallOnWrite);
-#endif
                     m_pDevice->Parent()->CreateUntypedBufferViewSrds(1, &metadataView, &metadataSrd);
 
                     pCmdBuffer->CmdSetUserData(PipelineBindPoint::Compute,
@@ -7130,7 +7123,6 @@ void Gfx10RsrcProcMgr::HwlFixupCopyDstImageMetaData(
     // Copy to depth should go through gfx path and not to here.
     PAL_ASSERT(gfx9DstImage.Parent()->IsDepthStencilTarget() == false);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 562
     if (gfx9DstImage.HasDccData() && (dstImage.GetImageCreateInfo().flags.fullCopyDstOnly != 0))
     {
         auto*const pStream = pCmdBuffer->GetCmdStreamByEngine(CmdBufferEngineSupport::Compute);
@@ -7162,7 +7154,6 @@ void Gfx10RsrcProcMgr::HwlFixupCopyDstImageMetaData(
             }
         }
     }
-#endif
 
     RsrcProcMgr::HwlFixupCopyDstImageMetaData(pCmdBuffer, pSrcImage, dstImage, dstImageLayout,
                                               pRegions, regionCount, isFmaskCopyOptimized);
@@ -7813,7 +7804,6 @@ void Gfx10RsrcProcMgr::InitDisplayDcc(
     pCmdBuffer->CmdRestoreComputeState(ComputeStatePipelineAndUserData);
 }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 554
 // =====================================================================================================================
 void Gfx10RsrcProcMgr::CmdResolvePrtPlusImage(
     GfxCmdBuffer*                    pCmdBuffer,
@@ -7953,7 +7943,6 @@ void Gfx10RsrcProcMgr::CmdResolvePrtPlusImage(
 
     pCmdBuffer->CmdRestoreComputeState(ComputeStatePipelineAndUserData);
 }
-#endif
 
 // =====================================================================================================================
 // Generate dcc lookup table.

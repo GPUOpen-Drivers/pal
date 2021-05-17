@@ -73,6 +73,9 @@ private:
 
     virtual bool CanInlinePresent(const PresentSwapChainInfo& presentInfo, const IQueue& queue) const override;
 
+    Result DoCpuPresentBlit(Queue* pQueue, Image* pImage);
+    ICmdBuffer* m_pCpuBltCmdBuffer;
+
     WindowSystem*const m_pWindowSystem; // A cached pointer to our parent swap chain's WindowSystem.
 
     PAL_DISALLOW_DEFAULT_CTOR(PresentScheduler);

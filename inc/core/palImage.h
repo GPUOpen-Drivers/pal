@@ -118,10 +118,8 @@ enum class MetadataMode : uint16
                         ///  useful for scenarios where metadata isn't an obvious win and clients can enable based
                         ///  on some hueristic or app-detect.
     Disabled,           ///< The Image will not contain any compression metadata.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 564
     FmaskOnly,          ///< The color msaa Image will only contain Cmask/Fmask metadata; this mode is only valid for
                         ///  color msaa Image.
-#endif
     Count,
 };
 
@@ -170,11 +168,10 @@ enum class ClearColorType : uint32
 struct ClearColor
 {
     ClearColorType type;                   ///< How to interpret this clear color.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 592
     uint8 disabledChannelMask;             ///< This 4 bits are used to selectively disable the A,B,G,R channels
                                            ///  from being written. 0 means write ABRG. 0xF means write nothing.
                                            ///  0x8 means write Blue, Green, Red. 0x7 means write Alpha. etc...
-#endif
+
     union
     {
         uint32 u32Color[4]; ///< The clear color, interpreted as four unsigned integers.
@@ -228,27 +225,16 @@ union ImageCreateFlags
         uint32 fullResolveDstOnly      :  1; ///< Indicates any ICmdBuffer::CmdResolveImage using this image as a
                                              ///  desination will overwrite the entire image (width and height of
                                              ///  resolve region is same as width and height of resolve dst).
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 562
         uint32 fullCopyDstOnly         :  1; ///< Indicates any copy to this image will overwrite the entire image.
                                              ///  A perf optimization of using post-copy metadata fixup to replace heavy
                                              ///  expand at barrier to LayoutCopyDst. Unsafe to enable it if there is
                                              ///  potential partial copy to the image.
-#else
-        uint32 reserved562             :  1;
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 567
         uint32 pipSwapChain            :  1; ///< Indicates this image is PIP swap-chain. It is only supported on
                                              ///  Windows platforms.
-#else
-        uint32 reserved567             :  1;
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 586
         uint32 view3dAs2dArray         :  1; ///< If set client can view 3D image as 2D with its depth as array slices.
                                              ///  Note that not all 3D images supports it. The image creation will
                                              ///  return error if we fail to create a compatible image.
-#else
-        uint32 reserved586             :  1;
-#endif
+
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 616
         uint32 tmzProtected            :  1; ///< Indicate this image is protected or not.
 #else
@@ -292,11 +278,8 @@ union ImageUsageFlags
                                             ///  ignored when corner sampling is enabled.
 
         uint32 vrsDepth               :  1; ///< Set if this depth image will be bound when VRS rendering is enabled.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 597
         uint32 disableOptimizedDisplay:  1; ///< Do not create Display Dcc
-#else
-        uint32 reservedForFutureHw    :  1;
-#endif
+
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 602
         uint32 useLossy               :  1; ///< Set if this image may use lossy compression.
 #else

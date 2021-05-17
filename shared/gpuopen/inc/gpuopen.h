@@ -1,27 +1,4 @@
-/*
- ***********************************************************************************************************************
- *
- *  Copyright (c) 2020-2021 Advanced Micro Devices, Inc. All Rights Reserved.
- *
- *  Permission is hereby granted, free of charge, to any person obtaining a copy
- *  of this software and associated documentation files (the "Software"), to deal
- *  in the Software without restriction, including without limitation the rights
- *  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- *  copies of the Software, and to permit persons to whom the Software is
- *  furnished to do so, subject to the following conditions:
- *
- *  The above copyright notice and this permission notice shall be included in all
- *  copies or substantial portions of the Software.
- *
- *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- *  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- *  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- *  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- *  SOFTWARE.
- *
- **********************************************************************************************************************/
+/* Copyright (c) 2021 Advanced Micro Devices, Inc. All rights reserved. */
 
 #pragma once
 
@@ -266,6 +243,7 @@ namespace DevDriver
     {
         struct DD_ALIGNAS(4)
         {
+            // TODO: Replace logging, settings, and gpuCrashDump with "reserved" once all driver usage is removed.
             uint32 logging          : 1;
             uint32 settings         : 1;
             uint32 driverControl    : 1;
@@ -388,11 +366,11 @@ namespace DevDriver
     enum struct Protocol : uint8
     {
         DriverControl = 0,
-        Logging,
-        Settings,
+        Reserved0,
+        Reserved1,
         RGP,
         ETW,
-        GpuCrashDump,
+        Reserved2,
         Event,
         DefinedProtocolCount,
 
@@ -428,7 +406,7 @@ namespace DevDriver
     DD_STATIC_CONST SessionId kInvalidSessionId = 0;
 
     // Default network port number
-    DD_STATIC_CONST uint32 kDefaultNetworkPort = 27300;
+    DD_STATIC_CONST uint16_t kDefaultNetworkPort = 27300;
 
     // Transport type enumeration
     enum class TransportType : uint32
@@ -440,9 +418,9 @@ namespace DevDriver
     // Struct used to designate a transport type, port number, and hostname
     struct HostInfo
     {
-        TransportType   type;                       // Transport type, as defined above
-        uint32          port;                       // Port number if applicable
-        char            hostname[kMaxStringLength]; // Host address, address, or path
+        TransportType type;      // Transport type, as defined above
+        uint16_t      port;      // Port number if applicable
+        const char*   pHostname; // Host address, address, or path
     };
 
     // Default local host information
@@ -458,7 +436,7 @@ namespace DevDriver
     {
         TransportType::Local,
         0,
-        "AMD-Developer-Service"
+        nullptr
     };
 
     ////////////////////////////

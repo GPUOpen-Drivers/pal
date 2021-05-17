@@ -71,15 +71,9 @@ DepthStencilView::DepthStencilView(
     }
 
     m_flags.hiSPretests     = m_pImage->HasHiSPretestsMetaData();
-    m_flags.depth           =
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 594
-                              (createInfo.flags.stencilOnlyView == 0) &&
-#endif
+    m_flags.depth           = (createInfo.flags.stencilOnlyView == 0) &&
                               parent.SupportsDepth(imageInfo.swizzledFormat.format, imageInfo.tiling);
-    m_flags.stencil         =
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 594
-                              (createInfo.flags.depthOnlyView == 0) &&
-#endif
+    m_flags.stencil         = (createInfo.flags.depthOnlyView == 0) &&
                               parent.SupportsStencil(imageInfo.swizzledFormat.format, imageInfo.tiling);
     m_flags.readOnlyDepth   = createInfo.flags.readOnlyDepth;
     m_flags.readOnlyStencil = createInfo.flags.readOnlyStencil;

@@ -128,13 +128,6 @@ Result ComputePipeline::HwlInit(
         m_chunkCs.LateInit<ComputePipelineUploader>(abiReader,
                                                     registers,
                                                     wavefrontSize,
- #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 556
-                                                    createInfo.pIndirectFuncList,
-                                                    createInfo.indirectFuncCount,
-#else
-                                                    nullptr,
-                                                    0,
-#endif
                                                     &m_threadsPerTgX,
                                                     &m_threadsPerTgY,
                                                     &m_threadsPerTgZ,
@@ -225,7 +218,6 @@ Result ComputePipeline::LinkWithLibraries(
     const IShaderLibrary*const* ppLibraryList,
     uint32                      libraryCount)
 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 556
     Result result = Result::Success;
     const auto&  gpuInfo       = m_pDevice->Parent()->ChipProperties();
 
@@ -306,9 +298,6 @@ Result ComputePipeline::LinkWithLibraries(
     m_chunkCs.UpdateComputePgmRsrsAfterLibraryLink(computePgmRsrc1, computePgmRsrc2, computePgmRsrc3);
 
     return result;
-#else
-    return Result::Unsupported;
-#endif
 }
 
 // =====================================================================================================================
@@ -365,7 +354,6 @@ Result ComputePipeline::GetShaderStats(
     return result;
 }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 580
 // =====================================================================================================================
 // Sets the total stack frame size for indirect shaders in the pipeline
 void ComputePipeline::SetStackSizeInBytes(
@@ -374,7 +362,6 @@ void ComputePipeline::SetStackSizeInBytes(
     m_stackSizeInBytes = stackSizeInBytes;
     UpdateRingSizes(stackSizeInBytes / sizeof(uint32));
 }
-#endif
 
 // =====================================================================================================================
 uint32 ComputePipeline::CalcScratchMemSize(

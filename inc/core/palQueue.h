@@ -57,16 +57,10 @@ enum class VirtualGpuMemAccessMode : uint32;
 /// BLT or flip.
 enum class PresentMode : uint32
 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 561
     Unknown,
     Windowed,
     Fullscreen,
     Count
-#else
-    Windowed,
-    Fullscreen,
-    Count
-#endif
 };
 
 /// Defines flags for describing which types of present modes are supported on a given queue.
@@ -235,19 +229,13 @@ struct MultiSubmitInfo
                                                   ///  blockIfFlippingCount is zero.  The command buffers will not be
                                                   ///  scheduled to the GPU while a fullscreen (flip) present is queued
                                                   ///  for any of these GPU memory allocations.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 568
     uint32                  fenceCount;           ///< Number of fence objects to be signaled once the last command buffer
                                                   ///  in this submission completes execution.
     IFence**                ppFences;             ///< Array of fence objects. Can be null if fenceCount is zero.
-#else
-    IFence*                 pFence;               ///< Null, or a fence object to be signaled once the last command
-                                                  ///  buffer in the submission completes execution.
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 555
     CmdDumpCallback         pfnCmdDumpCb;         ///< Null, or a callback function to handle the dumping of the
                                                   ///  command buffers used in this submit.
     void*                   pUserData;            ///< Client provided data to be passed to callback.
-#endif
+
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 663
     uint32                  stackSizeInDwords;    ///< 0, or the max of stack frame size for indirect shaders of the
                                                   ///  pipelines referenced in the command buffers of this submission.
@@ -258,61 +246,7 @@ struct MultiSubmitInfo
 #endif
 };
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 572
-/// Specifies all information needed to execute a set of command buffers.  Input structure to IQueue::Submit().
-///
-/// Some members of this structure are not supported on all platforms.  The client must check the appropriate properties
-/// structures to determine if the corresponding features are supported:
-/// + pGpuMemoryRefs:    Support is indicated by supportPerSubmitMemRefs in @ref DeviceProperties.
-/// + ppBlockIfFlipping: Support is indicated by supportBlockIfFlipping in @ref PlatformProperties.  If it is supported,
-///                      the client must not specify a blockIfFlippingCount greater than MaxBlockIfFlippingCount.
-///
-/// @note If this queue is running in physical submission mode (due to hardware restrictions), the gpuMemRefCount and
-///       pGpuMemoryRefs arguments to this method are ignored because the command buffers themselves contain their own
-///       GPU memory reference lists.
-struct SubmitInfo
-{
-    uint32                  cmdBufferCount;       ///< Number of command buffers to be submitted.
-    ICmdBuffer*const*       ppCmdBuffers;         ///< Array of cmdBufferCount command buffers to be submitted.
-    const CmdBufInfo*       pCmdBufInfoList;      ///< Null, or an array of cmdBufferCount structs providing additional
-                                                  ///  info about the command buffers being submitted.  If non-null,
-                                                  ///  elements are ignored if their isValid flag is false.
-    uint32                  gpuMemRefCount;       ///< Number of GPU memory references for this submit.
-    const GpuMemoryRef*     pGpuMemoryRefs;       ///< Array of gpuMemRefCount GPU memory references.  Can be null if
-                                                  ///  gpuMemRefCount is zero.  The GPU memory objects will be made
-                                                  ///  resident for the duration of this submit.
-    uint32                  doppRefCount;         ///< Number of DOPP desktop texture references for this submit.
-    const DoppRef*          pDoppRefs;            ///< Array of doppRefCount DOPP texture references.  Can be null if
-                                                  ///  doppRefCount is zero.
-    uint32                  externPhysMemCount;   ///< Number of entries in ppExternPhysMem.
-    const IGpuMemory**      ppExternPhysMem;      ///< Array of external physical memory allocations to be initialized
-                                                  ///  as part of this submit.  The first submit that references a
-                                                  ///  particular external physical memory allocation must include
-                                                  ///  that allocation in this list.  Subsequent submits that reference
-                                                  ///  the same allocation should not include it in this list, as it
-                                                  ///  would trigger redundant GPU page table initialization.
-    uint32                  blockIfFlippingCount; ///< Number of GPU memory objects to protect when flipped.
-    const IGpuMemory*const* ppBlockIfFlipping;    ///< Array of blockIfFlippingCount GPU memory objects.  Can be null if
-                                                  ///  blockIfFlippingCount is zero.  The command buffers will not be
-                                                  ///  scheduled to the GPU while a fullscreen (flip) present is queued
-                                                  ///  for any of these GPU memory allocations.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 568
-    uint32                  fenceCount;           ///< Number of fence objects to be signaled once the last command buffer
-                                                  ///  in this submission completes execution.
-    IFence**                ppFences;             ///< Array of fence objects. Can be null if fenceCount is zero.
-#else
-    IFence*                 pFence;               ///< Null, or a fence object to be signaled once the last command
-                                                  ///  buffer in the submission completes execution.
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 555
-    CmdDumpCallback         pfnCmdDumpCb;         ///< Null, or a callback function to handle the dumping of the
-                                                  ///  command buffers used in this submit.
-    void*                   pUserData;            ///< Client provided data to be passed to callback.
-#endif
-};
-#else
 typedef MultiSubmitInfo SubmitInfo;
-#endif
 
 /// The value of blockIfFlippingCount in @ref SubmitInfo cannot be greater than this value.
 constexpr uint32 MaxBlockIfFlippingCount = 16;
@@ -393,10 +327,9 @@ struct PresentSwapChainInfo
     ISwapChain* pSwapChain;       ///< The swap chain associated with the source image.
     uint32      imageIndex;       ///< The index of the source image within the swap chain. Owership of this image
                                   ///  index will be released back to the swap chain if this call succeeds.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 578
     uint32      rectangleCount;   ///< Number of valid rectangles in the pRectangles array.
     const Rect* pRectangles;      ///< Array of rectangles defining the regions which will be updated.
-#endif
+
     union
     {
         struct
@@ -406,7 +339,7 @@ struct PresentSwapChainInfo
         };
         uint32 u32All;                          ///< Flags packed as 32-bit uint.
     } flags;                                    ///< PresentSwapChainInfo flags.
-#if PAL_AMDGPU_BUILD && (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 582)
+#if PAL_AMDGPU_BUILD
     MscInfo mscInfo;                            ///< Media stream counter information
 #endif
 };
@@ -496,45 +429,6 @@ public:
     ///            universal, graphics, DMA).
     virtual Result Submit(
         const MultiSubmitInfo& submitInfo) = 0;
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 572
-    PAL_INLINE Result Submit(
-        const SubmitInfo& info)
-    {
-        MultiSubmitInfo       newInfo               = { };
-        PerSubQueueSubmitInfo perSubQueueSubmitInfo = { };
-        newInfo.pPerSubQueueInfo                    = &perSubQueueSubmitInfo;
-        newInfo.perSubQueueInfoCount                = 1;
-
-        if (info.cmdBufferCount > 0)
-        {
-            perSubQueueSubmitInfo.cmdBufferCount  = info.cmdBufferCount;
-            perSubQueueSubmitInfo.pCmdBufInfoList = info.pCmdBufInfoList;
-            perSubQueueSubmitInfo.ppCmdBuffers    = info.ppCmdBuffers;
-        }
-
-        newInfo.gpuMemRefCount       = info.gpuMemRefCount;
-        newInfo.pGpuMemoryRefs       = info.pGpuMemoryRefs;
-        newInfo.doppRefCount         = info.doppRefCount;
-        newInfo.pDoppRefs            = info.pDoppRefs;
-        newInfo.externPhysMemCount   = info.externPhysMemCount;
-        newInfo.ppExternPhysMem      = info.ppExternPhysMem;
-        newInfo.blockIfFlippingCount = info.blockIfFlippingCount;
-        newInfo.ppBlockIfFlipping    = info.ppBlockIfFlipping;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 568
-        newInfo.fenceCount           = info.fenceCount;
-        newInfo.ppFences             = info.ppFences;
-#else
-        newInfo.pFence               = info.pFence;
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 555
-        newInfo.pfnCmdDumpCb         = info.pfnCmdDumpCb;
-        newInfo.pUserData            = info.pUserData;
-#endif
-
-        return Submit(newInfo);
-    }
-#endif
 
     /// Waits for all previous submission on this queue to complete before control is returned to the caller.
     ///

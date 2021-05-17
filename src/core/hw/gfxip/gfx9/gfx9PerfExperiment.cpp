@@ -653,7 +653,6 @@ Result PerfExperiment::AddCounter(
                     m_select.umcch[info.instance].perfmonCntl[idx].most.EventSelect = info.eventId;
                     m_select.umcch[info.instance].perfmonCntl[idx].most.Enable = 1;
 
-#if (1  ) && (PAL_CLIENT_INTERFACE_MAJOR_VERSION>= 587)
                     if (IsGfx103(m_device))
                     {
                         if ((info.eventId == UMC_PERF_SEL_DcqOccupancy__NV21) ||
@@ -685,7 +684,6 @@ Result PerfExperiment::AddCounter(
                             m_select.umcch[info.instance].thresholdSet[idx] = true;
                         }
                     }
-#endif
 
                     mapping.counterId = idx;
                     searching         = false;
@@ -1330,10 +1328,11 @@ Result PerfExperiment::AddThreadTrace(
             m_sqtt[traceInfo.instance].ctrl.gfx10.REG_DROP_ON_STALL = (stallMode != GpuProfilerStallAlways);
 
             static_assert((static_cast<uint32>(PerfShaderMaskPs) == static_cast<uint32>(SQ_TT_WTYPE_INCLUDE_PS_BIT) &&
-                           static_cast<uint32>(PerfShaderMaskVs) == static_cast<uint32>(SQ_TT_WTYPE_INCLUDE_VS_BIT__GFX10) &&
                            static_cast<uint32>(PerfShaderMaskGs) == static_cast<uint32>(SQ_TT_WTYPE_INCLUDE_GS_BIT) &&
                            static_cast<uint32>(PerfShaderMaskHs) == static_cast<uint32>(SQ_TT_WTYPE_INCLUDE_HS_BIT) &&
                            static_cast<uint32>(PerfShaderMaskCs) == static_cast<uint32>(SQ_TT_WTYPE_INCLUDE_CS_BIT) &&
+                           static_cast<uint32>(PerfShaderMaskVs) ==
+                               static_cast<uint32>(SQ_TT_WTYPE_INCLUDE_VS_BIT__GFX10CORE) &&
                            static_cast<uint32>(PerfShaderMaskEs) ==
                                static_cast<uint32>(SQ_TT_WTYPE_INCLUDE_ES_BIT__GFX10CORE) &&
                            static_cast<uint32>(PerfShaderMaskLs) ==
@@ -1927,26 +1926,36 @@ void PerfExperiment::IssueBegin(
             if (m_createInfo.optionFlags.sqShaderMask != 0)
             {
                 sqPerfCounterCtrl.bits.PS_EN     = ((m_createInfo.optionValues.sqShaderMask & PerfShaderMaskPs) != 0);
-                sqPerfCounterCtrl.gfx09_10.VS_EN = ((m_createInfo.optionValues.sqShaderMask & PerfShaderMaskVs) != 0);
                 sqPerfCounterCtrl.bits.GS_EN     = ((m_createInfo.optionValues.sqShaderMask & PerfShaderMaskGs) != 0);
                 sqPerfCounterCtrl.bits.HS_EN     = ((m_createInfo.optionValues.sqShaderMask & PerfShaderMaskHs) != 0);
                 sqPerfCounterCtrl.bits.CS_EN     = ((m_createInfo.optionValues.sqShaderMask & PerfShaderMaskCs) != 0);
+                if (m_device.ChipProperties().gfxip.supportsHwVs)
                 {
-                    sqPerfCounterCtrl.most.LS_EN = ((m_createInfo.optionValues.sqShaderMask & PerfShaderMaskLs) != 0);
-                    sqPerfCounterCtrl.most.ES_EN = ((m_createInfo.optionValues.sqShaderMask & PerfShaderMaskEs) != 0);
+                    sqPerfCounterCtrl.most.VS_EN = ((m_createInfo.optionValues.sqShaderMask & PerfShaderMaskVs) != 0);
+                }
+                {
+                    static_assert(Gfx09::SQ_PERFCOUNTER_CTRL__LS_EN_MASK ==
+                                  Gfx10Core::SQ_PERFCOUNTER_CTRL__LS_EN_MASK, "Regs have changed");
+                    static_assert(Gfx09::SQ_PERFCOUNTER_CTRL__ES_EN_MASK ==
+                                  Gfx10Core::SQ_PERFCOUNTER_CTRL__ES_EN_MASK, "Regs have changed");
+                    sqPerfCounterCtrl.gfx09.LS_EN = ((m_createInfo.optionValues.sqShaderMask & PerfShaderMaskLs) != 0);
+                    sqPerfCounterCtrl.gfx09.ES_EN = ((m_createInfo.optionValues.sqShaderMask & PerfShaderMaskEs) != 0);
                 }
             }
             else
             {
                 // By default sample from all shader stages.
                 sqPerfCounterCtrl.bits.PS_EN     = 1;
-                sqPerfCounterCtrl.gfx09_10.VS_EN = 1;
                 sqPerfCounterCtrl.bits.GS_EN     = 1;
                 sqPerfCounterCtrl.bits.HS_EN     = 1;
                 sqPerfCounterCtrl.bits.CS_EN     = 1;
+                if (m_device.ChipProperties().gfxip.supportsHwVs)
                 {
-                    sqPerfCounterCtrl.most.LS_EN = 1;
-                    sqPerfCounterCtrl.most.ES_EN = 1;
+                    sqPerfCounterCtrl.most.VS_EN = 1;
+                }
+                {
+                    sqPerfCounterCtrl.gfx09.LS_EN = 1;
+                    sqPerfCounterCtrl.gfx09.ES_EN = 1;
                 }
             }
 

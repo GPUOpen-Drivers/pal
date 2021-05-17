@@ -49,11 +49,6 @@ public:
         *pNumThreadsZ = m_threadsPerTgZ;
     }
 
-    static void GetFunctionGpuVirtAddrs(
-        const PipelineUploader&          uploader,
-        ComputePipelineIndirectFuncInfo* pFuncInfoList,
-        uint32                           funcCount);
-
 protected:
     ComputePipeline(Device* pDevice, bool isInternal);
 

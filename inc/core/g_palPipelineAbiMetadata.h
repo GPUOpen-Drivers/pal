@@ -334,21 +334,6 @@ Result DeserializePalCodeObjectMetadata(
     MsgPackReader*  pReader,
     PalCodeObjectMetadata*  pMetadata);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 580
-PAL_INLINE Result DeserializePalCodeObjectMetadata(
-    MsgPackReader*          pReader,
-    PalCodeObjectMetadata*  pMetadata,
-    uint32*                 pRegistersOffset)
-{
-    const Result result = DeserializePalCodeObjectMetadata(pReader, pMetadata);
-    if ((result == Result::Success) && (pRegistersOffset != nullptr))
-    {
-        *pRegistersOffset = (pMetadata->pipeline.hasEntry.registers != 0) ? pMetadata->pipeline.registers : 0xffffffff;
-    }
-    return result;
-}
-#endif
-
 Result SerializeEnum(MsgPackWriter* pWriter, PipelineType value);
 Result SerializeEnum(MsgPackWriter* pWriter, ApiShaderType value);
 Result SerializeEnum(MsgPackWriter* pWriter, ApiShaderSubType value);

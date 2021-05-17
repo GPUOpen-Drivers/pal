@@ -506,19 +506,13 @@ Result Queue::Submit(
 
     AutoBuffer<GpuMemoryRef, 32, PlatformDecorator> nextGpuMemoryRefs(submitInfo.gpuMemRefCount, pPlatform);
     AutoBuffer<DoppRef,      32, PlatformDecorator> nextDoppRefs(submitInfo.doppRefCount, pPlatform);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 568
     AutoBuffer<IFence*,      32, PlatformDecorator> nextFences(submitInfo.fenceCount, pPlatform);
-#endif
 
-    if ((nextCmdBuffers.Capacity()     < cmdBufferCount)          ||
-        (nextCmdBufInfoList.Capacity() < cmdBufferCount)          ||
-        (nextDoppRefs.Capacity()       < submitInfo.doppRefCount) ||
-        (nextGpuMemoryRefs.Capacity()  < submitInfo.gpuMemRefCount)
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 568
-        ||
-        (nextFences.Capacity()         < submitInfo.fenceCount)
-#endif
-       )
+    if ((nextCmdBuffers.Capacity()     < cmdBufferCount)            ||
+        (nextCmdBufInfoList.Capacity() < cmdBufferCount)            ||
+        (nextDoppRefs.Capacity()       < submitInfo.doppRefCount)   ||
+        (nextGpuMemoryRefs.Capacity()  < submitInfo.gpuMemRefCount) ||
+        (nextFences.Capacity()         < submitInfo.fenceCount))
     {
         result = Result::ErrorOutOfMemory;
     }
@@ -544,12 +538,10 @@ Result Queue::Submit(
             pNextBlockIfFlipping[i] = NextGpuMemory(submitInfo.ppBlockIfFlipping[i]);
         }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 568
         for (uint32 i = 0; i < submitInfo.fenceCount; i++)
         {
             nextFences[i] = NextFence(submitInfo.ppFences[i]);
         }
-#endif
 
         uint32          globalCmdBufIdx     = 0;
         uint32          globalCmdBufInfoIdx = 0;
@@ -690,12 +682,9 @@ Result Queue::Submit(
                         // but the contents of preceding subQueue is cleared.
                         nextSubmitInfo.perSubQueueInfoCount = subQueueIdx + 1;
                         nextSubmitInfo.pPerSubQueueInfo     = &nextPerSubQueueInfosBreakBatch[0];
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 568
                         nextSubmitInfo.ppFences = passFence ? &nextFences[0] : nullptr;
                         nextSubmitInfo.fenceCount = passFence ? submitInfo.fenceCount : 0;
-#else
-                        nextSubmitInfo.pFence = passFence ? NextFence(submitInfo.pFence) : nullptr;
-#endif
+
                         result = InternalSubmit(nextSubmitInfo, releaseObjectsBreakBatch);
                     }
                 } //  end of traversing each cmdBuf in a perSubQueueInfo
@@ -717,12 +706,9 @@ Result Queue::Submit(
             PAL_ASSERT((globalCmdBufIdx == cmdBufferCount) && (globalCmdBufInfoIdx <= cmdBufferCount));
             nextSubmitInfo.perSubQueueInfoCount = submitInfo.perSubQueueInfoCount;
             nextSubmitInfo.pPerSubQueueInfo     = &nextPerSubQueueInfos[0];
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 568
             nextSubmitInfo.ppFences   = &nextFences[0];
             nextSubmitInfo.fenceCount = submitInfo.fenceCount;
-#else
-            nextSubmitInfo.pFence = NextFence(submitInfo.pFence);
-#endif
+
             result = InternalSubmit(nextSubmitInfo, releaseObjects);
         }
     }
@@ -1016,9 +1002,7 @@ Result Queue::AcquireGpaSession(
                                        m_pDevice,
                                        platform.ApiMajorVer(),
                                        platform.ApiMinorVer(),
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 575
                                        GpuUtil::ApiType::Generic,
-#endif
                                        0, 0,
                                        &m_availPerfExpMem);
         if (*ppGpaSession != nullptr)
@@ -1264,7 +1248,6 @@ Result Queue::BuildGpaSessionSampleConfig()
                         {
                             counterInfo.df.eventQualifier = pCounters[i].optionalData;
                         }
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 587
                         else if (counterInfo.block == GpuBlock::Umcch)
                         {
                             // Threshold   [12-bits]
@@ -1272,7 +1255,6 @@ Result Queue::BuildGpaSessionSampleConfig()
                             // ThresholdEn [2-bits] 0=disabled, 1=less than, 2=greater than
                             counterInfo.umc.eventThresholdEn = (pCounters[i].optionalData >> 12) & 0x3;
                         }
-#endif
                     }
 
                     const uint64 instanceMask = pCounters[i].instanceMask;

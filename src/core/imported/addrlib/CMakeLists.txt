@@ -22,48 +22,23 @@
  #  SOFTWARE.
  #
  #######################################################################################################################
-cmake_minimum_required(VERSION 3.9...3.15)
+cmake_minimum_required(VERSION 3.13...3.15)
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
 
-project(AddrLib VERSION 4.4.0 LANGUAGES CXX)
-
-include(CMakeDependentOption)
-include(TestBigEndian)
-
+set(ADDRLIB_IS_TOP_LEVEL OFF)
 if (${CMAKE_CURRENT_SOURCE_DIR} STREQUAL ${CMAKE_SOURCE_DIR})
     set(ADDRLIB_IS_TOP_LEVEL ON)
 endif()
 
-function(get_cpu_endianness CPU_ENDIANNESS)
-    test_big_endian(isBigEndianCpu)
-
-    if(isBigEndianCpu)
-        set(${CPU_ENDIANNESS}    "BIGENDIAN_CPU" PARENT_SCOPE)
-    else()
-        set(${CPU_ENDIANNESS} "LITTLEENDIAN_CPU" PARENT_SCOPE)
-    endif()
-endfunction()
-
-option(ADDR_R800_BUILD       "Build support for R800?"       OFF                                               )
-option(ADDR_SI_BUILD         "Build support for SI?"         OFF                                               )
-cmake_dependent_option(ADDR_CI_BUILD         "Build support for CI?"         ON  "ADDR_SI_BUILD"            OFF)
-option(ADDR_GFX9_BUILD       "Build support for GFX9?"       OFF                                               )
-option(ADDR_GFX10_BUILD      "Build support for GFX10?"      OFF                                               )
-cmake_dependent_option(ADDR_VEGA20_BUILD     "Build support for Vega 20?"    ON  "ADDR_GFX9_BUILD"          OFF)
-cmake_dependent_option(ADDR_RAVEN1_BUILD     "Build support for Raven 1?"    ON  "ADDR_GFX9_BUILD"          OFF)
-cmake_dependent_option(ADDR_VEGA12_BUILD     "Build support for Vega 12?"    ON  "ADDR_GFX9_BUILD"          OFF)
-cmake_dependent_option(ADDR_RAVEN2_BUILD     "Build support for Raven 2?"    ON  "ADDR_RAVEN1_BUILD"        OFF)
-
-option(ADDR_AM_BUILD         "Build support for fmask addressing and addr5Swizzle?" OFF                        )
-option(ADDR_LNX_KERNEL_BUILD "Linux kernel build?"                                  OFF                        )
-option(ADDR_RENOIR_BUILD      "Build support for RENOIR?"    OFF                                               )
-option(ADDR_NAVI12_BUILD      "Build support for NAVI12?"    OFF                                               )
-option(ADDR_NAVI14_BUILD      "Build support for NAVI14?"    OFF                                               )
-option(ADDR_NAVI21_BUILD      "Build support for NAVI21?"    OFF                                               )
-option(ADDR_NAVI22_BUILD      "Build support for NAVI22?"    OFF                                               )
-
-option(ADDR_ENABLE_WERROR    "Build with -Werror enabled"    OFF                                                )
+project(AddrLib
+    VERSION 4.4.0
+    LANGUAGES CXX
+)
 
 add_library(addrlib STATIC)
+include(AddrlibCompilerOptions)
+include(AddrlibBuildParameters)
+include(Addrlib)
 
 target_include_directories(addrlib PUBLIC  inc
                                    PRIVATE src
@@ -171,85 +146,25 @@ endif()
     target_sources(addrlib PRIVATE src/amdgpu_asic_addr.h)
 
 if(ADDR_AM_BUILD)
-    target_compile_definitions(addrlib PRIVATE ADDR_AM_BUILD)
+    target_compile_definitions(addrlib PUBLIC ADDR_AM_BUILD)
 endif()
 
 if(ADDR_LNX_KERNEL_BUILD)
     target_compile_definitions(addrlib PRIVATE ADDR_LNX_KERNEL_BUILD)
 endif()
 
-get_cpu_endianness(CPU_ENDIANNESS)
+addr_get_cpu_endianness(CPU_ENDIANNESS)
 target_compile_definitions(addrlib PRIVATE ${CPU_ENDIANNESS})
 
 target_compile_definitions(addrlib PRIVATE $<$<CONFIG:Debug>:DEBUG>)
 
-set_target_properties(addrlib PROPERTIES CXX_STANDARD              11
-                                         CXX_STANDARD_REQUIRED     ON
-                                         CXX_EXTENSIONS            OFF
-                                         POSITION_INDEPENDENT_CODE ON)
+if (MSVC_IDE)
+    # Get all of the source files
+    get_target_property(addrlib_sources addrlib SOURCES)
 
-if((CMAKE_CXX_COMPILER_ID MATCHES "GNU|[Cc]lang")
-  )
-
-    if(ADDR_ENABLE_WERROR)
-        target_compile_options(addrlib PRIVATE -Werror)
-    endif()
-
-    # [GCC] Exceptions
-    #   https://gcc.gnu.org/onlinedocs/libstdc++/manual/using_exceptions.html
-    #
-    # [GCC] Options Controlling C++ Dialect
-    #   https://gcc.gnu.org/onlinedocs/gcc-8.1.0/gcc/C_002b_002b-Dialect-Options.html
-    #
-    # [GCC] Options That Control Optimization
-    #   https://gcc.gnu.org/onlinedocs/gcc-8.1.0/gcc/Optimize-Options.html
-    target_compile_options(addrlib PRIVATE
-        -fno-strict-aliasing    # Disable optimizations that assume strict aliasing rules
-        -fno-exceptions  # Disable exception handling support.
-        -fno-rtti        # Disable run-time type information support.
-        -fcheck-new      # Check if pointer returned by operator new is non-null.
-        -fno-math-errno) # Single instruction math operations do not set ERRNO.
-
-    # [GCC] Options to Request or Suppress Warnings
-    #   https://gcc.gnu.org/onlinedocs/gcc-8.1.0/gcc/Warning-Options.html
-    target_compile_options(addrlib PRIVATE
-        -Wall
-        -Wextra
-        -Wno-unused
-        -Wno-unused-parameter
-        -Wno-unused-command-line-argument
-        -Wno-ignored-qualifiers
-        -Wno-missing-field-initializers
-        -Wno-self-assign
-        -Wno-implicit-fallthrough)
-
-elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-    # Turns on static analysis only if addrlib is the top level project
-    # This allows addrlib developers to fix the problem without impacting clients.
-    if (ADDRLIB_IS_TOP_LEVEL)
-        target_compile_options(addrlib PRIVATE /analyze)
-    endif()
-
-    target_compile_options(addrlib PRIVATE
-        /EHsc # Catches only C++ exceptions and assumes
-              # functions declared as extern "C" never throw a C++ exception.
-        /GR-  # Disables run-time type information.
-        /GS-  # Disables detection of buffer overruns.
+    # Display the folders directory structure in Visual Studio
+    # If this isn't done then you just get generic Header/Source Files filters
+    source_group(TREE  ${CMAKE_CURRENT_SOURCE_DIR}/
+                 FILES ${addrlib_sources}
     )
-
-    target_compile_options(addrlib PRIVATE
-        /W4      # Enable warning level 4.
-        /WX      # Treat warnings as errors.
-        /wd4018  # signed/unsigned mismatch
-        /wd4065  # switch statement contains 'default' but no 'case' labels
-        /wd4100  # unreferenced formal parameter
-        /wd4127  # conditional expression is constant
-        /wd4189  # local variable is initialized but not referenced
-        /wd4201  # nonstandard extension used : nameless struct/union
-        /wd4244  # conversion from 'type1' to 'type2', possible loss of data
-        /wd4701  # potentially uninitialized local variable
-        /wd6297  # arithmetic overflow: 32-bit value is shifted, then cast to 64-bit value
-    )
-else()
-    message(FATAL_ERROR "Compiler ${CMAKE_CXX_COMPILER_ID} is not supported!")
 endif()

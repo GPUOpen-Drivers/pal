@@ -44,14 +44,14 @@ struct GraphicsPipelineLoadInfo;
 // Describe HW Reg for a Computer Pipeline
 struct HwRegInfo
 {
-    regCOMPUTE_NUM_THREAD_X  computeNumThreadX;
-    regCOMPUTE_NUM_THREAD_Y  computeNumThreadY;
-    regCOMPUTE_NUM_THREAD_Z  computeNumThreadZ;
-    regCOMPUTE_PGM_LO        computePgmLo;
-    regCOMPUTE_PGM_RSRC1     computePgmRsrc1;
-    regCOMPUTE_PGM_RSRC3     computePgmRsrc3;
-    regCOMPUTE_USER_DATA_0   userDataInternalTable;
-    regCOMPUTE_SHADER_CHKSUM computeShaderChksum;
+    regCOMPUTE_NUM_THREAD_X        computeNumThreadX;
+    regCOMPUTE_NUM_THREAD_Y        computeNumThreadY;
+    regCOMPUTE_NUM_THREAD_Z        computeNumThreadZ;
+    regCOMPUTE_PGM_LO              computePgmLo;
+    regCOMPUTE_PGM_RSRC1           computePgmRsrc1;
+    regCOMPUTE_PGM_RSRC3           computePgmRsrc3;
+    regCOMPUTE_USER_DATA_0         userDataInternalTable;
+    regCOMPUTE_SHADER_CHKSUM       computeShaderChksum;
 
     struct
     {
@@ -106,8 +106,6 @@ public:
         const AbiReader&                 abiReader,
         const RegisterVector&            registers,
         uint32                           wavefrontSize,
-        ComputePipelineIndirectFuncInfo* pIndirectFuncList,
-        uint32                           indirectFuncCount,
         uint32*                          pThreadsPerTgX,
         uint32*                          pThreadsPerTgY,
         uint32*                          pThreadsPerTgZ,

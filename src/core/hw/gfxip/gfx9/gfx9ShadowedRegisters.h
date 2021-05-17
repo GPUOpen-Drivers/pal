@@ -128,8 +128,8 @@ const RegisterRange Gfx9ContextShadowRange[] =
         (mmVGT_HOS_MIN_TESS_LEVEL - mmVGT_HOS_MAX_TESS_LEVEL + 1),
     },
     {
-        (Gfx09_10::mmVGT_GS_MODE - CONTEXT_SPACE_START),                        // 0xA290 - 0xA29B
-        (Gfx09_10::mmVGT_GS_OUT_PRIM_TYPE - Gfx09_10::mmVGT_GS_MODE + 1),
+        (HasHwVs::mmVGT_GS_MODE - CONTEXT_SPACE_START),                        // 0xA290 - 0xA29B
+        (Gfx09::mmVGT_GS_OUT_PRIM_TYPE - HasHwVs::mmVGT_GS_MODE + 1),
     },
     {
         (mmVGT_PRIMITIVEID_EN - CONTEXT_SPACE_START),                           // 0xA2A1
@@ -141,19 +141,19 @@ const RegisterRange Gfx9ContextShadowRange[] =
     },
     {
         (Gfx09::mmVGT_GS_MAX_PRIMS_PER_SUBGROUP - CONTEXT_SPACE_START),         // 0xA2A5 - 0xA2B5
-        (Gfx09_10::mmVGT_STRMOUT_VTX_STRIDE_0 - Gfx09::mmVGT_GS_MAX_PRIMS_PER_SUBGROUP + 1),
+        (HasHwVs::mmVGT_STRMOUT_VTX_STRIDE_0 - Gfx09::mmVGT_GS_MAX_PRIMS_PER_SUBGROUP + 1),
     },
     {
-        (Gfx09_10::mmVGT_STRMOUT_BUFFER_SIZE_1 - CONTEXT_SPACE_START),          // 0xA2B8 - 0xA2B9
-        (Gfx09_10::mmVGT_STRMOUT_VTX_STRIDE_1 - Gfx09_10::mmVGT_STRMOUT_BUFFER_SIZE_1 + 1),
+        (HasHwVs::mmVGT_STRMOUT_BUFFER_SIZE_1 - CONTEXT_SPACE_START),          // 0xA2B8 - 0xA2B9
+        (HasHwVs::mmVGT_STRMOUT_VTX_STRIDE_1 - HasHwVs::mmVGT_STRMOUT_BUFFER_SIZE_1 + 1),
     },
     {
-        (Gfx09_10::mmVGT_STRMOUT_BUFFER_SIZE_2 - CONTEXT_SPACE_START),          // 0xA2BC - 0xA2BD
-        (Gfx09_10::mmVGT_STRMOUT_VTX_STRIDE_2 - Gfx09_10::mmVGT_STRMOUT_BUFFER_SIZE_2 + 1),
+        (HasHwVs::mmVGT_STRMOUT_BUFFER_SIZE_2 - CONTEXT_SPACE_START),          // 0xA2BC - 0xA2BD
+        (HasHwVs::mmVGT_STRMOUT_VTX_STRIDE_2 - HasHwVs::mmVGT_STRMOUT_BUFFER_SIZE_2 + 1),
     },
     {
-        (Gfx09_10::mmVGT_STRMOUT_BUFFER_SIZE_3 - CONTEXT_SPACE_START),         // 0xA2C0 - 0xA2C1
-        (Gfx09_10::mmVGT_STRMOUT_VTX_STRIDE_3 - Gfx09_10::mmVGT_STRMOUT_BUFFER_SIZE_3 + 1),
+        (HasHwVs::mmVGT_STRMOUT_BUFFER_SIZE_3 - CONTEXT_SPACE_START),         // 0xA2C0 - 0xA2C1
+        (HasHwVs::mmVGT_STRMOUT_VTX_STRIDE_3 - HasHwVs::mmVGT_STRMOUT_BUFFER_SIZE_3 + 1),
     },
     {
         (mmVGT_STRMOUT_DRAW_OPAQUE_OFFSET - CONTEXT_SPACE_START),               // 0xA2CA - 0xA2CC
@@ -161,7 +161,7 @@ const RegisterRange Gfx9ContextShadowRange[] =
     },
     {
         (mmVGT_GS_MAX_VERT_OUT - CONTEXT_SPACE_START),                          // 0xA2CE - 0xA2E6
-        (Gfx09_10::mmVGT_STRMOUT_BUFFER_CONFIG - mmVGT_GS_MAX_VERT_OUT + 1),
+        (HasHwVs::mmVGT_STRMOUT_BUFFER_CONFIG - mmVGT_GS_MAX_VERT_OUT + 1),
     },
     {
         (mmPA_SC_CENTROID_PRIORITY_0 - CONTEXT_SPACE_START),                    // 0xA2F5 - 0xA38F
@@ -178,8 +178,8 @@ const RegisterRange Gfx9ShShadowRange[] =
         (mmSPI_SHADER_USER_DATA_PS_31 - mmSPI_SHADER_PGM_LO_PS + 1),
     },
     {
-        (Gfx09_10::mmSPI_SHADER_LATE_ALLOC_VS - PERSISTENT_SPACE_START),                  // 0x2C47 - 0x2C6B
-        (Gfx09_10::mmSPI_SHADER_USER_DATA_VS_31 - Gfx09_10::mmSPI_SHADER_LATE_ALLOC_VS + 1),
+        (HasHwVs::mmSPI_SHADER_LATE_ALLOC_VS - PERSISTENT_SPACE_START),                  // 0x2C47 - 0x2C6B
+        (HasHwVs::mmSPI_SHADER_USER_DATA_VS_31 - HasHwVs::mmSPI_SHADER_LATE_ALLOC_VS + 1),
     },
     {
         (mmSPI_SHADER_PGM_RSRC4_GS - PERSISTENT_SPACE_START),                   // 0x2C81 - 0x2C85
@@ -250,12 +250,12 @@ const RegisterRange Gfx9ShShadowRangeRaven2[] =
         (mmSPI_SHADER_USER_DATA_PS_31 - mmSPI_SHADER_PGM_LO_PS + 1),
     },
     {
-        (Gfx10::mmSPI_SHADER_PGM_CHKSUM_VS - PERSISTENT_SPACE_START),    // 0x2C45
+        (Rv2x_Rn::mmSPI_SHADER_PGM_CHKSUM_VS - PERSISTENT_SPACE_START),    // 0x2C45
         1
     },
     {
-        (Gfx09_10::mmSPI_SHADER_LATE_ALLOC_VS - PERSISTENT_SPACE_START),                  // 0x2C47 - 0x2C6B
-        (Gfx09_10::mmSPI_SHADER_USER_DATA_VS_31 - Gfx09_10::mmSPI_SHADER_LATE_ALLOC_VS + 1),
+        (HasHwVs::mmSPI_SHADER_LATE_ALLOC_VS - PERSISTENT_SPACE_START),                  // 0x2C47 - 0x2C6B
+        (HasHwVs::mmSPI_SHADER_USER_DATA_VS_31 - HasHwVs::mmSPI_SHADER_LATE_ALLOC_VS + 1),
     },
     {
         (Apu09_1xPlus::mmSPI_SHADER_PGM_CHKSUM_GS - PERSISTENT_SPACE_START),    // 0x2C80 - 0x2C85
@@ -324,8 +324,8 @@ constexpr uint32 Gfx9NumCsShShadowRangesRaven2 = static_cast<uint32>(Util::Array
 const RegisterRange Gfx90NonShadowedRanges[] =
 {
     {
-        Gfx09_10::mmVGT_DMA_PRIMITIVE_TYPE,
-        Gfx09_10::mmVGT_DMA_LS_HS_CONFIG - Gfx09_10::mmVGT_DMA_PRIMITIVE_TYPE + 1
+        HasHwVs::mmVGT_DMA_PRIMITIVE_TYPE,
+        HasHwVs::mmVGT_DMA_LS_HS_CONFIG - HasHwVs::mmVGT_DMA_PRIMITIVE_TYPE + 1
     },
     {
         mmCOMPUTE_VMID,
@@ -345,19 +345,19 @@ const RegisterRange Gfx90NonShadowedRanges[] =
         1
     },
     {
-        Gfx09_10::mmVGT_STRMOUT_BUFFER_OFFSET_0,
+        HasHwVs::mmVGT_STRMOUT_BUFFER_OFFSET_0,
         1
     },
     {
-        Gfx09_10::mmVGT_STRMOUT_BUFFER_OFFSET_1,
+        HasHwVs::mmVGT_STRMOUT_BUFFER_OFFSET_1,
         1
     },
     {
-        Gfx09_10::mmVGT_STRMOUT_BUFFER_OFFSET_2,
+        HasHwVs::mmVGT_STRMOUT_BUFFER_OFFSET_2,
         1
     },
     {
-        Gfx09_10::mmVGT_STRMOUT_BUFFER_OFFSET_3,
+        HasHwVs::mmVGT_STRMOUT_BUFFER_OFFSET_3,
         1
     },
     {
@@ -382,7 +382,7 @@ const RegisterRange Gfx90NonShadowedRanges[] =
     },
     {
         mmVGT_INDEX_TYPE,
-        Gfx09_10::mmVGT_STRMOUT_BUFFER_FILLED_SIZE_3 - mmVGT_INDEX_TYPE + 1
+        HasHwVs::mmVGT_STRMOUT_BUFFER_FILLED_SIZE_3 - mmVGT_INDEX_TYPE + 1
     },
     {
         mmDB_OCCLUSION_COUNT0_LOW,
@@ -411,7 +411,7 @@ const RegisterRange Gfx90NonShadowedRanges[] =
         1
     },
     {
-        Gfx09_10::mmSPI_SHADER_PGM_RSRC3_VS,
+        HasHwVs::mmSPI_SHADER_PGM_RSRC3_VS,
         1
     },
     {
@@ -459,8 +459,8 @@ constexpr uint32 Gfx90NumNonShadowedRanges = static_cast<uint32>(Util::ArrayLen(
 const RegisterRange Gfx91NonShadowedRanges[] =
 {
     {
-        Gfx09_10::mmVGT_DMA_PRIMITIVE_TYPE,
-        Gfx09_10::mmVGT_DMA_LS_HS_CONFIG - Gfx09_10::mmVGT_DMA_PRIMITIVE_TYPE + 1
+        HasHwVs::mmVGT_DMA_PRIMITIVE_TYPE,
+        HasHwVs::mmVGT_DMA_LS_HS_CONFIG - HasHwVs::mmVGT_DMA_PRIMITIVE_TYPE + 1
     },
     {
         mmCOMPUTE_VMID,
@@ -480,19 +480,19 @@ const RegisterRange Gfx91NonShadowedRanges[] =
         1
     },
     {
-        Gfx09_10::mmVGT_STRMOUT_BUFFER_OFFSET_0,
+        HasHwVs::mmVGT_STRMOUT_BUFFER_OFFSET_0,
         1
     },
     {
-        Gfx09_10::mmVGT_STRMOUT_BUFFER_OFFSET_1,
+        HasHwVs::mmVGT_STRMOUT_BUFFER_OFFSET_1,
         1
     },
     {
-        Gfx09_10::mmVGT_STRMOUT_BUFFER_OFFSET_2,
+        HasHwVs::mmVGT_STRMOUT_BUFFER_OFFSET_2,
         1
     },
     {
-        Gfx09_10::mmVGT_STRMOUT_BUFFER_OFFSET_3,
+        HasHwVs::mmVGT_STRMOUT_BUFFER_OFFSET_3,
         1
     },
     {
@@ -517,7 +517,7 @@ const RegisterRange Gfx91NonShadowedRanges[] =
     },
     {
         mmVGT_INDEX_TYPE,
-        Gfx09_10::mmVGT_STRMOUT_BUFFER_FILLED_SIZE_3 - mmVGT_INDEX_TYPE + 1
+        HasHwVs::mmVGT_STRMOUT_BUFFER_FILLED_SIZE_3 - mmVGT_INDEX_TYPE + 1
     },
     {
         mmDB_OCCLUSION_COUNT0_LOW,
@@ -546,7 +546,7 @@ const RegisterRange Gfx91NonShadowedRanges[] =
         1
     },
     {
-        Gfx09_10::mmSPI_SHADER_PGM_RSRC3_VS,
+        HasHwVs::mmSPI_SHADER_PGM_RSRC3_VS,
         1
     },
     {

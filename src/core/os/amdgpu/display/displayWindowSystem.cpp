@@ -232,6 +232,10 @@ Result DisplayWindowSystem::GetWindowProperties(
     pSwapChainProperties->compositeAlphaMode = static_cast<uint32>(CompositeAlphaMode::Opaque);
 #endif
 
+    // This is currently passed-through by the client.
+    PAL_ASSERT((pSwapChainProperties->currentExtent.width != UINT32_MAX) &&
+               (pSwapChainProperties->currentExtent.height != UINT32_MAX));
+
     return Result::Success;
 }
 
@@ -429,7 +433,9 @@ Result DisplayWindowSystem::Present(
         }
     }
 
-    m_device.DeveloperCb(Developer::CallbackType::PresentConcluded, nullptr);
+    Developer::PresentationModeData data = {};
+    data.presentationMode                = Developer::PresentModeType::Flip;
+    m_device.DeveloperCb(Developer::CallbackType::PresentConcluded, &data);
 
     return result;
 }

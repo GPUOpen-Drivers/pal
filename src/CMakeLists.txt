@@ -25,11 +25,7 @@
 
 include(PalVersionHelper)
 
-# Nestly PAL targets under the label following label
-set(CMAKE_FOLDER "${CMAKE_FOLDER}/PAL Libs")
-
-### Create PAL Library #################################################################################################
-add_library(pal STATIC)
+target_sources(pal PRIVATE CMakeLists.txt)
 
 ### PAL Subprojects ####################################################################################################
 
@@ -138,24 +134,9 @@ target_include_directories(pal PRIVATE ${GLOBAL_ROOT_SRC_DIR}/drivers/inc/shared
 
 ### PAL Sources ########################################################################################################
 
-### Add cmake files  ###################################################################################################
-target_sources(pal PRIVATE
-    ${PAL_SOURCE_DIR}/CMakeLists.txt
-    # PAL/XGL modules
-    ${PAL_SOURCE_DIR}/cmake/Modules/SetupAmdGlobalRoots.cmake
-    ${PAL_SOURCE_DIR}/cmake/Modules/AmdCmakeHelper.cmake
-    ${PAL_SOURCE_DIR}/cmake/Modules/FindDRM.cmake
-    ${PAL_SOURCE_DIR}/cmake/Modules/FindWayland.cmake
-    ${PAL_SOURCE_DIR}/cmake/Modules/FindXCB.cmake
-    # PAL modules
-    ${PAL_SOURCE_DIR}/cmake/PalBuildParameters.cmake
-    ${PAL_SOURCE_DIR}/cmake/PalCompileDefinitions.cmake
-    ${PAL_SOURCE_DIR}/cmake/PalCompilerOptions.cmake
-    ${PAL_SOURCE_DIR}/cmake/PalCompilerWarnings.cmake
-    ${PAL_SOURCE_DIR}/cmake/PalOptions.cmake
-    ${PAL_SOURCE_DIR}/cmake/PalOverrides.cmake
-    ${PAL_SOURCE_DIR}/cmake/PalVersionHelper.cmake
-)
+# TODO: This globs imported directories like addrlib/vam. This doesn't cause any issues. But is some what annoying.
+file(GLOB_RECURSE PAL_HEADER_SOURCES CONFIGURE_DEPENDS *.h *.hpp)
+target_sources(pal PRIVATE ${PAL_HEADER_SOURCES})
 
 ### PAL core ###################################################################
 if(PAL_BUILD_CORE)
@@ -278,11 +259,8 @@ if(PAL_BUILD_CORE)
             target_sources(pal PRIVATE
                 core/os/amdgpu/wayland/g_waylandLoader.cpp
                 core/os/amdgpu/wayland/waylandWindowSystem.cpp
-                core/os/amdgpu/wayland/mesa/wayland-drm-protocol.c
+                core/os/amdgpu/wayland/mesa/wayland-drm-protocol.inc
             )
-            set_property(SOURCE core/os/amdgpu/wayland/mesa/wayland-drm-protocol.c
-                         APPEND PROPERTY COMPILE_DEFINITIONS
-                         wl_buffer_interface=wlBufferInterface)
             target_include_directories(pal PRIVATE ${WAYLAND_CLIENT_INCLUDE_DIR})
         endif()
 
@@ -493,6 +471,7 @@ if(PAL_BUILD_CORE)
             core/layers/gpuDebug/gpuDebugCmdBuffer.cpp
             core/layers/gpuDebug/gpuDebugColorBlendState.cpp
             core/layers/gpuDebug/gpuDebugColorTargetView.cpp
+            core/layers/gpuDebug/gpuDebugDepthStencilView.cpp
             core/layers/gpuDebug/gpuDebugDevice.cpp
             core/layers/gpuDebug/gpuDebugImage.cpp
             core/layers/gpuDebug/gpuDebugPipeline.cpp
@@ -596,8 +575,3 @@ if(UNIX)
     target_sources(libuuid_static PRIVATE util/imported/libuuid/lnxLibuuid.cpp)
 
 endif()
-
-### Find headers and build source groups ###############################################################################
-target_find_headers(pal)
-target_source_groups(pal)
-

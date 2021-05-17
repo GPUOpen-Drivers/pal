@@ -50,9 +50,7 @@
 #include "core/hw/gfxip/gfx9/gfx9PipelineStatsQueryPool.h"
 #include "core/hw/gfxip/gfx9/gfx9QueueContexts.h"
 #include "core/hw/gfxip/gfx9/gfx9SettingsLoader.h"
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 556
 #include "core/hw/gfxip/gfx9/gfx9ShaderLibrary.h"
-#endif
 #include "core/hw/gfxip/gfx9/gfx9ShadowedRegisters.h"
 #include "core/hw/gfxip/gfx9/gfx9StreamoutStatsQueryPool.h"
 #include "core/hw/gfxip/gfx9/gfx9UniversalCmdBuffer.h"
@@ -904,16 +902,12 @@ size_t Device::GetShaderLibrarySize(
     Result*                         pResult
     ) const
 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 556
     if (pResult != nullptr)
     {
         (*pResult) = Result::Success;
     }
 
     return sizeof(ShaderLibrary);
-#else
-    return 0;
-#endif
 }
 
 // =====================================================================================================================
@@ -923,7 +917,6 @@ Result Device::CreateShaderLibrary(
     bool                            isInternal,
     IShaderLibrary**                ppPipeline)
 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 556
     auto* pShaderLib = PAL_PLACEMENT_NEW(pPlacementAddr) ShaderLibrary(this);
 
     Result result = pShaderLib->Initialize(createInfo);
@@ -936,9 +929,6 @@ Result Device::CreateShaderLibrary(
     *ppPipeline = pShaderLib;
 
     return result;
-#else
-    return Result::Unsupported;
-#endif
 }
 
 // =====================================================================================================================
@@ -2086,7 +2076,6 @@ void PAL_STDCALL Device::Gfx10CreateTypedBufferViewSrds(
         pOutSrd->u32All[2] = pGfxDevice->CalcNumRecords(static_cast<size_t>(pBufferViewInfo->range),
                                                         static_cast<uint32>(pBufferViewInfo->stride));
 
-#if ( (PAL_CLIENT_INTERFACE_MAJOR_VERSION>= 558))
         uint32 llcNoalloc = 0;
 
         if (pPalDevice->MemoryProperties().flags.supportsMall != 0)
@@ -2096,7 +2085,6 @@ void PAL_STDCALL Device::Gfx10CreateTypedBufferViewSrds(
             llcNoalloc = CalcLlcNoalloc(pBufferViewInfo->flags.bypassMallRead,
                                         pBufferViewInfo->flags.bypassMallWrite);
         }
-#endif
 
         PAL_ASSERT(Formats::IsUndefined(pBufferViewInfo->swizzledFormat.format) == false);
         PAL_ASSERT(Formats::BytesPerPixel(pBufferViewInfo->swizzledFormat.format) == pBufferViewInfo->stride);
@@ -2118,9 +2106,7 @@ void PAL_STDCALL Device::Gfx10CreateTypedBufferViewSrds(
                               (hwBufFmt                       << Gfx10CoreSqBufRsrcTWord3FormatShift)              |
                               (pGfxDevice->BufferSrdResourceLevel() << Gfx10CoreSqBufRsrcTWord3ResourceLevelShift) |
                               (OobSelect                      << SqBufRsrcTWord3OobSelectShift)                    |
-#if ( (PAL_CLIENT_INTERFACE_MAJOR_VERSION>= 558))
                               (llcNoalloc                     << MallSqBufRsrcTWord3LlcNoallocShift)               |
-#endif
                               (SQ_RSRC_BUF                    << SqBufRsrcTWord3TypeShift));
 
         pOutSrd++;
@@ -2205,7 +2191,6 @@ void PAL_STDCALL Device::Gfx10CreateUntypedBufferViewSrds(
 
         PAL_ASSERT(Formats::IsUndefined(pBufferViewInfo->swizzledFormat.format));
 
-#if ( (PAL_CLIENT_INTERFACE_MAJOR_VERSION>= 558))
         uint32 llcNoalloc = 0;
 
         if (pPalDevice->MemoryProperties().flags.supportsMall != 0)
@@ -2215,7 +2200,6 @@ void PAL_STDCALL Device::Gfx10CreateUntypedBufferViewSrds(
             llcNoalloc = CalcLlcNoalloc(pBufferViewInfo->flags.bypassMallRead,
                                         pBufferViewInfo->flags.bypassMallWrite);
         }
-#endif
 
         if (pBufferViewInfo->gpuAddr != 0)
         {
@@ -2229,9 +2213,7 @@ void PAL_STDCALL Device::Gfx10CreateUntypedBufferViewSrds(
                                   (BUF_FMT_32_UINT                << Gfx10CoreSqBufRsrcTWord3FormatShift)              |
                                   (pGfxDevice->BufferSrdResourceLevel() << Gfx10CoreSqBufRsrcTWord3ResourceLevelShift) |
                                   (oobSelect                      << SqBufRsrcTWord3OobSelectShift)                    |
-#if ( (PAL_CLIENT_INTERFACE_MAJOR_VERSION>= 558))
                                   (llcNoalloc                     << MallSqBufRsrcTWord3LlcNoallocShift)               |
-#endif
                                   (SQ_RSRC_BUF                    << SqBufRsrcTWord3TypeShift));
         }
         else
@@ -2270,52 +2252,125 @@ static void PAL_STDCALL SetImageViewSamplePatternIdx(
 // =====================================================================================================================
 // Returns the value for SQ_IMG_RSRC_WORD4.BC_SWIZZLE
 static TEX_BC_SWIZZLE GetBcSwizzle(
-    const ImageViewInfo&  imageViewInfo)
+    const ImageCreateInfo& imageCreateInfo)
 {
-    const ChannelMapping&  swizzle   = imageViewInfo.swizzledFormat.swizzle;
+    // GFX9+ applies image view swizzle to border color in hardware.
+    // The only thing we have to do is to apply swizzle to border color, which is specified as image format swizzle
+    // relative to RGBA format e.g. RAGB image format has a swizzle of XWYZ relative to RGBA.
+    const ChannelMapping&  swizzle   = imageCreateInfo.swizzledFormat.swizzle;
     TEX_BC_SWIZZLE         bcSwizzle = TEX_BC_Swizzle_XYZW;
 
-    if (swizzle.a == ChannelSwizzle::X)
+    const uint32 numComponents = Formats::NumComponents(imageCreateInfo.swizzledFormat.format);
+
+    // If the format has 3 or 4 components there is only one possible combination that matches
+    if (numComponents >= 3)
     {
-        // Have to use either TEX_BC_Swizzle_WZYX or TEX_BC_Swizzle_WXYZ
-        //
-        // For the pre-defined border color values (white, opaque black, transparent black), the only thing that
-        // matters is that the alpha channel winds up in the correct place (because the RGB channels are all the same)
-        // so either of these TEX_BC_Swizzle enumerations will work.  Not sure what happens with border color palettes.
-        if (swizzle.b == ChannelSwizzle::Y)
-        {
-            // ABGR
-            bcSwizzle = TEX_BC_Swizzle_WZYX;
-        }
-        else
-        {
-            // ARGB
-            bcSwizzle = TEX_BC_Swizzle_WXYZ;
-        }
-    }
-    else if (swizzle.r == ChannelSwizzle::X)
-    {
-        // Have to use either TEX_BC_Swizzle_XYZW or TEX_BC_Swizzle_XWYZ
-        if (swizzle.g == ChannelSwizzle::Y)
+        if ((swizzle.r == ChannelSwizzle::X) &&
+            (swizzle.g == ChannelSwizzle::Y) &&
+            (swizzle.b == ChannelSwizzle::Z))
         {
             // RGBA
             bcSwizzle = TEX_BC_Swizzle_XYZW;
         }
-        else
+        else if ((swizzle.r == ChannelSwizzle::X) &&
+                 (swizzle.a == ChannelSwizzle::Y) &&
+                 (swizzle.g == ChannelSwizzle::Z))
         {
             // RAGB
             bcSwizzle = TEX_BC_Swizzle_XWYZ;
         }
+        else if ((swizzle.a == ChannelSwizzle::X) &&
+                 (swizzle.b == ChannelSwizzle::Y) &&
+                 (swizzle.g == ChannelSwizzle::Z))
+        {
+            // ABGR
+            bcSwizzle = TEX_BC_Swizzle_WZYX;
+        }
+        else if ((swizzle.a == ChannelSwizzle::X) &&
+                 (swizzle.r == ChannelSwizzle::Y) &&
+                 (swizzle.g == ChannelSwizzle::Z))
+        {
+            // ARGB
+            bcSwizzle = TEX_BC_Swizzle_WXYZ;
+        }
+        else if ((swizzle.b == ChannelSwizzle::X) &&
+                 (swizzle.g == ChannelSwizzle::Y) &&
+                 (swizzle.r == ChannelSwizzle::Z))
+        {
+            // BGRA
+            bcSwizzle = TEX_BC_Swizzle_ZYXW;
+        }
+        else if ((swizzle.g == ChannelSwizzle::X) &&
+                 (swizzle.r == ChannelSwizzle::Y) &&
+                 (swizzle.a == ChannelSwizzle::Z))
+        {
+            // GRAB
+            bcSwizzle = TEX_BC_Swizzle_YXWZ;
+        }
     }
-    else if (swizzle.g == ChannelSwizzle::X)
+    // If the format has 2 components we have to match them and the remaining 2 can be in any order
+    else if (numComponents == 2)
     {
-        // GRAB, have to use TEX_BC_Swizzle_YXWZ
-        bcSwizzle = TEX_BC_Swizzle_YXWZ;
+        if ((swizzle.r == ChannelSwizzle::X) &&
+            (swizzle.g == ChannelSwizzle::Y))
+        {
+            // RGBA
+            bcSwizzle = TEX_BC_Swizzle_XYZW;
+        }
+        else if ((swizzle.r == ChannelSwizzle::X) &&
+                 (swizzle.a == ChannelSwizzle::Y))
+        {
+            // RAGB
+            bcSwizzle = TEX_BC_Swizzle_XWYZ;
+        }
+        else if ((swizzle.a == ChannelSwizzle::X) &&
+                 (swizzle.b == ChannelSwizzle::Y))
+        {
+            // ABGR
+            bcSwizzle = TEX_BC_Swizzle_WZYX;
+        }
+        else if ((swizzle.a == ChannelSwizzle::X) &&
+                 (swizzle.r == ChannelSwizzle::Y))
+        {
+            // ARGB
+            bcSwizzle = TEX_BC_Swizzle_WXYZ;
+        }
+        else if ((swizzle.b == ChannelSwizzle::X) &&
+                 (swizzle.g == ChannelSwizzle::Y))
+        {
+            // BGRA
+            bcSwizzle = TEX_BC_Swizzle_ZYXW;
+        }
+        else if ((swizzle.g == ChannelSwizzle::X) &&
+                 (swizzle.r == ChannelSwizzle::Y))
+        {
+            // GRAB
+            bcSwizzle = TEX_BC_Swizzle_YXWZ;
+        }
     }
-    else if (swizzle.b == ChannelSwizzle::X)
+    // If the format has 1 component we have to match it and the remaining 3 can be in any order
+    else
     {
-        // BGRA, have to use TEX_BC_Swizzle_ZYXW
-        bcSwizzle = TEX_BC_Swizzle_ZYXW;
+        if (swizzle.r == ChannelSwizzle::X)
+        {
+            // RGBA or RAGB
+            bcSwizzle = TEX_BC_Swizzle_XYZW;
+        }
+        else if (swizzle.g == ChannelSwizzle::X)
+        {
+            // GRAB
+            bcSwizzle = TEX_BC_Swizzle_YXWZ;
+        }
+        else if (swizzle.b == ChannelSwizzle::X)
+        {
+            // BGRA
+            bcSwizzle = TEX_BC_Swizzle_ZYXW;
+        }
+        else if (swizzle.a == ChannelSwizzle::X)
+		{
+            // ABGR or ARGB
+            bcSwizzle = TEX_BC_Swizzle_WXYZ;
+        }
     }
 
     return bcSwizzle;
@@ -2825,7 +2880,7 @@ void PAL_STDCALL Device::Gfx9CreateImageViewSrds(
         srd.word3.bits.DST_SEL_Y = Formats::Gfx9::HwSwizzle(viewInfo.swizzledFormat.swizzle.g);
         srd.word3.bits.DST_SEL_Z = Formats::Gfx9::HwSwizzle(viewInfo.swizzledFormat.swizzle.b);
         srd.word3.bits.DST_SEL_W = Formats::Gfx9::HwSwizzle(viewInfo.swizzledFormat.swizzle.a);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 586
+
         // We need to use D swizzle mode for writing an image with view3dAs2dArray feature enabled.
         // But when reading from it, we need to use S mode.
         // In AddrSwizzleMode, S mode is always right before D mode, so we simply do a "-1" here.
@@ -2837,7 +2892,6 @@ void PAL_STDCALL Device::Gfx9CreateImageViewSrds(
             srd.word3.bits.SW_MODE = pAddrMgr->GetHwSwizzleMode(view3dAs2dReadSwizzleMode);
         }
         else
-#endif
         {
             srd.word3.bits.SW_MODE = pAddrMgr->GetHwSwizzleMode(surfSetting.swizzleMode);
         }
@@ -2883,7 +2937,7 @@ void PAL_STDCALL Device::Gfx9CreateImageViewSrds(
         }
 
         srd.word4.bits.DEPTH      = ComputeImageViewDepth(viewInfo, imageInfo, *pBaseSubResInfo);
-        srd.word4.bits.BC_SWIZZLE = GetBcSwizzle(viewInfo);
+        srd.word4.bits.BC_SWIZZLE = GetBcSwizzle(imageCreateInfo);
 
         if (modifiedYuvExtents == false)
         {
@@ -3707,7 +3761,8 @@ void PAL_STDCALL Device::Gfx10CreateImageViewSrds(
         // TA_CNTL_AUX.DEPTH_AS_WIDTH_DIS = 0
         const uint32  bytesPerPixel = Formats::BytesPerPixel(format);
         const uint32  pitchInPixels = imageCreateInfo.rowPitch / bytesPerPixel;
-        if (IsGfx103(*pPalDevice)                    &&
+        if ((false ||
+            IsGfx103(*pPalDevice))                   &&
             (pitchInPixels > programmedExtent.width) &&
             ((srd.type == SQ_RSRC_IMG_1D) ||
              (srd.type == SQ_RSRC_IMG_2D) ||
@@ -3727,7 +3782,7 @@ void PAL_STDCALL Device::Gfx10CreateImageViewSrds(
             }
         }
 
-        srd.bc_swizzle = GetBcSwizzle(viewInfo);
+        srd.bc_swizzle = GetBcSwizzle(imageCreateInfo);
 
         srd.base_array         = baseArraySlice;
         srd.meta_pipe_aligned  = ((pMaskRam != nullptr) ? pMaskRam->PipeAligned() : 0);
@@ -4603,6 +4658,7 @@ void PAL_STDCALL Device::CreateBvhSrds(
         bvhSrd.type         = 0x8;
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 639
 #endif
+
         memcpy(VoidPtrInc(pOut, idx * sizeof(sq_bvh_rsrc_t)),
                &bvhSrd,
                sizeof(bvhSrd));
@@ -4742,6 +4798,7 @@ void InitializeGpuChipProperties(
     pInfo->gfxip.supportCaptureReplay    = 1;
 
     pInfo->gfxip.maxUserDataEntries      = MaxUserDataEntries;
+    pInfo->gfxip.supportsHwVs            = 1;
 
     if (IsGfx103Plus(pInfo->gfxLevel))
     {
@@ -4789,13 +4846,12 @@ void InitializeGpuChipProperties(
     pInfo->gfx9.supportShaderSubgroupClock = 1;
     pInfo->gfx9.supportShaderDeviceClock   = 1;
 
-    pInfo->gfx9.supportTextureGatherBiasLod = 1;
-
     if (IsGfx10(pInfo->gfxLevel))
     {
         pInfo->gfx9.supportAddrOffsetDumpAndSetShPkt = 1;
         pInfo->gfx9.supportAddrOffsetSetSh256Pkt     = (cpUcodeVersion >= Gfx10UcodeVersionSetShRegOffset256B);
         pInfo->gfx9.supportPostDepthCoverage         = 1;
+        pInfo->gfx9.supportTextureGatherBiasLod      = 1;
 
         pInfo->gfx9.numShaderArrays         = 2;
         pInfo->gfx9.numSimdPerCu            = Gfx10NumSimdPerCu;
@@ -4816,6 +4872,7 @@ void InitializeGpuChipProperties(
     {
         pInfo->gfx9.supportAddrOffsetDumpAndSetShPkt = (cpUcodeVersion >= UcodeVersionWithDumpOffsetSupport);
         pInfo->gfx9.supportAddrOffsetSetSh256Pkt     = (cpUcodeVersion >= Gfx9UcodeVersionSetShRegOffset256B);
+        pInfo->gfx9.supportTextureGatherBiasLod      = 1;
 
         pInfo->gfx9.numShaderArrays         = 1;
         pInfo->gfx9.numSimdPerCu            = Gfx9NumSimdPerCu;
@@ -5553,7 +5610,7 @@ uint16 Device::GetBaseUserDataReg(
         baseUserDataReg = CmdUtil().GetRegInfo().mmUserDataStartGsShaderStage;
         break;
     case HwShaderStage::Vs:
-        baseUserDataReg = Gfx09_10::mmSPI_SHADER_USER_DATA_VS_0;
+        baseUserDataReg = HasHwVs::mmSPI_SHADER_USER_DATA_VS_0;
         break;
     case HwShaderStage::Ps:
         baseUserDataReg = mmSPI_SHADER_USER_DATA_PS_0;
@@ -7603,7 +7660,7 @@ void Device::AssertUserAccumRegsDisabled(
     if (Parent()->ChipProperties().gfx9.supportSpiPrefPriority)
     {
         // These registers all have the same layout across all shader stages and accumulators.
-        regSPI_SHADER_USER_ACCUM_VS_0 regValues[4] = {};
+        regSPI_SHADER_USER_ACCUM_PS_0 regValues[4] = {};
 
         registers.HasEntry(firstRegAddr,     &regValues[0].u32All);
         registers.HasEntry(firstRegAddr + 1, &regValues[1].u32All);

@@ -590,10 +590,10 @@ public:
         uint32  startRegAddr,
         uint32  count,
         void*   pBuffer) const;
-    static size_t BuildLoadContextRegsIndex(
+    size_t BuildLoadContextRegsIndex(
         gpusize gpuVirtAddr,
         uint32  count,
-        void*   pBuffer);
+        void*   pBuffer) const;
 
     static size_t BuildLoadConstRam(
         gpusize srcGpuAddr,
@@ -613,18 +613,11 @@ public:
         uint32        count,
         Pm4ShaderType shaderType,
         void*         pBuffer);
-    template <bool directAddress>
     size_t BuildLoadShRegsIndex(
-        gpusize       gpuVirtAddrOrAddrOffset,
-        uint32        startRegAddr,
-        uint32        count,
-        Pm4ShaderType shaderType,
-        void*         pBuffer) const;
-    static size_t BuildLoadShRegsIndex(
         gpusize       gpuVirtAddr,
         uint32        count,
         Pm4ShaderType shaderType,
-        void*         pBuffer);
+        void*         pBuffer) const;
 
     static size_t BuildLoadUserConfigRegs(
         gpusize              gpuVirtAddr,
@@ -634,13 +627,11 @@ public:
 
     static size_t BuildNop(size_t numDwords, void* pBuffer);
 
-    static size_t BuildNumInstances(uint32 instanceCount, void* pBuffer);
+    size_t BuildNumInstances(uint32 instanceCount, void* pBuffer) const;
 
     static size_t BuildOcclusionQuery(gpusize queryMemAddr, gpusize dstMemAddr, void* pBuffer);
 
     static size_t BuildPfpSyncMe(void* pBuffer);
-
-    static size_t BuildPreambleCntl(ME_PREAMBLE_CNTL_command_enum command, void* pBuffer);
 
     static size_t BuildPrimeUtcL2(
         gpusize gpuAddr,

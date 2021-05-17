@@ -673,7 +673,7 @@
       "Name": "HtileEnable"
     },
     {
-      "Description": "If true, the ITERATE_256 bit will always be set (safe setting).  Pertains to GFX10 only",
+      "Description": "If true, the ITERATE_256 bit will always be set and iterate256 optimization will be disabled. Pertains to GFX10 only",
       "Tags": [
         "Depth/Stencil",
         "Gfx9"
@@ -683,8 +683,8 @@
       },
       "Scope": "PrivatePalGfx9Key",
       "Type": "bool",
-      "VariableName": "forceEnableIterate256",
-      "Name": "ForceEnableIterate256"
+      "VariableName": "disableIterate256Opt",
+      "Name": "DisableIterate256Opt"
     },
     {
       "Description": "If true, allow depth copy resolve.",

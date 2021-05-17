@@ -61,10 +61,8 @@ public:
 
     const ComputePipelineSignature& Signature() const { return m_signature; }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 580
     virtual void SetStackSizeInBytes(
         uint32 stackSizeInBytes) override;
-#endif
 
 protected:
     virtual Result HwlInit(

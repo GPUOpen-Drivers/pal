@@ -85,10 +85,8 @@ public:
         const IShaderLibrary*const* ppLibraryList,
         uint32                      libraryCount) override;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 580
     virtual void SetStackSizeInBytes(
         uint32 stackSizeInBytes) override;
-#endif
 
     bool DisablePartialPreempt() const { return m_disablePartialPreempt; }
 

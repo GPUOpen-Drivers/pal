@@ -490,6 +490,20 @@ int32 Dri3WindowSystem::OpenDri3()
         }
     }
 
+    if (m_device.Settings().forcePresentViaCpuBlt)
+    {
+        m_graphicsContext = m_dri3Procs.pfnXcbGenerateId(m_pConnection);
+
+        const xcb_void_cookie_t gcCookie = m_dri3Procs.pfnXcbCreateGcChecked(m_pConnection,
+                                                                             m_graphicsContext,
+                                                                             m_hWindow,
+                                                                             0,
+                                                                             nullptr);
+
+        xcb_generic_error_t*const pError = m_dri3Procs.pfnXcbRequestCheck(m_pConnection, gcCookie);
+        PAL_ASSERT(pError == nullptr);
+    }
+
     return fd;
 }
 
@@ -637,6 +651,16 @@ Result Dri3WindowSystem::CreatePresentableImage(
     if (result == Result::Success)
     {
         xcb_void_cookie_t cookie = {};
+        if (m_device.Settings().forcePresentViaCpuBlt)
+        {
+            cookie = m_dri3Procs.pfnXcbCreatePixmapChecked(m_pConnection,
+                                                           m_depth,
+                                                           pixmap,
+                                                           m_hWindow,
+                                                           width,
+                                                           height);
+        }
+        else
         {
             cookie = m_dri3Procs.pfnXcbDri3PixmapFromBufferChecked(m_pConnection,
                                                                    pixmap,
@@ -707,20 +731,77 @@ Result Dri3WindowSystem::Present(
     PresentMode            presentMode    = presentInfo.presentMode;
     PAL_ASSERT((pDri3IdleFence == nullptr) || (m_dri3Procs.pfnXshmfenceQuery(pDri3IdleFence->ShmFence()) == 0));
 
+    if (m_device.Settings().forcePresentViaCpuBlt)
+    {
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
+        SubresId subres = pSrcImage->GetBaseSubResource();
+        const SubResourceInfo* pSubresInfo = pSrcImage->SubresourceInfo(subres);
+#else
+        const SubResourceInfo* pSubresInfo = pSrcImage->SubresourceInfo(0);
+#endif
+
+        // The gpu memory size may be padded out; get the size without padding.
+        PAL_ASSERT((pSubresInfo->bitsPerTexel % 8) == 0); // Does this even happen?
+        const size_t bufferSize = pSubresInfo->extentTexels.width *
+                                  pSubresInfo->extentTexels.height *
+                                  pSubresInfo->bitsPerTexel / 8;
+
+        // X11 only allows software presents from a linear image, which should have previously been
+        // copied into this 'presentable buffer'.
+        void* pPresentBuf = nullptr;
+
+        if (result == Result::Success)
+        {
+            PAL_ASSERT(pSrcImage->GetPresentableBuffer() != nullptr);
+            PAL_ASSERT(pSrcImage->GetPresentableBuffer()->Desc().size >= bufferSize);
+            result = pSrcImage->GetPresentableBuffer()->Map(&pPresentBuf);
+        }
+
+        if (result == Result::Success)
+        {
+            // If soft present is enabled, the pixmap isn't really GPU memory and doesn't already have the image data
+
+            // This essentially means we have three allocations:
+            //   - The image's original memory in its swizzled form
+            //   - The linear GPU memory that we previously converted to (updated in DoCpuPresentBlit)
+            //   - The X11-managed CPU memory backing the pixmap (updated here)
+            const xcb_void_cookie_t cpuBltCookie = m_dri3Procs.pfnXcbPutImageChecked(m_pConnection,
+                    XCB_IMAGE_FORMAT_Z_PIXMAP, // Format is in, eg., RGBRGBRGB vs RRRGGGBBB
+                    pixmap,
+                    m_graphicsContext,
+                    pSubresInfo->extentTexels.width,
+                    pSubresInfo->extentTexels.height,
+                    0, // dstX
+                    0, // dstY
+                    0, // leftPad
+                    m_depth,
+                    bufferSize,
+                    static_cast<const uint8*>(pPresentBuf));
+
+            xcb_generic_error_t*const pCpuBltError = m_dri3Procs.pfnXcbRequestCheck(m_pConnection, cpuBltCookie);
+            if (pCpuBltError != nullptr)
+            {
+                PAL_ASSERT_ALWAYS();
+                free(pCpuBltError);
+                result = Result::ErrorUnknown;
+            }
+        }
+
+        if (pPresentBuf != nullptr)
+        {
+            Result tmpResult = pSrcImage->GetPresentableBuffer()->Unmap();
+            // If it fails to unmap, still succeed the whole present call
+            PAL_ASSERT(tmpResult == Result::Success);
+        }
+    }
+
     if (result == Result::Success)
     {
         // The setting below means if XCB_PRESENT_OPTION_ASYNC is set, display the image immediately, otherwise display
         // the image on next vblank.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 582
         uint64 targetMsc            = presentInfo.mscInfo.targetMsc;
         uint64 remainder            = presentInfo.mscInfo.remainder;
         uint64 divisor              = presentInfo.mscInfo.divisor;
-#else
-        uint64 targetMsc  = 0;
-        uint64 remainder  = 0;
-        uint64 divisor    = 1;
-#endif
-
         uint32 options = XCB_PRESENT_OPTION_NONE;
 
         if (presentMode == PresentMode::Windowed)

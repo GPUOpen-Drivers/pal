@@ -463,7 +463,6 @@ public:
         return GetNextLayer()->GetUsedSize(type);
     }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 554
     virtual void CmdResolvePrtPlusImage(
         const IImage&                    srcImage,
         ImageLayout                      srcImageLayout,
@@ -472,7 +471,6 @@ public:
         PrtPlusResolveType               resolveType,
         uint32                           regionCount,
         const PrtPlusImageResolveRegion* pRegions) override;
-#endif
 
     // Public IDestroyable interface methods:
     virtual void Destroy() override;

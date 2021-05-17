@@ -533,12 +533,8 @@ Result CmdUploadRing::UploadCmdBuffers(
         MultiSubmitInfo submitInfo            = {};
         submitInfo.perSubQueueInfoCount       = 1;
         submitInfo.pPerSubQueueInfo           = &perSubQueueInfo;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 568
         submitInfo.ppFences                   = &pCopy->pFence;
         submitInfo.fenceCount                 = 1;
-#else
-        submitInfo.pFence                     = pCopy->pFence;
-#endif
 
         // Note that we're responsible for adding all command memory read by the upload queue to the per-submit memory
         // reference list. On platforms that do not have this feature the caller must guarantee residency. It is

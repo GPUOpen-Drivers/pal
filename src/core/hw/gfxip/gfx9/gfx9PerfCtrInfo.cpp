@@ -1797,8 +1797,8 @@ static void Gfx10InitBasicBlockInfo(
     pUtcl1->maxEventId                = maxIds[UTCL1PerfSelId];
 
     pUtcl1->regAddr = { 0, {
-        { mmUTCL1_PERFCOUNTER0_SELECT, 0, Gfx10::mmUTCL1_PERFCOUNTER0_LO, Gfx10::mmUTCL1_PERFCOUNTER0_HI },
-        { mmUTCL1_PERFCOUNTER1_SELECT, 0, Gfx10::mmUTCL1_PERFCOUNTER1_LO, Gfx10::mmUTCL1_PERFCOUNTER1_HI },
+        { Gfx10::mmUTCL1_PERFCOUNTER0_SELECT, 0, Gfx10::mmUTCL1_PERFCOUNTER0_LO, Gfx10::mmUTCL1_PERFCOUNTER0_HI },
+        { Gfx10::mmUTCL1_PERFCOUNTER1_SELECT, 0, Gfx10::mmUTCL1_PERFCOUNTER1_LO, Gfx10::mmUTCL1_PERFCOUNTER1_HI },
     }};
 
     // The GUS and the blocks that exist to service it should exist as a unit. They are present on all gfx10.1 ASICs.

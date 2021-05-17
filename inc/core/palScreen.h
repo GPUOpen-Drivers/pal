@@ -101,9 +101,6 @@ enum ScreenColorSpace : uint32
     CsScrgb          = 0x040000,  ///< HDR standard: scRGB non-linear format (Microsoft)
     CsUserDefined    = 0x080000,  ///< HDR standard: User defined
     CsNative         = 0x100000,  ///< HDR standard: Panel Native (AMD FreeSync 2)
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 590
-    CsFreeSync2      = 0x100000,  ///< HDR standard: AMD FreeSync 2
-#endif
 };
 
 /// Specifies properties for use with IScreen::GetColorCapabilties()

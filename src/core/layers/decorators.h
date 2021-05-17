@@ -2046,7 +2046,6 @@ public:
         return m_pNextLayer->GetUsedSize(type);
     }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 554
     virtual void CmdResolvePrtPlusImage(
         const IImage&                    srcImage,
         ImageLayout                      srcImageLayout,
@@ -2064,7 +2063,6 @@ public:
                                              regionCount,
                                              pRegions);
     }
-#endif
 
     // Part of the IDestroyable public interface.
     virtual void Destroy() override
@@ -2694,10 +2692,8 @@ public:
         const IShaderLibrary*const* ppLibraryList,
         uint32                      libraryCount) override;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 580
     virtual void SetStackSizeInBytes(uint32 stackSizeInBytes) override
         { m_pNextLayer->SetStackSizeInBytes(stackSizeInBytes); }
-#endif
 
     virtual Result QueryAllocationInfo(size_t* pNumEntries, GpuMemSubAllocInfo* const pAllocInfoList) const override
         { return m_pNextLayer->QueryAllocationInfo(pNumEntries, pAllocInfoList); }

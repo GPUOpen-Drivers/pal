@@ -1083,7 +1083,6 @@ void RsrcProcMgr::HwlFixupCopyDstImageMetaData(
     bool                    isFmaskCopyOptimized
     ) const
 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 562
     const auto&  gfx6DstImage = static_cast<const Gfx6::Image&>(*dstImage.GetGfxImage());
 
     // FMASK optimized MSAA copy isn't supported on gfx6/7/8.
@@ -1154,7 +1153,6 @@ void RsrcProcMgr::HwlFixupCopyDstImageMetaData(
             ClearFmask(pCmdBuffer, gfx6DstImage, range, Gfx6Fmask::GetPackedExpandedValue(gfx6DstImage));
         }
     }
-#endif
 }
 
 // =====================================================================================================================

@@ -28,6 +28,7 @@
 #include "core/layers/gpuDebug/gpuDebugCmdBuffer.h"
 #include "core/layers/gpuDebug/gpuDebugColorBlendState.h"
 #include "core/layers/gpuDebug/gpuDebugColorTargetView.h"
+#include "core/layers/gpuDebug/gpuDebugDepthStencilView.h"
 #include "core/layers/gpuDebug/gpuDebugDevice.h"
 #include "core/layers/gpuDebug/gpuDebugImage.h"
 #include "core/layers/gpuDebug/gpuDebugPipeline.h"
@@ -549,6 +550,42 @@ Result Device::CreateColorTargetView(
         pNextView->SetClientData(pPlacementAddr);
 
         (*ppColorTargetView) = PAL_PLACEMENT_NEW(pPlacementAddr) ColorTargetView(pNextView, createInfo, this);
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
+size_t Device::GetDepthStencilViewSize(
+    Result* pResult
+    ) const
+{
+    return m_pNextLayer->GetDepthStencilViewSize(pResult) + sizeof(DepthStencilView);
+}
+
+// =====================================================================================================================
+Result Device::CreateDepthStencilView(
+    const DepthStencilViewCreateInfo& createInfo,
+    void*                             pPlacementAddr,
+    IDepthStencilView**               ppDepthStencilView
+    ) const
+{
+    IDepthStencilView* pNextView = nullptr;
+
+    DepthStencilViewCreateInfo nextCreateInfo = createInfo;
+
+    nextCreateInfo.pImage = NextImage(createInfo.pImage);
+
+    Result result = m_pNextLayer->CreateDepthStencilView(nextCreateInfo,
+                                                         NextObjectAddr<DepthStencilView>(pPlacementAddr),
+                                                         &pNextView);
+
+    if (result == Result::Success)
+    {
+        PAL_ASSERT(pNextView != nullptr);
+        pNextView->SetClientData(pPlacementAddr);
+
+        (*ppDepthStencilView) = PAL_PLACEMENT_NEW(pPlacementAddr) DepthStencilView(pNextView, createInfo, this);
     }
 
     return result;

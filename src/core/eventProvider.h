@@ -112,6 +112,8 @@ public:
     const void* GetEventDescriptionData()     const override;
     uint32      GetEventDescriptionDataSize() const override;
 
+    virtual void OnEnable() override;
+
     // End of BaseEventProvider overrides
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -139,6 +141,7 @@ private:
     EventService               m_eventService;
     DevDriver::EventTimer      m_eventTimer;
     DevDriver::Platform::Mutex m_providerLock;
+    bool                       m_logRmtVersion;
 
     PAL_DISALLOW_COPY_AND_ASSIGN(EventProvider);
 };

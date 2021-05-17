@@ -718,10 +718,8 @@ void BuildRawBufferViewInfo(
     pInfo->range          = bufferMemory.Desc().size - byteOffset;
     pInfo->stride         = 1;
     pInfo->swizzledFormat = UndefinedSwizzledFormat;
-#if  PAL_CLIENT_INTERFACE_MAJOR_VERSION>= 558
     pInfo->flags.bypassMallRead  = TestAnyFlagSet(settings.rpmViewsBypassMall, Gfx10RpmViewsBypassMallOnRead);
     pInfo->flags.bypassMallWrite = TestAnyFlagSet(settings.rpmViewsBypassMall, Gfx10RpmViewsBypassMallOnWrite);
-#endif
 }
 
 // =====================================================================================================================
@@ -739,10 +737,8 @@ void BuildRawBufferViewInfo(
     pInfo->range          = range;
     pInfo->stride         = 1;
     pInfo->swizzledFormat = UndefinedSwizzledFormat;
-#if  PAL_CLIENT_INTERFACE_MAJOR_VERSION>= 558
     pInfo->flags.bypassMallRead  = TestAnyFlagSet(settings.rpmViewsBypassMall, Gfx10RpmViewsBypassMallOnRead);
     pInfo->flags.bypassMallWrite = TestAnyFlagSet(settings.rpmViewsBypassMall, Gfx10RpmViewsBypassMallOnWrite);
-#endif
 }
 
 // =====================================================================================================================
@@ -775,10 +771,8 @@ void BuildImageViewInfo(
     pInfo->texOptLevel          = texOptLevel;
     pInfo->possibleLayouts      = imgLayout;
 
-#if  PAL_CLIENT_INTERFACE_MAJOR_VERSION>= 558
     pInfo->flags.bypassMallRead  = TestAnyFlagSet(settings.rpmViewsBypassMall, Gfx10RpmViewsBypassMallOnRead);
     pInfo->flags.bypassMallWrite = TestAnyFlagSet(settings.rpmViewsBypassMall, Gfx10RpmViewsBypassMallOnWrite);
-#endif
 }
 
 // =====================================================================================================================

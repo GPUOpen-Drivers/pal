@@ -102,10 +102,8 @@ constexpr VGT_DI_PRIM_TYPE TopologyToPrimTypeTable[] =
     DI_PT_TRISTRIP_ADJ,     // TriangleStripAdj
     DI_PT_PATCH,            // Patch
     DI_PT_TRIFAN,           // TriangleFan
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 557
     DI_PT_LINELOOP,         // LineLoop
     DI_PT_POLYGON,          // Polygon
-#endif
 };
 
 // The DB_RENDER_OVERRIDE fields owned by the graphics pipeline.
@@ -288,7 +286,6 @@ UniversalCmdBuffer::UniversalCmdBuffer(
     m_log2NumSes(Log2(m_device.Parent()->ChipProperties().gfx9.numShaderEngines)),
     m_log2NumRbPerSe(Log2(m_device.Parent()->ChipProperties().gfx9.maxNumRbPerSe)),
     m_hasWaMiscPopsMissedOverlapBeenApplied(false),
-    m_pbbStateOverride(BinningOverride::Default),
     m_enabledPbb(false),
     m_customBinSizeX(0),
     m_customBinSizeY(0),
@@ -327,9 +324,6 @@ UniversalCmdBuffer::UniversalCmdBuffer(
     m_cachedSettings.tossPointMode              = static_cast<uint32>(coreSettings.tossPointMode);
     m_cachedSettings.hiDepthDisabled            = !settings.hiDepthEnable;
     m_cachedSettings.hiStencilDisabled          = !settings.hiStencilEnable;
-    m_cachedSettings.disableBatchBinning        = (settings.binningMode == Gfx9DeferredBatchBinDisabled);
-    m_cachedSettings.disablePbbPsKill           = settings.disableBinningPsKill;
-    m_cachedSettings.disablePbbAppendConsume    = settings.disableBinningAppendConsume;
     m_cachedSettings.ignoreCsBorderColorPalette = settings.disableBorderColorPaletteBinds;
     m_cachedSettings.blendOptimizationsEnable   = settings.blendOptimizationsEnable;
     m_cachedSettings.outOfOrderPrimsEnable      = static_cast<uint32>(settings.enableOutOfOrderPrimitives);
@@ -462,10 +456,10 @@ UniversalCmdBuffer::UniversalCmdBuffer(
     // GFX10 moves the RESET_EN functionality to a new register called GE_MULTI_PRIM_IB_RESET_EN.  Verify that
     // the GFX10 register has the exact same layout as the GFX9 register to eliminate the need for run-time "if"
     // statements to verify which Gfx level the active device uses.
-    static_assert(Gfx09_10::VGT_MULTI_PRIM_IB_RESET_EN__MATCH_ALL_BITS_MASK ==
+    static_assert(Gfx09::VGT_MULTI_PRIM_IB_RESET_EN__MATCH_ALL_BITS_MASK ==
                   Gfx10Plus::GE_MULTI_PRIM_IB_RESET_EN__MATCH_ALL_BITS_MASK,
                   "MATCH_ALL_BITS bits are not in the same place on GFX9 and GFX10!");
-    static_assert(Gfx09_10::VGT_MULTI_PRIM_IB_RESET_EN__RESET_EN_MASK ==
+    static_assert(Gfx09::VGT_MULTI_PRIM_IB_RESET_EN__RESET_EN_MASK ==
                   Gfx10Plus::GE_MULTI_PRIM_IB_RESET_EN__RESET_EN_MASK,
                   "RESET_EN bits are not in the same place on GFX9 and GFX10!");
 
@@ -673,7 +667,7 @@ void UniversalCmdBuffer::ResetState()
 
     Extent2d binSize = {};
     m_pbbCntlRegs.paScBinnerCntl0.bits.BINNING_MODE = GetDisableBinningSetting(&binSize);
-    if ((binSize.width != 0) && (binSize.height != 0))
+    if (binSize.width != 0)
     {
         if (binSize.width == 16)
         {
@@ -2176,9 +2170,9 @@ void UniversalCmdBuffer::CmdBindStreamOutTargets(
         }
 
         {
-            constexpr uint32 RegStride = (Gfx09_10::mmVGT_STRMOUT_BUFFER_SIZE_1 -
-                                          Gfx09_10::mmVGT_STRMOUT_BUFFER_SIZE_0);
-            pDeCmdSpace = m_deCmdStream.WriteSetOneContextReg(Gfx09_10::mmVGT_STRMOUT_BUFFER_SIZE_0 + (RegStride * idx),
+            constexpr uint32 RegStride = (HasHwVs::mmVGT_STRMOUT_BUFFER_SIZE_1 -
+                                          HasHwVs::mmVGT_STRMOUT_BUFFER_SIZE_0);
+            pDeCmdSpace = m_deCmdStream.WriteSetOneContextReg(HasHwVs::mmVGT_STRMOUT_BUFFER_SIZE_0 + (RegStride * idx),
                                                               bufferSize,
                                                               pDeCmdSpace);
         }
@@ -4196,6 +4190,23 @@ Result UniversalCmdBuffer::AddPostamble()
 
     uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
 
+    if ((IsOneTimeSubmit() == false) && (m_gangedCmdStreamSemAddr != 0))
+    {
+        // If the memory contains any value, it is possible that with the ACE running ahead, it could get a value
+        // for this semaphore which is >= the number it is waiting for and then just continue ahead before GFX has
+        // a chance to write it to 0.
+        // To handle the case where we reuse a command buffer entirely, we'll have to perform a GPU-side write of this
+        // memory in the postamble.
+        constexpr uint32 SemZero = 0;
+
+        WriteDataInfo writeData = {};
+        writeData.engineType    = GetEngineType();
+        writeData.dstAddr       = m_gangedCmdStreamSemAddr;
+        writeData.engineSel     = engine_sel__me_write_data__micro_engine;
+        writeData.dstSel        = dst_sel__pfp_write_data__memory;
+        pDeCmdSpace            += CmdUtil::BuildWriteData(writeData, 1, &SemZero, pDeCmdSpace);
+    }
+
     if (m_gfxCmdBufState.flags.cpBltActive)
     {
         // Stalls the CP ME until the CP's DMA engine has finished all previous "CP blts" (DMA_DATA commands
@@ -4352,14 +4363,12 @@ void UniversalCmdBuffer::WriteEventCmd(
         // HwPipePostBlt barrier optimization
         pipePoint = OptimizeHwPipePostBlit();
     }
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 577
     else if (pipePoint == HwPipePreColorTarget)
     {
         // HwPipePreColorTarget is only valid as wait point. But for the sake of robustness, if it's used as pipe
         // point to wait on, it's equivalent to HwPipePostPs.
         pipePoint = HwPipePostPs;
     }
-#endif
 
     // Prepare packet build info structs.
     WriteDataInfo writeData = {};
@@ -5586,7 +5595,7 @@ uint32* UniversalCmdBuffer::ValidateDraw(
     // Re-calculate paScModeCntl1 value if state contributing to the register has changed.
     if (PipelineDirty ||
         (StateDirty && (dirtyFlags.depthStencilState || dirtyFlags.colorBlendState || dirtyFlags.depthStencilView ||
-                        dirtyFlags.queryState || dirtyFlags.triangleRasterState ||
+                        dirtyFlags.occlusionQueryActive || dirtyFlags.triangleRasterState ||
                         (m_drawTimeHwState.valid.paScModeCntl1 == 0))))
     {
         paScModeCntl1 = pPipeline->PaScModeCntl1();
@@ -5611,7 +5620,7 @@ uint32* UniversalCmdBuffer::ValidateDraw(
     }
 
     regDB_COUNT_CONTROL dbCountControl = m_drawTimeHwState.dbCountControl;
-    if (StateDirty && (dirtyFlags.msaaState || dirtyFlags.queryState))
+    if (StateDirty && (dirtyFlags.msaaState || dirtyFlags.occlusionQueryActive))
     {
         // MSAA sample rates are associated with the MSAA state object, but the sample rate affects how queries are
         // processed (via DB_COUNT_CONTROL). We need to update the value of this register at draw-time since it is
@@ -5716,31 +5725,22 @@ uint32* UniversalCmdBuffer::ValidateDraw(
     }
 
     // We shouldn't rewrite the PBB bin sizes unless at least one of these state objects has changed
-    if (PipelineDirty || (StateDirty && (dirtyFlags.colorBlendState   ||
-                                         dirtyFlags.colorTargetView   ||
+    if (PipelineDirty || (StateDirty && (dirtyFlags.colorTargetView   ||
                                          dirtyFlags.depthStencilView  ||
-                                         dirtyFlags.depthStencilState ||
-                                         dirtyFlags.msaaState)))
+                                         dirtyFlags.depthStencilState)))
     {
+        bool shouldEnablePbb = m_enabledPbb;
         // Accessing pipeline state in this function is usually a cache miss, so avoid function call
         // when only when pipeline has changed.
         if (PipelineDirty)
         {
-            m_pbbStateOverride = pPipeline->GetBinningOverride();
-        }
-        bool shouldEnablePbb = (m_pbbStateOverride == BinningOverride::Enable);
-
-        if (m_pbbStateOverride == BinningOverride::Default)
-        {
-            shouldEnablePbb = ShouldEnablePbb(*pPipeline, pDepthState, pMsaaState);
+            shouldEnablePbb = pPipeline->BinningAllowed();
         }
 
         // Reset binner state unless it used to be off and remains off.  If it was on and remains on, it is possible
         // the ideal bin sizes will change, so we must revalidate.
-        if (m_enabledPbb || shouldEnablePbb
-              // optimal gfx10 bin sizes are determined from render targets both when PBB is enabled or disabled
-              || IsGfx10(m_gfxIpLevel)
-            )
+        // Optimal gfx10 bin sizes are determined from render targets both when PBB is enabled or disabled
+        if (m_enabledPbb || shouldEnablePbb || IsGfx10(m_gfxIpLevel))
         {
             m_enabledPbb = shouldEnablePbb;
             pDeCmdSpace  = ValidateBinSizes<Pm4OptImmediate, IsNgg>(pDeCmdSpace);
@@ -5825,7 +5825,7 @@ uint32* UniversalCmdBuffer::ValidateDraw(
 
     // Validate primitive restart enable.  Primitive restart should only apply for indexed draws, but on gfx9,
     // VGT also applies it to auto-generated vertex index values.
-    m_vgtMultiPrimIbResetEn.bits.RESET_EN =
+    m_vgtMultiPrimIbResetEn.most.RESET_EN =
         static_cast<uint32>(Indexed && m_graphicsState.inputAssemblyState.primitiveRestartEnable);
 
     // Validate the per-draw HW state.
@@ -6319,7 +6319,7 @@ bool UniversalCmdBuffer::SetPaScBinnerCntl01(
     m_pbbCntlRegs.paScBinnerCntl1.bits.MAX_PRIM_PER_BATCH = m_cachedPbbSettings.maxPrimPerBatch;
 
     // If the reported bin sizes are zero, then disable binning
-    if ((pBinSize->width == 0) || (pBinSize->height == 0))
+    if (pBinSize->width == 0)
     {
         // Note, GetDisableBinningSetting() will update pBinSize if required for binning mode
         m_pbbCntlRegs.paScBinnerCntl0.bits.BINNING_MODE = GetDisableBinningSetting(pBinSize);
@@ -6329,8 +6329,13 @@ bool UniversalCmdBuffer::SetPaScBinnerCntl01(
         m_pbbCntlRegs.paScBinnerCntl0.bits.BINNING_MODE = BINNING_ALLOWED;
     }
 
+    // Valid bin sizes require width and height to both be zero or both be non-zero.
+    PAL_ASSERT(
+        ((pBinSize->width == 0) && (pBinSize->height == 0)) ||
+        ((pBinSize->width >  0) && (pBinSize->height >  0)));
+
     // If bin size is non-zero, then set the size properties
-    if ((pBinSize->width != 0) && (pBinSize->height != 0))
+    if (pBinSize->width != 0)
     {
         if (pBinSize->width == 16)
         {
@@ -6357,46 +6362,6 @@ bool UniversalCmdBuffer::SetPaScBinnerCntl01(
 
     return ((prevPaScBinnerCntl0.u32All != m_pbbCntlRegs.paScBinnerCntl0.u32All) ||
             (prevPaScBinnerCntl1.u32All != m_pbbCntlRegs.paScBinnerCntl1.u32All));
-}
-
-// =====================================================================================================================
-bool UniversalCmdBuffer::ShouldEnablePbb(
-    const GraphicsPipeline&  pipeline,
-    const DepthStencilState* pDepthState,
-    const MsaaState*         pMsaaState
-    ) const
-{
-    bool disableBinning = true;
-
-    if (m_cachedSettings.disableBatchBinning == 0)
-    {
-        // To improve performance we may wish to disable binning depending on the following logic.
-
-        // Whether or not we can disable binning based on the pixel shader, MSAA states, and write-bound.
-        // For MSAA, its ALPHA_TO_MASK_ENABLE bit is controlled by ALPHA_TO_MASK_DISABLE field of pipeline state's
-        // DB_SHADER_CONTROL register, so we should check that bit instead.
-        const auto*  pDepthView =
-            static_cast<const DepthStencilView*>(m_graphicsState.bindTargets.depthTarget.pDepthStencilView);
-        const bool canKill      = pipeline.PsTexKill() ||
-                                  ((pMsaaState != nullptr) &&
-                                   (pMsaaState->Log2NumSamples() != 0) && pipeline.IsAlphaToMaskEnable());
-        const bool canReject    = pipeline.PsCanTriviallyReject();
-        const bool isWriteBound = (pDepthState != nullptr) &&
-                                  (pDepthView  != nullptr) &&
-                                  ((pDepthState->IsDepthWriteEnabled() && (pDepthView->ReadOnlyDepth() == false)) ||
-                                   (pDepthState->IsStencilWriteEnabled() && (pDepthView->ReadOnlyStencil() == false)));
-
-        const bool psKill       = (m_cachedSettings.disablePbbPsKill && canKill && canReject && isWriteBound);
-
-        // Whether we can disable binning based on if PS uses append and consume. Performance investigation has
-        // found that the way binning affects the append/consume ordering hurts performance a lot.
-        const bool appendConsumeEnabled = m_cachedSettings.disablePbbAppendConsume &&
-                                          (pipeline.PsUsesAppendConsume() == 1);
-
-        disableBinning = psKill || appendConsumeEnabled;
-    }
-
-    return (disableBinning == false);
 }
 
 // =====================================================================================================================
@@ -6437,6 +6402,12 @@ uint32* UniversalCmdBuffer::ValidateBinSizes(
             const uint32 depthArea = depthBinSize.width * depthBinSize.height;
 
             binSize = (colorArea < depthArea) ? colorBinSize : depthBinSize;
+
+            // We may calculate a bin size of 0, which means disable PBB
+            if (binSize.width == 0)
+            {
+                m_enabledPbb = false;
+            }
         }
     }
 
@@ -7143,7 +7114,7 @@ uint32* UniversalCmdBuffer::ValidateDrawTimeHwState(
             m_drawTimeHwState.numInstances       = drawInfo.instanceCount;
             m_drawTimeHwState.valid.numInstances = 1;
 
-            pDeCmdSpace += CmdUtil::BuildNumInstances(drawInfo.instanceCount, pDeCmdSpace);
+            pDeCmdSpace += m_device.CmdUtil().BuildNumInstances(drawInfo.instanceCount, pDeCmdSpace);
         }
     }
 
@@ -7354,6 +7325,7 @@ void UniversalCmdBuffer::AddQuery(
             PAL_ASSERT_ALWAYS();
         }
     }
+
 }
 
 // =====================================================================================================================
@@ -7537,7 +7509,7 @@ void UniversalCmdBuffer::DeactivateQueryType(
     case QueryPoolType::Occlusion:
         // The value of DB_COUNT_CONTROL depends on both the active occlusion queries and the bound MSAA state
         // object, so we validate it at draw-time.
-        m_graphicsState.dirtyFlags.validationBits.queryState = 1;
+        m_graphicsState.dirtyFlags.validationBits.occlusionQueryActive = 1;
         break;
 
     default:
@@ -7575,7 +7547,7 @@ void UniversalCmdBuffer::ActivateQueryType(
     case QueryPoolType::Occlusion:
         // The value of DB_COUNT_CONTROL depends on both the active occlusion queries and the bound MSAA state
         // object, so we validate it at draw-time.
-        m_graphicsState.dirtyFlags.validationBits.queryState = 1;
+        m_graphicsState.dirtyFlags.validationBits.occlusionQueryActive = 1;
         break;
 
     default:
@@ -7641,7 +7613,9 @@ uint32* UniversalCmdBuffer::UpdateDbCountControl(
         // Setting PERFECT_ZPASS_COUNTS = 1 forces tile generation and reliable binary occlusion query results.
         pDbCountControl->bits.PERFECT_ZPASS_COUNTS    = 1;
         pDbCountControl->bits.ZPASS_ENABLE            = 1;
-        pDbCountControl->bits.ZPASS_INCREMENT_DISABLE = 0;
+        {
+            pDbCountControl->most.ZPASS_INCREMENT_DISABLE = 0;
+        }
 
         if (IsGfx10Plus(m_gfxIpLevel))
         {
@@ -7653,7 +7627,9 @@ uint32* UniversalCmdBuffer::UpdateDbCountControl(
         // Disable Z-pass queries
         pDbCountControl->bits.PERFECT_ZPASS_COUNTS    = 0;
         pDbCountControl->bits.ZPASS_ENABLE            = 0;
-        pDbCountControl->bits.ZPASS_INCREMENT_DISABLE = 1;
+        {
+            pDbCountControl->most.ZPASS_INCREMENT_DISABLE = 1;
+        }
     }
 
     return pDeCmdSpace;
@@ -7693,10 +7669,8 @@ bool UniversalCmdBuffer::ForceWdSwitchOnEop(
 
     bool switchOnEop = ((primTopology == PrimitiveTopology::TriangleStripAdj) ||
                         (primTopology == PrimitiveTopology::TriangleFan) ||
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 557
                         (primTopology == PrimitiveTopology::LineLoop) ||
                         (primTopology == PrimitiveTopology::Polygon) ||
-#endif
                         (primitiveRestartEnabled && restartPrimsCheck) ||
                         drawInfo.useOpaque);
 
@@ -9496,11 +9470,17 @@ gpusize UniversalCmdBuffer::GangedCmdStreamSemAddr()
 {
     if (m_gangedCmdStreamSemAddr == 0)
     {
-        m_gangedCmdStreamSemAddr = AllocateGpuScratchMem(1, CacheLineDwords);
+        uint32* pData = CmdAllocateEmbeddedData(1, CacheLineDwords, &m_gangedCmdStreamSemAddr);
         PAL_ASSERT(m_gangedCmdStreamSemAddr != 0);
 
-        // The first time the GangedCmdStreamSemAddr is requested, we'll be initializing it, so we don't need to do it
-        // here.
+        // We need to memset this to handle a possible race condition with stale data.
+        // If the memory contains any value, it is possible that, with the ACE running ahead, it could get a value
+        // for this semaphore which is >= the number it is waiting for and then just continue ahead before GFX has
+        // a chance to write it to 0.
+        // To fix this, we use EmbeddedData and memset it on the CPU.
+        // To handle the case where we reuse a command buffer entirely, we'll have to perform a GPU-side write of this
+        // memory in the postamble.
+        pData[0] = 0;
     }
 
     return m_gangedCmdStreamSemAddr;

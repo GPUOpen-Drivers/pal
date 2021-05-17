@@ -46,9 +46,7 @@
 #endif
 #include "palSysMemory.h"
 #include "palTextWriter.h"
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 556
 #include "palShaderLibrary.h"
-#endif
 
 #include "core/hw/amdgpu_asic.h"
 
@@ -91,11 +89,7 @@ constexpr uint32 MinVaRangeNumBits = 36u;
 constexpr gpusize PageSize = 0x1000u;
 
 #if defined(__unix__)
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 595
 constexpr char SettingsFileName[] = "amdVulkanSettings.cfg";
-#else
-constexpr char SettingsFileName[] = "amdPalSettings.cfg";
-#endif
 #endif
 
 // Internal representation of the IDevice::m_pfnTable structure.
@@ -727,7 +721,8 @@ struct GpuChipProperties
             uint32 supportGl2Uncached          :  1; // Indicates support for the allocation of GPU L2
                                                      // un-cached memory. See gl2UncachedCpuCoherency
             uint32 supportsVrs                 :  1; // Indicates support for variable rate shading
-            uint32 reserved2                   :  2;
+            uint32 reserved2                   :  1;
+            uint32 supportsHwVs                :  1; // Indicates hardware support for Vertex Shaders
             uint32 reserved3                   :  1;
             uint32 supportCaptureReplay        :  1; // Indicates support for Capture Replay
             uint32 reserved                    : 27;

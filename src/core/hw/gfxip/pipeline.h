@@ -147,10 +147,8 @@ public:
         const IShaderLibrary*const* ppLibraryList,
         uint32                      libraryCount) override;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 580
     virtual void SetStackSizeInBytes(
         uint32 stackSizeInBytes) override;
-#endif
 
     virtual Util::Abi::ApiHwShaderMapping ApiHwShaderMapping() const override
         { return m_apiHwMapping; }

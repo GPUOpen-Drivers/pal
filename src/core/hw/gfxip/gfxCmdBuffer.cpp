@@ -561,10 +561,7 @@ void GfxCmdBuffer::CmdCopyMemoryToTiledImage(
             copyRegions[i].gpuMemoryOffset     = pRegions[i].gpuMemoryOffset;
             copyRegions[i].gpuMemoryRowPitch   = pRegions[i].gpuMemoryRowPitch;
             copyRegions[i].gpuMemoryDepthPitch = pRegions[i].gpuMemoryDepthPitch;
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 583
             copyRegions[i].swizzledFormat      = {};
-#endif
         }
 
         m_device.RsrcProcMgr().CmdCopyMemoryToImage(this,
@@ -611,10 +608,7 @@ void GfxCmdBuffer::CmdCopyTiledImageToMemory(
             copyRegions[i].gpuMemoryOffset     = pRegions[i].gpuMemoryOffset;
             copyRegions[i].gpuMemoryRowPitch   = pRegions[i].gpuMemoryRowPitch;
             copyRegions[i].gpuMemoryDepthPitch = pRegions[i].gpuMemoryDepthPitch;
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 583
             copyRegions[i].swizzledFormat      = {};
-#endif
         }
 
         m_device.RsrcProcMgr().CmdCopyImageToMemory(this,
@@ -647,13 +641,7 @@ void GfxCmdBuffer::CmdScaledCopyImage(
     const ScaledCopyInfo& copyInfo)
 {
     PAL_ASSERT(copyInfo.pRegions != nullptr);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 552
-    ScaledCopyInfo localInfo = copyInfo;
-    localInfo.flags.srcSrgbAsUnorm = 0;
-    m_device.RsrcProcMgr().CmdScaledCopyImage(this, localInfo);
-#else
     m_device.RsrcProcMgr().CmdScaledCopyImage(this, copyInfo);
-#endif
 }
 
 // =====================================================================================================================
@@ -1056,7 +1044,6 @@ void GfxCmdBuffer::CmdResolveImage(
                                            flags);
 }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 554
 // =====================================================================================================================
 void GfxCmdBuffer::CmdResolvePrtPlusImage(
     const IImage&                    srcImage,
@@ -1086,7 +1073,6 @@ void GfxCmdBuffer::CmdResolvePrtPlusImage(
                                                       pRegions);
     }
 }
-#endif
 
 // =====================================================================================================================
 // Copies the requested portion of the currently bound compute state to m_computeRestoreState. All active queries will

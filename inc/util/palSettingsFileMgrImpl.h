@@ -67,7 +67,7 @@ Result SettingsFileMgr<Allocator>::Init(
 
     if (File::Exists(&fileAbsPath[0]) == false)
     {
- #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 595 && defined(__unix__)
+ #if defined(__unix__)
         char fallbackFileAbsPath[512];
         Snprintf(&fallbackFileAbsPath[0], sizeof(fallbackFileAbsPath), "%s/amdPalSettings.cfg", pSettingsPath);
 

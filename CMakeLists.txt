@@ -55,11 +55,26 @@ include(PalOptions)
 ### Option Overrides ###################################################################################################
 include(PalOverrides)
 
+### Create PAL Library #################################################################################################
+set(CMAKE_FOLDER "${CMAKE_FOLDER}/PAL Libs")
+add_library(pal STATIC)
+add_library(AMD::PAL ALIAS pal)
+
 ### Add Subdirectories #################################################################################################
 add_subdirectory(src)
+add_subdirectory(inc)
+add_subdirectory(cmake)
 
 ### Build Definitions ##################################################################################################
 pal_compile_definitions(pal)
 
 ### Compiler Options ###################################################################################################
 pal_compiler_options(pal)
+
+### Custom Commands ####################################################################################################
+
+### IDE support ########################################################################################################
+get_target_property(pal_sources pal SOURCES)
+source_group(TREE ${PAL_SOURCE_DIR}/
+             FILES ${pal_sources}
+)

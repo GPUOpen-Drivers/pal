@@ -630,6 +630,126 @@ xcb_void_cookie_t Dri3LoaderFuncsProxy::pfnXcbDeletePropertyChecked(
 }
 
 // =====================================================================================================================
+xcb_void_cookie_t Dri3LoaderFuncsProxy::pfnXcbCreateGcChecked(
+    xcb_connection_t*  pConnection,
+    xcb_gcontext_t     graphicsContext,
+    xcb_drawable_t     drawable,
+    uint32             valueMask,
+    uint32_t*          pValueList
+    ) const
+{
+    const int64 begin = Util::GetPerfCpuTime();
+    xcb_void_cookie_t ret = m_pFuncs->pfnXcbCreateGcChecked(pConnection,
+                                                            graphicsContext,
+                                                            drawable,
+                                                            valueMask,
+                                                            pValueList);
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
+    m_timeLogger.Printf("XcbCreateGcChecked,%ld,%ld,%ld\n", begin, end, elapse);
+    m_timeLogger.Flush();
+
+    m_paramLogger.Printf(
+        "XcbCreateGcChecked(%p, %x, %x, %x, %p)\n",
+        pConnection,
+        graphicsContext,
+        drawable,
+        valueMask,
+        pValueList);
+    m_paramLogger.Flush();
+
+    return ret;
+}
+
+// =====================================================================================================================
+xcb_void_cookie_t Dri3LoaderFuncsProxy::pfnXcbPutImageChecked(
+    xcb_connection_t*  pConnection,
+    uint8              format,
+    xcb_drawable_t     drawable,
+    xcb_gcontext_t     graphicsContext,
+    uint16             width,
+    uint16             height,
+    uint16             dstX,
+    uint16             dstY,
+    uint8              leftPad,
+    uint8              depth,
+    uint32             dataLen,
+    const uint8*       data
+    ) const
+{
+    const int64 begin = Util::GetPerfCpuTime();
+    xcb_void_cookie_t ret = m_pFuncs->pfnXcbPutImageChecked(pConnection,
+                                                            format,
+                                                            drawable,
+                                                            graphicsContext,
+                                                            width,
+                                                            height,
+                                                            dstX,
+                                                            dstY,
+                                                            leftPad,
+                                                            depth,
+                                                            dataLen,
+                                                            data);
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
+    m_timeLogger.Printf("XcbPutImageChecked,%ld,%ld,%ld\n", begin, end, elapse);
+    m_timeLogger.Flush();
+
+    m_paramLogger.Printf(
+        "XcbPutImageChecked(%p, %x, %x, %x, %x, %x, %x, %x, %x, %x, %x, %p)\n",
+        pConnection,
+        format,
+        drawable,
+        graphicsContext,
+        width,
+        height,
+        dstX,
+        dstY,
+        leftPad,
+        depth,
+        dataLen,
+        data);
+    m_paramLogger.Flush();
+
+    return ret;
+}
+
+// =====================================================================================================================
+xcb_void_cookie_t Dri3LoaderFuncsProxy::pfnXcbCreatePixmapChecked(
+    xcb_connection_t*  pConnection,
+    uint8              depth,
+    xcb_pixmap_t       pixmap,
+    xcb_drawable_t     drawable,
+    uint16             width,
+    uint16             height
+    ) const
+{
+    const int64 begin = Util::GetPerfCpuTime();
+    xcb_void_cookie_t ret = m_pFuncs->pfnXcbCreatePixmapChecked(pConnection,
+                                                                depth,
+                                                                pixmap,
+                                                                drawable,
+                                                                width,
+                                                                height);
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
+    m_timeLogger.Printf("XcbCreatePixmapChecked,%ld,%ld,%ld\n", begin, end, elapse);
+    m_timeLogger.Flush();
+
+    m_paramLogger.Printf(
+        "XcbCreatePixmapChecked(%p, %x, %x, %x, %x, %x)\n",
+        pConnection,
+        depth,
+        pixmap,
+        drawable,
+        width,
+        height);
+    m_paramLogger.Flush();
+
+    return ret;
+}
+
+// =====================================================================================================================
 int32 Dri3LoaderFuncsProxy::pfnXshmfenceUnmapShm(
     struct xshmfence*  pFence
     ) const
@@ -2140,6 +2260,9 @@ Result Dri3Loader::Init(
             m_library[LibXcb].GetFunction("xcb_discard_reply", &m_funcs.pfnXcbDiscardReply);
             m_library[LibXcb].GetFunction("xcb_change_property_checked", &m_funcs.pfnXcbChangePropertyChecked);
             m_library[LibXcb].GetFunction("xcb_delete_property_checked", &m_funcs.pfnXcbDeletePropertyChecked);
+            m_library[LibXcb].GetFunction("xcb_create_gc_checked", &m_funcs.pfnXcbCreateGcChecked);
+            m_library[LibXcb].GetFunction("xcb_put_image_checked", &m_funcs.pfnXcbPutImageChecked);
+            m_library[LibXcb].GetFunction("xcb_create_pixmap_checked", &m_funcs.pfnXcbCreatePixmapChecked);
         }
 
         // resolve symbols from libxshmfence.so.1

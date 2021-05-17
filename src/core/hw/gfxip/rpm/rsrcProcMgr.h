@@ -241,7 +241,6 @@ public:
         const ImageResolveRegion* pRegions,
         uint32                    flags) const;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 554
     virtual void CmdResolvePrtPlusImage(
         GfxCmdBuffer*                    pCmdBuffer,
         const IImage&                    srcImage,
@@ -252,7 +251,6 @@ public:
         uint32                           regionCount,
         const PrtPlusImageResolveRegion* pRegions) const
         { PAL_NEVER_CALLED(); }
-#endif
 
     void CmdGenerateIndirectCmds(
         const GenerateInfo& genInfo,

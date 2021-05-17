@@ -2659,20 +2659,14 @@ Result QueueDecorator::Submit(
     AutoBuffer<CmdBufInfo, 64, PlatformDecorator>  nextCmdBufInfoList(Max(cmdBufferCount, 1u), pPlatform);
     AutoBuffer<GpuMemoryRef, 64, PlatformDecorator> nextGpuMemoryRefs(submitInfo.gpuMemRefCount, pPlatform);
     AutoBuffer<DoppRef,      64, PlatformDecorator> nextDoppRefs(submitInfo.doppRefCount, pPlatform);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 568
     AutoBuffer<IFence*, 64, PlatformDecorator> nextFences(submitInfo.fenceCount, pPlatform);
-#endif
 
     if ((nextPerSubQueueInfo.Capacity() < submitInfo.perSubQueueInfoCount)  ||
         (nextCmdBuffers.Capacity() < cmdBufferCount)                        ||
         (nextCmdBufInfoList.Capacity() < cmdBufferCount)                    ||
         (nextDoppRefs.Capacity() < submitInfo.doppRefCount)                 ||
-        (nextGpuMemoryRefs.Capacity() < submitInfo.gpuMemRefCount)
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 568
-        ||
-        (nextFences.Capacity() < submitInfo.fenceCount)
-#endif
-        )
+        (nextGpuMemoryRefs.Capacity() < submitInfo.gpuMemRefCount)          ||
+        (nextFences.Capacity() < submitInfo.fenceCount))
     {
         result = Result::ErrorOutOfMemory;
     }
@@ -2741,12 +2735,8 @@ Result QueueDecorator::Submit(
         PAL_ASSERT(submitInfo.blockIfFlippingCount <= MaxBlockIfFlippingCount);
         nextSubmitInfo.blockIfFlippingCount = submitInfo.blockIfFlippingCount;
         nextSubmitInfo.ppBlockIfFlipping    = &pNextBlockIfFlipping[0];
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 568
         nextSubmitInfo.fenceCount           = submitInfo.fenceCount;
         nextSubmitInfo.ppFences             = &nextFences[0];
-#else
-        nextSubmitInfo.pFence               = NextFence(submitInfo.pFence);
-#endif
 
         for (uint32 i = 0; i < submitInfo.gpuMemRefCount; i++)
         {
@@ -2765,12 +2755,10 @@ Result QueueDecorator::Submit(
             pNextBlockIfFlipping[i] = NextGpuMemory(submitInfo.ppBlockIfFlipping[i]);
         }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 568
         for (uint32 i = 0; i < submitInfo.fenceCount; i++)
         {
             nextFences[i] = NextFence(submitInfo.ppFences[i]);
         }
-#endif
 
         result = m_pNextLayer->Submit(nextSubmitInfo);
     }

@@ -1,27 +1,4 @@
-/*
- ***********************************************************************************************************************
- *
- *  Copyright (c) 2019-2021 Advanced Micro Devices, Inc. All Rights Reserved.
- *
- *  Permission is hereby granted, free of charge, to any person obtaining a copy
- *  of this software and associated documentation files (the "Software"), to deal
- *  in the Software without restriction, including without limitation the rights
- *  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- *  copies of the Software, and to permit persons to whom the Software is
- *  furnished to do so, subject to the following conditions:
- *
- *  The above copyright notice and this permission notice shall be included in all
- *  copies or substantial portions of the Software.
- *
- *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- *  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- *  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- *  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- *  SOFTWARE.
- *
- **********************************************************************************************************************/
+/* Copyright (c) 2021 Advanced Micro Devices, Inc. All rights reserved. */
 
 #include "socketMsgTransport.h"
 #include "protocols/systemProtocols.h"
@@ -54,13 +31,24 @@ namespace DevDriver
 
     SocketMsgTransport::SocketMsgTransport(const HostInfo& hostInfo) :
         m_connected(false),
-        m_hostInfo(hostInfo),
         m_socketType(TransportToSocketType(hostInfo.type))
     {
         if ((m_socketType != SocketType::Udp) && (m_socketType != SocketType::Local))
         {
             DD_ASSERT_REASON("Unsupported socket type provided");
         }
+
+        // Only UDP/remote sockets have valid hostname fields
+        if (m_socketType == SocketType::Udp)
+        {
+            Platform::Strncpy(m_hostname, hostInfo.pHostname);
+        }
+        else
+        {
+            DD_ASSERT(hostInfo.pHostname == nullptr);
+        }
+
+        m_port = hostInfo.port;
     }
 
     SocketMsgTransport::~SocketMsgTransport()
@@ -82,12 +70,17 @@ namespace DevDriver
 
             if (result == Result::Success)
             {
+                // Bind with no host info will bind our local side of the socket to a random port that is capable of
+                // receiving from any address.
                 result = m_clientSocket.Bind(nullptr, 0);
             }
 
             if (result == Result::Success)
             {
-                result = m_clientSocket.Connect(m_hostInfo.hostname, m_hostInfo.port);
+                // Only UDP/Remote socket types have a valid hostname to connect to
+                // Local sockets use the address as a prefix instead
+                const char* pAddress = (m_socketType == SocketType::Udp) ? m_hostname : "AMD-Developer-Service";
+                result = m_clientSocket.Connect(pAddress, m_port);
             }
             m_connected = (result == Result::Success);
         }
@@ -184,7 +177,10 @@ namespace DevDriver
                 // If we were able to bind to a socket we the connect to the remote host/port specified
                 if (result == Result::Success)
                 {
-                    result = clientSocket.Connect(hostInfo.hostname, hostInfo.port);
+                    // Only UDP/Remote socket types have a valid hostname to connect to
+                    // Local sockets use the address as a prefix instead
+                    const char* pAddress = (sType == SocketType::Udp) ? hostInfo.pHostname : "AMD-Developer-Service";
+                    result = clientSocket.Connect(pAddress, hostInfo.port);
                 }
 
                 // If we made it this far we need to actually make sure we can actually communicate with the remote host

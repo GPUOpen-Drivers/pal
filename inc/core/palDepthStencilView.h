@@ -57,16 +57,12 @@ struct DepthStencilViewCreateInfo
             uint32 bypassMall        :  1;  ///< Set to have this surface bypass the MALL.  If zero, then this surface
                                             ///  obeys the  GpuMemMallPolicy specified at memory allocation time.
                                             ///  Meaningful only on GPUs that have supportsMall set in DeviceProperties.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 594
             uint32 depthOnlyView     :  1;  ///< If set, this view will be a depth-only view of the specified Image.  It
                                             ///  is illegal to use this flag on an Image with no depth plane. It's
                                             ///  illegal to set both depthOnlyView and stencilOnlyView.
             uint32 stencilOnlyView   :  1;  ///< If set, this view will be a stencil-only view of the specified Image.
                                             ///  It is illegal to use this flag on an Image with no stencil plane. It's
                                             ///  illegal to set both depthOnlyView and stencilOnlyView.
-#else
-            uint32 placeholder       :  2;  ///< Placeholder for new OGLP features.
-#endif
             uint32 resummarizeHiZ    :  1;  ///< Enables resummarizing Hi-Z for touched DB tiles touched by drawing with
                                             ///  This view. This has no effect if the source Image does not have depth
                                             ///  compression or if the @ref readOnlyDepth flag is set.

@@ -80,7 +80,8 @@ union SharedMetadataFlags
         uint32 hasHtileLookupTable  : 1; // Htile look-up table for each mip and slice - DB fixed-func resolve is
                                          // disabled w/o this.
         uint32 htileHasDsMetadata   : 1; // Whether htile has depth/stencil metadata.
-        uint32 reserved             : 26;
+        uint32 hasCmaskEqGpuAccess  : 1; // Metadata equation for GPU access following cmask metadata.
+        uint32 reserved             : 25;
     };
     uint32 value;
 };

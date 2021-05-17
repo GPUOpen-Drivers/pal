@@ -1511,11 +1511,7 @@ void RsrcProcMgr::CopyImageCompute(
 
     pCmdBuffer->CmdRestoreComputeState(ComputeStatePipelineAndUserData);
 
-    if (isFmaskCopyOptimized
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 562
-        || (dstImage.GetImageCreateInfo().flags.fullCopyDstOnly != 0)
-#endif
-        )
+    if (isFmaskCopyOptimized || (dstImage.GetImageCreateInfo().flags.fullCopyDstOnly != 0))
     {
         // If this is MSAA copy optimized we might have to update destination image meta data.
         // If image is created with fullCopyDstOnly=1, there will be no expand when transition to "LayoutCopyDst"; if
@@ -1786,7 +1782,6 @@ void RsrcProcMgr::CmdCopyMemoryToImage(
 
         FixupMetadataForComputeDst(pCmdBuffer, dstImage, dstImageLayout, regionCount, &fixupRegions[0], false);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 562
         // If image is created with fullCopyDstOnly=1, there will be no expand when transition to "LayoutCopyDst"; if
         // the copy isn't compressed copy, need fix up dst metadata to uncompressed state.
         if (dstImage.GetImageCreateInfo().flags.fullCopyDstOnly != 0)
@@ -1794,7 +1789,6 @@ void RsrcProcMgr::CmdCopyMemoryToImage(
             HwlFixupCopyDstImageMetaData(pCmdBuffer, nullptr, dstImage, dstImageLayout,
                                          &fixupRegions[0], regionCount, false);
         }
-#endif
     }
     else
     {
@@ -1997,12 +1991,10 @@ void RsrcProcMgr::CopyBetweenMemoryAndImage(
         // It will be faster to use a raw format, but we must stick with the base format if replacement isn't an option.
         SwizzledFormat    viewFormat = image.SubresourceInfo(copyRegion.imageSubres)->format;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 583
         if (Formats::IsUndefined(copyRegion.swizzledFormat.format) == false)
         {
             viewFormat = copyRegion.swizzledFormat;
         }
-#endif
 
         const ImageTiling srcTiling  = (isImageDst) ? ImageTiling::Linear : imgCreateInfo.tiling;
 
@@ -2104,12 +2096,10 @@ void RsrcProcMgr::CopyBetweenMemoryAndImage(
                                                             viewBpp * imgCreateInfo.fragments,
                                                             copyRegion.gpuMemoryRowPitch,
                                                             copyRegion.gpuMemoryDepthPitch);
-#if  PAL_CLIENT_INTERFACE_MAJOR_VERSION>= 558
         bufferView.flags.bypassMallRead  = TestAnyFlagSet(settings.rpmViewsBypassMall,
                                                           Gfx10RpmViewsBypassMallOnRead);
         bufferView.flags.bypassMallWrite = TestAnyFlagSet(settings.rpmViewsBypassMall,
                                                           Gfx10RpmViewsBypassMallOnWrite);
-#endif
 
         for (;
             copyRegion.imageSubres.arraySlice <= lastArraySlice;
@@ -2287,12 +2277,10 @@ void RsrcProcMgr::CmdCopyTypedBuffer(
         bufferView.range          = ComputeTypedBufferRange(copyExtent, rawBpp, dstInfo.rowPitch, dstInfo.depthPitch);
         bufferView.stride         = rawBpp;
         bufferView.swizzledFormat = rawFormat;
-#if  PAL_CLIENT_INTERFACE_MAJOR_VERSION>= 558
         bufferView.flags.bypassMallRead  = TestAnyFlagSet(settings.rpmViewsBypassMall,
                                                           Gfx10RpmViewsBypassMallOnRead);
         bufferView.flags.bypassMallWrite = TestAnyFlagSet(settings.rpmViewsBypassMall,
                                                           Gfx10RpmViewsBypassMallOnWrite);
-#endif
 
         device.CreateTypedBufferViewSrds(1, &bufferView, pUserDataTable);
         pUserDataTable += SrdDwordAlignment();
@@ -2401,7 +2389,6 @@ void RsrcProcMgr::CmdScaledCopyImage(
             FixupMetadataForComputeDst(pCmdBuffer, dstImage, copyInfo.dstImageLayout,
                                        copyInfo.regionCount, &fixupRegions[0], false);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 562
             // If image is created with fullCopyDstOnly=1, there will be no expand when transition to
             // "LayoutCopyDst"; if the copy isn't compressed copy, need fix up dst metadata to uncompressed state.
             if (copyInfo.pDstImage->GetImageCreateInfo().flags.fullCopyDstOnly != 0)
@@ -2409,7 +2396,6 @@ void RsrcProcMgr::CmdScaledCopyImage(
                 HwlFixupCopyDstImageMetaData(pCmdBuffer, nullptr, dstImage, copyInfo.dstImageLayout,
                                              &fixupRegions[0], copyInfo.regionCount, false);
             }
-#endif
         }
         else
         {
@@ -2636,13 +2622,10 @@ void RsrcProcMgr::GenerateMipmapsFast(
                 bufferView.stride         = 0;
                 bufferView.range          = sizeof(uint32);
                 bufferView.swizzledFormat = UndefinedSwizzledFormat;
-#if  PAL_CLIENT_INTERFACE_MAJOR_VERSION>= 558
                 bufferView.flags.bypassMallRead  = TestAnyFlagSet(settings.rpmViewsBypassMall,
                                                                   Gfx10RpmViewsBypassMallOnRead);
                 bufferView.flags.bypassMallWrite = TestAnyFlagSet(settings.rpmViewsBypassMall,
                                                                   Gfx10RpmViewsBypassMallOnWrite);
-#endif
-
                 device.CreateUntypedBufferViewSrds(1, &bufferView, pUserData);
 
                 // Execute the dispatch.
@@ -4226,12 +4209,10 @@ void RsrcProcMgr::CmdFillMemory(
             dstBufferView.swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One };
         }
-#if  PAL_CLIENT_INTERFACE_MAJOR_VERSION>= 558
         dstBufferView.flags.bypassMallRead  = TestAnyFlagSet(settings.rpmViewsBypassMall,
                                                              Gfx10RpmViewsBypassMallOnRead);
         dstBufferView.flags.bypassMallWrite = TestAnyFlagSet(settings.rpmViewsBypassMall,
                                                              Gfx10RpmViewsBypassMallOnWrite);
-#endif
         m_pDevice->Parent()->CreateTypedBufferViewSrds(1, &dstBufferView, &srd[0]);
 
         pCmdBuffer->CmdSetUserData(PipelineBindPoint::Compute, 0, 4, &srd[0]);
@@ -4605,13 +4586,9 @@ void RsrcProcMgr::CmdClearColorImage(
         // Note that fast clears don't support sub-rect clears so we skip them if we have any boxes.  Futher, we only
         // can store one fast clear color per mip level, and therefore can only support fast clears when a range covers
         // all slices.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 592
         // Fast clear is only usable when all channels of the color are being written.
         if ((color.disabledChannelMask == 0) &&
              clearBoxCoversWholeImage        &&
-#else
-        if (clearBoxCoversWholeImage &&
-#endif
             pGfxImage->IsFastColorClearSupported(pCmdBuffer,
                                                  dstImageLayout,
                                                  &convertedColor[0],
@@ -4756,14 +4733,10 @@ void RsrcProcMgr::SlowClearGraphics(
 #endif
     {
         // Get some useful information about the image.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 592
         bool rawFmtOk = dstImage.GetGfxImage()->IsFormatReplaceable(subresId,
                                                                     dstImageLayout,
                                                                     true,
                                                                     pColor->disabledChannelMask);
-#else
-        bool rawFmtOk = dstImage.GetGfxImage()->IsFormatReplaceable(subresId, dstImageLayout, true);
-#endif
 
         // Query the format of the image and determine which format to use for the color target view. If rawFmtOk is
         // set the caller has allowed us to use a slightly more efficient raw format.
@@ -4821,7 +4794,7 @@ void RsrcProcMgr::SlowClearGraphics(
                                       GetGfxPipelineByTargetIndexAndFormat(SlowColorClear0_32ABGR, 0, viewFormat),
                                       InternalApiPsoHash, });
         BindCommonGraphicsState(pCmdBuffer);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 592
+
         if (pColor->disabledChannelMask != 0)
         {
             // Overwrite CbTargetMask for different writeMasks.
@@ -4830,7 +4803,7 @@ void RsrcProcMgr::SlowClearGraphics(
             params.colorWriteMask[0] = ~pColor->disabledChannelMask;
             pCmdBuffer->CmdSetColorWriteMask(params);
         }
-#endif
+
         pCmdBuffer->CmdOverwriteRbPlusFormatForBlits(viewFormat, 0);
         pCmdBuffer->CmdBindColorBlendState(m_pBlendDisableState);
         pCmdBuffer->CmdBindDepthStencilState(m_pDepthDisableState);
@@ -5418,12 +5391,10 @@ void RsrcProcMgr::CmdClearColorBuffer(
         dstViewInfo.range          = bpp * texelScale * bufferExtent;
         dstViewInfo.stride         = bpp * texelScale;
         dstViewInfo.swizzledFormat = texelScale == 1 ? rawFormat : UndefinedSwizzledFormat;
-#if  PAL_CLIENT_INTERFACE_MAJOR_VERSION>= 558
         dstViewInfo.flags.bypassMallRead  = TestAnyFlagSet(settings.rpmViewsBypassMall,
                                                            Gfx10RpmViewsBypassMallOnRead);
         dstViewInfo.flags.bypassMallWrite = TestAnyFlagSet(settings.rpmViewsBypassMall,
                                                            Gfx10RpmViewsBypassMallOnWrite);
-#endif
 
         uint32 dstSrd[4] = {0};
         PAL_ASSERT(m_pDevice->Parent()->ChipProperties().srdSizes.bufferView == sizeof(dstSrd));
@@ -5683,7 +5654,7 @@ void RsrcProcMgr::FixupMetadataForComputeDst(
         // TODO: there is suspected Hiz issue on gfx10 comrpessed depth write. Suggested temporary workaround is
         // to attach layout with LayoutUncompressed, which always triggers depth expand before copy and depth
         // resummarize after copy.
-        const bool enableCompressedDepthWriteTempWa = IsGfx10(*m_pDevice->Parent());
+        const bool enableCompressedDepthWriteTempWa = IsGfx10Plus(*m_pDevice->Parent());
 
         // If enable temp workaround for comrpessed depth write, always need barriers for before and after copy.
         bool needBarrier = enableCompressedDepthWriteTempWa;
@@ -5913,6 +5884,8 @@ void RsrcProcMgr::CmdGenerateIndirectCmds(
     //  + Typed buffer SRD for the user-data entry mapping table for each shader stage (4 DW)
     //  + Structured-buffer SRD for the pipeline signature (4 DW)
     //  + Structured-buffer SRD for the second pipeline signature (4 DW)
+    //  + Raw-buffer SRD pointing to return-to-caller INDIRECT_BUFFER packet location for the main chunk. (4 DW)
+    //  + Raw-buffer SRD pointing to return-to-caller INDIRECT_BUFFER packet location for the task chunk. (4 DW)
     //  + Constant buffer SRD for the command-generator properties (4 DW)
     //  + Constant buffer SRD for the properties of the ExecuteIndirect() invocation (4 DW)
     //  + GPU address of the memory containing the count of commands to generate (2 DW)
@@ -5928,7 +5901,7 @@ void RsrcProcMgr::CmdGenerateIndirectCmds(
     // The generation pipelines expect the descriptor table's GPU address to be written to user-data #0-1.
     gpusize tableGpuAddr = 0uLL;
 
-    uint32* pTableMem = pCmdBuffer->CmdAllocateEmbeddedData(((7 * SrdDwords) + 4), 1, &tableGpuAddr);
+    uint32* pTableMem = pCmdBuffer->CmdAllocateEmbeddedData(((9 * SrdDwords) + 4), 1, &tableGpuAddr);
 
     PAL_ASSERT(pTableMem != nullptr);
 
@@ -5940,12 +5913,10 @@ void RsrcProcMgr::CmdGenerateIndirectCmds(
     viewInfo.swizzledFormat = UndefinedSwizzledFormat;
     viewInfo.range          = (generator.Properties().argBufStride * maximumCount);
     viewInfo.stride         = 1;
-#if  PAL_CLIENT_INTERFACE_MAJOR_VERSION>= 558
     viewInfo.flags.bypassMallRead  = TestAnyFlagSet(settings.rpmViewsBypassMall,
                                                     Gfx10RpmViewsBypassMallOnRead);
     viewInfo.flags.bypassMallWrite = TestAnyFlagSet(settings.rpmViewsBypassMall,
                                                     Gfx10RpmViewsBypassMallOnWrite);
-#endif
     m_pDevice->Parent()->CreateUntypedBufferViewSrds(1, &viewInfo, pTableMem);
     pTableMem += SrdDwords;
 
@@ -5965,6 +5936,19 @@ void RsrcProcMgr::CmdGenerateIndirectCmds(
         pTableMem += SrdDwords;
     }
     pTableMem += SrdDwords;
+
+    // Raw-buffer SRD pointing to return-to-caller INDIRECT_BUFFER packet location for the main chunk.
+    uint32* pReturnIbAddrTableMem = pTableMem;
+    memset(pTableMem, 0, (sizeof(uint32) * SrdDwords));
+    pTableMem += SrdDwords;
+
+    // Raw-buffer SRD pointing to return-to-caller INDIRECT_BUFFER packet location for the task chunk.
+    uint32* pReturnTaskIbAddrTableMem = pTableMem;
+    if (generator.Type() == GeneratorType::DispatchMesh)
+    {
+        memset(pTableMem, 0, (sizeof(uint32) * SrdDwords));
+        pTableMem += SrdDwords;
+    }
 
     // Constant buffer SRD for the command-generator properties:
     generator.PopulatePropertyBuffer(pCmdBuffer, pPipeline, pTableMem);
@@ -5996,6 +5980,10 @@ void RsrcProcMgr::CmdGenerateIndirectCmds(
     pTableMem[0] = issueSqttMarkerEvent;
     pTableMem[1] = taskShaderEnabled;
 
+    // These will be used for tracking the postamble size of the main and task chunks respectively.
+    uint32 postambleDwords    = 0;
+    uint32 postambleDwordsAce = 0;
+
     uint32 commandIdOffset = 0;
     while (commandIdOffset < maximumCount)
     {
@@ -6013,15 +6001,18 @@ void RsrcProcMgr::CmdGenerateIndirectCmds(
         ChunkOutput& mainChunk          = output[0];
         ppChunkLists[0][*pNumGenChunks] = mainChunk.pChunk;
 
+        postambleDwords = mainChunk.chainSizeInDwords;
+
         // The command generation pipeline also expects the following descriptor-table layout for the resources
         // which change between each command-stream chunk being generated:
         //  + Raw buffer UAV SRD for the command-stream chunk to generate (4 DW)
         //  + Raw buffer UAV SRD for the embedded data segment to use for the spill table (4 DW)
+        //  + Raw buffer UAV SRD pointing to current chunk's INDIRECT_BUFFER packet that chains to the next chunk (4 DW)
         //  + Command ID offset for the current command-stream-chunk (1 DW)
         //  + Low half of the GPU virtual address of the spill table's embedded data segment (1 DW)
 
         // The generation pipelines expect the descriptor table's GPU address to be written to user-data #2-3.
-        pTableMem = pCmdBuffer->CmdAllocateEmbeddedData(((2 * SrdDwords) + 2), 1, &tableGpuAddr);
+        pTableMem = pCmdBuffer->CmdAllocateEmbeddedData(((3 * SrdDwords) + 2), 1, &tableGpuAddr);
         PAL_ASSERT(pTableMem != nullptr);
 
         pCmdBuffer->CmdSetUserData(PipelineBindPoint::Compute, 2, 2, reinterpret_cast<uint32*>(&tableGpuAddr));
@@ -6052,6 +6043,18 @@ void RsrcProcMgr::CmdGenerateIndirectCmds(
 
         pTableMem += SrdDwords;
 
+        // UAV buffer SRD pointing to current chunk's INDIRECT_BUFFER packet that chains to the next chunk.
+        const gpusize chainIbAddress = mainChunk.pChunk->GpuVirtAddr() +
+                                       ((mainChunk.pChunk->CmdDwordsToExecute() - postambleDwords) * sizeof(uint32));
+
+        viewInfo.gpuAddr        = chainIbAddress;
+        viewInfo.swizzledFormat = UndefinedSwizzledFormat;
+        viewInfo.range          = postambleDwords * sizeof(uint32);
+        viewInfo.stride         = 1;
+        // Value stored for this chunk's "commandBufChainIb" in the shader.
+        m_pDevice->Parent()->CreateUntypedBufferViewSrds(1, &viewInfo, pTableMem);
+        pTableMem += SrdDwords;
+
         // Command ID offset for the current command stream-chunk
         pTableMem[0] = commandIdOffset;
         // Low portion of the spill table's GPU virtual address
@@ -6061,16 +6064,19 @@ void RsrcProcMgr::CmdGenerateIndirectCmds(
         // which change between each command-stream chunk being generated:
         // + Raw buffer UAV SRD for the command-stream chunk to generate (4 DW)
         // + Raw buffer UAV SRD for the embedded data segment to use for the spill table (4 DW)
+        // + Raw buffer UAV SRD pointing to current task chunk's INDIRECT_BUFFER packet that chains to the next chunk
+        // + (4 DW)
         if (taskShaderEnabled)
         {
             ChunkOutput& taskChunk          = output[1];
             ppChunkLists[1][*pNumGenChunks] = taskChunk.pChunk;
 
+            postambleDwordsAce = taskChunk.chainSizeInDwords;
             // This assert validates that the following dispatch contains equivalent commands for both the DE and ACE
             // engines for this DispatchMesh pipeline.
             PAL_ASSERT(taskChunk.commandsInChunk == mainChunk.commandsInChunk);
 
-            pTableMem = pCmdBuffer->CmdAllocateEmbeddedData((2 * SrdDwords), 1, &tableGpuAddr);
+            pTableMem = pCmdBuffer->CmdAllocateEmbeddedData((3 * SrdDwords), 1, &tableGpuAddr);
             PAL_ASSERT(pTableMem != nullptr);
 
             // UAV buffer SRD for the command-stream-chunk to generate:
@@ -6087,6 +6093,20 @@ void RsrcProcMgr::CmdGenerateIndirectCmds(
             viewInfo.range          = (sizeof(uint32) * taskChunk.embeddedDataSize);
             viewInfo.stride         = 1;
             m_pDevice->Parent()->CreateUntypedBufferViewSrds(1, &viewInfo, pTableMem);
+            pTableMem += SrdDwords;
+
+            // UAV buffer SRD pointing to current task chunk's INDIRECT_BUFFER packet that chains to the next task
+            // chunk:
+            const gpusize taskChainIbAddress = taskChunk.pChunk->GpuVirtAddr() +
+                                               ((taskChunk.pChunk->CmdDwordsToExecute() - postambleDwordsAce) *
+                                                sizeof(uint32));
+
+            viewInfo.gpuAddr        = taskChainIbAddress;
+            viewInfo.swizzledFormat = UndefinedSwizzledFormat;
+            viewInfo.range          = postambleDwordsAce * sizeof(uint32);
+            viewInfo.stride         = 1;
+            // Value stored for this chunk's "taskCommandBufChainIb" in the shader.
+            m_pDevice->Parent()->CreateUntypedBufferViewSrds(1, &viewInfo, pTableMem);
         }
 
         pCmdBuffer->CmdDispatch(RpmUtil::MinThreadGroups(generator.ParameterCount(), threadsPerGroup[0]),
@@ -6095,6 +6115,35 @@ void RsrcProcMgr::CmdGenerateIndirectCmds(
 
         (*pNumGenChunks)++;
         commandIdOffset += mainChunk.commandsInChunk;
+    }
+
+    // This will calculate the IB's return addresses that will be helpful for the CP jump/ short-circuit over possibly
+    // executing long chains of NOPs.
+    if (*pNumGenChunks > 0)
+    {
+        const CmdStreamChunk* pLastChunk = ppChunkLists[0][(*pNumGenChunks) - 1];
+        const gpusize pReturnChainIbAddress = pLastChunk->GpuVirtAddr() +
+                                              ((pLastChunk->CmdDwordsToExecute() - postambleDwords) * sizeof(uint32));
+        viewInfo.gpuAddr               = pReturnChainIbAddress;
+        viewInfo.swizzledFormat        = UndefinedSwizzledFormat;
+        viewInfo.range                 = postambleDwords * sizeof(uint32);
+        viewInfo.stride                = 1;
+        // Value stored in "cmdBufReturningChainIb" in the shader.
+        m_pDevice->Parent()->CreateUntypedBufferViewSrds(1, &viewInfo, pReturnIbAddrTableMem);
+
+        if (taskShaderEnabled)
+        {
+            const CmdStreamChunk* pLastTaskChunk = ppChunkLists[1][(*pNumGenChunks) - 1];
+            const gpusize pReturnTaskChainIbAddress = pLastTaskChunk->GpuVirtAddr() +
+                                                      ((pLastTaskChunk->CmdDwordsToExecute() - postambleDwordsAce) *
+                                                       sizeof(uint32));
+            viewInfo.gpuAddr               = pReturnTaskChainIbAddress;
+            viewInfo.swizzledFormat        = UndefinedSwizzledFormat;
+            viewInfo.range                 = postambleDwordsAce * sizeof(uint32);
+            viewInfo.stride                = 1;
+            // Value stored in "taskCmdBufReturningChainIb" in the shader.
+            m_pDevice->Parent()->CreateUntypedBufferViewSrds(1, &viewInfo, pReturnTaskIbAddrTableMem);
+        }
     }
 
     pCmdBuffer->CmdRestoreComputeState(ComputeStatePipelineAndUserData);
@@ -8080,12 +8129,7 @@ static void PostComputeColorClearSync(
     ImageLayout        layout)
 {
     BarrierInfo postBarrier          = { };
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 577
-    postBarrier.waitPoint            = HwPipePreRasterization;
-#else
     postBarrier.waitPoint            = HwPipePreColorTarget;
-#endif
-
     constexpr HwPipePoint PostCs     = HwPipePostCs;
     postBarrier.pipePointWaitCount   = 1;
     postBarrier.pPipePoints          = &PostCs;

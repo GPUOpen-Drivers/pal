@@ -1995,10 +1995,6 @@ Result Device::CreateImage(
     void*                  pPlacementAddr,
     IImage**               ppImage)
 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 585
-    const_cast<ImageCreateInfo&>(createInfo).flags.presentable = 0;
-#endif
-
     Pal::Image* pImage = nullptr;
 
     ImageInternalCreateInfo internalInfo = {};
@@ -2123,7 +2119,48 @@ Result Device::GetSwapChainInfo(
 {
     const uint32 baseFormatCount = static_cast<uint32>(ArrayLen(PresentableSwizzledFormat));
 
-    // Get current windows size (height, width) from window system.
+    // This is frequently, how many images must be in a swap chain in order for the app to acquire an image
+    // in finite time if the app currently doesn't own an image.
+    pSwapChainProperties->minImageCount = 2;
+
+    // A swap chain must contain at most this many images. The only limits for maximum number of image count are
+    // related with the amount of memory available, but here 16 should be enough for client.
+    pSwapChainProperties->maxImageCount = MaxSwapChainLength;
+
+    pSwapChainProperties->supportedTransforms = SurfaceTransformNone; // Don't support transform so far.
+    pSwapChainProperties->currentTransforms   = SurfaceTransformNone; // Don't support transform so far.
+    pSwapChainProperties->maxImageArraySize   = 1;                    // Don't support stereo so far.
+
+    pSwapChainProperties->supportedUsageFlags.u32All        = 0;
+    pSwapChainProperties->supportedUsageFlags.colorTarget   = 1;
+    pSwapChainProperties->supportedUsageFlags.shaderRead    = 1;
+    pSwapChainProperties->supportedUsageFlags.shaderWrite   = 1;
+
+    // Get formats supported by swap chain. We have at least the 32 bpp formats.
+    pSwapChainProperties->imageFormatCount = baseFormatCount;
+
+    // Some gpu + amdgpu kms combinations do support fp16 scanout and display.
+    if (HasFp16DisplaySupport())
+    {
+        PAL_ASSERT(pSwapChainProperties->imageFormatCount < MaxPresentableImageFormat);
+
+        // fp16 is first slot in Presentable16BitSwizzledFormat[].
+        pSwapChainProperties->imageFormatCount++;
+    }
+
+    for (uint32 i = 0; i < pSwapChainProperties->imageFormatCount; i++)
+    {
+        if (i < baseFormatCount)
+        {
+            pSwapChainProperties->imageFormat[i] = PresentableSwizzledFormat[i];
+        }
+        else
+        {
+            pSwapChainProperties->imageFormat[i] = Presentable16BitSwizzledFormat[i - baseFormatCount];
+        }
+    }
+
+    // Get overrides and current window size (height, width) from window system.
     Result result = WindowSystem::GetWindowProperties(this,
                                                       wsiPlatform,
                                                       hDisplay,
@@ -2152,55 +2189,6 @@ Result Device::GetSwapChainInfo(
             pSwapChainProperties->maxImageExtent.height = pSwapChainProperties->currentExtent.height;
             pSwapChainProperties->minImageExtent.width  = pSwapChainProperties->currentExtent.width;
             pSwapChainProperties->minImageExtent.height = pSwapChainProperties->currentExtent.height;
-        }
-
-        if (wsiPlatform == DirectDisplay)
-        {
-            // DirectDisplay can support one presentable image for rendering on front buffer.
-            pSwapChainProperties->minImageCount = 1;
-        }
-        else
-        {
-            pSwapChainProperties->minImageCount = 2; // This is frequently, how many images must be in a swap chain in
-                                                     // order for App to acquire an image in finite time if App
-                                                     // currently doesn't own an image.
-        }
-
-        // A swap chain must contain at most this many images. The only limits for maximum number of image count are
-        // related with the amount of memory available, but here 16 should be enough for client.
-        pSwapChainProperties->maxImageCount = MaxSwapChainLength;
-
-        pSwapChainProperties->supportedTransforms = SurfaceTransformNone; // Don't support transform so far.
-        pSwapChainProperties->currentTransforms   = SurfaceTransformNone; // Don't support transform so far.
-        pSwapChainProperties->maxImageArraySize   = 1;                    // Don't support stereo so far.
-
-        pSwapChainProperties->supportedUsageFlags.u32All        = 0;
-        pSwapChainProperties->supportedUsageFlags.colorTarget   = 1;
-        pSwapChainProperties->supportedUsageFlags.shaderRead    = 1;
-        pSwapChainProperties->supportedUsageFlags.shaderWrite   = 1;
-
-        // Get formats supported by swap chain. We have at least the 32 bpp formats.
-        pSwapChainProperties->imageFormatCount = baseFormatCount;
-
-        // Some gpu + amdgpu kms combinations do support fp16 scanout and display.
-        if (HasFp16DisplaySupport())
-        {
-            PAL_ASSERT(pSwapChainProperties->imageFormatCount < MaxPresentableImageFormat);
-
-            // fp16 is first slot in Presentable16BitSwizzledFormat[].
-            pSwapChainProperties->imageFormatCount++;
-        }
-
-        for (uint32 i = 0; i < pSwapChainProperties->imageFormatCount; i++)
-        {
-            if (i < baseFormatCount)
-            {
-                pSwapChainProperties->imageFormat[i] = PresentableSwizzledFormat[i];
-            }
-            else
-            {
-                pSwapChainProperties->imageFormat[i] = Presentable16BitSwizzledFormat[i - baseFormatCount];
-            }
         }
     }
 
@@ -3509,6 +3497,8 @@ void Device::UpdateMetaData(
             sharedMetadataInfo.flags.hasWaTcCompatZRange;
         pUmdSharedMetadata->flags.has_eq_gpu_access =
             sharedMetadataInfo.flags.hasEqGpuAccess;
+        pUmdSharedMetadata->flags.has_cmask_eq_gpu_access =
+            sharedMetadataInfo.flags.hasCmaskEqGpuAccess;
         pUmdSharedMetadata->flags.has_htile_lookup_table =
             sharedMetadataInfo.flags.hasHtileLookupTable;
         pUmdSharedMetadata->flags.htile_has_ds_metadata =

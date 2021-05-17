@@ -1004,7 +1004,6 @@ void GraphicsPipeline::SetupCommonRegisters(
         break;
     }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 598
     switch (createInfo.rsState.forcedShadingRate)
     {
     case PsShadingRate::SampleRate:
@@ -1016,9 +1015,6 @@ void GraphicsPipeline::SetupCommonRegisters(
     default:
         break;
     }
-#else
-    m_regs.other.paScModeCntl1.bits.PS_ITER_SAMPLE |= createInfo.rsState.forceSampleRateShading;
-#endif
 
     m_info.ps.flags.perSampleShading = m_regs.other.paScModeCntl1.bits.PS_ITER_SAMPLE;
 

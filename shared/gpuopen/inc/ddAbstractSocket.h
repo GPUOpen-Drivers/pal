@@ -1,33 +1,4 @@
-/*
- ***********************************************************************************************************************
- *
- *  Copyright (c) 2019-2021 Advanced Micro Devices, Inc. All Rights Reserved.
- *
- *  Permission is hereby granted, free of charge, to any person obtaining a copy
- *  of this software and associated documentation files (the "Software"), to deal
- *  in the Software without restriction, including without limitation the rights
- *  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- *  copies of the Software, and to permit persons to whom the Software is
- *  furnished to do so, subject to the following conditions:
- *
- *  The above copyright notice and this permission notice shall be included in all
- *  copies or substantial portions of the Software.
- *
- *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- *  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- *  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- *  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- *  SOFTWARE.
- *
- **********************************************************************************************************************/
-/**
-***********************************************************************************************************************
-* @file  socket.h
-* @brief PAL utility collection Socket class declaration.
-***********************************************************************************************************************
-*/
+/* Copyright (c) 2021 Advanced Micro Devices, Inc. All rights reserved. */
 
 #pragma once
 
@@ -72,11 +43,11 @@ namespace DevDriver
         ///          OS-specific object failed.
         Result Init(bool isNonBlocking, SocketType socketType);
 
-        Result Connect(const char* pAddress, uint32 port);
+        Result Connect(const char* pAddress, uint16 port);
 
         Result Select(bool* pReadState, bool* pWriteState, bool* pExceptState, uint32 timeoutInMs);
 
-        Result Bind(const char* pAddress, uint32 port);
+        Result Bind(const char* pAddress, uint16 port);
 
         Result Listen(uint32 backlog);
 
@@ -92,9 +63,9 @@ namespace DevDriver
 
         Result Close();
 
-        Result GetSocketName(char *pAddress, size_t addrLen, uint32 *pPort);
+        Result GetSocketName(char *pAddress, size_t addrLen, uint16* pPort);
 
-        Result LookupAddressInfo(const char* pAddress, uint32 port, size_t addressInfoSize, char* pAddressInfo, size_t *pAddressSize);
+        Result LookupAddressInfo(const char* pAddress, uint16 port, size_t addressInfoSize, char* pAddressInfo, size_t *pAddressSize);
 
     private:
 #if defined(DD_PLATFORM_WINDOWS_UM)
@@ -112,7 +83,7 @@ namespace DevDriver
         SocketType   m_socketType;
         addrinfo     m_hints;
 
-        Result InitAsClient(OsSocketType socket, const char* pAddress, uint32 port, bool isNonBlocking);
+        Result InitAsClient(OsSocketType socket, bool isNonBlocking);
     };
 
 } // DevDriver

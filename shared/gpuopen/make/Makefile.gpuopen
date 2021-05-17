@@ -1,27 +1,4 @@
-##
- #######################################################################################################################
- #
- #  Copyright (c) 2019-2021 Advanced Micro Devices, Inc. All Rights Reserved.
- #
- #  Permission is hereby granted, free of charge, to any person obtaining a copy
- #  of this software and associated documentation files (the "Software"), to deal
- #  in the Software without restriction, including without limitation the rights
- #  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- #  copies of the Software, and to permit persons to whom the Software is
- #  furnished to do so, subject to the following conditions:
- #
- #  The above copyright notice and this permission notice shall be included in all
- #  copies or substantial portions of the Software.
- #
- #  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- #  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- #  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- #  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- #  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- #  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- #  SOFTWARE.
- #
- #######################################################################################################################
+## Copyright (c) 2021 Advanced Micro Devices, Inc. All rights reserved. ##
 DEVDRIVER_DEPTH = $(GPUOPEN_DEPTH)
 
 # Propagate the AMD branch definition string from the higher level makefiles
@@ -35,8 +12,10 @@ endif
 # GPUOPEN_UWP_SUPPORT was renamed in July 2020. Clients that use this should rename their flag.
 # Until they do, we offer this back-compat layer.
 ifneq ($(GPUOPEN_UWP_SUPPORT),)
-    DD_ENABLE_UWP_TRANSPORT = $(GPUOPEN_UWP_SUPPORT)
+    DD_BP_ENABLE_UWP_TRANSPORT = $(GPUOPEN_UWP_SUPPORT)
 endif
+
+LCXXDEFS += -DRMT_DATA_MAJOR_VERSION=0
 
 ifeq ($(PLATFORM_FLAVOR), win)
     LCXXDEFS += -DDD_PLATFORM_WINDOWS_UM=1 -DDD_PLATFORM_IS_UM=1
@@ -92,9 +71,7 @@ CPPFILES += ddTransferServer.cpp      \
             ddSettingsService.cpp     \
             ddInfoService.cpp         \
             ddPipelineUriService.cpp  \
-            settingsServer.cpp        \
             driverControlServer.cpp   \
-            loggingServer.cpp         \
             rgpServer.cpp             \
             etwClient.cpp
 
@@ -127,9 +104,10 @@ ifeq ($(PLATFORM_FLAVOR), win)
                 ddWinUmIoCtlDevice.cpp     \
                 ddDevModeQueue.cpp
 
-    ifneq ($(DD_ENABLE_UWP_TRANSPORT),)
+    ifneq ($(DD_BP_ENABLE_UWP_TRANSPORT),)
         # WA: Support both of these flags until we fully remove GPUOPEN_UWP_SUPPORT
         LCXXDEFS += -DGPUOPEN_UWP_SUPPORT=1
+        # Note: Code does not use the DD_BP prefix
         LCXXDEFS += -DDD_ENABLE_UWP_TRANSPORT=1
         LCXXINCS += -I$(DEVDRIVER_DEPTH)/message/inc  \
                     -I$(DEVDRIVER_DEPTH)/message/src

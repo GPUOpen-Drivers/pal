@@ -73,8 +73,8 @@ const RegisterRange Gfx103ContextShadowRange[] =
         (mmVGT_HOS_MIN_TESS_LEVEL - mmVGT_HOS_MAX_TESS_LEVEL + 1),
     },
     {
-        (Gfx09_10::mmVGT_GS_MODE - CONTEXT_SPACE_START),                        // 0xA290 - 0xA29B
-        (Gfx09_10::mmVGT_GS_OUT_PRIM_TYPE - Gfx09_10::mmVGT_GS_MODE + 1),
+        (HasHwVs::mmVGT_GS_MODE - CONTEXT_SPACE_START),                        // 0xA290 - 0xA29B
+        (Gfx10Core::mmVGT_GS_OUT_PRIM_TYPE - HasHwVs::mmVGT_GS_MODE + 1),
     },
     {
         (mmVGT_PRIMITIVEID_EN - CONTEXT_SPACE_START),                           // 0xA2A1
@@ -86,7 +86,7 @@ const RegisterRange Gfx103ContextShadowRange[] =
     },
     {
         (mmVGT_DRAW_PAYLOAD_CNTL - CONTEXT_SPACE_START),                        // 0xA2A6 - 0xA2E6
-        (Gfx09_10::mmVGT_STRMOUT_BUFFER_CONFIG - mmVGT_DRAW_PAYLOAD_CNTL + 1),
+        (HasHwVs::mmVGT_STRMOUT_BUFFER_CONFIG - mmVGT_DRAW_PAYLOAD_CNTL + 1),
     },
     {
         (mmPA_SC_CENTROID_PRIORITY_0 - CONTEXT_SPACE_START),                    // 0xA2F5 - 0xA3BF
@@ -150,8 +150,8 @@ const RegisterRange Gfx103UserConfigShadowRange[] =
 const RegisterRange Gfx103NonShadowedRanges[] =
 {
     {
-        Gfx09_10::mmVGT_DMA_PRIMITIVE_TYPE,
-        Gfx09_10::mmVGT_DMA_LS_HS_CONFIG - Gfx09_10::mmVGT_DMA_PRIMITIVE_TYPE + 1
+        HasHwVs::mmVGT_DMA_PRIMITIVE_TYPE,
+        HasHwVs::mmVGT_DMA_LS_HS_CONFIG - HasHwVs::mmVGT_DMA_PRIMITIVE_TYPE + 1
     },
     // mmVGT_INDEX_TYPE and mmVGT_DMA_INDEX_TYPE are a special case and neither of these should be shadowed.
     {
@@ -160,14 +160,14 @@ const RegisterRange Gfx103NonShadowedRanges[] =
     },
     {
         mmVGT_INDEX_TYPE,
-        Gfx09_10::mmVGT_STRMOUT_BUFFER_FILLED_SIZE_3 - mmVGT_INDEX_TYPE + 1
+        HasHwVs::mmVGT_STRMOUT_BUFFER_FILLED_SIZE_3 - mmVGT_INDEX_TYPE + 1
     },
     {
         mmVGT_DMA_NUM_INSTANCES,
         1
     },
     {
-        Gfx09_10::mmSPI_SHADER_PGM_RSRC3_VS,
+        HasHwVs::mmSPI_SHADER_PGM_RSRC3_VS,
         1
     },
     {
@@ -179,7 +179,7 @@ const RegisterRange Gfx103NonShadowedRanges[] =
         1
     },
     {
-        Gfx10::mmSPI_SHADER_PGM_RSRC4_VS,
+        Gfx10Core::mmSPI_SHADER_PGM_RSRC4_VS,
         1
     },
     {

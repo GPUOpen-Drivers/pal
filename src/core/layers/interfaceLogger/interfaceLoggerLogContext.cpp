@@ -118,9 +118,7 @@ static constexpr FuncFormattingEntry FuncFormattingTable[] =
     { InterfaceFunc::CmdBufferCmdSetPerDrawVrsRate,                             InterfaceObject::CmdBuffer,            "CmdSetPerDrawVrsRate"                    },
     { InterfaceFunc::CmdBufferCmdSetVrsCenterState,                             InterfaceObject::CmdBuffer,            "CmdSetVrsCenterState"                    },
     { InterfaceFunc::CmdBufferCmdBindSampleRateImage,                           InterfaceObject::CmdBuffer,            "CmdBindSampleRateImage"                  },
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 554
     { InterfaceFunc::CmdBufferCmdResolvePrtPlusImage,                           InterfaceObject::CmdBuffer,            "CmdResolvePrtPlusImage"                  },
-#endif
     { InterfaceFunc::CmdBufferCmdSetBlendConst,                                 InterfaceObject::CmdBuffer,            "CmdSetBlendConst"                        },
     { InterfaceFunc::CmdBufferCmdSetInputAssemblyState,                         InterfaceObject::CmdBuffer,            "CmdSetInputAssemblyState"                },
     { InterfaceFunc::CmdBufferCmdSetTriangleRasterState,                        InterfaceObject::CmdBuffer,            "CmdSetTriangleRasterState"               },

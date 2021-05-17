@@ -194,7 +194,7 @@ endif()
 
 ### C++ Unit Tests ###
 # WA: Check that these targets haven't already been added (Only until we have a global CMake context)
-if (DD_ENABLE_TESTS)
+if (DD_OPT_ENABLE_TESTS)
     # This is only used when building test (as it's a testing framework), so we disable it otherwise.
     # Building this is nontrivial, so we want to be conservative about when we do.
     if (NOT TARGET gtest)

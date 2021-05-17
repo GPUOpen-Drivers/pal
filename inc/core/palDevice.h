@@ -550,11 +550,6 @@ struct PalPublicSettings
     uint32 cpDmaCmdCopyMemoryMaxBytes;
     /// Forces high performance state for allocated queues. Note: currently supported in Windows only.
     bool forceHighClocks;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 596
-    /// Controls the size of the GFX/Compute Scratch Rings. Valid values are [1-32]. Larger values allocate larger
-    /// Scratch Rings and allow more Waves to run in parallel.
-    uint32 numScratchWavesPerCu;
-#endif
     /// When submitting multiple command buffers in a single grQueueSubmit call, the ICD will patch the command streams
     /// so that the command buffers are chained together instead of submitting through KMD multiple times. This setting
     /// limits the number of command buffers that will be chained together; reduce to prevent problems due to long
@@ -589,7 +584,6 @@ struct PalPublicSettings
     bool disableSkipFceOptimization;
     /// Sets the minimum BPP of surfaces which will have DCC enabled
     uint32 dccBitsPerPixelThreshold;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 584
     /// See largePageSizeInBytes in DeviceProperties. This limit defines how large an allocation must be to have
     /// PAL automatically pad allocation starting virtual address alignments to enable this optimization. By
     /// default, PAL will use the KMD-reported limit.
@@ -598,12 +592,6 @@ struct PalPublicSettings
     /// PAL automatically pad allocation sizes to fill an integral number of large pages. By default, PAL will
     /// use the KMD-reported limit.
     gpusize largePageMinSizeForSizeAlignmentInBytes;
-#else
-    /// See largePageSizeInBytes in DeviceProperties.  This limit defines how large an allocation must be to have
-    /// PAL automatically pad allocation sizes and alignments to enable this optimization.  By default, PAL will use
-    /// the KMD-reported limit.
-    gpusize largePageMinSizeForAlignmentInBytes;
-#endif
     /// The acquire/release-based barrier interface is enabled.
     bool useAcqRelInterface;
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 648
@@ -632,13 +620,11 @@ struct PalPublicSettings
     GpuHeap pipelinePreferredHeap;
 #endif
     bool depthClampBasedOnZExport;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 577
     /// Force the PreColorTarget to an earlier PreRasterization point if used as a wait point. This is to prevent a
     /// write-after-read hazard for a corner case: shader exports from distinct packers are not ordered. Advancing
     /// wait point from PreColorTarget to PostIndexFetch could cause over-sync due to extra  VS/PS_PARTIAL_FLUSH
     /// inserted. It is default to false, but client drivers may choose to app-detect to enable if see corruption.
     bool forceWaitPointPreColorToPostIndexFetch;
-#endif
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 662
     /// Allows the client to disable debug overlay visual confirm after DebugOverlay::Platform is created when the
     /// panel setting DebugOverlayEnabled is globally set but a certain application might need to turn off visual
@@ -1170,11 +1156,7 @@ struct DeviceProperties
                 uint64 supportShaderSubgroupClock         :  1; ///< HW supports clock functions across subgroup.
                 uint64 supportShaderDeviceClock           :  1; ///< HW supports clock functions across device.
                 uint64 supportAlphaToOne                  :  1; ///< HW supports forcing PS output alpha channel to 1
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 560
                 uint64 supportCaptureReplay               :  1; ///< HW supports captureReplay
-#else
-                uint64 placeholder9                       :  1; ///< Placeholder, do not use
-#endif
                 uint64 supportSortAgnosticBarycentrics    :  1; ///< HW supports sort-agnostic Barycentrics for PS
                 uint64 supportVrsWithDsExports            :  1; ///< If true, asic support coarse VRS rates
                                                                 ///  when z or stencil exports are enabled
@@ -1559,13 +1541,6 @@ struct GpuMemoryHeapProperties
     gpusize  heapSize;                     ///< Size of the heap in bytes. If HBCC is enabled, certain heaps may be
                                            ///< virtualized and the logical size will exceed the physical size.
     gpusize  physicalHeapSize;             ///< Physical size of the heap in bytes
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 591
-    float    gpuReadPerfRating;            ///< Relative GPU read performance rating for this heap.
-    float    gpuWritePerfRating;           ///< Relative GPU write performance rating for this heap.
-    float    cpuReadPerfRating;            ///< Relative CPU read performance rating for this heap.
-    float    cpuWritePerfRating;           ///< Relative GPU write performance rating for this heap.
-#endif
 };
 
 /// Reports properties of a specific GPU block required for interpretting performance experiment data from that block.
@@ -1753,15 +1728,11 @@ struct BufferViewInfo
     {
         struct
         {
-#if ( (PAL_CLIENT_INTERFACE_MAJOR_VERSION>= 558))
             /// Set to have this surface independently bypass the MALL for read and / or write operations.
             /// If set, this overrides the GpuMemMallPolicy specified at memory allocation time.  Meaningful
             /// only on GPUs that have supportsMall set in DeviceProperties.
             uint32 bypassMallRead  : 1;
             uint32 bypassMallWrite : 1;
-#else
-            uint32 placeholder0    : 2;  ///< Reserved for future HW
-#endif
             uint32 reserved        : 30; ///< Reserved for future use
         };
         uint32 u32All;                   ///< Value of flags bitfield
@@ -2927,7 +2898,7 @@ public:
     /// @param [in]  hDisplay                Display handle of the local window system.
     /// @param [in]  hWindow                 Window handle of the local window system.
     /// @param [in]  wsiPlatform             WSI Platform the swapchain supposed to work on
-    /// @param [out] pSwapChainProperties    Contains swap chain information.
+    /// @param [in,out] pSwapChainProperties Contains swap chain information.
     ///
     /// @returns Success if get swap chain information successfully.  Otherwise, one of the following errors may be
     ///          returned:

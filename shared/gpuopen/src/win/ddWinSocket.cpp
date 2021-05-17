@@ -1,27 +1,4 @@
-/*
- ***********************************************************************************************************************
- *
- *  Copyright (c) 2019-2021 Advanced Micro Devices, Inc. All Rights Reserved.
- *
- *  Permission is hereby granted, free of charge, to any person obtaining a copy
- *  of this software and associated documentation files (the "Software"), to deal
- *  in the Software without restriction, including without limitation the rights
- *  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- *  copies of the Software, and to permit persons to whom the Software is
- *  furnished to do so, subject to the following conditions:
- *
- *  The above copyright notice and this permission notice shall be included in all
- *  copies or substantial portions of the Software.
- *
- *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- *  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- *  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- *  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- *  SOFTWARE.
- *
- **********************************************************************************************************************/
+/* Copyright (c) 2021 Advanced Micro Devices, Inc. All rights reserved. */
 
 #include <ddAbstractSocket.h>
 
@@ -153,7 +130,7 @@ namespace DevDriver
         return result;
     }
 
-    Result Socket::Connect(const char* pAddress, uint32 port)
+    Result Socket::Connect(const char* pAddress, uint16 port)
     {
         Result result = Result::Success;
 
@@ -240,7 +217,7 @@ namespace DevDriver
         return result;
     }
 
-    Result Socket::Bind(const char* pAddress, uint32 port)
+    Result Socket::Bind(const char* pAddress, uint16 port)
     {
         Result result = Result::Error;
 
@@ -296,21 +273,13 @@ namespace DevDriver
         SOCKET clientSocket = accept(m_osSocket, &addr, &addrSize);
         if (clientSocket != INVALID_SOCKET)
         {
-            sockaddr_in* pSocket = reinterpret_cast<sockaddr_in*>(&addr);
-
-            const UINT addressBufSize = 256;
-            char addressBuf[addressBufSize];
-            const char* pAddress = inet_ntop(AF_INET, reinterpret_cast<void*>(&pSocket->sin_addr), addressBuf, addressBufSize);
-
-            UINT port = ntohs(pSocket->sin_port);
-
-            result = pClientSocket->InitAsClient(clientSocket, pAddress, port, m_isNonBlocking);
+            result = pClientSocket->InitAsClient(clientSocket, m_isNonBlocking);
         }
 
         return result;
     }
 
-    Result Socket::LookupAddressInfo(const char* pAddress, uint32 port, size_t addressInfoSize, char* pAddressInfo, size_t *pAddressSize)
+    Result Socket::LookupAddressInfo(const char* pAddress, uint16 port, size_t addressInfoSize, char* pAddressInfo, size_t *pAddressSize)
     {
         DD_ASSERT(addressInfoSize >= sizeof(sockaddr));
         Result result = Result::Error;
@@ -487,7 +456,7 @@ namespace DevDriver
         return result;
     }
 
-    Result Socket::GetSocketName(char *pAddress, size_t addrLen, uint32 *pPort)
+    Result Socket::GetSocketName(char *pAddress, size_t addrLen, uint16* pPort)
     {
         Result result = Result::Error;
         int len = sizeof(sockaddr);
@@ -499,7 +468,7 @@ namespace DevDriver
 
             if (pResult != NULL)
             {
-                UINT port = ntohs(pAddr->sin_port);
+                const uint16 port = ntohs(pAddr->sin_port);
                 *pPort = port;
                 result = Result::Success;
             }
@@ -507,12 +476,9 @@ namespace DevDriver
         return result;
     }
 
-    Result Socket::InitAsClient(OsSocketType socket, const char* pAddress, uint32 port, bool isNonBlocking)
+    Result Socket::InitAsClient(OsSocketType socket, bool isNonBlocking)
     {
         DD_ASSERT(m_socketType == SocketType::Tcp);
-
-        DD_UNUSED(port);
-        DD_UNUSED(pAddress);
 
         Result result = Result::Success;
 

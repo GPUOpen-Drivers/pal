@@ -233,13 +233,8 @@ Result PresentScheduler::SignalOnAcquire(
             MultiSubmitInfo submitInfo      = {};
             submitInfo.perSubQueueInfoCount = 1;
             submitInfo.pPerSubQueueInfo     = &PerSubQueueInfo;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 568
             submitInfo.ppFences             = &pFence;
             submitInfo.fenceCount           = 1;
-#else
-            submitInfo.pFence               = pFence;
-#endif
-
             const Result fenceResult = m_pSignalQueue->Submit(submitInfo);
             PAL_ASSERT(fenceResult == Result::Success);
         }
@@ -273,12 +268,8 @@ Result PresentScheduler::PreparePresent(
         MultiSubmitInfo submitInfo      = {};
         submitInfo.perSubQueueInfoCount = 1;
         submitInfo.pPerSubQueueInfo     = &PerSubQueueInfo;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 568
         submitInfo.ppFences             = &pFence;
         submitInfo.fenceCount           = 1;
-#else
-        submitInfo.pFence               = pFence;
-#endif
 
         result = pQueue->Submit(submitInfo);
     }

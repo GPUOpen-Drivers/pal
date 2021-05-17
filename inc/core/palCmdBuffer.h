@@ -97,10 +97,8 @@ enum class PrimitiveTopology : uint32
     TriangleStripAdj = 0xB,
     Patch            = 0xC,
     TriangleFan      = 0xD,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 557
     LineLoop         = 0xE,
     Polygon          = 0xF
-#endif
 };
 
 /// Specifies how triangle primitives should be rasterized.
@@ -198,10 +196,6 @@ enum HwPipePoint : uint32
     HwPipeTop              = 0x0,                   ///< Earliest possible point in the GPU pipeline (CP PFP).
     HwPipePostIndexFetch   = 0x1,                   ///< Indirect arguments and index buffer data have been fetched for
                                                     ///  all prior draws/dispatches (CP ME).
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 577
-    HwPipePreRasterization = 0x3,                   ///< All prior generated VS/HS/DS/GS waves have completed.
-    HwPipePostPs           = 0x4,                   ///< All prior generated PS waves have completed.
-#else
     HwPipePreRasterization = 0x2,                   ///< All prior generated VS/HS/DS/GS waves have completed.
     HwPipePostPs           = 0x3,                   ///< All prior generated PS waves have completed.
                                                     ///  Only valid as a pipe point to wait on (release point).
@@ -210,7 +204,6 @@ enum HwPipePoint : uint32
                                                     ///  sync request. And PAL uses it as entry-point to add partial
                                                     ///  flushes to prevent write-after-read hazard from corner cases.
                                                     ///  Only valid as a wait point (acquire point).
-#endif
     HwPipeBottom           = 0x7,                   ///< All prior GPU work (graphics, compute, or BLT) has completed.
 
     // The following points apply to compute-specific work:
@@ -606,13 +599,10 @@ struct DynamicGraphicsShaderInfos
     DynamicGraphicsShaderInfo hs;  ///< Dynamic Hull shader information.
     DynamicGraphicsShaderInfo ds;  ///< Dynamic Domain shader information.
     DynamicGraphicsShaderInfo gs;  ///< Dynamic Geometry shader information.
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 574)
     DynamicGraphicsShaderInfo ts;  ///< Dynamic Task shader information.
     DynamicGraphicsShaderInfo ms;  ///< Dynamic Mesh shader information.
-#endif
     DynamicGraphicsShaderInfo ps;  ///< Dynamic Pixel shader information.
 
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 579)
     union
     {
         struct
@@ -622,7 +612,6 @@ struct DynamicGraphicsShaderInfos
         };
         uint32 u32All;                   ///< Flags packed as 32-bit uint.
     } flags;                             ///< BindPipeline flags.
-#endif
 };
 
 /// Specifies parameters for binding a pipeline.
@@ -975,9 +964,7 @@ struct MemoryImageCopyRegion
     gpusize  gpuMemoryOffset;     ///< Offset in bytes to the start of the copy region in the GPU memory allocation.
     gpusize  gpuMemoryRowPitch;   ///< Offset in bytes between the same X position on two consecutive lines.
     gpusize  gpuMemoryDepthPitch; ///< Offset in bytes between the same X,Y position of two consecutive slices.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 583
     SwizzledFormat swizzledFormat;///< If not Undefined, reinterpret both subresources using this format and swizzle.
-#endif
 };
 
 /// Specifies parameters for a copy between a PRT and a GPU memory allocation.  The same structure is used regardless
@@ -1149,8 +1136,6 @@ struct ImageResolveRegion
                                                      ///  flag set.
 };
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 554
-
 /// A list of the types of PRT+ resolves that can be performed.
 enum class PrtPlusResolveType : uint32
 {
@@ -1173,7 +1158,6 @@ struct PrtPlusImageResolveRegion
     Extent3d  extent;          ///< Size of the resolve region in pixels.
     uint32    numSlices;       ///< Number of slices to be resolved
 };
-#endif
 
 /// Specifies parameters for a resolve of one region in an MSAA source image to a region of the same size in a single
 /// sample destination image.  Used as an input to ICmdBuffer::CmdResolveImage().
@@ -1861,9 +1845,8 @@ struct CmdPostProcessFrameInfo
         const IGpuMemory* pSrcTypedBuffer; ///< The typed buffer to postprocess.
                                            ///  Must have been created as a typed buffer.
     };
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 561
+
     PresentMode presentMode;               /// The Presentation Mode of the application.
-#endif
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 625
     FullScreenFrameMetadataControlFlags fullScreenFrameMetadataControlFlags;
@@ -3203,20 +3186,6 @@ public:
         uint32                        regionCount,
         const ClearBoundTargetRegion* pClearRegions) = 0;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 589
-    PAL_INLINE void CmdClearBoundDepthStencilTargets(
-        float                         depth,
-        uint8                         stencil,
-        uint32                        samples,
-        uint32                        fragments,
-        DepthStencilSelectFlags       flag,
-        uint32                        regionCount,
-        const ClearBoundTargetRegion* pClearRegions)
-    {
-        CmdClearBoundDepthStencilTargets(depth, stencil, 0xFF, samples, fragments, flag, regionCount, pClearRegions);
-    }
-#endif
-
     /// Clears a depth/stencil image to the specified clear values.
     ///
     /// If any Rects have been specified, all subresource ranges must contain a single, identical mip level.
@@ -3245,33 +3214,6 @@ public:
         uint32             rectCount,
         const Rect*        pRects,
         uint32             flags) = 0;
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 589
-    PAL_INLINE void CmdClearDepthStencil(
-        const IImage&      image,
-        ImageLayout        depthLayout,
-        ImageLayout        stencilLayout,
-        float              depth,
-        uint8              stencil,
-        uint32             rangeCount,
-        const SubresRange* pRanges,
-        uint32             rectCount,
-        const Rect*        pRects,
-        uint32             flags)
-    {
-        CmdClearDepthStencil(image,
-                             depthLayout,
-                             stencilLayout,
-                             depth,
-                             stencil,
-                             0xFF,
-                             rangeCount,
-                             pRanges,
-                             rectCount,
-                             pRects,
-                             flags);
-    }
-#endif
 
     /// Clears a range of GPU memory to the specified clear color using the specified buffer view SRD.
     ///
@@ -3347,21 +3289,6 @@ public:
         const ImageResolveRegion* pRegions,
         uint32                    flags) = 0;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 599
-    PAL_INLINE void CmdResolveImage(
-        const IImage&             srcImage,
-        ImageLayout               srcImageLayout,
-        const IImage&             dstImage,
-        ImageLayout               dstImageLayout,
-        ResolveMode               resolveMode,
-        uint32                    regionCount,
-        const ImageResolveRegion* pRegions)
-    {
-        CmdResolveImage(srcImage, srcImageLayout, dstImage, dstImageLayout, resolveMode, regionCount, pRegions, 0);
-    }
-#endif
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 554
     virtual void CmdResolvePrtPlusImage(
         const IImage&                    srcImage,
         ImageLayout                      srcImageLayout,
@@ -3370,7 +3297,6 @@ public:
         PrtPlusResolveType               resolveType,
         uint32                           regionCount,
         const PrtPlusImageResolveRegion* pRegions) = 0;
-#endif
 
     /// Puts the specified GPU event into the _set_ state when all previous GPU work reaches the specified point in the
     /// pipeline.

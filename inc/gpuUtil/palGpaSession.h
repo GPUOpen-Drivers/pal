@@ -56,9 +56,6 @@ namespace Pal
     class  IQueueSemaphore;
     struct GlobalCounterLayout;
     struct MultiSubmitInfo;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 572
-    struct SubmitInfo;
-#endif
     struct ThreadTraceLayout;
     enum   HwPipePoint : uint32;
 }
@@ -134,13 +131,12 @@ struct PerfCounterId
         {
             Pal::uint32 eventQualifier;   ///< The DF counters have an event-specific qualifier bitfield.
         } df;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 587
+
         struct
         {
             Pal::uint16 eventThreshold;   ///< Threshold value for those UMC counters having event-specific threshold.
             Pal::uint8  eventThresholdEn; ///< Threshold enable (0 for disabled,1 for <threshold,2 for >threshold)
         } umc;
-#endif
     };
 };
 
@@ -415,9 +411,7 @@ public:
         Pal::IDevice*        pDevice,
         Pal::uint16          apiMajorVer,
         Pal::uint16          apiMinorVer,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 575
         ApiType              apiType,
-#endif
         Pal::uint16          rgpInstrumentationSpecVer = 0,
         Pal::uint16          rgpInstrumentationApiVer  = 0,
         PerfExpMemDeque*     pAvailablePerfExpMem      = nullptr);
@@ -450,15 +444,6 @@ public:
     /// Unregisters a queue prior to object destruction, and ensure that associated resources are destroyed. Work can
     /// no longer be submitted on the queue after this has been called.
     Pal::Result UnregisterTimedQueue(Pal::IQueue* pQueue);
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 572
-    /// Used to trigger a timed submit of one or more command buffers through the specified queue.  Each command buffer
-    /// is timed individually and will be tagged with an atomically increasing event index on the given queue since the
-    /// last reset.
-    Pal::Result TimedSubmit(Pal::IQueue* pQueue,
-                            const Pal::SubmitInfo& submitInfo,
-                            const TimedSubmitInfo& timedSubmitInfo);
-#endif
 
     Pal::Result TimedSubmit(Pal::IQueue*                pQueue,
                             const Pal::MultiSubmitInfo& submitInfo,
@@ -550,17 +535,6 @@ public:
         Pal::ICmdBuffer*       pCmdBuf,
         const GpaSampleConfig& sampleConfig,
         Pal::uint32*           pSampleId);
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 570
-    Pal::uint32 BeginSample(
-        Pal::ICmdBuffer*        pCmdBuf,
-        const GpaSampleConfig&  sampleConfig)
-    {
-        Pal::uint32 sampleId = 0;
-        BeginSample(pCmdBuf, sampleConfig, &sampleId);
-        return sampleId;
-    }
-#endif
 
     /// Updates the trace parameters for a specific sample.
     ///
@@ -716,13 +690,6 @@ private:
         void*            pCpuAddr;
     };
 
-    // Represents all information to be contained in one SqttIsaDbRecord
-    struct ShaderRecord
-    {
-        Pal::uint32 recordSize;
-        void*       pRecord;
-    };
-
     // Event type for code object load events
     enum class CodeObjectLoadEventType
     {
@@ -811,11 +778,6 @@ private:
     Util::Deque<PsoCorrelationRecord, GpaAllocator>  m_psoCorrelationRecordsCache;
     // List of PSO correlation records that were registered during a trace
     Util::Deque<PsoCorrelationRecord, GpaAllocator>  m_curPsoCorrelationRecords;
-
-    // List of cached shader isa records that will be copied to the final shader records database at the end of a trace
-    Util::Deque<ShaderRecord, GpaAllocator>  m_shaderRecordsCache;
-    // List of shader isa records that were registered during a trace
-    Util::Deque<ShaderRecord, GpaAllocator>  m_curShaderRecords;
 
     Util::RWLock m_registerPipelineLock;
 
@@ -991,11 +953,6 @@ private:
 
     // Helper function to destroy the GpuMemoryInfo object
     void DestroyGpuMemoryInfo(GpuMemoryInfo* pGpuMemoryInfo);
-
-    Pal::Result CreateShaderRecord(
-        Pal::ShaderType       shaderType,
-        const Pal::IPipeline* pPipeline,
-        ShaderRecord*         pShaderRecord);
 
     PAL_DISALLOW_DEFAULT_CTOR(GpaSession);
     GpaSession& operator =(const GpaSession&);

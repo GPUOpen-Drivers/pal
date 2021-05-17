@@ -423,9 +423,11 @@ void AddrMgr2::InitTilingCaps(
     const bool varSwizzleDsMsaa    = TestAnyFlagSet(settings.addr2UseVarSwizzleMode, Addr2UseVarSwizzleDsMsaa);
     const bool varSwizzleNotRtOrDs = TestAnyFlagSet(settings.addr2UseVarSwizzleMode, Addr2UseVarSwizzleNotRtOrDs);
 
-    pBlockSettings->value = 0; // All modes (4kb, 64kb) are valid...
-    pBlockSettings->micro = 1; // but don't ever allow the 256b swizzle modes,
-    pBlockSettings->var   = 1; // and don't allow variable-size block modes.
+    pBlockSettings->value = 0; // All modes (256B, 4kb, 64kb) are valid
+    pBlockSettings->var   = 1; // but don't allow variable-size block modes.
+
+    // Check if flag to disable micro mode is true
+    pBlockSettings->micro = settings.addr2Disable256BSwizzleMode;
 
     // Default to whatever tiling capabilities the settings have selected. This will be overridden for some types
     // of Images.
@@ -438,6 +440,7 @@ void AddrMgr2::InitTilingCaps(
         (pImage->GetGfxImage()->IsRestrictedTiledMultiMediaSurface() == false)))
     {
         // This Image is using linear tiling, so disable all other modes.
+        pBlockSettings->micro          = 1;
         pBlockSettings->macroThin4KB   = 1;
         pBlockSettings->macroThick4KB  = 1;
         pBlockSettings->macroThin64KB  = 1;
@@ -446,6 +449,7 @@ void AddrMgr2::InitTilingCaps(
     else if (createInfo.flags.prt)
     {
         // Tiled resource must use 64KB block size and all other flags must be set as well (forbidden).
+        pBlockSettings->micro         = 1;
         pBlockSettings->macroThin4KB  = 1;
         pBlockSettings->macroThick4KB = 1;
         pBlockSettings->linear        = 1;
@@ -721,7 +725,6 @@ Result AddrMgr2::ComputePlaneSwizzleMode(
 
     InitTilingCaps(pImage, surfSettingInput.flags, &surfSettingInput.forbiddenBlock);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 586
     // Enable gfx9 to handle 2d sampling on 3d despite its hardware always interpreting as 3d
     // The tile size doesn't matter, though, so we still let AddrLib handle this case.
     // D-mode isn't supported in all cases (PRT, depth-major mipmaps), so watch for overrides.
@@ -729,7 +732,6 @@ Result AddrMgr2::ComputePlaneSwizzleMode(
     {
         surfSettingInput.flags.view3dAs2dArray = createInfo.flags.view3dAs2dArray;
     }
-#endif
 
     // Start by building a permitted set of swizzle types. From there we will apply performance optimizations to come
     // up with a preferred set. We need a separate permitted set as a fall-back if we can't create our preferred image.
@@ -886,7 +888,6 @@ Result AddrMgr2::ComputePlaneSwizzleMode(
         // Fmask surfaces can only use Z-swizzle modes; verify that here.
         PAL_ASSERT((forFmask == false) || IsZSwizzle(pOut->swizzleMode));
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 586
         // view3dAs2dArray can only use D-swizzle for gfx9, so fail if the hint was overriden. See full details above.
         if (createInfo.flags.view3dAs2dArray != 0)
         {
@@ -901,7 +902,6 @@ Result AddrMgr2::ComputePlaneSwizzleMode(
                 result = Result::ErrorInvalidFlags;
             }
         }
-#endif
     }
 
     return result;

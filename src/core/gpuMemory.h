@@ -158,11 +158,7 @@ union GpuMemoryFlags
         uint32 restrictedAccess         :  1; // GPU memory is restricted shared access resource
         uint32 crossAdapter             :  1; // GPU memory is shared cross-adapter resource
         uint32 gpuReadOnly              :  1; // GPU memory is read only.
-#if ( (PAL_CLIENT_INTERFACE_MAJOR_VERSION>= 569))
         uint32 mallRangeActive          :  1;
-#else
-        uint32 placeholder1             :  1;
-#endif
         uint32 explicitSync             :  1;
         uint32 reserved                 : 22;
     };
@@ -212,9 +208,7 @@ public:
 
     GpuMemMallPolicy MallPolicy() const { return m_mallPolicy; }
 
-#if ( (PAL_CLIENT_INTERFACE_MAJOR_VERSION>= 569))
     const GpuMemMallRange& MallRange() const { return m_mallRange; }
-#endif
 
     // NOTE: Part of the public IGpuMemory interface.
     virtual Result Map(
@@ -227,7 +221,7 @@ public:
     MType Mtype() const { return m_mtype; }
 
     // Returns the preferred heap.
-    GpuHeap PreferredHeap() const { return m_heaps[0]; }
+    GpuHeap PreferredHeap() const { PAL_ASSERT(m_heapCount > 0); return m_heaps[0]; }
 
     bool IsVirtual()             const { return (m_desc.flags.isVirtual           != 0); }
     bool IsPeer()                const { return (m_desc.flags.isPeer              != 0); }
@@ -274,9 +268,7 @@ public:
     bool IsExecutable()          const { return (m_desc.flags.isExecutable        != 0); }
     bool IsReadOnlyOnGpu()       const { return (m_flags.gpuReadOnly              != 0); }
     bool IsAccessedPhysically()  const { return (m_flags.accessedPhysically       != 0); }
-#if ( (PAL_CLIENT_INTERFACE_MAJOR_VERSION>= 569))
     bool IsMallRangeActive()     const { return (m_flags.mallRangeActive          != 0); }
-#endif
     bool IsExplicitSync()        const { return (m_flags.explicitSync             != 0); }
     void SetAccessedPhysically() { m_flags.accessedPhysically = 1; }
     void SetSurfaceBusAddr(gpusize surfaceBusAddr) { m_desc.surfaceBusAddr = surfaceBusAddr; }
@@ -401,9 +393,7 @@ private:
     gpusize m_markerVirtualAddr;
 
     GpuMemMallPolicy  m_mallPolicy;
-#if ( (PAL_CLIENT_INTERFACE_MAJOR_VERSION>= 569))
     GpuMemMallRange   m_mallRange;
-#endif
 
     PAL_DISALLOW_DEFAULT_CTOR(GpuMemory);
     PAL_DISALLOW_COPY_AND_ASSIGN(GpuMemory);

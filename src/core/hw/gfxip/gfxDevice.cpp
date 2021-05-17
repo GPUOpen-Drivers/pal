@@ -771,9 +771,7 @@ uint32 GfxDevice::VertsPerPrimitive(
         break;
     case PrimitiveTopology::LineList:
     case PrimitiveTopology::LineStrip:
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 557
     case PrimitiveTopology::LineLoop:
-#endif
         vertsPerPrimitive = 2;
         break;
 
@@ -781,9 +779,7 @@ uint32 GfxDevice::VertsPerPrimitive(
     case PrimitiveTopology::TriangleStrip:
     case PrimitiveTopology::RectList:
     case PrimitiveTopology::TriangleFan:
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 557
     case PrimitiveTopology::Polygon:
-#endif
         vertsPerPrimitive = 3;
         break;
 

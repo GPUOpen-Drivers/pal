@@ -113,13 +113,11 @@ Result GpuMemory::ValidateCreateInfo(
     }
     else if (createInfo.pImage != nullptr)
     {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 585
         const Pal::Image* pImage = static_cast<const Pal::Image*>(createInfo.pImage);
         if (createInfo.flags.presentable != pImage->GetImageCreateInfo().flags.presentable)
         {
             result = Result::ErrorInvalidFlags;
         }
-#endif
     }
 
     if ((result == Result::Success) && (createInfo.size == 0))
@@ -214,7 +212,6 @@ Result GpuMemory::ValidateCreateInfo(
         }
     }
 
-#if ( (PAL_CLIENT_INTERFACE_MAJOR_VERSION>= 569))
     if ((result == Result::Success) && (createInfo.flags.mallRangeActive != 0))
     {
         // Page size for specifyng a MALL range is always in units of 4kB pages
@@ -230,7 +227,6 @@ Result GpuMemory::ValidateCreateInfo(
             result = Result::ErrorInvalidValue;
         }
     }
-#endif
 
     if ((result == Result::Success) && createInfo.flags.gl2Uncached &&
         (pDevice->ChipProperties().gfxip.supportGl2Uncached == 0))
@@ -329,9 +325,7 @@ GpuMemory::GpuMemory(
     memset(&m_heaps[0], 0, sizeof(m_heaps));
     memset(&m_typedBufferInfo, 0, sizeof(m_typedBufferInfo));
 
-#if ( (PAL_CLIENT_INTERFACE_MAJOR_VERSION>= 569))
     memset(&m_mallRange, 0, sizeof(m_mallRange));
-#endif
 
     m_flags.u64All   = 0;
     m_pPinnedMemory  = nullptr;
@@ -398,9 +392,7 @@ Result GpuMemory::Init(
     m_flags.crossAdapter         = createInfo.flags.crossAdapter;
     m_flags.tmzProtected         = createInfo.flags.tmzProtected;
     m_flags.tmzUserQueue         = internalInfo.flags.tmzUserQueue;
-#if ( (PAL_CLIENT_INTERFACE_MAJOR_VERSION>= 569))
     m_flags.mallRangeActive      = createInfo.flags.mallRangeActive;
-#endif
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 657
     m_flags.explicitSync         = createInfo.flags.explicitSync;
 #endif
@@ -470,9 +462,7 @@ Result GpuMemory::Init(
     m_priority       = createInfo.priority;
     m_priorityOffset = createInfo.priorityOffset;
     m_mallPolicy     = createInfo.mallPolicy;
-#if ( (PAL_CLIENT_INTERFACE_MAJOR_VERSION>= 569))
     m_mallRange      = createInfo.mallRange;
-#endif
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 652
     m_heapCount      = createInfo.heapCount;
@@ -567,8 +557,6 @@ Result GpuMemory::Init(
             PAL_ALERT_ALWAYS_MSG("Unexpected GPU heap access type");
             break;
         }
-
-        PAL_ASSERT(m_heapCount > 0u);
 #endif
 
         // NOTE: Assume that the heap selection is both local-only and nonlocal-only temporarily. When we scan the
@@ -582,11 +570,15 @@ Result GpuMemory::Init(
                               (m_flags.pageTableBlock == 0) &&
                               (createInfo.flags.cpuInvisible == 0));
 
+        m_desc.heapCount = static_cast<uint32>(m_heapCount);
         for (uint32 heap = 0; heap < m_heapCount; ++heap)
         {
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 652
             m_heaps[heap] = createInfo.heaps[heap];
 #endif
+
+            m_desc.heaps[heap] = m_heaps[heap];
+
             const GpuMemoryHeapProperties& heapProps = m_pDevice->HeapProperties(m_heaps[heap]);
 
             if (heapProps.flags.cpuVisible == 0)
@@ -619,7 +611,9 @@ Result GpuMemory::Init(
         }
     }
 
+#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 667)
     m_desc.preferredHeap = m_heaps[0];
+#endif
 
     m_flags.isLocalPreferred = ((m_heaps[0] == GpuHeapLocal) || (m_heaps[0] == GpuHeapInvisible));
 
@@ -746,20 +740,13 @@ Result GpuMemory::Init(
                 }
                 // The client decides whether or not we pad allocations at all and so should be the final
                 // deciding factor on use of ideal alignment.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 584
-                if((createInfo.size >= m_pDevice->GetPublicSettings()->largePageMinSizeForVaAlignmentInBytes) &&
-#else
-                if ((createInfo.size >= m_pDevice->GetPublicSettings()->largePageMinSizeForAlignmentInBytes) &&
-#endif
+                if ((createInfo.size >= m_pDevice->GetPublicSettings()->largePageMinSizeForVaAlignmentInBytes) &&
                     (idealAlignment != 0))
                 {
                     m_desc.alignment = Pow2Align(m_desc.alignment, idealAlignment);
                 }
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 584
+
                 if ((createInfo.size >= m_pDevice->GetPublicSettings()->largePageMinSizeForSizeAlignmentInBytes) &&
-#else
-                if ((createInfo.size >= m_pDevice->GetPublicSettings()->largePageMinSizeForAlignmentInBytes) &&
-#endif
                     (idealAlignment != 0))
                 {
                     m_desc.size = Pow2Align(m_desc.size, idealAlignment);
@@ -817,9 +804,7 @@ Result GpuMemory::Init(
         m_mtype = MType::Uncached;
     }
     m_mallPolicy     = createInfo.mallPolicy;
-#if ( (PAL_CLIENT_INTERFACE_MAJOR_VERSION>= 569))
     m_mallRange      = createInfo.mallRange;
-#endif
 
     m_vaPartition    = VaPartition::Svm;
     gpusize baseVirtAddr = 0;
@@ -850,11 +835,16 @@ Result GpuMemory::Init(
 
             if (m_pDevice->HeapProperties(heap).flags.holdsPinned != 0)
             {
-                m_heaps[m_heapCount++] = heap;
+                m_heaps[m_heapCount]      = heap;
+                m_desc.heaps[m_heapCount] = heap;
+                m_heapCount++;
             }
         }
 
+        m_desc.heapCount = static_cast<uint32>(m_heapCount);
+#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 667)
         m_desc.preferredHeap = m_heaps[0];
+#endif
 
         m_flags.isLocalPreferred = ((m_heaps[0] == GpuHeapLocal) || (m_heaps[0] == GpuHeapInvisible));
 
@@ -888,9 +878,7 @@ Result GpuMemory::Init(
 
     m_pPinnedMemory  = createInfo.pSysMem;
     m_mallPolicy     = createInfo.mallPolicy;
-#if ( (PAL_CLIENT_INTERFACE_MAJOR_VERSION>= 569))
     m_mallRange      = createInfo.mallRange;
-#endif
     m_desc.size      = createInfo.size;
     m_desc.alignment = (createInfo.alignment != 0) ? createInfo.alignment
                                                    : m_pDevice->MemoryProperties().realMemAllocGranularity;
@@ -904,11 +892,16 @@ Result GpuMemory::Init(
 
         if (m_pDevice->HeapProperties(heap).flags.holdsPinned != 0)
         {
-            m_heaps[m_heapCount++] = heap;
+            m_heaps[m_heapCount]      = heap;
+            m_desc.heaps[m_heapCount] = heap;
+            m_heapCount++;
         }
     }
 
+    m_desc.heapCount = static_cast<uint32>(m_heapCount);
+#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 667)
     m_desc.preferredHeap = m_heaps[0];
+#endif
 
     m_flags.isLocalPreferred = ((m_heaps[0] == GpuHeapLocal) || (m_heaps[0] == GpuHeapInvisible));
 
@@ -938,16 +931,18 @@ Result GpuMemory::Init(
     m_mtype          = m_pOriginalMem->m_mtype;
     m_heapCount      = m_pOriginalMem->m_heapCount;
     m_mallPolicy     = m_pOriginalMem->MallPolicy();
-#if ( (PAL_CLIENT_INTERFACE_MAJOR_VERSION>= 569))
     m_mallRange      = m_pOriginalMem->MallRange();
-#endif
 
     for (uint32 i = 0; i < m_heapCount; ++i)
     {
-        m_heaps[i] = m_pOriginalMem->m_heaps[i];
+        m_heaps[i]      = m_pOriginalMem->m_heaps[i];
+        m_desc.heaps[i] = m_pOriginalMem->m_heaps[i];
     }
 
+    m_desc.heapCount         = static_cast<uint32>(m_heapCount);
+#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 667)
     m_desc.preferredHeap     = m_heaps[0];
+#endif
     m_desc.flags.isShared    = 1;
     m_flags.isShareable      = m_pOriginalMem->m_flags.isShareable;
     m_flags.isFlippable      = m_pOriginalMem->m_flags.isFlippable;
@@ -1008,16 +1003,18 @@ Result GpuMemory::Init(
     m_mtype          = m_pOriginalMem->m_mtype;
     m_heapCount      = m_pOriginalMem->m_heapCount;
     m_mallPolicy     = m_pOriginalMem->MallPolicy();
-#if ( (PAL_CLIENT_INTERFACE_MAJOR_VERSION>= 569))
     m_mallRange      = m_pOriginalMem->MallRange();
-#endif
 
     for (uint32 i = 0; i < m_heapCount; ++i)
     {
-        m_heaps[i] = m_pOriginalMem->m_heaps[i];
+        m_heaps[i]      = m_pOriginalMem->m_heaps[i];
+        m_desc.heaps[i] = m_pOriginalMem->m_heaps[i];
     }
 
+    m_desc.heapCount         = static_cast<uint32>(m_heapCount);
+#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 667)
     m_desc.preferredHeap     = m_heaps[0];
+#endif
     m_desc.flags.isPeer      = 1;
     m_flags.isShareable      = m_pOriginalMem->m_flags.isShareable;
     m_flags.isFlippable      = m_pOriginalMem->m_flags.isFlippable;
@@ -1264,13 +1261,8 @@ gpusize GpuMemory::GetPhysicalAddressAlignment() const
                 const gpusize fragmentSize = memProps.fragmentSize;
 
                 // If client allows it we can try to do alignments for LargePage, BigPage or Iterate256 optimization.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 584
                 if (m_desc.size >= m_pDevice->GetPublicSettings()->largePageMinSizeForSizeAlignmentInBytes)
                 {
-#else
-                if (m_desc.size >= m_pDevice->GetPublicSettings()->largePageMinSizeForAlignmentInBytes)
-                {
-#endif
                     // LargePage alignment.
                     if (memProps.largePageSupport.sizeAlignmentNeeded)
                     {

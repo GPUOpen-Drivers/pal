@@ -858,7 +858,10 @@ Result ArchiveFile::ReadNextEntry(
 
     if (headerOffset < m_curFooterOffset)
     {
-        result = ReadInternal(headerOffset, pNextHeader, sizeof(ArchiveEntryHeader), false);
+        do
+        {
+            result = ReadInternal(headerOffset, pNextHeader, sizeof(ArchiveEntryHeader), false);
+        } while (result == Result::NotReady);
     }
 
     return result;

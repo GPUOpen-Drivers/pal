@@ -92,8 +92,6 @@ Result HybridGraphicsPipeline::HwlInit(
             m_task.LateInit<GraphicsPipelineUploader>(abiReader,
                                                       registers,
                                                       wavefrontSize,
-                                                      nullptr,
-                                                      0,
                                                       &m_threadsPerTgX,
                                                       &m_threadsPerTgY,
                                                       &m_threadsPerTgZ,

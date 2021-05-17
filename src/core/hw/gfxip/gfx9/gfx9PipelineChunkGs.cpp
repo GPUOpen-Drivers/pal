@@ -271,16 +271,19 @@ void PipelineChunkGs::LateInit(
     m_regs.context.vgtGsInstanceCnt.u32All    = registers.At(mmVGT_GS_INSTANCE_CNT);
 
     {
-        m_regs.context.vgtGsPerVs.u32All          = registers.At(Gfx09_10::mmVGT_GS_PER_VS);
-        m_regs.context.vgtGsVertItemSize0.u32All  = registers.At(Gfx09_10::mmVGT_GS_VERT_ITEMSIZE);
-        m_regs.context.vgtGsVertItemSize1.u32All  = registers.At(Gfx09_10::mmVGT_GS_VERT_ITEMSIZE_1);
-        m_regs.context.vgtGsVertItemSize2.u32All  = registers.At(Gfx09_10::mmVGT_GS_VERT_ITEMSIZE_2);
-        m_regs.context.vgtGsVertItemSize3.u32All  = registers.At(Gfx09_10::mmVGT_GS_VERT_ITEMSIZE_3);
-        m_regs.context.vgtGsVsRingItemSize.u32All = registers.At(Gfx09_10::mmVGT_GSVS_RING_ITEMSIZE);
-        m_regs.context.vgtGsVsRingOffset1.u32All  = registers.At(Gfx09_10::mmVGT_GSVS_RING_OFFSET_1);
-        m_regs.context.vgtGsVsRingOffset2.u32All  = registers.At(Gfx09_10::mmVGT_GSVS_RING_OFFSET_2);
-        m_regs.context.vgtGsVsRingOffset3.u32All  = registers.At(Gfx09_10::mmVGT_GSVS_RING_OFFSET_3);
-        m_regs.context.vgtGsOutPrimType.u32All    = registers.At(Gfx09_10::mmVGT_GS_OUT_PRIM_TYPE);
+        bool allHere = true;
+        allHere &= registers.HasEntry(HasHwVs::mmVGT_GS_PER_VS,          &m_regs.context.vgtGsPerVs.u32All);
+        allHere &= registers.HasEntry(HasHwVs::mmVGT_GS_VERT_ITEMSIZE,   &m_regs.context.vgtGsVertItemSize0.u32All);
+        allHere &= registers.HasEntry(HasHwVs::mmVGT_GS_VERT_ITEMSIZE_1, &m_regs.context.vgtGsVertItemSize1.u32All);
+        allHere &= registers.HasEntry(HasHwVs::mmVGT_GS_VERT_ITEMSIZE_2, &m_regs.context.vgtGsVertItemSize2.u32All);
+        allHere &= registers.HasEntry(HasHwVs::mmVGT_GS_VERT_ITEMSIZE_3, &m_regs.context.vgtGsVertItemSize3.u32All);
+        allHere &= registers.HasEntry(HasHwVs::mmVGT_GSVS_RING_ITEMSIZE, &m_regs.context.vgtGsVsRingItemSize.u32All);
+        allHere &= registers.HasEntry(HasHwVs::mmVGT_GSVS_RING_OFFSET_1, &m_regs.context.vgtGsVsRingOffset1.u32All);
+        allHere &= registers.HasEntry(HasHwVs::mmVGT_GSVS_RING_OFFSET_2, &m_regs.context.vgtGsVsRingOffset2.u32All);
+        allHere &= registers.HasEntry(HasHwVs::mmVGT_GSVS_RING_OFFSET_3, &m_regs.context.vgtGsVsRingOffset3.u32All);
+
+        PAL_ASSERT(loadInfo.enableNgg || allHere);
+        m_regs.context.vgtGsOutPrimType.u32All    = registers.At(Gfx10Core::mmVGT_GS_OUT_PRIM_TYPE);
     }
 
     m_regs.context.vgtEsGsRingItemSize.u32All = registers.At(mmVGT_ESGS_RING_ITEMSIZE);
@@ -327,17 +330,19 @@ void PipelineChunkGs::LateInit(
 
         pUploader->AddCtxReg(mmVGT_GS_INSTANCE_CNT,    m_regs.context.vgtGsInstanceCnt);
 
+        if (chipProps.gfxip.supportsHwVs)
         {
-            pUploader->AddCtxReg(Gfx09_10::mmVGT_GS_PER_VS,          m_regs.context.vgtGsPerVs);
-            pUploader->AddCtxReg(Gfx09_10::mmVGT_GS_VERT_ITEMSIZE,   m_regs.context.vgtGsVertItemSize0);
-            pUploader->AddCtxReg(Gfx09_10::mmVGT_GS_VERT_ITEMSIZE_1, m_regs.context.vgtGsVertItemSize1);
-            pUploader->AddCtxReg(Gfx09_10::mmVGT_GS_VERT_ITEMSIZE_2, m_regs.context.vgtGsVertItemSize2);
-            pUploader->AddCtxReg(Gfx09_10::mmVGT_GS_VERT_ITEMSIZE_3, m_regs.context.vgtGsVertItemSize3);
-            pUploader->AddCtxReg(Gfx09_10::mmVGT_GSVS_RING_ITEMSIZE, m_regs.context.vgtGsVsRingItemSize);
-            pUploader->AddCtxReg(Gfx09_10::mmVGT_GSVS_RING_OFFSET_1, m_regs.context.vgtGsVsRingOffset1);
-            pUploader->AddCtxReg(Gfx09_10::mmVGT_GSVS_RING_OFFSET_2, m_regs.context.vgtGsVsRingOffset2);
-            pUploader->AddCtxReg(Gfx09_10::mmVGT_GSVS_RING_OFFSET_3, m_regs.context.vgtGsVsRingOffset3);
-            pUploader->AddCtxReg(Gfx09_10::mmVGT_GS_OUT_PRIM_TYPE,   m_regs.context.vgtGsOutPrimType);
+            pUploader->AddCtxReg(HasHwVs::mmVGT_GS_PER_VS,          m_regs.context.vgtGsPerVs);
+            pUploader->AddCtxReg(HasHwVs::mmVGT_GS_VERT_ITEMSIZE,   m_regs.context.vgtGsVertItemSize0);
+            pUploader->AddCtxReg(HasHwVs::mmVGT_GS_VERT_ITEMSIZE_1, m_regs.context.vgtGsVertItemSize1);
+            pUploader->AddCtxReg(HasHwVs::mmVGT_GS_VERT_ITEMSIZE_2, m_regs.context.vgtGsVertItemSize2);
+            pUploader->AddCtxReg(HasHwVs::mmVGT_GS_VERT_ITEMSIZE_3, m_regs.context.vgtGsVertItemSize3);
+            pUploader->AddCtxReg(HasHwVs::mmVGT_GSVS_RING_ITEMSIZE, m_regs.context.vgtGsVsRingItemSize);
+            pUploader->AddCtxReg(HasHwVs::mmVGT_GSVS_RING_OFFSET_1, m_regs.context.vgtGsVsRingOffset1);
+            pUploader->AddCtxReg(HasHwVs::mmVGT_GSVS_RING_OFFSET_2, m_regs.context.vgtGsVsRingOffset2);
+            pUploader->AddCtxReg(HasHwVs::mmVGT_GSVS_RING_OFFSET_3, m_regs.context.vgtGsVsRingOffset3);
+            pUploader->AddCtxReg(Gfx10Core::mmVGT_GS_OUT_PRIM_TYPE, m_regs.context.vgtGsOutPrimType);
+            static_assert(Gfx09::mmVGT_GS_OUT_PRIM_TYPE == Gfx10Core::mmVGT_GS_OUT_PRIM_TYPE, "Regs changed");
         }
 
         pUploader->AddCtxReg(mmVGT_ESGS_RING_ITEMSIZE, m_regs.context.vgtEsGsRingItemSize);
@@ -521,17 +526,19 @@ uint32* PipelineChunkGs::WriteContextCommands(
 
     {
         pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmVGT_ESGS_RING_ITEMSIZE,
-                                                       Gfx09_10::mmVGT_GSVS_RING_ITEMSIZE,
+                                                       HasHwVs::mmVGT_GSVS_RING_ITEMSIZE,
                                                        &m_regs.context.vgtEsGsRingItemSize,
                                                        pCmdSpace);
+        static_assert(Gfx10Core::mmVGT_GS_OUT_PRIM_TYPE == Gfx09::mmVGT_GS_OUT_PRIM_TYPE,
+            "Reg changed");
 
-        pCmdSpace = pCmdStream->WriteSetSeqContextRegs(Gfx09_10::mmVGT_GS_PER_VS,
-                                                       Gfx09_10::mmVGT_GS_OUT_PRIM_TYPE,
+        pCmdSpace = pCmdStream->WriteSetSeqContextRegs(HasHwVs::mmVGT_GS_PER_VS,
+                                                       Gfx10Core::mmVGT_GS_OUT_PRIM_TYPE,
                                                        &m_regs.context.vgtGsPerVs,
                                                        pCmdSpace);
 
-        pCmdSpace = pCmdStream->WriteSetSeqContextRegs(Gfx09_10::mmVGT_GS_VERT_ITEMSIZE,
-                                                       Gfx09_10::mmVGT_GS_VERT_ITEMSIZE_3,
+        pCmdSpace = pCmdStream->WriteSetSeqContextRegs(HasHwVs::mmVGT_GS_VERT_ITEMSIZE,
+                                                       HasHwVs::mmVGT_GS_VERT_ITEMSIZE_3,
                                                        &m_regs.context.vgtGsVertItemSize0,
                                                        pCmdSpace);
     }

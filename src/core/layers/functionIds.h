@@ -154,9 +154,7 @@ enum class CmdBufCallId : uint32
     CmdSetPerDrawVrsRate,
     CmdSetVrsCenterState,
     CmdBindSampleRateImage,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 554
     CmdResolvePrtPlusImage,
-#endif
     CmdSetClipRects,
     CmdPostProcessFrame,
     Count
@@ -284,9 +282,7 @@ static const char* CmdBufCallIdStrings[] =
     "CmdSetPerDrawVrsRate()",
     "CmdSetVrsCenterState()",
     "CmdBindSampleRateImage()",
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 554
     "CmdResolvePrtPlusImage()",
-#endif
     "CmdSetClipRects()",
     "CmdPostProcessFrame()",
 };

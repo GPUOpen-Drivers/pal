@@ -363,7 +363,6 @@ public:
         const ImageResolveRegion* pRegions,
         uint32                    flags) override;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 554
     virtual void CmdResolvePrtPlusImage(
         const IImage&                    srcImage,
         ImageLayout                      srcImageLayout,
@@ -372,7 +371,6 @@ public:
         PrtPlusResolveType               resolveType,
         uint32                           regionCount,
         const PrtPlusImageResolveRegion* pRegions) override;
-#endif
 
     void CmdCopyImageToPackedPixelImage(
         const IImage&          srcImage,

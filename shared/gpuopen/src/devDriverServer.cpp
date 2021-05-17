@@ -1,33 +1,4 @@
-/*
- ***********************************************************************************************************************
- *
- *  Copyright (c) 2019-2021 Advanced Micro Devices, Inc. All Rights Reserved.
- *
- *  Permission is hereby granted, free of charge, to any person obtaining a copy
- *  of this software and associated documentation files (the "Software"), to deal
- *  in the Software without restriction, including without limitation the rights
- *  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- *  copies of the Software, and to permit persons to whom the Software is
- *  furnished to do so, subject to the following conditions:
- *
- *  The above copyright notice and this permission notice shall be included in all
- *  copies or substantial portions of the Software.
- *
- *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- *  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- *  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- *  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- *  SOFTWARE.
- *
- **********************************************************************************************************************/
-/**
-***********************************************************************************************************************
-* @file devDriverServer.cpp
-* @brief Class definition for DevDriverServer.
-***********************************************************************************************************************
-*/
+/* Copyright (c) 2021 Advanced Micro Devices, Inc. All rights reserved. */
 
 #include "ddPlatform.h"
 #include "messageChannel.h"
@@ -35,8 +6,6 @@
 #include "protocolServer.h"
 #include "protocols/ddInfoService.h"
 #include "protocols/ddSettingsService.h"
-#include "protocols/loggingServer.h"
-#include "protocols/settingsServer.h"
 #include "protocols/driverControlServer.h"
 #include "protocols/rgpServer.h"
 #include "protocols/ddEventServer.h"
@@ -126,16 +95,6 @@ namespace DevDriver
             FinalizeProtocol(Protocol::DriverControl);
         }
 
-        if (m_createInfo.servers.logging)
-        {
-            FinalizeProtocol(Protocol::Logging);
-        }
-
-        if (m_createInfo.servers.settings)
-        {
-            FinalizeProtocol(Protocol::Settings);
-        }
-
         if (m_createInfo.servers.rgp)
         {
             FinalizeProtocol(Protocol::RGP);
@@ -178,16 +137,6 @@ namespace DevDriver
         return m_pMsgChannel;
     }
 
-    LoggingProtocol::LoggingServer* DevDriverServer::GetLoggingServer()
-    {
-        return GetServer<Protocol::Logging>();
-    }
-
-    SettingsProtocol::SettingsServer* DevDriverServer::GetSettingsServer()
-    {
-        return GetServer<Protocol::Settings>();
-    }
-
     DriverControlProtocol::DriverControlServer* DevDriverServer::GetDriverControlServer()
     {
         return GetServer<Protocol::DriverControl>();
@@ -217,37 +166,30 @@ namespace DevDriver
     {
         Result result = Result::Success;
 
-        if (m_createInfo.servers.logging)
+        // Note: The settings service is always initialized regardless of the provided create info flags
+        m_pSettingsService = DD_NEW(SettingsURIService::SettingsService, m_allocCb)(m_allocCb);
+        if (m_pSettingsService != nullptr)
         {
-            result = RegisterProtocol<Protocol::Logging>();
+            result = m_pMsgChannel->RegisterService(m_pSettingsService);
         }
-        if (m_createInfo.servers.settings)
+        else
         {
-            result = RegisterProtocol<Protocol::Settings>();
-            if (result == Result::Success)
-            {
-                m_pSettingsService = DD_NEW(SettingsURIService::SettingsService, m_allocCb)(m_allocCb);
-                if (m_pSettingsService != nullptr)
-                {
-                    result = m_pMsgChannel->RegisterService(m_pSettingsService);
-                }
-                else
-                {
-                    // Something bad happened, we're probably out of memory
-                    result = Result::InsufficientMemory;
-                    DD_ASSERT_ALWAYS();
-                }
-            }
+            // Something bad happened, we're probably out of memory
+            result = Result::InsufficientMemory;
+            DD_ASSERT_ALWAYS();
         }
-        if (m_createInfo.servers.driverControl)
+
+        if ((result == Result::Success) && m_createInfo.servers.driverControl)
         {
             result = RegisterProtocol<Protocol::DriverControl>();
         }
-        if (m_createInfo.servers.rgp)
+
+        if ((result == Result::Success) && m_createInfo.servers.rgp)
         {
             result = RegisterProtocol<Protocol::RGP>();
         }
-        if (m_createInfo.servers.event)
+
+        if ((result == Result::Success) && m_createInfo.servers.event)
         {
             result = RegisterProtocol<Protocol::Event>();
         }
@@ -257,16 +199,6 @@ namespace DevDriver
 
     void DevDriverServer::DestroyProtocols()
     {
-        if (m_createInfo.servers.logging)
-        {
-            UnregisterProtocol(Protocol::Logging);
-        }
-
-        if (m_createInfo.servers.settings)
-        {
-            UnregisterProtocol(Protocol::Settings);
-        }
-
         if (m_createInfo.servers.driverControl)
         {
             UnregisterProtocol(Protocol::DriverControl);
@@ -288,16 +220,6 @@ namespace DevDriver
         Result result = Result::Error;
         switch (protocol)
         {
-        case Protocol::Logging:
-        {
-            result = RegisterProtocol<Protocol::Logging>();
-            break;
-        }
-        case Protocol::Settings:
-        {
-            result = RegisterProtocol<Protocol::Settings>();
-            break;
-        }
         case Protocol::DriverControl:
         {
             result = RegisterProtocol<Protocol::DriverControl>();

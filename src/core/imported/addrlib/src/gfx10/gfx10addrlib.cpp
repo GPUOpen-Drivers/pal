@@ -1404,7 +1404,7 @@ VOID Gfx10Lib::ConvertSwizzlePatternToEquation(
         const UINT_32 blkXMask = dim.w - 1;
         const UINT_32 blkYMask = dim.h - 1;
 
-        ADDR_BIT_SETTING swizzle[ADDR_MAX_EQUATION_BIT];
+        ADDR_BIT_SETTING swizzle[ADDR_MAX_EQUATION_BIT] = {};
         UINT_32          xMask = 0;
         UINT_32          yMask = 0;
         UINT_32          bMask = (1 << elemLog2) - 1;
@@ -1607,7 +1607,7 @@ VOID Gfx10Lib::ConvertSwizzlePatternToEquation(
         const UINT_32 blkYMask = (1 << blkYLog2) - 1;
         const UINT_32 blkZMask = (1 << blkZLog2) - 1;
 
-        ADDR_BIT_SETTING swizzle[ADDR_MAX_EQUATION_BIT];
+        ADDR_BIT_SETTING swizzle[ADDR_MAX_EQUATION_BIT] = {};
         UINT_32          xMask = 0;
         UINT_32          yMask = 0;
         UINT_32          zMask = 0;

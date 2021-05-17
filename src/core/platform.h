@@ -42,11 +42,6 @@ namespace DevDriver
     {
         class RGPServer;
     }
-
-    namespace LoggingProtocol
-    {
-        class LoggingServer;
-    }
 }
 
 namespace Pal
@@ -266,8 +261,7 @@ private:
     PlatformSettingsLoader m_settingsLoader;
 
     // Locally cached pointers to protocol servers.
-    DevDriver::RGPProtocol::RGPServer*         m_pRgpServer;
-    DevDriver::LoggingProtocol::LoggingServer* m_pLoggingServer;
+    DevDriver::RGPProtocol::RGPServer* m_pRgpServer;
 
     Developer::Callback    m_pfnDeveloperCb;
     void*                  m_pClientPrivateData;

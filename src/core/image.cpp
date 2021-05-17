@@ -179,14 +179,12 @@ Result Image::ValidateCreateInfo(
         ret = Result::Unsupported;
     }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 564
     // FmaskOnly metadata mode is only valid for color msaa image
     if ((imageInfo.metadataMode == MetadataMode::FmaskOnly) &&
         ((imageInfo.samples == 1) || (imageInfo.usageFlags.colorTarget == 0)))
     {
         ret = Result::ErrorInvalidImageMetadataMode;
     }
-#endif
 
     if ((imageInfo.prtPlus.mapType != PrtMapType::None) &&
         (TestAnyFlagSet(imageProperties.prtFeatures, PrtFeaturePrtPlus) == false))
@@ -419,7 +417,6 @@ Result Image::ValidateCreateInfo(
         }
     }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 586
     // view3dAs2dArray is only valid for 3d images.
     if (ret == Result::Success)
     {
@@ -429,7 +426,6 @@ Result Image::ValidateCreateInfo(
             ret = Result::ErrorInvalidFlags;
         }
     }
-#endif
 
     return ret;
 }

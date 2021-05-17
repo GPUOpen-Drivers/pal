@@ -1,27 +1,4 @@
-/*
- ***********************************************************************************************************************
- *
- *  Copyright (c) 2019-2021 Advanced Micro Devices, Inc. All Rights Reserved.
- *
- *  Permission is hereby granted, free of charge, to any person obtaining a copy
- *  of this software and associated documentation files (the "Software"), to deal
- *  in the Software without restriction, including without limitation the rights
- *  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- *  copies of the Software, and to permit persons to whom the Software is
- *  furnished to do so, subject to the following conditions:
- *
- *  The above copyright notice and this permission notice shall be included in all
- *  copies or substantial portions of the Software.
- *
- *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- *  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- *  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- *  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- *  SOFTWARE.
- *
- **********************************************************************************************************************/
+/* Copyright (c) 2021 Advanced Micro Devices, Inc. All rights reserved. */
 
 #include "messageChannel.h"
 #include "protocolServer.h"
@@ -211,18 +188,6 @@ namespace DevDriver
             ProtocolFlags enabledProtocols = {};
             switch (pServer->GetProtocol())
             {
-            case Protocol::Logging:
-            {
-                enabledProtocols.logging = true;
-                break;
-            }
-
-            case Protocol::Settings:
-            {
-                enabledProtocols.settings = true;
-                break;
-            }
-
             case Protocol::DriverControl:
             {
                 enabledProtocols.driverControl = true;
@@ -238,12 +203,6 @@ namespace DevDriver
             case Protocol::ETW:
             {
                 enabledProtocols.etw = true;
-                break;
-            }
-
-            case Protocol::GpuCrashDump:
-            {
-                enabledProtocols.gpuCrashDump = true;
                 break;
             }
 
@@ -1007,8 +966,6 @@ namespace DevDriver
         {
             WriteProtocolInfo(pWriter, "transfer", pThis->GetProtocolServer(Protocol::Transfer));
             WriteProtocolInfo(pWriter, "uri", pThis->GetProtocolServer(Protocol::URI));
-            WriteProtocolInfo(pWriter, "logging", pThis->GetProtocolServer(Protocol::Logging));
-            WriteProtocolInfo(pWriter, "settings", pThis->GetProtocolServer(Protocol::Settings));
             WriteProtocolInfo(pWriter, "driverControl", pThis->GetProtocolServer(Protocol::DriverControl));
             WriteProtocolInfo(pWriter, "rgp", pThis->GetProtocolServer(Protocol::RGP));
             WriteProtocolInfo(pWriter, "etw", pThis->GetProtocolServer(Protocol::ETW));

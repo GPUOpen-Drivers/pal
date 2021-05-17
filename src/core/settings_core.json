@@ -408,6 +408,20 @@
       "Description": "Enable adaptive sync (variable refresh rate) for a window of Xserver"
     },
     {
+      "Name": "Addr2Disable256BSwizzleMode",
+      "Tags": [
+        "General",
+        "Resource Settings"
+      ],
+      "Defaults": {
+        "Default": false
+      },
+      "Scope": "PrivatePalKey",
+      "Type": "bool",
+      "VariableName": "addr2Disable256BSwizzleMode",
+      "Description": "Disable 256B Swizzle mode"
+    },
+    {
       "ValidValues": {
         "IsEnum": true,
         "Values": [
@@ -1753,22 +1767,17 @@
       "Description": "Enables support for peer memory and peer memory transfers if the hardware is capable."
     },
     {
-      "Name": "ForcePresentViaGdi",
+      "Name": "ForcePresentViaCpuBlt",
       "Tags": [
         "WSI"
       ],
       "Defaults": {
         "Default": false
       },
-      "DependsOn": {
-        "OS": [
-          "Windows"
-        ]
-      },
       "Scope": "PrivatePalKey",
       "Type": "bool",
-      "VariableName": "forcePresentViaGdi",
-      "Description": "Forces the present technique to use the GDI BLT path."
+      "VariableName": "forcePresentViaCpuBlt",
+      "Description": "Forces the present technique to use a CPU-side copy (eg. GDI on Windows)."
     },
     {
       "Name": "PresentViaOglRuntime",

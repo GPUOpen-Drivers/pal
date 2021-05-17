@@ -1006,7 +1006,6 @@ void Device::Barrier(
 
     HwPipePoint waitPoint = barrier.waitPoint;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 577
     if (barrier.waitPoint == HwPipePreColorTarget)
     {
         // PS exports from distinct packers are not ordered.  Therefore, it is possible for color target writes in an
@@ -1018,7 +1017,6 @@ void Device::Barrier(
         waitPoint = (Parent()->GetPublicSettings()->forceWaitPointPreColorToPostIndexFetch) ? HwPipePostIndexFetch
                                                                                             : HwPipePostPs;
     }
-#endif
 
     // Determine sync requirements for global pipeline waits.
     for (uint32 i = 0; i < barrier.pipePointWaitCount; i++)
@@ -1039,14 +1037,12 @@ void Device::Barrier(
             // HwPipePostBlt barrier optimization
             pipePoint = pCmdBuf->OptimizeHwPipePostBlit();
         }
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 577
         else if (pipePoint == HwPipePreColorTarget)
         {
             // HwPipePreColorTarget is only valid as wait point. But for the sake of robustness, if it's used as pipe
             // point to wait on, it's equivalent to HwPipePostPs.
             pipePoint = HwPipePostPs;
         }
-#endif
 
         if (pipePoint > waitPoint)
         {

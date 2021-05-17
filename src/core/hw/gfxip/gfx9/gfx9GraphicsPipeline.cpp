@@ -245,7 +245,7 @@ void GraphicsPipeline::EarlyInit(
 
     // Similarly, VGT_GS_MODE should also be read early, since it determines if on-chip GS is enabled.
     {
-        registers.HasEntry(Gfx09_10::mmVGT_GS_MODE, &m_regs.context.vgtGsMode.u32All);
+        registers.HasEntry(HasHwVs::mmVGT_GS_MODE, &m_regs.context.vgtGsMode.u32All);
         if (IsGsEnabled() && (m_regs.context.vgtGsMode.bits.ONCHIP == VgtGsModeOnchip))
         {
             SetIsGsOnChip(true);
@@ -423,10 +423,48 @@ void GraphicsPipeline::LateInit(
         m_configRegHash = MetroHash::Compact32(&hash);
     }
 
+    DetermineBinningOnOff();
+
     m_pDevice->CmdUtil().BuildPipelinePrefetchPm4(*pUploader, &m_prefetch);
 
     // Updating the ring sizes expects that all of the register state has been setup.
     UpdateRingSizes(metadata);
+}
+
+// =====================================================================================================================
+void GraphicsPipeline::DetermineBinningOnOff()
+{
+    const Gfx9PalSettings&   settings  = m_pDevice->Settings();
+
+    bool disableBinning = (settings.binningMode == Gfx9DeferredBatchBinDisabled);
+
+    const regDB_SHADER_CONTROL& dbShaderControl = m_chunkVsPs.DbShaderControl();
+
+    const bool canKill =
+        dbShaderControl.bits.KILL_ENABLE             ||
+        dbShaderControl.bits.MASK_EXPORT_ENABLE      ||
+        dbShaderControl.bits.COVERAGE_TO_MASK_ENABLE ||
+        (dbShaderControl.bits.ALPHA_TO_MASK_DISABLE == 0);
+
+    const bool canReject =
+        (dbShaderControl.bits.Z_EXPORT_ENABLE == 0) ||
+        (dbShaderControl.bits.CONSERVATIVE_Z_EXPORT > 0);
+
+    // Disable binning when the pixels can be rejected before the PS and the PS can kill the pixel.
+    // This is an optimization for cases where early Z accepts are not allowed (because the shader may kill) and early
+    // Z rejects are allowed (PS does not output depth).
+    // In such cases the binner orders pixel traffic in a suboptimal way.
+    disableBinning |= canKill && canReject && settings.disableBinningPsKill;
+
+    // Disable binning when the PS uses append/consume.
+    // In such cases, binning changes the ordering of append/consume opeartions. This re-ordering can be suboptimal.
+    disableBinning |= PsUsesAppendConsume() && settings.disableBinningAppendConsume;
+
+    disableBinning |= (GetBinningOverride() == BinningOverride::Disable);
+
+    m_binningAllowed =
+        ((disableBinning        == false) ||
+         (GetBinningOverride()  == BinningOverride::Enable));
 }
 
 // =====================================================================================================================
@@ -604,7 +642,6 @@ void GraphicsPipeline::CalcDynamicStageInfos(
     }
     else
     {
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 574)
         if (HasMeshShader())
         {
             // HasMeshShader(): PipelineMesh
@@ -614,9 +651,7 @@ void GraphicsPipeline::CalcDynamicStageInfos(
 
             CalcDynamicStageInfo(graphicsInfo.ms, &pStageInfos->gs);
         }
-        else
-#endif
-        if (IsNgg() || IsGsEnabled())
+        else if (IsNgg() || IsGsEnabled())
         {
             // IsNgg(): PipelineNgg
             // API Shader -> Hardware Stage
@@ -664,7 +699,7 @@ uint32* GraphicsPipeline::WriteShCommands(
         // If NGG is enabled, there is no hardware-VS, so there is no need to write the late-alloc VS limit.
         if (IsNgg() == false)
         {
-            pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderGraphics>(Gfx09_10::mmSPI_SHADER_LATE_ALLOC_VS,
+            pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderGraphics>(HasHwVs::mmSPI_SHADER_LATE_ALLOC_VS,
                                                                      m_regs.sh.spiShaderLateAllocVs.u32All,
                                                                      pCmdSpace);
         }
@@ -735,7 +770,9 @@ uint32* GraphicsPipeline::WriteContextCommands(
     else
     {
         // This will load context register state for this object and all pipeline chunks!
-        pCmdSpace += CmdUtil::BuildLoadContextRegsIndex(m_loadPath.gpuVirtAddrCtx, m_loadPath.countCtx, pCmdSpace);
+        pCmdSpace += m_pDevice->CmdUtil().BuildLoadContextRegsIndex(m_loadPath.gpuVirtAddrCtx,
+                                                                    m_loadPath.countCtx,
+                                                                    pCmdSpace);
 
         // NOTE: The Hs and Gs chunks don't expect us to call WriteContextCommands() when using the LOAD_INDEX path.
         pCmdSpace = m_chunkVsPs.WriteContextCommands<true>(pCmdStream, pCmdSpace);
@@ -811,11 +848,12 @@ uint32* GraphicsPipeline::WriteContextCommandsSetPath(
                                                   m_regs.context.spiInterpControl0.u32All,
                                                   pCmdSpace);
 
+    if (m_pDevice->Parent()->ChipProperties().gfxip.supportsHwVs)
     {
-        pCmdSpace = pCmdStream->WriteSetOneContextReg(Gfx09_10::mmVGT_GS_MODE,
+        pCmdSpace = pCmdStream->WriteSetOneContextReg(HasHwVs::mmVGT_GS_MODE,
                                                       m_regs.context.vgtGsMode.u32All,
                                                       pCmdSpace);
-        pCmdSpace = pCmdStream->WriteSetOneContextReg(Gfx09_10::mmVGT_VERTEX_REUSE_BLOCK_CNTL,
+        pCmdSpace = pCmdStream->WriteSetOneContextReg(HasHwVs::mmVGT_VERTEX_REUSE_BLOCK_CNTL,
                                                       m_regs.context.vgtVertexReuseBlockCntl.u32All,
                                                       pCmdSpace);
     }
@@ -932,7 +970,6 @@ void GraphicsPipeline::SetupCommonRegisters(
     // for 2 pipes.
     m_regs.other.paScModeCntl1.bits.WALK_FENCE_SIZE = ((m_pDevice->GetNumPipesLog2() <= 1) ? 2 : 3);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 598
     switch (createInfo.rsState.forcedShadingRate)
     {
     case PsShadingRate::SampleRate:
@@ -944,9 +981,6 @@ void GraphicsPipeline::SetupCommonRegisters(
     default:
         break;
     }
-#else
-    m_regs.other.paScModeCntl1.bits.PS_ITER_SAMPLE |= createInfo.rsState.forceSampleRateShading;
-#endif
 
     m_info.ps.flags.perSampleShading = m_regs.other.paScModeCntl1.bits.PS_ITER_SAMPLE;
 
@@ -1066,9 +1100,10 @@ void GraphicsPipeline::SetupCommonRegisters(
         pUploader->AddCtxReg(mmPA_CL_VTE_CNTL,       m_regs.context.paClVteCntl);
         pUploader->AddCtxReg(mmSPI_INTERP_CONTROL_0, m_regs.context.spiInterpControl0);
 
+        if (m_pDevice->Parent()->ChipProperties().gfxip.supportsHwVs)
         {
-            pUploader->AddCtxReg(Gfx09_10::mmVGT_GS_MODE,                 m_regs.context.vgtGsMode);
-            pUploader->AddCtxReg(Gfx09_10::mmVGT_VERTEX_REUSE_BLOCK_CNTL, m_regs.context.vgtVertexReuseBlockCntl);
+            pUploader->AddCtxReg(HasHwVs::mmVGT_GS_MODE,                 m_regs.context.vgtGsMode);
+            pUploader->AddCtxReg(HasHwVs::mmVGT_VERTEX_REUSE_BLOCK_CNTL, m_regs.context.vgtVertexReuseBlockCntl);
         }
 
         if (regInfo.mmPaStereoCntl != 0)
@@ -1093,10 +1128,10 @@ void GraphicsPipeline::SetupCommonRegisters(
                                             : m_pDevice->LateAllocVsLimit() + 1;
 
         regSPI_SHADER_PGM_RSRC1_VS spiShaderPgmRsrc1Vs = { };
-        spiShaderPgmRsrc1Vs.u32All = registers.At(Gfx09_10::mmSPI_SHADER_PGM_RSRC1_VS);
+        spiShaderPgmRsrc1Vs.u32All = registers.At(HasHwVs::mmSPI_SHADER_PGM_RSRC1_VS);
 
         regSPI_SHADER_PGM_RSRC2_VS spiShaderPgmRsrc2Vs = { };
-        spiShaderPgmRsrc2Vs.u32All = registers.At(Gfx09_10::mmSPI_SHADER_PGM_RSRC2_VS);
+        spiShaderPgmRsrc2Vs.u32All = registers.At(HasHwVs::mmSPI_SHADER_PGM_RSRC2_VS);
         const uint32 programmedLimit = CalcMaxLateAllocLimit(*m_pDevice,
                                                              registers,
                                                              spiShaderPgmRsrc1Vs.bits.VGPRS,
@@ -1123,7 +1158,7 @@ void GraphicsPipeline::SetupCommonRegisters(
         }
         if (pUploader->EnableLoadIndexPath())
         {
-            pUploader->AddShReg(Gfx09_10::mmSPI_SHADER_LATE_ALLOC_VS, m_regs.sh.spiShaderLateAllocVs);
+            pUploader->AddShReg(HasHwVs::mmSPI_SHADER_LATE_ALLOC_VS, m_regs.sh.spiShaderLateAllocVs);
         }
     }
     SetupIaMultiVgtParam(registers);
@@ -1814,7 +1849,8 @@ uint32 GraphicsPipeline::GetVsUserDataBaseOffset() const
     }
     else
     {
-        regBase = Gfx09_10::mmSPI_SHADER_USER_DATA_VS_0;
+        PAL_ASSERT(m_pDevice->Parent()->ChipProperties().gfxip.supportsHwVs);
+        regBase = HasHwVs::mmSPI_SHADER_USER_DATA_VS_0;
     }
 
     return regBase;
@@ -2215,34 +2251,6 @@ static uint32 SxBlendOptControl(
     }
 
     return sxBlendOptControl;
-}
-
-// =====================================================================================================================
-// Returns true when the pixel shader culls pixel fragments.
-bool GraphicsPipeline::PsTexKill() const
-{
-    const auto& dbShaderControl = m_chunkVsPs.DbShaderControl().bits;
-
-    return dbShaderControl.KILL_ENABLE || dbShaderControl.MASK_EXPORT_ENABLE || dbShaderControl.COVERAGE_TO_MASK_ENABLE;
-}
-
-// =====================================================================================================================
-// Returns true when the alpha to mask is enabled. The DB_SHADER_CONTROL::ALPHA_TO_MASK_DISABLE bit controls whether
-// or not the MsaaState's DB_ALPHA_TO_MASK::ALPHA_TO_MASK_ENABLE bit works. When ALPHA_TO_MASK_DISABLE is true, the
-// MsaaState's ALPHA_TO_MASK_ENABLE bit is disabled. We need to know this when considering PBB optimizations.
-bool GraphicsPipeline::IsAlphaToMaskEnable() const
-{
-    const auto& dbShaderControl = m_chunkVsPs.DbShaderControl().bits;
-
-    return (dbShaderControl.ALPHA_TO_MASK_DISABLE == 0);
-}
-
-// =====================================================================================================================
-bool GraphicsPipeline::PsCanTriviallyReject() const
-{
-    const auto& dbShaderControl = m_chunkVsPs.DbShaderControl();
-
-    return ((dbShaderControl.bits.Z_EXPORT_ENABLE == 0) || (dbShaderControl.bits.CONSERVATIVE_Z_EXPORT > 0));
 }
 
 // =====================================================================================================================

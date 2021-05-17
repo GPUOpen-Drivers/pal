@@ -123,6 +123,7 @@ CmdStream::CmdStream(
         m_flags.enablePreemption = ((m_subEngineType == SubEngineType::ConstantEngine) ||
                                     (m_pDevice->Settings().cmdBufPreemptionMode == CmdBufPreemptModeEnable));
     }
+
 }
 
 // =====================================================================================================================

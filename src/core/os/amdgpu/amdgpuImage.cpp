@@ -53,16 +53,15 @@ Image::Image(
                internalCreateInfo),
     m_presentImageHandle(NullImageHandle),
     m_pWindowSystem(nullptr),
+    m_pPresentableBuffer(),
     m_framebufferId(0),
     m_idle(true),
     m_pSwapChain(nullptr),
     m_imageIndex(InvalidImageIndex),
     m_drmModeIsSet(false)
 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 567
     // Pip swap-chain is only supported on Windows platforms.
     PAL_ASSERT(createInfo.flags.pipSwapChain == 0);
-#endif
 }
 
 // =====================================================================================================================
@@ -75,6 +74,59 @@ Image::~Image()
             m_pWindowSystem->DestroyPresentableImage(m_presentImageHandle);
         }
     }
+    if (m_pPresentableBuffer != nullptr)
+    {
+        m_pPresentableBuffer->Destroy();
+        PAL_SAFE_FREE(m_pPresentableBuffer, m_pDevice->GetPlatform());
+    }
+}
+
+// =====================================================================================================================
+// This is only used for the CPU present path, where it's needed because the images aren't backed by real GPU memory.
+// So first, we need a linear image that is kept in this 'presentable buffer'.
+// This is dynamically allocated at the first present with a given image.
+Result Image::CreatePresentableBuffer()
+{
+    Result result = Result::Success;
+    PAL_ASSERT(m_pPresentableBuffer == nullptr);
+
+    IGpuMemory* pGpuMemoryOut = nullptr;
+    ImageCreateInfo imgInfo = GetImageCreateInfo();
+
+    GpuMemoryCreateInfo createInfo = {};
+    createInfo.size = imgInfo.extent.width *
+                      imgInfo.extent.height *
+                      Formats::BytesPerPixel(imgInfo.swizzledFormat.format);
+
+    createInfo.priority  = GpuMemPriority::Normal;
+
+    createInfo.heapCount = 2;
+    createInfo.heaps[0]  = GpuHeapLocal;
+    createInfo.heaps[1]  = GpuHeapGartCacheable;
+
+    const size_t objectSize = m_pDevice->GetGpuMemorySize(createInfo, &result);
+    if (result == Result::Success)
+    {
+        void* pMemory = PAL_MALLOC(objectSize, m_pDevice->GetPlatform(), AllocObject);
+        if (pMemory != nullptr)
+        {
+            result = m_pDevice->CreateGpuMemory(createInfo, pMemory, &pGpuMemoryOut);
+            if (result != Pal::Result::Success)
+            {
+                PAL_SAFE_FREE(pMemory, m_pDevice->GetPlatform());
+            }
+        }
+        else
+        {
+            result = Result::ErrorOutOfMemory;
+        }
+    }
+
+    if (result == Result::Success)
+    {
+        m_pPresentableBuffer = static_cast<GpuMemory*>(pGpuMemoryOut);
+    }
+    return result;
 }
 
 // =====================================================================================================================
@@ -161,7 +213,7 @@ Result Image::CreatePresentableImage(
         PAL_ASSERT(createInfo.flags.stereo == 0);
 
         ImageInternalCreateInfo internalInfo = {};
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 597 && PAL_DISPLAY_DCC
+#if PAL_DISPLAY_DCC
             if ((imgCreateInfo.usageFlags.disableOptimizedDisplay == 0) &&
                 (pDevice->SupportDisplayDcc() == true) &&
                 // VCAM_SURFACE_DESC does not support YUV presentable yet
@@ -536,6 +588,8 @@ Result Image::CreateExternalSharedImage(
                 pUmdSharedMetadata->flags.has_wa_tc_compat_z_range;
             internalCreateInfo.sharedMetadata.flags.hasEqGpuAccess =
                 pUmdSharedMetadata->flags.has_eq_gpu_access;
+            internalCreateInfo.sharedMetadata.flags.hasCmaskEqGpuAccess =
+                pUmdSharedMetadata->flags.has_cmask_eq_gpu_access;
             internalCreateInfo.sharedMetadata.flags.hasHtileLookupTable =
                 pUmdSharedMetadata->flags.has_htile_lookup_table;
             internalCreateInfo.sharedMetadata.flags.htileHasDsMetadata =

@@ -492,7 +492,6 @@ public:
         return 0;
     }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 554
     virtual void CmdResolvePrtPlusImage(
         const IImage&                    srcImage,
         ImageLayout                      srcImageLayout,
@@ -501,7 +500,6 @@ public:
         PrtPlusResolveType               resolveType,
         uint32                           regionCount,
         const PrtPlusImageResolveRegion* pRegions) override;
-#endif
 
     // Part of the IDestroyable public interface.
     virtual void Destroy() override
@@ -664,9 +662,7 @@ private:
     void ReplayCmdSetPerDrawVrsRate(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdSetVrsCenterState(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdBindSampleRateImage(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 554
     void ReplayCmdResolvePrtPlusImage(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
-#endif
     void ReplayCmdSetBlendConst(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdSetInputAssemblyState(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdSetTriangleRasterState(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);

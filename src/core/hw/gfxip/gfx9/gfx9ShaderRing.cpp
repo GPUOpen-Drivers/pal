@@ -36,8 +36,8 @@ namespace Pal
 namespace Gfx9
 {
 
-constexpr size_t ScratchWaveSizeGranularityShift = 8;
-constexpr size_t ScratchWaveSizeGranularity      = (1ull << ScratchWaveSizeGranularityShift);
+constexpr size_t ScratchWaveSizeGranularityShift     = 8;
+constexpr size_t ScratchWaveSizeGranularity          = (1ull << ScratchWaveSizeGranularityShift);
 
 // =====================================================================================================================
 // On GFXIP 9 hardware, buffer SRD's which set the ADD_TID_ENABLE bit in word3 changes the meaning of the DATA_FORMAT
@@ -55,31 +55,6 @@ static PAL_INLINE void AdjustRingDataFormat(
             pSrd->word3.bits.DATA_FORMAT = BUF_DATA_FORMAT_INVALID; // Sets the extended stride to zero.
         }
     }
-}
-
-// =====================================================================================================================
-// Helper function to make sure the scratch wave size (in dwords) doesn't exceed the register's maximum value
-static PAL_INLINE size_t AdjustScratchWaveSize(
-    size_t scratchWaveSize)
-{
-    // Clamp scratch wave size to be <= 2M - 256 per register spec requirement. This will ensure that the calculation
-    // of number of waves below will not exceed what SPI can actually generate.
-    constexpr size_t MaxWaveSize        = ((1 << 21) - ScratchWaveSizeGranularity);
-    const     size_t minWaveSize        = (scratchWaveSize > 0) ? ScratchWaveSizeGranularity : 0;
-    size_t           adjScratchWaveSize =
-        (scratchWaveSize > 0) ? RoundUpToMultiple(scratchWaveSize, ScratchWaveSizeGranularity) : scratchWaveSize;
-
-    // If the size per wave is sufficiently large, and the access pattern of scratch memory only uses a very small,
-    // upfront portion of the total amount allocated, we run into an issue where accesses to this scratch memory across
-    // all waves fall into the same memory channels, since the memory channels are based on bits [11:8] of the full byte
-    // address. Unfortunately, since scratch wave allocation is based on units of 256DW (1KB), this means that that only
-    // bits [11:10] really impact the memory channels, and of those we only really care about bit 10.
-    // In order to fix this, we try to bump the allocation up by a single unit (256DW) to make each wave more likely to
-    // access disparate memory channels.
-    // NOTE: For use cases that use low amounts of scratch, this may increase the size of the scratch ring by 50%.
-    adjScratchWaveSize |= minWaveSize;
-
-    return Max(Min(MaxWaveSize, adjScratchWaveSize), minWaveSize);
 }
 
 // =====================================================================================================================
@@ -225,9 +200,16 @@ ScratchRing::ScratchRing(
                isTmz,
                (shaderType == ShaderCompute) ? ShaderRingType::ComputeScratch : ShaderRingType::GfxScratch),
     m_shaderType(shaderType),
-    m_numTotalCus(0)
+    m_numTotalCus(0),
+    m_scratchWaveSizeGranularityShift(0),
+    m_scratchWaveSizeGranularity(0)
 {
     const GpuChipProperties& chipProps = m_pDevice->Parent()->ChipProperties();
+
+    {
+        m_scratchWaveSizeGranularityShift = ScratchWaveSizeGranularityShift;
+        m_scratchWaveSizeGranularity      = ScratchWaveSizeGranularity;
+    }
 
     m_numTotalCus = chipProps.gfx9.numShaderEngines *
                     chipProps.gfx9.numShaderArrays  *
@@ -311,7 +293,33 @@ size_t ScratchRing::CalculateWaveSize() const
 {
     const GpuChipProperties& chipProps = m_pDevice->Parent()->ChipProperties();
 
-    return AdjustScratchWaveSize(m_itemSizeMax * chipProps.gfx9.minWavefrontSize) >> ScratchWaveSizeGranularityShift;
+    return AdjustScratchWaveSize(m_itemSizeMax * chipProps.gfx9.minWavefrontSize) >> m_scratchWaveSizeGranularityShift;
+}
+
+// =====================================================================================================================
+// Helper function to make sure the scratch wave size (in dwords) doesn't exceed the register's maximum value
+size_t ScratchRing::AdjustScratchWaveSize(
+    size_t scratchWaveSize
+    ) const
+{
+    // Clamp scratch wave size to be <= 2M - 256 per register spec requirement. This will ensure that the calculation
+    // of number of waves below will not exceed what SPI can actually generate.
+    const size_t MaxWaveSize        = ((1 << 21) - 256);
+    const size_t minWaveSize        = (scratchWaveSize > 0) ? m_scratchWaveSizeGranularity : 0;
+    size_t       adjScratchWaveSize =
+        (scratchWaveSize > 0) ? RoundUpToMultiple(scratchWaveSize, m_scratchWaveSizeGranularity) : scratchWaveSize;
+
+    // If the size per wave is sufficiently large, and the access pattern of scratch memory only uses a very small,
+    // upfront portion of the total amount allocated, we run into an issue where accesses to this scratch memory across
+    // all waves fall into the same memory channels, since the memory channels are based on bits [11:8] of the full byte
+    // address. Unfortunately, since scratch wave allocation is based on units of 256DW (1KB), this means that that only
+    // bits [11:10] really impact the memory channels, and of those we only really care about bit 10.
+    // In order to fix this, we try to bump the allocation up by a single unit (256DW) to make each wave more likely to
+    // access disparate memory channels.
+    // NOTE: For use cases that use low amounts of scratch, this may increase the size of the scratch ring by 50%.
+    adjScratchWaveSize |= minWaveSize;
+
+    return Max(Min(MaxWaveSize, adjScratchWaveSize), minWaveSize);
 }
 
 // =====================================================================================================================
@@ -604,7 +612,7 @@ MeshScratchRing::MeshScratchRing(
     bool          isTmz)
     :
     ShaderRing(pDevice, pSrdTable, isTmz, ShaderRingType::MeshScratch),
-    m_maxThreadgroupsPerChip(1 << CountSetBits(VGT_GS_MAX_WAVE_ID__MAX_WAVE_ID_MASK))
+    m_maxThreadgroupsPerChip(1 << CountSetBits(Core::VGT_GS_MAX_WAVE_ID__MAX_WAVE_ID_MASK))
 {
     BufferSrd*const   pGenericSrd = &m_pSrdTable[static_cast<size_t>(ShaderRingSrd::MeshScratch)];
 

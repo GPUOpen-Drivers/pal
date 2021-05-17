@@ -225,19 +225,7 @@ struct ComputePipelineCreateInfo
                                                ///  overrideGpuHeap flag is not set. The device will fallback to using
                                                ///  the local visible heap if the requested heap type is unsupported.
 #endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 556
-    /// Optional.  Specifies a set of indirect functions for PAL to compute virtual addresses for during pipeline
-    /// creation.  These GPU addresses can then be passed as shader arguments for a later dispatch operation to
-    /// allow the pipeline's shaders to jump to that function.  Similar to a function pointer on the GPU.
-    ComputePipelineIndirectFuncInfo*  pIndirectFuncList;
-    uint32                            indirectFuncCount;    ///< Number of entries in the pIndirectFuncList array.  Must
-                                                            ///  be zero if pIndirectFuncList is null.
-#endif
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 580
-    uint32                            maxFunctionCallDepth; ///< Maximum depth for indirect function calls
-#endif
-
+    uint32              maxFunctionCallDepth;  ///< Maximum depth for indirect function calls
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 622
     bool disablePartialDispatchPreemption; ///< Prevents scenarios where a subset of the dispatched thread groups are
                                            ///  preempted and the remaining thread groups run to completion. This
@@ -319,12 +307,7 @@ struct GraphicsPipelineCreateInfo
 
         bool            depthClampDisable;         ///< Disable depth clamping to viewport min/max depth
         uint8           clipDistMask;              ///< Mask to indicate the clipDistance.
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 598
         PsShadingRate   forcedShadingRate;         ///< Forced PS shading rate
-#else
-        bool            forceSampleRateShading;    ///< Force per sample shading
-#endif
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 665
         bool            dx10DiamondTestDisable;     ///< Disable DX10 diamond test during line rasterization.
@@ -520,11 +503,6 @@ public:
         uint32*  pSize,
         void*    pBuffer) const = 0;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 556
-    PAL_INLINE Result GetPipelineElf(uint32* pSize, void* pBuffer) const
-        { return GetCodeObject(pSize, pBuffer); }
-#endif
-
     /// Obtains the shader pre and post compilation stats/params for the specified shader stage.
     ///
     /// @param [in]  shaderType The shader stage for which the stats are requested.
@@ -597,7 +575,6 @@ public:
         const IShaderLibrary*const* ppLibraryList,
         uint32                      libraryCount) = 0;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 580
     /// Sets the stack size for indirect function calls made by this pipeline. This may be smaller than or equal to the
     /// stack size already determined during pipeline creation or during an earlier call to LinkWithLibraries() because
     /// the client has access to more information about which functions contained in those libraries (or in the pipeline
@@ -609,7 +586,6 @@ public:
     /// @param [in] stackSizeInBytes  Client-specified stack size, in bytes.
     virtual void SetStackSizeInBytes(
         uint32 stackSizeInBytes) = 0;
-#endif
 
     /// Returns the API shader type to hardware stage mapping for the pipeline.
     ///

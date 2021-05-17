@@ -136,6 +136,7 @@ PresentScheduler::PresentScheduler(
     WindowSystem* pWindowSystem)
     :
     Pal::PresentScheduler(pDevice),
+    m_pCpuBltCmdBuffer(),
     m_pWindowSystem(pWindowSystem)
 {
 }
@@ -143,6 +144,11 @@ PresentScheduler::PresentScheduler(
 // =====================================================================================================================
 PresentScheduler::~PresentScheduler()
 {
+    if (m_pCpuBltCmdBuffer != nullptr)
+    {
+        m_pCpuBltCmdBuffer->Destroy();
+        PAL_SAFE_FREE(m_pCpuBltCmdBuffer, m_pDevice->GetPlatform());
+    }
 }
 
 // =====================================================================================================================
@@ -258,11 +264,137 @@ Result PresentScheduler::ProcessPresent(
 }
 
 // =====================================================================================================================
+// Copies an image into a linear buffer so that a present can be performed without hardware acceleration.
+// This is only used for CPU presents, where it's needed because the images aren't backed by real GPU memory.
+Result PresentScheduler::DoCpuPresentBlit(
+    Queue*               pQueue,
+    Image*               pImage)
+{
+    Pal::Device* pDevice = pQueue->GetDevice();
+    Result  result  = Result::Success;
+    if ((m_pCpuBltCmdBuffer != nullptr) &&
+        (static_cast<CmdBuffer*>(m_pCpuBltCmdBuffer)->GetEngineType() != pQueue->GetEngineType()))
+    {
+        // We're using a different type of queue, so we need to recreate our CmdBuffer, not just reset it.
+        m_pCpuBltCmdBuffer->Destroy();
+        PAL_SAFE_FREE(m_pCpuBltCmdBuffer, pDevice->GetPlatform());
+    }
+
+    // Create a cmd buffer if we don't already have one (or on a different kind of queue)
+    if (m_pCpuBltCmdBuffer == nullptr)
+    {
+        CmdBufferCreateInfo createInfo = { };
+        createInfo.pCmdAllocator = pDevice->InternalCmdAllocator(pQueue->GetEngineType());
+        createInfo.queueType     = pQueue->Type();
+        createInfo.engineType    = pQueue->GetEngineType();
+
+        CmdBufferInternalCreateInfo internalInfo = { };
+        internalInfo.flags.isInternal = 1;
+
+        result = pDevice->CreateInternalCmdBuffer(createInfo,
+                              internalInfo,
+                              reinterpret_cast<CmdBuffer**>(&m_pCpuBltCmdBuffer));
+    }
+
+    // Lazily create (linear) memory to copy the presented image into
+    if ((result == Result::Success) && (pImage->GetPresentableBuffer() == nullptr))
+    {
+        result = pImage->CreatePresentableBuffer();
+    }
+
+    if (result == Result::Success)
+    {
+        PAL_ASSERT(m_pCpuBltCmdBuffer != nullptr);
+        result = m_pCpuBltCmdBuffer->Reset(nullptr, true);
+    }
+
+    if (result == Result::Success)
+    {
+        CmdBufferBuildInfo info = {};
+        info.flags.optimizeOneTimeSubmit = 1;
+
+        result = m_pCpuBltCmdBuffer->Begin(info);
+    }
+
+    // Actually build the copy operation
+    if (result == Result::Success)
+    {
+        ImageLayout layout = { LayoutPresentWindowed | LayoutCopySrc, LayoutAllEngines};
+        switch (pQueue->GetEngineType())
+        {
+        case EngineTypeUniversal:
+            layout.engines = LayoutUniversalEngine;
+            break;
+        case EngineTypeCompute:
+            layout.engines = LayoutComputeEngine;
+            break;
+        case EngineTypeDma:
+            layout.engines = LayoutDmaEngine;
+            break;
+        default:
+            PAL_ASSERT_ALWAYS(); // Engine not supported for presents
+        }
+
+        const ChNumFormat imgFormat = pImage->GetImageCreateInfo().swizzledFormat.format;
+
+        MemoryImageCopyRegion copyRegion = {};
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
+        copyRegion.imageSubres = {ImageAspect::Color, 0, 0};
+#endif
+        copyRegion.imageExtent = pImage->GetImageCreateInfo().extent;
+
+        copyRegion.numSlices = 1;
+        copyRegion.gpuMemoryRowPitch = copyRegion.imageExtent.width * Formats::BytesPerPixel(imgFormat);
+        copyRegion.gpuMemoryDepthPitch = copyRegion.imageExtent.height * copyRegion.gpuMemoryRowPitch;
+
+        // Copy the image data to linear memory
+        m_pCpuBltCmdBuffer->CmdCopyImageToMemory(*pImage,
+                layout,
+                *pImage->GetPresentableBuffer(),
+                1,
+                &copyRegion);
+
+        // Ensure it's CPU-visible
+        BarrierInfo barrier   = {};
+        HwPipePoint pipePoint = HwPipePoint::HwPipePostBlt;
+
+        barrier.waitPoint          = HwPipePoint::HwPipePostIndexFetch;
+        barrier.pipePointWaitCount = 1;
+        barrier.pPipePoints        = &pipePoint;
+        barrier.globalSrcCacheMask = CoherCopy;
+        barrier.globalDstCacheMask = CoherCpu;
+
+        m_pCpuBltCmdBuffer->CmdBarrier(barrier);
+
+        result = m_pCpuBltCmdBuffer->End();
+    }
+
+    // Finally, execute the GPU work
+    if (result == Result::Success)
+    {
+        PerSubQueueSubmitInfo perSubQueueInfo = { 1, &m_pCpuBltCmdBuffer };
+        MultiSubmitInfo submitInfo            = {};
+        submitInfo.perSubQueueInfoCount       = 1;
+        submitInfo.pPerSubQueueInfo           = &perSubQueueInfo;
+
+        result = pQueue->Submit(submitInfo);
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
 Result PresentScheduler::PreparePresent(
     IQueue*              pQueue,
     PresentSchedulerJob* pJob)
 {
     Result result = Result::Success;
+
+    Queue* pAmdGpuQueue = static_cast<Queue*>(pQueue);
+    if (pAmdGpuQueue->GetDevice()->Settings().forcePresentViaCpuBlt)
+    {
+        result = DoCpuPresentBlit(pAmdGpuQueue, static_cast<Image*>(pJob->GetPresentInfo().pSrcImage));
+    }
 
     return result;
 }
@@ -345,6 +477,12 @@ bool PresentScheduler::CanInlinePresent(
     const SwapChainMode swapChainMode = pSwapChain->CreateInfo().swapChainMode;
 
     bool canInline = (swapChainMode == SwapChainMode::Immediate);
+
+    const Queue* pAmdGpuQueue = static_cast<const Queue*>(&queue);
+    if (pAmdGpuQueue->GetDevice()->Settings().forcePresentViaCpuBlt)
+    {
+        canInline = false;
+    }
 
     return canInline;
 }

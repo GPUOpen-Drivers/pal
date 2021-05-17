@@ -99,7 +99,6 @@ Result Queue::Submit(
         }
         pLogContext->EndList();
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 568
         pLogContext->KeyAndBeginList("fences", false);
 
         for (uint32 idx = 0; idx < submitInfo.fenceCount; ++idx)
@@ -108,9 +107,6 @@ Result Queue::Submit(
         }
 
         pLogContext->EndList();
-#else
-        pLogContext->KeyAndObject("fence", submitInfo.pFence);
-#endif
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 663
         pLogContext->KeyAndValue("stackSizeInDwords", submitInfo.stackSizeInDwords);

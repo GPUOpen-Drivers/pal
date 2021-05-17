@@ -880,10 +880,8 @@ void UniversalCmdBuffer::CmdSetInputAssemblyState(
         DI_PT_TRISTRIP_ADJ,     // TriangleStripAdj
         DI_PT_PATCH,            // Patch
         DI_PT_TRIFAN,           // TriangleFan
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 557
         DI_PT_LINELOOP,         // LineLoop
         DI_PT_POLYGON,          // Polygon
-#endif
     };
 
     regVGT_PRIMITIVE_TYPE vgtPrimitiveType = { };
@@ -2722,14 +2720,12 @@ void UniversalCmdBuffer::WriteEventCmd(
         // HwPipePostBlt barrier optimization
         pipePoint = OptimizeHwPipePostBlit();
     }
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 577
     else if (pipePoint == HwPipePreColorTarget)
     {
         // HwPipePreColorTarget is only valid as wait point. But for the sake of robustness, if it's used as pipe
         // point to wait on, it's equivalent to HwPipePostPs.
         pipePoint = HwPipePostPs;
     }
-#endif
 
     WriteDataInfo writeData = {};
 
@@ -3525,7 +3521,7 @@ uint32* UniversalCmdBuffer::ValidateDraw(
     // Re-calculate paScModeCntl1 value if state constributing to the register has changed.
     if (pipelineDirty ||
         (stateDirty && (dirtyFlags.depthStencilState || dirtyFlags.colorBlendState || dirtyFlags.depthStencilView ||
-                        dirtyFlags.queryState || dirtyFlags.triangleRasterState ||
+                        dirtyFlags.occlusionQueryActive || dirtyFlags.triangleRasterState ||
                         (m_drawTimeHwState.valid.paScModeCntl1 == 0))))
     {
         paScModeCntl1 = pPipeline->PaScModeCntl1();
@@ -3549,7 +3545,7 @@ uint32* UniversalCmdBuffer::ValidateDraw(
     }
 
     regDB_COUNT_CONTROL dbCountControl = m_drawTimeHwState.dbCountControl;
-    if (stateDirty && (dirtyFlags.msaaState || dirtyFlags.queryState))
+    if (stateDirty && (dirtyFlags.msaaState || dirtyFlags.occlusionQueryActive))
     {
         // MSAA sample rates are associated with the MSAA state object, but the sample rate affects how queries are
         // processed (via DB_COUNT_CONTROL). We need to update the value of this register at draw-time since it is
@@ -4350,7 +4346,7 @@ void UniversalCmdBuffer::DeactivateQueryType(
     case QueryPoolType::Occlusion:
         // The value of DB_COUNT_CONTROL depends on both the active occlusion queries and the bound MSAA state
         // object, so we validate it at draw-time.
-        m_graphicsState.dirtyFlags.validationBits.queryState = 1;
+        m_graphicsState.dirtyFlags.validationBits.occlusionQueryActive = 1;
         break;
 
     default:
@@ -4382,7 +4378,7 @@ void UniversalCmdBuffer::ActivateQueryType(
     case QueryPoolType::Occlusion:
         // The value of DB_COUNT_CONTROL depends on both the active occlusion queries and the bound MSAA state
         // object, so we validate it at draw-time.
-        m_graphicsState.dirtyFlags.validationBits.queryState = 1;
+        m_graphicsState.dirtyFlags.validationBits.occlusionQueryActive = 1;
         break;
 
     default:
@@ -4529,10 +4525,8 @@ bool UniversalCmdBuffer::ForceWdSwitchOnEop(
 
     bool switchOnEop = ((primTopology == PrimitiveTopology::TriangleStripAdj) ||
                         (primTopology == PrimitiveTopology::TriangleFan) ||
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 557
                         (primTopology == PrimitiveTopology::LineLoop) ||
                         (primTopology == PrimitiveTopology::Polygon) ||
-#endif
                         (primitiveRestartEnabled &&
                          ((m_device.Support4VgtWithResetIdx() == false) ||
                           ((primTopology != PrimitiveTopology::PointList) &&

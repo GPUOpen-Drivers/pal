@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2019-2021 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2021 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -22,39 +22,31 @@
  *  SOFTWARE.
  *
  **********************************************************************************************************************/
-/**
-***********************************************************************************************************************
-* @file  settingsClient.h
-* @brief Protocol Client for the Settings Protocol
-***********************************************************************************************************************
-*/
 
-#pragma once
+#if PAL_BUILD_GPU_DEBUG
 
-#include "settingsProtocol.h"
-#include "legacyProtocolClient.h"
+#include "core/layers/gpuDebug/gpuDebugDepthStencilView.h"
+#include "core/layers/gpuDebug/gpuDebugDevice.h"
+#include "core/layers/gpuDebug/gpuDebugImage.h"
 
-namespace DevDriver
+namespace Pal
 {
-    namespace SettingsProtocol
-    {
-        class SettingsClient : public LegacyProtocolClient
-        {
-        public:
-            explicit SettingsClient(IMsgChannel* pMsgChannel);
-            ~SettingsClient();
+namespace GpuDebug
+{
 
-            Result QueryNumCategories(uint32* pNumCategories);
-            Result QueryCategories(SettingCategory* pCategoriesBuffer, uint32 bufferSizeInCategories);
+// =====================================================================================================================
+DepthStencilView::DepthStencilView(
+    IDepthStencilView*                pNextView,
+    const DepthStencilViewCreateInfo& createInfo,
+    const Device*                     pDevice)
+    :
+    DepthStencilViewDecorator(pNextView, pDevice),
+    m_createInfo(createInfo),
+    m_pDevice(pDevice)
+{
+}
 
-            Result QueryNumSettings(uint32* pNumSettings);
-            Result QuerySettings(Setting* pSettingsBuffer, uint32 bufferSizeInSettings);
+} // GpuDebug
+} // Pal
 
-            Result QuerySetting(const char* pName, Setting* pSetting);
-
-            Result SetSetting(const char* pName, const SettingValue* pValue);
-
-        private:
-        };
-    }
-} // DevDriver
+#endif

@@ -126,6 +126,9 @@ public:
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 633
 #endif
 
+    Result     CreatePresentableBuffer();
+    GpuMemory* GetPresentableBuffer() const { return m_pPresentableBuffer; }
+
     SwapChain* GetSwapChain() { return m_pSwapChain; }
     void       SetSwapChain(SwapChain* pSwapChain) { m_pSwapChain = pSwapChain; }
     uint32     GetImageIndex() { return m_imageIndex; }
@@ -143,6 +146,8 @@ private:
     // For direct rendering display, it's a handle of dma-buf.
     WindowSystemImageHandle  m_presentImageHandle;
     WindowSystem*            m_pWindowSystem;    // The window system that created the above handle.
+
+    GpuMemory*   m_pPresentableBuffer; // May contain a buffer with linear image to cpu-present
 
     uint32        m_framebufferId;    // Framebuffer ID of the framebuffer to be presented.
     volatile bool m_idle;             // True indicates the image is not owned by Window System

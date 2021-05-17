@@ -725,7 +725,7 @@ Result Image::Finalize(
                 if (useSharedMetadata)
                 {
                     gpusize forcedOffset = sharedMetadata.cmaskOffset;
-                    result = m_pCmask->Init(&forcedOffset, sharedMetadata.flags.hasEqGpuAccess);
+                    result = m_pCmask->Init(&forcedOffset, sharedMetadata.flags.hasCmaskEqGpuAccess);
                     *pGpuMemSize = Max(forcedOffset, *pGpuMemSize);
                 }
                 else
@@ -1131,6 +1131,9 @@ bool Image::DoesImageSupportCopyCompression() const
     ChNumFormat       copyFormat          = m_createInfo.swizzledFormat.format;
     bool              supportsCompression = true;
 
+    // CmdCopyImageToMemory always forces sRGB to UNORM.
+    copyFormat = IsSrgb(copyFormat) ? Formats::ConvertToUnorm(copyFormat) : copyFormat;
+
     if (gfxLevel == GfxIpLevel::GfxIp9)
     {
         const auto*const      pFmtInfo        = MergedChannelFmtInfoTbl(gfxLevel, &platform.PlatformSettings());
@@ -1185,7 +1188,8 @@ void Image::InitLayoutStateMasks()
             // We don't add ResolveDst here because the CB requires that the destination of a FixedFunction resolve must
             // be decompressed. Additionally, after a FixedFunction resolve the CB does not compress the destination.
             // Because of this, we can't let ResolveDst be considered a "compressed" state, nor can we allow our compute
-            // resolve to compress the destination data.
+            // resolve to compress the destination data. However, if we are not doing a fixed func resolve, the shader
+            // will compress the resolve dst, so we can add ResolveDst to the compressedWriteLayout group.
             if (IsGfx10Plus(m_device))
             {
                 compressedWriteLayout.usages |= LayoutShaderWrite;
@@ -1195,6 +1199,12 @@ void Image::InitLayoutStateMasks()
                 if (DoesImageSupportCopyCompression())
                 {
                     compressedWriteLayout.usages |= LayoutCopyDst;
+                }
+
+                // We don't have to check for MSAA here because nobody should transition an MSAA image to ResolveDst
+                if (m_pImageInfo->resolveMethod.fixedFunc == 0)
+                {
+                    compressedWriteLayout.usages |= LayoutResolveDst;
                 }
             }
 
@@ -1230,11 +1240,6 @@ void Image::InitLayoutStateMasks()
                 {
                     // LayoutSampleRate just means "read from this in RPM's VRS copy shader".
                     compressedLayout.usages |= LayoutShaderRead | LayoutSampleRate;
-                }
-
-                if (IsGfx10Plus(m_device) && (isMsaa == false) && (m_pImageInfo->resolveMethod.fixedFunc == 0))
-                {
-                    compressedWriteLayout.usages |= LayoutResolveDst;
                 }
             }
 
@@ -1272,14 +1277,13 @@ void Image::InitLayoutStateMasks()
         // texture fetches are not supported.
         if (isMsaa)
         {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 562
             // If copy to the image is always fully copy, fix up metadata to uncompressed state instead of heavy expand
             // at barrier to "LayoutCopyDst" if this isn't a compressed copy.
             if (m_createInfo.flags.fullCopyDstOnly != 0)
             {
                 compressedLayout.usages |= LayoutCopyDst;
             }
-#endif
+
             if (HasFmaskData())
             {
                 // Our copy path has been designed to allow color compressed MSAA copy sources.
@@ -2281,8 +2285,8 @@ bool Image::IsFormatReplaceable(
             // MM formats are also not replaceable
             // because they have different black and white values and HW will convert which changes the data.
             isFormatReplaceable =
-                (((HasDccData() == false)                                                                  ||
-                 (ImageLayoutToColorCompressionState(m_layoutToState.color, layout) == ColorDecompressed)) &&
+                (((HasDccData() == false)                                                               ||
+                  (ImageLayoutToColorCompressionState(m_layoutToState.color, layout) == ColorDecompressed)) &&
                  (isMmFormat == false));
         }
     }
@@ -2728,12 +2732,10 @@ void Image::BuildDccLookupTableBufferView(
     pViewInfo->stride         = 1;
     pViewInfo->swizzledFormat = UndefinedSwizzledFormat;
 
-#if  PAL_CLIENT_INTERFACE_MAJOR_VERSION>= 558
     const auto& settings = m_device.Settings();
 
     pViewInfo->flags.bypassMallRead  = TestAnyFlagSet(settings.rpmViewsBypassMall, Gfx10RpmViewsBypassMallOnRead);
     pViewInfo->flags.bypassMallWrite = TestAnyFlagSet(settings.rpmViewsBypassMall, Gfx10RpmViewsBypassMallOnWrite);
-#endif
 }
 
 // =====================================================================================================================
@@ -3711,10 +3713,8 @@ void Image::BuildMetadataLookupTableBufferView(
     pViewInfo->range          = m_metaDataLookupTableSizes[mipLevel];
     pViewInfo->stride         = 1;
     pViewInfo->swizzledFormat = UndefinedSwizzledFormat;
-#if  PAL_CLIENT_INTERFACE_MAJOR_VERSION>= 558
     pViewInfo->flags.bypassMallRead  = TestAnyFlagSet(settings.rpmViewsBypassMall, Gfx10RpmViewsBypassMallOnRead);
     pViewInfo->flags.bypassMallWrite = TestAnyFlagSet(settings.rpmViewsBypassMall, Gfx10RpmViewsBypassMallOnWrite);
-#endif
 }
 
 // =====================================================================================================================
@@ -3856,8 +3856,8 @@ uint32 Image::GetIterate256(
     if (m_gfxDevice.SupportsIterate256() &&
         // Check for image-specific constraints here.
         pParent->GetGfxImage()->IsIterate256Meaningful(pSubResInfo) &&
-        // If the panel is forcing iterate256 on, then ignore everything else.
-        (settings.forceEnableIterate256 == false))
+        // If the panel is forcing setting the iterate256 bit to disable the optimization, then ignore everything else.
+        (settings.disableIterate256Opt == false))
     {
         // And finally check the memory alignment requirements.  If there's no bound memory we don't know
         // what the page-size is. Also, shared images are always in system memory where we have no idea
@@ -3982,10 +3982,10 @@ void Image::GetSharedMetadataInfo(
     }
     if (m_pCmask != nullptr)
     {
-        pMetadataInfo->cmaskOffset          = m_pCmask->MemoryOffset();
+        pMetadataInfo->cmaskOffset               = m_pCmask->MemoryOffset();
 
         PAL_ASSERT(m_pCmask->HasMetaEqGenerator());
-        pMetadataInfo->flags.hasEqGpuAccess = m_pCmask->GetMetaEqGenerator()->HasEqGpuAccess();
+        pMetadataInfo->flags.hasCmaskEqGpuAccess = m_pCmask->GetMetaEqGenerator()->HasEqGpuAccess();
     }
     if (m_pFmask != nullptr)
     {
@@ -4004,7 +4004,7 @@ void Image::GetSharedMetadataInfo(
         pMetadataInfo->flags.hasEqGpuAccess       = m_pHtile->GetMetaEqGenerator()->HasEqGpuAccess();
 
         pMetadataInfo->fastClearMetaDataOffset[0] = m_fastClearMetaDataOffset[0];
-        pMetadataInfo->numPlanes = 1;
+        pMetadataInfo->numPlanes                  = 1;
     }
 
     pMetadataInfo->flags.shaderFetchable            =

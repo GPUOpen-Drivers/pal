@@ -28,6 +28,7 @@
 #include "core/layers/gpuDebug/gpuDebugCmdBuffer.h"
 #include "core/layers/gpuDebug/gpuDebugColorBlendState.h"
 #include "core/layers/gpuDebug/gpuDebugColorTargetView.h"
+#include "core/layers/gpuDebug/gpuDebugDepthStencilView.h"
 #include "core/layers/gpuDebug/gpuDebugDevice.h"
 #include "core/layers/gpuDebug/gpuDebugImage.h"
 #include "core/layers/gpuDebug/gpuDebugPipeline.h"
@@ -52,6 +53,8 @@ namespace Pal
 {
 namespace GpuDebug
 {
+
+constexpr uint32 MaxDepthTargetPlanes = 2;
 
 // =====================================================================================================================
 CmdBuffer::CmdBuffer(
@@ -120,6 +123,11 @@ CmdBuffer::~CmdBuffer()
     if (m_surfaceCapture.ppColorTargetDsts != nullptr)
     {
         PAL_SAFE_FREE(m_surfaceCapture.ppColorTargetDsts, m_pDevice->GetPlatform());
+    }
+
+    if (m_surfaceCapture.ppDepthTargetDsts != nullptr)
+    {
+        PAL_SAFE_FREE(m_surfaceCapture.ppDepthTargetDsts, m_pDevice->GetPlatform());
     }
 
     if (m_surfaceCapture.ppGpuMem != nullptr)
@@ -248,10 +256,25 @@ Result CmdBuffer::Init()
             }
         }
 
+        const uint32 depthSurfCount = m_surfaceCapture.actionIdCount * MaxDepthTargetPlanes;
+        if (result == Result::Success)
+        {
+            m_surfaceCapture.ppDepthTargetDsts = static_cast<Image**>(
+                PAL_CALLOC(sizeof(Image*) * depthSurfCount,
+                           m_pDevice->GetPlatform(),
+                           AllocInternal));
+
+            if (m_surfaceCapture.ppDepthTargetDsts == nullptr)
+            {
+                result = Result::ErrorOutOfMemory;
+            }
+        }
+
+        const uint32 totalSurfCount = colorSurfCount + depthSurfCount;
         if (result == Result::Success)
         {
             m_surfaceCapture.ppGpuMem = static_cast<IGpuMemory**>(
-                PAL_CALLOC(sizeof(IGpuMemory*) * colorSurfCount,
+                PAL_CALLOC(sizeof(IGpuMemory*) * totalSurfCount,
                            m_pDevice->GetPlatform(),
                            AllocInternal));
 
@@ -398,135 +421,26 @@ void CmdBuffer::CaptureSurfaces()
             {
                 const IImage* pSrcImage = ctvCreateInfo.imageInfo.pImage;
 
-                // Create the image object which will hold our captured data
-                ImageCreateInfo imageCreateInfo         = pSrcImage->GetImageCreateInfo();
-                imageCreateInfo.flags.u32All            = 0;
-                imageCreateInfo.usageFlags.u32All       = 0;
-                imageCreateInfo.usageFlags.colorTarget  = 1;
-                imageCreateInfo.tiling                  = ImageTiling::Linear;
-                imageCreateInfo.viewFormatCount         = AllCompatibleFormats;
-                imageCreateInfo.pViewFormats            = nullptr;
-
-                Result result = Result::Success;
-
-                const size_t imageSize = m_pDevice->GetImageSize(imageCreateInfo, &result);
-
-                void* pDstImageMem = nullptr;
-
-                if (result == Result::Success)
-                {
-                    pDstImageMem = PAL_MALLOC(imageSize, m_pDevice->GetPlatform(), AllocInternal);
-
-                    if (pDstImageMem == nullptr)
-                    {
-                        result = Result::ErrorOutOfMemory;
-                    }
-                }
-
                 IImage* pDstImage = nullptr;
+                Result result = CaptureImageSurface(
+                    pSrcImage,
+                    ctvCreateInfo.imageInfo.baseSubRes,
+                    ctvCreateInfo.imageInfo.arraySize,
+                    &pDstImage);
 
                 if (result == Result::Success)
                 {
-                    result = m_pDevice->CreateImage(imageCreateInfo, pDstImageMem, &pDstImage);
+                    // Store the image object pointer in our array of capture data
+                    PAL_ASSERT(m_surfaceCapture.actionId >= m_surfaceCapture.actionIdStart);
+                    const uint32 actionIndex = m_surfaceCapture.actionId - m_surfaceCapture.actionIdStart;
+                    PAL_ASSERT(actionIndex < m_surfaceCapture.actionIdCount);
 
-                    if (result != Result::Success)
-                    {
-                        PAL_SAFE_FREE(pDstImageMem, m_pDevice->GetPlatform());
-                    }
+                    const uint32 idx = (actionIndex * MaxColorTargets) + mrt;
+
+                    PAL_ASSERT(m_surfaceCapture.ppColorTargetDsts[idx] == nullptr);
+                    m_surfaceCapture.ppColorTargetDsts[idx] = static_cast<Image*>(pDstImage);
                 }
-
-                if (result == Result::Success)
-                {
-                    // Create the backing memory for our image and attach it
-                    PAL_ASSERT(pDstImageMem == pDstImage);
-
-                    GpuMemoryRequirements gpuMemReqs = { 0 };
-                    pDstImage->GetGpuMemoryRequirements(&gpuMemReqs);
-
-                    GpuMemoryCreateInfo gpuMemCreateInfo = { 0 };
-                    gpuMemCreateInfo.size       = gpuMemReqs.size;
-                    gpuMemCreateInfo.alignment  = gpuMemReqs.alignment;
-                    gpuMemCreateInfo.vaRange    = VaRange::Default;
-                    gpuMemCreateInfo.priority   = GpuMemPriority::Normal;
-                    gpuMemCreateInfo.heapCount  = 3;
-                    gpuMemCreateInfo.heaps[0]   = GpuHeap::GpuHeapLocal;
-                    gpuMemCreateInfo.heaps[1]   = GpuHeap::GpuHeapGartUswc;
-                    gpuMemCreateInfo.heaps[2]   = GpuHeap::GpuHeapGartCacheable;
-                    const size_t gpuMemSize = m_pDevice->GetGpuMemorySize(gpuMemCreateInfo, &result);
-
-                    void* pGpuMemMem = nullptr;
-                    pGpuMemMem = PAL_MALLOC(gpuMemSize, m_pDevice->GetPlatform(), AllocInternal);
-
-                    if (pGpuMemMem == nullptr)
-                    {
-                        result = Result::ErrorOutOfMemory;
-                    }
-
-                    if (result == Result::Success)
-                    {
-                        IGpuMemory* pGpuMem = nullptr;
-                        result = m_pDevice->CreateGpuMemory(gpuMemCreateInfo, pGpuMemMem, &pGpuMem);
-
-                        if (result == Result::Success)
-                        {
-                            result = pDstImage->BindGpuMemory(pGpuMem, 0);
-
-                            if (result == Result::Success)
-                            {
-                                m_surfaceCapture.ppGpuMem[m_surfaceCapture.gpuMemObjsCount] = pGpuMem;
-                                m_surfaceCapture.gpuMemObjsCount++;
-                            }
-                        }
-                        else
-                        {
-                            PAL_SAFE_FREE(pGpuMemMem, m_pDevice->GetPlatform());
-                        }
-                    }
-                }
-
-                // Store the image object pointer in our array of capture data
-                PAL_ASSERT(m_surfaceCapture.actionId >= m_surfaceCapture.actionIdStart);
-                const uint32 actionIndex = m_surfaceCapture.actionId - m_surfaceCapture.actionIdStart;
-                PAL_ASSERT(actionIndex < m_surfaceCapture.actionIdCount);
-
-                const uint32 idx = (actionIndex * MaxColorTargets) + mrt;
-
-                PAL_ASSERT(m_surfaceCapture.ppColorTargetDsts[idx] == nullptr);
-                m_surfaceCapture.ppColorTargetDsts[idx] = static_cast<Image*>(pDstImage);
-
-                // Copy
-                if (result == Result::Success)
-                {
-                    ImageLayout srcLayout = { 0 };
-                    srcLayout.usages  = LayoutColorTarget | LayoutCopySrc;
-                    srcLayout.engines = LayoutUniversalEngine;
-
-                    ImageLayout dstLayout = { 0 };
-                    dstLayout.usages  = LayoutCopyDst;
-                    dstLayout.engines = LayoutUniversalEngine;
-
-                    ImageCopyRegion region;
-                    memset(&region, 0, sizeof(region));
-                    region.srcSubres = ctvCreateInfo.imageInfo.baseSubRes;
-                    region.numSlices = ctvCreateInfo.imageInfo.arraySize;
-
-                    const uint32 mipDivisor = (1 << ctvCreateInfo.imageInfo.baseSubRes.mipLevel);
-
-                    region.extent.width  = imageCreateInfo.extent.width / mipDivisor;
-                    region.extent.height = imageCreateInfo.extent.height / mipDivisor;
-                    region.extent.depth  = imageCreateInfo.extent.depth / mipDivisor;
-
-                    CmdCopyImage(*pSrcImage,
-                                 srcLayout,
-                                 *pDstImage,
-                                 dstLayout,
-                                 1,
-                                 &region,
-                                 nullptr,
-                                 0);
-                }
-
-                if (result != Result::Success)
+                else
                 {
                     PAL_DPWARN("Failed to capture RT%d, Error:0x%x", mrt, result);
                 }
@@ -538,6 +452,256 @@ void CmdBuffer::CaptureSurfaces()
             }
         }
     }
+
+    if (m_boundTargets.depthTarget.pDepthStencilView != nullptr)
+    {
+        const DepthStencilView* pDsv =
+            static_cast<const DepthStencilView*>(m_boundTargets.depthTarget.pDepthStencilView);
+
+        if (pDsv != nullptr)
+        {
+            const DepthStencilViewCreateInfo& dsvCreateInfo = pDsv->GetCreateInfo();
+
+            const IImage* pSrcImage = dsvCreateInfo.pImage;
+
+            uint32 numPlanes = 1;
+            Result result = Result::Success;
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
+            SubresRange range = { };
+            result = pSrcImage->GetFullSubresourceRange(&range);
+            if (result == Result::Success)
+            {
+                numPlanes = range.numPlanes;
+            }
+#endif
+
+            for (uint32 plane = 0; plane < numPlanes; plane++)
+            {
+                IImage* pDstImage = nullptr;
+
+                SubresId subresId   = { };
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
+                subresId.plane      = plane;
+#endif
+                subresId.mipLevel   = dsvCreateInfo.mipLevel;
+                subresId.arraySlice = dsvCreateInfo.baseArraySlice;
+
+                result = CaptureImageSurface(
+                    pSrcImage,
+                    subresId,
+                    dsvCreateInfo.arraySize,
+                    &pDstImage);
+
+                if (result == Result::Success)
+                {
+                    // Store the image object pointer in our array of capture data
+                    PAL_ASSERT(m_surfaceCapture.actionId >= m_surfaceCapture.actionIdStart);
+                    const uint32 actionIndex = m_surfaceCapture.actionId - m_surfaceCapture.actionIdStart;
+                    PAL_ASSERT(actionIndex < m_surfaceCapture.actionIdCount);
+
+                    const uint32 idx = (actionIndex * MaxDepthTargetPlanes) + plane;
+
+                    PAL_ASSERT(m_surfaceCapture.ppDepthTargetDsts[idx] == nullptr);
+                    m_surfaceCapture.ppDepthTargetDsts[idx] = static_cast<Image*>(pDstImage);
+                }
+                else
+                {
+                    PAL_DPWARN("Failed to capture DSV Plane:%d, Error:0x%x", plane, result);
+                }
+            }
+        }
+    }
+}
+
+// =====================================================================================================================
+// Helper function for CaptureSurfaces()
+// Allocates a destination image and backing memory. Then copies from the src to the dst
+Result CmdBuffer::CaptureImageSurface(
+    const IImage*   pSrcImage,      // [in] pointer to the surface to capture
+    const SubresId& baseSubres,     // Specifies the plane, mip level, and base array slice.
+                                    // The plane portion is ignored. All planes are captured.
+    uint32          arraySize,
+    IImage**        ppDstImage)     // [out] pointer to the surface that has the capture data
+{
+    PAL_ASSERT(pSrcImage != nullptr);
+
+    // Create the image object which will hold our captured data
+    ImageCreateInfo imageCreateInfo         = pSrcImage->GetImageCreateInfo();
+    imageCreateInfo.flags.u32All            = 0;
+    imageCreateInfo.usageFlags.u32All       = 0;
+    imageCreateInfo.usageFlags.colorTarget  = 1;
+    imageCreateInfo.tiling                  = ImageTiling::Linear;
+    imageCreateInfo.viewFormatCount         = AllCompatibleFormats;
+    imageCreateInfo.pViewFormats            = nullptr;
+
+    if (pSrcImage->GetImageCreateInfo().usageFlags.depthStencil == 1)
+    {
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
+        const uint32 plane = baseSubres.plane;
+#else
+        const uint32 plane = 0;
+#endif
+        OverrideDepthFormat(&imageCreateInfo.swizzledFormat, pSrcImage, plane);
+    }
+
+    Result result = Result::Success;
+    const size_t imageSize = m_pDevice->GetImageSize(imageCreateInfo, &result);
+
+    void* pDstImageMem = nullptr;
+
+    if (result == Result::Success)
+    {
+        pDstImageMem = PAL_MALLOC(imageSize, m_pDevice->GetPlatform(), AllocInternal);
+
+        if (pDstImageMem == nullptr)
+        {
+            result = Result::ErrorOutOfMemory;
+        }
+    }
+
+    IImage* pDstImage = nullptr;
+
+    if (result == Result::Success)
+    {
+        result = m_pDevice->CreateImage(imageCreateInfo, pDstImageMem, &pDstImage);
+
+        if (result != Result::Success)
+        {
+            PAL_SAFE_FREE(pDstImageMem, m_pDevice->GetPlatform());
+        }
+    }
+
+    if (result == Result::Success)
+    {
+        // Create the backing memory for our image and attach it
+        PAL_ASSERT(pDstImageMem == pDstImage);
+
+        GpuMemoryRequirements gpuMemReqs = { 0 };
+        pDstImage->GetGpuMemoryRequirements(&gpuMemReqs);
+
+        GpuMemoryCreateInfo gpuMemCreateInfo = { 0 };
+        gpuMemCreateInfo.size       = gpuMemReqs.size;
+        gpuMemCreateInfo.alignment  = gpuMemReqs.alignment;
+        gpuMemCreateInfo.vaRange    = VaRange::Default;
+        gpuMemCreateInfo.priority   = GpuMemPriority::Normal;
+        gpuMemCreateInfo.heapCount  = 3;
+        gpuMemCreateInfo.heaps[0]   = GpuHeap::GpuHeapLocal;
+        gpuMemCreateInfo.heaps[1]   = GpuHeap::GpuHeapGartUswc;
+        gpuMemCreateInfo.heaps[2]   = GpuHeap::GpuHeapGartCacheable;
+        const size_t gpuMemSize = m_pDevice->GetGpuMemorySize(gpuMemCreateInfo, &result);
+
+        void* pGpuMemMem = nullptr;
+        pGpuMemMem = PAL_MALLOC(gpuMemSize, m_pDevice->GetPlatform(), AllocInternal);
+
+        if (pGpuMemMem == nullptr)
+        {
+            result = Result::ErrorOutOfMemory;
+        }
+
+        if (result == Result::Success)
+        {
+            IGpuMemory* pGpuMem = nullptr;
+            result = m_pDevice->CreateGpuMemory(gpuMemCreateInfo, pGpuMemMem, &pGpuMem);
+
+            if (result == Result::Success)
+            {
+                result = pDstImage->BindGpuMemory(pGpuMem, 0);
+
+                if (result == Result::Success)
+                {
+                    m_surfaceCapture.ppGpuMem[m_surfaceCapture.gpuMemObjsCount] = pGpuMem;
+                    m_surfaceCapture.gpuMemObjsCount++;
+                }
+            }
+            else
+            {
+                PAL_SAFE_FREE(pGpuMemMem, m_pDevice->GetPlatform());
+            }
+        }
+    }
+
+    // Copy
+    if (result == Result::Success)
+    {
+        ImageLayout srcLayout = { 0 };
+        srcLayout.usages  = LayoutColorTarget | LayoutCopySrc;
+        srcLayout.engines = LayoutUniversalEngine;
+
+        ImageLayout dstLayout = { 0 };
+        dstLayout.usages  = LayoutCopyDst;
+        dstLayout.engines = LayoutUniversalEngine;
+
+        ImageCopyRegion region;
+        memset(&region, 0, sizeof(region));
+        region.srcSubres        = baseSubres;
+        region.dstSubres        = baseSubres;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
+        region.dstSubres.plane  = 0;
+#endif
+        region.numSlices        = arraySize;
+
+        const uint32 mipDivisor = (1 << baseSubres.mipLevel);
+
+        region.extent.width  = imageCreateInfo.extent.width / mipDivisor;
+        region.extent.height = imageCreateInfo.extent.height / mipDivisor;
+        region.extent.depth  = imageCreateInfo.extent.depth / mipDivisor;
+
+        CmdCopyImage(*pSrcImage,
+                     srcLayout,
+                     *pDstImage,
+                     dstLayout,
+                     1,
+                     &region,
+                     nullptr,
+                     0);
+    }
+
+    *ppDstImage = pDstImage;
+
+    return result;
+}
+
+// =====================================================================================================================
+// Changes the input format to a format that matches the component of the input plane.
+// This function is only valid on depth/stencil images
+void CmdBuffer::OverrideDepthFormat(
+    SwizzledFormat*     pSwizzledFormat,
+    const IImage*       pSrcImage,
+    uint32              plane)
+{
+    PAL_ASSERT(pSwizzledFormat != nullptr);
+
+    if (plane < Pal::Formats::NumComponents(pSwizzledFormat->format))
+    {
+        const uint32 planeBitCount =
+            Pal::Formats::ComponentBitCounts(pSwizzledFormat->format)[plane];
+
+        if (planeBitCount == 8)
+        {
+            pSwizzledFormat->format   = ChNumFormat::X8_Uint;
+            pSwizzledFormat->swizzle.swizzle[0] = ChannelSwizzle::X;
+            pSwizzledFormat->swizzle.swizzle[1] = ChannelSwizzle::Zero;
+            pSwizzledFormat->swizzle.swizzle[2] = ChannelSwizzle::Zero;
+            pSwizzledFormat->swizzle.swizzle[3] = ChannelSwizzle::Zero;
+        }
+        else if (planeBitCount == 16)
+        {
+            pSwizzledFormat->format   = ChNumFormat::X16_Unorm;
+            pSwizzledFormat->swizzle.swizzle[0] = ChannelSwizzle::X;
+            pSwizzledFormat->swizzle.swizzle[1] = ChannelSwizzle::Zero;
+            pSwizzledFormat->swizzle.swizzle[2] = ChannelSwizzle::Zero;
+            pSwizzledFormat->swizzle.swizzle[3] = ChannelSwizzle::Zero;
+        }
+        else if (planeBitCount == 32)
+        {
+            pSwizzledFormat->format   = ChNumFormat::X32_Float;
+            pSwizzledFormat->swizzle.swizzle[0] = ChannelSwizzle::X;
+            pSwizzledFormat->swizzle.swizzle[1] = ChannelSwizzle::Zero;
+            pSwizzledFormat->swizzle.swizzle[2] = ChannelSwizzle::Zero;
+            pSwizzledFormat->swizzle.swizzle[3] = ChannelSwizzle::Zero;
+        }
+    }
 }
 
 // =====================================================================================================================
@@ -546,26 +710,29 @@ void CmdBuffer::CaptureSurfaces()
 void CmdBuffer::OutputSurfaceCapture()
 {
     Result result = Result::Success;
-    char fileName[512] = {};
+    char filePath[256] = {};
 
     result = m_pDevice->GetPlatform()->CreateLogDir(
         m_pDevice->GetPlatform()->PlatformSettings().gpuDebugConfig.surfaceCaptureLogDirectory);
 
     if (result == Result::Success)
     {
-        Snprintf(fileName, sizeof(fileName), "%s", m_pDevice->GetPlatform()->LogDirPath());
+        Snprintf(filePath, sizeof(filePath), "%s", m_pDevice->GetPlatform()->LogDirPath());
 
-        result = MkDir(&fileName[0]);
+        result = MkDir(&filePath[0]);
     }
 
-    const size_t endOfString = strlen(&fileName[0]);
+    const size_t endOfString = strlen(&filePath[0]);
 
     if ((result == Result::Success) || (result == Result::AlreadyExists))
     {
-        if (m_surfaceCapture.ppColorTargetDsts != nullptr)
+        for (uint32 action = 0; action < m_surfaceCapture.actionIdCount; action++)
         {
-            for (uint32 action = 0; action < m_surfaceCapture.actionIdCount; action++)
+            char fileName[256] = {};
+
+            if (m_surfaceCapture.ppColorTargetDsts != nullptr)
             {
+                // Output render targets
                 for (uint32 mrt = 0; mrt < MaxColorTargets; mrt++)
                 {
                     const uint32 idx = (action * MaxColorTargets) + mrt;
@@ -573,75 +740,130 @@ void CmdBuffer::OutputSurfaceCapture()
 
                     if (pImage != nullptr)
                     {
-                        void*  pImageMap = nullptr;
-                        result = pImage->GetBoundMemory()->Map(&pImageMap);
+                        Snprintf(fileName,
+                                 sizeof(fileName),
+                                 "Draw%d_RT%d__TS0x%llx",
+                                 m_surfaceCapture.actionIdStart + action,
+                                 mrt,
+                                 GetPerfCpuTime());
 
-                        if (result == Result::Success)
-                        {
+                        OutputSurfaceCaptureImage(
+                            pImage,
+                            &filePath[0],
+                            &fileName[0]);
+                    }
+                }
+            }
 
-                            ImageCreateInfo imageInfo = pImage->GetImageCreateInfo();
+            if (m_surfaceCapture.ppDepthTargetDsts != nullptr)
+            {
+                // Output depth stencil
+                for (uint32 plane = 0; plane < 2; plane++)
+                {
+                    const uint32 idx = (action * MaxDepthTargetPlanes) + plane;
+                    Image* pImage = m_surfaceCapture.ppDepthTargetDsts[idx];
 
-                            bool            canUseDds = false;
-                            DdsHeaderFull   ddsHeader  = {0};
-                            size_t          ddsHeaderSize = 0;
+                    if (pImage != nullptr)
+                    {
+                        Snprintf(fileName,
+                                 sizeof(fileName),
+                                 "Draw%d_DSV%d__TS0x%llx",
+                                 m_surfaceCapture.actionIdStart + action,
+                                 plane,
+                                 GetPerfCpuTime());
 
-                            if (imageInfo.mipLevels == 1)
-                            {
-                                SubresId subresId = { };
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-                                subresId.aspect     = ImageAspect::Color;
-#else
-                                subresId.plane      = 0;
-#endif
-                                subresId.mipLevel   = 0;
-                                subresId.arraySlice = 0;
-
-                                SubresLayout subresLayout = {0};
-                                pImage->GetSubresourceLayout(subresId, &subresLayout);
-
-                                Result ddsResult = GetDdsHeader(&ddsHeader,
-                                                                &ddsHeaderSize,
-                                                                imageInfo.imageType,
-                                                                imageInfo.swizzledFormat,
-                                                                imageInfo.arraySize,
-                                                                &subresLayout);
-
-                                if (ddsResult == Result::Success)
-                                {
-                                    canUseDds = true;
-                                }
-                            }
-
-                            Snprintf(&fileName[endOfString],
-                                sizeof(fileName) - endOfString,
-                                "/Draw%d_RT%d__TS0x%llx.%s",
-                                m_surfaceCapture.actionIdStart + action,
-                                mrt,
-                                GetPerfCpuTime(),
-                                canUseDds ? "dds" : "bin");
-
-                            File outFile;
-                            result = outFile.Open(&(fileName[0]), FileAccessBinary | FileAccessWrite);
-
-                            if ((result == Result::Success) && outFile.IsOpen())
-                            {
-                                if (canUseDds)
-                                {
-                                    outFile.Write(&ddsHeader, ddsHeaderSize);
-                                }
-
-                                outFile.Write(pImageMap, static_cast<size_t>(pImage->GetMemoryLayout().dataSize));
-
-                                outFile.Flush();
-                                outFile.Close();
-                            }
-
-                            pImage->GetBoundMemory()->Unmap();
-                        }
+                        OutputSurfaceCaptureImage(
+                            pImage,
+                            &filePath[0],
+                            &fileName[0]);
                     }
                 }
             }
         }
+    }
+}
+
+// =====================================================================================================================
+// Outputs the input image to disk using the path and file name. If possible, the image is output as a .DDS image
+void CmdBuffer::OutputSurfaceCaptureImage(
+    Image*      pImage,
+    const char* pFilePath,
+    const char* pFileName
+    ) const
+{
+    PAL_ASSERT(pImage != nullptr);
+    PAL_ASSERT(pFilePath != nullptr);
+    PAL_ASSERT(pFileName != nullptr);
+
+    void*  pImageMap = nullptr;
+    Result result = pImage->GetBoundMemory()->Map(&pImageMap);
+
+    if (result == Result::Success)
+    {
+        ImageCreateInfo imageInfo = pImage->GetImageCreateInfo();
+
+        bool            canUseDds = false;
+        DdsHeaderFull   ddsHeader  = {0};
+        size_t          ddsHeaderSize = 0;
+
+        if (imageInfo.mipLevels == 1)
+        {
+            SubresId subresId = { };
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
+            subresId.aspect     = ImageAspect::Color;
+#else
+            subresId.plane      = 0;
+#endif
+            subresId.mipLevel   = 0;
+            subresId.arraySlice = 0;
+
+            SubresLayout subresLayout = {0};
+            pImage->GetSubresourceLayout(subresId, &subresLayout);
+
+            Result ddsResult = GetDdsHeader(&ddsHeader,
+                                            &ddsHeaderSize,
+                                            imageInfo.imageType,
+                                            imageInfo.swizzledFormat,
+                                            imageInfo.arraySize,
+                                            &subresLayout);
+
+            if (ddsResult == Result::Success)
+            {
+                canUseDds = true;
+            }
+        }
+
+        char filePathNameExt[512] = {};
+
+        Snprintf(filePathNameExt,
+                 sizeof(filePathNameExt),
+                 "%s/%s.%s",
+                 pFilePath,
+                 pFileName,
+                 canUseDds ? "dds" : "bin");
+
+        File outFile;
+        result = outFile.Open(&(filePathNameExt[0]), FileAccessBinary | FileAccessWrite);
+
+        if ((result == Result::Success) && outFile.IsOpen())
+        {
+            if (canUseDds)
+            {
+                outFile.Write(&ddsHeader, ddsHeaderSize);
+            }
+
+            outFile.Write(pImageMap, static_cast<size_t>(pImage->GetMemoryLayout().dataSize));
+
+            outFile.Flush();
+            outFile.Close();
+        }
+
+        pImage->GetBoundMemory()->Unmap();
+    }
+
+    if (result != Result::Success)
+    {
+        PAL_DPWARN("Surface Capture failed to output image 0xllx%x, Error:0x%x", pImage, result);
     }
 }
 
@@ -657,6 +879,18 @@ void CmdBuffer::DestroySurfaceCaptureData()
             {
                 m_surfaceCapture.ppColorTargetDsts[i]->Destroy();
                 PAL_SAFE_FREE(m_surfaceCapture.ppColorTargetDsts[i], m_pDevice->GetPlatform());
+            }
+        }
+    }
+
+    if (m_surfaceCapture.ppDepthTargetDsts != nullptr)
+    {
+        for (uint32 i = 0; i < m_surfaceCapture.actionIdCount * MaxDepthTargetPlanes; i++)
+        {
+            if (m_surfaceCapture.ppDepthTargetDsts[i] != nullptr)
+            {
+                m_surfaceCapture.ppDepthTargetDsts[i]->Destroy();
+                PAL_SAFE_FREE(m_surfaceCapture.ppDepthTargetDsts[i], m_pDevice->GetPlatform());
             }
         }
     }
@@ -1136,7 +1370,6 @@ void CmdBuffer::ReplayCmdBindSampleRateImage(
     pTgtCmdBuffer->CmdBindSampleRateImage(ReadTokenVal<const IImage*>());
 }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 554
 // =====================================================================================================================
 void CmdBuffer::CmdResolvePrtPlusImage(
     const IImage&                    srcImage,
@@ -1181,7 +1414,6 @@ void CmdBuffer::ReplayCmdResolvePrtPlusImage(
                                           regionCount,
                                           pRegions);
 }
-#endif
 
 // =====================================================================================================================
 void CmdBuffer::ReplayCmdSetBlendConst(
@@ -2940,9 +3172,7 @@ void CmdBuffer::CmdClearBoundDepthStencilTargets(
     InsertToken(CmdBufCallId::CmdClearBoundDepthStencilTargets);
     InsertToken(depth);
     InsertToken(stencil);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 587
     InsertToken(stencilWriteMask);
-#endif
     InsertToken(samples);
     InsertToken(fragments);
     InsertToken(flag);
@@ -4394,9 +4624,7 @@ Result CmdBuffer::Replay(
         &CmdBuffer::ReplayCmdSetPerDrawVrsRate,
         &CmdBuffer::ReplayCmdSetVrsCenterState,
         &CmdBuffer::ReplayCmdBindSampleRateImage,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 554
         &CmdBuffer::ReplayCmdResolvePrtPlusImage,
-#endif
         &CmdBuffer::ReplayCmdSetClipRects,
         &CmdBuffer::ReplayCmdPostProcessFrame,
     };

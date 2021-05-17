@@ -68,8 +68,10 @@ enum class PalEvent : uint32
 
     // Sends fully processed Rmt Tokens for the previous PalEvent types
     RmtToken                 = 13,
+    // Sends the RMT major/minor version used for RMT token output
+    RmtVersion               = 14,
 
-    Count
+    Count                    = 15
 };
 
 typedef uint64 GpuMemHandle;

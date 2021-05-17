@@ -692,21 +692,13 @@ Result Queue::OsSubmit(
     }
 
     // Update the fence
-    if ((result == Result::Success) &&
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 568
-        (submitInfo.fenceCount > 0))
+    if ((result == Result::Success) && (submitInfo.fenceCount > 0))
     {
         for (uint32 i = 0; i < submitInfo.fenceCount; i++)
         {
             DoAssociateFenceWithLastSubmit(static_cast<Pal::Fence*>(submitInfo.ppFences[i]));
         }
     }
-#else
-        (submitInfo.pFence != nullptr))
-    {
-        DoAssociateFenceWithLastSubmit(static_cast<Pal::Fence*>(submitInfo.pFence));
-    }
-#endif
 
     m_sqttWaRequired     = (sqttClosed == false);
     m_perfCtrWaRequired  = (perfCtrClosed == false);

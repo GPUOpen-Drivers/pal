@@ -388,20 +388,14 @@ GpaSession::GpaSession(
     IDevice*             pDevice,
     uint16               apiMajorVer,
     uint16               apiMinorVer,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 575
     ApiType              apiType,
-#endif
     uint16               rgpInstrumentationSpecVer,
     uint16               rgpInstrumentationApiVer,
     PerfExpMemDeque*     pAvailablePerfExpMem)
     :
     m_pDevice(pDevice),
     m_timestampAlignment(0),
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 575
     m_apiType(apiType),
-#else
-    m_apiType(ApiType::Vulkan),
-#endif
     m_apiMajorVer(apiMajorVer),
     m_apiMinorVer(apiMinorVer),
     m_instrumentationSpecVersion(rgpInstrumentationSpecVer),
@@ -427,8 +421,6 @@ GpaSession::GpaSession(
     m_curCodeObjectLoadEventRecords(m_pPlatform),
     m_psoCorrelationRecordsCache(m_pPlatform),
     m_curPsoCorrelationRecords(m_pPlatform),
-    m_shaderRecordsCache(m_pPlatform),
-    m_curShaderRecords(m_pPlatform),
     m_timedQueuesArray(m_pPlatform),
     m_queueEvents(m_pPlatform),
     m_timestampCalibrations(m_pPlatform),
@@ -548,16 +540,6 @@ GpaSession::~GpaSession()
 
         PAL_SAFE_FREE(pRecord, m_pPlatform);
     }
-
-    // Clear the shader records cache.
-    while (m_shaderRecordsCache.NumElements() > 0)
-    {
-        ShaderRecord shaderRecord = {};
-        m_shaderRecordsCache.PopFront(&shaderRecord);
-        PAL_ASSERT(shaderRecord.pRecord != nullptr);
-
-        PAL_SAFE_FREE(shaderRecord.pRecord, m_pPlatform);
-    }
 }
 
 // =====================================================================================================================
@@ -593,8 +575,6 @@ GpaSession::GpaSession(
     m_curCodeObjectLoadEventRecords(m_pPlatform),
     m_psoCorrelationRecordsCache(m_pPlatform),
     m_curPsoCorrelationRecords(m_pPlatform),
-    m_shaderRecordsCache(m_pPlatform),
-    m_curShaderRecords(m_pPlatform),
     m_timedQueuesArray(m_pPlatform),
     m_queueEvents(m_pPlatform),
     m_timestampCalibrations(m_pPlatform),
@@ -735,12 +715,6 @@ Result GpaSession::Init()
                  iter.Next())
             {
                 m_codeObjectLoadEventRecordsCache.PushBack(*iter.Get());
-            }
-
-            // Copy shader ISA database from srcSession
-            for (auto iter = m_pSrcSession->m_shaderRecordsCache.Begin(); iter.Get() != nullptr; iter.Next())
-            {
-                m_shaderRecordsCache.PushBack(*iter.Get());
             }
 
             // Import each SampleItem
@@ -908,45 +882,6 @@ Pal::Result GpaSession::UnregisterTimedQueue(
     }
     return result;
 }
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 572
-// =====================================================================================================================
-Pal::Result GpaSession::TimedSubmit(
-    Pal::IQueue*           pQueue,
-    const Pal::SubmitInfo& submitInfo,
-    const TimedSubmitInfo& timedSubmitInfo)
-{
-    MultiSubmitInfo       newInfo               = { };
-    PerSubQueueSubmitInfo perSubQueueSubmitInfo = { };
-
-    if (submitInfo.cmdBufferCount > 0)
-    {
-        newInfo.pPerSubQueueInfo     = &perSubQueueSubmitInfo;
-        newInfo.perSubQueueInfoCount = 1;
-
-        perSubQueueSubmitInfo.cmdBufferCount  = submitInfo.cmdBufferCount;
-        perSubQueueSubmitInfo.pCmdBufInfoList = submitInfo.pCmdBufInfoList;
-        perSubQueueSubmitInfo.ppCmdBuffers    = submitInfo.ppCmdBuffers;
-    }
-
-    newInfo.gpuMemRefCount       = submitInfo.gpuMemRefCount;
-    newInfo.pGpuMemoryRefs       = submitInfo.pGpuMemoryRefs;
-    newInfo.doppRefCount         = submitInfo.doppRefCount;
-    newInfo.pDoppRefs            = submitInfo.pDoppRefs;
-    newInfo.externPhysMemCount   = submitInfo.externPhysMemCount;
-    newInfo.ppExternPhysMem      = submitInfo.ppExternPhysMem;
-    newInfo.blockIfFlippingCount = submitInfo.blockIfFlippingCount;
-    newInfo.ppBlockIfFlipping    = submitInfo.ppBlockIfFlipping;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 568
-    newInfo.fenceCount           = submitInfo.fenceCount;
-    newInfo.ppFences             = submitInfo.ppFences;
-#else
-    newInfo.pFence               = submitInfo.pFence;
-#endif
-
-    return TimedSubmit(pQueue, newInfo, timedSubmitInfo);
-}
-#endif
 
 // =====================================================================================================================
 // Injects timing commands into a submission and submits it to pQueue.
@@ -1357,12 +1292,8 @@ Pal::Result GpaSession::TimedQueuePresent(
         MultiSubmitInfo submitInfo            = {};
         submitInfo.perSubQueueInfoCount       = 1;
         submitInfo.pPerSubQueueInfo           = &perSubQueueInfo;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 568
         submitInfo.ppFences                   = &pQueueState->pFence;
         submitInfo.fenceCount                 = 1;
-#else
-        submitInfo.pFence                     = pQueueState->pFence;
-#endif
 
         result = pQueue->Submit(submitInfo);
     }
@@ -1650,12 +1581,6 @@ Result GpaSession::End(
         for (auto iter = m_psoCorrelationRecordsCache.Begin(); iter.Get() != nullptr; iter.Next())
         {
             m_curPsoCorrelationRecords.PushBack(*iter.Get());
-        }
-
-        // Copy all entries in the shader record cache into the current shader records list.
-        for (auto iter = m_shaderRecordsCache.Begin(); iter.Get() != nullptr; iter.Next())
-        {
-            m_curShaderRecords.PushBack(*iter.Get());
         }
         m_registerPipelineLock.UnlockForWrite();
     }
@@ -2141,13 +2066,6 @@ Result GpaSession::Reset()
         {
             SqttCodeObjectDatabaseRecord* codeObjectRecord = nullptr;
             m_curCodeObjectRecords.PopFront(&codeObjectRecord);
-        }
-
-        // Clear the current shader records.
-        while (m_curShaderRecords.NumElements() > 0)
-        {
-            ShaderRecord shaderRecord = {};
-            m_curShaderRecords.PopFront(&shaderRecord);
         }
 
         // Recycle Gart gpu memory allocations, gpu rafts are reserved
@@ -2683,33 +2601,11 @@ Result GpaSession::RegisterPipeline(
             }
         }
 
-        // Local copy of shader data that will later be copied into the shaderRecords list under lock.
-        ShaderRecord pShaderRecords[NumShaderTypes];
-        uint32 numShaders = 0;
-
-        for (uint32 i = 0; ((i < NumShaderTypes) && (result == Result::Success)); ++i)
-        {
-            // Extract shader data from the pipeline.
-            // The upper 64-bits of the shader hash can be 0 when 64-bit CRCs are used
-            if (ShaderHashIsNonzero(pipeInfo.shader[i].hash))
-            {
-                result = CreateShaderRecord(static_cast<ShaderType>(i), pPipeline, &pShaderRecords[numShaders]);
-                PAL_ASSERT(result == Result::Success);
-
-                ++numShaders;
-            }
-        }
-
         if (result == Result::Success)
         {
             m_registerPipelineLock.LockForWrite();
 
             m_codeObjectRecordsCache.PushBack(static_cast<SqttCodeObjectDatabaseRecord*>(pCodeObjectRecord));
-
-            for (uint32 i = 0; ((result == Result::Success) && (i < numShaders)); ++i)
-            {
-                result = m_shaderRecordsCache.PushBack(pShaderRecords[i]);
-            }
 
             m_registerPipelineLock.UnlockForWrite();
         }
@@ -3733,11 +3629,6 @@ Result GpaSession::DumpRgpData(
     ThreadTraceLayout* pThreadTraceLayout = nullptr;
     void* pResults = pTraceSample->GetPerfExpResults();
 
-    // Some of the calculations performed below depend on the assumed position of some fields in the chunk headers
-    // defined in sqtt_file_format.h. TODO: Remove after some form of versioning is in place.
-    static_assert((sizeof(SqttFileChunkHeader) == 16U) && (sizeof(SqttFileChunkIsaDatabase) == 28U),
-        "The sizes of the chunk parameters in sqtt_file_format has been changed. Update GpaSession::DumRgpData.");
-
     // Check PAL and SQTT API type enum parity.
     static_assert((static_cast<uint32>(ApiType::DirectX12) == SQTT_API_TYPE_DIRECTX_12) &&
                   (static_cast<uint32>(ApiType::Vulkan)    == SQTT_API_TYPE_VULKAN)     &&
@@ -4211,72 +4102,6 @@ Result GpaSession::DumpRgpData(
                 curFileOffset += sizeof(SqttPsoCorrelationRecord);
             }
         }
-
-        // Write shader ISA database to the RGP file.
-        if (result == Result::Success)
-        {
-            // Shader ISA database header.
-            if (pRgpOutput != nullptr)
-            {
-                if (static_cast<size_t>(curFileOffset + sizeof(SqttFileChunkIsaDatabase)) > *pTraceSize)
-                {
-                    result = Result::ErrorInvalidMemorySize;
-                }
-                else
-                {
-                    SqttFileChunkIsaDatabase shaderIsaDb          = {};
-                    shaderIsaDb.header.chunkIdentifier.chunkType  = SQTT_FILE_CHUNK_TYPE_ISA_DATABASE;
-                    shaderIsaDb.header.chunkIdentifier.chunkIndex = 0;
-                    shaderIsaDb.header.majorVersion =
-                        RgpChunkVersionNumberLookup[SQTT_FILE_CHUNK_TYPE_ISA_DATABASE].majorVersion;
-                    shaderIsaDb.header.minorVersion =
-                        RgpChunkVersionNumberLookup[SQTT_FILE_CHUNK_TYPE_ISA_DATABASE].minorVersion;
-                    shaderIsaDb.recordCount = static_cast<uint32>(m_curShaderRecords.NumElements());
-
-                    int32 shaderDatabaseSize = sizeof(SqttFileChunkIsaDatabase);
-                    for (auto iter = m_curShaderRecords.Begin(); iter.Get() != nullptr; iter.Next())
-                    {
-                        shaderDatabaseSize += (*iter.Get()).recordSize;
-                    }
-
-                    // The sizes must be updated by adding the size of the rest of the chunk later.
-                    shaderIsaDb.header.sizeInBytes                = shaderDatabaseSize;
-                    // TODO: Duplicate - will have to remove later once RGP spec is updated.
-                    shaderIsaDb.size                              = shaderDatabaseSize;
-
-                    // The ISA database starts from the beginning of the chunk.
-                    shaderIsaDb.offset                            = static_cast<uint32>(curFileOffset);
-
-                    memcpy(Util::VoidPtrInc(pRgpOutput, static_cast<size_t>(curFileOffset)),
-                           &shaderIsaDb,
-                           sizeof(SqttFileChunkIsaDatabase));
-                }
-            }
-
-            curFileOffset += sizeof(SqttFileChunkIsaDatabase);
-
-            for (auto iter = m_curShaderRecords.Begin(); iter.Get() != nullptr; iter.Next())
-            {
-                ShaderRecord* pShaderRecord = iter.Get();
-
-                if ((result == Result::Success) && (pRgpOutput != nullptr))
-                {
-                    if (static_cast<size_t>(curFileOffset + pShaderRecord->recordSize) > *pTraceSize)
-                    {
-                        result = Result::ErrorInvalidMemorySize;
-                    }
-                    else
-                    {
-                        // Copy one record to the buffer provided.
-                        memcpy(Util::VoidPtrInc(pRgpOutput, static_cast<size_t>(curFileOffset)),
-                               pShaderRecord->pRecord,
-                               pShaderRecord->recordSize);
-                    }
-                }
-
-                curFileOffset += pShaderRecord->recordSize;
-            }
-        }
     }
 
     // Only write queue timing and calibration chunks if queue timing was enabled during the session.
@@ -4667,100 +4492,6 @@ void GpaSession::RecycleSampleItemArray()
             PAL_SAFE_DELETE(pSampleItem->pPerfSample, m_pPlatform);
         }
     }
-}
-
-// =====================================================================================================================
-// Extracts all shader data for the shader type specified from this pipeline and fills the ShaderRecord. Allocates
-// memory to cache the shader ISA and shader stats as RGP chunks.
-Result GpaSession::CreateShaderRecord(
-    ShaderType       shaderType,
-    const IPipeline* pPipeline,
-    ShaderRecord*    pShaderRecord)
-{
-    Result result                = Result::Success;
-    SqttIsaDbRecord record       = {};
-    ShaderStats shaderStats      = {};
-    SqttShaderIsaBlobHeader blob = {};
-    size_t shaderCodeSize        = 0;
-    PipelineInfo pipeInfo        = pPipeline->GetInfo();
-
-    result = pPipeline->GetShaderStats(shaderType, &shaderStats, false);
-
-    // Get the shader ISA from the pipeline.
-    if (result == Result::Success)
-    {
-        result = pPipeline->GetShaderCode(shaderType, &shaderCodeSize, nullptr);
-        PAL_ASSERT(result == Result::Success);
-    }
-
-    // Cache SqttIsaDatabaseRecord, SqttShaderIsaBlobHeader and shader ISA code in GpaSession-owned memory.
-    if (result == Result::Success)
-    {
-        const size_t curBlobSize = sizeof(SqttShaderIsaBlobHeader) + shaderCodeSize;
-
-        // Update this record.
-        record.shaderStage = shaderStats.shaderStageMask;
-        record.recordSize  = static_cast<uint32>(sizeof(SqttIsaDatabaseRecord) + curBlobSize);
-
-        // Update the fields of this blob header.
-        blob.sizeInBytes     = static_cast<uint32>(curBlobSize);
-        blob.actualVgprCount = shaderStats.common.numUsedVgprs;
-        blob.actualSgprCount = shaderStats.common.numUsedSgprs;
-        blob.apiShaderHash.lower = pipeInfo.shader[static_cast<uint32>(shaderType)].hash.lower;
-        blob.apiShaderHash.upper = pipeInfo.shader[static_cast<uint32>(shaderType)].hash.upper;
-        blob.palShaderHash.lower = shaderStats.palShaderHash.lower;
-        blob.palShaderHash.upper = shaderStats.palShaderHash.upper;
-        blob.actualLdsCount  = static_cast<uint16>(shaderStats.common.ldsUsageSizeInBytes);
-        blob.baseAddress     = shaderStats.common.gpuVirtAddress;
-        blob.scratchSize     =
-            static_cast<uint16>(shaderStats.common.scratchMemUsageInBytes);
-
-        // Update shader flags.
-        if (shaderStats.shaderOperations.streamOut)
-        {
-            blob.flags |= SqttShaderFlags::SQTT_SHADER_STREAM_OUT_ENABLED;
-        }
-        if (shaderStats.shaderOperations.writesDepth)
-        {
-            blob.flags |= SqttShaderFlags::SQTT_SHADER_WRITES_DEPTH;
-        }
-        if (shaderStats.shaderOperations.writesUAV)
-        {
-            blob.flags |= SqttShaderFlags::SQTT_SHADER_WRITES_UAV;
-        }
-
-        // Allocate space to store all the information for one record.
-        void* pBuffer = PAL_MALLOC(record.recordSize, m_pPlatform, Util::SystemAllocType::AllocInternal);
-
-        if (pBuffer != nullptr)
-        {
-            pShaderRecord->recordSize = record.recordSize;
-            pShaderRecord->pRecord    = pBuffer;
-
-            // Write the record header.
-            memcpy(pBuffer, &record, sizeof(SqttIsaDatabaseRecord));
-
-            // Write the blob header.
-            pBuffer = Util::VoidPtrInc(pBuffer, sizeof(SqttIsaDatabaseRecord));
-            memcpy(pBuffer, &blob, sizeof(SqttShaderIsaBlobHeader));
-
-            // Write the shader ISA.
-            pBuffer = Util::VoidPtrInc(pBuffer, sizeof(SqttShaderIsaBlobHeader));
-            result  = pPipeline->GetShaderCode(shaderType, &shaderCodeSize, pBuffer);
-
-            if (result != Result::Success)
-            {
-                // Deallocate if some error occured.
-                PAL_SAFE_FREE(pBuffer, m_pPlatform);
-            }
-        }
-        else
-        {
-            result = Result::ErrorOutOfMemory;
-        }
-    }
-
-    return result;
 }
 
 } //GpuUtil

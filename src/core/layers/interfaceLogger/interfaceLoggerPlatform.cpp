@@ -77,9 +77,7 @@ static constexpr FuncLoggingTableEntry FuncLoggingTable[] =
     { InterfaceFunc::CmdBufferCmdSetPerDrawVrsRate,                 (CmdBuild)            },
     { InterfaceFunc::CmdBufferCmdSetVrsCenterState,                 (CmdBuild)            },
     { InterfaceFunc::CmdBufferCmdBindSampleRateImage,               (CmdBuild)            },
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 554
     { InterfaceFunc::CmdBufferCmdResolvePrtPlusImage,               (CmdBuild)            },
-#endif
     { InterfaceFunc::CmdBufferCmdSetBlendConst,                     (CmdBuild)            },
     { InterfaceFunc::CmdBufferCmdSetInputAssemblyState,             (CmdBuild)            },
     { InterfaceFunc::CmdBufferCmdSetTriangleRasterState,            (CmdBuild)            },

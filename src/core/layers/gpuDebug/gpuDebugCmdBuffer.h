@@ -484,7 +484,6 @@ public:
         return GetNextLayer()->GetUsedSize(type);
     }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 554
     virtual void CmdResolvePrtPlusImage(
         const IImage&                    srcImage,
         ImageLayout                      srcImageLayout,
@@ -493,7 +492,6 @@ public:
         PrtPlusResolveType               resolveType,
         uint32                           regionCount,
         const PrtPlusImageResolveRegion* pRegions) override;
-#endif
 
     // Part of the IDestroyable public interface.
     virtual void Destroy() override;
@@ -672,9 +670,7 @@ private:
     void ReplayCmdSetPerDrawVrsRate(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdSetVrsCenterState(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdBindSampleRateImage(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 554
     void ReplayCmdResolvePrtPlusImage(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
-#endif
     void ReplayCmdSetBlendConst(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdSetInputAssemblyState(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdSetTriangleRasterState(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
@@ -793,6 +789,14 @@ private:
     void CaptureSurfaces();
     void DestroySurfaceCaptureData();
 
+    Result CaptureImageSurface(
+        const IImage*   pSrcImage,
+        const SubresId& baseSubres,
+        uint32          arraySize,
+        IImage**        ppDstImage);
+    void OverrideDepthFormat(SwizzledFormat* pSwizzledFormat, const IImage* pSrcImage, uint32 plane);
+    void OutputSurfaceCaptureImage(Image* pImage, const char* pFilePath, const char* pFileName) const;
+
     Device*const                 m_pDevice;
     Util::VirtualLinearAllocator m_allocator;       // Temp storage for argument translation.
     bool                         m_supportsComments;
@@ -825,6 +829,10 @@ private:
                                             // There are (MaxColorTargets * m_actionCount) elements
                                             // This is arranged such that the pointers are grouped by draw ID.
                                             // Draw0Mrt0, Draw0Mrt1, ..., Draw0Mrt7, Draw1Mrt0, ...
+        Image**         ppDepthTargetDsts;  // Array of Image*s of depth target copy destinations
+                                            // There are (2 * m_actionCount) elements
+                                            // This is arranged such that the pointers are grouped by draw ID.
+                                            // Draw0Z, Draw0S, Draw1Z, Draw1S, ...
         IGpuMemory**    ppGpuMem;           // Gpu memory to make resident for this command buffer's surface capture
         uint32          gpuMemObjsCount;    // Number of gpu memory objects in the ppGpuMem list
     } m_surfaceCapture;

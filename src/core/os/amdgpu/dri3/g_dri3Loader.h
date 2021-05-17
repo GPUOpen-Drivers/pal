@@ -173,6 +173,35 @@ typedef xcb_void_cookie_t (*XcbDeletePropertyChecked)(
             xcb_window_t          window,
             xcb_atom_t            property);
 
+typedef xcb_void_cookie_t (*XcbCreateGcChecked)(
+            xcb_connection_t*     pConnection,
+            xcb_gcontext_t        graphicsContext,
+            xcb_drawable_t        drawable,
+            uint32                valueMask,
+            uint32_t*             pValueList);
+
+typedef xcb_void_cookie_t (*XcbPutImageChecked)(
+            xcb_connection_t*     pConnection,
+            uint8                 format,
+            xcb_drawable_t        drawable,
+            xcb_gcontext_t        graphicsContext,
+            uint16                width,
+            uint16                height,
+            uint16                dstX,
+            uint16                dstY,
+            uint8                 leftPad,
+            uint8                 depth,
+            uint32                dataLen,
+            const uint8*          data);
+
+typedef xcb_void_cookie_t (*XcbCreatePixmapChecked)(
+            xcb_connection_t*     pConnection,
+            uint8                 depth,
+            xcb_pixmap_t          pixmap,
+            xcb_drawable_t        drawable,
+            uint16                width,
+            uint16                height);
+
 // symbols from libxshmfence.so.1
 typedef int32 (*XshmfenceUnmapShm)(
             struct xshmfence*     pFence);
@@ -614,6 +643,24 @@ struct Dri3LoaderFuncs
     bool pfnXcbDeletePropertyCheckedisValid() const
     {
         return (pfnXcbDeletePropertyChecked != nullptr);
+    }
+
+    XcbCreateGcChecked                    pfnXcbCreateGcChecked;
+    bool pfnXcbCreateGcCheckedisValid() const
+    {
+        return (pfnXcbCreateGcChecked != nullptr);
+    }
+
+    XcbPutImageChecked                    pfnXcbPutImageChecked;
+    bool pfnXcbPutImageCheckedisValid() const
+    {
+        return (pfnXcbPutImageChecked != nullptr);
+    }
+
+    XcbCreatePixmapChecked                pfnXcbCreatePixmapChecked;
+    bool pfnXcbCreatePixmapCheckedisValid() const
+    {
+        return (pfnXcbCreatePixmapChecked != nullptr);
     }
 
     XshmfenceUnmapShm                     pfnXshmfenceUnmapShm;
@@ -1195,6 +1242,50 @@ public:
     bool pfnXcbDeletePropertyCheckedisValid() const
     {
         return (m_pFuncs->pfnXcbDeletePropertyChecked != nullptr);
+    }
+
+    xcb_void_cookie_t pfnXcbCreateGcChecked(
+            xcb_connection_t*     pConnection,
+            xcb_gcontext_t        graphicsContext,
+            xcb_drawable_t        drawable,
+            uint32                valueMask,
+            uint32_t*             pValueList) const;
+
+    bool pfnXcbCreateGcCheckedisValid() const
+    {
+        return (m_pFuncs->pfnXcbCreateGcChecked != nullptr);
+    }
+
+    xcb_void_cookie_t pfnXcbPutImageChecked(
+            xcb_connection_t*     pConnection,
+            uint8                 format,
+            xcb_drawable_t        drawable,
+            xcb_gcontext_t        graphicsContext,
+            uint16                width,
+            uint16                height,
+            uint16                dstX,
+            uint16                dstY,
+            uint8                 leftPad,
+            uint8                 depth,
+            uint32                dataLen,
+            const uint8*          data) const;
+
+    bool pfnXcbPutImageCheckedisValid() const
+    {
+        return (m_pFuncs->pfnXcbPutImageChecked != nullptr);
+    }
+
+    xcb_void_cookie_t pfnXcbCreatePixmapChecked(
+            xcb_connection_t*     pConnection,
+            uint8                 depth,
+            xcb_pixmap_t          pixmap,
+            xcb_drawable_t        drawable,
+            uint16                width,
+            uint16                height) const;
+
+    bool pfnXcbCreatePixmapCheckedisValid() const
+    {
+        return (m_pFuncs->pfnXcbCreatePixmapChecked != nullptr);
     }
 
     int32 pfnXshmfenceUnmapShm(

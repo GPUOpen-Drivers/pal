@@ -38,7 +38,7 @@
 #define RGP_FILE_FORMAT_SPEC_MAJOR_VER 1
 
 /// The minor version number of the RGP file format specification that this header corresponds to.
-#define RGP_FILE_FORMAT_SPEC_MINOR_VER 4
+#define RGP_FILE_FORMAT_SPEC_MINOR_VER 5
 
 struct RgpChunkVersionNumbers
 {
@@ -98,7 +98,7 @@ typedef enum SqttFileChunkType
     SQTT_FILE_CHUNK_TYPE_SQTT_DESC,                    /*!< Description of the SQTT data. */
     SQTT_FILE_CHUNK_TYPE_SQTT_DATA,                    /*!< SQTT data for a single shader engine. */
     SQTT_FILE_CHUNK_TYPE_API_INFO,                     /*!< Description of the API on which the trace was made. */
-    SQTT_FILE_CHUNK_TYPE_ISA_DATABASE,                 /*!< Shader ISA code. Deprecated by CODE_OBJECT_DATABASE. */
+    SQTT_FILE_CHUNK_TYPE_RESERVED,                     /*!< Reserved (Should not be used). */
     SQTT_FILE_CHUNK_TYPE_QUEUE_EVENT_TIMINGS,          /*!< Timings for queue events that occurred during trace. */
     SQTT_FILE_CHUNK_TYPE_CLOCK_CALIBRATION,            /*!< Information required to correlate between clock domains. */
     SQTT_FILE_CHUNK_TYPE_CPU_INFO,                     /*!< Description of the CPU on which the trace was made. */
@@ -117,7 +117,7 @@ static constexpr RgpChunkVersionNumbers RgpChunkVersionNumberLookup[] =
     {0, 2}, // SQTT_FILE_CHUNK_TYPE_SQTT_DESC,
     {0, 0}, // SQTT_FILE_CHUNK_TYPE_SQTT_DATA,
     {0, 1}, // SQTT_FILE_CHUNK_TYPE_API_INFO,
-    {0, 0}, // SQTT_FILE_CHUNK_TYPE_ISA_DATABASE,
+    {0, 0}, // SQTT_FILE_CHUNK_TYPE_RESERVED,
     {1, 1}, // SQTT_FILE_CHUNK_TYPE_QUEUE_EVENT_TIMINGS,
     {0, 0}, // SQTT_FILE_CHUNK_TYPE_CLOCK_CALIBRATION,
     {0, 0}, // SQTT_FILE_CHUNK_TYPE_CPU_INFO,
@@ -488,66 +488,6 @@ typedef struct SqttPsoCorrelationRecord
     SqttHash128 internalPipelineHash;  /*!< Internal pipeline hash provided by the pipeline compiler. */
     char        apiObjectName[64];     /*!< (Optional) Debug object name as a null-terminated string. */
 } SqttPsoCorrelationRecord;
-
-/** An enumeration of the hardware shader stage that the shader will run on. Bitfield of shader stages. Deprecated.
-*/
-typedef enum SqttShaderType
-{
-    SQTT_SHADER_TYPE_PS       = 0x00000001,                 /*!< Pixel Shader stage. */
-    SQTT_SHADER_TYPE_VS       = 0x00000002,                 /*!< Vertex Shader stage. */
-    SQTT_SHADER_TYPE_GS       = 0x00000004,                 /*!< Geometry Shader stage. */
-    SQTT_SHADER_TYPE_ES       = 0x00000008,                 /*!< Export Shader stage. */
-    SQTT_SHADER_TYPE_HS       = 0x00000010,                 /*!< Hull shader stage. */
-    SQTT_SHADER_TYPE_LS       = 0x00000020,                 /*!< Local shader stage. */
-    SQTT_SHADER_TYPE_CS       = 0x00000040,                 /*!< Compute Shader. */
-    SQTT_SHADER_TYPE_RESERVED = 0x00000080                  /*!< Reserved. */
-} SqttShaderType;
-
-/** An enumeration of the shader operations. Deprecated.
-*/
-typedef enum SqttShaderFlags
-{
-    SQTT_SHADER_WRITES_UAV         = 0x1,
-    SQTT_SHADER_WRITES_DEPTH       = 0x2,
-    SQTT_SHADER_STREAM_OUT_ENABLED = 0x4
-} SqttShaderFlags;
-
-/**  A structure encapsulating information about each ISA blob in each record of the shader ISA database. Deprecated.
- */
-typedef struct SqttShaderIsaBlobHeader
-{
-    uint32_t        sizeInBytes;                       /*!< The size of the ISA chunk (in bytes). */
-    uint32_t        actualVgprCount;                   /*!< The actual number of VGPRs used by the shader. */
-    uint32_t        actualSgprCount;                   /*!< The actual number of SGPRs used by the shader. */
-    uint32_t        actualLdsCount;                    /*!< The actual number of LDS bytes used by the shader. */
-    SqttHash128     apiShaderHash;                     /*!< 128-bit hash of the shader, API specific. */
-    SqttHash128     palShaderHash;                     /*!< 128-bit PAL internal hash of shader used in shader cache */
-    uint32_t        scratchSize;                       /*!< The number of DWORDs used for scratch memory. */
-    uint32_t        flags;                             /*!< Flags as defined in SqttShaderFlags. */
-    uint64_t        baseAddress;                       /*!< Base address of first instruction in chunk. */
-} SqttShaderIsaBlobHeader;
-
-/**  A structure encapsulating information about each record in the shader ISA database. Deprecated.
- */
-typedef struct SqttIsaDatabaseRecord
-{
-    struct
-    {
-        uint32_t shaderStage : 8;                            /*!< Shader stage mask as defined in SqttShaderType. */
-        uint32_t reserved    : 24;                           /*!< Reserved for future use. */
-    };
-    uint32_t         recordSize;                             /*!< The size of record (including all blobs) in bytes */
-} SqttIsaDbRecord;
-
-/**  A structure encapsulating information about the shader ISA database. Deprecated.
- */
-typedef struct SqttFileChunkIsaDatabase
-{
-    SqttFileChunkHeader header;
-    uint32_t            offset;
-    uint32_t            size;
-    uint32_t            recordCount;
-} SqttFileChunkIsaDatabase;
 
 /** A structure encapsulating information about the API on which the trace was performed.
  */

@@ -176,6 +176,12 @@ void SettingsLoader::ValidateSettings()
         m_settings.cmdBufPreemptionMode = CmdBufPreemptModeDisable;
     }
 
+    // Emulated devices may not be visible to the host OS, so use CPU paths to send data to the window system.
+    if (m_pDevice->GetPlatform()->IsEmulationEnabled())
+    {
+        m_settings.forcePresentViaCpuBlt = true;
+    }
+
     // Overrides all paths for debug files to expected values.
     // Now those directories in setting are all *relative*:
     // Relative to the path in the AMD_DEBUG_DIR environment variable, and if that env var isn't set, the location is

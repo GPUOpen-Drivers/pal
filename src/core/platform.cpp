@@ -47,7 +47,6 @@
 #include "devDriverServer.h"
 #include "protocols/driverControlServer.h"
 #include "protocols/rgpServer.h"
-#include "protocols/loggingServer.h"
 #include "protocols/ddInfoService.h"
 
 using namespace Util;
@@ -101,7 +100,6 @@ Platform::Platform(
     m_pDevDriverServer(nullptr),
     m_settingsLoader(this),
     m_pRgpServer(nullptr),
-    m_pLoggingServer(nullptr),
     m_pfnDeveloperCb(DefaultDeveloperCb),
     m_pClientPrivateData(nullptr),
     m_svmRangeStart(0),
@@ -432,7 +430,6 @@ Result Platform::EarlyInitDevDriver()
         Util::Strncpy(createInfo.clientDescription, pClientStr, sizeof(createInfo.clientDescription));
 
         // Enable all supported protocols
-        createInfo.servers.logging       = true;
         createInfo.servers.settings      = true;
         createInfo.servers.driverControl = true;
         createInfo.servers.rgp           = true;
@@ -475,14 +472,8 @@ Result Platform::EarlyInitDevDriver()
             }
             else
             {
-                // Cache the pointers for the RGP server and the logging server after initialization.
-                m_pRgpServer     = m_pDevDriverServer->GetRGPServer();
-                m_pLoggingServer = m_pDevDriverServer->GetLoggingServer();
-
-                static_assert(static_cast<uint32>(LogCategory::Count) == sizeof(LogCategoryTable)/sizeof(char*),
-                    "LogCategory enum does not match LogCategoryTable.");
-                // Initialize the logging subsystem if we successfully started the dev driver server.
-                m_pLoggingServer->AddCategoryTable(0, static_cast<uint32>(LogCategory::Count), LogCategoryTable);
+                // Cache the pointer for the RGP server after initialization.
+                m_pRgpServer = m_pDevDriverServer->GetRGPServer();
             }
         }
         else
@@ -618,7 +609,6 @@ void Platform::DestroyDevDriver()
     {
         // Null out cached pointers
         m_pRgpServer = nullptr;
-        m_pLoggingServer = nullptr;
 
         m_pDevDriverServer->Destroy();
         PAL_SAFE_DELETE(m_pDevDriverServer, this);
@@ -735,14 +725,6 @@ void Platform::LogMessage(
     const char*     pFormat,
     va_list         args)
 {
-    if (m_pLoggingServer != nullptr)
-    {
-        m_pLoggingServer->Log(static_cast<DevDriver::LogLevel>(level),
-                              categoryMask,
-                              pFormat,
-                              args);
-    }
-
     if (m_logCb.pfnLogCb != nullptr)
     {
         m_logCb.pfnLogCb(m_logCb.pClientData,

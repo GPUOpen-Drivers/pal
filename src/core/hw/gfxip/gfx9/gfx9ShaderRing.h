@@ -97,8 +97,12 @@ protected:
     virtual void UpdateSrds() const override;
 
 private:
+    size_t AdjustScratchWaveSize(size_t scratchWaveSize) const;
+
     const Pm4ShaderType m_shaderType;
     uint32              m_numTotalCus;
+    size_t              m_scratchWaveSizeGranularityShift;
+    size_t              m_scratchWaveSizeGranularity;
 
     PAL_DISALLOW_DEFAULT_CTOR(ScratchRing);
     PAL_DISALLOW_COPY_AND_ASSIGN(ScratchRing);

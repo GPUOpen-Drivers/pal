@@ -2841,6 +2841,7 @@ void InitializeGpuChipProperties(
     pInfo->gfx6.supportShaderDeviceClock   = (pInfo->gfxLevel >= GfxIpLevel::GfxIp8) ? 1 : 0;
 
     pInfo->gfxip.numSlotsPerEvent = 1;
+    pInfo->gfxip.supportsHwVs     = 1;
 
     switch (pInfo->familyId)
     {

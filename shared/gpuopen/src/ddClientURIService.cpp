@@ -1,27 +1,4 @@
-/*
- ***********************************************************************************************************************
- *
- *  Copyright (c) 2019-2021 Advanced Micro Devices, Inc. All Rights Reserved.
- *
- *  Permission is hereby granted, free of charge, to any person obtaining a copy
- *  of this software and associated documentation files (the "Software"), to deal
- *  in the Software without restriction, including without limitation the rights
- *  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- *  copies of the Software, and to permit persons to whom the Software is
- *  furnished to do so, subject to the following conditions:
- *
- *  The above copyright notice and this permission notice shall be included in all
- *  copies or substantial portions of the Software.
- *
- *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- *  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- *  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- *  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- *  SOFTWARE.
- *
- **********************************************************************************************************************/
+/* Copyright (c) 2021 Advanced Micro Devices, Inc. All rights reserved. */
 
 #include "ddClientURIService.h"
 #include "msgChannel.h"
@@ -126,28 +103,6 @@ namespace DevDriver
                     }
 
                     // Write the protocols
-                    pResponse->Write("\nClient Logging Protocol Support: %u", clientInfo.metadata.protocols.logging);
-
-                    if (clientInfo.metadata.protocols.logging)
-                    {
-                        IProtocolServer* pServer = m_pMsgChannel->GetProtocolServer(Protocol::Logging);
-                        if (pServer != nullptr)
-                        {
-                            pResponse->Write("\nClient Logging Protocol Supported Versions: (%u -> %u)", pServer->GetMinVersion(), pServer->GetMaxVersion());
-                        }
-                    }
-
-                    pResponse->Write("\nClient Settings Protocol Support: %u", clientInfo.metadata.protocols.settings);
-
-                    if (clientInfo.metadata.protocols.settings)
-                    {
-                        IProtocolServer* pServer = m_pMsgChannel->GetProtocolServer(Protocol::Settings);
-                        if (pServer != nullptr)
-                        {
-                            pResponse->Write("\nClient Settings Protocol Supported Versions: (%u -> %u)", pServer->GetMinVersion(), pServer->GetMaxVersion());
-                        }
-                    }
-
                     pResponse->Write("\nClient Driver Control Protocol Support: %u", clientInfo.metadata.protocols.driverControl);
 
                     if (clientInfo.metadata.protocols.driverControl)

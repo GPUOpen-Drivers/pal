@@ -49,7 +49,6 @@ using namespace Util;
 namespace Pal
 {
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 555
 // Struct for passing the log file and pal setting pointers to the command buffer dump callback.
 struct CmdDumpToFilePayload
 {
@@ -209,7 +208,6 @@ static void PAL_STDCALL WriteCmdDumpToFile(
     // operation of the "important" stuff...  but still make it apparent that the dump file isn't accurate.
     PAL_ALERT(result != Result::Success);
 }
-#endif
 
 // =====================================================================================================================
 void SubmissionContext::TakeReference()
@@ -354,13 +352,6 @@ Result Queue::Init(
                                    static_cast<SubmitOptMode>(m_pDevice->Settings().submitOptModeOverride));
 
             m_pQueueInfos[qIndex].pEngine = m_pDevice->GetEngine(curEngineType, curEngineId);
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION< 600
-            for (uint32 i = 0; i < m_queueCount; i++)
-            {
-                m_pQueueInfos[i].createInfo.tmzOnly = 0;
-            }
-#endif
 
             if (m_pQueueInfos[qIndex].createInfo.priority != QueuePriority::Realtime)
             {
@@ -620,7 +611,6 @@ Result Queue::SubmitInternal(
 #if PAL_ENABLE_PRINTS_ASSERTS
         if (result == Result::Success)
         {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 555
             if (IsCmdDumpEnabled())
             {
                 Util::File logFile;
@@ -641,19 +631,13 @@ Result Queue::SubmitInternal(
                     DumpCmdBuffers(submitInfoCopy, internalSubmitInfos[0]);
                 }
             }
-#else // PAL_CLIENT_INTERFACE_MAJOR_VERSION < 555
-            // Dump command buffer
-            DumpCmdToFile(submitInfo, internalSubmitInfos[0]);
-#endif
         }
 #endif
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 555
         if ((submitInfo.pfnCmdDumpCb != nullptr) && (result == Result::Success))
         {
             DumpCmdBuffers(submitInfo, internalSubmitInfos[0]);
         }
-#endif
 
         if (result == Result::Success)
         {
@@ -672,18 +656,11 @@ Result Queue::SubmitInternal(
                 }
             }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 568
             for (uint32 idx = 0; idx < submitInfo.fenceCount; idx++)
             {
                 PAL_ASSERT(submitInfo.ppFences[idx] != nullptr);
                 static_cast<Fence*>(submitInfo.ppFences[idx])->AssociateWithContext(m_pSubmissionContext);
             }
-#else
-            if (submitInfo.pFence != nullptr)
-            {
-                static_cast<Fence*>(submitInfo.pFence)->AssociateWithContext(m_pSubmissionContext);
-            }
-#endif
 
             // Either execute the submission immediately, or enqueue it for later, depending on whether or not we are
             // stalled and/or the caller is a function after the batching logic and thus must execute immediately.
@@ -709,7 +686,6 @@ Result Queue::SubmitInternal(
     return result;
 }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 555
 // =====================================================================================================================
 // Calls DumpCmdStream on the preamble, postamble, and all the command streams in the submitInfo.
 void Queue::DumpCmdBuffers(
@@ -953,7 +929,6 @@ Result Queue::OpenCommandDumpFile(
     }
 }
 
-#endif
 #endif
 
 #if PAL_ENABLE_PRINTS_ASSERTS
@@ -1742,14 +1717,10 @@ Result Queue::ValidateSubmit(
     {
         result = Result::ErrorUnavailable;
     }
-    else if (((submitInfo.gpuMemRefCount > 0) && (submitInfo.pGpuMemoryRefs == nullptr)) ||
-             ((submitInfo.doppRefCount > 0)   && (submitInfo.pDoppRefs == nullptr))      ||
-             ((submitInfo.blockIfFlippingCount > 0) && (submitInfo.ppBlockIfFlipping == nullptr))
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 568
-             ||
-             ((submitInfo.fenceCount > 0)           && (submitInfo.ppFences         == nullptr))
-#endif
-            )
+    else if (((submitInfo.gpuMemRefCount > 0)       && (submitInfo.pGpuMemoryRefs == nullptr))    ||
+             ((submitInfo.doppRefCount > 0)         && (submitInfo.pDoppRefs == nullptr))         ||
+             ((submitInfo.blockIfFlippingCount > 0) && (submitInfo.ppBlockIfFlipping == nullptr)) ||
+             ((submitInfo.fenceCount > 0)           && (submitInfo.ppFences == nullptr)))
     {
         result = Result::ErrorInvalidPointer;
     }
@@ -1837,7 +1808,6 @@ Result Queue::ValidateSubmit(
         }
     }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 568
     if (result == Result::Success)
     {
         for (uint32 idx = 0; idx < submitInfo.fenceCount; ++idx)
@@ -1849,7 +1819,6 @@ Result Queue::ValidateSubmit(
             }
         }
     }
-#endif
 
     return result;
 }
@@ -1902,9 +1871,7 @@ Result Queue::EnqueueSubmit(
         const size_t memRefListBytes  = (sizeof(GpuMemoryRef) * submitInfo.gpuMemRefCount);
         const size_t blkIfFlipBytes   = (sizeof(IGpuMemory*)  * submitInfo.blockIfFlippingCount);
         const size_t doppRefListBytes = (sizeof(DoppRef) * submitInfo.doppRefCount);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 568
         const size_t fenceListBytes   = (sizeof(IFence*) * submitInfo.fenceCount);
-#endif
         const size_t internalSubmitInfoListBytes = (sizeof(InternalSubmitInfo) * submitInfo.perSubQueueInfoCount);
 
         const size_t totalBytes = (
@@ -1913,11 +1880,9 @@ Result Queue::EnqueueSubmit(
                             memRefListBytes +
                             doppRefListBytes +
                             blkIfFlipBytes +
-                            totalCmdBufInfoBytes
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 568
-                            +fenceListBytes
-#endif
-                            + internalSubmitInfoListBytes
+                            totalCmdBufInfoBytes +
+                            fenceListBytes +
+                            internalSubmitInfoListBytes
                             );
 
         if (totalBytes > 0)
@@ -2002,7 +1967,6 @@ Result Queue::EnqueueSubmit(
                     }
                 }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 568
                 if (submitInfo.fenceCount > 0)
                 {
                     auto**const ppBatchedFences = static_cast<IFence**>(pNextBuffer);
@@ -2011,7 +1975,6 @@ Result Queue::EnqueueSubmit(
                     cmdData.submit.submitInfo.ppFences = ppBatchedFences;
                     pNextBuffer = VoidPtrInc(pNextBuffer, fenceListBytes);
                 }
-#endif
 
                 PAL_ASSERT(submitInfo.perSubQueueInfoCount > 0);
                 auto*const pBatchedInternalSubmitInfos = static_cast<InternalSubmitInfo*>(pNextBuffer);
@@ -2077,12 +2040,9 @@ Result Queue::SubmitFence(
     MultiSubmitInfo submitInfo      = {};
     submitInfo.perSubQueueInfoCount = 1;
     submitInfo.pPerSubQueueInfo     = &perSubQueueInfo;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 568
     submitInfo.ppFences             = &pFence;
     submitInfo.fenceCount           = 1;
-#else
-    submitInfo.pFence               = pFence;
-#endif
+
     return SubmitInternal(submitInfo, false);
 }
 

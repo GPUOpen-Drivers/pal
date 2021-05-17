@@ -1088,14 +1088,12 @@ void Image::InitLayoutStateMasksOneMip(
             // Postpone all decompresses for the ResolveSrc state from Barrier-time to Resolve-time.
             m_layoutToState[mip].color.compressed.usages |= LayoutResolveSrc;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 562
             // If copy to the image is always fully copy, fix up metadata to uncompressed state instead of heavy expand
             // at barrier to "LayoutCopyDst" if this isn't a compressed copy.
             if (m_createInfo.flags.fullCopyDstOnly != 0)
             {
                 m_layoutToState[mip].color.compressed.usages |= LayoutCopyDst;
             }
-#endif
 
             if (HasFmaskData())
             {

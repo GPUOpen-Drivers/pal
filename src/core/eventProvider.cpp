@@ -132,6 +132,15 @@ void EventProvider::Destroy()
 }
 
 // =====================================================================================================================
+// Performs required actions in response to this event provider being enabled by a tool.
+void EventProvider::OnEnable()
+{
+    DevDriver::Platform::LockGuard<DevDriver::Platform::Mutex> providerLock(m_providerLock);
+
+    m_logRmtVersion = true;
+}
+
+// =====================================================================================================================
 // Determines if the event would be written to either the EventServer or to the log file, used to determine if a log
 // event call should bother constructing the log event data structure.
 bool EventProvider::ShouldLog(
@@ -158,7 +167,11 @@ void EventProvider::LogCreateGpuMemoryEvent(
             data.handle              = reinterpret_cast<GpuMemHandle>(pGpuMemory);
             data.size                = desc.size;
             data.alignment           = desc.alignment;
-            data.preferredHeap       = desc.preferredHeap;
+            data.heapCount           = desc.heapCount;
+            for (uint32 i = 0; i < data.heapCount; i++)
+            {
+                data.heaps[i]        = desc.heaps[i];
+            }
             data.isVirtual           = desc.flags.isVirtual;
             data.isInternal          = pGpuMemory->IsClient();
             data.isExternalShared    = desc.flags.isExternal;
@@ -394,6 +407,22 @@ void EventProvider::LogEvent(
         // The RMT format requires that certain tokens strictly follow each other (e.g. resource create + description),
         // so we need to lock to ensure another event isn't inserted into the stream while writing dependent tokens.
         DevDriver::Platform::LockGuard<DevDriver::Platform::Mutex> providerLock(m_providerLock);
+#if RMT_DATA_MAJOR_VERSION >= 1
+        // The first time we have something to log, we need to log the RmtVersion first
+        if (m_logRmtVersion)
+        {
+            if (ShouldLog(PalEvent::RmtVersion))
+            {
+                // If RMT logging is enabled, the first token we emit should be the RmtVersion event
+                static const RmtDataVersion kRmtVersionEvent = {
+                    RMT_FILE_DATA_CHUNK_MAJOR_VERSION,
+                    RMT_FILE_DATA_CHUNK_MINOR_VERSION };
+
+                WriteEvent(static_cast<uint32>(PalEvent::RmtVersion), &kRmtVersionEvent, sizeof(RmtDataVersion));
+                m_logRmtVersion = false;
+            }
+        }
+#endif
 
         const EventTimestamp timestamp = m_eventTimer.CreateTimestamp();
         uint8 delta = 0;
@@ -422,8 +451,9 @@ void EventProvider::LogEvent(
                 break;
             }
             case PalEvent::RmtToken:
+            case PalEvent::RmtVersion:
             {
-                // RmtTokens should not be logged throug this function
+                // RmtToken and RmtVersion should not be logged through this function
                 PAL_ASSERT_ALWAYS();
                 break;
             }
@@ -433,17 +463,20 @@ void EventProvider::LogEvent(
 
                 const CreateGpuMemoryData* pData = reinterpret_cast<const CreateGpuMemoryData*>(pEventData);
 
+                static_assert((GpuHeapCount >= 4),
+                    "We store 4 heaps in the RMT_MSG_VIRTUAL_ALLOCATE message. Ensure we're not out of bounds.");
+
                 RMT_MSG_VIRTUAL_ALLOCATE eventToken(
                     delta,
                     pData->size,
                     pData->isInternal ? RMT_OWNER_CLIENT_DRIVER : RMT_OWNER_APP, // For now we only distinguish between driver
                                                                                  // app ownership
                     pData->gpuVirtualAddr,
-                    PalToRmtHeapType(pData->preferredHeap),
-                    RMT_HEAP_TYPE_LOCAL,
-                    RMT_HEAP_TYPE_LOCAL,
-                    RMT_HEAP_TYPE_LOCAL,
-                    1);     //< For now we hard code a single heap until the event data can be updated.
+                    PalToRmtHeapType(pData->heaps[0]),
+                    PalToRmtHeapType(pData->heaps[1]),
+                    PalToRmtHeapType(pData->heaps[2]),
+                    PalToRmtHeapType(pData->heaps[3]),
+                    static_cast<DevDriver::uint8>(pData->heapCount));
 
                 WriteTokenData(eventToken);
 

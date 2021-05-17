@@ -54,7 +54,7 @@ union GraphicsStateFlags
                 uint32 scissorRects           :  1; // Gfx6 & Gfx9
                 uint32 inputAssemblyState     :  1; // Gfx6 & Gfx9
                 uint32 triangleRasterState    :  1; // Gfx6 & Gfx9
-                uint32 queryState             :  1; // Gfx6 & Gfx9
+                uint32 occlusionQueryActive   :  1; // Gfx6 & Gfx9
                 uint32 lineStippleState       :  1; // Gfx6 & Gfx9
                 uint32 colorTargetView        :  1; // Gfx9 only
                 uint32 depthStencilView       :  1; // Gfx9 only

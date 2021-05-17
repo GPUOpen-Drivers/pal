@@ -473,7 +473,6 @@ void CmdBuffer::CmdBindSampleRateImage(
     }
 }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 554
 // =====================================================================================================================
 void CmdBuffer::CmdResolvePrtPlusImage(
     const IImage&                    srcImage,
@@ -519,7 +518,6 @@ void CmdBuffer::CmdResolvePrtPlusImage(
         m_pPlatform->LogEndFunc(pLogContext);
     }
 }
-#endif
 
 // =====================================================================================================================
 void CmdBuffer::CmdSetBlendConst(
