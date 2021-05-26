@@ -3020,7 +3020,7 @@ uint32 CmdBuffer::CmdRelease(
 
     char* pString = PAL_NEW_ARRAY(char, StringLength, &allocator, AllocInternalTemp);
     GetNextLayer()->CmdCommentString("Release SyncToken:");
-    Snprintf(pString, StringLength, "SyncToken = %u" PRIXPTR, syncToken);
+    Snprintf(pString, StringLength, "SyncToken = 0x%08X", syncToken);
     GetNextLayer()->CmdCommentString(pString);
     PAL_SAFE_DELETE_ARRAY(pString, &allocator);
 

@@ -695,6 +695,8 @@ public:
 #endif
 
 private:
+    void Gfx10SetImageSrdDims(sq_img_rsrc_t*  pSrd, uint32 width, uint32  height) const;
+
     void SetSrdBorderColorPtr(
         sq_img_samp_t*  pSrd,
         uint32          borderColorPtr) const;
@@ -741,37 +743,6 @@ private:
         const ImgBarrier&  imgBarrier) const;
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
-    size_t BuildReleaseSyncPackets(
-        GfxCmdBuffer*                 pCmdBuf,
-        EngineType                    engineType,
-        uint32                        stageMask,
-        uint32                        accessMask,
-        bool                          flushLlc,
-        AcqRelSyncToken*              pSyncTokenOut,
-        void*                         pBuffer,
-        Developer::BarrierOperations* pBarrierOps) const;
-#endif
-
-    size_t BuildReleaseSyncPacketsEvent(
-        EngineType                    engineType,
-        uint32                        stageMask,
-        uint32                        accessMask,
-        bool                          flushLlc,
-        const IGpuEvent*              pGpuEventToSignal,
-        void*                         pBuffer,
-        Developer::BarrierOperations* pBarrierOps) const;
-
-    size_t BuildAcquireSyncPackets(
-        EngineType                    engineType,
-        uint32                        stageMask,
-        uint32                        accessMask,
-        bool                          invalidateLlc,
-        gpusize                       baseAddress,
-        gpusize                       sizeBytes,
-        void*                         pBuffer,
-        Developer::BarrierOperations* pBarrierOps) const;
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
     AcqRelSyncToken IssueReleaseSync(
         GfxCmdBuffer*                 pCmdBuf,
         CmdStream*                    pCmdStream,
@@ -779,18 +750,7 @@ private:
         uint32                        accessMask,
         bool                          flushLlc,
         Developer::BarrierOperations* pBarrierOps) const;
-#endif
 
-    void IssueReleaseSyncEvent(
-        GfxCmdBuffer*                 pCmdBuf,
-        CmdStream*                    pCmdStream,
-        uint32                        stageMask,
-        uint32                        accessMask,
-        bool                          flushLlc,
-        const IGpuEvent*              pGpuEvent,
-        Developer::BarrierOperations* pBarrierOps) const;
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
     void IssueAcquireSync(
         GfxCmdBuffer*                 pCmdBuf,
         CmdStream*                    pCmdStream,
@@ -803,6 +763,15 @@ private:
         const AcqRelSyncToken*        pSyncTokens,
         Developer::BarrierOperations* pBarrierOps) const;
 #endif
+
+    void IssueReleaseSyncEvent(
+        GfxCmdBuffer*                 pCmdBuf,
+        CmdStream*                    pCmdStream,
+        uint32                        stageMask,
+        uint32                        accessMask,
+        bool                          flushLlc,
+        const IGpuEvent*              pGpuEvent,
+        Developer::BarrierOperations* pBarrierOps) const;
 
     void IssueAcquireSyncEvent(
         GfxCmdBuffer*                 pCmdBuf,

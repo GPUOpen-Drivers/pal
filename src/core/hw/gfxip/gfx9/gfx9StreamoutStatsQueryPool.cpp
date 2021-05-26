@@ -115,6 +115,7 @@ ME_EVENT_WRITE_event_index_enum StreamoutStatsQueryPool::XlateEventIndex(
 void StreamoutStatsQueryPool::Begin(
     GfxCmdBuffer*     pCmdBuffer,
     Pal::CmdStream*   pCmdStream,
+    Pal::CmdStream*   pHybridCmdStream,
     QueryType         queryType,
     uint32            slot,
     QueryControlFlags flags
@@ -147,6 +148,7 @@ void StreamoutStatsQueryPool::Begin(
 void StreamoutStatsQueryPool::End(
     GfxCmdBuffer*   pCmdBuffer,
     Pal::CmdStream* pCmdStream,
+    Pal::CmdStream* pHybridCmdStream,
     QueryType       queryType,
     uint32          slot
     ) const

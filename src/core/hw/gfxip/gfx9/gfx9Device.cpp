@@ -2106,7 +2106,7 @@ void PAL_STDCALL Device::Gfx10CreateTypedBufferViewSrds(
                               (hwBufFmt                       << Gfx10CoreSqBufRsrcTWord3FormatShift)              |
                               (pGfxDevice->BufferSrdResourceLevel() << Gfx10CoreSqBufRsrcTWord3ResourceLevelShift) |
                               (OobSelect                      << SqBufRsrcTWord3OobSelectShift)                    |
-                              (llcNoalloc                     << MallSqBufRsrcTWord3LlcNoallocShift)               |
+                              (llcNoalloc                     << Gfx103PlusSqBufRsrcTWord3LlcNoallocShift)         |
                               (SQ_RSRC_BUF                    << SqBufRsrcTWord3TypeShift));
 
         pOutSrd++;
@@ -2213,7 +2213,7 @@ void PAL_STDCALL Device::Gfx10CreateUntypedBufferViewSrds(
                                   (BUF_FMT_32_UINT                << Gfx10CoreSqBufRsrcTWord3FormatShift)              |
                                   (pGfxDevice->BufferSrdResourceLevel() << Gfx10CoreSqBufRsrcTWord3ResourceLevelShift) |
                                   (oobSelect                      << SqBufRsrcTWord3OobSelectShift)                    |
-                                  (llcNoalloc                     << MallSqBufRsrcTWord3LlcNoallocShift)               |
+                                  (llcNoalloc                     << Gfx103PlusSqBufRsrcTWord3LlcNoallocShift)         |
                                   (SQ_RSRC_BUF                    << SqBufRsrcTWord3TypeShift));
         }
         else
@@ -3047,14 +3047,20 @@ void PAL_STDCALL Device::Gfx9CreateImageViewSrds(
 }
 
 // =====================================================================================================================
-static void Gfx10SetImageSrdWidth(
+void Device::Gfx10SetImageSrdDims(
     sq_img_rsrc_t*  pSrd,
-    uint32          width)
+    uint32          width,
+    uint32          height
+    ) const
 {
     constexpr uint32  WidthLowSize = 2;
 
-    pSrd->width_lo = (width - 1) & ((1 << WidthLowSize) - 1);
-    pSrd->width_hi = (width - 1) >> WidthLowSize;
+    if (IsGfx10(*Parent()))
+    {
+        pSrd->gfx10.width_lo = (width - 1) & ((1 << WidthLowSize) - 1);
+        pSrd->gfx10.width_hi = (width - 1) >> WidthLowSize;
+        pSrd->gfx10.height   = (height - 1);
+    }
 }
 
 // =====================================================================================================================
@@ -3260,7 +3266,7 @@ static void Gfx10UpdateLinkedResourceViewSrd(
     pLinkedRsrc->linked_resource = 1;
 
     // Sanity check that our sq_img_rsrc_linked_rsrc_t and sq_img_rsrc_t definitions line up.
-    PAL_ASSERT(pSrd->prtPlus.linked_resource == 1);
+    PAL_ASSERT(pSrd->gfx103CorePlus.linked_resource == 1);
 
     // "linked_resource_type" lines up with the "bc_swizzle" field of the sq_img_rsrc_t structure.
     // There are no enums for these values
@@ -3308,10 +3314,10 @@ static void Gfx10UpdateLinkedResourceViewSrd(
         {
             // "big_page" was originally setup to reflect the big-page settings of the parent image, but it
             // needs to reflect the big-page setup of the map image instead.
-            pLinkedRsrc->rdna2.big_page = isBigPage;
+            pLinkedRsrc->gfx103.big_page = isBigPage;
 
             // The "max_mip" field reflects the number of mip levels in the map image
-            pLinkedRsrc->rdna2.max_mip  = mapCreateInfo.mipLevels - 1;
+            pLinkedRsrc->gfx103.max_mip  = mapCreateInfo.mipLevels - 1;
         }
 
         // "xxx_scale" lines up with the "min_lod_warn" field of the sq_img_rsrc_t structure.
@@ -3456,9 +3462,13 @@ void PAL_STDCALL Device::Gfx10CreateImageViewSrds(
             // charge of making sure the math works out properly if they do this (allowed by Vulkan), otherwise we
             // assume it's an internal view and the copy shaders will prevent accessing out-of-bounds pixels.
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-            SubresId               mipSubResId    = { viewInfo.subresRange.startSubres.aspect, firstMipLevel, baseArraySlice };
+            SubresId               mipSubResId    = { viewInfo.subresRange.startSubres.aspect,
+                                                      firstMipLevel,
+                                                      baseArraySlice };
 #else
-            SubresId               mipSubResId    = { viewInfo.subresRange.startSubres.plane, firstMipLevel, baseArraySlice };
+            SubresId               mipSubResId    = { viewInfo.subresRange.startSubres.plane,
+                                                      firstMipLevel,
+                                                      baseArraySlice };
 #endif
             const SubResourceInfo* pMipSubResInfo = pParent->SubresourceInfo(mipSubResId);
 
@@ -3655,8 +3665,7 @@ void PAL_STDCALL Device::Gfx10CreateImageViewSrds(
         }
 
         const Extent3d programmedExtent = (includePadding) ? actualExtent : extent;
-        Gfx10SetImageSrdWidth(&srd, programmedExtent.width);
-        srd.height   = (programmedExtent.height - 1);
+        pGfxDevice->Gfx10SetImageSrdDims(&srd, programmedExtent.width, programmedExtent.height);
 
         // Setup CCC filtering optimizations: GCN uses a simple scheme which relies solely on the optimization
         // setting from the CCC rather than checking the render target resolution.
@@ -3755,7 +3764,9 @@ void PAL_STDCALL Device::Gfx10CreateImageViewSrds(
             srd.gfx10Core.max_mip = maxMipField;
         }
 
-        srd.depth      = ComputeImageViewDepth(viewInfo, imageInfo, *pBaseSubResInfo);
+        {
+            srd.gfx10.depth = ComputeImageViewDepth(viewInfo, imageInfo, *pBaseSubResInfo);
+        }
 
         // (pitch-1)[12:0] of mip 0 for 1D, 2D and 2D MSAA in GFX10.3, if pitch > width and
         // TA_CNTL_AUX.DEPTH_AS_WIDTH_DIS = 0
@@ -3768,7 +3779,7 @@ void PAL_STDCALL Device::Gfx10CreateImageViewSrds(
              (srd.type == SQ_RSRC_IMG_2D) ||
              (srd.type == SQ_RSRC_IMG_2D_MSAA)))
         {
-            srd.depth = pitchInPixels - 1;
+            srd.gfx10.depth = pitchInPixels - 1;
         }
 
         if (pPalDevice->MemoryProperties().flags.supportsMall != 0)
@@ -3778,13 +3789,17 @@ void PAL_STDCALL Device::Gfx10CreateImageViewSrds(
             {
                 // The SRD has a two-bit field where the high-bit is the control for "read" operations
                 // and the low bit is the control for bypassing the MALL on write operations.
-                srd.rdna2.llc_noalloc = llcNoAlloc;
+                srd.gfx103.llc_noalloc = llcNoAlloc;
             }
         }
 
         srd.bc_swizzle = GetBcSwizzle(imageCreateInfo);
 
-        srd.base_array         = baseArraySlice;
+        if (IsGfx10(*pPalDevice))
+        {
+            srd.gfx10.base_array   = baseArraySlice;
+        }
+
         srd.meta_pipe_aligned  = ((pMaskRam != nullptr) ? pMaskRam->PipeAligned() : 0);
         srd.corner_samples     = imageCreateInfo.usageFlags.cornerSampling;
         srd.iterate_256        = image.GetIterate256(pSubResInfo);
@@ -3818,7 +3833,7 @@ void PAL_STDCALL Device::Gfx10CreateImageViewSrds(
             const uint32            bigPageCompat = IsImageBigPageCompatible(image, bigPageUsage);
 
             {
-                srd.gfx10Core.big_page = bigPageCompat;
+                srd.gfx10Core.big_page  = bigPageCompat;
             }
 
             // When overrideBaseResource = true (96bpp images), compute baseAddress using the mip/slice in
@@ -3896,14 +3911,14 @@ void PAL_STDCALL Device::Gfx10CreateImageViewSrds(
             if (IsGfx10(*pPalDevice))
             {
                 srd.gfx10Core.resource_level = 1;
-            }
 
-            // Fill the unused 4 bits of word6 with sample pattern index
-            srd._reserved_206_203  = viewInfo.samplePatternIdx;
+                // Fill the unused 4 bits of word6 with sample pattern index
+                srd.gfx10._reserved_206_203  = viewInfo.samplePatternIdx;
+            }
 
             //   PRT unmapped returns 0.0 or 1.0 if this bit is 0 or 1 respectively
             //   Only used with image ops (sample/load)
-            srd.most.prt_default = 0;
+            srd.gfx10CorePlus.prt_default = 0;
         }
 
         if (viewInfo.mapAccess != PrtMapAccessType::Raw)
@@ -4074,8 +4089,7 @@ void Device::Gfx10CreateFmaskViewSrdsInternal(
         pSrd->gfx10Core.big_page       = bigPageCompat;
     }
 
-    Gfx10SetImageSrdWidth(pSrd, subresInfo.extentTexels.width);
-    pSrd->height   = (subresInfo.extentTexels.height - 1);
+    Gfx10SetImageSrdDims(pSrd, subresInfo.extentTexels.width, subresInfo.extentTexels.height);
     pSrd->perf_mod = 0;
 
     // For Fmask views, destination swizzles are based on the bit depth of the Fmask buffer.
@@ -4090,9 +4104,9 @@ void Device::Gfx10CreateFmaskViewSrdsInternal(
     pSrd->sw_mode      = pAddrMgr->GetHwSwizzleMode(pFmask->GetSwizzleMode());
 
     // On GFX10, "depth" replaces the deprecated "last_array" from pre-GFX9 ASICs.
-    pSrd->depth = (viewInfo.baseArraySlice + viewInfo.arraySize - 1);
+    pSrd->gfx10.depth = (viewInfo.baseArraySlice + viewInfo.arraySize - 1);
 
-    pSrd->base_array        = viewInfo.baseArraySlice;
+    pSrd->gfx10.base_array  = viewInfo.baseArraySlice;
     pSrd->meta_pipe_aligned = pCmask->PipeAligned();
 
     if (image.Parent()->GetBoundGpuMemory().IsBound())
@@ -4432,8 +4446,8 @@ void PAL_STDCALL Device::Gfx10CreateSamplerSrds(
                                                       Gfx10SamplerLodBiasFracBits);
 
             {
-                pSrd->most.blend_prt          = pInfo->flags.prtBlendZeroMode;
-                pSrd->most.mip_point_preclamp = 0;
+                pSrd->gfx10CorePlus.blend_prt      = pInfo->flags.prtBlendZeroMode;
+                pSrd->gfx10Core.mip_point_preclamp = 0;
             }
 
             // Ensure useAnisoThreshold is only set when preciseAniso is disabled
@@ -4495,7 +4509,7 @@ void PAL_STDCALL Device::Gfx10CreateSamplerSrds(
                 };
 
                 PAL_ASSERT(static_cast<uint32>(pInfo->filterMode) < (Util::ArrayLen(HwFilterMode)));
-                pSrd->most.filter_mode = HwFilterMode[static_cast<uint32>(pInfo->filterMode)];
+                pSrd->gfx10CorePlus.filter_mode = HwFilterMode[static_cast<uint32>(pInfo->filterMode)];
             }
 
             // The BORDER_COLOR_PTR field is only used by the HW for the SQ_TEX_BORDER_COLOR_REGISTER case
@@ -4562,13 +4576,17 @@ void PAL_STDCALL Device::Gfx10CreateSamplerSrds(
                 const uint32  biasedOffsetX  = pInfo->uvOffset.x - LowValidOffset;
                 const uint32  biasedOffsetY  = pInfo->uvOffset.y - LowValidOffset;
 
-                pLinkedRsrcSrd->rdna2.linked_resource_slopes = (((pInfo->uvSlope.x  & 0x7) << 0) |
-                                                                ((biasedOffsetX     & 0x7) << 3) |
-                                                                ((pInfo->uvSlope.y  & 0x7) << 6) |
-                                                                ((biasedOffsetY     & 0x7) << 9));
+                if (IsGfx103(*pPalDevice))
+                {
+                    pLinkedRsrcSrd->gfx103.linked_resource_slopes = (((pInfo->uvSlope.x  & 0x7) << 0) |
+                                                                     ((biasedOffsetX     & 0x7) << 3) |
+                                                                     ((pInfo->uvSlope.y  & 0x7) << 6) |
+                                                                     ((biasedOffsetY     & 0x7) << 9));
 
-                // Verify that the "linked_resource_slopes" lines up with the "border_color_ptr" field.
-                PAL_ASSERT(pSrd->gfx10Core.border_color_ptr == pLinkedRsrcSrd->rdna2.linked_resource_slopes);
+                    // Verify that the "linked_resource_slopes" lines up with the "border_color_ptr" field.
+                    PAL_ASSERT(pSrd->gfx10Core.border_color_ptr == pLinkedRsrcSrd->gfx103.linked_resource_slopes);
+
+                }
             }
 
         } // end loop through temp SRDs
@@ -4799,6 +4817,9 @@ void InitializeGpuChipProperties(
 
     pInfo->gfxip.maxUserDataEntries      = MaxUserDataEntries;
     pInfo->gfxip.supportsHwVs            = 1;
+
+    pInfo->gfxip.maxGsOutputVert            = 1023;
+    pInfo->gfxip.maxGsTotalOutputComponents = 4095;
 
     if (IsGfx103Plus(pInfo->gfxLevel))
     {

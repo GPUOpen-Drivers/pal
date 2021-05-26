@@ -407,6 +407,10 @@ void Image::CheckCompToSingle()
     const auto&  createInfo = Parent()->GetImageCreateInfo();
     const auto   imageType  = GetOverrideImageType();
 
+    const bool   fragsCompressable = ((IsGfx10(m_device) == false) ||
+                                      (m_gfxDevice.GetMaxFragsLog2() >= Log2(createInfo.fragments)));
+
+    // Comp-to-single is only available on GFX10 and newer products
     if (IsGfx10Plus(m_device)           &&
         // Disable comp-to-single for 1D images.  The tiling pattern for 1D images is essentially the same pattern as
         // used by a 2D image;  i.e., for 16bpp images, it's either 16x8 or 8x16 pixels, with everything outside the
@@ -421,7 +425,7 @@ void Image::CheckCompToSingle()
         // associated with that pixel/sample without looking at DCC memory and the texture pipe will have no way of
         // understanding the clear color.  We should still be able to do comp-to-reg with a fast-clear-eliminate, but
         // comp-to-single is out.
-        (m_gfxDevice.GetMaxFragsLog2() >= Log2(createInfo.fragments)))
+        fragsCompressable)
     {
         const Gfx9PalSettings& settings             = GetGfx9Settings(m_device);
         const SubResourceInfo*const pBaseSubResInfo = Parent()->SubresourceInfo(0);
@@ -1438,10 +1442,12 @@ void Image::InitLayoutStateMasks()
                 compressedLayouts.engines |= LayoutComputeEngine;
             }
 
-            if (IsGfx10Plus(m_device) && (supportsDepth ^ supportsStencil) && (isMsaa == false))
+            if (((IsGfx10(m_device) && (supportsDepth ^ supportsStencil))
+                )
+                && (isMsaa == false))
             {
-                // GFX10 supports compressed writes to HTILE, so it should be safe to add ShaderWrite to the
-                // compressed usages (LayoutCopyDst was already added as above).
+                // GFX10 supports compressed writes to HTILE with an HTILE resummarize blt after so we
+                // can add this here as long as we do the resummarize blt as well.
                 compressedLayouts.usages |= LayoutShaderWrite;
             }
         }

@@ -6819,8 +6819,8 @@ void Gfx10RsrcProcMgr::HwlDecodeImageViewSrd(
     }
     else
     {
-        pSubresRange->numSlices              = LowPart(pSrd->depth - pSrd->base_array + 1);
-        pSubresRange->startSubres.arraySlice = LowPart(pSrd->base_array);
+        pSubresRange->numSlices              = LowPart(pSrd->gfx10.depth - pSrd->gfx10.base_array + 1);
+        pSubresRange->startSubres.arraySlice = LowPart(pSrd->gfx10.base_array);
     }
 
     if (pSrd->type == SQ_RSRC_IMG_2D_MSAA_ARRAY)

@@ -61,9 +61,11 @@ add_library(pal STATIC)
 add_library(AMD::PAL ALIAS pal)
 
 ### Add Subdirectories #################################################################################################
-add_subdirectory(src)
-add_subdirectory(inc)
 add_subdirectory(cmake)
+add_subdirectory(inc)
+add_subdirectory(res)
+add_subdirectory(src)
+add_subdirectory(shared)
 
 ### Build Definitions ##################################################################################################
 pal_compile_definitions(pal)

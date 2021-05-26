@@ -55,15 +55,6 @@ endif()
 # See: palMsgPack.h
 target_link_libraries(pal PUBLIC cwpack)
 
-### GPUOPEN ####################################################################
-if(PAL_BUILD_GPUOPEN)
-    add_subdirectory(${PAL_GPUOPEN_PATH} ${PROJECT_BINARY_DIR}/gpuopen)
-
-    # Gpuopen needs to be a public dependency.
-    # Clients include "gpuopen.h"
-    target_link_libraries(pal PUBLIC gpuopen)
-endif()
-
 ### Link Libraries #####################################################################################################
 include(FindThreads)
 target_link_libraries(pal PRIVATE ${CMAKE_DL_LIBS})
@@ -72,17 +63,7 @@ target_link_libraries(pal PRIVATE Threads::Threads)
 ### Include Directories ################################################################################################
 
 # PAL Include Directories
-target_include_directories(pal
-    PUBLIC
-        ${PAL_SOURCE_DIR}/inc
-        ${PAL_SOURCE_DIR}/inc/core
-        ${PAL_SOURCE_DIR}/inc/gpuUtil
-        ${PAL_SOURCE_DIR}/inc/util
-        ${PAL_SOURCE_DIR}/shared/inc
-    PRIVATE
-        ${PAL_SOURCE_DIR}/res
-        ${PAL_SOURCE_DIR}/src
-)
+target_include_directories(pal PRIVATE .)
 
 set(PAL_XCB_REQUIRED ON)
 

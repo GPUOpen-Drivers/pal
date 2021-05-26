@@ -2401,6 +2401,9 @@ Result Device::GetProperties(
         pInfo->gfxipProperties.hardwareContexts    = m_chipProperties.gfxip.hardwareContexts;
         pInfo->gfxipProperties.maxPrimgroupSize    = m_chipProperties.gfxip.maxPrimgroupSize;
 
+        pInfo->gfxipProperties.maxGsOutputVert            = m_chipProperties.gfxip.maxGsOutputVert;
+        pInfo->gfxipProperties.maxGsTotalOutputComponents = m_chipProperties.gfxip.maxGsTotalOutputComponents;
+
         pInfo->gfxipProperties.performance.maxGpuClock     = static_cast<float>(m_chipProperties.maxEngineClock);
         pInfo->gfxipProperties.performance.aluPerClock     = static_cast<float>(m_chipProperties.alusPerClock);
         pInfo->gfxipProperties.performance.texPerClock     = static_cast<float>(m_chipProperties.texelsPerClock);

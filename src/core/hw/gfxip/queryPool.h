@@ -74,6 +74,7 @@ public:
     virtual void Begin(
         GfxCmdBuffer*     pCmdBuffer,
         CmdStream*        pCmdStream,
+        CmdStream*        pHybridCmdStream,
         QueryType         queryType,
         uint32            slot,
         QueryControlFlags flags) const = 0;
@@ -81,6 +82,7 @@ public:
     virtual void End(
         GfxCmdBuffer* pCmdBuffer,
         CmdStream*    pCmdStream,
+        CmdStream*    pHybridCmdStream,
         QueryType     queryType,
         uint32        slot) const = 0;
 

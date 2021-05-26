@@ -143,6 +143,7 @@ void SettingsLoader::SetupDefaults()
     m_settings.minBatchBinSize.width = 0;
     m_settings.minBatchBinSize.height = 0;
     m_settings.ignoreDepthForBinSizeIfColorBound = false;
+    m_settings.disableBinningMode = 3;
     m_settings.disableBinningPsKill = true;
     m_settings.binningMaxAllocCountLegacy = 0;
     m_settings.binningMaxAllocCountNggOnChip = 0;
@@ -643,6 +644,11 @@ void SettingsLoader::ReadSettings()
                            &m_settings.ignoreDepthForBinSizeIfColorBound,
                            InternalSettingScope::PrivatePalGfx9Key);
 
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pDisableBinningModeStr,
+                           Util::ValueType::Uint,
+                           &m_settings.disableBinningMode,
+                           InternalSettingScope::PrivatePalGfx9Key);
+
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pDisableBinningPsKillStr,
                            Util::ValueType::Boolean,
                            &m_settings.disableBinningPsKill,
@@ -1060,6 +1066,11 @@ void SettingsLoader::RereadSettings()
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pIgnoreDepthForBinSizeIfColorBoundStr,
                            Util::ValueType::Boolean,
                            &m_settings.ignoreDepthForBinSizeIfColorBound,
+                           InternalSettingScope::PrivatePalGfx9Key);
+
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pDisableBinningModeStr,
+                           Util::ValueType::Uint,
+                           &m_settings.disableBinningMode,
                            InternalSettingScope::PrivatePalGfx9Key);
 
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pDisableBinningPsKillStr,
@@ -1700,6 +1711,11 @@ void SettingsLoader::InitSettingsInfo()
     info.valueSize = sizeof(m_settings.ignoreDepthForBinSizeIfColorBound);
     m_settingsInfoMap.Insert(3483607475, info);
 
+    info.type      = SettingType::Uint;
+    info.pValuePtr = &m_settings.disableBinningMode;
+    info.valueSize = sizeof(m_settings.disableBinningMode);
+    m_settingsInfoMap.Insert(636789469, info);
+
     info.type      = SettingType::Boolean;
     info.pValuePtr = &m_settings.disableBinningPsKill;
     info.valueSize = sizeof(m_settings.disableBinningPsKill);
@@ -2081,7 +2097,7 @@ void SettingsLoader::DevDriverRegister()
             component.pfnSetValue = ISettingsLoader::SetValue;
             component.pSettingsData = &g_gfx9PalJsonData[0];
             component.settingsDataSize = sizeof(g_gfx9PalJsonData);
-            component.settingsDataHash = 410664453;
+            component.settingsDataHash = 1940262398;
             component.settingsDataHeader.isEncoded = true;
             component.settingsDataHeader.magicBufferId = 402778310;
             component.settingsDataHeader.magicBufferOffset = 0;

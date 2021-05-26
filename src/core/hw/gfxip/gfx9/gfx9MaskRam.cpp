@@ -3491,6 +3491,7 @@ Result Gfx9Htile::ComputeHtileInfo(
     const SubResourceInfo* pSubResInfo)
 {
     const Pal::Device&     device             = *(m_pGfxDevice->Parent());
+    const Gfx9PalSettings& settings           = GetGfx9Settings(device);
     const Pal::Image*const pParent            = m_image.Parent();
     const ImageCreateInfo& imageCreateInfo    = pParent->GetImageCreateInfo();
     const auto&            surfSettings       = m_image.GetAddrSettings(pSubResInfo);
@@ -3535,7 +3536,6 @@ Result Gfx9Htile::ComputeHtileInfo(
                 // "image" that has VRS data), then setup the regs to indicate VRS encoding in hTile.
                 if (m_hTileUsage.vrs != 0)
                 {
-                    const Gfx9PalSettings&  settings = GetGfx9Settings(device);
 
                     // 1:  two bit encoding in hTile
                     // 2:  four bit encoding in hTile
@@ -4027,6 +4027,7 @@ Result Gfx9Dcc::Init(
 
     if (result == Result::Success)
     {
+
         // Compute our aligned GPU memory offset and update the caller-provided running total.
         UpdateGpuMemOffset(pGpuOffset);
 

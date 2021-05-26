@@ -70,6 +70,7 @@ OcclusionQueryPool::OcclusionQueryPool(
 void OcclusionQueryPool::Begin(
     GfxCmdBuffer*     pCmdBuffer,
     Pal::CmdStream*   pCmdStream,
+    Pal::CmdStream*   pHybridCmdStream,
     QueryType         queryType,
     uint32            slot,
     QueryControlFlags flags
@@ -102,6 +103,7 @@ void OcclusionQueryPool::Begin(
 void OcclusionQueryPool::End(
     GfxCmdBuffer*   pCmdBuffer,
     Pal::CmdStream* pCmdStream,
+    Pal::CmdStream* pHybridCmdStream,
     QueryType       queryType,
     uint32          slot
     ) const

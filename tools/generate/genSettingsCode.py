@@ -273,17 +273,23 @@ def defineSettingVariable(setting):
     settingDef = settingDef.replace("%ArrayLength%", arrayLength)
     return settingDef
 
-def genHashedStringName(name, hashName):
+def genHashedStringName(name, hashName, isPublic):
     # Setting String definition
     settingStringName = "p" + name + "Str"
     settingsStringTmp = codeTemplates.SettingStr.replace("%SettingStrName%", settingStringName)
-    settingsStringTmp = settingsStringTmp.replace("%SettingString%", "\"#"+ hashName + "\"")
+    if isPublic == False:
+        settingsStringTmp = settingsStringTmp.replace("%SettingString%", "\"#"+ hashName + "\"")
+    else:
+        settingsStringTmp = settingsStringTmp.replace("%SettingString%", "\""+ name + "\"")
     return settingStringName, settingsStringTmp
 
 def genReadSettingCode(data):
 
+    isPublic = False
+    if data["scope"] == "PublicCatalystKey":
+        isPublic = True
     # First get the hashed name string
-    settingStringName, settingStringTmp = genHashedStringName(data["name"], str(data["hashName"]))
+    settingStringName, settingStringTmp = genHashedStringName(data["name"], str(data["hashName"]), isPublic)
 
     readSettingTmp = codeTemplates.ReadSetting
     if data["stringLen"] > 0:

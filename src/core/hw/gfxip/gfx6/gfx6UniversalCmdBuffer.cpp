@@ -4277,7 +4277,7 @@ void UniversalCmdBuffer::CmdBeginQuery(
     uint32            slot,
     QueryControlFlags flags)
 {
-    static_cast<const QueryPool&>(queryPool).Begin(this, &m_deCmdStream, queryType, slot, flags);
+    static_cast<const QueryPool&>(queryPool).Begin(this, &m_deCmdStream, nullptr, queryType, slot, flags);
 }
 
 // =====================================================================================================================
@@ -4286,7 +4286,7 @@ void UniversalCmdBuffer::CmdEndQuery(
     QueryType         queryType,
     uint32            slot)
 {
-    static_cast<const QueryPool&>(queryPool).End(this, &m_deCmdStream, queryType, slot);
+    static_cast<const QueryPool&>(queryPool).End(this, &m_deCmdStream, nullptr, queryType, slot);
 }
 
 // =====================================================================================================================

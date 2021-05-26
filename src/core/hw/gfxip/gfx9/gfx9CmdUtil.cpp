@@ -2075,11 +2075,11 @@ size_t CmdUtil::BuildNonSampleEventWrite(
 // Build an EVENT_WRITE packet.  Not to be used for any EOP or EOS type events.  Return the number of DWORDs taken up
 // by this packet.
 size_t CmdUtil::BuildSampleEventWrite(
-    VGT_EVENT_TYPE                  vgtEvent,
-    ME_EVENT_WRITE_event_index_enum eventIndex,
-    EngineType                      engineType,
-    gpusize                         gpuAddr,
-    void*                           pBuffer     // [out] Build the PM4 packet in this buffer.
+    VGT_EVENT_TYPE                           vgtEvent,
+    ME_EVENT_WRITE_event_index_enum          eventIndex,
+    EngineType                               engineType,
+    gpusize                                  gpuAddr,
+    void*                                    pBuffer     // [out] Build the PM4 packet in this buffer.
     ) const
 {
     const GpuChipProperties& chipProps = m_device.Parent()->ChipProperties();
@@ -2135,6 +2135,7 @@ size_t CmdUtil::BuildSampleEventWrite(
     pPacket->ordinal2.u32All                = 0;
     pPacket->ordinal2.bitfields.event_type  = vgtEvent;
     pPacket->ordinal2.bitfields.event_index = eventIndex;
+
     pPacket->ordinal3.u32All                = LowPart(gpuAddr);
     PAL_ASSERT(pPacket->ordinal3.bitfieldsA.reserved1 == 0);
     pPacket->ordinal4.address_hi            = HighPart(gpuAddr);

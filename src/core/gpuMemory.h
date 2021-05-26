@@ -160,7 +160,13 @@ union GpuMemoryFlags
         uint32 gpuReadOnly              :  1; // GPU memory is read only.
         uint32 mallRangeActive          :  1;
         uint32 explicitSync             :  1;
-        uint32 reserved                 : 22;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 659
+        uint32 isDoppDesktopTexture     :  1;
+        uint32 isDoppPresentTexture     :  1;
+        uint32 reserved                 :  20;
+#else
+        uint32 reserved                 :  22;
+#endif
     };
     uint64  u64All;
 };
@@ -263,6 +269,10 @@ public:
     bool IsCrossAdapter()        const { return (m_flags.crossAdapter             != 0); }
     bool IsTmzProtected()        const { return (m_flags.tmzProtected             != 0); }
     bool IsTmzUserQueue()        const { return (m_flags.tmzUserQueue             != 0); }
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 659
+    bool IsDoppDesktopTexture()  const { return (m_flags.isDoppDesktopTexture     != 0); }
+    bool IsDoppPresentTexture()  const { return (m_flags.isDoppPresentTexture     != 0); }
+#endif
     bool IsMapppedToPeerMemory() const { return (m_flags.mapppedToPeerMemory      != 0); }
     bool IsSvmAlloc()            const { return (m_desc.flags.isSvmAlloc          != 0); }
     bool IsExecutable()          const { return (m_desc.flags.isExecutable        != 0); }

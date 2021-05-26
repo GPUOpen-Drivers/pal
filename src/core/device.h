@@ -715,6 +715,8 @@ struct GpuChipProperties
                                                      // reads/writes. Note that reporting CoherShader only means
                                                      // that GLC accesses will be CPU coherent.
                                                      // Note: Only valid if supportGl2Uncached is true.
+        uint32 maxGsOutputVert;                      // Maximum number of GS vertices output.
+        uint32 maxGsTotalOutputComponents;           // Maximum number of GS output components totally.
 
         struct
         {

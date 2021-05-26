@@ -517,10 +517,11 @@ void CmdBuffer::CaptureSurfaces()
 // =====================================================================================================================
 // Helper function for CaptureSurfaces()
 // Allocates a destination image and backing memory. Then copies from the src to the dst
+// This function captures a single plane and mip level.
+// All array slices included in the baseSubres and arraySize are captured
 Result CmdBuffer::CaptureImageSurface(
     const IImage*   pSrcImage,      // [in] pointer to the surface to capture
     const SubresId& baseSubres,     // Specifies the plane, mip level, and base array slice.
-                                    // The plane portion is ignored. All planes are captured.
     uint32          arraySize,
     IImage**        ppDstImage)     // [out] pointer to the surface that has the capture data
 {
@@ -624,12 +625,61 @@ Result CmdBuffer::CaptureImageSurface(
     // Copy
     if (result == Result::Success)
     {
+        const ImageLayoutUsageFlags srcLayoutColorDepth =
+            (pSrcImage->GetImageCreateInfo().usageFlags.depthStencil) ? LayoutDepthStencilTarget : LayoutColorTarget;
+        const CacheCoherencyUsageFlags srcCoher =
+            (pSrcImage->GetImageCreateInfo().usageFlags.depthStencil) ? CoherDepthStencilTarget : CoherColorTarget;
+
+        // Send Barrier to prepare for upcoming copy
+        // Transition 0 : Src from Color/Depth Target to Copy Src
+        // Transition 1 : Dst from Uninitialized to Copy Dst
+        BarrierInfo preCopyBarrier = {0};
+
+        BarrierTransition preCopyTransitions[2]                 = {0};
+        preCopyTransitions[0].srcCacheMask                      = srcCoher;
+        preCopyTransitions[0].dstCacheMask                      = CoherCopy;
+        preCopyTransitions[0].imageInfo.pImage                  = pSrcImage;
+        preCopyTransitions[0].imageInfo.subresRange.startSubres = baseSubres;
+        preCopyTransitions[0].imageInfo.subresRange.numPlanes   = 1;
+        preCopyTransitions[0].imageInfo.subresRange.numMips     = 1;
+        preCopyTransitions[0].imageInfo.subresRange.numSlices   = arraySize;
+        preCopyTransitions[0].imageInfo.oldLayout.usages        = srcLayoutColorDepth;
+        preCopyTransitions[0].imageInfo.oldLayout.engines       = LayoutUniversalEngine;
+        preCopyTransitions[0].imageInfo.newLayout.usages        = LayoutCopySrc;
+        preCopyTransitions[0].imageInfo.newLayout.engines       = LayoutUniversalEngine;
+
+        preCopyTransitions[1].srcCacheMask                      = 0;
+        preCopyTransitions[1].dstCacheMask                      = CoherCopy;
+        preCopyTransitions[1].imageInfo.pImage                  = pDstImage;
+        preCopyTransitions[1].imageInfo.subresRange.startSubres = baseSubres;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
+        preCopyTransitions[1].imageInfo.subresRange.startSubres.plane = 0;
+#endif
+        preCopyTransitions[1].imageInfo.subresRange.numPlanes   = 1;
+        preCopyTransitions[1].imageInfo.subresRange.numMips     = 1;
+        preCopyTransitions[1].imageInfo.subresRange.numSlices   = arraySize;
+        preCopyTransitions[1].imageInfo.oldLayout.usages        = LayoutUninitializedTarget;
+        preCopyTransitions[1].imageInfo.oldLayout.engines       = LayoutUniversalEngine;
+        preCopyTransitions[1].imageInfo.newLayout.usages        = LayoutCopyDst | LayoutUncompressed;
+        preCopyTransitions[1].imageInfo.newLayout.engines       = LayoutUniversalEngine;
+
+        preCopyBarrier.waitPoint            = HwPipePreBlt;
+
+        preCopyBarrier.rangeCheckedTargetWaitCount = 1;
+        preCopyBarrier.ppTargets = &pSrcImage;
+
+        preCopyBarrier.transitionCount  = 2;
+        preCopyBarrier.pTransitions     = &preCopyTransitions[0];
+
+        CmdBarrier(preCopyBarrier);
+
+        // Send Copy Cmd
         ImageLayout srcLayout = { 0 };
-        srcLayout.usages  = LayoutColorTarget | LayoutCopySrc;
+        srcLayout.usages  = srcLayoutColorDepth | LayoutCopySrc;
         srcLayout.engines = LayoutUniversalEngine;
 
         ImageLayout dstLayout = { 0 };
-        dstLayout.usages  = LayoutCopyDst;
+        dstLayout.usages  = LayoutCopyDst | LayoutUncompressed;
         dstLayout.engines = LayoutUniversalEngine;
 
         ImageCopyRegion region;
@@ -655,6 +705,34 @@ Result CmdBuffer::CaptureImageSurface(
                      &region,
                      nullptr,
                      0);
+
+        // Send Barrier for post copy transitions
+        // Transition Src from Copy Src to Color/Depth Target
+        BarrierInfo postCopyBarrier = {0};
+
+        BarrierTransition postCopyTransition                 = {0};
+        postCopyTransition.srcCacheMask                      = CoherCopy;
+        postCopyTransition.dstCacheMask                      = srcCoher;
+        postCopyTransition.imageInfo.pImage                  = pSrcImage;
+        postCopyTransition.imageInfo.subresRange.startSubres = baseSubres;
+        postCopyTransition.imageInfo.subresRange.numPlanes   = 1;
+        postCopyTransition.imageInfo.subresRange.numMips     = 1;
+        postCopyTransition.imageInfo.subresRange.numSlices   = arraySize;
+        postCopyTransition.imageInfo.oldLayout.usages        = LayoutCopySrc;
+        postCopyTransition.imageInfo.oldLayout.engines       = LayoutUniversalEngine;
+        postCopyTransition.imageInfo.newLayout.usages        = srcLayoutColorDepth;
+        postCopyTransition.imageInfo.newLayout.engines       = LayoutUniversalEngine;
+
+        postCopyBarrier.waitPoint           = HwPipePreRasterization;
+
+        const HwPipePoint postCopyPipePoint = HwPipePostBlt;
+        postCopyBarrier.pipePointWaitCount  = 1;
+        postCopyBarrier.pPipePoints         = &postCopyPipePoint;
+
+        postCopyBarrier.transitionCount  = 1;
+        postCopyBarrier.pTransitions     = &postCopyTransition;
+
+        CmdBarrier(postCopyBarrier);
     }
 
     *ppDstImage = pDstImage;
@@ -700,6 +778,80 @@ void CmdBuffer::OverrideDepthFormat(
             pSwizzledFormat->swizzle.swizzle[1] = ChannelSwizzle::Zero;
             pSwizzledFormat->swizzle.swizzle[2] = ChannelSwizzle::Zero;
             pSwizzledFormat->swizzle.swizzle[3] = ChannelSwizzle::Zero;
+        }
+    }
+}
+
+// =====================================================================================================================
+// Issues barrier calls to sync all of surface capture's output images
+void CmdBuffer::SyncSurfaceCapture()
+{
+    BarrierInfo barrierInfo      = {0};
+    BarrierTransition transition = {0};
+
+    transition.srcCacheMask                                 = CoherCopy;
+    transition.dstCacheMask                                 = CoherCpu;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
+    transition.imageInfo.subresRange.startSubres.plane      = 0;
+#endif
+    transition.imageInfo.subresRange.startSubres.mipLevel   = 0;
+    transition.imageInfo.subresRange.startSubres.arraySlice = 0;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
+    transition.imageInfo.subresRange.numPlanes              = 1;
+#endif
+    transition.imageInfo.oldLayout.usages                   = LayoutCopyDst | LayoutUncompressed;
+    transition.imageInfo.oldLayout.engines                  = LayoutUniversalEngine;
+    transition.imageInfo.newLayout.usages                   = LayoutUncompressed;
+    transition.imageInfo.newLayout.engines                  = LayoutUniversalEngine;
+
+    barrierInfo.transitionCount  = 1;
+    barrierInfo.pTransitions     = &transition;
+
+    barrierInfo.waitPoint           = HwPipeTop;
+
+    const HwPipePoint pipePoint     = HwPipeBottom;
+    barrierInfo.pipePointWaitCount  = 1;
+    barrierInfo.pPipePoints         = &pipePoint;
+
+    if (m_surfaceCapture.ppColorTargetDsts != nullptr)
+    {
+        for (uint32 action = 0; action < m_surfaceCapture.actionIdCount; action++)
+        {
+            for (uint32 mrt = 0; mrt < MaxColorTargets; mrt++)
+            {
+                const uint32 idx = (action * MaxColorTargets) + mrt;
+                Image* pImage    = m_surfaceCapture.ppColorTargetDsts[idx];
+                if (pImage != nullptr)
+                {
+                    ImageCreateInfo imageInfo                   = pImage->GetImageCreateInfo();
+
+                    transition.imageInfo.pImage                 = pImage;
+                    transition.imageInfo.subresRange.numMips    = imageInfo.mipLevels;
+                    transition.imageInfo.subresRange.numSlices  = imageInfo.arraySize;
+                    CmdBarrier(barrierInfo);
+                }
+            }
+        }
+    }
+
+    if (m_surfaceCapture.ppDepthTargetDsts != nullptr)
+    {
+        for (uint32 action = 0; action < m_surfaceCapture.actionIdCount; action++)
+        {
+            for (uint32 plane = 0; plane < 2; plane++)
+            {
+                const uint32 idx = (action * MaxDepthTargetPlanes) + plane;
+                Image* pImage = m_surfaceCapture.ppDepthTargetDsts[idx];
+                if (pImage != nullptr)
+                {
+                    ImageCreateInfo imageInfo                   = pImage->GetImageCreateInfo();
+
+                    transition.imageInfo.pImage                 = pImage;
+                    transition.imageInfo.subresRange.numMips    = imageInfo.mipLevels;
+                    transition.imageInfo.subresRange.numSlices  = imageInfo.arraySize;
+                    CmdBarrier(barrierInfo);
+                }
+             }
         }
     }
 }
@@ -1051,6 +1203,8 @@ void CmdBuffer::ReplayBegin(
 // =====================================================================================================================
 Result CmdBuffer::End()
 {
+    SyncSurfaceCapture();
+
     InsertToken(CmdBufCallId::End);
 
     // See CmdBuffer::Begin() for comment on why Begin()/End() are immediately passed to the next layer.

@@ -285,6 +285,7 @@ UniversalCmdBuffer::UniversalCmdBuffer(
     m_drawIndexReg(UserDataNotMapped),
     m_log2NumSes(Log2(m_device.Parent()->ChipProperties().gfx9.numShaderEngines)),
     m_log2NumRbPerSe(Log2(m_device.Parent()->ChipProperties().gfx9.maxNumRbPerSe)),
+    m_gpuType(m_device.Parent()->ChipProperties().gpuType),
     m_hasWaMiscPopsMissedOverlapBeenApplied(false),
     m_enabledPbb(false),
     m_customBinSizeX(0),
@@ -343,6 +344,11 @@ UniversalCmdBuffer::UniversalCmdBuffer(
     m_cachedSettings.waUtcL0InconsistentBigPage = settings.waUtcL0InconsistentBigPage;
     m_cachedSettings.waClampGeCntlVertGrpSize   = settings.waClampGeCntlVertGrpSize;
     m_cachedSettings.ignoreDepthForBinSize      = settings.ignoreDepthForBinSizeIfColorBound;
+    m_cachedSettings.pbbDisableBinMode          = settings.disableBinningMode;
+
+    // Asserts to confirm that pbbDisableBinMode has a legal value.
+    PAL_ASSERT((m_cachedSettings.pbbDisableBinMode == DISABLE_BINNING_USE_NEW_SC__GFX09_10) ||
+               (m_cachedSettings.pbbDisableBinMode == DISABLE_BINNING_USE_LEGACY_SC__GFX09_10));
 
     m_cachedSettings.waLogicOpDisablesOverwriteCombiner        = settings.waLogicOpDisablesOverwriteCombiner;
     m_cachedSettings.waMiscPopsMissedOverlap                   = settings.waMiscPopsMissedOverlap;
@@ -428,13 +434,13 @@ UniversalCmdBuffer::UniversalCmdBuffer(
     }
 
     m_pbbCntlRegs.paScBinnerCntl1.u32All       = 0;
+    m_pbbCntlRegs.paScBinnerCntl1.bits.MAX_PRIM_PER_BATCH = (settings.binningMaxPrimPerBatch        - 1);
+
     m_cachedPbbSettings.maxAllocCountNgg       = (settings.binningMaxAllocCountNggOnChip - 1);
     m_cachedPbbSettings.maxAllocCountLegacy    = (settings.binningMaxAllocCountLegacy    - 1);
-    m_cachedPbbSettings.maxPrimPerBatch        = (settings.binningMaxPrimPerBatch        - 1);
     m_cachedPbbSettings.persistentStatesPerBin = (settings.binningPersistentStatesPerBin - 1);
     PAL_ASSERT(m_cachedPbbSettings.maxAllocCountNgg    == (settings.binningMaxAllocCountNggOnChip - 1));
     PAL_ASSERT(m_cachedPbbSettings.maxAllocCountLegacy == (settings.binningMaxAllocCountLegacy    - 1));
-    PAL_ASSERT(m_cachedPbbSettings.maxPrimPerBatch     == (settings.binningMaxPrimPerBatch        - 1));
 
     m_pbbCntlRegs.paScBinnerCntl0.bits.PERSISTENT_STATES_PER_BIN = m_cachedPbbSettings.persistentStatesPerBin;
 
@@ -666,7 +672,9 @@ void UniversalCmdBuffer::ResetState()
     m_enabledPbb = false;
 
     Extent2d binSize = {};
-    m_pbbCntlRegs.paScBinnerCntl0.bits.BINNING_MODE = GetDisableBinningSetting(&binSize);
+    binSize.width  = m_minBinSizeX;
+    binSize.height = m_minBinSizeY;
+    m_pbbCntlRegs.paScBinnerCntl0.bits.BINNING_MODE = m_cachedSettings.pbbDisableBinMode;
     if (binSize.width != 0)
     {
         if (binSize.width == 16)
@@ -3908,88 +3916,6 @@ void UniversalCmdBuffer::WriteNullColorTargets(
 }
 
 // =====================================================================================================================
-// Returns the HW enumeration needed for the PA_SC_BINNER_CNTL_0.BINNING_MDOE field when the binning needs to be
-// disabled.
-// Also returns bin size as non-zero if required to be set under the disabled mode.
-BinningMode UniversalCmdBuffer::GetDisableBinningSetting(
-    Extent2d* pBinSize
-    ) const
-{
-    BinningMode  binningMode = DISABLE_BINNING_USE_LEGACY_SC__GFX09_10;
-
-    if (IsGfx10(m_gfxIpLevel))
-    {
-        //  DISABLE_BINNING_USE_LEGACY_SC: reverts binning completely and uses the old scan converter (along with
-        //                                 serpentine walking pattern). It doesn't support FSR in GFX10.
-        //  DISABLE_BINNING_USE_NEW_SC   : disables binning but still uses the binner rasterizer (typewriter walking
-        //                                 pattern). Supports FSR.
-        //
-        //  Because we want to maintain the same performance characteristics, we want to use the
-        //  second setting on GFX10: DISABLE_BINNING_USE_NEW_SC
-        binningMode = DISABLE_BINNING_USE_NEW_SC__GFX09_10;
-
-        // when using "New" SC (PA_SC_BINNER_CNTL_0.BINNING_MODE = 2)
-        //     If <= 4BPE render-target -> 128x128
-        //     Else -> 128x64  (ie 8BPE and 16BPE)
-        // If the render targets are a mix of 4BPE and 8/16 BPE, driver is to use 128x128 bin size.
-        uint32  minBpe = 0;
-
-        // First check if there is a bound Depth target which is enabled and being written to
-        const auto&  boundTargets     = m_graphicsState.bindTargets;
-        const auto*  pDepthTargetView =
-                static_cast<const DepthStencilView*>(boundTargets.depthTarget.pDepthStencilView);
-        const auto*  pDepthImage      = (pDepthTargetView ? pDepthTargetView->GetImage() : nullptr);
-        if (pDepthImage != nullptr)
-        {
-            const auto*  pDepthStencilState = static_cast<const DepthStencilState*>(m_graphicsState.pDepthStencilState);
-            const auto&  imageCreateInfo    = pDepthImage->Parent()->GetImageCreateInfo();
-            if ((pDepthStencilState->IsDepthEnabled() && (pDepthTargetView->ReadOnlyDepth() == false)) ||
-                (pDepthStencilState->IsStencilEnabled() && (pDepthTargetView->ReadOnlyStencil() == false)))
-            {
-                // Since depth targets can only ever be 16 or 32 bits-per-pixel, we always fall into the 4BPE or
-                // less case
-                minBpe = 4;
-            }
-        }
-
-        // Query Color targets if minimum not determined from Depth
-        if (minBpe == 0)
-        {
-            // Loop through all Color targets to find minimum bytes per pixel
-            for (uint32  idx = 0; idx < boundTargets.colorTargetCount; idx++)
-            {
-                const auto* pColorView =
-                        static_cast<const ColorTargetView*>(boundTargets.colorTargets[idx].pColorTargetView);
-                const auto* pImage     = ((pColorView != nullptr) ? pColorView->GetImage() : nullptr);
-
-                if (pImage != nullptr)
-                {
-                    const auto&  info = pImage->Parent()->GetImageCreateInfo();
-                    const uint32 bpe  = BytesPerPixel(info.swizzledFormat.format);
-                    if ((bpe != 0) && ((minBpe == 0) || (bpe < minBpe)))
-                    {
-                        minBpe = bpe;
-                    }
-                }
-            }
-        }
-
-        if (minBpe <= 4) // <= 4 BPE, or mixed <=4 with 8/16 BPE
-        {
-            pBinSize->width  = 128;
-            pBinSize->height = 128;
-        }
-        else // 8 or 16 BPE
-        {
-            pBinSize->width  = 128;
-            pBinSize->height = 64;
-        }
-    }
-
-    return binningMode;
-}
-
-// =====================================================================================================================
 // Adds a preamble to the start of a new command buffer.
 Result UniversalCmdBuffer::AddPreamble()
 {
@@ -6164,10 +6090,8 @@ void UniversalCmdBuffer::Gfx10GetColorBinSize(
     //       be when a render target is bound, but is not written by the PS. With export cull mask enabled. We need only
     //       examine the PS output because it will account for any RTs that are not bound.
 
-    // Calculate cColor and cFmask(if applicable)
+    // Calculate cColor
     uint32 cColor   = 0;
-    uint32 cFmask   = 0;
-    bool   hasFmask = false;
 
     const auto& boundTargets = m_graphicsState.bindTargets;
     const auto* pPipeline    = static_cast<const GraphicsPipeline*>(m_graphicsState.pipelineState.pPipeline);
@@ -6186,31 +6110,17 @@ void UniversalCmdBuffer::Gfx10GetColorBinSize(
             const uint32 mmrt = (info.fragments == 1) ? 1 : (psIterSample ? info.fragments : 2);
 
             cColor += BytesPerPixel(info.swizzledFormat.format) * mmrt;
-            if (pImage->HasFmaskData())
-            {
-                PAL_ASSERT((info.fragments > 0) && (info.samples > 0));
-                const uint32 fragmentsLog2 = (uint32)Log2(info.fragments);
-                const uint32 samplesLog2   = (uint32)Log2(info.samples);
-                PAL_ASSERT((fragmentsLog2 < 4) && (samplesLog2 < 5));
-                static constexpr uint32 cFmaskMrt[4 /* fragments */][5 /* samples */]=
-                {
-                    { 0, 1, 1, 1, 2 }, // fragments = 1
-                    { 0, 1, 1, 2, 4 }, // fragments = 2
-                    { 0, 1, 1, 4, 8 }, // fragments = 4
-                    { 0, 1, 2, 4, 8 }  // fragments = 8
-                };
-                cFmask  += cFmaskMrt[fragmentsLog2][samplesLog2];
-                hasFmask = true;
-            }
         }
     }
     cColor = Max(cColor, 1u);  // cColor 0 to 1 uses cColor=1
 
-    // Calculate Color and Fmask bin sizes
+    // Calculate Color bin sizes
     // The logic for gfx10 bin sizes is based on a formula that accounts for the number of RBs
     // and Channels on the ASIC.  Since this a potentially large amount of combinations,
     // it is not practical to hardcode binning tables into the driver.
-    // Note that the final bin size is choosen from minimum between Depth, Color and Fmask.
+    // Note that the final bin size is choosen from minimum between Depth and Color.
+    // Also note that there is bin size that corresponds to the bound fmasks. The driver code does not account for
+    // this as the cases where it would impact the the suggested bin size are too few.
 
     // The logic given to calculate the Color bin size is:
     //   colorBinArea = ((CcReadTags * totalNumRbs / totalNumPipes) * (CcTagSize * totalNumPipes)) / cColor
@@ -6219,30 +6129,9 @@ void UniversalCmdBuffer::Gfx10GetColorBinSize(
     const uint16 colorBinSizeX   = 1 << ((colorLog2Pixels + 1) / 2); // (Y_BIAS=false) round up width
     const uint16 colorBinSizeY   = 1 << (colorLog2Pixels / 2);       // (Y_BIAS=false) round down height
 
-    uint16 binSizeX = colorBinSizeX;
-    uint16 binSizeY = colorBinSizeY;
-
-    if (hasFmask)
-    {
-        cFmask = Max(cFmask, 1u);  // cFmask 0 to 1 uses cFmask=1
-
-        // The logic given to calculate the Fmask bin size is:
-        //   fmaskBinArea =((FcReadTags * totalNumRbs / totalNumPipes) * (FcTagSize * totalNumPipes)) / cFmask
-        // The numerator has been pre-calculated as m_fmaskBinSizeTagPart.
-        const uint32 fmaskLog2Pixels = Log2(m_fmaskBinSizeTagPart / cFmask);
-        const uint32 fmaskBinSizeX   = 1 << ((fmaskLog2Pixels + 1) / 2); // (Y_BIAS=false) round up width
-        const uint32 fmaskBinSizeY   = 1 << (fmaskLog2Pixels / 2);       // (Y_BIAS=false) round down height
-
-        // use the smaller of the Color vs. Fmask bin sizes
-        if (fmaskLog2Pixels < colorLog2Pixels)
-        {
-            binSizeX = static_cast<uint16>(fmaskBinSizeX);
-            binSizeY = static_cast<uint16>(fmaskBinSizeY);
-        }
-    }
     // Return size adjusted for minimum bin size
-    pBinSize->width  = Max(binSizeX, m_minBinSizeX);
-    pBinSize->height = Max(binSizeY, m_minBinSizeY);
+    pBinSize->width  = Max(colorBinSizeX, m_minBinSizeX);
+    pBinSize->height = Max(colorBinSizeY, m_minBinSizeY);
 }
 
 // =====================================================================================================================
@@ -6298,12 +6187,11 @@ void UniversalCmdBuffer::Gfx10GetDepthBinSize(
 
 // =====================================================================================================================
 // Fills in paScBinnerCntl0/1(PA_SC_BINNER_CNTL_0/1 registers) with values that corresponds to the
-// specified binning mode and sizes.   For disabled binning the caller should pass a bin size of zero(0x0).
-// 'pBinSize' will be updated with the actual bin size configured.
+// specified binning mode and sizes.
 // Returns: True if PA_SC_BINNER_CNTL_0/1 changed value, False otherwise.
 template <bool IsNgg>
 bool UniversalCmdBuffer::SetPaScBinnerCntl01(
-    Extent2d* pBinSize)
+    const Extent2d* pBinSize)
 {
     const regPA_SC_BINNER_CNTL_0 prevPaScBinnerCntl0 = m_pbbCntlRegs.paScBinnerCntl0;
     const regPA_SC_BINNER_CNTL_1 prevPaScBinnerCntl1 = m_pbbCntlRegs.paScBinnerCntl1;
@@ -6316,18 +6204,9 @@ bool UniversalCmdBuffer::SetPaScBinnerCntl01(
     // 16 bits: Max number of primitives in batch
     m_pbbCntlRegs.paScBinnerCntl1.bits.MAX_ALLOC_COUNT    = (IsNgg ? m_cachedPbbSettings.maxAllocCountNgg :
                                                                      m_cachedPbbSettings.maxAllocCountLegacy);
-    m_pbbCntlRegs.paScBinnerCntl1.bits.MAX_PRIM_PER_BATCH = m_cachedPbbSettings.maxPrimPerBatch;
 
-    // If the reported bin sizes are zero, then disable binning
-    if (pBinSize->width == 0)
-    {
-        // Note, GetDisableBinningSetting() will update pBinSize if required for binning mode
-        m_pbbCntlRegs.paScBinnerCntl0.bits.BINNING_MODE = GetDisableBinningSetting(pBinSize);
-    }
-    else
-    {
-        m_pbbCntlRegs.paScBinnerCntl0.bits.BINNING_MODE = BINNING_ALLOWED;
-    }
+    m_pbbCntlRegs.paScBinnerCntl0.bits.BINNING_MODE =
+        m_enabledPbb ? BINNING_ALLOWED : m_cachedSettings.pbbDisableBinMode;
 
     // Valid bin sizes require width and height to both be zero or both be non-zero.
     PAL_ASSERT(
@@ -6406,8 +6285,30 @@ uint32* UniversalCmdBuffer::ValidateBinSizes(
             // We may calculate a bin size of 0, which means disable PBB
             if (binSize.width == 0)
             {
+                // It is okay to do this here and not execute the 'else' below that corresponds to m_enabledPbb==false.
+                // Only GFX9 disables binning by calculating a bin size of 0.
+                // Only GFX10+ uses the DISABLE_BINNING_USE_NEW_SC mode which requires bin size programming when
+                // bin size is disabled.
                 m_enabledPbb = false;
             }
+        }
+    }
+    else
+    {
+        // Set the bin sizes when we have binning disabled.
+        // This matters for the DISABLE_BINNING_USE_NEW_SC mode. This mode enables binning with a batch size of
+        // one prim per clock.
+        if (m_gpuType == GpuType::Discrete)
+        {
+            binSize.width  = 256;
+            binSize.height = 512;
+        }
+        else
+        {
+            // These values are recommended for Integrated GPUs.
+            // Use the integrated values on all non-discrete GpuTypes.
+            binSize.width  = 128;
+            binSize.height = 128;
         }
     }
 
@@ -7434,7 +7335,7 @@ void UniversalCmdBuffer::CmdBeginQuery(
     uint32            slot,
     QueryControlFlags flags)
 {
-    static_cast<const QueryPool&>(queryPool).Begin(this, &m_deCmdStream, queryType, slot, flags);
+    static_cast<const QueryPool&>(queryPool).Begin(this, &m_deCmdStream, m_pAceCmdStream, queryType, slot, flags);
 }
 
 // =====================================================================================================================
@@ -7443,7 +7344,7 @@ void UniversalCmdBuffer::CmdEndQuery(
     QueryType         queryType,
     uint32            slot)
 {
-    static_cast<const QueryPool&>(queryPool).End(this, &m_deCmdStream, queryType, slot);
+    static_cast<const QueryPool&>(queryPool).End(this, &m_deCmdStream, m_pAceCmdStream, queryType, slot);
 }
 
 // =====================================================================================================================
@@ -8780,8 +8681,9 @@ void UniversalCmdBuffer::LeakNestedCmdBufferState(
 
     if (cmdBuffer.m_graphicsState.leakFlags.validationBits.depthStencilView)
     {
-        BitfieldUpdateSubfield(
-            &(m_dbRenderOverride.u32All), cmdBuffer.m_dbRenderOverride.u32All, DepthStencilView::DbRenderOverrideRmwMask);
+        BitfieldUpdateSubfield(&(m_dbRenderOverride.u32All),
+                               cmdBuffer.m_dbRenderOverride.u32All,
+                               DepthStencilView::DbRenderOverrideRmwMask);
     }
 
     if (cmdBuffer.m_graphicsState.leakFlags.validationBits.depthClampOverride)

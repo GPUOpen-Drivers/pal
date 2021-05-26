@@ -46,6 +46,7 @@ public:
     virtual void Begin(
         GfxCmdBuffer*     pCmdBuffer,
         Pal::CmdStream*   pCmdStream,
+        Pal::CmdStream*   pHybridCmdStream,
         QueryType         queryType,
         uint32            slot,
         QueryControlFlags flags) const override;
@@ -53,6 +54,7 @@ public:
     virtual void End(
         GfxCmdBuffer*   pCmdBuffer,
         Pal::CmdStream* pCmdStream,
+        Pal::CmdStream* pHybridCmdStream,
         QueryType       queryType,
         uint32          slot) const override;
 

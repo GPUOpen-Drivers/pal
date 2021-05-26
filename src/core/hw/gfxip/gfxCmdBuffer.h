@@ -183,9 +183,9 @@ constexpr uint32 AcqRelFenceResetVal = 0;
 // Acquire/release synchronization event types for supported pipeline event.
 enum class AcqRelEventType : uint32
 {
-    PsDone = 0x0,
-    CsDone = 0x1,
-    Eop    = 0x2,
+    Eop    = 0x0,
+    PsDone = 0x1,
+    CsDone = 0x2,
     Count
 };
 
@@ -440,6 +440,8 @@ public:
         { m_gfxCmdBufState.flags.cpMemoryWriteL2CacheStale = cpMemoryWriteDirty; }
     void SetPrevCmdBufInactive() { m_gfxCmdBufState.flags.prevCmdBufActive = 0; }
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
+    uint32 GetCurAcqRelFenceVal(AcqRelEventType type) const { return m_acqRelFenceVals[static_cast<uint32>(type)]; }
+
     // Execution fence value is updated at every BLT. Set it to the next event because its completion indicates all
     // prior BLTs have completed.
     void UpdateGfxCmdBufGfxBltExecEopFence()
@@ -635,10 +637,6 @@ private:
     void ReturnGeneratedCommandChunks(bool returnGpuMemory);
     CmdBufferEngineSupport GetPerfExperimentEngine() const;
     void ResetFastClearReferenceCounts();
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
-    uint32 GetCurAcqRelFenceVal(AcqRelEventType type) const { return m_acqRelFenceVals[static_cast<uint32>(type)]; }
-#endif
 
     const GfxDevice&  m_device;
 

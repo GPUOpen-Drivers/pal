@@ -1745,6 +1745,23 @@
       "Name": "IgnoreDepthForBinSizeIfColorBound"
     },
     {
+      "Description": "The value to program to PA_SC_BINNER_CNTL_0::BINNING_MODE when the driver disables binning. Valid values are 2 and 3.",
+      "Tags": [
+        "PBB and DFSM",
+        "Gfx9"
+      ],
+      "Defaults": {
+        "Default": 3
+      },
+      "Flags": {
+        "RereadSetting": true
+      },
+      "Scope": "PrivatePalGfx9Key",
+      "Type": "uint32",
+      "VariableName": "disableBinningMode",
+      "Name": "DisableBinningMode"
+    },
+    {
       "Description": "If true, binning is disabled when the PS has a discard instruction or can be trivially rejected.",
       "Tags": [
         "PBB and DFSM",

@@ -159,7 +159,12 @@ union GpuMemoryCreateFlags
 #else
         uint32 placeholder657    :  1;
 #endif
-        uint32 reserved          :  5; ///< Reserved for future use.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 659
+        uint32 doppDesktopTexture : 1; ///< Indicate dopp desktop texture
+        uint32 reserved           : 4; ///< Reserved for future use.
+#else
+        uint32 reserved           : 5; ///< Reserved for future use.
+#endif
     };
     uint32     u32All;                 ///< Flags packed as 32-bit uint.
 };
@@ -354,7 +359,12 @@ struct GpuMemoryDesc
             uint32 isExecutable :  1;  ///< GPU memory is used for execution. Valid only when IOMMUv2 is supported
             uint32 isExternPhys :  1;  ///< GPU memory is External Physical memory
             uint32 placeholder0         :   1; ///< Reserved for future memory flag
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 659
+            uint32 isDoppDesktopTexture :   1; ///< GPU memory is allocated for dopp desktop texture
+            uint32 reserved             :  23; ///< Reserved for future use
+#else
             uint32 reserved             :  24; ///< Reserved for future use
+#endif
         };
         uint32 u32All;              ///< Flags packed as 32-bit uint.
     } flags;                        ///< GPU memory desc flags.

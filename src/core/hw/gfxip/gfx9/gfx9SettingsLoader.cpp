@@ -655,6 +655,15 @@ void SettingsLoader::OverrideDefaults(
             minBatchBinSizeHeight = 64;
         }
 
+        //  DISABLE_BINNING_USE_LEGACY_SC: reverts binning completely and uses the old scan converter (along with
+        //                                 serpentine walking pattern). It doesn't support FSR in GFX10.
+        //  DISABLE_BINNING_USE_NEW_SC   : disables binning but still uses the binner rasterizer (typewriter walking
+        //                                 pattern). Supports FSR.
+        //
+        //  Because we want to maintain the same performance characteristics, we want to use the
+        //  second setting on GFX10: DISABLE_BINNING_USE_NEW_SC
+        m_settings.disableBinningMode = DISABLE_BINNING_USE_NEW_SC__GFX09_10;
+
         if (IsGfx103(device))
         {
             m_settings.gfx103DisableAsymmetricWgpForPs = true;
@@ -676,12 +685,6 @@ void SettingsLoader::OverrideDefaults(
     if ((m_settings.binningContextStatesPerBin > 1) || (m_settings.binningPersistentStatesPerBin > 1))
     {
         m_settings.batchBreakOnNewPixelShader = true;
-    }
-
-    // Disable using the CLEAR_STATE packet and instead write missing register values explicitly.
-    if (IsGfx10Plus(device))
-    {
-        m_settings.useClearStateToInitialize = false;
     }
 
     m_state = SettingsLoaderState::LateInit;

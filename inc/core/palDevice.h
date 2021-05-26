@@ -1090,6 +1090,9 @@ struct DeviceProperties
                                         ///  CPU coherent.
                                         ///  Note: Only valid if @ref supportGl2Uncached is true.
 
+        uint32 maxGsOutputVert;             ///< Maximum number of GS output vertices.
+        uint32 maxGsTotalOutputComponents;  ///< Maximum number of GS output components totally.
+
         union
         {
             struct
@@ -4736,6 +4739,43 @@ public:
     {
         m_pClientData = pClientData;
     }
+
+#if defined(PAL_DOPP)
+    /// Sets Primary Source ID For DOPP processing.
+    /// This function is an Escape call to tell KMD which Screen DOPP will process.
+    ///
+    /// @param [in]  pScreen   Pal::IScreen* of the Primary selected for DOPP processing.
+    ///
+    /// @returns Success if Primary for DOPP processing is set.
+    virtual Result SetPrimarySourceIDForDopp(Pal::IScreen* pScreen) = 0;
+
+    /// Get Dopp Primary Surface Info for previously selected Screen.
+    /// This function is an Escape call to query KMD about Primary surface properties
+    /// of previously selected surface.
+    ///
+    /// @param  [out] pDesktopProp  A pointer to Extent3d structure.
+    /// @returns Success if Extent3d properties are retreved.
+    virtual Result GetDoppPrimarySurfaceInfo(Extent3d* pDesktopProp) = 0;
+
+    /// Enable Post Processing in DOPP.
+    /// This function is an Escape call to tell KMD to enable DOPP post processing.
+    ///
+    /// @param [in]  enable    Enable/Disable DOPP Post Processing.
+    ///
+    /// @returns Success if call is successful.
+    virtual Result EnablePostProcessDopp(bool enable) = 0;
+
+    /// Present Texture To Video Dopp
+    /// This function is an Escape call to pass present texture handle to KMD.
+    /// Then KMD will flip (make visible) this surface instead of original desktop
+    /// surface on next SwapBuffers call.
+    ///
+    /// @param [in] pPresentTexture   Present Texture memory pointer
+    /// @param [in] isBlocking        If true, call is blocking.
+    ///
+    /// @returns Success if call is successful.
+    virtual Result PresentTextureToVideoDopp(Pal::IGpuMemory* pPresentTexture, bool isBlocking) = 0;
+#endif
 
 protected:
     /// @internal Constructor. Prevent use of new operator on this interface. Client must create objects by explicitly

@@ -1141,6 +1141,27 @@ public:
     IDevice*                  GetNextLayer() const { return m_pNextLayer; }
     PlatformDecorator*        GetPlatform()  const { return m_pPlatform; }
 
+#if defined(PAL_DOPP)
+    virtual Result SetPrimarySourceIDForDopp(Pal::IScreen* pScreen) override
+    {
+        return Result::Unsupported;
+    }
+
+    virtual Result GetDoppPrimarySurfaceInfo(Pal::Extent3d* pDesktopProp) override
+    {
+        return Result::Unsupported;
+    }
+
+    virtual Result EnablePostProcessDopp(bool enable) override
+    {
+        return Result::Unsupported;
+    }
+
+    virtual Result PresentTextureToVideoDopp(Pal::IGpuMemory* pPresentTexture, bool isBlocking) override
+    {
+        return Result::Unsupported;
+    }
+#endif
 protected:
     DeviceFinalizeInfo      m_finalizeInfo;
     IDevice*const           m_pNextLayer;

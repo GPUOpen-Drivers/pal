@@ -2800,6 +2800,9 @@ void InitializeGpuChipProperties(
 
     pInfo->gfxip.maxUserDataEntries = MaxUserDataEntries;
 
+    pInfo->gfxip.maxGsOutputVert            = 1023;
+    pInfo->gfxip.maxGsTotalOutputComponents = 4095;
+
     // The maximum amount of LDS space that can be shared by a group of threads (wave/ threadgroup) in bytes.
     pInfo->gfxip.ldsSizePerCu = 65536;
     if (pInfo->gfxLevel == GfxIpLevel::GfxIp6)

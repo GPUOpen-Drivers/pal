@@ -124,6 +124,7 @@ PipelineStatsQueryPool::PipelineStatsQueryPool(
 void PipelineStatsQueryPool::Begin(
     GfxCmdBuffer*     pCmdBuffer,
     Pal::CmdStream*   pCmdStream,
+    Pal::CmdStream*   pHybridCmdStream,
     QueryType         queryType,
     uint32            slot,
     QueryControlFlags flags
@@ -170,6 +171,7 @@ void PipelineStatsQueryPool::Begin(
 void PipelineStatsQueryPool::End(
     GfxCmdBuffer*   pCmdBuffer,
     Pal::CmdStream* pCmdStream,
+    Pal::CmdStream* pHybridCmdStream,
     QueryType       queryType,
     uint32          slot
     ) const

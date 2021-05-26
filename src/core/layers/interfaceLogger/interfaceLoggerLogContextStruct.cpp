@@ -1439,9 +1439,15 @@ void LogContext::Struct(
         Value("explicitSync");
     }
 #endif
-
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 659
+    if (value.doppDesktopTexture)
+    {
+        Value("doppDesktopTexture");
+    }
+    static_assert(CheckReservedBits<GpuMemoryCreateFlags>(32, 4), "Need to update interfaceLogger!");
+#else
     static_assert(CheckReservedBits<GpuMemoryCreateFlags>(32, 5), "Need to update interfaceLogger!");
-
+#endif
     EndList();
 }
 

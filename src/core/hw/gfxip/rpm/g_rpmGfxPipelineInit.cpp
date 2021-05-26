@@ -58,16 +58,31 @@ Result CreateRpmGraphicsPipelines(
     {
 #if PAL_BUILD_GFX6
     case AsicRevision::Tahiti:
-    case AsicRevision::Pitcairn:
-    case AsicRevision::Capeverde:
         pTable = rpmGfxBinaryTableTahiti;
         break;
 #endif
 
 #if PAL_BUILD_GFX6
+    case AsicRevision::Pitcairn:
+        pTable = rpmGfxBinaryTablePitcairn;
+        break;
+#endif
+
+#if PAL_BUILD_GFX6
+    case AsicRevision::Capeverde:
+        pTable = rpmGfxBinaryTableCapeverde;
+        break;
+#endif
+
+#if PAL_BUILD_GFX6
     case AsicRevision::Oland:
-    case AsicRevision::Hainan:
         pTable = rpmGfxBinaryTableOland;
+        break;
+#endif
+
+#if PAL_BUILD_GFX6
+    case AsicRevision::Hainan:
+        pTable = rpmGfxBinaryTableHainan;
         break;
 #endif
 

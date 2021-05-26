@@ -25,3 +25,11 @@
 
 file(GLOB_RECURSE PAL_HEADER_SOURCES CONFIGURE_DEPENDS *.h *.hpp)
 target_sources(pal PRIVATE ${PAL_HEADER_SOURCES} CMakeLists.txt)
+
+target_include_directories(pal PUBLIC
+    .
+    core
+    gpuUtil
+    util
+)
+

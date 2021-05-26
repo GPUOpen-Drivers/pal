@@ -610,6 +610,7 @@ void IndirectCmdGenerator::PopulateInvocationBuffer(
 
         dispatchInitiator.bits.COMPUTE_SHADER_EN  = 1;
         dispatchInitiator.bits.ORDER_MODE         = 1;
+
         if (IsGfx10Plus(*m_device.Parent()))
         {
             dispatchInitiator.gfx10Plus.CS_W32_EN     = csWave32;

@@ -401,9 +401,9 @@ void Device::AcqRelColorTransition(
 #endif
     PAL_ASSERT(imgBarrier.pImage != nullptr);
 
-    const EngineType            engineType  = pCmdBuf->GetEngineType();
-    const auto&                 image       = static_cast<const Pal::Image&>(*imgBarrier.pImage);
-    const auto&                 gfx9Image   = static_cast<const Gfx9::Image&>(*image.GetGfxImage());
+    const EngineType engineType = pCmdBuf->GetEngineType();
+    const auto&      image      = static_cast<const Pal::Image&>(*imgBarrier.pImage);
+    const auto&      gfx9Image  = static_cast<const Gfx9::Image&>(*image.GetGfxImage());
 
     PAL_ASSERT(image.IsDepthStencilTarget() == false);
 
@@ -504,13 +504,10 @@ AcqRelSyncToken Device::IssueReleaseSync(
     ) const
 {
     // Validate input.
-    PAL_ASSERT(stageMask != 0);
-
     PAL_ASSERT(pBarrierOps != nullptr);
 
     const EngineType engineType = pCmdBuf->GetEngineType();
-
-    uint32* pCmdSpace = pCmdStream->ReserveCommands();
+    uint32*          pCmdSpace  = pCmdStream->ReserveCommands();
 
     if (pCmdBuf->GetGfxCmdBufState().flags.cpBltActive && TestAnyFlagSet(stageMask, PipelineStageBlt))
     {
@@ -544,15 +541,136 @@ AcqRelSyncToken Device::IssueReleaseSync(
 
     AcqRelSyncToken syncToken = {};
 
-    pCmdSpace += BuildReleaseSyncPackets(pCmdBuf,
-                                         engineType,
-                                         stageMask,
-                                         accessMask,
-                                         flushLlc,
-                                         &syncToken,
-                                         pCmdSpace,
-                                         pBarrierOps);
+    // OptimizePipeAndCacheMaskForRelease() has converted these BLT coherency flags to more specific ones.
+    PAL_ASSERT(TestAnyFlagSet(accessMask, CoherCopy | CoherResolve | CoherClear) == false);
 
+    bool issueRbCacheSyncEvent = false;
+
+    const bool requiresEop    = TestAnyFlagSet(stageMask, PipelineStageEarlyDsTarget |
+                                                          PipelineStageLateDsTarget  |
+                                                          PipelineStageColorTarget   |
+                                                          PipelineStageBottomOfPipe);
+    const bool requiresVsDone = TestAnyFlagSet(stageMask, PipelineStageVs |
+                                                          PipelineStageHs |
+                                                          PipelineStageDs |
+                                                          PipelineStageGs);
+    const bool requiresPsDone = TestAnyFlagSet(stageMask, PipelineStagePs);
+    const bool requiresCsDone = TestAnyFlagSet(stageMask, PipelineStageCs);
+
+    // If any of the access mask bits that could result in RB sync are set, use CACHE_FLUSH_AND_INV_TS.
+    // There is no way to INV the CB metadata caches during acquire. So at release always also invalidate if we are to
+    // flush CB metadata. Furthermore, CACHE_FLUSH_AND_INV_TS_EVENT always flush & invalidate RB, so there is no need
+    // to invalidate RB at acquire again.
+    if (TestAnyFlagSet(accessMask, CoherColorTarget | CoherDepthStencilTarget))
+    {
+        // Issue a pipelined EOP event that writes timestamp to a GpuEvent slot when all prior GPU work completes.
+        syncToken.type     = static_cast<uint32>(AcqRelEventType::Eop);
+        syncToken.fenceVal = pCmdBuf->GetNextAcqRelFenceVal(AcqRelEventType::Eop);
+
+        // An end-of-pipe event already carries out RB cache flush, clear the specific request in access mask.
+        issueRbCacheSyncEvent = true;
+        accessMask &= ~(CoherColorTarget | CoherDepthStencilTarget);
+
+        pBarrierOps->caches.flushCb         = 1;
+        pBarrierOps->caches.invalCb         = 1;
+        pBarrierOps->caches.flushCbMetadata = 1;
+        pBarrierOps->caches.invalCbMetadata = 1;
+
+        pBarrierOps->caches.flushDb         = 1;
+        pBarrierOps->caches.invalDb         = 1;
+        pBarrierOps->caches.flushDbMetadata = 1;
+        pBarrierOps->caches.invalDbMetadata = 1;
+    }
+    else if (requiresEop || (requiresCsDone && requiresPsDone) || requiresVsDone)
+    {
+        // Implement set with an EOP event written when all prior GPU work completes if either:
+        // 1. End of RB or end of whole pipe is required,
+        // 2. Both graphics and compute events are required,
+        // 3. Graphics event required but no ps wave. In this case PS_DONE doesn't safely ensures VS waves completion.
+        //    And because there is no VS_DONE event, we have to conservatively use an EOP event.
+        syncToken.type     = static_cast<uint32>(AcqRelEventType::Eop);
+        syncToken.fenceVal = pCmdBuf->GetNextAcqRelFenceVal(AcqRelEventType::Eop);
+    }
+    else if (requiresCsDone)
+    {
+        // Implement set with an EOS event waiting for CS waves to complete.
+        syncToken.type     = static_cast<uint32>(AcqRelEventType::CsDone);
+        syncToken.fenceVal = pCmdBuf->GetNextAcqRelFenceVal(AcqRelEventType::CsDone);
+    }
+    else if (requiresPsDone)
+    {
+        // Implement set with an EOS event waiting for PS waves to complete.
+        syncToken.type     = static_cast<uint32>(AcqRelEventType::PsDone);
+        syncToken.fenceVal = pCmdBuf->GetNextAcqRelFenceVal(AcqRelEventType::PsDone);
+    }
+
+    // Create info for RELEASE_MEM. Initialize common part at here.
+    ExplicitReleaseMemInfo releaseMemInfo = {};
+    releaseMemInfo.engineType = engineType;
+
+    if (IsGfx9(m_gfxIpLevel))
+    {
+        uint32 cacheSyncFlags = Gfx9ConvertToReleaseSyncFlags(accessMask, flushLlc, pBarrierOps);
+
+        const uint32 tcCacheOp = static_cast<uint32>(SelectTcCacheOp(&cacheSyncFlags));
+
+        // The cache sync requests can be cleared by single release pass.
+        PAL_ASSERT(cacheSyncFlags == 0);
+
+        releaseMemInfo.coherCntl = Gfx9TcCacheOpConversionTable[tcCacheOp];
+    }
+    else
+    {
+        PAL_ASSERT(IsGfx10Plus(m_gfxIpLevel));
+        releaseMemInfo.gcrCntl = Gfx10BuildReleaseGcrCntl(accessMask, flushLlc, pBarrierOps);
+    }
+
+    // If the release stage mask isn't specified or doesn't require a pipelined release sync, just don't issue any VGT
+    // event.
+    bool issueReleaseSync = (syncToken.fenceVal != AcqRelFenceResetVal);
+
+    // If we have cache sync request yet don't assign any VGT event, we need to issue a dummy one.
+    if ((issueReleaseSync == false) && ((releaseMemInfo.coherCntl != 0) || (releaseMemInfo.gcrCntl != 0)))
+    {
+        // Flush at earliest supported pipe point for RELEASE_MEM (CS_DONE always works).
+        syncToken.type     = static_cast<uint32>(AcqRelEventType::CsDone);
+        syncToken.fenceVal = pCmdBuf->GetNextAcqRelFenceVal(AcqRelEventType::CsDone);
+
+        issueReleaseSync = true;
+    }
+
+    // Issue RELEASE_MEM packets to issue necessary pipeline events, and flush caches (optional).
+    if (issueReleaseSync)
+    {
+        if (syncToken.type == static_cast<uint32>(AcqRelEventType::Eop))
+        {
+            releaseMemInfo.vgtEvent = issueRbCacheSyncEvent ? CACHE_FLUSH_AND_INV_TS_EVENT : BOTTOM_OF_PIPE_TS;
+
+            pBarrierOps->pipelineStalls.eopTsBottomOfPipe = 1;
+        }
+        else if (syncToken.type == static_cast<uint32>(AcqRelEventType::PsDone))
+        {
+            releaseMemInfo.vgtEvent = PS_DONE;
+
+            pBarrierOps->pipelineStalls.eosTsPsDone = 1;
+        }
+        else if (syncToken.type == static_cast<uint32>(AcqRelEventType::CsDone))
+        {
+            releaseMemInfo.vgtEvent = CS_DONE;
+
+            pBarrierOps->pipelineStalls.eosTsCsDone = 1;
+        }
+
+        {
+            releaseMemInfo.dstAddr = pCmdBuf->AcqRelFenceValGpuVa(static_cast<AcqRelEventType>(syncToken.type));
+            releaseMemInfo.dataSel = data_sel__me_release_mem__send_32_bit_low;
+            releaseMemInfo.data    = syncToken.fenceVal;
+        }
+
+        pCmdSpace += m_cmdUtil.ExplicitBuildReleaseMem(releaseMemInfo, pCmdSpace, 0, 0);
+    }
+
+    // Update command buffer state value which will be used for optimization.
     if ((syncToken.fenceVal != AcqRelFenceResetVal) && (syncToken.type == static_cast<uint32>(AcqRelEventType::Eop)))
     {
         const GfxCmdBufferState& cmdBufState = pCmdBuf->GetGfxCmdBufState();
@@ -596,7 +714,7 @@ void Device::IssueAcquireSync(
     uint32                        syncTokenCount,
     const AcqRelSyncToken*        pSyncTokens,
     Developer::BarrierOperations* pBarrierOps
-    ) const
+) const
 {
     PAL_ASSERT(pBarrierOps != nullptr);
     PAL_ASSERT((syncTokenCount == 0) || (pSyncTokens != nullptr));
@@ -622,7 +740,7 @@ void Device::IssueAcquireSync(
     // Merge synchronization timestamp entries in the list.
     for (uint32 i = 0; i < syncTokenCount; i++)
     {
-        const AcqRelSyncToken curSyncToken =  pSyncTokens[i];
+        const AcqRelSyncToken curSyncToken = pSyncTokens[i];
 
         PAL_ASSERT(curSyncToken.type < static_cast<uint32>(AcqRelEventType::Count));
 
@@ -632,66 +750,114 @@ void Device::IssueAcquireSync(
         }
     }
 
-    if (syncTokenToWait[static_cast<uint32>(AcqRelEventType::Eop)] != AcqRelFenceResetVal)
     {
-        // Issue wait on EOP.
-        pCmdSpace += m_cmdUtil.BuildWaitRegMem(engineType,
-                                               mem_space__me_wait_reg_mem__memory_space,
-                                               function__me_wait_reg_mem__greater_than_or_equal_reference_value,
-                                               engine_sel__me_wait_reg_mem__micro_engine,
-                                               pCmdBuf->AcqRelFenceValGpuVa(AcqRelEventType::Eop),
-                                               syncTokenToWait[static_cast<uint32>(AcqRelEventType::Eop)],
-                                               0xFFFFFFFF,
-                                               pCmdSpace);
+        if (syncTokenToWait[static_cast<uint32>(AcqRelEventType::Eop)] != AcqRelFenceResetVal)
+        {
+            // Issue wait on EOP.
+            pCmdSpace += m_cmdUtil.BuildWaitRegMem(engineType,
+                                                   mem_space__me_wait_reg_mem__memory_space,
+                                                   function__me_wait_reg_mem__greater_than_or_equal_reference_value,
+                                                   engine_sel__me_wait_reg_mem__micro_engine,
+                                                   pCmdBuf->AcqRelFenceValGpuVa(AcqRelEventType::Eop),
+                                                   syncTokenToWait[static_cast<uint32>(AcqRelEventType::Eop)],
+                                                   0xFFFFFFFF,
+                                                   pCmdSpace);
 
-        pBarrierOps->pipelineStalls.waitOnTs          = 1;
-        pBarrierOps->pipelineStalls.eopTsBottomOfPipe = 1;
+            pBarrierOps->pipelineStalls.waitOnTs          = 1;
+            pBarrierOps->pipelineStalls.eopTsBottomOfPipe = 1;
 
-        pCmdBuf->SetPrevCmdBufInactive();
-    }
-    if (syncTokenToWait[static_cast<uint32>(AcqRelEventType::PsDone)] != AcqRelFenceResetVal)
-    {
-        // Issue wait on PS.
-        pCmdSpace += m_cmdUtil.BuildWaitRegMem(engineType,
-                                               mem_space__me_wait_reg_mem__memory_space,
-                                               function__me_wait_reg_mem__greater_than_or_equal_reference_value,
-                                               engine_sel__me_wait_reg_mem__micro_engine,
-                                               pCmdBuf->AcqRelFenceValGpuVa(AcqRelEventType::PsDone),
-                                               syncTokenToWait[static_cast<uint32>(AcqRelEventType::PsDone)],
-                                               0xFFFFFFFF,
-                                               pCmdSpace);
+            pCmdBuf->SetPrevCmdBufInactive();
+        }
+        if (syncTokenToWait[static_cast<uint32>(AcqRelEventType::PsDone)] != AcqRelFenceResetVal)
+        {
+            // Issue wait on PS.
+            pCmdSpace += m_cmdUtil.BuildWaitRegMem(engineType,
+                                                   mem_space__me_wait_reg_mem__memory_space,
+                                                   function__me_wait_reg_mem__greater_than_or_equal_reference_value,
+                                                   engine_sel__me_wait_reg_mem__micro_engine,
+                                                   pCmdBuf->AcqRelFenceValGpuVa(AcqRelEventType::PsDone),
+                                                   syncTokenToWait[static_cast<uint32>(AcqRelEventType::PsDone)],
+                                                   0xFFFFFFFF,
+                                                   pCmdSpace);
 
-        pBarrierOps->pipelineStalls.waitOnTs    = 1;
-        pBarrierOps->pipelineStalls.eosTsPsDone = 1;
-    }
-    if (syncTokenToWait[static_cast<uint32>(AcqRelEventType::CsDone)] != AcqRelFenceResetVal)
-    {
-        // Issue wait on CS.
-        pCmdSpace += m_cmdUtil.BuildWaitRegMem(engineType,
-                                               mem_space__me_wait_reg_mem__memory_space,
-                                               function__me_wait_reg_mem__greater_than_or_equal_reference_value,
-                                               engine_sel__me_wait_reg_mem__micro_engine,
-                                               pCmdBuf->AcqRelFenceValGpuVa(AcqRelEventType::CsDone),
-                                               syncTokenToWait[static_cast<uint32>(AcqRelEventType::CsDone)],
-                                               0xFFFFFFFF,
-                                               pCmdSpace);
+            pBarrierOps->pipelineStalls.waitOnTs    = 1;
+            pBarrierOps->pipelineStalls.eosTsPsDone = 1;
+        }
+        if (syncTokenToWait[static_cast<uint32>(AcqRelEventType::CsDone)] != AcqRelFenceResetVal)
+        {
+            // Issue wait on CS.
+            pCmdSpace += m_cmdUtil.BuildWaitRegMem(engineType,
+                                                   mem_space__me_wait_reg_mem__memory_space,
+                                                   function__me_wait_reg_mem__greater_than_or_equal_reference_value,
+                                                   engine_sel__me_wait_reg_mem__micro_engine,
+                                                   pCmdBuf->AcqRelFenceValGpuVa(AcqRelEventType::CsDone),
+                                                   syncTokenToWait[static_cast<uint32>(AcqRelEventType::CsDone)],
+                                                   0xFFFFFFFF,
+                                                   pCmdSpace);
 
-        pBarrierOps->pipelineStalls.waitOnTs    = 1;
-        pBarrierOps->pipelineStalls.eosTsCsDone = 1;
-    }
+            pBarrierOps->pipelineStalls.waitOnTs    = 1;
+            pBarrierOps->pipelineStalls.eosTsCsDone = 1;
+        }
 
-    if (accessMask != 0)
-    {
-        // OptimizeBltCacheAccess() doesn't apply to acquire-sync. Acquire is for the future state, however the state
-        // tracking mechanism tracks past operations.
-        pCmdSpace += BuildAcquireSyncPackets(engineType,
-                                             stageMask,
-                                             accessMask,
-                                             invalidateLlc,
-                                             rangeStartAddr,
-                                             rangeSize,
-                                             pCmdSpace,
-                                             pBarrierOps);
+        if (accessMask != 0)
+        {
+            // Create info for ACQUIRE_MEM. Initialize common part at here.
+            ExplicitAcquireMemInfo acquireMemInfo = {};
+            acquireMemInfo.engineType   = engineType;
+            acquireMemInfo.baseAddress  = rangeStartAddr;
+            acquireMemInfo.sizeBytes    = rangeSize;
+            acquireMemInfo.flags.usePfp = TestAnyFlagSet(stageMask, PipelineStageTopOfPipe         |
+                                                                    PipelineStageFetchIndirectArgs |
+                                                                    PipelineStageFetchIndices);
+
+            if (IsGfx9(m_gfxIpLevel))
+            {
+                uint32 cacheSyncFlags = Gfx9ConvertToAcquireSyncFlags(accessMask,
+                                                                      engineType,
+                                                                      invalidateLlc,
+                                                                      pBarrierOps);
+
+                while (cacheSyncFlags != 0)
+                {
+                    const uint32 tcCacheOp = static_cast<uint32>(SelectTcCacheOp(&cacheSyncFlags));
+
+                    regCP_COHER_CNTL cpCoherCntl = {};
+                    cpCoherCntl.u32All                       = Gfx9TcCacheOpConversionTable[tcCacheOp];
+                    cpCoherCntl.bits.SH_KCACHE_ACTION_ENA    = TestAnyFlagSet(cacheSyncFlags, CacheSyncInvSqK$);
+                    cpCoherCntl.bits.SH_ICACHE_ACTION_ENA    = TestAnyFlagSet(cacheSyncFlags, CacheSyncInvSqI$);
+                    cpCoherCntl.bits.SH_KCACHE_WB_ACTION_ENA = TestAnyFlagSet(cacheSyncFlags, CacheSyncFlushSqK$);
+
+                    acquireMemInfo.coherCntl = cpCoherCntl.u32All;
+
+                    // Clear up requests
+                    cacheSyncFlags &= ~(CacheSyncInvSqK$ | CacheSyncInvSqI$ | CacheSyncFlushSqK$);
+
+                    // Build ACQUIRE_MEM packet.
+                    pCmdSpace += m_cmdUtil.ExplicitBuildAcquireMem(acquireMemInfo, pCmdSpace);
+                }
+            }
+            else
+            {
+                PAL_ASSERT(IsGfx10Plus(m_gfxIpLevel));
+
+                // The only difference between the GFX9 and GFX10+ versions of this packet are that GFX10+ added a new
+                // "gcr_cntl" field.
+                acquireMemInfo.gcrCntl = Gfx10BuildAcquireGcrCntl(accessMask,
+                                                                  invalidateLlc,
+                                                                  rangeStartAddr,
+                                                                  rangeSize,
+                                                                  (acquireMemInfo.coherCntl != 0),
+                                                                  pBarrierOps);
+
+                // GFX10+'s COHER_CNTL only controls RB flush/inv. "acquire" deson't need to invalidate RB because
+                // "release" always flush & invalidate RB, so we never need to set COHER_CNTL here.
+                if (acquireMemInfo.gcrCntl != 0)
+                {
+                    // Build ACQUIRE_MEM packet.
+                    pCmdSpace += m_cmdUtil.ExplicitBuildAcquireMem(acquireMemInfo, pCmdSpace);
+                }
+            }
+        }
     }
 
     if (pfpSyncMe && isGfxSupported)
@@ -1432,8 +1598,8 @@ void Device::BarrierAcquire(
                              false,
                              rangedSyncBaseAddr,
                              rangedSyncSize,
-                             0,
-                             nullptr,
+                             syncTokenCount,
+                             pCurSyncTokens,
                              pBarrierOps);
         }
 
@@ -1451,8 +1617,8 @@ void Device::BarrierAcquire(
                              transitionList[i].waMetaMisalignNeedRefreshLlc,
                              image.GetGpuVirtualAddr(),
                              image.GetGpuMemSize(),
-                             0,
-                             nullptr,
+                             syncTokenCount,
+                             pCurSyncTokens,
                              pBarrierOps);
         }
     }
@@ -1641,159 +1807,6 @@ void Device::IssueBlt(
     }
 }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
-// =====================================================================================================================
-// Build the necessary packets to fulfill the requested cache sync for release.
-size_t Device::BuildReleaseSyncPackets(
-    GfxCmdBuffer*                 pCmdBuf,
-    EngineType                    engineType,
-    uint32                        stageMask,
-    uint32                        accessMask,
-    bool                          flushLlc,
-    AcqRelSyncToken*              pSyncTokenOut,
-    void*                         pBuffer,
-    Developer::BarrierOperations* pBarrierOps
-    ) const
-{
-    // OptimizeBltCacheAccess() should've been called to convert these BLT coherency flags to more specific ones.
-    PAL_ASSERT(TestAnyFlagSet(accessMask, CoherCopy | CoherResolve | CoherClear) == false);
-
-    PAL_ASSERT(pSyncTokenOut != nullptr);
-
-    PAL_ASSERT(pBarrierOps != nullptr);
-
-    bool rbCacheSync = false;
-
-    const bool requiresEop    = TestAnyFlagSet(stageMask, PipelineStageEarlyDsTarget |
-                                                          PipelineStageLateDsTarget  |
-                                                          PipelineStageColorTarget   |
-                                                          PipelineStageBottomOfPipe);
-    const bool requiresVsDone = TestAnyFlagSet(stageMask, PipelineStageVs |
-                                                          PipelineStageHs |
-                                                          PipelineStageDs |
-                                                          PipelineStageGs);
-    const bool requiresPsDone = TestAnyFlagSet(stageMask, PipelineStagePs);
-    const bool requiresCsDone = TestAnyFlagSet(stageMask, PipelineStageCs);
-
-    // If any of the access mask bits that could result in RB sync are set, use CACHE_FLUSH_AND_INV_TS.
-    // There is no way to INV the CB metadata caches during acquire. So at release always also invalidate if we are to
-    // flush CB metadata. Furthermore, CACHE_FLUSH_AND_INV_TS_EVENT always flush & invalidate RB, so there is no need
-    // to invalidate RB at acquire again.
-    if (TestAnyFlagSet(accessMask, CoherColorTarget | CoherDepthStencilTarget))
-    {
-        // Issue a pipelined EOP event that writes timestamp to a GpuEvent slot when all prior GPU work completes.
-
-        rbCacheSync = true;
-
-        pSyncTokenOut->type     = static_cast<uint32>(AcqRelEventType::Eop);
-        pSyncTokenOut->fenceVal = pCmdBuf->GetNextAcqRelFenceVal(AcqRelEventType::Eop);
-
-        // Clear up CB/DB request
-        accessMask &= ~(CoherColorTarget | CoherDepthStencilTarget);
-
-        pBarrierOps->caches.flushCb         = 1;
-        pBarrierOps->caches.invalCb         = 1;
-        pBarrierOps->caches.flushCbMetadata = 1;
-        pBarrierOps->caches.invalCbMetadata = 1;
-
-        pBarrierOps->caches.flushDb         = 1;
-        pBarrierOps->caches.invalDb         = 1;
-        pBarrierOps->caches.flushDbMetadata = 1;
-        pBarrierOps->caches.invalDbMetadata = 1;
-    }
-
-    else if (requiresEop || (requiresCsDone && requiresPsDone) || requiresVsDone)
-    {
-        // Implement set with an EOP event written when all prior GPU work completes if either:
-        // 1. End of RB or end of whole pipe is required,
-        // 2. Both graphics and compute events are required,
-        // 3. Graphics event required but no ps wave. In this case PS_DONE doesn't safely ensures VS waves completion.
-        //    And because there is no VS_DONE event, we have to conservatively use an EOP event.
-        pSyncTokenOut->type     = static_cast<uint32>(AcqRelEventType::Eop);
-        pSyncTokenOut->fenceVal = pCmdBuf->GetNextAcqRelFenceVal(AcqRelEventType::Eop);
-    }
-    else if (requiresCsDone)
-    {
-        // Implement set with an EOS event waiting for CS waves to complete.
-        pSyncTokenOut->type     = static_cast<uint32>(AcqRelEventType::CsDone);
-        pSyncTokenOut->fenceVal = pCmdBuf->GetNextAcqRelFenceVal(AcqRelEventType::CsDone);
-    }
-    else if (requiresPsDone)
-    {
-        // Implement set with an EOS event waiting for PS waves to complete.
-        pSyncTokenOut->type     = static_cast<uint32>(AcqRelEventType::PsDone);
-        pSyncTokenOut->fenceVal = pCmdBuf->GetNextAcqRelFenceVal(AcqRelEventType::PsDone);
-    }
-
-    // Create info for RELEASE_MEM. Initialize common part at here.
-    ExplicitReleaseMemInfo releaseMemInfo = {};
-    releaseMemInfo.engineType = engineType;
-
-    if (m_gfxIpLevel == GfxIpLevel::GfxIp9)
-    {
-        uint32 cacheSyncFlags = Gfx9ConvertToReleaseSyncFlags(accessMask, flushLlc, pBarrierOps);
-
-        const uint32 tcCacheOp = static_cast<uint32>(SelectTcCacheOp(&cacheSyncFlags));
-
-        // The cache sync requests can be cleared by single release pass.
-        PAL_ASSERT(cacheSyncFlags == 0);
-
-        releaseMemInfo.coherCntl = Gfx9TcCacheOpConversionTable[tcCacheOp];
-    }
-    else if (IsGfx10(m_gfxIpLevel))
-    {
-        releaseMemInfo.gcrCntl = Gfx10BuildReleaseGcrCntl(accessMask, flushLlc, pBarrierOps);
-    }
-
-    bool issueReleaseSync = (pSyncTokenOut->fenceVal != AcqRelFenceResetVal);
-
-    // If we have cache sync request yet don't assign any VGT event, we need to issue a dummy one.
-    if ((issueReleaseSync == false) && ((releaseMemInfo.coherCntl != 0) || (releaseMemInfo.gcrCntl != 0)))
-    {
-        // Flush at earliest supported pipe point for RELEASE_MEM (CS_DONE always works).
-        pSyncTokenOut->type     = static_cast<uint32>(AcqRelEventType::CsDone);
-        pSyncTokenOut->fenceVal = pCmdBuf->GetNextAcqRelFenceVal(AcqRelEventType::CsDone);
-
-        issueReleaseSync = true;
-    }
-
-    // Issue RELEASE_MEM packets to flush caches (optional) and write timestamp to fenceVal.
-    size_t dwordsWritten = 0;
-
-    if (issueReleaseSync)
-    {
-        releaseMemInfo.dstAddr = pCmdBuf->AcqRelFenceValGpuVa(static_cast<AcqRelEventType>(pSyncTokenOut->type));
-        releaseMemInfo.dataSel = data_sel__me_release_mem__send_32_bit_low;
-        releaseMemInfo.data    = pSyncTokenOut->fenceVal;
-
-        if (pSyncTokenOut->type == static_cast<uint32>(AcqRelEventType::Eop))
-        {
-            releaseMemInfo.vgtEvent = rbCacheSync ? CACHE_FLUSH_AND_INV_TS_EVENT : BOTTOM_OF_PIPE_TS;
-
-            pBarrierOps->pipelineStalls.eopTsBottomOfPipe = 1;
-        }
-        else if (pSyncTokenOut->type == static_cast<uint32>(AcqRelEventType::PsDone))
-        {
-            releaseMemInfo.vgtEvent = PS_DONE;
-
-            pBarrierOps->pipelineStalls.eosTsPsDone = 1;
-        }
-        else if (pSyncTokenOut->type == static_cast<uint32>(AcqRelEventType::CsDone))
-        {
-            releaseMemInfo.vgtEvent = CS_DONE;
-
-            pBarrierOps->pipelineStalls.eosTsCsDone = 1;
-        }
-
-        dwordsWritten += m_cmdUtil.ExplicitBuildReleaseMem(releaseMemInfo,
-                                                           VoidPtrInc(pBuffer, sizeof(uint32) * dwordsWritten),
-                                                           0,
-                                                           0);
-    }
-    return dwordsWritten;
-}
-#endif
-
 // =====================================================================================================================
 // Translate accessMask to syncReqs.cacheFlags. (CacheCoherencyUsageFlags -> GcrCntl)
 uint32 Device::Gfx10BuildReleaseGcrCntl(
@@ -1840,78 +1853,6 @@ uint32 Device::Gfx10BuildReleaseGcrCntl(
     }
 
     return gcrCntl.u32All;
-}
-
-// =====================================================================================================================
-// Build the necessary packets to fulfill the requested cache sync for acquire.
-size_t Device::BuildAcquireSyncPackets(
-    EngineType                    engineType,
-    uint32                        stageMask,
-    uint32                        accessMask,
-    bool                          invalidateLlc,
-    gpusize                       baseAddress,
-    gpusize                       sizeBytes,
-    void*                         pBuffer,      // [out] Build the PM4 packet in this buffer.
-    Developer::BarrierOperations* pBarrierOps
-    ) const
-{
-    size_t dwordsWritten = 0;
-
-    // Create info for ACQUIRE_MEM. Initialize common part at here.
-    ExplicitAcquireMemInfo acquireMemInfo = {};
-    acquireMemInfo.engineType   = engineType;
-    acquireMemInfo.baseAddress  = baseAddress;
-    acquireMemInfo.sizeBytes    = sizeBytes;
-    acquireMemInfo.flags.usePfp = TestAnyFlagSet(stageMask, PipelineStageTopOfPipe         |
-                                                            PipelineStageFetchIndirectArgs |
-                                                            PipelineStageFetchIndices);
-
-    if (m_gfxIpLevel == GfxIpLevel::GfxIp9)
-    {
-        uint32 cacheSyncFlags = Gfx9ConvertToAcquireSyncFlags(accessMask, engineType, invalidateLlc, pBarrierOps);
-
-        while (cacheSyncFlags != 0)
-        {
-            const uint32 tcCacheOp = static_cast<uint32>(SelectTcCacheOp(&cacheSyncFlags));
-
-            regCP_COHER_CNTL cpCoherCntl = {};
-            cpCoherCntl.u32All                       = Gfx9TcCacheOpConversionTable[tcCacheOp];
-            cpCoherCntl.bits.SH_KCACHE_ACTION_ENA    = TestAnyFlagSet(cacheSyncFlags, CacheSyncInvSqK$);
-            cpCoherCntl.bits.SH_ICACHE_ACTION_ENA    = TestAnyFlagSet(cacheSyncFlags, CacheSyncInvSqI$);
-            cpCoherCntl.bits.SH_KCACHE_WB_ACTION_ENA = TestAnyFlagSet(cacheSyncFlags, CacheSyncFlushSqK$);
-
-            acquireMemInfo.coherCntl = cpCoherCntl.u32All;
-
-            // Clear up requests
-            cacheSyncFlags &= ~(CacheSyncInvSqK$ | CacheSyncInvSqI$ | CacheSyncFlushSqK$);
-
-            // Build ACQUIRE_MEM packet.
-            dwordsWritten += m_cmdUtil.ExplicitBuildAcquireMem(acquireMemInfo,
-                                                               VoidPtrInc(pBuffer, sizeof(uint32) * dwordsWritten));
-        }
-    }
-    else if (IsGfx10(m_gfxIpLevel))
-    {
-        // The only difference between the GFX9 and GFX10 versions of this packet are that GFX10
-        // added a new "gcr_cntl" field.
-        acquireMemInfo.gcrCntl = Gfx10BuildAcquireGcrCntl(accessMask,
-                                                          invalidateLlc,
-                                                          baseAddress,
-                                                          sizeBytes,
-                                                          (acquireMemInfo.coherCntl != 0),
-                                                          pBarrierOps);
-
-        // GFX10's COHER_CNTL only controls RB flush/inv. "acquire" deson't need to invalidate RB because "release"
-        // always flush & invalidate RB, so we never need to set COHER_CNTL here.
-        if (acquireMemInfo.gcrCntl != 0)
-        {
-            // Build ACQUIRE_MEM packet.
-            dwordsWritten += m_cmdUtil.ExplicitBuildAcquireMem(acquireMemInfo,
-                                                               VoidPtrInc(pBuffer, sizeof(uint32) * dwordsWritten));
-        }
-    }
-
-    return dwordsWritten;
 }
 
 // =====================================================================================================================
@@ -2135,13 +2076,10 @@ void Device::IssueReleaseSyncEvent(
 {
     // Validate input.
     PAL_ASSERT(stageMask != 0);
-
     PAL_ASSERT(pGpuEvent != nullptr);
-
     PAL_ASSERT(pBarrierOps != nullptr);
 
     const EngineType engineType = pCmdBuf->GetEngineType();
-
     uint32*          pCmdSpace  = pCmdStream->ReserveCommands();
 
     if (pCmdBuf->GetGfxCmdBufState().flags.cpBltActive && TestAnyFlagSet(stageMask, PipelineStageBlt))
@@ -2169,16 +2107,167 @@ void Device::IssueReleaseSyncEvent(
     else
     {
         // Mark off all graphics path specific stages if command buffer doesn't support graphics.
-        stageMask &= ~GraphicsOnlyPipeStages;
+        stageMask  &= ~GraphicsOnlyPipeStages;
+        accessMask &= ~GraphicsOnlyCoherFlags;
     }
 
-    pCmdSpace += BuildReleaseSyncPacketsEvent(engineType,
-                                              stageMask,
-                                              accessMask,
-                                              flushLlc,
-                                              pGpuEvent,
-                                              pCmdSpace,
-                                              pBarrierOps);
+    // OptimizePipeAndCacheMaskForRelease() has converted these BLT coherency flags to more specific ones.
+    PAL_ASSERT(TestAnyFlagSet(accessMask, CoherCopy | CoherResolve | CoherClear) == false);
+
+    // Issue RELEASE_MEM packets to flush caches (optional) and signal gpuEvent.
+    const uint32          numEventSlots               = Parent()->ChipProperties().gfxip.numSlotsPerEvent;
+    const BoundGpuMemory& gpuEventBoundMemObj         = static_cast<const GpuEvent*>(pGpuEvent)->GetBoundGpuMemory();
+    PAL_ASSERT(gpuEventBoundMemObj.IsBound());
+    const gpusize         gpuEventStartVa             = gpuEventBoundMemObj.GpuVirtAddr();
+
+    VGT_EVENT_TYPE        vgtEvents[MaxSlotsPerEvent] = {}; // Always create the max size.
+    uint32                vgtEventCount               = 0;
+
+    // If any of the access mask bits that could result in RB sync are set, use CACHE_FLUSH_AND_INV_TS.
+    // There is no way to INV the CB metadata caches during acquire. So at release always also invalidate if we are to
+    // flush CB metadata. Furthermore, CACHE_FLUSH_AND_INV_TS_EVENT always flush & invalidate RB, so there is no need
+    // to invalidate RB at acquire again.
+    if (TestAnyFlagSet(accessMask, CoherColorTarget | CoherDepthStencilTarget))
+    {
+        // Issue a pipelined EOP event that writes timestamp to a GpuEvent slot when all prior GPU work completes.
+        vgtEvents[vgtEventCount++]                    = CACHE_FLUSH_AND_INV_TS_EVENT;
+        pBarrierOps->pipelineStalls.eopTsBottomOfPipe = 1;
+
+        // Clear up CB/DB request
+        accessMask &= ~(CoherColorTarget | CoherDepthStencilTarget);
+
+        pBarrierOps->caches.flushCb         = 1;
+        pBarrierOps->caches.invalCb         = 1;
+        pBarrierOps->caches.flushCbMetadata = 1;
+        pBarrierOps->caches.invalCbMetadata = 1;
+
+        pBarrierOps->caches.flushDb         = 1;
+        pBarrierOps->caches.invalDb         = 1;
+        pBarrierOps->caches.flushDbMetadata = 1;
+        pBarrierOps->caches.invalDbMetadata = 1;
+    }
+    else if (TestAnyFlagSet(stageMask, PipelineStageEarlyDsTarget |
+                                       PipelineStageLateDsTarget  |
+                                       PipelineStageColorTarget   |
+                                       PipelineStageBottomOfPipe))
+    {
+        // Implement set with an EOP event written when all prior GPU work completes.
+        vgtEvents[vgtEventCount++]                    = BOTTOM_OF_PIPE_TS;
+        pBarrierOps->pipelineStalls.eopTsBottomOfPipe = 1;
+    }
+    else if (TestAnyFlagSet(stageMask, PipelineStageVs | PipelineStageHs | PipelineStageDs | PipelineStageGs) &&
+        (TestAnyFlagSet(stageMask, PipelineStagePs) == false))
+    {
+        // Unfortunately, there is no VS_DONE event with which to implement PipelineStageVs/Hs/Ds/Gs, so it has to
+        // conservatively use BottomOfPipe.
+        vgtEvents[vgtEventCount++]                    = BOTTOM_OF_PIPE_TS;
+        pBarrierOps->pipelineStalls.eopTsBottomOfPipe = 1;
+    }
+    else
+    {
+        // The signal/wait event may have multiple slots, we can utilize it to issue separate EOS event for PS and CS
+        // waves.
+        if (TestAnyFlagSet(stageMask, PipelineStageCs))
+        {
+            // Implement set/reset with an EOS event waiting for CS waves to complete.
+            vgtEvents[vgtEventCount++]              = CS_DONE;
+            pBarrierOps->pipelineStalls.eosTsCsDone = 1;
+        }
+
+        if (TestAnyFlagSet(stageMask, PipelineStageVs |
+                                      PipelineStageHs |
+                                      PipelineStageDs |
+                                      PipelineStageGs |
+                                      PipelineStagePs))
+        {
+            // Implement set with an EOS event waiting for PS waves to complete.
+            vgtEvents[vgtEventCount++]              = PS_DONE;
+            pBarrierOps->pipelineStalls.eosTsPsDone = 1;
+        }
+
+        if (vgtEventCount > numEventSlots)
+        {
+            // Fall back to single EOP pipe point if available event slots are not sufficient for multiple pipe points.
+            vgtEvents[0]                                  = BOTTOM_OF_PIPE_TS;
+            vgtEventCount                                 = 1;
+            pBarrierOps->pipelineStalls.eosTsCsDone       = 0;
+            pBarrierOps->pipelineStalls.eosTsPsDone       = 0;
+            pBarrierOps->pipelineStalls.eopTsBottomOfPipe = 1;
+        }
+    }
+
+    // Create info for RELEASE_MEM. Initialize common part at here.
+    ExplicitReleaseMemInfo releaseMemInfo = {};
+    releaseMemInfo.engineType = engineType;
+
+    if (IsGfx9(m_gfxIpLevel))
+    {
+        uint32 cacheSyncFlags = Gfx9ConvertToReleaseSyncFlags(accessMask, flushLlc, pBarrierOps);
+
+        const uint32 tcCacheOp = static_cast<uint32>(SelectTcCacheOp(&cacheSyncFlags));
+
+        // The cache sync requests can be cleared by single release pass.
+        PAL_ASSERT(cacheSyncFlags == 0);
+
+        releaseMemInfo.coherCntl = Gfx9TcCacheOpConversionTable[tcCacheOp];
+    }
+    else
+    {
+        PAL_ASSERT(IsGfx10Plus(m_gfxIpLevel));
+        releaseMemInfo.gcrCntl = Gfx10BuildReleaseGcrCntl(accessMask, flushLlc, pBarrierOps);
+    }
+
+    // If we have cache sync request yet don't assign any VGT event, we need to issue a dummy one.
+    if (((releaseMemInfo.coherCntl != 0) || (releaseMemInfo.gcrCntl != 0)) && (vgtEventCount == 0))
+    {
+        // Flush at earliest supported pipe point for RELEASE_MEM (CS_DONE always works).
+        vgtEvents[vgtEventCount++]              = CS_DONE;
+        pBarrierOps->pipelineStalls.eosTsCsDone = 1;
+    }
+
+    PAL_ASSERT(vgtEventCount <= numEventSlots);
+
+    // Issue releases with the requested eop/eos
+    if (vgtEventCount > 0)
+    {
+        // Build a WRITE_DATA command to first RESET event slots that will be set by event later on.
+        WriteDataInfo writeData = {};
+        writeData.engineType    = engineType;
+        writeData.engineSel     = engine_sel__me_write_data__micro_engine;
+        writeData.dstSel        = dst_sel__me_write_data__memory;
+        writeData.dstAddr       = gpuEventStartVa;
+
+        const uint32 dword = GpuEvent::ResetValue;
+
+        pCmdSpace += CmdUtil::BuildWriteDataPeriodic(writeData, 1, vgtEventCount, &dword, pCmdSpace);
+
+        // Build release packets with requested eop/eos events on ME engine.
+        for (uint32 i = 0; i < vgtEventCount; i++)
+        {
+            const gpusize gpuEventSlotVa = gpuEventStartVa + (i * sizeof(uint32));
+
+            releaseMemInfo.vgtEvent = vgtEvents[i];
+            releaseMemInfo.dstAddr  = gpuEventSlotVa;
+            releaseMemInfo.dataSel  = data_sel__me_release_mem__send_32_bit_low;
+            releaseMemInfo.data     = GpuEvent::SetValue;
+
+            pCmdSpace += m_cmdUtil.ExplicitBuildReleaseMem(releaseMemInfo, pCmdSpace, 0, 0);
+        }
+    }
+
+    // Issue a WRITE_DATA command to SET the remaining (unused) event slots as early as possible.
+    if (vgtEventCount < numEventSlots)
+    {
+        WriteDataInfo writeData = {};
+        writeData.engineType    = engineType;
+        writeData.engineSel     = engine_sel__me_write_data__micro_engine;
+        writeData.dstSel        = dst_sel__me_write_data__memory;
+        writeData.dstAddr       = gpuEventStartVa + (sizeof(uint32) * vgtEventCount);
+
+        const uint32 dword      = GpuEvent::SetValue;
+
+        pCmdSpace += CmdUtil::BuildWriteDataPeriodic(writeData, 1, numEventSlots - vgtEventCount, &dword, pCmdSpace);
+    }
 
     pCmdStream->CommitCommands(pCmdSpace);
 }
@@ -2253,16 +2342,57 @@ void Device::IssueAcquireSyncEvent(
 
     if (accessMask != 0)
     {
-        // OptimizeBltCacheAccess() doesn't apply to acquire-sync. Acquire is for the future state, however the state
-        // tracking mechanism tracks past operations.
-        pCmdSpace += BuildAcquireSyncPackets(engineType,
-                                             stageMask,
-                                             accessMask,
-                                             invalidateLlc,
-                                             rangeStartAddr,
-                                             rangeSize,
-                                             pCmdSpace,
-                                             pBarrierOps);
+        // Create info for ACQUIRE_MEM. Initialize common part at here.
+        ExplicitAcquireMemInfo acquireMemInfo = {};
+        acquireMemInfo.engineType   = engineType;
+        acquireMemInfo.baseAddress  = rangeStartAddr;
+        acquireMemInfo.sizeBytes    = rangeSize;
+        acquireMemInfo.flags.usePfp = TestAnyFlagSet(stageMask, PipelineStageTopOfPipe         |
+                                                                PipelineStageFetchIndirectArgs |
+                                                                PipelineStageFetchIndices);
+
+        if (IsGfx9(m_gfxIpLevel))
+        {
+            uint32 cacheSyncFlags = Gfx9ConvertToAcquireSyncFlags(accessMask, engineType, invalidateLlc, pBarrierOps);
+
+            while (cacheSyncFlags != 0)
+            {
+                const uint32 tcCacheOp = static_cast<uint32>(SelectTcCacheOp(&cacheSyncFlags));
+
+                regCP_COHER_CNTL cpCoherCntl = {};
+                cpCoherCntl.u32All                       = Gfx9TcCacheOpConversionTable[tcCacheOp];
+                cpCoherCntl.bits.SH_KCACHE_ACTION_ENA    = TestAnyFlagSet(cacheSyncFlags, CacheSyncInvSqK$);
+                cpCoherCntl.bits.SH_ICACHE_ACTION_ENA    = TestAnyFlagSet(cacheSyncFlags, CacheSyncInvSqI$);
+                cpCoherCntl.bits.SH_KCACHE_WB_ACTION_ENA = TestAnyFlagSet(cacheSyncFlags, CacheSyncFlushSqK$);
+
+                acquireMemInfo.coherCntl = cpCoherCntl.u32All;
+
+                // Clear up requests
+                cacheSyncFlags &= ~(CacheSyncInvSqK$ | CacheSyncInvSqI$ | CacheSyncFlushSqK$);
+
+                // Build ACQUIRE_MEM packet.
+                pCmdSpace += m_cmdUtil.ExplicitBuildAcquireMem(acquireMemInfo, pCmdSpace);
+            }
+        }
+        else if (IsGfx10(m_gfxIpLevel))
+        {
+            // The only difference between the GFX9 and GFX10+ versions of this packet are that GFX10+ added a new
+            // "gcr_cntl" field.
+            acquireMemInfo.gcrCntl = Gfx10BuildAcquireGcrCntl(accessMask,
+                                                              invalidateLlc,
+                                                              rangeStartAddr,
+                                                              rangeSize,
+                                                              (acquireMemInfo.coherCntl != 0),
+                                                              pBarrierOps);
+
+            // GFX10's COHER_CNTL only controls RB flush/inv. "acquire" deson't need to invalidate RB because "release"
+            // always flush & invalidate RB, so we never need to set COHER_CNTL here.
+            if (acquireMemInfo.gcrCntl != 0)
+            {
+                // Build ACQUIRE_MEM packet.
+                pCmdSpace += m_cmdUtil.ExplicitBuildAcquireMem(acquireMemInfo, pCmdSpace);
+            }
+        }
     }
 
     if (pfpSyncMe && isGfxSupported)
@@ -2426,11 +2556,7 @@ void Device::BarrierReleaseEvent(
 
                 if (transition.layoutTransInfo.blt[0] != HwLayoutTransition::None)
                 {
-                    IssueBlt(pCmdBuf,
-                             pCmdStream,
-                             transition.pImgBarrier,
-                             transition.layoutTransInfo,
-                             pBarrierOps);
+                    IssueBlt(pCmdBuf, pCmdStream, transition.pImgBarrier, transition.layoutTransInfo, pBarrierOps);
 
                     uint32 stageMask  = 0;
                     uint32 accessMask = 0;
@@ -2691,195 +2817,6 @@ void Device::BarrierAcquireEvent(
                                   pBarrierOps);
         }
     }
-}
-
-// =====================================================================================================================
-// Build the necessary packets to fulfill the requested cache sync for release.
-size_t Device::BuildReleaseSyncPacketsEvent(
-    EngineType                    engineType,
-    uint32                        stageMask,
-    uint32                        accessMask,
-    bool                          flushLlc,
-    const IGpuEvent*              pGpuEventToSignal,
-    void*                         pBuffer,
-    Developer::BarrierOperations* pBarrierOps
-    ) const
-{
-    // OptimizeBltCacheAccess() should've been called to convert these BLT coherency flags to more specific ones.
-    PAL_ASSERT(TestAnyFlagSet(accessMask, CoherCopy | CoherResolve | CoherClear) == false);
-
-    PAL_ASSERT(pGpuEventToSignal != nullptr);
-
-    PAL_ASSERT(pBarrierOps != nullptr);
-
-    // Issue RELEASE_MEM packets to flush caches (optional) and signal gpuEvent.
-    const uint32          numEventSlots               = Parent()->ChipProperties().gfxip.numSlotsPerEvent;
-    const GpuEvent*       pGpuEvent                   = static_cast<const GpuEvent*>(pGpuEventToSignal);
-    const BoundGpuMemory& gpuEventBoundMemObj         = pGpuEvent->GetBoundGpuMemory();
-    PAL_ASSERT(gpuEventBoundMemObj.IsBound());
-    const gpusize         gpuEventStartVa             = gpuEventBoundMemObj.GpuVirtAddr();
-
-    VGT_EVENT_TYPE        vgtEvents[MaxSlotsPerEvent] = {}; // Always create the max size.
-    uint32                vgtEventCount               = 0;
-
-    // If any of the access mask bits that could result in RB sync are set, use CACHE_FLUSH_AND_INV_TS.
-    // There is no way to INV the CB metadata caches during acquire. So at release always also invalidate if we are to
-    // flush CB metadata. Furthermore, CACHE_FLUSH_AND_INV_TS_EVENT always flush & invalidate RB, so there is no need
-    // to invalidate RB at acquire again.
-    if (TestAnyFlagSet(accessMask, CoherColorTarget | CoherDepthStencilTarget))
-    {
-        // Issue a pipelined EOP event that writes timestamp to a GpuEvent slot when all prior GPU work completes.
-        vgtEvents[vgtEventCount++]                    = CACHE_FLUSH_AND_INV_TS_EVENT;
-        pBarrierOps->pipelineStalls.eopTsBottomOfPipe = 1;
-
-        // Clear up CB/DB request
-        accessMask &= ~(CoherColorTarget | CoherDepthStencilTarget);
-
-        pBarrierOps->caches.flushCb         = 1;
-        pBarrierOps->caches.invalCb         = 1;
-        pBarrierOps->caches.flushCbMetadata = 1;
-        pBarrierOps->caches.invalCbMetadata = 1;
-
-        pBarrierOps->caches.flushDb         = 1;
-        pBarrierOps->caches.invalDb         = 1;
-        pBarrierOps->caches.flushDbMetadata = 1;
-        pBarrierOps->caches.invalDbMetadata = 1;
-    }
-    else if (TestAnyFlagSet(stageMask, PipelineStageEarlyDsTarget |
-                                       PipelineStageLateDsTarget  |
-                                       PipelineStageColorTarget   |
-                                       PipelineStageBottomOfPipe))
-    {
-        // Implement set with an EOP event written when all prior GPU work completes.
-        vgtEvents[vgtEventCount++]                    = BOTTOM_OF_PIPE_TS;
-        pBarrierOps->pipelineStalls.eopTsBottomOfPipe = 1;
-    }
-    else if (TestAnyFlagSet(stageMask, PipelineStageVs | PipelineStageHs | PipelineStageDs | PipelineStageGs) &&
-        (TestAnyFlagSet(stageMask, PipelineStagePs) == false))
-    {
-        // Unfortunately, there is no VS_DONE event with which to implement PipelineStageVs/Hs/Ds/Gs, so it has to
-        // conservatively use BottomOfPipe.
-        vgtEvents[vgtEventCount++]                    = BOTTOM_OF_PIPE_TS;
-        pBarrierOps->pipelineStalls.eopTsBottomOfPipe = 1;
-    }
-    else
-    {
-        // The signal/wait event may have multiple slots, we can utilize it to issue separate EOS event for PS and CS
-        // waves.
-        if (TestAnyFlagSet(stageMask, PipelineStageCs))
-        {
-            // Implement set/reset with an EOS event waiting for CS waves to complete.
-            vgtEvents[vgtEventCount++]              = CS_DONE;
-            pBarrierOps->pipelineStalls.eosTsCsDone = 1;
-        }
-
-        if (TestAnyFlagSet(stageMask, PipelineStageVs |
-                                      PipelineStageHs |
-                                      PipelineStageDs |
-                                      PipelineStageGs |
-                                      PipelineStagePs))
-        {
-            // Implement set with an EOS event waiting for PS waves to complete.
-            vgtEvents[vgtEventCount++]              = PS_DONE;
-            pBarrierOps->pipelineStalls.eosTsPsDone = 1;
-        }
-
-        if (vgtEventCount > numEventSlots)
-        {
-            // Fall back to single EOP pipe point if available event slots are not sufficient for multiple pipe points.
-            vgtEvents[0]                                  = BOTTOM_OF_PIPE_TS;
-            vgtEventCount                                 = 1;
-            pBarrierOps->pipelineStalls.eosTsCsDone       = 0;
-            pBarrierOps->pipelineStalls.eosTsPsDone       = 0;
-            pBarrierOps->pipelineStalls.eopTsBottomOfPipe = 1;
-        }
-    }
-
-    // Create info for RELEASE_MEM. Initialize common part at here.
-    ExplicitReleaseMemInfo releaseMemInfo = {};
-    releaseMemInfo.engineType = engineType;
-
-    if (m_gfxIpLevel == GfxIpLevel::GfxIp9)
-    {
-        uint32 cacheSyncFlags = Gfx9ConvertToReleaseSyncFlags(accessMask, flushLlc, pBarrierOps);
-
-        const uint32 tcCacheOp = static_cast<uint32>(SelectTcCacheOp(&cacheSyncFlags));
-
-        // The cache sync requests can be cleared by single release pass.
-        PAL_ASSERT(cacheSyncFlags == 0);
-
-        releaseMemInfo.coherCntl = Gfx9TcCacheOpConversionTable[tcCacheOp];
-    }
-    else if (IsGfx10(m_gfxIpLevel))
-    {
-        releaseMemInfo.gcrCntl = Gfx10BuildReleaseGcrCntl(accessMask, flushLlc, pBarrierOps);
-    }
-    // If we have cache sync request yet don't assign any VGT event, we need to issue a dummy one.
-    if (((releaseMemInfo.coherCntl != 0) || (releaseMemInfo.gcrCntl != 0)) && (vgtEventCount == 0))
-    {
-        // Flush at earliest supported pipe point for RELEASE_MEM (CS_DONE always works).
-        vgtEvents[vgtEventCount++]              = CS_DONE;
-        pBarrierOps->pipelineStalls.eosTsCsDone = 1;
-    }
-
-    PAL_ASSERT(vgtEventCount <= numEventSlots);
-
-    size_t dwordsWritten = 0;
-
-    // Issue releases with the requested eop/eos
-    if (vgtEventCount > 0)
-    {
-        // Build a WRITE_DATA command to first RESET event slots that will be set by event later on.
-        WriteDataInfo writeData = {};
-        writeData.engineType = engineType;
-        writeData.engineSel  = engine_sel__me_write_data__micro_engine;
-        writeData.dstSel     = dst_sel__me_write_data__memory;
-        writeData.dstAddr    = gpuEventStartVa;
-
-        const uint32 dword   = GpuEvent::ResetValue;
-
-        dwordsWritten += CmdUtil::BuildWriteDataPeriodic(writeData,
-                                                         1,
-                                                         vgtEventCount,
-                                                         &dword,
-                                                         VoidPtrInc(pBuffer, sizeof(uint32) * dwordsWritten));
-
-        // Build release packets with requested eop/eos events on ME engine.
-        for (uint32 i = 0; i < vgtEventCount; i++)
-        {
-            const gpusize gpuEventSlotVa = gpuEventStartVa + (i * sizeof(uint32));
-
-            releaseMemInfo.vgtEvent      = vgtEvents[i];
-            releaseMemInfo.dstAddr       = gpuEventSlotVa;
-            releaseMemInfo.dataSel       = data_sel__me_release_mem__send_32_bit_low;
-            releaseMemInfo.data          = GpuEvent::SetValue;
-
-            dwordsWritten += m_cmdUtil.ExplicitBuildReleaseMem(releaseMemInfo,
-                                                               VoidPtrInc(pBuffer, sizeof(uint32) * dwordsWritten),
-                                                               0,
-                                                               0);
-        }
-    }
-
-    // Issue a WRITE_DATA command to SET the remaining (unused) event slots as early as possible.
-    if (vgtEventCount < numEventSlots)
-    {
-        WriteDataInfo writeData = {};
-        writeData.engineType    = engineType;
-        writeData.engineSel     = engine_sel__me_write_data__micro_engine;
-        writeData.dstSel        = dst_sel__me_write_data__memory;
-        writeData.dstAddr       = gpuEventStartVa + (sizeof(uint32) * vgtEventCount);
-
-        const uint32 dword      = GpuEvent::SetValue;
-
-        dwordsWritten += CmdUtil::BuildWriteDataPeriodic(writeData,
-                                                         1,
-                                                         numEventSlots - vgtEventCount,
-                                                         &dword,
-                                                         VoidPtrInc(pBuffer, sizeof(uint32) * dwordsWritten));
-    }
-
-    return dwordsWritten;
 }
 
 } // Gfx9

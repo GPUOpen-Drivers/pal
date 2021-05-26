@@ -63,6 +63,6 @@ set(      PAL_VAM_PATH ${PROJECT_SOURCE_DIR}/src/core/imported/vam       CACHE P
 set(     PAL_ADDR_PATH ${PROJECT_SOURCE_DIR}/src/core/imported/addrlib   CACHE PATH "Specify the path to the ADDRLIB project.")
 
 if (PAL_BUILD_GPUOPEN)
-    set(PAL_GPUOPEN_PATH ${PROJECT_SOURCE_DIR}/shared/gpuopen CACHE PATH "Specify the path to the GPUOPEN_PATH project.")
+    set(PAL_GPUOPEN_PATH "default" CACHE PATH "Specify the path to the GPUOPEN_PATH project.")
 endif()
 

@@ -246,6 +246,7 @@ union CachedSettings
         uint64 waClampGeCntlVertGrpSize   :  1;
         uint64 reserved4                  :  1;
         uint64 ignoreDepthForBinSize      :  1; // Ignore depth when calculating Bin Size (unless no color bound)
+        uint64 pbbDisableBinMode          :  2; // BINNING_MODE value to use when PBB is disabled
 
         uint64 waLogicOpDisablesOverwriteCombiner        :  1;
         uint64 waMiscPopsMissedOverlap                   :  1;
@@ -262,7 +263,7 @@ union CachedSettings
         uint64 reserved7                                 :  1;
         uint64 reserved8                  :  9;
         uint64 reserved9                  :  1;
-        uint64 reserved                   : 15;
+        uint64 reserved                   : 13;
     };
     uint64 u64All;
 };
@@ -891,7 +892,7 @@ private:
     void Gfx10GetDepthBinSize(Extent2d* pBinSize) const;
     template <bool IsNgg>
     bool SetPaScBinnerCntl01(
-                             Extent2d* pBinSize);
+                             const Extent2d* pBinSize);
 
     void SendFlglSyncCommands(FlglRegSeqType type);
 
@@ -933,8 +934,6 @@ private:
               bool DescribeDrawDispatch>
     void SwitchDrawFunctionsInternal(
         bool hasTaskShader);
-
-    BinningMode GetDisableBinningSetting(Extent2d* pBinSize) const;
 
     CmdStream* GetAceCmdStream();
     gpusize    GangedCmdStreamSemAddr();
@@ -1065,6 +1064,7 @@ private:
 
     const uint32  m_log2NumSes;
     const uint32  m_log2NumRbPerSe;
+    const GpuType m_gpuType;
 
     uint32  m_depthBinSizeTagPart;    // Constant used in Depth PBB bin size formulas
     uint32  m_colorBinSizeTagPart;    // Constant used in Color PBB bin size formulas
@@ -1080,8 +1080,8 @@ private:
         {
             uint64 maxAllocCountNgg       : 16;
             uint64 maxAllocCountLegacy    : 16;
-            uint64 maxPrimPerBatch        : 16;
             uint64 persistentStatesPerBin : 16;
+            uint64 reserved               : 16;
         };
         uint64 u64All;
     } m_cachedPbbSettings;

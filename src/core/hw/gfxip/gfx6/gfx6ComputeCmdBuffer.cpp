@@ -786,7 +786,7 @@ void ComputeCmdBuffer::CmdBeginQuery(
     uint32            slot,
     QueryControlFlags flags)
 {
-    static_cast<const QueryPool&>(queryPool).Begin(this, &m_cmdStream, queryType, slot, flags);
+    static_cast<const QueryPool&>(queryPool).Begin(this, &m_cmdStream, nullptr, queryType, slot, flags);
 }
 
 // =====================================================================================================================
@@ -795,7 +795,7 @@ void ComputeCmdBuffer::CmdEndQuery(
     QueryType         queryType,
     uint32            slot)
 {
-    static_cast<const QueryPool&>(queryPool).End(this, &m_cmdStream, queryType, slot);
+    static_cast<const QueryPool&>(queryPool).End(this, &m_cmdStream, nullptr, queryType, slot);
 }
 
 // =====================================================================================================================

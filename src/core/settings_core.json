@@ -413,6 +413,9 @@
         "General",
         "Resource Settings"
       ],
+      "Flags": {
+        "RereadSetting": true
+      },
       "Defaults": {
         "Default": false
       },
@@ -589,20 +592,6 @@
       "Type": "bool",
       "VariableName": "enableIterate256PreAlignment",
       "Name": "enableIterate256PreAlignment"
-    },
-    {
-      "Description": "Whether to disable XOR tile modes.",
-      "Tags": [
-        "General",
-        "Resource Settings"
-      ],
-      "Defaults": {
-        "Default": false
-      },
-      "Scope": "PrivatePalKey",
-      "Type": "bool",
-      "VariableName": "addr2DisableXorTileMode",
-      "Name": "Addr2DisableXorTileMode"
     },
     {
       "Description": "Disables S swizzle modes for 8bpp color targets.",

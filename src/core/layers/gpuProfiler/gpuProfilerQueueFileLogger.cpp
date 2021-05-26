@@ -302,7 +302,7 @@ void Queue::OpenSqttFile(
 }
 
 // =====================================================================================================================
-// Opens a .csv file for writing spm trace data, mainly used for ThreadTraceViewer.
+// Opens a .csv file for writing spm trace data
 void Queue::OpenSpmFile(
     Util::File*    pFile,
     const LogItem& logItem)
@@ -775,8 +775,8 @@ void Queue::OutputTraceDataToFile(
         }
         else if (m_pDevice->GetProfilerMode() == GpuProfilerTraceEnabledTtv)
         {
-            // Output trace data in thread trace viewer format.
-            // Output separate files for thread trace data (.out) and spm trace data (.csv) for ThreadTraceViewer.
+            // Output trace data in generic/raw format.
+            // Output separate files for thread trace data (.ttv) and spm trace data (.csv)
             void*  pResult  = nullptr;
             size_t dataSize = 0;
             Result result   = logItem.pGpaSession->GetResults(logItem.gpaSampleId, &dataSize, pResult);
@@ -798,7 +798,7 @@ void Queue::OutputTraceDataToFile(
                                                                  pResult);
             }
 
-            // Below crack open the .rgp blob in the GpuProfiler to translate it to ThreadTraceView format. We assume
+            // Below crack open the .rgp blob in the GpuProfiler to extract the raw SQTT data. We assume
             // SQTT data comes before SPM data.
             if (result == Result::Success)
             {
@@ -873,18 +873,18 @@ void Queue::OutputTraceDataToFile(
 
                         if (pSpmDbChunk->numTimestamps > 0)
                         {
-                            // The ThreadTraceViewer supports draw and command buffer interval markers. We don't
-                            // have this hooked up in the GPU profiler currently but we can still write a single
+                            // Some tools supports draw and command buffer interval markers. We don't have
+                            // this hooked up in the GPU profiler currently but we can still write a single
                             // "command buffer" indicating where SPM started and stopped.
                             spmFile.Printf("frame%u_cb%u,%llu,%llu\n", m_curLogFrame, m_curLogCmdBufIdx,
                                             pTimestamp[0], pTimestamp[pSpmDbChunk->numTimestamps - 1]);
                         }
 
-                        // The column header must be this exact string for the ThreadTraceViewer to detect that it
+                        // The column header must be this exact string for some tools to detect that it
                         // can correlate the SPM timeline with the SQTT timeline.
                         spmFile.Printf("Time (realtime clock),");
 
-                        // ThreadTraceViewer output: print the first line consisting of the counter names.
+                        // Print the first line consisting of the counter names.
                         for (uint32 i = 0; i < m_pDevice->NumStreamingPerfCounters(); ++i)
                         {
                             const auto& counter = m_pDevice->StreamingPerfCounters()[i];
@@ -895,7 +895,7 @@ void Queue::OutputTraceDataToFile(
 
                         for (uint32 sample = 0; sample < pSpmDbChunk->numTimestamps; ++sample)
                         {
-                            // Write the raw sample timestamps so that the ThreadTraceViewer can correlate the SPM
+                            // Write the raw sample timestamps so that the tools can correlate the SPM
                             // timeline to the SQTT timeline.
                             spmFile.Printf("%llu,", pTimestamp[sample]);
 

@@ -795,6 +795,7 @@ private:
         uint32          arraySize,
         IImage**        ppDstImage);
     void OverrideDepthFormat(SwizzledFormat* pSwizzledFormat, const IImage* pSrcImage, uint32 plane);
+    void SyncSurfaceCapture();
     void OutputSurfaceCaptureImage(Image* pImage, const char* pFilePath, const char* pFileName) const;
 
     Device*const                 m_pDevice;

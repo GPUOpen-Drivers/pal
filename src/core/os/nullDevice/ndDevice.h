@@ -307,6 +307,28 @@ public:
 
     virtual Result CreateDmaUploadRing() override { return Result::Success; };
 
+#if defined(PAL_DOPP)
+    virtual Result SetPrimarySourceIDForDopp(Pal::IScreen* pScreen) override
+    {
+        return Result::Unsupported;
+    }
+
+    virtual Result GetDoppPrimarySurfaceInfo(Pal::Extent3d* pDesktopProp) override
+    {
+        return Result::Unsupported;
+    }
+
+    virtual Result EnablePostProcessDopp(bool enable) override
+    {
+        return Result::Unsupported;
+    }
+
+    virtual Result PresentTextureToVideoDopp(Pal::IGpuMemory* pPresentTexture, bool isBlocking) override
+    {
+        return Result::Unsupported;
+    }
+#endif
+
 protected:
     Device(
         Platform*              pPlatform,

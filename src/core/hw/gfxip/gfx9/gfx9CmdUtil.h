@@ -542,11 +542,11 @@ public:
         EngineType      engineType,
         void*           pBuffer);
     size_t BuildSampleEventWrite(
-        VGT_EVENT_TYPE                  vgtEvent,
-        ME_EVENT_WRITE_event_index_enum eventIndex,
-        EngineType                      engineType,
-        gpusize                         gpuAddr,
-        void*                           pBuffer) const;
+        VGT_EVENT_TYPE                           vgtEvent,
+        ME_EVENT_WRITE_event_index_enum          eventIndex,
+        EngineType                               engineType,
+        gpusize                                  gpuAddr,
+        void*                                    pBuffer) const;
     size_t BuildExecutionMarker(
         gpusize markerAddr,
         uint32  markerVal,

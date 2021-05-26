@@ -79,7 +79,6 @@ void SettingsLoader::SetupDefaults()
 
     m_settings.enableBigPagePreAlignment = true;
     m_settings.enableIterate256PreAlignment = true;
-    m_settings.addr2DisableXorTileMode = false;
     m_settings.addr2DisableSModes8BppColor = false;
 #if   (__unix__)
     m_settings.disableOptimizedDisplay = true;
@@ -289,11 +288,6 @@ void SettingsLoader::ReadSettings()
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(penableIterate256PreAlignmentStr,
                            Util::ValueType::Boolean,
                            &m_settings.enableIterate256PreAlignment,
-                           InternalSettingScope::PrivatePalKey);
-
-    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pAddr2DisableXorTileModeStr,
-                           Util::ValueType::Boolean,
-                           &m_settings.addr2DisableXorTileMode,
                            InternalSettingScope::PrivatePalKey);
 
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pAddr2DisableSModes8BppColorStr,
@@ -635,6 +629,11 @@ void SettingsLoader::ReadSettings()
 void SettingsLoader::RereadSettings()
 {
     // read from the OS adapter for each individual setting
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pAddr2Disable256BSwizzleModeStr,
+                           Util::ValueType::Boolean,
+                           &m_settings.addr2Disable256BSwizzleMode,
+                           InternalSettingScope::PrivatePalKey);
+
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pAddr2UseVarSwizzleModeStr,
                            Util::ValueType::Uint,
                            &m_settings.addr2UseVarSwizzleMode,
@@ -777,11 +776,6 @@ void SettingsLoader::InitSettingsInfo()
     info.pValuePtr = &m_settings.enableIterate256PreAlignment;
     info.valueSize = sizeof(m_settings.enableIterate256PreAlignment);
     m_settingsInfoMap.Insert(2507710515, info);
-
-    info.type      = SettingType::Boolean;
-    info.pValuePtr = &m_settings.addr2DisableXorTileMode;
-    info.valueSize = sizeof(m_settings.addr2DisableXorTileMode);
-    m_settingsInfoMap.Insert(576052426, info);
 
     info.type      = SettingType::Boolean;
     info.pValuePtr = &m_settings.addr2DisableSModes8BppColor;
@@ -1133,7 +1127,7 @@ void SettingsLoader::DevDriverRegister()
             component.pfnSetValue = ISettingsLoader::SetValue;
             component.pSettingsData = &g_palJsonData[0];
             component.settingsDataSize = sizeof(g_palJsonData);
-            component.settingsDataHash = 2387638308;
+            component.settingsDataHash = 1027804864;
             component.settingsDataHeader.isEncoded = true;
             component.settingsDataHeader.magicBufferId = 402778310;
             component.settingsDataHeader.magicBufferOffset = 0;

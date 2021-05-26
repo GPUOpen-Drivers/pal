@@ -5651,10 +5651,8 @@ void RsrcProcMgr::FixupMetadataForComputeDst(
     // TODO: unify all RPM metadata fixup here; currently only depth image is handled.
     if (pGfxImage->HasHtileData())
     {
-        // TODO: there is suspected Hiz issue on gfx10 comrpessed depth write. Suggested temporary workaround is
-        // to attach layout with LayoutUncompressed, which always triggers depth expand before copy and depth
-        // resummarize after copy.
-        const bool enableCompressedDepthWriteTempWa = IsGfx10Plus(*m_pDevice->Parent());
+        // There is a Hiz issue on gfx10 with compressed depth writes so we need an htile resummarize blt.
+        const bool enableCompressedDepthWriteTempWa = IsGfx10(*m_pDevice->Parent());
 
         // If enable temp workaround for comrpessed depth write, always need barriers for before and after copy.
         bool needBarrier = enableCompressedDepthWriteTempWa;

@@ -129,6 +129,7 @@ PipelineStatsQueryPool::PipelineStatsQueryPool(
 void PipelineStatsQueryPool::Begin(
     GfxCmdBuffer*     pCmdBuffer,
     Pal::CmdStream*   pCmdStream,
+    Pal::CmdStream*   pHybridCmdStream,
     QueryType         queryType,
     uint32            slot,
     QueryControlFlags flags
@@ -138,7 +139,7 @@ void PipelineStatsQueryPool::Begin(
 
     gpusize gpuAddr = 0;
     Result  result  = GetQueryGpuAddress(slot, &gpuAddr);
-    gpuAddr += offsetof(Gfx9PipelineStatsDataPair, begin);
+    gpuAddr        += offsetof(Gfx9PipelineStatsDataPair, begin);
 
     if ((result == Result::Success) && pCmdBuffer->IsQueryAllowed(QueryPoolType::PipelineStats))
     {
@@ -159,9 +160,9 @@ void PipelineStatsQueryPool::Begin(
             gpuAddr = beginQueryAddr;
 
             WriteDataInfo writeData = {};
-            writeData.engineType = engineType;
-            writeData.dstAddr    = gpuAddr;
-            writeData.dstSel     = dst_sel__mec_write_data__memory;
+            writeData.engineType    = engineType;
+            writeData.dstAddr       = gpuAddr;
+            writeData.dstSel        = dst_sel__mec_write_data__memory;
 
             pCmdSpace += CmdUtil::BuildWriteData(writeData, DwordsToWrite, pData, pCmdSpace);
 
@@ -174,8 +175,11 @@ void PipelineStatsQueryPool::Begin(
                                                    gpuAddr,
                                                    pCmdSpace);
 
-        gpuAddr   = beginQueryAddr + offsetof(Gfx9PipelineStatsData, msInvocations);
-        pCmdSpace = CopyMeshPipeStatsToQuerySlots(pCmdBuffer, gpuAddr, pCmdSpace);
+        {
+            // Navi2X requires software emulation for Mesh and Task Shader pipeline stats.
+            gpuAddr   = beginQueryAddr + offsetof(Gfx9PipelineStatsData, msInvocations);
+            pCmdSpace = CopyMeshPipeStatsToQuerySlots(pCmdBuffer, gpuAddr, pCmdSpace);
+        }
 
         pCmdStream->CommitCommands(pCmdSpace);
     }
@@ -186,6 +190,7 @@ void PipelineStatsQueryPool::Begin(
 void PipelineStatsQueryPool::End(
     GfxCmdBuffer*   pCmdBuffer,
     Pal::CmdStream* pCmdStream,
+    Pal::CmdStream* pHybridCmdStream,
     QueryType       queryType,
     uint32          slot
     ) const
@@ -221,9 +226,9 @@ void PipelineStatsQueryPool::End(
             gpuAddr = endQueryAddr;
 
             WriteDataInfo writeData = {};
-            writeData.engineType = engineType;
-            writeData.dstAddr    = gpuAddr;
-            writeData.dstSel     = dst_sel__mec_write_data__memory;
+            writeData.engineType    = engineType;
+            writeData.dstAddr       = gpuAddr;
+            writeData.dstSel        = dst_sel__mec_write_data__memory;
 
             pCmdSpace += CmdUtil::BuildWriteData(writeData, DwordsToWrite, pData, pCmdSpace);
 
@@ -236,8 +241,11 @@ void PipelineStatsQueryPool::End(
                                                    gpuAddr,
                                                    pCmdSpace);
 
-        gpuAddr   = endQueryAddr + offsetof(Gfx9PipelineStatsData, msInvocations);
-        pCmdSpace = CopyMeshPipeStatsToQuerySlots(pCmdBuffer, gpuAddr, pCmdSpace);
+        {
+            // Navi2X requires software emulation for Mesh and Task Shader pipeline stats.
+            gpuAddr   = endQueryAddr + offsetof(Gfx9PipelineStatsData, msInvocations);
+            pCmdSpace = CopyMeshPipeStatsToQuerySlots(pCmdBuffer, gpuAddr, pCmdSpace);
+        }
 
         ReleaseMemInfo releaseInfo = {};
         releaseInfo.engineType     = engineType;

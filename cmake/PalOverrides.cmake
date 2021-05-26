@@ -51,6 +51,7 @@ if(PAL_BUILD_GPUOPEN)
 
     # PAL override to build GPUOpen with support for the standard driver protocols
     pal_override(GPUOPEN_BUILD_STANDARD_DRIVER_PROTOCOLS ON)
+
 endif()
 
 # GPU Overrides

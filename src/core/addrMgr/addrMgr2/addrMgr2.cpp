@@ -696,6 +696,7 @@ Result AddrMgr2::ComputePlaneSwizzleMode(
     ADDR2_GET_PREFERRED_SURF_SETTING_INPUT surfSettingInput = { };
     surfSettingInput.size            = sizeof(surfSettingInput);
     surfSettingInput.format          = Image::GetAddrFormat(pBaseSubRes->format.format);
+    surfSettingInput.noXor           = false;
     surfSettingInput.bpp             = Formats::BitsPerPixel(pBaseSubRes->format.format);
     surfSettingInput.width           = createInfo.extent.width;
     surfSettingInput.height          = createInfo.extent.height;
@@ -711,13 +712,6 @@ Result AddrMgr2::ComputePlaneSwizzleMode(
 #endif
     surfSettingInput.resourceType    = GetAddrResourceType(pImage);
     surfSettingInput.resourceLoction = ADDR_RSRC_LOC_UNDEF;
-
-    // Starting from gfx10, depth-stencil target image only supports xor swizzle modes,
-    // so addr2DisableXorTileMode cannot apply here.
-    if ((createInfo.usageFlags.depthStencil == 0) || (IsGfx10(*m_pDevice) == false))
-    {
-        surfSettingInput.noXor = settings.addr2DisableXorTileMode;
-    }
 
     // Note: This is used by the AddrLib as an additional clamp on 4kB vs. 64kB swizzle modes. It can be set to zero
     // to force the AddrLib to chose the most optimal mode.
