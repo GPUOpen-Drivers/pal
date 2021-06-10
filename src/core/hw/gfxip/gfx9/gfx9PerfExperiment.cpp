@@ -220,6 +220,12 @@ static regSQ_THREAD_TRACE_TOKEN_MASK GetGfx10SqttTokenMask(
     const ThreadTraceTokenConfig& tokenConfig)
 {
     regSQ_THREAD_TRACE_TOKEN_MASK value = {};
+    if (IsGfx103Plus(device))
+    {
+        // Setting SPI_CONFIG_CNTL.bits.ENABLE_SQG_BOP_EVENTS to 1 only allows SPI to send BOP events to SQG.
+        // If BOP_EVENTS_TOKEN_INCLUDE is 0, SQG will not issue BOP event token writes to SQTT buffer.
+        value.gfx103Plus.BOP_EVENTS_TOKEN_INCLUDE = 1;
+    }
 
     const uint32 tokenExclude       = ~tokenConfig.tokenMask;
     const bool   vmemExecExclude    = TestAnyFlagSet(tokenExclude, ThreadTraceTokenTypeFlags::VmemExec);
@@ -907,10 +913,14 @@ Result PerfExperiment::AddSpmCounter(
 
                     // The SQG doesn't support 16-bit counters and only has one 32-bit counter per select register.
                     // As long as the counter doesn't wrap over 16 bits we can enable a 32-bit counter and treat
-                    // it exactly like a 16-bit counter and still get useful data.
+                    // it exactly like a 16-bit counter and still get useful data. Note that "LEVEL" counters require
+                    // us to use the no-clamp & no-reset SPM mode.
+                    const uint32 spmMode = IsSqLevelEvent(info.eventId) ? PERFMON_SPM_MODE_32BIT_NO_CLAMP
+                                                                        : PERFMON_SPM_MODE_32BIT_CLAMP;
+
                     m_select.sqg[info.instance].perfmonInUse[idx]           = true;
                     m_select.sqg[info.instance].perfmon[idx].bits.PERF_SEL  = info.eventId;
-                    m_select.sqg[info.instance].perfmon[idx].bits.SPM_MODE  = PERFMON_SPM_MODE_32BIT_CLAMP;
+                    m_select.sqg[info.instance].perfmon[idx].bits.SPM_MODE  = spmMode;
                     m_select.sqg[info.instance].perfmon[idx].bits.PERF_MODE = PERFMON_COUNTER_MODE_ACCUM;
 
                     // The SQC client mask and SIMD mask only exist on gfx9.
@@ -3867,6 +3877,109 @@ bool PerfExperiment::HasRmiSubInstances(
     ) const
 {
     return (block == GpuBlock::Rmi);
+}
+
+// =====================================================================================================================
+// Assuming this is an SQ counter select, return true if it's a "LEVEL" counter, which require special SPM handling.
+bool PerfExperiment::IsSqLevelEvent(
+    uint32 eventId
+    ) const
+{
+    bool isLevelEvent = false;
+
+    if (IsGfx10(m_chipProps.gfxLevel))
+    {
+        if (eventId == SQ_PERF_SEL_LEVEL_WAVES__GFX10PLUS)
+        {
+            isLevelEvent = true;
+        }
+        else if ((eventId >= SQC_PERF_SEL_ICACHE_INFLIGHT_LEVEL__GFX10) &&
+                 (eventId <= SQC_PERF_SEL_DCACHE_TC_INFLIGHT_LEVEL__GFX10))
+        {
+            isLevelEvent = true;
+        }
+        else if (eventId == SQC_PERF_SEL_ICACHE_UTCL0_INFLIGHT_LEVEL__GFX101)
+        {
+            isLevelEvent = true;
+        }
+        else if (eventId == SQC_PERF_SEL_ICACHE_UTCL1_INFLIGHT_LEVEL__GFX101)
+        {
+            isLevelEvent = true;
+        }
+        else if (eventId == SQC_PERF_SEL_DCACHE_UTCL0_INFLIGHT_LEVEL__GFX101)
+        {
+            isLevelEvent = true;
+        }
+        else if (eventId == SQC_PERF_SEL_DCACHE_UTCL1_INFLIGHT_LEVEL__GFX101)
+        {
+            isLevelEvent = true;
+        }
+        else
+        {
+            if ((eventId >= SQ_PERF_SEL_INST_LEVEL_EXP__GFX10CORE) &&
+                (eventId <= SQ_PERF_SEL_INST_LEVEL_TEX_STORE__GFX10CORE))
+            {
+                isLevelEvent = true;
+            }
+            else if (eventId == SQ_PERF_SEL_IFETCH_LEVEL__GFX10CORE)
+            {
+                isLevelEvent = true;
+            }
+            else if ((eventId >= SQ_PERF_SEL_USER_LEVEL0__GFX10CORE) &&
+                     (eventId <= SQ_PERF_SEL_USER_LEVEL15__GFX10CORE))
+            {
+                isLevelEvent = true;
+            }
+        }
+    }
+    else
+    {
+        if (eventId == SQ_PERF_SEL_LEVEL_WAVES__GFX09)
+        {
+            isLevelEvent = true;
+        }
+        else if (eventId == SQ_PERF_SEL_LEVEL_WAVES_CU__GFX09)
+        {
+            isLevelEvent = true;
+        }
+        else if ((eventId >= SQ_PERF_SEL_INST_LEVEL_VMEM__GFX09) &&
+                 (eventId <= SQ_PERF_SEL_INST_LEVEL_EXP__GFX09))
+        {
+            isLevelEvent = true;
+        }
+        else if (eventId == SQ_PERF_SEL_IFETCH_LEVEL__GFX09)
+        {
+            isLevelEvent = true;
+        }
+        else if ((eventId >= SQ_PERF_SEL_USER_LEVEL0__GFX09) &&
+                 (eventId <= SQ_PERF_SEL_USER_LEVEL15__GFX09))
+        {
+            isLevelEvent = true;
+        }
+        else if ((eventId >= SQC_PERF_SEL_ICACHE_INFLIGHT_LEVEL__GFX09) &&
+                 (eventId <= SQC_PERF_SEL_DCACHE_TC_INFLIGHT_LEVEL__GFX09))
+        {
+            isLevelEvent = true;
+        }
+        else if (eventId == SQC_PERF_SEL_ICACHE_UTCL1_INFLIGHT_LEVEL__GFX09)
+        {
+            isLevelEvent = true;
+        }
+        else if (eventId == SQC_PERF_SEL_ICACHE_UTCL2_INFLIGHT_LEVEL__GFX09)
+        {
+            isLevelEvent = true;
+        }
+        else if (eventId == SQC_PERF_SEL_DCACHE_UTCL1_INFLIGHT_LEVEL__GFX09)
+        {
+            isLevelEvent = true;
+        }
+        else if (eventId == SQC_PERF_SEL_DCACHE_UTCL2_INFLIGHT_LEVEL__GFX09)
+        {
+            isLevelEvent = true;
+        }
+    }
+
+    return isLevelEvent;
 }
 
 } // gfx9

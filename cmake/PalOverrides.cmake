@@ -39,20 +39,18 @@ pal_override(ADDR_SI_CHIP_DIR "${PROJECT_SOURCE_DIR}/src/core/hw/gfxip/gfx6/chip
 # VAM
 
 # GPUOPEN
-if(PAL_BUILD_GPUOPEN)
-    # PAL override to build GPUOpen without the Metrohash library since PAL has its own.
-    pal_override(GPUOPEN_BUILD_METROHASH OFF)
 
-    # PAL override to specify the path to the MetroHash module.
-    pal_override(METROHASH_PATH "${PAL_METROHASH_PATH}/src")
+# PAL override to build GPUOpen without the Metrohash library since PAL has its own.
+pal_override(GPUOPEN_BUILD_METROHASH OFF)
 
-    # PAL override to build GPUOpen with server helper classes
-    pal_override(GPUOPEN_BUILD_SERVER_HELPERS ON)
+# PAL override to specify the path to the MetroHash module.
+pal_override(METROHASH_PATH "${PAL_METROHASH_PATH}/src")
 
-    # PAL override to build GPUOpen with support for the standard driver protocols
-    pal_override(GPUOPEN_BUILD_STANDARD_DRIVER_PROTOCOLS ON)
+# PAL override to build GPUOpen with server helper classes
+pal_override(GPUOPEN_BUILD_SERVER_HELPERS ON)
 
-endif()
+# PAL override to build GPUOpen with support for the standard driver protocols
+pal_override(GPUOPEN_BUILD_STANDARD_DRIVER_PROTOCOLS ON)
 
 # GPU Overrides
 

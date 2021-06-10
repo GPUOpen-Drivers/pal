@@ -284,6 +284,26 @@ enum OutOfOrderPrimMode : uint32
     OutOfOrderPrimAlways = 3,
 };
 
+constexpr uint32 PipelineStagesGraphicsOnly = PipelineStageVs            |
+                                              PipelineStageHs            |
+                                              PipelineStageDs            |
+                                              PipelineStageGs            |
+                                              PipelineStagePs            |
+                                              PipelineStageEarlyDsTarget |
+                                              PipelineStageLateDsTarget  |
+                                              PipelineStageColorTarget;
+
+constexpr uint32 CacheCoherencyGraphicsOnly = CoherColorTarget        |
+                                              CoherDepthStencilTarget |
+                                              CoherSampleRate         |
+                                              CoherCeLoad             |
+                                              CoherCeDump             |
+                                              CoherStreamOut;
+
+// There are various BLTs(Copy, Clear, and Resolve) that can involve different caches based on what engine
+// does the BLT.
+constexpr uint32 CacheCoherencyBlt = CoherCopy | CoherClear | CoherResolve;
+
 // =====================================================================================================================
 // Abstract class for accessing a Device's hardware-specific functionality common to all GFXIP hardware layers.
 class GfxDevice

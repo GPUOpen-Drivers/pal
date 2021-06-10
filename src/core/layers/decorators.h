@@ -136,9 +136,7 @@ extern IQueue*                NextQueue(const IQueue* pQueue);
 extern IQueueSemaphore*       NextQueueSemaphore(const IQueueSemaphore* pQueueSemaphore);
 extern IScreen*               NextScreen(const IScreen* pScreen);
 extern IShaderLibrary*        NextShaderLibrary(const IShaderLibrary* pLibrary);
-extern IScissorState*         NextScissorState(const IScissorState* pScissorState);
 extern ISwapChain*            NextSwapChain(const ISwapChain* pSwapChain);
-extern IViewportState*        NextViewportState(const IViewportState* pViewportState);
 
 // =====================================================================================================================
 // Templated function for getting the previous layer that wraps the one passed in.
@@ -1141,27 +1139,6 @@ public:
     IDevice*                  GetNextLayer() const { return m_pNextLayer; }
     PlatformDecorator*        GetPlatform()  const { return m_pPlatform; }
 
-#if defined(PAL_DOPP)
-    virtual Result SetPrimarySourceIDForDopp(Pal::IScreen* pScreen) override
-    {
-        return Result::Unsupported;
-    }
-
-    virtual Result GetDoppPrimarySurfaceInfo(Pal::Extent3d* pDesktopProp) override
-    {
-        return Result::Unsupported;
-    }
-
-    virtual Result EnablePostProcessDopp(bool enable) override
-    {
-        return Result::Unsupported;
-    }
-
-    virtual Result PresentTextureToVideoDopp(Pal::IGpuMemory* pPresentTexture, bool isBlocking) override
-    {
-        return Result::Unsupported;
-    }
-#endif
 protected:
     DeviceFinalizeInfo      m_finalizeInfo;
     IDevice*const           m_pNextLayer;
@@ -1409,6 +1386,17 @@ public:
         { m_pNextLayer->CmdSetColorWriteMask(params); }
 
     virtual void CmdBarrier(const BarrierInfo& barrierInfo) override;
+
+    virtual void OptimizeBarrierReleaseInfo(
+        uint32       pipePointCount,
+        HwPipePoint* pPipePoints,
+        uint32*      pCacheMask) const override
+    { m_pNextLayer->OptimizeBarrierReleaseInfo(pipePointCount, pPipePoints, pCacheMask); }
+
+    virtual void OptimizeAcqRelReleaseInfo(
+        uint32*                   pStageMask,
+        uint32*                   pAccessMask) const override
+    { m_pNextLayer->OptimizeAcqRelReleaseInfo(pStageMask, pAccessMask); }
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
     virtual uint32 CmdRelease(
@@ -2812,6 +2800,7 @@ private:
     PAL_DISALLOW_COPY_AND_ASSIGN(QueryPoolDecorator);
 };
 
+// =====================================================================================================================
 class ShaderLibraryDecorator : public IShaderLibrary
 {
 public:

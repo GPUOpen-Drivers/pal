@@ -193,7 +193,9 @@ static void DrmHandleDevice(
     wl_drm*     pDrm,
     const char* pName)
 {
+    WaylandWindowSystem* pWaylandWindowSystem = static_cast<WaylandWindowSystem*>(pData);
 
+    pWaylandWindowSystem->SetDeviceName(pName);
 }
 
 // =====================================================================================================================
@@ -481,7 +483,7 @@ WaylandWindowSystem::WaylandWindowSystem(
     m_capabilities(0),
     m_surfaceVersion(0)
 {
-
+    memset(m_deviceName, 0, sizeof(m_deviceName));
 }
 
 // =====================================================================================================================
@@ -633,6 +635,11 @@ Result WaylandWindowSystem::Init()
     {
         m_waylandProcs.pfnWlProxySetQueue(reinterpret_cast<wl_proxy*>(m_pSurfaceWrapper), m_pSurfaceEventQueue);
         m_waylandProcs.pfnWlProxyDestroy(reinterpret_cast<wl_proxy*>(pRegistry));
+    }
+
+    if (result == Result::Success)
+    {
+        m_device.IsSameGpu(m_deviceName, &m_presentOnSameGpu);
     }
 
     return result;

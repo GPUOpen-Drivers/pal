@@ -425,8 +425,9 @@ public:
     GfxCmdBufferState GetGfxCmdBufState() const { return m_gfxCmdBufState; }
 
     // Helper functions
-    HwPipePoint OptimizeHwPipePostBlit() const;
-    void OptimizePipeAndCacheMaskForRelease(uint32* pStageMask, uint32* pAccessMask) const;
+    void OptimizePipePoint(HwPipePoint* pPipePoint) const;
+    void OptimizeSrcCacheMask(uint32* pCacheMask) const;
+    virtual void OptimizePipeAndCacheMaskForRelease(uint32* pStageMask, uint32* pAccessMask) const;
     void SetGfxCmdBufGfxBltState(bool gfxBltActive);
     void SetGfxCmdBufCsBltState(bool csBltActive);
     void SetGfxCmdBufCpBltState(bool cpBltActive) { m_gfxCmdBufState.flags.cpBltActive = cpBltActive; }
@@ -615,6 +616,13 @@ protected:
     virtual void InheritStateFromCmdBuf(const GfxCmdBuffer* pCmdBuffer) = 0;
 
     virtual bool SupportsExecutionMarker() override { return true; }
+
+    virtual void OptimizeBarrierReleaseInfo(
+        uint32       pipePointCount,
+        HwPipePoint* pPipePoints,
+        uint32*      pCacheMask) const override;
+
+    virtual void OptimizeAcqRelReleaseInfo(uint32* pStageMask, uint32* pAccessMask) const override;
 
     uint32            m_engineSupport;       // Indicates which engines are supported by the command buffer.
                                              // Populated by the GFXIP-specific layer.

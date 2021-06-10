@@ -1439,15 +1439,9 @@ void LogContext::Struct(
         Value("explicitSync");
     }
 #endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 659
-    if (value.doppDesktopTexture)
-    {
-        Value("doppDesktopTexture");
-    }
-    static_assert(CheckReservedBits<GpuMemoryCreateFlags>(32, 4), "Need to update interfaceLogger!");
-#else
+
     static_assert(CheckReservedBits<GpuMemoryCreateFlags>(32, 5), "Need to update interfaceLogger!");
-#endif
+
     EndList();
 }
 
@@ -2809,12 +2803,18 @@ void LogContext::Struct(
     KeyAndValue("numNodes", value.numNodes);
     KeyAndValue("boxGrowValue", value.boxGrowValue);
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 668
+    KeyAndEnum("boxSortHeuristic", value.boxSortHeuristic);
+#endif
+
     KeyAndBeginList("flags", true);
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 668
     if (value.flags.findNearest)
     {
         Value("findNearest");
     }
+#endif
 
     if (value.flags.useZeroOffset)
     {

@@ -114,6 +114,19 @@ public:
         const ColorWriteMaskParams& params) override;
     virtual void CmdBarrier(
         const BarrierInfo& barrierInfo) override;
+    virtual void OptimizeBarrierReleaseInfo(
+        uint32       pipePointWaitCount,
+        HwPipePoint* pPipePoints,
+        uint32*      pCacheMask) const override
+    {
+        GetNextLayer()->OptimizeBarrierReleaseInfo(pipePointWaitCount, pPipePoints, pCacheMask);
+    }
+    virtual void OptimizeAcqRelReleaseInfo(
+        uint32* pStageMask,
+        uint32* pAccessMask) const override
+    {
+        GetNextLayer()->OptimizeAcqRelReleaseInfo(pStageMask, pAccessMask);
+    }
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
     virtual uint32 CmdRelease(
         const AcquireReleaseInfo& releaseInfo) override;

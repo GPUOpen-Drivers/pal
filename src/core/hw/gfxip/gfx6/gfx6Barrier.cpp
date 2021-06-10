@@ -1023,25 +1023,29 @@ void Device::Barrier(
     {
         HwPipePoint pipePoint = barrier.pPipePoints[i];
 
-        // CP blts use asynchronous CP DMA operations which are executed in parallel to our usual pipeline. This means
-        // that we must sync CP DMA in any case that might expect the results of the CP blt to be available. Luckily
-        // PAL only uses CP blts to optimize blt operations so we only need to sync if a pipe point is HwPipePostBlt
-        // or later.
-        if (cmdBufState.flags.cpBltActive && (pipePoint >= HwPipePostBlt))
-        {
-            globalSyncReqs.syncCpDma = 1;
-        }
+        pCmdBuf->OptimizePipePoint(&pipePoint);
 
-        if (pipePoint == HwPipePostBlt)
+        if (cmdBufState.flags.cpBltActive)
         {
-            // HwPipePostBlt barrier optimization
-            pipePoint = pCmdBuf->OptimizeHwPipePostBlit();
+            // CP blts use asynchronous CP DMA operations which are executed in parallel to our usual pipeline. This
+            // means that we must sync CP DMA in any case that might expect the results of the CP blt to be available.
+            // PAL only uses CP blts to optimize blt operations so technically we only need to sync if a pipe point is
+            // HwPipePostBlt or later. However barrier may receive PipePoint that HwPipePostBlt has been optimized to
+            // HwPipePostCs/HwPipeBottomOfPipe, so there is chance we need a CpDma sync for HePipePostCs or later.
+            globalSyncReqs.syncCpDma = (pipePoint >= HwPipePostCs);
+
+            if (pipePoint == HwPipePostBlt)
+            {
+                // Note that we set this to post index fetch, which is earlier in the pipeline than our CP blts,
+                // because we just handled CP DMA syncronization. This pipe point is still necessary to catch cases
+                // when the caller wishes to sync up to the top of the pipeline.
+                pipePoint = HwPipePostIndexFetch;
+            }
         }
-        else if (pipePoint == HwPipePreColorTarget)
+        else
         {
-            // HwPipePreColorTarget is only valid as wait point. But for the sake of robustness, if it's used as pipe
-            // point to wait on, it's equivalent to HwPipePostPs.
-            pipePoint = HwPipePostPs;
+            // After the pipePoint optimization if there is no CP DMA Blt in-flight it cannot stay in HwPipePostBlt.
+            PAL_ASSERT(pipePoint != HwPipePostBlt);
         }
 
         if (pipePoint > waitPoint)
@@ -1084,22 +1088,7 @@ void Device::Barrier(
         uint32       srcCacheMask = (barrier.globalSrcCacheMask | transition.srcCacheMask);
         const uint32 dstCacheMask = (barrier.globalDstCacheMask | transition.dstCacheMask);
 
-        // There are various srcCache BLTs (Copy, Clear, and Resolve) which we can further optimize if we know which
-        // write caches have been dirtied:
-        // - If a graphics BLT occurred, alias these srcCaches to CoherColorTarget.
-        // - If a compute BLT occurred, alias these srcCaches to CoherShader.
-        // - If a CP L2 BLT occured, alias these srcCaches to CoherShader (this isn't good but we have no CoherL2).
-        // - If a CP direct-to-memory write occured, alias these srcCaches to CoherMemory.
-        // Clear the original srcCaches from the srcCache mask for the rest of this scope.
-        if (TestAnyFlagSet(srcCacheMask, CoherCopy | CoherClear | CoherResolve))
-        {
-            srcCacheMask &= ~(CoherCopy | CoherClear | CoherResolve);
-
-            srcCacheMask |= cmdBufState.flags.gfxWriteCachesDirty       ? CoherColorTarget : 0;
-            srcCacheMask |= cmdBufState.flags.csWriteCachesDirty        ? CoherShader      : 0;
-            srcCacheMask |= cmdBufState.flags.cpWriteCachesDirty        ? CoherShader      : 0;
-            srcCacheMask |= cmdBufState.flags.cpMemoryWriteL2CacheStale ? CoherMemory      : 0;
-        }
+        pCmdBuf->OptimizeSrcCacheMask(&srcCacheMask);
 
         // alwaysL2Mask is a mask of usages that always read/write through the L2 cache.
         uint32 alwaysL2Mask = CoherShader | CoherStreamOut | CoherQueueAtomic | CoherCeDump;
@@ -1109,7 +1098,7 @@ void Device::Barrier(
         }
 
         // MaybeL2Mask is a mask of usages that may or may not read/write through the L2 cache.
-        const uint32 MaybeL2Mask = alwaysL2Mask | CoherCopy | CoherResolve | CoherClear;
+        const uint32 MaybeL2Mask = alwaysL2Mask | CacheCoherencyBlt;
 
         // Flush/invalidate L2 if:
         //     - Flush case:      Prior output might have been through L2 and upcoming reads/writes might not be
@@ -1122,7 +1111,7 @@ void Device::Barrier(
             globalSyncReqs.cpCoherCntl.bits.TC_ACTION_ENA = 1;
         }
 
-        constexpr uint32 MaybeL1ShaderMask = (CoherShader | CoherStreamOut | CoherCopy | CoherResolve | CoherClear);
+        constexpr uint32 MaybeL1ShaderMask = (CoherShader | CoherStreamOut | CacheCoherencyBlt);
 
         // Invalidate L1 shader caches if the previous output may have done shader writes, since there is no coherence
         // between different CUs' TCP (vector L1) caches.  Invalidate TCP and SQ-K cache (scalar read cache) if this

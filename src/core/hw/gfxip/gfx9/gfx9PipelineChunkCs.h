@@ -121,7 +121,7 @@ public:
     gpusize CsProgramGpuVa() const
         { return GetOriginalAddress(m_regs.computePgmLo.bits.DATA, 0); }
 
-    const HwRegInfo HWInfo() const { return m_regs; }
+    HwRegInfo HwInfo() const { return m_regs; }
 
     void UpdateComputePgmRsrsAfterLibraryLink(
         regCOMPUTE_PGM_RSRC1 Rsrc1,

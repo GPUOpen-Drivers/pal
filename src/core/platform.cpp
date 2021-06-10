@@ -401,12 +401,8 @@ bool Platform::OverrideGpuId(
 // This function should be called before device enumeration.
 Result Platform::EarlyInitDevDriver()
 {
-    bool isConnectionAvailable = false;
     DevDriver::HostInfo hostInfo = DevDriver::kDefaultNamedPipe;
-#if PAL_ENABLE_DEVDRIVER_USAGE
-    isConnectionAvailable = DevDriver::DevDriverServer::IsConnectionAvailable(hostInfo);
-
-#endif
+    bool isConnectionAvailable = DevDriver::DevDriverServer::IsConnectionAvailable(hostInfo);
 
     DevDriver::Result devDriverResult = DevDriver::Result::Success;
     if (isConnectionAvailable)

@@ -948,6 +948,8 @@ struct GpuChipProperties
                 uint64 reserved                           : 19;
             };
 
+            RayTracingIpLevel rayTracingIp;      //< HW RayTracing IP version
+
             Gfx9PerfCounterInfo perfCounterInfo; // Contains info for perf counters for a specific hardware block
 
         } gfx9;

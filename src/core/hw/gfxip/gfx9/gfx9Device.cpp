@@ -4595,6 +4595,13 @@ void PAL_STDCALL Device::Gfx10CreateSamplerSrds(
     } // end loop through SRDs
 }
 
+static_assert(static_cast<uint32>(Pal::BoxSortHeuristic::ClosestFirst) == 0,
+    "HW value is not identical to Pal::BoxSortHeuristic::ClosestFirst enum value.");
+static_assert(static_cast<uint32>(Pal::BoxSortHeuristic::LargestFirst) == 1,
+    "HW value is not identical to Pal::BoxSortHeuristic::LargestFirst enum value.");
+static_assert(static_cast<uint32>(Pal::BoxSortHeuristic::ClosestMidPoint) == 2,
+    "HW value is not identical to Pal::BoxSortHeuristic::ClosestMidPoint enum value.");
+
 // =====================================================================================================================
 // Gfx9+ specific function for creating ray trace SRDs. Installed in the function pointer table of the parent device
 // during initialization.
@@ -4669,13 +4676,15 @@ void PAL_STDCALL Device::CreateBvhSrds(
 
         bvhSrd.triangle_return_mode = bvhInfo.flags.returnBarycentrics;
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 668
         //    boolean to enable sorting the box intersect results
         bvhSrd.box_sort_en  = bvhInfo.flags.findNearest;
+#else
+        bvhSrd.box_sort_en = (bvhInfo.boxSortHeuristic == BoxSortHeuristic::Disabled) ? false : true;
+#endif
 
         //    MSB must be set-- 0x8
         bvhSrd.type         = 0x8;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 639
-#endif
 
         memcpy(VoidPtrInc(pOut, idx * sizeof(sq_bvh_rsrc_t)),
                &bvhSrd,
@@ -4812,7 +4821,10 @@ void InitializeGpuChipProperties(
     pInfo->gfxip.supportGl2Uncached      = 1;
     pInfo->gfxip.gl2UncachedCpuCoherency = (CoherCpu | CoherShader | CoherIndirectArgs | CoherIndexData |
                                             CoherQueueAtomic | CoherTimestamp | CoherCeLoad | CoherCeDump |
-                                            CoherStreamOut | CoherMemory | CoherSampleRate);
+                                            CoherStreamOut | CoherMemory | CoherCp
+                                            | CoherSampleRate
+                                           );
+
     pInfo->gfxip.supportCaptureReplay    = 1;
 
     pInfo->gfxip.maxUserDataEntries      = MaxUserDataEntries;
@@ -5142,6 +5154,7 @@ void InitializeGpuChipProperties(
     pInfo->nullSrds.pNullSampler    = &NullSampler;
 
     // Setup anything specific to a given GFXIP level here
+    pInfo->gfx9.rayTracingIp = RayTracingIpLevel::_None;
     if (pInfo->gfxLevel == GfxIpLevel::GfxIp9)
     {
         nullBufferView.gfx9.word3.bits.TYPE = SQ_RSRC_BUF;
@@ -5183,6 +5196,11 @@ void InitializeGpuChipProperties(
         pInfo->gfx9.supportCustomWaveBreakSize    = 1;
         pInfo->gfx9.support1xMsaaSampleLocations  = 1;
         pInfo->gfx9.supportSpiPrefPriority        = 1;
+
+        if (IsGfx103Plus(pInfo->gfxLevel))
+        {
+            pInfo->gfx9.rayTracingIp = RayTracingIpLevel::RtIp1_1;
+        }
     }
 
     pInfo->gfxip.numSlotsPerEvent = 1;

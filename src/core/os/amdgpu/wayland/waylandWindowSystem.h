@@ -135,6 +135,8 @@ public:
 
     Result                    AddFormat(wl_drm_format fmt)                  { return m_validFormats.Insert(fmt); }
 
+    void                      SetDeviceName(const char* pName)              { Util::Strncpy(m_deviceName, pName, MaxNodeNameLen); }
+
 private:
     WaylandWindowSystem(const Device& device, const WindowSystemCreateInfo& createInfo);
     virtual ~WaylandWindowSystem();
@@ -168,6 +170,8 @@ private:
     bool                      m_frameCompleted;
     uint32                    m_capabilities;
     uint32                    m_surfaceVersion;
+
+    char                      m_deviceName[MaxNodeNameLen];
 
     PAL_DISALLOW_DEFAULT_CTOR(WaylandWindowSystem);
     PAL_DISALLOW_COPY_AND_ASSIGN(WaylandWindowSystem);

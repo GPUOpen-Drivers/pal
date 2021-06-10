@@ -2370,6 +2370,9 @@ Result Device::GetProperties(
 
             pInfo->gfxipProperties.supportedVrsRates                     = gfx9Props.gfx10.supportedVrsRates;
             pInfo->gfxipProperties.flags.supportVrsWithDsExports         = gfx9Props.gfx10.supportVrsWithDsExports ? 1 : 0;
+
+            pInfo->gfxipProperties.rayTracingIp = gfx9Props.rayTracingIp;
+
             pInfo->gfxipProperties.flags.supportSortAgnosticBarycentrics = gfx9Props.supportSortAgnosticBarycentrics;
 
             PAL_ASSERT((gfx9Props.numShaderEngines <= MaxShaderEngines) &&

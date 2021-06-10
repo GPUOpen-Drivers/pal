@@ -737,11 +737,15 @@ Result PerfExperiment::AddSpmCounter(
 
                     // The SQG doesn't support 16-bit counters and only has one 32-bit counter per select register.
                     // As long as the counter doesn't wrap over 16 bits we can enable a 32-bit counter and treat
-                    // it exactly like a 16-bit counter and still get useful data.
+                    // it exactly like a 16-bit counter and still get useful data. Note that "LEVEL" counters require
+                    // us to use the no-clamp & no-reset SPM mode.
+                    const uint32 spmMode = IsSqLevelEvent(info.eventId) ? PERFMON_SPM_MODE_32BIT_NO_CLAMP
+                                                                        : PERFMON_SPM_MODE_32BIT_CLAMP;
+
                     m_select.sqg[info.instance].perfmonInUse[idx]           = true;
                     m_select.sqg[info.instance].perfmon[idx].bits.PERF_SEL  = info.eventId;
                     m_select.sqg[info.instance].perfmon[idx].bits.SIMD_MASK = DefaultSqSelectSimdMask;
-                    m_select.sqg[info.instance].perfmon[idx].bits.SPM_MODE  = PERFMON_SPM_MODE_32BIT_CLAMP;
+                    m_select.sqg[info.instance].perfmon[idx].bits.SPM_MODE  = spmMode;
                     m_select.sqg[info.instance].perfmon[idx].bits.PERF_MODE = PERFMON_COUNTER_MODE_ACCUM;
 
                     if (m_chipProps.gfxLevel >= GfxIpLevel::GfxIp7)
@@ -2116,6 +2120,67 @@ Result PerfExperiment::BuildInstanceMapping(
     }
 
     return result;
+}
+
+// =====================================================================================================================
+// Assuming this is an SQ counter select, return true if it's a "LEVEL" counter, which require special SPM handling.
+bool PerfExperiment::IsSqLevelEvent(
+    uint32 eventId
+    ) const
+{
+    bool isLevelEvent = false;
+
+    // We should only try to configure SPM on gfx7+.
+    PAL_ASSERT(m_chipProps.gfxLevel >= GfxIpLevel::GfxIp7);
+
+    if (eventId == SQ_PERF_SEL_LEVEL_WAVES)
+    {
+        isLevelEvent = true;
+    }
+    else if (eventId == SQ_PERF_SEL_LEVEL_WAVES_CU__CI__VI)
+    {
+        isLevelEvent = true;
+    }
+    else if ((eventId >= SQ_PERF_SEL_INST_LEVEL_VMEM__CI__VI) &&
+             (eventId <= SQ_PERF_SEL_INST_LEVEL_EXP__CI__VI))
+    {
+        isLevelEvent = true;
+    }
+    else if (eventId == SQ_PERF_SEL_IFETCH_LEVEL__CI__VI)
+    {
+        isLevelEvent = true;
+    }
+    else if ((eventId >= SQ_PERF_SEL_USER_LEVEL0__CI__VI) &&
+             (eventId <= SQ_PERF_SEL_USER_LEVEL15__CI__VI))
+    {
+        isLevelEvent = true;
+    }
+    else if (m_chipProps.gfxLevel == GfxIpLevel::GfxIp7)
+    {
+        if ((eventId >= SQC_PERF_SEL_ICACHE_INFLIGHT_LEVEL__CI) &&
+            (eventId <= SQC_PERF_SEL_DCACHE_TC_INFLIGHT_LEVEL__CI))
+        {
+            isLevelEvent = true;
+        }
+    }
+    else
+    {
+        if ((eventId >= SQC_PERF_SEL_ICACHE_INFLIGHT_LEVEL__VI) &&
+            (eventId <= SQC_PERF_SEL_DCACHE_TC_INFLIGHT_LEVEL__VI))
+        {
+            isLevelEvent = true;
+        }
+        else if (eventId == SQ_PERF_SEL_ATC_INST_LEVEL_VMEM__VI)
+        {
+            isLevelEvent = true;
+        }
+        else if (eventId == SQ_PERF_SEL_ATC_INST_LEVEL_SMEM__VI)
+        {
+            isLevelEvent = true;
+        }
+    }
+
+    return isLevelEvent;
 }
 
 // =====================================================================================================================

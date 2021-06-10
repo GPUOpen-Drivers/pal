@@ -161,6 +161,15 @@ public:
     ///          failed because of an internal failure to allocate system memory.
     Result PushFront(const T& data);
 
+    /// Emplaces a newly constructed item onto the front of the deque.
+    ///
+    /// @param [in] args arguments used to construct the new item.
+    ///
+    /// @returns @ref Success if the item was successfully added to the deque or @ref ErrorOutOfMemory if the operation
+    ///          failed because of an internal failure to allocate system memory.
+    template<typename... Args>
+    Result EmplaceFront(Args&&... args);
+
     /// Pushes a copy of the specified item onto the back of the deque.
     ///
     /// @param [in] data Item to be added to the back of the deque.
@@ -168,6 +177,15 @@ public:
     /// @returns @ref Success if the item was successfully added to the deque or @ref ErrorOutOfMemory if the operation
     ///          failed because of an internal failure to allocate system memory.
     Result PushBack(const T& data);
+
+    /// Emplaces a newly constructed item onto the back of the deque.
+    ///
+    /// @param [in] args arguments used to construct the new item.
+    ///
+    /// @returns @ref Success if the item was successfully added to the deque or @ref ErrorOutOfMemory if the operation
+    ///          failed because of an internal failure to allocate system memory.
+    template<typename... Args>
+    Result EmplaceBack(Args&&... args);
 
     /// Pops the first item off the front of the deque, returning the popped value.
     ///
@@ -186,13 +204,10 @@ public:
     Result PopBack(T* pOut);
 
 private:
+    Result AllocateFront(T**);
+    Result AllocateBack(T**);
     DequeBlockHeader* AllocateNewBlock();
     void FreeUnusedBlock(DequeBlockHeader* pHeader);
-
-    // Acts as a proxy for the destructor of a data element when one is popped.  If T is a native or POD type this
-    // function is safe to be empty.  However, if the objects being stored require complex move/copy/delete semantics
-    // we'd need to have a specialization explicitly declared.
-    void CleanupElement(T* pData) const { }
 
     size_t            m_numElements;         // Number of elements
     const size_t      m_numElementsPerBlock; // Block granularity when we need to alloc a new one
@@ -239,7 +254,11 @@ PAL_INLINE Deque<T, Allocator>::~Deque()
 {
     while (m_pFrontHeader != nullptr)
     {
-        CleanupElement(m_pFront);
+        // Explicitly destroy the removed value if it's non-trivial.
+        if (!std::is_pod<T>::value)
+        {
+            m_pFront->~T();
+        }
         ++m_pFront; // Advance to the next element
         --m_numElements;
 

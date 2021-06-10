@@ -87,6 +87,8 @@ public:
 
     const ShaderStageInfo& StageInfo() const { return m_stageInfo; }
 
+    uint32 PrimAmpFactor() const { return m_regs.context.geNggSubgrpCntl.bits.PRIM_AMP_FACTOR; }
+
 private:
     const Device&  m_device;
 

@@ -36,22 +36,6 @@ namespace Pal
 namespace Gfx9
 {
 
-constexpr uint32 GraphicsOnlyPipeStages = PipelineStageVs            |
-                                          PipelineStageHs            |
-                                          PipelineStageDs            |
-                                          PipelineStageGs            |
-                                          PipelineStagePs            |
-                                          PipelineStageEarlyDsTarget |
-                                          PipelineStageLateDsTarget  |
-                                          PipelineStageColorTarget;
-
-constexpr uint32 GraphicsOnlyCoherFlags = CoherColorTarget        |
-                                          CoherDepthStencilTarget |
-                                          CoherSampleRate         |
-                                          CoherCeLoad             |
-                                          CoherCeDump             |
-                                          CoherStreamOut;
-
 // A structure that helps cache and reuse the calculated BLT transition and sync requests for an image barrier in
 // acquire-release based barrier.
 struct AcqRelTransitionInfo
@@ -97,7 +81,7 @@ static uint32 Gfx9ConvertToAcquireSyncFlags(
     // - If a compute BLT occurred, alias to shader. -> CacheSyncInvSqK$,SqI$,Tcp,TccMd
     // - If a CP L2 BLT occured, alias to L2.        -> None (data is always in TCC as it's the central cache)
     // RB invalidations are guaranteed to be handled in earlier release, so skip any RB sync at acquire.
-    if (TestAnyFlagSet(accessMask, CoherCopy | CoherResolve | CoherClear))
+    if (TestAnyFlagSet(accessMask, CacheCoherencyBlt))
     {
         cacheSyncFlagsMask |= CacheSyncInvSqK$ | CacheSyncInvTcp | CacheSyncInvTccMd;
         pBarrierOps->caches.invalSqK$        = 1;
@@ -523,26 +507,10 @@ AcqRelSyncToken Device::IssueReleaseSync(
     // Converts PipelineStageBlt stage to specific internal pipeline stage, and optimize cache flags for BLTs.
     pCmdBuf->OptimizePipeAndCacheMaskForRelease(&stageMask, &accessMask);
 
-    if (pCmdBuf->IsGraphicsSupported())
-    {
-        // Mark off PS stage if current pipeline doesn't do rasterization.
-        const auto* pUniversalCmdBuf = static_cast<UniversalCmdBuffer*>(pCmdBuf);
-        if (pUniversalCmdBuf->IsRasterizationKilled())
-        {
-            stageMask &= ~PipelineStagePs;
-        }
-    }
-    else
-    {
-        // Mark off all graphics path specific stages if command buffer doesn't support graphics.
-        stageMask  &= ~GraphicsOnlyPipeStages;
-        accessMask &= ~GraphicsOnlyCoherFlags;
-    }
+    // OptimizePipeAndCacheMaskForRelease() has converted these BLT coherency flags to more specific ones.
+    PAL_ASSERT(TestAnyFlagSet(accessMask, CacheCoherencyBlt) == false);
 
     AcqRelSyncToken syncToken = {};
-
-    // OptimizePipeAndCacheMaskForRelease() has converted these BLT coherency flags to more specific ones.
-    PAL_ASSERT(TestAnyFlagSet(accessMask, CoherCopy | CoherResolve | CoherClear) == false);
 
     bool issueRbCacheSyncEvent = false;
 
@@ -724,8 +692,8 @@ void Device::IssueAcquireSync(
 
     if (isGfxSupported == false)
     {
-        stageMask  &= ~GraphicsOnlyPipeStages;
-        accessMask &= ~GraphicsOnlyCoherFlags;
+        stageMask  &= ~PipelineStagesGraphicsOnly;
+        accessMask &= ~CacheCoherencyGraphicsOnly;
     }
 
     // BuildWaitRegMem waits in the ME, if the waitPoint needs to stall at the PFP request a PFP/ME sync.
@@ -1214,9 +1182,8 @@ static bool WaRefreshTccToAlignMetadata(
     {
         // Because we are not able to convert CoherCopy, CoherClear, CoherResolve to specific frontend or backend
         // coherency flags, we cannot make accurate decision here. This code works hard to not over-sync too much.
-        constexpr uint32 UncertainCoherMask = CoherCopy | CoherResolve | CoherClear;
-        constexpr uint32 MaybeTextureCache  = UncertainCoherMask | CoherShader | CoherSampleRate;
-        constexpr uint32 MaybeFixedFunction = UncertainCoherMask | CoherColorTarget | CoherDepthStencilTarget;
+        constexpr uint32 MaybeTextureCache  = CacheCoherencyBlt | CoherShader | CoherSampleRate;
+        constexpr uint32 MaybeFixedFunction = CacheCoherencyBlt | CoherColorTarget | CoherDepthStencilTarget;
 
         if ((TestAnyFlagSet(srcAccessMask, MaybeFixedFunction) && TestAnyFlagSet(dstAccessMask, MaybeTextureCache)) ||
             (TestAnyFlagSet(srcAccessMask, MaybeTextureCache) && TestAnyFlagSet(dstAccessMask, MaybeFixedFunction)))
@@ -1915,7 +1882,7 @@ uint32 Device::Gfx10BuildAcquireGcrCntl(
     // GLK_INV[0] - invalidate enable for shader scalar L0 cache
     // GLV_INV[0] - invalidate enable for shader vector L0 cache
     // GL1_INV[0] - invalidate enable for GL1
-    if (TestAnyFlagSet(accessMask, CoherShader | CoherCopy | CoherResolve | CoherClear | CoherStreamOut |
+    if (TestAnyFlagSet(accessMask, CacheCoherencyBlt | CoherShader | CoherStreamOut |
                                    CoherSampleRate))
     {
         gcrCntl.bits.glmInv = 1;
@@ -2095,24 +2062,8 @@ void Device::IssueReleaseSyncEvent(
 
     pCmdBuf->OptimizePipeAndCacheMaskForRelease(&stageMask, &accessMask);
 
-    if (pCmdBuf->IsGraphicsSupported())
-    {
-        // Mark off PS stage if current pipeline doesn't do rasterization.
-        const auto* pUniversalCmdBuf = static_cast<UniversalCmdBuffer*>(pCmdBuf);
-        if (pUniversalCmdBuf->IsRasterizationKilled())
-        {
-            stageMask &= ~PipelineStagePs;
-        }
-    }
-    else
-    {
-        // Mark off all graphics path specific stages if command buffer doesn't support graphics.
-        stageMask  &= ~GraphicsOnlyPipeStages;
-        accessMask &= ~GraphicsOnlyCoherFlags;
-    }
-
     // OptimizePipeAndCacheMaskForRelease() has converted these BLT coherency flags to more specific ones.
-    PAL_ASSERT(TestAnyFlagSet(accessMask, CoherCopy | CoherResolve | CoherClear) == false);
+    PAL_ASSERT(TestAnyFlagSet(accessMask, CacheCoherencyBlt) == false);
 
     // Issue RELEASE_MEM packets to flush caches (optional) and signal gpuEvent.
     const uint32          numEventSlots               = Parent()->ChipProperties().gfxip.numSlotsPerEvent;
@@ -2292,7 +2243,7 @@ void Device::IssueAcquireSyncEvent(
 
     if (isGfxSupported == false)
     {
-        stageMask &= ~GraphicsOnlyPipeStages;
+        stageMask &= ~PipelineStagesGraphicsOnly;
     }
 
     // BuildWaitRegMem waits in the ME, if the waitPoint needs to stall at the PFP request a PFP/ME sync.

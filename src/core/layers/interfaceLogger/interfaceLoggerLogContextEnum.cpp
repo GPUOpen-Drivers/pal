@@ -1987,6 +1987,27 @@ void LogContext::Enum(
     Value(StringTable[idx]);
 }
 
+// =====================================================================================================================
+void LogContext::Enum(
+    BoxSortHeuristic value)
+{
+    const char* const StringTable[] =
+    {
+        "ClosestFirst",     // 0x0,
+        "LargestFirst",     // 0x1,
+        "ClosestMidPoint",  // 0x2,
+        "Disabled",         // 0x3,
+    };
+
+    static_assert(Util::ArrayLen(StringTable) == static_cast<uint32>(BoxSortHeuristic::Count),
+        "The BoxSortHeuristic type table needs to be updated");
+
+    const uint32 idx = static_cast<uint32>(value);
+    PAL_ASSERT(idx < ArrayLen(StringTable));
+
+    Value(StringTable[idx]);
+}
+
 } // InterfaceLogger
 } // Pal
 

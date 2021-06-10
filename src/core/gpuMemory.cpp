@@ -378,9 +378,7 @@ Result GpuMemory::Init(
         m_flags.peerWritable     = createInfo.flags.peerWritable;
         m_flags.turboSyncSurface = createInfo.flags.turboSyncSurface;
     }
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 659
-    m_flags.isDoppDesktopTexture = createInfo.flags.doppDesktopTexture;
-#endif
+
     m_flags.globallyCoherent     = createInfo.flags.globallyCoherent;
     m_flags.xdmaBuffer           = createInfo.flags.xdmaBuffer || internalInfo.flags.xdmaBuffer;
     m_flags.globalGpuVa          = createInfo.flags.globalGpuVa;

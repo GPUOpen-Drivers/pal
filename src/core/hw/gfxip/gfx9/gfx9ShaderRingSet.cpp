@@ -417,7 +417,7 @@ Result UniversalRingSet::Init()
 
         m_regs.gfxScratchRingSize.bits.WAVES    = pScratchRingGfx->CalculateWaves();
         {
-            m_regs.gfxScratchRingSize.most.WAVESIZE = pScratchRingGfx->CalculateWaveSize();
+            m_regs.gfxScratchRingSize.gfx09_10.WAVESIZE = pScratchRingGfx->CalculateWaveSize();
         }
 
         // Set up the COMPUTE_TMPRING_SIZE for the compute shader scratch ring.
@@ -426,7 +426,7 @@ Result UniversalRingSet::Init()
 
         m_regs.computeScratchRingSize.bits.WAVES    = pScratchRingCs->CalculateWaves();
         {
-            m_regs.computeScratchRingSize.most.WAVESIZE = pScratchRingCs->CalculateWaveSize();
+            m_regs.computeScratchRingSize.gfx09_10.WAVESIZE = pScratchRingCs->CalculateWaveSize();
         }
 
         // The OFFCHIP_GRANULARITY field of VGT_HS_OFFCHIP_PRARM is determined at init-time by the value of the related
@@ -519,12 +519,12 @@ Result UniversalRingSet::Validate(
         // Scratch rings:
         m_regs.gfxScratchRingSize.bits.WAVES        = pScratchRingGfx->CalculateWaves();
         {
-            m_regs.gfxScratchRingSize.most.WAVESIZE     = pScratchRingGfx->CalculateWaveSize();
+            m_regs.gfxScratchRingSize.gfx09_10.WAVESIZE     = pScratchRingGfx->CalculateWaveSize();
         }
 
         m_regs.computeScratchRingSize.bits.WAVES    = pScratchRingCs->CalculateWaves();
         {
-            m_regs.computeScratchRingSize.most.WAVESIZE = pScratchRingCs->CalculateWaveSize();
+            m_regs.computeScratchRingSize.gfx09_10.WAVESIZE = pScratchRingCs->CalculateWaveSize();
         }
 
         // ES/GS and GS/VS ring size registers are in units of 64 DWORD's.
@@ -712,7 +712,7 @@ Result ComputeRingSet::Init()
 
         m_regs.computeScratchRingSize.bits.WAVES    = pScratchRingCs->CalculateWaves();
         {
-            m_regs.computeScratchRingSize.most.WAVESIZE = pScratchRingCs->CalculateWaveSize();
+            m_regs.computeScratchRingSize.gfx09_10.WAVESIZE = pScratchRingCs->CalculateWaveSize();
         }
     }
 
@@ -739,7 +739,7 @@ Result ComputeRingSet::Validate(
 
         m_regs.computeScratchRingSize.bits.WAVES    = pScratchRingCs->CalculateWaves();
         {
-            m_regs.computeScratchRingSize.most.WAVESIZE = pScratchRingCs->CalculateWaveSize();
+            m_regs.computeScratchRingSize.gfx09_10.WAVESIZE = pScratchRingCs->CalculateWaveSize();
         }
 
     }

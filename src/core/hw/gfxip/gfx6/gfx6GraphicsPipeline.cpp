@@ -396,26 +396,6 @@ Result GraphicsPipeline::HwlInit(
         }
     }
 
-    if (result == Result::Success)
-    {
-        ResourceDescriptionPipeline desc = {};
-        desc.pPipelineInfo = &GetInfo();
-        desc.pCreateFlags = &createInfo.flags;
-        ResourceCreateEventData data = {};
-        data.type = ResourceType::Pipeline;
-        data.pResourceDescData = &desc;
-        data.resourceDescSize = sizeof(ResourceDescriptionPipeline);
-        data.pObj = this;
-        m_pDevice->GetPlatform()->GetEventProvider()->LogGpuMemoryResourceCreateEvent(data);
-
-        GpuMemoryResourceBindEventData bindData = {};
-        bindData.pObj = this;
-        bindData.pGpuMemory = m_gpuMem.Memory();
-        bindData.requiredGpuMemSize = m_gpuMemSize;
-        bindData.offset = m_gpuMem.Offset();
-        m_pDevice->GetPlatform()->GetEventProvider()->LogGpuMemoryResourceBindEvent(bindData);
-    }
-
     return result;
 }
 

@@ -5848,8 +5848,22 @@ Result Device::IsSameGpu(
 
     if (result == Result::Success)
     {
-        *pIsSame = (strcasecmp(&m_busId[0], busId) == 0);
+        *pIsSame = (Util::Strcasecmp(&m_busId[0], busId) == 0);
     }
+
+    return result;
+}
+
+// =====================================================================================================================
+// Tell if the present device is same as rendering device
+Result Device::IsSameGpu(
+    char* pDeviceName,
+    bool* pIsSame
+    ) const
+{
+    Result result                   = Result::Success;
+
+    *pIsSame = (Util::Strcasecmp(&m_primaryNodeName[0], pDeviceName) == 0);
 
     return result;
 }
