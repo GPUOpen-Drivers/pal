@@ -63,8 +63,6 @@ class      IIndirectCmdGenerator;
 class      IMsaaState;
 class      IPerfExperiment;
 class      IQueue;
-class      IScissorState;
-class      IViewportState;
 class      IQueryPool;
 enum class PerfTraceMarkerType : uint32;
 enum class PointOrigin : uint32;
@@ -297,25 +295,24 @@ enum ImageLayoutEngineFlags : uint32
 /// GPU memory in a ICmdBuffer::CmdBarrier() call to ensure cache coherency between those usages.
 enum CacheCoherencyUsageFlags : uint32
 {
-    CoherCpu                = 0x00000001,  ///< Data read or written by CPU.
-    CoherShader             = 0x00000002,  ///< Data read or written by a GPU shader.
-    CoherCopy               = 0x00000004,  ///< Data read or written by a ICmdBuffer::CmdCopy*() call.
-    CoherColorTarget        = 0x00000008,  ///< Color target.
-    CoherDepthStencilTarget = 0x00000010,  ///< Depth stencil target.
-    CoherResolve            = 0x00000020,  ///< Source or destination of a CmdResolveImage() call.
-    CoherClear              = 0x00000040,  ///< Destination of a CmdClear() call.
-    CoherIndirectArgs       = 0x00000080,  ///< Source argument data read by CmdDrawIndirect() and similar functions.
-    CoherIndexData          = 0x00000100,  ///< Index buffer data.
-    CoherQueueAtomic        = 0x00000200,  ///< Destination of a CmdMemoryAtomic() call.
-    CoherTimestamp          = 0x00000400,  ///< Destination of a CmdWriteTimestamp() call. It can be extended to
-                                           ///  represent general or other types of L2 access. For example, in
-                                           ///  gl2UncachedCpuCoherency it also indicates IGpuEvent write to
-                                           ///  GL2 will be uncached, because we don't have a CoherEvent flag.
-    CoherCeLoad             = 0x00000800,  ///< Source of a CmdLoadCeRam() call.
-    CoherCeDump             = 0x00001000,  ///< Destination of CmdDumpCeRam() call.
-    CoherStreamOut          = 0x00002000,  ///< Data written as stream output.
-    CoherMemory             = 0x00004000,  ///< Data read or written directly from/to memory
-    CoherSampleRate         = 0x00008000,  ///< CmdBindSampleRateImage() source.
+    CoherCpu                = 0x00000001,     ///< Data read or written by CPU.
+    CoherShader             = 0x00000002,     ///< Data read or written by a GPU shader.
+    CoherCopy               = 0x00000004,     ///< Data read or written by a ICmdBuffer::CmdCopy*() call.
+    CoherColorTarget        = 0x00000008,     ///< Color target.
+    CoherDepthStencilTarget = 0x00000010,     ///< Depth stencil target.
+    CoherResolve            = 0x00000020,     ///< Source or destination of a CmdResolveImage() call.
+    CoherClear              = 0x00000040,     ///< Destination of a CmdClear() call.
+    CoherIndirectArgs       = 0x00000080,     ///< Source argument data read by CmdDrawIndirect() and similar functions.
+    CoherIndexData          = 0x00000100,     ///< Index buffer data.
+    CoherQueueAtomic        = 0x00000200,     ///< Destination of a CmdMemoryAtomic() call.
+    CoherTimestamp          = 0x00000400,     ///< Destination of a CmdWriteTimestamp() call.
+    CoherCeLoad             = 0x00000800,     ///< Source of a CmdLoadCeRam() call.
+    CoherCeDump             = 0x00001000,     ///< Destination of CmdDumpCeRam() call.
+    CoherStreamOut          = 0x00002000,     ///< Data written as stream output.
+    CoherMemory             = 0x00004000,     ///< Data read or written directly from/to memory
+    CoherSampleRate         = 0x00008000,     ///< CmdBindSampleRateImage() source.
+    CoherCp                 = CoherTimestamp, ///< HW Command Processor (CP) encompassing the front - end command
+                                              ///  processing of any queue, including SDMA.
     CoherAllUsages          = 0x0000FFFF
 };
 
@@ -2308,6 +2305,32 @@ public:
     /// @param [in] barrierInfo See @ref BarrierInfo for detailed information.
     virtual void CmdBarrier(
         const BarrierInfo& barrierInfo) = 0;
+
+    /// Perform source pipeline point and cache access optimization based on the legacy barrier interface.
+    ///
+    /// @param [in]     pipePointWaitCount Number of entries in pPipePoints.
+    /// @param [in/out] pPipePoints        Array of @ref HwPipePoint to optimize.
+    /// @param [in/out] pCacheMask         A mask of ORed @ref CacheCoherencyUsageFlags to optimize.
+    ///
+    /// @note HwPipePostBlt will be converted to a more accurate stage based on the underlying implementation of
+    ///       outstanding BLTs, but will be left as HwPipePostBlt if the internal outstanding BLTs can't be expressed
+    ///       as a client-facing HwPipePoint (e.g., if there are CP DMA BLTs in flight).
+    virtual void OptimizeBarrierReleaseInfo(
+        uint32       pipePointWaitCount,
+        HwPipePoint* pPipePoints,
+        uint32*      pCacheMask) const = 0;
+
+    /// Perform source pipeline stage and cache access optimization based on the acquire/release interface.
+    ///
+    /// @param [in/out] pStageMask  A mask of ORed @ref PipelineStageFlag to optimize.
+    /// @param [in/out] pAccessMask A mask of ORed @ref CacheCoherencyUsageFlags to optimize.
+    ///
+    /// @note PipelineStageBlt will be converted to more accurate stage(s) based on the underlying implementation of
+    ///       outstanding BLTs, but will be left as PipelineStageBlt if the internal outstanding BLTs can't be expressed
+    ///       as a client-facing PipelineStage (e.g., if there are CP DMA BLTs in flight).
+    virtual void OptimizeAcqRelReleaseInfo(
+        uint32* pStageMask,
+        uint32* pAccessMask) const = 0;
 
     /// Performs the release portion of an acquire/release-based barrier.  This releases a set of resources from their
     /// current usage, while CmdAcquire() is expected to be called to acquire access to the resources for future,

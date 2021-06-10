@@ -171,6 +171,26 @@ void ComputeCmdBuffer::CmdBarrier(
     m_gfxCmdBufState.flags.packetPredicate = packetPredicate;
 }
 
+// =====================================================================================================================
+void ComputeCmdBuffer::OptimizePipeAndCacheMaskForRelease(
+    uint32* pStageMask,
+    uint32* pAccessMask
+    ) const
+{
+    GfxCmdBuffer::OptimizePipeAndCacheMaskForRelease(pStageMask, pAccessMask);
+
+    // Mark off all graphics path specific stages and caches if command buffer doesn't support graphics.
+    if (pStageMask != nullptr)
+    {
+        *pStageMask  &= ~PipelineStagesGraphicsOnly;
+    }
+
+    if (pAccessMask != nullptr)
+    {
+        *pAccessMask &= ~CacheCoherencyGraphicsOnly;
+    }
+}
+
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
 // =====================================================================================================================
 uint32 ComputeCmdBuffer::CmdRelease(

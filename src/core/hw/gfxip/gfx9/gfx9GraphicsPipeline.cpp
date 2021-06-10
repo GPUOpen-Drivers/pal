@@ -209,7 +209,9 @@ GraphicsPipeline::GraphicsPipeline(
     m_isNggFastLaunch(false),
     m_nggSubgroupSize(0),
     m_uavExportRequiresFlush(false),
+    m_binningAllowed(false),
     m_fetchShaderRegAddr(UserDataNotMapped),
+    m_primAmpFactor(1),
     m_chunkHs(*pDevice,
               &m_perfDataInfo[static_cast<uint32>(Util::Abi::HardwareStage::Hs)]),
     m_chunkGs(*pDevice,
@@ -342,26 +344,6 @@ Result GraphicsPipeline::HwlInit(
         }
     }
 
-    if (result == Result::Success)
-    {
-        ResourceDescriptionPipeline desc = {};
-        desc.pPipelineInfo = &GetInfo();
-        desc.pCreateFlags = &createInfo.flags;
-        ResourceCreateEventData data = {};
-        data.type = ResourceType::Pipeline;
-        data.pResourceDescData = &desc;
-        data.resourceDescSize = sizeof(ResourceDescriptionPipeline);
-        data.pObj = this;
-        m_pDevice->GetPlatform()->GetEventProvider()->LogGpuMemoryResourceCreateEvent(data);
-
-        GpuMemoryResourceBindEventData bindData = {};
-        bindData.pObj = this;
-        bindData.pGpuMemory = m_gpuMem.Memory();
-        bindData.requiredGpuMemSize = m_gpuMemSize;
-        bindData.offset = m_gpuMem.Offset();
-        m_pDevice->GetPlatform()->GetEventProvider()->LogGpuMemoryResourceBindEvent(bindData);
-    }
-
     return result;
 }
 
@@ -421,6 +403,8 @@ void GraphicsPipeline::LateInit(
         hasher.Update(m_regs.uconfig);
         hasher.Finalize(hash.bytes);
         m_configRegHash = MetroHash::Compact32(&hash);
+
+        m_primAmpFactor = m_chunkGs.PrimAmpFactor();
     }
 
     DetermineBinningOnOff();

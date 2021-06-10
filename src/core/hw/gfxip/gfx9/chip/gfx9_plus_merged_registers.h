@@ -5234,7 +5234,7 @@ union COMPUTE_TMPRING_SIZE {
         unsigned int                                                              : 12;
         unsigned int WAVESIZE                                                     : 13;
         unsigned int                                                              :  7;
-    } most;
+    } gfx09_10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -6470,7 +6470,7 @@ union DB_COUNT_CONTROL {
     struct {
         unsigned int ZPASS_INCREMENT_DISABLE                                      :  1;
         unsigned int                                                              : 31;
-    } most;
+    } gfx09_10;
     struct {
         unsigned int                                                              :  2;
         unsigned int DISABLE_CONSERVATIVE_ZPASS_COUNTS                            :  1;
@@ -6833,14 +6833,10 @@ union DB_FGCG_INTERFACES_CLK_CTRL {
         unsigned int                                                              : 25;
     } bits, bitfields;
     struct {
-        unsigned int                                                              :  2;
-        unsigned int DB_CB_LQUAD_OVERRIDE                                         :  1;
-        unsigned int                                                              : 29;
-    } most;
-    struct {
         unsigned int                                                              :  1;
         unsigned int DB_CB_TILE_OVERRIDE                                          :  1;
-        unsigned int                                                              : 30;
+        unsigned int DB_CB_LQUAD_OVERRIDE                                         :  1;
+        unsigned int                                                              : 29;
     } gfx10;
 
     unsigned int u32All;
@@ -7443,7 +7439,7 @@ union DB_RENDER_OVERRIDE {
         unsigned int                                                              : 15;
         unsigned int FORCE_QC_SMASK_CONFLICT                                      :  1;
         unsigned int                                                              : 16;
-    } most;
+    } gfx09_10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -7905,7 +7901,7 @@ union DB_ZPASS_COUNT_HI {
     struct {
         unsigned int COUNT_HI                                                     : 31;
         unsigned int                                                              :  1;
-    } most;
+    } bits, bitfields;
 
     unsigned int u32All;
     signed int   i32All;
@@ -7915,7 +7911,7 @@ union DB_ZPASS_COUNT_HI {
 union DB_ZPASS_COUNT_LOW {
     struct {
         unsigned int COUNT_LOW                                                    : 32;
-    } most;
+    } bits, bitfields;
 
     unsigned int u32All;
     signed int   i32All;
@@ -8832,7 +8828,7 @@ union GCR_PERFCOUNTER0_SELECT {
         unsigned int                                                              :  1;
         unsigned int PERF_SEL1                                                    :  9;
         unsigned int                                                              : 13;
-    } most;
+    } gfx10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -8850,7 +8846,7 @@ union GCR_PERFCOUNTER0_SELECT1 {
         unsigned int                                                              :  1;
         unsigned int PERF_SEL3                                                    :  9;
         unsigned int                                                              : 13;
-    } most;
+    } gfx10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -8883,7 +8879,7 @@ union GCR_PERFCOUNTER1_SELECT {
         unsigned int                                                              : 15;
         unsigned int PERF_MODE                                                    :  4;
         unsigned int CNTL_MODE                                                    :  4;
-    } most;
+    } gfx10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -10224,7 +10220,7 @@ union GE_PC_CNTL {
     struct {
         unsigned int PC_SIZE                                                      : 16;
         unsigned int                                                              : 16;
-    } most;
+    } bits, bitfields;
     struct {
         unsigned int                                                              : 16;
         unsigned int EN_GEN_0_1_LATE_ALLOC                                        :  1;
@@ -14019,16 +14015,16 @@ union PA_CL_VS_OUT_CNTL {
         unsigned int                                                              :  7;
     } bits, bitfields;
     struct {
-        unsigned int                                                              : 25;
-        unsigned int USE_VTX_GS_CUT_FLAG                                          :  1;
-        unsigned int                                                              :  6;
-    } most;
-    struct {
         unsigned int                                                              : 26;
         unsigned int USE_VTX_LINE_WIDTH                                           :  1;
         unsigned int                                                              :  1;
         unsigned int                                                              :  4;
     } gfx09;
+    struct {
+        unsigned int                                                              : 25;
+        unsigned int USE_VTX_GS_CUT_FLAG                                          :  1;
+        unsigned int                                                              :  6;
+    } gfx09_10;
     struct {
         unsigned int                                                              : 26;
         unsigned int                                                              :  1;
@@ -14949,11 +14945,6 @@ union PA_SC_BINNER_EVENT_CNTL_3 {
         unsigned int                                                              :  4;
     } bits, bitfields;
     struct {
-        unsigned int                                                              : 28;
-        unsigned int ENABLE_LEGACY_PIPELINE                                       :  2;
-        unsigned int                                                              :  2;
-    } most;
-    struct {
         unsigned int                                                              :  4;
         unsigned int SX_CB_RAT_ACK_REQUEST                                        :  2;
         unsigned int                                                              :  6;
@@ -14961,6 +14952,11 @@ union PA_SC_BINNER_EVENT_CNTL_3 {
         unsigned int                                                              : 16;
         unsigned int RESERVED_63                                                  :  2;
     } gfx09;
+    struct {
+        unsigned int                                                              : 28;
+        unsigned int ENABLE_LEGACY_PIPELINE                                       :  2;
+        unsigned int                                                              :  2;
+    } gfx09_10;
     struct {
         unsigned int                                                              :  4;
         unsigned int RESERVED_50                                                  :  2;
@@ -27136,7 +27132,7 @@ union SPI_TMPRING_SIZE {
         unsigned int                                                              : 12;
         unsigned int WAVESIZE                                                     : 13;
         unsigned int                                                              :  7;
-    } most;
+    } gfx09_10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -41913,7 +41909,7 @@ union VGT_GS_ONCHIP_CNTL {
         unsigned int ES_VERTS_PER_SUBGRP                                          : 11;
         unsigned int GS_PRIMS_PER_SUBGRP                                          : 11;
         unsigned int GS_INST_PRIMS_IN_SUBGRP                                      : 10;
-    } most;
+    } bits, bitfields;
 
     unsigned int u32All;
     signed int   i32All;

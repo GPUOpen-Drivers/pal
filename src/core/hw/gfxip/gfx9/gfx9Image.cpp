@@ -4157,6 +4157,8 @@ gpusize Image::ComputeNonBlockCompressedView(
     Pal::Device*                           pDevice         = pParent->GetDevice();
     const auto*const                       pAddrOutput     = GetAddrOutput(pBaseSubResInfo);
     const auto&                            surfSetting     = GetAddrSettings(pBaseSubResInfo);
+    const auto*                            pTileInfo       = Pal::AddrMgr2::GetTileInfo(pParent, pBaseSubResInfo->subresId);
+
     // 2D image only
     PAL_ASSERT(surfSetting.resourceType == ADDR_RSRC_TEX_2D);
 
@@ -4172,6 +4174,7 @@ gpusize Image::ComputeNonBlockCompressedView(
     nbcIn.numMipLevels = imageCreateInfo.mipLevels;
     nbcIn.slice        = pMipSubResInfo->subresId.arraySlice;
     nbcIn.mipId        = pMipSubResInfo->subresId.mipLevel;
+    nbcIn.pipeBankXor  = pTileInfo->pipeBankXor;
 
     ADDR2_COMPUTE_NONBLOCKCOMPRESSEDVIEW_OUTPUT nbcOut = {};
     nbcOut.size = sizeof(nbcOut);

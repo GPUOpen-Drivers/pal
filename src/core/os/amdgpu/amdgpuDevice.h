@@ -782,6 +782,10 @@ public:
         int32 presentDeviceFd,
         bool* pIsSame) const;
 
+    Result IsSameGpu(
+        char* pDeviceName,
+        bool* pIsSame) const;
+
     Result ReserveVmid();
     Result UnReserveVmid();
 

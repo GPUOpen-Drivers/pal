@@ -2685,8 +2685,9 @@ size_t CmdUtil::BuildLoadContextRegsIndex(
     constexpr uint32 PacketSize = PM4_PFP_LOAD_CONTEXT_REG_INDEX_SIZEDW__CORE;
     auto*const       pPacket    = static_cast<PM4_PFP_LOAD_CONTEXT_REG_INDEX*>(pBuffer);
     PM4_PFP_LOAD_CONTEXT_REG_INDEX packet = { 0 };
-
-    packet.ordinal1.header.u32All         = (Type3Header(IT_LOAD_CONTEXT_REG_INDEX, PacketSize)).u32All;
+    PM4_PFP_TYPE_3_HEADER header;
+    header.u32All         = (Type3Header(IT_LOAD_CONTEXT_REG_INDEX, PacketSize)).u32All;
+    packet.ordinal1.header                = header;
     packet.ordinal2.u32All                = 0;
     if (directAddress)
     {
@@ -2746,7 +2747,9 @@ size_t CmdUtil::BuildLoadContextRegsIndex(
     auto*const       pPacket    = static_cast<PM4_PFP_LOAD_CONTEXT_REG_INDEX*>(pBuffer);
     PM4_PFP_LOAD_CONTEXT_REG_INDEX packet = { 0 };
 
-    packet.ordinal1.header.u32All         = (Type3Header(IT_LOAD_CONTEXT_REG_INDEX, PacketSize)).u32All;
+    PM4_PFP_TYPE_3_HEADER header;
+    header.u32All          = (Type3Header(IT_LOAD_CONTEXT_REG_INDEX, PacketSize)).u32All;
+    packet.ordinal1.header = header;
 
     packet.ordinal2.u32All                = 0;
     packet.ordinal2.bitfields.index       = index__pfp_load_context_reg_index__direct_addr;
@@ -2842,8 +2845,9 @@ size_t CmdUtil::BuildLoadShRegsIndex(
     auto*const       pPacket    = static_cast<PM4_PFP_LOAD_SH_REG_INDEX*>(pBuffer);
     PM4_PFP_LOAD_SH_REG_INDEX packet = { 0 };
 
-    packet.ordinal1.header.u32All         = (Type3Header(IT_LOAD_SH_REG_INDEX, PacketSize, false, shaderType)).u32All;
-
+    PM4_PFP_TYPE_3_HEADER header;
+    header.u32All         = (Type3Header(IT_LOAD_SH_REG_INDEX, PacketSize, false, shaderType)).u32All;
+    packet.ordinal1.header                = header;
     packet.ordinal2.u32All                = 0;
     packet.ordinal2.bitfields.index       = index__pfp_load_sh_reg_index__direct_addr;
     packet.ordinal2.bitfields.mem_addr_lo = LowPart(gpuVirtAddr) >> 2;
@@ -3371,8 +3375,9 @@ size_t CmdUtil::BuildSetSeqConfigRegs(
                           "uconfig index enumerations have changed across old and new packets!");
         }
     }
-
-    pPacket->ordinal1.header.u32All         = (Type3Header(opCode, packetSize, resetFilterCam)).u32All;
+    PM4_PFP_TYPE_3_HEADER header;
+    header.u32All = (Type3Header(opCode, packetSize, resetFilterCam)).u32All;
+    pPacket->ordinal1.header                = header;
     pPacket->ordinal2.u32All                = Type3Ordinal2((startRegAddr - UCONFIG_SPACE_START), index);
 
     return packetSize;
@@ -3431,7 +3436,9 @@ size_t CmdUtil::BuildSetSeqShRegs(
     const uint32         packetSize = ShRegSizeDwords + endRegAddr - startRegAddr + 1;
     auto*const           pPacket    = static_cast<PM4_ME_SET_SH_REG*>(pBuffer);
 
-    pPacket->ordinal1.header                = Type3Header(IT_SET_SH_REG, packetSize, false, shaderType);
+    PM4_ME_TYPE_3_HEADER header = Type3Header(IT_SET_SH_REG, packetSize, false, shaderType);
+    pPacket->ordinal1.header    = header;
+
     pPacket->ordinal2.u32All                = 0;
     pPacket->ordinal2.bitfields.reg_offset  = startRegAddr - PERSISTENT_SPACE_START;
 
@@ -3468,11 +3475,12 @@ size_t CmdUtil::BuildSetSeqShRegsIndex(
         packetSize         = ShRegIndexSizeDwords + endRegAddr - startRegAddr + 1;
         auto*const pPacket = static_cast<PM4_PFP_SET_SH_REG_INDEX*>(pBuffer);
 
-        pPacket->ordinal1.header.u32All         = (Type3Header(IT_SET_SH_REG_INDEX,
-                                                               static_cast<uint32>(packetSize),
-                                                               false,
-                                                               shaderType)).u32All;
-
+        PM4_PFP_TYPE_3_HEADER header;
+        header.u32All         = (Type3Header(IT_SET_SH_REG_INDEX,
+                                             static_cast<uint32>(packetSize),
+                                             false,
+                                             shaderType)).u32All;
+        pPacket->ordinal1.header                = header;
         pPacket->ordinal2.u32All                = 0;
         pPacket->ordinal2.bitfields.index       = index;
         pPacket->ordinal2.bitfields.reg_offset  = startRegAddr - PERSISTENT_SPACE_START;

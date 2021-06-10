@@ -326,6 +326,7 @@ private:
     regGRBM_GFX_INDEX BuildGrbmGfxIndex(const InstanceMapping& mapping, GpuBlock block) const;
     MuxselEncoding BuildMuxselEncoding(const InstanceMapping& mapping, GpuBlock block, uint32 counter) const;
     bool HasRmiSubInstances(GpuBlock block) const;
+    bool IsSqLevelEvent(uint32 eventId) const;
 
     // Here are a few helper functions which write into reserved command space.
     uint32* WriteSpmSetup(CmdStream* pCmdStream, uint32* pCmdSpace) const;

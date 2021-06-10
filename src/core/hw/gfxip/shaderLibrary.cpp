@@ -41,6 +41,7 @@ ShaderLibrary::ShaderLibrary(
     :
     Pal::IShaderLibrary(),
     m_pDevice(pDevice),
+    m_info{},
     m_pCodeObjectBinary(nullptr),
     m_codeObjectBinaryLen(0),
     m_gpuMem(),
@@ -48,11 +49,9 @@ ShaderLibrary::ShaderLibrary(
     m_maxStackSizeInBytes(0),
     m_uploadFenceToken(0),
     m_pagingFenceVal(0),
-    m_pClientData(nullptr),
     m_perfDataMem(),
     m_perfDataGpuMemSize(0)
 {
-    memset(&m_info, 0, sizeof(m_info));
 }
 
 // =====================================================================================================================

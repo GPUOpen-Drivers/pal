@@ -617,6 +617,7 @@ public:
     void Enum(GpuMemPriority value);
     void Enum(GpuMemPriorityOffset value);
     void Enum(PrtPlusResolveType value);
+    void Enum(BoxSortHeuristic value);
     void Enum(HwPipePoint value);
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
     void Enum(ImageAspect value);

@@ -240,12 +240,7 @@ union ImageCreateFlags
 #else
         uint32 reserved616             :  1;
 #endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 659
-        uint32 isDoppTexture : 1;            ///< Indicates DOPP texture
-        uint32 reserved                :  8; ///< Reserved for future use.
-#else
         uint32 reserved                :  9; ///< Reserved for future use.
-#endif
     };
     uint32 u32All;                           ///< Flags packed as 32-bit uint.
 };

@@ -751,6 +751,18 @@ enum MsaaFlags : uint16
     MsaaAll   = 0x3FFF,
 };
 
+/// Supported RTIP version enumeration
+enum class RayTracingIpLevel : uint32
+{
+    _None = 0,
+#ifndef None
+    None = _None,      ///< The device does not have an RayTracing Ip Level
+#endif
+
+    RtIp1_0 = 0x1,     ///< First Implementation of HW RT
+    RtIp1_1 = 0x2,     ///< Added computation of triangle barycentrics into HW
+};
+
 /// Reports various properties of a particular IDevice to the client.  @see IDevice::GetProperties.
 struct DeviceProperties
 {
@@ -1092,6 +1104,8 @@ struct DeviceProperties
 
         uint32 maxGsOutputVert;             ///< Maximum number of GS output vertices.
         uint32 maxGsTotalOutputComponents;  ///< Maximum number of GS output components totally.
+
+        RayTracingIpLevel rayTracingIp;     ///< HW RayTracing IP version
 
         union
         {
@@ -1896,6 +1910,22 @@ struct SamplerInfo
     } flags;
 };
 
+/// Specifies which heuristic should be utilized for sorting children when box sorting is enabled
+enum class BoxSortHeuristic : uint32
+{
+    ClosestFirst    = 0x0,  ///< Traversal is ordered to enter the children that
+                            ///< intersect the ray closer to the ray origin first.
+                            ///< This is good baseline option. Default option for RT IP 1.x.
+    LargestFirst    = 0x1,  ///< Traversal is ordered to enter the children that have the largest
+                            ///< interval where the box intersects the ray first.
+                            ///< Good for shadow rays with terminate on first hit.
+    ClosestMidPoint = 0x2,  ///< Traversal is ordered to enter the children that have a midpoint in the interval
+                            ///< where the box intersects that has the lowest intersection time before clamping(
+                            ///< Good for reflection rays.
+    Disabled        = 0x3,  ///< Box sort and heuristic are disabled.
+    Count
+};
+
 /// Specifies parameter for creating a BvH (bounding volume hierarchy, used by ray-trace) descriptor
 struct BvhInfo
 {
@@ -1905,11 +1935,18 @@ struct BvhInfo
     gpusize            numNodes;     ///< Number of nodes in the view
     uint32             boxGrowValue; ///< Number of ULPs (unit in last place) to be added during ray-box test.
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 668
+    BoxSortHeuristic   boxSortHeuristic;   ///< Specifies which heuristic should be utilized for
+                                           ///< sorting children when box sorting is enabled
+#endif
+
     union
     {
         struct
         {
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 668
             uint32    findNearest        :  1; ///< Enable sorting the box intersect results
+#endif
             uint32    useZeroOffset      :  1; ///< If set, SRD address is programmed to zero
             uint32    returnBarycentrics :  1; ///< When enabled, ray intersection will return triangle barycentrics.
                                                ///< Note: Only valid if @see supportIntersectRayBarycentrics is true.
@@ -1920,7 +1957,12 @@ struct BvhInfo
             uint32    bypassMallRead     :  1;
             uint32    bypassMallWrite    :  1;
             uint32    placeholder2       :  1; ///< Reserved for future HW
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 668
             uint32    reserved           : 26; ///< Reserved for future HW
+#else
+            uint32    reserved           : 27; ///< Reserved for future HW
+#endif
         };
 
         uint32  u32All; ///< Flags packed as 32-bit uint.
@@ -4739,43 +4781,6 @@ public:
     {
         m_pClientData = pClientData;
     }
-
-#if defined(PAL_DOPP)
-    /// Sets Primary Source ID For DOPP processing.
-    /// This function is an Escape call to tell KMD which Screen DOPP will process.
-    ///
-    /// @param [in]  pScreen   Pal::IScreen* of the Primary selected for DOPP processing.
-    ///
-    /// @returns Success if Primary for DOPP processing is set.
-    virtual Result SetPrimarySourceIDForDopp(Pal::IScreen* pScreen) = 0;
-
-    /// Get Dopp Primary Surface Info for previously selected Screen.
-    /// This function is an Escape call to query KMD about Primary surface properties
-    /// of previously selected surface.
-    ///
-    /// @param  [out] pDesktopProp  A pointer to Extent3d structure.
-    /// @returns Success if Extent3d properties are retreved.
-    virtual Result GetDoppPrimarySurfaceInfo(Extent3d* pDesktopProp) = 0;
-
-    /// Enable Post Processing in DOPP.
-    /// This function is an Escape call to tell KMD to enable DOPP post processing.
-    ///
-    /// @param [in]  enable    Enable/Disable DOPP Post Processing.
-    ///
-    /// @returns Success if call is successful.
-    virtual Result EnablePostProcessDopp(bool enable) = 0;
-
-    /// Present Texture To Video Dopp
-    /// This function is an Escape call to pass present texture handle to KMD.
-    /// Then KMD will flip (make visible) this surface instead of original desktop
-    /// surface on next SwapBuffers call.
-    ///
-    /// @param [in] pPresentTexture   Present Texture memory pointer
-    /// @param [in] isBlocking        If true, call is blocking.
-    ///
-    /// @returns Success if call is successful.
-    virtual Result PresentTextureToVideoDopp(Pal::IGpuMemory* pPresentTexture, bool isBlocking) = 0;
-#endif
 
 protected:
     /// @internal Constructor. Prevent use of new operator on this interface. Client must create objects by explicitly

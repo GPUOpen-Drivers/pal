@@ -34,21 +34,21 @@ namespace Pal
 class ShaderLibraryUploader;
 
 // Shorthand for a pipeline ABI reader.
-typedef Util::Abi::PipelineAbiReader AbiReader;
+using AbiReader = Util::Abi::PipelineAbiReader;
 
 // Shorthand for the PAL code object metadata structure.
-typedef Util::Abi::PalCodeObjectMetadata  CodeObjectMetadata;
+using CodeObjectMetadata = Util::Abi::PalCodeObjectMetadata;
 
 // Structure describing the shader function statistics.
 struct ShaderFuncStats
 {
-    const char*                 pSymbolName;
-    uint32                      symbolNameLength;
-    uint32                      stackFrameSizeInBytes;
-    ShaderSubType               shaderSubType;
+    const char*    pSymbolName;
+    uint32         symbolNameLength;
+    uint32         stackFrameSizeInBytes;
+    ShaderSubType  shaderSubType;
 };
 
-typedef Util::Vector<ShaderFuncStats, 10, Platform> ShaderFuncStatsList;
+using ShaderFuncStatsList = Util::Vector<ShaderFuncStats, 10, Platform>;
 
 // =====================================================================================================================
 // Hardware independent compute pipeline class.  Implements all details of a compute pipeline that are common across

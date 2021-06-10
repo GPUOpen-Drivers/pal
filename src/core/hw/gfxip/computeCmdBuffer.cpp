@@ -53,14 +53,11 @@ ComputeCmdBuffer::ComputeCmdBuffer(
     GfxCmdStream*              pCmdStream)
     :
     GfxCmdBuffer(device, createInfo),
+    m_spillTableCs{},
     m_device(device),
     m_pCmdStream(pCmdStream)
 {
     PAL_ASSERT(createInfo.queueType == QueueTypeCompute);
-
-    memset(&m_computeState,        0, sizeof(m_computeState));
-    memset(&m_computeRestoreState, 0, sizeof(m_computeRestoreState));
-    memset(&m_spillTableCs,        0, sizeof(m_spillTableCs));
 
     SwitchCmdSetUserDataFunc(PipelineBindPoint::Compute,  &GfxCmdBuffer::CmdSetUserDataCs);
     SwitchCmdSetUserDataFunc(PipelineBindPoint::Graphics, &DummyCmdSetUserDataGfx);

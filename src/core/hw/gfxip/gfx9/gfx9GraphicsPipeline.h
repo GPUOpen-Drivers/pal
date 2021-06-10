@@ -164,6 +164,8 @@ public:
 
     bool BinningAllowed() const { return m_binningAllowed; }
 
+    uint32 GetPrimAmpFactor() const { return m_primAmpFactor; }
+
 protected:
     virtual ~GraphicsPipeline() { }
 
@@ -280,6 +282,8 @@ private:
 
     uint16            m_fetchShaderRegAddr; // The user data register which fetch shader address will be writen to.
     gpusize           m_fetchShaderPgm;     // The GPU virtual address of fetch shader entry.
+
+    uint32            m_primAmpFactor;      // Only valid on GFX10 and later with NGG enabled.
 
     // We need two copies of IA_MULTI_VGT_PARAM to cover all possible register combinations depending on whether or not
     // WD_SWITCH_ON_EOP is required.

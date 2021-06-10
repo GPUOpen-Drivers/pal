@@ -144,6 +144,8 @@ if(PAL_BUILD_CORE)
         core/cmdStream.cpp
         core/cmdStreamAllocation.cpp
         core/device.cpp
+        core/devDriverUtil.cpp
+        core/devDriverEventService.cpp
         core/dmaUploadRing.cpp
         core/engine.cpp
         core/eventProvider.cpp
@@ -173,13 +175,6 @@ if(PAL_BUILD_CORE)
     )
 
     target_include_directories(pal PRIVATE core/)
-
-    if(PAL_BUILD_GPUOPEN)
-        target_sources(pal PRIVATE
-            core/devDriverUtil.cpp
-            core/devDriverEventService.cpp
-        )
-    endif()
 
 ### PAL core/addrMgr ###########################################################
     # Address library support is required for core support

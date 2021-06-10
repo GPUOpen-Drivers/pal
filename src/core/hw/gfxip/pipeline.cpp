@@ -63,24 +63,21 @@ Pipeline::Pipeline(
     bool    isInternal)  // True if this is a PAL-owned pipeline (i.e., an RPM pipeline).
     :
     m_pDevice(pDevice),
+    m_info{},
+    m_shaderMetaData{},
     m_gpuMem(),
     m_gpuMemSize(0),
     m_pPipelineBinary(nullptr),
     m_pipelineBinaryLen(0),
-    m_apiHwMapping(),
+    m_perfDataInfo{},
+    m_apiHwMapping{},
     m_uploadFenceToken(0),
     m_pagingFenceVal(0),
+    m_flags{},
     m_perfDataMem(),
     m_perfDataGpuMemSize(0)
 {
-    m_flags.value      = 0;
     m_flags.isInternal = isInternal;
-
-    m_apiHwMapping.u64All = 0;
-
-    memset(&m_info, 0, sizeof(m_info));
-    memset(&m_shaderMetaData, 0, sizeof(m_shaderMetaData));
-    memset(&m_perfDataInfo, 0, sizeof(m_perfDataInfo));
 }
 
 // =====================================================================================================================

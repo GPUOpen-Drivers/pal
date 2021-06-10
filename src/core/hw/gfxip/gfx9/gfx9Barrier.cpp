@@ -36,7 +36,7 @@ namespace Gfx9
 {
 
 // The set of all cache flags that could access memory through the TC metadata cache.
-constexpr uint32 MaybeTccMdShaderMask = CoherShader | CoherCopy | CoherResolve | CoherClear | CoherSampleRate;
+constexpr uint32 MaybeTccMdShaderMask = CacheCoherencyBlt | CoherShader | CoherSampleRate;
 
 // The set of all cache flags that could access memory through the L0/L1 shader caches.
 constexpr uint32 MaybeL1ShaderMask = MaybeTccMdShaderMask | CoherStreamOut;
@@ -50,7 +50,8 @@ constexpr uint32 AlwaysL2Mask = (MaybeL1ShaderMask       |
                                  CoherQueueAtomic        |
                                  CoherTimestamp          |
                                  CoherCeLoad             |
-                                 CoherCeDump);
+                                 CoherCeDump             |
+                                 CoherCp);
 
 // =====================================================================================================================
 // Make sure we handle L2 cache coherency properly because there are 2 categories of L2 access which use slightly
@@ -321,7 +322,7 @@ void Device::TransitionDepthStencil(
         }
 
         // Make sure we handle L2 cache coherency if we're potentially interacting with fixed function hardware.
-        constexpr uint32 MaybeFixedFunction = (CoherCopy | CoherDepthStencilTarget | CoherResolve | CoherClear);
+        constexpr uint32 MaybeFixedFunction = (CacheCoherencyBlt | CoherDepthStencilTarget);
 
         // If applications use Vulkan's global memory barriers feature, PAL can end up with image transitions that
         // have no cache flags because the cache actions for the image were performed in a different transition.
@@ -652,7 +653,7 @@ void Device::ExpandColor(
     if (earlyPhase == false)
     {
         // Make sure we handle L2 cache coherency if we're potentially interacting with fixed function hardware.
-        constexpr uint32 MaybeFixedFunction = (CoherCopy | CoherColorTarget | CoherResolve | CoherClear);
+        constexpr uint32 MaybeFixedFunction = (CacheCoherencyBlt | CoherColorTarget);
 
         // If applications use Vulkan's global memory barriers feature, PAL can end up with image transitions that
         // have no cache flags because the cache actions for the image were performed in a different transition.
@@ -1079,25 +1080,30 @@ void Device::Barrier(
     {
         HwPipePoint pipePoint = barrier.pPipePoints[i];
 
-        // CP blts use asynchronous CP DMA operations which are executed in parallel to our usual pipeline. This means
-        // that we must sync CP DMA in any case that might expect the results of the CP blt to be available. Luckily
-        // PAL only uses CP blts to optimize blt operations so we only need to sync if a pipe point is HwPipePostBlt
-        // or later.
-        if (cmdBufState.flags.cpBltActive && (pipePoint >= HwPipePostBlt))
-        {
-            globalSyncReqs.syncCpDma = 1;
-        }
+        pCmdBuf->OptimizePipePoint(&pipePoint);
 
-        if (pipePoint == HwPipePostBlt)
+        if (cmdBufState.flags.cpBltActive)
         {
-            // HwPipePostBlt barrier optimization
-            pipePoint = pCmdBuf->OptimizeHwPipePostBlit();
+            // CP blts use asynchronous CP DMA operations which are executed in parallel to our usual pipeline. This
+            // means that we must sync CP DMA in any case that might expect the results of the CP blt to be available.
+            // PAL only uses CP blts to optimize blt operations so technically we only need to sync if a pipe point is
+            // HwPipePostBlt or later. However barrier may receive PipePoint that HwPipePostBlt has been optimized to
+            // HwPipePostCs/HwPipeBottomOfPipe, so there is chance we need a CpDma sync for HePipePostCs and all later
+            // points.
+            globalSyncReqs.syncCpDma = (pipePoint >= HwPipePostCs);
+
+            if (pipePoint == HwPipePostBlt)
+            {
+                // Note that we set this to post index fetch, which is earlier in the pipeline than our CP blts,
+                // because we just handled CP DMA syncronization. This pipe point is still necessary to catch cases
+                // when the caller wishes to sync up to the top of the pipeline.
+                pipePoint = HwPipePostIndexFetch;
+            }
         }
-        else if (pipePoint == HwPipePreColorTarget)
+        else
         {
-            // HwPipePreColorTarget is only valid as wait point. But for the sake of robustness, if it's used as pipe
-            // point to wait on, it's equivalent to HwPipePostPs.
-            pipePoint = HwPipePostPs;
+            // After the pipePoint optimization if there is no CP DMA Blt in-flight it cannot stay in HwPipePostBlt.
+            PAL_ASSERT(pipePoint != HwPipePostBlt);
         }
 
         if (pipePoint > waitPoint)
@@ -1140,22 +1146,7 @@ void Device::Barrier(
         uint32       srcCacheMask = (barrier.globalSrcCacheMask | transition.srcCacheMask);
         const uint32 dstCacheMask = (barrier.globalDstCacheMask | transition.dstCacheMask);
 
-        // There are various srcCache BLTs (Copy, Clear, and Resolve) which we can further optimize if we know which
-        // write caches have been dirtied:
-        // - If a graphics BLT occurred, alias these srcCaches to CoherColorTarget.
-        // - If a compute BLT occurred, alias these srcCaches to CoherShader.
-        // - If a CP L2 BLT occured, alias these srcCaches to CoherTimestamp (this isn't good but we have no CoherL2).
-        // - If a CP direct-to-memory write occured, alias these srcCaches to CoherMemory.
-        // Clear the original srcCaches from the srcCache mask for the rest of this scope.
-        if (TestAnyFlagSet(srcCacheMask, CoherCopy | CoherClear | CoherResolve))
-        {
-            srcCacheMask &= ~(CoherCopy | CoherClear | CoherResolve);
-
-            srcCacheMask |= cmdBufState.flags.gfxWriteCachesDirty       ? CoherColorTarget : 0;
-            srcCacheMask |= cmdBufState.flags.csWriteCachesDirty        ? CoherShader      : 0;
-            srcCacheMask |= cmdBufState.flags.cpWriteCachesDirty        ? CoherTimestamp   : 0;
-            srcCacheMask |= cmdBufState.flags.cpMemoryWriteL2CacheStale ? CoherMemory      : 0;
-        }
+        pCmdBuf->OptimizeSrcCacheMask(&srcCacheMask);
 
         // MaybeL2Mask is a mask of usages that may or may not read/write through the L2 cache.
         constexpr uint32 MaybeL2Mask = AlwaysL2Mask;

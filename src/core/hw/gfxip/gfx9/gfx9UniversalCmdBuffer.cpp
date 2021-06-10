@@ -285,7 +285,6 @@ UniversalCmdBuffer::UniversalCmdBuffer(
     m_drawIndexReg(UserDataNotMapped),
     m_log2NumSes(Log2(m_device.Parent()->ChipProperties().gfx9.numShaderEngines)),
     m_log2NumRbPerSe(Log2(m_device.Parent()->ChipProperties().gfx9.maxNumRbPerSe)),
-    m_gpuType(m_device.Parent()->ChipProperties().gpuType),
     m_hasWaMiscPopsMissedOverlapBeenApplied(false),
     m_enabledPbb(false),
     m_customBinSizeX(0),
@@ -345,10 +344,6 @@ UniversalCmdBuffer::UniversalCmdBuffer(
     m_cachedSettings.waClampGeCntlVertGrpSize   = settings.waClampGeCntlVertGrpSize;
     m_cachedSettings.ignoreDepthForBinSize      = settings.ignoreDepthForBinSizeIfColorBound;
     m_cachedSettings.pbbDisableBinMode          = settings.disableBinningMode;
-
-    // Asserts to confirm that pbbDisableBinMode has a legal value.
-    PAL_ASSERT((m_cachedSettings.pbbDisableBinMode == DISABLE_BINNING_USE_NEW_SC__GFX09_10) ||
-               (m_cachedSettings.pbbDisableBinMode == DISABLE_BINNING_USE_LEGACY_SC__GFX09_10));
 
     m_cachedSettings.waLogicOpDisablesOverwriteCombiner        = settings.waLogicOpDisablesOverwriteCombiner;
     m_cachedSettings.waMiscPopsMissedOverlap                   = settings.waMiscPopsMissedOverlap;
@@ -1482,6 +1477,15 @@ void UniversalCmdBuffer::CmdBarrier(
             BarrierMightDirtyVrsRateImage(barrierInfo.pTransitions[i].imageInfo.pImage);
         }
     }
+}
+
+// =====================================================================================================================
+void UniversalCmdBuffer::OptimizePipeAndCacheMaskForRelease(
+    uint32* pStageMask,
+    uint32* pAccessMask
+    ) const
+{
+    GfxCmdBuffer::OptimizePipeAndCacheMaskForRelease(pStageMask, pAccessMask);
 }
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
@@ -4284,17 +4288,7 @@ void UniversalCmdBuffer::WriteEventCmd(
         SetGfxCmdBufCpBltState(false);
     }
 
-    if (pipePoint == HwPipePostBlt)
-    {
-        // HwPipePostBlt barrier optimization
-        pipePoint = OptimizeHwPipePostBlit();
-    }
-    else if (pipePoint == HwPipePreColorTarget)
-    {
-        // HwPipePreColorTarget is only valid as wait point. But for the sake of robustness, if it's used as pipe
-        // point to wait on, it's equivalent to HwPipePostPs.
-        pipePoint = HwPipePostPs;
-    }
+    OptimizePipePoint(&pipePoint);
 
     // Prepare packet build info structs.
     WriteDataInfo writeData = {};
@@ -6298,18 +6292,8 @@ uint32* UniversalCmdBuffer::ValidateBinSizes(
         // Set the bin sizes when we have binning disabled.
         // This matters for the DISABLE_BINNING_USE_NEW_SC mode. This mode enables binning with a batch size of
         // one prim per clock.
-        if (m_gpuType == GpuType::Discrete)
-        {
-            binSize.width  = 256;
-            binSize.height = 512;
-        }
-        else
-        {
-            // These values are recommended for Integrated GPUs.
-            // Use the integrated values on all non-discrete GpuTypes.
-            binSize.width  = 128;
-            binSize.height = 128;
-        }
+        binSize.width  = 128;
+        binSize.height = 128;
     }
 
     // Update our copy of m_pbbCntlRegs.paScBinnerCntl0/1 and write it out.
@@ -6808,18 +6792,18 @@ uint32 UniversalCmdBuffer::CalcGeCntl(
     {
         const regVGT_GS_ONCHIP_CNTL vgtGsOnchipCntl = pPipeline->VgtGsOnchipCntl();
 
-        primsPerSubgroup = vgtGsOnchipCntl.most.GS_PRIMS_PER_SUBGRP;
-        vertsPerSubgroup = vgtGsOnchipCntl.most.ES_VERTS_PER_SUBGRP;
+        primsPerSubgroup = vgtGsOnchipCntl.bits.GS_PRIMS_PER_SUBGRP;
+        vertsPerSubgroup = vgtGsOnchipCntl.bits.ES_VERTS_PER_SUBGRP;
     }
     else
     {
         const regVGT_GS_ONCHIP_CNTL vgtGsOnchipCntl = pPipeline->VgtGsOnchipCntl();
 
-        primsPerSubgroup = vgtGsOnchipCntl.most.GS_PRIMS_PER_SUBGRP;
+        primsPerSubgroup = vgtGsOnchipCntl.bits.GS_PRIMS_PER_SUBGRP;
         vertsPerSubgroup =
             (disableVertGrouping)                       ? VertGroupingDisabled :
-            (m_cachedSettings.waClampGeCntlVertGrpSize) ? vgtGsOnchipCntl.most.ES_VERTS_PER_SUBGRP - 5 :
-                                                          vgtGsOnchipCntl.most.ES_VERTS_PER_SUBGRP;
+            (m_cachedSettings.waClampGeCntlVertGrpSize) ? vgtGsOnchipCntl.bits.ES_VERTS_PER_SUBGRP - 5 :
+                                                          vgtGsOnchipCntl.bits.ES_VERTS_PER_SUBGRP;
 
         // Zero is a legal value for VERT_GRP_SIZE. Other low values are illegal.
         if (vertsPerSubgroup != 0)
@@ -7515,7 +7499,7 @@ uint32* UniversalCmdBuffer::UpdateDbCountControl(
         pDbCountControl->bits.PERFECT_ZPASS_COUNTS    = 1;
         pDbCountControl->bits.ZPASS_ENABLE            = 1;
         {
-            pDbCountControl->most.ZPASS_INCREMENT_DISABLE = 0;
+            pDbCountControl->gfx09_10.ZPASS_INCREMENT_DISABLE = 0;
         }
 
         if (IsGfx10Plus(m_gfxIpLevel))
@@ -7529,7 +7513,7 @@ uint32* UniversalCmdBuffer::UpdateDbCountControl(
         pDbCountControl->bits.PERFECT_ZPASS_COUNTS    = 0;
         pDbCountControl->bits.ZPASS_ENABLE            = 0;
         {
-            pDbCountControl->most.ZPASS_INCREMENT_DISABLE = 1;
+            pDbCountControl->gfx09_10.ZPASS_INCREMENT_DISABLE = 1;
         }
     }
 

@@ -52,6 +52,9 @@ UniversalCmdBuffer::UniversalCmdBuffer(
     bool                       blendOptEnable)
     :
     GfxCmdBuffer(device, createInfo),
+    m_graphicsState{},
+    m_graphicsRestoreState{},
+    m_blendOpts{},
     m_pAceCmdStream(pAceCmdStream),
     m_device(device),
     m_pDeCmdStream(pDeCmdStream),
@@ -62,12 +65,6 @@ UniversalCmdBuffer::UniversalCmdBuffer(
 #endif
 {
     PAL_ASSERT(createInfo.queueType == QueueTypeUniversal);
-
-    memset(&m_computeState,         0, sizeof(m_computeState));
-    memset(&m_computeRestoreState,  0, sizeof(m_computeRestoreState));
-    memset(&m_graphicsState,        0, sizeof(m_graphicsState));
-    memset(&m_graphicsRestoreState, 0, sizeof(m_graphicsRestoreState));
-    memset(&m_blendOpts[0],         0, sizeof(m_blendOpts));
 
     SwitchCmdSetUserDataFunc(PipelineBindPoint::Compute,  &GfxCmdBuffer::CmdSetUserDataCs);
     SwitchCmdSetUserDataFunc(PipelineBindPoint::Graphics, &CmdSetUserDataGfx<true>);

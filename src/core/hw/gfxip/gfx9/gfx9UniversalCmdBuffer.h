@@ -330,6 +330,8 @@ public:
 
     virtual void CmdBarrier(const BarrierInfo& barrierInfo) override;
 
+    virtual void OptimizePipeAndCacheMaskForRelease(uint32* pStageMask, uint32* pAccessMask) const override;
+
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
     virtual uint32 CmdRelease(
         const AcquireReleaseInfo& releaseInfo) override;
@@ -1064,7 +1066,6 @@ private:
 
     const uint32  m_log2NumSes;
     const uint32  m_log2NumRbPerSe;
-    const GpuType m_gpuType;
 
     uint32  m_depthBinSizeTagPart;    // Constant used in Depth PBB bin size formulas
     uint32  m_colorBinSizeTagPart;    // Constant used in Color PBB bin size formulas

@@ -78,6 +78,29 @@ Result ComputePipeline::Init(
         result = InitFromPipelineBinary(createInfo);
     }
 
+    if (result == Result::Success)
+    {
+        auto*const pEventProvider = m_pDevice->GetPlatform()->GetEventProvider();
+
+        ResourceDescriptionPipeline desc { };
+        desc.pPipelineInfo = &GetInfo();
+        desc.pCreateFlags  = &createInfo.flags;
+
+        ResourceCreateEventData data { };
+        data.type              = ResourceType::Pipeline;
+        data.pResourceDescData = &desc;
+        data.resourceDescSize  = sizeof(desc);
+        data.pObj              = this;
+        pEventProvider->LogGpuMemoryResourceCreateEvent(data);
+
+        GpuMemoryResourceBindEventData bindData { };
+        bindData.pObj               = this;
+        bindData.pGpuMemory         = m_gpuMem.Memory();
+        bindData.requiredGpuMemSize = m_gpuMemSize;
+        bindData.offset             = m_gpuMem.Offset();
+        pEventProvider->LogGpuMemoryResourceBindEvent(bindData);
+    }
+
     return result;
 }
 

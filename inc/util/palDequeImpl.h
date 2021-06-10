@@ -31,6 +31,7 @@
 
 #pragma once
 
+#include <utility>
 #include "palDeque.h"
 #include "palSysMemory.h"
 
@@ -100,10 +101,10 @@ PAL_INLINE void Deque<T, Allocator>::FreeUnusedBlock(
 }
 
 // =====================================================================================================================
-// Inserts a new data element at the front of the deque.
+// Allocates space for a new element at the front of the queue.
 template<typename T, typename Allocator>
-PAL_INLINE Result Deque<T, Allocator>::PushFront(
-    const T& data)
+Result Deque<T, Allocator>::AllocateFront(
+    T** ppAllocatedSpace)
 {
     Result result = Result::ErrorOutOfMemory;
 
@@ -141,7 +142,7 @@ PAL_INLINE Result Deque<T, Allocator>::PushFront(
         // There's room at the beginning of the current block, so we can throw the new element in there.
         ++m_numElements;
         --m_pFront;
-        *m_pFront = data;
+        *ppAllocatedSpace = m_pFront;
 
         result = Result::_Success;
     }
@@ -150,10 +151,10 @@ PAL_INLINE Result Deque<T, Allocator>::PushFront(
 }
 
 // =====================================================================================================================
-// Inserts a new data element at the back of the deque.
+// Allocates space for a new element at the back of the queue.
 template<typename T, typename Allocator>
-PAL_INLINE Result Deque<T, Allocator>::PushBack(
-    const T& data)
+Result Deque<T, Allocator>::AllocateBack(
+    T** ppAllocatedSpace)
 {
     Result result = Result::ErrorOutOfMemory;
 
@@ -191,11 +192,73 @@ PAL_INLINE Result Deque<T, Allocator>::PushBack(
         // There's room at the end of the current block, so we can throw the new element in there.
         ++m_numElements;
         ++m_pBack;
-        *m_pBack = data;
+        *ppAllocatedSpace = m_pBack;
 
         result = Result::_Success;
     }
 
+    return result;
+}
+
+// =====================================================================================================================
+// Inserts a new data element at the front of the deque.
+template<typename T, typename Allocator>
+Result Deque<T, Allocator>::PushFront(
+    const T& data)
+{
+    T* pAllocatedSpace = nullptr;
+    Result result = AllocateFront(&pAllocatedSpace);
+    if (result == Result::_Success)
+    {
+        PAL_PLACEMENT_NEW(pAllocatedSpace) T(data);
+    }
+    return result;
+}
+
+// =====================================================================================================================
+// Inserts a new data element at the front of the deque.
+template<typename T, typename Allocator>
+template<typename... Args>
+Result Deque<T, Allocator>::EmplaceFront(
+    Args&&... args)
+{
+    T* pAllocatedSpace = nullptr;
+    Result result = AllocateFront(&pAllocatedSpace);
+    if (result == Result::_Success)
+    {
+        PAL_PLACEMENT_NEW(pAllocatedSpace) T(std::forward<Args>(args)...);
+    }
+    return result;
+}
+
+// =====================================================================================================================
+// Inserts a new data element at the back of the deque.
+template<typename T, typename Allocator>
+Result Deque<T, Allocator>::PushBack(
+    const T& data)
+{
+    T* pAllocatedSpace = nullptr;
+    Result result = AllocateBack(&pAllocatedSpace);
+    if (result == Result::_Success)
+    {
+        PAL_PLACEMENT_NEW(pAllocatedSpace) T(data);
+    }
+    return result;
+}
+
+// =====================================================================================================================
+// Inserts a new data element at the back of the deque.
+template<typename T, typename Allocator>
+template<typename... Args>
+Result Deque<T, Allocator>::EmplaceBack(
+    Args&&... args)
+{
+    T* pAllocatedSpace = nullptr;
+    Result result = AllocateBack(&pAllocatedSpace);
+    if (result == Result::_Success)
+    {
+        PAL_PLACEMENT_NEW(pAllocatedSpace) T(std::forward<Args>(args)...);
+    }
     return result;
 }
 
@@ -217,7 +280,11 @@ PAL_INLINE Result Deque<T, Allocator>::PopFront(
             *pOut = *m_pFront;
         }
 
-        CleanupElement(m_pFront);
+        // Explicitly destroy the removed value if it's non-trivial.
+        if (!std::is_pod<T>::value)
+        {
+            m_pFront->~T();
+        }
         --m_numElements;
 
         ++m_pFront; // Advance to the next element in the deque.
@@ -274,7 +341,11 @@ PAL_INLINE Result Deque<T, Allocator>::PopBack(
             *pOut = *m_pBack;
         }
 
-        CleanupElement(m_pBack);
+        // Explicitly destroy the removed value if it's non-trivial.
+        if (!std::is_pod<T>::value)
+        {
+            m_pBack->~T();
+        }
         --m_numElements;
 
         if ((m_pBack == m_pBackHeader->pStart) || (m_numElements == 0))

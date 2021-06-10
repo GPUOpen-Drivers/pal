@@ -56,6 +56,10 @@ public:
 
     virtual void CmdBarrier(const BarrierInfo& barrierInfo) override;
 
+    virtual void OptimizePipeAndCacheMaskForRelease(
+        uint32* pStageMask,
+        uint32* pAccessMask) const override;
+
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
     virtual uint32 CmdRelease(
         const AcquireReleaseInfo& releaseInfo) override;

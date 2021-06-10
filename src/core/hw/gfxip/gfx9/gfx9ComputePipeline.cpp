@@ -117,7 +117,7 @@ Result ComputePipeline::HwlInit(
         // Update the pipeline signature with user-mapping data contained in the ELF:
         m_chunkCs.SetupSignatureFromElf(&m_signature, metadata, registers);
 
-        const uint32 scratchMemorySize = CalcScratchMemSize(m_pDevice->Parent()->ChipProperties().gfxLevel, metadata);
+        const uint32 scratchMemorySize = CalcScratchMemSize(chipProps.gfxLevel, metadata);
         if (scratchMemorySize != 0)
         {
             UpdateRingSizes(scratchMemorySize);
@@ -125,36 +125,16 @@ Result ComputePipeline::HwlInit(
 
         const uint32 wavefrontSize = IsWave32() ? 32 : 64;
 
-        m_chunkCs.LateInit<ComputePipelineUploader>(abiReader,
-                                                    registers,
-                                                    wavefrontSize,
-                                                    &m_threadsPerTgX,
-                                                    &m_threadsPerTgY,
-                                                    &m_threadsPerTgZ,
-                                                    false,
-                                                    &uploader);
+        m_chunkCs.LateInit(abiReader,
+                           registers,
+                           wavefrontSize,
+                           &m_threadsPerTgX,
+                           &m_threadsPerTgY,
+                           &m_threadsPerTgZ,
+                           false,
+                           &uploader);
         PAL_ASSERT(m_uploadFenceToken == 0);
         result = uploader.End(&m_uploadFenceToken);
-    }
-
-    if (result == Result::Success)
-    {
-        ResourceDescriptionPipeline desc = {};
-        desc.pPipelineInfo = &GetInfo();
-        desc.pCreateFlags = &createInfo.flags;
-        ResourceCreateEventData data = {};
-        data.type = ResourceType::Pipeline;
-        data.pResourceDescData = &desc;
-        data.resourceDescSize = sizeof(ResourceDescriptionPipeline);
-        data.pObj = this;
-        m_pDevice->GetPlatform()->GetEventProvider()->LogGpuMemoryResourceCreateEvent(data);
-
-        GpuMemoryResourceBindEventData bindData = {};
-        bindData.pObj = this;
-        bindData.pGpuMemory = m_gpuMem.Memory();
-        bindData.requiredGpuMemSize = m_gpuMemSize;
-        bindData.offset = m_gpuMem.Offset();
-        m_pDevice->GetPlatform()->GetEventProvider()->LogGpuMemoryResourceBindEvent(bindData);
     }
 
     return result;
@@ -225,7 +205,7 @@ Result ComputePipeline::LinkWithLibraries(
     // the compute resource registers we write into the ELF binary must
     // account for the worst-case of any hardware resource used by either the main shader,
     // or any of the function library.
-    const HwRegInfo& mainCsRegInfo = m_chunkCs.HWInfo();
+    const HwRegInfo& mainCsRegInfo = m_chunkCs.HwInfo();
 
     const bool isWave32 = IsWave32();
 

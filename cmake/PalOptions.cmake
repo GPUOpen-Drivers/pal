@@ -30,9 +30,6 @@ include(CMakeDependentOption)
 # All options/cache variables should have the prefix "PAL_" this serves two main purposes
 #   Name collision issues
 #   Cmake-gui allows grouping of variables based on prefixes, which then makes it clear what options PAL defined
-option(PAL_BUILD_GPUOPEN "Build GPUOpen developer driver support?" OFF)
-
-option(PAL_ENABLE_DEVDRIVER_USAGE "Enables developer driver suppport." ON)
 
 option(PAL_DBG_COMMAND_COMMENTS "Command with comments" OFF)
 
@@ -62,7 +59,5 @@ set(   PAL_CWPACK_PATH ${PROJECT_SOURCE_DIR}/src/util/imported/cwpack    CACHE P
 set(      PAL_VAM_PATH ${PROJECT_SOURCE_DIR}/src/core/imported/vam       CACHE PATH "Specify the path to the VAM project.")
 set(     PAL_ADDR_PATH ${PROJECT_SOURCE_DIR}/src/core/imported/addrlib   CACHE PATH "Specify the path to the ADDRLIB project.")
 
-if (PAL_BUILD_GPUOPEN)
-    set(PAL_GPUOPEN_PATH "default" CACHE PATH "Specify the path to the GPUOPEN_PATH project.")
-endif()
+set(PAL_GPUOPEN_PATH "default" CACHE PATH "Specify the path to the GPUOPEN_PATH project.")
 

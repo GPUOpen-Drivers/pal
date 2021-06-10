@@ -89,14 +89,14 @@ Result HybridGraphicsPipeline::HwlInit(
 
             const uint32 wavefrontSize = m_taskSignature.flags.isWave32 ? 32 : 64;
 
-            m_task.LateInit<GraphicsPipelineUploader>(abiReader,
-                                                      registers,
-                                                      wavefrontSize,
-                                                      &m_threadsPerTgX,
-                                                      &m_threadsPerTgY,
-                                                      &m_threadsPerTgZ,
-                                                      true,
-                                                      &uploader);
+            m_task.LateInit(abiReader,
+                            registers,
+                            wavefrontSize,
+                            &m_threadsPerTgX,
+                            &m_threadsPerTgY,
+                            &m_threadsPerTgZ,
+                            true,
+                            &uploader);
 
             const Util::Elf::SymbolTableEntry* pElfSymbol =
                 abiReader.GetPipelineSymbol(Util::Abi::PipelineSymbolType::CsDisassembly);
@@ -108,26 +108,6 @@ Result HybridGraphicsPipeline::HwlInit(
             PAL_ASSERT(m_uploadFenceToken == 0);
             result = uploader.End(&m_uploadFenceToken);
         }
-    }
-
-    if (result == Result::Success)
-    {
-        ResourceDescriptionPipeline desc = {};
-        desc.pPipelineInfo               = &GetInfo();
-        desc.pCreateFlags                = &createInfo.flags;
-        ResourceCreateEventData data     = {};
-        data.type                        = ResourceType::Pipeline;
-        data.pResourceDescData           = &desc;
-        data.resourceDescSize            = sizeof(ResourceDescriptionPipeline);
-        data.pObj                        = this;
-        m_pDevice->GetPlatform()->GetEventProvider()->LogGpuMemoryResourceCreateEvent(data);
-
-        GpuMemoryResourceBindEventData bindData = {};
-        bindData.pObj                           = this;
-        bindData.pGpuMemory                     = m_gpuMem.Memory();
-        bindData.requiredGpuMemSize             = m_gpuMemSize;
-        bindData.offset                         = m_gpuMem.Offset();
-        m_pDevice->GetPlatform()->GetEventProvider()->LogGpuMemoryResourceBindEvent(bindData);
     }
 
     return result;

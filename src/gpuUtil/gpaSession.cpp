@@ -1479,7 +1479,7 @@ Result GpaSession::End(
         BarrierTransition barrierTransition;
         constexpr HwPipePoint HwPipeBottomConst = HwPipeBottom;
 
-        barrierTransition.srcCacheMask = CoherTimestamp;
+        barrierTransition.srcCacheMask = CoherCp;
         barrierTransition.dstCacheMask = CoherMemory;
         barrierTransition.imageInfo.pImage = nullptr;
 
@@ -1533,7 +1533,7 @@ Result GpaSession::End(
         pCmdBuf->CmdSetEvent(*m_pGpuEvent, HwPipeBottom);
 
         // Issue a barrier to make sure GPU event data is flushed to memory.
-        barrierTransition.srcCacheMask = CoherTimestamp;
+        barrierTransition.srcCacheMask = CoherCp;
         barrierTransition.dstCacheMask = CoherMemory;
         barrierTransition.imageInfo.pImage = nullptr;
 
@@ -2153,7 +2153,7 @@ void GpaSession::CopyResults(
         // Issue a barrier to make sure GPU event data is flushed to memory.
         constexpr HwPipePoint HwPipeBottomConst = HwPipeBottom;
 
-        barrierTransition.srcCacheMask = CoherTimestamp;
+        barrierTransition.srcCacheMask = CoherCp;
         barrierTransition.dstCacheMask = CoherMemory;
         barrierTransition.imageInfo.pImage = nullptr;
 

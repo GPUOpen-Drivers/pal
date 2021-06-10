@@ -289,6 +289,7 @@ private:
     Result AddSpmCounter(const PerfCounterInfo& counterInfo, SpmCounterMapping* pMapping);
     Result BuildCounterMapping(const PerfCounterInfo& info, CounterMapping* pMapping) const;
     Result BuildInstanceMapping(GpuBlock block, uint32 globalInstance, InstanceMapping* pMapping) const;
+    bool IsSqLevelEvent(uint32 eventId) const;
 
     regGRBM_GFX_INDEX BuildGrbmGfxIndex(const InstanceMapping& mapping, GpuBlock block) const;
 

@@ -2715,17 +2715,7 @@ void UniversalCmdBuffer::WriteEventCmd(
         SetGfxCmdBufCpBltState(false);
     }
 
-    if (pipePoint == HwPipePostBlt)
-    {
-        // HwPipePostBlt barrier optimization
-        pipePoint = OptimizeHwPipePostBlit();
-    }
-    else if (pipePoint == HwPipePreColorTarget)
-    {
-        // HwPipePreColorTarget is only valid as wait point. But for the sake of robustness, if it's used as pipe
-        // point to wait on, it's equivalent to HwPipePostPs.
-        pipePoint = HwPipePostPs;
-    }
+    OptimizePipePoint(&pipePoint);
 
     WriteDataInfo writeData = {};
 

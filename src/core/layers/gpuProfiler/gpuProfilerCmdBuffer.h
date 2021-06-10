@@ -134,6 +134,21 @@ public:
         const ColorWriteMaskParams& params) override;
     virtual void CmdBarrier(
         const BarrierInfo& barrierInfo) override;
+    virtual void OptimizeBarrierReleaseInfo(
+        uint32       pipePointWaitCount,
+        HwPipePoint* pPipePoints,
+        uint32*      pCacheMask) const override
+    {
+        // The optimization works in PAL core level. If any replay layer is enabled, this function should immediately
+        // return the original pipe and cache info, and drop the call from propagating to next layer.
+    }
+    virtual void OptimizeAcqRelReleaseInfo(
+        uint32* pStageMask,
+        uint32* pAccessMask) const override
+    {
+        // The optimization works in PAL core level. If any replay layer is enabled, this function should immediately
+        // return the original pipe and cache info, and drop the call from propagating to next layer.
+    }
     virtual void CmdWaitRegisterValue(
         uint32      registerOffset,
         uint32      data,

@@ -116,14 +116,6 @@ function(pal_compile_definitions TARGET)
         target_compile_definitions(${TARGET} PRIVATE PAL_BUILD_NULL_DEVICE=1)
     endif()
 
-    if(PAL_BUILD_GPUOPEN)
-        target_compile_definitions(${TARGET} PUBLIC PAL_BUILD_GPUOPEN=1)
-    endif()
-
-    if(PAL_ENABLE_DEVDRIVER_USAGE)
-        target_compile_definitions(${TARGET} PRIVATE PAL_ENABLE_DEVDRIVER_USAGE=1)
-    endif()
-
     if(PAL_ENABLE_PRINTS_ASSERTS)
         target_compile_definitions(${TARGET} PUBLIC
             $<$<NOT:$<CONFIG:Debug>>:PAL_ENABLE_PRINTS_ASSERTS=1>
