@@ -45,7 +45,7 @@ if (${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_CURRENT_SOURCE_DIR})
     message(AUTHOR_WARNING "Pal is being built as a standalone project. This isn't properly supported yet.")
     set(PAL_IS_STANDALONE ON)
 endif()
-
+#test
 ### Build Parameters ###################################################################################################
 include(PalBuildParameters)
 
