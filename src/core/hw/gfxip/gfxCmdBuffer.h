@@ -63,7 +63,7 @@ constexpr uint32 PredicationAlign = 16;
 // In order to make tracking user data entries easier, MaxUserDataEntries is the maximum possible number of user data
 // entries (registers and spill memory) available to the client. This value should always be greater than or equal to
 // the number returned to the client.
-constexpr uint32 MaxUserDataEntries = 128;
+constexpr uint32 MaxUserDataEntries = 224; // MaxBindingRegCount + MaxPushConstRegCount
 
 // Wide-bitmask of one flag for every user-data entry.
 constexpr uint32 UserDataEntriesPerMask = (sizeof(size_t) << 3);
