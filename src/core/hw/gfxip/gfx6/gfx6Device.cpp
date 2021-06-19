@@ -3399,6 +3399,7 @@ void InitializeGpuEngineProperties(
     pUniversal->flags.timestampSupport                = 1;
     pUniversal->flags.borderColorPaletteSupport       = 1;
     pUniversal->flags.queryPredicationSupport         = 1;
+    pUniversal->flags.memory32bPredicationEmulated    = 1; // Emulated by embedding a 64-bit predicate in the cmdbuf and copying from the 32-bit source.
     pUniversal->flags.memory64bPredicationSupport     = 1;
     pUniversal->flags.conditionalExecutionSupport     = 1;
     pUniversal->flags.loopExecutionSupport            = 1;
