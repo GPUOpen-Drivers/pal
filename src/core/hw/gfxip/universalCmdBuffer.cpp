@@ -276,6 +276,7 @@ void UniversalCmdBuffer::ResetState()
 
     m_graphicsState.clipRectsState.clipRule = DefaultClipRectsRule;
     m_graphicsState.colorWriteMask          = UINT_MAX;
+    m_graphicsState.rasterizerDiscardEnable = false;
 }
 
 // =====================================================================================================================
@@ -298,6 +299,7 @@ void UniversalCmdBuffer::CmdBindPipeline(
         m_graphicsState.pipelineState.apiPsoHash = params.apiPsoHash;
         m_graphicsState.colorWriteMask           = UINT_MAX;
         m_graphicsState.pipelineState.dirtyFlags.pipelineDirty = 1;
+        m_graphicsState.rasterizerDiscardEnable  = false;
     }
 
     m_device.DescribeBindPipeline(this, pPipeline, params.apiPsoHash, params.pipelineBindPoint);
@@ -564,6 +566,20 @@ void UniversalCmdBuffer::CmdSetColorWriteMask(
     }
 }
 
+// =====================================================================================================================
+// Sets dynamic rasterizer discard enable bit
+void UniversalCmdBuffer::CmdSetRasterizerDiscardEnable(
+    bool rasterizerDiscardEnable)
+{
+    const auto*const pPipeline = static_cast<const GraphicsPipeline*>(m_graphicsState.pipelineState.pPipeline);
+
+    if (pPipeline != nullptr)
+    {
+        m_graphicsState.rasterizerDiscardEnable = rasterizerDiscardEnable;
+	m_graphicsState.dirtyFlags.validationBits.rasterizerDiscardEnable = 1;
+    }
+}
+
 #if PAL_ENABLE_PRINTS_ASSERTS
 // =====================================================================================================================
 // Dumps this command buffer's DE and CE command streams to the given file with an appropriate header.
@@ -665,6 +681,7 @@ void UniversalCmdBuffer::SetGraphicsState(
     }
 
     m_graphicsState.colorWriteMask = newGraphicsState.colorWriteMask;
+    m_graphicsState.rasterizerDiscardEnable = newGraphicsState.rasterizerDiscardEnable;
 }
 
 // =====================================================================================================================

@@ -1775,6 +1775,22 @@ void CmdBuffer::ReplayCmdSetColorWriteMask(
 }
 
 // =====================================================================================================================
+void CmdBuffer::CmdSetRasterizerDiscardEnable(
+    bool rasterizerDiscardEnable)
+{
+    InsertToken(CmdBufCallId::CmdSetRasterizerDiscardEnable);
+    InsertToken(rasterizerDiscardEnable);
+}
+
+// =====================================================================================================================
+void CmdBuffer::ReplayCmdSetRasterizerDiscardEnable(
+    Queue*           pQueue,
+    TargetCmdBuffer* pTgtCmdBuffer)
+{
+    pTgtCmdBuffer->CmdSetRasterizerDiscardEnable(ReadTokenVal<bool>());
+}
+
+// =====================================================================================================================
 void CmdBuffer::CmdBarrierInternal(
     const BarrierInfo& barrierInfo)
 {
@@ -4685,6 +4701,7 @@ Result CmdBuffer::Replay(
         &CmdBuffer::ReplayCmdSetScissorRects,
         &CmdBuffer::ReplayCmdSetGlobalScissor,
         &CmdBuffer::ReplayCmdSetColorWriteMask,
+	&CmdBuffer::ReplayCmdSetRasterizerDiscardEnable,
         &CmdBuffer::ReplayCmdBarrier,
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
         &CmdBuffer::ReplayCmdRelease,

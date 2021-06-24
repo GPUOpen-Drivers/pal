@@ -1402,6 +1402,19 @@
       "Description": "Combines the DE per-submit and per-context preambles into one per-submit preamble."
     },
     {
+      "Name": "VideoCommandBufferAddVerifySignature",
+      "Tags": [
+        "Command Buffer"
+      ],
+      "Defaults": {
+        "Default": false
+      },
+      "Scope": "PrivatePalKey",
+      "Type": "bool",
+      "VariableName": "videoCommandBufferAddVerifySignature",
+      "Description": "For video encode/decode, add a signature enformcement package to IB which will be verified by firmware to ensure integrity."
+    },
+    {
       "Name": "CmdUtilVerifyShadowedRegRanges",
       "Tags": [
         "Command Buffer"

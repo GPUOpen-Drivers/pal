@@ -670,10 +670,22 @@ Result Image::Finalize(
                     // Depth subresources with hTile memory must be fast-cleared either through the compute or graphics
                     // engine. Slow clears won't work as the hTile memory wouldn't get updated. If a mip level has
                     // interleaved slices, graphics engine must be used to clear.
-                    const ClearMethod fastClearMethod = (pPublicSettings->useGraphicsFastDepthStencilClear ||
-                                                         mipSlicesInterleaved) ?
-                                                            ClearMethod::DepthFastGraphics :
-                                                            ClearMethod::Fast;
+                    ClearMethod fastClearMethod;
+                    switch (pPublicSettings->fastDepthStencilClearMode)
+                    {
+                    case FastDepthStencilClearMode::Graphics:
+                        fastClearMethod = ClearMethod::DepthFastGraphics;
+                        break;
+
+                    case FastDepthStencilClearMode::Compute:
+                        fastClearMethod = ClearMethod::Fast;
+                        break;
+
+                    case FastDepthStencilClearMode::Default:
+                    default:
+                        fastClearMethod = mipSlicesInterleaved ? ClearMethod::DepthFastGraphics : ClearMethod::Fast;
+                        break;
+                    }
 
                     for (uint32 mip = 0; mip < m_createInfo.mipLevels; ++mip)
                     {
@@ -2557,6 +2569,16 @@ gpusize Image::GetFastClearEliminateMetaDataOffset(
 }
 
 // =====================================================================================================================
+// Returns the GPU memory size of the fast-clear-eliminate metadata for the specified num mips.
+gpusize Image::GetFastClearEliminateMetaDataSize(
+    uint32 numMips
+    ) const
+{
+    PAL_ASSERT(numMips <= MaxImageMipLevels);
+    return (sizeof(MipFceStateMetaData) * numMips);
+}
+
+// =====================================================================================================================
 // Determines the GPU virtual address of the waTcCompatZRange meta-data. Returns the GPU address of the meta-data
 // This function is not called if this image doesn't have waTcCompatZRange meta-data.
 gpusize Image::GetWaTcCompatZRangeMetaDataAddr(
@@ -3388,6 +3410,14 @@ void Image::InitMetadataFill(
         pCmdBuffer->CmdFillMemory(*boundMem.Memory(),
                                   GetDccStateMetaDataOffset(range.startSubres.mipLevel),
                                   GetDccStateMetaDataSize(range.numMips),
+                                  0);
+    }
+
+    if (HasFastClearEliminateMetaData())
+    {
+        pCmdBuffer->CmdFillMemory(*boundMem.Memory(),
+                                  GetFastClearEliminateMetaDataOffset(range.startSubres.mipLevel),
+                                  GetFastClearEliminateMetaDataSize(range.numMips),
                                   0);
     }
 

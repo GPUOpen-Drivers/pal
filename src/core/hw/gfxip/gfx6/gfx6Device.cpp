@@ -2700,27 +2700,9 @@ GfxIpLevel DetermineIpLevel(
 {
     GfxIpLevel level = GfxIpLevel::None;
 
-    if (FAMILY_IS_SI(familyId) &&
-        (microcodeVersion >= MinMicrocodeVersionSi))
+    if (FAMILY_IS_POLARIS(familyId))
     {
-        level = GfxIpLevel::GfxIp6;
-    }
-    else if ((FAMILY_IS_CI(familyId) && (microcodeVersion >= MinMicrocodeVersionCi)) ||
-             (FAMILY_IS_KV(familyId) && (microcodeVersion >= MinMicrocodeVersionKv)))
-    {
-        level = GfxIpLevel::GfxIp7;
-    }
-    else if (FAMILY_IS_VI(familyId) ||
-             (FAMILY_IS_CZ(familyId) && (microcodeVersion >= MinMicrocodeVersionViPolarisCz)))
-    {
-        if (AMDGPU_IS_STONEY(familyId, eRevId))
-        {
-            level = GfxIpLevel::GfxIp8_1;
-        }
-        else
-        {
-            level = GfxIpLevel::GfxIp8;
-        }
+        level = GfxIpLevel::GfxIp8;
     }
     else
     {

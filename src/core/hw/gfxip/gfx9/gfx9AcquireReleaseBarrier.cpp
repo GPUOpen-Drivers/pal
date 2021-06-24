@@ -161,10 +161,7 @@ static BarrierTransition AcqRelBuildTransition(
         pBarrierOps->layoutTransitions.depthStencilResummarize = 1;
         break;
     case FastClearEliminate:
-        if (transitionInfo.flags.fceIsSkipped == false)
-        {
-            pBarrierOps->layoutTransitions.fastClearEliminate = 1;
-        }
+        pBarrierOps->layoutTransitions.fastClearEliminate = (transitionInfo.flags.skipFce == false);
         break;
     case FmaskDecompress:
         pBarrierOps->layoutTransitions.fmaskDecompress = 1;
@@ -177,6 +174,9 @@ static BarrierTransition AcqRelBuildTransition(
         break;
     case InitMaskRam:
         pBarrierOps->layoutTransitions.initMaskRam = 1;
+        break;
+    case DccMetadataStateCompressed:
+        pBarrierOps->layoutTransitions.updateDccStateMetadata = 1;
         break;
     case None:
     default:
@@ -243,7 +243,7 @@ static void GetBltStageAccessInfo(
         break;
 
     case HwLayoutTransition::FastClearEliminate:
-        if (info.flags.fceIsSkipped == false)
+        if (info.flags.skipFce == false)
         {
             *pStageMask  = PipelineStageColorTarget;
             *pAccessMask = CoherColorTarget;
@@ -265,6 +265,10 @@ static void GetBltStageAccessInfo(
             *pStageMask  = PipelineStageColorTarget;
             *pAccessMask = CoherColorTarget;
         }
+        break;
+
+    case HwLayoutTransition::DccMetadataStateCompressed:
+        // Do nothing.
         break;
 
     case HwLayoutTransition::None:
@@ -413,17 +417,34 @@ void Device::AcqRelColorTransition(
                                           imgBarrier.pQuadSamplePattern,
                                           imgBarrier.subresRange);
         }
-        else
+        else if (layoutTransInfo.blt[0] == HwLayoutTransition::DccMetadataStateCompressed)
         {
-            PAL_ASSERT(layoutTransInfo.blt[0] == HwLayoutTransition::FastClearEliminate);
+            gfx9Image.UpdateDccStateMetaData(pCmdStream,
+                                             imgBarrier.subresRange,
+                                             true,
+                                             engineType,
+                                             Pm4Predicate::PredDisable);
+        }
+        else if (layoutTransInfo.blt[0] == HwLayoutTransition::FastClearEliminate)
+        {
+            if (layoutTransInfo.flags.skipFce != 0)
+            {
+                auto& gfx9ImageNonConst = static_cast<Gfx9::Image&>(*image.GetGfxImage()); // Cast to modifiable value
+                                                                                           // for skip-FCE optimization
+                                                                                           // only.
 
-            // Note: if FCE is not submitted to GPU, we don't need to update cache flags.
-            const bool isSubmitted = RsrcProcMgr().FastClearEliminate(pCmdBuf,
-                                                                      pCmdStream,
-                                                                      gfx9Image,
-                                                                      imgBarrier.pQuadSamplePattern,
-                                                                      imgBarrier.subresRange);
-            layoutTransInfo.flags.fceIsSkipped = (isSubmitted == false);
+                // Skip the fast clear eliminate for this image if the clear color is TC-compatible and the
+                // optimization was enabled.
+                pCmdBuf->AddFceSkippedImageCounter(&gfx9ImageNonConst);
+            }
+            else
+            {
+                RsrcProcMgr().FastClearEliminate(pCmdBuf,
+                                                 pCmdStream,
+                                                 gfx9Image,
+                                                 imgBarrier.pQuadSamplePattern,
+                                                 imgBarrier.subresRange);
+            }
         }
 
         // Handle corner cases where it needs a second pass.
@@ -871,18 +892,17 @@ void Device::IssueAcquireSync(
 // =====================================================================================================================
 // Figure out the specific BLT operation(s) necessary to convert a color image from one ImageLayout to another.
 LayoutTransitionInfo Device::PrepareColorBlt(
-    GfxCmdBuffer*      pCmdBuf,
-    const Pal::Image&  image,
-    const SubresRange& subresRange,
-    ImageLayout        oldLayout,
-    ImageLayout        newLayout
+    const GfxCmdBuffer* pCmdBuf,
+    const Pal::Image&   image,
+    const SubresRange&  subresRange,
+    ImageLayout         oldLayout,
+    ImageLayout         newLayout
     ) const
 {
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
     PAL_ASSERT(subresRange.numPlanes == 1);
 #endif
 
-    const GfxCmdBuffer*         pCmdBufConst   = pCmdBuf;
     auto&                       gfx9Image      = static_cast<Gfx9::Image&>(*image.GetGfxImage());
     const Gfx9::Image&          gfx9ImageConst = gfx9Image;
     const SubResourceInfo*const pSubresInfo    = image.SubresourceInfo(subresRange.startSubres);
@@ -898,7 +918,7 @@ LayoutTransitionInfo Device::PrepareColorBlt(
     // this fact (based on layout), and prohibit us from getting to a situation where one is needed but has not been
     // performed yet.
     const bool fastClearEliminateSupported =
-        (pCmdBufConst->IsGraphicsSupported() &&
+        (pCmdBuf->IsGraphicsSupported() &&
          (gfx9Image.GetFastClearEliminateMetaDataAddr(subresRange.startSubres) != 0));
 
     const bool isMsaaImage = (image.GetImageCreateInfo().samples > 1);
@@ -915,7 +935,7 @@ LayoutTransitionInfo Device::PrepareColorBlt(
             {
                 transitionInfo.blt[bltIndex++] = HwLayoutTransition::DccDecompress;
 
-                if (RsrcProcMgr().WillDecompressWithCompute(pCmdBufConst, gfx9ImageConst, subresRange))
+                if (RsrcProcMgr().WillDecompressWithCompute(pCmdBuf, gfx9ImageConst, subresRange))
                 {
                     transitionInfo.flags.useComputePath = 1;
                 }
@@ -955,7 +975,7 @@ LayoutTransitionInfo Device::PrepareColorBlt(
                 // implicitly.
                 transitionInfo.blt[0] = HwLayoutTransition::DccDecompress;
 
-                if (RsrcProcMgr().WillDecompressWithCompute(pCmdBufConst, gfx9ImageConst, subresRange))
+                if (RsrcProcMgr().WillDecompressWithCompute(pCmdBuf, gfx9ImageConst, subresRange))
                 {
                     transitionInfo.flags.useComputePath = 1;
                 }
@@ -992,25 +1012,26 @@ LayoutTransitionInfo Device::PrepareColorBlt(
         // really trigger an FCE operation.
         if (fastClearEliminateSupported && TestAnyFlagSet(newLayout.usages, TcCompatReadFlags))
         {
+            // The image has been fast cleared with a non-TC compatible color or the FCE optimization is not
+            // enabled.
+            transitionInfo.blt[0] = HwLayoutTransition::FastClearEliminate;
+
             if (gfx9ImageConst.IsFceOptimizationEnabled() &&
                 (gfx9ImageConst.HasSeenNonTcCompatibleClearColor() == false))
             {
                 // Skip the fast clear eliminate for this image if the clear color is TC-compatible and the
                 // optimization was enabled.
-                Result result = pCmdBuf->AddFceSkippedImageCounter(&gfx9Image);
-
-                if (result != Result::Success)
-                {
-                    // Fallback to performing the Fast clear eliminate if the above step of the optimization failed.
-                    transitionInfo.blt[0] = HwLayoutTransition::FastClearEliminate;
-                }
+                transitionInfo.flags.skipFce = 1;
             }
-            else
-            {
-                // The image has been fast cleared with a non-TC compatible color or the FCE optimization is not
-                // enabled.
-                transitionInfo.blt[0] = HwLayoutTransition::FastClearEliminate;
-            }
+        }
+    }
+    else if ((oldState == ColorDecompressed) && (newState == ColorCompressed))
+    {
+        if (gfx9Image.HasDccStateMetaData(subresRange) &&
+           (ImageLayoutCanCompressColorData(layoutToState, oldLayout) == false) &&
+           (ImageLayoutCanCompressColorData(layoutToState, newLayout)))
+        {
+            transitionInfo.blt[0] = HwLayoutTransition::DccMetadataStateCompressed;
         }
     }
 
@@ -1963,6 +1984,14 @@ void Device::AcqRelColorTransitionEvent(
                                         imgBarrier.pQuadSamplePattern,
                                         imgBarrier.subresRange);
         }
+        else if (layoutTransInfo.blt[0] == HwLayoutTransition::DccMetadataStateCompressed)
+        {
+            gfx9Image.UpdateDccStateMetaData(pCmdStream,
+                                             imgBarrier.subresRange,
+                                             true,
+                                             engineType,
+                                             Pm4Predicate::PredDisable);
+        }
         else if (layoutTransInfo.blt[0] == HwLayoutTransition::FmaskDecompress)
         {
             RsrcProcMgr().FmaskDecompress(pCmdBuf,
@@ -1971,17 +2000,26 @@ void Device::AcqRelColorTransitionEvent(
                                           imgBarrier.pQuadSamplePattern,
                                           imgBarrier.subresRange);
         }
-        else
+        else if (layoutTransInfo.blt[0] == HwLayoutTransition::FastClearEliminate)
         {
-            PAL_ASSERT(layoutTransInfo.blt[0] == HwLayoutTransition::FastClearEliminate);
+            if (layoutTransInfo.flags.skipFce != 0)
+            {
+                auto& gfx9ImageNonConst = static_cast<Gfx9::Image&>(*image.GetGfxImage()); // Cast to modifiable value
+                                                                                           // for skip-FCE optimization
+                                                                                           // only.
 
-            // Note: if FCE is not submitted to GPU, we don't need to update cache flags.
-            const bool isSubmitted = RsrcProcMgr().FastClearEliminate(pCmdBuf,
-                                                                      pCmdStream,
-                                                                      gfx9Image,
-                                                                      imgBarrier.pQuadSamplePattern,
-                                                                      imgBarrier.subresRange);
-            layoutTransInfo.flags.fceIsSkipped = (isSubmitted == false);
+                // Skip the fast clear eliminate for this image if the clear color is TC-compatible and the
+                // optimization was enabled.
+                pCmdBuf->AddFceSkippedImageCounter(&gfx9ImageNonConst);
+            }
+            else
+            {
+                RsrcProcMgr().FastClearEliminate(pCmdBuf,
+                                                 pCmdStream,
+                                                 gfx9Image,
+                                                 imgBarrier.pQuadSamplePattern,
+                                                 imgBarrier.subresRange);
+            }
         }
 
         // Handle corner cases where it needs a second pass.

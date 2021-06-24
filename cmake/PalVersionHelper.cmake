@@ -103,14 +103,6 @@ function(pal_set_or VARIABLE VALUE)
     endif()
 endfunction()
 
-# Helper function to override cache variables, that pal's clients have
-function(pal_override VARIABLE VALUE)
-    # Always use string as the 'type'
-    # 'type' is only used for gui presentation. Everything in cmake is really a string.
-    set(${VARIABLE} ${VALUE} CACHE STRING "PAL OVERRIDE" FORCE)
-    mark_as_advanced(${VARIABLE})
-endfunction()
-
 # Helper function that sets the value of the variable passed in to the current value of
 # PAL_INTERFACE_MAJOR_VERSION defined in palLib.h.
 function(pal_get_current_pal_interface_major_version VARIABLE)

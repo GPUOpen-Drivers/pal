@@ -244,8 +244,10 @@ extern int64 GetPerfFrequency();
 /// This is a high resolution time stamp that can be used in conjunction with GetPerfFrequency to measure time
 /// intervals.
 ///
+/// @param [in]      raw        Whether to use a 'monotonic raw' clock which ignores smoothing. Ignored on Windows.
+///
 /// @returns Current value of the CPU performance counter.
-extern int64 GetPerfCpuTime();
+extern int64 GetPerfCpuTime(bool raw=false);
 
 /// Determines if a specific key is pressed down.
 ///

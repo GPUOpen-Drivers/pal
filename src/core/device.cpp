@@ -143,11 +143,7 @@ bool Device::DetermineGpuIpLevels(
     switch (familyId)
     {
 #if PAL_BUILD_GFX6
-    case FAMILY_SI:
-    case FAMILY_CI:
-    case FAMILY_KV:
-    case FAMILY_VI: // VI and Polaris
-    case FAMILY_CZ:
+    case FAMILY_POLARIS:
         pIpLevels->gfx = Gfx6::DetermineIpLevel(familyId, eRevId, cpMicrocodeVersion);
         break;
 #endif
@@ -164,20 +160,8 @@ bool Device::DetermineGpuIpLevels(
 #if PAL_BUILD_OSS
     switch (familyId)
     {
-#if PAL_BUILD_OSS1
-    case FAMILY_SI:
-        pIpLevels->oss = Oss1::DetermineIpLevel(familyId, eRevId);
-        break;
-#endif
-#if PAL_BUILD_OSS2
-    case FAMILY_CI:
-    case FAMILY_KV:
-        pIpLevels->oss = Oss2::DetermineIpLevel(familyId, eRevId);
-        break;
-#endif
 #if PAL_BUILD_OSS2_4
-    case FAMILY_VI: // VI and Polaris
-    case FAMILY_CZ:
+    case FAMILY_POLARIS:
         pIpLevels->oss = Oss2_4::DetermineIpLevel(familyId, eRevId);
         break;
 #endif
@@ -477,7 +461,7 @@ Result Device::SetupPublicSettingDefaults()
 {
     Result ret = Result::Success;
 
-    m_publicSettings.useGraphicsFastDepthStencilClear = false;
+    m_publicSettings.fastDepthStencilClearMode = FastDepthStencilClearMode::Default;
     m_publicSettings.forceLoadObjectFailure = false;
     m_publicSettings.distributionTessMode = DistributionTessDefault;
     m_publicSettings.contextRollOptimizationFlags = 0;

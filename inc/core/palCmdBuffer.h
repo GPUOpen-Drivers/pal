@@ -2297,6 +2297,13 @@ public:
     virtual void CmdSetColorWriteMask(
         const ColorWriteMaskParams& params) = 0;
 
+    /// Sets dynamically rasterizer discard enable bit. The updated rasterizerDiscardEnable will be
+    /// overwritten when binding a new pipeline.
+    ///
+    /// @param [in] rasterizerDiscardEnable  Parameters for dynamically setting rasterizer discard enable bit
+    virtual void CmdSetRasterizerDiscardEnable(
+	bool rasterizerDiscardEnable) = 0;
+
     /// Inserts a barrier in the current command stream that can stall GPU execution, flush/invalidate caches, or
     /// decompress images before further, dependent work can continue in this command buffer.
     ///

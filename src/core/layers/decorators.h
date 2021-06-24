@@ -1385,6 +1385,10 @@ public:
         const ColorWriteMaskParams& params) override
         { m_pNextLayer->CmdSetColorWriteMask(params); }
 
+    virtual void CmdSetRasterizerDiscardEnable(
+        bool rasterizerDiscardEnable) override
+        { m_pNextLayer->CmdSetRasterizerDiscardEnable(rasterizerDiscardEnable); }
+
     virtual void CmdBarrier(const BarrierInfo& barrierInfo) override;
 
     virtual void OptimizeBarrierReleaseInfo(

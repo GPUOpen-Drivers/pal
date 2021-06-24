@@ -562,15 +562,28 @@ Result Image::Finalize(
             {
                 // Depth subresources with hTile memory must be fast-cleared either through the compute or graphics
                 // engine.  Slow clears won't work as the hTile memory wouldn't get updated.
-                const ClearMethod fastClearMethod = (pPublicSettings->useGraphicsFastDepthStencilClear ||
-                                                     (useSharedMetadata &&
-                                                      (sharedMetadata.flags.hasEqGpuAccess == false)))
-                                                        ? ClearMethod::DepthFastGraphics
-                                                        : ClearMethod::Fast;
+                ClearMethod fastClearMethod;
+                switch (pPublicSettings->fastDepthStencilClearMode)
+                {
+                case FastDepthStencilClearMode::Graphics:
+                    fastClearMethod = ClearMethod::DepthFastGraphics;
+                    break;
 
-                const bool        supportsDepth   =
+                case FastDepthStencilClearMode::Compute:
+                    fastClearMethod = ClearMethod::Fast;
+                    break;
+
+                case FastDepthStencilClearMode::Default:
+                default:
+                    fastClearMethod = (useSharedMetadata && (sharedMetadata.flags.hasEqGpuAccess == false))
+                                      ? ClearMethod::DepthFastGraphics
+                                      : ClearMethod::Fast;
+                    break;
+                }
+
+                const bool supportsDepth   =
                     m_device.SupportsDepth(m_createInfo.swizzledFormat.format, m_createInfo.tiling);
-                const bool        supportsStencil =
+                const bool supportsStencil =
                     m_device.SupportsStencil(m_createInfo.swizzledFormat.format, m_createInfo.tiling);
 
                 for (uint32 mip = 0; ((mip < m_createInfo.mipLevels) && (result == Result::Success)); ++mip)
@@ -2963,6 +2976,16 @@ gpusize Image::GetFastClearEliminateMetaDataOffset(
             : m_fastClearEliminateMetaDataOffset[planeIdx] + (subResId.mipLevel * sizeof(MipFceStateMetaData));
 }
 
+// =====================================================================================================================
+// Returns the GPU memory size of the fast-clear-eliminate metadata for the specified num mips.
+gpusize Image::GetFastClearEliminateMetaDataSize(
+    uint32 numMips
+    ) const
+{
+    PAL_ASSERT(numMips <= MaxImageMipLevels);
+    return (sizeof(MipFceStateMetaData) * numMips);
+}
+
 //=====================================================================================================================
 // Returns the GPU address of the meta-data. This function is not called if this image doesn't have waTcCompatZRange
 // meta-data.
@@ -3571,8 +3594,16 @@ void Image::InitMetadataFill(
                                       GetDccStateMetaDataOffset(subresId),
                                       GetDccStateMetaDataSize(subresId, range.numMips),
                                   dccStateInitValue);
+        }
     }
-}
+
+    if (HasFastClearEliminateMetaData(range))
+    {
+        pCmdBuffer->CmdFillMemory(gpuMemObj,
+                                  GetFastClearEliminateMetaDataOffset(range.startSubres),
+                                  GetFastClearEliminateMetaDataSize(range.numMips),
+                                  0);
+    }
 }
 
 // =====================================================================================================================

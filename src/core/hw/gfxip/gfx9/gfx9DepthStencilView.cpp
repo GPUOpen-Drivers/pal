@@ -892,7 +892,6 @@ uint32* Gfx10DepthStencilView::WriteCommands(
                                                    &regs.dbZInfo,
                                                    pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetOneContextReg(mmDB_HTILE_SURFACE, regs.dbHtileSurface.u32All, pCmdSpace);
-    pCmdSpace = pCmdStream->WriteSetOneContextReg(mmDB_PRELOAD_CONTROL, regs.dbPreloadControl.u32All, pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetOneContextReg(mmPA_SU_POLY_OFFSET_DB_FMT_CNTL,
                                                   regs.paSuPolyOffsetDbFmtCntl.u32All,
                                                   pCmdSpace);

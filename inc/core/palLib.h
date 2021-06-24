@@ -43,7 +43,7 @@
 ///            compatible, it is not assumed that the client will initialize all input structs to 0.
 ///
 /// @ingroup LibInit
-#define PAL_INTERFACE_MAJOR_VERSION 668
+#define PAL_INTERFACE_MAJOR_VERSION 669
 
 /// Minor interface version.  Note that the interface version is distinct from the PAL version itself, which is returned
 /// in @ref Pal::PlatformProperties.
@@ -53,7 +53,7 @@
 /// of the existing enum values will change.  This number will be reset to 0 when the major version is incremented.
 ///
 /// @ingroup LibInit
-#define PAL_INTERFACE_MINOR_VERSION 2
+#define PAL_INTERFACE_MINOR_VERSION 1
 
 /// Minimum major interface version. This is the minimum interface version PAL supports in order to support backward
 /// compatibility. When it is equal to PAL_INTERFACE_MAJOR_VERSION, only the latest interface version is supported.
@@ -128,8 +128,8 @@ enum class NullGpuId : uint32
     Navi21           = 0x22,
     Navi22           = 0x23,
 
-    Max = 0x2D,
-    All = 0x2E,
+    Max = 0x2E,
+    All = 0x2F,
 };
 
 /// Maps a null GPU ID to its associated text name.

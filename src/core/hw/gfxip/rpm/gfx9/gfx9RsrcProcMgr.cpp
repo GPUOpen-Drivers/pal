@@ -1050,6 +1050,17 @@ bool RsrcProcMgr::InitMaskRam(
                                         PredDisable);
     }
 
+    // We need to initialize the Image's FCE(fast clear eliminate) metadata to ensure that if we don't perform fast clear
+    // then FCE command should not be truely executed.
+    if (dstImage.HasFastClearEliminateMetaData(range))
+    {
+        const Pm4Predicate packetPredicate =
+            static_cast<Pm4Predicate>(pCmdBuffer->GetGfxCmdBufState().flags.packetPredicate);
+        uint32* pCmdSpace = pCmdStream->ReserveCommands();
+        pCmdSpace = dstImage.UpdateFastClearEliminateMetaData(pCmdBuffer, range, 0, packetPredicate, pCmdSpace);
+        pCmdStream->CommitCommands(pCmdSpace);
+    }
+
     return usedCompute;
 }
 
@@ -2050,15 +2061,26 @@ void RsrcProcMgr::HwlDepthStencilClear(
                         }
                     }
 
-                    // DepthStencilClearGraphics() implements both fast and slow clears. For fast clears,
-                    // if the image layout supports depth/stencil target usage and the image size is too small,
-                    // the synchronization overhead of switching to compute and back is main performance bottleneck,
-                    // prefer the graphics path for this case. While the image size is over this critical value,
-                    // compute path has a good performance advantage, prefer the compute path for this.
-                    if ((pCmdBuffer->IsComputeSupported() == false)              ||
-                        (fastClearMethod[idx] == ClearMethod::DepthFastGraphics) ||
-                        (fastClear == false)                                     ||
-                        (PreferFastDepthStencilClearGraphics(dstImage, depthLayout, stencilLayout)))
+                    FastDepthStencilClearMode fastDepthStencilClearMode =
+                        gfx9Image.Parent()->GetDevice()->GetPublicSettings()->fastDepthStencilClearMode;
+
+                    if (fastDepthStencilClearMode == FastDepthStencilClearMode::Default)
+                    {
+                        // DepthStencilClearGraphics() implements both fast and slow clears. For fast clears,
+                        // if the image layout supports depth/stencil target usage and the image size is too small,
+                        // the synchronization overhead of switching to compute and back is a performance bottleneck,
+                        // prefer the graphics path for this case. While the image size is over this critical value,
+                        // compute path has a good performance advantage, prefer the compute path for this.
+                        fastDepthStencilClearMode =
+                            ((pCmdBuffer->IsComputeSupported() == false)             ||
+                            (fastClearMethod[idx] == ClearMethod::DepthFastGraphics) ||
+                            (fastClear == false)                                     ||
+                            PreferFastDepthStencilClearGraphics(dstImage, depthLayout, stencilLayout))
+                            ? FastDepthStencilClearMode::Graphics
+                            : FastDepthStencilClearMode::Compute;
+                    }
+
+                    if (fastDepthStencilClearMode == FastDepthStencilClearMode::Graphics)
                     {
                         DepthStencilClearGraphics(pCmdBuffer,
                                                   gfx9Image,
@@ -3157,7 +3179,7 @@ void RsrcProcMgr::DccDecompress(
 
 // =====================================================================================================================
 // Performs a fast color clear eliminate blt on the provided Image. Returns true if work (blt) is submitted to GPU.
-bool RsrcProcMgr::FastClearEliminate(
+void RsrcProcMgr::FastClearEliminate(
     GfxCmdBuffer*                pCmdBuffer,
     Pal::CmdStream*              pCmdStream,
     const Image&                 image,
@@ -3194,8 +3216,6 @@ bool RsrcProcMgr::FastClearEliminate(
 
         pCmdStream->CommitCommands(pCmdSpace);
     }
-
-    return true;
 }
 
 // =====================================================================================================================

@@ -63,7 +63,8 @@ union GraphicsStateFlags
                 uint32 vrsImage               :  1; // 10.3 only
                 uint32 depthClampOverride     :  1; // All Gfx
                 uint32 colorWriteMask         :  1; // All Gfx
-                uint32 reserved               : 15;
+		uint32 rasterizerDiscardEnable:  1; // All Gfx
+                uint32 reserved               : 14;
             };
 
             uint32 u32All;
@@ -170,6 +171,7 @@ struct GraphicsState
         uint32  everUsedMultiViewport  : 1;  // Did this command buffer ever draw with a pipeline which used
                                              // viewport-array-index?
         uint32  useCustomSamplePattern : 1;  // If use custom sample pattern instead of default sample pattern
+        uint32  rasterizerDiscardEnable: 1;  // (CmdSetRasterizerDiscardEnable)
     };
 
     InheritedStateParams inheritedState; // States provided to nested command buffer from primary command buffer.
@@ -230,6 +232,8 @@ public:
         bool disableViewportClamp) override;
 
     virtual void CmdSetColorWriteMask(const ColorWriteMaskParams& params) override;
+
+    virtual void CmdSetRasterizerDiscardEnable(bool rasterizerDiscardEnable) override;
 
 #if PAL_ENABLE_PRINTS_ASSERTS
     // This function allows us to dump the contents of this command buffer to a file at submission time.

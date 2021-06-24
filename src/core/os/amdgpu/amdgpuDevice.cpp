@@ -819,7 +819,7 @@ Result Device::GetProperties(
         // Expose available time domains for calibrated timestamps
         pInfo->osProperties.timeDomains.supportDevice = true;
         pInfo->osProperties.timeDomains.supportClockMonotonic = true;
-        pInfo->osProperties.timeDomains.supportClockMonotonicRaw = false; // Enable this once KMD interface is updated
+        pInfo->osProperties.timeDomains.supportClockMonotonicRaw = true;
         pInfo->osProperties.timeDomains.supportQueryPerformanceCounter = false;
 
         pInfo->gpuMemoryProperties.flags.supportHostMappedForeignMemory =
@@ -1739,16 +1739,21 @@ Result Device::GetCalibratedTimestamps(
     if (pCalibratedTimestamps != nullptr)
     {
         uint64 gpuTimestamp = 0;
+        uint64 cpuTimestampBeforeGpuTimestampRaw = GetPerfCpuTime(true);
         uint64 cpuTimestampBeforeGpuTimestamp = GetPerfCpuTime();
 
         if (m_drmProcs.pfnAmdgpuQueryInfo(m_hDevice, AMDGPU_INFO_TIMESTAMP, sizeof(gpuTimestamp), &gpuTimestamp) == 0)
         {
+            uint64 cpuTimestampAfterGpuTimestampRaw = GetPerfCpuTime(true);
             uint64 cpuTimestampAfterGpuTimestamp = GetPerfCpuTime();
 
-            pCalibratedTimestamps->gpuTimestamp               = gpuTimestamp;
-            pCalibratedTimestamps->cpuClockMonotonicTimestamp = cpuTimestampBeforeGpuTimestamp;
-            pCalibratedTimestamps->maxDeviation               = cpuTimestampAfterGpuTimestamp -
-                                                                    cpuTimestampBeforeGpuTimestamp;
+            uint64 maxDeviation = Max(cpuTimestampAfterGpuTimestamp - cpuTimestampBeforeGpuTimestamp,
+                                      cpuTimestampAfterGpuTimestampRaw - cpuTimestampBeforeGpuTimestampRaw);
+
+            pCalibratedTimestamps->gpuTimestamp                  = gpuTimestamp;
+            pCalibratedTimestamps->cpuClockMonotonicTimestamp    = cpuTimestampBeforeGpuTimestamp;
+            pCalibratedTimestamps->cpuClockMonotonicRawTimestamp = cpuTimestampBeforeGpuTimestampRaw;
+            pCalibratedTimestamps->maxDeviation                  = maxDeviation;
         }
         else
         {

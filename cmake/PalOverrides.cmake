@@ -25,55 +25,54 @@
 include_guard()
 include(PalVersionHelper)
 
-# This file is dedicated to overriding PAL subproject options.
-# When overriding a cache variable use pal_override to simplify the code
+# This file is dedicated to overriding PAL subproject options
 
 # ADDRLIB
-pal_override(ADDR_SI_BUILD ON)
-pal_override(ADDR_CI_BUILD ON)
-pal_override(ADDR_VI_BUILD ON)
+set(ADDR_SI_BUILD ON)
+set(ADDR_CI_BUILD ON)
+set(ADDR_VI_BUILD ON)
 
 # PAL override for ADDRLIB SI/CI/VI register chip headers
-pal_override(ADDR_SI_CHIP_DIR "${PROJECT_SOURCE_DIR}/src/core/hw/gfxip/gfx6/chip")
+set(ADDR_SI_CHIP_DIR "${PROJECT_SOURCE_DIR}/src/core/hw/gfxip/gfx6/chip")
 
 # VAM
 
 # GPUOPEN
 
 # PAL override to build GPUOpen without the Metrohash library since PAL has its own.
-pal_override(GPUOPEN_BUILD_METROHASH OFF)
+set(GPUOPEN_BUILD_METROHASH OFF)
 
 # PAL override to specify the path to the MetroHash module.
-pal_override(METROHASH_PATH "${PAL_METROHASH_PATH}/src")
+set(METROHASH_PATH "${PAL_METROHASH_PATH}/src")
 
 # PAL override to build GPUOpen with server helper classes
-pal_override(GPUOPEN_BUILD_SERVER_HELPERS ON)
+set(GPUOPEN_BUILD_SERVER_HELPERS ON)
 
 # PAL override to build GPUOpen with support for the standard driver protocols
-pal_override(GPUOPEN_BUILD_STANDARD_DRIVER_PROTOCOLS ON)
+set(GPUOPEN_BUILD_STANDARD_DRIVER_PROTOCOLS ON)
 
 # GPU Overrides
 
 if(PAL_BUILD_GFX9)
     # Generic support for GFX9 cards
-    pal_override(ADDR_GFX9_BUILD ON)
-    pal_override(ADDR_VEGA12_BUILD ON)
-    pal_override(ADDR_VEGA20_BUILD ON)
-    pal_override(ADDR_RAVEN1_BUILD ON)
-    pal_override(ADDR_RAVEN2_BUILD ON)
-    pal_override(ADDR_RENOIR_BUILD ON)
+    set(ADDR_GFX9_BUILD ON)
+    set(ADDR_VEGA12_BUILD ON)
+    set(ADDR_VEGA20_BUILD ON)
+    set(ADDR_RAVEN1_BUILD ON)
+    set(ADDR_RAVEN2_BUILD ON)
+    set(ADDR_RENOIR_BUILD ON)
 
-    pal_override(ADDR_GFX9_CHIP_DIR "${PROJECT_SOURCE_DIR}/src/core/hw/gfxip/gfx9/chip")
+    set(ADDR_GFX9_CHIP_DIR "${PROJECT_SOURCE_DIR}/src/core/hw/gfxip/gfx9/chip")
 
-    pal_override(ADDR_GFX10_BUILD ON)
+    set(ADDR_GFX10_BUILD ON)
 
-    pal_override(ADDR_NAVI12_BUILD ${PAL_BUILD_NAVI12})
+    set(ADDR_NAVI12_BUILD ${PAL_BUILD_NAVI12})
 
-    pal_override(ADDR_NAVI14_BUILD ${PAL_BUILD_NAVI14})
+    set(ADDR_NAVI14_BUILD ${PAL_BUILD_NAVI14})
 
-    pal_override(ADDR_NAVI21_BUILD ${PAL_BUILD_NAVI21})
+    set(ADDR_NAVI21_BUILD ${PAL_BUILD_NAVI21})
 
-    pal_override(ADDR_NAVI22_BUILD ${PAL_BUILD_NAVI22})
+    set(ADDR_NAVI22_BUILD ${PAL_BUILD_NAVI22})
 
 endif() # PAL_BUILD_GFX9
 

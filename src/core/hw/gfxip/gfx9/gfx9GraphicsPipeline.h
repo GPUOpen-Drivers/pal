@@ -117,6 +117,7 @@ public:
 
     regVGT_GS_ONCHIP_CNTL VgtGsOnchipCntl() const { return m_regs.context.vgtGsOnchipCntl; }
     regVGT_GS_MODE VgtGsMode() const { return m_regs.context.vgtGsMode; }
+    regPA_CL_CLIP_CNTL PaClClipCntl() const { return m_regs.context.paClClipCntl; }
 
     bool   IsNgg() const { return (m_regs.context.vgtShaderStagesEn.bits.PRIMGEN_EN != 0); }
     bool   IsNggFastLaunch() const { return m_isNggFastLaunch; }

@@ -284,6 +284,7 @@ public:
 
     gpusize GetFastClearEliminateMetaDataAddr(uint32 mipLevel) const;
     gpusize GetFastClearEliminateMetaDataOffset(uint32 mipLevel) const;
+    gpusize GetFastClearEliminateMetaDataSize(uint32 numMips) const;
 
     bool HasWaTcCompatZRangeMetaData() const { return m_waTcCompatZRangeMetaDataOffset != 0; }
     gpusize GetWaTcCompatZRangeMetaDataAddr(uint32 mipLevel) const;

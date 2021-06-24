@@ -25,7 +25,7 @@
         "General"
       ],
       "Defaults": {
-        "Default": true
+        "Default": false
       },
       "Scope": "PrivatePalGfx6Key",
       "Type": "bool",

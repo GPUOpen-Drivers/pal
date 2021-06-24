@@ -440,13 +440,14 @@ int64 GetPerfFrequency()
 // =====================================================================================================================
 // Retrieves the current value of the performance counter, which is a high resolution time stamp that can be used for
 // time-interval measurements.
-int64 GetPerfCpuTime()
+int64 GetPerfCpuTime(
+    bool raw)
 {
     int64 time = 0LL;
 
     // clock_gettime() returns the monotonic time since EPOCH
     timespec ts = { };
-    if (clock_gettime(CLOCK_MONOTONIC, &ts) == 0)
+    if (clock_gettime(raw ? CLOCK_MONOTONIC_RAW : CLOCK_MONOTONIC, &ts) == 0)
     {
         // the tick takes 1 ns since we actually can hardly get timer with res less than 1ns.
         constexpr int64 NanosecsPerSec = 1000000000LL;

@@ -103,6 +103,8 @@ public:
         const GlobalScissorParams& params) override;
     virtual void CmdSetColorWriteMask(
         const ColorWriteMaskParams& params) override;
+    virtual void CmdSetRasterizerDiscardEnable(
+        bool rasterizerDiscardEnable) override;
 
     virtual void CmdBarrier(const BarrierInfo& barrierInfo) override;
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648

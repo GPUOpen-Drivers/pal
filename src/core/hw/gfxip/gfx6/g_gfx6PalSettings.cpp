@@ -58,7 +58,7 @@ namespace Gfx6
 void SettingsLoader::SetupDefaults()
 {
     // set setting variables to their default values...
-    m_settings.enableLoadIndexForObjectBinds = true;
+    m_settings.enableLoadIndexForObjectBinds = false;
     m_settings.cpDmaSrcAlignment = CpDmaAlignmentDefault;
     m_settings.disableBorderColorPaletteBinds = false;
     m_settings.forceOcclusionQueryResult = false;
@@ -1020,7 +1020,7 @@ void SettingsLoader::DevDriverRegister()
             component.pfnSetValue = ISettingsLoader::SetValue;
             component.pSettingsData = &g_gfx6PalJsonData[0];
             component.settingsDataSize = sizeof(g_gfx6PalJsonData);
-            component.settingsDataHash = 1300263404;
+            component.settingsDataHash = 847210397;
             component.settingsDataHeader.isEncoded = true;
             component.settingsDataHeader.magicBufferId = 402778310;
             component.settingsDataHeader.magicBufferOffset = 0;

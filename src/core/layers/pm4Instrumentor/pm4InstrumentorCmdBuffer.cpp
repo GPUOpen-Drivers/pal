@@ -609,6 +609,15 @@ void CmdBuffer::CmdSetColorWriteMask(
 }
 
 // =====================================================================================================================
+void CmdBuffer::CmdSetRasterizerDiscardEnable(
+    bool rasterizerDiscardEnable)
+{
+    PreCall();
+    CmdBufferFwdDecorator::CmdSetRasterizerDiscardEnable(rasterizerDiscardEnable);
+    PostCall(CmdBufCallId::CmdSetRasterizerDiscardEnable);
+}
+
+// =====================================================================================================================
 void CmdBuffer::CmdBarrier(
     const BarrierInfo& barrierInfo)
 {

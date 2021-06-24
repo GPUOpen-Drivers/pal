@@ -125,6 +125,7 @@ void SettingsLoader::OverrideDefaults()
                                       UseDccAllowForceEnable      |
                                       UseDccMipMappedArrays;
         m_settings.useDcc = DccEnables;
+
     }
     else if (gfxLevel >= GfxIpLevel::GfxIp8)
     {

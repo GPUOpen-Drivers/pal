@@ -591,17 +591,12 @@ uint32 Device::GetColorBltPerSubres(
                 ((gfx6Image.HasDccData() && pSubresInfo->flags.supportMetaDataTexFetch) ||
                 (gfx6Image.HasCmaskData() && gfx6Image.GetCmask(subRes)->UseFastClear())))
             {
-                if ((gfx6Image.HasSeenNonTcCompatibleClearColor() == false) && gfx6Image.IsFceOptimizationEnabled())
+                if (gfx6Image.IsFceOptimizationEnabled() &&
+                    (gfx6Image.HasSeenNonTcCompatibleClearColor() == false))
                 {
                     // Skip the fast clear eliminate for this image if the clear color is TC-compatible and the
                     // optimization was enabled.
-                    Result result = pCmdBuf->AddFceSkippedImageCounter(&gfx6Image);
-
-                    if (result != Result::Success)
-                    {
-                        // Fallback to performing the Fast clear eliminate if the above step of the optimization failed.
-                        pBlt[mip] |= ColorBlt::FastClearEliminate;
-                    }
+                    pCmdBuf->AddFceSkippedImageCounter(&gfx6Image);
                 }
                 else
                 {

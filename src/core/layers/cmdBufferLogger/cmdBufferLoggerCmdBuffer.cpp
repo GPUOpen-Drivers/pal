@@ -1867,6 +1867,18 @@ void CmdBuffer::CmdSetColorWriteMask(
 }
 
 // =====================================================================================================================
+void CmdBuffer::CmdSetRasterizerDiscardEnable(
+    bool rasterizerDiscardEnable)
+{
+    if (m_annotations.logCmdSets)
+    {
+        GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdSetRasterizerDiscardEnable));
+    }
+
+    GetNextLayer()->CmdSetRasterizerDiscardEnable(rasterizerDiscardEnable);
+}
+
+// =====================================================================================================================
 static const char* HwPipePointToString(
     HwPipePoint pipePoint)
 {

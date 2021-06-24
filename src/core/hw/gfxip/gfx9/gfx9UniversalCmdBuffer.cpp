@@ -930,6 +930,11 @@ void UniversalCmdBuffer::CmdBindPipeline(
             m_graphicsState.dirtyFlags.validationBits.colorWriteMask = 1;
         }
 
+        if (m_graphicsState.rasterizerDiscardEnable != false )
+        {
+            m_graphicsState.dirtyFlags.validationBits.rasterizerDiscardEnable = 1;
+        }
+
         // Pipeline owns COVERAGE_TO_SHADER_SELECT
         m_paScAaConfigNew.bits.COVERAGE_TO_SHADER_SELECT =
             (pNewPipeline == nullptr) ? 0 : pNewPipeline->PaScAaConfig().bits.COVERAGE_TO_SHADER_SELECT;
@@ -954,9 +959,10 @@ uint32* UniversalCmdBuffer::SwitchGraphicsPipeline(
     const bool tessEnabled         = pCurrPipeline->IsTessEnabled();
     const bool gsEnabled           = pCurrPipeline->IsGsEnabled();
     const bool isRasterKilled      = pCurrPipeline->IsRasterizationKilled();
+    bool       disableFiltering    = wasPrevPipelineNull;
 
     const uint32 ctxRegHash = pCurrPipeline->GetContextRegHash();
-    if (wasPrevPipelineNull || (m_pipelineCtxRegHash != ctxRegHash))
+    if (disableFiltering || (m_pipelineCtxRegHash != ctxRegHash))
     {
         pDeCmdSpace = pCurrPipeline->WriteContextCommands(&m_deCmdStream, pDeCmdSpace);
         m_deCmdStream.SetContextRollDetected<true>();
@@ -968,14 +974,15 @@ uint32* UniversalCmdBuffer::SwitchGraphicsPipeline(
     if (IsGfx10Plus(m_gfxIpLevel))
     {
         const uint32 cfgRegHash = pCurrPipeline->GetConfigRegHash();
-        if (wasPrevPipelineNull || (m_pipelineCfgRegHash != cfgRegHash))
+        if (disableFiltering || (m_pipelineCfgRegHash != cfgRegHash))
         {
             pDeCmdSpace = pCurrPipeline->WriteConfigCommandsGfx10(&m_deCmdStream, pDeCmdSpace);
             m_pipelineCfgRegHash = cfgRegHash;
         }
     }
 
-    if ((m_cachedSettings.rbPlusSupported != 0) && (m_rbplusRegHash != pCurrPipeline->GetRbplusRegHash()))
+    if ((m_cachedSettings.rbPlusSupported != 0) &&
+        (disableFiltering || (m_rbplusRegHash != pCurrPipeline->GetRbplusRegHash())))
     {
         // m_sxPsDownconvert, m_sxBlendOptEpsilon and m_sxBlendOptControl have been updated in cmdBindPipeline.
         pDeCmdSpace = m_deCmdStream.WriteSetSeqContextRegs(mmSX_PS_DOWNCONVERT,
@@ -1022,14 +1029,14 @@ uint32* UniversalCmdBuffer::SwitchGraphicsPipeline(
     }
 
     // Write VS_OUT_CONFIG if the register changed or this is the first pipeline switch
-    if (wasPrevPipelineNull || (m_spiVsOutConfig.u32All != spiVsOutConfig.u32All))
+    if (disableFiltering || (m_spiVsOutConfig.u32All != spiVsOutConfig.u32All))
     {
         pDeCmdSpace = m_deCmdStream.WriteSetOneContextRegNoOpt(mmSPI_VS_OUT_CONFIG, spiVsOutConfig.u32All, pDeCmdSpace);
         m_spiVsOutConfig = spiVsOutConfig;
     }
 
     // Write PS_IN_CONTROL if the register changed or this is the first pipeline switch
-    if (wasPrevPipelineNull || (m_spiPsInControl.u32All != spiPsInControl.u32All))
+    if (disableFiltering || (m_spiPsInControl.u32All != spiPsInControl.u32All))
     {
         pDeCmdSpace = m_deCmdStream.WriteSetOneContextRegNoOpt(mmSPI_PS_IN_CONTROL, spiPsInControl.u32All, pDeCmdSpace);
         m_spiPsInControl = spiPsInControl;
@@ -5743,6 +5750,16 @@ uint32* UniversalCmdBuffer::ValidateDraw(
         }
     }
 
+    if (StateDirty && dirtyFlags.rasterizerDiscardEnable)
+    {
+        regPA_CL_CLIP_CNTL paClClipCntl = pPipeline->PaClClipCntl();
+	paClClipCntl.bits.DX_RASTERIZATION_KILL = m_graphicsState.rasterizerDiscardEnable;
+
+        pDeCmdSpace = m_deCmdStream.WriteSetOneContextReg(mmPA_CL_CLIP_CNTL,
+			                                  paClClipCntl.u32All,
+							  pDeCmdSpace);
+    }
+
     // Validate primitive restart enable.  Primitive restart should only apply for indexed draws, but on gfx9,
     // VGT also applies it to auto-generated vertex index values.
     m_vgtMultiPrimIbResetEn.most.RESET_EN =
@@ -7604,6 +7621,11 @@ void UniversalCmdBuffer::SetGraphicsState(
         m_graphicsState.dirtyFlags.validationBits.colorWriteMask = 1;
     }
 
+    if (newGraphicsState.rasterizerDiscardEnable != false)
+    {
+        m_graphicsState.dirtyFlags.validationBits.rasterizerDiscardEnable = 1;
+    }
+
     // The target state that we would restore is invalid if this is a nested command buffer that inherits target
     // view state.  The only allowed BLTs in a nested command buffer are CmdClearBoundColorTargets and
     // CmdClearBoundDepthStencilTargets, neither of which will overwrite the bound targets.
@@ -8456,6 +8478,64 @@ void UniversalCmdBuffer::CmdExecuteIndirectCmds(
         }
     }
 
+}
+
+// =====================================================================================================================
+void UniversalCmdBuffer::CmdDispatchAce(
+    uint32 x,
+    uint32 y,
+    uint32 z)
+{
+    // Calling CmdDispatchAce requires a check whether multi-queue is supported on the Universal engine from which this
+    // function was called. The callee should ensure that it's never called when not supported as that case is not
+    // handled. We only do an assert here.
+#if PAL_ENABLE_PRINT_ASSERTS
+    auto const info = m_device.Parent()->EngineProperties().perEngine[static_cast<size_t>(EngineTypeUniversal)];
+    const bool supportsMultiQueue = info.capabilities[info.numAvailable].flags.supportsMultiQueue;
+
+    PAL_ASSERT(supportsMultiQueue == true);
+#endif
+    auto* pAceCmdStream = GetAceCmdStream();
+
+    if (m_cachedSettings.describeDrawDispatch)
+    {
+        m_device.DescribeDispatch(this, Developer::DrawDispatchType::CmdDispatchAce, 0, 0, 0, x, y, z);
+    }
+
+    const auto* pComputePipeline = static_cast<const ComputePipeline*>(m_computeState.pipelineState.pPipeline);
+    const ComputePipelineSignature& pSignature = pComputePipeline->Signature();
+
+    // We create a new local compute state and mark all the bits dirty so that we rewrite entries on ValidateDispatch
+    // on this CmdStream because state on the ACE stream cannot be relied on here.
+    ComputeState tempComputeState                           = m_computeState;
+    tempComputeState.pipelineState.pPipeline                = m_computeState.pipelineState.pPipeline;
+    tempComputeState.pipelineState.apiPsoHash               = m_computeState.pipelineState.apiPsoHash;
+    tempComputeState.pipelineState.dirtyFlags.pipelineDirty = 1;
+
+    // Copy the cs user-data entries on to this temporary ComputeState.
+    memcpy(&tempComputeState.csUserDataEntries.entries,
+           &(m_computeState.csUserDataEntries),
+           sizeof(uint32) * pSignature.userDataLimit);
+
+    memset(&tempComputeState.csUserDataEntries.dirty, -1, sizeof(tempComputeState.csUserDataEntries.dirty));
+
+    ValidateDispatch(&tempComputeState, pAceCmdStream, 0uLL, x, y, z);
+
+    uint32* pAceCmdSpace = pAceCmdStream->ReserveCommands();
+
+    pAceCmdSpace += m_cmdUtil.BuildDispatchDirect<false, true>(x, y, z,
+                                                               PacketPredicate(),
+                                                               m_pSignatureCs->flags.isWave32,
+                                                               UsesDispatchTunneling(),
+                                                               false,
+                                                               pAceCmdSpace);
+
+    if (m_cachedSettings.issueSqttMarkerEvent)
+    {
+        pAceCmdSpace += CmdUtil::BuildNonSampleEventWrite(THREAD_TRACE_MARKER, EngineTypeCompute, pAceCmdSpace);
+    }
+
+    pAceCmdStream->CommitCommands(pAceCmdSpace);
 }
 
 // =====================================================================================================================

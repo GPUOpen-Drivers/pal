@@ -472,17 +472,12 @@ void Device::ExpandColor(
                 gfx9Image.SupportsCompToReg(transition.imageInfo.oldLayout, subresRange.startSubres))
             {
                 PAL_ASSERT(fastClearEliminateSupported);
-                if ((gfx9Image.HasSeenNonTcCompatibleClearColor() == false) && gfx9Image.IsFceOptimizationEnabled())
+                if (gfx9Image.IsFceOptimizationEnabled() &&
+                    (gfx9Image.HasSeenNonTcCompatibleClearColor() == false))
                 {
                     // Skip the fast clear eliminate for this image if the clear color is TC-compatible and the
                     // optimization was enabled.
-                    Result result = pCmdBuf->AddFceSkippedImageCounter(&gfx9Image);
-
-                    if (result != Result::Success)
-                    {
-                        // Fallback to performing the Fast clear eliminate if the above step of the optimization failed.
-                        fastClearEliminate = true;
-                    }
+                    pCmdBuf->AddFceSkippedImageCounter(&gfx9Image);
                 }
                 else
                 {
@@ -564,12 +559,11 @@ void Device::ExpandColor(
             pOperations->layoutTransitions.fastClearEliminate = 1;
             DescribeBarrier(pCmdBuf, &transition, pOperations);
 
-            // Note: if FCE is not submitted to GPU, we don't need to update cache flags.
-            fastClearEliminate = RsrcProcMgr().FastClearEliminate(pCmdBuf,
-                                                                  pCmdStream,
-                                                                  gfx9Image,
-                                                                  transition.imageInfo.pQuadSamplePattern,
-                                                                  subresRange);
+            RsrcProcMgr().FastClearEliminate(pCmdBuf,
+                                             pCmdStream,
+                                             gfx9Image,
+                                             transition.imageInfo.pQuadSamplePattern,
+                                             subresRange);
 
         }
     }
@@ -939,7 +933,10 @@ void Device::IssueSyncs(
     pCmdStream->CommitCommands(pCmdSpace);
 
     // Clear up xxxBltActive flags
-    if (syncReqs.waitOnEopTs || TestAnyFlagSet(syncReqs.cpMeCoherCntl.u32All, CpMeCoherCntlStallMask))
+    if (syncReqs.waitOnEopTs                                                   ||
+        (TestAnyFlagSet(syncReqs.cpMeCoherCntl.u32All, CpMeCoherCntlStallMask) &&
+         (rangeStartAddr == FullSyncBaseAddr)                                  &&
+         (rangeSize == FullSyncSize)))
     {
         pCmdBuf->SetGfxCmdBufGfxBltState(false);
     }

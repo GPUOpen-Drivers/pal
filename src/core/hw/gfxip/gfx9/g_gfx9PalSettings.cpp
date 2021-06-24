@@ -58,7 +58,7 @@ namespace Gfx9
 void SettingsLoader::SetupDefaults()
 {
     // set setting variables to their default values...
-    m_settings.enableLoadIndexForObjectBinds = true;
+    m_settings.enableLoadIndexForObjectBinds = false;
 
     m_settings.allowBigPage = 0x3f;
     m_settings.disableBorderColorPaletteBinds = false;
@@ -2097,7 +2097,7 @@ void SettingsLoader::DevDriverRegister()
             component.pfnSetValue = ISettingsLoader::SetValue;
             component.pSettingsData = &g_gfx9PalJsonData[0];
             component.settingsDataSize = sizeof(g_gfx9PalJsonData);
-            component.settingsDataHash = 4123067807;
+            component.settingsDataHash = 136698542;
             component.settingsDataHeader.isEncoded = true;
             component.settingsDataHeader.magicBufferId = 402778310;
             component.settingsDataHeader.magicBufferOffset = 0;

@@ -31,7 +31,7 @@
         "General"
       ],
       "Defaults": {
-        "Default": true
+        "Default": false
       },
       "Scope": "PrivatePalGfx9Key",
       "Type": "bool",

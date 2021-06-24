@@ -97,6 +97,7 @@ public:
     regPA_SC_MODE_CNTL_1 PaScModeCntl1() const { return m_regs.other.paScModeCntl1; }
     regCB_TARGET_MASK CbTargetMask() const { return m_regs.context.cbTargetMask; }
     regDB_RENDER_OVERRIDE DbRenderOverride() const { return m_regs.other.dbRenderOverride; }
+    regPA_CL_CLIP_CNTL PaClClipCntl() const { return m_regs.context.paClClipCntl; }
 
     regIA_MULTI_VGT_PARAM IaMultiVgtParam(bool forceWdSwitchOnEop) const
         { return m_regs.other.iaMultiVgtParam[static_cast<uint32>(forceWdSwitchOnEop)]; }

@@ -471,6 +471,13 @@ public:
         uint32                      numChunkOutputs,
         ChunkOutput*                pChunkOutputs) = 0;
 
+    // CmdDispatch on the ACE CmdStream for Gfx10+ UniversalCmdBuffer only when multi-queue is supported by the engine.
+    virtual void CmdDispatchAce(
+        uint32      xDim,
+        uint32      yDim,
+        uint32      zDim)
+    { PAL_NEVER_CALLED(); }
+
     virtual void CmdBeginPerfExperiment(IPerfExperiment* pPerfExperiment) override;
     virtual void CmdUpdatePerfExperimentSqttTokenMask(
         IPerfExperiment*              pPerfExperiment,
@@ -517,7 +524,7 @@ public:
     bool SqttClosed() const
         { return m_gfxCmdBufState.flags.sqttStopped; }
 
-    Result AddFceSkippedImageCounter(GfxImage* pGfxImage);
+    void AddFceSkippedImageCounter(GfxImage* pGfxImage);
 
     // Other Cmd* functions may call this function to notify our VRS copy state tracker of changes to VRS resources.
     // Provide a NOP default implementation, it should only be implemented on gfx9 universal command buffers.

@@ -1768,14 +1768,25 @@ void RsrcProcMgr::HwlDepthStencilClear(
                         }
                     }
 
-                    // DepthStencilClearGraphics() implements both fast and slow clears. For fast clears,
-                    // if the image layout supports depth/stencil target usage and the image size is too small,
-                    // the synchronization overhead of switching to compute and back is main performance bottleneck,
-                    // prefer the graphics path for this case. While the image size is over this critical value,
-                    // compute path has a good performance advantage, prefer the compute path for this.
-                    if ((fastClearMethod[idx] == ClearMethod::DepthFastGraphics) ||
-                        fastClear == false                                       ||
-                        (PreferFastDepthStencilClearGraphics(dstImage, depthLayout, stencilLayout)))
+                    FastDepthStencilClearMode fastDepthStencilClearMode =
+                        gfx6Image.Parent()->GetDevice()->GetPublicSettings()->fastDepthStencilClearMode;
+
+                    if (fastDepthStencilClearMode == FastDepthStencilClearMode::Default)
+                    {
+                        // DepthStencilClearGraphics() implements both fast and slow clears. For fast clears,
+                        // if the image layout supports depth/stencil target usage and the image size is too small,
+                        // the synchronization overhead of switching to compute and back is a performance bottleneck,
+                        // prefer the graphics path for this case. While the image size is over this critical value,
+                        // compute path has a good performance advantage, prefer the compute path for this.
+                        fastDepthStencilClearMode =
+                            ((fastClearMethod[idx] == ClearMethod::DepthFastGraphics) ||
+                                (fastClear == false)                                  ||
+                                PreferFastDepthStencilClearGraphics(dstImage, depthLayout, stencilLayout))
+                            ? FastDepthStencilClearMode::Graphics
+                            : FastDepthStencilClearMode::Compute;
+                    }
+
+                    if (fastDepthStencilClearMode == FastDepthStencilClearMode::Graphics)
                     {
                         DepthStencilClearGraphics(pCmdBuffer,
                                                   gfx6Image,
@@ -2882,6 +2893,17 @@ void RsrcProcMgr::InitMaskRam(
 
         pCmdSpace = dstImage.UpdateWaTcCompatZRangeMetaData(range, 1.0f, packetPredicate, pCmdSpace);
 
+        pCmdStream->CommitCommands(pCmdSpace);
+    }
+
+    // We need to initialize the Image's FCE(fast clear eliminate) metadata to ensure that if we don't perform fast clear
+    // then FCE command should not be truely executed.
+    if (dstImage.HasFastClearEliminateMetaData())
+    {
+        const PM4Predicate packetPredicate = static_cast<PM4Predicate>(
+            pCmdBuffer->GetGfxCmdBufState().flags.packetPredicate);
+        uint32* pCmdSpace = pCmdStream->ReserveCommands();
+        pCmdSpace = dstImage.UpdateFastClearEliminateMetaData(range, 0, packetPredicate, pCmdSpace);
         pCmdStream->CommitCommands(pCmdSpace);
     }
 

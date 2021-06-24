@@ -1524,22 +1524,19 @@ void GfxCmdBuffer::CmdCopyImageToPackedPixelImage(
 //       and skip the fast clear eliminate. During command buffer reset, this counter is decremented for each command
 //       buffer and for each time the fast clear eliminate was skipped. This cost of looping through the list is
 //       outweighed by all the work that was skipped for setting up the FCE.
-Result GfxCmdBuffer::AddFceSkippedImageCounter(
+void GfxCmdBuffer::AddFceSkippedImageCounter(
     GfxImage* pGfxImage)
 {
-    Result result = Result::Success;
-
     PAL_ASSERT(pGfxImage != nullptr);
+    PAL_ASSERT(pGfxImage->IsFceOptimizationEnabled());
 
-    uint32* pCounter = pGfxImage->GetFceRefCounter();
-
-    if (pCounter != nullptr)
+    const Result result = m_fceRefCountVec.PushBack(pGfxImage->GetFceRefCounter());
+    if (result != Result::Success)
     {
-        result = m_fceRefCountVec.PushBack(pCounter);
-        pGfxImage->IncrementFceRefCount();
+        SetCmdRecordingError(result);
     }
 
-    return result;
+    pGfxImage->IncrementFceRefCount();
 }
 
 // =====================================================================================================================

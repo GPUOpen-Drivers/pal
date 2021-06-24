@@ -136,6 +136,9 @@ enum HwLayoutTransition : uint32
 
     // Initialize Color metadata or Depth/stencil Htile.
     InitMaskRam                  = 0x8,
+
+    // Update Dcc metadate state to compressed.
+    DccMetadataStateCompressed   = 0x9,
 };
 
 // Information for layout transition BLT
@@ -147,7 +150,8 @@ struct LayoutTransitionInfo
         {
             uint32 useComputePath   : 1;  // For those transition BLTs that could do either graphics or compute path,
                                           // figure out what path the BLT will use and cache it here.
-            uint32 fceIsSkipped     : 1;  // Set if a FastClearEliminate BLT is skipped.
+            uint32 skipFce          : 1;  // Set if the transition needs a FastClearEliminate BLT but can be skipped by
+                                          // optimization.
             uint32 reserved         : 30; // Reserved for future usage.
         };
         uint32 u32All;                    // Flags packed as uint32.
@@ -715,7 +719,7 @@ private:
     TcCacheOp SelectTcCacheOp(uint32* pCacheFlags) const;
 
     LayoutTransitionInfo PrepareColorBlt(
-        GfxCmdBuffer*       pCmdBuf,
+        const GfxCmdBuffer* pCmdBuf,
         const Pal::Image&   image,
         const SubresRange&  subresRange,
         ImageLayout         oldLayout,

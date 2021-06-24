@@ -498,14 +498,31 @@ static constexpr uint32 MaxPathStrLen = 512;
 static constexpr uint32 MaxFileNameStrLen = 256;
 static constexpr uint32 MaxMiscStrLen = 61;
 
+/// Whether to use graphics or compute for performing fast clears on depth stencil views.
+enum class FastDepthStencilClearMode : uint8
+{
+    Default,    ///< Compute or graphics will be chosen at the driver's discretion
+    Graphics,   ///< Graphics will always be used
+    Compute     ///< Compute will always be used
+};
+
 /// Pal settings that are client visible and editable.
 struct PalPublicSettings
 {
     /// Maximum border color palette size supported by any queue.
     uint32 borderColorPaletteSizeLimit;
-    /// When true RPM will use the graphics fast clear path for depth stencil images if possible. When false the compute
-    /// path will be preferred.
-    bool useGraphicsFastDepthStencilClear;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 669
+    union
+    {
+        /// Whether to use graphics or compute for performing fast clears on depth stencil views.
+        FastDepthStencilClearMode fastDepthStencilClearMode;
+        /// Legacy: True will tell PAL to use graphics, false lets PAL decide.
+        bool useGraphicsFastDepthStencilClear;
+    };
+#else
+    /// Whether to use graphics or compute for performing fast clears on depth stencil views.
+    FastDepthStencilClearMode fastDepthStencilClearMode;
+#endif
     /// Forces all serialized loads (LoadPipeline or LoadCompoundState) to fail.
     bool forceLoadObjectFailure;
     /// Controls the distribution mode for tessellation, which affects how patches are processed by different VGT

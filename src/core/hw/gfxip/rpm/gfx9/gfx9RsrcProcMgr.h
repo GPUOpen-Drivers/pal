@@ -120,7 +120,7 @@ public:
         const Image&       srcImage,
         const SubresRange& range) const {};
 
-    bool FastClearEliminate(
+    void FastClearEliminate(
         GfxCmdBuffer*                pCmdBuffer,
         Pal::CmdStream*              pCmdStream,
         const Image&                 image,

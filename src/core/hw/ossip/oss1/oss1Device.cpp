@@ -203,17 +203,6 @@ Result Device::CreateCmdBuffer(
 }
 
 // =====================================================================================================================
-// Determines the OSSIP level of a GPU supported by the OSS1 hardware layer. The return value will be OssIpLevel::None
-// if the GPU is unsupported by this HWL.
-OssIpLevel DetermineIpLevel(
-    uint32 familyId, // Hardware Family ID.
-    uint32 eRevId)   // Software Revision ID.
-{
-    PAL_ASSERT(FAMILY_IS_SI(familyId));
-    return FAMILY_IS_SI(familyId) ? OssIpLevel::OssIp1 : OssIpLevel::None;
-}
-
-// =====================================================================================================================
 // Initialize default values for the GPU engine properties for OSSIP 1 hardware.
 void InitializeGpuEngineProperties(
     GpuEngineProperties* pInfo)

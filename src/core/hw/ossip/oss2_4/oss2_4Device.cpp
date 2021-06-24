@@ -213,8 +213,7 @@ OssIpLevel DetermineIpLevel(
 
     switch (familyId)
     {
-    case FAMILY_VI:
-    case FAMILY_CZ:
+    case FAMILY_POLARIS:
         level = OssIpLevel::OssIp2_4;
         break;
     default:

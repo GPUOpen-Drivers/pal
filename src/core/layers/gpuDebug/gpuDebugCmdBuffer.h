@@ -127,6 +127,8 @@ public:
         const GlobalScissorParams& params) override;
     virtual void CmdSetColorWriteMask(
         const ColorWriteMaskParams& params) override;
+    virtual void CmdSetRasterizerDiscardEnable(
+        bool rasterizerDiscardEnable) override;
     virtual void CmdBarrier(
         const BarrierInfo& barrierInfo) override;
     virtual void OptimizeBarrierReleaseInfo(
@@ -699,6 +701,7 @@ private:
     void ReplayCmdSetScissorRects(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdSetGlobalScissor(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdSetColorWriteMask(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
+    void ReplayCmdSetRasterizerDiscardEnable(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdBarrier(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
     void ReplayCmdRelease(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);

@@ -536,6 +536,11 @@ public:
         uint32                       maximumCount,
         gpusize                      countGpuAddr) override;
 
+    virtual void CmdDispatchAce(
+        uint32 xDim,
+        uint32 yDim,
+        uint32 zDim) override;
+
     virtual void GetChunkForCmdGeneration(
         const Pal::IndirectCmdGenerator& generator,
         const Pal::Pipeline&             pipeline,

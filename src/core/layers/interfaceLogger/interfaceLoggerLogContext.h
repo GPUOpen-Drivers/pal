@@ -106,6 +106,7 @@ enum class InterfaceFunc : uint32
     CmdBufferCmdSetScissorRects,
     CmdBufferCmdSetGlobalScissor,
     CmdBufferCmdSetColorWriteMask,
+    CmdBufferCmdSetRasterizerDiscardEnable,
     CmdBufferCmdBarrier,
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
     CmdBufferCmdRelease,

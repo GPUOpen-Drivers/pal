@@ -288,6 +288,10 @@ public:
         const ColorWriteMaskParams& params) override
         { PAL_NEVER_CALLED(); }
 
+    virtual void CmdSetRasterizerDiscardEnable(
+        bool rasterizerDiscardEnable) override
+        { PAL_NEVER_CALLED(); }
+
     virtual void CmdCopyMemory(
         const IGpuMemory&       srcGpuMemory,
         const IGpuMemory&       dstGpuMemory,

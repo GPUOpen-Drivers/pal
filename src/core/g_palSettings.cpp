@@ -136,6 +136,7 @@ void SettingsLoader::SetupDefaults()
     m_settings.cmdBufPreemptionMode = CmdBufPreemptModeEnable;
     m_settings.commandBufferForceCeRamDumpInPostamble = false;
     m_settings.commandBufferCombineDePreambles = false;
+    m_settings.videoCommandBufferAddVerifySignature = false;
     m_settings.cmdUtilVerifyShadowedRegRanges = true;
     m_settings.submitOptModeOverride = 0;
     m_settings.tileSwizzleMode = 0x7;
@@ -482,6 +483,11 @@ void SettingsLoader::ReadSettings()
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pCommandBufferCombineDePreamblesStr,
                            Util::ValueType::Boolean,
                            &m_settings.commandBufferCombineDePreambles,
+                           InternalSettingScope::PrivatePalKey);
+
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pVideoCommandBufferAddVerifySignatureStr,
+                           Util::ValueType::Boolean,
+                           &m_settings.videoCommandBufferAddVerifySignature,
                            InternalSettingScope::PrivatePalKey);
 
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pCmdUtilVerifyShadowedRegRangesStr,
@@ -970,6 +976,11 @@ void SettingsLoader::InitSettingsInfo()
     m_settingsInfoMap.Insert(148412311, info);
 
     info.type      = SettingType::Boolean;
+    info.pValuePtr = &m_settings.videoCommandBufferAddVerifySignature;
+    info.valueSize = sizeof(m_settings.videoCommandBufferAddVerifySignature);
+    m_settingsInfoMap.Insert(3347736595, info);
+
+    info.type      = SettingType::Boolean;
     info.pValuePtr = &m_settings.cmdUtilVerifyShadowedRegRanges;
     info.valueSize = sizeof(m_settings.cmdUtilVerifyShadowedRegRanges);
     m_settingsInfoMap.Insert(3890704045, info);
@@ -1127,7 +1138,7 @@ void SettingsLoader::DevDriverRegister()
             component.pfnSetValue = ISettingsLoader::SetValue;
             component.pSettingsData = &g_palJsonData[0];
             component.settingsDataSize = sizeof(g_palJsonData);
-            component.settingsDataHash = 1027804864;
+            component.settingsDataHash = 1456257571;
             component.settingsDataHeader.isEncoded = true;
             component.settingsDataHeader.magicBufferId = 402778310;
             component.settingsDataHeader.magicBufferOffset = 0;

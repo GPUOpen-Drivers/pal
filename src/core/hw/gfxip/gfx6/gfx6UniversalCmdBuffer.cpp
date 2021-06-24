@@ -574,6 +574,12 @@ void UniversalCmdBuffer::CmdBindPipeline(
         {
             m_graphicsState.dirtyFlags.validationBits.colorWriteMask = 1;
         }
+
+        if (m_graphicsState.rasterizerDiscardEnable != false)
+        {
+            m_graphicsState.dirtyFlags.validationBits.rasterizerDiscardEnable = 1;
+        }
+
     }
 
     Pal::UniversalCmdBuffer::CmdBindPipeline(params);
@@ -3633,6 +3639,16 @@ uint32* UniversalCmdBuffer::ValidateDraw(
                                                           pDeCmdSpace);
     }
 
+    if (stateDirty && dirtyFlags.rasterizerDiscardEnable)
+    {
+        regPA_CL_CLIP_CNTL paClClipCntl = pPipeline->PaClClipCntl();
+	paClClipCntl.bits.DX_RASTERIZATION_KILL = m_graphicsState.rasterizerDiscardEnable;
+
+        pDeCmdSpace = m_deCmdStream.WriteSetOneContextReg(mmPA_CL_CLIP_CNTL,
+			                                  paClClipCntl.u32All,
+							  pDeCmdSpace);
+    }
+
     // Validate the per-draw HW state.
     pDeCmdSpace = ValidateDrawTimeHwState<indexed, indirect, pm4OptImmediate>(iaMultiVgtParam,
                                                                               vgtLsHsConfig,
@@ -4590,6 +4606,11 @@ void UniversalCmdBuffer::SetGraphicsState(
     if (newGraphicsState.colorWriteMask != UINT_MAX)
     {
         m_graphicsState.dirtyFlags.validationBits.colorWriteMask = 1;
+    }
+
+    if (newGraphicsState.rasterizerDiscardEnable != false)
+    {
+        m_graphicsState.dirtyFlags.validationBits.rasterizerDiscardEnable = 1;
     }
 
     // The target state that we would restore is invalid if this is a nested command buffer that inherits target

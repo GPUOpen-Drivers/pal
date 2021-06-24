@@ -132,6 +132,7 @@ static constexpr FuncFormattingEntry FuncFormattingTable[] =
     { InterfaceFunc::CmdBufferCmdSetScissorRects,                               InterfaceObject::CmdBuffer,            "CmdSetScissorRects"                      },
     { InterfaceFunc::CmdBufferCmdSetGlobalScissor,                              InterfaceObject::CmdBuffer,            "CmdSetGlobalScissor"                     },
     { InterfaceFunc::CmdBufferCmdSetColorWriteMask,                             InterfaceObject::CmdBuffer,            "CmdSetColorWriteMask"                    },
+    { InterfaceFunc::CmdBufferCmdSetRasterizerDiscardEnable,                    InterfaceObject::CmdBuffer,            "CmdSetRasterizerDiscardEnable"                    },
     { InterfaceFunc::CmdBufferCmdBarrier,                                       InterfaceObject::CmdBuffer,            "CmdBarrier"                              },
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
     { InterfaceFunc::CmdBufferCmdRelease,                                       InterfaceObject::CmdBuffer,            "CmdRelease"                              },
