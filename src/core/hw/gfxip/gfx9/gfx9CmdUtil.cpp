@@ -879,11 +879,12 @@ size_t CmdUtil::BuildCondExec(
     constexpr uint32 PacketSize = PM4_MEC_COND_EXEC_SIZEDW__CORE;
     auto*const       pPacket    = static_cast<PM4_MEC_COND_EXEC*>(pBuffer);
 
-    memset(pPacket, 0, PacketSize * sizeof(uint32));
     pPacket->ordinal1.header.u32All        = (Type3Header(IT_COND_EXEC, PacketSize)).u32All;
     pPacket->ordinal2.u32All               = LowPart(gpuVirtAddr);
     PAL_ASSERT(pPacket->ordinal2.bitfields.reserved1 == 0);
     pPacket->ordinal3.addr_hi              = HighPart(gpuVirtAddr);
+    pPacket->ordinal4.u32All               = 0;
+    pPacket->ordinal5.u32All               = 0;
     pPacket->ordinal5.bitfields.exec_count = sizeInDwords;
 
     return PacketSize;
@@ -925,9 +926,8 @@ size_t CmdUtil::BuildCondIndirectBuffer(
     // There is no separate op-code for conditional indirect buffers.  The CP figures it out
     const IT_OpCodeType opCode     = constantEngine ? IT_INDIRECT_BUFFER_CNST : IT_INDIRECT_BUFFER;
 
-    memset(pPacket, 0, PacketSize * sizeof(uint32));
-
     pPacket->ordinal1.header.u32All      = (Type3Header(opCode, PacketSize)).u32All;
+    pPacket->ordinal2.u32All             = 0;
     pPacket->ordinal2.bitfields.function = FuncTranslation[static_cast<uint32>(compareFunc)];
 
     // We always implement both a "then" and an "else" clause
@@ -942,6 +942,12 @@ size_t CmdUtil::BuildCondIndirectBuffer(
     pPacket->ordinal6.mask_hi      = HighPart(mask);
     pPacket->ordinal7.reference_lo = LowPart(data);
     pPacket->ordinal8.reference_hi = HighPart(data);
+    pPacket->ordinal9.u32All       = 0;
+    pPacket->ordinal10.u32All      = 0;
+    pPacket->ordinal11.u32All      = 0;
+    pPacket->ordinal12.u32All      = 0;
+    pPacket->ordinal13.u32All      = 0;
+    pPacket->ordinal14.u32All      = 0;
 
     // Size and locations of the IB are not yet known, will be patched later.
 
@@ -3945,7 +3951,10 @@ size_t CmdUtil::BuildWaitRegMem64(
     pPacket->ordinal2.bitfields.function      = static_cast<ME_WAIT_REG_MEM64_function_enum>(function);
     pPacket->ordinal2.bitfields.mem_space     = static_cast<ME_WAIT_REG_MEM64_mem_space_enum>(memSpace);
     pPacket->ordinal2.bitfields.operation     = operation__me_wait_reg_mem64__wait_reg_mem;
-    pPacket->ordinal2.bitfields.engine_sel    = static_cast<ME_WAIT_REG_MEM64_engine_sel_enum>(engine);
+    if (Pal::Device::EngineSupportsGraphics(engineType))
+    {
+        pPacket->ordinal2.bitfields.engine_sel = static_cast<ME_WAIT_REG_MEM64_engine_sel_enum>(engine);
+    }
     pPacket->ordinal3.u32All                  = LowPart(addr);
     PAL_ASSERT(pPacket->ordinal3.bitfieldsA.reserved1 == 0);
     pPacket->ordinal4.mem_poll_addr_hi        = HighPart(addr);
@@ -3955,12 +3964,7 @@ size_t CmdUtil::BuildWaitRegMem64(
     pPacket->ordinal8.mask_hi                 = HighPart(mask);
     pPacket->ordinal9.u32All                  = 0;
     pPacket->ordinal9.bitfields.poll_interval = Pal::Device::PollInterval;
-
-    if (Pal::Device::EngineSupportsGraphics(engineType))
-    {
-        pPacket->ordinal2.bitfields.engine_sel = static_cast<ME_WAIT_REG_MEM64_engine_sel_enum>(engine);
-    }
-    else
+    if (Pal::Device::EngineSupportsGraphics(engineType) == false)
     {
         // Similarily to engine_sel in ME, this ACE offload optimization is only for MEC and a reserved bit for ME.
         pPacketMecOnly->ordinal9.bitfields.optimize_ace_offload_mode = 1;
