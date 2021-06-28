@@ -39,7 +39,8 @@ namespace DevDriver
                     createInfo.channelInfo,
                     createInfo.hostInfo);
             }
-            else if (createInfo.hostInfo.type == TransportType::Remote)
+            else if (createInfo.hostInfo.type == TransportType::Remote || )
+                     createInfo.hostInfo.type == TransportType::RemoteReliable)
             {
 #if DD_SUPPORT_SOCKET_TRANSPORT
                 using MsgChannelSocket = MessageChannel<SocketMsgTransport>;

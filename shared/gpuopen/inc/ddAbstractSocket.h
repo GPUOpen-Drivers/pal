@@ -3,6 +3,7 @@
 #pragma once
 
 #include <ddPlatform.h>
+#include <gpuopen.h>
 
 #if defined(DD_PLATFORM_WINDOWS_UM)
 #include <winsock2.h>

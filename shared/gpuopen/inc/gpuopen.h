@@ -413,6 +413,7 @@ namespace DevDriver
     {
         Local = 0,
         Remote,
+        RemoteReliable,
     };
 
     // Struct used to designate a transport type, port number, and hostname

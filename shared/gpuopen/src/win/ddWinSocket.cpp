@@ -273,6 +273,7 @@ namespace DevDriver
         SOCKET clientSocket = accept(m_osSocket, &addr, &addrSize);
         if (clientSocket != INVALID_SOCKET)
         {
+            pClientSocket->m_socketType = SocketType::Tcp;
             result = pClientSocket->InitAsClient(clientSocket, m_isNonBlocking);
         }
 
@@ -313,6 +314,19 @@ namespace DevDriver
 
         Result result = Result::Error;
 
+        *pBytesSent = 0;
+        if (m_socketType == SocketType::Tcp)
+        {
+            uint8 size_header[2];
+            size_header[0] = (dataSize >> 0) & 0xFF;
+            size_header[1] = (dataSize >> 8) & 0xFF;
+
+            const int retVal = send(m_osSocket, reinterpret_cast<const char*>(size_header), sizeof(size_header), 0);
+            if (retVal != sizeof(size_header))
+            {
+                result = GetDataError(m_isNonBlocking);
+            }
+        }
         const int retVal = send(m_osSocket, reinterpret_cast<const char*>(pData), static_cast<int>(dataSize), 0);
         if (retVal > 0)
         {
@@ -352,6 +366,7 @@ namespace DevDriver
         if (retVal > 0)
         {
             *pBytesSent = retVal;
+            DD_ASSERT(retVal == dataSize);
             result = Result::Success;
         }
         else
@@ -375,23 +390,82 @@ namespace DevDriver
         DD_ASSERT(pBytesReceived != nullptr);
 
         Result result = Result::Error;
+        *pBytesReceived = 0;
+        bool readState = false;
+        result = Select(&readState, nullptr, nullptr, 0);
 
-        const int retVal = recv(m_osSocket, reinterpret_cast<char*>(pBuffer), static_cast<int>(bufferSize), 0);
-        if (retVal > 0)
+        if (result != Result::Success || readState == false)
         {
-            *pBytesReceived = retVal;
-            result = Result::Success;
+            return Result::NotReady;
         }
-        else
+
+        if (m_socketType == SocketType::Tcp)
         {
-            *pBytesReceived = 0;
-            if (retVal == 0)
+            uint8 size_header[2];
+
+            size_t recv_offset = 0;
+            uint8* recv_buffer = size_header;
+            size_t recv_target_size = sizeof(size_header);
+            bool header = true;
+
+            while (recv_offset < recv_target_size)
             {
-                result = Result::Unavailable;
+                const int retVal = recv(m_osSocket, reinterpret_cast<char*>(recv_buffer) + recv_offset,
+                                      static_cast<int>(recv_target_size - recv_offset), 0);
+                if (retVal > 0)
+                {
+                    recv_offset += retVal;
+                }
+                else
+                {
+                    result = GetDataError(m_isNonBlocking);
+                    break;
+                }
+                // Did we get enough bytes for the header
+                if (header && recv_offset == recv_target_size)
+                {
+                    header = false;
+                    recv_offset = 0;
+                    recv_buffer = pBuffer;
+                    recv_target_size = size_header[0] + (size_header[1] << 8);
+                    if (recv_target_size > bufferSize || recv_target_size >
+                            (sizeof(MessageHeader) + kMaxPayloadSizeInBytes))
+                    {
+                        result = Result::Error;
+                        break;
+                    }
+                }
+            }
+
+            if (recv_offset != recv_target_size)
+            {
+                result = GetDataError(m_isNonBlocking);
             }
             else
             {
-                result = GetDataError(m_isNonBlocking);
+                *pBytesReceived = recv_target_size;
+                result = Result::Success;
+            }
+        }
+        else
+        {
+            const int retVal = recv(m_osSocket, reinterpret_cast<char*>(pBuffer), static_cast<int>(bufferSize), 0);
+            if (retVal > 0)
+            {
+                *pBytesReceived = retVal;
+                result = Result::Success;
+            }
+            else
+            {
+                *pBytesReceived = 0;
+                if (retVal == 0)
+                {
+                    result = Result::Unavailable;
+                }
+                else
+                {
+                    result = GetDataError(m_isNonBlocking);
+                }
             }
         }
         return result;
@@ -404,6 +478,7 @@ namespace DevDriver
         DD_ASSERT(pBytesReceived != nullptr);
 
         Result result = Result::Error;
+        *pBytesReceived = 0;
 
         const int retVal = recvfrom(m_osSocket,
             reinterpret_cast<char*>(pBuffer),

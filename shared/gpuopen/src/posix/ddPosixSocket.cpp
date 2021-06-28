@@ -379,6 +379,7 @@ namespace DevDriver
                                                                  &addrSize);
         if (clientSocket != -1)
         {
+            pClientSocket->m_socketType = SocketType::Tcp;
             result = pClientSocket->InitAsClient(clientSocket, m_isNonBlocking);
         }
 
@@ -442,11 +443,31 @@ namespace DevDriver
 
         Result result = Result::Error;
 
-        const int retVal = Platform::RetryTemporaryFailure(send,
-                                                           m_osSocket,
-                                                           reinterpret_cast<const char*>(pData),
-                                                           static_cast<int>(dataSize),
-                                                           0);
+        if (dataSize > (sizeof(MessageHeader) + kMaxPayloadSizeInBytes)) {
+            return result;
+        }
+
+        *pBytesSent = 0;
+        int retVal = 1;
+        if (m_socketType == SocketType::Tcp)
+        {
+            uint8 size_header[2];
+            size_header[0] = (dataSize >> 0) & 0xFF;
+            size_header[1] = (dataSize >> 8) & 0xFF;
+            retVal = Platform::RetryTemporaryFailure(send,
+                                                     m_osSocket,
+                                                     reinterpret_cast<const char*>(size_header),
+                                                     static_cast<int>(sizeof(size_header)),
+                                                     0);
+        }
+        if (retVal > 0)
+        {
+            retVal = Platform::RetryTemporaryFailure(send,
+                                                     m_osSocket,
+                                                     reinterpret_cast<const char*>(pData),
+                                                     static_cast<int>(dataSize),
+                                                     0);
+        }
         if (retVal != -1)
         {
             *pBytesSent = retVal;
@@ -454,7 +475,6 @@ namespace DevDriver
         }
         else
         {
-            *pBytesSent = 0;
             if (retVal == 0)
             {
                 result = Result::Unavailable;
@@ -510,29 +530,94 @@ namespace DevDriver
 
         Result result = Result::Error;
 
-        const int retVal = Platform::RetryTemporaryFailure(recv,
-                                                           m_osSocket,
-                                                           reinterpret_cast<char*>(pBuffer),
-                                                           static_cast<int>(bufferSize),
-                                                           0);
-        if (retVal > 0)
+        *pBytesReceived = 0;
+        bool readState = false;
+        result = Select(&readState, nullptr, nullptr, 0);
+
+        if (result != Result::Success || readState == false)
         {
-            *pBytesReceived = retVal;
-            result = Result::Success;
+            return Result::NotReady;
+        }
+
+        if (m_socketType == SocketType::Tcp)
+        {
+            uint8 size_header[2];
+
+            size_t recv_offset = 0;
+            uint8* recv_buffer = size_header;
+            size_t recv_target_size = sizeof(size_header);
+            bool header = true;
+
+            while (recv_offset < recv_target_size)
+            {
+                const int retVal = Platform::RetryTemporaryFailure(recv,
+                                                                   m_osSocket,
+                                                                   reinterpret_cast<char*>(recv_buffer) + recv_offset,
+                                                                   recv_target_size - recv_offset,
+                                                                   0);
+                if (retVal > 0)
+                {
+                    recv_offset += retVal;
+                }
+                else if (retVal == 0)
+                {
+                    *pBytesReceived = 0;
+                    result = Result::Unavailable;
+                    break;
+                }
+                else
+                {
+                    *pBytesReceived = 0;
+                    result = GetDataError(m_isNonBlocking);
+                    break;
+                }
+                // Did we get enough bytes for the header
+                if (header && recv_offset == recv_target_size)
+                {
+                    header = false;
+                    recv_offset = 0;
+                    recv_buffer = pBuffer;
+                    recv_target_size = size_header[0] + (size_header[1] << 8);
+                    if (recv_target_size > bufferSize || recv_target_size >
+                            (sizeof(MessageHeader) + kMaxPayloadSizeInBytes))
+                    {
+                        result = Result::Error;
+                        break;
+                    }
+                }
+            }
+
+            if (recv_offset == recv_target_size)
+            {
+                *pBytesReceived = recv_target_size;
+                result = Result::Success;
+            }
         }
         else
         {
-            *pBytesReceived = 0;
-            if (retVal == 0)
+            const int retVal = Platform::RetryTemporaryFailure(recv,
+                                                               m_osSocket,
+                                                               reinterpret_cast<char*>(pBuffer),
+                                                               static_cast<int>(bufferSize),
+                                                               0);
+            if (retVal > 0)
             {
-                result = Result::Unavailable;
+                *pBytesReceived = retVal;
+                result = Result::Success;
             }
             else
             {
-                result = GetDataError(m_isNonBlocking);
+                *pBytesReceived = 0;
+                if (retVal == 0)
+                {
+                    result = Result::Unavailable;
+                }
+                else
+                {
+                    result = GetDataError(m_isNonBlocking);
+                }
             }
         }
-
         return result;
     }
 

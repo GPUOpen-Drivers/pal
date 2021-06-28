@@ -39,7 +39,8 @@ namespace DevDriver
                                                               m_createInfo,
                                                               m_createInfo.connectionInfo);
         }
-        else if (m_createInfo.connectionInfo.type == TransportType::Remote)
+        else if (m_createInfo.connectionInfo.type == TransportType::Remote ||
+                 m_createInfo.connectionInfo.type == TransportType::RemoteReliable)
         {
             using MsgChannelSocket = MessageChannel<SocketMsgTransport>;
             m_pMsgChannel = DD_NEW(MsgChannelSocket, m_allocCb)(m_allocCb,
@@ -48,6 +49,7 @@ namespace DevDriver
         }
 #else
         if ((m_createInfo.connectionInfo.type == TransportType::Remote) |
+            (m_createInfo.connectionInfo.type == TransportType::RemoteReliable) |
             (m_createInfo.connectionInfo.type == TransportType::Local))
         {
             using MsgChannelSocket = MessageChannel<SocketMsgTransport>;

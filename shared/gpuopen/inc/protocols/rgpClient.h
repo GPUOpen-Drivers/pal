@@ -150,7 +150,7 @@ namespace DevDriver
             ClientTraceParametersInfo m_tempTraceParameters;
 #endif
 
-            DD_STATIC_CONST uint32 kRGPChunkTimeoutInMs = 3000;
+            DD_STATIC_CONST uint32 kRGPChunkTimeoutInMs = 60000;
         };
     }
 } // DevDriver

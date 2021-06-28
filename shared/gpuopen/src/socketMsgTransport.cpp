@@ -22,6 +22,9 @@ namespace DevDriver
         case TransportType::Remote:
             result = SocketType::Udp;
             break;
+        case TransportType::RemoteReliable:
+            result = SocketType::Tcp;
+            break;
         default:
             DD_WARN_REASON("Invalid transport type specified");
             break;
@@ -33,13 +36,15 @@ namespace DevDriver
         m_connected(false),
         m_socketType(TransportToSocketType(hostInfo.type))
     {
-        if ((m_socketType != SocketType::Udp) && (m_socketType != SocketType::Local))
+        if ((m_socketType != SocketType::Udp) &&
+            (m_socketType != SocketType::Tcp) &&
+            (m_socketType != SocketType::Local))
         {
             DD_ASSERT_REASON("Unsupported socket type provided");
         }
 
         // Only UDP/remote sockets have valid hostname fields
-        if (m_socketType == SocketType::Udp)
+        if (m_socketType == SocketType::Udp || m_socketType == SocketType::Tcp)
         {
             Platform::Strncpy(m_hostname, hostInfo.pHostname);
         }
@@ -66,7 +71,7 @@ namespace DevDriver
 
         if (!m_connected)
         {
-            result = m_clientSocket.Init(true, m_socketType);
+            result = m_clientSocket.Init(false, m_socketType);
 
             if (result == Result::Success)
             {
@@ -79,7 +84,10 @@ namespace DevDriver
             {
                 // Only UDP/Remote socket types have a valid hostname to connect to
                 // Local sockets use the address as a prefix instead
-                const char* pAddress = (m_socketType == SocketType::Udp) ? m_hostname : "AMD-Developer-Service";
+                const char *pAddress = (m_socketType == SocketType::Udp ||
+                                        m_socketType == SocketType::Tcp)
+                                           ? m_hostname
+                                           : "AMD-Developer-Service";
                 result = m_clientSocket.Connect(pAddress, m_port);
             }
             m_connected = (result == Result::Success);
@@ -179,7 +187,10 @@ namespace DevDriver
                 {
                     // Only UDP/Remote socket types have a valid hostname to connect to
                     // Local sockets use the address as a prefix instead
-                    const char* pAddress = (sType == SocketType::Udp) ? hostInfo.pHostname : "AMD-Developer-Service";
+                    const char *pAddress =
+                        (sType == SocketType::Udp || sType == SocketType::Tcp)
+                            ? hostInfo.pHostname
+                            : "AMD-Developer-Service";
                     result = clientSocket.Connect(pAddress, hostInfo.port);
                 }
 
