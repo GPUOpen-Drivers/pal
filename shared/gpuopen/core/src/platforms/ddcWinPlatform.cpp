@@ -105,7 +105,7 @@ namespace DevDriver
             DD_UNUSED(lvl);
 
             // OutputDebugString routes to the debug output in Visual Studio
-            OutputDebugString(pStr);
+            OutputDebugStringA(pStr);
         }
 
         Result GetAbsPathName(
@@ -219,7 +219,7 @@ namespace DevDriver
 
             // We load the thread naming function dynamically to avoid issues when the current OS doesn't have
             // support for the function.
-            HMODULE hModule = GetModuleHandle("kernel32.dll");
+            HMODULE hModule = GetModuleHandleA("kernel32.dll");
             if (hModule != nullptr)
             {
                 // Attempt to load the function for setting thread names
@@ -470,7 +470,7 @@ namespace DevDriver
 
             if (pDir != nullptr)
             {
-                const BOOL ret = CreateDirectory(pDir, NULL);
+                const BOOL ret = CreateDirectoryA(pDir, NULL);
                 if (ret != 0)
                 {
                     // The directory did not exist, and was created successfully
@@ -691,7 +691,7 @@ namespace DevDriver
             /// Query the machine's hostname
             {
                 DWORD nSize = ArraySize<DWORD>(pInfo->hostname);
-                GetComputerNameEx(ComputerNameDnsFullyQualified, pInfo->hostname, &nSize);
+                GetComputerNameExA(ComputerNameDnsFullyQualified, pInfo->hostname, &nSize);
                 DD_WARN(nSize > 0);
             }
 
@@ -872,7 +872,7 @@ namespace DevDriver
                 DWORD isEnabled = 0;
 
                 HKEY hKey;
-                auto hResult = RegOpenKeyEx(
+                auto hResult = RegOpenKeyExA(
                     HKEY_LOCAL_MACHINE,
                     R"(SOFTWARE\Microsoft\Windows\CurrentVersion\AppModelUnlock)",
                     0,
@@ -884,7 +884,7 @@ namespace DevDriver
                 {
                     DWORD valueSize = sizeof(DWORD);
 
-                    hResult = RegQueryValueEx(
+                    hResult = RegQueryValueExA(
                         hKey,
                         "AllowDevelopmentWithoutDevLicense",
                         0,
