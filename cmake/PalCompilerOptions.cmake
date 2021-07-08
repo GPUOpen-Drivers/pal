@@ -79,17 +79,6 @@ function(pal_compiler_options TARGET)
             -fno-rtti
         >)
 
-        # Align the stack pointer on a 64 byte boundary (2^6) on compilers that support it.
-        # This was added to resolve some issues after enabling SSE.
-        # These options are specific to GCC and Clang but also may not exist on certain CPU archs.
-        check_cxx_compiler_flag(-mpreferred-stack-boundary=6 HAS_STACK_BOUNDARY)
-        check_cxx_compiler_flag(-mstack-alignment=64 HAS_STACK_ALIGNMENT)
-        if (HAS_STACK_BOUNDARY)
-            target_compile_options(${TARGET} PRIVATE -mpreferred-stack-boundary=6)
-        elseif(HAS_STACK_ALIGNMENT)
-            target_compile_options(${TARGET} PRIVATE -mstack-alignment=64)
-        endif()
-
         # If we're using a build type that generates debug syms, compress them to save significant disk space.
         check_cxx_compiler_flag(-gz HAS_COMPRESSED_DEBUG)
         if (HAS_COMPRESSED_DEBUG)

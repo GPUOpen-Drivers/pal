@@ -1178,5 +1178,33 @@ void CmdStream::TempSetPm4OptimizerMode(
     }
 }
 
+// =====================================================================================================================
+uint32* CmdStream::WriteDynamicLaunchDesc(
+    gpusize     launchDescGpuVa,
+    uint32*     pCmdSpace)
+{
+    if (m_device.Parent()->EngineProperties().cpUcodeVersion >= Gfx10UcodeVersionLoadShRegIndexIndirectAddr)
+    {
+        // Dynamic pipeline launch is only supported on GFX10.3+
+        PAL_ASSERT(IsGfx103Plus(m_device.Parent()->ChipProperties().gfxLevel));
+
+        pCmdSpace += m_cmdUtil.BuildLoadShRegsIndex(index__pfp_load_sh_reg_index__indirect_addr__GFX103COREPLUS,
+                                                    launchDescGpuVa,
+                                                    DynamicCsLaunchDescRegCount,
+                                                    Pm4ShaderType::ShaderCompute,
+                                                    pCmdSpace);
+    }
+    else
+    {
+        PAL_ASSERT_ALWAYS();
+    }
+
+    if (m_pPm4Optimizer != nullptr)
+    {
+        m_pPm4Optimizer->HandleDynamicLaunchDesc();
+    }
+
+    return pCmdSpace;
+}
 } // Gfx9
 } // Pal

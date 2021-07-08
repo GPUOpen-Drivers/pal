@@ -38,7 +38,6 @@ namespace Gfx6
 
 class  CmdStream;
 class  Device;
-class  GraphicsPipelineUploader;
 struct GraphicsPipelineLoadInfo;
 
 // =====================================================================================================================
@@ -56,24 +55,19 @@ public:
         const PerfDataInfo* pHsPerfDataInfo);
     ~PipelineChunkLsHs() { }
 
-    void EarlyInit(
-        GraphicsPipelineLoadInfo* pInfo);
-
     void LateInit(
         const AbiReader&                abiReader,
         const RegisterVector&           registers,
-        GraphicsPipelineUploader*       pUploader,
+        PipelineUploader*               pUploader,
         const GraphicsPipelineLoadInfo& loadInfo,
         Util::MetroHash64*              pHasher);
 
-    template <bool UseLoadIndexPath>
     uint32* WriteShCommands(
         CmdStream*              pCmdStream,
         uint32*                 pCmdSpace,
         const DynamicStageInfo& lsStageInfo,
         const DynamicStageInfo& hsStageInfo) const;
 
-    template <bool UseLoadIndexPath>
     uint32* WriteContextCommands(CmdStream* pCmdStream, uint32* pCmdSpace) const;
 
     gpusize LsProgramGpuVa() const

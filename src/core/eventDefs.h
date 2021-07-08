@@ -673,6 +673,9 @@ static void SerializeResourceDescriptionPipeline(
         pJsonWriter->KeyAndValue("ClientInternal", static_cast<bool>(data.pCreateFlags->clientInternal));
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
         pJsonWriter->KeyAndValue("OverrideGpuHeap", static_cast<bool>(data.pCreateFlags->overrideGpuHeap));
+#elif PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 673
+        pJsonWriter->KeyAndValue("SupportDynamicDispatch",
+            static_cast<bool>(data.pCreateFlags->supportDynamicDispatch));
 #endif
         pJsonWriter->EndMap();
 

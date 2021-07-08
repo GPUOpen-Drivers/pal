@@ -7197,7 +7197,9 @@ uint32 Gfx10RsrcProcMgr::HwlBeginGraphicsCopy(
     const auto&          coreSettings = palDevice.Settings();
     uint32               modifiedMask = 0;
 
-    if (pGpuMem != nullptr)
+    // For virtual GPU memory allocations,
+    // there are no heaps because there are no physical memory pages backing the allocation.
+    if ((pGpuMem != nullptr) && (pGpuMem->IsVirtual() == false))
     {
         const GpuHeap preferredHeap = pGpuMem->PreferredHeap();
         const bool    isNonLocal    = ((preferredHeap == GpuHeapGartUswc) ||

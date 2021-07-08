@@ -489,6 +489,7 @@ static void Gfx10UpdateAtcBlockInfo(
             { mmATC_PERFCOUNTER3_CFG, 0, mmATC_PERFCOUNTER_LO, mmATC_PERFCOUNTER_HI },
         }};
     }
+    else
     {
         pInfo->regAddr = { Gfx101::mmATC_PERFCOUNTER_RSLT_CNTL, {
             { Gfx101::mmATC_PERFCOUNTER0_CFG, 0, Gfx101::mmATC_PERFCOUNTER_LO, Gfx101::mmATC_PERFCOUNTER_HI },

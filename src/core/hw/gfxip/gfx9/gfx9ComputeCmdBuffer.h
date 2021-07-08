@@ -255,12 +255,20 @@ private:
         uint32      xDim,
         uint32      yDim,
         uint32      zDim);
+    template <bool issueSqttMarkerEvent>
+    static void PAL_STDCALL CmdDispatchDynamic(
+        ICmdBuffer* pCmdBuffer,
+        gpusize     gpuVa,
+        uint32      x,
+        uint32      y,
+        uint32      z);
 
     virtual void ActivateQueryType(QueryPoolType queryPoolType) override;
     virtual void DeactivateQueryType(QueryPoolType queryPoolType) override;
 
     uint32* ValidateDispatch(
         gpusize indirectGpuVirtAddr,
+        gpusize launchDescGpuVirtAddr,
         uint32  xDim,
         uint32  yDim,
         uint32  zDim,

@@ -139,6 +139,7 @@ bool Device::DetermineGpuIpLevels(
     pIpLevels->vce = VceIpLevel::None;
     pIpLevels->uvd = UvdIpLevel::None;
     pIpLevels->vcn = VcnIpLevel::None;
+    pIpLevels->flags.u32All = 0;
 
     switch (familyId)
     {
@@ -147,9 +148,9 @@ bool Device::DetermineGpuIpLevels(
         pIpLevels->gfx = Gfx6::DetermineIpLevel(familyId, eRevId, cpMicrocodeVersion);
         break;
 #endif
+    case FAMILY_NV:
     case FAMILY_AI:
     case FAMILY_RV:
-    case FAMILY_NV:
         pIpLevels->gfx = Gfx9::DetermineIpLevel(familyId, eRevId, cpMicrocodeVersion);
         break;
 
@@ -532,8 +533,8 @@ Result Device::HwlEarlyInit()
         result = Gfx6::CreateDevice(this, pGfxPlacementAddr, &pfnTable, &m_pGfxDevice);
         break;
 #endif
-    case GfxIpLevel::GfxIp9:
     case GfxIpLevel::GfxIp10_1:
+    case GfxIpLevel::GfxIp9:
     case GfxIpLevel::GfxIp10_3:
         result = Gfx9::CreateDevice(this, pGfxPlacementAddr, &pfnTable, &m_pGfxDevice);
         break;
@@ -799,8 +800,8 @@ void Device::GetHwIpDeviceSizes(
         gfxAddrMgrSize      = AddrMgr1::GetSize();
         break;
 #endif
-    case GfxIpLevel::GfxIp9:
     case GfxIpLevel::GfxIp10_1:
+    case GfxIpLevel::GfxIp9:
     case GfxIpLevel::GfxIp10_3:
         pHwDeviceSizes->gfx = Gfx9::GetDeviceSize(ipLevels.gfx);
         gfxAddrMgrSize      = AddrMgr2::GetSize();
@@ -2370,8 +2371,9 @@ Result Device::GetProperties(
                 }
             }
 
-            pInfo->gfxipProperties.flags.supportInt8Dot = gfx9Props.supportInt8Dot;
-            pInfo->gfxipProperties.flags.supportInt4Dot = gfx9Props.supportInt4Dot;
+            pInfo->gfxipProperties.flags.supportInt8Dot    = gfx9Props.supportInt8Dot;
+            pInfo->gfxipProperties.flags.supportInt4Dot    = gfx9Props.supportInt4Dot;
+            pInfo->gfxipProperties.flags.support2DRectList = gfx9Props.support2DRectList;
             break;
         }
 
@@ -2380,6 +2382,8 @@ Result Device::GetProperties(
             PAL_NOT_IMPLEMENTED();
             break;
         }
+
+        pInfo->gfxipProperties.dynamicLaunchDescSize          = m_chipProperties.gfxip.dynamicLaunchDescSize;
 
         pInfo->gfxipProperties.maxThreadGroupSize             = m_chipProperties.gfxip.maxThreadGroupSize;
         pInfo->gfxipProperties.maxAsyncComputeThreadGroupSize = m_chipProperties.gfxip.maxAsyncComputeThreadGroupSize;
@@ -4640,8 +4644,14 @@ Result Device::AddToReferencedMemoryTotals(
                 *pValue = 1;
 
                 const GpuMemoryDesc& desc = pGpuMemoryRefs[i].pGpuMemory->Desc();
-                PAL_ASSERT(desc.heapCount > 0);
-                m_referencedGpuMemBytes[desc.heaps[0]] += desc.size;
+
+                // Making a virtual GPU memory allocation resident doesn't make any additional physical pages resident,
+                // so we shouldn't count them here.
+                if (desc.flags.isVirtual == false)
+                {
+                    PAL_ASSERT(desc.heapCount > 0);
+                    m_referencedGpuMemBytes[desc.heaps[0]] += desc.size;
+                }
             }
             else
             {
@@ -4677,9 +4687,15 @@ Result Device::SubtractFromReferencedMemoryTotals(
                 m_referencedGpuMem.Erase(ppGpuMemory[i]);
 
                 const GpuMemoryDesc& desc = ppGpuMemory[i]->Desc();
-                PAL_ASSERT(desc.heapCount > 0);
-                PAL_ASSERT(m_referencedGpuMemBytes[desc.heaps[0]] >= desc.size);
-                m_referencedGpuMemBytes[desc.heaps[0]] -= desc.size;
+
+                // Making a virtual GPU memory allocation resident doesn't make any additional physical pages resident,
+                // so we shouldn't count them here.
+                if (desc.flags.isVirtual == false)
+                {
+                    PAL_ASSERT(desc.heapCount > 0);
+                    PAL_ASSERT(m_referencedGpuMemBytes[desc.heaps[0]] >= desc.size);
+                    m_referencedGpuMemBytes[desc.heaps[0]] -= desc.size;
+                }
             }
         }
     }

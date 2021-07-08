@@ -614,10 +614,11 @@ public:
         Pm4ShaderType shaderType,
         void*         pBuffer);
     size_t BuildLoadShRegsIndex(
-        gpusize       gpuVirtAddr,
-        uint32        count,
-        Pm4ShaderType shaderType,
-        void*         pBuffer) const;
+        PFP_LOAD_SH_REG_INDEX_index_enum index,
+        gpusize                          gpuVirtAddr,
+        uint32                           count,
+        Pm4ShaderType                    shaderType,
+        void*                            pBuffer) const;
 
     static size_t BuildLoadUserConfigRegs(
         gpusize              gpuVirtAddr,

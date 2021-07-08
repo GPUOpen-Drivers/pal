@@ -1728,20 +1728,6 @@ uint32* UniversalQueueContext::WriteUniversalPreamble(
 
     pCmdSpace = m_deCmdStream.WriteSetOneContextReg(mmPA_CL_NGG_CNTL, paClNggCntl.u32All, pCmdSpace);
 
-    // All of the shader address registers actually represent 40b in the 32b LO registers since they are 256B shifted.
-    // Due to the way these are allocated we can safely assume HI portions are 0, saving some record-time SH writes.
-    // For VS/PS, only the LOAD path requires this today. The SET path would require splitting up a seq reg range.
-    if (settings.enableLoadIndexForObjectBinds)
-    {
-        pCmdSpace = m_deCmdStream.WriteSetOneShReg<ShaderGraphics>(mmSPI_SHADER_PGM_HI_PS, 0, pCmdSpace);
-        if (chipProps.gfxip.supportsHwVs)
-        {
-            pCmdSpace = m_deCmdStream.WriteSetOneShReg<ShaderGraphics>(HasHwVs::mmSPI_SHADER_PGM_HI_VS,
-                                                                       0,
-                                                                       pCmdSpace);
-        }
-    }
-
     const uint32 mmSpiShaderPgmHiEs = IsGfx10Plus(device) ? Gfx10Plus::mmSPI_SHADER_PGM_HI_ES :
                                                             Gfx09::mmSPI_SHADER_PGM_HI_ES;
     const uint32 mmSpiShaderPgmHiLs = IsGfx10Plus(device) ? Gfx10Plus::mmSPI_SHADER_PGM_HI_LS :

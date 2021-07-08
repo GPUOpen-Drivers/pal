@@ -58,7 +58,6 @@ namespace Gfx9
 void SettingsLoader::SetupDefaults()
 {
     // set setting variables to their default values...
-    m_settings.enableLoadIndexForObjectBinds = false;
 
     m_settings.allowBigPage = 0x3f;
     m_settings.disableBorderColorPaletteBinds = false;
@@ -184,7 +183,6 @@ void SettingsLoader::SetupDefaults()
     m_settings.waMiscScissorRegisterChange = false;
     m_settings.waMiscPsFlushScissorChange = false;
     m_settings.waHtilePipeBankXorMustBeZero = false;
-    m_settings.waDisableDfsmWithEqaa = false;
     m_settings.waDisable24BitHWFormatForTCCompatibleDepth = false;
     m_settings.waDummyZpassDoneBeforeTs = false;
     m_settings.waMetaAliasingFixEnabled = true;
@@ -239,10 +237,6 @@ void SettingsLoader::SetupDefaults()
 void SettingsLoader::ReadSettings()
 {
     // read from the OS adapter for each individual setting
-    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pEnableLoadIndexForObjectBindsStr,
-                           Util::ValueType::Boolean,
-                           &m_settings.enableLoadIndexForObjectBinds,
-                           InternalSettingScope::PrivatePalGfx9Key);
 
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pAllowBigPageStr,
                            Util::ValueType::Uint,
@@ -824,11 +818,6 @@ void SettingsLoader::ReadSettings()
                            &m_settings.waHtilePipeBankXorMustBeZero,
                            InternalSettingScope::PrivatePalGfx9Key);
 
-    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pWaDisableDfsmWithEqaaStr,
-                           Util::ValueType::Boolean,
-                           &m_settings.waDisableDfsmWithEqaa,
-                           InternalSettingScope::PrivatePalGfx9Key);
-
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pWaDisable24BitHWFormatForTCCompatibleDepthStr,
                            Util::ValueType::Boolean,
                            &m_settings.waDisable24BitHWFormatForTCCompatibleDepth,
@@ -1173,11 +1162,6 @@ void SettingsLoader::RereadSettings()
                            &m_settings.waHtilePipeBankXorMustBeZero,
                            InternalSettingScope::PrivatePalGfx9Key);
 
-    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pWaDisableDfsmWithEqaaStr,
-                           Util::ValueType::Boolean,
-                           &m_settings.waDisableDfsmWithEqaa,
-                           InternalSettingScope::PrivatePalGfx9Key);
-
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pWaDisable24BitHWFormatForTCCompatibleDepthStr,
                            Util::ValueType::Boolean,
                            &m_settings.waDisable24BitHWFormatForTCCompatibleDepth,
@@ -1305,11 +1289,6 @@ void SettingsLoader::RereadSettings()
 void SettingsLoader::InitSettingsInfo()
 {
     SettingInfo info = {};
-
-    info.type      = SettingType::Boolean;
-    info.pValuePtr = &m_settings.enableLoadIndexForObjectBinds;
-    info.valueSize = sizeof(m_settings.enableLoadIndexForObjectBinds);
-    m_settingsInfoMap.Insert(2416072074, info);
 
     info.type      = SettingType::Uint;
     info.pValuePtr = &m_settings.allowBigPage;
@@ -1892,11 +1871,6 @@ void SettingsLoader::InitSettingsInfo()
     m_settingsInfoMap.Insert(264312760, info);
 
     info.type      = SettingType::Boolean;
-    info.pValuePtr = &m_settings.waDisableDfsmWithEqaa;
-    info.valueSize = sizeof(m_settings.waDisableDfsmWithEqaa);
-    m_settingsInfoMap.Insert(3435751213, info);
-
-    info.type      = SettingType::Boolean;
     info.pValuePtr = &m_settings.waDisable24BitHWFormatForTCCompatibleDepth;
     info.valueSize = sizeof(m_settings.waDisable24BitHWFormatForTCCompatibleDepth);
     m_settingsInfoMap.Insert(1925370123, info);
@@ -2097,7 +2071,7 @@ void SettingsLoader::DevDriverRegister()
             component.pfnSetValue = ISettingsLoader::SetValue;
             component.pSettingsData = &g_gfx9PalJsonData[0];
             component.settingsDataSize = sizeof(g_gfx9PalJsonData);
-            component.settingsDataHash = 136698542;
+            component.settingsDataHash = 2514869554;
             component.settingsDataHeader.isEncoded = true;
             component.settingsDataHeader.magicBufferId = 402778310;
             component.settingsDataHeader.magicBufferOffset = 0;

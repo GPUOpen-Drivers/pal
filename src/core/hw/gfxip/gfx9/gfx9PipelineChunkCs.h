@@ -90,33 +90,32 @@ public:
         PerfDataInfo*    pPerfDataInfo);
     ~PipelineChunkCs() { }
 
-    // Compute-only.
-    uint32 EarlyInit();
-
-    // Graphics-only.
-    void EarlyInit(GraphicsPipelineLoadInfo* pInfo);
-
     void SetupSignatureFromElf(
         ComputeShaderSignature*   pSignature,
         const CodeObjectMetadata& metadata,
         const RegisterVector&     registers);
 
-    template <typename CsPipelineUploader>
     void LateInit(
-        const AbiReader&                 abiReader,
-        const RegisterVector&            registers,
-        uint32                           wavefrontSize,
-        uint32*                          pThreadsPerTgX,
-        uint32*                          pThreadsPerTgY,
-        uint32*                          pThreadsPerTgZ,
-        bool                             forceDisableLoadPath,
-        CsPipelineUploader*              pUploader);
+        const AbiReader&       abiReader,
+        const RegisterVector&  registers,
+        uint32                 wavefrontSize,
+        uint32*                pThreadsPerTgX,
+        uint32*                pThreadsPerTgY,
+        uint32*                pThreadsPerTgZ,
+        PipelineUploader*      pUploader);
 
     uint32* WriteShCommands(
         CmdStream*                      pCmdStream,
         uint32*                         pCmdSpace,
         const DynamicComputeShaderInfo& csInfo,
+        gpusize                         launchDescGpuVa,
         bool                            prefetch) const;
+
+    uint32* WriteShCommandsDynamic(
+        CmdStream*                      pCmdStream,
+        uint32*                         pCmdSpace,
+        const DynamicComputeShaderInfo& csInfo,
+        gpusize                         launchDescGpuVa) const;
 
     gpusize CsProgramGpuVa() const
         { return GetOriginalAddress(m_regs.computePgmLo.bits.DATA, 0); }
@@ -128,18 +127,14 @@ public:
         regCOMPUTE_PGM_RSRC2 Rsrc2,
         regCOMPUTE_PGM_RSRC3 Rsrc3);
 
+    Result CreateLaunchDescriptor(void* pOut, bool resolve);
+
 private:
-    uint32* WriteShCommandsSetPath(CmdStream* pCmdStream, uint32* pCmdSpace) const;
+    uint32* WriteShCommandsSetPath(CmdStream* pCmdStream, uint32* pCmdSpace, bool usingLauncDesc) const;
 
     const Device&  m_device;
 
     HwRegInfo m_regs;
-
-    struct
-    {
-        gpusize  gpuVirtAddr;
-        uint32   count;
-    }  m_loadPath;
 
     PipelinePrefetchPm4  m_prefetch;
 
@@ -163,14 +158,13 @@ public:
     ~LibraryChunkCs() { }
 
     // Compute Library use only
-    template <typename ShaderLibraryUploader>
     void LateInit(
-        const AbiReader&                 abiReader,
-        const RegisterVector&            registers,
-        uint32                           wavefrontSize,
-        ShaderLibraryFunctionInfo*       pFunctionList,
-        uint32                           funcCount,
-        ShaderLibraryUploader*           pUploader);
+        const AbiReader&            abiReader,
+        const RegisterVector&       registers,
+        uint32                      wavefrontSize,
+        ShaderLibraryFunctionInfo*  pFunctionList,
+        uint32                      funcCount,
+        PipelineUploader*           pUploader);
 
     const LibHwRegInfo LibHWInfo() const { return m_regs; }
 

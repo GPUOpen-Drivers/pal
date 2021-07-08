@@ -615,6 +615,12 @@ private:
         uint32      xDim,
         uint32      yDim,
         uint32      zDim);
+    static void PAL_STDCALL CmdDispatchDynamic(
+        ICmdBuffer* pCmdBuffer,
+        gpusize     gpuVa,
+        uint32      xDim,
+        uint32      yDim,
+        uint32      zDim);
     static void PAL_STDCALL CmdDispatchMesh(
         ICmdBuffer* pCmdBuffer,
         uint32      xDim,

@@ -39,7 +39,7 @@ HybridGraphicsPipeline::HybridGraphicsPipeline(
     GraphicsPipeline(pDevice, false),
     m_task(*pDevice, &m_taskStageInfo, &m_perfDataInfo[static_cast<uint32>(Util::Abi::HardwareStage::Cs)]),
     m_taskStageInfo(),
-    m_taskSignature()
+    m_taskSignature{NullCsSignature}
 {
 }
 
@@ -63,14 +63,7 @@ Result HybridGraphicsPipeline::HwlInit(
         GraphicsPipelineLoadInfo loadInfo = {};
         GraphicsPipeline::EarlyInit(metadata, registers, &loadInfo);
 
-        // We ignore the number of SH registers out of early init to avoid adding the Task Shader to the graphics
-        // load path.
-        m_task.EarlyInit();
-
-        GraphicsPipelineUploader uploader(m_pDevice,
-                                          abiReader,
-                                          loadInfo.loadedCtxRegCount,
-                                          loadInfo.loadedShRegCount);
+        PipelineUploader uploader(m_pDevice->Parent(), abiReader);
 
         result = PerformRelocationsAndUploadToGpuMemory(
             metadata,
@@ -95,7 +88,6 @@ Result HybridGraphicsPipeline::HwlInit(
                             &m_threadsPerTgX,
                             &m_threadsPerTgY,
                             &m_threadsPerTgZ,
-                            true,
                             &uploader);
 
             const Util::Elf::SymbolTableEntry* pElfSymbol =
@@ -157,7 +149,7 @@ uint32* HybridGraphicsPipeline::WriteTaskCommands(
     ) const
 {
     auto* pGfx9CmdStream = static_cast<CmdStream*>(pCmdStream);
-    pCmdSpace = m_task.WriteShCommands(pGfx9CmdStream, pCmdSpace, info, prefetch);
+    pCmdSpace = m_task.WriteShCommands(pGfx9CmdStream, pCmdSpace, info, 0uLL, prefetch);
     return pCmdSpace;
 }
 

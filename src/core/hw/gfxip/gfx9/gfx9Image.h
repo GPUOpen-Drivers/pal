@@ -450,17 +450,17 @@ public:
     virtual ImageType GetOverrideImageType() const override;
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    virtual gpusize GetAspectBaseAddr(ImageAspect  aspect) const override;
+    virtual gpusize GetAspectBaseAddr(ImageAspect aspect, uint32 arraySlice = 0) const override;
 #else
-    virtual gpusize GetPlaneBaseAddr(uint32 plane) const override;
+    virtual gpusize GetPlaneBaseAddr(uint32 plane, uint32 arraySlice = 0) const override;
 #endif
 
     virtual void GetSharedMetadataInfo(SharedMetadataInfo* pMetadataInfo) const override;
     virtual void GetDisplayDccState(DccState* pState) const override;
     virtual void GetDccState(DccState* pState) const override;
 
-    virtual void SetMallCursorCacheSize(uint32 cursorSize) { m_mallCursorCacheSize = cursorSize; }
-    virtual gpusize GetMallCursorCacheOffset() { return m_mallCursorCacheOffset; }
+    virtual void SetMallCursorCacheSize(uint32 cursorSize) override { m_mallCursorCacheSize = cursorSize; }
+    virtual gpusize GetMallCursorCacheOffset() override { return m_mallCursorCacheOffset; }
 
     gpusize GetMipAddr(SubresId subresId) const;
 

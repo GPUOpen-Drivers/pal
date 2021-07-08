@@ -1002,7 +1002,44 @@ void LogContext::Enum(
 void LogContext::Enum(
     NullGpuId value)
 {
-    const char*const StringTable[] =
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 672
+    const char* const StringTable[] =
+    {
+        "Polaris10",
+        "Polaris11",
+        "Polaris12",
+        nullptr,
+
+        "Vega10",
+        "Raven",
+        "Vega12",
+        "Vega20",
+        "Raven2",
+        "Renoir",
+
+        "Navi10",
+        "Navi12",
+        nullptr,
+        "Navi14",
+        nullptr,
+        "Navi21",
+        "Navi22",
+        nullptr,
+        nullptr,
+        nullptr,
+        nullptr,
+        nullptr,
+        nullptr,
+        nullptr,
+        nullptr,
+        nullptr,
+        nullptr,
+
+        "Max",
+        "All",
+    };
+#else // #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 672
+    const char* const StringTable[] =
     {
         "Tahiti",
         "Pitcairn",
@@ -1055,9 +1092,10 @@ void LogContext::Enum(
         nullptr,
         nullptr,
 
-        "Max",
-        "All",
+    "Max",
+    "All",
     };
+#endif
 
     static_assert(ArrayLen(StringTable) == static_cast<uint32>(NullGpuId::All) + 1,
                   "The NullGpuId string table needs to be updated.");
@@ -1201,6 +1239,7 @@ void LogContext::Enum(
         "TriangleFan",      // 0xD,
         "LineLoop",         // 0xE,
         "Polygon",          // 0xF,
+        "TwoDRectList",     // 0x10,
     };
 
     const uint32 idx = static_cast<uint32>(value);

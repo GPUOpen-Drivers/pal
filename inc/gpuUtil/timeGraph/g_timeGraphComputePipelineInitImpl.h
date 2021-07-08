@@ -55,43 +55,10 @@ Pal::Result CreateTimeGraphComputePipelines(
     switch (properties.revision)
     {
 #if PAL_BUILD_GFX6
-    case Pal::AsicRevision::Tahiti:
-    case Pal::AsicRevision::Pitcairn:
-    case Pal::AsicRevision::Capeverde:
-    case Pal::AsicRevision::Oland:
-    case Pal::AsicRevision::Hainan:
-        pTable = timeGraphComputeBinaryTableTahiti;
-        break;
-#endif
-
-#if PAL_BUILD_GFX6
-    case Pal::AsicRevision::Spectre:
-    case Pal::AsicRevision::Spooky:
-    case Pal::AsicRevision::HawaiiPro:
-    case Pal::AsicRevision::Hawaii:
-    case Pal::AsicRevision::Kalindi:
-    case Pal::AsicRevision::Bonaire:
-    case Pal::AsicRevision::Godavari:
-        pTable = timeGraphComputeBinaryTableSpectre;
-        break;
-#endif
-
-#if PAL_BUILD_GFX6
-    case Pal::AsicRevision::Carrizo:
-    case Pal::AsicRevision::Bristol:
-    case Pal::AsicRevision::Fiji:
     case Pal::AsicRevision::Polaris10:
     case Pal::AsicRevision::Polaris11:
     case Pal::AsicRevision::Polaris12:
-    case Pal::AsicRevision::Stoney:
-        pTable = timeGraphComputeBinaryTableCarrizo;
-        break;
-#endif
-
-#if PAL_BUILD_GFX6
-    case Pal::AsicRevision::Iceland:
-    case Pal::AsicRevision::TongaPro:
-        pTable = timeGraphComputeBinaryTableIceland;
+        pTable = timeGraphComputeBinaryTablePolaris10;
         break;
 #endif
 

@@ -37,38 +37,16 @@ namespace Pal
 namespace Gfx9
 {
 
-// Base count of SH registers which are loaded using LOAD_SH_REG_INDEX when binding to a command buffer.
-static constexpr uint32 BaseLoadedShRegCount =
-    1 + // mmSPI_SHADER_PGM_LO_ES
-    1 + // SPI_SHADER_PGM_RSRC1_GS
-    1 + // SPI_SHADER_PGM_RSRC2_GS
-    0 + // SPI_SHADER_PGM_CHKSUM_GS is not included because it is not present on all HW
-    1;  // SPI_SHADER_USER_DATA_ES_0 + ConstBufTblStartReg
-
-// Base count of Context registers which are loaded using LOAD_CNTX_REG_INDEX when binding to a command buffer.
-static constexpr uint32 BaseLoadedCntxRegCount =
-    1 + // mmVGT_GS_MAX_VERT_OUT
-    1 + // mmVGT_GS_INSTANCE_CNT
-    4 + // mmVGT_GS_VERT_ITEMSIZE_*
-    3 + // mmVGT_GSVS_RING_OFFSET_*
-    1 + // mmVGT_GS_OUT_PRIM_TYPE
-    1 + // mmVGT_GS_PER_VS
-    1 + // mmVGT_GSVS_RING_ITEMSIZE
-    1 + // mmVGT_ESGS_RING_ITEMSIZE
-    1 + // mmVGT_GS_MAX_PRIMS_PER_SUBGROUP or mmGE_MAX_OUTPUT_PER_SUBGROUP, depending on GfxIp version
-    0 + // mmSPI_SHADER_IDX_FORMAT is not included because it is not present on all HW
-    0;  // mmGE_NGG_SUBGRP_CNTL is not included because it is not present on all HW
-
 // =====================================================================================================================
 PipelineChunkGs::PipelineChunkGs(
     const Device&       device,
     const PerfDataInfo* pPerfDataInfo)
     :
     m_device(device),
-    m_pPerfDataInfo(pPerfDataInfo)
+    m_regs{},
+    m_pPerfDataInfo(pPerfDataInfo),
+    m_stageInfo{}
 {
-    memset(&m_regs,  0, sizeof(m_regs));
-    memset(&m_stageInfo, 0, sizeof(m_stageInfo));
     m_stageInfo.stageId = Abi::HardwareStage::Gs;
 }
 
@@ -80,53 +58,19 @@ void PipelineChunkGs::EarlyInit(
 {
     PAL_ASSERT(pInfo != nullptr);
 
-    const Gfx9PalSettings&   settings  = m_device.Settings();
-    const GpuChipProperties& chipProps = m_device.Parent()->ChipProperties();
-
     m_regs.sh.ldsEsGsSizeRegAddrGs = pInfo->esGsLdsSizeRegGs;
     m_regs.sh.ldsEsGsSizeRegAddrVs = pInfo->esGsLdsSizeRegVs;
-
-    if (settings.enableLoadIndexForObjectBinds != false)
-    {
-
-        {
-            pInfo->loadedCtxRegCount += BaseLoadedCntxRegCount;
-
-            // Handle GFX10 specific context registers
-            if (IsGfx10Plus(chipProps.gfxLevel))
-            {
-                // mmSPI_SHADER_IDX_FORMAT
-                // mmGE_NGG_SUBGRP_CNTL
-                pInfo->loadedCtxRegCount += 2;
-            }
-        }
-
-        pInfo->loadedShRegCount  += (BaseLoadedShRegCount + ((chipProps.gfx9.supportSpp == 1) ? 1 : 0));
-
-        // Up to two additional SH registers will be loaded for on-chip GS or NGG pipelines for the ES/GS LDS sizes.
-        if (pInfo->enableNgg)
-        {
-            PAL_ASSERT(pInfo->esGsLdsSizeRegGs != UserDataNotMapped);
-            pInfo->loadedShRegCount += 1;
-        }
-        else if (pInfo->usesOnChipGs)
-        {
-            PAL_ASSERT((pInfo->esGsLdsSizeRegGs != UserDataNotMapped) &&
-                       (pInfo->esGsLdsSizeRegVs != UserDataNotMapped));
-            pInfo->loadedShRegCount += 2;
-        }
-    }
 }
 
 // =====================================================================================================================
 // Late initialization for this pipeline chunk.  Responsible for fetching register values from the pipeline binary and
-// determining the values of other registers.  Also uploads register state into GPU memory.
+// determining the values of other registers.
 void PipelineChunkGs::LateInit(
     const AbiReader&                abiReader,
     const CodeObjectMetadata&       metadata,
     const RegisterVector&           registers,
     const GraphicsPipelineLoadInfo& loadInfo,
-    GraphicsPipelineUploader*       pUploader,
+    PipelineUploader*               pUploader,
     MetroHash64*                    pHasher)
 {
     const Gfx9PalSettings&   settings     = m_device.Settings();
@@ -301,70 +245,11 @@ void PipelineChunkGs::LateInit(
     }
 
     pHasher->Update(m_regs.context);
-
-    if (pUploader->EnableLoadIndexPath())
-    {
-        pUploader->AddShReg(mmSpiShaderPgmLoEs,        m_regs.sh.spiShaderPgmLoEs);
-        pUploader->AddShReg(mmSPI_SHADER_PGM_RSRC1_GS, m_regs.sh.spiShaderPgmRsrc1Gs);
-        pUploader->AddShReg(mmSPI_SHADER_PGM_RSRC2_GS, m_regs.sh.spiShaderPgmRsrc2Gs);
-
-        pUploader->AddShReg(mmSpiShaderUserDataGs0 + ConstBufTblStartReg, m_regs.sh.userDataInternalTable);
-
-        if (chipProps.gfx9.supportSpp != 0)
-        {
-            pUploader->AddShReg(Apu09_1xPlus::mmSPI_SHADER_PGM_CHKSUM_GS, m_regs.sh.spiShaderPgmChksumGs);
-        }
-
-        if (loadInfo.enableNgg)
-        {
-            PAL_ASSERT(m_regs.sh.ldsEsGsSizeRegAddrGs != UserDataNotMapped);
-            pUploader->AddShReg(m_regs.sh.ldsEsGsSizeRegAddrGs, m_regs.sh.userDataLdsEsGsSize);
-        }
-        else if (loadInfo.usesOnChipGs)
-        {
-            PAL_ASSERT((m_regs.sh.ldsEsGsSizeRegAddrGs != UserDataNotMapped) &&
-                       (m_regs.sh.ldsEsGsSizeRegAddrVs != UserDataNotMapped));
-            pUploader->AddShReg(m_regs.sh.ldsEsGsSizeRegAddrGs, m_regs.sh.userDataLdsEsGsSize);
-            pUploader->AddShReg(m_regs.sh.ldsEsGsSizeRegAddrVs, m_regs.sh.userDataLdsEsGsSize);
-        }
-
-        pUploader->AddCtxReg(mmVGT_GS_INSTANCE_CNT,    m_regs.context.vgtGsInstanceCnt);
-
-        if (chipProps.gfxip.supportsHwVs)
-        {
-            pUploader->AddCtxReg(HasHwVs::mmVGT_GS_PER_VS,          m_regs.context.vgtGsPerVs);
-            pUploader->AddCtxReg(HasHwVs::mmVGT_GS_VERT_ITEMSIZE,   m_regs.context.vgtGsVertItemSize0);
-            pUploader->AddCtxReg(HasHwVs::mmVGT_GS_VERT_ITEMSIZE_1, m_regs.context.vgtGsVertItemSize1);
-            pUploader->AddCtxReg(HasHwVs::mmVGT_GS_VERT_ITEMSIZE_2, m_regs.context.vgtGsVertItemSize2);
-            pUploader->AddCtxReg(HasHwVs::mmVGT_GS_VERT_ITEMSIZE_3, m_regs.context.vgtGsVertItemSize3);
-            pUploader->AddCtxReg(HasHwVs::mmVGT_GSVS_RING_ITEMSIZE, m_regs.context.vgtGsVsRingItemSize);
-            pUploader->AddCtxReg(HasHwVs::mmVGT_GSVS_RING_OFFSET_1, m_regs.context.vgtGsVsRingOffset1);
-            pUploader->AddCtxReg(HasHwVs::mmVGT_GSVS_RING_OFFSET_2, m_regs.context.vgtGsVsRingOffset2);
-            pUploader->AddCtxReg(HasHwVs::mmVGT_GSVS_RING_OFFSET_3, m_regs.context.vgtGsVsRingOffset3);
-            pUploader->AddCtxReg(Gfx10Core::mmVGT_GS_OUT_PRIM_TYPE, m_regs.context.vgtGsOutPrimType);
-            static_assert(Gfx09::mmVGT_GS_OUT_PRIM_TYPE == Gfx10Core::mmVGT_GS_OUT_PRIM_TYPE, "Regs changed");
-        }
-
-        pUploader->AddCtxReg(mmVGT_ESGS_RING_ITEMSIZE, m_regs.context.vgtEsGsRingItemSize);
-        pUploader->AddCtxReg(mmVGT_GS_MAX_VERT_OUT,    m_regs.context.vgtGsMaxVertOut);
-
-        if (chipProps.gfxLevel == GfxIpLevel::GfxIp9)
-        {
-            pUploader->AddCtxReg(Gfx09::mmVGT_GS_MAX_PRIMS_PER_SUBGROUP, m_regs.context.vgtGsMaxPrimsPerSubgroup);
-        }
-        else // Gfx10+
-        {
-            pUploader->AddCtxReg(Gfx10Plus::mmGE_MAX_OUTPUT_PER_SUBGROUP, m_regs.context.geMaxOutputPerSubgroup);
-            pUploader->AddCtxReg(Gfx10Plus::mmSPI_SHADER_IDX_FORMAT,      m_regs.context.spiShaderIdxFormat);
-            pUploader->AddCtxReg(Gfx10Plus::mmGE_NGG_SUBGRP_CNTL,         m_regs.context.geNggSubgrpCntl);
-        }
-    }
 }
 
 // =====================================================================================================================
 // Copies this pipeline chunk's sh commands into the specified command space. Returns the next unused DWORD in
 // pCmdSpace.
-template <bool UseLoadIndexPath>
 uint32* PipelineChunkGs::WriteShCommands(
     CmdStream*              pCmdStream,
     uint32*                 pCmdSpace,
@@ -373,46 +258,43 @@ uint32* PipelineChunkGs::WriteShCommands(
 {
     const GpuChipProperties& chipProps = m_device.Parent()->ChipProperties();
 
-    if (UseLoadIndexPath == false)
+    const RegisterInfo& registerInfo = m_device.CmdUtil().GetRegInfo();
+
+    const uint16 mmSpiShaderUserDataGs0 = registerInfo.mmUserDataStartGsShaderStage;
+    const uint16 mmSpiShaderPgmLoEs     = registerInfo.mmSpiShaderPgmLoEs;
+
+    pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderGraphics>(mmSpiShaderPgmLoEs,
+                                                                m_regs.sh.spiShaderPgmLoEs.u32All,
+                                                                pCmdSpace);
+
+    pCmdSpace = pCmdStream->WriteSetSeqShRegs(mmSPI_SHADER_PGM_RSRC1_GS,
+                                                mmSPI_SHADER_PGM_RSRC2_GS,
+                                                ShaderGraphics,
+                                                &m_regs.sh.spiShaderPgmRsrc1Gs,
+                                                pCmdSpace);
+
+    pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderGraphics>(mmSpiShaderUserDataGs0 + ConstBufTblStartReg,
+                                                                m_regs.sh.userDataInternalTable.u32All,
+                                                                pCmdSpace);
+
+    if (chipProps.gfx9.supportSpp != 0)
     {
-        const RegisterInfo& registerInfo = m_device.CmdUtil().GetRegInfo();
+        pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderGraphics>(Apu09_1xPlus::mmSPI_SHADER_PGM_CHKSUM_GS,
+                                                                    m_regs.sh.spiShaderPgmChksumGs.u32All,
+                                                                    pCmdSpace);
+    }
 
-        const uint16 mmSpiShaderUserDataGs0 = registerInfo.mmUserDataStartGsShaderStage;
-        const uint16 mmSpiShaderPgmLoEs     = registerInfo.mmSpiShaderPgmLoEs;
-
-        pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderGraphics>(mmSpiShaderPgmLoEs,
-                                                                 m_regs.sh.spiShaderPgmLoEs.u32All,
-                                                                 pCmdSpace);
-
-        pCmdSpace = pCmdStream->WriteSetSeqShRegs(mmSPI_SHADER_PGM_RSRC1_GS,
-                                                  mmSPI_SHADER_PGM_RSRC2_GS,
-                                                  ShaderGraphics,
-                                                  &m_regs.sh.spiShaderPgmRsrc1Gs,
-                                                  pCmdSpace);
-
-        pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderGraphics>(mmSpiShaderUserDataGs0 + ConstBufTblStartReg,
-                                                                 m_regs.sh.userDataInternalTable.u32All,
-                                                                 pCmdSpace);
-
-        if (chipProps.gfx9.supportSpp != 0)
-        {
-            pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderGraphics>(Apu09_1xPlus::mmSPI_SHADER_PGM_CHKSUM_GS,
-                                                                     m_regs.sh.spiShaderPgmChksumGs.u32All,
-                                                                     pCmdSpace);
-        }
-
-        if (m_regs.sh.ldsEsGsSizeRegAddrGs != UserDataNotMapped)
-        {
-            pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderGraphics>(m_regs.sh.ldsEsGsSizeRegAddrGs,
-                                                                     m_regs.sh.userDataLdsEsGsSize.u32All,
-                                                                     pCmdSpace);
-        }
-        if (m_regs.sh.ldsEsGsSizeRegAddrVs != UserDataNotMapped)
-        {
-            pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderGraphics>(m_regs.sh.ldsEsGsSizeRegAddrVs,
-                                                                     m_regs.sh.userDataLdsEsGsSize.u32All,
-                                                                     pCmdSpace);
-        }
+    if (m_regs.sh.ldsEsGsSizeRegAddrGs != UserDataNotMapped)
+    {
+        pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderGraphics>(m_regs.sh.ldsEsGsSizeRegAddrGs,
+                                                                    m_regs.sh.userDataLdsEsGsSize.u32All,
+                                                                    pCmdSpace);
+    }
+    if (m_regs.sh.ldsEsGsSizeRegAddrVs != UserDataNotMapped)
+    {
+        pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderGraphics>(m_regs.sh.ldsEsGsSizeRegAddrVs,
+                                                                    m_regs.sh.userDataLdsEsGsSize.u32All,
+                                                                    pCmdSpace);
     }
 
     auto dynamic = m_regs.dynamic;
@@ -472,32 +354,14 @@ uint32* PipelineChunkGs::WriteShCommands(
     return pCmdSpace;
 }
 
-// Instantiate template versions for the linker.
-template
-uint32* PipelineChunkGs::WriteShCommands<false>(
-    CmdStream*              pCmdStream,
-    uint32*                 pCmdSpace,
-    const DynamicStageInfo& gsStageInfo
-    ) const;
-template
-uint32* PipelineChunkGs::WriteShCommands<true>(
-    CmdStream*              pCmdStream,
-    uint32*                 pCmdSpace,
-    const DynamicStageInfo& gsStageInfo
-    ) const;
-
 // =====================================================================================================================
 // Copies this pipeline chunk's context commands into the specified command space. Returns the next unused DWORD in
 // pCmdSpace.
-template <bool UseLoadIndexPath>
 uint32* PipelineChunkGs::WriteContextCommands(
     CmdStream* pCmdStream,
     uint32*    pCmdSpace
     ) const
 {
-    // NOTE: It is expected that this function will only ever be called when the set path is in use.
-    PAL_ASSERT(UseLoadIndexPath == false);
-
     if (m_device.Parent()->ChipProperties().gfxLevel == GfxIpLevel::GfxIp9)
     {
         pCmdSpace = pCmdStream->WriteSetOneContextReg(Gfx09::mmVGT_GS_MAX_PRIMS_PER_SUBGROUP,
@@ -545,18 +409,6 @@ uint32* PipelineChunkGs::WriteContextCommands(
 
     return pCmdSpace;
 }
-
-// Instantiate template versions for the linker.
-template
-uint32* PipelineChunkGs::WriteContextCommands<false>(
-    CmdStream* pCmdStream,
-    uint32*    pCmdSpace
-    ) const;
-template
-uint32* PipelineChunkGs::WriteContextCommands<true>(
-    CmdStream* pCmdStream,
-    uint32*    pCmdSpace
-    ) const;
 
 } // Gfx9
 } // Pal

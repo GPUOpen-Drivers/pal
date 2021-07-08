@@ -68,29 +68,6 @@ static uint8 Rop3(LogicOp logicOp);
 static uint32 SxBlendOptEpsilon(SX_DOWNCONVERT_FORMAT sxDownConvertFormat);
 static uint32 SxBlendOptControl(uint32 writeMask);
 
-// Base count of SH registers which are loaded using LOAD_SH_REG_INDEX when binding to a command buffer.
-static constexpr uint32 BaseLoadedShRegCount =
-    0;  // mmSPI_SHADER_LATE_ALLOC_VS is only used for non NGG so add it later if we don't use NGG
-// Base count of Context registers which are loaded using LOAD_CNTX_REG_INDEX when binding to a command buffer.
-static constexpr uint32 BaseLoadedCntxRegCount =
-    1 + // mmVGT_SHADER_STAGES_EN
-    0 + // mmVGT_DRAW_PAYLOAD_CNTL is not included because it is not needed on all HW
-    1 + // mmVGT_GS_MODE
-    1 + // mmVGT_REUSE_OFF
-    1 + // mmVGT_TF_PARAM
-    1 + // mmCB_COLOR_CONTROL
-    1 + // mmCB_TARGET_MASK
-    1 + // mmCB_SHADER_MASK
-    1 + // mmPA_CL_CLIP_CNTL
-    1 + // mmPA_SU_VTX_CNTL
-    1 + // mmPA_CL_VTE_CNTL
-    1 + // mmPA_SC_LINE_CNTL
-    0 + // mmPA_STEREO_CNTL is not included because it is not present on all HW
-    0 + // mmCB_COVERAGE_OUT_CONTROL is not included because it is not present on all HW
-    0 + // mmVGT_GS_ONCHIP_CNTL is not included because it is not required for all pipeline types.
-    1 + // mmSPI_INTERP_CONTROL_0
-    1;  // mmVGT_VERTEX_REUSE_BLOCK_CNTL
-
 // =====================================================================================================================
 // Determines whether we can allow the hardware to render out-of-order primitives.  This is done by determing the
 // effects that this could have on the depth buffer, stencil buffer, and render target.
@@ -218,12 +195,11 @@ GraphicsPipeline::GraphicsPipeline(
               &m_perfDataInfo[static_cast<uint32>(Util::Abi::HardwareStage::Gs)]),
     m_chunkVsPs(*pDevice,
                 &m_perfDataInfo[static_cast<uint32>(Util::Abi::HardwareStage::Vs)],
-                &m_perfDataInfo[static_cast<uint32>(Util::Abi::HardwareStage::Ps)])
+                &m_perfDataInfo[static_cast<uint32>(Util::Abi::HardwareStage::Ps)]),
+    m_regs{},
+    m_prefetch{},
+    m_signature{NullGfxSignature}
 {
-    memset(&m_regs, 0, sizeof(m_regs));
-    memset(&m_loadPath, 0, sizeof(m_loadPath));
-    memset(&m_prefetch, 0, sizeof(m_prefetch));
-    memcpy(&m_signature, &NullGfxSignature, sizeof(m_signature));
 }
 
 // =====================================================================================================================
@@ -257,47 +233,14 @@ void GraphicsPipeline::EarlyInit(
     // Must be called *after* determining active HW stages!
     SetupSignatureFromElf(metadata, registers, &pInfo->esGsLdsSizeRegGs, &pInfo->esGsLdsSizeRegVs);
 
-    const Gfx9PalSettings& settings = m_pDevice->Settings();
-    if (settings.enableLoadIndexForObjectBinds != false)
-    {
-        const GpuChipProperties& chipProps = m_pDevice->Parent()->ChipProperties();
-        // Add mmSPI_SHADER_LATE_ALLOC_VS if we don't use NGG
-        pInfo->loadedShRegCount  = BaseLoadedShRegCount + (IsNgg() == false);
-
-        pInfo->loadedCtxRegCount =
-            // This mimics the definition in BaseLoadedCntxRegCount
-            IsGfx10Plus(m_gfxLevel)                                + // mmVGT_DRAW_PAYLOAD_CNTL
-            IsGfx10Plus(m_gfxLevel)                                + // mmCB_COVERAGE_OUT_CONTROL
-            (regInfo.mmPaStereoCntl != 0)                          + // mmPA_STEREO_CNTL
-            ((IsGsEnabled() || IsNgg() || IsTessEnabled())           // mmVGT_GS_ONCHIP_CNTL
-            )                                                      +
-
-            BaseLoadedCntxRegCount;
-    }
-
     pInfo->enableNgg    = IsNgg();
     pInfo->usesOnChipGs = IsGsOnChip();
 
-    if (IsTessEnabled())
-    {
-        m_chunkHs.EarlyInit(pInfo);
-    }
     if (IsGsEnabled() || pInfo->enableNgg)
     {
         m_chunkGs.EarlyInit(pInfo);
     }
     m_chunkVsPs.EarlyInit(registers, pInfo);
-
-#if PAL_ENABLE_PRINTS_ASSERTS
-    if (settings.enableLoadIndexForObjectBinds != false)
-    {
-        PAL_ASSERT((pInfo->loadedShRegCount != 0) && (pInfo->loadedCtxRegCount != 0));
-    }
-    else
-    {
-        PAL_ASSERT((pInfo->loadedShRegCount == 0) && (pInfo->loadedCtxRegCount == 0));
-    }
-#endif
 }
 
 // =====================================================================================================================
@@ -323,10 +266,7 @@ Result GraphicsPipeline::HwlInit(
         EarlyInit(metadata, registers, &loadInfo);
 
         // Next, handle relocations and upload the pipeline code & data to GPU memory.
-        GraphicsPipelineUploader uploader(m_pDevice,
-                                          abiReader,
-                                          loadInfo.loadedCtxRegCount,
-                                          loadInfo.loadedShRegCount);
+        PipelineUploader uploader(m_pDevice->Parent(), abiReader);
         result = PerformRelocationsAndUploadToGpuMemory(
             metadata,
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
@@ -354,7 +294,7 @@ void GraphicsPipeline::LateInit(
     const CodeObjectMetadata&         metadata,
     const RegisterVector&             registers,
     const GraphicsPipelineLoadInfo&   loadInfo,
-    GraphicsPipelineUploader*         pUploader)
+    PipelineUploader*                 pUploader)
 {
     MetroHash64 hasher;
 
@@ -368,18 +308,10 @@ void GraphicsPipeline::LateInit(
     }
     m_chunkVsPs.LateInit(abiReader, metadata, registers, loadInfo, createInfo, pUploader, &hasher);
 
-    SetupCommonRegisters(createInfo, registers, pUploader);
-    SetupNonShaderRegisters(createInfo, registers, pUploader);
+    SetupCommonRegisters(createInfo, registers);
+    SetupNonShaderRegisters(createInfo, registers);
     SetupStereoRegisters();
     SetupFetchShaderInfo(pUploader);
-
-    if (pUploader->EnableLoadIndexPath())
-    {
-        m_loadPath.gpuVirtAddrCtx = pUploader->CtxRegGpuVirtAddr();
-        m_loadPath.countCtx       = pUploader->CtxRegisterCount();
-        m_loadPath.gpuVirtAddrSh  = pUploader->ShRegGpuVirtAddr();
-        m_loadPath.countSh        = pUploader->ShRegisterCount();
-    }
 
     MetroHash::Hash hash = {};
 
@@ -675,48 +607,23 @@ uint32* GraphicsPipeline::WriteShCommands(
     DynamicStageInfos stageInfos = {};
     CalcDynamicStageInfos(graphicsInfo, &stageInfos);
 
-    // Disable the LOAD_INDEX path if the PM4 optimizer is enabled.  The optimizer cannot optimize these load packets
-    // because the register values are in GPU memory.  Additionally, any client requesting PM4 optimization is trading
-    // CPU cycles for GPU performance, so the savings of using LOAD_INDEX is not important.
-    if ((m_loadPath.countSh == 0) || pCmdStream->Pm4OptimizerEnabled())
+    // If NGG is enabled, there is no hardware-VS, so there is no need to write the late-alloc VS limit.
+    if (IsNgg() == false)
     {
-        // If NGG is enabled, there is no hardware-VS, so there is no need to write the late-alloc VS limit.
-        if (IsNgg() == false)
-        {
-            pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderGraphics>(HasHwVs::mmSPI_SHADER_LATE_ALLOC_VS,
-                                                                     m_regs.sh.spiShaderLateAllocVs.u32All,
-                                                                     pCmdSpace);
-        }
-
-        if (IsTessEnabled())
-        {
-            pCmdSpace = m_chunkHs.WriteShCommands<false>(pCmdStream, pCmdSpace, stageInfos.hs);
-        }
-        if (IsGsEnabled() || IsNgg())
-        {
-            pCmdSpace = m_chunkGs.WriteShCommands<false>(pCmdStream, pCmdSpace, stageInfos.gs);
-        }
-        pCmdSpace = m_chunkVsPs.WriteShCommands<false>(pCmdStream, pCmdSpace, IsNgg(), stageInfos.vs, stageInfos.ps);
+        pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderGraphics>(HasHwVs::mmSPI_SHADER_LATE_ALLOC_VS,
+                                                                    m_regs.sh.spiShaderLateAllocVs.u32All,
+                                                                    pCmdSpace);
     }
-    else
+
+    if (IsTessEnabled())
     {
-        // This will load SH register state for this object and all pipeline chunks!
-        pCmdSpace += m_pDevice->CmdUtil().BuildLoadShRegsIndex(m_loadPath.gpuVirtAddrSh,
-                                                               m_loadPath.countSh,
-                                                               ShaderGraphics,
-                                                               pCmdSpace);
-
-        // The below calls will end up only writing SET packets for "dynamic" state.
-        if (IsTessEnabled())
-        {
-            pCmdSpace = m_chunkHs.WriteShCommands<true>(pCmdStream, pCmdSpace, stageInfos.hs);
-        }
-        if (IsGsEnabled() || IsNgg())
-        {
-            pCmdSpace = m_chunkGs.WriteShCommands<true>(pCmdStream, pCmdSpace, stageInfos.gs);
-        }
-        pCmdSpace = m_chunkVsPs.WriteShCommands<true>(pCmdStream, pCmdSpace, IsNgg(), stageInfos.vs, stageInfos.ps);
+        pCmdSpace = m_chunkHs.WriteShCommands(pCmdStream, pCmdSpace, stageInfos.hs);
     }
+    if (IsGsEnabled() || IsNgg())
+    {
+        pCmdSpace = m_chunkGs.WriteShCommands(pCmdStream, pCmdSpace, stageInfos.gs);
+    }
+    pCmdSpace = m_chunkVsPs.WriteShCommands(pCmdStream, pCmdSpace, IsNgg(), stageInfos.vs, stageInfos.ps);
 
     pCmdSpace = WriteFsShCommands(pCmdStream, pCmdSpace, m_fetchShaderRegAddr);
 
@@ -733,34 +640,18 @@ uint32* GraphicsPipeline::WriteContextCommands(
 {
     PAL_ASSERT(pCmdStream != nullptr);
 
-    // Disable the LOAD_INDEX path if the PM4 optimizer is enabled.  The optimizer cannot optimize these load packets
-    // because the register values are in GPU memory.  Additionally, any client requesting PM4 optimization is trading
-    // CPU cycles for GPU performance, so the savings of using LOAD_INDEX is not important.
-    if ((m_loadPath.countCtx == 0) || pCmdStream->Pm4OptimizerEnabled())
+    pCmdSpace = WriteContextCommandsSetPath(pCmdStream, pCmdSpace);
+
+    if (IsTessEnabled())
     {
-        pCmdSpace = WriteContextCommandsSetPath(pCmdStream, pCmdSpace);
-
-        if (IsTessEnabled())
-        {
-            pCmdSpace = m_chunkHs.WriteContextCommands<false>(pCmdStream, pCmdSpace);
-        }
-        if (IsGsEnabled() || IsNgg())
-        {
-            pCmdSpace = m_chunkGs.WriteContextCommands<false>(pCmdStream, pCmdSpace);
-        }
-
-        pCmdSpace = m_chunkVsPs.WriteContextCommands<false>(pCmdStream, pCmdSpace);
+        pCmdSpace = m_chunkHs.WriteContextCommands(pCmdStream, pCmdSpace);
     }
-    else
+    if (IsGsEnabled() || IsNgg())
     {
-        // This will load context register state for this object and all pipeline chunks!
-        pCmdSpace += m_pDevice->CmdUtil().BuildLoadContextRegsIndex(m_loadPath.gpuVirtAddrCtx,
-                                                                    m_loadPath.countCtx,
-                                                                    pCmdSpace);
-
-        // NOTE: The Hs and Gs chunks don't expect us to call WriteContextCommands() when using the LOAD_INDEX path.
-        pCmdSpace = m_chunkVsPs.WriteContextCommands<true>(pCmdStream, pCmdSpace);
+        pCmdSpace = m_chunkGs.WriteContextCommands(pCmdStream, pCmdSpace);
     }
+
+    pCmdSpace = m_chunkVsPs.WriteContextCommands(pCmdStream, pCmdSpace);
 
     return pCmdSpace;
 }
@@ -901,8 +792,7 @@ void GraphicsPipeline::SetupRbPlusRegistersForSlot(
 // Initializes render-state registers which are associated with multiple hardware shader stages.
 void GraphicsPipeline::SetupCommonRegisters(
     const GraphicsPipelineCreateInfo& createInfo,
-    const RegisterVector&             registers,
-    GraphicsPipelineUploader*         pUploader)
+    const RegisterVector&             registers)
 {
     const auto&              palDevice = *(m_pDevice->Parent());
     const GpuChipProperties& chipProps = palDevice.ChipProperties();
@@ -1074,33 +964,6 @@ void GraphicsPipeline::SetupCommonRegisters(
         m_regs.context.vgtDrawPayloadCntl.gfx103Plus.EN_VRS_RATE = 1;
     }
 
-    if (pUploader->EnableLoadIndexPath())
-    {
-        pUploader->AddCtxReg(mmVGT_SHADER_STAGES_EN, m_regs.context.vgtShaderStagesEn);
-        pUploader->AddCtxReg(mmVGT_REUSE_OFF,        m_regs.context.vgtReuseOff);
-        pUploader->AddCtxReg(mmVGT_TF_PARAM,         m_regs.context.vgtTfParam);
-        pUploader->AddCtxReg(mmPA_CL_CLIP_CNTL,      m_regs.context.paClClipCntl);
-        pUploader->AddCtxReg(mmPA_SU_VTX_CNTL,       m_regs.context.paSuVtxCntl);
-        pUploader->AddCtxReg(mmPA_CL_VTE_CNTL,       m_regs.context.paClVteCntl);
-        pUploader->AddCtxReg(mmSPI_INTERP_CONTROL_0, m_regs.context.spiInterpControl0);
-
-        if (m_pDevice->Parent()->ChipProperties().gfxip.supportsHwVs)
-        {
-            pUploader->AddCtxReg(HasHwVs::mmVGT_GS_MODE,                 m_regs.context.vgtGsMode);
-            pUploader->AddCtxReg(HasHwVs::mmVGT_VERTEX_REUSE_BLOCK_CNTL, m_regs.context.vgtVertexReuseBlockCntl);
-        }
-
-        if (regInfo.mmPaStereoCntl != 0)
-        {
-            pUploader->AddCtxReg(regInfo.mmPaStereoCntl, m_regs.context.paStereoCntl);
-        }
-
-        if (IsGfx10Plus(m_gfxLevel))
-        {
-            pUploader->AddCtxReg(mmVGT_DRAW_PAYLOAD_CNTL, m_regs.context.vgtDrawPayloadCntl);
-        }
-    }
-
     // If NGG is enabled, there is no hardware-VS, so there is no need to compute the late-alloc VS limit.
     if (IsNgg() == false)
     {
@@ -1139,10 +1002,6 @@ void GraphicsPipeline::SetupCommonRegisters(
             {
                 m_regs.sh.spiShaderLateAllocVs.bits.LIMIT = programmedLimit;
             }
-        }
-        if (pUploader->EnableLoadIndexPath())
-        {
-            pUploader->AddShReg(HasHwVs::mmSPI_SHADER_LATE_ALLOC_VS, m_regs.sh.spiShaderLateAllocVs);
         }
     }
     SetupIaMultiVgtParam(registers);
@@ -1377,8 +1236,7 @@ void GraphicsPipeline::FixupIaMultiVgtParam(
 // Initializes render-state registers which aren't part of any hardware shader stage.
 void GraphicsPipeline::SetupNonShaderRegisters(
     const GraphicsPipelineCreateInfo& createInfo,
-    const RegisterVector&             registers,
-    GraphicsPipelineUploader*         pUploader)
+    const RegisterVector&             registers)
 {
     const GpuChipProperties& chipProps = m_pDevice->Parent()->ChipProperties();
     const Gfx9PalSettings&   settings  = m_pDevice->Settings();
@@ -1554,24 +1412,6 @@ void GraphicsPipeline::SetupNonShaderRegisters(
     {
         // This toss point is used to disable all color buffer writes.
         m_regs.context.cbTargetMask.u32All = 0;
-    }
-
-    if (pUploader->EnableLoadIndexPath())
-    {
-        pUploader->AddCtxReg(mmPA_SC_LINE_CNTL,  m_regs.context.paScLineCntl);
-        pUploader->AddCtxReg(mmCB_COLOR_CONTROL, m_regs.context.cbColorControl);
-        pUploader->AddCtxReg(mmCB_SHADER_MASK,   m_regs.context.cbShaderMask);
-        pUploader->AddCtxReg(mmCB_TARGET_MASK,   m_regs.context.cbTargetMask);
-        if ((IsGsEnabled() || IsNgg() || IsTessEnabled())
-           )
-        {
-            pUploader->AddCtxReg(Gfx09_10::mmVGT_GS_ONCHIP_CNTL, m_regs.context.vgtGsOnchipCntl);
-        }
-
-        if (IsGfx10Plus(m_gfxLevel))
-        {
-            pUploader->AddCtxReg(Gfx10Plus::mmCB_COVERAGE_OUT_CONTROL, m_regs.context.cbCoverageOutCntl);
-        }
     }
 }
 
@@ -2449,7 +2289,7 @@ void GraphicsPipeline::SetupStereoRegisters()
 // =====================================================================================================================
 // Setup fetch shader info.
 void GraphicsPipeline::SetupFetchShaderInfo(
-    const GraphicsPipelineUploader* pUploader)
+    const PipelineUploader* pUploader)
 {
     GpuSymbol symbol = { };
 

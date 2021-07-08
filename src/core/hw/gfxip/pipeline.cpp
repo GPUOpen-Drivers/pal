@@ -609,9 +609,7 @@ Result SectionAddressCalculator::AddSection(
 // =====================================================================================================================
 PipelineUploader::PipelineUploader(
     Device*          pDevice,
-    const AbiReader& abiReader,
-    uint32           ctxRegisterCount,
-    uint32           shRegisterCount)
+    const AbiReader& abiReader)
     :
     m_pDevice(pDevice),
     m_abiReader(abiReader),
@@ -619,17 +617,7 @@ PipelineUploader::PipelineUploader(
     m_baseOffset(0),
     m_gpuMemSize(0),
     m_memoryMap(pDevice->GetPlatform()),
-    m_ctxRegGpuVirtAddr(0),
-    m_shRegGpuVirtAddr(0),
-    m_shRegisterCount(shRegisterCount),
-    m_ctxRegisterCount(ctxRegisterCount),
     m_pMappedPtr(nullptr),
-    m_pCtxRegWritePtr(nullptr),
-    m_pShRegWritePtr(nullptr),
-#if PAL_ENABLE_PRINTS_ASSERTS
-    m_pCtxRegWritePtrStart(nullptr),
-    m_pShRegWritePtrStart(nullptr),
-#endif
     m_pagingFenceVal(0),
     m_pipelineHeapType(GpuHeap::GpuHeapCount),
     m_slotId(0),
@@ -770,16 +758,9 @@ Result PipelineUploader::Begin(
         }
     }
 
-    const uint32 totalRegisters = (m_ctxRegisterCount + m_shRegisterCount);
     if (result == Result::Success)
     {
         m_prefetchSize = addressCalculator.GetSize();
-
-        if (totalRegisters > 0)
-        {
-            constexpr uint32 RegisterEntryBytes = (sizeof(uint32) << 1);
-            m_gpuMemSize = (Pow2Align(m_prefetchSize, sizeof(uint32)) + (RegisterEntryBytes * totalRegisters));
-        }
 
         // The driver must make sure there is a distance of at least gpuInfo.shaderPrefetchBytes
         // that follows the end of the shader to avoid a page fault when the SQ tries to
@@ -823,36 +804,6 @@ Result PipelineUploader::Begin(
     if (result == Result::Success)
     {
         m_prefetchGpuVirtAddr = (m_pGpuMemory->Desc().gpuVirtAddr + m_baseOffset);
-
-        if (totalRegisters > 0)
-        {
-            PAL_ASSERT(pMappedPtr != nullptr);
-
-            gpusize gpuVirtAddr  = (m_prefetchGpuVirtAddr + addressCalculator.GetSize());
-            uint64 paddingSize   = Pow2Align(gpuVirtAddr, sizeof(uint32)) - gpuVirtAddr;
-            gpuVirtAddr          = gpuVirtAddr + paddingSize;
-            uint32* pRegWritePtr = static_cast<uint32*>(VoidPtrInc(pMappedPtr, static_cast<size_t>(paddingSize)));
-
-            if (m_ctxRegisterCount > 0)
-            {
-                m_ctxRegGpuVirtAddr = gpuVirtAddr;
-                m_pCtxRegWritePtr   = pRegWritePtr;
-
-                gpuVirtAddr  += (m_ctxRegisterCount * (sizeof(uint32) * 2));
-                pRegWritePtr += (m_ctxRegisterCount * 2);
-            }
-
-            if (m_shRegisterCount > 0)
-            {
-                m_shRegGpuVirtAddr = gpuVirtAddr;
-                m_pShRegWritePtr   = pRegWritePtr;
-            }
-
-#if PAL_ENABLE_PRINTS_ASSERTS
-            m_pCtxRegWritePtrStart = m_pCtxRegWritePtr;
-            m_pShRegWritePtrStart  = m_pShRegWritePtr;
-#endif
-        }
     }
 
     return result;
@@ -1135,17 +1086,6 @@ Result PipelineUploader::End(
 
     if (m_pGpuMemory != nullptr)
     {
-        // Sanity check to make sure we allocated the correct amount of memory for any loaded SH or context registers.
-#if PAL_ENABLE_PRINTS_ASSERTS
-        PAL_ASSERT(m_pCtxRegWritePtr == (m_pCtxRegWritePtrStart + (m_ctxRegisterCount * 2)));
-        PAL_ASSERT(m_pShRegWritePtr  == (m_pShRegWritePtrStart  + (m_shRegisterCount  * 2)));
-
-        m_pCtxRegWritePtrStart = nullptr;
-        m_pShRegWritePtrStart  = nullptr;
-#endif
-        m_pCtxRegWritePtr = nullptr;
-        m_pShRegWritePtr  = nullptr;
-
         if (ShouldUploadUsingDma())
         {
             const size_t dataRegisterAndPadding = static_cast<size_t>(m_gpuMemSize - m_heapInvisUploadOffset);

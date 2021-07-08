@@ -82,6 +82,7 @@ CmdBuffer::CmdBuffer(
     m_funcTable.pfnCmdDispatch                  = CmdDispatch;
     m_funcTable.pfnCmdDispatchIndirect          = CmdDispatchIndirect;
     m_funcTable.pfnCmdDispatchOffset            = CmdDispatchOffset;
+    m_funcTable.pfnCmdDispatchDynamic           = CmdDispatchDynamic;
     m_funcTable.pfnCmdDispatchMesh              = CmdDispatchMesh;
     m_funcTable.pfnCmdDispatchMeshIndirectMulti = CmdDispatchMeshIndirectMulti;
 
@@ -1824,6 +1825,42 @@ void CmdBuffer::ReplayCmdDispatchOffset(
 
     LogPreTimedCall(pQueue, pTgtCmdBuffer, &logItem, CmdBufCallId::CmdDispatchOffset);
     pTgtCmdBuffer->CmdDispatchOffset(xOffset, yOffset, zOffset, xDim, yDim, zDim);
+    LogPostTimedCall(pQueue, pTgtCmdBuffer, &logItem);
+}
+
+// =====================================================================================================================
+void CmdBuffer::CmdDispatchDynamic(
+    ICmdBuffer* pCmdBuffer,
+    gpusize     gpuVa,
+    uint32      xDim,
+    uint32      yDim,
+    uint32      zDim)
+{
+    CmdBuffer* pThis = static_cast<CmdBuffer*>(pCmdBuffer);
+
+    pThis->InsertToken(CmdBufCallId::CmdDispatchDynamic);
+    pThis->InsertToken(gpuVa);
+    pThis->InsertToken(xDim);
+    pThis->InsertToken(yDim);
+    pThis->InsertToken(zDim);
+}
+
+// =====================================================================================================================
+void CmdBuffer::ReplayCmdDispatchDynamic(
+    Queue*           pQueue,
+    TargetCmdBuffer* pTgtCmdBuffer)
+{
+    auto gpuVa = ReadTokenVal<gpusize>();
+    auto x     = ReadTokenVal<uint32>();
+    auto y     = ReadTokenVal<uint32>();
+    auto z     = ReadTokenVal<uint32>();
+
+    LogItem logItem = { };
+    logItem.cmdBufCall.flags.dispatch            = 1;
+    logItem.cmdBufCall.dispatch.threadGroupCount = x * y * z;
+
+    LogPreTimedCall(pQueue, pTgtCmdBuffer, &logItem, CmdBufCallId::CmdDispatchDynamic);
+    pTgtCmdBuffer->CmdDispatchDynamic(gpuVa, x, y, z);
     LogPostTimedCall(pQueue, pTgtCmdBuffer, &logItem);
 }
 
@@ -3915,6 +3952,7 @@ Result CmdBuffer::Replay(
         &CmdBuffer::ReplayCmdDispatch,
         &CmdBuffer::ReplayCmdDispatchIndirect,
         &CmdBuffer::ReplayCmdDispatchOffset,
+        &CmdBuffer::ReplayCmdDispatchDynamic,
         &CmdBuffer::ReplayCmdDispatchMesh,
         &CmdBuffer::ReplayCmdDispatchMeshIndirectMulti,
         &CmdBuffer::ReplayCmdUpdateMemory,

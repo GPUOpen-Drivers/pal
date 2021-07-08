@@ -57,63 +57,10 @@ Result CreateRpmGraphicsPipelines(
     switch (properties.revision)
     {
 #if PAL_BUILD_GFX6
-    case AsicRevision::Tahiti:
-    case AsicRevision::Pitcairn:
-    case AsicRevision::Capeverde:
-        pTable = rpmGfxBinaryTableTahiti;
-        break;
-#endif
-
-#if PAL_BUILD_GFX6
-    case AsicRevision::Oland:
-    case AsicRevision::Hainan:
-        pTable = rpmGfxBinaryTableOland;
-        break;
-#endif
-
-#if PAL_BUILD_GFX6
-    case AsicRevision::Spectre:
-    case AsicRevision::Spooky:
-    case AsicRevision::Bonaire:
-        pTable = rpmGfxBinaryTableSpectre;
-        break;
-#endif
-
-#if PAL_BUILD_GFX6
-    case AsicRevision::HawaiiPro:
-    case AsicRevision::Hawaii:
-        pTable = rpmGfxBinaryTableHawaiiPro;
-        break;
-#endif
-
-#if PAL_BUILD_GFX6
-    case AsicRevision::Kalindi:
-    case AsicRevision::Godavari:
-        pTable = rpmGfxBinaryTableKalindi;
-        break;
-#endif
-
-#if PAL_BUILD_GFX6
-    case AsicRevision::Carrizo:
-    case AsicRevision::Bristol:
-    case AsicRevision::Fiji:
     case AsicRevision::Polaris10:
     case AsicRevision::Polaris11:
     case AsicRevision::Polaris12:
-        pTable = rpmGfxBinaryTableCarrizo;
-        break;
-#endif
-
-#if PAL_BUILD_GFX6
-    case AsicRevision::Iceland:
-    case AsicRevision::TongaPro:
-        pTable = rpmGfxBinaryTableIceland;
-        break;
-#endif
-
-#if PAL_BUILD_GFX6
-    case AsicRevision::Stoney:
-        pTable = rpmGfxBinaryTableStoney;
+        pTable = rpmGfxBinaryTablePolaris10;
         break;
 #endif
 
@@ -364,9 +311,6 @@ Result CreateRpmGraphicsPipelines(
 #if PAL_BUILD_GFX6
         || (properties.gfxLevel == GfxIpLevel::GfxIp8)
 #endif
-#if PAL_BUILD_GFX6
-        || (properties.gfxLevel == GfxIpLevel::GfxIp8_1)
-#endif
         || (properties.gfxLevel == GfxIpLevel::GfxIp9)
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
@@ -548,16 +492,7 @@ Result CreateRpmGraphicsPipelines(
 
     if (result == Result::Success && (false
 #if PAL_BUILD_GFX6
-        || (properties.gfxLevel == GfxIpLevel::GfxIp6)
-#endif
-#if PAL_BUILD_GFX6
-        || (properties.gfxLevel == GfxIpLevel::GfxIp7)
-#endif
-#if PAL_BUILD_GFX6
         || (properties.gfxLevel == GfxIpLevel::GfxIp8)
-#endif
-#if PAL_BUILD_GFX6
-        || (properties.gfxLevel == GfxIpLevel::GfxIp8_1)
 #endif
         || (properties.gfxLevel == GfxIpLevel::GfxIp9)
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
@@ -4321,6 +4256,70 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.flags.overrideGpuHeap = 1;
         pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
 #endif
+        pipeInfo.pPipelineBinary       = pTable[ScaledCopyDepth].pBuffer;
+        pipeInfo.pipelineBinarySize    = pTable[ScaledCopyDepth].size;
+
+        PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
+
+        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 644
+        pipeInfo.viewportInfo.depthClipEnable     = false;
+#else
+        pipeInfo.viewportInfo.depthClipNearEnable = false;
+        pipeInfo.viewportInfo.depthClipFarEnable  = false;
+#endif
+        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp           = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable = true;
+
+        result = pDevice->CreateGraphicsPipelineInternal(
+            pipeInfo,
+            NullInternalInfo,
+            &pPipelineMem[ScaledCopyDepth],
+            AllocInternal);
+    }
+
+    if (result == Result::Success)
+    {
+        pipeInfo = { };
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
+        pipeInfo.flags.overrideGpuHeap = 1;
+        pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+#endif
+        pipeInfo.pPipelineBinary       = pTable[ScaledCopyDepthStencil].pBuffer;
+        pipeInfo.pipelineBinarySize    = pTable[ScaledCopyDepthStencil].size;
+
+        PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
+
+        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 644
+        pipeInfo.viewportInfo.depthClipEnable     = false;
+#else
+        pipeInfo.viewportInfo.depthClipNearEnable = false;
+        pipeInfo.viewportInfo.depthClipFarEnable  = false;
+#endif
+        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp           = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable = true;
+
+        result = pDevice->CreateGraphicsPipelineInternal(
+            pipeInfo,
+            NullInternalInfo,
+            &pPipelineMem[ScaledCopyDepthStencil],
+            AllocInternal);
+    }
+
+    if (result == Result::Success)
+    {
+        pipeInfo = { };
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
+        pipeInfo.flags.overrideGpuHeap = 1;
+        pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+#endif
         pipeInfo.pPipelineBinary       = pTable[ScaledCopyImageColorKey].pBuffer;
         pipeInfo.pipelineBinarySize    = pTable[ScaledCopyImageColorKey].size;
 
@@ -4348,6 +4347,43 @@ Result CreateRpmGraphicsPipelines(
             pipeInfo,
             NullInternalInfo,
             &pPipelineMem[ScaledCopyImageColorKey],
+            AllocInternal);
+    }
+
+    if (result == Result::Success)
+    {
+        pipeInfo = { };
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
+        pipeInfo.flags.overrideGpuHeap = 1;
+        pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+#endif
+        pipeInfo.pPipelineBinary       = pTable[ScaledCopyStencil].pBuffer;
+        pipeInfo.pipelineBinarySize    = pTable[ScaledCopyStencil].size;
+
+        PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
+
+        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
+
+        pipeInfo.cbState.target[0].channelWriteMask       = 0x1;
+        pipeInfo.cbState.target[0].swizzledFormat.format  = ChNumFormat::X8_Uint;
+        pipeInfo.cbState.target[0].swizzledFormat.swizzle =
+            { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One };
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 644
+        pipeInfo.viewportInfo.depthClipEnable     = false;
+#else
+        pipeInfo.viewportInfo.depthClipNearEnable = false;
+        pipeInfo.viewportInfo.depthClipFarEnable  = false;
+#endif
+        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp           = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable = true;
+
+        result = pDevice->CreateGraphicsPipelineInternal(
+            pipeInfo,
+            NullInternalInfo,
+            &pPipelineMem[ScaledCopyStencil],
             AllocInternal);
     }
 

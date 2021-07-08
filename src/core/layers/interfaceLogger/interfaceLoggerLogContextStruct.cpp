@@ -767,6 +767,11 @@ void LogContext::Struct(
         Value("captureEnd");
     }
 
+    if (value.rayTracingExecuted)
+    {
+        Value("rayTracingExecuted");
+    }
+
     EndList();
     KeyAndObject("primaryMemory", value.pPrimaryMemory);
 

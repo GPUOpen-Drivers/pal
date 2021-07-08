@@ -143,6 +143,10 @@ public:
         size_t*                  pSize,
         void*                    pBuffer) override;
 
+    virtual Result CreateLaunchDescriptor(
+        void* pOut,
+        bool  resolve) override { return Result::Unsupported; }
+
     virtual Result LinkWithLibraries(
         const IShaderLibrary*const* ppLibraryList,
         uint32                      libraryCount) override;
@@ -157,6 +161,8 @@ public:
     uint64 GetPagingFenceVal() const { return m_pagingFenceVal; }
 
     bool IsTaskShaderEnabled() const { return (m_flags.taskShaderEnabled != 0); }
+
+    bool SupportDynamicDispatch() const { return (m_flags.supportDynamicDispatch != 0); }
 
 protected:
     Pipeline(Device* pDevice, bool isInternal);
@@ -190,6 +196,7 @@ protected:
         const CodeObjectMetadata& metadata) const;
 
     void SetTaskShaderEnabled() { m_flags.taskShaderEnabled = 1; }
+    void SetDynamicDispatchSupported() { m_flags.supportDynamicDispatch = 1; }
 
     Device*const  m_pDevice;
 
@@ -213,9 +220,10 @@ private:
     {
         struct
         {
-            uint32  isInternal        :  1;  // True if this Pipeline object was created internally by PAL.
-            uint32  taskShaderEnabled :  1;
-            uint32  reserved          : 30;
+            uint32  isInternal             :  1;  // True if this Pipeline object was created internally by PAL.
+            uint32  taskShaderEnabled      :  1;
+            uint32  supportDynamicDispatch :  1;
+            uint32  reserved               : 29;
         };
         uint32  value;  // Flags packed as a uint32.
     } m_flags;
@@ -365,9 +373,7 @@ class PipelineUploader
 public:
     PipelineUploader(
         Device*          pDevice,
-        const AbiReader& abiReader,
-        uint32           ctxRegisterCount,
-        uint32           shRegisterCount);
+        const AbiReader& abiReader);
     virtual ~PipelineUploader();
 
     Result Begin(const CodeObjectMetadata& metadata, GpuHeap heap);
@@ -376,19 +382,11 @@ public:
 
     Result End(UploadFenceToken* pCompletionFence);
 
-    uint32 ShRegisterCount() const { return m_shRegisterCount; }
-    uint32 CtxRegisterCount() const { return m_ctxRegisterCount; }
-
-    bool EnableLoadIndexPath() const { return ((CtxRegisterCount() + ShRegisterCount()) != 0); }
-
     GpuMemory* GpuMem() const { return m_pGpuMemory; }
     gpusize GpuMemSize() const { return m_gpuMemSize; }
     gpusize GpuMemOffset() const { return m_baseOffset; }
 
     uint64 PagingFenceVal() const { return m_pagingFenceVal; }
-
-    gpusize CtxRegGpuVirtAddr() const { return m_ctxRegGpuVirtAddr; }
-    gpusize ShRegGpuVirtAddr() const { return m_shRegGpuVirtAddr; }
 
     gpusize PrefetchAddr() const { return m_prefetchGpuVirtAddr; }
     gpusize PrefetchSize() const { return m_prefetchSize; }
@@ -404,22 +402,6 @@ public:
 
 protected:
     Result ApplyRelocationSection(const Util::ElfReader::Relocations& relocations);
-
-    // Writes a context register offset and value to the mapped region where registers are stored in GPU memory.
-    PAL_INLINE void AddCtxRegister(uint16 offset, uint32 value)
-    {
-        m_pCtxRegWritePtr[0] = offset;
-        m_pCtxRegWritePtr[1] = value;
-        m_pCtxRegWritePtr   += 2;
-    }
-
-    // Writes an SH register offset and value to the mapped region where registers are stored in GPU memory.
-    PAL_INLINE void AddShRegister(uint16 offset, uint32 value)
-    {
-        m_pShRegWritePtr[0] = offset;
-        m_pShRegWritePtr[1] = value;
-        m_pShRegWritePtr   += 2;
-    }
 
 private:
     Result UploadPipelineSections(
@@ -451,19 +433,8 @@ private:
     gpusize     m_prefetchSize;
 
     SectionMemoryMap m_memoryMap;
-    gpusize  m_ctxRegGpuVirtAddr;
-    gpusize  m_shRegGpuVirtAddr;
-
-    const uint32  m_shRegisterCount;
-    const uint32  m_ctxRegisterCount;
 
     void*    m_pMappedPtr;
-    uint32*  m_pCtxRegWritePtr;
-    uint32*  m_pShRegWritePtr;
-#if PAL_ENABLE_PRINTS_ASSERTS
-    uint32*  m_pCtxRegWritePtrStart;
-    uint32*  m_pShRegWritePtrStart;
-#endif
     uint64   m_pagingFenceVal;
 
     GpuHeap         m_pipelineHeapType; // The heap type where this pipeline is located.

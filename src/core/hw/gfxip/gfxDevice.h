@@ -184,6 +184,14 @@ struct CompoundStateInternalCreateInfo
     GraphicsPipelineInternalCreateInfo gfxPipelineInfo;
 };
 
+// Defines a range of registers to be loaded from state-shadow memory into state registers.
+struct RegisterRange
+{
+    uint32 regOffset;   // Offset to the first register to load. Relative to the base address of the register type.
+                        // E.g., PERSISTENT_SPACE_START for SH registers, etc.
+    uint32 regCount;    // Number of registers to load.
+};
+
 // Structure describing a single FLGL register command
 struct FlglRegCmd
 {

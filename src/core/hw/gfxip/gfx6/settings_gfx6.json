@@ -20,19 +20,6 @@
   ],
   "Settings": [
     {
-      "Description": "Toggles whether or not LOAD_INDEX packets are used for binding objects to the command buffer in place of set packets.",
-      "Tags": [
-        "General"
-      ],
-      "Defaults": {
-        "Default": false
-      },
-      "Scope": "PrivatePalGfx6Key",
-      "Type": "bool",
-      "VariableName": "enableLoadIndexForObjectBinds",
-      "Name": "EnableLoadIndexForObjectBinds"
-    },
-    {
       "ValidValues": {
         "IsEnum": true,
         "IsExclusive": true,

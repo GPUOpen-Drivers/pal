@@ -148,7 +148,10 @@ enum RpmGfxPipeline : uint32
     ResolveDepthCopy         = 109,
     ResolveStencil           = 110,
     ResolveStencilCopy       = 111,
-    ScaledCopyImageColorKey  = 112,
+    ScaledCopyDepth          = 112,
+    ScaledCopyDepthStencil   = 113,
+    ScaledCopyImageColorKey  = 114,
+    ScaledCopyStencil        = 115,
     RpmGfxPipelineCount
 };
 

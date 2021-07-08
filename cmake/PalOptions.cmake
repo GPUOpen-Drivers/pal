@@ -54,10 +54,11 @@ option(PAL_BUILD_DRI3 "Build PAL with DRI3 support?" ON)
 option(PAL_BUILD_WAYLAND "Build PAL with WAYLAND support?" OFF)
 
 # Paths to PAL's dependencies
-set(PAL_METROHASH_PATH ${PROJECT_SOURCE_DIR}/src/util/imported/metrohash CACHE PATH "Specify the path to the MetroHash project.")
-set(   PAL_CWPACK_PATH ${PROJECT_SOURCE_DIR}/src/util/imported/cwpack    CACHE PATH "Specify the path to the CWPack project.")
-set(      PAL_VAM_PATH ${PROJECT_SOURCE_DIR}/src/core/imported/vam       CACHE PATH "Specify the path to the VAM project.")
-set(     PAL_ADDR_PATH ${PROJECT_SOURCE_DIR}/src/core/imported/addrlib   CACHE PATH "Specify the path to the ADDRLIB project.")
+set(PAL_METROHASH_PATH ${PROJECT_SOURCE_DIR}/src/util/imported/metrohash      CACHE PATH "Specify the path to the MetroHash project.")
+set(   PAL_CWPACK_PATH ${PROJECT_SOURCE_DIR}/src/util/imported/cwpack         CACHE PATH "Specify the path to the CWPack project.")
+set(      PAL_VAM_PATH ${PROJECT_SOURCE_DIR}/src/core/imported/vam            CACHE PATH "Specify the path to the VAM project.")
+set(     PAL_ADDR_PATH ${PROJECT_SOURCE_DIR}/src/core/imported/addrlib        CACHE PATH "Specify the path to the ADDRLIB project.")
+set(      PAL_SWD_PATH ${PROJECT_SOURCE_DIR}/src/core/imported/SwWarDetection CACHE PATH "Specify the path to the SwWarDetection project.")
 
 set(PAL_GPUOPEN_PATH "default" CACHE PATH "Specify the path to the GPUOPEN_PATH project.")
 

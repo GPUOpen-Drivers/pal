@@ -38,7 +38,6 @@ class Platform;
 namespace Gfx9
 {
 
-class ComputePipelineUploader;
 class CmdStream;
 
 // =====================================================================================================================
@@ -53,7 +52,14 @@ public:
         CmdStream*                      pCmdStream,
         uint32*                         pCmdSpace,
         const DynamicComputeShaderInfo& csInfo,
+        gpusize                         launchDescGpuVa,
         bool                            prefetch) const;
+
+    uint32* WriteLaunchDescriptor(
+        CmdStream*                      pCmdStream,
+        uint32*                         pCmdSpace,
+        const DynamicComputeShaderInfo& csInfo,
+        gpusize                         launchDescGpuVa) const;
 
     virtual Result GetShaderStats(
         ShaderType   shaderType,
@@ -80,6 +86,14 @@ public:
         return CalcMaxWavesPerSh(chipProps, static_cast<float>(maxWavesPerCu));
     }
 #endif
+
+    virtual Result CreateLaunchDescriptor(
+        void* pOut,
+        bool  resolve) override
+    {
+        return SupportDynamicDispatch() ?
+            m_chunkCs.CreateLaunchDescriptor(pOut, resolve) : Result::ErrorUnavailable;
+    }
 
     virtual Result LinkWithLibraries(
         const IShaderLibrary*const* ppLibraryList,
@@ -113,30 +127,6 @@ private:
 
     PAL_DISALLOW_DEFAULT_CTOR(ComputePipeline);
     PAL_DISALLOW_COPY_AND_ASSIGN(ComputePipeline);
-};
-
-// =====================================================================================================================
-// Extension of the PipelineUploader helper class for Gfx9+ compute pipelines.
-class ComputePipelineUploader final : public Pal::PipelineUploader
-{
-public:
-    explicit ComputePipelineUploader(
-        Device*          pDevice,
-        const AbiReader& abiReader,
-        uint32           shRegisterCount)
-        :
-        PipelineUploader(pDevice->Parent(), abiReader, 0, shRegisterCount)
-        { }
-    virtual ~ComputePipelineUploader() { }
-
-    // Add a SH register to GPU memory for use with LOAD_SH_REG_INDEX.
-    template <typename Register_t>
-    PAL_INLINE void AddShReg(uint16 address, Register_t reg)
-        { Pal::PipelineUploader::AddShRegister(address - PERSISTENT_SPACE_START, reg.u32All); }
-
-private:
-    PAL_DISALLOW_DEFAULT_CTOR(ComputePipelineUploader);
-    PAL_DISALLOW_COPY_AND_ASSIGN(ComputePipelineUploader);
 };
 
 } // Gfx9

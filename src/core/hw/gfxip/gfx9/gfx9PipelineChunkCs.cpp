@@ -40,19 +40,6 @@ namespace Pal
 namespace Gfx9
 {
 
-// Base count of SH registers which are loaded using LOAD_SH_REG_INDEX when binding to a universal command buffer.
-constexpr uint32 BaseLoadedShRegCount =
-    1 + // mmCOMPUTE_PGM_LO
-    1 + // mmCOMPUTE_PGM_RSRC1
-    0 + // mmCOMPUTE_PGM_RSRC2 is not included because it partially depends on bind-time state
-    0 + // mmCOMPUTE_PGM_RSRC3 is not included because it is not present on all HW
-    0 + // mmCOMPUTE_RESOURCE_LIMITS is not included because it partially depends on bind-time state
-    1 + // mmCOMPUTE_NUM_THREAD_X
-    1 + // mmCOMPUTE_NUM_THREAD_Y
-    1 + // mmCOMPUTE_NUM_THREAD_Z
-    1 + // mmCOMPUTE_USER_DATA_0 + ConstBufTblStartReg
-    0;  // mmCOMPUTE_SHADER_CHKSUM is not included because it is not present on all HW
-
 // =====================================================================================================================
 PipelineChunkCs::PipelineChunkCs(
     const Device&    device,
@@ -60,65 +47,28 @@ PipelineChunkCs::PipelineChunkCs(
     PerfDataInfo*    pPerfDataInfo)
     :
     m_device(device),
+    m_regs{},
+    m_prefetch{},
     m_pCsPerfDataInfo(pPerfDataInfo),
     m_pStageInfo(pStageInfo)
 {
-    memset(&m_regs, 0, sizeof(m_regs));
-    memset(&m_loadPath, 0, sizeof(m_loadPath));
-    memset(&m_prefetch, 0, sizeof(m_prefetch));
-    if(m_pStageInfo != nullptr)
+    if (m_pStageInfo != nullptr)
     {
         m_pStageInfo->stageId = Abi::HardwareStage::Cs;
     }
 }
 
 // =====================================================================================================================
-// Early initialization for this pipeline chunk when used in a compute pipeline. Responsible for determining the number
-// of SH registers to be loaded using LOAD_SH_REG_INDEX.
-uint32 PipelineChunkCs::EarlyInit()
-{
-    const Gfx9PalSettings&   settings  = m_device.Settings();
-    const GpuChipProperties& chipProps = m_device.Parent()->ChipProperties();
-
-    uint32 count = 0;
-
-    if (settings.enableLoadIndexForObjectBinds)
-    {
-        // Add one register if the GPU supports SPP.
-        count += (BaseLoadedShRegCount + ((chipProps.gfx9.supportSpp == 1) ? 1 : 0));
-
-        if (IsGfx10Plus(chipProps.gfxLevel))
-        {
-            count += 1; //  mmCOMPUTE_PGM_RSRC3
-        }
-    }
-
-    return count;
-}
-
-// =====================================================================================================================
-// Early initialization for this pipeline chunk when used in a graphics pipeline. Responsible for determining the number
-// of SH registers to be loaded using LOAD_SH_REG_INDEX.
-void PipelineChunkCs::EarlyInit(
-    GraphicsPipelineLoadInfo* pInfo)
-{
-    PAL_ASSERT(pInfo != nullptr);
-    pInfo->loadedShRegCount += EarlyInit();
-}
-
-// =====================================================================================================================
 // Late initialization for this pipeline chunk.  Responsible for fetching register values from the pipeline binary and
-// determining the values of other registers.  Also uploads register state into GPU memory.
-template <typename CsPipelineUploader>
+// determining the values of other registers.
 void PipelineChunkCs::LateInit(
-    const AbiReader&                 abiReader,
-    const RegisterVector&            registers,
-    uint32                           wavefrontSize,
-    uint32*                          pThreadsPerTgX,
-    uint32*                          pThreadsPerTgY,
-    uint32*                          pThreadsPerTgZ,
-    bool                             forceDisableLoadPath,
-    CsPipelineUploader*              pUploader)
+    const AbiReader&       abiReader,
+    const RegisterVector&  registers,
+    uint32                 wavefrontSize,
+    uint32*                pThreadsPerTgX,
+    uint32*                pThreadsPerTgY,
+    uint32*                pThreadsPerTgZ,
+    PipelineUploader*      pUploader)
 {
     const auto&              cmdUtil   = m_device.CmdUtil();
     const auto&              regInfo   = cmdUtil.GetRegInfo();
@@ -163,31 +113,6 @@ void PipelineChunkCs::LateInit(
     *pThreadsPerTgX = m_regs.computeNumThreadX.bits.NUM_THREAD_FULL;
     *pThreadsPerTgY = m_regs.computeNumThreadY.bits.NUM_THREAD_FULL;
     *pThreadsPerTgZ = m_regs.computeNumThreadZ.bits.NUM_THREAD_FULL;
-
-    if ((forceDisableLoadPath == false) && pUploader->EnableLoadIndexPath())
-    {
-        m_loadPath.gpuVirtAddr = pUploader->ShRegGpuVirtAddr();
-        m_loadPath.count       = pUploader->ShRegisterCount();
-
-        pUploader->AddShReg(mmCOMPUTE_PGM_LO, m_regs.computePgmLo);
-
-        pUploader->AddShReg((mmCOMPUTE_USER_DATA_0 + ConstBufTblStartReg), m_regs.userDataInternalTable);
-
-        pUploader->AddShReg(mmCOMPUTE_PGM_RSRC1,    m_regs.computePgmRsrc1);
-        pUploader->AddShReg(mmCOMPUTE_NUM_THREAD_X, m_regs.computeNumThreadX);
-        pUploader->AddShReg(mmCOMPUTE_NUM_THREAD_Y, m_regs.computeNumThreadY);
-        pUploader->AddShReg(mmCOMPUTE_NUM_THREAD_Z, m_regs.computeNumThreadZ);
-
-        if (IsGfx10Plus(chipProps.gfxLevel))
-        {
-            pUploader->AddShReg(Gfx10Plus::mmCOMPUTE_PGM_RSRC3, m_regs.computePgmRsrc3);
-        }
-
-        if (chipProps.gfx9.supportSpp != 0)
-        {
-            pUploader->AddShReg(regInfo.mmComputeShaderChksum, m_regs.computeShaderChksum);
-        }
-    }
 
     registers.HasEntry(mmCOMPUTE_RESOURCE_LIMITS, &m_regs.dynamic.computeResourceLimits.u32All);
 
@@ -352,28 +277,6 @@ void PipelineChunkCs::SetupSignatureFromElf(
     }
 }
 
-// Instantiate template versions for the linker.
-template
-void PipelineChunkCs::LateInit<ComputePipelineUploader>(
-    const AbiReader&                 abiReader,
-    const RegisterVector&            registers,
-    uint32                           wavefrontSize,
-    uint32*                          pThreadsPerTgX,
-    uint32*                          pThreadsPerTgY,
-    uint32*                          pThreadsPerTgZ,
-    bool                             forceDisableLoadPath,
-    ComputePipelineUploader*         pUploader);
-template
-void PipelineChunkCs::LateInit<GraphicsPipelineUploader>(
-    const AbiReader&                 abiReader,
-    const RegisterVector&            registers,
-    uint32                           wavefrontSize,
-    uint32*                          pThreadsPerTgX,
-    uint32*                          pThreadsPerTgY,
-    uint32*                          pThreadsPerTgZ,
-    bool                             forceDisableLoadPath,
-    GraphicsPipelineUploader*        pUploader);
-
 // =====================================================================================================================
 // Copies this pipeline chunk's sh commands into the specified command space. Returns the next unused DWORD in
 // pCmdSpace.
@@ -381,28 +284,50 @@ uint32* PipelineChunkCs::WriteShCommands(
     CmdStream*                      pCmdStream,
     uint32*                         pCmdSpace,
     const DynamicComputeShaderInfo& csInfo,
+    gpusize                         launchDescGpuVa,
     bool                            prefetch
     ) const
 {
     const GpuChipProperties& chipProps = m_device.Parent()->ChipProperties();
 
-    // Disable the LOAD_INDEX path if the PM4 optimizer is enabled or for compute command buffers.  The optimizer cannot
-    // optimize these load packets because the register values are in GPU memory.  Additionally, any client requesting
-    // PM4 optimization is trading CPU cycles for GPU performance, so the savings of using LOAD_INDEX is not important.
-    // This gets disabled for compute command buffers because the MEC does not support any LOAD packets.
-    if ((m_loadPath.count == 0)           ||
-        pCmdStream->Pm4OptimizerEnabled() ||
-        (pCmdStream->GetEngineType() == EngineType::EngineTypeCompute))
+    pCmdSpace = WriteShCommandsSetPath(pCmdStream, pCmdSpace, (launchDescGpuVa != 0uLL));
+
+    pCmdSpace = WriteShCommandsDynamic(pCmdStream, pCmdSpace, csInfo, launchDescGpuVa);
+
+    if (m_pCsPerfDataInfo->regOffset != UserDataNotMapped)
     {
-        pCmdSpace = WriteShCommandsSetPath(pCmdStream, pCmdSpace);
+        pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderCompute>(m_pCsPerfDataInfo->regOffset,
+                                                                m_pCsPerfDataInfo->gpuVirtAddr,
+                                                                pCmdSpace);
     }
-    else
+
+    if (prefetch)
     {
-        const CmdUtil& cmdUtil = m_device.CmdUtil();
-        pCmdSpace += cmdUtil.BuildLoadShRegsIndex(m_loadPath.gpuVirtAddr, m_loadPath.count, ShaderCompute, pCmdSpace);
+        memcpy(pCmdSpace, &m_prefetch, m_prefetch.spaceNeeded * sizeof(uint32));
+        pCmdSpace += m_prefetch.spaceNeeded;
+    }
+
+    return pCmdSpace;
+}
+
+// =====================================================================================================================
+// Writes PM4 set commands to the specified command stream.  This is used for writing pipeline state registers whose
+// values are not known until pipeline bind time.
+uint32* PipelineChunkCs::WriteShCommandsDynamic(
+    CmdStream*                      pCmdStream,
+    uint32*                         pCmdSpace,
+    const DynamicComputeShaderInfo& csInfo,
+    gpusize                         launchDescGpuVa
+    ) const
+{
+    if (launchDescGpuVa != 0uLL)
+    {
+        pCmdSpace = pCmdStream->WriteDynamicLaunchDesc(launchDescGpuVa, pCmdSpace);
     }
 
     auto dynamic = m_regs.dynamic; // "Dynamic" bind-time register state
+
+    const GpuChipProperties& chipProps = m_device.Parent()->ChipProperties();
 
     // TG_PER_CU: Sets the CS threadgroup limit per CU. Range is 1 to 15, 0 disables the limit.
     constexpr uint32 Gfx9MaxTgPerCu = 15;
@@ -440,25 +365,16 @@ uint32* PipelineChunkCs::WriteShCommands(
             Pow2Align((csInfo.ldsBytesPerTg / sizeof(uint32)), Gfx9LdsDwGranularity) >> Gfx9LdsDwGranularityShift;
     }
 
-    pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderCompute>(mmCOMPUTE_PGM_RSRC2,
-                                                            dynamic.computePgmRsrc2.u32All,
-                                                            pCmdSpace);
-    pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderCompute>(mmCOMPUTE_RESOURCE_LIMITS,
-                                                            dynamic.computeResourceLimits.u32All,
-                                                            pCmdSpace);
-
-    if (m_pCsPerfDataInfo->regOffset != UserDataNotMapped)
+    if (launchDescGpuVa == 0uLL)
     {
-        pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderCompute>(m_pCsPerfDataInfo->regOffset,
-                                                                m_pCsPerfDataInfo->gpuVirtAddr,
+        pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderCompute>(mmCOMPUTE_PGM_RSRC2,
+                                                                dynamic.computePgmRsrc2.u32All,
                                                                 pCmdSpace);
     }
 
-    if (prefetch)
-    {
-        memcpy(pCmdSpace, &m_prefetch, m_prefetch.spaceNeeded * sizeof(uint32));
-        pCmdSpace += m_prefetch.spaceNeeded;
-    }
+    pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderCompute>(mmCOMPUTE_RESOURCE_LIMITS,
+                                                            dynamic.computeResourceLimits.u32All,
+                                                            pCmdSpace);
 
     return pCmdSpace;
 }
@@ -468,7 +384,8 @@ uint32* PipelineChunkCs::WriteShCommands(
 // not in use and we need to use the SET path fallback.
 uint32* PipelineChunkCs::WriteShCommandsSetPath(
     CmdStream* pCmdStream,
-    uint32*    pCmdSpace
+    uint32*    pCmdSpace,
+    bool       usingLaunchDesc
     ) const
 {
     const GpuChipProperties& chipProps = m_device.Parent()->ChipProperties();
@@ -480,13 +397,27 @@ uint32* PipelineChunkCs::WriteShCommandsSetPath(
                                               &m_regs.computeNumThreadX,
                                               pCmdSpace);
 
-    pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderCompute>(mmCOMPUTE_PGM_LO,
-                                                            m_regs.computePgmLo.u32All,
-                                                            pCmdSpace);
+    if (usingLaunchDesc == false)
+    {
+        pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderCompute>(mmCOMPUTE_PGM_LO,
+                                                                m_regs.computePgmLo.u32All,
+                                                                pCmdSpace);
 
-    pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderCompute>(mmCOMPUTE_PGM_RSRC1,
-                                                            m_regs.computePgmRsrc1.u32All,
-                                                            pCmdSpace);
+        pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderCompute>(mmCOMPUTE_PGM_RSRC1,
+                                                                m_regs.computePgmRsrc1.u32All,
+                                                                pCmdSpace);
+
+        if (IsGfx10Plus(chipProps.gfxLevel))
+        {
+            pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderCompute>(Gfx10Plus::mmCOMPUTE_PGM_RSRC3,
+                                                                    m_regs.computePgmRsrc3.u32All,
+                                                                    pCmdSpace);
+        }
+
+        pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderCompute>(mmCOMPUTE_USER_DATA_0 + ConstBufTblStartReg,
+                                                                m_regs.userDataInternalTable.u32All,
+                                                                pCmdSpace);
+    }
 
     if (chipProps.gfx9.supportSpp != 0)
     {
@@ -495,16 +426,7 @@ uint32* PipelineChunkCs::WriteShCommandsSetPath(
                                                                 pCmdSpace);
     }
 
-    if (IsGfx10Plus(chipProps.gfxLevel))
-    {
-        pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderCompute>(Gfx10Plus::mmCOMPUTE_PGM_RSRC3,
-                                                                m_regs.computePgmRsrc3.u32All,
-                                                                pCmdSpace);
-    }
-
-    return pCmdStream->WriteSetOneShReg<ShaderCompute>(mmCOMPUTE_USER_DATA_0 + ConstBufTblStartReg,
-                                                       m_regs.userDataInternalTable.u32All,
-                                                       pCmdSpace);
+    return pCmdSpace;
 }
 
 // =====================================================================================================================
@@ -513,16 +435,68 @@ void PipelineChunkCs::UpdateComputePgmRsrsAfterLibraryLink(
     regCOMPUTE_PGM_RSRC2 rsrc2,
     regCOMPUTE_PGM_RSRC3 rsrc3)
 {
-    // If this pipeline will be linked to ShaderLibrary,
-    // we need to delay the CP load packet path till the linking is done
-    //
-    // At this point, there is no longer valid to go down the buildloadshregsindex path in "BuildLoadShRegsIndex"
-    // This can be achieved by setting the m_loadPath.count to 0.
-    m_loadPath.count = 0;
-
     m_regs.computePgmRsrc1         = rsrc1;
     m_regs.dynamic.computePgmRsrc2 = rsrc2;
     m_regs.computePgmRsrc3         = rsrc3;
+}
+
+// =====================================================================================================================
+Result PipelineChunkCs::CreateLaunchDescriptor(
+    void* pOut,
+    bool  resolve)
+{
+    PAL_ASSERT(IsGfx10Plus(*m_device.Parent()) == true);
+
+    DynamicCsLaunchDescLayout layout = { };
+    layout.mmComputePgmLo = (mmCOMPUTE_PGM_LO - PERSISTENT_SPACE_START);
+    layout.computePgmLo   = m_regs.computePgmLo;
+
+    layout.mmComputePgmRsrc1 = (mmCOMPUTE_PGM_RSRC1 - PERSISTENT_SPACE_START);
+    layout.computePgmRsrc1   = m_regs.computePgmRsrc1;
+    layout.mmComputePgmRsrc2 = (mmCOMPUTE_PGM_RSRC2 - PERSISTENT_SPACE_START);
+    layout.computePgmRsrc2   = m_regs.dynamic.computePgmRsrc2;
+
+    layout.mmComputeUserData0 = (mmCOMPUTE_USER_DATA_0 + ConstBufTblStartReg - PERSISTENT_SPACE_START);
+    layout.userDataInternalTable = m_regs.userDataInternalTable;
+
+    layout.mmComputePgmRsrc3 = (Gfx10Plus::mmCOMPUTE_PGM_RSRC3 - PERSISTENT_SPACE_START);
+    layout.computePgmRsrc3 = m_regs.computePgmRsrc3;
+
+    // Resolve operation for cases where the launch descriptor is shared between pipelines
+    if (resolve)
+    {
+        DynamicCsLaunchDescLayout* pIn = static_cast<DynamicCsLaunchDescLayout*>(pOut);
+
+        layout.computePgmRsrc1.bits.VGPRS = Max(layout.computePgmRsrc1.bits.VGPRS, pIn->computePgmRsrc1.bits.VGPRS);
+        layout.computePgmRsrc1.bits.SGPRS = Max(layout.computePgmRsrc1.bits.SGPRS, pIn->computePgmRsrc1.bits.SGPRS);
+
+        layout.computePgmRsrc2.bits.LDS_SIZE =
+            Max(layout.computePgmRsrc2.bits.LDS_SIZE, pIn->computePgmRsrc2.bits.LDS_SIZE);
+
+        // All remaining bits in COMPUTE_PGM_RSRC2 register must be identical
+        constexpr uint32 ComputePgmRsrc2BitMask =
+            COMPUTE_PGM_RSRC2__EXCP_EN_MASK        |
+            COMPUTE_PGM_RSRC2__EXCP_EN_MSB_MASK    |
+            COMPUTE_PGM_RSRC2__SCRATCH_EN_MASK     |
+            COMPUTE_PGM_RSRC2__TGID_X_EN_MASK      |
+            COMPUTE_PGM_RSRC2__TGID_Y_EN_MASK      |
+            COMPUTE_PGM_RSRC2__TGID_Z_EN_MASK      |
+            COMPUTE_PGM_RSRC2__TG_SIZE_EN_MASK     |
+            COMPUTE_PGM_RSRC2__TIDIG_COMP_CNT_MASK |
+            COMPUTE_PGM_RSRC2__TRAP_PRESENT_MASK   |
+            COMPUTE_PGM_RSRC2__USER_SGPR_MASK;
+
+        const uint32 computePgmRsrc2ValidBitsIn = (pIn->computePgmRsrc2.u32All & ComputePgmRsrc2BitMask);
+        const uint32 computePgmRsrc2ValidBitsOut = (layout.computePgmRsrc2.u32All & ComputePgmRsrc2BitMask);
+        PAL_ASSERT(computePgmRsrc2ValidBitsIn == computePgmRsrc2ValidBitsOut);
+
+        layout.computePgmRsrc3.bits.SHARED_VGPR_CNT =
+            Max(layout.computePgmRsrc3.bits.SHARED_VGPR_CNT, pIn->computePgmRsrc3.bits.SHARED_VGPR_CNT);
+    }
+
+    memcpy(pOut, &layout, sizeof(layout));
+
+    return Result::Success;
 }
 
 // =====================================================================================================================
@@ -539,15 +513,13 @@ LibraryChunkCs::LibraryChunkCs(
 // Late initialization for this Compute Library chunk.
 // Responsible for fetching register values from the library binary and
 // determining the values of other registers.
-// Also uploads register state into GPU memory.
-template <typename ShaderLibraryUploader>
 void LibraryChunkCs::LateInit(
-    const AbiReader&                 abiReader,
-    const RegisterVector&            registers,
-    uint32                           wavefrontSize,
-    ShaderLibraryFunctionInfo*       pFunctionList,
-    uint32                           funcCount,
-    ShaderLibraryUploader*           pUploader)
+    const AbiReader&            abiReader,
+    const RegisterVector&       registers,
+    uint32                      wavefrontSize,
+    ShaderLibraryFunctionInfo*  pFunctionList,
+    uint32                      funcCount,
+    PipelineUploader*           pUploader)
 {
     const auto&              cmdUtil   = m_device.CmdUtil();
     const auto&              regInfo   = cmdUtil.GetRegInfo();
@@ -605,15 +577,6 @@ void LibraryChunkCs::LateInit(
 
     ShaderLibrary::GetFunctionGpuVirtAddrs(*pUploader, pFunctionList, funcCount);
 }
-
-template
-void LibraryChunkCs::LateInit<ShaderLibraryUploader>(
-    const AbiReader&                 abiReader,
-    const RegisterVector&            registers,
-    uint32                           wavefrontSize,
-    ShaderLibraryFunctionInfo*       pFunctionList,
-    uint32                           funcCount,
-    ShaderLibraryUploader*           pUploader);
 
 } // Gfx9
 } // Pal

@@ -28,12 +28,13 @@
 //
 // This code has been generated automatically. Do not hand-modify this code.
 //
-// When changes are needed, modify the tools generating this module in the tools\internal\MCBP directory.
+// When changes are needed, modify the tools generating this module in the PalTools/codegen/mcbp directory.
 //
 // WARNING!  WARNING!  WARNING!  WARNING!  WARNING!  WARNING!  WARNING! WARNING!  WARNING!  WARNING!  WARNING!
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 #pragma once
+
 #include "core/hw/gfxip/gfx6/gfx6Device.h"
 #include "core/hw/gfxip/gfx6/gfx6CmdStream.h"
 
@@ -1988,5 +1989,5 @@ void InitializeContextRegistersGfx8(
     }
 }
 
-} // Gfx6
-} // Pal
+} // namespace Gfx6
+} // namespace Pal

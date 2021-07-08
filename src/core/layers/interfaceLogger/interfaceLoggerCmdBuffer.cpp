@@ -62,6 +62,7 @@ CmdBuffer::CmdBuffer(
     m_funcTable.pfnCmdDispatch                  = CmdDispatch;
     m_funcTable.pfnCmdDispatchIndirect          = CmdDispatchIndirect;
     m_funcTable.pfnCmdDispatchOffset            = CmdDispatchOffset;
+    m_funcTable.pfnCmdDispatchDynamic           = CmdDispatchDynamic;
     m_funcTable.pfnCmdDispatchMesh              = CmdDispatchMesh;
     m_funcTable.pfnCmdDispatchMeshIndirectMulti = CmdDispatchMeshIndirectMulti;
 }
@@ -3644,6 +3645,38 @@ void PAL_STDCALL CmdBuffer::CmdDispatchOffset(
         pLogContext->KeyAndValue("xDim", xDim);
         pLogContext->KeyAndValue("yDim", yDim);
         pLogContext->KeyAndValue("zDim", zDim);
+        pLogContext->EndInput();
+
+        pThis->m_pPlatform->LogEndFunc(pLogContext);
+    }
+}
+
+// =====================================================================================================================
+void CmdBuffer::CmdDispatchDynamic(
+    ICmdBuffer* pCmdBuffer,
+    gpusize     gpuVa,
+    uint32      xDim,
+    uint32      yDim,
+    uint32      zDim)
+{
+    auto* const pThis = static_cast<CmdBuffer*>(pCmdBuffer);
+
+    BeginFuncInfo funcInfo = {};
+    funcInfo.funcId      = InterfaceFunc::CmdBufferCmdDispatchIndirect;
+    funcInfo.objectId    = pThis->m_objectId;
+    funcInfo.preCallTime = pThis->m_pPlatform->GetTime();
+
+    pThis->m_pNextLayer->CmdDispatchDynamic(gpuVa, xDim, yDim, zDim);
+    funcInfo.postCallTime = pThis->m_pPlatform->GetTime();
+
+    LogContext* pLogContext = nullptr;
+    if (pThis->m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    {
+        pLogContext->BeginInput();
+        pLogContext->KeyAndValue("gpuVa", gpuVa);
+        pLogContext->KeyAndValue("xDim",  xDim);
+        pLogContext->KeyAndValue("yDim",  yDim);
+        pLogContext->KeyAndValue("zDim",  zDim);
         pLogContext->EndInput();
 
         pThis->m_pPlatform->LogEndFunc(pLogContext);

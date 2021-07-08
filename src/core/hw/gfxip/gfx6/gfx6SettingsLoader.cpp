@@ -162,13 +162,6 @@ void SettingsLoader::ValidateSettings(
         pSettings->cmdBufPreemptionMode = CmdBufPreemptModeDisable;
     }
 
-    // If the current microcode version doesn't support the "indexed" version of the LOADDATA PM4 packets, we cannot
-    // use the LOAD_INDEX path for binding pipelines and other state objects.
-    if (gfx6Props.supportLoadRegIndexPkt == false)
-    {
-        m_settings.enableLoadIndexForObjectBinds = false;
-    }
-
     // The maximum GS LDS size must be aligned to the LDS granularity.
     m_settings.gfx7GsMaxLdsSize = Pow2Align(m_settings.gfx7GsMaxLdsSize, Gfx7LdsDwGranularity);
 

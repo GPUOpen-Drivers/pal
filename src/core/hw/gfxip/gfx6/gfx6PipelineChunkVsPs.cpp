@@ -37,38 +37,6 @@ namespace Pal
 namespace Gfx6
 {
 
-// Base count of SH registers which are loaded using LOAD_SH_REG_INDEX when binding to a command buffer.
-static constexpr uint32 BaseLoadedShRegCount =
-    1 + // mmSPI_SHADER_PGM_LO_VS
-    1 + // mmSPI_SHADER_PGM_HI_VS
-    1 + // mmSPI_SHADER_PGM_RSRC1_VS
-    1 + // mmSPI_SHADER_PGM_RSRC2_VS
-    1 + // mmSPI_SHADER_USER_DATA_VS_0 + ConstBufTblStartReg
-    1 + // mmSPI_SHADER_PGM_LO_PS
-    1 + // mmSPI_SHADER_PGM_HI_PS
-    1 + // mmSPI_SHADER_PGM_RSRC1_PS
-    1 + // mmSPI_SHADER_PGM_RSRC2_PS
-    1;  // mmSPI_SHADER_USER_DATA_PS_0 + ConstBufTblStartReg
-
-// Base count of Context registers which are loaded using LOAD_CNTX_REG_INDEX when binding to a command buffer.
-static constexpr uint32 BaseLoadedCntxRegCount =
-    1 + // mmSPI_SHADER_POS_FORMAT
-    1 + // mmSPI_SHADER_Z_FORMAT
-    1 + // mmSPI_SHADER_COL_FORMAT
-    1 + // mmPA_CL_VS_OUT_CNTL
-    1 + // mmVGT_PRIMITIVEID_EN
-    1 + // mmSPI_BARYC_CNTL
-    1 + // mmSPI_PS_INPUT_ENA
-    1 + // mmSPI_PS_INPUT_ADDR
-    0 + // mmSPI_PS_INPUT_CNTL_0...31 are not included because the number of interpolants depends on the pipeline
-    1 + // mmVGT_STRMOUT_CONFIG
-    1;  // mmVGT_STRMOUT_BUFFER_CONFIG
-
-// Base count of Context registers which are loaded using LOAD_CNTX_REG_INDEX when binding to a command buffer when
-// stream-out is enabled for this pipeline.
-static constexpr uint32 BaseLoadedCntxRegCountStreamOut =
-    4;  // mmVGT_STRMOUT_VTX_STRIDE_[0...3]
-
 // Stream-out vertex stride register addresses.
 constexpr uint16 VgtStrmoutVtxStrideAddr[] =
     { mmVGT_STRMOUT_VTX_STRIDE_0, mmVGT_STRMOUT_VTX_STRIDE_1, mmVGT_STRMOUT_VTX_STRIDE_2, mmVGT_STRMOUT_VTX_STRIDE_3, };
@@ -80,13 +48,12 @@ PipelineChunkVsPs::PipelineChunkVsPs(
     const PerfDataInfo* pPsPerfDataInfo)
     :
     m_device(device),
+    m_regs{},
     m_pVsPerfDataInfo(pVsPerfDataInfo),
-    m_pPsPerfDataInfo(pPsPerfDataInfo)
+    m_pPsPerfDataInfo(pPsPerfDataInfo),
+    m_stageInfoVs{},
+    m_stageInfoPs{}
 {
-    memset(&m_regs, 0, sizeof(m_regs));
-    memset(&m_stageInfoVs, 0, sizeof(m_stageInfoVs));
-    memset(&m_stageInfoPs, 0, sizeof(m_stageInfoPs));
-
     m_stageInfoVs.stageId = Abi::HardwareStage::Vs;
     m_stageInfoPs.stageId = Abi::HardwareStage::Ps;
 }
@@ -116,18 +83,6 @@ void PipelineChunkVsPs::EarlyInit(
 
         ++m_regs.context.interpolatorCount;
     }
-
-    const Gfx6PalSettings& settings = m_device.Settings();
-    if (settings.enableLoadIndexForObjectBinds != false)
-    {
-        pInfo->loadedCtxRegCount += (BaseLoadedCntxRegCount + m_regs.context.interpolatorCount);
-        pInfo->loadedShRegCount  +=  BaseLoadedShRegCount;
-
-        if (UsesStreamOut())
-        {
-            pInfo->loadedCtxRegCount += BaseLoadedCntxRegCountStreamOut;
-        }
-    }
 }
 
 // =====================================================================================================================
@@ -138,7 +93,7 @@ void PipelineChunkVsPs::LateInit(
     const RegisterVector&               registers,
     const GraphicsPipelineLoadInfo&     loadInfo,
     const GraphicsPipelineCreateInfo&   createInfo,
-    GraphicsPipelineUploader*           pUploader,
+    PipelineUploader*                   pUploader,
     MetroHash64*                        pHasher)
 {
     const Gfx6PalSettings&   settings  = m_device.Settings();
@@ -258,52 +213,11 @@ void PipelineChunkVsPs::LateInit(
                                                                                  settings.vsCuEnLimitMask);
         m_regs.dynamic.spiShaderPgmRsrc3Ps.bits.CU_EN = m_device.GetCuEnableMask(0, settings.psCuEnLimitMask);
     }
-
-    if (pUploader->EnableLoadIndexPath())
-    {
-        pUploader->AddShReg(mmSPI_SHADER_PGM_LO_VS, m_regs.sh.spiShaderPgmLoVs);
-        pUploader->AddShReg(mmSPI_SHADER_PGM_HI_VS, m_regs.sh.spiShaderPgmHiVs);
-        pUploader->AddShReg(mmSPI_SHADER_PGM_LO_PS, m_regs.sh.spiShaderPgmLoPs);
-        pUploader->AddShReg(mmSPI_SHADER_PGM_HI_PS, m_regs.sh.spiShaderPgmHiPs);
-
-        pUploader->AddShReg(mmSPI_SHADER_PGM_RSRC1_VS, m_regs.sh.spiShaderPgmRsrc1Vs);
-        pUploader->AddShReg(mmSPI_SHADER_PGM_RSRC2_VS, m_regs.sh.spiShaderPgmRsrc2Vs);
-        pUploader->AddShReg(mmSPI_SHADER_PGM_RSRC1_PS, m_regs.sh.spiShaderPgmRsrc1Ps);
-        pUploader->AddShReg(mmSPI_SHADER_PGM_RSRC2_PS, m_regs.sh.spiShaderPgmRsrc2Ps);
-
-        pUploader->AddShReg(mmSPI_SHADER_USER_DATA_VS_0 + ConstBufTblStartReg, m_regs.sh.userDataInternalTableVs);
-        pUploader->AddShReg(mmSPI_SHADER_USER_DATA_PS_0 + ConstBufTblStartReg, m_regs.sh.userDataInternalTablePs);
-
-        pUploader->AddCtxReg(mmSPI_SHADER_POS_FORMAT,     m_regs.context.spiShaderPosFormat);
-        pUploader->AddCtxReg(mmSPI_SHADER_Z_FORMAT,       m_regs.context.spiShaderZFormat);
-        pUploader->AddCtxReg(mmSPI_SHADER_COL_FORMAT,     m_regs.context.spiShaderColFormat);
-        pUploader->AddCtxReg(mmPA_CL_VS_OUT_CNTL,         m_regs.context.paClVsOutCntl);
-        pUploader->AddCtxReg(mmVGT_PRIMITIVEID_EN,        m_regs.context.vgtPrimitiveIdEn);
-        pUploader->AddCtxReg(mmSPI_BARYC_CNTL,            m_regs.context.spiBarycCntl);
-        pUploader->AddCtxReg(mmSPI_PS_INPUT_ENA,          m_regs.context.spiPsInputEna);
-        pUploader->AddCtxReg(mmSPI_PS_INPUT_ADDR,         m_regs.context.spiPsInputAddr);
-        pUploader->AddCtxReg(mmVGT_STRMOUT_CONFIG,        m_regs.context.vgtStrmoutConfig);
-        pUploader->AddCtxReg(mmVGT_STRMOUT_BUFFER_CONFIG, m_regs.context.vgtStrmoutBufferConfig);
-
-        for (uint16 i = 0; i < m_regs.context.interpolatorCount; ++i)
-        {
-            pUploader->AddCtxReg(mmSPI_PS_INPUT_CNTL_0 + i, m_regs.context.spiPsInputCntl[i]);
-        }
-
-        if (UsesStreamOut())
-        {
-            for (uint32 i = 0; i < MaxStreamOutTargets; ++i)
-            {
-                pUploader->AddCtxReg(VgtStrmoutVtxStrideAddr[i], m_regs.context.vgtStrmoutVtxStride[i]);
-            }
-        }
-    }
 }
 
 // =====================================================================================================================
 // Copies this pipeline chunk's sh commands into the specified command space. Returns the next unused DWORD in
 // pCmdSpace.
-template <bool UseLoadIndexPath>
 uint32* PipelineChunkVsPs::WriteShCommands(
     CmdStream*              pCmdStream,
     uint32*                 pCmdSpace,
@@ -311,26 +225,23 @@ uint32* PipelineChunkVsPs::WriteShCommands(
     const DynamicStageInfo& psStageInfo
     ) const
 {
-    if (UseLoadIndexPath == false)
-    {
-        pCmdSpace = pCmdStream->WriteSetSeqShRegs(mmSPI_SHADER_PGM_LO_VS,
-                                                  mmSPI_SHADER_PGM_RSRC2_VS,
-                                                  ShaderGraphics,
-                                                  &m_regs.sh.spiShaderPgmLoVs,
-                                                  pCmdSpace);
-        pCmdSpace = pCmdStream->WriteSetSeqShRegs(mmSPI_SHADER_PGM_LO_PS,
-                                                  mmSPI_SHADER_PGM_RSRC2_PS,
-                                                  ShaderGraphics,
-                                                  &m_regs.sh.spiShaderPgmLoPs,
-                                                  pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetSeqShRegs(mmSPI_SHADER_PGM_LO_VS,
+                                              mmSPI_SHADER_PGM_RSRC2_VS,
+                                              ShaderGraphics,
+                                              &m_regs.sh.spiShaderPgmLoVs,
+                                              pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetSeqShRegs(mmSPI_SHADER_PGM_LO_PS,
+                                              mmSPI_SHADER_PGM_RSRC2_PS,
+                                              ShaderGraphics,
+                                              &m_regs.sh.spiShaderPgmLoPs,
+                                              pCmdSpace);
 
-        pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderGraphics>(mmSPI_SHADER_USER_DATA_VS_0 + ConstBufTblStartReg,
-                                                                 m_regs.sh.userDataInternalTableVs.u32All,
-                                                                 pCmdSpace);
-        pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderGraphics>(mmSPI_SHADER_USER_DATA_PS_0 + ConstBufTblStartReg,
-                                                                 m_regs.sh.userDataInternalTablePs.u32All,
-                                                                 pCmdSpace);
-    }
+    pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderGraphics>(mmSPI_SHADER_USER_DATA_VS_0 + ConstBufTblStartReg,
+                                                             m_regs.sh.userDataInternalTableVs.u32All,
+                                                             pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderGraphics>(mmSPI_SHADER_USER_DATA_PS_0 + ConstBufTblStartReg,
+                                                             m_regs.sh.userDataInternalTablePs.u32All,
+                                                             pCmdSpace);
 
     // The "dynamic" registers don't exist on Gfx6.
     if (m_device.CmdUtil().IpLevel() >= GfxIpLevel::GfxIp7)
@@ -387,34 +298,14 @@ uint32* PipelineChunkVsPs::WriteShCommands(
     return pCmdSpace;
 }
 
-// Instantiate template versions for the linker.
-template
-uint32* PipelineChunkVsPs::WriteShCommands<false>(
-    CmdStream*              pCmdStream,
-    uint32*                 pCmdSpace,
-    const DynamicStageInfo& vsStageInfo,
-    const DynamicStageInfo& psStageInfo
-    ) const;
-template
-uint32* PipelineChunkVsPs::WriteShCommands<true>(
-    CmdStream*              pCmdStream,
-    uint32*                 pCmdSpace,
-    const DynamicStageInfo& vsStageInfo,
-    const DynamicStageInfo& psStageInfo
-    ) const;
-
 // =====================================================================================================================
 // Copies this pipeline chunk's context commands into the specified command space. Returns the next unused
 // DWORD in pCmdSpace.
-template <bool UseLoadIndexPath>
 uint32* PipelineChunkVsPs::WriteContextCommands(
     CmdStream* pCmdStream,
     uint32*    pCmdSpace
     ) const
 {
-    // NOTE: It is expected that this function will only ever be called when the set path is in use.
-    PAL_ASSERT(UseLoadIndexPath == false);
-
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmSPI_SHADER_POS_FORMAT,
                                                    mmSPI_SHADER_COL_FORMAT,
                                                    &m_regs.context.spiShaderPosFormat,
@@ -459,18 +350,6 @@ uint32* PipelineChunkVsPs::WriteContextCommands(
 
     return pCmdSpace;
 }
-
-// Instantiate template versions for the linker.
-template
-uint32* PipelineChunkVsPs::WriteContextCommands<false>(
-    CmdStream* pCmdStream,
-    uint32*    pCmdSpace
-    ) const;
-template
-uint32* PipelineChunkVsPs::WriteContextCommands<true>(
-    CmdStream* pCmdStream,
-    uint32*    pCmdSpace
-    ) const;
 
 } // Gfx6
 } // Pal

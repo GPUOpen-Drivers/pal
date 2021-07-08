@@ -75,68 +75,10 @@ Result CreateRpmComputePipelines(
     switch (properties.revision)
     {
 #if PAL_BUILD_GFX6
-    case AsicRevision::Tahiti:
-    case AsicRevision::Pitcairn:
-    case AsicRevision::Capeverde:
-    case AsicRevision::Oland:
-    case AsicRevision::Hainan:
-        pTable = rpmComputeBinaryTableTahiti;
-        break;
-#endif
-
-#if PAL_BUILD_GFX6
-    case AsicRevision::Spectre:
-    case AsicRevision::Spooky:
-        pTable = rpmComputeBinaryTableSpectre;
-        break;
-#endif
-
-#if PAL_BUILD_GFX6
-    case AsicRevision::HawaiiPro:
-        pTable = rpmComputeBinaryTableHawaiiPro;
-        break;
-#endif
-
-#if PAL_BUILD_GFX6
-    case AsicRevision::Hawaii:
-        pTable = rpmComputeBinaryTableHawaii;
-        break;
-#endif
-
-#if PAL_BUILD_GFX6
-    case AsicRevision::Kalindi:
-    case AsicRevision::Bonaire:
-    case AsicRevision::Godavari:
-        pTable = rpmComputeBinaryTableKalindi;
-        break;
-#endif
-
-#if PAL_BUILD_GFX6
-    case AsicRevision::Carrizo:
-    case AsicRevision::Bristol:
-    case AsicRevision::Fiji:
     case AsicRevision::Polaris10:
     case AsicRevision::Polaris11:
     case AsicRevision::Polaris12:
-        pTable = rpmComputeBinaryTableCarrizo;
-        break;
-#endif
-
-#if PAL_BUILD_GFX6
-    case AsicRevision::Iceland:
-        pTable = rpmComputeBinaryTableIceland;
-        break;
-#endif
-
-#if PAL_BUILD_GFX6
-    case AsicRevision::TongaPro:
-        pTable = rpmComputeBinaryTableTongaPro;
-        break;
-#endif
-
-#if PAL_BUILD_GFX6
-    case AsicRevision::Stoney:
-        pTable = rpmComputeBinaryTableStoney;
+        pTable = rpmComputeBinaryTablePolaris10;
         break;
 #endif
 
@@ -371,9 +313,6 @@ Result CreateRpmComputePipelines(
 #if PAL_BUILD_GFX6
         || (properties.gfxLevel == GfxIpLevel::GfxIp8)
 #endif
-#if PAL_BUILD_GFX6
-        || (properties.gfxLevel == GfxIpLevel::GfxIp8_1)
-#endif
         || (properties.gfxLevel == GfxIpLevel::GfxIp9)
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
@@ -386,9 +325,6 @@ Result CreateRpmComputePipelines(
     if (result == Result::Success && (false
 #if PAL_BUILD_GFX6
         || (properties.gfxLevel == GfxIpLevel::GfxIp8)
-#endif
-#if PAL_BUILD_GFX6
-        || (properties.gfxLevel == GfxIpLevel::GfxIp8_1)
 #endif
         || (properties.gfxLevel == GfxIpLevel::GfxIp9)
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
@@ -403,9 +339,6 @@ Result CreateRpmComputePipelines(
 #if PAL_BUILD_GFX6
         || (properties.gfxLevel == GfxIpLevel::GfxIp8)
 #endif
-#if PAL_BUILD_GFX6
-        || (properties.gfxLevel == GfxIpLevel::GfxIp8_1)
-#endif
         || (properties.gfxLevel == GfxIpLevel::GfxIp9)
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
@@ -418,9 +351,6 @@ Result CreateRpmComputePipelines(
     if (result == Result::Success && (false
 #if PAL_BUILD_GFX6
         || (properties.gfxLevel == GfxIpLevel::GfxIp8)
-#endif
-#if PAL_BUILD_GFX6
-        || (properties.gfxLevel == GfxIpLevel::GfxIp8_1)
 #endif
         || (properties.gfxLevel == GfxIpLevel::GfxIp9)
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
@@ -493,16 +423,7 @@ Result CreateRpmComputePipelines(
 
     if (result == Result::Success && (false
 #if PAL_BUILD_GFX6
-        || (properties.gfxLevel == GfxIpLevel::GfxIp6)
-#endif
-#if PAL_BUILD_GFX6
-        || (properties.gfxLevel == GfxIpLevel::GfxIp7)
-#endif
-#if PAL_BUILD_GFX6
         || (properties.gfxLevel == GfxIpLevel::GfxIp8)
-#endif
-#if PAL_BUILD_GFX6
-        || (properties.gfxLevel == GfxIpLevel::GfxIp8_1)
 #endif
         || (properties.gfxLevel == GfxIpLevel::GfxIp9)
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
@@ -515,16 +436,7 @@ Result CreateRpmComputePipelines(
 
     if (result == Result::Success && (false
 #if PAL_BUILD_GFX6
-        || (properties.gfxLevel == GfxIpLevel::GfxIp6)
-#endif
-#if PAL_BUILD_GFX6
-        || (properties.gfxLevel == GfxIpLevel::GfxIp7)
-#endif
-#if PAL_BUILD_GFX6
         || (properties.gfxLevel == GfxIpLevel::GfxIp8)
-#endif
-#if PAL_BUILD_GFX6
-        || (properties.gfxLevel == GfxIpLevel::GfxIp8_1)
 #endif
         || (properties.gfxLevel == GfxIpLevel::GfxIp9)
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
@@ -537,16 +449,7 @@ Result CreateRpmComputePipelines(
 
     if (result == Result::Success && (false
 #if PAL_BUILD_GFX6
-        || (properties.gfxLevel == GfxIpLevel::GfxIp6)
-#endif
-#if PAL_BUILD_GFX6
-        || (properties.gfxLevel == GfxIpLevel::GfxIp7)
-#endif
-#if PAL_BUILD_GFX6
         || (properties.gfxLevel == GfxIpLevel::GfxIp8)
-#endif
-#if PAL_BUILD_GFX6
-        || (properties.gfxLevel == GfxIpLevel::GfxIp8_1)
 #endif
         || (properties.gfxLevel == GfxIpLevel::GfxIp9)
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
@@ -559,16 +462,7 @@ Result CreateRpmComputePipelines(
 
     if (result == Result::Success && (false
 #if PAL_BUILD_GFX6
-        || (properties.gfxLevel == GfxIpLevel::GfxIp6)
-#endif
-#if PAL_BUILD_GFX6
-        || (properties.gfxLevel == GfxIpLevel::GfxIp7)
-#endif
-#if PAL_BUILD_GFX6
         || (properties.gfxLevel == GfxIpLevel::GfxIp8)
-#endif
-#if PAL_BUILD_GFX6
-        || (properties.gfxLevel == GfxIpLevel::GfxIp8_1)
 #endif
         || (properties.gfxLevel == GfxIpLevel::GfxIp9)
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
@@ -581,16 +475,7 @@ Result CreateRpmComputePipelines(
 
     if (result == Result::Success && (false
 #if PAL_BUILD_GFX6
-        || (properties.gfxLevel == GfxIpLevel::GfxIp6)
-#endif
-#if PAL_BUILD_GFX6
-        || (properties.gfxLevel == GfxIpLevel::GfxIp7)
-#endif
-#if PAL_BUILD_GFX6
         || (properties.gfxLevel == GfxIpLevel::GfxIp8)
-#endif
-#if PAL_BUILD_GFX6
-        || (properties.gfxLevel == GfxIpLevel::GfxIp8_1)
 #endif
         || (properties.gfxLevel == GfxIpLevel::GfxIp9)
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
@@ -603,16 +488,7 @@ Result CreateRpmComputePipelines(
 
     if (result == Result::Success && (false
 #if PAL_BUILD_GFX6
-        || (properties.gfxLevel == GfxIpLevel::GfxIp6)
-#endif
-#if PAL_BUILD_GFX6
-        || (properties.gfxLevel == GfxIpLevel::GfxIp7)
-#endif
-#if PAL_BUILD_GFX6
         || (properties.gfxLevel == GfxIpLevel::GfxIp8)
-#endif
-#if PAL_BUILD_GFX6
-        || (properties.gfxLevel == GfxIpLevel::GfxIp8_1)
 #endif
         || (properties.gfxLevel == GfxIpLevel::GfxIp9)
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
@@ -625,16 +501,7 @@ Result CreateRpmComputePipelines(
 
     if (result == Result::Success && (false
 #if PAL_BUILD_GFX6
-        || (properties.gfxLevel == GfxIpLevel::GfxIp6)
-#endif
-#if PAL_BUILD_GFX6
-        || (properties.gfxLevel == GfxIpLevel::GfxIp7)
-#endif
-#if PAL_BUILD_GFX6
         || (properties.gfxLevel == GfxIpLevel::GfxIp8)
-#endif
-#if PAL_BUILD_GFX6
-        || (properties.gfxLevel == GfxIpLevel::GfxIp8_1)
 #endif
         || (properties.gfxLevel == GfxIpLevel::GfxIp9)
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
@@ -647,16 +514,7 @@ Result CreateRpmComputePipelines(
 
     if (result == Result::Success && (false
 #if PAL_BUILD_GFX6
-        || (properties.gfxLevel == GfxIpLevel::GfxIp6)
-#endif
-#if PAL_BUILD_GFX6
-        || (properties.gfxLevel == GfxIpLevel::GfxIp7)
-#endif
-#if PAL_BUILD_GFX6
         || (properties.gfxLevel == GfxIpLevel::GfxIp8)
-#endif
-#if PAL_BUILD_GFX6
-        || (properties.gfxLevel == GfxIpLevel::GfxIp8_1)
 #endif
         || (properties.gfxLevel == GfxIpLevel::GfxIp9)
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
@@ -669,16 +527,7 @@ Result CreateRpmComputePipelines(
 
     if (result == Result::Success && (false
 #if PAL_BUILD_GFX6
-        || (properties.gfxLevel == GfxIpLevel::GfxIp6)
-#endif
-#if PAL_BUILD_GFX6
-        || (properties.gfxLevel == GfxIpLevel::GfxIp7)
-#endif
-#if PAL_BUILD_GFX6
         || (properties.gfxLevel == GfxIpLevel::GfxIp8)
-#endif
-#if PAL_BUILD_GFX6
-        || (properties.gfxLevel == GfxIpLevel::GfxIp8_1)
 #endif
         || (properties.gfxLevel == GfxIpLevel::GfxIp9)
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
@@ -691,16 +540,7 @@ Result CreateRpmComputePipelines(
 
     if (result == Result::Success && (false
 #if PAL_BUILD_GFX6
-        || (properties.gfxLevel == GfxIpLevel::GfxIp6)
-#endif
-#if PAL_BUILD_GFX6
-        || (properties.gfxLevel == GfxIpLevel::GfxIp7)
-#endif
-#if PAL_BUILD_GFX6
         || (properties.gfxLevel == GfxIpLevel::GfxIp8)
-#endif
-#if PAL_BUILD_GFX6
-        || (properties.gfxLevel == GfxIpLevel::GfxIp8_1)
 #endif
         || (properties.gfxLevel == GfxIpLevel::GfxIp9)
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
@@ -713,16 +553,7 @@ Result CreateRpmComputePipelines(
 
     if (result == Result::Success && (false
 #if PAL_BUILD_GFX6
-        || (properties.gfxLevel == GfxIpLevel::GfxIp6)
-#endif
-#if PAL_BUILD_GFX6
-        || (properties.gfxLevel == GfxIpLevel::GfxIp7)
-#endif
-#if PAL_BUILD_GFX6
         || (properties.gfxLevel == GfxIpLevel::GfxIp8)
-#endif
-#if PAL_BUILD_GFX6
-        || (properties.gfxLevel == GfxIpLevel::GfxIp8_1)
 #endif
         || (properties.gfxLevel == GfxIpLevel::GfxIp9)
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
@@ -735,16 +566,7 @@ Result CreateRpmComputePipelines(
 
     if (result == Result::Success && (false
 #if PAL_BUILD_GFX6
-        || (properties.gfxLevel == GfxIpLevel::GfxIp6)
-#endif
-#if PAL_BUILD_GFX6
-        || (properties.gfxLevel == GfxIpLevel::GfxIp7)
-#endif
-#if PAL_BUILD_GFX6
         || (properties.gfxLevel == GfxIpLevel::GfxIp8)
-#endif
-#if PAL_BUILD_GFX6
-        || (properties.gfxLevel == GfxIpLevel::GfxIp8_1)
 #endif
         || (properties.gfxLevel == GfxIpLevel::GfxIp9)
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
@@ -757,16 +579,7 @@ Result CreateRpmComputePipelines(
 
     if (result == Result::Success && (false
 #if PAL_BUILD_GFX6
-        || (properties.gfxLevel == GfxIpLevel::GfxIp6)
-#endif
-#if PAL_BUILD_GFX6
-        || (properties.gfxLevel == GfxIpLevel::GfxIp7)
-#endif
-#if PAL_BUILD_GFX6
         || (properties.gfxLevel == GfxIpLevel::GfxIp8)
-#endif
-#if PAL_BUILD_GFX6
-        || (properties.gfxLevel == GfxIpLevel::GfxIp8_1)
 #endif
         || (properties.gfxLevel == GfxIpLevel::GfxIp9)
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
@@ -779,16 +592,7 @@ Result CreateRpmComputePipelines(
 
     if (result == Result::Success && (false
 #if PAL_BUILD_GFX6
-        || (properties.gfxLevel == GfxIpLevel::GfxIp6)
-#endif
-#if PAL_BUILD_GFX6
-        || (properties.gfxLevel == GfxIpLevel::GfxIp7)
-#endif
-#if PAL_BUILD_GFX6
         || (properties.gfxLevel == GfxIpLevel::GfxIp8)
-#endif
-#if PAL_BUILD_GFX6
-        || (properties.gfxLevel == GfxIpLevel::GfxIp8_1)
 #endif
         || (properties.gfxLevel == GfxIpLevel::GfxIp9)
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
@@ -801,16 +605,7 @@ Result CreateRpmComputePipelines(
 
     if (result == Result::Success && (false
 #if PAL_BUILD_GFX6
-        || (properties.gfxLevel == GfxIpLevel::GfxIp6)
-#endif
-#if PAL_BUILD_GFX6
-        || (properties.gfxLevel == GfxIpLevel::GfxIp7)
-#endif
-#if PAL_BUILD_GFX6
         || (properties.gfxLevel == GfxIpLevel::GfxIp8)
-#endif
-#if PAL_BUILD_GFX6
-        || (properties.gfxLevel == GfxIpLevel::GfxIp8_1)
 #endif
         || (properties.gfxLevel == GfxIpLevel::GfxIp9)
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
@@ -823,16 +618,7 @@ Result CreateRpmComputePipelines(
 
     if (result == Result::Success && (false
 #if PAL_BUILD_GFX6
-        || (properties.gfxLevel == GfxIpLevel::GfxIp6)
-#endif
-#if PAL_BUILD_GFX6
-        || (properties.gfxLevel == GfxIpLevel::GfxIp7)
-#endif
-#if PAL_BUILD_GFX6
         || (properties.gfxLevel == GfxIpLevel::GfxIp8)
-#endif
-#if PAL_BUILD_GFX6
-        || (properties.gfxLevel == GfxIpLevel::GfxIp8_1)
 #endif
         || (properties.gfxLevel == GfxIpLevel::GfxIp9)
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
@@ -845,16 +631,7 @@ Result CreateRpmComputePipelines(
 
     if (result == Result::Success && (false
 #if PAL_BUILD_GFX6
-        || (properties.gfxLevel == GfxIpLevel::GfxIp6)
-#endif
-#if PAL_BUILD_GFX6
-        || (properties.gfxLevel == GfxIpLevel::GfxIp7)
-#endif
-#if PAL_BUILD_GFX6
         || (properties.gfxLevel == GfxIpLevel::GfxIp8)
-#endif
-#if PAL_BUILD_GFX6
-        || (properties.gfxLevel == GfxIpLevel::GfxIp8_1)
 #endif
         || (properties.gfxLevel == GfxIpLevel::GfxIp9)
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
@@ -867,16 +644,7 @@ Result CreateRpmComputePipelines(
 
     if (result == Result::Success && (false
 #if PAL_BUILD_GFX6
-        || (properties.gfxLevel == GfxIpLevel::GfxIp6)
-#endif
-#if PAL_BUILD_GFX6
-        || (properties.gfxLevel == GfxIpLevel::GfxIp7)
-#endif
-#if PAL_BUILD_GFX6
         || (properties.gfxLevel == GfxIpLevel::GfxIp8)
-#endif
-#if PAL_BUILD_GFX6
-        || (properties.gfxLevel == GfxIpLevel::GfxIp8_1)
 #endif
         || (properties.gfxLevel == GfxIpLevel::GfxIp9)
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
@@ -889,16 +657,7 @@ Result CreateRpmComputePipelines(
 
     if (result == Result::Success && (false
 #if PAL_BUILD_GFX6
-        || (properties.gfxLevel == GfxIpLevel::GfxIp6)
-#endif
-#if PAL_BUILD_GFX6
-        || (properties.gfxLevel == GfxIpLevel::GfxIp7)
-#endif
-#if PAL_BUILD_GFX6
         || (properties.gfxLevel == GfxIpLevel::GfxIp8)
-#endif
-#if PAL_BUILD_GFX6
-        || (properties.gfxLevel == GfxIpLevel::GfxIp8_1)
 #endif
         || (properties.gfxLevel == GfxIpLevel::GfxIp9)
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
@@ -911,16 +670,7 @@ Result CreateRpmComputePipelines(
 
     if (result == Result::Success && (false
 #if PAL_BUILD_GFX6
-        || (properties.gfxLevel == GfxIpLevel::GfxIp6)
-#endif
-#if PAL_BUILD_GFX6
-        || (properties.gfxLevel == GfxIpLevel::GfxIp7)
-#endif
-#if PAL_BUILD_GFX6
         || (properties.gfxLevel == GfxIpLevel::GfxIp8)
-#endif
-#if PAL_BUILD_GFX6
-        || (properties.gfxLevel == GfxIpLevel::GfxIp8_1)
 #endif
         || (properties.gfxLevel == GfxIpLevel::GfxIp9)
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
@@ -933,16 +683,7 @@ Result CreateRpmComputePipelines(
 
     if (result == Result::Success && (false
 #if PAL_BUILD_GFX6
-        || (properties.gfxLevel == GfxIpLevel::GfxIp6)
-#endif
-#if PAL_BUILD_GFX6
-        || (properties.gfxLevel == GfxIpLevel::GfxIp7)
-#endif
-#if PAL_BUILD_GFX6
         || (properties.gfxLevel == GfxIpLevel::GfxIp8)
-#endif
-#if PAL_BUILD_GFX6
-        || (properties.gfxLevel == GfxIpLevel::GfxIp8_1)
 #endif
         || (properties.gfxLevel == GfxIpLevel::GfxIp9)
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
@@ -955,16 +696,7 @@ Result CreateRpmComputePipelines(
 
     if (result == Result::Success && (false
 #if PAL_BUILD_GFX6
-        || (properties.gfxLevel == GfxIpLevel::GfxIp6)
-#endif
-#if PAL_BUILD_GFX6
-        || (properties.gfxLevel == GfxIpLevel::GfxIp7)
-#endif
-#if PAL_BUILD_GFX6
         || (properties.gfxLevel == GfxIpLevel::GfxIp8)
-#endif
-#if PAL_BUILD_GFX6
-        || (properties.gfxLevel == GfxIpLevel::GfxIp8_1)
 #endif
         || (properties.gfxLevel == GfxIpLevel::GfxIp9)
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
@@ -977,16 +709,7 @@ Result CreateRpmComputePipelines(
 
     if (result == Result::Success && (false
 #if PAL_BUILD_GFX6
-        || (properties.gfxLevel == GfxIpLevel::GfxIp6)
-#endif
-#if PAL_BUILD_GFX6
-        || (properties.gfxLevel == GfxIpLevel::GfxIp7)
-#endif
-#if PAL_BUILD_GFX6
         || (properties.gfxLevel == GfxIpLevel::GfxIp8)
-#endif
-#if PAL_BUILD_GFX6
-        || (properties.gfxLevel == GfxIpLevel::GfxIp8_1)
 #endif
         || (properties.gfxLevel == GfxIpLevel::GfxIp9)
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
@@ -999,16 +722,7 @@ Result CreateRpmComputePipelines(
 
     if (result == Result::Success && (false
 #if PAL_BUILD_GFX6
-        || (properties.gfxLevel == GfxIpLevel::GfxIp6)
-#endif
-#if PAL_BUILD_GFX6
-        || (properties.gfxLevel == GfxIpLevel::GfxIp7)
-#endif
-#if PAL_BUILD_GFX6
         || (properties.gfxLevel == GfxIpLevel::GfxIp8)
-#endif
-#if PAL_BUILD_GFX6
-        || (properties.gfxLevel == GfxIpLevel::GfxIp8_1)
 #endif
         || (properties.gfxLevel == GfxIpLevel::GfxIp9)
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
@@ -1021,16 +735,7 @@ Result CreateRpmComputePipelines(
 
     if (result == Result::Success && (false
 #if PAL_BUILD_GFX6
-        || (properties.gfxLevel == GfxIpLevel::GfxIp6)
-#endif
-#if PAL_BUILD_GFX6
-        || (properties.gfxLevel == GfxIpLevel::GfxIp7)
-#endif
-#if PAL_BUILD_GFX6
         || (properties.gfxLevel == GfxIpLevel::GfxIp8)
-#endif
-#if PAL_BUILD_GFX6
-        || (properties.gfxLevel == GfxIpLevel::GfxIp8_1)
 #endif
         || (properties.gfxLevel == GfxIpLevel::GfxIp9)
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
@@ -1043,16 +748,7 @@ Result CreateRpmComputePipelines(
 
     if (result == Result::Success && (false
 #if PAL_BUILD_GFX6
-        || (properties.gfxLevel == GfxIpLevel::GfxIp6)
-#endif
-#if PAL_BUILD_GFX6
-        || (properties.gfxLevel == GfxIpLevel::GfxIp7)
-#endif
-#if PAL_BUILD_GFX6
         || (properties.gfxLevel == GfxIpLevel::GfxIp8)
-#endif
-#if PAL_BUILD_GFX6
-        || (properties.gfxLevel == GfxIpLevel::GfxIp8_1)
 #endif
         || (properties.gfxLevel == GfxIpLevel::GfxIp9)
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
@@ -1215,16 +911,7 @@ Result CreateRpmComputePipelines(
 
 #if PAL_BUILD_GFX6
     if (result == Result::Success && (false
-#if PAL_BUILD_GFX6
-        || (properties.gfxLevel == GfxIpLevel::GfxIp6)
-#endif
-#if PAL_BUILD_GFX6
-        || (properties.gfxLevel == GfxIpLevel::GfxIp7)
-#endif
         || (properties.gfxLevel == GfxIpLevel::GfxIp8)
-#if PAL_BUILD_GFX6
-        || (properties.gfxLevel == GfxIpLevel::GfxIp8_1)
-#endif
         ))
     {
         result = CreateRpmComputePipeline(
@@ -1232,16 +919,7 @@ Result CreateRpmComputePipelines(
     }
 
     if (result == Result::Success && (false
-#if PAL_BUILD_GFX6
-        || (properties.gfxLevel == GfxIpLevel::GfxIp6)
-#endif
-#if PAL_BUILD_GFX6
-        || (properties.gfxLevel == GfxIpLevel::GfxIp7)
-#endif
         || (properties.gfxLevel == GfxIpLevel::GfxIp8)
-#if PAL_BUILD_GFX6
-        || (properties.gfxLevel == GfxIpLevel::GfxIp8_1)
-#endif
         ))
     {
         result = CreateRpmComputePipeline(

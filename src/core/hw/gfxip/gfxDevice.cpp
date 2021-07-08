@@ -156,8 +156,8 @@ Result GfxDevice::InitHwlSettings(
             m_pSettingsLoader = Gfx6::CreateSettingsLoader(m_pParent);
             break;
 #endif
-        case GfxIpLevel::GfxIp9:
         case GfxIpLevel::GfxIp10_1:
+        case GfxIpLevel::GfxIp9:
         case GfxIpLevel::GfxIp10_3:
             m_pSettingsLoader = Gfx9::CreateSettingsLoader(m_pParent);
             break;
@@ -780,6 +780,7 @@ uint32 GfxDevice::VertsPerPrimitive(
     case PrimitiveTopology::RectList:
     case PrimitiveTopology::TriangleFan:
     case PrimitiveTopology::Polygon:
+    case PrimitiveTopology::TwoDRectList:
         vertsPerPrimitive = 3;
         break;
 

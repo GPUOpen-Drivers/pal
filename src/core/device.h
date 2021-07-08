@@ -200,16 +200,27 @@ struct HwsInfo
     HwsPipesPerEngine                         numOfPipesPerEngine;
 };
 
+// Additional flags that are kept with the IP levels
+union HwIpLevelFlags
+{
+    struct {
+        uint32 reserved0  : 1;
+        uint32 reserved   : 31;
+    };
+    uint32 u32All;
+};
+
 // Bundles the IP levels for all kinds of HW IP.
 struct HwIpLevels
 {
-    GfxIpLevel gfx;
-    OssIpLevel oss;
-    VceIpLevel vce;
-    UvdIpLevel uvd;
-    VcnIpLevel vcn;
-    SpuIpLevel spu;
-    PspIpLevel psp;
+    GfxIpLevel     gfx;
+    OssIpLevel     oss;
+    VceIpLevel     vce;
+    UvdIpLevel     uvd;
+    VcnIpLevel     vcn;
+    SpuIpLevel     spu;
+    PspIpLevel     psp;
+    HwIpLevelFlags flags;
 };
 
 // Bundles the sizes of the HW IP specific device classes.
@@ -622,16 +633,17 @@ struct GpuChipProperties
     uint32  deviceId;       // PCI device ID.  16-bit value device ID as reported in the PCI config space.
     uint32  gpuIndex;       // Index of this GPU in whatever group of GPU's it belongs to.
 
-    AsicRevision revision;  // PAL specific ASIC revision identifier
-    GpuType      gpuType;
-    GfxIpLevel   gfxLevel;
-    OssIpLevel   ossLevel;
-    VceIpLevel   vceLevel;
-    UvdIpLevel   uvdLevel;
-    VcnIpLevel   vcnLevel;
-    SpuIpLevel   spuLevel;
-    PspIpLevel   pspLevel;
-    uint32       gfxStepping; // Stepping level of this GPU's GFX block.
+    AsicRevision   revision;  // PAL specific ASIC revision identifier
+    GpuType        gpuType;
+    GfxIpLevel     gfxLevel;
+    OssIpLevel     ossLevel;
+    VceIpLevel     vceLevel;
+    UvdIpLevel     uvdLevel;
+    VcnIpLevel     vcnLevel;
+    SpuIpLevel     spuLevel;
+    PspIpLevel     pspLevel;
+    HwIpLevelFlags hwIpFlags;
+    uint32         gfxStepping; // Stepping level of this GPU's GFX block.
 
     uint32   vceUcodeVersion;                   // VCE Video encode firmware version
     uint32   uvdUcodeVersion;                   // UVD Video encode firmware version
@@ -717,6 +729,7 @@ struct GpuChipProperties
                                                      // Note: Only valid if supportGl2Uncached is true.
         uint32 maxGsOutputVert;                      // Maximum number of GS vertices output.
         uint32 maxGsTotalOutputComponents;           // Maximum number of GS output components totally.
+        uint32 dynamicLaunchDescSize;                // Dynamic compute pipeline launch descriptor size in bytes
 
         struct
         {
@@ -945,7 +958,8 @@ struct GpuChipProperties
                 uint64 supportTextureGatherBiasLod        :  1; // HW supports SQ_IMAGE_GATHER4_L_O
                 uint64 supportInt8Dot                     :  1; // HW supports a dot product 8bit.
                 uint64 supportInt4Dot                     :  1; // HW supports a dot product 4bit.
-                uint64 reserved                           : 19;
+                uint64 support2DRectList                  :  1; // HW supports PrimitiveTopology::TwoDRectList.
+                uint64 reserved                           : 18;
             };
 
             RayTracingIpLevel rayTracingIp;      //< HW RayTracing IP version

@@ -79,6 +79,7 @@ function(pal_compile_definitions_gpu TARGET)
         if(PAL_BUILD_GFX9)
             pal_compile_definitions_gfx9(${TARGET})
         endif()
+
     endif()
 endfunction()
 
@@ -104,7 +105,7 @@ function(pal_compile_definitions TARGET)
     )
 
     # If this build is part of a release branch, define the variable
-    if (DEFINED PAL_BUILD_BRANCH)
+    if (PAL_BUILD_BRANCH)
         target_compile_definitions(${TARGET} PRIVATE PAL_BUILD_BRANCH=${PAL_BUILD_BRANCH})
     endif()
 

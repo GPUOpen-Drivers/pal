@@ -244,7 +244,7 @@ union CachedSettings
         uint64 pbbMoreThanOneCtxState     :  1;
         uint64 waUtcL0InconsistentBigPage :  1;
         uint64 waClampGeCntlVertGrpSize   :  1;
-        uint64 reserved4                  :  1;
+        uint64 reserved4                  :  2;
         uint64 ignoreDepthForBinSize      :  1; // Ignore depth when calculating Bin Size (unless no color bound)
         uint64 pbbDisableBinMode          :  2; // BINNING_MODE value to use when PBB is disabled
 
@@ -263,7 +263,7 @@ union CachedSettings
         uint64 reserved7                                 :  1;
         uint64 reserved8                  :  9;
         uint64 reserved9                  :  1;
-        uint64 reserved                   : 13;
+        uint64 reserved                   : 12;
     };
     uint64 u64All;
 };
@@ -735,6 +735,13 @@ private:
         uint32      xDim,
         uint32      yDim,
         uint32      zDim);
+    template <bool IssueSqttMarkerEvent, bool DescribeDrawDispatch>
+    static void PAL_STDCALL CmdDispatchDynamic(
+        ICmdBuffer* pCmdBuffer,
+        gpusize     gpuVa,
+        uint32      xDim,
+        uint32      yDim,
+        uint32      zDim);
     template <bool IssueSqttMarkerEvent,
               bool HasUavExport,
               bool ViewInstancingEnable,
@@ -847,6 +854,7 @@ private:
         ComputeState* pComputeState,
         CmdStream*    pCmdStream,
         gpusize       indirectGpuVirtAddr,
+        gpusize       launchDescGpuVirtAddr,
         uint32        xDim,
         uint32        yDim,
         uint32        zDim);

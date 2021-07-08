@@ -179,6 +179,8 @@ protected:
     size_t                 m_memMgrResourcesInList;  // The number of resources added from internal memory manager
 
 private:
+    // Note: user MUST lock the mutex m_globalRefLock before calling this function and ensure the lock remains until all
+    // functions have finished accessing m_globalRefMap and the memory pointed to by that map. This includes Submit*()
     Result UpdateResourceList(
         const GpuMemoryRef*    pMemRefList,
         size_t                 memRefCount);

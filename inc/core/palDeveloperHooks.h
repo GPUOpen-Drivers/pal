@@ -389,6 +389,7 @@ enum class DrawDispatchType : uint32
     CmdDispatchAce,               ///< Direct Compute dispatch through implicit ganged-submit ACE stream.
     CmdDispatchIndirect,          ///< Indirect compute dispatch
     CmdDispatchOffset,            ///< Direct compute dispatch (offsetted start)
+    CmdDispatchDynamic,           ///< Dynamic compute dispatch
 
     Count,
     FirstDispatch = CmdDispatch   ///< All callbacks with an enum value greater or equal than this are dispatches

@@ -174,6 +174,8 @@ target_sources(devdriver PRIVATE
 
     inc/util/ddByteWriter.h
 
+    inc/util/ddByteSwap.h
+
     inc/util/ddEventTimer.h
     src/util/ddEventTimer.cpp
 

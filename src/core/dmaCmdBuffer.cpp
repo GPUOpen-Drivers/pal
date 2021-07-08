@@ -29,6 +29,7 @@
 #include "core/image.h"
 #include "palFormatInfo.h"
 #include "palAutoBuffer.h"
+#include "palTypeTraits.h"
 
 using namespace Util;
 
@@ -294,7 +295,8 @@ void DmaCmdBuffer::CmdBarrier(
     CmdBuffer::CmdBarrier(barrier);
 
     bool imageTypeRequiresCopyOverlapHazardSyncs = false;
-    if (m_copyOverlapHazardSyncs == ((1 << static_cast<uint32>(ImageType::Count)) - 1))
+
+    if (m_copyOverlapHazardSyncs == ((1u << ImageType::Count) - 1))
     {
         imageTypeRequiresCopyOverlapHazardSyncs = true;
     }

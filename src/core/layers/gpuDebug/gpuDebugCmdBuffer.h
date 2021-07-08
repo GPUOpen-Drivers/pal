@@ -601,6 +601,12 @@ private:
         uint32      xDim,
         uint32      yDim,
         uint32      zDim);
+    static void PAL_STDCALL CmdDispatchDynamic(
+        ICmdBuffer* pCmdBuffer,
+        gpusize     gpuVa,
+        uint32      xDim,
+        uint32      yDim,
+        uint32      zDim);
     static void PAL_STDCALL CmdDispatchMesh(
         ICmdBuffer* pCmdBuffer,
         uint32      xDim,
@@ -721,6 +727,7 @@ private:
     void ReplayCmdDispatch(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdDispatchIndirect(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdDispatchOffset(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
+    void ReplayCmdDispatchDynamic(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdDispatchMesh(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdDispatchMeshIndirectMulti(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdUpdateMemory(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);

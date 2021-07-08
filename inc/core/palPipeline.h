@@ -154,12 +154,18 @@ union PipelineCreateFlags
 {
     struct
     {
-        uint32 clientInternal     : 1;  ///< Internal pipeline not created by the application.
+        uint32 clientInternal         : 1;  ///< Internal pipeline not created by the application.
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
-        uint32 overrideGpuHeap    : 1;  ///< Override the default GPU heap (local invisible) the pipeline resides in.
-        uint32 reserved           : 30; ///< Reserved for future use.
+        uint32 overrideGpuHeap        : 1;  ///< Override the default GPU heap (local invisible) the pipeline
+                                            ///  resides in.
+        uint32 reserved               : 30; ///< Reserved for future use.
+#elif PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 673
+        uint32 supportDynamicDispatch : 1;  ///< Pipeline will be used with @ref ICmdBuffer::CmdDynamicDispatch.
+                                            ///  This flag must only be set if the device reports support
+                                            ///  via DeviceProperties.
+        uint32 reserved               : 30; ///< Reserved for future use.
 #else
-        uint32 reserved           : 31; ///< Reserved for future use.
+        uint32 reserved               : 31; ///< Reserved for future use.
 #endif
     };
     uint32 u32All;                  ///< Flags packed as 32-bit uint.
@@ -548,6 +554,25 @@ public:
         Util::Abi::HardwareStage hardwareStage,
         size_t*                  pSize,
         void*                    pBuffer) = 0;
+
+    /// Creates a new dynamic launch descriptor for this pipeline.  These descriptors are only usable as input to
+    /// @ref ICmdBuffer::CmdDispatchDynamic().  Each launch descriptor acts as a GPU-side "handle" to a pipeline and
+    /// a set of shader libraries it is linked with. The size of the launch descriptor can be queried from
+    /// @ref DeviceProperties. A size of 0 reported in DeviceProperties indicates that this feature is not supported.
+    ///
+    /// Currently only supported on compute pipelines.
+    ///
+    /// @param [in, out] pOut     Launch descriptor to create or update. Must not be null.
+    /// @param [in]      resolve  The launch descriptor contains state from a previous link operation. Need to update
+    ///                           the descriptor during this operation.
+    ///
+    /// @returns Success if the operation was successful.  Other error codes may include:
+    ///          + ErrorUnavailable if called on a graphics pipeline or a pipeline that does not support dynamic
+    ///                             launch. @ref PipelineCreateFlags
+    ///          + ErrorInvalidPointer if pCpuAddr is null.
+    virtual Result CreateLaunchDescriptor(
+        void* pCpuAddr,
+        bool  resolve) = 0;
 
     /// Notifies PAL that this pipeline may make indirect function calls to any function contained within any of the
     /// specified @ref IShaderLibrary objects.  This gives PAL a chance to perform any late linking steps required to

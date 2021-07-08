@@ -52,11 +52,8 @@ struct GraphicsPipelineLoadInfo
     bool    usesOnChipGs;       // Set if the pipeline has a GS and uses on-chip GS.
     uint16  esGsLdsSizeRegGs;   // User-SGPR where the ES/GS ring size in LDS is passed to the GS stage
     uint16  esGsLdsSizeRegVs;   // User-SGPR where the ES/GS ring size in LDS is passed to the VS stage
-    uint32  loadedShRegCount;   // Number of SH registers to load using LOAD_SH_REG_INDEX.  If zero, the LOAD_INDEX
-                                // path for pipeline binds is not supported.
-    uint32  loadedCtxRegCount;  // Number of constext registers to load using LOAD_CONTEXT_REG_INDEX.  If zero, the
-                                // LOAD_INDEX path for pipeline binds is not supported.
 };
+
 // Contains graphics stage information calculated at pipeline bind time.
 struct DynamicStageInfos
 {
@@ -97,6 +94,9 @@ public:
     regSX_BLEND_OPT_CONTROL SxBlendOptControl() const { return m_regs.other.sxBlendOptControl; }
     regCB_TARGET_MASK CbTargetMask() const { return m_regs.context.cbTargetMask; }
     regDB_RENDER_OVERRIDE DbRenderOverride() const { return m_regs.other.dbRenderOverride; }
+    regPA_SU_VTX_CNTL PaSuVtxCntl() const { return m_regs.context.paSuVtxCntl; }
+    regSPI_PS_INPUT_ENA SpiPsInputEna() const { return m_chunkVsPs.SpiPsInputEna(); }
+    regSPI_BARYC_CNTL SpiBarycCntl() const { return m_chunkVsPs.SpiBarycCntl(); }
 
     bool CanDrawPrimsOutOfOrder(const DepthStencilView*  pDsView,
                                 const DepthStencilState* pDepthStencilState,
@@ -186,7 +186,7 @@ protected:
         const CodeObjectMetadata&         metadata,
         const RegisterVector&             registers,
         const GraphicsPipelineLoadInfo&   loadInfo,
-        GraphicsPipelineUploader*         pUploader);
+        PipelineUploader*                 pUploader);
 
     Device*const m_pDevice;
 
@@ -240,15 +240,13 @@ private:
 
     void SetupCommonRegisters(
         const GraphicsPipelineCreateInfo& createInfo,
-        const RegisterVector&             registers,
-        GraphicsPipelineUploader*         pUploader);
+        const RegisterVector&             registers);
     void SetupNonShaderRegisters(
         const GraphicsPipelineCreateInfo& createInfo,
-        const RegisterVector&             registers,
-        GraphicsPipelineUploader*         pUploader);
+        const RegisterVector&             registers);
     void SetupStereoRegisters();
 
-    void SetupFetchShaderInfo(const GraphicsPipelineUploader* pUploader);
+    void SetupFetchShaderInfo(const PipelineUploader* pUploader);
 
     uint32* WriteFsShCommands(
         CmdStream* pCmdStream,
@@ -355,14 +353,6 @@ private:
         } uconfig;
     }  m_regs;
 
-    struct
-    {
-        gpusize  gpuVirtAddrCtx;
-        gpusize  gpuVirtAddrSh;
-        uint32   countCtx;
-        uint32   countSh;
-    }  m_loadPath;
-
     PipelinePrefetchPm4        m_prefetch;
     GraphicsPipelineSignature  m_signature;
 
@@ -375,46 +365,6 @@ private:
 
     PAL_DISALLOW_DEFAULT_CTOR(GraphicsPipeline);
     PAL_DISALLOW_COPY_AND_ASSIGN(GraphicsPipeline);
-};
-
-// =====================================================================================================================
-// Extension of the PipelineUploader helper class for Gfx9+ graphics pipelines.
-class GraphicsPipelineUploader final : public Pal::PipelineUploader
-{
-public:
-    explicit GraphicsPipelineUploader(
-        Device*          pDevice,
-        const AbiReader& abiReader,
-        uint32           ctxRegisterCount,
-        uint32           shRegisterCount)
-        :
-        PipelineUploader(pDevice->Parent(), abiReader, ctxRegisterCount, shRegisterCount)
-        { }
-    virtual ~GraphicsPipelineUploader() { }
-
-    // Add a context register to GPU memory for use with LOAD_CONTEXT_REG_INDEX.
-    PAL_INLINE void AddCtxReg(uint16 address, uint32 value)
-    {
-        PAL_ASSERT(Gfx9::CmdUtil::IsContextReg(address));
-        Pal::PipelineUploader::AddCtxRegister(address - CONTEXT_SPACE_START, value);
-    }
-    template <typename Register_t>
-    PAL_INLINE void AddCtxReg(uint16 address, Register_t reg)
-        { AddCtxReg(address, reg.u32All); }
-
-    // Add a SH register to GPU memory for use with LOAD_SH_REG_INDEX.
-    PAL_INLINE void AddShReg(uint16 address, uint32 value)
-    {
-        PAL_ASSERT(CmdUtil::IsShReg(address));
-        Pal::PipelineUploader::AddShRegister(address - PERSISTENT_SPACE_START, value);
-    }
-    template <typename Register_t>
-    PAL_INLINE void AddShReg(uint16 address, Register_t reg)
-        { AddShReg(address, reg.u32All); }
-
-private:
-    PAL_DISALLOW_DEFAULT_CTOR(GraphicsPipelineUploader);
-    PAL_DISALLOW_COPY_AND_ASSIGN(GraphicsPipelineUploader);
 };
 
 } // Gfx9

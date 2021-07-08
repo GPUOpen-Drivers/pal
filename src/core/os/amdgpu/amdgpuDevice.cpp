@@ -198,7 +198,10 @@ Result Device::Create(
 
     if (result == Result::Success)
     {
-        if (Device::DetermineGpuIpLevels(gpuInfo.family_id, gpuInfo.chip_external_rev, cpVersion, &ipLevels) == false)
+        if (Device::DetermineGpuIpLevels(gpuInfo.family_id,
+                                         gpuInfo.chip_external_rev,
+                                         cpVersion,
+                                         &ipLevels) == false)
         {
             result = Result::ErrorInitializationFailed;
         }
@@ -656,6 +659,8 @@ Result Device::EarlyInit(
     m_chipProperties.uvdLevel = ipLevels.uvd;
     m_chipProperties.vcnLevel = ipLevels.vcn;
 
+    m_chipProperties.hwIpFlags.u32All = ipLevels.flags.u32All;
+
     Result result = VamMgrSingleton::Init();
 
     // Init paths
@@ -913,8 +918,8 @@ Result Device::InitGpuProperties()
                                             &m_engineProperties);
         break;
 #endif
-    case GfxIpLevel::GfxIp9:
     case GfxIpLevel::GfxIp10_1:
+    case GfxIpLevel::GfxIp9:
     case GfxIpLevel::GfxIp10_3:
         m_chipProperties.gfxEngineId = CIASICIDGFXENGINE_ARCTICISLAND;
         m_pFormatPropertiesTable     = Gfx9::GetFormatPropertiesTable(m_chipProperties.gfxLevel,

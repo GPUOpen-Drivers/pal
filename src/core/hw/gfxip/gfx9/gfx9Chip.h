@@ -119,14 +119,6 @@ constexpr uint32 UserConfigRegCount = (UCONFIG_SPACE_END - UCONFIG_SPACE_START +
 constexpr uint32 UserConfigRegPerfStart = 0xD000;
 constexpr uint32 UserConfigRegPerfEnd   = 0xDFFF;
 
-// Defines a range of registers to be loaded from state-shadow memory into state registers.
-struct RegisterRange
-{
-    uint32 regOffset;   // Offset to the first register to load. Relative to the base address of the register type.
-                        // E.g., PERSISTENT_SPACE_START for SH registers, etc.
-    uint32 regCount;    // Number of registers to load.
-};
-
 // Container used for storing registers during pipeline load.
 using RegisterVector = Util::SparseVector<
     uint32,
@@ -601,5 +593,42 @@ enum class TexPerfModulation : uint32
 // This flag in COMPUTE_DISPATCH_INITIATOR tells the CP to not preempt mid-dispatch when CWSR is disabled.
 constexpr uint32 ComputeDispatchInitiatorDisablePartialPreemptMask = (1 << 17);
 
+constexpr uint32 Gfx10UcodeVersionLoadShRegIndexIndirectAddr = 38;
+
+// =====================================================================================================================
+// Layout of a compute launch descriptor in GPU memory.  A launch descriptor is just a LOAD_SH_REG_INDEX packet pointing
+// to GPU memory where the registers are loaded from.  This structure defines the layout of the GPU memory pointed-to
+// by the "descriptor".
+struct DynamicCsLaunchDescLayout
+{
+    uint32                     mmComputePgmLo;
+    regCOMPUTE_PGM_LO          computePgmLo;
+
+    uint32                     mmComputePgmRsrc1;
+    regCOMPUTE_PGM_RSRC1       computePgmRsrc1;
+
+    uint32                     mmComputePgmRsrc2;
+    regCOMPUTE_PGM_RSRC2       computePgmRsrc2;
+
+    uint32                     mmComputeUserData0;
+    regCOMPUTE_USER_DATA_0     userDataInternalTable;
+
+    // GFX10+
+    uint32                     mmComputePgmRsrc3;
+    regCOMPUTE_PGM_RSRC3       computePgmRsrc3;
+};
+
+constexpr uint32 DynamicCsLaunchDescRegOffsets[] =
+{
+    mmCOMPUTE_PGM_LO,
+    mmCOMPUTE_PGM_RSRC1,
+    mmCOMPUTE_PGM_RSRC2,
+    mmCOMPUTE_USER_DATA_0,
+    Gfx10Plus::mmCOMPUTE_PGM_RSRC3,
+};
+
+constexpr uint32 DynamicCsLaunchDescRegCount = Util::ArrayLen32(DynamicCsLaunchDescRegOffsets);
+static_assert(DynamicCsLaunchDescRegCount == sizeof(DynamicCsLaunchDescLayout) / (2 * sizeof(uint32)),
+              "Unexpected number of DynamicCsLaunchDesc registers!");
 } // Gfx9
 } // Pal

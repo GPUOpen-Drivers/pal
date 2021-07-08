@@ -48,30 +48,17 @@ const ComputePipelineSignature NullCsSignature =
 };
 static_assert(UserDataNotMapped == 0, "Unexpected value for indicating unmapped user-data entries!");
 
-// Base count of SH registers which are loaded using LOAD_SH_REG_INDEX when binding to a universal command buffer.
-constexpr uint32 BaseLoadedShRegCount =
-    1 + // mmCOMPUTE_PGM_LO
-    1 + // mmCOMPUTE_PGM_HI
-    1 + // mmCOMPUTE_PGM_RSRC1
-    0 + // mmCOMPUTE_PGM_RSRC2 is not included because it partially depends on bind-time state
-    0 + // mmCOMPUTE_RESOURCE_LIMITS is not included because it partially depends on bind-time state
-    1 + // mmCOMPUTE_NUM_THREAD_X
-    1 + // mmCOMPUTE_NUM_THREAD_Y
-    1 + // mmCOMPUTE_NUM_THREAD_Z
-    1;  // mmCOMPUTE_USER_DATA_0 + ConstBufTblStartReg
-
 // =====================================================================================================================
 ComputePipeline::ComputePipeline(
     Device* pDevice,
     bool    isInternal)  // True if this is a PAL-owned pipeline (i.e., an RPM pipeline).
     :
     Pal::ComputePipeline(pDevice->Parent(), isInternal),
-    m_pDevice(pDevice)
+    m_pDevice(pDevice),
+    m_regs{},
+    m_prefetch{},
+    m_signature{NullCsSignature}
 {
-    memset(&m_regs, 0, sizeof(m_regs));
-    memset(&m_loadPath, 0, sizeof(m_loadPath));
-    memset(&m_prefetch, 0, sizeof(m_prefetch));
-    memcpy(&m_signature, &NullCsSignature, sizeof(m_signature));
 }
 
 // =====================================================================================================================
@@ -169,9 +156,7 @@ Result ComputePipeline::HwlInit(
         result = pMetadataReader->Unpack(&registers);
     }
 
-    ComputePipelineUploader uploader(m_pDevice,
-                                     abiReader,
-                                     settings.enableLoadIndexForObjectBinds ? BaseLoadedShRegCount : 0);
+    PipelineUploader uploader(m_pDevice->Parent(), abiReader);
     if (result == Result::Success)
     {
         // Next, handle relocations and upload the pipeline code & data to GPU memory.
@@ -224,21 +209,6 @@ Result ComputePipeline::HwlInit(
         m_threadsPerTgY = m_regs.computeNumThreadY.bits.NUM_THREAD_FULL;
         m_threadsPerTgZ = m_regs.computeNumThreadZ.bits.NUM_THREAD_FULL;
 
-        if (uploader.EnableLoadIndexPath())
-        {
-            m_loadPath.gpuVirtAddr = uploader.ShRegGpuVirtAddr();
-            m_loadPath.count       = uploader.ShRegisterCount();
-
-            uploader.AddShReg(mmCOMPUTE_PGM_LO, m_regs.computePgmLo);
-            uploader.AddShReg(mmCOMPUTE_PGM_HI, m_regs.computePgmHi);
-
-            uploader.AddShReg((mmCOMPUTE_USER_DATA_0 + ConstBufTblStartReg), m_regs.computeUserDataLo);
-
-            uploader.AddShReg(mmCOMPUTE_PGM_RSRC1,    m_regs.computePgmRsrc1);
-            uploader.AddShReg(mmCOMPUTE_NUM_THREAD_X, m_regs.computeNumThreadX);
-            uploader.AddShReg(mmCOMPUTE_NUM_THREAD_Y, m_regs.computeNumThreadY);
-            uploader.AddShReg(mmCOMPUTE_NUM_THREAD_Z, m_regs.computeNumThreadZ);
-        }
         PAL_ASSERT(m_uploadFenceToken == 0);
         result = uploader.End(&m_uploadFenceToken);
 
@@ -352,21 +322,7 @@ uint32* ComputePipeline::WriteCommands(
     bool                            prefetch
     ) const
 {
-    // Disable the LOAD_INDEX path if the PM4 optimizer is enabled or for compute command buffers.  The optimizer cannot
-    // optimize these load packets because the register values are in GPU memory.  Additionally, any client requesting
-    // PM4 optimization is trading CPU cycles for GPU performance, so the savings of using LOAD_INDEX is not important.
-    // This gets disabled for compute command buffers because the MEC does not support any LOAD packets.
-    if ((m_loadPath.count == 0)           ||
-        pCmdStream->Pm4OptimizerEnabled() ||
-        (pCmdStream->GetEngineType() == EngineType::EngineTypeCompute))
-    {
-        pCmdSpace = WriteShCommandsSetPath(pCmdStream, pCmdSpace);
-    }
-    else
-    {
-        const CmdUtil& cmdUtil = m_pDevice->CmdUtil();
-        pCmdSpace += cmdUtil.BuildLoadShRegsIndex(m_loadPath.gpuVirtAddr, m_loadPath.count, ShaderCompute, pCmdSpace);
-    }
+    pCmdSpace = WriteShCommandsSetPath(pCmdStream, pCmdSpace);
 
     auto dynamic = m_regs.dynamic; // "Dynamic" bind-time register state
 

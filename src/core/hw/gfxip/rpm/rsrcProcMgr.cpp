@@ -2335,7 +2335,6 @@ bool RsrcProcMgr::ScaledCopyImageUseGraphics(
                                    (dstImageType != ImageType::Tex1d) &&
                                    (isCompressed == false)            &&
                                    (isYuv == false)                   &&
-                                   (isDepth == false)                 &&
                                    (p2pBltWa == false)));
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 603
@@ -2790,7 +2789,8 @@ void RsrcProcMgr::GenerateMipmapsSlow(
 // =====================================================================================================================
 void RsrcProcMgr::ScaledCopyImageGraphics(
     GfxCmdBuffer*           pCmdBuffer,
-    const ScaledCopyInfo&   copyInfo) const
+    const ScaledCopyInfo&   copyInfo
+    ) const
 {
     PAL_ASSERT(pCmdBuffer->IsGraphicsSupported());
     // Don't expect GFX Blts on Nested unless targets not inherited.
@@ -2805,17 +2805,21 @@ void RsrcProcMgr::ScaledCopyImageGraphics(
     uint32 regionCount                    = copyInfo.regionCount;
     const ImageScaledCopyRegion* pRegions = copyInfo.pRegions;
 
-    const auto& dstCreateInfo = pDstImage->GetImageCreateInfo();
-    const auto& srcCreateInfo = pSrcImage->GetImageCreateInfo();
-    const auto& device        = *m_pDevice->Parent();
-    const bool isTex3d        = (srcCreateInfo.imageType == ImageType::Tex3d) ? 1 : 0;
+    const auto& dstCreateInfo   = pDstImage->GetImageCreateInfo();
+    const auto& srcCreateInfo   = pSrcImage->GetImageCreateInfo();
+    const auto& device          = *m_pDevice->Parent();
+    const bool isTex3d          = (srcCreateInfo.imageType == ImageType::Tex3d) ? 1 : 0;
+    const bool depthStencilCopy = ((srcCreateInfo.usageFlags.depthStencil != 0) ||
+                                 (dstCreateInfo.usageFlags.depthStencil != 0) ||
+                                 Formats::IsDepthStencilOnly(srcCreateInfo.swizzledFormat.format) ||
+                                 Formats::IsDepthStencilOnly(dstCreateInfo.swizzledFormat.format));
 
     Pal::CmdStream*const pStream = pCmdBuffer->GetCmdStreamByEngine(CmdBufferEngineSupport::Graphics);
     PAL_ASSERT(pStream != nullptr);
 
     const StencilRefMaskParams       stencilRefMasks      = { 0xFF, 0xFF, 0xFF, 0x01, 0xFF, 0xFF, 0xFF, 0x01, 0xFF };
 
-    ViewportParams viewportInfo = {};
+    ViewportParams viewportInfo        = {};
     viewportInfo.count                 = 1;
     viewportInfo.viewports[0].origin   = PointOrigin::UpperLeft;
     viewportInfo.viewports[0].minDepth = 0.f;
@@ -2827,93 +2831,106 @@ void RsrcProcMgr::ScaledCopyImageGraphics(
     viewportInfo.depthRange            = DepthRange::ZeroToOne;
 
     ScissorRectParams scissorInfo = {};
-    scissorInfo.count = 1;
-
-    const ColorTargetViewInternalCreateInfo colorViewInfoInternal = {};
-
-    ColorTargetViewCreateInfo colorViewInfo = {};
-    colorViewInfo.imageInfo.pImage    = copyInfo.pDstImage;
-    colorViewInfo.imageInfo.arraySize = 1;
-
-    if (dstCreateInfo.imageType == ImageType::Tex3d)
-    {
-        colorViewInfo.zRange.extent     = 1;
-        colorViewInfo.flags.zRangeValid = true;
-    }
-
-    BindTargetParams bindTargetsInfo = {};
-    bindTargetsInfo.colorTargets[0].imageLayout      = dstImageLayout;
-    bindTargetsInfo.colorTargets[0].pColorTargetView = nullptr;
+    scissorInfo.count             = 1;
 
 #if PAL_ENABLE_PRINTS_ASSERTS
     PAL_ASSERT(static_cast<const UniversalCmdBuffer*>(pCmdBuffer)->IsGraphicsStatePushed());
 #endif
 
     BindCommonGraphicsState(pCmdBuffer);
-    pCmdBuffer->CmdBindDepthStencilState(m_pDepthDisableState);
+
     pCmdBuffer->CmdBindMsaaState(GetMsaaState(dstCreateInfo.samples, dstCreateInfo.fragments));
     pCmdBuffer->CmdSetStencilRefMasks(stencilRefMasks);
 
-    if (copyInfo.flags.srcAlpha)
+    uint32 colorKey[4]        = { 0 };
+    uint32 alphaDiffMul       = 0;
+    float  threshold          = 0.0f;
+    uint32 colorKeyEnableMask = 0;
+
+    const ColorTargetViewInternalCreateInfo colorViewInfoInternal    = {};
+    ColorTargetViewCreateInfo colorViewInfo                          = {};
+    BindTargetParams bindTargetsInfo                                 = {};
+    const DepthStencilViewInternalCreateInfo noDepthViewInfoInternal = {};
+    DepthStencilViewCreateInfo depthViewInfo                         = {};
+
+    if (!depthStencilCopy)
     {
-        pCmdBuffer->CmdBindColorBlendState(m_pColorBlendState);
+        if (copyInfo.flags.srcColorKey)
+        {
+            colorKeyEnableMask = 1;
+        }
+        else if (copyInfo.flags.dstColorKey)
+        {
+            colorKeyEnableMask = 2;
+        }
+
+        if (colorKeyEnableMask > 0)
+        {
+            const bool srcColorKey = (colorKeyEnableMask == 1);
+
+            PAL_ASSERT(copyInfo.pColorKey != nullptr);
+            PAL_ASSERT(srcCreateInfo.imageType == ImageType::Tex2d);
+            PAL_ASSERT(dstCreateInfo.imageType == ImageType::Tex2d);
+            PAL_ASSERT(srcCreateInfo.samples <= 1);
+            PAL_ASSERT(dstCreateInfo.samples <= 1);
+
+            memcpy(&colorKey[0], &copyInfo.pColorKey->u32Color[0], sizeof(colorKey));
+
+            // Convert uint color key to float representation
+            SwizzledFormat format = srcColorKey ? srcCreateInfo.swizzledFormat : dstCreateInfo.swizzledFormat;
+            RpmUtil::ConvertClearColorToNativeFormat(format, format, colorKey);
+            // Only GenerateMips uses swizzledFormat in regions, color key is not available in this case.
+            PAL_ASSERT(Formats::IsUndefined(copyInfo.pRegions[0].swizzledFormat.format));
+            // Set constant to respect or ignore alpha channel color diff
+            constexpr uint32 FloatOne = 0x3f800000;
+            alphaDiffMul = Formats::HasUnusedAlpha(format) ? 0 : FloatOne;
+
+            // Compute the threshold for comparing 2 float value
+            const uint32 bitCount = Formats::MaxComponentBitCount(format.format);
+            threshold = static_cast<float>(pow(2, -2.0f * bitCount) - pow(2, -2.0f * bitCount - 24.0f));
+        }
+
+        colorViewInfo.imageInfo.pImage    = copyInfo.pDstImage;
+        colorViewInfo.imageInfo.arraySize = 1;
+
+        if (dstCreateInfo.imageType == ImageType::Tex3d)
+        {
+            colorViewInfo.zRange.extent     = 1;
+            colorViewInfo.flags.zRangeValid = true;
+        }
+
+        bindTargetsInfo.colorTargets[0].imageLayout      = dstImageLayout;
+        bindTargetsInfo.colorTargets[0].pColorTargetView = nullptr;
+
+        pCmdBuffer->CmdBindDepthStencilState(m_pDepthDisableState);
+
+        if (copyInfo.flags.srcAlpha)
+        {
+            pCmdBuffer->CmdBindColorBlendState(m_pColorBlendState);
+        }
+        else
+        {
+            pCmdBuffer->CmdBindColorBlendState(m_pBlendDisableState);
+        }
     }
     else
     {
-        pCmdBuffer->CmdBindColorBlendState(m_pBlendDisableState);
+        depthViewInfo.pImage    = pDstImage;
+        depthViewInfo.arraySize = 1;
+        RpmUtil::WriteVsZOut(pCmdBuffer, 1.0f);
     }
 
     // Keep track of the previous graphics pipeline to reduce the pipeline switching overhead.
+    uint32 rangeMask                          = 0;
     const GraphicsPipeline* pPreviousPipeline = nullptr;
 
     // Accumulate the restore mask for each region copied.
     uint32 restoreMask = 0;
 
-    uint32 colorKey[4]          = {0};
-    uint32 alphaDiffMul         = 0;
-    float  threshold            = 0.0f;
-    uint32 colorKeyEnableMask   = 0;
-
-    if (copyInfo.flags.srcColorKey)
-    {
-        colorKeyEnableMask = 1;
-    }
-    else if (copyInfo.flags.dstColorKey)
-    {
-        colorKeyEnableMask = 2;
-    }
-
-    if (colorKeyEnableMask > 0)
-    {
-        const bool srcColorKey = (colorKeyEnableMask == 1);
-
-        PAL_ASSERT(copyInfo.pColorKey != nullptr);
-        PAL_ASSERT(srcCreateInfo.imageType == ImageType::Tex2d);
-        PAL_ASSERT(dstCreateInfo.imageType == ImageType::Tex2d);
-        PAL_ASSERT(srcCreateInfo.samples <= 1);
-        PAL_ASSERT(dstCreateInfo.samples <= 1);
-
-        memcpy(&colorKey[0], &copyInfo.pColorKey->u32Color[0], sizeof(colorKey));
-
-        // Convert uint color key to float representation
-        SwizzledFormat format = srcColorKey ? srcCreateInfo.swizzledFormat : dstCreateInfo.swizzledFormat;
-        RpmUtil::ConvertClearColorToNativeFormat(format, format, colorKey);
-        // Only GenerateMips uses swizzledFormat in regions, color key is not available in this case.
-        PAL_ASSERT(Formats::IsUndefined(copyInfo.pRegions[0].swizzledFormat.format));
-        // Set constant to respect or ignore alpha channel color diff
-        constexpr uint32 FloatOne = 0x3f800000;
-        alphaDiffMul = Formats::HasUnusedAlpha(format) ? 0 : FloatOne;
-
-        // Compute the threshold for comparing 2 float value
-        const uint32 bitCount = Formats::MaxComponentBitCount(format.format);
-        threshold = static_cast<float>(pow(2, -2.0f * bitCount) - pow(2, -2.0f * bitCount - 24.0f));
-    }
-
     // Each region needs to be copied individually.
     for (uint32 region = 0; region < regionCount; ++region)
     {
         // Multiply all x-dimension values in our region by the texel scale.
-
         ImageScaledCopyRegion copyRegion = pRegions[region];
 
         // Calculate the absolute value of dstExtent, which will get fed to the shader.
@@ -3080,14 +3097,21 @@ void RsrcProcMgr::ScaledCopyImageGraphics(
                 reinterpret_cast<const uint32&>(RotationParams[rotationIndex][5]),
             };
 
-            if (isTex3d == true)
+            if (!depthStencilCopy)
             {
-                pCmdBuffer->CmdSetUserData(PipelineBindPoint::Graphics, 1, 4, &userData[0]);
+                if (isTex3d == true)
+                {
+                    pCmdBuffer->CmdSetUserData(PipelineBindPoint::Graphics, 1, 4, &userData[0]);
+                }
+                else
+                {
+                    pCmdBuffer->CmdSetUserData(PipelineBindPoint::Graphics, 1, 4, &texcoordVs[0]);
+                    pCmdBuffer->CmdSetUserData(PipelineBindPoint::Graphics, 5, 10, &userData[0]);
+                }
             }
             else
             {
-                pCmdBuffer->CmdSetUserData(PipelineBindPoint::Graphics, 1, 4, &texcoordVs[0]);
-                pCmdBuffer->CmdSetUserData(PipelineBindPoint::Graphics, 5, 10, &userData[0]);
+                pCmdBuffer->CmdSetUserData(PipelineBindPoint::Graphics, 2, 10, &userData[0]);
             }
         }
 
@@ -3108,126 +3132,126 @@ void RsrcProcMgr::ScaledCopyImageGraphics(
             PAL_ASSERT(Formats::IsUndefined(dstFormat.format) == false);
         }
 #endif
+        uint32 sizeInDwords                 = 0;
+        constexpr uint32 ColorKeyDataDwords = 7;
+        const GraphicsPipeline* pPipeline   = nullptr;
 
-        // Update the color target view format with the destination format.
-        colorViewInfo.swizzledFormat = dstFormat;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
+        const bool isDepth = (copyRegion.dstSubres.aspect == ImageAspect::Depth);
+#else
+        const bool isDepth = pDstImage->IsDepthPlane(copyRegion.dstSubres.plane);
+#endif
+        bool isDepthStencil  = false;
+        uint32 secondSurface = 0;
 
-        const GraphicsPipeline* pPipeline = nullptr;
-        if (srcCreateInfo.imageType == ImageType::Tex2d)
+        if (!depthStencilCopy)
         {
-            if (colorKeyEnableMask)
+            // Update the color target view format with the destination format.
+            colorViewInfo.swizzledFormat = dstFormat;
+
+            if (srcCreateInfo.imageType == ImageType::Tex2d)
             {
-                // There is no UINT/SINT formats in DX9 and only legacy formats <= 32 bpp can be used in color key blit.
-                const uint32 bpp = Formats::BytesPerPixel(srcFormat.format);
-                PAL_ASSERT(bpp <= 32);
-                pPipeline = GetGfxPipeline(ScaledCopyImageColorKey);
+                if (colorKeyEnableMask)
+                {
+                    // There is no UINT/SINT formats in DX9 and only legacy formats <= 32 bpp can be used in color key blit.
+                    const uint32 bpp = Formats::BytesPerPixel(srcFormat.format);
+                    PAL_ASSERT(bpp <= 32);
+                    pPipeline = GetGfxPipeline(ScaledCopyImageColorKey);
+                }
+                else
+                {
+                    pPipeline = GetGfxPipelineByTargetIndexAndFormat(ScaledCopy2d_32ABGR, 0, dstFormat);
+                }
             }
             else
             {
-                pPipeline = GetGfxPipelineByTargetIndexAndFormat(ScaledCopy2d_32ABGR, 0, dstFormat);
+                pPipeline = GetGfxPipelineByTargetIndexAndFormat(ScaledCopy3d_32ABGR, 0, dstFormat);
+            }
+
+            if (colorKeyEnableMask)
+            {
+                // Create an embedded SRD table and bind it to user data 0. We need image views and
+                // a sampler for the src and dest subresource, as well as some inline constants for src and dest
+                // color key for 2d texture copy. Only need image view and a sampler for the src subresource
+                // as not support color key for 3d texture copy.
+                sizeInDwords = SrdDwordAlignment() * 3 + ColorKeyDataDwords;
+            }
+            else
+            {
+                // If color Key is not enabled, the ps shader don't need to allocate memory for copydata.
+                sizeInDwords = SrdDwordAlignment() * 2;
             }
         }
         else
         {
-            pPipeline = GetGfxPipelineByTargetIndexAndFormat(ScaledCopy3d_32ABGR, 0, dstFormat);
+            bindTargetsInfo.depthTarget.depthLayout = dstImageLayout;
+
+            // No need to clear a range twice.
+            if (BitfieldIsSet(rangeMask, region))
+            {
+                continue;
+            }
+
+            // Search the range list to see if there is a matching range which span the other plane.
+            for (uint32 forwardIdx = region + 1; forwardIdx < regionCount; ++forwardIdx)
+            {
+                // TODO: there is unknown corruption issue if grouping depth and stencil copy together for mipmap
+                //       image, disallow merging copy for mipmap image as a temp fix.
+                if ((dstCreateInfo.mipLevels                  == 1)                                &&
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
+                    (pRegions[forwardIdx].srcSubres.aspect    != copyRegion.srcSubres.aspect)      &&
+                    (pRegions[forwardIdx].dstSubres.aspect    != copyRegion.dstSubres.aspect)      &&
+#else
+                    (pRegions[forwardIdx].srcSubres.plane     != copyRegion.srcSubres.plane)       &&
+                    (pRegions[forwardIdx].dstSubres.plane     != copyRegion.dstSubres.plane)       &&
+#endif
+                    (pRegions[forwardIdx].srcSubres.mipLevel   == copyRegion.srcSubres.mipLevel)   &&
+                    (pRegions[forwardIdx].dstSubres.mipLevel   == copyRegion.dstSubres.mipLevel)   &&
+                    (pRegions[forwardIdx].srcSubres.arraySlice == copyRegion.srcSubres.arraySlice) &&
+                    (pRegions[forwardIdx].dstSubres.arraySlice == copyRegion.dstSubres.arraySlice) &&
+                    (pRegions[forwardIdx].dstExtent.depth      == copyRegion.dstExtent.depth)      &&
+                    (pRegions[forwardIdx].dstExtent.height     == copyRegion.dstExtent.height)     &&
+                    (pRegions[forwardIdx].dstExtent.width      == copyRegion.dstExtent.width)      &&
+                    (pRegions[forwardIdx].numSlices            == copyRegion.numSlices))
+                {
+                    // We found a matching range for the other plane, clear them both at once.
+                    isDepthStencil = true;
+                    secondSurface  = forwardIdx;
+                    BitfieldUpdateSubfield(&rangeMask, 1u, static_cast<uint32>(1 << forwardIdx));
+                    break;
+                }
+            }
+
+            if (isDepthStencil)
+            {
+                pCmdBuffer->CmdBindDepthStencilState(m_pDepthStencilResolveState);
+                pPipeline = GetGfxPipeline(ScaledCopyDepthStencil);
+            }
+            else if (isDepth)
+            {
+                pCmdBuffer->CmdBindDepthStencilState(m_pDepthResolveState);
+                pPipeline = GetGfxPipeline(ScaledCopyDepth);
+            }
+            else
+            {
+                pCmdBuffer->CmdBindDepthStencilState(m_pStencilResolveState);
+                pPipeline = GetGfxPipeline(ScaledCopyStencil);
+            }
+
+            sizeInDwords = isDepthStencil ? SrdDwordAlignment() * 3 : SrdDwordAlignment() * 2;
         }
 
         // Only switch to the appropriate graphics pipeline if it differs from the previous region's pipeline.
         if (pPreviousPipeline != pPipeline)
         {
             pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Graphics, pPipeline, InternalApiPsoHash, });
-            pCmdBuffer->CmdOverwriteRbPlusFormatForBlits(dstFormat, 0);
-            pPreviousPipeline = pPipeline;
-        }
 
-        uint32 sizeInDwords;
-        constexpr uint32 ColorKeyDataDwords = 7;
-        if (colorKeyEnableMask)
-        {
-            // Create an embedded SRD table and bind it to user data 0. We need image views and
-            // a sampler for the src and dest subresource, as well as some inline constants for src and dest
-            // color key for 2d texture copy. Only need image view and a sampler for the src subresource
-            // as not support color key for 3d texture copy.
-            sizeInDwords = SrdDwordAlignment() * 3 + ColorKeyDataDwords;
-        }
-        else
-        {
-            // If color Key is not enabled, the ps shader don't need to allocate memory for copydata.
-            sizeInDwords = SrdDwordAlignment() * 2;
-        }
-
-        uint32* pSrdTable = RpmUtil::CreateAndBindEmbeddedUserData(pCmdBuffer,
-                                                                   sizeInDwords,
-                                                                   SrdDwordAlignment(),
-                                                                   PipelineBindPoint::Graphics,
-                                                                   0);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 626
-        // Follow up the compute path of scaled copy that SRGB can be treated as UNORM
-        // when copying from SRGB -> XX.
-        if (copyInfo.flags.srcSrgbAsUnorm)
-        {
-            srcFormat.format = Formats::ConvertToUnorm(srcFormat.format);
-        }
-#endif
-
-        ImageViewInfo imageView[2] = {};
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-        SubresRange   viewRange    = { copyRegion.srcSubres, 1, copyRegion.numSlices };
-#else
-        SubresRange   viewRange    = { copyRegion.srcSubres, 1, 1, copyRegion.numSlices };
-#endif
-
-        RpmUtil::BuildImageViewInfo(&imageView[0],
-                                    *pSrcImage,
-                                    viewRange,
-                                    srcFormat,
-                                    srcImageLayout,
-                                    device.TexOptLevel());
-
-        if (colorKeyEnableMask)
-        {
-            // Note that this is a read-only view of the destination.
-            viewRange.startSubres = copyRegion.dstSubres;
-            RpmUtil::BuildImageViewInfo(&imageView[1],
-                *pDstImage,
-                viewRange,
-                dstFormat,
-                dstImageLayout,
-                device.TexOptLevel());
-             PAL_ASSERT(imageView[1].viewType == ImageViewType::Tex2d);
-        }
-
-        // Populate the table with image views of the source and dest image for 2d texture.
-        // Only populate the table with an image view of the source image for 3d texutre.
-        const uint32 imageCount = colorKeyEnableMask ? 2 : 1;
-        device.CreateImageViewSrds(imageCount, &imageView[0], pSrdTable);
-        pSrdTable += SrdDwordAlignment() * imageCount;
-
-        SamplerInfo samplerInfo = {};
-        samplerInfo.filter      = copyInfo.filter;
-        samplerInfo.addressU    = TexAddressMode::Clamp;
-        samplerInfo.addressV    = TexAddressMode::Clamp;
-        samplerInfo.addressW    = TexAddressMode::Clamp;
-        samplerInfo.compareFunc = CompareFunc::Always;
-        device.CreateSamplerSrds(1, &samplerInfo, pSrdTable);
-        pSrdTable += SrdDwordAlignment();
-
-        // Copy the copy parameters into the embedded user-data space for 2d texture copy.
-        if (colorKeyEnableMask)
-        {
-            PAL_ASSERT(isTex3d == false);
-            uint32 copyData[ColorKeyDataDwords] =
+            if (!depthStencilCopy)
             {
-                colorKeyEnableMask,
-                alphaDiffMul,
-                Util::Math::FloatToBits(threshold),
-                colorKey[0],
-                colorKey[1],
-                colorKey[2],
-                colorKey[3],
-            };
+                pCmdBuffer->CmdOverwriteRbPlusFormatForBlits(dstFormat, 0);
+            }
 
-            memcpy(pSrdTable, &copyData[0], sizeof(copyData));
+            pPreviousPipeline = pPipeline;
         }
 
         // Give the gfxip layer a chance to optimize the hardware before we start copying.
@@ -3238,15 +3262,15 @@ void RsrcProcMgr::ScaledCopyImageGraphics(
         // 1D to 1D or 2D to 2D, depth should be 1. Therefore when the src image type is identical
         // to the dst image type, either the depth or the number of slices should be equal to 1.
         PAL_ASSERT((srcCreateInfo.imageType != dstCreateInfo.imageType) ||
-                   (copyRegion.numSlices == 1) ||
+                   (copyRegion.numSlices == 1)                          ||
                    (copyRegion.srcExtent.depth == 1));
 
         // When copying from 2D to 3D or 3D to 2D, the number of slices should match the depth.
         PAL_ASSERT((srcCreateInfo.imageType == dstCreateInfo.imageType) ||
-                   ((((srcCreateInfo.imageType == ImageType::Tex3d) &&
-                      (dstCreateInfo.imageType == ImageType::Tex2d)) ||
-                     ((srcCreateInfo.imageType == ImageType::Tex2d) &&
-                      (dstCreateInfo.imageType == ImageType::Tex3d))) &&
+                   ((((srcCreateInfo.imageType == ImageType::Tex3d)     &&
+                      (dstCreateInfo.imageType == ImageType::Tex2d))    ||
+                     ((srcCreateInfo.imageType == ImageType::Tex2d)     &&
+                      (dstCreateInfo.imageType == ImageType::Tex3d)))   &&
                     (copyRegion.numSlices == static_cast<uint32>(copyRegion.dstExtent.depth))));
 
         // Setup the viewport and scissor to restrict rendering to the destination region being copied.
@@ -3299,6 +3323,123 @@ void RsrcProcMgr::ScaledCopyImageGraphics(
         pCmdBuffer->CmdSetViewports(viewportInfo);
         pCmdBuffer->CmdSetScissorRects(scissorInfo);
 
+        uint32* pSrdTable = RpmUtil::CreateAndBindEmbeddedUserData(pCmdBuffer,
+                                                                   sizeInDwords,
+                                                                   SrdDwordAlignment(),
+                                                                   PipelineBindPoint::Graphics,
+                                                                   !depthStencilCopy ? 0 : 1);
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 626
+        // Follow up the compute path of scaled copy that SRGB can be treated as UNORM
+        // when copying from SRGB -> XX.
+        if (copyInfo.flags.srcSrgbAsUnorm)
+        {
+            srcFormat.format = Formats::ConvertToUnorm(srcFormat.format);
+        }
+#endif
+
+        ImageViewInfo imageView[2] = {};
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
+        SubresRange   viewRange = { copyRegion.srcSubres, 1, copyRegion.numSlices };
+#else
+        SubresRange   viewRange = { copyRegion.srcSubres, 1, 1, copyRegion.numSlices };
+#endif
+
+        RpmUtil::BuildImageViewInfo(&imageView[0],
+                                    *pSrcImage,
+                                    viewRange,
+                                    srcFormat,
+                                    srcImageLayout,
+                                    device.TexOptLevel());
+
+        if (!depthStencilCopy)
+        {
+            if (colorKeyEnableMask)
+            {
+                // Note that this is a read-only view of the destination.
+                viewRange.startSubres = copyRegion.dstSubres;
+                RpmUtil::BuildImageViewInfo(&imageView[1],
+                                            *pDstImage,
+                                            viewRange,
+                                            dstFormat,
+                                            dstImageLayout,
+                                            device.TexOptLevel());
+                PAL_ASSERT(imageView[1].viewType == ImageViewType::Tex2d);
+            }
+
+            // Populate the table with image views of the source and dest image for 2d texture.
+            // Only populate the table with an image view of the source image for 3d texutre.
+            const uint32 imageCount = colorKeyEnableMask ? 2 : 1;
+            device.CreateImageViewSrds(imageCount, &imageView[0], pSrdTable);
+            pSrdTable += SrdDwordAlignment() * imageCount;
+
+            SamplerInfo samplerInfo = {};
+            samplerInfo.filter      = copyInfo.filter;
+            samplerInfo.addressU    = TexAddressMode::Clamp;
+            samplerInfo.addressV    = TexAddressMode::Clamp;
+            samplerInfo.addressW    = TexAddressMode::Clamp;
+            samplerInfo.compareFunc = CompareFunc::Always;
+            device.CreateSamplerSrds(1, &samplerInfo, pSrdTable);
+            pSrdTable += SrdDwordAlignment();
+
+            // Copy the copy parameters into the embedded user-data space for 2d texture copy.
+            if (colorKeyEnableMask)
+            {
+                PAL_ASSERT(isTex3d == false);
+                uint32 copyData[ColorKeyDataDwords] =
+                {
+                    colorKeyEnableMask,
+                    alphaDiffMul,
+                    Util::Math::FloatToBits(threshold),
+                    colorKey[0],
+                    colorKey[1],
+                    colorKey[2],
+                    colorKey[3],
+                };
+
+                memcpy(pSrdTable, &copyData[0], sizeof(copyData));
+            }
+        }
+        else
+        {
+            if (isDepthStencil)
+            {
+                constexpr SwizzledFormat StencilSrcFormat =
+                {
+                    ChNumFormat::X8_Uint,
+                    { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One },
+                };
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
+                viewRange = { pRegions[secondSurface].srcSubres, 1, copyRegion.numSlices };
+#else
+                viewRange = { pRegions[secondSurface].srcSubres, 1, 1, copyRegion.numSlices };
+#endif
+
+                RpmUtil::BuildImageViewInfo(&imageView[1],
+                                            *pSrcImage,
+                                            viewRange,
+                                            StencilSrcFormat,
+                                            srcImageLayout,
+                                            device.TexOptLevel());
+                device.CreateImageViewSrds(2, &imageView[0], pSrdTable);
+                pSrdTable += SrdDwordAlignment() * 2;
+            }
+            else
+            {
+                device.CreateImageViewSrds(1, &imageView[0], pSrdTable);
+                pSrdTable += SrdDwordAlignment();
+            }
+
+            SamplerInfo samplerInfo = {};
+            samplerInfo.filter      = copyInfo.filter;
+            samplerInfo.addressU    = TexAddressMode::Clamp;
+            samplerInfo.addressV    = TexAddressMode::Clamp;
+            samplerInfo.addressW    = TexAddressMode::Clamp;
+            samplerInfo.compareFunc = CompareFunc::Always;
+            device.CreateSamplerSrds(1, &samplerInfo, pSrdTable);
+            pSrdTable += SrdDwordAlignment();
+        }
+
         // Copy may happen between the layers of a 2d image and the slices of a 3d image.
         const uint32 numSlices = Max(copyRegion.numSlices, absDstExtentD);
 
@@ -3322,59 +3463,99 @@ void RsrcProcMgr::ScaledCopyImageGraphics(
                 srcSlice
             };
 
-            if (isTex3d == true)
-            {
-                pCmdBuffer->CmdSetUserData(PipelineBindPoint::Graphics, 5, 1, &userData[0]);
-            }
-            else
-            {
-                pCmdBuffer->CmdSetUserData(PipelineBindPoint::Graphics, 15, 1, &userData[0]);
-            }
-
-            colorViewInfo.imageInfo.baseSubRes = copyRegion.dstSubres;
-
-            if (dstCreateInfo.imageType == ImageType::Tex3d)
-            {
-                colorViewInfo.zRange.offset = copyRegion.dstOffset.z + sliceOffset;
-            }
-            else
-            {
-                colorViewInfo.imageInfo.baseSubRes.arraySlice = copyRegion.dstSubres.arraySlice + sliceOffset;
-            }
-
-            // Create and bind a color-target view for this slice.
+            // Create and bind a color-target view or depth stencil view for this slice.
             LinearAllocatorAuto<VirtualLinearAllocator> sliceAlloc(pCmdBuffer->Allocator(), false);
 
-            IColorTargetView* pColorView = nullptr;
-            void* pColorViewMem =
-                PAL_MALLOC(m_pDevice->GetColorTargetViewSize(nullptr), &sliceAlloc, AllocInternalTemp);
-
-            if (pColorViewMem == nullptr)
+            if (!depthStencilCopy)
             {
-                pCmdBuffer->NotifyAllocFailure();
+                if (isTex3d == true)
+                {
+                    pCmdBuffer->CmdSetUserData(PipelineBindPoint::Graphics, 5, 1, &userData[0]);
+                }
+                else
+                {
+                    pCmdBuffer->CmdSetUserData(PipelineBindPoint::Graphics, 15, 1, &userData[0]);
+                }
+
+                colorViewInfo.imageInfo.baseSubRes = copyRegion.dstSubres;
+
+                if (dstCreateInfo.imageType == ImageType::Tex3d)
+                {
+                    colorViewInfo.zRange.offset = copyRegion.dstOffset.z + sliceOffset;
+                }
+                else
+                {
+                    colorViewInfo.imageInfo.baseSubRes.arraySlice = copyRegion.dstSubres.arraySlice + sliceOffset;
+                }
+
+                IColorTargetView* pColorView = nullptr;
+                void* pColorViewMem =
+                    PAL_MALLOC(m_pDevice->GetColorTargetViewSize(nullptr), &sliceAlloc, AllocInternalTemp);
+
+                if (pColorViewMem == nullptr)
+                {
+                    pCmdBuffer->NotifyAllocFailure();
+                }
+                else
+                {
+                    // Since our color target view can only bind 1 slice at a time, we have to issue a separate draw for
+                    // each slice in extent.z. We can keep the same src image view since we pass the explicit slice to
+                    // read from in user data, but we'll need to create a new color target view each time.
+                    Result result = m_pDevice->CreateColorTargetView(colorViewInfo,
+                                                                     colorViewInfoInternal,
+                                                                     pColorViewMem,
+                                                                     &pColorView);
+                    PAL_ASSERT(result == Result::Success);
+
+                    bindTargetsInfo.colorTargets[0].pColorTargetView = pColorView;
+                    bindTargetsInfo.colorTargetCount                 = 1;
+                    pCmdBuffer->CmdBindTargets(bindTargetsInfo);
+
+                    // Draw a fullscreen quad.
+                    pCmdBuffer->CmdDraw(0, 3, 0, 1, 0);
+
+                    // Unbind the color-target view.
+                    bindTargetsInfo.colorTargetCount = 0;
+                    pCmdBuffer->CmdBindTargets(bindTargetsInfo);
+                    PAL_SAFE_FREE(pColorViewMem, &sliceAlloc);
+                }
             }
             else
             {
-                // Since our color target view can only bind 1 slice at a time, we have to issue a separate draw for
-                // each slice in extent.z. We can keep the same src image view since we pass the explicit slice to
-                // read from in user data, but we'll need to create a new color target view each time.
-                Result result = m_pDevice->CreateColorTargetView(colorViewInfo,
-                                                                 colorViewInfoInternal,
-                                                                 pColorViewMem,
-                                                                 &pColorView);
-                PAL_ASSERT(result == Result::Success);
+                pCmdBuffer->CmdSetUserData(PipelineBindPoint::Graphics, 12, 1, &userData[0]);
 
-                bindTargetsInfo.colorTargets[0].pColorTargetView = pColorView;
-                bindTargetsInfo.colorTargetCount = 1;
-                pCmdBuffer->CmdBindTargets(bindTargetsInfo);
+                // Create and bind a depth stencil view of the destination region.
+                depthViewInfo.baseArraySlice = copyRegion.dstSubres.arraySlice + sliceOffset;
+                depthViewInfo.mipLevel       = copyRegion.dstSubres.mipLevel;
 
-                // Draw a fullscreen quad.
-                pCmdBuffer->CmdDraw(0, 3, 0, 1, 0);
+                void* pDepthStencilViewMem = PAL_MALLOC(m_pDevice->GetDepthStencilViewSize(nullptr),
+                                                        &sliceAlloc,
+                                                        AllocInternalTemp);
+                if (pDepthStencilViewMem == nullptr)
+                {
+                    pCmdBuffer->NotifyAllocFailure();
+                }
+                else
+                {
+                    IDepthStencilView* pDepthView = nullptr;
+                    Result result = m_pDevice->CreateDepthStencilView(depthViewInfo,
+                                                                      noDepthViewInfoInternal,
+                                                                      pDepthStencilViewMem,
+                                                                      &pDepthView);
+                    PAL_ASSERT(result == Result::Success);
 
-                // Unbind the color-target view.
-                bindTargetsInfo.colorTargetCount = 0;
-                pCmdBuffer->CmdBindTargets(bindTargetsInfo);
-                PAL_SAFE_FREE(pColorViewMem, &sliceAlloc);
+                    bindTargetsInfo.depthTarget.pDepthStencilView = pDepthView;
+                    pCmdBuffer->CmdBindTargets(bindTargetsInfo);
+
+                    // Draw a fullscreen quad.
+                    pCmdBuffer->CmdDraw(0, 3, 0, 1, 0);
+
+                    // Unbind the depth view and destroy it.
+                    bindTargetsInfo.depthTarget.pDepthStencilView = nullptr;
+                    pCmdBuffer->CmdBindTargets(bindTargetsInfo);
+
+                    PAL_SAFE_FREE(pDepthStencilViewMem, &sliceAlloc);
+                }
             }
         }
     }

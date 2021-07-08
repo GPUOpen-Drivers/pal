@@ -2335,8 +2335,9 @@ constexpr unsigned int PM4_PFP_LOAD_SH_REG_SIZEDW__CORE = 5;
 // ------------------------------- PFP_LOAD_SH_REG_INDEX_index_enum -------------------------------
 enum PFP_LOAD_SH_REG_INDEX_index_enum
 {
-    index__pfp_load_sh_reg_index__direct_addr =  0,
-    index__pfp_load_sh_reg_index__offset      =  1,
+    index__pfp_load_sh_reg_index__direct_addr                   =  0,
+    index__pfp_load_sh_reg_index__offset                        =  1,
+    index__pfp_load_sh_reg_index__indirect_addr__GFX103COREPLUS =  2,
 };
 
 // ---------------------------- PFP_LOAD_SH_REG_INDEX_data_format_enum ----------------------------
@@ -2361,10 +2362,24 @@ typedef struct PM4_PFP_LOAD_SH_REG_INDEX
         {
             struct
             {
-                PFP_LOAD_SH_REG_INDEX_index_enum index       :  1;
-                uint32_t                         reserved1   :  1;
-                uint32_t                         mem_addr_lo : 30;
+                uint32_t reserved1   :  2;
+                uint32_t mem_addr_lo : 30;
             };
+            struct
+            {
+                uint32_t                         index      :  1; // PFP_LOAD_SH_REG_INDEX_index_enum
+                uint32_t                         reserved2  : 31;
+            } gfx09;
+            struct
+            {
+                uint32_t                         index      :  1; // PFP_LOAD_SH_REG_INDEX_index_enum
+                uint32_t                         reserved3  : 31;
+            } gfx101;
+            struct
+            {
+                PFP_LOAD_SH_REG_INDEX_index_enum index      :  2;
+                uint32_t                         reserved4  : 30;
+            } gfx103CorePlus;
         } bitfields;
         uint32_t u32All;
     } ordinal2;

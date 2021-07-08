@@ -60,6 +60,7 @@ CmdBuffer::CmdBuffer(
     m_funcTable.pfnCmdDispatch                 = CmdDispatchDecorator;
     m_funcTable.pfnCmdDispatchIndirect         = CmdDispatchIndirectDecorator;
     m_funcTable.pfnCmdDispatchOffset           = CmdDispatchOffsetDecorator;
+    m_funcTable.pfnCmdDispatchDynamic          = CmdDispatchDynamicDecorator;
 }
 
 // =====================================================================================================================
@@ -413,6 +414,22 @@ void PAL_STDCALL CmdBuffer::CmdDispatchOffsetDecorator(
     pThis->PreDispatchCall();
     pNext->CmdDispatchOffset(xOffset, yOffset, zOffset, xDim, yDim, zDim);
     pThis->PostDispatchCall(CmdBufCallId::CmdDispatchOffset);
+}
+
+// =====================================================================================================================
+void PAL_STDCALL CmdBuffer::CmdDispatchDynamicDecorator(
+    ICmdBuffer* pCmdBuffer,
+    gpusize     gpuVa,
+    uint32      xDim,
+    uint32      yDim,
+    uint32      zDim)
+{
+    CmdBuffer* const  pThis = static_cast<CmdBuffer*>(pCmdBuffer);
+    ICmdBuffer* const pNext = pThis->GetNextLayer();
+
+    pThis->PreDispatchCall();
+    pNext->CmdDispatchDynamic(gpuVa, xDim, yDim, zDim);
+    pThis->PostDispatchCall(CmdBufCallId::CmdDispatchDynamic);
 }
 
 // =====================================================================================================================

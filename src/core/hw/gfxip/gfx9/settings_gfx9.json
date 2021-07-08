@@ -26,19 +26,6 @@
   ],
   "Settings": [
     {
-      "Description": "Toggles whether or not LOAD_INDEX packets are used for binding objects to the command buffer in place of set packets.",
-      "Tags": [
-        "General"
-      ],
-      "Defaults": {
-        "Default": false
-      },
-      "Scope": "PrivatePalGfx9Key",
-      "Type": "bool",
-      "VariableName": "enableLoadIndexForObjectBinds",
-      "Name": "EnableLoadIndexForObjectBinds"
-    },
-    {
       "ValidValues": {
         "IsEnum": true,
         "Values": [
@@ -2350,22 +2337,6 @@
       "Type": "bool",
       "VariableName": "waHtilePipeBankXorMustBeZero",
       "Name": "WaHtilePipeBankXorMustBeZero"
-    },
-    {
-      "Description": "If set, DFSM will be disabled when EQAA surfaces are bound to the DB",
-      "Tags": [
-        "Hardware Workarounds"
-      ],
-      "Defaults": {
-        "Default": false
-      },
-      "Flags": {
-        "RereadSetting": true
-      },
-      "Scope": "PrivatePalGfx9Key",
-      "Type": "bool",
-      "VariableName": "waDisableDfsmWithEqaa",
-      "Name": "WaDisableDfsmWithEqaa"
     },
     {
       "Description": "If set PAL will not set 24_8 hw format for 24-32bit converted depth surfaces, this will fix fast clear expansion with TC compatible surfaces (but also return incorrect unclamped border color.)",
