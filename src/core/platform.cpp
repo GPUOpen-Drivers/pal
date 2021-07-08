@@ -402,6 +402,7 @@ bool Platform::OverrideGpuId(
 Result Platform::EarlyInitDevDriver()
 {
     DevDriver::HostInfo hostInfo = DevDriver::kDefaultNamedPipe;
+
     bool isConnectionAvailable = DevDriver::DevDriverServer::IsConnectionAvailable(hostInfo);
 
     DevDriver::Result devDriverResult = DevDriver::Result::Success;

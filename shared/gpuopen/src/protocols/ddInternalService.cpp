@@ -9,6 +9,7 @@ namespace DevDriver
 
 size_t InternalService::kPostSizeLimit = 10 * 1024; // 10 KiB
 
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 DevDriver::Result InternalService::HandleRequest(DevDriver::IURIRequestContext* pRequestContext)
 {
     Result result = Result::Unavailable;
@@ -27,36 +28,7 @@ DevDriver::Result InternalService::HandleRequest(DevDriver::IURIRequestContext* 
     }
     else if (strcmp(pCmdName, "services") == 0)
     {
-        // This callback obtains a list of IService pointers from the URIServer and it holds onto them for the rest of
-        // the function.
-        // This is safe because:
-        //      1) these pointers are only invalidated when services are added or removed
-        //      2) no services are added or removed while executing a service's HandleRequest()
-        Vector<const IService*> registeredServices(m_info.allocCb);
-        result = m_info.pfnQueryRegisteredServices(m_info.pUserdata, &registeredServices);
-
-        IStructuredWriter* pWriter = nullptr;
-        if (result == Result::Success)
-        {
-            result = pRequestContext->BeginJsonResponse(&pWriter);
-        }
-
-        if (result == Result::Success)
-        {
-            pWriter->BeginMap();
-            pWriter->KeyAndBeginList("Services");
-            for (const IService* pService : registeredServices)
-            {
-                pWriter->BeginMap();
-                pWriter->KeyAndValue("Name", pService->GetName());
-                pWriter->KeyAndValue("Version", pService->GetVersion());
-                pWriter->EndMap();
-            }
-
-            pWriter->EndList();
-            pWriter->EndMap();
-            result = pWriter->End();
-        }
+        result = WriteServicesJsonResponse(pRequestContext);
     }
     else if (strcmp(pCmdName, "diag-echo") == 0)
     {
@@ -133,6 +105,7 @@ DevDriver::Result InternalService::HandleRequest(DevDriver::IURIRequestContext* 
     return result;
 }
 
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 size_t InternalService::QueryPostSizeLimit(char* pArgs) const
 {
     DD_ASSERT(pArgs != nullptr);
@@ -147,6 +120,76 @@ size_t InternalService::QueryPostSizeLimit(char* pArgs) const
     }
 
     return postSizeLimit;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+DevDriver::Result InternalService::WriteServicesJsonResponse(DevDriver::IURIRequestContext* pRequestContext) const
+{
+    // This callback obtains a list of IService pointers from the URIServer and it holds onto them for the rest of
+    // the function.
+    // This is safe because:
+    //      1) these pointers are only invalidated when services are added or removed
+    //      2) no services are added or removed while executing a service's HandleRequest()
+    Vector<const IService*> registeredServices(m_info.allocCb);
+    DevDriver::Result result = m_info.pfnQueryRegisteredServices(m_info.pUserdata, &registeredServices);
+
+    if (result == Result::Success)
+    {
+        IStructuredWriter* pWriter = nullptr;
+        result = pRequestContext->BeginJsonResponse(&pWriter);
+
+        if (result == Result::Success)
+        {
+            pWriter->BeginMap();
+            pWriter->KeyAndBeginList("Services");
+            for (const IService* pService : registeredServices)
+            {
+                pWriter->BeginMap();
+                pWriter->KeyAndValue("Name", pService->GetName());
+                pWriter->KeyAndValue("Version", pService->GetVersion());
+                pWriter->EndMap();
+            }
+
+            pWriter->EndList();
+            pWriter->EndMap();
+
+            result = pWriter->End();
+        }
+    }
+    return result;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+DevDriver::Result InternalService::WriteServicesTextResponse(DevDriver::IURIRequestContext* pRequestContext) const
+{
+    // This callback obtains a list of IService pointers from the URIServer and it holds onto them for the rest of
+    // the function.
+    // This is safe because:
+    //      1) these pointers are only invalidated when services are added or removed
+    //      2) no services are added or removed while executing a service's HandleRequest()
+    Vector<const IService*> registeredServices(m_info.allocCb);
+    DevDriver::Result result = m_info.pfnQueryRegisteredServices(m_info.pUserdata, &registeredServices);
+
+    if (result == Result::Success)
+    {
+        // The kernel does not build with JSON support, so we will write a manual text response with JSON formatting
+        // in this case
+        ITextWriter* pWriter = nullptr;
+        result = pRequestContext->BeginTextResponse(&pWriter);
+
+        if (result == Result::Success)
+        {
+            pWriter->Write("{ \"Services\": [ ");
+            for (const IService* pService : registeredServices)
+            {
+                pWriter->Write("{ \"Name\": %s, \"Version\": %u }", pService->GetName(), pService->GetVersion());
+            }
+
+            pWriter->Write("] }");
+            result = pWriter->End();
+        }
+    }
+    return result;
 }
 
 } // namespace DevDriver

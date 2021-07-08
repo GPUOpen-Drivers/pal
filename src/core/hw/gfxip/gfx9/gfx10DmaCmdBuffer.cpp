@@ -646,8 +646,8 @@ uint32 DmaCmdBuffer::GetImageZ(
     uint32               offsetZ
     ) const
 {
-    const ImageType  imageType = GetImageType(*dmaImageInfo.pImage);
-    uint32           imageZ    = 0;
+    const ImageType imageType = GetImageType(*dmaImageInfo.pImage);
+    uint32          imageZ    = 0;
 
     if (imageType == ImageType::Tex3d)
     {
@@ -661,7 +661,8 @@ uint32 DmaCmdBuffer::GetImageZ(
         // For 2D image array, offsetZ represents the sliceIndex counted from the "start slice" whose base address
         // is DmaImageInfo::baseAddr, which is used by gfx6-gfx8. For gfx10, just ignore offsetZ and adopt the
         // start sliceIndex counted from "0".
-        imageZ = dmaImageInfo.pSubresInfo->subresId.arraySlice;
+        const Pal::Image& dmaImg = static_cast<const Pal::Image&>(*dmaImageInfo.pImage);
+        imageZ = dmaImg.IsYuvPlanarArray() ? 0 : dmaImageInfo.pSubresInfo->subresId.arraySlice;
     }
 
     return imageZ;
@@ -1821,16 +1822,17 @@ gpusize DmaCmdBuffer::GetSubresourceBaseAddr(
     const SubresId&    subresource
     ) const
 {
-    gpusize  baseAddr = 0;
+    gpusize      baseAddr   = 0;
+    const uint32 arraySlice = (image.IsYuvPlanarArray() ? subresource.arraySlice : 0);
 
     if (image.IsSubResourceLinear(subresource))
     {
         // GFX10 doesn't support mip-levels with linear surfaces.  They do, however, support slices.  We need to get
         // the starting offset of slice 0 of a given mip level.
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-        const SubresId  baseSubres = { subresource.aspect, subresource.mipLevel, 0 };
+        const SubresId  baseSubres = { subresource.aspect, subresource.mipLevel, arraySlice };
 #else
-        const SubresId  baseSubres = { subresource.plane, subresource.mipLevel, 0 };
+        const SubresId  baseSubres = { subresource.plane, subresource.mipLevel,  arraySlice };
 #endif
 
         // Verify that we don't have to take into account the pipe/bank xor value here.
@@ -1844,9 +1846,9 @@ gpusize DmaCmdBuffer::GetSubresourceBaseAddr(
         const GfxImage*  pGfxImage = image.GetGfxImage();
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-        baseAddr = pGfxImage->GetAspectBaseAddr(subresource.aspect);
+        baseAddr = pGfxImage->GetAspectBaseAddr(subresource.aspect, arraySlice);
 #else
-        baseAddr = pGfxImage->GetPlaneBaseAddr(subresource.plane);
+        baseAddr = pGfxImage->GetPlaneBaseAddr(subresource.plane, arraySlice);
 #endif
     }
 

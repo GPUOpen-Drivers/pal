@@ -1186,9 +1186,10 @@ typedef struct PM4_ME_DRAW_INDEX_INDIRECT
         uint32_t draw_initiator;
         uint32_t u32All;
     } ordinal2;
+
 } PM4_ME_DRAW_INDEX_INDIRECT;
 
-constexpr unsigned int PM4_ME_DRAW_INDEX_INDIRECT_SIZEDW__CORE = 2;
+constexpr unsigned int PM4_ME_DRAW_INDEX_INDIRECT_SIZEDW__CORE  = 2;
 
 // ------------------------------- PM4_ME_DRAW_INDEX_INDIRECT_MULTI -------------------------------
 typedef struct PM4_ME_DRAW_INDEX_INDIRECT_MULTI
@@ -1204,9 +1205,10 @@ typedef struct PM4_ME_DRAW_INDEX_INDIRECT_MULTI
         uint32_t draw_initiator;
         uint32_t u32All;
     } ordinal2;
+
 } PM4_ME_DRAW_INDEX_INDIRECT_MULTI;
 
-constexpr unsigned int PM4_ME_DRAW_INDEX_INDIRECT_MULTI_SIZEDW__CORE = 2;
+constexpr unsigned int PM4_ME_DRAW_INDEX_INDIRECT_MULTI_SIZEDW__CORE  = 2;
 
 // --------------------------------- PM4_ME_DRAW_INDEX_MULTI_AUTO ---------------------------------
 typedef struct PM4_ME_DRAW_INDEX_MULTI_AUTO
@@ -1284,9 +1286,10 @@ typedef struct PM4_ME_DRAW_INDIRECT
         uint32_t draw_initiator;
         uint32_t u32All;
     } ordinal2;
+
 } PM4_ME_DRAW_INDIRECT;
 
-constexpr unsigned int PM4_ME_DRAW_INDIRECT_SIZEDW__CORE = 2;
+constexpr unsigned int PM4_ME_DRAW_INDIRECT_SIZEDW__CORE  = 2;
 
 // ---------------------------------- PM4_ME_DRAW_INDIRECT_MULTI ----------------------------------
 typedef struct PM4_ME_DRAW_INDIRECT_MULTI
@@ -1302,9 +1305,10 @@ typedef struct PM4_ME_DRAW_INDIRECT_MULTI
         uint32_t draw_initiator;
         uint32_t u32All;
     } ordinal2;
+
 } PM4_ME_DRAW_INDIRECT_MULTI;
 
-constexpr unsigned int PM4_ME_DRAW_INDIRECT_MULTI_SIZEDW__CORE = 2;
+constexpr unsigned int PM4_ME_DRAW_INDIRECT_MULTI_SIZEDW__CORE  = 2;
 
 // -------------------------------- ME_EVENT_WRITE_event_index_enum --------------------------------
 enum ME_EVENT_WRITE_event_index_enum
@@ -1757,8 +1761,9 @@ constexpr unsigned int PM4_ME_LOAD_SH_REG_SIZEDW__CORE = 5;
 // -------------------------------- ME_LOAD_SH_REG_INDEX_index_enum --------------------------------
 enum ME_LOAD_SH_REG_INDEX_index_enum
 {
-    index__me_load_sh_reg_index__direct_addr =  0,
-    index__me_load_sh_reg_index__offset      =  1,
+    index__me_load_sh_reg_index__direct_addr                   =  0,
+    index__me_load_sh_reg_index__offset                        =  1,
+    index__me_load_sh_reg_index__indirect_addr__GFX103COREPLUS =  2,
 };
 
 // ----------------------------- ME_LOAD_SH_REG_INDEX_data_format_enum -----------------------------
@@ -1783,10 +1788,24 @@ typedef struct PM4_ME_LOAD_SH_REG_INDEX
         {
             struct
             {
-                ME_LOAD_SH_REG_INDEX_index_enum index       :  1;
-                uint32_t                        reserved1   :  1;
-                uint32_t                        mem_addr_lo : 30;
+                uint32_t reserved1   :  2;
+                uint32_t mem_addr_lo : 30;
             };
+            struct
+            {
+                uint32_t                        index      :  1; // ME_LOAD_SH_REG_INDEX_index_enum
+                uint32_t                        reserved2  : 31;
+            } gfx09;
+            struct
+            {
+                uint32_t                        index      :  1; // ME_LOAD_SH_REG_INDEX_index_enum
+                uint32_t                        reserved3  : 31;
+            } gfx101;
+            struct
+            {
+                ME_LOAD_SH_REG_INDEX_index_enum index      :  2;
+                uint32_t                        reserved4  : 30;
+            } gfx103CorePlus;
         } bitfields;
         uint32_t u32All;
     } ordinal2;
@@ -1888,22 +1907,22 @@ constexpr unsigned int PM4_ME_LOAD_UCONFIG_REG_SIZEDW__CORE = 5;
 // ------------------------------- ME_MEM_SEMAPHORE_use_mailbox_enum -------------------------------
 enum ME_MEM_SEMAPHORE_use_mailbox_enum
 {
-    use_mailbox__me_mem_semaphore__do_not_wait_for_mailbox__CORE =  0,
-    use_mailbox__me_mem_semaphore__wait_for_mailbox__CORE        =  1,
+    use_mailbox__me_mem_semaphore__do_not_wait_for_mailbox__GFX09_GFX10CORE =  0,
+    use_mailbox__me_mem_semaphore__wait_for_mailbox__GFX09_GFX10CORE        =  1,
 };
 
 // ------------------------------- ME_MEM_SEMAPHORE_signal_type_enum -------------------------------
 enum ME_MEM_SEMAPHORE_signal_type_enum
 {
-    signal_type__me_mem_semaphore__signal_type_increment__CORE =  0,
-    signal_type__me_mem_semaphore__signal_type_write__CORE     =  1,
+    signal_type__me_mem_semaphore__signal_type_increment__GFX09_GFX10CORE =  0,
+    signal_type__me_mem_semaphore__signal_type_write__GFX09_GFX10CORE     =  1,
 };
 
 // --------------------------------- ME_MEM_SEMAPHORE_sem_sel_enum ---------------------------------
 enum ME_MEM_SEMAPHORE_sem_sel_enum
 {
-    sem_sel__me_mem_semaphore__signal_semaphore__CORE =  6,
-    sem_sel__me_mem_semaphore__wait_semaphore__CORE   =  7,
+    sem_sel__me_mem_semaphore__signal_semaphore__GFX09_GFX10CORE =  6,
+    sem_sel__me_mem_semaphore__wait_semaphore__GFX09_GFX10CORE   =  7,
 };
 
 // ------------------------------------- PM4_ME_MEM_SEMAPHORE -------------------------------------
@@ -1923,7 +1942,7 @@ typedef struct PM4_ME_MEM_SEMAPHORE
             {
                 uint32_t reserved1  :  3;
                 uint32_t address_lo : 29;
-            } core;
+            } hasCe;
         } bitfields;
         uint32_t u32All;
     } ordinal2;
@@ -1946,13 +1965,13 @@ typedef struct PM4_ME_MEM_SEMAPHORE
                 ME_MEM_SEMAPHORE_signal_type_enum signal_type :  1;
                 uint32_t                          reserved3   :  8;
                 ME_MEM_SEMAPHORE_sem_sel_enum     sem_sel     :  3;
-            } core;
+            } hasCe;
         } bitfields;
         uint32_t u32All;
     } ordinal4;
 } PM4_ME_MEM_SEMAPHORE;
 
-constexpr unsigned int PM4_ME_MEM_SEMAPHORE_SIZEDW__CORE = 4;
+constexpr unsigned int PM4_ME_MEM_SEMAPHORE_SIZEDW__HASCE = 4;
 
 // -------------------------------------- PM4_ME_PFP_SYNC_ME --------------------------------------
 typedef struct PM4_ME_PFP_SYNC_ME
@@ -2194,7 +2213,7 @@ typedef struct PM4_ME_RELEASE_MEM
                 uint32_t reserved12 : 12;
                 uint32_t gcr_cntl   : 12;
                 uint32_t reserved13 :  8;
-            } gfx10CorePlus;
+            } gfx10Core;
         } bitfields;
         uint32_t u32All;
     } ordinal2;

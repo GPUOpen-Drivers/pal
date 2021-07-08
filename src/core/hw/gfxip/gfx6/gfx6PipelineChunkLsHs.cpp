@@ -37,24 +37,6 @@ namespace Pal
 namespace Gfx6
 {
 
-// Base count of SH registers which are loaded using LOAD_SH_REG_INDEX when binding to a command buffer.
-static constexpr uint32 BaseLoadedShRegCount =
-    1 + // mmSPI_SHADER_PGM_LO_LS
-    1 + // mmSPI_SHADER_PGM_HI_LS
-    1 + // mmSPI_SHADER_PGM_RSRC1_LS
-    1 + // mmSPI_SHADER_PGM_RSRC2_LS
-    1 + // mmSPI_SHADER_USER_DATA_LS_0 + ConstBufTblStartReg
-    1 + // mmSPI_SHADER_PGM_LO_HS
-    1 + // mmSPI_SHADER_PGM_HI_HS
-    1 + // mmSPI_SHADER_PGM_RSRC1_HS
-    1 + // mmSPI_SHADER_PGM_RSRC2_HS
-    1;  // mmSPI_SHADER_USER_DATA_HS_0 + ConstBufTblStartReg
-
-// Base count of Context registers which are loaded using LOAD_CNTX_REG_INDEX when binding to a command buffer.
-static constexpr uint32 BaseLoadedCntxRegCount =
-    1 + // mmVGT_HOS_MAX_TESS_LEVEL
-    1;  // mmVGT_HOS_MIN_TESS_LEVEL
-
 // =====================================================================================================================
 PipelineChunkLsHs::PipelineChunkLsHs(
     const Device&       device,
@@ -62,31 +44,14 @@ PipelineChunkLsHs::PipelineChunkLsHs(
     const PerfDataInfo* pHsPerfDataInfo)
     :
     m_device(device),
+    m_regs{},
     m_pLsPerfDataInfo(pLsPerfDataInfo),
-    m_pHsPerfDataInfo(pHsPerfDataInfo)
+    m_pHsPerfDataInfo(pHsPerfDataInfo),
+    m_stageInfoLs{},
+    m_stageInfoHs{}
 {
-    memset(&m_regs, 0, sizeof(m_regs));
-    memset(&m_stageInfoLs, 0, sizeof(m_stageInfoLs));
-    memset(&m_stageInfoHs, 0, sizeof(m_stageInfoHs));
-
     m_stageInfoLs.stageId = Abi::HardwareStage::Ls;
     m_stageInfoHs.stageId = Abi::HardwareStage::Hs;
-}
-
-// =====================================================================================================================
-// Early initialization for this pipeline chunk.  Responsible for determining the number of SH and context registers to
-// be loaded using LOAD_CNTX_REG_INDEX and LOAD_SH_REG_INDEX.
-void PipelineChunkLsHs::EarlyInit(
-    GraphicsPipelineLoadInfo* pInfo)
-{
-    PAL_ASSERT(pInfo != nullptr);
-
-    const Gfx6PalSettings& settings = m_device.Settings();
-    if (settings.enableLoadIndexForObjectBinds != false)
-    {
-        pInfo->loadedCtxRegCount += BaseLoadedCntxRegCount;
-        pInfo->loadedShRegCount  += BaseLoadedShRegCount;
-    }
 }
 
 // =====================================================================================================================
@@ -95,7 +60,7 @@ void PipelineChunkLsHs::EarlyInit(
 void PipelineChunkLsHs::LateInit(
     const AbiReader&                abiReader,
     const RegisterVector&           registers,
-    GraphicsPipelineUploader*       pUploader,
+    PipelineUploader*               pUploader,
     const GraphicsPipelineLoadInfo& loadInfo,
     MetroHash64*                    pHasher)
 {
@@ -179,35 +144,11 @@ void PipelineChunkLsHs::LateInit(
     }
 
     pHasher->Update(m_regs.context);
-
-    if (pUploader->EnableLoadIndexPath())
-    {
-        // See WriteShCommands() for more information about WaShaderSpiWriteShaderPgmRsrc2Ls.  This workaround is
-        // incompatible with the LOAD_INDEX path.
-        PAL_ASSERT(m_device.WaShaderSpiWriteShaderPgmRsrc2Ls() == false);
-
-        pUploader->AddShReg(mmSPI_SHADER_PGM_LO_LS, m_regs.sh.spiShaderPgmLoLs);
-        pUploader->AddShReg(mmSPI_SHADER_PGM_HI_LS, m_regs.sh.spiShaderPgmHiLs);
-        pUploader->AddShReg(mmSPI_SHADER_PGM_LO_HS, m_regs.sh.spiShaderPgmLoHs);
-        pUploader->AddShReg(mmSPI_SHADER_PGM_HI_HS, m_regs.sh.spiShaderPgmHiHs);
-
-        pUploader->AddShReg(mmSPI_SHADER_PGM_RSRC1_LS, m_regs.sh.spiShaderPgmRsrc1Ls);
-        pUploader->AddShReg(mmSPI_SHADER_PGM_RSRC2_LS, m_regs.sh.spiShaderPgmRsrc2Ls);
-        pUploader->AddShReg(mmSPI_SHADER_PGM_RSRC1_HS, m_regs.sh.spiShaderPgmRsrc1Hs);
-        pUploader->AddShReg(mmSPI_SHADER_PGM_RSRC2_HS, m_regs.sh.spiShaderPgmRsrc2Hs);
-
-        pUploader->AddShReg(mmSPI_SHADER_USER_DATA_LS_0 + ConstBufTblStartReg, m_regs.sh.userDataInternalTableLs);
-        pUploader->AddShReg(mmSPI_SHADER_USER_DATA_HS_0 + ConstBufTblStartReg, m_regs.sh.userDataInternalTableHs);
-
-        pUploader->AddCtxReg(mmVGT_HOS_MIN_TESS_LEVEL, m_regs.context.vgtHosMinTessLevel);
-        pUploader->AddCtxReg(mmVGT_HOS_MAX_TESS_LEVEL, m_regs.context.vgtHosMaxTessLevel);
-    }
 }
 
 // =====================================================================================================================
 // Copies this pipeline chunk's sh commands into the specified command space. Returns the next unused DWORD in
 // pCmdSpace.
-template <bool UseLoadIndexPath>
 uint32* PipelineChunkLsHs::WriteShCommands(
     CmdStream*              pCmdStream,
     uint32*                 pCmdSpace,
@@ -215,45 +156,42 @@ uint32* PipelineChunkLsHs::WriteShCommands(
     const DynamicStageInfo& hsStageInfo
     ) const
 {
-    if (UseLoadIndexPath == false)
+    pCmdSpace = pCmdStream->WriteSetSeqShRegs(mmSPI_SHADER_PGM_LO_LS,
+                                                mmSPI_SHADER_PGM_RSRC2_LS,
+                                                ShaderGraphics,
+                                                &m_regs.sh.spiShaderPgmLoLs,
+                                                pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetSeqShRegs(mmSPI_SHADER_PGM_LO_HS,
+                                                mmSPI_SHADER_PGM_RSRC2_HS,
+                                                ShaderGraphics,
+                                                &m_regs.sh.spiShaderPgmLoHs,
+                                                pCmdSpace);
+
+    pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderGraphics>(mmSPI_SHADER_USER_DATA_LS_0 + ConstBufTblStartReg,
+                                                                m_regs.sh.userDataInternalTableLs.u32All,
+                                                                pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderGraphics>(mmSPI_SHADER_USER_DATA_HS_0 + ConstBufTblStartReg,
+                                                                m_regs.sh.userDataInternalTableHs.u32All,
+                                                                pCmdSpace);
+
+    // Some GFX7 hardware has a bug where writes to the SPI_SHADER_PGM_RSRC2_LS register can be dropped if the
+    // LS stage's SP persistent state FIFO is full.  This allows incorrect values of the LDS_SIZE and/or USER_SGPR
+    // fields to be read when launching LS waves, which can cause geometry corruption when tessellation is active.
+    //
+    // The workaround proposed by the HW team and implemented is to write this register twice, with a dummy write
+    // to another register in-between the duplicate writes.  This dummy write can be to any SH register in the
+    // range between SPI_SHADER_TBA_LO_LS and SPI_SHADER_USER_DATA_LS_15.  The workaround works because the SPI
+    // will see the write to the other register and correctly stall when the LS persistent-state FIFO is full.
+    // The 2nd write to SPI_SHADER_PGM_RSRC2_LS will then be correctly handled by the SPI.
+    //
+    // The dummy write we are choosing to do is to the SPI_SHADER_PGM_RSRC1_LS register.
+    if (m_device.WaShaderSpiWriteShaderPgmRsrc2Ls())
     {
-        pCmdSpace = pCmdStream->WriteSetSeqShRegs(mmSPI_SHADER_PGM_LO_LS,
-                                                  mmSPI_SHADER_PGM_RSRC2_LS,
-                                                  ShaderGraphics,
-                                                  &m_regs.sh.spiShaderPgmLoLs,
-                                                  pCmdSpace);
-        pCmdSpace = pCmdStream->WriteSetSeqShRegs(mmSPI_SHADER_PGM_LO_HS,
-                                                  mmSPI_SHADER_PGM_RSRC2_HS,
-                                                  ShaderGraphics,
-                                                  &m_regs.sh.spiShaderPgmLoHs,
-                                                  pCmdSpace);
-
-        pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderGraphics>(mmSPI_SHADER_USER_DATA_LS_0 + ConstBufTblStartReg,
-                                                                 m_regs.sh.userDataInternalTableLs.u32All,
-                                                                 pCmdSpace);
-        pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderGraphics>(mmSPI_SHADER_USER_DATA_HS_0 + ConstBufTblStartReg,
-                                                                 m_regs.sh.userDataInternalTableHs.u32All,
-                                                                 pCmdSpace);
-
-        // Some GFX7 hardware has a bug where writes to the SPI_SHADER_PGM_RSRC2_LS register can be dropped if the
-        // LS stage's SP persistent state FIFO is full.  This allows incorrect values of the LDS_SIZE and/or USER_SGPR
-        // fields to be read when launching LS waves, which can cause geometry corruption when tessellation is active.
-        //
-        // The workaround proposed by the HW team and implemented is to write this register twice, with a dummy write
-        // to another register in-between the duplicate writes.  This dummy write can be to any SH register in the
-        // range between SPI_SHADER_TBA_LO_LS and SPI_SHADER_USER_DATA_LS_15.  The workaround works because the SPI
-        // will see the write to the other register and correctly stall when the LS persistent-state FIFO is full.
-        // The 2nd write to SPI_SHADER_PGM_RSRC2_LS will then be correctly handled by the SPI.
-        //
-        // The dummy write we are choosing to do is to the SPI_SHADER_PGM_RSRC1_LS register.
-        if (m_device.WaShaderSpiWriteShaderPgmRsrc2Ls())
-        {
-            pCmdSpace = pCmdStream->WriteSetSeqShRegs(mmSPI_SHADER_PGM_RSRC1_LS,
-                                                      mmSPI_SHADER_PGM_RSRC2_LS,
-                                                      ShaderGraphics,
-                                                      &m_regs.sh.spiShaderPgmRsrc1Ls,
-                                                      pCmdSpace);
-        }
+        pCmdSpace = pCmdStream->WriteSetSeqShRegs(mmSPI_SHADER_PGM_RSRC1_LS,
+                                                    mmSPI_SHADER_PGM_RSRC2_LS,
+                                                    ShaderGraphics,
+                                                    &m_regs.sh.spiShaderPgmRsrc1Ls,
+                                                    pCmdSpace);
     }
 
     // The "dynamic" registers don't exist on Gfx6.
@@ -303,51 +241,19 @@ uint32* PipelineChunkLsHs::WriteShCommands(
     return pCmdSpace;
 }
 
-// Instantiate template versions for the linker.
-template
-uint32* PipelineChunkLsHs::WriteShCommands<false>(
-    CmdStream*              pCmdStream,
-    uint32*                 pCmdSpace,
-    const DynamicStageInfo& lsStageInfo,
-    const DynamicStageInfo& hsStageInfo
-    ) const;
-template
-uint32* PipelineChunkLsHs::WriteShCommands<true>(
-    CmdStream*              pCmdStream,
-    uint32*                 pCmdSpace,
-    const DynamicStageInfo& lsStageInfo,
-    const DynamicStageInfo& hsStageInfo
-    ) const;
-
 // =====================================================================================================================
 // Copies this pipeline chunk's context commands into the specified command space. Returns the next unused
 // DWORD in pCmdSpace.
-template <bool UseLoadIndexPath>
 uint32* PipelineChunkLsHs::WriteContextCommands(
     CmdStream* pCmdStream,
     uint32*    pCmdSpace
     ) const
 {
-    // NOTE: It is expected that this function will only ever be called when the set path is in use.
-    PAL_ASSERT(UseLoadIndexPath == false);
-
     return pCmdStream->WriteSetSeqContextRegs(mmVGT_HOS_MAX_TESS_LEVEL,
                                               mmVGT_HOS_MIN_TESS_LEVEL,
                                               &m_regs.context.vgtHosMaxTessLevel,
                                               pCmdSpace);
 }
-
-// Instantiate template versions for the linker.
-template
-uint32* PipelineChunkLsHs::WriteContextCommands<false>(
-    CmdStream* pCmdStream,
-    uint32*    pCmdSpace
-    ) const;
-template
-uint32* PipelineChunkLsHs::WriteContextCommands<true>(
-    CmdStream* pCmdStream,
-    uint32*    pCmdSpace
-    ) const;
 
 } // Gfx6
 } // Pal

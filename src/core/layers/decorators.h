@@ -1276,6 +1276,7 @@ public:
         m_funcTable.pfnCmdDispatch                  = CmdDispatchDecorator;
         m_funcTable.pfnCmdDispatchIndirect          = CmdDispatchIndirectDecorator;
         m_funcTable.pfnCmdDispatchOffset            = CmdDispatchOffsetDecorator;
+        m_funcTable.pfnCmdDispatchDynamic           = CmdDispatchDynamicDecorator;
         m_funcTable.pfnCmdDispatchMesh              = CmdDispatchMeshDecorator;
         m_funcTable.pfnCmdDispatchMeshIndirectMulti = CmdDispatchMeshIndirectMultiDecorator;
     }
@@ -2194,6 +2195,17 @@ private:
         pNextLayer->CmdDispatchOffset(xOffset, yOffset, zOffset, xDim, yDim, zDim);
     }
 
+    static void PAL_STDCALL CmdDispatchDynamicDecorator(
+        ICmdBuffer* pCmdBuffer,
+        gpusize     gpuVa,
+        uint32      xDim,
+        uint32      yDim,
+        uint32      zDim)
+    {
+        ICmdBuffer* pNextLayer = static_cast<CmdBufferFwdDecorator*>(pCmdBuffer)->m_pNextLayer;
+        pNextLayer->CmdDispatchDynamic(gpuVa, xDim, yDim, zDim);
+    }
+
     static void PAL_STDCALL CmdDispatchMeshDecorator(
         ICmdBuffer* pCmdBuffer,
         uint32      xDim,
@@ -2700,6 +2712,10 @@ public:
 
     virtual Result GetPerformanceData(Util::Abi::HardwareStage hardwareStage, size_t* pSize, void* pBuffer) override
         { return m_pNextLayer->GetPerformanceData(hardwareStage, pSize, pBuffer); }
+
+    virtual Result CreateLaunchDescriptor(
+        void* pOut, bool resolve) override
+        { return m_pNextLayer->CreateLaunchDescriptor(pOut, resolve); }
 
     virtual Result LinkWithLibraries(
         const IShaderLibrary*const* ppLibraryList,

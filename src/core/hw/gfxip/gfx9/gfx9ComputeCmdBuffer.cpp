@@ -77,12 +77,14 @@ ComputeCmdBuffer::ComputeCmdBuffer(
         m_funcTable.pfnCmdDispatch          = CmdDispatch<true>;
         m_funcTable.pfnCmdDispatchIndirect  = CmdDispatchIndirect<true>;
         m_funcTable.pfnCmdDispatchOffset    = CmdDispatchOffset<true>;
+        m_funcTable.pfnCmdDispatchDynamic   = CmdDispatchDynamic<true>;
     }
     else
     {
         m_funcTable.pfnCmdDispatch          = CmdDispatch<false>;
         m_funcTable.pfnCmdDispatchIndirect  = CmdDispatchIndirect<false>;
         m_funcTable.pfnCmdDispatchOffset    = CmdDispatchOffset<false>;
+        m_funcTable.pfnCmdDispatchDynamic   = CmdDispatchDynamic<false>;
     }
 }
 
@@ -436,7 +438,7 @@ void PAL_STDCALL ComputeCmdBuffer::CmdDispatch(
 
     uint32* pCmdSpace = pThis->m_cmdStream.ReserveCommands();
 
-    pCmdSpace = pThis->ValidateDispatch(0uLL, x, y, z, pCmdSpace);
+    pCmdSpace = pThis->ValidateDispatch(0uLL, 0uLL, x, y, z, pCmdSpace);
 
     if (pThis->m_gfxCmdBufState.flags.packetPredicate != 0)
     {
@@ -480,7 +482,7 @@ void PAL_STDCALL ComputeCmdBuffer::CmdDispatchIndirect(
     uint32* pCmdSpace = pThis->m_cmdStream.ReserveCommands();
 
     const gpusize gpuVirtAddr = (gpuMemory.Desc().gpuVirtAddr + offset);
-    pCmdSpace = pThis->ValidateDispatch(gpuVirtAddr, 0, 0, 0, pCmdSpace);
+    pCmdSpace = pThis->ValidateDispatch(gpuVirtAddr, 0uLL, 0, 0, 0, pCmdSpace);
 
     if (pThis->m_gfxCmdBufState.flags.packetPredicate != 0)
     {
@@ -527,7 +529,7 @@ void PAL_STDCALL ComputeCmdBuffer::CmdDispatchOffset(
 
     uint32* pCmdSpace = pThis->m_cmdStream.ReserveCommands();
 
-    pCmdSpace = pThis->ValidateDispatch(0uLL, xDim, yDim, zDim, pCmdSpace);
+    pCmdSpace = pThis->ValidateDispatch(0uLL, 0uLL, xDim, yDim, zDim, pCmdSpace);
 
     pCmdSpace = pThis->m_cmdStream.WriteSetSeqShRegs(mmCOMPUTE_START_X,
                                                      mmCOMPUTE_START_Z,
@@ -548,6 +550,50 @@ void PAL_STDCALL ComputeCmdBuffer::CmdDispatchOffset(
                                                                     pThis->UsesDispatchTunneling(),
                                                                     pThis->DisablePartialPreempt(),
                                                                     pCmdSpace);
+
+    if (issueSqttMarkerEvent)
+    {
+        pCmdSpace += pThis->m_cmdUtil.BuildNonSampleEventWrite(THREAD_TRACE_MARKER, EngineTypeCompute, pCmdSpace);
+    }
+
+    pThis->m_cmdStream.CommitCommands(pCmdSpace);
+}
+
+// =====================================================================================================================
+template <bool issueSqttMarkerEvent>
+void PAL_STDCALL ComputeCmdBuffer::CmdDispatchDynamic(
+    ICmdBuffer* pCmdBuffer,
+    gpusize     gpuVa,
+    uint32      x,
+    uint32      y,
+    uint32      z)
+{
+    auto* pThis = static_cast<ComputeCmdBuffer*>(pCmdBuffer);
+
+    const auto& parent = *pThis->m_device.Parent();
+    PAL_ASSERT(IsGfx103Plus(parent) &&
+        (parent.EngineProperties().cpUcodeVersion >= Gfx10UcodeVersionLoadShRegIndexIndirectAddr));
+
+    if (issueSqttMarkerEvent)
+    {
+        pThis->m_device.DescribeDispatch(pThis, Developer::DrawDispatchType::CmdDispatchDynamic, 0, 0, 0, x, y, z);
+    }
+
+    uint32* pCmdSpace = pThis->m_cmdStream.ReserveCommands();
+
+    pCmdSpace = pThis->ValidateDispatch(0uLL, gpuVa, x, y, z, pCmdSpace);
+
+    if (pThis->m_gfxCmdBufState.flags.packetPredicate != 0)
+    {
+        pCmdSpace += pThis->m_cmdUtil.BuildCondExec(pThis->m_predGpuAddr, CmdUtil::DispatchDirectSize, pCmdSpace);
+    }
+
+    pCmdSpace += pThis->m_cmdUtil.BuildDispatchDirect<false, true>(x, y, z,
+                                                                   PredDisable,
+                                                                   pThis->m_pSignatureCs->flags.isWave32,
+                                                                   pThis->UsesDispatchTunneling(),
+                                                                   pThis->DisablePartialPreempt(),
+                                                                   pCmdSpace);
 
     if (issueSqttMarkerEvent)
     {
@@ -855,6 +901,7 @@ uint32* ComputeCmdBuffer::ValidateUserData(
 // Performs dispatch-time validation.
 uint32* ComputeCmdBuffer::ValidateDispatch(
     gpusize indirectGpuVirtAddr,
+    gpusize launchDescGpuVirtAddr,
     uint32  xDim,
     uint32  yDim,
     uint32  zDim,
@@ -868,6 +915,10 @@ uint32* ComputeCmdBuffer::ValidateDispatch(
     uint32  userDataCmdLen    = 0;
 #endif
 
+    const bool supportDynamicDispatch = m_computeState.pipelineState.pPipeline->SupportDynamicDispatch();
+    PAL_ASSERT(((supportDynamicDispatch == true)  && (launchDescGpuVirtAddr != 0)) ||
+               ((supportDynamicDispatch == false) && (launchDescGpuVirtAddr == 0)));
+
     if (m_computeState.pipelineState.dirtyFlags.pipelineDirty)
     {
         const auto*const pNewPipeline = static_cast<const ComputePipeline*>(m_computeState.pipelineState.pPipeline);
@@ -875,6 +926,7 @@ uint32* ComputeCmdBuffer::ValidateDispatch(
         pCmdSpace = pNewPipeline->WriteCommands(&m_cmdStream,
                                                 pCmdSpace,
                                                 m_computeState.dynamicCsInfo,
+                                                launchDescGpuVirtAddr,
                                                 m_buildFlags.prefetchShaders);
 
 #if PAL_BUILD_PM4_INSTRUMENTOR
@@ -892,6 +944,15 @@ uint32* ComputeCmdBuffer::ValidateDispatch(
     }
     else
     {
+        if ((launchDescGpuVirtAddr != 0) && (launchDescGpuVirtAddr != m_computeState.dynamicLaunchGpuVa))
+        {
+            const auto* const pPipeline = static_cast<const ComputePipeline*>(m_computeState.pipelineState.pPipeline);
+            pCmdSpace = pPipeline->WriteLaunchDescriptor(&m_cmdStream,
+                                                         pCmdSpace,
+                                                         m_computeState.dynamicCsInfo,
+                                                         launchDescGpuVirtAddr);
+        } // if Launch Descriptor is changing
+
         pCmdSpace = ValidateUserData<false>(nullptr, pCmdSpace);
     }
 
@@ -904,6 +965,7 @@ uint32* ComputeCmdBuffer::ValidateDispatch(
 #endif
 
     m_computeState.pipelineState.dirtyFlags.u32All = 0;
+    m_computeState.dynamicLaunchGpuVa = launchDescGpuVirtAddr;
 
     if (m_pSignatureCs->numWorkGroupsRegAddr != UserDataNotMapped)
     {
@@ -1601,7 +1663,7 @@ void ComputeCmdBuffer::CmdExecuteIndirectCmds(
 
         // Just like a normal direct/indirect dispatch, we need to perform state validation before executing the
         // generated command chunks.
-        pCmdSpace = ValidateDispatch(0uLL, 0, 0, 0, pCmdSpace);
+        pCmdSpace = ValidateDispatch(0uLL, 0uLL, 0, 0, 0, pCmdSpace);
         m_cmdStream.CommitCommands(pCmdSpace);
 
         CommandGeneratorTouchedUserData(m_computeState.csUserDataEntries.touched, gfx9Generator, *m_pSignatureCs);

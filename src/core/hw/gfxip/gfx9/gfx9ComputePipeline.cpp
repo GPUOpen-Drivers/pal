@@ -62,12 +62,12 @@ ComputePipeline::ComputePipeline(
     :
     Pal::ComputePipeline(pDevice->Parent(), isInternal),
     m_pDevice(pDevice),
+    m_signature{NullCsSignature},
     m_chunkCs(*pDevice,
               &m_stageInfo,
               &m_perfDataInfo[static_cast<uint32>(Util::Abi::HardwareStage::Cs)]),
     m_disablePartialPreempt(false)
 {
-    memcpy(&m_signature, &NullCsSignature, sizeof(m_signature));
 }
 
 // =====================================================================================================================
@@ -96,8 +96,7 @@ Result ComputePipeline::HwlInit(
         result = pMetadataReader->Unpack(&registers);
     }
 
-    const uint32 loadedShRegCount = m_chunkCs.EarlyInit();
-    ComputePipelineUploader uploader(m_pDevice, abiReader, loadedShRegCount);
+    PipelineUploader uploader(m_pDevice->Parent(), abiReader);
 
     if (result == Result::Success)
     {
@@ -131,7 +130,6 @@ Result ComputePipeline::HwlInit(
                            &m_threadsPerTgX,
                            &m_threadsPerTgY,
                            &m_threadsPerTgZ,
-                           false,
                            &uploader);
         PAL_ASSERT(m_uploadFenceToken == 0);
         result = uploader.End(&m_uploadFenceToken);
@@ -286,10 +284,24 @@ uint32* ComputePipeline::WriteCommands(
     CmdStream*                      pCmdStream,
     uint32*                         pCmdSpace,
     const DynamicComputeShaderInfo& csInfo,
+    gpusize                         launchDescGpuVa,
     bool                            prefetch
     ) const
 {
-    return m_chunkCs.WriteShCommands(pCmdStream, pCmdSpace, csInfo, prefetch);
+    return m_chunkCs.WriteShCommands(pCmdStream, pCmdSpace, csInfo, launchDescGpuVa, prefetch);
+}
+
+// =====================================================================================================================
+// Writes the PM4 commands required to bind this pipeline. Returns a pointer to the next unused DWORD in pCmdSpace.
+uint32* ComputePipeline::WriteLaunchDescriptor(
+    CmdStream*                      pCmdStream,
+    uint32*                         pCmdSpace,
+    const DynamicComputeShaderInfo& csInfo,
+    gpusize                         launchDescGpuVa
+    ) const
+{
+    PAL_ASSERT((launchDescGpuVa != 0uLL) && SupportDynamicDispatch());
+    return m_chunkCs.WriteShCommandsDynamic(pCmdStream, pCmdSpace, csInfo, launchDescGpuVa);
 }
 
 // =====================================================================================================================

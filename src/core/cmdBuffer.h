@@ -920,6 +920,12 @@ protected:
         uint32      xDim,
         uint32      yDim,
         uint32      zDim);
+    static void PAL_STDCALL CmdDispatchDynamicInvalid(
+        ICmdBuffer* pCmdBuffer,
+        gpusize     gpuVa,
+        uint32      xDim,
+        uint32      yDim,
+        uint32      zDim);
 
     static void PAL_STDCALL CmdDispatchMeshInvalid(
         ICmdBuffer* pCmdBuffer,

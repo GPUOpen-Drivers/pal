@@ -38,7 +38,6 @@ namespace Gfx9
 
 class  CmdStream;
 class  Device;
-class  GraphicsPipelineUploader;
 struct GraphicsPipelineLoadInfo;
 
 // =====================================================================================================================
@@ -63,10 +62,9 @@ public:
         const RegisterVector&               registers,
         const GraphicsPipelineLoadInfo&     loadInfo,
         const GraphicsPipelineCreateInfo&   createInfo,
-        GraphicsPipelineUploader*           pUploader,
+        PipelineUploader*                   pUploader,
         Util::MetroHash64*                  pHasher);
 
-    template <bool UseLoadIndexPath>
     uint32* WriteShCommands(
         CmdStream*              pCmdStream,
         uint32*                 pCmdSpace,
@@ -74,7 +72,6 @@ public:
         const DynamicStageInfo& vsStageInfo,
         const DynamicStageInfo& psStageInfo) const;
 
-    template <bool UseLoadIndexPath>
     uint32* WriteContextCommands(
         CmdStream* pCmdStream,
         uint32*    pCmdSpace) const;
@@ -88,6 +85,7 @@ public:
     regPA_CL_VS_OUT_CNTL PaClVsOutCntl() const { return m_regs.context.paClVsOutCntl; }
     regPA_SC_AA_CONFIG PaScAaConfig() const { return m_paScAaConfig; }
     regSPI_PS_INPUT_ENA SpiPsInputEna() const { return m_regs.context.spiPsInputEna; }
+    regSPI_BARYC_CNTL SpiBarycCntl() const { return m_regs.context.spiBarycCntl; }
 
     // Shortcut for checking if the shader has enabled INNER_COVERAGE mode.
     bool UsesInnerCoverage() const

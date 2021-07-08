@@ -592,14 +592,7 @@ void SettingsLoader::OverrideDefaults(
 
             m_settings.waMiscScissorRegisterChange = true;
 
-            m_settings.waDisableDfsmWithEqaa = true;
-
             m_settings.waDisable24BitHWFormatForTCCompatibleDepth = true;
-        }
-
-        if (IsVega20(device))
-        {
-            m_settings.waDisableDfsmWithEqaa = true;
         }
 
         if (device.ChipProperties().gfx9.rbPlus != 0)

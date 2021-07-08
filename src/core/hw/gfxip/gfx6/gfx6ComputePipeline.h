@@ -37,7 +37,6 @@ class Platform;
 namespace Gfx6
 {
 
-class ComputePipelineUploader;
 class CmdStream;
 
 // =====================================================================================================================
@@ -108,41 +107,11 @@ private:
         } dynamic; // Contains state which depends on bind-time parameters.
     }  m_regs;
 
-    struct
-    {
-        gpusize  gpuVirtAddr;
-        uint32   count;
-    }  m_loadPath;
-
     PipelinePrefetchPm4       m_prefetch;
     ComputePipelineSignature  m_signature;
 
     PAL_DISALLOW_DEFAULT_CTOR(ComputePipeline);
     PAL_DISALLOW_COPY_AND_ASSIGN(ComputePipeline);
-};
-
-// =====================================================================================================================
-// Extension of the PipelineUploader helper class for Gfx6/7/8 compute pipelines.
-class ComputePipelineUploader : public Pal::PipelineUploader
-{
-public:
-    explicit ComputePipelineUploader(
-        Device*             pDevice,
-        const AbiReader&    abiReader,
-        uint32              shRegisterCount)
-        :
-        PipelineUploader(pDevice->Parent(), abiReader, 0, shRegisterCount)
-        { }
-    virtual ~ComputePipelineUploader() { }
-
-    // Add a SH register to GPU memory for use with IT_LOAD_SH_REG_INDEX.
-    template <typename Register_t>
-    PAL_INLINE void AddShReg(uint16 address, Register_t reg)
-        { Pal::PipelineUploader::AddShRegister(address - PERSISTENT_SPACE_START, reg.u32All); }
-
-private:
-    PAL_DISALLOW_DEFAULT_CTOR(ComputePipelineUploader);
-    PAL_DISALLOW_COPY_AND_ASSIGN(ComputePipelineUploader);
 };
 
 } // Gfx6

@@ -102,7 +102,7 @@ Result ShaderLibrary::HwlInit(
         result = pMetadataReader->Unpack(&registers);
     }
 
-    ShaderLibraryUploader uploader(m_pDevice, abiReader);
+    PipelineUploader uploader(m_pDevice->Parent(), abiReader);
 
     if (result == Result::Success)
     {
@@ -122,12 +122,12 @@ Result ShaderLibrary::HwlInit(
     {
         const uint32 wavefrontSize = IsWave32() ? 32 : 64;
 
-        m_chunkCs.LateInit<ShaderLibraryUploader>(abiReader,
-                                                  registers,
-                                                  wavefrontSize,
-                                                  createInfo.pFuncList,
-                                                  createInfo.funcCount,
-                                                  &uploader);
+        m_chunkCs.LateInit(abiReader,
+                           registers,
+                           wavefrontSize,
+                           createInfo.pFuncList,
+                           createInfo.funcCount,
+                           &uploader);
 
         UpdateHwInfo();
         PAL_ASSERT(m_uploadFenceToken == 0);

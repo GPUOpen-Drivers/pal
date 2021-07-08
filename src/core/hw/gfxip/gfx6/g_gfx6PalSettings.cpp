@@ -58,7 +58,6 @@ namespace Gfx6
 void SettingsLoader::SetupDefaults()
 {
     // set setting variables to their default values...
-    m_settings.enableLoadIndexForObjectBinds = false;
     m_settings.cpDmaSrcAlignment = CpDmaAlignmentDefault;
     m_settings.disableBorderColorPaletteBinds = false;
     m_settings.forceOcclusionQueryResult = false;
@@ -148,11 +147,6 @@ void SettingsLoader::SetupDefaults()
 void SettingsLoader::ReadSettings()
 {
     // read from the OS adapter for each individual setting
-    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pEnableLoadIndexForObjectBindsStr,
-                           Util::ValueType::Boolean,
-                           &m_settings.enableLoadIndexForObjectBinds,
-                           InternalSettingScope::PrivatePalGfx6Key);
-
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pCpDmaSrcAlignmentStr,
                            Util::ValueType::Uint,
                            &m_settings.cpDmaSrcAlignment,
@@ -589,11 +583,6 @@ void SettingsLoader::InitSettingsInfo()
 {
     SettingInfo info = {};
 
-    info.type      = SettingType::Boolean;
-    info.pValuePtr = &m_settings.enableLoadIndexForObjectBinds;
-    info.valueSize = sizeof(m_settings.enableLoadIndexForObjectBinds);
-    m_settingsInfoMap.Insert(2416072074, info);
-
     info.type      = SettingType::Uint;
     info.pValuePtr = &m_settings.cpDmaSrcAlignment;
     info.valueSize = sizeof(m_settings.cpDmaSrcAlignment);
@@ -1020,7 +1009,7 @@ void SettingsLoader::DevDriverRegister()
             component.pfnSetValue = ISettingsLoader::SetValue;
             component.pSettingsData = &g_gfx6PalJsonData[0];
             component.settingsDataSize = sizeof(g_gfx6PalJsonData);
-            component.settingsDataHash = 847210397;
+            component.settingsDataHash = 2965933365;
             component.settingsDataHeader.isEncoded = true;
             component.settingsDataHeader.magicBufferId = 402778310;
             component.settingsDataHeader.magicBufferOffset = 0;

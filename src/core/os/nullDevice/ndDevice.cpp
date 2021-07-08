@@ -55,31 +55,36 @@ static constexpr uint32 GfxEngineGfx9 = CIASICIDGFXENGINE_ARCTICISLAND;
 // Identification table for all the GPUs that are supported in NULL device mode
 constexpr  NullIdLookup  NullIdLookupTable[] =
 {
-    { FAMILY_SI,  SI_TAHITI_P_A21,      PRID_SI_TAHITI,               GfxEngineGfx6,  DEVICE_ID_SI_TAHITI_P_6780      },
-    { FAMILY_SI,  SI_PITCAIRN_PM_A12,   PRID_SI_PITCAIRN,             GfxEngineGfx6,  DEVICE_ID_SI_PITCAIRN_PM_6818   },
-    { FAMILY_SI,  SI_CAPEVERDE_M_A12,   PRID_SI_CAPEVERDE,            GfxEngineGfx6,  DEVICE_ID_SI_CAPEVERDE_M_683D   },
-    { FAMILY_SI,  SI_OLAND_M_A0,        PRID_SI_OLAND_87,             GfxEngineGfx6,  DEVICE_ID_SI_OLAND_M_6611       },
-    { FAMILY_SI,  SI_HAINAN_V_A0,       PRID_SI_HAINAN_EXO_81,        GfxEngineGfx6,  DEVICE_ID_SI_HAINAN_V_6660      },
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 672
+    { PAL_UNDEFINED_NULL_DEVICE                                                                                       }, // TAHITI
+    { PAL_UNDEFINED_NULL_DEVICE                                                                                       }, // PITCAIRN
+    { PAL_UNDEFINED_NULL_DEVICE                                                                                       }, // CAPEVERDE
+    { PAL_UNDEFINED_NULL_DEVICE                                                                                       }, // OLAND
+    { PAL_UNDEFINED_NULL_DEVICE                                                                                       }, // HAINAN
 
-    { FAMILY_KV,  KV_SPECTRE_A0,        PRID_KV_SPECTRE_GODAVARI_D4,  GfxEngineGfx6,  DEVICE_ID_SPECTRE_DESKTOP_130F  },
-    { FAMILY_KV,  KV_SPOOKY_A0,         PRID_KV_SPOOKY,               GfxEngineGfx6,  DEVICE_ID_SPOOKY_DESKTOP_1316   },
-    { FAMILY_CI,  CI_HAWAII_P_A0,       PRID_CI_HAWAII_00,            GfxEngineGfx6,  DEVICE_ID_CI_HAWAII_P_67A0      },
-    { FAMILY_CI,  CI_HAWAII_P_A0,       PRID_CI_HAWAII_80,            GfxEngineGfx6,  DEVICE_ID_CI_HAWAII_P_67BE      },
-    { FAMILY_KV,  KV_KALINDI_A0,        PRID_KV_KALINDI_00,           GfxEngineGfx6,  DEVICE_ID_KALINDI__9830         },
-    { FAMILY_KV,  KV_GODAVARI_A0,       PRID_GODAVARI_MULLINS_01,     GfxEngineGfx6,  DEVICE_ID_KV_GODAVARI__9850     },
-    { FAMILY_CI,  CI_BONAIRE_M_A0,      PRID_CI_BONAIRE_TOBAGO_81,    GfxEngineGfx6,  DEVICE_ID_CI_BONAIRE_M_6640     },
+    { PAL_UNDEFINED_NULL_DEVICE                                                                                       }, // SPECTRE
+    { PAL_UNDEFINED_NULL_DEVICE                                                                                       }, // SPOOKY
+    { PAL_UNDEFINED_NULL_DEVICE                                                                                       }, // HAWAIIPRO
+    { PAL_UNDEFINED_NULL_DEVICE                                                                                       }, // HAWAII
+    { PAL_UNDEFINED_NULL_DEVICE                                                                                       }, // KALINDI
+    { PAL_UNDEFINED_NULL_DEVICE                                                                                       }, // GODAVARI
+    { PAL_UNDEFINED_NULL_DEVICE                                                                                       }, // BONAIRE
 
-    { FAMILY_CZ,  CZ_CARRIZO_A0,        PRID_CZ_CARRIZO_C4,           GfxEngineGfx6,  DEVICE_ID_CZ_CARRIZO_9870       },
-    { FAMILY_CZ,  CZ_BISTROL_A0,        PRID_CZ_BRISTOL_E1,           GfxEngineGfx6,  DEVICE_ID_CZ_BRISTOL_9874       },
-    { FAMILY_VI,  VI_ICELAND_M_A0,      PRID_VI_ICELAND_MESO_81,      GfxEngineGfx6,  DEVICE_ID_VI_ICELAND_M_6900     },
-    { FAMILY_VI,  VI_TONGA_P_A1,        PRID_VI_TONGA_00,             GfxEngineGfx6,  DEVICE_ID_VI_TONGA_P_6920       },
-    { FAMILY_VI,  VI_TONGA_P_A1,        PRID_VI_TONGA_00,             GfxEngineGfx6,  DEVICE_ID_VI_TONGA_P_6929       },
-    { FAMILY_VI,  VI_FIJI_P_A0,         PRID_VI_FIJI_CC,              GfxEngineGfx6,  DEVICE_ID_VI_FIJI_P_7300        },
+    { PAL_UNDEFINED_NULL_DEVICE                                                                                       }, // CARRIZO
+    { PAL_UNDEFINED_NULL_DEVICE                                                                                       }, // BRISTOL
+    { PAL_UNDEFINED_NULL_DEVICE                                                                                       }, // ICELAND
+    { PAL_UNDEFINED_NULL_DEVICE                                                                                       }, // TONGA
+    { PAL_UNDEFINED_NULL_DEVICE                                                                                       }, // TONGAPRO
+    { PAL_UNDEFINED_NULL_DEVICE                                                                                       }, // FIJI
+#endif
     { FAMILY_VI,  VI_POLARIS10_P_A0,    PRID_VI_POLARIS10_C7,         GfxEngineGfx6,  DEVICE_ID_VI_POLARIS10_P_67DF   },
     { FAMILY_VI,  VI_POLARIS11_M_A0,    PRID_VI_POLARIS11_CF,         GfxEngineGfx6,  DEVICE_ID_VI_POLARIS11_M_67EF   },
     { FAMILY_VI,  VI_POLARIS12_V_A0,    PRID_VI_POLARIS12_C7,         GfxEngineGfx6,  DEVICE_ID_VI_POLARIS12_V_699F   },
     { PAL_UNDEFINED_NULL_DEVICE                                                                                       },
-    { FAMILY_CZ,  CZ_STONEY_A0,         PRID_ST_80,                   GfxEngineGfx6,  DEVICE_ID_ST_98E4               },
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 672
+    { PAL_UNDEFINED_NULL_DEVICE                                                                                       }, // STONEY
+#endif
 
     { FAMILY_AI,  AI_VEGA10_P_A0,       PRID_AI_VEGA10_C3,            GfxEngineGfx9,  DEVICE_ID_AI_VEGA10_P_6860      },
     { FAMILY_RV,  RAVEN_A0,             PRID_RV_81,                   GfxEngineGfx9,  DEVICE_ID_RV_15DD               },
@@ -112,31 +117,36 @@ static_assert(Util::ArrayLen(NullIdLookupTable) == static_cast<uint32>(NullGpuId
 
 const char* pNullGpuNames[static_cast<uint32>(Pal::NullGpuId::Max)] =
 {
-    "TAHITI:gfx600",
-    "PITCAIRN:gfx601",
-    "CAPEVERDE:gfx601",
-    "OLAND:gfx602",
-    "HAINAN:gfx602",
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 672
+    nullptr, // TAHITI:gfx600
+    nullptr, // PITCAIRN:gfx601
+    nullptr, // CAPEVERDE:gfx601
+    nullptr, // OLAND:gfx602
+    nullptr, // HAINAN:gfx602
 
-    "SPECTRE:gfx700",
-    "SPOOKY:gfx700",
-    "HAWAIIPRO:gfx701",
-    "HAWAII:gfx702",
-    "KALINDI:gfx703",
-    "GODAVARI:gfx705",
-    "BONAIRE:gfx704",
+    nullptr, // SPECTRE:gfx700
+    nullptr, // SPOOKY:gfx700
+    nullptr, // HAWAIIPRO:gfx701
+    nullptr, // HAWAII:gfx702
+    nullptr, // KALINDI:gfx703
+    nullptr, // GODAVARI:gfx705
+    nullptr, // BONAIRE:gfx704
 
-    "CARRIZO:gfx801",
-    "BRISTOL:gfx801",
-    "ICELAND:gfx802",
-    "TONGA:gfx802",
-    "TONGAPRO:gfx805",
-    "FIJI:gfx803",
+    nullptr, // CARRIZO:gfx801
+    nullptr, // BRISTOL:gfx801
+    nullptr, // ICELAND:gfx802
+    nullptr, // TONGA:gfx802
+    nullptr, // TONGAPRO:gfx805
+    nullptr, // FIJI:gfx803
+#endif
     "POLARIS10:gfx803",
     "POLARIS11:gfx803",
     "POLARIS12:gfx803",
     nullptr,
-    "STONEY:gfx810",
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 672
+    nullptr, // STONEY:gfx810
+#endif
 
     "VEGA10:gfx900",
     "RAVEN:gfx902",
@@ -161,7 +171,7 @@ const char* pNullGpuNames[static_cast<uint32>(Pal::NullGpuId::Max)] =
     nullptr,
     nullptr,
     nullptr,
-        nullptr,
+    nullptr,
 };
 
 static_assert(Util::ArrayLen(pNullGpuNames) == static_cast<uint32>(NullGpuId::Max),
@@ -1106,6 +1116,8 @@ Result Device::EarlyInit(
     m_chipProperties.uvdLevel = ipLevels.uvd;
     m_chipProperties.vcnLevel = ipLevels.vcn;
 
+    m_chipProperties.hwIpFlags.u32All = ipLevels.flags.u32All;
+
     for (uint32 i = 0; i < EngineTypeCount; i++)
     {
         m_engineProperties.perEngine[i].preferredCmdAllocHeaps[CommandDataAlloc]   = GpuHeapGartUswc;
@@ -1144,8 +1156,8 @@ Result Device::EarlyInit(
                                             &m_engineProperties);
         break;
 #endif
-    case GfxIpLevel::GfxIp9:
     case GfxIpLevel::GfxIp10_1:
+    case GfxIpLevel::GfxIp9:
     case GfxIpLevel::GfxIp10_3:
         m_pFormatPropertiesTable = Gfx9::GetFormatPropertiesTable(m_chipProperties.gfxLevel,
                                                                   GetPlatform()->PlatformSettings());

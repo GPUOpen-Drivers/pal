@@ -43,7 +43,7 @@
 ///            compatible, it is not assumed that the client will initialize all input structs to 0.
 ///
 /// @ingroup LibInit
-#define PAL_INTERFACE_MAJOR_VERSION 669
+#define PAL_INTERFACE_MAJOR_VERSION 673
 
 /// Minor interface version.  Note that the interface version is distinct from the PAL version itself, which is returned
 /// in @ref Pal::PlatformProperties.
@@ -53,7 +53,7 @@
 /// of the existing enum values will change.  This number will be reset to 0 when the major version is incremented.
 ///
 /// @ingroup LibInit
-#define PAL_INTERFACE_MINOR_VERSION 1
+#define PAL_INTERFACE_MINOR_VERSION 0
 
 /// Minimum major interface version. This is the minimum interface version PAL supports in order to support backward
 /// compatibility. When it is equal to PAL_INTERFACE_MAJOR_VERSION, only the latest interface version is supported.
@@ -90,6 +90,27 @@ class      IPlatform;
 /// This is a list of GPUs that the NULL OS layer can compile shaders to in offline mode.
 enum class NullGpuId : uint32
 {
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 672
+    Polaris10 = 0x00,
+    Polaris11 = 0x01,
+    Polaris12 = 0x02,
+
+    Vega10 = 0x04,
+    Raven  = 0x05,
+    Vega12 = 0x06,
+    Vega20 = 0x07,
+    Raven2 = 0x08,
+    Renoir = 0x09,
+
+    Navi10           = 0x0A,
+    Navi12           = 0x0B,
+    Navi14           = 0x0D,
+    Navi21           = 0x0F,
+    Navi22           = 0x10,
+
+    Max = 0x1B,
+    All = 0x1C,
+#else // PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 672
     Tahiti    = 0x00,
     Pitcairn  = 0x01,
     Capeverde = 0x02,
@@ -113,7 +134,7 @@ enum class NullGpuId : uint32
     Polaris10 = 0x12,
     Polaris11 = 0x13,
     Polaris12 = 0x14,
-    Stoney    = 0x16,
+    Stoney = 0x16,
 
     Vega10 = 0x17,
     Raven  = 0x18,
@@ -130,6 +151,7 @@ enum class NullGpuId : uint32
 
     Max = 0x2E,
     All = 0x2F,
+#endif
 };
 
 /// Maps a null GPU ID to its associated text name.

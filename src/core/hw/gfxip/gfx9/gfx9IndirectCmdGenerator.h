@@ -98,8 +98,8 @@ public:
         IGpuMemory* pGpuMemory,
         gpusize     offset) override;
 
-    uint32 CmdBufStride(
-        const Pipeline* pPipeline) const;
+    virtual uint32 CmdBufStride(
+        const Pipeline* pPipeline) const override;
 
     virtual void PopulateInvocationBuffer(
         GfxCmdBuffer*   pCmdBuffer,

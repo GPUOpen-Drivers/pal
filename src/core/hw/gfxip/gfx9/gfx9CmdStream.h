@@ -148,6 +148,10 @@ public:
         PFP_CLEAR_STATE_cmd_enum  clearMode,
         uint32*                   pCmdSpace);
 
+    uint32* WriteDynamicLaunchDesc(
+        gpusize launchDescGpuVa,
+        uint32* pCmdSpace);
+
     // In rare cases some packets will modify register state behind the scenes (e.g., DrawIndirect). This function must
     // be called in those cases to ensure that immediate mode PM4 optimization invalidates its copy of the register.
     void NotifyIndirectShRegWrite(uint32 regAddr);

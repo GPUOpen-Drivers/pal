@@ -145,6 +145,7 @@ CmdBuffer::CmdBuffer(
     m_funcTable.pfnCmdDispatch                  = CmdDispatchInvalid;
     m_funcTable.pfnCmdDispatchIndirect          = CmdDispatchIndirectInvalid;
     m_funcTable.pfnCmdDispatchOffset            = CmdDispatchOffsetInvalid;
+    m_funcTable.pfnCmdDispatchDynamic           = CmdDispatchDynamicInvalid;
     m_funcTable.pfnCmdDispatchMesh              = CmdDispatchMeshInvalid;
     m_funcTable.pfnCmdDispatchMeshIndirectMulti = CmdDispatchMeshIndirectMultiInvalid;
 }
@@ -1195,6 +1196,19 @@ void PAL_STDCALL CmdBuffer::CmdDispatchOffsetInvalid(
     uint32      xOffset,
     uint32      yOffset,
     uint32      zOffset,
+    uint32      xDim,
+    uint32      yDim,
+    uint32      zDim)
+{
+    PAL_NEVER_CALLED();
+}
+
+// =====================================================================================================================
+// Default implementation of CmdDispatchDynamic is unimplemented, derived CmdBuffer classes should override it if
+// supported.
+void PAL_STDCALL CmdBuffer::CmdDispatchDynamicInvalid(
+    ICmdBuffer* pCmdBuffer,
+    gpusize     gpuVa,
     uint32      xDim,
     uint32      yDim,
     uint32      zDim)

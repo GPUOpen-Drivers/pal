@@ -38,7 +38,6 @@ namespace Gfx9
 
 class  CmdStream;
 class  Device;
-class  GraphicsPipelineUploader;
 struct GraphicsPipelineLoadInfo;
 
 // =====================================================================================================================
@@ -55,22 +54,17 @@ public:
         const PerfDataInfo* pPerfDataInfo);
     ~PipelineChunkHs() { }
 
-    void EarlyInit(
-        GraphicsPipelineLoadInfo* pInfo);
-
     void LateInit(
-        const AbiReader&          abiReader,
-        const RegisterVector&     registers,
-        GraphicsPipelineUploader* pUploader,
-        Util::MetroHash64*        pHasher);
+        const AbiReader&        abiReader,
+        const RegisterVector&   registers,
+        PipelineUploader*       pUploader,
+        Util::MetroHash64*      pHasher);
 
-    template <bool UseLoadIndexPath>
     uint32* WriteShCommands(
         CmdStream*              pCmdStream,
         uint32*                 pCmdSpace,
         const DynamicStageInfo& hsStageInfo) const;
 
-    template <bool UseLoadIndexPath>
     uint32* WriteContextCommands(
         CmdStream* pCmdStream,
         uint32*    pCmdSpace) const;

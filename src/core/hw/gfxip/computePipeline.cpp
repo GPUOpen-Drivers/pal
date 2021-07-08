@@ -74,6 +74,24 @@ Result ComputePipeline::Init(
 
     if (result == Result::Success)
     {
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 673
+        if (createInfo.flags.supportDynamicDispatch == 1)
+        {
+            // Dynamic dispatch support can only be requested on supported hardware
+            if (m_pDevice->ChipProperties().gfxip.dynamicLaunchDescSize == 0)
+            {
+                result = Result::ErrorInvalidFlags;
+            }
+            else
+            {
+                SetDynamicDispatchSupported();
+            }
+        }
+#endif
+    }
+
+    if (result == Result::Success)
+    {
         PAL_ASSERT(m_pPipelineBinary != nullptr);
         result = InitFromPipelineBinary(createInfo);
     }

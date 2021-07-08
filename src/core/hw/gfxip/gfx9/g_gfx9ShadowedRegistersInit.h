@@ -28,12 +28,13 @@
 //
 // This code has been generated automatically. Do not hand-modify this code.
 //
-// When changes are needed, modify the tools generating this module in the tools\internal\MCBP directory.
+// When changes are needed, modify the tools generating this module in the PalTools/codegen/mcbp directory.
 //
 // WARNING!  WARNING!  WARNING!  WARNING!  WARNING!  WARNING!  WARNING! WARNING!  WARNING!  WARNING!  WARNING!
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 #pragma once
+
 #include "core/hw/gfxip/gfx9/gfx9Device.h"
 #include "core/hw/gfxip/gfx9/gfx9CmdStream.h"
 
@@ -2127,5 +2128,5 @@ void InitializeContextRegistersGfx103(
     }
 }
 
-} // Gfx9
-} // Pal
+} // namespace Gfx9
+} // namespace Pal

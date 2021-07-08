@@ -37,6 +37,9 @@ target_link_libraries(pal PRIVATE addrlib)
 add_subdirectory(${PAL_VAM_PATH} ${PROJECT_BINARY_DIR}/vam)
 target_link_libraries(pal PRIVATE vam)
 
+### SWD ########################################################################
+# Add the SWD library if necessary. This if() can go away when all builds use SWD
+
 ### METROHASH ##################################################################
 if(NOT TARGET metrohash)
     add_subdirectory(${PAL_METROHASH_PATH} ${PROJECT_BINARY_DIR}/metrohash)
@@ -370,6 +373,7 @@ if(PAL_BUILD_CORE)
             target_sources(pal PRIVATE core/hw/gfxip/gfx9/gfx10DmaCmdBuffer.cpp)
 
         endif() # PAL_BUILD_GFX9
+
     endif() # PAL_BUILD_GFX
 
     if(PAL_BUILD_OSS)

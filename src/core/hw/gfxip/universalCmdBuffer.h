@@ -260,7 +260,11 @@ public:
     virtual void IncrementSubmitCount() override
     {
         m_pDeCmdStream->IncrementSubmitCount();
-        m_pCeCmdStream->IncrementSubmitCount();
+
+        if (m_pCeCmdStream != nullptr)
+        {
+            m_pCeCmdStream->IncrementSubmitCount();
+        }
 
         if (m_pAceCmdStream != nullptr)
         {

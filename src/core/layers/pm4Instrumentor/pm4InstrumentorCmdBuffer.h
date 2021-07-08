@@ -562,6 +562,12 @@ private:
         uint32      xDim,
         uint32      yDim,
         uint32      zDim);
+    static void PAL_STDCALL CmdDispatchDynamicDecorator(
+        ICmdBuffer* pCmdBuffer,
+        gpusize     gpuVa,
+        uint32      xDim,
+        uint32      yDim,
+        uint32      zDim);
 
     Pm4Statistics  m_stats;
 

@@ -198,9 +198,9 @@ public:
     virtual gpusize GetMallCursorCacheOffset() { return 0; }
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    virtual gpusize GetAspectBaseAddr(ImageAspect  aspect) const { PAL_NEVER_CALLED(); return 0; }
+    virtual gpusize GetAspectBaseAddr(ImageAspect aspect, uint32 arraySlice = 0) const { PAL_NEVER_CALLED(); return 0; }
 #else
-    virtual gpusize GetPlaneBaseAddr(uint32 plane) const { PAL_NEVER_CALLED(); return 0; }
+    virtual gpusize GetPlaneBaseAddr(uint32 plane, uint32 arraySlice = 0) const { PAL_NEVER_CALLED(); return 0; }
 #endif
 
     uint32 TranslateClearCodeOneToNativeFmt(uint32 cmpIdx) const;

@@ -37,58 +37,27 @@ namespace Pal
 namespace Gfx9
 {
 
-// Base count of SH registers which are loaded using LOAD_SH_REG_INDEX when binding to a command buffer.
-static constexpr uint32 BaseLoadedShRegCount =
-    1 + // mmSPI_SHADER_PGM_LO_LS
-    1 + // SPI_SHADER_PGM_RSRC1_HS
-    1 + // SPI_SHADER_PGM_RSRC2_HS
-    0 + // SPI_SHADER_PGM_CHKSUM_HS is not included because it is not present on all HW
-    1;  // SPI_SHADER_USER_DATA_LS_0 + ConstBufTblStartReg
-
-// Base count of Context registers which are loaded using LOAD_CNTX_REG_INDEX when binding to a command buffer.
-static constexpr uint32 BaseLoadedCntxRegCount =
-    1 + // VGT_HOS_MIN_TESS_LEVEL
-    1;  // VGT_HOS_MAX_TESS_LEVEL
-
 // =====================================================================================================================
 PipelineChunkHs::PipelineChunkHs(
     const Device&       device,
     const PerfDataInfo* pPerfDataInfo)
     :
     m_device(device),
-    m_pHsPerfDataInfo(pPerfDataInfo)
+    m_regs{},
+    m_pHsPerfDataInfo(pPerfDataInfo),
+    m_stageInfo{}
 {
-    memset(&m_regs, 0, sizeof(m_regs));
-    memset(&m_stageInfo, 0, sizeof(m_stageInfo));
     m_stageInfo.stageId = Abi::HardwareStage::Hs;
 }
 
 // =====================================================================================================================
-// Early initialization for this pipeline chunk.  Responsible for determining the number of SH and context registers to
-// be loaded using LOAD_CNTX_REG_INDEX and LOAD_SH_REG_INDEX.
-void PipelineChunkHs::EarlyInit(
-    GraphicsPipelineLoadInfo* pInfo)
-{
-    PAL_ASSERT(pInfo != nullptr);
-
-    const Gfx9PalSettings&   settings  = m_device.Settings();
-    const GpuChipProperties& chipProps = m_device.Parent()->ChipProperties();
-
-    if (settings.enableLoadIndexForObjectBinds != false)
-    {
-        pInfo->loadedCtxRegCount += BaseLoadedCntxRegCount;
-        pInfo->loadedShRegCount  += (BaseLoadedShRegCount + ((chipProps.gfx9.supportSpp == 1) ? 1 : 0));
-    }
-}
-
-// =====================================================================================================================
 // Late initialization for this pipeline chunk.  Responsible for fetching register values from the pipeline binary and
-// determining the values of other registers.  Also uploads register state into GPU memory.
+// determining the values of other registers.
 void PipelineChunkHs::LateInit(
-    const AbiReader&          abiReader,
-    const RegisterVector&     registers,
-    GraphicsPipelineUploader* pUploader,
-    MetroHash64*              pHasher)
+    const AbiReader&        abiReader,
+    const RegisterVector&   registers,
+    PipelineUploader*       pUploader,
+    MetroHash64*            pHasher)
 {
     const GpuChipProperties& chipProps    = m_device.Parent()->ChipProperties();
     const RegisterInfo&      registerInfo = m_device.CmdUtil().GetRegInfo();
@@ -144,29 +113,11 @@ void PipelineChunkHs::LateInit(
     m_regs.context.vgtHosMaxTessLevel.u32All = registers.At(mmVGT_HOS_MAX_TESS_LEVEL);
 
     pHasher->Update(m_regs.context);
-
-    if (pUploader->EnableLoadIndexPath())
-    {
-        pUploader->AddShReg(mmSpiShaderPgmLoLs,        m_regs.sh.spiShaderPgmLoLs);
-        pUploader->AddShReg(mmSPI_SHADER_PGM_RSRC1_HS, m_regs.sh.spiShaderPgmRsrc1Hs);
-        pUploader->AddShReg(mmSPI_SHADER_PGM_RSRC2_HS, m_regs.sh.spiShaderPgmRsrc2Hs);
-
-        pUploader->AddShReg(mmSpiShaderUserDataHs0 + ConstBufTblStartReg, m_regs.sh.userDataInternalTable);
-
-        if (chipProps.gfx9.supportSpp != 0)
-        {
-            pUploader->AddShReg(Apu09_1xPlus::mmSPI_SHADER_PGM_CHKSUM_HS, m_regs.sh.spiShaderPgmChksumHs);
-        }
-
-        pUploader->AddCtxReg(mmVGT_HOS_MIN_TESS_LEVEL, m_regs.context.vgtHosMinTessLevel);
-        pUploader->AddCtxReg(mmVGT_HOS_MAX_TESS_LEVEL, m_regs.context.vgtHosMaxTessLevel);
-    }
 }
 
 // =====================================================================================================================
 // Copies this pipeline chunk's sh commands into the specified command space. Returns the next unused DWORD in
 // pCmdSpace.
-template <bool UseLoadIndexPath>
 uint32* PipelineChunkHs::WriteShCommands(
     CmdStream*              pCmdStream,
     uint32*                 pCmdSpace,
@@ -175,32 +126,29 @@ uint32* PipelineChunkHs::WriteShCommands(
 {
     const GpuChipProperties& chipProps = m_device.Parent()->ChipProperties();
 
-    if (UseLoadIndexPath == false)
+    const RegisterInfo& registerInfo = m_device.CmdUtil().GetRegInfo();
+
+    const uint16 mmSpiShaderUserDataHs0 = registerInfo.mmUserDataStartHsShaderStage;
+    const uint16 mmSpiShaderPgmLoLs     = registerInfo.mmSpiShaderPgmLoLs;
+
+    pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderGraphics>(mmSpiShaderPgmLoLs,
+                                                             m_regs.sh.spiShaderPgmLoLs.u32All,
+                                                             pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetSeqShRegs(mmSPI_SHADER_PGM_RSRC1_HS,
+                                              mmSPI_SHADER_PGM_RSRC2_HS,
+                                              ShaderGraphics,
+                                              &m_regs.sh.spiShaderPgmRsrc1Hs,
+                                              pCmdSpace);
+
+    pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderGraphics>(mmSpiShaderUserDataHs0 + ConstBufTblStartReg,
+                                                             m_regs.sh.userDataInternalTable,
+                                                             pCmdSpace);
+
+    if (chipProps.gfx9.supportSpp != 0)
     {
-        const RegisterInfo& registerInfo = m_device.CmdUtil().GetRegInfo();
-
-        const uint16 mmSpiShaderUserDataHs0 = registerInfo.mmUserDataStartHsShaderStage;
-        const uint16 mmSpiShaderPgmLoLs     = registerInfo.mmSpiShaderPgmLoLs;
-
-        pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderGraphics>(mmSpiShaderPgmLoLs,
-                                                                 m_regs.sh.spiShaderPgmLoLs.u32All,
+        pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderGraphics>(Apu09_1xPlus::mmSPI_SHADER_PGM_CHKSUM_HS,
+                                                                 m_regs.sh.spiShaderPgmChksumHs.u32All,
                                                                  pCmdSpace);
-        pCmdSpace = pCmdStream->WriteSetSeqShRegs(mmSPI_SHADER_PGM_RSRC1_HS,
-                                                  mmSPI_SHADER_PGM_RSRC2_HS,
-                                                  ShaderGraphics,
-                                                  &m_regs.sh.spiShaderPgmRsrc1Hs,
-                                                  pCmdSpace);
-
-        pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderGraphics>(mmSpiShaderUserDataHs0 + ConstBufTblStartReg,
-                                                                 m_regs.sh.userDataInternalTable,
-                                                                 pCmdSpace);
-
-        if (chipProps.gfx9.supportSpp != 0)
-        {
-            pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderGraphics>(Apu09_1xPlus::mmSPI_SHADER_PGM_CHKSUM_HS,
-                                                                     m_regs.sh.spiShaderPgmChksumHs.u32All,
-                                                                     pCmdSpace);
-        }
     }
 
     auto dynamic = m_regs.dynamic;
@@ -250,49 +198,19 @@ uint32* PipelineChunkHs::WriteShCommands(
     return pCmdSpace;
 }
 
-// Instantiate template versions for the linker.
-template
-uint32* PipelineChunkHs::WriteShCommands<false>(
-    CmdStream*              pCmdStream,
-    uint32*                 pCmdSpace,
-    const DynamicStageInfo& hsStageInfo
-    ) const;
-template
-uint32* PipelineChunkHs::WriteShCommands<true>(
-    CmdStream*              pCmdStream,
-    uint32*                 pCmdSpace,
-    const DynamicStageInfo& hsStageInfo
-    ) const;
-
 // =====================================================================================================================
 // Copies this pipeline chunk's context commands into the specified command space. Returns the next unused DWORD in
 // pCmdSpace.
-template <bool UseLoadIndexPath>
 uint32* PipelineChunkHs::WriteContextCommands(
     CmdStream* pCmdStream,
     uint32*    pCmdSpace
     ) const
 {
-    // NOTE: It is expected that this function will only ever be called when the set path is in use.
-    PAL_ASSERT(UseLoadIndexPath == false);
-
     return pCmdStream->WriteSetSeqContextRegs(mmVGT_HOS_MAX_TESS_LEVEL,
                                               mmVGT_HOS_MIN_TESS_LEVEL,
                                               &m_regs.context.vgtHosMaxTessLevel,
                                               pCmdSpace);
 }
-
-// Instantiate template versions for the linker.
-template
-uint32* PipelineChunkHs::WriteContextCommands<false>(
-    CmdStream* pCmdStream,
-    uint32*    pCmdSpace
-    ) const;
-template
-uint32* PipelineChunkHs::WriteContextCommands<true>(
-    CmdStream* pCmdStream,
-    uint32*    pCmdSpace
-    ) const;
 
 } // Gfx9
 } // Pal

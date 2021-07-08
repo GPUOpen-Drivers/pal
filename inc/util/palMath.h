@@ -190,5 +190,29 @@ extern float FlushDenormToZero(float input);
 /// Return value in 1.7 signed magnitude format. Valid input range is (-127, 127)
 extern uint8 IntToSignedMagnitude(int8 input);
 
+/// @brief Performs unsigned fixed-point rounding operation.
+///
+/// @param [in] value      Fixed point number to convert in Qm.f format.
+/// @param [in] n          Number of fractional bits.
+///
+/// @returns rounded fixed point number in Q0 format (unsigned integer).
+static inline uint32 UFixedRoundToUint32(uint32 value, uint8 n)
+{
+    PAL_ASSERT((0 < n) && (n < 31));
+    return ((value + (((1 << n) >> 1))) >> n);
+}
+
+/// @brief Performs signed fixed-point rounding operation.
+///
+/// @param [in] value      Fixed point number to convert in Qm.f format.
+/// @param [in] n          Number of fractional bits.
+///
+/// @returns rounded fixed point number in Q0 format (signed integer).
+static inline int32 SFixedRoundToInt32(int32 value, uint8 n)
+{
+    PAL_ASSERT((0 < n) && (n < 30));
+    return ((value + (((1 << n) >> 1))) >> n);
+}
+
 } // Math
 } // Util

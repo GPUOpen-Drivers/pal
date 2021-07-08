@@ -636,45 +636,52 @@ Result Queue::OsSubmit(
     m_sqttWaRequired    = sqttActive;
     m_perfCtrWaRequired = perfCtrActive;
 
-    if (pInternalSubmitInfos->flags.isDummySubmission == false)
     {
-        result = UpdateResourceList(submitInfo.pGpuMemoryRefs, submitInfo.gpuMemRefCount);
-    }
+        // Serialize access to m_globalRefMap in-case a call to GpuMemory::Destroy() happens between
+        // UpdateResourceList() and SubmitNonGfxIp()
+        RWLockAuto<RWLock::ReadOnly> lock(&m_globalRefLock);
 
-    if (result == Result::Success)
-    {
-        MultiSubmitInfo       localSubmitInfo       = submitInfo;
-        PerSubQueueSubmitInfo perSubQueueSubmitInfo = {};
-        if (pInternalSubmitInfos->flags.isDummySubmission == false)
+        // if the allocation is always resident, Pal doesn't need to build up the allocation list.
+        if ((m_pDevice->Settings().alwaysResident == false) && (pInternalSubmitInfos->flags.isDummySubmission == false))
         {
-            perSubQueueSubmitInfo            = submitInfo.pPerSubQueueInfo[0];
+            result = UpdateResourceList(submitInfo.pGpuMemoryRefs, submitInfo.gpuMemRefCount);
         }
-        localSubmitInfo.pPerSubQueueInfo     = &perSubQueueSubmitInfo;
-        localSubmitInfo.perSubQueueInfoCount = 1;
 
-        // amdgpu won't give us a new fence value unless the submission has at least one command buffer.
-        if ((pInternalSubmitInfos->flags.isDummySubmission) || (m_ifhMode == IfhModePal))
+        if (result == Result::Success)
         {
-            perSubQueueSubmitInfo.ppCmdBuffers =
-                reinterpret_cast<Pal::ICmdBuffer* const*>(&m_pDummyCmdBuffer);
-            perSubQueueSubmitInfo.cmdBufferCount  = 1;
-            if ((m_ifhMode != IfhModePal) && (pInternalSubmitInfos->flags.isDummySubmission == false))
+            MultiSubmitInfo       localSubmitInfo       = submitInfo;
+            PerSubQueueSubmitInfo perSubQueueSubmitInfo = {};
+            if (pInternalSubmitInfos->flags.isDummySubmission == false)
             {
-                m_pDummyCmdBuffer->IncrementSubmitCount();
+                perSubQueueSubmitInfo            = submitInfo.pPerSubQueueInfo[0];
             }
-        }
+            localSubmitInfo.pPerSubQueueInfo     = &perSubQueueSubmitInfo;
+            localSubmitInfo.perSubQueueInfoCount = 1;
 
-        // Clear pending wait flag.
-        m_pendingWait = false;
+            // amdgpu won't give us a new fence value unless the submission has at least one command buffer.
+            if ((pInternalSubmitInfos->flags.isDummySubmission) || (m_ifhMode == IfhModePal))
+            {
+                perSubQueueSubmitInfo.ppCmdBuffers =
+                    reinterpret_cast<Pal::ICmdBuffer* const*>(&m_pDummyCmdBuffer);
+                perSubQueueSubmitInfo.cmdBufferCount  = 1;
+                if ((m_ifhMode != IfhModePal) && (pInternalSubmitInfos->flags.isDummySubmission == false))
+                {
+                    m_pDummyCmdBuffer->IncrementSubmitCount();
+                }
+            }
 
-        if ((Type() == QueueTypeUniversal) || (Type() == QueueTypeCompute))
-        {
-            result = SubmitPm4(localSubmitInfo, pInternalSubmitInfos[0]);
-        }
-        else if ((Type() == QueueTypeDma)
-                )
-        {
-            result = SubmitNonGfxIp(localSubmitInfo, pInternalSubmitInfos[0]);
+            // Clear pending wait flag.
+            m_pendingWait = false;
+
+            if ((Type() == QueueTypeUniversal) || (Type() == QueueTypeCompute))
+            {
+                result = SubmitPm4(localSubmitInfo, pInternalSubmitInfos[0]);
+            }
+            else if ((Type() == QueueTypeDma)
+                    )
+            {
+                result = SubmitNonGfxIp(localSubmitInfo, pInternalSubmitInfos[0]);
+            }
         }
     }
 
@@ -1147,6 +1154,8 @@ Result Queue::DoAssociateFenceWithLastSubmit(
 
 // =====================================================================================================================
 // Updates the resource list with all GPU memory allocations which will participate in a submission to amdgpu.
+// Note: user MUST lock the mutex m_globalRefLock before calling this function and ensure the lock remains until all
+// functions have finished accessing m_globalRefMap and the memory pointed to by that map. This includes Submit*()
 Result Queue::UpdateResourceList(
     const GpuMemoryRef* pMemRefList,
     size_t              memRefCount)
@@ -1155,82 +1164,80 @@ Result Queue::UpdateResourceList(
 
     Result result = Result::Success;
 
-    // if the allocation is always resident, Pal doesn't need to build up the allocation list.
-    if (m_pDevice->Settings().alwaysResident == false)
+    // Serialize access to internalMgr and queue memory list
+    RWLockAuto<RWLock::ReadOnly> lockMgr(pMemMgr->GetRefListLock());
+
+    const bool reuseResourceList = (m_globalRefDirty == false)                               &&
+                                   (memRefCount == 0)                                        &&
+                                   (m_appMemRefCount == 0)                                   &&
+                                   (m_hResourceList != nullptr)                              &&
+                                   (m_pDevice->Settings().allocationListReusable);
+
+    if (reuseResourceList == false)
     {
-        // Serialize access to internalMgr and queue memory list
-        RWLockAuto<RWLock::ReadOnly> lockMgr(pMemMgr->GetRefListLock());
-        RWLockAuto<RWLock::ReadOnly> lock(&m_globalRefLock);
+        // Ensure the caller has locked the m_globalRefLock mutex before reading m_globalRefMap
+        PAL_ASSERT(m_globalRefLock.TryLockForWrite() == false);
 
-        const bool reuseResourceList = (m_globalRefDirty == false)                               &&
-                                       (memRefCount == 0)                                        &&
-                                       (m_appMemRefCount == 0)                                   &&
-                                       (m_hResourceList != nullptr)                              &&
-                                       (m_pDevice->Settings().allocationListReusable);
-
-        if (reuseResourceList == false)
+        // Reset the list
+        m_numResourcesInList = 0;
+        if (m_hResourceList != nullptr)
         {
-            // Reset the list
-            m_numResourcesInList = 0;
-            if (m_hResourceList != nullptr)
+            result = static_cast<Device*>(m_pDevice)->DestroyResourceList(m_hResourceList);
+            m_hResourceList = nullptr;
+        }
+
+        // First add all of the global memory references.
+        if (result == Result::Success)
+        {
+            // If the global memory references haven't been modified since the last submit,
+            // the resources in our UMD-side list (m_pResourceList) should be up to date.
+            // So, there is no need to re-walk through m_memList.
+            if (m_globalRefDirty == false)
             {
-                result = static_cast<Device*>(m_pDevice)->DestroyResourceList(m_hResourceList);
-                m_hResourceList = nullptr;
+                m_numResourcesInList += m_memListResourcesInList;
             }
-
-            // First add all of the global memory references.
-            if (result == Result::Success)
+            else
             {
-                // If the global memory references haven't been modified since the last submit,
-                // the resources in our UMD-side list (m_pResourceList) should be up to date.
-                // So, there is no need to re-walk through m_memList.
-                if (m_globalRefDirty == false)
-                {
-                    m_numResourcesInList += m_memListResourcesInList;
-                }
-                else
-                {
-                    m_globalRefDirty = false;
+                m_globalRefDirty = false;
 
-                    for (auto iter = m_globalRefMap.Begin(); iter.Get() != nullptr; iter.Next())
+                for (auto iter = m_globalRefMap.Begin(); iter.Get() != nullptr; iter.Next())
+                {
+                    auto*const pGpuMemory = static_cast<GpuMemory*>(iter.Get()->key);
+
+                    result = AppendResourceToList(pGpuMemory);
+
+                    if (result != Result::_Success)
                     {
-                        auto*const pGpuMemory = static_cast<GpuMemory*>(iter.Get()->key);
-
-                        result = AppendResourceToList(pGpuMemory);
-
-                        if (result != Result::_Success)
-                        {
-                            // We didn't rebuild the whole list so keep it marked as dirty.
-                            m_globalRefDirty = true;
-                            break;
-                        }
+                        // We didn't rebuild the whole list so keep it marked as dirty.
+                        m_globalRefDirty = true;
+                        break;
                     }
-
-                    m_memListResourcesInList = m_numResourcesInList;
                 }
+
+                m_memListResourcesInList = m_numResourcesInList;
             }
+        }
 
-            // Finally, add all of the application's submission memory references.
-            if (result == Result::Success)
+        // Finally, add all of the application's submission memory references.
+        if (result == Result::Success)
+        {
+            m_appMemRefCount = memRefCount;
+            for (size_t idx = 0; ((idx < memRefCount) && (result == Result::_Success)); ++idx)
             {
-                m_appMemRefCount = memRefCount;
-                for (size_t idx = 0; ((idx < memRefCount) && (result == Result::_Success)); ++idx)
-                {
-                    result = AppendResourceToList(static_cast<GpuMemory*>(pMemRefList[idx].pGpuMemory));
-                }
+                result = AppendResourceToList(static_cast<GpuMemory*>(pMemRefList[idx].pGpuMemory));
             }
+        }
 
-            auto*const pDevice  = static_cast<Device*>(m_pDevice);
-            // raw2 submit not supported.
-            if (!(pDevice->IsRaw2SubmitSupported()))
+        auto*const pDevice  = static_cast<Device*>(m_pDevice);
+        // raw2 submit not supported.
+        if (!(pDevice->IsRaw2SubmitSupported()))
+        {
+            if ((result == Result::Success) && (m_numResourcesInList > 0))
             {
-                if ((result == Result::Success) && (m_numResourcesInList > 0))
-                {
-                    result = static_cast<Device*>(m_pDevice)->CreateResourceList(m_numResourcesInList,
-                                                                                m_pResourceList,
-                                                                                m_pResourcePriorityList,
-                                                                                &m_hResourceList);
-                }
+                result = static_cast<Device*>(m_pDevice)->CreateResourceList(m_numResourcesInList,
+                                                                            m_pResourceList,
+                                                                            m_pResourcePriorityList,
+                                                                            &m_hResourceList);
             }
         }
     }

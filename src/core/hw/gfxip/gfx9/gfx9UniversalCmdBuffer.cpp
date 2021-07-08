@@ -104,6 +104,7 @@ constexpr VGT_DI_PRIM_TYPE TopologyToPrimTypeTable[] =
     DI_PT_TRIFAN,           // TriangleFan
     DI_PT_LINELOOP,         // LineLoop
     DI_PT_POLYGON,          // Polygon
+    DI_PT_2D_RECTANGLE,     // TwoDRectList
 };
 
 // The DB_RENDER_OVERRIDE fields owned by the graphics pipeline.
@@ -520,6 +521,7 @@ void UniversalCmdBuffer::SetDispatchFunctions()
     m_funcTable.pfnCmdDispatch         = CmdDispatch<IssueSqttMarkerEvent, DescribeDrawDispatch>;
     m_funcTable.pfnCmdDispatchIndirect = CmdDispatchIndirect<IssueSqttMarkerEvent, DescribeDrawDispatch>;
     m_funcTable.pfnCmdDispatchOffset   = CmdDispatchOffset<IssueSqttMarkerEvent, DescribeDrawDispatch>;
+    m_funcTable.pfnCmdDispatchDynamic  = CmdDispatchDynamic<IssueSqttMarkerEvent, DescribeDrawDispatch>;
 }
 
 // =====================================================================================================================
@@ -809,8 +811,11 @@ void UniversalCmdBuffer::CmdBindPipeline(
             const PrimitiveTopology topology = (meshEnabled ? PrimitiveTopology::PointList
                                                             : m_graphicsState.inputAssemblyState.topology);
 
+            const uint32 idx = static_cast<uint32>(topology);
+            PAL_ASSERT(idx < ArrayLen(TopologyToPrimTypeTable));
+
             regVGT_PRIMITIVE_TYPE vgtPrimitiveType = { };
-            vgtPrimitiveType.bits.PRIM_TYPE = TopologyToPrimTypeTable[static_cast<uint32>(topology)];
+            vgtPrimitiveType.bits.PRIM_TYPE = TopologyToPrimTypeTable[idx];
 
             uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
             pDeCmdSpace = m_deCmdStream.WriteSetOneConfigReg(mmVGT_PRIMITIVE_TYPE,
@@ -1231,6 +1236,7 @@ void UniversalCmdBuffer::CmdBindMsaaState(
         // NGG state updates
         m_nggState.numSamples = pNewState->NumSamples();
         m_state.primShaderCullingCb.enableConservativeRasterization = pNewState->ConservativeRasterizationEnabled();
+
     }
     else
     {
@@ -1320,8 +1326,11 @@ void UniversalCmdBuffer::CmdSetDepthBounds(
 void UniversalCmdBuffer::CmdSetInputAssemblyState(
     const InputAssemblyStateParams& params)
 {
+    const uint32 idx = static_cast<uint32>(params.topology);
+    PAL_ASSERT(idx < ArrayLen(TopologyToPrimTypeTable));
+
     regVGT_PRIMITIVE_TYPE vgtPrimitiveType = { };
-    vgtPrimitiveType.bits.PRIM_TYPE = TopologyToPrimTypeTable[static_cast<uint32>(params.topology)];
+    vgtPrimitiveType.bits.PRIM_TYPE = TopologyToPrimTypeTable[idx];
 
     regVGT_MULTI_PRIM_IB_RESET_INDX vgtMultiPrimIbResetIndx = { };
     vgtMultiPrimIbResetIndx.bits.RESET_INDX = params.primitiveRestartIndex;
@@ -3038,7 +3047,7 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDispatch(
         pThis->m_device.DescribeDispatch(pThis, Developer::DrawDispatchType::CmdDispatch, 0, 0, 0, x, y, z);
     }
 
-    pThis->ValidateDispatch(&pThis->m_computeState, &pThis->m_deCmdStream, 0uLL, x, y, z);
+    pThis->ValidateDispatch(&pThis->m_computeState, &pThis->m_deCmdStream, 0uLL, 0uLL, x, y, z);
 
     uint32* pDeCmdSpace = pThis->m_deCmdStream.ReserveCommands();
     pDeCmdSpace  = pThis->WaitOnCeCounter(pDeCmdSpace);
@@ -3081,7 +3090,7 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDispatchIndirect(
 
     const gpusize gpuMemBaseAddr = gpuMemory.Desc().gpuVirtAddr;
 
-    pThis->ValidateDispatch(&pThis->m_computeState, &pThis->m_deCmdStream, (gpuMemBaseAddr + offset), 0, 0, 0);
+    pThis->ValidateDispatch(&pThis->m_computeState, &pThis->m_deCmdStream, (gpuMemBaseAddr + offset), 0uLL, 0, 0, 0);
 
     uint32* pDeCmdSpace = pThis->m_deCmdStream.ReserveCommands();
     pDeCmdSpace = pThis->WaitOnCeCounter(pDeCmdSpace);
@@ -3127,7 +3136,7 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDispatchOffset(
             xOffset, yOffset, zOffset, xDim, yDim, zDim);
     }
 
-    pThis->ValidateDispatch(&pThis->m_computeState, &pThis->m_deCmdStream, 0uLL, xDim, yDim, zDim);
+    pThis->ValidateDispatch(&pThis->m_computeState, &pThis->m_deCmdStream, 0uLL, 0uLL, xDim, yDim, zDim);
 
     uint32* pDeCmdSpace = pThis->m_deCmdStream.ReserveCommands();
 
@@ -3151,6 +3160,48 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDispatchOffset(
                                                                       pThis->UsesDispatchTunneling(),
                                                                       false,
                                                                       pDeCmdSpace);
+
+    if (IssueSqttMarkerEvent)
+    {
+        pDeCmdSpace += CmdUtil::BuildNonSampleEventWrite(THREAD_TRACE_MARKER, EngineTypeUniversal, pDeCmdSpace);
+    }
+
+    pDeCmdSpace = pThis->IncrementDeCounter(pDeCmdSpace);
+
+    pThis->m_deCmdStream.CommitCommands(pDeCmdSpace);
+}
+
+// =====================================================================================================================
+template <bool IssueSqttMarkerEvent, bool DescribeDrawDispatch>
+void PAL_STDCALL UniversalCmdBuffer::CmdDispatchDynamic(
+    ICmdBuffer* pCmdBuffer,
+    gpusize     gpuVa,
+    uint32      x,
+    uint32      y,
+    uint32      z)
+{
+    auto* pThis = static_cast<UniversalCmdBuffer*>(pCmdBuffer);
+
+    const auto& parent = *pThis->m_device.Parent();
+    PAL_ASSERT(IsGfx103Plus(parent) &&
+        (parent.EngineProperties().cpUcodeVersion >= Gfx10UcodeVersionLoadShRegIndexIndirectAddr));
+
+    if (DescribeDrawDispatch)
+    {
+        pThis->m_device.DescribeDispatch(pThis, Developer::DrawDispatchType::CmdDispatchDynamic, 0, 0, 0, x, y, z);
+    }
+
+    pThis->ValidateDispatch(&pThis->m_computeState, &pThis->m_deCmdStream, 0uLL, gpuVa, x, y, z);
+
+    uint32* pDeCmdSpace = pThis->m_deCmdStream.ReserveCommands();
+    pDeCmdSpace  = pThis->WaitOnCeCounter(pDeCmdSpace);
+
+    pDeCmdSpace += pThis->m_cmdUtil.BuildDispatchDirect<false, true>(x, y, z,
+                                                                     pThis->PacketPredicate(),
+                                                                     pThis->m_pSignatureCs->flags.isWave32,
+                                                                     pThis->UsesDispatchTunneling(),
+                                                                     false,
+                                                                     pDeCmdSpace);
 
     if (IssueSqttMarkerEvent)
     {
@@ -5753,11 +5804,11 @@ uint32* UniversalCmdBuffer::ValidateDraw(
     if (StateDirty && dirtyFlags.rasterizerDiscardEnable)
     {
         regPA_CL_CLIP_CNTL paClClipCntl = pPipeline->PaClClipCntl();
-	paClClipCntl.bits.DX_RASTERIZATION_KILL = m_graphicsState.rasterizerDiscardEnable;
+        paClClipCntl.bits.DX_RASTERIZATION_KILL = m_graphicsState.rasterizerDiscardEnable;
 
         pDeCmdSpace = m_deCmdStream.WriteSetOneContextReg(mmPA_CL_CLIP_CNTL,
-			                                  paClClipCntl.u32All,
-							  pDeCmdSpace);
+                                                          paClClipCntl.u32All,
+                                                          pDeCmdSpace);
     }
 
     // Validate primitive restart enable.  Primitive restart should only apply for indexed draws, but on gfx9,
@@ -6797,7 +6848,11 @@ uint32 UniversalCmdBuffer::CalcGeCntl(
 
     // For legacy GS on gfx10, GE_CNTL.PRIM_GRP_SIZE should match the programming of
     // VGT_GS_ONCHIP_CNTL.GS_PRIMS_PER_SUBGRP.
-    if (((IsNgg == false) && (IsGsEnabled() == false)) || isTess)
+    const bool useVgtOnchipCntl        = ((IsNgg == false) && (IsGsEnabled() == false));
+    const bool useVgtOnchipCntlForTess = (isTess
+                                          );
+
+    if (useVgtOnchipCntl || useVgtOnchipCntlForTess)
     {
         // PRIMGROUP_SIZE is zero-based (i.e., zero means one) but PRIM_GRP_SIZE is one based (i.e., one means one).
         primsPerSubgroup = iaMultiVgtParam.bits.PRIMGROUP_SIZE + 1;
@@ -7051,6 +7106,7 @@ void UniversalCmdBuffer::ValidateTaskMeshDispatch(
     ValidateDispatch(&tempComputeState,
                      static_cast<CmdStream*>(m_pAceCmdStream),
                      indirectGpuVirtAddr,
+                     0uLL,
                      xDim,
                      yDim,
                      zDim);
@@ -7062,6 +7118,7 @@ void UniversalCmdBuffer::ValidateDispatch(
     ComputeState* pComputeState,
     CmdStream*    pCmdStream,
     gpusize       indirectGpuVirtAddr,
+    gpusize       launchDescGpuVirtAddr,
     uint32        xDim,
     uint32        yDim,
     uint32        zDim)
@@ -7076,6 +7133,10 @@ void UniversalCmdBuffer::ValidateDispatch(
         startingCmdLen = GetUsedSize(CommandDataAlloc);
     }
 #endif
+
+    const bool supportDynamicDispatch = m_computeState.pipelineState.pPipeline->SupportDynamicDispatch();
+    PAL_ASSERT(((supportDynamicDispatch == true)  && (launchDescGpuVirtAddr != 0)) ||
+               ((supportDynamicDispatch == false) && (launchDescGpuVirtAddr == 0)));
 
     uint32* pCmdSpace = pCmdStream->ReserveCommands();
 
@@ -7108,6 +7169,7 @@ void UniversalCmdBuffer::ValidateDispatch(
             pCmdSpace = pNewPipeline->WriteCommands(pCmdStream,
                                                     pCmdSpace,
                                                     pComputeState->dynamicCsInfo,
+                                                    launchDescGpuVirtAddr,
                                                     m_buildFlags.prefetchShaders);
 
             m_pSignatureCs = &pNewPipeline->Signature();
@@ -7135,6 +7197,15 @@ void UniversalCmdBuffer::ValidateDispatch(
     }
     else
     {
+        if ((launchDescGpuVirtAddr != 0) && (launchDescGpuVirtAddr != pComputeState->dynamicLaunchGpuVa))
+        {
+            const auto* const pPipeline = static_cast<const ComputePipeline*>(m_computeState.pipelineState.pPipeline);
+            pCmdSpace = pPipeline->WriteLaunchDescriptor(pCmdStream,
+                                                         pCmdSpace,
+                                                         pComputeState->dynamicCsInfo,
+                                                         launchDescGpuVirtAddr);
+        } // if Launch Descriptor is changing
+
         pCmdSpace = ValidateComputeUserData<false>(this,
                                                    pUserDataTable,
                                                    pComputeState,
@@ -7156,6 +7227,7 @@ void UniversalCmdBuffer::ValidateDispatch(
 #endif
 
     pComputeState->pipelineState.dirtyFlags.u32All = 0;
+    pComputeState->dynamicLaunchGpuVa = launchDescGpuVirtAddr;
 
     if (pNewSignature->numWorkGroupsRegAddr != UserDataNotMapped)
     {
@@ -8436,7 +8508,7 @@ void UniversalCmdBuffer::CmdExecuteIndirectCmds(
             }
             else
             {
-                ValidateDispatch(&m_computeState, &m_deCmdStream, 0uLL, 0, 0, 0);
+                ValidateDispatch(&m_computeState, &m_deCmdStream, 0uLL, 0uLL, 0, 0, 0);
                 CommandGeneratorTouchedUserData(m_computeState.csUserDataEntries.touched,
                                                 gfx9Generator,
                                                 *m_pSignatureCs);
@@ -8519,7 +8591,7 @@ void UniversalCmdBuffer::CmdDispatchAce(
 
     memset(&tempComputeState.csUserDataEntries.dirty, -1, sizeof(tempComputeState.csUserDataEntries.dirty));
 
-    ValidateDispatch(&tempComputeState, pAceCmdStream, 0uLL, x, y, z);
+    ValidateDispatch(&tempComputeState, pAceCmdStream, 0uLL, 0uLL, x, y, z);
 
     uint32* pAceCmdSpace = pAceCmdStream->ReserveCommands();
 

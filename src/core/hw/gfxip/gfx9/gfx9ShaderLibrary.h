@@ -119,25 +119,6 @@ private:
     PAL_DISALLOW_COPY_AND_ASSIGN(ShaderLibrary);
 };
 
-// =====================================================================================================================
-// Extension of the ShaderLibraryUploader helper class for Shader Library.
-class ShaderLibraryUploader final : public Pal::PipelineUploader
-{
-public:
-    explicit ShaderLibraryUploader(
-        Device*          pDevice,
-        const AbiReader& abiReader)
-        :
-        PipelineUploader(pDevice->Parent(), abiReader, 0, 0)
-        { }
-    virtual ~ShaderLibraryUploader() { }
-
-private:
-
-    PAL_DISALLOW_DEFAULT_CTOR(ShaderLibraryUploader);
-    PAL_DISALLOW_COPY_AND_ASSIGN(ShaderLibraryUploader);
-};
-
 } // namespace Gfx9
 
 } // namespace Pal

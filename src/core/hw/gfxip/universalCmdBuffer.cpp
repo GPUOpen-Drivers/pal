@@ -113,7 +113,11 @@ Result UniversalCmdBuffer::BeginCommandStreams(
     if (doReset)
     {
         m_pDeCmdStream->Reset(nullptr, true);
-        m_pCeCmdStream->Reset(nullptr, true);
+
+        if (m_pCeCmdStream != nullptr)
+        {
+            m_pCeCmdStream->Reset(nullptr, true);
+        }
 
         if (m_pAceCmdStream != nullptr)
         {
@@ -126,7 +130,7 @@ Result UniversalCmdBuffer::BeginCommandStreams(
         result = m_pDeCmdStream->Begin(cmdStreamFlags, m_pMemAllocator);
     }
 
-    if (result == Result::Success)
+    if ((result == Result::Success) && (m_pCeCmdStream != nullptr))
     {
         result = m_pCeCmdStream->Begin(cmdStreamFlags, m_pMemAllocator);
     }
@@ -153,7 +157,7 @@ Result UniversalCmdBuffer::End()
         result = m_pDeCmdStream->End();
     }
 
-    if (result == Result::Success)
+    if ((result == Result::Success) && (m_pCeCmdStream != nullptr))
     {
         result = m_pCeCmdStream->End();
     }
@@ -190,7 +194,8 @@ Result UniversalCmdBuffer::End()
                     0                                                   // Number of command buffer chunks
                 };
 
-                listHeader.count = m_pDeCmdStream->GetNumChunks() + m_pCeCmdStream->GetNumChunks();
+                listHeader.count = m_pDeCmdStream->GetNumChunks() +
+                                   ((m_pCeCmdStream != nullptr) ? m_pCeCmdStream->GetNumChunks() : 0);
 
                 DumpFile()->Write(&listHeader, sizeof(listHeader));
             }
@@ -216,7 +221,11 @@ Result UniversalCmdBuffer::Reset(
     if (result == Result::Success)
     {
         m_pDeCmdStream->Reset(static_cast<CmdAllocator*>(pCmdAllocator), returnGpuMemory);
-        m_pCeCmdStream->Reset(static_cast<CmdAllocator*>(pCmdAllocator), returnGpuMemory);
+
+        if (m_pCeCmdStream != nullptr)
+        {
+            m_pCeCmdStream->Reset(static_cast<CmdAllocator*>(pCmdAllocator), returnGpuMemory);
+        }
 
         if (m_pAceCmdStream != nullptr)
         {
@@ -589,7 +598,11 @@ void UniversalCmdBuffer::DumpCmdStreamsToFile(
     ) const
 {
     m_pDeCmdStream->DumpCommands(pFile, "# Universal Queue - DE Command length = ", mode);
-    m_pCeCmdStream->DumpCommands(pFile, "# Universal Queue - CE Command length = ", mode);
+
+    if (m_pCeCmdStream != nullptr)
+    {
+        m_pCeCmdStream->DumpCommands(pFile, "# Universal Queue - CE Command length = ", mode);
+    }
 
     if (m_pAceCmdStream != nullptr)
     {
@@ -877,7 +890,8 @@ uint32 UniversalCmdBuffer::GetUsedSize(
 
     if (type == CommandDataAlloc)
     {
-        sizeInBytes += (m_pDeCmdStream->GetUsedCmdMemorySize() + m_pCeCmdStream->GetUsedCmdMemorySize());
+        sizeInBytes += (m_pDeCmdStream->GetUsedCmdMemorySize() +
+                       ((m_pCeCmdStream != nullptr) ? m_pCeCmdStream->GetUsedCmdMemorySize() : 0));
     }
 
     return sizeInBytes;

@@ -358,6 +358,10 @@ public:
                 (subresource.arraySlice < m_createInfo.arraySize));
     }
 
+    // Returns whether or not this Image is YuvPlanar array.
+    bool IsYuvPlanarArray() const
+        { return Pal::Formats::IsYuvPlanar(m_createInfo.swizzledFormat.format) && (m_createInfo.arraySize > 1); }
+
     // Returns whether or not this Image can be used as a render target.
     bool IsRenderTarget() const
         { return (m_createInfo.usageFlags.colorTarget != 0); }

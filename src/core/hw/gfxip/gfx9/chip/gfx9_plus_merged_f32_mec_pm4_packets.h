@@ -1540,22 +1540,22 @@ constexpr unsigned int PM4_MEC_INVALIDATE_TLBS_SIZEDW__CORE = 2;
 // ------------------------------ MEC_MEM_SEMAPHORE_use_mailbox_enum ------------------------------
 enum MEC_MEM_SEMAPHORE_use_mailbox_enum
 {
-    use_mailbox__mec_mem_semaphore__do_not_wait_for_mailbox__CORE =  0,
-    use_mailbox__mec_mem_semaphore__wait_for_mailbox__CORE        =  1,
+    use_mailbox__mec_mem_semaphore__do_not_wait_for_mailbox__GFX09_GFX10CORE =  0,
+    use_mailbox__mec_mem_semaphore__wait_for_mailbox__GFX09_GFX10CORE        =  1,
 };
 
 // ------------------------------ MEC_MEM_SEMAPHORE_signal_type_enum ------------------------------
 enum MEC_MEM_SEMAPHORE_signal_type_enum
 {
-    signal_type__mec_mem_semaphore__signal_type_increment__CORE =  0,
-    signal_type__mec_mem_semaphore__signal_type_write__CORE     =  1,
+    signal_type__mec_mem_semaphore__signal_type_increment__GFX09_GFX10CORE =  0,
+    signal_type__mec_mem_semaphore__signal_type_write__GFX09_GFX10CORE     =  1,
 };
 
 // -------------------------------- MEC_MEM_SEMAPHORE_sem_sel_enum --------------------------------
 enum MEC_MEM_SEMAPHORE_sem_sel_enum
 {
-    sem_sel__mec_mem_semaphore__signal_semaphore__CORE =  6,
-    sem_sel__mec_mem_semaphore__wait_semaphore__CORE   =  7,
+    sem_sel__mec_mem_semaphore__signal_semaphore__GFX09_GFX10CORE =  6,
+    sem_sel__mec_mem_semaphore__wait_semaphore__GFX09_GFX10CORE   =  7,
 };
 
 // ------------------------------------- PM4_MEC_MEM_SEMAPHORE -------------------------------------
@@ -1575,7 +1575,7 @@ typedef struct PM4_MEC_MEM_SEMAPHORE
             {
                 uint32_t reserved1  :  3;
                 uint32_t address_lo : 29;
-            } core;
+            } hasCe;
         } bitfields;
         uint32_t u32All;
     } ordinal2;
@@ -1598,13 +1598,13 @@ typedef struct PM4_MEC_MEM_SEMAPHORE
                 MEC_MEM_SEMAPHORE_signal_type_enum signal_type :  1;
                 uint32_t                           reserved3   :  8;
                 MEC_MEM_SEMAPHORE_sem_sel_enum     sem_sel     :  3;
-            } core;
+            } hasCe;
         } bitfields;
         uint32_t u32All;
     } ordinal4;
 } PM4_MEC_MEM_SEMAPHORE;
 
-constexpr unsigned int PM4_MEC_MEM_SEMAPHORE_SIZEDW__CORE = 4;
+constexpr unsigned int PM4_MEC_MEM_SEMAPHORE_SIZEDW__HASCE = 4;
 
 // ------------------------------------------ PM4_MEC_NOP ------------------------------------------
 typedef struct PM4_MEC_NOP
@@ -1788,16 +1788,12 @@ typedef struct PM4_MEC_RELEASE_MEM
             } gfx09;
             struct
             {
-                uint32_t                           reserved9     : 28;
+                uint32_t                           reserved9     : 12;
+                uint32_t                           gcr_cntl      : 12;
+                uint32_t                           reserved10    :  4;
                 MEC_RELEASE_MEM_pq_exe_status_enum pq_exe_status :  1;
-                uint32_t                           reserved10    :  3;
+                uint32_t                           reserved11    :  3;
             } gfx10;
-            struct
-            {
-                uint32_t reserved11 : 12;
-                uint32_t gcr_cntl   : 12;
-                uint32_t reserved12 :  8;
-            } gfx10Plus;
         } bitfields;
         uint32_t u32All;
     } ordinal2;
@@ -2700,6 +2696,78 @@ typedef struct PM4_MEC_DISPATCH_TASKMESH_INDIRECT_MULTI_ACE
 } PM4_MEC_DISPATCH_TASKMESH_INDIRECT_MULTI_ACE;
 
 constexpr unsigned int PM4_MEC_DISPATCH_TASKMESH_INDIRECT_MULTI_ACE_SIZEDW__GFX10COREPLUS = 11;
+
+// ------------------------------- MEC_LOAD_SH_REG_INDEX_index_enum -------------------------------
+enum MEC_LOAD_SH_REG_INDEX_index_enum
+{
+    index__mec_load_sh_reg_index__direct_addr__GFX103COREPLUS   =  0,
+    index__mec_load_sh_reg_index__indirect_addr__GFX103COREPLUS =  2,
+};
+
+// ---------------------------- MEC_LOAD_SH_REG_INDEX_data_format_enum ----------------------------
+enum MEC_LOAD_SH_REG_INDEX_data_format_enum
+{
+    data_format__mec_load_sh_reg_index__offset_and_size__GFX103COREPLUS =  0,
+    data_format__mec_load_sh_reg_index__offset_and_data__GFX103COREPLUS =  1,
+};
+
+// ----------------------------------- PM4_MEC_LOAD_SH_REG_INDEX -----------------------------------
+typedef struct PM4_MEC_LOAD_SH_REG_INDEX
+{
+    union
+    {
+        PM4_MEC_TYPE_3_HEADER header;
+        uint32_t u32All;
+    } ordinal1;
+
+    union
+    {
+        union
+        {
+            struct
+            {
+                MEC_LOAD_SH_REG_INDEX_index_enum index       :  2;
+                uint32_t                         mem_addr_lo : 30;
+            } gfx103CorePlus;
+        } bitfields;
+        uint32_t u32All;
+    } ordinal2;
+
+    union
+    {
+        uint32_t mem_addr_hi;
+        uint32_t u32All;
+    } ordinal3;
+
+    union
+    {
+        union
+        {
+            struct
+            {
+                uint32_t                               reg_offset  : 16;
+                uint32_t                               reserved1   : 15;
+                MEC_LOAD_SH_REG_INDEX_data_format_enum data_format :  1;
+            } gfx103CorePlus;
+        } bitfields;
+        uint32_t u32All;
+    } ordinal4;
+
+    union
+    {
+        union
+        {
+            struct
+            {
+                uint32_t num_dwords : 14;
+                uint32_t reserved1  : 18;
+            } gfx103CorePlus;
+        } bitfields;
+        uint32_t u32All;
+    } ordinal5;
+} PM4_MEC_LOAD_SH_REG_INDEX;
+
+constexpr unsigned int PM4_MEC_LOAD_SH_REG_INDEX_SIZEDW__GFX103COREPLUS = 5;
 
 // -------------------------------- MEC_PERFMON_CONTROL_pmc_en_enum --------------------------------
 enum MEC_PERFMON_CONTROL_pmc_en_enum

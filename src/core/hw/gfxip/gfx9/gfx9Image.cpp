@@ -3664,22 +3664,24 @@ bool Image::SupportsComputeDecompress(
 // value associated with this plane and does not include the mip tail offset.
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
 gpusize Image::GetAspectBaseAddr(
-    ImageAspect  aspect
+    ImageAspect aspect,
+    uint32      arraySlice
     ) const
 {
     // On GFX9, the registers are programmed to select the proper mip level and slice, the base address *always*
     // points to mip 0 / slice 0.  We still have to take into account the aspect though.
-    const SubresId subresId = { aspect, 0, 0 };
+    const SubresId subresId = { aspect, 0, arraySlice };
     return GetMipAddr(subresId);
 }
 #else
 gpusize Image::GetPlaneBaseAddr(
-    uint32 plane
+    uint32 plane,
+    uint32 arraySlice
     ) const
 {
     // On GFX9, the registers are programmed to select the proper mip level and slice, the base address *always*
     // points to mip 0 / slice 0.  We still have to take into account the plane though.
-    const SubresId subresId = { plane, 0, 0 };
+    const SubresId subresId = { plane, 0, arraySlice };
     return GetMipAddr(subresId);
 }
 #endif
@@ -3691,12 +3693,13 @@ gpusize Image::GetMipAddr(
     SubresId  subresId
     ) const
 {
-    const Pal::Image* pParent         = Parent();
-    const auto*       pBaseSubResInfo = pParent->SubresourceInfo(subresId);
-    const auto*       pAddrOutput     = GetAddrOutput(pBaseSubResInfo);
-    const auto&       mipInfo         = pAddrOutput->pMipInfo[subresId.mipLevel];
-    const GfxIpLevel  gfxLevel        = pParent->GetDevice()->ChipProperties().gfxLevel;
-    gpusize           imageBaseAddr   = 0;
+    const Pal::Image* pParent          = Parent();
+    const auto*       pBaseSubResInfo  = pParent->SubresourceInfo(subresId);
+    const auto*       pAddrOutput      = GetAddrOutput(pBaseSubResInfo);
+    const auto&       mipInfo          = pAddrOutput->pMipInfo[subresId.mipLevel];
+    const GfxIpLevel  gfxLevel         = pParent->GetDevice()->ChipProperties().gfxLevel;
+    gpusize           imageBaseAddr    = 0;
+    const bool        isYuvPlanarArray = pParent->IsYuvPlanarArray();
 
     if (gfxLevel == GfxIpLevel::GfxIp9)
     {
@@ -3711,10 +3714,10 @@ gpusize Image::GetMipAddr(
         // reverse order (i.e., mip 0 is *last* and the last mip level isn't necessarily at offset zero either), so
         // we need to figure out where this plane begins.  Fun!
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-        const uint32   planeIdx    = pParent->GetPlaneFromAspect(subresId.aspect);
-        const gpusize  planeOffset = m_planeOffset[planeIdx];
+        const uint32  planeIdx    = pParent->GetPlaneFromAspect(subresId.aspect);
+        const gpusize planeOffset = isYuvPlanarArray ? pBaseSubResInfo->offset : m_planeOffset[planeIdx];
 #else
-        const gpusize  planeOffset = m_planeOffset[subresId.plane];
+        const gpusize planeOffset = isYuvPlanarArray ? pBaseSubResInfo->offset : m_planeOffset[subresId.plane];
 #endif
 
         imageBaseAddr = pParent->GetBoundGpuMemory().GpuVirtAddr() + planeOffset;
@@ -3725,9 +3728,9 @@ gpusize Image::GetMipAddr(
         PAL_ASSERT_ALWAYS();
     }
 
-    const auto*       pTileInfo       = AddrMgr2::GetTileInfo(pParent, subresId);
-    const gpusize     pipeBankXor     = pTileInfo->pipeBankXor;
-    const gpusize     addrWithXor     = imageBaseAddr | (pipeBankXor << 8);
+    const auto*   pTileInfo   = AddrMgr2::GetTileInfo(pParent, subresId);
+    const gpusize pipeBankXor = pTileInfo->pipeBankXor;
+    const gpusize addrWithXor = imageBaseAddr | (pipeBankXor << 8);
 
     // PAL doesn't respect the high-address programming fields (i.e., they're always set to zero).  Ensure that
     // they're not supposed to be set.  :-)  If this trips, we have a big problem.

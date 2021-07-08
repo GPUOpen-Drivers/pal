@@ -992,6 +992,7 @@ CmdBuffer::CmdBuffer(
     m_funcTable.pfnCmdDispatch                  = CmdDispatch;
     m_funcTable.pfnCmdDispatchIndirect          = CmdDispatchIndirect;
     m_funcTable.pfnCmdDispatchOffset            = CmdDispatchOffset;
+    m_funcTable.pfnCmdDispatchDynamic           = CmdDispatchDynamic;
     m_funcTable.pfnCmdDispatchMesh              = CmdDispatchMesh;
     m_funcTable.pfnCmdDispatchMeshIndirectMulti = CmdDispatchMeshIndirectMulti;
 }
@@ -3666,6 +3667,40 @@ void PAL_STDCALL CmdBuffer::CmdDispatchOffset(
     pThis->GetNextLayer()->CmdDispatchOffset(xOffset, yOffset, zOffset, xDim, yDim, zDim);
 
     pThis->AddDrawDispatchInfo(Developer::DrawDispatchType::CmdDispatchOffset);
+}
+
+// =====================================================================================================================
+void CmdBuffer::CmdDispatchDynamic(
+    ICmdBuffer* pCmdBuffer,
+    gpusize     gpuVa,
+    uint32      xDim,
+    uint32      yDim,
+    uint32      zDim)
+{
+    auto pThis = static_cast<CmdBuffer*>(pCmdBuffer);
+
+    if (pThis->m_annotations.logCmdDraws)
+    {
+        pThis->GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdDispatchDynamic));
+
+        LinearAllocatorAuto<VirtualLinearAllocator> allocator(pThis->Allocator(), false);
+        char* pString = PAL_NEW_ARRAY(char, StringLength, &allocator, AllocInternalTemp);
+
+        Snprintf(pString, StringLength, "VA = 0x%016x", gpuVa);
+        pThis->GetNextLayer()->CmdCommentString(pString);
+        Snprintf(pString, StringLength, "XDim = 0x%08x", xDim);
+        pThis->GetNextLayer()->CmdCommentString(pString);
+        Snprintf(pString, StringLength, "YDim = 0x%08x", yDim);
+        pThis->GetNextLayer()->CmdCommentString(pString);
+        Snprintf(pString, StringLength, "ZDim = 0x%08x", zDim);
+        pThis->GetNextLayer()->CmdCommentString(pString);
+
+        PAL_SAFE_DELETE_ARRAY(pString, &allocator);
+    }
+
+    pThis->GetNextLayer()->CmdDispatchDynamic(gpuVa, xDim, yDim, zDim);
+
+    pThis->AddDrawDispatchInfo(Developer::DrawDispatchType::CmdDispatchDynamic);
 }
 
 // =====================================================================================================================

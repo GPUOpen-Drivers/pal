@@ -587,6 +587,15 @@ Result GpuMemory::OpenSharedMemory(
             {
                 m_heaps[m_heapCount++] = GpuHeapInvisible;
             }
+            else
+            {
+                // Either one of the AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED or AMDGPU_GEM_CREATE_NO_CPU_ACCESS flag
+                // should have been set, if none of these two flags being set, something may went wrong.
+                // fallback to GpuHeapLocal.
+                PAL_ALERT(!((bufferInfo.alloc_flags & AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED)
+                          ||(bufferInfo.alloc_flags & AMDGPU_GEM_CREATE_NO_CPU_ACCESS)));
+                m_heaps[m_heapCount++] = GpuHeapLocal;
+            }
         }
 
         if (bufferInfo.preferred_heap & AMDGPU_GEM_DOMAIN_GTT)

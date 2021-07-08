@@ -38,7 +38,6 @@ namespace Gfx6
 
 class  CmdStream;
 class  Device;
-class  GraphicsPipelineUploader;
 struct GraphicsPipelineLoadInfo;
 
 // =====================================================================================================================
@@ -66,17 +65,15 @@ public:
         const RegisterVector&               registers,
         const GraphicsPipelineLoadInfo&     loadInfo,
         const GraphicsPipelineCreateInfo&   createInfo,
-        GraphicsPipelineUploader*           pUploader,
+        PipelineUploader*                   pUploader,
         Util::MetroHash64*                  pHasher);
 
-    template <bool UseLoadIndexPath>
     uint32* WriteShCommands(
         CmdStream*              pCmdStream,
         uint32*                 pCmdSpace,
         const DynamicStageInfo& vsStageInfo,
         const DynamicStageInfo& psStageInfo) const;
 
-    template <bool UseLoadIndexPath>
     uint32* WriteContextCommands(CmdStream* pCmdStream, uint32* pCmdSpace) const;
 
     regVGT_STRMOUT_CONFIG VgtStrmoutConfig() const { return m_regs.context.vgtStrmoutConfig; }

@@ -61,6 +61,8 @@ public:
     bool UsesLineStipple() const { return (m_regs.paScModeCntl0.bits.LINE_STIPPLE_ENABLE != 0); }
     bool ConservativeRasterizationEnabled() const { return (m_regs.paScConsRastCntl.bits.OVER_RAST_ENABLE != 0); }
 
+    regPA_SC_MODE_CNTL_0 PaScModeCntl0() const { return m_regs.paScModeCntl0; }
+
     uint32 NumSamples() const { return (1 << m_log2Samples); }
     uint32 Log2NumSamples() const { return m_log2Samples; }
     uint32 Log2OcclusionQuerySamples() const { return m_log2OcclusionQuerySamples; }

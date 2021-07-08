@@ -101,6 +101,7 @@ CmdBuffer::CmdBuffer(
     m_funcTable.pfnCmdDispatch                  = CmdDispatch;
     m_funcTable.pfnCmdDispatchIndirect          = CmdDispatchIndirect;
     m_funcTable.pfnCmdDispatchOffset            = CmdDispatchOffset;
+    m_funcTable.pfnCmdDispatchDynamic           = CmdDispatchDynamic;
     m_funcTable.pfnCmdDispatchMesh              = CmdDispatchMesh;
     m_funcTable.pfnCmdDispatchMeshIndirectMulti = CmdDispatchMeshIndirectMulti;
 
@@ -2645,6 +2646,39 @@ void CmdBuffer::ReplayCmdDispatchOffset(
 }
 
 // =====================================================================================================================
+void CmdBuffer::CmdDispatchDynamic(
+    ICmdBuffer* pCmdBuffer,
+    gpusize     gpuVa,
+    uint32      xDim,
+    uint32      yDim,
+    uint32      zDim)
+{
+    auto* pThis = static_cast<CmdBuffer*>(pCmdBuffer);
+
+    pThis->HandleDrawDispatch(Developer::DrawDispatchType::CmdDispatchDynamic, true);
+
+    pThis->InsertToken(CmdBufCallId::CmdDispatchDynamic);
+    pThis->InsertToken(gpuVa);
+    pThis->InsertToken(xDim);
+    pThis->InsertToken(yDim);
+    pThis->InsertToken(zDim);
+
+    pThis->HandleDrawDispatch(Developer::DrawDispatchType::CmdDispatchDynamic, false);
+}
+
+// =====================================================================================================================
+void CmdBuffer::ReplayCmdDispatchDynamic(
+    Queue*           pQueue,
+    TargetCmdBuffer* pTgtCmdBuffer)
+{
+    auto gpuVa = ReadTokenVal<gpusize>();
+    auto x     = ReadTokenVal<uint32>();
+    auto y     = ReadTokenVal<uint32>();
+    auto z     = ReadTokenVal<uint32>();
+    pTgtCmdBuffer->CmdDispatchDynamic(gpuVa, x, y, z);
+}
+
+// =====================================================================================================================
 void CmdBuffer::CmdDispatchMesh(
     ICmdBuffer* pCmdBuffer,
     uint32      xDim,
@@ -4701,7 +4735,7 @@ Result CmdBuffer::Replay(
         &CmdBuffer::ReplayCmdSetScissorRects,
         &CmdBuffer::ReplayCmdSetGlobalScissor,
         &CmdBuffer::ReplayCmdSetColorWriteMask,
-	&CmdBuffer::ReplayCmdSetRasterizerDiscardEnable,
+        &CmdBuffer::ReplayCmdSetRasterizerDiscardEnable,
         &CmdBuffer::ReplayCmdBarrier,
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
         &CmdBuffer::ReplayCmdRelease,
@@ -4721,6 +4755,7 @@ Result CmdBuffer::Replay(
         &CmdBuffer::ReplayCmdDispatch,
         &CmdBuffer::ReplayCmdDispatchIndirect,
         &CmdBuffer::ReplayCmdDispatchOffset,
+        &CmdBuffer::ReplayCmdDispatchDynamic,
         &CmdBuffer::ReplayCmdDispatchMesh,
         &CmdBuffer::ReplayCmdDispatchMeshIndirectMulti,
         &CmdBuffer::ReplayCmdUpdateMemory,

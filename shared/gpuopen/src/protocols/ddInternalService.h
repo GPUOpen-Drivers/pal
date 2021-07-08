@@ -65,6 +65,9 @@ public:
 private:
     DD_DISALLOW_COPY_AND_ASSIGN(InternalService);
 
+    DevDriver::Result WriteServicesJsonResponse(DevDriver::IURIRequestContext* pRequestContext) const;
+    DevDriver::Result WriteServicesTextResponse(DevDriver::IURIRequestContext* pRequestContext) const;
+
     ServiceInfo m_info;
 };
 

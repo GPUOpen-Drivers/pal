@@ -46,47 +46,6 @@ constexpr uint16 VgtStrmoutVtxStrideAddr[] =
     HasHwVs::mmVGT_STRMOUT_VTX_STRIDE_3
 };
 
-// Base count of PS SH registers which are loaded using LOAD_SH_REG_INDEX when binding to a command buffer.
-static constexpr uint32 BaseLoadedShRegCountPs =
-    1 + // mmSPI_SHADER_PGM_LO_PS
-    1 + // mmSPI_SHADER_PGM_RSRC1_PS
-    1 + // mmSPI_SHADER_PGM_RSRC2_PS
-    0 + // SPI_SHADER_PGM_CHKSUM_PS is not included because it is not present on all HW
-    1;  // mmSPI_SHADER_USER_DATA_PS_0 + ConstBufTblStartReg
-
-// Base count of VS SH registers which are loaded using LOAD_SH_REG_INDEX when binding to a command buffer.
-static constexpr uint32 BaseLoadedShRegCountVs =
-    1 + // HasHwVs::mmSPI_SHADER_PGM_LO_VS
-    1 + // HasHwVs::mmSPI_SHADER_PGM_RSRC1_VS
-    1 + // HasHwVs::mmSPI_SHADER_PGM_RSRC2_VS
-    0 + // SPI_SHADER_PGM_CHKSUM_VS is not included because it is not present on all HW
-    1;  // HasHwVs::mmSPI_SHADER_USER_DATA_VS_0 + ConstBufTblStartReg
-
-// Base count of Context registers which are loaded using LOAD_CNTX_REG_INDEX when binding to a command buffer.
-static constexpr uint32 BaseLoadedCntxRegCount =
-    1 + // mmSPI_SHADER_Z_FORMAT
-    1 + // mmSPI_SHADER_COL_FORMAT
-    1 + // mmSPI_BARYC_CNTL
-    1 + // mmSPI_PS_INPUT_ENA
-    1 + // mmSPI_PS_INPUT_ADDR
-    1 + // mmDB_SHADER_CONTROL
-    1 + // mmPA_SC_SHADER_CONTROL
-    1 + // mmSPI_SHADER_POS_FORMAT
-    1 + // mmPA_CL_VS_OUT_CNTL
-    1 + // mmVGT_PRIMITIVEID_EN
-    0;  // mmSPI_PS_INPUT_CNTL_0...31 are not included because the number of interpolants depends on the pipeline
-
-// Base count of VGT stream-out related context registers which are loaded using LOAD_CNTX_REG_INDEX when
-// binding to a command buffer.
-static constexpr uint32 BaseLoadedVgtStrmOutRegCount =
-    1 + // Gfx09_10::mmVGT_STRMOUT_CONFIG
-    1;  // Gfx09_10::mmVGT_STRMOUT_BUFFER_CONFIG
-
-// Base count of Context registers which are loaded using LOAD_CNTX_REG_INDEX when binding to a command buffer when
-// stream-out is enabled for this pipeline.
-static constexpr uint32 BaseLoadedCntxRegCountStreamOut =
-    4;  // mmVGT_STRMOUT_VTX_STRIDE_[0...3]
-
 // =====================================================================================================================
 PipelineChunkVsPs::PipelineChunkVsPs(
     const Device&       device,
@@ -94,12 +53,12 @@ PipelineChunkVsPs::PipelineChunkVsPs(
     const PerfDataInfo* pPsPerfDataInfo)
     :
     m_device(device),
+    m_regs{},
     m_pVsPerfDataInfo(pVsPerfDataInfo),
-    m_pPsPerfDataInfo(pPsPerfDataInfo)
+    m_pPsPerfDataInfo(pPsPerfDataInfo),
+    m_stageInfoVs{},
+    m_stageInfoPs{}
 {
-    memset(&m_regs, 0, sizeof(m_regs));
-    memset(&m_stageInfoVs, 0, sizeof(m_stageInfoVs));
-    memset(&m_stageInfoPs, 0, sizeof(m_stageInfoPs));
     m_paScAaConfig.u32All = 0;
 
     m_stageInfoVs.stageId = Abi::HardwareStage::Vs;
@@ -115,10 +74,7 @@ void PipelineChunkVsPs::EarlyInit(
 {
     PAL_ASSERT(pInfo != nullptr);
 
-    const Gfx9PalSettings&   settings        = m_device.Settings();
-    const auto&              palDevice       = *(m_device.Parent());
-    const bool               hasVgtStreamOut = m_device.Parent()->ChipProperties().gfxip.supportsHwVs;
-    const GpuChipProperties& chipProps       = palDevice.ChipProperties();
+    const bool hasVgtStreamOut = m_device.Parent()->ChipProperties().gfxip.supportsHwVs;
 
     // Determine if stream-out is enabled for this pipeline.
     if (hasVgtStreamOut)
@@ -138,40 +94,18 @@ void PipelineChunkVsPs::EarlyInit(
 
         ++m_regs.context.interpolatorCount;
     }
-
-    if (settings.enableLoadIndexForObjectBinds != false)
-    {
-        pInfo->loadedCtxRegCount += (BaseLoadedCntxRegCount + m_regs.context.interpolatorCount);
-        if (hasVgtStreamOut)
-        {
-            pInfo->loadedCtxRegCount += (BaseLoadedVgtStrmOutRegCount);
-        }
-
-        pInfo->loadedShRegCount  += (BaseLoadedShRegCountPs + ((chipProps.gfx9.supportSpp == 1) ? 1 : 0));
-
-        if (pInfo->enableNgg == false)
-        {
-            pInfo->loadedShRegCount += (BaseLoadedShRegCountVs + ((chipProps.gfx9.supportSpp == 1) ? 1 : 0));
-        }
-
-        if (UsesHwStreamout())
-        {
-            pInfo->loadedCtxRegCount += BaseLoadedCntxRegCountStreamOut;
-        }
-
-    }
 }
 
 // =====================================================================================================================
 // Late initialization for this pipeline chunk.  Responsible for fetching register values from the pipeline binary and
-// determining the values of other registers.  Also uploads register state into GPU memory.
+// determining the values of other registers.
 void PipelineChunkVsPs::LateInit(
     const AbiReader&                    abiReader,
     const CodeObjectMetadata&           metadata,
     const RegisterVector&               registers,
     const GraphicsPipelineLoadInfo&     loadInfo,
     const GraphicsPipelineCreateInfo&   createInfo,
-    GraphicsPipelineUploader*           pUploader,
+    PipelineUploader*                   pUploader,
     MetroHash64*                        pHasher)
 {
     const Gfx9PalSettings&   settings  = m_device.Settings();
@@ -351,74 +285,11 @@ void PipelineChunkVsPs::LateInit(
     }
 
     pHasher->Update(m_regs.context);
-
-    if (pUploader->EnableLoadIndexPath())
-    {
-        pUploader->AddShReg(mmSPI_SHADER_PGM_LO_PS,    m_regs.sh.spiShaderPgmLoPs);
-        pUploader->AddShReg(mmSPI_SHADER_PGM_RSRC1_PS, m_regs.sh.spiShaderPgmRsrc1Ps);
-        pUploader->AddShReg(mmSPI_SHADER_PGM_RSRC2_PS, m_regs.sh.spiShaderPgmRsrc2Ps);
-
-        pUploader->AddShReg(mmSPI_SHADER_USER_DATA_PS_0 + ConstBufTblStartReg, m_regs.sh.userDataInternalTablePs);
-
-        if (chipProps.gfx9.supportSpp != 0)
-        {
-            pUploader->AddShReg(Apu09_1xPlus::mmSPI_SHADER_PGM_CHKSUM_PS, m_regs.sh.spiShaderPgmChksumPs);
-        }
-
-        if (loadInfo.enableNgg == false)
-        {
-            pUploader->AddShReg(HasHwVs::mmSPI_SHADER_PGM_LO_VS,    m_regs.sh.spiShaderPgmLoVs);
-            pUploader->AddShReg(HasHwVs::mmSPI_SHADER_PGM_RSRC1_VS, m_regs.sh.spiShaderPgmRsrc1Vs);
-            pUploader->AddShReg(HasHwVs::mmSPI_SHADER_PGM_RSRC2_VS, m_regs.sh.spiShaderPgmRsrc2Vs);
-            pUploader->AddShReg(HasHwVs::mmSPI_SHADER_USER_DATA_VS_0 + ConstBufTblStartReg,
-                                m_regs.sh.userDataInternalTableVs);
-
-            if (chipProps.gfx9.supportSpp != 0)
-            {
-                static_assert(Gfx10Core::mmSPI_SHADER_PGM_CHKSUM_VS == Rv2x_Rn::mmSPI_SHADER_PGM_CHKSUM_VS,
-                              "Registers have changed");
-                pUploader->AddShReg(Gfx10Core::mmSPI_SHADER_PGM_CHKSUM_VS, m_regs.sh.spiShaderPgmChksumVs);
-            }
-        } // if enableNgg == false
-
-        pUploader->AddCtxReg(mmDB_SHADER_CONTROL,         m_regs.context.dbShaderControl);
-        pUploader->AddCtxReg(mmSPI_BARYC_CNTL,            m_regs.context.spiBarycCntl);
-        pUploader->AddCtxReg(mmSPI_PS_INPUT_ADDR,         m_regs.context.spiPsInputAddr);
-        pUploader->AddCtxReg(mmSPI_PS_INPUT_ENA,          m_regs.context.spiPsInputEna);
-        pUploader->AddCtxReg(mmSPI_SHADER_COL_FORMAT,     m_regs.context.spiShaderColFormat);
-        pUploader->AddCtxReg(mmSPI_SHADER_Z_FORMAT,       m_regs.context.spiShaderZFormat);;
-        pUploader->AddCtxReg(mmSPI_SHADER_POS_FORMAT,     m_regs.context.spiShaderPosFormat);
-        pUploader->AddCtxReg(mmPA_CL_VS_OUT_CNTL,         m_regs.context.paClVsOutCntl);
-        pUploader->AddCtxReg(mmVGT_PRIMITIVEID_EN,        m_regs.context.vgtPrimitiveIdEn);
-        pUploader->AddCtxReg(mmPA_SC_SHADER_CONTROL,      m_regs.context.paScShaderControl);
-
-        const auto& palDevice = *(m_device.Parent());
-        const bool hasVgtStreamOut = m_device.Parent()->ChipProperties().gfxip.supportsHwVs;
-        if (hasVgtStreamOut)
-        {
-            pUploader->AddCtxReg(HasHwVs::mmVGT_STRMOUT_CONFIG,        m_regs.context.vgtStrmoutConfig);
-            pUploader->AddCtxReg(HasHwVs::mmVGT_STRMOUT_BUFFER_CONFIG, m_regs.context.vgtStrmoutBufferConfig);
-        }
-
-        for (uint16 i = 0; i < m_regs.context.interpolatorCount; ++i)
-        {
-            pUploader->AddCtxReg(mmSPI_PS_INPUT_CNTL_0 + i, m_regs.context.spiPsInputCntl[i]);
-        }
-
-        if (UsesHwStreamout())
-        {
-            for (uint32 i = 0; i < MaxStreamOutTargets; ++i)
-            {
-                pUploader->AddCtxReg(VgtStrmoutVtxStrideAddr[i], m_regs.context.vgtStrmoutVtxStride[i]);
-            }
-        }
-    }
 }
 
 // =====================================================================================================================
 // Copies this pipeline chunk's sh commands into the specified command space. Returns the next unused DWORD in
 // pCmdSpace.
-template <bool UseLoadIndexPath>
 uint32* PipelineChunkVsPs::WriteShCommands(
     CmdStream*              pCmdStream,
     uint32*                 pCmdSpace,
@@ -429,10 +300,7 @@ uint32* PipelineChunkVsPs::WriteShCommands(
 {
     const GpuChipProperties& chipProps = m_device.Parent()->ChipProperties();
 
-    if (UseLoadIndexPath == false)
-    {
-        pCmdSpace = WriteShCommandsSetPathPs(pCmdStream, pCmdSpace);
-    }
+    pCmdSpace = WriteShCommandsSetPathPs(pCmdStream, pCmdSpace);
 
     auto dynamic = m_regs.dynamic;
 
@@ -480,10 +348,7 @@ uint32* PipelineChunkVsPs::WriteShCommands(
 
     if (isNgg == false)
     {
-        if (UseLoadIndexPath == false)
-        {
-            pCmdSpace = WriteShCommandsSetPathVs(pCmdStream, pCmdSpace);
-        }
+        pCmdSpace = WriteShCommandsSetPathVs(pCmdStream, pCmdSpace);
 
         if (vsStageInfo.wavesPerSh != 0)
         {
@@ -531,103 +396,69 @@ uint32* PipelineChunkVsPs::WriteShCommands(
     return pCmdSpace;
 }
 
-// Instantiate template versions for the linker.
-template
-uint32* PipelineChunkVsPs::WriteShCommands<false>(
-    CmdStream*              pCmdStream,
-    uint32*                 pCmdSpace,
-    bool                    isNgg,
-    const DynamicStageInfo& vsStageInfo,
-    const DynamicStageInfo& psStageInfo
-    ) const;
-template
-uint32* PipelineChunkVsPs::WriteShCommands<true>(
-    CmdStream*              pCmdStream,
-    uint32*                 pCmdSpace,
-    bool                    isNgg,
-    const DynamicStageInfo& vsStageInfo,
-    const DynamicStageInfo& psStageInfo
-    ) const;
-
 // =====================================================================================================================
 // Copies this pipeline chunk's context commands into the specified command space. Returns the next unused DWORD in
 // pCmdSpace.
-template <bool UseLoadIndexPath>
 uint32* PipelineChunkVsPs::WriteContextCommands(
     CmdStream* pCmdStream,
     uint32*    pCmdSpace
     ) const
 {
-    if (UseLoadIndexPath == false)
+    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmSPI_SHADER_POS_FORMAT,
+                                                    mmSPI_SHADER_COL_FORMAT,
+                                                    &m_regs.context.spiShaderPosFormat,
+                                                    pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetOneContextReg(mmSPI_BARYC_CNTL, m_regs.context.spiBarycCntl.u32All, pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmSPI_PS_INPUT_ENA,
+                                                    mmSPI_PS_INPUT_ADDR,
+                                                    &m_regs.context.spiPsInputEna.u32All,
+                                                    pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetOneContextReg(mmDB_SHADER_CONTROL,
+                                                    m_regs.context.dbShaderControl.u32All,
+                                                    pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetOneContextReg(mmPA_SC_SHADER_CONTROL,
+                                                    m_regs.context.paScShaderControl.u32All,
+                                                    pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetOneContextReg(mmPA_CL_VS_OUT_CNTL,
+                                                    m_regs.context.paClVsOutCntl.u32All,
+                                                    pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetOneContextReg(mmVGT_PRIMITIVEID_EN,
+                                                    m_regs.context.vgtPrimitiveIdEn.u32All,
+                                                    pCmdSpace);
+
+    if (m_regs.context.interpolatorCount > 0)
     {
-        pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmSPI_SHADER_POS_FORMAT,
-                                                       mmSPI_SHADER_COL_FORMAT,
-                                                       &m_regs.context.spiShaderPosFormat,
-                                                       pCmdSpace);
-        pCmdSpace = pCmdStream->WriteSetOneContextReg(mmSPI_BARYC_CNTL, m_regs.context.spiBarycCntl.u32All, pCmdSpace);
-        pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmSPI_PS_INPUT_ENA,
-                                                       mmSPI_PS_INPUT_ADDR,
-                                                       &m_regs.context.spiPsInputEna.u32All,
-                                                       pCmdSpace);
-        pCmdSpace = pCmdStream->WriteSetOneContextReg(mmDB_SHADER_CONTROL,
-                                                      m_regs.context.dbShaderControl.u32All,
-                                                      pCmdSpace);
-        pCmdSpace = pCmdStream->WriteSetOneContextReg(mmPA_SC_SHADER_CONTROL,
-                                                      m_regs.context.paScShaderControl.u32All,
-                                                      pCmdSpace);
-        pCmdSpace = pCmdStream->WriteSetOneContextReg(mmPA_CL_VS_OUT_CNTL,
-                                                      m_regs.context.paClVsOutCntl.u32All,
-                                                      pCmdSpace);
-        pCmdSpace = pCmdStream->WriteSetOneContextReg(mmVGT_PRIMITIVEID_EN,
-                                                      m_regs.context.vgtPrimitiveIdEn.u32All,
-                                                      pCmdSpace);
+        const uint32 endRegisterAddr = (mmSPI_PS_INPUT_CNTL_0 + m_regs.context.interpolatorCount - 1);
+        PAL_ASSERT(endRegisterAddr <= mmSPI_PS_INPUT_CNTL_31);
 
-        if (m_regs.context.interpolatorCount > 0)
+        pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmSPI_PS_INPUT_CNTL_0,
+                                                        endRegisterAddr,
+                                                        &m_regs.context.spiPsInputCntl[0],
+                                                        pCmdSpace);
+    }
+
+    const auto& palDevice = *(m_device.Parent());
+    const bool hasVgtStreamOut = m_device.Parent()->ChipProperties().gfxip.supportsHwVs;
+    if (hasVgtStreamOut)
+    {
+        pCmdSpace = pCmdStream->WriteSetSeqContextRegs(HasHwVs::mmVGT_STRMOUT_CONFIG,
+                                                        HasHwVs::mmVGT_STRMOUT_BUFFER_CONFIG,
+                                                        &m_regs.context.vgtStrmoutConfig,
+                                                        pCmdSpace);
+    }
+
+    if (UsesHwStreamout())
+    {
+        for (uint32 i = 0; i < MaxStreamOutTargets; ++i)
         {
-            const uint32 endRegisterAddr = (mmSPI_PS_INPUT_CNTL_0 + m_regs.context.interpolatorCount - 1);
-            PAL_ASSERT(endRegisterAddr <= mmSPI_PS_INPUT_CNTL_31);
-
-            pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmSPI_PS_INPUT_CNTL_0,
-                                                           endRegisterAddr,
-                                                           &m_regs.context.spiPsInputCntl[0],
-                                                           pCmdSpace);
-        }
-
-        const auto& palDevice = *(m_device.Parent());
-        const bool hasVgtStreamOut = m_device.Parent()->ChipProperties().gfxip.supportsHwVs;
-        if (hasVgtStreamOut)
-        {
-            pCmdSpace = pCmdStream->WriteSetSeqContextRegs(HasHwVs::mmVGT_STRMOUT_CONFIG,
-                                                           HasHwVs::mmVGT_STRMOUT_BUFFER_CONFIG,
-                                                           &m_regs.context.vgtStrmoutConfig,
-                                                           pCmdSpace);
-        }
-
-        if (UsesHwStreamout())
-        {
-            for (uint32 i = 0; i < MaxStreamOutTargets; ++i)
-            {
-                pCmdSpace = pCmdStream->WriteSetOneContextReg(VgtStrmoutVtxStrideAddr[i],
-                                                              m_regs.context.vgtStrmoutVtxStride[i].u32All,
-                                                              pCmdSpace);
-            }
+            pCmdSpace = pCmdStream->WriteSetOneContextReg(VgtStrmoutVtxStrideAddr[i],
+                                                            m_regs.context.vgtStrmoutVtxStride[i].u32All,
+                                                            pCmdSpace);
         }
     }
 
     return pCmdSpace;
 }
-
-// Instantiate template versions for the linker.
-template
-uint32* PipelineChunkVsPs::WriteContextCommands<false>(
-    CmdStream* pCmdStream,
-    uint32*    pCmdSpace
-    ) const;
-template
-uint32* PipelineChunkVsPs::WriteContextCommands<true>(
-    CmdStream* pCmdStream,
-    uint32*    pCmdSpace
-    ) const;
 
 // =====================================================================================================================
 // Writes PM4 commands to program the SH registers for the VS.

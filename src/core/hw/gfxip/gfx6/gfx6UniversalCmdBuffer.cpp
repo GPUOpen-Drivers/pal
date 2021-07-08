@@ -890,8 +890,11 @@ void UniversalCmdBuffer::CmdSetInputAssemblyState(
         DI_PT_POLYGON,          // Polygon
     };
 
+    const uint32 idx = static_cast<uint32>(params.topology);
+    PAL_ASSERT(idx < ArrayLen(TopologyToPrimTypeTbl));
+
     regVGT_PRIMITIVE_TYPE vgtPrimitiveType = { };
-    vgtPrimitiveType.bits.PRIM_TYPE = TopologyToPrimTypeTbl[static_cast<uint32>(params.topology)];
+    vgtPrimitiveType.bits.PRIM_TYPE = TopologyToPrimTypeTbl[idx];
 
     regVGT_MULTI_PRIM_IB_RESET_EN vgtMultiPrimIbResetEn = { };
     vgtMultiPrimIbResetEn.bits.RESET_EN = params.primitiveRestartEnable;

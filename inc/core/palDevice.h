@@ -1122,6 +1122,9 @@ struct DeviceProperties
         uint32 maxGsOutputVert;             ///< Maximum number of GS output vertices.
         uint32 maxGsTotalOutputComponents;  ///< Maximum number of GS output components totally.
 
+        uint32 dynamicLaunchDescSize;   ///< Dynamic launch descriptor size. Zero indicates this feature is not
+                                        ///  supported. @ref IPipeline::CreateLaunchDescriptor()
+
         RayTracingIpLevel rayTracingIp;     ///< HW RayTracing IP version
 
         union
@@ -1198,7 +1201,8 @@ struct DeviceProperties
                 uint64 supportTextureGatherBiasLod        :  1; ///< HW supports SQ_IMAGE_GATHER4_L_O
                 uint64 supportInt8Dot                     :  1; ///< Hardware supports a dot product 8bit.
                 uint64 supportInt4Dot                     :  1; ///< Hardware supports a dot product 4bit.
-                uint64 reserved                           : 21; ///< Reserved for future use.
+                uint64 support2DRectList                  :  1; ///< HW supports PrimitiveTopology::TwoDRectList.
+                uint64 reserved                           : 20; ///< Reserved for future use.
             };
             uint64 u64All;           ///< Flags packed as 32-bit uint.
         } flags;                     ///< Device IP property flags.

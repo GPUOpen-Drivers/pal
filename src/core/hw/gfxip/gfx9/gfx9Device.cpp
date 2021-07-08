@@ -2367,7 +2367,7 @@ static TEX_BC_SWIZZLE GetBcSwizzle(
             bcSwizzle = TEX_BC_Swizzle_ZYXW;
         }
         else if (swizzle.a == ChannelSwizzle::X)
-		{
+        {
             // ABGR or ARGB
             bcSwizzle = TEX_BC_Swizzle_WXYZ;
         }
@@ -4860,6 +4860,11 @@ void InitializeGpuChipProperties(
                                                (1 << static_cast<uint32>(VrsShadingRate::_1x2))     |
                                                (1 << static_cast<uint32>(VrsShadingRate::_2x1))     |
                                                (1 << static_cast<uint32>(VrsShadingRate::_2x2)));
+
+        if (cpUcodeVersion >= Gfx10UcodeVersionLoadShRegIndexIndirectAddr)
+        {
+            pInfo->gfxip.dynamicLaunchDescSize = sizeof(DynamicCsLaunchDescLayout);
+        }
     }
 
     // When per-channel min/max filter operations are supported, make it clear that single channel always are as well.
@@ -4874,6 +4879,9 @@ void InitializeGpuChipProperties(
     pInfo->gfx9.support16BitInstructions           = 1;
     pInfo->gfx9.support64BitInstructions           = 1;
     pInfo->gfx9.supportDoubleRate16BitInstructions = 1;
+
+    // Support PrimitiveTopology::TwoDRectList for GfxIp9 and onwards.
+    pInfo->gfx9.support2DRectList                  = 1;
 
     // All gfx9+ hardware can support subgroup/device clocks
     pInfo->gfx9.supportShaderSubgroupClock = 1;

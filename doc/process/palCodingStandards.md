@@ -408,6 +408,27 @@ documentation:
     ***should*** use the capabilities of doxygen as appropriate with a
     focus on generating good-looking, useful documentation.
 
+Use multi-line style Doxygen comments for file headers and class declarations.
+```cpp
+/**
+ ***********************************************************************************************************************
+ * @brief Summary of what the following body of code does.
+ *
+ * A more detailed description goes here.
+ ***********************************************************************************************************************
+ */
+```
+
+Use triple-slash style Doxygen comments for functions, methods, enums, structs, and unions.
+```cpp
+/// @brief Summary of what the following body of code does.
+///
+/// @param [in]  parameterName0  Description of this input parameter.
+/// @param [out] parameterName1  Description of this output parameter.
+///
+/// @returns Omit if this isn't a function/method, or it's a void one.
+```
+
 ### Internal code
 
 Internal PAL code (anything not in inc/, and private members of classes
@@ -484,6 +505,13 @@ class Platform
 -   Throughout, special care ***should*** be taken to document any
     synchronization assumptions made by a class or function (i.e., this
     function should *never* be called from multiple threads, etc.).
+
+#### Motivation
+The PAL team decided on this unique commenting style universally. We used to work on drivers that required full Doxygen comments in every file. It was a poor experience because:
+
+- If we're going to use Doxygen, we want to do it right. That means exhaustively commenting every function parameter and every member variable. This is a huge waste of time when almost all member variables and function parameters are trivially understandable based on their name alone. Otherwise, a simple informal block comment above the variables or above the function gets the point across.
+- Doxygen is meant to generate docs, and such the formatting is rather tedious and complex if you're never going to generate those docs. The only thing worth formally documenting in PAL is the interface, everything else is just "read the code" documented. Thus we're much better served with a very plain style that just gets the point across internally.
+- The only good thing about Doxygen is the generated docs. We assume client driver engineers would generate Doxygen docs to help them read up on our interface headers. This is the only reason we still Doxygen for the public interface.
 
 <!--
 -->

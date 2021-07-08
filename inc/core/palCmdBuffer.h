@@ -86,7 +86,7 @@ enum class PrimitiveTopology : uint32
     LineStrip        = 0x2,
     TriangleList     = 0x3,
     TriangleStrip    = 0x4,
-    RectList         = 0x5,
+    RectList         = 0x5,  ///< Each rect is three 2D axis-aligned rectangle vertices.
     QuadList         = 0x6,
     QuadStrip        = 0x7,
     LineListAdj      = 0x8,
@@ -96,7 +96,9 @@ enum class PrimitiveTopology : uint32
     Patch            = 0xC,
     TriangleFan      = 0xD,
     LineLoop         = 0xE,
-    Polygon          = 0xF
+    Polygon          = 0xF,
+    TwoDRectList     = 0x10  ///< Each rect is the bounding box of an arbitrary 2D triangle.
+                             ///  Support is optional, see support2DRectList in DeviceProperties.
 };
 
 /// Specifies how triangle primitives should be rasterized.
@@ -1424,6 +1426,16 @@ typedef void (PAL_STDCALL *CmdDispatchOffsetFunc)(
     uint32      yDim,
     uint32      zDim);
 
+/// @internal Function pointer type definition for issuing dynamic compute dispatches.
+///
+/// @see ICmdBuffer::CmdDispatchDynamic().
+typedef void (PAL_STDCALL* CmdDispatchDynamicFunc)(
+    ICmdBuffer* pCmdBuffer,
+    gpusize     gpuVa,
+    uint32      xDim,
+    uint32      yDim,
+    uint32      zDim);
+
 /// @internal Function pointer type definition for issuing direct mesh dispatches.
 ///
 /// @see ICmdBuffer::CmdDispatchMesh().
@@ -1786,13 +1798,14 @@ struct CmdBufInfo
     {
         struct
         {
-            uint32 isValid      : 1;    ///< Indicate if this CmdBufInfo is valid and should be submitted
-            uint32 frameBegin   : 1;    ///< First command buffer after Queue creation or Present.
-            uint32 frameEnd     : 1;    ///< Last command buffer before Present.
-            uint32 p2pCmd       : 1;    ///< Is P2P copy command. See CmdBufInfo comments for details.
-            uint32 captureBegin : 1;    ///< This command buffer begins a Direct Capture frame capture.
-            uint32 captureEnd   : 1;    ///< This command buffer ends a Direct Capture frame capture.
-            uint32 reserved     : 26;   ///< Reserved for future usage.
+            uint32 isValid            : 1;  ///< Indicate if this CmdBufInfo is valid and should be submitted
+            uint32 frameBegin         : 1;  ///< First command buffer after Queue creation or Present.
+            uint32 frameEnd           : 1;  ///< Last command buffer before Present.
+            uint32 p2pCmd             : 1;  ///< Is P2P copy command. See CmdBufInfo comments for details.
+            uint32 captureBegin       : 1;  ///< This command buffer begins a Direct Capture frame capture.
+            uint32 captureEnd         : 1;  ///< This command buffer ends a Direct Capture frame capture.
+            uint32 rayTracingExecuted : 1;  ///< This command buffer contains ray tracing work.
+            uint32 reserved           : 25; ///< Reserved for future usage.
         };
         uint32 u32All;                  ///< Flags packed as uint32.
     };
@@ -2302,7 +2315,7 @@ public:
     ///
     /// @param [in] rasterizerDiscardEnable  Parameters for dynamically setting rasterizer discard enable bit
     virtual void CmdSetRasterizerDiscardEnable(
-	bool rasterizerDiscardEnable) = 0;
+        bool rasterizerDiscardEnable) = 0;
 
     /// Inserts a barrier in the current command stream that can stall GPU execution, flush/invalidate caches, or
     /// decompress images before further, dependent work can continue in this command buffer.
@@ -2720,6 +2733,28 @@ public:
         uint32 zDim)
     {
         m_funcTable.pfnCmdDispatchOffset(this, xOffset, yOffset, zOffset, xDim, yDim, zDim);
+    }
+
+    /// Dispatches a compute workload of the given dimensions using the command buffer's currently bound compute state
+    /// and dynamic pipeline state from GPU memory. The memory address provided contains the gpuVa of the pipeline
+    /// launch descriptor previously obtained by calling @ref IPipeline::CreateLaunchDescriptor on a pipeline
+    /// that supports dynamic dispatch (@see PipelineCreateFlags)
+    ///
+    /// The thread group size is defined in the compute shader.
+    ///
+    /// @note DynamicComputeShaderInfo.ldsBytesPerTg is not applicable to dynamic launch descriptors.
+    ///
+    /// @param [in] gpuVa GPU virtual address of memory containing pipeline launch descriptor address.
+    /// @param [in] xDim  Thread groups to dispatch in the X dimension.  If zero, the dispatch will be discarded.
+    /// @param [in] yDim  Thread groups to dispatch in the Y dimension.  If zero, the dispatch will be discarded.
+    /// @param [in] zDim  Thread groups to dispatch in the Z dimension.  If zero, the dispatch will be discarded.
+    PAL_INLINE void CmdDispatchDynamic(
+        gpusize gpuVa,
+        uint32  xDim,
+        uint32  yDim,
+        uint32  zDim)
+    {
+        m_funcTable.pfnCmdDispatchDynamic(this, gpuVa, xDim, yDim, zDim);
     }
 
     /// Dispatches a mesh shader workload using the command buffer's currently bound graphics state.  It is an error if
@@ -4048,6 +4083,7 @@ protected:
         CmdDispatchFunc                  pfnCmdDispatch;                  ///< CmdDispatch function pointer.
         CmdDispatchIndirectFunc          pfnCmdDispatchIndirect;          ///< CmdDispatchIndirect function pointer.
         CmdDispatchOffsetFunc            pfnCmdDispatchOffset;            ///< CmdDispatchOffset function pointer.
+        CmdDispatchDynamicFunc           pfnCmdDispatchDynamic;           ///< CmdDispatchDynamic function pointer.
         CmdDispatchMeshFunc              pfnCmdDispatchMesh;              ///< CmdDispatchmesh function pointer.
         CmdDispatchMeshIndirectMultiFunc pfnCmdDispatchMeshIndirectMulti; ///< CmdDispatchMeshIndirect function pointer.
     } m_funcTable;     ///< Function pointer table for Cmd* functions.

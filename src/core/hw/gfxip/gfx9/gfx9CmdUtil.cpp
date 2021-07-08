@@ -2129,16 +2129,18 @@ size_t CmdUtil::BuildSampleEventWrite(
                 static_cast<uint32>(event_index__mec_event_write__sample_pipelinestat)));
 
     constexpr uint32 PacketSize = PM4_ME_EVENT_WRITE_SIZEDW__CORE;
-    auto*const       pPacket    = static_cast<PM4_ME_EVENT_WRITE*>(pBuffer);
+    PM4_ME_EVENT_WRITE  packet  = {};
 
-    pPacket->ordinal1.header                = Type3Header(IT_EVENT_WRITE, PacketSize);
-    pPacket->ordinal2.u32All                = 0;
-    pPacket->ordinal2.bitfields.event_type  = vgtEvent;
-    pPacket->ordinal2.bitfields.event_index = eventIndex;
+    packet.ordinal1.header                = Type3Header(IT_EVENT_WRITE, PacketSize);
+    packet.ordinal2.u32All                = 0;
+    packet.ordinal2.bitfields.event_type  = vgtEvent;
+    packet.ordinal2.bitfields.event_index = eventIndex;
 
-    pPacket->ordinal3.u32All                = LowPart(gpuAddr);
-    PAL_ASSERT(pPacket->ordinal3.bitfieldsA.reserved1 == 0);
-    pPacket->ordinal4.address_hi            = HighPart(gpuAddr);
+    packet.ordinal3.u32All                = LowPart(gpuAddr);
+    PAL_ASSERT(packet.ordinal3.bitfieldsA.reserved1 == 0);
+    packet.ordinal4.address_hi            = HighPart(gpuAddr);
+
+    memcpy(pBuffer, &packet, sizeof(PM4_ME_EVENT_WRITE));
 
     return PacketSize;
 }
@@ -2835,12 +2837,25 @@ size_t CmdUtil::BuildLoadShRegs(
 // Builds a PM4 packet which issues a load_sh_reg_index command to load a series of individual persistent-state
 // registers stored in GPU memory.  Returns the size of the PM4 command assembled, in DWORDs.
 size_t CmdUtil::BuildLoadShRegsIndex(
-    gpusize       gpuVirtAddr,
-    uint32        count,
-    Pm4ShaderType shaderType,
-    void*         pBuffer      // [out] Build the PM4 packet in this buffer.
+    PFP_LOAD_SH_REG_INDEX_index_enum index,
+    gpusize                          gpuVirtAddr,
+    uint32                           count,
+    Pm4ShaderType                    shaderType,
+    void*                            pBuffer      // [out] Build the PM4 packet in this buffer.
     ) const
 {
+    static_assert(((static_cast<uint32>(index__pfp_load_sh_reg_index__direct_addr)   ==
+                    static_cast<uint32>(index__mec_load_sh_reg_index__direct_addr__GFX103COREPLUS)) &&
+                   (static_cast<uint32>(index__pfp_load_sh_reg_index__indirect_addr__GFX103COREPLUS)   ==
+                    static_cast<uint32>(index__mec_load_sh_reg_index__indirect_addr__GFX103COREPLUS))),
+                  "LOAD_SH_REG_INDEX index enumerations don't match between PFP and MEC!");
+
+    static_assert(((static_cast<uint32>(data_format__pfp_load_sh_reg_index__offset_and_size)   ==
+                    static_cast<uint32>(data_format__mec_load_sh_reg_index__offset_and_size__GFX103COREPLUS)) &&
+                   (static_cast<uint32>(data_format__pfp_load_sh_reg_index__offset_and_data)   ==
+                    static_cast<uint32>(data_format__mec_load_sh_reg_index__offset_and_data__GFX103COREPLUS))),
+                  "LOAD_SH_REG_INDEX data format enumerations don't match between PFP and MEC!");
+
     constexpr uint32 PacketSize = PM4_PFP_LOAD_SH_REG_INDEX_SIZEDW__CORE;
     auto*const       pPacket    = static_cast<PM4_PFP_LOAD_SH_REG_INDEX*>(pBuffer);
     PM4_PFP_LOAD_SH_REG_INDEX packet = { 0 };
@@ -2849,7 +2864,16 @@ size_t CmdUtil::BuildLoadShRegsIndex(
     header.u32All         = (Type3Header(IT_LOAD_SH_REG_INDEX, PacketSize, false, shaderType)).u32All;
     packet.ordinal1.header                = header;
     packet.ordinal2.u32All                = 0;
-    packet.ordinal2.bitfields.index       = index__pfp_load_sh_reg_index__direct_addr;
+
+    if ((m_cpUcodeVersion >= Gfx10UcodeVersionLoadShRegIndexIndirectAddr) && IsGfx103Plus(m_gfxIpLevel))
+    {
+        packet.ordinal2.bitfields.gfx103CorePlus.index = index;
+    }
+    else
+    {
+        packet.ordinal2.bitfields.gfx09.index = index;
+    }
+
     packet.ordinal2.bitfields.mem_addr_lo = LowPart(gpuVirtAddr) >> 2;
     packet.ordinal3.mem_addr_hi           = HighPart(gpuVirtAddr);
     // Only the low 16 bits are honored for the high portion of the GPU virtual address!
@@ -3212,9 +3236,11 @@ size_t CmdUtil::ExplicitBuildReleaseMem(
     else if (IsGfx10Plus(m_gfxIpLevel))
     {
         // Handle the GFX-specific aspects of a release-mem packet.
-        packet.ordinal2.bitfields.gfx10CorePlus.gcr_cntl  = releaseMemInfo.gcrCntl;
         packet.ordinal8.bitfields.gfx10Plus.int_ctxid = 0;
 
+        {
+            packet.ordinal2.bitfields.gfx10Core.gcr_cntl = releaseMemInfo.gcrCntl;
+        }
     }
 
     memcpy(pBuffer, &packet, PacketSize * sizeof(uint32));
@@ -3517,11 +3543,13 @@ size_t CmdUtil::BuildSetSeqContextRegs(
     CheckShadowedContextRegs(startRegAddr, endRegAddr);
 #endif
 
-    const uint32 packetSize = ContextRegSizeDwords + endRegAddr - startRegAddr + 1;
-    auto*const   pPacket    = static_cast<PM4_PFP_SET_CONTEXT_REG*>(pBuffer);
+    const uint32 packetSize  = ContextRegSizeDwords + endRegAddr - startRegAddr + 1;
+    auto*const   pPacket     = static_cast<PM4_PFP_SET_CONTEXT_REG*>(pBuffer);
 
-    pPacket->ordinal1.header.u32All         = (Type3Header(IT_SET_CONTEXT_REG, packetSize)).u32All;
-    pPacket->ordinal2.u32All                = Type3Ordinal2((startRegAddr - CONTEXT_SPACE_START), index);
+    PM4_PFP_TYPE_3_HEADER header;
+    header.u32All            = (Type3Header(IT_SET_CONTEXT_REG, packetSize)).u32All;
+    pPacket->ordinal1.header = header;
+    pPacket->ordinal2.u32All = Type3Ordinal2((startRegAddr - CONTEXT_SPACE_START), index);
 
     return packetSize;
 }
