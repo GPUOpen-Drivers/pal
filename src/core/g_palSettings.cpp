@@ -164,6 +164,7 @@ void SettingsLoader::SetupDefaults()
     m_settings.overlayReportMes = true;
     m_settings.mipGenUseFastPath = false;
     m_settings.useFp16GenMips = false;
+    m_settings.maxMappedPoolsSize = 0;
     m_settings.tmzEnabled = true;
 #if PAL_DEVELOPER_BUILD
     m_settings.dbgHelperBits = 0x0;
@@ -633,6 +634,11 @@ void SettingsLoader::ReadSettings()
                            &m_settings.useFp16GenMips,
                            InternalSettingScope::PrivatePalKey);
 
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pmaxMappedPoolsSizeStr,
+                           Util::ValueType::Uint64,
+                           &m_settings.maxMappedPoolsSize,
+                           InternalSettingScope::PrivatePalKey);
+
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pTmzEnabledStr,
                            Util::ValueType::Boolean,
                            &m_settings.tmzEnabled,
@@ -681,6 +687,11 @@ void SettingsLoader::RereadSettings()
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pUseFp16GenMipsStr,
                            Util::ValueType::Boolean,
                            &m_settings.useFp16GenMips,
+                           InternalSettingScope::PrivatePalKey);
+
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pmaxMappedPoolsSizeStr,
+                           Util::ValueType::Uint64,
+                           &m_settings.maxMappedPoolsSize,
                            InternalSettingScope::PrivatePalKey);
 
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pUseDccStr,
@@ -1147,6 +1158,11 @@ void SettingsLoader::InitSettingsInfo()
     info.pValuePtr = &m_settings.useFp16GenMips;
     info.valueSize = sizeof(m_settings.useFp16GenMips);
     m_settingsInfoMap.Insert(192229910, info);
+
+    info.type      = SettingType::Uint64;
+    info.pValuePtr = &m_settings.maxMappedPoolsSize;
+    info.valueSize = sizeof(m_settings.maxMappedPoolsSize);
+    m_settingsInfoMap.Insert(3814409436, info);
 
     info.type      = SettingType::Boolean;
     info.pValuePtr = &m_settings.tmzEnabled;

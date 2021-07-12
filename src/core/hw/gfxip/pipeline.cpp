@@ -912,7 +912,7 @@ Result PipelineUploader::UploadUsingCpu(
     const SectionAddressCalculator& addressCalc,
     void**                          ppMappedPtr)
 {
-    Result result = m_pGpuMemory->Map(&m_pMappedPtr);
+    Result result = m_pDevice->MemMgr()->Map(m_pGpuMemory, &m_pMappedPtr);
     if (result == Result::Success)
     {
         m_pMappedPtr = VoidPtrInc(m_pMappedPtr, static_cast<size_t>(m_baseOffset));
@@ -1141,7 +1141,7 @@ Result PipelineUploader::End(
         else
         {
             PAL_ASSERT(m_pMappedPtr != nullptr);
-            result = m_pGpuMemory->Unmap();
+            m_pDevice->MemMgr()->Unmap(m_pGpuMemory);
         }
 
         m_pMappedPtr = nullptr;

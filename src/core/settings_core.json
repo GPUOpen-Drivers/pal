@@ -1946,6 +1946,23 @@
       "Description": "If mipGenUseFastPath == true and this is true - use the fp16 single-pass GenMips compute pass."
     },
     {
+      "Name": "maxMappedPoolsSize",
+      "Tags": [
+        "Resource Settings",
+        "Performance"
+      ],
+      "Defaults": {
+        "Default": 0
+      },
+      "Flags": {
+        "RereadSetting": true
+      },
+      "Scope": "PrivatePalKey",
+      "Type": "gpusize",
+      "VariableName": "maxMappedPoolsSize",
+      "Description": "If maxMappedPoolsSize > 0 the mapped gpu memory for pipeline creation will not be unmapped. If the total size of mapped pools grows greater than maxMappedPoolsSize, then the least recently used pools will be unmapped."
+    },
+    {
       "Name": "TmzEnabled",
       "Tags": [
         "General"

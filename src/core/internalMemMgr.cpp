@@ -128,6 +128,7 @@ InternalMemMgr::InternalMemMgr(
     :
     m_pDevice(pDevice),
     m_poolList(pDevice->GetPlatform()),
+    m_unusedMappedPoolList(pDevice->GetPlatform()),
     m_references(pDevice->GetPlatform()),
     m_referenceWatermark(0)
 {
@@ -137,6 +138,24 @@ InternalMemMgr::InternalMemMgr(
 // Explicitly frees all GPU memory allocations.
 void InternalMemMgr::FreeAllocations()
 {
+
+    for (auto it = m_poolList.Begin(); it.Get() != nullptr; it.Next())
+    {
+        PAL_ASSERT((it.Get() != nullptr) && (it.Get()->pBuddyAllocator != nullptr));
+
+        if ((it.Get()->pData != nullptr) && (it.Get()->pGpuMemory != nullptr))
+        {
+            it.Get()->pGpuMemory->Unmap();
+            it.Get()->pData = nullptr;
+        }
+    }
+
+    while (m_unusedMappedPoolList.NumElements() > 0)
+    {
+        auto it = m_unusedMappedPoolList.Begin();
+        m_unusedMappedPoolList.Erase(&it);
+    }
+
     // Delete the GPU memory objects using the references list
     while (m_references.NumElements() != 0)
     {
@@ -561,5 +580,130 @@ uint32 InternalMemMgr::GetReferencesCount()
     RWLockAuto<RWLock::ReadOnly> referenceLock(&m_referenceLock);
     return static_cast<uint32>(m_references.NumElements());
 }
+
+// =====================================================================================================================
+// Map the GPU memory allocation for cpu access
+Result InternalMemMgr::Map(
+        GpuMemory* pGpuMemory,
+        void** ppData)
+{
+    PAL_ASSERT(pGpuMemory != nullptr);
+    Result result = Result::ErrorInvalidValue;
+    if (pGpuMemory->WasBuddyAllocated())
+    {
+        Util::MutexAuto allocatorLock(&m_allocatorLock); // Ensure thread-safety using the lock
+        // Try to find the allocation in the pool list
+        for (auto it = m_poolList.Begin(); it.Get() != nullptr; it.Next())
+        {
+            GpuMemoryPool* pPool = it.Get();
+
+            PAL_ASSERT((pPool->pGpuMemory != nullptr) && (pPool->pBuddyAllocator != nullptr));
+
+            if (pPool->pGpuMemory == pGpuMemory)
+            {
+                if (pPool->pData == nullptr)
+                {
+                    result = pPool->pGpuMemory->Map(&pPool->pData);
+                    if (result != Result::Success)
+                    {
+                        pPool->pData = nullptr;
+                        break;
+                    }
+                    m_totalSizeMappedPools += pPool->pGpuMemory->Desc().size;
+                    CheckMappedPoolLimit();
+                }
+                else if (pPool->refCount == 0)
+                {
+                    // should be in unused list, remove it from there.
+                    for (auto it2 = m_unusedMappedPoolList.Begin(); it2.Get() != nullptr; it2.Next())
+                    {
+                        if (*(it2.Get()) == pPool)
+                        {
+                            m_unusedMappedPoolList.Erase(&it2);
+                            break;
+                        }
+                    }
+                }
+                pPool->refCount++;
+                *ppData = pPool->pData;
+                result = Result::Success;
+                break;
+            }
+        }
+
+        // If we didn't find the allocation in the pool list then something went wrong with the allocation scheme
+        PAL_ASSERT(result == Result::Success);
+    }
+    else
+    {
+        result = pGpuMemory->Map(ppData);
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
+// Unmap the GPU memory allocation from cpu address space
+Result InternalMemMgr::Unmap(
+        GpuMemory* pGpuMemory)
+{
+    PAL_ASSERT(pGpuMemory != nullptr);
+    if (pGpuMemory->WasBuddyAllocated())
+    {
+        Util::MutexAuto allocatorLock(&m_allocatorLock); // Ensure thread-safety using the lock
+        // Try to find the allocation in the pool list
+        for (auto it = m_poolList.Begin(); it.Get() != nullptr; it.Next())
+        {
+            GpuMemoryPool* pPool = it.Get();
+
+            PAL_ASSERT((pPool->pGpuMemory != nullptr) && (pPool->pBuddyAllocator != nullptr));
+            if (pPool->pGpuMemory == pGpuMemory)
+            {
+                if (pPool->pData != nullptr)
+                {
+                    pPool->refCount--;
+                    if (pPool->refCount == 0)
+                    {
+                        m_unusedMappedPoolList.PushBack(pPool);
+                        CheckMappedPoolLimit();
+                    }
+                }
+                break;
+            }
+        }
+    }
+    else
+    {
+        pGpuMemory->Unmap();
+    }
+
+    return Result::Success;
+}
+
+// =====================================================================================================================
+// Check the total size of mapped pools, if it is greater than maximum limit then unmap the least recently used memory
+void InternalMemMgr::CheckMappedPoolLimit()
+{
+    if (m_pDevice->Settings().maxMappedPoolsSize >= 0)
+    {
+        while ((m_totalSizeMappedPools > m_pDevice->Settings().maxMappedPoolsSize)
+                && (m_unusedMappedPoolList.NumElements() > 0))
+        {
+            auto it = m_unusedMappedPoolList.Begin();
+            GpuMemoryPool *pPool = *it.Get();
+
+            PAL_ASSERT(pPool->pBuddyAllocator != nullptr);
+            if ((pPool->pData != nullptr) && (pPool->pGpuMemory != nullptr))
+            {
+                pPool->pGpuMemory->Unmap();
+                pPool->pData = nullptr;
+            }
+            m_unusedMappedPoolList.Erase(&it);
+            PAL_ASSERT(m_totalSizeMappedPools >= pPool->pGpuMemory->Desc().size);
+            m_totalSizeMappedPools -= pPool->pGpuMemory->Desc().size;
+        }
+    }
+}
+
 
 } // Pal

@@ -290,6 +290,7 @@ struct PalSettings : public Pal::DriverSettings
     bool                                        overlayReportMes;
     bool                                        mipGenUseFastPath;
     bool                                        useFp16GenMips;
+    gpusize                                     maxMappedPoolsSize;
     bool                                        tmzEnabled;
 #if PAL_DEVELOPER_BUILD
     uint64                                      dbgHelperBits;
@@ -392,6 +393,7 @@ static const char* pDebugForceResourceAdditionalPaddingStr = "#3601080919";
 static const char* pOverlayReportMesStr = "#1685803860";
 static const char* pMipGenUseFastPathStr = "#3353227045";
 static const char* pUseFp16GenMipsStr = "#192229910";
+static const char* pmaxMappedPoolsSizeStr = "#3814409436";
 static const char* pTmzEnabledStr = "#2606194033";
 #if PAL_DEVELOPER_BUILD
 static const char* pDbgHelperBitsStr = "#3894710420";

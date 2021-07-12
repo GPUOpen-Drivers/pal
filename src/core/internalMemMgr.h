@@ -56,6 +56,8 @@ struct GpuMemoryPool
     uint64                          pagingFenceVal;         // Paging fence value
 
     Util::BuddyAllocator<Platform>* pBuddyAllocator;        // Buddy allocator used for the suballocation
+    void*                           pData;                  // address of the already existing mapping
+    size_t                          refCount;               // refCount the number of memory allocations use this mapping
 };
 
 // =====================================================================================================================
@@ -77,6 +79,7 @@ public:
     typedef Util::ListIterator<GpuMemoryInfo, Platform> GpuMemoryListIterator;
 
     typedef Util::List<GpuMemoryPool, Platform>         GpuMemoryPoolList;
+    typedef Util::List<GpuMemoryPool*, Platform>        GpuMemoryPoolRefList;
 
     explicit InternalMemMgr(Device* pDevice);
     ~InternalMemMgr() { FreeAllocations(); }
@@ -115,6 +118,17 @@ public:
     // Number of all allocations in the reference list. Note that this function takes the reference list lock.
     uint32 GetReferencesCount();
 
+    Result Map(
+        GpuMemory* pGpuMemory,
+        void** ppData);
+
+    Result Unmap(
+        GpuMemory* pGpuMemory);
+
+    // If the number of mapped pools are more then the maximum limit then unmap the least recently used pool.
+    void CheckMappedPoolLimit();
+
+
 private:
     Result AllocateBaseGpuMem(
         const GpuMemoryCreateInfo&          createInfo,
@@ -133,6 +147,9 @@ private:
     // Maintain a list of GPU memory objects that are sub-allocated
     GpuMemoryPoolList   m_poolList;
 
+    // Maintain a list of GPU memory objects that are sub-allocated and mapped but unused
+    GpuMemoryPoolRefList   m_unusedMappedPoolList;
+
     // Maintain a list of internal GPU memory references
     GpuMemoryList       m_references;
 
@@ -141,6 +158,9 @@ private:
 
     // Ever-incrementing watermark to signal changes to the internal memory reference list
     uint32              m_referenceWatermark;
+
+    // Total size of mapped pools
+    gpusize             m_totalSizeMappedPools;
 
     PAL_DISALLOW_COPY_AND_ASSIGN(InternalMemMgr);
     PAL_DISALLOW_DEFAULT_CTOR(InternalMemMgr);
