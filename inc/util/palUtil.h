@@ -80,6 +80,14 @@
 constexpr int32_t InvalidFd = -1;
 #endif
 
+#ifdef __has_builtin
+/// A macro that checks for the presence of builtin functions. Will default to false if the compiler does not have
+/// support for doing this check.
+#define PAL_HAS_BUILTIN(builtin) __has_builtin(builtin)
+#else
+#define PAL_HAS_BUILTIN(builtin) 0
+#endif
+
 #if defined(__has_cpp_attribute)
 #define PAL_HAS_CPP_ATTR(attr) __has_cpp_attribute(attr)
 #else
