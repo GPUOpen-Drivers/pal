@@ -4855,7 +4855,7 @@ Result Device::ParseClkInfo(
             }
             else if ((ioRet < 0) && (errno != EINTR))
             {
-                PAL_ALERT("read pp_dpm_clk info error");
+                PAL_ALERT_ALWAYS_MSG("read pp_dpm_clk info error");
                 result = Result::ErrorUnavailable;
                 break;
             }

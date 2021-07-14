@@ -32,15 +32,26 @@
 #pragma once
 
 #include "palDbgPrint.h"
+#include "palUtil.h"
 
 #include <signal.h>
 
 /// OS-independent macro to force a break into the debugger.
 #define PAL_DEBUG_BREAK() raise(SIGTRAP);
 
+#if PAL_HAS_BUILTIN(__builtin_expect) || (defined(__GNUC__) && !defined(__clang__))
+/// Informs the compiler to assume that the given expression likely evaluates to true, and returns that expression.
+#define PAL_PREDICT_TRUE(expr) __builtin_expect(!!(expr), 1)
+/// Informs the compiler to assume that the given expression likely evaluates to false, and returns that expression.
+#define PAL_PREDICT_FALSE(expr) __builtin_expect((expr), 0)
+#else
+#define PAL_PREDICT_TRUE(expr) (expr)
+#define PAL_PREDICT_FALSE(expr) (expr)
+#endif
+
 /// OS-independent macro to direct static code analysis to assume the specified expression will always be true.  Linux
 /// compiles do not currently enable static code analysis.
-#define PAL_ANALYSIS_ASSUME(expr)
+#define PAL_ANALYSIS_ASSUME(expr) static_cast<void>(PAL_PREDICT_TRUE(expr))
 
 namespace Util
 {
@@ -139,7 +150,7 @@ extern bool IsAssertCategoryEnabled(
 
 #define PAL_ASSERT_MSG(_expr, _pReasonFmt, ...)                                                   \
 {                                                                                                 \
-    if (static_cast<bool>(_expr) == false)                                                        \
+    if (PAL_PREDICT_FALSE(static_cast<bool>(_expr) == false))                                     \
     {                                                                                             \
         PAL_TRIGGER_ASSERT("Assertion failed: %s | Reason: " _pReasonFmt, #_expr, ##__VA_ARGS__); \
     }                                                                                             \
@@ -177,7 +188,7 @@ extern bool IsAssertCategoryEnabled(
 
 #define PAL_ALERT_MSG(_expr, _pReasonFmt, ...)                                                  \
 {                                                                                               \
-    if (_expr)                                                                                  \
+    if (PAL_PREDICT_FALSE(_expr))                                                               \
     {                                                                                           \
         PAL_TRIGGER_ALERT("Alert triggered: %s | Reason: " _pReasonFmt, #_expr, ##__VA_ARGS__); \
     }                                                                                           \
