@@ -44,15 +44,18 @@ namespace RpmUtil
 {
 
 // Returns the minimum number of thread groups needed to launch at least minThreads.
-PAL_INLINE uint32 MinThreadGroups(uint32 minThreads, uint32 threadsPerGroup)
+constexpr uint32 MinThreadGroups(uint32 minThreads, uint32 threadsPerGroup)
     { return (minThreads + threadsPerGroup - 1) / threadsPerGroup; }
 
-extern void BuildRawBufferViewInfo(BufferViewInfo* pInfo, const GpuMemory& bufferMemory, gpusize byteOffset);
-
 extern void BuildRawBufferViewInfo(BufferViewInfo* pInfo,
+                                   const Device&   device,
+                                   gpusize         gpuVirtAddr,
+                                   gpusize         sizeInBytes);
+extern void BuildRawBufferViewInfo(BufferViewInfo* pInfo, const GpuMemory& bufferMemory, gpusize byteOffset);
+extern void BuildRawBufferViewInfo(BufferViewInfo*  pInfo,
                                    const GpuMemory& bufferMemory,
-                                   gpusize byteOffset,
-                                   gpusize range);
+                                   gpusize          byteOffset,
+                                   gpusize          range);
 
 // Layout implying a given image can only be read.
 constexpr ImageLayout DefaultRpmLayoutRead =

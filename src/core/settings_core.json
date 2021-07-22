@@ -1059,6 +1059,29 @@
       "Description": "The ending frame to stop dumping command buffers."
     },
     {
+      "Name": "DumpCmdBufPerFrame",
+      "Tags": [
+        "Printing and Logging"
+      ],
+      "Defaults": {
+        "Default": true
+      },
+      "DependsOn": {
+        "Settings": [
+          {
+            "Values": [
+              2
+            ],
+            "Name": "CmdBufDumpMode"
+          }
+        ]
+      },
+      "Scope": "PrivatePalKey",
+      "Type": "bool",
+      "VariableName": "dumpCmdBufPerFrame",
+      "Description": "Dump Command Buffers in Frame Count Folders, Default True, Like - Frame_0_0x55fc26902070_0_0001.pm4 will be dumped in <logDirectory>/0/Frame_0_0x55fc26902070_0_0001.pm4"
+    },
+    {
       "Name": "LogCmdBufCommitSizes",
       "Tags": [
         "Printing and Logging"

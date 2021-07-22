@@ -514,7 +514,8 @@ AcqRelSyncToken Device::IssueReleaseSync(
     const EngineType engineType = pCmdBuf->GetEngineType();
     uint32*          pCmdSpace  = pCmdStream->ReserveCommands();
 
-    if (pCmdBuf->GetGfxCmdBufState().flags.cpBltActive && TestAnyFlagSet(stageMask, PipelineStageBlt))
+    if (pCmdBuf->GetGfxCmdBufState().flags.cpBltActive &&
+        TestAnyFlagSet(stageMask, PipelineStageBlt | PipelineStageBottomOfPipe))
     {
         // We must guarantee that all prior CP DMA accelerated blts have completed before we write this event because
         // the CmdSetEvent and CmdResetEvent functions expect that the prior blts have reached the post-blt stage by
@@ -2087,7 +2088,8 @@ void Device::IssueReleaseSyncEvent(
     const EngineType engineType = pCmdBuf->GetEngineType();
     uint32*          pCmdSpace  = pCmdStream->ReserveCommands();
 
-    if (pCmdBuf->GetGfxCmdBufState().flags.cpBltActive && TestAnyFlagSet(stageMask, PipelineStageBlt))
+    if (pCmdBuf->GetGfxCmdBufState().flags.cpBltActive &&
+        TestAnyFlagSet(stageMask, PipelineStageBlt | PipelineStageBottomOfPipe))
     {
         // We must guarantee that all prior CP DMA accelerated blts have completed before we write this event because
         // the CmdSetEvent and CmdResetEvent functions expect that the prior blts have reached the post-blt stage by

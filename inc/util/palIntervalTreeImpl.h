@@ -39,7 +39,7 @@ namespace Util
 //======================================================================================================================
 // Returns the tree node containing the specified interval - Null node is converted to nullptr.
 template<typename T, typename K, typename Allocator>
-PAL_INLINE IntervalTreeNode<T, K>* IntervalTree<T, K, Allocator>::FindContainingNode(
+IntervalTreeNode<T, K>* IntervalTree<T, K, Allocator>::FindContainingNode(
     const Interval<T, K>* pInterval
     ) const
 {
@@ -51,7 +51,7 @@ PAL_INLINE IntervalTreeNode<T, K>* IntervalTree<T, K, Allocator>::FindContaining
 //======================================================================================================================
 // Returns the tree node containing the specified interval.
 template<typename T, typename K, typename Allocator>
-PAL_INLINE IntervalTreeNode<T, K>* IntervalTree<T, K, Allocator>::FindContaining(
+IntervalTreeNode<T, K>* IntervalTree<T, K, Allocator>::FindContaining(
     const Interval<T, K>* pInterval
     ) const
 {
@@ -76,7 +76,7 @@ PAL_INLINE IntervalTreeNode<T, K>* IntervalTree<T, K, Allocator>::FindContaining
 //======================================================================================================================
 // Returns a tree node that overlaps the specified interval - Null node is converted to nullptr.
 template<typename T, typename K, typename Allocator>
-PAL_INLINE IntervalTreeNode<T, K>* IntervalTree<T, K, Allocator>::FindOverlappingNode(
+IntervalTreeNode<T, K>* IntervalTree<T, K, Allocator>::FindOverlappingNode(
     const Interval<T, K>* pInterval
     ) const
 {
@@ -88,7 +88,7 @@ PAL_INLINE IntervalTreeNode<T, K>* IntervalTree<T, K, Allocator>::FindOverlappin
 //======================================================================================================================
 // Returns a tree node that overlaps the specified interval.
 template<typename T, typename K, typename Allocator>
-PAL_INLINE IntervalTreeNode<T, K>* IntervalTree<T, K, Allocator>::FindOverlapping(
+IntervalTreeNode<T, K>* IntervalTree<T, K, Allocator>::FindOverlapping(
     const Interval<T, K>* pInterval
     ) const
 {
@@ -113,7 +113,7 @@ PAL_INLINE IntervalTreeNode<T, K>* IntervalTree<T, K, Allocator>::FindOverlappin
 //======================================================================================================================
 // Inserts the specified interval into the red-black tree.
 template<typename T, typename K, typename Allocator>
-PAL_INLINE IntervalTreeNode<T, K>* IntervalTree<T, K, Allocator>::Insert(
+IntervalTreeNode<T, K>* IntervalTree<T, K, Allocator>::Insert(
     const Interval<T, K>* pInterval)
 {
     // The PAL_NEW macro doesn't work correctly with IntervalTreeNode because there is a comma in the template argument
@@ -182,7 +182,7 @@ PAL_INLINE IntervalTreeNode<T, K>* IntervalTree<T, K, Allocator>::Insert(
 //======================================================================================================================
 // Deletes the specified node from the tree.
 template<typename T, typename K, typename Allocator>
-PAL_INLINE void IntervalTree<T, K, Allocator>::Delete(
+void IntervalTree<T, K, Allocator>::Delete(
     IntervalTreeNode<T, K>* pNode)
 {
     if (pNode != GetNull())
@@ -246,7 +246,7 @@ PAL_INLINE void IntervalTree<T, K, Allocator>::Delete(
 //======================================================================================================================
 // Returns a pointer to the tree node corresponding to the specified interval.
 template<typename T, typename K, typename Allocator>
-PAL_INLINE IntervalTreeNode<T, K>* IntervalTree<T, K, Allocator>::Search(
+IntervalTreeNode<T, K>* IntervalTree<T, K, Allocator>::Search(
     const Interval<T, K>* pInterval
     ) const
 {
@@ -276,7 +276,7 @@ PAL_INLINE IntervalTreeNode<T, K>* IntervalTree<T, K, Allocator>::Search(
 // Overwrites the specified interval range, adjusting the tree as necessary (potentially inserting a new node and
 // splitting or combining adjacent nodes).
 template<typename T, typename K, typename Allocator>
-PAL_INLINE void IntervalTree<T, K, Allocator>::OverwriteInterval(
+void IntervalTree<T, K, Allocator>::OverwriteInterval(
     const Interval<T, K>* pInterval)
 {
     IntervalTreeNode<T, K>* pLowerBound    = LowerOverlappingBound(pInterval);
@@ -362,7 +362,7 @@ PAL_INLINE void IntervalTree<T, K, Allocator>::OverwriteInterval(
 //======================================================================================================================
 // In-order traverse helper.
 template<typename T, typename K, typename Allocator>
-PAL_INLINE void IntervalTree<T, K, Allocator>::Inorder(
+void IntervalTree<T, K, Allocator>::Inorder(
     IntervalTreeNode<T, K>* pRoot,
     void                  (*pfnTraverse)(IntervalTreeNode<T, K>*, void*),
     void*                   pData
@@ -387,7 +387,7 @@ PAL_INLINE void IntervalTree<T, K, Allocator>::Inorder(
 //======================================================================================================================
 // Calculates the highest value of sub-tree of pNode.
 template<typename T, typename K, typename Allocator>
-PAL_INLINE T IntervalTree<T, K, Allocator>::CalcHighestValue(
+T IntervalTree<T, K, Allocator>::CalcHighestValue(
     IntervalTreeNode<T, K>* pNode
     ) const
 {
@@ -409,7 +409,7 @@ PAL_INLINE T IntervalTree<T, K, Allocator>::CalcHighestValue(
 //======================================================================================================================
 // Gets previous node of pNode.
 template<typename T, typename K, typename Allocator>
-PAL_INLINE IntervalTreeNode<T, K>* IntervalTree<T, K, Allocator>::Prev(
+IntervalTreeNode<T, K>* IntervalTree<T, K, Allocator>::Prev(
     IntervalTreeNode<T, K>* pNode
     ) const
 {
@@ -444,7 +444,7 @@ PAL_INLINE IntervalTreeNode<T, K>* IntervalTree<T, K, Allocator>::Prev(
 //======================================================================================================================
 // Gets next node of pNode.
 template<typename T, typename K, typename Allocator>
-PAL_INLINE IntervalTreeNode<T, K>* IntervalTree<T, K, Allocator>::Next(
+IntervalTreeNode<T, K>* IntervalTree<T, K, Allocator>::Next(
     IntervalTreeNode<T, K>* pNode
     ) const
 {
@@ -480,7 +480,7 @@ PAL_INLINE IntervalTreeNode<T, K>* IntervalTree<T, K, Allocator>::Next(
 //======================================================================================================================
 // Finds the tree node that contains the interval point.
 template<typename T, typename K, typename Allocator>
-PAL_INLINE IntervalTreeNode<T, K>* IntervalTree<T, K, Allocator>::FindContaining(
+IntervalTreeNode<T, K>* IntervalTree<T, K, Allocator>::FindContaining(
     T intervalPoint
     ) const
 {
@@ -508,7 +508,7 @@ PAL_INLINE IntervalTreeNode<T, K>* IntervalTree<T, K, Allocator>::FindContaining
 //======================================================================================================================
 // Fixes up tree after insertion.
 template<typename T, typename K, typename Allocator>
-PAL_INLINE void IntervalTree<T, K, Allocator>::InsertFixup(
+void IntervalTree<T, K, Allocator>::InsertFixup(
     IntervalTreeNode<T, K>* pX)
 {
     IntervalTreeNode<T, K>* pY;
@@ -608,7 +608,7 @@ PAL_INLINE void IntervalTree<T, K, Allocator>::InsertFixup(
 //======================================================================================================================
 // Fixes up tree after deletion.
 template<typename T, typename K, typename Allocator>
-PAL_INLINE void IntervalTree<T, K, Allocator>::DeleteFixup(
+void IntervalTree<T, K, Allocator>::DeleteFixup(
     IntervalTreeNode<T, K>* pX)
 {
     while ((pX != m_pRoot) && (pX->color == NodeColor::Black))
@@ -687,7 +687,7 @@ PAL_INLINE void IntervalTree<T, K, Allocator>::DeleteFixup(
 //======================================================================================================================
 // Left rotation for node A.
 template<typename T, typename K, typename Allocator>
-PAL_INLINE void IntervalTree<T, K, Allocator>::LeftRotate(
+void IntervalTree<T, K, Allocator>::LeftRotate(
     IntervalTreeNode<T, K>* pA)
 {
     /*
@@ -739,7 +739,7 @@ PAL_INLINE void IntervalTree<T, K, Allocator>::LeftRotate(
 //======================================================================================================================
 // Right rotation for node A.
 template<typename T, typename K, typename Allocator>
-PAL_INLINE void IntervalTree<T, K, Allocator>::RightRotate(
+void IntervalTree<T, K, Allocator>::RightRotate(
     IntervalTreeNode<T, K>* pA)
 {
     /*
@@ -791,7 +791,7 @@ PAL_INLINE void IntervalTree<T, K, Allocator>::RightRotate(
 //======================================================================================================================
 // Swaps the node color and swap its topology in tree simultaneously.
 template<typename T, typename K, typename Allocator>
-PAL_INLINE void IntervalTree<T, K, Allocator>::SwapNodeTopology(
+void IntervalTree<T, K, Allocator>::SwapNodeTopology(
     IntervalTreeNode<T, K>* pA,
     IntervalTreeNode<T, K>* pB)
 {
@@ -820,7 +820,7 @@ PAL_INLINE void IntervalTree<T, K, Allocator>::SwapNodeTopology(
 //======================================================================================================================
 // Links the node topology with its parent and children.
 template<typename T, typename K, typename Allocator>
-PAL_INLINE void IntervalTree<T, K, Allocator>::ResetNodeTopology(
+void IntervalTree<T, K, Allocator>::ResetNodeTopology(
     IntervalTreeNode<T, K>* pNode,
     IntervalTreeNode<T, K>* pRefNode)
 {

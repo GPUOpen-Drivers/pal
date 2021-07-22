@@ -118,7 +118,7 @@ constexpr void* VoidPtrDec(
 /// This function expects the first pointer to not be smaller than the second.
 ///
 /// @returns Number of bytes between the two pointers.
-PAL_INLINE size_t VoidPtrDiff(
+inline size_t VoidPtrDiff(
     const void* p1,  ///< [in] First pointer (higher address).
     const void* p2)  ///< [in] Second pointer (lower address).
 {
@@ -261,14 +261,14 @@ void WideBitfieldClearBit(
 /// XORs all of the bits in two "wide bitfields". A "wide bifield" is a bitfield which spans an array of integers
 /// because there are more flags than bits in one integer.
 ///
-/// @param [in] bitfield1 Reference to the first bitfield.
-/// @param [in] bitfield2 Reference to the second bitfield.
-/// @param [in] pOut      Result of (bitfield1 ^ bitfield2)
+/// @param [in]  bitfield1 Reference to the first bitfield.
+/// @param [in]  bitfield2 Reference to the second bitfield.
+/// @param [out] pOut      Result of (bitfield1 ^ bitfield2)
 template <typename T, size_t N>
 void WideBitfieldXorBits(
-    T      (&bitfield1)[N],
-    T      (&bitfield2)[N],
-    T*     pOut)
+    const T (&bitfield1)[N],
+    const T (&bitfield2)[N],
+    T*       pOut)
 {
     for (uint32 i = 0; i < N; i++)
     {
@@ -279,14 +279,14 @@ void WideBitfieldXorBits(
 /// ANDs all of the bits in two "wide bitfields". A "wide bifield" is a bitfield which spans an array of integers
 /// because there are more flags than bits in one integer.
 ///
-/// @param [in] bitfield1 Reference to the first bitfield.
-/// @param [in] bitfield2 Reference to the second bitfield.
-/// @param [in] pOut      Result of (bitfield1 & bitfield2)
+/// @param [in]  bitfield1 Reference to the first bitfield.
+/// @param [in]  bitfield2 Reference to the second bitfield.
+/// @param [out] pOut      Result of (bitfield1 & bitfield2)
 template <typename T, size_t N>
 void WideBitfieldAndBits(
-    T      (&bitfield1)[N],
-    T      (&bitfield2)[N],
-    T*     pOut)
+    const T (&bitfield1)[N],
+    const T (&bitfield2)[N],
+    T*      pOut)
 {
     for (uint32 i = 0; i < N; i++)
     {
@@ -449,7 +449,7 @@ constexpr bool IsPowerOfTwo(
 /// Determines if 'value' is at least aligned to the specified power-of-2 alignment.
 ///
 /// @returns True if aligned, false otherwise.
-PAL_INLINE bool IsPow2Aligned(
+inline bool IsPow2Aligned(
     uint64 value,      ///< Value to check.
     uint64 alignment)  ///< Desired alignment.
 {
@@ -460,7 +460,7 @@ PAL_INLINE bool IsPow2Aligned(
 /// Determines if 'ptr' is at least aligned to the specified power-of-2 alignment.
 ///
 /// @returns True if aligned, false otherwise.
-PAL_INLINE bool VoidPtrIsPow2Aligned(
+inline bool VoidPtrIsPow2Aligned(
     const void* ptr,   ///< Pointer to check.
     uint64 alignment)  ///< Desired alignment.
 {
@@ -638,14 +638,14 @@ constexpr T Clamp(
 /// Converts a byte value to the equivalent number of DWORDs (uint32) rounded up.  I.e., 3 bytes will return 1 dword.
 ///
 /// @returns Number of dwords necessary to cover numBytes.
-PAL_INLINE uint32 NumBytesToNumDwords(
+inline uint32 NumBytesToNumDwords(
     uint32 numBytes)  ///< Byte count to convert.
 {
     return Pow2Align(numBytes, static_cast<uint32>(sizeof(uint32))) / sizeof(uint32);
 }
 
 /// Compare two strings ignoring case
-PAL_INLINE int Strcasecmp(
+inline int Strcasecmp(
     const char* pSrc,     ///< [in] The source string to be compared.
     const char* pDst)     ///< [in] The dest string to compare.
 {
@@ -656,7 +656,7 @@ PAL_INLINE int Strcasecmp(
 }
 
 /// Performs a safe strcpy by requiring the destination buffer size.
-PAL_INLINE void Strncpy(
+inline void Strncpy(
     char*       pDst,     ///< [out] Destination string.
     const char* pSrc,     ///< [in] Source string to be copied into destination.
     size_t      dstSize)  ///< Size of the destination buffer in bytes.
@@ -670,7 +670,7 @@ PAL_INLINE void Strncpy(
 }
 
 /// Simple wrapper for wcscpy_s or wcsncpy, which are available on Windows and Linux, respectively.
-PAL_INLINE void Wcsncpy(
+inline void Wcsncpy(
     wchar_t*       pDst,    ///< [out] Destination string.
     const wchar_t* pSrc,    ///< [in] Source string to copy.
     size_t         dstSize) ///< Length of the destination buffer, in wchar_t's.
@@ -684,7 +684,7 @@ PAL_INLINE void Wcsncpy(
 }
 
 /// Simple wrapper for strncat or strncat_s which provides a safe version of strncat.
-PAL_INLINE void Strncat(
+inline void Strncat(
     char*       pDst,     ///< [in,out] Destination string.
     size_t      sizeDst,  ///< Length of the destination string, including the null terminator.
     const char* pSrc)     ///< [in] Source string.
@@ -699,7 +699,7 @@ PAL_INLINE void Strncat(
 }
 
 /// Simple wrapper for strtok_s or strtok_r which provides a safe version of strtok.
-PAL_INLINE char* Strtok(
+inline char* Strtok(
     char*       str,    ///< [in] Token string.
     const char* delim,  ///< [in] Token delimit.
     char**      buf)    ///< [in,out] Buffer to store the rest of the string.
@@ -719,7 +719,7 @@ PAL_INLINE char* Strtok(
 /// are supported by this function.
 ///
 /// @returns Aligned pointer.
-PAL_INLINE void* VoidPtrAlign(
+inline void* VoidPtrAlign(
     void*  ptr,        ///< Pointer to align.
     size_t alignment)  ///< Desired alignment.
 {
@@ -731,7 +731,7 @@ PAL_INLINE void* VoidPtrAlign(
 }
 
 /// Converts a raw string value to the correct data type.
-PAL_INLINE void StringToValueType(
+inline void StringToValueType(
     const char* pStrValue,  ///< [in] Setting value in string form.
     ValueType   type,       ///< Data type of the value being converted.
     size_t      valueSize,  ///< Size of pValue buffer.
@@ -765,7 +765,7 @@ PAL_INLINE void StringToValueType(
 ///
 /// @note: A numeric value that does not fit in the destination type returns true and will be represented by the
 ///        closest value (eg, UINT_MAX). A string that is truncated returns false.
-PAL_NODISCARD PAL_INLINE bool StringToValueTypeChecked(
+PAL_NODISCARD inline bool StringToValueTypeChecked(
     const char* pStrValue,  ///< [in] Setting value in string form.
     ValueType   type,       ///< Data type of the value being converted.
     size_t      valueSize,  ///< Size of pValue buffer.
@@ -867,7 +867,7 @@ PAL_NODISCARD PAL_INLINE bool StringToValueTypeChecked(
 /// Hashes the provided string using FNV1a hashing (http://www.isthe.com/chongo/tech/comp/fnv/) algorithm.
 ///
 /// @returns 32-bit hash generated from the provided string.
-PAL_INLINE uint32 HashString(
+inline uint32 HashString(
     const char* pStr,     ///< [in] String to be hashed.
     size_t      strSize)  ///< Size of the input string.
 {
@@ -907,7 +907,7 @@ uint32 CountSetBits(
     return x;
 }
 
-PAL_INLINE uint32 CountSetBits(
+inline uint32 CountSetBits(
     uint64  value)
 {
     uint64 x = value;
@@ -978,7 +978,7 @@ void PackArray(Array<Element, Size>& array, const Element& emptySlot)
 }
 
 /// Performs a safe mbstowcs by requiring the destination buffer size.
-PAL_INLINE void Mbstowcs(
+inline void Mbstowcs(
     wchar_t*      pDst,           ///< [out] dst string
     const char*   pSrc,           ///< [in] src string
     size_t        dstSizeInWords) ///< size of the destination buffer in words
@@ -1014,7 +1014,7 @@ PAL_INLINE void Mbstowcs(
 }
 
 /// Performs a safe wcstombs by requiring the destination buffer size.
-PAL_INLINE void Wcstombs(
+inline void Wcstombs(
     char*          pDst,           ///< [out] dst string
     const wchar_t* pSrc,           ///< [in] src string
     size_t         dstSizeInBytes) ///< size of the destination buffer in bytes
@@ -1053,7 +1053,7 @@ PAL_INLINE void Wcstombs(
 ///
 /// @returns The GCD of the two inputs.
 template<typename T1, typename T2>
-PAL_INLINE typename std::common_type<T1, T2>::type Gcd(
+inline typename std::common_type<T1, T2>::type Gcd(
     T1 value1,
     T2 value2)
 {
@@ -1119,7 +1119,7 @@ PAL_INLINE typename std::common_type<T1, T2>::type Gcd(
 template<typename T1,
          typename T2,
          typename... Ts>
-PAL_INLINE typename std::common_type<T1, T2, typename std::common_type<Ts...>::type>::type Gcd(
+inline typename std::common_type<T1, T2, typename std::common_type<Ts...>::type>::type Gcd(
     T1 value1,
     T2 value2,
     Ts... values)
@@ -1131,7 +1131,7 @@ PAL_INLINE typename std::common_type<T1, T2, typename std::common_type<Ts...>::t
 ///
 /// @returns The LCM of the two inputs.
 template<typename T1, typename T2>
-PAL_INLINE typename std::common_type<T1, T2>::type Lcm(
+constexpr typename std::common_type<T1, T2>::type Lcm(
     T1 value1,
     T2 value2)
 {
@@ -1164,7 +1164,7 @@ PAL_INLINE typename std::common_type<T1, T2>::type Lcm(
 template<typename T1,
          typename T2,
          typename... Ts>
-PAL_INLINE typename std::common_type<T1, T2, typename std::common_type<Ts...>::type>::type Lcm(
+constexpr typename std::common_type<T1, T2, typename std::common_type<Ts...>::type>::type Lcm(
     T1 value1,
     T2 value2,
     Ts... values)
@@ -1176,7 +1176,7 @@ PAL_INLINE typename std::common_type<T1, T2, typename std::common_type<Ts...>::t
 /// because the standard library wcslen still interprets its argument using a 4 byte UTF-32 wide character.
 ///
 /// @returns The length of the given string in wide characters
-PAL_INLINE size_t Wcslen(
+inline size_t Wcslen(
     const wchar_t* pWideStr)
 {
 #if defined(PAL_SHORT_WCHAR)
@@ -1190,7 +1190,7 @@ PAL_INLINE size_t Wcslen(
 /// because the standard library wcsrchr still interprets its arguments using a 4 byte UTF-32 wide character.
 ///
 /// @returns The matching character at the end of the string or nullptr if not found.
-PAL_INLINE wchar_t* Wcsrchr(wchar_t *pStr, wchar_t wc)
+inline wchar_t* Wcsrchr(wchar_t *pStr, wchar_t wc)
 {
 #if defined(PAL_SHORT_WCHAR)
     return PalWcsrchr(pStr, wc);

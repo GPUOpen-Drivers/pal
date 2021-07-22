@@ -34,6 +34,12 @@
 
 #include <stdint.h>
 
+namespace Pal
+{
+namespace Gfx9
+{
+inline namespace Chip
+{
 // ------------------------------------- PM4_MEC_TYPE_3_HEADER -------------------------------------
 typedef union PM4_MEC_TYPE_3_HEADER
 {
@@ -2817,3 +2823,6 @@ typedef struct PM4_MEC_PERFMON_CONTROL
 
 constexpr unsigned int PM4_MEC_PERFMON_CONTROL_SIZEDW__GFX103COREPLUS = 3;
 
+} // inline namespace Chip
+} // namespace Gfx9
+} // namespace Pal

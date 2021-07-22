@@ -61,7 +61,7 @@ Result ShaderLibrary::Initialize(
 {
     Result result = Result::Success;
 
-    if((createInfo.pCodeObject != nullptr) && (createInfo.codeObjectSize != 0))
+    if ((createInfo.pCodeObject != nullptr) && (createInfo.codeObjectSize != 0))
     {
         m_codeObjectBinaryLen = createInfo.codeObjectSize;
         m_pCodeObjectBinary   = PAL_MALLOC(m_codeObjectBinaryLen, m_pDevice->GetPlatform(), AllocInternal);

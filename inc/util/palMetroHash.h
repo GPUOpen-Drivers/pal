@@ -57,7 +57,7 @@ struct Hash
 /// @param [in] pHash 128-bit hash to be compacted.
 ///
 /// @returns 64-bit hash value based on the inputted 128-bit hash.
-PAL_INLINE uint64 Compact64(
+constexpr uint64 Compact64(
     const Hash* pHash)
 {
     return (static_cast<uint64>(pHash->dwords[3] ^ pHash->dwords[1]) |
@@ -69,7 +69,7 @@ PAL_INLINE uint64 Compact64(
 /// @param [in] pHash 128-bit hash to be compacted.
 ///
 /// @returns 32-bit hash value based on the inputted 128-bit hash.
-PAL_INLINE uint32 Compact32(
+constexpr uint32 Compact32(
     const Hash* pHash)
 {
     return pHash->dwords[3] ^ pHash->dwords[2] ^ pHash->dwords[1] ^ pHash->dwords[0];
@@ -80,7 +80,7 @@ PAL_INLINE uint32 Compact32(
 /// @param [in] hash 64-bit hash to be compacted.
 ///
 /// @returns 32-bit hash value based on the inputted 64-bit hash.
-PAL_INLINE uint32 Compact32(
+constexpr uint32 Compact32(
     uint64 hash)
 {
     return static_cast<uint32>(hash) ^ static_cast<uint32>(hash >> 32);

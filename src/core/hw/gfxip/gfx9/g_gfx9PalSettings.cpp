@@ -227,6 +227,7 @@ void SettingsLoader::SetupDefaults()
     m_settings.addrLibGbAddrConfigOverride = 0x0;
     m_settings.nonLocalDestPreferCompute = true;
 
+    m_settings.rbPlusOptimizeDepthOnlyExportRate = false;
     m_settings.gfx103DisableAsymmetricWgpForPs = false;
 
     m_settings.numSettings = g_gfx9PalNumSettings;
@@ -993,6 +994,11 @@ void SettingsLoader::ReadSettings()
                            &m_settings.nonLocalDestPreferCompute,
                            InternalSettingScope::PrivatePalGfx9Key);
 
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pRbPlusOptimizeDepthOnlyExportRateStr,
+                           Util::ValueType::Boolean,
+                           &m_settings.rbPlusOptimizeDepthOnlyExportRate,
+                           InternalSettingScope::PrivatePalGfx9Key);
+
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pGfx103DisableAsymmetricWgpForPsStr,
                            Util::ValueType::Boolean,
                            &m_settings.gfx103DisableAsymmetricWgpForPs,
@@ -1280,6 +1286,11 @@ void SettingsLoader::RereadSettings()
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pGfx10MaxFpovsInWaveStr,
                            Util::ValueType::Uint,
                            &m_settings.gfx10MaxFpovsInWave,
+                           InternalSettingScope::PrivatePalGfx9Key);
+
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pRbPlusOptimizeDepthOnlyExportRateStr,
+                           Util::ValueType::Boolean,
+                           &m_settings.rbPlusOptimizeDepthOnlyExportRate,
                            InternalSettingScope::PrivatePalGfx9Key);
 
 }
@@ -2046,6 +2057,11 @@ void SettingsLoader::InitSettingsInfo()
     m_settingsInfoMap.Insert(2724905730, info);
 
     info.type      = SettingType::Boolean;
+    info.pValuePtr = &m_settings.rbPlusOptimizeDepthOnlyExportRate;
+    info.valueSize = sizeof(m_settings.rbPlusOptimizeDepthOnlyExportRate);
+    m_settingsInfoMap.Insert(3465687781, info);
+
+    info.type      = SettingType::Boolean;
     info.pValuePtr = &m_settings.gfx103DisableAsymmetricWgpForPs;
     info.valueSize = sizeof(m_settings.gfx103DisableAsymmetricWgpForPs);
     m_settingsInfoMap.Insert(2671208712, info);
@@ -2071,7 +2087,7 @@ void SettingsLoader::DevDriverRegister()
             component.pfnSetValue = ISettingsLoader::SetValue;
             component.pSettingsData = &g_gfx9PalJsonData[0];
             component.settingsDataSize = sizeof(g_gfx9PalJsonData);
-            component.settingsDataHash = 2514869554;
+            component.settingsDataHash = 61687940;
             component.settingsDataHeader.isEncoded = true;
             component.settingsDataHeader.magicBufferId = 402778310;
             component.settingsDataHeader.magicBufferOffset = 0;

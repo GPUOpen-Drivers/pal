@@ -104,10 +104,7 @@ union CmdStreamBeginFlags
 struct NestedChunkData
 {
     uint32 executeCount;        // Number of times the chunk was called.
-#if PAL_ENABLE_PRINTS_ASSERTS
     uint32 recordedGeneration;  // The generation of the chunk as recorded during each call.
-#endif
-
 };
 
 // A useful shorthand for a vector list of chunks.

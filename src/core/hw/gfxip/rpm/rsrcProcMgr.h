@@ -152,13 +152,19 @@ public:
         TexFilter                         filter,
         const ColorSpaceConversionTable&  cscTable) const;
 
-    virtual void CmdFillMemory(
+    void CmdFillMemory(
         GfxCmdBuffer*    pCmdBuffer,
         bool             saveRestoreComputeState,
         const GpuMemory& dstGpuMemory,
         gpusize          dstOffset,
         gpusize          fillSize,
         uint32           data) const;
+    void CmdFillMemory(
+        GfxCmdBuffer* pCmdBuffer,
+        bool          saveRestoreComputeState,
+        gpusize       dstGpuVirtAddr,
+        gpusize       fillSize,
+        uint32        data) const;
 
     void CmdClearBoundDepthStencilTargets(
         GfxCmdBuffer*                 pCmdBuffer,

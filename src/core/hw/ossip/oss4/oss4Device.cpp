@@ -220,7 +220,8 @@ void InitializeGpuEngineProperties(
     auto*const pDma = &pInfo->perEngine[EngineTypeDma];
 
     pDma->flags.timestampSupport               = 1;
-    pDma->flags.memory32bPredicationSupport    = 1;
+    pDma->flags.memory32bPredicationSupport    = 0;
+    pDma->flags.memory64bPredicationSupport    = 1;
     pDma->minTiledImageCopyAlignment.width     = 16;
     pDma->minTiledImageCopyAlignment.height    = 16;
     pDma->minTiledImageCopyAlignment.depth     = 8;

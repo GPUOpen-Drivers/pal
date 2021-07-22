@@ -96,6 +96,9 @@ function(pal_compile_definitions TARGET)
 
     )
 
+    pal_get_cpu_endianness(TARGET_ARCHITECTURE_ENDIANESS)
+    pal_get_system_architecture_bits(TARGET_ARCHITECTURE_BITS)
+
     target_compile_definitions(${TARGET} PRIVATE
         # Useful for determining determining the architecture (32 vs 64)
         PAL_COMPILE_TYPE=${TARGET_ARCHITECTURE_BITS}

@@ -110,6 +110,8 @@ constexpr  NullIdLookup  NullIdLookupTable[] =
     { PAL_UNDEFINED_NULL_DEVICE },
     { PAL_UNDEFINED_NULL_DEVICE                                                                                       },
     { PAL_UNDEFINED_NULL_DEVICE },
+    { PAL_UNDEFINED_NULL_DEVICE                                                                                       },
+
     { PAL_UNDEFINED_NULL_DEVICE                                                                                       }, // All
 };
 static_assert(Util::ArrayLen(NullIdLookupTable) == static_cast<uint32>(NullGpuId::All),
@@ -162,6 +164,7 @@ const char* pNullGpuNames[static_cast<uint32>(Pal::NullGpuId::Max)] =
     nullptr,
     "NAVI21:gfx1030",
     "NAVI22:gfx1031",
+    nullptr,
     nullptr,
     nullptr,
     nullptr,

@@ -405,7 +405,7 @@ extern size_t DumpStackTrace(
     uint32  skipFrames);
 
 /// Flushes CPU cached writes to memory.
-PAL_INLINE void FlushCpuWrites()
+inline void FlushCpuWrites()
 {
 #if   defined(__unix__)
      asm volatile("" ::: "memory");
@@ -415,7 +415,7 @@ PAL_INLINE void FlushCpuWrites()
 }
 
 /// Issues a full memory barrier.
-PAL_INLINE void MemoryBarrier()
+inline void MemoryBarrier()
 {
 #if  defined(__unix__)
     atomic_thread_fence(std::memory_order_acq_rel);
@@ -435,7 +435,9 @@ extern void SleepMs(uint32 duration);
 /// @param [out] pKeys  The array of keys the combo key composed of
 ///
 /// @returns If the requested key is a combo key.
-PAL_INLINE bool IsComboKey(KeyCode key, KeyCode* pKeys)
+inline bool IsComboKey(
+    KeyCode key,
+    KeyCode* pKeys)
 {
     bool ret = false;
 
@@ -464,7 +466,7 @@ PAL_INLINE bool IsComboKey(KeyCode key, KeyCode* pKeys)
 ///
 /// @param [out]  pRegValues  EAX/EBX/ECX/EDX values
 /// @param [in]   level       CpuId instruction feature level.
-PAL_INLINE void CpuId(
+inline void CpuId(
     uint32* pRegValues,
     uint32 level)
 {
@@ -480,7 +482,7 @@ PAL_INLINE void CpuId(
 /// @param [out]  pRegValues  EAX/EBX/ECX/EDX values
 /// @param [in]   level       CpuId instruction feature level.
 /// @param [in]   sublevel    CpuId instruction feature sublevel.
-PAL_INLINE void CpuId(
+inline void CpuId(
     uint32* pRegValues,
     uint32 level,
     uint32 sublevel)

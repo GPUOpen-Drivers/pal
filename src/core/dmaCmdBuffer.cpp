@@ -1443,8 +1443,11 @@ void DmaCmdBuffer::CmdSetPredication(
 {
     PAL_ASSERT(pQueryPool == nullptr);
 
-    // On DMA queue, this is the only supported predication
-    PAL_ASSERT((pGpuMemory == nullptr) || (predType == PredicateType::Boolean32));
+    // Check if predication type is one of the supported ones
+    const auto& engineCaps = m_pDevice->EngineProperties().perEngine[EngineTypeDma].flags;
+    PAL_ASSERT((pGpuMemory == nullptr) ||
+        ((predType == PredicateType::Boolean32) && (engineCaps.memory32bPredicationSupport)) ||
+        ((predType == PredicateType::Boolean64) && (engineCaps.memory64bPredicationSupport)));
 
     m_predInternalAddr = 0;
     m_predMemAddress = 0;

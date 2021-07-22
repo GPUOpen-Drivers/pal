@@ -108,8 +108,8 @@ enum class NullGpuId : uint32
     Navi21           = 0x0F,
     Navi22           = 0x10,
 
-    Max = 0x1B,
-    All = 0x1C,
+    Max = 0x1C,
+    All = 0x1D,
 #else // PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 672
     Tahiti    = 0x00,
     Pitcairn  = 0x01,
@@ -149,8 +149,8 @@ enum class NullGpuId : uint32
     Navi21           = 0x22,
     Navi22           = 0x23,
 
-    Max = 0x2E,
-    All = 0x2F,
+    Max = 0x2F,
+    All = 0x30,
 #endif
 };
 

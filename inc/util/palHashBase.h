@@ -223,7 +223,7 @@ private:
 
 // =====================================================================================================================
 template<typename Allocator>
-PAL_INLINE HashAllocator<Allocator>::HashAllocator(
+HashAllocator<Allocator>::HashAllocator(
     size_t          groupSize,   // Fixed allocation size.  Allocate() will always create allocations of this size.
     uint32          alignment,   // Required alignment of the allocation in bytes.
     Allocator*const pAllocator)  // Allocator for this hash allocation function.
@@ -243,7 +243,7 @@ PAL_INLINE HashAllocator<Allocator>::HashAllocator(
 
 // =====================================================================================================================
 template<typename Allocator>
-PAL_INLINE HashAllocator<Allocator>::~HashAllocator()
+HashAllocator<Allocator>::~HashAllocator()
 {
     for (int32 i = 0; i < NumBlocks; i++)
     {
@@ -461,7 +461,7 @@ template<
     typename EqualFunc,
     typename AllocFunc,
     size_t GroupSize>
-PAL_INLINE HashIterator<Key, Entry, Allocator, HashFunc, EqualFunc, AllocFunc, GroupSize>::HashIterator(
+HashIterator<Key, Entry, Allocator, HashFunc, EqualFunc, AllocFunc, GroupSize>::HashIterator(
     const Container*  pContainer,   ///< [retained] The hash container to iterate over
     uint32            startBucket)  ///< The beginning bucket
     :
@@ -492,7 +492,7 @@ template<
     typename EqualFunc,
     typename AllocFunc,
     size_t GroupSize>
-PAL_INLINE HashBase<Key, Entry, Allocator, HashFunc, EqualFunc, AllocFunc, GroupSize>::HashBase(
+HashBase<Key, Entry, Allocator, HashFunc, EqualFunc, AllocFunc, GroupSize>::HashBase(
     uint32          numBuckets,
     Allocator*const pAllocator)
     :

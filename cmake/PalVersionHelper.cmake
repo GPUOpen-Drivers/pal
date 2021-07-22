@@ -24,6 +24,8 @@
  #######################################################################################################################
 include_guard()
 
+include(TestBigEndian)
+
 # Store the file's location for relative paths used in the functions.
 set(PAL_VERSION_HELPER_DIR ${CMAKE_CURRENT_LIST_DIR})
 
@@ -133,6 +135,31 @@ function(pal_get_current_pal_interface_major_version VARIABLE)
     )
     # Set the value of VARIABLE to the version.
     set(${VARIABLE} ${PAL_INTERFACE_MAJOR_VERSIONX} PARENT_SCOPE)
+endfunction()
+
+# Returns either LITTLE or BIG as a string
+function(pal_get_cpu_endianness CPU_ENDIANNESS)
+    # Until CMake 3.20 test big endian is very slow.
+    # This hardcodes the answer to avoid slowing down configure time for most users.
+    # In the future just use CMAKE_<LANG>_BYTE_ORDER
+    if (${CMAKE_SYSTEM_PROCESSOR} MATCHES "AMD64|x86")
+        set(${CPU_ENDIANNESS} "LITTLE" PARENT_SCOPE)
+        return()
+    endif()
+
+    # If we can't use the hardcoded answer. Then calculate it.
+    test_big_endian(isBigEndianCpu)
+
+    if(isBigEndianCpu)
+        set(${CPU_ENDIANNESS} "BIG" PARENT_SCOPE)
+    else()
+        set(${CPU_ENDIANNESS} "LITTLE" PARENT_SCOPE)
+    endif()
+endfunction()
+
+function(pal_get_system_architecture_bits bits)
+    math(EXPR ${bits} "8 * ${CMAKE_SIZEOF_VOID_P}")
+    set(${bits} ${${bits}} PARENT_SCOPE)
 endfunction()
 
 # Source Groups Helper #############################################################################

@@ -827,6 +827,7 @@ Result Queue::OpenCommandDumpFile(
         // Maximum length of a filename allowed for command buffer dumps, seems more reasonable than 32
         constexpr uint32 MaxFilenameLength = 512;
         char filename[MaxFilenameLength] = {};
+        char logDir[MaxFilenameLength] = {};
 
         // Multiple submissions of one frame
         if (m_lastFrameCnt == frameCnt)
@@ -839,15 +840,26 @@ Result Queue::OpenCommandDumpFile(
             m_submitIdPerFrame = 0;
         }
 
+        if (settings.dumpCmdBufPerFrame)
+        {
+            // Append the frameCnt to the path and create dir
+            Snprintf(logDir, MaxFilenameLength, "%s/Frame%u", pLogDir, frameCnt);
+            MkDir(logDir);
+        }
+        else
+        {
+            Snprintf(logDir, MaxFilenameLength, "%s", pLogDir);
+        }
+
         // Add queue type and this pointer to file name to make name unique since there could be multiple queues/engines
         // and/or multiple vitual queues (on the same engine on) which command buffers are submitted
         Snprintf(filename, MaxFilenameLength, "%s/Frame_%u_%p_%u_%04u%s",
-            pLogDir,
-            Type(),
-            this,
-            frameCnt,
-            m_submitIdPerFrame,
-            pSuffix[dumpFormat]);
+                 logDir,
+                 Type(),
+                 this,
+                 frameCnt,
+                 m_submitIdPerFrame,
+                 pSuffix[dumpFormat]);
 
         m_lastFrameCnt = frameCnt;
 
@@ -966,6 +978,7 @@ void Queue::DumpCmdToFile(
         constexpr uint32 MaxFilenameLength = 512;
 
         char filename[MaxFilenameLength] = {};
+        char logDir[MaxFilenameLength] = {};
         File logFile;
 
         // Multiple submissions of one frame
@@ -979,10 +992,21 @@ void Queue::DumpCmdToFile(
             m_submitIdPerFrame = 0;
         }
 
+        if (settings.dumpCmdBufPerFrame)
+        {
+            // Append the frameCnt to the path and create dir
+            Snprintf(logDir, MaxFilenameLength, "%s/Frame%u", pLogDir, frameCnt);
+            MkDir(logDir);
+        }
+        else
+        {
+            Snprintf(logDir, MaxFilenameLength, "%s", pLogDir);
+        }
+
         // Add queue type and this pointer to file name to make name unique since there could be multiple queues/engines
         // and/or multiple vitual queues (on the same engine on) which command buffers are submitted
         Snprintf(filename, MaxFilenameLength, "%s/Frame_%u_%p_%u_%04u%s",
-                 pLogDir,
+                 logDir,
                  Type(),
                  this,
                  frameCnt,

@@ -34,7 +34,6 @@ project(PAL
 ### CMake Includes #####################################################################################################
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake/Modules)
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake/)
-include(AmdCmakeHelper)
 include(PalVersionHelper)
 include(PalCompileDefinitions)
 include(PalCompilerOptions)

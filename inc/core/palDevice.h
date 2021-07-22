@@ -40,6 +40,11 @@
 #include "palFence.h"
 #include "palCmdAllocator.h"
 
+namespace Util
+{
+    class Event;
+}
+
 namespace Pal
 {
 

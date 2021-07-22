@@ -232,7 +232,7 @@ private:
 
 // =====================================================================================================================
 template<typename T, typename Allocator>
-PAL_INLINE Deque<T, Allocator>::Deque(
+Deque<T, Allocator>::Deque(
     Allocator*const pAllocator,
     size_t          numElementsPerBlock)
     :
@@ -250,7 +250,7 @@ PAL_INLINE Deque<T, Allocator>::Deque(
 // =====================================================================================================================
 // Frees all of the blocks this object allocated over its lifetime.
 template<typename T, typename Allocator>
-PAL_INLINE Deque<T, Allocator>::~Deque()
+Deque<T, Allocator>::~Deque()
 {
     while (m_pFrontHeader != nullptr)
     {

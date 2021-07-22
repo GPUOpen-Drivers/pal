@@ -194,6 +194,9 @@ private:
 
     void WriteTimestampCmd(gpusize dstAddr);
 
+    uint32* WriteCondExecCmd(uint32* pCmdSpace, gpusize predMemory, uint32 skipCountInDwords) const;
+    uint32* WriteFenceCmd(uint32* pCmdSpace, gpusize memory, uint32 predCopyData) const;
+
 };
 
 } // Oss4

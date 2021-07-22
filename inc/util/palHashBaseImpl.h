@@ -39,7 +39,7 @@ namespace Util
 // =====================================================================================================================
 // Default hash function implementation.  Simply shift the key to the right and use the resulting bits as the hash.
 template<typename Key>
-PAL_INLINE uint32 DefaultHashFunc<Key>::operator()(
+uint32 DefaultHashFunc<Key>::operator()(
     const void* pVoidKey,
     uint32      keyLen
     ) const
@@ -70,7 +70,7 @@ PAL_INLINE uint32 DefaultHashFunc<Key>::operator()(
 // Use for hash table lookup, or anything where one collision in 2^^32 is
 // acceptable. Do NOT use for cryptographic purposes.
 template<typename Key>
-PAL_INLINE uint32 JenkinsHashFunc<Key>::operator()(
+uint32 JenkinsHashFunc<Key>::operator()(
     const void* pVoidKey,
     uint32      keyLen
     ) const
@@ -165,7 +165,7 @@ PAL_INLINE uint32 JenkinsHashFunc<Key>::operator()(
 // =====================================================================================================================
 // Hashes the specified C-style string key with the Jenkins hash algorithm.
 template<typename Key>
-PAL_INLINE uint32 StringJenkinsHashFunc<Key>::operator()(
+uint32 StringJenkinsHashFunc<Key>::operator()(
     const void* pVoidKey,
     uint32      keyLen
     ) const
@@ -180,7 +180,7 @@ PAL_INLINE uint32 StringJenkinsHashFunc<Key>::operator()(
 // =====================================================================================================================
 // Returns true if the strings in key1 and key2 are the same.
 template<typename Key>
-PAL_INLINE bool StringEqualFunc<Key>::operator()(
+bool StringEqualFunc<Key>::operator()(
     const Key& key1,
     const Key& key2
     ) const
@@ -203,7 +203,7 @@ PAL_INLINE bool StringEqualFunc<Key>::operator()(
 // =====================================================================================================================
 // Allocates a new block of memory.
 template <typename Allocator>
-PAL_INLINE void* HashAllocator<Allocator>::Allocate()
+void* HashAllocator<Allocator>::Allocate()
 {
     void* pMemory = nullptr;
 
@@ -253,7 +253,7 @@ PAL_INLINE void* HashAllocator<Allocator>::Allocate()
 // =====================================================================================================================
 // Recycles all allocated memory.  Memory isn't actually freed, but becomes available for reuse.
 template <typename Allocator>
-PAL_INLINE void HashAllocator<Allocator>::Reset()
+void HashAllocator<Allocator>::Reset()
 {
     for (int32 i = 0; i <= m_curBlock; ++i)
     {
@@ -276,7 +276,7 @@ template<
     typename EqualFunc,
     typename AllocFunc,
     size_t   GroupSize>
-PAL_INLINE void HashIterator<Key, Entry, Allocator, HashFunc, EqualFunc, AllocFunc, GroupSize>::Next()
+void HashIterator<Key, Entry, Allocator, HashFunc, EqualFunc, AllocFunc, GroupSize>::Next()
 {
     if (m_pCurrentEntry != nullptr)
     {
@@ -345,7 +345,7 @@ template<
     typename EqualFunc,
     typename AllocFunc,
     size_t   GroupSize>
-PAL_INLINE Result HashBase<Key, Entry, Allocator, HashFunc, EqualFunc, AllocFunc, GroupSize>::Init()
+Result HashBase<Key, Entry, Allocator, HashFunc, EqualFunc, AllocFunc, GroupSize>::Init()
 {
     // Each bucket's address must be aligned as Entry required.
     PAL_ASSERT(IsPow2Aligned(GroupSize, alignof(Entry)));
@@ -373,7 +373,7 @@ template<
     typename AllocFunc,
     size_t   GroupSize>
 HashIterator<Key, Entry, Allocator, HashFunc, EqualFunc, AllocFunc, GroupSize>
-PAL_INLINE HashBase<Key, Entry, Allocator, HashFunc, EqualFunc, AllocFunc, GroupSize>::Begin() const
+HashBase<Key, Entry, Allocator, HashFunc, EqualFunc, AllocFunc, GroupSize>::Begin() const
 {
     uint32 bucket = 0;
 
@@ -410,7 +410,7 @@ template<
     typename EqualFunc,
     typename AllocFunc,
     size_t   GroupSize>
-PAL_INLINE void HashBase<Key, Entry, Allocator, HashFunc, EqualFunc, AllocFunc, GroupSize>::Reset()
+void HashBase<Key, Entry, Allocator, HashFunc, EqualFunc, AllocFunc, GroupSize>::Reset()
 {
     if (m_pMemory != nullptr)
     {
@@ -433,7 +433,7 @@ template<
     typename EqualFunc,
     typename AllocFunc,
     size_t   GroupSize>
-PAL_INLINE Entry* HashBase<Key, Entry, Allocator, HashFunc, EqualFunc, AllocFunc, GroupSize>::FindBucket(
+Entry* HashBase<Key, Entry, Allocator, HashFunc, EqualFunc, AllocFunc, GroupSize>::FindBucket(
     const Key& key
     ) const
 {
@@ -451,7 +451,7 @@ template<
     typename EqualFunc,
     typename AllocFunc,
     size_t   GroupSize>
-PAL_INLINE Entry* HashBase<Key, Entry, Allocator, HashFunc, EqualFunc, AllocFunc, GroupSize>::GetNextGroup(
+Entry* HashBase<Key, Entry, Allocator, HashFunc, EqualFunc, AllocFunc, GroupSize>::GetNextGroup(
     Entry* pGroup)
 {
     // Footer of a group stores the pointer to the next group
@@ -468,7 +468,7 @@ template<
     typename EqualFunc,
     typename AllocFunc,
     size_t   GroupSize>
-PAL_INLINE Entry* HashBase<Key, Entry, Allocator, HashFunc, EqualFunc, AllocFunc, GroupSize>::AllocateNextGroup(
+Entry* HashBase<Key, Entry, Allocator, HashFunc, EqualFunc, AllocFunc, GroupSize>::AllocateNextGroup(
     Entry* pGroup)
 {
     // Footer of a group stores the pointer to the next group.
@@ -496,7 +496,7 @@ template<
     typename EqualFunc,
     typename AllocFunc,
     size_t GroupSize>
-PAL_INLINE GroupFooter<Entry>* HashBase<Key, Entry, Allocator, HashFunc, EqualFunc, AllocFunc, GroupSize>::GetGroupFooter(
+GroupFooter<Entry>* HashBase<Key, Entry, Allocator, HashFunc, EqualFunc, AllocFunc, GroupSize>::GetGroupFooter(
     Entry* pGroup)
 {
     return reinterpret_cast<GroupFooter<Entry>*>(&pGroup[EntriesInGroup]);
@@ -511,7 +511,7 @@ template<
     typename EqualFunc,
     typename AllocFunc,
     size_t GroupSize>
-PAL_INLINE uint32 HashBase<Key, Entry, Allocator, HashFunc, EqualFunc, AllocFunc, GroupSize>::GetGroupFooterNumEntries(
+uint32 HashBase<Key, Entry, Allocator, HashFunc, EqualFunc, AllocFunc, GroupSize>::GetGroupFooterNumEntries(
     Entry* pGroup)
 {
     const uint32* pNumEntries = reinterpret_cast<uint32*>(reinterpret_cast<uintptr_t>(&pGroup[EntriesInGroup]) +
@@ -530,7 +530,7 @@ template<
     typename EqualFunc,
     typename AllocFunc,
     size_t GroupSize>
-PAL_INLINE void HashBase<Key, Entry, Allocator, HashFunc, EqualFunc, AllocFunc, GroupSize>::SetGroupFooterNumEntries(
+void HashBase<Key, Entry, Allocator, HashFunc, EqualFunc, AllocFunc, GroupSize>::SetGroupFooterNumEntries(
     Entry* pGroup, uint32 numEntries)
 {
     uint32* pNumEntries = reinterpret_cast<uint32*>(reinterpret_cast<uintptr_t>(&pGroup[EntriesInGroup]) +
@@ -547,7 +547,7 @@ template<
     typename EqualFunc,
     typename AllocFunc,
     size_t GroupSize>
-PAL_INLINE Entry* HashBase<Key, Entry, Allocator, HashFunc, EqualFunc, AllocFunc, GroupSize>::GetGroupFooterNextGroup(
+Entry* HashBase<Key, Entry, Allocator, HashFunc, EqualFunc, AllocFunc, GroupSize>::GetGroupFooterNextGroup(
     Entry* pGroup)
 {
     Entry** ppNextGroup = reinterpret_cast<Entry**>(reinterpret_cast<uintptr_t>(&pGroup[EntriesInGroup]) +
@@ -566,7 +566,7 @@ template<
     typename EqualFunc,
     typename AllocFunc,
     size_t GroupSize>
-PAL_INLINE void HashBase<Key, Entry, Allocator, HashFunc, EqualFunc, AllocFunc, GroupSize>::SetGroupFooterNextGroup(
+void HashBase<Key, Entry, Allocator, HashFunc, EqualFunc, AllocFunc, GroupSize>::SetGroupFooterNextGroup(
     Entry* pGroup, Entry* pNextGroup)
 {
     Entry** ppNextGroup = reinterpret_cast<Entry**>(reinterpret_cast<uintptr_t>(&pGroup[EntriesInGroup]) +

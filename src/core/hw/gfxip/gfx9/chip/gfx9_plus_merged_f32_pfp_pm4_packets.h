@@ -34,6 +34,12 @@
 
 #include <stdint.h>
 
+namespace Pal
+{
+namespace Gfx9
+{
+inline namespace Chip
+{
 // ------------------------------------- PM4_PFP_TYPE_3_HEADER -------------------------------------
 typedef union PM4_PFP_TYPE_3_HEADER
 {
@@ -3905,3 +3911,6 @@ typedef struct PM4_PFP_LOAD_UCONFIG_REG_INDEX
 
 constexpr unsigned int PM4_PFP_LOAD_UCONFIG_REG_INDEX_SIZEDW__GFX10PLUS = 5;
 
+} // inline namespace Chip
+} // namespace Gfx9
+} // namespace Pal
