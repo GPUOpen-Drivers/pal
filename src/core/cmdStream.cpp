@@ -582,10 +582,8 @@ void CmdStream::IncrementSubmitCount()
     // part of this command stream.
     for (auto iter = m_nestedChunks.Begin(); iter.Get() != nullptr; iter.Next())
     {
-#if PAL_ENABLE_PRINTS_ASSERTS
         // Compare each chunk's submit time generation with its call time generation. See TrackNestedChunks.
         PAL_ASSERT(iter.Get()->key->GetGeneration() == iter.Get()->value.recordedGeneration);
-#endif
 
         iter.Get()->key->IncrementSubmitCount(iter.Get()->value.executeCount);
     }
@@ -616,9 +614,7 @@ void CmdStream::TrackNestedChunks(
         chunkIter.Get()->AddNestedCommandStreamReference();
         pChunkData->executeCount = 1;
 
-#if PAL_ENABLE_PRINTS_ASSERTS
         pChunkData->recordedGeneration = chunkIter.Get()->GetGeneration();
-#endif
 
         // Furthermore, we also need to add the target stream's other chunks into our table. They each receive an
         // execute-count of zero to indicate that they aren't the first chunk in any command stream.
@@ -627,9 +623,7 @@ void CmdStream::TrackNestedChunks(
         for (chunkIter.Next(); chunkIter.IsValid(); chunkIter.Next())
         {
             pNestedChunk = chunkIter.Get();
-#if PAL_ENABLE_PRINTS_ASSERTS
             nonFirstChunkData.recordedGeneration = pNestedChunk->GetGeneration();
-#endif
 
             pNestedChunk->AddNestedCommandStreamReference();
             m_nestedChunks.Insert(pNestedChunk, nonFirstChunkData);
@@ -676,10 +670,15 @@ void CmdStream::ResetNestedChunks()
         {
             for (auto iter = m_nestedChunks.Begin(); iter.Get() != nullptr; iter.Next())
             {
-                CmdStreamChunk*const pChunk = iter.Get()->key;
+                CmdStreamChunk*const pChunk        = iter.Get()->key;
+                uint32               recGeneration = iter.Get()->value.recordedGeneration;
                 PAL_ASSERT(pChunk != nullptr);
 
-                pChunk->RemoveCommandStreamReference();
+                if (pChunk->GetGeneration() == recGeneration)
+                {
+                    // If child chunk has already reset, all refs are already removed.
+                    pChunk->RemoveCommandStreamReference();
+                }
             }
         }
 

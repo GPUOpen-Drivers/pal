@@ -2941,6 +2941,23 @@
       "Description": "Prefer compute for non-local copies on gfx10.2+. This can increase PCIe throughput."
     },
     {
+      "Name": "RbPlusOptimizeDepthOnlyExportRate",
+      "Tags": [
+        "General",
+        "Performance"
+      ],
+      "Defaults": {
+        "Default": false
+      },
+      "Flags": {
+        "RereadSetting": true
+      },
+      "Scope": "PrivatePalGfx9Key",
+      "Type": "bool",
+      "VariableName": "rbPlusOptimizeDepthOnlyExportRate",
+      "Description": "Optimize color export format for depth only rendering. Only applicable for RB+ parts."
+    },
+    {
       "Name": "Gfx103DisableAsymmetricWgpForPs",
       "Tags": [
         "General",

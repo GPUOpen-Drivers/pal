@@ -833,7 +833,14 @@ Result CreateRpmGraphicsPipelines(
             AllocInternal);
     }
 
-    if (result == Result::Success)
+    if (result == Result::Success && (false
+#if PAL_BUILD_GFX6
+        || (properties.gfxLevel == GfxIpLevel::GfxIp8)
+#endif
+        || (properties.gfxLevel == GfxIpLevel::GfxIp9)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
+        ))
     {
         pipeInfo = { };
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
@@ -873,7 +880,14 @@ Result CreateRpmGraphicsPipelines(
             AllocInternal);
     }
 
-    if (result == Result::Success)
+    if (result == Result::Success && (false
+#if PAL_BUILD_GFX6
+        || (properties.gfxLevel == GfxIpLevel::GfxIp8)
+#endif
+        || (properties.gfxLevel == GfxIpLevel::GfxIp9)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
+        ))
     {
         pipeInfo = { };
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
@@ -913,7 +927,14 @@ Result CreateRpmGraphicsPipelines(
             AllocInternal);
     }
 
-    if (result == Result::Success)
+    if (result == Result::Success && (false
+#if PAL_BUILD_GFX6
+        || (properties.gfxLevel == GfxIpLevel::GfxIp8)
+#endif
+        || (properties.gfxLevel == GfxIpLevel::GfxIp9)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
+        ))
     {
         pipeInfo = { };
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
@@ -953,7 +974,14 @@ Result CreateRpmGraphicsPipelines(
             AllocInternal);
     }
 
-    if (result == Result::Success)
+    if (result == Result::Success && (false
+#if PAL_BUILD_GFX6
+        || (properties.gfxLevel == GfxIpLevel::GfxIp8)
+#endif
+        || (properties.gfxLevel == GfxIpLevel::GfxIp9)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
+        ))
     {
         pipeInfo = { };
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
@@ -993,7 +1021,14 @@ Result CreateRpmGraphicsPipelines(
             AllocInternal);
     }
 
-    if (result == Result::Success)
+    if (result == Result::Success && (false
+#if PAL_BUILD_GFX6
+        || (properties.gfxLevel == GfxIpLevel::GfxIp8)
+#endif
+        || (properties.gfxLevel == GfxIpLevel::GfxIp9)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
+        ))
     {
         pipeInfo = { };
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
@@ -1033,7 +1068,14 @@ Result CreateRpmGraphicsPipelines(
             AllocInternal);
     }
 
-    if (result == Result::Success)
+    if (result == Result::Success && (false
+#if PAL_BUILD_GFX6
+        || (properties.gfxLevel == GfxIpLevel::GfxIp8)
+#endif
+        || (properties.gfxLevel == GfxIpLevel::GfxIp9)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
+        ))
     {
         pipeInfo = { };
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
@@ -1073,7 +1115,14 @@ Result CreateRpmGraphicsPipelines(
             AllocInternal);
     }
 
-    if (result == Result::Success)
+    if (result == Result::Success && (false
+#if PAL_BUILD_GFX6
+        || (properties.gfxLevel == GfxIpLevel::GfxIp8)
+#endif
+        || (properties.gfxLevel == GfxIpLevel::GfxIp9)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
+        ))
     {
         pipeInfo = { };
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
@@ -1113,7 +1162,14 @@ Result CreateRpmGraphicsPipelines(
             AllocInternal);
     }
 
-    if (result == Result::Success)
+    if (result == Result::Success && (false
+#if PAL_BUILD_GFX6
+        || (properties.gfxLevel == GfxIpLevel::GfxIp8)
+#endif
+        || (properties.gfxLevel == GfxIpLevel::GfxIp9)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
+        ))
     {
         pipeInfo = { };
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631

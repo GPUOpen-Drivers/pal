@@ -4336,11 +4336,28 @@ void RsrcProcMgr::CmdFillMemory(
     uint32           data
     ) const
 {
-    PAL_ASSERT(IsPow2Aligned(dstOffset, sizeof(uint32)));
-    PAL_ASSERT(IsPow2Aligned(fillSize,  sizeof(uint32)));
+    const gpusize dstGpuVirtAddr = (dstGpuMemory.Desc().gpuVirtAddr + dstOffset);
+    CmdFillMemory(pCmdBuffer, saveRestoreComputeState, dstGpuVirtAddr, fillSize, data);
+}
 
-    constexpr gpusize FillSizeLimit   = 268435456; // 256MB
-    const auto& settings              = m_pDevice->Parent()->Settings();
+// =====================================================================================================================
+// Builds commands to fill every DWORD of memory with 'data' between dstGpuVirtAddr and (dstOffset + fillSize).
+// The offset and fill size must be DWORD aligned.
+void RsrcProcMgr::CmdFillMemory(
+    GfxCmdBuffer* pCmdBuffer,
+    bool          saveRestoreComputeState,
+    gpusize       dstGpuVirtAddr,
+    gpusize       fillSize,
+    uint32        data
+    ) const
+{
+    PAL_ASSERT(IsPow2Aligned(dstGpuVirtAddr, sizeof(uint32)));
+    PAL_ASSERT(IsPow2Aligned(fillSize, sizeof(uint32)));
+
+    constexpr gpusize FillSizeLimit = 256 * 1024 * 1024; // 256MB
+
+    const Device*const pDevice  = m_pDevice->Parent();
+    const PalSettings& settings = pDevice->Settings();
 
     if (saveRestoreComputeState)
     {
@@ -4356,26 +4373,18 @@ void RsrcProcMgr::CmdFillMemory(
         // to something that doesn't satisfy this condition we would need to check ((fillSize - fillOffset) % 4) too.
         const bool is4xOptimized = ((numDwords % 4) == 0);
 
-        const ComputePipeline* pPipeline = nullptr;
-
-        if (is4xOptimized)
-        {
-            // This fill memory can be optimized to use the 4xDWORD pipeline.
-            pPipeline = GetPipeline(RpmComputePipeline::FillMem4xDword);
-        }
-        else
-        {
-            // Use the fill memory DWORD pipeline since this call expects everything to be DWORD-aligned.
-            pPipeline = GetPipeline(RpmComputePipeline::FillMemDword);
-        }
+        // There is a specialized pipeline which is more efficient when the fill size is a multiple of 4 DWORDs.
+        const ComputePipeline*const pPipeline = is4xOptimized
+            ? GetPipeline(RpmComputePipeline::FillMem4xDword)
+            : GetPipeline(RpmComputePipeline::FillMemDword);
 
         pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, InternalApiPsoHash, });
 
         uint32 srd[4] = { };
-        PAL_ASSERT(m_pDevice->Parent()->ChipProperties().srdSizes.bufferView == sizeof(srd));
+        PAL_ASSERT(pDevice->ChipProperties().srdSizes.bufferView == sizeof(srd));
 
         BufferViewInfo dstBufferView = {};
-        dstBufferView.gpuAddr = dstGpuMemory.Desc().gpuVirtAddr + dstOffset + fillOffset;
+        dstBufferView.gpuAddr = dstGpuVirtAddr + fillOffset;
         dstBufferView.range   = numDwords * sizeof(uint32);
         dstBufferView.stride  = (is4xOptimized) ? (sizeof(uint32) * 4) : sizeof(uint32);
         if (is4xOptimized)
@@ -4394,7 +4403,7 @@ void RsrcProcMgr::CmdFillMemory(
                                                              Gfx10RpmViewsBypassMallOnRead);
         dstBufferView.flags.bypassMallWrite = TestAnyFlagSet(settings.rpmViewsBypassMall,
                                                              Gfx10RpmViewsBypassMallOnWrite);
-        m_pDevice->Parent()->CreateTypedBufferViewSrds(1, &dstBufferView, &srd[0]);
+        pDevice->CreateTypedBufferViewSrds(1, &dstBufferView, &srd[0]);
 
         pCmdBuffer->CmdSetUserData(PipelineBindPoint::Compute, 0, 4, &srd[0]);
         pCmdBuffer->CmdSetUserData(PipelineBindPoint::Compute, 4, 1, &data);

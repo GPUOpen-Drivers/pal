@@ -358,6 +358,9 @@ UniversalCmdBuffer::UniversalCmdBuffer(
     m_cachedSettings.supportsVrs                               = chipProps.gfxip.supportsVrs;
     m_cachedSettings.vrsForceRateFine                          = settings.vrsForceRateFine;
 
+    m_cachedSettings.optimizeDepthOnlyFmt = settings.rbPlusOptimizeDepthOnlyExportRate;
+    PAL_ASSERT(m_cachedSettings.optimizeDepthOnlyFmt ? m_cachedSettings.rbPlusSupported : true);
+
     // Here we pre-calculate constants used in gfx10 PBB bin sizing calculations.
     // The logic is based on formulas that account for the number of RBs and Channels on the ASIC.
     // The bin size is choosen from the minimum size for Depth, Color and Fmask.
@@ -943,6 +946,19 @@ void UniversalCmdBuffer::CmdBindPipeline(
         // Pipeline owns COVERAGE_TO_SHADER_SELECT
         m_paScAaConfigNew.bits.COVERAGE_TO_SHADER_SELECT =
             (pNewPipeline == nullptr) ? 0 : pNewPipeline->PaScAaConfig().bits.COVERAGE_TO_SHADER_SELECT;
+
+        if ((m_cachedSettings.optimizeDepthOnlyFmt != 0) && (IsNested() == false))
+        {
+            const bool oldPipeIsCbDisable = (pOldPipeline != nullptr) ?
+                                            (pOldPipeline->CbColorControl().bits.MODE == CB_DISABLE) : false;
+            const bool newPipeIsCbDisable = (pNewPipeline != nullptr) ?
+                                            (pNewPipeline->CbColorControl().bits.MODE == CB_DISABLE) : false;
+            if (oldPipeIsCbDisable != newPipeIsCbDisable)
+            {
+                // Dirty slot0 as we may want to override it's format at draw-time.
+                m_state.flags.cbColorInfoDirtyRtv |= 1;
+            }
+        }
     }
 
      Pal::UniversalCmdBuffer::CmdBindPipeline(params);
@@ -6562,6 +6578,26 @@ uint32* UniversalCmdBuffer::ValidateCbColorInfo(
     }
 
     uint32 cbColorInfoCheckMask = (m_state.flags.cbColorInfoDirtyRtv | cbColorInfoDirtyBlendOpt);
+
+    if ((IsNested() == false) &&
+        (m_cachedSettings.optimizeDepthOnlyFmt != 0) &&
+        (PipelineDirty || (StateDirty && dirtyFlags.colorTargetView)))
+    {
+        // Since this only applies for RTV count = 0, we can assume the expected state is UNORM/INVALID
+        // when this optimization is not required by the PSO. This is important if CB_TARGET_MASK[0] != 0
+        if (m_graphicsState.bindTargets.colorTargetCount == 0)
+        {
+            const bool isCbDisable = (pPipeline->CbColorControl().bits.MODE == CB_DISABLE);
+            m_cbColorInfo[0].bits.NUMBER_TYPE = isCbDisable ? Chip::NUMBER_FLOAT : Chip::NUMBER_UNORM;
+            if (IsGfx9(m_gfxIpLevel) || IsGfx10(m_gfxIpLevel))
+            {
+                m_cbColorInfo[0].gfx09_10.FORMAT = isCbDisable ? Chip::COLOR_32 : Chip::COLOR_INVALID;
+            }
+        }
+
+        // Dirtying of cbColorInfoCheckMask for this is handled by BindTargets and BindPipeline (cbColorInfoDirtyRtv).
+    }
+
     if (cbColorInfoCheckMask != 0)
     {
         uint32 x;
@@ -7134,7 +7170,7 @@ void UniversalCmdBuffer::ValidateDispatch(
     }
 #endif
 
-    const bool supportDynamicDispatch = m_computeState.pipelineState.pPipeline->SupportDynamicDispatch();
+    const bool supportDynamicDispatch = pComputeState->pipelineState.pPipeline->SupportDynamicDispatch();
     PAL_ASSERT(((supportDynamicDispatch == true)  && (launchDescGpuVirtAddr != 0)) ||
                ((supportDynamicDispatch == false) && (launchDescGpuVirtAddr == 0)));
 
@@ -7199,7 +7235,7 @@ void UniversalCmdBuffer::ValidateDispatch(
     {
         if ((launchDescGpuVirtAddr != 0) && (launchDescGpuVirtAddr != pComputeState->dynamicLaunchGpuVa))
         {
-            const auto* const pPipeline = static_cast<const ComputePipeline*>(m_computeState.pipelineState.pPipeline);
+            const auto* const pPipeline = static_cast<const ComputePipeline*>(pComputeState->pipelineState.pPipeline);
             pCmdSpace = pPipeline->WriteLaunchDescriptor(pCmdStream,
                                                          pCmdSpace,
                                                          pComputeState->dynamicCsInfo,

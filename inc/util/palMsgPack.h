@@ -164,6 +164,13 @@ public:
         return CountAndStatus(1);
     }
 
+    /// Packs a string element when the length is not already known.
+    ///
+    /// @param [in] pString  The null-terminated string to write.
+    ///
+    /// @returns Success if successful, ErrorOutOfMemory if memory allocation fails.
+    Result PackString(const char* pString) { return PackString(pString, uint32(strlen(pString))); }
+
     /// Packs a string element from a string literal as input.
     ///
     /// @param [in] str  The null-terminated string to write.

@@ -48,7 +48,7 @@ NdGpuMemory::~NdGpuMemory()
 {
     Pal::Platform*  pPlatform = m_pDevice->GetPlatform();
 
-    PAL_DELETE_ARRAY(m_pMemory, pPlatform);
+    PAL_SAFE_FREE(m_pMemory, pPlatform);
 }
 
 // =====================================================================================================================
@@ -84,9 +84,10 @@ Result NdGpuMemory::AllocateOrPinMemory(
         result = pNdDevice->AssignVirtualAddress(*this, &m_desc.gpuVirtAddr, VaPartition::Default);
     }
 
-    // Round the address up to alignment.
-    m_pMemory = PAL_NEW_ARRAY(uint8, static_cast<uint32>(desc.size + m_desc.alignment), pPlatform, Util::AllocInternal);
-    m_pMemory = reinterpret_cast<uint8*>(Util::VoidPtrAlign(m_pMemory, static_cast<uint32>(m_desc.alignment)));
+    m_pMemory = PAL_MALLOC_ALIGNED(static_cast<size_t>(desc.size),
+                                   static_cast<size_t>(m_desc.alignment),
+                                   pPlatform,
+                                   Util::AllocInternal);
     if (m_pMemory == nullptr)
     {
         result = Result::ErrorOutOfMemory;

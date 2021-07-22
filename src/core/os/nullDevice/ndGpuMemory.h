@@ -80,7 +80,7 @@ private:
     PAL_DISALLOW_DEFAULT_CTOR(NdGpuMemory);
     PAL_DISALLOW_COPY_AND_ASSIGN(NdGpuMemory);
 
-    uint8*  m_pMemory;
+    void*  m_pMemory;
 }; // NdGpuMemory
 
 } // NullDevice

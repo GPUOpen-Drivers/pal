@@ -99,7 +99,7 @@ General Language Restrictions
 
 -   goto statements ***must not*** be used.
 
--   Operators overloading is ***strongly discouraged***; however, it may
+-   Operator overloading is ***strongly discouraged***; however, it may
     be used at the project architects' discretion in cases where the
     meaning of the operator is preserved (e.g., iterators).
 
@@ -128,7 +128,7 @@ General Language Restrictions
     or memory allocation calls failing. The `PAL_ALERT` macro ***should
     be*** used for reporting this sort of failure, when deemed useful.
 
--   All target compilers must fully support C++11. The following C++11
+-   All target compilers **must** fully support C++11. The following C++11
     constructs are explicitly allowed:
 
     -   Storage class ***must*** be specified for all enums to allow
@@ -816,7 +816,7 @@ private:
     from other data types. This is necessary to avoid unintended constructor
     conversion.
 
-```
+```c++
 class Token
 {
 public:
@@ -825,6 +825,36 @@ public:
 protected:
     uint32 m_tokenVal;
 };
+```
+
+-   ***Prefer*** member brace initialization to zero initialize members instead of
+    `memset`. E.g.,
+
+```c++
+class Device : public IDevice
+{
+public:.
+    Device();
+
+private:
+    DeviceFinalizeInfo m_finalizeInfo;
+};
+
+// preferred initialization
+Device::Device()
+    :
+    m_finalizeInfo{}
+{
+    ...
+}
+
+// avoid if possible
+Device::Device()
+{
+    ...
+    memset(&m_finalizeInfo, 0, sizeof(m_finalizeInfo));
+    ...
+}
 ```
 
 -   ***Prefer*** initialization to assignment in constructors. In the example
@@ -1057,6 +1087,34 @@ Casting
     (typically, 64-bit to 32-bit conversion) an assert ***must*** be
     added that the source was small enough to be legally cast.
 
+-   Functional cast notation ***may*** be used in place of `static_cast` if
+    the type is an enum or a fundamental type. E.g.,
+```c++
+// static_cast for defining enum values
+enum HardwareStageFlagBits : uint32
+{
+    HwShaderLs = (1 << static_cast<uint32>(HardwareStage::Ls)),
+    HwShaderHs = (1 << static_cast<uint32>(HardwareStage::Hs)),
+    HwShaderEs = (1 << static_cast<uint32>(HardwareStage::Es)),
+    HwShaderGs = (1 << static_cast<uint32>(HardwareStage::Gs)),
+    HwShaderVs = (1 << static_cast<uint32>(HardwareStage::Vs)),
+    HwShaderPs = (1 << static_cast<uint32>(HardwareStage::Ps)),
+    HwShaderCs = (1 << static_cast<uint32>(HardwareStage::Cs)),
+};
+
+// functional cast version, equivalent to the one above
+enum HardwareStageFlagBits : uint32
+{
+    HwShaderLs = (1 << uint32(HardwareStage::Ls)),
+    HwShaderHs = (1 << uint32(HardwareStage::Hs)),
+    HwShaderEs = (1 << uint32(HardwareStage::Es)),
+    HwShaderGs = (1 << uint32(HardwareStage::Gs)),
+    HwShaderVs = (1 << uint32(HardwareStage::Vs)),
+    HwShaderPs = (1 << uint32(HardwareStage::Ps)),
+    HwShaderCs = (1 << uint32(HardwareStage::Cs)),
+};
+```
+
 -   The `dynamic_cast` operator ***must not*** be used. The `dynamic_cast`
     operator requires runtime type informatation (RTTI). RTTI adds
     runtime overhead and is therefore disabled in PAL.
@@ -1162,6 +1220,16 @@ Ifs, Loops, and Switch Statements
     involved in the iteration limit condition ***should*** be kept
     close to the loop, or commenting should be used to explain where
     the limit comes from.
+
+-   Ranged-based for-loops are ***allowed***. The rules for `auto` apply here
+    as well. E.g.,
+```c++
+Util::Vector<int32, 16, Allocator> data = ...;
+for (int32 i : data)
+{
+    f(i);
+}
+```
 
 -   Braces (curly brackets) ***must*** bracket the body of all if/else
     statements, including single statement bodies.

@@ -45,7 +45,7 @@ template<typename Key,
          template<typename> class EqualFunc,
          typename AllocFunc,
          size_t GroupSize>
-PAL_INLINE Result HashSet<Key, Allocator, HashFunc, EqualFunc, AllocFunc, GroupSize>::Insert(
+Result HashSet<Key, Allocator, HashFunc, EqualFunc, AllocFunc, GroupSize>::Insert(
     const Key& key)
 {
     Result result = Result::ErrorOutOfMemory;
@@ -102,7 +102,7 @@ template<typename Key,
          template<typename> class EqualFunc,
          typename AllocFunc,
          size_t GroupSize>
-PAL_INLINE bool HashSet<Key, Allocator, HashFunc, EqualFunc, AllocFunc, GroupSize>::Contains(
+bool HashSet<Key, Allocator, HashFunc, EqualFunc, AllocFunc, GroupSize>::Contains(
     const Key& key
     ) const
 {
@@ -146,7 +146,7 @@ template<typename Key,
          template<typename> class EqualFunc,
          typename AllocFunc,
          size_t GroupSize>
-PAL_INLINE bool HashSet<Key, Allocator, HashFunc, EqualFunc, AllocFunc, GroupSize>::Erase(
+bool HashSet<Key, Allocator, HashFunc, EqualFunc, AllocFunc, GroupSize>::Erase(
     const Key& key)
 {
     // Get the bucket base address.

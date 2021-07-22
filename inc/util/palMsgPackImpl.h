@@ -37,7 +37,7 @@ namespace Util
 {
 
 // =====================================================================================================================
-PAL_INLINE Result TranslateCwpReturnCode(
+inline Result TranslateCwpReturnCode(
     int32 returnCode)
 {
     Result result = Result::ErrorUnknown;
@@ -86,7 +86,7 @@ MsgPackWriter::MsgPackWriter(
 }
 
 // =====================================================================================================================
-PAL_INLINE MsgPackWriter::MsgPackWriter(
+inline MsgPackWriter::MsgPackWriter(
     void*   pBuffer,
     uint32  sizeInBytes)
     :
@@ -98,7 +98,7 @@ PAL_INLINE MsgPackWriter::MsgPackWriter(
 }
 
 // =====================================================================================================================
-PAL_INLINE Result MsgPackWriter::Reserve(
+inline Result MsgPackWriter::Reserve(
     uint32 newSizeInBytes)
 {
     const uint32 curSize = static_cast<uint32>(Util::VoidPtrDiff(m_context.end, m_context.start));
@@ -112,7 +112,7 @@ PAL_INLINE Result MsgPackWriter::Reserve(
 }
 
 // =====================================================================================================================
-PAL_INLINE Result MsgPackWriter::Append(
+inline Result MsgPackWriter::Append(
     const MsgPackWriter& src)
 {
     if ((m_context.return_code == CWP_RC_OK) &&
@@ -126,7 +126,7 @@ PAL_INLINE Result MsgPackWriter::Append(
 }
 
 // =====================================================================================================================
-PAL_INLINE void MsgPackWriter::Reset()
+inline void MsgPackWriter::Reset()
 {
     m_context.current = m_context.start;
     m_numItems = 0;
@@ -134,7 +134,7 @@ PAL_INLINE void MsgPackWriter::Reset()
 }
 
 // =====================================================================================================================
-PAL_INLINE void MsgPackWriter::CountItems(
+inline void MsgPackWriter::CountItems(
     uint32 num)
 {
     if (m_containerNumItemsRemaining >= num)
@@ -232,7 +232,7 @@ Result MsgPackWriter::Pack(
 }
 
 // =====================================================================================================================
-PAL_INLINE Result MsgPackWriter::DeclareArray(
+inline Result MsgPackWriter::DeclareArray(
     uint32 numElements)
 {
     cw_pack_array_size(&m_context, numElements);
@@ -242,7 +242,7 @@ PAL_INLINE Result MsgPackWriter::DeclareArray(
 }
 
 // =====================================================================================================================
-PAL_INLINE Result MsgPackWriter::DeclareMap(
+inline Result MsgPackWriter::DeclareMap(
     uint32 numElements)
 {
     cw_pack_map_size(&m_context, numElements);
@@ -252,7 +252,7 @@ PAL_INLINE Result MsgPackWriter::DeclareMap(
 }
 
 // =====================================================================================================================
-PAL_INLINE Result MsgPackReader::Seek(
+inline Result MsgPackReader::Seek(
     uint32 offset)
 {
     const uint32 clampedOffset = Min(offset, static_cast<uint32>(VoidPtrDiff(m_context.end, m_context.start)));
@@ -334,7 +334,7 @@ Result MsgPackReader::UnpackScalar(
 }
 
 // =====================================================================================================================
-PAL_INLINE Result MsgPackReader::Unpack(
+inline Result MsgPackReader::Unpack(
     char*   pString,
     uint32  sizeInBytes)
 {
@@ -498,7 +498,7 @@ Result MsgPackReader::Unpack(
 }
 
 // =====================================================================================================================
-PAL_INLINE Result MsgPackReader::Unpack(
+inline Result MsgPackReader::Unpack(
     const void**  ppData,
     uint32*       pSizeInBytes)
 {
@@ -515,7 +515,7 @@ PAL_INLINE Result MsgPackReader::Unpack(
 }
 
 // =====================================================================================================================
-PAL_INLINE Result MsgPackReader::Unpack(
+inline Result MsgPackReader::Unpack(
     void*   pDst,
     uint32  sizeInBytes)
 {

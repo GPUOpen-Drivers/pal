@@ -121,13 +121,7 @@ Result ShaderLibrary::HwlInit(
     if (result == Result::Success)
     {
         const uint32 wavefrontSize = IsWave32() ? 32 : 64;
-
-        m_chunkCs.LateInit(abiReader,
-                           registers,
-                           wavefrontSize,
-                           createInfo.pFuncList,
-                           createInfo.funcCount,
-                           &uploader);
+        m_chunkCs.LateInit(abiReader, registers, wavefrontSize, createInfo.pFuncList, createInfo.funcCount, &uploader);
 
         UpdateHwInfo();
         PAL_ASSERT(m_uploadFenceToken == 0);
@@ -249,7 +243,7 @@ Result ShaderLibrary::GetShaderFunctionStats(
 
     pShaderStats->palInternalLibraryHash       = m_info.internalLibraryHash;
     pShaderStats->common.ldsSizePerThreadGroup = chipProps.gfxip.ldsSizePerThreadGroup;
-    pShaderStats->common.flags.isWave32        = m_hwInfo.flags.isWave32;
+    pShaderStats->common.flags.isWave32        = IsWave32();
 
     // We can re-parse the saved pipeline ELF binary to extract shader statistics.
     AbiReader abiReader(m_pDevice->GetPlatform(), m_pCodeObjectBinary);
@@ -351,7 +345,7 @@ Result ShaderLibrary::UnpackShaderFunctionStats(
                         {
                             Util::Abi::ApiShaderSubType shaderSubType;
                             Util::Abi::Metadata::DeserializeEnum(pMetadataReader, &shaderSubType);
-                            stats.shaderSubType = static_cast<Pal::ShaderSubType>(shaderSubType);
+                            stats.shaderSubType = Pal::ShaderSubType(shaderSubType);
                         }
                         break;
                         case HashLiteralString(Util::Abi::HardwareStageMetadataKey::VgprCount):

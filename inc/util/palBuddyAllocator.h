@@ -118,9 +118,9 @@ private:
         uint32              kval,
         Pal::gpusize        offset);
 
-    PAL_INLINE Pal::gpusize KvalToSize(uint32 kVal) const { return (1ull << kVal); }
+    static constexpr Pal::gpusize KvalToSize(uint32 kVal) { return (1ull << kVal); }
 
-    PAL_INLINE uint32 SizeToKval(Pal::gpusize size) const { return Log2(size); }
+    static uint32 SizeToKval(Pal::gpusize size) { return Log2(size); }
 
     Allocator* const    m_pAllocator;
 

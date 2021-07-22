@@ -428,13 +428,13 @@ enum class ApiShaderSubType : uint32
 /// Used to represent hardware shader stage.
 enum HardwareStageFlagBits : uint32
 {
-    HwShaderLs = (1 << static_cast<uint32>(HardwareStage::Ls)),
-    HwShaderHs = (1 << static_cast<uint32>(HardwareStage::Hs)),
-    HwShaderEs = (1 << static_cast<uint32>(HardwareStage::Es)),
-    HwShaderGs = (1 << static_cast<uint32>(HardwareStage::Gs)),
-    HwShaderVs = (1 << static_cast<uint32>(HardwareStage::Vs)),
-    HwShaderPs = (1 << static_cast<uint32>(HardwareStage::Ps)),
-    HwShaderCs = (1 << static_cast<uint32>(HardwareStage::Cs)),
+    HwShaderLs = (1 << uint32(HardwareStage::Ls)),
+    HwShaderHs = (1 << uint32(HardwareStage::Hs)),
+    HwShaderEs = (1 << uint32(HardwareStage::Es)),
+    HwShaderGs = (1 << uint32(HardwareStage::Gs)),
+    HwShaderVs = (1 << uint32(HardwareStage::Vs)),
+    HwShaderPs = (1 << uint32(HardwareStage::Ps)),
+    HwShaderCs = (1 << uint32(HardwareStage::Cs)),
 };
 
 /// Used along with the symbol name strings to identify the symbol type.
@@ -820,9 +820,9 @@ enum class UserDataMapping : uint32
                                          ///  Mesh/Task shader rings for the shader to consume.
     TaskDispatchIndex     = DrawIndex,   ///< Dispatch index (32-bit unsigned integer). Only supported by the first
                                          ///  stage (task shader stage) in a hybrid graphics pipeline.
-    MeshPipeStatsBuf  = 0x10000014, ///< 32-bit GPU virtual address of a buffer storing the shader-emulated mesh
-                                    ///  pipeline stats query.
-    FetchShaderPtr    = 0x10000015, ///< 64-bit pointer to GPU memory containing the fetch shader subroutine.
+    MeshPipeStatsBuf      = 0x10000014,  ///< 32-bit GPU virtual address of a buffer storing the shader-emulated mesh
+                                         ///  pipeline stats query.
+    FetchShaderPtr        = 0x10000015,  ///< 64-bit pointer to GPU memory containing the fetch shader subroutine.
 
     /// @internal The following enum values are deprecated and only remain in the header file to avoid build errors.
 

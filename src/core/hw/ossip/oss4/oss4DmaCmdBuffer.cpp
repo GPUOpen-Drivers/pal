@@ -42,6 +42,9 @@ namespace Oss4
 
 constexpr size_t NopSizeDwords = sizeof(SDMA_PKT_NOP) / sizeof(uint32);
 
+// Predication Patch Offset as it requires 2 cond exec packet and 2 fence/"write data" packets
+constexpr uint32 PredPatchOffset = ((sizeof(SDMA_PKT_COND_EXE) * 2 + sizeof(SDMA_PKT_FENCE) * 2) / sizeof(uint32));
+
 // =====================================================================================================================
 DmaCmdBuffer::DmaCmdBuffer(
     Device*                    pDevice,
@@ -315,24 +318,24 @@ uint32* DmaCmdBuffer::WritePredicateCmd(
     uint32* pCmdSpace
     ) const
 {
-    const size_t packetDwords = Util::NumBytesToNumDwords(sizeof(SDMA_PKT_COND_EXE));
-    auto*const   pPacket      = reinterpret_cast<SDMA_PKT_COND_EXE*>(pCmdSpace);
+    const uint32 fenceCmdLengthInDwords = Util::NumBytesToNumDwords(sizeof(SDMA_PKT_FENCE));
 
-    SDMA_PKT_COND_EXE packet;
+    // LSB 0-31 bit predication
+    pCmdSpace = WriteCondExecCmd(pCmdSpace, m_predMemAddress, fenceCmdLengthInDwords);
 
-    PAL_NOT_TESTED();
+    // "Write data"
+    pCmdSpace = WriteFenceCmd(pCmdSpace, m_predInternalAddr, m_predCopyData);
 
-    packet.HEADER_UNION.DW_0_DATA      = 0;
-    packet.HEADER_UNION.op             = SDMA_OP_COND_EXE;
-    packet.ADDR_LO_UNION.addr_31_0     = LowPart(m_predMemAddress);
-    packet.ADDR_HI_UNION.addr_63_32    = HighPart(m_predMemAddress);
-    packet.REFERENCE_UNION.reference   = 1;
-    packet.EXEC_COUNT_UNION.DW_4_DATA  = 0;
-    packet.EXEC_COUNT_UNION.exec_count = predicateDwords;
+    // MSB 32-63 bit predication
+    pCmdSpace = WriteCondExecCmd(pCmdSpace, m_predMemAddress + 4, fenceCmdLengthInDwords);
 
-    *pPacket = packet;
+    // "Write data"
+    pCmdSpace = WriteFenceCmd(pCmdSpace, m_predInternalAddr, m_predCopyData);
 
-    return pCmdSpace + packetDwords;
+    // Actual predication with Internal Memory
+    pCmdSpace = WriteCondExecCmd(pCmdSpace, m_predInternalAddr, 0);
+
+    return pCmdSpace;
 }
 
 // =====================================================================================================================
@@ -340,12 +343,59 @@ uint32* DmaCmdBuffer::WritePredicateCmd(
 //
 void DmaCmdBuffer::PatchPredicateCmd(
     size_t predicateDwords,
-    void*  pPredicateCmd
-    ) const
+    void* pPredicateCmd
+) const
 {
-    auto*const pPacket = reinterpret_cast<SDMA_PKT_COND_EXE*>(pPredicateCmd);
+    auto* const pPacket = reinterpret_cast<SDMA_PKT_COND_EXE*>((uint32*)pPredicateCmd + PredPatchOffset);
 
-    pPacket->EXEC_COUNT_UNION.exec_count = predicateDwords;
+    pPacket->EXEC_COUNT_UNION.exec_count = predicateDwords -
+        (Util::NumBytesToNumDwords(sizeof(SDMA_PKT_COND_EXE)) + PredPatchOffset);
+}
+
+// =====================================================================================================================
+uint32* DmaCmdBuffer::WriteCondExecCmd(
+    uint32* pCmdSpace,
+    gpusize predMemory,
+    uint32 skipCountInDwords
+) const
+{
+    auto* const pPacket = reinterpret_cast<SDMA_PKT_COND_EXE*>(pCmdSpace);
+
+    SDMA_PKT_COND_EXE packet;
+    packet.HEADER_UNION.DW_0_DATA = 0;
+    packet.HEADER_UNION.op = SDMA_OP_COND_EXE;
+    packet.ADDR_LO_UNION.addr_31_0 = LowPart(predMemory);
+    packet.ADDR_HI_UNION.addr_63_32 = HighPart(predMemory);
+    packet.REFERENCE_UNION.reference = 1;
+    packet.EXEC_COUNT_UNION.DW_4_DATA = 0;
+    packet.EXEC_COUNT_UNION.exec_count = skipCountInDwords;
+
+    *pPacket = packet;
+
+    return pCmdSpace + Util::NumBytesToNumDwords(sizeof(SDMA_PKT_COND_EXE));
+}
+
+// =====================================================================================================================
+uint32* DmaCmdBuffer::WriteFenceCmd(
+    uint32* pCmdSpace,
+    gpusize fenceMemory,
+    uint32  predCopyData
+) const
+{
+    PAL_ASSERT(IsPow2Aligned(fenceMemory, sizeof(uint32)));
+
+    auto* const       pFencePacket = reinterpret_cast<SDMA_PKT_FENCE*>(pCmdSpace);
+
+    SDMA_PKT_FENCE fencePacket;
+    fencePacket.HEADER_UNION.DW_0_DATA = 0;
+    fencePacket.HEADER_UNION.op = SDMA_OP_FENCE;
+    fencePacket.ADDR_LO_UNION.addr_31_0 = LowPart(fenceMemory);
+    fencePacket.ADDR_HI_UNION.addr_63_32 = HighPart(fenceMemory);
+    fencePacket.DATA_UNION.DW_3_DATA = predCopyData;
+
+    *pFencePacket = fencePacket;
+
+    return pCmdSpace + Util::NumBytesToNumDwords(sizeof(SDMA_PKT_FENCE));
 }
 
 // =====================================================================================================================

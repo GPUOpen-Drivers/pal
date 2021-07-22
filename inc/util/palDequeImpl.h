@@ -42,7 +42,7 @@ namespace Util
 // Allocates a new block for storing additional data elements.  If the lazy-free block is present, just use that instead
 // of allocating more memory.
 template<typename T, typename Allocator>
-PAL_INLINE DequeBlockHeader* Deque<T, Allocator>::AllocateNewBlock()
+DequeBlockHeader* Deque<T, Allocator>::AllocateNewBlock()
 {
     DequeBlockHeader* pNewBlock = nullptr;
 
@@ -87,7 +87,7 @@ PAL_INLINE DequeBlockHeader* Deque<T, Allocator>::AllocateNewBlock()
 // The reason for this is because some use cases might cause us to ping-pong between N and N+1 blocks, which would
 // result in excessive calls to PAL_MALLOC & PAL_FREE.
 template<typename T, typename Allocator>
-PAL_INLINE void Deque<T, Allocator>::FreeUnusedBlock(
+void Deque<T, Allocator>::FreeUnusedBlock(
     DequeBlockHeader* pHeader)
 {
     if (m_pLazyFreeHeader == nullptr)
@@ -265,7 +265,7 @@ Result Deque<T, Allocator>::EmplaceBack(
 // =====================================================================================================================
 // Pops an element off of the front of the deque.
 template<typename T, typename Allocator>
-PAL_INLINE Result Deque<T, Allocator>::PopFront(
+Result Deque<T, Allocator>::PopFront(
     T* pOut)
 {
     Result result = Result::ErrorUnavailable;
@@ -326,7 +326,7 @@ PAL_INLINE Result Deque<T, Allocator>::PopFront(
 // =====================================================================================================================
 // Pops an element off of the back of the deque.
 template<typename T, typename Allocator>
-PAL_INLINE Result Deque<T, Allocator>::PopBack(
+Result Deque<T, Allocator>::PopBack(
     T* pOut)
 {
     Result result = Result::ErrorUnavailable;
@@ -389,7 +389,7 @@ PAL_INLINE Result Deque<T, Allocator>::PopBack(
 // =====================================================================================================================
 // Constructor.
 template<typename T, typename Allocator>
-PAL_INLINE DequeIterator<T, Allocator>::DequeIterator(
+DequeIterator<T, Allocator>::DequeIterator(
     const Deque<T, Allocator>*  pDeque,   // Deque to iterate over.
     DequeBlockHeader*           pHeader,  // Header of the block where the iterator starts.
     T*                          pCurrent) // Current object in the deque.
@@ -404,7 +404,7 @@ PAL_INLINE DequeIterator<T, Allocator>::DequeIterator(
 // Advances the iterator to the next element in the Deque.  If we go past the end, mark the current element pointer as
 // invalid.
 template<typename T, typename Allocator>
-PAL_INLINE void DequeIterator<T, Allocator>::Next()
+void DequeIterator<T, Allocator>::Next()
 {
     if (m_pCurrent != nullptr)
     {
@@ -436,7 +436,7 @@ PAL_INLINE void DequeIterator<T, Allocator>::Next()
 // Moves the iterator to the previous element in the Deque.  If there is no previous element, then mark the current
 // element pointer as invalid.
 template<typename T, typename Allocator>
-PAL_INLINE void DequeIterator<T, Allocator>::Prev()
+void DequeIterator<T, Allocator>::Prev()
 {
     if (m_pCurrent != nullptr)
     {

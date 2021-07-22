@@ -705,21 +705,33 @@ void SwapForMMFormat(
 }
 
 // =====================================================================================================================
+// Populates a raw BufferViewInfo that wraps the specified GPU memory address range.
+void BuildRawBufferViewInfo(
+    BufferViewInfo* pInfo,
+    const Device&   device,
+    gpusize         gpuVirtAddr,
+    gpusize         sizeInBytes)
+{
+    const auto& settings = device.Settings();
+
+    pInfo->gpuAddr = gpuVirtAddr;
+    pInfo->range   = sizeInBytes;
+    pInfo->stride  = 1;
+    pInfo->swizzledFormat = UndefinedSwizzledFormat;
+
+    pInfo->flags.bypassMallRead  = TestAnyFlagSet(settings.rpmViewsBypassMall, Gfx10RpmViewsBypassMallOnRead);
+    pInfo->flags.bypassMallWrite = TestAnyFlagSet(settings.rpmViewsBypassMall, Gfx10RpmViewsBypassMallOnWrite);
+}
+
+// =====================================================================================================================
 // Populates a raw BufferViewInfo that wraps the entire provided memory object.
 void BuildRawBufferViewInfo(
     BufferViewInfo*   pInfo,
     const GpuMemory&  bufferMemory,
     gpusize           byteOffset)
 {
-    const Device* pDevice  = bufferMemory.GetDevice();
-    const auto&   settings = pDevice->Settings();
-
-    pInfo->gpuAddr        = bufferMemory.Desc().gpuVirtAddr + byteOffset;
-    pInfo->range          = bufferMemory.Desc().size - byteOffset;
-    pInfo->stride         = 1;
-    pInfo->swizzledFormat = UndefinedSwizzledFormat;
-    pInfo->flags.bypassMallRead  = TestAnyFlagSet(settings.rpmViewsBypassMall, Gfx10RpmViewsBypassMallOnRead);
-    pInfo->flags.bypassMallWrite = TestAnyFlagSet(settings.rpmViewsBypassMall, Gfx10RpmViewsBypassMallOnWrite);
+    const auto& desc = bufferMemory.Desc();
+    BuildRawBufferViewInfo(pInfo, *bufferMemory.GetDevice(), (desc.gpuVirtAddr + byteOffset), (desc.size - byteOffset));
 }
 
 // =====================================================================================================================
@@ -730,15 +742,7 @@ void BuildRawBufferViewInfo(
     gpusize           byteOffset,
     gpusize           range)
 {
-    const Device* pDevice  = bufferMemory.GetDevice();
-    const auto&   settings = pDevice->Settings();
-
-    pInfo->gpuAddr        = bufferMemory.Desc().gpuVirtAddr + byteOffset;
-    pInfo->range          = range;
-    pInfo->stride         = 1;
-    pInfo->swizzledFormat = UndefinedSwizzledFormat;
-    pInfo->flags.bypassMallRead  = TestAnyFlagSet(settings.rpmViewsBypassMall, Gfx10RpmViewsBypassMallOnRead);
-    pInfo->flags.bypassMallWrite = TestAnyFlagSet(settings.rpmViewsBypassMall, Gfx10RpmViewsBypassMallOnWrite);
+    BuildRawBufferViewInfo(pInfo, *bufferMemory.GetDevice(), (bufferMemory.Desc().gpuVirtAddr + byteOffset), range);
 }
 
 // =====================================================================================================================

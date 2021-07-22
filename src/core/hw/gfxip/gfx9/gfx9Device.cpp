@@ -2972,9 +2972,9 @@ void PAL_STDCALL Device::Gfx9CreateImageViewSrds(
             // Theratically, ALPHA_IS_ON_MSB should be set to 1 for all single-channel formats only if
             // swap is SWAP_ALT_REV as gfx6 implementation; however, there is a new CB feature - to compress to AC01
             // during CB rendering/draw on gfx9.2, which requires special handling.
-            const SurfaceSwap surfSwap = Formats::Gfx9::ColorCompSwap(viewInfo.swizzledFormat);
+            const SurfaceSwap surfSwap = Formats::Gfx9::ColorCompSwap(imageCreateInfo.swizzledFormat);
 
-            if (Formats::NumComponents(viewInfo.swizzledFormat.format) == 1)
+            if (Formats::NumComponents(imageCreateInfo.swizzledFormat.format) == 1)
             {
                 srd.word6.bits.ALPHA_IS_ON_MSB =
                     (surfSwap == SWAP_ALT_REV) != (IsRaven2(*pPalDevice) || IsRenoir(*pPalDevice));
@@ -3809,13 +3809,13 @@ void PAL_STDCALL Device::Gfx10CreateImageViewSrds(
         {
             // The setup of the compression-related fields requires knowing the bound memory and the expected
             // usage of the memory (read or write), so defer most of the setup to "WriteDescriptorSlot".
-            const SurfaceSwap surfSwap = Formats::Gfx9::ColorCompSwap(viewInfo.swizzledFormat);
+            const SurfaceSwap surfSwap = Formats::Gfx9::ColorCompSwap(imageCreateInfo.swizzledFormat);
 
             // If single-component color format such as COLOR_8/16/32
             //    set AoMSB=1 when comp_swap=11
             //    set AoMSB=0 when comp_swap=others
             // Follow the legacy way of setting AoMSB for other color formats
-            if (Formats::NumComponents(viewInfo.swizzledFormat.format) == 1)
+            if (Formats::NumComponents(imageCreateInfo.swizzledFormat.format) == 1)
             {
                 srd.alpha_is_on_msb = ((surfSwap == SWAP_ALT_REV) ? 1 : 0);
             }
@@ -5395,7 +5395,8 @@ void InitializeGpuEngineProperties(
         auto*const pDma = &pInfo->perEngine[EngineTypeDma];
 
         pDma->flags.timestampSupport               = 1;
-        pDma->flags.memory32bPredicationSupport    = 1;
+        pDma->flags.memory32bPredicationSupport    = 0;
+        pDma->flags.memory64bPredicationSupport    = 1;
         pDma->minTiledImageCopyAlignment.width     = 16;
         pDma->minTiledImageCopyAlignment.height    = 16;
         pDma->minTiledImageCopyAlignment.depth     = 8;

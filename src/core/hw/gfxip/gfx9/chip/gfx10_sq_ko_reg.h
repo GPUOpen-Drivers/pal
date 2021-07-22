@@ -25,6 +25,14 @@
 
 #pragma once
 
+#include <stdint.h>
+
+namespace Pal
+{
+namespace Gfx9
+{
+inline namespace Chip
+{
 union sq_buf_rsrc_t {
     struct {
         uint64_t base_address                                                 : 48;
@@ -645,3 +653,6 @@ constexpr uint32_t Gfx10CoreSqImgSampTWord3BorderColorPtrShift                  
 constexpr uint32_t Gfx10CorePlusSqImgSampTWord0FilterModeShift                              = 29;
 constexpr uint32_t Gfx10CorePlusSqImgSampTWord2BlendPrtShift                                = 30;
 
+} // inline namespace Chip
+} // namespace Gfx9
+} // namespace Pal

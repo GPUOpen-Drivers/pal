@@ -34,6 +34,12 @@
 
 #include <stdint.h>
 
+namespace Pal
+{
+namespace Gfx9
+{
+inline namespace Chip
+{
 // ------------------------------------- PM4_CE_TYPE_3_HEADER -------------------------------------
 typedef union PM4_CE_TYPE_3_HEADER
 {
@@ -1103,3 +1109,6 @@ typedef struct PM4_CE_WRITE_DATA
 
 constexpr unsigned int PM4_CE_WRITE_DATA_SIZEDW__HASCE = 4;
 
+} // inline namespace Chip
+} // namespace Gfx9
+} // namespace Pal

@@ -47,7 +47,7 @@ template<typename Key,
          template<typename> class EqualFunc,
          typename AllocFunc,
          size_t GroupSize>
-PAL_INLINE Result HashMap<Key, Value, Allocator, HashFunc, EqualFunc, AllocFunc, GroupSize>::FindAllocate(
+Result HashMap<Key, Value, Allocator, HashFunc, EqualFunc, AllocFunc, GroupSize>::FindAllocate(
     const Key& key,       // Key to search for.
     bool*      pExisted,  // [out] True if a matching key was found.
     Value**    ppValue)   // [out] Pointer to the value entry of the hash map's entry for the specified key.
@@ -117,7 +117,7 @@ template<typename Key,
          template<typename> class EqualFunc,
          typename AllocFunc,
          size_t GroupSize>
-PAL_INLINE Value* HashMap<Key, Value, Allocator, HashFunc, EqualFunc, AllocFunc, GroupSize>::FindKey(
+Value* HashMap<Key, Value, Allocator, HashFunc, EqualFunc, AllocFunc, GroupSize>::FindKey(
     const Key& key
     ) const
 {
@@ -162,7 +162,7 @@ template<typename Key,
          template<typename> class EqualFunc,
          typename AllocFunc,
          size_t GroupSize>
-PAL_INLINE Result HashMap<Key, Value, Allocator, HashFunc, EqualFunc, AllocFunc, GroupSize>::Insert(
+Result HashMap<Key, Value, Allocator, HashFunc, EqualFunc, AllocFunc, GroupSize>::Insert(
     const Key&   key,
     const Value& value)
 {
@@ -191,7 +191,7 @@ template<typename Key,
          template<typename> class EqualFunc,
          typename AllocFunc,
          size_t GroupSize>
-PAL_INLINE bool HashMap<Key, Value, Allocator, HashFunc, EqualFunc, AllocFunc, GroupSize>::Erase(
+bool HashMap<Key, Value, Allocator, HashFunc, EqualFunc, AllocFunc, GroupSize>::Erase(
     const Key& key)
 {
     // Get the bucket base address.

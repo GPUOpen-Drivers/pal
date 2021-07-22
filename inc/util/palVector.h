@@ -144,6 +144,14 @@ public:
     /// @returns Result ErrorOutOfMemory if the operation failed.
     Result Reserve(uint32 newCapacity);
 
+    /// Increases maximum capacity to the number of elements in the vector, plus the specified increment amount.
+    /// Equivalent to this->Reserve(this->NumElements() + amount);
+    ///
+    /// @param [in] amount Number of items beyond the current element count to increas the capacity to.
+    ///
+    /// @returns Result ErrorOutOfMemory if the operation failed.
+    Result Grow(uint32 amount) { return Reserve(NumElements() + amount); }
+
     /// Set size to newSize.
     /// If size is decreased, elements at the end of the vector will be removed.
     /// If size is increased, new elements will be set to newVal.
@@ -267,6 +275,11 @@ public:
     ///
     /// @returns True if the vector is empty.
     bool IsEmpty() const { return (m_numElements == 0); }
+
+    /// Returns a pointer to the allocator used for this container's memory management.
+    ///
+    /// @returns Allocator pointer.
+    Allocator* GetAllocator() const { return m_pAllocator; }
 
     ///@{
     /// @internal Satisfies concept `range_expression`, using T* as `iterator` and 32-bit size and difference types
