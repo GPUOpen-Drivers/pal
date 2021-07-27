@@ -150,11 +150,12 @@ extern bool IsAssertCategoryEnabled(
 
 #define PAL_ASSERT_MSG(_expr, _pReasonFmt, ...)                                                   \
 {                                                                                                 \
-    if (PAL_PREDICT_FALSE(static_cast<bool>(_expr) == false))                                     \
+    bool _expr_eval = static_cast<bool>(_expr);                                                   \
+    if (PAL_PREDICT_FALSE(_expr_eval == false))                                                   \
     {                                                                                             \
         PAL_TRIGGER_ASSERT("Assertion failed: %s | Reason: " _pReasonFmt, #_expr, ##__VA_ARGS__); \
     }                                                                                             \
-    PAL_ANALYSIS_ASSUME(_expr);                                                                   \
+    PAL_ANALYSIS_ASSUME(_expr_eval);                                                              \
 }
 
 /// Calls the PAL_ASSERT_MSG macro with a generic reason string
