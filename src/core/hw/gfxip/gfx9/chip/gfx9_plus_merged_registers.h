@@ -22789,7 +22789,7 @@ union SPI_RESOURCE_RESERVE_CU_2 {
         unsigned int WAVES                                                        :  3;
         unsigned int BARRIERS                                                     :  4;
         unsigned int                                                              : 13;
-    } bits, bitfields;
+    } most;
 
     unsigned int u32All;
     signed int   i32All;
@@ -22804,7 +22804,7 @@ union SPI_RESOURCE_RESERVE_CU_3 {
         unsigned int WAVES                                                        :  3;
         unsigned int BARRIERS                                                     :  4;
         unsigned int                                                              : 13;
-    } bits, bitfields;
+    } most;
 
     unsigned int u32All;
     signed int   i32All;
@@ -22819,7 +22819,7 @@ union SPI_RESOURCE_RESERVE_CU_4 {
         unsigned int WAVES                                                        :  3;
         unsigned int BARRIERS                                                     :  4;
         unsigned int                                                              : 13;
-    } bits, bitfields;
+    } most;
 
     unsigned int u32All;
     signed int   i32All;
@@ -22834,7 +22834,7 @@ union SPI_RESOURCE_RESERVE_CU_5 {
         unsigned int WAVES                                                        :  3;
         unsigned int BARRIERS                                                     :  4;
         unsigned int                                                              : 13;
-    } bits, bitfields;
+    } most;
 
     unsigned int u32All;
     signed int   i32All;
@@ -23033,12 +23033,17 @@ union SPI_RESOURCE_RESERVE_EN_CU_2 {
         unsigned int TYPE_MASK                                                    : 15;
         unsigned int QUEUE_MASK                                                   :  8;
         unsigned int                                                              :  8;
-    } bits, bitfields;
+    } most;
     struct {
         unsigned int                                                              : 24;
         unsigned int RESERVE_SPACE_ONLY                                           :  1;
         unsigned int                                                              :  7;
-    } most;
+    } gfx09;
+    struct {
+        unsigned int                                                              : 24;
+        unsigned int RESERVE_SPACE_ONLY                                           :  1;
+        unsigned int                                                              :  7;
+    } gfx101;
 
     unsigned int u32All;
     signed int   i32All;
@@ -23051,12 +23056,17 @@ union SPI_RESOURCE_RESERVE_EN_CU_3 {
         unsigned int TYPE_MASK                                                    : 15;
         unsigned int QUEUE_MASK                                                   :  8;
         unsigned int                                                              :  8;
-    } bits, bitfields;
+    } most;
     struct {
         unsigned int                                                              : 24;
         unsigned int RESERVE_SPACE_ONLY                                           :  1;
         unsigned int                                                              :  7;
-    } most;
+    } gfx09;
+    struct {
+        unsigned int                                                              : 24;
+        unsigned int RESERVE_SPACE_ONLY                                           :  1;
+        unsigned int                                                              :  7;
+    } gfx101;
 
     unsigned int u32All;
     signed int   i32All;
@@ -23069,12 +23079,17 @@ union SPI_RESOURCE_RESERVE_EN_CU_4 {
         unsigned int TYPE_MASK                                                    : 15;
         unsigned int QUEUE_MASK                                                   :  8;
         unsigned int                                                              :  8;
-    } bits, bitfields;
+    } most;
     struct {
         unsigned int                                                              : 24;
         unsigned int RESERVE_SPACE_ONLY                                           :  1;
         unsigned int                                                              :  7;
-    } most;
+    } gfx09;
+    struct {
+        unsigned int                                                              : 24;
+        unsigned int RESERVE_SPACE_ONLY                                           :  1;
+        unsigned int                                                              :  7;
+    } gfx101;
 
     unsigned int u32All;
     signed int   i32All;
@@ -23087,12 +23102,17 @@ union SPI_RESOURCE_RESERVE_EN_CU_5 {
         unsigned int TYPE_MASK                                                    : 15;
         unsigned int QUEUE_MASK                                                   :  8;
         unsigned int                                                              :  8;
-    } bits, bitfields;
+    } most;
     struct {
         unsigned int                                                              : 24;
         unsigned int RESERVE_SPACE_ONLY                                           :  1;
         unsigned int                                                              :  7;
-    } most;
+    } gfx09;
+    struct {
+        unsigned int                                                              : 24;
+        unsigned int RESERVE_SPACE_ONLY                                           :  1;
+        unsigned int                                                              :  7;
+    } gfx101;
 
     unsigned int u32All;
     signed int   i32All;

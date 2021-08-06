@@ -627,26 +627,6 @@ void SettingsLoader::OverrideDefaults(
         {
             SetupNavi22Workarounds(device, &m_settings);
         }
-        // For 4 or less RB parts, we expect some overlap for metadata requests across RBs.
-        if (device.ChipProperties().gfx9.numActiveRbs <= 4)
-        {
-            m_settings.cbDbCachePolicy = (Gfx10CbDbCachePolicyLruCmask | Gfx10CbDbCachePolicyLruDcc |
-                                          Gfx10CbDbCachePolicyLruFmask | Gfx10CbDbCachePolicyLruHtile);
-
-            // Additional default settings that are beneficial for smaller ASICs.
-            m_settings.disableBinningPsKill = false;
-            m_settings.gfx10GePcAllocNumLinesPerSeLegacyNggPassthru = 0;
-            m_settings.gfx10GePcAllocNumLinesPerSeNggCulling = 0;
-            m_settings.depthStencilFastClearComputeThresholdSingleSampled = (1024 * 1024) - 1;
-            m_settings.binningContextStatesPerBin = 3;
-            m_settings.binningPersistentStatesPerBin = 8;
-            m_settings.allowNggOnAllCusWgps = true;
-            m_settings.nggLateAllocGs = 0;
-            m_settings.ignoreDepthForBinSizeIfColorBound = true;
-
-            minBatchBinSizeWidth  = 64;
-            minBatchBinSizeHeight = 64;
-        }
 
         //  DISABLE_BINNING_USE_LEGACY_SC: reverts binning completely and uses the old scan converter (along with
         //                                 serpentine walking pattern). It doesn't support FSR in GFX10.

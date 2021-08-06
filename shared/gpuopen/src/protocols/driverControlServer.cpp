@@ -65,6 +65,7 @@ DriverControlServer::DriverControlServer(IMsgChannel* pMsgChannel)
     , m_stepCounter(0)
     , m_initStepRequested(false)
     , m_driverInitClientId(kBroadcastClientId)
+    , m_isIgnored(false)
 {
     DD_ASSERT(m_pMsgChannel != nullptr);
 
@@ -174,6 +175,9 @@ void DriverControlServer::UpdateSession(const SharedPointer<ISession>& pSession)
                     pSessionData->state = HandleQueryDeviceClockByModeRequest(container);
                     break;
 #endif
+                case DriverControlMessage::IgnoreDriverRequest:
+                    pSessionData->state = HandleIgnoreDriverRequest(container);
+                    break;
                 default:
                     DD_UNREACHABLE();
                     break;
@@ -545,6 +549,15 @@ SessionState DriverControlServer::HandleStepDriverRequest(
     UnlockData();
 
     return retState;
+}
+
+SessionState DriverControlServer::HandleIgnoreDriverRequest(
+    SizedPayloadContainer& container)
+{
+    m_isIgnored = true;
+
+    container.CreatePayload<IgnoreDriverResponsePayload>();
+    return SessionState::SendPayload;
 }
 
 //////////////// Driver State Functions ////////////////////////

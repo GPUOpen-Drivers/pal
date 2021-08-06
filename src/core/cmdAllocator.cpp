@@ -55,12 +55,6 @@ size_t CmdAllocator::GetSize(
         {
             const auto& allocInfo = createInfo.allocInfo[i];
 
-            // It's legal to use the local heap but it might not work as expected. We keep all chunk allocations mapped
-            // forever so local allocations might be migrated to system memory by the OS. If local chunks are strongly
-            // desired then we should rework the chunk management logic and internal memory logic so that command chunks
-            // are not mapped while they are referenced on the GPU.
-            PAL_ALERT(allocInfo.allocHeap == GpuHeapLocal);
-
             // Check for the following requirements:
             // - The suballocation size is a multiple of 4k; this is a simple way to meet engine alignment requirements.
             // - The allocation size is an integer multiple of the suballocation size.
@@ -118,6 +112,16 @@ CmdAllocator::CmdAllocator(
     const uint32 residencyFlags = m_pDevice->GetPublicSettings()->cmdAllocResidency;
     for (uint32 i = 0; i < CmdAllocatorTypeCount; ++i)
     {
+        // It's legal to use the local heap but it might not work as expected. We keep all chunk allocations mapped
+        // forever so local allocations might be migrated to system memory by the OS. If local chunks are strongly
+        // desired then we should rework the chunk management logic and internal memory logic so that command chunks
+        // are not mapped while they are referenced on the GPU.  This does not apply when large BAR support is
+        // available.
+        if (m_pDevice->HasLargeLocalHeap() == false)
+        {
+            PAL_ALERT(createInfo.allocInfo[i].allocHeap == GpuHeapLocal);
+        }
+
         memset(&m_gpuAllocInfo[i].allocCreateInfo, 0, sizeof(m_gpuAllocInfo[i].allocCreateInfo));
 
         m_gpuAllocInfo[i].allocCreateInfo.memObjCreateInfo.priority  = GpuMemPriority::Normal;

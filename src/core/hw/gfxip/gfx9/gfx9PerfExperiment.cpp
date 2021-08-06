@@ -1235,8 +1235,10 @@ Result PerfExperiment::AddThreadTrace(
         m_sqtt[traceInfo.instance].grbmGfxIndex.bits.INSTANCE_BROADCAST_WRITES = 1;
 
         // By default stall always so that we get accurate data.
-        const uint32 stallMode = (traceInfo.optionFlags.threadTraceStallBehavior != 0)
-                ? traceInfo.optionValues.threadTraceStallBehavior : GpuProfilerStallAlways;
+        const uint32 stallMode =
+            m_settings.waNoSqttRegStall                           ? GpuProfilerStallLoseDetail                      :
+            (traceInfo.optionFlags.threadTraceStallBehavior != 0) ? traceInfo.optionValues.threadTraceStallBehavior :
+                                                                    GpuProfilerStallAlways;
         if (m_chipProps.gfxLevel == GfxIpLevel::GfxIp9)
         {
             m_sqtt[traceInfo.instance].mode.bits.MASK_PS      = ((shaderMask & PerfShaderMaskPs) != 0);

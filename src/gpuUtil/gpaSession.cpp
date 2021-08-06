@@ -115,10 +115,8 @@ SqttVersion GfxipToSqttVersion(
         version = SQTT_VERSION_2_3;
         break;
     case Pal::GfxIpLevel::GfxIp10_1:
-        version = SQTT_VERSION_2_4;
-        break;
     case Pal::GfxIpLevel::GfxIp10_3:
-        version = SQTT_VERSION_2_4;
+        version = SQTT_VERSION_3_0;
         break;
     default:
         PAL_ASSERT_ALWAYS_MSG("Unknown GfxIpLevel value: %u!", static_cast<uint32>(gfxIpLevel));
@@ -1372,8 +1370,14 @@ Pal::Result GpaSession::SampleGpuClocks(
     {
         const float maxEngineClock = m_deviceProps.gfxipProperties.performance.maxGpuClock;
         const float maxMemoryClock = m_deviceProps.gpuMemoryProperties.performance.maxMemClock;
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 674
+        const uint32 engineClock = clockModeOutput.engineClockFrequency;
+        const uint32 memoryClock = clockModeOutput.memoryClockFrequency;
+#else
         const uint32 engineClock = static_cast<uint32>(maxEngineClock * clockModeOutput.engineClockRatioToPeak);
         const uint32 memoryClock = static_cast<uint32>(maxMemoryClock * clockModeOutput.memoryClockRatioToPeak);
+#endif
 
         pGpuClocksSample->gpuEngineClockSpeed = engineClock;
         pGpuClocksSample->gpuMemoryClockSpeed = memoryClock;

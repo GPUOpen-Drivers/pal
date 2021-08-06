@@ -77,6 +77,9 @@ namespace DevDriver
             // If this isn't set, the server will attempt to find a suitable client itself via broadcast + discovery.
             void SetDriverInitClientId(ClientId clientId) { m_driverInitClientId = clientId; }
 
+            /// Returns true if this driver will be ignored by tools
+            bool IsDriverIgnored() const { return m_isIgnored; }
+
         private:
             void LockData();
             void UnlockData();
@@ -104,6 +107,7 @@ namespace DevDriver
             SessionState HandleQueryNumGpusRequest(SizedPayloadContainer& container);
             SessionState HandleQueryDriverStatusRequest(SizedPayloadContainer& container, const Version sessionVersion);
             SessionState HandleStepDriverRequest(SizedPayloadContainer& container, const Version sessionVersion);
+            SessionState HandleIgnoreDriverRequest(SizedPayloadContainer& container);
 
             Platform::Mutex m_mutex;
             DriverStatus m_driverStatus;
@@ -119,6 +123,9 @@ namespace DevDriver
             // The client id of the remote client who's responsible for walking us through the driver initialization
             // process.
             ClientId m_driverInitClientId;
+
+            // This value is set to true if a remote tool has indicated that this driver will be ignored
+            bool m_isIgnored;
 
             DD_STATIC_CONST uint32 kBroadcastIntervalInMs = 100;
             DD_STATIC_CONST uint32 kDefaultDriverStartTimeoutMs = 1000;

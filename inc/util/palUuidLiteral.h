@@ -40,7 +40,7 @@
 // Requires constexpr
 // Requires GCC 6+, Clang 3.5+, or VS 2017+
 #if defined(__cpp_exceptions) &&                            \
-    (__cplusplus >= 201402) &&                              \
+    PAL_CPLUSPLUS_AT_LEAST(PAL_CPLUSPLUS_14) &&             \
     (__cpp_constexpr >= 201304) &&                          \
     ((__GNUC__ >= 6) ||                                     \
      ((__clang_major__ >= 3) && (__clang_minor__ >= 5)) ||  \

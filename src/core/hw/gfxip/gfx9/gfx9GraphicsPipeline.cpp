@@ -296,7 +296,8 @@ void GraphicsPipeline::LateInit(
     const GraphicsPipelineLoadInfo&   loadInfo,
     PipelineUploader*                 pUploader)
 {
-    MetroHash64 hasher;
+    const Gfx9PalSettings& settings = m_pDevice->Settings();
+    MetroHash64            hasher;
 
     if (IsTessEnabled())
     {
@@ -312,6 +313,14 @@ void GraphicsPipeline::LateInit(
     SetupNonShaderRegisters(createInfo, registers);
     SetupStereoRegisters();
     SetupFetchShaderInfo(pUploader);
+
+    if ((settings.rbPlusOptimizeDepthOnlyExportRate) &&
+        (NumColorTargets() == 0) &&
+        (m_regs.context.cbColorControl.bits.MODE == CB_DISABLE))
+    {
+        m_regs.other.sxPsDownconvert.bits.MRT0                    = SX_RT_EXPORT_32_R;
+        m_regs.context.spiShaderColFormat.bits.COL0_EXPORT_FORMAT = SPI_SHADER_32_R;
+    }
 
     MetroHash::Hash hash = {};
 
@@ -723,6 +732,11 @@ uint32* GraphicsPipeline::WriteContextCommandsSetPath(
                                                   m_regs.context.spiInterpControl0.u32All,
                                                   pCmdSpace);
 
+    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmSPI_SHADER_POS_FORMAT,
+                                                   mmSPI_SHADER_COL_FORMAT,
+                                                   &m_regs.context.spiShaderPosFormat,
+                                                   pCmdSpace);
+
     if (m_pDevice->Parent()->ChipProperties().gfxip.supportsHwVs)
     {
         pCmdSpace = pCmdStream->WriteSetOneContextReg(HasHwVs::mmVGT_GS_MODE,
@@ -804,6 +818,10 @@ void GraphicsPipeline::SetupCommonRegisters(
     m_regs.context.paClVteCntl.u32All  = registers.At(mmPA_CL_VTE_CNTL);
     m_regs.context.paSuVtxCntl.u32All  = registers.At(mmPA_SU_VTX_CNTL);
     m_regs.other.paScModeCntl1.u32All  = registers.At(mmPA_SC_MODE_CNTL_1);
+
+    m_regs.context.spiShaderColFormat.u32All = registers.At(mmSPI_SHADER_COL_FORMAT);
+    m_regs.context.spiShaderPosFormat.u32All = registers.At(mmSPI_SHADER_POS_FORMAT);
+    m_regs.context.spiShaderZFormat.u32All   = registers.At(mmSPI_SHADER_Z_FORMAT);
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 644
         m_regs.context.paClClipCntl.bits.DX_CLIP_SPACE_DEF = (createInfo.viewportInfo.depthRange == DepthRange::ZeroToOne);
@@ -2142,6 +2160,11 @@ void GraphicsPipeline::OverrideRbPlusRegistersForRpm(
     if ((pTargetFormats[slot].format != swizzledFormat.format) &&
         (m_regs.context.cbColorControl.bits.DISABLE_DUAL_QUAD == 0))
     {
+        // This logic should not clash with the logic for rbPlusOptimizeDepthOnlyExportRate.
+        PAL_ASSERT(((m_pDevice->Settings().rbPlusOptimizeDepthOnlyExportRate) &&
+                    (NumColorTargets() == 0) &&
+                    (m_regs.context.cbColorControl.bits.MODE == CB_DISABLE)) == false);
+
         regSX_PS_DOWNCONVERT    sxPsDownconvert   = { };
         regSX_BLEND_OPT_EPSILON sxBlendOptEpsilon = { };
         regSX_BLEND_OPT_CONTROL sxBlendOptControl = { };

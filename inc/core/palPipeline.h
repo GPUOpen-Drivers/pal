@@ -158,15 +158,14 @@ union PipelineCreateFlags
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
         uint32 overrideGpuHeap        : 1;  ///< Override the default GPU heap (local invisible) the pipeline
                                             ///  resides in.
-        uint32 reserved               : 30; ///< Reserved for future use.
 #elif PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 673
         uint32 supportDynamicDispatch : 1;  ///< Pipeline will be used with @ref ICmdBuffer::CmdDynamicDispatch.
                                             ///  This flag must only be set if the device reports support
                                             ///  via DeviceProperties.
-        uint32 reserved               : 30; ///< Reserved for future use.
 #else
-        uint32 reserved               : 31; ///< Reserved for future use.
+        uint32 placeHolder0           : 1;
 #endif
+        uint32 reserved               : 30; ///< Reserved for future use.
     };
     uint32 u32All;                  ///< Flags packed as 32-bit uint.
 };
@@ -621,13 +620,13 @@ public:
     /// Can be used to associate arbitrary data with a particular PAL object.
     ///
     /// @returns Pointer to client data.
-    PAL_INLINE void* GetClientData() const { return m_pClientData; }
+    void* GetClientData() const { return m_pClientData; }
 
     /// Sets the value of the associated arbitrary client data pointer.
     /// Can be used to associate arbitrary data with a particular PAL object.
     ///
     /// @param  [in]    pClientData     A pointer to arbitrary client data.
-    PAL_INLINE void SetClientData(
+    void SetClientData(
         void* pClientData)
     {
         m_pClientData = pClientData;

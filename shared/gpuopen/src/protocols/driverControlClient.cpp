@@ -486,6 +486,35 @@ namespace DevDriver
             return result;
         }
 
+        Result DriverControlClient::IgnoreDriver()
+        {
+            Result result = Result::Error;
+            if (IsConnected())
+            {
+                result = Result::VersionMismatch;
+                if (GetSessionVersion() >= DRIVERCONTROL_IGNORE_DRIVER_VERSION)
+                {
+                    SizedPayloadContainer container = {};
+                    container.CreatePayload<IgnoreDriverRequestPayload>();
+
+                    result = TransactDriverControlPayload(&container);
+                    if (result == Result::Success)
+                    {
+                        const IgnoreDriverResponsePayload& response =
+                            container.GetPayload<IgnoreDriverResponsePayload>();
+
+                        if (response.header.command != DriverControlMessage::IgnoreDriverResponse)
+                        {
+                            // Invalid response payload
+                            result = Result::Error;
+                        }
+                    }
+                }
+            }
+
+            return result;
+        }
+
         Result DriverControlClient::SendDriverControlPayload(
             const SizedPayloadContainer& container,
             uint32 timeoutInMs,

@@ -111,7 +111,7 @@ constexpr  NullIdLookup  NullIdLookupTable[] =
     { PAL_UNDEFINED_NULL_DEVICE                                                                                       },
     { PAL_UNDEFINED_NULL_DEVICE },
     { PAL_UNDEFINED_NULL_DEVICE                                                                                       },
-
+    { PAL_UNDEFINED_NULL_DEVICE                                                                                       },
     { PAL_UNDEFINED_NULL_DEVICE                                                                                       }, // All
 };
 static_assert(Util::ArrayLen(NullIdLookupTable) == static_cast<uint32>(NullGpuId::All),
@@ -164,6 +164,7 @@ const char* pNullGpuNames[static_cast<uint32>(Pal::NullGpuId::Max)] =
     nullptr,
     "NAVI21:gfx1030",
     "NAVI22:gfx1031",
+    nullptr,
     nullptr,
     nullptr,
     nullptr,
@@ -1065,6 +1066,11 @@ void Device::InitGfx9ChipProperties()
         PAL_ASSERT_ALWAYS();
     }
 
+    if (IsGfx103Plus(m_chipProperties.gfxLevel))
+    {
+        pChipInfo->supportMeshTaskShader = pChipInfo->supportImplicitPrimitiveShader;
+    }
+
     // Assume all CUs and all RBs are active/enabled.
     pChipInfo->numCuPerSh         = pChipInfo->maxNumCuPerSh;
     pChipInfo->backendDisableMask = 0;
@@ -1411,7 +1417,7 @@ size_t Device::GpuMemoryObjectSize() const
 Result Device::InitMemoryProperties()
 {
     m_memoryProperties.vaStart      = 0;
-    m_memoryProperties.vaEnd        = (1ull << MinVaRangeNumBits) - 1;
+    m_memoryProperties.vaEnd        = (1ull << m_chipProperties.gfxip.vaRangeNumBits) - 1;
     m_memoryProperties.vaInitialEnd = m_memoryProperties.vaEnd;
     m_memoryProperties.vaUsableEnd  = m_memoryProperties.vaEnd;
 

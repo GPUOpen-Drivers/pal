@@ -701,9 +701,16 @@ Result Device::ExtractPerfCounterInfo(
         {
             buf[lineLength] = '\0';
 
-            if ((buf[0] == '#') || (buf[0] == 0))
+            const char* pFirstChar = &buf[0];
+            while (isspace(*pFirstChar))
             {
-                // Ignore empty and comment lines.
+                // Skip leading whitespace
+                pFirstChar++;
+            }
+
+            // Ignore blank lines or comment lines that start with a #/;.
+            if ((*pFirstChar == '#') || (*pFirstChar == ';') || (*pFirstChar == 0))
+            {
                 continue;
             }
             else
@@ -1007,8 +1014,15 @@ Result Device::CountPerfCounters(
     {
         buf[lineLength] = '\0';
 
-        // Ignore blank lines or comment lines that start with a #.
-        if ((buf[0] == '#') || (buf[0] == 0))
+        const char* pFirstChar = &buf[0];
+        while (isspace(*pFirstChar))
+        {
+            // Skip leading whitespace
+            pFirstChar++;
+        }
+
+        // Ignore blank lines or comment lines that start with a #/;.
+        if ((*pFirstChar == '#') || (*pFirstChar == ';') || (*pFirstChar == 0))
         {
             continue;
         }

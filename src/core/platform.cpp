@@ -467,11 +467,6 @@ Result Platform::EarlyInitDevDriver()
                 PAL_DELETE(m_pDevDriverServer, this);
                 m_pDevDriverServer = nullptr;
             }
-            else
-            {
-                // Cache the pointer for the RGP server after initialization.
-                m_pRgpServer = m_pDevDriverServer->GetRGPServer();
-            }
         }
         else
         {
@@ -480,26 +475,42 @@ Result Platform::EarlyInitDevDriver()
         }
     }
 
-    // Initialize Platform settings and the event provider
+    // Initialize Platform settings
     Result result = m_settingsLoader.Init();
 
-    if (result == Result::Success)
+    if ((result == Result::Success) && (m_pDevDriverServer != nullptr))
     {
+        // Initialize the event provider if we have a valid connection
         result = m_eventProvider.Init();
-    }
 
-    if (m_pDevDriverServer != nullptr)
-    {
+        if (result == Result::Success)
+        {
 #if GPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION < GPUOPEN_DRIVER_CONTROL_CLEANUP_VERSION
-        m_pDevDriverServer->StartDeviceInit();
+            m_pDevDriverServer->StartDeviceInit();
 #else
-        DevDriver::DriverControlProtocol::DriverControlServer* pDriverControlServer =
-            m_pDevDriverServer->GetDriverControlServer();
+            DevDriver::DriverControlProtocol::DriverControlServer* pDriverControlServer =
+                m_pDevDriverServer->GetDriverControlServer();
 
-        PAL_ASSERT(pDriverControlServer != nullptr);
+            PAL_ASSERT(pDriverControlServer != nullptr);
 
-        pDriverControlServer->StartEarlyDeviceInit();
+            pDriverControlServer->StartEarlyDeviceInit();
 #endif
+
+            if (pDriverControlServer->IsDriverIgnored() == false)
+            {
+                // Cache the pointer for the RGP server after successful initialization.
+                m_pRgpServer = m_pDevDriverServer->GetRGPServer();
+            }
+            else
+            {
+                // The tools have indicated that they do not wish to communicate with this driver
+                // so we can safely destroy all of the previously initialized DevDriver infrastructure.
+                m_eventProvider.Destroy();
+
+                PAL_DELETE(m_pDevDriverServer, this);
+                m_pDevDriverServer = nullptr;
+            }
+        }
     }
 
     return result;
@@ -600,10 +611,10 @@ void Platform::LateInitDevDriver()
 // Destroys the connection to the developer driver message bus if it was previously initialized.
 void Platform::DestroyDevDriver()
 {
-    m_eventProvider.Destroy();
-
     if (m_pDevDriverServer != nullptr)
     {
+        m_eventProvider.Destroy();
+
         // Null out cached pointers
         m_pRgpServer = nullptr;
 

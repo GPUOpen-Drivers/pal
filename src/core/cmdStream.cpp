@@ -429,7 +429,10 @@ void CmdStream::Reset(
         PAL_ASSERT(m_retainedChunkList.IsEmpty() || (m_pCmdAllocator != nullptr));
     }
 
-    ResetNestedChunks();
+    if (m_nestedChunks.GetNumEntries() != 0)
+    {
+        m_nestedChunks.Reset();
+    }
 
     if (m_pDevice->Settings().cmdAllocatorFreeOnReset)
     {
@@ -611,7 +614,6 @@ void CmdStream::TrackNestedChunks(
     {
         // The target command stream has not been "called" from this command stream before, so initialize its
         // executed-count to one. FindAllocate() will have already created space for this chunk in the table.
-        chunkIter.Get()->AddNestedCommandStreamReference();
         pChunkData->executeCount = 1;
 
         pChunkData->recordedGeneration = chunkIter.Get()->GetGeneration();
@@ -625,7 +627,6 @@ void CmdStream::TrackNestedChunks(
             pNestedChunk = chunkIter.Get();
             nonFirstChunkData.recordedGeneration = pNestedChunk->GetGeneration();
 
-            pNestedChunk->AddNestedCommandStreamReference();
             m_nestedChunks.Insert(pNestedChunk, nonFirstChunkData);
         }
     }
@@ -659,30 +660,6 @@ void CmdStream::TrackNestedEmbeddedData(
     if (dataChunkList.IsEmpty() == false)
     {
         TrackNestedChunks(dataChunkList);
-    }
-}
-
-// =====================================================================================================================
-void CmdStream::ResetNestedChunks()
-{
-    if (m_nestedChunks.GetNumEntries() != 0)
-    {
-        {
-            for (auto iter = m_nestedChunks.Begin(); iter.Get() != nullptr; iter.Next())
-            {
-                CmdStreamChunk*const pChunk        = iter.Get()->key;
-                uint32               recGeneration = iter.Get()->value.recordedGeneration;
-                PAL_ASSERT(pChunk != nullptr);
-
-                if (pChunk->GetGeneration() == recGeneration)
-                {
-                    // If child chunk has already reset, all refs are already removed.
-                    pChunk->RemoveCommandStreamReference();
-                }
-            }
-        }
-
-        m_nestedChunks.Reset();
     }
 }
 

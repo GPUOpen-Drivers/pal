@@ -479,6 +479,9 @@ protected:
     // Gets instance offset register address. It always immediately follows the vertex offset register.
     uint16 GetInstanceOffsetRegAddr() const { return m_vertexOffsetReg + 1; }
 
+    // Gets draw index register address.
+    uint16 GetDrawIndexRegAddr()  const { return m_drawIndexReg; }
+
 private:
     template <GfxIpLevel gfxLevel, bool issueSqttMarkerEvent, bool viewInstancingEnable, bool DescribeDrawDispatch>
     static void PAL_STDCALL CmdDraw(
@@ -719,7 +722,8 @@ private:
             uint32 describeDrawDispatch       :  1; // True if draws/dispatch shader IDs should be specified within the
                                                     // command stream for parsing by PktTools
             uint32 rbPlusSupported            :  1; // True if RBPlus is supported by the device
-            uint32 reserved                   : 17;
+            uint32 has32bPred                 :  1; // True if the CP supports 32-bit predicate flags
+            uint32 reserved                   : 16;
         };
         uint32 u32All;
     } m_cachedSettings;

@@ -75,7 +75,7 @@ static uint32 PalToDrmFormat(
             break;
 
         default:
-            PAL_ASSERT(!"Not supported format!");
+            PAL_ASSERT_ALWAYS_MSG("Not supported format!");
             break;
     }
 

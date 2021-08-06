@@ -144,7 +144,7 @@ extern void SwizzleColor(SwizzledFormat format, const uint32* pColorIn, uint32* 
 /// @param rhs [in] Right hand side of comparison
 ///
 /// @return True if the formats are equal, false otherwise.
-PAL_INLINE bool IsSameFormat(
+constexpr bool IsSameFormat(
     const SwizzledFormat& lhs,
     const SwizzledFormat& rhs)
 {
@@ -156,7 +156,7 @@ PAL_INLINE bool IsSameFormat(
 /// @param [in] format The channel format to query for.
 ///
 /// @returns The number of components of the specified channel format.
-PAL_INLINE uint32 NumComponents(
+inline uint32 NumComponents(
     ChNumFormat format)
 {
     return FormatInfoTable[static_cast<size_t>(format)].componentCount;
@@ -167,7 +167,7 @@ PAL_INLINE uint32 NumComponents(
 /// @param [in] format The format to query for.
 ///
 /// @returns The component mask of @ref ChannelFlags for the specified format.
-PAL_INLINE uint32 ComponentMask(
+inline uint32 ComponentMask(
     ChNumFormat format)
 {
     uint32 mask = FormatInfoTable[static_cast<size_t>(format)].channelMask;
@@ -180,7 +180,7 @@ PAL_INLINE uint32 ComponentMask(
 /// @param [in] format Pixel format.
 ///
 /// @returns True if the pixel format is undefined. False otherwise.
-PAL_INLINE bool IsUndefined(
+constexpr bool IsUndefined(
     ChNumFormat format)
 {
     return (format == ChNumFormat::Undefined);
@@ -191,7 +191,7 @@ PAL_INLINE bool IsUndefined(
 /// @param [in] format Pixel format.
 ///
 /// @returns True if the pixel format is unsigned normalized. False otherwise.
-PAL_INLINE bool IsUnorm(
+inline bool IsUnorm(
     ChNumFormat format)
 {
     return (FormatInfoTable[static_cast<size_t>(format)].numericSupport == NumericSupportFlags::Unorm);
@@ -202,7 +202,7 @@ PAL_INLINE bool IsUnorm(
 /// @param [in] format Pixel format.
 ///
 /// @returns True if the pixel format is signed normalized. False otherwise.
-PAL_INLINE bool IsSnorm(
+inline bool IsSnorm(
     ChNumFormat format)
 {
     return (FormatInfoTable[static_cast<size_t>(format)].numericSupport == NumericSupportFlags::Snorm);
@@ -213,7 +213,7 @@ PAL_INLINE bool IsSnorm(
 /// @param [in] format Pixel format.
 ///
 /// @returns True if the pixel format is unsigned scaled. False otherwise.
-PAL_INLINE bool IsUscaled(
+inline bool IsUscaled(
     ChNumFormat format)
 {
     return (FormatInfoTable[static_cast<size_t>(format)].numericSupport == NumericSupportFlags::Uscaled);
@@ -224,7 +224,7 @@ PAL_INLINE bool IsUscaled(
 /// @param [in] format Pixel format.
 ///
 /// @returns True if the pixel format is signed scaled. False otherwise.
-PAL_INLINE bool IsSscaled(
+inline bool IsSscaled(
     ChNumFormat format)
 {
     return (FormatInfoTable[static_cast<size_t>(format)].numericSupport == NumericSupportFlags::Sscaled);
@@ -235,7 +235,7 @@ PAL_INLINE bool IsSscaled(
 /// @param [in] format Pixel format.
 ///
 /// @returns True if the pixel format is unsigned integer. False otherwise.
-PAL_INLINE bool IsUint(
+inline bool IsUint(
     ChNumFormat format)
 {
     return (FormatInfoTable[static_cast<size_t>(format)].numericSupport == NumericSupportFlags::Uint);
@@ -246,7 +246,7 @@ PAL_INLINE bool IsUint(
 /// @param [in] format Pixel format.
 ///
 /// @returns True if the pixel format is signed integer. False otherwise.
-PAL_INLINE bool IsSint(
+inline bool IsSint(
     ChNumFormat format)
 {
     return (FormatInfoTable[static_cast<size_t>(format)].numericSupport == NumericSupportFlags::Sint);
@@ -257,7 +257,7 @@ PAL_INLINE bool IsSint(
 /// @param [in] format Pixel format.
 ///
 /// @returns True if the pixel format is floating point. False otherwise.
-PAL_INLINE bool IsFloat(
+inline bool IsFloat(
     ChNumFormat format)
 {
     return (FormatInfoTable[static_cast<size_t>(format)].numericSupport == NumericSupportFlags::Float);
@@ -268,7 +268,7 @@ PAL_INLINE bool IsFloat(
 /// @param [in] format Pixel format.
 ///
 /// @returns True if the pixel format is sRGB. False otherwise.
-PAL_INLINE bool IsSrgb(
+inline bool IsSrgb(
     ChNumFormat format)
 {
     return (FormatInfoTable[static_cast<size_t>(format)].numericSupport == NumericSupportFlags::Srgb);
@@ -279,7 +279,7 @@ PAL_INLINE bool IsSrgb(
 /// @param [in] format Pixel format.
 ///
 /// @returns True if the pixel format is normalized. False otherwise.
-PAL_INLINE bool IsNormalized(
+inline bool IsNormalized(
     ChNumFormat format)
 {
     return IsUnorm(format) || IsSnorm(format);
@@ -290,7 +290,7 @@ PAL_INLINE bool IsNormalized(
 /// @param [in] format Pixel format.
 ///
 /// @returns True if the pixel format is an integer format. False otherwise.
-PAL_INLINE bool IsInteger(
+inline bool IsInteger(
     ChNumFormat format)
 {
     return IsUint(format) || IsSint(format);
@@ -301,7 +301,7 @@ PAL_INLINE bool IsInteger(
 /// @param [in] format Pixel format.
 ///
 /// @returns True if the pixel format is a depth/stencil only format. False otherwise.
-PAL_INLINE bool IsDepthStencilOnly(
+inline bool IsDepthStencilOnly(
     ChNumFormat format)
 {
     return (FormatInfoTable[static_cast<size_t>(format)].numericSupport == NumericSupportFlags::DepthStencil);
@@ -312,7 +312,7 @@ PAL_INLINE bool IsDepthStencilOnly(
 /// @param [in] format The format to check.
 ///
 /// @returns True if the specified format is YUV-planar. False otherwise.
-PAL_INLINE bool IsYuvPlanar(
+inline bool IsYuvPlanar(
     ChNumFormat format)
 {
     return ((FormatInfoTable[static_cast<size_t>(format)].properties & YuvPlanar) != 0);
@@ -323,7 +323,7 @@ PAL_INLINE bool IsYuvPlanar(
 /// @param [in] format The format to check.
 ///
 /// @returns True if the specified format is YUV-packed. False otherwise.
-PAL_INLINE bool IsYuvPacked(
+inline bool IsYuvPacked(
     ChNumFormat format)
 {
     return ((FormatInfoTable[static_cast<size_t>(format)].properties & YuvPacked) != 0);
@@ -334,7 +334,7 @@ PAL_INLINE bool IsYuvPacked(
 /// @param [in] format The format to check.
 ///
 /// @returns True if the specified format is for YUV data. False otherwise.
-PAL_INLINE bool IsYuv(
+inline bool IsYuv(
     ChNumFormat format)
 {
     return (FormatInfoTable[static_cast<size_t>(format)].numericSupport == NumericSupportFlags::Yuv);
@@ -345,7 +345,7 @@ PAL_INLINE bool IsYuv(
 /// @param [in] format Pixel format.
 ///
 /// @returns True if the pixel format has an alpha channel. False otherwise.
-PAL_INLINE bool HasAlpha(
+constexpr bool HasAlpha(
     SwizzledFormat format)
 {
     return ((format.format == ChNumFormat::A8_Unorm)                ||
@@ -360,7 +360,7 @@ PAL_INLINE bool HasAlpha(
 /// @param [in] format Pixel format.
 ///
 /// @returns True if the pixel format is a four channel format and has an unused alpha channel. False otherwise.
-PAL_INLINE bool HasUnusedAlpha(
+inline bool HasUnusedAlpha(
     SwizzledFormat format)
 {
     return ((NumComponents(format.format) == 4)     &&
@@ -448,7 +448,7 @@ extern bool ShareChFmt(ChNumFormat srcFormat, ChNumFormat dstFormat);
 /// @param [in] dstFormat Destination channel pixel format.
 ///
 /// @returns True if both formats share the same numeric format. False otherwise.
-PAL_INLINE bool HaveSameNumFmt(
+inline bool HaveSameNumFmt(
     ChNumFormat srcFormat,
     ChNumFormat dstFormat)
 {
@@ -461,7 +461,7 @@ PAL_INLINE bool HaveSameNumFmt(
 /// @param [in] format Format.
 ///
 /// @returns Corresponding block dimensions for the compressed format.
-PAL_INLINE Extent3d CompressedBlockDim(
+inline Extent3d CompressedBlockDim(
     ChNumFormat format)
 {
     Extent3d blockDim = {};
@@ -615,7 +615,7 @@ PAL_INLINE Extent3d CompressedBlockDim(
 /// @param [in]  depth       Block depth.
 ///
 /// @returns Structure containing the texel width, height and depth
-PAL_INLINE Extent3d CompressedBlocksToTexels(
+inline Extent3d CompressedBlocksToTexels(
     ChNumFormat format,
     uint32      width,
     uint32      height,
@@ -636,7 +636,7 @@ PAL_INLINE Extent3d CompressedBlocksToTexels(
 /// @param [in] depth       Texel depth.
 ///
 /// @returns Structure containing the block width, height and depth
-PAL_INLINE Extent3d CompressedTexelsToBlocks(
+inline Extent3d CompressedTexelsToBlocks(
     ChNumFormat format,
     uint32      width,
     uint32      height,
@@ -654,7 +654,7 @@ PAL_INLINE Extent3d CompressedTexelsToBlocks(
 /// @param format The format to query for.
 ///
 /// @return The number of bits per pixel for the given channel format.
-PAL_INLINE uint32 BitsPerPixel(
+inline uint32 BitsPerPixel(
     ChNumFormat format)
 {
     return FormatInfoTable[static_cast<size_t>(format)].bitsPerPixel;
@@ -665,7 +665,7 @@ PAL_INLINE uint32 BitsPerPixel(
 /// @param format The format to query for.
 ///
 /// @return The number of bytes per pixel for the given channel format.
-PAL_INLINE uint32 BytesPerPixel(
+inline uint32 BytesPerPixel(
     ChNumFormat format)
 {
     return (BitsPerPixel(format) >> 3);
@@ -677,7 +677,7 @@ PAL_INLINE uint32 BytesPerPixel(
 /// @param [in] swizzle The specified channel swizzle to check with.
 ///
 /// @returns True if the specified channel swizzle is valid for the given format. False otherwise.
-PAL_INLINE bool IsValidChannelSwizzle(
+inline bool IsValidChannelSwizzle(
     ChNumFormat    format,
     ChannelSwizzle swizzle)
 {
@@ -715,7 +715,7 @@ PAL_INLINE bool IsValidChannelSwizzle(
 /// @param [in] format The format to query for.
 ///
 /// @returns The corresponding component swizzles for the specified format. Returned as an array of four counts.
-PAL_INLINE const uint32* ComponentBitCounts(
+inline const uint32* ComponentBitCounts(
     ChNumFormat format)
 {
     return &FormatInfoTable[static_cast<size_t>(format)].bitCount[0];
@@ -726,7 +726,7 @@ PAL_INLINE const uint32* ComponentBitCounts(
 /// @param [in] format The channel format to query for.
 ///
 /// @returns The maximum bit-count of any component in the format.
-PAL_INLINE uint32 MaxComponentBitCount(
+inline uint32 MaxComponentBitCount(
     ChNumFormat format)
 {
     const FormatInfo& info = FormatInfoTable[static_cast<size_t>(format)];
@@ -739,7 +739,7 @@ PAL_INLINE uint32 MaxComponentBitCount(
 /// @param [in] format The format to check.
 ///
 /// @returns True if the specified format is block-compressed. False otherwise.
-PAL_INLINE bool IsBlockCompressed(
+inline bool IsBlockCompressed(
     ChNumFormat format)
 {
     return ((FormatInfoTable[static_cast<size_t>(format)].properties & BlockCompressed) != 0);
@@ -750,7 +750,7 @@ PAL_INLINE bool IsBlockCompressed(
 /// @param [in] format The format to check.
 ///
 /// @returns True if the specified format is macro-pixel-packed. False otherwise.
-PAL_INLINE bool IsMacroPixelPacked(
+inline bool IsMacroPixelPacked(
     ChNumFormat format)
 {
     return ((FormatInfoTable[static_cast<size_t>(format)].properties & MacroPixelPacked) != 0);
@@ -761,7 +761,7 @@ PAL_INLINE bool IsMacroPixelPacked(
 /// @param [in] format The format to check.
 ///
 /// @returns True if the specified format is a rgb macro-pixel-packed. False otherwise.
-PAL_INLINE bool IsMacroPixelPackedRgbOnly(
+inline bool IsMacroPixelPackedRgbOnly(
     ChNumFormat format)
 {
     return (IsMacroPixelPacked(format) && (IsYuv(format) == false));
@@ -775,7 +775,7 @@ PAL_INLINE bool IsMacroPixelPackedRgbOnly(
 /// @param [in] plane   Image plane to query for.
 ///
 /// @returns Corresponding scaling factors between the luma plane and chroma plane(s).
-PAL_INLINE Extent3d Log2SubsamplingRatio(
+inline Extent3d Log2SubsamplingRatio(
     ChNumFormat format,
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
     ImageAspect aspect)

@@ -480,18 +480,6 @@ void CmdStreamChunk::AddCommandStreamReference()
 }
 
 // =====================================================================================================================
-// Notifies this command chunk that it is being added to a command stream as part of a GfxCmdStream::Call() operation.
-// This increments the reference count without altering the busy tracker state.
-void CmdStreamChunk::AddNestedCommandStreamReference()
-{
-    // DX12 does not permit reference counting in command chunks by the command allocator. Hence reference counting is
-    // disabled for DX12 builds.
-    PAL_ASSERT(m_referenceCount != 0); // How could the caller have called our command stream if we don't belong to one?
-
-    AtomicIncrement(&m_referenceCount);
-}
-
-// =====================================================================================================================
 // Notifies this command chunk that it is being removed from a command stream (because that stream is being reset), and
 // returned to its parent allocator.
 void CmdStreamChunk::RemoveCommandStreamReference()

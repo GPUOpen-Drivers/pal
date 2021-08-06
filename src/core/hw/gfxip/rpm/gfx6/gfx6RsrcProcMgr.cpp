@@ -2614,6 +2614,41 @@ void RsrcProcMgr::DepthStencilClearGraphics(
     scissorInfo.scissors[0].offset.x = 0;
     scissorInfo.scissors[0].offset.y = 0;
 
+    // The DB assumes the driver won't change surface state registers once it binds a depth target. We must flush
+    // the DB caches if we wish to change surface state. In PAL, we only change surface state if we switch fast clear
+    // values or z range precision values. We can't know the previous surface state values so we must always flush the
+    // DB caches when we do a graphics fast clear.
+    // And we should do this flush before we bind the fast clear's depth-stencil view
+    // as that will load the new DB_DEPTH_CLEAR value from memory.
+    // And the flush should be a synchronous operation.
+    // Or the next draw would get a wrong Z value after a fast clear if DB has not flushed the cache.
+    // So we use ACQUIRE_MEM cp to ensure the DB cache is all clean before the next draw.
+    if (fastClear)
+    {
+        auto*const pCmdStream  = pCmdBuffer->GetCmdStreamByEngine(CmdBufferEngineSupport::Graphics);
+        PAL_ASSERT(pCmdStream != nullptr);
+
+        // We should not use DB_CACHE_FLUSH_AND_INV here. Because it is a non-TimeStamp/Fence event.
+        // SURFACESYNC cp is a synchronous operation.
+        // Note that we use ACQUIREMEM instead in the gfx9+ code.
+        // It will do a cache flush,and ensure the DB cache is all clean before the next draw.
+        regCP_COHER_CNTL  coherCntl = {};
+        // We should wait for both depth and stencil to be safe.
+        coherCntl.bits.DB_DEST_BASE_ENA = 1;
+        coherCntl.bits.DEST_BASE_0_ENA  = 1;
+        coherCntl.bits.DB_ACTION_ENA    = 1;
+
+        uint32* pCmdSpace = pCmdStream->ReserveCommands();
+        // Write a full range surface sync that invalidates the DB.
+        pCmdSpace += m_cmdUtil.BuildSurfaceSync(coherCntl,
+                                                SURFACE_SYNC_ENGINE_ME,
+                                                dstImage.Parent()->GetGpuVirtualAddr(),
+                                                dstImage.Parent()->GetGpuMemSize(),
+                                                pCmdSpace);
+
+        pCmdStream->CommitCommands(pCmdSpace);
+    }
+
     DepthStencilViewInternalCreateInfo depthViewInfoInternal = { };
     depthViewInfoInternal.depthClearValue   = depth;
     depthViewInfoInternal.stencilClearValue = stencil;
@@ -2669,19 +2704,6 @@ void RsrcProcMgr::DepthStencilClearGraphics(
     // Box of partial clear is only valid when number of mip-map is equal to 1.
     PAL_ASSERT((boxCnt == 0) || ((pBox != nullptr) && (range.numMips == 1)));
     uint32 scissorCnt = (boxCnt > 0) ? boxCnt : 1;
-
-    // The DB assumes the driver won't change surface state registers once it binds a depth target. We must flush
-    // the DB caches if we wish to change surface state. In PAL, we only change surface state if we switch fast clear
-    // values or z range precision values. We can't know the previous surface state values so we must always flush the
-    // DB caches when we do a graphics fast clear.
-    if (fastClear)
-    {
-        auto*const pCmdStream = pCmdBuffer->GetCmdStreamByEngine(CmdBufferEngineSupport::Graphics);
-        PAL_ASSERT(pCmdStream != nullptr);
-        uint32* pCmdSpace = pCmdStream->ReserveCommands();
-        pCmdSpace += m_cmdUtil.BuildEventWrite(DB_CACHE_FLUSH_AND_INV, pCmdSpace);
-        pCmdStream->CommitCommands(pCmdSpace);
-    }
 
     // Each mipmap level has to be fast-cleared individually because a depth target view can only be tied to a
     //single mipmap level of the destination Image.

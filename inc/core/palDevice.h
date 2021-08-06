@@ -2223,10 +2223,15 @@ enum class DeviceClockMode : uint32
 /// running by querying using the mode DeviceClockMode::DeviceClockModeQuery.
 struct SetClockModeOutput
 {
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 674
+    uint32 memoryClockFrequency;   /// Current mem clock (absolute) value in Mhz
+    uint32 engineClockFrequency; /// Current gpu core clock (absolute) value in Mhz
+#else
     float memoryClockRatioToPeak;  ///< Ratio of current mem clock to peak clock as obtained from
                                    ///  DeviceProperties::maxMemClock.
     float engineClockRatioToPeak;  ///< Ratio of current gpu core clock to peak clock as obtained from
                                    ///  DeviceProperties::maxGpuClock.
+#endif
 };
 
 /// Specifies input argument to IDeive::SetClockMode. The caller must specify the mode in which to set the device.
@@ -3620,7 +3625,7 @@ public:
     /// @param [out] pOut            Client-provided space where opaque, hardware-specific SRD data is written.
     ///
     /// @ingroup ResourceBinding
-    PAL_INLINE void CreateTypedBufferViewSrds(
+    void CreateTypedBufferViewSrds(
         uint32                count,
         const BufferViewInfo* pBufferViewInfo,
         void*                 pOut) const
@@ -3653,7 +3658,7 @@ public:
     /// @param [out] pOut            Client-provided space where opaque, hardware-specific SRD data is written.
     ///
     /// @ingroup ResourceBinding
-    PAL_INLINE void CreateUntypedBufferViewSrds(
+    void CreateUntypedBufferViewSrds(
         uint32                count,
         const BufferViewInfo* pBufferViewInfo,
         void*                 pOut) const
@@ -3719,7 +3724,7 @@ public:
     /// @param [out] pOut         Client-provided space where opaque, hardware-specific SRD data is written.
     ///
     /// @ingroup ResourceBinding
-    PAL_INLINE void CreateImageViewSrds(
+    void CreateImageViewSrds(
         uint32               count,
         const ImageViewInfo* pImgViewInfo,
         void*                pOut) const
@@ -3759,7 +3764,7 @@ public:
     /// @param [out] pOut           Client-provided space where opaque, hardware-specific SRD data is written.
     ///
     /// @ingroup ResourceBinding
-    PAL_INLINE void CreateFmaskViewSrds(
+    void CreateFmaskViewSrds(
         uint32               count,
         const FmaskViewInfo* pFmaskViewInfo,
         void*                pOut) const
@@ -3805,7 +3810,7 @@ public:
     ///              - The border color palette index is out of the legal range.
     ///
     /// @ingroup ResourceBinding
-    PAL_INLINE void CreateSamplerSrds(
+    void CreateSamplerSrds(
         uint32             count,
         const SamplerInfo* pSamplerInfo,
         void*              pOut) const
@@ -3833,7 +3838,7 @@ public:
     ///          + ErrorInvalidPointer if pBvhInfo or pOut is null.
     ///
     /// @ingroup ResourceBinding
-    PAL_INLINE void CreateBvhSrds(
+    void CreateBvhSrds(
         uint32         count,
         const BvhInfo* pBvhInfo,
         void*          pOut) const
@@ -4793,7 +4798,7 @@ public:
     /// Can be used to associate arbitrary data with a particular PAL object.
     ///
     /// @returns Pointer to client data.
-    PAL_INLINE void* GetClientData() const
+    void* GetClientData() const
     {
         return m_pClientData;
     }
@@ -4802,7 +4807,7 @@ public:
     /// Can be used to associate arbitrary data with a particular PAL object.
     ///
     /// @param  [in]    pClientData     A pointer to arbitrary client data.
-    PAL_INLINE void SetClientData(
+    void SetClientData(
         void* pClientData)
     {
         m_pClientData = pClientData;

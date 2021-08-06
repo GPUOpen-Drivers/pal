@@ -150,7 +150,6 @@ public:
     void UpdateRootInfo(CmdStreamChunk* pRootChunk);
 
     void AddCommandStreamReference();
-    void AddNestedCommandStreamReference();
     void RemoveCommandStreamReference();
 
     void IncrementSubmitCount(uint32 count = 1) { Util::AtomicAdd(&m_busyTracker.submitCount, count); }

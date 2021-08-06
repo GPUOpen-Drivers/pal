@@ -37,7 +37,7 @@ namespace Metadata
 {
 
 // =====================================================================================================================
-PAL_INLINE Result DeserializeEnum(
+inline Result DeserializeEnum(
     MsgPackReader*  pReader,
     PipelineType*  pValue)
 {
@@ -87,7 +87,7 @@ PAL_INLINE Result DeserializeEnum(
 }
 
 // =====================================================================================================================
-PAL_INLINE Result SerializeEnum(
+inline Result SerializeEnum(
     MsgPackWriter*  pWriter,
     PipelineType  value)
 {
@@ -130,7 +130,7 @@ PAL_INLINE Result SerializeEnum(
 }
 
 // =====================================================================================================================
-PAL_INLINE Result DeserializeEnum(
+inline Result DeserializeEnum(
     MsgPackReader*  pReader,
     ApiShaderType*  pValue)
 {
@@ -177,7 +177,7 @@ PAL_INLINE Result DeserializeEnum(
 }
 
 // =====================================================================================================================
-PAL_INLINE Result SerializeEnum(
+inline Result SerializeEnum(
     MsgPackWriter*  pWriter,
     ApiShaderType  value)
 {
@@ -217,7 +217,7 @@ PAL_INLINE Result SerializeEnum(
 }
 
 // =====================================================================================================================
-PAL_INLINE Result DeserializeEnum(
+inline Result DeserializeEnum(
     MsgPackReader*  pReader,
     ApiShaderSubType*  pValue)
 {
@@ -264,7 +264,7 @@ PAL_INLINE Result DeserializeEnum(
 }
 
 // =====================================================================================================================
-PAL_INLINE Result SerializeEnum(
+inline Result SerializeEnum(
     MsgPackWriter*  pWriter,
     ApiShaderSubType  value)
 {
@@ -304,7 +304,7 @@ PAL_INLINE Result SerializeEnum(
 }
 
 // =====================================================================================================================
-PAL_INLINE Result DeserializeEnum(
+inline Result DeserializeEnum(
     MsgPackReader*  pReader,
     HardwareStage*  pValue)
 {
@@ -348,7 +348,7 @@ PAL_INLINE Result DeserializeEnum(
 }
 
 // =====================================================================================================================
-PAL_INLINE Result SerializeEnum(
+inline Result SerializeEnum(
     MsgPackWriter*  pWriter,
     HardwareStage  value)
 {
@@ -385,7 +385,7 @@ PAL_INLINE Result SerializeEnum(
 }
 
 // =====================================================================================================================
-PAL_INLINE Result DeserializeEnum(
+inline Result DeserializeEnum(
     MsgPackReader*  pReader,
     PipelineSymbolType*  pValue)
 {
@@ -501,7 +501,7 @@ PAL_INLINE Result DeserializeEnum(
 }
 
 // =====================================================================================================================
-PAL_INLINE Result SerializeEnum(
+inline Result SerializeEnum(
     MsgPackWriter*  pWriter,
     PipelineSymbolType  value)
 {
@@ -654,7 +654,7 @@ Result SerializeEnumBitflags(
 }
 
 // =====================================================================================================================
-PAL_INLINE Result DeserializeShaderMetadata(
+inline Result DeserializeShaderMetadata(
     MsgPackReader*  pReader,
     ShaderMetadata*  pMetadata)
 {
@@ -694,7 +694,7 @@ PAL_INLINE Result DeserializeShaderMetadata(
 }
 
 // =====================================================================================================================
-PAL_INLINE Result DeserializeShaderMetadata(
+inline Result DeserializeShaderMetadata(
     MsgPackReader*  pReader,
     ShaderMetadata (*pMetadata)[static_cast<uint32>(ApiShaderType::Count)])
 {
@@ -722,7 +722,7 @@ PAL_INLINE Result DeserializeShaderMetadata(
 }
 
 // =====================================================================================================================
-PAL_INLINE Result DeserializeHardwareStageMetadata(
+inline Result DeserializeHardwareStageMetadata(
     MsgPackReader*  pReader,
     HardwareStageMetadata*  pMetadata)
 {
@@ -902,7 +902,7 @@ PAL_INLINE Result DeserializeHardwareStageMetadata(
 }
 
 // =====================================================================================================================
-PAL_INLINE Result DeserializeHardwareStageMetadata(
+inline Result DeserializeHardwareStageMetadata(
     MsgPackReader*  pReader,
     HardwareStageMetadata (*pMetadata)[static_cast<uint32>(HardwareStage::Count)])
 {
@@ -930,7 +930,7 @@ PAL_INLINE Result DeserializeHardwareStageMetadata(
 }
 
 // =====================================================================================================================
-PAL_INLINE Result DeserializePipelineMetadata(
+inline Result DeserializePipelineMetadata(
     MsgPackReader*  pReader,
     PipelineMetadata*  pMetadata)
 {
@@ -1116,7 +1116,7 @@ PAL_INLINE Result DeserializePipelineMetadata(
 }
 
 // =====================================================================================================================
-PAL_INLINE Result DeserializePalCodeObjectMetadata(
+inline Result DeserializePalCodeObjectMetadata(
     MsgPackReader*  pReader,
     PalCodeObjectMetadata*  pMetadata)
 {

@@ -288,7 +288,6 @@ private:
     virtual void EndCurrentChunk(bool atEndOfStream) { }
 
     void TrackNestedChunks(const ChunkRefList& chunkList);
-    void ResetNestedChunks();
 
     Device*const     m_pDevice;
     const EngineType m_engineType;

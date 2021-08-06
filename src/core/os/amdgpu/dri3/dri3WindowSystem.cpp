@@ -298,6 +298,7 @@ Dri3WindowSystem::Dri3WindowSystem(
     m_remoteSerial(0)
 {
     PAL_ASSERT(createInfo.hDisplay != nullptr);
+    PAL_ASSERT(createInfo.hWindow.win <= UINT_MAX);
 
     if (createInfo.platform == WsiPlatform::Xlib)
     {
@@ -968,6 +969,8 @@ Result Dri3WindowSystem::GetWindowProperties(
     OsWindowHandle       hWindow,
     SwapChainProperties* pSwapChainProperties)
 {
+    PAL_ASSERT(hWindow.win <= UINT_MAX);
+
     Result                          result      = Result::ErrorUnknown;
 
     const xcb_window_t              hXcbWindow  = static_cast<xcb_window_t>(hWindow.win);
@@ -1010,6 +1013,8 @@ bool Dri3WindowSystem::IsAlphaSupported(
     OsDisplayHandle     hDisplay,
     OsWindowHandle      hWindow)
 {
+    PAL_ASSERT(hWindow.win <= UINT_MAX);
+
     const xcb_window_t      hXcbWindow  = static_cast<xcb_window_t>(hWindow.win);
     const Dri3LoaderFuncs&  dri3Procs   = pDevice->GetPlatform()->GetDri3Loader().GetProcsTable();
     xcb_connection_t*const  pConnection = static_cast<xcb_connection_t*>(hDisplay);

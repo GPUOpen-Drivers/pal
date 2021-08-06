@@ -295,5 +295,38 @@ void Platform::ResetGpuWork()
     memset(const_cast<bool*>(&m_gpuWork[0]), 0, sizeof(m_gpuWork));
 }
 
+// =====================================================================================================================
+// Check if ray tracing feature has been used
+// To avoid from flickering when texture showed on dbgOverlay
+// Just keep ray tracing flag to be ture as long as one pipeline uses raytracing feature
+void Platform::CheckRayTracing(
+    const MultiSubmitInfo& submitInfo)
+{
+    if (false == m_rayTracingEverUsed)
+    {
+        for (uint32 queueIdx = 0; queueIdx < submitInfo.perSubQueueInfoCount; ++queueIdx)
+        {
+            const PerSubQueueSubmitInfo& perSubQueueInfo = submitInfo.pPerSubQueueInfo[queueIdx];
+            const bool hasCmdBufInfo      = (perSubQueueInfo.pCmdBufInfoList != nullptr);
+            if ((perSubQueueInfo.cmdBufferCount > 0) && hasCmdBufInfo)
+            {
+                for (uint32 cmdBufIdx = 0; cmdBufIdx < perSubQueueInfo.cmdBufferCount; ++cmdBufIdx)
+                {
+                    const CmdBufInfo* pCmdBufInfo = &(perSubQueueInfo.pCmdBufInfoList[cmdBufIdx]);
+                    if (pCmdBufInfo->rayTracingExecuted)
+                    {
+                        m_rayTracingEverUsed = true;
+                        break;
+                    }
+                }
+            }
+            if (m_rayTracingEverUsed)
+            {
+                break;
+            }
+        }
+    }
+}
+
 } // DbgOverlay
 } // Pal

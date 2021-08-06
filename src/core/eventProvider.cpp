@@ -407,7 +407,7 @@ void EventProvider::LogEvent(
         // The RMT format requires that certain tokens strictly follow each other (e.g. resource create + description),
         // so we need to lock to ensure another event isn't inserted into the stream while writing dependent tokens.
         DevDriver::Platform::LockGuard<DevDriver::Platform::Mutex> providerLock(m_providerLock);
-#if RMT_DATA_MAJOR_VERSION >= 1
+
         // The first time we have something to log, we need to log the RmtVersion first
         if (m_logRmtVersion)
         {
@@ -422,7 +422,6 @@ void EventProvider::LogEvent(
                 m_logRmtVersion = false;
             }
         }
-#endif
 
         const EventTimestamp timestamp = m_eventTimer.CreateTimestamp();
         uint8 delta = 0;

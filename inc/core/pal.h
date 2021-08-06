@@ -63,9 +63,15 @@ typedef uint32  OsVideoSessionHandle;   ///< OsVideoSessionHandle corresponds to
 union OsWindowHandle
 {
     void*  pSurface;  ///< Native surface handle in wayland is a pointer.
-    uint32 win;       ///< Native window handle in X is a 32-bit integer.
+    uint64 win;       ///< Native window handle in X is a 32-bit integer (but stored here as 64 bit).
 };
 constexpr OsWindowHandle NullWindowHandle = {nullptr}; ///< Value representing a null or invalid window handle.
+
+// don't check for the Linux Platform type; just compare the larger member of the union
+inline bool operator==(const Pal::OsWindowHandle& lhs, const Pal::OsWindowHandle& rhs)
+    { return (lhs.pSurface == rhs.pSurface); }
+inline bool operator!=(const Pal::OsWindowHandle& lhs, const Pal::OsWindowHandle& rhs)
+    { return (lhs.pSurface != rhs.pSurface); }
 #else
 #error "Unsupported OS platform detected!"
 #endif
@@ -357,9 +363,9 @@ struct CommonShaderStats
 /// @param  [in]    hash2    The second 128-bit shader hash or pipeline hash
 ///
 /// @returns True if the hashes are equal.
-PAL_INLINE bool ShaderHashesEqual(const ShaderHash hash1, const ShaderHash hash2)
+constexpr bool ShaderHashesEqual(const ShaderHash hash1, const ShaderHash hash2)
     { return ((hash1.lower  == hash2.lower)  && (hash1.upper  == hash2.upper)); }
-PAL_INLINE bool PipelineHashesEqual(const PipelineHash hash1, const PipelineHash hash2)
+constexpr bool PipelineHashesEqual(const PipelineHash hash1, const PipelineHash hash2)
     { return ((hash1.stable == hash2.stable) && (hash1.unique == hash2.unique)); }
 ///@}
 
@@ -369,8 +375,8 @@ PAL_INLINE bool PipelineHashesEqual(const PipelineHash hash1, const PipelineHash
 /// @param  [in]    hash    A 128-bit shader hash or pipeline hash
 ///
 /// @returns True if the hash is non-zero.
-PAL_INLINE bool ShaderHashIsNonzero(const ShaderHash hash)     { return ((hash.upper  | hash.lower)  != 0); }
-PAL_INLINE bool PipelineHashIsNonzero(const PipelineHash hash) { return ((hash.stable | hash.unique) != 0); }
+constexpr bool ShaderHashIsNonzero(const ShaderHash hash)     { return ((hash.upper  | hash.lower)  != 0); }
+constexpr bool PipelineHashIsNonzero(const PipelineHash hash) { return ((hash.stable | hash.unique) != 0); }
 ///@}
 
 /// Specifies the Display Output Post-Processing (DOPP) desktop texture information, which are provided by OpenGL via

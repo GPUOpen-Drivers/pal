@@ -525,7 +525,7 @@ static_assert((sizeof(ApiHwShaderMapping) == sizeof(uint64)),
 /// @param [in] stage      Hardware shader stage of interest
 ///
 /// @returns PipelineSymbolType enum associated with the base symbol type and hardware stage.
-PAL_INLINE PipelineSymbolType GetSymbolForStage(
+constexpr PipelineSymbolType GetSymbolForStage(
     PipelineSymbolType symbolType,
     HardwareStage      stage)
 {
@@ -538,7 +538,7 @@ PAL_INLINE PipelineSymbolType GetSymbolForStage(
 /// @param [in] stage      API shader stage of interest
 ///
 /// @returns PipelineSymbolType enum associated with the base symbol type and API stage.
-PAL_INLINE PipelineSymbolType GetSymbolForStage(
+constexpr PipelineSymbolType GetSymbolForStage(
     PipelineSymbolType symbolType,
     ApiShaderType      stage)
 {
@@ -550,7 +550,7 @@ PAL_INLINE PipelineSymbolType GetSymbolForStage(
 /// @param [in] pName The symbol name.
 ///
 /// @returns The corresponding PipelineSymbolType.
-PAL_INLINE PipelineSymbolType GetSymbolTypeFromName(const char* pName)
+inline PipelineSymbolType GetSymbolTypeFromName(const char* pName)
 {
     PipelineSymbolType type = PipelineSymbolType::Unknown;
     for (uint32 i = 0; i < static_cast<uint32>(PipelineSymbolType::Count); i++)
@@ -755,7 +755,7 @@ enum class PipelineMetadataType : uint32
 /// @param [in] stage        Hardware shader stage of interest
 ///
 /// @returns PipelineMetadataType enum associated with the base symbol type and hardware stage.
-PAL_INLINE PipelineMetadataType GetMetadataForStage(
+constexpr PipelineMetadataType GetMetadataForStage(
     PipelineMetadataType metadataType,
     HardwareStage        stage)
 {
@@ -768,7 +768,7 @@ PAL_INLINE PipelineMetadataType GetMetadataForStage(
 /// @param [in] dwordSelected The selected dword [0-3]
 ///
 /// @returns PipelineMetadataType enum for the given API shader and selected dword.
-PAL_INLINE PipelineMetadataType GetMetadataHashForApiShader(
+constexpr PipelineMetadataType GetMetadataHashForApiShader(
     ApiShaderType shader,
     uint32        dwordSelected)
 {
@@ -883,6 +883,7 @@ enum class RelocationType : uint32
     GotPcRel32Hi, ///< val: 9  | field: word32 | calc: (G + GOT + A - P) >> 32
     Rel32Lo,      ///< val: 10 | field: word32 | calc: (S + A - P) & 0xFFFFFFFF
     Rel32Hi,      ///< val: 11 | field: word32 | calc: (S + A - P) >> 32
+    Rel16 = 14,   ///< val: 14 | field: word16 | calc: ((S + A - P) - 4) / 4
 };
 
 /// Contains only the relevant info for a pipeline symbol.

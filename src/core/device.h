@@ -954,12 +954,13 @@ struct GpuChipProperties
                 uint64 supportSingleChannelMinMaxFilter   :  1; // HW supports any min/max filter.
                 uint64 supportSortAgnosticBarycentrics    :  1; // HW provides provoking vertex for custom interp
                 uint64 supportMeshTaskShader              :  1;
+                uint64 supportAceOffload                  :  1;
                 uint64 placeholder5                       :  2;
                 uint64 supportTextureGatherBiasLod        :  1; // HW supports SQ_IMAGE_GATHER4_L_O
                 uint64 supportInt8Dot                     :  1; // HW supports a dot product 8bit.
                 uint64 supportInt4Dot                     :  1; // HW supports a dot product 4bit.
                 uint64 support2DRectList                  :  1; // HW supports PrimitiveTopology::TwoDRectList.
-                uint64 reserved                           : 18;
+                uint64 reserved                           : 17;
             };
 
             RayTracingIpLevel rayTracingIp;      //< HW RayTracing IP version
@@ -1952,6 +1953,8 @@ public:
         UploadFenceToken fenceValue);
 
     virtual bool IsHwEmulationEnabled() const { return false; }
+
+    bool HasLargeLocalHeap() const;
 
 protected:
     Device(

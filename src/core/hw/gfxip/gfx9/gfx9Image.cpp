@@ -1709,32 +1709,19 @@ Result Image::ComputePipeBankXor(
                 *pPipeBankXor = m_pImageInfo->internalCreateInfo.gfx9.sharedPipeBankXorFmask;
             }
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-            else if (aspect == ImageAspect::Color)
+            else if ((aspect == ImageAspect::Color) ||
 #else
-            else if (isColorPlane)
+            else if (isColorPlane ||
 #endif
+                    isDepthStencil)
             {
                 // If this is a shared image, then the pipe/bank xor value has been given to us. Just take that.
-                *pPipeBankXor = m_pImageInfo->internalCreateInfo.gfx9.sharedPipeBankXor;
-            }
-            else if (isDepthStencil)
-            {
-                if (m_pImageInfo->numPlanes == 1)
-                {
-                    // If the plane is Depth or Stencil, but "numPlanes" is only 1, using the given
-                    // pipe/bank xor value.
-                    *pPipeBankXor = m_pImageInfo->internalCreateInfo.gfx9.sharedPipeBankXor;
-                }
-                else
-                {
-                    // If the image is shareable and has multiple planes, don't support swizzle for that image.
-                    *pPipeBankXor = 0;
-                }
+                *pPipeBankXor = m_pImageInfo->internalCreateInfo.gfx9.sharedPipeBankXor[plane];
             }
             else if (Formats::IsYuv(m_createInfo.swizzledFormat.format))
             {
                 // If this is a shared Yuv image, then the pipe/bank xor value has been given to us. Just take that.
-                *pPipeBankXor = m_pImageInfo->internalCreateInfo.gfx9.sharedPipeBankXor;
+                *pPipeBankXor = m_pImageInfo->internalCreateInfo.gfx9.sharedPipeBankXor[plane];
                 PAL_ALERT_ALWAYS_MSG("Shared YUV image with PipeBankXor enabled may result in unexpected behavior.");
             }
             else
@@ -2379,12 +2366,15 @@ bool Image::IsIterate256Meaningful(
     const SubResourceInfo* subResInfo
     ) const
 {
+    const auto& imageCreateInfo = Parent()->GetImageCreateInfo();
+    const Pal::Device& device   = *Parent()->GetDevice();
+
     //  Note that this recommendation really only applies to MSAA depth or stencil surfaces that are
     //  tc-compatible.  The iterate_256 state has no effect on 1xaa surfaces.
-    return ((Parent()->GetImageCreateInfo().samples > 1) &&
-            Parent()->GetImageCreateInfo().usageFlags.depthStencil &&
+    return ((imageCreateInfo.samples > 1)             &&
+            imageCreateInfo.usageFlags.depthStencil   &&
             subResInfo->flags.supportMetaDataTexFetch &&
-           !(IsNavi21(*(Parent()->GetDevice())) && (Parent()->GetImageCreateInfo().samples >= 4)) &&
+            ((IsNavi21(device) && (imageCreateInfo.samples >= 4)) == false) &&
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
             Parent()->IsAspectValid(subResInfo->subresId.aspect));
 #else
@@ -2463,19 +2453,34 @@ uint32 Image::GetTileSwizzle(
 }
 
 // =====================================================================================================================
-// Calculates a base_256b address for this image with the subresource's pipe-bank-xor OR'ed in.
-uint32 Image::GetSubresource256BAddrSwizzled(
-    SubresId subresource
+gpusize Image::GetFullSubresourceAddr(
+    SubresId  subResId
     ) const
 {
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    const gpusize  imageBaseAddr = GetAspectBaseAddr(subresource.aspect);
+    const gpusize  imageBaseAddr = GetAspectBaseAddr(subResId.aspect);
 #else
-    const gpusize  imageBaseAddr = GetPlaneBaseAddr(subresource.plane);
+    const gpusize  imageBaseAddr = GetPlaneBaseAddr(subResId.plane);
 #endif
 
-    // "imageBaseAddr" already includes the pipe-bank-xor value, just whack off the low bits here.
-    return Get256BAddrLo(imageBaseAddr);
+    return imageBaseAddr;
+}
+
+// =====================================================================================================================
+gpusize Image::GetFullSubresource256BAddr(
+    SubresId  subResId
+    ) const
+{
+    return GetFullSubresourceAddr(subResId) >> 8;
+}
+
+// =====================================================================================================================
+// Calculates a base_256b address for this image with the subresource's pipe-bank-xor OR'ed in.
+uint32 Image::GetSubresource256BAddrSwizzledLow(
+    SubresId subresource
+    ) const
+{
+    return Get256BAddrLo(GetFullSubresourceAddr(subresource));
 }
 
 // =====================================================================================================================
@@ -2484,14 +2489,7 @@ uint32 Image::GetSubresource256BAddrSwizzledHi(
     SubresId subresource
     ) const
 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    const gpusize  imageBaseAddr = GetAspectBaseAddr(subresource.aspect);
-#else
-    const gpusize  imageBaseAddr = GetPlaneBaseAddr(subresource.plane);
-#endif
-
-    // "imageBaseAddr" already includes the pipe-bank-xor value, just whack off the low bits here.
-    return Get256BAddrHi(imageBaseAddr);
+    return Get256BAddrHi(GetFullSubresourceAddr(subresource));
 }
 
 // =====================================================================================================================
@@ -3731,11 +3729,6 @@ gpusize Image::GetMipAddr(
     const auto*   pTileInfo   = AddrMgr2::GetTileInfo(pParent, subresId);
     const gpusize pipeBankXor = pTileInfo->pipeBankXor;
     const gpusize addrWithXor = imageBaseAddr | (pipeBankXor << 8);
-
-    // PAL doesn't respect the high-address programming fields (i.e., they're always set to zero).  Ensure that
-    // they're not supposed to be set.  :-)  If this trips, we have a big problem.
-    // However, when svm is enabled, The bit 39 of an image address is 1 if the address is gpuvm.
-    PAL_ASSERT((Get256BAddrHi(addrWithXor) & 0x7f) == 0);
 
     return addrWithXor;
 }

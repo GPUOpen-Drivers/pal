@@ -58,6 +58,12 @@ namespace DevDriver
             // Returns a ClientInfo struct populated for the connected client.
             Result QueryClientInfo(ClientInfoStruct* pClientInfo);
 
+            // Notifies the driver that it will be ignored by tools
+            //
+            // This allows server-side implementations to reverse their initialization logic during the platform init
+            // phase.
+            Result IgnoreDriver();
+
         private:
             Result SendDriverControlPayload(const SizedPayloadContainer& container,
                                             uint32                       timeoutInMs = kDefaultCommunicationTimeoutInMs,

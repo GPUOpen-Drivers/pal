@@ -80,7 +80,6 @@ public:
     regVGT_STRMOUT_VTX_STRIDE_0 VgtStrmoutVtxStride(uint32 idx) const
         { return m_regs.context.vgtStrmoutVtxStride[idx]; }
 
-    regSPI_SHADER_Z_FORMAT SpiShaderZFormat() const { return m_regs.context.spiShaderZFormat; }
     regDB_SHADER_CONTROL DbShaderControl() const { return m_regs.context.dbShaderControl; }
     regPA_CL_VS_OUT_CNTL PaClVsOutCntl() const { return m_regs.context.paClVsOutCntl; }
     regPA_SC_AA_CONFIG PaScAaConfig() const { return m_paScAaConfig; }
@@ -134,9 +133,6 @@ private:
 
         struct
         {
-            regSPI_SHADER_POS_FORMAT  spiShaderPosFormat;
-            regSPI_SHADER_Z_FORMAT    spiShaderZFormat;
-            regSPI_SHADER_COL_FORMAT  spiShaderColFormat;
             regSPI_BARYC_CNTL         spiBarycCntl;
             regSPI_PS_INPUT_ENA       spiPsInputEna;
             regSPI_PS_INPUT_ADDR      spiPsInputAddr;

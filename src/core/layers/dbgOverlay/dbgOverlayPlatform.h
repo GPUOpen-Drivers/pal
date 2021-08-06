@@ -65,7 +65,8 @@ public:
         bool                        dbgOverlayEnabled)
         :
         PlatformDecorator(createInfo, allocCb, DbgOverlayCb, dbgOverlayEnabled, dbgOverlayEnabled, pNextPlatform),
-        m_pFpsMgr(nullptr)
+        m_pFpsMgr(nullptr),
+        m_rayTracingEverUsed(false)
     {
         ResetGpuWork();
     }
@@ -99,6 +100,10 @@ public:
 
     void ResetGpuWork();
 
+    bool HasRayTracingBeenUsed(void) const { return m_rayTracingEverUsed; }
+
+    void CheckRayTracing(const MultiSubmitInfo& submitInfo);
+
 protected:
     virtual ~Platform();
 
@@ -108,6 +113,7 @@ private:
 
     Util::Mutex        m_gpuWorkLock;
     volatile bool      m_gpuWork[MaxDevices];
+    bool               m_rayTracingEverUsed;
 
     PAL_DISALLOW_DEFAULT_CTOR(Platform);
     PAL_DISALLOW_COPY_AND_ASSIGN(Platform);

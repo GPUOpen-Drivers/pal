@@ -315,6 +315,8 @@ Result Queue::Submit(
 
     Result result = Result::Success;
 
+    pPlatform->CheckRayTracing(submitInfo);
+
     if (addTimestamps)
     {
         // Try to reuse an existing GpuTimestampPair, otherwise create a new one if we still have space for it.

@@ -2529,6 +2529,15 @@ size_t Device::UploadUsingEmbeddedData(
 }
 
 // =====================================================================================================================
+/// Determine when a large local heap is available.  A large local heap is any size above 256MB.
+bool Device::HasLargeLocalHeap() const
+{
+    static constexpr uint32 RegularLocalHeapSize = 256 * 1024 * 1024; // 256 MB
+
+    return m_heapProperties[GpuHeapLocal].heapSize > RegularLocalHeapSize;
+}
+
+// =====================================================================================================================
 // Submit command buffer at slotId to the DmaUploadRing's internal dma queue.
 // pCompletionFence is used to track when GPU finishes the work of this command buffer.
 Result Device::SubmitDmaUploadRing(

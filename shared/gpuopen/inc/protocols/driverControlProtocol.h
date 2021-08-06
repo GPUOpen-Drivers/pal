@@ -4,7 +4,7 @@
 
 #include "gpuopen.h"
 
-#define DRIVERCONTROL_PROTOCOL_VERSION 8
+#define DRIVERCONTROL_PROTOCOL_VERSION 9
 
 #define DRIVERCONTROL_PROTOCOL_MINIMUM_VERSION 1
 
@@ -12,6 +12,7 @@
 ***********************************************************************************************************************
 *| Version | Change Description                                                                                       |
 *| ------- | ---------------------------------------------------------------------------------------------------------|
+*|  9.0    | Added a feature that allows tools to indicate when they will be ignoring a specific driver.              |
 *|  8.0    | Added a new version of the step driver response that contains the current driver status.                 |
 *|  7.0    | Corrected a back-compat issue related to the new device clock query code.                                |
 *|  6.0    | Added ability to query device clock frequencies for a given clock mode.                                  |
@@ -24,6 +25,7 @@
 ***********************************************************************************************************************
 */
 
+#define DRIVERCONTROL_IGNORE_DRIVER_VERSION 9
 #define DRIVERCONTROL_STEP_RETURN_STATUS_VERSION 8
 #define DRIVERCONTROL_QUERY_BY_MODE_BACK_COMPAT_VERSION 7
 #define DRIVERCONTROL_QUERY_DEVICE_CLOCKS_BY_MODE_VERSION 6
@@ -69,6 +71,8 @@ namespace DevDriver
             QueryDeviceClockByModeRequest,
             QueryDeviceClockByModeResponse,
             StepDriverResponseV2,
+            IgnoreDriverRequest,
+            IgnoreDriverResponse,
             Count
         };
 
@@ -471,5 +475,32 @@ namespace DevDriver
         };
 
         DD_CHECK_SIZE(QueryClientInfoResponsePayload, sizeof(DriverControlHeader) + sizeof(ClientInfoStruct));
+
+        ///////////////////////////////////////////////////////////////////////////////////////////////////////////////
+        // Ignore Driver Request/Response
+        ///////////////////////////////////////////////////////////////////////////////////////////////////////////////
+        DD_NETWORK_STRUCT(IgnoreDriverRequestPayload, 4)
+        {
+            DriverControlHeader header;
+
+            constexpr IgnoreDriverRequestPayload()
+                : header(DriverControlMessage::IgnoreDriverRequest)
+            {
+            }
+        };
+
+        DD_CHECK_SIZE(IgnoreDriverRequestPayload, sizeof(DriverControlHeader));
+
+        DD_NETWORK_STRUCT(IgnoreDriverResponsePayload, 4)
+        {
+            DriverControlHeader header;
+
+            constexpr IgnoreDriverResponsePayload()
+                : header(DriverControlMessage::IgnoreDriverResponse)
+            {
+            }
+        };
+
+        DD_CHECK_SIZE(IgnoreDriverResponsePayload, sizeof(DriverControlHeader));
     }
 }

@@ -173,7 +173,16 @@ static BarrierTransition AcqRelBuildTransition(
         pBarrierOps->layoutTransitions.fmaskColorExpand = 1;
         break;
     case InitMaskRam:
-        pBarrierOps->layoutTransitions.initMaskRam = 1;
+        {
+            const auto& image     = static_cast<const Pal::Image&>(*pBarrier->pImage);
+            const auto& gfx9Image = static_cast<const Gfx9::Image&>(*image.GetGfxImage());
+            if (gfx9Image.HasDccStateMetaData(pBarrier->subresRange))
+            {
+                pBarrierOps->layoutTransitions.updateDccStateMetadata = 1;
+            }
+
+            pBarrierOps->layoutTransitions.initMaskRam = 1;
+        }
         break;
     case DccMetadataStateCompressed:
         pBarrierOps->layoutTransitions.updateDccStateMetadata = 1;

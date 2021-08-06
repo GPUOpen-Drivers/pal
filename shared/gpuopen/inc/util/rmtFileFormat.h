@@ -113,14 +113,9 @@ typedef struct RmtFileChunkHeader
     int32                  padding;          ///< Reserved padding dword.
 } RmtFileChunkHeader;
 
-#if RMT_DATA_MAJOR_VERSION >= 1
     // This version number matches the spec revision version
     #define RMT_FILE_DATA_CHUNK_MAJOR_VERSION 1
     #define RMT_FILE_DATA_CHUNK_MINOR_VERSION 6
-#else
-    #define RMT_FILE_DATA_CHUNK_MAJOR_VERSION 0
-    #define RMT_FILE_DATA_CHUNK_MINOR_VERSION 1
-#endif
 
 /// A structure encapsulating information about the location of the RMT data within the RMT file itself.
 typedef struct RmtFileChunkRmtData

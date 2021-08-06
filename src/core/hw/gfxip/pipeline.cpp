@@ -966,12 +966,8 @@ Result PipelineUploader::ApplyRelocationSection(
     const SectionInfo* pMemInfo = m_memoryMap.FindSection(relocations.GetDestSection());
     Result result = Result::Success;
 
-    if (pMemInfo == nullptr)
-    {
-        result = Result::ErrorInvalidPipelineElf;
-    }
-
-    if (result == Result::Success)
+    // If the section is mapped
+    if (pMemInfo != nullptr)
     {
         // sh_link contains a reference to the symbol section
         Util::ElfReader::Symbols symbols(m_abiReader.GetElfReader(), relocations.GetSymbolSection());
@@ -1012,8 +1008,13 @@ Result PipelineUploader::ApplyRelocationSection(
             {
                 // Add original value for .rel sections.
                 // .rela sections explicitely contain the addend.
+                uint16 addend16 = 0;
                 uint32 addend32 = 0;
                 switch (relType) {
+                case Util::Abi::RelocationType::Rel16:
+                    memcpy(&addend16, pSrcAddr, sizeof(addend16));
+                    addend = addend16;
+                    break;
                 case Util::Abi::RelocationType::Abs32:
                 case Util::Abi::RelocationType::Abs32Lo:
                 case Util::Abi::RelocationType::Abs32Hi:
@@ -1036,9 +1037,14 @@ Result PipelineUploader::ApplyRelocationSection(
             gpusize symbolAddr = pSymSection->GetGpuVirtAddr() + symbol.st_value;
             uint64 abs = symbolAddr + addend;
 
+            uint16 val16 = 0;
             uint32 val32 = 0;
             uint64 val64 = 0;
             switch (relType) {
+            case Util::Abi::RelocationType::Rel16:
+                val16 = static_cast<uint16>(((abs - gpuVirtAddr) - 4) / 4);
+                memcpy(pDstAddr, &val16, sizeof(val16));
+                break;
             case Util::Abi::RelocationType::Abs32:
                 PAL_ASSERT(static_cast<uint64>(static_cast<uint32>(abs)) == abs);
             case Util::Abi::RelocationType::Abs32Lo:

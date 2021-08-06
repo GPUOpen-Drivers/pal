@@ -500,7 +500,7 @@ public:
     /// Can be used to associate arbitrary data with a particular PAL object.
     ///
     /// @returns Pointer to client data.
-    PAL_INLINE void* GetClientData() const
+    void* GetClientData() const
     {
         return m_pClientData;
     }
@@ -509,7 +509,7 @@ public:
     /// Can be used to associate arbitrary data with a particular PAL object.
     ///
     /// @param  [in]    pClientData     A pointer to arbitrary client data.
-    PAL_INLINE void SetClientData(
+    void SetClientData(
         void* pClientData)
     {
         m_pClientData = pClientData;

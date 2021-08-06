@@ -521,15 +521,27 @@ Result Image::CreateExternalSharedImage(
     ImageInternalCreateInfo internalCreateInfo = {};
     if (chipProps.gfxLevel < GfxIpLevel::GfxIp9)
     {
-        internalCreateInfo.gfx6.sharedTileMode    = static_cast<AddrTileMode>
-                                                    (AmdGpuToAddrTileModeConversion(pMetadata->tile_mode));
-        internalCreateInfo.gfx6.sharedTileType    = static_cast<AddrTileType>(pMetadata->micro_tile_mode);
-        internalCreateInfo.gfx6.sharedTileSwizzle = pMetadata->pipeBankXor;
+        internalCreateInfo.gfx6.sharedTileMode       = static_cast<AddrTileMode>
+                                                       (AmdGpuToAddrTileModeConversion(pMetadata->tile_mode));
+        internalCreateInfo.gfx6.sharedTileType       = static_cast<AddrTileType>(pMetadata->micro_tile_mode);
+        internalCreateInfo.gfx6.sharedTileSwizzle[0] = pMetadata->pipeBankXor;
+
+        for (uint32 plane = 1; plane < MaxNumPlanes; plane++)
+        {
+            internalCreateInfo.gfx6.sharedTileSwizzle[plane] = pMetadata->additionalPipeBankXor[plane - 1];
+        }
+
         internalCreateInfo.gfx6.sharedTileIndex   = pMetadata->tile_index;
     }
     else if (chipProps.gfxLevel >= GfxIpLevel::GfxIp9)
     {
-        internalCreateInfo.gfx9.sharedPipeBankXor = pMetadata->pipeBankXor;
+        internalCreateInfo.gfx9.sharedPipeBankXor[0] = pMetadata->pipeBankXor;
+
+        for (uint32 plane = 1; plane < MaxNumPlanes; plane++)
+        {
+            internalCreateInfo.gfx9.sharedPipeBankXor[plane] = pMetadata->additionalPipeBankXor[plane - 1];
+        }
+
         internalCreateInfo.gfx9.sharedSwizzleMode = static_cast<AddrSwizzleMode>(pMetadata->swizzleMode);
 
         // ADDR_SW_LINEAR_GENERAL is a UBM compatible swizzle mode which treat as buffer in copy.

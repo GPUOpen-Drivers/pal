@@ -223,8 +223,9 @@ public:
         { return m_addrSurfSetting[pSubResInfo->subresId.plane]; }
 #endif
 
-    uint32 GetSubresource256BAddrSwizzled(SubresId subresource) const;
+    uint32 GetSubresource256BAddrSwizzledLow(SubresId subresource) const;
     uint32 GetSubresource256BAddrSwizzledHi(SubresId subresource) const;
+    gpusize GetFullSubresource256BAddr(SubresId  subResId) const;
 
     virtual bool IsFastColorClearSupported(GfxCmdBuffer*      pCmdBuffer,
                                            ImageLayout        colorLayout,
@@ -558,6 +559,8 @@ private:
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
     uint32 GetAspectIndex(ImageAspect  aspect) const;
 #endif
+
+    gpusize GetFullSubresourceAddr(SubresId  subResId) const;
 
     void InitDccStateMetaData(
         uint32             planeIdx,

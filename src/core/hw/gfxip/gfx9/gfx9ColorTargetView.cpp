@@ -400,7 +400,7 @@ void ColorTargetView::UpdateImageVa(
         else
         {
             // The GetSubresource256BAddrSwizzled* functions only care about the plane.
-            pRegs->cbColorBase.bits.BASE_256B = m_pImage->GetSubresource256BAddrSwizzled(m_subresource);
+            pRegs->cbColorBase.bits.BASE_256B = m_pImage->GetSubresource256BAddrSwizzledLow(m_subresource);
             PAL_ASSERT(m_pImage->GetSubresource256BAddrSwizzledHi(m_subresource) == 0);
 
             // On GFX9, only DCC can be used for fast clears.  The load-meta-data packet updates the cb color regs to

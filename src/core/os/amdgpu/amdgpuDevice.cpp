@@ -1676,6 +1676,9 @@ Result Device::InitQueueInfo()
                 m_queueProperties.perQueue[idx].flags.supportsSwapChainPresents = 1;
             }
         }
+
+        m_chipProperties.gfx9.supportMeshTaskShader = 0;
+        m_chipProperties.gfx9.supportAceOffload     = 0;
     }
 
     return result;
@@ -2021,7 +2024,7 @@ Result Device::CreateImage(
         if (ChipProperties().gfxLevel < GfxIpLevel::GfxIp9)
         {
             internalInfo.flags.useSharedTilingOverrides = 1;
-            internalInfo.gfx6.sharedTileSwizzle = 0;
+            // Tile swizzle is zero initialized by internalInfo declaration
             // Do not override below values
             internalInfo.gfx6.sharedTileMode = ADDR_TM_COUNT;
             internalInfo.gfx6.sharedTileType = TileTypeInvalid;
@@ -2030,8 +2033,7 @@ Result Device::CreateImage(
         else if (ChipProperties().gfxLevel >= GfxIpLevel::GfxIp9)
         {
             internalInfo.flags.useSharedTilingOverrides = 1;
-            internalInfo.gfx9.sharedPipeBankXor = 0;
-            internalInfo.gfx9.sharedPipeBankXorFmask = 0;
+            // PipeBankXor is zero initialized by internalInfo declaration
             // Do not override the swizzle mode value
             internalInfo.gfx9.sharedSwizzleMode = ADDR_SW_MAX_TYPE;
         }
@@ -3288,6 +3290,13 @@ void Device::UpdateImageInfo(
 {
     struct amdgpu_bo_info info = {};
     SubResourceInfo* const pSubResInfo = pImage->GetSubresourceInfo(0);
+    const auto& imageCreateInfo = pImage->GetImageCreateInfo();
+    const uint32 numPlanes      = pImage->GetImageInfo().numPlanes;
+    const uint32 subResPerPlane = (imageCreateInfo.mipLevels * imageCreateInfo.arraySize);
+
+    // The following code assumes that the number of subresources in the Image matches the number of planes
+    // (i.e., each plane has only one subresource)
+    PAL_ASSERT(subResPerPlane == 1);
 
     if ((m_drmProcs.pfnAmdgpuBoQueryInfo(hBuffer, &info) == 0) &&
         (info.metadata.size_metadata >= PRO_UMD_METADATA_SIZE))
@@ -3316,6 +3325,13 @@ void Device::UpdateImageInfo(
             pTileInfo->macroAspectRatio             = pUmdMetaData->tile_config.macro_aspect_ratio;
             pTileInfo->tileSplitBytes               = pUmdMetaData->tile_config.tile_split_bytes;
             pTileInfo->tileSwizzle                  = pUmdMetaData->pipeBankXor;
+
+            for (uint32 plane = 1; plane < numPlanes; plane++)
+            {
+                AddrMgr1::TileInfo*const pPlaneTileInfo = static_cast<AddrMgr1::TileInfo*>
+                                                          (pImage->GetSubresourceTileInfo(subResPerPlane * plane));
+                pPlaneTileInfo->tileSwizzle             = pUmdMetaData->additionalPipeBankXor[plane - 1];
+            }
         }
         else if (ChipProperties().gfxLevel >= GfxIpLevel::GfxIp9)
         {
@@ -3323,6 +3339,13 @@ void Device::UpdateImageInfo(
             auto*const pUmdMetaData = reinterpret_cast<amdgpu_bo_umd_metadata*>
                                       (&info.metadata.umd_metadata[PRO_UMD_METADATA_OFFSET_DWORD]);
             pTileInfo->pipeBankXor = pUmdMetaData->pipeBankXor;
+
+            for (uint32 plane = 1; plane < numPlanes; plane++)
+            {
+                AddrMgr2::TileInfo*const pPlaneTileInfo = static_cast<AddrMgr2::TileInfo*>
+                                                          (pImage->GetSubresourceTileInfo(subResPerPlane * plane));
+                pPlaneTileInfo->pipeBankXor             = pUmdMetaData->additionalPipeBankXor[plane - 1];
+            }
         }
         else
         {
@@ -3362,7 +3385,8 @@ void Device::UpdateMetaData(
 {
     amdgpu_bo_metadata metadata = {};
     const SubResourceInfo*const    pSubResInfo = image.SubresourceInfo(0);
-    auto imageCreateInfo = image.GetImageCreateInfo();
+    auto imageCreateInfo        = image.GetImageCreateInfo();
+    const uint32 subResPerPlane = (imageCreateInfo.mipLevels * imageCreateInfo.arraySize);
 
     // First 32 dwords are reserved for open source components.
     auto*const pUmdMetaData = reinterpret_cast<amdgpu_bo_umd_metadata*>
@@ -3388,6 +3412,12 @@ void Device::UpdateMetaData(
         pUmdMetaData->micro_tile_mode        = static_cast<AMDGPU_MICRO_TILE_MODE>(pTileInfo->tileType);
 
         pUmdMetaData->pipeBankXor            = pTileInfo->tileSwizzle;
+
+        for (uint32 plane = 1; plane < (image.GetImageInfo().numPlanes); plane++)
+        {
+            const AddrMgr1::TileInfo*const pPlaneTileInfo  = AddrMgr1::GetTileInfo(&image, (subResPerPlane * plane));
+            pUmdMetaData->additionalPipeBankXor[plane - 1] = pPlaneTileInfo->tileSwizzle;
+        }
 
         pUmdMetaData->tile_config.pipe_config        = PalToAmdGpuPipeConfigConversion(pTileInfo->pipeConfig);
         pUmdMetaData->tile_config.banks              = pTileInfo->banks;
@@ -3440,6 +3470,13 @@ void Device::UpdateMetaData(
         pUmdMetaData->format                 = PalToAmdGpuFormatConversion(pSubResInfo->format);
 
         pUmdMetaData->pipeBankXor  = pTileInfo->pipeBankXor;
+
+        for (uint32 plane = 1; plane < (image.GetImageInfo().numPlanes); plane++)
+        {
+            const AddrMgr2::TileInfo*const pPlaneTileInfo  = AddrMgr2::GetTileInfo(&image, (subResPerPlane * plane));
+            pUmdMetaData->additionalPipeBankXor[plane - 1] = pPlaneTileInfo->pipeBankXor;
+        }
+
         pUmdMetaData->swizzleMode  = curSwizzleMode;
         pUmdMetaData->resourceType = static_cast<AMDGPU_ADDR_RESOURCE_TYPE>(imageCreateInfo.imageType);
 
@@ -4811,8 +4848,13 @@ Result Device::SetClockMode(
 
         if (result == Result::Success)
         {
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 674
+            pSetClockModeOutput->engineClockFrequency = requiredSclkVal;
+            pSetClockModeOutput->memoryClockFrequency = requiredMclkVal;
+#else
             pSetClockModeOutput->engineClockRatioToPeak = requiredSclkVal / maxSclkVal;
             pSetClockModeOutput->memoryClockRatioToPeak = requiredMclkVal / maxMclkVal;
+#endif
         }
     }
 
@@ -4886,7 +4928,7 @@ Result Device::ParseClkInfo(
             else
             {
                 // KMD protocol changed?
-                PAL_ALERT(!"read pp_dpm_clk info error");
+                PAL_ALERT_ALWAYS_MSG("read pp_dpm_clk info error");
                 result = Result::ErrorUnavailable;
                 break;
             }
@@ -4908,7 +4950,7 @@ Result Device::ParseClkInfo(
             else
             {
                 // KMD protocol changed?
-                PAL_ALERT(!"read pp_dpm_clk info error");
+                PAL_ALERT_ALWAYS_MSG("read pp_dpm_clk info error");
                 result = Result::ErrorUnavailable;
                 break;
             }

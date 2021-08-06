@@ -321,6 +321,9 @@ private:
             regCB_COVERAGE_OUT_CONTROL      cbCoverageOutCntl;
             regVGT_GS_ONCHIP_CNTL           vgtGsOnchipCntl;
             regVGT_DRAW_PAYLOAD_CNTL        vgtDrawPayloadCntl;
+            regSPI_SHADER_POS_FORMAT        spiShaderPosFormat;
+            regSPI_SHADER_Z_FORMAT          spiShaderZFormat;
+            regSPI_SHADER_COL_FORMAT        spiShaderColFormat;
         } context;
 
         struct

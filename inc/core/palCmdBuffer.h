@@ -2139,7 +2139,7 @@ public:
     /// @param [in] entryCount   Number of user data entries to update; size of the pEntryValues array. Must be greater
     ///                          than zero, and (firstEntry + entryCount) must not extend beyond MaxUserDataEntries.
     /// @param [in] pEntryValues Array of 32-bit values to be copied into user data.
-    PAL_INLINE void CmdSetUserData(
+    void CmdSetUserData(
         PipelineBindPoint bindPoint,
         uint32            firstEntry,
         uint32            entryCount,
@@ -2510,7 +2510,7 @@ public:
     /// @param [in] firstInstance Starting instance for the draw.  Instance IDs passed to the vertex shader will range
     ///                           from firstInstance to firstInstance + instanceCount - 1.
     /// @param [in] instanceCount Number of instances to draw.  If zero, the draw will be discarded.
-    PAL_INLINE void CmdDraw(
+    void CmdDraw(
         uint32 firstVertex,
         uint32 vertexCount,
         uint32 firstInstance,
@@ -2527,7 +2527,7 @@ public:
     ///                           from firstInstance to firstInstance + instanceCount - 1.
     /// @param [in] instanceCount Number of instances to draw.  If zero, the draw will be discarded.
     /// @param [in] drawId        Draw index for the draw.
-    PAL_INLINE void CmdDraw(
+    void CmdDraw(
         uint32 firstVertex,
         uint32 vertexCount,
         uint32 firstInstance,
@@ -2549,7 +2549,7 @@ public:
     /// @param [in] firstInstance         Starting instance for the draw. Instance IDs passed to the vertex shader
     ///                                   will range from firstInstance to firstInstance + instanceCount - 1.
     /// @param [in] instanceCount         Number of instances to draw.  If zero, the draw will be discarded.
-    PAL_INLINE void CmdDrawOpaque(
+    void CmdDrawOpaque(
         gpusize streamOutFilledSizeVa,
         uint32  streamOutOffset,
         uint32  stride,
@@ -2584,7 +2584,7 @@ public:
     /// @param [in] firstInstance Starting instance for the draw.  Instance IDs passed to the vertex shader will range
     ///                           from firstInstance to firstInstance + instanceCount - 1.
     /// @param [in] instanceCount Number of instances to draw.  If zero, the draw will be discarded.
-    PAL_INLINE void CmdDrawIndexed(
+    void CmdDrawIndexed(
         uint32 firstIndex,
         uint32 indexCount,
         int32  vertexOffset,
@@ -2603,7 +2603,7 @@ public:
     ///                           from firstInstance to firstInstance + instanceCount - 1.
     /// @param [in] instanceCount Number of instances to draw.  If zero, the draw will be discarded.
     /// @param [in] drawId        Draw index for the draw.
-    PAL_INLINE void CmdDrawIndexed(
+    void CmdDrawIndexed(
         uint32 firstIndex,
         uint32 indexCount,
         int32  vertexOffset,
@@ -2636,7 +2636,7 @@ public:
     ///                           value at that memory location is clamped to this maximum. If countGpuAddr is zero,
     ///                           Then the number of draws issued exactly matches this number.
     /// @param [in] countGpuAddr  GPU virtual address where the number of draws is stored.  Must be 4-byte aligned.
-    PAL_INLINE void CmdDrawIndirectMulti(
+    void CmdDrawIndirectMulti(
         const IGpuMemory& gpuMemory,
         gpusize           offset,
         uint32            stride,
@@ -2668,7 +2668,7 @@ public:
     ///                           value at that memory location is clamped to this maximum. If countGpuAddr is zero,
     ///                           Then the number of draws issued exactly matches this number.
     /// @param [in] countGpuAddr  GPU virtual address where the number of draws is stored.  Must be 4-byte aligned.
-    PAL_INLINE void CmdDrawIndexedIndirectMulti(
+    void CmdDrawIndexedIndirectMulti(
         const IGpuMemory& gpuMemory,
         gpusize           offset,
         uint32            stride,
@@ -2685,7 +2685,7 @@ public:
     /// @param [in] xDim Thread groups to dispatch in the X dimension.  If zero, the dispatch will be discarded.
     /// @param [in] yDim Thread groups to dispatch in the Y dimension.  If zero, the dispatch will be discarded.
     /// @param [in] zDim Thread groups to dispatch in the Z dimension.  If zero, the dispatch will be discarded.
-    PAL_INLINE void CmdDispatch(
+    void CmdDispatch(
         uint32 xDim,
         uint32 yDim,
         uint32 zDim)
@@ -2705,7 +2705,7 @@ public:
     ///
     /// @param [in] gpuMemory  GPU memory object where the indirect argument data is located.
     /// @param [in] offset     Offset in bytes into the GPU memory object where the indirect argument data is located.
-    PAL_INLINE void CmdDispatchIndirect(
+    void CmdDispatchIndirect(
         const IGpuMemory& gpuMemory,
         gpusize           offset)
     {
@@ -2724,7 +2724,7 @@ public:
     /// @param [in] xDim    Thread groups to dispatch in the X dimension.  If zero, the dispatch will be discarded.
     /// @param [in] yDim    Thread groups to dispatch in the Y dimension.  If zero, the dispatch will be discarded.
     /// @param [in] zDim    Thread groups to dispatch in the Z dimension.  If zero, the dispatch will be discarded.
-    PAL_INLINE void CmdDispatchOffset(
+    void CmdDispatchOffset(
         uint32 xOffset,
         uint32 yOffset,
         uint32 zOffset,
@@ -2748,7 +2748,7 @@ public:
     /// @param [in] xDim  Thread groups to dispatch in the X dimension.  If zero, the dispatch will be discarded.
     /// @param [in] yDim  Thread groups to dispatch in the Y dimension.  If zero, the dispatch will be discarded.
     /// @param [in] zDim  Thread groups to dispatch in the Z dimension.  If zero, the dispatch will be discarded.
-    PAL_INLINE void CmdDispatchDynamic(
+    void CmdDispatchDynamic(
         gpusize gpuVa,
         uint32  xDim,
         uint32  yDim,
@@ -2765,7 +2765,7 @@ public:
     /// @param [in] xDim Thread groups to dispatch in the x dimension.  If zero, the dispatch will be discarded.
     /// @param [in] yDim Thread groups to dispatch in the y dimension.  If zero, the dispatch will be discarded.
     /// @param [in] zDim Thread groups to dispatch in the z dimension.  If zero, the dispatch will be discarded.
-    PAL_INLINE void CmdDispatchMesh(
+    void CmdDispatchMesh(
         uint32 xDim,
         uint32 yDim,
         uint32 zDim)
@@ -2792,7 +2792,7 @@ public:
     ///                           value at that memory location is clamped to this maximum. If countGpuAddr is zero,
     ///                           Then the number of draws issued exactly matches this number.
     /// @param [in] countGpuAddr  GPU virtual address where the number of draws is stored.  Must be 4-byte aligned.
-    PAL_INLINE void CmdDispatchMeshIndirectMulti(
+    void CmdDispatchMeshIndirectMulti(
         const IGpuMemory& gpuMemory,
         gpusize           offset,
         uint32            stride,
@@ -2869,7 +2869,7 @@ public:
         uint32                 flags) = 0;
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 603
-    PAL_INLINE void CmdCopyImage(
+    void CmdCopyImage(
         const IImage&          srcImage,
         ImageLayout            srcImageLayout,
         const IImage&          dstImage,
@@ -3848,6 +3848,12 @@ public:
     /// Conceptually, executing a nested command buffer is similar to calling a subroutine: the root command buffer is
     /// like the "caller", while the nested ones are the "callees".
     ///
+    /// If any nested command buffers were allocated from a @ref ICmdAllocator with @ref autoMemoryReuse enabled,
+    /// resetting or destroying those nested command buffers will render them retroactively uncallable. This effectively
+    /// makes the caller command buffer invalid and illegal to submit even if it was otherwise valid and executable in
+    /// the past. If the nested command allocator has autoMemoryReuse disabled, the calls to reset nested command
+    /// buffers remain valid until the allocator itself is reset.
+    ///
     /// State inheritance/leakage between the caller and callee(s) has the following behavior:
     /// + The callee only inherits the state specified in the callee CmdBufferBuildInfo.  It is up to the client to
     ///   bind any default state necessary when they called @ref ICmdBuffer::Begin() to begin building the callee.
@@ -4042,7 +4048,7 @@ public:
     /// Can be used to associate arbitrary data with a particular PAL object.
     ///
     /// @returns Pointer to client data.
-    PAL_INLINE void* GetClientData() const
+    void* GetClientData() const
     {
         return m_pClientData;
     }
@@ -4051,7 +4057,7 @@ public:
     /// Can be used to associate arbitrary data with a particular PAL object.
     ///
     /// @param  [in]    pClientData     A pointer to arbitrary client data.
-    PAL_INLINE void SetClientData(
+    void SetClientData(
         void* pClientData)
     {
         m_pClientData = pClientData;

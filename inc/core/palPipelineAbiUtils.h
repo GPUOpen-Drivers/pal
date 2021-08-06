@@ -47,7 +47,7 @@ namespace Abi
 /// @param [out] pGfxIpMajorVer The major version.
 /// @param [out] pGfxIpMinorVer The minor version.
 /// @param [out] pGfxIpStepping The stepping.
-PAL_INLINE void MachineTypeToGfxIpVersion(
+inline void MachineTypeToGfxIpVersion(
     AmdGpuMachineType machineType,
     uint32* pGfxIpMajorVer,
     uint32* pGfxIpMinorVer,
@@ -205,7 +205,7 @@ PAL_INLINE void MachineTypeToGfxIpVersion(
 ///
 /// @returns Success if successful, ErrorInvalidValue, ErrorUnknown or ErrorInvalidPipelineElf if
 ///          the metadata could not be parsed.
-PAL_INLINE Result GetPalMetadataVersion(
+inline Result GetPalMetadataVersion(
     MsgPackReader* pReader,
     const void*    pDesc,
     uint32         descSize,
@@ -261,7 +261,7 @@ PAL_INLINE Result GetPalMetadataVersion(
 ///
 /// @returns Success if successful, ErrorInvalidValue, ErrorUnknown or ErrorUnsupportedPipelineElfAbiVersion if
 ///          the metadata could not be parsed.
-PAL_INLINE Result DeserializePalCodeObjectMetadata(
+inline Result DeserializePalCodeObjectMetadata(
     MsgPackReader*         pReader,
     PalCodeObjectMetadata* pMetadata,
     const void*            pRawMetadata,

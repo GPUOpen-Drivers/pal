@@ -144,9 +144,13 @@ DevDriver::Result QueryClockCallback(
 
         if (palResult == Result::Success)
         {
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 674
+            *pGpuClock = static_cast<float>(clockModeOutput.engineClockFrequency);
+            *pMemClock = static_cast<float>(clockModeOutput.memoryClockFrequency);
+#else
             *pGpuClock = (static_cast<float>(chipProps.maxEngineClock) * clockModeOutput.engineClockRatioToPeak);
             *pMemClock = (static_cast<float>(chipProps.maxMemoryClock) * clockModeOutput.memoryClockRatioToPeak);
-
+#endif
             result = DevDriver::Result::Success;
         }
     }
@@ -199,8 +203,13 @@ DevDriver::Result QueryClockCallback(
 
         if (palResult == Result::Success)
         {
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 674
+            *pGpuClock = static_cast<float>(clockModeOutput.engineClockFrequency);
+            *pMemClock = static_cast<float>(clockModeOutput.memoryClockFrequency);
+#else
             *pGpuClock = (static_cast<float>(chipProps.maxEngineClock) * clockModeOutput.engineClockRatioToPeak);
             *pMemClock = (static_cast<float>(chipProps.maxMemoryClock) * clockModeOutput.memoryClockRatioToPeak);
+#endif
 
             result = DevDriver::Result::Success;
         }

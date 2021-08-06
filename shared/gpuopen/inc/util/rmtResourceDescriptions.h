@@ -551,11 +551,7 @@ struct RMT_IMAGE_DESC_CREATE_INFO
     bool                      isFullscreen;
 };
 
-#if RMT_DATA_MAJOR_VERSION >= 1
-    static const size_t RMT_IMAGE_BYTES_SIZE = 312 / 8; // 312-bits
-#else
-    static const size_t RMT_IMAGE_BYTES_SIZE = 304 / 8; // 304-bits
-#endif
+static const size_t RMT_IMAGE_BYTES_SIZE = 312 / 8; // 312-bits
 struct RMT_RESOURCE_TYPE_IMAGE_TOKEN : RMT_TOKEN_DATA
 {
     uint8 bytes[RMT_IMAGE_BYTES_SIZE];
@@ -577,7 +573,6 @@ struct RMT_RESOURCE_TYPE_IMAGE_TOKEN : RMT_TOKEN_DATA
         // TYPE [36:35] The type of the image encoded RMT_IMAGE_TYPE.
         SetBits(createInfo.imageType, 36, 35);
 
-#if RMT_DATA_MAJOR_VERSION >= 1
         // DIMENSION_X [50:37] The dimension of the image in the X dimension, minus 1.
         SetBits((createInfo.dimensions.dimension_X - 1), 50, 37);
 
@@ -652,79 +647,6 @@ struct RMT_RESOURCE_TYPE_IMAGE_TOKEN : RMT_TOKEN_DATA
 
         // RESERVED [311:307] Reserved for future expansion. Should be set to 0.
         SetBits(0, 311, 307);
-#else
-        // DIMENSION_X [49:37] The dimension of the image in the X dimension, minus 1.
-        SetBits((createInfo.dimensions.dimension_X - 1), 49, 37);
-
-        // DIMENSION_Y [62:50] The dimension of the image in the Y dimension, minus 1.
-        SetBits((createInfo.dimensions.dimension_Y - 1), 62, 50);
-
-        // DIMENSION_Z [75:63] The dimension of the image in the Z dimension, minus 1.
-        SetBits((createInfo.dimensions.dimension_Z - 1), 75, 63);
-
-        // FORMAT [95:76] The format of the image. Encoded as RMT_IMAGE_FORMAT
-        SetBits(createInfo.format.dwordVal, 95, 76);
-
-        // MIPS [99:96] The number of mip-map levels in the image.
-        SetBits(createInfo.mips, 99, 96);
-
-        // SLICES [110:100] The number of slices in the image minus one. The maximum this can be in the range [1..2048].
-        SetBits((createInfo.slices - 1), 110, 100);
-
-        // SAMPLES [113:111] The Log2(n) of the sample count for the image.
-        SetBits(Log2(createInfo.samples), 113, 111);
-
-        // FRAGMENTS [115:114] The Log2(n) of the fragment count for the image.
-        SetBits(Log2(createInfo.fragments), 115, 114);
-
-        // TILING_TYPE [117:116] The tiling type used for the image, encoded as RMT_IMAGE_TILING_TYPE.
-        SetBits(createInfo.tilingType, 117, 116);
-
-        // TILING_OPT_MODE [119:118] The tiling optimisation mode for the image, encoded as RMT_IMAGE_TILING_OPT_MODE.
-        SetBits(createInfo.tilingOptMode, 119, 118);
-
-        // METADATA_MODE [121:120] The metadata mode for the image, encoded as RMT_IMAGE_METADATA_MODE.
-        SetBits(createInfo.metadataMode, 121, 120);
-
-        // MAX_BASE_ALIGNMENT [126:122] The alignment of the image resource. This is stored as the Log2(n) of the
-        //                                alignment, it is therefore possible to encode alignments from [1Byte..2MiB].
-        SetBits(((createInfo.maxBaseAlignment == 0) ? 0: Log2(createInfo.maxBaseAlignment)), 126, 122);
-
-        // PRESENTABLE [127] This bit is set to 1 if the image is presentable.
-        SetBits((createInfo.isPresentable ? 1 : 0), 127, 127);
-
-        // IMAGE_SIZE [159:128] The size of the core image data inside the resource.
-        SetBits(createInfo.imageSize, 159, 128);
-
-        // METADATA_OFFSET [191:160] The offset from the base virtual address of the resource to the metadata of
-        //                             the image.
-        SetBits(createInfo.metadataOffset, 191, 160);
-
-        // METADATA_SIZE [223:192] The size of the metadata inside the resource.
-        SetBits(createInfo.metadataSize, 223, 192);
-
-        // METADATA_HEADER_OFFSET [255:224] The offset from the base virtual address of the resource to the
-        //                                    metadata header.
-        SetBits(createInfo.metadataHeaderOffset, 255, 224);
-
-        // METADATA_HEADER_SIZE [287:256] The size of the metadata header inside the resource.
-        SetBits(createInfo.metadataHeaderSize, 287, 256);
-
-        // IMAGE_ALIGN [292:288] The alignment of the core image data within the resource's virtual address allocation.
-        //                         This is stored as the Log2(n) of the alignment.
-        SetBits(Log2(createInfo.imageAlignment), 292, 288);
-
-        // METADATA_ALIGN [297:293] The alignment of the metadata within the resource's virtual address allocation.
-        //                            This is stored as the Log2(n) of the alignment.
-        SetBits(Log2(createInfo.metadataAlignment), 297, 293);
-
-        // METADATA_HEADER_ALIGN [302:298] The alignment of the metadata header within the resource's virtual address
-        //                                   allocation. This is stored as the Log2(n) of the alignment.
-        SetBits(Log2(createInfo.metadataHeaderAlignment), 302, 298);
-
-        // FULLSCREEN [303] This bit is set to 1 if the image is fullscreen presentable.
-        SetBits((createInfo.isFullscreen ? 1 : 0), 303, 303);
-#endif
     }
 };
 

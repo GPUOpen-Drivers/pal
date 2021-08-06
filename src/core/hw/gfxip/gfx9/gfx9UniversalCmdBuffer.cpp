@@ -294,7 +294,8 @@ UniversalCmdBuffer::UniversalCmdBuffer(
     m_validVrsCopies(m_device.GetPlatform()),
     m_activeOcclusionQueryWriteRanges(m_device.GetPlatform()),
     m_gangedCmdStreamSemAddr(0),
-    m_barrierCount(0),
+    m_semCountAceWaitDe(0),
+    m_semCountDeWaitAce(0),
     m_meshPipeStatsGpuAddr(0)
 {
     const auto&                palDevice        = *(m_device.Parent());
@@ -303,6 +304,7 @@ UniversalCmdBuffer::UniversalCmdBuffer(
     const Gfx9PalSettings&     settings         = m_device.Settings();
     const auto*const           pPublicSettings  = m_device.Parent()->GetPublicSettings();
     const GpuChipProperties&   chipProps        = m_device.Parent()->ChipProperties();
+    const auto&                curEngineProps   = palDevice.EngineProperties().perEngine[EngineTypeUniversal];
 
     memset(&m_vbTable,         0, sizeof(m_vbTable));
     memset(&m_spillTable,      0, sizeof(m_spillTable));
@@ -358,8 +360,11 @@ UniversalCmdBuffer::UniversalCmdBuffer(
     m_cachedSettings.supportsVrs                               = chipProps.gfxip.supportsVrs;
     m_cachedSettings.vrsForceRateFine                          = settings.vrsForceRateFine;
 
+    m_cachedSettings.supportsAceOffload = chipProps.gfx9.supportAceOffload;
+
     m_cachedSettings.optimizeDepthOnlyFmt = settings.rbPlusOptimizeDepthOnlyExportRate;
     PAL_ASSERT(m_cachedSettings.optimizeDepthOnlyFmt ? m_cachedSettings.rbPlusSupported : true);
+    m_cachedSettings.has32bPred = curEngineProps.flags.memory32bPredicationSupport;
 
     // Here we pre-calculate constants used in gfx10 PBB bin sizing calculations.
     // The logic is based on formulas that account for the number of RBs and Channels on the ASIC.
@@ -775,7 +780,8 @@ void UniversalCmdBuffer::ResetState()
     m_validVrsCopies.Clear();
 
     m_gangedCmdStreamSemAddr = 0;
-    m_barrierCount = 0;
+    m_semCountAceWaitDe  = 0;
+    m_semCountDeWaitAce  = 0;
 
     m_meshPipeStatsGpuAddr = 0;
 
@@ -1465,6 +1471,52 @@ void UniversalCmdBuffer::CmdSetStencilRefMasks(
 }
 
 // =====================================================================================================================
+void UniversalCmdBuffer::CmdAceWaitDe()
+{
+    if (m_pAceCmdStream != nullptr)
+    {
+        uint32* pAceCmdSpace = m_pAceCmdStream->ReserveCommands();
+
+        // We need to make sure that the ACE CmdStream properly waits for any barriers that may have occured
+        // on the DE CmdStream. We've been incrementing a counter on the DE CmdStream, so all we need to do
+        // on the ACE side is perform the wait.
+        pAceCmdSpace += CmdUtil::BuildWaitRegMem(EngineTypeCompute,
+                                                 mem_space__mec_wait_reg_mem__memory_space,
+                                                 function__mec_wait_reg_mem__greater_than_or_equal_reference_value,
+                                                 0, // EngineSel enum does not exist in the MEC WAIT_REG_MEM packet.
+                                                 GangedCmdStreamSemAddr(),
+                                                 m_semCountAceWaitDe,
+                                                 0xFFFFFFFF,
+                                                 pAceCmdSpace);
+
+        m_pAceCmdStream->CommitCommands(pAceCmdSpace);
+    }
+}
+
+// =====================================================================================================================
+void UniversalCmdBuffer::CmdDeWaitAce()
+{
+    if (m_pAceCmdStream != nullptr)
+    {
+        uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
+
+        // We need to make sure that the DE CmdStream properly waits for any barriers that may have occured
+        // on the ACE CmdStream. We've been incrementing a counter on the ACE CmdStream, so all we need to do
+        // on the DE side is perform the wait.
+        pDeCmdSpace += CmdUtil::BuildWaitRegMem(EngineTypeUniversal,
+                                                mem_space__pfp_wait_reg_mem__memory_space,
+                                                function__pfp_wait_reg_mem__greater_than_or_equal_reference_value,
+                                                engine_sel__pfp_wait_reg_mem__prefetch_parser,
+                                                GangedCmdStreamSemAddr() + sizeof(uint32),
+                                                m_semCountDeWaitAce,
+                                                0xFFFFFFFF,
+                                                pDeCmdSpace);
+
+        m_deCmdStream.CommitCommands(pDeCmdSpace);
+    }
+}
+
+// =====================================================================================================================
 void UniversalCmdBuffer::CmdBarrier(
     const BarrierInfo& barrierInfo)
 {
@@ -1509,6 +1561,7 @@ void UniversalCmdBuffer::CmdBarrier(
             BarrierMightDirtyVrsRateImage(barrierInfo.pTransitions[i].imageInfo.pImage);
         }
     }
+    IssueGangedBarrierAceWaitDeIncr();
 }
 
 // =====================================================================================================================
@@ -1575,8 +1628,6 @@ uint32 UniversalCmdBuffer::CmdRelease(
         }
     }
 
-    IssueGangedBarrierIncr();
-
     return syncToken.u32All;
 }
 
@@ -1628,7 +1679,7 @@ void UniversalCmdBuffer::CmdAcquire(
 
     m_gfxCmdBufState.flags.packetPredicate = packetPredicate;
 
-    IssueGangedBarrierIncr();
+    IssueGangedBarrierAceWaitDeIncr();
 }
 #endif
 
@@ -1684,8 +1735,6 @@ void UniversalCmdBuffer::CmdReleaseEvent(
             BarrierMightDirtyVrsRateImage(releaseInfo.pImageBarriers[i].pImage);
         }
     }
-
-    IssueGangedBarrierIncr();
 }
 
 // =====================================================================================================================
@@ -1731,7 +1780,7 @@ void UniversalCmdBuffer::CmdAcquireEvent(
 
     m_gfxCmdBufState.flags.packetPredicate = packetPredicate;
 
-    IssueGangedBarrierIncr();
+    IssueGangedBarrierAceWaitDeIncr();
 }
 
 // =====================================================================================================================
@@ -1786,32 +1835,54 @@ void UniversalCmdBuffer::CmdReleaseThenAcquire(
         }
     }
 
-    IssueGangedBarrierIncr();
+    IssueGangedBarrierAceWaitDeIncr();
 }
 
 // =====================================================================================================================
 // For ganged-submit with ACE+GFX, we need to ensure that any stalls that occur on the GFX engine are properly stalled
-// on the ACE engine. To that end, when we detect when ganged-submit is active, we issue a bottom-of-pipe timestamp
-// event which will write the current barrier count. Later, when the ACE engine is used, we'll issue a WAIT_REG_MEM
-// to ensure that all prior events on the GFX engine have completed.
-void UniversalCmdBuffer::IssueGangedBarrierIncr()
+// on the ACE engine and vice versa. To that end, when we detect when ganged-submit is active, we issue a
+// bottom-of-pipe timestamp event which will write the current barrier count. Later, when the ACE engine is used, we'll
+// issue a WAIT_REG_MEM to ensure that all prior events on the GFX engine have completed.
+void UniversalCmdBuffer::IssueGangedBarrierAceWaitDeIncr()
 {
-    m_barrierCount++;
+    m_semCountAceWaitDe++;
 
     if (m_pAceCmdStream != nullptr)
     {
         uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
 
         ReleaseMemInfo releaseInfo = {};
-        releaseInfo.engineType = m_pAceCmdStream->GetEngineType();
+        releaseInfo.engineType = m_deCmdStream.GetEngineType();
         releaseInfo.tcCacheOp  = TcCacheOp::Nop;
         releaseInfo.dstAddr    = GangedCmdStreamSemAddr();
-        releaseInfo.dataSel    = data_sel__mec_release_mem__send_32_bit_low;
-        releaseInfo.data       = m_barrierCount;
+        releaseInfo.dataSel    = data_sel__me_release_mem__send_32_bit_low;
+        releaseInfo.data       = m_semCountAceWaitDe;
         releaseInfo.vgtEvent   = BOTTOM_OF_PIPE_TS;
         pDeCmdSpace += m_cmdUtil.BuildReleaseMem(releaseInfo, pDeCmdSpace);
 
         m_deCmdStream.CommitCommands(pDeCmdSpace);
+    }
+}
+
+// =====================================================================================================================
+void UniversalCmdBuffer::IssueGangedBarrierDeWaitAceIncr()
+{
+    m_semCountDeWaitAce++;
+
+    if (m_pAceCmdStream != nullptr)
+    {
+        uint32* pAceCmdSpace = m_pAceCmdStream->ReserveCommands();
+
+        ReleaseMemInfo releaseInfo = {};
+        releaseInfo.engineType = m_pAceCmdStream->GetEngineType();
+        releaseInfo.tcCacheOp  = TcCacheOp::Nop;
+        releaseInfo.dstAddr    = GangedCmdStreamSemAddr() + sizeof(uint32);
+        releaseInfo.dataSel    = data_sel__mec_release_mem__send_32_bit_low;
+        releaseInfo.data       = m_semCountDeWaitAce;
+        releaseInfo.vgtEvent   = BOTTOM_OF_PIPE_TS;
+        pAceCmdSpace += m_cmdUtil.BuildReleaseMem(releaseInfo, pAceCmdSpace);
+
+        m_pAceCmdStream->CommitCommands(pAceCmdSpace);
     }
 }
 // =====================================================================================================================
@@ -2863,9 +2934,15 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawIndirectMulti(
 
     const uint16 vtxOffsetReg  = pThis->GetVertexOffsetRegAddr();
     const uint16 instOffsetReg = pThis->GetInstanceOffsetRegAddr();
+    const uint16 drawIndexReg  = pThis->GetDrawIndexRegAddr();
 
     pThis->m_deCmdStream.NotifyIndirectShRegWrite(vtxOffsetReg);
     pThis->m_deCmdStream.NotifyIndirectShRegWrite(instOffsetReg);
+
+    if (drawIndexReg != UserDataNotMapped)
+    {
+        pThis->m_deCmdStream.NotifyIndirectShRegWrite(drawIndexReg);
+    }
 
     pDeCmdSpace = pThis->WaitOnCeCounter(pDeCmdSpace);
 
@@ -2977,9 +3054,15 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawIndexedIndirectMulti(
 
     const uint16 vtxOffsetReg  = pThis->GetVertexOffsetRegAddr();
     const uint16 instOffsetReg = pThis->GetInstanceOffsetRegAddr();
+    const uint16 drawIndexReg  = pThis->GetDrawIndexRegAddr();
 
     pThis->m_deCmdStream.NotifyIndirectShRegWrite(vtxOffsetReg);
     pThis->m_deCmdStream.NotifyIndirectShRegWrite(instOffsetReg);
+
+    if (drawIndexReg != UserDataNotMapped)
+    {
+        pThis->m_deCmdStream.NotifyIndirectShRegWrite(drawIndexReg);
+    }
 
     pDeCmdSpace = pThis->WaitOnCeCounter(pDeCmdSpace);
 
@@ -3448,21 +3531,7 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDispatchMeshTask(
         static_cast<const HybridGraphicsPipeline*>(pThis->m_graphicsState.pipelineState.pPipeline);
     const auto& taskSignature = pHybridPipeline->GetTaskSignature();
 
-    uint32* pAceCmdSpace = pAceCmdStream->ReserveCommands();
-
-    // We need to make sure that the ACE CmdStream properly waits for any barriers that may have occured on the
-    // DE CmdStream. We've been incrementing a counter on the DE CmdStream, so all we need to do on the ACE side
-    // is perform the wait.
-    pAceCmdSpace += CmdUtil::BuildWaitRegMem(EngineTypeCompute,
-                                             mem_space__mec_wait_reg_mem__memory_space,
-                                             function__mec_wait_reg_mem__greater_than_or_equal_reference_value,
-                                             0, // EngineSel enum does not exist in the MEC WAIT_REG_MEM packet.
-                                             gangedCmdStreamSemAddr,
-                                             pThis->m_barrierCount,
-                                             0xFFFFFFFF,
-                                             pAceCmdSpace);
-
-    pAceCmdStream->CommitCommands(pAceCmdSpace);
+    pThis->CmdAceWaitDe();
 
     pThis->ValidateTaskMeshDispatch(0uLL, xDim, yDim, zDim);
 
@@ -3472,7 +3541,7 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDispatchMeshTask(
 
     pAceCmdStream->NotifyIndirectShRegWrite(taskRingIndexReg);
 
-    pAceCmdSpace = pAceCmdStream->ReserveCommands();
+    uint32* pAceCmdSpace = pAceCmdStream->ReserveCommands();
 
     const uint32_t computeDims[3] = { xDim, yDim, zDim };
     pAceCmdSpace = pAceCmdStream->WriteSetSeqShRegs(taskDispatchDimsReg,
@@ -3481,13 +3550,44 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDispatchMeshTask(
                                                     &computeDims,
                                                     pAceCmdSpace);
 
-    pAceCmdSpace += CmdUtil::BuildDispatchTaskMeshDirectAce(xDim,
-                                                            yDim,
-                                                            zDim,
-                                                            taskRingIndexReg,
-                                                            pThis->PacketPredicate(),
-                                                            taskSignature.flags.isWave32,
-                                                            pAceCmdSpace);
+    // Build the ACE direct dispatches.
+    if (ViewInstancingEnable)
+    {
+        const auto*const pPipeline          =
+            static_cast<const GraphicsPipeline*>(pThis->m_graphicsState.pipelineState.pPipeline);
+        const auto&      viewInstancingDesc = pPipeline->GetViewInstancingDesc();
+        uint32           mask               = (1 << viewInstancingDesc.viewInstanceCount) - 1;
+
+        if (viewInstancingDesc.enableMasking)
+        {
+            mask &= pThis->m_graphicsState.viewInstanceMask;
+        }
+
+        for (uint32 i = 0; mask != 0; ++i, mask >>= 1)
+        {
+            if (TestAnyFlagSet(mask, 1))
+            {
+                pAceCmdSpace  = pThis->BuildWriteViewId(viewInstancingDesc.viewId[i], pAceCmdSpace);
+                pAceCmdSpace += CmdUtil::BuildDispatchTaskMeshDirectAce(xDim,
+                                                                        yDim,
+                                                                        zDim,
+                                                                        taskRingIndexReg,
+                                                                        pThis->PacketPredicate(),
+                                                                        taskSignature.flags.isWave32,
+                                                                        pAceCmdSpace);
+            }
+        }
+    }
+    else
+    {
+        pAceCmdSpace += CmdUtil::BuildDispatchTaskMeshDirectAce(xDim,
+                                                                yDim,
+                                                                zDim,
+                                                                taskRingIndexReg,
+                                                                pThis->PacketPredicate(),
+                                                                taskSignature.flags.isWave32,
+                                                                pAceCmdSpace);
+    }
 
     pAceCmdStream->CommitCommands(pAceCmdSpace);
 
@@ -3510,11 +3610,40 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDispatchMeshTask(
 
     pDeCmdSpace = pThis->WaitOnCeCounter(pDeCmdSpace);
 
-    pDeCmdSpace += CmdUtil::BuildDispatchTaskMeshGfx<IssueSqttMarkerEvent>(
-                       pThis->m_pSignatureGfx->meshDispatchDimsRegAddr,
-                       pThis->m_pSignatureGfx->meshRingIndexAddr,
-                       pThis->PacketPredicate(),
-                       pDeCmdSpace);
+    // Build the GFX dispatches.
+    if (ViewInstancingEnable)
+    {
+        const auto*const pPipeline          =
+            static_cast<const GraphicsPipeline*>(pThis->m_graphicsState.pipelineState.pPipeline);
+        const auto&      viewInstancingDesc = pPipeline->GetViewInstancingDesc();
+        uint32           mask               = (1 << viewInstancingDesc.viewInstanceCount) - 1;
+
+        if (viewInstancingDesc.enableMasking)
+        {
+            mask &= pThis->m_graphicsState.viewInstanceMask;
+        }
+
+        for (uint32 i = 0; mask != 0; ++i, mask >>= 1)
+        {
+            if (TestAnyFlagSet(mask, 1))
+            {
+                pDeCmdSpace = pThis->BuildWriteViewId(viewInstancingDesc.viewId[i], pDeCmdSpace);
+                pDeCmdSpace += CmdUtil::BuildDispatchTaskMeshGfx<IssueSqttMarkerEvent>(
+                    pThis->m_pSignatureGfx->meshDispatchDimsRegAddr,
+                    pThis->m_pSignatureGfx->meshRingIndexAddr,
+                    pThis->PacketPredicate(),
+                    pDeCmdSpace);
+            }
+        }
+    }
+    else
+    {
+        pDeCmdSpace += CmdUtil::BuildDispatchTaskMeshGfx<IssueSqttMarkerEvent>(
+            pThis->m_pSignatureGfx->meshDispatchDimsRegAddr,
+            pThis->m_pSignatureGfx->meshRingIndexAddr,
+            pThis->PacketPredicate(),
+            pDeCmdSpace);
+    }
 
     pDeCmdSpace = pThis->IncrementDeCounter(pDeCmdSpace);
 
@@ -3572,21 +3701,7 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDispatchMeshIndirectMultiTask(
         static_cast<const HybridGraphicsPipeline*>(pThis->m_graphicsState.pipelineState.pPipeline);
     const auto& taskSignature = pHybridPipeline->GetTaskSignature();
 
-    uint32* pAceCmdSpace = pAceCmdStream->ReserveCommands();
-
-    // We need to make sure that the ACE CmdStream properly waits for any barriers that may have occured on the
-    // DE CmdStream. We've been incrementing a counter on the DE CmdStream, so all we need to do on the ACE side
-    // is perform the wait.
-    pAceCmdSpace += CmdUtil::BuildWaitRegMem(EngineTypeCompute,
-                                             mem_space__mec_wait_reg_mem__memory_space,
-                                             function__mec_wait_reg_mem__greater_than_or_equal_reference_value,
-                                             0, // EngineSel enum does not exist in the MEC WAIT_REG_MEM packet.
-                                             gangedCmdStreamSemAddr,
-                                             pThis->m_barrierCount,
-                                             0xFFFFFFFF,
-                                             pAceCmdSpace);
-
-    pAceCmdStream->CommitCommands(pAceCmdSpace);
+    pThis->CmdAceWaitDe();
 
     pThis->ValidateTaskMeshDispatch(indirectGpuAddr, 0, 0, 0);
 
@@ -3598,18 +3713,52 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDispatchMeshIndirectMultiTask(
     pAceCmdStream->NotifyIndirectShRegWrite(taskDispatchDimsReg);
     pAceCmdStream->NotifyIndirectShRegWrite(taskRingIndexReg);
 
-    pAceCmdSpace = pAceCmdStream->ReserveCommands();
+    uint32* pAceCmdSpace = pAceCmdStream->ReserveCommands();
 
-    pAceCmdSpace += CmdUtil::BuildDispatchTaskMeshIndirectMultiAce(indirectGpuAddr,
-                                                                   taskRingIndexReg,
-                                                                   taskDispatchDimsReg,
-                                                                   taskDispatchIdxReg,
-                                                                   maximumCount,
-                                                                   stride,
-                                                                   countGpuAddr,
-                                                                   taskSignature.flags.isWave32,
-                                                                   pThis->PacketPredicate(),
-                                                                   pAceCmdSpace);
+    // Build the ACE indirect dispatches.
+    if (ViewInstancingEnable)
+    {
+        const auto*const pPipeline          =
+            static_cast<const GraphicsPipeline*>(pThis->m_graphicsState.pipelineState.pPipeline);
+        const auto&      viewInstancingDesc = pPipeline->GetViewInstancingDesc();
+        uint32           mask               = (1 << viewInstancingDesc.viewInstanceCount) - 1;
+
+        if (viewInstancingDesc.enableMasking)
+        {
+            mask &= pThis->m_graphicsState.viewInstanceMask;
+        }
+
+        for (uint32 i = 0; mask != 0; ++i, mask >>= 1)
+        {
+            if (TestAnyFlagSet(mask, 1))
+            {
+                pAceCmdSpace  = pThis->BuildWriteViewId(viewInstancingDesc.viewId[i], pAceCmdSpace);
+                pAceCmdSpace += CmdUtil::BuildDispatchTaskMeshIndirectMultiAce(indirectGpuAddr,
+                                                                               taskRingIndexReg,
+                                                                               taskDispatchDimsReg,
+                                                                               taskDispatchIdxReg,
+                                                                               maximumCount,
+                                                                               stride,
+                                                                               countGpuAddr,
+                                                                               taskSignature.flags.isWave32,
+                                                                               pThis->PacketPredicate(),
+                                                                               pAceCmdSpace);
+            }
+        }
+    }
+    else
+    {
+        pAceCmdSpace += CmdUtil::BuildDispatchTaskMeshIndirectMultiAce(indirectGpuAddr,
+                                                                       taskRingIndexReg,
+                                                                       taskDispatchDimsReg,
+                                                                       taskDispatchIdxReg,
+                                                                       maximumCount,
+                                                                       stride,
+                                                                       countGpuAddr,
+                                                                       taskSignature.flags.isWave32,
+                                                                       pThis->PacketPredicate(),
+                                                                       pAceCmdSpace);
+    }
 
     pAceCmdStream->CommitCommands(pAceCmdSpace);
 
@@ -3632,11 +3781,40 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDispatchMeshIndirectMultiTask(
 
     pDeCmdSpace = pThis->WaitOnCeCounter(pDeCmdSpace);
 
-    pDeCmdSpace += CmdUtil::BuildDispatchTaskMeshGfx<IssueSqttMarkerEvent>(
-                       pThis->m_pSignatureGfx->meshDispatchDimsRegAddr,
-                       pThis->m_pSignatureGfx->meshRingIndexAddr,
-                       pThis->PacketPredicate(),
-                       pDeCmdSpace);
+    // Build the GFX dispatches.
+    if (ViewInstancingEnable)
+    {
+        const auto*const pPipeline          =
+            static_cast<const GraphicsPipeline*>(pThis->m_graphicsState.pipelineState.pPipeline);
+        const auto&      viewInstancingDesc = pPipeline->GetViewInstancingDesc();
+        uint32           mask               = (1 << viewInstancingDesc.viewInstanceCount) - 1;
+
+        if (viewInstancingDesc.enableMasking)
+        {
+            mask &= pThis->m_graphicsState.viewInstanceMask;
+        }
+
+        for (uint32 i = 0; mask != 0; ++i, mask >>= 1)
+        {
+            if (TestAnyFlagSet(mask, 1))
+            {
+                pDeCmdSpace  = pThis->BuildWriteViewId(viewInstancingDesc.viewId[i], pDeCmdSpace);
+                pDeCmdSpace += CmdUtil::BuildDispatchTaskMeshGfx<IssueSqttMarkerEvent>(
+                    pThis->m_pSignatureGfx->meshDispatchDimsRegAddr,
+                    pThis->m_pSignatureGfx->meshRingIndexAddr,
+                    pThis->PacketPredicate(),
+                    pDeCmdSpace);
+            }
+        }
+    }
+    else
+    {
+        pDeCmdSpace += CmdUtil::BuildDispatchTaskMeshGfx<IssueSqttMarkerEvent>(
+            pThis->m_pSignatureGfx->meshDispatchDimsRegAddr,
+            pThis->m_pSignatureGfx->meshRingIndexAddr,
+            pThis->PacketPredicate(),
+            pDeCmdSpace);
+    }
 
     pDeCmdSpace = pThis->IncrementDeCounter(pDeCmdSpace);
 
@@ -4198,7 +4376,7 @@ Result UniversalCmdBuffer::AddPostamble()
     {
         // If the memory contains any value, it is possible that with the ACE running ahead, it could get a value
         // for this semaphore which is >= the number it is waiting for and then just continue ahead before GFX has
-        // a chance to write it to 0.
+        // a chance to write it to 0. The vice versa case could happen for "GFX waiting for ACE" semaphore as well.
         // To handle the case where we reuse a command buffer entirely, we'll have to perform a GPU-side write of this
         // memory in the postamble.
         constexpr uint32 SemZero = 0;
@@ -4208,6 +4386,9 @@ Result UniversalCmdBuffer::AddPostamble()
         writeData.dstAddr       = m_gangedCmdStreamSemAddr;
         writeData.engineSel     = engine_sel__me_write_data__micro_engine;
         writeData.dstSel        = dst_sel__pfp_write_data__memory;
+        pDeCmdSpace            += CmdUtil::BuildWriteData(writeData, 1, &SemZero, pDeCmdSpace);
+
+        writeData.dstAddr       = m_gangedCmdStreamSemAddr + sizeof(uint32);
         pDeCmdSpace            += CmdUtil::BuildWriteData(writeData, 1, &SemZero, pDeCmdSpace);
     }
 
@@ -5588,8 +5769,11 @@ uint32* UniversalCmdBuffer::ValidateDraw(
 
     // Re-calculate paScModeCntl1 value if state contributing to the register has changed.
     if (PipelineDirty ||
-        (StateDirty && (dirtyFlags.depthStencilState || dirtyFlags.colorBlendState || dirtyFlags.depthStencilView ||
-                        dirtyFlags.occlusionQueryActive || dirtyFlags.triangleRasterState ||
+        (StateDirty && (dirtyFlags.depthStencilState       ||
+                        dirtyFlags.colorBlendState         ||
+                        dirtyFlags.depthStencilView        ||
+                        dirtyFlags.occlusionQueryActive    ||
+                        dirtyFlags.triangleRasterState     ||
                         (m_drawTimeHwState.valid.paScModeCntl1 == 0))))
     {
         paScModeCntl1 = pPipeline->PaScModeCntl1();
@@ -8298,8 +8482,7 @@ void UniversalCmdBuffer::CmdSetPredication(
     // If the predicate is 32-bits and the engine does not support that width natively, allocate a 64-bit
     // embedded predicate, zero it, emit a ME copy from the original to the lower 32-bits of the embedded
     // predicate, and update `gpuVirtAddr` and `predType`.
-    if ((predType == PredicateType::Boolean32) &&
-        (m_device.Parent()->EngineProperties().perEngine[EngineTypeUniversal].flags.memory32bPredicationSupport == 0))
+    if ((predType == PredicateType::Boolean32) && (m_cachedSettings.has32bPred == 0))
     {
         PAL_ASSERT(gpuVirtAddr != 0);
         constexpr size_t PredicateDwordSize  = sizeof(uint64) / sizeof(uint32);
@@ -8404,8 +8587,9 @@ void UniversalCmdBuffer::CmdExecuteIndirectCmds(
     const bool isTaskEnabled = ((gfx9Generator.Type() == GeneratorType::DispatchMesh) &&
                                 pGfxPipeline->HasTaskShader());
 
-    if ((deChunks.Capacity() < maximumCount) || (isTaskEnabled && (aceChunks.Capacity() < maximumCount))
-       )
+    const bool cmdGenUseAce = (m_cachedSettings.supportsAceOffload && (isTaskEnabled == false));
+
+    if ((deChunks.Capacity() < maximumCount) || (isTaskEnabled && (aceChunks.Capacity() < maximumCount)))
     {
         NotifyAllocFailure();
     }
@@ -8421,6 +8605,12 @@ void UniversalCmdBuffer::CmdExecuteIndirectCmds(
         if (isTaskEnabled)
         {
             UpdateTaskMeshRingSize();
+        }
+
+        if (cmdGenUseAce)
+        {
+            GetAceCmdStream();
+            CmdAceWaitDe();
         }
 
         for (uint32 i = 0; mask != 0; ++i, mask >>= 1)
@@ -8468,47 +8658,43 @@ void UniversalCmdBuffer::CmdExecuteIndirectCmds(
 
             m_gfxCmdBufState.flags.packetPredicate = packetPredicate;
 
-            uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
+            if (cmdGenUseAce)
+            {
+                // When using the ACE for Indirect CmdGeneration we have to wait for the ACE side to finish that work
+                // before the Draw() work can begin on the DE. This part performs a barrier count increment and wait
+                // for DE.
+                IssueGangedBarrierDeWaitAceIncr();
+                CmdDeWaitAce();
+            }
+            else
+            {
+                uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
 
-            // Insert a CS_PARTIAL_FLUSH to make sure that the generated commands are written out to L2 before we
-            // attempt to execute them. Then, a PFP_SYNC_ME is also required so that the PFP doesn't prefetch the
-            // generated commands before they are finished executing.
-            AcquireMemInfo acquireInfo = {};
-            acquireInfo.flags.invSqK$  = 1;
-            acquireInfo.tcCacheOp      = TcCacheOp::Nop;
-            acquireInfo.engineType     = EngineTypeUniversal;
-            acquireInfo.baseAddress    = FullSyncBaseAddr;
-            acquireInfo.sizeBytes      = FullSyncSize;
+                // Insert a CS_PARTIAL_FLUSH to make sure that the generated commands are written out to L2 before we
+                // attempt to execute them. Then, a PFP_SYNC_ME is also required so that the PFP doesn't prefetch the
+                // generated commands before they are finished executing.
+                AcquireMemInfo acquireInfo = {};
+                acquireInfo.flags.invSqK$ = 1;
+                acquireInfo.tcCacheOp     = TcCacheOp::Nop;
+                acquireInfo.engineType    = EngineTypeUniversal;
+                acquireInfo.baseAddress   = FullSyncBaseAddr;
+                acquireInfo.sizeBytes     = FullSyncSize;
 
-            pDeCmdSpace += CmdUtil::BuildNonSampleEventWrite(CS_PARTIAL_FLUSH, EngineTypeUniversal, pDeCmdSpace);
-            pDeCmdSpace += m_cmdUtil.BuildAcquireMem(acquireInfo, pDeCmdSpace);
-            pDeCmdSpace += CmdUtil::BuildPfpSyncMe(pDeCmdSpace);
-            m_deCmdStream.SetContextRollDetected<false>();
+                pDeCmdSpace += CmdUtil::BuildNonSampleEventWrite(CS_PARTIAL_FLUSH, EngineTypeUniversal, pDeCmdSpace);
+                pDeCmdSpace += m_cmdUtil.BuildAcquireMem(acquireInfo, pDeCmdSpace);
+                pDeCmdSpace += CmdUtil::BuildPfpSyncMe(pDeCmdSpace);
+                m_deCmdStream.SetContextRollDetected<false>();
 
-            m_deCmdStream.CommitCommands(pDeCmdSpace);
+                m_deCmdStream.CommitCommands(pDeCmdSpace);
+            }
 
             if (isTaskEnabled)
             {
                 // In the case of task shaders, we need to make sure that the ACE side waits for the generator
                 // shader to finish on the DE side before it attempts to move forward. This will perform the barrier
                 // increment and the wait.
-                IssueGangedBarrierIncr();
-
-                uint32* pAceCmdSpace = m_pAceCmdStream->ReserveCommands();
-
-                // We need to make sure that the ACE CmdStream properly waits for any barriers that may have occured
-                // on the DE CmdStream. We've been incrementing a counter on the DE CmdStream, so all we need to do
-                // on the ACE side is perform the wait.
-                pAceCmdSpace += CmdUtil::BuildWaitRegMem(EngineTypeCompute,
-                    mem_space__mec_wait_reg_mem__memory_space,
-                    function__mec_wait_reg_mem__greater_than_or_equal_reference_value,
-                    0, // EngineSel enum does not exist in the MEC WAIT_REG_MEM packet.
-                    GangedCmdStreamSemAddr(),
-                    m_barrierCount,
-                    0xFFFFFFFF,
-                    pAceCmdSpace);
-
-                m_pAceCmdStream->CommitCommands(pAceCmdSpace);
+                IssueGangedBarrierAceWaitDeIncr();
+                CmdAceWaitDe();
 
                 // Just like a normal direct/indirect draw/dispatch, we need to perform state validation before
                 // executing the generated command chunks.
@@ -8554,7 +8740,7 @@ void UniversalCmdBuffer::CmdExecuteIndirectCmds(
             {
                 const auto& viewInstancingDesc = pGfxPipeline->GetViewInstancingDesc();
 
-                pDeCmdSpace = m_deCmdStream.ReserveCommands();
+                uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
                 pDeCmdSpace = BuildWriteViewId(viewInstancingDesc.viewId[i], pDeCmdSpace);
                 m_deCmdStream.CommitCommands(pDeCmdSpace);
             }
@@ -8565,7 +8751,7 @@ void UniversalCmdBuffer::CmdExecuteIndirectCmds(
                 m_pAceCmdStream->ExecuteGeneratedCommands(ppChunkList[1], numChunksExecuted, numGenChunks);
             }
 
-            pDeCmdSpace = m_deCmdStream.ReserveCommands();
+            uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
 
             // We need to issue any post-draw or post-dispatch workarounds after all of the generated command buffers
             // have finished.
@@ -8598,10 +8784,7 @@ void UniversalCmdBuffer::CmdDispatchAce(
     // function was called. The callee should ensure that it's never called when not supported as that case is not
     // handled. We only do an assert here.
 #if PAL_ENABLE_PRINT_ASSERTS
-    auto const info = m_device.Parent()->EngineProperties().perEngine[static_cast<size_t>(EngineTypeUniversal)];
-    const bool supportsMultiQueue = info.capabilities[info.numAvailable].flags.supportsMultiQueue;
-
-    PAL_ASSERT(supportsMultiQueue == true);
+    PAL_ASSERT(m_cachedSettings.supportsAceOffload);
 #endif
     auto* pAceCmdStream = GetAceCmdStream();
 
@@ -9531,7 +9714,7 @@ CmdStream* UniversalCmdBuffer::GetAceCmdStream()
         else
         {
             // We need to properly issue a stall in case we're requesting the ACE CmdStream after a barrier call.
-            IssueGangedBarrierIncr();
+            IssueGangedBarrierAceWaitDeIncr();
         }
     }
 
@@ -9544,7 +9727,7 @@ gpusize UniversalCmdBuffer::GangedCmdStreamSemAddr()
 {
     if (m_gangedCmdStreamSemAddr == 0)
     {
-        uint32* pData = CmdAllocateEmbeddedData(1, CacheLineDwords, &m_gangedCmdStreamSemAddr);
+        uint32* pData = CmdAllocateEmbeddedData(2, CacheLineDwords, &m_gangedCmdStreamSemAddr);
         PAL_ASSERT(m_gangedCmdStreamSemAddr != 0);
 
         // We need to memset this to handle a possible race condition with stale data.
@@ -9555,6 +9738,7 @@ gpusize UniversalCmdBuffer::GangedCmdStreamSemAddr()
         // To handle the case where we reuse a command buffer entirely, we'll have to perform a GPU-side write of this
         // memory in the postamble.
         pData[0] = 0;
+        pData[1] = 0;
     }
 
     return m_gangedCmdStreamSemAddr;

@@ -2808,7 +2808,8 @@ void RsrcProcMgr::ScaledCopyImageGraphics(
     const auto& dstCreateInfo   = pDstImage->GetImageCreateInfo();
     const auto& srcCreateInfo   = pSrcImage->GetImageCreateInfo();
     const auto& device          = *m_pDevice->Parent();
-    const bool isTex3d          = (srcCreateInfo.imageType == ImageType::Tex3d) ? 1 : 0;
+    const bool isSrcTex3d = srcCreateInfo.imageType == ImageType::Tex3d;
+    const bool isDstTex3d = dstCreateInfo.imageType == ImageType::Tex3d;
     const bool depthStencilCopy = ((srcCreateInfo.usageFlags.depthStencil != 0) ||
                                  (dstCreateInfo.usageFlags.depthStencil != 0) ||
                                  Formats::IsDepthStencilOnly(srcCreateInfo.swizzledFormat.format) ||
@@ -2893,7 +2894,7 @@ void RsrcProcMgr::ScaledCopyImageGraphics(
         colorViewInfo.imageInfo.pImage    = copyInfo.pDstImage;
         colorViewInfo.imageInfo.arraySize = 1;
 
-        if (dstCreateInfo.imageType == ImageType::Tex3d)
+        if (isDstTex3d)
         {
             colorViewInfo.zRange.extent     = 1;
             colorViewInfo.flags.zRangeValid = true;
@@ -2953,6 +2954,9 @@ void RsrcProcMgr::ScaledCopyImageGraphics(
         const uint32 absDstExtentW = Math::Absu(dstExtentW);
         const uint32 absDstExtentH = Math::Absu(dstExtentH);
         const uint32 absDstExtentD = Math::Absu(dstExtentD);
+
+        float src3dScale = 0;
+        float src3dOffset = 0;
 
         if ((absDstExtentW > 0) && (absDstExtentH > 0) && (absDstExtentD > 0))
         {
@@ -3017,7 +3021,6 @@ void RsrcProcMgr::ScaledCopyImageGraphics(
 
             // The shader expects the region data to be arranged as follows for each dispatch:
             // Src Normalized Left,  Src Normalized Top,Src Normalized Right, SrcNormalized Bottom.
-
             const Extent3d& srcExtent = pSrcImage->SubresourceInfo(copyRegion.srcSubres)->extentTexels;
             float srcLeft   = 0;
             float srcTop    = 0;
@@ -3099,9 +3102,29 @@ void RsrcProcMgr::ScaledCopyImageGraphics(
 
             if (!depthStencilCopy)
             {
-                if (isTex3d == true)
+                if (isSrcTex3d)
                 {
-                    pCmdBuffer->CmdSetUserData(PipelineBindPoint::Graphics, 1, 4, &userData[0]);
+                    // For 3d texture, the cb0 contains the allow data.
+                    // cb0[0].xyzw = src   : {  left,    top,  right,  bottom}
+                    // cb0[1].xyzw = slice : {scaler, offset, number,    none}
+                    const float src3dNumSlice = static_cast<float>(srcExtent.depth);
+                    const float dstNumSlice = static_cast<float>(isDstTex3d ? absDstExtentD : copyRegion.numSlices);
+
+                    src3dScale = copyRegion.srcExtent.depth / dstNumSlice;
+                    src3dOffset = static_cast<float>(copyRegion.srcOffset.z) + 0.5f * src3dScale;
+
+                    const uint32 userData3d[8] =
+                    {
+                        reinterpret_cast<const uint32&>(srcLeft),
+                        reinterpret_cast<const uint32&>(srcTop),
+                        reinterpret_cast<const uint32&>(srcRight),
+                        reinterpret_cast<const uint32&>(srcBottom),
+                        reinterpret_cast<const uint32&>(src3dScale),
+                        reinterpret_cast<const uint32&>(src3dOffset),
+                        reinterpret_cast<const uint32&>(src3dNumSlice),
+                        0,
+                    };
+                    pCmdBuffer->CmdSetUserData(PipelineBindPoint::Graphics, 1, 8, &userData3d[0]);
                 }
                 else
                 {
@@ -3149,7 +3172,7 @@ void RsrcProcMgr::ScaledCopyImageGraphics(
             // Update the color target view format with the destination format.
             colorViewInfo.swizzledFormat = dstFormat;
 
-            if (srcCreateInfo.imageType == ImageType::Tex2d)
+            if (isSrcTex3d == false)
             {
                 if (colorKeyEnableMask)
                 {
@@ -3384,7 +3407,7 @@ void RsrcProcMgr::ScaledCopyImageGraphics(
             // Copy the copy parameters into the embedded user-data space for 2d texture copy.
             if (colorKeyEnableMask)
             {
-                PAL_ASSERT(isTex3d == false);
+                PAL_ASSERT(isSrcTex3d == false);
                 uint32 copyData[ColorKeyDataDwords] =
                 {
                     colorKeyEnableMask,
@@ -3441,20 +3464,26 @@ void RsrcProcMgr::ScaledCopyImageGraphics(
         }
 
         // Copy may happen between the layers of a 2d image and the slices of a 3d image.
-        const uint32 numSlices = Max(copyRegion.numSlices, absDstExtentD);
+        uint32 numSlices = Max(copyRegion.numSlices, absDstExtentD);
+
+        // In default case, each slice is copied individually.
+        uint32 vertexCnt = 3;
+
+        // The multi-slice draw will be used only when the copy happends between two 3d textures.
+        if (isSrcTex3d && isDstTex3d)
+        {
+            colorViewInfo.zRange.extent = numSlices;
+            vertexCnt *= numSlices;
+            numSlices = 1;
+        }
 
         // Each slice is copied individually, we can optimize this into fewer draw calls if it becomes a
         // performance bottleneck, but for now this is simpler.
         for (uint32 sliceOffset = 0; sliceOffset < numSlices; ++sliceOffset)
         {
-            const Extent3d& srcExtent = pSrcImage->SubresourceInfo(copyRegion.srcSubres)->extentTexels;
-
-            const float src3dSliceNom = ((static_cast<float>(copyRegion.srcExtent.depth) / numSlices) *
-                                         (static_cast<float>(sliceOffset) + 0.5f))
-                                        + static_cast<float>(copyRegion.srcOffset.z);
-            const float src3dSlice    = src3dSliceNom / srcExtent.depth;
+            const float src3dSlice    = src3dScale * static_cast<float>(sliceOffset) + src3dOffset;
             const float src2dSlice    = static_cast<const float>(sliceOffset);
-            const uint32 srcSlice     = isTex3d
+            const uint32 srcSlice     = isSrcTex3d
                                         ? reinterpret_cast<const uint32&>(src3dSlice)
                                         : reinterpret_cast<const uint32&>(src2dSlice);
 
@@ -3468,9 +3497,9 @@ void RsrcProcMgr::ScaledCopyImageGraphics(
 
             if (!depthStencilCopy)
             {
-                if (isTex3d == true)
+                if (isSrcTex3d)
                 {
-                    pCmdBuffer->CmdSetUserData(PipelineBindPoint::Graphics, 5, 1, &userData[0]);
+                    pCmdBuffer->CmdSetUserData(PipelineBindPoint::Graphics, 6, 1, &userData[0]);
                 }
                 else
                 {
@@ -3479,7 +3508,7 @@ void RsrcProcMgr::ScaledCopyImageGraphics(
 
                 colorViewInfo.imageInfo.baseSubRes = copyRegion.dstSubres;
 
-                if (dstCreateInfo.imageType == ImageType::Tex3d)
+                if (isDstTex3d)
                 {
                     colorViewInfo.zRange.offset = copyRegion.dstOffset.z + sliceOffset;
                 }
@@ -3512,7 +3541,7 @@ void RsrcProcMgr::ScaledCopyImageGraphics(
                     pCmdBuffer->CmdBindTargets(bindTargetsInfo);
 
                     // Draw a fullscreen quad.
-                    pCmdBuffer->CmdDraw(0, 3, 0, 1, 0);
+                    pCmdBuffer->CmdDraw(0, vertexCnt, 0, 1, 0);
 
                     // Unbind the color-target view.
                     bindTargetsInfo.colorTargetCount = 0;
@@ -6049,6 +6078,7 @@ void RsrcProcMgr::CmdGenerateIndirectCmds(
     ) const
 {
     const auto&                 settings     = m_pDevice->Parent()->Settings();
+    const auto&                 chipProps    = m_pDevice->Parent()->ChipProperties();
     const gpusize               argsGpuAddr  = genInfo.argsGpuAddr;
     const gpusize               countGpuAddr = genInfo.countGpuAddr;
     const Pipeline*             pPipeline    = genInfo.pPipeline;
@@ -6081,7 +6111,7 @@ void RsrcProcMgr::CmdGenerateIndirectCmds(
     //  + Task Shader Enabled flag (1 DW)
 
     constexpr uint32 SrdDwords = 4;
-    PAL_ASSERT(m_pDevice->Parent()->ChipProperties().srdSizes.bufferView == (sizeof(uint32) * SrdDwords));
+    PAL_ASSERT(chipProps.srdSizes.bufferView == (sizeof(uint32) * SrdDwords));
 
     const bool taskShaderEnabled = ((generator.Type() == GeneratorType::DispatchMesh) &&
                                     (static_cast<const GraphicsPipeline*>(pPipeline)->HasTaskShader()));
@@ -6297,9 +6327,29 @@ void RsrcProcMgr::CmdGenerateIndirectCmds(
             m_pDevice->Parent()->CreateUntypedBufferViewSrds(1, &viewInfo, pTableMem);
         }
 
-        pCmdBuffer->CmdDispatch(RpmUtil::MinThreadGroups(generator.ParameterCount(), threadsPerGroup[0]),
-                                RpmUtil::MinThreadGroups(mainChunk.commandsInChunk, threadsPerGroup[1]),
-                                1);
+        // We can use the Ganged ACE here only if MultiQueue submission is supported on both Gfx and Compute Queues.
+        const bool canOffloadCmdGenToGangedAce = (chipProps.gfxLevel >= GfxIpLevel::GfxIp9) ?
+                                                  chipProps.gfx9.supportAceOffload          :
+                                                  false;
+
+        // We use the ACE for IndirectCmdGeneration only for this very special case. It has to be a UniversalCmdBuffer,
+        // ganged ACE is supported, and we are not using the ACE for Task Shader work.
+        const bool cmdGenUseAce = pCmdBuffer->IsGraphicsSupported() &&
+                                  canOffloadCmdGenToGangedAce       &&
+                                  (taskShaderEnabled == false);
+
+        if (cmdGenUseAce)
+        {
+            pCmdBuffer->CmdDispatchAce(RpmUtil::MinThreadGroups(generator.ParameterCount(), threadsPerGroup[0]),
+                                       RpmUtil::MinThreadGroups(mainChunk.commandsInChunk, threadsPerGroup[1]),
+                                       1);
+        }
+        else
+        {
+            pCmdBuffer->CmdDispatch(RpmUtil::MinThreadGroups(generator.ParameterCount(), threadsPerGroup[0]),
+                                    RpmUtil::MinThreadGroups(mainChunk.commandsInChunk, threadsPerGroup[1]),
+                                    1);
+        }
 
         (*pNumGenChunks)++;
         commandIdOffset += mainChunk.commandsInChunk;
@@ -6633,8 +6683,7 @@ void RsrcProcMgr::ResolveImageCompute(
         SwizzledFormat dstFormat = dstImage.SubresourceInfo(dstSubres)->format;
 
         // Override the formats with the caller's "reinterpret" format.
-        if ((Formats::IsUndefined(pRegions[idx].swizzledFormat.format) == false) &&
-            (Formats::IsUndefined(pRegions[idx].swizzledFormat.format) == false))
+        if (Formats::IsUndefined(pRegions[idx].swizzledFormat.format) == false)
         {
             // We require that the channel formats match.
             PAL_ASSERT(Formats::ShareChFmt(srcFormat.format, pRegions[idx].swizzledFormat.format));

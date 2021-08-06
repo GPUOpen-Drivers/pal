@@ -3008,7 +3008,7 @@ void PAL_STDCALL Device::Gfx9CreateImageViewSrds(
                 }
                 else
                 {
-                    srd.word0.bits.BASE_ADDRESS  = image.GetSubresource256BAddrSwizzled(baseSubResId);
+                    srd.word0.bits.BASE_ADDRESS  = image.GetSubresource256BAddrSwizzledLow(baseSubResId);
                 }
                 // Usually, we'll never have an image address that extends into 40 bits.
                 // However, when svm is enabled, The bit 39 of an image address is 1 if the address is gpuvm.
@@ -3326,7 +3326,7 @@ static void Gfx10UpdateLinkedResourceViewSrd(
         pLinkedRsrc->depth_scale  = Log2(parentExtent.depth  / mapExtent.depth);
 
         // Most importantly, the base address points to the map image, not the parent image.
-        pLinkedRsrc->base_address = mapImage.GetSubresource256BAddrSwizzled(subResId);
+        pLinkedRsrc->base_address = mapImage.GetFullSubresource256BAddr(subResId);
 
         // As the linked resource image's memory is the one that is actually being accesed, the swizzle
         // mode needs to reflect that image, not the parent.
@@ -3854,7 +3854,7 @@ void PAL_STDCALL Device::Gfx10CreateImageViewSrds(
             }
             else if (srd.base_address == 0)
             {
-                srd.base_address = image.GetSubresource256BAddrSwizzled(baseSubResId);
+                srd.base_address = image.GetFullSubresource256BAddr(baseSubResId);
             }
 
             if (pBaseSubResInfo->flags.supportMetaDataTexFetch)

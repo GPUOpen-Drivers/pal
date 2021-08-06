@@ -2812,8 +2812,8 @@ void Image::SetupBankAndPipeSwizzle(
     {
         if (m_pImageInfo->internalCreateInfo.flags.useSharedTilingOverrides)
         {
-            // PAL assumes shared images use the same tile swizzle for all subresources.
-            tileSwizzle = m_pImageInfo->internalCreateInfo.gfx6.sharedTileSwizzle;
+            // PAL assumes shared images use the same tile swizzle for all subresources in a plane.
+            tileSwizzle = m_pImageInfo->internalCreateInfo.gfx6.sharedTileSwizzle[pSubResInfo->subresId.plane];
         }
         else if (Parent()->IsPeer())
         {

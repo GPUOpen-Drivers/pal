@@ -43,7 +43,7 @@
 ///            compatible, it is not assumed that the client will initialize all input structs to 0.
 ///
 /// @ingroup LibInit
-#define PAL_INTERFACE_MAJOR_VERSION 673
+#define PAL_INTERFACE_MAJOR_VERSION 674
 
 /// Minor interface version.  Note that the interface version is distinct from the PAL version itself, which is returned
 /// in @ref Pal::PlatformProperties.
@@ -108,8 +108,8 @@ enum class NullGpuId : uint32
     Navi21           = 0x0F,
     Navi22           = 0x10,
 
-    Max = 0x1C,
-    All = 0x1D,
+    Max = 0x1D,
+    All = 0x1E,
 #else // PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 672
     Tahiti    = 0x00,
     Pitcairn  = 0x01,
@@ -149,8 +149,8 @@ enum class NullGpuId : uint32
     Navi21           = 0x22,
     Navi22           = 0x23,
 
-    Max = 0x2F,
-    All = 0x30,
+    Max = 0x30,
+    All = 0x31,
 #endif
 };
 

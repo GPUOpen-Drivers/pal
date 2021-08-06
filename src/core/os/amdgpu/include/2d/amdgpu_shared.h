@@ -311,7 +311,7 @@ typedef struct _amdgpu_bo_umd_metadata
                     AMDGPU_ADDR_RESOURCE_TYPE resourceType;      ///< Surface type
             };
     };
-    uint32_t    pipeBankXor;            ///< Pipe bank Xor
+    uint32_t    pipeBankXor;            ///< Pipe bank Xor for plane 0
     uint32_t    depth;                  ///< Image depth
     uint32_t    array_size;             ///< Array size
     union
@@ -332,6 +332,7 @@ typedef struct _amdgpu_bo_umd_metadata
         uint32_t    all32;
     } flags;
     amdgpu_shared_metadata_info shared_metadata_info;
+    uint32_t    additionalPipeBankXor[2];    ///< Pipe bank xor for planes 1 & 2
 } amdgpu_bo_umd_metadata;
 
 #define PRO_UMD_METADATA_OFFSET_DWORD 32

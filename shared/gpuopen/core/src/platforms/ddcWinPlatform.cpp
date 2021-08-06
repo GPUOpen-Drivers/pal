@@ -615,6 +615,8 @@ namespace DevDriver
 
             Result result = Result::Success;
 
+            Strncpy(pInfo->type, OsInfo::kOsTypeWindows);
+
             HKEY hKey = 0;
             LONG res  = RegOpenKeyExA(
                 HKEY_LOCAL_MACHINE,

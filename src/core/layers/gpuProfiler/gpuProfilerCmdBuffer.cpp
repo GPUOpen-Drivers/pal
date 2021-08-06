@@ -263,7 +263,10 @@ void CmdBuffer::ReplayBegin(
         }
         else
         {
-            m_cmdBufLogItem.pGpaSession = pTgtCmdBuffer->GetGpaSession();
+            m_cmdBufLogItem.pGpaSession         = pTgtCmdBuffer->GetGpaSession();
+            m_cmdBufLogItem.gpaSampleId         = GpuUtil::InvalidSampleId;         // Initialize sample id.
+            m_cmdBufLogItem.gpaSampleIdTs       = GpuUtil::InvalidSampleId;         // Initialize sample id.
+            m_cmdBufLogItem.gpaSampleIdQuery    = GpuUtil::InvalidSampleId;         // Initialize sample id.
         }
         pQueue->AddLogItem(m_cmdBufLogItem);
     }

@@ -58,9 +58,9 @@ union GraphicsStateFlags
                 uint32 lineStippleState       :  1; // Gfx6 & Gfx9
                 uint32 colorTargetView        :  1; // Gfx9 only
                 uint32 depthStencilView       :  1; // Gfx9 only
-                uint32 vrsRateParams          :  1; // 10.3 only
-                uint32 vrsCenterState         :  1; // 10.3 only
-                uint32 vrsImage               :  1; // 10.3 only
+                uint32 vrsRateParams          :  1; // 10.3+ only
+                uint32 vrsCenterState         :  1; // 10.3+ only
+                uint32 vrsImage               :  1; // 10.3+ only
                 uint32 depthClampOverride     :  1; // All Gfx
                 uint32 colorWriteMask         :  1; // All Gfx
 		uint32 rasterizerDiscardEnable:  1; // All Gfx

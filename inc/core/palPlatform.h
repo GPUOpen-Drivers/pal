@@ -402,7 +402,7 @@ public:
     /// @param [in] pPlatform        The platform to install the callback into.
     /// @param [in] pfnDeveloperCb   The developer callback function pointer to be executed by the pPlatform.
     /// @param [in] pPrivateData     Private data that is installed with the callback for use by the installer.
-    static PAL_INLINE void InstallDeveloperCb(
+    static void InstallDeveloperCb(
         IPlatform*          pPlatform,
         Developer::Callback pfnDeveloperCb,
         void*               pPrivateData)
@@ -457,7 +457,7 @@ public:
     /// Can be used to associate arbitrary data with a particular PAL object.
     ///
     /// @returns Pointer to client data.
-    PAL_INLINE void* GetClientData() const
+    void* GetClientData() const
     {
         return m_pClientData;
     }
@@ -466,7 +466,7 @@ public:
     /// Can be used to associate arbitrary data with a particular PAL object.
     ///
     /// @param  [in]    pClientData     A pointer to arbitrary client data.
-    PAL_INLINE void SetClientData(
+    void SetClientData(
         void* pClientData)
     {
         m_pClientData = pClientData;

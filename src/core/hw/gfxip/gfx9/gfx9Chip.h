@@ -219,6 +219,9 @@ constexpr uint32 MaxPsInputSemantics = 32;
 // Number of VS export semantic registers.
 constexpr uint32 MaxVsExportSemantics = 32;
 
+// Mask of CP_ME_COHER_CNTL bits which stall based on all DB base addresses (depth and stencil).
+constexpr uint32 CpMeCoherCntlStallDbMask = CP_ME_COHER_CNTL__DB_DEST_BASE_ENA_MASK |
+                                            CP_ME_COHER_CNTL__DEST_BASE_0_ENA_MASK;
 // Mask of CP_ME_COHER_CNTL bits which stall based on all base addresses.
 constexpr uint32 CpMeCoherCntlStallMask = CP_ME_COHER_CNTL__CB0_DEST_BASE_ENA_MASK |
                                           CP_ME_COHER_CNTL__CB1_DEST_BASE_ENA_MASK |

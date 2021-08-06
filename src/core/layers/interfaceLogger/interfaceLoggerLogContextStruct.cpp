@@ -2253,6 +2253,8 @@ void LogContext::Struct(
     KeyAndValue("clientInternal", value.clientInternal);
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
     KeyAndValue("overrideGpuHeap", value.overrideGpuHeap);
+#elif PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 673
+    KeyAndValue("supportDynamicDispatch", value.supportDynamicDispatch);
 #endif
     EndMap();
 }
@@ -2969,8 +2971,13 @@ void LogContext::Struct(
     const SetClockModeOutput& value)
 {
     BeginMap(false);
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 674
+    KeyAndValue("memoryClockFrequency", value.memoryClockFrequency);
+    KeyAndValue("engineClockFrequency", value.engineClockFrequency);
+#else
     KeyAndValue("memoryClockRatioToPeak", value.memoryClockRatioToPeak);
     KeyAndValue("engineClockRatioToPeak", value.engineClockRatioToPeak);
+#endif
     EndMap();
 }
 

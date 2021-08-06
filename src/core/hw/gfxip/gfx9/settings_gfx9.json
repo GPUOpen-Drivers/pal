@@ -2592,6 +2592,22 @@
       "Name": "WaDisableInstancePacking"
     },
     {
+      "Description": "If true, disable GRBM Register stalling for SQTT",
+      "Tags": [
+        "Hardware Workarounds"
+      ],
+      "Defaults": {
+        "Default": false
+      },
+      "Flags": {
+        "RereadSetting": true
+      },
+      "Scope": "PrivatePalGfx9Key",
+      "Type": "bool",
+      "VariableName": "waNoSqttRegStall",
+      "Name": "WaNoSqttRegStall"
+    },
+    {
       "ValidValues": {
         "IsEnum": true,
         "Values": [

@@ -14,7 +14,11 @@
 #include <dlfcn.h>
 
 #if defined(DD_PLATFORM_LINUX_UM)
+extern "C"
+{
     #include <sys/utsname.h>
+    #include <sys/sysinfo.h>
+}
 #elif defined(DD_PLATFORM_DARWIN_UM)
     #include <os/log.h>
 
@@ -736,9 +740,78 @@ namespace DevDriver
             memset(pInfo, 0, sizeof(*pInfo));
 
 #if defined(DD_PLATFORM_LINUX_UM)
+            Strncpy(pInfo->type, OsInfo::kOsTypeLinux);
+
             // Query OS name
             {
-                // TODO: Query distro name, e.g. "Ubuntu 18.09"
+                // Reference: https://man7.org/linux/man-pages/man5/os-release.5.html
+
+                FILE* pOsReleaseFile = nullptr;
+                pOsReleaseFile = fopen("/etc/os-release", "r");
+                if (pOsReleaseFile == nullptr)
+                {
+                    pOsReleaseFile = fopen("/usr/lib/os-release", "r");
+                }
+
+                const char* const OsNameLinePrefix = "NAME=";
+                char* pNameLine = nullptr;
+
+                const size_t LineSize = 64;
+                char line[LineSize] = {};
+
+                if (pOsReleaseFile != nullptr)
+                {
+                    // Find the line that contains the OS name.
+                    while (fgets(line, LineSize, pOsReleaseFile))
+                    {
+                        pNameLine = strstr(line, OsNameLinePrefix);
+                        if (pNameLine)
+                        {
+                            break;
+                        }
+                    }
+                    fclose(pOsReleaseFile);
+                }
+
+                if (pNameLine != nullptr)
+                {
+                    size_t nameLen = 0;
+
+                    // trim surrounding quotes
+                    char* pName = pNameLine + strlen(OsNameLinePrefix);
+                    char* pFirstQuote = strstr(pName, "\"");
+                    if (pFirstQuote)
+                    {
+                        pName += 1;
+                        char* pSecondQuote = strstr(pName, "\"");
+                        if (pSecondQuote)
+                        {
+                            nameLen = (size_t)(pSecondQuote - pName);
+                        }
+                    }
+
+                    // if no quotes, trim the ending newline character
+                    if (nameLen == 0)
+                    {
+                        char* pNewline = strstr(pName, "\n");
+                        if (pNewline)
+                        {
+                            nameLen = (size_t)(pNewline - pName);
+                        }
+                    }
+
+                    // otherwise just get the entire length
+                    if (nameLen == 0)
+                    {
+                        nameLen = strlen(pName);
+                    }
+
+                    size_t destNameSize = sizeof(pInfo->name) - 1;
+                    size_t copySize = Platform::Min(destNameSize, nameLen);
+
+                    strncpy(pInfo->name, pName, copySize);
+                    pInfo->name[copySize] = '\0';
+                }
             }
 
             // Query description
@@ -753,7 +826,27 @@ namespace DevDriver
                          "%s %s %s     %s",
                          info.sysname, info.release, info.machine, info.version);
             }
+
+            // Query available memory
+            {
+                // reference: https://man7.org/linux/man-pages/man2/sysinfo.2.html
+
+                struct sysinfo info = {};
+                int err = sysinfo(&info);
+                if (err == 0)
+                {
+                    pInfo->physMemory = info.totalram;
+                    pInfo->swapMemory = info.totalswap;
+                }
+                else
+                {
+                    DD_PRINT(LogLevel::Warn, "[Platform::QueryOsInfo] sysinfo failed with errno: %d", errno);
+                }
+            }
+
 #elif defined(DD_PLATFORM_DARWIN_UM)
+            Strncpy(pInfo->type, OsInfo::kOsTypeDarwin);
+
             // Query OS name
             {
                 // TODO: Query macOS revision name, e.g. "Mojave" or "Catalina"

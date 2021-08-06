@@ -91,6 +91,9 @@ static uint32* WriteCommonPreamble(
                                                        index__pfp_set_sh_reg_index__apply_kmd_cu_and_mask,
                                                        pCmdSpace);
 
+        // Initializing the COMPUTE_PGM_HI register to 0 is required because PAL command-buffer generation expects it.
+        pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderCompute>(mmCOMPUTE_PGM_HI, 0, pCmdSpace);
+
         // Set every user accumulator contribution to a default "disabled" value (zero).
         if (chipProps.gfx9.supportSpiPrefPriority != 0)
         {
@@ -1734,7 +1737,6 @@ uint32* UniversalQueueContext::WriteUniversalPreamble(
                                                             Gfx09::mmSPI_SHADER_PGM_HI_LS;
     pCmdSpace = m_deCmdStream.WriteSetOneShReg<ShaderGraphics>(mmSpiShaderPgmHiEs, 0, pCmdSpace);
     pCmdSpace = m_deCmdStream.WriteSetOneShReg<ShaderGraphics>(mmSpiShaderPgmHiLs, 0, pCmdSpace);
-    pCmdSpace = m_deCmdStream.WriteSetOneShReg<ShaderCompute>(mmCOMPUTE_PGM_HI, 0, pCmdSpace);
 
     if (settings.useClearStateToInitialize == false)
     {

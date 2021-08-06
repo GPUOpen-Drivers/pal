@@ -200,6 +200,7 @@ void SettingsLoader::SetupDefaults()
     m_settings.waDisableSCompressSOnly = false;
     m_settings.waDisableInstancePacking = false;
 
+    m_settings.waNoSqttRegStall = false;
     m_settings.vrsHtileEncoding = Gfx10VrsHtileEncodingTwoBit;
 
     m_settings.vrsForceRateFine = false;
@@ -899,6 +900,11 @@ void SettingsLoader::ReadSettings()
                            &m_settings.waDisableInstancePacking,
                            InternalSettingScope::PrivatePalGfx9Key);
 
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pWaNoSqttRegStallStr,
+                           Util::ValueType::Boolean,
+                           &m_settings.waNoSqttRegStall,
+                           InternalSettingScope::PrivatePalGfx9Key);
+
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pVrsHtileEncodingStr,
                            Util::ValueType::Uint,
                            &m_settings.vrsHtileEncoding,
@@ -1241,6 +1247,11 @@ void SettingsLoader::RereadSettings()
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pWaDisableInstancePackingStr,
                            Util::ValueType::Boolean,
                            &m_settings.waDisableInstancePacking,
+                           InternalSettingScope::PrivatePalGfx9Key);
+
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pWaNoSqttRegStallStr,
+                           Util::ValueType::Boolean,
+                           &m_settings.waNoSqttRegStall,
                            InternalSettingScope::PrivatePalGfx9Key);
 
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pWaUtcL0InconsistentBigPageStr,
@@ -1961,6 +1972,11 @@ void SettingsLoader::InitSettingsInfo()
     info.valueSize = sizeof(m_settings.waDisableInstancePacking);
     m_settingsInfoMap.Insert(2220232767, info);
 
+    info.type      = SettingType::Boolean;
+    info.pValuePtr = &m_settings.waNoSqttRegStall;
+    info.valueSize = sizeof(m_settings.waNoSqttRegStall);
+    m_settingsInfoMap.Insert(3209828942, info);
+
     info.type      = SettingType::Uint;
     info.pValuePtr = &m_settings.vrsHtileEncoding;
     info.valueSize = sizeof(m_settings.vrsHtileEncoding);
@@ -2087,7 +2103,7 @@ void SettingsLoader::DevDriverRegister()
             component.pfnSetValue = ISettingsLoader::SetValue;
             component.pSettingsData = &g_gfx9PalJsonData[0];
             component.settingsDataSize = sizeof(g_gfx9PalJsonData);
-            component.settingsDataHash = 61687940;
+            component.settingsDataHash = 1734872282;
             component.settingsDataHeader.isEncoded = true;
             component.settingsDataHeader.magicBufferId = 402778310;
             component.settingsDataHeader.magicBufferOffset = 0;

@@ -588,6 +588,12 @@ int32 Snprintf(char(&dst)[DstSize], const char* pFormat, Args&&... args)
 
 struct OsInfo
 {
+    DD_STATIC_CONST const char* kOsTypeWindows = "Windows";
+    DD_STATIC_CONST const char* kOsTypeLinux   = "Linux";
+    DD_STATIC_CONST const char* kOsTypeDarwin  = "Darwin";
+
+    char type[16];         /// The type of the OS, either "Windows", "Linux", or "Darwin".
+
     char name[32];         /// A human-readable string to identify the version of the OS running
     char description[256]; /// A human-readable string to identify the detailed version of the OS running
     char hostname[128];    /// The hostname for the machine

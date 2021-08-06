@@ -36,11 +36,6 @@ dd_bp(
 )
 
 dd_bp(
-    DD_RMT_DATA_MAJOR_VERSION 0
-    MSG "Controls usage of breaking changes in the RMT data format"
-)
-
-dd_bp(
     DD_BP_REMOTE_WIN_TRANSPORT OFF
     DEPENDS_ON "WIN32"
     MSG        "Enables building remote transport on Windows. (Linux is unconditional)"
@@ -100,7 +95,6 @@ target_compile_definitions(devdriver
 
     PRIVATE
         DD_BRANCH_STRING=${DD_BRANCH_STRING}
-        RMT_DATA_MAJOR_VERSION=${DD_RMT_DATA_MAJOR_VERSION}
 )
 
 ### Include Directories ################################################################################################

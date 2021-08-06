@@ -269,6 +269,8 @@ UniversalCmdBuffer::UniversalCmdBuffer(
         (m_cachedSettings.issueSqttMarkerEvent ||
          m_device.GetPlatform()->PlatformSettings().cmdBufferLoggerConfig.embedDrawDispatchInfo);
 
+    m_cachedSettings.has32bPred =
+        m_device.Parent()->EngineProperties().perEngine[EngineTypeUniversal].flags.memory32bPredicationSupport;
 #if PAL_BUILD_PM4_INSTRUMENTOR
     m_cachedSettings.enablePm4Instrumentation = platformSettings.pm4InstrumentorEnabled;
 #endif
@@ -1877,9 +1879,15 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawIndirectMulti(
 
     const uint16 vtxOffsetReg  = pThis->GetVertexOffsetRegAddr();
     const uint16 instOffsetReg = pThis->GetInstanceOffsetRegAddr();
+    const uint16 drawIndexReg  = pThis->GetDrawIndexRegAddr();
 
     pThis->m_deCmdStream.NotifyIndirectShRegWrite(vtxOffsetReg);
     pThis->m_deCmdStream.NotifyIndirectShRegWrite(instOffsetReg);
+
+    if (drawIndexReg != UserDataNotMapped)
+    {
+        pThis->m_deCmdStream.NotifyIndirectShRegWrite(drawIndexReg);
+    }
 
     pDeCmdSpace = pThis->WaitOnCeCounter(pDeCmdSpace);
 
@@ -1990,9 +1998,15 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawIndexedIndirectMulti(
 
     const uint16 vtxOffsetReg  = pThis->GetVertexOffsetRegAddr();
     const uint16 instOffsetReg = pThis->GetInstanceOffsetRegAddr();
+    const uint16 drawIndexReg  = pThis->GetDrawIndexRegAddr();
 
     pThis->m_deCmdStream.NotifyIndirectShRegWrite(vtxOffsetReg);
     pThis->m_deCmdStream.NotifyIndirectShRegWrite(instOffsetReg);
+
+    if (drawIndexReg != UserDataNotMapped)
+    {
+        pThis->m_deCmdStream.NotifyIndirectShRegWrite(drawIndexReg);
+    }
 
     pDeCmdSpace = pThis->WaitOnCeCounter(pDeCmdSpace);
 
@@ -5097,8 +5111,7 @@ void UniversalCmdBuffer::CmdSetPredication(
     // If the predicate is 32-bits and the engine does not support that width natively, allocate a 64-bit
     // embedded predicate, zero it, emit a ME copy from the original to the lower 32-bits of the embedded
     // predicate, and update `gpuVirtAddr` and `predType`.
-    if ((predType == PredicateType::Boolean32) &&
-        (m_device.Parent()->EngineProperties().perEngine[EngineTypeUniversal].flags.memory32bPredicationSupport == 0))
+    if ((predType == PredicateType::Boolean32) && (m_cachedSettings.has32bPred == 0))
     {
         PAL_ASSERT(gpuVirtAddr != 0);
         constexpr size_t PredicateDwordSize  = sizeof(uint64) / sizeof(uint32);

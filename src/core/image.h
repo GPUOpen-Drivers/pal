@@ -162,18 +162,18 @@ struct ImageInternalCreateInfo
     {
         struct
         {
-            AddrTileMode       sharedTileMode;     // Tile mode for shared image
-            AddrTileType       sharedTileType;     // Tile type for shared image
-            uint32             sharedTileSwizzle;  // Tile swizzle for shared image
-            int32              sharedTileIndex;    // Tile index for shared image
+            AddrTileMode       sharedTileMode;                  // Tile mode for shared image
+            AddrTileType       sharedTileType;                  // Tile type for shared image
+            uint32             sharedTileSwizzle[MaxNumPlanes]; // Tile swizzle per plane for shared image
+            int32              sharedTileIndex;                 // Tile index for shared image
         } gfx6;
 
         struct
         {
-            AddrSwizzleMode    sharedSwizzleMode;       // Swizzle mdoe for shared iamge
-            uint32             sharedPipeBankXor;       // Pipe-bank-xor setting for shared image
-            uint32             sharedPipeBankXorFmask;  // Pipe-bank-xor setting for fmask
-            DccState           sharedDccState;          // DCC state shared
+            AddrSwizzleMode    sharedSwizzleMode;               // Swizzle mode for shared iamge
+            uint32             sharedPipeBankXor[MaxNumPlanes]; // Pipe-bank-xor setting per plane for shared image
+            uint32             sharedPipeBankXorFmask;          // Pipe-bank-xor setting for fmask
+            DccState           sharedDccState;                  // DCC state shared
         } gfx9;
     };
 

@@ -370,14 +370,18 @@ typedef struct SqttFileChunkApiInfo
  */
 typedef enum SqttVersion
 {
-    SQTT_VERSION_NONE = 0x0,                                /*!< Not supported. */
-    SQTT_VERSION_1_0  = 0x1,                                /*!< Evergreen (8xx). */
-    SQTT_VERSION_1_1  = 0x2,                                /*!< Northern Islands (9xx). */
-    SQTT_VERSION_2_0  = 0x3,                                /*!< Southern Islands (GfxIp 6). */
-    SQTT_VERSION_2_1  = 0x4,                                /*!< Sea Islands (GfxIp 7). */
-    SQTT_VERSION_2_2  = 0x5,                                /*!< Volcanic Islands (GfxIP 8). */
-    SQTT_VERSION_2_3  = 0x6,                                /*!< GfxIp 9. */
-    SQTT_VERSION_2_4  = 0x7                                 /*!< GfxIp 10. */
+    SQTT_VERSION_NONE         = 0x0,                                /*!< Not supported. */
+    SQTT_VERSION_1_0          = 0x1,                                /*!< TT 1.0 Evergreen ("8xx"). */
+    SQTT_VERSION_1_1          = 0x2,                                /*!< TT 1.1 Northern Islands ("9xx"). */
+    SQTT_VERSION_2_0          = 0x3,                                /*!< TT 2.0 Southern Islands ("GfxIp6"). */
+    SQTT_VERSION_2_1          = 0x4,                                /*!< TT 2.1 Sea Islands ("GfxIp7"). */
+    SQTT_VERSION_2_2          = 0x5,                                /*!< TT 2.2 Volcanic Islands ("GfxIp8"). */
+    SQTT_VERSION_2_3          = 0x6,                                /*!< TT 2.3 Vega, MI100, MI200 (GfxIp9). */
+    SQTT_VERSION_3_0          = 0x7,                                /*!< TT 3.0 Navi1, Navi2 (GfxIp10-10.3). */
+    SQTT_VERSION_2_4          = SQTT_VERSION_3_0,                   /*!< Left for legacy reasons. */
+    SQTT_VERSION_RESERVED_0x8 = 0x8,                                /*!< Reserved. */
+    SQTT_VERSION_RESERVED_0x9 = 0x9,                                /*!< Reserved. */
+    SQTT_VERSION_RESERVED_0xA = 0xA,                                /*!< Reserved. */
 } SqttVersion;
 
 /** A structure encapsulating the description of the data contained in the matching SQTT_FILE_CHUNK_SQTT_DATA chunk.

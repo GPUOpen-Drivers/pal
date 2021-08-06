@@ -235,13 +235,11 @@ void PipelineChunkVsPs::LateInit(
         }
     }
 
-    m_regs.context.dbShaderControl.u32All    = registers.At(mmDB_SHADER_CONTROL);
-    m_regs.context.spiBarycCntl.u32All       = registers.At(mmSPI_BARYC_CNTL);
-    m_regs.context.spiPsInputAddr.u32All     = registers.At(mmSPI_PS_INPUT_ADDR);
-    m_regs.context.spiPsInputEna.u32All      = registers.At(mmSPI_PS_INPUT_ENA);
-    m_regs.context.spiShaderColFormat.u32All = registers.At(mmSPI_SHADER_COL_FORMAT);
-    m_regs.context.spiShaderZFormat.u32All   = registers.At(mmSPI_SHADER_Z_FORMAT);
-    m_regs.context.paClVsOutCntl.u32All      = registers.At(mmPA_CL_VS_OUT_CNTL);
+    m_regs.context.dbShaderControl.u32All = registers.At(mmDB_SHADER_CONTROL);
+    m_regs.context.spiBarycCntl.u32All    = registers.At(mmSPI_BARYC_CNTL);
+    m_regs.context.spiPsInputAddr.u32All  = registers.At(mmSPI_PS_INPUT_ADDR);
+    m_regs.context.spiPsInputEna.u32All   = registers.At(mmSPI_PS_INPUT_ENA);
+    m_regs.context.paClVsOutCntl.u32All   = registers.At(mmPA_CL_VS_OUT_CNTL);
 
     if (createInfo.rsState.clipDistMask != 0)
     {
@@ -271,7 +269,6 @@ void PipelineChunkVsPs::LateInit(
         }
     }
 
-    m_regs.context.spiShaderPosFormat.u32All = registers.At(mmSPI_SHADER_POS_FORMAT);
     m_regs.context.vgtPrimitiveIdEn.u32All   = registers.At(mmVGT_PRIMITIVEID_EN);
     m_regs.context.paScShaderControl.u32All  = registers.At(mmPA_SC_SHADER_CONTROL);
     m_paScAaConfig.u32All                    = registers.At(mmPA_SC_AA_CONFIG);
@@ -404,27 +401,23 @@ uint32* PipelineChunkVsPs::WriteContextCommands(
     uint32*    pCmdSpace
     ) const
 {
-    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmSPI_SHADER_POS_FORMAT,
-                                                    mmSPI_SHADER_COL_FORMAT,
-                                                    &m_regs.context.spiShaderPosFormat,
-                                                    pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetOneContextReg(mmSPI_BARYC_CNTL, m_regs.context.spiBarycCntl.u32All, pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmSPI_PS_INPUT_ENA,
-                                                    mmSPI_PS_INPUT_ADDR,
-                                                    &m_regs.context.spiPsInputEna.u32All,
-                                                    pCmdSpace);
+                                                   mmSPI_PS_INPUT_ADDR,
+                                                   &m_regs.context.spiPsInputEna.u32All,
+                                                   pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetOneContextReg(mmDB_SHADER_CONTROL,
-                                                    m_regs.context.dbShaderControl.u32All,
-                                                    pCmdSpace);
+                                                  m_regs.context.dbShaderControl.u32All,
+                                                  pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetOneContextReg(mmPA_SC_SHADER_CONTROL,
-                                                    m_regs.context.paScShaderControl.u32All,
-                                                    pCmdSpace);
+                                                  m_regs.context.paScShaderControl.u32All,
+                                                  pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetOneContextReg(mmPA_CL_VS_OUT_CNTL,
-                                                    m_regs.context.paClVsOutCntl.u32All,
-                                                    pCmdSpace);
+                                                  m_regs.context.paClVsOutCntl.u32All,
+                                                  pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetOneContextReg(mmVGT_PRIMITIVEID_EN,
-                                                    m_regs.context.vgtPrimitiveIdEn.u32All,
-                                                    pCmdSpace);
+                                                  m_regs.context.vgtPrimitiveIdEn.u32All,
+                                                  pCmdSpace);
 
     if (m_regs.context.interpolatorCount > 0)
     {
@@ -432,9 +425,9 @@ uint32* PipelineChunkVsPs::WriteContextCommands(
         PAL_ASSERT(endRegisterAddr <= mmSPI_PS_INPUT_CNTL_31);
 
         pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmSPI_PS_INPUT_CNTL_0,
-                                                        endRegisterAddr,
-                                                        &m_regs.context.spiPsInputCntl[0],
-                                                        pCmdSpace);
+                                                       endRegisterAddr,
+                                                       &m_regs.context.spiPsInputCntl[0],
+                                                       pCmdSpace);
     }
 
     const auto& palDevice = *(m_device.Parent());
@@ -442,9 +435,9 @@ uint32* PipelineChunkVsPs::WriteContextCommands(
     if (hasVgtStreamOut)
     {
         pCmdSpace = pCmdStream->WriteSetSeqContextRegs(HasHwVs::mmVGT_STRMOUT_CONFIG,
-                                                        HasHwVs::mmVGT_STRMOUT_BUFFER_CONFIG,
-                                                        &m_regs.context.vgtStrmoutConfig,
-                                                        pCmdSpace);
+                                                       HasHwVs::mmVGT_STRMOUT_BUFFER_CONFIG,
+                                                       &m_regs.context.vgtStrmoutConfig,
+                                                       pCmdSpace);
     }
 
     if (UsesHwStreamout())
@@ -452,8 +445,8 @@ uint32* PipelineChunkVsPs::WriteContextCommands(
         for (uint32 i = 0; i < MaxStreamOutTargets; ++i)
         {
             pCmdSpace = pCmdStream->WriteSetOneContextReg(VgtStrmoutVtxStrideAddr[i],
-                                                            m_regs.context.vgtStrmoutVtxStride[i].u32All,
-                                                            pCmdSpace);
+                                                          m_regs.context.vgtStrmoutVtxStride[i].u32All,
+                                                          pCmdSpace);
         }
     }
 

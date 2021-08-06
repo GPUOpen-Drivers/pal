@@ -261,10 +261,13 @@ union CachedSettings
         uint64 supportsVrs                               :  1;
         uint64 vrsForceRateFine                          :  1;
         uint64 reserved7                                 :  1;
+        uint64 supportsAceOffload                        :  1;
         uint64 reserved8                  :  9;
         uint64 reserved9                  :  1;
         uint64 optimizeDepthOnlyFmt       :  1;
-        uint64 reserved                   : 11;
+        uint64 has32bPred                 :  1;
+        uint64 reserved                   :  9;
+
     };
     uint64 u64All;
 };
@@ -328,6 +331,9 @@ public:
     virtual void CmdFlglSync() override;
     virtual void CmdFlglEnable() override;
     virtual void CmdFlglDisable() override;
+
+    void CmdAceWaitDe();
+    void CmdDeWaitAce();
 
     virtual void CmdBarrier(const BarrierInfo& barrierInfo) override;
 
@@ -653,6 +659,9 @@ protected:
     // Gets instance offset register address. It always immediately follows the vertex offset register.
     uint16 GetInstanceOffsetRegAddr() const { return m_vertexOffsetReg + 1; }
 
+    // Gets draw index register address.
+    uint16 GetDrawIndexRegAddr()  const { return m_drawIndexReg; }
+
     virtual void P2pBltWaCopyBegin(
         const GpuMemory* pDstMemory,
         uint32           regionCount,
@@ -953,7 +962,8 @@ private:
 
     CmdStream* GetAceCmdStream();
     gpusize    GangedCmdStreamSemAddr();
-    void       IssueGangedBarrierIncr();
+    void       IssueGangedBarrierAceWaitDeIncr();
+    void       IssueGangedBarrierDeWaitAceIncr();
     void       UpdateTaskMeshRingSize();
     void       ValidateTaskMeshDispatch(gpusize indirectGpuVirtAddr, uint32 xDim, uint32 yDim, uint32 zDim);
 
@@ -1139,7 +1149,8 @@ private:
 
     // Used to sync the ACE and DE in a ganged submit.
     gpusize m_gangedCmdStreamSemAddr;
-    uint32  m_barrierCount;
+    uint32  m_semCountAceWaitDe;
+    uint32  m_semCountDeWaitAce;
 
     // MS/TS pipeline stats query is emulated by shader. A 6-DWORD scratch memory chunk is needed to store for shader
     // to store the three counter values.

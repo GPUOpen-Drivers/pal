@@ -49,8 +49,7 @@
 #define PAL_PREDICT_FALSE(expr) (expr)
 #endif
 
-/// OS-independent macro to direct static code analysis to assume the specified expression will always be true.  Linux
-/// compiles do not currently enable static code analysis.
+/// OS-independent macro to direct static code analysis to assume the specified expression will always be true.
 #define PAL_ANALYSIS_ASSUME(expr) static_cast<void>(PAL_PREDICT_TRUE(expr))
 
 namespace Util
@@ -71,7 +70,7 @@ constexpr bool CheckReservedBits(
     uint32 expectedTotalBitWidth,
     uint32 expectedReservedBits)
 {
-#if __cplusplus>= 201402|| (defined(__cpp_constexpr) && (__cpp_constexpr>= 201304))  >= 1910
+#if PAL_CPLUSPLUS_AT_LEAST(PAL_CPLUSPLUS_14) || (defined(__cpp_constexpr) && (__cpp_constexpr >= 201304))
     bool match = false;
 
     // Fail if the whole size is different
@@ -150,11 +149,12 @@ extern bool IsAssertCategoryEnabled(
 
 #define PAL_ASSERT_MSG(_expr, _pReasonFmt, ...)                                                   \
 {                                                                                                 \
-    if (PAL_PREDICT_FALSE(static_cast<bool>(_expr) == false))                                     \
+    bool _expr_eval = static_cast<bool>(_expr);                                                   \
+    if (PAL_PREDICT_FALSE(_expr_eval == false))                                                   \
     {                                                                                             \
         PAL_TRIGGER_ASSERT("Assertion failed: %s | Reason: " _pReasonFmt, #_expr, ##__VA_ARGS__); \
     }                                                                                             \
-    PAL_ANALYSIS_ASSUME(_expr);                                                                   \
+    PAL_ANALYSIS_ASSUME(_expr_eval);                                                              \
 }
 
 /// Calls the PAL_ASSERT_MSG macro with a generic reason string

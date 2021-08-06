@@ -88,15 +88,27 @@ Result OpenSslLib::Init()
     if (Valid() == false)
     {
         Library library;
-        if (library.Load("libssl.so") != Result::Success)
+        // Note: If OS doesn't install libssl-dev, there could be no libssl.so link.
+        // Try and open versioned ones directly.
+        constexpr const char* libSslNames[] =
         {
-            // Note: If OS doesn't install libssl-dev, there could be no libssl.so link.
-            // Try and open libssl.so.1.1 directly.
-            library.Load("libssl.so.1.1");
+            "libssl.so",
+            "libssl.so.1.1", // SONAME for OpenSSL v1.1.1
+            "libssl.so.10",  // SONAME for Fedora/Redhat/CentOS OpenSSL v1.0.x
+        };
+
+        for (const char* libSslName : libSslNames)
+        {
+            if (library.Load(libSslName) == Result::Success)
+            {
+                break;
+            }
         }
 
         if (library.IsLoaded())
         {
+            // WARNING: When adding new functions, please double check the API compatiblity for all our supported
+            // OpenSSL versions
             if (library.GetFunction("MD5_Init",      &hashFuncs.pfnMd5Init)      &&
                 library.GetFunction("MD5_Update",    &hashFuncs.pfnMd5Update)    &&
                 library.GetFunction("MD5_Final",     &hashFuncs.pfnMd5Final)     &&

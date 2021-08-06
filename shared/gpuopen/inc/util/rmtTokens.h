@@ -59,10 +59,11 @@ enum RMT_PROCESS_EVENT_TYPE
 // Enumeration of Userdata event types
 enum RMT_USERDATA_EVENT_TYPE
 {
-    RMT_USERDATA_EVENT_TYPE_NAME       = 0,
-    RMT_USERDATA_EVENT_TYPE_SNAPSHOT   = 1,
-    RMT_USERDATA_EVENT_TYPE_BINARY     = 2,
-    RMT_USERDATA_EVENT_TYPE_CALL_STACK = 3,
+    RMT_USERDATA_EVENT_TYPE_NAME             = 0,
+    RMT_USERDATA_EVENT_TYPE_SNAPSHOT         = 1,
+    RMT_USERDATA_EVENT_TYPE_BINARY           = 2,
+    RMT_USERDATA_EVENT_TYPE_CALL_STACK       = 3,
+    RMT_USERDATA_EVENT_TYPE_RSRC_CORRELATION = 4
 };
 
 // Enumeration of the MISC event types
@@ -320,6 +321,42 @@ struct RMT_MSG_USERDATA_DEBUG_NAME : RMT_TOKEN_DATA
 
         // Insert the resource id into the payload after the NULL
         memcpy(&bytes[RMT_MSG_USERDATA_TOKEN_BYTES_SIZE + stringSize + 1], &resourceId, sizeof(resourceId));
+    }
+};
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// RMT_MSG_USERDATA variant for resource correlation
+struct RMT_MSG_USERDATA_RSRC_CORRELATION : RMT_TOKEN_DATA
+{
+private:
+    static uint32 constexpr PAYLOAD_SIZE = sizeof(uint32) * 2;
+
+public:
+    uint8 bytes[RMT_MSG_USERDATA_TOKEN_BYTES_SIZE + PAYLOAD_SIZE];
+
+    // Initializes the token fields
+    RMT_MSG_USERDATA_RSRC_CORRELATION(uint8 delta, uint32 handle, uint32 dxHandle)
+    {
+        sizeInBytes = sizeof(bytes);
+        pByteData   = &bytes[0];
+
+        // RMT_TOKEN_TYPE [3:0] Token type (see Table 2). Encoded to RMT_TOKEN_TYPE_ALLOCATE.
+        // DELTA      [7:4] The delta from the last token. In increments of 32-time units.
+        RMT_TOKEN_HEADER header(RMT_TOKEN_USERDATA, delta);
+        SetBits(header.byteVal, 7, 0);
+
+        // TYPE[11:8] The type of the user data being emitted encoded as RMT_USERDATAYPE.
+        SetBits(RMT_USERDATA_EVENT_TYPE_RSRC_CORRELATION, 11, 8);
+
+        // PAYLOAD_SIZE[31:12] The size of the payload that immediately follows this token, expressed in bytes.
+        SetBits(PAYLOAD_SIZE, 31, 12);
+
+        // Copy the two handles into the PAYLOAD
+        uint8* pPayload = &pByteData[RMT_MSG_USERDATA_TOKEN_BYTES_SIZE];
+
+        memcpy(pPayload, &handle, sizeof(handle));
+        pPayload += sizeof(handle);
+        memcpy(pPayload, &dxHandle, sizeof(dxHandle));
     }
 };
 

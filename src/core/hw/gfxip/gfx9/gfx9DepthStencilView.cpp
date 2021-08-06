@@ -322,9 +322,9 @@ void DepthStencilView::UpdateImageVa(
             pGfx10->dbRmiL2CacheControl.bits.S_BIG_PAGE = isBigPage;
         }
 
-        uint32 zReadBase        = m_pImage->GetSubresource256BAddrSwizzled(m_depthSubresource);
+        uint32 zReadBase        = m_pImage->GetSubresource256BAddrSwizzledLow(m_depthSubresource);
         uint32 zWriteBase       = zReadBase;
-        uint32 stencilReadBase  = m_pImage->GetSubresource256BAddrSwizzled(m_stencilSubresource);
+        uint32 stencilReadBase  = m_pImage->GetSubresource256BAddrSwizzledLow(m_stencilSubresource);
         uint32 stencilWriteBase = stencilReadBase;
 
         if (m_flags.hTile)

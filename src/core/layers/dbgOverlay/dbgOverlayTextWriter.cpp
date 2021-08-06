@@ -125,6 +125,12 @@ void TextWriter::WriteVisualConfirm(
         Util::Snprintf(&overlayText[textLines++][0], BufSize, "Rendered by Vulkan");
     }
 
+    Platform* pPlatform = static_cast<Platform*>(m_pDevice->GetPlatform());
+    if (pPlatform->HasRayTracingBeenUsed())
+    {
+        Util::Snprintf(&overlayText[textLines++][0], BufSize, "Powered by Ray Tracing");
+    }
+
     // Add the name of the GPU that is presenting.
     Util::Snprintf(&overlayText[textLines++][0], BufSize, "GPU: %s", gpuProps.gpuName);
 
@@ -151,7 +157,6 @@ void TextWriter::WriteVisualConfirm(
     textLines++;
 
     Util::Snprintf(&overlayText[textLines][0], BufSize, "GPU Work: ");
-    Platform* pPlatform = static_cast<Platform*>(m_pDevice->GetPlatform());
     for (uint32 index = 0; index < MaxDevices; index++)
     {
         size_t indexOffset = strlen("GPU Work: ") + (NumSpacing * index);

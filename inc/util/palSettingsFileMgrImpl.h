@@ -120,6 +120,12 @@ Result SettingsFileMgr<Allocator>::Init(
                 {
                     continue;
                 }
+                // A '#' not followed by a digit is also a comment
+                // '#' followed by a digit is a hashed setting name
+                if ((currLine[idx] == '#') && (isdigit(currLine[idx+1]) == false))
+                {
+                    continue;
+                }
 
                 // all other lines are key, value pairs. Split at the comma and add them to our map
                 char* pBuffer = NULL;
