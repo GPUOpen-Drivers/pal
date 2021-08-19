@@ -1036,6 +1036,8 @@ void LogContext::Enum(
         nullptr,
         nullptr,
         nullptr,
+        nullptr,
+        nullptr,
 
         "Max",
         "All",
@@ -1083,6 +1085,8 @@ void LogContext::Enum(
         nullptr,
         "Navi21",
         "Navi22",
+        nullptr,
+        nullptr,
         nullptr,
         nullptr,
         nullptr,

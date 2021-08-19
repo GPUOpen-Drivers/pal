@@ -2129,7 +2129,7 @@ void Queue::SubmitConfig(
 {
     bool isTmzEnabled = false;
     bool isDummySubmission = false;
-    bool hasHybridPipeline = false;
+    bool usesImplicitAceCmdStream = false;
 
     if ((submitInfo.pPerSubQueueInfo == nullptr) || (submitInfo.pPerSubQueueInfo[0].cmdBufferCount == 0))
     {
@@ -2142,15 +2142,15 @@ void Queue::SubmitConfig(
     if (isDummySubmission == false)
     {
         // Loop over all CmdBuffers from all SubQueues to check if a HybridPipeline is bound.
-        for (uint32 i = 0; (i < submitInfo.perSubQueueInfoCount) && (hasHybridPipeline == false); ++i)
+        for (uint32 i = 0; (i < submitInfo.perSubQueueInfoCount) && (usesImplicitAceCmdStream == false); ++i)
         {
             const PerSubQueueSubmitInfo perSubQueueInfo = submitInfo.pPerSubQueueInfo[i];
             for (uint32 j = 0; j < perSubQueueInfo.cmdBufferCount; ++j)
             {
                 const CmdBuffer*const pCmdBuffer = static_cast<CmdBuffer*>(perSubQueueInfo.ppCmdBuffers[j]);
-                if (pCmdBuffer->HasHybridPipeline() == true)
+                if (pCmdBuffer->UsesImplicitAceCmdStream() == true)
                 {
-                    hasHybridPipeline = true;
+                    usesImplicitAceCmdStream = true;
                     break;
                 }
             }
@@ -2165,12 +2165,12 @@ void Queue::SubmitConfig(
             isTmzEnabled = pCmdBuffer->IsTmzEnabled();
         }
 
-        pInternalSubmitInfos->flags.isTmzEnabled      = isTmzEnabled;
-        pInternalSubmitInfos->flags.hasHybridPipeline = hasHybridPipeline;
+        pInternalSubmitInfos->flags.isTmzEnabled             = isTmzEnabled;
+        pInternalSubmitInfos->flags.usesImplicitAceCmdStream = usesImplicitAceCmdStream;
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 663
-        pInternalSubmitInfos->stackSizeInDwords       = submitInfo.stackSizeInDwords;
+        pInternalSubmitInfos->stackSizeInDwords              = submitInfo.stackSizeInDwords;
 #else
-        pInternalSubmitInfos->stackSizeInDwords       = 0;
+        pInternalSubmitInfos->stackSizeInDwords              = 0;
 #endif
     }
 }

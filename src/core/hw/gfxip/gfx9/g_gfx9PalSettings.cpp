@@ -152,6 +152,8 @@ void SettingsLoader::SetupDefaults()
 
     m_settings.binningFpovsPerBatch = 63;
     m_settings.binningOptimalBinSelection = true;
+    m_settings.binningBinSizeRbOverride = 0;
+    m_settings.binningBinSizePipesOverride = 0;
 
     m_settings.disableBinningAppendConsume = true;
 
@@ -683,6 +685,16 @@ void SettingsLoader::ReadSettings()
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pBinningOptimalBinSelectionStr,
                            Util::ValueType::Boolean,
                            &m_settings.binningOptimalBinSelection,
+                           InternalSettingScope::PrivatePalGfx9Key);
+
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pBinningBinSizeRbOverrideStr,
+                           Util::ValueType::Uint,
+                           &m_settings.binningBinSizeRbOverride,
+                           InternalSettingScope::PrivatePalGfx9Key);
+
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pBinningBinSizePipesOverrideStr,
+                           Util::ValueType::Uint,
+                           &m_settings.binningBinSizePipesOverride,
                            InternalSettingScope::PrivatePalGfx9Key);
 
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pBinningDisableBinningAppendConsumeStr,
@@ -1757,6 +1769,16 @@ void SettingsLoader::InitSettingsInfo()
     info.valueSize = sizeof(m_settings.binningOptimalBinSelection);
     m_settingsInfoMap.Insert(456360427, info);
 
+    info.type      = SettingType::Uint;
+    info.pValuePtr = &m_settings.binningBinSizeRbOverride;
+    info.valueSize = sizeof(m_settings.binningBinSizeRbOverride);
+    m_settingsInfoMap.Insert(1501591972, info);
+
+    info.type      = SettingType::Uint;
+    info.pValuePtr = &m_settings.binningBinSizePipesOverride;
+    info.valueSize = sizeof(m_settings.binningBinSizePipesOverride);
+    m_settingsInfoMap.Insert(1220147701, info);
+
     info.type      = SettingType::Boolean;
     info.pValuePtr = &m_settings.disableBinningAppendConsume;
     info.valueSize = sizeof(m_settings.disableBinningAppendConsume);
@@ -2103,7 +2125,7 @@ void SettingsLoader::DevDriverRegister()
             component.pfnSetValue = ISettingsLoader::SetValue;
             component.pSettingsData = &g_gfx9PalJsonData[0];
             component.settingsDataSize = sizeof(g_gfx9PalJsonData);
-            component.settingsDataHash = 1734872282;
+            component.settingsDataHash = 3969935845;
             component.settingsDataHeader.isEncoded = true;
             component.settingsDataHeader.magicBufferId = 402778310;
             component.settingsDataHeader.magicBufferOffset = 0;

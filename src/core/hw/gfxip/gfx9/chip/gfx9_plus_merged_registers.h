@@ -3276,7 +3276,7 @@ union CB_DCC_CONFIG {
         unsigned int                                                              :  8;
         unsigned int FC_RDLAT_KEYID_FIFO_DEPTH                                    :  8;
         unsigned int                                                              : 16;
-    } bits, bitfields;
+    } most;
     struct {
         unsigned int                                                              : 16;
         unsigned int READ_RETURN_SKID_FIFO_DEPTH                                  :  7;
@@ -3347,23 +3347,25 @@ union CB_HW_CONTROL {
     struct {
         unsigned int                                                              : 19;
         unsigned int FORCE_NEEDS_DST                                              :  1;
-        unsigned int FORCE_ALWAYS_TOGGLE                                          :  1;
-        unsigned int DISABLE_BLEND_OPT_RESULT_EQ_DEST                             :  1;
-        unsigned int DISABLE_FULL_WRITE_MASK                                      :  1;
         unsigned int                                                              :  1;
+        unsigned int DISABLE_BLEND_OPT_RESULT_EQ_DEST                             :  1;
+        unsigned int                                                              :  2;
         unsigned int DISABLE_BLEND_OPT_DONT_RD_DST                                :  1;
         unsigned int DISABLE_BLEND_OPT_BYPASS                                     :  1;
         unsigned int DISABLE_BLEND_OPT_DISCARD_PIXEL                              :  1;
         unsigned int DISABLE_BLEND_OPT_WHEN_DISABLED_SRCALPHA_IS_USED             :  1;
-        unsigned int                                                              :  1;
-        unsigned int PRIORITIZE_FC_EVICT_OVER_FOP_RD_ON_BANK_CONFLICT             :  1;
+        unsigned int                                                              :  2;
         unsigned int DISABLE_CC_IB_SERIALIZER_STATE_OPT                           :  1;
         unsigned int DISABLE_PIXEL_IN_QUAD_FIX_FOR_LINEAR_SURFACE                 :  1;
     } bits, bitfields;
     struct {
-        unsigned int                                                              : 18;
-        unsigned int DISABLE_INTNORM_LE11BPC_CLAMPING                             :  1;
-        unsigned int                                                              : 13;
+        unsigned int                                                              : 20;
+        unsigned int FORCE_ALWAYS_TOGGLE                                          :  1;
+        unsigned int                                                              :  1;
+        unsigned int DISABLE_FULL_WRITE_MASK                                      :  1;
+        unsigned int                                                              :  6;
+        unsigned int PRIORITIZE_FC_EVICT_OVER_FOP_RD_ON_BANK_CONFLICT             :  1;
+        unsigned int                                                              :  2;
     } most;
     struct {
         unsigned int CM_CACHE_EVICT_POINT                                         :  4;
@@ -3372,7 +3374,9 @@ union CB_HW_CONTROL {
         unsigned int                                                              :  2;
         unsigned int CC_CACHE_EVICT_POINT                                         :  4;
         unsigned int ALLOW_MRT_WITH_DUAL_SOURCE                                   :  1;
-        unsigned int                                                              : 15;
+        unsigned int                                                              :  1;
+        unsigned int DISABLE_INTNORM_LE11BPC_CLAMPING                             :  1;
+        unsigned int                                                              : 13;
     } gfx09;
     struct {
         unsigned int                                                              : 23;
@@ -3395,6 +3399,11 @@ union CB_HW_CONTROL {
         unsigned int DISABLE_DCC_CACHE_BYTEMASKING                                :  1;
         unsigned int                                                              : 14;
     } gfx103Plus;
+    struct {
+        unsigned int                                                              : 18;
+        unsigned int DISABLE_INTNORM_LE11BPC_CLAMPING                             :  1;
+        unsigned int                                                              : 13;
+    } gfx10Core;
     struct {
         unsigned int ALLOW_MRT_WITH_DUAL_SOURCE                                   :  1;
         unsigned int                                                              : 31;
@@ -3464,7 +3473,7 @@ union CB_HW_CONTROL_2 {
     struct {
         unsigned int CC_EVEN_ODD_FIFO_DEPTH                                       :  8;
         unsigned int                                                              : 24;
-    } core;
+    } most;
     struct {
         unsigned int                                                              : 24;
         unsigned int DRR_ASSUMED_FIFO_DEPTH_DIV8                                  :  4;
@@ -3489,22 +3498,23 @@ union CB_HW_CONTROL_2 {
 
 union CB_HW_CONTROL_3 {
     struct {
-        unsigned int DISABLE_SLOW_MODE_EMPTY_HALF_QUAD_KILL                       :  1;
+        unsigned int                                                              :  1;
         unsigned int RAM_ADDRESS_CONFLICTS_DISALLOWED                             :  1;
-        unsigned int DISABLE_FAST_CLEAR_FETCH_OPT                                 :  1;
-        unsigned int                                                              : 29;
+        unsigned int                                                              : 30;
     } bits, bitfields;
     struct {
-        unsigned int                                                              : 26;
-        unsigned int DISABLE_BLENDER_CLOCK_GATING                                 :  1;
-        unsigned int                                                              :  5;
+        unsigned int DISABLE_SLOW_MODE_EMPTY_HALF_QUAD_KILL                       :  1;
+        unsigned int                                                              :  1;
+        unsigned int DISABLE_FAST_CLEAR_FETCH_OPT                                 :  1;
+        unsigned int                                                              : 29;
     } most;
     struct {
         unsigned int                                                              :  6;
         unsigned int DISABLE_CC_CACHE_OVWR_KEY_MOD                                :  1;
         unsigned int                                                              :  1;
         unsigned int DISABLE_OVERWRITE_COMBINER_TARGET_MASK_VALIDATION            :  1;
-        unsigned int                                                              : 18;
+        unsigned int                                                              : 17;
+        unsigned int DISABLE_BLENDER_CLOCK_GATING                                 :  1;
         unsigned int                                                              :  1;
         unsigned int COLOR_CACHE_PREFETCH_NUM_CLS                                 :  2;
         unsigned int                                                              :  2;
@@ -3549,7 +3559,9 @@ union CB_HW_CONTROL_3 {
         unsigned int                                                              :  4;
     } gfx101;
     struct {
-        unsigned int                                                              : 31;
+        unsigned int                                                              : 26;
+        unsigned int DISABLE_BLENDER_CLOCK_GATING                                 :  1;
+        unsigned int                                                              :  4;
         unsigned int DISABLE_FMASK_NOFETCH_OPT_BC                                 :  1;
     } gfx10Core;
     struct {
@@ -4022,7 +4034,7 @@ union CB_STUTTER_CONTROL_COLOR_RDLAT {
         unsigned int THRESHOLD                                                    :  8;
         unsigned int TIMEOUT                                                      :  8;
         unsigned int                                                              : 16;
-    } bits, bitfields;
+    } most;
 
     unsigned int u32All;
     signed int   i32All;
@@ -5566,24 +5578,26 @@ union CPC_PERFCOUNTER1_SELECT {
     struct {
         unsigned int                                                              : 20;
         unsigned int SPM_MODE                                                     :  4;
-        unsigned int                                                              :  4;
-        unsigned int CNTR_MODE0                                                   :  4;
+        unsigned int                                                              :  8;
     } bits, bitfields;
     struct {
-        unsigned int                                                              : 24;
-        unsigned int CNTR_MODE1                                                   :  4;
-        unsigned int                                                              :  4;
-    } core;
+        unsigned int                                                              : 28;
+        unsigned int CNTR_MODE0                                                   :  4;
+    } most;
     struct {
         unsigned int CNTR_SEL0                                                    : 10;
         unsigned int CNTR_SEL1                                                    : 10;
-        unsigned int                                                              : 12;
+        unsigned int                                                              :  4;
+        unsigned int CNTR_MODE1                                                   :  4;
+        unsigned int                                                              :  4;
     } gfx09;
     struct {
         unsigned int                                                              : 10;
         unsigned int PERF_SEL1                                                    : 10;
-        unsigned int                                                              : 12;
-    } gfx10CorePlus;
+        unsigned int                                                              :  4;
+        unsigned int CNTR_MODE1                                                   :  4;
+        unsigned int                                                              :  4;
+    } gfx10Core;
     struct {
         unsigned int PERF_SEL                                                     : 10;
         unsigned int                                                              : 22;
@@ -5683,24 +5697,26 @@ union CPF_PERFCOUNTER1_SELECT {
     struct {
         unsigned int                                                              : 20;
         unsigned int SPM_MODE                                                     :  4;
-        unsigned int                                                              :  4;
-        unsigned int CNTR_MODE0                                                   :  4;
+        unsigned int                                                              :  8;
     } bits, bitfields;
     struct {
-        unsigned int                                                              : 24;
-        unsigned int CNTR_MODE1                                                   :  4;
-        unsigned int                                                              :  4;
-    } core;
+        unsigned int                                                              : 28;
+        unsigned int CNTR_MODE0                                                   :  4;
+    } most;
     struct {
         unsigned int CNTR_SEL0                                                    : 10;
         unsigned int CNTR_SEL1                                                    : 10;
-        unsigned int                                                              : 12;
+        unsigned int                                                              :  4;
+        unsigned int CNTR_MODE1                                                   :  4;
+        unsigned int                                                              :  4;
     } gfx09;
     struct {
         unsigned int                                                              : 10;
         unsigned int PERF_SEL1                                                    : 10;
-        unsigned int                                                              : 12;
-    } gfx10CorePlus;
+        unsigned int                                                              :  4;
+        unsigned int CNTR_MODE1                                                   :  4;
+        unsigned int                                                              :  4;
+    } gfx10Core;
     struct {
         unsigned int PERF_SEL                                                     : 10;
         unsigned int                                                              : 22;
@@ -5800,24 +5816,26 @@ union CPG_PERFCOUNTER1_SELECT {
     struct {
         unsigned int                                                              : 20;
         unsigned int SPM_MODE                                                     :  4;
-        unsigned int                                                              :  4;
-        unsigned int CNTR_MODE0                                                   :  4;
+        unsigned int                                                              :  8;
     } bits, bitfields;
     struct {
-        unsigned int                                                              : 24;
-        unsigned int CNTR_MODE1                                                   :  4;
-        unsigned int                                                              :  4;
-    } core;
+        unsigned int                                                              : 28;
+        unsigned int CNTR_MODE0                                                   :  4;
+    } most;
     struct {
         unsigned int CNTR_SEL0                                                    : 10;
         unsigned int CNTR_SEL1                                                    : 10;
-        unsigned int                                                              : 12;
+        unsigned int                                                              :  4;
+        unsigned int CNTR_MODE1                                                   :  4;
+        unsigned int                                                              :  4;
     } gfx09;
     struct {
         unsigned int                                                              : 10;
         unsigned int PERF_SEL1                                                    : 10;
-        unsigned int                                                              : 12;
-    } gfx10CorePlus;
+        unsigned int                                                              :  4;
+        unsigned int CNTR_MODE1                                                   :  4;
+        unsigned int                                                              :  4;
+    } gfx10Core;
     struct {
         unsigned int PERF_SEL                                                     : 10;
         unsigned int                                                              : 22;
@@ -9090,12 +9108,17 @@ union GC_ATC_L2_PERFCOUNTER2_MODE {
 
 union GC_ATC_L2_PERFCOUNTER2_SELECT {
     struct {
-        unsigned int PERF_SEL                                                     : 10;
+        unsigned int                                                              : 10;
         unsigned int PERF_SEL1                                                    : 10;
         unsigned int CNTR_MODE                                                    :  4;
         unsigned int PERF_MODE1                                                   :  4;
-        unsigned int PERF_MODE                                                    :  4;
+        unsigned int                                                              :  4;
     } most;
+    struct {
+        unsigned int PERF_SEL                                                     : 10;
+        unsigned int                                                              : 18;
+        unsigned int PERF_MODE                                                    :  4;
+    } gfx101;
 
     unsigned int u32All;
     signed int   i32All;
@@ -11803,7 +11826,7 @@ union GRBM_SE1_PERFCOUNTER_SELECT {
 union GRBM_SE2_PERFCOUNTER_HI {
     struct {
         unsigned int PERFCOUNTER_HI                                               : 32;
-    } bits, bitfields;
+    } most;
 
     unsigned int u32All;
     signed int   i32All;
@@ -11813,7 +11836,7 @@ union GRBM_SE2_PERFCOUNTER_HI {
 union GRBM_SE2_PERFCOUNTER_LO {
     struct {
         unsigned int PERFCOUNTER_LO                                               : 32;
-    } bits, bitfields;
+    } most;
 
     unsigned int u32All;
     signed int   i32All;
@@ -11838,7 +11861,7 @@ union GRBM_SE2_PERFCOUNTER_SELECT {
         unsigned int BCI_BUSY_USER_DEFINED_MASK                                   :  1;
         unsigned int RMI_BUSY_USER_DEFINED_MASK                                   :  1;
         unsigned int                                                              :  9;
-    } bits, bitfields;
+    } most;
     struct {
         unsigned int                                                              : 19;
         unsigned int VGT_BUSY_USER_DEFINED_MASK                                   :  1;
@@ -11850,7 +11873,7 @@ union GRBM_SE2_PERFCOUNTER_SELECT {
         unsigned int TCP_BUSY_USER_DEFINED_MASK                                   :  1;
         unsigned int GL1CC_BUSY_USER_DEFINED_MASK                                 :  1;
         unsigned int                                                              :  6;
-    } gfx10CorePlus;
+    } gfx10Core;
 
     unsigned int u32All;
     signed int   i32All;
@@ -11860,7 +11883,7 @@ union GRBM_SE2_PERFCOUNTER_SELECT {
 union GRBM_SE3_PERFCOUNTER_HI {
     struct {
         unsigned int PERFCOUNTER_HI                                               : 32;
-    } bits, bitfields;
+    } most;
 
     unsigned int u32All;
     signed int   i32All;
@@ -11870,7 +11893,7 @@ union GRBM_SE3_PERFCOUNTER_HI {
 union GRBM_SE3_PERFCOUNTER_LO {
     struct {
         unsigned int PERFCOUNTER_LO                                               : 32;
-    } bits, bitfields;
+    } most;
 
     unsigned int u32All;
     signed int   i32All;
@@ -11895,7 +11918,7 @@ union GRBM_SE3_PERFCOUNTER_SELECT {
         unsigned int BCI_BUSY_USER_DEFINED_MASK                                   :  1;
         unsigned int RMI_BUSY_USER_DEFINED_MASK                                   :  1;
         unsigned int                                                              :  9;
-    } bits, bitfields;
+    } most;
     struct {
         unsigned int                                                              : 19;
         unsigned int VGT_BUSY_USER_DEFINED_MASK                                   :  1;
@@ -11907,7 +11930,7 @@ union GRBM_SE3_PERFCOUNTER_SELECT {
         unsigned int TCP_BUSY_USER_DEFINED_MASK                                   :  1;
         unsigned int GL1CC_BUSY_USER_DEFINED_MASK                                 :  1;
         unsigned int                                                              :  6;
-    } gfx10CorePlus;
+    } gfx10Core;
 
     unsigned int u32All;
     signed int   i32All;
@@ -18254,7 +18277,7 @@ union RLC_SPM_ACCUM_CTRLRAM_ADDR {
     struct {
         unsigned int addr                                                         : 11;
         unsigned int RESERVED                                                     : 21;
-    } gfx103CorePlus;
+    } gfx103;
     struct {
         unsigned int addr                                                         :  8;
         unsigned int RESERVED                                                     : 24;

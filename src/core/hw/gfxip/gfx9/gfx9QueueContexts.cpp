@@ -1012,7 +1012,7 @@ Result UniversalQueueContext::PreProcessSubmit(
             ++preambleCount;
         }
 
-        if ((m_acePreambleCmdStream.IsEmpty() == false) && (pSubmitInfo->flags.hasHybridPipeline != 0))
+        if ((m_acePreambleCmdStream.IsEmpty() == false) && (pSubmitInfo->flags.usesImplicitAceCmdStream != 0))
         {
             pSubmitInfo->pPreambleCmdStream[preambleCount] = &m_acePreambleCmdStream;
             ++preambleCount;

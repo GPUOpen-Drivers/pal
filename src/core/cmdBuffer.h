@@ -839,6 +839,9 @@ public:
     virtual void CmdBindSampleRateImage(
         const IImage*  pImage) override;
 
+    // True if this CmdBuffer used ImplicitAce either for task/mesh or IndirectCmdGenUsingAce.
+    bool UsesImplicitAceCmdStream() const { return (m_flags.usesImplicitAceCmdStream == 1); }
+
     // True if a Hybrid pipeline was bound to this command buffer or if any of the task/mesh draw functions were
     // invoked.
     bool HasHybridPipeline() const { return (m_flags.hasHybridPipeline == 1); }
@@ -996,9 +999,10 @@ protected:
     {
         struct
         {
-            uint32 internalMemAllocator  : 1;  // True if m_pMemAllocator is owned internally by PAL.
-            uint32 hasHybridPipeline     : 1;  // True if this command buffer has a hybrid pipeline bound.
-            uint32 reserved              : 30;
+            uint32 internalMemAllocator     : 1;  // True if m_pMemAllocator is owned internally by PAL.
+            uint32 hasHybridPipeline        : 1;  // True if this command buffer has a hybrid pipeline bound.
+            uint32 usesImplicitAceCmdStream : 1;  // True if command buffer used ImplicitACE + GFX CmdStreams
+            uint32 reserved                 : 29;
         };
 
         uint32     u32All;

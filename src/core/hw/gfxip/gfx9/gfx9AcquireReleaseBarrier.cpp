@@ -935,10 +935,10 @@ LayoutTransitionInfo Device::PrepareColorBlt(
 
     LayoutTransitionInfo transitionInfo = {};
 
+    uint32 bltIndex = 0;
+
     if ((oldState != ColorDecompressed) && (newState == ColorDecompressed))
     {
-        uint32 bltIndex = 0;
-
         if (gfx9ImageConst.HasDccData())
         {
             if ((oldState == ColorCompressed) || pSubresInfo->flags.supportMetaDataTexFetch)
@@ -970,7 +970,7 @@ LayoutTransitionInfo Device::PrepareColorBlt(
         // MsaaColorDecompress can be the only BLT, or following DccDecompress/FmaskDecompress/FastClearEliminate.
         if ((image.GetImageCreateInfo().samples > 1) && gfx9Image.HasFmaskData())
         {
-            transitionInfo.blt[bltIndex] = HwLayoutTransition::MsaaColorDecompress;
+            transitionInfo.blt[bltIndex++] = HwLayoutTransition::MsaaColorDecompress;
         }
     }
     else if ((oldState == ColorCompressed) && (newState == ColorFmaskDecompressed))
@@ -983,7 +983,7 @@ LayoutTransitionInfo Device::PrepareColorBlt(
                 // If the base pixel data is DCC compressed, but the image can't support metadata texture fetches,
                 // we need a DCC decompress.  The DCC decompress effectively executes an fmask decompress
                 // implicitly.
-                transitionInfo.blt[0] = HwLayoutTransition::DccDecompress;
+                transitionInfo.blt[bltIndex++] = HwLayoutTransition::DccDecompress;
 
                 if (RsrcProcMgr().WillDecompressWithCompute(pCmdBuf, gfx9ImageConst, subresRange))
                 {
@@ -992,7 +992,7 @@ LayoutTransitionInfo Device::PrepareColorBlt(
             }
             else
             {
-                transitionInfo.blt[0] = HwLayoutTransition::FmaskDecompress;
+                transitionInfo.blt[bltIndex++] = HwLayoutTransition::FmaskDecompress;
             }
         }
         else
@@ -1000,7 +1000,7 @@ LayoutTransitionInfo Device::PrepareColorBlt(
             // if the image is TC compatible just need to do a fast clear eliminate
             if (fastClearEliminateSupported)
             {
-                transitionInfo.blt[0] = HwLayoutTransition::FastClearEliminate;
+                transitionInfo.blt[bltIndex++] = HwLayoutTransition::FastClearEliminate;
             }
         }
     }
@@ -1024,7 +1024,7 @@ LayoutTransitionInfo Device::PrepareColorBlt(
         {
             // The image has been fast cleared with a non-TC compatible color or the FCE optimization is not
             // enabled.
-            transitionInfo.blt[0] = HwLayoutTransition::FastClearEliminate;
+            transitionInfo.blt[bltIndex++] = HwLayoutTransition::FastClearEliminate;
 
             if (gfx9ImageConst.IsFceOptimizationEnabled() &&
                 (gfx9ImageConst.HasSeenNonTcCompatibleClearColor() == false))
@@ -1035,14 +1035,13 @@ LayoutTransitionInfo Device::PrepareColorBlt(
             }
         }
     }
-    else if ((oldState == ColorDecompressed) && (newState == ColorCompressed))
+
+    if (gfx9Image.HasDccStateMetaData(subresRange) &&
+        (ImageLayoutCanCompressColorData(layoutToState, oldLayout) == false) &&
+        (ImageLayoutCanCompressColorData(layoutToState, newLayout)))
     {
-        if (gfx9Image.HasDccStateMetaData(subresRange) &&
-           (ImageLayoutCanCompressColorData(layoutToState, oldLayout) == false) &&
-           (ImageLayoutCanCompressColorData(layoutToState, newLayout)))
-        {
-            transitionInfo.blt[0] = HwLayoutTransition::DccMetadataStateCompressed;
-        }
+        PAL_ASSERT(bltIndex < 2);
+        transitionInfo.blt[bltIndex] = HwLayoutTransition::DccMetadataStateCompressed;
     }
 
     return transitionInfo;
@@ -1291,8 +1290,8 @@ AcqRelSyncToken Device::BarrierRelease(
             // Prepare a layout transition BLT info and do pre-BLT preparation work.
             LayoutTransitionInfo layoutTransInfo = PrepareBltInfo(pCmdBuf, imageBarrier);
 
-            transitionList[i].pImgBarrier      = &imageBarrier;
-            transitionList[i].layoutTransInfo  = layoutTransInfo;
+            transitionList[i].pImgBarrier                  = &imageBarrier;
+            transitionList[i].layoutTransInfo              = layoutTransInfo;
             transitionList[i].waMetaMisalignNeedRefreshLlc = waMetaMisalignNeedRefreshLlc;
 
             uint32 bltStageMask  = 0;
@@ -1344,15 +1343,24 @@ AcqRelSyncToken Device::BarrierRelease(
 
                 if (transition.layoutTransInfo.blt[0] != HwLayoutTransition::None)
                 {
-                    const auto& image = static_cast<const Pal::Image&>(*transition.pImgBarrier->pImage);
+                    const auto& palImage  = static_cast<const Pal::Image&>(*transition.pImgBarrier->pImage);
+                    const auto& gfx9Image = static_cast<const Image&>(*palImage.GetGfxImage());
+
+                    // Metadata initialization is categorized as direct metadata write, always flush invalidate LLC for
+                    // InitMaskRam to align with legacy barrier implementation.
+                    const bool initMaskRamNeedRefreshLlc =
+                        (transition.layoutTransInfo.blt[0] == HwLayoutTransition::InitMaskRam) &&
+                        gfx9Image.NeedFlushForMetadataPipeMisalignment(transition.pImgBarrier->subresRange);
+
+                    globallyAvailable |= initMaskRamNeedRefreshLlc;
 
                     IssueAcquireSync(pCmdBuf,
                                      pCmdStream,
                                      transition.bltStageMask,
                                      transition.bltAccessMask,
-                                     transition.waMetaMisalignNeedRefreshLlc,
-                                     image.GetGpuVirtualAddr(),
-                                     image.GetGpuMemSize(),
+                                     transition.waMetaMisalignNeedRefreshLlc | initMaskRamNeedRefreshLlc,
+                                     palImage.GetGpuVirtualAddr(),
+                                     palImage.GetGpuMemSize(),
                                      1,
                                      &syncToken,
                                      pBarrierOps);

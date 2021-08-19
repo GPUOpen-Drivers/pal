@@ -1870,6 +1870,34 @@
       "Name": "BinningOptimalBinSelection"
     },
     {
+      "Description": "Number of RBs to use in bin size calculations. A value of zero means use the number of RBs on the HW. GFX10 and later only",
+      "Tags": [
+        "PBB and DFSM",
+        "Gfx10"
+      ],
+      "Defaults": {
+        "Default": 0
+      },
+      "Scope": "PrivatePalGfx9Key",
+      "Type": "uint32",
+      "VariableName": "binningBinSizeRbOverride",
+      "Name": "BinningBinSizeRbOverride"
+    },
+    {
+      "Description": "Number of pipes to use in bin size calculations. A value of zero means use the number of pipes on the HW. GFX10 and later only",
+      "Tags": [
+        "PBB and DFSM",
+        "Gfx10"
+      ],
+      "Defaults": {
+        "Default": 0
+      },
+      "Scope": "PrivatePalGfx9Key",
+      "Type": "uint32",
+      "VariableName": "binningBinSizePipesOverride",
+      "Name": "BinningBinSizePipesOverride"
+    },
+    {
       "Description": "If true, disable Binning when the PS uses UAV append or consume",
       "Tags": [
         "PBB and DFSM",

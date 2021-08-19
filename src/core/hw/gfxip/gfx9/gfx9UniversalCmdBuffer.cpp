@@ -359,7 +359,6 @@ UniversalCmdBuffer::UniversalCmdBuffer(
     m_cachedSettings.waLegacyGsCutModeFlush                    = settings.waLegacyGsCutModeFlush;
     m_cachedSettings.supportsVrs                               = chipProps.gfxip.supportsVrs;
     m_cachedSettings.vrsForceRateFine                          = settings.vrsForceRateFine;
-
     m_cachedSettings.supportsAceOffload = chipProps.gfx9.supportAceOffload;
 
     m_cachedSettings.optimizeDepthOnlyFmt = settings.rbPlusOptimizeDepthOnlyExportRate;
@@ -372,6 +371,16 @@ UniversalCmdBuffer::UniversalCmdBuffer(
     // See usage in Gfx10GetDepthBinSize() and Gfx10GetColorBinSize() for further details.
     uint32 totalNumRbs   = chipProps.gfx9.numActiveRbs;
     uint32 totalNumPipes = Max(totalNumRbs, chipProps.gfx9.numSdpInterfaces);
+
+    if (settings.binningBinSizeRbOverride != 0)
+    {
+        totalNumRbs = settings.binningBinSizeRbOverride;
+    }
+
+    if (settings.binningBinSizePipesOverride != 0)
+    {
+        totalNumPipes = settings.binningBinSizePipesOverride;
+    }
 
     constexpr uint32 ZsTagSize  = 64;
     constexpr uint32 ZsNumTags  = 312;
@@ -839,7 +848,11 @@ void UniversalCmdBuffer::CmdBindPipeline(
 
         if (taskEnabled)
         {
+            // Mesh+Task means HybridPipeline.
             ReportHybridPipelineBind();
+
+            // Task shader workload uses the ImplicitAce and so we set this flag here.
+            m_flags.usesImplicitAceCmdStream = 1;
         }
 
         bool requiresMeshPipeStatsBuf = false;
@@ -1904,7 +1917,7 @@ void UniversalCmdBuffer::UpdateTaskMeshRingSize()
     pDevice->UpdateLargestRingSizes(&ringSizes);
 
     GetAceCmdStream();
-    m_flags.hasHybridPipeline = 1;
+    ReportHybridPipelineBind();
 }
 
 // =====================================================================================================================
@@ -3654,6 +3667,10 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDispatchMeshTask(
 
     pThis->m_deCmdStream.CommitCommands(pDeCmdSpace);
 
+    // The task shader workload uses the ImplicitAce. We set this flag here so it ensures proper reporting to the Queue
+    // that a MultiQueue Gang submission will be needed for this CmdBuffer.
+    pThis->m_flags.usesImplicitAceCmdStream = 1;
+
     // On Gfx9, we need to invalidate the index type which was previously programmed because the CP clobbers
     // that state when executing a non-indexed indirect draw.
     // SEE: CmdDraw() for more details about why we do this.
@@ -3825,7 +3842,9 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDispatchMeshIndirectMultiTask(
 
     pThis->m_deCmdStream.CommitCommands(pDeCmdSpace);
 
-    pThis->m_flags.hasHybridPipeline = 1;
+    // The task shader workload uses the ImplicitAce. We set this flag here so it ensures proper reporting to the Queue
+    // that a MultiQueue Gang submission will be needed for this CmdBuffer.
+    pThis->m_flags.usesImplicitAceCmdStream = 1;
 
     // On Gfx9, we need to invalidate the index type which was previously programmed because the CP clobbers
     // that state when executing a non-indexed indirect draw.
@@ -8827,6 +8846,10 @@ void UniversalCmdBuffer::CmdDispatchAce(
     }
 
     pAceCmdStream->CommitCommands(pAceCmdSpace);
+
+    // If this function was called it means we will be using the ImplicitAceCmdStream for Indirect Cmd Generation.
+    // So we will set this flag here to ensure gang submission is used when MS HWS is enabled.
+    m_flags.usesImplicitAceCmdStream = 1;
 }
 
 // =====================================================================================================================

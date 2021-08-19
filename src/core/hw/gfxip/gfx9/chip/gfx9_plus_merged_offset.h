@@ -983,12 +983,6 @@ namespace Core
     constexpr unsigned int mmGRBM_SE1_PERFCOUNTER_HI                          = 0xD048;
     constexpr unsigned int mmGRBM_SE1_PERFCOUNTER_LO                          = 0xD047;
     constexpr unsigned int mmGRBM_SE1_PERFCOUNTER_SELECT                      = 0xD843;
-    constexpr unsigned int mmGRBM_SE2_PERFCOUNTER_HI                          = 0xD04A;
-    constexpr unsigned int mmGRBM_SE2_PERFCOUNTER_LO                          = 0xD049;
-    constexpr unsigned int mmGRBM_SE2_PERFCOUNTER_SELECT                      = 0xD844;
-    constexpr unsigned int mmGRBM_SE3_PERFCOUNTER_HI                          = 0xD04C;
-    constexpr unsigned int mmGRBM_SE3_PERFCOUNTER_LO                          = 0xD04B;
-    constexpr unsigned int mmGRBM_SE3_PERFCOUNTER_SELECT                      = 0xD845;
     constexpr unsigned int mmSPI_WF_LIFETIME_LIMIT_1                          = 0x24AC;
     constexpr unsigned int mmSPI_WF_LIFETIME_LIMIT_3                          = 0x24AE;
     constexpr unsigned int mmSPI_WF_LIFETIME_LIMIT_4                          = 0x24AF;
@@ -1107,6 +1101,12 @@ namespace Gfx09
     constexpr unsigned int mmDB_Z_READ_BASE                                   = 0xA010;
     constexpr unsigned int mmDB_Z_READ_BASE_HI                                = 0xA011;
     constexpr unsigned int mmDB_Z_WRITE_BASE_HI                               = 0xA015;
+    constexpr unsigned int mmGRBM_SE2_PERFCOUNTER_HI                          = 0xD04A;
+    constexpr unsigned int mmGRBM_SE2_PERFCOUNTER_LO                          = 0xD049;
+    constexpr unsigned int mmGRBM_SE2_PERFCOUNTER_SELECT                      = 0xD844;
+    constexpr unsigned int mmGRBM_SE3_PERFCOUNTER_HI                          = 0xD04C;
+    constexpr unsigned int mmGRBM_SE3_PERFCOUNTER_LO                          = 0xD04B;
+    constexpr unsigned int mmGRBM_SE3_PERFCOUNTER_SELECT                      = 0xD845;
     constexpr unsigned int mmIA_CNTL_STATUS                                   = 0x2237;
     constexpr unsigned int mmIA_MULTI_VGT_PARAM                               = 0xC258;
     constexpr unsigned int mmIA_PERFCOUNTER0_HI                               = 0xD089;
@@ -2438,6 +2438,7 @@ namespace Gfx10Core
     constexpr unsigned int mmCB_COLOR7_SLICE                                  = 0xA383;
     constexpr unsigned int mmCB_RMI_BC_GL2_CACHE_CONTROL                      = 0x268A;
     constexpr unsigned int mmCB_STUTTER_CONTROL_CMASK_RDLAT                   = 0x268B;
+    constexpr unsigned int mmCB_STUTTER_CONTROL_COLOR_RDLAT                   = 0x268D;
     constexpr unsigned int mmCB_STUTTER_CONTROL_FMASK_RDLAT                   = 0x268C;
     constexpr unsigned int mmDB_DFSM_CONFIG                                   = 0x2630;
     constexpr unsigned int mmDB_DFSM_CONTROL                                  = 0xA00E;
@@ -2448,6 +2449,12 @@ namespace Gfx10Core
     constexpr unsigned int mmDB_DFSM_WATCHDOG                                 = 0x2634;
     constexpr unsigned int mmDB_RMI_BC_GL2_CACHE_CONTROL                      = 0x261E;
     constexpr unsigned int mmGE_DMA_FIRST_INDEX                               = 0xC251;
+    constexpr unsigned int mmGRBM_SE2_PERFCOUNTER_HI                          = 0xD04A;
+    constexpr unsigned int mmGRBM_SE2_PERFCOUNTER_LO                          = 0xD049;
+    constexpr unsigned int mmGRBM_SE2_PERFCOUNTER_SELECT                      = 0xD844;
+    constexpr unsigned int mmGRBM_SE3_PERFCOUNTER_HI                          = 0xD04C;
+    constexpr unsigned int mmGRBM_SE3_PERFCOUNTER_LO                          = 0xD04B;
+    constexpr unsigned int mmGRBM_SE3_PERFCOUNTER_SELECT                      = 0xD845;
     constexpr unsigned int mmPA_SC_BC_WAVE_BREAK                              = 0x22E4;
     constexpr unsigned int mmPA_SC_ENHANCE_INTERNAL                           = 0x22DD;
     constexpr unsigned int mmPA_SIDEBAND_REQUEST_DELAYS                       = 0x22FB;
@@ -2526,7 +2533,6 @@ namespace Gfx10Core
 
 namespace Gfx10CorePlus
 {
-    constexpr unsigned int mmCB_STUTTER_CONTROL_COLOR_RDLAT                   = 0x268D;
     constexpr unsigned int mmGCEA_PERFCOUNTER2_HI                             = 0xD261;
     constexpr unsigned int mmGCEA_PERFCOUNTER2_LO                             = 0xD260;
     constexpr unsigned int mmGCEA_PERFCOUNTER2_MODE                           = 0xDA02;

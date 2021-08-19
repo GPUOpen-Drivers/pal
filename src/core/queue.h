@@ -64,10 +64,10 @@ union InternalSubmitFlags
 {
     struct
     {
-        uint32 isTmzEnabled      : 1;  // Is TMZ protected submission.
-        uint32 isDummySubmission : 1;  // Is dummy submission.
-        uint32 hasHybridPipeline : 1;  // This submission has a HybridPipeline bound.
-        uint32 reserved          : 29; // reserved.
+        uint32 isTmzEnabled             : 1;  // Is TMZ protected submission.
+        uint32 isDummySubmission        : 1;  // Is dummy submission.
+        uint32 usesImplicitAceCmdStream : 1;  // This submission uses ImplicitACE + GFX CmdStreams.
+        uint32 reserved                 : 29; // reserved.
     };
     uint32 u32All;
 };
