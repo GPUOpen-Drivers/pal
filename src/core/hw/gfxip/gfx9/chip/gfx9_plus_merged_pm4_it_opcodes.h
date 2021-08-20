@@ -184,6 +184,10 @@ typedef enum IT_OpCodeType {
     IT_DISPATCH_DRAW_PREAMBLE_ACE__NV22                = 0x0000008c,
     IT_DISPATCH_DRAW__NV22                             = 0x0000008d,
     IT_DISPATCH_DRAW_ACE__NV22                         = 0x0000008d,
+    IT_DISPATCH_DRAW_PREAMBLE__NV23                    = 0x0000008c,
+    IT_DISPATCH_DRAW_PREAMBLE_ACE__NV23                = 0x0000008c,
+    IT_DISPATCH_DRAW__NV23                             = 0x0000008d,
+    IT_DISPATCH_DRAW_ACE__NV23                         = 0x0000008d,
 } IT_OpCodeType;
 
 constexpr unsigned int PM4_TYPE_0                                         = 0;

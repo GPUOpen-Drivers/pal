@@ -2375,6 +2375,7 @@ bool Image::IsIterate256Meaningful(
             imageCreateInfo.usageFlags.depthStencil   &&
             subResInfo->flags.supportMetaDataTexFetch &&
             ((IsNavi21(device) && (imageCreateInfo.samples >= 4)) == false) &&
+            ((IsNavi23(device) && (imageCreateInfo.samples >= 4)) == false) &&
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
             Parent()->IsAspectValid(subResInfo->subresId.aspect));
 #else

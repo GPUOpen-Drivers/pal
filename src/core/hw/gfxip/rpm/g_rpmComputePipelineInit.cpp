@@ -117,6 +117,10 @@ Result CreateRpmComputePipelines(
         pTable = rpmComputeBinaryTableNavi22;
         break;
 
+    case AsicRevision::Navi23:
+        pTable = rpmComputeBinaryTableNavi23;
+        break;
+
     default:
         result = Result::ErrorUnknown;
         PAL_NOT_IMPLEMENTED();

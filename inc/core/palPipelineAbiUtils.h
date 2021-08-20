@@ -185,6 +185,11 @@ inline void MachineTypeToGfxIpVersion(
         *pGfxIpMinorVer = 3;
         *pGfxIpStepping = 1;
         break;
+    case AmdGpuMachineType::Gfx1032:
+        *pGfxIpMajorVer = 10;
+        *pGfxIpMinorVer = 3;
+        *pGfxIpStepping = 2;
+        break;
     default:
         // What is this?
         PAL_ASSERT_ALWAYS();

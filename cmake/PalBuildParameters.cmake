@@ -91,4 +91,7 @@ if (PAL_BUILD_GFX9)
     pal_build_parameter(PAL_BUILD_NAVI22 "Build PAL with Navi22 support?" ON ${pal_gpu_mode})
     pal_set_or(PAL_BUILD_GFX10_3 ${PAL_BUILD_NAVI22})
 
+    pal_build_parameter(PAL_BUILD_NAVI23 "Build PAL with Navi23 support?" ON ${pal_gpu_mode})
+    pal_set_or(PAL_BUILD_GFX10_3 ${PAL_BUILD_NAVI23})
+
 endif() # PAL_BUILD_GFX9

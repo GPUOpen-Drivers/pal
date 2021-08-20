@@ -2550,11 +2550,16 @@ PAL_INLINE bool IsNavi22(const Device& device)
 {
     return AMDGPU_IS_NAVI22(device.ChipProperties().familyId, device.ChipProperties().eRevId);
 }
+PAL_INLINE bool IsNavi23(const Device& device)
+{
+    return AMDGPU_IS_NAVI23(device.ChipProperties().familyId, device.ChipProperties().eRevId);
+}
 PAL_INLINE bool IsNavi2x(const Device& device)
 {
     return (false
             || IsNavi21(device)
             || IsNavi22(device)
+            || IsNavi23(device)
            );
 }
 

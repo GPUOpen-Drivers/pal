@@ -557,5 +557,11 @@ constexpr PipelineBinary textWriterComputeBinaryTableNavi22[] =
     {TextWriter_Cs_1D32F7A1,  sizeof(TextWriter_Cs_1D32F7A1)},
 };
 
+// Table of compute pipeline binaries for Navi23
+constexpr PipelineBinary textWriterComputeBinaryTableNavi23[] =
+{
+    {TextWriter_Cs_1D32F7A1,  sizeof(TextWriter_Cs_1D32F7A1)},
+};
+
 } // TextWriterFont
 } // GpuUtil
